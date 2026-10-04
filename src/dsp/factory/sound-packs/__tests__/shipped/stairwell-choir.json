@@ -1,0 +1,502 @@
+{
+  "25001": {
+    "id": "stairwell-choir-hummed-floor-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25002": {
+    "id": "stairwell-choir-celeste-ranks-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25003": {
+    "id": "stairwell-choir-underfloor-fifths-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25004": {
+    "id": "stairwell-choir-monochord-round-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25005": {
+    "id": "stairwell-choir-drone-lute-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25006": {
+    "id": "stairwell-choir-crypt-cello-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25007": {
+    "id": "stairwell-choir-pipes-through-walls-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25008": {
+    "id": "stairwell-choir-sub-beneath-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25009": {
+    "id": "stairwell-choir-vestry-harmonium-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25010": {
+    "id": "stairwell-choir-church-flutes-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25011": {
+    "id": "stairwell-choir-rear-pew-horn-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25012": {
+    "id": "stairwell-choir-low-reed-held-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25013": {
+    "id": "stairwell-choir-clerestory-major-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25014": {
+    "id": "stairwell-choir-alto-reeds-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25015": {
+    "id": "stairwell-choir-choir-of-one-csus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25016": {
+    "id": "stairwell-choir-back-pew-fifths-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25017": {
+    "id": "stairwell-choir-soprano-caught-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25018": {
+    "id": "stairwell-choir-round-with-herself-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25019": {
+    "id": "stairwell-choir-high-descant-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25020": {
+    "id": "stairwell-choir-rising-vowels-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "25021": {
+    "id": "stairwell-choir-empty-pool-alto-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25022": {
+    "id": "stairwell-choir-frozen-syllable-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25023": {
+    "id": "stairwell-choir-pump-organ-hymn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25024": {
+    "id": "stairwell-choir-slow-rotor-chorale-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25025": {
+    "id": "stairwell-choir-northern-quartet-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25026": {
+    "id": "stairwell-choir-cellos-underneath-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25027": {
+    "id": "stairwell-choir-reed-chorale-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25028": {
+    "id": "stairwell-choir-still-quartet-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25029": {
+    "id": "stairwell-choir-slow-ensemble-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "25030": {
+    "id": "stairwell-choir-vespers-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25031": {
+    "id": "stairwell-choir-brass-in-waves-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25032": {
+    "id": "stairwell-choir-polysynth-hymn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25033": {
+    "id": "stairwell-choir-glass-voices-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25034": {
+    "id": "stairwell-choir-wavetable-vowels-g",
+    "durationSec": 16,
+    "loops": true
+  },
+  "25035": {
+    "id": "stairwell-choir-hum-that-breathes-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25036": {
+    "id": "stairwell-choir-folded-tone-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25037": {
+    "id": "stairwell-choir-bass-arrives-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25038": {
+    "id": "stairwell-choir-swelled-guitar-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25039": {
+    "id": "stairwell-choir-steel-sung-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25040": {
+    "id": "stairwell-choir-rolled-vibes-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25041": {
+    "id": "stairwell-choir-string-in-thirds-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25042": {
+    "id": "stairwell-choir-wood-flute-held-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25043": {
+    "id": "stairwell-choir-flugelhorn-held-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25044": {
+    "id": "stairwell-choir-rain-down-the-stairwell",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25045": {
+    "id": "stairwell-choir-landing-draught",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25046": {
+    "id": "stairwell-choir-indrawn-breath-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25047": {
+    "id": "stairwell-choir-mirror-breaths-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25048": {
+    "id": "stairwell-choir-bows-of-air-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25049": {
+    "id": "stairwell-choir-flutes-as-breath-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25050": {
+    "id": "stairwell-choir-fluttered-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25051": {
+    "id": "stairwell-choir-rain-read-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25052": {
+    "id": "stairwell-choir-clipped-crackle",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25053": {
+    "id": "stairwell-choir-chimney-wind-reversed",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25054": {
+    "id": "stairwell-choir-fire-on-worn-cassette",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25055": {
+    "id": "stairwell-choir-whistled-chord-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25056": {
+    "id": "stairwell-choir-loft-handbell-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25057": {
+    "id": "stairwell-choir-steeple-bell-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25058": {
+    "id": "stairwell-choir-music-box-tooth-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "25059": {
+    "id": "stairwell-choir-bowl-in-the-hall-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "25060": {
+    "id": "stairwell-choir-soft-bar-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "25061": {
+    "id": "stairwell-choir-thumb-piano-c",
+    "durationSec": 3,
+    "loops": false
+  },
+  "25062": {
+    "id": "stairwell-choir-handpan-ding-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25063": {
+    "id": "stairwell-choir-tongue-drum-a",
+    "durationSec": 7,
+    "loops": false
+  },
+  "25064": {
+    "id": "stairwell-choir-celesta-note-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "25065": {
+    "id": "stairwell-choir-glass-bell-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25066": {
+    "id": "stairwell-choir-nylon-thumbed-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "25067": {
+    "id": "stairwell-choir-twelve-string-chord-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "25068": {
+    "id": "stairwell-choir-cold-room-pluck-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25069": {
+    "id": "stairwell-choir-upright-chord-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "25070": {
+    "id": "stairwell-choir-chapel-tine-e",
+    "durationSec": 7,
+    "loops": false
+  },
+  "25071": {
+    "id": "stairwell-choir-harp-string-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25072": {
+    "id": "stairwell-choir-harp-chord-struck-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "25073": {
+    "id": "stairwell-choir-zither-fifths-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "25074": {
+    "id": "stairwell-choir-one-take-marimba-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "25075": {
+    "id": "stairwell-choir-folded-pluck-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "25076": {
+    "id": "stairwell-choir-loft-hammer-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "25077": {
+    "id": "stairwell-choir-sung-up-the-stairs-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "25078": {
+    "id": "stairwell-choir-bowls-in-a-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25079": {
+    "id": "stairwell-choir-tines-overdubbed-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25080": {
+    "id": "stairwell-choir-two-strums-kept-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25081": {
+    "id": "stairwell-choir-harp-returning-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25082": {
+    "id": "stairwell-choir-harp-in-the-nave-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25083": {
+    "id": "stairwell-choir-handpan-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25084": {
+    "id": "stairwell-choir-tongue-drum-figure-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25085": {
+    "id": "stairwell-choir-thumb-piano-patter-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25086": {
+    "id": "stairwell-choir-music-box-turning-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25087": {
+    "id": "stairwell-choir-zither-hymn-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25088": {
+    "id": "stairwell-choir-cold-room-figure-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25089": {
+    "id": "stairwell-choir-side-chapel-figure-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25090": {
+    "id": "stairwell-choir-celesta-and-reverse-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "25091": {
+    "id": "stairwell-choir-handbell-peal-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25092": {
+    "id": "stairwell-choir-nylon-line-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "25093": {
+    "id": "stairwell-choir-twelve-string-rising-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25094": {
+    "id": "stairwell-choir-upright-hymn-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "25095": {
+    "id": "stairwell-choir-bars-answered-a",
+    "durationSec": 11,
+    "loops": false
+  },
+  "25096": {
+    "id": "stairwell-choir-glass-from-the-loft-g",
+    "durationSec": 11,
+    "loops": false
+  },
+  "25097": {
+    "id": "stairwell-choir-one-take-piano-c",
+    "durationSec": 11,
+    "loops": false
+  },
+  "25098": {
+    "id": "stairwell-choir-loft-hammers-line-g",
+    "durationSec": 11,
+    "loops": false
+  },
+  "25099": {
+    "id": "stairwell-choir-vibes-hymn-c",
+    "durationSec": 11,
+    "loops": false
+  },
+  "25100": {
+    "id": "stairwell-choir-her-own-round-d",
+    "durationSec": 12,
+    "loops": false
+  }
+}

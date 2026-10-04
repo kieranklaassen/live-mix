@@ -1,0 +1,502 @@
+{
+  "3001": {
+    "id": "slow-brass-hall-door-horns-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3002": {
+    "id": "slow-brass-low-fifth-brass-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3003": {
+    "id": "slow-brass-two-cellos-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3004": {
+    "id": "slow-brass-bass-clarinet-fifth-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3005": {
+    "id": "slow-brass-string-and-magnet-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3006": {
+    "id": "slow-brass-sine-and-octave-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3007": {
+    "id": "slow-brass-one-major-chord-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3008": {
+    "id": "slow-brass-glass-fifth-still-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3009": {
+    "id": "slow-brass-worn-open-fifths-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3010": {
+    "id": "slow-brass-harmonium-dark-well-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3011": {
+    "id": "slow-brass-muted-strings-still-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3012": {
+    "id": "slow-brass-far-end-pipes-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3013": {
+    "id": "slow-brass-low-cello-reel-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3014": {
+    "id": "slow-brass-organ-standing-still-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3015": {
+    "id": "slow-brass-halo-held-open-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3016": {
+    "id": "slow-brass-hollow-reeds-held-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3017": {
+    "id": "slow-brass-flutes-far-strings-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3018": {
+    "id": "slow-brass-synth-horns-asleep-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3019": {
+    "id": "slow-brass-pad-octave-under-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3020": {
+    "id": "slow-brass-lights-off-pad-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3021": {
+    "id": "slow-brass-tines-breathing-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3022": {
+    "id": "slow-brass-strum-plate-pad-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3023": {
+    "id": "slow-brass-low-flutes-held-b",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3024": {
+    "id": "slow-brass-two-strings-drifting-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3025": {
+    "id": "slow-brass-ensemble-cellos-low-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3026": {
+    "id": "slow-brass-warm-tape-sub-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3027": {
+    "id": "slow-brass-slowed-horn-reel-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3028": {
+    "id": "slow-brass-clarinets-no-entry-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3029": {
+    "id": "slow-brass-reeds-octave-under-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3030": {
+    "id": "slow-brass-two-ranks-beating-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3031": {
+    "id": "slow-brass-pump-organ-reel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3032": {
+    "id": "slow-brass-amp-hum-guitar-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3033": {
+    "id": "slow-brass-far-small-voices-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3034": {
+    "id": "slow-brass-low-wordless-voices-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3035": {
+    "id": "slow-brass-hollow-wave-drifting-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3036": {
+    "id": "slow-brass-no-bow-changes-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3037": {
+    "id": "slow-brass-rubbed-bowl-rising-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3038": {
+    "id": "slow-brass-horn-section-arriving-f",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3039": {
+    "id": "slow-brass-section-octave-under-g",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3040": {
+    "id": "slow-brass-string-reel-rising-e",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3041": {
+    "id": "slow-brass-four-second-brass-d",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3042": {
+    "id": "slow-brass-sweep-heard-backwards-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "3043": {
+    "id": "slow-brass-strum-dissolved-e",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3044": {
+    "id": "slow-brass-baritone-no-pick-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "3045": {
+    "id": "slow-brass-late-filter-a",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3046": {
+    "id": "slow-brass-fold-opening-slowly-g",
+    "durationSec": 14,
+    "loops": false
+  },
+  "3047": {
+    "id": "slow-brass-horn-fifth-above-f",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3048": {
+    "id": "slow-brass-harp-under-a-pad-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3049": {
+    "id": "slow-brass-trumpets-past-a-wall-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3050": {
+    "id": "slow-brass-slow-loop-horn-g",
+    "durationSec": 6,
+    "loops": true
+  },
+  "3051": {
+    "id": "slow-brass-piano-into-string-pad-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "3052": {
+    "id": "slow-brass-short-flute-reel-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "3053": {
+    "id": "slow-brass-faded-pedal-tone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3054": {
+    "id": "slow-brass-folded-tone-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3055": {
+    "id": "slow-brass-flugelhorn-next-room-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "3056": {
+    "id": "slow-brass-half-speed-bow-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3057": {
+    "id": "slow-brass-hall-roof-rain-heavy",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3058": {
+    "id": "slow-brass-crickets-both-ways",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3059": {
+    "id": "slow-brass-thunder-far-hills-rolling",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3060": {
+    "id": "slow-brass-low-noise-bands-drifting",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3061": {
+    "id": "slow-brass-bows-all-air",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3062": {
+    "id": "slow-brass-wind-in-the-cathedral",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3063": {
+    "id": "slow-brass-far-water",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3064": {
+    "id": "slow-brass-empty-hall-hum-and-room",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3065": {
+    "id": "slow-brass-held-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3066": {
+    "id": "slow-brass-rain-heard-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3067": {
+    "id": "slow-brass-fireside-on-worn-tape",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3068": {
+    "id": "slow-brass-window-rain-long-plate",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3069": {
+    "id": "slow-brass-four-track-guitar-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3070": {
+    "id": "slow-brass-nylon-string-plucked-a",
+    "durationSec": 6,
+    "loops": false
+  },
+  "3071": {
+    "id": "slow-brass-twelve-strings-once-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3072": {
+    "id": "slow-brass-marimba-bar-struck-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "3073": {
+    "id": "slow-brass-vibraphone-bar-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3074": {
+    "id": "slow-brass-bowl-struck-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "3075": {
+    "id": "slow-brass-steel-pan-one-note-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3076": {
+    "id": "slow-brass-plucked-string-hall-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3077": {
+    "id": "slow-brass-guitar-strings-after-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "3078": {
+    "id": "slow-brass-clean-guitar-chord-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "3079": {
+    "id": "slow-brass-night-ward-horn-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3080": {
+    "id": "slow-brass-far-side-reed-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3081": {
+    "id": "slow-brass-doubled-course-once-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3082": {
+    "id": "slow-brass-cassette-guitar-line-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3083": {
+    "id": "slow-brass-nylon-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3084": {
+    "id": "slow-brass-piano-down-the-hall-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3085": {
+    "id": "slow-brass-steel-pan-round-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3086": {
+    "id": "slow-brass-vibraphone-six-bars-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3087": {
+    "id": "slow-brass-dulcimer-falling-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3088": {
+    "id": "slow-brass-open-strings-picked-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3089": {
+    "id": "slow-brass-three-bowls-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3090": {
+    "id": "slow-brass-glass-rims-tapped-b",
+    "durationSec": 8,
+    "loops": false
+  },
+  "3091": {
+    "id": "slow-brass-slow-slide-looped-e",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3092": {
+    "id": "slow-brass-three-notes-on-a-loop-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3093": {
+    "id": "slow-brass-muted-trumpet-far-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3094": {
+    "id": "slow-brass-hall-floor-steps-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3095": {
+    "id": "slow-brass-clean-guitar-picked-c",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3096": {
+    "id": "slow-brass-guitar-strings-rise-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3097": {
+    "id": "slow-brass-pedal-up-three-notes-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3098": {
+    "id": "slow-brass-harp-strings-rising-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "3099": {
+    "id": "slow-brass-far-side-reed-line-d",
+    "durationSec": 12,
+    "loops": true
+  },
+  "3100": {
+    "id": "slow-brass-marimba-five-bars-g",
+    "durationSec": 10,
+    "loops": false
+  }
+}

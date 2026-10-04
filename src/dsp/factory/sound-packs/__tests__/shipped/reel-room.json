@@ -1,0 +1,502 @@
+{
+  "24001": {
+    "id": "reel-room-floor-joists-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24002": {
+    "id": "reel-room-sub-under-the-floor-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24003": {
+    "id": "reel-room-tuba-under-the-risers-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24004": {
+    "id": "reel-room-basement-saw-and-pulse-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24005": {
+    "id": "reel-room-low-bloom-held-open-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24006": {
+    "id": "reel-room-half-speed-series-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24007": {
+    "id": "reel-room-bass-clarinet-long-room-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24008": {
+    "id": "reel-room-contrabass-and-quarter-speed-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24009": {
+    "id": "reel-room-flue-pipes-under-boards-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24010": {
+    "id": "reel-room-square-over-its-sub-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24011": {
+    "id": "reel-room-folded-sine-low-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24012": {
+    "id": "reel-room-pump-organ-back-room-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24013": {
+    "id": "reel-room-pedal-tone-in-unison-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24014": {
+    "id": "reel-room-hollow-wavetable-held-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24015": {
+    "id": "reel-room-baritone-chord-held-over-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24016": {
+    "id": "reel-room-basses-on-the-far-reel-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24017": {
+    "id": "reel-room-drone-lute-and-octaves-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24018": {
+    "id": "reel-room-magnet-held-octaves-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24019": {
+    "id": "reel-room-violins-first-copy-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24020": {
+    "id": "reel-room-muted-players-slow-reel-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24021": {
+    "id": "reel-room-cellos-on-a-slack-reel-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24022": {
+    "id": "reel-room-horns-third-copy-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24023": {
+    "id": "reel-room-reed-section-under-hiss-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24024": {
+    "id": "reel-room-choir-on-a-worn-spool-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24025": {
+    "id": "reel-room-cellos-tails-out-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24026": {
+    "id": "reel-room-low-brass-ballast-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "24027": {
+    "id": "reel-room-chorale-on-four-tracks-c",
+    "durationSec": 16,
+    "loops": false
+  },
+  "24028": {
+    "id": "reel-room-flugelhorn-over-itself-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24029": {
+    "id": "reel-room-brass-through-the-wall-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24030": {
+    "id": "reel-room-steel-bar-held-still-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24031": {
+    "id": "reel-room-horn-fifths-in-fog-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24032": {
+    "id": "reel-room-violas-at-the-back-desk-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24033": {
+    "id": "reel-room-section-over-undertow-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24034": {
+    "id": "reel-room-dusk-at-the-county-line-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24035": {
+    "id": "reel-room-unison-under-hiss-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24036": {
+    "id": "reel-room-clarinet-chorale-dm7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24037": {
+    "id": "reel-room-cello-fifth-plucked-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24038": {
+    "id": "reel-room-low-flutes-resting-fmaj7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24039": {
+    "id": "reel-room-head-of-reel-beep-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "24040": {
+    "id": "reel-room-buried-brass-swell-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24041": {
+    "id": "reel-room-blanketed-polysynth-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24042": {
+    "id": "reel-room-baritone-one-strum-c",
+    "durationSec": 7,
+    "loops": false
+  },
+  "24043": {
+    "id": "reel-room-string-synth-on-cassette-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24044": {
+    "id": "reel-room-head-of-reel-tones-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24045": {
+    "id": "reel-room-humming-group-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24046": {
+    "id": "reel-room-rubbed-bowls-over-strings-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24047": {
+    "id": "reel-room-drone-lute-one-string",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24048": {
+    "id": "reel-room-viola-behind-plaster-b",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24049": {
+    "id": "reel-room-bow-hair-on-the-string",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24050": {
+    "id": "reel-room-zither-slow-strum-loop-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24051": {
+    "id": "reel-room-three-bows-caught-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24052": {
+    "id": "reel-room-pan-pipes-dissolved-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24053": {
+    "id": "reel-room-baritone-figure-held-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24054": {
+    "id": "reel-room-recorder-left-running",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24055": {
+    "id": "reel-room-rain-on-the-flat-roof",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24056": {
+    "id": "reel-room-thunder-two-counties-off",
+    "durationSec": 16,
+    "loops": true
+  },
+  "24057": {
+    "id": "reel-room-breath-across-headjoints",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24058": {
+    "id": "reel-room-hiss-tuned-low",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24059": {
+    "id": "reel-room-hiss-on-blank-leader",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24060": {
+    "id": "reel-room-rain-reel-frozen",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24061": {
+    "id": "reel-room-hearth-reel-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24062": {
+    "id": "reel-room-wind-reel-lowered",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24063": {
+    "id": "reel-room-shore-reel-mirrored",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24064": {
+    "id": "reel-room-wind-under-the-door",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24065": {
+    "id": "reel-room-stove-in-the-corner",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24066": {
+    "id": "reel-room-felted-piano-in-the-nave-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24067": {
+    "id": "reel-room-nylon-thumb-low-am",
+    "durationSec": 7,
+    "loops": false
+  },
+  "24068": {
+    "id": "reel-room-steel-string-on-cassette-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "24069": {
+    "id": "reel-room-damped-harp-sunk-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24070": {
+    "id": "reel-room-harp-string-slow-reel-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24071": {
+    "id": "reel-room-handpan-at-half-speed-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24072": {
+    "id": "reel-room-tongue-drum-thump-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24073": {
+    "id": "reel-room-marimba-bar-slack-tape-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "24074": {
+    "id": "reel-room-church-bell-octave-down-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24075": {
+    "id": "reel-room-tines-down-the-hallway-am",
+    "durationSec": 5,
+    "loops": false
+  },
+  "24076": {
+    "id": "reel-room-tine-as-the-reel-winds-down-e",
+    "durationSec": 7,
+    "loops": false
+  },
+  "24077": {
+    "id": "reel-room-felt-hammer-one-string-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24078": {
+    "id": "reel-room-struck-bowl-pad-behind-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24079": {
+    "id": "reel-room-chord-harp-one-strum-fmaj7",
+    "durationSec": 8,
+    "loops": false
+  },
+  "24080": {
+    "id": "reel-room-vibraphone-chord-at-night-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24081": {
+    "id": "reel-room-four-felt-notes-slowed-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24082": {
+    "id": "reel-room-felted-piano-fall-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24083": {
+    "id": "reel-room-nylon-thumb-round-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24084": {
+    "id": "reel-room-steel-string-cassette-tune-g",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24085": {
+    "id": "reel-room-damped-harp-figure-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24086": {
+    "id": "reel-room-harp-arc-slow-reel-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24087": {
+    "id": "reel-room-handpan-round-half-speed-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24088": {
+    "id": "reel-room-tongue-drum-on-a-worn-loop-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24089": {
+    "id": "reel-room-marimba-phrase-slack-tape-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24090": {
+    "id": "reel-room-vibraphone-phrase-at-night-em",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24091": {
+    "id": "reel-room-three-bells-octave-down-d",
+    "durationSec": 14,
+    "loops": false
+  },
+  "24092": {
+    "id": "reel-room-tines-round-the-hallway-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24093": {
+    "id": "reel-room-tine-phrase-winding-down-c",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24094": {
+    "id": "reel-room-felt-hammers-and-sympathy-am",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24095": {
+    "id": "reel-room-steel-bar-wavering-phrase-e",
+    "durationSec": 12,
+    "loops": false
+  },
+  "24096": {
+    "id": "reel-room-plucks-into-murk-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24097": {
+    "id": "reel-room-nylon-thumb-fall-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "24098": {
+    "id": "reel-room-steel-string-cassette-round-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "24099": {
+    "id": "reel-room-harp-descent-slow-reel-am",
+    "durationSec": 11,
+    "loops": false
+  },
+  "24100": {
+    "id": "reel-room-felt-piano-rise-slowed-c",
+    "durationSec": 12,
+    "loops": false
+  }
+}

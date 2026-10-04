@@ -1,0 +1,502 @@
+{
+  "23001": {
+    "id": "six-squared-substation-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23002": {
+    "id": "six-squared-cooling-towers-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23003": {
+    "id": "six-squared-motorway-far-off-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23004": {
+    "id": "six-squared-glow-over-the-town-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23005": {
+    "id": "six-squared-under-the-flyover-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23006": {
+    "id": "six-squared-bow-in-the-underpass-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23007": {
+    "id": "six-squared-shut-filter-horns-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23008": {
+    "id": "six-squared-car-park-cellos-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23009": {
+    "id": "six-squared-sub-under-everything-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23010": {
+    "id": "six-squared-reed-an-octave-under-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23011": {
+    "id": "six-squared-low-brass-at-closing-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23012": {
+    "id": "six-squared-sodium-glow-held-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23013": {
+    "id": "six-squared-wet-tarmac-held-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23014": {
+    "id": "six-squared-lone-muted-bow-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23015": {
+    "id": "six-squared-harmonium-in-the-hall-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23016": {
+    "id": "six-squared-steamed-up-window-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23017": {
+    "id": "six-squared-last-bus-strings-am7",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23018": {
+    "id": "six-squared-estate-at-night-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23019": {
+    "id": "six-squared-thin-hours-gsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23020": {
+    "id": "six-squared-glowing-saws-em",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23021": {
+    "id": "six-squared-frost-on-glass-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23022": {
+    "id": "six-squared-streetlamp-strings-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23023": {
+    "id": "six-squared-top-deck-phaser-d",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23024": {
+    "id": "six-squared-rooftops-at-five-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23025": {
+    "id": "six-squared-empty-platform-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23026": {
+    "id": "six-squared-mist-on-the-canal-e",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23027": {
+    "id": "six-squared-late-service-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23028": {
+    "id": "six-squared-vowels-turning-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23029": {
+    "id": "six-squared-strings-off-the-reel-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23030": {
+    "id": "six-squared-half-speed-horns-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23031": {
+    "id": "six-squared-reeds-across-a-field-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23032": {
+    "id": "six-squared-slow-beating-pad-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23033": {
+    "id": "six-squared-chapel-on-the-corner-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23034": {
+    "id": "six-squared-slow-fold-at-dusk-dsus4",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23035": {
+    "id": "six-squared-string-never-stops-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23036": {
+    "id": "six-squared-frozen-strings-am7",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23037": {
+    "id": "six-squared-slowed-violins-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23038": {
+    "id": "six-squared-clarinet-from-nothing-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23039": {
+    "id": "six-squared-comedown-strings-dsus2",
+    "durationSec": 13,
+    "loops": false
+  },
+  "23040": {
+    "id": "six-squared-guitar-with-no-attack-em",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23041": {
+    "id": "six-squared-distant-band-practice-c",
+    "durationSec": 10,
+    "loops": false
+  },
+  "23042": {
+    "id": "six-squared-rain-on-the-shelter",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23043": {
+    "id": "six-squared-tower-block-wind",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23044": {
+    "id": "six-squared-thunder-on-the-moor",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23045": {
+    "id": "six-squared-birds-before-the-buses",
+    "durationSec": 16,
+    "loops": true
+  },
+  "23046": {
+    "id": "six-squared-letterbox-draught",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23047": {
+    "id": "six-squared-breath-on-the-mic-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23048": {
+    "id": "six-squared-crackle-run-backwards",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23049": {
+    "id": "six-squared-rain-slowed-down",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23050": {
+    "id": "six-squared-mostly-tape-hiss",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23051": {
+    "id": "six-squared-far-motorway-wash",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23052": {
+    "id": "six-squared-shortwave-left-on",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23053": {
+    "id": "six-squared-breath-in-the-vents-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23054": {
+    "id": "six-squared-far-church-bell-d",
+    "durationSec": 10,
+    "loops": false
+  },
+  "23055": {
+    "id": "six-squared-loft-music-box-c",
+    "durationSec": 5,
+    "loops": false
+  },
+  "23056": {
+    "id": "six-squared-vibes-motor-running-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "23057": {
+    "id": "six-squared-slowed-steel-pan-a",
+    "durationSec": 8,
+    "loops": false
+  },
+  "23058": {
+    "id": "six-squared-piano-down-the-landing-f",
+    "durationSec": 6,
+    "loops": false
+  },
+  "23059": {
+    "id": "six-squared-sampler-piano-stab-am",
+    "durationSec": 5,
+    "loops": false
+  },
+  "23060": {
+    "id": "six-squared-midnight-tines-dm7",
+    "durationSec": 7,
+    "loops": false
+  },
+  "23061": {
+    "id": "six-squared-keys-from-next-door-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "23062": {
+    "id": "six-squared-wet-road-strum-am",
+    "durationSec": 6,
+    "loops": false
+  },
+  "23063": {
+    "id": "six-squared-slow-reel-harp-note-g",
+    "durationSec": 5,
+    "loops": false
+  },
+  "23064": {
+    "id": "six-squared-one-string-slowed-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "23065": {
+    "id": "six-squared-sampler-choir-stab-am",
+    "durationSec": 6,
+    "loops": false
+  },
+  "23066": {
+    "id": "six-squared-fruit-machine-pluck-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "23067": {
+    "id": "six-squared-lone-fanfare-stab-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "23068": {
+    "id": "six-squared-rain-arpeggio-note-e",
+    "durationSec": 3,
+    "loops": false
+  },
+  "23069": {
+    "id": "six-squared-wooden-sequence-note-g",
+    "durationSec": 3,
+    "loops": false
+  },
+  "23070": {
+    "id": "six-squared-cellar-bass-pluck-d",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "23071": {
+    "id": "six-squared-stairwell-nylon-note-e",
+    "durationSec": 5,
+    "loops": false
+  },
+  "23072": {
+    "id": "six-squared-warm-tongue-drum-d",
+    "durationSec": 7,
+    "loops": false
+  },
+  "23073": {
+    "id": "six-squared-twelve-bit-saw-stab-em",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "23074": {
+    "id": "six-squared-ring-road-brass-f",
+    "durationSec": 8,
+    "loops": false
+  },
+  "23075": {
+    "id": "six-squared-brass-over-hiss-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "23076": {
+    "id": "six-squared-arpeggio-in-rain-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23077": {
+    "id": "six-squared-fruit-machine-fifths-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23078": {
+    "id": "six-squared-one-line-repeating-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23079": {
+    "id": "six-squared-small-hours-melody-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23080": {
+    "id": "six-squared-wooden-sequence-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23081": {
+    "id": "six-squared-cellar-sequence-am",
+    "durationSec": 9,
+    "loops": false
+  },
+  "23082": {
+    "id": "six-squared-landing-piano-phrase-dm",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23083": {
+    "id": "six-squared-midnight-tines-phrase-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23084": {
+    "id": "six-squared-next-door-keys-c",
+    "durationSec": 8,
+    "loops": false
+  },
+  "23085": {
+    "id": "six-squared-stairwell-nylon-rise-am",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23086": {
+    "id": "six-squared-wet-road-guitar-em",
+    "durationSec": 12,
+    "loops": true
+  },
+  "23087": {
+    "id": "six-squared-slow-reel-harp-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23088": {
+    "id": "six-squared-harp-run-backwards-dm",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23089": {
+    "id": "six-squared-hammered-wires-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23090": {
+    "id": "six-squared-slowed-string-line-em",
+    "durationSec": 13,
+    "loops": false
+  },
+  "23091": {
+    "id": "six-squared-slowed-pan-round-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23092": {
+    "id": "six-squared-wearing-drum-loop-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23093": {
+    "id": "six-squared-motor-vibes-falling-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "23094": {
+    "id": "six-squared-music-box-round-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23095": {
+    "id": "six-squared-long-hall-bells-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23096": {
+    "id": "six-squared-looped-fanfare-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23097": {
+    "id": "six-squared-flyer-in-a-drawer-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23098": {
+    "id": "six-squared-sampler-choir-stabs-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "23099": {
+    "id": "six-squared-estuary-steel-g",
+    "durationSec": 13,
+    "loops": false
+  },
+  "23100": {
+    "id": "six-squared-far-bells-tolling-d",
+    "durationSec": 14,
+    "loops": false
+  }
+}

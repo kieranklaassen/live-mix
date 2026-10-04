@@ -1,0 +1,502 @@
+{
+  "12001": {
+    "id": "sonoran-ground-at-dusk-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12002": {
+    "id": "sonoran-low-bow-drone-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12003": {
+    "id": "sonoran-bajada-drone-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12004": {
+    "id": "sonoran-power-line-hum-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12005": {
+    "id": "sonoran-zenith-glow-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12006": {
+    "id": "sonoran-ground-sub-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12007": {
+    "id": "sonoran-still-ground-tone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12008": {
+    "id": "sonoran-slow-folding-drone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12009": {
+    "id": "sonoran-distant-pipes-drift-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12010": {
+    "id": "sonoran-moonset-reeds-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12011": {
+    "id": "sonoran-sleepers-breath-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12012": {
+    "id": "sonoran-rimrock-strings-dsus2",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12013": {
+    "id": "sonoran-far-ridge-horns-fsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12014": {
+    "id": "sonoran-starfield-voices-em",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12015": {
+    "id": "sonoran-first-light-iron-a",
+    "durationSec": 12,
+    "loops": true
+  },
+  "12016": {
+    "id": "sonoran-far-headlights-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12017": {
+    "id": "sonoran-blue-hour-pad-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12018": {
+    "id": "sonoran-arroyo-pulse-asus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12019": {
+    "id": "sonoran-warm-adobe-pad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12020": {
+    "id": "sonoran-thin-high-air-e",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12021": {
+    "id": "sonoran-basin-floor-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12022": {
+    "id": "sonoran-overtone-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12023": {
+    "id": "sonoran-pedal-under-stars-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12024": {
+    "id": "sonoran-dry-wash-cellos-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12025": {
+    "id": "sonoran-jet-trail-g",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12026": {
+    "id": "sonoran-strings-below-ground-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12027": {
+    "id": "sonoran-starlight-glass-dsus2",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12028": {
+    "id": "sonoran-slot-canyon-air-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12029": {
+    "id": "sonoran-satellite-pass-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12030": {
+    "id": "sonoran-slow-saw-dawn-fadd9",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12031": {
+    "id": "sonoran-muted-dusk-section-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12032": {
+    "id": "sonoran-still-bows-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12033": {
+    "id": "sonoran-low-stone-voices-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12034": {
+    "id": "sonoran-slow-night-vowels-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12035": {
+    "id": "sonoran-night-air-brass-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12036": {
+    "id": "sonoran-valley-horn-swell-f",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12037": {
+    "id": "sonoran-slow-air-flutes-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12038": {
+    "id": "sonoran-bellows-reeds-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12039": {
+    "id": "sonoran-hollow-log-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12040": {
+    "id": "sonoran-singing-string-a",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12041": {
+    "id": "sonoran-harp-pad-glow-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12042": {
+    "id": "sonoran-cooling-ground-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12043": {
+    "id": "sonoran-backwards-night-air-em",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12044": {
+    "id": "sonoran-slowed-sample-pad-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12045": {
+    "id": "sonoran-swelled-guitar-sky-em",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12046": {
+    "id": "sonoran-strikeless-tines-dm7",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12047": {
+    "id": "sonoran-piano-rising-dsus2",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12048": {
+    "id": "sonoran-far-field-crickets-haze",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12049": {
+    "id": "sonoran-toads-after-rain-far",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12050": {
+    "id": "sonoran-far-dry-thunder-rolls",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12051": {
+    "id": "sonoran-playa-wind-gusts",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12052": {
+    "id": "sonoran-dry-wind-panned",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12053": {
+    "id": "sonoran-low-wind-bands-gust",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12054": {
+    "id": "sonoran-saguaro-rib-wind",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12055": {
+    "id": "sonoran-whistling-rocks-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12056": {
+    "id": "sonoran-moonlit-dust-cloud",
+    "durationSec": 16,
+    "loops": true
+  },
+  "12057": {
+    "id": "sonoran-small-hours-fire-close",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12058": {
+    "id": "sonoran-monsoon-far-off",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12059": {
+    "id": "sonoran-wash-after-rain",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12060": {
+    "id": "sonoran-late-struck-bowl-a",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12061": {
+    "id": "sonoran-struck-bowl-fifth-e",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12062": {
+    "id": "sonoran-horizon-gong-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12063": {
+    "id": "sonoran-water-jar-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "12064": {
+    "id": "sonoran-felt-chord-fmaj7",
+    "durationSec": 6,
+    "loops": false
+  },
+  "12065": {
+    "id": "sonoran-half-speed-pan-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12066": {
+    "id": "sonoran-wooden-bar-c",
+    "durationSec": 4,
+    "loops": false
+  },
+  "12067": {
+    "id": "sonoran-twelve-string-dsus2",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12068": {
+    "id": "sonoran-soft-bars-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12069": {
+    "id": "sonoran-slow-tine-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12070": {
+    "id": "sonoran-harp-string-e",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12071": {
+    "id": "sonoran-silk-string-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "12072": {
+    "id": "sonoran-nylon-chord-em",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12073": {
+    "id": "sonoran-starlit-strum-am",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12074": {
+    "id": "sonoran-open-range-string-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12075": {
+    "id": "sonoran-rolled-chord-d",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12076": {
+    "id": "sonoran-neck-pickup-g",
+    "durationSec": 7,
+    "loops": false
+  },
+  "12077": {
+    "id": "sonoran-tail-light-g",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "12078": {
+    "id": "sonoran-ocotillo-pluck-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "12079": {
+    "id": "sonoran-folded-pluck-f",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "12080": {
+    "id": "sonoran-night-road-bass-g",
+    "durationSec": 3.5,
+    "loops": false
+  },
+  "12081": {
+    "id": "sonoran-cedar-flute-call-am",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12082": {
+    "id": "sonoran-lone-coyote-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12083": {
+    "id": "sonoran-singing-wire-em",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12084": {
+    "id": "sonoran-tail-lights-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12085": {
+    "id": "sonoran-ocotillo-pattern-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12086": {
+    "id": "sonoran-folded-plucks-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12087": {
+    "id": "sonoran-night-road-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12088": {
+    "id": "sonoran-jackrabbit-run-g",
+    "durationSec": 8,
+    "loops": false
+  },
+  "12089": {
+    "id": "sonoran-wooden-pattern-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12090": {
+    "id": "sonoran-water-jars-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12091": {
+    "id": "sonoran-low-pan-phrase-dm",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12092": {
+    "id": "sonoran-late-bowls-em",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12093": {
+    "id": "sonoran-harp-haze-phrase-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "12094": {
+    "id": "sonoran-silk-string-night-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12095": {
+    "id": "sonoran-nylon-after-dark-am",
+    "durationSec": 12,
+    "loops": true
+  },
+  "12096": {
+    "id": "sonoran-dusk-guitar-em",
+    "durationSec": 10,
+    "loops": false
+  },
+  "12097": {
+    "id": "sonoran-open-road-slide-g",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12098": {
+    "id": "sonoran-open-range-g",
+    "durationSec": 12,
+    "loops": true
+  },
+  "12099": {
+    "id": "sonoran-rolled-open-chord-d",
+    "durationSec": 12,
+    "loops": false
+  },
+  "12100": {
+    "id": "sonoran-slow-tines-c",
+    "durationSec": 12,
+    "loops": true
+  }
+}
