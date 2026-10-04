@@ -278,6 +278,40 @@ keeps the kit's list away. Either way a preset picked by name sets every knob
 (`useDevice().applyPreset(name)`): what the preset does not name goes back to
 where the device starts, so the preset picked before leaves nothing behind.
 
+A chain takes two more things from its host. `deviceActions` is a function of
+a device and its place among the devices shown, and what it returns are tool
+cells of the host's own (swap the device for another, keep its settings). They
+stand after the two move cells and before the remove cell, on a plate and on a
+panel, and a button among them keeps its own press: it never starts a carry.
+
+`dropAt` is where something carried in from outside the chain would land (an
+effect dragged from the host's browser), counted among the devices shown: 0
+heads them, their number ends them, `null` is nothing carried. The chain stands
+its marker in that gap, the one a carry inside the chain shows, and has the
+class `lm-chain--receiving` meanwhile. Adding what lands is the host's, and so
+is marking its own add cell when the chain shows no device and has no gap.
+`chainDropIndex(chain, clientX)` reads that place for a pointer off the chain's
+element (`.lm-chain`): past a device's middle is after it.
+
+```tsx
+const [dropAt, setDropAt] = useState<number | null>(null)
+// While the host carries a device over the chain:
+const over = (event: PointerEvent) => {
+  const chain = document.querySelector<HTMLElement>('[data-lm-strip="pad"]')
+  setDropAt(chain ? chainDropIndex(chain, event.clientX) : null)
+}
+
+;<DeviceChainView
+  strip={track}
+  skin={deviceSkin}
+  dropAt={dropAt}
+  deviceActions={(device, index) => <SwapCell device={device} index={index} />}
+/>
+```
+
+`dropIndex(spans, x)` and `dropMarkerPosition(spans, index)` are the same
+counting and the marker's place over `ItemSpan`s, for a rack drawn by hand.
+
 A plate costs nothing while it sits: the finish and the picture are drawn when
 the device is added or one of its knobs moves, not per frame. The names are the
 devices' own, and no skin borrows a maker's colours or layout.
