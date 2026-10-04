@@ -151,7 +151,16 @@ function loadManifest(dir) {
     if (meterKeys.has(meter.key)) fail(id, `${where}: duplicate key`)
     meterKeys.add(meter.key)
     if (!meter.name) fail(id, `${where}: needs a name`)
-    return { key: meter.key, id: index, name: meter.name, unit: meter.unit ?? '' }
+    if (meter.display !== undefined && meter.display !== true) {
+      fail(id, `${where}: "display" is true or left out`)
+    }
+    return {
+      key: meter.key,
+      id: index,
+      name: meter.name,
+      unit: meter.unit ?? '',
+      display: meter.display === true,
+    }
   })
 
   const presets = manifest.presets ?? {}
@@ -381,7 +390,7 @@ export const ${device.constant}_METERS = {
 ${device.meters
   .map(
     (meter) =>
-      `  ${meter.key}: { id: ${meter.id}, name: ${quote(meter.name)}, unit: ${quote(meter.unit)} },`,
+      `  ${meter.key}: { id: ${meter.id}, name: ${quote(meter.name)}, unit: ${quote(meter.unit)}${meter.display ? ', display: true' : ''} },`,
   )
   .join('\n')}
 } as const satisfies Record<string, DeviceMeterSpec>

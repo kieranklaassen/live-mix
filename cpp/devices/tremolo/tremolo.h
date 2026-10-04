@@ -72,6 +72,22 @@ class Tremolo : public kit::DeviceBase<tremolo::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the oscillator is in its cycle (0..1), and the modulator after the
+  // slew as the left and the right side hear it (-1..1).
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(phase_);
+      case 1:
+        return slew_b_[0];
+      case 2:
+        return slew_b_[1];
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace tremolo;
     frames = begin_block(frames);

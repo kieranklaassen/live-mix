@@ -53,6 +53,12 @@ import { cx } from './tokens'
 export interface InsertHost {
   readonly name: string
   readonly inserts: readonly Device[]
+  /**
+   * What feeds the first insert (a strip's input gain, a bus's fader). A
+   * plate's display reads the level going into its device from it; a host
+   * without it has displays that show only what comes out.
+   */
+  readonly input?: AudioNode
   addInsert(device: Device): void
   removeInsert(device: Device): void
   onChange(listener: () => void): () => void
@@ -431,6 +437,7 @@ export function DeviceChainView({
                   onRemove={() => remove(device, index)}
                   actions={actions}
                   hint={PLATE_REORDER_HINT}
+                  source={index === 0 ? (strip.input ?? null) : inserts[index - 1].output}
                   data-testid={id}
                 />
               ) : (
