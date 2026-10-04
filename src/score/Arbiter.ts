@@ -504,6 +504,8 @@ export class Arbiter {
           label: pending.label,
           gesture: pending.gesture,
         })
+        // A lane still overridden (the `manual` resume) keeps the renderer off the parameter.
+        this.writeThrough(pending.op)
         this.emit({ type: 'landed', pending, entry })
       } catch {
         this.dropPending(pending, 'failed')
@@ -536,15 +538,19 @@ export class Arbiter {
   /** The holder deciding writes on `key`: any live lock or hold on it, above it, or (for entity keys) beneath it. */
   private holderFor(key: string, atMs: number, author: Author | null): Holder | null {
     let strongest: Holder | null = null
-    const consider = (candidate: string, source: Holder['source']): void => {
-      if (!conflicts(candidate, key)) return
-      const owner = this.table.holderOf(candidate, atMs)
-      if (!owner || (author && sameOwner(owner, author))) return
-      const holder: Holder = { owner, source, target: candidate }
+    const consider = (target: string, owner: HoldOwner, source: Holder['source']): void => {
+      if (!conflicts(target, key)) return
+      if (author && sameOwner(owner, author)) return
+      const holder: Holder = { owner, source, target }
       if (!strongest || this.outranks(holder, strongest)) strongest = holder
     }
-    for (const lock of this.table.locks) consider(lock.target, 'lock')
-    for (const hold of this.table.holds) consider(hold.target, 'hold')
+    // Each by its own owner: a lock and a hold on one target can be two writers'.
+    for (const lock of this.table.locks) {
+      if (lock.untilMs > atMs) consider(lock.target, lock.owner, 'lock')
+    }
+    for (const hold of this.table.holds) {
+      if (hold.touching || hold.untilMs > atMs) consider(hold.target, hold.owner, 'hold')
+    }
     return strongest
   }
 
@@ -562,6 +568,8 @@ export class Arbiter {
       () => {
         this.timer = null
         this.tick()
+        // Fired before the clock says the hold has lapsed (two clocks): wait out the rest.
+        if (this.timer === null) this.schedule()
       },
       Math.max(0, next - this.now()),
     )

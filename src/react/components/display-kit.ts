@@ -45,8 +45,11 @@ export type Point = readonly [number, number]
 export const clamp = (value: number, low: number, high: number): number =>
   value < low ? low : value > high ? high : value
 export const lerp = (from: number, to: number, t: number): number => from + (to - from) * t
-/** Half a pixel in, so a line one pixel wide falls on a row of pixels and is sharp. */
-export const crisp = (value: number): number => Math.round(value) + 0.5
+/**
+ * The middle of the pixel a value falls in, so a line one pixel wide lies on
+ * one row of pixels and is sharp, never more than half a pixel from its value.
+ */
+export const crisp = (value: number): number => Math.floor(value) + 0.5
 
 /**
  * The ground of a display, over the whole canvas: the plate a shade nearer its
@@ -662,12 +665,20 @@ export function lfo(shape: LfoShape, phase: number): number {
  * Where an LFO is in its cycle on this frame, from a reading that arrives
  * less often than frames do: the reading is carried forward at the LFO's rate
  * between two arrivals, so the mark moves smoothly and stays in step with the
- * sound. Keep the returned state and pass it back.
+ * sound. A running LFO never reports the same place twice, so the same
+ * reading for `PHASE_STANDS_SEC` means the device is not running (it sleeps,
+ * or the engine is stopped): then the mark stands on the reading and is not
+ * carried on by the clock. Keep the returned state and pass it back.
  */
 export interface PhaseTrack {
   phase: number
   reading: number
+  /** How long the same reading has come, in seconds. */
+  stood?: number
 }
+
+/** How long the same reading may come before the mark stands on it, in seconds. */
+export const PHASE_STANDS_SEC = 0.15
 
 export function trackPhase(
   track: PhaseTrack | null,
@@ -676,13 +687,18 @@ export function trackPhase(
   dt: number,
 ): PhaseTrack {
   if (!track) return { phase: reading, reading }
+  const carried = track.phase + rateHz * dt
   if (reading !== track.reading) {
-    // A new reading: go to it, unless carrying forward already put us within a step of it.
-    const ahead = ((((track.phase - reading + 0.5) % 1) + 1) % 1) - 0.5
+    // A new reading: go to it, unless carrying forward already put us within a
+    // step of it. It is measured against where this frame was carried to, so
+    // the mark settles on the reading and not a frame ahead of it.
+    const ahead = ((((carried - reading + 0.5) % 1) + 1) % 1) - 0.5
     const near = Math.abs(ahead) < Math.max(0.02, rateHz / 20)
-    return { phase: near ? wrap(track.phase + rateHz * dt - ahead * 0.5) : reading, reading }
+    return { phase: near ? wrap(carried - ahead * 0.5) : reading, reading }
   }
-  return { phase: wrap(track.phase + rateHz * dt), reading }
+  const stood = (track.stood ?? 0) + dt
+  if (stood >= PHASE_STANDS_SEC) return { phase: reading, reading, stood }
+  return { phase: wrap(carried), reading, stood }
 }
 
 const wrap = (phase: number): number => phase - Math.floor(phase)

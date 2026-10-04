@@ -6,6 +6,11 @@
   "class": "Flanger",
   "header": "flanger.h",
   "sources": [],
+  "meters": [
+    { "key": "phase", "name": "LFO phase", "display": true },
+    { "key": "left", "name": "Delay left", "unit": "ms", "display": true },
+    { "key": "right", "name": "Delay right", "unit": "ms", "display": true }
+  ],
   "params": [
     {
       "key": "delayMs",

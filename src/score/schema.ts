@@ -659,7 +659,7 @@ function checkDevice(raw: unknown, path: string, ctx: Context): void {
   }
   for (const name of Object.keys(params)) {
     // A hosted plug-in's table is only known once it is loaded.
-    if (!(name in descriptor.params) && !descriptor.dynamicParams) {
+    if (!Object.hasOwn(descriptor.params, name) && !descriptor.dynamicParams) {
       check.fail(`${path}.params.${name}`, `${descriptor.id} has no parameter "${name}"`)
     }
   }

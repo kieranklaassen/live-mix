@@ -6,6 +6,7 @@
   "class": "ReAmp",
   "header": "re_amp.h",
   "sources": [],
+  "meters": [{ "key": "load", "name": "Load on the supply", "display": true }],
   "latencySamples": 39,
   "params": [
     {

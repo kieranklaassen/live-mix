@@ -858,7 +858,7 @@ export class AudioTrack implements StripHost {
     this.active.delete(key)
     this.voiceClips.delete(key)
     // No longer the key's voice, so `forget` would pass it by.
-    voice.source.onended = () => this.unwire(voice)
+    voice.source.onended = () => this.retire(voice)
   }
 
   /**
@@ -1174,8 +1174,10 @@ export class AudioTrack implements StripHost {
     voice.source.playbackRate.setValueAtTime(rate, from)
     // Fading out or stopping at a time it was given: only its pitch follows.
     if (!timing) return
-    // Past its clip's end, in its tail, which is of the clock: the same.
-    if (timing.tailSec > 0 && from >= voice.endTime) return
+    // Past its clip's end: in its tail, which is of the clock, or played out
+    // with its `ended` still to come. The same, and nothing is left to move
+    // (moved, its end would land before `from`, below zero on a young clock).
+    if (from >= voice.endTime) return
 
     // Where the clip's start would have been had it always played at this rate.
     timing.when = from + (timing.when - from) * (timing.rate / rate)
@@ -1464,7 +1466,7 @@ export class AudioTrack implements StripHost {
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)
     // No longer the key's voice, so `forget` would pass it by.
-    voice.source.onended = () => this.unwire(voice)
+    voice.source.onended = () => this.retire(voice)
   }
 
   private silence(voice: ClipVoice): void {
@@ -1483,6 +1485,19 @@ export class AudioTrack implements StripHost {
     if (this.active.get(voice.key) !== voice) return
     this.active.delete(voice.key)
     this.voiceClips.delete(voice.key)
+    this.retire(voice)
+  }
+
+  /**
+   * A voice whose source has ended comes out of the graph. Not in a render
+   * that is not on the clock: the page hears of the end when its own thread
+   * gets to it, which is another block of the render every time, and a voice
+   * taken out in the first blocks after its end loses what its low-pass
+   * still rings with, so one piece rendered twice was not one file. There
+   * the voice stays, silent, until the track goes.
+   */
+  private retire(voice: ClipVoice): void {
+    if (typeof (this.ctx as Partial<OfflineAudioContext>).startRendering === 'function') return
     this.unwire(voice)
   }
 

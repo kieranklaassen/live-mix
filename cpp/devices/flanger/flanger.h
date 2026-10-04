@@ -54,6 +54,22 @@ class Flanger : public kit::DeviceBase<flanger::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the LFO is in its cycle (0..1), and the delay the left and the
+  // right side are read at now, in milliseconds.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return lfo_.phase();
+      case 1:
+        return read_ms(0);
+      case 2:
+        return read_ms(1);
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace flanger;
     frames = begin_block(frames);
@@ -109,6 +125,13 @@ class Flanger : public kit::DeviceBase<flanger::kNumParams> {
 
   // Linear up to ±1, a smooth knee to ±2.
   static float loop_limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+
+  // The read point of one side as `process` computes it, in milliseconds.
+  float read_ms(int channel) const {
+    const float delay = kit::clamp(delay_.value + sweep_[channel] * deviation_.value, 2.0f,
+                                   kit::DelayLine<kLineSize>::max_delay());
+    return 1000.0f * delay / sample_rate();
+  }
 
   // Put the lagged LFO on the LFO itself (nothing is sounding).
   void snap_sweep() {

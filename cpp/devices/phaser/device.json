@@ -6,6 +6,11 @@
   "class": "Phaser",
   "header": "phaser.h",
   "sources": [],
+  "meters": [
+    { "key": "phase", "name": "LFO phase", "display": true },
+    { "key": "left", "name": "Sweep left", "unit": "Hz", "display": true },
+    { "key": "right", "name": "Sweep right", "unit": "Hz", "display": true }
+  ],
   "params": [
     {
       "key": "stages",

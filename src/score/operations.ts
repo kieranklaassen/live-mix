@@ -1538,7 +1538,9 @@ export function invert(score: Score, op: Operation): Operation {
 
     case 'score.setMeta': {
       const patch: ScoreMetaPatch = {}
-      for (const key of metaKeys(op)) patch[key] = score.meta?.[key] ?? null
+      const meta = score.meta ?? {}
+      // Its own entries only: `constructor` is on every object.
+      for (const key of metaKeys(op)) patch[key] = Object.hasOwn(meta, key) ? meta[key] : null
       return { type: 'score.setMeta', patch }
     }
 
@@ -1812,16 +1814,19 @@ export function invert(score: Score, op: Operation): Operation {
 
     case 'device.setParam': {
       const device = requireDevice(score, op, op.device)
-      const previous = device.params[op.param]
-      if (previous === undefined)
+      // Its own entries only: `constructor` is on every object.
+      if (!Object.hasOwn(device.params, op.param))
         return { type: 'device.setParams', device: op.device, params: { [op.param]: null } }
+      const previous = device.params[op.param]
       return { type: 'device.setParam', device: op.device, param: op.param, value: previous }
     }
 
     case 'device.setParams': {
       const device = requireDevice(score, op, op.device)
       const params: Record<string, number | null> = {}
-      for (const name of Object.keys(op.params)) params[name] = device.params[name] ?? null
+      for (const name of Object.keys(op.params)) {
+        params[name] = Object.hasOwn(device.params, name) ? device.params[name] : null
+      }
       return { type: 'device.setParams', device: op.device, params }
     }
 

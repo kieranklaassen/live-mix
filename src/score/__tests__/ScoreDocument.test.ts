@@ -241,6 +241,17 @@ describe('ScoreDocument', () => {
     expect(document.score.meta).toEqual({ chords: [0, 4, 5, 3] })
   })
 
+  it('undoes a meta entry set under a name every plain object answers to', () => {
+    const document = new ScoreDocument(demoScore())
+    document.apply({ type: 'score.setMeta', patch: { chords: [0, 2, 5, 3] } })
+    document.endGesture()
+    document.apply({ type: 'score.setMeta', patch: { constructor: 'grid', valueOf: 2 } })
+    expect(Object.keys(document.score.meta ?? {})).toEqual(['chords', 'constructor', 'valueOf'])
+    document.undo()
+    expect(document.score.meta).toEqual({ chords: [0, 2, 5, 3] })
+    expect(Object.keys(document.score.meta ?? {})).toEqual(['chords'])
+  })
+
   it('an amendment in the middle of a gesture does not split its step', () => {
     const document = new ScoreDocument(demoScore())
     const drag = { gesture: 'drag-1' }
@@ -253,6 +264,29 @@ describe('ScoreDocument', () => {
     expect(document.history.undoStack).toHaveLength(1)
     document.undo()
     expect(document.score.sources[1].durationSec).toBe(20)
+  })
+
+  it('undoes a parameter set under a name every plain object answers to', () => {
+    const document = new ScoreDocument(demoScore())
+    const params = (): Record<string, number> => {
+      const kick = document.score.tracks[0]
+      return kick.strip.inserts[0].params
+    }
+    for (const param of ['constructor', 'toString', '__proto__']) {
+      document.apply({ type: 'device.setParam', device: 'kick-filter', param, value: 1 })
+    }
+    document.apply({ type: 'device.setParams', device: 'kick-filter', params: { valueOf: 2 } })
+    expect(Object.keys(params())).toEqual([
+      'frequency',
+      'constructor',
+      'toString',
+      '__proto__',
+      'valueOf',
+    ])
+    while (document.canUndo) document.undo()
+    expect(Object.keys(params())).toEqual(['frequency'])
+    while (document.canRedo) document.redo()
+    expect(Object.keys(params())).toHaveLength(5)
   })
 
   it('listeners can unsubscribe', () => {

@@ -6,6 +6,12 @@
   "class": "Rotary",
   "header": "rotary.h",
   "sources": [],
+  "meters": [
+    { "key": "hornAngle", "name": "Horn angle", "display": true },
+    { "key": "drumAngle", "name": "Drum angle", "display": true },
+    { "key": "hornSpeed", "name": "Horn speed", "unit": "Hz", "display": true },
+    { "key": "drumSpeed", "name": "Drum speed", "unit": "Hz", "display": true }
+  ],
   "params": [
     {
       "key": "speed",

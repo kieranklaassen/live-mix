@@ -368,6 +368,29 @@ describe('Scheduler follows the transport', () => {
     expect(track.keys()).toEqual(['a:0:0.500'])
   })
 
+  it('ends a transport started or put at its end, and a listener after it hears that last', () => {
+    const { ctx, transport, track } = build({
+      loop: { enabled: false, lengthSec: 2 },
+      items: [{ id: 'a', startSec: 0.5 }],
+    })
+    // A host's listener comes after the scheduler's own: what it hears last is what it shows.
+    const heard: string[] = []
+    transport.onChange((change) => heard.push(`${change.reason} ${change.state}`))
+    transport.seek(2)
+    transport.start()
+    expect(transport.state).toBe('paused')
+    expect(heard).toEqual(['seek stopped', 'start playing', 'end paused'])
+
+    heard.length = 0
+    transport.seek(0)
+    transport.start()
+    ctx.currentTime += 1
+    transport.seek(5)
+    expect(transport.state).toBe('paused')
+    expect(heard).toEqual(['seek paused', 'start playing', 'seek playing', 'end paused'])
+    expect(track.voices.size).toBe(0)
+  })
+
   it('re-derives pending starts under new pass numbers when the loop changes, leaving sounding ones alone', () => {
     const { ctx, transport, track } = build({
       loop: { enabled: false, lengthSec: Infinity },
