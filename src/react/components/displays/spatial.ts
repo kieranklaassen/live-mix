@@ -11,7 +11,6 @@
 import {
   INK,
   clamp,
-  clipped,
   dot,
   fillRect,
   follow,
@@ -106,14 +105,6 @@ const place = (field: Field, across: number, up: number, scale = field.r): Point
 const ray = (field: Field, angle: number, length: number): Point =>
   place(field, Math.sin(angle), Math.cos(angle), length)
 
-/** The box the half disc stands in: what is set is drawn inside it. */
-const discBox = (field: Field): Box => ({
-  x: field.cx - field.r - 1,
-  y: field.cy - field.r - 1,
-  w: 2 * field.r + 2,
-  h: field.r + 2,
-})
-
 /** An arc of the disc about the listener, from one angle off straight up to another (radians, right is positive). */
 function arc(
   frame: Pick<DisplayFrame, 'ctx' | 'colours'>,
@@ -201,7 +192,7 @@ interface Scope {
   left: number
   right: number
   /** The shapes of what is set, and what they were made from: made again only when that moves. */
-  made: string
+  made: [number, number, number, number]
   shapes: Point[][]
 }
 
@@ -214,17 +205,24 @@ const scope = (): Scope => ({
   heard: false,
   left: BARS_FOOT_DB,
   right: BARS_FOOT_DB,
-  made: '',
+  made: [NaN, NaN, NaN, NaN],
   shapes: [],
 })
 
-/** The shapes of what is set, kept from frame to frame while `made` stays the same. */
-function shapesOf(state: Scope, made: string, make: () => Point[][]): Point[][] {
-  if (state.made !== made) {
-    state.shapes = make()
-    state.made = made
+/**
+ * Whether the shapes of what is set must be made again: the display's size or
+ * one of the two values they are made from has moved since they were.
+ */
+function stale(state: Scope, frame: DisplayView, a: number, b = 0): boolean {
+  const made = state.made
+  if (made[0] === frame.width && made[1] === frame.height && made[2] === a && made[3] === b) {
+    return false
   }
-  return state.shapes
+  made[0] = frame.width
+  made[1] = frame.height
+  made[2] = a
+  made[3] = b
+  return true
 }
 
 /**
@@ -437,6 +435,9 @@ const WIDENER_SPAN = 2.5 * HALF + 0.1
 /** The bass is drawn at this much of the fan's size, so it stands inside it. */
 const WIDENER_BASS = 0.55
 
+/** Where on Width's travel more than a balance begins: the allpasses, then the late right copy. */
+const WIDENER_MARKS = [0.75, 0.85] as const
+
 /** The radius of the field as it came, in pixels: the fan at Width one half. */
 const widenerUnit = (field: Field): number => field.r / WIDENER_SPAN
 
@@ -480,12 +481,35 @@ function widenerHandles(view: DisplayView): DisplayHandle[] {
   ]
 }
 
+/** The corner's path from mono to the widest in so many steps; the allpasses come in at three quarters. */
+const WIDENER_PATH_STEPS = 40
+const WIDENER_PATH_PLAIN = 30
+
+/** The shapes the Stereo Widener's display keeps while Width and its size stay. */
+function widenerShapes(field: Field, set: Widening): Point[][] {
+  const unit = widenerUnit(field)
+  // The path the corner takes: plain up to three quarters, dotted beyond.
+  const path: Point[] = []
+  const beyond: Point[] = []
+  for (let n = 0; n <= WIDENER_PATH_STEPS; n++) {
+    const point = widenerCorner(field, n / WIDENER_PATH_STEPS)
+    if (n <= WIDENER_PATH_PLAIN) path.push(point)
+    if (n >= WIDENER_PATH_PLAIN) beyond.push(point)
+  }
+  const points = fan(field, set.side, set.mid, unit)
+  return [path, beyond, fan(field, set.bass, 1, unit * WIDENER_BASS), points, points.slice(1)]
+}
+
+/** How wide, in a word: the device leaves the sound as it came at one half. */
+const widenerWord = (width: number): string =>
+  width < 0.005 ? 'MONO' : width < 0.495 ? 'NARROW' : width <= 0.505 ? 'NORMAL' : 'WIDE'
+
 const stereoWidener = plateDisplay<Scope>({
   place: 'window',
   columns: 1,
   params: ['width'],
   live: { stereo: true },
-  info: 'The stereo field from where you sit: up is the middle, the diagonals are left and right, and the cloud is the sound. The fan is what Width makes of it, and the small fan what is left of the bass. Past the two marks on its path the sides are blurred apart, then the right comes late.',
+  info: 'The stereo field from where you sit: up is the middle, the diagonals are left and right, the cloud is the sound. The fan is what Width makes of it, the small fan what it leaves the bass. Past the first mark on its path the sides are shifted in phase, past the second the right comes late.',
   init: scope,
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -499,47 +523,13 @@ const stereoWidener = plateDisplay<Scope>({
     // The field as it came: where the fan stands at one half.
     arc(frame, field, unit, -EIGHTH, EIGHTH, INK.back, [2, 2])
 
-    const [path, beyond, bass, points, top, roundLeft, roundRight] = shapesOf(
-      state,
-      `${frame.width} ${frame.height} ${width}`,
-      () => {
-        // The path the corner takes from mono to the widest: plain up to
-        // three quarters, where the allpasses come in, and dotted beyond.
-        const path: Point[] = []
-        const beyond: Point[] = []
-        for (let n = 0; n <= 40; n++) {
-          const point = widenerCorner(field, n / 40)
-          if (n <= 30) path.push(point)
-          if (n >= 30) beyond.push(point)
-        }
-        // The arc of the fan run on round to the foot, each way.
-        const round = (sign: number): Point[] => {
-          const points: Point[] = []
-          for (let n = 12; n <= 24; n++) {
-            const angle = (n / 12) * EIGHTH
-            points.push(
-              place(field, sign * set.side * Math.sin(angle), set.mid * Math.cos(angle), unit),
-            )
-          }
-          return points
-        }
-        const points = fan(field, set.side, set.mid, unit)
-        return [
-          path,
-          beyond,
-          fan(field, set.bass, 1, unit * WIDENER_BASS),
-          points,
-          points.slice(1),
-          round(-1),
-          round(1),
-        ]
-      },
-    )
-    // Up to the first mark the fan is a plain balance of sum and difference;
-    // the second is where the late copy comes in.
+    if (stale(state, frame, width)) state.shapes = widenerShapes(field, set)
+    const [path, beyond, bass, points, top] = state.shapes
+    // The corner's path. Up to the first mark the fan is a plain balance of
+    // sum and difference; the second is where the late copy comes in.
     trace(ctx, path, { colour: colours.ink, alpha: INK.back, width: 1 })
     trace(ctx, beyond, { colour: colours.ink, alpha: INK.back, width: 1, dash: [1, 3] })
-    for (const at of [0.75, 0.85]) {
+    for (const at of WIDENER_MARKS) {
       const [x, y] = widenerCorner(field, at)
       rule(ctx, x, y - 3, x, y + 3, { colour: colours.ink, alpha: INK.text })
     }
@@ -547,52 +537,30 @@ const stereoWidener = plateDisplay<Scope>({
     // The bass under 200 Hz: its sum as it came, its difference narrowed as Width rises.
     shape(frame, bass, INK.fill, { colour: colours.ink, alpha: INK.back, width: 1 })
 
-    // The fan. Its edges are sharp while it is a plain balance; as the
-    // allpasses come in they fade, and the arc runs on round to the foot.
+    // The fan. Its two edges are where a sound on one side alone goes: sharp
+    // while the fan is a plain balance, fainter as the allpasses take each
+    // side's phase its own way and a place on the field is no longer kept.
     shape(frame, points, INK.fill)
     trace(ctx, top, { colour: colours.ink })
     const edge = { colour: colours.ink, alpha: 1 - 0.75 * set.blur, width: 1.5 }
-    const [from, to] = [top[0], top[top.length - 1]]
+    const from = top[0]
+    const to = top[top.length - 1]
     rule(ctx, field.cx, field.cy, from[0], from[1], edge)
     rule(ctx, field.cx, field.cy, to[0], to[1], edge)
-    if (set.blur > 0) {
-      clipped(ctx, discBox(field), () => {
-        for (const round of [roundLeft, roundRight]) {
-          trace(ctx, round, {
-            colour: colours.ink,
-            alpha: 0.25 + 0.75 * set.blur,
-            width: 1.5,
-            dash: [1, 3],
-          })
-        }
-      })
-    }
 
     drawCloud(frame, field, state)
     drawAlike(frame, field, state)
     drawBars(frame, field, state)
-    for (const point of widenerHandles(frame)) {
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    }
+    const [x, y] = widenerCorner(field, width)
+    handle(frame, x, y, { hot: frame.hot === 'width' })
 
-    // In words, in the corners the disc leaves free: how wide, and what is added past the marks.
+    // In words, in the corners the disc leaves free: how wide, and what is added past each mark.
     if (field.r >= 40) {
-      const left = field.cx - field.r
       const right = field.cx + field.r
-      const top = field.cy - field.r + 7
-      const wide =
-        width < 0.005
-          ? 'MONO'
-          : width < 0.495
-            ? 'NARROW'
-            : width <= 0.505
-              ? 'NORMAL'
-              : width <= 0.75
-                ? 'WIDE'
-                : 'EXTRA'
-      text(frame, wide, left, top)
-      if (set.blur > 0) text(frame, 'BLUR', right, top, { align: 'right' })
-      if (set.late > 0) text(frame, 'LATE', right, top + 9, { align: 'right' })
+      const line = field.cy - field.r + 7
+      text(frame, widenerWord(width), field.cx - field.r, line)
+      if (set.blur > 0) text(frame, 'PHASE', right, line, { align: 'right' })
+      if (set.late > 0) text(frame, 'DELAY', right, line + 9, { align: 'right' })
     }
   },
   handles: widenerHandles,
@@ -692,6 +660,16 @@ function utilityHandles(view: DisplayView): DisplayHandle[] {
   ]
 }
 
+/** The utility's fan: the field as it came, from the left side round to the right, after Width and Pan. */
+function utilityFan(field: Field, width: number, pan: number): Point[] {
+  const points: Point[] = [[field.cx, field.cy]]
+  for (let n = 0; n <= 24; n++) {
+    const turn = (n / 24) * (Math.PI / 2)
+    points.push(utilityAt(field, Math.cos(turn), Math.sin(turn), width, pan))
+  }
+  return points
+}
+
 const utility = plateDisplay<Scope>({
   place: 'window',
   columns: 2,
@@ -711,15 +689,8 @@ const utility = plateDisplay<Scope>({
     arc(frame, field, utilityUnit(field), -EIGHTH, EIGHTH, INK.back, [2, 2])
 
     // The fan: every place from the left side to the right, after Width and Pan.
-    const [points] = shapesOf(state, `${frame.width} ${frame.height} ${width} ${pan}`, () => {
-      const points: Point[] = [[field.cx, field.cy]]
-      for (let n = 0; n <= 24; n++) {
-        const turn = (n / 24) * (Math.PI / 2)
-        points.push(utilityAt(field, Math.cos(turn), Math.sin(turn), width, pan))
-      }
-      return [points]
-    })
-    shape(frame, points, INK.fill, { colour: colours.ink })
+    if (stale(state, frame, width, pan)) state.shapes = [utilityFan(field, width, pan)]
+    shape(frame, state.shapes[0], INK.fill, { colour: colours.ink })
     // The lean: where the middle goes.
     const [panX, panY] = ray(field, pan * EIGHTH, field.r)
     trace(
@@ -742,9 +713,11 @@ const utility = plateDisplay<Scope>({
 
     if (field.r >= 40) {
       const top = field.cy - field.r + 7
-      const flipped = Math.round(frame.value('polarity')) === 1
-      const narrow = width < 0.005 ? 'MONO' : ''
-      text(frame, `${flipped ? 'Ø ' : ''}${narrow}`, field.cx - field.r, top)
+      if (width < 0.005) text(frame, 'MONO', field.cx - field.r, top)
+      // The flipped polarity is said at the foot, clear of the point on the rim wherever Pan has it.
+      if (Math.round(frame.value('polarity')) === 1) {
+        text(frame, 'Ø', field.cx - field.r + 4, field.cy - 3)
+      }
       const amount = Math.round(Math.abs(pan) * 100)
       text(frame, amount === 0 ? 'C' : `${amount}${pan < 0 ? 'L' : 'R'}`, field.cx + field.r, top, {
         align: 'right',
@@ -764,6 +737,13 @@ const DETUNE_RIGHT_RATIO = 1.4
  * It lands where the waveform fits, so the head is not held to the rail.
  */
 const DETUNE_TRAVEL_MS = 7.5
+/**
+ * What each time round adds to a copy's delay beyond the head's own, ms: the
+ * two allpasses in the feedback path (`kDiffusionSeconds`), left and right.
+ * They smear a pass over some milliseconds; this much later is where most of
+ * it comes.
+ */
+export const DETUNE_SMEAR_MS = [3.11 + 5.23, 3.97 + 6.41] as const
 /** What Drift at full adds to a copy's delay either way, ms (`kDriftDelayMs`). */
 const DETUNE_DRIFT_MS = 1.5
 /** The delay at the rim, ms: past the latest a copy's head can be. */
@@ -785,12 +765,20 @@ const centsText = (cents: number): string => {
   return `${whole > 0 ? '+' : whole < 0 ? '−' : ''}${Math.abs(whole)} ct`
 }
 
+/**
+ * How far either side of its Delay a copy's head travels, ms. Detuned, or
+ * drifting (which is a detune that wanders), the head moves and is spliced
+ * back; Drift wanders the delay a little more. Neither, it stays where it is.
+ */
+export const detuneTravel = (detune: number, drift: number): number =>
+  (detune > 0 || drift > 0 ? DETUNE_TRAVEL_MS : 0) + drift * DETUNE_DRIFT_MS
+
 const stereoDetune = plateDisplay<Scope>({
   place: 'window',
   columns: 2,
   params: ['detune', 'delay', 'drift', 'feedback', 'width', 'mix'],
   live: { meters: true, stereo: true },
-  info: 'The stereo field from where you sit, with the sound as a cloud. The beads are the two copies, sharp on the left and flat on the right, further out the later they are: each creeps along its rail as its pitch shifts, then jumps back. The numbers are their detune now, the dots beyond their repeats.',
+  info: 'The stereo field from where you sit, with the sound as a cloud. The beads are the two copies, sharp on the left and flat on the right, further out the later they are: each creeps along its rail as its pitch shifts, then jumps back. The numbers are their detune and Delay, the dots their repeats.',
   init: scope,
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -817,19 +805,39 @@ const stereoDetune = plateDisplay<Scope>({
     ctx.globalAlpha = 1
     drawCloud(frame, field, state)
 
-    for (const side of [0, 1] as const) {
-      const angle = detuneAngle(side, width)
+    const travel = detuneTravel(detune, drift)
+    for (let side = 0; side < 2; side++) {
+      const angle = detuneAngle(side as 0 | 1, width)
+      const across = Math.sin(angle)
+      const up = Math.cos(angle)
       const centre = delay * (side === 0 ? 1 : DETUNE_RIGHT_RATIO)
-      const at = (ms: number): Point => ray(field, angle, r * detuneReach(ms))
-      // The rail: the head's travel either side of the Delay, a little longer with Drift,
-      // and a mark across it at the Delay itself. A copy that is not detuned stays on the mark.
-      const travel = (detune > 0 ? DETUNE_TRAVEL_MS : 0) + drift * DETUNE_DRIFT_MS
-      trace(ctx, [at(centre - travel), at(centre + travel)], {
-        colour: colours.ink,
-        width: 1,
-        alpha: INK.text,
-      })
-      arc(frame, field, r * detuneReach(centre), angle - 0.24, angle + 0.24, INK.text)
+      // The rail: the head's travel either side of the Delay, and a short mark
+      // across it at the Delay itself.
+      const inner = r * detuneReach(centre - travel)
+      const outer = r * detuneReach(centre + travel)
+      const mark = r * detuneReach(centre)
+      const rail = { colour: colours.ink, width: 1, alpha: INK.text }
+      if (travel > 0) {
+        trace(
+          ctx,
+          [
+            [field.cx + across * inner, field.cy - up * inner],
+            [field.cx + across * outer, field.cy - up * outer],
+          ],
+          rail,
+        )
+      }
+      const markX = field.cx + across * mark
+      const markY = field.cy - up * mark
+      trace(
+        ctx,
+        [
+          [markX - up * 3, markY - across * 3],
+          [markX + up * 3, markY + across * 3],
+        ],
+        rail,
+      )
+
       const cents = live
         ? frame.meter(side === 0 ? 'centsLeft' : 'centsRight')
         : side === 0
@@ -837,20 +845,34 @@ const stereoDetune = plateDisplay<Scope>({
           : -detune
       const late = live ? frame.meter(side === 0 ? 'delayLeft' : 'delayRight') : centre
       const hold = live ? clamp(frame.meter(side === 0 ? 'holdLeft' : 'holdRight'), 0, 1) : 1
-      // Each time round the copy is as late again, and that much quieter.
+      // Each time round the copy is as late again and that much quieter, and
+      // the allpasses in the way make it a little later still.
       for (let pass = 2; pass <= 4 && feedback > 0.01; pass++) {
-        if (late * pass > DETUNE_RIM_MS) break
-        const [x, y] = at(late * pass)
-        dot(ctx, x, y, 2.5 - 0.4 * pass, colours.ink, { alpha: Math.pow(feedback, pass - 1) })
+        const ms = late * pass + DETUNE_SMEAR_MS[side] * (pass - 1)
+        if (ms > DETUNE_RIM_MS) break
+        const out = r * detuneReach(ms)
+        dot(ctx, field.cx + across * out, field.cy - up * out, 2.5 - 0.4 * pass, colours.ink, {
+          alpha: Math.pow(feedback, pass - 1),
+        })
       }
-      // The copy now: as loud as Mix and the level hold have it.
-      const [x, y] = at(late)
-      dot(ctx, x, y, 1.5 + 2.5 * Math.sin((mix * Math.PI) / 2) * hold, colours.accent, {
-        ring: colours.ink,
-      })
+      // The copy now, as loud as Mix and the level hold have it: in the accent
+      // while the device says where it is, in the ink where it is only set.
+      const out = r * detuneReach(late)
+      dot(
+        ctx,
+        field.cx + across * out,
+        field.cy - up * out,
+        1.5 + 2.5 * Math.sin((mix * Math.PI) / 2) * hold,
+        live ? colours.accent : colours.ink,
+        { ring: colours.ink },
+      )
       if (r >= 40) {
-        text(frame, centsText(cents), field.cx + (side === 0 ? -r : r), field.cy - r + 7, {
-          align: side === 0 ? 'left' : 'right',
+        // Its detune now over the disc, its Delay at the foot.
+        const align = side === 0 ? 'left' : 'right'
+        const edge = field.cx + (side === 0 ? -r : r)
+        text(frame, centsText(cents), edge, field.cy - r + 7, { align })
+        text(frame, `${Math.round(centre)} ms`, edge + (side === 0 ? 4 : -4), field.cy - 3, {
+          align,
         })
       }
     }

@@ -9,9 +9,11 @@ import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { STEREO_DETUNE_METERS, STEREO_DETUNE_PARAMS } from '../../dsp/devices/stereo-detune.gen'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
+  DETUNE_SMEAR_MS,
   SPATIAL_FACES,
   detuneAngle,
   detuneReach,
+  detuneTravel,
   fieldOf,
   utilityPair,
   widening,
@@ -374,26 +376,72 @@ describe('the Stereo Widener display', () => {
       expect(Math.hypot(x - field.cx, field.cy - y)).toBeCloseTo(unit, 6)
   })
 
-  it('shows where the fan stops being a plain balance', () => {
-    /** The dotted lines one and a half wide: the arc run on round the foot. */
-    const dissolved = (width: number): Path[] =>
-      pathsOf(draw({ values: { width } })).filter(
-        (path) => path.dash.join() === '1,3' && path.lineWidth === 1.5,
+  it('fades the fan edges as the allpasses come in, and draws nothing the device does not do', () => {
+    /** The two edges: the lines from the listener to the ends of the fan's arc. */
+    const edges = (width: number): Path[] => {
+      const [, fan] = fansOf(draw({ values: { width } }), field)
+      const ends = [fan.points[1], fan.points[fan.points.length - 1]]
+      return pathsOf(draw({ values: { width } })).filter(
+        (path) =>
+          path.lineWidth === 1.5 &&
+          path.points.length === 2 &&
+          path.points[0][0] === field.cx &&
+          path.points[0][1] === field.cy &&
+          ends.some(([x, y]) => path.points[1][0] === x && path.points[1][1] === y),
       )
-    expect(dissolved(0.5)).toEqual([])
-    expect(dissolved(0.75)).toEqual([])
-    expect(dissolved(0.8).length).toBe(2)
-    expect(dissolved(0.8)[0].alpha).toBeCloseTo(0.25 + 0.75 * 0.2, 9)
-    expect(dissolved(1)[0].alpha).toBeCloseTo(1, 9)
+    }
+    for (const [width, alpha] of [
+      [0.5, 1],
+      [0.75, 1],
+      [0.8, 1 - 0.75 * 0.2],
+      [1, 0.25],
+    ]) {
+      const found = edges(width)
+      expect(found.length).toBe(2)
+      for (const edge of found) expect(edge.alpha).toBeCloseTo(alpha, 9)
+    }
+    // Past the marks nothing is drawn beyond the fan: every dotted line is the
+    // corner's own path, one pixel wide.
+    for (const width of [0.8, 0.9, 1]) {
+      const dotted = pathsOf(draw({ values: { width } })).filter(
+        (path) => path.dash.join() === '1,3',
+      )
+      expect(dotted.length).toBe(1)
+      expect(dotted[0].lineWidth).toBe(1)
+    }
+  })
+
+  it('says how wide in a word, and names what is added past each mark', () => {
     const words = (width: number): string[] => draw({ values: { width } }).words()
     expect(words(0)).toContain('MONO')
     expect(words(0.3)).toContain('NARROW')
-    expect(words(0.5)).toEqual(expect.arrayContaining(['NORMAL']))
+    expect(words(0.5)).toContain('NORMAL')
     expect(words(0.7)).toContain('WIDE')
-    expect(words(0.75)).not.toContain('BLUR')
-    expect(words(0.8)).toEqual(expect.arrayContaining(['EXTRA', 'BLUR']))
-    expect(words(0.85)).not.toContain('LATE')
-    expect(words(0.9)).toEqual(expect.arrayContaining(['EXTRA', 'BLUR', 'LATE']))
+    expect(words(0.7)).not.toContain('PHASE')
+    // The allpasses turn each side's phase from three quarters up.
+    expect(words(0.75)).not.toContain('PHASE')
+    expect(words(0.8)).toEqual(expect.arrayContaining(['WIDE', 'PHASE']))
+    expect(words(0.8)).not.toContain('DELAY')
+    // The right side's late copy comes in from 0.85 up.
+    expect(words(0.85)).not.toContain('DELAY')
+    expect(words(0.9)).toEqual(expect.arrayContaining(['WIDE', 'PHASE', 'DELAY']))
+    expect(words(1)).toEqual(expect.arrayContaining(['WIDE', 'PHASE', 'DELAY']))
+  })
+
+  it('works a pair through StereoWidener::process by hand: the left alone at full Width', () => {
+    // Above the bass: mid = 0.5, side = 0.5; mid gain 1/sqrt(3.625) = 0.5252, side gain 2.5.
+    // Left = 0.2626 + 1.25 = 1.5126, right = 0.2626 - 1.25 = -0.9874: the right is against the left.
+    const { side, mid } = widening(1)
+    expect(0.5 * mid + 0.5 * side).toBeCloseTo(1.5126, 4)
+    expect(0.5 * mid - 0.5 * side).toBeCloseTo(-0.9874, 4)
+    // On the field that is the fan's left corner, a mirror of the handle.
+    const corner = handle('width', { width: 1 })
+    const [, fan] = fansOf(draw({ values: { width: 1 } }), field)
+    expect(fan.points[1][0]).toBeCloseTo(2 * field.cx - corner.x, 6)
+    expect(fan.points[1][1]).toBeCloseTo(corner.y, 6)
+    // The bass under 200 Hz keeps its sum and 0.3 of its difference: 0.65 and 0.35.
+    expect(0.5 + 0.5 * widening(1).bass).toBeCloseTo(0.65, 9)
+    expect(0.5 - 0.5 * widening(1).bass).toBeCloseTo(0.35, 9)
   })
 })
 
@@ -470,6 +518,24 @@ describe('the Utility display', () => {
     expect(full.reset?.()).toEqual({ width: 1 })
   })
 
+  it('moves the fan edge only outward as the width rises, at every pan: so halving finds it', () => {
+    for (let pan = -0.98; pan <= 0.981; pan += 0.07) {
+      let before = -Infinity
+      for (let width = 0; width <= 1.0001; width += 0.05) {
+        const [l, r] = utilityPair(0, 1, width, pan)
+        const at = Math.atan2(r - l, r + l)
+        expect(at).toBeGreaterThan(before)
+        before = at
+      }
+    }
+    // By hand, in the middle: the right alone at Width one half is 0.25 and 0.75, at atan(0.5).
+    const [l, r] = utilityPair(0, 1, 0.5, 0)
+    expect(l).toBeCloseTo(0.25, 12)
+    expect(r).toBeCloseTo(0.75, 12)
+    const edge = handle('width', { width: 0.5 })
+    expect(angle(edge.x, edge.y)).toBeCloseTo(Math.atan(0.5), 9)
+  })
+
   it('draws the fan through the same sum: a line when mono, on one diagonal when hard over', () => {
     const fan = (values: Record<string, number>): [number, number][] =>
       fansOf(draw({ values }), field)[0].points.slice(1)
@@ -505,9 +571,21 @@ describe('the Utility display', () => {
     expect(words({})).toContain('C')
     expect(words({ pan: 0.5 })).toContain('50R')
     expect(words({ pan: -1 })).toContain('100L')
-    expect(words({ polarity: 1 }).join(' ')).toContain('Ø')
-    expect(words({}).join(' ')).not.toContain('Ø')
-    expect(words({ width: 0 }).join(' ')).toContain('MONO')
+    expect(words({ polarity: 1 })).toContain('Ø')
+    expect(words({})).not.toContain('Ø')
+    expect(words({})).not.toContain('MONO')
+    expect(words({ width: 0 })).toContain('MONO')
+    // Both at once are two words in two places, so neither runs under the point on the rim.
+    expect(words({ width: 0, polarity: 1 })).toEqual(expect.arrayContaining(['Ø', 'MONO']))
+    const drawn = draw({ values: { width: 0, polarity: 1, pan: -0.6 } })
+    const point = handle('pan', { pan: -0.6 })
+    for (const call of drawn.calls.filter((made) => made.name === 'fillText')) {
+      const [word, x, y] = call.args as [string, number, number]
+      if (word !== 'Ø' && word !== 'MONO') continue
+      // A word of 8 px type: about 5 px a letter, 6 px high over its line.
+      const clear = point.x - 5 > x + word.length * 5.5 || point.y - 5 > y || point.y + 5 < y - 6
+      expect(clear, `${word} is clear of the pan point`).toBe(true)
+    }
   })
 })
 
@@ -519,15 +597,29 @@ describe('the Stereo Detune display', () => {
   /** A bead at Mix `mix` with the level hold at `hold`. */
   const beadRadius = (mix: number, hold = 1): number =>
     1.5 + 2.5 * Math.sin((mix * Math.PI) / 2) * hold
-  /** The two beads, the left one first: how far out and at what angle. */
-  const beads = (drawn: RecordingContext): { out: number; angle: number; radius: number }[] =>
-    dotsOf(drawn)
-      .filter((dot) => dot.y < field.alike.y)
+  interface Bead {
+    out: number
+    angle: number
+    radius: number
+    fill: string | null
+  }
+  /** The two beads, the left one first: the dots with a ring on the disc, how far out and at what angle. */
+  const beads = (drawn: RecordingContext): Bead[] =>
+    pathsOf(drawn)
+      .filter(
+        (path) =>
+          path.arcs.length === 1 &&
+          path.fill !== null &&
+          path.stroke === ink &&
+          path.arcs[0][1] < field.alike.y,
+      )
+      .map((path) => ({ x: path.arcs[0][0], y: path.arcs[0][1], radius: path.arcs[0][2], path }))
       .sort((a, b) => a.x - b.x)
       .map((dot) => ({
         out: Math.hypot(dot.x - field.cx, field.cy - dot.y) / field.r,
         angle: Math.atan2(dot.x - field.cx, field.cy - dot.y),
         radius: dot.radius,
+        fill: dot.path.fill,
       }))
   const live = { centsLeft: 11.4, centsRight: -7.6, delayLeft: 20, delayRight: 30 }
 
@@ -562,7 +654,11 @@ describe('the Stereo Detune display', () => {
     expect(left.angle).toBeCloseTo(-EIGHTH, 6)
     expect(right.angle).toBeCloseTo(EIGHTH, 6)
     expect(left.radius).toBeCloseTo(beadRadius(0.36), 9)
-    expect(drawn.words()).toEqual(expect.arrayContaining(['+9 ct', '−9 ct']))
+    // The numbers: each copy's detune over the disc, its Delay at the foot (19.6 ms is said as 20).
+    expect(drawn.words()).toEqual(expect.arrayContaining(['+9 ct', '−9 ct', '14 ms', '20 ms']))
+    expect(draw({ values: { delay: 45 } }).words()).toEqual(
+      expect.arrayContaining(['45 ms', '63 ms']),
+    )
     const set = beads(draw({ values: { delay: 40, width: 0.5, detune: 23.4, mix: 1 } }))
     expect(set[0].out).toBeCloseTo(detuneReach(40), 6)
     expect(set[1].out).toBeCloseTo(detuneReach(56), 6)
@@ -578,7 +674,22 @@ describe('the Stereo Detune display', () => {
     expect(left.radius).toBeCloseTo(beadRadius(0.36), 9)
     // The level hold has the right copy at half: its bead is that much smaller.
     expect(right.radius).toBeCloseTo(beadRadius(0.36, 0.5), 9)
-    expect(drawn.words()).toEqual(expect.arrayContaining(['+11 ct', '−8 ct']))
+    // The detune is the device's now; the Delay at the foot stays what is set.
+    expect(drawn.words()).toEqual(expect.arrayContaining(['+11 ct', '−8 ct', '14 ms', '20 ms']))
+  })
+
+  it('paints the beads in the accent only while the device says where its heads are', () => {
+    const running = beads(draw({ meters: { ...live, holdLeft: 1, holdRight: 1 } }))
+    expect(running.map((bead) => bead.fill)).toEqual([accent, accent])
+    for (const drawn of [
+      draw(),
+      draw({ meters: { ...live, holdLeft: 1, holdRight: 1 }, powered: false }),
+    ]) {
+      expect(beads(drawn).map((bead) => bead.fill)).toEqual([ink, ink])
+      expect(
+        drawn.calls.some((call) => call.name === 'set fillStyle' && call.args[0] === accent),
+      ).toBe(false)
+    }
   })
 
   it('keeps to what is set until a reading has come, and while switched off', () => {
@@ -595,7 +706,7 @@ describe('the Stereo Detune display', () => {
     }
   })
 
-  it('draws the rail the head travels: 7.5 ms either side of the Delay, none for a copy not detuned', () => {
+  it('draws the rail the head travels: 7.5 ms either side of the Delay, none for a copy that holds still', () => {
     /** The lines from the listener's side outward along the left copy's angle, as delays. */
     const rails = (values: Record<string, number>): [number, number][] =>
       pathsOf(draw({ values }))
@@ -623,12 +734,40 @@ describe('the Stereo Detune display', () => {
     const [drifting] = rails({ drift: 1, delay: 30 })
     expect(drifting[0]).toBeCloseTo(21, 6)
     expect(drifting[1]).toBeCloseTo(39, 6)
-    const [held] = rails({ detune: 0, drift: 0 })
-    expect(held[0]).toBeCloseTo(14, 6)
-    expect(held[1]).toBeCloseTo(14, 6)
+    // Neither detuned nor drifting, the head stays where it is: no rail.
+    expect(rails({ detune: 0, drift: 0 })).toEqual([])
+    // Drift alone is a detune that wanders: the head travels its whole rail all the same.
+    expect(detuneTravel(0, 0)).toBe(0)
+    expect(detuneTravel(9, 0)).toBe(7.5)
+    expect(detuneTravel(0, 0.6)).toBeCloseTo(7.5 + 0.9, 9)
+    const [wandering] = rails({ detune: 0, drift: 0.6, delay: 25 })
+    expect(wandering[0]).toBeCloseTo(25 - 8.4, 6)
+    expect(wandering[1]).toBeCloseTo(25 + 8.4, 6)
   })
 
-  it('draws each time round as late again and that much quieter, as far as the rim', () => {
+  it('marks the Delay across each rail with a short line', () => {
+    const marks = pathsOf(draw({ values: { delay: 30, width: 1 } })).filter(
+      (path) =>
+        path.stroke === ink &&
+        path.points.length === 2 &&
+        path.points[0][1] < field.cy &&
+        Math.abs(
+          Math.hypot(path.points[1][0] - path.points[0][0], path.points[1][1] - path.points[0][1]) -
+            6,
+        ) < 1e-6,
+    )
+    expect(marks.length).toBe(2)
+    const middles = marks
+      .map(({ points: [[x1, y1], [x2, y2]] }) => [(x1 + x2) / 2, (y1 + y2) / 2])
+      .sort((a, b) => a[0] - b[0])
+    for (const [n, ms] of [30, 42].entries()) {
+      const [x, y] = middles[n]
+      expect(Math.hypot(x - field.cx, field.cy - y) / field.r).toBeCloseTo(detuneReach(ms), 6)
+      expect(Math.atan2(x - field.cx, field.cy - y)).toBeCloseTo(n === 0 ? -EIGHTH : EIGHTH, 6)
+    }
+  })
+
+  it('draws each time round as late again and that much quieter, later by the allpasses, as far as the rim', () => {
     /** The repeats: the dots in the ink, as how far out and how strong. */
     const repeats = (values: Record<string, number>): { ms: number; alpha: number }[] =>
       pathsOf(draw({ values }))
@@ -642,12 +781,20 @@ describe('the Stereo Detune display', () => {
           alpha: path.alpha,
         }))
     expect(repeats({ feedback: 0 })).toEqual([])
+    // kDiffusionSeconds: 3.11 and 5.23 ms on the left, 3.97 and 6.41 ms on the right.
+    expect(DETUNE_SMEAR_MS[0]).toBeCloseTo(8.34, 9)
+    expect(DETUNE_SMEAR_MS[1]).toBeCloseTo(10.38, 9)
     const round = repeats({ feedback: 0.5 })
-    // Left: 28, 42 and 56 ms; right: 39.2, 58.8 and 78.4 ms.
-    expect(round.map((dot) => Math.round(dot.ms * 10) / 10)).toEqual([28, 42, 56, 39.2, 58.8, 78.4])
+    // Left: 2 x 14 + 8.34, 3 x 14 + 16.68, 4 x 14 + 25.02 ms; right the same from 19.6 and 10.38.
+    expect(round.map((dot) => Math.round(dot.ms * 100) / 100)).toEqual([
+      36.34, 58.68, 81.02, 49.58, 79.56, 109.54,
+    ])
     expect(round.map((dot) => dot.alpha)).toEqual([0.5, 0.25, 0.125, 0.5, 0.25, 0.125])
-    // At the longest Delay the left's second pass is on the rim and the right's is past it.
-    expect(repeats({ feedback: 0.5, delay: 60 }).map((dot) => Math.round(dot.ms))).toEqual([120])
+    // At a Delay of 50 ms the left's second pass is still on the disc and the right's is past the rim.
+    expect(
+      repeats({ feedback: 0.5, delay: 50 }).map((dot) => Math.round(dot.ms * 100) / 100),
+    ).toEqual([108.34])
+    expect(repeats({ feedback: 0.5, delay: 60 })).toEqual([])
   })
 
   it('shows the dry sound at the listener, as much of it as Mix leaves', () => {
@@ -722,6 +869,69 @@ describe('the readings Stereo Detune gives its display', () => {
     }
     expect(Math.abs(sum[0])).toBeLessThan(4)
     expect(Math.abs(sum[1])).toBeLessThan(4)
+  })
+
+  it('has the head travel its whole rail on Drift alone', async () => {
+    const h = await device(0.6)
+    h.set(P.detune, 0)
+    h.set(P.delay, 25)
+    const reach = [0, 0]
+    for (let n = 0; n < 120; n++) {
+      h.feedTone(0.25, 330, 0.3)
+      for (const [side, name] of (['delayLeft', 'delayRight'] as const).entries()) {
+        reach[side] = Math.max(reach[side], Math.abs(h.meter(name) - 25 * (side === 0 ? 1 : 1.4)))
+      }
+    }
+    for (const side of [0, 1]) {
+      // Well past what the wander of the delay alone would be (0.9 ms), and on the rail.
+      expect(reach[side]).toBeGreaterThan(6)
+      expect(reach[side]).toBeLessThan(detuneTravel(0, 0.6) + 2)
+    }
+  })
+
+  it('brings each repeat later than twice the Delay by its allpasses', async () => {
+    const h = await device(0)
+    h.set(P.detune, 0)
+    h.set(P.feedback, 0.7)
+    h.set(P.focus, 20)
+    h.set(P.tone, 18000)
+    h.set(P.mix, 1)
+    const rate = h.sampleRate
+    const total = Math.round(0.12 * rate)
+    const out = [new Float32Array(total), new Float32Array(total)]
+    const block = new Float32Array(128)
+    for (let n = 0; n < total; n += 128) {
+      block.fill(0)
+      // A click a quarter of a millisecond long.
+      if (n === 0) for (let i = 0; i < 12; i++) block[i] = Math.sin((i / 12) * Math.PI)
+      h.processBlock(block)
+      const frames = Math.min(128, total - n)
+      out[0].set(h.view(h.device.device_out_left(), frames), n)
+      out[1].set(h.view(h.device.device_out_right(), frames), n)
+    }
+    /** When the loudest millisecond between two times begins, ms. */
+    const loudest = (wave: Float32Array, fromMs: number, toMs: number): number => {
+      const window = Math.round(rate / 1000)
+      let best = 0
+      let at = 0
+      for (let n = Math.round((fromMs * rate) / 1000); n < (toMs * rate) / 1000; n++) {
+        let energy = 0
+        for (let i = 0; i < window; i++) energy += wave[n + i] * wave[n + i]
+        if (energy > best) {
+          best = energy
+          at = n
+        }
+      }
+      return (at * 1000) / rate
+    }
+    for (const [side, delay] of [14, 19.6].entries()) {
+      const first = loudest(out[side], 0, delay + 6)
+      expect(first).toBeCloseTo(delay, 0)
+      // The second time round: the Delay again, and the two allpasses.
+      const second = loudest(out[side], first + 6, 2 * delay + 30)
+      expect(second - first).toBeGreaterThan(delay + DETUNE_SMEAR_MS[side] - 1)
+      expect(second - first).toBeLessThan(delay + DETUNE_SMEAR_MS[side] + 1)
+    }
   })
 
   it('carry the drift: up to 8 cents and 1.5 ms either way at full', async () => {
