@@ -61,6 +61,11 @@ class Chorus : public kit::DeviceBase<chorus::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The reading named by "meters" in device.json, for a display to draw:
+  // where the LFO is in its cycle (0..1). Voice v reads v / voices of a cycle
+  // ahead of it, and the right side Spread · 90° later still.
+  float meter(int index) const { return index == 0 ? static_cast<float>(lfo_phase_) : 0.0f; }
+
   void process(int frames) {
     using namespace chorus;
     frames = begin_block(frames);

@@ -73,6 +73,25 @@ class Rotary : public kit::DeviceBase<rotary::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the horn and the drum point (cycles, 0..1; 0 is straight at the
+  // front, between the microphones) and how fast each turns (Hz). The horn's
+  // angle rises as it turns, the drum's falls.
+  float meter(int index) const {
+    switch (index) {
+      case 0:
+        return static_cast<float>(horn_angle_);
+      case 1:
+        return static_cast<float>(drum_angle_);
+      case 2:
+        return horn_speed_;
+      case 3:
+        return drum_speed_;
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace rotary;
     frames = begin_block(frames);
