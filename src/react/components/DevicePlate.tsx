@@ -6,6 +6,12 @@
 // the power switch. It is the same device as in `DevicePanel`: every knob,
 // the presets and the readings are there, with the same info text. A device
 // with a window of its own (a hosted plug-in) has a cell that opens it.
+//
+// A skin with a display (`plate-display.ts`) has a canvas in the picture's
+// place that shows what the device is doing while it does it: under the row
+// of knobs (`strip`), or beside two rows of them (`window`). The column at the
+// right is the plate's own either way: the cell that opens the rest at its
+// top, the chain's tools at its foot.
 
 import {
   memo,
@@ -27,7 +33,7 @@ import { type DeviceRegistry } from '../../core/devices/registry'
 import { normalizeParam } from '../../core/params'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
-import { DeviceMeterReadout, isBipolar } from './DevicePanel'
+import { DeviceMeterReadout, isBipolar, printedMeters } from './DevicePanel'
 import {
   PLATE_PICTURE_HEIGHT,
   PLATE_PICTURE_WIDTH,
@@ -39,6 +45,14 @@ import {
 import { infoProps, infoText } from './info'
 import { Knob } from './Knob'
 import { paramInfo } from './param-info'
+import {
+  DISPLAY_STRIP_HEIGHT,
+  DISPLAY_STRIP_WIDTH,
+  DISPLAY_WINDOW_HEIGHT,
+  displayWindowWidth,
+  type PlateDisplay,
+} from './plate-display'
+import { PlateDisplayLayer } from './PlateDisplay'
 import { DeviceToggle } from './Toggle'
 import { cx } from './tokens'
 
@@ -61,6 +75,12 @@ const longestWord = (words: string): number =>
 /** Opened, a pictured plate with more knobs than this lays them in two rows beside the picture. */
 const ONE_ROW_MOST = 12
 
+/** Left of a display, and between a display and the knobs beside it. */
+const DISPLAY_LEFT = 8
+const DISPLAY_GAP = 4
+/** Where a strip starts, under the row of knobs. */
+const STRIP_TOP = 60
+
 export interface PlateLayout {
   rows: number
   columns: number
@@ -68,20 +88,78 @@ export interface PlateLayout {
   column: number
   /** Width of the plate in px: whole cells. */
   width: number
+  /** Where the knobs start from the plate's left edge, in px. */
+  knobsLeft: number
+  /** Where the display stands and how large it is, in px; null for a plate without one. */
+  display: { left: number; top: number; width: number; height: number } | null
 }
 
 /**
  * Where so many knobs go. Over a picture they sit in one row above it, and
  * the plate widens with them; past twelve they take two rows and the picture
  * stands clear at the right. A plate without a picture always has two rows.
+ *
+ * With a display: a strip lies under one row of knobs and ends where they do,
+ * so the column at the right stays the plate's own; past twelve knobs they
+ * take two rows and the strip stands beside them at the plate's full working
+ * height. A window stands at the left and the knobs take two rows beside it.
  */
-export function plateLayout(knobs: number, pictured: boolean): PlateLayout {
+export function plateLayout(
+  knobs: number,
+  pictured: boolean,
+  display?: Pick<PlateDisplay, 'place' | 'columns'>,
+): PlateLayout {
+  const cells = (px: number): number => Math.ceil(px / CELL) * CELL
+  if (display?.place === 'window') {
+    const face = display.columns ?? 2
+    const window = displayWindowWidth(face)
+    const columns = Math.max(face, Math.ceil(knobs / 2))
+    const knobsLeft = DISPLAY_LEFT + window + DISPLAY_GAP
+    return {
+      rows: 2,
+      columns,
+      column: KNOB_COLUMN,
+      width: cells(knobsLeft + columns * KNOB_COLUMN + MORE_COLUMN),
+      knobsLeft,
+      display: { left: DISPLAY_LEFT, top: 8, width: window, height: DISPLAY_WINDOW_HEIGHT },
+    }
+  }
+  if (display) {
+    const rows = knobs > ONE_ROW_MOST ? 2 : 1
+    const columns = Math.max(FACE_PER_ROW, Math.ceil(knobs / rows))
+    const knobsRight = KNOBS_LEFT + columns * KNOB_COLUMN
+    if (rows === 1) {
+      const width = cells(knobsRight + MORE_COLUMN)
+      return {
+        rows,
+        columns,
+        column: KNOB_COLUMN,
+        width,
+        knobsLeft: KNOBS_LEFT,
+        display: {
+          left: DISPLAY_LEFT,
+          top: STRIP_TOP,
+          width: width - DISPLAY_LEFT - MORE_COLUMN - DISPLAY_GAP,
+          height: DISPLAY_STRIP_HEIGHT,
+        },
+      }
+    }
+    const left = knobsRight + DISPLAY_GAP
+    return {
+      rows,
+      columns,
+      column: KNOB_COLUMN,
+      width: cells(left + DISPLAY_STRIP_WIDTH + DISPLAY_GAP + MORE_COLUMN),
+      knobsLeft: KNOBS_LEFT,
+      display: { left, top: 8, width: DISPLAY_STRIP_WIDTH, height: DISPLAY_WINDOW_HEIGHT },
+    }
+  }
   const column = pictured ? KNOB_COLUMN : PLAIN_KNOB_COLUMN
   const rows = pictured ? (knobs > ONE_ROW_MOST ? 2 : 1) : knobs > FACE_PER_ROW ? 2 : 1
   const columns = Math.max(FACE_PER_ROW, Math.ceil(knobs / rows))
   const beside = pictured && rows === 2 ? PLATE_PICTURE_WIDTH : MORE_COLUMN
-  const width = Math.ceil((KNOBS_LEFT + columns * column + beside) / CELL) * CELL
-  return { rows, columns, column, width }
+  const width = cells(KNOBS_LEFT + columns * column + beside)
+  return { rows, columns, column, width, knobsLeft: KNOBS_LEFT, display: null }
 }
 
 export interface DevicePlateProps {
@@ -109,6 +187,12 @@ export interface DevicePlateProps {
   actions?: ReactNode
   /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
   hint?: string
+  /**
+   * The node that feeds the device, so a display can show the level going in
+   * beside the level coming out. A chain gives it; left out, a display shows
+   * only what comes out.
+   */
+  source?: AudioNode | null
   onRemove?: () => void
   className?: string
   style?: CSSProperties
@@ -179,6 +263,7 @@ export function DevicePlate({
   onOpenChange,
   actions,
   hint,
+  source = null,
   onRemove,
   className,
   style,
@@ -190,11 +275,20 @@ export function DevicePlate({
   const held = usePlateInHand()
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
-  const onFace = skin.picture ? FACE_PER_ROW : FACE_PER_ROW * 2
+  const display = skin.display
+  // A display takes the picture's place: a skin with both shows the display.
+  const picture = display ? undefined : skin.picture
+  const pictured = picture !== undefined || display !== undefined
+  const onFace =
+    display?.place === 'window'
+      ? (display.columns ?? 2) * 2
+      : pictured
+        ? FACE_PER_ROW
+        : FACE_PER_ROW * 2
   const face = (skin.face?.filter((name) => all.includes(name)) ?? all).slice(0, onFace)
   const rest = all.filter((name) => !face.includes(name))
   const names = open ? [...face, ...rest] : face
-  const layout = plateLayout(names.length, skin.picture !== undefined)
+  const layout = plateLayout(names.length, picture !== undefined, display)
   const ownText = isParamTextDevice(device) ? device : null
   const editor = isEditorDevice(device) ? device : null
   const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)
@@ -207,10 +301,10 @@ export function DevicePlate({
     const spec = d.params[param]
     return spec ? normalizeParam(spec, d.values[param]) : 0
   }
-  const stamp = skin.picture?.params.map((param) => at(param).toFixed(3)).join(' ') ?? ''
+  const stamp = picture?.params.map((param) => at(param).toFixed(3)).join(' ') ?? ''
 
   // The letters a knob's column holds at the word's usual size; a longer word is set tighter.
-  const roomy = skin.picture ? TIGHT_OVER : PLAIN_TIGHT_OVER
+  const roomy = pictured ? TIGHT_OVER : PLAIN_TIGHT_OVER
 
   const toggleOpen = (): void => {
     setOpen(!open)
@@ -274,7 +368,9 @@ export function DevicePlate({
         !powered && 'lm-plate--off',
         open && 'lm-plate--open',
         held.is && 'lm-plate--held',
-        skin.picture && 'lm-plate--pictured',
+        pictured && 'lm-plate--pictured',
+        display && 'lm-plate--display',
+        display && `lm-plate--${display.place}`,
         className,
       )}
       style={
@@ -285,6 +381,7 @@ export function DevicePlate({
           '--lm-plate-rows': layout.rows,
           '--lm-plate-columns': layout.columns,
           '--lm-plate-column': `${layout.column}px`,
+          '--lm-plate-knobs-left': `${layout.knobsLeft}px`,
           width: layout.width,
           ...style,
         } as CSSProperties
@@ -305,7 +402,28 @@ export function DevicePlate({
         dark={skin.dark ?? isDarkPlate(skin.plate)}
         id={`lm-plate-finish-${finishId.replace(/[^a-zA-Z0-9_-]/g, '')}`}
       />
-      {skin.picture ? <PictureLayer picture={skin.picture} stamp={stamp} at={at} /> : null}
+      {picture ? <PictureLayer picture={picture} stamp={stamp} at={at} /> : null}
+      {display && layout.display ? (
+        <PlateDisplayLayer
+          display={display}
+          device={device}
+          source={source}
+          width={layout.display.width}
+          height={layout.display.height}
+          style={{ left: layout.display.left, top: layout.display.top }}
+          powered={powered}
+          params={d.params}
+          values={d.values}
+          heading={heading}
+          onDragStart={(names) => d.touchMany(names)}
+          onDrag={(params) => {
+            d.setMany(params)
+            if (presetName) setPresetName('')
+          }}
+          onDragEnd={(names) => d.releaseMany(names)}
+          data-testid={testId ? `${testId}-display` : undefined}
+        />
+      ) : null}
       <div className="lm-plate__knobs">
         {names.map((name) => {
           const spec = d.params[name]
@@ -393,8 +511,9 @@ export function DevicePlate({
       {picker ? tools : null}
       <div className={cx('lm-plate__foot', picker && 'lm-plate__foot--picker')}>
         {name}
-        {isMeteredDevice(device)
-          ? Object.entries(device.meters).map(([name, spec]) => (
+        {/* A display shows the device's readings itself, so the foot does not print them again. */}
+        {isMeteredDevice(device) && !display
+          ? printedMeters(device).map(([name, spec]) => (
               <DeviceMeterReadout
                 key={name}
                 device={device}

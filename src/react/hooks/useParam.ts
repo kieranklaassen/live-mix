@@ -55,6 +55,15 @@ export interface DeviceControls {
   release(name: string): void
   /** True when `setParam` writes attributed score operations through an arbiter. */
   attributed: boolean
+  /**
+   * Several parameters moved by one drag (a band on an EQ's display moves its
+   * frequency and its gain): `touchMany` at pointer down, `setMany` as it
+   * moves, `releaseMany` at pointer up. With an arbiter the whole drag is one
+   * undo step, however many parameters it moved.
+   */
+  touchMany(names: readonly string[]): void
+  setMany(params: Readonly<Record<string, number>>): void
+  releaseMany(names: readonly string[]): void
   setBypass(bypass: boolean): void
   toggleBypass(): void
   /**
@@ -95,6 +104,9 @@ function scoreDeviceId(arbiter: Arbiter | null, device: Device): string | null {
   return arbiter?.deviceIdFor(device) ?? null
 }
 
+/** The gesture counter of drags that move several parameters; no parameter can have this name. */
+const DRAG = '\u0000drag'
+
 /** Hold/gesture bookkeeping shared by the two device hooks. */
 function useAttributedParams(device: Device) {
   const arbiter = useMaybeArbiter()
@@ -131,6 +143,25 @@ function useAttributedParams(device: Device) {
       touch: (name: string): void => {
         gestures.current[name] = (gestures.current[name] ?? 0) + 1
         if (arbiter && id !== null) arbiter.touch(target(name))
+      },
+      /** A drag that moves several parameters begins: they are held, and it is one gesture. */
+      touchMany: (names: readonly string[]): void => {
+        gestures.current[DRAG] = (gestures.current[DRAG] ?? 0) + 1
+        if (arbiter && id !== null) for (const name of names) arbiter.touch(target(name))
+      },
+      /** The drag's parameters as one operation of its gesture; false when the device is not in the score. */
+      dragMany: (params: Readonly<Record<string, number>>): boolean => {
+        if (!arbiter || id === null) return false
+        arbiter.apply(
+          { type: 'device.setParams', device: id, params: { ...params } },
+          { gesture: `ui:${id}:drag#${gestures.current[DRAG] ?? 0}` },
+        )
+        return true
+      },
+      releaseMany: (names: readonly string[]): void => {
+        if (!arbiter || id === null) return
+        for (const name of names) arbiter.release(target(name))
+        arbiter.endGesture()
       },
       release: (name: string): void => {
         if (!arbiter || id === null) return
@@ -172,6 +203,16 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
       touch: attributed.touch,
       release: attributed.release,
       attributed: attributed.attributed,
+      touchMany: attributed.touchMany,
+      setMany: (params) => {
+        if (!attributed.dragMany(params)) {
+          for (const [name, value] of Object.entries(params)) {
+            if (name in device.params) device.setParam(name, value)
+          }
+        }
+        after()
+      },
+      releaseMany: attributed.releaseMany,
       setBypass: (enabled) => {
         if (!attributed.setBypass(enabled)) device.bypass = enabled
         after()

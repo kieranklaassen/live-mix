@@ -154,7 +154,7 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tine-piano \
     cpp/devices/tine-piano/device_api.gen.cpp
-  MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device tremolo \
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
     cpp/devices/vintage-digital/device_api.gen.cpp

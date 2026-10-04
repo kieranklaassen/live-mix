@@ -2073,10 +2073,38 @@
   bottom: 0;
 }
 
+/* A display: a canvas in the picture's place, which the plate sizes and puts
+   where it goes. The canvas paints in the plate's three colours and reads
+   them from here, each in a property whose computed value is a colour
+   whatever the skin wrote (a theme token, a mix). The outline has no width. */
+.lm-plate__display {
+  position: absolute;
+  display: block;
+  outline: 0 solid var(--lm-plate-accent);
+  color: var(--lm-plate-ink);
+  font-family: var(--lm-font);
+  text-decoration-color: var(--lm-plate);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A display with points to drag takes a finger's drag for itself. */
+.lm-plate__display--handles {
+  touch-action: none;
+}
+
+.lm-plate__display[data-lm-handle] {
+  cursor: grab;
+}
+
+.lm-plate__display[data-lm-handle]:active {
+  cursor: grabbing;
+}
+
 .lm-plate__knobs {
   position: absolute;
   top: 8px;
-  left: 4px;
+  left: var(--lm-plate-knobs-left, 4px);
   display: grid;
   grid-template-columns: repeat(var(--lm-plate-columns, 4), var(--lm-plate-column, 48px));
   grid-template-rows: repeat(var(--lm-plate-rows, 1), 50px);
@@ -2084,7 +2112,8 @@
 
 .lm-plate .lm-knob {
   width: 100%;
-  gap: 3px;
+  /* 30 for the knob, 2 between, two lines of 9: a row of 50 holds a name of two words whole. */
+  gap: 2px;
   color: var(--lm-plate-ink);
 }
 
@@ -2263,6 +2292,32 @@
 /* A hairline of the plate's own colour between one tool and the next. */
 .lm-plate__tools--above > * + * {
   box-shadow: -1px 0 0 var(--lm-plate);
+}
+
+/* On a plate with a display the column at the right is the plate's own, and
+   the tools stand at its foot two abreast, under the cell that opens the
+   rest: over no knob and no part of the display, however many there are. */
+.lm-plate--display .lm-plate__tools--above {
+  right: calc((44px - 2 * var(--lm-plate-tool, 16px) - 1px) / 2);
+  grid-template-columns: repeat(2, var(--lm-plate-tool, 16px));
+  gap: 1px;
+}
+
+.lm-plate--display:hover .lm-plate__tools--above,
+.lm-plate--display:focus-within .lm-plate__tools--above,
+.lm-plate--display.lm-plate--open .lm-plate__tools--above,
+.lm-plate--display.lm-plate--held .lm-plate__tools--above {
+  display: grid;
+}
+
+.lm-plate--display .lm-plate__tools--above > * + * {
+  box-shadow: none;
+}
+
+.lm-plate--display .lm-plate__tools--above .lm-button {
+  width: var(--lm-plate-tool, 16px);
+  min-width: 0;
+  padding: 0;
 }
 
 .lm-plate__tools .lm-button,

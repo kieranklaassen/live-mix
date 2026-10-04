@@ -6,6 +6,11 @@
   "class": "Tremolo",
   "header": "tremolo.h",
   "sources": [],
+  "meters": [
+    { "key": "phase", "name": "LFO phase", "display": true },
+    { "key": "left", "name": "Modulation left", "display": true },
+    { "key": "right", "name": "Modulation right", "display": true }
+  ],
   "params": [
     {
       "key": "mode",
