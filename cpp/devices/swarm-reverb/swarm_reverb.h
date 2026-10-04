@@ -110,6 +110,11 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The reading named by "meters" in device.json, for a display to draw: the
+  // seconds one pass through the swarm takes now, with Stretch, its glide
+  // and Wander in it. It stands still while the device sleeps.
+  float meter(int index) const { return index == 0 ? size_now_ : 0.0f; }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames))) {
@@ -492,6 +497,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
     }
     const float octaves = kit::clamp(stretch_ + free, -1.0f, 1.0f);
     const float seconds = std::exp2(length_.next() + octaves);
+    size_now_ = seconds;
     const double speed = 1.0 / (static_cast<double>(seconds) * sr);  // Lengths per sample
 
     if (!started_) {
@@ -604,6 +610,7 @@ class SwarmReverb : public kit::DeviceBase<swarm_reverb::kNumParams> {
   kit::Smoother feedback_, blur_, dry_, wet_, width_, level_;
   kit::Smoother length_, depth_, wander_, high_cut_hz_, low_cut_hz_;
   float stretch_ = 0.0f;  // where Stretch is now, in octaves of time
+  float size_now_ = 0.0f;  // seconds a pass takes now, kept for the display
   float fill_ = 0.0f;  // mean square at the end of the lines
   float fill_coeff_ = 0.0f;
   float loop_peak_ = 0.0f;  // largest sample at the end of the lines in this block

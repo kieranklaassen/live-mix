@@ -9,6 +9,10 @@
     "cpp/devices/spectral-drifter/SpectralDrifter.cpp",
     "cpp/devices/stereo-widener/StereoWidener.cpp"
   ],
+  "meters": [
+    { "key": "age", "name": "Age of the ringing", "display": true },
+    { "key": "drift", "name": "Drift now", "display": true }
+  ],
   "params": [
     {
       "key": "bloom",

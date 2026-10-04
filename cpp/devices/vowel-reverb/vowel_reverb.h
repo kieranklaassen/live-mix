@@ -149,6 +149,28 @@ class VowelReverb : public kit::DeviceBase<vowel_reverb::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // The readings named by "meters" in device.json, for a display to draw:
+  // where the banks were last tuned. The vowel the room sings now (0..4,
+  // the knob after its glide and Motion's wander, turned back at the ends),
+  // how far the two sides lean from it (the left up, the right down), the
+  // voice after its glide, and how far the sides differ in voice. Before
+  // the first tuning, the knobs. They stand still while the device sleeps.
+  float meter(int index) const {
+    const bool tuned = last_tuning_[0] > -1.0e8f;
+    switch (index) {
+      case 0:
+        return tuned ? fold(last_tuning_[0]) : vowel_.target;
+      case 1:
+        return tuned ? last_tuning_[1] : 0.0f;
+      case 2:
+        return tuned ? last_tuning_[2] : voice_.target;
+      case 3:
+        return tuned ? last_tuning_[3] : 0.0f;
+      default:
+        return 0.0f;
+    }
+  }
+
   void process(int frames) {
     using namespace vowel_reverb;
     frames = begin_block(frames);

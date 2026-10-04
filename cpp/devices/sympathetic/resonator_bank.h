@@ -34,6 +34,10 @@ class ResonatorBank {
 
   int num_strings() const { return count_; }
   float string_frequency(int index) const { return strings_[index].comb.frequency(); }
+  // The mean square a string of the bank holds now, 0 for one not in use.
+  float string_energy(int index) const {
+    return index >= 0 && index < count_ ? strings_[index].comb.energy() : 0.0f;
+  }
 
   void set_num_strings(int count, bool glide) {
     count_ = kit::clamp_int(count, 1, kMaxStrings);
