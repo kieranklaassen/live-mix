@@ -149,7 +149,8 @@ const REORDER_INFO =
   'Drag this grip, or the title bar beside it, sideways to carry the device to another place in the chain. A line shows where it will land; Escape puts it back. The sound runs through the devices from left to right, so their order changes the result.'
 /** The line a device in a chain adds to its own info text. */
 const REORDER_HINT = 'Drag its title bar sideways to move it in the chain.'
-const PLATE_REORDER_HINT = 'Drag it by its face sideways to move it in the chain.'
+const PLATE_REORDER_HINT =
+  'Drag it by its face sideways to move it in the chain; a finger on the face scrolls the chain, and moves it by the grip at its left or the cells of its tools.'
 
 /** On a plate for as long as a move cell of its tools is given the focus back: the tools are drawn. */
 const PLATE_REFOCUS = 'data-lm-refocus'
