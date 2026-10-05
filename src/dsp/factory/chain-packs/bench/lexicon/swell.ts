@@ -35,7 +35,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Piano to pad': {
       says: 'a swell of about a second that turns struck notes to pads',
-      brief: 'a struck-to-pad swell',
+      brief: 'a swell of about a second',
       nouns: ['swell', 'pad'],
       roles: ['swell'],
       traits: ['slow', 'clean'],
@@ -70,8 +70,8 @@ export const LEXICON: DeviceLexicon = {
       traits: ['clean'],
     },
     'Ghost pick': {
-      says: 'a half-deep swell that leaves a ghost of each attack',
-      brief: 'a half-deep swell',
+      says: 'a shallow swell that leaves a ghost of each attack',
+      brief: 'a shallow swell',
       nouns: ['swell'],
       roles: ['swell'],
       traits: ['clean', 'faint'],
@@ -85,7 +85,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'First note only': {
       says: 'a slow swell on only the first note after each silence',
-      brief: 'a first-note swell',
+      brief: 'a swell after each silence',
       nouns: ['swell'],
       roles: ['swell'],
       traits: ['slow', 'clean', 'faint'],
@@ -105,7 +105,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['clean'],
     },
     Sunrise: {
-      says: 'a slow swell after each silence that opens only at the end',
+      says: 'a slow swell after each silence, opening late in its rise',
       brief: 'a late-blooming slow swell',
       nouns: ['swell'],
       roles: ['swell'],

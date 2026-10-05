@@ -79,10 +79,10 @@ export const LEXICON: DeviceLexicon = {
     },
     'Held sound alone': {
       says: 'a held pad that stands alone in place of what was played',
-      brief: 'a held pad by itself',
+      brief: 'a held pad heard alone',
       nouns: ['pad'],
       roles: ['hold', 'swell'],
-      traits: ['heavy', 'far'],
+      traits: ['heavy'],
     },
     'Thin halo': {
       says: 'a thin held pad with no lows that swells in behind the notes',

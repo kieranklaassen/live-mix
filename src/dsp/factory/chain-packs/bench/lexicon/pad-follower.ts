@@ -44,7 +44,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'a string voice that doubles each note almost at once',
       brief: 'a quick string double',
       nouns: ['strings', 'unison'],
-      roles: ['width', 'hold'],
+      roles: ['hold'],
       traits: ['faint', 'short'],
     },
     Glassy: {
@@ -62,11 +62,11 @@ export const LEXICON: DeviceLexicon = {
       traits: ['faint', 'slow'],
     },
     'Pad alone': {
-      says: 'a string pad that stands alone in place of what is played',
-      brief: 'a string pad by itself',
+      says: 'a string pad that follows the playing and is heard alone',
+      brief: 'a string pad heard alone',
       nouns: ['strings', 'pad'],
       roles: ['hold', 'swell'],
-      traits: ['heavy', 'far', 'wide'],
+      traits: ['heavy', 'wide'],
     },
     'Dark cellos': {
       says: 'a dark, low string pad like cellos under the playing',
@@ -111,7 +111,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['high', 'bright', 'cold', 'slow'],
     },
     'Felted pad': {
-      says: 'a muffled, slow-fading string pad with its top taken off',
+      says: 'a muffled string pad that is slow to fade away',
       brief: 'a muffled string pad',
       nouns: ['pad', 'strings'],
       roles: ['hold'],
