@@ -123,6 +123,9 @@ const PLAIN_NOUNS: ReadonlySet<string> = new Set([
  */
 export const MASTER_NOUNS: readonly string[] = ['finish', 'master', 'mixdown', 'polish', 'lacquer']
 
+/** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park"). */
+const NEVER_FIRST: ReadonlySet<string> = new Set(['polish'])
+
 /** The nouns a chain of this group, led by `lead`, can be named for. */
 export const nameNouns = (category: FactoryChainCategory, lead: Candidate): readonly string[] =>
   category === 'master' ? MASTER_NOUNS : lead.voice.nouns
@@ -173,7 +176,7 @@ function namings(
         weight: (nounWeight * fit) / (1 + uses) ** 2,
       })
     }
-    for (const entry of palette.tails) {
+    for (const entry of NEVER_FIRST.has(noun) ? [] : palette.tails) {
       const tail = headWord(entry)
       const uses = used.tail(tail)
       if (uses >= WORD_LIMITS.tailUses || echoes(tail, noun)) continue
