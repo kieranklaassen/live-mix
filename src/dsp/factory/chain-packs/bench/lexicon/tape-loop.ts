@@ -43,7 +43,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Worn out': {
       says: 'a tape loop that wears thinner and duller on every pass',
-      brief: 'a wearing tape loop',
+      brief: 'a tape loop that wears away',
       nouns: ['loop', 'reel', 'tape'],
       roles: ['loop', 'wear'],
       traits: ['worn', 'dark', 'unsteady', 'long'],
@@ -56,7 +56,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['frozen', 'long', 'heavy'],
     },
     'One second round': {
-      says: 'a tape loop about a second round that soon dies away',
+      says: 'a tape loop about one second long that soon dies away',
       brief: 'a short-lived tape loop',
       nouns: ['loop'],
       roles: ['loop', 'echo'],

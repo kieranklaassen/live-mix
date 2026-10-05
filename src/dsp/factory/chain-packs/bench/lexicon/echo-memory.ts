@@ -29,14 +29,14 @@ export const LEXICON: DeviceLexicon = {
     },
     Backwards: {
       says: 'recalled moments that mostly come back reversed or slowed',
-      brief: 'reversed recollections',
+      brief: 'earlier moments in reverse',
       nouns: ['memory', 'echo'],
       roles: ['loop', 'echo'],
       traits: ['backwards', 'low', 'long'],
     },
     'Hazy past': {
       says: 'dull memories of earlier phrases, many reversed or slowed',
-      brief: 'dull hazy recollections',
+      brief: 'a dull haze of old phrases',
       nouns: ['haze', 'memory', 'past'],
       roles: ['loop'],
       traits: ['dark', 'far', 'backwards', 'low', 'long'],
@@ -50,7 +50,7 @@ export const LEXICON: DeviceLexicon = {
     },
     Gathering: {
       says: 'earlier phrases that return over and over and slowly gather',
-      brief: 'gathering recollections',
+      brief: 'earlier phrases that gather',
       nouns: ['memory', 'layers'],
       roles: ['loop', 'hold'],
       traits: ['long', 'slow'],
@@ -71,14 +71,14 @@ export const LEXICON: DeviceLexicon = {
       traits: ['long'],
     },
     'Faint recall': {
-      says: 'a faint echo and faint recollections behind the playing',
-      brief: 'faint recollections',
+      says: 'a faint echo with earlier phrases coming faintly back',
+      brief: 'a faint echo of old phrases',
       nouns: ['trace', 'memory'],
       roles: ['loop', 'echo'],
       traits: ['faint', 'long'],
     },
     'Dark trail': {
-      says: 'a slow echo with a long dark trail and a few recollections',
+      says: 'a slow echo with a long dark trail as earlier phrases return',
       brief: 'a slow dark-trailing echo',
       nouns: ['trail', 'echo'],
       roles: ['echo', 'loop'],
@@ -93,14 +93,14 @@ export const LEXICON: DeviceLexicon = {
     },
     Swarm: {
       says: 'short glimpses of the last seconds that swarm and pile up',
-      brief: 'a swarm of short glimpses',
+      brief: 'a swarm of just-played notes',
       nouns: ['flickers', 'cloud'],
       roles: ['grain', 'loop'],
       traits: ['heavy', 'long', 'fast', 'strange'],
     },
     'Late return': {
       says: 'an echo about four seconds late over older recalled phrases',
-      brief: 'a very late echo and recalls',
+      brief: 'a late echo over old phrases',
       nouns: ['echo', 'memory'],
       roles: ['echo', 'loop'],
       traits: ['long', 'slow'],
@@ -114,10 +114,10 @@ export const LEXICON: DeviceLexicon = {
     },
     Glimpses: {
       says: 'a quick slapback echo over short glimpses of earlier notes',
-      brief: 'a close echo and glimpses',
+      brief: 'glimpses of earlier notes',
       nouns: ['glimpses', 'memory'],
       roles: ['loop', 'grain'],
-      traits: [],
+      traits: ['fast'],
     },
   },
 }

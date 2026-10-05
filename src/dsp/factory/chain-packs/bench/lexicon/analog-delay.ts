@@ -52,7 +52,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a fifth-hopping echo',
       nouns: ['echo', 'fifths', 'steps'],
       roles: ['echo', 'pitch'],
-      traits: ['warm'],
+      traits: ['warm', 'high'],
     },
     'Falling tape': {
       says: 'an echo that slides down an octave like tape slowed by hand',

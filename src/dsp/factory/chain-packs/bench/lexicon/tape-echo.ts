@@ -30,7 +30,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'a dull, wobbling, saturated echo on worn tape',
       brief: 'a worn tape echo',
       nouns: ['echo', 'reel', 'tape'],
-      roles: ['echo', 'wear'],
+      roles: ['echo'],
       traits: ['worn', 'dark', 'unsteady', 'warm'],
     },
     'Dub wash': {
@@ -38,7 +38,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a dotted tape echo wash',
       nouns: ['echo', 'wash'],
       roles: ['echo'],
-      traits: ['long', 'dark', 'warm'],
+      traits: ['long', 'dark', 'warm', 'wide'],
     },
     Runaway: {
       says: 'a tape echo fed back until it saturates and will not stop',
@@ -74,7 +74,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a bouncing dotted tape echo',
       nouns: ['echo'],
       roles: ['echo'],
-      traits: ['warm'],
+      traits: ['warm', 'wide'],
     },
     'Long dark trail': {
       says: 'a slow tape echo with a long trail that dulls as it goes',
@@ -113,7 +113,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Tiny room cluster': {
       says: 'a tight cluster of tape repeats, like a very small room',
-      brief: 'a tight tape cluster',
+      brief: 'a tight cluster of repeats',
       nouns: ['echo', 'room'],
       roles: ['room'],
       traits: ['short', 'faint'],
