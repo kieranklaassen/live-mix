@@ -178,6 +178,17 @@ describe('SpaceRoom.tilt', () => {
     expect(room.tilt(0.5, 2, 0.04)).toBe(next)
   })
 
+  it('takes its saturator down with it', () => {
+    const { ctx, room } = setup({ driveDb: 12, driftCents: 8 })
+    room.tilt(0.5, 1, 0.04)
+    room.dispose()
+    const stillConnected = ctx
+      .allNodes()
+      .filter((node) => node.outputs.size > 0)
+      .map((node) => node.kind)
+    expect(stillConnected).toEqual([])
+  })
+
   it('takes its gains down with it, and is not tilted once it has been left', () => {
     const { connected, strip, room, tiltGains } = setup()
     room.tilt(0.5, 1, 0.04)
