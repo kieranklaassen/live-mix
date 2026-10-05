@@ -3,7 +3,7 @@
 // the touch/lock controls. `useArbiterTarget` is the per-control shape: the
 // badge next to a fader that reads "held by you" or "coach pending".
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { type Hold, type Lock } from '../../core/params/arbitration'
 import {
@@ -165,11 +165,27 @@ export function useArbiterTarget(
       : agentPending
         ? `${state.pending.find((pending) => pending.author.kind === 'agent')?.author.id ?? 'agent'} pending`
         : ''
+  // Whether this hook's own touch is still in hand.
+  const inHand = useRef(false)
   const touch = useCallback(() => {
     source.touch(stable)
+    inHand.current = true
   }, [source, stable])
   const release = useCallback(() => {
+    inHand.current = false
     source.release(stable)
   }, [source, stable])
+  // A control that leaves the page in hand, or is given another target, lets
+  // go here, as the strip and device hooks do: the pointer's up is told to the
+  // other target or to nobody, and the hold would stand against every other
+  // writer for good.
+  useEffect(
+    () => () => {
+      if (!inHand.current) return
+      inHand.current = false
+      source.release(stable)
+    },
+    [source, stable],
+  )
   return { ...state, heldByMe, heldByOther, agentPending, status, touch, release }
 }

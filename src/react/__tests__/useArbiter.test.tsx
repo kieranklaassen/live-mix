@@ -176,6 +176,26 @@ describe('useArbiterTarget', () => {
     expect(result.current.status).toBe('held by you')
   })
 
+  it('lets go of a target still in hand when it is given another, or leaves the page', async () => {
+    const { arbiter, wrapper } = await rig()
+    const { result, rerender, unmount } = renderHook(({ target }) => useArbiterTarget(target), {
+      wrapper,
+      initialProps: { target: 'strip:kick:level' },
+    })
+    act(() => result.current.touch())
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    // The badge stands for another control now: the hand's pointer up will be told to that one.
+    rerender({ target: 'strip:pad:level' })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    act(() => result.current.release())
+    expect(arbiter.stateOf('strip:pad:level').hold).toBeNull()
+
+    act(() => result.current.touch())
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching).toBe(true)
+    unmount()
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching).toBe(false)
+  })
+
   it('shows an agent pending on a free target (a lock lifted with a write still queued)', async () => {
     const { arbiter, wrapper } = await rig()
     const { result } = renderHook(() => useArbiterTarget('strip:pad:level'), { wrapper })
