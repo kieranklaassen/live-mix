@@ -139,6 +139,8 @@ build_generated_devices() {
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sympathetic \
     cpp/devices/sympathetic/device_api.gen.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tamer \
+    cpp/devices/tamer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device tanpura \
     cpp/devices/tanpura/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tape \
@@ -306,6 +308,8 @@ test_generated_devices() {
   native_test sympathetic_test \
     cpp/test/sympathetic_test.cpp \
     cpp/devices/stereo-widener/StereoWidener.cpp
+  native_test tamer_test \
+    cpp/test/tamer_test.cpp
   native_test tanpura_test \
     cpp/test/tanpura_test.cpp
   native_test tape_test \
