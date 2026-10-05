@@ -305,6 +305,14 @@ export class VirtualPush {
     this.palette = defaultPalette()
     this.applied = defaultPalette()
     this.heldPads.clear()
+    // It has had no MIDI start, no finger on its strip and no part of a frame: a host that
+    // was in the middle of one when the cable came out begins the next with its header.
+    this.clockStarted = false
+    this.stripPosition = 0.5
+    this.stripLedLevels.fill(0)
+    this.nextMpeChannel = 1
+    this.frameBuffer = null
+    this.frameFill = 0
     for (const entry of [...this.access.inputs.values(), ...this.access.outputs.values()]) {
       entry.state = 'connected'
       this.access.onstatechange?.({ port: entry })
