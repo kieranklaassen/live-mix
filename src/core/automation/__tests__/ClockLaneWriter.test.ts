@@ -108,4 +108,22 @@ describe('ClockLaneWriter', () => {
     writer.reset()
     expect(writer.writtenUntilSec).toBeNull()
   })
+
+  it('a lane edited while it was overridden keeps the set its release wrote', () => {
+    const param = new MockAudioParam(0)
+    const lane = cycles()
+    const writer = new ClockLaneWriter(lane, param)
+    writer.tick(0, 1)
+    writer.override(1)
+    lane.add({ timeSec: 7, value: 0.5 })
+    writer.release(3)
+    writer.tick(3, 2)
+    // No cancel from 3 on: it would take the set at 3 with it, and the ramp to 4 would start from the hold at 1.
+    expect(calls(param).slice(-4)).toEqual([
+      ['setValueAtTime', 0.5, 3],
+      ['linearRampToValueAtTime', 0, 4],
+      ['setValueAtTime', 0, 4.5],
+      ['linearRampToValueAtTime', 1, 6],
+    ])
+  })
 })
