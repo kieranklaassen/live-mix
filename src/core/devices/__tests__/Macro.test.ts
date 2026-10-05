@@ -130,6 +130,8 @@ describe('createMacroMapping', () => {
   it('rejects unknown params and bad macro indices', () => {
     const filter = createFilter(asAudioContext(createMockContext()))
     expect(() => createMacroMapping(0, filter, 'nope')).toThrow(/no parameter "nope"/)
+    // A name every object answers to is no parameter of the device either.
+    expect(() => createMacroMapping(0, filter, 'constructor')).toThrow(/no parameter "constructor"/)
     expect(() => createMacroMapping(-1, filter, 'frequency')).toThrow(/non-negative integer/)
     expect(() => createMacroMapping(1.5, filter, 'frequency')).toThrow(/non-negative integer/)
   })

@@ -417,6 +417,8 @@ describe('Rack macros', () => {
     const outside = createUtility(ctx)
     expect(() => rack.mapMacro(0, outside, 'gainDb')).toThrow(/inside rack/)
     expect(() => rack.mapMacro(0, utility, 'nope')).toThrow(/no parameter "nope"/)
+    expect(() => rack.mapMacro(0, utility, 'constructor')).toThrow(/no parameter "constructor"/)
+    expect(rack.macroMappings()).toEqual([])
     expect(() => rack.mapMacro(8, utility, 'gainDb')).toThrow(/no macro 8/)
     expect(() => rack.macro(-1)).toThrow(/no macro -1/)
     expect(rack.macro(7)).toBe(rack.macros[7])
