@@ -776,17 +776,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-rotary-after-hours',
-    name: 'Rotary after hours',
-    category: 'motion',
-    description:
-      'An equaliser that takes presence, air and lows away, then a fast rotating speaker with its amplifier growling.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant' },
-      { deviceId: 'rotary', preset: 'Growl' },
-    ],
-  },
-  {
     id: 'sequencer-1974-rooftop-phaser',
     name: 'Rooftop phaser',
     category: 'motion',
@@ -878,6 +867,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 're-amp', preset: 'Just the valves', params: { output: 0.456 } },
       { deviceId: 'sustainer', preset: 'Shimmer cloud', params: { attack: 0.961, glide: 0.877 } },
       { deviceId: 'fdn-reverb', preset: 'Late arrival' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-night-run-flanger',
+    name: 'Night-run flanger',
+    category: 'motion',
+    description:
+      'A quick fade-in that only softens the edge of each note, then a hollow flanger that sweeps every two or three seconds.',
+    effects: [
+      { deviceId: 'swell', preset: 'Soft pick' },
+      { deviceId: 'flanger', preset: 'Negative hollow', params: { rate: 0.399, delayMs: 1.42 } },
     ],
   },
   {
@@ -1084,17 +1084,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-hand-patched-finish',
-    name: 'Hand-patched finish',
-    category: 'master',
-    description:
-      'A parallel compressor that lifts quiet playing and tails, then a true-peak ceiling that lets go again over several seconds.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 425, release: 2.81 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.84 } },
-    ],
-  },
-  {
     id: 'sequencer-1974-valve-warm-polish',
     name: 'Valve-warm polish',
     category: 'master',
@@ -1164,6 +1153,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 108, release: 2.04 } },
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
       { deviceId: 'ambient-limiter', preset: 'Streaming', params: { gain: 3.76 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-second-row-master',
+    name: 'Second-row master',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a compressor that lets each attack through before it levels, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 132, release: 1.38 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.6 } },
     ],
   },
 ]

@@ -1140,17 +1140,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'patch-cables-orchard-polish',
-    name: 'Orchard polish',
-    category: 'master',
-    description:
-      'A stereo image widened a little, with the bass left central, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'patch-cables-pebble-finish',
     name: 'Pebble finish',
     category: 'master',
@@ -1206,6 +1195,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-comp', preset: 'Lift' },
       { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.64 } },
+    ],
+  },
+  {
+    id: 'patch-cables-mixdown-at-the-inlet',
+    name: 'Mixdown at the inlet',
+    category: 'master',
+    description:
+      'A very gentle compressor, then a slightly wider image, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 641, release: 3.97 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

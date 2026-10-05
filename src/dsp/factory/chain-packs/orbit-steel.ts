@@ -601,17 +601,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-tape-in-the-cabin',
-    name: 'Tape in the cabin',
-    category: 'tape',
-    description:
-      'A thick, soft cassette, full in the lows and dull on top, then the low hum of an amplifier left switched on.',
-    effects: [
-      { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'noise-floor', preset: 'Amp left on', params: { response: 0.359, hold: 32.8 } },
-    ],
-  },
-  {
     id: 'orbit-steel-dawn-line-warmth',
     name: 'Dawn-line warmth',
     category: 'tape',
@@ -620,6 +609,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
       { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.61 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-tape-at-splashdown',
+    name: 'Tape at splashdown',
+    category: 'tape',
+    description:
+      'A thick, soft cassette, full in the lows and dull on top, then a high cut set low enough to muffle everything.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.39 } },
     ],
   },
   {
@@ -1130,18 +1130,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-crescent-mixdown',
-    name: 'Crescent mixdown',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a subsonic cut, then a fast limiter that steps in only on the loudest peaks.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.29 } },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
     id: 'orbit-steel-porthole-polish',
     name: 'Porthole polish',
     category: 'master',
@@ -1186,6 +1174,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.93 } },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'orbit-steel-porthole-finish',
+    name: 'Porthole finish',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a subsonic cut, then a true-peak ceiling that lets go again over several seconds.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Master' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.27 } },
     ],
   },
 ]

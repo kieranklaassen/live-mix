@@ -1148,17 +1148,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-buffered-finish',
-    name: 'Buffered finish',
-    category: 'master',
-    description:
-      'A stereo image widened a little, with the bass left central, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'laptop-guitar-boardwalk-master',
     name: 'Boardwalk master',
     category: 'master',
@@ -1191,6 +1180,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 366, release: 2.72 } },
       { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: -2.44 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-awning-finish',
+    name: 'Awning finish',
+    category: 'master',
+    description:
+      'A compressor that lets each attack through before it levels, then a slightly wider image, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 116, release: 1.58 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.2 } },
     ],
   },
 ]

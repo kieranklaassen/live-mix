@@ -1154,18 +1154,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-session-finish',
-    name: 'Session finish',
-    category: 'master',
-    description:
-      'A rumble cut and a small lift of presence, then a slow compressor that evens out swells over seconds, then a bare brickwall ceiling.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 304, release: 2.07 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.6 } },
-    ],
-  },
-  {
     id: 'broadcast-hall-closedown-polish',
     name: 'Closedown polish',
     category: 'master',
@@ -1186,6 +1174,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 'fet-limiter', preset: 'Light touch', params: { outputGain: -5.9 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-lacquer-on-parquet',
+    name: 'Lacquer on parquet',
+    category: 'master',
+    description:
+      'A fresh reel of tape, open on top and nearly steady, then a parallel compressor, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 410, release: 3.07 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.59 } },
     ],
   },
 ]

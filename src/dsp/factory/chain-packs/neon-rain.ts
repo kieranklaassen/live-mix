@@ -348,17 +348,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-neon-ring',
-    name: 'Neon ring',
-    category: 'space',
-    description:
-      'A gentle high cut that shades the top end, into sixteen strings that learn the tune and ring on long.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Shaded' },
-      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 9.9 } },
-    ],
-  },
-  {
     id: 'neon-rain-searchlight-vault',
     name: 'Searchlight vault',
     category: 'space',
@@ -367,6 +356,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.27 } },
       { deviceId: 'ambient-eq', preset: 'Forward' },
+    ],
+  },
+  {
+    id: 'neon-rain-murmur-in-blackout',
+    name: 'Murmur in blackout',
+    category: 'space',
+    description:
+      'A wide room heard from its far end, into a muffled reverb whose octave climb is soon damped away.',
+    effects: [
+      { deviceId: 'ether-reverb', preset: 'Distant', params: { mix: 0.532 } },
+      {
+        deviceId: 'shimmer',
+        preset: 'Muffled choir',
+        params: { decay: 13.3, predelay: 21.3, mix: 0.3 },
+      },
     ],
   },
   {

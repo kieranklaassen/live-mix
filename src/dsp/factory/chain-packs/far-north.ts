@@ -1114,17 +1114,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-crowberry-lacquer',
-    name: 'Crowberry lacquer',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.48 } },
-    ],
-  },
-  {
     id: 'far-north-scree-lacquer',
     name: 'Scree lacquer',
     category: 'master',
@@ -1181,6 +1170,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Drone' },
       { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 102, release: 1.79 } },
       { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 3 } },
+    ],
+  },
+  {
+    id: 'far-north-smokehouse-polish',
+    name: 'Smokehouse polish',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a rumble cut and a small lift of presence, then a smooth true-peak ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.68 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
 ]

@@ -1144,18 +1144,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-lightship-mixdown',
-    name: 'Lightship mixdown',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a parallel compressor, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 358, release: 2.66 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.67 } },
-    ],
-  },
-  {
     id: 'polar-signal-finish-before-thaw',
     name: 'Finish before thaw',
     category: 'master',
@@ -1210,6 +1198,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'First hint' },
       { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.64 } },
+    ],
+  },
+  {
+    id: 'polar-signal-finish-in-january',
+    name: 'Finish in January',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a gentle compressor, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'ambient-comp', preset: 'Sit back' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.42 } },
     ],
   },
 ]
