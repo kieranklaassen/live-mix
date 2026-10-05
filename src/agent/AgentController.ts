@@ -16,7 +16,7 @@ import { AgentAuditLog, type AuditEntry } from './audit'
 import { intentTools } from './intents'
 import { formatIssues, validateSchema } from './jsonSchema'
 import { operationTools } from './operations'
-import { consentForBatch } from './operations'
+import { batchIssues, consentForBatch } from './operations'
 import { AGENT_AUTHOR, RailRejection, Rails, type AgentRailsOptions } from './rails'
 import {
   ToolError,
@@ -230,6 +230,10 @@ export class AgentController implements ControllerView {
       return fail('unavailable', `"${name}" has no backend in this session`)
     }
     const issues = validateSchema(spec.definition.parameters, args)
+    // A batch's schema takes any object with a `type` for a child: each is held to its own tool's.
+    if (issues.length === 0 && spec.definition.operation === 'batch') {
+      issues.push(...batchIssues(args.ops as readonly unknown[]))
+    }
     if (issues.length > 0) {
       return fail('invalid_args', `${name}: ${formatIssues(issues)}`, { issues })
     }

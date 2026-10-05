@@ -111,6 +111,51 @@ describe('AgentController.call: the pipeline', () => {
     expect(controller.call('batch', { ops }).ok).toBe(true)
   })
 
+  it("holds a batch's children to the schemas of their own tools, and names the place", async () => {
+    const { controller, document } = await rig({ meters: () => null })
+    const missing = controller.call('batch', {
+      ops: [{ type: 'strip.set', owner: 'music', param: 'level' }],
+    }) as ToolFailure
+    expect(missing.error.code).toBe('invalid_args')
+    expect(missing.error.issues).toEqual([{ path: 'ops[0].value', message: 'is required' }])
+    // The range rail took a null level for 0, and the music went silent with an ok.
+    const silent = controller.call('batch', {
+      ops: [
+        { type: 'strip.mute', owner: 'ambience', mute: false },
+        { type: 'strip.set', owner: 'music', param: 'level', value: null },
+      ],
+    }) as ToolFailure
+    expect(silent.ok).toBe(false)
+    expect(silent.error.issues).toEqual([
+      { path: 'ops[1].value', message: 'expected number, got null' },
+    ])
+    expect(musicLevel(controller)).toBe(0.8)
+    expect(document.log.length).toBe(0)
+    // Neither left a mark on the fader's slew budget: its next move lands.
+    expect(controller.call('strip_set', { owner: 'music', param: 'level', value: 0.5 }).ok).toBe(
+      true,
+    )
+    expect(musicLevel(controller)).toBe(0.5)
+  })
+
+  it('checks a batch inside a batch as deep as it goes, and answers where it threw', async () => {
+    const { controller } = await rig()
+    const empty = controller.call('batch', { ops: [{ type: 'batch' }] }) as ToolFailure
+    expect(empty.error.code).toBe('invalid_args')
+    expect(empty.error.issues).toEqual([{ path: 'ops[0].ops', message: 'is required' }])
+    const deep = controller.call('batch', {
+      ops: [{ type: 'batch', ops: [{ type: 'strip.mute', owner: 'music', loud: true }] }],
+    }) as ToolFailure
+    expect(deep.error.issues?.map((issue) => issue.path).sort()).toEqual([
+      'ops[0].ops[0].loud',
+      'ops[0].ops[0].mute',
+    ])
+    expect(controller.audit.entries.map((entry) => entry.code)).toEqual([
+      'invalid_args',
+      'invalid_args',
+    ])
+  })
+
   it('rate-limits per tool and reports when to retry', async () => {
     const { controller, clock } = await rig({ session: { extendSection: (seconds) => seconds } })
     expect(controller.call('extend_section', { seconds: 30 }).ok).toBe(true)

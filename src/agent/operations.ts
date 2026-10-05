@@ -12,6 +12,7 @@ import {
   type OperationType,
 } from '../score/operations'
 import { MASTER_OWNER, findDevice, findStripHost, type Score } from '../score/schema'
+import { validateSchema, type JsonSchema, type SchemaIssue } from './jsonSchema'
 import { operationDescription, operationSchema, toolNameForOperation } from './operationSchemas'
 import { type ControllerView, type ToolContext, type ToolPlan, type ToolSpec } from './registry'
 import { type ConsentScope } from './types'
@@ -96,6 +97,34 @@ export function consentForBatch(ops: readonly Operation[]): ConsentScope[] {
   }
   ops.forEach(visit)
   return [...scopes]
+}
+
+const childSchemas = new Map<OperationType, JsonSchema>()
+
+/**
+ * What a batch's children get wrong, each held to the schema of its own tool
+ * (and a batch among them to its children's). The batch's schema knows a child
+ * by its `type` alone, and the consent check and the rails read the rest: a
+ * level that was no number reached the range rail, which made one of it.
+ */
+export function batchIssues(ops: readonly unknown[], path = 'ops'): SchemaIssue[] {
+  const issues: SchemaIssue[] = []
+  ops.forEach((child, index) => {
+    const { type, ...args } = child as { type: OperationType } & Record<string, unknown>
+    let schema = childSchemas.get(type)
+    if (!schema) {
+      schema = operationSchema(type)
+      childSchemas.set(type, schema)
+    }
+    const at = `${path}[${index}]`
+    for (const issue of validateSchema(schema, args)) {
+      issues.push({ ...issue, path: issue.path === '' ? at : `${at}.${issue.path}` })
+    }
+    if (type === 'batch' && Array.isArray(args.ops)) {
+      issues.push(...batchIssues(args.ops, `${at}.ops`))
+    }
+  })
+  return issues
 }
 
 function stripValue(score: Score, owner: string, param: 'level' | 'pan' | 'inputGain'): number {
