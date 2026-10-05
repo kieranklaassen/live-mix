@@ -227,6 +227,16 @@ describe('Chain level, pan and mute', () => {
     expect(chain.gain).toBe(1)
   })
 
+  it('starts a chain on the defaults where its gain or pan is no number, as a later change does', () => {
+    const { mock, rack } = make()
+    const chain = rack.addChain({ gain: Number.NaN, pan: Number.NaN })
+    expect(chain.gain).toBe(1)
+    expect(chain.pan).toBe(0)
+    // A real AudioParam throws when it is given what is no number.
+    expect((asMock(chain.fader) as MockGainNode).gain.value).toBe(1)
+    expect(mock.panners[0].pan.value).toBe(0)
+  })
+
   it('stores key and selector zones for later routing', () => {
     const { rack } = make()
     const chain = rack.addChain({

@@ -153,8 +153,10 @@ export class Chain {
     this.onLatencyChange = onLatencyChange
     this.keyZone = options.keyZone ?? null
     this.selectorZone = options.selectorZone ?? null
-    this.gainValue = Math.max(0, options.gain ?? 1)
-    this.panValue = Math.min(1, Math.max(-1, options.pan ?? 0))
+    // As `setGain` and `setPan` take them: what is no number is the default.
+    const { gain = 1, pan = 0 } = options
+    this.gainValue = Math.max(0, Number.isFinite(gain) ? gain : 1)
+    this.panValue = Math.min(1, Math.max(-1, Number.isFinite(pan) ? pan : 0))
     this.muted = options.mute ?? false
     this.maxCompensationSamples = Math.floor(PDC_MAX_DELAY_SECONDS * ctx.sampleRate)
 
