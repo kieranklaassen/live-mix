@@ -36,6 +36,8 @@ export interface PresetSource<P extends Record<string, ParamSpec> = Record<strin
   formerIds?: readonly string[]
   version: number
   params: P
+  /** `params` is only what is known before the device is made (`DeviceDescriptor.dynamicParams`). */
+  dynamicParams?: boolean
   presets?: PresetTable<P>
   formerPresets?: Readonly<Record<string, string>>
   retiredPresets?: PresetTable<P>
@@ -107,7 +109,9 @@ export function resolvePreset(source: PresetSource, preset: string | Preset): Pr
 /**
  * The full param map a preset produces on a descriptor: defaults overlaid
  * with the preset's known params, each clamped to its spec. Unknown params
- * are dropped (the device no longer has them).
+ * are dropped (the device no longer has them), unless the table is only
+ * known once the device is made (`dynamicParams`): then they are kept as
+ * given, and the device clamps them.
  */
 export function presetParams(source: PresetSource, preset: Preset): Record<string, number> {
   const params = defaultPreset(source).params as Record<string, number>
@@ -115,6 +119,8 @@ export function presetParams(source: PresetSource, preset: Preset): Record<strin
     // Its own parameters only: `constructor` is on every object.
     const spec = Object.hasOwn(source.params, name) ? source.params[name] : undefined
     if (spec) params[name] = clampParam(spec, value)
+    // A hosted plug-in's table is only known once it is loaded: nothing to drop it by.
+    else if (source.dynamicParams) params[name] = value
   }
   return params
 }

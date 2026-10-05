@@ -85,6 +85,37 @@ describe('createEngine', () => {
     expect(() => engine.addBus('x')).toThrow(/disposed/)
   })
 
+  it('a dispose listener that throws does not leave the engine running: the rest is taken down, then it is thrown on', () => {
+    const ctx = createMockContext()
+    const live = new Set<number>()
+    let nextId = 1
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      setIntervalFn: () => {
+        live.add(nextId)
+        return nextId++ as unknown as ReturnType<typeof setInterval>
+      },
+      clearIntervalFn: (id) => {
+        live.delete(id as unknown as number)
+      },
+    })
+    engine.addBus('music')
+    engine.transport.start(0)
+    expect(live.size).toBeGreaterThan(0)
+
+    const later: string[] = []
+    engine.onDispose(() => {
+      throw new Error('a companion broke')
+    })
+    engine.onDispose(() => later.push('ran'))
+    expect(() => engine.dispose()).toThrow(/a companion broke/)
+    // The scheduler's timer among them: left, it goes on starting clips on an engine nobody can dispose again.
+    expect(live.size).toBe(0)
+    expect(later).toEqual(['ran'])
+    expect(ctx.gains[1].disconnectCalls.count).toBe(1)
+    expect(() => engine.dispose()).not.toThrow()
+  })
+
   it('the core entry is import-safe without a window (SSR)', () => {
     expect(typeof window).toBe('undefined')
     expect(typeof core.createEngine).toBe('function')
@@ -379,6 +410,21 @@ describe('engine change events and latency (U24 hooks follow-up)', () => {
     const latency = engine.ioLatency()
     expect(latency.inputSec).toBe(0.012)
     expect(latency.totalSec).toBeCloseTo(0.037)
+    engine.dispose()
+  })
+
+  it('ioLatency() no longer counts the latency of a stream that was detached', () => {
+    const ctx = createMockContext({ baseLatency: 0.005, outputLatency: 0.02 })
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const mic = engine.addLiveInputTrack('mic')
+    const stream = {
+      getAudioTracks: () => [{ getSettings: () => ({ latency: 0.2 }) }],
+    } as unknown as MediaStream
+    mic.attach(stream)
+    expect(engine.ioLatency().inputSec).toBe(0.2)
+    mic.detach()
+    expect(mic.inputLatencySec).toBe(0)
+    expect(engine.ioLatency()).toMatchObject({ inputSec: 0, totalSec: 0.025 })
     engine.dispose()
   })
 

@@ -109,10 +109,22 @@ export class Bus {
   addInsert(device: Device): void {
     this.assertLive()
     if (this.insertList.includes(device)) return
-    this.output.disconnect()
-    this.output.connect(device.input)
-    this.insertList.push(device)
-    device.output.connect(this.destination)
+    const tail = this.output
+    tail.disconnect()
+    try {
+      tail.connect(device.input)
+      this.insertList.push(device)
+      device.output.connect(this.destination)
+    } catch (error) {
+      // A device that cannot be wired (one of another context) must not cost
+      // the bus its output: the chain and its taps go back as they were.
+      const listed = this.insertList.indexOf(device)
+      if (listed !== -1) this.insertList.splice(listed, 1)
+      tail.disconnect()
+      tail.connect(this.destination)
+      this.retap(tail)
+      throw error
+    }
     this.retap(device.output)
     this.changes.emit({ kind: 'inserts', bus: this })
   }

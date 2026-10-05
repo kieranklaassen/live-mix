@@ -37,6 +37,40 @@ describe('NativeHostClient', () => {
     expect(host.socket.closed).toBe(true)
   })
 
+  it('refuses, and lets go of, a host whose hello says nothing of itself', async () => {
+    const host = new FakePluginHost()
+    await expect(
+      NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+        createSocket: (url) => {
+          const socket = host.createSocket(url)
+          const deliver = socket.deliver.bind(socket)
+          socket.deliver = (message) => deliver({ id: (message as { id?: number }).id })
+          return socket
+        },
+      }),
+    ).rejects.toThrow('speaks protocol undefined')
+    expect(host.socket.closed).toBe(true)
+  })
+
+  it('lets go of a host that answers hello with an error', async () => {
+    const host = new FakePluginHost()
+    await expect(
+      NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+        createSocket: (url) => {
+          const socket = host.createSocket(url)
+          const deliver = socket.deliver.bind(socket)
+          socket.deliver = (message) =>
+            deliver({
+              id: (message as { id?: number }).id,
+              error: { message: 'unknown method "hello"' },
+            })
+          return socket
+        },
+      }),
+    ).rejects.toThrow('unknown method')
+    expect(host.socket.closed).toBe(true)
+  })
+
   it('times out when nothing answers', async () => {
     const silent = new FakePluginHost()
     await expect(
@@ -165,6 +199,15 @@ describe('NativeHostClient', () => {
     expect(client.closed).toBe(true)
     await expect(client.plugins()).rejects.toThrow('the plug-in host went away')
     client.setParam('s1', 0, 1)
+  })
+
+  it('lets pass a frame that is no message: not JSON, or JSON that is no object', async () => {
+    const { client, host } = await connect()
+    for (const data of ['{"id":', 'null', '7', '"hello"', '[]']) {
+      expect(() => host.socket.onmessage?.({ data })).not.toThrow()
+    }
+    expect(client.closed).toBe(false)
+    expect(await client.plugins()).toHaveLength(2)
   })
 
   it('finds the address a shell left on the global object, or nothing', () => {

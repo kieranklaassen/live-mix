@@ -201,8 +201,12 @@ export class EngineStats {
    */
   subscribe(listener: EngineStatsListener): () => void {
     if (this.disposed) return () => {}
+    // The first listener starts the watch. Counted before it is added: one
+    // that subscribes twice is still the only one, and a second watch would
+    // leave the first one's timer, or sampler, running with nothing to stop it.
+    const first = this.listeners.size === 0
     this.listeners.add(listener)
-    if (this.listeners.size === 1) this.watch()
+    if (first) this.watch()
     return () => {
       if (!this.listeners.delete(listener)) return
       if (this.listeners.size === 0) this.unwatch()

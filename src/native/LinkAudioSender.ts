@@ -99,7 +99,9 @@ export class LinkAudioSender {
     this.worker = worker
     this.name = options.name
     this.now = options.now ?? (() => performance.now())
-    this.offsetMs = options.offsetMs ?? 0
+    // As `setOffsetMs` takes it: what is no number is no offset.
+    const { offsetMs = 0 } = options
+    this.offsetMs = Number.isFinite(offsetMs) ? offsetMs : 0
     this.outputClock = new OutputClock(context, { now: this.now })
   }
 
@@ -174,6 +176,8 @@ export class LinkAudioSender {
     }
     const stop: LinkTapMessage = { type: 'dispose' }
     this.input.port.postMessage(stop)
+    // What the pump had posted before it hears this must not open the channel again.
+    this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
     this.setStatus('closed', 'closed')
   }

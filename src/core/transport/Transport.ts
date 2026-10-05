@@ -175,6 +175,8 @@ export class Transport {
    */
   setPass(pass: number): void {
     if (Number.isNaN(pass)) throw new RangeError('Transport: pass must be a number')
+    // No run of the timeline holds it (as `seekElapsed` has it); below 0 is 0.
+    if (pass === Infinity) throw new RangeError('Transport: pass must be finite')
     const next = Math.max(0, Math.floor(pass))
     // One reading of the clock: the position is pinned again at the moment it was read at.
     const now = this.clock()
@@ -247,6 +249,8 @@ export class Transport {
    */
   start(at?: number): void {
     if (this.currentState === 'playing') return
+    // Pinned at no time the position reads NaN, and a pause keeps that for the next start.
+    if (Number.isNaN(at)) throw new RangeError('Transport: start time must be a number')
     const now = this.clock()
     this.pin(at === undefined ? this.ahead(now) : Math.max(at, now), this.idlePositionSec)
     this.currentState = 'playing'
@@ -529,7 +533,10 @@ function validateRate(rate: number): number {
 }
 
 function validateLoop(loop: TransportLoop): TransportLoop {
-  if (Number.isNaN(loop.lengthSec) || loop.lengthSec <= 0) {
+  // Not above 0 rather than at or below it: a length that is no number at all
+  // (`undefined` under the key of a partial loop) is neither, and is refused
+  // here, before anything is unpinned for it.
+  if (!(loop.lengthSec > 0)) {
     throw new RangeError(`Transport: loop lengthSec must be positive, got ${loop.lengthSec}`)
   }
   return loop

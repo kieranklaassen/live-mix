@@ -41,6 +41,11 @@ export class ElementSource {
   /** The graph end of the element; `ElementTrack` connects it per voice. */
   readonly node: MediaElementAudioSourceNode
   private disposed = false
+  /**
+   * The unlock under way: how the element was muted before it, whether a
+   * `play` has taken the element over since, and the promise it settles.
+   */
+  private unlocking: { wasMuted: boolean; takenOver: boolean; done: Promise<void> } | null = null
 
   constructor(ctx: BaseAudioContext, options: ElementSourceOptions) {
     this.id = options.id
@@ -95,21 +100,30 @@ export class ElementSource {
    * marks the element as user-activated, so the timer-driven `play()` calls a
    * scheduled start needs later are allowed (iOS refuses `play()` outside a
    * gesture until an element has been unlocked this way). Resolves once the
-   * element is paused again; never rejects.
+   * element is paused again; never rejects. An element that is playing is
+   * left as it is: it was allowed to play, and a voice is sounding on it. A
+   * `play` that comes while the pair is under way takes the element over,
+   * unmuted, and is not paused.
    */
   unlock(): Promise<void> {
     if (this.disposed) return Promise.resolve()
+    // A second one would find the element muted by the first, and leave it so.
+    if (this.unlocking) return this.unlocking.done
+    if (this.isPlaying) return Promise.resolve()
     const element = this.element
-    const wasMuted = element.muted
+    const unlocking = { wasMuted: element.muted, takenOver: false, done: Promise.resolve() }
     element.muted = true
-    return this.play()
+    unlocking.done = this.startElement()
       .then((started) => {
-        if (started) element.pause()
+        if (started && !unlocking.takenOver) element.pause()
       })
       .catch(() => {})
       .then(() => {
-        element.muted = wasMuted
+        if (!unlocking.takenOver) element.muted = unlocking.wasMuted
+        if (this.unlocking === unlocking) this.unlocking = null
       })
+    this.unlocking = unlocking
+    return unlocking.done
   }
 
   /**
@@ -119,6 +133,17 @@ export class ElementSource {
    */
   play(): Promise<boolean> {
     if (this.disposed) return Promise.resolve(false)
+    const unlocking = this.unlocking
+    if (unlocking && !unlocking.takenOver) {
+      // The unlock's muted play is under way. This one is to be heard, and to
+      // go on: the unlock no longer pauses the element when its own play lands.
+      unlocking.takenOver = true
+      this.element.muted = unlocking.wasMuted
+    }
+    return this.startElement()
+  }
+
+  private startElement(): Promise<boolean> {
     try {
       // Older WebKit returns undefined rather than a promise.
       const result = this.element.play() as Promise<void> | undefined

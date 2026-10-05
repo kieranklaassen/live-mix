@@ -206,11 +206,17 @@ export class StretchSource {
       outputChannelCount: [Math.max(1, Math.min(2, options.buffer.numberOfChannels))],
       ...options.channelOptions,
     })
-    if (options.configure && node.configure) node.configure(options.configure)
-    const channels = Array.from({ length: options.buffer.numberOfChannels }, (_, index) =>
-      options.buffer.getChannelData(index),
-    )
-    await node.addBuffers(channels)
+    try {
+      if (options.configure && node.configure) node.configure(options.configure)
+      const channels = Array.from({ length: options.buffer.numberOfChannels }, (_, index) =>
+        options.buffer.getChannelData(index),
+      )
+      await node.addBuffers(channels)
+    } catch (error) {
+      // Nobody else holds the node: what it took of the sample goes with it.
+      void node.dropBuffers().catch(() => {})
+      throw error
+    }
     return new StretchSource(ctx, options.id, node, options.buffer.duration)
   }
 

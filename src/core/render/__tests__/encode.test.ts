@@ -117,4 +117,18 @@ describe('encodeWav', () => {
   it('readWavInfo rejects non-WAV data', () => {
     expect(() => readWavInfo(new ArrayBuffer(64))).toThrow(/not a WAV/)
   })
+
+  it('refuses a WAV whose header names no channels, rather than counting frames without end', () => {
+    const wav = encodeWav({ channels: [ramp(8)], sampleRate: 48000 })
+    new DataView(wav).setUint16(22, 0, true) // channel count
+    // Asked of the header first: before it was refused, decoding this file never returned.
+    expect(() => readWavInfo(wav)).toThrow(/no channels/)
+    expect(() => decodeWav(wav)).toThrow(/no channels/)
+  })
+
+  it('refuses a WAV whose header names a sample of no bits', () => {
+    const wav = encodeWav({ channels: [ramp(8)], sampleRate: 48000 })
+    new DataView(wav).setUint16(34, 0, true) // bits per sample
+    expect(() => readWavInfo(wav)).toThrow(/no bits/)
+  })
 })

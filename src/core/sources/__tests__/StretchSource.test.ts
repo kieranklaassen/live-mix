@@ -254,4 +254,46 @@ describe('StretchSource', () => {
     const spy = vi.fn()
     void spy
   })
+
+  it('a node that cannot take its buffers, or its configuration, is emptied: nobody else can reach it', async () => {
+    const made: FakeStretchNode[] = []
+    const { ctx, buffer: buf } = buffer(2)
+
+    // The worklet has no room left for the second channel.
+    class FullStretchNode extends FakeStretchNode {
+      override addBuffers(buffers: readonly Float32Array[]): Promise<number> {
+        this.buffers.push([buffers[0]])
+        return Promise.reject(new Error('out of memory'))
+      }
+    }
+    const full: StretchNodeFactory = () => {
+      const node = new FullStretchNode()
+      made.push(node)
+      return Promise.resolve(node as unknown as StretchNode)
+    }
+    await expect(
+      StretchSource.create(asAudioContext(ctx), { id: 'full', buffer: buf, createStretch: full }),
+    ).rejects.toThrow('out of memory')
+    expect(made[0].dropped).toBe(1)
+
+    class DeafStretchNode extends FakeStretchNode {
+      override configure(): void {
+        throw new Error('no such preset')
+      }
+    }
+    const deaf: StretchNodeFactory = () => {
+      const node = new DeafStretchNode()
+      made.push(node)
+      return Promise.resolve(node as unknown as StretchNode)
+    }
+    await expect(
+      StretchSource.create(asAudioContext(ctx), {
+        id: 'deaf',
+        buffer: buf,
+        createStretch: deaf,
+        configure: { preset: 'cheaper' },
+      }),
+    ).rejects.toThrow('no such preset')
+    expect(made[1].dropped).toBe(1)
+  })
 })

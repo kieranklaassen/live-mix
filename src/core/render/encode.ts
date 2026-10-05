@@ -184,6 +184,10 @@ export function readWavInfo(wav: ArrayBuffer): WavInfo {
         format: formatTag === 3 ? 'float' : 'pcm',
       }
     } else if (id === 'data') {
+      // A frame of no bytes divides into a count without end, which `decodeWav`
+      // would then walk for ever: a header that says so is refused here.
+      if (info.channelCount === 0) throw new Error('live-mix: WAV names no channels')
+      if (info.bitDepth === 0) throw new Error('live-mix: WAV names a sample of no bits')
       const bytesPerFrame = ((info.bitDepth ?? 16) / 8) * (info.channelCount ?? 1)
       info = { ...info, frames: Math.floor(size / bytesPerFrame), dataOffset: body }
       break

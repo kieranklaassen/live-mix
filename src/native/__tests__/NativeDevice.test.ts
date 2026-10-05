@@ -190,6 +190,16 @@ describe('NativeDevice.create', () => {
     expect(() => device.setParam('p4242', 0.9)).toThrow('has no parameter')
   })
 
+  it('a saved value under a name every object answers to is left out too, and nothing of it reaches the plug-in', async () => {
+    const saved = { p7: 0.3, constructor: 1, toString: 1 } as unknown as Record<string, number>
+    const { device, host } = await makeDevice(FAKE_REVERB, { params: saved })
+    expect(device.getParam('p7')).toBe(0.3)
+    // Passed on, it went out with a value and no index, which the host takes for its first parameter.
+    expect(host.calls('setParam').map((request) => request.params)).toEqual([
+      { slot: 's1', index: 1, value: 0.3 },
+    ])
+  })
+
   it('unloads the plug-in again when the device cannot be finished', async () => {
     const host = new FakePluginHost()
     const client = await NativeHostClient.connect(FAKE_HOST_ADDRESS, {

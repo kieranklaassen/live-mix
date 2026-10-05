@@ -82,6 +82,41 @@ describe('nodeDeviceParam', () => {
     }
   })
 
+  it('writes the leg of an exponential segment that ends on silence as a straight one', () => {
+    const ctx = createMockContext()
+    const delay = createDelay(asAudioContext(ctx), { params: { mix: 0.5 } })
+    // The graph refuses an exponential ramp to 0 (a RangeError, by the Web
+    // Audio specification), which the recording mock does not: here it does.
+    for (const node of ctx.gains) {
+      const record = node.gain.exponentialRampToValueAtTime.bind(node.gain)
+      node.gain.exponentialRampToValueAtTime = (...args: unknown[]) => {
+        if (args[0] === 0) throw new RangeError('an exponential ramp cannot end on 0')
+        return record(...args)
+      }
+    }
+    // In the mix's own units both ends are above zero, so the lane keeps the
+    // segment exponential. The applier turns units: a mix of 1 is a dry of 0.
+    const lane = new ParamLane({
+      min: 0,
+      max: 1,
+      breakpoints: [
+        { timeSec: 0, value: 0.5, curve: 'exponential' },
+        { timeSec: 4, value: 1 },
+      ],
+    })
+    const writer = new LaneWriter(lane, nodeDeviceParam(delay, 'mix'))
+    expect(() => writer.tick({ playheadSec: 0, lookaheadSec: 5, contextTimeSec: 10 })).not.toThrow()
+    const [dry, wet] = ctx.gains.filter((node) => node.gain.events.length > 0)
+    expect(calls(dry.gain)).toEqual([
+      ['setValueAtTime', 0.5, 10],
+      ['linearRampToValueAtTime', 0, 14],
+    ])
+    expect(calls(wet.gain)).toEqual([
+      ['setValueAtTime', 0.5, 10],
+      ['exponentialRampToValueAtTime', 1, 14],
+    ])
+  })
+
   it('rejects an unknown parameter', () => {
     const ctx = createMockContext()
     const filter = createFilter(asAudioContext(ctx))

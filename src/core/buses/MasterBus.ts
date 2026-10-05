@@ -76,9 +76,11 @@ export class MasterBus extends Bus {
     this.assertLive()
     if (this.limiterDevice) throw new Error('live-mix: the master already has a limiter')
     const device = await create(this.ctx)
-    this.assertLive()
-    if (this.limiterDevice) {
+    // Made for a bus that was disposed, or given a limiter, meanwhile: nobody
+    // else holds it, so it is ended here before the refusal.
+    if (this.disposed || this.limiterDevice) {
       device.dispose()
+      this.assertLive()
       throw new Error('live-mix: the master already has a limiter')
     }
     const previousTapSource = this.tapSource()
@@ -106,9 +108,10 @@ export class MasterBus extends Bus {
     this.assertLive()
     if (this.lufsMeter) throw new Error('live-mix: the master already has a LUFS meter')
     const meter = await LufsMeter.create(this.ctx, options)
-    this.assertLive()
-    if (this.lufsMeter) {
+    // As for the limiter: its worklet would go on measuring for nobody.
+    if (this.disposed || this.lufsMeter) {
       meter.dispose()
+      this.assertLive()
       throw new Error('live-mix: the master already has a LUFS meter')
     }
     this.lufsMeter = meter

@@ -114,6 +114,15 @@ describe('LinkAudioReceiver', () => {
     expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_005_000 })
   })
 
+  it('takes an offset that is no number for none, at creation as later', async () => {
+    const { create, workers } = await build({ offsetMs: Number.NaN })
+    const receiver = await create()
+    // A clock that is no number would place every block nowhere.
+    expect(workers[0].posted[0]).toEqual({ type: 'clock', contextTime: 2, hostMicros: 12_010_000 })
+    receiver.setOffsetMs(Number.NaN)
+    expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_010_000 })
+  })
+
   it('reports the connection, the delay the playout settles on and what arrived', async () => {
     const { create, ctx, workers } = await build()
     const receiver = await create()
@@ -154,6 +163,18 @@ describe('LinkAudioReceiver', () => {
     const said = workers[0].posted.length
     receiver.setOffsetMs(3)
     expect(workers[0].posted).toHaveLength(said)
+  })
+
+  it('stays closed when the intake reports the connection after it was disposed', async () => {
+    const { create, workers } = await build()
+    const receiver = await create()
+    const seen: string[] = []
+    receiver.onStatus = (status) => seen.push(status)
+    receiver.dispose()
+    // What the intake had posted before it was told to stop arrives after.
+    workers[0].onmessage?.({ data: { type: 'open' } })
+    expect(receiver.status).toBe('closed')
+    expect(seen).toEqual(['closed'])
   })
 
   it('refuses a host that was built without Link, or before it could receive', async () => {

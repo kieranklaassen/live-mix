@@ -146,7 +146,8 @@ export function createMacroMapping(
   param: string,
   options: MacroMappingOptions = {},
 ): MacroMapping {
-  const spec = device.params[param]
+  // Its own parameters only: `constructor` is on every object.
+  const spec = Object.hasOwn(device.params, param) ? device.params[param] : undefined
   if (!spec) throw new Error(`live-mix: ${device.id} has no parameter "${param}"`)
   if (!Number.isInteger(macro) || macro < 0) {
     throw new Error(`live-mix: macro index must be a non-negative integer, got ${macro}`)

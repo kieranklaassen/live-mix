@@ -91,6 +91,8 @@ function checkDevice(
     // Its own parameters only: `constructor` is on every object.
     const spec = Object.hasOwn(descriptor.params, name) ? descriptor.params[name] : undefined
     if (!spec) {
+      // A hosted plug-in's table is only known once it is loaded.
+      if (descriptor.dynamicParams) continue
       issues.push({
         path: `${path}.params.${name}`,
         message: `${descriptor.id} has no parameter "${name}"`,
@@ -108,6 +110,8 @@ function checkDevice(
  * What is wrong with a patch for this registry: unknown devices, presets and
  * parameters, values out of range, an effect in the instrument slot or the
  * other way round. An empty list means `createPatchDevice` will take it.
+ * The parameters of a device whose table is only known once it is made
+ * (`dynamicParams`) cannot be checked here and are let through.
  */
 export function validatePatch(patch: Patch, registry: DeviceRegistry): PatchIssue[] {
   const issues: PatchIssue[] = []
@@ -126,7 +130,8 @@ export function validatePatch(patch: Patch, registry: DeviceRegistry): PatchIssu
 /**
  * The full parameter map a patch device produces on its descriptor: the spec
  * defaults, overlaid with its preset, overlaid with its own params, each
- * clamped to its spec. Parameters the descriptor does not have are dropped.
+ * clamped to its spec. Parameters the descriptor does not have are dropped,
+ * unless its table is only known once the device is made (`dynamicParams`).
  */
 export function patchDeviceParams(
   descriptor: DeviceDescriptor,

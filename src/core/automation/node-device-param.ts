@@ -31,7 +31,14 @@ export function nodeDeviceParam<P extends Record<string, ParamSpec>>(
       apply(value, (param, converted) => param.linearRampToValueAtTime(converted, endTime))
     },
     exponentialRampToValueAtTime(value, endTime) {
-      apply(value, (param, converted) => param.exponentialRampToValueAtTime(converted, endTime))
+      apply(value, (param, converted) => {
+        // A lane keeps an exponential segment off zero in the param's own
+        // units, but the applier turns units (a mix of 1 is a dry of 0, the
+        // bottom of a gain in dB is silence), and the graph refuses an
+        // exponential ramp that ends on 0: that leg is a straight one.
+        if (Math.fround(converted) === 0) param.linearRampToValueAtTime(converted, endTime)
+        else param.exponentialRampToValueAtTime(converted, endTime)
+      })
     },
     setTargetAtTime(target, startTime, timeConstant) {
       apply(target, (param, converted) => param.setTargetAtTime(converted, startTime, timeConstant))

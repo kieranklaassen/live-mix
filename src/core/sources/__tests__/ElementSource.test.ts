@@ -83,6 +83,42 @@ describe('ElementSource', () => {
     expect(refused.element.muted).toBe(true)
   })
 
+  it('unlock leaves an element that is already playing alone: it is neither muted nor paused', async () => {
+    const { element, source } = setup()
+    await source.play() // a voice is sounding
+    const unlocking = source.unlock()
+    expect(element.muted).toBe(false)
+    await unlocking
+    expect(source.isPlaying).toBe(true)
+    expect(element.pauseCalls.count).toBe(0)
+    expect(element.playCalls.count).toBe(1)
+  })
+
+  it('a play that comes while the unlock is under way is heard, and is not paused by it', async () => {
+    const { element, source } = setup()
+    const unlocking = source.unlock()
+    expect(element.muted).toBe(true)
+    const playing = source.play() // a voice whose start falls inside the same gesture
+    expect(element.muted).toBe(false)
+    await unlocking
+    await expect(playing).resolves.toBe(true)
+    expect(source.isPlaying).toBe(true)
+    expect(element.pauseCalls.count).toBe(0)
+    expect(element.muted).toBe(false)
+  })
+
+  it('a second unlock while the first is under way waits for the same pause', async () => {
+    const { element, source } = setup()
+    const first = source.unlock()
+    const second = source.unlock()
+    await Promise.all([first, second])
+    // The second found it muted by the first, and "restored" that: every later voice was silent.
+    expect(element.muted).toBe(false)
+    expect(element.playCalls.count).toBe(1)
+    expect(element.pauseCalls.count).toBe(1)
+    expect(source.isPlaying).toBe(false)
+  })
+
   it('play reports success or refusal instead of throwing', async () => {
     const { element, source } = setup()
     await expect(source.play()).resolves.toBe(true)

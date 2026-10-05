@@ -186,8 +186,13 @@ export class EnvelopeFollower implements ModSource {
     this.releaseSec = options.releaseSec ?? 0.2
   }
 
-  /** Feed a 0..1 level observed at `timeSec`; returns the new envelope. */
+  /**
+   * Feed a 0..1 level observed at `timeSec`; returns the new envelope. A
+   * reading that is no number (a meter with nothing to read) is passed over:
+   * taken in, the envelope would be no number for good.
+   */
   push(level: number, timeSec: number): number {
+    if (!Number.isFinite(level) || !Number.isFinite(timeSec)) return this.envelope
     const target = Math.abs(level)
     const dtSec = this.lastSec === null ? 0 : Math.max(0, timeSec - this.lastSec)
     this.lastSec = timeSec
@@ -200,7 +205,8 @@ export class EnvelopeFollower implements ModSource {
     const result = out ?? new Float32Array(block.length)
     const dtSec = 1 / sampleRate
     for (let i = 0; i < block.length; i += 1) {
-      this.envelope = this.step(Math.abs(block[i]), dtSec)
+      // A sample that is no number is held over, as `push` passes one over.
+      if (Number.isFinite(block[i])) this.envelope = this.step(Math.abs(block[i]), dtSec)
       result[i] = this.envelope
     }
     if (this.lastSec !== null) this.lastSec += block.length * dtSec

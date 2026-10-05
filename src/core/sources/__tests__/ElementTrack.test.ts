@@ -10,6 +10,7 @@ import {
 } from '../../../testing'
 import { type Clip, type FadeCurve } from '../../clips/Clip'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../../clips/curves'
+import { strictCurves } from '../../clips/__tests__/strict-curves'
 import { fadeGain } from '../../clips/fade'
 import { AudioTrack, CROSSFADE_SECONDS } from '../../tracks/AudioTrack'
 import { SampleStore } from '../../tracks/SampleStore'
@@ -393,6 +394,30 @@ describe('ElementTrack voice control', () => {
     expect(track.play('c', voiceOptions(source('third')), 0)).toBeNull()
   })
 
+  it('an equal-power voice with no fade-in or no fade-out, or cut over no time, writes only what a browser takes', () => {
+    const restore = strictCurves()
+    try {
+      const { ctx, track, source } = setup()
+      const events = (index: number) =>
+        ctx.gains[index].gain.events.map((e) => [e.method, ...e.args.slice(-2)])
+      const bare = { fadeCurve: 'equalPower' as const, fadeInSec: 0, fadeOutSec: 0 }
+      expect(track.play('a', voiceOptions(source('a'), bare), 0)).not.toBeNull()
+      expect(events(1)).toEqual([
+        ['setValueAtTime', 1, 0],
+        ['setValueAtTime', 0, 6],
+      ])
+      ctx.currentTime = 1
+      expect(() => track.fadeOut('a', 1, 0)).not.toThrow()
+      expect(events(1).slice(-3)).toEqual([
+        ['cancelScheduledValues', 1],
+        ['setValueAtTime', 0, 1],
+        ['setValueAtTime', 0, 1],
+      ])
+    } finally {
+      restore()
+    }
+  })
+
   it('unlockAll unlocks every registered source', async () => {
     const { track, source, elements } = setup()
     track.addSource(source('a'))
@@ -400,6 +425,23 @@ describe('ElementTrack voice control', () => {
     await track.unlockAll()
     expect(elements.map((e) => e.playCalls.count)).toEqual([1, 1])
     expect(elements.map((e) => e.pauseCalls.count)).toEqual([1, 1])
+  })
+
+  it('unlockAll leaves a bed that is sounding to sound, and one that starts in the same turn', async () => {
+    const { track, source, elements } = setup()
+    const sounding = source('sounding')
+    const starting = source('starting')
+    track.addSource(sounding)
+    track.addSource(starting)
+    track.play('a', voiceOptions(sounding), 0)
+    expect(elements[0].paused).toBe(false)
+
+    const unlocking = track.unlockAll() // the gesture that starts playback, a second time
+    track.play('b', voiceOptions(starting), 0)
+    await unlocking
+    expect(elements.map((e) => e.paused)).toEqual([false, false])
+    expect(elements.map((e) => e.muted)).toEqual([false, false])
+    expect(elements.map((e) => e.pauseCalls.count)).toEqual([0, 0])
   })
 })
 

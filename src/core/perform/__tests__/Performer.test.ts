@@ -407,6 +407,24 @@ describe('Performer: dials', () => {
     performer.load(twoScenes())
     expect(approach('b', DIAL_RIDE_LAYER)?.[0]).toBe(1)
   })
+
+  it('leaves a dial the scene does not name where it is, whatever the dial is called', () => {
+    const set = dialSet()
+    // A name every plain object answers to with something of its own.
+    set.dials.push({
+      id: 'constructor',
+      name: 'Constructor',
+      value: 1,
+      targets: [{ kind: 'ride', track: 'a' }],
+    })
+    const { performer, ride, events } = rig(set)
+    // Dawn names no dial at all.
+    performer.go('dawn')
+    expect(performer.state.dials).toEqual({ energy: 1, duck: 0, constructor: 1 })
+    expect(events.filter((event) => event.type === 'dial')).toEqual([])
+    // And the track that dial moves was not taken out by a value that is no number.
+    expect(ride('a', DIAL_RIDE_LAYER)).toBeNull()
+  })
 })
 
 describe('Performer: follow rules', () => {
@@ -483,6 +501,25 @@ describe('Performer: follow rules', () => {
     expect(performer.state.followInBeats).toBeCloseTo(8)
     advance(3.95)
     expect(performer.state.scene).toBe('night')
+  })
+
+  it('keeps following as a hand switched it when the rule of the scene in play is edited', () => {
+    const { performer } = rig(followSet())
+    performer.go('dawn')
+    performer.follow(false)
+    // The set still says follow; only the rule being waited on is another.
+    const edited = followSet()
+    edited.scenes[0].follow = { a: 'next', b: 'stay', chance: 1, after: { unit: 'bars', value: 1 } }
+    performer.load(edited)
+    expect(performer.state).toMatchObject({ following: false, followInBeats: null })
+    // Switched on by hand, the new rule is the one that is waited on.
+    performer.follow(true)
+    expect(performer.state.followInBeats).toBeCloseTo(4)
+    // When it is the set's own switch that moves, the performance goes with it.
+    performer.load({ ...edited, follow: false })
+    expect(performer.follows).toBe(false)
+    performer.load(edited)
+    expect(performer.follows).toBe(true)
   })
 
   it('lets a hand win over a rule that is about to be drawn', () => {
@@ -652,6 +689,44 @@ describe('Performer: bars and beats', () => {
     expect(new Set(told).size).toBe(told.length)
   })
 
+  it('tells a line once when the transport is started just short of it', () => {
+    const { engine, advance, events } = rig()
+    // Stopped, and put a tenth of a second before the second bar: the line is
+    // inside the lookahead when the transport starts, and still ahead a tick later.
+    engine.transport.seek(1.9)
+    engine.transport.start()
+    for (let i = 0; i < 5; i += 1) advance(0.04)
+    const beats = events.filter((event) => event.type === 'beat')
+    expect(beats.map((event) => [event.bar, event.beat, event.at])).toEqual([
+      [1, 0, expect.closeTo(START + 0.1)],
+    ])
+    expect(events.filter((event) => event.type === 'bar')).toHaveLength(1)
+  })
+
+  it('tells the line the transport starts on once, though a second pass runs before the clock moves', () => {
+    const { engine, events } = rig()
+    engine.transport.start()
+    // An edit in the same turn as the start (a track made ready, a clip put in).
+    engine.scheduler.refresh()
+    expect(events.filter((event) => event.type === 'beat')).toHaveLength(1)
+    expect(events.filter((event) => event.type === 'bar')).toHaveLength(1)
+  })
+
+  it('tells a line again, with its new time, when a pause held the transport just short of it', () => {
+    const { ctx, engine, advance, events } = rig()
+    engine.transport.start()
+    advance(1.97) // the second bar is 30 ms off, and has been told
+    engine.transport.pause()
+    ctx.advanceClock(5)
+    const from = events.length
+    engine.transport.start()
+    advance(0.04) // the line has gone by before the next pass
+    const beats = events.slice(from).filter((event) => event.type === 'beat')
+    expect(beats.map((event) => [event.bar, event.beat, event.at])).toEqual([
+      [1, 0, expect.closeTo(START + 5 + 2)],
+    ])
+  })
+
   it('counts bars from the start of each pass of the loop', () => {
     const { engine, advance, events } = rig()
     engine.transport.start()
@@ -704,6 +779,18 @@ describe('Performer: taking up a performance', () => {
     performer.refresh()
     expect(ride('b')?.lastEvent('setTargetAtTime')?.args[0]).toBe(0)
     expect(ride('b', DIAL_RIDE_LAYER)?.lastEvent('setTargetAtTime')?.args[0]).toBe(0.5)
+  })
+
+  it('puts back a ride the performance taken up does not name, whatever the track is called', () => {
+    const { engine, performer, approach } = rig()
+    engine.addAudioTrack('constructor')
+    performer.ride('constructor', 0)
+    expect(approach('constructor')?.[0]).toBe(0)
+    // Nothing is ridden in what is taken up: the track comes back, and is not
+    // forgotten where it was for having a name every object has something under.
+    performer.restore({ rides: {} })
+    expect(approach('constructor')).toEqual([1, START, 0.005])
+    expect(performer.state.rides).toEqual({})
   })
 })
 
@@ -761,6 +848,23 @@ describe('Performer: leaving', () => {
     advance(3)
     expect(events).toHaveLength(seen)
     expect(() => performer.go('dawn')).toThrow(/disposed/)
+  })
+
+  it('dispose lets every track go though the host can move nothing any more', () => {
+    const set = twoScenes()
+    set.dials = [{ id: 'tone', name: 'Tone', value: 1, targets: [{ kind: 'host', id: 'cutoff' }] }]
+    let gone = false
+    const { performer, approach } = rig(set, {
+      host: () => {
+        if (gone) throw new Error('the filter is gone')
+      },
+    })
+    performer.go('dawn')
+    expect(approach('b')?.[0]).toBe(0)
+    gone = true
+    expect(() => performer.dispose()).not.toThrow()
+    expect(approach('a')?.[0]).toBe(1)
+    expect(approach('b')?.[0]).toBe(1)
   })
 
   it('goes with its engine', () => {

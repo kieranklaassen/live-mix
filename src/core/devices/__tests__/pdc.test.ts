@@ -237,4 +237,16 @@ describe('buildLatencyReport', () => {
     expect(report.masterSamples).toBe(0)
     expect(() => buildLatencyReport([inputs[0], inputs[0]], SR)).toThrow(/duplicate/)
   })
+
+  it('counts a path that feeds itself once, like any other cycle', () => {
+    const report = buildLatencyReport(
+      [
+        { key: 'a', name: 'a', kind: 'bus', devices: [dev('x', 10)], destination: 'a' },
+        { key: 'b', name: 'b', kind: 'track', devices: [dev('y', 20)], destination: 'a' },
+      ],
+      SR,
+    )
+    expect(report.paths.map((path) => path.latencySamples)).toEqual([10, 30])
+    expect(report.maxArrivalSamples).toBe(30)
+  })
 })

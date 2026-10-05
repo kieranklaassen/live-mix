@@ -90,6 +90,20 @@ describe('Transport anchor math', () => {
     transport.start(3)
     expect(transport.anchor?.contextTime).toBe(10)
   })
+
+  it('refuses a start time that is not a number, and stays where it was', () => {
+    const { ctx, transport, changes } = build()
+    transport.seek(3)
+    // A time worked out from something that was not there. Pinned at it, the
+    // position would read NaN, and a pause would keep that for the next start.
+    expect(() => transport.start(Number.NaN)).toThrow(RangeError)
+    expect(transport.state).toBe('stopped')
+    expect(transport.anchor).toBeNull()
+    expect(changes.map((change) => change.reason)).toEqual(['seek'])
+    transport.start()
+    ctx.currentTime += 1
+    expect(transport.position().positionSec).toBe(4)
+  })
 })
 
 describe('Transport iteration numbering across re-pins', () => {
@@ -272,6 +286,24 @@ describe('Transport loop changes', () => {
     const { transport } = build()
     expect(() => transport.setLoop({ lengthSec: -2 })).toThrow(RangeError)
     expect(() => transport.setLoop({ lengthSec: Number.NaN })).toThrow(RangeError)
+  })
+
+  it('refuses a length that is no number at all, and stays as it was, playing or not', () => {
+    // What a host hands over when it has no length yet: the key is there, the number is not.
+    expect(
+      () => new Transport({ now: () => 0, loop: { enabled: true, lengthSec: undefined } }),
+    ).toThrow(RangeError)
+    const { ctx, transport, changes } = build({ enabled: true, lengthSec: 4 })
+    expect(() => transport.setLoop({ lengthSec: undefined })).toThrow(RangeError)
+    expect(transport.loop).toEqual({ enabled: true, lengthSec: 4 })
+    transport.start()
+    ctx.currentTime += 1
+    expect(() => transport.setLoop({ lengthSec: undefined })).toThrow(RangeError)
+    // Still pinned, in the loop it had: not playing with no anchor and no length.
+    expect(transport.loop).toEqual({ enabled: true, lengthSec: 4 })
+    expect(transport.anchor).not.toBeNull()
+    expect(transport.position().positionSec).toBe(1)
+    expect(changes.map((change) => change.reason)).toEqual(['start'])
   })
 })
 
@@ -609,6 +641,20 @@ describe('Transport counted pass', () => {
     transport.setPass(2.9)
     expect(transport.pass()).toBe(2)
     expect(() => transport.setPass(Number.NaN)).toThrow(RangeError)
+  })
+
+  it('refuses a pass that never comes, and stays where it was', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 5.5
+    const elapsed = transport.elapsed()
+    changes.length = 0
+    // No run of the timeline holds it: taken, `elapsed()` would read no end
+    // of seconds, and so would every count of beats made from it.
+    expect(() => transport.setPass(Infinity)).toThrow(RangeError)
+    expect(transport.pass()).toBe(1)
+    expect(transport.elapsed()).toBe(elapsed)
+    expect(changes).toEqual([])
   })
 
   it('stays where it is with the loop off', () => {

@@ -575,8 +575,18 @@ export class ChannelStrip {
     const { panner } = this.ensureNodes()
     const before = this.insertTail()
     before.disconnect(panner)
-    before.connect(device.input)
-    device.output.connect(panner)
+    let fed = false
+    try {
+      before.connect(device.input)
+      fed = true
+      device.output.connect(panner)
+    } catch (error) {
+      // A device that cannot be wired (one of another context) must not cost
+      // the strip its signal: the chain is closed again as it was.
+      if (fed) before.disconnect(device.input)
+      before.connect(panner)
+      throw error
+    }
     this.insertList.push(device)
     this.changed('inserts')
   }
@@ -589,8 +599,19 @@ export class ChannelStrip {
     const { inputGain, panner } = this.ensureNodes()
     const before = index === 0 ? inputGain : this.insertList[index - 1].output
     const after = this.insertList[index + 1]?.input ?? panner
-    before.disconnect(device.input)
-    device.output.disconnect(after)
+    // A device disposed before it is taken out has let go of its own
+    // connections, and a node throws when told to let go of one it does not
+    // feed. The chain is closed around the device all the same.
+    try {
+      before.disconnect(device.input)
+    } catch {
+      // The device before it was disposed first.
+    }
+    try {
+      device.output.disconnect(after)
+    } catch {
+      // This one was.
+    }
     this.insertList.splice(index, 1)
     before.connect(after)
     this.changed('inserts')

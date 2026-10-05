@@ -104,6 +104,9 @@ export class ClockLaneWriter {
     this.param.setValueAtTime(this.lane.valueAt(laneNow), nowSec)
     this.cursorSec = laneNow
     this.cursorIsArrival = false
+    // The override dropped all that was scheduled, so an edit made under it leaves nothing to
+    // rewrite: a cancel from now on would take the set above with it.
+    this.laneVersion = this.lane.version
   }
 
   /** Forget what was written; the next tick starts at the current time. */

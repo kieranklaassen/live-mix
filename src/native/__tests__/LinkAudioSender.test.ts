@@ -115,6 +115,14 @@ describe('LinkAudioSender', () => {
     expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_005_000 })
   })
 
+  it('takes an offset that is no number for none, at creation as later', async () => {
+    const { create, workers } = await build({ offsetMs: Number.NaN })
+    const sender = await create()
+    expect(workers[0].posted[1]).toEqual({ type: 'clock', contextTime: 2, hostMicros: 12_010_000 })
+    sender.setOffsetMs(Number.NaN)
+    expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_010_000 })
+  })
+
   it('reports the connection and what the pump sent', async () => {
     const { create, workers } = await build()
     const sender = await create()
@@ -144,6 +152,22 @@ describe('LinkAudioSender', () => {
     const said = workers[0].posted.length
     sender.setOffsetMs(3)
     expect(workers[0].posted).toHaveLength(said)
+  })
+
+  it('stays closed when the pump reports the connection after it was disposed', async () => {
+    const { create, workers } = await build()
+    const sender = await create()
+    const seen: string[] = []
+    sender.onStatus = (status) => seen.push(status)
+    const stats: number[] = []
+    sender.onStats = ({ blocks }) => stats.push(blocks)
+    sender.dispose()
+    // What the pump had posted before it was told to stop arrives after.
+    workers[0].onmessage?.({ data: { type: 'open' } })
+    workers[0].onmessage?.({ data: { type: 'stats', stats: { blocks: 94, dropped: 0 } } })
+    expect(sender.status).toBe('closed')
+    expect(seen).toEqual(['closed'])
+    expect(stats).toEqual([])
   })
 
   it('refuses a host that was built without Link', async () => {

@@ -24,6 +24,7 @@ import {
   maxAbsDifference,
   renderOffline,
   renderStems,
+  scheduleAhead,
   type OfflineContextFactory,
 } from '../OfflineRenderer'
 
@@ -129,6 +130,37 @@ describe('renderOffline', () => {
     await expect(renderOffline({ durationSec: 1, build: arrangement })).rejects.toThrow(
       /OfflineAudioContext is not available/,
     )
+  })
+
+  it('rejects a clock step that would never reach the end, or never tick at all', async () => {
+    // A step of 0 or less walks the virtual clock without end: the build stops
+    // the scheduler after a thousand ticks so that this fails instead of hanging.
+    const counted = async (engine: Engine): Promise<void> => {
+      await arrangement(engine)
+      const tick = engine.scheduler.tick.bind(engine.scheduler)
+      let ticks = 0
+      engine.scheduler.tick = () => {
+        ticks += 1
+        if (ticks > 1000) throw new Error('ticked without end')
+        tick()
+      }
+    }
+    for (const tickSec of [0, -0.05, Number.NaN, Number.POSITIVE_INFINITY]) {
+      contexts = []
+      await expect(
+        renderOffline({ durationSec: 1, tickSec, createContext: factory, build: counted }),
+      ).rejects.toThrow(/positive tickSec/)
+      // Refused before anything was made for it.
+      expect(contexts).toHaveLength(0)
+    }
+
+    const ctx = createMockContext({ sampleRate: SAMPLE_RATE })
+    const engine = createEngine({ context: asAudioContext(ctx), now: () => 0 })
+    await counted(engine)
+    await expect(
+      scheduleAhead(engine, { startSec: 0, durationSec: 1, tickSec: 0, setNow: () => {} }),
+    ).rejects.toThrow(/positive tickSec/)
+    engine.dispose()
   })
 })
 
@@ -274,6 +306,95 @@ describe('renderStems with a stretch track', () => {
     await expect(
       renderStems({ durationSec: 1, createContext: factory, stems: ['nope'], build: arrangement }),
     ).rejects.toThrow(/no track "nope"/)
+  })
+})
+
+describe('a render that fails', () => {
+  /** Counts the engines a build was handed and those that were disposed. */
+  function watched(build: (engine: Engine) => Promise<void>): {
+    build: (engine: Engine) => Promise<void>
+    made: () => number
+    disposed: () => number
+  } {
+    let made = 0
+    let disposed = 0
+    return {
+      build: async (engine) => {
+        made += 1
+        engine.onDispose(() => {
+          disposed += 1
+        })
+        await build(engine)
+      },
+      made: () => made,
+      disposed: () => disposed,
+    }
+  }
+
+  it('disposes the engine it made when the build throws: nobody else can reach it', async () => {
+    const seen = watched(async (engine) => {
+      await arrangement(engine)
+      throw new Error('the build broke')
+    })
+    await expect(
+      renderOffline({ durationSec: 1, createContext: factory, build: seen.build }),
+    ).rejects.toThrow(/the build broke/)
+    expect(seen.made()).toBe(1)
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('reports the failure of the render, not that of a companion that broke while it was taken down', async () => {
+    const seen = watched(async (engine) => {
+      engine.onDispose(() => {
+        throw new Error('a companion broke')
+      })
+      await arrangement(engine)
+      throw new Error('the build broke')
+    })
+    await expect(
+      renderOffline({ durationSec: 1, createContext: factory, build: seen.build }),
+    ).rejects.toThrow(/the build broke/)
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('disposes it when the context cannot render', async () => {
+    const seen = watched(arrangement)
+    const failing: OfflineContextFactory = (size) => {
+      const ctx = factory(size)
+      ctx.startRendering = () => Promise.reject(new Error('out of memory'))
+      return ctx
+    }
+    await expect(
+      renderOffline({ durationSec: 1, createContext: failing, build: seen.build }),
+    ).rejects.toThrow(/out of memory/)
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('leaves the engine of a render that succeeds for its caller to dispose', async () => {
+    const seen = watched(arrangement)
+    const result = await renderOffline({
+      durationSec: 1,
+      createContext: factory,
+      build: seen.build,
+    })
+    expect(seen.disposed()).toBe(0)
+    result.engine.dispose()
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('disposes the stems already rendered when a later stem fails', async () => {
+    const seen = watched(arrangement)
+    await expect(
+      renderStems({
+        durationSec: 1,
+        createContext: factory,
+        stems: ['music', 'nope'],
+        build: seen.build,
+      }),
+    ).rejects.toThrow(/no track "nope"/)
+    // The master, 'music' and the one that failed.
+    expect(seen.made()).toBe(3)
+    expect(seen.disposed()).toBe(3)
   })
 })
 

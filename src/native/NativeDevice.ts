@@ -360,6 +360,8 @@ export class NativeDevice
     })
 
     let worker: PumpWorker | undefined
+    // The device once it is made: from then on what has to be undone is its own to undo.
+    let made: NativeDevice | undefined
     const id = options.id ?? nativeDeviceId(plugin)
     // The bridge's own work on the audio thread; the plug-in's is in the host's process.
     const load = LoadProbe.for(context).claim(id)
@@ -398,13 +400,15 @@ export class NativeDevice
         rampSec: options.rampSec ?? NODE_DEVICE_RAMP_SECONDS,
         panelParamCount: options.panelParamCount ?? DEFAULT_PANEL_PARAM_COUNT,
       })
+      made = device
       worker.postMessage({ type: 'start', memory, url: client.audioUrl(slot.slot, 2) })
       if (options.params) {
         // A saved value for a parameter this version of the plug-in no longer
-        // has must not keep the plug-in from loading.
+        // has must not keep the plug-in from loading. Its own names only:
+        // `constructor` is on every object and in no plug-in.
         device.setParams(
           Object.fromEntries(
-            Object.entries(options.params).filter(([name]) => name in device.params),
+            Object.entries(options.params).filter(([name]) => Object.hasOwn(device.params, name)),
           ),
         )
       }
@@ -422,9 +426,15 @@ export class NativeDevice
       return device
     } catch (error) {
       // The plug-in exists in the host but the device could not finish: do not leak it.
-      load.release()
-      worker?.terminate()
-      void client.unload(slot.slot).catch(() => {})
+      // One that was made already listens to the client and has its worklet
+      // running, and the client lives on after a render that was given up.
+      if (made) {
+        made.dispose()
+      } else {
+        load.release()
+        worker?.terminate()
+        void client.unload(slot.slot).catch(() => {})
+      }
       throw error
     }
   }

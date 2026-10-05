@@ -101,6 +101,7 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
   const durationSec = options.durationSec
   if (!(durationSec > 0)) throw new Error('live-mix: renderOffline needs a positive durationSec')
   const tickSec = options.tickSec ?? 0.05
+  assertTickSec(tickSec)
   const length = Math.ceil(durationSec * sampleRate)
   const context = (options.createContext ?? defaultCreateContext)({
     numberOfChannels,
@@ -115,23 +116,56 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
     now: () => virtualNow,
     ...inertTimers(),
   })
-  await options.build(engine, { stem: 'master', sampleRate, durationSec })
-  const latency =
-    (options.alignLatency ?? true)
-      ? engine.alignLatency({ liveInputs: true })
-      : engine.latencyReport()
+  try {
+    await options.build(engine, { stem: 'master', sampleRate, durationSec })
+    const latency =
+      (options.alignLatency ?? true)
+        ? engine.alignLatency({ liveInputs: true })
+        : engine.latencyReport()
 
-  await scheduleAhead(engine, {
-    startSec: options.startSec ?? 0,
-    durationSec,
-    tickSec,
-    setNow: (sec) => {
-      virtualNow = sec
-    },
-  })
+    await scheduleAhead(engine, {
+      startSec: options.startSec ?? 0,
+      durationSec,
+      tickSec,
+      setNow: (sec) => {
+        virtualNow = sec
+      },
+    })
 
-  const buffer = await context.startRendering()
-  return { buffer, audio: planarFromAudioBuffer(buffer), sampleRate, durationSec, engine, latency }
+    const buffer = await context.startRendering()
+    return {
+      buffer,
+      audio: planarFromAudioBuffer(buffer),
+      sampleRate,
+      durationSec,
+      engine,
+      latency,
+    }
+  } catch (error) {
+    // Only a result carries the engine out to be disposed: a render that fails
+    // lets go of its own, with every device the build had made by then.
+    disposeQuietly(engine)
+    throw error
+  }
+}
+
+/** Dispose an engine whose render failed: what the caller hears of is that failure. */
+function disposeQuietly(engine: Engine): void {
+  try {
+    engine.dispose()
+  } catch {
+    // A companion that broke while it was taken down; the engine is down all the same.
+  }
+}
+
+/**
+ * The virtual clock is stepped by `tickSec` until it is past the end: a step
+ * of 0 or less never gets there, and one that is no number never ticks.
+ */
+function assertTickSec(tickSec: number): void {
+  if (!(tickSec > 0 && Number.isFinite(tickSec))) {
+    throw new Error('live-mix: the clock of a render needs a positive tickSec')
+  }
 }
 
 export interface ScheduleAheadOptions {
@@ -151,6 +185,7 @@ export interface ScheduleAheadOptions {
  */
 export async function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): Promise<void> {
   const { startSec, durationSec, tickSec, setNow } = options
+  assertTickSec(tickSec)
   setNow(0)
   engine.transport.seek(startSec)
   engine.transport.start(0)
@@ -191,20 +226,26 @@ export interface StemsOptions extends Omit<RenderOptions, 'build'> {
 export async function renderStems(options: StemsOptions): Promise<Record<string, RenderResult>> {
   const results: Record<string, RenderResult> = {}
   const names = [...((options.includeMaster ?? true) ? ['master'] : []), ...options.stems]
-  for (const stem of names) {
-    results[stem] = await renderOffline({
-      ...options,
-      build: async (engine, info) => {
-        await options.build(engine, { ...info, stem })
-        if (stem !== 'master') {
-          const track =
-            engine.tracks.find((t) => t.name === stem) ??
-            engine.stretchTracks.find((t) => t.name === stem)
-          if (!track) throw new Error(`live-mix: renderStems: no track "${stem}"`)
-          track.strip.setSolo(true, { at: 0 })
-        }
-      },
-    })
+  try {
+    for (const stem of names) {
+      results[stem] = await renderOffline({
+        ...options,
+        build: async (engine, info) => {
+          await options.build(engine, { ...info, stem })
+          if (stem !== 'master') {
+            const track =
+              engine.tracks.find((t) => t.name === stem) ??
+              engine.stretchTracks.find((t) => t.name === stem)
+            if (!track) throw new Error(`live-mix: renderStems: no track "${stem}"`)
+            track.strip.setSolo(true, { at: 0 })
+          }
+        },
+      })
+    }
+  } catch (error) {
+    // The stems rendered so far are handed to nobody: let their engines go.
+    for (const stem of Object.keys(results)) disposeQuietly(results[stem].engine)
+    throw error
   }
   return results
 }

@@ -130,6 +130,8 @@ export class LiveInputTrack implements StripHost {
     }
     this.releaseGain()
     this.sourceNode = null
+    // No stream is attached: the one that went no longer counts in `Engine.ioLatency()`.
+    this.streamLatencySec = 0
   }
 
   dispose(): void {

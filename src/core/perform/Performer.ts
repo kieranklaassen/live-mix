@@ -251,7 +251,8 @@ export class Performer {
     const rule = (from: PerformSet): string =>
       JSON.stringify(from.scenes.find((candidate) => candidate.id === this.scene)?.follow ?? null)
     // The rule being waited on, or whether rules are followed at all: the wait starts again.
-    const rearm = set.follow !== this.current.follow || rule(set) !== rule(this.current)
+    const switched = set.follow !== this.current.follow
+    const rearm = switched || rule(set) !== rule(this.current)
     this.current = set
     if (this.scene && !this.findScene(this.scene)) this.scene = null
     if (this.queued && !this.findScene(this.queued.scene)) this.queued = null
@@ -260,7 +261,9 @@ export class Performer {
     for (const dial of set.dials) this.dialValues.set(dial.id, kept.get(dial.id) ?? dial.value)
     this.applyDials({ at: this.engine.now(), seconds: DEFAULT_DIAL_GLIDE_SECONDS })
     if (rearm) {
-      this.following = set.follow
+      // The set's switch takes the performance with it when it is the switch
+      // that moved. A new rule alone leaves following as `follow` last put it.
+      if (switched) this.following = set.follow
       this.armFollow(this.beatsNow())
     }
     this.events.emit({ type: 'set' })
@@ -374,7 +377,10 @@ export class Performer {
     this.queued = null
     this.queuedRides.clear()
     for (const track of this.sceneRides.keys()) {
-      if (!(track in rides)) this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })
+      // Named by what is taken up itself: every object has something under `constructor`.
+      if (!Object.hasOwn(rides, track)) {
+        this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })
+      }
     }
     this.sceneRides.clear()
     for (const [track, value] of Object.entries(rides)) {
@@ -549,14 +555,18 @@ export class Performer {
     for (const off of this.unsubscribe.splice(0)) off()
     try {
       const at = this.engine.now()
-      for (const dial of this.current.dials) {
-        for (const target of dial.targets) {
-          if (target.kind !== 'host') continue
-          this.host?.(target.id, shapeDial(target, dial.value), {
-            at,
-            seconds: DEFAULT_DIAL_GLIDE_SECONDS,
-          })
+      try {
+        for (const dial of this.current.dials) {
+          for (const target of dial.targets) {
+            if (target.kind !== 'host') continue
+            this.host?.(target.id, shapeDial(target, dial.value), {
+              at,
+              seconds: DEFAULT_DIAL_GLIDE_SECONDS,
+            })
+          }
         }
+      } catch {
+        // What the host moves is the host's own, and may be gone; the tracks are let go all the same.
       }
       for (const track of this.sceneRides.keys()) {
         this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })
@@ -708,7 +718,9 @@ export class Performer {
     }
     const glide: PerformGlide = { at, seconds: this.barsToSeconds(morphBars) }
     for (const dial of this.current.dials) {
-      const value = scene.dials[dial.id]
+      // Only a dial the scene names itself: one called `constructor` is not
+      // handed what every object has under that name.
+      const value = Object.hasOwn(scene.dials, dial.id) ? scene.dials[dial.id] : undefined
       if (value === undefined) continue
       this.dialValues.set(dial.id, value)
       this.applyDial(dial, glide)
@@ -835,6 +847,11 @@ export class Performer {
     }
     if (tick.reason === 'seek' || this.unsettled) this.relocate()
     const now = this.look()
+    // A start: the lines ahead fall at new times on the clock and are told
+    // again. Here, before this pass tells them, and not when the performer
+    // hears of the start itself, which is after this pass: put back then, a
+    // line told now would be told again by the next pass that finds it ahead.
+    if (tick.reason === 'start') this.reportedBeat = Math.ceil(now - BEAT_EPSILON) - 1
     this.drawFollow(now)
     this.flush(now)
     this.reportLines(now)
@@ -927,9 +944,6 @@ export class Performer {
         this.unsettled = true
         break
       case 'start':
-        this.look()
-        this.reportedBeat = Math.ceil(this.lastBeats - BEAT_EPSILON) - 1
-        break
       case 'pause':
         this.look()
         break

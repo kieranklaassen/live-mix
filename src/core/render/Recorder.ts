@@ -131,7 +131,8 @@ export class WorkletRecorder extends Recorder {
   readonly channelCount: number
   private readonly ctx: BaseAudioContext
   private readonly chunks: { startFrame: number; channels: Float32Array[] }[] = []
-  private resolveStop: ((recording: WorkletRecording) => void) | null = null
+  /** Every `stop()` that waits for the processor's answer: one answer resolves them all. */
+  private readonly stopWaiters: ((recording: WorkletRecording) => void)[] = []
 
   private constructor(
     ctx: BaseAudioContext,
@@ -193,8 +194,10 @@ export class WorkletRecorder extends Recorder {
       return Promise.resolve(this.assemble(0))
     }
     return new Promise((resolve) => {
-      this.resolveStop = resolve
-      this.post({ type: 'stop' })
+      // The processor is asked once. A second `stop` would be answered by a
+      // second `stopped`, which could land in the take begun after the first.
+      this.stopWaiters.push(resolve)
+      if (this.stopWaiters.length === 1) this.post({ type: 'stop' })
     })
   }
 
@@ -206,12 +209,25 @@ export class WorkletRecorder extends Recorder {
   override dispose(): void {
     if (this.disposed) return
     super.dispose()
+    const recording = this.recordingState === 'recording'
     try {
+      // The processor outlives its node: left recording, it would go on
+      // copying its input into chunks for a port nobody reads.
+      if (recording && this.stopWaiters.length === 0) this.post({ type: 'stop' })
       this.node.disconnect()
       this.node.port.close()
     } catch {
       // ignore
     }
+    if (!recording) return
+    // The port is closed, so the processor's `stopped` never arrives: a stop
+    // that waits for it is answered here, with what had arrived.
+    this.recordingState = 'stopped'
+    this.answerStop(this.assemble(0))
+  }
+
+  private answerStop(recording: WorkletRecording): void {
+    for (const resolve of this.stopWaiters.splice(0)) resolve(recording)
   }
 
   private handleMessage(message: RecorderHostMessage): void {
@@ -221,9 +237,7 @@ export class WorkletRecorder extends Recorder {
         break
       case 'stopped': {
         this.recordingState = 'stopped'
-        const recording = this.assemble(message.totalFrames)
-        this.resolveStop?.(recording)
-        this.resolveStop = null
+        this.answerStop(this.assemble(message.totalFrames))
         break
       }
       default: {
@@ -259,7 +273,8 @@ export class MediaStreamRecorder extends Recorder {
   readonly destination: MediaStreamAudioDestinationNode
   private readonly recorder: MediaRecorderLike
   private readonly parts: Blob[] = []
-  private resolveStop: ((recording: MediaRecording) => void) | null = null
+  /** Every `stop()` that waits for the browser's `stop` event: one event resolves them all. */
+  private readonly stopWaiters: ((recording: MediaRecording) => void)[] = []
 
   constructor(ctx: BaseAudioContext, source: RecordSource, options: MediaRecorderOptions) {
     super(source)
@@ -288,8 +303,7 @@ export class MediaStreamRecorder extends Recorder {
         blob: new Blob(this.parts, { type: mimeType }),
         mimeType,
       }
-      this.resolveStop?.(recording)
-      this.resolveStop = null
+      for (const resolve of this.stopWaiters.splice(0)) resolve(recording)
     }
     this.source.connect(this.destination)
   }
@@ -305,8 +319,10 @@ export class MediaStreamRecorder extends Recorder {
   start(): void {
     if (this.disposed || this.recordingState === 'recording') return
     this.parts.length = 0
-    this.recordingState = 'recording'
+    // Recording only once the browser has agreed to: one that refuses throws
+    // here, and the recorder is left as it was, to be started again.
     this.recorder.start()
+    this.recordingState = 'recording'
   }
 
   stop(): Promise<MediaRecording> {
@@ -318,14 +334,23 @@ export class MediaStreamRecorder extends Recorder {
       })
     }
     return new Promise((resolve) => {
-      this.resolveStop = resolve
-      this.recorder.stop()
+      this.stopWaiters.push(resolve)
+      // An inactive one is stopping already (an earlier call, or `dispose`),
+      // and its one `stop` event answers every call that waits.
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
     })
   }
 
   override dispose(): void {
     if (this.disposed) return
     super.dispose()
+    try {
+      // Nobody else holds the MediaRecorder: left recording, it would encode
+      // its stream for as long as the page lives.
+      if (this.recorder.state !== 'inactive') this.recorder.stop()
+    } catch {
+      // ignore
+    }
     try {
       this.destination.disconnect()
     } catch {

@@ -320,6 +320,20 @@ describe('NativeDevice on an offline context', () => {
     await expect(created).rejects.toThrow(/did not open audio/)
   })
 
+  it('a device given up on is taken down whole: its worklet is told, and the host no longer talks to it', async () => {
+    const { client, ctx, worker, created } = await offlineSetup()
+    await started(worker)
+    worker.emit({ type: 'close', reason: 'refused' })
+    await expect(created).rejects.toThrow(/did not open audio/)
+    const node = ctx.workletNodes[0]
+    // Left running, the processor would be rendered to the end of the bounce.
+    expect(node.port.posted.calls.at(-1)?.[0]).toEqual({ type: 'dispose' })
+    expect(node.outputs.size).toBe(0)
+    // The client lives on after the render: a listener left on it keeps the device and its context.
+    const listeners = (client as unknown as { listeners: Map<string, Set<unknown>> }).listeners
+    expect([...listeners].filter(([, set]) => set.size > 0).map(([event]) => event)).toEqual([])
+  })
+
   it('holds the render at each stop until the host has answered everything written', async () => {
     const { worker, pacing, created } = await offlineSetup()
     await started(worker)

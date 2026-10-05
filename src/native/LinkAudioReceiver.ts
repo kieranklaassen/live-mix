@@ -111,7 +111,9 @@ export class LinkAudioReceiver {
     this.channel = options.channel
     this.currentDelay = delaySec
     this.now = options.now ?? (() => performance.now())
-    this.offsetMs = options.offsetMs ?? 0
+    // As `setOffsetMs` takes it: what is no number is no offset.
+    const { offsetMs = 0 } = options
+    this.offsetMs = Number.isFinite(offsetMs) ? offsetMs : 0
     this.outputClock = new OutputClock(context, { now: this.now })
   }
 
@@ -201,6 +203,8 @@ export class LinkAudioReceiver {
     const stop: LinkSourceMessage = { type: 'dispose' }
     this.output.port.postMessage(stop)
     this.output.port.onmessage = null
+    // Nor what the intake had posted before it hears this: it would open the channel again.
+    this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
     this.setStatus('closed', 'closed')
   }

@@ -227,6 +227,16 @@ describe('Chain level, pan and mute', () => {
     expect(chain.gain).toBe(1)
   })
 
+  it('starts a chain on the defaults where its gain or pan is no number, as a later change does', () => {
+    const { mock, rack } = make()
+    const chain = rack.addChain({ gain: Number.NaN, pan: Number.NaN })
+    expect(chain.gain).toBe(1)
+    expect(chain.pan).toBe(0)
+    // A real AudioParam throws when it is given what is no number.
+    expect((asMock(chain.fader) as MockGainNode).gain.value).toBe(1)
+    expect(mock.panners[0].pan.value).toBe(0)
+  })
+
   it('stores key and selector zones for later routing', () => {
     const { rack } = make()
     const chain = rack.addChain({
@@ -417,6 +427,8 @@ describe('Rack macros', () => {
     const outside = createUtility(ctx)
     expect(() => rack.mapMacro(0, outside, 'gainDb')).toThrow(/inside rack/)
     expect(() => rack.mapMacro(0, utility, 'nope')).toThrow(/no parameter "nope"/)
+    expect(() => rack.mapMacro(0, utility, 'constructor')).toThrow(/no parameter "constructor"/)
+    expect(rack.macroMappings()).toEqual([])
     expect(() => rack.mapMacro(8, utility, 'gainDb')).toThrow(/no macro 8/)
     expect(() => rack.macro(-1)).toThrow(/no macro -1/)
     expect(rack.macro(7)).toBe(rack.macros[7])
@@ -776,6 +788,84 @@ describe('Rack presets', () => {
         { registry: devices },
       ),
     ).rejects.toThrow(/missing device/)
+  })
+
+  it('captures a rack whose mapped device was taken off its chain, leaving that mapping out', () => {
+    const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
+    const rack = createRack(ctx, { name: 'Space' })
+    const chain = rack.addChain()
+    const utility = createUtility(ctx)
+    const filter = createFilter(ctx)
+    chain.addInsert(utility)
+    chain.addInsert(filter)
+    rack.mapMacro(0, utility, 'gainDb')
+    rack.mapMacro(0, filter, 'frequency')
+    chain.removeInsert(utility)
+
+    const preset = captureRackPreset(rack, 'Tonight', { registry: devices })
+    expect(preset.chains[0].devices.map((device) => device.preset.deviceId)).toEqual(['filter'])
+    expect(preset.macros[0].mappings).toEqual([
+      { chain: 0, device: 0, param: 'frequency', min: 20, max: 20000, curve: 'linear' },
+    ])
+  })
+
+  it('a rack that cannot be finished takes down what it had made', async () => {
+    const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
+    const disposed = vi.fn()
+    const registry = new DeviceRegistry([
+      {
+        ...UTILITY_DESCRIPTOR,
+        create: (context, options) => {
+          const device = createUtility(context, options)
+          const dispose = device.dispose.bind(device)
+          device.dispose = () => {
+            disposed()
+            dispose()
+          }
+          return device
+        },
+      },
+      {
+        ...devices.describe('filter'),
+        create: () => {
+          throw new Error('no filter here')
+        },
+      },
+      RACK_DESCRIPTOR,
+    ])
+    const device = (deviceId: string) => ({
+      preset: { name: deviceId, deviceId, deviceVersion: 1, params: {} },
+      bypass: false,
+    })
+    const preset: RackPreset = {
+      name: 'Half',
+      mix: 1,
+      macros: [{ name: 'Macro 1', value: 0, mappings: [] }],
+      chains: [
+        {
+          name: 'Only',
+          gain: 1,
+          pan: 0,
+          mute: false,
+          devices: [device('utility'), device('filter')],
+        },
+      ],
+    }
+    await expect(createRackFromPreset(ctx, preset, { registry })).rejects.toThrow('no filter here')
+    expect(disposed).toHaveBeenCalledTimes(1)
+
+    // The same for a mapping onto a device the preset does not have.
+    preset.chains[0].devices.pop()
+    preset.macros[0].mappings.push({
+      chain: 0,
+      device: 3,
+      param: 'gainDb',
+      min: 0,
+      max: 1,
+      curve: 'linear',
+    })
+    await expect(createRackFromPreset(ctx, preset, { registry })).rejects.toThrow(/missing device/)
+    expect(disposed).toHaveBeenCalledTimes(2)
   })
 
   it('loads and captures U23 presets of the macros and mix through the registry', async () => {

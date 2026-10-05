@@ -172,6 +172,26 @@ describe('EnvelopeFollower', () => {
     follower.reset()
     expect(follower.valueAtTime(0)).toBe(0)
   })
+
+  it('holds through a reading that is no number and follows on after it', () => {
+    const follower = new EnvelopeFollower({ attackSec: 0.1, releaseSec: 1 })
+    follower.push(1, 0)
+    follower.push(1, 0.1)
+    const held = follower.valueAtTime(0.1)
+    // What a meter hands over when it has nothing to read: no number, or the
+    // level of silence in dB. Taken in, the envelope is no number from then
+    // on, whatever is pushed after, and so is every parameter it is routed to.
+    expect(follower.push(Number.NaN, 0.2)).toBe(held)
+    expect(follower.push(Number.NEGATIVE_INFINITY, 0.3)).toBe(held)
+    expect(follower.push(1, Number.NaN)).toBe(held)
+    follower.push(1, 10)
+    expect(follower.valueAtTime(10)).toBeCloseTo(1, 6)
+    // A block with a sample that is no number holds over it in the same way.
+    const envelope = follower.process(Float32Array.of(0, Number.NaN, 0), 1000)
+    expect(envelope[1]).toBe(envelope[0])
+    expect(envelope[2]).toBeLessThan(envelope[1])
+    expect(envelope[2]).toBeGreaterThan(0.99)
+  })
 })
 
 describe('Random', () => {

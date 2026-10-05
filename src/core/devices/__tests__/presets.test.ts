@@ -101,6 +101,26 @@ describe('presets', () => {
     })
   })
 
+  it('keeps the params of a table that is only known once the device is made, as given', () => {
+    const preset: Preset = {
+      name: 'kept',
+      deviceId: 'hosted',
+      deviceVersion: 1,
+      params: { p7: 0.3, frequency: 99999 },
+    }
+    // What is known beforehand is still clamped; the rest is the device's to clamp.
+    const source = {
+      id: 'hosted',
+      version: 1,
+      params: { frequency: FILTER_PARAMS.frequency },
+      dynamicParams: true,
+    }
+    expect(presetParams(source, preset)).toEqual({
+      p7: 0.3,
+      frequency: FILTER_PARAMS.frequency.max,
+    })
+  })
+
   it('captures a live device and applies presets back, reporting skipped params', () => {
     const ctx = createMockContext()
     const source = createFilter(asAudioContext(ctx), { params: { frequency: 440, gain: 2 } })
