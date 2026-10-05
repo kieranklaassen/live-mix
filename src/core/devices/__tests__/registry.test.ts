@@ -216,6 +216,20 @@ describe('DeviceRegistry', () => {
     await expect(registry.create('nope', ctx)).rejects.toThrow(/unknown device "nope"/)
   })
 
+  it('a preset for a device whose table is only known once it is made reaches the factory whole', async () => {
+    const create = vi.fn((_context: BaseAudioContext, options: { params?: unknown }) =>
+      fakeDevice('custom', options.params as Record<string, number>),
+    )
+    // As a hosted plug-in registers: no table beforehand, and `dynamicParams`.
+    const registry = new DeviceRegistry([descriptor({ params: {}, dynamicParams: true, create })])
+    const ctx = asAudioContext(createMockContext())
+    await registry.create('custom', ctx, {
+      preset: { name: 'x', deviceId: 'custom', deviceVersion: 1, params: { p7: 0.3, p100: 0.9 } },
+      params: { p100: 0.2 },
+    })
+    expect(create.mock.calls[0][1]).toEqual({ params: { p7: 0.3, p100: 0.2 } })
+  })
+
   it('hands extra options through to the factory untouched', async () => {
     const create = vi.fn((_context: BaseAudioContext, options: { params?: unknown }) =>
       fakeDevice('custom', options.params as Record<string, number>),

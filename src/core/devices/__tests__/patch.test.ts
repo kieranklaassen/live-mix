@@ -105,6 +105,30 @@ describe('patch', () => {
     )
   })
 
+  it('a device whose table is only known once it is made is not checked by name, and keeps what it is given', async () => {
+    const made: unknown[] = []
+    // As a hosted plug-in registers: no table beforehand, and `dynamicParams`.
+    const hosted: DeviceDescriptor = {
+      ...DELAY_DESCRIPTOR,
+      id: 'hosted',
+      name: 'Hosted',
+      kind: 'native',
+      params: {},
+      presets: undefined,
+      dynamicParams: true,
+      create: async (ctx, options) => {
+        made.push(options.params)
+        return Object.assign(await DELAY_DESCRIPTOR.create(ctx, {}), { id: 'hosted' })
+      },
+    }
+    const reg = registry().register(hosted)
+    const chain: Patch = { ...CHAIN, effects: [{ deviceId: 'hosted', params: { p7: 0.3 } }] }
+    expect(validatePatch(chain, reg)).toEqual([])
+    expect(patchDeviceParams(hosted, chain.effects[0])).toEqual({ p7: 0.3 })
+    await createPatchEffects(reg, context(), chain)
+    expect(made).toEqual([{ p7: 0.3 }])
+  })
+
   it('resolves a device to defaults, then its preset, then its own params', () => {
     const params = patchDeviceParams(DELAY_DESCRIPTOR, CHAIN.effects[0])
     const preset = DELAY_DESCRIPTOR.presets?.['Long tail'] ?? {}
