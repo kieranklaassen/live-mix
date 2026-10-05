@@ -205,6 +205,7 @@ export const FELT_PIANO_PARAMS = {
     default: 32,
     taper: 'linear',
     unit: 'voices',
+    step: 1,
     description:
       'How many notes can sound at once. Lower saves processing; at the limit the quietest note gives way to the new one.',
   },

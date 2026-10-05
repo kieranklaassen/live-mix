@@ -13,6 +13,7 @@ export const THESIS_PARAMS = {
     default: 62,
     taper: 'linear',
     unit: 'note',
+    step: 1,
     description:
       'The note every chord is reflected around. Notes played far from it spread wide; notes near it draw the bands close together.',
   },
