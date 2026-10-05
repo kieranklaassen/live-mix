@@ -239,7 +239,9 @@ function paramSpec(
   if (!registry) return null
   const location = findDevice(score, deviceInstance)
   if (!location) return null
-  const spec = registry.get(location.device.deviceId)?.params[param]
+  const params = registry.get(location.device.deviceId)?.params
+  // Its own parameters only: `constructor` is on every object, and has no range.
+  const spec = params && Object.prototype.hasOwnProperty.call(params, param) ? params[param] : null
   return spec ? { min: spec.min, max: spec.max } : null
 }
 

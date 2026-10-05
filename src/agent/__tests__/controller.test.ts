@@ -385,6 +385,22 @@ describe('rails through operations', () => {
     expect(many.result.params).toEqual({ depth: 0, attackMs: 50, holdMs: null })
   })
 
+  it('reads the range of a parameter the device has, not of a name every object answers to', async () => {
+    const { controller } = await rig()
+    const args = (param: string) => ({ device: 'music-duck', param, value: 0.3 })
+    // A name the ducker does not have has no range to clamp to: the score is handed it as given.
+    const unknown = controller.call('device_set_param', args('nope')) as ToolSuccess
+    expect(unknown).toMatchObject({ ok: true, rails: [], result: { value: 0.3 } })
+    const answered = controller.call('device_set_param', args('constructor')) as ToolSuccess
+    expect(answered).toMatchObject({ ok: true, rails: [], result: { value: 0.3 } })
+    const many = controller.call('device_set_params', {
+      device: 'music-duck',
+      params: { toString: 0.3, depth: 4 },
+    }) as ToolSuccess
+    expect(many.rails.map((note) => note.message)).toEqual(['music-duck.depth 4 clamped to 0..1'])
+    expect(many.result.params).toEqual({ toString: 0.3, depth: 1 })
+  })
+
   it('clamps pan to −1..1', async () => {
     const { controller } = await rig()
     const result = controller.call('strip_set', {

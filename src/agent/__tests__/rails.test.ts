@@ -196,6 +196,17 @@ describe('rate limits', () => {
     expect(rails.peekCall('anything', 0)).toBe(1000)
   })
 
+  it("a tool named as every object answers, or by the table's word for the rest, has the limit it declares", () => {
+    const rails = new Rails()
+    const declared = { burst: 1, perMinute: 6 }
+    for (const tool of ['constructor', 'toString', '__proto__', 'default']) {
+      expect(rails.rateLimitFor(tool, declared), tool).toEqual(declared)
+      expect(rails.takeCall(tool, 0, declared), tool).toBeNull()
+      expect(rails.takeCall(tool, 0, declared), tool).toBe(10_000)
+    }
+    expect(rails.rateLimitFor('constructor')).toEqual(DEFAULT_RATE_LIMITS.default)
+  })
+
   it('unknown tools use the default limit', () => {
     const rails = new Rails()
     expect(rails.rateLimitFor('custom_tool')).toEqual(DEFAULT_RATE_LIMITS.default)
