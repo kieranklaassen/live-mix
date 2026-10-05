@@ -392,6 +392,44 @@ describe('InfoView', () => {
     }
   })
 
+  it('forgets a control whose whole root is taken away and mounted again', async () => {
+    function Remounted() {
+      const root = useRef<HTMLDivElement>(null)
+      const [turn, setTurn] = useState(0)
+      return (
+        <>
+          <div ref={root} key={turn}>
+            <button type="button" {...infoProps('Reverb', 'A room.')}>
+              Reverb
+            </button>
+          </div>
+          <button type="button" onClick={() => setTurn(turn + 1)}>
+            Again
+          </button>
+          <InfoView root={root} data-testid="info" />
+        </>
+      )
+    }
+    vi.useFakeTimers()
+    try {
+      render(<Remounted />)
+      const first = screen.getByRole('button', { name: 'Reverb' })
+      fireEvent.focusIn(first)
+      expect(title()).toBe('Reverb')
+      fireEvent.click(screen.getByRole('button', { name: 'Again' }))
+      await act(async () => {
+        await vi.runAllTimersAsync()
+      })
+      expect(first.isConnected).toBe(false)
+      expect(title()).toBe(INFO_IDLE.title)
+      // The root that took its place is followed.
+      fireEvent.pointerOver(screen.getByRole('button', { name: 'Reverb' }))
+      expect(title()).toBe('Reverb')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('follows a root that is mounted after it', async () => {
     function Late() {
       const root = useRef<HTMLDivElement>(null)

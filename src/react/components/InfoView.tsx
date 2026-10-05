@@ -113,6 +113,10 @@ export function useInfo({ root, disabled = false }: UseInfoOptions = {}): InfoEn
       attributeFilter: WATCHED,
     })
 
+    // Nothing in this part of the page has been pointed at yet: what was said
+    // of the part it took the place of (a root mounted again) is dropped.
+    read()
+
     scope.addEventListener('pointerover', follow)
     scope.addEventListener('pointerleave', leave)
     scope.addEventListener('focusin', follow)
