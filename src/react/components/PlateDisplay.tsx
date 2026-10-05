@@ -551,7 +551,10 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       if (steps === 0) return
       turn.pixels -= steps * WHEEL_NOTCH
       const params = handle.wheel(steps)
-      if (!turn.names) {
+      // With a handle in hand the wheel turns inside that drag, which began at
+      // the press and ends when the hand lets go: a turn of its own would cut
+      // the drag's undo step in two, and its rest would end it under the hand.
+      if (!turn.names && !grab.current) {
         turn.names = Object.keys(params)
         latest.current.onDragStart(turn.names)
       }
