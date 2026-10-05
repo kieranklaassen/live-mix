@@ -72,6 +72,7 @@ describe('validateDescriptor', () => {
     [{ params: { a: { ...PARAMS.amount, default: 2 } } }, /outside \[0, 1\]/],
     [{ params: { a: { ...PARAMS.amount, taper: 'log' as const } } }, /log taper/],
     [{ presets: { Bad: { nope: 1 } } }, /unknown param "nope"/],
+    [{ presets: { Bad: { constructor: 1 } } }, /unknown param "constructor"/],
     [{ presets: { Bad: { amount: 2 } } }, /outside \[0, 1\]/],
     [{ presets: { Bad: { amount: Number.NaN } } }, /outside \[0, 1\]/],
   ])('rejects %o', (overrides, message) => {

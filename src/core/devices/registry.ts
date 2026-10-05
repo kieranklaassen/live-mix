@@ -194,7 +194,8 @@ export function validateDescriptor(descriptor: DeviceDescriptor): void {
   }
   for (const preset of listPresets(descriptor)) {
     for (const [name, value] of Object.entries(preset.params)) {
-      const spec = descriptor.params[name]
+      // Its own parameters only: `constructor` is on every object.
+      const spec = Object.hasOwn(descriptor.params, name) ? descriptor.params[name] : undefined
       const where = `live-mix: device ${id} preset "${preset.name}"`
       if (!spec) throw new Error(`${where} sets unknown param "${name}"`)
       if (!Number.isFinite(value) || value < spec.min || value > spec.max) {
