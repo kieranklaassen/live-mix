@@ -12,5 +12,6 @@ Hosted plug-ins, racks and Link Audio: what is let go of when something is given
 - `createMacroMapping`, `Rack.mapMacro`: a macro could be mapped onto `constructor`; the mapping had a function for a spec and no range. It is refused like any other parameter the device does not have.
 - `captureRackPreset`: a rack whose mapped device had been taken off its chain threw. The mapping is left out of the preset.
 - `createRackFromPreset`: when a device could not be made or a mapping named a missing device, the rack and the devices already made stayed connected with nobody holding them. They are disposed before the error is passed on.
+- `Rack.addChain`: a chain made with a gain or a pan that is no number kept `NaN` and wrote it to an AudioParam, which a browser refuses. It starts on the default, as `setGain` and `setPan` already did for a later change.
 - `buildLatencyReport`: a path whose destination is itself was counted twice, and every path feeding it carried the extra. A cycle of one is broken like any other.
 - `LinkAudioSender`, `LinkAudioReceiver`: what the worker had posted before it heard of a `dispose` arrived after it, so a disposed channel went back to `open` and called `onStatus` (and the sender `onStats`). A disposed channel stays closed.
