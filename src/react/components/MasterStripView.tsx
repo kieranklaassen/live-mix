@@ -3,9 +3,11 @@
 // seeded from the gain node. Its meter is the engine's own (analyser peak,
 // LUFS and true peak once `installLufsMeter` resolved).
 
-import { type CSSProperties } from 'react'
+import { useCallback, type CSSProperties } from 'react'
 
 import { type MasterBus } from '../../core/buses/MasterBus'
+import { type Device } from '../../core/devices/Device'
+import { useExternalSnapshot } from '../store'
 import { InsertList } from './ChannelStripView'
 import {
   FADER_MAX_DB,
@@ -41,6 +43,14 @@ export function MasterStripView({
   style,
   'data-testid': testId,
 }: MasterStripViewProps) {
+  // The bus says when its chain changes: a device put on the master shows without the mixer being drawn again.
+  const subscribe = useCallback(
+    (onChange: () => void) => master.onChange(() => onChange()),
+    [master],
+  )
+  const read = useCallback((): readonly Device[] => [...master.inserts], [master])
+  const inserts = useExternalSnapshot(subscribe, read)
+
   return (
     <section
       className={cx('lm-strip', 'lm-strip--master', className)}
@@ -48,7 +58,7 @@ export function MasterStripView({
       aria-label={`${name} strip`}
       data-testid={testId}
     >
-      <InsertList inserts={master.inserts} />
+      <InsertList inserts={inserts} />
       <div className="lm-strip__fader-row">
         <Fader
           label="Master level"

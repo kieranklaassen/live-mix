@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { dbToGain } from '../../core/devices/native/units'
@@ -103,5 +103,20 @@ describe('MixerView', () => {
     ])
     expect(errors).not.toHaveBeenCalled()
     errors.mockRestore()
+  })
+
+  it('lists a device put on the master, or taken off it, while the mixer is on the page', async () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const limiter = await engine.devices.create('compressor', engine.context)
+    render(<MixerView data-testid="mixer" />, { wrapper: fixture.wrapper })
+    const inserts = within(screen.getByRole('region', { name: 'Master strip' })).getByRole('list', {
+      name: 'Inserts',
+    })
+    expect(within(inserts).queryByText('compressor')).toBeNull()
+    act(() => engine.master.addInsert(limiter))
+    expect(within(inserts).getByText('compressor')).toBeInTheDocument()
+    act(() => engine.master.removeInsert(limiter))
+    expect(within(inserts).queryByText('compressor')).toBeNull()
   })
 })
