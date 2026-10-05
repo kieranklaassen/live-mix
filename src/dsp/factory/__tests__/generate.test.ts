@@ -149,6 +149,14 @@ describe('generated sounds', () => {
     }
   })
 
+  it('take a mode that is no mode as major, also a word every object answers to', () => {
+    const major = generateSound({ seed: 7, kind: 'pad', key: { root: 2, mode: 'major' } })
+    for (const mode of ['locrian', 'constructor', 'toString']) {
+      const key = { root: 2, mode: mode as FactoryMode }
+      expect(generateSound({ seed: 7, kind: 'pad', key }), mode).toEqual(major)
+    }
+  })
+
   it("draw the chord when none is asked for, the key's own most often", () => {
     const drawn = new Array<number>(7).fill(0)
     for (let seed = 1; seed <= 700; seed += 1) {

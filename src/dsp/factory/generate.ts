@@ -1095,7 +1095,9 @@ function drawDegree(draw: Draw, key: FactoryKey): number {
 function cleanKey(key: FactoryKey | undefined): FactoryKey {
   if (!key) return FACTORY_HOME_KEY
   const root = Number.isFinite(key.root) ? mod12(Math.round(key.root)) : 0
-  return { root, mode: key.mode in FACTORY_MODES ? key.mode : 'major' }
+  // Its own names only: `in` also finds what every object answers to ("constructor").
+  const known = Object.prototype.hasOwnProperty.call(FACTORY_MODES, key.mode)
+  return { root, mode: known ? key.mode : 'major' }
 }
 
 /**
