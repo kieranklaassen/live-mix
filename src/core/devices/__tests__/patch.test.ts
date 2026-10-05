@@ -88,6 +88,23 @@ describe('patch', () => {
     ])
   })
 
+  it('a parameter named as something every plain object has is one the device does not have', () => {
+    const params = JSON.parse('{"constructor":1,"toString":2,"__proto__":3}') as Record<
+      string,
+      number
+    >
+    const odd: Patch = { ...CHAIN, effects: [{ deviceId: 'delay', params }] }
+    expect(validatePatch(odd, registry())).toEqual([
+      { path: 'effects[0].params.constructor', message: 'delay has no parameter "constructor"' },
+      { path: 'effects[0].params.toString', message: 'delay has no parameter "toString"' },
+      { path: 'effects[0].params.__proto__', message: 'delay has no parameter "__proto__"' },
+    ])
+    // And it is dropped from what the device is made with, like any other it does not have.
+    expect(patchDeviceParams(DELAY_DESCRIPTOR, odd.effects[0])).toEqual(
+      patchDeviceParams(DELAY_DESCRIPTOR, { deviceId: 'delay' }),
+    )
+  })
+
   it('resolves a device to defaults, then its preset, then its own params', () => {
     const params = patchDeviceParams(DELAY_DESCRIPTOR, CHAIN.effects[0])
     const preset = DELAY_DESCRIPTOR.presets?.['Long tail'] ?? {}

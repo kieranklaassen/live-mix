@@ -125,6 +125,30 @@ describe('presets', () => {
     expect(() => applyPreset(eq, captured)).toThrow(/is for filter, not eq3/)
   })
 
+  it('a param named as something every plain object has is unknown like any other', () => {
+    const preset: Preset = {
+      name: 'odd',
+      deviceId: 'filter',
+      deviceVersion: 1,
+      params: JSON.parse('{"gain":-3,"constructor":1,"toString":2,"__proto__":3}'),
+    }
+    expect(presetParams(FILTER_DESCRIPTOR, preset)).toEqual({
+      type: FILTER_PARAMS.type.default,
+      frequency: FILTER_PARAMS.frequency.default,
+      q: FILTER_PARAMS.q.default,
+      gain: -3,
+    })
+
+    const target = createFilter(asAudioContext(createMockContext()))
+    const changes: string[] = []
+    target.onChange((change) => changes.push(change.type === 'param' ? change.name : change.type))
+    expect(applyPreset(target, preset)).toEqual({
+      applied: ['gain'],
+      skipped: ['constructor', 'toString', '__proto__'],
+    })
+    expect(changes).toEqual(['gain'])
+  })
+
   it('round-trips through JSON and rejects other formats or malformed input', () => {
     const preset: Preset = {
       name: 'Round trip',
