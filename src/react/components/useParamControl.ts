@@ -416,15 +416,27 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
           touchGesture()
           commitValue(o.max)
           break
+        case 'Delete':
+        case 'Backspace':
+          // The way back to the default, as a double-click is: one gesture, so one step of a host's undo.
+          // With a modifier the key is the page's, and a held key is one press.
+          if (event.shiftKey || event.metaKey || event.ctrlKey || event.altKey) return
+          if (!event.repeat) {
+            beginGesture()
+            commitValue(o.resetValue ?? o.defaultValue)
+            endGesture()
+          }
+          break
         default:
           // Space (transport), letters, shortcuts belong to the page.
           return
       }
       event.preventDefault()
-      // A focused slider owns its stepping keys; Home must not also seek the transport.
+      // A focused slider owns its stepping keys; Home must not also seek the transport,
+      // nor Delete remove what is selected on the page behind it.
       event.stopPropagation()
     },
-    [commitNorm, commitValue, touchGesture],
+    [beginGesture, commitNorm, commitValue, endGesture, touchGesture],
   )
 
   const onBlur = useCallback(() => {

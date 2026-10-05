@@ -530,6 +530,77 @@ describe('Knob', () => {
     expect(onChange).toHaveBeenLastCalledWith(0.25)
   })
 
+  it('resets on Delete or Backspace with the keys on it, as a double-click does, and keeps the key from the page', () => {
+    const onChange = vi.fn()
+    const onChangeStart = vi.fn()
+    const onChangeEnd = vi.fn()
+    const page = vi.fn()
+    window.addEventListener('keydown', page)
+    try {
+      const { rerender } = render(
+        <Knob
+          label="Mix"
+          defaultValue={0.5}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={onChange}
+          onChangeStart={onChangeStart}
+          onChangeEnd={onChangeEnd}
+        />,
+      )
+      fireEvent.keyDown(slider(), { key: 'End' })
+      fireEvent.blur(slider())
+      onChangeStart.mockClear()
+      onChangeEnd.mockClear()
+      // One gesture of its own, so a host's undo takes it back in one step.
+      expect(fireEvent.keyDown(slider(), { key: 'Delete' })).toBe(false)
+      expect(onChange).toHaveBeenLastCalledWith(0.5)
+      expect(onChangeStart).toHaveBeenCalledTimes(1)
+      expect(onChangeEnd).toHaveBeenCalledTimes(1)
+      // Whatever is selected on the page behind it is not deleted.
+      expect(page).not.toHaveBeenCalled()
+      rerender(
+        <Knob
+          label="Mix"
+          defaultValue={0.5}
+          min={0}
+          max={1}
+          step={0.01}
+          resetValue={0.25}
+          onChange={onChange}
+        />,
+      )
+      fireEvent.keyDown(slider(), { key: 'Backspace' })
+      expect(onChange).toHaveBeenLastCalledWith(0.25)
+      // Held down it is one press, and the repeats go nowhere either.
+      const calls = onChange.mock.calls.length
+      fireEvent.keyDown(slider(), { key: 'End' })
+      fireEvent.keyDown(slider(), { key: 'Delete', repeat: true })
+      expect(onChange).toHaveBeenLastCalledWith(1)
+      expect(onChange).toHaveBeenCalledTimes(calls + 1)
+      expect(page).not.toHaveBeenCalled()
+      // With a modifier the key is the page's.
+      for (const modifier of [
+        { shiftKey: true },
+        { metaKey: true },
+        { ctrlKey: true },
+        { altKey: true },
+      ]) {
+        expect(fireEvent.keyDown(slider(), { key: 'Delete', ...modifier })).toBe(true)
+      }
+      expect(onChange).toHaveBeenCalledTimes(calls + 1)
+      expect(page).toHaveBeenCalledTimes(4)
+      // A disabled knob has no way back to take: the key goes on to the page.
+      rerender(<Knob label="Mix" defaultValue={0.5} min={0} max={1} disabled onChange={onChange} />)
+      fireEvent.keyDown(slider(), { key: 'Delete' })
+      expect(onChange).toHaveBeenCalledTimes(calls + 1)
+      expect(page).toHaveBeenCalledTimes(5)
+    } finally {
+      window.removeEventListener('keydown', page)
+    }
+  })
+
   it('takes a double click for its own only when the first press was on it too', () => {
     forgetPresses()
     const onChange = vi.fn()
