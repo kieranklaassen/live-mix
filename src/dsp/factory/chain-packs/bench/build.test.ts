@@ -87,7 +87,16 @@ import {
   type Kept,
   type Prints,
 } from './store'
-import { chainName, chainSentence, freshNames, nameNouns, nameStands, slug } from './words'
+import {
+  chainName,
+  chainSentence,
+  freshNames,
+  masterHead,
+  nameNouns,
+  nameStands,
+  nameStem,
+  slug,
+} from './words'
 
 const mode = process.env.CHAIN_BENCH
 const packId = process.env.CHAIN_BENCH_PACK ?? ''
@@ -414,8 +423,10 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
           },
           true,
         )
-        names.taken.add(row.chain.name.toLowerCase())
+        names.taken.add(nameStem(row.chain.name))
         names.ids.add(row.chain.id)
+        const opens = row.chain.category === 'master' ? masterHead(row.chain.name) : undefined
+        if (opens) names.masterHeads.add(opens)
         const [head, ...rest] = row.chain.name.split(' ')
         // Which of the two it was is not kept; counting both only makes the pack spread its words further.
         names.heads.set(head, (names.heads.get(head) ?? 0) + 1)
@@ -550,7 +561,7 @@ const readStruck = (): Record<string, string[]> =>
 describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are told apart', () => {
   it('settles', async () => {
     const files = new Map(readOtherPacks('').map((file) => [file.pack, file]))
-    const names = new Set(FACTORY_CHAINS.map((chain) => chain.name.toLowerCase()))
+    const names = new Set(FACTORY_CHAINS.map((chain) => nameStem(chain.name)))
     const ids = new Set<string>()
     const signatures = new Set(FACTORY_CHAINS.map((chain) => signature(chain.effects)))
     const known: Known = readBank().map((row) => ({ id: row.id, pack: '', prints: row.prints }))
@@ -565,8 +576,10 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
       const { PALETTE: palette } = module as { PALETTE: PackPalette }
       const own = new Map((palette.own ?? []).map((recipe) => [recipe.id, recipe]))
       const kept: Kept[] = []
+      const masterHeads = new Set<string>()
       let reworded = 0
       for (const row of file.kept) {
+        const opens = row.chain.category === 'master' ? masterHead(row.chain.name) : undefined
         // The lexicon, the recipes and the palette may have been mended since the chain was drawn: it is held to them as they are now.
         const recipe = own.get(row.recipe) ?? shared.get(row.recipe)
         const picks = row.picks.map(([device, preset]): Candidate | undefined => {
@@ -591,7 +604,10 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           )
         )
           why = 'its name is not one its words give any more'
-        else if (names.has(row.chain.name.toLowerCase())) why = 'its name is taken'
+        else if (names.has(nameStem(row.chain.name)))
+          why = 'its name is taken, or is another name but for a plural'
+        else if (opens && masterHeads.has(opens))
+          why = 'a master chain of the pack already opens with its word'
         else if (ids.has(row.chain.id)) why = 'its id is taken'
         else if (signatures.has(signature(row.chain.effects)))
           why = 'its effects and presets are taken'
@@ -615,7 +631,8 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           row.chain.description = sentence
           reworded += 1
         }
-        names.add(row.chain.name.toLowerCase())
+        names.add(nameStem(row.chain.name))
+        if (opens) masterHeads.add(opens)
         ids.add(row.chain.id)
         signatures.add(signature(row.chain.effects))
         known.push({ id: row.chain.id, pack: pack.id, prints: row.prints })

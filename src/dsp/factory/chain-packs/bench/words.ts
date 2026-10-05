@@ -37,11 +37,24 @@ export const slug = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+/**
+ * A name with the number taken off its words: "Seasick echoes" and "Seasick
+ * echo" are one name to someone reading down a list.
+ */
+export const nameStem = (name: string) =>
+  name
+    .toLowerCase()
+    .split(' ')
+    .map((word) => word.replace(/s$/, '').replace(/e$/, ''))
+    .join(' ')
+
 /** What a pack's names have used so far. */
 export interface NameState {
   heads: Map<string, number>
   tails: Map<string, number>
-  /** Lower-cased names no chain may take: every chain's so far, in every pack and the bank. */
+  /** Heads that already open a master chain of the pack: "Tiptoe master" beside "Tiptoe mixdown" tells nobody which is which. */
+  masterHeads: Set<string>
+  /** Names no chain may take, each as its `nameStem`: every chain's so far, in every pack and the bank. */
   taken: Set<string>
   /** Ids no chain may take. */
   ids: Set<string>
@@ -53,7 +66,8 @@ export const freshNames = (
 ): NameState => ({
   heads: new Map(),
   tails: new Map(),
-  taken: new Set([...taken].map((name) => name.toLowerCase())),
+  masterHeads: new Set(),
+  taken: new Set([...taken].map(nameStem)),
   ids: new Set(ids),
 })
 
@@ -125,6 +139,12 @@ export const MASTER_NOUNS: readonly string[] = ['finish', 'master', 'mixdown', '
 
 /** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park", "Finish a flight up", "Master on the porch"). */
 const NEVER_FIRST: ReadonlySet<string> = new Set(['polish', 'finish', 'master'])
+
+/** The pack's word a master chain's name opens with ("Tiptoe" of "Tiptoe mixdown"); undefined when it ends in a tail. */
+export function masterHead(name: string): string | undefined {
+  const noun = MASTER_NOUNS.find((word) => name.endsWith(` ${word}`))
+  return noun && name.slice(0, -noun.length - 1)
+}
 
 /** The nouns a chain of this group, led by `lead`, can be named for. */
 export const nameNouns = (category: FactoryChainCategory, lead: Candidate): readonly string[] =>
@@ -210,13 +230,15 @@ export function chainName(
   traits: ReadonlySet<Trait>,
   state: NameState,
 ): string | undefined {
+  const master = nouns === MASTER_NOUNS
   const options = namings(palette, nouns, traits, {
     head: (word) => state.heads.get(word) ?? 0,
     tail: (word) => state.tails.get(word) ?? 0,
   }).filter(
     (option) =>
-      !state.taken.has(option.name.toLowerCase()) &&
-      !state.ids.has(`${palette.pack}-${slug(option.name)}`),
+      !state.taken.has(nameStem(option.name)) &&
+      !state.ids.has(`${palette.pack}-${slug(option.name)}`) &&
+      !(master && option.head !== undefined && state.masterHeads.has(option.head)),
   )
   // Heads and tails are weighed as two lists, so that a pack with many heads still ends some names in a tail.
   const total = (list: readonly Naming[]) => list.reduce((sum, option) => sum + option.weight, 0)
@@ -228,7 +250,8 @@ export function chainName(
   if (!choice) return undefined
   if (choice.head) state.heads.set(choice.head, (state.heads.get(choice.head) ?? 0) + 1)
   if (choice.tail) state.tails.set(choice.tail, (state.tails.get(choice.tail) ?? 0) + 1)
-  state.taken.add(choice.name.toLowerCase())
+  if (master && choice.head) state.masterHeads.add(choice.head)
+  state.taken.add(nameStem(choice.name))
   state.ids.add(`${palette.pack}-${slug(choice.name)}`)
   return choice.name
 }
