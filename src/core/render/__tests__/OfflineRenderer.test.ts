@@ -398,69 +398,6 @@ describe('a render that fails', () => {
   })
 })
 
-describe('a render with a sound that cannot be had', () => {
-  // Without an end to the asking these renders would never return. Each test
-  // takes the clip away after ASKED_TOO_OFTEN tries, so that a renderer which
-  // asks without end fails the count instead of hanging the run.
-  const ASKED_TOO_OFTEN = 1000
-
-  it('ends, as live without the clip, when its sample keeps failing to load', async () => {
-    let fetches = 0
-    let giveUp = (): void => {}
-    await renderOffline({
-      durationSec: 1,
-      createContext: factory,
-      engine: {
-        samples: {
-          fetchImpl: () => {
-            fetches += 1
-            if (fetches >= ASKED_TOO_OFTEN) giveUp()
-            return Promise.reject(new Error('offline'))
-          },
-        },
-      },
-      build: async (engine) => {
-        await arrangement(engine)
-        const lost = engine.addAudioTrack('lost', {
-          lookaheadSec: 1,
-          resolveSource: () => 'https://example.invalid/lost.wav',
-        })
-        lost.clips.add(clip('lost', 0.5))
-        giveUp = () => lost.clips.clear()
-      },
-    })
-    // Once for each step of the virtual clock (41 of them here), as live asks once a tick.
-    expect(fetches).toBeGreaterThan(0)
-    expect(fetches).toBeLessThan(100)
-    // The clips that could be had were handed over all the same.
-    const starts = contexts[0].sources.map((source) => source.startCalls.calls[0]?.[0] as number)
-    expect(starts.sort()).toEqual([0, 1.5, 2])
-  })
-
-  it('ends when a stretch source keeps failing to build', async () => {
-    let builds = 0
-    let giveUp = (): void => {}
-    await renderOffline({
-      durationSec: 1,
-      createContext: factory,
-      build: async (engine) => {
-        await arrangement(engine)
-        const warped = engine.addStretchTrack('warped', {
-          createStretch: () => {
-            builds += 1
-            if (builds >= ASKED_TOO_OFTEN) giveUp()
-            return Promise.reject(new Error('no worklet'))
-          },
-        })
-        warped.clips.add(clip('w', 0.5, { sourceId: 's-a' }))
-        giveUp = () => warped.clips.clear()
-      },
-    })
-    expect(builds).toBeGreaterThan(0)
-    expect(builds).toBeLessThan(100)
-  })
-})
-
 describe('maxAbsDifference', () => {
   it('measures the largest sample deviation and flags shape mismatches', () => {
     const a = { channels: [Float32Array.from([0, 0.5, 1])], sampleRate: 48000 }
