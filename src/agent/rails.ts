@@ -163,7 +163,14 @@ export class Rails {
    * tool's own spec declares (consumer tools), then the default.
    */
   rateLimitFor(tool: string, declared?: RateLimit): RateLimit {
-    return this.config.rateLimits[tool] ?? declared ?? this.config.rateLimits.default
+    const table = this.config.rateLimits
+    // The tool's own row only: `default` is the table's word for the rest, and
+    // every object answers to "constructor" with something that is no limit.
+    const own =
+      tool !== 'default' && Object.prototype.hasOwnProperty.call(table, tool)
+        ? table[tool]
+        : undefined
+    return own ?? declared ?? table.default
   }
 
   /** Consume one call of `tool`; the ms to wait when the bucket is empty, else null. */
@@ -243,6 +250,9 @@ export class Rails {
       atMs,
     )
     const delta = requested - current
+    // A move that is no number cannot be measured, and spending the budget on it
+    // would leave no number in the bucket: every later move would come out NaN.
+    if (!Number.isFinite(delta)) return requested
     const allowed = Math.min(Math.abs(delta), bucket.tokens)
     const applied = allowed === Math.abs(delta) ? requested : current + Math.sign(delta) * allowed
     if (applied !== requested) {
