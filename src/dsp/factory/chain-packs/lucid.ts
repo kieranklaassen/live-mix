@@ -33,7 +33,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Before-dawn sheen',
     category: 'space',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, into a quiet plate tail that comes in late behind each note.',
+      'A sharp copy hard left and a flat one hard right, alone, into a quiet plate tail that comes in late behind each note.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only' },
       { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 83.1 } },
@@ -66,7 +66,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Unlit plate',
     category: 'space',
     description:
-      'A deep pitch wobble in the centre, like a warped tape, into a dark plate whose tail is soft on top.',
+      'A deep pitch wobble, like a warped tape, into a dark plate whose tail is soft on top.',
     effects: [
       { deviceId: 'chorus', preset: 'Warped tape', params: { rate: 1.4, delayMs: 24.7 } },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 13.8 } },
@@ -77,7 +77,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pylon choir',
     category: 'space',
     description:
-      'A big lift of the low end that puts weight under the sound, into a soft sung oo that follows a moment behind each note.',
+      'A big lift of the low end that puts weight under the sound, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.32 } },
       { deviceId: 'vowel-reverb', preset: 'Oo behind', params: { decay: 3.95, preDelay: 73.8 } },
@@ -99,21 +99,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Chant by nightlight',
     category: 'space',
     description:
-      'A high cut set low enough to muffle everything, into a large hall whose tail hums a deep oh in bass voices.',
+      'A high cut set low enough to muffle everything, into a large reverb whose tail hums a deep "oh" in bass voices.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.52 } },
       { deviceId: 'vowel-reverb', preset: 'Low monks', params: { decay: 11.3, preDelay: 22.4 } },
-    ],
-  },
-  {
-    id: 'lucid-box-room-plate',
-    name: 'Box-room plate',
-    category: 'space',
-    description:
-      'A small chapel with a short sung eh in its tail, into a far-off plate haze with a long, soft tail.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 1.66, preDelay: 4.5 } },
-      { deviceId: 'plate-reverb', preset: 'Distant haze' },
     ],
   },
   {
@@ -143,7 +132,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall on the stairs',
     category: 'space',
     description:
-      'Repeats that climb in pitch on the left, sink on the right, into a large hall whose tail rises and falls every few seconds.',
+      'Repeats that rise in pitch on the left and sink on the right, into a large hall whose tail rises and falls every few seconds.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Spiral' },
       { deviceId: 'fdn-reverb', preset: 'Breathing' },
@@ -176,7 +165,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Eyes-shut sway',
     category: 'space',
     description:
-      'A slow swell after each silence that opens only at the end, into a long reverb whose tail wavers queasily in pitch.',
+      'A slow swell after each silence, opening late in its rise, into a long reverb whose tail wavers queasily in pitch.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1640, release: 830 } },
       { deviceId: 'expanse', preset: 'Seasick choir', params: { decay: 17.2 } },
@@ -198,7 +187,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Eiderdown voice',
     category: 'space',
     description:
-      'An equaliser that takes presence, air and lows away, into a small mono reverb whose tail holds one fixed sung eh.',
+      'An equaliser that takes presence, air and lows away, into a small mono reverb whose tail holds one fixed sung "eh".',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant' },
       { deviceId: 'vowel-reverb', preset: 'Lone voice' },
@@ -220,7 +209,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bedtime cathedral',
     category: 'space',
     description:
-      'One taut dull spring that answers late and rings long, into a cathedral whose long tail sings a soft open ah.',
+      'One taut dull spring that answers late and rings long, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       {
         deviceId: 'spring-reverb',
@@ -246,22 +235,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-hedgerow-cloud',
-    name: 'Hedgerow cloud',
-    category: 'space',
-    description:
-      'A mid-forward tone with the lows and the top trimmed, into a cloud of reverb that swells in after each note and fades.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.49 } },
-      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { mix: 0.3 } },
-    ],
-  },
-  {
     id: 'lucid-shed-drone',
     name: 'Shed drone',
     category: 'space',
     description:
-      'A gentle high cut that shades the top end, into a huge hall whose tail hums a soft oo for a long while.',
+      'A gentle high cut that shades the top end, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Shaded' },
       { deviceId: 'vowel-reverb', preset: 'Endless oo', params: { decay: 37.5, preDelay: 21.8 } },
@@ -272,7 +250,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Moorland hall',
     category: 'space',
     description:
-      'Repeats that climb in pitch on the left, sink on the right, into a wide open space with a slowly wavering tail.',
+      'Repeats that rise in pitch on the left and sink on the right, into a wide open space with a slowly wavering tail.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Spiral' },
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 10.6, modRate: 0.353 } },
@@ -283,7 +261,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Springs in the yard',
     category: 'space',
     description:
-      'Repeats that climb in pitch on the left, sink on the right, into a two-spring tank with a little chirp and drip.',
+      'Repeats that rise in pitch on the left and sink on the right, into a two-spring tank with a little chirp and drip.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Spiral', params: { delay: 40.6 } },
       { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { decay: 2.68 } },
@@ -298,6 +276,28 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Pattering' },
       { deviceId: 'bloom-reverb', preset: 'Scatter' },
+    ],
+  },
+  {
+    id: 'lucid-night-light-patter',
+    name: 'Night-light patter',
+    category: 'space',
+    description:
+      'A sharp copy and a flat one, full-range, wide to either side, into one slow scatter of echoes over about a second and no tail.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Wider' },
+      { deviceId: 'swarm-reverb', preset: 'Long scatter', params: { glide: 0.552 } },
+    ],
+  },
+  {
+    id: 'lucid-ring-barely-awake',
+    name: 'Ring barely awake',
+    category: 'space',
+    description:
+      'A hot console channel, forward in the upper mids, into a short pipe that rings like metal on every attack.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Hot channel' },
+      { deviceId: 'swarm-reverb', preset: 'Metal pipe', params: { glide: 0.551 } },
     ],
   },
   {
@@ -463,17 +463,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-seasick-echoes',
-    name: 'Seasick echoes',
-    category: 'echo',
-    description:
-      'Echoes that creep sharp on the left and flat on the right, into a long dark reverb whose tail sinks slowly in pitch.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Split sky', params: { delay: 182, lfoRate: 0.125 } },
-      { deviceId: 'bloom-reverb', preset: 'Long dark' },
-    ],
-  },
-  {
     id: 'lucid-echoes-gone-sour',
     name: 'Echoes gone sour',
     category: 'echo',
@@ -500,7 +489,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Creek drift',
     category: 'echo',
     description:
-      'A tape preamp pushed just enough to add weight, then a wide echo whose repeats drift slowly in pitch, into two taut, long springs.',
+      'A warm tape preamp, then a wide echo whose repeats drift slowly in pitch, into two taut springs that ring long and clean with no drip.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: -4.39 } },
       { deviceId: 'analog-delay', preset: 'Slow drift' },
@@ -527,6 +516,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-echo', preset: 'Worn tape' },
       { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 35.8 } },
+    ],
+  },
+  {
+    id: 'lucid-haze-before-dawn',
+    name: 'Haze before dawn',
+    category: 'echo',
+    description:
+      'A wash of three fed-back tape heads that hovers and fades, into a damped hall of about five seconds, heard from far off.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Hovering wash', params: { time: 821 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.76, midDecay: 4.75 } },
     ],
   },
   {
@@ -591,7 +591,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Floorboard record',
     category: 'tape',
     description:
-      'A badly worn record, swaying in pitch under loud crackle, then echoes that go sour fast, up on the left, down on the right.',
+      'A badly worn record, swaying in pitch under loud crackle, then echoes that sour fast, up on the left and down on the right.',
     effects: [
       { deviceId: 'patina', preset: 'Scratched record' },
       { deviceId: 'freq-shifter', preset: 'Parting echo' },
@@ -812,7 +812,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Reel under slates',
     category: 'motion',
     description:
-      'A slow reel that trembles fast, mixed against the dry sound, into a plate wash that hangs on for half a minute.',
+      'A slow-speed reel with a quick flutter against the dry sound, into a plate wash that hangs on for half a minute.',
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer', params: { output: -6.71 } },
       { deviceId: 'plate-reverb', preset: 'Endless wash', params: { predelayMs: 54.9 } },
@@ -878,7 +878,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drone still ringing',
     category: 'texture',
     description:
-      'A piece of each note looped into a long, swelling drone, into a hall whose tail sings a soft ah.',
+      'A piece of each note looped into a long, swelling drone, into a reverb whose tail sings a soft "ah".',
     effects: [
       { deviceId: 'cascade', preset: 'Long drone', params: { time: 823 } },
       { deviceId: 'vowel-reverb', preset: 'Choir of ah', params: { decay: 5.44, preDelay: 17.8 } },
@@ -889,7 +889,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pylon swell',
     category: 'texture',
     description:
-      'A string pad that takes seconds to swell in after a chord, then a glacial low-pass, into a dark plate whose tail is soft on top.',
+      'A slow-swelling string pad, then a low-pass that opens and closes over about half a minute, into a dark plate whose tail is soft on top.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Slow swell', params: { rise: 4.37, fall: 7.77 } },
       {
@@ -905,7 +905,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Dreamt mist',
     category: 'texture',
     description:
-      'A wide, darkened wash in which every note slowly dissolves, into a dark reverb that rises behind each note, then lingers.',
+      'A wide, darkened wash in which every note slowly dissolves, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { mix: 0.42 } },
       {
@@ -949,18 +949,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-pad-from-far-off',
-    name: 'Pad from far off',
+    id: 'lucid-under-floor-cellos',
+    name: 'Under-floor cellos',
     category: 'texture',
     description:
-      'A held pad that stands alone in place of what was played, into one taut dull spring that answers late and rings long.',
+      'A dark, low string pad like cellos under the playing, into a cave whose echoes jump now and then by a fifth or octave.',
     effects: [
-      { deviceId: 'sustainer', preset: 'Held sound alone' },
-      {
-        deviceId: 'spring-reverb',
-        preset: 'Dark late coil',
-        params: { decay: 5.08, predelay: 71.3 },
-      },
+      { deviceId: 'pad-follower', preset: 'Dark cellos' },
+      { deviceId: 'swarm-reverb', preset: 'Intervals', params: { length: 0.63, glide: 0.0562 } },
     ],
   },
   {
@@ -985,18 +981,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 2.31 } },
       { deviceId: 'patina', preset: 'Falling apart' },
       { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 1.14 } },
-    ],
-  },
-  {
-    id: 'lucid-bedside-depths',
-    name: 'Bedside depths',
-    category: 'pitch',
-    description:
-      'A copy two octaves down, then a slow tape chorus, into a reverb that fades evenly to nothing in a second or two.',
-    effects: [
-      { deviceId: 'half-speed', preset: 'Two octaves' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'shaped-reverb', preset: 'Falling', params: { time: 1.64, preDelay: 21.5 } },
     ],
   },
   {
@@ -1039,7 +1023,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Octave on the moor',
     category: 'pitch',
     description:
-      'A dark octave below held chords, every note moved cleanly, then faint reversed grains that slide up towards the octave.',
+      'A dark octave below held chords, every note shifted cleanly, then faint reversed grains that slide up towards the octave.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad below', params: { size: 62.8 } },
       { deviceId: 'spectral-drifter', preset: 'Bloom', params: { decay: 5.05 } },
@@ -1072,7 +1056,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bedtime grains',
     category: 'pitch',
     description:
-      'Scattered grains a fifth down, spread across both sides, then a slow reel that trembles fast, mixed against the dry sound.',
+      'Scattered grains a fifth down, spread across both sides, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
       { deviceId: 'half-speed', preset: 'Fifth down grains' },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
@@ -1090,6 +1074,18 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'lucid-engine-house-fourth',
+    name: 'Engine-house fourth',
+    category: 'pitch',
+    description:
+      'A lurching fourth below, then a worn cassette that wobbles, drops out and hisses, into a speaker far across a room.',
+    effects: [
+      { deviceId: 'half-speed', preset: 'Tape slip' },
+      { deviceId: 'patina', preset: 'Worn cassette' },
+      { deviceId: 're-amp', preset: 'Far end of the hall' },
+    ],
+  },
+  {
     id: 'lucid-gorse-master',
     name: 'Gorse master',
     category: 'master',
@@ -1099,17 +1095,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.4 } },
       { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 135, release: 1.58 } },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.42 } },
-    ],
-  },
-  {
-    id: 'lucid-polish-from-upstairs',
-    name: 'Polish from upstairs',
-    category: 'master',
-    description:
-      'A parallel compressor that lifts quiet playing and tails, then a fast limiter that steps in only on the loudest peaks.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 377, release: 2.8 } },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
@@ -1158,6 +1143,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 412, release: 2.78 } },
       { deviceId: 'ambient-limiter', preset: 'Slow tide' },
+    ],
+  },
+  {
+    id: 'lucid-drowsy-finish',
+    name: 'Drowsy finish',
+    category: 'master',
+    description:
+      'A parallel compressor, then a slightly wider image, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 377, release: 2.83 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { gain: 2.02 } },
     ],
   },
 ]

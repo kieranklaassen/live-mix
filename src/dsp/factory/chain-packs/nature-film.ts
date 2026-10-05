@@ -81,23 +81,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Blackboard plate',
     category: 'space',
     description:
-      'A warm, full equaliser, then a tiny boxy room that is gone almost at once, into a dark plate whose tail is soft on top.',
+      'An equaliser that adds lows and body and eases the top, then a tiny boxy room, into a dark plate whose tail is soft on top.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.64 } },
       { deviceId: 'expanse', preset: 'Small box', params: { modRate: 0.365 } },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 14.2 } },
-    ],
-  },
-  {
-    id: 'nature-film-cloud-in-drizzle',
-    name: 'Cloud in drizzle',
-    category: 'space',
-    description:
-      'A big lift of the low end, then a small damped room that is over within a second, into a dark rising reverb.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.91 } },
-      { deviceId: 'ether-reverb', preset: 'Room' },
-      { deviceId: 'shaped-reverb', preset: 'Ghost' },
     ],
   },
   {
@@ -127,14 +115,25 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-plate-under-haar',
-    name: 'Plate under haar',
+    id: 'nature-film-bog-cotton-chamber',
+    name: 'Bog-cotton chamber',
     category: 'space',
     description:
-      'A mid-forward tone with the lows and the top trimmed, into a bright undamped plate of a couple of seconds.',
+      'The first hint of weight from a tape preamp, into a bright wide chamber that is over in about a second.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward' },
-      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.31 } },
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ether-reverb', preset: 'Bright chamber' },
+    ],
+  },
+  {
+    id: 'nature-film-estuary-bloom',
+    name: 'Estuary bloom',
+    category: 'space',
+    description:
+      'A deep pitch wobble with the two sides bending out of step, into a brief swell of reverb close behind each note.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Wide wobble', params: { rate: 2.81 } },
+      { deviceId: 'shaped-reverb', preset: 'Short halo', params: { time: 0.313 } },
     ],
   },
   {
@@ -142,7 +141,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Off-speed reel',
     category: 'echo',
     description:
-      'A deep pitch wobble in the centre, like a warped tape, then a dull, wobbling, saturated echo on worn tape.',
+      'A deep pitch wobble, like a warped tape, then a dull, wobbling, saturated echo on worn tape.',
     effects: [
       { deviceId: 'chorus', preset: 'Warped tape' },
       { deviceId: 'tape-echo', preset: 'Worn tape' },
@@ -186,7 +185,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Peat-water echo',
     category: 'echo',
     description:
-      'A tape preamp driven for thick lows and a dull top, then a short soft tape echo, into three long springs with all the top taken off.',
+      'A tape preamp driven for thick lows and a dull top, then a short soft tape echo, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Tape weight', params: { output: -9.15 } },
       { deviceId: 'tape-echo', preset: 'Short and soft' },
@@ -286,21 +285,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-mid-morning-echo',
-    name: 'Mid-morning echo',
-    category: 'echo',
-    description:
-      'Dotted tape repeats that bounce from side to side, into one taut dull spring that answers late and rings long.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
-      {
-        deviceId: 'spring-reverb',
-        preset: 'Dark late coil',
-        params: { decay: 5.61, predelay: 82.6 },
-      },
-    ],
-  },
-  {
     id: 'nature-film-glen-loop',
     name: 'Glen loop',
     category: 'echo',
@@ -320,6 +304,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'echo-memory', preset: 'Glimpses' },
       { deviceId: 'analog-delay', preset: 'Falling tape', params: { time: 472, modRate: 0.308 } },
+    ],
+  },
+  {
+    id: 'nature-film-test-card-echo',
+    name: 'Test-card echo',
+    category: 'echo',
+    description:
+      'Amplifier valves driven until they round off every peak, then a backwards echo, into a dark plate whose tail is soft on top.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Just the valves' },
+      { deviceId: 'reverse-delay', preset: 'Backwards echo', params: { time: 639 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate' },
     ],
   },
   {
@@ -351,7 +347,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Reel in the glen',
     category: 'tape',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, then a lightly worn reel, into a tight chamber.',
+      'A sharp copy hard left and a flat one hard right, alone, then a lightly worn reel, into a tight chamber.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only' },
       { deviceId: 'patina', preset: 'Quarter inch reel' },
@@ -396,17 +392,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { length: 1.56 } },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
       { deviceId: 'analog-delay', preset: 'Seasick', params: { time: 165, modRate: 3.23 } },
-    ],
-  },
-  {
-    id: 'nature-film-sprocket-record',
-    name: 'Sprocket record',
-    category: 'tape',
-    description:
-      'A dull, hard-clipped fuzz with a rough digital edge, then a worn-out groove that dulls the top and fuzzes loud highs.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Lo-fi' },
-      { deviceId: 'vinyl', preset: 'Inner groove', params: { spin: 1.66 } },
     ],
   },
   {
@@ -455,18 +440,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-tin-roof-record',
-    name: 'Tin-roof record',
-    category: 'tape',
-    description:
-      'A worn, swaying record, then radio static that drifts and crackles under the sound, into a hall whose lows outlast its damped top.',
-    effects: [
-      { deviceId: 'patina', preset: 'Scratched record' },
-      { deviceId: 'noise-floor', preset: 'Radio static', params: { response: 0.355, hold: 9.66 } },
-      { deviceId: 'hall-reverb', preset: 'Dark hall' },
-    ],
-  },
-  {
     id: 'nature-film-bracken-reel',
     name: 'Bracken reel',
     category: 'tape',
@@ -500,52 +473,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { length: 1.6 } },
       { deviceId: 'patina', preset: 'Dusty record', params: { output: 2.95 } },
       { deviceId: 'tape-echo', preset: 'Warm repeats' },
-    ],
-  },
-  {
-    id: 'nature-film-sampler-left-humming',
-    name: 'Sampler left humming',
-    category: 'tape',
-    description:
-      'Dull ten-bit converters that hiss along with every note, then a ruined cassette, then two tape heads that make every repeat gallop.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Dusty' },
-      { deviceId: 'patina', preset: 'Falling apart' },
-      { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 620 } },
-    ],
-  },
-  {
-    id: 'nature-film-converter-on-film',
-    name: 'Converter on film',
-    category: 'tape',
-    description:
-      'A thin, far-off tape loop with its lows cut away, then a digital telephone line, into a long plate with a wide and even tail.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Thin and distant', params: { length: 2.23 } },
-      { deviceId: 'vintage-digital', preset: 'Phone' },
-      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 42.2 } },
-    ],
-  },
-  {
-    id: 'nature-film-hedgerow-record',
-    name: 'Hedgerow record',
-    category: 'tape',
-    description:
-      'A ruined record, lurching in pitch under clicks and crackle, then a mid-forward tone with the lows and the top trimmed.',
-    effects: [
-      { deviceId: 'vinyl', preset: 'Ruined record', params: { spin: 1.44 } },
-      { deviceId: 'ambient-eq', preset: 'Forward' },
-    ],
-  },
-  {
-    id: 'nature-film-radio-after-lunch',
-    name: 'Radio after lunch',
-    category: 'tape',
-    description:
-      'A small radio speaker muffled as if under a pillow, then an equaliser that adds lows and body and eases the top.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Pillow speaker', params: { output: -2.87 } },
-      { deviceId: 'ambient-eq', preset: 'Warm' },
     ],
   },
   {
@@ -594,17 +521,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-jotter-cassette',
-    name: 'Jotter cassette',
-    category: 'tape',
-    description:
-      'An equaliser that takes presence, air and lows away, then a worn dictation cassette, dull, trembling and full of hiss.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.39 } },
-      { deviceId: 'tape', preset: 'Old dictation' },
-    ],
-  },
-  {
     id: 'nature-film-lights-off-sampler',
     name: 'Lights-off sampler',
     category: 'tape',
@@ -650,6 +566,85 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'nature-film-field-trip-sampler',
+    name: 'Field-trip sampler',
+    category: 'tape',
+    description:
+      'Dull, hissing converters, then a worn dictation cassette, dull, trembling and full of hiss, then a three-head tape echo.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Dusty' },
+      { deviceId: 'tape', preset: 'Old dictation' },
+      { deviceId: 'tape-echo', preset: 'Three heads' },
+    ],
+  },
+  {
+    id: 'nature-film-groove-on-a-wet-day',
+    name: 'Groove on a wet day',
+    category: 'tape',
+    description:
+      'A worn-out groove that dulls the top and fuzzes loud highs, then dotted tape repeats that bounce from side to side.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Inner groove' },
+      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
+    ],
+  },
+  {
+    id: 'nature-film-rock-pool-reel',
+    name: 'Rock-pool reel',
+    category: 'tape',
+    description:
+      'A tape loop that wears thinner and duller on every pass, then five-bit converters fed hot, coarse and grainy on every note.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Worn out' },
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
+    ],
+  },
+  {
+    id: 'nature-film-closedown-reel',
+    name: 'Closedown reel',
+    category: 'tape',
+    description:
+      'A transformer driven so the low end thickens and loosens, then a tape loop that wears thinner and duller on every pass.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron lows' },
+      { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 3.31 } },
+    ],
+  },
+  {
+    id: 'nature-film-buckled-crackle',
+    name: 'Buckled crackle',
+    category: 'tape',
+    description:
+      'A badly worn record, swaying in pitch under loud crackle, then grain repeats that sink by fourths on every pass.',
+    effects: [
+      { deviceId: 'patina', preset: 'Scratched record' },
+      { deviceId: 'grain-delay', preset: 'Falling fourths', params: { time: 562, size: 194 } },
+    ],
+  },
+  {
+    id: 'nature-film-mid-morning-fuzz',
+    name: 'Mid-morning fuzz',
+    category: 'tape',
+    description:
+      'A thick, loose fuzz from an overloaded transformer, then a gentle high cut that shades the top end.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron melt' },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.68 } },
+    ],
+  },
+  {
+    id: 'nature-film-dust-in-drizzle',
+    name: 'Dust in drizzle',
+    category: 'tape',
+    description:
+      'A blurred loop that never comes round quite the same, then a dusty, ticking record, into a fully damped hall with a few seconds of tail.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Drifting' },
+      { deviceId: 'vinyl', preset: 'Dust and scratches', params: { spin: 1.41 } },
+      { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 19.7 } },
+    ],
+  },
+  {
     id: 'nature-film-classroom-swirl',
     name: 'Classroom swirl',
     category: 'motion',
@@ -680,17 +675,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.0593 } },
       { deviceId: 'tape', preset: 'Worn thin' },
-    ],
-  },
-  {
-    id: 'nature-film-glen-phaser',
-    name: 'Glen phaser',
-    category: 'motion',
-    description:
-      'A deep eight-stage phaser with sharp peaks between notches, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Deep eight-stage' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
     ],
   },
   {
@@ -735,7 +719,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Chorus on a lean',
     category: 'motion',
     description:
-      'A drifting reel laid against the dry sound to make a chorus, into a late wall of reverb that holds, then fades away.',
+      'A drifting reel laid against the dry sound to make a chorus, into a late wall of reverb that holds and fades away.',
     effects: [
       { deviceId: 'tape', preset: 'Drifting chorus' },
       { deviceId: 'shaped-reverb', preset: 'Late wall' },
@@ -801,17 +785,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-hired-print-double',
-    name: 'Hired-print double',
-    category: 'motion',
-    description:
-      'Two copies in tune that wander like extra takes, then a light chorus that widens more than it moves.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Drifting' },
-      { deviceId: 'chorus', preset: 'Subtle widener' },
-    ],
-  },
-  {
     id: 'nature-film-pulse-by-the-loch',
     name: 'Pulse by the loch',
     category: 'motion',
@@ -820,17 +793,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.38 } },
       { deviceId: 'shaped-reverb', preset: 'Gate steps' },
-    ],
-  },
-  {
-    id: 'nature-film-gorse-wobble',
-    name: 'Gorse wobble',
-    category: 'motion',
-    description:
-      'A deep pitch wobble with the two sides bending out of step, into a plate wash that hangs on for half a minute.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Wide wobble' },
-      { deviceId: 'plate-reverb', preset: 'Endless wash', params: { predelayMs: 61.8 } },
     ],
   },
   {
@@ -860,10 +822,44 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wheeled-in drift',
     category: 'motion',
     description:
-      'A swell that takes seconds to rise after each silence, then a slow flanger-like sweep, opposite on each side.',
+      'A swell that takes seconds to rise after each silence, then a slow flanger sweep, opposite on each side.',
     effects: [
       { deviceId: 'swell', preset: 'Tide', params: { attack: 2550, release: 636 } },
       { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.0958 } },
+    ],
+  },
+  {
+    id: 'nature-film-parquet-phaser',
+    name: 'Parquet phaser',
+    category: 'motion',
+    description:
+      'A phaser with no dry sound, pulling the two sides apart, then a four-track cassette, dull on top, unsteady and hissing.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Stereo scatter' },
+      { deviceId: 'tape', preset: 'Cassette four-track' },
+    ],
+  },
+  {
+    id: 'nature-film-changeover-drift',
+    name: 'Changeover drift',
+    category: 'motion',
+    description:
+      'A reel driven hot, then two copies in tune that wander like extra takes, into a damped hall of about five seconds, heard from far off.',
+    effects: [
+      { deviceId: 'tape', preset: 'Hot glue' },
+      { deviceId: 'stereo-detune', preset: 'Drifting' },
+      { deviceId: 'hall-reverb', preset: 'Far away' },
+    ],
+  },
+  {
+    id: 'nature-film-tremolo-at-half-term',
+    name: 'Tremolo at half-term',
+    category: 'motion',
+    description:
+      'A mid-forward tone with the lows and the top trimmed, then a harmonic tremolo whose lows and highs trade places quickly.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward' },
+      { deviceId: 'tremolo', preset: 'Harmonic shimmer' },
     ],
   },
   {
@@ -923,7 +919,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Harmony gone magenta',
     category: 'texture',
     description:
-      'A held pad where each new chord piles onto the last, then a trace of slow phaser, into two taut, long springs.',
+      'A pad of piled-up chords, then a trace of slow phaser, into two taut springs that ring long and clean with no drip.',
     effects: [
       { deviceId: 'sustainer', preset: 'Stacked harmony', params: { attack: 0.669, glide: 0.806 } },
       { deviceId: 'phaser', preset: 'Faint shade' },
@@ -965,14 +961,22 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-drift-run-slow',
-    name: 'Drift run slow',
+    id: 'nature-film-lochside-drift',
+    name: 'Lochside drift',
     category: 'texture',
     description:
-      'Moments that drop to half speed or wind down to a stop, then a telephone-grade audio stream, mono, gritty and dull on top.',
+      'A held pad whose every overtone wavers in pitch and level, then a steep low-pass that removes all above four hundred hertz.',
     effects: [
-      { deviceId: 'glitch', preset: 'Winding down', params: { time: 745 } },
-      { deviceId: 'low-bitrate', preset: 'Dial-up' },
+      {
+        deviceId: 'sustainer',
+        preset: 'Wavering choir',
+        params: { attack: 0.435, glide: 0.65, mix: 0.39 },
+      },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 0.909, envAttackMs: 11.2, envReleaseMs: 194 },
+      },
     ],
   },
   {
@@ -1061,7 +1065,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wobbling echo',
     category: 'pitch',
     description:
-      'An echo that now and then lurches down a fifth and back, then a full-range sharp and flat copy, wide to either side.',
+      'An echo that now and then lurches down a fifth and back, then a sharp copy and a flat one, full-range, wide to either side.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Slow lurch', params: { time: 393, modRate: 0.56 } },
       { deviceId: 'stereo-detune', preset: 'Wider', params: { delay: 18.6 } },
@@ -1114,41 +1118,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-finish-in-the-glen',
-    name: 'Finish in the glen',
-    category: 'master',
-    description:
-      'The first hint of weight from a tape preamp, then a subsonic cut with the low mids and the presence eased, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-eq', preset: 'Drone' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
-    ],
-  },
-  {
-    id: 'nature-film-polish-in-the-rushes',
-    name: 'Polish in the rushes',
-    category: 'master',
-    description:
-      'The first hint of weight from a tape preamp, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
-    id: 'nature-film-finish-for-schools',
-    name: 'Finish for schools',
-    category: 'master',
-    description:
-      'A very gentle compressor, then a slightly wider image, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 624, release: 4.04 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.51 } },
-    ],
-  },
-  {
     id: 'nature-film-chalk-dust-master',
     name: 'Chalk-dust master',
     category: 'master',
@@ -1169,6 +1138,41 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'nature-film-tin-roof-finish',
+    name: 'Tin-roof finish',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a rumble cut and a small lift of presence, then a lightly pushed limiter.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'nature-film-osprey-finish',
+    name: 'Osprey finish',
+    category: 'master',
+    description:
+      'A few decibels of soft saturation with the top eased, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -4.53 } },
+    ],
+  },
+  {
+    id: 'nature-film-hillside-lacquer',
+    name: 'Hillside lacquer',
+    category: 'master',
+    description:
+      'A subsonic cut with the low mids and the presence eased, then a parallel compressor, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.45 } },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 449, release: 3.08 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.38 } },
     ],
   },
 ]

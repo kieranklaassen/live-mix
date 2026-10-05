@@ -37,7 +37,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Broad-leaf air',
     category: 'space',
     description:
-      'A far-off room laid in under the untouched sound, into a thin bright reverb with all its lows cut away.',
+      'A far-off room laid in beneath the sound, into a thin bright reverb with all its lows cut away.',
     effects: [
       { deviceId: 're-amp', preset: 'Room underneath' },
       { deviceId: 'expanse', preset: 'Thin air', params: { modRate: 0.212 } },
@@ -67,17 +67,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tremolo', preset: 'Gentle breath', params: { rate: 0.265 } },
       { deviceId: 'hall-reverb', preset: 'Bright hall' },
-    ],
-  },
-  {
-    id: 'rosewood-rawhide-cloud',
-    name: 'Rawhide cloud',
-    category: 'space',
-    description:
-      'A stereo image widened a little, with the bass left central, into a dull reverb that swells in over seconds and fades slowly.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
     ],
   },
   {
@@ -144,7 +133,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Room in the round',
     category: 'space',
     description:
-      'The first hint of weight from a tape preamp, into a late wall of reverb that holds, then fades away.',
+      'The first hint of weight from a tape preamp, into a late wall of reverb that holds and fades away.',
     effects: [
       { deviceId: 'analog-drive', preset: 'First hint' },
       { deviceId: 'shaped-reverb', preset: 'Late wall' },
@@ -177,17 +166,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-workshop-halo',
-    name: 'Workshop halo',
-    category: 'space',
-    description:
-      'A short bright haze with an octave above everything, into a huge bright space with a wide and very long tail.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Glass halo', params: { mix: 0.27 } },
-      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.24 } },
-    ],
-  },
-  {
     id: 'rosewood-four-hand-drone',
     name: 'Four-hand drone',
     category: 'space',
@@ -196,21 +174,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Hollow' },
       { deviceId: 'sympathetic', preset: 'Sitar drone' },
-    ],
-  },
-  {
-    id: 'rosewood-bronze-hall',
-    name: 'Bronze hall',
-    category: 'space',
-    description:
-      'A faint scatter of echoes just behind the sound, into a hall that answers about a quarter of a second late.',
-    effects: [
-      { deviceId: 'swarm-reverb', preset: 'Faint scatter' },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Late arrival',
-        params: { decay: 5.24, predelayMs: 239, breathRate: 0.334 },
-      },
     ],
   },
   {
@@ -251,21 +214,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-halo-before-dusk',
-    name: 'Halo before dusk',
-    category: 'space',
-    description:
-      'The close reflections of a very small room, into twelve strings in A minor that ring with notes in that key.',
-    effects: [
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Short ambience',
-        params: { decay: 0.357, breathRate: 0.324, mix: 0.15 },
-      },
-      { deviceId: 'sympathetic', preset: 'Minor strings', params: { mix: 0.27 } },
-    ],
-  },
-  {
     id: 'rosewood-plate-at-the-bridge',
     name: 'Plate at the bridge',
     category: 'space',
@@ -288,17 +236,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-practice-cloud',
-    name: 'Practice cloud',
-    category: 'space',
-    description:
-      'A bowed swell that lets part of each attack through, into a cloud of reverb that swells in after each note and fades.',
-    effects: [
-      { deviceId: 'swell', preset: 'Half bowed' },
-      { deviceId: 'shaped-reverb', preset: 'Bloom' },
-    ],
-  },
-  {
     id: 'rosewood-hall-among-gongs',
     name: 'Hall among gongs',
     category: 'space',
@@ -307,6 +244,63 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Late arrival' },
       { deviceId: 'ambient-eq', preset: 'Forward' },
+    ],
+  },
+  {
+    id: 'rosewood-bamboo-air',
+    name: 'Bamboo air',
+    category: 'space',
+    description:
+      'A stereo image pushed wide, with the bass kept in the middle, into an undamped hall with about three seconds of tail.',
+    effects: [
+      { deviceId: 'stereo-widener', preset: 'Wide' },
+      { deviceId: 'fdn-reverb', preset: 'Bright air', params: { decay: 2.64, breathRate: 0.267 } },
+    ],
+  },
+  {
+    id: 'rosewood-sawn-plank-halo',
+    name: 'Sawn-plank halo',
+    category: 'space',
+    description:
+      'A bowed swell, then nine hard-driven strings in E minor that soon fall silent, into a faint hall tail of about three seconds.',
+    effects: [
+      { deviceId: 'swell', preset: 'Bowed', params: { attack: 421, release: 133 } },
+      { deviceId: 'sympathetic', preset: 'Hammered', params: { decay: 1.38 } },
+      { deviceId: 'hall-reverb', preset: 'Faint halo' },
+    ],
+  },
+  {
+    id: 'rosewood-plum-rain-ring',
+    name: 'Plum-rain ring',
+    category: 'space',
+    description:
+      'An equaliser that adds lows and body and eases the top, into sixteen strings that learn the tune and ring on long.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.41 } },
+      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 9.48, mix: 0.36 } },
+    ],
+  },
+  {
+    id: 'rosewood-grove-wind-ring',
+    name: 'Grove-wind ring',
+    category: 'space',
+    description:
+      'A very slow swell, then ten self-tuning strings, into a dull reverb that swells in over seconds and fades slowly.',
+    effects: [
+      { deviceId: 'swell', preset: 'Glacier' },
+      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { decay: 4.24 } },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
+    ],
+  },
+  {
+    id: 'rosewood-workshop-hall',
+    name: 'Workshop hall',
+    category: 'space',
+    description:
+      'A plain hall with about four seconds of tail, then a big lift of the low end that puts weight under the sound.',
+    effects: [
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.53, breathRate: 0.302 } },
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.9 } },
     ],
   },
   {
@@ -517,17 +511,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-paulownia-echoes',
-    name: 'Paulownia echoes',
-    category: 'echo',
-    description:
-      'A slow flanger-like sweep, opposite on each side, then a space that answers in hard separate echoes.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.0996 } },
-      { deviceId: 'expanse', preset: 'Hard echoes' },
-    ],
-  },
-  {
     id: 'rosewood-hardwood-echo',
     name: 'Hardwood echo',
     category: 'echo',
@@ -543,21 +526,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Yarn-wound memory',
     category: 'echo',
     description:
-      'A quick slapback echo over short glimpses of earlier notes, into a far-off room laid in under the untouched sound.',
+      'A quick slapback echo over short glimpses of earlier notes, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Glimpses' },
       { deviceId: 're-amp', preset: 'Room underneath' },
-    ],
-  },
-  {
-    id: 'rosewood-echoes-before-dusk',
-    name: 'Echoes before dusk',
-    category: 'echo',
-    description:
-      'A handful of separate echoes that fall away and repeat, then a soft slapback echo close behind each note.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Scattered' },
-      { deviceId: 'analog-delay', preset: 'Slapback' },
     ],
   },
   {
@@ -598,51 +570,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-echo-round-again',
-    name: 'Echo round again',
-    category: 'echo',
-    description:
-      'An echo whose repeats jump up an octave and back, then a single saturated tape echo close behind each note.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Octave hop', params: { time: 378, modRate: 0.543 } },
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 82.4 } },
-    ],
-  },
-  {
     id: 'rosewood-counted-echo',
     name: 'Counted echo',
     category: 'echo',
     description:
-      'Two tape heads that make every repeat gallop, into a small chapel with a short sung eh in its tail.',
+      'Two tape heads that make every repeat gallop, into a small chapel with a short sung "eh" in its tail.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Two head gallop' },
       { deviceId: 'vowel-reverb', preset: 'Chapel' },
-    ],
-  },
-  {
-    id: 'rosewood-wide-set-echo',
-    name: 'Wide-set echo',
-    category: 'echo',
-    description:
-      'A plain echo whose repeats bounce from side to side, then dotted tape repeats that bounce from side to side.',
-    effects: [
-      {
-        deviceId: 'echo-memory',
-        preset: 'Side to side',
-        params: { time: 348, reach: 20.5, size: 3.16 },
-      },
-      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
-    ],
-  },
-  {
-    id: 'rosewood-lacquered-echo',
-    name: 'Lacquered echo',
-    category: 'echo',
-    description:
-      'A plain echo that is a little darker on each repeat, into a reverb that swells up behind each note and cuts off.',
-    effects: [
-      { deviceId: 'echo-memory', preset: 'Plain echo' },
-      { deviceId: 'shaped-reverb', preset: 'Reverse' },
     ],
   },
   {
@@ -655,6 +590,61 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'analog-drive', preset: 'Console' },
       { deviceId: 'lattice', preset: 'Sinking cascade' },
       { deviceId: 'ether-reverb', preset: 'Dark hall' },
+    ],
+  },
+  {
+    id: 'rosewood-cascade-before-dusk',
+    name: 'Cascade before dusk',
+    category: 'echo',
+    description:
+      'The start of each note struck again and again as it fades, into a small chapel with a short sung "eh" in its tail.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Restruck', params: { time: 533 } },
+      { deviceId: 'vowel-reverb', preset: 'Chapel' },
+    ],
+  },
+  {
+    id: 'rosewood-bamboo-octave',
+    name: 'Bamboo octave',
+    category: 'echo',
+    description:
+      'A thin double-speed tape loop an octave above the playing, into a dark reverb that rises behind each note and lingers.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Octave up ghosts', params: { length: 2.78 } },
+      { deviceId: 'shaped-reverb', preset: 'Ghost' },
+    ],
+  },
+  {
+    id: 'rosewood-four-mallet-echo',
+    name: 'Four-mallet echo',
+    category: 'echo',
+    description:
+      'Two tape heads that make every repeat gallop, into a short room fed in pulses about twice a second.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 676 } },
+      { deviceId: 'fdn-reverb', preset: 'Pulsing gate' },
+    ],
+  },
+  {
+    id: 'rosewood-rawhide-echo',
+    name: 'Rawhide echo',
+    category: 'echo',
+    description:
+      'Two tape heads that make every repeat gallop, then a bucket-brigade echo with a slow chorus on its repeats.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Two head gallop' },
+      { deviceId: 'analog-delay', preset: 'Chorused' },
+    ],
+  },
+  {
+    id: 'rosewood-midsummer-echoes',
+    name: 'Midsummer echoes',
+    category: 'echo',
+    description:
+      'A handful of separate echoes that fall away and repeat, into a fine patter of thin high echoes with no bass in them.',
+    effects: [
+      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.11 } },
+      { deviceId: 'swarm-reverb', preset: 'Glass rain', params: { length: 0.163, glide: 0.611 } },
     ],
   },
   {
@@ -735,18 +725,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-tape-after-rain',
-    name: 'Tape after rain',
-    category: 'tape',
-    description:
-      'A big lift of the low end that puts weight under the sound, then a thick, soft cassette, then echoes that climb an octave on every repeat.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.06 } },
-      { deviceId: 'tape', preset: 'Warm thump', params: { output: -3.35 } },
-      { deviceId: 'pitch-shifter', preset: 'Rising steps', params: { size: 66.6, delay: 321 } },
-    ],
-  },
-  {
     id: 'rosewood-padauk-replay',
     name: 'Padauk replay',
     category: 'tape',
@@ -755,6 +733,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'echo-memory', preset: 'Just now', params: { time: 255, size: 0.792 } },
       { deviceId: 'patina', preset: 'New tape' },
+    ],
+  },
+  {
+    id: 'rosewood-reel-round-again',
+    name: 'Reel round again',
+    category: 'tape',
+    description:
+      'An equaliser that adds lows and body and eases the top, then an overdriven reel, then a fifth-hopping echo.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.6 } },
+      { deviceId: 'tape', preset: 'Needles pinned' },
+      { deviceId: 'analog-delay', preset: 'Fifth hop' },
     ],
   },
   {
@@ -777,7 +767,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Conservatory tremolo',
     category: 'motion',
     description:
-      'A steady amplifier tremolo, about four pulses a second, into a tight chamber close round the sound for about a second.',
+      'A steady amplifier tremolo, four or five pulses a second, into a tight chamber close round the sound for about a second.',
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { rate: 4.47 } },
       {
@@ -803,7 +793,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hinoki pad',
     category: 'motion',
     description:
-      'A hint of wavefolder, then a held pad whose every overtone wavers in pitch and level, into a bright undamped plate of a couple of seconds.',
+      "A hint of a wavefolder's glassy edge under the clean sound, then a wavering held pad, into a bright undamped plate of a couple of seconds.",
     effects: [
       { deviceId: 'saturator', preset: 'Folded glass', params: { outputDb: -7.19 } },
       { deviceId: 'sustainer', preset: 'Wavering choir', params: { attack: 0.43, glide: 0.67 } },
@@ -819,21 +809,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 3.54 } },
       { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { decay: 2.72, breathRate: 0.328 } },
-    ],
-  },
-  {
-    id: 'rosewood-pulse-over-gourds',
-    name: 'Pulse over gourds',
-    category: 'motion',
-    description:
-      'A hard pan that jumps from one side to the other, into a hall whose lows ring on long after the rest has gone.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Side to side', params: { rate: 2.66 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 65.1, lowDecay: 7.7, midDecay: 1.94 },
-      },
     ],
   },
   {
@@ -856,6 +831,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tremolo', preset: 'Fast shudder' },
       { deviceId: 'fdn-reverb', preset: 'Room' },
+    ],
+  },
+  {
+    id: 'rosewood-broad-leaf-pulse',
+    name: 'Broad-leaf pulse',
+    category: 'motion',
+    description:
+      'A hard pan that jumps from one side to the other, into a tight, damped little room close around the sound.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Side to side', params: { rate: 2.65 } },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
     ],
   },
   {
@@ -933,7 +919,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Soft-mallet swell',
     category: 'texture',
     description:
-      'A slow swell after each silence that opens only at the end, into a small dead booth that is gone almost at once.',
+      'A slow swell after each silence, opening late in its rise, into a small dead booth that is gone almost at once.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1400, release: 868 } },
       { deviceId: 'ether-reverb', preset: 'Small booth' },
@@ -966,7 +952,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hard-stick halo',
     category: 'texture',
     description:
-      'A thin, high pad an octave up with nothing low in it, then a big lift of presence and air, with ringing held in check.',
+      'A thin, high pad an octave up with nothing low in it, then a big lift of presence and air.',
     effects: [
       { deviceId: 'pad-follower', preset: 'High mist', params: { rise: 1.47, fall: 9.24 } },
       { deviceId: 'ambient-eq', preset: 'Bright' },
@@ -1100,17 +1086,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-master-under-tiles',
-    name: 'Master under tiles',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-limiter', preset: 'Master' },
-    ],
-  },
-  {
     id: 'rosewood-heartwood-mixdown',
     name: 'Heartwood mixdown',
     category: 'master',
@@ -1158,27 +1133,39 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-polish-on-bare-wood',
-    name: 'Polish on bare wood',
+    id: 'rosewood-sawn-plank-finish',
+    name: 'Sawn-plank finish',
     category: 'master',
     description:
-      'A subsonic cut, then a gentle compressor that draws loud and quiet together, then a fast limiter that steps in only on the loudest peaks.',
+      'A subsonic cut with the low mids and the presence eased, then a gentle compressor, then a slow-riding ceiling.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.26 } },
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.42 } },
       { deviceId: 'ambient-comp', preset: 'Sit back' },
-      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.45 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.91, gain: 3 } },
     ],
   },
   {
-    id: 'rosewood-finish-between-bowls',
-    name: 'Finish between bowls',
+    id: 'rosewood-mixdown-in-rosewood',
+    name: 'Mixdown in rosewood',
     category: 'master',
     description:
-      'A rumble cut and a small lift of presence, then a compressor that lets each attack through before it levels, then a slow-riding ceiling.',
+      'Light tape-style saturation, then a small dip in the low mids, then a true-peak ceiling set two decibels under full scale.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 107, release: 1.68 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.93 } },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.68 } },
+    ],
+  },
+  {
+    id: 'rosewood-rosewood-mixdown',
+    name: 'Rosewood mixdown',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a rumble cut and a small lift of presence, then a bare brickwall ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.48 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.43 } },
     ],
   },
 ]

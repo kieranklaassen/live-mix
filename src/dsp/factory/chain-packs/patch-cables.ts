@@ -22,7 +22,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Springs on wet cedar',
     category: 'space',
     description:
-      'A slow swell after each silence that leaves some attack in, into three long springs that chirp and drip.',
+      'A slow swell after each silence that leaves some attack in, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'swell', preset: 'Shadow', params: { attack: 1410, release: 267 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.64 } },
@@ -85,21 +85,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hemlock echo',
     category: 'space',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, then a short, soft tape echo close behind the playing.',
+      'A sharp copy hard left and a flat one hard right, alone, then a short, soft tape echo close behind the playing.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 17.4 } },
       { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 164 } },
-    ],
-  },
-  {
-    id: 'patch-cables-foxglove-bloom',
-    name: 'Foxglove bloom',
-    category: 'space',
-    description:
-      'A fine patter of thin high echoes with no bass in them, into a large space whose tail swells in behind each note.',
-    effects: [
-      { deviceId: 'swarm-reverb', preset: 'Glass rain', params: { length: 0.152, glide: 0.634 } },
-      { deviceId: 'expanse', preset: 'Bloom', params: { decay: 13.7, modRate: 0.328 } },
     ],
   },
   {
@@ -107,7 +96,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Seed-tray room',
     category: 'space',
     description:
-      'Two copies a few cents sharp and flat, left and right, into a late wall of reverb that holds, then fades away.',
+      'Two copies a few cents sharp and flat, left and right, into a late wall of reverb that holds and fades away.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Doubler', params: { size: 58.9, delay: 14.4 } },
       { deviceId: 'shaped-reverb', preset: 'Late wall', params: { time: 1.69 } },
@@ -122,17 +111,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'phaser', preset: 'Stereo scatter', params: { rate: 0.219 } },
       { deviceId: 'swarm-reverb', preset: 'Metal pipe' },
-    ],
-  },
-  {
-    id: 'patch-cables-ferry-room',
-    name: 'Ferry room',
-    category: 'space',
-    description:
-      'A string voice that doubles each note almost at once, into a bright wide room that rings for a second or two.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Doubler', params: { rise: 0.047, fall: 0.707 } },
-      { deviceId: 'ether-reverb', preset: 'Ether' },
     ],
   },
   {
@@ -155,6 +133,32 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Thin' },
       { deviceId: 'hall-reverb', preset: 'Hall', params: { preDelay: 56.1, midDecay: 2.28 } },
+    ],
+  },
+  {
+    id: 'patch-cables-foxglove-sheen',
+    name: 'Foxglove sheen',
+    category: 'space',
+    description:
+      'Two unison doubles snapped to pitch, hard left and right, into a quiet plate tail that comes in late behind each note.',
+    effects: [
+      {
+        deviceId: 'lattice',
+        preset: 'Tuned double',
+        params: { v1Delay: 16, v2Delay: 32.6, output: 4.19 },
+      },
+      { deviceId: 'plate-reverb', preset: 'Faint sheen' },
+    ],
+  },
+  {
+    id: 'patch-cables-wharf-plate',
+    name: 'Wharf plate',
+    category: 'space',
+    description:
+      'A bright undamped plate of a couple of seconds, then a fast, firm compressor that stops only the peaks.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.19 } },
+      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 10.2, release: 0.18 } },
     ],
   },
   {
@@ -421,7 +425,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Valves by the dock',
     category: 'tape',
     description:
-      'A brightish valve preamp, then a resonant upper-mid peak that rises when played hard, into the close reflections of a very small room.',
+      'A valve preamp, gently driven and a little bright on top, then a resonant peak up high, into the close reflections of a very small room.',
     effects: [
       { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -10.1 } },
       {
@@ -469,7 +473,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wren overtones',
     category: 'tape',
     description:
-      'A hint of wavefolder, then a resonant upper-mid peak that rises when played hard, into a trace of room around the sound.',
+      'A hint of glassy overtones, then a resonant upper-mid peak that rises when played hard, into a trace of room around the sound.',
     effects: [
       { deviceId: 'saturator', preset: 'Folded glass' },
       {
@@ -538,7 +542,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Phaser on the island',
     category: 'motion',
     description:
-      'A shallow phaser pulsing about four times a second, then echoes that climb an octave on every repeat.',
+      'A shallow phaser pulsing four or five times a second, then echoes that climb an octave on every repeat.',
     effects: [
       { deviceId: 'phaser', preset: 'Fast throb' },
       { deviceId: 'pitch-shifter', preset: 'Rising steps', params: { size: 64.9, delay: 327 } },
@@ -575,7 +579,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Kingfisher drift',
     category: 'motion',
     description:
-      'A slow phasing drift that turns over every few seconds, then a big lift of presence and air, with ringing held in check.',
+      'A slow phasing drift that turns over every few seconds, then a big lift of presence and air.',
     effects: [
       { deviceId: 'freq-shifter', preset: 'Slow drift' },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.547 } },
@@ -619,7 +623,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hemlock filter',
     category: 'motion',
     description:
-      'A big lift of presence and air, with ringing held in check, then a squelching low-pass ramping open about four times a second.',
+      'A big lift of presence and air, then a squelching low-pass ramping open about four times a second.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Bright' },
       { deviceId: 'auto-filter', preset: 'Squelch' },
@@ -641,7 +645,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Tremolo in the ferns',
     category: 'motion',
     description:
-      'A hard chop to silence about seven times a second, then an echo with a fast flutter in the pitch of its repeats.',
+      'A hard chop to silence seven or eight times a second, then an echo with a fast flutter in the pitch of its repeats.',
     effects: [
       { deviceId: 'tremolo', preset: 'Chopper' },
       { deviceId: 'analog-delay', preset: 'Fluttering', params: { time: 236, modRate: 7.22 } },
@@ -685,14 +689,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'patch-cables-wash-off-the-cable',
-    name: 'Wash off the cable',
+    id: 'patch-cables-porch-pulse',
+    name: 'Porch pulse',
     category: 'motion',
     description:
-      'A transformer driven so the low end thickens and loosens, then a long slow flanger, nearly a chorus, opposite on each side.',
+      'Gated bursts of reverb repeating about four times a second, then an echo that now and then lurches down a fifth and back.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'flanger', preset: 'Wide wash', params: { rate: 0.167, delayMs: 7.62 } },
+      { deviceId: 'shaped-reverb', preset: 'Gate steps' },
+      { deviceId: 'analog-delay', preset: 'Slow lurch', params: { time: 349, modRate: 0.539 } },
     ],
   },
   {
@@ -748,7 +752,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Huckleberry shards',
     category: 'texture',
     description:
-      'A half-deep swell that leaves a ghost of each attack, then rough splinters one and two octaves up, in quick echoes, into an undamped hall.',
+      'A shallow swell that leaves a ghost of each attack, then rough splinters one and two octaves up, in quick echoes, into an undamped hall.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 516, release: 136 } },
       {
@@ -934,7 +938,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Morning fifths',
     category: 'pitch',
     description:
-      'A wide, slightly detuned fifth above held chords, then a full-range sharp and flat copy, wide to either side.',
+      'A wide, slightly detuned fifth above held chords, then a sharp copy and a flat one, full-range, wide to either side.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad fifth' },
       { deviceId: 'stereo-detune', preset: 'Wider', params: { delay: 19.4 } },
@@ -956,7 +960,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Fifth under cedar',
     category: 'pitch',
     description:
-      'A single voice a fifth above the dry sound, into three long springs that chirp and drip.',
+      'A single voice a fifth above the dry sound, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Fifth above' },
       { deviceId: 'spring-reverb', preset: 'Long three spring' },
@@ -975,17 +979,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'patch-cables-cove-organ',
-    name: 'Cove organ',
-    category: 'pitch',
-    description:
-      'Octaves below and above through a nasal, peaked filter, then a handful of separate echoes that fall away and repeat.',
-    effects: [
-      { deviceId: 'octaves', preset: 'Nasal reed' },
-      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.34 } },
-    ],
-  },
-  {
     id: 'patch-cables-stack-in-green',
     name: 'Stack in green',
     category: 'pitch',
@@ -1001,7 +994,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drone on the sill',
     category: 'pitch',
     description:
-      'A fixed drone on C and G, then a slowly drifting chorus, into a hall that answers about a quarter of a second late.',
+      'Copies of each note re-pitched to a fixed C and the G below, then a slowly drifting chorus, into a late-arriving hall.',
     effects: [
       { deviceId: 'lattice', preset: 'Two note drone', params: { output: 9.01 } },
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.0768, delayMs: 24.5 } },
@@ -1029,7 +1022,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Mooring harmony',
     category: 'pitch',
     description:
-      'A mirrored line and a third, then a shallow chorus that thickens the sound above its lows, into an undamped hall.',
+      'A mirror harmony in C major, then a shallow chorus that thickens the sound above its lows, into an undamped hall.',
     effects: [
       { deviceId: 'lattice', preset: 'Thesis voicing', params: { output: 6.82 } },
       { deviceId: 'chorus', preset: 'Vocal thickener', params: { rate: 0.353, delayMs: 20.4 } },
@@ -1040,8 +1033,7 @@ export const CHAINS: readonly FactoryChain[] = [
     id: 'patch-cables-green-fifth',
     name: 'Green fifth',
     category: 'pitch',
-    description:
-      'A single voice a fifth above the dry sound, then a big lift of presence and air, with ringing held in check.',
+    description: 'A single voice a fifth above the dry sound, then a big lift of presence and air.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Fifth above', params: { size: 64.8 } },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.603 } },
@@ -1129,14 +1121,26 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'patch-cables-wharf-harmony',
-    name: 'Wharf harmony',
+    id: 'patch-cables-island-octaves',
+    name: 'Island octaves',
     category: 'pitch',
     description:
-      'A fluttering fifth above and fourth below, out of tune, into sixteen strings in C major that ring for about ten seconds.',
+      'Octaves below and above through a nasal, peaked filter, then slow echoes that climb further out of tune on each repeat.',
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Broken choir' },
-      { deviceId: 'sympathetic', preset: 'Long ring', params: { decay: 9.76 } },
+      { deviceId: 'octaves', preset: 'Nasal reed' },
+      { deviceId: 'freq-shifter', preset: 'Rising echo', params: { mix: 0.312 } },
+    ],
+  },
+  {
+    id: 'patch-cables-sunbreak-glitter',
+    name: 'Sunbreak glitter',
+    category: 'pitch',
+    description:
+      'A glittering octave stutter, then a soft slapback echo close behind each note, into a plain hall with about four seconds of tail.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Glass rain', params: { time: 153 } },
+      { deviceId: 'analog-delay', preset: 'Slapback' },
+      { deviceId: 'fdn-reverb', preset: 'Hall' },
     ],
   },
   {

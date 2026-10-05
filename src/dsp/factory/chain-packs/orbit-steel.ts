@@ -102,7 +102,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hovering voices',
     category: 'space',
     description:
-      'A gentle high cut that shades the top end, into a hall whose choir wanders from vowel to vowel.',
+      'A gentle high cut that shades the top end, into a reverb whose choir wanders from vowel to vowel.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.43 } },
       { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 8.67, preDelay: 20.8 } },
@@ -224,7 +224,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo in harmonics',
     category: 'space',
     description:
-      'A quick fade-in that only softens the edge of each note, into a small still reverb ringing in stacked octaves and fifths.',
+      'A quick fade-in that only softens the edge of each note, into a small reverb with a long still ring of octaves and fifths.',
     effects: [
       { deviceId: 'swell', preset: 'Soft pick', params: { attack: 48.7, release: 61.5 } },
       { deviceId: 'shimmer', preset: 'Still pipes', params: { decay: 20.3, predelay: 21.8 } },
@@ -242,21 +242,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-tide-at-last-call',
-    name: 'Tide at last call',
-    category: 'space',
-    description:
-      'A small room that is over in about a second, into a reverb that swells and ebbs in waves of over a second each.',
-    effects: [
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Room',
-        params: { preDelay: 26.8, lowDecay: 1.42, midDecay: 1.33 },
-      },
-      { deviceId: 'shaped-reverb', preset: 'Slow tide' },
-    ],
-  },
-  {
     id: 'orbit-steel-moonlit-whisper',
     name: 'Moonlit whisper',
     category: 'space',
@@ -269,17 +254,6 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Whispering',
         params: { decay: 3.29, preDelay: 20.2, mix: 0.18 },
       },
-    ],
-  },
-  {
-    id: 'orbit-steel-cloud-in-slow-orbit',
-    name: 'Cloud in slow orbit',
-    category: 'space',
-    description:
-      'A dark reverb that rises behind each note, then lingers, then a deep pitch wobble with the two sides bending out of step.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Ghost' },
-      { deviceId: 'tremolo', preset: 'Wide wobble', params: { rate: 3.01 } },
     ],
   },
   {
@@ -316,26 +290,37 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'orbit-steel-ridge-plate',
+    name: 'Ridge plate',
+    category: 'space',
+    description:
+      'A plate heard alone with none of the dry sound left, then a high cut set low enough to muffle everything.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
+      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.58 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-lunar-plate',
+    name: 'Lunar plate',
+    category: 'space',
+    description:
+      'An equaliser that takes presence, air and lows away, into a bright undamped plate of a couple of seconds.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Distant' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
+    ],
+  },
+  {
     id: 'orbit-steel-tethered-echo',
     name: 'Tethered echo',
     category: 'echo',
     description:
-      'A faint trace of tape echo behind the playing, then a combo amplifier driven hard and recorded right up close, into a dull single spring.',
+      'A faint trace of tape echo behind the playing, then a hard-driven combo amp, into a single dark spring, kept low and central.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Faint trace' },
       { deviceId: 're-amp', preset: 'Speaker on the edge', params: { output: -3.6 } },
       { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.54 } },
-    ],
-  },
-  {
-    id: 'orbit-steel-campfire-embers',
-    name: 'Campfire embers',
-    category: 'echo',
-    description:
-      'A combo amplifier heard from the far side of a big room, then grain repeats that fall an octave and darken each time.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Down the hall' },
-      { deviceId: 'grain-delay', preset: 'Falling embers' },
     ],
   },
   {
@@ -365,17 +350,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-echo-headed-home',
-    name: 'Echo headed home',
-    category: 'echo',
-    description:
-      'Two tape heads that make every repeat gallop, into a plate wash that hangs on for half a minute.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Two head gallop' },
-      { deviceId: 'plate-reverb', preset: 'Endless wash' },
-    ],
-  },
-  {
     id: 'orbit-steel-splashdown-memory',
     name: 'Splashdown memory',
     category: 'echo',
@@ -395,7 +369,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Creekside loop',
     category: 'echo',
     description:
-      'A tape loop about a second round that soon dies away, then a gentle high cut that shades the top end, into a huge open valley.',
+      'A tape loop about one second long that soon dies away, then a gentle high cut that shades the top end, into a huge open valley.',
     effects: [
       { deviceId: 'tape-loop', preset: 'One second round' },
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.37 } },
@@ -491,7 +465,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Liftoff haze',
     category: 'echo',
     description:
-      'A wash of three fed-back tape heads that hovers and fades, into a far-off room laid in under the untouched sound.',
+      'A wash of three fed-back tape heads that hovers and fades, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Hovering wash' },
       { deviceId: 're-amp', preset: 'Room underneath' },
@@ -520,18 +494,40 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-night-field-swells',
-    name: 'Night-field swells',
+    id: 'orbit-steel-echo-miles-up',
+    name: 'Echo miles up',
     category: 'echo',
     description:
-      'Backwards swells that climb an octave on every pass, into a hall whose lows ring on long after the rest has gone.',
+      'A bucket-brigade echo with a slow chorus on its repeats, then a mid-forward tone with the lows and the top trimmed.',
     effects: [
-      { deviceId: 'reverse-delay', preset: 'Rising glass', params: { time: 920 } },
       {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 60.9, lowDecay: 7.41, midDecay: 1.89 },
+        deviceId: 'analog-delay',
+        preset: 'Chorused',
+        params: { time: 316, modRate: 0.949, mix: 0.24 },
       },
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.61 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-loop-over-prairie',
+    name: 'Loop over prairie',
+    category: 'echo',
+    description:
+      'A soft loop of whatever was just played, into two slack springs that splash and drip on every attack.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 1.87 } },
+      { deviceId: 'spring-reverb', preset: 'Surf drip', params: { mix: 0.314 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-echoes-past-the-moon',
+    name: 'Echoes past the moon',
+    category: 'echo',
+    description:
+      'Echoes that fall a fourth further on every repeat, then a faint swell of octave loops behind each note.',
+    effects: [
+      { deviceId: 'pitch-shifter', preset: 'Falling steps', params: { size: 74.3, delay: 450 } },
+      { deviceId: 'cascade', preset: 'Faint halo' },
     ],
   },
   {
@@ -543,17 +539,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'grain-cloud', preset: 'Long memory' },
       { deviceId: 'tape', preset: 'Hiss and air' },
-    ],
-  },
-  {
-    id: 'orbit-steel-re-entry-chorus',
-    name: 'Re-entry chorus',
-    category: 'tape',
-    description:
-      'A drifting reel laid against the dry sound to make a chorus, then a slow tape echo with a long trail that dulls as it goes.',
-    effects: [
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'tape-echo', preset: 'Long dark trail', params: { time: 1430 } },
     ],
   },
   {
@@ -572,7 +557,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Countdown reel',
     category: 'tape',
     description:
-      'A slow reel that trembles fast, mixed against the dry sound, into a clean speaker heard from well back in a room.',
+      'A slow-speed reel with a quick flutter against the dry sound, into a clean speaker heard from well back in a room.',
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer' },
       { deviceId: 're-amp', preset: 'Just the room' },
@@ -583,7 +568,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lander flutter',
     category: 'tape',
     description:
-      'A slow flanger-like sweep, opposite on each side, then a slow reel that trembles fast, mixed against the dry sound.',
+      'A slow flanger sweep, opposite on each side, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
       { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.106 } },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
@@ -601,25 +586,37 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-dawn-line-warmth',
-    name: 'Dawn-line warmth',
+    id: 'orbit-steel-flutter-at-the-dance',
+    name: 'Flutter at the dance',
     category: 'tape',
     description:
-      'A transformer that fills out the lows and dulls the top, then a scooped tone with lows and highs up and the body down.',
+      'A rotating speaker on its slow speed, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.61 } },
+      { deviceId: 'rotary', preset: 'Chorale' },
+      { deviceId: 'tape', preset: 'Flutter shimmer', params: { output: -6.48 } },
     ],
   },
   {
-    id: 'orbit-steel-tape-at-splashdown',
-    name: 'Tape at splashdown',
+    id: 'orbit-steel-regolith-tape',
+    name: 'Regolith tape',
     category: 'tape',
     description:
-      'A thick, soft cassette, full in the lows and dull on top, then a high cut set low enough to muffle everything.',
+      'A big lift of presence and air, then a tape reel pushed hard, saturated and thick.',
     effects: [
-      { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.39 } },
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+    ],
+  },
+  {
+    id: 'orbit-steel-reel-on-the-porch',
+    name: 'Reel on the porch',
+    category: 'tape',
+    description:
+      'A fast, steady reel with soft saturation, then a tape loop that wears away, into a tight cluster of echoes close behind each note.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck', params: { output: 2.65 } },
+      { deviceId: 'tape-loop', preset: 'Worn out' },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm' },
     ],
   },
   {
@@ -627,7 +624,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Tremolo from orbit',
     category: 'motion',
     description:
-      'A clean combo amplifier with the treble all the way up, then a harmonic tremolo, into a dull single spring.',
+      'A clean combo amplifier with the treble all the way up, then a harmonic tremolo, into a single dark spring, kept low and central.',
     effects: [
       { deviceId: 're-amp', preset: 'Clean and bright', params: { output: 3.34 } },
       { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 3.07 } },
@@ -651,7 +648,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Tin-roof breath',
     category: 'motion',
     description:
-      'An amp in a cupboard, then the level breathing in and out about every four seconds, into three long springs that chirp and drip.',
+      'An amp in a cupboard, then the level breathing in and out about every four seconds, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 're-amp', preset: 'In the cupboard' },
       { deviceId: 'tremolo', preset: 'Gentle breath', params: { rate: 0.259 } },
@@ -681,17 +678,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-outbound-swirl',
-    name: 'Outbound swirl',
-    category: 'motion',
-    description:
-      'A fast spinning speaker horn laid over the dry sound, into a vast space whose tail swells in and hangs a minute or more.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Guitar swirl' },
-      { deviceId: 'expanse', preset: 'Event horizon', params: { decay: 56.6, modRate: 0.133 } },
-    ],
-  },
-  {
     id: 'orbit-steel-flanger-by-moonlight',
     name: 'Flanger by moonlight',
     category: 'motion',
@@ -707,7 +693,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Throbbing tremolo',
     category: 'motion',
     description:
-      'A steady amplifier tremolo, about four pulses a second, into a far-off plate haze with a long, soft tail.',
+      'A steady amplifier tremolo, four or five pulses a second, into a far-off plate haze with a long, soft tail.',
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo' },
       { deviceId: 'plate-reverb', preset: 'Distant haze' },
@@ -740,7 +726,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Front-room breath',
     category: 'motion',
     description:
-      'A clean combo amplifier with the treble all the way up, then a slow breathing level, into two taut, long springs.',
+      'A clean, bright combo amp, then a slow breathing level, into two taut springs that ring long and clean with no drip.',
     effects: [
       { deviceId: 're-amp', preset: 'Clean and bright' },
       { deviceId: 'tremolo', preset: 'Gentle breath', params: { rate: 0.275 } },
@@ -752,7 +738,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Slow-orbit tide',
     category: 'motion',
     description:
-      'A brightish valve preamp, then the level rising and falling at random, like surf, into three long springs with all the top taken off.',
+      'A gently bright valve preamp, then the level rising and falling at random, like surf, into dull springs that ring long.',
     effects: [
       { deviceId: 'saturator', preset: 'Tube preamp' },
       { deviceId: 'tremolo', preset: 'Sea swell', params: { rate: 0.31 } },
@@ -828,6 +814,17 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'orbit-steel-flanger-at-earthrise',
+    name: 'Flanger at earthrise',
+    category: 'motion',
+    description:
+      'A hollow flanger that sweeps every two or three seconds, into a plate wash that hangs on for half a minute.',
+    effects: [
+      { deviceId: 'flanger', preset: 'Negative hollow' },
+      { deviceId: 'plate-reverb', preset: 'Endless wash', params: { predelayMs: 56.3 } },
+    ],
+  },
+  {
     id: 'orbit-steel-buoyant-swell',
     name: 'Buoyant swell',
     category: 'texture',
@@ -844,7 +841,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Slow-orbit swell',
     category: 'texture',
     description:
-      'A first-note swell, then a wavering double of the sound spread wide to both sides, into a vast nave that rings for about eight seconds.',
+      'A slow swell on only the first note after each silence, then a wavering double of the sound spread wide to both sides, into a vast nave.',
     effects: [
       { deviceId: 'swell', preset: 'First note only', params: { attack: 1680, release: 1390 } },
       { deviceId: 'analog-delay', preset: 'Doubler', params: { time: 41.7, modRate: 2.34 } },
@@ -879,7 +876,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Night-side afterglow',
     category: 'texture',
     description:
-      'A dark string pad that lingers long after each chord, then a slow reel that trembles fast, mixed against the dry sound.',
+      'A dark string pad that lingers long after each chord, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Lingering' },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
@@ -909,22 +906,6 @@ export const CHAINS: readonly FactoryChain[] = [
         deviceId: 'hall-reverb',
         preset: 'Cathedral',
         params: { preDelay: 88.8, lowDecay: 7.81, midDecay: 5.83 },
-      },
-    ],
-  },
-  {
-    id: 'orbit-steel-pearl-snap-swell',
-    name: 'Pearl-snap swell',
-    category: 'texture',
-    description:
-      'A seconds-long swell, then a sharp copy on the left and a flat one on the right, into a hall whose lows outlast its damped top.',
-    effects: [
-      { deviceId: 'swell', preset: 'Tide', params: { attack: 2290, release: 766 } },
-      { deviceId: 'stereo-detune', preset: 'Classic', params: { delay: 14.6 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Dark hall',
-        params: { preDelay: 46.6, lowDecay: 4.41, midDecay: 3.35 },
       },
     ],
   },
@@ -988,10 +969,26 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Chrome pad',
     category: 'texture',
     description:
-      'A held pad that takes seconds to melt into each new chord, into a hall whose tail sings a soft ah.',
+      'A held pad that takes seconds to melt into each new chord, into a reverb whose tail sings a soft "ah".',
     effects: [
       { deviceId: 'sustainer', preset: 'Long glide' },
       { deviceId: 'vowel-reverb', preset: 'Choir of ah' },
+    ],
+  },
+  {
+    id: 'orbit-steel-perigee-swell',
+    name: 'Perigee swell',
+    category: 'texture',
+    description:
+      'A volume-pedal swell, then two copies in tune that wander like extra takes, into a cathedral with about six seconds of tail.',
+    effects: [
+      { deviceId: 'swell', preset: 'Volume pedal', params: { attack: 257, release: 155 } },
+      { deviceId: 'stereo-detune', preset: 'Drifting' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Cathedral',
+        params: { preDelay: 86.7, lowDecay: 6.86, midDecay: 6.51 },
+      },
     ],
   },
   {
@@ -1089,7 +1086,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Truck-stop octave',
     category: 'pitch',
     description:
-      'A dark octave below held chords, every note moved cleanly, into a quiet plate tail that comes in late behind each note.',
+      'A dark octave below held chords, every note shifted cleanly, into a quiet plate tail that comes in late behind each note.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad below', params: { size: 58.8 } },
       { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 81.8 } },
@@ -1166,26 +1163,26 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-master-after-liftoff',
-    name: 'Master after liftoff',
+    id: 'orbit-steel-stove-warm-master',
+    name: 'Stove-warm master',
     category: 'master',
     description:
-      'A subsonic cut and a slow easing of any note that rings on, then a fast limiter leaned on lightly, catching stray peaks.',
+      'Tape-style saturation that rounds only the loudest peaks, then a rumble cut and a small lift of presence, then a slow-riding ceiling.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.93 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.38 } },
     ],
   },
   {
-    id: 'orbit-steel-porthole-finish',
-    name: 'Porthole finish',
+    id: 'orbit-steel-campfire-finish',
+    name: 'Campfire finish',
     category: 'master',
     description:
-      'A fast, steady reel with soft saturation, then a subsonic cut, then a true-peak ceiling that lets go again over several seconds.',
+      'A few decibels of soft saturation with the top eased, then a true-peak ceiling that eases long swells down first.',
     effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-eq', preset: 'Master' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.27 } },
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -4.53 } },
     ],
   },
 ]

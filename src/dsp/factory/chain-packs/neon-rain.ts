@@ -196,7 +196,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Choir in wet neon',
     category: 'space',
     description:
-      'A tape preamp pushed just enough to add weight, into a vast hall whose long tail sings a high bright ah.',
+      'A tape preamp pushed just enough to add weight, into a vast hall whose long tail sings a high bright "ah".',
     effects: [
       { deviceId: 'analog-drive', preset: 'Warm glue' },
       { deviceId: 'vowel-reverb', preset: 'High choir', params: { decay: 24.1, preDelay: 19.8 } },
@@ -247,7 +247,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sky at shift end',
     category: 'space',
     description:
-      'A first-note swell, then a wide open space with a slowly wavering tail, then dull ten-bit converters that hiss along with every note.',
+      'A slow swell on only the first note after each silence, then a wide open space with a slowly wavering tail, then dull, hissing converters.',
     effects: [
       { deviceId: 'swell', preset: 'First note only' },
       { deviceId: 'expanse', preset: 'Open space', params: { modRate: 0.41 } },
@@ -281,7 +281,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Plate past midnight',
     category: 'space',
     description:
-      'A low cut with some air, then a wide room heard from its far end, into a dark plate whose tail is soft on top.',
+      'A cut that thins the bass, then a wide room heard from its far end, into a dark plate whose tail is soft on top.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.38 } },
       { deviceId: 'ether-reverb', preset: 'Distant' },
@@ -341,7 +341,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Streetlamp ascent',
     category: 'space',
     description:
-      'A vast reverb where most of the tail climbs by octaves, into a dark reverb that rises behind each note, then lingers.',
+      'A vast reverb where most of the tail climbs by octaves, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'shimmer', preset: 'Endless ascent', params: { decay: 29.1, predelay: 64.7 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost' },
@@ -400,7 +400,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Airship echo',
     category: 'echo',
     description:
-      'Repeats that climb in pitch on the left, sink on the right, then a wide echo whose repeats drift slowly in pitch.',
+      'Repeats that rise in pitch on the left and sink on the right, then a wide echo whose repeats drift slowly in pitch.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Spiral' },
       { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 579, modRate: 0.093 } },
@@ -411,7 +411,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echo in the basin',
     category: 'echo',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, then a tape echo whose three heads make a cluster of each repeat.',
+      'A sharp copy hard left and a flat one hard right, alone, then a tape echo whose three heads make a cluster of each repeat.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 16.5 } },
       { deviceId: 'tape-echo', preset: 'Three heads' },
@@ -440,26 +440,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-smokestack-echoes',
-    name: 'Smokestack echoes',
-    category: 'echo',
-    description:
-      'Echoes that creep sharp on the left and flat on the right, then a wide haze of grains that hangs on long after the playing.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Split sky' },
-      {
-        deviceId: 'grain-delay',
-        preset: 'Frozen haze',
-        params: { time: 954, size: 384, mix: 0.373 },
-      },
-    ],
-  },
-  {
     id: 'neon-rain-noodle-bar-echoes',
     name: 'Noodle-bar echoes',
     category: 'echo',
     description:
-      'Echoes that fall a fourth further on every repeat, then a full-range sharp and flat copy, wide to either side.',
+      'Echoes that fall a fourth further on every repeat, then a sharp copy and a flat one, full-range, wide to either side.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Falling steps', params: { size: 76.1, delay: 418 } },
       { deviceId: 'stereo-detune', preset: 'Wider' },
@@ -548,7 +533,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Billboard trail',
     category: 'echo',
     description:
-      'A slow echo with a long dark trail and a few recollections, then a mid-forward tone with the lows and the top trimmed.',
+      'A slow echo with a long dark trail as earlier phrases return, then a mid-forward tone with the lows and the top trimmed.',
     effects: [
       {
         deviceId: 'echo-memory',
@@ -567,6 +552,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -5.8 } },
       { deviceId: 'analog-delay', preset: 'Fifth hop', params: { time: 303, modRate: 0.672 } },
+    ],
+  },
+  {
+    id: 'neon-rain-lantern-fourths',
+    name: 'Lantern fourths',
+    category: 'echo',
+    description:
+      'Grain repeats that sink by fourths on every pass, into a faint ring of six strings in A major.',
+    effects: [
+      { deviceId: 'grain-delay', preset: 'Falling fourths' },
+      { deviceId: 'sympathetic', preset: 'Faint ring' },
     ],
   },
   {
@@ -614,28 +610,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-foundry-converter',
-    name: 'Foundry converter',
-    category: 'tape',
-    description:
-      'A dark hall that takes about twenty seconds to die away, then converters at a very low rate, filtered smooth and dull.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0787 } },
-      { deviceId: 'vintage-digital', preset: 'Sunken' },
-    ],
-  },
-  {
-    id: 'neon-rain-girder-converter',
-    name: 'Girder converter',
-    category: 'tape',
-    description:
-      'A fully damped hall with a few seconds of tail, then the converters of an early sampler, soft on top and gritty.',
-    effects: [
-      { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 19.7 } },
-      { deviceId: 'vintage-digital', preset: 'Sampler' },
-    ],
-  },
-  {
     id: 'neon-rain-back-alley-sampler',
     name: 'Back-alley sampler',
     category: 'tape',
@@ -655,6 +629,32 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'vintage-digital', preset: 'Worn' },
       { deviceId: 'ether-reverb', preset: 'Distant', params: { mix: 0.523 } },
+    ],
+  },
+  {
+    id: 'neon-rain-walkway-grit',
+    name: 'Walkway grit',
+    category: 'tape',
+    description:
+      'A wide open space with a slowly wavering tail, then a bed of six-bit grit and false tones under the clean sound.',
+    effects: [
+      { deviceId: 'expanse', preset: 'Open space' },
+      { deviceId: 'vintage-digital', preset: 'Grit bed' },
+    ],
+  },
+  {
+    id: 'neon-rain-tenth-floor-sampler',
+    name: 'Tenth-floor sampler',
+    category: 'tape',
+    description:
+      'A cathedral with about six seconds of tail, then converters at a very low rate, filtered smooth and dull.',
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Cathedral',
+        params: { preDelay: 70.9, lowDecay: 7.68, midDecay: 5.69 },
+      },
+      { deviceId: 'vintage-digital', preset: 'Sunken' },
     ],
   },
   {
@@ -737,17 +737,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-lantern-filter',
-    name: 'Lantern filter',
-    category: 'motion',
-    description:
-      'A resonant upper-mid peak that rises when played hard, then a thin band of tone with the lows cut and the top rolled off.',
-    effects: [
-      { deviceId: 'auto-filter', preset: 'Resonant peak' },
-      { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.54 } },
-    ],
-  },
-  {
     id: 'neon-rain-phaser-at-the-kerb',
     name: 'Phaser at the kerb',
     category: 'motion',
@@ -819,17 +808,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-girder-rotary',
-    name: 'Girder rotary',
-    category: 'motion',
-    description:
-      'A slow rotating speaker heard from across the room, into a far-off plate haze with a long, soft tail.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Across the room' },
-      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.551 } },
-    ],
-  },
-  {
     id: 'neon-rain-sweep-by-the-vents',
     name: 'Sweep by the vents',
     category: 'motion',
@@ -852,6 +830,28 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'neon-rain-foundry-chorus',
+    name: 'Foundry chorus',
+    category: 'motion',
+    description:
+      'A thick ensemble chorus turning about every two seconds, into a vast nave that rings for about eight seconds.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Lush ensemble' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { lowDecay: 7.36 } },
+    ],
+  },
+  {
+    id: 'neon-rain-drift-in-headlights',
+    name: 'Drift in headlights',
+    category: 'motion',
+    description:
+      'A slow flanger sweep, opposite on each side, into a hall of about four seconds with no dry sound in it.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Drifting comb' },
+      { deviceId: 'hall-reverb', preset: 'Full wet send' },
+    ],
+  },
+  {
     id: 'neon-rain-refinery-strings',
     name: 'Refinery strings',
     category: 'texture',
@@ -868,7 +868,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Fire-escape mist',
     category: 'texture',
     description:
-      'A thin, high pad an octave up with nothing low in it, then a hollow peaking phaser, into a hall with about two and a half seconds of tail.',
+      'A thin, high pad an octave up with nothing low in it, then a hollow, resonant phaser, into a hall with about two and a half seconds of tail.',
     effects: [
       { deviceId: 'pad-follower', preset: 'High mist', params: { rise: 1.33, fall: 8.4 } },
       { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.262 } },
@@ -949,7 +949,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sustain at shift end',
     category: 'texture',
     description:
-      'A slow swell after each silence that opens only at the end, then a long clear sustain that holds each note for seconds.',
+      'A slow swell after each silence, opening late in its rise, then a long clear sustain that holds each note for seconds.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise' },
       { deviceId: 'spectral-blur', preset: 'Long clean hold' },
@@ -1053,17 +1053,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-gantry-glitter',
-    name: 'Gantry glitter',
-    category: 'pitch',
-    description:
-      'Scattered sparks two octaves up, echoing higher still, into a large space whose tail swells in behind each note.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'High sparks', params: { size: 27.7, delay: 221 } },
-      { deviceId: 'expanse', preset: 'Bloom', params: { decay: 13.9, modRate: 0.27 } },
-    ],
-  },
-  {
     id: 'neon-rain-late-shift-echoes',
     name: 'Late-shift echoes',
     category: 'pitch',
@@ -1102,17 +1091,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-sub-level-organ',
-    name: 'Sub-level organ',
-    category: 'pitch',
-    description:
-      'Every note doubled one and two octaves below and above, then a low cut that thins the bass, with a little air on top.',
-    effects: [
-      { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.6 } },
-    ],
-  },
-  {
     id: 'neon-rain-overcast-undertow',
     name: 'Overcast undertow',
     category: 'pitch',
@@ -1132,6 +1110,28 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'half-speed', preset: 'Fifth down bed', params: { length: 1720 } },
       { deviceId: 'vintage-digital', preset: 'Grit bed' },
+    ],
+  },
+  {
+    id: 'neon-rain-flare-lit-sparks',
+    name: 'Flare-lit sparks',
+    category: 'pitch',
+    description:
+      'Faint grains an octave and a fifth up, behind the playing, into a wide open space with a slowly wavering tail.',
+    effects: [
+      { deviceId: 'grain-delay', preset: 'Faint glints' },
+      { deviceId: 'expanse', preset: 'Open space' },
+    ],
+  },
+  {
+    id: 'neon-rain-echoes-in-the-flare',
+    name: 'Echoes in the flare',
+    category: 'pitch',
+    description:
+      'A wide wash of swelling octave loops, some of them backwards, then a thin band of tone with the lows cut and the top rolled off.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Only the echoes' },
+      { deviceId: 'ambient-eq', preset: 'Thin' },
     ],
   },
   {
@@ -1159,30 +1159,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-finish-under-neon',
-    name: 'Finish under neon',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a gentle compressor, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Sit back' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { gain: 2.38 } },
-    ],
-  },
-  {
-    id: 'neon-rain-finish-at-shift-end',
-    name: 'Finish at shift end',
-    category: 'master',
-    description:
-      'Tape-style saturation that rounds only the loudest peaks, then a subsonic cut, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-eq', preset: 'Master' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.65 } },
-    ],
-  },
-  {
     id: 'neon-rain-night-market-finish',
     name: 'Night-market finish',
     category: 'master',
@@ -1204,6 +1180,28 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.65 } },
       { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 411, release: 2.94 } },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'neon-rain-rain-streak-finish',
+    name: 'Rain-streak finish',
+    category: 'master',
+    description:
+      'Tape-style saturation that rounds only the loudest peaks, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'neon-rain-mixdown-in-wet-neon',
+    name: 'Mixdown in wet neon',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only' },
     ],
   },
 ]

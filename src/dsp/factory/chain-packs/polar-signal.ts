@@ -33,7 +33,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Choir off the pier',
     category: 'space',
     description:
-      'A dark cellar of a room that folds the sound to mono, into a soft sung oo that follows a moment behind each note.',
+      'A dark cellar of a room that folds the sound to mono, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'bloom-reverb', preset: 'Narrow cellar', params: { decay: 2.86, mix: 0.24 } },
       {
@@ -52,18 +52,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'stereo-widener', preset: 'Wide' },
       { deviceId: 'ether-reverb', preset: 'Distant' },
-    ],
-  },
-  {
-    id: 'polar-signal-cloud-on-the-fjord',
-    name: 'Cloud on the fjord',
-    category: 'space',
-    description:
-      'An equaliser that takes presence, air and lows away, then a clean speaker at the far end of a big, echoing room, into a slow dark swell.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant' },
-      { deviceId: 're-amp', preset: 'Far end of the hall' },
-      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
     ],
   },
   {
@@ -119,7 +107,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall at the mast',
     category: 'space',
     description:
-      'A half-deep swell that leaves a ghost of each attack, into a damped hall whose tail lasts ten seconds and more.',
+      'A shallow swell that leaves a ghost of each attack, into a damped hall whose tail lasts ten seconds and more.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 507, release: 141 } },
       { deviceId: 'ether-reverb', preset: 'Dark infinite', params: { predelayMs: 64.5 } },
@@ -159,17 +147,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-snow-muffled-wash',
-    name: 'Snow-muffled wash',
-    category: 'space',
-    description:
-      'The drifting tail of a long reverb with no dry sound, into a damped hall of about five seconds, heard from far off.',
-    effects: [
-      { deviceId: 'bloom-reverb', preset: 'Tail alone', params: { decay: 14 } },
-      { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 5.34, midDecay: 4.75 } },
-    ],
-  },
-  {
     id: 'polar-signal-hall-by-lamplight',
     name: 'Hall by lamplight',
     category: 'space',
@@ -192,21 +169,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-pack-ice-air',
-    name: 'Pack-ice air',
-    category: 'space',
-    description:
-      'An equaliser that takes presence, air and lows away, into an undamped hall with about three seconds of tail.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant' },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Bright air',
-        params: { decay: 3.27, breathRate: 0.291, mix: 0.272 },
-      },
-    ],
-  },
-  {
     id: 'polar-signal-night-band-tunnel',
     name: 'Night-band tunnel',
     category: 'space',
@@ -222,7 +184,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Streetlamp mist',
     category: 'space',
     description:
-      'A thin, high pad an octave up with nothing low in it, into a cathedral whose long tail sings a soft open ah.',
+      'A thin, high pad an octave up with nothing low in it, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'pad-follower', preset: 'High mist', params: { rise: 1.52, fall: 9.67 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 18.7, preDelay: 37.6 } },
@@ -241,6 +203,43 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Far away',
         params: { preDelay: 21.4, lowDecay: 4.69, midDecay: 4.03, mix: 0.48 },
       },
+    ],
+  },
+  {
+    id: 'polar-signal-swell-by-lamplight',
+    name: 'Swell by lamplight',
+    category: 'space',
+    description:
+      'A dark reverb that rises behind each note and lingers, then a firm, slow compressor that keeps long swells held down.',
+    effects: [
+      { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.04, preDelay: 61 } },
+      { deviceId: 'ambient-comp', preset: 'Hold swells', params: { attack: 148, release: 6.23 } },
+    ],
+  },
+  {
+    id: 'polar-signal-starlit-haze',
+    name: 'Starlit haze',
+    category: 'space',
+    description:
+      'A steep low-pass that removes all above four hundred hertz, into a far-off plate haze with a long, soft tail.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 0.937, envAttackMs: 10.5, envReleaseMs: 186 },
+      },
+      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.45 } },
+    ],
+  },
+  {
+    id: 'polar-signal-plate-at-the-mast',
+    name: 'Plate at the mast',
+    category: 'space',
+    description:
+      'A detuned double made of grains, spread to the sides, into a bright undamped plate of a couple of seconds.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Detuned double', params: { size: 128, density: 42.4 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 4.87 } },
     ],
   },
   {
@@ -276,7 +275,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Small-hours echo',
     category: 'echo',
     description:
-      'Grain repeats that sink by fourths on every pass, into a far-off room laid in under the untouched sound.',
+      'Grain repeats that sink by fourths on every pass, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'grain-delay', preset: 'Falling fourths', params: { time: 567, size: 206 } },
       { deviceId: 're-amp', preset: 'Room underneath' },
@@ -309,37 +308,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-slipway-repeats',
-    name: 'Slipway repeats',
-    category: 'echo',
-    description:
-      'A resonant low-pass that swings open about every two seconds, then a quick loop of about the last half second that soon fades.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Dub sweep',
-        params: { lfoRateHz: 0.499, envAttackMs: 11, envReleaseMs: 182 },
-      },
-      { deviceId: 'micro-looper', preset: 'Quick loop' },
-    ],
-  },
-  {
-    id: 'polar-signal-sea-ice-embers',
-    name: 'Sea-ice embers',
-    category: 'echo',
-    description:
-      'Grain repeats that fall an octave and darken each time, into the drifting tail of a long reverb with no dry sound.',
-    effects: [
-      { deviceId: 'grain-delay', preset: 'Falling embers', params: { time: 455, size: 238 } },
-      { deviceId: 'bloom-reverb', preset: 'Tail alone', params: { decay: 15.3 } },
-    ],
-  },
-  {
     id: 'polar-signal-tundra-memory',
     name: 'Tundra memory',
     category: 'echo',
     description:
-      'A soft echo while earlier phrases drift back under it, then a combo amplifier heard from the far side of a big room.',
+      'A soft echo while earlier phrases drift back under it, into a combo amplifier heard from the far side of a big room.',
     effects: [
       {
         deviceId: 'echo-memory',
@@ -374,18 +347,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-quayside-reel',
-    name: 'Quayside reel',
-    category: 'echo',
-    description:
-      'A half-speed tape loop, then a bed of digital grit, into a dull mono tunnel with a tail of several seconds.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Slowed down', params: { length: 8.18 } },
-      { deviceId: 'vintage-digital', preset: 'Grit bed' },
-      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 6.67, modRate: 0.357 } },
-    ],
-  },
-  {
     id: 'polar-signal-loop-under-the-ice',
     name: 'Loop under the ice',
     category: 'echo',
@@ -417,18 +378,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture' },
       { deviceId: 'micro-looper', preset: 'Sampler grit', params: { length: 1.12 } },
-    ],
-  },
-  {
-    id: 'polar-signal-january-reel',
-    name: 'January reel',
-    category: 'echo',
-    description:
-      'A thin, far-off tape loop with its lows cut away, then a big lift of the low end, into a huge space that answers in separate far-off echoes.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Thin and distant' },
-      { deviceId: 'ambient-eq', preset: 'Deep' },
-      { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 20.2, modRate: 0.239 } },
     ],
   },
   {
@@ -491,6 +440,51 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'polar-signal-loop-on-the-fjord',
+    name: 'Loop on the fjord',
+    category: 'echo',
+    description:
+      'A blurred drifting loop, then a watery, warbling copy laid under the clean sound, into a dull mono shaft of echoes that rings for seconds.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Drifting', params: { length: 4.43 } },
+      { deviceId: 'low-bitrate', preset: 'Watery trace' },
+      { deviceId: 'swarm-reverb', preset: 'Mine shaft', params: { length: 0.323, glide: 0.595 } },
+    ],
+  },
+  {
+    id: 'polar-signal-quayside-loop',
+    name: 'Quayside loop',
+    category: 'echo',
+    description:
+      'The whole sound folded to mono, then a thin, far-off tape loop with its lows cut away.',
+    effects: [
+      { deviceId: 'stereo-widener', preset: 'Mono' },
+      { deviceId: 'tape-loop', preset: 'Thin and distant', params: { length: 2.05 } },
+    ],
+  },
+  {
+    id: 'polar-signal-echo-in-midwinter',
+    name: 'Echo in midwinter',
+    category: 'echo',
+    description:
+      'An echo that slides down an octave like tape slowed by hand, then two dull copies that wander in a haze round the notes.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Falling tape', params: { time: 459, modRate: 0.264 } },
+      { deviceId: 'stereo-detune', preset: 'Piano haze', params: { delay: 17.9 } },
+    ],
+  },
+  {
+    id: 'polar-signal-ferry-echo',
+    name: 'Ferry echo',
+    category: 'echo',
+    description:
+      'An echo that slides down an octave like tape slowed by hand, then a steep low-pass that removes all above four hundred hertz.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Falling tape' },
+      { deviceId: 'auto-filter', preset: 'Low-pass gate' },
+    ],
+  },
+  {
     id: 'polar-signal-callsign-radio',
     name: 'Callsign radio',
     category: 'tape',
@@ -510,7 +504,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Night-band station',
     category: 'tape',
     description:
-      'A far shortwave station that sinks deep into rising static, into a huge space that answers in separate far-off echoes.',
+      'A far shortwave station that sinks deep under rising static, into a huge space that answers in separate far-off echoes.',
     effects: [
       { deviceId: 'radio', preset: 'Far station' },
       { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 21.3, modRate: 0.272 } },
@@ -554,7 +548,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Headland static',
     category: 'tape',
     description:
-      'A far radio station, sinking in and out of heavy static, into a long reverb whose tail wavers queasily in pitch.',
+      'A far radio station, fading in and out of heavy static, into a long reverb whose tail wavers queasily in pitch.',
     effects: [
       { deviceId: 'patina', preset: 'Distant station' },
       { deviceId: 'expanse', preset: 'Seasick choir' },
@@ -577,7 +571,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pack-ice hiss',
     category: 'tape',
     description:
-      'A far-off, dulled tone, then a trace of tape hiss, then a dark smear of long grains that trails for many seconds.',
+      'A dulled, thinned tone, then a trace of tape hiss, then a dark smear of long grains that trails for many seconds.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant' },
       { deviceId: 'noise-floor', preset: 'Faint hiss', params: { response: 0.443, hold: 10.9 } },
@@ -611,22 +605,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Station on the floe',
     category: 'tape',
     description:
-      'A far shortwave station that sinks deep into rising static, into a dark hall that takes about twenty seconds to die away.',
+      'A far shortwave station that sinks deep under rising static, into a dark hall that takes about twenty seconds to die away.',
     effects: [
       { deviceId: 'radio', preset: 'Far station' },
       { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0839 } },
-    ],
-  },
-  {
-    id: 'polar-signal-crackle-by-lamplight',
-    name: 'Crackle by lamplight',
-    category: 'tape',
-    description:
-      'A medium-wave station under the crackle of a far storm, then the low hum of an amplifier left switched on, into a slowly breathing hall.',
-    effects: [
-      { deviceId: 'radio', preset: 'Storm coming' },
-      { deviceId: 'noise-floor', preset: 'Amp left on', params: { response: 0.381, hold: 26.9 } },
-      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 7.18, breathRate: 0.179 } },
     ],
   },
   {
@@ -653,23 +635,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-record-in-january',
-    name: 'Record in January',
-    category: 'tape',
-    description:
-      'A worn shellac disc, then a smeared backwards loop at half speed and an octave down, into a huge wash by itself.',
-    effects: [
-      { deviceId: 'vinyl', preset: 'Ballroom 78' },
-      { deviceId: 'micro-looper', preset: 'Slow reverse' },
-      { deviceId: 'expanse', preset: 'Wash alone' },
-    ],
-  },
-  {
     id: 'polar-signal-windward-record',
     name: 'Windward record',
     category: 'tape',
     description:
-      'A lightly played shellac disc, nearly mono, no bass or top, then faint recollections, into a deep dark well of slow blurred echoes.',
+      'A shellac disc, nearly mono, then a faint echo with earlier phrases coming faintly back, into a deep dark well of slow blurred echoes.',
     effects: [
       { deviceId: 'vinyl', preset: 'Parlour 78', params: { spin: 1.53 } },
       {
@@ -678,18 +648,6 @@ export const CHAINS: readonly FactoryChain[] = [
         params: { time: 405, reach: 20.8, size: 1.9 },
       },
       { deviceId: 'swarm-reverb', preset: 'Dark well' },
-    ],
-  },
-  {
-    id: 'polar-signal-record-in-the-dark',
-    name: 'Record in the dark',
-    category: 'tape',
-    description:
-      'A well-played record, dulled, swaying, with ticks and pops, then a half-speed loop, into a plate wash that hangs on for half a minute.',
-    effects: [
-      { deviceId: 'vinyl', preset: 'Charity shop find', params: { spin: 1.52 } },
-      { deviceId: 'micro-looper', preset: 'Half speed' },
-      { deviceId: 'plate-reverb', preset: 'Endless wash' },
     ],
   },
   {
@@ -737,7 +695,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Narrow-band storm',
     category: 'tape',
     description:
-      'A far-off, dulled tone, then a medium-wave station under the crackle of a far storm, into a slowly breathing hall.',
+      'A dulled, thinned tone, then a medium-wave station under the crackle of a far storm, into a slowly breathing hall.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.44 } },
       { deviceId: 'radio', preset: 'Storm coming' },
@@ -749,7 +707,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Boathouse drift',
     category: 'tape',
     description:
-      'A medium-wave set whose dial slips off into whistle and back, into a dark cellar of a room that folds the sound to mono.',
+      'A medium-wave set whose dial slips off to a whistle and back, into a dark cellar of a room that folds the sound to mono.',
     effects: [
       { deviceId: 'radio', preset: 'Drifting dial' },
       { deviceId: 'bloom-reverb', preset: 'Narrow cellar', params: { decay: 2.88 } },
@@ -760,7 +718,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Harbour warble',
     category: 'tape',
     description:
-      'A few warbling tones, then a steady shortwave signal half buried in a wash of static, into a hall with about two and a half seconds of tail.',
+      'An audio stream starved down to a few warbling tones, then a signal buried in static, into a hall with about two and a half seconds of tail.',
     effects: [
       { deviceId: 'low-bitrate', preset: 'Few partials' },
       { deviceId: 'radio', preset: 'Static wash' },
@@ -772,7 +730,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Tin-roof static',
     category: 'tape',
     description:
-      'A far shortwave station that sinks deep into rising static, into a short reverb that swells in just after each note.',
+      'A far shortwave station that sinks deep under rising static, into a short reverb that swells in just after each note.',
     effects: [
       { deviceId: 'radio', preset: 'Far station' },
       { deviceId: 'expanse', preset: 'Quick swell', params: { decay: 2.17, modRate: 0.386 } },
@@ -783,7 +741,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drift in harbour',
     category: 'tape',
     description:
-      'A medium-wave set whose dial slips off into whistle and back, then a slow tape echo with a long trail that dulls as it goes.',
+      'A medium-wave set whose dial slips off to a whistle and back, then a slow tape echo with a long trail that dulls as it goes.',
     effects: [
       { deviceId: 'radio', preset: 'Drifting dial' },
       { deviceId: 'tape-echo', preset: 'Long dark trail', params: { time: 1350 } },
@@ -798,6 +756,41 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'micro-looper', preset: 'Reverse bed', params: { length: 3.31 } },
       { deviceId: 'tape', preset: 'Cassette four-track' },
+    ],
+  },
+  {
+    id: 'polar-signal-coast-station-record',
+    name: 'Coast-station record',
+    category: 'tape',
+    description:
+      'A worn shellac disc, then a slow backwards loop, into a dull reverb that swells in over seconds and fades slowly.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Ballroom 78', params: { spin: 1.34 } },
+      { deviceId: 'micro-looper', preset: 'Slow reverse' },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell', params: { time: 3.9 } },
+    ],
+  },
+  {
+    id: 'polar-signal-streetlamp-record',
+    name: 'Streetlamp record',
+    category: 'tape',
+    description:
+      'A lightly played shellac disc, nearly mono, no bass or top, then a wide muffled loop, into a huge wash heard alone.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Parlour 78' },
+      { deviceId: 'micro-looper', preset: 'Underwater' },
+      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 35.7, modRate: 0.103 } },
+    ],
+  },
+  {
+    id: 'polar-signal-signal-by-lamplight',
+    name: 'Signal by lamplight',
+    category: 'tape',
+    description:
+      'An audio stream cut off above the mids, as if through a wall, then a wide echo whose repeats drift slowly in pitch.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Through a wall' },
+      { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 614, modRate: 0.109 } },
     ],
   },
   {
@@ -861,14 +854,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-record-off-the-coast',
-    name: 'Record off the coast',
+    id: 'polar-signal-chorus-in-the-lee',
+    name: 'Chorus in the lee',
     category: 'motion',
     description:
-      'A badly warped record whose pitch sways once a turn, into a hint of open space behind the sound.',
+      'A warped record mixed against the dry sound as a slow chorus, into a clean speaker at the far end of a big, echoing room.',
     effects: [
-      { deviceId: 'vinyl', preset: 'Warped' },
-      { deviceId: 'expanse', preset: 'Faint air' },
+      { deviceId: 'vinyl', preset: 'Warp chorus', params: { spin: 1.38 } },
+      { deviceId: 're-amp', preset: 'Far end of the hall' },
     ],
   },
   {
@@ -880,17 +873,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'micro-looper', preset: 'Deep drone', params: { length: 3.08 } },
       { deviceId: 'tape', preset: 'Drifting chorus' },
-    ],
-  },
-  {
-    id: 'polar-signal-mist-in-midwinter',
-    name: 'Mist in midwinter',
-    category: 'texture',
-    description:
-      'A wide, darkened wash in which every note slowly dissolves, then converters at a very low rate, filtered smooth and dull.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { mix: 0.42 } },
-      { deviceId: 'vintage-digital', preset: 'Sunken' },
     ],
   },
   {
@@ -939,22 +921,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-fogbound-swell',
-    name: 'Fogbound swell',
-    category: 'texture',
-    description:
-      'Long slow grains an octave down, most of them reversed, then a clean bright reel under a thick layer of tape hiss.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Low tide', params: { size: 965, density: 4.81 } },
-      { deviceId: 'tape', preset: 'Hiss and air' },
-    ],
-  },
-  {
     id: 'polar-signal-skerry-mist',
     name: 'Skerry mist',
     category: 'texture',
     description:
-      'A long-hanging wide wash, then the level rising and falling at random, like surf, into a swelling reverb cloud.',
+      'A long-hanging wide wash, then the level rising and falling at random, like surf, into a swelling, fading reverb.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Endless' },
       { deviceId: 'tremolo', preset: 'Sea swell', params: { rate: 0.272 } },
@@ -1001,14 +972,40 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-fogbound-mist',
-    name: 'Fogbound mist',
+    id: 'polar-signal-trawler-pad',
+    name: 'Trawler pad',
     category: 'texture',
     description:
-      'A wide, darkened wash in which every note slowly dissolves, then five-bit converters fed hot, coarse and grainy on every note.',
+      'A held pad that takes seconds to melt into each new chord, into a hall that answers about a quarter of a second late.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { mix: 0.42 } },
-      { deviceId: 'vintage-digital', preset: 'Crushed' },
+      { deviceId: 'sustainer', preset: 'Long glide', params: { attack: 1.6, glide: 4.51 } },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Late arrival',
+        params: { decay: 5.27, predelayMs: 246, breathRate: 0.319 },
+      },
+    ],
+  },
+  {
+    id: 'polar-signal-sea-ice-tide',
+    name: 'Sea-ice tide',
+    category: 'texture',
+    description:
+      'Long slow grains an octave down, most of them reversed, then a slow, dull, worn-out echo with hiss riding on its repeats.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Low tide' },
+      { deviceId: 'analog-delay', preset: 'Noisy clock' },
+    ],
+  },
+  {
+    id: 'polar-signal-hoarfrost-spiral',
+    name: 'Hoarfrost spiral',
+    category: 'texture',
+    description:
+      'Grains fed back a fourth down, sinking lower each pass, then backwards grains of each phrase, repeating as they fade.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Sinking spiral', params: { size: 514, density: 8.4 } },
+      { deviceId: 'grain-delay', preset: 'Backwards shards' },
     ],
   },
   {
@@ -1016,7 +1013,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bell-buoy octave',
     category: 'pitch',
     description:
-      'A smooth octave-down bed, then a high cut set low enough to muffle everything, into a cathedral whose long tail sings a soft open ah.',
+      'A smooth octave-down bed, then a high cut set low enough to muffle everything, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'half-speed', preset: 'Smooth octave' },
       { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.6 } },
@@ -1090,23 +1087,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Quayside octave',
     category: 'pitch',
     description:
-      'A smooth octave-down bed, then a warm, full equaliser, into a large space whose tail swells in behind each note.',
+      'A smooth octave-down bed, then an equaliser that adds lows and body and eases the top, into a space that swells in.',
     effects: [
       { deviceId: 'half-speed', preset: 'Smooth octave', params: { length: 2390 } },
       { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.35 } },
       { deviceId: 'expanse', preset: 'Bloom', params: { decay: 12.9, modRate: 0.334 } },
-    ],
-  },
-  {
-    id: 'polar-signal-sodium-lit-octave',
-    name: 'Sodium-lit octave',
-    category: 'pitch',
-    description:
-      'A muffled half-speed octave below, kept in the centre, then a low cut with some air, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'half-speed', preset: 'Muffled floor', params: { length: 2090 } },
-      { deviceId: 'ambient-eq', preset: 'Texture' },
-      { deviceId: 'expanse', preset: 'Open space', params: { decay: 9.95, modRate: 0.359 } },
     ],
   },
   {
@@ -1144,15 +1129,19 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-finish-before-thaw',
-    name: 'Finish before thaw',
-    category: 'master',
+    id: 'polar-signal-sodium-lit-harmony',
+    name: 'Sodium-lit harmony',
+    category: 'pitch',
     description:
-      'A rumble cut and a small lift of presence, then a slow compressor that evens out swells over seconds, then a bare brickwall ceiling.',
+      'A slowed fifth below, then a steep low-pass that removes all above four hundred hertz, into a vast nave that rings for about eight seconds.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'ambient-comp', preset: 'Level' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.45 } },
+      { deviceId: 'half-speed', preset: 'Fifth down bed', params: { mix: 0.311 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 1.08, envAttackMs: 8.81, envReleaseMs: 207 },
+      },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { mix: 0.3 } },
     ],
   },
   {
@@ -1201,15 +1190,26 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-finish-in-january',
-    name: 'Finish in January',
+    id: 'polar-signal-boathouse-finish',
+    name: 'Boathouse finish',
     category: 'master',
     description:
-      'A rumble cut and a small lift of presence, then a gentle compressor, then a true-peak ceiling that eases long swells down first.',
+      'A parallel compressor that lifts quiet playing and tails, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'ambient-comp', preset: 'Sit back' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.42 } },
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.48 } },
+    ],
+  },
+  {
+    id: 'polar-signal-snowfield-mixdown',
+    name: 'Snowfield mixdown',
+    category: 'master',
+    description:
+      'A small dip in the low mids, then a slow compressor that evens out swells over seconds, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.67 } },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 273, release: 2.2 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.48 } },
     ],
   },
 ]

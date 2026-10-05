@@ -22,7 +22,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bark-brown loft',
     category: 'space',
     description:
-      'A slow swell after each silence that opens only at the end, into a dark reverb stacking octaves and fifths like organ pipes.',
+      'A slow swell after each silence, opening late in its rise, into a dark reverb stacking octaves and fifths like organ pipes.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { release: 893 } },
       { deviceId: 'shimmer', preset: 'Organ loft', params: { decay: 14.2, predelay: 43.1 } },
@@ -73,36 +73,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-windfall-cellar',
-    name: 'Windfall cellar',
-    category: 'space',
-    description:
-      'A string voice that doubles each note almost at once, into a dark cellar of a room that folds the sound to mono.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Doubler' },
-      { deviceId: 'bloom-reverb', preset: 'Narrow cellar', params: { decay: 2.99 } },
-    ],
-  },
-  {
     id: 'forest-pulse-choir-in-the-firs',
     name: 'Choir in the firs',
     category: 'space',
     description:
-      'A big lift of the low end that puts weight under the sound, into a cathedral whose long tail sings a soft open ah.',
+      'A big lift of the low end that puts weight under the sound, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.09 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 21, preDelay: 39.2 } },
-    ],
-  },
-  {
-    id: 'forest-pulse-tunnel-in-wet-bark',
-    name: 'Tunnel in wet bark',
-    category: 'space',
-    description:
-      'A short room fed in pulses about twice a second, into a dull mono tunnel with a tail of several seconds.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Pulsing gate', params: { decay: 1.54 } },
-      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 5.91, modRate: 0.384 } },
     ],
   },
   {
@@ -110,26 +88,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Underfoot shade',
     category: 'space',
     description:
-      'A small dark room that is gone in about a second, into a dark reverb that rises behind each note, then lingers.',
+      'A small dark room that is gone in about a second, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'expanse', preset: 'Small dark room', params: { decay: 1.26, modRate: 0.786 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.01, preDelay: 66.6 } },
-    ],
-  },
-  {
-    id: 'forest-pulse-woodland-hall',
-    name: 'Woodland hall',
-    category: 'space',
-    description:
-      'A mid-forward tone, then a short room fed in pulses about twice a second, into a damped hall whose tail lasts ten seconds and more.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward' },
-      { deviceId: 'fdn-reverb', preset: 'Pulsing gate' },
-      {
-        deviceId: 'ether-reverb',
-        preset: 'Dark infinite',
-        params: { predelayMs: 67.1, mix: 0.191 },
-      },
     ],
   },
   {
@@ -148,7 +110,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Ivy-grown choir',
     category: 'space',
     description:
-      'A huge hall whose tail hums a soft oo for a long while, into a hall whose lows outlast its damped top.',
+      'A huge hall whose tail hums a soft "oo" for a long while, into a hall whose lows outlast its damped top.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Endless oo' },
       {
@@ -170,11 +132,44 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'forest-pulse-birchbark-choir',
+    name: 'Birchbark choir',
+    category: 'space',
+    description:
+      'The whole sound folded to mono, into a huge hall whose tail hums a soft "oo" for a long while.',
+    effects: [
+      { deviceId: 'stereo-widener', preset: 'Mono' },
+      { deviceId: 'vowel-reverb', preset: 'Endless oo' },
+    ],
+  },
+  {
+    id: 'forest-pulse-windfall-hall',
+    name: 'Windfall hall',
+    category: 'space',
+    description:
+      'A vast hall that opens to the sound in very slow waves, then an equaliser that takes presence, air and lows away.',
+    effects: [
+      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 10.9, breathRate: 0.0537 } },
+      { deviceId: 'ambient-eq', preset: 'Distant' },
+    ],
+  },
+  {
+    id: 'forest-pulse-alder-tunnel',
+    name: 'Alder tunnel',
+    category: 'space',
+    description:
+      'Tape-style saturation that rounds only the loudest peaks, into a dull mono tunnel with a tail of several seconds.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 5.26, modRate: 0.427 } },
+    ],
+  },
+  {
     id: 'forest-pulse-thicket-loop',
     name: 'Thicket loop',
     category: 'echo',
     description:
-      'A faint, soft loop of the last phrase that soon dies away, then a steep dark low-pass, into a slow dark swell.',
+      'A faint short-lived loop, then a steep dark low-pass, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Faint bed', params: { length: 1.65 } },
       { deviceId: 'auto-filter', preset: 'Low-pass gate' },
@@ -198,7 +193,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Overcast sampler',
     category: 'echo',
     description:
-      'A short, muffled loop at an eighth of the sample rate, then a glacial low-pass, into the drifting tail of a long reverb with no dry sound.',
+      'A muffled early-sampler loop, then a half-minute low-pass sweep, into the drifting tail of a long reverb with no dry sound.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Sampler grit', params: { length: 0.996 } },
       { deviceId: 'auto-filter', preset: 'Glacial low-pass' },
@@ -323,7 +318,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Old-growth loop',
     category: 'echo',
     description:
-      'A short, muffled loop at an eighth of the sample rate, into a dark reverb that rises behind each note, then lingers.',
+      'A short, muffled loop at an eighth of the sample rate, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Sampler grit', params: { length: 0.909 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost' },
@@ -379,28 +374,6 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Open valley',
         params: { decay: 9.32, predelayMs: 134, breathRate: 0.328 },
       },
-    ],
-  },
-  {
-    id: 'forest-pulse-record-under-canopy',
-    name: 'Record under canopy',
-    category: 'tape',
-    description:
-      'A dusty record, gently warped, with crackle in the groove, into a dull mono tunnel with a tail of several seconds.',
-    effects: [
-      { deviceId: 'patina', preset: 'Dusty record' },
-      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 5.62, modRate: 0.396 } },
-    ],
-  },
-  {
-    id: 'forest-pulse-leafless-sampler',
-    name: 'Leafless sampler',
-    category: 'tape',
-    description:
-      'A short, muffled loop at an eighth of the sample rate, then an equaliser that adds lows and body and eases the top.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Sampler grit', params: { length: 1.06 } },
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.41 } },
     ],
   },
   {
@@ -475,22 +448,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-groove-in-a-clearing',
-    name: 'Groove in a clearing',
-    category: 'tape',
-    description:
-      'A gentle high cut that shades the top end, then a worn-out groove that dulls the top and fuzzes loud highs.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Shaded' },
-      { deviceId: 'vinyl', preset: 'Inner groove', params: { spin: 1.6 } },
-    ],
-  },
-  {
     id: 'forest-pulse-second-hand-record',
     name: 'Second-hand record',
     category: 'tape',
     description:
-      'A tape loop whose passes cross from side to side, then a warped record through a dark cartridge, swaying slowly, into a dark rising reverb.',
+      'A tape loop whose passes cross from side to side, then a dark, swaying record, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Crossing sides', params: { length: 1.39 } },
       { deviceId: 'vinyl', preset: 'Slow platter', params: { spin: 5.45 } },
@@ -498,11 +460,44 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'forest-pulse-grey-dawn-sampler',
+    name: 'Grey-dawn sampler',
+    category: 'tape',
+    description:
+      'A deep pitch wobble, like a warped tape, then smooth, dull converters with a hiss that rides high notes.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Warped tape', params: { rate: 1.41, delayMs: 28.7 } },
+      { deviceId: 'vintage-digital', preset: 'Jittery' },
+    ],
+  },
+  {
+    id: 'forest-pulse-needle-bed-sway',
+    name: 'Needle-bed sway',
+    category: 'tape',
+    description:
+      'A warped record through a dark cartridge, swaying slowly, into a reverb that fades evenly to nothing in a second or two.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Slow platter', params: { spin: 5.57 } },
+      { deviceId: 'shaped-reverb', preset: 'Falling' },
+    ],
+  },
+  {
+    id: 'forest-pulse-drizzle-dust',
+    name: 'Drizzle dust',
+    category: 'tape',
+    description:
+      'A dusty record, gently warped, with crackle in the groove, then a single saturated tape echo close behind each note.',
+    effects: [
+      { deviceId: 'patina', preset: 'Dusty record', params: { output: -2.11 } },
+      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 91.7 } },
+    ],
+  },
+  {
     id: 'forest-pulse-waves-past-a-ridge',
     name: 'Waves past a ridge',
     category: 'motion',
     description:
-      'Quick waves of reverb rippling about twice a second, then a far-off, dulled tone, into a far-off plate haze with a long, soft tail.',
+      'Quick waves of reverb rippling about twice a second, then a dulled, thinned tone, into a far-off plate haze with a long, soft tail.',
     effects: [
       { deviceId: 'shaped-reverb', preset: 'Ripples' },
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.39 } },
@@ -540,7 +535,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Birchbark tremolo',
     category: 'motion',
     description:
-      'An amplifier tremolo, then an equaliser that takes presence, air and lows away, into a fully damped hall with a few seconds of tail.',
+      'A steady amplifier tremolo, four or five pulses a second, then an equaliser that takes presence, air and lows away, into a damped hall.',
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo' },
       { deviceId: 'ambient-eq', preset: 'Distant' },
@@ -552,7 +547,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pulse in leaf mould',
     category: 'motion',
     description:
-      'A half-speed octave below, cut hard about twice a second, then a warm, full equaliser, into a long plate with a wide and even tail.',
+      'A chopped half-speed octave, then an equaliser that adds lows and body and eases the top, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 'half-speed', preset: 'Slow chops' },
       { deviceId: 'ambient-eq', preset: 'Warm' },
@@ -599,17 +594,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-larch-phaser',
-    name: 'Larch phaser',
-    category: 'motion',
-    description:
-      'A gentle high cut that shades the top end, then a shallow phaser pulsing about four times a second.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Shaded' },
-      { deviceId: 'phaser', preset: 'Fast throb', params: { rate: 5.03 } },
-    ],
-  },
-  {
     id: 'forest-pulse-treeline-pad',
     name: 'Treeline pad',
     category: 'motion',
@@ -643,11 +627,22 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'forest-pulse-phaser-under-leaves',
+    name: 'Phaser under leaves',
+    category: 'motion',
+    description:
+      'A deep eight-stage phaser with sharp peaks between notches, into a deep dark well of slow blurred echoes.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Deep eight-stage' },
+      { deviceId: 'swarm-reverb', preset: 'Dark well' },
+    ],
+  },
+  {
     id: 'forest-pulse-wash-among-trunks',
     name: 'Wash among trunks',
     category: 'texture',
     description:
-      'A long-hanging wide wash, then a hollow peaking phaser, into a long dark reverb whose tail sinks slowly in pitch.',
+      'A long-hanging wide wash, then a hollow, resonant phaser, into a long dark reverb whose tail sinks slowly in pitch.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Endless' },
       { deviceId: 'phaser', preset: 'Negative notch', params: { mix: 0.3 } },
@@ -659,7 +654,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wash from far off',
     category: 'texture',
     description:
-      'A wide, darkened wash in which every note slowly dissolves, then a four-stage phaser, into a slow dark swell.',
+      'A slowly dissolving wash, then a four-stage phaser, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Slow dissolve' },
       { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.268 } },
@@ -710,7 +705,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Old-growth echoes',
     category: 'texture',
     description:
-      'Sparse stray grains of things played seconds earlier, then muffled tape hiss with its top taken off, steady and thick.',
+      'Sparse stray grains of things played seconds earlier, then muffled tape hiss, steady and thick.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Stray memories' },
       { deviceId: 'noise-floor', preset: 'Muffled hiss', params: { response: 0.387, hold: 11.8 } },
@@ -721,7 +716,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Woodland fog',
     category: 'texture',
     description:
-      'A wide fog without lows or highs that hangs for seconds, then muffled tape hiss with its top taken off, steady and thick.',
+      'A wide fog without lows or highs that hangs for seconds, then muffled tape hiss, steady and thick.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Band of fog' },
       { deviceId: 'noise-floor', preset: 'Muffled hiss' },
@@ -751,22 +746,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'grain-cloud', preset: 'Two octaves under' },
       { deviceId: 'echo-memory', preset: 'Backwards', params: { reach: 16.6, size: 1.56 } },
-    ],
-  },
-  {
-    id: 'forest-pulse-lidded-afterglow',
-    name: 'Lidded afterglow',
-    category: 'texture',
-    description:
-      'A dark string pad that lingers long after each chord, then two copies in tune that wander like extra takes, into a hall with long lows.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Lingering' },
-      { deviceId: 'stereo-detune', preset: 'Drifting' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 56.9, lowDecay: 7.33, midDecay: 2.07 },
-      },
     ],
   },
   {
@@ -869,17 +848,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-memory-noise-and-all',
-    name: 'Memory noise and all',
-    category: 'texture',
-    description:
-      'Long grains of what was played about four seconds ago, then a dusty record, gently warped, with crackle in the groove.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Long memory', params: { size: 962, density: 4.47 } },
-      { deviceId: 'patina', preset: 'Dusty record', params: { output: 2.76 } },
-    ],
-  },
-  {
     id: 'forest-pulse-deadfall-tide',
     name: 'Deadfall tide',
     category: 'texture',
@@ -902,33 +870,47 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-loop-in-drizzle',
-    name: 'Loop in drizzle',
+    id: 'forest-pulse-hollow-trunk-pad',
+    name: 'Hollow-trunk pad',
     category: 'texture',
     description:
-      'A wide, muffled loop of the last phrase, as if under water, into a hall whose lows ring on long after the rest has gone.',
+      'A dark string pad that lingers long after each chord, into a fully damped hall with a few seconds of tail.',
     effects: [
-      { deviceId: 'micro-looper', preset: 'Underwater' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 53.3, lowDecay: 7.86, midDecay: 1.8 },
-      },
+      { deviceId: 'pad-follower', preset: 'Lingering' },
+      { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 22.2 } },
     ],
   },
   {
-    id: 'forest-pulse-flea-market-wash',
-    name: 'Flea-market wash',
+    id: 'forest-pulse-deepwood-mist',
+    name: 'Deepwood mist',
     category: 'texture',
     description:
-      'A very wide wash in which every note hangs for many seconds, into a hall whose lows outlast its damped top.',
+      'A diffuse mist where each note hangs on after it is played, into a small room that answers about an eighth of a second late.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Endless', params: { mix: 0.45 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Dark hall',
-        params: { preDelay: 53, lowDecay: 3.7, midDecay: 2.75, mix: 0.24 },
-      },
+      { deviceId: 'spectral-blur', preset: 'Hanging mist' },
+      { deviceId: 'ether-reverb', preset: 'Slap room' },
+    ],
+  },
+  {
+    id: 'forest-pulse-reversal-in-wet-bark',
+    name: 'Reversal in wet bark',
+    category: 'texture',
+    description:
+      'Phrases that sometimes turn round and play backwards, then an echo that slides down an octave like tape slowed by hand.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Backwards glances', params: { time: 830 } },
+      { deviceId: 'analog-delay', preset: 'Falling tape' },
+    ],
+  },
+  {
+    id: 'forest-pulse-pad-at-treeline',
+    name: 'Pad at treeline',
+    category: 'texture',
+    description:
+      'A held pad that takes seconds to melt into each new chord, then a badly warped record whose pitch sways once a turn.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Long glide' },
+      { deviceId: 'vinyl', preset: 'Warped', params: { spin: 1.39 } },
     ],
   },
   {
@@ -1054,7 +1036,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Resin drift',
     category: 'pitch',
     description:
-      'A wide, slowed copy a fourth below that drifts behind, then a slow echo with a long dark trail and a few recollections.',
+      'A wide, slowed copy a fourth below that drifts behind, then a slow echo with a long dark trail as earlier phrases return.',
     effects: [
       { deviceId: 'half-speed', preset: 'Fourth down drift' },
       { deviceId: 'echo-memory', preset: 'Dark trail' },
@@ -1147,29 +1129,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-finish-in-the-fog',
-    name: 'Finish in the fog',
-    category: 'master',
-    description:
-      'Tape-style saturation that rounds only the loudest peaks, then a brickwall ceiling that touches nothing beneath it.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only' },
-    ],
-  },
-  {
-    id: 'forest-pulse-polish-under-leaves',
-    name: 'Polish under leaves',
-    category: 'master',
-    description:
-      'A compressor that lets each attack through before it levels, then a slightly wider image, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 129, release: 1.47 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: 2.17 } },
-    ],
-  },
-  {
     id: 'forest-pulse-woodland-master',
     name: 'Woodland master',
     category: 'master',
@@ -1178,30 +1137,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 99.8, release: 1.79 } },
       { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.41, gain: 2.43 } },
-    ],
-  },
-  {
-    id: 'forest-pulse-polish-under-bracken',
-    name: 'Polish under bracken',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a slow levelling compressor, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-comp', preset: 'Level' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming' },
-    ],
-  },
-  {
-    id: 'forest-pulse-polish-between-firs',
-    name: 'Polish between firs',
-    category: 'master',
-    description:
-      'A little soft saturation, then a parallel compressor, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 433, release: 3.37 } },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -2.69 } },
     ],
   },
   {
@@ -1214,6 +1149,52 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Master' },
       { deviceId: 'ambient-comp', preset: 'Lift' },
       { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
+    id: 'forest-pulse-second-hand-mixdown',
+    name: 'Second-hand mixdown',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a stereo image widened a little, with the bass left central, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.48 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'forest-pulse-logging-road-master',
+    name: 'Logging-road master',
+    category: 'master',
+    description:
+      'A slow compressor that evens out swells over seconds, then a true-peak ceiling that lets go again over several seconds.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Level' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.4 } },
+    ],
+  },
+  {
+    id: 'forest-pulse-alder-finish',
+    name: 'Alder finish',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a small dip in the low mids, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.67 } },
+    ],
+  },
+  {
+    id: 'forest-pulse-lacquer-under-canopy',
+    name: 'Lacquer under canopy',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

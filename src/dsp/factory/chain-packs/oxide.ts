@@ -11,7 +11,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Tired shade',
     category: 'space',
     description:
-      'A dark reverb that rises behind each note, then lingers, then a trace of dull detuned copies at the edges.',
+      'A dark reverb that rises behind each note and lingers, then a trace of dull detuned copies at the edges.',
     effects: [
       { deviceId: 'shaped-reverb', preset: 'Ghost' },
       { deviceId: 'stereo-detune', preset: 'Faint width', params: { delay: 13.9 } },
@@ -71,25 +71,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Choir on old stock',
     category: 'space',
     description:
-      'A mid-forward tone with the lows and the top trimmed, into a large hall whose tail hums a deep oh in bass voices.',
+      'A mid-forward tone with the lows and the top trimmed, into a large reverb whose tail hums a deep "oh" in bass voices.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.43 } },
       { deviceId: 'vowel-reverb', preset: 'Low monks', params: { decay: 12.9, preDelay: 20.9 } },
-    ],
-  },
-  {
-    id: 'oxide-halo-losing-flakes',
-    name: 'Halo losing flakes',
-    category: 'space',
-    description:
-      'A mellow reverb whose tail splits up and down in pitch, into a damped hall of about five seconds, heard from far off.',
-    effects: [
-      { deviceId: 'bloom-reverb', preset: 'Scatter', params: { decay: 8.85 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Far away',
-        params: { preDelay: 20.8, lowDecay: 5.44, midDecay: 4.1 },
-      },
     ],
   },
   {
@@ -130,6 +115,17 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'oxide-lobby-springs',
+    name: 'Lobby springs',
+    category: 'space',
+    description:
+      'A chorus heard alone, its detuned copies spread hard apart, into a two-spring tank with its input driven into saturation.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Voices only' },
+      { deviceId: 'spring-reverb', preset: 'Overdriven tank', params: { decay: 2.11 } },
+    ],
+  },
+  {
     id: 'oxide-slowed-loop',
     name: 'Slowed loop',
     category: 'echo',
@@ -156,7 +152,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Stretched loop',
     category: 'echo',
     description:
-      'A half-speed loop that plays the last phrase an octave down, then a slow echo with a long dark trail and a few recollections.',
+      'A half-speed loop that plays the last phrase an octave down, then a slow echo with a long dark trail as earlier phrases return.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Half speed' },
       {
@@ -193,7 +189,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Rust-red haze',
     category: 'echo',
     description:
-      'A wash of three fed-back tape heads that hovers and fades, into a single dull spring kept low in the centre of the sound.',
+      'A wash of three fed-back tape heads that hovers and fades, into a single dark spring, kept low and central.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Hovering wash', params: { time: 820 } },
       { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.71 } },
@@ -219,17 +215,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -4.97 } },
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 397 } },
-    ],
-  },
-  {
-    id: 'oxide-baked-sampler',
-    name: 'Baked sampler',
-    category: 'echo',
-    description:
-      'A short, dull loop at a quarter of the sample rate, then dotted tape repeats that bounce from side to side.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Lo-fi quarter' },
-      { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { time: 534 } },
     ],
   },
   {
@@ -294,17 +279,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-muffled-echo',
-    name: 'Muffled echo',
-    category: 'echo',
-    description:
-      'A slow murky bucket-brigade echo with dull, worn repeats, into sixteen strings in E minor heard alone with no dry sound.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Murky' },
-      { deviceId: 'sympathetic', preset: 'Strings alone', params: { decay: 8.54 } },
-    ],
-  },
-  {
     id: 'oxide-echo-unlabelled',
     name: 'Echo unlabelled',
     category: 'echo',
@@ -338,11 +312,33 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'oxide-yellowed-loop',
+    name: 'Yellowed loop',
+    category: 'echo',
+    description:
+      'A tape loop that never fades and holds every layer, then dotted tape repeats that bounce from side to side.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Endless hold', params: { length: 7.54 } },
+      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
+    ],
+  },
+  {
+    id: 'oxide-spliced-echo',
+    name: 'Spliced echo',
+    category: 'echo',
+    description:
+      'Dotted tape repeats that bounce from side to side, into a small room that is over in about a second.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
+      { deviceId: 'hall-reverb', preset: 'Room' },
+    ],
+  },
+  {
     id: 'oxide-loop-on-pass-forty',
     name: 'Loop on pass forty',
     category: 'tape',
     description:
-      'A wearing tape loop, then a four-track cassette, into a large space whose tail swells in behind each note.',
+      'A tape loop that wears away, then a four-track cassette, dull on top, unsteady and hissing, into a space that swells in.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Worn out' },
       { deviceId: 'tape', preset: 'Cassette four-track' },
@@ -354,7 +350,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Brown loop',
     category: 'tape',
     description:
-      'A faint tape loop, then a worn dictation cassette, into a long dark reverb whose tail sinks slowly in pitch.',
+      'A faint tape loop, then a hissing dictation cassette, into a long dark reverb whose tail sinks slowly in pitch.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Faint afterimage' },
       { deviceId: 'tape', preset: 'Old dictation', params: { output: 3.28 } },
@@ -366,7 +362,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hissing reel',
     category: 'tape',
     description:
-      'A low, dark tape loop played backwards at half speed, then an old reel dropping out, into a dull mono tunnel with a tail of several seconds.',
+      'A slow backwards loop, then an old slow reel that drifts, dulls, drops out and hisses, into a dull mono tunnel.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Slow backwards', params: { length: 3.93 } },
       { deviceId: 'tape', preset: 'Worn thin', params: { output: 2.47 } },
@@ -378,7 +374,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Loop under dust',
     category: 'tape',
     description:
-      'A wearing tape loop, then a four-track cassette, into a hall of about four seconds with no dry sound in it.',
+      'A tape loop that wears away, then a hissing, unsteady cassette, into a hall of about four seconds with no dry sound in it.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 2.97 } },
       { deviceId: 'tape', preset: 'Cassette four-track' },
@@ -394,7 +390,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Forgotten loop',
     category: 'tape',
     description:
-      'A tape loop that wears thinner and duller on every pass, then a muffled cassette, into a slow dark swell.',
+      'A tape loop that wears thinner and duller on every pass, then a muffled cassette, into a slow, dark swell of reverb.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Worn out' },
       { deviceId: 'tape', preset: 'Under a blanket', params: { output: 2.01 } },
@@ -418,7 +414,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Dust in late light',
     category: 'tape',
     description:
-      'An old reel dropping out, then crackle between the notes, into a small chapel with a short sung eh in its tail.',
+      'A hissing reel dropping out, then crackle between the notes, into a small chapel with a short sung "eh" in its tail.',
     effects: [
       { deviceId: 'tape', preset: 'Worn thin' },
       { deviceId: 'noise-floor', preset: 'Gap crackle' },
@@ -446,54 +442,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'vinyl', preset: 'Charity shop find' },
       { deviceId: 'bloom-reverb', preset: 'Tail alone' },
-    ],
-  },
-  {
-    id: 'oxide-tape-next-door',
-    name: 'Tape next door',
-    category: 'tape',
-    description:
-      'A dull, hard-clipped fuzz with a rough digital edge, then a four-track cassette, dull on top, unsteady and hissing.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Lo-fi' },
-      { deviceId: 'tape', preset: 'Cassette four-track', params: { output: -3.97 } },
-    ],
-  },
-  {
-    id: 'oxide-powdered-sampler',
-    name: 'Powdered sampler',
-    category: 'tape',
-    description:
-      'An equaliser that adds lows and body and eases the top, then a muffled early sampler, its top filtered away.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.56 } },
-      { deviceId: 'patina', preset: 'Muffled sampler', params: { output: -2.17 } },
-    ],
-  },
-  {
-    id: 'oxide-tape-losing-flakes',
-    name: 'Tape losing flakes',
-    category: 'tape',
-    description:
-      'A muffled cassette, its top rolled off and its lows lifted, into a small room that is over in about a second.',
-    effects: [
-      { deviceId: 'tape', preset: 'Under a blanket' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Room',
-        params: { preDelay: 33.4, lowDecay: 1.55, midDecay: 1.12 },
-      },
-    ],
-  },
-  {
-    id: 'oxide-wavering-reel',
-    name: 'Wavering reel',
-    category: 'tape',
-    description:
-      'A slow reel that trembles fast, mixed against the dry sound, into three taut springs kept soft and close to the centre.',
-    effects: [
-      { deviceId: 'tape', preset: 'Flutter shimmer' },
-      { deviceId: 'spring-reverb', preset: 'Narrow warm tank' },
     ],
   },
   {
@@ -532,40 +480,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-crumbling-static',
-    name: 'Crumbling static',
-    category: 'tape',
-    description:
-      'A worn dictation cassette, then drifting radio static, into a clean speaker at the far end of a big, echoing room.',
-    effects: [
-      { deviceId: 'tape', preset: 'Old dictation' },
-      { deviceId: 'noise-floor', preset: 'Radio static' },
-      { deviceId: 're-amp', preset: 'Far end of the hall' },
-    ],
-  },
-  {
-    id: 'oxide-shedding-cassette',
-    name: 'Shedding cassette',
-    category: 'tape',
-    description:
-      'A ruined cassette that lurches, drops out and hisses hard, then a medium-wave station under the crackle of a far storm.',
-    effects: [
-      { deviceId: 'patina', preset: 'Falling apart' },
-      { deviceId: 'radio', preset: 'Storm coming' },
-    ],
-  },
-  {
-    id: 'oxide-radio-in-a-shoebox',
-    name: 'Radio in a shoebox',
-    category: 'tape',
-    description:
-      'A small, boxy radio speaker close by in a small room, then the low, wide rumble of an empty room.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Bedside radio' },
-      { deviceId: 'noise-floor', preset: 'Empty room', params: { response: 0.395, hold: 20.4 } },
-    ],
-  },
-  {
     id: 'oxide-boxed-filter',
     name: 'Boxed filter',
     category: 'tape',
@@ -586,28 +500,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Voices only', params: { rate: 0.322, delayMs: 17.1 } },
       { deviceId: 'vintage-digital', preset: 'Jittery' },
-    ],
-  },
-  {
-    id: 'oxide-record-off-the-shelf',
-    name: 'Record off the shelf',
-    category: 'tape',
-    description:
-      'A badly worn record, swaying in pitch under loud crackle, then the surface noise and crackle of an old record.',
-    effects: [
-      { deviceId: 'patina', preset: 'Scratched record' },
-      { deviceId: 'noise-floor', preset: 'Old record' },
-    ],
-  },
-  {
-    id: 'oxide-far-dial-sampler',
-    name: 'Far-dial sampler',
-    category: 'tape',
-    description:
-      'A short, dull loop at a quarter of the sample rate, then a small mono transistor radio with a clear, steady signal.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { length: 1.62 } },
-      { deviceId: 'radio', preset: 'Clean transistor' },
     ],
   },
   {
@@ -641,7 +533,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Afternoon tape',
     category: 'tape',
     description:
-      'A loop of the last phrase played backwards as a bed, then a ruined cassette, into three long springs with all the top taken off.',
+      'A loop of the last phrase played backwards as a bed, then a ruined cassette, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Reverse bed', params: { length: 2.76 } },
       { deviceId: 'patina', preset: 'Falling apart' },
@@ -664,7 +556,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Slow-spool cassette',
     category: 'tape',
     description:
-      'A worn cassette that wobbles, drops out and hisses, then a slow echo with a long dark trail and a few recollections.',
+      'A worn cassette that wobbles, drops out and hisses, then a slow echo with a long dark trail as earlier phrases return.',
     effects: [
       { deviceId: 'patina', preset: 'Worn cassette' },
       {
@@ -679,7 +571,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Reel thinning out',
     category: 'tape',
     description:
-      'A small radio speaker muffled as if under a pillow, then a flaking reel, into a small dark room that is gone in about a second.',
+      'A small amplifier muffled as if under a pillow, then a flaking, hissing reel, into a small dark room that is gone in about a second.',
     effects: [
       { deviceId: 're-amp', preset: 'Pillow speaker' },
       { deviceId: 'tape', preset: 'Crumbling oxide', params: { output: -2.4 } },
@@ -700,6 +592,111 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Open valley',
         params: { decay: 10.8, predelayMs: 115, breathRate: 0.327 },
       },
+    ],
+  },
+  {
+    id: 'oxide-attic-dust',
+    name: 'Attic dust',
+    category: 'tape',
+    description:
+      'A hissing dictation cassette, then the surface noise and crackle of an old record, into a tight cluster of repeats.',
+    effects: [
+      { deviceId: 'tape', preset: 'Old dictation' },
+      { deviceId: 'noise-floor', preset: 'Old record', params: { response: 0.422, hold: 7.48 } },
+      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 79.3 } },
+    ],
+  },
+  {
+    id: 'oxide-shedding-cassette',
+    name: 'Shedding cassette',
+    category: 'tape',
+    description:
+      'A slow rotating speaker heard from across the room, then a four-track cassette, dull on top, unsteady and hissing.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Across the room' },
+      { deviceId: 'tape', preset: 'Cassette four-track' },
+    ],
+  },
+  {
+    id: 'oxide-hissing-radio',
+    name: 'Hissing radio',
+    category: 'tape',
+    description:
+      'A tape reel pushed hard, saturated and thick, then a medium-wave set whose dial slips off to a whistle and back.',
+    effects: [
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+      { deviceId: 'radio', preset: 'Drifting dial' },
+    ],
+  },
+  {
+    id: 'oxide-flaking-tape',
+    name: 'Flaking tape',
+    category: 'tape',
+    description:
+      'A tape preamp overloaded until it breaks up, dull and thick, then radio static that drifts and crackles under the sound.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Worn tape' },
+      { deviceId: 'noise-floor', preset: 'Radio static' },
+    ],
+  },
+  {
+    id: 'oxide-afternoon-amp',
+    name: 'Afternoon amp',
+    category: 'tape',
+    description:
+      'A combo amplifier driven hard and recorded right up close, then a gentle high cut that shades the top end.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Speaker on the edge', params: { output: -3.73 } },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.67 } },
+    ],
+  },
+  {
+    id: 'oxide-loop-left-in-sun',
+    name: 'Loop left in sun',
+    category: 'tape',
+    description:
+      'A soft loop of whatever was just played, then a slow-speed reel with a quick flutter against the dry sound.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 1.87 } },
+      { deviceId: 'tape', preset: 'Flutter shimmer' },
+    ],
+  },
+  {
+    id: 'oxide-print-through-memory',
+    name: 'Print-through memory',
+    category: 'tape',
+    description:
+      'Earlier phrases that return over and over and slowly gather, then a worn record through a dark, dull cartridge.',
+    effects: [
+      {
+        deviceId: 'echo-memory',
+        preset: 'Gathering',
+        params: { time: 693, reach: 22.5, size: 3.4 },
+      },
+      { deviceId: 'vinyl', preset: 'Dull stylus' },
+    ],
+  },
+  {
+    id: 'oxide-crackle-years-on',
+    name: 'Crackle years on',
+    category: 'tape',
+    description:
+      'A transformer that fills out the lows and dulls the top, then a worn, swaying record, into a small dead booth that is gone almost at once.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Low warmth' },
+      { deviceId: 'patina', preset: 'Scratched record' },
+      { deviceId: 'ether-reverb', preset: 'Small booth' },
+    ],
+  },
+  {
+    id: 'oxide-brittle-loop',
+    name: 'Brittle loop',
+    category: 'tape',
+    description:
+      'A short, dull loop at a quarter of the sample rate, then a small medium-wave radio, boxy and nasal, with light static.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { length: 1.43 } },
+      { deviceId: 'radio', preset: 'Kitchen radio' },
     ],
   },
   {
@@ -752,22 +749,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-yellowed-phaser',
-    name: 'Yellowed phaser',
-    category: 'motion',
-    description:
-      'A string voice that doubles each note almost at once, then a hollow peaking phaser that turns about every four seconds.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Doubler' },
-      { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.227 } },
-    ],
-  },
-  {
     id: 'oxide-drift-kept-too-long',
     name: 'Drift kept too long',
     category: 'motion',
     description:
-      'A slow flanger-like sweep, opposite on each side, into a tight cluster of tape repeats, like a very small room.',
+      'A slow flanger sweep, opposite on each side, into a tight cluster of tape repeats, like a very small room.',
     effects: [
       { deviceId: 'tremolo', preset: 'Drifting comb' },
       { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 84.6 } },
@@ -785,51 +771,36 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-twice-played-sweep',
-    name: 'Twice-played sweep',
+    id: 'oxide-brown-chorus',
+    name: 'Brown chorus',
     category: 'motion',
     description:
-      'A resonant low-pass that swings open about every two seconds, then a flanger sweep with the whoosh of a passing jet plane.',
+      'A hollow chorus that swells over about ten seconds, then a slow rotating speaker with its amplifier driven hard.',
     effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Dub sweep',
-        params: { lfoRateHz: 0.443, envAttackMs: 10.7, envReleaseMs: 221 },
-      },
-      { deviceId: 'flanger', preset: 'Classic jet', params: { rate: 0.255, delayMs: 2.54 } },
+      { deviceId: 'chorus', preset: 'Hollow swell' },
+      { deviceId: 'rotary', preset: 'Slow burn' },
     ],
   },
   {
-    id: 'oxide-wavering-sway',
-    name: 'Wavering sway',
+    id: 'oxide-phaser-on-the-shelf',
+    name: 'Phaser on the shelf',
     category: 'motion',
     description:
-      'A transformer that fills out the lows and dulls the top, then a slow reel whose pitch sways widely and never settles.',
+      'A four-stage phaser with two broad notches, turning slowly, into a far-off plate haze with a long, soft tail.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'tape', preset: 'Seasick', params: { output: -2.29 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage' },
+      { deviceId: 'plate-reverb', preset: 'Distant haze' },
     ],
   },
   {
-    id: 'oxide-brittle-pad',
-    name: 'Brittle pad',
-    category: 'texture',
+    id: 'oxide-warble-unlabelled',
+    name: 'Warble unlabelled',
+    category: 'motion',
     description:
-      'A dark, round pad that melts slowly from chord to chord, then a drifting reel laid against the dry sound to make a chorus.',
+      'A fast vibrato that warbles the whole sound in pitch, into a combo amplifier heard from the far side of a big room.',
     effects: [
-      { deviceId: 'sustainer', preset: 'Dark bed', params: { attack: 1.11, glide: 2.7 } },
-      { deviceId: 'tape', preset: 'Drifting chorus', params: { output: -5.02 } },
-    ],
-  },
-  {
-    id: 'oxide-print-through-drift',
-    name: 'Print-through drift',
-    category: 'texture',
-    description:
-      'A blurred loop that never comes round quite the same, into a hall whose lows ring on long after the rest has gone.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Drifting' },
-      { deviceId: 'hall-reverb', preset: 'Warm undertow' },
+      { deviceId: 'chorus', preset: 'Vibrato', params: { rate: 4.86, delayMs: 5.58 } },
+      { deviceId: 're-amp', preset: 'Down the hall' },
     ],
   },
   {
@@ -934,21 +905,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Ferric pad',
     category: 'texture',
     description:
-      'A muffled, slow-fading string pad with its top taken off, then a mid-forward tone with the lows and the top trimmed.',
+      'A muffled string pad that is slow to fade away, then a mid-forward tone with the lows and the top trimmed.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Felted pad', params: { rise: 0.868, fall: 11.8 } },
       { deviceId: 'ambient-eq', preset: 'Forward' },
-    ],
-  },
-  {
-    id: 'oxide-crumbling-tide',
-    name: 'Crumbling tide',
-    category: 'texture',
-    description:
-      'Dark backwards loops of each note and its octave below, into a small room that answers about an eighth of a second late.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Undertow', params: { time: 584 } },
-      { deviceId: 'ether-reverb', preset: 'Slap room' },
     ],
   },
   {
@@ -963,6 +923,39 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'oxide-old-stock-swell',
+    name: 'Old-stock swell',
+    category: 'texture',
+    description:
+      'A short swell that rounds the front off every note, then a short, soft tape echo close behind the playing.',
+    effects: [
+      { deviceId: 'swell', preset: 'Slow attack' },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 157 } },
+    ],
+  },
+  {
+    id: 'oxide-yellowed-undertow',
+    name: 'Yellowed undertow',
+    category: 'texture',
+    description:
+      'A blurred bed of bass that hangs low under the sound, then a ten-stage phaser that takes most of a minute to sweep.',
+    effects: [
+      { deviceId: 'spectral-blur', preset: 'Sub bed' },
+      { deviceId: 'phaser', preset: 'Glacial sweep' },
+    ],
+  },
+  {
+    id: 'oxide-fog-next-door',
+    name: 'Fog next door',
+    category: 'texture',
+    description:
+      'A dense, wide fog of grains that buries the dry sound, then a dull, wobbling, saturated echo on worn tape.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Thick fog', params: { size: 470, density: 92.5 } },
+      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 645 } },
+    ],
+  },
+  {
     id: 'oxide-sagging-undertow',
     name: 'Sagging undertow',
     category: 'pitch',
@@ -971,17 +964,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'half-speed', preset: 'Under the mix', params: { length: 1250 } },
       { deviceId: 'patina', preset: 'Dusty record' },
-    ],
-  },
-  {
-    id: 'oxide-fifth-in-a-shoebox',
-    name: 'Fifth in a shoebox',
-    category: 'pitch',
-    description:
-      'Scattered grains a fifth down, spread across both sides, then a badly worn record, swaying in pitch under loud crackle.',
-    effects: [
-      { deviceId: 'half-speed', preset: 'Fifth down grains' },
-      { deviceId: 'patina', preset: 'Scratched record' },
     ],
   },
   {
@@ -1011,7 +993,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Old-stock loop',
     category: 'pitch',
     description:
-      'A half-speed loop that plays the last phrase an octave down, into a dark reverb that rises behind each note, then lingers.',
+      'A half-speed loop that plays the last phrase an octave down, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Half speed' },
       { deviceId: 'shaped-reverb', preset: 'Ghost' },
@@ -1038,17 +1020,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'half-speed', preset: 'Half speed' },
       { deviceId: 'vinyl', preset: 'Slow platter', params: { spin: 5.13 } },
-    ],
-  },
-  {
-    id: 'oxide-half-erased-loop',
-    name: 'Half-erased loop',
-    category: 'pitch',
-    description:
-      'A low, dark tape loop played backwards at half speed, then a muffled early sampler, its top filtered away.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Slow backwards' },
-      { deviceId: 'patina', preset: 'Muffled sampler', params: { output: 2.55 } },
     ],
   },
   {
@@ -1089,7 +1060,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Octave off the shelf',
     category: 'pitch',
     description:
-      'A half-speed replay an octave down, with no dry sound, then a muffled, slow-fading string pad with its top taken off.',
+      'A half-speed replay an octave down, with no dry sound, then a muffled string pad that is slow to fade away.',
     effects: [
       { deviceId: 'half-speed', preset: 'Half speed', params: { length: 1100 } },
       { deviceId: 'pad-follower', preset: 'Felted pad', params: { rise: 0.88, fall: 10.9 } },
@@ -1107,15 +1078,36 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-depths-in-a-shoebox',
-    name: 'Depths in a shoebox',
+    id: 'oxide-shedding-undertow',
+    name: 'Shedding undertow',
     category: 'pitch',
     description:
-      'A quarter-speed crawl, then a soft bucket-brigade echo, into a huge dark cathedral with only the lows left ringing.',
+      'Whole phrases dragged out at half speed, an octave down, then a far radio station, fading in and out of heavy static.',
     effects: [
-      { deviceId: 'half-speed', preset: 'Quarter speed' },
-      { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 383, modRate: 0.662 } },
-      { deviceId: 'expanse', preset: 'Low cathedral' },
+      { deviceId: 'half-speed', preset: 'Long drag' },
+      { deviceId: 'patina', preset: 'Distant station', params: { output: 8.87 } },
+    ],
+  },
+  {
+    id: 'oxide-octave-kept-too-long',
+    name: 'Octave kept too long',
+    category: 'pitch',
+    description:
+      'An unbroken half-speed bed an octave down, with no dry sound, then a worn dictation cassette, dull, trembling and full of hiss.',
+    effects: [
+      { deviceId: 'half-speed', preset: 'Smooth octave', params: { length: 2460 } },
+      { deviceId: 'tape', preset: 'Old dictation' },
+    ],
+  },
+  {
+    id: 'oxide-rusting-octaves',
+    name: 'Rusting octaves',
+    category: 'pitch',
+    description:
+      'A quarter-speed copy two octaves down under the dry sound, then a big lift of the low end that puts weight under the sound.',
+    effects: [
+      { deviceId: 'half-speed', preset: 'Two octaves', params: { mix: 0.24 } },
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.18 } },
     ],
   },
   {
@@ -1143,18 +1135,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-master-in-the-attic',
-    name: 'Master in the attic',
-    category: 'master',
-    description:
-      'The first hint of weight from a tape preamp, then a subsonic cut, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.07 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'oxide-unmarked-finish',
     name: 'Unmarked finish',
     category: 'master',
@@ -1179,14 +1159,27 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-master-left-in-sun',
-    name: 'Master left in sun',
+    id: 'oxide-mixdown-under-dust',
+    name: 'Mixdown under dust',
     category: 'master',
     description:
-      'A stereo image widened a little, with the bass left central, then a brickwall ceiling that touches nothing beneath it.',
+      'A subsonic cut, then a stereo image widened a little, with the bass left central, then a safety limiter.',
     effects: [
+      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.79 } },
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'oxide-powdered-lacquer',
+    name: 'Powdered lacquer',
+    category: 'master',
+    description:
+      'A little soft saturation, then a very gentle compressor, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 566, release: 4.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.41, gain: -3.85 } },
     ],
   },
 ]

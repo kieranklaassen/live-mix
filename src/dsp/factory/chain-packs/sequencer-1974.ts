@@ -37,7 +37,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'S-bahn choir',
     category: 'space',
     description:
-      'A low cut that thins the bass, with a little air on top, into a soft sung oo that follows a moment behind each note.',
+      'A low cut that thins the bass, with a little air on top, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture' },
       { deviceId: 'vowel-reverb', preset: 'Oo behind', params: { decay: 4.12, preDelay: 71.2 } },
@@ -132,51 +132,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-chancel-choir',
-    name: 'Chancel choir',
-    category: 'space',
-    description:
-      'A single saturated tape echo close behind each note, into a hall of deep voices that sing ee late behind each note.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 100 } },
-      { deviceId: 'vowel-reverb', preset: 'Late basses' },
-    ],
-  },
-  {
-    id: 'sequencer-1974-hall-in-november',
-    name: 'Hall in November',
-    category: 'space',
-    description:
-      'A single dull spring kept low in the centre of the sound, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.62 } },
-      { deviceId: 'expanse', preset: 'Open space', params: { decay: 11, modRate: 0.366 } },
-    ],
-  },
-  {
-    id: 'sequencer-1974-november-plate',
-    name: 'November plate',
-    category: 'space',
-    description:
-      'A muffling high cut, then a single saturated tape echo close behind each note, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.46 } },
-      { deviceId: 'tape-echo', preset: 'Single slap' },
-      { deviceId: 'plate-reverb', preset: 'Dark plate' },
-    ],
-  },
-  {
-    id: 'sequencer-1974-valve-warm-murmur',
-    name: 'Valve-warm murmur',
-    category: 'space',
-    description:
-      'A single dull spring kept low in the centre of the sound, into a dull closed-mouth hum of deep voices behind the sound.',
-    effects: [
-      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.7 } },
-      { deviceId: 'vowel-reverb', preset: 'Humming' },
-    ],
-  },
-  {
     id: 'sequencer-1974-all-night-plate',
     name: 'All-night plate',
     category: 'space',
@@ -199,6 +154,51 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'sequencer-1974-sheen-in-november',
+    name: 'Sheen in November',
+    category: 'space',
+    description:
+      'An equaliser that takes presence, air and lows away, then a two-spring tank with a little chirp and drip, into a quiet late plate.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Distant' },
+      { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { decay: 2.54 } },
+      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 99.5 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-winter-night-springs',
+    name: 'Winter-night springs',
+    category: 'space',
+    description:
+      'Three long-ringing springs that chirp and drip, then a thin band of tone with the lows cut and the top rolled off.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.15 } },
+      { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.53 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-courtyard-voices',
+    name: 'Courtyard voices',
+    category: 'space',
+    description:
+      'An equaliser that takes presence, air and lows away, into a vast hall whose long tail sings a high bright "ah".',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.47 } },
+      { deviceId: 'vowel-reverb', preset: 'High choir' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-november-flutter',
+    name: 'November flutter',
+    category: 'space',
+    description:
+      'A thick ensemble chorus turning about every two seconds, into a space whose tail flutters quickly in pitch.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.559, delayMs: 18.7 } },
+      { deviceId: 'expanse', preset: 'Fast flutter', params: { decay: 4.8 } },
+    ],
+  },
+  {
     id: 'sequencer-1974-echo-near-dawn',
     name: 'Echo near dawn',
     category: 'echo',
@@ -214,7 +214,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Scope-lit echo',
     category: 'echo',
     description:
-      'A tape echo whose three heads make a cluster of each repeat, into three long springs with all the top taken off.',
+      'A tape echo whose three heads make a cluster of each repeat, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 596 } },
       { deviceId: 'spring-reverb', preset: 'Underwater' },
@@ -236,7 +236,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Eight-step echo',
     category: 'echo',
     description:
-      'A tape echo whose warm repeats soften as they fade, into three long springs with all the top taken off.',
+      'A tape echo whose warm repeats soften as they fade, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 336 } },
       { deviceId: 'spring-reverb', preset: 'Underwater' },
@@ -258,7 +258,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Back-room loop',
     category: 'echo',
     description:
-      'A tape loop that wears thinner and duller on every pass, into a far-off room laid in under the untouched sound.',
+      'A tape loop that wears thinner and duller on every pass, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Worn out' },
       { deviceId: 're-amp', preset: 'Room underneath', params: { output: 6.63 } },
@@ -359,18 +359,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-third-reel-echo',
-    name: 'Third-reel echo',
-    category: 'echo',
-    description:
-      'A tape preamp driven for thick lows and a dull top, then a faint tape echo, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Tape weight' },
-      { deviceId: 'tape-echo', preset: 'Faint trace', params: { time: 492 } },
-      { deviceId: 'plate-reverb', preset: 'Dark plate' },
-    ],
-  },
-  {
     id: 'sequencer-1974-midnight-echo',
     name: 'Midnight echo',
     category: 'echo',
@@ -380,17 +368,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Hot glue' },
       { deviceId: 'tape-echo', preset: 'Dub wash' },
       { deviceId: 'spring-reverb', preset: 'Tight long tank', params: { decay: 5.62 } },
-    ],
-  },
-  {
-    id: 'sequencer-1974-november-fifths',
-    name: 'November fifths',
-    category: 'echo',
-    description:
-      'A combo amplifier heard from the far side of a big room, then an echo whose repeats hop up a fifth and down a fourth.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Down the hall' },
-      { deviceId: 'analog-delay', preset: 'Fifth hop', params: { time: 310, modRate: 0.65 } },
     ],
   },
   {
@@ -431,7 +408,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Canal-side loop',
     category: 'echo',
     description:
-      'A tape loop about a second round that soon dies away, into a thin veil of reverb kept low under the sound.',
+      'A tape loop about one second long that soon dies away, into a thin veil of reverb kept low under the sound.',
     effects: [
       { deviceId: 'tape-loop', preset: 'One second round' },
       { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { decay: 2.68, breathRate: 0.323 } },
@@ -460,6 +437,30 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'sequencer-1974-echo-till-morning',
+    name: 'Echo till morning',
+    category: 'echo',
+    description:
+      'A fast, steady reel with soft saturation, then a chorused echo, into a bright spring splash that lands a moment after the note.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 266, modRate: 0.891 } },
+      { deviceId: 'spring-reverb', preset: 'Late splash', params: { decay: 1.24, predelay: 188 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-coal-cellar-echo',
+    name: 'Coal-cellar echo',
+    category: 'echo',
+    description:
+      'A small amplifier muffled as if under a pillow, then a three-head tape echo, into a plain hall with about four seconds of tail.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Pillow speaker' },
+      { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 497 } },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.69, breathRate: 0.283 } },
+    ],
+  },
+  {
     id: 'sequencer-1974-second-row-reel',
     name: 'Second-row reel',
     category: 'tape',
@@ -476,7 +477,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Rehearsal reel',
     category: 'tape',
     description:
-      'A slow reel whose pitch sways widely and never settles, then a hollow peaking phaser, into three long springs with all the top taken off.',
+      'A slow reel that sways, then a hollow, resonant phaser, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'tape', preset: 'Seasick', params: { output: -2.02 } },
       { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.237 } },
@@ -524,28 +525,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-chorus-till-morning',
-    name: 'Chorus till morning',
-    category: 'tape',
-    description:
-      'A dense many-notched phaser drifting opposite on each side, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.117 } },
-      { deviceId: 'tape', preset: 'Drifting chorus', params: { output: -0.308 } },
-    ],
-  },
-  {
-    id: 'sequencer-1974-night-run-hiss',
-    name: 'Night-run hiss',
-    category: 'tape',
-    description:
-      'A clean bright reel under a thick layer of tape hiss, then a nasal horn loudspeaker heard from far across a big room.',
-    effects: [
-      { deviceId: 'tape', preset: 'Hiss and air' },
-      { deviceId: 're-amp', preset: 'Station platform', params: { output: 4.3 } },
-    ],
-  },
-  {
     id: 'sequencer-1974-candlelit-tape',
     name: 'Candlelit tape',
     category: 'tape',
@@ -554,28 +533,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Needles pinned' },
       { deviceId: 'fdn-reverb', preset: 'Short ambience' },
-    ],
-  },
-  {
-    id: 'sequencer-1974-tenement-rotary',
-    name: 'Tenement rotary',
-    category: 'tape',
-    description:
-      'A stopped speaker cabinet with its amplifier growling, then tape hiss that rises with each note and dies with it.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Parked growl' },
-      { deviceId: 'noise-floor', preset: 'Riding hiss', params: { response: 0.144, hold: 1.76 } },
-    ],
-  },
-  {
-    id: 'sequencer-1974-canal-side-chorus',
-    name: 'Canal-side chorus',
-    category: 'tape',
-    description:
-      'A wide chorus drifting over a cycle of about twelve seconds, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Slow drift' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
     ],
   },
   {
@@ -599,6 +556,52 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Shaded' },
       { deviceId: 'patina', preset: 'Reel pushed hard' },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 568 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-planetarium-reel',
+    name: 'Planetarium reel',
+    category: 'tape',
+    description:
+      'A wide string pad that never stops shifting and shimmering, then a tape reel pushed hard, saturated and thick.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Restless', params: { rise: 0.51, fall: 5.83 } },
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-tape-out-of-tune',
+    name: 'Tape out of tune',
+    category: 'tape',
+    description:
+      'An old slow reel that drifts, dulls, drops out and hisses, into a big muffled cave that rings for about six seconds.',
+    effects: [
+      { deviceId: 'tape', preset: 'Worn thin' },
+      { deviceId: 'fdn-reverb', preset: 'Dark cave' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-chancel-flutter',
+    name: 'Chancel flutter',
+    category: 'tape',
+    description:
+      'A stopped rotating speaker with its amplifier growling, then a trembling reel, into a small plain room that is over in about a second.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Parked growl' },
+      { deviceId: 'tape', preset: 'Flutter shimmer', params: { output: -7 } },
+      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.07, breathRate: 0.323 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-black-knob-tape',
+    name: 'Black-knob tape',
+    category: 'tape',
+    description:
+      'A mid-forward tone, then a tape reel pushed hard, saturated and thick, then a tape echo whose warm repeats soften as they fade.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.48 } },
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 335 } },
     ],
   },
   {
@@ -628,7 +631,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Slow-turning phaser',
     category: 'motion',
     description:
-      'A four-stage phaser kept high, leaving the low end alone, into three long springs with all the top taken off.',
+      'A four-stage phaser kept high, leaving the low end alone, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.357 } },
       { deviceId: 'spring-reverb', preset: 'Underwater' },
@@ -791,7 +794,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Last-tram ripple',
     category: 'motion',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, then a harmonic tremolo whose lows and highs trade places quickly.',
+      'A sharp copy hard left and a flat one hard right, alone, then a harmonic tremolo whose lows and highs trade places quickly.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 14.8 } },
       { deviceId: 'tremolo', preset: 'Harmonic shimmer', params: { rate: 3.62 } },
@@ -802,7 +805,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Filter turning slow',
     category: 'motion',
     description:
-      'A low-pass that opens and closes over about half a minute, into a hall whose tail sings a high ee.',
+      'A low-pass that opens and closes over about half a minute, into a reverb whose tail sings a high "ee".',
     effects: [
       {
         deviceId: 'auto-filter',
@@ -839,7 +842,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Phaser in dry ice',
     category: 'motion',
     description:
-      'A shallow phaser pulsing about four times a second, then a faint, dull echo with a slow chorus on it.',
+      'A shallow phaser pulsing four or five times a second, then a faint, dull echo with a slow chorus on it.',
     effects: [
       { deviceId: 'phaser', preset: 'Fast throb', params: { rate: 4.04 } },
       { deviceId: 'analog-delay', preset: 'Faint halo', params: { time: 237, modRate: 0.422 } },
@@ -912,21 +915,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Swell before dawn',
     category: 'texture',
     description:
-      'A slow swell after each silence that opens only at the end, into a bright chamber that rings for a couple of seconds.',
+      'A slow swell after each silence, opening late in its rise, into a bright chamber that rings for a couple of seconds.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1520, release: 706 } },
       { deviceId: 'expanse', preset: 'Bright chamber' },
-    ],
-  },
-  {
-    id: 'sequencer-1974-pad-heard-far-off',
-    name: 'Pad heard far off',
-    category: 'texture',
-    description:
-      'A string pad that stands alone in place of what is played, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Pad alone', params: { rise: 0.36, fall: 5.11 } },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
     ],
   },
   {
@@ -934,7 +926,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Winter-night strings',
     category: 'texture',
     description:
-      'A dark string pad that lingers long after each chord, into a dark reverb that rises behind each note, then lingers.',
+      'A dark string pad that lingers long after each chord, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Lingering', params: { rise: 1.1, fall: 20 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.01, preDelay: 64.1 } },
@@ -971,6 +963,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Slow attack', params: { attack: 152, release: 74.5 } },
       { deviceId: 'sustainer', preset: 'Dark bed', params: { glide: 2.74 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-pad-on-the-hour',
+    name: 'Pad on the hour',
+    category: 'texture',
+    description:
+      'A held pad that takes seconds to melt into each new chord, into a medium hall with only a breath of voice in its tail.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Long glide', params: { attack: 1.46, glide: 4.94 } },
+      { deviceId: 'vowel-reverb', preset: 'Whispering' },
     ],
   },
   {
@@ -1011,7 +1014,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Empty-street octave',
     category: 'pitch',
     description:
-      'A half-deep swell that leaves a ghost of each attack, then a rounded octave below every note of a chord.',
+      'A shallow swell that leaves a ghost of each attack, then a rounded octave below every note of a chord.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 465, release: 148 } },
       { deviceId: 'octaves', preset: 'Sub octave' },
@@ -1084,30 +1087,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-valve-warm-polish',
-    name: 'Valve-warm polish',
-    category: 'master',
-    description:
-      'Light tape-style saturation, then a small dip in the low mids, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.56 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.56 } },
-    ],
-  },
-  {
-    id: 'sequencer-1974-finish-on-row-two',
-    name: 'Finish on row two',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a gentle compressor, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 105, release: 2.16 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'sequencer-1974-black-knob-master',
     name: 'Black-knob master',
     category: 'master',
@@ -1165,6 +1144,30 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 132, release: 1.38 } },
       { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.6 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-mixdown-on-the-hour',
+    name: 'Mixdown on the hour',
+    category: 'master',
+    description:
+      'A parallel compressor, then a slightly wider image, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 445, release: 3.05 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.54 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-dial-lit-finish',
+    name: 'Dial-lit finish',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a rumble cut and a small lift of presence, then a lightly pushed limiter.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

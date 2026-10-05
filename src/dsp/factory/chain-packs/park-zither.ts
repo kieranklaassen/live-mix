@@ -11,7 +11,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Springs fountainside',
     category: 'space',
     description:
-      'A hollow peaking phaser that turns about every four seconds, into a two-spring tank with a little chirp and drip.',
+      'A hollow, resonant phaser turning about every four seconds, into a two-spring tank with a little chirp and drip.',
     effects: [
       { deviceId: 'phaser', preset: 'Negative notch' },
       { deviceId: 'spring-reverb', preset: 'Two spring tank' },
@@ -33,21 +33,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Unhurried swell',
     category: 'space',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, into a large space whose tail swells in behind each note.',
+      'A sharp copy hard left and a flat one hard right, alone, into a large space whose tail swells in behind each note.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only' },
       { deviceId: 'expanse', preset: 'Bloom', params: { decay: 14.4, modRate: 0.294 } },
-    ],
-  },
-  {
-    id: 'park-zither-halo-for-coins',
-    name: 'Halo for coins',
-    category: 'space',
-    description:
-      'A tight cluster of tape repeats, like a very small room, into a reverb that comes in late and climbs by octaves and fifths.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 88.7 } },
-      { deviceId: 'shimmer', preset: 'Late answer' },
     ],
   },
   {
@@ -77,7 +66,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Springs on the path',
     category: 'space',
     description:
-      'A thick ensemble chorus turning about every two seconds, into three long springs that chirp and drip.',
+      'A thick ensemble chorus turning about every two seconds, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble' },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.3 } },
@@ -167,21 +156,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo under hammers',
     category: 'space',
     description:
-      'A big lift of presence and air, with ringing held in check, into a vast reverb where most of the tail climbs by octaves.',
+      'A big lift of presence and air, into a vast reverb where most of the tail climbs by octaves.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Bright' },
       { deviceId: 'shimmer', preset: 'Endless ascent' },
-    ],
-  },
-  {
-    id: 'park-zither-sprinkler-hall',
-    name: 'Sprinkler hall',
-    category: 'space',
-    description:
-      'A hall whose tail sings a soft ah, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Choir of ah' },
-      { deviceId: 'expanse', preset: 'Open space', params: { decay: 11.2, modRate: 0.356 } },
     ],
   },
   {
@@ -208,14 +186,36 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-barefoot-amp',
-    name: 'Barefoot amp',
+    id: 'park-zither-high-wire-shimmer',
+    name: 'High-wire shimmer',
     category: 'space',
     description:
-      'Soft saturation that adds the octave above each note, then a combo amplifier boxed in by the walls of a cupboard.',
+      'A reverb that comes in late and climbs by octaves and fifths, into a vast nave that rings for about eight seconds.',
     effects: [
-      { deviceId: 'saturator', preset: 'Octave glow' },
-      { deviceId: 're-amp', preset: 'In the cupboard' },
+      { deviceId: 'shimmer', preset: 'Late answer' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { lowDecay: 7.41, mix: 0.374 } },
+    ],
+  },
+  {
+    id: 'park-zither-room-on-a-blanket',
+    name: 'Room on a blanket',
+    category: 'space',
+    description:
+      'A fast, steady reel with soft saturation, into a tiny boxy room that is gone almost at once.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck', params: { output: -2.69 } },
+      { deviceId: 'expanse', preset: 'Small box' },
+    ],
+  },
+  {
+    id: 'park-zither-barefoot-springs',
+    name: 'Barefoot springs',
+    category: 'space',
+    description:
+      'Three springs heard alone with none of the dry sound left, then a low cut that thins the bass, with a little air on top.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Tank alone', params: { decay: 2.88 } },
+      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.68 } },
     ],
   },
   {
@@ -279,7 +279,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bronze echo',
     category: 'echo',
     description:
-      'A tape echo whose three heads make a cluster of each repeat, then a combo amplifier heard from the far side of a big room.',
+      'A tape echo whose three heads make a cluster of each repeat, into a combo amplifier heard from the far side of a big room.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads' },
       { deviceId: 're-amp', preset: 'Down the hall' },
@@ -441,25 +441,18 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-park-bench-echo',
-    name: 'Park-bench echo',
+    id: 'park-zither-barefoot-arpeggio',
+    name: 'Barefoot arpeggio',
     category: 'echo',
     description:
-      'A plain, centred echo rebuilt from grains, into the octave-climbing tail of a large reverb by itself.',
+      'Each note answered by a rising C pentatonic run of echoes, into a short bright room whose tail splits a fifth up and down.',
     effects: [
-      { deviceId: 'grain-delay', preset: 'Plain repeat' },
-      { deviceId: 'shimmer', preset: 'Rising tail alone', params: { decay: 18.6 } },
-    ],
-  },
-  {
-    id: 'park-zither-brownstone-drift',
-    name: 'Brownstone drift',
-    category: 'tape',
-    description:
-      'A four-stage phaser kept high, leaving the low end alone, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.355 } },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
+      {
+        deviceId: 'lattice',
+        preset: 'Pentatonic harp',
+        params: { v1Delay: 155, v2Delay: 292, v3Delay: 425, v4Delay: 484, output: 5.53 },
+      },
+      { deviceId: 'bloom-reverb', preset: 'Quick sparkle' },
     ],
   },
   {
@@ -467,21 +460,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Downtown flutter',
     category: 'tape',
     description:
-      'A slow reel that trembles fast, mixed against the dry sound, into a bright spring splash that lands a moment after the note.',
+      'A slow-speed reel with a quick flutter against the dry sound, into a bright spring splash that lands a moment after the note.',
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer' },
       { deviceId: 'spring-reverb', preset: 'Late splash', params: { decay: 1.08, predelay: 196 } },
-    ],
-  },
-  {
-    id: 'park-zither-marigold-drift',
-    name: 'Marigold drift',
-    category: 'tape',
-    description:
-      'A scooped tone with lows and highs up and the body down, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.65 } },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
     ],
   },
   {
@@ -531,6 +513,28 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'park-zither-reel-by-the-arch',
+    name: 'Reel by the arch',
+    category: 'tape',
+    description:
+      'A slow flanger sweep, opposite on each side, then a tape reel pushed hard, saturated and thick.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Drifting comb' },
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+    ],
+  },
+  {
+    id: 'park-zither-busking-reel',
+    name: 'Busking reel',
+    category: 'tape',
+    description:
+      'A dense many-notched phaser drifting opposite on each side, then a reel driven as hard as it goes, thick with harmonics.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.135 } },
+      { deviceId: 'tape', preset: 'Needles pinned' },
+    ],
+  },
+  {
     id: 'park-zither-stone-arch-phaser',
     name: 'Stone-arch phaser',
     category: 'motion',
@@ -559,7 +563,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wire-brush phaser',
     category: 'motion',
     description:
-      'A hollow peaking phaser, then a thinning tape echo, into a long bright reverb tail kept low behind the sound.',
+      'A hollow, resonant phaser, then a thinning tape echo, into a long bright reverb tail kept low behind the sound.',
     effects: [
       { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.239 } },
       { deviceId: 'tape-echo', preset: 'Thin and fading' },
@@ -646,7 +650,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Chess-table flanger',
     category: 'motion',
     description:
-      'A shallow flanger that ramps and snaps back in a steady beat, into three long springs that chirp and drip.',
+      'A shallow flanger that ramps and snaps back in a steady beat, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'flanger', preset: 'Tremolo saw', params: { rate: 1.91, delayMs: 2.93 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.86 } },
@@ -680,7 +684,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Shirtsleeve flanger',
     category: 'motion',
     description:
-      'A hollow flanger, then a clean, steady echo with no wobble and little dulling, into three long springs that chirp and drip.',
+      'A hollow flanger, then a clean, steady echo with no wobble and little dulling, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'flanger', preset: 'Negative hollow', params: { rate: 0.369, delayMs: 1.49 } },
       { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 200, modRate: 0.631 } },
@@ -703,7 +707,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Picnic tremolo',
     category: 'motion',
     description:
-      'A steady amplifier tremolo, about four pulses a second, then a plain echo that is a little darker on each repeat.',
+      'A steady amplifier tremolo, four or five pulses a second, then a plain echo that is a little darker on each repeat.',
     effects: [
       { deviceId: 'tremolo', preset: 'Amp tremolo' },
       {
@@ -834,7 +838,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wind-bent pad',
     category: 'motion',
     description:
-      'A held pad whose every overtone wavers in pitch and level, into a huge hall whose tail hums a soft oo for a long while.',
+      'A held pad whose every overtone wavers in pitch and level, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'sustainer', preset: 'Wavering choir', params: { glide: 0.586 } },
       { deviceId: 'vowel-reverb', preset: 'Endless oo', params: { decay: 36.1, preDelay: 18.8 } },
@@ -964,7 +968,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Stoop shimmer',
     category: 'texture',
     description:
-      'A wide string pad that never stops shifting and shimmering, into a cathedral whose long tail sings a soft open ah.',
+      'A wide string pad that never stops shifting and shimmering, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'pad-follower', preset: 'Restless' },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 17.9, preDelay: 44.9 } },
@@ -1132,29 +1136,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-master-on-a-bench',
-    name: 'Master on a bench',
-    category: 'master',
-    description:
-      'A fresh reel of tape, then a very gentle compressor, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Glue' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming' },
-    ],
-  },
-  {
-    id: 'park-zither-polish-in-the-park',
-    name: 'Polish in the park',
-    category: 'master',
-    description:
-      'A stereo image widened a little, with the bass left central, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Master' },
-    ],
-  },
-  {
     id: 'park-zither-wire-brush-master',
     name: 'Wire-brush master',
     category: 'master',
@@ -1176,6 +1157,30 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'saturator', preset: 'Soft tape warmth' },
       { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.37 } },
       { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.88 } },
+    ],
+  },
+  {
+    id: 'park-zither-brownstone-polish',
+    name: 'Brownstone polish',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a very gentle compressor, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 632, release: 4.07 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'park-zither-half-heard-master',
+    name: 'Half-heard master',
+    category: 'master',
+    description:
+      'A fresh reel of tape, then an even-handed compressor, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Keys' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.45 } },
     ],
   },
 ]

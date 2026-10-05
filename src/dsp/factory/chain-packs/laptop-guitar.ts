@@ -77,7 +77,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Heatwave springs',
     category: 'space',
     description:
-      'An equaliser that takes presence, air and lows away, into three long springs that chirp and drip.',
+      'An equaliser that takes presence, air and lows away, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.47 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring' },
@@ -98,22 +98,10 @@ export const CHAINS: readonly FactoryChain[] = [
     id: 'laptop-guitar-awning-plate',
     name: 'Awning plate',
     category: 'space',
-    description:
-      'A long plate with a wide and even tail, then a big lift of presence and air, with ringing held in check.',
+    description: 'A long plate with a wide and even tail, then a big lift of presence and air.',
     effects: [
       { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 40.4 } },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.655 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-line-in-room',
-    name: 'Line-in room',
-    category: 'space',
-    description:
-      'A combo amplifier heard from the far side of a big room, into a wide room heard from its far end.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Down the hall', params: { output: -3.4 } },
-      { deviceId: 'ether-reverb', preset: 'Distant' },
     ],
   },
   {
@@ -125,6 +113,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Sheen' },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 14.9 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-rooftop-mist',
+    name: 'Rooftop mist',
+    category: 'space',
+    description:
+      'Tape-style saturation that rounds only the loudest peaks, into a thin bright reverb with all its lows cut away.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'expanse', preset: 'Thin air' },
     ],
   },
   {
@@ -206,7 +205,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Low-battery refrain',
     category: 'echo',
     description:
-      'Whole phrases that repeat by chance, each time quieter, into three long springs with all the top taken off.',
+      'Whole phrases that repeat by chance, each time quieter, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'glitch', preset: 'Phrase repeats' },
       { deviceId: 'spring-reverb', preset: 'Underwater' },
@@ -233,7 +232,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Snapshot octaves',
     category: 'echo',
     description:
-      'A full, warm transformer, then grain repeats that climb an octave on every pass, into a vast, slowly opening hall.',
+      'A low-thickening transformer, then grain repeats that climb an octave on every pass, into a vast, slowly opening hall.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
       { deviceId: 'grain-delay', preset: 'Crystals', params: { time: 342, size: 123 } },
@@ -278,18 +277,15 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-snapshot-echoes',
-    name: 'Snapshot echoes',
+    id: 'laptop-guitar-promenade-flickers',
+    name: 'Promenade flickers',
     category: 'echo',
     description:
-      'Echoes that jump an octave on every repeat, left and right, into a plate wash that hangs on for half a minute.',
+      'Short glimpses of the last seconds that swarm and pile up, then a gentle high cut that shades the top end, into a far-off hall.',
     effects: [
-      {
-        deviceId: 'lattice',
-        preset: 'Crystal cascade',
-        params: { v1Delay: 323, v2Delay: 455, v3Delay: 166, output: 2.49 },
-      },
-      { deviceId: 'plate-reverb', preset: 'Endless wash' },
+      { deviceId: 'echo-memory', preset: 'Swarm' },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.35 } },
+      { deviceId: 'hall-reverb', preset: 'Far away' },
     ],
   },
   {
@@ -319,7 +315,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Windbreak fuzz',
     category: 'tape',
     description:
-      'A bright, buzzing fuzz from a hard clipper driven flat, then tiny hard-edged grains an octave up, scattered in pitch.',
+      'A bright, buzzing fuzz from a hard clipper driven flat out, then tiny hard-edged grains an octave up, scattered in pitch.',
     effects: [
       { deviceId: 'saturator', preset: 'Fuzz pedal' },
       { deviceId: 'grain-cloud', preset: 'Glass shards' },
@@ -393,22 +389,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-remembered-shortwave',
-    name: 'Remembered shortwave',
-    category: 'tape',
-    description:
-      'A shortwave station crowded by whistles, buzz and data tones, then radio static that sounds only with each note played.',
-    effects: [
-      { deviceId: 'radio', preset: 'Crowded band' },
-      { deviceId: 'noise-floor', preset: 'Static notes' },
-    ],
-  },
-  {
     id: 'laptop-guitar-overexposed-buzz',
     name: 'Overexposed buzz',
     category: 'tape',
     description:
-      'A lift of presence and air, then an audio stream that keeps sticking in long, buzzing loops, then echoes souring apart.',
+      'A big lift of presence and air, then an audio stream that keeps sticking in long, buzzing loops, then echoes souring apart.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Bright' },
       { deviceId: 'low-bitrate', preset: 'Stuck stream' },
@@ -471,18 +456,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-mixdown-buzz',
-    name: 'Mixdown buzz',
-    category: 'tape',
-    description:
-      'A bad, sticking connection, then tape hiss that rises with each note and dies with it, into a long seasick reverb.',
-    effects: [
-      { deviceId: 'low-bitrate', preset: 'Bad connection' },
-      { deviceId: 'noise-floor', preset: 'Riding hiss' },
-      { deviceId: 'expanse', preset: 'Seasick choir', params: { decay: 16.9, modRate: 1.46 } },
-    ],
-  },
-  {
     id: 'laptop-guitar-grit-down-the-line',
     name: 'Grit down the line',
     category: 'tape',
@@ -505,18 +478,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-breakwater-grain',
-    name: 'Breakwater grain',
-    category: 'tape',
-    description:
-      'Light tape-style saturation, then coarse five-bit converters, into a two-spring tank with a little chirp and drip.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth', params: { outputDb: -7.39 } },
-      { deviceId: 'vintage-digital', preset: 'Crushed' },
-      { deviceId: 'spring-reverb', preset: 'Two spring tank' },
-    ],
-  },
-  {
     id: 'laptop-guitar-valves-in-the-patch',
     name: 'Valves in the patch',
     category: 'tape',
@@ -525,17 +486,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 're-amp', preset: 'Speaker on the edge' },
       { deviceId: 'ambient-eq', preset: 'Hollow' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-salted-grain',
-    name: 'Salted grain',
-    category: 'tape',
-    description:
-      'A transformer driven so the low end thickens and loosens, then seven-bit converters whose quiet tails break up and cut off.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows', params: { output: -7.25 } },
-      { deviceId: 'vintage-digital', preset: 'Coarse' },
     ],
   },
   {
@@ -562,6 +512,55 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'saturator', preset: 'Sustain bed' },
       { deviceId: 'noise-floor', preset: 'Close mic' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-overexposed-sampler',
+    name: 'Overexposed sampler',
+    category: 'tape',
+    description:
+      'A thick, loose fuzz from an overloaded transformer, then old converters left unsmoothed, with a glassy ring on top.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron melt', params: { output: -9.01 } },
+      { deviceId: 'vintage-digital', preset: 'Glassy' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-awning-signal',
+    name: 'Awning signal',
+    category: 'tape',
+    description:
+      'A hint of glassy overtones, then an audio stream full of gaps, into three slack springs where every echo is a long chirp.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Folded glass', params: { outputDb: -14.2 } },
+      { deviceId: 'low-bitrate', preset: 'Dropouts' },
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Slack and strange',
+        params: { decay: 3.11, predelay: 29.4 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-august-warble',
+    name: 'August warble',
+    category: 'tape',
+    description:
+      'An audio stream starved down to a few warbling tones, into a reverb that rises for about four seconds behind each note.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Few partials' },
+      { deviceId: 'shaped-reverb', preset: 'Long rise' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-boardwalk-sampler',
+    name: 'Boardwalk sampler',
+    category: 'tape',
+    description:
+      'A valve preamp, gently driven and a little bright on top, then worn nine-bit converters, grainy, hissing on the high notes.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -9.93 } },
+      { deviceId: 'vintage-digital', preset: 'Worn' },
     ],
   },
   {
@@ -714,7 +713,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Arpeggio on battery',
     category: 'texture',
     description:
-      'Each note replayed as an arpeggio of octaves and fifths, then a nasal horn loudspeaker heard from far across a big room.',
+      'Each note replayed as an arpeggio of octaves and fifths, into a nasal horn loudspeaker heard from far across a big room.',
     effects: [
       { deviceId: 'cascade', preset: 'Rising steps', params: { time: 263 } },
       { deviceId: 're-amp', preset: 'Station platform', params: { output: 6.38 } },
@@ -769,23 +768,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-mixdown-whisper',
-    name: 'Mixdown whisper',
-    category: 'texture',
-    description:
-      'A clean combo amplifier with the treble all the way up, then a wide whisper of the sound with its attacks dissolved, into a bright plate.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Clean and bright', params: { output: 2.38 } },
-      { deviceId: 'spectral-blur', preset: 'Whisper' },
-      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.05 } },
-    ],
-  },
-  {
     id: 'laptop-guitar-balcony-buzz',
     name: 'Balcony buzz',
     category: 'texture',
     description:
-      'A bright, buzzing fuzz from a hard clipper driven flat, then a buzz of tiny grains, into a long bright tail.',
+      'A bright, buzzing fuzz, then a buzz of tiny grains, into a long bright reverb tail kept low behind the sound.',
     effects: [
       { deviceId: 'saturator', preset: 'Fuzz pedal', params: { outputDb: -21.1 } },
       { deviceId: 'grain-cloud', preset: 'Grain buzz' },
@@ -916,7 +903,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Rooftop grains',
     category: 'texture',
     description:
-      'A half-deep swell, then grains thrown up to an octave out of tune either way, into a fully damped hall with a few seconds of tail.',
+      'A shallow swell, then grains thrown up to an octave out of tune either way, into a fully damped hall with a few seconds of tail.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 453, release: 162 } },
       { deviceId: 'grain-delay', preset: 'Scattered pitches', params: { time: 196, size: 76.9 } },
@@ -969,6 +956,18 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Dub send',
         params: { decay: 2.78, predelay: 66.8, mix: 0.3 },
       },
+    ],
+  },
+  {
+    id: 'laptop-guitar-cascade-by-the-kiosk',
+    name: 'Cascade by the kiosk',
+    category: 'texture',
+    description:
+      'A hot valve stage, then the start of each note struck again and again as it fades, into an undamped hall with about three seconds of tail.',
+    effects: [
+      { deviceId: 'patina', preset: 'Hot valve', params: { output: -5.28 } },
+      { deviceId: 'cascade', preset: 'Restruck', params: { time: 458 } },
+      { deviceId: 'fdn-reverb', preset: 'Bright air' },
     ],
   },
   {
@@ -1073,7 +1072,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Souvenir cloud',
     category: 'pitch',
     description:
-      'A wide cloud whose grains jump by fifths and octaves, into a cloud of reverb that swells in after each note and fades.',
+      'A wide cloud whose grains jump by fifths and octaves, into a reverb that swells in after each note and fades away.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Choir of fifths', params: { size: 671, density: 12.8 } },
       { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.33 } },
@@ -1136,18 +1135,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-soundcard-mixdown',
-    name: 'Soundcard mixdown',
-    category: 'master',
-    description:
-      'A gentle compressor, then a slightly wider image, then a brickwall ceiling that touches nothing beneath it.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 92.2, release: 2.13 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: 3.82 } },
-    ],
-  },
-  {
     id: 'laptop-guitar-boardwalk-master',
     name: 'Boardwalk master',
     category: 'master',
@@ -1171,18 +1158,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-desktop-mixdown',
-    name: 'Desktop mixdown',
-    category: 'master',
-    description:
-      'A few decibels of soft saturation with the top eased, then a parallel compressor, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 366, release: 2.72 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: -2.44 } },
-    ],
-  },
-  {
     id: 'laptop-guitar-awning-finish',
     name: 'Awning finish',
     category: 'master',
@@ -1192,6 +1167,30 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 116, release: 1.58 } },
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
       { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.2 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-glittering-finish',
+    name: 'Glittering finish',
+    category: 'master',
+    description:
+      'A fresh reel of tape, open on top and nearly steady, then a gentle compressor, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 109, release: 1.81 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.57, gain: 2.34 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-poolside-finish',
+    name: 'Poolside finish',
+    category: 'master',
+    description:
+      'A small dip in the low mids, then a parallel compressor, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 367, release: 3.28 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.66 } },
     ],
   },
 ]

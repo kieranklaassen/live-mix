@@ -18,17 +18,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-ground-fog-depths',
-    name: 'Ground-fog depths',
-    category: 'space',
-    description:
-      'A small room that is over in about a second, into a deep dark well of slow blurred echoes.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Room' },
-      { deviceId: 'swarm-reverb', preset: 'Dark well' },
-    ],
-  },
-  {
     id: 'reel-room-capstan-halo',
     name: 'Capstan halo',
     category: 'space',
@@ -82,7 +71,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo on risers',
     category: 'space',
     description:
-      'A slow swell after each silence that opens only at the end, into a mellow reverb whose tail splits up and down in pitch.',
+      'A slow swell after each silence, opening late in its rise, into a mellow reverb whose tail splits up and down in pitch.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1450, release: 878 } },
       { deviceId: 'bloom-reverb', preset: 'Scatter' },
@@ -148,17 +137,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-cloud-behind-lath',
-    name: 'Cloud behind lath',
-    category: 'space',
-    description:
-      'A tight chamber close round the sound for about a second, into a cloud of reverb that swells in after each note and fades.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
-      { deviceId: 'shaped-reverb', preset: 'Bloom' },
-    ],
-  },
-  {
     id: 'reel-room-rolled-off-haze',
     name: 'Rolled-off haze',
     category: 'space',
@@ -203,11 +181,37 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'reel-room-lath-hall',
+    name: 'Lath hall',
+    category: 'space',
+    description:
+      'A smooth swell that brings every note in like bowed strings, into a damped hall of about five seconds, heard from far off.',
+    effects: [
+      { deviceId: 'swell', preset: 'String section' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Far away',
+        params: { preDelay: 21.7, lowDecay: 4.56, midDecay: 4.52 },
+      },
+    ],
+  },
+  {
+    id: 'reel-room-hall-off-a-spool',
+    name: 'Hall off a spool',
+    category: 'space',
+    description:
+      'Two copies a few cents sharp and flat, left and right, into a wide hall that answers about a fifth of a second late.',
+    effects: [
+      { deviceId: 'pitch-shifter', preset: 'Doubler', params: { size: 63, delay: 14.7 } },
+      { deviceId: 'ether-reverb', preset: 'Late hall', params: { mix: 0.15 } },
+    ],
+  },
+  {
     id: 'reel-room-reel-tail-first',
     name: 'Reel tail first',
     category: 'echo',
     description:
-      'A slow backwards loop, then a worn dictation cassette, into a plate heard alone with none of the dry sound left.',
+      'A slow backwards loop, then a hissing dictation cassette, into a plate heard alone with none of the dry sound left.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Slow backwards' },
       { deviceId: 'tape', preset: 'Old dictation' },
@@ -219,7 +223,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Crawl-space swells',
     category: 'echo',
     description:
-      'A dark fog of slow backwards swells, then a four-track cassette, then a dark smear of long grains that trails for many seconds.',
+      'A dark fog of slow backwards swells, then a four-track cassette, dull on top, unsteady and hissing, then a dark smear of long grains.',
     effects: [
       { deviceId: 'reverse-delay', preset: 'Dark fog' },
       { deviceId: 'tape', preset: 'Cassette four-track' },
@@ -231,7 +235,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'February loop',
     category: 'echo',
     description:
-      'A low, dark tape loop played backwards at half speed, then a four-track cassette, into a cathedral with about six seconds of tail.',
+      'A slow backwards loop, then a four-track cassette, dull on top, unsteady and hissing, into a cathedral with about six seconds of tail.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Slow backwards', params: { length: 3.78 } },
       { deviceId: 'tape', preset: 'Cassette four-track' },
@@ -259,7 +263,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lath replay',
     category: 'echo',
     description:
-      'Replays of the last seconds, then a far-off, dulled tone, into a large space whose tail swells in behind each note.',
+      'Replays of the last seconds, then a dulled, thinned tone, into a large space whose tail swells in behind each note.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Just now' },
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.66 } },
@@ -380,7 +384,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Gravel-road reel',
     category: 'tape',
     description:
-      'A struck-to-pad swell, then a reel with a little hiss, into a cathedral whose long tail sings a soft open ah.',
+      'A swell of about a second, then a reel with a little hiss, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 858, release: 383 } },
       { deviceId: 'tape', preset: 'Quarter inch', params: { output: 8.74 } },
@@ -392,7 +396,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Linoleum cassette',
     category: 'tape',
     description:
-      'A volume-pedal swell, then a worn dictation cassette, into a huge space that answers in separate far-off echoes.',
+      'A volume-pedal swell, then a hissing dictation cassette, into a huge space that answers in separate far-off echoes.',
     effects: [
       { deviceId: 'swell', preset: 'Volume pedal' },
       { deviceId: 'tape', preset: 'Old dictation' },
@@ -416,7 +420,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Corncrib drift',
     category: 'tape',
     description:
-      'A long bowed swell, then a slow reel whose pitch sways widely and never settles, into a dark rising reverb.',
+      'A long bowed swell, then a slow reel whose pitch sways widely and never settles, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'swell', preset: 'Slow bow' },
       { deviceId: 'tape', preset: 'Seasick', params: { output: 6.84 } },
@@ -428,7 +432,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Splice-block hiss',
     category: 'tape',
     description:
-      'A lightly worn reel, then muffled tape hiss with its top taken off, steady and thick, into a vast nave that rings for about eight seconds.',
+      'A lightly worn reel, then muffled tape hiss, steady and thick, into a vast nave that rings for about eight seconds.',
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel' },
       { deviceId: 'noise-floor', preset: 'Muffled hiss' },
@@ -496,34 +500,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-stand-light-cassette',
-    name: 'Stand-light cassette',
-    category: 'tape',
-    description:
-      'A far-off combo amp, then a thick, soft cassette, full in the lows and dull on top, into a thin veil of reverb kept low under the sound.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Down the hall' },
-      { deviceId: 'tape', preset: 'Warm thump', params: { output: -3.07 } },
-      { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { decay: 2.64, breathRate: 0.269 } },
-    ],
-  },
-  {
-    id: 'reel-room-slack-spool-reel',
-    name: 'Slack-spool reel',
-    category: 'tape',
-    description:
-      'A high cut set low enough to muffle everything, then a tape loop that wears thinner and duller on every pass.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.54 } },
-      { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 3.24 } },
-    ],
-  },
-  {
     id: 'reel-room-radiator-tape',
     name: 'Radiator tape',
     category: 'tape',
     description:
-      'A half-deep swell, then an old slow reel that drifts, dulls, drops out and hisses, into a plate wash that hangs on for half a minute.',
+      'A shallow swell, then an old slow reel that drifts, dulls, drops out and hisses, into a plate wash that hangs on for half a minute.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick' },
       { deviceId: 'tape', preset: 'Worn thin' },
@@ -535,7 +516,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hum in the hiss',
     category: 'tape',
     description:
-      'A flaking reel, then the low hum of an amplifier left switched on, into a huge dark cathedral with only the lows left ringing.',
+      'A flaking, hissing reel that ducks and dulls at random, then the low hum of an amplifier left switched on, into a huge dark cathedral.',
     effects: [
       { deviceId: 'tape', preset: 'Crumbling oxide' },
       { deviceId: 'noise-floor', preset: 'Amp left on', params: { response: 0.429, hold: 33.4 } },
@@ -563,62 +544,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Section-line hiss',
     category: 'tape',
     description:
-      'An old slow reel that drifts, dulls, drops out and hisses, then dull, thick tape hiss, into a wide open space with a slowly wavering tail.',
+      'A hissing reel dropping out, then muffled tape hiss, steady and thick, into a wide open space with a slowly wavering tail.',
     effects: [
       { deviceId: 'tape', preset: 'Worn thin' },
       { deviceId: 'noise-floor', preset: 'Muffled hiss', params: { response: 0.42, hold: 12.7 } },
       { deviceId: 'expanse', preset: 'Open space' },
-    ],
-  },
-  {
-    id: 'reel-room-drift-run-slack',
-    name: 'Drift run slack',
-    category: 'tape',
-    description:
-      'A dark held drone, then a slow reel whose pitch sways widely and never settles, into a far-off hall.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Deep drone', params: { length: 2.87 } },
-      { deviceId: 'tape', preset: 'Seasick' },
-      { deviceId: 'hall-reverb', preset: 'Far away' },
-    ],
-  },
-  {
-    id: 'reel-room-radio-on-third-copy',
-    name: 'Radio on third copy',
-    category: 'tape',
-    description:
-      'A wearing tape loop, then a small radio speaker muffled as if under a pillow, into a hint of open space behind the sound.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 3.1 } },
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
-      { deviceId: 'expanse', preset: 'Faint air', params: { decay: 2.75, modRate: 0.382 } },
-    ],
-  },
-  {
-    id: 'reel-room-winter-wheat-filter',
-    name: 'Winter-wheat filter',
-    category: 'tape',
-    description:
-      'A steep low-pass that removes all above four hundred hertz, then a thin, even trace of tape hiss, heard in the pauses.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Low-pass gate',
-        params: { lfoRateHz: 1.06, envAttackMs: 9.59, envReleaseMs: 184 },
-      },
-      { deviceId: 'noise-floor', preset: 'Faint hiss', params: { response: 0.352, hold: 13.4 } },
-    ],
-  },
-  {
-    id: 'reel-room-chaff-cassette',
-    name: 'Chaff cassette',
-    category: 'tape',
-    description:
-      'A worn cassette that wobbles, drops out and hisses, then a trace of tape hiss, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'patina', preset: 'Worn cassette' },
-      { deviceId: 'noise-floor', preset: 'Faint hiss', params: { response: 0.365, hold: 12.1 } },
-      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 14.4 } },
     ],
   },
   {
@@ -633,14 +563,87 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-february-fuzz',
-    name: 'February fuzz',
+    id: 'reel-room-coal-chute-reel',
+    name: 'Coal-chute reel',
     category: 'tape',
     description:
-      'A tape preamp overloaded until it breaks up, dull and thick, then a high cut set low enough to muffle everything.',
+      'A mid-forward tone with the lows and the top trimmed, then a slow reel whose pitch sways widely and never settles, then a chorused echo.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Worn tape', params: { output: -11.4 } },
-      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.36 } },
+      { deviceId: 'tape', preset: 'Seasick', params: { output: -3.2 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 255, modRate: 0.862 } },
+    ],
+  },
+  {
+    id: 'reel-room-razor-cut-loop',
+    name: 'Razor-cut loop',
+    category: 'tape',
+    description:
+      'A tape loop that wears thinner and duller on every pass, into a combo amplifier heard from the far side of a big room.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 3.28 } },
+      { deviceId: 're-amp', preset: 'Down the hall' },
+    ],
+  },
+  {
+    id: 'reel-room-late-harvest-tape',
+    name: 'Late-harvest tape',
+    category: 'tape',
+    description:
+      'A thick, soft cassette, full in the lows and dull on top, into a long dark reverb whose tail sinks slowly in pitch.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump', params: { output: 2.61 } },
+      { deviceId: 'bloom-reverb', preset: 'Long dark' },
+    ],
+  },
+  {
+    id: 'reel-room-tape-under-tin',
+    name: 'Tape under tin',
+    category: 'tape',
+    description:
+      'A worn cassette that wobbles, drops out and hisses, then a steep low-pass that removes all above four hundred hertz.',
+    effects: [
+      { deviceId: 'patina', preset: 'Worn cassette', params: { output: -2.97 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 0.972, envAttackMs: 10.4, envReleaseMs: 214 },
+      },
+    ],
+  },
+  {
+    id: 'reel-room-flatland-cassette',
+    name: 'Flatland cassette',
+    category: 'tape',
+    description:
+      'Moments drifting back, then a worn cassette that wobbles, drops out and hisses, into a dark plate whose tail is soft on top.',
+    effects: [
+      { deviceId: 'echo-memory', preset: 'No echo' },
+      { deviceId: 'patina', preset: 'Worn cassette', params: { output: 3.03 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate' },
+    ],
+  },
+  {
+    id: 'reel-room-chaff-loop',
+    name: 'Chaff loop',
+    category: 'tape',
+    description:
+      'A low, dark tape loop played backwards at half speed, then a muffled cassette, its top rolled off and its lows lifted.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Slow backwards', params: { length: 4.07 } },
+      { deviceId: 'tape', preset: 'Under a blanket' },
+    ],
+  },
+  {
+    id: 'reel-room-root-cellar-tape',
+    name: 'Root-cellar tape',
+    category: 'tape',
+    description:
+      'An equaliser that takes presence, air and lows away, then a flaking, hissing reel, then a faint trace of tape echo behind the playing.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Distant' },
+      { deviceId: 'tape', preset: 'Crumbling oxide' },
+      { deviceId: 'tape-echo', preset: 'Faint trace', params: { time: 493 } },
     ],
   },
   {
@@ -806,18 +809,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-folding-chair-wash',
-    name: 'Folding-chair wash',
-    category: 'texture',
-    description:
-      'A slowly dissolving wash, then a mid-forward tone with the lows and the top trimmed, then a very slow compressor.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Slow dissolve' },
-      { deviceId: 'ambient-eq', preset: 'Forward' },
-      { deviceId: 'ambient-comp', preset: 'Slow fader', params: { release: 19, makeup: -2.97 } },
-    ],
-  },
-  {
     id: 'reel-room-heat-lightning-haze',
     name: 'Heat-lightning haze',
     category: 'texture',
@@ -845,7 +836,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Undertow at a splice',
     category: 'texture',
     description:
-      'A first-note swell, then a blurred bed of bass that hangs low under the sound, into a hall whose lows ring on long after the rest has gone.',
+      'A swell after each silence, then a blurred bed of bass that hangs low under the sound, into a hall with long lows.',
     effects: [
       { deviceId: 'swell', preset: 'First note only', params: { attack: 1440, release: 1590 } },
       { deviceId: 'spectral-blur', preset: 'Sub bed' },
@@ -861,7 +852,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wainscot strings',
     category: 'texture',
     description:
-      'A string pad that stands alone in place of what is played, into one slow scatter of echoes over about a second and no tail.',
+      'A string pad that follows the playing and is heard alone, into one slow scatter of echoes over about a second and no tail.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Pad alone' },
       { deviceId: 'swarm-reverb', preset: 'Long scatter', params: { length: 1.14, glide: 0.526 } },
@@ -872,7 +863,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Mist at the mill',
     category: 'texture',
     description:
-      'A wide midrange fog, then a deep pitch wobble in the centre, like a warped tape, into a plain hall with about four seconds of tail.',
+      'A wide midrange fog, then a deep pitch wobble, like a warped tape, into a plain hall with about four seconds of tail.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Band of fog' },
       { deviceId: 'chorus', preset: 'Warped tape' },
@@ -917,7 +908,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Cloud in the gym',
     category: 'texture',
     description:
-      'A wide haze of grains that hangs on long after the playing, then a glacial low-pass, into a medium plate.',
+      'A wide hanging grain haze, then a low-pass that opens and closes over about half a minute, into a medium plate.',
     effects: [
       { deviceId: 'grain-delay', preset: 'Frozen haze' },
       {
@@ -937,6 +928,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'sustainer', preset: 'Stacked harmony' },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 13.7 } },
+    ],
+  },
+  {
+    id: 'reel-room-late-harvest-tide',
+    name: 'Late-harvest tide',
+    category: 'texture',
+    description:
+      'A string pad that arrives long after the chord and stays, then a high cut set low enough to muffle everything, then a deep, slow compressor.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Late tide' },
+      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'ambient-comp', preset: 'Drone bed', params: { attack: 746, release: 10.8 } },
     ],
   },
   {
@@ -1071,7 +1074,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Undertow in low fog',
     category: 'pitch',
     description:
-      'A dark, smooth half-speed octave under the dry sound, then a four-track cassette, then a big lift of the low end.',
+      'A dark octave underneath, then a four-track cassette, dull on top, unsteady and hissing, then a big lift of the low end.',
     effects: [
       { deviceId: 'half-speed', preset: 'Under the mix' },
       { deviceId: 'tape', preset: 'Cassette four-track', params: { output: -3.77 } },
@@ -1088,18 +1091,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'octaves', preset: 'Deep' },
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.05 } },
       { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -12 } },
-    ],
-  },
-  {
-    id: 'reel-room-depths-into-murk',
-    name: 'Depths into murk',
-    category: 'pitch',
-    description:
-      'Dark voices one and two octaves below the dry sound, then a warm, full equaliser, then a full, warm transformer.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Two octaves', params: { size: 153 } },
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.48 } },
-      { deviceId: 'analog-drive', preset: 'Low warmth', params: { output: -6.57 } },
     ],
   },
   {
@@ -1136,15 +1127,19 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-finish-in-plaster',
-    name: 'Finish in plaster',
-    category: 'master',
+    id: 'reel-room-bass-by-one-bulb',
+    name: 'Bass by one bulb',
+    category: 'pitch',
     description:
-      'Light tape-style saturation, then a subsonic cut with the low mids and the presence eased, then a lightly pushed limiter.',
+      'Dark voices one and two octaves below the dry sound, then a steep dark low-pass, then soft tape-style saturation.',
     effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.36 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
+      { deviceId: 'pitch-shifter', preset: 'Two octaves', params: { size: 157 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 0.983, envAttackMs: 11.2, envReleaseMs: 206 },
+      },
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -12.1 } },
     ],
   },
   {
@@ -1160,18 +1155,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-master-at-a-splice',
-    name: 'Master at a splice',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a very gentle compressor that leans on the loudest swells, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-comp', preset: 'Glue' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
-    ],
-  },
-  {
     id: 'reel-room-gravel-road-mixdown',
     name: 'Gravel-road mixdown',
     category: 'master',
@@ -1183,26 +1166,49 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-finish-on-the-flat',
-    name: 'Finish on the flat',
+    id: 'reel-room-storm-window-finish',
+    name: 'Storm-window finish',
     category: 'master',
     description:
-      'A subsonic cut, then a slow compressor that evens out swells over seconds, then a true-peak ceiling set two decibels under full scale.',
+      'Tape-style saturation that rounds only the loudest peaks, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.34 } },
-      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 306, release: 1.83 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.58 } },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only' },
     ],
   },
   {
-    id: 'reel-room-master-down-a-duct',
-    name: 'Master down a duct',
+    id: 'reel-room-winter-wheat-mixdown',
+    name: 'Winter-wheat mixdown',
     category: 'master',
     description:
-      'A few decibels of soft saturation with the top eased, then a brickwall ceiling that touches nothing beneath it.',
+      'A fast, steady reel with soft saturation, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
     effects: [
-      { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.52, gain: -4.53 } },
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.33 } },
+    ],
+  },
+  {
+    id: 'reel-room-lacquer-down-a-row',
+    name: 'Lacquer down a row',
+    category: 'master',
+    description:
+      'A parallel compressor that lifts quiet playing and tails, then a fast limiter that steps in only on the loudest peaks.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 440, release: 2.63 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'reel-room-flatland-polish',
+    name: 'Flatland polish',
+    category: 'master',
+    description:
+      'Tape-style saturation that rounds only the loudest peaks, then a parallel compressor, then a lightly pushed limiter.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 390, release: 3.31 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

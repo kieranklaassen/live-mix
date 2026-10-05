@@ -11,7 +11,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'After-hours plate',
     category: 'space',
     description:
-      'A first-note swell, then a high cut set low enough to muffle everything, into a long plate with a wide and even tail.',
+      'A swell after each silence, then a high cut set low enough to muffle everything, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 'swell', preset: 'First note only', params: { attack: 1550, release: 1680 } },
       { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.35 } },
@@ -23,7 +23,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Two-guitar nave',
     category: 'space',
     description:
-      'A half-deep swell, then an equaliser that adds lows and body and eases the top, into a vast nave that rings for about eight seconds.',
+      'A shallow swell, then an equaliser that adds lows and body and eases the top, into a vast nave that rings for about eight seconds.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 539, release: 158 } },
       { deviceId: 'ambient-eq', preset: 'Warm' },
@@ -107,7 +107,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Choir in the eaves',
     category: 'space',
     description:
-      'An equaliser that takes presence, air and lows away, into a hall of deep voices that sing ee late behind each note.',
+      'An equaliser that takes presence, air and lows away, into a reverb whose deep voices come in late on a sung "ee".',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.33 } },
       { deviceId: 'vowel-reverb', preset: 'Late basses', params: { decay: 6.89, preDelay: 188 } },
@@ -151,21 +151,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-unlit-undertow',
-    name: 'Unlit undertow',
-    category: 'space',
-    description:
-      'A small plate that is gone in a second or two, into a hall whose lows ring on long after the rest has gone.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 9.83 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 54.3, midDecay: 2.09 },
-      },
-    ],
-  },
-  {
     id: 'slow-brass-proscenium-vault',
     name: 'Proscenium vault',
     category: 'space',
@@ -205,18 +190,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-hall-all-evening',
-    name: 'Hall all evening',
-    category: 'space',
-    description:
-      'An equaliser that takes presence, air and lows away, then a short room fed in pulses about twice a second, into a far-off hall.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant' },
-      { deviceId: 'fdn-reverb', preset: 'Pulsing gate', params: { decay: 1.43 } },
-      { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.57, midDecay: 4.04 } },
-    ],
-  },
-  {
     id: 'slow-brass-valley-nodding-off',
     name: 'Valley nodding off',
     category: 'space',
@@ -229,17 +202,6 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Open valley',
         params: { decay: 10.5, predelayMs: 131, breathRate: 0.309 },
       },
-    ],
-  },
-  {
-    id: 'slow-brass-drowsy-hall',
-    name: 'Drowsy hall',
-    category: 'space',
-    description:
-      'A thin veil of reverb kept low under the sound, into a plain hall that rings for about three seconds.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Thin veil' },
-      { deviceId: 'shimmer', preset: 'Plain hall' },
     ],
   },
   {
@@ -291,7 +253,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Muted cathedral',
     category: 'space',
     description:
-      'A sharp copy hard left, a flat one hard right, heard alone, into a huge dark cathedral with only the lows left ringing.',
+      'A sharp copy hard left and a flat one hard right, alone, into a huge dark cathedral with only the lows left ringing.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only' },
       { deviceId: 'expanse', preset: 'Low cathedral', params: { decay: 30.3, modRate: 0.0948 } },
@@ -340,6 +302,43 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.57 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.9, breathRate: 0.317 } },
+    ],
+  },
+  {
+    id: 'slow-brass-upper-circle-hall',
+    name: 'Upper-circle hall',
+    category: 'space',
+    description:
+      'A damped hall of about five seconds, heard from far off, then an equaliser that adds lows and body and eases the top.',
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Far away',
+        params: { preDelay: 20.7, lowDecay: 5.1, midDecay: 4.88, mix: 0.594 },
+      },
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.42 } },
+    ],
+  },
+  {
+    id: 'slow-brass-shade-all-evening',
+    name: 'Shade all evening',
+    category: 'space',
+    description:
+      'A reverb that fades evenly to nothing in a second or two, into a dark plate whose tail is soft on top.',
+    effects: [
+      { deviceId: 'shaped-reverb', preset: 'Falling' },
+      { deviceId: 'plate-reverb', preset: 'Dark plate' },
+    ],
+  },
+  {
+    id: 'slow-brass-swell-in-the-pit',
+    name: 'Swell in the pit',
+    category: 'space',
+    description:
+      'A high cut set low enough to muffle everything, into a reverb that swells in after each note and fades away.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.32 } },
     ],
   },
   {
@@ -444,30 +443,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-drift-by-lamplight',
-    name: 'Drift by lamplight',
-    category: 'tape',
-    description:
-      'The first hint of weight from a tape preamp, then a slow tape chorus, into a clean speaker at the far end of a big, echoing room.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 're-amp', preset: 'Far end of the hall' },
-    ],
-  },
-  {
-    id: 'slow-brass-tape-left-running',
-    name: 'Tape left running',
-    category: 'tape',
-    description:
-      'A four-track cassette, then the low hum of an amplifier left switched on, into a cloud of reverb that swells in after each note and fades.',
-    effects: [
-      { deviceId: 'tape', preset: 'Cassette four-track' },
-      { deviceId: 'noise-floor', preset: 'Amp left on', params: { response: 0.43, hold: 33.7 } },
-      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.43 } },
-    ],
-  },
-  {
     id: 'slow-brass-thunderhead-cassette',
     name: 'Thunderhead cassette',
     category: 'tape',
@@ -484,7 +459,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Cassette at the door',
     category: 'tape',
     description:
-      'A driven valve amplifier, then a four-track cassette, into a huge space that answers in separate far-off echoes.',
+      'A driven valve amplifier, then a four-track cassette, dull on top, unsteady and hissing, into far-off separate echoes.',
     effects: [
       { deviceId: 're-amp', preset: 'Just the valves' },
       { deviceId: 'tape', preset: 'Cassette four-track' },
@@ -496,7 +471,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Reel nodding off',
     category: 'tape',
     description:
-      'A dark amplifier stack with the bass full up and no treble, then a fast, steady reel with soft saturation, into a huge wash by itself.',
+      'A dark amplifier stack with the bass full up and no treble, then a fast, steady reel with soft saturation, into a huge wash heard alone.',
     effects: [
       { deviceId: 're-amp', preset: 'Dark and woolly' },
       { deviceId: 'tape', preset: 'Mastering deck' },
@@ -544,7 +519,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hiss for two',
     category: 'tape',
     description:
-      'A long clear sustain that holds each note for seconds, then dull, thick tape hiss, into a fully damped hall with a few seconds of tail.',
+      'A long clear sustain, then muffled tape hiss, steady and thick, into a fully damped hall with a few seconds of tail.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Long clean hold' },
       { deviceId: 'noise-floor', preset: 'Muffled hiss', params: { response: 0.372, hold: 12.9 } },
@@ -572,6 +547,29 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'patina', preset: 'Reel pushed hard' },
       { deviceId: 'bloom-reverb', preset: 'Still room' },
+    ],
+  },
+  {
+    id: 'slow-brass-fire-door-amp',
+    name: 'Fire-door amp',
+    category: 'tape',
+    description:
+      'A tape preamp pushed just enough to add weight, then a small amplifier muffled as if under a pillow.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue' },
+      { deviceId: 're-amp', preset: 'Pillow speaker', params: { output: -3.22 } },
+    ],
+  },
+  {
+    id: 'slow-brass-sleepless-cassette',
+    name: 'Sleepless cassette',
+    category: 'tape',
+    description:
+      'Long grains of what was played about four seconds ago, then a thick, soft cassette, into a late-arriving hall.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Long memory', params: { size: 1020, density: 5.04 } },
+      { deviceId: 'tape', preset: 'Warm thump', params: { output: 1.76 } },
+      { deviceId: 'fdn-reverb', preset: 'Late arrival' },
     ],
   },
   {
@@ -654,7 +652,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Second-desk drift',
     category: 'motion',
     description:
-      'A quick fade-in that only softens the edge of each note, then a slow flanger-like sweep, opposite on each side.',
+      'A quick fade-in that only softens the edge of each note, then a slow flanger sweep, opposite on each side.',
     effects: [
       { deviceId: 'swell', preset: 'Soft pick', params: { attack: 39.9, release: 64.8 } },
       { deviceId: 'tremolo', preset: 'Drifting comb' },
@@ -735,7 +733,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Unlit strings',
     category: 'texture',
     description:
-      'A muffled, slow-fading string pad with its top taken off, then a big lift of the low end that puts weight under the sound.',
+      'A muffled string pad that is slow to fade away, then a big lift of the low end that puts weight under the sound.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Felted pad', params: { rise: 0.731, fall: 11.5 } },
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.71 } },
@@ -783,17 +781,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'pad-follower', preset: 'String pad' },
       { deviceId: 'swarm-reverb', preset: 'Bending', params: { length: 0.541, glide: 2.02 } },
-    ],
-  },
-  {
-    id: 'slow-brass-night-ward-drone',
-    name: 'Night-ward drone',
-    category: 'texture',
-    description:
-      'A dark, round pad that melts slowly from chord to chord, then a scooped tone with lows and highs up and the body down.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Dark bed', params: { attack: 1.14, glide: 2.59 } },
-      { deviceId: 'ambient-eq', preset: 'Hollow' },
     ],
   },
   {
@@ -904,17 +891,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-unhurried-wash',
-    name: 'Unhurried wash',
-    category: 'texture',
-    description:
-      'A very wide wash in which every note hangs for many seconds, then a low-pass that opens and closes over about half a minute.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Endless', params: { mix: 0.45 } },
-      { deviceId: 'auto-filter', preset: 'Glacial low-pass' },
-    ],
-  },
-  {
     id: 'slow-brass-velvet-afterglow',
     name: 'Velvet afterglow',
     category: 'texture',
@@ -975,11 +951,33 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'slow-brass-back-row-fog',
+    name: 'Back-row fog',
+    category: 'texture',
+    description:
+      'A wide fog without lows or highs that hangs for seconds, then a reel driven as hard as it goes, thick with harmonics.',
+    effects: [
+      { deviceId: 'spectral-blur', preset: 'Band of fog' },
+      { deviceId: 'tape', preset: 'Needles pinned' },
+    ],
+  },
+  {
+    id: 'slow-brass-swell-by-lamplight',
+    name: 'Swell by lamplight',
+    category: 'texture',
+    description:
+      'A swell that takes seconds to rise after each silence, then a slow pan from side to side, a few seconds each way.',
+    effects: [
+      { deviceId: 'swell', preset: 'Tide' },
+      { deviceId: 'tremolo', preset: 'Slow pan' },
+    ],
+  },
+  {
     id: 'slow-brass-octave-on-the-porch',
     name: 'Octave on the porch',
     category: 'pitch',
     description:
-      'A slow swell after each silence that opens only at the end, then a smooth octave-down bed, into a long plate with a wide and even tail.',
+      'A slow swell after each silence, opening late in its rise, then a smooth octave-down bed, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1410, release: 781 } },
       { deviceId: 'half-speed', preset: 'Smooth octave', params: { length: 2110 } },
@@ -1042,7 +1040,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Next-room cellos',
     category: 'pitch',
     description:
-      'A dark, low string pad like cellos under the playing, into a hall whose choir wanders from vowel to vowel.',
+      'A dark, low string pad like cellos under the playing, into a reverb whose choir wanders from vowel to vowel.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Dark cellos', params: { rise: 1.49, fall: 7.21 } },
       { deviceId: 'vowel-reverb', preset: 'Vowel drift' },
@@ -1053,22 +1051,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'One-chord bass',
     category: 'pitch',
     description:
-      'A slow swell after each silence that opens only at the end, then an octave below, into a long reverb whose tail wavers queasily in pitch.',
+      'A slow swell after each silence, opening late in its rise, then an octave below, into a long reverb whose tail wavers queasily in pitch.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise' },
       { deviceId: 'pitch-shifter', preset: 'Octave down' },
       { deviceId: 'expanse', preset: 'Seasick choir' },
-    ],
-  },
-  {
-    id: 'slow-brass-unlit-loop',
-    name: 'Unlit loop',
-    category: 'pitch',
-    description:
-      'A low, dark tape loop played backwards at half speed, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Slow backwards', params: { length: 3.55 } },
-      { deviceId: 'tape', preset: 'Drifting chorus', params: { output: -0.92 } },
     ],
   },
   {
@@ -1105,25 +1092,30 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-bass-clef-tide',
-    name: 'Bass-clef tide',
+    id: 'slow-brass-exit-sign-bass',
+    name: 'Exit-sign bass',
     category: 'pitch',
     description:
-      'Long, dark backwards phrases an octave below the playing, then a small radio speaker muffled as if under a pillow.',
+      'A seconds-long swell, then a deep bass two octaves down that swells in slowly, into a vast hall that opens to the sound in very slow waves.',
     effects: [
-      { deviceId: 'reverse-delay', preset: 'Undertow', params: { time: 2400 } },
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
+      { deviceId: 'swell', preset: 'Tide' },
+      { deviceId: 'octaves', preset: 'Slow pedals', params: { attack: 1.31 } },
+      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { breathRate: 0.0562 } },
     ],
   },
   {
-    id: 'slow-brass-master-past-midnight',
-    name: 'Master past midnight',
-    category: 'master',
+    id: 'slow-brass-upper-circle-swell',
+    name: 'Upper-circle swell',
+    category: 'pitch',
     description:
-      'A fast, steady reel with soft saturation, then a true-peak ceiling that lets go again over several seconds.',
+      'Long slow grains an octave down, most of them reversed, then a dark, bassy wash that hangs under the notes for seconds.',
     effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
+      {
+        deviceId: 'grain-cloud',
+        preset: 'Low tide',
+        params: { size: 932, density: 4.56, mix: 0.33 },
+      },
+      { deviceId: 'spectral-blur', preset: 'Dark water', params: { mix: 0.36 } },
     ],
   },
   {
@@ -1150,18 +1142,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-polish-before-rain',
-    name: 'Polish before rain',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 398, release: 2.81 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.65 } },
-    ],
-  },
-  {
     id: 'slow-brass-limestone-finish',
     name: 'Limestone finish',
     category: 'master',
@@ -1182,6 +1162,30 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'slow-brass-mixdown-till-morning',
+    name: 'Mixdown till morning',
+    category: 'master',
+    description:
+      'A slow compressor that evens out swells over seconds, then a slightly wider image, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 317, release: 2.02 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: 2.26 } },
+    ],
+  },
+  {
+    id: 'slow-brass-county-road-master',
+    name: 'County-road master',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a small dip in the low mids, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming' },
     ],
   },
 ]
