@@ -586,15 +586,23 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     }
   }, [display, device])
 
+  /** What the display was given the last time it was drawn up: a drag begun under it ends with its `onDragEnd`. */
+  const drawnWith = useRef(props)
+  useEffect(() => {
+    drawnWith.current = props
+  })
+
   // A display that leaves the page with a handle in hand hears nothing of the
-  // pointer going up: the drag ends here, so what it holds is let go.
+  // pointer going up: the drag ends here, so what it holds is let go. One
+  // given another device in the middle of a drag ends it the same way, for the
+  // device it leaves: the hand began on that one and moves nothing of the next.
   useEffect(
     () => () => {
       const held = grab.current
       grab.current = null
-      if (held) latest.current.onDragEnd(held.names)
+      if (held) drawnWith.current.onDragEnd(held.names)
     },
-    [],
+    [display, device],
   )
 
   const interactive = display.handles !== undefined

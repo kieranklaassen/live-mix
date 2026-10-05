@@ -1013,6 +1013,51 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     expect(onDragEnd).toHaveBeenCalledTimes(2)
   })
 
+  it('ends the drag of a handle in hand when the display is given another device, and moves nothing of that one', async () => {
+    const fixture = createTestEngine()
+    const first = await make(fixture)
+    const second = await make(fixture)
+    const { display, at } = twoPoints()
+    const spies = () => ({ onDragStart: vi.fn(), onDrag: vi.fn(), onDragEnd: vi.fn() })
+    const before = spies()
+    const after = spies()
+    const layer = (device: Device, handlers: ReturnType<typeof spies>) => (
+      <PlateDisplayLayer
+        display={display}
+        device={device}
+        source={null}
+        width={176}
+        height={100}
+        powered
+        params={device.params}
+        values={{}}
+        heading="Sweep"
+        data-testid="display"
+        {...handlers}
+      />
+    )
+    const { rerender } = render(layer(first, before), { wrapper: fixture.wrapper })
+    const surface = screen.getByTestId('display')
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    expect(before.onDragStart.mock.calls).toEqual([[['b']]])
+    // A plate that is not keyed by its device shows the next one in the same display.
+    rerender(layer(second, after))
+    expect(before.onDragEnd.mock.calls).toEqual([[['b']]])
+    // The hand began on the device before: it moves nothing of this one, and ends nothing of it.
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 90, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 1, clientX: 90, clientY: 30 })
+    expect(at.b).toBe(60)
+    expect(after.onDrag).not.toHaveBeenCalled()
+    expect(after.onDragEnd).not.toHaveBeenCalled()
+    // The next press is this device's own.
+    fireEvent.pointerDown(surface, { pointerId: 2, button: 0, clientX: 60, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 60, clientY: 30 })
+    expect(after.onDragStart.mock.calls).toEqual([[['b']]])
+    expect(after.onDragEnd.mock.calls).toEqual([[['b']]])
+    expect(before.onDragEnd).toHaveBeenCalledTimes(1)
+  })
+
   it('lays the handle moved last on top of one it comes to stand on, so each can be taken again', async () => {
     const { display, at } = twoPoints()
     const { surface, onDragStart } = await mount(display)
