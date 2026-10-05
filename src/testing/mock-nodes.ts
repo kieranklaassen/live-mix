@@ -61,7 +61,8 @@ export class MockAudioNode {
     this.disconnectCalls.record(args)
     const [target] = args
     if (target instanceof MockAudioNode) this.outputs.delete(target)
-    else this.outputs.clear()
+    // Taken off a parameter it moves, the node still feeds the nodes it fed.
+    else if (!(target instanceof MockAudioParam)) this.outputs.clear()
   }
 
   isConnectedTo(target: MockAudioNode): boolean {
