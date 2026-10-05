@@ -434,7 +434,11 @@ export interface PlateDisplayLayerProps extends Omit<DisplayInputs, 'frames' | '
   heading: string
   /** A drag on a handle begins: the parameters it will move. */
   onDragStart(names: readonly string[]): void
-  /** The drag moved: the parameters' new values, in their own units. */
+  /**
+   * The drag moved: the parameters' new values, in their own units. The wheel
+   * turned over a handle that is in hand comes here too, inside that drag, and
+   * may carry a parameter that `onDragStart` did not name (a band's width).
+   */
   onDrag(params: Readonly<Record<string, number>>): void
   onDragEnd(names: readonly string[]): void
   className?: string
