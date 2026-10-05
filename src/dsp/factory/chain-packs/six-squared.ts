@@ -796,17 +796,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'six-squared-flickering-sway',
-    name: 'Flickering sway',
-    category: 'tape',
-    description:
-      'A ten-stage phaser that takes most of a minute to sweep, then a warped record through a dark cartridge, swaying slowly.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Glacial sweep' },
-      { deviceId: 'vinyl', preset: 'Slow platter' },
-    ],
-  },
-  {
     id: 'six-squared-reel-in-sleet',
     name: 'Reel in sleet',
     category: 'tape',
@@ -826,6 +815,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'patina', preset: 'Reel pushed hard', params: { output: -6.23 } },
       { deviceId: 'ambient-eq', preset: 'Forward' },
+    ],
+  },
+  {
+    id: 'six-squared-photocopied-loop',
+    name: 'Photocopied loop',
+    category: 'tape',
+    description:
+      'A trace of slow four-stage phaser under the dry sound, then a short, dull loop at a quarter of the sample rate.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Faint shade', params: { rate: 0.145 } },
+      { deviceId: 'micro-looper', preset: 'Lo-fi quarter', params: { length: 1.67 } },
     ],
   },
   {

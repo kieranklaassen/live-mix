@@ -1,0 +1,402 @@
+{
+  "static-cathedral-hall-in-the-tower": {
+    "name": "Hall in the tower",
+    "written": "e8627d5db70984d6"
+  },
+  "static-cathedral-plate-ringing-on": {
+    "name": "Plate ringing on",
+    "written": "c2e2491b48c48afc"
+  },
+  "static-cathedral-unheated-crypt": {
+    "name": "Unheated crypt",
+    "written": "4659a1a32928729c"
+  },
+  "static-cathedral-cloister-nave": {
+    "name": "Cloister nave",
+    "written": "29822f0204b37ca3"
+  },
+  "static-cathedral-mullion-hall": {
+    "name": "Mullion hall",
+    "written": "36e1f7f2f0fedc49"
+  },
+  "static-cathedral-rafter-hall": {
+    "name": "Rafter hall",
+    "written": "1ce88a1b923ab25c"
+  },
+  "static-cathedral-slate-bloom": {
+    "name": "Slate bloom",
+    "written": "81ae35445079a3b5"
+  },
+  "static-cathedral-mist-in-cold-stone": {
+    "name": "Mist in cold stone",
+    "written": "7513b926f405ccf5"
+  },
+  "static-cathedral-flagstone-cavern": {
+    "name": "Flagstone cavern",
+    "written": "9e4b6dcb574c916c"
+  },
+  "static-cathedral-unlit-halo": {
+    "name": "Unlit halo",
+    "written": "45f0b8bf4b120e26"
+  },
+  "static-cathedral-candle-end-drift": {
+    "name": "Candle-end drift",
+    "written": "b8540f72ee7a81ca"
+  },
+  "static-cathedral-choir-by-the-font": {
+    "name": "Choir by the font",
+    "written": "3f938920e0714fbf"
+  },
+  "static-cathedral-verdigris-valley": {
+    "name": "Verdigris valley",
+    "written": "93b02b6ac6990da8"
+  },
+  "static-cathedral-hall-in-midwinter": {
+    "name": "Hall in midwinter",
+    "written": "03c235dac2cd1bf5"
+  },
+  "static-cathedral-chancel-tide": {
+    "name": "Chancel tide",
+    "written": "92b71720cd09742b"
+  },
+  "static-cathedral-thaw-cluster": {
+    "name": "Thaw cluster",
+    "written": "c36b65bcdf665eae"
+  },
+  "static-cathedral-north-door-chirps": {
+    "name": "North-door chirps",
+    "written": "f3d5f9829bfa078e"
+  },
+  "static-cathedral-guttering-memory": {
+    "name": "Guttering memory",
+    "written": "818392f102b53c0e"
+  },
+  "static-cathedral-unheated-echo": {
+    "name": "Unheated echo",
+    "written": "8b4c63e2321e20a4"
+  },
+  "static-cathedral-roofless-tape": {
+    "name": "Roofless tape",
+    "written": "80c2512cfea0e875"
+  },
+  "static-cathedral-solder-swells": {
+    "name": "Solder swells",
+    "written": "79e54473d6461b66"
+  },
+  "static-cathedral-mortar-echo": {
+    "name": "Mortar echo",
+    "written": "72486bacc2e974b4"
+  },
+  "static-cathedral-vestry-repeats": {
+    "name": "Vestry repeats",
+    "written": "654d2da73ae8a845"
+  },
+  "static-cathedral-loop-held-for-good": {
+    "name": "Loop held for good",
+    "written": "eb426322607be34d"
+  },
+  "static-cathedral-tallow-room": {
+    "name": "Tallow room",
+    "written": "4bb5211c0568d5f8"
+  },
+  "static-cathedral-room-under-slates": {
+    "name": "Room under slates",
+    "written": "36011c9a8ff69991"
+  },
+  "static-cathedral-amp-past-the-pews": {
+    "name": "Amp past the pews",
+    "written": "01714a5ce4785ebe"
+  },
+  "static-cathedral-haze-after-mass": {
+    "name": "Haze after mass",
+    "written": "8eea5608e8de8148"
+  },
+  "static-cathedral-transept-loop": {
+    "name": "Transept loop",
+    "written": "70808aa2f8fdeea7"
+  },
+  "static-cathedral-fizz-in-stone": {
+    "name": "Fizz in stone",
+    "written": "6e2efc0523b1edc2"
+  },
+  "static-cathedral-empty-pew-fuzz": {
+    "name": "Empty-pew fuzz",
+    "written": "1b7122d81142123e"
+  },
+  "static-cathedral-roofless-haze": {
+    "name": "Roofless haze",
+    "written": "d7585f9cf368e24b"
+  },
+  "static-cathedral-churchyard-sampler": {
+    "name": "Churchyard sampler",
+    "written": "366f8e819ce2b5fd"
+  },
+  "static-cathedral-leaded-hallway": {
+    "name": "Leaded hallway",
+    "written": "a59a9b67fd9def31"
+  },
+  "static-cathedral-valves-under-slates": {
+    "name": "Valves under slates",
+    "written": "0efcd14389cf47bd"
+  },
+  "static-cathedral-stone-radio": {
+    "name": "Stone radio",
+    "written": "f88e997e5a7314fc"
+  },
+  "static-cathedral-grit-in-the-vestry": {
+    "name": "Grit in the vestry",
+    "written": "9bfa2a4d15348555"
+  },
+  "static-cathedral-warble-in-midwinter": {
+    "name": "Warble in midwinter",
+    "written": "364f519d4c7cfed8"
+  },
+  "static-cathedral-radio-with-no-heat": {
+    "name": "Radio with no heat",
+    "written": "bde0869757ee16cd"
+  },
+  "static-cathedral-matins-drift": {
+    "name": "Matins drift",
+    "written": "1e0f8120fa2143ee"
+  },
+  "static-cathedral-buttress-fuzz": {
+    "name": "Buttress fuzz",
+    "written": "7f635f075fb70dd6"
+  },
+  "static-cathedral-burnt-out-signal": {
+    "name": "Burnt-out signal",
+    "written": "e902a28cc7ab405f"
+  },
+  "static-cathedral-boarded-up-signal": {
+    "name": "Boarded-up signal",
+    "written": "ca673a160ab3fd53"
+  },
+  "static-cathedral-whiteout-whistles": {
+    "name": "Whiteout whistles",
+    "written": "62c2bccbd45db10b"
+  },
+  "static-cathedral-guttering-shortwave": {
+    "name": "Guttering shortwave",
+    "written": "82c4934fd8dff563"
+  },
+  "static-cathedral-thaw-grit": {
+    "name": "Thaw grit",
+    "written": "5937a62ccb009203"
+  },
+  "static-cathedral-empty-pew-signal": {
+    "name": "Empty-pew signal",
+    "written": "69ac651a86ae5e35"
+  },
+  "static-cathedral-grit-in-the-crypt": {
+    "name": "Grit in the crypt",
+    "written": "2aaca104e5764fb3"
+  },
+  "static-cathedral-disc-in-midwinter": {
+    "name": "Disc in midwinter",
+    "written": "bf0d3ec34bf47d3c"
+  },
+  "static-cathedral-warped-dust": {
+    "name": "Warped dust",
+    "written": "4f6134bf69de79bd"
+  },
+  "static-cathedral-mullion-sampler": {
+    "name": "Mullion sampler",
+    "written": "e9c5a90c5536159f"
+  },
+  "static-cathedral-clerestory-radio": {
+    "name": "Clerestory radio",
+    "written": "b8223c27486b3e05"
+  },
+  "static-cathedral-sway-in-the-apse": {
+    "name": "Sway in the apse",
+    "written": "986d45f773bb18ae"
+  },
+  "static-cathedral-blown-fuse-sway": {
+    "name": "Blown-fuse sway",
+    "written": "2f9e807adcdc07ef"
+  },
+  "static-cathedral-bellows-tide": {
+    "name": "Bellows tide",
+    "written": "8de63c48e15a63cd"
+  },
+  "static-cathedral-draughty-filter": {
+    "name": "Draughty filter",
+    "written": "472a4367303a4e62"
+  },
+  "static-cathedral-belfry-ripple": {
+    "name": "Belfry ripple",
+    "written": "8503af11de2c3b7e"
+  },
+  "static-cathedral-compline-sway": {
+    "name": "Compline sway",
+    "written": "8f601bd2b6f69c1b"
+  },
+  "static-cathedral-churchyard-filter": {
+    "name": "Churchyard filter",
+    "written": "80ab64b473d45115"
+  },
+  "static-cathedral-whitewashed-murk": {
+    "name": "Whitewashed murk",
+    "written": "605c39d51c9134d6"
+  },
+  "static-cathedral-whiteout-embers": {
+    "name": "Whiteout embers",
+    "written": "994c498109785ef6"
+  },
+  "static-cathedral-cloud-off-the-walls": {
+    "name": "Cloud off the walls",
+    "written": "d8f9ad56cc297c11"
+  },
+  "static-cathedral-mist-wall-to-wall": {
+    "name": "Mist wall to wall",
+    "written": "c7c9956d97a7d4b6"
+  },
+  "static-cathedral-north-door-cloud": {
+    "name": "North-door cloud",
+    "written": "d57f82ab88cc8b47"
+  },
+  "static-cathedral-evensong-wash": {
+    "name": "Evensong wash",
+    "written": "379509b963c10871"
+  },
+  "static-cathedral-swell-in-static": {
+    "name": "Swell in static",
+    "written": "07d9b120706629bf"
+  },
+  "static-cathedral-bloom-through-stone": {
+    "name": "Bloom through stone",
+    "written": "a013895dca3c7631"
+  },
+  "static-cathedral-unlit-tide": {
+    "name": "Unlit tide",
+    "written": "61b4f52a3fb2a655"
+  },
+  "static-cathedral-pad-down-the-nave": {
+    "name": "Pad down the nave",
+    "written": "b164825c05456100"
+  },
+  "static-cathedral-soot-strings": {
+    "name": "Soot strings",
+    "written": "f5ebf7b2fbf83a99"
+  },
+  "static-cathedral-fuse-wire-strings": {
+    "name": "Fuse-wire strings",
+    "written": "68c45fb23cd6e37b"
+  },
+  "static-cathedral-bloom-past-the-pews": {
+    "name": "Bloom past the pews",
+    "written": "517b9a914bfb0df5"
+  },
+  "static-cathedral-wash-ringing-on": {
+    "name": "Wash ringing on",
+    "written": "4da92e11c7b14549"
+  },
+  "static-cathedral-nave-end-buzz": {
+    "name": "Nave-end buzz",
+    "written": "ce4f8337f17ba810"
+  },
+  "static-cathedral-drone-under-snow": {
+    "name": "Drone under snow",
+    "written": "939744005208c654"
+  },
+  "static-cathedral-bell-rope-shimmer": {
+    "name": "Bell-rope shimmer",
+    "written": "3979b89890905338"
+  },
+  "static-cathedral-advent-cloud": {
+    "name": "Advent cloud",
+    "written": "2f34f3efd36bde02"
+  },
+  "static-cathedral-snow-light-buzz": {
+    "name": "Snow-light buzz",
+    "written": "7e7c7ca9c3aa1182"
+  },
+  "static-cathedral-pad-in-the-vestry": {
+    "name": "Pad in the vestry",
+    "written": "25db6835db1cbddf"
+  },
+  "static-cathedral-buttress-wash": {
+    "name": "Buttress wash",
+    "written": "2f63eec9e6b9172f"
+  },
+  "static-cathedral-wash-through-stone": {
+    "name": "Wash through stone",
+    "written": "e3605e51c68264c1"
+  },
+  "static-cathedral-transept-fifth": {
+    "name": "Transept fifth",
+    "written": "b0f9ff51c212e631"
+  },
+  "static-cathedral-bass-past-the-pews": {
+    "name": "Bass past the pews",
+    "written": "09dce149c8c73ae5"
+  },
+  "static-cathedral-loose-wire-chime": {
+    "name": "Loose-wire chime",
+    "written": "0a1e47061f20ffe5"
+  },
+  "static-cathedral-nave-end-fourth": {
+    "name": "Nave-end fourth",
+    "written": "2caa92f78e44e440"
+  },
+  "static-cathedral-short-day-undertow": {
+    "name": "Short-day undertow",
+    "written": "31b2ed2868a8998b"
+  },
+  "static-cathedral-buried-bass": {
+    "name": "Buried bass",
+    "written": "4610bc4d51e77567"
+  },
+  "static-cathedral-derelict-octaves": {
+    "name": "Derelict octaves",
+    "written": "c7ea76d6eb05f729"
+  },
+  "static-cathedral-snowbound-fifths": {
+    "name": "Snowbound fifths",
+    "written": "5a4fff3af05d12a1"
+  },
+  "static-cathedral-sunken-fourth": {
+    "name": "Sunken fourth",
+    "written": "b1989208ac28f08e"
+  },
+  "static-cathedral-frostbitten-octaves": {
+    "name": "Frostbitten octaves",
+    "written": "aff1cf612d423f8b"
+  },
+  "static-cathedral-sparks-in-the-nave": {
+    "name": "Sparks in the nave",
+    "written": "a4f60b3ac5b2d5e5"
+  },
+  "static-cathedral-octave-in-the-loft": {
+    "name": "Octave in the loft",
+    "written": "49c16b0d11936192"
+  },
+  "static-cathedral-derelict-finish": {
+    "name": "Derelict finish",
+    "written": "7fff8d0f34ebc889"
+  },
+  "static-cathedral-side-aisle-finish": {
+    "name": "Side-aisle finish",
+    "written": "5c5a68189cd2a2b1"
+  },
+  "static-cathedral-padlocked-master": {
+    "name": "Padlocked master",
+    "written": "215a59ea3334a1aa"
+  },
+  "static-cathedral-mixdown-at-evensong": {
+    "name": "Mixdown at evensong",
+    "written": "aeb991069edcba58"
+  },
+  "static-cathedral-pillar-master": {
+    "name": "Pillar master",
+    "written": "f4909afecb8d0078"
+  },
+  "static-cathedral-roofless-master": {
+    "name": "Roofless master",
+    "written": "320a0ec2e05a650d"
+  },
+  "static-cathedral-mixdown-by-the-font": {
+    "name": "Mixdown by the font",
+    "written": "b23ab551c5fa75d4"
+  }
+}

@@ -596,14 +596,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-ironwood-tape',
-    name: 'Ironwood tape',
+    id: 'sonoran-cattle-guard-tape',
+    name: 'Cattle-guard tape',
     category: 'tape',
     description:
-      'A thick, soft cassette, full in the lows and dull on top, then a thin band of tone with the lows cut and the top rolled off.',
+      'A tape preamp driven for thick lows and a dull top, then a tape reel pushed hard, saturated and thick.',
     effects: [
-      { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'ambient-eq', preset: 'Thin' },
+      { deviceId: 'analog-drive', preset: 'Tape weight' },
+      { deviceId: 'patina', preset: 'Reel pushed hard', params: { output: -6.6 } },
     ],
   },
   {

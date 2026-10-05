@@ -686,18 +686,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-hiss-from-the-pews',
-    name: 'Hiss from the pews',
-    category: 'tape',
-    description:
-      'A big lift of presence and air, then a clean bright reel under a thick layer of tape hiss, then a dark fog of slow backwards swells.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 'tape', preset: 'Hiss and air' },
-      { deviceId: 'reverse-delay', preset: 'Dark fog' },
-    ],
-  },
-  {
     id: 'stairwell-choir-concrete-reel',
     name: 'Concrete reel',
     category: 'tape',
@@ -706,6 +694,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Hiss and air' },
       { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 11 } },
+    ],
+  },
+  {
+    id: 'stairwell-choir-handrail-hiss',
+    name: 'Handrail hiss',
+    category: 'tape',
+    description:
+      'A clean bright reel under a thick layer of tape hiss, into a small bright chamber that goes on ringing for seconds.',
+    effects: [
+      { deviceId: 'tape', preset: 'Hiss and air' },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Small bright tank',
+        params: { decay: 7.36, breathRate: 0.296 },
+      },
     ],
   },
   {

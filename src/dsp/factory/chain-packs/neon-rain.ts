@@ -1194,14 +1194,15 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-mixdown-in-wet-neon',
-    name: 'Mixdown in wet neon',
+    id: 'neon-rain-halogen-polish',
+    name: 'Halogen polish',
     category: 'master',
     description:
-      'The first hint of weight from a tape preamp, then a brickwall ceiling that touches nothing beneath it.',
+      'A small dip in the low mids, then a slow compressor that evens out swells over seconds, then a smooth true-peak ceiling.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 282, release: 1.97 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.39 } },
     ],
   },
 ]

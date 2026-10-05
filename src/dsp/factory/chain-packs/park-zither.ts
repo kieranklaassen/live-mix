@@ -513,17 +513,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-reel-by-the-arch',
-    name: 'Reel by the arch',
-    category: 'tape',
-    description:
-      'A slow flanger sweep, opposite on each side, then a tape reel pushed hard, saturated and thick.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Drifting comb' },
-      { deviceId: 'patina', preset: 'Reel pushed hard' },
-    ],
-  },
-  {
     id: 'park-zither-busking-reel',
     name: 'Busking reel',
     category: 'tape',
@@ -532,6 +521,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.135 } },
       { deviceId: 'tape', preset: 'Needles pinned' },
+    ],
+  },
+  {
+    id: 'park-zither-home-dubbed-cassette',
+    name: 'Home-dubbed cassette',
+    category: 'tape',
+    description:
+      'The tone rocking slowly from dark to bright, sides opposed, then a worn cassette that wobbles, drops out and hisses.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Tilting tone', params: { rate: 0.304 } },
+      { deviceId: 'patina', preset: 'Worn cassette', params: { output: 2.75 } },
     ],
   },
   {

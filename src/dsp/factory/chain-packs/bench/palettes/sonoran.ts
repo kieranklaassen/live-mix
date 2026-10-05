@@ -165,7 +165,7 @@ export const PALETTE: PackPalette = {
     'rotary:Mono cabinet': 0.3,
     'freq-shifter:Seasick': 0.2,
     'ambient-eq:Bright': 0.3,
-    'ambient-eq:Thin': 0.3,
+    'ambient-eq:Thin': 0,
     'ambient-eq:Hollow': 0.5,
     'shaped-reverb:Late wall': 0.3,
     'shaped-reverb:Gated': 0.2,

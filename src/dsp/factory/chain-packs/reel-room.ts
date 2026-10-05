@@ -540,18 +540,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-section-line-hiss',
-    name: 'Section-line hiss',
-    category: 'tape',
-    description:
-      'A hissing reel dropping out, then muffled tape hiss, steady and thick, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'tape', preset: 'Worn thin' },
-      { deviceId: 'noise-floor', preset: 'Muffled hiss', params: { response: 0.42, hold: 12.7 } },
-      { deviceId: 'expanse', preset: 'Open space' },
-    ],
-  },
-  {
     id: 'reel-room-drift-in-february',
     name: 'Drift in February',
     category: 'tape',
@@ -644,6 +632,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Distant' },
       { deviceId: 'tape', preset: 'Crumbling oxide' },
       { deviceId: 'tape-echo', preset: 'Faint trace', params: { time: 493 } },
+    ],
+  },
+  {
+    id: 'reel-room-band-room-noise',
+    name: 'Band-room noise',
+    category: 'tape',
+    description:
+      'A worn cassette that wobbles, drops out and hisses, then the low, wide rumble of an empty room, into a far-off plate haze.',
+    effects: [
+      { deviceId: 'patina', preset: 'Worn cassette', params: { output: -4.62 } },
+      { deviceId: 'noise-floor', preset: 'Empty room' },
+      { deviceId: 'plate-reverb', preset: 'Distant haze' },
     ],
   },
   {

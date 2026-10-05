@@ -482,14 +482,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-drizzle-dust',
-    name: 'Drizzle dust',
+    id: 'forest-pulse-crackle-between-firs',
+    name: 'Crackle between firs',
     category: 'tape',
     description:
-      'A dusty record, gently warped, with crackle in the groove, then a single saturated tape echo close behind each note.',
+      'An equaliser that adds lows and body and eases the top, then a record thick with dust, ticking and popping throughout.',
     effects: [
-      { deviceId: 'patina', preset: 'Dusty record', params: { output: -2.11 } },
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 91.7 } },
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.53 } },
+      { deviceId: 'vinyl', preset: 'Dust and scratches' },
     ],
   },
   {
@@ -836,18 +836,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-far-off-wash',
-    name: 'Far-off wash',
-    category: 'texture',
-    description:
-      'A long-hanging wide wash, then a chorus on the upper range that leaves the lows steady, into a late-arriving hall.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Endless' },
-      { deviceId: 'chorus', preset: 'Guitar shimmer', params: { rate: 1.13, delayMs: 13.3 } },
-      { deviceId: 'ether-reverb', preset: 'Late hall' },
-    ],
-  },
-  {
     id: 'forest-pulse-deadfall-tide',
     name: 'Deadfall tide',
     category: 'texture',
@@ -903,14 +891,26 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-pad-at-treeline',
-    name: 'Pad at treeline',
+    id: 'forest-pulse-resin-grains',
+    name: 'Resin grains',
     category: 'texture',
     description:
-      'A held pad that takes seconds to melt into each new chord, then a badly warped record whose pitch sways once a turn.',
+      'A slow swell on only the first note after each silence, then a scattered grain cloud, into a long reverb in waves.',
     effects: [
-      { deviceId: 'sustainer', preset: 'Long glide' },
-      { deviceId: 'vinyl', preset: 'Warped', params: { spin: 1.39 } },
+      { deviceId: 'swell', preset: 'First note only' },
+      { deviceId: 'grain-delay', preset: 'Grain cloud' },
+      { deviceId: 'shaped-reverb', preset: 'Breathing', params: { time: 1.76 } },
+    ],
+  },
+  {
+    id: 'forest-pulse-dusk-wood-repeats',
+    name: 'Dusk-wood repeats',
+    category: 'texture',
+    description:
+      'Whole phrases that repeat by chance, each time quieter, into a plate heard alone with none of the dry sound left.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Phrase repeats', params: { time: 1630 } },
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
     ],
   },
   {

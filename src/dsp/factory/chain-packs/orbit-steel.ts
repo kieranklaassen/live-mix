@@ -109,28 +109,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-plate-at-earthrise',
-    name: 'Plate at earthrise',
-    category: 'space',
-    description:
-      'A stereo image widened a little, with the bass left central, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 16.8 } },
-    ],
-  },
-  {
-    id: 'orbit-steel-hall-on-the-porch',
-    name: 'Hall on the porch',
-    category: 'space',
-    description:
-      'A fast, steady reel with soft saturation, into a hall that answers about a quarter of a second late.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'fdn-reverb', preset: 'Late arrival' },
-    ],
-  },
-  {
     id: 'orbit-steel-hall-at-the-dance',
     name: 'Hall at the dance',
     category: 'space',
@@ -309,6 +287,29 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant' },
       { deviceId: 'plate-reverb', preset: 'Bright plate' },
+    ],
+  },
+  {
+    id: 'orbit-steel-depths-in-the-shadow',
+    name: 'Depths in the shadow',
+    category: 'space',
+    description:
+      'The level rising and falling at random, like surf, into a deep dark well of slow blurred echoes.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Sea swell' },
+      { deviceId: 'swarm-reverb', preset: 'Dark well', params: { length: 1.03, glide: 0.526 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-sheen-at-splashdown',
+    name: 'Sheen at splashdown',
+    category: 'space',
+    description:
+      'An equaliser that adds lows and body and eases the top, then a short reverb that swells in just after each note, into a quiet late plate.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.52 } },
+      { deviceId: 'expanse', preset: 'Quick swell' },
+      { deviceId: 'plate-reverb', preset: 'Faint sheen' },
     ],
   },
   {
@@ -1104,14 +1105,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-porch-octave',
-    name: 'Porch octave',
+    id: 'orbit-steel-depths-on-the-porch',
+    name: 'Depths on the porch',
     category: 'pitch',
     description:
-      'An echo whose repeats jump up an octave and back, then the level breathing in and out about every four seconds.',
+      'A quarter-speed crawl two octaves down, smooth and unbroken, then a slow tape echo with a long trail that dulls as it goes.',
     effects: [
-      { deviceId: 'analog-delay', preset: 'Octave hop' },
-      { deviceId: 'tremolo', preset: 'Gentle breath' },
+      { deviceId: 'half-speed', preset: 'Quarter speed', params: { length: 3680 } },
+      { deviceId: 'tape-echo', preset: 'Long dark trail' },
     ],
   },
   {

@@ -328,17 +328,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-rosewood-echo',
-    name: 'Rosewood echo',
-    category: 'echo',
-    description:
-      'An echo whose repeats hop up a fifth and down a fourth, into a reverb that swells up behind each note and cuts off.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Fifth hop', params: { time: 344, modRate: 0.536 } },
-      { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 1.3 } },
-    ],
-  },
-  {
     id: 'ashram-jasmine-trail',
     name: 'Jasmine trail',
     category: 'echo',
@@ -440,6 +429,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-echo', preset: 'Long dark trail', params: { time: 1570 } },
       { deviceId: 'ambient-eq', preset: 'Distant' },
+    ],
+  },
+  {
+    id: 'ashram-twilight-wash',
+    name: 'Twilight wash',
+    category: 'echo',
+    description:
+      'A wash of three fed-back tape heads that hovers and fades, into the close reflections of a very small room.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Hovering wash', params: { time: 839 } },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Short ambience',
+        params: { decay: 0.447, breathRate: 0.319 },
+      },
     ],
   },
   {
@@ -1120,18 +1124,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-barefoot-polish',
-    name: 'Barefoot polish',
-    category: 'master',
-    description:
-      'A fresh reel of tape, then a slow compressor that evens out swells over seconds, then a brickwall ceiling that touches nothing beneath it.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Level' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.41 } },
-    ],
-  },
-  {
     id: 'ashram-mixdown-in-saffron',
     name: 'Mixdown in saffron',
     category: 'master',
@@ -1152,6 +1144,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'saturator', preset: 'Soft tape warmth' },
       { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 105, release: 1.32 } },
       { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'ashram-mixdown-for-evening',
+    name: 'Mixdown for evening',
+    category: 'master',
+    description:
+      'A fresh reel of tape, then a slow compressor that evens out swells over seconds, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 334, release: 2.24 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.42 } },
     ],
   },
 ]

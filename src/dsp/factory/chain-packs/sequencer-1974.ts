@@ -88,17 +88,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-hall-after-hours',
-    name: 'Hall after hours',
-    category: 'space',
-    description:
-      'A huge dark open space that answers late and rings on, then a valve stage that gives way under loud notes, tails rising.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Open valley' },
-      { deviceId: 'patina', preset: 'Valve bloom' },
-    ],
-  },
-  {
     id: 'sequencer-1974-dry-ice-cathedral',
     name: 'Dry-ice cathedral',
     category: 'space',
@@ -166,17 +155,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-winter-night-springs',
-    name: 'Winter-night springs',
-    category: 'space',
-    description:
-      'Three long-ringing springs that chirp and drip, then a thin band of tone with the lows cut and the top rolled off.',
-    effects: [
-      { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.15 } },
-      { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.53 } },
-    ],
-  },
-  {
     id: 'sequencer-1974-courtyard-voices',
     name: 'Courtyard voices',
     category: 'space',
@@ -196,6 +174,29 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.559, delayMs: 18.7 } },
       { deviceId: 'expanse', preset: 'Fast flutter', params: { decay: 4.8 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-switchboard-halo',
+    name: 'Switchboard halo',
+    category: 'space',
+    description:
+      'A very slow swell, then twelve strings in A minor that ring with notes in that key, into a plain hall of about four seconds.',
+    effects: [
+      { deviceId: 'swell', preset: 'Glacier', params: { attack: 3800 } },
+      { deviceId: 'sympathetic', preset: 'Minor strings' },
+      { deviceId: 'vowel-reverb', preset: 'Plain hall', params: { decay: 4.33, preDelay: 18.2 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-drone-after-hours',
+    name: 'Drone after hours',
+    category: 'space',
+    description:
+      'A swell of about a second that turns struck notes to pads, into thirteen drone strings in D major kept near the centre.',
+    effects: [
+      { deviceId: 'swell', preset: 'Piano to pad', params: { attack: 791, release: 376 } },
+      { deviceId: 'sympathetic', preset: 'Sitar drone', params: { decay: 6.35 } },
     ],
   },
   {
@@ -393,17 +394,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-echo-on-step-eight',
-    name: 'Echo on step eight',
-    category: 'echo',
-    description:
-      'A clean slow rotating speaker blended under the dry sound, then two tape heads that make every repeat gallop.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Soft blend' },
-      { deviceId: 'tape-echo', preset: 'Two head gallop' },
-    ],
-  },
-  {
     id: 'sequencer-1974-canal-side-loop',
     name: 'Canal-side loop',
     category: 'echo',
@@ -458,6 +448,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 're-amp', preset: 'Pillow speaker' },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 497 } },
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.69, breathRate: 0.283 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-slow-turning-drift',
+    name: 'Slow-turning drift',
+    category: 'echo',
+    description:
+      'A wide echo whose repeats drift slowly in pitch, into sixteen strings in C major that ring for about ten seconds.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 599, modRate: 0.0929 } },
+      { deviceId: 'sympathetic', preset: 'Long ring' },
     ],
   },
   {
@@ -593,15 +594,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-black-knob-tape',
-    name: 'Black-knob tape',
+    id: 'sequencer-1974-reel-in-the-snow',
+    name: 'Reel in the snow',
     category: 'tape',
     description:
-      'A mid-forward tone, then a tape reel pushed hard, saturated and thick, then a tape echo whose warm repeats soften as they fade.',
+      'A hard-clipped copy held at one level under the clean sound, then a reel driven as hard as it goes, thick with harmonics.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.48 } },
-      { deviceId: 'patina', preset: 'Reel pushed hard' },
-      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 335 } },
+      { deviceId: 'saturator', preset: 'Sustain bed' },
+      { deviceId: 'tape', preset: 'Needles pinned', params: { output: -7.26 } },
     ],
   },
   {
@@ -1087,18 +1087,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-black-knob-master',
-    name: 'Black-knob master',
-    category: 'master',
-    description:
-      'A very gentle compressor that leans on the loudest swells, then a slightly wider image, then a safety limiter.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 596, release: 3.69 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
     id: 'sequencer-1974-winter-night-polish',
     name: 'Winter-night polish',
     category: 'master',
@@ -1168,6 +1156,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-eq', preset: 'Keys' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-mixdown-in-the-yard',
+    name: 'Mixdown in the yard',
+    category: 'master',
+    description:
+      'A subsonic cut with the low mids and the presence eased, then a slightly wider image, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.66 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.06 } },
     ],
   },
 ]

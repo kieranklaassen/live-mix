@@ -1,0 +1,402 @@
+{
+  "polar-signal-weather-hut-waves": {
+    "name": "Weather-hut waves",
+    "written": "e360df28c154149e"
+  },
+  "polar-signal-snowbound-plate": {
+    "name": "Snowbound plate",
+    "written": "48f7e67b7c18beb7"
+  },
+  "polar-signal-choir-off-the-pier": {
+    "name": "Choir off the pier",
+    "written": "be837ec3a3cc180e"
+  },
+  "polar-signal-generator-room": {
+    "name": "Generator room",
+    "written": "f48887d8557067f4"
+  },
+  "polar-signal-shuttered-wash": {
+    "name": "Shuttered wash",
+    "written": "00cbd6b88424c194"
+  },
+  "polar-signal-far-shore-hall": {
+    "name": "Far-shore hall",
+    "written": "c0d1af53b3a86356"
+  },
+  "polar-signal-hall-on-the-fjord": {
+    "name": "Hall on the fjord",
+    "written": "6b2d72cd0ab43186"
+  },
+  "polar-signal-tideline-hall": {
+    "name": "Tideline hall",
+    "written": "ecad3e8b0a4ac937"
+  },
+  "polar-signal-hall-at-the-mast": {
+    "name": "Hall at the mast",
+    "written": "693e737c6daf3ad9"
+  },
+  "polar-signal-lamp-lit-halo": {
+    "name": "Lamp-lit halo",
+    "written": "cbdbf8f5dfc3b450"
+  },
+  "polar-signal-snowbound-hall": {
+    "name": "Snowbound hall",
+    "written": "0e2a837b99a2a934"
+  },
+  "polar-signal-january-hall": {
+    "name": "January hall",
+    "written": "93826f295303d35d"
+  },
+  "polar-signal-hall-by-lamplight": {
+    "name": "Hall by lamplight",
+    "written": "acfe9704b4429a28"
+  },
+  "polar-signal-midwinter-plate": {
+    "name": "Midwinter plate",
+    "written": "50900feb1d932967"
+  },
+  "polar-signal-night-band-tunnel": {
+    "name": "Night-band tunnel",
+    "written": "6b5511cdc09f7c7f"
+  },
+  "polar-signal-streetlamp-mist": {
+    "name": "Streetlamp mist",
+    "written": "e9292d28d7bcb881"
+  },
+  "polar-signal-hoarfrost-hall": {
+    "name": "Hoarfrost hall",
+    "written": "be79c577460153f8"
+  },
+  "polar-signal-starlit-haze": {
+    "name": "Starlit haze",
+    "written": "d823e94f9a833d72"
+  },
+  "polar-signal-plate-at-the-mast": {
+    "name": "Plate at the mast",
+    "written": "3d502bfa34f25b91"
+  },
+  "polar-signal-generator-hall": {
+    "name": "Generator hall",
+    "written": "5efcb4a22efe004a"
+  },
+  "polar-signal-fogbound-loop": {
+    "name": "Fogbound loop",
+    "written": "eeccf7c8b98837dd"
+  },
+  "polar-signal-cabin-reel": {
+    "name": "Cabin reel",
+    "written": "7a82432f1682ede3"
+  },
+  "polar-signal-small-hours-echo": {
+    "name": "Small-hours echo",
+    "written": "cfdd1063e7218f6c"
+  },
+  "polar-signal-northern-loop": {
+    "name": "Northern loop",
+    "written": "d23f92f9f566c133"
+  },
+  "polar-signal-bell-buoy-echo": {
+    "name": "Bell-buoy echo",
+    "written": "d755f83ade87be64"
+  },
+  "polar-signal-tundra-memory": {
+    "name": "Tundra memory",
+    "written": "b4726cb7e0cc3e28"
+  },
+  "polar-signal-reel-at-the-quay": {
+    "name": "Reel at the quay",
+    "written": "bf48e4a9745297f4"
+  },
+  "polar-signal-loop-out-at-anchor": {
+    "name": "Loop out at anchor",
+    "written": "d0581a97af8192b5"
+  },
+  "polar-signal-loop-under-the-ice": {
+    "name": "Loop under the ice",
+    "written": "0d5654a9f0bd64c5"
+  },
+  "polar-signal-weather-hut-echoes": {
+    "name": "Weather-hut echoes",
+    "written": "885c4297bcd35824"
+  },
+  "polar-signal-jetty-sampler": {
+    "name": "Jetty sampler",
+    "written": "a8aa036c250e6234"
+  },
+  "polar-signal-windward-echo": {
+    "name": "Windward echo",
+    "written": "625f076b4f9d02cf"
+  },
+  "polar-signal-echo-at-the-quay": {
+    "name": "Echo at the quay",
+    "written": "4d62c68e13e42dab"
+  },
+  "polar-signal-lighthouse-loop": {
+    "name": "Lighthouse loop",
+    "written": "9c1b0dba6475924e"
+  },
+  "polar-signal-repeats-at-the-light": {
+    "name": "Repeats at the light",
+    "written": "bb97236f9977e3a2"
+  },
+  "polar-signal-net-loft-tide": {
+    "name": "Net-loft tide",
+    "written": "67f5872173dd0e29"
+  },
+  "polar-signal-loop-on-the-fjord": {
+    "name": "Loop on the fjord",
+    "written": "ccb9288a90abadc9"
+  },
+  "polar-signal-quayside-loop": {
+    "name": "Quayside loop",
+    "written": "63f080d0a2f44954"
+  },
+  "polar-signal-echo-in-midwinter": {
+    "name": "Echo in midwinter",
+    "written": "7bc996aa6c9ddbf0"
+  },
+  "polar-signal-ferry-echo": {
+    "name": "Ferry echo",
+    "written": "7263de25d0c431ab"
+  },
+  "polar-signal-callsign-radio": {
+    "name": "Callsign radio",
+    "written": "326cb1f504c714d5"
+  },
+  "polar-signal-night-band-station": {
+    "name": "Night-band station",
+    "written": "259f5bf726ed630f"
+  },
+  "polar-signal-signal-past-the-buoy": {
+    "name": "Signal past the buoy",
+    "written": "85190ee4816bd98c"
+  },
+  "polar-signal-forecast-radio": {
+    "name": "Forecast radio",
+    "written": "1a7430a6bcd42b09"
+  },
+  "polar-signal-trawler-whistles": {
+    "name": "Trawler whistles",
+    "written": "3a1c8cb5e06596fb"
+  },
+  "polar-signal-headland-static": {
+    "name": "Headland static",
+    "written": "cb096523a48364b9"
+  },
+  "polar-signal-bell-buoy-clicks": {
+    "name": "Bell-buoy clicks",
+    "written": "09788f41b761983b"
+  },
+  "polar-signal-pack-ice-hiss": {
+    "name": "Pack-ice hiss",
+    "written": "c96a64705ce27880"
+  },
+  "polar-signal-lightship-sideband": {
+    "name": "Lightship sideband",
+    "written": "7985ace2066fd88b"
+  },
+  "polar-signal-slow-thaw-reel": {
+    "name": "Slow-thaw reel",
+    "written": "ef15a11feeaba023"
+  },
+  "polar-signal-station-on-the-floe": {
+    "name": "Station on the floe",
+    "written": "8a25878af554aa4a"
+  },
+  "polar-signal-radio-between-bands": {
+    "name": "Radio between bands",
+    "written": "01ef97442cfe805b"
+  },
+  "polar-signal-night-band-drift": {
+    "name": "Night-band drift",
+    "written": "200d4f07c2cd9461"
+  },
+  "polar-signal-windward-record": {
+    "name": "Windward record",
+    "written": "074f127fff99b763"
+  },
+  "polar-signal-trawler-hum": {
+    "name": "Trawler hum",
+    "written": "74d2ba84ae482b73"
+  },
+  "polar-signal-coast-station-hiss": {
+    "name": "Coast-station hiss",
+    "written": "cd1c0cc451ebc8e1"
+  },
+  "polar-signal-dust-through-sleet": {
+    "name": "Dust through sleet",
+    "written": "3a7b947482b7b22d"
+  },
+  "polar-signal-narrow-band-storm": {
+    "name": "Narrow-band storm",
+    "written": "8b2c7cd374f90af9"
+  },
+  "polar-signal-boathouse-drift": {
+    "name": "Boathouse drift",
+    "written": "631f98db29711e4c"
+  },
+  "polar-signal-harbour-warble": {
+    "name": "Harbour warble",
+    "written": "815a82062cebf03e"
+  },
+  "polar-signal-tin-roof-static": {
+    "name": "Tin-roof static",
+    "written": "364534d28987c527"
+  },
+  "polar-signal-drift-in-harbour": {
+    "name": "Drift in harbour",
+    "written": "87d8f39e6051e2f3"
+  },
+  "polar-signal-net-loft-loop": {
+    "name": "Net-loft loop",
+    "written": "4aed58ab55253908"
+  },
+  "polar-signal-coast-station-record": {
+    "name": "Coast-station record",
+    "written": "510a9dc7eeb97532"
+  },
+  "polar-signal-streetlamp-record": {
+    "name": "Streetlamp record",
+    "written": "93d84ccc4b936115"
+  },
+  "polar-signal-signal-by-lamplight": {
+    "name": "Signal by lamplight",
+    "written": "699a46885c363eca"
+  },
+  "polar-signal-harbour-filter": {
+    "name": "Harbour filter",
+    "written": "e5430b01ace00146"
+  },
+  "polar-signal-snowline-drift": {
+    "name": "Snowline drift",
+    "written": "b22651ff65363460"
+  },
+  "polar-signal-relay-sway": {
+    "name": "Relay sway",
+    "written": "2f708dd108f029d6"
+  },
+  "polar-signal-filter-in-the-lee": {
+    "name": "Filter in the lee",
+    "written": "d14d32990f96f661"
+  },
+  "polar-signal-coastal-sway": {
+    "name": "Coastal sway",
+    "written": "1e30380311a53987"
+  },
+  "polar-signal-chorus-in-the-lee": {
+    "name": "Chorus in the lee",
+    "written": "53ac6317b07d0d1b"
+  },
+  "polar-signal-arctic-drone": {
+    "name": "Arctic drone",
+    "written": "be96184634a0bfc6"
+  },
+  "polar-signal-mooring-sustain": {
+    "name": "Mooring sustain",
+    "written": "574100552e9cd2f5"
+  },
+  "polar-signal-leeward-depths": {
+    "name": "Leeward depths",
+    "written": "df76eefc623f8cdb"
+  },
+  "polar-signal-northern-depths": {
+    "name": "Northern depths",
+    "written": "a87e440820ab0752"
+  },
+  "polar-signal-skerry-mist": {
+    "name": "Skerry mist",
+    "written": "1b27384c5ed51bbc"
+  },
+  "polar-signal-pier-end-wash": {
+    "name": "Pier-end wash",
+    "written": "bfe68dbfc8dfd30b"
+  },
+  "polar-signal-treeline-drone": {
+    "name": "Treeline drone",
+    "written": "33716bd25d0f957f"
+  },
+  "polar-signal-air-up-the-coast": {
+    "name": "Air up the coast",
+    "written": "95cd3c6146c6d03c"
+  },
+  "polar-signal-trawler-pad": {
+    "name": "Trawler pad",
+    "written": "5f09e5e94ab1ae46"
+  },
+  "polar-signal-sea-ice-tide": {
+    "name": "Sea-ice tide",
+    "written": "62504c4f169110c6"
+  },
+  "polar-signal-hoarfrost-spiral": {
+    "name": "Hoarfrost spiral",
+    "written": "ff472a64e117fbc3"
+  },
+  "polar-signal-bell-buoy-octave": {
+    "name": "Bell-buoy octave",
+    "written": "50412eebc4be97a7"
+  },
+  "polar-signal-transmitter-drift": {
+    "name": "Transmitter drift",
+    "written": "c032d1d61f7b8773"
+  },
+  "polar-signal-breakwater-fourth": {
+    "name": "Breakwater fourth",
+    "written": "01eda0a9c3267c0b"
+  },
+  "polar-signal-below-deck-depths": {
+    "name": "Below-deck depths",
+    "written": "17f04ade06f7eedc"
+  },
+  "polar-signal-octave-off-the-coast": {
+    "name": "Octave off the coast",
+    "written": "91a39a79115c6127"
+  },
+  "polar-signal-shadow-on-the-ferry": {
+    "name": "Shadow on the ferry",
+    "written": "7a61f592c63c1a13"
+  },
+  "polar-signal-quayside-octave": {
+    "name": "Quayside octave",
+    "written": "c95d4e3e9e350bbc"
+  },
+  "polar-signal-snowplough-depths": {
+    "name": "Snowplough depths",
+    "written": "248b92cdf1b364f2"
+  },
+  "polar-signal-december-octave": {
+    "name": "December octave",
+    "written": "49bcb844781eed9b"
+  },
+  "polar-signal-starlit-undertow": {
+    "name": "Starlit undertow",
+    "written": "2346628b288d681b"
+  },
+  "polar-signal-sodium-lit-harmony": {
+    "name": "Sodium-lit harmony",
+    "written": "48d0d9ab08233f76"
+  },
+  "polar-signal-snowline-lacquer": {
+    "name": "Snowline lacquer",
+    "written": "f73bc8b6e82fe9e8"
+  },
+  "polar-signal-mast-light-finish": {
+    "name": "Mast-light finish",
+    "written": "5e26d8ca8505642c"
+  },
+  "polar-signal-night-watch-master": {
+    "name": "Night-watch master",
+    "written": "fc862e1b6b630b25"
+  },
+  "polar-signal-island-finish": {
+    "name": "Island finish",
+    "written": "fa59c7938908d218"
+  },
+  "polar-signal-boathouse-finish": {
+    "name": "Boathouse finish",
+    "written": "7d11be3e6b327215"
+  },
+  "polar-signal-snowfield-mixdown": {
+    "name": "Snowfield mixdown",
+    "written": "186dd6a63c0313de"
+  }
+}

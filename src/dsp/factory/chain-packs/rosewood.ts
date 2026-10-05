@@ -281,18 +281,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-grove-wind-ring',
-    name: 'Grove-wind ring',
-    category: 'space',
-    description:
-      'A very slow swell, then ten self-tuning strings, into a dull reverb that swells in over seconds and fades slowly.',
-    effects: [
-      { deviceId: 'swell', preset: 'Glacier' },
-      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { decay: 4.24 } },
-      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
-    ],
-  },
-  {
     id: 'rosewood-workshop-hall',
     name: 'Workshop hall',
     category: 'space',
@@ -301,6 +289,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.53, breathRate: 0.302 } },
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.9 } },
+    ],
+  },
+  {
+    id: 'rosewood-bronze-ring',
+    name: 'Bronze ring',
+    category: 'space',
+    description:
+      'A bowed swell that lets part of each attack through, into twelve strings in A minor that ring with notes in that key.',
+    effects: [
+      { deviceId: 'swell', preset: 'Half bowed', params: { attack: 301, release: 155 } },
+      { deviceId: 'sympathetic', preset: 'Minor strings', params: { decay: 3.66, mix: 0.356 } },
     ],
   },
   {
@@ -867,17 +866,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-ringing-wash',
-    name: 'Ringing wash',
-    category: 'texture',
-    description:
-      'A fast, steady reel with soft saturation, then slow loops of each phrase that swell in at several octaves.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'cascade', preset: 'Slow tiles' },
-    ],
-  },
-  {
     id: 'rosewood-sustain-after-rain',
     name: 'Sustain after rain',
     category: 'texture',
@@ -956,6 +944,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'pad-follower', preset: 'High mist', params: { rise: 1.47, fall: 9.24 } },
       { deviceId: 'ambient-eq', preset: 'Bright' },
+    ],
+  },
+  {
+    id: 'rosewood-rehearsal-pad',
+    name: 'Rehearsal pad',
+    category: 'texture',
+    description:
+      'A held tone that takes over each note at once and soon fades, then a thick ensemble chorus turning about every two seconds.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Quick catch' },
+      { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.491, delayMs: 16.1 } },
     ],
   },
   {
@@ -1145,18 +1144,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-mixdown-in-rosewood',
-    name: 'Mixdown in rosewood',
-    category: 'master',
-    description:
-      'Light tape-style saturation, then a small dip in the low mids, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-eq', preset: 'Drone' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.68 } },
-    ],
-  },
-  {
     id: 'rosewood-rosewood-mixdown',
     name: 'Rosewood mixdown',
     category: 'master',
@@ -1166,6 +1153,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.48 } },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.43 } },
+    ],
+  },
+  {
+    id: 'rosewood-mixdown-under-tiles',
+    name: 'Mixdown under tiles',
+    category: 'master',
+    description:
+      'A subsonic cut and a slow easing of any note that rings on, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.86 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

@@ -788,15 +788,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-session-amp',
-    name: 'Session amp',
+    id: 'broadcast-hall-stairwell-flutter',
+    name: 'Stairwell flutter',
     category: 'tape',
     description:
-      'A faint tape loop, then a small amplifier muffled as if under a pillow, into a big muffled cave that rings for about six seconds.',
+      'A high cut set low enough to muffle everything, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
-      { deviceId: 'tape-loop', preset: 'Faint afterimage', params: { length: 3.26 } },
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
-      { deviceId: 'fdn-reverb', preset: 'Dark cave' },
+      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'tape', preset: 'Flutter shimmer' },
     ],
   },
   {
