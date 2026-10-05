@@ -840,6 +840,11 @@ export class Performer {
     }
     if (tick.reason === 'seek' || this.unsettled) this.relocate()
     const now = this.look()
+    // A start: the lines ahead fall at new times on the clock and are told
+    // again. Here, before this pass tells them, and not when the performer
+    // hears of the start itself, which is after this pass: put back then, a
+    // line told now would be told again by the next pass that finds it ahead.
+    if (tick.reason === 'start') this.reportedBeat = Math.ceil(now - BEAT_EPSILON) - 1
     this.drawFollow(now)
     this.flush(now)
     this.reportLines(now)
@@ -932,9 +937,6 @@ export class Performer {
         this.unsettled = true
         break
       case 'start':
-        this.look()
-        this.reportedBeat = Math.ceil(this.lastBeats - BEAT_EPSILON) - 1
-        break
       case 'pause':
         this.look()
         break

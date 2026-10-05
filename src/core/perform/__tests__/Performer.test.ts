@@ -670,6 +670,44 @@ describe('Performer: bars and beats', () => {
     expect(new Set(told).size).toBe(told.length)
   })
 
+  it('tells a line once when the transport is started just short of it', () => {
+    const { engine, advance, events } = rig()
+    // Stopped, and put a tenth of a second before the second bar: the line is
+    // inside the lookahead when the transport starts, and still ahead a tick later.
+    engine.transport.seek(1.9)
+    engine.transport.start()
+    for (let i = 0; i < 5; i += 1) advance(0.04)
+    const beats = events.filter((event) => event.type === 'beat')
+    expect(beats.map((event) => [event.bar, event.beat, event.at])).toEqual([
+      [1, 0, expect.closeTo(START + 0.1)],
+    ])
+    expect(events.filter((event) => event.type === 'bar')).toHaveLength(1)
+  })
+
+  it('tells the line the transport starts on once, though a second pass runs before the clock moves', () => {
+    const { engine, events } = rig()
+    engine.transport.start()
+    // An edit in the same turn as the start (a track made ready, a clip put in).
+    engine.scheduler.refresh()
+    expect(events.filter((event) => event.type === 'beat')).toHaveLength(1)
+    expect(events.filter((event) => event.type === 'bar')).toHaveLength(1)
+  })
+
+  it('tells a line again, with its new time, when a pause held the transport just short of it', () => {
+    const { ctx, engine, advance, events } = rig()
+    engine.transport.start()
+    advance(1.97) // the second bar is 30 ms off, and has been told
+    engine.transport.pause()
+    ctx.advanceClock(5)
+    const from = events.length
+    engine.transport.start()
+    advance(0.04) // the line has gone by before the next pass
+    const beats = events.slice(from).filter((event) => event.type === 'beat')
+    expect(beats.map((event) => [event.bar, event.beat, event.at])).toEqual([
+      [1, 0, expect.closeTo(START + 5 + 2)],
+    ])
+  })
+
   it('counts bars from the start of each pass of the loop', () => {
     const { engine, advance, events } = rig()
     engine.transport.start()
