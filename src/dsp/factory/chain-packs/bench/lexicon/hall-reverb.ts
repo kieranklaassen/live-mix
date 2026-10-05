@@ -45,7 +45,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a low-heavy damped hall',
       nouns: ['hall'],
       roles: ['hall'],
-      traits: ['warm'],
+      traits: ['dark', 'warm'],
     },
     'Bright hall': {
       says: 'an undamped hall of about three seconds with light lows',
@@ -64,9 +64,9 @@ export const LEXICON: DeviceLexicon = {
     'Airy tail': {
       says: 'a hall whose top rings on while its lows stop short',
       brief: 'a thin hall with short lows',
-      nouns: ['tail', 'hall', 'air'],
+      nouns: ['hall', 'air'],
       roles: ['hall'],
-      traits: ['cold'],
+      traits: ['bright', 'cold'],
     },
     'Vast nave': {
       says: 'a vast nave that rings for about eight seconds',
@@ -76,16 +76,16 @@ export const LEXICON: DeviceLexicon = {
       traits: ['long'],
     },
     'Far away': {
-      says: 'a hall heard from far off with little dry sound left',
+      says: 'a damped hall of about five seconds, heard from far off',
       brief: 'a far-off hall',
-      nouns: ['hall', 'distance'],
+      nouns: ['hall'],
       roles: ['hall'],
-      traits: ['far', 'wide'],
+      traits: ['far', 'wide', 'dark'],
     },
     'Full wet send': {
       says: 'a hall of about four seconds with no dry sound in it',
-      brief: 'a hall on its own',
-      nouns: ['hall', 'send'],
+      brief: 'a hall with no dry sound',
+      nouns: ['hall'],
       roles: ['hall'],
       traits: ['heavy', 'far', 'wide'],
     },

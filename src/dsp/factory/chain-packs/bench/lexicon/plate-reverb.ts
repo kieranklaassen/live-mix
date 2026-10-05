@@ -15,19 +15,19 @@ export const LEXICON: DeviceLexicon = {
     'Small plate': {
       says: 'a small plate that is gone in a second or two',
       brief: 'a small plate',
-      nouns: ['plate', 'sheet'],
+      nouns: ['plate'],
       roles: ['room'],
       traits: ['faint'],
     },
     'Long plate': {
       says: 'a long plate with a wide and even tail',
       brief: 'a long plate',
-      nouns: ['plate', 'wash'],
+      nouns: ['plate'],
       roles: ['hall'],
       traits: ['long', 'wide'],
     },
     'Tight room': {
-      says: 'a tight damped little room that is barely there',
+      says: 'a tight, damped little room close around the sound',
       brief: 'a tight little room',
       nouns: ['room', 'booth'],
       roles: ['room'],
@@ -43,7 +43,7 @@ export const LEXICON: DeviceLexicon = {
     'Bright plate': {
       says: 'a bright undamped plate of a couple of seconds',
       brief: 'a bright plate',
-      nouns: ['plate', 'steel'],
+      nouns: ['plate'],
       roles: ['hall'],
       traits: ['bright', 'clean'],
     },
@@ -52,7 +52,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a quiet late plate',
       nouns: ['sheen', 'plate'],
       roles: ['hall'],
-      traits: ['clean', 'faint'],
+      traits: ['clean'],
     },
     'Endless wash': {
       says: 'a plate wash that hangs on for half a minute',
@@ -62,7 +62,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['long', 'wide', 'heavy'],
     },
     'Distant haze': {
-      says: 'a far-off plate with a long soft tail and little dry sound',
+      says: 'a far-off plate haze with a long, soft tail',
       brief: 'a far-off plate haze',
       nouns: ['haze', 'plate'],
       roles: ['hall'],
@@ -71,7 +71,7 @@ export const LEXICON: DeviceLexicon = {
     'Full wet send': {
       says: 'a plate heard alone with none of the dry sound left',
       brief: 'a plate with no dry sound',
-      nouns: ['plate', 'send'],
+      nouns: ['plate'],
       roles: ['hall'],
       traits: ['heavy', 'far', 'wide'],
     },

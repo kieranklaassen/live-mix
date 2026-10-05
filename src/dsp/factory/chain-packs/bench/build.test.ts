@@ -144,11 +144,18 @@ interface Measured {
   stress: Awaited<ReturnType<typeof stressChain>>
 }
 
-/** The prints every new chain is told from: the bank's, every other pack's and this pack's so far. */
-type Known = { id: string; prints: Prints }[]
+/**
+ * The prints every new chain is told from: the bank's (`pack` empty), every
+ * other pack's and this pack's so far. A master chain is told from its own
+ * pack's only: a hint on a whole mix is near the dry sound by design, and so
+ * near every other hint; within a pack no two finishes are alike.
+ */
+type Known = { id: string; pack: string; prints: Prints }[]
+const told = (category: FactoryChainCategory, pack: string, other: Known[number]) =>
+  category !== 'master' || other.pack === pack
 
 /** Level a drawn chain, measure it, and say why it is refused if it is. */
-async function measure(drawn: Drawn, known: Known): Promise<Measured | string> {
+async function measure(drawn: Drawn, known: Known, pack: string): Promise<Measured | string> {
   const [keys, pad, bells] = await benchInputs()
   let effects = drawn.effects
   const hear = async (input: typeof keys) => {
@@ -190,6 +197,7 @@ async function measure(drawn: Drawn, known: Known): Promise<Measured | string> {
   const prints = printsOf(on)
   let nearest: [string, number] = ['', Infinity]
   for (const other of known) {
+    if (!told(drawn.category, pack, other)) continue
     const apart = chainDistance(prints, other.prints)
     if (apart < nearest[1]) nearest = [other.id, apart]
   }
@@ -379,8 +387,10 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
       const known: Known = dry
         ? []
         : [
-            ...readBank().map((row) => ({ id: row.id, prints: row.prints })),
-            ...everyOther.map((row) => ({ id: row.chain.id, prints: row.prints })),
+            ...readBank().map((row) => ({ id: row.id, pack: '', prints: row.prints })),
+            ...others.flatMap((other) =>
+              other.kept.map((row) => ({ id: row.chain.id, pack: other.pack, prints: row.prints })),
+            ),
           ]
 
       // What the pack already has counts as drawn: its presets, its names and its words.
@@ -409,7 +419,7 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
         // Which of the two it was is not kept; counting both only makes the pack spread its words further.
         names.heads.set(head, (names.heads.get(head) ?? 0) + 1)
         names.tails.set(rest.join(' '), (names.tails.get(rest.join(' ')) ?? 0) + 1)
-        known.push({ id: row.chain.id, prints: row.prints })
+        known.push({ id: row.chain.id, pack: packId, prints: row.prints })
         kept.push(row)
       }
 
@@ -459,7 +469,7 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
             refuse('NOTHING to draw')
             continue
           }
-          const measured = dry ? undefined : await measure(drawn, known)
+          const measured = dry ? undefined : await measure(drawn, known, packId)
           if (typeof measured === 'string') {
             noteDrawn(state, drawn, false)
             refuse(measured)
@@ -507,7 +517,7 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
             nearest: measured?.nearest ?? ['', Infinity],
           }
           kept.push(row)
-          if (on) known.push({ id: chain.id, prints: row.prints })
+          if (on) known.push({ id: chain.id, pack: packId, prints: row.prints })
           if (queue[0] === recipe) queue.shift()
         }
         if (have() < want) short.push(`${group}: ${have()} of ${want}`)
@@ -538,7 +548,7 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
     const names = new Set(FACTORY_CHAINS.map((chain) => chain.name.toLowerCase()))
     const ids = new Set<string>()
     const signatures = new Set(FACTORY_CHAINS.map((chain) => signature(chain.effects)))
-    const known: Known = readBank().map((row) => ({ id: row.id, prints: row.prints }))
+    const known: Known = readBank().map((row) => ({ id: row.id, pack: '', prints: row.prints }))
     const struck = existsSync(STRUCK_PATH)
       ? (JSON.parse(readFileSync(STRUCK_PATH, 'utf8')) as Record<string, string[]>)
       : {}
@@ -584,7 +594,9 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           why = 'its effects and presets are taken'
         else {
           const twin = known.find(
-            (other) => chainDistance(row.prints, other.prints) < twinLimit(row.chain.category),
+            (other) =>
+              told(row.chain.category, pack.id, other) &&
+              chainDistance(row.prints, other.prints) < twinLimit(row.chain.category),
           )
           if (twin) why = `a twin of ${twin.id}`
         }
@@ -603,7 +615,7 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
         names.add(row.chain.name.toLowerCase())
         ids.add(row.chain.id)
         signatures.add(signature(row.chain.effects))
-        known.push({ id: row.chain.id, prints: row.prints })
+        known.push({ id: row.chain.id, pack: pack.id, prints: row.prints })
         kept.push(row)
       }
       if (kept.length < file.kept.length || reworded > 0) {
