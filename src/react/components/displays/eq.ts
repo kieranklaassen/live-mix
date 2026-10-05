@@ -1204,10 +1204,10 @@ const tamer = plateDisplay<TamerState>({
     for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
     const hot = handles.find((point) => point.key === frame.hot)
     // The deepest cut in force, as a number: the one figure it is watched by.
-    // The device's reading is the deepest of its filters. Where filters lie
-    // over one another their cuts add and the curve hangs lower than any one
-    // of them, and a narrow cut falls between two places of the curve: the
-    // number is the deeper of the two.
+    // The device's reading is all its filters together at each one's centre,
+    // as the cuts were last shared out; the curve is the filters as they
+    // stand, at its 48 places, and a narrow cut falls between two of them.
+    // The number is the deeper of the two, so it never says less than is drawn.
     let deepest = 0
     if (running) {
       const reduction = frame.meter('reduction')

@@ -89,8 +89,9 @@
 //
 // Listen swaps the output for what is taken away: the input less the output.
 //
-// meter(0) is the deepest cut in force, in dB. Meters 1 to 12 are for the
-// display: the cut at 48 points from 40 Hz to 20 kHz.
+// meter(0) is the deepest cut in force, in dB: all the filters together, not
+// the deepest single one. Meters 1 to 12 are for the display: the cut at 48
+// points from 40 Hz to 20 kHz.
 //
 // Asleep nothing is sounding, so the filters, the band powers, the cuts and
 // the FFTs' input are cleared: waking is the same as starting.
@@ -142,10 +143,12 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   }
 
   // The readings named by meters[index] in device.json. 0 is the deepest cut
-  // in force right now, in dB (0 or below). 1 to 12 are for the display, which
-  // draws the cut at 48 points spaced evenly in pitch from 40 Hz to 20 kHz:
-  // four points to a reading, each six bits of a whole number (the lowest
-  // point in the lowest bits), which a float holds exactly (2^24).
+  // in force, in dB (0 or below): all the filters together, read at each
+  // one's centre as the cuts were last shared out. 1 to 12 are for the
+  // display, which draws the cut at 48 points spaced evenly in pitch from
+  // 40 Hz to 20 kHz: four points to a reading, each six bits of a whole
+  // number (the lowest point in the lowest bits), which a float holds
+  // exactly (2^24).
   //
   // A cut is in half decibels, read off the filters as they stand: the sum of
   // every live filter's skirt at that point, by the rule the gains were
@@ -494,7 +497,6 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
       for (int k = 0; k < num_bands_; ++k) alpha_now_[k] += (alpha_[k] - alpha_now_[k]) * share;
       --alpha_ticks_;
     }
-    float deepest = 0.0f;
     int live = 0;
     for (int k = 0; k < num_bands_; ++k) {
       kit::LinearRamp& gain = gain_[k];
@@ -505,12 +507,10 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
                  drained(filter_[1][k])) {
         live_[k] = false;
       }
-      if (gain.value < deepest) deepest = gain.value;
       if (live_[k]) live_bands_[live++] = k;
     }
     redesign_ = false;
     live_count_ = live;
-    deepest_ = deepest;
     at_rest_ = live == 0 && alpha_ticks_ == 0;
   }
 
@@ -826,6 +826,16 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
           solved_[i] = kit::clamp(held_[active_[i]] - others, -kMaxCutDb, 0.0f);
         }
       }
+      // The deepest point of all the cuts together, for the meter: where cuts
+      // lie over each other that is deeper than any one filter's own.
+      float deepest = 0.0f;
+      for (int i = 0; i < active; ++i) {
+        const float* skirts = skirts_[i];
+        float together = solved_[i];
+        for (int j = 0; j < active; ++j) together += skirts[j] * solved_[j];
+        if (together < deepest) deepest = together;
+      }
+      deepest_ = deepest;
       for (int k = 0; k < num_bands_; ++k) wanted_[k] = 0.0f;
       for (int i = 0; i < active; ++i) wanted_[active_[i]] = solved_[i];
       for (int k = 0; k < num_bands_; ++k) {

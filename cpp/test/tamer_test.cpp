@@ -586,6 +586,11 @@ static void test_sharpness() {
     measured(label, got.tone_db, "dB", n == 2 ? "under -11" : "less than at 1");
     std::snprintf(label, sizeof label, "Sharpness %.1f: the bed half an octave away", sharpness);
     measured(label, got.bed_near_db, "dB", "");
+    // Broad cuts lie over each other, so the tone gets more than any one
+    // filter's own cut: the meter reads them together.
+    std::snprintf(label, sizeof label, "Sharpness %.1f: the meter against the tone", sharpness);
+    measured(label, got.meter_db - got.tone_db, "dB", "within 2");
+    EXPECT_NEAR(got.meter_db, got.tone_db, 2.0, label);
     if (n == 0) {
       // A broad cut is wider than the display's points are apart, so the
       // point nearest the tone shows what the tone gets.
