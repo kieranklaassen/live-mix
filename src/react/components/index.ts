@@ -17,6 +17,7 @@ export {
   formatControlValue,
   formatParamValue,
   formatTimeSec,
+  hasTwoPlaces,
   heldPeak,
   isChoiceParam,
   KNOB_START_DEG,

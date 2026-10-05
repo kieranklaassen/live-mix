@@ -8,6 +8,7 @@ import { type CSSProperties } from 'react'
 import {
   formatControlValue,
   knobArcPath,
+  hasTwoPlaces,
   normToKnobAngle,
   type ControlTaper,
   type ControlUnit,
@@ -33,7 +34,11 @@ export interface KnobProps {
   max: number
   /** Quantisation step; 0 (default) clamps only. */
   step?: number
-  /** The value only takes whole steps (a list, a count): a key with Shift moves a step too, not a tenth of one. */
+  /**
+   * The value only takes whole steps (a list, a count): a key with Shift moves a step too,
+   * not a tenth of one. With one step for all of its travel (off and on) a press switches
+   * the knob, as Enter does with the keys on it, and a double-click is two presses.
+   */
   wholeSteps?: boolean
   unit?: ControlUnit
   taper?: ControlTaper
@@ -46,7 +51,7 @@ export interface KnobProps {
   axis?: ControlAxis
   sensitivityPx?: number
   wheel?: boolean
-  /** What a double-click sets; defaults to `defaultValue`. */
+  /** What a double-click or Delete sets; defaults to `defaultValue`. */
   resetValue?: number
   /** Idle time that ends a key / wheel gesture (default 400 ms). */
   gestureIdleMs?: number
@@ -223,7 +228,12 @@ export function Knob({
   const stroke = tokenRef('stroke', '2px')
   const gesture = disabled
     ? null
-    : controlGestureInfo({ axis, reset: print(resetValue ?? defaultValue), wheel })
+    : controlGestureInfo({
+        axis,
+        reset: print(resetValue ?? defaultValue),
+        wheel,
+        twoPlaces: hasTwoPlaces({ min, max, step, wholeSteps }),
+      })
 
   return (
     <div

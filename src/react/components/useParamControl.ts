@@ -4,7 +4,9 @@
 // fine (Shift) drag with sub-step travel still adds up; `onChange` fires only
 // when the quantised value moves. `onChangeStart`/`onChangeEnd` bracket a
 // gesture — pointer down to up, or a burst of keys / wheel notches — which
-// is where a host overrides and releases an automation lane.
+// is where a host overrides and releases an automation lane. A control of two
+// places (off and on) is switched by a press as well: let go where it went
+// down, the press is a gesture of one change, as a drag that ends there is.
 
 import {
   useCallback,
@@ -20,6 +22,7 @@ import {
 import {
   clamp,
   denormalizeValue,
+  hasTwoPlaces,
   normalizeValue,
   pointerDeltaToNormDelta,
   quantize,
@@ -28,7 +31,7 @@ import {
   WHEEL_NOTCH,
   type ControlTaper,
 } from './control-math'
-import { firstPressWasElsewhere, watchPresses } from './presses'
+import { firstPressWasElsewhere, pressFollowsOneElsewhere, watchPresses } from './presses'
 
 export type ControlAxis = 'vertical' | 'horizontal' | 'both'
 
@@ -44,6 +47,9 @@ export interface ParamControlOptions {
   /**
    * The value only takes whole steps (a list, a count, semitones): a key
    * moves it a step with Shift held too, where it would move a tenth of one.
+   * With one step for all of its travel the control has two places, and a
+   * press switches it, as Enter does with the keys on it; a double click is
+   * then two presses and resets nothing.
    */
   wholeSteps?: boolean
   taper?: ControlTaper
@@ -70,6 +76,7 @@ export interface ParamControlHandlers {
   onPointerUp: (event: PointerEvent<HTMLElement>) => void
   onPointerCancel: (event: PointerEvent<HTMLElement>) => void
   onLostPointerCapture: (event: PointerEvent<HTMLElement>) => void
+  onClick: (event: MouseEvent<HTMLElement>) => void
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onBlur: () => void
@@ -97,6 +104,8 @@ const useIsomorphicLayoutEffect = isBrowser ? useLayoutEffect : useEffect
 
 /** How far a finger goes before a control takes it for a turn, in pixels: less is a tap, or the start of a swipe. */
 const TOUCH_SLOP_PX = 4
+/** How far a pointer may go from where it went down and still be a press, in pixels: the same little way. */
+const PRESS_SLOP_PX = TOUCH_SLOP_PX
 
 export function useParamControl(options: ParamControlOptions): ParamControl {
   const {
@@ -137,6 +146,10 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const heldBackRef = useRef<number | null>(null)
   /** How far that finger has gone across the control's own way meanwhile. */
   const heldAcrossRef = useRef(0)
+  /** Where the pointer went down on a control of two places; null once it is a drag or the control was turned, and on any other control. */
+  const pressRef = useRef<{ x: number; y: number } | null>(null)
+  /** Enter went down on a control of two places: the click the browser makes of it is still to come. */
+  const enterRef = useRef(false)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
   /** What the wheel has turned of a whole step that is not taken yet, in steps: a control of few whole steps only. */
@@ -185,6 +198,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     const pointerId = pointerIdRef.current
     draggingRef.current = false
     pointerIdRef.current = null
+    pressRef.current = null
     setDragging(false)
     const element = elementRef.current
     if (pointerId !== null && element?.hasPointerCapture?.(pointerId)) {
@@ -213,6 +227,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     // step, a preset): the value shown is that rounded, and a move onto it is still a move.
     const held = latest.current.value
     if (next === (held !== undefined && !draggingRef.current ? held : shownRef.current)) return
+    // Turned while the pointer is down on it (a drag, a key): its going up is the end of that, not a press.
+    pressRef.current = null
     shownRef.current = next
     setInternal(next)
     if (draggingRef.current) wroteRef.current = true
@@ -240,11 +256,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     [commitQuantized],
   )
 
+  /** Puts a control of two places on its other place. */
+  const switchPlace = useCallback(() => {
+    const o = latest.current
+    commitValue(shownRef.current === o.max ? o.min : o.max)
+  }, [commitValue])
+
   const endPointer = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       if (pointerIdRef.current !== event.pointerId) return
       draggingRef.current = false
       pointerIdRef.current = null
+      pressRef.current = null
       setDragging(false)
       if (event.currentTarget.hasPointerCapture?.(event.pointerId)) {
         event.currentTarget.releasePointerCapture(event.pointerId)
@@ -266,6 +289,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       takenAtRef.current = shownRef.current
       heldAtRef.current = latest.current.value
       wroteRef.current = false
+      // A control of two places is switched by a press. Not by the second press of a double click
+      // that began on something else, which moved away and left the control under the pointer.
+      pressRef.current =
+        hasTwoPlaces(latest.current) && !pressFollowsOneElsewhere(event.currentTarget, event)
+          ? { x: event.clientX, y: event.clientY }
+          : null
       // A finger's first pixels are held back: until it has gone a little way
       // it may be a swipe along whatever the control stands in, which the
       // browser is about to take, and a control that had already turned would
@@ -285,6 +314,20 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       beginGesture()
     },
     [beginGesture],
+  )
+
+  /**
+   * The pointer goes up. On a control of two places a press that went no way
+   * and turned nothing switches it, inside the move the press began: one
+   * change between its start and its end, as a drag that ends there.
+   */
+  const onPointerUp = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (pointerIdRef.current !== event.pointerId) return
+      if (pressRef.current !== null && !latest.current.disabled) switchPlace()
+      endPointer(event)
+    },
+    [endPointer, switchPlace],
   )
 
   /**
@@ -337,6 +380,14 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       const dx = event.clientX - lastPointRef.current.x
       const dy = event.clientY - lastPointRef.current.y
       lastPointRef.current = { x: event.clientX, y: event.clientY }
+      // Gone further than a hand shakes, whichever way: a drag from here on, wherever it is let go.
+      const press = pressRef.current
+      if (
+        press !== null &&
+        Math.hypot(event.clientX - press.x, event.clientY - press.y) >= PRESS_SLOP_PX
+      ) {
+        pressRef.current = null
+      }
       const a = latest.current.axis ?? axis
       const travel = a === 'vertical' ? dy : a === 'horizontal' ? -dx : dy - dx
       if (heldBackRef.current !== null) {
@@ -361,10 +412,34 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     [axis, commitNorm, endPointer, sensitivityPx],
   )
 
+  /**
+   * Enter with the keys on a control of two places switches it. It is done at
+   * the click the browser makes of the key on a button, not at the key: a
+   * host that keeps the clicks from a control, to pick it and not work it,
+   * keeps this one with them. A click of the pointer was dealt with as it
+   * went up, and one a script or the Space bar made is not Enter's.
+   */
+  const onClick = useCallback(
+    (event: MouseEvent<HTMLElement>) => {
+      const entered = enterRef.current
+      enterRef.current = false
+      const o = latest.current
+      if (!entered || event.detail !== 0 || o.disabled || !hasTwoPlaces(o)) return
+      beginGesture()
+      switchPlace()
+      // With a pointer down on the control it is part of that move, as a stepping key is.
+      if (!draggingRef.current) endGesture()
+    },
+    [beginGesture, endGesture, switchPlace],
+  )
+
   const onDoubleClick = useCallback(
     (event: MouseEvent<HTMLElement>) => {
       const o = latest.current
       if (o.disabled) return
+      // On a control of two places a double click is two presses, and each has switched it: it is
+      // back where it began. Its way to the default is Delete.
+      if (hasTwoPlaces(o)) return
       // The browser sends this to what stands under the second press. A cell that moved away when it
       // was pressed (a plate folding open) leaves a control there, and that is not a double click on it.
       if (firstPressWasElsewhere(event.currentTarget, event)) return
@@ -381,6 +456,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: KeyboardEvent<HTMLElement>) => {
       const o = latest.current
       if (o.disabled) return
+      // Enter on a control of two places: the click it makes switches it (`onClick`), so the key
+      // is left to the browser and only kept from the page. A held key is one press.
+      enterRef.current = false
+      if (
+        event.key === 'Enter' &&
+        hasTwoPlaces(o) &&
+        !(event.shiftKey || event.metaKey || event.ctrlKey || event.altKey)
+      ) {
+        enterRef.current = !event.repeat
+        event.stopPropagation()
+        return
+      }
       const stepSize = o.step ?? 0
       const fine = event.shiftKey && !(o.wholeSteps && stepSize > 0)
       // A fine step leaves the value a tenth of a step off the grid, and the value shown is the host's
@@ -455,6 +542,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   )
 
   const onBlur = useCallback(() => {
+    enterRef.current = false
     if (!draggingRef.current) endGesture()
   }, [endGesture])
 
@@ -518,9 +606,10 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     handlers: {
       onPointerDown,
       onPointerMove,
-      onPointerUp: endPointer,
+      onPointerUp,
       onPointerCancel: cancelPointer,
       onLostPointerCapture,
+      onClick,
       onDoubleClick,
       onKeyDown,
       onBlur,
