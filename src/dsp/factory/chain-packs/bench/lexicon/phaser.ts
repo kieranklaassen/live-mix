@@ -34,7 +34,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['slow', 'wide'],
     },
     'Fast throb': {
-      says: 'a shallow phaser pulsing about four times a second',
+      says: 'a shallow phaser pulsing four or five times a second',
       brief: 'a quick shallow phaser',
       nouns: ['phaser'],
       roles: ['pulse'],
@@ -43,13 +43,13 @@ export const LEXICON: DeviceLexicon = {
     'Twelve stage cloud': {
       says: 'a dense many-notched phaser drifting opposite on each side',
       brief: 'a dense drifting phaser',
-      nouns: ['cloud', 'phaser'],
+      nouns: ['phaser', 'cloud'],
       roles: ['motion', 'width'],
       traits: ['slow', 'wide'],
     },
     'Negative notch': {
-      says: 'a hollow peaking phaser that turns about every four seconds',
-      brief: 'a hollow peaking phaser',
+      says: 'a hollow, resonant phaser turning about every four seconds',
+      brief: 'a hollow, resonant phaser',
       nouns: ['phaser'],
       roles: ['motion'],
       traits: ['slow', 'wide'],

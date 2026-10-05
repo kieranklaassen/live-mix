@@ -6,8 +6,8 @@ export const LEXICON: DeviceLexicon = {
   trim: [{ param: 'mix', kind: 'mix' }],
   voices: {
     'Amp tremolo': {
-      says: 'a steady amplifier tremolo, about four pulses a second',
-      brief: 'an amplifier tremolo',
+      says: 'a steady amplifier tremolo, four or five pulses a second',
+      brief: 'a quick amplifier tremolo',
       nouns: ['tremolo', 'pulse'],
       roles: ['pulse'],
       traits: ['fast', 'clean'],
@@ -27,7 +27,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['slow', 'wide', 'clean'],
     },
     Chopper: {
-      says: 'a hard chop to silence about seven times a second',
+      says: 'a hard chop to silence seven or eight times a second',
       brief: 'a hard fast chop',
       nouns: ['tremolo'],
       roles: ['pulse'],
@@ -111,9 +111,9 @@ export const LEXICON: DeviceLexicon = {
       traits: ['wide', 'unsteady', 'fast'],
     },
     'Drifting comb': {
-      says: 'a slow flanger-like sweep, opposite on each side',
-      brief: 'a slow flanger-like sweep',
-      nouns: ['drift'],
+      says: 'a slow flanger sweep, opposite on each side',
+      brief: 'a slow flanger sweep',
+      nouns: ['flanger', 'drift'],
       roles: ['motion'],
       traits: ['slow', 'wide'],
     },

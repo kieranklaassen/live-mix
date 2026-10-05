@@ -17,7 +17,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'a steep low-pass that removes all above four hundred hertz',
       brief: 'a steep dark low-pass',
       nouns: ['filter'],
-      roles: ['drive'],
+      roles: ['tone'],
       traits: ['dark'],
     },
     'Touch wah': {
@@ -32,7 +32,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a swinging resonant low-pass',
       nouns: ['sweep', 'filter'],
       roles: ['motion'],
-      traits: [],
+      traits: ['strange'],
     },
     Squelch: {
       says: 'a squelching low-pass ramping open about four times a second',
@@ -93,7 +93,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Glacial low-pass': {
       says: 'a low-pass that opens and closes over about half a minute',
-      brief: 'a glacial low-pass',
+      brief: 'a half-minute low-pass sweep',
       nouns: ['filter', 'tide'],
       roles: ['motion'],
       traits: ['slow', 'dark'],

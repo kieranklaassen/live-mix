@@ -111,7 +111,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['wide', 'slow', 'unsteady'],
     },
     'Warped tape': {
-      says: 'a deep pitch wobble in the centre, like a warped tape',
+      says: 'a deep pitch wobble, like a warped tape',
       brief: 'a warped-tape wobble',
       nouns: ['wobble'],
       roles: ['motion'],

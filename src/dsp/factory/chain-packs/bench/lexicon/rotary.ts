@@ -35,7 +35,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Across the room': {
       says: 'a slow rotating speaker heard from across the room',
-      brief: 'a far slow rotating speaker',
+      brief: 'a distant, slow rotary',
       nouns: ['rotary'],
       roles: ['motion'],
       traits: ['far'],
@@ -55,8 +55,8 @@ export const LEXICON: DeviceLexicon = {
       traits: ['fast', 'dark'],
     },
     'Faint motion': {
-      says: 'a slow rotating speaker that barely moves the sound',
-      brief: 'a barely turning speaker',
+      says: 'a slow rotating speaker with a shallow, gentle sway',
+      brief: 'a slow, gentle rotary sway',
       nouns: ['rotary', 'sway'],
       roles: ['motion'],
       traits: ['faint', 'dark', 'clean'],
@@ -72,7 +72,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'a slow rotating speaker heard through one microphone',
       brief: 'a mono rotating speaker',
       nouns: ['rotary'],
-      roles: ['drive'],
+      roles: ['motion'],
       traits: ['narrow', 'warm'],
     },
     'Dark drum': {
@@ -91,7 +91,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Far shimmer': {
       says: 'a fast rotating speaker heard from far off, smooth and even',
-      brief: 'a far fast rotating speaker',
+      brief: 'a distant, fast rotary swirl',
       nouns: ['swirl', 'rotary'],
       roles: ['pulse', 'motion'],
       traits: ['fast', 'far', 'clean'],
@@ -111,9 +111,9 @@ export const LEXICON: DeviceLexicon = {
       traits: ['warm'],
     },
     'Parked growl': {
-      says: 'a stopped speaker cabinet with its amplifier growling',
-      brief: 'a stopped growling cabinet',
-      nouns: ['rotary'],
+      says: 'a stopped rotating speaker with its amplifier growling',
+      brief: "a stopped rotary's amp growl",
+      nouns: ['amp', 'valves'],
       roles: ['drive'],
       traits: ['warm', 'narrow'],
     },

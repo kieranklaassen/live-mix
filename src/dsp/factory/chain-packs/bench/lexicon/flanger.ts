@@ -17,7 +17,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a jet flanger sweep',
       nouns: ['flanger', 'sweep'],
       roles: ['motion'],
-      traits: ['slow', 'wide'],
+      traits: ['slow', 'wide', 'bright'],
     },
     'Slow sweep': {
       says: 'a flanger that takes about twelve seconds over each sweep',
