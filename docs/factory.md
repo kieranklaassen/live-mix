@@ -843,7 +843,8 @@ these. They are drawn, by a bench that is in the repository
   is one of its pack's words and what its leading effect is ("Harbour plate",
   "Loop under snow"); a master chain is named for what it gives a mix
   ("Stopover finish", "Tiptoe mixdown"), each with a pack word of its own. A
-  name and its plural are one name ("Seasick echo", "Seasick echoes"), and a
+  name and its plural are one name ("Seasick echo", "Seasick echoes"), so are
+  a name and its words turned round ("Treeline pad", "Pad at treeline"), and a
   noun that reads as something else with a capital never stands first
   ("Polish in the park", "Record past the gate"). Its sentence is each effect
   as the lexicon says it, in order.
@@ -899,7 +900,10 @@ struck about one new chain in fourteen, most for a name ("Plate on the
 stairs", "Finish a flight up") and a few for a pattern no rule yet refused (a
 faint room before a hall, the top dulled twice); those were mended the same
 way, an eighth of the chains were drawn once more, and those were read a
-third time.
+third time. The third reading struck about one new chain in twenty-five, a
+third of them a name that was another's words turned round, which the bench
+now refuses. The thirty or so chains drawn after it were read by whoever ran
+the bench, not by a reader to a pack.
 
 The bench keeps what it has drawn under `tmp/chain-bench/` and draws only what
 a pack still lacks, so a pack that is short after a change is topped up, not

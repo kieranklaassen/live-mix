@@ -605,7 +605,7 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
         )
           why = 'its name is not one its words give any more'
         else if (names.has(nameStem(row.chain.name)))
-          why = 'its name is taken, or is another name but for a plural'
+          why = 'its name is taken, or is another name but for a plural or the order of its words'
         else if (opens && masterHeads.has(opens))
           why = 'a master chain of the pack already opens with its word'
         else if (ids.has(row.chain.id)) why = 'its id is taken'

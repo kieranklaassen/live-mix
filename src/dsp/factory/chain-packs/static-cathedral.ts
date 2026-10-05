@@ -600,22 +600,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-bell-rope-sampler',
-    name: 'Bell-rope sampler',
-    category: 'tape',
-    description:
-      'Smooth converters that hiss, then muffled tape hiss, steady and thick, into a hall whose top rings on while its lows stop short.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Jittery' },
-      { deviceId: 'noise-floor', preset: 'Muffled hiss' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Airy tail',
-        params: { preDelay: 29.5, lowDecay: 1.08, midDecay: 4.78 },
-      },
-    ],
-  },
-  {
     id: 'static-cathedral-mullion-sampler',
     name: 'Mullion sampler',
     category: 'tape',
@@ -625,6 +609,21 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 're-amp', preset: 'Noisy valves' },
       { deviceId: 'vintage-digital', preset: 'Sampler' },
       { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { length: 0.109, glide: 0.672 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-clerestory-radio',
+    name: 'Clerestory radio',
+    category: 'tape',
+    description:
+      'A low-pass that opens and closes over about half a minute, then a small medium-wave radio, boxy and nasal, with light static.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Glacial low-pass',
+        params: { lfoRateHz: 0.0297, envAttackMs: 10.3, envReleaseMs: 190 },
+      },
+      { deviceId: 'radio', preset: 'Kitchen radio' },
     ],
   },
   {
@@ -1018,18 +1017,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-bass-in-the-loft',
-    name: 'Bass in the loft',
-    category: 'pitch',
-    description:
-      'The octave below alone, rounded off like a bass, then a watery, warbling copy laid under the clean sound, into a slow, dark swell of reverb.',
-    effects: [
-      { deviceId: 'octaves', preset: 'Bass alone' },
-      { deviceId: 'low-bitrate', preset: 'Watery trace' },
-      { deviceId: 'shaped-reverb', preset: 'Dark swell', params: { time: 3.9 } },
-    ],
-  },
-  {
     id: 'static-cathedral-loose-wire-chime',
     name: 'Loose-wire chime',
     category: 'pitch',
@@ -1132,6 +1119,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'grain-cloud', preset: 'Glass shards', params: { size: 28.5, density: 13.5 } },
       { deviceId: 'grain-delay', preset: 'Dark slow smear', params: { time: 1520, size: 457 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-octave-in-the-loft',
+    name: 'Octave in the loft',
+    category: 'pitch',
+    description:
+      'A long half-speed replay, then coarse five-bit converters, into a long thin cave whose single echoes swell and fade.',
+    effects: [
+      { deviceId: 'half-speed', preset: 'Long drag' },
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
+      { deviceId: 'swarm-reverb', preset: 'Glinting', params: { length: 0.615, glide: 0.614 } },
     ],
   },
   {

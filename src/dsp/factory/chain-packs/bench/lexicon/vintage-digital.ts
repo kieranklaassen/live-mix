@@ -31,7 +31,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'dull, hissing converters',
       nouns: ['sampler', 'dust'],
       roles: ['wear'],
-      traits: ['dark', 'cold'],
+      traits: ['dark', 'cold', 'noisy'],
     },
     Glassy: {
       says: 'old converters left unsmoothed, with a glassy ring on top',
@@ -59,7 +59,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'worn nine-bit converters',
       nouns: ['sampler'],
       roles: ['wear'],
-      traits: ['cold'],
+      traits: ['cold', 'noisy'],
     },
     Crushed: {
       says: 'five-bit converters fed hot, coarse and grainy on every note',
@@ -80,7 +80,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'smooth converters that hiss',
       nouns: ['sampler'],
       roles: ['wear'],
-      traits: ['dark'],
+      traits: ['dark', 'noisy'],
     },
     Sunken: {
       says: 'converters at a very low rate, filtered smooth and dull',

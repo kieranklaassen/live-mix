@@ -356,17 +356,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-remembered-echo',
-    name: 'Remembered echo',
-    category: 'echo',
-    description:
-      'Grain repeats that fall an octave and darken each time, into a far-off plate haze with a long, soft tail.',
-    effects: [
-      { deviceId: 'grain-delay', preset: 'Falling embers', params: { time: 467, size: 223 } },
-      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.557 } },
-    ],
-  },
-  {
     id: 'lucid-china-clay-echo',
     name: 'China-clay echo',
     category: 'echo',
@@ -527,6 +516,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-echo', preset: 'Hovering wash', params: { time: 821 } },
       { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.76, midDecay: 4.75 } },
+    ],
+  },
+  {
+    id: 'lucid-hedgerow-descent',
+    name: 'Hedgerow descent',
+    category: 'echo',
+    description:
+      'Echoes that fall a fourth further on every repeat, into a mellow reverb whose tail drifts down towards the fifth.',
+    effects: [
+      { deviceId: 'pitch-shifter', preset: 'Falling steps' },
+      { deviceId: 'bloom-reverb', preset: 'Falling fifths', params: { decay: 11 } },
     ],
   },
   {

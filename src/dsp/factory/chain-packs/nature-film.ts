@@ -622,17 +622,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-mid-morning-fuzz',
-    name: 'Mid-morning fuzz',
-    category: 'tape',
-    description:
-      'A thick, loose fuzz from an overloaded transformer, then a gentle high cut that shades the top end.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron melt' },
-      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.68 } },
-    ],
-  },
-  {
     id: 'nature-film-dust-in-drizzle',
     name: 'Dust in drizzle',
     category: 'tape',
@@ -642,6 +631,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'micro-looper', preset: 'Drifting' },
       { deviceId: 'vinyl', preset: 'Dust and scratches', params: { spin: 1.41 } },
       { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 19.7 } },
+    ],
+  },
+  {
+    id: 'nature-film-station-after-lunch',
+    name: 'Station after lunch',
+    category: 'tape',
+    description:
+      'A small mono transistor radio with a clear, steady signal, into a small damped room that is over within a second.',
+    effects: [
+      { deviceId: 'radio', preset: 'Clean transistor' },
+      { deviceId: 'ether-reverb', preset: 'Room', params: { predelayMs: 9.75 } },
     ],
   },
   {

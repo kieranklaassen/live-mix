@@ -37,15 +37,32 @@ export const slug = (name: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
 
+/** Words that only join a name's other words: "Pad at treeline" says no more than "Treeline pad". */
+const JOINING: ReadonlySet<string> = new Set([
+  'a',
+  'at',
+  'by',
+  'from',
+  'in',
+  'of',
+  'on',
+  'the',
+  'under',
+  'with',
+])
+
 /**
- * A name with the number taken off its words: "Seasick echoes" and "Seasick
- * echo" are one name to someone reading down a list.
+ * A name's words with their number, their order and the words that only join
+ * them taken off: "Seasick echoes" and "Seasick echo", or "Treeline pad" and
+ * "Pad at treeline", are one name to someone reading down a list.
  */
 export const nameStem = (name: string) =>
   name
     .toLowerCase()
-    .split(' ')
+    .split(/[ -]/)
+    .filter((word) => !JOINING.has(word))
     .map((word) => word.replace(/s$/, '').replace(/e$/, ''))
+    .sort()
     .join(' ')
 
 /** What a pack's names have used so far. */

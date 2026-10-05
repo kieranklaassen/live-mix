@@ -464,17 +464,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-echo-under-eaves',
-    name: 'Echo under eaves',
-    category: 'echo',
-    description:
-      'A dense many-notched phaser drifting opposite on each side, then a tape echo whose warm repeats soften as they fade.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Twelve stage cloud' },
-      { deviceId: 'tape-echo', preset: 'Warm repeats' },
-    ],
-  },
-  {
     id: 'window-garden-lantern-echo',
     name: 'Lantern echo',
     category: 'echo',
@@ -513,21 +502,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-tatami-loop',
-    name: 'Tatami loop',
-    category: 'echo',
-    description:
-      'A short tape loop where each pass comes back quieter, into a faint hall tail of about three seconds.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Slow fade', params: { length: 1.65 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Faint halo',
-        params: { preDelay: 35.5, lowDecay: 2.21, midDecay: 2.69 },
-      },
-    ],
-  },
-  {
     id: 'window-garden-loop-on-gravel',
     name: 'Loop on gravel',
     category: 'echo',
@@ -558,6 +532,28 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'expanse', preset: 'Hard echoes', params: { decay: 4.27, modRate: 0.395 } },
       { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.13 } },
+    ],
+  },
+  {
+    id: 'window-garden-echo-kept-small',
+    name: 'Echo kept small',
+    category: 'echo',
+    description:
+      'A chorus on the upper range that leaves the lows steady, then a short, soft tape echo close behind the playing.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Guitar shimmer', params: { rate: 1.32, delayMs: 13.7 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 177 } },
+    ],
+  },
+  {
+    id: 'window-garden-vitrine-repeats',
+    name: 'Vitrine repeats',
+    category: 'echo',
+    description:
+      'A clean, steady echo with no wobble and little dulling, then a scooped tone with lows and highs up and the body down.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 186, modRate: 0.578 } },
+      { deviceId: 'ambient-eq', preset: 'Hollow' },
     ],
   },
   {

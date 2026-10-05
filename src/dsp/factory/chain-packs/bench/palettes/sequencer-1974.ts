@@ -266,7 +266,7 @@ export const PALETTE: PackPalette = {
     'Transept',
     'Cloister',
     'Planetarium',
-    'Black-knob',
+    'Switchboard',
     'Walnut',
     { word: 'Far-off', for: ['far'] },
     { word: 'Slow-turning', for: ['slow'] },

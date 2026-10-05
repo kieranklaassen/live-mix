@@ -180,5 +180,5 @@ export const PALETTE: PackPalette = {
     'by evening',
     'years on',
   ],
-  avoid: ['cascade', 'shortwave', 'loops', 'tiles', 'shadow', 'sparkle'],
+  avoid: ['cascade', 'shortwave', 'loops', 'tiles', 'shadow', 'sparkle', 'sparkles'],
 }
