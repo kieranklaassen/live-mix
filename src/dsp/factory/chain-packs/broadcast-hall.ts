@@ -11,7 +11,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Skylight room',
     category: 'space',
     description:
-      'A tape preamp driven for thick lows and a dull top, into a far-off room laid in under the untouched sound.',
+      'A tape preamp driven for thick lows and a dull top, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Tape weight' },
       { deviceId: 're-amp', preset: 'Room underneath', params: { output: 0.973 } },
@@ -44,7 +44,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Curtained room',
     category: 'space',
     description:
-      'A transformer that fills out the lows and dulls the top, into a far-off room laid in under the untouched sound.',
+      'A transformer that fills out the lows and dulls the top, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
       { deviceId: 're-amp', preset: 'Room underneath', params: { output: 1.62 } },
@@ -70,21 +70,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'patina', preset: 'Hot valve', params: { output: -5.42 } },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 15.7 } },
-    ],
-  },
-  {
-    id: 'broadcast-hall-piano-top-hall',
-    name: 'Piano-top hall',
-    category: 'space',
-    description:
-      'Three taut springs kept soft and close to the centre, into a hall whose lows outlast its damped top.',
-    effects: [
-      { deviceId: 'spring-reverb', preset: 'Narrow warm tank' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Dark hall',
-        params: { preDelay: 48.9, lowDecay: 3.74, midDecay: 2.75 },
-      },
     ],
   },
   {
@@ -140,18 +125,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-tenth-row-echoes',
-    name: 'Tenth-row echoes',
-    category: 'space',
-    description:
-      'A high cut set low enough to muffle everything, then a single saturated tape echo close behind each note, into far-off separate echoes.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Muffled' },
-      { deviceId: 'tape-echo', preset: 'Single slap' },
-      { deviceId: 'expanse', preset: 'Far echoes' },
-    ],
-  },
-  {
     id: 'broadcast-hall-hall-past-the-weir',
     name: 'Hall past the weir',
     category: 'space',
@@ -186,17 +159,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'patina', preset: 'Hot valve', params: { output: -6.64 } },
       { deviceId: 'expanse', preset: 'Quick swell' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-unhurried-halo',
-    name: 'Unhurried halo',
-    category: 'space',
-    description:
-      'A tight cluster of tape repeats, like a very small room, into sixteen strings that learn the tune and ring on long.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 99.6 } },
-      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 7.9 } },
     ],
   },
   {
@@ -275,6 +237,39 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-drive', preset: 'Console', params: { output: -2.79 } },
       { deviceId: 'ether-reverb', preset: 'Dark hall' },
+    ],
+  },
+  {
+    id: 'broadcast-hall-room-by-the-river',
+    name: 'Room by the river',
+    category: 'space',
+    description:
+      'A lean pentode valve stage with a bite on every attack, into a small room that answers about an eighth of a second late.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Bite', params: { output: -2.5 } },
+      { deviceId: 'ether-reverb', preset: 'Slap room', params: { predelayMs: 136 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-piano-top-ring',
+    name: 'Piano-top ring',
+    category: 'space',
+    description:
+      'A bright spring splash that lands a moment after the note, into sixteen strings that learn the tune and ring on long.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Late splash' },
+      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 8.4, mix: 0.498 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-springs-by-lamplight',
+    name: 'Springs by lamplight',
+    category: 'space',
+    description:
+      'A fast reel with no hiss, driven hard so peaks are squashed, into a hard-driven two-spring tank that answers a moment late.',
+    effects: [
+      { deviceId: 'tape', preset: 'Hot glue', params: { output: -4.89 } },
+      { deviceId: 'spring-reverb', preset: 'Dub send', params: { decay: 2.82, predelay: 65.8 } },
     ],
   },
   {
@@ -405,7 +400,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Back-row echo',
     category: 'echo',
     description:
-      'Dotted tape repeats that bounce from side to side, into a late wall of reverb that holds, then fades away.',
+      'Dotted tape repeats that bounce from side to side, into a late wall of reverb that holds and fades away.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { time: 558 } },
       { deviceId: 'shaped-reverb', preset: 'Late wall', params: { time: 1.66, preDelay: 249 } },
@@ -445,21 +440,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-studio-echo',
-    name: 'Studio echo',
-    category: 'echo',
-    description:
-      'Two tape heads that make every repeat gallop, into one taut dull spring that answers late and rings long.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 640 } },
-      {
-        deviceId: 'spring-reverb',
-        preset: 'Dark late coil',
-        params: { decay: 5.58, predelay: 79.9 },
-      },
-    ],
-  },
-  {
     id: 'broadcast-hall-moderator-echo',
     name: 'Moderator echo',
     category: 'echo',
@@ -490,29 +470,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-tenth-row-echo',
-    name: 'Tenth-row echo',
-    category: 'echo',
-    description:
-      'An echo whose repeats hop up a fifth and down a fourth, into a far-off room laid in under the untouched sound.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Fifth hop', params: { time: 349, modRate: 0.618 } },
-      { deviceId: 're-amp', preset: 'Room underneath' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-repeats-by-the-river',
-    name: 'Repeats by the river',
-    category: 'echo',
-    description:
-      'A slow rotating speaker heard through one microphone, then a steady tape echo with no wobble, dirt or dulling, into a damped hall.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Mono cabinet' },
-      { deviceId: 'tape-echo', preset: 'Clean and steady', params: { time: 434, mix: 0.198 } },
-      { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 19.9, mix: 0.18 } },
-    ],
-  },
-  {
     id: 'broadcast-hall-on-air-echo',
     name: 'On-air echo',
     category: 'echo',
@@ -528,21 +485,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Loop at soundcheck',
     category: 'echo',
     description:
-      'A short double-speed loop an octave up that soon dies away, then a combo amplifier heard from the far side of a big room.',
+      'A short double-speed loop an octave up that soon dies away, into a combo amplifier heard from the far side of a big room.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Octave up', params: { length: 1.19 } },
       { deviceId: 're-amp', preset: 'Down the hall' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-small-hours-echoes',
-    name: 'Small-hours echoes',
-    category: 'echo',
-    description:
-      'A drifting reel laid against the dry sound to make a chorus, then a handful of separate echoes that fall away and repeat.',
-    effects: [
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.08 } },
     ],
   },
   {
@@ -557,11 +503,64 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'broadcast-hall-echo-on-parquet',
+    name: 'Echo on parquet',
+    category: 'echo',
+    description:
+      'Tape repeats that lose their lows and thin out as they fade, into a single dark spring, kept low and central.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Thin and fading', params: { time: 364 } },
+      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.58 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-rehearsal-repeats',
+    name: 'Rehearsal repeats',
+    category: 'echo',
+    description:
+      'A tape preamp driven for thick lows and a dull top, then a tape echo whose warm repeats soften as they fade, into an undamped hall.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Tape weight', params: { output: -7.06 } },
+      { deviceId: 'tape-echo', preset: 'Warm repeats' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Bright hall',
+        params: { preDelay: 42.5, lowDecay: 1.92, midDecay: 3.12 },
+      },
+    ],
+  },
+  {
+    id: 'broadcast-hall-foyer-fifths',
+    name: 'Foyer fifths',
+    category: 'echo',
+    description:
+      'The first hint of weight from a tape preamp, then an echo whose repeats hop up a fifth and down a fourth.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'analog-delay', preset: 'Fifth hop' },
+    ],
+  },
+  {
+    id: 'broadcast-hall-unhurried-trail',
+    name: 'Unhurried trail',
+    category: 'echo',
+    description:
+      'Tape-style saturation that rounds peaks and dulls the top, then a slow echo with a long dark trail as earlier phrases return.',
+    effects: [
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -10.1 } },
+      {
+        deviceId: 'echo-memory',
+        preset: 'Dark trail',
+        params: { time: 1000, reach: 28.8, size: 4.52 },
+      },
+    ],
+  },
+  {
     id: 'broadcast-hall-red-brick-reel',
     name: 'Red-brick reel',
     category: 'tape',
     description:
-      'A gentle compressor that draws loud and quiet together, then a tape reel pushed hard, saturated and thick, into a dull single spring.',
+      'A gentle compressor, then a tape reel pushed hard, saturated and thick, into a single dark spring, kept low and central.',
     effects: [
       { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 107, release: 1.75 } },
       { deviceId: 'patina', preset: 'Reel pushed hard' },
@@ -665,7 +664,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Slipping flutter',
     category: 'tape',
     description:
-      'A slow reel that trembles fast, mixed against the dry sound, then radio static that sounds only with each note played.',
+      'A slow-speed reel with a quick flutter against the dry sound, then radio static that sounds only with each note played.',
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer', params: { output: -6.01 } },
       { deviceId: 'noise-floor', preset: 'Static notes', params: { response: 0.0443, hold: 1.08 } },
@@ -680,21 +679,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 're-amp', preset: 'Warm stack' },
       { deviceId: 'patina', preset: 'Reel pushed hard' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-double-door-memory',
-    name: 'Double-door memory',
-    category: 'tape',
-    description:
-      'A quick slapback echo over short glimpses of earlier notes, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      {
-        deviceId: 'echo-memory',
-        preset: 'Glimpses',
-        params: { time: 70.7, reach: 17.9, size: 0.592 },
-      },
-      { deviceId: 'tape', preset: 'Drifting chorus', params: { output: -0.657 } },
     ],
   },
   {
@@ -717,23 +701,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Patchbay loop',
     category: 'tape',
     description:
-      'Tape-style saturation that rounds only the loudest peaks, then a wearing tape loop, then a far-off horn loudspeaker.',
+      'Light tape-style saturation, then a tape loop that wears thinner and duller on every pass, into a far-off horn loudspeaker.',
     effects: [
       { deviceId: 'saturator', preset: 'Soft tape warmth' },
       { deviceId: 'tape-loop', preset: 'Worn out' },
       { deviceId: 're-amp', preset: 'Station platform', params: { output: 6.52 } },
-    ],
-  },
-  {
-    id: 'broadcast-hall-upriver-echo',
-    name: 'Upriver echo',
-    category: 'tape',
-    description:
-      'A hot console channel, forward in the upper mids, then a dull, wobbling, saturated echo on worn tape, into a quick spring twang.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Hot channel', params: { output: -20.1 } },
-      { deviceId: 'tape-echo', preset: 'Worn tape' },
-      { deviceId: 'spring-reverb', preset: 'Quick twang' },
     ],
   },
   {
@@ -752,7 +724,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Canteen flutter',
     category: 'tape',
     description:
-      'A scooped tone with lows and highs up and the body down, then a slow reel that trembles fast, mixed against the dry sound.',
+      'A scooped tone with lows and highs up and the body down, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Hollow' },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
@@ -763,7 +735,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Overdub reel',
     category: 'tape',
     description:
-      'An overdriven reel, then steady tape hiss that lingers after the last note, into a cloud of reverb that swells in after each note and fades.',
+      'An overdriven reel, then steady tape hiss that lingers after the last note, into a reverb that swells in after each note and fades away.',
     effects: [
       { deviceId: 'tape', preset: 'Needles pinned' },
       { deviceId: 'noise-floor', preset: 'Tape floor' },
@@ -771,22 +743,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-radio-and-room-tone',
-    name: 'Radio and room tone',
-    category: 'tape',
-    description:
-      'A small radio speaker muffled as if under a pillow, then a pure, low electrical hum that sits in the centre.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
-      { deviceId: 'noise-floor', preset: 'Mains hum', params: { response: 0.421, hold: 18 } },
-    ],
-  },
-  {
     id: 'broadcast-hall-parquet-reel',
     name: 'Parquet reel',
     category: 'tape',
     description:
-      'A slow reel that trembles fast, mixed against the dry sound, then a slow, dull, worn-out echo with hiss riding on its repeats.',
+      'A slow-speed reel with a quick flutter against the dry sound, then a slow, dull, worn-out echo with hiss riding on its repeats.',
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer' },
       { deviceId: 'analog-delay', preset: 'Noisy clock', params: { modRate: 0.552 } },
@@ -801,6 +762,41 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 're-amp', preset: 'Bedside radio' },
       { deviceId: 'tape-echo', preset: 'Three heads' },
+    ],
+  },
+  {
+    id: 'broadcast-hall-red-light-reel',
+    name: 'Red-light reel',
+    category: 'tape',
+    description:
+      'A high cut set low enough to muffle everything, then a reel driven as hard as it goes, thick with harmonics, then a hovering tape wash.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'tape', preset: 'Needles pinned' },
+      { deviceId: 'tape-echo', preset: 'Hovering wash', params: { time: 983 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-tenth-row-valves',
+    name: 'Tenth-row valves',
+    category: 'tape',
+    description:
+      'A triode valve stage, smoothly overdriven, then an equaliser that adds lows and body and eases the top.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Triode glow', params: { output: -4.08 } },
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.53 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-session-amp',
+    name: 'Session amp',
+    category: 'tape',
+    description:
+      'A faint tape loop, then a small amplifier muffled as if under a pillow, into a big muffled cave that rings for about six seconds.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Faint afterimage', params: { length: 3.26 } },
+      { deviceId: 're-amp', preset: 'Pillow speaker' },
+      { deviceId: 'fdn-reverb', preset: 'Dark cave' },
     ],
   },
   {
@@ -882,27 +878,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Parquet chorus',
     category: 'motion',
     description:
-      'A reel driven hot, then a wide chorus drifting over a cycle of about twelve seconds, into three long springs with all the top taken off.',
+      'A reel driven hot, then a slowly drifting chorus, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'tape', preset: 'Hot glue', params: { output: 0.426 } },
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.0864, delayMs: 24.1 } },
       { deviceId: 'spring-reverb', preset: 'Underwater' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-studio-chorus',
-    name: 'Studio chorus',
-    category: 'motion',
-    description:
-      'A shallow chorus that thickens the sound above its lows, then a soft slapback echo close behind each note, into a hall with long lows.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Vocal thickener' },
-      { deviceId: 'analog-delay', preset: 'Slapback', params: { time: 105, modRate: 0.548 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Warm undertow',
-        params: { preDelay: 62.5, lowDecay: 7.98, midDecay: 2.14 },
-      },
     ],
   },
   {
@@ -928,17 +908,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-tenth-row-chorus',
-    name: 'Tenth-row chorus',
-    category: 'motion',
-    description:
-      'A chorus heard alone, its detuned copies spread hard apart, then a combo amplifier boxed in by the walls of a cupboard.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Voices only', params: { rate: 0.32, delayMs: 17 } },
-      { deviceId: 're-amp', preset: 'In the cupboard' },
-    ],
-  },
-  {
     id: 'broadcast-hall-rotary-after-hours',
     name: 'Rotary after hours',
     category: 'motion',
@@ -954,10 +923,37 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Cloakroom phaser',
     category: 'motion',
     description:
-      'A console channel driven until it is firm in the mids, then a hollow peaking phaser that turns about every four seconds.',
+      'A console channel driven until it is firm in the mids, then a hollow, resonant phaser turning about every four seconds.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Console' },
       { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.221 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-courtyard-chorus',
+    name: 'Courtyard chorus',
+    category: 'motion',
+    description:
+      'A deep slow chorus, then a single saturated tape echo close behind each note, into a hall whose lows ring on long after the rest has gone.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.134, delayMs: 29.5 } },
+      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 82.6 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Warm undertow',
+        params: { preDelay: 54.5, lowDecay: 7.37, midDecay: 1.85 },
+      },
+    ],
+  },
+  {
+    id: 'broadcast-hall-on-air-swirl',
+    name: 'On-air swirl',
+    category: 'motion',
+    description:
+      'A four-stage phaser kept high, leaving the low end alone, into four strings that retune to what is played and ring briefly.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Bass safe' },
+      { deviceId: 'sympathetic', preset: 'Echo the tune', params: { decay: 1.37 } },
     ],
   },
   {
@@ -1031,7 +1027,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Octave sent out live',
     category: 'pitch',
     description:
-      'A muffled half-speed octave below, kept in the centre, into three long springs that chirp and drip.',
+      'A muffled half-speed octave below, kept in the centre, into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'half-speed', preset: 'Muffled floor', params: { length: 2120 } },
       { deviceId: 'spring-reverb', preset: 'Long three spring' },
@@ -1082,22 +1078,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-live-room-grains',
-    name: 'Live-room grains',
-    category: 'pitch',
-    description:
-      'Scattered grains a fifth down, spread across both sides, into three taut springs kept soft and close to the centre.',
-    effects: [
-      { deviceId: 'half-speed', preset: 'Fifth down grains', params: { length: 70.6 } },
-      { deviceId: 'spring-reverb', preset: 'Narrow warm tank' },
-    ],
-  },
-  {
     id: 'broadcast-hall-embankment-cellos',
     name: 'Embankment cellos',
     category: 'pitch',
     description:
-      'A dark, low string pad like cellos under the playing, then a combo amplifier heard from the far side of a big room.',
+      'A dark, low string pad like cellos under the playing, into a combo amplifier heard from the far side of a big room.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Dark cellos', params: { rise: 1.37, fall: 7.74 } },
       { deviceId: 're-amp', preset: 'Down the hall' },
@@ -1119,6 +1104,17 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'broadcast-hall-reel-wound-back',
+    name: 'Reel wound back',
+    category: 'pitch',
+    description:
+      'A low, dark tape loop played backwards at half speed, into one taut dull spring that answers late and rings long.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Slow backwards' },
+      { deviceId: 'spring-reverb', preset: 'Dark late coil' },
+    ],
+  },
+  {
     id: 'broadcast-hall-tiptoe-mixdown',
     name: 'Tiptoe mixdown',
     category: 'master',
@@ -1128,17 +1124,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'analog-drive', preset: 'First hint' },
       { deviceId: 'ambient-comp', preset: 'Glue' },
       { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
-    id: 'broadcast-hall-tiptoe-master',
-    name: 'Tiptoe master',
-    category: 'master',
-    description:
-      'A parallel compressor that lifts quiet playing and tails, then a true-peak ceiling that lets go again over several seconds.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 372, release: 2.86 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
   {
@@ -1186,6 +1171,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'patina', preset: 'New tape' },
       { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 410, release: 3.07 } },
       { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.59 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-moderator-mixdown',
+    name: 'Moderator mixdown',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a slow compressor that evens out swells over seconds, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 318, release: 1.95 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
 ]

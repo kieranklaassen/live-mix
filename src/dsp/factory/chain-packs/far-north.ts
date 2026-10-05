@@ -35,7 +35,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall at low sun',
     category: 'space',
     description:
-      'A half-deep swell, then a dark fuzz from a valve pushed far past its limit, into a hall of about four seconds with no dry sound in it.',
+      'A shallow swell, then a dark fuzz from a valve pushed far past its limit, into a hall of about four seconds with no dry sound in it.',
     effects: [
       { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 460, release: 164 } },
       { deviceId: 'analog-drive', preset: 'Dark fuzz', params: { output: -8.89 } },
@@ -77,49 +77,15 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-black-sand-valley',
-    name: 'Black-sand valley',
-    category: 'space',
-    description:
-      'A huge dark open space that answers late and rings on, then a string voice that doubles each note almost at once.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Open valley' },
-      { deviceId: 'pad-follower', preset: 'Doubler' },
-    ],
-  },
-  {
-    id: 'far-north-tundra-halo',
-    name: 'Tundra halo',
-    category: 'space',
-    description:
-      'A small plate that is gone in a second or two, into a reverb whose tail climbs nearly an octave as it rings.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 9.99 } },
-      { deviceId: 'bloom-reverb', preset: 'Octave halo', params: { decay: 6.54 } },
-    ],
-  },
-  {
     id: 'far-north-slipway-ascent',
     name: 'Slipway ascent',
     category: 'space',
     description:
-      'A string-like swell, then the octave-climbing tail of a large reverb by itself, into a vast nave that rings for about eight seconds.',
+      'A string-like swell, then the octave-climbing tail of a large reverb with no dry sound, into a vast nave that rings for about eight seconds.',
     effects: [
       { deviceId: 'swell', preset: 'String section', params: { attack: 349, release: 652 } },
       { deviceId: 'shimmer', preset: 'Rising tail alone' },
       { deviceId: 'hall-reverb', preset: 'Vast nave', params: { midDecay: 7.27 } },
-    ],
-  },
-  {
-    id: 'far-north-plate-over-the-bay',
-    name: 'Plate over the bay',
-    category: 'space',
-    description:
-      'A far-off, dulled tone, then a clean speaker heard from well back in a room, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.63 } },
-      { deviceId: 're-amp', preset: 'Just the room', params: { output: 0.915 } },
-      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 14.8 } },
     ],
   },
   {
@@ -149,7 +115,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Choir in slow waves',
     category: 'space',
     description:
-      'A hall whose choir wanders from vowel to vowel, into a hall that sways in pitch with a trace of the octave above.',
+      'A reverb whose choir wanders from vowel to vowel, into a hall that sways in pitch with a trace of the octave above.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 7.2, preDelay: 20.8 } },
       { deviceId: 'shimmer', preset: 'Swaying hall', params: { decay: 4.46, predelay: 20.9 } },
@@ -164,17 +130,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Needles pinned' },
       { deviceId: 'bloom-reverb', preset: 'Tail alone' },
-    ],
-  },
-  {
-    id: 'far-north-highland-cloud',
-    name: 'Highland cloud',
-    category: 'space',
-    description:
-      'Repeats that climb in pitch on the left, sink on the right, into a cloud of reverb that swells in after each note and fades.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Spiral' },
-      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.62 } },
     ],
   },
   {
@@ -216,7 +171,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Fog from afar',
     category: 'space',
     description:
-      'A late swell on every note like a rocked volume pedal, then a thick, loose fuzz from an overloaded transformer, into a huge wash by itself.',
+      'A volume-pedal swell, then a thick, loose fuzz from an overloaded transformer, into a huge wash heard alone.',
     effects: [
       { deviceId: 'swell', preset: 'Volume pedal' },
       { deviceId: 'analog-drive', preset: 'Iron melt' },
@@ -228,7 +183,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Snowmelt choir',
     category: 'space',
     description:
-      'A hall whose tail sings a high ee, into a hall whose lows outlast its damped top.',
+      'A reverb whose tail sings a high "ee", into a hall whose lows outlast its damped top.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'High ee', params: { decay: 5.25, preDelay: 17.8 } },
       {
@@ -254,23 +209,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-swell-in-hoarfrost',
-    name: 'Swell in hoarfrost',
-    category: 'space',
-    description:
-      'A big lift of the low end that puts weight under the sound, then a trace of room around the sound, into a slow tide of reverb.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Deep' },
-      { deviceId: 'ether-reverb', preset: 'Faint air' },
-      { deviceId: 'shaped-reverb', preset: 'Slow tide', params: { time: 3.93 } },
-    ],
-  },
-  {
     id: 'far-north-trawler-swell',
     name: 'Trawler swell',
     category: 'space',
     description:
-      'A bright wide room that rings for a second or two, into a cloud of reverb that swells in after each note and fades.',
+      'A bright wide room that rings for a second or two, into a reverb that swells in after each note and fades away.',
     effects: [
       { deviceId: 'ether-reverb', preset: 'Ether' },
       { deviceId: 'shaped-reverb', preset: 'Bloom' },
@@ -304,21 +247,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Smokehouse choir',
     category: 'space',
     description:
-      'A short, soft tape echo close behind the playing, into a vast hall whose long tail sings a high bright ah.',
+      'A short, soft tape echo close behind the playing, into a vast hall whose long tail sings a high bright "ah".',
     effects: [
       { deviceId: 'tape-echo', preset: 'Short and soft' },
       { deviceId: 'vowel-reverb', preset: 'High choir', params: { decay: 27.9, preDelay: 19.4 } },
-    ],
-  },
-  {
-    id: 'far-north-seabird-valley',
-    name: 'Seabird valley',
-    category: 'space',
-    description:
-      'A small chapel with a short sung eh in its tail, into a huge dark open space that answers late and rings on.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 1.54, preDelay: 5.57 } },
-      { deviceId: 'fdn-reverb', preset: 'Open valley' },
     ],
   },
   {
@@ -379,7 +311,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Thawing wash',
     category: 'space',
     description:
-      'A plate wash that hangs on for half a minute, then a big lift of presence and air, with ringing held in check.',
+      'A plate wash that hangs on for half a minute, then a big lift of presence and air.',
     effects: [
       { deviceId: 'plate-reverb', preset: 'Endless wash', params: { predelayMs: 59.7 } },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.662 } },
@@ -390,7 +322,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Shimmer by the fjord',
     category: 'space',
     description:
-      'A quick bright twang of springs behind each attack, into the octave-climbing tail of a large reverb by itself.',
+      'A quick bright twang of springs behind each attack, into the octave-climbing tail of a large reverb with no dry sound.',
     effects: [
       { deviceId: 'spring-reverb', preset: 'Quick twang', params: { decay: 0.761, mix: 0.18 } },
       { deviceId: 'shimmer', preset: 'Rising tail alone', params: { decay: 19.6 } },
@@ -405,6 +337,71 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 're-amp', preset: 'Stack flat out' },
       { deviceId: 'swarm-reverb', preset: 'Long scatter' },
+    ],
+  },
+  {
+    id: 'far-north-drift-in-the-lee',
+    name: 'Drift in the lee',
+    category: 'space',
+    description:
+      'A cave whose echoes bend slowly up and down in pitch, then a tape preamp pushed just enough to add weight.',
+    effects: [
+      { deviceId: 'swarm-reverb', preset: 'Bending', params: { length: 0.553, glide: 1.97 } },
+      { deviceId: 'analog-drive', preset: 'Warm glue' },
+    ],
+  },
+  {
+    id: 'far-north-swell-over-the-bay',
+    name: 'Swell over the bay',
+    category: 'space',
+    description:
+      'A reverb that swells in after each note and fades away, then a wavering double of the sound spread wide to both sides.',
+    effects: [
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.79 } },
+      { deviceId: 'analog-delay', preset: 'Doubler', params: { time: 39.8, modRate: 2.04 } },
+    ],
+  },
+  {
+    id: 'far-north-tremor-by-the-fjord',
+    name: 'Tremor by the fjord',
+    category: 'space',
+    description:
+      'A light chorus that widens more than it moves, into a space whose tail flutters quickly in pitch.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'expanse', preset: 'Fast flutter', params: { decay: 4.55, modRate: 4.5 } },
+    ],
+  },
+  {
+    id: 'far-north-tundra-hall',
+    name: 'Tundra hall',
+    category: 'space',
+    description:
+      'The level rising and falling at random, like surf, into a dark hall that takes about twenty seconds to die away.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Sea swell' },
+      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0845 } },
+    ],
+  },
+  {
+    id: 'far-north-whiteout-plate',
+    name: 'Whiteout plate',
+    category: 'space',
+    description: 'The whole sound folded to mono, into a dark plate whose tail is soft on top.',
+    effects: [
+      { deviceId: 'stereo-widener', preset: 'Mono' },
+      { deviceId: 'plate-reverb', preset: 'Dark plate' },
+    ],
+  },
+  {
+    id: 'far-north-tundra-voices',
+    name: 'Tundra voices',
+    category: 'space',
+    description:
+      'A vast hall whose long tail sings a high bright "ah", into a hall whose top rings on while its lows stop short.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'High choir' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail' },
     ],
   },
   {
@@ -504,21 +501,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-pack-ice-trace',
-    name: 'Pack-ice trace',
-    category: 'echo',
-    description:
-      'A faint backwards swell behind each phrase, into a large hall heard alone with none of the dry sound left.',
-    effects: [
-      { deviceId: 'reverse-delay', preset: 'Faint reflection' },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Full wet send',
-        params: { decay: 8.05, breathRate: 0.32 },
-      },
-    ],
-  },
-  {
     id: 'far-north-drift-on-black-sand',
     name: 'Drift on black sand',
     category: 'echo',
@@ -560,7 +542,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Memory in long light',
     category: 'echo',
     description:
-      'Amplifier valves driven until they round off every peak, then replays of the last seconds, into two taut, long springs.',
+      'A driven valve amplifier, then replays of the last seconds, into two taut springs that ring long and clean with no drip.',
     effects: [
       { deviceId: 're-amp', preset: 'Just the valves', params: { output: -2.06 } },
       { deviceId: 'echo-memory', preset: 'Just now', params: { time: 256, size: 0.81 } },
@@ -568,38 +550,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-mossy-corridor',
-    name: 'Mossy corridor',
-    category: 'tape',
+    id: 'far-north-tide-up-north',
+    name: 'Tide up north',
+    category: 'echo',
     description:
-      'A hot console channel, forward in the upper mids, then a far-off combo amp, into a hard-driven two-spring tank that answers a moment late.',
+      'Slow backwards swells that rise and die behind the playing, into a vast hall that opens to the sound in very slow waves.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Hot channel' },
-      { deviceId: 're-amp', preset: 'Down the hall', params: { output: -4.24 } },
-      { deviceId: 'spring-reverb', preset: 'Dub send' },
-    ],
-  },
-  {
-    id: 'far-north-sea-fog-amp',
-    name: 'Sea-fog amp',
-    category: 'tape',
-    description:
-      'A tape preamp pushed just enough to add weight, then a far-off combo amp, into a bright spring splash that lands a moment after the note.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Warm glue' },
-      { deviceId: 're-amp', preset: 'Down the hall', params: { output: -4.69 } },
-      { deviceId: 'spring-reverb', preset: 'Late splash' },
-    ],
-  },
-  {
-    id: 'far-north-highland-chorus',
-    name: 'Highland chorus',
-    category: 'tape',
-    description:
-      'A drifting reel laid against the dry sound to make a chorus, into a large hall whose tail rises and falls every few seconds.',
-    effects: [
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'fdn-reverb', preset: 'Breathing' },
+      { deviceId: 'reverse-delay', preset: 'Slow swells', params: { time: 1430 } },
+      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 12.7 } },
     ],
   },
   {
@@ -623,18 +581,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'saturator', preset: 'Warm glue' },
       { deviceId: 're-amp', preset: 'Warm stack', params: { output: -6.54 } },
       { deviceId: 'spring-reverb', preset: 'Surf drip' },
-    ],
-  },
-  {
-    id: 'far-north-northerly-radio',
-    name: 'Northerly radio',
-    category: 'tape',
-    description:
-      'A biting pentode stage, then a small radio speaker muffled as if under a pillow, into a two-spring tank with a little chirp and drip.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Bite' },
-      { deviceId: 're-amp', preset: 'Pillow speaker', params: { output: -6.15 } },
-      { deviceId: 'spring-reverb', preset: 'Two spring tank', params: { decay: 2.6 } },
     ],
   },
   {
@@ -683,6 +629,54 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'far-north-turf-roof-valves',
+    name: 'Turf-roof valves',
+    category: 'tape',
+    description:
+      'A layer of soft clipping, then a hard-driven combo amp, into a bright spring splash that lands a moment after the note.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Drum bus crunch' },
+      { deviceId: 're-amp', preset: 'Speaker on the edge', params: { output: -5.28 } },
+      { deviceId: 'spring-reverb', preset: 'Late splash' },
+    ],
+  },
+  {
+    id: 'far-north-parish-amp',
+    name: 'Parish amp',
+    category: 'tape',
+    description:
+      'A triode valve stage, smoothly overdriven, then a combo amp in a room, into a quick bright twang of springs behind each attack.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Triode glow' },
+      { deviceId: 're-amp', preset: 'Combo in a room', params: { output: -3.55 } },
+      { deviceId: 'spring-reverb', preset: 'Quick twang', params: { decay: 0.825 } },
+    ],
+  },
+  {
+    id: 'far-north-birchwood-valves',
+    name: 'Birchwood valves',
+    category: 'tape',
+    description:
+      'A low-heavy transformer, then a driven valve amplifier, into a two-spring tank with its input driven into saturation.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron lows' },
+      { deviceId: 're-amp', preset: 'Just the valves', params: { output: -6.74 } },
+      { deviceId: 'spring-reverb', preset: 'Overdriven tank', params: { decay: 1.85 } },
+    ],
+  },
+  {
+    id: 'far-north-headland-reel',
+    name: 'Headland reel',
+    category: 'tape',
+    description:
+      'A biting pentode stage, then a tape reel pushed hard, saturated and thick, into a nasal horn loudspeaker heard from far across a big room.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Bite' },
+      { deviceId: 'patina', preset: 'Reel pushed hard' },
+      { deviceId: 're-amp', preset: 'Station platform', params: { output: -0.473 } },
+    ],
+  },
+  {
     id: 'far-north-rotary-off-the-pier',
     name: 'Rotary off the pier',
     category: 'motion',
@@ -698,7 +692,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Solstice rotary',
     category: 'motion',
     description:
-      'A slow rotating speaker with its amplifier driven hard, into a hall whose choir wanders from vowel to vowel.',
+      'A slow rotating speaker with its amplifier driven hard, into a reverb whose choir wanders from vowel to vowel.',
     effects: [
       { deviceId: 'rotary', preset: 'Slow burn' },
       {
@@ -724,7 +718,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Basalt filter',
     category: 'motion',
     description:
-      'A glacial low-pass, then a tape echo whose three heads make a cluster of each repeat, into a huge wash by itself.',
+      'A low-pass that opens and closes over about half a minute, then a three-head tape echo, into a huge wash heard alone.',
     effects: [
       { deviceId: 'auto-filter', preset: 'Glacial low-pass' },
       { deviceId: 'tape-echo', preset: 'Three heads' },
@@ -736,7 +730,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lichen chorus',
     category: 'motion',
     description:
-      'A late copy on each side, like the same part played twice, into a small chapel with a short sung eh in its tail.',
+      'A late copy on each side, like the same part played twice, into a small chapel with a short sung "eh" in its tail.',
     effects: [
       { deviceId: 'chorus', preset: 'Loose double', params: { rate: 0.183 } },
       { deviceId: 'vowel-reverb', preset: 'Chapel' },
@@ -747,7 +741,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Windblown chorus',
     category: 'motion',
     description:
-      'A chorus with no dry sound, then dotted tape repeats that pile up in a darkening wash, into three long springs with all the top taken off.',
+      'A chorus with no dry sound, then a dotted tape echo wash, into three long-ringing springs with all the top taken off.',
     effects: [
       { deviceId: 'chorus', preset: 'Voices only' },
       { deviceId: 'tape-echo', preset: 'Dub wash' },
@@ -759,7 +753,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sway by the boats',
     category: 'motion',
     description:
-      'A fast, steady reel with soft saturation, then the tone rocking slowly from dark to bright, sides opposed, into a slow dark swell.',
+      'A fast, steady reel with soft saturation, then a slowly rocking tone, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { output: 3.65 } },
       { deviceId: 'tremolo', preset: 'Tilting tone' },
@@ -811,21 +805,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-across-water-pad',
-    name: 'Across-water pad',
-    category: 'texture',
-    description:
-      'A held pad that stands alone in place of what was played, into a long thin cave whose single echoes swell and fade.',
-    effects: [
-      {
-        deviceId: 'sustainer',
-        preset: 'Held sound alone',
-        params: { attack: 0.108, glide: 0.317 },
-      },
-      { deviceId: 'swarm-reverb', preset: 'Glinting', params: { length: 0.585, glide: 0.534 } },
-    ],
-  },
-  {
     id: 'far-north-sparkle-after-snow',
     name: 'Sparkle after snow',
     category: 'texture',
@@ -841,7 +820,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sheepfold pad',
     category: 'texture',
     description:
-      'A string pad that stands alone in place of what is played, into a bright wide room that rings for a second or two.',
+      'A string pad that follows the playing and is heard alone, into a bright wide room that rings for a second or two.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Pad alone', params: { rise: 0.335, fall: 5.43 } },
       { deviceId: 'ether-reverb', preset: 'Ether' },
@@ -949,10 +928,21 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lichen swell',
     category: 'texture',
     description:
-      'A slow swell after each silence that opens only at the end, then a wobbling tape double a moment behind each note.',
+      'A slow swell after each silence, opening late in its rise, then a wobbling tape double a moment behind each note.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1480, release: 858 } },
       { deviceId: 'tape-echo', preset: 'Wobbly double' },
+    ],
+  },
+  {
+    id: 'far-north-halo-after-snow',
+    name: 'Halo after snow',
+    category: 'texture',
+    description:
+      'A quick fade-in that only softens the edge of each note, then a thin, high pad an octave up with nothing low in it.',
+    effects: [
+      { deviceId: 'swell', preset: 'Soft pick', params: { attack: 45.4 } },
+      { deviceId: 'pad-follower', preset: 'High mist', params: { rise: 1.33, fall: 8.31 } },
     ],
   },
   {
@@ -1017,7 +1007,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sparks off the ice',
     category: 'pitch',
     description:
-      'Sparse short grains two octaves up, after each note, then a muffled, slow-fading string pad with its top taken off.',
+      'Sparse short grains two octaves up, after each note, then a muffled string pad that is slow to fade away.',
     effects: [
       { deviceId: 'grain-delay', preset: 'High glitter', params: { time: 295, size: 45.4 } },
       { deviceId: 'pad-follower', preset: 'Felted pad' },
@@ -1050,7 +1040,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Basalt reed',
     category: 'pitch',
     description:
-      'A nasal reed of octaves, then a slow flanger-like sweep, opposite on each side, into a wide room heard from its far end.',
+      'A nasal reed of octaves, then a slow flanger sweep, opposite on each side, into a wide room heard from its far end.',
     effects: [
       { deviceId: 'octaves', preset: 'Nasal reed' },
       { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.111 } },
@@ -1137,18 +1127,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'far-north-master-up-north',
-    name: 'Master up north',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a subsonic cut, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-eq', preset: 'Master' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'far-north-trawler-mixdown',
     name: 'Trawler mixdown',
     category: 'master',
@@ -1182,6 +1160,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.68 } },
       { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
+    id: 'far-north-sea-fog-mixdown',
+    name: 'Sea-fog mixdown',
+    category: 'master',
+    description:
+      'A parallel compressor that lifts quiet playing and tails, then a true-peak ceiling that lets go again over several seconds.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 398, release: 2.91 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
 ]

@@ -39,7 +39,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Kerbside choir',
     category: 'space',
     description:
-      'A soft sung oo that follows a moment behind each note, then a thin, far-off tape loop with its lows cut away.',
+      'A soft sung "oo" that trails each note by a moment, then a thin, far-off tape loop with its lows cut away.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Oo behind' },
       { deviceId: 'tape-loop', preset: 'Thin and distant', params: { length: 2.35 } },
@@ -61,7 +61,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Last-call nave',
     category: 'space',
     description:
-      'A cathedral whose long tail sings a soft open ah, then a half-speed loop that plays the last phrase an octave down.',
+      'A cathedral whose long tail sings a soft open "ah", then a half-speed loop that plays the last phrase an octave down.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Cathedral' },
       { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 2.49 } },
@@ -76,17 +76,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'sympathetic', preset: 'Centre drone', params: { decay: 9.8 } },
       { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.99, midDecay: 4.21 } },
-    ],
-  },
-  {
-    id: 'concourse-boarding-wash',
-    name: 'Boarding wash',
-    category: 'space',
-    description:
-      'A small plate that is gone in a second or two, into a dark hall that takes about twenty seconds to die away.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 10.4 } },
-      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0809 } },
     ],
   },
   {
@@ -131,7 +120,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hangar hallway',
     category: 'space',
     description:
-      'A sharp and a flat copy kept in the centre, thick not wide, then a combo amplifier heard from the far side of a big room.',
+      'A sharp and a flat copy kept in the centre, thick not wide, into a combo amplifier heard from the far side of a big room.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Thickener' },
       { deviceId: 're-amp', preset: 'Down the hall', params: { output: -2.17 } },
@@ -178,7 +167,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Gate-change drone',
     category: 'space',
     description:
-      'A huge hall whose tail hums a soft oo for a long while, then a faint echo and faint recollections behind the playing.',
+      'A huge hall whose tail hums a soft "oo" for a long while, then a faint echo with earlier phrases coming faintly back.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Endless oo', params: { preDelay: 19.9 } },
       {
@@ -234,7 +223,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Touchdown ring',
     category: 'space',
     description:
-      'A brief ring of sixteen C major strings behind each note, into a dark reverb that rises behind each note, then lingers.',
+      'A brief ring of sixteen C major strings behind each note, into a dark reverb that rises behind each note and lingers.',
     effects: [
       { deviceId: 'sympathetic', preset: 'Short halo', params: { decay: 0.894 } },
       { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.23, preDelay: 62.9 } },
@@ -286,21 +275,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lights-down choir',
     category: 'space',
     description:
-      'A thin band of tone with the lows cut and the top rolled off, into a large hall whose tail hums a deep oh in bass voices.',
+      'A thin band of tone with the lows cut and the top rolled off, into a large reverb whose tail hums a deep "oh" in bass voices.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.57 } },
       { deviceId: 'vowel-reverb', preset: 'Low monks' },
-    ],
-  },
-  {
-    id: 'concourse-freight-hall',
-    name: 'Freight hall',
-    category: 'space',
-    description:
-      'A medium hall with only a breath of voice in its tail, then a string voice that doubles each note almost at once.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 3.46, preDelay: 21.6 } },
-      { deviceId: 'pad-follower', preset: 'Doubler', params: { rise: 0.045, fall: 0.801 } },
     ],
   },
   {
@@ -320,6 +298,28 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'concourse-tarmac-hall',
+    name: 'Tarmac hall',
+    category: 'space',
+    description:
+      'A plain hall of about four seconds, then a compressor that lets each attack through before it levels.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Plain hall', params: { decay: 3.87, preDelay: 18.7 } },
+      { deviceId: 'ambient-comp', preset: 'Keys' },
+    ],
+  },
+  {
+    id: 'concourse-paging-halo',
+    name: 'Paging halo',
+    category: 'space',
+    description:
+      'A dark reverb stacking octaves and fifths like organ pipes, into a vast nave that rings for about eight seconds.',
+    effects: [
+      { deviceId: 'shimmer', preset: 'Organ loft' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave' },
+    ],
+  },
+  {
     id: 'concourse-terrazzo-loop',
     name: 'Terrazzo loop',
     category: 'echo',
@@ -336,7 +336,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Gate-side wash',
     category: 'echo',
     description:
-      'A warm, full equaliser, then dotted tape repeats that pile up in a darkening wash, then a fast, steady reel with soft saturation.',
+      'An equaliser that adds lows and body and eases the top, then a dotted tape echo wash, then a fast, steady reel with soft saturation.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.45 } },
       { deviceId: 'tape-echo', preset: 'Dub wash' },
@@ -364,7 +364,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Departure echo',
     category: 'echo',
     description:
-      'A big lift of the low end that puts weight under the sound, then a slow echo with a long dark trail and a few recollections.',
+      'A big lift of the low end that puts weight under the sound, then a slow echo with a long dark trail as earlier phrases return.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.89 } },
       { deviceId: 'echo-memory', preset: 'Dark trail' },
@@ -416,7 +416,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Connecting loop',
     category: 'echo',
     description:
-      'A loop of the last phrase played backwards as a bed, into a cloud of reverb that swells in after each note and fades.',
+      'A loop of the last phrase played backwards as a bed, into a reverb that swells in after each note and fades away.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Reverse bed', params: { length: 3.2 } },
       { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.3 } },
@@ -482,7 +482,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drizzle tide',
     category: 'echo',
     description:
-      'Slow backwards swells that rise and die behind the playing, into a soft sung oo that follows a moment behind each note.',
+      'Slow backwards swells that rise and die behind the playing, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'reverse-delay', preset: 'Slow swells', params: { time: 1640 } },
       { deviceId: 'vowel-reverb', preset: 'Oo behind', params: { preDelay: 71.5 } },
@@ -517,7 +517,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Trail by the window',
     category: 'echo',
     description:
-      'A phaser held still, then a slow echo with a long dark trail and a few recollections, then a reel with a little hiss.',
+      'A phaser held still, then a slow dark-trailing echo, then a reel of tape at middle speed, with a little drift and hiss.',
     effects: [
       { deviceId: 'phaser', preset: 'Still formant' },
       { deviceId: 'echo-memory', preset: 'Dark trail' },
@@ -580,7 +580,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Inbound echo',
     category: 'echo',
     description:
-      'Tape repeats that lose their lows and thin out as they fade, into a cathedral whose long tail sings a soft open ah.',
+      'Tape repeats that lose their lows and thin out as they fade, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'tape-echo', preset: 'Thin and fading', params: { time: 358 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral' },
@@ -602,7 +602,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Timetable loop',
     category: 'echo',
     description:
-      'A hollow chorus that swells over about ten seconds, then a tape loop about a second round that soon dies away.',
+      'A hollow chorus that swells over about ten seconds, then a tape loop about one second long that soon dies away.',
     effects: [
       { deviceId: 'chorus', preset: 'Hollow swell' },
       { deviceId: 'tape-loop', preset: 'One second round' },
@@ -635,7 +635,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Carousel trail',
     category: 'echo',
     description:
-      'A slow echo with a long dark trail and a few recollections, into a plate heard alone with none of the dry sound left.',
+      'A slow echo with a long dark trail as earlier phrases return, into a plate heard alone with none of the dry sound left.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Dark trail' },
       { deviceId: 'plate-reverb', preset: 'Full wet send' },
@@ -691,7 +691,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Gate-side cassette',
     category: 'tape',
     description:
-      'A wearing tape loop, then a thick, soft cassette, full in the lows and dull on top, into a dull mono tunnel with a tail of several seconds.',
+      'A tape loop that wears thinner and duller on every pass, then a thick, soft cassette, into a dull mono tunnel.',
     effects: [
       { deviceId: 'tape-loop', preset: 'Worn out', params: { length: 2.95 } },
       { deviceId: 'tape', preset: 'Warm thump', params: { output: 2.15 } },
@@ -703,22 +703,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Concourse hiss',
     category: 'tape',
     description:
-      'A big lift of presence and air, with ringing held in check, then a clean bright reel under a thick layer of tape hiss.',
+      'A big lift of presence and air, then a clean bright reel under a thick layer of tape hiss.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Bright' },
       { deviceId: 'tape', preset: 'Hiss and air' },
-    ],
-  },
-  {
-    id: 'concourse-chorus-before-dawn',
-    name: 'Chorus before dawn',
-    category: 'tape',
-    description:
-      'A big lift of presence and air, with ringing held in check, then a slow tape chorus, then a faint trace of tape echo behind the playing.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.608 } },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'tape-echo', preset: 'Faint trace' },
     ],
   },
   {
@@ -733,25 +721,38 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-tape-on-the-apron',
-    name: 'Tape on the apron',
+    id: 'concourse-escalator-cassette',
+    name: 'Escalator cassette',
     category: 'tape',
     description:
-      'A clean slow rotating speaker blended under the dry sound, then a thick, soft cassette, full in the lows and dull on top.',
+      'A short-lived tape loop, then a thick, soft cassette, into a large space whose tail swells in behind each note.',
     effects: [
-      { deviceId: 'rotary', preset: 'Soft blend' },
-      { deviceId: 'tape', preset: 'Warm thump', params: { output: -3.72 } },
+      { deviceId: 'tape-loop', preset: 'One second round', params: { length: 1.03 } },
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'expanse', preset: 'Bloom' },
     ],
   },
   {
-    id: 'concourse-jet-lagged-echo',
-    name: 'Jet-lagged echo',
+    id: 'concourse-crosswind-reel',
+    name: 'Crosswind reel',
     category: 'tape',
     description:
-      'A dull, wobbling, saturated echo on worn tape, then echoes that climb an octave on every repeat.',
+      'An old slow reel that drifts, dulls, drops out and hisses, then two tape heads that make every repeat gallop.',
     effects: [
-      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 669 } },
-      { deviceId: 'pitch-shifter', preset: 'Rising steps', params: { size: 60.4, delay: 335 } },
+      { deviceId: 'tape', preset: 'Worn thin' },
+      { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 706 } },
+    ],
+  },
+  {
+    id: 'concourse-cassette-after-dark',
+    name: 'Cassette after dark',
+    category: 'tape',
+    description:
+      'A blurred loop that never comes round quite the same, then a muffled cassette, into a plate heard alone with none of the dry sound left.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Drifting', params: { length: 4.12 } },
+      { deviceId: 'tape', preset: 'Under a blanket' },
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
     ],
   },
   {
@@ -789,17 +790,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'rotary', preset: 'Slow burn' },
       { deviceId: 'shimmer', preset: 'Low shadow', params: { mix: 0.21 } },
-    ],
-  },
-  {
-    id: 'concourse-rotary-left-running',
-    name: 'Rotary left running',
-    category: 'motion',
-    description:
-      'A dark slow rotating speaker that mostly turns the lows, then a shallow chorus that thickens the sound above its lows.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Dark drum' },
-      { deviceId: 'chorus', preset: 'Vocal thickener' },
     ],
   },
   {
@@ -844,6 +834,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'phaser', preset: 'Stereo scatter', params: { rate: 0.221 } },
       { deviceId: 'chorus', preset: 'Hollow swell' },
+    ],
+  },
+  {
+    id: 'concourse-sway-after-hours',
+    name: 'Sway after hours',
+    category: 'motion',
+    description:
+      'A slow seasick pitch sway, then dotted tape repeats that pile up in a darkening wash, into a slow, dark swell of reverb.',
+    effects: [
+      { deviceId: 'freq-shifter', preset: 'Seasick' },
+      { deviceId: 'tape-echo', preset: 'Dub wash' },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell', params: { time: 3.71 } },
     ],
   },
   {
@@ -906,7 +908,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Swell taken slowly',
     category: 'texture',
     description:
-      'A slow swell after each silence that opens only at the end, then two copies in tune that wander like extra takes.',
+      'A slow swell after each silence, opening late in its rise, then two copies in tune that wander like extra takes.',
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1650, release: 828 } },
       { deviceId: 'stereo-detune', preset: 'Drifting', params: { delay: 23.3 } },
@@ -929,17 +931,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-baggage-pad',
-    name: 'Baggage pad',
-    category: 'texture',
-    description:
-      'A held pad whose every overtone wavers in pitch and level, into a mellow reverb whose tail splits up and down in pitch.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Wavering choir', params: { attack: 0.392, glide: 0.535 } },
-      { deviceId: 'bloom-reverb', preset: 'Scatter' },
-    ],
-  },
-  {
     id: 'concourse-horizon-till-morning',
     name: 'Horizon till morning',
     category: 'texture',
@@ -959,6 +950,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Tide' },
       { deviceId: 'stereo-detune', preset: 'Cloud', params: { delay: 24.1 } },
+    ],
+  },
+  {
+    id: 'concourse-freight-drone',
+    name: 'Freight drone',
+    category: 'texture',
+    description:
+      'A dark drone made by holding the first phrase an octave down, into a reverb that swells in after each note and fades away.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Deep drone' },
+      { deviceId: 'shaped-reverb', preset: 'Bloom' },
     ],
   },
   {
@@ -1060,17 +1062,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-baggage-fifth',
-    name: 'Baggage fifth',
-    category: 'pitch',
-    description:
-      'A single voice a fifth above the dry sound, then a string pad that takes seconds to swell in after a chord.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Fifth above', params: { size: 66.8 } },
-      { deviceId: 'pad-follower', preset: 'Slow swell', params: { rise: 4.23, fall: 6.78 } },
-    ],
-  },
-  {
     id: 'concourse-snowed-in-drone',
     name: 'Snowed-in drone',
     category: 'pitch',
@@ -1131,6 +1122,17 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'concourse-red-eye-fifth',
+    name: 'Red-eye fifth',
+    category: 'pitch',
+    description:
+      'A single voice a fifth above the dry sound, then a trace of chorus on the top of the sound only.',
+    effects: [
+      { deviceId: 'pitch-shifter', preset: 'Fifth above', params: { size: 63.3 } },
+      { deviceId: 'chorus', preset: 'Faint air' },
+    ],
+  },
+  {
     id: 'concourse-unattended-master',
     name: 'Unattended master',
     category: 'master',
@@ -1139,17 +1141,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
       { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
-    id: 'concourse-finish-through-glass',
-    name: 'Finish through glass',
-    category: 'master',
-    description:
-      'A slow compressor that evens out swells over seconds, then a true-peak ceiling that lets go again over several seconds.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Level' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
   {
@@ -1187,15 +1178,27 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-finish-on-standby',
-    name: 'Finish on standby',
+    id: 'concourse-lacquer-on-the-hour',
+    name: 'Lacquer on the hour',
     category: 'master',
     description:
-      'A fast, steady reel with soft saturation, then a very gentle compressor, then a fast limiter leaned on lightly, catching stray peaks.',
+      'A subsonic cut, then a very gentle compressor that leans on the loudest swells, then a fast limiter leaned on lightly, catching stray peaks.',
     effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.71 } },
       { deviceId: 'ambient-comp', preset: 'Glue' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'concourse-mixdown-in-transit',
+    name: 'Mixdown in transit',
+    category: 'master',
+    description:
+      'A fresh reel of tape, open on top and nearly steady, then a very gentle compressor, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 643, release: 4.33 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.16 } },
     ],
   },
 ]

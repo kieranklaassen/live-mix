@@ -55,17 +55,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-dusk-cathedral',
-    name: 'Dusk cathedral',
-    category: 'space',
-    description:
-      'A single saturated tape echo close behind each note, into a cathedral whose long tail sings a soft open ah.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 99.5 } },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 20.5, preDelay: 41.8 } },
-    ],
-  },
-  {
     id: 'ashram-plate-till-daybreak',
     name: 'Plate till daybreak',
     category: 'space',
@@ -114,7 +103,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Room under oaks',
     category: 'space',
     description:
-      'A dense many-notched phaser drifting opposite on each side, into a far-off room laid in under the untouched sound.',
+      'A dense many-notched phaser drifting opposite on each side, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.125 } },
       { deviceId: 're-amp', preset: 'Room underneath', params: { output: 6.57 } },
@@ -154,21 +143,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-doorstep-ring',
-    name: 'Doorstep ring',
-    category: 'space',
-    description:
-      'A brief ring of sixteen C major strings behind each note, into a cathedral with about six seconds of tail.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Short halo', params: { decay: 0.82 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Cathedral',
-        params: { preDelay: 89, lowDecay: 7.35, midDecay: 5.34 },
-      },
-    ],
-  },
-  {
     id: 'ashram-ring-by-the-lamp',
     name: 'Ring by the lamp',
     category: 'space',
@@ -202,22 +176,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-last-set-drone',
-    name: 'Last-set drone',
-    category: 'space',
-    description:
-      'A thin veil of reverb kept low under the sound, into four long strings on an A minor chord held in the centre.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { mix: 0.072 } },
-      { deviceId: 'sympathetic', preset: 'Centre drone', params: { mix: 0.21 } },
-    ],
-  },
-  {
     id: 'ashram-devotional-choir',
     name: 'Devotional choir',
     category: 'space',
     description:
-      'A soft sung oo that follows a moment behind each note, into a hall whose lows outlast its damped top.',
+      'A soft sung "oo" that trails each note by a moment, into a hall whose lows outlast its damped top.',
     effects: [
       { deviceId: 'vowel-reverb', preset: 'Oo behind' },
       {
@@ -243,7 +206,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Camphor choir',
     category: 'space',
     description:
-      'A big lift of the low end that puts weight under the sound, into a hall of deep voices that sing ee late behind each note.',
+      'A big lift of the low end that puts weight under the sound, into a reverb whose deep voices come in late on a sung "ee".',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.09 } },
       { deviceId: 'vowel-reverb', preset: 'Late basses' },
@@ -258,17 +221,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'bloom-reverb', preset: 'Rising fifths', params: { decay: 8.19 } },
       { deviceId: 'spring-reverb', preset: 'Dub send', params: { decay: 3.05, predelay: 52.7 } },
-    ],
-  },
-  {
-    id: 'ashram-barefoot-cellar',
-    name: 'Barefoot cellar',
-    category: 'space',
-    description:
-      'A dark, driven amplifier stack with the mic off to one side, into a dark cellar of a room that folds the sound to mono.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Warm stack', params: { output: -3.71 } },
-      { deviceId: 'bloom-reverb', preset: 'Narrow cellar', params: { decay: 3.19 } },
     ],
   },
   {
@@ -287,7 +239,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Canyon-road choir',
     category: 'space',
     description:
-      'An equaliser that takes presence, air and lows away, into a huge hall whose tail hums a soft oo for a long while.',
+      'An equaliser that takes presence, air and lows away, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.4 } },
       { deviceId: 'vowel-reverb', preset: 'Endless oo' },
@@ -309,7 +261,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Dry-creek choir',
     category: 'space',
     description:
-      'A half-hidden slow swell, then a hall of deep voices that sing ee late behind each note, into three long springs that chirp and drip.',
+      'A half-hidden slow swell, then a reverb whose deep voices come in late on a sung "ee", into three long-ringing springs that chirp and drip.',
     effects: [
       { deviceId: 'swell', preset: 'Shadow', params: { attack: 1420, release: 317 } },
       { deviceId: 'vowel-reverb', preset: 'Late basses' },
@@ -321,10 +273,58 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Daybreak ring',
     category: 'space',
     description:
-      'A big lift of presence and air, with ringing held in check, into thirteen drone strings in D major kept near the centre.',
+      'A big lift of presence and air, into thirteen drone strings in D major kept near the centre.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.531 } },
       { deviceId: 'sympathetic', preset: 'Sitar drone', params: { mix: 0.24 } },
+    ],
+  },
+  {
+    id: 'ashram-last-set-ring',
+    name: 'Last-set ring',
+    category: 'space',
+    description:
+      'Ten strings that tune themselves to the notes they hear, into a small bright chamber that goes on ringing for seconds.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Follow the tune', params: { decay: 4.42, mix: 0.3 } },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Small bright tank',
+        params: { decay: 7.11, breathRate: 0.28, mix: 0.24 },
+      },
+    ],
+  },
+  {
+    id: 'ashram-plate-in-the-grove',
+    name: 'Plate in the grove',
+    category: 'space',
+    description:
+      'A plate heard alone with none of the dry sound left, then two copies heard just after the sound, the left one first.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
+      { deviceId: 'stereo-detune', preset: 'Late copy' },
+    ],
+  },
+  {
+    id: 'ashram-chaparral-echo',
+    name: 'Chaparral echo',
+    category: 'space',
+    description:
+      'Two copies a few cents sharp and flat, left and right, then a short, soft tape echo close behind the playing.',
+    effects: [
+      { deviceId: 'pitch-shifter', preset: 'Doubler', params: { mix: 0.373 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { mix: 0.18 } },
+    ],
+  },
+  {
+    id: 'ashram-sundown-halo',
+    name: 'Sundown halo',
+    category: 'space',
+    description:
+      'A short bright room whose tail splits a fifth up and down, into a long bright reverb tail kept low behind the sound.',
+    effects: [
+      { deviceId: 'bloom-reverb', preset: 'Quick sparkle' },
+      { deviceId: 'ether-reverb', preset: 'Shining tail' },
     ],
   },
   {
@@ -343,7 +343,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Jasmine trail',
     category: 'echo',
     description:
-      'A rotating speaker on its slow speed, then a slow echo with a long dark trail and a few recollections.',
+      'A rotating speaker on its slow speed, then a slow echo with a long dark trail as earlier phrases return.',
     effects: [
       { deviceId: 'rotary', preset: 'Chorale' },
       {
@@ -398,17 +398,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-echo-up-the-canyon',
-    name: 'Echo up the canyon',
-    category: 'echo',
-    description:
-      'A tape echo whose three heads make a cluster of each repeat, into a dull closed-mouth hum of deep voices behind the sound.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 548 } },
-      { deviceId: 'vowel-reverb', preset: 'Humming', params: { decay: 10.7, preDelay: 19.5 } },
-    ],
-  },
-  {
     id: 'ashram-echo-pitched-low',
     name: 'Echo pitched low',
     category: 'echo',
@@ -420,22 +409,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-echoes-in-sandalwood',
-    name: 'Echoes in sandalwood',
-    category: 'echo',
-    description:
-      'A nasal horn loudspeaker heard from far across a big room, then a handful of separate echoes that fall away and repeat.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Station platform', params: { output: 4.64 } },
-      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.45 } },
-    ],
-  },
-  {
     id: 'ashram-rose-petal-drift',
     name: 'Rose-petal drift',
     category: 'echo',
     description:
-      'A transformer that fills out the lows and dulls the top, then a wide echo whose repeats drift slowly in pitch, into a very long sung oo.',
+      'A low-thickening transformer, then a wide echo whose repeats drift slowly in pitch, into a hall humming a long "oo".',
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
       { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 594, modRate: 0.088 } },
@@ -443,11 +421,33 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'ashram-loop-up-the-canyon',
+    name: 'Loop up the canyon',
+    category: 'echo',
+    description:
+      'A tape loop whose passes cross from side to side, into three springs heard alone with none of the dry sound left.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Crossing sides', params: { length: 1.54 } },
+      { deviceId: 'spring-reverb', preset: 'Tank alone', params: { decay: 3.35 } },
+    ],
+  },
+  {
+    id: 'ashram-dusk-trail',
+    name: 'Dusk trail',
+    category: 'echo',
+    description:
+      'A slow tape echo with a long trail that dulls as it goes, then an equaliser that takes presence, air and lows away.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Long dark trail', params: { time: 1570 } },
+      { deviceId: 'ambient-eq', preset: 'Distant' },
+    ],
+  },
+  {
     id: 'ashram-cathedral-in-saffron',
     name: 'Cathedral in saffron',
     category: 'tape',
     description:
-      'A tape reel with soft saturation, slight wobble and hiss, into a cathedral whose long tail sings a soft open ah.',
+      'A tape reel with soft saturation, slight wobble and hiss, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'patina', preset: 'Quarter inch reel' },
       { deviceId: 'vowel-reverb', preset: 'Cathedral' },
@@ -458,7 +458,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Live-oak voices',
     category: 'tape',
     description:
-      'A tape reel pushed hard, saturated and thick, into a hall whose choir wanders from vowel to vowel.',
+      'A tape reel pushed hard, saturated and thick, into a reverb whose choir wanders from vowel to vowel.',
     effects: [
       { deviceId: 'patina', preset: 'Reel pushed hard' },
       { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 8.99, preDelay: 22 } },
@@ -469,7 +469,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'After-hours choir',
     category: 'tape',
     description:
-      'A thick, soft cassette, full in the lows and dull on top, into a large hall whose tail hums a deep oh in bass voices.',
+      'A thick, soft cassette, full in the lows and dull on top, into a large reverb whose tail hums a deep "oh" in bass voices.',
     effects: [
       { deviceId: 'tape', preset: 'Warm thump' },
       { deviceId: 'vowel-reverb', preset: 'Low monks', params: { decay: 12.2, preDelay: 18 } },
@@ -484,17 +484,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Under a blanket' },
       { deviceId: 'vowel-reverb', preset: 'Humming', params: { decay: 9.65, preDelay: 21.6 } },
-    ],
-  },
-  {
-    id: 'ashram-fuzz-with-garlands',
-    name: 'Fuzz with garlands',
-    category: 'tape',
-    description:
-      'A hard-clipped copy held at one level under the clean sound, then a gentle high cut that shades the top end.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Sustain bed' },
-      { deviceId: 'ambient-eq', preset: 'Shaded' },
     ],
   },
   {
@@ -513,33 +502,44 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sunday cassette',
     category: 'tape',
     description:
-      'A hollow peaking phaser that turns about every four seconds, then a thick, soft cassette, full in the lows and dull on top.',
+      'A hollow, resonant phaser turning about every four seconds, then a thick, soft cassette, full in the lows and dull on top.',
     effects: [
       { deviceId: 'phaser', preset: 'Negative notch' },
       { deviceId: 'tape', preset: 'Warm thump' },
     ],
   },
   {
-    id: 'ashram-silk-echo',
-    name: 'Silk echo',
+    id: 'ashram-sun-warmed-cassette',
+    name: 'Sun-warmed cassette',
     category: 'tape',
     description:
-      'A fast, steady reel with soft saturation, then a dull, wobbling, saturated echo on worn tape, into a wide room heard from its far end.',
+      'A four-track cassette, dull on top, unsteady and hissing, then an echo whose repeats jump up an octave and back.',
     effects: [
-      { deviceId: 'tape', preset: 'Mastering deck', params: { output: -2.58 } },
-      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 623 } },
-      { deviceId: 'ether-reverb', preset: 'Distant' },
+      { deviceId: 'tape', preset: 'Cassette four-track', params: { output: -3.19 } },
+      { deviceId: 'analog-delay', preset: 'Octave hop', params: { time: 395, modRate: 0.579 } },
     ],
   },
   {
-    id: 'ashram-record-past-the-gate',
-    name: 'Record past the gate',
+    id: 'ashram-dim-lamp-cassette',
+    name: 'Dim-lamp cassette',
     category: 'tape',
     description:
-      'An equaliser that adds lows and body and eases the top, then a warped record through a dark cartridge, swaying slowly.',
+      'A thick, soft cassette, full in the lows and dull on top, into a quick bright twang of springs behind each attack.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm' },
+      { deviceId: 'tape', preset: 'Warm thump', params: { output: -3.27 } },
+      { deviceId: 'spring-reverb', preset: 'Quick twang', params: { decay: 0.789 } },
+    ],
+  },
+  {
+    id: 'ashram-sway-with-garlands',
+    name: 'Sway with garlands',
+    category: 'tape',
+    description:
+      'A hot valve stage, then a warped record through a dark cartridge, swaying slowly, into a hint of a two-spring tank behind the sound.',
+    effects: [
+      { deviceId: 'patina', preset: 'Hot valve', params: { output: -6.74 } },
       { deviceId: 'vinyl', preset: 'Slow platter' },
+      { deviceId: 'spring-reverb', preset: 'Hint of spring', params: { decay: 1.58 } },
     ],
   },
   {
@@ -559,7 +559,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Half-heard swirl',
     category: 'motion',
     description:
-      'Amplifier valves driven until they round off every peak, then a far fast rotating speaker, into a long plate with a wide and even tail.',
+      'A driven valve amplifier, then a fast rotating speaker heard from far off, smooth and even, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 're-amp', preset: 'Just the valves', params: { output: 0.193 } },
       { deviceId: 'rotary', preset: 'Far shimmer' },
@@ -583,7 +583,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Satsang rotary',
     category: 'motion',
     description:
-      'Light tape-style saturation, then a slow rotating speaker heard from across the room, into two taut, long springs.',
+      'Light tape-style saturation, then a distant, slow rotary, into two taut springs that ring long and clean with no drip.',
     effects: [
       { deviceId: 'saturator', preset: 'Soft tape warmth' },
       { deviceId: 'rotary', preset: 'Across the room' },
@@ -725,17 +725,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-floor-cushion-wobble',
-    name: 'Floor-cushion wobble',
-    category: 'motion',
-    description:
-      'A deep pitch wobble with the two sides bending out of step, then dotted tape repeats that bounce from side to side.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Wide wobble', params: { rate: 3.32 } },
-      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
-    ],
-  },
-  {
     id: 'ashram-brass-lamp-rotary',
     name: 'Brass-lamp rotary',
     category: 'motion',
@@ -816,6 +805,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble' },
       { deviceId: 'rotary', preset: 'Slow burn' },
+    ],
+  },
+  {
+    id: 'ashram-rosewood-rotary',
+    name: 'Rosewood rotary',
+    category: 'motion',
+    description:
+      'A rotating speaker on its slow speed, into sixteen hard-driven strings in F major that ring for seconds.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Chorale' },
+      { deviceId: 'sympathetic', preset: 'Glass harp', params: { decay: 7.8, mix: 0.42 } },
     ],
   },
   {
@@ -1066,7 +1066,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lotus-pond shimmer',
     category: 'pitch',
     description:
-      'Grains fed back an octave up, climbing higher each pass, then a slow reel that trembles fast, mixed against the dry sound.',
+      'Grains fed back an octave up, climbing higher each pass, then a slow-speed reel with a quick flutter against the dry sound.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Rising shimmer' },
       { deviceId: 'tape', preset: 'Flutter shimmer' },
@@ -1077,7 +1077,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Depths in sage',
     category: 'pitch',
     description:
-      'A soft, deep bass one and two octaves below each note, then a tape loop about a second round that soon dies away.',
+      'A soft, deep bass one and two octaves below each note, then a tape loop about one second long that soon dies away.',
     effects: [
       { deviceId: 'octaves', preset: 'Deep' },
       { deviceId: 'tape-loop', preset: 'One second round', params: { length: 1.07 } },
@@ -1120,39 +1120,38 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-master-in-marigolds',
-    name: 'Master in marigolds',
+    id: 'ashram-barefoot-polish',
+    name: 'Barefoot polish',
     category: 'master',
     description:
-      'The first hint of weight from a tape preamp, then a gentle compressor, then a true-peak ceiling set two decibels under full scale.',
+      'A fresh reel of tape, then a slow compressor that evens out swells over seconds, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-comp', preset: 'Sit back' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.42, gain: 2.03 } },
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Level' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.41 } },
     ],
   },
   {
-    id: 'ashram-master-between-sets',
-    name: 'Master between sets',
+    id: 'ashram-mixdown-in-saffron',
+    name: 'Mixdown in saffron',
     category: 'master',
     description:
-      'A little soft saturation, then a very gentle compressor, then a brickwall ceiling that touches nothing beneath it.',
+      'A fast, steady reel with soft saturation, then a true-peak ceiling that lets go again over several seconds.',
     effects: [
-      { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-comp', preset: 'Glue' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: -3.87 } },
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
   {
-    id: 'ashram-finish-at-the-shrine',
-    name: 'Finish at the shrine',
+    id: 'ashram-hillside-mixdown',
+    name: 'Hillside mixdown',
     category: 'master',
     description:
-      'The first hint of weight from a tape preamp, then a small dip in the low mids, then a brickwall ceiling that touches nothing beneath it.',
+      'Tape-style saturation that rounds only the loudest peaks, then an even-handed compressor, then a safety limiter.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.43 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only' },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 105, release: 1.32 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
 ]
