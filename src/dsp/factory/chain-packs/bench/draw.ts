@@ -118,6 +118,8 @@ export function fits(slot: OwnSlot, candidate: Candidate): boolean {
 const ONCE: readonly Trait[] = ['unsteady', 'backwards', 'long', 'frozen', 'far']
 /** The jobs that leave no dry sound beside them: what they take away is gone for everything before them. */
 const THROUGH: readonly Role[] = ['tone', 'wear', 'drive']
+/** The jobs that are heard in time. */
+const TIMED: readonly Role[] = ['echo', 'pulse']
 /** The jobs that are a space: a hint of one before another is covered by it. */
 const SPACE: readonly Role[] = ['room', 'hall', 'halo']
 
@@ -157,9 +159,14 @@ export function clash(
       return 'a hint of what an earlier preset already does in full'
   }
   if (has('heavy') && had('faint')) return 'a hint under a preset that takes the dry sound away'
-  if (has('heavy') && has('long') && leadAt < before.length)
-    return 'named for a preset that a long tail with no dry sound then covers'
-  if (has('long') && had('faint')) return 'a hint under a tail that covers it'
+  // Repeats and pulses are heard in time: a long tail with none of the dry sound left smears them into itself.
+  if (
+    has('heavy') &&
+    has('long') &&
+    leadAt < before.length &&
+    TIMED.includes(jobOf(before[leadAt]))
+  )
+    return 'named for repeats or a pulse that a long tail with no dry sound then covers'
   if (before.some((placed) => is(placed, 'faint') && jobOf(placed) === job))
     return 'a hint of what a later preset does in full'
   if (
