@@ -5,7 +5,7 @@
 //    0  depth: 0..1, default 0.5
 //    1  sharpness: 0..1, default 0.6
 //    2  time: 10..1000 ms, default 60
-//    3  from: 80..2000 Hz, default 120
+//    3  from: 120..2000 Hz, default 120
 //    4  to: 1000..20000 Hz, default 16000
 //    5  listen: 0 Off, 1 On, default 0
 
@@ -24,7 +24,7 @@ enum Param : int {
   kNumParams = 6,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 10.0f, 80.0f, 1000.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 10.0f, 120.0f, 1000.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1000.0f, 2000.0f, 20000.0f, 1.0f};
 inline constexpr float kParamDefault[kNumParams] = {0.5f, 0.6f, 60.0f, 120.0f, 16000.0f, 0.0f};
 

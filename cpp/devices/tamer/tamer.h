@@ -11,9 +11,14 @@
 //       └─► FFT 1024 ─► bands above ─────────┴─► compare ─► hold ─► solve
 //
 // The audio only ever passes peaking filters that cut, so there is no
-// latency, the output is never louder than the input at any frequency, and
-// with nothing to cut the output is the input, sample for sample. The two
-// FFTs are a side path that listens.
+// latency, a steady cut leaves nothing louder than it came in at any
+// frequency, and with nothing to cut the output is the input, sample for
+// sample. The two FFTs are a side path that listens.
+//
+// Every length below is in samples at 44.1 and 48 kHz. Above 72 kHz each is
+// doubled (8192 and 2048 points, 512 samples between comparisons), so at
+// 88.2 and 96 kHz the bands, the times and the cost are the same; at 176.4
+// and 192 kHz the bands low down are twice as wide.
 //
 // Bands. From 30 Hz to 20 kHz (or 0.45 of the sample rate), a twelfth of an
 // octave wide where the analysis can tell that apart and, below that (394 Hz
@@ -46,28 +51,38 @@
 //   not hide each other; and among the partials of a note it is a partial.
 //   A side with no top, a slope, speaks with the level that seven in ten of
 //   its bands lie under.
-// - The excess is the band's level over the mean of the two sides, in dB (a
-//   tilt cancels), less a margin of 4 dB at Depth 0 falling to 1 dB at 1.
-//   Only 24 dB of it counts.
+// - The excess is the band's level over the bed under it, less a margin of
+//   4 dB at Depth 0 falling to 1 dB at 1. The bed under a band lies on the
+//   line through its two sides' levels, each taken at the side's middle, so
+//   a tilt cancels: half way between them where the sides are alike, nearer
+//   the upper one where the top of the range cuts that short. What a band
+//   is held against moves over a quarter of a second: a bed changes slowly,
+//   and which top is a side's middle one does not. Only 24 dB of the excess
+//   counts, and a cut of less than half a dB is not made.
 // - There has to be a bed to stand out of. How far a side's dips lie under
 //   its tops, band by band whatever the width, tells a bed from bare notes:
 //   noise dips a few dB, and between the partials of clean notes there is
 //   next to nothing. The cut fades out as the deeper side's dips go from
 //   4 dB to 8, so a note played over other notes is not taken for a peak.
-// - The bed has to last: 0.15 s under the long transform, 0.05 s under the
-//   short, with the mean power of each side within 36 dB of the band. A
+// - The bed has to last: 0.2 s under the long transform, 0.07 s under the
+//   short, with the mean power of each side within 30 dB of the band. A
 //   transform takes its length to fill, and while a sound that starts at
 //   once is filling it, what it spills reads as a bed; so does the knock a
-//   note starts with. (A bed changes slowly and reading it is the dearest
-//   thing here, so each comparison reads it for every fourth band.)
-// - A band more than 36 dB above either side stands out of nothing: it is the
-//   sound itself, and is left alone. From 24 dB the cut fades out. Nor is a
+//   note starts with. And it has to be there now: what a view remembers of
+//   a knock, dying away, does not count, and the time runs back while that
+//   is all there is. A bed that has lasted may pause for 0.1 s. (A bed
+//   changes slowly and reading it is the dearest thing here, so each
+//   comparison reads it for every fourth band.)
+// - A band more than 30 dB above either side stands out of nothing: it is the
+//   sound itself, and is left alone. From 18 dB the cut fades out. Nor is a
 //   band a peak of its own while one between it and its sides is louder:
 //   3 dB under that one it is its slope, or what a loud tone spills into the
 //   bands next to it.
-// - A band with fewer than two bands below it to compare with (under about
-//   90 Hz) is never cut, and one with none above lets the lower side speak
-//   for both.
+// - A band with fewer than two bands below it to compare with is never cut
+//   (the lowest that is starts at 123 Hz at 48 kHz), nor is the topmost
+//   band. A band with no side above it (the top of the range, further down
+//   the lower Sharpness is) is held against the lower side carried on up to
+//   it at that side's own tilt, 6 dB an octave at most.
 // - The cut asked for is Depth times the excess, 18 dB at most, and only
 //   between From and To (fading over a third of an octave outside).
 // - The cut held moves towards that with Time going down and four times
@@ -85,7 +100,8 @@
 //
 // Each gain is ramped across the 256 samples to the next comparison and its
 // filter redesigned every 64, the same on both channels so the image does not
-// move. A filter at 0 dB is skipped.
+// move. A filter back at 0 dB passes its input as it is while what it holds
+// rings out, and is skipped once that is under -180 dB.
 //
 // Listen swaps the output for what is taken away: the input less the output.
 //
@@ -93,8 +109,11 @@
 // the deepest single one. Meters 1 to 12 are for the display: the cut at 48
 // points from 40 Hz to 20 kHz.
 //
-// Asleep nothing is sounding, so the filters, the band powers, the cuts and
-// the FFTs' input are cleared: waking is the same as starting.
+// After 0.3 s of nothing in and nothing out it sleeps: the filters, the band
+// powers, the cuts and the FFTs' input are cleared, so waking is the same as
+// starting. It falls asleep and wakes on the sample, not on the block: every
+// period is counted from the first sample that sounds, so the block size
+// cannot be heard. A sample too small to hear (under 1e-15) counts as none.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -103,8 +122,10 @@ namespace livemix {
 
 class Tamer : public kit::DeviceBase<tamer::kNumParams> {
  public:
-  static constexpr int kLongFrame = 4096;
+  static constexpr int kLongFrame = 4096;  // at 44.1 and 48 kHz; twice that above 72 kHz
   static constexpr int kShortFrame = 1024;
+  static constexpr int kMostLongFrame = 2 * kLongFrame;
+  static constexpr int kMostShortFrame = 2 * kShortFrame;
   static constexpr int kMaxBands = 96;
   static constexpr int kDisplayPoints = 48;
   static constexpr float kDisplayFromHz = 40.0f;
@@ -114,26 +135,46 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     using namespace tamer;
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
+    // Every length is counted in samples, and doubled above 72 kHz, so that
+    // at 88.2 and 96 kHz the bands, the times and the cost are those of 44.1
+    // and 48 kHz.
+    twice_ = sr > kTwiceAboveHz ? 1 : 0;
+    long_frame_ = kLongFrame << twice_;
+    short_frame_ = kShortFrame << twice_;
+    ring_mask_ = static_cast<uint32_t>(long_frame_ - 1);
+    look_bits_ = kLookBits + twice_;
+    hop_bits_ = kLongHopBits + twice_;
+    look_mask_ = (1u << look_bits_) - 1u;
+    hop_mask_ = (1u << hop_bits_) - 1u;
+    tick_mask_ = (static_cast<uint32_t>(kTick) << twice_) - 1u;
+    look_at_ = 192u << twice_;
+    long_at_ = 64u << twice_;
     long_fft_.init();
     short_fft_.init();
+    long_fft_twice_.init();
+    short_fft_twice_.init();
     const double turn = 2.0 * 3.14159265358979323846;
-    for (int n = 0; n < kLongFrame; ++n) {
-      long_window_[n] = 0.5f - 0.5f * static_cast<float>(std::cos(turn * n / kLongFrame));
+    for (int n = 0; n < long_frame_; ++n) {
+      long_window_[n] = 0.5f - 0.5f * static_cast<float>(std::cos(turn * n / long_frame_));
     }
-    for (int n = 0; n < kShortFrame; ++n) {
-      short_window_[n] = 0.5f - 0.5f * static_cast<float>(std::cos(turn * n / kShortFrame));
+    for (int n = 0; n < short_frame_; ++n) {
+      short_window_[n] = 0.5f - 0.5f * static_cast<float>(std::cos(turn * n / short_frame_));
     }
     lay_out_bands(sr);
-    const float looks_per_second = sr / kLookPeriod;
+    looks_per_second_ = sr / static_cast<float>(1 << look_bits_);
+    const float looks_per_second = looks_per_second_;
     short_coeff_ = kit::time_to_coeff(kShortSeconds, looks_per_second);
     long_coeff_ = kit::time_to_coeff(kLongSeconds, looks_per_second);
     width_coeff_ = kit::time_to_coeff(kWidthSeconds, looks_per_second);
+    bed_coeff_ = kit::time_to_coeff(kBedSeconds, looks_per_second);
     long_stay_ = kit::clamp_int(static_cast<int>(kLongStay * looks_per_second + 0.5f), 1, 1 << 20);
     short_stay_ =
         kit::clamp_int(static_cast<int>(kShortStay * looks_per_second + 0.5f), 1, long_stay_);
+    most_stay_ = long_stay_ + static_cast<int>(kSpareStay * looks_per_second + 0.5f);
     listen_.set_time(kSmoothingSeconds, sr);
     // The longest ring here is the lowest filter's: under 0.1 s to -60 dB.
     idle_.reset(sr, kHoldSeconds);
+    hold_ = kit::clamp_int(static_cast<int>(kHoldSeconds * sr), 1, 1 << 30);
     for (int id = 0; id < kNumParams; ++id) apply(id);
     rest();
   }
@@ -178,48 +219,80 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float x[2];
       take_input(i, &x[0], &x[1]);
-      // A NaN or runaway sample would otherwise stay in every filter it met.
+      // What is listened to and filtered: a sample too small to hear counts
+      // as none, or every sum after it would be denormal.
+      float heard[2];
       for (int c = 0; c < 2; ++c) {
+        // A NaN or runaway sample would otherwise stay in every filter it met.
         if (!(x[c] > -kSaneInput && x[c] < kSaneInput)) x[c] = 0.0f;
+        heard[c] = flush_denormal(x[c]);
+      }
+      // Time starts with the first sample that sounds, wherever in a block
+      // that is: until then nothing moves, so the block size cannot be heard.
+      const bool silent = heard[0] == 0.0f && heard[1] == 0.0f;
+      if (fresh_) {
+        if (silent) {
+          out_left_[i] = x[0];
+          out_right_[i] = x[1];
+          continue;
+        }
+        fresh_ = false;
       }
 
-      ring_[0][position_ & kRingMask] = x[0];
-      ring_[1][position_ & kRingMask] = x[1];
-      const uint32_t phase = position_ & (kLookPeriod - 1);
-      if (phase == 0) analyse_short((position_ / kLookPeriod) & 1);
-      if (phase == 192) look();
-      if ((position_ & (kLongHop - 1)) == 64) analyse_long((position_ >> kLongHopBits) & 1);
-      if ((position_ & (kTick - 1)) == 0) update_filters();
+      ring_[0][position_ & ring_mask_] = heard[0];
+      ring_[1][position_ & ring_mask_] = heard[1];
+      const uint32_t phase = position_ & look_mask_;
+      if (phase == 0) analyse_short((position_ >> look_bits_) & 1);
+      if (phase == look_at_) look();
+      if ((position_ & hop_mask_) == long_at_) analyse_long((position_ >> hop_bits_) & 1);
+      if ((position_ & tick_mask_) == 0) update_filters();
 
+      // With no filter at work the output is the input, to the last bit.
       float y[2] = {x[0], x[1]};
-      for (int n = 0; n < live_count_; ++n) {
-        const int k = live_bands_[n];
-        y[0] = filter_[0][k].process(y[0]);
-        y[1] = filter_[1][k].process(y[1]);
+      if (live_count_ > 0) {
+        y[0] = heard[0];
+        y[1] = heard[1];
+        for (int n = 0; n < live_count_; ++n) {
+          const int k = live_bands_[n];
+          y[0] = filter_[0][k].process(y[0]);
+          y[1] = filter_[1][k].process(y[1]);
+        }
       }
       ++position_;
 
       // Listen: all the way over, the input less the output.
       const float taken = listen_.next();
-      if (taken == 0.0f) {
-        out_left_[i] = y[0];
-        out_right_[i] = y[1];
+      if (taken != 0.0f) {
+        y[0] += taken * (x[0] - 2.0f * y[0]);
+        y[1] += taken * (x[1] - 2.0f * y[1]);
+      }
+      out_left_[i] = y[0];
+      out_right_[i] = y[1];
+
+      // And it stops with the sample that ends 0.3 s of nothing in and
+      // nothing out, for the same reason.
+      if (silent && std::fabs(y[0]) <= kit::IdleGate::kFloor &&
+          std::fabs(y[1]) <= kit::IdleGate::kFloor) {
+        if (++quiet_ >= hold_) rest();
       } else {
-        out_left_[i] = y[0] + taken * (x[0] - 2.0f * y[0]);
-        out_right_[i] = y[1] + taken * (x[1] - 2.0f * y[1]);
+        quiet_ = 0;
       }
     }
+    // Whole blocks of nothing are then skipped.
     idle_.settle(output_peak(frames), frames);
-    if (idle_.asleep()) rest();
+    if (idle_.asleep() && !fresh_) rest();
   }
 
  private:
-  static constexpr uint32_t kRingMask = kLongFrame - 1;
+  // In samples at 44.1 and 48 kHz; twice as many above 72 kHz.
+  static constexpr float kTwiceAboveHz = 72000.0f;
   static constexpr int kLookPeriod = 256;  // samples between comparisons, and the short hop
+  static constexpr int kLookBits = 8;
   static constexpr int kLongHop = 1024;    // one channel's long transform
   static constexpr int kLongHopBits = 10;
   static constexpr int kTick = 64;         // samples between filter updates
   static constexpr int kTicksPerLook = kLookPeriod / kTick;
+  static_assert((1 << kLookBits) == kLookPeriod, "a look period is this many bits");
   static_assert((1 << kLongHopBits) == kLongHop, "the channels take turns by this bit");
   // How meter() packs the display's points.
   static constexpr int kPointsPerReading = 4;
@@ -236,8 +309,11 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   static constexpr float kShortSeconds = 0.04f;
   static constexpr float kLongSeconds = 0.12f;
   static constexpr float kWidthSeconds = 0.12f;  // Sharpness glides over this
-  static constexpr float kLongStay = 0.15f;      // seconds of sound round a band make it a bed
-  static constexpr float kShortStay = 0.05f;     // the same under the short transform
+  static constexpr float kBedSeconds = 0.25f;    // what a band is held against moves over this
+  static constexpr float kLongStay = 0.2f;       // seconds of sound round a band make it a bed
+  static constexpr float kShortStay = 0.07f;     // the same under the short transform
+  static constexpr float kSpareStay = 0.1f;      // a bed that has lasted may pause for this long
+  static constexpr float kGone = 0.1f;  // of what a view remembers, in its newest frames: only a memory
   static constexpr float kSideOctaves = 1.0f;    // how far each side is heard
   static constexpr float kShare = 0.7f;          // of a side's bands lie under its level
   static constexpr float kTopsWithinDb = 30.0f;  // of a side's loudest top: the tops that count
@@ -246,13 +322,14 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   static constexpr float kMarginAtFull = 1.0f;   // and at Depth 1
   static constexpr float kMaxExcessDb = 24.0f;
   static constexpr float kMaxCutDb = 18.0f;
-  static constexpr float kLoneFromDb = 24.0f;  // above a side: the cut starts to fade
-  static constexpr float kLoneDb = 36.0f;      // and is gone
-  static constexpr float kLoneRatio = 3981.0717f;  // 36 dB as a power ratio
+  static constexpr float kLoneFromDb = 18.0f;  // above a side: the cut starts to fade
+  static constexpr float kLoneDb = 30.0f;      // and is gone
+  static constexpr float kLoneRatio = 1000.0f;  // 30 dB as a power ratio
   static constexpr float kTopDb = 3.0f;        // under a louder neighbour: no peak of its own
   static constexpr float kBedDb = 4.0f;        // a side that dips no more than this is a bed
   static constexpr float kBareDb = 8.0f;       // and one that dips this much is bare notes
   static constexpr float kBedShare = 0.4f;     // of a new reading of the bed in what the cut goes by
+  static constexpr float kBareShare = 0.1f;    // less of a bed than this is none: the count starts again
   static constexpr int kBedTurns = 4;          // comparisons between two readings of a band's bed
   static constexpr float kQuiet = 1.0e-9f;     // -90 dB per octave
   static constexpr float kQuietDb = -90.0f;
@@ -265,6 +342,9 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   // A cut closer to 0 dB than this with nothing asking for it is let go, so
   // the band's filter can be skipped. The last step is ramped like any other.
   static constexpr float kLetGoDb = 0.01f;
+  static constexpr float kLeastCutDb = 0.5f;  // a cut asked for that is shallower is not made
+  static constexpr float kMostTiltDb = 6.0f;  // per octave: as far as a side's lean is carried on
+  static constexpr float kDrained = 1.0e-9f;
 
   static constexpr float kFloorDb = -120.0f;  // 10 log10(kFloor)
 
@@ -279,6 +359,7 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     float energy[2][kMaxBands] = {};           // the newest frame, per channel
     float power[kMaxBands] = {};               // both channels, smoothed
     float power_before[kMaxBands + 1] = {};
+    float newest_before[kMaxBands + 1] = {};   // the same running sum of the newest frames
     float density[kMaxBands] = {};   // mean power per octave over the width
     float level_db[kMaxBands] = {};  // the same in dB
     bool top[kMaxBands] = {};        // no quieter than both its neighbours
@@ -298,9 +379,9 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     return 1.0f / (1.0f + d * d);
   }
 
-  // True when a new value should glide: once a block has run and while the
-  // device is awake. Asleep there is nothing sounding to glide.
-  bool gliding() const { return primed() && !idle_.asleep(); }
+  // True when a new value should glide: once a block has run and while
+  // something is sounding. With nothing sounding there is nothing to glide.
+  bool gliding() const { return primed() && !fresh_; }
 
   // Sharpness as a width in octaves: 1 at 0, a twelfth at 1.
   static float width_for(float sharpness) { return std::exp2(-sharpness * 3.5849625f); }
@@ -317,15 +398,15 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
 
   // Band edges, centres and the bins each band sums, for this sample rate.
   void lay_out_bands(float sr) {
-    const float long_bin = sr / kLongFrame;
-    const float short_bin = sr / kShortFrame;
+    const float long_bin = sr / static_cast<float>(long_frame_);
+    const float short_bin = sr / static_cast<float>(short_frame_);
     const float top = kit::min(kTopHz, kTopOfRange * sr);
     // A full-scale sine in both channels reads 1: Hann² sums to 3/8 of the
     // frame, a sine puts a quarter of its N·Σw² into the positive bins, and
     // the two channels are averaged.
-    long_scale_ = 16.0f / (3.0f * static_cast<float>(kLongFrame) * static_cast<float>(kLongFrame));
+    long_scale_ = 16.0f / (3.0f * static_cast<float>(long_frame_) * static_cast<float>(long_frame_));
     short_scale_ =
-        16.0f / (3.0f * static_cast<float>(kShortFrame) * static_cast<float>(kShortFrame));
+        16.0f / (3.0f * static_cast<float>(short_frame_) * static_cast<float>(short_frame_));
     num_bands_ = 0;
     first_short_ = kMaxBands;
     float lo = kFirstHz;
@@ -356,7 +437,7 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
       // The same band as the other transform hears it: its bins centred in
       // the band, or where it has none (the short one, low down) the nearest.
       const float other_bin = is_short ? long_bin : short_bin;
-      const int other_top = (is_short ? kLongFrame : kShortFrame) / 2 - 1;
+      const int other_top = (is_short ? long_frame_ : short_frame_) / 2 - 1;
       View& theirs = view_[is_short ? kSlow : kFast];
       int other_first = static_cast<int>(std::ceil(from / other_bin));
       int other_last = static_cast<int>(std::ceil(to / other_bin)) - 1;
@@ -413,16 +494,39 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
       int first = last;
       while (first > 0 && place_[k] - place_[first - 1] <= guard + kSideOctaves) --first;
       if (last - first + 1 > kMaxSide) first = last - kMaxSide + 1;
+      if (last < 0) {
+        // No band is far enough below: an empty side, last before first.
+        first = 0;
+        last = -1;
+      }
       below_first_[k] = first;
-      below_last_[k] = last;  // below first when the side is empty
+      below_last_[k] = last;
       first = k + 2;
       while (first < num_bands_ && place_[first] - place_[k] < guard) ++first;
       last = first;
       while (last < num_bands_ - 1 && place_[last + 1] - place_[k] <= guard + kSideOctaves) ++last;
-      if (last > num_bands_ - 1) last = num_bands_ - 1;
       if (last - first + 1 > kMaxSide) last = first + kMaxSide - 1;
+      if (first > num_bands_ - 1) {
+        first = num_bands_;
+        last = num_bands_ - 1;
+      }
       above_first_[k] = first;
       above_last_[k] = last;
+
+      // Where the band stands between the middles of its two sides: half way
+      // when they are alike, nearer the upper one where the top of the range
+      // cuts that short. With no upper side, how far past the middle of the
+      // lower one it stands, in octaves.
+      lean_[k] = 0.5f;
+      reach_[k] = 0.0f;
+      if (below_last_[k] >= below_first_[k]) {
+        const float under = 0.5f * (place_[below_first_[k]] + place_[below_last_[k]]);
+        reach_[k] = place_[k] - under;
+        if (last >= first) {
+          const float over = 0.5f * (place_[first] + place_[last]);
+          lean_[k] = reach_[k] / (over - under);
+        }
+      }
 
       // A filter is twice as wide as what it answers for, so that a tone at
       // the edge of that still gets four fifths of the cut. Its width is
@@ -448,7 +552,7 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
         filter.reset();
         filter.set_identity();
       }
-      for (int n = 0; n < kLongFrame; ++n) ring_[c][n] = 0.0f;
+      for (int n = 0; n < kMostLongFrame; ++n) ring_[c][n] = 0.0f;
       for (View& view : view_) {
         for (int k = 0; k < kMaxBands; ++k) view.energy[c][k] = 0.0f;
       }
@@ -464,6 +568,7 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     for (int k = 0; k < kMaxBands; ++k) {
       bed_[k] = 0.0f;
       surrounded_[k] = 0;
+      steady_[k] = false;
       held_[k] = 0.0f;
       wanted_[k] = 0.0f;
       gain_[k].length = kTicksPerLook;
@@ -476,6 +581,8 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     holding_ = false;
     deepest_ = 0.0f;
     position_ = 0;
+    quiet_ = 0;
+    fresh_ = true;
     listen_.snap(listen_.target);
     width_ = width_for(param(kSharpness));
     if (width_ != laid_width_) lay_out_width(width_);
@@ -505,6 +612,8 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
         live_[k] = true;
       } else if (live_[k] && gain.value == 0.0f && drained(filter_[0][k]) &&
                  drained(filter_[1][k])) {
+        filter_[0][k].reset();
+        filter_[1][k].reset();
         live_[k] = false;
       }
       if (live_[k]) live_bands_[live++] = k;
@@ -514,27 +623,27 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     at_rest_ = live == 0 && alpha_ticks_ == 0;
   }
 
-  static bool drained(const kit::Biquad& filter) { return filter.z1 == 0.0f && filter.z2 == 0.0f; }
+  // What is left in a filter is under -180 dB: nothing is lost by dropping it.
+  static bool drained(const kit::Biquad& filter) {
+    return std::fabs(filter.z1) < kDrained && std::fabs(filter.z2) < kDrained;
+  }
 
   // A peaking cut of `db` at band k's centre, kit::Biquad::set_peak with the
-  // sine and cosine of the centre already worked out. At exactly 0 dB the
-  // filter becomes a wire: its state runs out in two samples and it can be
-  // skipped.
+  // sine and cosine of the centre already worked out. At 0 dB it passes its
+  // input as it is and what it still holds rings out through its poles; the
+  // filter is skipped once that has died, not before, so letting a cut go
+  // never drops what was in the filter into the output at once.
   void design(int k, float db) {
     kit::Biquad& filter = filter_[0][k];
-    if (db == 0.0f) {
-      filter.set_identity();
-    } else {
-      const float amp = std::exp(db * 0.057564627f);  // 10^(db / 40)
-      const float up = alpha_now_[k] * amp;
-      const float down = alpha_now_[k] / amp;
-      const float norm = 1.0f / (1.0f + down);
-      filter.b0 = (1.0f + up) * norm;
-      filter.b1 = -2.0f * cos_w_[k] * norm;
-      filter.b2 = (1.0f - up) * norm;
-      filter.a1 = filter.b1;
-      filter.a2 = (1.0f - down) * norm;
-    }
+    const float amp = std::exp(db * 0.057564627f);  // 10^(db / 40)
+    const float up = alpha_now_[k] * amp;
+    const float down = alpha_now_[k] / amp;
+    const float norm = 1.0f / (1.0f + down);
+    filter.b0 = (1.0f + up) * norm;
+    filter.b1 = -2.0f * cos_w_[k] * norm;
+    filter.b2 = (1.0f - up) * norm;
+    filter.a1 = filter.b1;
+    filter.a2 = (1.0f - down) * norm;
     kit::Biquad& other = filter_[1][k];
     other.b0 = filter.b0;
     other.b1 = filter.b1;
@@ -543,27 +652,39 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     other.a2 = filter.a2;
   }
 
-  // One long transform of one channel: the last 4096 samples under a Hann
-  // window, summed into the bands that are read from it.
+  // One long transform of one channel: the last 4096 samples (8192 above
+  // 72 kHz) under a Hann window, summed into the bands that are read from it.
   void analyse_long(int c) {
     const uint32_t start = position_ + 1;  // the oldest sample in the ring
     const float* ring = ring_[c];
     const float* window = long_window_;
-    long_fft_.forward_real(
-        [ring, window, start](int n) { return ring[(start + n) & kRingMask] * window[n]; },
-        spectrum_);
-    sum_bands(c, &view_[kSlow], kLongFrame, long_scale_);
+    const uint32_t mask = ring_mask_;
+    const auto frame = [ring, window, start, mask](int n) {
+      return ring[(start + n) & mask] * window[n];
+    };
+    if (twice_ == 0) {
+      long_fft_.forward_real(frame, spectrum_);
+    } else {
+      long_fft_twice_.forward_real(frame, spectrum_);
+    }
+    sum_bands(c, &view_[kSlow], long_frame_, long_scale_);
   }
 
   // One short transform of one channel: the last 1024 samples.
   void analyse_short(int c) {
-    const uint32_t start = position_ + 1 + (kLongFrame - kShortFrame);
+    const uint32_t start = position_ + 1 + static_cast<uint32_t>(long_frame_ - short_frame_);
     const float* ring = ring_[c];
     const float* window = short_window_;
-    short_fft_.forward_real(
-        [ring, window, start](int n) { return ring[(start + n) & kRingMask] * window[n]; },
-        spectrum_);
-    sum_bands(c, &view_[kFast], kShortFrame, short_scale_);
+    const uint32_t mask = ring_mask_;
+    const auto frame = [ring, window, start, mask](int n) {
+      return ring[(start + n) & mask] * window[n];
+    };
+    if (twice_ == 0) {
+      short_fft_.forward_real(frame, spectrum_);
+    } else {
+      short_fft_twice_.forward_real(frame, spectrum_);
+    }
+    sum_bands(c, &view_[kFast], short_frame_, short_scale_);
   }
 
   void sum_bands(int c, View* view, int frame, float scale) {
@@ -642,6 +763,20 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
            (view.octaves_before[last + 1] - view.octaves_before[first]);
   }
 
+  // How a side leans, in dB per octave: its upper half against its lower,
+  // 6 either way at most (white noise rises by 3, and what a tone spills
+  // falls far faster than a bed does).
+  float tilt(const View& view, int first, int last) const {
+    const int middle = (first + last + 1) / 2;
+    const float lower = (view.power_before[middle] - view.power_before[first]) /
+                        (view.octaves_before[middle] - view.octaves_before[first]);
+    const float upper = (view.power_before[last + 1] - view.power_before[middle]) /
+                        (view.octaves_before[last + 1] - view.octaves_before[middle]);
+    const float octaves = 0.5f * (place_[middle] + place_[last] - place_[first] - place_[middle - 1]);
+    if (!(lower > kFloor) || !(upper > kFloor) || !(octaves > 0.0f)) return 0.0f;
+    return kit::clamp(10.0f * std::log10(upper / lower) / octaves, -kMostTiltDb, kMostTiltDb);
+  }
+
   // Put `value` into sorted[0..count), lowest first; the new count.
   static int insert(float* sorted, int count, float value) {
     int at = count;
@@ -683,10 +818,12 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
       View& view = view_[v];
       const float coeff = v == kSlow ? long_coeff_ : short_coeff_;
       view.power_before[0] = 0.0f;
+      view.newest_before[0] = 0.0f;
       for (int k = 0; k < num_bands_; ++k) {
         const float now = view.energy[0][k] + view.energy[1][k];
         view.power[k] = flush_denormal(now + (view.power[k] - now) * coeff);
         view.power_before[k + 1] = view.power_before[k] + view.power[k];
+        view.newest_before[k + 1] = view.newest_before[k] + now;
       }
       for (int k = 0; k < num_bands_; ++k) {
         const int lo = mean_first_[k];
@@ -721,29 +858,42 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     // the long one, 21 ms the short), and while a sound that starts at once
     // is filling it, what it spills reads as a bed all round it; so does the
     // knock a note starts with. So a band is only cut once both sides have
-    // been a bed, with their mean power within 36 dB of the band, for 0.15 s
-    // or 0.05 s on end.
+    // been a bed, with their mean power within 30 dB of the band, for 0.2 s
+    // or 0.07 s on end: longer than a knock stays in a transform's newest
+    // frames (128 ms and 32 ms) and one reading more. What a view still
+    // remembers of a knock after that, dying away over its smoothing time,
+    // is not a bed either: time only counts while the newest frames hold a
+    // tenth or more of what the view remembers of the sides, and runs back
+    // while they do not. It counts 0.1 s past what is asked, so a bed that
+    // has lasted can pause for that long (a tremolo) and keep its cuts.
     //
     // A bed changes slowly and reading it is the dearest thing here, so each
     // comparison reads it for every fourth band, taking turns.
-    const int turn = static_cast<int>((position_ / kLookPeriod) % kBedTurns);
+    const int turn = static_cast<int>((position_ >> look_bits_) % kBedTurns);
     for (int k = turn; k < num_bands_; k += kBedTurns) {
       const View& view = own(k);
       const bool both = above_last_[k] - above_first_[k] + 1 >= 2;
       float least = side_mean(view, below_first_[k], below_last_[k]);
       float dip = dips(view, below_first_[k], below_last_[k]);
+      // What the sides hold as the view remembers it, and in its newest frames.
+      float kept = view.power_before[below_last_[k] + 1] - view.power_before[below_first_[k]];
+      float newest = view.newest_before[below_last_[k] + 1] - view.newest_before[below_first_[k]];
       if (both) {
         least = kit::min(least, side_mean(view, above_first_[k], above_last_[k]));
         dip = kit::max(dip, dips(view, above_first_[k], above_last_[k]));
+        kept += view.power_before[above_last_[k] + 1] - view.power_before[above_first_[k]];
+        newest += view.newest_before[above_last_[k] + 1] - view.newest_before[above_first_[k]];
       }
       // One reading in a hundred of plain noise dips further than a bed is
       // allowed to; the cut goes by the last few readings together.
       const float bed = kit::clamp((kBareDb - dip) / (kBareDb - kBedDb), 0.0f, 1.0f);
       bed_[k] += (bed - bed_[k]) * kBedShare;
-      if (view.density[k] >= least * kLoneRatio || bed == 0.0f) {
+      if (view.density[k] >= least * kLoneRatio || bed_[k] < kBareShare) {
         surrounded_[k] = 0;
-      } else if (surrounded_[k] < long_stay_) {
-        surrounded_[k] += kBedTurns;
+      } else if (newest >= kGone * kept) {
+        surrounded_[k] = kit::clamp_int(surrounded_[k] + kBedTurns, 0, most_stay_);
+      } else {
+        surrounded_[k] = kit::clamp_int(surrounded_[k] - kBedTurns, 0, most_stay_);
       }
     }
 
@@ -751,7 +901,7 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     const float margin = kit::lerp(kMarginAtZero, kMarginAtFull, depth);
     const float from_place = std::log2(param(kFrom));
     const float to_place = std::log2(param(kTo));
-    const float looks_per_second = sample_rate() / kLookPeriod;
+    const float looks_per_second = looks_per_second_;
     const float seconds = param(kTime) * 0.001f;
     const float down = kit::time_to_coeff(seconds, looks_per_second);
     const float back = kit::time_to_coeff(kReleaseRatio * seconds, looks_per_second);
@@ -759,11 +909,13 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
     int active = 0;
     for (int k = 0; k < num_bands_; ++k) {
       float target = 0.0f;
+      bool judged = false;
       const View& view = own(k);
       const float level = view.level_db[k];
       const float range = depth > 0.0f ? in_range(place_[k], from_place, to_place) : 0.0f;
       const int below = below_last_[k] - below_first_[k] + 1;
-      if (range > 0.0f && below >= 2 && view.density[k] >= kQuiet) {
+      // The topmost band has nothing above it to be a peak against.
+      if (range > 0.0f && below >= 2 && k < num_bands_ - 1 && view.density[k] >= kQuiet) {
         // Only the top of a peak is one. The bands between this one and its
         // sides: with one of them louder, this is the slope of that one (or
         // what a loud tone spills into its neighbours).
@@ -775,22 +927,43 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
         if (top > 0.0f && surrounded_[k] >= (k < first_short_ ? long_stay_ : short_stay_)) {
           const bool both = above_last_[k] - above_first_[k] + 1 >= 2;
           const float under = side_level(view, below_first_[k], below_last_[k]);
-          float around = under;
+          float around;
           float least = under;
           if (both) {
+            // The bed under the band lies on the line through the two sides.
             const float over = side_level(view, above_first_[k], above_last_[k]);
-            around = 0.5f * (under + over);
+            around = under + lean_[k] * (over - under);
             least = kit::min(under, over);
+          } else {
+            // Nothing above to go by: the lower side's own tilt is carried on
+            // up to the band.
+            around = under + tilt(view, below_first_[k], below_last_[k]) * reach_[k];
           }
-          const float excess = level - around - margin;
+          // A bed changes slowly, and which of a side's tops is its middle
+          // one can change from one comparison to the next: what the band is
+          // held against moves over a quarter of a second, starting from
+          // what it is when the band is first held against it.
+          if (steady_[k]) {
+            around_[k] = around + (around_[k] - around) * bed_coeff_;
+            least_[k] = least + (least_[k] - least) * bed_coeff_;
+          } else {
+            around_[k] = around;
+            least_[k] = least;
+            steady_[k] = true;
+          }
+          const float excess = level - around_[k] - margin;
+          judged = true;
           if (excess > 0.0f) {
             const float alone =
-                kit::clamp((kLoneDb - (level - least)) / (kLoneDb - kLoneFromDb), 0.0f, 1.0f);
+                kit::clamp((kLoneDb - (level - least_[k])) / (kLoneDb - kLoneFromDb), 0.0f, 1.0f);
             target = -kit::min(
                 depth * alone * bed_[k] * top * range * kit::min(excess, kMaxExcessDb), kMaxCutDb);
+            // Less than half a dB is not worth a filter.
+            if (target > -kLeastCutDb) target = 0.0f;
           }
         }
       }
+      if (!judged) steady_[k] = false;
       // No more than 48 cuts at once: with that many held, a new one waits
       // for one of them to be let go.
       float cut = held_[k];
@@ -850,10 +1023,26 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
 
   kit::Fft<kLongFrame> long_fft_;
   kit::Fft<kShortFrame> short_fft_;
-  float long_window_[kLongFrame];
-  float short_window_[kShortFrame];
-  float ring_[2][kLongFrame];   // what was heard, per channel
-  float spectrum_[kLongFrame];  // of one frame, as kit::Fft::forward_real packs it
+  kit::Fft<kMostLongFrame> long_fft_twice_;  // the two used above 72 kHz
+  kit::Fft<kMostShortFrame> short_fft_twice_;
+  float long_window_[kMostLongFrame];
+  float short_window_[kMostShortFrame];
+  float ring_[2][kMostLongFrame];   // what was heard, per channel
+  float spectrum_[kMostLongFrame];  // of one frame, as kit::Fft::forward_real packs it
+
+  // The lengths above for this sample rate.
+  int twice_ = 0;  // 1 above 72 kHz: every length doubled
+  int long_frame_ = kLongFrame;
+  int short_frame_ = kShortFrame;
+  uint32_t ring_mask_ = kLongFrame - 1;
+  int look_bits_ = kLookBits;
+  int hop_bits_ = kLongHopBits;
+  uint32_t look_mask_ = kLookPeriod - 1;
+  uint32_t hop_mask_ = kLongHop - 1;
+  uint32_t tick_mask_ = kTick - 1;
+  uint32_t look_at_ = 192;  // where in a look period the comparing is done
+  uint32_t long_at_ = 64;   // and where in a long hop the long transform
+  float looks_per_second_ = 187.5f;
 
   kit::Biquad filter_[2][kMaxBands];
   kit::LinearRamp gain_[kMaxBands];  // each filter's cut on its way, per tick
@@ -882,6 +1071,8 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   int below_last_[kMaxBands] = {};
   int above_first_[kMaxBands] = {};
   int above_last_[kMaxBands] = {};
+  float lean_[kMaxBands] = {};   // how far from the lower side's level to the upper's the bed is taken
+  float reach_[kMaxBands] = {};  // octaves from the lower side's middle up to the band
   float wide_[kMaxBands] = {};   // the filter's width in octaves
   float q_[kMaxBands] = {};
   float alpha_[kMaxBands] = {};      // sin(w) / 2Q, with the width kept to the top
@@ -892,8 +1083,12 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   View view_[2];
   float bed_[kMaxBands] = {};       // how much of a bed a band's sides are, 0 to 1
   int surrounded_[kMaxBands] = {};  // looks in a row a band has had a bed on both sides
+  float around_[kMaxBands] = {};    // the bed's level under a band, as it is held against it
+  float least_[kMaxBands] = {};     // the lower of its sides, the same way
+  bool steady_[kMaxBands] = {};     // those two carry on from the last comparison
   int long_stay_ = 1;               // how many it takes under the long transform
   int short_stay_ = 1;              // and under the short
+  int most_stay_ = 1;               // as far as the count goes: a bed may pause for the rest
 
   // What is done about it.
   float held_[kMaxBands] = {};    // the cut asked for at each band, dB, 0 or below
@@ -911,8 +1106,12 @@ class Tamer : public kit::DeviceBase<tamer::kNumParams> {
   float short_coeff_ = 0.0f;
   float long_coeff_ = 0.0f;
   float width_coeff_ = 0.0f;
+  float bed_coeff_ = 0.0f;
   float deepest_ = 0.0f;
   uint32_t position_ = 0;  // samples since waking; every period is counted from it
+  bool fresh_ = true;      // nothing has sounded since starting, or since it went to sleep
+  int quiet_ = 0;          // samples in a row with nothing in and nothing out
+  int hold_ = 1;           // how many of those put it to sleep
 };
 
 }  // namespace livemix

@@ -42,13 +42,13 @@ export const TAMER_PARAMS = {
   from: {
     id: 3,
     name: 'From',
-    min: 80,
+    min: 120,
     max: 2000,
     default: 120,
     taper: 'log',
     unit: 'Hz',
     description:
-      'The bottom of the range that is worked on. Everything below is left alone, so raise it to keep the weight of a sound out of reach.',
+      'The bottom of the range that is worked on. Everything below is left alone, so raise it to keep the weight of a sound out of reach. Under 120 Hz nothing is ever touched.',
   },
   to: {
     id: 4,
@@ -113,10 +113,10 @@ export const TAMER_DESCRIPTOR = wasmDeviceDescriptor(TAMER_DEVICE, {
     'Bright tail': { depth: 0.65, sharpness: 0.7, time: 250, from: 1000, to: 16000, listen: 0 },
     Master: { depth: 0.25, sharpness: 0.5, time: 200, from: 150, to: 14000, listen: 0 },
     'Ringing tones': { depth: 0.9, sharpness: 1, time: 150, from: 120, to: 16000, listen: 0 },
-    Mud: { depth: 0.6, sharpness: 0.5, time: 100, from: 100, to: 1000, listen: 0 },
+    Mud: { depth: 0.6, sharpness: 0.5, time: 100, from: 120, to: 1000, listen: 0 },
     'Broad and slow': { depth: 0.6, sharpness: 0.1, time: 500, from: 120, to: 16000, listen: 0 },
     Mic: { depth: 0.5, sharpness: 0.8, time: 40, from: 200, to: 8000, listen: 0 },
-    Flatten: { depth: 1, sharpness: 0.3, time: 100, from: 80, to: 20000, listen: 0 },
+    Flatten: { depth: 1, sharpness: 0.3, time: 100, from: 120, to: 20000, listen: 0 },
   },
 })
 

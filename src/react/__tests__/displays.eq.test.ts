@@ -1234,7 +1234,7 @@ describe('the Tamer display', () => {
     expect(from.drag(xOfHz(500, box), 70).from).toBeCloseTo(500, 6)
     expect(to.drag(xOfHz(9000, box), 3).to).toBeCloseTo(9000, 6)
     // Each keeps to the frequencies its knob has.
-    expect(from.drag(-20, 0)).toEqual({ from: 80 })
+    expect(from.drag(-20, 0)).toEqual({ from: 120 })
     expect(from.drag(xOfHz(9000, box), 0)).toEqual({ from: 2000 })
     expect(to.drag(xOfHz(200, box), 0)).toEqual({ to: 1000 })
     expect(to.drag(900, 0)).toEqual({ to: 20000 })
@@ -1313,7 +1313,7 @@ describe('the Tamer display', () => {
       ['From  120 Hz', box.x + 2, box.y + box.h - 3],
     ])
     // The words at the head keep their corners wherever the points of the range stand.
-    for (const from of [80, 400, 2000])
+    for (const from of [120, 400, 2000])
       for (const to of [1000, 5000, 20000])
         for (const depth of [0, 1])
           expect(
@@ -1368,7 +1368,7 @@ describe('the words on a display', () => {
       for (const tone of ['low', 'body', 'presence', 'air'])
         settings.push(['ambient-eq', tone, { [tone]: gain }])
     for (const depth of [0, 1])
-      for (const from of [80, 2000]) {
+      for (const from of [120, 2000]) {
         settings.push(['tamer', 'depth', { depth, from }])
         settings.push(['tamer', 'from', { depth, from, listen: 1 }])
         for (const to of [1000, 20000]) settings.push(['tamer', 'to', { depth, from, to }])

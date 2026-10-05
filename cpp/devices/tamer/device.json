@@ -36,12 +36,12 @@
     {
       "key": "from",
       "name": "From",
-      "min": 80,
+      "min": 120,
       "max": 2000,
       "default": 120,
       "taper": "log",
       "unit": "Hz",
-      "description": "The bottom of the range that is worked on. Everything below is left alone, so raise it to keep the weight of a sound out of reach."
+      "description": "The bottom of the range that is worked on. Everything below is left alone, so raise it to keep the weight of a sound out of reach. Under 120 Hz nothing is ever touched."
     },
     {
       "key": "to",
@@ -181,7 +181,7 @@
       "depth": 0.6,
       "sharpness": 0.5,
       "time": 100,
-      "from": 100,
+      "from": 120,
       "to": 1000,
       "listen": 0
     },
@@ -205,7 +205,7 @@
       "depth": 1,
       "sharpness": 0.3,
       "time": 100,
-      "from": 80,
+      "from": 120,
       "to": 20000,
       "listen": 0
     }

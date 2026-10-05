@@ -444,6 +444,42 @@ static void test_the_sound_itself_is_not_a_peak() {
     std::snprintf(label, sizeof label, "a sine switched on at %.0f Hz: a wire again 3 s on", hz);
     EXPECT(wire, label);
   }
+  // The same all the way up, a sixth of an octave at a time, starting at a
+  // zero crossing and at a crest: the knock a note starts with is not a bed,
+  // nor is what the transforms remember of it while it dies away. (Before
+  // that was told apart, 72 of 446 such notes were dipped by more than a
+  // decibel at the defaults, the worst by 5.)
+  for (int pass = 0; pass < 2; ++pass) {
+    Settings sweep;
+    if (pass == 1) {
+      sweep.depth = 1.0f;
+      sweep.sharpness = 1.0f;
+    }
+    double worst = 0.0;
+    double worst_hz = 0.0;
+    int cases = 0;
+    for (double hz = 40.0; hz < 20600.0; hz *= kSixthOctave) {
+      for (double phase : {0.0, 0.5 * kPi}) {
+        std::vector<float> in(at(1.5));
+        for (size_t i = 0; i < in.size(); ++i) {
+          in[i] = static_cast<float>(0.5 * std::sin(2.0 * kPi * hz * i / kRate + phase));
+        }
+        set(sweep);
+        std::vector<float> reduction;
+        run_metered(in, in, &reduction);
+        ++cases;
+        if (lowest(reduction) < worst) {
+          worst = lowest(reduction);
+          worst_hz = hz;
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "%d sines switched on, 40 Hz to 20 kHz, %s: the deepest cut of all (at %.0f Hz)",
+                  cases, pass == 0 ? "the defaults" : "Depth 1, Sharpness 1", worst_hz);
+    measured(label, worst, "dB", pass == 0 ? "above -0.5" : "above -2");
+    EXPECT(worst > (pass == 0 ? -0.5 : -2.0), label);
+  }
   for (float sharpness : {0.2f, 0.6f, 1.0f}) {
     s.sharpness = sharpness;
     for (double hz : {55.0, 110.0, 220.0, 440.0}) {
@@ -910,7 +946,7 @@ static void test_no_clicks() {
       {"Depth between 0 and 1", p::kDepth, 0.0f, 1.0f},
       {"Sharpness between 0 and 1", p::kSharpness, 0.0f, 1.0f},
       {"Time between 10 ms and 1 s", p::kTime, 10.0f, 1000.0f},
-      {"From between 80 Hz and 2 kHz", p::kFrom, 80.0f, 2000.0f},
+      {"From between 120 Hz and 2 kHz", p::kFrom, 120.0f, 2000.0f},
       {"To between 1 kHz and 20 kHz", p::kTo, 1000.0f, 20000.0f},
       {"Listen on and off", p::kListen, 0.0f, 1.0f},
   };
@@ -940,6 +976,150 @@ static void test_no_clicks() {
     std::snprintf(label, sizeof label, "%s every 70 ms: energy above 8 kHz", move.name);
     measured(label, moved, "dB", "under -60 of the whole");
     EXPECT(moved < -60.0, label);
+  }
+}
+
+// A cut that is let go leaves its filter ringing out, never dropped: with no
+// control touched, nothing lands far above a sound that ends at 2 kHz.
+static void test_letting_go_does_not_tick() {
+  std::printf("A cut coming and going does not tick\n");
+  const std::vector<float> left = band_pass(pink(14.0f, kRate, 0.08, 131), 40.0, 2000.0, kRate);
+  const std::vector<float> right = band_pass(pink(14.0f, kRate, 0.08, 132), 40.0, 2000.0, kRate);
+  struct Case {
+    const char* name;
+    float depth, sharpness, time;
+    double most;  // dB under the input's level, the loudest instant above 8 kHz
+  };
+  // The fastest Time with broad cuts moves the most filters the furthest.
+  // (Before filters rang out, the second read -33 dB and the first -65.)
+  const Case cases[] = {
+      {"the defaults", 0.5f, 0.6f, 60.0f, -80.0},
+      {"Depth 1, Sharpness 0.3, Time 10 ms", 1.0f, 0.3f, 10.0f, -50.0},
+  };
+  char label[160];
+  for (const Case& c : cases) {
+    Settings s;
+    s.depth = c.depth;
+    s.sharpness = c.sharpness;
+    s.time = c.time;
+    set(s);
+    std::vector<float> reduction;
+    const Stereo out = run_metered(left, right, &reduction);
+    const std::vector<float> above = band_pass(out.left, 8000.0, 20000.0, kRate);
+    double peak = 0.0;
+    for (size_t i = at(2.0); i < above.size(); ++i) peak = std::max(peak, std::fabs(double(above[i])));
+    const double against = db(peak / rms(left, at(2.0)));
+    std::snprintf(label, sizeof label, "%s: deepest cut", c.name);
+    measured(label, lowest(reduction), "dB", "");
+    std::snprintf(label, sizeof label, "%s: the loudest instant above 8 kHz, against the input", c.name);
+    measured(label, against, "dB", c.most < -60.0 ? "under -80" : "under -50");
+    EXPECT(against < c.most, label);
+  }
+}
+
+// One signal in blocks of `block` frames.
+static Stereo in_blocks(const Settings& s, const std::vector<float>& left,
+                        const std::vector<float>& right, int block) {
+  set(s);
+  return run(device, left, right, block);
+}
+
+static void test_block_size_cannot_be_heard() {
+  std::printf("Where a block starts cannot be heard\n");
+  // Silence that ends in the middle of a block, a sound, 0.4 s of nothing
+  // (long enough to sleep) and the sound again. Every period is counted from
+  // the first sample that sounds and sleep starts on the sample, so the
+  // output is the same to the bit whatever the block size.
+  std::vector<float> sound = pink(2.0f, kRate, 0.05, 141);
+  add_tone(&sound, 1130.0, tone_over_bed(0.05, 15.0, 1.0 / 12.0));
+  std::vector<float> in(1000, 0.0f);
+  in.insert(in.end(), sound.begin(), sound.end());
+  in.insert(in.end(), at(0.4), 0.0f);
+  in.insert(in.end(), sound.begin(), sound.end());
+  Settings s;
+  s.depth = 1.0f;
+  s.sharpness = 1.0f;
+  const Stereo reference = in_blocks(s, in, in, kBlock);
+  EXPECT(db(rms(reference.left, at(1.5), at(2.0)) / rms(in, at(1.5), at(2.0))) < -0.5,
+         "the reference is being cut");
+  char label[160];
+  for (int block : {1, 7, 64, 2048}) {
+    const Stereo out = in_blocks(s, in, in, block);
+    size_t differ = 0;
+    for (size_t i = 0; i < in.size(); ++i) differ += out.left[i] != reference.left[i] ? 1 : 0;
+    std::snprintf(label, sizeof label, "blocks of %d against blocks of %d: samples that differ", block,
+                  kBlock);
+    measured(label, static_cast<double>(differ), "", "0");
+    EXPECT(differ == 0, label);
+  }
+}
+
+static void test_too_quiet_to_hear() {
+  std::printf("A sound too quiet to hear is passed as it is and wakes nothing\n");
+  // Noise at 1e-39: every sum with it would be denormal, which costs a
+  // hundred times a plain one. It goes through untouched and unlistened to.
+  std::vector<float> faint = white_noise(1.0f, kRate, 1.0, 151);
+  for (float& v : faint) v *= 1.0e-39f;
+  Settings s;
+  s.depth = 1.0f;
+  set(s);
+  const Stereo out = run(device, faint, faint);
+  EXPECT(same(out.left, faint) && same(out.right, faint), "faint noise comes out as it went in");
+  // And the device is as it was started: a sound after it is treated the same.
+  std::vector<float> sound = pink(2.0f, kRate, 0.05, 152);
+  add_tone(&sound, 2600.0, tone_over_bed(0.05, 15.0, 1.0 / 12.0));
+  const Stereo after = run(device, sound, sound);
+  set(s);
+  const Stereo fresh = run(device, sound, sound);
+  EXPECT(same(after.left, fresh.left), "after faint noise the device is as it started");
+}
+
+static void test_bright_noise_is_not_tilted() {
+  std::printf("Noise that rises towards the top is not taken for a peak there\n");
+  // Near the top of the range a band has no octave above it to be held
+  // against. White noise rises by 3 dB an octave as this device hears it;
+  // held against the octave below alone, the top of it read as a peak and
+  // came down by 4 dB at Depth 1 with Sharpness at 0.
+  const std::vector<float> left = white_noise(10.0f, kRate, 0.1, 161);
+  const std::vector<float> right = white_noise(10.0f, kRate, 0.1, 162);
+  char label[160];
+  for (float sharpness : {0.0f, 0.3f, 1.0f}) {
+    Settings s;
+    s.depth = 1.0f;
+    s.sharpness = sharpness;
+    s.to = 20000.0f;
+    set(s);
+    const Stereo out = run(device, left, right);
+    const double level = db(rms(out.left, at(2.0)) / rms(left, at(2.0)));
+    const double top = db(third_octave(out.left, 16000.0, at(2.0), left.size(), kRate) /
+                          third_octave(left, 16000.0, at(2.0), left.size(), kRate));
+    std::snprintf(label, sizeof label, "white noise, Depth 1, Sharpness %.1f: level, out against in",
+                  sharpness);
+    measured(label, level, "dB", "above -0.3");
+    EXPECT(level > -0.3 && level < 0.001, label);
+    std::snprintf(label, sizeof label, "white noise, Depth 1, Sharpness %.1f: the third octave at 16 kHz",
+                  sharpness);
+    measured(label, top, "dB", "above -0.5");
+    EXPECT(top > -0.5 && top < 0.02, label);
+  }
+}
+
+static void test_high_sample_rates() {
+  std::printf("At 88.2 and 96 kHz it hears as it does at 44.1 and 48\n");
+  // Every length is doubled above 72 kHz, so the bands low down are as fine.
+  // (With one length for all rates, nothing under 220 Hz was cut at 96 kHz.)
+  Settings s;
+  s.depth = 1.0f;
+  s.sharpness = 1.0f;
+  char label[160];
+  for (double hz : {150.0, 420.0, 2600.0}) {
+    const Pulled at_48 = pull(s, hz, 15.0, 48000.0f);
+    const Pulled at_96 = pull(s, hz, 15.0, 96000.0f);
+    std::snprintf(label, sizeof label, "a tone 15 dB out at %.0f Hz, Depth 1: at 48 kHz", hz);
+    measured(label, at_48.tone_db, "dB", "under -6");
+    std::snprintf(label, sizeof label, "a tone 15 dB out at %.0f Hz, Depth 1: at 96 kHz", hz);
+    measured(label, at_96.tone_db, "dB", "within 2.5 of that");
+    EXPECT(at_48.tone_db < -6.0 && std::fabs(at_96.tone_db - at_48.tone_db) < 2.5, label);
   }
 }
 
@@ -1008,6 +1188,11 @@ int main() {
   test_two_tones_do_not_hide_each_other();
   test_the_image_does_not_move();
   test_no_clicks();
+  test_letting_go_does_not_tick();
+  test_block_size_cannot_be_heard();
+  test_too_quiet_to_hear();
+  test_bright_noise_is_not_tilted();
+  test_high_sample_rates();
   test_cost();
 
   return finish("tamer");
