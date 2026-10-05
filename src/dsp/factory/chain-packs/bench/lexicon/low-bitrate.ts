@@ -34,7 +34,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['bright', 'cold', 'strange'],
     },
     'Smeared haze': {
-      says: 'a scrambled audio stream that smears every attack into haze',
+      says: 'a scrambled audio stream that smears each attack to a haze',
       brief: 'a haze of scrambled audio',
       nouns: ['haze', 'signal'],
       roles: ['wear', 'grain'],
@@ -70,7 +70,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Few partials': {
       says: 'an audio stream starved down to a few warbling tones',
-      brief: 'a few warbling tones',
+      brief: 'a signal starved to a warble',
       nouns: ['warble', 'signal'],
       roles: ['wear', 'grain'],
       traits: ['cold', 'strange'],

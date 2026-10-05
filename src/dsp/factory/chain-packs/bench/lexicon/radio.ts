@@ -20,7 +20,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['narrow', 'cold', 'worn', 'noisy'],
     },
     'Far station': {
-      says: 'a far shortwave station that sinks deep into rising static',
+      says: 'a far shortwave station that sinks deep under rising static',
       brief: 'a far station under static',
       nouns: ['station', 'static', 'signal'],
       roles: ['wear'],
@@ -97,7 +97,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['heavy', 'strange', 'narrow', 'bright'],
     },
     'Drifting dial': {
-      says: 'a medium-wave set whose dial slips off into whistle and back',
+      says: 'a medium-wave set whose dial slips off to a whistle and back',
       brief: 'a radio with a sliding dial',
       nouns: ['radio', 'drift'],
       roles: ['wear'],

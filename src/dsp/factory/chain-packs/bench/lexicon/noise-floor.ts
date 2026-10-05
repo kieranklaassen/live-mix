@@ -70,7 +70,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['faint', 'noisy'],
     },
     'Muffled hiss': {
-      says: 'muffled tape hiss with its top taken off, steady and thick',
+      says: 'muffled tape hiss, steady and thick',
       brief: 'dull, thick tape hiss',
       nouns: ['hiss'],
       roles: ['hiss'],
