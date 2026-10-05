@@ -1272,6 +1272,44 @@ describe('ScoreRenderer: lifecycle', () => {
     expect(renderer.rendered).toBe(before)
   })
 
+  it('an insert that cannot be made leaves the ones after it on the chain, and later renders go through', async () => {
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    registry.register({
+      id: 'unloadable',
+      name: 'Unloadable',
+      kind: 'node',
+      category: 'other',
+      version: 1,
+      params: {
+        gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+      },
+      create: () => Promise.reject(new Error('its module did not load')),
+    })
+    const { renderer, document, errors, edit } = await rig(demoScore(), registry)
+    await edit({
+      type: 'device.add',
+      owner: 'kick',
+      device: { id: 'kick-eq', deviceId: 'eq3', params: {}, bypass: false },
+    })
+    const strip = renderer.audioTrack('kick').strip
+    const chain = [renderer.device('kick-filter'), renderer.device('kick-eq')]
+    // In front of the equaliser, which comes off the chain to make room for it.
+    await edit({
+      type: 'device.add',
+      owner: 'kick',
+      index: 1,
+      device: { id: 'mid', deviceId: 'unloadable', params: {}, bypass: false },
+    })
+    expect(errors.map(String)).toEqual(['Error: its module did not load'])
+    expect(strip.inserts).toEqual(chain)
+    document.undo()
+    await renderer.whenIdle()
+    await edit({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.5 })
+    expect(errors).toHaveLength(1)
+    expect(strip.inserts).toEqual(chain)
+    expect(renderer.rendered).toBe(document.score)
+  })
+
   it('dispose removes everything the renderer created; engine.dispose disposes the renderer', async () => {
     const { renderer, engine, document } = await rig()
     renderer.dispose()
@@ -1363,6 +1401,59 @@ describe('ScoreRenderer: lifecycle', () => {
         expect(engine.liveInputs, `after ${moment} turns`).toHaveLength(1)
         expect(engine.master.inserts, `after ${moment} turns`).toEqual([second.device('glue')])
       }
+    })
+
+    it('takes down an insert that was off the chain for one still being made', async () => {
+      const params = {
+        gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+      } as const
+      let finish = (): void => {}
+      const registry = new DeviceRegistry(NODE_DEVICES)
+      registry.register({
+        id: 'slow',
+        name: 'Slow',
+        kind: 'node',
+        category: 'other',
+        version: 1,
+        params,
+        create: (ctx) =>
+          new Promise<Device>((resolve) => {
+            finish = () => {
+              const node = ctx.createGain()
+              resolve({
+                id: 'slow',
+                input: node,
+                output: node,
+                params,
+                setParam: () => {},
+                getParam: () => 1,
+                bypass: false,
+                latencySec: 0,
+                dispose: () => node.disconnect(),
+              })
+            }
+          }),
+      })
+      const { engine, renderer, document, errors, edit } = await rig(demoScore(), registry)
+      await edit({
+        type: 'device.add',
+        owner: 'kick',
+        device: { id: 'kick-eq', deviceId: 'eq3', params: {}, bypass: false },
+      })
+      const dispose = vi.spyOn(renderer.device('kick-eq'), 'dispose')
+      document.apply({
+        type: 'device.add',
+        owner: 'kick',
+        index: 1,
+        device: { id: 'mid', deviceId: 'slow', params: {}, bypass: false },
+      })
+      await turns(10)
+      unloadScore(engine)
+      finish()
+      await renderer.whenIdle()
+      await turns(50)
+      expect(errors).toEqual([])
+      expect(dispose).toHaveBeenCalledTimes(1)
     })
 
     it('the engine going away under a render is no failure of the render', async () => {

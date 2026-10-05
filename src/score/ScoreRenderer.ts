@@ -1101,12 +1101,30 @@ export class ScoreRenderer {
       devices.splice(index, 1)
       ids.splice(index, 1)
     }
-    for (let index = prefix; index < after.length; index += 1) {
-      const spec = after[index]
-      const device = detached.get(spec.id) ?? this.standingWith(await this.createDevice(spec))
-      chain.addInsert(device)
-      devices.push(device)
-      ids.push(spec.id)
+    try {
+      for (let index = prefix; index < after.length; index += 1) {
+        const spec = after[index]
+        const device = detached.get(spec.id) ?? this.standingWith(await this.createDevice(spec))
+        detached.delete(spec.id)
+        chain.addInsert(device)
+        devices.push(device)
+        ids.push(spec.id)
+      }
+    } catch (error) {
+      // A device that could not be made stops the pass with the inserts after
+      // it still off the chain. They go back on in the order they had, so they
+      // are heard and the next pass finds them; under a renderer disposed
+      // meanwhile nobody else would take them down.
+      for (const [id, device] of [...detached].reverse()) {
+        if (this.disposed) {
+          device.dispose()
+          continue
+        }
+        chain.addInsert(device)
+        devices.push(device)
+        ids.push(id)
+      }
+      throw error
     }
     for (const spec of after) {
       const previous = beforeById.get(spec.id)
