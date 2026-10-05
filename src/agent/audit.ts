@@ -28,6 +28,8 @@ export interface AuditEntry {
   summary: string
   /** Set when a later `undo` reverted this call. */
   undoneBy?: number
+  /** Writes of this call still waiting behind a hold; they join `operations` when they land. */
+  waiting?: number
 }
 
 export class AgentAuditLog {
@@ -72,12 +74,16 @@ export class AgentAuditLog {
     return this.list.slice(Math.max(0, this.list.length - count))
   }
 
-  /** The last applied (not undone) call by `author` that changed the score, skipping `excludeTools`. */
+  /**
+   * The last applied (not undone) call by `author` that changed the score, skipping
+   * `excludeTools`. A call with a write still waiting counts: it is not stepped over.
+   */
   lastApplied(author?: Author, excludeTools: readonly string[] = ['undo']): AuditEntry | undefined {
     for (let index = this.list.length - 1; index >= 0; index -= 1) {
       const entry = this.list[index]
       if (entry.outcome !== 'applied' || entry.undoneBy !== undefined) continue
-      if (entry.operations.length === 0 || excludeTools.includes(entry.tool)) continue
+      if (entry.operations.length === 0 && !entry.waiting) continue
+      if (excludeTools.includes(entry.tool)) continue
       if (author && (entry.author.id !== author.id || entry.author.kind !== author.kind)) continue
       return entry
     }

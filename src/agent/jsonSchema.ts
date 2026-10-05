@@ -38,14 +38,15 @@ export interface SchemaIssue {
   message: string
 }
 
-function typeOf(value: unknown): JsonSchemaType {
+/** A value's JSON type; what JSON cannot carry (undefined, a function, a symbol, a bigint) has none. */
+function typeOf(value: unknown): JsonSchemaType | null {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
   if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number'
   if (typeof value === 'object') return 'object'
   if (typeof value === 'string') return 'string'
   if (typeof value === 'boolean') return 'boolean'
-  return 'null'
+  return null
 }
 
 function matchesType(actual: JsonSchemaType, expected: JsonSchemaType): boolean {
@@ -104,8 +105,17 @@ function check(
     return
   }
   const actual = typeOf(value)
+  const allowed =
+    schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]
+  if (actual === null) {
+    // Not JSON at all: taken for a null, it went past every schema that allows one.
+    // A schema that asks for no type asks nothing of it either.
+    if (allowed.length > 0) {
+      issues.push({ path, message: `expected ${allowed.join(' | ')}, got ${typeof value}` })
+    }
+    return
+  }
   if (schema.type !== undefined) {
-    const allowed = Array.isArray(schema.type) ? schema.type : [schema.type]
     if (!allowed.some((expected) => matchesType(actual, expected))) {
       issues.push({ path, message: `expected ${allowed.join(' | ')}, got ${actual}` })
       return
@@ -146,17 +156,28 @@ function check(
     }
     const items = schema.items
     if (items) {
-      list.forEach((item, index) => check(root, items, item, `${path}[${index}]`, issues))
+      // By index, not forEach: that steps over a place with nothing in it, and the tool is handed it.
+      for (let index = 0; index < list.length; index += 1) {
+        check(root, items, list[index], `${path}[${index}]`, issues)
+      }
     }
   }
   if (actual === 'object') {
     const record = value as Record<string, unknown>
     for (const key of schema.required ?? []) {
-      if (record[key] === undefined) issues.push({ path: join(path, key), message: 'is required' })
+      // Its own keys only, as below: every object answers to "constructor".
+      const given = Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined
+      if (given === undefined) issues.push({ path: join(path, key), message: 'is required' })
     }
     for (const [key, child] of Object.entries(record)) {
       if (child === undefined) continue
-      const property = schema.properties?.[key]
+      // Its own names only: a key every object answers to ("constructor") would
+      // otherwise find that member and be taken for a declared property.
+      const properties = schema.properties
+      const property =
+        properties && Object.prototype.hasOwnProperty.call(properties, key)
+          ? properties[key]
+          : undefined
       if (property) {
         check(root, property, child, join(path, key), issues)
       } else if (schema.additionalProperties === false) {

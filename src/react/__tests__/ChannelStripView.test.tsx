@@ -144,4 +144,49 @@ describe('ChannelStripView', () => {
     expect(screen.getByRole('heading', { name: 'Drums' })).toBeInTheDocument()
     expect(screen.queryByRole('slider', { name: 'Pan' })).toBeNull()
   })
+
+  it('keeps one row each for two sends to targets of one name when the sends change places', async () => {
+    // A return and a bus may go by one name.
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const pad = engine.addAudioTrack('pad')
+    const plate = engine.addBus('plate')
+    const room = engine.addBus('room')
+    const hall = engine.addReturnTrack('room', {
+      device: await engine.devices.create('delay', engine.context),
+    })
+    pad.strip.sends.add(plate, { level: 1 })
+    pad.strip.sends.add(room, { level: 1 })
+    pad.strip.sends.add(hall, { level: 1 })
+    const view = () => <ChannelStripView strip={pad} meter={false} />
+    const { rerender } = render(view(), { wrapper: fixture.wrapper })
+    pad.strip.sends.remove(plate)
+    pad.strip.sends.add(plate, { level: 1 })
+    rerender(view())
+    expect(
+      within(screen.getByRole('list', { name: 'Sends' }))
+        .getAllByRole('slider')
+        .map((send) => send.getAttribute('aria-label')),
+    ).toEqual(['Send to room', 'Send to room', 'Send to plate'])
+  })
+
+  it('shows the level of a send that was taken off and put on again at another level', async () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const pad = engine.addAudioTrack('pad')
+    const hall = engine.addReturnTrack('hall', {
+      device: await engine.devices.create('delay', engine.context),
+    })
+    pad.strip.sends.add(hall, { level: 0.5 })
+    const view = () => <ChannelStripView strip={pad} meter={false} />
+    const { rerender } = render(view(), { wrapper: fixture.wrapper })
+    expect(screen.getByText('-6 dB')).toHaveClass('lm-strip__send-value')
+    // What the score's renderer does when a send gains or loses its level.
+    pad.strip.sends.remove(hall)
+    pad.strip.sends.add(hall, { level: 1 })
+    rerender(view())
+    const send = screen.getByRole('slider', { name: 'Send to hall' })
+    expect(Number(send.getAttribute('aria-valuenow'))).toBeCloseTo(0, 1)
+    expect(screen.getByText('0 dB')).toHaveClass('lm-strip__send-value')
+  })
 })

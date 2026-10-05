@@ -21,6 +21,7 @@ import { type Author } from '../../score/log'
 import { type Operation } from '../../score/operations'
 import { findStripHost } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
+import { ChannelRowView } from '../components/ChannelRowView'
 import { DeviceChainView } from '../components/DeviceChainView'
 import { demoScore } from '../../score/__tests__/fixtures'
 import { useArbiter, useArbiterTarget } from '../hooks/useArbiter'
@@ -93,6 +94,22 @@ describe('useArbiter', () => {
     expect(findStripHost(document.score, 'kick')?.strip.level).toBe(0.5)
   })
 
+  it('reads the arbiter it is given now, not the one before it at the same revision', async () => {
+    const first = await rig()
+    const second = await rig()
+    first.arbiter.touch(kickLevel)
+    second.arbiter.lock('strip:pad:level', { reason: 'test' })
+    expect(first.arbiter.revision).toBe(second.arbiter.revision)
+    const { result, rerender } = renderHook(({ arbiter }) => useArbiter(arbiter), {
+      initialProps: { arbiter: first.arbiter },
+    })
+    expect(result.current.holds).toHaveLength(1)
+    rerender({ arbiter: second.arbiter })
+    expect(result.current.arbiter).toBe(second.arbiter)
+    expect(result.current.holds).toEqual([])
+    expect(result.current.locks).toMatchObject([{ target: 'strip:pad:level' }])
+  })
+
   it('resolves the provided arbiter and throws without one', async () => {
     const { arbiter, wrapper } = await rig()
     const { result } = renderHook(() => useArbiter(), { wrapper })
@@ -141,6 +158,42 @@ describe('useArbiterTarget', () => {
     expect(result.current.status).toBe('locked by rails')
     act(() => arbiter.unlock('strip:kick:level'))
     expect(result.current.status).toBe('')
+  })
+
+  it('reads the target it is given now, not the one before it', async () => {
+    const { wrapper } = await rig()
+    const { result, rerender } = renderHook(({ target }) => useArbiterTarget(target), {
+      wrapper,
+      initialProps: { target: 'strip:kick:level' },
+    })
+    act(() => result.current.touch())
+    expect(result.current.status).toBe('held by you')
+    // No arbiter event falls between the two renders: the revision does not tell them apart.
+    rerender({ target: 'strip:pad:level' })
+    expect(result.current.key).toBe('strip:pad:level')
+    expect(result.current.status).toBe('')
+    rerender({ target: 'strip:kick:level' })
+    expect(result.current.status).toBe('held by you')
+  })
+
+  it('lets go of a target still in hand when it is given another, or leaves the page', async () => {
+    const { arbiter, wrapper } = await rig()
+    const { result, rerender, unmount } = renderHook(({ target }) => useArbiterTarget(target), {
+      wrapper,
+      initialProps: { target: 'strip:kick:level' },
+    })
+    act(() => result.current.touch())
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    // The badge stands for another control now: the hand's pointer up will be told to that one.
+    rerender({ target: 'strip:pad:level' })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    act(() => result.current.release())
+    expect(arbiter.stateOf('strip:pad:level').hold).toBeNull()
+
+    act(() => result.current.touch())
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching).toBe(true)
+    unmount()
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching).toBe(false)
   })
 
   it('shows an agent pending on a free target (a lock lifted with a write still queued)', async () => {
@@ -213,6 +266,53 @@ describe('hooks write through the arbiter', () => {
     expect(findStripHost(document.score, 'kick')?.strip.level).toBe(0.1)
   })
 
+  it('useTrack lets go of a fader still in hand when another strip takes its place, or it leaves the page', async () => {
+    const { arbiter, wrapper } = await rig()
+    const { result, rerender, unmount } = renderHook(
+      ({ name }: { name: string }) => useTrack(name),
+      { wrapper, initialProps: { name: 'kick' } },
+    )
+    act(() => result.current.touch('level'))
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    // The view shows another strip now: the hand's pointer up will be told to that one.
+    rerender({ name: 'pad' })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    act(() => result.current.release('level'))
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+
+    act(() => result.current.touch('pan'))
+    expect(arbiter.stateOf('strip:pad:pan').hold?.touching).toBe(true)
+    unmount()
+    expect(arbiter.stateOf('strip:pad:pan').hold?.touching).toBe(false)
+  })
+
+  it('useTrack lets go of a fader whose track left the score while it was in hand', async () => {
+    const { arbiter, document, wrapper } = await rig()
+    const { result } = renderHook(() => useTrack('kick'), { wrapper })
+    act(() => result.current.touch('level'))
+    act(() => {
+      arbiter.apply({ type: 'track.remove', id: 'kick' })
+    })
+    expect(findStripHost(document.score, 'kick')).toBeUndefined()
+    act(() => result.current.release('level'))
+    // Undo brings the track back: its fader is not held against the coach by a hand long gone.
+    expect(arbiter.stateOf(kickLevel).hold?.touching ?? false).toBe(false)
+  })
+
+  it('a row given another strip in the middle of a move leaves neither fader held', async () => {
+    const { arbiter, engine, wrapper } = await rig()
+    const row = (name: string) =>
+      createElement(ChannelRowView, { strip: engine.track(name), meter: false })
+    const { rerender } = render(row('kick'), { wrapper })
+    const fader = screen.getByRole('slider', { name: 'Level' })
+    fireEvent.pointerDown(fader, { pointerId: 1, button: 0, clientX: 10, clientY: 0 })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    rerender(row('pad'))
+    fireEvent.pointerUp(fader, { pointerId: 1 })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching ?? false).toBe(false)
+  })
+
   it('toggles flip the score value: quick repeats before the renderer catches up alternate', async () => {
     const { document, renderer, wrapper } = await rig()
     const { result } = renderHook(() => useTrack('kick'), { wrapper })
@@ -261,6 +361,44 @@ describe('hooks write through the arbiter', () => {
     })
     await act(() => renderer.whenIdle())
     expect(result.current.value).toBeCloseTo(0.6)
+  })
+
+  it('useDevice lets go of knobs still in hand when another device takes its place, or it leaves the page', async () => {
+    const { arbiter, renderer, wrapper } = await rig()
+    const filter = renderer.device('kick-filter')
+    const verb = renderer.device('hall-verb')
+    const held = (device: string, param: string): boolean =>
+      arbiter.stateOf({ kind: 'device', device, param }).hold?.touching ?? false
+    const { result, rerender, unmount } = renderHook(
+      ({ device }: { device: typeof filter }) => useDevice(device),
+      { wrapper, initialProps: { device: filter } },
+    )
+    act(() => result.current.touch('frequency'))
+    act(() => result.current.touchMany(['gain', 'q']))
+    expect([held('kick-filter', 'frequency'), held('kick-filter', 'gain')]).toEqual([true, true])
+    // The panel shows another device now: the pointer's up will be told to that one.
+    rerender({ device: verb })
+    expect(['frequency', 'gain', 'q'].map((param) => held('kick-filter', param))).toEqual([
+      false,
+      false,
+      false,
+    ])
+
+    act(() => result.current.touch('wet'))
+    expect(held('hall-verb', 'wet')).toBe(true)
+    unmount()
+    expect(held('hall-verb', 'wet')).toBe(false)
+  })
+
+  it('useDeviceParam lets go of its knob when it leaves the page in hand', async () => {
+    const { arbiter, renderer, wrapper } = await rig()
+    const verb = renderer.device('hall-verb')
+    const { result, unmount } = renderHook(() => useDeviceParam(verb, 'wet'), { wrapper })
+    act(() => result.current.touch())
+    unmount()
+    expect(
+      arbiter.stateOf({ kind: 'device', device: 'hall-verb', param: 'wet' }).hold?.touching,
+    ).toBe(false)
   })
 
   it('useDevice bypass, presets and reset are score operations for a score device', async () => {

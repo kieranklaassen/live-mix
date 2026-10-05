@@ -184,6 +184,140 @@ describe('AgentController through the arbiter', () => {
     expect(level()).toBe(0.4)
   })
 
+  it("a write that waited and landed is its call's own: the audit carries it, and undo takes it back", async () => {
+    const { controller, arbiter, clock, level } = await rig()
+    controller.call('set_music_volume', { level: 0.6 })
+    clock.ms += 1000
+    arbiter.apply(
+      { type: 'strip.set', owner: 'music', param: 'level', value: 0.9 },
+      { author: listener },
+    )
+    clock.ms += 1000
+    const waited = controller.call('set_music_volume', { level: 0.3 }) as ToolSuccess
+    expect(waited.result.deferred).toBe(1)
+    clock.ms += 4000
+    arbiter.tick()
+    expect(level()).toBe(0.3)
+
+    clock.ms += 6000
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result).toEqual({ undone: 2, tool: 'set_music_volume', operations: 1 })
+    expect(level()).toBe(0.9)
+    expect(controller.audit.find(1)?.undoneBy).toBeUndefined()
+    expect(controller.audit.find(2)?.operations).toEqual([{ seq: 3, type: 'strip.set' }])
+    // What the call was answered with stays as it was said.
+    expect(waited.operations).toEqual([])
+  })
+
+  it('a call with a write still waiting is not undone by halves', async () => {
+    const { controller, arbiter, clock, document, level } = await rig()
+    controller.registry.register({
+      definition: {
+        name: 'two_step',
+        description: 'test',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        category: 'operation',
+      },
+      available: () => true,
+      plan: () => ({
+        operations: [
+          { type: 'strip.set', owner: 'voice', param: 'level', value: 0.6 },
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.1 },
+        ],
+        effects: [],
+        result: {},
+        label: 'two steps',
+      }),
+    })
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    const mixed = controller.call('two_step', {}) as ToolSuccess
+    expect(mixed.result.deferred).toBe(1)
+
+    const tooSoon = controller.undo() as ToolFailure
+    expect(tooSoon.ok).toBe(false)
+    expect(tooSoon.error.message).toContain('still has a write waiting')
+    expect(findStripHost(document.score, 'voice')?.strip.level).toBe(0.6)
+
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.1)
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result).toEqual({ undone: 1, tool: 'two_step', operations: 2 })
+    expect(findStripHost(document.score, 'voice')?.strip.level).toBe(1)
+    expect(level()).toBe(0.8)
+  })
+
+  it('a wait retired by a later write of the same call is not counted as still waiting', async () => {
+    const { controller, arbiter, clock, level } = await rig()
+    controller.registry.register({
+      definition: {
+        name: 'twice',
+        description: 'test',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        category: 'operation',
+      },
+      available: () => true,
+      plan: () => ({
+        operations: [
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.1 },
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.2 },
+        ],
+        effects: [],
+        result: {},
+        label: 'twice',
+      }),
+    })
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    expect(controller.call('twice', {}).ok).toBe(true)
+    // The second write took the first one's place in the queue: one write waits, not two.
+    expect(arbiter.pending()).toHaveLength(1)
+    expect(controller.audit.find(1)?.waiting).toBe(1)
+
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.2)
+    expect(controller.audit.find(1)?.waiting).toBe(0)
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result).toEqual({ undone: 1, tool: 'twice', operations: 1 })
+    expect(level()).toBe(0.8)
+  })
+
+  it('an undo that waited and landed has undone its call', async () => {
+    const { controller, arbiter, clock, level } = await rig()
+    controller.call('set_music_volume', { level: 0.6 })
+    clock.ms += 2000
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    expect((controller.undo() as ToolSuccess).result.deferred).toBe(1)
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.8)
+    expect(controller.audit.find(1)?.undoneBy).toBe(2)
+    expect(controller.undo().ok).toBe(false)
+  })
+
+  it('an undo that waited and was let go took nothing back: its call can be undone again', async () => {
+    const { controller, arbiter, clock, events, level } = await rig()
+    controller.call('set_music_volume', { level: 0.6 })
+    clock.ms += 2000
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    expect((controller.undo() as ToolSuccess).result.deferred).toBe(1)
+    // The fader stays in hand for longer than a waiting write is good for.
+    clock.ms += 20_000
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(events.at(-1)).toMatchObject({ type: 'dropped', reason: 'stale' })
+    expect(level()).toBe(0.6)
+    expect(controller.audit.find(1)?.undoneBy).toBeUndefined()
+    const again = controller.undo() as ToolSuccess
+    expect(again.ok).toBe(true)
+    expect(again.result.undone).toBe(1)
+    expect(level()).toBe(0.8)
+  })
+
   it('refuses an arbiter over a different document', async () => {
     const { arbiter } = await rig()
     expect(

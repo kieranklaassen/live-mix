@@ -6,7 +6,7 @@
 // author instead — the renderer ramps the strip — and `touch`/`release`
 // bracket a drag so the hand holds the target for the touch window.
 
-import { useCallback, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import { type Engine } from '../../core/Engine'
@@ -100,9 +100,11 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
   )
   const snapshot = useExternalSnapshot(subscribe, read)
 
-  const controls = useMemo<StripControls>(() => {
+  const { controls, letGo } = useMemo(() => {
     const owner = strip.name
     const target = (param: StripParam) => ({ kind: 'strip' as const, owner, param })
+    // What this hand has touched and not let go of yet.
+    const inHand = new Set<StripParam>()
     /** The arbiter when the score carries this strip; the engine setter otherwise. */
     const via = (op: () => Operation, gesture: StripParam | null, direct: () => void): void => {
       if (!scoreHas(arbiter, owner)) {
@@ -121,7 +123,7 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
       scoreHas(arbiter, owner)
         ? (findScoreStripHost(arbiter.score, owner)?.strip[flag] ?? strip[flag])
         : strip[flag]
-    return {
+    const controls: StripControls = {
       setLevel: (value, options) => set('level', value, () => strip.setLevel(value, options)),
       setPan: (value, options) => set('pan', value, () => strip.setPan(value, options)),
       setInputGain: (value, options) =>
@@ -163,16 +165,31 @@ export function useStrip(strip: ChannelStrip): UseStripResult {
       connectTo: (destination) => strip.connectTo(destination),
       touch: (param) => {
         gestures.current[param] = (gestures.current[param] ?? 0) + 1
-        if (scoreHas(arbiter, owner)) arbiter.touch(target(param))
+        if (!scoreHas(arbiter, owner)) return
+        arbiter.touch(target(param))
+        inHand.add(param)
       },
       release: (param) => {
-        if (!scoreHas(arbiter, owner)) return
+        // What was touched is let go even when the score has dropped the strip since.
+        if (!arbiter || (!inHand.delete(param) && !scoreHas(arbiter, owner))) return
         arbiter.release(target(param))
         arbiter.endGesture()
       },
       attributed: scoreHas(arbiter, owner),
     }
+    const letGo = (): void => {
+      if (!arbiter || inHand.size === 0) return
+      for (const param of inHand) arbiter.release(target(param))
+      inHand.clear()
+      arbiter.endGesture()
+    }
+    return { controls, letGo }
   }, [strip, arbiter])
+
+  // A strip that leaves the page with a fader in hand, or gives its place to
+  // another one, is let go here: the pointer's up is told to the other strip,
+  // or to nobody, and the hold would stand against every other writer for good.
+  useEffect(() => letGo, [letGo])
 
   return { strip, ...snapshot, ...controls }
 }

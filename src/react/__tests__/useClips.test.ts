@@ -2,6 +2,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { soundsOnPass } from '../../core/clips/chance'
 import { type Clip } from '../../core/clips/Clip'
 import { useClips, useSchedule } from '../hooks/useClips'
 import { createTestEngine } from './harness'
@@ -133,6 +134,66 @@ describe('useSchedule', () => {
       track.clips.update('a', { muted: false })
     })
     expect(result.current.sounding.map((view) => view.clip.id)).toEqual(['a'])
+  })
+
+  it('leaves a clip that sits a pass out of what is sounding and coming up on that pass', () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const track = engine.addAudioTrack('music')
+    const maybe = { ...clip('maybe', 1, 4), chance: 0.5 }
+    track.clips.set([{ ...clip('never', 0, 4), chance: 0 }, maybe, clip('always', 2, 4)])
+    engine.transport.setLoop({ enabled: true, lengthSec: 10 })
+    const { result } = renderHook(() => useSchedule(track, { horizonSec: 4 }), {
+      wrapper: fixture.wrapper,
+    })
+    const sounding = (): string[] => result.current.sounding.map((view) => view.clip.id)
+    const upcoming = (): string[] => result.current.upcoming.map((view) => view.clip.id)
+    // What the scheduler hands over on a pass: `never` on none, `maybe` on the ones its seed draws.
+    const onPass = (pass: number): string[] =>
+      soundsOnPass(maybe, pass, engine.scheduler.seed) ? ['maybe', 'always'] : ['always']
+
+    // At 0 the playhead is inside `never`, which no pass sounds.
+    expect(sounding()).toEqual([])
+    expect(upcoming()).toEqual(onPass(0))
+
+    const drawn = new Set<boolean>()
+    for (let pass = 0; pass < 16; pass += 1) {
+      act(() => {
+        engine.transport.setPass(pass)
+        engine.transport.seek(3)
+      })
+      expect(sounding(), `pass ${pass}`).toEqual(onPass(pass))
+      expect(engine.scheduler.sounds(maybe)).toBe(sounding().includes('maybe'))
+      drawn.add(sounding().includes('maybe'))
+      // 8 + 4 = 12 reaches the starts of the pass after this one.
+      act(() => engine.transport.seek(8))
+      expect(upcoming(), `from pass ${pass}`).toEqual(onPass(pass + 1).slice(0, -1))
+    }
+    // Sixteen passes hold both: one it sounds on and one it sits out.
+    expect(drawn).toEqual(new Set([true, false]))
+  })
+
+  it('draws again for a new seed, with the playhead where it stood', () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const track = engine.addAudioTrack('music')
+    const maybe = { ...clip('maybe', 0, 4), chance: 0.5 }
+    track.clips.set([maybe])
+    // The first seed that sounds `maybe` on pass 0, and the first that sits it out.
+    const seedThat = (sounds: boolean): number => {
+      for (let seed = 1; seed < 200; seed += 1) {
+        if (soundsOnPass(maybe, 0, seed) === sounds) return seed
+      }
+      throw new Error('no seed either way in 200')
+    }
+    const { result } = renderHook(() => useSchedule(track), { wrapper: fixture.wrapper })
+    const sounding = (): string[] => result.current.sounding.map((view) => view.clip.id)
+    act(() => engine.transport.seek(1))
+
+    act(() => engine.scheduler.setSeed(seedThat(false)))
+    expect(sounding()).toEqual([])
+    act(() => engine.scheduler.setSeed(seedThat(true)))
+    expect(sounding()).toEqual(['maybe'])
   })
 
   it('recomputes when the clip list changes', () => {

@@ -122,8 +122,8 @@ export function VersionList({
                 'Puts the document back as it was in this version. Undo brings back what was there before.',
               )}
               onClick={() => {
-                v.restore(version.id)
-                onRestore?.(version)
+                // A lock of the system's refuses it: then nothing was restored.
+                if (v.restore(version.id).outcome !== 'dropped') onRestore?.(version)
               }}
               data-testid={testId ? `${testId}-restore-${version.id}` : undefined}
             >

@@ -111,6 +111,58 @@ describe('AgentController.call: the pipeline', () => {
     expect(controller.call('batch', { ops }).ok).toBe(true)
   })
 
+  it("holds a batch's children to the schemas of their own tools, and names the place", async () => {
+    const { controller, document } = await rig({ meters: () => null })
+    const missing = controller.call('batch', {
+      ops: [{ type: 'strip.set', owner: 'music', param: 'level' }],
+    }) as ToolFailure
+    expect(missing.error.code).toBe('invalid_args')
+    expect(missing.error.issues).toEqual([{ path: 'ops[0].value', message: 'is required' }])
+    // The range rail took a null level for 0, and the music went silent with an ok.
+    const silent = controller.call('batch', {
+      ops: [
+        { type: 'strip.mute', owner: 'ambience', mute: false },
+        { type: 'strip.set', owner: 'music', param: 'level', value: null },
+      ],
+    }) as ToolFailure
+    expect(silent.ok).toBe(false)
+    expect(silent.error.issues).toEqual([
+      { path: 'ops[1].value', message: 'expected number, got null' },
+    ])
+    expect(musicLevel(controller)).toBe(0.8)
+    expect(document.log.length).toBe(0)
+    // Neither left a mark on the fader's slew budget: its next move lands.
+    expect(controller.call('strip_set', { owner: 'music', param: 'level', value: 0.5 }).ok).toBe(
+      true,
+    )
+    expect(musicLevel(controller)).toBe(0.5)
+  })
+
+  it('checks a batch inside a batch as deep as it goes, and answers where it threw', async () => {
+    const { controller } = await rig()
+    const empty = controller.call('batch', { ops: [{ type: 'batch' }] }) as ToolFailure
+    expect(empty.error.code).toBe('invalid_args')
+    expect(empty.error.issues).toEqual([{ path: 'ops[0].ops', message: 'is required' }])
+    const deep = controller.call('batch', {
+      ops: [{ type: 'batch', ops: [{ type: 'strip.mute', owner: 'music', loud: true }] }],
+    }) as ToolFailure
+    expect(deep.error.issues?.map((issue) => issue.path).sort()).toEqual([
+      'ops[0].ops[0].loud',
+      'ops[0].ops[0].mute',
+    ])
+    // A child of the inner batch that is no operation at all is named, not looked up.
+    for (const child of [5, null, 'strip.mute', { type: 'nope' }, { owner: 'music' }]) {
+      const result = controller.call('batch', {
+        ops: [{ type: 'batch', ops: [child] }],
+      }) as ToolFailure
+      expect(result.error.code, JSON.stringify(child)).toBe('invalid_args')
+      expect(result.error.issues?.[0].path, JSON.stringify(child)).toMatch(/^ops\[0\]\.ops\[0\]/)
+    }
+    expect(controller.audit.entries.map((entry) => entry.code)).toEqual(
+      new Array(7).fill('invalid_args'),
+    )
+  })
+
   it('rate-limits per tool and reports when to retry', async () => {
     const { controller, clock } = await rig({ session: { extendSection: (seconds) => seconds } })
     expect(controller.call('extend_section', { seconds: 30 }).ok).toBe(true)
@@ -338,6 +390,22 @@ describe('rails through operations', () => {
       params: { depth: -1, attackMs: 50, holdMs: null },
     }) as ToolSuccess
     expect(many.result.params).toEqual({ depth: 0, attackMs: 50, holdMs: null })
+  })
+
+  it('reads the range of a parameter the device has, not of a name every object answers to', async () => {
+    const { controller } = await rig()
+    const args = (param: string) => ({ device: 'music-duck', param, value: 0.3 })
+    // A name the ducker does not have has no range to clamp to: the score is handed it as given.
+    const unknown = controller.call('device_set_param', args('nope')) as ToolSuccess
+    expect(unknown).toMatchObject({ ok: true, rails: [], result: { value: 0.3 } })
+    const answered = controller.call('device_set_param', args('constructor')) as ToolSuccess
+    expect(answered).toMatchObject({ ok: true, rails: [], result: { value: 0.3 } })
+    const many = controller.call('device_set_params', {
+      device: 'music-duck',
+      params: { toString: 0.3, depth: 4 },
+    }) as ToolSuccess
+    expect(many.rails.map((note) => note.message)).toEqual(['music-duck.depth 4 clamped to 0..1'])
+    expect(many.result.params).toEqual({ toString: 0.3, depth: 1 })
   })
 
   it('clamps pan to −1..1', async () => {

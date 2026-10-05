@@ -39,8 +39,14 @@ export interface VersionsControls {
 
 export type UseVersionsResult = VersionsSnapshot & VersionsControls & { history: VersionHistory }
 
-function sameRevision(a: { revision: number }, b: { revision: number }): boolean {
-  return a.revision === b.revision
+interface Revision {
+  history: VersionHistory
+  revision: number
+}
+
+/** Of one history and at one count: the count alone hands a hook given another history the last one's list. */
+function sameRevision(a: Revision, b: Revision): boolean {
+  return a.history === b.history && a.revision === b.revision
 }
 
 /** The versions of a history (the provided one by default), re-read on every save, restore or removal. */
@@ -56,9 +62,10 @@ export function useVersions(history?: VersionHistory): UseVersionsResult {
     (onChange: () => void) => target.onChange(() => onChange()),
     [target],
   )
-  const read = useCallback((): VersionsSnapshot => {
+  const read = useCallback((): VersionsSnapshot & Revision => {
     const versions = target.versions
     return {
+      history: target,
       versions,
       latest: versions[versions.length - 1] ?? null,
       bytes: target.bytes,
@@ -78,5 +85,5 @@ export function useVersions(history?: VersionHistory): UseVersionsResult {
     }),
     [target],
   )
-  return { history: target, ...snapshot, ...controls }
+  return { ...snapshot, ...controls }
 }
