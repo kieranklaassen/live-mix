@@ -549,6 +549,46 @@ describe('ControlSurface table, inputs and persistence', () => {
     expect(surface.load({ format: 1 })).toMatchObject([{ source: cc1, target: mute }])
   })
 
+  it('starts afresh with a target that is given to another controller', () => {
+    const { engine } = fixture()
+    const pad = engine.addAudioTrack('pad')
+    const surface = new ControlSurface({ engine })
+    const cc20: ControlSource = { kind: 'cc', channel: 1, controller: 20 }
+    const cc21: ControlSource = { kind: 'cc', channel: 1, controller: 21 }
+    const go: ControlTarget = { kind: 'action', id: 'go' }
+    const run = vi.fn()
+    surface.registerAction('go', run)
+
+    // A switch is left on, and the action is then given to another switch: its first press is one.
+    surface.map({ source: cc20, target: go })
+    surface.handle(cc(cc20, 127))
+    expect(run).toHaveBeenCalledTimes(1)
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(2)
+    // Mapped again to the switch it has, that switch is still down: nothing rises.
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(2)
+    // Taken off and given back, it is a new mapping.
+    surface.unmap(go)
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(3)
+
+    // A knob with soft takeover caught the fader; another knob, standing elsewhere, has to catch it itself.
+    pad.strip.setLevel(0.75)
+    surface.map({ source: cc20, target: level, pickup: true })
+    surface.handle(cc(cc20, 64))
+    surface.handle(cc(cc20, 63))
+    const caught = pad.strip.level
+    expect(caught).toBeCloseTo((63 / 127) * 1.5)
+    surface.map({ source: cc21, target: level, pickup: true })
+    expect(surface.handle(cc(cc21, 127)).applied).toEqual([])
+    expect(pad.strip.level).toBe(caught)
+    expect(surface.handle(cc(cc21, 60)).applied).toHaveLength(1)
+  })
+
   it('reports applied changes with the value written', () => {
     const { engine } = fixture()
     engine.addAudioTrack('pad')
