@@ -202,4 +202,70 @@ describe('the catalogue', () => {
       ])
     }
   })
+
+  it('asks for a required key of the value itself, not one every object answers to', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: {
+        constructor: { type: 'string' as const },
+        valueOf: { type: 'number' as const },
+      },
+      required: ['constructor', 'valueOf'],
+      additionalProperties: false,
+    }
+    const validate = ajv.compile(schema)
+    expect(validate({})).toBe(false)
+    expect(validateSchema(schema, {})).toEqual([
+      { path: 'constructor', message: 'is required' },
+      { path: 'valueOf', message: 'is required' },
+    ])
+    const given = { constructor: 'paper', valueOf: 2 }
+    expect(validate(given)).toBe(true)
+    expect(validateSchema(schema, given)).toEqual([])
+  })
+
+  it('holds every place of a list to its items, a place with nothing in it too', () => {
+    const schema = { type: 'array' as const, items: { type: 'number' as const } }
+    const holed: number[] = [1]
+    holed[2] = 3
+    expect(ajv.compile(schema)(holed)).toBe(false)
+    expect(validateSchema(schema, holed).map((issue) => issue.path)).toEqual(['[1]'])
+    expect(validateSchema(schema, [1, undefined, 3]).map((issue) => issue.path)).toEqual(['[1]'])
+  })
+
+  it('takes nothing that JSON cannot carry for a null', () => {
+    const nullable = { type: ['number', 'null'] as ('number' | 'null')[] }
+    const validate = ajv.compile(nullable)
+    expect(validateSchema(nullable, null)).toEqual([])
+    for (const value of [undefined, () => 1, Symbol('s'), BigInt(3)]) {
+      expect(validate(value), typeof value).toBe(false)
+      expect(validateSchema(nullable, value), typeof value).toEqual([
+        { path: '', message: `expected number | null, got ${typeof value}` },
+      ])
+      expect(validateSchema({ type: 'array', items: nullable }, [value]), typeof value).toEqual([
+        { path: '[0]', message: `expected number | null, got ${typeof value}` },
+      ])
+    }
+    // An absent key is still absent, whatever it may be given as.
+    expect(
+      validateSchema({ type: 'object', properties: { level: nullable } }, { level: undefined }),
+    ).toEqual([])
+  })
+
+  it('counts the characters of a text as JSON Schema does: a pair of surrogates is one', () => {
+    const schema = { type: 'string' as const, minLength: 2, maxLength: 3 }
+    const validate = ajv.compile(schema)
+    for (const [text, fits] of [
+      ['\u{1F30A}\u{1F30A}\u{1F30A}', true],
+      ['\u{1F30A}', false],
+      ['\u{1F30A}\u{1F30A}\u{1F30A}\u{1F30A}', false],
+      ['abc', true],
+      ['abcd', false],
+      // Half a pair is a character of its own.
+      ['\ud83c\ud83c', true],
+    ] as const) {
+      expect(validate(text), text).toBe(fits)
+      expect(validateSchema(schema, text).length === 0, text).toBe(fits)
+    }
+  })
 })

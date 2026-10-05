@@ -38,14 +38,30 @@ export interface SchemaIssue {
   message: string
 }
 
-function typeOf(value: unknown): JsonSchemaType {
+/** A value's JSON type; what JSON cannot carry (undefined, a function, a symbol, a bigint) has none. */
+function typeOf(value: unknown): JsonSchemaType | null {
   if (value === null) return 'null'
   if (Array.isArray(value)) return 'array'
   if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number'
   if (typeof value === 'object') return 'object'
   if (typeof value === 'string') return 'string'
   if (typeof value === 'boolean') return 'boolean'
-  return 'null'
+  return null
+}
+
+/** The length of a text as JSON Schema counts it: in characters, so a pair of surrogates is one. */
+function lengthOf(text: string): number {
+  let length = text.length
+  for (let index = 0; index < text.length - 1; index += 1) {
+    const unit = text.charCodeAt(index)
+    if (unit < 0xd800 || unit > 0xdbff) continue
+    const next = text.charCodeAt(index + 1)
+    if (next >= 0xdc00 && next <= 0xdfff) {
+      length -= 1
+      index += 1
+    }
+  }
+  return length
 }
 
 function matchesType(actual: JsonSchemaType, expected: JsonSchemaType): boolean {
@@ -104,8 +120,15 @@ function check(
     return
   }
   const actual = typeOf(value)
+  const allowed =
+    schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]
+  if (actual === null) {
+    // Not JSON at all: taken for a null, it went past every schema that allows one.
+    const expected = allowed.length > 0 ? allowed.join(' | ') : 'a JSON value'
+    issues.push({ path, message: `expected ${expected}, got ${typeof value}` })
+    return
+  }
   if (schema.type !== undefined) {
-    const allowed = Array.isArray(schema.type) ? schema.type : [schema.type]
     if (!allowed.some((expected) => matchesType(actual, expected))) {
       issues.push({ path, message: `expected ${allowed.join(' | ')}, got ${actual}` })
       return
@@ -127,12 +150,12 @@ function check(
       issues.push({ path, message: `expected < ${schema.exclusiveMaximum}, got ${number}` })
     }
   }
-  if (actual === 'string') {
-    const text = value as string
-    if (schema.minLength !== undefined && text.length < schema.minLength) {
+  if (actual === 'string' && (schema.minLength !== undefined || schema.maxLength !== undefined)) {
+    const length = lengthOf(value as string)
+    if (schema.minLength !== undefined && length < schema.minLength) {
       issues.push({ path, message: `expected at least ${schema.minLength} characters` })
     }
-    if (schema.maxLength !== undefined && text.length > schema.maxLength) {
+    if (schema.maxLength !== undefined && length > schema.maxLength) {
       issues.push({ path, message: `expected at most ${schema.maxLength} characters` })
     }
   }
@@ -146,13 +169,18 @@ function check(
     }
     const items = schema.items
     if (items) {
-      list.forEach((item, index) => check(root, items, item, `${path}[${index}]`, issues))
+      // By index, not forEach: that steps over a place with nothing in it, and the tool is handed it.
+      for (let index = 0; index < list.length; index += 1) {
+        check(root, items, list[index], `${path}[${index}]`, issues)
+      }
     }
   }
   if (actual === 'object') {
     const record = value as Record<string, unknown>
     for (const key of schema.required ?? []) {
-      if (record[key] === undefined) issues.push({ path: join(path, key), message: 'is required' })
+      // Its own keys only, as below: every object answers to "constructor".
+      const given = Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined
+      if (given === undefined) issues.push({ path: join(path, key), message: 'is required' })
     }
     for (const [key, child] of Object.entries(record)) {
       if (child === undefined) continue
