@@ -780,7 +780,7 @@ chain of the bank.
 
 ```ts
 import {
-  FACTORY_PACKS, // each pack says how many chains it holds: `chains`, 100 or 0
+  FACTORY_PACKS, // each pack says how many chains it holds: `chains`, 100
   loadFactoryPackChains, // () => Promise<readonly FactoryChain[]>
 } from '@kieranklaassen/live-mix/dsp'
 
@@ -790,8 +790,7 @@ const mine = chains.filter((chain) => chain.pack === FACTORY_PACKS[0].id)
 
 Like the packs' presets and sounds they are a module of their own
 (`src/dsp/factory/chain-packs/all.ts`) behind a dynamic `import()`, fetched
-once by `loadFactoryPackChains()`; a pack whose chains are not drawn yet says
-`chains: 0`. A pack chain's id starts with its pack's, it is listed under one
+once by `loadFactoryPackChains()`. A pack chain's id starts with its pack's, it is listed under one
 of the bank's seven groups, and every effect in it is on one of that effect's
 own presets, with at most a time or a rate moved a little and an output
 trimmed.

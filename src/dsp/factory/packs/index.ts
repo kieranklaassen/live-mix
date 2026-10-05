@@ -45,14 +45,11 @@ const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([
   'six-squared',
 ])
 
-/** How many effect chains a pack holds, once they are drawn. */
-export const FACTORY_CHAIN_PACK_SIZE = 100
-
 /**
- * The packs whose chains are drawn (../chain-packs/<pack id>.ts holds a
- * hundred): what a host can know before it fetches any of them.
+ * How many effect chains a pack holds (../chain-packs/<pack id>.ts): every
+ * pack's are drawn, so a host knows the number before it fetches any of them.
  */
-const WITH_CHAINS: ReadonlySet<string> = new Set<string>(['oxide'])
+export const FACTORY_CHAIN_PACK_SIZE = 100
 
 const PACKS: readonly Omit<FactoryPack, 'sounds' | 'chains'>[] = [
   {
@@ -235,7 +232,7 @@ const PACKS: readonly Omit<FactoryPack, 'sounds' | 'chains'>[] = [
 export const FACTORY_PACKS: readonly FactoryPack[] = PACKS.map((pack) => ({
   ...pack,
   sounds: WITH_SOUNDS.has(pack.id) ? FACTORY_SOUND_PACK_SIZE : 0,
-  chains: WITH_CHAINS.has(pack.id) ? FACTORY_CHAIN_PACK_SIZE : 0,
+  chains: FACTORY_CHAIN_PACK_SIZE,
 }))
 
 export function factoryPack(id: string): FactoryPack | undefined {
