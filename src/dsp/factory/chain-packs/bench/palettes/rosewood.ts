@@ -190,7 +190,6 @@ export const PALETTE: PackPalette = {
     'stereo-widener:Mono': 0,
     'fet-limiter:Flattened': 0,
     'fet-limiter:Squash': 0,
-    'fet-limiter:Tucked under': 0.05,
     'ambient-limiter:Pinned': 0.05,
     'ambient-comp:Dense pad': 0.1,
     'ambient-comp:Pump': 0.1,

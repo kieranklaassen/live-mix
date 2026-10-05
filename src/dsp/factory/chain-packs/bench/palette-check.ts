@@ -2,6 +2,7 @@
 
 import { FACTORY_PACKS } from '../../packs'
 import { type FactoryChainCategory } from '../../types'
+import { candidates, fits } from './draw'
 import { LEXICON } from './lexicon'
 import { ROLES, TRAITS } from './lexicon/types'
 import { PALETTE_LIMITS, type Head, type PackPalette } from './palettes/types'
@@ -54,6 +55,8 @@ export function paletteProblems(palette: PackPalette): string[] {
     if (!shared.has(id)) say(`recipe "${id}" is not a shared recipe`)
   }
 
+  // Every preset the lexicon has a job for: the bench's table may refuse a few more when a pack is drawn.
+  const pool = candidates(new Set())
   const own = new Set<string>()
   const ownInGroup = new Map<FactoryChainCategory, number>()
   for (const recipe of palette.own ?? []) {
@@ -80,6 +83,7 @@ export function paletteProblems(palette: PackPalette): string[] {
       for (const trait of [...(slot.want ?? []), ...(slot.any ?? []), ...(slot.not ?? [])]) {
         if (!TRAITS.includes(trait)) at(`trait "${trait}" is not one`)
       }
+      if (!pool.some((candidate) => fits(slot, candidate))) at(`slot ${index}: no preset fits it`)
     })
   }
   for (const [group, count] of ownInGroup) {

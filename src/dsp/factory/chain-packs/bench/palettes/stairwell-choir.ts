@@ -164,7 +164,6 @@ export const PALETTE: PackPalette = {
     'noise-floor:Static notes': 0,
     'noise-floor:Amp left on': 0,
     'noise-floor:Mains hum': 0,
-    'swell:Loud notes only': 0,
   },
   recipes: {
     'width-hall': 1.8,

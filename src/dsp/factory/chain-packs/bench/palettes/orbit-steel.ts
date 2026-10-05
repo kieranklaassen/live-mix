@@ -72,7 +72,6 @@ export const PALETTE: PackPalette = {
   },
   voices: {
     'swell:Volume pedal': 2.5,
-    'swell:Loud notes only': 0.05,
     'tremolo:Amp tremolo': 2,
     'tremolo:Harmonic shimmer': 1.8,
     'tremolo:Chopper': 0,
@@ -135,10 +134,8 @@ export const PALETTE: PackPalette = {
     'ambient-comp:Dense pad': 0.2,
     'ambient-comp:Pump': 0.05,
     'ambient-limiter:Pinned': 0.2,
-    'ambient-limiter:Loud': 0.4,
     'fet-limiter:Squash': 0.1,
     'fet-limiter:Flattened': 0.05,
-    'fet-limiter:Tucked under': 0.3,
   },
   recipes: {
     'swell-hall': 1.5,

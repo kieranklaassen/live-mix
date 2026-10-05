@@ -137,7 +137,6 @@ export const PALETTE: PackPalette = {
     'shaped-reverb:Ghost': 0.5,
     'hall-reverb:Bright hall': 0.4,
     'fdn-reverb:Bright air': 0.4,
-    'swell:Loud notes only': 0.3,
     'vowel-reverb:High ee': 0.4,
     'vowel-reverb:High choir': 0.3,
   },

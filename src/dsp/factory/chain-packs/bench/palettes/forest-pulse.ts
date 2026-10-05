@@ -343,7 +343,6 @@ export const PALETTE: PackPalette = {
             'auto-filter:Dub sweep',
             'auto-filter:Low-pass gate',
             'auto-filter:Soft bloom',
-            'auto-filter:Init',
             'auto-filter:Slow notch',
             'ambient-eq:Muffled',
             'ambient-eq:Shaded',

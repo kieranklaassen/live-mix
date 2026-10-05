@@ -110,7 +110,6 @@ export const PALETTE: PackPalette = {
     'phaser:Glacial sweep': 0.3,
     'flanger:Glacial drift': 0.3,
     'lattice:Two note drone': 0.5,
-    'auto-filter:Init': 0.3,
     'auto-filter:Glacial low-pass': 0.3,
     'ambient-eq:Muffled': 0,
     'ambient-eq:Distant': 0,

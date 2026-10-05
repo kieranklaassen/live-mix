@@ -144,7 +144,6 @@ export const PALETTE: PackPalette = {
     'bloom-reverb:Quick sparkle': 0,
     'saturator:Parallel shine': 0,
     'saturator:Drum bus crunch': 0,
-    'fet-limiter:Tucked under': 0,
     'reverse-delay:Hard splices': 0,
     'vowel-reverb:High ee': 0,
     'stereo-widener:Mono': 0,
@@ -168,7 +167,6 @@ export const PALETTE: PackPalette = {
     'ambient-comp:Pump': 0,
     'fet-limiter:Flattened': 0,
     'fet-limiter:Squash': 0,
-    'swell:Loud notes only': 0,
   },
   recipes: {
     'swell-hall': 2,

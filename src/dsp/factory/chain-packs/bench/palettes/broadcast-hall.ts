@@ -144,7 +144,6 @@ export const PALETTE: PackPalette = {
     'tremolo:On and off': 0.1,
     'fet-limiter:Squash': 0.1,
     'fet-limiter:Flattened': 0.1,
-    'fet-limiter:Tucked under': 0.4,
     'micro-looper:Lo-fi quarter': 0,
     'micro-looper:Sampler grit': 0,
     'saturator:Fuzz pedal': 0.1,

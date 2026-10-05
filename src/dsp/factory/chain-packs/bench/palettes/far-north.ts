@@ -105,7 +105,6 @@ export const PALETTE: PackPalette = {
     'cascade:Dropped marbles': 0.2,
     'fet-limiter:Flattened': 0,
     'fet-limiter:Squash': 0,
-    'fet-limiter:Tucked under': 0.2,
     'ambient-comp:Pump': 0,
     'ambient-comp:Dense pad': 0.1,
   },

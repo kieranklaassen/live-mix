@@ -162,7 +162,6 @@ export const PALETTE: PackPalette = {
     'phaser:Still formant': 0.2,
     // A whole mix here is quiet: nothing is pressed against the ceiling.
     'ambient-limiter:Pinned': 0.05,
-    'ambient-limiter:Loud': 0.05,
     'fet-limiter:Squash': 0.05,
     'fet-limiter:Flattened': 0.05,
   },

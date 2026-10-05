@@ -106,7 +106,6 @@ export const PALETTE: PackPalette = {
     'vintage-digital:Glaze': 8,
     'vintage-digital:Sampler': 8,
     'auto-filter:Glacial low-pass': 3,
-    'auto-filter:Init': 2,
     're-amp:Far end of the hall': 14,
     're-amp:Down the hall': 12,
     're-amp:Station platform': 10,
@@ -120,7 +119,6 @@ export const PALETTE: PackPalette = {
     'tremolo:Slow pan': 2.5,
     'tremolo:Gentle breath': 2.5,
     // Too rough, too quick, the wrong medium, or so little that it is used up fast.
-    'tape:Clean transfer': 0.6,
     'tape:Needles pinned': 0.15,
     'tape:Cassette four-track': 0.4,
     'tape:Old dictation': 0.3,
