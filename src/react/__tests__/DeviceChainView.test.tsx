@@ -307,6 +307,35 @@ describe('DeviceChainView', () => {
     expect(pad.strip.inserts).toEqual([eq, filter, delay])
   })
 
+  it('moves nothing when the chain changed under the carry: the places were read before', async () => {
+    const { pad, devices, titles } = await threeDevices()
+    const [filter] = devices
+    const ids = (): string[] => pad.strip.inserts.map((device) => device.id)
+    // The middle device is carried to the head of the chain.
+    fireEvent.pointerDown(titles[1], { pointerId: 1, button: 0, clientX: 120 })
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 20 })
+    expect(screen.getByTestId('chain-carried')).toHaveTextContent('EQ Three')
+    // Something else takes the first device out meanwhile.
+    act(() => pad.strip.removeInsert(filter))
+    expect(ids()).toEqual(['eq3', 'delay'])
+    fireEvent.pointerUp(window, { pointerId: 1 })
+    // The device that now stands where the carried one stood is not moved in its place.
+    expect(ids()).toEqual(['eq3', 'delay'])
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+
+    // A carry begun on the chain as it stands now lands as ever.
+    const items = [0, 1].map((index) => screen.getByTestId(`chain-item-${index}`))
+    layOut(items)
+    fireEvent.pointerDown(within(items[1]).getByRole('heading'), {
+      pointerId: 2,
+      button: 0,
+      clientX: 120,
+    })
+    fireEvent.pointerMove(window, { pointerId: 2, clientX: 20 })
+    fireEvent.pointerUp(window, { pointerId: 2 })
+    expect(ids()).toEqual(['delay', 'eq3'])
+  })
+
   it('keeps the click that ends a carry from pressing what is under the pointer', async () => {
     const { pad, devices, items, titles } = await threeDevices()
     const [filter, eq, delay] = devices
