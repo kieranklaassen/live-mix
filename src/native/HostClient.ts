@@ -125,11 +125,12 @@ export class NativeHostClient {
     )
     socket.onerror = () => client.finish('the connection to the plug-in host failed')
 
-    const info = await timed(client.call<NativeHostInfo>('hello'))
-    if (info.protocol !== NATIVE_PROTOCOL_VERSION) {
+    // An answer with nothing in it is not the host's either: refused the same way, and let go of.
+    const info = await timed(client.call<NativeHostInfo | undefined>('hello'))
+    if (info?.protocol !== NATIVE_PROTOCOL_VERSION) {
       client.close()
       throw new Error(
-        `live-mix: the plug-in host speaks protocol ${info.protocol}, this library speaks ${NATIVE_PROTOCOL_VERSION}`,
+        `live-mix: the plug-in host speaks protocol ${info?.protocol}, this library speaks ${NATIVE_PROTOCOL_VERSION}`,
       )
     }
     Object.assign(client.info, info)
@@ -288,12 +289,14 @@ export class NativeHostClient {
       result?: unknown
       error?: { message?: string }
       event?: NativeHostEvent
-    }
+    } | null
     try {
       message = JSON.parse(data) as typeof message
     } catch {
       return
     }
+    // `null` is JSON as well, and no message.
+    if (message === null) return
     if (typeof message.event === 'string') {
       this.emit(message.event, message as never)
       return
