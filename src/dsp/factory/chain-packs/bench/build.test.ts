@@ -57,7 +57,6 @@ import { keysTrim, LEVEL, otherTrim, trimmed } from './level'
 import {
   BENCH_INPUTS,
   benchInputs,
-  CHAIN_BENCH_LIMITS,
   chainDistance,
   chainFaults,
   chainFacts,
@@ -66,6 +65,7 @@ import {
   keysFaults,
   stressChain,
   stressFaults,
+  twinLimit,
   type ChainHearing,
 } from './measure'
 import { GROUPS, paletteProblems } from './palette-check'
@@ -191,7 +191,7 @@ async function measure(drawn: Drawn, known: Known): Promise<Measured | string> {
     const apart = chainDistance(prints, other.prints)
     if (apart < nearest[1]) nearest = [other.id, apart]
   }
-  if (nearest[1] < CHAIN_BENCH_LIMITS.twinDb) return 'TWIN of another chain'
+  if (nearest[1] < twinLimit(drawn.category)) return 'TWIN of another chain'
 
   let stress: Measured['stress']
   try {
@@ -561,7 +561,7 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           why = 'its effects and presets are taken'
         else {
           const twin = known.find(
-            (other) => chainDistance(row.prints, other.prints) < CHAIN_BENCH_LIMITS.twinDb,
+            (other) => chainDistance(row.prints, other.prints) < twinLimit(row.chain.category),
           )
           if (twin) why = `a twin of ${twin.id}`
         }

@@ -316,7 +316,17 @@ export const CHAIN_BENCH_LIMITS = {
   restDb: -30,
   /** Two chains nearer than this on the three sounds together are one chain twice, dB. */
   twinDb: 1,
+  /**
+   * The same for a master chain: a hint of tone, glue or width is itself only
+   * a few tenths of a decibel from the dry sound, so two of them are told
+   * apart on the scale they are told from it (`masterFromDryDb`).
+   */
+  masterTwinDb: 0.3,
 } as const
+
+/** How near another chain a chain of this group may come before it is that chain over again, dB. */
+export const twinLimit = (category: FactoryChainCategory): number =>
+  category === 'master' ? CHAIN_BENCH_LIMITS.masterTwinDb : CHAIN_BENCH_LIMITS.twinDb
 
 /** Where one hearing leaves the limits: the piano is held tighter than the other two. */
 function hearingFaults(id: BenchInputId, heard: ChainHearing): string[] {

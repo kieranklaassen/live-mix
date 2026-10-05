@@ -823,7 +823,8 @@ these. They are drawn, by a bench that is in the repository
   piano, a held chord, struck bells), and on the piano at full level for half
   a minute. It trims the chain to the level a pack plays at with the chain's
   own output, and keeps it only if it is inside the limits below and at
-  least 1 dB by the bench's print from every chain kept before it, in the
+  least 1 dB by the bench's print (0.3 for a master chain, which is itself
+  only a few tenths from the dry sound) from every chain kept before it, in the
   bank and in every pack. A chain's name is one of its pack's words and what
   its leading effect is; its sentence is each effect as the lexicon says it,
   in order.
@@ -835,7 +836,7 @@ these. They are drawn, by a bench that is in the repository
 | `LOUD`, `QUIET`   | More than 3.5 LU from the dry piano, 7 from the chord or the bells                                      |
 | `DC`              | A mean of 0.01 or more                                                                                  |
 | `SAME`            | Within 1 dB of all three dry sounds (0.3 for a master chain)                                            |
-| `TWIN`            | Within 1 dB, on the three sounds together, of a chain already kept                                      |
+| `TWIN`            | Within 1 dB, on the three sounds together, of a chain already kept (0.3 for a master chain)             |
 | `GROWS`           | Half a minute on, the piano at −1 dBFS, the last five seconds are over 1 dB above seconds 12 to 17      |
 | `HOT`             | The same run peaks over +3 dBFS                                                                         |
 | `NOISE`           | The same run still puts out over −30 dBFS nineteen seconds after the playing stopped, and holds nothing |

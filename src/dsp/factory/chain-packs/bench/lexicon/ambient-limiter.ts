@@ -75,5 +75,21 @@ export const LEXICON: DeviceLexicon = {
       roles: ['ceiling'],
       traits: ['faint'],
     },
+    'Full level': {
+      says: 'a ceiling that turns a quiet mix up until it reaches it',
+      brief: 'a ceiling with auto gain',
+      nouns: ['ceiling', 'limiter'],
+      roles: [],
+      traits: [],
+      skip: 'Auto gain turns whatever comes in up to the ceiling, by up to 12 dB: that is the level of a whole mix, set once on the master, and on a chain it would undo the level the bench brings every chain to.',
+    },
+    'Full and dense': {
+      says: 'a ceiling that turns a quiet mix up and pushes it 3 dB past',
+      brief: 'a pushed auto-gain ceiling',
+      nouns: ['ceiling', 'limiter'],
+      roles: [],
+      traits: [],
+      skip: 'Auto gain and 3 dB more into the ceiling: the level of a whole mix, set once on the master, as "Full level".',
+    },
   },
 }
