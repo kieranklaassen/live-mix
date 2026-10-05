@@ -197,6 +197,12 @@ export function DevicePanel({
 }: DevicePanelProps) {
   const d = useDevice(device, registry ? { registry } : {})
   const [presetName, setPresetName] = useState('')
+  // The preset named was picked on the device the panel had then: another one has had none picked.
+  const [pickedOn, setPickedOn] = useState(device)
+  if (pickedOn !== device) {
+    setPickedOn(device)
+    setPresetName('')
+  }
   const names = params ?? device.panelParams ?? Object.keys(d.params)
   const ownText = isParamTextDevice(device) ? device : null
   const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)

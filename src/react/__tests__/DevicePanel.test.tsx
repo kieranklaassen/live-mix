@@ -228,6 +228,20 @@ describe('DevicePanel', () => {
     expect(picker).toHaveValue('')
   })
 
+  it('names no preset for another device given to it: the pick was the last one’s', async () => {
+    const fixture = createTestEngine()
+    const first = await filter(fixture)
+    const second = await filter(fixture)
+    const { rerender } = render(<DevicePanel device={first} />, { wrapper: fixture.wrapper })
+    const picker = screen.getByRole('combobox', { name: 'Filter preset' })
+    fireEvent.change(picker, { target: { value: 'Presence peak' } })
+    expect(picker).toHaveValue('Presence peak')
+    rerender(<DevicePanel device={second} />)
+    // Nothing was picked on this one, and its knobs are where it started.
+    expect(second.getParam('frequency')).not.toBe(3000)
+    expect(screen.getByRole('combobox', { name: 'Filter preset' })).toHaveValue('')
+  })
+
   it('sets every knob from a preset, so the one picked before leaves nothing behind', async () => {
     const fixture = createTestEngine()
     const device = await filter(fixture)
