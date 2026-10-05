@@ -251,6 +251,21 @@ describe('resolveControlEvent', () => {
     expect(nudgedValue(spanMap, 0.25, -0.1)).toBe(0.2)
     expect(nudgedValue(spanMap, null, 0.1)).toBeCloseTo(0.3)
   })
+
+  it('keeps a toggle and a nudge inside 0..1 under a span that runs outside it', () => {
+    // A stored row is a stranger's word, and its output span may be any two numbers.
+    const wide = createMapping({
+      source: pad36,
+      target: level,
+      mode: 'toggle',
+      output: { min: -5, max: 7 },
+    })
+    expect(toggledValue(wide, 0)).toBe(1)
+    // The top is 1, so from there a press goes down again.
+    expect(toggledValue(wide, 1)).toBe(0)
+    expect(nudgedValue(wide, 0.9, 0.5)).toBe(1)
+    expect(nudgedValue(wide, 0.1, -0.5)).toBe(0)
+  })
 })
 
 describe('soft takeover (pickup)', () => {

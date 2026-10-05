@@ -330,12 +330,21 @@ export function resolveControlEvent(
 }
 
 /**
+ * The two ends of the mapping's output span, low then high, held to 0..1: a
+ * stored span may say anything, and a target has no place outside its range.
+ */
+function outputEnds(mapping: Mapping): [number, number] {
+  const low = clampUnit(Math.min(mapping.output.min, mapping.output.max))
+  const high = clampUnit(Math.max(mapping.output.min, mapping.output.max))
+  return [low, high]
+}
+
+/**
  * The value a `toggle` lands on: booleans flip; a continuous target jumps to
  * whichever end of the mapping's output span it is not at.
  */
 export function toggledValue(mapping: Mapping, current: number | null): number {
-  const low = Math.min(mapping.output.min, mapping.output.max)
-  const high = Math.max(mapping.output.min, mapping.output.max)
+  const [low, high] = outputEnds(mapping)
   if (isBooleanTarget(mapping.target)) return (current ?? 0) >= 0.5 ? 0 : 1
   const mid = (low + high) / 2
   return (current ?? low) > mid ? low : high
@@ -343,8 +352,7 @@ export function toggledValue(mapping: Mapping, current: number | null): number {
 
 /** The value a `nudge` lands on, clamped to the mapping's output span. */
 export function nudgedValue(mapping: Mapping, current: number | null, delta: number): number {
-  const low = Math.min(mapping.output.min, mapping.output.max)
-  const high = Math.max(mapping.output.min, mapping.output.max)
+  const [low, high] = outputEnds(mapping)
   return Math.min(high, Math.max(low, (current ?? low) + delta))
 }
 
