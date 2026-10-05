@@ -36,7 +36,7 @@ export const LEXICON: DeviceLexicon = {
     'Winding down': {
       says: 'moments that drop to half speed or wind down to a stop',
       brief: 'a sound that winds down',
-      nouns: ['slowdown', 'drift'],
+      nouns: ['slowdown'],
       roles: ['grain', 'wear'],
       traits: ['unsteady', 'worn', 'dark', 'low'],
     },
