@@ -458,6 +458,8 @@ export class VirtualPush {
 
   /** Turns an encoder by a number of steps (about 210 to a turn); negative is to the left. */
   turn(encoder: PushEncoder, steps: number): void {
+    // The loop below counts down to nothing, which no number that is not finite ever reaches.
+    if (!Number.isFinite(steps)) throw new RangeError(`a turn of ${steps} steps is no turn`)
     let left = Math.round(steps)
     while (left !== 0) {
       // One message carries at most 63 steps one way and 64 the other.
