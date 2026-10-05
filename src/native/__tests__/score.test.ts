@@ -510,6 +510,16 @@ describe('a hosted plug-in this machine does not have', () => {
     expect(device.bypass).toBe(true)
   })
 
+  it('keeps a value the document changes once it is rendered', async () => {
+    const { engine, document, renderer, errors } = await rig(scoreWithReverb({ p7: 0.3 }), false)
+    const [device] = engine.master.inserts
+    // It lists no parameters, and is told all the same.
+    document.apply({ type: 'device.setParam', device: 'verb-1', param: 'p7', value: 0.5 })
+    await renderer.whenIdle()
+    expect(errors).toEqual([])
+    expect(device.getParam('p7')).toBe(0.5)
+  })
+
   it('an instrument track that names one renders silent and keeps the instrument and its state', async () => {
     const score = createScore()
     score.tracks = [

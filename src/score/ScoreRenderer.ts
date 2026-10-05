@@ -1039,10 +1039,15 @@ export class ScoreRenderer {
     const next = this.effectiveParams(after)
     const free = (name: string): boolean =>
       !specs.has(targetKey({ kind: 'device', device: after.id, param: name }))
+    // A hosted plug-in refuses a name it does not have (a value saved for a
+    // parameter this version of it dropped). The stand-in for one that is not
+    // there lists no parameters and keeps whatever it is given.
+    const taken = (name: string): boolean =>
+      name in device.params || (device as Device & { unavailable?: boolean }).unavailable === true
     if (before.bypass !== after.bypass) device.bypass = after.bypass
     for (const [name, value] of Object.entries(next)) {
       if (previous[name] === value) continue
-      if (free(name)) device.setParam(name, value)
+      if (free(name) && taken(name)) device.setParam(name, value)
     }
     if (after.state === undefined || after.state === before.state || !isStatefulDevice(device)) {
       return
