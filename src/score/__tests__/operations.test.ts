@@ -59,6 +59,100 @@ describe('apply', () => {
     expect(validateScore(removed)).toEqual([])
   })
 
+  it('a track, group or return is added only as the score can hold it: its sends, its clips and their sources', () => {
+    const audioTrack = (clips: Clip[], extra: object = {}): Operation => ({
+      type: 'track.add',
+      track: {
+        kind: 'audio',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip(),
+        clips,
+        ...extra,
+      },
+    })
+    const sending = (sends: { target: string; level: number | null }[]): Operation => ({
+      type: 'track.add',
+      track: {
+        kind: 'live',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip({ sends }),
+      },
+    })
+    expect(() => apply(base, audioTrack([clip('c', 'zz', 0)]))).toThrow(/unknown source "zz"/)
+    expect(() => apply(base, audioTrack([clip('c', 'a', 0), clip('c', 'a', 4)]))).toThrow(
+      /duplicate id "c"/,
+    )
+    expect(() => apply(base, audioTrack([clip('c', 'a', -1)]))).toThrow(/clips\[0\]\.startSec/)
+    expect(() => apply(base, audioTrack([], { stretch: true, loopLengthSec: 4 }))).toThrow(
+      /no loop of its own/,
+    )
+    expect(() => apply(base, sending([{ target: 'nope', level: 1 }]))).toThrow(
+      /unknown return "nope"/,
+    )
+    expect(() =>
+      apply(
+        base,
+        sending([
+          { target: 'hall', level: 1 },
+          { target: 'hall', level: 0.5 },
+        ]),
+      ),
+    ).toThrow(/duplicate send to "hall"/)
+    expect(() =>
+      apply(base, {
+        type: 'group.add',
+        group: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          strip: defaultStrip({ sends: [{ target: 'nope', level: 1 }] }),
+        },
+      }),
+    ).toThrow(/unknown return "nope"/)
+    expect(() =>
+      apply(base, {
+        type: 'return.add',
+        return: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          device: { id: 'new-delay', deviceId: 'delay', params: {}, bypass: false },
+          strip: defaultStrip({ sends: [{ target: 'new', level: 1 }] }),
+        },
+      }),
+    ).toThrow(/cannot send to itself/)
+    expect(() =>
+      apply(base, {
+        type: 'elementTrack.add',
+        track: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          clips: [clip('c', 'a', 0), clip('c', 'a', 4)],
+        },
+      }),
+    ).toThrow(/duplicate id "c"/)
+    // What the score can hold goes in, at the place asked for.
+    const added = apply(base, {
+      type: 'track.add',
+      index: 0,
+      track: {
+        kind: 'audio',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip({ sends: [{ target: 'hall', level: null }] }),
+        clips: [clip('c', 'a', 0)],
+      },
+    })
+    expect(added.tracks[0].id).toBe('new')
+    expect(validateScore(added)).toEqual([])
+  })
+
   it('dissolving a group re-routes its members to where it fed', () => {
     const dissolved = apply(base, { type: 'group.remove', id: 'drums' })
     expect(findTrack(dissolved, 'kick')?.destination).toEqual(masterDestination())

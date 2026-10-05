@@ -605,6 +605,18 @@ function hostDevices(host: ScoreStripHost): ScoreDevice[] {
   return 'device' in host ? [host.device, ...host.strip.inserts] : [...host.strip.inserts]
 }
 
+/**
+ * `next` as it is, unless the validator has something against the record an
+ * add just put at `path`. A whole track, group or return comes with a strip,
+ * sends and clips that no operation looked at one by one: a send to a return
+ * that is not there, a clip of an unknown source.
+ */
+function fitting(next: Score, op: Operation, path: string): Score {
+  const issue = validateScore(next).find((candidate) => candidate.path.startsWith(path))
+  if (issue) fail(op, `${issue.path.slice(path.length + 1)}: ${issue.message}`)
+  return next
+}
+
 function assertDestinationExists(score: Score, op: Operation, destination: ScoreDestination): void {
   if (destination.kind === 'group' && !findGroup(score, destination.id)) {
     fail(op, `no group "${destination.id}"`)
@@ -936,7 +948,9 @@ function applyOne(score: Score, op: Operation): Score {
         ...op.track,
         clips: sortClips(op.track.clips.map(tidyClip)),
       }
-      return { ...score, elementTracks: insertAt(op, score.elementTracks, track, op.index) }
+      const elementTracks = insertAt(op, score.elementTracks, track, op.index)
+      const path = `elementTracks[${elementTracks.indexOf(track)}]`
+      return fitting({ ...score, elementTracks }, op, path)
     }
 
     case 'elementTrack.remove': {
@@ -1020,7 +1034,8 @@ function applyOne(score: Score, op: Operation): Score {
         op.track.kind === 'audio'
           ? { ...op.track, clips: sortClips(op.track.clips.map(tidyClip)) }
           : { ...op.track }
-      return { ...score, tracks: insertAt(op, score.tracks, track, op.index) }
+      const tracks = insertAt(op, score.tracks, track, op.index)
+      return fitting({ ...score, tracks }, op, `tracks[${tracks.indexOf(track)}]`)
     }
 
     case 'track.remove': {
@@ -1036,11 +1051,14 @@ function applyOne(score: Score, op: Operation): Score {
       return { ...score, tracks: moveTo(op, score.tracks, from, op.index) }
     }
 
-    case 'group.add':
+    case 'group.add': {
       assertFreshOwnerId(score, op, op.group.id)
       assertDestinationExists(score, op, op.group.destination)
       assertFreshDeviceIds(score, op, hostDevices(op.group))
-      return { ...score, groups: insertAt(op, score.groups, { ...op.group }, op.index) }
+      const group = { ...op.group }
+      const groups = insertAt(op, score.groups, group, op.index)
+      return fitting({ ...score, groups }, op, `groups[${groups.indexOf(group)}]`)
+    }
 
     case 'group.remove': {
       const group = findGroup(score, op.id) ?? fail(op, `no group "${op.id}"`)
@@ -1064,11 +1082,14 @@ function applyOne(score: Score, op: Operation): Score {
       return { ...score, groups: moveTo(op, score.groups, from, op.index) }
     }
 
-    case 'return.add':
+    case 'return.add': {
       assertFreshOwnerId(score, op, op.return.id)
       assertDestinationExists(score, op, op.return.destination)
       assertFreshDeviceIds(score, op, hostDevices(op.return))
-      return { ...score, returns: insertAt(op, score.returns, { ...op.return }, op.index) }
+      const ret = { ...op.return }
+      const returns = insertAt(op, score.returns, ret, op.index)
+      return fitting({ ...score, returns }, op, `returns[${returns.indexOf(ret)}]`)
+    }
 
     case 'return.remove': {
       const ret = findReturn(score, op.id) ?? fail(op, `no return "${op.id}"`)
