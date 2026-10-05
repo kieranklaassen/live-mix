@@ -41,7 +41,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['wide', 'high', 'clean'],
     },
     'Pad below': {
-      says: 'a dark octave below held chords, every note moved cleanly',
+      says: 'a dark octave below held chords, every note shifted cleanly',
       brief: 'a dark octave below chords',
       nouns: ['octave', 'bass'],
       roles: ['pitch'],
@@ -71,7 +71,7 @@ export const LEXICON: DeviceLexicon = {
     'Broken choir': {
       says: 'a fluttering fifth above and fourth below, out of tune',
       brief: 'a fluttering, sour harmony',
-      nouns: ['harmony', 'flutter'],
+      nouns: ['flutter'],
       roles: ['pitch'],
       traits: ['unsteady', 'strange', 'wide'],
     },

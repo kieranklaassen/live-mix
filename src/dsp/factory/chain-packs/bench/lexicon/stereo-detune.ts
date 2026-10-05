@@ -34,14 +34,14 @@ export const LEXICON: DeviceLexicon = {
       traits: ['dark', 'faint'],
     },
     Wider: {
-      says: 'a full-range sharp and flat copy, wide to either side',
+      says: 'a sharp copy and a flat one, full-range, wide to either side',
       brief: 'two wide detuned copies',
       nouns: ['double'],
       roles: ['width'],
       traits: ['wide'],
     },
     Spiral: {
-      says: 'repeats that climb in pitch on the left, sink on the right',
+      says: 'repeats that rise in pitch on the left and sink on the right',
       brief: 'spiralling detuned repeats',
       nouns: ['spiral', 'double'],
       roles: ['width'],
@@ -111,7 +111,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['strange', 'dark', 'unsteady'],
     },
     'Wet only': {
-      says: 'a sharp copy hard left, a flat one hard right, heard alone',
+      says: 'a sharp copy hard left and a flat one hard right, alone',
       brief: 'detuned copies heard alone',
       nouns: ['pair', 'double'],
       roles: ['width'],

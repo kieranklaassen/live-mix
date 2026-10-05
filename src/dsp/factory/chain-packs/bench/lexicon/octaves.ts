@@ -7,8 +7,8 @@ export const LEXICON: DeviceLexicon = {
   voices: {
     Organ: {
       says: 'every note doubled one and two octaves below and above',
-      brief: 'an organ stack of octaves',
-      nouns: ['organ', 'octaves'],
+      brief: 'a full stack of octaves',
+      nouns: ['octaves'],
       roles: ['pitch'],
       traits: ['low', 'high'],
     },
@@ -35,8 +35,8 @@ export const LEXICON: DeviceLexicon = {
     },
     Cathedral: {
       says: 'four octaves that swell in on each note, like a pipe organ',
-      brief: 'a swelling organ of octaves',
-      nouns: ['organ', 'octaves'],
+      brief: 'a swelling stack of octaves',
+      nouns: ['octaves'],
       roles: ['pitch'],
       traits: ['low', 'high', 'warm'],
     },
@@ -85,7 +85,7 @@ export const LEXICON: DeviceLexicon = {
     'Nasal reed': {
       says: 'octaves below and above through a nasal, peaked filter',
       brief: 'a nasal reed of octaves',
-      nouns: ['octaves', 'organ', 'reed'],
+      nouns: ['octaves', 'reed'],
       roles: ['pitch'],
       traits: ['high', 'cold', 'narrow'],
     },
@@ -113,7 +113,7 @@ export const LEXICON: DeviceLexicon = {
     'Late bloom': {
       says: 'four octaves that bloom about two seconds after each note',
       brief: 'a late bloom of octaves',
-      nouns: ['bloom', 'organ'],
+      nouns: ['bloom'],
       roles: ['pitch'],
       traits: ['slow', 'low', 'high'],
     },

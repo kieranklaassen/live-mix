@@ -32,7 +32,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Tube preamp': {
       says: 'a valve preamp, gently driven and a little bright on top',
-      brief: 'a brightish valve preamp',
+      brief: 'a gently bright valve preamp',
       nouns: ['valves', 'preamp'],
       roles: ['drive'],
       traits: ['bright', 'faint'],
@@ -59,7 +59,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['faint', 'whole'],
     },
     'Fuzz pedal': {
-      says: 'a bright, buzzing fuzz from a hard clipper driven flat',
+      says: 'a bright, buzzing fuzz from a hard clipper driven flat out',
       brief: 'a bright, buzzing fuzz',
       nouns: ['fuzz'],
       roles: ['drive'],
@@ -102,7 +102,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Folded glass': {
       says: "a hint of a wavefolder's glassy edge under the clean sound",
-      brief: 'a hint of wavefolder',
+      brief: 'a hint of glassy overtones',
       nouns: ['overtones'],
       roles: ['drive'],
       traits: ['bright', 'cold', 'faint'],
@@ -116,10 +116,10 @@ export const LEXICON: DeviceLexicon = {
     },
     'Sustain bed': {
       says: 'a hard-clipped copy held at one level under the clean sound',
-      brief: 'a flat clipped under-layer',
+      brief: 'a hard-clipped under-layer',
       nouns: ['fuzz'],
       roles: ['drive'],
-      traits: ['dark'],
+      traits: ['dark', 'worn'],
     },
   },
 }

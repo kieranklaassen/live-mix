@@ -10,7 +10,7 @@ export const LEXICON: DeviceLexicon = {
   voices: {
     'Thesis voicing': {
       says: 'each note mirrored around D, with a third above, in C major',
-      brief: 'a mirrored line and a third',
+      brief: 'a mirror harmony in C major',
       nouns: ['harmony', 'voicing'],
       roles: ['pitch'],
       traits: [],
@@ -101,7 +101,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Two note drone': {
       says: 'copies of each note re-pitched to a fixed C and the G below',
-      brief: 'a fixed drone on C and G',
+      brief: 'copies re-pitched to C and G',
       nouns: ['drone'],
       roles: ['pitch'],
       traits: [],

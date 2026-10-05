@@ -76,7 +76,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['strange', 'unsteady', 'wide'],
     },
     'Parting echo': {
-      says: 'echoes that go sour fast, up on the left, down on the right',
+      says: 'echoes that sour fast, up on the left and down on the right',
       brief: 'echoes souring apart',
       nouns: ['echoes'],
       roles: ['echo', 'pitch'],

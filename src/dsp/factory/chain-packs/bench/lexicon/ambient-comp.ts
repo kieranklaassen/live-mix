@@ -69,7 +69,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a dense, hard compressor',
       nouns: ['sustain', 'leveller'],
       roles: ['glue'],
-      traits: [],
+      traits: ['fast'],
     },
     'Pluck tamer': {
       says: 'a fast compressor that takes the spike off every attack',
@@ -100,7 +100,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['fast', 'clean'],
     },
     'Raise the quiet': {
-      says: 'a low, gentle compressor that brings up everything quiet',
+      says: 'a gentle compressor that brings up everything quiet',
       brief: 'a quiet-raising compressor',
       nouns: ['sustain', 'leveller'],
       roles: ['glue'],

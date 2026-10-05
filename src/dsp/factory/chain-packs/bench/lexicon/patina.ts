@@ -86,7 +86,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['narrow', 'cold', 'worn'],
     },
     'Distant station': {
-      says: 'a far radio station, sinking in and out of heavy static',
+      says: 'a far radio station, fading in and out of heavy static',
       brief: 'a station lost in static',
       nouns: ['station', 'static', 'signal'],
       roles: ['wear', 'hiss'],

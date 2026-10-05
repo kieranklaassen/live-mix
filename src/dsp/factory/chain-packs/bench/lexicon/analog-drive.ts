@@ -53,7 +53,7 @@ export const LEXICON: DeviceLexicon = {
     Crushed: {
       says: 'an overloaded console channel under the clean sound',
       brief: 'an overloaded console',
-      nouns: ['fuzz', 'grit'],
+      nouns: ['grit'],
       roles: ['drive'],
       traits: ['worn'],
     },
@@ -80,7 +80,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Low warmth': {
       says: 'a transformer that fills out the lows and dulls the top',
-      brief: 'a full, warm transformer',
+      brief: 'a low-thickening transformer',
       nouns: ['warmth'],
       roles: ['drive'],
       traits: ['warm', 'dark'],
@@ -95,7 +95,7 @@ export const LEXICON: DeviceLexicon = {
     'Worn tape': {
       says: 'a tape preamp overloaded until it breaks up, dull and thick',
       brief: 'an overloaded tape preamp',
-      nouns: ['tape', 'fuzz'],
+      nouns: ['tape'],
       roles: ['drive'],
       traits: ['worn', 'dark', 'warm'],
     },

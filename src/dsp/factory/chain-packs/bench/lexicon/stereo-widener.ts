@@ -9,7 +9,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'the whole sound folded to mono',
       brief: 'a fold to mono',
       nouns: ['mono'],
-      roles: ['drive'],
+      roles: ['tone'],
       traits: ['narrow', 'clean'],
     },
     Normal: {
@@ -38,7 +38,7 @@ export const LEXICON: DeviceLexicon = {
       says: 'a stereo image drawn partway in towards mono',
       brief: 'a narrowed stereo image',
       nouns: ['mono'],
-      roles: ['drive'],
+      roles: ['tone'],
       traits: ['narrow', 'faint', 'clean'],
     },
     'Gently wide': {

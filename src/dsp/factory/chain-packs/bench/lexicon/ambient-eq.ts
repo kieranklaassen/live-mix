@@ -29,7 +29,7 @@ export const LEXICON: DeviceLexicon = {
     },
     Texture: {
       says: 'a low cut that thins the bass, with a little air on top',
-      brief: 'a low cut with some air',
+      brief: 'a cut that thins the bass',
       nouns: ['tone', 'filter', 'air'],
       roles: ['tone'],
       traits: ['clean', 'cold'],
@@ -64,13 +64,13 @@ export const LEXICON: DeviceLexicon = {
     },
     Warm: {
       says: 'an equaliser that adds lows and body and eases the top',
-      brief: 'a warm, full equaliser',
+      brief: 'a bass lift and an eased top',
       nouns: ['tone'],
       roles: ['tone'],
       traits: ['warm', 'dark'],
     },
     Bright: {
-      says: 'a big lift of presence and air, with ringing held in check',
+      says: 'a big lift of presence and air',
       brief: 'a lift of presence and air',
       nouns: ['tone', 'air'],
       roles: ['tone'],
@@ -92,7 +92,7 @@ export const LEXICON: DeviceLexicon = {
     },
     Distant: {
       says: 'an equaliser that takes presence, air and lows away',
-      brief: 'a far-off, dulled tone',
+      brief: 'a dulled, thinned tone',
       nouns: ['tone', 'filter'],
       roles: ['tone'],
       traits: ['far', 'dark'],
