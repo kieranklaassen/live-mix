@@ -285,6 +285,30 @@ describe('ChannelStrip topology', () => {
     expect(inputGain.reaches(ctx.destination)).toBe(true)
   })
 
+  it('takes out an insert that was disposed first, and closes the chain around it', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    const first = fakeDevice(ctx, 'first')
+    const gone = fakeDevice(ctx, 'gone')
+    s.addInsert(first)
+    s.addInsert(gone)
+    const panner = ctx.panners[0]
+    strict(asMock(first.output))
+    strict(asMock(gone.output))
+
+    // Disposed, it has let go of the panner itself.
+    gone.dispose()
+    s.removeInsert(gone)
+    expect(s.inserts).toEqual([first])
+    expect(asMock(first.output).isConnectedTo(panner)).toBe(true)
+    expect(asMock(s.input).reaches(ctx.destination)).toBe(true)
+
+    first.dispose()
+    s.removeInsert(first)
+    expect(s.inserts).toEqual([])
+    expect(asMock(s.input).isConnectedTo(panner)).toBe(true)
+  })
+
   it('post-fader sends tap the gate, so a mute silences them too', () => {
     const ctx = createMockContext()
     const s = strip(ctx, 'a')

@@ -599,8 +599,19 @@ export class ChannelStrip {
     const { inputGain, panner } = this.ensureNodes()
     const before = index === 0 ? inputGain : this.insertList[index - 1].output
     const after = this.insertList[index + 1]?.input ?? panner
-    before.disconnect(device.input)
-    device.output.disconnect(after)
+    // A device disposed before it is taken out has let go of its own
+    // connections, and a node throws when told to let go of one it does not
+    // feed. The chain is closed around the device all the same.
+    try {
+      before.disconnect(device.input)
+    } catch {
+      // The device before it was disposed first.
+    }
+    try {
+      device.output.disconnect(after)
+    } catch {
+      // This one was.
+    }
     this.insertList.splice(index, 1)
     before.connect(after)
     this.changed('inserts')
