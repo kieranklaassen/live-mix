@@ -4,17 +4,24 @@
 // region and a playhead sampled from the transport. Read-only apart from
 // seeking by clicking the ruler.
 
-import { useCallback, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react'
 
 import { type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
-import { type SampleStore } from '../../core/tracks/SampleStore'
+import { type LoadedSample, type SampleStore } from '../../core/tracks/SampleStore'
 import { isLooping } from '../../core/transport/anchor'
 import { type Transport } from '../../core/transport/Transport'
 import { useSchedule, type ClipSource } from '../hooks/useClips'
 import { useMaybeEngine } from '../hooks/useEngine'
 import { useTransport } from '../hooks/useTransport'
-import { useExternalSnapshot } from '../store'
+import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { formatTimeSec } from './control-math'
 import { infoProps } from './info'
 import { cx } from './tokens'
@@ -92,6 +99,23 @@ function useLastClipEnd(lanes: readonly TimelineLane[]): number {
     return end
   }, [lists])
   return useExternalSnapshot(subscribe, read, Object.is)
+}
+
+/**
+ * The decoded sound of each clip, re-read when the store takes one in or lets
+ * one go: a sound is decoded after its clip is on the lane as a rule, and the
+ * waveform is drawn when it arrives.
+ */
+function useClipSamples(
+  store: SampleStore | null,
+  clips: readonly Clip[],
+): readonly (LoadedSample | undefined)[] {
+  const subscribe = useMemo<Subscribe>(
+    () => (store ? (onChange) => store.onChange(() => onChange()) : neverSubscribe),
+    [store],
+  )
+  const read = useCallback(() => clips.map((clip) => store?.peek(clip.sourceId)), [store, clips])
+  return useExternalSnapshot(subscribe, read)
 }
 
 /** Ruler ticks: every second, labelled every `major` seconds. */
@@ -265,6 +289,7 @@ function TimelineLaneView({
 }: TimelineLaneViewProps) {
   const schedule = useSchedule(lane.source, { transport, horizonSec, fps: 10 })
   const { clips } = schedule
+  const loaded = useClipSamples(samples, clips)
   const sounding = new Set(schedule.sounding.map((view) => view.clip.id))
   const upcoming = new Set(schedule.upcoming.map((view) => view.clip.id))
 
@@ -276,8 +301,8 @@ function TimelineLaneView({
       onClick={onBackgroundClick}
       data-testid={testId}
     >
-      {clips.map((clip) => {
-        const peaks = samples ? clipPeaks(samples.peek(clip.sourceId), clip) : null
+      {clips.map((clip, index) => {
+        const peaks = clipPeaks(loaded[index], clip)
         return (
           <div
             key={clip.id}

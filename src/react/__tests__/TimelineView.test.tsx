@@ -153,6 +153,24 @@ describe('TimelineView', () => {
     )
   })
 
+  it('draws a waveform when its sound is decoded after the clip was drawn, and drops it with the sound', async () => {
+    const fixture = createTestEngine({ samples: { peaks: 8 } })
+    const { engine } = fixture
+    const pad = engine.addAudioTrack('pad')
+    pad.clips.add(clip('a', 0, 0.5, 'tone'))
+    render(<TimelineView pixelsPerSecond={100} />, { wrapper: fixture.wrapper })
+    const wave = (): Element | null =>
+      screen.getByRole('listitem').querySelector('svg.lm-timeline__waveform')
+    expect(wave()).toBeNull()
+    const buffer = fixture.ctx.createBuffer(1, 48_000, 48_000)
+    await act(async () => {
+      await engine.samples.load('tone', buffer as unknown as AudioBuffer)
+    })
+    expect(wave()).not.toBeNull()
+    act(() => engine.samples.forget('tone'))
+    expect(wave()).toBeNull()
+  })
+
   it('accepts explicit lanes without a provider and switches off seeking', () => {
     const fixture = createTestEngine()
     const pad = fixture.engine.addAudioTrack('pad')
