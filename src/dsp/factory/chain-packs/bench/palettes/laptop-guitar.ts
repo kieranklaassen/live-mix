@@ -286,7 +286,6 @@ export const PALETTE: PackPalette = {
     'Breakwater',
     'Lifeguard',
     'Esplanade',
-    'Mixdown',
     { word: 'Glittering', for: ['bright', 'high'] },
     { word: 'Blinding', for: ['bright'] },
     { word: 'Reversed', for: ['backwards'] },

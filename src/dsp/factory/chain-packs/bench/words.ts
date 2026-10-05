@@ -137,8 +137,8 @@ const PLAIN_NOUNS: ReadonlySet<string> = new Set([
  */
 export const MASTER_NOUNS: readonly string[] = ['finish', 'master', 'mixdown', 'polish', 'lacquer']
 
-/** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park", "Finish a flight up", "Master on the porch"). */
-const NEVER_FIRST: ReadonlySet<string> = new Set(['polish', 'finish', 'master'])
+/** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park", "Finish a flight up", "Master on the porch", "Record past the gate"). */
+const NEVER_FIRST: ReadonlySet<string> = new Set(['polish', 'finish', 'master', 'record'])
 
 /** The pack's word a master chain's name opens with ("Tiptoe" of "Tiptoe mixdown"); undefined when it ends in a tail. */
 export function masterHead(name: string): string | undefined {

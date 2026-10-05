@@ -516,7 +516,6 @@ export const PALETTE: PackPalette = {
     'under eaves',
     'over moss',
     'on gravel',
-    'on stone',
     'by the basin',
     'in daylight',
     'on a weekday',

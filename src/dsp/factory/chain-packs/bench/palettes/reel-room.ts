@@ -474,7 +474,6 @@ export const PALETTE: PackPalette = {
     { word: 'tail first', for: ['backwards'] },
     { word: 'in the joists', for: ['low'] },
     { word: 'on third copy', for: ['worn'] },
-    { word: 'run slack', for: ['unsteady'] },
     { word: 'slow to go', for: ['long'] },
     { word: 'still going', for: ['frozen'] },
     { word: 'into murk', for: ['dark'] },

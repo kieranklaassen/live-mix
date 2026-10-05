@@ -115,9 +115,17 @@ export function fits(slot: OwnSlot, candidate: Candidate): boolean {
 }
 
 /** What a chain has room for once: a second one does the first one's job over again. */
-const ONCE: readonly Trait[] = ['unsteady', 'backwards', 'long', 'frozen']
+const ONCE: readonly Trait[] = ['unsteady', 'backwards', 'long', 'frozen', 'far']
 /** The jobs that leave no dry sound beside them: what they take away is gone for everything before them. */
 const THROUGH: readonly Role[] = ['tone', 'wear', 'drive']
+/** The jobs that are a space: a hint of one before another is covered by it. */
+const SPACE: readonly Role[] = ['room', 'hall', 'halo']
+
+/** A preset in a chain with the job it does there: its slot's, or its own first when the slot names none. */
+export interface Placed {
+  pick: Candidate
+  role: Role | undefined
+}
 
 /**
  * Why a preset cannot follow the ones before it in a chain drawn from a
@@ -126,30 +134,46 @@ const THROUGH: readonly Role[] = ['tone', 'wear', 'drive']
  * hints and is held to none of this beyond its slots.
  */
 export function clash(
-  before: readonly Candidate[],
+  before: readonly Placed[],
   candidate: Candidate,
   role: Role | undefined,
   lead: boolean,
   category: FactoryChainCategory,
 ): string | undefined {
   if (category === 'master') return undefined
+  const job = role ?? candidate.voice.roles[0]
+  const jobOf = (placed: Placed) => placed.role ?? placed.pick.voice.roles[0]
+  const is = (placed: Placed, trait: Trait) => placed.pick.voice.traits.includes(trait)
   const has = (trait: Trait) => candidate.voice.traits.includes(trait)
-  const had = (trait: Trait) => before.some((pick) => pick.voice.traits.includes(trait))
+  const had = (trait: Trait) => before.some((placed) => is(placed, trait))
+  const through = THROUGH.includes(job)
   for (const trait of ONCE) if (has(trait) && had(trait)) return `two presets that are ${trait}`
   if (has('faint')) {
     if (lead) return 'named for a preset that is only a hint'
     if (had('faint')) return 'two presets that are each only a hint'
     if (had('heavy')) return 'a hint under a preset that takes the dry sound away'
+    if (before.some((placed) => jobOf(placed) === job))
+      return 'a hint of what an earlier preset already does in full'
   }
   if (has('heavy') && had('faint')) return 'a hint under a preset that takes the dry sound away'
-  if (has('narrow') && had('wide')) return 'a width that is folded to the middle again'
+  if (has('long') && had('faint')) return 'a hint under a tail that covers it'
+  if (before.some((placed) => is(placed, 'faint') && jobOf(placed) === job))
+    return 'a hint of what a later preset does in full'
   if (
-    has('dark') &&
-    THROUGH.includes(role ?? candidate.voice.roles[0]) &&
-    (had('bright') || had('high'))
-  ) {
-    return 'a brightness that is taken away again'
+    SPACE.includes(job) &&
+    before.some((placed) => is(placed, 'faint') && SPACE.includes(jobOf(placed)))
+  )
+    return 'a hint of a space before a space that covers it'
+  if (has('narrow') && had('wide')) return 'a width that is folded to the middle again'
+  if (job === 'hiss' && had('noisy')) return 'a hiss under a preset that already hisses'
+  if (has('noisy') && before.some((placed) => jobOf(placed) === 'hiss'))
+    return 'a hiss under a preset that already hisses'
+  if (through && has('dark')) {
+    if (had('bright') || had('high')) return 'a brightness that is taken away again'
+    if (before.some((placed) => is(placed, 'dark') && THROUGH.includes(jobOf(placed))))
+      return 'the top taken off twice'
   }
+  if (through && has('bright') && had('dark')) return 'a dullness that is lifted again'
   return undefined
 }
 
@@ -158,10 +182,10 @@ export function chainClash(
   recipe: Pick<DrawRecipe, 'slots' | 'lead' | 'category'>,
   picks: readonly Candidate[],
 ): string | undefined {
-  for (let index = 1; index <= picks.length; index += 1) {
-    const at = index - 1
+  const placed = picks.map((pick, index): Placed => ({ pick, role: recipe.slots[index]?.role }))
+  for (let at = 0; at < picks.length; at += 1) {
     const why = clash(
-      picks.slice(0, at),
+      placed.slice(0, at),
       picks[at],
       recipe.slots[at]?.role,
       at === recipe.lead,
@@ -233,7 +257,11 @@ export function drawChain(
       if (!fits(slot, candidate)) return false
       if (picks.some((other) => other.device === candidate.device)) return false
       if (heavy && candidate.voice.traits.includes('heavy')) return false
-      if (!recipe.own && clash(picks, candidate, slot.role, index === recipe.lead, recipe.category))
+      const before = picks.map((pick, at): Placed => ({ pick, role: recipe.slots[at]?.role }))
+      if (
+        !recipe.own &&
+        clash(before, candidate, slot.role, index === recipe.lead, recipe.category)
+      )
         return false
       return spent + cost(candidate) <= DRAW_LIMITS.costPct
     })

@@ -373,7 +373,6 @@ export const PALETTE: PackPalette = {
     'in dew',
     'in clover',
     'on wet cedar',
-    'off the cable',
     'by the pond',
     'with the bees',
     'at the inlet',

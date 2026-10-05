@@ -370,7 +370,6 @@ export const PALETTE: PackPalette = {
     'County-fair',
     'Two-lane',
     'Truck-stop',
-    'Pearl-snap',
     'Lonesome',
     'Homesick',
     'Sagebrush',
@@ -419,5 +418,5 @@ export const PALETTE: PackPalette = {
     { word: 'turned around', for: ['backwards'] },
     { word: 'in the shadow', for: ['dark'] },
   ],
-  avoid: ['ascent', 'drift'],
+  avoid: ['ascent', 'drift', 'signal'],
 }

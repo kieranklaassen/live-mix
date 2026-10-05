@@ -316,7 +316,6 @@ export const PALETTE: PackPalette = {
     'Control-room',
     'Machine-room',
     'Live-room',
-    'Studio',
     'Patchbay',
     'Talkback',
     'Red-light',

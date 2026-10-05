@@ -330,7 +330,6 @@ export const PALETTE: PackPalette = {
     { word: 'run slow', for: ['low'] },
     { word: 'spooled back', for: ['backwards'] },
     { word: 'on a lean', for: ['unsteady'] },
-    { word: 'left humming', for: ['noisy'] },
     { word: 'on pause', for: ['frozen'] },
   ],
   avoid: ['warp'],

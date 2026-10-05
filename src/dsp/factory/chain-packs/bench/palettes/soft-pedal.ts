@@ -451,7 +451,6 @@ export const PALETTE: PackPalette = {
     { word: 'in felt', for: ['dark'] },
     { word: 'half heard', for: ['faint'] },
     { word: 'on the quiet', for: ['faint'] },
-    { word: 'few and slow', for: ['slow'] },
     { word: 'left to hang', for: ['long'] },
     { word: 'slow to empty', for: ['long'] },
     { word: 'a shade flat', for: ['unsteady'] },
@@ -479,5 +478,6 @@ export const PALETTE: PackPalette = {
     'harmony',
     'return',
     'returns',
+    'room',
   ],
 }

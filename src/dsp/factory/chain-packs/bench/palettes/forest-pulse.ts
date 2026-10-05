@@ -448,7 +448,6 @@ export const PALETTE: PackPalette = {
     { word: 'far below', for: ['low'] },
     { word: 'under a lid', for: ['dark'] },
     { word: 'played slow', for: ['low'] },
-    { word: 'noise and all', for: ['noisy'] },
     { word: 'run backwards', for: ['backwards'] },
   ],
 }

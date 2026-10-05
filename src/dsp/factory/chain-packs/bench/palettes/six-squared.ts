@@ -332,7 +332,6 @@ export const PALETTE: PackPalette = {
     'on the estate',
     'by the canal',
     'on wet tarmac',
-    'before buses',
     'in lamplight',
     'walking home',
     'by the pylons',
