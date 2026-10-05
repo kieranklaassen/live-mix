@@ -198,7 +198,10 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   // A quantised value repeats across pointer frames; a redundant `onChange`
   // would re-render the host and re-send the param to the audio thread.
   const commitQuantized = useCallback((next: number) => {
-    if (next === shownRef.current) return
+    // Outside a drag, what a host holds is the value, and it may stand between two steps (a fine key
+    // step, a preset): the value shown is that rounded, and a move onto it is still a move.
+    const held = latest.current.value
+    if (next === (held !== undefined && !draggingRef.current ? held : shownRef.current)) return
     shownRef.current = next
     setInternal(next)
     latest.current.onChange?.(next)
@@ -356,7 +359,12 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       if (o.disabled) return
       const stepSize = o.step ?? 0
       const fine = event.shiftKey && !(o.wholeSteps && stepSize > 0)
-      const current = shownRef.current
+      // A fine step leaves the value a tenth of a step off the grid, and the value shown is the host's
+      // rounded to whole steps: from that every fine press would start again and none would add up.
+      const current =
+        fine && stepSize > 0 && o.value !== undefined
+          ? quantize(o.value, stepSize / 10, o.min, o.max)
+          : shownRef.current
       // Without a step, keys move 1 % of the travel (0.1 % fine, 10 % page).
       const byNorm = (fraction: number): void =>
         commitNorm(

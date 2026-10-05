@@ -69,6 +69,50 @@ describe('Knob', () => {
     expect(control).toHaveAttribute('aria-valuenow', '1')
   })
 
+  it('adds fine steps up on a knob whose value the host holds: ten are one whole step', () => {
+    const seen: number[] = []
+    function Host() {
+      const [value, setValue] = useState(50)
+      return (
+        <Knob
+          label="Depth"
+          value={value}
+          defaultValue={50}
+          min={0}
+          max={100}
+          step={1}
+          onChange={(next) => {
+            seen.push(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+    render(<Host />)
+    for (let press = 0; press < 3; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowUp', shiftKey: true })
+    expect(seen).toEqual([50.1, 50.2, 50.3])
+    for (let press = 0; press < 7; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowUp', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(51)
+    expect(slider()).toHaveAttribute('aria-valuenow', '51')
+    for (let press = 0; press < 3; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(50.7)
+    // A whole step from between two goes on from the step shown.
+    fireEvent.keyDown(slider(), { key: 'ArrowUp' })
+    expect(seen[seen.length - 1]).toBe(52)
+    // And a key that lands on the step shown, from beside it, is still a move.
+    fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(51.9)
+    expect(slider()).toHaveAttribute('aria-valuenow', '52')
+    fireEvent.keyDown(slider(), { key: 'End' })
+    fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(99.9)
+    fireEvent.keyDown(slider(), { key: 'End' })
+    expect(seen[seen.length - 1]).toBe(100)
+  })
+
   it('with `wholeSteps`, a key moves a whole step with Shift held too', () => {
     function Host() {
       const [value, setValue] = useState(12)
