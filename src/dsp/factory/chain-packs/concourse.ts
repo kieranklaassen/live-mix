@@ -1132,18 +1132,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-timetable-lift',
-    name: 'Timetable lift',
-    category: 'master',
-    description:
-      'A lift of presence and air, then a parallel compressor, then a brickwall ceiling that touches nothing beneath it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.582 } },
-      { deviceId: 'ambient-comp', preset: 'Lift' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only' },
-    ],
-  },
-  {
     id: 'concourse-cruising-sheen',
     name: 'Cruising sheen',
     category: 'master',
@@ -1155,40 +1143,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'concourse-tube-lit-centre',
-    name: 'Tube-lit centre',
-    category: 'master',
-    description:
-      'The sides turned down, the image drawn towards the middle, then a fast limiter with the level lifted a little into it.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -5.93 } },
-    ],
-  },
-  {
-    id: 'concourse-sodium-plate',
-    name: 'Sodium plate',
-    category: 'master',
-    description:
-      'A quiet plate tail that comes in late behind each note, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 83.3 } },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
-    id: 'concourse-paging-glue',
-    name: 'Paging glue',
-    category: 'master',
-    description:
-      'A quicker compressor, then the sides lifted a little, wider with nothing added, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Mic' },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { release: 1.52, gain: 9.73 } },
-    ],
-  },
-  {
     id: 'concourse-shuttered-plate',
     name: 'Shuttered plate',
     category: 'master',
@@ -1197,6 +1151,53 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'plate-reverb', preset: 'Small plate' },
       { deviceId: 'ambient-limiter', preset: 'Late night' },
+    ],
+  },
+  {
+    id: 'concourse-glue-by-the-window',
+    name: 'Glue by the window',
+    category: 'master',
+    description:
+      'A low cut and some presence, then a fast compressor that takes the spike off plucked notes, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Voice', params: { clearTime: 1.44 } },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { attack: 10.4, release: 0.163 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'concourse-terminal-glue',
+    name: 'Terminal glue',
+    category: 'master',
+    description:
+      'A pluck-taming compressor, then the sides lifted a little, wider with nothing added, then a low, breathing ceiling.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer' },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.303 } },
+    ],
+  },
+  {
+    id: 'concourse-freight-reel',
+    name: 'Freight reel',
+    category: 'master',
+    description:
+      'A fast, steady reel pushed into soft saturation, then a gentle compressor, then a true-peak ceiling six decibels down, with room to spare.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 99.7, release: 2.22 } },
+      { deviceId: 'ambient-limiter', preset: 'Margin', params: { release: 1.64 } },
+    ],
+  },
+  {
+    id: 'concourse-split-flap-glue',
+    name: 'Split-flap glue',
+    category: 'master',
+    description:
+      'A compressor that lets each attack through before it levels, then a fast limiter with the level lifted a little into it.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Keys' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.58 } },
     ],
   },
 ]

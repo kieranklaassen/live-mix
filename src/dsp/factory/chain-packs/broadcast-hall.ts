@@ -731,17 +731,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-run-through-reel',
-    name: 'Run-through reel',
-    category: 'tape',
-    description:
-      'A reel of tape at middle speed, with a little drift and hiss, then a faint, dull echo with a slow chorus on it.',
-    effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'analog-delay', preset: 'Faint halo', params: { time: 257, modRate: 0.383 } },
-    ],
-  },
-  {
     id: 'broadcast-hall-deck-at-soundcheck',
     name: 'Deck at soundcheck',
     category: 'tape',
@@ -773,6 +762,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Clean transfer' },
       { deviceId: 'vowel-reverb', preset: 'Whispering' },
+    ],
+  },
+  {
+    id: 'broadcast-hall-slipping-flutter',
+    name: 'Slipping flutter',
+    category: 'tape',
+    description:
+      'A slow reel that trembles fast, mixed against the dry sound, then radio static that sounds only with each note played.',
+    effects: [
+      { deviceId: 'tape', preset: 'Flutter shimmer', params: { output: -6.01 } },
+      { deviceId: 'noise-floor', preset: 'Static notes', params: { response: 0.0443, hold: 1.08 } },
     ],
   },
   {
@@ -1111,17 +1111,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'broadcast-hall-off-air-room',
-    name: 'Off-air room',
-    category: 'master',
-    description:
-      'A tight damped little room that is barely there, then a low ceiling that keeps loud passages down for a while.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Tight room' },
-      { deviceId: 'ambient-limiter', preset: 'Late night', params: { release: 3.81 } },
-    ],
-  },
-  {
     id: 'broadcast-hall-red-light-glue',
     name: 'Red-light glue',
     category: 'master',
@@ -1152,6 +1141,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.52 } },
       { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.291, gain: -1.03 } },
+    ],
+  },
+  {
+    id: 'broadcast-hall-tiptoe-thump',
+    name: 'Tiptoe thump',
+    category: 'master',
+    description:
+      'A cassette with a full head bump and a rolled-off top, then a slightly eased equaliser, then an eased-back ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { gain: 0.22 } },
     ],
   },
 ]

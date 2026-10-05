@@ -841,17 +841,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-powdered-wash',
-    name: 'Powdered wash',
-    category: 'texture',
-    description:
-      'A wide, darkened wash in which every note slowly dissolves, into a small room that answers about an eighth of a second late.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { mix: 0.477 } },
-      { deviceId: 'ether-reverb', preset: 'Slap room', params: { predelayMs: 129, mix: 0.18 } },
-    ],
-  },
-  {
     id: 'oxide-echo-left-in-sun',
     name: 'Echo left in sun',
     category: 'texture',
@@ -938,6 +927,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'grain-cloud', preset: 'Soft cloud', params: { size: 242, density: 18 } },
       { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.28 } },
+    ],
+  },
+  {
+    id: 'oxide-dusty-shimmer',
+    name: 'Dusty shimmer',
+    category: 'texture',
+    description:
+      'Piled-up held chords, every overtone drifting, spread wide, into a faint short reverb with a slight upward drift.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Shimmer cloud' },
+      { deviceId: 'bloom-reverb', preset: 'Faint glow', params: { decay: 3.74 } },
     ],
   },
   {
@@ -1097,29 +1097,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-iron-on-old-stock',
-    name: 'Iron on old stock',
-    category: 'master',
-    description:
-      'A low-heavy transformer, then a low cut with some air, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'ambient-eq', preset: 'Texture' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: -0.831 } },
-    ],
-  },
-  {
-    id: 'oxide-fader-losing-flakes',
-    name: 'Fader losing flakes',
-    category: 'master',
-    description:
-      'A slow compressor that evens out swells over seconds, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 299, release: 2.06 } },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'oxide-far-dial-cassette',
     name: 'Far-dial cassette',
     category: 'master',
@@ -1144,26 +1121,50 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'oxide-dusty-trace',
-    name: 'Dusty trace',
+    id: 'oxide-archive-valve',
+    name: 'Archive valve',
     category: 'master',
     description:
-      'A faint hall tail of about three seconds, then a low ceiling with the sound pushed hard up against it.',
+      'Dark, thick valve grit, then a gentle high cut that shades the top end, then a fast limiter with the level lifted a little into it.',
     effects: [
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { release: 1.4, gain: 3.12 } },
+      { deviceId: 'saturator', preset: 'Bass grit' },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.69 } },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -6.89 } },
     ],
   },
   {
-    id: 'oxide-basement-sides',
-    name: 'Basement sides',
+    id: 'oxide-channel-on-old-stock',
+    name: 'Channel on old stock',
     category: 'master',
     description:
-      'A lift of presence and air, then the sides lifted a little, then a fast limiter with the level lifted a little into it.',
+      'A hot console channel, then a mid-forward tone, then a true-peak ceiling six decibels down, with room to spare.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.602 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.62 } },
+      { deviceId: 'analog-drive', preset: 'Hot channel' },
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.31 } },
+      { deviceId: 'ambient-limiter', preset: 'Margin', params: { release: 1.6, gain: -4.15 } },
+    ],
+  },
+  {
+    id: 'oxide-lobby-glue',
+    name: 'Lobby glue',
+    category: 'master',
+    description:
+      'An equaliser that adds lows and body and eases the top, then a gentle compressor, then an eased-back ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm' },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 105, release: 2.2 } },
+      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { release: 1.59, gain: 1.55 } },
+    ],
+  },
+  {
+    id: 'oxide-basement-scoop',
+    name: 'Basement scoop',
+    category: 'master',
+    description:
+      'A scooped tone with lows and highs up and the body down, then a fast limiter with the level lifted a little into it.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.48 } },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift' },
     ],
   },
 ]

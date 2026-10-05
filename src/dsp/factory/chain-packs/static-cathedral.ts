@@ -1107,14 +1107,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-guttering-loop',
-    name: 'Guttering loop',
+    id: 'static-cathedral-bell-rope-growl',
+    name: 'Bell-rope growl',
     category: 'pitch',
     description:
-      'A tape-style curve only just leaned on, then a tape loop at half speed, an octave down and darker.',
+      'A low ring modulator that roughens every note to a growl, into a huge dark cathedral with only the lows left ringing.',
     effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'tape-loop', preset: 'Slowed down', params: { length: 7.51 } },
+      { deviceId: 'freq-shifter', preset: 'Low growl' },
+      { deviceId: 'expanse', preset: 'Low cathedral', params: { decay: 27.3, modRate: 0.0898 } },
     ],
   },
   {
@@ -1139,29 +1139,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'saturator', preset: 'Parallel shine' },
       { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 444, release: 2.63 } },
       { deviceId: 'ambient-limiter', preset: 'Margin', params: { release: 1.54 } },
-    ],
-  },
-  {
-    id: 'static-cathedral-midwinter-tape',
-    name: 'Midwinter tape',
-    category: 'master',
-    description:
-      'A fresh reel of tape, open on top and nearly steady, then a fast, firm compressor that stops only the peaks, then a pushed limiter.',
-    effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 10.4, release: 0.192 } },
-      { deviceId: 'fet-limiter', preset: 'Drive', params: { outputGain: -8.34 } },
-    ],
-  },
-  {
-    id: 'static-cathedral-sheen-in-stone',
-    name: 'Sheen in stone',
-    category: 'master',
-    description:
-      'A quiet plate tail that comes in late behind each note, then a low ceiling that keeps loud passages down for a while.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 96.3 } },
-      { deviceId: 'ambient-limiter', preset: 'Late night', params: { release: 3.83 } },
     ],
   },
   {
@@ -1197,6 +1174,28 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'patina', preset: 'Early sampler' },
       { deviceId: 'ambient-comp', preset: 'Sit back' },
       { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: 2.43 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-reel-off-the-walls',
+    name: 'Reel off the walls',
+    category: 'master',
+    description:
+      'A tape reel with soft saturation, slight wobble and hiss, then a fast limiter that steps in only on the loudest peaks.',
+    effects: [
+      { deviceId: 'patina', preset: 'Quarter inch reel' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'static-cathedral-fuse-wire-crunch',
+    name: 'Fuse-wire crunch',
+    category: 'master',
+    description:
+      'Soft clipping, a little bright, laid under the clean sound, then a low ceiling that keeps loud passages down for a while.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Drum bus crunch' },
+      { deviceId: 'ambient-limiter', preset: 'Late night', params: { release: 3.68, gain: -1.75 } },
     ],
   },
 ]

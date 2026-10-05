@@ -578,17 +578,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'forest-pulse-under-moss-pan',
-    name: 'Under-moss pan',
-    category: 'motion',
-    description:
-      'A slow pan from side to side, a few seconds each way, into a small chapel with a short sung eh in its tail.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.151 } },
-      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 1.41, preDelay: 5.07 } },
-    ],
-  },
-  {
     id: 'forest-pulse-birchbark-chop',
     name: 'Birchbark chop',
     category: 'motion',
@@ -661,6 +650,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Master' },
       { deviceId: 'tremolo', preset: 'Amp tremolo', params: { rate: 4.34 } },
+    ],
+  },
+  {
+    id: 'forest-pulse-mossy-filter',
+    name: 'Mossy filter',
+    category: 'motion',
+    description:
+      'A low-pass that opens and closes over about half a minute, into a short diffuse haze around the sound, like a small room.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Glacial low-pass',
+        params: { lfoRateHz: 0.0319, envAttackMs: 10.1, envReleaseMs: 199 },
+      },
+      { deviceId: 'spectral-blur', preset: 'Diffuse room', params: { mix: 0.235 } },
     ],
   },
   {

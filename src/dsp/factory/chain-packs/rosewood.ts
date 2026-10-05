@@ -85,17 +85,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-workshop-hall',
-    name: 'Workshop hall',
-    category: 'space',
-    description:
-      'A small plain room that is over in about a second, into a fully damped hall with a few seconds of tail.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.09, breathRate: 0.306 } },
-      { deviceId: 'ether-reverb', preset: 'Dark hall' },
-    ],
-  },
-  {
     id: 'rosewood-humid-strings',
     name: 'Humid strings',
     category: 'space',
@@ -308,6 +297,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Voice' },
       { deviceId: 'expanse', preset: 'Bright chamber', params: { decay: 2.69, modRate: 0.556 } },
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 16.7 } },
+    ],
+  },
+  {
+    id: 'rosewood-unvarnished-ring',
+    name: 'Unvarnished ring',
+    category: 'space',
+    description:
+      'One slow scatter of echoes over about a second and no tail, into sixteen strings in C major that ring for about ten seconds.',
+    effects: [
+      { deviceId: 'swarm-reverb', preset: 'Long scatter' },
+      { deviceId: 'sympathetic', preset: 'Long ring' },
     ],
   },
   {
@@ -1125,48 +1125,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-unvarnished-room',
-    name: 'Unvarnished room',
-    category: 'master',
-    description:
-      'The close reflections of a very small room, then a fast limiter that steps in only on the loudest peaks.',
-    effects: [
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Short ambience',
-        params: { decay: 0.363, breathRate: 0.297 },
-      },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
-    id: 'rosewood-hinoki-lift',
-    name: 'Hinoki lift',
-    category: 'master',
-    description:
-      'A parallel compressor, then the sides lifted a little, wider with nothing added, then a true-peak ceiling with the level pushed up into it.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 361, release: 3.33 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.21, gain: 2.08 } },
-    ],
-  },
-  {
-    id: 'rosewood-sawn-plank-trace',
-    name: 'Sawn-plank trace',
-    category: 'master',
-    description:
-      'A faint hall tail of about three seconds, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Faint halo',
-        params: { preDelay: 36.6, lowDecay: 2.61, midDecay: 2.95 },
-      },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'rosewood-tape-on-soft-yarn',
     name: 'Tape on soft yarn',
     category: 'master',
@@ -1188,6 +1146,40 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-comp', preset: 'Sit back' },
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
       { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: 3.78 } },
+    ],
+  },
+  {
+    id: 'rosewood-width-at-the-bridge',
+    name: 'Width at the bridge',
+    category: 'master',
+    description:
+      'A low cut with some air, then the sides lifted a little, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Texture' },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.37, gain: 2.23 } },
+    ],
+  },
+  {
+    id: 'rosewood-heartwood-sheen',
+    name: 'Heartwood sheen',
+    category: 'master',
+    description:
+      'A quiet plate tail that comes in late behind each note, then a true-peak ceiling with the level pushed up into it.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 85 } },
+      { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.81, gain: 0.342 } },
+    ],
+  },
+  {
+    id: 'rosewood-bamboo-plate',
+    name: 'Bamboo plate',
+    category: 'master',
+    description:
+      'A small plate that is gone in a second or two, then a fast limiter that steps in only on the loudest peaks.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 9.57 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
 ]

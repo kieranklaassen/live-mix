@@ -95,17 +95,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'four-track-plate-in-the-rain',
-    name: 'Plate in the rain',
-    category: 'space',
-    description:
-      'A far-off plate with a long soft tail and little dry sound, then a low cut with the low mids dipped and the presence lifted.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Distant haze' },
-      { deviceId: 'ambient-eq', preset: 'Voice', params: { clearTime: 1.46 } },
-    ],
-  },
-  {
     id: 'four-track-kerosene-swell',
     name: 'Kerosene swell',
     category: 'space',
@@ -171,17 +160,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-echo', preset: 'Hovering wash' },
       { deviceId: 'stereo-detune', preset: 'Soft halo', params: { delay: 12.5 } },
-    ],
-  },
-  {
-    id: 'four-track-blanketed-shade',
-    name: 'Blanketed shade',
-    category: 'space',
-    description:
-      'A tape preamp driven for thick lows and a dull top, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Tape weight' },
-      { deviceId: 'plate-reverb', preset: 'Dark plate' },
     ],
   },
   {
@@ -315,6 +293,32 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Slow attack' },
       { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 12.4 } },
+    ],
+  },
+  {
+    id: 'four-track-slap-in-one-take',
+    name: 'Slap in one take',
+    category: 'space',
+    description:
+      'A closed amplifier stack, driven and dark, miked off-centre, then a short, soft tape echo close behind the playing.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Warm stack', params: { output: -3.92 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft' },
+    ],
+  },
+  {
+    id: 'four-track-hall-by-the-shore',
+    name: 'Hall by the shore',
+    category: 'space',
+    description:
+      'A mid-forward tone with the lows and the top trimmed, into a huge dark open space that answers late and rings on.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.37 } },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Open valley',
+        params: { decay: 11.1, predelayMs: 117, breathRate: 0.268, mix: 0.27 },
+      },
     ],
   },
   {
@@ -1115,18 +1119,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'four-track-space-heater-iron',
-    name: 'Space-heater iron',
-    category: 'master',
-    description:
-      'A transformer driven so the low end thickens and loosens, then a compressor as slow as a hand on a fader, then a pushed limiter.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'ambient-comp', preset: 'Slow fader' },
-      { deviceId: 'fet-limiter', preset: 'Drive', params: { outputGain: -9.03 } },
-    ],
-  },
-  {
     id: 'four-track-one-take-room',
     name: 'One-take room',
     category: 'master',
@@ -1142,30 +1134,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'four-track-width-in-coast-fog',
-    name: 'Width in coast fog',
-    category: 'master',
-    description:
-      'An equaliser that adds lows and body and eases the top, then the sides lifted a little, wider with nothing added, then a pushed limiter.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.43 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
-    id: 'four-track-rain-day-glue',
-    name: 'Rain-day glue',
-    category: 'master',
-    description:
-      'A mid-forward tone, then a slow compressor that evens out swells over seconds, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.63 } },
-      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 287, release: 2.23 } },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: 3.95 } },
-    ],
-  },
-  {
     id: 'four-track-sandbar-desk',
     name: 'Sandbar desk',
     category: 'master',
@@ -1178,15 +1146,51 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'four-track-homemade-tape',
-    name: 'Homemade tape',
+    id: 'four-track-tidewater-reel',
+    name: 'Tidewater reel',
     category: 'master',
     description:
-      'A fresh reel of tape, open on top and nearly steady, then a parallel compressor, then a slow-riding ceiling.',
+      'A reel of tape, then a parallel compressor that lifts quiet playing and tails, then a slow-riding ceiling.',
     effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 429, release: 2.94 } },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.65 } },
+      { deviceId: 'tape', preset: 'Quarter inch' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 392, release: 2.8 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.13 } },
+    ],
+  },
+  {
+    id: 'four-track-tape-on-the-ebb',
+    name: 'Tape on the ebb',
+    category: 'master',
+    description:
+      'A lightly worn reel, then a pluck-taming compressor, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'patina', preset: 'Quarter inch reel' },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.43 } },
+    ],
+  },
+  {
+    id: 'four-track-headphone-drive',
+    name: 'Headphone drive',
+    category: 'master',
+    description:
+      'A few decibels of soft saturation with the top eased, then an even-handed compressor, then a low, slow ceiling.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 131 } },
+      { deviceId: 'ambient-limiter', preset: 'Late night', params: { gain: -1.39 } },
+    ],
+  },
+  {
+    id: 'four-track-space-heater-width',
+    name: 'Space-heater width',
+    category: 'master',
+    description:
+      'A low cut and a low-mid dip, then the sides lifted a little, wider with nothing added, then a low, breathing ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Layer', params: { clearTime: 1.64 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.264 } },
     ],
   },
 ]

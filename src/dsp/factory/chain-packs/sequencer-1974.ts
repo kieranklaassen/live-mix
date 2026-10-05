@@ -572,17 +572,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-clock-driven-flutter',
-    name: 'Clock-driven flutter',
-    category: 'tape',
-    description:
-      'A slow reel that trembles fast, mixed against the dry sound, then the soft air of an open microphone under the sound.',
-    effects: [
-      { deviceId: 'tape', preset: 'Flutter shimmer' },
-      { deviceId: 'noise-floor', preset: 'Close mic' },
-    ],
-  },
-  {
     id: 'sequencer-1974-first-light-reel',
     name: 'First-light reel',
     category: 'tape',
@@ -613,6 +602,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'chorus', preset: 'Warped tape' },
       { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 38.3, modRate: 0.105 } },
+    ],
+  },
+  {
+    id: 'sequencer-1974-chancel-pillow',
+    name: 'Chancel pillow',
+    category: 'tape',
+    description:
+      'A big lift of presence and air, with ringing held in check, then a small speaker, close and muffled, as if under a pillow.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.642 } },
+      { deviceId: 're-amp', preset: 'Pillow speaker', params: { output: -2.04 } },
     ],
   },
   {
@@ -912,17 +912,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sequencer-1974-eight-step-strings',
-    name: 'Eight-step strings',
-    category: 'texture',
-    description:
-      'A thin, high pad an octave up with nothing low in it, into a plate wash that hangs on for half a minute.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'High mist', params: { fall: 8.99 } },
-      { deviceId: 'plate-reverb', preset: 'Endless wash' },
-    ],
-  },
-  {
     id: 'sequencer-1974-small-hours-strings',
     name: 'Small-hours strings',
     category: 'texture',
@@ -988,6 +977,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'sustainer', preset: 'Held sound alone' },
       { deviceId: 'hall-reverb', preset: 'Dark hall' },
+    ],
+  },
+  {
+    id: 'sequencer-1974-courtyard-memories',
+    name: 'Courtyard memories',
+    category: 'texture',
+    description:
+      'Sparse stray grains of things played seconds earlier, into one taut dull spring that answers late and rings long.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Stray memories', params: { size: 252, density: 1.55 } },
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Dark late coil',
+        params: { decay: 4.95, predelay: 76.3 },
+      },
     ],
   },
   {

@@ -182,17 +182,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-thumb-piano-strings',
-    name: 'Thumb-piano strings',
-    category: 'space',
-    description:
-      'A subsonic cut with the low mids and presence eased a touch, into nine hard-driven strings in E minor that soon fall silent.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.38 } },
-      { deviceId: 'sympathetic', preset: 'Hammered', params: { decay: 1.63 } },
-    ],
-  },
-  {
     id: 'park-zither-halo-for-coins',
     name: 'Halo for coins',
     category: 'space',
@@ -212,6 +201,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Voice', params: { clearTime: 1.32 } },
       { deviceId: 'expanse', preset: 'Thin air', params: { decay: 11.9, modRate: 0.223 } },
+    ],
+  },
+  {
+    id: 'park-zither-vault-for-hours',
+    name: 'Vault for hours',
+    category: 'space',
+    description:
+      'A slow swell on only the first note after each silence, into a huge bright space with a wide and very long tail.',
+    effects: [
+      { deviceId: 'swell', preset: 'First note only' },
+      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 43.2, mix: 0.252 } },
     ],
   },
   {
@@ -488,28 +488,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-thumb-piano-reel',
-    name: 'Thumb-piano reel',
-    category: 'tape',
-    description:
-      'A tape reel pushed hard into thick saturation, then a fast, steady reel pushed into soft saturation.',
-    effects: [
-      { deviceId: 'patina', preset: 'Reel pushed hard' },
-      { deviceId: 'tape', preset: 'Mastering deck', params: { output: -2.36 } },
-    ],
-  },
-  {
-    id: 'park-zither-flagstone-reel',
-    name: 'Flagstone reel',
-    category: 'tape',
-    description:
-      'A slow comb sliding against the dry sound, sides opposed, then a clean pass over fast new tape, with nothing added.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Drifting comb' },
-      { deviceId: 'tape', preset: 'Clean transfer', params: { output: 2.02 } },
-    ],
-  },
-  {
     id: 'park-zither-downtown-flutter',
     name: 'Downtown flutter',
     category: 'tape',
@@ -518,6 +496,29 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Flutter shimmer' },
       { deviceId: 'spring-reverb', preset: 'Late splash', params: { decay: 1.08, predelay: 196 } },
+    ],
+  },
+  {
+    id: 'park-zither-kite-flying-tape',
+    name: 'Kite-flying tape',
+    category: 'tape',
+    description:
+      'A mid-forward tone, then a fresh reel of tape, open on top and nearly steady, then a handful of separate echoes that fall away and repeat.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward' },
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.38 } },
+    ],
+  },
+  {
+    id: 'park-zither-reel-under-trees',
+    name: 'Reel under trees',
+    category: 'tape',
+    description:
+      'Three detuned voices spread hard apart with no dry sound, then a flaking reel whose sound ducks and dulls at random.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Voices only' },
+      { deviceId: 'tape', preset: 'Crumbling oxide' },
     ],
   },
   {
@@ -1089,17 +1090,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-kite-flying-hall',
-    name: 'Kite-flying hall',
-    category: 'master',
-    description:
-      'A faint hall tail of about three seconds, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'park-zither-straw-hat-console',
     name: 'Straw-hat console',
     category: 'master',
@@ -1139,18 +1129,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'park-zither-park-bench-sheen',
-    name: 'Park-bench sheen',
-    category: 'master',
-    description:
-      'Bright tape-style saturation mixed in under the clean sound, then a scooped, hollow tone, then a pushed limiter.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Parallel shine' },
-      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.34 } },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'park-zither-glue-for-pigeons',
     name: 'Glue for pigeons',
     category: 'master',
@@ -1172,6 +1150,30 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.67 } },
       { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 87.6, release: 2.17 } },
       { deviceId: 'ambient-limiter', preset: 'Loud' },
+    ],
+  },
+  {
+    id: 'park-zither-park-bench-reel',
+    name: 'Park-bench reel',
+    category: 'master',
+    description:
+      'A lightly worn reel, then a pluck-taming compressor, then a safety limiter with its ceiling brought down a little.',
+    effects: [
+      { deviceId: 'patina', preset: 'Quarter inch reel' },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { attack: 10.8, release: 0.135 } },
+      { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: 1.08 } },
+    ],
+  },
+  {
+    id: 'park-zither-deck-for-pigeons',
+    name: 'Deck for pigeons',
+    category: 'master',
+    description:
+      'A fast, steady reel pushed into soft saturation, then a rumble cut and a single decibel of presence, then a low, slow ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'ambient-limiter', preset: 'Late night', params: { release: 4.04, gain: -1.3 } },
     ],
   },
 ]

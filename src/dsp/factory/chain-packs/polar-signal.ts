@@ -977,17 +977,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-windward-wash',
-    name: 'Windward wash',
-    category: 'texture',
-    description:
-      'A very wide wash in which every note hangs for many seconds, into a dark hall that takes about twenty seconds to die away.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Endless', params: { mix: 0.45 } },
-      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0707, mix: 0.36 } },
-    ],
-  },
-  {
     id: 'polar-signal-solstice-melt',
     name: 'Solstice melt',
     category: 'texture',
@@ -1007,6 +996,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'cascade', preset: 'Deep drone', params: { time: 1500 } },
       { deviceId: 'expanse', preset: 'Far echoes' },
+    ],
+  },
+  {
+    id: 'polar-signal-blown-back-sub',
+    name: 'Blown-back sub',
+    category: 'texture',
+    description:
+      'A faint layer of reversed grains an octave below the sound, then five-bit converters fed hot, a coarse grain on every note.',
+    effects: [
+      { deviceId: 'spectral-drifter', preset: 'Sub octave' },
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
     ],
   },
   {
@@ -1166,41 +1166,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-room-at-the-pass',
-    name: 'Room at the pass',
-    category: 'master',
-    description:
-      'A small dead booth that is gone almost at once, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'ether-reverb', preset: 'Small booth' },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
-    id: 'polar-signal-glue-before-thaw',
-    name: 'Glue before thaw',
-    category: 'master',
-    description:
-      'A scooped, hollow tone, then a gentle compressor, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.34 } },
-      { deviceId: 'ambient-comp', preset: 'Sit back' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: 7.25 } },
-    ],
-  },
-  {
-    id: 'polar-signal-quayside-reel',
-    name: 'Quayside reel',
-    category: 'master',
-    description:
-      'A reel of tape, then a parallel compressor that lifts quiet playing and tails, then a pushed limiter.',
-    effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 445, release: 3.18 } },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'polar-signal-weather-hut-width',
     name: 'Weather-hut width',
     category: 'master',
@@ -1222,6 +1187,42 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'patina', preset: 'Early sampler' },
       { deviceId: 'ambient-comp', preset: 'Level' },
       { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: 0.919 } },
+    ],
+  },
+  {
+    id: 'polar-signal-island-reel',
+    name: 'Island reel',
+    category: 'master',
+    description:
+      'A fast, steady reel pushed into soft saturation, then a parallel compressor that lifts quiet playing and tails, then a safety limiter.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'polar-signal-slipway-thump',
+    name: 'Slipway thump',
+    category: 'master',
+    description:
+      'A thick, soft cassette, then a low cut and a small dip in the low mids, to make room, then a low, breathing ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'ambient-eq', preset: 'Layer' },
+      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { gain: 0.768 } },
+    ],
+  },
+  {
+    id: 'polar-signal-coastguard-glue',
+    name: 'Coastguard glue',
+    category: 'master',
+    description:
+      'A slightly eased equaliser, then a pluck-taming compressor, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.62 } },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { attack: 10.7, release: 0.142 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
 ]

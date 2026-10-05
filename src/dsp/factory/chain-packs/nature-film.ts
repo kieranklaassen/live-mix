@@ -465,17 +465,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-osprey-dust',
-    name: 'Osprey dust',
-    category: 'tape',
-    description:
-      'A transformer driven so the low end thickens and loosens, then ten-bit converters on a shaky clock, dull, with riding hiss.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows', params: { output: -7.63 } },
-      { deviceId: 'vintage-digital', preset: 'Dusty' },
-    ],
-  },
-  {
     id: 'nature-film-tideline-clock',
     name: 'Tideline clock',
     category: 'tape',
@@ -645,6 +634,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'patina', preset: 'Scratched record' },
       { deviceId: 'noise-floor', preset: 'Radio static', params: { response: 0.355, hold: 9.66 } },
       { deviceId: 'hall-reverb', preset: 'Dark hall' },
+    ],
+  },
+  {
+    id: 'nature-film-worn-print-stream',
+    name: 'Worn-print stream',
+    category: 'tape',
+    description:
+      'A stream cut off above the mids, as if through a wall, then an old slow reel that drifts, dulls and drops out.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Through a wall' },
+      { deviceId: 'tape', preset: 'Worn thin' },
     ],
   },
   {
@@ -1000,17 +1000,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-autumn-term-octave',
-    name: 'Autumn-term octave',
-    category: 'pitch',
-    description:
-      'A half-speed replay an octave down, with no dry sound, then a warped record through a dark cartridge, swaying slowly.',
-    effects: [
-      { deviceId: 'half-speed', preset: 'Half speed' },
-      { deviceId: 'vinyl', preset: 'Slow platter', params: { spin: 5.61 } },
-    ],
-  },
-  {
     id: 'nature-film-interlude-octave',
     name: 'Interlude octave',
     category: 'pitch',
@@ -1092,27 +1081,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-narrated-reel',
-    name: 'Narrated reel',
-    category: 'master',
+    id: 'nature-film-blackboard-drag',
+    name: 'Blackboard drag',
+    category: 'pitch',
     description:
-      'A reel of tape, then a quicker compressor that takes no notice of low rumble, then a low ceiling with the sound pushed hard up against it.',
+      'Whole phrases dragged out at half speed, an octave down, then a well-played record, dulled, swaying, with ticks and pops.',
     effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'ambient-comp', preset: 'Mic', params: { attack: 66.8, release: 0.934 } },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: 6.82 } },
-    ],
-  },
-  {
-    id: 'nature-film-jotter-sides',
-    name: 'Jotter sides',
-    category: 'master',
-    description:
-      'A lift of presence and air, then the sides lifted a little, wider with nothing added, then a low, hard-pushed ceiling.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { release: 1.58, gain: 4.58 } },
+      { deviceId: 'half-speed', preset: 'Long drag', params: { length: 3970 } },
+      { deviceId: 'vinyl', preset: 'Charity shop find', params: { spin: 1.56 } },
     ],
   },
   {
@@ -1128,48 +1104,73 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'nature-film-valve-in-drizzle',
-    name: 'Valve in drizzle',
+    id: 'nature-film-reel-in-the-rushes',
+    name: 'Reel in the rushes',
     category: 'master',
     description:
-      'A dark, thick valve curve mixed over some of the clean sound, then a brickwall ceiling that touches nothing beneath it.',
+      'A lightly worn reel, then a parallel compressor, then a true-peak ceiling with the level eased back before it.',
+    effects: [
+      { deviceId: 'patina', preset: 'Quarter inch reel' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 375, release: 2.89 } },
+      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { release: 1.62, gain: 0.479 } },
+    ],
+  },
+  {
+    id: 'nature-film-heather-grit',
+    name: 'Heather grit',
+    category: 'master',
+    description:
+      'A dark, thick valve curve mixed over some of the clean sound, then a fast limiter that steps in only on the loudest peaks.',
     effects: [
       { deviceId: 'saturator', preset: 'Bass grit' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.37, gain: -3.09 } },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: -3.08 } },
     ],
   },
   {
-    id: 'nature-film-sprocket-tone',
-    name: 'Sprocket tone',
+    id: 'nature-film-peat-water-weight',
+    name: 'Peat-water weight',
     category: 'master',
     description:
-      'A low cut that thins the bass, with a little air on top, then a fast limiter pushed so that soft and loud notes even out.',
+      'A low, warm transformer, then a fast compressor that takes the spike off plucked notes, then a low, breathing ceiling.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.54 } },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
+      { deviceId: 'analog-drive', preset: 'Low warmth' },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { release: 0.158 } },
+      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.297, gain: 0.902 } },
     ],
   },
   {
-    id: 'nature-film-plate-in-the-rushes',
-    name: 'Plate in the rushes',
+    id: 'nature-film-red-deer-grain',
+    name: 'Red-deer grain',
     category: 'master',
     description:
-      'A small plate that is gone in a second or two, then a fast limiter that steps in only on the loudest peaks.',
+      'A grainy early sampler, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
     effects: [
-      { deviceId: 'plate-reverb', preset: 'Small plate' },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
+      { deviceId: 'patina', preset: 'Early sampler' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 353, release: 2.79 } },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.47 } },
     ],
   },
   {
-    id: 'nature-film-red-deer-lift',
-    name: 'Red-deer lift',
+    id: 'nature-film-air-in-a-bothy',
+    name: 'Air in a bothy',
     category: 'master',
     description:
-      'A parallel compressor, then the sides turned down, the image drawn towards the middle, then a low, slow ceiling.',
+      'A low cut that thins the bass, with a little air on top, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 372, release: 3.29 } },
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
-      { deviceId: 'ambient-limiter', preset: 'Late night', params: { gain: -0.268 } },
+      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.46 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.64 } },
+    ],
+  },
+  {
+    id: 'nature-film-cassette-blinds-down',
+    name: 'Cassette blinds down',
+    category: 'master',
+    description:
+      'A cassette with a full head bump and a rolled-off top, then a mid-forward tone, then a true-peak ceiling with the level pushed up into it.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.64 } },
+      { deviceId: 'ambient-limiter', preset: 'Loud', params: { gain: -2.77 } },
     ],
   },
 ]

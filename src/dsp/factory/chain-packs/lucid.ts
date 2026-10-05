@@ -680,18 +680,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-copper-metal',
-    name: 'Copper metal',
-    category: 'tape',
-    description:
-      'A hot valve stage, then folding low-rate converters, into three taut springs kept soft and close to the centre.',
-    effects: [
-      { deviceId: 'patina', preset: 'Hot valve', params: { output: -6.13 } },
-      { deviceId: 'vintage-digital', preset: 'Metallic' },
-      { deviceId: 'spring-reverb', preset: 'Narrow warm tank' },
-    ],
-  },
-  {
     id: 'lucid-floorboard-record',
     name: 'Floorboard record',
     category: 'tape',
@@ -733,6 +721,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Drifting chorus' },
       { deviceId: 'patina', preset: 'Muffled sampler' },
+    ],
+  },
+  {
+    id: 'lucid-stream-under-slates',
+    name: 'Stream under slates',
+    category: 'tape',
+    description:
+      'A stream full of holes, then the soft air of an open microphone under the sound, into a far-off plate haze.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Dropouts' },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { response: 0.376 } },
+      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.539 } },
     ],
   },
   {
@@ -1124,18 +1124,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-width-under-slates',
-    name: 'Width under slates',
-    category: 'master',
-    description:
-      'A subsonic cut and a slow ear that eases whatever rings on, then the sides lifted a little, wider with nothing added, then a pushed limiter.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.13 } },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'lucid-foghorn-sheen',
     name: 'Foghorn sheen',
     category: 'master',
@@ -1144,17 +1132,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'plate-reverb', preset: 'Faint sheen' },
       { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.63 } },
-    ],
-  },
-  {
-    id: 'lucid-hymnbook-room',
-    name: 'Hymnbook room',
-    category: 'master',
-    description:
-      'A small plain room that is over in about a second, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.24, breathRate: 0.304 } },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { gain: 2.77 } },
     ],
   },
   {
@@ -1181,6 +1158,30 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'plate-reverb', preset: 'Tight room' },
       { deviceId: 'fet-limiter', preset: 'Gentle lift' },
+    ],
+  },
+  {
+    id: 'lucid-half-asleep-reel',
+    name: 'Half-asleep reel',
+    category: 'master',
+    description:
+      'A reel of tape, then a parallel compressor that lifts quiet playing and tails, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'tape', preset: 'Quarter inch' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 397, release: 3.19 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'lucid-fader-under-slates',
+    name: 'Fader under slates',
+    category: 'master',
+    description:
+      'A heavy low shelf, then a slow compressor that evens out swells over seconds, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep' },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 280, release: 1.79 } },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.68 } },
     ],
   },
 ]

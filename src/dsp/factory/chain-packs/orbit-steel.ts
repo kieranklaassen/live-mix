@@ -242,17 +242,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-lonesome-hall',
-    name: 'Lonesome hall',
-    category: 'space',
-    description:
-      'A hall whose lows outlast its damped top, then a subsonic cut with the low mids and presence eased a touch.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Dark hall' },
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.65 } },
-    ],
-  },
-  {
     id: 'orbit-steel-outbound-plate',
     name: 'Outbound plate',
     category: 'space',
@@ -290,17 +279,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-scatter-by-the-creek',
-    name: 'Scatter by the creek',
-    category: 'space',
-    description:
-      'A tight cluster of tape repeats, like a very small room, into a mellow reverb whose tail splits upwards and downwards.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 92.6 } },
-      { deviceId: 'bloom-reverb', preset: 'Scatter' },
-    ],
-  },
-  {
     id: 'orbit-steel-sagebrush-cavern',
     name: 'Sagebrush cavern',
     category: 'space',
@@ -309,6 +287,28 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'fdn-reverb', preset: 'Dark cave' },
       { deviceId: 'stereo-detune', preset: 'Doubled', params: { delay: 35.9 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-buoyant-plate',
+    name: 'Buoyant plate',
+    category: 'space',
+    description:
+      'A slow rotating speaker with its amplifier driven hard, into a long plate with a wide and even tail.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Slow burn' },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 36.1, mix: 0.31 } },
+    ],
+  },
+  {
+    id: 'orbit-steel-creekside-vault',
+    name: 'Creekside vault',
+    category: 'space',
+    description:
+      'Bright tape-style saturation mixed in under the clean sound, into a vast nave that rings for about eight seconds.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Parallel shine' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { preDelay: 98.6, midDecay: 7 } },
     ],
   },
   {
@@ -1168,17 +1168,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-iron-on-a-tin-roof',
-    name: 'Iron on a tin roof',
-    category: 'master',
-    description:
-      'A transformer driven so the low end thickens and loosens, then a true-peak ceiling six decibels down, with room to spare.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'ambient-limiter', preset: 'Margin', params: { gain: -3.31 } },
-    ],
-  },
-  {
     id: 'orbit-steel-weight-at-the-dance',
     name: 'Weight at the dance',
     category: 'master',
@@ -1187,6 +1176,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-eq', preset: 'Deep' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'orbit-steel-porthole-reel',
+    name: 'Porthole reel',
+    category: 'master',
+    description:
+      'A clean pass over fast new tape, with nothing added, then a fast limiter with the level lifted a little into it.',
+    effects: [
+      { deviceId: 'tape', preset: 'Clean transfer' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -5.35 } },
     ],
   },
 ]

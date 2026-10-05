@@ -162,17 +162,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'patch-cables-nectar-echo',
-    name: 'Nectar echo',
-    category: 'echo',
-    description:
-      'An echo whose repeats hop up a fifth and down a fourth, into a small plain room that is over in about a second.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Fifth hop' },
-      { deviceId: 'fdn-reverb', preset: 'Room' },
-    ],
-  },
-  {
     id: 'patch-cables-trillium-ladder',
     name: 'Trillium ladder',
     category: 'echo',
@@ -388,6 +377,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'micro-looper', preset: 'Fast reverse', params: { length: 0.639 } },
       { deviceId: 'vowel-reverb', preset: 'Plain hall' },
+    ],
+  },
+  {
+    id: 'patch-cables-canopy-hop',
+    name: 'Canopy hop',
+    category: 'echo',
+    description:
+      'An echo whose repeats hop up a fifth and down a fourth, into a two-spring tank with its input driven into saturation.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Fifth hop' },
+      { deviceId: 'spring-reverb', preset: 'Overdriven tank', params: { mix: 0.265 } },
     ],
   },
   {

@@ -33,17 +33,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-hall-on-a-balcony',
-    name: 'Hall on a balcony',
-    category: 'space',
-    description:
-      'A console channel run hot with its level pulled back down, into a hall that answers about a quarter of a second late.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Hot channel' },
-      { deviceId: 'fdn-reverb', preset: 'Late arrival' },
-    ],
-  },
-  {
     id: 'laptop-guitar-bleached-cathedral',
     name: 'Bleached cathedral',
     category: 'space',
@@ -129,14 +118,25 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-blinding-tank',
-    name: 'Blinding tank',
+    id: 'laptop-guitar-autosave-hall',
+    name: 'Autosave hall',
     category: 'space',
     description:
-      'Soft clipping, a little bright, laid under the clean sound, into three springs heard alone with none of the dry sound left.',
+      'A combo amplifier shut in a cupboard, the mic pulled back, into a wide hall that answers about a fifth of a second late.',
     effects: [
-      { deviceId: 'saturator', preset: 'Drum bus crunch', params: { outputDb: -14.4 } },
-      { deviceId: 'spring-reverb', preset: 'Tank alone' },
+      { deviceId: 're-amp', preset: 'In the cupboard' },
+      { deviceId: 'ether-reverb', preset: 'Late hall', params: { predelayMs: 187 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-soundcard-chamber',
+    name: 'Soundcard chamber',
+    category: 'space',
+    description:
+      'A console channel run hot with its level pulled back down, into a tight chamber close round the sound for about a second.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Hot channel' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -1137,17 +1137,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'laptop-guitar-sunburnt-channel',
-    name: 'Sunburnt channel',
-    category: 'master',
-    description:
-      'A console channel driven until it is firm in the mids, then a low ceiling that lets go quickly, so loud passages breathe.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Console' },
-      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.299, gain: -1.95 } },
-    ],
-  },
-  {
     id: 'laptop-guitar-glue-in-heat-haze',
     name: 'Glue in heat haze',
     category: 'master',
@@ -1191,6 +1180,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'hall-reverb', preset: 'Room' },
       { deviceId: 'ambient-limiter', preset: 'Pull back', params: { release: 1.42, gain: -0.443 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-overexposed-lift',
+    name: 'Overexposed lift',
+    category: 'master',
+    description:
+      'A scooped, hollow tone, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.56 } },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 359, release: 3.04 } },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.55, gain: 2.37 } },
     ],
   },
 ]
