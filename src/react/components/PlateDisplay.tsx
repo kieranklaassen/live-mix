@@ -496,6 +496,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const tap = useRef<Tap | null>(null)
   /** Whether each of the last two presses moved its handle: a double click made of nudges is not a double press. */
   const moves = useRef<[boolean, boolean]>([false, false])
+  /** Whether the last press was a finger's or a pen's: those reach a handle from further off than a mouse does. */
+  const far = useRef(false)
 
   useEffect(() => {
     if (!canvas.current) return
@@ -616,7 +618,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
     if (event.button !== 0 || grab.current) return
     const at = pointIn(event.currentTarget, event)
-    const handle = runner.current?.hit(at.x, at.y, event.pointerType !== 'mouse')
+    far.current = event.pointerType !== 'mouse'
+    const handle = runner.current?.hit(at.x, at.y, far.current)
     if (!handle) {
       // A press beside the handles is a press on the plate: a chain carries it from there.
       delete event.currentTarget.dataset.lmHandle
@@ -743,7 +746,9 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
               // the browser: they were two nudges, and the second one stays.
               if (moves.current[0] || moves.current[1]) return
               const at = pointIn(event.currentTarget, event)
-              const params = runner.current?.hit(at.x, at.y, false)?.reset?.()
+              // A pen's double press is the browser's double click too: it puts back
+              // the handle its presses took, from as far off as they reached it.
+              const params = runner.current?.hit(at.x, at.y, far.current)?.reset?.()
               if (!params) return
               wheelRest.current?.()
               const names = Object.keys(params)

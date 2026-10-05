@@ -1164,6 +1164,37 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     expect(onDrag).toHaveBeenLastCalledWith({ b: 0 })
   })
 
+  it('puts a point back at a pen’s double press from as far off as the pen takes it', async () => {
+    const { display, at } = twoPoints()
+    const { surface, onDrag, onDragStart } = await mount(display)
+    at.a = 150
+    const twice = (pointerType: string, x: number): void => {
+      for (const pointerId of [1, 2]) {
+        fireEvent.pointerDown(surface, {
+          pointerId,
+          pointerType,
+          button: 0,
+          clientX: x,
+          clientY: 30,
+        })
+        fireEvent.pointerUp(surface, { pointerId, pointerType })
+      }
+      // The browser makes a double click of a pen's two presses, as of a mouse's.
+      fireEvent.doubleClick(surface, { clientX: x, clientY: 30 })
+    }
+    // 14 px from the point: a pen reaches it there, as a finger does.
+    twice('pen', 54)
+    expect(onDragStart.mock.calls).toEqual([[['b']], [['b']], [['b']]])
+    expect(onDrag.mock.calls).toEqual([[{ b: 0 }]])
+    // A mouse does not reach it from there, to take it or to put it back.
+    at.b = 40
+    onDrag.mockClear()
+    onDragStart.mockClear()
+    twice('mouse', 54)
+    expect(onDragStart).not.toHaveBeenCalled()
+    expect(onDrag).not.toHaveBeenCalled()
+  })
+
   it('keeps a finger that comes down on a point, and lets one beside the points scroll', async () => {
     const { display } = twoPoints()
     const { surface } = await mount(display)
