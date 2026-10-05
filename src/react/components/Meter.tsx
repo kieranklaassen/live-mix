@@ -532,7 +532,16 @@ function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
     lapses: Infinity,
   }))
   const latest = useRef(target)
-  latest.current = target
+  // Another source is another signal: it is read at once, so a meter that is
+  // not active shows where that one stands, and its bars are made anew, since
+  // the mark held and the lamp lit were the last signal's.
+  const sources = useRef(0)
+  if (latest.current !== target) {
+    latest.current = target
+    sources.current += 1
+    live.reading = readMeter(target)
+    live.lapses = Infinity
+  }
   const intervalMs = frameIntervalMs(fps)
 
   useEffect(() => {
@@ -549,7 +558,7 @@ function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
     return subscribeFrames(frame, intervalMs, () => show(sample()))
   }, [active, intervalMs, frame, live])
 
-  return <MeterBars {...rest} reading={live.reading} live={live} />
+  return <MeterBars key={sources.current} {...rest} reading={live.reading} live={live} />
 }
 
 /** Peak / RMS / LUFS / true-peak bars for a meter source or an explicit reading. */

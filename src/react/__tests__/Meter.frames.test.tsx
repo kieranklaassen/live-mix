@@ -9,8 +9,9 @@ import { renderToString } from 'react-dom/server'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { silentReading, type MeterReading } from '../../core/analysis/loudness'
+import { Meter as AnalyserMeter } from '../../core/analysis/Meter'
 import { dbToGain } from '../../core/devices/native/units'
-import { type MockAudioWorkletNode } from '../../testing'
+import { asAudioContext, type MockAudioWorkletNode } from '../../testing'
 import { Meter, type MeterLook, type MeterOrientation, type MeterProps } from '../components/Meter'
 import { useMeter } from '../hooks/useMeter'
 import { createTestEngine, type TestEngine } from './harness'
@@ -448,6 +449,43 @@ describe('Meter on a source, drawn on frames', () => {
     rerender(<Meter source={fixture.engine.master} active />)
     expect(fixture.frames.size).toBe(1)
     expect(bar).toHaveAttribute('data-db', '-3.0')
+  })
+
+  it('given another source, keeps no lamp and no held mark of the last one', () => {
+    const fixture = createTestEngine()
+    const other = new AnalyserMeter(asAudioContext(fixture.ctx))
+    const props: MeterProps = { look: 'segments', holdMs: 1000 }
+    const { container, rerender } = render(<Meter {...props} source={fixture.engine.master} />, {
+      wrapper: fixture.wrapper,
+    })
+    fixture.ctx.analysers[0].level = 1
+    act(() => fixture.frames.flush(100))
+    expect(container.querySelector('.lm-meter__clip')).toHaveAttribute('data-on')
+    expect(container.querySelector('.lm-meter__hold')).not.toBeNull()
+
+    // The other source has been silent all along: nothing of it clipped, and it has no peak to hold.
+    rerender(<Meter {...props} source={other} />)
+    clock += 10
+    act(() => fixture.frames.flush(200))
+    expect(container.querySelector('.lm-meter__bar--peak')).toHaveAttribute('data-db', '-∞')
+    expect(container.querySelector('.lm-meter__clip')).not.toHaveAttribute('data-on')
+    expect(container.querySelector('.lm-meter__hold')).toBeNull()
+    expect(container.querySelector('.lm-meter__value--peak')).toHaveTextContent('-∞')
+  })
+
+  it('given another source while it is not active, reads that one once', () => {
+    const fixture = createTestEngine()
+    const other = new AnalyserMeter(asAudioContext(fixture.ctx))
+    fixture.ctx.analysers[0].level = dbToGain(-6)
+    fixture.ctx.analysers[fixture.ctx.analysers.length - 1].level = dbToGain(-20)
+    const { container, rerender } = render(
+      <Meter source={fixture.engine.master} active={false} />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(container.querySelector('.lm-meter__bar--peak')).toHaveAttribute('data-db', '-6.0')
+    rerender(<Meter source={other} active={false} />)
+    expect(fixture.frames.size).toBe(0)
+    expect(container.querySelector('.lm-meter__bar--peak')).toHaveAttribute('data-db', '-20.0')
   })
 
   it('puts a page of meters on one frame request and on the same frames', () => {
