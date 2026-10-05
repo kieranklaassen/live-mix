@@ -503,6 +503,25 @@ describe('Performer: follow rules', () => {
     expect(performer.state.scene).toBe('night')
   })
 
+  it('keeps following as a hand switched it when the rule of the scene in play is edited', () => {
+    const { performer } = rig(followSet())
+    performer.go('dawn')
+    performer.follow(false)
+    // The set still says follow; only the rule being waited on is another.
+    const edited = followSet()
+    edited.scenes[0].follow = { a: 'next', b: 'stay', chance: 1, after: { unit: 'bars', value: 1 } }
+    performer.load(edited)
+    expect(performer.state).toMatchObject({ following: false, followInBeats: null })
+    // Switched on by hand, the new rule is the one that is waited on.
+    performer.follow(true)
+    expect(performer.state.followInBeats).toBeCloseTo(4)
+    // When it is the set's own switch that moves, the performance goes with it.
+    performer.load({ ...edited, follow: false })
+    expect(performer.follows).toBe(false)
+    performer.load(edited)
+    expect(performer.follows).toBe(true)
+  })
+
   it('lets a hand win over a rule that is about to be drawn', () => {
     const set = followSet()
     set.scenes.push(scene('noon', { rides: { a: 0 } }))

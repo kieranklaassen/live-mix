@@ -251,7 +251,8 @@ export class Performer {
     const rule = (from: PerformSet): string =>
       JSON.stringify(from.scenes.find((candidate) => candidate.id === this.scene)?.follow ?? null)
     // The rule being waited on, or whether rules are followed at all: the wait starts again.
-    const rearm = set.follow !== this.current.follow || rule(set) !== rule(this.current)
+    const switched = set.follow !== this.current.follow
+    const rearm = switched || rule(set) !== rule(this.current)
     this.current = set
     if (this.scene && !this.findScene(this.scene)) this.scene = null
     if (this.queued && !this.findScene(this.queued.scene)) this.queued = null
@@ -260,7 +261,9 @@ export class Performer {
     for (const dial of set.dials) this.dialValues.set(dial.id, kept.get(dial.id) ?? dial.value)
     this.applyDials({ at: this.engine.now(), seconds: DEFAULT_DIAL_GLIDE_SECONDS })
     if (rearm) {
-      this.following = set.follow
+      // The set's switch takes the performance with it when it is the switch
+      // that moved. A new rule alone leaves following as `follow` last put it.
+      if (switched) this.following = set.follow
       this.armFollow(this.beatsNow())
     }
     this.events.emit({ type: 'set' })
