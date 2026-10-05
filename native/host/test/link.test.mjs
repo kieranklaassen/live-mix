@@ -215,6 +215,15 @@ test('alone, a beat asked for now falls now', async () => {
   near(beatAt(started, micros + 20_000), 8, 1e-5, 'the beat at that time')
 })
 
+test('a start that names no beat is refused and moves nothing', async () => {
+  const before = await control.call('link')
+  await assert.rejects(control.call('linkStart', {}), /linkStart needs a beat/)
+  // What a beat that is no number has become by the time a page has sent it.
+  await assert.rejects(control.call('linkStart', { beat: null }), /linkStart needs a beat/)
+  const after = await control.call('link')
+  near(after.beat, beatAt(before, after.micros), 1e-3, 'the beat where time has carried it')
+})
+
 test('finds the other peer', async (t) => {
   const joined = control.linkEvent((event) => event.peers === 1, 'the host to see the peer')
   peer.send('enable 1')
