@@ -226,7 +226,10 @@ every planned operation goes through the `Arbiter`
 controller holds defers the write — the call succeeds with
 `{ rail: 'arbitration', action: 'deferred' }` and `result.deferred`, and the
 operation lands later under the call's label — or, with `onHeld: { agent:
-'drop' }`, fails the call with `rejected` naming the holder. `score_replace`
+'drop' }`, fails the call with `rejected` naming the holder. A write that
+lands is added to its call's audit entry (`operations`, `inverses`), so
+`undo` reverts that call; an `undo` whose own write is dropped while it waits
+(stale, superseded) leaves the call it named to be undone again. `score_replace`
 (a restored version) needs the `structure` consent like the other whole-
 document edits.
 
