@@ -102,6 +102,8 @@ export function noteDrawn(state: DrawState, drawn: Drawn, kept: boolean): void {
 /** Whether a preset can take a slot: its job, its effect, its traits. */
 export function fits(slot: OwnSlot, candidate: Candidate): boolean {
   const { voice } = candidate
+  // A preset the lexicon skips is no voice, whatever a slot without a role would take.
+  if (voice.roles.length === 0) return false
   if (slot.role !== undefined && !voice.roles.includes(slot.role)) return false
   if (slot.devices && !slot.devices.includes(candidate.device)) return false
   if (slot.presets && !slot.presets.includes(key(candidate.device, candidate.preset))) return false
