@@ -263,6 +263,8 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   if (instrument && !instrument.device.device_note_on) {
     throw new Error(`live-mix: ${instrument.id} takes no notes`)
   }
+  // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
+  options.signal?.throwIfAborted()
 
   const events = instrument ? phraseEvents(options.phrase, sampleRate) : []
   // The input as long as the render: what it lacks is the silence its tail rings into.
