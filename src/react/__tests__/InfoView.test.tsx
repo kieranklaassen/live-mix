@@ -163,7 +163,7 @@ describe('the kit’s own controls', () => {
     expect(entry?.title).toBe('Rate')
     expect(infoParagraphs(entry?.text ?? '')).toEqual([
       'How fast the movement goes round.',
-      'Drag up or down, or scroll over it. Hold Shift for fine steps. Double-click returns it to 0.8 Hz.',
+      'Drag up or down, or scroll over it. Hold Shift for fine steps. Double-click returns it to 0.80 Hz.',
     ])
     // The label and the value belong to the knob too.
     expect(resolveInfo(screen.getByText('Rate'))?.title).toBe('Rate')

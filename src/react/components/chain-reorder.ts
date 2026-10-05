@@ -41,6 +41,14 @@ const SCROLL_STEP_PX = 14
  * on its face. Anything else in a panel is a control of its own.
  */
 const GRIP = '[data-lm-drag-handle], .lm-chain__handle, .lm-device__header, .lm-plate'
+/**
+ * What a finger takes a device by: the parts that keep a touch to themselves
+ * (`touch-action: none`). A plate's face leaves a touch to the browser, which
+ * scrolls the chain with it, so a finger on the face takes nothing: the few
+ * px a resting finger slides before the browser calls it a swipe would
+ * otherwise lift the plate, and near an end of the view carry it away.
+ */
+const TOUCH_GRIP = '[data-lm-drag-handle], .lm-chain__handle, .lm-device__header'
 /** Controls in a title bar or on a plate: a press on one is that control's. */
 const CONTROL =
   'button, select, input, textarea, a, label, .lm-knob, .lm-fader, [role="slider"], [role="switch"], [contenteditable="true"], [data-lm-handle]'
@@ -449,7 +457,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
       if (event.button !== 0 || carry.current) return
       const item = event.currentTarget
       const target = event.target as Element | null
-      const grip = target?.closest(GRIP)
+      const grip = target?.closest(event.pointerType === 'touch' ? TOUCH_GRIP : GRIP)
       if (!grip || !item.contains(grip) || target?.closest(CONTROL)) return
       const current: Carry = {
         pointerId: event.pointerId,
