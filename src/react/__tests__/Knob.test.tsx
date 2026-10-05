@@ -69,6 +69,29 @@ describe('Knob', () => {
     expect(control).toHaveAttribute('aria-valuenow', '1')
   })
 
+  it('with `wholeSteps`, a key moves a whole step with Shift held too', () => {
+    function Host() {
+      const [value, setValue] = useState(12)
+      return (
+        <Knob
+          label="Pitch"
+          value={value}
+          defaultValue={12}
+          min={-24}
+          max={24}
+          step={1}
+          wholeSteps
+          onChange={setValue}
+        />
+      )
+    }
+    render(<Host />)
+    for (const key of ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowUp']) {
+      fireEvent.keyDown(slider(), { key, shiftKey: true })
+    }
+    expect(slider()).toHaveAttribute('aria-valuenow', '14')
+  })
+
   it('without a step, keys move one percent of the travel under the taper', () => {
     const onChange = vi.fn()
     render(
@@ -267,6 +290,115 @@ describe('Knob', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('ends a move that is open when the knob leaves the page, once', () => {
+    const onChangeStart = vi.fn()
+    const onChangeEnd = vi.fn()
+    const knob = (
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.1}
+        onChangeStart={onChangeStart}
+        onChangeEnd={onChangeEnd}
+      />
+    )
+    // Taken off the page with the pointer still down: nothing more comes from the browser.
+    const dragged = render(knob)
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientY: 10 })
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientY: 0 })
+    expect(onChangeEnd).not.toHaveBeenCalled()
+    dragged.unmount()
+    expect(onChangeStart).toHaveBeenCalledTimes(1)
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    // And within the idle time of a key or a notch of the wheel, whose timer goes with the knob.
+    const keyed = render(knob)
+    fireEvent.keyDown(slider(), { key: 'ArrowUp' })
+    keyed.unmount()
+    expect(onChangeStart).toHaveBeenCalledTimes(2)
+    expect(onChangeEnd).toHaveBeenCalledTimes(2)
+    // A knob that leaves with no move open says nothing.
+    const still = render(knob)
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientY: 10 })
+    fireEvent.pointerUp(slider(), { pointerId: 1 })
+    expect(onChangeEnd).toHaveBeenCalledTimes(3)
+    still.unmount()
+    expect(onChangeEnd).toHaveBeenCalledTimes(3)
+  })
+
+  it('ends a move at once when the knob is switched off under the pointer, and once', () => {
+    const onChange = vi.fn()
+    const onChangeEnd = vi.fn()
+    const knob = (disabled: boolean) => (
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.1}
+        disabled={disabled}
+        onChange={onChange}
+        onChangeEnd={onChangeEnd}
+      />
+    )
+    const { rerender, container } = render(knob(false))
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientY: 100 })
+    expect(container.firstChild).toHaveClass('lm-knob--active')
+    // A browser may send a disabled control nothing more, so the move does not wait for it.
+    rerender(knob(true))
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    expect(container.firstChild).not.toHaveClass('lm-knob--active')
+    // What a browser does still send turns nothing and ends nothing a second time.
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientY: 50 })
+    fireEvent.pointerUp(slider(), { pointerId: 1 })
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    // Switched on again, the pointer that is still down does not have it in hand.
+    rerender(knob(false))
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientY: 0 })
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('ends a move when the pointer is taken from the knob, and once', () => {
+    const onChange = vi.fn()
+    const onChangeStart = vi.fn()
+    const onChangeEnd = vi.fn()
+    render(
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.1}
+        onChange={onChange}
+        onChangeStart={onChangeStart}
+        onChangeEnd={onChangeEnd}
+      />,
+    )
+    const control = slider()
+    // Something else captures the pointer: the knob is sent no more of it, not its going up either.
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientY: 100 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientY: 78 })
+    fireEvent.lostPointerCapture(control, { pointerId: 1 })
+    expect(onChangeEnd).toHaveBeenCalledTimes(1)
+    // What it was turned to stays, as when the pointer goes up.
+    expect(onChange).toHaveBeenLastCalledWith(0.7)
+    expect(control).toHaveAttribute('aria-valuenow', '0.7')
+    // A browser says the capture is lost after every pointer up as well: that is the same end.
+    fireEvent.pointerDown(control, { pointerId: 2, button: 0, clientY: 100 })
+    fireEvent.pointerUp(control, { pointerId: 2 })
+    fireEvent.lostPointerCapture(control, { pointerId: 2 })
+    expect(onChangeStart).toHaveBeenCalledTimes(2)
+    expect(onChangeEnd).toHaveBeenCalledTimes(2)
+    // And the capture another pointer lost is not this one's.
+    fireEvent.pointerDown(control, { pointerId: 3, button: 0, clientY: 100 })
+    fireEvent.lostPointerCapture(control, { pointerId: 2 })
+    expect(onChangeEnd).toHaveBeenCalledTimes(2)
+    fireEvent.pointerUp(control, { pointerId: 3 })
+    expect(onChangeEnd).toHaveBeenCalledTimes(3)
   })
 
   it('turns with the wheel and swallows the scroll', () => {

@@ -314,6 +314,8 @@ export function DevicePanel({
               min={spec.min}
               max={spec.max}
               step={choice ? 1 : paramStep(spec)}
+              // A list, or a value that only takes steps, is never set between two of them.
+              wholeSteps={choice || (spec.step !== undefined && spec.step > 0)}
               taper={paramTaper(spec)}
               unit={spec.unit || 'ratio'}
               bipolar={isBipolar(spec)}

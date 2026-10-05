@@ -257,7 +257,9 @@ interface Carry {
   x: number
   /** Null until the press has moved far enough to be a drag. */
   lifted: {
-    /** Every shown device as it stood when this one was taken, in the scroller's content. */
+    /** The devices shown when this one was taken, in order. */
+    items: HTMLElement[]
+    /** Every one of them as it stood then, in the scroller's content. */
     spans: ItemSpan[]
     scroller: HTMLElement | null
     /** How far the scroller went when the device was taken: the carry scrolls no further. */
@@ -328,7 +330,14 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
     }
     setCarried(null)
     setMarker(null)
-    if (land && lifted.to !== from) move.current(from, lifted.to)
+    if (!land || lifted.to === from) return
+    // Both places were read off the devices as they stood when this one was taken: a chain
+    // that something else changed since would have another device moved, so nothing is.
+    const stand = chain.current ? chainItems(chain.current) : []
+    const same =
+      stand.length === lifted.items.length &&
+      stand.every((other, index) => other === lifted.items[index])
+    if (same) move.current(from, lifted.to)
   }, [])
 
   // A chain taken off the page mid-carry lets go of the window.
@@ -379,6 +388,7 @@ export function useChainReorder(onMove: (from: number, to: number) => void): Cha
       const chainLeft =
         element.getBoundingClientRect().left + element.clientLeft + scroll - element.scrollLeft
       current.lifted = {
+        items,
         spans: items.map((item) => {
           const bounds = item.getBoundingClientRect()
           return { left: bounds.left + scroll, right: bounds.right + scroll }

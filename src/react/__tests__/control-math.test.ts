@@ -43,6 +43,20 @@ describe('clamp / quantize / stepBy', () => {
     expect(quantize(5, 0, 0, 1)).toBe(1)
   })
 
+  it('keeps a step that is no power of ten on its own grid', () => {
+    // A quarter was rounded to one decimal, and 0.25 came out 0.3.
+    const quarters = [0, 0.25, 0.5, 0.75, 1]
+    expect(quarters.map((value) => quantize(value, 0.25, 0, 1))).toEqual(quarters)
+    expect(quantize(0.3, 0.25, 0, 1)).toBe(0.25)
+    expect(quantize(0.07, 0.025, 0, 1)).toBe(0.075)
+    expect(quantize(7.4, 2.5, 0, 10)).toBe(7.5)
+    expect(quantize(-0.4, 0.125, -1, 1)).toBe(-0.375)
+    // What a step of a power of ten, or a whole one, comes to is as it was.
+    expect(quantize(0.1 + 0.2, 0.1, 0, 1)).toBe(0.3)
+    expect(quantize(0.5 + 0.01 * 0.1, 0.01 * 0.1, 0, 1)).toBe(0.501)
+    expect(quantize(20, 3, -24, 24)).toBe(21)
+  })
+
   it('steps with fine mode', () => {
     expect(stepBy(0.5, 1, 0.01, 0, 1)).toBe(0.51)
     expect(stepBy(0.5, 1, 0.01, 0, 1, true)).toBe(0.501)

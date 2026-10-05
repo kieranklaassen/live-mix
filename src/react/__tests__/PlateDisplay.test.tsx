@@ -311,6 +311,35 @@ describe('when a display is drawn', () => {
     expect(slow.mock.calls.length - slowBefore).toBe(6)
   })
 
+  it('goes on drawing the other displays when one of them throws', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    let broken = false
+    const bad = vi.fn(() => {
+      if (broken) throw new Error('a display that cannot draw')
+    })
+    const good = vi.fn()
+    render(
+      <>
+        <DevicePlate device={device} skin={{ ...BASE, display: live(bad, {}) }} />
+        <DevicePlate device={device} skin={{ ...BASE, display: live(good, {}) }} />
+      </>,
+      { wrapper: fixture.wrapper },
+    )
+    act(() => fixture.frames.flush(5000))
+    broken = true
+    const [badBefore, goodBefore] = [bad.mock.calls.length, good.mock.calls.length]
+    // What it threw is still to be seen, and the frame after it is asked for.
+    expect(() => fixture.frames.flush(5100)).toThrow('a display that cannot draw')
+    expect(fixture.frames.size).toBe(1)
+    expect(good.mock.calls.length - goodBefore).toBe(1)
+    act(() => fixture.frames.flush(5200))
+    act(() => fixture.frames.flush(5300))
+    expect(good.mock.calls.length - goodBefore).toBe(3)
+    // The one that threw is asked no more.
+    expect(bad.mock.calls.length - badBefore).toBe(1)
+  })
+
   it('only while it can be seen', async () => {
     let seen: ((entries: { isIntersecting: boolean }[]) => void) | null = null
     vi.stubGlobal(
@@ -869,6 +898,48 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('ends the drag of a handle still in hand when the display leaves the page, once', async () => {
+    const { display } = twoPoints()
+    const { surface, onDragStart, onDragEnd } = await mount(display)
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    expect(onDragStart.mock.calls).toEqual([[['b']]])
+    expect(onDragEnd).not.toHaveBeenCalled()
+    // Off the page with the pointer down: the browser sends the display nothing more.
+    cleanup()
+    expect(onDragEnd.mock.calls).toEqual([[['b']]])
+    // A display that leaves with nothing in hand says nothing.
+    const again = await mount(twoPoints().display)
+    fireEvent.pointerDown(again.surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerUp(again.surface, { pointerId: 1, clientX: 40, clientY: 30 })
+    expect(again.onDragEnd).toHaveBeenCalledTimes(1)
+    cleanup()
+    expect(again.onDragEnd).toHaveBeenCalledTimes(1)
+  })
+
+  it('ends the drag of a handle when its pointer is taken from the display, once', async () => {
+    const { display, at } = twoPoints()
+    const { surface, onDragStart, onDrag, onDragEnd } = await mount(display)
+    // A plate moved along its chain is taken out of the page and put in again: the capture is lost.
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    fireEvent.lostPointerCapture(surface, { pointerId: 1 })
+    expect(onDragEnd.mock.calls).toEqual([[['b']]])
+    // The pointer still over the display moves nothing it no longer holds, and its going up ends nothing twice.
+    const moved = onDrag.mock.calls.length
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 90, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 1, clientX: 90, clientY: 30 })
+    expect(onDrag).toHaveBeenCalledTimes(moved)
+    expect(at.b).toBe(60)
+    expect(onDragEnd).toHaveBeenCalledTimes(1)
+    // A browser says the capture is lost after every pointer up as well: that is the same end.
+    fireEvent.pointerDown(surface, { pointerId: 2, button: 0, clientX: 60, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 2, clientX: 60, clientY: 30 })
+    fireEvent.lostPointerCapture(surface, { pointerId: 2 })
+    expect(onDragStart).toHaveBeenCalledTimes(2)
+    expect(onDragEnd).toHaveBeenCalledTimes(2)
   })
 
   it('lays the handle moved last on top of one it comes to stand on, so each can be taken again', async () => {

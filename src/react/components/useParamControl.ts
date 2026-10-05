@@ -39,6 +39,11 @@ export interface ParamControlOptions {
   max: number
   /** Quantisation step; 0 clamps only (keys then move 1 % of the travel). */
   step?: number
+  /**
+   * The value only takes whole steps (a list, a count, semitones): a key
+   * moves it a step with Shift held too, where it would move a tenth of one.
+   */
+  wholeSteps?: boolean
   taper?: ControlTaper
   skew?: number
   disabled?: boolean
@@ -62,6 +67,7 @@ export interface ParamControlHandlers {
   onPointerMove: (event: PointerEvent<HTMLElement>) => void
   onPointerUp: (event: PointerEvent<HTMLElement>) => void
   onPointerCancel: (event: PointerEvent<HTMLElement>) => void
+  onLostPointerCapture: (event: PointerEvent<HTMLElement>) => void
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
   onBlur: () => void
@@ -163,12 +169,31 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     }, latest.current.gestureIdleMs ?? gestureIdleMs)
   }, [beginGesture, endGesture, gestureIdleMs])
 
-  useEffect(
-    () => () => {
-      if (idleTimerRef.current !== null) clearTimeout(idleTimerRef.current)
-    },
-    [],
-  )
+  /** Ends the move that is open without the pointer's say: the pointer that held it holds it no more. */
+  const dropGesture = useCallback(() => {
+    const pointerId = pointerIdRef.current
+    draggingRef.current = false
+    pointerIdRef.current = null
+    setDragging(false)
+    const element = elementRef.current
+    if (pointerId !== null && element?.hasPointerCapture?.(pointerId)) {
+      element.releasePointerCapture(pointerId)
+    }
+    endGesture()
+  }, [endGesture])
+
+  // A control that leaves the page in the middle of a move hears nothing more
+  // from the browser, and the idle timer of its keys goes with it: the move
+  // ends here, so whoever was told it began is told it is over.
+  useEffect(() => dropGesture, [dropGesture])
+
+  // Switched off in the middle of a move (a bypassed device): the move ends at
+  // once. A browser may send a disabled control none of the pointer's later
+  // events, so its going up cannot be waited for.
+  const disabled = options.disabled === true
+  useEffect(() => {
+    if (disabled) dropGesture()
+  }, [disabled, dropGesture])
 
   // A quantised value repeats across pointer frames; a redundant `onChange`
   // would re-render the host and re-send the param to the audio thread.
@@ -246,6 +271,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   )
 
   /**
+   * The pointer was taken from the control (something else captured it): none
+   * of its later events come here, so the move ends as if it had gone up. A
+   * browser says this after every pointer up too, when the move is already over.
+   */
+  const onLostPointerCapture = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      if (pointerIdRef.current === event.pointerId) dropGesture()
+    },
+    [dropGesture],
+  )
+
+  /**
    * The browser took the press for itself: a finger that began on the control
    * turned out to be scrolling what the control stands in. Nothing was meant
    * for the control, so what the first pixels turned it by is put back.
@@ -317,8 +354,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: KeyboardEvent<HTMLElement>) => {
       const o = latest.current
       if (o.disabled) return
-      const fine = event.shiftKey
       const stepSize = o.step ?? 0
+      const fine = event.shiftKey && !(o.wholeSteps && stepSize > 0)
       const current = shownRef.current
       // Without a step, keys move 1 % of the travel (0.1 % fine, 10 % page).
       const byNorm = (fraction: number): void =>
@@ -424,6 +461,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       onPointerMove,
       onPointerUp: endPointer,
       onPointerCancel: cancelPointer,
+      onLostPointerCapture,
       onDoubleClick,
       onKeyDown,
       onBlur,

@@ -13,7 +13,7 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState, type CSSProperties } from 'react'
 
 import { gainToDb } from '../../core/devices/native/units'
-import { frameIntervalMs, subscribeFrameSampled } from '../frame'
+import { frameIntervalMs, subscribeFrames } from '../frame'
 import { useEnginePart, useFrameScheduler } from '../hooks/useEngine'
 import { readMeter, type MeterSnapshot, type MeterSource } from '../hooks/useMeter'
 import { shallowEqual } from '../store'
@@ -329,6 +329,12 @@ interface LiveMeter {
   reading: MeterSnapshot
   /** Draws a reading without a render; null until the meter is in the document. */
   draw: ((reading: MeterSnapshot) => void) | null
+  /**
+   * When the mark held over the reading has stood its time, on the clock of
+   * `nowMs`; Infinity while nothing is held over it. A reading that stands
+   * still is drawn again then, or the mark would stay up until the next change.
+   */
+  lapses: number
 }
 
 type MeterBarsProps = MeterProps & { reading: MeterSnapshot; live?: LiveMeter }
@@ -390,6 +396,7 @@ function MeterBars({
   const draw = (next: MeterSnapshot): MeterView => {
     if (holdMs > 0) hold.current = heldPeak(hold.current, next.peakDb, nowMs(), holdMs)
     const holdDb = holdMs > 0 ? hold.current.db : Number.NEGATIVE_INFINITY
+    if (live) live.lapses = holdDb > next.peakDb ? hold.current.at + holdMs : Infinity
     const clipping = next.peakDb >= 0 || next.truePeakDb > 0
     if (clipping) clipped.current = true
     return meterView(next, scale, holdDb, clipping, clipped.current)
@@ -519,7 +526,11 @@ function MeterBars({
 function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
   const target = useEnginePart(source, (engine) => engine.master, 'useMeter')
   const frame = useFrameScheduler()
-  const [live] = useState<LiveMeter>(() => ({ reading: readMeter(target), draw: null }))
+  const [live] = useState<LiveMeter>(() => ({
+    reading: readMeter(target),
+    draw: null,
+    lapses: Infinity,
+  }))
   const latest = useRef(target)
   latest.current = target
   const intervalMs = frameIntervalMs(fps)
@@ -527,16 +538,15 @@ function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
   useEffect(() => {
     const sample = (): MeterSnapshot => readMeter(latest.current)
     const show = (next: MeterSnapshot): void => {
-      if (shallowEqual(live.reading, next)) return
-      live.reading = next
-      live.draw?.(next)
+      if (!shallowEqual(live.reading, next)) live.reading = next
+      // A sample like the last is drawn only to bring down a mark that has stood its time.
+      else if (!(nowMs() > live.lapses)) return
+      live.draw?.(live.reading)
     }
     // While inactive the source is read once, so the meter shows where it stands.
-    if (!active) {
-      show(sample())
-      return
-    }
-    return subscribeFrameSampled(frame, intervalMs, sample, show)
+    show(sample())
+    if (!active) return
+    return subscribeFrames(frame, intervalMs, () => show(sample()))
   }, [active, intervalMs, frame, live])
 
   return <MeterBars {...rest} reading={live.reading} live={live} />
