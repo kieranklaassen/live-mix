@@ -127,11 +127,13 @@ export interface BrowserMidiAccessLike {
  * are wrapped once each (stable identity across `inputs.values()`), with
  * `onmidimessage` forwarded to the real port, and `statechange` is followed
  * as an event listener so the app keeps `onstatechange` for its own picker.
+ * Once per object, not per id: a re-plugged port that comes back as a new
+ * object gets a wrapper of its own, and is listened to in place of the old.
  */
 export function fromMidiAccess(access: BrowserMidiAccessLike | MIDIAccess): MidiAccessLike {
-  const ports = new Map<string, MidiPortLike>()
+  const ports = new WeakMap<BrowserMidiInputLike, MidiPortLike>()
   const wrap = (port: BrowserMidiInputLike): MidiPortLike => {
-    const existing = ports.get(port.id)
+    const existing = ports.get(port)
     if (existing) return existing
     const wrapped: MidiPortLike = {
       get id() {
@@ -153,7 +155,7 @@ export function fromMidiAccess(access: BrowserMidiAccessLike | MIDIAccess): Midi
         port.onmidimessage = handler
       },
     }
-    ports.set(port.id, wrapped)
+    ports.set(port, wrapped)
     return wrapped
   }
   const source = access as BrowserMidiAccessLike

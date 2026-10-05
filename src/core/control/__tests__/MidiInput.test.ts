@@ -296,4 +296,54 @@ describe('MidiInput and the access object (ambient-live #28)', () => {
     expect(stateListeners.size).toBe(0)
     expect(browserPort.onmidimessage).toBeNull()
   })
+
+  it('fromMidiAccess takes up a re-plugged port that the browser hands out as a new object', async () => {
+    const stateListeners = new Set<(event: unknown) => void>()
+    const keys = () => ({
+      id: 'in-1',
+      name: 'Keys',
+      manufacturer: 'Acme',
+      state: 'connected',
+      onmidimessage: null as ((event: MidiMessageEventLike) => void) | null,
+    })
+    const first = keys()
+    const browserAccess = {
+      inputs: new Map([[first.id, first]]),
+      addEventListener: (_type: 'statechange', listener: (event: unknown) => void) =>
+        void stateListeners.add(listener),
+      removeEventListener: (_type: 'statechange', listener: (event: unknown) => void) =>
+        void stateListeners.delete(listener),
+    }
+    const changed = (port: unknown): void => {
+      for (const listener of stateListeners) listener({ port })
+    }
+    const input = new MidiInput({
+      requestAccess: () => Promise.resolve(fromMidiAccess(browserAccess)),
+    })
+    const events: ControlEvent[] = []
+    input.subscribe((event) => events.push(event))
+    await input.open()
+    expect(first.onmidimessage).not.toBeNull()
+
+    // Pulled: the object the browser gave stays as it is, disconnected.
+    first.state = 'disconnected'
+    changed(first)
+    expect(input.ports).toEqual([])
+    // Plugged in again: the same id on a fresh object.
+    const second = keys()
+    browserAccess.inputs.set(second.id, second)
+    changed(second)
+    expect(input.ports.map((info) => info.id)).toEqual(['in-1'])
+    expect(second.onmidimessage).not.toBeNull()
+    second.onmidimessage?.({ data: Uint8Array.from([0xb0, 74, 100]), timeStamp: 5 })
+    expect(events).toHaveLength(1)
+
+    // And once more with no word of the pull in between.
+    const third = keys()
+    browserAccess.inputs.set(third.id, third)
+    changed(third)
+    expect(second.onmidimessage).toBeNull()
+    third.onmidimessage?.({ data: Uint8Array.from([0xb0, 74, 101]), timeStamp: 6 })
+    expect(events).toHaveLength(2)
+  })
 })
