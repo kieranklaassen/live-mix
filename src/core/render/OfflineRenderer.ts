@@ -143,8 +143,17 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
   } catch (error) {
     // Only a result carries the engine out to be disposed: a render that fails
     // lets go of its own, with every device the build had made by then.
-    engine.dispose()
+    disposeQuietly(engine)
     throw error
+  }
+}
+
+/** Dispose an engine whose render failed: what the caller hears of is that failure. */
+function disposeQuietly(engine: Engine): void {
+  try {
+    engine.dispose()
+  } catch {
+    // A companion that broke while it was taken down; the engine is down all the same.
   }
 }
 
@@ -231,7 +240,7 @@ export async function renderStems(options: StemsOptions): Promise<Record<string,
     }
   } catch (error) {
     // The stems rendered so far are handed to nobody: let their engines go.
-    for (const stem of Object.keys(results)) results[stem].engine.dispose()
+    for (const stem of Object.keys(results)) disposeQuietly(results[stem].engine)
     throw error
   }
   return results

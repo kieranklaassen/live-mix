@@ -311,6 +311,20 @@ describe('a render that fails', () => {
     expect(seen.disposed()).toBe(1)
   })
 
+  it('reports the failure of the render, not that of a companion that broke while it was taken down', async () => {
+    const seen = watched(async (engine) => {
+      engine.onDispose(() => {
+        throw new Error('a companion broke')
+      })
+      await arrangement(engine)
+      throw new Error('the build broke')
+    })
+    await expect(
+      renderOffline({ durationSec: 1, createContext: factory, build: seen.build }),
+    ).rejects.toThrow(/the build broke/)
+    expect(seen.disposed()).toBe(1)
+  })
+
   it('disposes it when the context cannot render', async () => {
     const seen = watched(arrangement)
     const failing: OfflineContextFactory = (size) => {
