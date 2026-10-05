@@ -163,6 +163,12 @@ describe('resolveReplacementTracks', () => {
     expect(picks).toHaveLength(1)
   })
 
+  it('delivers one track when the time left is no number', () => {
+    // What is left of a track whose length has not loaded yet: `duration - currentTime` is NaN.
+    const library = [track(1, 2, '8A'), track(2, 2, '8A')]
+    expect(resolve({ library, remainingSeconds: Number.NaN }).map((t) => t.id)).toEqual([1])
+  })
+
   it('returns nothing when the library is exhausted', () => {
     expect(resolve({ library: [], remainingSeconds: 100 })).toEqual([])
   })
