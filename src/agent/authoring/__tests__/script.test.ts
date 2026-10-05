@@ -112,6 +112,23 @@ describe('validateSessionScript (beyond the schema)', () => {
     const overlap = withSection(shortScript(), 2, (sec) => (must(sec.holds)[1].atSec = 30))
     expect(validateSessionScript(overlap).some((i) => i.message === 'holds overlap')).toBe(true)
   })
+
+  it('names a hold by its place in the script, whatever order the holds came in', () => {
+    const late = withSection(shortScript(), 2, (sec) => {
+      must(sec.holds).reverse()
+      must(sec.holds)[0].atSec = 70
+    })
+    expect(validateSessionScript(late)).toEqual([
+      { path: 'sections[2].holds[0]', message: 'the hold runs past the end of the part' },
+    ])
+    const overlap = withSection(shortScript(), 2, (sec) => {
+      must(sec.holds).reverse()
+      must(sec.holds)[0].atSec = 30
+    })
+    expect(validateSessionScript(overlap)).toEqual([
+      { path: 'sections[2].holds[0].atSec', message: 'holds overlap' },
+    ])
+  })
 })
 
 describe('checkScriptCanon', () => {
