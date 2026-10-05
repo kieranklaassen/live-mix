@@ -144,7 +144,7 @@ import {
 |             | Count | Groups                                                                                                                                        |
 | ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
-| **Chains**  | 216   | Space (30), echo (28), tape (39), motion (26), texture (34), pitch (35), master (24); every WASM effect is in at least one                    |
+| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
 | **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
 
 The bank is data: importing it loads no module and touches no audio. A host
@@ -404,7 +404,7 @@ instruments, three pairs of organ presets measure under 1 dB apart on the
 organ phrase (Clarinet stop organ and Flugelhorn organ, Hollow glass organ
 and Tape flute pipes, Saw rotary organ and Rotor brass organ): the
 rule is for presets of one instrument, and these are different instruments
-under the hands. And seventeen of the twenty-four master chains sit within
+under the hands. And eighteen of the twenty-five master chains sit within
 0.3 dB of another on the dry phrase, because a master chain is meant to do
 little to a phrase that peaks at −10 dBFS: they part when they are driven.
 
@@ -558,7 +558,7 @@ on, so whatever instrument is loaded, every pack has something for it.
 
 ```ts
 import {
-  FACTORY_PACKS, // FactoryPack[]: id, name, description, count, sounds
+  FACTORY_PACKS, // FactoryPack[]: id, name, description, count, sounds, chains
   FACTORY_PACK_SIZE, // 100
   factoryPack,
   loadFactoryPacks, // () => Promise<readonly FactoryPreset[]>
@@ -769,6 +769,171 @@ module that imports the registry or the renderer.
 
 `pnpm pack:check` holds the build to it: every path a built script resolves
 against itself must land on a file of the tarball.
+
+## Pack chains
+
+A pack holds a hundred effect chains as well: two to four effects in a row,
+in the pack's idea of sound, for any channel. A pack chain is a
+`FactoryChain` like the bank's, with the `pack` it belongs to, so
+`renderChainPreview`, `patchEffectOps` and `loadPatch` take it as they take a
+chain of the bank.
+
+```ts
+import {
+  FACTORY_PACKS, // each pack says how many chains it holds: `chains`, 100
+  loadFactoryPackChains, // () => Promise<readonly FactoryChain[]>
+} from '@kieranklaassen/live-mix/dsp'
+
+const chains = await loadFactoryPackChains()
+const mine = chains.filter((chain) => chain.pack === FACTORY_PACKS[0].id)
+```
+
+Like the packs' presets and sounds they are a module of their own
+(`src/dsp/factory/chain-packs/all.ts`) behind a dynamic `import()`, fetched
+once by `loadFactoryPackChains()`. A pack chain's id starts with its pack's, it is listed under one
+of the bank's seven groups, and every effect in it is on one of that effect's
+own presets, with at most a time or a rate moved a little and an output
+trimmed.
+
+### How a pack's chains are made
+
+Nobody writes two and a half thousand chains by hand, and nobody has heard
+these. They are drawn, by a bench that is in the repository
+(`src/dsp/factory/chain-packs/bench/`) and is no part of the library:
+
+- **The lexicon** (`bench/lexicon/<device id>.ts`) says of every preset of
+  every effect what it is in a few true words, what a chain led by it can be
+  called, which place in a chain it can take (a room, a hall, an echo, a
+  loop, wear, hiss, drive, motion and so on) and how it sounds (dark, long,
+  worn, wide, faint, heavy, and `whole` for the few presets fit to stand on a
+  finished mix). It was written by hand from each device's own description,
+  its preset values and a table of every preset measured alone
+  (`bench/probe.test.ts`). `bench/lexicon.test.ts` holds it to the devices:
+  a preset added to an effect needs its words before the tests pass. An
+  effect added since the chains were drawn has no file until someone writes
+  it, and no pack chain uses it: the Tamer is the first
+  (`LEXICON_COMPLETE=1` lists what is missing).
+- **The recipes** (`bench/recipes.ts`) say what follows what: a loop, then
+  wear, into a hall. They are the same for every pack. A tone in a track's
+  chain has to be one that is heard, and a master chain is an equaliser, a
+  compressor, a widener or a trace of tape before a limiter, each of them
+  `whole`: nothing that takes the low end or the top, pumps, folds to mono or
+  is heard as an effect, and no reverb.
+- **A palette** (`bench/palettes/<pack id>.ts`) is where a pack becomes
+  itself: how its hundred are spread over the groups, the traits and effects
+  it leans to or never touches, the few recipes only it has, and the words
+  its chains are named with.
+- **The builder** (`bench/build.test.ts`) draws a recipe, fills each place
+  with one preset by the palette's weights (a preset or a recipe the palette
+  weighs under a quarter comes in only when nothing else can do the job),
+  moves times and rates by up to an eighth, and then measures: the chain on
+  three dry sounds (a sparse electric piano, a held chord, struck bells), and
+  on the piano at full level for half a minute. In a shared recipe it does
+  not put the same job in twice (two long tails, two wobbles, two reversals,
+  two far-off rooms, a hiss under a preset that already hisses, the top taken
+  off twice), nor a hint where it cannot be heard (beside a preset that takes
+  the dry sound away, before a space that covers it, in a job another preset
+  of the chain does in full), nor an effect that undoes an earlier one (a
+  width folded to the middle again, a brightness taken off again, a dullness
+  lifted again, repeats or a pulse under a long tail with no dry sound), and
+  it does not name a chain for a preset that is only a hint; a pack's own
+  recipes are held to their slots alone. It trims the chain to the level a
+  pack plays at with the chain's own output, and keeps it only if it is
+  inside the limits below and at least 1 dB by the bench's print from every
+  chain kept before it, in the bank and in every pack. A master chain is a
+  few tenths from the dry sound by design, and so from every other: it is
+  told only from the master chains of its own pack, by 0.3 dB. A chain's name
+  is one of its pack's words and what its leading effect is ("Harbour plate",
+  "Loop under snow"); a master chain is named for what it gives a mix
+  ("Stopover finish", "Tiptoe mixdown"), each with a pack word of its own. A
+  name and its plural are one name ("Seasick echo", "Seasick echoes"), so are
+  a name and its words turned round ("Treeline pad", "Pad at treeline"), and a
+  noun that reads as something else with a capital never stands first
+  ("Polish in the park", "Record past the gate"). Its sentence is each effect
+  as the lexicon says it, in order.
+
+| The bench refuses | When                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| `SILENT`, `NAN`   | Nothing comes out on one of the three sounds, or a sample is not a number                               |
+| `PEAK`            | Over −5 dBFS on the piano (which peaks at −10.6 dry), −3 on the chord or the bells                      |
+| `LOUD`, `QUIET`   | More than 3.5 LU from the dry piano, 7 from the chord or the bells                                      |
+| `DC`              | A mean of 0.01 or more                                                                                  |
+| `SAME`            | Within 1 dB of all three dry sounds (0.3 for a master chain)                                            |
+| `TWIN`            | Within 1 dB, on the three sounds together, of a chain already kept (a master chain: 0.3, its own pack)  |
+| `GROWS`           | Half a minute on, the piano at −1 dBFS, the last five seconds are over 1 dB above seconds 12 to 17      |
+| `HOT`             | The same run peaks over +3 dBFS                                                                         |
+| `NOISE`           | The same run still puts out over −30 dBFS nineteen seconds after the playing stopped, and holds nothing |
+
+```bash
+# Once, and again when an effect's presets change: every preset alone (about 25 minutes; CHAIN_BENCH_SHARD=0/4 splits it)
+CHAIN_BENCH=probe pnpm vitest run src/dsp/factory/chain-packs/bench/probe.test.ts
+# Once: the bank's own chains as the bench hears them
+CHAIN_BENCH=bank pnpm vitest run src/dsp/factory/chain-packs/bench/build.test.ts
+# A palette's words, nothing measured (five seconds): tmp/chain-bench/sample-<pack id>.txt
+CHAIN_BENCH=build CHAIN_BENCH_PACK=<pack id> CHAIN_BENCH_DRY=1 pnpm vitest run src/dsp/factory/chain-packs/bench/build.test.ts
+# The pack, measured (about five minutes): tmp/chain-bench/<pack id>.txt and chain-packs/<pack id>.ts
+CHAIN_BENCH=build CHAIN_BENCH_PACK=<pack id> pnpm vitest run src/dsp/factory/chain-packs/bench/build.test.ts
+# After packs were drawn side by side, or after the lexicon, a recipe or a palette was mended: see below
+CHAIN_BENCH=settle pnpm vitest run src/dsp/factory/chain-packs/bench/build.test.ts
+```
+
+Packs drawn at the same time have not seen each other, and a chain is only
+as true as the lexicon was on the day it was drawn. `settle` goes through the
+packs in their order and takes out of each what an earlier pack already has
+(a name, an id, the same effects on the same presets, a sound within the twin
+limit), what no longer fits its recipe's slots or the builder's rules as the
+lexicon and the recipes are now, what has a name its palette's words and its
+leading preset's nouns no longer give, and what a reader struck
+(`tmp/chain-bench/struck.json`, `{ "<pack id>": ["<chain name>"] }`: a reader
+with the pack's report in front of them is the only check there is on a name
+that says something its chain is not). It says every remaining chain's
+sentence again in the lexicon's present words. Building each pack once more
+afterwards fills what was taken out and writes its module anew.
+
+That is how the packs were made. Every pack was drawn and then read, a reader
+to a pack, against the rule on names and for what a measurement cannot see: a
+name that reads as a household object ("Rose-petal pan", for a pan from side
+to side), a choir where nothing sings, a master chain whose equaliser thins
+the bass of a whole mix, two effects that cancel. The first reading struck
+about one chain in seven. What it found was mended where it came from, in the
+lexicon's nouns, clauses and tags, the recipes and the palettes' words, not
+chain by chain; `settle` then held every chain to the mends, about half were
+drawn again, and the new ones were read in their turn. The second reading
+struck about one new chain in fourteen, most for a name ("Plate on the
+stairs", "Finish a flight up") and a few for a pattern no rule yet refused (a
+faint room before a hall, the top dulled twice); those were mended the same
+way, an eighth of the chains were drawn once more, and those were read a
+third time. The third reading struck about one new chain in twenty-five, a
+third of them a name that was another's words turned round, which the bench
+now refuses. The thirty or so chains drawn after it were read by whoever ran
+the bench, not by a reader to a pack.
+
+The bench keeps what it has drawn under `tmp/chain-bench/` and draws only what
+a pack still lacks, so a pack that is short after a change is topped up, not
+drawn again; `CHAIN_BENCH_FRESH=1` starts it over. A pack that has shipped is
+not drawn again at all: see "Kept" below.
+
+### What a pack chain is held to
+
+`src/dsp/factory/chain-packs/__tests__/<pack id>.chains.test.ts` reads every
+chain of its pack and renders every tenth on the bank's dry phrase;
+`FACTORY_CHAIN_PACKS=all pnpm vitest run src/dsp/factory/chain-packs` renders
+them all, which is how a pack is checked before it ships.
+`chain-packs.test.ts` reads across the packs.
+
+| Entry  | Rule                                                                                                                                                     |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Pack   | A hundred chains or none, at least five in each of the seven groups                                                                                      |
+| Chain  | Two to four effects, each on a preset, no effect twice; a valid patch of WASM devices; an id under its pack's                                            |
+| Words  | A name of 3 to 20 characters that does not end in a digit, a one-sentence description of at most 140 characters                                          |
+| Render | The bank's rules for a chain: peak at or below −5 dBFS on the dry phrase, within 4 LU of it, no DC offset, and a sound that is not the dry phrase        |
+| Across | No id shared with anything in the bank or the packs; no name twice among all chains; no two chains on the same effects and presets, or set exactly alike |
+| Kept   | A chain that has shipped keeps its id, its name and every value (`__tests__/shipped/<pack id>.json`, added to with `UPDATE_SHIPPED_CHAINS=1`)            |
+
+The naming rule of the packs holds here too: a palette's words hint by place,
+material, weather and hour, and where a noun of the lexicon would in one pack
+name a work of the musician it takes after, that pack's palette lists it under
+`avoid`.
 
 ## What the bench found in the devices
 
@@ -983,6 +1148,63 @@ As reported:
     taps, Yarn marimba and Storm over the hills; the chains Frozen room,
     Spectral smear, Harmony in thirds and Chord organ pass full scale fed at
     −1 dBFS; Latched pedal tone grows because it loads held.
+- Found while every preset of every effect was measured alone for the packs'
+  chains (`chain-packs/bench/probe.test.ts`: 826 presets on a sparse piano, a
+  held chord and bells), and worked round in the lexicon, which says of a
+  preset what it measures as and not what it is called. Not fixed:
+  - Presets that are not what their names say: `hall-reverb` "Dark hall"
+    measures brighter than "Bright hall", and `fdn-reverb` "Bright air" is
+    not bright; `shimmer` "Endless ascent", `spectral-blur` "Endless",
+    `low-bitrate` "Frozen stream" and `grain-delay` "Frozen haze" die away;
+    `sustainer` "Frozen moment" catches nothing and `micro-looper` "Soft
+    bed" has lost its loop in ten seconds; `ether-reverb` "Frozen" and "Soft
+    freeze" pass the first sound and mute everything after it; `swell` "Slow
+    attack" takes 160 ms; `chorus` "Vibrato" is a warble with the dry sound
+    in it; `analog-delay` "Noisy clock" adds no noise; on `vinyl` "Slow
+    platter" the spin time does nothing.
+  - Presets that barely act at the level instruments leave at:
+    `spectral-drifter` (every preset 0.1 to 1.5 dB off the dry sound),
+    `vintage-digital` (nine of sixteen under 1 dB), `saturator` (and its
+    "Init" comes out 5.8 LU hot), `auto-filter` "Low-pass gate" (no envelope
+    amount).
+  - Level: eleven of `lattice`'s sixteen presets come out more than 3.5 LU
+    quiet; `octaves` has no level control and runs 2 LU hot;
+    `stereo-widener` "Ultra wide" is 9 LU hot on a held chord and
+    `bloom-reverb` "Wide summer" 6 LU.
+  - Stereo: with the Random shape an LFO's Stereo does nothing under 180°,
+    so those `flanger` and `phaser` presets stay mono; `rotary`'s brake
+    presets are near mono.
+  - `echo-memory` "Far back" and "Minute ago" read as growing on the bench's
+    half-minute run, which is shorter than their reach: probably a false
+    alarm, and they are kept out of the packs' chains all the same.
+  - The noise devices (`noise-floor`, `vinyl`, `tape`, `radio`) put out
+    nothing until they have been played into and go on after the playing
+    stops, so a render of silence says nothing about them: the bench reads a
+    chain's noise from the end of a half-minute run in which the playing
+    stopped at six seconds.
+  - Found when the lexicon was gone through again after the packs' chains had
+    been read: `swell` "Backwards" plays nothing backwards (a late swell) and
+    "Loud notes only" is a gate; `shaped-reverb`'s Reverse shape is a rising
+    level, not a reversal, and its Pulse shape makes three waves in a Time;
+    `sustainer` "Wavering choir" has no vowels in it; `tremolo` "Drifting
+    comb" and "Slow chorus" are a comb sweep and a chorus; `micro-looper`
+    "Sampler grit" is muffled and has no grit; `rotary` sums what it is given
+    to mono; `tape`'s and `patina`'s hiss sounds only while something passes;
+    `fet-limiter` "Squash", "Tucked under" and "Flattened" measure alike;
+    `analog-drive` "Warm glue" tilts by about 4 dB at either end;
+    `sympathetic` "Minor wash" is 8.5 LU hot on bells and `patina` "Hot
+    valve" 6 LU over the dry sound; `stereo-detune` "Thickener" and "Top
+    only", `vowel-reverb` "Lone voice" and `spring-reverb` "Dark amp spring"
+    are under 1 dB off it.
+  - Two preset names a reader took for names of things that are sold:
+    `grain-delay` "Crystals" (octave-climbing grain repeats) and `rotary`
+    "Chorale" and "Tremolo" (a maker's labels for the two speeds). The
+    lexicon no longer names a chain for them; the presets are as they shipped.
+  - Of the bank's own 216 chains the packs' bench would refuse fifteen: eight
+    are too near the dry sound (most of them master chains, within 0.3 dB),
+    five still put out over −30 dBFS half a minute on (loops and holds that
+    are meant to go on), two are over 3.5 LU quiet on the piano, one of
+    those five among them, and one passes +3 dBFS fed at −1.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,

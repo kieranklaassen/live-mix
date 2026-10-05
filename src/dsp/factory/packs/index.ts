@@ -2,7 +2,8 @@
 // idea of sound. What is here is only their names, so a host can list them
 // with the rest of the bank; the presets themselves are a module of their own
 // (./all), fetched the first time someone asks for them. A pack's sounds to
-// paint with are fetched the same way (../sound-packs).
+// paint with and its effect chains are fetched the same way (../sound-packs,
+// ../chain-packs).
 
 import { type FactoryPack, type FactoryPreset } from '../types'
 
@@ -44,7 +45,13 @@ const WITH_SOUNDS: ReadonlySet<string> = new Set<string>([
   'six-squared',
 ])
 
-const PACKS: readonly Omit<FactoryPack, 'sounds'>[] = [
+/**
+ * How many effect chains a pack holds (../chain-packs/<pack id>.ts): every
+ * pack's are drawn, so a host knows the number before it fetches any of them.
+ */
+export const FACTORY_CHAIN_PACK_SIZE = 100
+
+const PACKS: readonly Omit<FactoryPack, 'sounds' | 'chains'>[] = [
   {
     id: 'concourse',
     name: 'Empty Concourse',
@@ -225,6 +232,7 @@ const PACKS: readonly Omit<FactoryPack, 'sounds'>[] = [
 export const FACTORY_PACKS: readonly FactoryPack[] = PACKS.map((pack) => ({
   ...pack,
   sounds: WITH_SOUNDS.has(pack.id) ? FACTORY_SOUND_PACK_SIZE : 0,
+  chains: FACTORY_CHAIN_PACK_SIZE,
 }))
 
 export function factoryPack(id: string): FactoryPack | undefined {

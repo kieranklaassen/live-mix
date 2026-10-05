@@ -1,0 +1,402 @@
+{
+  "sonoran-cienega-cathedral": {
+    "name": "Cienega cathedral",
+    "written": "3000d37c22297e02"
+  },
+  "sonoran-hall-in-the-scrub": {
+    "name": "Hall in the scrub",
+    "written": "b3892fd56a331ea8"
+  },
+  "sonoran-hall-out-past-town": {
+    "name": "Hall out past town",
+    "written": "cb4fc70969551712"
+  },
+  "sonoran-halo-among-cactus": {
+    "name": "Halo among cactus",
+    "written": "66fcef0ca3893ce5"
+  },
+  "sonoran-starfield-nave": {
+    "name": "Starfield nave",
+    "written": "ed429f552bbaa8ea"
+  },
+  "sonoran-lamp-lit-shadow": {
+    "name": "Lamp-lit shadow",
+    "written": "2f1490d97e22a1d0"
+  },
+  "sonoran-halo-under-stars": {
+    "name": "Halo under stars",
+    "written": "957eb1b450753d68"
+  },
+  "sonoran-ironwood-hall": {
+    "name": "Ironwood hall",
+    "written": "d3e607cff452da16"
+  },
+  "sonoran-hall-a-valley-over": {
+    "name": "Hall a valley over",
+    "written": "1a737f4349df4f37"
+  },
+  "sonoran-power-line-choir": {
+    "name": "Power-line choir",
+    "written": "df03e997aebe06f2"
+  },
+  "sonoran-dry-lake-cathedral": {
+    "name": "Dry-lake cathedral",
+    "written": "687a63ad9b177259"
+  },
+  "sonoran-starlit-depths": {
+    "name": "Starlit depths",
+    "written": "06f0eefbb904bb8b"
+  },
+  "sonoran-far-ridge-hall": {
+    "name": "Far-ridge hall",
+    "written": "e5a6889b154a5127"
+  },
+  "sonoran-slow-breath-wash": {
+    "name": "Slow-breath wash",
+    "written": "6aa36543d7694d70"
+  },
+  "sonoran-echoes-miles-off": {
+    "name": "Echoes miles off",
+    "written": "0de2fe8cbb670c06"
+  },
+  "sonoran-mud-brick-space": {
+    "name": "Mud-brick space",
+    "written": "d54f2496f116df6a"
+  },
+  "sonoran-yucca-swell": {
+    "name": "Yucca swell",
+    "written": "f092725c85751147"
+  },
+  "sonoran-space-by-the-road": {
+    "name": "Space by the road",
+    "written": "c2f234f24b89cd75"
+  },
+  "sonoran-bosque-halo": {
+    "name": "Bosque halo",
+    "written": "f4037a329949e304"
+  },
+  "sonoran-cave-on-bare-rock": {
+    "name": "Cave on bare rock",
+    "written": "3ebffaa27716efe1"
+  },
+  "sonoran-drone-under-cirrus": {
+    "name": "Drone under cirrus",
+    "written": "098c73439139de1a"
+  },
+  "sonoran-caliche-tide": {
+    "name": "Caliche tide",
+    "written": "810c962252dd9d3c"
+  },
+  "sonoran-saguaro-hall": {
+    "name": "Saguaro hall",
+    "written": "edba214f36c071b0"
+  },
+  "sonoran-tinaja-hall": {
+    "name": "Tinaja hall",
+    "written": "54c5cacb2fd7e49f"
+  },
+  "sonoran-poorwill-cathedral": {
+    "name": "Poorwill cathedral",
+    "written": "27c1a730b55a9dd1"
+  },
+  "sonoran-coyote-choir": {
+    "name": "Coyote choir",
+    "written": "9352ddd9ab1e8213"
+  },
+  "sonoran-cienega-hall": {
+    "name": "Cienega hall",
+    "written": "67920651da2021b5"
+  },
+  "sonoran-arroyo-ring": {
+    "name": "Arroyo ring",
+    "written": "4755dc2ecead92c1"
+  },
+  "sonoran-tide-rim-to-rim": {
+    "name": "Tide rim to rim",
+    "written": "bfc462bebc3ba56d"
+  },
+  "sonoran-chant-after-dark": {
+    "name": "Chant after dark",
+    "written": "1d4f2995f09d5953"
+  },
+  "sonoran-porch-echo": {
+    "name": "Porch echo",
+    "written": "b48e2c30d3d63191"
+  },
+  "sonoran-kit-fox-trail": {
+    "name": "Kit-fox trail",
+    "written": "23f931b8e132d696"
+  },
+  "sonoran-elf-owl-echo": {
+    "name": "Elf-owl echo",
+    "written": "30639bd09f645c6d"
+  },
+  "sonoran-echo-half-asleep": {
+    "name": "Echo half asleep",
+    "written": "0f6127692be1f188"
+  },
+  "sonoran-echo-at-moonset": {
+    "name": "Echo at moonset",
+    "written": "6275c94705d192bb"
+  },
+  "sonoran-moonrise-descent": {
+    "name": "Moonrise descent",
+    "written": "247d7a243337c65c"
+  },
+  "sonoran-wind-bent-echo": {
+    "name": "Wind-bent echo",
+    "written": "c251cdffd917a8b6"
+  },
+  "sonoran-satellite-echo": {
+    "name": "Satellite echo",
+    "written": "678741b71e819026"
+  },
+  "sonoran-granite-echo": {
+    "name": "Granite echo",
+    "written": "00dd19d95320d1a4"
+  },
+  "sonoran-echo-on-warm-rock": {
+    "name": "Echo on warm rock",
+    "written": "7af5f30aced6a6fa"
+  },
+  "sonoran-bajada-echo": {
+    "name": "Bajada echo",
+    "written": "8e6a7c888349d6f6"
+  },
+  "sonoran-starlit-pad": {
+    "name": "Starlit pad",
+    "written": "a3362017e54864ad"
+  },
+  "sonoran-echo-at-last-light": {
+    "name": "Echo at last light",
+    "written": "436404aef2a0a5f7"
+  },
+  "sonoran-open-range-loop": {
+    "name": "Open-range loop",
+    "written": "d32b5b4d07020ad5"
+  },
+  "sonoran-cereus-echo": {
+    "name": "Cereus echo",
+    "written": "796e8c820265d6d4"
+  },
+  "sonoran-echo-out-past-town": {
+    "name": "Echo out past town",
+    "written": "c04f3b3c04e1cd4f"
+  },
+  "sonoran-echo-in-night-air": {
+    "name": "Echo in night air",
+    "written": "2e4bf7733ff8ba06"
+  },
+  "sonoran-tail-light-reel": {
+    "name": "Tail-light reel",
+    "written": "74a563063fc8a08b"
+  },
+  "sonoran-caliche-warmth": {
+    "name": "Caliche warmth",
+    "written": "3d2ec309922f9f4f"
+  },
+  "sonoran-palo-verde-warmth": {
+    "name": "Palo-verde warmth",
+    "written": "74b52cd26ec7d78f"
+  },
+  "sonoran-cassette-off-the-rim": {
+    "name": "Cassette off the rim",
+    "written": "710bf917e036576d"
+  },
+  "sonoran-cattle-guard-tape": {
+    "name": "Cattle-guard tape",
+    "written": "dc02a3d87f8ce8ba"
+  },
+  "sonoran-open-range-filter": {
+    "name": "Open-range filter",
+    "written": "da7c7a59a3f1aec8"
+  },
+  "sonoran-ridgeline-swell": {
+    "name": "Ridgeline swell",
+    "written": "7e6998b6635b53f2"
+  },
+  "sonoran-cienega-filter": {
+    "name": "Cienega filter",
+    "written": "d1af57277b787c73"
+  },
+  "sonoran-foothill-filter": {
+    "name": "Foothill filter",
+    "written": "86cdf3ee79438808"
+  },
+  "sonoran-sonoran-swirl": {
+    "name": "Sonoran swirl",
+    "written": "9027572a294c2939"
+  },
+  "sonoran-firelight-sweep": {
+    "name": "Firelight sweep",
+    "written": "98c08bc8da8e6b96"
+  },
+  "sonoran-headlight-phaser": {
+    "name": "Headlight phaser",
+    "written": "37bfb28cf6dde333"
+  },
+  "sonoran-drift-after-rain": {
+    "name": "Drift after rain",
+    "written": "85d12c328aab6d51"
+  },
+  "sonoran-small-hours-sway": {
+    "name": "Small-hours sway",
+    "written": "4388db2cab15c8d2"
+  },
+  "sonoran-moonless-tide": {
+    "name": "Moonless tide",
+    "written": "bf9741866a4e93a2"
+  },
+  "sonoran-thunderhead-filter": {
+    "name": "Thunderhead filter",
+    "written": "3b9ad78b01a03a04"
+  },
+  "sonoran-sweep-in-still-air": {
+    "name": "Sweep in still air",
+    "written": "5574c15f5759525c"
+  },
+  "sonoran-agave-flanger": {
+    "name": "Agave flanger",
+    "written": "1c0a190042846f70"
+  },
+  "sonoran-edgeless-flanger": {
+    "name": "Edgeless flanger",
+    "written": "7b8265fc1dffff00"
+  },
+  "sonoran-basin-phaser": {
+    "name": "Basin phaser",
+    "written": "63049cad275bf8a7"
+  },
+  "sonoran-swirl-on-bare-rock": {
+    "name": "Swirl on bare rock",
+    "written": "e72e090f3c1b123d"
+  },
+  "sonoran-phaser-rim-to-rim": {
+    "name": "Phaser rim to rim",
+    "written": "f521afed02cf618c"
+  },
+  "sonoran-drift-slow-as-sleep": {
+    "name": "Drift slow as sleep",
+    "written": "bf1ff91c950db0a8"
+  },
+  "sonoran-cholla-harmony": {
+    "name": "Cholla harmony",
+    "written": "76cd34eabc5b463b"
+  },
+  "sonoran-windless-pad": {
+    "name": "Windless pad",
+    "written": "472870fefa51d289"
+  },
+  "sonoran-observatory-pad": {
+    "name": "Observatory pad",
+    "written": "2f1eaebd584adb43"
+  },
+  "sonoran-all-night-pad": {
+    "name": "All-night pad",
+    "written": "cc12431e4ecad1b7"
+  },
+  "sonoran-cellos-down-the-wash": {
+    "name": "Cellos down the wash",
+    "written": "f8a342ad86791d8a"
+  },
+  "sonoran-glimpses-on-hardpan": {
+    "name": "Glimpses on hardpan",
+    "written": "20d20c9919102ebd"
+  },
+  "sonoran-strings-till-morning": {
+    "name": "Strings till morning",
+    "written": "6312c4c7e9e3b613"
+  },
+  "sonoran-monsoon-tide": {
+    "name": "Monsoon tide",
+    "written": "cbb8b7a1830f3714"
+  },
+  "sonoran-dry-lake-drone": {
+    "name": "Dry-lake drone",
+    "written": "6f36f21f6a7f3f6c"
+  },
+  "sonoran-poorwill-wash": {
+    "name": "Poorwill wash",
+    "written": "a8c88b85bf335273"
+  },
+  "sonoran-cholla-drone": {
+    "name": "Cholla drone",
+    "written": "793fb3c9c1477e7f"
+  },
+  "sonoran-dark-sky-afterglow": {
+    "name": "Dark-sky afterglow",
+    "written": "56de0e6df09b559b"
+  },
+  "sonoran-katydid-sustain": {
+    "name": "Katydid sustain",
+    "written": "63a922511f8aa2b1"
+  },
+  "sonoran-drone-in-the-scrub": {
+    "name": "Drone in the scrub",
+    "written": "649c6bd1671fcc11"
+  },
+  "sonoran-sun-warmed-depths": {
+    "name": "Sun-warmed depths",
+    "written": "2236e7642bd61bad"
+  },
+  "sonoran-bosque-octave": {
+    "name": "Bosque octave",
+    "written": "db5b6c97279f4704"
+  },
+  "sonoran-tail-light-grains": {
+    "name": "Tail-light grains",
+    "written": "c87c435b93dcdb02"
+  },
+  "sonoran-moonlit-undertow": {
+    "name": "Moonlit undertow",
+    "written": "17c5dd760fa8cb97"
+  },
+  "sonoran-basin-fifth": {
+    "name": "Basin fifth",
+    "written": "c943179c93b5b407"
+  },
+  "sonoran-windmill-bass": {
+    "name": "Windmill bass",
+    "written": "5d4babce5cf4999a"
+  },
+  "sonoran-deep-basin-drift": {
+    "name": "Deep-basin drift",
+    "written": "ac0ec8644a78201d"
+  },
+  "sonoran-two-lane-depths": {
+    "name": "Two-lane depths",
+    "written": "fa07fe63b8836ecc"
+  },
+  "sonoran-observatory-undertow": {
+    "name": "Observatory undertow",
+    "written": "483248e2b6473465"
+  },
+  "sonoran-cattle-guard-replay": {
+    "name": "Cattle-guard replay",
+    "written": "0c3a0114dfe6dbba"
+  },
+  "sonoran-agave-finish": {
+    "name": "Agave finish",
+    "written": "6fa5be5ce1d237ef"
+  },
+  "sonoran-mixdown-before-sunup": {
+    "name": "Mixdown before sunup",
+    "written": "5f3a9973cc60a5d8"
+  },
+  "sonoran-katydid-mixdown": {
+    "name": "Katydid mixdown",
+    "written": "6a2f21c2cef7ddab"
+  },
+  "sonoran-mesquite-finish": {
+    "name": "Mesquite finish",
+    "written": "232c16d10d968876"
+  },
+  "sonoran-playa-finish": {
+    "name": "Playa finish",
+    "written": "1cb4929c6051db0b"
+  },
+  "sonoran-rimrock-finish": {
+    "name": "Rimrock finish",
+    "written": "6286c16838d6c790"
+  }
+}

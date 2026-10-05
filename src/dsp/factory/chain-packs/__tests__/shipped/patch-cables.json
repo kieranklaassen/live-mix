@@ -1,0 +1,402 @@
+{
+  "patch-cables-sparkle-in-the-crown": {
+    "name": "Sparkle in the crown",
+    "written": "ef1f8382654e0599"
+  },
+  "patch-cables-springs-on-wet-cedar": {
+    "name": "Springs on wet cedar",
+    "written": "bf190b6a58743c3b"
+  },
+  "patch-cables-halo-with-the-bees": {
+    "name": "Halo with the bees",
+    "written": "8e8430532016fe3c"
+  },
+  "patch-cables-clover-halo": {
+    "name": "Clover halo",
+    "written": "9e183922e6b31c19"
+  },
+  "patch-cables-room-in-dew": {
+    "name": "Room in dew",
+    "written": "121167c6d594a865"
+  },
+  "patch-cables-inlet-hall": {
+    "name": "Inlet hall",
+    "written": "22c165004ced8473"
+  },
+  "patch-cables-hemlock-echo": {
+    "name": "Hemlock echo",
+    "written": "aec3dd48caa83507"
+  },
+  "patch-cables-seed-tray-room": {
+    "name": "Seed-tray room",
+    "written": "b8f1508d426e91ce"
+  },
+  "patch-cables-patched-ring": {
+    "name": "Patched ring",
+    "written": "fda2e2cc71af8e86"
+  },
+  "patch-cables-trillium-hall": {
+    "name": "Trillium hall",
+    "written": "82614ca2ebc68a02"
+  },
+  "patch-cables-shingle-hall": {
+    "name": "Shingle hall",
+    "written": "2c11b83cd85196ae"
+  },
+  "patch-cables-foxglove-sheen": {
+    "name": "Foxglove sheen",
+    "written": "33f9b36430dec095"
+  },
+  "patch-cables-wharf-plate": {
+    "name": "Wharf plate",
+    "written": "f69e636c5ed1d4e1"
+  },
+  "patch-cables-arpeggio-in-a-hurry": {
+    "name": "Arpeggio in a hurry",
+    "written": "6eaf22deebec2481"
+  },
+  "patch-cables-sapwood-echo": {
+    "name": "Sapwood echo",
+    "written": "688b80ec3a761267"
+  },
+  "patch-cables-plugged-in-memory": {
+    "name": "Plugged-in memory",
+    "written": "e286071e7e325c37"
+  },
+  "patch-cables-trellis-echo": {
+    "name": "Trellis echo",
+    "written": "e694090d83a574d1"
+  },
+  "patch-cables-swells-by-the-pond": {
+    "name": "Swells by the pond",
+    "written": "74d3fd12a10574dc"
+  },
+  "patch-cables-barnacle-chime": {
+    "name": "Barnacle chime",
+    "written": "1d12468277e5823b"
+  },
+  "patch-cables-tree-frog-echo": {
+    "name": "Tree-frog echo",
+    "written": "c423b5ecd08038ce"
+  },
+  "patch-cables-frog-pond-echo": {
+    "name": "Frog-pond echo",
+    "written": "bf506c6b02eb1305"
+  },
+  "patch-cables-cabled-sparkle": {
+    "name": "Cabled sparkle",
+    "written": "993f94ad2d9c4d61"
+  },
+  "patch-cables-rowboat-echo": {
+    "name": "Rowboat echo",
+    "written": "66e119e60dd68226"
+  },
+  "patch-cables-cascade-on-the-ferry": {
+    "name": "Cascade on the ferry",
+    "written": "136e158f124c653e"
+  },
+  "patch-cables-hand-wired-echo": {
+    "name": "Hand-wired echo",
+    "written": "4b77df52c5993dd9"
+  },
+  "patch-cables-loop-in-leaf": {
+    "name": "Loop in leaf",
+    "written": "e6b946e243bc95c7"
+  },
+  "patch-cables-lupine-cascade": {
+    "name": "Lupine cascade",
+    "written": "ddc40646cde7f106"
+  },
+  "patch-cables-echo-on-the-sill": {
+    "name": "Echo on the sill",
+    "written": "5672e9adc58ea777"
+  },
+  "patch-cables-dappled-echoes": {
+    "name": "Dappled echoes",
+    "written": "f1a278e67543f4ba"
+  },
+  "patch-cables-canopy-fifths": {
+    "name": "Canopy fifths",
+    "written": "7b70d60f30f58cfd"
+  },
+  "patch-cables-loam-echoes": {
+    "name": "Loam echoes",
+    "written": "61792acfd1aeb403"
+  },
+  "patch-cables-re-patched-echoes": {
+    "name": "Re-patched echoes",
+    "written": "fa4ead04e71562f1"
+  },
+  "patch-cables-voltage-echo": {
+    "name": "Voltage echo",
+    "written": "a954b76a5f4f8849"
+  },
+  "patch-cables-seed-tray-overtone": {
+    "name": "Seed-tray overtone",
+    "written": "91829002ca9fe987"
+  },
+  "patch-cables-rockpool-glass": {
+    "name": "Rockpool glass",
+    "written": "780ef622228ecd2d"
+  },
+  "patch-cables-valves-by-the-dock": {
+    "name": "Valves by the dock",
+    "written": "3cce02fbbc6115c0"
+  },
+  "patch-cables-cedar-overtones": {
+    "name": "Cedar overtones",
+    "written": "440aee2e2d9fe73e"
+  },
+  "patch-cables-frog-pond-sheen": {
+    "name": "Frog-pond sheen",
+    "written": "35c1e9381546e5f7"
+  },
+  "patch-cables-wren-overtones": {
+    "name": "Wren overtones",
+    "written": "564cf9dfbe4665d1"
+  },
+  "patch-cables-darting-phaser": {
+    "name": "Darting phaser",
+    "written": "08fea434979bc554"
+  },
+  "patch-cables-saltwater-flanger": {
+    "name": "Saltwater flanger",
+    "written": "8356cd29d27b676d"
+  },
+  "patch-cables-sprouting-flanger": {
+    "name": "Sprouting flanger",
+    "written": "a7e4042841cf758c"
+  },
+  "patch-cables-flutter-by-the-cove": {
+    "name": "Flutter by the cove",
+    "written": "c7db1e824720bbcd"
+  },
+  "patch-cables-phaser-on-the-island": {
+    "name": "Phaser on the island",
+    "written": "5a9989720996a0c1"
+  },
+  "patch-cables-pollen-rotary": {
+    "name": "Pollen rotary",
+    "written": "bea790736bfb48aa"
+  },
+  "patch-cables-hand-wired-flanger": {
+    "name": "Hand-wired flanger",
+    "written": "b6b04ff0c45fe452"
+  },
+  "patch-cables-kingfisher-drift": {
+    "name": "Kingfisher drift",
+    "written": "ea3686330a9d41a6"
+  },
+  "patch-cables-sapling-flanger": {
+    "name": "Sapling flanger",
+    "written": "ff8bc11f76178c58"
+  },
+  "patch-cables-vibrato-in-a-hurry": {
+    "name": "Vibrato in a hurry",
+    "written": "bcddc4bd29cde3ac"
+  },
+  "patch-cables-cabled-tremolo": {
+    "name": "Cabled tremolo",
+    "written": "8c3faee19658c6ef"
+  },
+  "patch-cables-hemlock-filter": {
+    "name": "Hemlock filter",
+    "written": "62769b6ab9f42fbb"
+  },
+  "patch-cables-sweep-in-new-leaf": {
+    "name": "Sweep in new leaf",
+    "written": "311b0987b5c37577"
+  },
+  "patch-cables-tremolo-in-the-ferns": {
+    "name": "Tremolo in the ferns",
+    "written": "74adbacf350000af"
+  },
+  "patch-cables-fern-warble": {
+    "name": "Fern warble",
+    "written": "d8a267fb681c5ee6"
+  },
+  "patch-cables-sprouting-chorus": {
+    "name": "Sprouting chorus",
+    "written": "6de196bbfafd3ce9"
+  },
+  "patch-cables-canopy-cloud": {
+    "name": "Canopy cloud",
+    "written": "a4f9aef02e796285"
+  },
+  "patch-cables-porch-pulse": {
+    "name": "Porch pulse",
+    "written": "e38a30d4dd8e9cf8"
+  },
+  "patch-cables-salmonberry-rain": {
+    "name": "Salmonberry rain",
+    "written": "01f681ae992dc312"
+  },
+  "patch-cables-dew-sparkle": {
+    "name": "Dew sparkle",
+    "written": "8a513ac12f5cd1eb"
+  },
+  "patch-cables-eelgrass-octaves": {
+    "name": "Eelgrass octaves",
+    "written": "65195346205029e5"
+  },
+  "patch-cables-otter-sparks": {
+    "name": "Otter sparks",
+    "written": "387c677c1a73d7df"
+  },
+  "patch-cables-huckleberry-shards": {
+    "name": "Huckleberry shards",
+    "written": "d57a1bdfdd898125"
+  },
+  "patch-cables-dockside-swell": {
+    "name": "Dockside swell",
+    "written": "d0410bebcd5d53cb"
+  },
+  "patch-cables-starfish-glitter": {
+    "name": "Starfish glitter",
+    "written": "e937cdf4243a3494"
+  },
+  "patch-cables-cloud-in-the-garden": {
+    "name": "Cloud in the garden",
+    "written": "8b753412d4ec1dd1"
+  },
+  "patch-cables-drone-in-the-kelp": {
+    "name": "Drone in the kelp",
+    "written": "bba385e946ea6d06"
+  },
+  "patch-cables-otter-cascade": {
+    "name": "Otter cascade",
+    "written": "89f559fa62a1a61a"
+  },
+  "patch-cables-darting-stutter": {
+    "name": "Darting stutter",
+    "written": "11bc3d414ff3b2dd"
+  },
+  "patch-cables-garden-sparks": {
+    "name": "Garden sparks",
+    "written": "4ff7f3c7c9e22792"
+  },
+  "patch-cables-swell-from-seed": {
+    "name": "Swell from seed",
+    "written": "d4c8d40b4abb6fec"
+  },
+  "patch-cables-patched-shimmer": {
+    "name": "Patched shimmer",
+    "written": "600a26f82c84315e"
+  },
+  "patch-cables-cabled-grains": {
+    "name": "Cabled grains",
+    "written": "135be585e6c93cf9"
+  },
+  "patch-cables-dockside-octaves": {
+    "name": "Dockside octaves",
+    "written": "ce1a66640d9c416d"
+  },
+  "patch-cables-fifths-in-a-hothouse": {
+    "name": "Fifths in a hothouse",
+    "written": "7f5f9b223d17c6ec"
+  },
+  "patch-cables-triad-patched-in": {
+    "name": "Triad patched in",
+    "written": "d9bb8712a26efcae"
+  },
+  "patch-cables-treetop-splinters": {
+    "name": "Treetop splinters",
+    "written": "42de8f34b1d413c5"
+  },
+  "patch-cables-morning-fifths": {
+    "name": "Morning fifths",
+    "written": "625bd61ced0be3e7"
+  },
+  "patch-cables-harmony-from-seed": {
+    "name": "Harmony from seed",
+    "written": "f63f2981611807aa"
+  },
+  "patch-cables-fifth-under-cedar": {
+    "name": "Fifth under cedar",
+    "written": "d99d71b7f175eb14"
+  },
+  "patch-cables-greenhouse-chord": {
+    "name": "Greenhouse chord",
+    "written": "13227eb124fb1d4d"
+  },
+  "patch-cables-stack-in-green": {
+    "name": "Stack in green",
+    "written": "345e84d0bf54ffc7"
+  },
+  "patch-cables-drone-on-the-sill": {
+    "name": "Drone on the sill",
+    "written": "549543fc5f771d8d"
+  },
+  "patch-cables-rain-barrel-thirds": {
+    "name": "Rain-barrel thirds",
+    "written": "dcea6c1553682a2c"
+  },
+  "patch-cables-mooring-harmony": {
+    "name": "Mooring harmony",
+    "written": "a945eb4d2a6ff3e6"
+  },
+  "patch-cables-green-fifth": {
+    "name": "Green fifth",
+    "written": "1cd7fbef10001930"
+  },
+  "patch-cables-fifth-on-the-porch": {
+    "name": "Fifth on the porch",
+    "written": "d8f5836684ae0ce6"
+  },
+  "patch-cables-cedar-arpeggio": {
+    "name": "Cedar arpeggio",
+    "written": "0e80a41a2a87f46b"
+  },
+  "patch-cables-octave-at-the-inlet": {
+    "name": "Octave at the inlet",
+    "written": "d7989512cca235a0"
+  },
+  "patch-cables-ferry-octaves": {
+    "name": "Ferry octaves",
+    "written": "fa123aaf7b411bb2"
+  },
+  "patch-cables-seedling-octave": {
+    "name": "Seedling octave",
+    "written": "1395e1463a3a0450"
+  },
+  "patch-cables-rowboat-rain": {
+    "name": "Rowboat rain",
+    "written": "2e5f1610f24f7b74"
+  },
+  "patch-cables-green-octaves": {
+    "name": "Green octaves",
+    "written": "571cfc3e2e4f9215"
+  },
+  "patch-cables-island-octaves": {
+    "name": "Island octaves",
+    "written": "96a07bb3c8c768a6"
+  },
+  "patch-cables-sunbreak-glitter": {
+    "name": "Sunbreak glitter",
+    "written": "24149c06a7645738"
+  },
+  "patch-cables-pebble-finish": {
+    "name": "Pebble finish",
+    "written": "6d5bf0c5f8ca2ef8"
+  },
+  "patch-cables-garden-finish": {
+    "name": "Garden finish",
+    "written": "448113c34cbfd667"
+  },
+  "patch-cables-trillium-master": {
+    "name": "Trillium master",
+    "written": "6dbec4742f11bdfd"
+  },
+  "patch-cables-sprouting-lacquer": {
+    "name": "Sprouting lacquer",
+    "written": "24fd44fc1cdbaece"
+  },
+  "patch-cables-windowsill-lacquer": {
+    "name": "Windowsill lacquer",
+    "written": "3af105a8f22f2f28"
+  },
+  "patch-cables-mixdown-at-the-inlet": {
+    "name": "Mixdown at the inlet",
+    "written": "ad0a295a75b2248e"
+  }
+}

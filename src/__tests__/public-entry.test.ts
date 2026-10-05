@@ -449,9 +449,11 @@ const dspSymbols = [
   'FACTORY_PACKS',
   'FACTORY_PACK_SIZE',
   'FACTORY_SOUND_PACK_SIZE',
+  'FACTORY_CHAIN_PACK_SIZE',
   'factoryPack',
   'loadFactoryPacks',
   'loadFactoryPackSounds',
+  'loadFactoryPackChains',
   // The bank in any key, and new sounds from a seed (ambient-live's master key and Generate)
   'FACTORY_MODES',
   'FACTORY_HOME_KEY',

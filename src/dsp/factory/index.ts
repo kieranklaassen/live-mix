@@ -31,12 +31,14 @@ export {
 } from './phrases'
 export { FACTORY_PRESETS } from './presets'
 export {
+  FACTORY_CHAIN_PACK_SIZE,
   FACTORY_PACKS,
   FACTORY_PACK_SIZE,
   FACTORY_SOUND_PACK_SIZE,
   factoryPack,
   loadFactoryPacks,
 } from './packs'
+export { loadFactoryPackChains } from './chain-packs'
 export { loadFactoryPackSounds } from './sound-packs'
 export { FACTORY_SOUNDS } from './sounds'
 export {

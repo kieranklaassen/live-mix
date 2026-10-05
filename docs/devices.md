@@ -150,6 +150,7 @@ hold 8 notes).
 | `swarm-reverb`    | Swarm Reverb       | live-mix            | reverb     | 12     | 28,358 B  | 51.3 µs, 1.93 %       | 31.6 µs, 1.18 %            | 0                 | 4           |
 | `swell`           | Swell              | live-mix            | dynamics   | 8      | 4,842 B   | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
 | `sympathetic`     | Sympathetic        | kkfonie Sympathetic | reverb     | 7      | 31,992 B  | 19.7 µs, 0.74 %       | 23.1 µs, 0.87 %            | 0                 | 4           |
+| `tamer`           | Tamer              | live-mix            | eq         | 6      | 35,182 B  | 46.2 µs, 1.73 %       | 14.2 µs, 0.53 %            | 0                 | 4           |
 | `tanpura`         | Tanpura            | live-mix            | instrument | 8      | 30,393 B  | 58.6 µs, 2.20 %       | 55.0 µs, 2.06 %            | 0                 | 4           |
 | `tape`            | Tape               | live-mix            | texture    | 10     | 22,263 B  | 45.2 µs, 1.70 %       | 33.7 µs, 1.27 %            | 415               | 4           |
 | `tape-echo`       | Tape Echo          | live-mix            | delay      | 10     | 16,147 B  | 19.5 µs, 0.73 %       | 18.3 µs, 0.69 %            | 0                 | 4           |

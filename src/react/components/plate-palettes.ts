@@ -57,6 +57,7 @@ export const PLATE_PALETTES = {
   eq3: { plate: '#f0a35e', ink: '#2c1606', accent: '#12456b' },
   'parametric-eq': { plate: '#1c3f5e', ink: '#e8f1f8', accent: '#ffc857' },
   'ambient-eq': { plate: '#d3e3b4', ink: '#232b14', accent: '#a83a22' },
+  tamer: { plate: '#6a80c4', ink: '#10162e', accent: '#fff6d8' },
   compressor: { plate: '#a12d47', ink: '#fff3f0', accent: '#ffe27a' },
   'ambient-comp': { plate: '#335c27', ink: '#f2f8ea', accent: '#ffd27a' },
   'ambient-limiter': { plate: '#262b3d', ink: '#eef0f8', accent: '#ff7a5c' },
