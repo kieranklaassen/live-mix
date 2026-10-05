@@ -245,6 +245,69 @@ describe('apply', () => {
     expect(validateScore(parseScore(serializeScore(added)))).toEqual([])
   })
 
+  it('a clip is taken only as the score can hold it, however it comes: added, moved, trimmed, updated, replaced or set', () => {
+    const update = (patch: ClipPatch): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'a1',
+      patch,
+    })
+    const refused: [Operation, RegExp][] = [
+      [{ type: 'clip.add', track: 'kick', clip: clip('z', 'a', -1) }, /startSec/],
+      [{ type: 'clip.add', track: 'kick', clip: clip('', 'a', 2) }, /id/],
+      [{ type: 'clip.add', track: 'kick', clip: clip('z', 'a', 2, { chance: -0.5 }) }, /chance/],
+      [{ type: 'clip.move', track: 'kick', id: 'a1', startSec: -0.5 }, /startSec/],
+      [{ type: 'clip.trim', track: 'kick', id: 'a1', durationSec: -2 }, /durationSec/],
+      [{ type: 'clip.trim', track: 'kick', id: 'a1', offsetSec: -1 }, /offsetSec/],
+      [update({ pan: 2 }), /pan/],
+      [update({ lowpassHz: 1 }), /lowpassHz/],
+      [update({ fadeInSec: -1 }), /fadeInSec/],
+      [update({ fadeOutSec: -1 }), /fadeOutSec/],
+      [update({ loopStartSec: 4, loopEndSec: 2 }), /loopEndSec/],
+      [update({ fadeCurve: 'steep' as Clip['fadeCurve'] }), /fadeCurve/],
+      [
+        {
+          type: 'clip.replaceFrom',
+          track: 'kick',
+          fromSec: 0,
+          clips: [clip('z', 'a', 2, { durationSec: -1 })],
+        },
+        /durationSec/,
+      ],
+    ]
+    for (const [op, message] of refused) {
+      expect(() => apply(base, op), JSON.stringify(op)).toThrow(message)
+    }
+    const streamed = apply(base, {
+      type: 'elementTrack.add',
+      track: { id: 'stream', name: 'Stream', destination: masterDestination(), clips: [] },
+    })
+    const set = (clips: Clip[]): Operation => ({
+      type: 'elementTrack.setClips',
+      id: 'stream',
+      clips,
+    })
+    expect(() => apply(streamed, set([clip('s1', 'a', 0, { pan: 3 })]))).toThrow(/pan/)
+    expect(() => apply(streamed, set([clip('s1', 'a', 0), clip('s1', 'a', 8)]))).toThrow(
+      /clip "s1" is there twice/,
+    )
+    // What the score can hold still goes, at the edges of each range too.
+    let score = apply(streamed, set([clip('s1', 'a', 0, { pan: -1 }), clip('s2', 'a', 8)]))
+    score = apply(
+      score,
+      update({ pan: 1, lowpassHz: 20, fadeInSec: 0, loopStartSec: 1, loopEndSec: 2 }),
+    )
+    score = apply(score, { type: 'clip.move', track: 'kick', id: 'a1', startSec: 0 })
+    score = apply(score, {
+      type: 'clip.trim',
+      track: 'kick',
+      id: 'a1',
+      offsetSec: 0,
+      durationSec: 0,
+    })
+    expect(validateScore(score)).toEqual([])
+  })
+
   it('transport.seed sets what chance is drawn from; 0 is the same as none, and it inverts', () => {
     const seeded = applyWithInverse(base, { type: 'transport.seed', seed: 7 })
     expect(seeded.score.transport.seed).toBe(7)
@@ -879,7 +942,7 @@ describe('apply', () => {
           { type: 'clip.move', track: 'kick', id: 'a1', startSec: Number.NaN },
         ],
       }),
-    ).toThrow(/startSec must be a finite number/)
+    ).toThrow(/startSec.* a finite number/)
   })
 
   it('clip.replaceFrom needs a cut that is a number: without one every clip went and undo brought none back', () => {

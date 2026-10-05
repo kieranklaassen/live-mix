@@ -713,6 +713,11 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (check.string(raw.sourceId, `${path}.sourceId`) && !ctx.ids.sources.has(raw.sourceId)) {
     check.fail(`${path}.sourceId`, `unknown source "${raw.sourceId}"`)
   }
+  checkClipFields(raw, path, check)
+}
+
+/** A clip's own fields: everything but whose id and which source, which the score has to say. */
+function checkClipFields(raw: Record<string, unknown>, path: string, check: Checker): void {
   check.number(raw.startSec, `${path}.startSec`, { min: 0 })
   check.number(raw.offsetSec, `${path}.offsetSec`, { min: 0 })
   check.number(raw.durationSec, `${path}.durationSec`, { min: 0 })
@@ -738,6 +743,20 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
     }
   }
   checkWarp(raw, path, check)
+}
+
+/**
+ * What the validator has against a clip taken by itself, before it is in a
+ * score: its fields and their ranges. An operation asks this of a clip it is
+ * handed, so none goes in that `validateScore` would refuse afterwards.
+ */
+export function clipIssues(clip: unknown): ScoreIssue[] {
+  const check = new Checker()
+  if (check.record(clip, 'clip')) {
+    check.string(clip.id, 'clip.id')
+    checkClipFields(clip, 'clip', check)
+  }
+  return check.issues
 }
 
 /** An optional `meta`: a JSON object, nothing the library interprets. */

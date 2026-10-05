@@ -25,6 +25,7 @@ import { LAUNCH_MODES, type LaunchMode, type ScoreSlot, type SlotClip } from '..
 import {
   MASTER_OWNER,
   STRIP_PARAMS,
+  clipIssues,
   findDevice,
   findElementTrack,
   findGroup,
@@ -724,12 +725,19 @@ function isPlacementKey(key: string): key is ClipPlacementKey {
   return (CLIP_PLACEMENT_KEYS as readonly string[]).includes(key)
 }
 
-/** A clip an operation carries: its `meta`, when set, has to be plain JSON. */
+/**
+ * A clip an operation carries: its `meta`, when set, has to be plain JSON,
+ * and its fields, as the score would keep them, what the validator takes (no
+ * start before 0, no pan past 1).
+ */
 function checkedClip(op: Operation, clip: Clip): Clip {
   if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
     fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
   }
-  return tidyClip(clip)
+  const tidy = tidyClip(clip)
+  const [issue] = clipIssues(tidy)
+  if (issue) fail(op, `clip "${clip.id}" ${issue.path.slice('clip.'.length)}: ${issue.message}`)
+  return tidy
 }
 
 function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): ScoreSource {
@@ -976,7 +984,12 @@ function applyOne(score: Score, op: Operation): Score {
     case 'elementTrack.setClips': {
       const track = requireElementTrack(score, op, op.id)
       assertStreamableClips(score, op, op.clips)
-      const clips = sortClips(op.clips.map(tidyClip))
+      const ids = new Set<string>()
+      for (const clip of op.clips) {
+        if (ids.has(clip.id)) fail(op, `clip "${clip.id}" is there twice`)
+        ids.add(clip.id)
+      }
+      const clips = sortClips(op.clips.map((clip) => checkedClip(op, clip)))
       return {
         ...score,
         elementTracks: score.elementTracks.map((candidate) =>
@@ -1225,7 +1238,7 @@ function applyOne(score: Score, op: Operation): Score {
       }
       return replaceHost(score, track.id, {
         ...track,
-        clips: sortClips([...kept, ...op.clips.map(tidyClip)]),
+        clips: sortClips([...kept, ...op.clips.map((clip) => checkedClip(op, clip))]),
       })
     }
 
