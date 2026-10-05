@@ -772,9 +772,13 @@ export class ScoreRenderer {
     // instrument the track still has, if the new one cannot stand.
     const keptId = previousId === spec.id
     if (keptId) this.deviceMap.delete(spec.id)
+    // What still has the id when the new device was not made (the insert it
+    // was coming from, another owner's device) keeps its name: only an entry
+    // made here is taken back.
+    const named = this.deviceMap.get(spec.id)
     const putBack = (): void => {
       if (keptId) this.deviceMap.set(spec.id, track.device)
-      else this.deviceMap.delete(spec.id)
+      else if (this.deviceMap.get(spec.id) !== named) this.deviceMap.delete(spec.id)
     }
     // Nothing of the instrument the track has is touched until the new one stands.
     let device: Device
@@ -1000,7 +1004,13 @@ export class ScoreRenderer {
   // --- Devices --------------------------------------------------------------------------
 
   private async createDevice(spec: ScoreDevice): Promise<Device> {
-    if (this.deviceMap.has(spec.id))
+    // An id still rendered as an insert is one that changes strip in this
+    // pass: the strips take their inserts one after another (the master, new
+    // owners, then the rest), each drops what has left it on its own turn, and
+    // the turn of the strip this id leaves has not come. Ids are one to a
+    // score, so the score being rendered has it here and nowhere else.
+    const moving = this.deviceMap.has(spec.id)
+    if (moving && !this.insertPlace(spec.id))
       throw new ScoreRenderError(`device "${spec.id}" is already rendered`)
     const device = await this.devices.create(spec.deviceId, this.engine.context, {
       preset: spec.preset,
@@ -1008,6 +1018,13 @@ export class ScoreRenderer {
       ...(spec.state === undefined ? {} : { state: spec.state }),
     })
     if (spec.bypass) device.bypass = true
+    // The one it leaves comes off its strip only now that the new one is
+    // made: a pass that fails before here leaves it where it was. A device is
+    // not carried from one strip to another; it is made anew, as an insert
+    // taken off and put back is. (Nothing is left to take off under a
+    // renderer disposed during the wait.)
+    const left = moving ? this.insertPlace(spec.id) : undefined
+    if (left) this.dropInsert(left.chain, left.devices, left.ids, left.index)
     this.deviceMap.set(spec.id, device)
     return device
   }
@@ -1075,6 +1092,44 @@ export class ScoreRenderer {
     await restore
   }
 
+  /** Takes one insert off its chain for good, its bindings first: the same id made again is bound afresh. */
+  private dropInsert(
+    chain: ChannelStrip | Bus,
+    devices: Device[],
+    ids: string[],
+    index: number,
+  ): void {
+    const id = ids[index]
+    this.teardownBindingsOnDevice(id)
+    chain.removeInsert(devices[index])
+    devices[index].dispose()
+    this.deviceMap.delete(id)
+    devices.splice(index, 1)
+    ids.splice(index, 1)
+  }
+
+  /** Where an id is rendered as an insert: the chain and the lists that hold it. */
+  private insertPlace(
+    id: string,
+  ): { chain: ChannelStrip | Bus; devices: Device[]; ids: string[]; index: number } | undefined {
+    const master = this.masterInsertIds.indexOf(id)
+    if (master >= 0) {
+      return {
+        chain: this.engine.master,
+        devices: this.masterInserts,
+        ids: this.masterInsertIds,
+        index: master,
+      }
+    }
+    for (const handle of this.owners.values()) {
+      const index = handle.insertIds.indexOf(id)
+      if (index >= 0) {
+        return { chain: handle.strip, devices: handle.inserts, ids: handle.insertIds, index }
+      }
+    }
+    return undefined
+  }
+
   private async reconcileInserts(
     chain: ChannelStrip | Bus,
     before: readonly ScoreDevice[],
@@ -1091,12 +1146,7 @@ export class ScoreRenderer {
       const id = ids[index]
       const next = afterById.get(id)
       if (next && next.deviceId === beforeById.get(id)?.deviceId) continue
-      this.teardownBindingsOnDevice(id)
-      chain.removeInsert(devices[index])
-      devices[index].dispose()
-      this.deviceMap.delete(id)
-      devices.splice(index, 1)
-      ids.splice(index, 1)
+      this.dropInsert(chain, devices, ids, index)
     }
     // Keep the matching prefix; rebuild the tail in the new order.
     let prefix = 0

@@ -248,6 +248,16 @@ describe('renderPatch', () => {
     controller.abort()
     await expect(pending).rejects.toThrow()
   })
+
+  it('does not render for a signal that has aborted already, however short the render', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    const options = { durationSec: 0.01, compile: compileFromDisk, signal: controller.signal }
+    // Too short to reach the end of a slice, where the signal is looked at…
+    await expect(renderPatch(BELL, options)).rejects.toThrow()
+    // …and in one go there is no slice at all.
+    await expect(renderPatch(BELL, { ...options, sliceMs: 0 })).rejects.toThrow()
+  })
 })
 
 describe('foldLoop', () => {

@@ -314,7 +314,11 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
       params?: Readonly<Record<string, number>>
     } & DuckerProcessorOverrides &
       Pick<WorkletDuckerOptions, 'createNode' | 'windowSize' | 'reportHz'>
-    return createWorkletDucker(context, { ...rest, ...(params ?? {}) })
+    // Its own parameters only: a saved value named `windowSize` or `createNode` is not that option of the host.
+    const own = Object.fromEntries(
+      Object.entries(params ?? {}).filter(([name]) => Object.hasOwn(DUCKER_PARAMS, name)),
+    )
+    return createWorkletDucker(context, { ...rest, ...own })
   },
 }
 

@@ -156,7 +156,8 @@ export function resolveReplacementTracks<T extends IntensityTrack>(
   )
 
   const picks: T[] = []
-  const goal = Math.max(remainingSeconds, 1)
+  // A time left that is no number (a length not loaded yet) still asks for the one pick.
+  const goal = Number.isNaN(remainingSeconds) ? 1 : Math.max(remainingSeconds, 1)
   let covered = 0
   let anchorCamelot = currentTrack.camelot
 

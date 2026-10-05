@@ -358,7 +358,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       event.preventDefault()
       beginGesture()
       commitValue(o.resetValue ?? o.defaultValue)
-      endGesture()
+      // A pointer that is down on the control holds the move open: it ends when the pointer lets go.
+      if (!draggingRef.current) endGesture()
     },
     [beginGesture, commitValue, endGesture],
   )
@@ -424,7 +425,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
           if (!event.repeat) {
             beginGesture()
             commitValue(o.resetValue ?? o.defaultValue)
-            endGesture()
+            // Pressed while a pointer holds the control, it is part of that move, as a stepping key is.
+            if (!draggingRef.current) endGesture()
           }
           break
         default:
@@ -490,7 +492,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (next: number) => {
       beginGesture()
       commitValue(next)
-      endGesture()
+      if (!draggingRef.current) endGesture()
     },
     [beginGesture, commitValue, endGesture],
   )

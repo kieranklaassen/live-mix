@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { DUCKER_PROCESSOR_NAME } from '../../core/devices/native/ducker-abi'
+import { DeviceRegistry } from '../../core/devices'
+import {
+  DUCKER_PROCESSOR_NAME,
+  type DuckerProcessorOptions,
+} from '../../core/devices/native/ducker-abi'
 import { WorkletDucker } from '../../core/devices/native/WorkletDucker'
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
 import { createWorkletDucker, duckerProcessorUrl, loadDuckerProcessor } from '../devices/ducker'
+import { WORKLET_DUCKER_DESCRIPTOR } from '../registry'
 import { type WorkletNodeFactory } from '../WasmDevice'
 
 function nodeFactory(ctx: MockAudioContext): WorkletNodeFactory {
@@ -46,5 +51,23 @@ describe('ducker dsp entry', () => {
     expect(ctx.audioWorklet.modules).toEqual(['/assets/ducker.js'])
     expect(ctx.workletNodes[0].name).toBe(DUCKER_PROCESSOR_NAME)
     expect(ducker.depth).toBe(0.4)
+  })
+
+  it('the registry device takes its own parameters from `params`, and no option of the host by a name in it', async () => {
+    const ctx = createMockContext()
+    const registry = new DeviceRegistry([WORKLET_DUCKER_DESCRIPTOR])
+    // A saved device's values may carry any name. These four are options of the host, not parameters.
+    const device = await registry.create('ducker', asAudioContext(ctx), {
+      params: { depth: 0.4, windowSize: 4, reportHz: 0, createNode: 1, processorUrl: 2 },
+      processorUrl: '/assets/ducker.js',
+      createNode: nodeFactory(ctx),
+    })
+    expect(device.getParam('depth')).toBe(0.4)
+    expect(ctx.audioWorklet.modules).toEqual(['/assets/ducker.js'])
+    const options = ctx.workletNodes[0].options as AudioWorkletNodeOptions
+    const processorOptions = options.processorOptions as DuckerProcessorOptions
+    expect(processorOptions.windowSize).toBeUndefined()
+    expect(processorOptions.reportHz).toBeUndefined()
+    expect(Object.keys((device as WorkletDucker).meters)).toEqual(['gain', 'envelope'])
   })
 })

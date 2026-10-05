@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   applyPreset,
@@ -319,6 +319,27 @@ describe('WamDevice bypass, GUI, MIDI and dispose', () => {
     device.dispose()
     expect(instance.guis[1].destroyed).toBe(true)
     await expect(device.createGui()).resolves.toBeNull()
+  })
+
+  it('takes down a GUI the plugin hands over after the device is disposed', async () => {
+    const { device, instance } = await makeEffect()
+    // The plugin is still making its element when the device goes.
+    const pending = device.createGui()
+    device.dispose()
+    await expect(pending).resolves.toBeNull()
+    expect(instance.guis).toHaveLength(1)
+    expect(instance.guis[0].destroyed).toBe(true)
+  })
+
+  it('still answers null when the plugin cannot take down a GUI it hands over after dispose', async () => {
+    const { device, instance } = await makeEffect()
+    const destroy = vi.spyOn(instance, 'destroyGui').mockImplementation(() => {
+      throw new Error('its node is destroyed')
+    })
+    const pending = device.createGui()
+    device.dispose()
+    await expect(pending).resolves.toBeNull()
+    expect(destroy).toHaveBeenCalledTimes(1)
   })
 
   it('returns null when the plugin has no GUI', async () => {

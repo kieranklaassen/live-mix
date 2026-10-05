@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Knob } from '../components/Knob'
 import { forgetPresses } from '../components/presses'
+import { useParamControl } from '../components/useParamControl'
 
 afterEach(cleanup)
 
@@ -599,6 +600,75 @@ describe('Knob', () => {
     } finally {
       window.removeEventListener('keydown', page)
     }
+  })
+
+  it('keeps a move open when Delete or a double click comes with the pointer still down on it', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(
+      <Knob
+        label="Mix"
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        step={0.01}
+        onChange={(value) => events.push(`change ${value}`)}
+        onChangeStart={() => events.push('start')}
+        onChangeEnd={() => events.push('end')}
+      />,
+    )
+    const control = slider()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 78 })
+    // The key puts it back, and the hand that holds it turns on from there: one move, ended by the hand.
+    fireEvent.keyDown(control, { key: 'Delete' })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 67 })
+    expect(events).toEqual(['start', 'change 0.7', 'change 0.5', 'change 0.6'])
+    // A double click from a second pointer, the same.
+    fireEvent.doubleClick(control)
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 56 })
+    fireEvent.pointerUp(control, { pointerId: 1 })
+    expect(events).toEqual([
+      'start',
+      'change 0.7',
+      'change 0.5',
+      'change 0.6',
+      'change 0.5',
+      'change 0.6',
+      'end',
+    ])
+  })
+
+  it('keeps a move open when the host sets a value with the pointer still down on it', () => {
+    const events: string[] = []
+    let set: (value: number) => void = () => {}
+    function Dial() {
+      const control = useParamControl({
+        defaultValue: 0.5,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        sensitivityPx: 110,
+        onChange: (value) => events.push(`change ${value}`),
+        onChangeStart: () => events.push('start'),
+        onChangeEnd: () => events.push('end'),
+      })
+      set = control.setValue
+      return (
+        <button type="button" role="slider" aria-valuenow={control.value} {...control.handlers} />
+      )
+    }
+    render(<Dial />)
+    const control = slider()
+    // On its own a value set is a move of its own.
+    act(() => set(0.2))
+    expect(events).toEqual(['start', 'change 0.2', 'end'])
+    events.length = 0
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    act(() => set(0.5))
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 89 })
+    fireEvent.pointerUp(control, { pointerId: 1 })
+    expect(events).toEqual(['start', 'change 0.5', 'change 0.6', 'end'])
   })
 
   it('takes a double click for its own only when the first press was on it too', () => {
