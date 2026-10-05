@@ -146,11 +146,32 @@ describe('WasmDeviceProcessor', () => {
 
     port.receive({ type: 'bypass', enabled: true })
     // 5 ms at 48 kHz = 240 samples: the block after this one is past the ramp.
-    processor.process(block(0.25, 512), outputs(512))
+    const ramp = outputs(512)
+    processor.process(block(0.25, 512), ramp)
+    // On the way there the dry signal fades in, with nothing of the device beside it:
+    // no sample is NaN, and none steps to the full level at the ramp's end.
+    for (const channel of ramp[0]) {
+      expect(channel.every((sample) => Number.isFinite(sample))).toBe(true)
+      expect(channel[0]).toBeGreaterThan(0)
+      expect(channel[0]).toBeLessThan(0.01)
+      for (let index = 1; index < 240; index += 1) {
+        expect(channel[index] - channel[index - 1]).toBeGreaterThanOrEqual(0)
+        expect(channel[index] - channel[index - 1]).toBeLessThan(0.01)
+      }
+      expect(channel[239]).toBeCloseTo(0.25, 6)
+      expect(channel[511]).toBe(0.25)
+    }
     const dry = outputs()
     processor.process(block(0.25), dry)
     expect([Math.min(...dry[0][0]), Math.max(...dry[0][0])]).toEqual([0.25, 0.25])
     expect([Math.min(...dry[0][1]), Math.max(...dry[0][1])]).toEqual([0.25, 0.25])
+
+    // Taken out of bypass it is the device again, as it is: what it puts out is not hidden.
+    port.receive({ type: 'bypass', enabled: false })
+    processor.process(block(0.25, 512), outputs(512))
+    const back = outputs()
+    processor.process(block(0.25), back)
+    expect(back[0][0][127]).toBeNaN()
   })
 
   it('ignores note messages on an effect module (no device_note_on export)', () => {

@@ -237,9 +237,12 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
 
 // The device's share of a crossfade. A device whose output is no number (one
 // such sample at its input is enough for a reverb's memory) is left behind by
-// a full bypass like any other: NaN times a wet of 0 would still be NaN.
+// a bypass like any other: NaN times a wet of 0 would still be NaN, and on
+// the way there it would be all that comes out. Under any wet below 1 it
+// counts as nothing, so the dry signal fades in as it does beside a healthy
+// device. Not bypassed at all, the device's output is passed on as it is.
 function processed(sample: number, wet: number): number {
-  return wet === 0 && !Number.isFinite(sample) ? 0 : sample * wet
+  return wet < 1 && !Number.isFinite(sample) ? 0 : sample * wet
 }
 
 registerProcessor(WASM_DEVICE_PROCESSOR_NAME, WasmDeviceProcessor)
