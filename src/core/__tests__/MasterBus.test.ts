@@ -191,9 +191,28 @@ describe('MasterBus.installLimiter', () => {
     expect(b.device.dispose).toHaveBeenCalledTimes(1)
     expect(bus.limiter?.id).toBe('fake-limiter')
   })
+
+  it('disposes a device that was still being made when the bus was disposed', async () => {
+    const { ctx, bus } = master()
+    const { device } = fakeLimiter(ctx)
+    const installing = bus.installLimiter(() => Promise.resolve(device))
+    bus.dispose()
+    await expect(installing).rejects.toThrow(/disposed/)
+    expect(device.dispose).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe('MasterBus.installLufsMeter', () => {
+  it('disposes a meter that was still being made when the bus was disposed', async () => {
+    const { ctx, bus } = master()
+    const installing = bus.installLufsMeter({ processorUrl: 'p', createNode: mockNodeFactory })
+    bus.dispose()
+    await expect(installing).rejects.toThrow(/disposed/)
+    // The worklet was made after the bus had gone: nobody else can tell it to end.
+    expect(ctx.workletNodes).toHaveLength(1)
+    expect(ctx.workletNodes[0].port.posted.last?.[0]).toEqual({ type: 'dispose' })
+  })
+
   it('creates the meter worklet as a tap on the master output', async () => {
     const { ctx, bus, fader } = master()
     const meter = await bus.installLufsMeter({ processorUrl: 'p', createNode: mockNodeFactory })
