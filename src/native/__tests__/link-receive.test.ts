@@ -427,6 +427,25 @@ describe('the received block on the wire', () => {
     new Uint32Array(other, 0, 1)[0] = 3
     expect(decodeLinkAudioInBlock(other)).toBeNull()
   })
+
+  it('is not read at a sample rate no device runs at', () => {
+    const at = (sampleRate: number) =>
+      decodeLinkAudioInBlock(
+        encodeLinkAudioInBlock({
+          frames: 2,
+          channels: 1,
+          sampleRate,
+          atMicros: 1,
+          count: 0,
+          samples: new Float32Array(2),
+        }),
+      )
+    // The fastest the host takes from a page is taken from a peer too.
+    expect(at(768000)?.sampleRate).toBe(768000)
+    expect(at(768001)).toBeNull()
+    // What the playout would have asked 32 GB of memory for.
+    expect(at(4_000_000_000)).toBeNull()
+  })
 })
 
 describe('LinkAudioIntake', () => {
