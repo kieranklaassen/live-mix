@@ -156,6 +156,9 @@ export function pointerDeltaToNormDelta(deltaY: number, sensitivityPx = 120, fin
   return -deltaY / scale
 }
 
+/** How much of a control's travel one notch of the wheel turns it. */
+export const WHEEL_NOTCH = 0.025
+
 /**
  * Wheel delta → normalised delta. Scroll up (negative `deltaY`) increases.
  * Line and page modes are scaled to pixels first; a notch moves 2.5 % of the
@@ -164,7 +167,7 @@ export function pointerDeltaToNormDelta(deltaY: number, sensitivityPx = 120, fin
 export function wheelDeltaToNormDelta(deltaY: number, deltaMode = 0, fine = false): number {
   const pixels = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * 400 : deltaY
   const notches = pixels / 100
-  return -notches * (fine ? 0.0025 : 0.025)
+  return -notches * (fine ? WHEEL_NOTCH / 10 : WHEEL_NOTCH)
 }
 
 export function normToKnobAngle(normalized: number): number {
@@ -241,7 +244,13 @@ export function heldPeak(previous: HeldPeak, db: number, now: number, holdMs: nu
 
 function formatHz(value: number, digits?: number, sp = ' '): string {
   if (value >= 1000) return `${(value / 1000).toFixed(digits ?? 2)}${sp}kHz`
-  return `${value.toFixed(digits ?? (value < 100 ? 1 : 0))}${sp}Hz`
+  // Under one hertz a single decimal reads the same over much of a slow rate's travel ("0.0 Hz").
+  const size = Math.abs(value)
+  return `${value.toFixed(digits ?? (size >= 100 ? 0 : size > 0 && size < 1 ? 2 : 1))}${sp}Hz`
+}
+
+function formatMs(value: number, digits?: number, sp = ' '): string {
+  return `${value < 10 ? value.toFixed(digits ?? 1) : Math.round(value)}${sp}ms`
 }
 
 function formatDb(value: number, digits?: number, sp = ' '): string {
@@ -279,8 +288,12 @@ export function formatControlValue(
     case '':
       return value.toFixed(digits ?? 2)
     case 'ms':
-      return `${value < 10 ? value.toFixed(digits ?? 1) : Math.round(value)}${sp}ms`
+      return formatMs(value, digits, sp)
     case 's':
+      // Under a tenth of a second two decimals of a second say nothing ("0.00 s" for every
+      // attack a compressor has): the time is told in milliseconds there.
+      if (digits === undefined && value !== 0 && Math.abs(value) < 0.0995)
+        return formatMs(value * 1000, undefined, sp)
       return `${value.toFixed(digits ?? 2)}${sp}s`
     case 'dB':
       return formatDb(value, digits, sp)

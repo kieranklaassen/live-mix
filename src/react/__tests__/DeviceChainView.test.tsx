@@ -22,6 +22,7 @@ import {
 } from '../components/chain-reorder'
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
 import { deviceSkin } from '../components/device-skins'
+import { forgetPresses } from '../components/presses'
 import { createTestEngine, type TestEngine } from './harness'
 
 // jsdom's own `URL` is not one `fileURLToPath` takes: the path is joined instead.
@@ -999,6 +1000,56 @@ describe('DeviceChainView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }))
     expect(onRemove).toHaveBeenCalledWith(eq, 0)
     expect(pad.strip.inserts).toEqual([eq])
+  })
+
+  it('goes on with the device a move cell moved, pressed again with the pointer where it was', async () => {
+    const { pad, devices } = await threeDevices()
+    const [filter, eq, delay] = devices
+    const still = { detail: 1, clientX: 40, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The neighbour slid under the pointer, its own cell where the pressed one was.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // At the chain's end the device stays, and the one under the pointer is not sent off instead.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The pointer moved on: the cell under it is the one that is meant.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), {
+      detail: 1,
+      clientX: 60,
+      clientY: 10,
+    })
+    expect(pad.strip.inserts).toEqual([delay, eq, filter])
+    // The other way from where it stands now, held still again.
+    const back = { detail: 1, clientX: 160, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter earlier' }), back)
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }), back)
+    expect(pad.strip.inserts).toEqual([filter, delay, eq])
+    // A press the keys made is on the cell that has the focus, wherever a pointer was left.
+    fireEvent.click(screen.getByRole('button', { name: 'Move delay later' }))
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }), back)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+  })
+
+  it('takes a double click on a cross for one press: the device that slid under the pointer stays', async () => {
+    forgetPresses()
+    const { pad, devices } = await threeDevices()
+    const [, eq, delay] = devices
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Filter' }), { detail: 1 })
+    expect(pad.strip.inserts).toEqual([eq, delay])
+    // The second press of the double click lands on the cross of the device now there,
+    // and a third in the same run is not that device's own either.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 2 })
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 3 })
+    expect(pad.strip.inserts).toEqual([eq, delay])
+    // A press that starts afresh is, and so is one the keys make.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 1 })
+    expect(pad.strip.inserts).toEqual([delay])
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Delay' }))
+    expect(pad.strip.inserts).toEqual([])
+    forgetPresses()
   })
 
   it('adds a registry device into the chain from the picker', async () => {

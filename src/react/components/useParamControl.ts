@@ -25,8 +25,10 @@ import {
   quantize,
   stepBy,
   wheelDeltaToNormDelta,
+  WHEEL_NOTCH,
   type ControlTaper,
 } from './control-math'
+import { firstPressWasElsewhere, watchPresses } from './presses'
 
 export type ControlAxis = 'vertical' | 'horizontal' | 'both'
 
@@ -133,6 +135,11 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const heldAcrossRef = useRef(0)
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const elementRef = useRef<HTMLElement | null>(null)
+  /** What the wheel has turned of a whole step that is not taken yet, in steps: a control of few whole steps only. */
+  const wheelStepsRef = useRef(0)
+
+  // A double click is asked whose first press it was.
+  useEffect(() => watchPresses(), [])
 
   useIsomorphicLayoutEffect(() => {
     latest.current = options
@@ -345,6 +352,9 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: MouseEvent<HTMLElement>) => {
       const o = latest.current
       if (o.disabled) return
+      // The browser sends this to what stands under the second press. A cell that moved away when it
+      // was pressed (a plate folding open) leaves a control there, and that is not a double click on it.
+      if (firstPressWasElsewhere(event.currentTarget, event)) return
       event.preventDefault()
       beginGesture()
       commitValue(o.resetValue ?? o.defaultValue)
@@ -437,9 +447,23 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       if (delta === 0) return
       event.preventDefault()
       touchGesture()
-      commitNorm(normRef.current + wheelDeltaToNormDelta(delta, event.deltaMode, event.shiftKey))
+      const turned = wheelDeltaToNormDelta(delta, event.deltaMode, event.shiftKey)
+      const stepSize = o.step ?? 0
+      // A control of few whole steps (a list of choices): one step is more of its travel than a
+      // notch turns, and the sum of the notches is put back on the value shown at every render,
+      // so a notch at a time turned nothing. There a notch is one step, and less of one adds up.
+      if (o.wholeSteps && stepSize > 0 && stepSize / (o.max - o.min) > WHEEL_NOTCH) {
+        if (wheelStepsRef.current * turned < 0) wheelStepsRef.current = 0
+        wheelStepsRef.current += turned / WHEEL_NOTCH
+        const whole = Math.trunc(wheelStepsRef.current)
+        if (whole === 0) return
+        wheelStepsRef.current -= whole
+        commitValue(stepBy(shownRef.current, whole, stepSize, o.min, o.max))
+        return
+      }
+      commitNorm(normRef.current + turned)
     },
-    [commitNorm, touchGesture],
+    [commitNorm, commitValue, touchGesture],
   )
   const ref = useCallback(
     (element: HTMLElement | null) => {

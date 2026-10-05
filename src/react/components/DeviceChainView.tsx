@@ -21,6 +21,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from 'react'
 
@@ -47,6 +48,7 @@ import { DevicePanel, type DevicePanelProps } from './DevicePanel'
 import { DevicePlate } from './DevicePlate'
 import { type DeviceSkin } from './device-skins'
 import { infoProps } from './info'
+import { firstPressWasElsewhere, watchPresses } from './presses'
 import { cx } from './tokens'
 
 /** What a chain edits: anything with an ordered insert list (`ChannelStrip`, `Bus`). */
@@ -154,6 +156,9 @@ const PLATE_REORDER_HINT =
 
 /** On a plate for as long as a move cell of its tools is given the focus back: the tools are drawn. */
 const PLATE_REFOCUS = 'data-lm-refocus'
+
+/** How far a pointer may have gone between two presses and still count as held where it was, in pixels. */
+const STILL_PX = 2
 
 function sameDevices(a: readonly Device[], b: readonly Device[]): boolean {
   return a.length === b.length && a.every((device, index) => device === b[index])
@@ -318,17 +323,68 @@ export function DeviceChainView({
     plate?.removeAttribute(PLATE_REFOCUS)
   }, [inserts])
 
+  /** The device a move cell last moved under the pointer, and where the pointer was. */
+  const stepped = useRef<{ device: Device; id?: string; x: number; y: number } | null>(null)
+
+  // A second press is asked whose first press it was.
+  useEffect(() => watchPresses(), [])
+
+  /**
+   * A double click is one act on what its first press was on. A cell pressed
+   * that takes its device out of the chain, or folds its plate, leaves another
+   * device's cell under the pointer, and the second press the browser counts
+   * would be an act on that one. The move cells have their own answer to this
+   * in `step`.
+   */
+  const ownPress = (event: ReactMouseEvent<HTMLElement>): void => {
+    const cell = (event.target as Element).closest('button')
+    if (!cell || cell.matches('.lm-chain__move')) return
+    if (!firstPressWasElsewhere(cell, event)) return
+    event.preventDefault()
+    event.stopPropagation()
+  }
+
   /**
    * The move buttons: one slot earlier or later. The step is through the
    * score's own order, which the engine's chain follows a render behind — read
    * out of the chain, a second click would land back on the slot the first
    * came from.
    */
-  const step = (index: number, delta: 1 | -1, cell: HTMLElement): void => {
+  const step = (
+    under: number,
+    delta: 1 | -1,
+    cell: HTMLElement,
+    press: { detail: number; clientX: number; clientY: number },
+  ): void => {
     // The cell that was pressed has the focus given back once the device stands in its new place.
     if (document.activeElement === cell) pressed.current = cell
+    // The device goes a place and its neighbour slides under the pointer, its own cell where the
+    // pressed one was: pressed again with the pointer where it is, it is still the first device
+    // that is meant, not the neighbour sent back the way it came.
+    let index = under
+    if (press.detail > 0) {
+      const held = stepped.current
+      const still =
+        held !== null &&
+        Math.abs(press.clientX - held.x) <= STILL_PX &&
+        Math.abs(press.clientY - held.y) <= STILL_PX
+      // By its place in the score where the score holds it: the engine's chain may have made it anew.
+      const at = !still
+        ? -1
+        : inserts.findIndex(
+            (device) =>
+              device === held.device ||
+              (held.id !== undefined && arbiter?.deviceIdFor(device) === held.id),
+          )
+      if (at >= skip) index = at
+      const device = inserts[index]
+      stepped.current = device
+        ? { device, id: arbiter?.deviceIdFor(device), x: press.clientX, y: press.clientY }
+        : null
+    } else stepped.current = null
     if (!arbiter || owner === null) {
-      move(index, index + delta)
+      // At the chain's end there is no further place, and a press there moves nothing.
+      if (index + delta >= skip && index + delta < inserts.length) move(index, index + delta)
       return
     }
     const moved = index < skip ? undefined : scoreSlot(inserts[index])
@@ -397,6 +453,7 @@ export function DeviceChainView({
       style={style}
       role="list"
       aria-label={`${strip.name} devices`}
+      onClickCapture={ownPress}
       data-testid={testId}
       data-lm-strip={strip.name}
     >
@@ -433,7 +490,7 @@ export function DeviceChainView({
                       'Moves the device one place towards the start of the chain, so the sound reaches it sooner.',
                     )}
                     disabled={index === skip}
-                    onClick={(event) => step(index, -1, event.currentTarget)}
+                    onClick={(event) => step(index, -1, event.currentTarget, event)}
                     data-testid={testId ? `${testId}-earlier-${index - skip}` : undefined}
                   >
                     ◂
@@ -447,7 +504,7 @@ export function DeviceChainView({
                       'Moves the device one place towards the end of the chain, so it works on what the devices before it made.',
                     )}
                     disabled={index === inserts.length - 1}
-                    onClick={(event) => step(index, 1, event.currentTarget)}
+                    onClick={(event) => step(index, 1, event.currentTarget, event)}
                     data-testid={testId ? `${testId}-later-${index - skip}` : undefined}
                   >
                     ▸
