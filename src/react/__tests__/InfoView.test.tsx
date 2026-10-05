@@ -354,6 +354,44 @@ describe('InfoView', () => {
     }
   })
 
+  it('forgets a control that is taken away with no press on it', async () => {
+    // What the agent erases, or a button somewhere else takes away, goes with
+    // no click and no key inside the part that is described.
+    function Erased() {
+      const root = useRef<HTMLDivElement>(null)
+      const [there, setThere] = useState(true)
+      return (
+        <>
+          <div ref={root}>
+            {there ? (
+              <button type="button" {...infoProps('Reverb', 'A room.')}>
+                Reverb
+              </button>
+            ) : null}
+          </div>
+          <button type="button" onClick={() => setThere(false)}>
+            Erase
+          </button>
+          <InfoView root={root} data-testid="info" />
+        </>
+      )
+    }
+    vi.useFakeTimers()
+    try {
+      render(<Erased />)
+      fireEvent.focusIn(screen.getByRole('button', { name: 'Reverb' }))
+      expect(title()).toBe('Reverb')
+      fireEvent.click(screen.getByRole('button', { name: 'Erase' }))
+      await act(async () => {
+        await vi.runAllTimersAsync()
+      })
+      expect(screen.queryByRole('button', { name: 'Reverb' })).toBeNull()
+      expect(title()).toBe(INFO_IDLE.title)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('follows a root that is mounted after it', async () => {
     function Late() {
       const root = useRef<HTMLDivElement>(null)
