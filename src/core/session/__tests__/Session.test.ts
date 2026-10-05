@@ -599,6 +599,55 @@ describe('Session: one clip per track, legato, launch modes', () => {
     expect(session.status('kick-chorus')).toMatchObject({ stopping: true, endSec: 14 })
   })
 
+  it('a gate pressed and let go again before its stop has come is not left sounding', async () => {
+    const { engine, session, advance, clips } = await rig({}, (score) => {
+      score.slots[0].launchMode = 'gate'
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse') // at 8
+    await advance(1.2) // 9.1
+    session.releaseSlot('kick-verse') // stops at 10
+    session.launchSlot('kick-verse') // pressed again inside the bar: starts again at 10
+    expect(clips('kick')).toHaveLength(2)
+    // Let go before 10: the slot has two launches now, the one that is ending
+    // and the one that waits. The release is of the one that waits.
+    session.releaseSlot('kick-verse')
+    expect(clips('kick')).toEqual([{ id: 'kick-verse@1', startSec: 8, durationSec: 2 }])
+    await advance(1) // 10.1
+    expect(session.status('kick-verse').state).toBe('stopped')
+    expect(session.trackStatus('kick')).toEqual({ track: 'kick', playing: null, queued: null })
+  })
+
+  it('a toggle pressed a fourth time inside the bar stops the launch its third press placed', async () => {
+    const { engine, session, advance, clips } = await rig({}, (score) => {
+      score.slots[2].launchMode = 'toggle'
+    })
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('pad-verse') // at 8
+    await advance(1.2) // 9.1
+    session.launchSlot('pad-verse') // playing: stop at 10
+    session.launchSlot('pad-verse') // stopping: launch again at 10
+    expect(clips('pad')).toHaveLength(2)
+    session.launchSlot('pad-verse') // queued: stop, which withdraws it
+    expect(clips('pad')).toEqual([{ id: 'pad-verse@1', startSec: 8, durationSec: 2 }])
+    await advance(1) // 10.1
+    expect(session.status('pad-verse').state).toBe('stopped')
+  })
+
+  it('a stop on a nearer grid than the one already placed ends the slot there, relaunch and all', async () => {
+    const { engine, session, advance, clips } = await rig()
+    engine.transport.start()
+    await advance(7.9)
+    session.launchSlot('kick-verse') // at 8
+    await advance(1.2) // 9.1
+    session.stopSlot('kick-verse') // at 10
+    session.launchSlot('kick-verse') // again at 10
+    session.stopSlot('kick-verse', { quantize: 'beat' }) // at 9.5: before both
+    expect(clips('kick')).toEqual([{ id: 'kick-verse@1', startSec: 8, durationSec: 1.5 }])
+  })
+
   it('an empty slot stops its track; launching a scene stops tracks with empty slots and skips others', async () => {
     const { engine, session, advance, clips, labels } = await rig({}, (score) => {
       score.slots = score.slots.filter((slot) => slot.id !== 'kick-chorus')

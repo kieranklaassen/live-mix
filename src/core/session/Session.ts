@@ -273,7 +273,7 @@ export class Session {
   launchSlot(slotId: string, options: LaunchOptions = {}): void {
     const slot = this.requireSlot(slotId)
     if (slot.launchMode === 'toggle') {
-      const active = this.activeLaunch(slotId)
+      const active = this.latestLaunch(slotId)
       if (active && !active.stopping) {
         this.stopSlot(slotId, options)
         return
@@ -328,10 +328,14 @@ export class Session {
   /** Stop a slot at the next grid line (a queued launch is withdrawn). */
   stopSlot(slotId: string, options: LaunchOptions = {}): void {
     const slot = this.requireSlot(slotId)
-    const launch = this.activeLaunch(slotId)
-    if (!launch) return
+    if (!this.activeLaunch(slotId)) return
     const at = this.launchTime(options.quantize ?? slot.quantize ?? this.quantize)
-    const ops = this.closeOps(launch, at)
+    // A slot stopped and pressed again before the stop has come has two
+    // launches, the one that is ending and the one that waits: both are stopped.
+    const ops: Operation[] = []
+    for (const launch of [...this.launches]) {
+      if (launch.slotId === slotId) ops.push(...this.closeOps(launch, at))
+    }
     if (ops.length === 0) return
     this.apply(batch(ops), `stop ${slotId}`)
     this.emit()
@@ -697,6 +701,19 @@ export class Session {
 
   private activeLaunch(slotId: string): Launch | undefined {
     return this.launches.find((launch) => launch.slotId === slotId)
+  }
+
+  /**
+   * The launch a press of the slot answers to: the last one placed. A slot
+   * stopped and launched again inside one bar still has the launch that is
+   * ending in front of it, and a toggle that read that one could never call
+   * the new one off.
+   */
+  private latestLaunch(slotId: string): Launch | undefined {
+    for (let index = this.launches.length - 1; index >= 0; index -= 1) {
+      if (this.launches[index].slotId === slotId) return this.launches[index]
+    }
+    return undefined
   }
 
   private requireSlot(slotId: string): ScoreSlot {
