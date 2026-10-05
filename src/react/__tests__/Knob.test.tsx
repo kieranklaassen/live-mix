@@ -254,6 +254,41 @@ describe('Knob', () => {
     expect(control).not.toHaveAttribute('aria-valuenow', '0.5')
   })
 
+  it('gives the host back the very value it held when the browser takes the press, one between two steps too', () => {
+    const seen: number[] = []
+    function Host() {
+      const [value, setValue] = useState(0.3333)
+      return (
+        <Knob
+          label="Mix"
+          value={value}
+          defaultValue={0.5}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(next) => {
+            seen.push(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+    render(<Host />)
+    // A preset or another writer left the value between two of the knob's steps: it shows the nearer.
+    expect(slider()).toHaveAttribute('aria-valuenow', '0.33')
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientX: 80, clientY: 44 })
+    expect(seen).toHaveLength(1)
+    fireEvent.pointerCancel(slider(), { pointerId: 1 })
+    // Nothing was meant for the knob: the host has what it had, not that rounded to a step.
+    expect(seen[1]).toBe(0.3333)
+    expect(slider()).toHaveAttribute('aria-valuenow', '0.33')
+    // A press taken back before it turned anything says nothing at all.
+    fireEvent.pointerDown(slider(), { pointerId: 2, button: 0, clientX: 100, clientY: 50 })
+    fireEvent.pointerCancel(slider(), { pointerId: 2 })
+    expect(seen).toHaveLength(2)
+  })
+
   it('holds back a finger’s first pixels, so a swipe the browser takes never turns it at all', () => {
     const onChange = vi.fn()
     render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)

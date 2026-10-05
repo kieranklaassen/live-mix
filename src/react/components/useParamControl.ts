@@ -129,6 +129,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const lastPointRef = useRef({ x: 0, y: 0 })
   /** The value the control had when the pointer took it: what a press the browser takes back returns to. */
   const takenAtRef = useRef(shown)
+  /** What a host held then, which may stand between two steps: that press gives it back as it was. */
+  const heldAtRef = useRef(value)
   /** How far a finger has gone without turning the control yet, in pixels; null once it turns, and for a mouse. */
   const heldBackRef = useRef<number | null>(null)
   /** How far that finger has gone across the control's own way meanwhile. */
@@ -259,6 +261,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       pointerIdRef.current = event.pointerId
       lastPointRef.current = { x: event.clientX, y: event.clientY }
       takenAtRef.current = shownRef.current
+      heldAtRef.current = latest.current.value
       // A finger's first pixels are held back: until it has gone a little way
       // it may be a swipe along whatever the control stands in, which the
       // browser is about to take, and a control that had already turned would
@@ -303,10 +306,14 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       const taken = takenAtRef.current
       if (draggingRef.current && taken !== shownRef.current) {
         const o = latest.current
+        const held = heldAtRef.current
         normRef.current = normalizeValue(taken, o.min, o.max, o.taper, o.skew)
         shownRef.current = taken
         setInternal(taken)
-        o.onChange?.(taken)
+        // The value shown is a host's rounded to a step, and the host is to have its own again.
+        o.onChange?.(
+          held !== undefined && Number.isFinite(held) ? clamp(held, o.min, o.max) : taken,
+        )
       }
       endPointer(event)
     },
