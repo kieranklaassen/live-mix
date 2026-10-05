@@ -8,12 +8,12 @@ export const LEXICON: DeviceLexicon = {
     Crystals: {
       says: 'grain repeats that climb an octave on every pass',
       brief: 'octave-climbing grain echoes',
-      nouns: ['crystals', 'echo'],
+      nouns: ['echo', 'octaves'],
       roles: ['echo', 'pitch', 'grain'],
       traits: ['high', 'bright'],
     },
     'Falling embers': {
-      says: 'grain repeats that fall an octave each time, darkening',
+      says: 'grain repeats that fall an octave and darken each time',
       brief: 'octave-falling grain echoes',
       nouns: ['embers', 'echo'],
       roles: ['echo', 'pitch', 'grain'],
@@ -24,7 +24,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'grain echoes up in fifths',
       nouns: ['fifths', 'steps', 'echo'],
       roles: ['echo', 'pitch'],
-      traits: ['bright'],
+      traits: ['bright', 'high'],
     },
     'Grain cloud': {
       says: 'a scattered cloud of short grains behind the playing',
@@ -36,7 +36,7 @@ export const LEXICON: DeviceLexicon = {
     'Backwards shards': {
       says: 'backwards grains of each phrase, repeating as they fade',
       brief: 'backwards grain repeats',
-      nouns: ['shards', 'echo'],
+      nouns: ['echo', 'grains'],
       roles: ['echo', 'grain'],
       traits: ['backwards'],
     },
@@ -48,7 +48,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['long', 'wide', 'heavy'],
     },
     'Plain repeat': {
-      says: 'a plain echo rebuilt from grains, straight and centred',
+      says: 'a plain, centred echo rebuilt from grains',
       brief: 'a plain grain echo',
       nouns: ['repeat', 'echo'],
       roles: ['echo'],
@@ -57,21 +57,21 @@ export const LEXICON: DeviceLexicon = {
     'Sub shadow': {
       says: 'a dull copy an octave below, close behind each note',
       brief: 'a dull octave-down shadow',
-      nouns: ['shadow', 'sub'],
+      nouns: ['shadow', 'octave'],
       roles: ['pitch'],
       traits: ['low', 'dark', 'faint'],
     },
     'Shimmer wash': {
       says: 'a smeared wash of grains that climbs by octaves',
       brief: 'an octave-climbing wash',
-      nouns: ['wash', 'shimmer'],
+      nouns: ['shimmer', 'wash'],
       roles: ['halo', 'grain', 'pitch'],
       traits: ['high', 'bright'],
     },
     'Thick double': {
       says: 'a thick double made of slightly detuned grains',
       brief: 'a thick detuned double',
-      nouns: ['double'],
+      nouns: ['chorus', 'grains'],
       roles: ['width'],
       traits: ['faint', 'short'],
     },
@@ -83,18 +83,18 @@ export const LEXICON: DeviceLexicon = {
       traits: ['high', 'bright', 'cold'],
     },
     'Pulsing repeat': {
-      says: 'an echo of single grains with gaps, so the repeats pulse',
+      says: 'an echo whose repeats come in quick, separate pulses',
       brief: 'a pulsing grain echo',
-      nouns: ['pulse', 'echo'],
-      roles: ['echo', 'pulse'],
+      nouns: ['echo', 'pulse'],
+      roles: ['echo'],
       traits: ['fast'],
     },
     'Scattered pitches': {
       says: 'grains thrown up to an octave out of tune either way',
       brief: 'out-of-tune scattered grains',
-      nouns: ['scatter', 'grains'],
+      nouns: ['grains', 'cloud'],
       roles: ['grain'],
-      traits: ['strange'],
+      traits: ['strange', 'unsteady'],
     },
     'Faint glints': {
       says: 'faint grains an octave and a fifth up, behind the playing',
@@ -106,7 +106,7 @@ export const LEXICON: DeviceLexicon = {
     'Dark slow smear': {
       says: 'a dark smear of long grains that trails for many seconds',
       brief: 'a dark smear of long grains',
-      nouns: ['smear', 'haze'],
+      nouns: ['haze', 'cloud'],
       roles: ['grain', 'hall'],
       traits: ['dark', 'long', 'slow', 'far'],
     },
@@ -115,7 +115,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'grain echoes down in fourths',
       nouns: ['fourths', 'steps', 'echo'],
       roles: ['echo', 'pitch'],
-      traits: ['dark'],
+      traits: ['dark', 'low'],
     },
   },
 }
