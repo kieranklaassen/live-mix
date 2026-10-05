@@ -261,11 +261,12 @@ export function buildLatencyReport(
     const here = own.get(key)
     if (!input || !here) return { latency: 0, arrival: 0 }
     let downstream = { latency: 0, arrival: 0 }
+    // On the trail before the destination is looked at: a path may feed itself.
+    trail.add(key)
     if (input.destination !== null && !trail.has(input.destination)) {
-      trail.add(key)
       downstream = resolve(input.destination, trail)
-      trail.delete(key)
     }
+    trail.delete(key)
     const total = {
       latency: here.latency + downstream.latency,
       arrival: here.latency + here.compensation + downstream.arrival,
