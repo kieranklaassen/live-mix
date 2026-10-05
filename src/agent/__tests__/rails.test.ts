@@ -88,6 +88,19 @@ describe('gain slew', () => {
     expect(notes).toHaveLength(1)
   })
 
+  it('a move from or to what is no number passes unslewed, and the budget is not spent on it', () => {
+    const rails = new Rails()
+    const notes: RailNote[] = []
+    // No telling how far these go: the document refuses what is no number, as it always did.
+    expect(rails.slewGain('music', NaN, 0.5, 0, notes)).toBe(0.5)
+    expect(rails.slewGain('music', 0.8, NaN, 0, notes)).toBeNaN()
+    expect(notes).toEqual([])
+    // The bucket is whole and holds a number: a full-scale move, then nothing until it refills.
+    expect(rails.slewGain('music', 0, 1, 0, notes)).toBe(1)
+    expect(rails.slewGain('music', 1, 0, 0, notes)).toBe(1)
+    expect(rails.slewGain('music', 1, 0, 1000, notes)).toBe(0)
+  })
+
   it('is disabled with an infinite rate', () => {
     const rails = new Rails({ maxGainChangePerSec: Infinity })
     const notes: RailNote[] = []

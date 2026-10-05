@@ -250,6 +250,9 @@ export class Rails {
       atMs,
     )
     const delta = requested - current
+    // A move that is no number cannot be measured, and spending the budget on it
+    // would leave no number in the bucket: every later move would come out NaN.
+    if (!Number.isFinite(delta)) return requested
     const allowed = Math.min(Math.abs(delta), bucket.tokens)
     const applied = allowed === Math.abs(delta) ? requested : current + Math.sign(delta) * allowed
     if (applied !== requested) {
