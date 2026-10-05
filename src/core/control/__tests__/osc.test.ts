@@ -40,6 +40,15 @@ describe('OSC address patterns', () => {
     expect(matchOscAddress('/a.*', '/aXb')).toBe(false)
   })
 
+  it('keeps a character class on its own side of a /, a negated one and a range that spans it', () => {
+    expect(matchOscAddress('/a[!b]c', '/axc')).toBe(true)
+    expect(matchOscAddress('/a[!b]c', '/a/c')).toBe(false)
+    expect(matchOscAddress('/1/fader[!1]', '/1/fader/')).toBe(false)
+    // From `+` to `0` there is a `.`, and there is a `/`.
+    expect(matchOscAddress('/a[+-0]c', '/a.c')).toBe(true)
+    expect(matchOscAddress('/a[+-0]c', '/a/c')).toBe(false)
+  })
+
   it('treats malformed patterns as matching nothing', () => {
     expect(oscPatternToRegExp('/1/fader[1')).toBeNull()
     expect(oscPatternToRegExp('/1/{a,b')).toBeNull()
