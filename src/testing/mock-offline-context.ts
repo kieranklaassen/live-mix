@@ -1,8 +1,12 @@
 // A recording `OfflineAudioContext`: the same node/param recording as
 // `MockAudioContext`, plus `startRendering()` (resolves with a silent buffer
 // of the requested shape unless a `render` hook synthesises one) and a
-// `scheduleSnapshot()` that lists every source start/stop and AudioParam
-// event the graph received — the thing offline-vs-live goldens compare.
+// `scheduleSnapshot()` that lists what the graph was told to play: the
+// thing offline-vs-live goldens compare. It lists the starts and stops of
+// buffer sources and the AudioParam events of gains, stereo panners, buffer
+// sources (rate and detune), filters (frequency, Q and gain) and delays. It
+// leaves out oscillators, compressors, a filter's detune and the parameters
+// of a worklet node: two graphs that differ only there give one snapshot.
 
 import { MockAudioContext, type MockAudioContextOptions } from './mock-audio-context'
 import { MockAudioBuffer, type MockBufferSource } from './mock-nodes'
@@ -42,7 +46,7 @@ export class MockOfflineAudioContext extends MockAudioContext {
     )
   }
 
-  /** Everything the graph was told, in creation order; identical inputs must give identical snapshots. */
+  /** What the graph was told of the nodes named at the top of this file, in creation order; identical inputs must give identical snapshots. */
   scheduleSnapshot(): ScheduleSnapshot {
     const sources = this.sources.map((source: MockBufferSource) => ({
       start: source.startCalls.calls.map((call) => [...call]),
