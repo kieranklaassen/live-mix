@@ -311,6 +311,11 @@ test('a parameter value or a sample rate that is no number is not taken', async 
   const ones = new Float32Array(256).fill(1)
   const [left] = await audio.process([ones, ones], 256)
   near(left[255], 1)
+  // A number past either end, however far, is still taken to that end.
+  control.notify('setParam', { slot: slot.slot, index: 0, value: 1e39 })
+  near((await control.call('getParams', { slot: slot.slot })).params[0].value, 1)
+  control.notify('setParam', { slot: slot.slot, index: 0, value: -1e39 })
+  near((await control.call('getParams', { slot: slot.slot })).params[0].value, 0)
   await control.call('unload', { slot: slot.slot })
 
   const { plugins } = await control.call('plugins')
