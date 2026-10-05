@@ -346,7 +346,8 @@ export class ScoreRenderer {
       }
       case 'device': {
         const device = this.deviceMap.get(target.device)
-        if (!device || !(target.param in device.params)) return false
+        // Its own parameters only: `constructor` is on every object.
+        if (!device || !Object.hasOwn(device.params, target.param)) return false
         device.setParam(target.param, value)
         return true
       }
@@ -1065,7 +1066,7 @@ export class ScoreRenderer {
       .then((loaded) => {
         if (!loaded || this.deviceMap.get(after.id) !== device) return
         for (const [name, value] of Object.entries(next)) {
-          if (free(name) && name in device.params) device.setParam(name, value)
+          if (free(name) && taken(name)) device.setParam(name, value)
         }
       })
       .catch((error: unknown) => this.handleError(error))
@@ -1349,7 +1350,7 @@ export class ScoreRenderer {
       case 'device': {
         const location = findDevice(score, target.device)
         const device = this.deviceMap.get(target.device)
-        if (!location || !device || !(target.param in device.params)) return
+        if (!location || !device || !Object.hasOwn(device.params, target.param)) return
         device.setParam(target.param, this.effectiveParams(location.device)[target.param])
         return
       }

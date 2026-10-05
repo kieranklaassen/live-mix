@@ -136,6 +136,43 @@ describe('a hosted plug-in in a score', () => {
     const saved = serializeScore(document.score)
     expect(parseScore(JSON.parse(saved), { devices: engine.devices })).toEqual(document.score)
   })
+
+  it('after a state has landed, puts back the values the plug-in has and nothing under a name every object answers to', async () => {
+    const kept = { constructor: 1, p100: 0.4 } as unknown as Record<string, number>
+    const { engine, host, document, renderer, errors } = await rig(scoreWithReverb(kept), true)
+    const [device] = engine.master.inserts
+    const before = host.calls('setParam').length
+
+    document.apply({ type: 'device.setState', device: 'verb-1', state: 'YW5vdGhlcg==' })
+    await renderer.whenIdle()
+    expect(errors).toEqual([])
+    // The state moved the first parameter; the document's value goes on top again.
+    // Under `constructor` a value went out with no index, which the host takes for that parameter.
+    expect(
+      host
+        .calls('setParam')
+        .slice(before)
+        .map((call) => call.params),
+    ).toEqual([{ slot: 's1', index: 0, value: 0.4 }])
+    expect(device.getParam('p100')).toBe(0.4)
+  })
+
+  it('writes a plug-in nothing under such a name: not by hand over a lane, not when a lane on it goes', async () => {
+    const kept = { constructor: 1 } as unknown as Record<string, number>
+    const { host, document, renderer } = await rig(scoreWithReverb(kept), true)
+    const target = { kind: 'device', device: 'verb-1', param: 'constructor' } as const
+
+    expect(renderer.writeThrough(target, 1)).toBe(false)
+    document.apply({
+      type: 'lane.add',
+      lane: { id: 'lane-1', target, breakpoints: [{ timeSec: 0, value: 0.5 }] },
+    })
+    await renderer.whenIdle()
+    document.apply({ type: 'lane.remove', id: 'lane-1' })
+    await renderer.whenIdle()
+    // Each went out with no index, which the host takes for the plug-in's first parameter.
+    expect(host.calls('setParam')).toEqual([])
+  })
 })
 
 describe('followNativeEdits', () => {
