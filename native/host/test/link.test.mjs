@@ -314,22 +314,13 @@ session('sends a channel a peer can listen to, with every sample on its beat', a
     peer.send('listen Main')
     await until(() => peer.lines.slice(from).find((line) => line.listening === true), 'listening')
 
-    // Stereo blocks of silence, each stamped with when it is heard, with one
-    // full-scale sample on the left on the third beat of a bar and one at
-    // minus full scale on the right on the fourth.
+    // Stereo blocks of silence, each stamped with when it is heard.
     const frames = 480
     const blockMicros = (frames / SAMPLE_RATE) * 1e6
-    const state = await control.call('link')
-    const microsAtBeat = (beat) => state.micros + ((beat - state.beat) * 60e6) / state.bpm
-    const bar = Math.ceil((beatAt(state, state.micros + 1_200_000) + 1) / QUANTUM) * QUANTUM
-    const marks = [
-      { micros: microsAtBeat(bar + 2), channel: 0, value: 1 },
-      { micros: microsAtBeat(bar + 3), channel: 1, value: -1 },
-    ]
     const first = (await control.call('linkPing')).micros + 20_000
-    const lastBlock = Math.ceil((marks[1].micros - first) / blockMicros) + 20
-    for (let block = 0; block < lastBlock; block += 1) {
-      const begins = first + block * blockMicros
+    let sent = 0
+    const sendBlock = async (marks = []) => {
+      const begins = first + sent * blockMicros
       const message = new ArrayBuffer(LINK_AUDIO_HEADER + frames * 2 * 4)
       new Uint32Array(message, 0, 4).set([LINK_AUDIO, frames, 2, SAMPLE_RATE])
       new Float64Array(message, 16, 1)[0] = begins
@@ -339,11 +330,35 @@ session('sends a channel a peer can listen to, with every sample on its beat', a
         if (frame >= 0 && frame < frames) samples[frame * 2 + mark.channel] = mark.value
       }
       audio.send(message)
+      sent += 1
       // In step with the clock, as a page sends it.
       const due = begins - 15_000 + blockMicros
       const now = (await control.call('linkPing')).micros
       if (due > now) await sleep((due - now) / 1000)
     }
+
+    // Link sends a channel to a peer once it has heard that peer's own Link
+    // Audio announcement (four a second). A peer that asked sooner is sent
+    // nothing until it asks again, five seconds on. So silence goes out until
+    // the peer says blocks arrive, and what is marked is not among the lost.
+    const flowBy = Date.now() + 12_000
+    while (!peer.lines.slice(from).some((line) => line.received)) {
+      if (Date.now() > flowBy)
+        throw new Error('timed out waiting for the channel to reach the peer')
+      await sendBlock()
+    }
+
+    // One full-scale sample on the left on the third beat of a bar and one at
+    // minus full scale on the right on the fourth.
+    const state = await control.call('link')
+    const microsAtBeat = (beat) => state.micros + ((beat - state.beat) * 60e6) / state.bpm
+    const bar = Math.ceil((beatAt(state, state.micros + 1_200_000) + 1) / QUANTUM) * QUANTUM
+    const marks = [
+      { micros: microsAtBeat(bar + 2), channel: 0, value: 1 },
+      { micros: microsAtBeat(bar + 3), channel: 1, value: -1 },
+    ]
+    const lastBlock = Math.ceil((marks[1].micros - first) / blockMicros) + 20
+    while (sent < lastBlock) await sendBlock(marks)
 
     const impulses = await until(() => {
       const found = peer.lines.slice(from).filter((line) => line.impulse)
