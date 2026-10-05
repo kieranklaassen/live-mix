@@ -7,329 +7,307 @@ import { type FactoryChain } from '../types'
 
 export const CHAINS: readonly FactoryChain[] = [
   {
-    id: 'laptop-guitar-lido-rise',
-    name: 'Lido rise',
+    id: 'laptop-guitar-parasol-ghost',
+    name: 'Parasol ghost',
     category: 'space',
     description:
-      'A console channel driven until it is firm in the mids, into a reverb that rises backwards for about four seconds.',
+      'A console channel driven until it is firm in the mids, into a dark reverb that rises backwards and leaves a dim tail.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Console' },
-      { deviceId: 'shaped-reverb', preset: 'Long rise' },
+      { deviceId: 'shaped-reverb', preset: 'Ghost' },
     ],
   },
   {
-    id: 'laptop-guitar-esplanade-hall',
-    name: 'Esplanade hall',
+    id: 'laptop-guitar-chirp-at-noon',
+    name: 'Chirp at noon',
     category: 'space',
     description:
-      'A swell that fades every note in like a bow stroke, into a wide open space with a slowly wavering tail.',
+      'A swell that arrives late, so notes seem to play in reverse, into three slack springs where every echo is a long chirp.',
     effects: [
-      { deviceId: 'swell', preset: 'Bowed', params: { attack: 435, release: 156 } },
-      { deviceId: 'expanse', preset: 'Open space' },
+      { deviceId: 'swell', preset: 'Backwards' },
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Slack and strange',
+        params: { decay: 3.33, predelay: 32.3 },
+      },
     ],
   },
   {
-    id: 'laptop-guitar-holiday-bloom',
-    name: 'Holiday bloom',
+    id: 'laptop-guitar-hall-on-a-balcony',
+    name: 'Hall on a balcony',
     category: 'space',
     description:
-      'A thick double made of slightly detuned grains, into a cloud of reverb that swells in after each note and fades.',
+      'A console channel run hot with its level pulled back down, into a hall that answers about a quarter of a second late.',
     effects: [
-      { deviceId: 'grain-delay', preset: 'Thick double' },
-      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.64 } },
+      { deviceId: 'analog-drive', preset: 'Hot channel' },
+      { deviceId: 'fdn-reverb', preset: 'Late arrival' },
     ],
   },
   {
-    id: 'laptop-guitar-pier-end-coil',
-    name: 'Pier-end coil',
+    id: 'laptop-guitar-bleached-cathedral',
+    name: 'Bleached cathedral',
     category: 'space',
     description:
-      'A tight damped little room that is barely there, into one slack spring in the centre whose echoes chirp brightly.',
+      'A console channel driven until it is firm in the mids, into a cathedral with about six seconds of tail.',
     effects: [
-      { deviceId: 'plate-reverb', preset: 'Tight room' },
-      { deviceId: 'spring-reverb', preset: 'Single slack coil' },
+      { deviceId: 'analog-drive', preset: 'Console', params: { output: -2.17 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral' },
     ],
   },
   {
-    id: 'laptop-guitar-remembered-chamber',
-    name: 'Remembered chamber',
+    id: 'laptop-guitar-promenade-vault',
+    name: 'Promenade vault',
     category: 'space',
     description:
-      'A valve preamp curve, lopsided and a little brighter on top, into a bright chamber that rings for a couple of seconds.',
+      'The level rising and falling at random, like surf, into a vast nave that rings for about eight seconds.',
     effects: [
-      { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -10.1 } },
-      { deviceId: 'expanse', preset: 'Bright chamber' },
+      { deviceId: 'tremolo', preset: 'Sea swell' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { midDecay: 7.44 } },
     ],
   },
   {
-    id: 'laptop-guitar-low-battery-haze',
-    name: 'Low-battery haze',
+    id: 'laptop-guitar-laptop-halo',
+    name: 'Laptop halo',
     category: 'space',
     description:
-      'A bowed swell at half strength under the dry attacks, then a short bright haze with an octave above everything.',
+      "A smooth swell on every note, like a string section's bows, then a short bright haze with an octave above everything.",
     effects: [
-      { deviceId: 'swell', preset: 'Half bowed' },
+      { deviceId: 'swell', preset: 'String section', params: { attack: 357, release: 662 } },
       { deviceId: 'spectral-blur', preset: 'Glass halo' },
     ],
   },
   {
-    id: 'laptop-guitar-august-hall',
-    name: 'August hall',
+    id: 'laptop-guitar-low-season-haze',
+    name: 'Low-season haze',
     category: 'space',
     description:
-      'A detuned double made of grains, spread to the sides, into a hall heard from far off with little dry sound left.',
+      'The sides lifted a little, wider with nothing added, then a wide haze of grains that hangs on long after the playing.',
     effects: [
-      { deviceId: 'grain-cloud', preset: 'Detuned double' },
-      { deviceId: 'hall-reverb', preset: 'Far away', params: { preDelay: 20.3, midDecay: 4.42 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-bounced-tank',
-    name: 'Bounced tank',
-    category: 'space',
-    description:
-      'A short swell that rounds the front off every note, into three springs heard alone with none of the dry sound left.',
-    effects: [
-      { deviceId: 'swell', preset: 'Slow attack', params: { attack: 144, release: 83.8 } },
-      { deviceId: 'spring-reverb', preset: 'Tank alone', params: { decay: 3.05 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-tail-down-the-line',
-    name: 'Tail down the line',
-    category: 'space',
-    description:
-      'A dark hall that takes about twenty seconds to die away, then a well-tuned sideband signal, steady, full-band and mono.',
-    effects: [
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
       {
-        deviceId: 'fdn-reverb',
-        preset: 'Endless tail',
-        params: { decay: 19.7, breathRate: 0.0721 },
+        deviceId: 'grain-delay',
+        preset: 'Frozen haze',
+        params: { time: 861, size: 378, mix: 0.336 },
       },
-      { deviceId: 'radio', preset: 'Clear sideband' },
     ],
   },
   {
-    id: 'laptop-guitar-swell-bleached-out',
-    name: 'Swell bleached out',
+    id: 'laptop-guitar-awning-choir',
+    name: 'Awning choir',
     category: 'space',
     description:
-      'A scooped, hollow tone, then a small room that casts a shadow an octave below, into a long tail that wavers in pitch like an unsteady choir.',
+      'A slow swell after each silence, with some dry attack left, into a reverb whose tail climbs an octave on every pass.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Hollow' },
-      { deviceId: 'shimmer', preset: 'Low shadow', params: { decay: 2.09, predelay: 21.9 } },
-      { deviceId: 'expanse', preset: 'Seasick choir', params: { decay: 17.7, modRate: 1.63 } },
+      { deviceId: 'swell', preset: 'Shadow', params: { attack: 1370, release: 309 } },
+      { deviceId: 'shimmer', preset: 'Rising choir', params: { decay: 7.06, predelay: 18.7 } },
     ],
   },
   {
-    id: 'laptop-guitar-jetty-hall',
-    name: 'Jetty hall',
+    id: 'laptop-guitar-overheated-sky',
+    name: 'Overheated sky',
     category: 'space',
     description:
-      'A faint hall tail of about three seconds, then a resonant upper-mid peak that rises when played hard.',
+      'A scooped tone with lows and highs up and the body down, into a wide open space with a slowly wavering tail.',
     effects: [
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-      { deviceId: 'auto-filter', preset: 'Resonant peak' },
+      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.4 } },
+      { deviceId: 'expanse', preset: 'Open space', params: { decay: 9.6, modRate: 0.393 } },
     ],
   },
   {
-    id: 'laptop-guitar-glass-at-noon',
-    name: 'Glass at noon',
-    category: 'echo',
+    id: 'laptop-guitar-sunstruck-cloud',
+    name: 'Sunstruck cloud',
+    category: 'space',
     description:
-      'Backwards swells that climb an octave on every pass, then a faint haze just behind the dry sound.',
+      'A tight damped little room that is barely there, then a wide haze of grains that hangs on long after the playing.',
     effects: [
-      { deviceId: 'reverse-delay', preset: 'Rising glass', params: { time: 823 } },
-      { deviceId: 'spectral-blur', preset: 'Faint haze' },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
+      {
+        deviceId: 'grain-delay',
+        preset: 'Frozen haze',
+        params: { time: 880, size: 419, mix: 0.383 },
+      },
     ],
   },
   {
-    id: 'laptop-guitar-siesta-mirror',
-    name: 'Siesta mirror',
-    category: 'echo',
+    id: 'laptop-guitar-blinding-tank',
+    name: 'Blinding tank',
+    category: 'space',
     description:
-      'Each phrase answered once by itself played backwards, then every slice of the sound turned round and played backwards.',
+      'Soft clipping, a little bright, laid under the clean sound, into three springs heard alone with none of the dry sound left.',
     effects: [
-      { deviceId: 'reverse-delay', preset: 'Phrase and mirror', params: { time: 2900 } },
-      { deviceId: 'glitch', preset: 'All backwards' },
+      { deviceId: 'saturator', preset: 'Drum bus crunch', params: { outputDb: -14.4 } },
+      { deviceId: 'spring-reverb', preset: 'Tank alone' },
     ],
   },
   {
-    id: 'laptop-guitar-arcade-shards',
-    name: 'Arcade shards',
+    id: 'laptop-guitar-august-echo',
+    name: 'August echo',
     category: 'echo',
     description:
-      'Backwards grains of each phrase, repeating as they fade, then a cloud of backwards grains close behind the playing.',
+      'A backwards echo of each phrase, swelling in and cut off, then a thin, bright haze that hangs high above the sound.',
     effects: [
-      { deviceId: 'grain-delay', preset: 'Backwards shards' },
-      { deviceId: 'grain-cloud', preset: 'Backwards room', params: { size: 423, density: 10 } },
+      { deviceId: 'reverse-delay', preset: 'Backwards echo', params: { time: 581 } },
+      { deviceId: 'spectral-blur', preset: 'High air' },
     ],
   },
   {
-    id: 'laptop-guitar-unsaved-mirror',
-    name: 'Unsaved mirror',
+    id: 'laptop-guitar-driftwood-echo',
+    name: 'Driftwood echo',
     category: 'echo',
     description:
-      'Thin backwards repeats with their lows cut away, then a bright blurred cloud an octave above everything played.',
-    effects: [
-      { deviceId: 'reverse-delay', preset: 'Thin and airy' },
-      { deviceId: 'spectral-blur', preset: 'Bright octave cloud' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-arpeggio-in-glitter',
-    name: 'Arpeggio in glitter',
-    category: 'echo',
-    description:
-      'A faint, very slow phasing that barely stirs the sound, then each note replayed as an arpeggio of octaves and fifths.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Still water', params: { delay: 6.57, lfoRate: 0.0454 } },
-      { deviceId: 'cascade', preset: 'Rising steps' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-splices-off-the-lid',
-    name: 'Splices off the lid',
-    category: 'echo',
-    description:
-      'Backwards chunks spliced hard, with no fades between them, into a bright spring splash that lands a moment after the note.',
+      'Backwards chunks spliced hard, with no fades between them, then soft repeats an octave up or down, under the dry sound.',
     effects: [
       { deviceId: 'reverse-delay', preset: 'Hard splices' },
-      { deviceId: 'spring-reverb', preset: 'Late splash' },
+      { deviceId: 'glitch', preset: 'Octave ghosts', params: { time: 459 } },
     ],
   },
   {
-    id: 'laptop-guitar-dune-echo',
-    name: 'Dune echo',
+    id: 'laptop-guitar-arcade-swells',
+    name: 'Arcade swells',
     category: 'echo',
     description:
-      'A transformer overloaded into a thick, loose fuzz, then grain repeats that climb an octave on every pass.',
+      'Backwards swells that climb an octave on every pass, then soft stumbles where a slice repeats, sticks or turns back.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Iron melt', params: { output: -9.43 } },
-      { deviceId: 'grain-delay', preset: 'Crystals' },
+      { deviceId: 'reverse-delay', preset: 'Rising glass' },
+      { deviceId: 'glitch', preset: 'Gentle stumble', params: { time: 259 } },
     ],
   },
   {
-    id: 'laptop-guitar-melting-echoes',
-    name: 'Melting echoes',
+    id: 'laptop-guitar-quayside-swells',
+    name: 'Quayside swells',
     category: 'echo',
     description:
-      'Slow echoes that climb further out of tune on each repeat, into a far-off plate with a long soft tail and little dry sound.',
+      'Slow backwards swells that rise and die behind the playing, then a diffuse mist where each note hangs on after it is played.',
     effects: [
-      { deviceId: 'freq-shifter', preset: 'Rising echo', params: { delay: 396, lfoRate: 0.0816 } },
-      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.564 } },
+      { deviceId: 'reverse-delay', preset: 'Slow swells', params: { time: 1780 } },
+      { deviceId: 'spectral-blur', preset: 'Hanging mist' },
     ],
   },
   {
-    id: 'laptop-guitar-steps-bleached-out',
-    name: 'Steps bleached out',
+    id: 'laptop-guitar-buffered-echo',
+    name: 'Buffered echo',
     category: 'echo',
     description:
-      'Grain repeats that sink by fourths on every pass, then a short echo whose pitch sways like a seasick vibrato.',
+      'Grain repeats that climb by fifths on every pass, into a hard-driven two-spring tank that answers late and loud.',
     effects: [
-      { deviceId: 'grain-delay', preset: 'Falling fourths' },
-      { deviceId: 'analog-delay', preset: 'Seasick', params: { time: 169, modRate: 3.12 } },
+      {
+        deviceId: 'grain-delay',
+        preset: 'Rising fifths',
+        params: { time: 695, size: 161, mix: 0.21 },
+      },
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Dub send',
+        params: { decay: 3.2, predelay: 53.6, mix: 0.3 },
+      },
     ],
   },
   {
-    id: 'laptop-guitar-low-season-strikes',
-    name: 'Low-season strikes',
+    id: 'laptop-guitar-fifths-on-a-postcard',
+    name: 'Fifths on a postcard',
     category: 'echo',
     description:
-      'A bright, buzzing fuzz, then the start of each note struck again in a bouncing run, into a huge bright space with a wide and very long tail.',
+      'Soft clipping, a little bright, laid under the clean sound, then grain repeats that climb by fifths on every pass.',
     effects: [
-      { deviceId: 'saturator', preset: 'Fuzz pedal', params: { outputDb: -22.3 } },
-      { deviceId: 'cascade', preset: 'Restruck', params: { time: 447 } },
-      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 40.9 } },
+      { deviceId: 'saturator', preset: 'Drum bus crunch', params: { outputDb: -10.1 } },
+      { deviceId: 'grain-delay', preset: 'Rising fifths', params: { time: 608, size: 169 } },
     ],
   },
   {
-    id: 'laptop-guitar-steps-from-memory',
-    name: 'Steps from memory',
+    id: 'laptop-guitar-trackpad-crystals',
+    name: 'Trackpad crystals',
     category: 'echo',
     description:
-      'Bright saturation, mixed low, then backwards repeats that step down an octave each time, into a plate wash that hangs on for half a minute.',
+      'Grain repeats that climb an octave on every pass, then a sharp and a flat copy kept in the centre, thick not wide.',
     effects: [
-      { deviceId: 'saturator', preset: 'Parallel shine' },
-      { deviceId: 'reverse-delay', preset: 'Descending steps', params: { time: 538 } },
-      { deviceId: 'plate-reverb', preset: 'Endless wash' },
+      { deviceId: 'grain-delay', preset: 'Crystals', params: { time: 359, size: 115 } },
+      { deviceId: 'stereo-detune', preset: 'Thickener' },
     ],
   },
   {
-    id: 'laptop-guitar-bounce-on-the-pier',
-    name: 'Bounce on the pier',
+    id: 'laptop-guitar-midday-hop',
+    name: 'Midday hop',
     category: 'echo',
     description:
-      'A plain echo whose repeats bounce from side to side, then only the two detuned copies, hard left and right.',
+      'An echo whose repeats jump up an octave and back, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
-      { deviceId: 'echo-memory', preset: 'Side to side' },
-      { deviceId: 'stereo-detune', preset: 'Wet only' },
+      { deviceId: 'analog-delay', preset: 'Octave hop', params: { time: 375, modRate: 0.536 } },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell', params: { time: 3.97 } },
     ],
   },
   {
-    id: 'laptop-guitar-screen-lit-echo',
-    name: 'Screen-lit echo',
+    id: 'laptop-guitar-low-battery-refrain',
+    name: 'Low-battery refrain',
     category: 'echo',
     description:
-      'A dull, wobbling, saturated echo on worn tape, into a long plate with a wide and even tail.',
+      'Whole phrases that repeat by chance, each time quieter, into three long springs with all the top taken off.',
     effects: [
-      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 691 } },
-      { deviceId: 'plate-reverb', preset: 'Long plate' },
+      { deviceId: 'glitch', preset: 'Phrase repeats' },
+      { deviceId: 'spring-reverb', preset: 'Underwater' },
     ],
   },
   {
-    id: 'laptop-guitar-drive-in-the-buffer',
-    name: 'Drive in the buffer',
+    id: 'laptop-guitar-esplanade-shards',
+    name: 'Esplanade shards',
+    category: 'echo',
+    description:
+      'A resonant low-pass that swings open about every two seconds, then backwards grains of each phrase, repeating as they fade.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Dub sweep',
+        params: { lfoRateHz: 0.459, envAttackMs: 10.8, envReleaseMs: 213 },
+      },
+      { deviceId: 'grain-delay', preset: 'Backwards shards' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-snapshot-repeats',
+    name: 'Snapshot repeats',
+    category: 'echo',
+    description:
+      'A bucket-brigade echo whose soft repeats dull as they fade, then a subsonic cut with the low mids and presence eased a touch.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Dark echo' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-jetty-glass',
+    name: 'Jetty glass',
+    category: 'echo',
+    description:
+      'An amplifier stack turned all the way up, then backwards swells that climb an octave on every pass.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Stack flat out', params: { output: -2.25 } },
+      { deviceId: 'reverse-delay', preset: 'Rising glass', params: { time: 793 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-siesta-echo',
+    name: 'Siesta echo',
+    category: 'echo',
+    description:
+      'A lopsided soft curve that adds the octave above each note, then grain repeats that climb an octave on every pass, into a mid-sized hall.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Octave glow' },
+      { deviceId: 'grain-delay', preset: 'Crystals', params: { time: 357, size: 133 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Hall',
+        params: { preDelay: 61.5, lowDecay: 2.75, midDecay: 2.26 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-postcard-fuzz',
+    name: 'Postcard fuzz',
     category: 'tape',
     description:
-      'A few decibels of soft saturation with the top eased, then a stream starved and scrambled until every note fizzes.',
+      'A transformer overloaded into a thick, loose fuzz, then scattered short grains an octave up, falling like rain.',
     effects: [
-      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -5.23 } },
-      { deviceId: 'low-bitrate', preset: 'Fizzing phases' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-parasol-pentode',
-    name: 'Parasol pentode',
-    category: 'tape',
-    description:
-      'A lean pentode valve stage with a bite on every attack, then a short diffuse haze around the sound, like a small room.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Bite', params: { output: -3.76 } },
-      { deviceId: 'spectral-blur', preset: 'Diffuse room' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-drive-on-shingle',
-    name: 'Drive on shingle',
-    category: 'tape',
-    description:
-      'A few decibels of soft saturation with the top eased, then tiny hard grains so close together that the sound buzzes.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -5.78 } },
-      { deviceId: 'grain-cloud', preset: 'Grain buzz', params: { size: 12.3, density: 91.6 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-fold-at-the-lido',
-    name: 'Fold at the lido',
-    category: 'tape',
-    description:
-      "A hint of a wavefolder's glassy edge under the clean sound, then a detuned double made of grains, spread to the sides.",
-    effects: [
-      { deviceId: 'saturator', preset: 'Folded glass' },
-      { deviceId: 'grain-cloud', preset: 'Detuned double', params: { size: 123, density: 35.6 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-glittering-valve',
-    name: 'Glittering valve',
-    category: 'tape',
-    description:
-      'A valve driven all the way into a bright, buzzing fuzz, then a wide cloud whose grains jump by fifths and octaves.',
-    effects: [
-      { deviceId: 'patina', preset: 'Valve fuzz' },
-      { deviceId: 'grain-cloud', preset: 'Choir of fifths', params: { size: 526, density: 15.2 } },
+      { deviceId: 'analog-drive', preset: 'Iron melt' },
+      { deviceId: 'grain-cloud', preset: 'Octave rain' },
     ],
   },
   {
@@ -337,474 +315,612 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pixelated grit',
     category: 'tape',
     description:
-      'A coarse early sampler, gritty, with bright hash on top, then a pentode pushed into a folded-over fuzz, thin and torn.',
-    effects: [
-      { deviceId: 'patina', preset: 'Eight bit' },
-      { deviceId: 'analog-drive', preset: 'Torn cone', params: { output: -6.08 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-rendered-residue',
-    name: 'Rendered residue',
-    category: 'tape',
-    description:
-      'The thrown-away part of a stream, thin, with a short wash, then a small, boxy radio speaker, close by in a small room.',
-    effects: [
-      { deviceId: 'low-bitrate', preset: 'Thin air' },
-      { deviceId: 're-amp', preset: 'Bedside radio' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-stream-in-the-glare',
-    name: 'Stream in the glare',
-    category: 'tape',
-    description:
-      'A stream that keeps sticking on long, buzzing held loops, then thin pentode grit mixed in under the clean sound.',
-    effects: [
-      { deviceId: 'low-bitrate', preset: 'Stuck stream' },
-      { deviceId: 'analog-drive', preset: 'Parallel grit' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-rooftop-bits',
-    name: 'Rooftop bits',
-    category: 'tape',
-    description:
-      'Converters at a very low rate, filtered smooth and dull, then a combo amplifier driven hard, miked right on the cone.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Sunken' },
-      { deviceId: 're-amp', preset: 'Speaker on the edge', params: { output: -3.63 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-grain-in-heat-haze',
-    name: 'Grain in heat haze',
-    category: 'tape',
-    description:
-      'Five-bit converters fed hot, a coarse grain on every note, then thin bright air from a microphone, hardly moving, into a driven spring tank.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Crushed' },
-      { deviceId: 'noise-floor', preset: 'Thin bright air' },
-      {
-        deviceId: 'spring-reverb',
-        preset: 'Dub send',
-        params: { decay: 2.75, predelay: 65.9, mix: 0.367 },
-      },
-    ],
-  },
-  {
-    id: 'laptop-guitar-breakwater-modem',
-    name: 'Breakwater modem',
-    category: 'tape',
-    description:
-      'A telephone-grade stream, mono, gritty and cut off on top, then steady tape hiss that lingers after the last note.',
-    effects: [
-      { deviceId: 'low-bitrate', preset: 'Dial-up' },
-      { deviceId: 'noise-floor', preset: 'Tape floor', params: { response: 0.37, hold: 12.3 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-soundcard-static',
-    name: 'Soundcard static',
-    category: 'tape',
-    description:
-      'A shortwave broadcast, narrow and mono, fading under static, into a reverb that grows backwards behind each note and cuts off.',
-    effects: [
-      { deviceId: 'patina', preset: 'Shortwave' },
-      { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 1.24 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-rooftop-gaps',
-    name: 'Rooftop gaps',
-    category: 'tape',
-    description:
-      'A rumble cut and a single decibel of presence, then a stream full of holes, then gated bursts of reverb repeating about four times a second.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'low-bitrate', preset: 'Dropouts' },
-      { deviceId: 'shaped-reverb', preset: 'Gate steps' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-bits-breaking-up',
-    name: 'Bits breaking up',
-    category: 'tape',
-    description:
-      'Raw converters at a very low rate, bright and clanging, then a subsonic cut with the low mids and presence eased a touch.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Clang' },
-      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.57 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-noon-loop',
-    name: 'Noon loop',
-    category: 'tape',
-    description:
-      'A short loop at an eighth of the sample rate, dull and plain, then four-bit companded converters that rasp on every note.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Sampler grit', params: { length: 1.07 } },
-      { deviceId: 'vintage-digital', preset: 'Rasp' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-line-in-bits',
-    name: 'Line-in bits',
-    category: 'tape',
-    description:
-      'Nine-bit converters on an unsteady clock, hiss on high notes, then echoes that climb an octave on every repeat.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Worn' },
-      { deviceId: 'pitch-shifter', preset: 'Rising steps', params: { size: 56.5, delay: 317 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-ghost-in-the-patch',
-    name: 'Ghost in the patch',
-    category: 'tape',
-    description:
-      'A small, boxy radio speaker, close by in a small room, then the leavings of a stream, into a small room that is over in about a second.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Bedside radio', params: { output: -2.88 } },
-      { deviceId: 'low-bitrate', preset: 'Ghost' },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Room',
-        params: { preDelay: 28.6, lowDecay: 1.42, midDecay: 1.07 },
-      },
-    ],
-  },
-  {
-    id: 'laptop-guitar-tramline-clock',
-    name: 'Tramline clock',
-    category: 'tape',
-    description:
-      'A reverb that swells and ebbs in waves of about four seconds, then smooth, dull converters whose clock is badly unsteady.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Slow tide' },
-      { deviceId: 'vintage-digital', preset: 'Jittery' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-desktop-dust',
-    name: 'Desktop dust',
-    category: 'tape',
-    description:
-      'A well-played record, dulled, swaying, with ticks and pops, then tape hiss that rises with each note and dies with it.',
-    effects: [
-      { deviceId: 'vinyl', preset: 'Charity shop find', params: { spin: 1.67 } },
-      { deviceId: 'noise-floor', preset: 'Riding hiss' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-buzz-by-the-water',
-    name: 'Buzz by the water',
-    category: 'tape',
-    description:
-      'Phrases repeated by chance, then a stream that keeps sticking, into a long undamped tail kept low behind the sound.',
-    effects: [
-      { deviceId: 'glitch', preset: 'Phrase repeats', params: { time: 1600 } },
-      { deviceId: 'low-bitrate', preset: 'Stuck stream' },
-      { deviceId: 'ether-reverb', preset: 'Shining tail', params: { predelayMs: 29.7 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-windbreak-sampler',
-    name: 'Windbreak sampler',
-    category: 'tape',
-    description:
-      'Old converters with no output filter, a glassy ring on top, then a starved stream in long frames, watery, its top cut away.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Glassy' },
-      { deviceId: 'low-bitrate', preset: 'Underwater' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-disc-in-the-glare',
-    name: 'Disc in the glare',
-    category: 'tape',
-    description:
-      'The skips of a scratched disc, stuck on tiny fragments, into a thin bright tail with all its lows cut away.',
-    effects: [
-      { deviceId: 'glitch', preset: 'Skipping disc', params: { time: 97.9 } },
-      { deviceId: 'expanse', preset: 'Thin air' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-autosave-bits',
-    name: 'Autosave bits',
-    category: 'tape',
-    description:
-      'A buzzing valve fuzz, then the converters of an early sampler, twelve bits, low rate, into a plain short room whose tail stays at pitch.',
-    effects: [
-      { deviceId: 'patina', preset: 'Valve fuzz' },
-      { deviceId: 'vintage-digital', preset: 'Sampler' },
-      { deviceId: 'bloom-reverb', preset: 'Still room' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-speaker-breaking-up',
-    name: 'Speaker breaking up',
-    category: 'tape',
-    description:
-      'A small speaker, close and muffled, as if under a pillow, then a big lift of presence and air, with ringing held in check.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-sunburnt-ripples',
-    name: 'Sunburnt ripples',
-    category: 'motion',
-    description:
-      'Quick waves of reverb rippling about twice a second, into a cave whose echoes jump now and then by a fifth or octave.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Ripples', params: { time: 0.422 } },
-      { deviceId: 'swarm-reverb', preset: 'Intervals' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-bedroom-tremolo',
-    name: 'Bedroom tremolo',
-    category: 'motion',
-    description:
-      'A closed amplifier stack, driven and dark, miked off-centre, then a harmonic tremolo whose lows and highs trade places quickly.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Warm stack', params: { output: 1.39 } },
-      { deviceId: 'tremolo', preset: 'Harmonic shimmer' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-sun-faded-drift',
-    name: 'Sun-faded drift',
-    category: 'motion',
-    description:
-      'An amplifier stack, all bass, with the mic turned away, then a slow reel whose pitch sways widely and never settles.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Dark and woolly' },
-      { deviceId: 'tape', preset: 'Seasick' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-holiday-fall',
-    name: 'Holiday fall',
-    category: 'motion',
-    description:
-      'A resonant high-pass falling for about two seconds at a time, into a vast hall whose long tail sings a high bright ah.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Falling high-pass',
-        params: { lfoRateHz: 0.51, envAttackMs: 9.06, envReleaseMs: 225 },
-      },
-      { deviceId: 'vowel-reverb', preset: 'High choir', params: { decay: 23.7, preDelay: 19.9 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-blistered-echo',
-    name: 'Blistered echo',
-    category: 'motion',
-    description:
-      'An echo of single grains with gaps, so the repeats pulse, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'grain-delay', preset: 'Pulsing repeat', params: { time: 231, size: 100 } },
-      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 16 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-warble-on-a-postcard',
-    name: 'Warble on a postcard',
-    category: 'motion',
-    description:
-      'Thin pentode grit mixed in under the clean sound, then a fast warble of the whole sound, sharp and flat by turns.',
+      'Thin pentode grit mixed in under the clean sound, then grains fed back an octave up, climbing higher each pass.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Parallel grit' },
-      { deviceId: 'freq-shifter', preset: 'Fast warble' },
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 380, density: 10.7 } },
     ],
   },
   {
-    id: 'laptop-guitar-postcard-collapse',
-    name: 'Postcard collapse',
-    category: 'texture',
+    id: 'laptop-guitar-rooftop-valve',
+    name: 'Rooftop valve',
+    category: 'tape',
     description:
-      'A tape preamp driven for thick lows and a dull top, then a sound broken at every slice: stuck, reversed, slowed, into a driven spring tank.',
+      'A valve preamp curve, lopsided and a little brighter on top, then a very wide wash in which every note hangs for many seconds.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Tape weight', params: { output: -8.83 } },
-      { deviceId: 'glitch', preset: 'Total collapse' },
-      { deviceId: 'spring-reverb', preset: 'Dub send', params: { decay: 3.29, predelay: 66.9 } },
+      { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -14.1 } },
+      { deviceId: 'spectral-blur', preset: 'Endless' },
     ],
   },
   {
-    id: 'laptop-guitar-mirror-on-battery',
-    name: 'Mirror on battery',
-    category: 'texture',
+    id: 'laptop-guitar-windbreak-fuzz',
+    name: 'Windbreak fuzz',
+    category: 'tape',
     description:
-      'A buzzing valve fuzz, then phrases that sometimes turn round and play backwards, into an undamped hall with about three seconds of tail.',
-    effects: [
-      { deviceId: 'patina', preset: 'Valve fuzz' },
-      { deviceId: 'glitch', preset: 'Backwards glances' },
-      { deviceId: 'fdn-reverb', preset: 'Bright air' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-slips-in-deckchairs',
-    name: 'Slips in deckchairs',
-    category: 'texture',
-    description:
-      'A combo amplifier miked fairly close in a small room, then a gently stumbling sound, into a hall with about two and a half seconds of tail.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Combo in a room' },
-      { deviceId: 'glitch', preset: 'Gentle stumble', params: { time: 260 } },
-      { deviceId: 'hall-reverb', preset: 'Hall' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-rain-on-a-postcard',
-    name: 'Rain on a postcard',
-    category: 'texture',
-    description:
-      'An overloaded console, then a glittering octave stutter, into a bright undamped plate of a couple of seconds.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Crushed' },
-      { deviceId: 'cascade', preset: 'Glass rain', params: { time: 135 } },
-      { deviceId: 'plate-reverb', preset: 'Bright plate' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-octave-up-glass',
-    name: 'Octave-up glass',
-    category: 'texture',
-    description:
-      'A buzzing valve fuzz, then a glittering octave stutter, into a vast hall that opens to the sound in very slow waves.',
-    effects: [
-      { deviceId: 'patina', preset: 'Valve fuzz' },
-      { deviceId: 'cascade', preset: 'Glass rain', params: { time: 128 } },
-      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 11.4 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-borrowed-debris',
-    name: 'Borrowed debris',
-    category: 'texture',
-    description:
-      'A bright, buzzing fuzz from a hard clipper driven flat, then hard-cut shards of sound, into a long plate with a wide and even tail.',
+      'A bright, buzzing fuzz from a hard clipper driven flat, then tiny hard-edged grains an octave up, scattered in pitch.',
     effects: [
       { deviceId: 'saturator', preset: 'Fuzz pedal' },
-      { deviceId: 'glitch', preset: 'Shards', params: { time: 50.3 } },
-      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 44.3 } },
+      { deviceId: 'grain-cloud', preset: 'Glass shards' },
     ],
   },
   {
-    id: 'laptop-guitar-scratch-on-hot-tiles',
-    name: 'Scratch on hot tiles',
+    id: 'laptop-guitar-buzz-in-deckchairs',
+    name: 'Buzz in deckchairs',
+    category: 'tape',
+    description:
+      'A bright, buzzing fuzz from a hard clipper driven flat, then a wide cloud whose grains jump by fifths and octaves.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Fuzz pedal' },
+      { deviceId: 'grain-cloud', preset: 'Choir of fifths' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-crackling-grit',
+    name: 'Crackling grit',
+    category: 'tape',
+    description:
+      'A bed of six-bit grit and false tones under the clean sound, then a driven combo amplifier with its hiss and hum right up.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Grit bed' },
+      { deviceId: 're-amp', preset: 'Noisy valves' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-grit-gone-pink',
+    name: 'Grit gone pink',
+    category: 'tape',
+    description:
+      'Four-bit companded converters that rasp on every note, then a lean pentode valve stage with a bite on every attack.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Rasp' },
+      { deviceId: 'analog-drive', preset: 'Bite', params: { output: -3.58 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-glass-in-salt-air',
+    name: 'Glass in salt air',
+    category: 'tape',
+    description:
+      'A thin audio stream that swirls and warbles a little, then a small, boxy radio speaker, close by in a small room.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Behind glass' },
+      { deviceId: 're-amp', preset: 'Bedside radio', params: { output: -2.33 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-heat-haze-gaps',
+    name: 'Heat-haze gaps',
+    category: 'tape',
+    description:
+      'A stream losing packets, soft holes of silence in the sound, then a lean pentode valve stage with a bite on every attack.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Dropouts' },
+      { deviceId: 'analog-drive', preset: 'Bite', params: { output: -3.06 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-overexposed-bits',
+    name: 'Overexposed bits',
+    category: 'tape',
+    description:
+      'Eight-bit companded converters with false tones folded in, then two copies far out of tune that sway like a worn tape.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Toy' },
+      { deviceId: 'stereo-detune', preset: 'Seasick', params: { delay: 26.2 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-borrowed-air',
+    name: 'Borrowed air',
+    category: 'tape',
+    description:
+      'A fast backwards loop, then the thrown-away part of a stream, thin, with a short wash, into a far-off plate haze.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Fast reverse' },
+      { deviceId: 'low-bitrate', preset: 'Thin air' },
+      { deviceId: 'plate-reverb', preset: 'Distant haze' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-peeling-fizz',
+    name: 'Peeling fizz',
+    category: 'tape',
+    description:
+      'A valve driven all the way into a bright, buzzing fuzz, then a stream starved and scrambled until every note fizzes.',
+    effects: [
+      { deviceId: 'patina', preset: 'Valve fuzz' },
+      { deviceId: 'low-bitrate', preset: 'Fizzing phases' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-chirps-on-a-postcard',
+    name: 'Chirps on a postcard',
+    category: 'tape',
+    description:
+      'A short loop run backwards at double speed, an octave up, then nine-bit converters on an unsteady clock, hiss on high notes.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Fast reverse', params: { length: 0.571 } },
+      { deviceId: 'vintage-digital', preset: 'Worn' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-remembered-shortwave',
+    name: 'Remembered shortwave',
+    category: 'tape',
+    description:
+      'A shortwave station crowded by whistles, buzz and data tones, then radio static that sounds only with each note played.',
+    effects: [
+      { deviceId: 'radio', preset: 'Crowded band' },
+      { deviceId: 'noise-floor', preset: 'Static notes' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-mixdown-bits',
+    name: 'Mixdown bits',
+    category: 'tape',
+    description:
+      'A tape preamp pushed just enough to add weight, then raw converters at a very low rate, bright and clanging.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: -4.58 } },
+      { deviceId: 'vintage-digital', preset: 'Clang' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-poolside-stream',
+    name: 'Poolside stream',
+    category: 'tape',
+    description:
+      'A starved stream in long frames, watery, its top cut away, into a large hall heard alone with none of the dry sound left.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Underwater' },
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Full wet send',
+        params: { decay: 7.04, breathRate: 0.27 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-bits-on-battery',
+    name: 'Bits on battery',
+    category: 'tape',
+    description:
+      'A bright, lean console channel driven for an edge on top, then seven-bit converters, into a small damped room that is over within a second.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Sheen' },
+      { deviceId: 'vintage-digital', preset: 'Coarse' },
+      { deviceId: 'ether-reverb', preset: 'Room', params: { predelayMs: 8.9 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-boardwalk-bits',
+    name: 'Boardwalk bits',
+    category: 'tape',
+    description:
+      'A brightish valve curve, then a coarse early sampler, gritty, with bright hash on top, into a trace of room around the sound.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Tube preamp' },
+      { deviceId: 'patina', preset: 'Eight bit', params: { output: -3 } },
+      { deviceId: 'ether-reverb', preset: 'Faint air' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-esplanade-sideband',
+    name: 'Esplanade sideband',
+    category: 'tape',
+    description:
+      'A well-tuned sideband signal, steady, full-band and mono, into a single dull spring in the centre that is barely heard.',
+    effects: [
+      { deviceId: 'radio', preset: 'Clear sideband' },
+      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { decay: 1.77 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-pillow-at-noon',
+    name: 'Pillow at noon',
+    category: 'tape',
+    description:
+      'A heavy low shelf that puts weight under the sound, then a small speaker, close and muffled, as if under a pillow.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.64 } },
+      { deviceId: 're-amp', preset: 'Pillow speaker' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-overexposed-buzz',
+    name: 'Overexposed buzz',
+    category: 'tape',
+    description:
+      'A lift of presence and air, then a stream that keeps sticking on long, buzzing held loops, then echoes souring apart.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+      { deviceId: 'low-bitrate', preset: 'Stuck stream' },
+      { deviceId: 'freq-shifter', preset: 'Parting echo' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-patched-tape',
+    name: 'Patched tape',
+    category: 'tape',
+    description:
+      'A tape-style curve that rounds the peaks and dulls the top, then the soft air of an open microphone under the sound.',
+    effects: [
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -11.2 } },
+      { deviceId: 'noise-floor', preset: 'Close mic', params: { response: 0.433, hold: 9.98 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-rendered-toy',
+    name: 'Rendered toy',
+    category: 'tape',
+    description:
+      'Eight-bit companded converters with false tones folded in, into a thin bright tail with all its lows cut away.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Toy' },
+      { deviceId: 'expanse', preset: 'Thin air', params: { decay: 12.2, modRate: 0.181 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-bounced-clang',
+    name: 'Bounced clang',
+    category: 'tape',
+    description:
+      'A thin band of tone with the lows cut and the top rolled off, then raw converters at a very low rate, bright and clanging.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.42 } },
+      { deviceId: 'vintage-digital', preset: 'Clang' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-bedroom-scream',
+    name: 'Bedroom scream',
+    category: 'motion',
+    description:
+      'An overdriven low-pass at full resonance with a fast wobble, then echoes that sink a few hertz flatter on every repeat.',
+    effects: [
+      { deviceId: 'auto-filter', preset: 'Screaming' },
+      {
+        deviceId: 'freq-shifter',
+        preset: 'Falling spiral',
+        params: { delay: 271, lfoRate: 0.0493, mix: 0.344 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-patched-chorus',
+    name: 'Patched chorus',
+    category: 'motion',
+    description:
+      'A transformer that fills out the lows and dulls the top, then a three-voice chorus that leaves the lows dry and steady.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Low warmth', params: { output: -1.72 } },
+      { deviceId: 'chorus', preset: 'Guitar shimmer', params: { rate: 1.33, delayMs: 13 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-tilt-off-the-lid',
+    name: 'Tilt off the lid',
+    category: 'motion',
+    description:
+      "A hint of a wavefolder's glassy edge under the clean sound, then the tone rocking slowly from dark to bright, sides opposed.",
+    effects: [
+      { deviceId: 'saturator', preset: 'Folded glass', params: { outputDb: -5.5 } },
+      { deviceId: 'tremolo', preset: 'Tilting tone', params: { rate: 0.293 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-parasol-beat',
+    name: 'Parasol beat',
+    category: 'motion',
+    description:
+      'A steady beat about twice a second, crossing side to side, into a quick bright twang of springs behind each attack.',
+    effects: [
+      { deviceId: 'freq-shifter', preset: 'Moving beat' },
+      { deviceId: 'spring-reverb', preset: 'Quick twang', params: { decay: 0.701 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-dune-filter',
+    name: 'Dune filter',
+    category: 'motion',
+    description:
+      'A combo amplifier driven hard, miked right on the cone, then a touch wah, into an undamped hall with about three seconds of tail.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Speaker on the edge' },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Touch wah',
+        params: { lfoRateHz: 1.08, envAttackMs: 4.19, envReleaseMs: 122 },
+      },
+      { deviceId: 'fdn-reverb', preset: 'Bright air', params: { decay: 2.92, breathRate: 0.264 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-bedroom-pulse',
+    name: 'Bedroom pulse',
+    category: 'motion',
+    description:
+      'An echo of single grains with gaps, so the repeats pulse, into a bright spring splash that lands a moment after the note.',
+    effects: [
+      { deviceId: 'grain-delay', preset: 'Pulsing repeat', params: { mix: 0.309 } },
+      {
+        deviceId: 'spring-reverb',
+        preset: 'Late splash',
+        params: { decay: 1.06, predelay: 190, mix: 0.21 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-splinters-in-glitter',
+    name: 'Splinters in glitter',
     category: 'texture',
     description:
-      'The skips of a scratched disc, stuck on tiny fragments, then eight-bit companded converters with false tones folded in.',
+      'Thin pentode grit mixed in under the clean sound, then sharp shards of high grains, into a small tank that goes on ringing for seconds.',
     effects: [
-      { deviceId: 'glitch', preset: 'Skipping disc', params: { time: 98.2 } },
+      { deviceId: 'analog-drive', preset: 'Parallel grit' },
+      { deviceId: 'grain-cloud', preset: 'Glass shards', params: { size: 28.7, density: 12.9 } },
+      { deviceId: 'fdn-reverb', preset: 'Small bright tank' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-balcony-rumble',
+    name: 'Balcony rumble',
+    category: 'texture',
+    description:
+      'A tape preamp overloaded until it breaks up, dull and thick, then a low blurred bed, into a long plate with a wide and even tail.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Worn tape', params: { output: -12.5 } },
+      { deviceId: 'spectral-blur', preset: 'Sub bed' },
+      { deviceId: 'plate-reverb', preset: 'Long plate' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-arcade-cloud',
+    name: 'Arcade cloud',
+    category: 'texture',
+    description:
+      'A transformer overloaded into a thick, loose fuzz, then a bright octave-up cloud, into a hall whose lows outlast its damped top.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron melt', params: { output: -10.9 } },
+      { deviceId: 'spectral-blur', preset: 'Bright octave cloud' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Dark hall',
+        params: { preDelay: 55.4, lowDecay: 4.49, midDecay: 3.03 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-peeling-cascade',
+    name: 'Peeling cascade',
+    category: 'texture',
+    description:
+      'A wavefolder at full drive, then slow swelling octave loops, into a long undamped tail kept low behind the sound.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Blown speaker' },
+      { deviceId: 'cascade', preset: 'Slow tiles', params: { time: 1200 } },
+      { deviceId: 'ether-reverb', preset: 'Shining tail' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-screen-lit-halo',
+    name: 'Screen-lit halo',
+    category: 'texture',
+    description:
+      'A bright wavefolder, then a short bright haze with an octave above everything, into a faint hall tail of about three seconds.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Wavefold lead', params: { outputDb: -14.6 } },
+      { deviceId: 'spectral-blur', preset: 'Glass halo' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Faint halo',
+        params: { preDelay: 37.9, lowDecay: 2.64, midDecay: 2.96 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-lifeguard-clatter',
+    name: 'Lifeguard clatter',
+    category: 'texture',
+    description:
+      'An overloaded console, then a rattle of restruck notes, into a huge bright space with a wide and very long tail.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Crushed', params: { output: -7.79 } },
+      { deviceId: 'cascade', preset: 'Dropped marbles' },
+      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 37.1 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-ball-on-shingle',
+    name: 'Ball on shingle',
+    category: 'texture',
+    description:
+      'Slices that repeat faster and faster like a dropped ball, then eight-bit companded converters with false tones folded in.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Bouncing' },
       { deviceId: 'vintage-digital', preset: 'Toy' },
     ],
   },
   {
-    id: 'laptop-guitar-bleached-ball',
-    name: 'Bleached ball',
+    id: 'laptop-guitar-tramline-jam',
+    name: 'Tramline jam',
     category: 'texture',
     description:
-      'Slices that repeat faster and faster like a dropped ball, then seven-bit converters whose quiet tails break up and cut off.',
+      'A sound that keeps getting stuck and repeating a slice, then a stream starved and scrambled until every note fizzes.',
     effects: [
-      { deviceId: 'glitch', preset: 'Bouncing' },
-      { deviceId: 'vintage-digital', preset: 'Coarse' },
+      { deviceId: 'glitch', preset: 'Stuck', params: { time: 168 } },
+      { deviceId: 'low-bitrate', preset: 'Fizzing phases' },
     ],
   },
   {
-    id: 'laptop-guitar-cracks-in-salt-air',
-    name: 'Cracks in salt air',
+    id: 'laptop-guitar-sunburnt-shards',
+    name: 'Sunburnt shards',
     category: 'texture',
     description:
-      'A few soft stutters and skips under an untouched sound, then a watery, warbling copy mixed low under the clean sound.',
+      'Hard-cut splinters of sound, some an octave off, flung wide, then old converters with no output filter, a glassy ring on top.',
     effects: [
-      { deviceId: 'glitch', preset: 'Barely broken' },
-      { deviceId: 'low-bitrate', preset: 'Watery trace' },
+      { deviceId: 'glitch', preset: 'Shards', params: { time: 48.8 } },
+      { deviceId: 'vintage-digital', preset: 'Glassy' },
     ],
   },
   {
-    id: 'laptop-guitar-promenade-sparks',
-    name: 'Promenade sparks',
+    id: 'laptop-guitar-courtyard-octaves',
+    name: 'Courtyard octaves',
     category: 'texture',
     description:
-      'Stuttered fragments that flicker an octave up and down, then seven-bit converters whose quiet tails break up and cut off.',
+      'Stuttered fragments that flicker an octave up and down, then old converters with no output filter, a glassy ring on top.',
     effects: [
       { deviceId: 'glitch', preset: 'Flickering octaves' },
-      { deviceId: 'vintage-digital', preset: 'Coarse' },
+      { deviceId: 'vintage-digital', preset: 'Glassy' },
     ],
   },
   {
-    id: 'laptop-guitar-lifeguard-bounce',
-    name: 'Lifeguard bounce',
+    id: 'laptop-guitar-courtyard-shards',
+    name: 'Courtyard shards',
     category: 'texture',
     description:
-      'Slices that repeat faster and faster like a dropped ball, then a stream starved down to a few warbling partials.',
+      'Hard-cut splinters of sound, some an octave off, flung wide, then a starved stream in short frames, rough around each attack.',
     effects: [
-      { deviceId: 'glitch', preset: 'Bouncing', params: { time: 299 } },
-      { deviceId: 'low-bitrate', preset: 'Few partials' },
+      { deviceId: 'glitch', preset: 'Shards', params: { time: 41 } },
+      { deviceId: 'low-bitrate', preset: 'Gritty attacks' },
     ],
   },
   {
-    id: 'laptop-guitar-driftwood-halo',
-    name: 'Driftwood halo',
+    id: 'laptop-guitar-organ-on-hot-tiles',
+    name: 'Organ on hot tiles',
     category: 'texture',
     description:
-      'A compressor as slow as a hand on a fader, then a faint swell of octave loops behind each note, into a hint of open space behind the sound.',
+      'A short, rounding swell, then faint grains stacked above, into a plate heard alone with none of the dry sound left.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Slow fader' },
-      { deviceId: 'cascade', preset: 'Faint halo' },
-      { deviceId: 'expanse', preset: 'Faint air' },
+      { deviceId: 'swell', preset: 'Slow attack' },
+      { deviceId: 'spectral-drifter', preset: 'Organ stack' },
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
     ],
   },
   {
-    id: 'laptop-guitar-snapshot-haze',
-    name: 'Snapshot haze',
+    id: 'laptop-guitar-low-season-bow',
+    name: 'Low-season bow',
     category: 'texture',
     description:
-      'A thin, bright haze that hangs high above the sound, into a quick bright twang of springs behind each attack.',
+      'A bowed swell at half strength under the dry attacks, into a far-miked room laid in under the clean sound.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'High air' },
-      { deviceId: 'spring-reverb', preset: 'Quick twang', params: { decay: 0.871 } },
+      { deviceId: 'swell', preset: 'Half bowed', params: { attack: 271, release: 149 } },
+      { deviceId: 're-amp', preset: 'Room underneath' },
     ],
   },
   {
-    id: 'laptop-guitar-tideline-layers',
-    name: 'Tideline layers',
+    id: 'laptop-guitar-deckchair-sustain',
+    name: 'Deckchair sustain',
     category: 'texture',
     description:
-      'A held pad where each new chord piles onto the last, into a quiet plate tail that comes in late behind each note.',
+      'A held pad alone, in place of the sound that was played, into a clean speaker at the far end of a big, live room.',
     effects: [
-      { deviceId: 'sustainer', preset: 'Stacked harmony', params: { attack: 0.581, glide: 0.748 } },
-      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 80.3 } },
+      { deviceId: 'sustainer', preset: 'Held sound alone' },
+      { deviceId: 're-amp', preset: 'Far end of the hall' },
     ],
   },
   {
-    id: 'laptop-guitar-peeling-cloud',
-    name: 'Peeling cloud',
+    id: 'laptop-guitar-octave-up-sparks',
+    name: 'Octave-up sparks',
     category: 'texture',
     description:
-      'A wide pad made of the sound with its attacks dissolved, then a wobbling tape double a moment behind each note.',
+      'A compressor as slow as a hand on a fader, then grains two octaves up, into a long undamped tail kept low behind the sound.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Pad from anything' },
-      { deviceId: 'tape-echo', preset: 'Wobbly double' },
+      { deviceId: 'ambient-comp', preset: 'Slow fader', params: { makeup: 0.417 } },
+      { deviceId: 'grain-delay', preset: 'High glitter', params: { time: 315, size: 42.3 } },
+      { deviceId: 'ether-reverb', preset: 'Shining tail', params: { predelayMs: 28.4 } },
     ],
   },
   {
-    id: 'laptop-guitar-tideline-blur',
-    name: 'Tideline blur',
+    id: 'laptop-guitar-after-dark-undertow',
+    name: 'After-dark undertow',
     category: 'texture',
     description:
-      'The sound with its attacks blurred soft and nothing added, into a reverb that breathes in slow waves over and over.',
+      'A bright, lean console channel driven for an edge on top, then soft smeared repeats and reversals under the dry sound.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Softened attacks' },
-      { deviceId: 'shaped-reverb', preset: 'Breathing' },
+      { deviceId: 'analog-drive', preset: 'Sheen' },
+      { deviceId: 'glitch', preset: 'Smears underneath' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-glints-an-octave-up',
+    name: 'Glints an octave up',
+    category: 'texture',
+    description:
+      'A dull hard clipper with no oversampling, so it aliases, then faint grains an octave and a fifth up, behind the playing.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Lo-fi' },
+      { deviceId: 'grain-delay', preset: 'Faint glints', params: { mix: 0.084 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-terrace-rasp',
+    name: 'Terrace rasp',
+    category: 'texture',
+    description:
+      'Driven amplifier valves heard through a flat speaker, then tiny hard grains so close together that the sound buzzes.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Just the valves' },
+      { deviceId: 'grain-cloud', preset: 'Grain buzz' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-holiday-ghosts',
+    name: 'Holiday ghosts',
+    category: 'texture',
+    description:
+      'Soft repeats an octave up or down, under the dry sound, then a gentle low-pass at a kilohertz.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Octave ghosts' },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Init',
+        params: { lfoRateHz: 0.903, envAttackMs: 10.1, envReleaseMs: 201 },
+      },
+    ],
+  },
+  {
+    id: 'laptop-guitar-arpeggio-on-battery',
+    name: 'Arpeggio on battery',
+    category: 'texture',
+    description:
+      'Each note replayed as an arpeggio of octaves and fifths, then a honky horn loudspeaker heard from far across a big room.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Rising steps', params: { time: 263 } },
+      { deviceId: 're-amp', preset: 'Station platform', params: { output: 6.38 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-octaves-in-salt-air',
+    name: 'Octaves in salt air',
+    category: 'texture',
+    description:
+      'Stuttered fragments that flicker an octave up and down, into a long plate with a wide and even tail.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Flickering octaves', params: { time: 109 } },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 43.6 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-octave-up-shimmer',
+    name: 'Octave-up shimmer',
+    category: 'texture',
+    description:
+      'Grains fed back an octave up, climbing higher each pass, into a dull mono tunnel with a tail of several seconds.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer' },
+      { deviceId: 'expanse', preset: 'Narrow tunnel' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-noon-stack',
+    name: 'Noon stack',
+    category: 'texture',
+    description:
+      'A fast reel with no hiss, driven hard so peaks are squashed, then loops of each note played backwards at stacked octaves.',
+    effects: [
+      { deviceId: 'tape', preset: 'Hot glue' },
+      { deviceId: 'cascade', preset: 'Backwards stack' },
     ],
   },
   {
@@ -812,347 +928,269 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Spiral by the water',
     category: 'texture',
     description:
-      'Grains fed back a fourth down, sinking lower each pass, into three slack springs where every echo is a long chirp.',
+      'Grains fed back an octave up, climbing higher each pass, then a tape reel with soft saturation, slight wobble and hiss.',
+    effects: [
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 370, density: 11.2 } },
+      { deviceId: 'patina', preset: 'Quarter inch reel' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-line-in-spiral',
+    name: 'Line-in spiral',
+    category: 'texture',
+    description:
+      'Grains fed back a fourth down, sinking lower each pass, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 'grain-cloud', preset: 'Sinking spiral' },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 39 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-jittery-rain',
+    name: 'Jittery rain',
+    category: 'texture',
+    description:
+      'A fast glittering stutter of plucked octaves over each note, into a hall heard from far off with little dry sound left.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Glass rain', params: { time: 152 } },
       {
-        deviceId: 'spring-reverb',
-        preset: 'Slack and strange',
-        params: { decay: 3.56, predelay: 32.2 },
+        deviceId: 'hall-reverb',
+        preset: 'Far away',
+        params: { preDelay: 22.2, lowDecay: 4.53, midDecay: 4.24 },
       },
     ],
   },
   {
-    id: 'laptop-guitar-salted-blur',
-    name: 'Salted blur',
+    id: 'laptop-guitar-grains-on-battery',
+    name: 'Grains on battery',
     category: 'texture',
     description:
-      'The sound with its attacks blurred soft and nothing added, into a combo amplifier heard from the far side of a big room.',
+      'A scattered cloud of short grains behind the playing, into a huge bright space with a wide and very long tail.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Softened attacks' },
-      { deviceId: 're-amp', preset: 'Down the hall', params: { output: -2.32 } },
+      { deviceId: 'grain-delay', preset: 'Grain cloud', params: { mix: 0.3 } },
+      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 44.8, mix: 0.24 } },
     ],
   },
   {
-    id: 'laptop-guitar-undertow-gone-pink',
-    name: 'Undertow gone pink',
-    category: 'texture',
-    description:
-      'Soft smeared repeats and reversals under the dry sound, then a mid-forward tone with the lows and the top trimmed.',
-    effects: [
-      { deviceId: 'glitch', preset: 'Smears underneath' },
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.52 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-heat-haze-strays',
-    name: 'Heat-haze strays',
-    category: 'texture',
-    description:
-      'Sparse stray grains of things played seconds earlier, then a thin twelve-bit glaze from converters at a moderate rate.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Stray memories', params: { size: 236, density: 1.63 } },
-      { deviceId: 'vintage-digital', preset: 'Glaze' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-siesta-glitter',
-    name: 'Siesta glitter',
-    category: 'texture',
-    description:
-      'A combo amplifier miked fairly close in a small room, then scattered sparks two octaves up, echoing higher still.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Combo in a room' },
-      { deviceId: 'pitch-shifter', preset: 'High sparks' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-stack-by-the-kiosk',
-    name: 'Stack by the kiosk',
-    category: 'texture',
-    description:
-      'Little loops of each note stacked one and two octaves up, then an echo with a fast flutter in the pitch of its repeats.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Octave stack', params: { time: 403 } },
-      { deviceId: 'analog-delay', preset: 'Fluttering' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-balcony-cloud',
-    name: 'Balcony cloud',
-    category: 'texture',
-    description:
-      'A scattered cloud of short grains behind the playing, into a honky horn loudspeaker heard from far across a big room.',
-    effects: [
-      { deviceId: 'grain-delay', preset: 'Grain cloud', params: { time: 223, size: 71.3 } },
-      { deviceId: 're-amp', preset: 'Station platform' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-jittery-drops',
-    name: 'Jittery drops',
-    category: 'texture',
-    description:
-      'Scattered short grains an octave up, falling like rain, into a two-spring tank with its input driven into saturation.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Octave rain', params: { size: 92.5, density: 6.28 } },
-      { deviceId: 'spring-reverb', preset: 'Overdriven tank', params: { decay: 1.83 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-trackpad-swarm',
-    name: 'Trackpad swarm',
-    category: 'texture',
-    description:
-      'A swarm of short glimpses of the last few seconds, piling up, into two taut springs that ring long and clean with no drip.',
-    effects: [
-      { deviceId: 'echo-memory', preset: 'Swarm', params: { time: 443, reach: 8.91, size: 0.505 } },
-      { deviceId: 'spring-reverb', preset: 'Tight long tank', params: { decay: 5.62 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-mixdown-band',
-    name: 'Mixdown band',
-    category: 'texture',
-    description:
-      'A wide fog kept to the middle band, hanging for seconds, then an early sampler whose quiet tails crumble into grain.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Band of fog' },
-      { deviceId: 'patina', preset: 'Early sampler' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-breakwater-haze',
-    name: 'Breakwater haze',
-    category: 'texture',
-    description:
-      'A short bright haze with an octave above everything, into a far-off plate with a long soft tail and little dry sound.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Glass halo' },
-      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.53 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-glitter-an-octave-up',
-    name: 'Glitter an octave up',
+    id: 'laptop-guitar-octave-up-stack',
+    name: 'Octave-up stack',
     category: 'pitch',
     description:
-      'Sparse short grains two octaves up, after each note, into a large hall heard alone with none of the dry sound left.',
+      'Little loops of each note stacked one and two octaves up, into a long undamped tail kept low behind the sound.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Octave stack', params: { time: 389 } },
+      { deviceId: 'ether-reverb', preset: 'Shining tail' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-poolside-glitter',
+    name: 'Poolside glitter',
+    category: 'pitch',
+    description:
+      'Sparse short grains two octaves up, after each note, into an undamped hall of about three seconds with light lows.',
     effects: [
       { deviceId: 'grain-delay', preset: 'High glitter' },
       {
-        deviceId: 'fdn-reverb',
-        preset: 'Full wet send',
-        params: { decay: 7.59, breathRate: 0.266 },
+        deviceId: 'hall-reverb',
+        preset: 'Bright hall',
+        params: { preDelay: 38.1, lowDecay: 2.07, midDecay: 2.77 },
       },
     ],
   },
   {
-    id: 'laptop-guitar-line-in-octave',
-    name: 'Line-in octave',
+    id: 'laptop-guitar-blistered-spiral',
+    name: 'Blistered spiral',
     category: 'pitch',
     description:
-      'A faint octave above, a little air over the dry sound, into a wide hall that answers about a fifth of a second late.',
+      'Grains fed back an octave up, climbing higher each pass, into a hall whose top rings on while its lows stop short.',
     effects: [
-      { deviceId: 'pitch-shifter', preset: 'Faint air', params: { size: 52.9 } },
-      { deviceId: 'ether-reverb', preset: 'Late hall' },
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 388, density: 9.17 } },
+      { deviceId: 'hall-reverb', preset: 'Airy tail' },
     ],
   },
   {
-    id: 'laptop-guitar-pier-end-stack',
-    name: 'Pier-end stack',
+    id: 'laptop-guitar-pier-end-spiral',
+    name: 'Pier-end spiral',
     category: 'pitch',
     description:
-      'Loops of each note played backwards at stacked octaves, into a small tank that goes on ringing for seconds.',
+      'Grains fed back an octave up, climbing higher each pass, into a vast nave that rings for about eight seconds.',
     effects: [
-      { deviceId: 'cascade', preset: 'Backwards stack' },
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 363, density: 9.24 } },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { midDecay: 7.61 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-desktop-wash',
+    name: 'Desktop wash',
+    category: 'pitch',
+    description:
+      'A soft wash of octave and fifth loops over each note, then piled-up held chords, every overtone drifting, spread wide.',
+    effects: [
+      { deviceId: 'cascade', preset: 'Sparkle bed', params: { time: 303 } },
+      { deviceId: 'sustainer', preset: 'Shimmer cloud', params: { attack: 0.886, glide: 0.907 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-bleached-octaves',
+    name: 'Bleached octaves',
+    category: 'pitch',
+    description:
+      'A dark fuzz from a triode pushed far past its limit, then stuttered fragments that flicker an octave up and down.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Dark fuzz' },
+      { deviceId: 'glitch', preset: 'Flickering octaves', params: { time: 113 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-salted-treble',
+    name: 'Salted treble',
+    category: 'pitch',
+    description:
+      'The octave above alone, every note of a chord moved up, then grains thrown up to an octave out of tune either way.',
+    effects: [
+      { deviceId: 'octaves', preset: 'High voice alone' },
+      { deviceId: 'grain-delay', preset: 'Scattered pitches' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-grains-bleached-out',
+    name: 'Grains bleached out',
+    category: 'pitch',
+    description:
+      'Faint reversed grains that glide up an octave within seconds, then two copies fed back into a small blur round the upper notes.',
+    effects: [
+      { deviceId: 'spectral-drifter', preset: 'Rising glide' },
+      { deviceId: 'stereo-detune', preset: 'Cloud' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-salted-glass',
+    name: 'Salted glass',
+    category: 'pitch',
+    description:
+      'A volume-pedal swell, then short backwards chunks that climb by octaves and splinter, into a deep dark well of slow blurred echoes.',
+    effects: [
+      { deviceId: 'swell', preset: 'Volume pedal', params: { attack: 230, release: 168 } },
+      { deviceId: 'reverse-delay', preset: 'Glass splinters' },
+      { deviceId: 'swarm-reverb', preset: 'Dark well' },
+    ],
+  },
+  {
+    id: 'laptop-guitar-glittering-shimmer',
+    name: 'Glittering shimmer',
+    category: 'pitch',
+    description:
+      'Faint reversed grains that climb quickly towards the octave, into a hall whose tail sways in pitch with a trace of the octave.',
+    effects: [
+      { deviceId: 'spectral-drifter', preset: 'Shimmer', params: { decay: 3.05 } },
+      { deviceId: 'shimmer', preset: 'Swaying hall', params: { decay: 4.29, predelay: 18.7 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-pixel-echo',
+    name: 'Pixel echo',
+    category: 'pitch',
+    description:
+      'Grain repeats that sink by fourths on every pass, then a plain echo that is a little darker on each repeat, into a big muffled cave.',
+    effects: [
+      { deviceId: 'grain-delay', preset: 'Falling fourths', params: { time: 533, size: 185 } },
+      { deviceId: 'echo-memory', preset: 'Plain echo' },
+      { deviceId: 'fdn-reverb', preset: 'Dark cave', params: { decay: 5.98, breathRate: 0.274 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-unsaved-shimmer',
+    name: 'Unsaved shimmer',
+    category: 'pitch',
+    description:
+      'A swell that takes about four seconds to open after silence, then grains fed back an octave up, climbing higher each pass.',
+    effects: [
+      { deviceId: 'swell', preset: 'Glacier', params: { attack: 4100 } },
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 348, density: 10.2 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-metal-bleached-out',
+    name: 'Metal bleached out',
+    category: 'pitch',
+    description:
+      'A large upward shift that turns notes to clanging metal, into a faint hall tail of about three seconds.',
+    effects: [
+      { deviceId: 'freq-shifter', preset: 'Bell metal' },
       {
-        deviceId: 'fdn-reverb',
-        preset: 'Small bright tank',
-        params: { decay: 7.07, breathRate: 0.312 },
+        deviceId: 'hall-reverb',
+        preset: 'Faint halo',
+        params: { preDelay: 40.7, lowDecay: 2.81, midDecay: 2.91 },
       },
     ],
   },
   {
-    id: 'laptop-guitar-heatwave-grains',
-    name: 'Heatwave grains',
-    category: 'pitch',
-    description:
-      'Scattered short grains an octave up, falling like rain, into a plate heard alone with none of the dry sound left.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Octave rain', params: { size: 99.7, density: 6.13 } },
-      { deviceId: 'plate-reverb', preset: 'Full wet send' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-courtyard-organ',
-    name: 'Courtyard organ',
-    category: 'pitch',
-    description:
-      'Faint reversed grains stacked a fifth and an octave up, then a low-pass that opens and closes over about half a minute.',
-    effects: [
-      { deviceId: 'spectral-drifter', preset: 'Organ stack', params: { decay: 4.85 } },
-      { deviceId: 'auto-filter', preset: 'Glacial low-pass' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-parasol-splinters',
-    name: 'Parasol splinters',
-    category: 'pitch',
-    description:
-      'Faint reversed grains splintered to out-of-tune pitches, then an echo that now and then lurches down a fifth and back.',
-    effects: [
-      { deviceId: 'spectral-drifter', preset: 'Splintered', params: { decay: 5.01 } },
-      { deviceId: 'analog-delay', preset: 'Slow lurch', params: { time: 388, modRate: 0.55 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-tramline-shimmer',
-    name: 'Tramline shimmer',
-    category: 'pitch',
-    description:
-      'Faint reversed grains that climb quickly towards the octave, then a deep eight-stage phaser with sharp peaks between notches.',
-    effects: [
-      { deviceId: 'spectral-drifter', preset: 'Shimmer', params: { decay: 2.82 } },
-      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.203 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-fifth-in-august',
-    name: 'Fifth in august',
-    category: 'pitch',
-    description:
-      'A wide, slightly detuned fifth above held chords, then a short bright haze with an octave above everything.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Pad fifth', params: { size: 60.9, mix: 0.24 } },
-      { deviceId: 'spectral-blur', preset: 'Glass halo', params: { mix: 0.27 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-sunstruck-shards',
-    name: 'Sunstruck shards',
-    category: 'pitch',
-    description:
-      'Tiny hard-edged grains an octave up, scattered in pitch, then a stream losing packets, soft holes of silence in the sound.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Glass shards', params: { size: 25.4, density: 11.5 } },
-      { deviceId: 'low-bitrate', preset: 'Dropouts' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-bells-at-the-lido',
-    name: 'Bells at the lido',
-    category: 'pitch',
-    description:
-      'Inharmonic chimes far above the notes, echoing higher still, then slurred whole-tone harmonies trailing off in echoes.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'High chime', params: { delay: 263, lfoRate: 0.0806 } },
-      {
-        deviceId: 'lattice',
-        preset: 'Whole tone haze',
-        params: { v1Delay: 334, v2Delay: 432, v3Delay: 171 },
-      },
-    ],
-  },
-  {
-    id: 'laptop-guitar-pixel-spiral',
-    name: 'Pixel spiral',
-    category: 'pitch',
-    description:
-      'A half-hidden slow swell, then a climbing octave shimmer, into a rush of short echoes that piles up into a cavern.',
-    effects: [
-      { deviceId: 'swell', preset: 'Shadow', params: { attack: 1570, release: 337 } },
-      { deviceId: 'grain-cloud', preset: 'Rising shimmer', params: { size: 342, density: 9.67 } },
-      { deviceId: 'swarm-reverb', preset: 'Cavern', params: { length: 0.487, glide: 0.611 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-pixelated-sparks',
-    name: 'Pixelated sparks',
-    category: 'pitch',
-    description:
-      'Sparse short grains two octaves up, after each note, then a dense, wide fog of grains that buries the dry sound.',
-    effects: [
-      { deviceId: 'grain-delay', preset: 'High glitter', params: { time: 331, size: 44.1 } },
-      { deviceId: 'grain-cloud', preset: 'Thick fog', params: { size: 501, density: 97.9 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-sun-faded-glass',
-    name: 'Sun-faded glass',
-    category: 'pitch',
-    description:
-      'Tiny hard-edged grains an octave up, scattered in pitch, then a held pad caught from each chord that glides to the next.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Glass shards', params: { size: 30.5, density: 13.4 } },
-      { deviceId: 'sustainer', preset: 'Sustain pedal' },
-    ],
-  },
-  {
-    id: 'laptop-guitar-grit-on-hot-tiles',
-    name: 'Grit on hot tiles',
+    id: 'laptop-guitar-bounced-overtone',
+    name: 'Bounced overtone',
     category: 'master',
     description:
-      'A dark, thick valve curve mixed over some of the clean sound, then a low ceiling with the sound pushed hard up against it.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Bass grit' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { release: 1.38, gain: -3.07 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-kiosk-centre',
-    name: 'Kiosk centre',
-    category: 'master',
-    description:
-      'The sides turned down, the image drawn towards the middle, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
-      { deviceId: 'fet-limiter', preset: 'Drive', params: { outputGain: -8.18 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-deckchair-tape',
-    name: 'Deckchair tape',
-    category: 'master',
-    description:
-      'A reel driven hot, then the sides lifted a little, wider with nothing added, then a low, breathing ceiling.',
-    effects: [
-      { deviceId: 'tape', preset: 'Hot glue' },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.314, gain: 0.474 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-plate-out-of-season',
-    name: 'Plate out of season',
-    category: 'master',
-    description:
-      'A small plate that is gone in a second or two, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 9.26 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.61, gain: 2.19 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-coil-in-heat-haze',
-    name: 'Coil in heat haze',
-    category: 'master',
-    description:
-      'A transformer driven so the low end thickens and loosens, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.51, gain: -3.31 } },
-    ],
-  },
-  {
-    id: 'laptop-guitar-august-overtone',
-    name: 'August overtone',
-    category: 'master',
-    description:
-      'A lopsided soft curve that adds the octave above each note, then a low ceiling with the sound pushed hard up against it.',
+      'An octave-adding soft curve, then a scooped, hollow tone, then a true-peak ceiling with the level pushed up into it.',
     effects: [
       { deviceId: 'saturator', preset: 'Octave glow' },
-      { deviceId: 'ambient-limiter', preset: 'Pinned', params: { release: 1.53, gain: 9.91 } },
+      { deviceId: 'ambient-eq', preset: 'Hollow' },
+      { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.73, gain: 2.45 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-sunburnt-channel',
+    name: 'Sunburnt channel',
+    category: 'master',
+    description:
+      'A console channel driven until it is firm in the mids, then a low ceiling that lets go quickly, so loud passages breathe.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Console' },
+      { deviceId: 'ambient-limiter', preset: 'Breathing', params: { release: 0.299, gain: -1.95 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-glue-in-heat-haze',
+    name: 'Glue in heat haze',
+    category: 'master',
+    description:
+      'A low cut with some air, then a swell-holding compressor, then a fast limiter with the level lifted a little into it.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.55 } },
+      { deviceId: 'ambient-comp', preset: 'Hold swells' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.35 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-desktop-glue',
+    name: 'Desktop glue',
+    category: 'master',
+    description:
+      'A little soft saturation, then a fast, firm compressor that stops only the peaks, then a ceiling with a wide margin.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 10.1, release: 0.184 } },
+      { deviceId: 'ambient-limiter', preset: 'Margin', params: { release: 1.58, gain: -3.92 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-boardwalk-sheen',
+    name: 'Boardwalk sheen',
+    category: 'master',
+    description:
+      'A quiet plate tail that comes in late behind each note, then a safety limiter with its ceiling brought down a little.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 81.9 } },
+      { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: 1.18 } },
+    ],
+  },
+  {
+    id: 'laptop-guitar-room-in-the-glare',
+    name: 'Room in the glare',
+    category: 'master',
+    description:
+      'A small room that is over in about a second, then a true-peak ceiling with the level eased back before it.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Room' },
+      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { release: 1.42, gain: -0.443 } },
     ],
   },
 ]

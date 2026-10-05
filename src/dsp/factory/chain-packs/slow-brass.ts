@@ -522,18 +522,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-slow-leaving-mains',
-    name: 'Slow-leaving mains',
-    category: 'tape',
-    description:
-      'A dark slow-melting bed, then a pure low mains hum in the middle of the sound, into a long undamped tail kept low behind the sound.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Dark bed' },
-      { deviceId: 'noise-floor', preset: 'Mains hum' },
-      { deviceId: 'ether-reverb', preset: 'Shining tail' },
-    ],
-  },
-  {
     id: 'slow-brass-exit-sign-rumble',
     name: 'Exit-sign rumble',
     category: 'tape',
@@ -583,6 +571,22 @@ export const CHAINS: readonly FactoryChain[] = [
       },
       { deviceId: 'tape', preset: 'Under a blanket' },
       { deviceId: 'reverse-delay', preset: 'Undertow' },
+    ],
+  },
+  {
+    id: 'slow-brass-mains-on-the-porch',
+    name: 'Mains on the porch',
+    category: 'tape',
+    description:
+      'A held pad that swells in slowly like bowed strings, then a pure low mains hum in the middle of the sound, into a cathedral.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'noise-floor', preset: 'Mains hum', params: { response: 0.428, hold: 18.5 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Cathedral',
+        params: { preDelay: 84.8, lowDecay: 6.3, midDecay: 5.67 },
+      },
     ],
   },
   {
@@ -1160,17 +1164,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-tape-in-the-wings',
-    name: 'Tape in the wings',
-    category: 'master',
-    description:
-      'A clean pass over fast new tape, with nothing added, then a fast limiter pushed so that soft and loud notes even out.',
-    effects: [
-      { deviceId: 'tape', preset: 'Clean transfer' },
-      { deviceId: 'fet-limiter', preset: 'Drive' },
-    ],
-  },
-  {
     id: 'slow-brass-back-row-room',
     name: 'Back-row room',
     category: 'master',
@@ -1202,6 +1195,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'plate-reverb', preset: 'Faint sheen', params: { predelayMs: 96.4 } },
       { deviceId: 'ambient-limiter', preset: 'Streaming' },
+    ],
+  },
+  {
+    id: 'slow-brass-rehearsal-tape',
+    name: 'Rehearsal tape',
+    category: 'master',
+    description:
+      'A reel of tape, then an even-handed compressor, then a fast limiter with the level lifted a little into it.',
+    effects: [
+      { deviceId: 'tape', preset: 'Quarter inch' },
+      { deviceId: 'ambient-comp', preset: 'Keys' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.69 } },
     ],
   },
 ]
