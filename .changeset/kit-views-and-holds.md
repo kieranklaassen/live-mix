@@ -18,3 +18,4 @@ The React kit's views: a timeline that hung the page, holds that were never let 
 - `VersionList`: `onRestore` was called for a restore the arbiter dropped under a lock. It is called when the restore was applied or waits.
 - `useInfo`, `InfoView`: a control taken away with no press on it (erased by the agent, or by a button outside the described part) stayed described until the pointer next moved. The view reads again when the page under it gains or loses an element, and starts from nothing said when the element its `root` names is mounted again.
 - Stylesheet: `.lm-device__notice` read `--lm-text-muted`, which nothing declares; it reads `--lm-muted`.
+- `validateSchema`: a key that every object answers to (`constructor`, `toString`, `hasOwnProperty`, `__proto__`) was taken for a declared property and went past `additionalProperties: false`, so a tool was run with it. Only a schema's own properties are looked up.
