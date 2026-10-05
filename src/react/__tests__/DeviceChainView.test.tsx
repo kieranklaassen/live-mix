@@ -1055,6 +1055,28 @@ describe('DeviceChainView', () => {
     expect(pad.strip.inserts).toEqual([eq, filter, delay])
   })
 
+  it('means the cell under the pointer once the pointer has been away and come back', async () => {
+    const { pad, devices } = await threeDevices()
+    const [filter, eq, delay] = devices
+    const there = { detail: 1, clientX: 40, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }), there)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The pointer goes to a knob of the device and back to the very place it pressed at:
+    // that is a new press, on the cell that stands there now.
+    const chainRoot = screen.getByTestId('chain')
+    fireEvent.pointerMove(chainRoot, { pointerId: 1, clientX: 70, clientY: 40 })
+    fireEvent.pointerMove(chainRoot, { pointerId: 1, clientX: 40, clientY: 10 })
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), there)
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+    // A pointer that only trembles where it is has not gone anywhere.
+    fireEvent.pointerMove(chainRoot, { pointerId: 1, clientX: 70, clientY: 40 })
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }), there)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    fireEvent.pointerMove(chainRoot, { pointerId: 1, clientX: 41, clientY: 11 })
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), there)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+  })
+
   it('takes a double click on a cross for one press: the device that slid under the pointer stays', async () => {
     forgetPresses()
     const { pad, devices } = await threeDevices()
