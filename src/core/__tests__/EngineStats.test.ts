@@ -241,4 +241,23 @@ describe('EngineStats', () => {
       vi.useRealTimers()
     }
   })
+
+  it('a listener subscribed twice is watched for once, and nothing is left running when it goes', () => {
+    vi.useFakeTimers()
+    try {
+      const stats = new EngineStats(asAudioContext(createMockContext()))
+      const listener = vi.fn()
+      const first = stats.subscribe(listener)
+      const second = stats.subscribe(listener)
+      expect(vi.getTimerCount()).toBe(1)
+      vi.advanceTimersByTime(1000)
+      expect(listener).toHaveBeenCalledTimes(1)
+      first()
+      second()
+      expect(vi.getTimerCount()).toBe(0)
+      stats.dispose()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
 })
