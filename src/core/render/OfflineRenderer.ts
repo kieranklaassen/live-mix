@@ -101,6 +101,7 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
   const durationSec = options.durationSec
   if (!(durationSec > 0)) throw new Error('live-mix: renderOffline needs a positive durationSec')
   const tickSec = options.tickSec ?? 0.05
+  assertTickSec(tickSec)
   const length = Math.ceil(durationSec * sampleRate)
   const context = (options.createContext ?? defaultCreateContext)({
     numberOfChannels,
@@ -157,6 +158,16 @@ function disposeQuietly(engine: Engine): void {
   }
 }
 
+/**
+ * The virtual clock is stepped by `tickSec` until it is past the end: a step
+ * of 0 or less never gets there, and one that is no number never ticks.
+ */
+function assertTickSec(tickSec: number): void {
+  if (!(tickSec > 0 && Number.isFinite(tickSec))) {
+    throw new Error('live-mix: the clock of a render needs a positive tickSec')
+  }
+}
+
 export interface ScheduleAheadOptions {
   startSec: number
   durationSec: number
@@ -175,6 +186,7 @@ export interface ScheduleAheadOptions {
  */
 export async function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): Promise<void> {
   const { startSec, durationSec, tickSec, setNow } = options
+  assertTickSec(tickSec)
   setNow(0)
   engine.transport.seek(startSec)
   engine.transport.start(0)

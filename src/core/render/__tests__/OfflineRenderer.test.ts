@@ -24,6 +24,7 @@ import {
   maxAbsDifference,
   renderOffline,
   renderStems,
+  scheduleAhead,
   type OfflineContextFactory,
 } from '../OfflineRenderer'
 
@@ -129,6 +130,37 @@ describe('renderOffline', () => {
     await expect(renderOffline({ durationSec: 1, build: arrangement })).rejects.toThrow(
       /OfflineAudioContext is not available/,
     )
+  })
+
+  it('rejects a clock step that would never reach the end, or never tick at all', async () => {
+    // A step of 0 or less walks the virtual clock without end: the build stops
+    // the scheduler after a thousand ticks so that this fails instead of hanging.
+    const counted = async (engine: Engine): Promise<void> => {
+      await arrangement(engine)
+      const tick = engine.scheduler.tick.bind(engine.scheduler)
+      let ticks = 0
+      engine.scheduler.tick = () => {
+        ticks += 1
+        if (ticks > 1000) throw new Error('ticked without end')
+        tick()
+      }
+    }
+    for (const tickSec of [0, -0.05, Number.NaN, Number.POSITIVE_INFINITY]) {
+      contexts = []
+      await expect(
+        renderOffline({ durationSec: 1, tickSec, createContext: factory, build: counted }),
+      ).rejects.toThrow(/positive tickSec/)
+      // Refused before anything was made for it.
+      expect(contexts).toHaveLength(0)
+    }
+
+    const ctx = createMockContext({ sampleRate: SAMPLE_RATE })
+    const engine = createEngine({ context: asAudioContext(ctx), now: () => 0 })
+    await counted(engine)
+    await expect(
+      scheduleAhead(engine, { startSec: 0, durationSec: 1, tickSec: 0, setNow: () => {} }),
+    ).rejects.toThrow(/positive tickSec/)
+    engine.dispose()
   })
 })
 
