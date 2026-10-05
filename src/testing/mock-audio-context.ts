@@ -199,6 +199,7 @@ export class MockAudioContext {
       ...this.convolvers,
       ...this.filters,
       ...this.delays,
+      ...this.shapers,
       ...this.compressors,
       ...this.panners,
       ...this.streamDestinations,
