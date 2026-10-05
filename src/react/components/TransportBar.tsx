@@ -92,9 +92,9 @@ export function TransportBar({
           <span className="lm-transport__loop-length">{formatTimeSec(t.loop.lengthSec)}</span>
         </ToggleButton>
       ) : null}
-      {t.loop.enabled && t.iteration > 0 ? (
+      {t.loop.enabled && t.pass > 0 ? (
         <span className="lm-transport__iteration" title="Loop pass">
-          ×{t.iteration + 1}
+          ×{t.pass + 1}
         </span>
       ) : null}
       {children}

@@ -78,6 +78,30 @@ describe('TransportBar', () => {
     expect(loop).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('counts the passes of the loop, not the starts and seeks', () => {
+    const fixture = createTestEngine()
+    const { transport } = fixture.engine
+    render(<TransportBar />, { wrapper: fixture.wrapper })
+    act(() => transport.setLoop({ enabled: true, lengthSec: 8 }))
+    act(() => transport.start())
+    act(() => transport.pause())
+    act(() => transport.start())
+    act(() => transport.seek(1))
+    // Started twice and moved once, and still the first time through the loop.
+    expect(screen.queryByTitle('Loop pass')).toBeNull()
+
+    // Twice round from 1 s in: the third pass.
+    fixture.ctx.currentTime = 17
+    act(() => fixture.frames.flush(1000))
+    expect(screen.getByTitle('Loop pass')).toHaveTextContent('×3')
+    act(() => transport.pause())
+    act(() => transport.start())
+    expect(screen.getByTitle('Loop pass')).toHaveTextContent('×3')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop' }))
+    expect(screen.queryByTitle('Loop pass')).toBeNull()
+  })
+
   it('binds an explicit transport without a provider and hides optional controls', () => {
     const fixture = createTestEngine()
     render(
