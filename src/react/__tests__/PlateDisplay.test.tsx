@@ -311,6 +311,35 @@ describe('when a display is drawn', () => {
     expect(slow.mock.calls.length - slowBefore).toBe(6)
   })
 
+  it('goes on drawing the other displays when one of them throws', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    let broken = false
+    const bad = vi.fn(() => {
+      if (broken) throw new Error('a display that cannot draw')
+    })
+    const good = vi.fn()
+    render(
+      <>
+        <DevicePlate device={device} skin={{ ...BASE, display: live(bad, {}) }} />
+        <DevicePlate device={device} skin={{ ...BASE, display: live(good, {}) }} />
+      </>,
+      { wrapper: fixture.wrapper },
+    )
+    act(() => fixture.frames.flush(5000))
+    broken = true
+    const [badBefore, goodBefore] = [bad.mock.calls.length, good.mock.calls.length]
+    // What it threw is still to be seen, and the frame after it is asked for.
+    expect(() => fixture.frames.flush(5100)).toThrow('a display that cannot draw')
+    expect(fixture.frames.size).toBe(1)
+    expect(good.mock.calls.length - goodBefore).toBe(1)
+    act(() => fixture.frames.flush(5200))
+    act(() => fixture.frames.flush(5300))
+    expect(good.mock.calls.length - goodBefore).toBe(3)
+    // The one that threw is asked no more.
+    expect(bad.mock.calls.length - badBefore).toBe(1)
+  })
+
   it('only while it can be seen', async () => {
     let seen: ((entries: { isIntersecting: boolean }[]) => void) | null = null
     vi.stubGlobal(

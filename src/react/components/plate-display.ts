@@ -217,8 +217,20 @@ function ask(scheduler: FrameScheduler, loop: FrameLoop): void {
   loop.waiting = true
   loop.handle = scheduler.request((nowMs) => {
     loop.waiting = false
-    for (const listener of [...loop.listeners]) listener(nowMs)
+    let failed = false
+    let failure: unknown
+    for (const listener of [...loop.listeners]) {
+      try {
+        listener(nowMs)
+      } catch (error) {
+        // A display that throws is left out and the rest still get their frame, this one and the next.
+        loop.listeners.delete(listener)
+        if (!failed) failure = error
+        failed = true
+      }
+    }
     if (loop.listeners.size > 0 && !loop.waiting) ask(scheduler, loop)
+    if (failed) throw failure
   })
 }
 
