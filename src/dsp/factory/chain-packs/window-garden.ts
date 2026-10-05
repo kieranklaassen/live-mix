@@ -1086,17 +1086,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-veranda-finish',
-    name: 'Veranda finish',
-    category: 'master',
-    description:
-      'A stereo image widened a little, with the bass left central, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.57 } },
-    ],
-  },
-  {
     id: 'window-garden-daylight-finish',
     name: 'Daylight finish',
     category: 'master',
@@ -1165,6 +1154,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'ambient-eq', preset: 'Drone' },
       { deviceId: 'ambient-limiter', preset: 'Slow tide' },
+    ],
+  },
+  {
+    id: 'window-garden-polish-over-moss',
+    name: 'Polish over moss',
+    category: 'master',
+    description:
+      'A subsonic cut with the low mids and the presence eased, then a slightly wider image, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.06 } },
     ],
   },
 ]

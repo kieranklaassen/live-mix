@@ -1090,17 +1090,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-sea-fret-mixdown',
-    name: 'Sea-fret mixdown',
-    category: 'master',
-    description:
-      'A fast, steady reel with soft saturation, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'lucid-gorse-master',
     name: 'Gorse master',
     category: 'master',
@@ -1148,14 +1137,27 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'lucid-half-heard-finish',
-    name: 'Half-heard finish',
+    id: 'lucid-hymnbook-mixdown',
+    name: 'Hymnbook mixdown',
     category: 'master',
     description:
-      'The first hint of weight from a tape preamp, then a fast limiter leaned on lightly, catching stray peaks.',
+      'Tape-style saturation that rounds only the loudest peaks, then a subsonic cut, then a fast limiter leaned on lightly, catching stray peaks.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-eq', preset: 'Master' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'lucid-mineshaft-polish',
+    name: 'Mineshaft polish',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a parallel compressor that lifts quiet playing and tails, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 412, release: 2.78 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
 ]

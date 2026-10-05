@@ -1100,17 +1100,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'rosewood-finish-on-soft-yarn',
-    name: 'Finish on soft yarn',
-    category: 'master',
-    description:
-      'Tape-style saturation that rounds only the loudest peaks, then a true-peak ceiling that lets go again over several seconds.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.54 } },
-    ],
-  },
-  {
     id: 'rosewood-master-under-tiles',
     name: 'Master under tiles',
     category: 'master',
@@ -1178,6 +1167,18 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 3.26 } },
       { deviceId: 'ambient-comp', preset: 'Sit back' },
       { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 2.45 } },
+    ],
+  },
+  {
+    id: 'rosewood-finish-between-bowls',
+    name: 'Finish between bowls',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a compressor that lets each attack through before it levels, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys' },
+      { deviceId: 'ambient-comp', preset: 'Keys', params: { attack: 107, release: 1.68 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.93 } },
     ],
   },
 ]

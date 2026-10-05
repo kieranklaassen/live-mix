@@ -550,17 +550,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-boarded-up-converter',
-    name: 'Boarded-up converter',
-    category: 'tape',
-    description:
-      'A small radio speaker muffled as if under a pillow, then an eight-bit digital telephone line, band-limited and dull.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Pillow speaker' },
-      { deviceId: 'vintage-digital', preset: 'Phone' },
-    ],
-  },
-  {
     id: 'static-cathedral-matins-drift',
     name: 'Matins drift',
     category: 'tape',
@@ -618,6 +607,17 @@ export const CHAINS: readonly FactoryChain[] = [
         params: { delay: 11.7, lfoRate: 0.0792, mix: 0.3 },
       },
       { deviceId: 'low-bitrate', preset: 'Dropouts' },
+    ],
+  },
+  {
+    id: 'static-cathedral-boarded-up-signal',
+    name: 'Boarded-up signal',
+    category: 'tape',
+    description:
+      'A bad connection that drops out and sticks in buzzing loops, then echoes that sink a few hertz flatter on every repeat.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Bad connection' },
+      { deviceId: 'freq-shifter', preset: 'Falling spiral' },
     ],
   },
   {

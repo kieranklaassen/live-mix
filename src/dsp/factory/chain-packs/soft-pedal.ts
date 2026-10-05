@@ -400,17 +400,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'soft-pedal-spruce-bloom',
-    name: 'Spruce bloom',
-    category: 'space',
-    description:
-      'A trace of room around the sound, into a large space whose tail swells in behind each note.',
-    effects: [
-      { deviceId: 'ether-reverb', preset: 'Faint air' },
-      { deviceId: 'expanse', preset: 'Bloom' },
-    ],
-  },
-  {
     id: 'soft-pedal-lid-down-hall',
     name: 'Lid-down hall',
     category: 'space',
@@ -456,6 +445,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ether-reverb', preset: 'Dark hall' },
       { deviceId: 'chorus', preset: 'Faint air' },
+    ],
+  },
+  {
+    id: 'soft-pedal-space-left-to-hang',
+    name: 'Space left to hang',
+    category: 'space',
+    description:
+      'A trace of room around the sound, into a wide open space with a slowly wavering tail.',
+    effects: [
+      { deviceId: 'ether-reverb', preset: 'Faint air' },
+      { deviceId: 'expanse', preset: 'Open space', params: { decay: 9.49, modRate: 0.357 } },
     ],
   },
   {
@@ -663,17 +663,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'soft-pedal-after-hours-cassette',
-    name: 'After-hours cassette',
-    category: 'tape',
-    description:
-      'A thick, soft cassette, full in the lows and dull on top, then an equaliser that takes presence, air and lows away.',
-    effects: [
-      { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.51 } },
-    ],
-  },
-  {
     id: 'soft-pedal-treated-reel',
     name: 'Treated reel',
     category: 'tape',
@@ -682,6 +671,22 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape', preset: 'Drifting chorus' },
       { deviceId: 'hall-reverb', preset: 'Cathedral' },
+    ],
+  },
+  {
+    id: 'soft-pedal-chorus-a-shade-flat',
+    name: 'Chorus a shade flat',
+    category: 'tape',
+    description:
+      'A low, dark tape loop played backwards at half speed, then a slow tape chorus, into a hall whose lows ring on long after the rest has gone.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Slow backwards', params: { length: 3.8 } },
+      { deviceId: 'tape', preset: 'Drifting chorus', params: { output: -0.896 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Warm undertow',
+        params: { preDelay: 62.5, midDecay: 2.19 },
+      },
     ],
   },
   {

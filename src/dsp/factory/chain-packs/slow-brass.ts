@@ -298,21 +298,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'slow-brass-hall-two-rooms-off',
-    name: 'Hall two rooms off',
-    category: 'space',
-    description:
-      'A hall of about four seconds with no dry sound in it, then a mid-forward tone with the lows and the top trimmed.',
-    effects: [
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Full wet send',
-        params: { lowDecay: 3.54, midDecay: 4.18 },
-      },
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.36 } },
-    ],
-  },
-  {
     id: 'slow-brass-swell-at-the-door',
     name: 'Swell at the door',
     category: 'space',
@@ -344,6 +329,17 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.33 } },
       { deviceId: 'expanse', preset: 'Small box', params: { modRate: 0.425 } },
       { deviceId: 'swarm-reverb', preset: 'Bending' },
+    ],
+  },
+  {
+    id: 'slow-brass-hall-in-the-heat',
+    name: 'Hall in the heat',
+    category: 'space',
+    description:
+      'A high cut set low enough to muffle everything, into a plain hall with about four seconds of tail.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.57 } },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.9, breathRate: 0.317 } },
     ],
   },
   {
