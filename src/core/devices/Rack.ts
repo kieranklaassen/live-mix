@@ -755,46 +755,52 @@ export async function createRackFromPreset(
     macroCount: Math.max(1, preset.macros.length),
     params: { mix: preset.mix },
   })
-  for (const chainPreset of preset.chains) {
-    const chain = rack.addChain({
-      name: chainPreset.name,
-      gain: chainPreset.gain,
-      pan: chainPreset.pan,
-      mute: chainPreset.mute,
-      keyZone: chainPreset.keyZone,
-      selectorZone: chainPreset.selectorZone,
-    })
-    for (const entry of chainPreset.devices) {
-      const device = entry.rack
-        ? await createRackFromPreset(context, entry.rack, { ...options, name: entry.rack.name })
-        : await options.registry.create(entry.preset.deviceId, context, {
-            ...options.deviceOptions?.(entry.preset.deviceId),
-            preset: entry.preset,
-          })
-      device.bypass = entry.bypass
-      chain.addInsert(device)
-    }
-  }
-  preset.macros.forEach((macroPreset, index) => {
-    const macro = rack.macros[index]
-    macro.name = macroPreset.name
-    macro.set(macroPreset.value)
-    for (const mapping of macroPreset.mappings) {
-      const device = rack.chains[mapping.chain]?.devices[mapping.device]
-      if (!device) {
-        throw new Error(
-          `live-mix: rack preset "${preset.name}" maps macro ${index + 1} to a missing device`,
-        )
-      }
-      rack.mapMacro(index, device, mapping.param, {
-        min: mapping.min,
-        max: mapping.max,
-        curve: mapping.curve,
-        apply: false,
+  try {
+    for (const chainPreset of preset.chains) {
+      const chain = rack.addChain({
+        name: chainPreset.name,
+        gain: chainPreset.gain,
+        pan: chainPreset.pan,
+        mute: chainPreset.mute,
+        keyZone: chainPreset.keyZone,
+        selectorZone: chainPreset.selectorZone,
       })
+      for (const entry of chainPreset.devices) {
+        const device = entry.rack
+          ? await createRackFromPreset(context, entry.rack, { ...options, name: entry.rack.name })
+          : await options.registry.create(entry.preset.deviceId, context, {
+              ...options.deviceOptions?.(entry.preset.deviceId),
+              preset: entry.preset,
+            })
+        device.bypass = entry.bypass
+        chain.addInsert(device)
+      }
     }
-  })
-  return rack
+    preset.macros.forEach((macroPreset, index) => {
+      const macro = rack.macros[index]
+      macro.name = macroPreset.name
+      macro.set(macroPreset.value)
+      for (const mapping of macroPreset.mappings) {
+        const device = rack.chains[mapping.chain]?.devices[mapping.device]
+        if (!device) {
+          throw new Error(
+            `live-mix: rack preset "${preset.name}" maps macro ${index + 1} to a missing device`,
+          )
+        }
+        rack.mapMacro(index, device, mapping.param, {
+          min: mapping.min,
+          max: mapping.max,
+          curve: mapping.curve,
+          apply: false,
+        })
+      }
+    })
+    return rack
+  } catch (error) {
+    // The caller never gets this rack, so nobody else can take it down: its devices go with it.
+    rack.dispose()
+    throw error
+  }
 }
 
 export function serializeRackPreset(preset: RackPreset): string {

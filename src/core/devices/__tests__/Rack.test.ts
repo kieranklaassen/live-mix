@@ -797,6 +797,65 @@ describe('Rack presets', () => {
     ])
   })
 
+  it('a rack that cannot be finished takes down what it had made', async () => {
+    const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
+    const disposed = vi.fn()
+    const registry = new DeviceRegistry([
+      {
+        ...UTILITY_DESCRIPTOR,
+        create: (context, options) => {
+          const device = createUtility(context, options)
+          const dispose = device.dispose.bind(device)
+          device.dispose = () => {
+            disposed()
+            dispose()
+          }
+          return device
+        },
+      },
+      {
+        ...devices.describe('filter'),
+        create: () => {
+          throw new Error('no filter here')
+        },
+      },
+      RACK_DESCRIPTOR,
+    ])
+    const device = (deviceId: string) => ({
+      preset: { name: deviceId, deviceId, deviceVersion: 1, params: {} },
+      bypass: false,
+    })
+    const preset: RackPreset = {
+      name: 'Half',
+      mix: 1,
+      macros: [{ name: 'Macro 1', value: 0, mappings: [] }],
+      chains: [
+        {
+          name: 'Only',
+          gain: 1,
+          pan: 0,
+          mute: false,
+          devices: [device('utility'), device('filter')],
+        },
+      ],
+    }
+    await expect(createRackFromPreset(ctx, preset, { registry })).rejects.toThrow('no filter here')
+    expect(disposed).toHaveBeenCalledTimes(1)
+
+    // The same for a mapping onto a device the preset does not have.
+    preset.chains[0].devices.pop()
+    preset.macros[0].mappings.push({
+      chain: 0,
+      device: 3,
+      param: 'gainDb',
+      min: 0,
+      max: 1,
+      curve: 'linear',
+    })
+    await expect(createRackFromPreset(ctx, preset, { registry })).rejects.toThrow(/missing device/)
+    expect(disposed).toHaveBeenCalledTimes(2)
+  })
+
   it('loads and captures U23 presets of the macros and mix through the registry', async () => {
     const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
     const centred = await devices.create('rack', ctx, { preset: 'Centred' })
