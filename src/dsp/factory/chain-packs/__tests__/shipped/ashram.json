@@ -1,0 +1,402 @@
+{
+  "ashram-garland-wash": {
+    "name": "Garland wash",
+    "written": "ca866d1d19168dd9"
+  },
+  "ashram-wash-at-the-gate": {
+    "name": "Wash at the gate",
+    "written": "54f2c2e17520bcd6"
+  },
+  "ashram-doorstep-wash": {
+    "name": "Doorstep wash",
+    "written": "b84ed0aa40c0d8fb"
+  },
+  "ashram-hall-in-dry-hills": {
+    "name": "Hall in dry hills",
+    "written": "a14ae319af4fc5c4"
+  },
+  "ashram-plate-till-daybreak": {
+    "name": "Plate till daybreak",
+    "written": "b9119a11db04ed32"
+  },
+  "ashram-foothill-bloom": {
+    "name": "Foothill bloom",
+    "written": "39361014028060ce"
+  },
+  "ashram-plate-before-dawn": {
+    "name": "Plate before dawn",
+    "written": "88590a8dacba327c"
+  },
+  "ashram-plate-at-sundown": {
+    "name": "Plate at sundown",
+    "written": "002013789f0c9556"
+  },
+  "ashram-room-under-oaks": {
+    "name": "Room under oaks",
+    "written": "dd14d9c16d86b7a6"
+  },
+  "ashram-shrine-hall": {
+    "name": "Shrine hall",
+    "written": "b0f64f772411bdfd"
+  },
+  "ashram-silk-choir": {
+    "name": "Silk choir",
+    "written": "f95e89ed11090df5"
+  },
+  "ashram-stone-step-ring": {
+    "name": "Stone-step ring",
+    "written": "3b3ce607c3f76553"
+  },
+  "ashram-ring-by-the-lamp": {
+    "name": "Ring by the lamp",
+    "written": "9e8ae7f28d7315b3"
+  },
+  "ashram-ring-in-saffron": {
+    "name": "Ring in saffron",
+    "written": "033ff5ff0fdf7c78"
+  },
+  "ashram-pilgrim-whisper": {
+    "name": "Pilgrim whisper",
+    "written": "add5f11001415908"
+  },
+  "ashram-devotional-choir": {
+    "name": "Devotional choir",
+    "written": "f59de3b924b64b26"
+  },
+  "ashram-evening-murmur": {
+    "name": "Evening murmur",
+    "written": "1d419ece045dc6ed"
+  },
+  "ashram-camphor-choir": {
+    "name": "Camphor choir",
+    "written": "773ef7f3e92e64d4"
+  },
+  "ashram-fifths-in-no-hurry": {
+    "name": "Fifths in no hurry",
+    "written": "16012bc8a8638000"
+  },
+  "ashram-evening-raga-space": {
+    "name": "Evening-raga space",
+    "written": "051b0dc3d9d6476f"
+  },
+  "ashram-canyon-road-choir": {
+    "name": "Canyon-road choir",
+    "written": "e9f57f1730a269ba"
+  },
+  "ashram-wash-in-the-grove": {
+    "name": "Wash in the grove",
+    "written": "064e989a07c23ecb"
+  },
+  "ashram-dry-creek-choir": {
+    "name": "Dry-creek choir",
+    "written": "fa79a9e6d27fc65e"
+  },
+  "ashram-daybreak-ring": {
+    "name": "Daybreak ring",
+    "written": "4912b336e8d3ce4f"
+  },
+  "ashram-last-set-ring": {
+    "name": "Last-set ring",
+    "written": "32a31ef683042218"
+  },
+  "ashram-plate-in-the-grove": {
+    "name": "Plate in the grove",
+    "written": "ec02db19226d2f62"
+  },
+  "ashram-chaparral-echo": {
+    "name": "Chaparral echo",
+    "written": "f3e7aa4f91b979d6"
+  },
+  "ashram-sundown-halo": {
+    "name": "Sundown halo",
+    "written": "0b15addf1e6f0e26"
+  },
+  "ashram-jasmine-trail": {
+    "name": "Jasmine trail",
+    "written": "dfba2cc19e3c275a"
+  },
+  "ashram-echo-on-the-hill": {
+    "name": "Echo on the hill",
+    "written": "842f48b07fa71390"
+  },
+  "ashram-echo-at-the-shrine": {
+    "name": "Echo at the shrine",
+    "written": "e1431caa7b72f90c"
+  },
+  "ashram-saffron-echo": {
+    "name": "Saffron echo",
+    "written": "220ac21b4b49ee0b"
+  },
+  "ashram-sway-in-incense": {
+    "name": "Sway in incense",
+    "written": "4484fdf854c727a1"
+  },
+  "ashram-echo-pitched-low": {
+    "name": "Echo pitched low",
+    "written": "ed9fee265e8a9c26"
+  },
+  "ashram-rose-petal-drift": {
+    "name": "Rose-petal drift",
+    "written": "161237f0324f09a6"
+  },
+  "ashram-loop-up-the-canyon": {
+    "name": "Loop up the canyon",
+    "written": "6681a6fcc1db779c"
+  },
+  "ashram-dusk-trail": {
+    "name": "Dusk trail",
+    "written": "66876760e1041bba"
+  },
+  "ashram-twilight-wash": {
+    "name": "Twilight wash",
+    "written": "ded249987340feb7"
+  },
+  "ashram-cathedral-in-saffron": {
+    "name": "Cathedral in saffron",
+    "written": "2a10cb9cf5439187"
+  },
+  "ashram-live-oak-voices": {
+    "name": "Live-oak voices",
+    "written": "f82da9bc676f908e"
+  },
+  "ashram-after-hours-choir": {
+    "name": "After-hours choir",
+    "written": "bcc991367a8b16d9"
+  },
+  "ashram-bare-floor-choir": {
+    "name": "Bare-floor choir",
+    "written": "5221cf4f78f0e9ad"
+  },
+  "ashram-marigold-tape": {
+    "name": "Marigold tape",
+    "written": "646e76815aede876"
+  },
+  "ashram-sunday-cassette": {
+    "name": "Sunday cassette",
+    "written": "6c0ff4502e9a2625"
+  },
+  "ashram-sun-warmed-cassette": {
+    "name": "Sun-warmed cassette",
+    "written": "472075fb983dcd6c"
+  },
+  "ashram-dim-lamp-cassette": {
+    "name": "Dim-lamp cassette",
+    "written": "d4d8c0a542a33c8c"
+  },
+  "ashram-sway-with-garlands": {
+    "name": "Sway with garlands",
+    "written": "956ef72a90bf70cb"
+  },
+  "ashram-rose-water-rotary": {
+    "name": "Rose-water rotary",
+    "written": "1dfa6808f2c61ccc"
+  },
+  "ashram-half-heard-swirl": {
+    "name": "Half-heard swirl",
+    "written": "d0c94463d622d833"
+  },
+  "ashram-sagebrush-rotary": {
+    "name": "Sagebrush rotary",
+    "written": "2f2716109f7f6052"
+  },
+  "ashram-satsang-rotary": {
+    "name": "Satsang rotary",
+    "written": "898670a7bfca5b4f"
+  },
+  "ashram-garland-phaser": {
+    "name": "Garland phaser",
+    "written": "154487562ec270b8"
+  },
+  "ashram-chorus-in-sage": {
+    "name": "Chorus in sage",
+    "written": "b8a8584620a891dc"
+  },
+  "ashram-sycamore-rotary": {
+    "name": "Sycamore rotary",
+    "written": "2590818722bfc522"
+  },
+  "ashram-incense-rotary": {
+    "name": "Incense rotary",
+    "written": "8146ce09ecf24493"
+  },
+  "ashram-ring-for-evening": {
+    "name": "Ring for evening",
+    "written": "550f8cf4bf3e50d3"
+  },
+  "ashram-prayer-hour-drone": {
+    "name": "Prayer-hour drone",
+    "written": "98fe00298f139bd6"
+  },
+  "ashram-sunday-halo": {
+    "name": "Sunday halo",
+    "written": "fda41a6350f22814"
+  },
+  "ashram-cross-legged-ring": {
+    "name": "Cross-legged ring",
+    "written": "a588ccfa835aca4e"
+  },
+  "ashram-back-room-rotary": {
+    "name": "Back-room rotary",
+    "written": "0f4427cdd385eb87"
+  },
+  "ashram-lotus-pond-rotary": {
+    "name": "Lotus-pond rotary",
+    "written": "fba69c710325f5e2"
+  },
+  "ashram-live-oak-rotary": {
+    "name": "Live-oak rotary",
+    "written": "09e9ff00d69ea6f2"
+  },
+  "ashram-dry-season-swell": {
+    "name": "Dry-season swell",
+    "written": "4140e4c36b15f2d1"
+  },
+  "ashram-brass-lamp-rotary": {
+    "name": "Brass-lamp rotary",
+    "written": "488c27f29065bec9"
+  },
+  "ashram-oil-lamp-rotary": {
+    "name": "Oil-lamp rotary",
+    "written": "4496d1014ead1602"
+  },
+  "ashram-chorus-after-prayers": {
+    "name": "Chorus after prayers",
+    "written": "0c49b3dfb2ce1f80"
+  },
+  "ashram-kneeling-rotary": {
+    "name": "Kneeling rotary",
+    "written": "4ad93af24cad13e5"
+  },
+  "ashram-chorus-in-marigolds": {
+    "name": "Chorus in marigolds",
+    "written": "723bb8dd75107c46"
+  },
+  "ashram-twilight-drift": {
+    "name": "Twilight drift",
+    "written": "157015706610a0d4"
+  },
+  "ashram-hilltop-chorus": {
+    "name": "Hilltop chorus",
+    "written": "6a6bc8ba1cce76d7"
+  },
+  "ashram-rosewood-rotary": {
+    "name": "Rosewood rotary",
+    "written": "834f736a5584ab98"
+  },
+  "ashram-turmeric-strings": {
+    "name": "Turmeric strings",
+    "written": "65302cd9f21f70bf"
+  },
+  "ashram-gourd-halo": {
+    "name": "Gourd halo",
+    "written": "b1c368ad11d19ec4"
+  },
+  "ashram-sandalwood-pad": {
+    "name": "Sandalwood pad",
+    "written": "305e39771025390a"
+  },
+  "ashram-courtyard-depths": {
+    "name": "Courtyard depths",
+    "written": "de741f5c93927dd9"
+  },
+  "ashram-coastal-unison": {
+    "name": "Coastal unison",
+    "written": "fc8f3467c6e2e425"
+  },
+  "ashram-stone-step-drone": {
+    "name": "Stone-step drone",
+    "written": "5e60025baad6d17a"
+  },
+  "ashram-glow-for-the-altar": {
+    "name": "Glow for the altar",
+    "written": "69e55210e5c85518"
+  },
+  "ashram-pad-before-dawn": {
+    "name": "Pad before dawn",
+    "written": "ae71e8ad194170c5"
+  },
+  "ashram-harmony-under-oaks": {
+    "name": "Harmony under oaks",
+    "written": "bdc3badaed2138f2"
+  },
+  "ashram-undertow-on-the-hill": {
+    "name": "Undertow on the hill",
+    "written": "a006ec9c9a8eb35a"
+  },
+  "ashram-pad-in-no-hurry": {
+    "name": "Pad in no hurry",
+    "written": "d2e345a5ccf47014"
+  },
+  "ashram-daybreak-pad": {
+    "name": "Daybreak pad",
+    "written": "d03f06e64d1f8be7"
+  },
+  "ashram-rose-water-pad": {
+    "name": "Rose-water pad",
+    "written": "9c41cc62a736a3e3"
+  },
+  "ashram-wood-smoke-pad": {
+    "name": "Wood-smoke pad",
+    "written": "6fb274804a3aa64a"
+  },
+  "ashram-altar-octave": {
+    "name": "Altar octave",
+    "written": "0205ae7c7c33c7a1"
+  },
+  "ashram-bare-floor-octave": {
+    "name": "Bare-floor octave",
+    "written": "e3cbcec337e68a2e"
+  },
+  "ashram-up-canyon-chord": {
+    "name": "Up-canyon chord",
+    "written": "21171e4b45781f14"
+  },
+  "ashram-octaves-by-the-creek": {
+    "name": "Octaves by the creek",
+    "written": "1bf9178cdaa86cc0"
+  },
+  "ashram-ochre-swell": {
+    "name": "Ochre swell",
+    "written": "65fd63cb2a00491b"
+  },
+  "ashram-glow-by-the-creek": {
+    "name": "Glow by the creek",
+    "written": "fd27af67888dc84f"
+  },
+  "ashram-hilltop-octave": {
+    "name": "Hilltop octave",
+    "written": "3021e627020e29e2"
+  },
+  "ashram-lotus-pond-shimmer": {
+    "name": "Lotus-pond shimmer",
+    "written": "56cbf909d952b754"
+  },
+  "ashram-depths-in-sage": {
+    "name": "Depths in sage",
+    "written": "5becba581a72cfb1"
+  },
+  "ashram-pilgrim-polish": {
+    "name": "Pilgrim polish",
+    "written": "74f96b8a7412bf6d"
+  },
+  "ashram-dry-creek-mixdown": {
+    "name": "Dry-creek mixdown",
+    "written": "6fb67706030bab66"
+  },
+  "ashram-bluff-top-finish": {
+    "name": "Bluff-top finish",
+    "written": "8acf1f7c530e66e5"
+  },
+  "ashram-mixdown-in-saffron": {
+    "name": "Mixdown in saffron",
+    "written": "7abfd20223554e4b"
+  },
+  "ashram-hillside-mixdown": {
+    "name": "Hillside mixdown",
+    "written": "86bcd0de0c62c5c8"
+  },
+  "ashram-mixdown-for-evening": {
+    "name": "Mixdown for evening",
+    "written": "f71e907c8f987696"
+  }
+}

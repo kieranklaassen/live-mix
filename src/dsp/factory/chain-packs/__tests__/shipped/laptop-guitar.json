@@ -1,0 +1,402 @@
+{
+  "laptop-guitar-bleached-cathedral": {
+    "name": "Bleached cathedral",
+    "written": "a153228424e708e3"
+  },
+  "laptop-guitar-promenade-vault": {
+    "name": "Promenade vault",
+    "written": "d5bbb6e813f143b6"
+  },
+  "laptop-guitar-laptop-halo": {
+    "name": "Laptop halo",
+    "written": "3ca3f9d0ac5ff86b"
+  },
+  "laptop-guitar-overheated-sky": {
+    "name": "Overheated sky",
+    "written": "57e30ae99b2c92bd"
+  },
+  "laptop-guitar-autosave-hall": {
+    "name": "Autosave hall",
+    "written": "a4873a9ad9136d28"
+  },
+  "laptop-guitar-jetty-shimmer": {
+    "name": "Jetty shimmer",
+    "written": "20eafd5dce144b79"
+  },
+  "laptop-guitar-heatwave-springs": {
+    "name": "Heatwave springs",
+    "written": "8c76f19aad5031d0"
+  },
+  "laptop-guitar-cavern-in-august": {
+    "name": "Cavern in August",
+    "written": "bb908d5d3fc97765"
+  },
+  "laptop-guitar-awning-plate": {
+    "name": "Awning plate",
+    "written": "64407d2db896e554"
+  },
+  "laptop-guitar-terrace-plate": {
+    "name": "Terrace plate",
+    "written": "e1beb45b7c51d925"
+  },
+  "laptop-guitar-rooftop-mist": {
+    "name": "Rooftop mist",
+    "written": "f160520b39b2e4f0"
+  },
+  "laptop-guitar-august-echo": {
+    "name": "August echo",
+    "written": "2d016864629b8fc3"
+  },
+  "laptop-guitar-driftwood-echo": {
+    "name": "Driftwood echo",
+    "written": "7c0d1693045f8767"
+  },
+  "laptop-guitar-arcade-swells": {
+    "name": "Arcade swells",
+    "written": "1b0a388573f8deed"
+  },
+  "laptop-guitar-quayside-swells": {
+    "name": "Quayside swells",
+    "written": "3c974672f069a691"
+  },
+  "laptop-guitar-buffered-echo": {
+    "name": "Buffered echo",
+    "written": "e1f07ef3c8775199"
+  },
+  "laptop-guitar-fifths-on-a-postcard": {
+    "name": "Fifths on a postcard",
+    "written": "05bea7ef6c59b2ab"
+  },
+  "laptop-guitar-low-battery-refrain": {
+    "name": "Low-battery refrain",
+    "written": "a6e17afae886444e"
+  },
+  "laptop-guitar-siesta-echo": {
+    "name": "Siesta echo",
+    "written": "6c2da40e4d84f440"
+  },
+  "laptop-guitar-snapshot-octaves": {
+    "name": "Snapshot octaves",
+    "written": "166ba6c85628936e"
+  },
+  "laptop-guitar-soundcard-repeats": {
+    "name": "Soundcard repeats",
+    "written": "807138362cfe85aa"
+  },
+  "laptop-guitar-terrace-octave": {
+    "name": "Terrace octave",
+    "written": "4462b2adc59acde0"
+  },
+  "laptop-guitar-echo-down-the-line": {
+    "name": "Echo down the line",
+    "written": "48acef23c192f895"
+  },
+  "laptop-guitar-promenade-flickers": {
+    "name": "Promenade flickers",
+    "written": "b440e12b7827e560"
+  },
+  "laptop-guitar-postcard-fuzz": {
+    "name": "Postcard fuzz",
+    "written": "16dc63174e6c1970"
+  },
+  "laptop-guitar-pixelated-grit": {
+    "name": "Pixelated grit",
+    "written": "99f454a98b286b9b"
+  },
+  "laptop-guitar-windbreak-fuzz": {
+    "name": "Windbreak fuzz",
+    "written": "d20b4e05773f5f11"
+  },
+  "laptop-guitar-crackling-grit": {
+    "name": "Crackling grit",
+    "written": "4e4328dc5b3c87ab"
+  },
+  "laptop-guitar-grit-gone-pink": {
+    "name": "Grit gone pink",
+    "written": "ef32c90d27b774af"
+  },
+  "laptop-guitar-heat-haze-gaps": {
+    "name": "Heat-haze gaps",
+    "written": "5c784bdcefe95f79"
+  },
+  "laptop-guitar-borrowed-air": {
+    "name": "Borrowed air",
+    "written": "2471a7bf3bfe0a20"
+  },
+  "laptop-guitar-peeling-fizz": {
+    "name": "Peeling fizz",
+    "written": "fa7ae63073c68086"
+  },
+  "laptop-guitar-chirps-on-a-postcard": {
+    "name": "Chirps on a postcard",
+    "written": "cfb5b1476c59d0cf"
+  },
+  "laptop-guitar-overexposed-buzz": {
+    "name": "Overexposed buzz",
+    "written": "d087e3d4961fe1f5"
+  },
+  "laptop-guitar-bounced-clang": {
+    "name": "Bounced clang",
+    "written": "b351bf109ecea518"
+  },
+  "laptop-guitar-grit-on-shingle": {
+    "name": "Grit on shingle",
+    "written": "56feab410fc7d006"
+  },
+  "laptop-guitar-valves-in-the-glare": {
+    "name": "Valves in the glare",
+    "written": "6237b97e3e9e480a"
+  },
+  "laptop-guitar-tramline-sampler": {
+    "name": "Tramline sampler",
+    "written": "8a4b2a6fa154bbd6"
+  },
+  "laptop-guitar-deckchair-grit": {
+    "name": "Deckchair grit",
+    "written": "aa18e157bfd9cee1"
+  },
+  "laptop-guitar-grit-down-the-line": {
+    "name": "Grit down the line",
+    "written": "df28349749fe1fc3"
+  },
+  "laptop-guitar-signal-in-the-buffer": {
+    "name": "Signal in the buffer",
+    "written": "f96cdc301172d0ac"
+  },
+  "laptop-guitar-valves-in-the-patch": {
+    "name": "Valves in the patch",
+    "written": "03885b6278251e11"
+  },
+  "laptop-guitar-sunstruck-radio": {
+    "name": "Sunstruck radio",
+    "written": "dff081a23fbcc229"
+  },
+  "laptop-guitar-dune-fuzz": {
+    "name": "Dune fuzz",
+    "written": "4151e82eb449c0a5"
+  },
+  "laptop-guitar-overexposed-sampler": {
+    "name": "Overexposed sampler",
+    "written": "5ecbe2fe3000d789"
+  },
+  "laptop-guitar-awning-signal": {
+    "name": "Awning signal",
+    "written": "4e51db5a20af29eb"
+  },
+  "laptop-guitar-august-warble": {
+    "name": "August warble",
+    "written": "b4b3ac0b02508599"
+  },
+  "laptop-guitar-boardwalk-sampler": {
+    "name": "Boardwalk sampler",
+    "written": "7bf19ad082035242"
+  },
+  "laptop-guitar-patched-chorus": {
+    "name": "Patched chorus",
+    "written": "1f078f6c64d372a5"
+  },
+  "laptop-guitar-dune-filter": {
+    "name": "Dune filter",
+    "written": "32c6e2e4a90a967e"
+  },
+  "laptop-guitar-holiday-spiral": {
+    "name": "Holiday spiral",
+    "written": "3a795946ffd73a7c"
+  },
+  "laptop-guitar-desktop-filter": {
+    "name": "Desktop filter",
+    "written": "a61a9db2ef82831b"
+  },
+  "laptop-guitar-windbreak-drift": {
+    "name": "Windbreak drift",
+    "written": "88e42db06c93f965"
+  },
+  "laptop-guitar-filter-on-a-balcony": {
+    "name": "Filter on a balcony",
+    "written": "3ff981851d8e258f"
+  },
+  "laptop-guitar-peeling-cascade": {
+    "name": "Peeling cascade",
+    "written": "e1aed1bd53399c60"
+  },
+  "laptop-guitar-screen-lit-halo": {
+    "name": "Screen-lit halo",
+    "written": "67e87e8f2a7bb773"
+  },
+  "laptop-guitar-lifeguard-clatter": {
+    "name": "Lifeguard clatter",
+    "written": "fb6785c55f58ad42"
+  },
+  "laptop-guitar-courtyard-octaves": {
+    "name": "Courtyard octaves",
+    "written": "79a2eecf027949f1"
+  },
+  "laptop-guitar-after-dark-undertow": {
+    "name": "After-dark undertow",
+    "written": "73e14b09c8e18657"
+  },
+  "laptop-guitar-arpeggio-on-battery": {
+    "name": "Arpeggio on battery",
+    "written": "6b61e6ce7feb77fa"
+  },
+  "laptop-guitar-octaves-in-salt-air": {
+    "name": "Octaves in salt air",
+    "written": "acb8806e5eedc60c"
+  },
+  "laptop-guitar-noon-stack": {
+    "name": "Noon stack",
+    "written": "74daee9eac9d2ce5"
+  },
+  "laptop-guitar-jittery-rain": {
+    "name": "Jittery rain",
+    "written": "269be299a988d2d9"
+  },
+  "laptop-guitar-grains-on-battery": {
+    "name": "Grains on battery",
+    "written": "324a453d3d8b2a33"
+  },
+  "laptop-guitar-balcony-buzz": {
+    "name": "Balcony buzz",
+    "written": "7401671c6aeb3c28"
+  },
+  "laptop-guitar-cloud-on-hot-tiles": {
+    "name": "Cloud on hot tiles",
+    "written": "401b1dd2484c7da0"
+  },
+  "laptop-guitar-disc-by-the-water": {
+    "name": "Disc by the water",
+    "written": "dc6fbfe00eb27384"
+  },
+  "laptop-guitar-souvenir-trace": {
+    "name": "Souvenir trace",
+    "written": "8ca2612e05ecec03"
+  },
+  "laptop-guitar-stutter-in-heat-haze": {
+    "name": "Stutter in heat haze",
+    "written": "09968bb3483f70ee"
+  },
+  "laptop-guitar-sun-faded-stutter": {
+    "name": "Sun-faded stutter",
+    "written": "8b8877cb97473843"
+  },
+  "laptop-guitar-heatwave-octaves": {
+    "name": "Heatwave octaves",
+    "written": "0cc70d43964fbe9b"
+  },
+  "laptop-guitar-low-season-afterglow": {
+    "name": "Low-season afterglow",
+    "written": "4164a6aa80c2cae1"
+  },
+  "laptop-guitar-rendered-loop": {
+    "name": "Rendered loop",
+    "written": "51decbd01a037c68"
+  },
+  "laptop-guitar-mist-bleached-out": {
+    "name": "Mist bleached out",
+    "written": "b18540619f4dba54"
+  },
+  "laptop-guitar-pier-end-haze": {
+    "name": "Pier-end haze",
+    "written": "69f8cb5ef6452363"
+  },
+  "laptop-guitar-rooftop-grains": {
+    "name": "Rooftop grains",
+    "written": "166cf99d56ccd31a"
+  },
+  "laptop-guitar-sunburnt-buzz": {
+    "name": "Sunburnt buzz",
+    "written": "a653b9fc85a79f08"
+  },
+  "laptop-guitar-memory-in-august": {
+    "name": "Memory in August",
+    "written": "c7c5bf6a4a18b9fa"
+  },
+  "laptop-guitar-arcade-fog": {
+    "name": "Arcade fog",
+    "written": "44779edc534219ea"
+  },
+  "laptop-guitar-borrowed-cloud": {
+    "name": "Borrowed cloud",
+    "written": "fa56640e96d458bb"
+  },
+  "laptop-guitar-cascade-by-the-kiosk": {
+    "name": "Cascade by the kiosk",
+    "written": "2b677766ea0fb8f0"
+  },
+  "laptop-guitar-poolside-glitter": {
+    "name": "Poolside glitter",
+    "written": "8b77c602720b3697"
+  },
+  "laptop-guitar-blistered-spiral": {
+    "name": "Blistered spiral",
+    "written": "91624214a8a06d8e"
+  },
+  "laptop-guitar-pier-end-spiral": {
+    "name": "Pier-end spiral",
+    "written": "46dfed0450b7e6c0"
+  },
+  "laptop-guitar-bleached-octaves": {
+    "name": "Bleached octaves",
+    "written": "5322da2ae1cf9009"
+  },
+  "laptop-guitar-salted-treble": {
+    "name": "Salted treble",
+    "written": "d34089b53752258e"
+  },
+  "laptop-guitar-pixel-echo": {
+    "name": "Pixel echo",
+    "written": "054df164d50c3263"
+  },
+  "laptop-guitar-unsaved-shimmer": {
+    "name": "Unsaved shimmer",
+    "written": "297f10cf74db969f"
+  },
+  "laptop-guitar-shimmer-in-glitter": {
+    "name": "Shimmer in glitter",
+    "written": "90e57aad44251713"
+  },
+  "laptop-guitar-souvenir-cloud": {
+    "name": "Souvenir cloud",
+    "written": "7bf6a859464c4e16"
+  },
+  "laptop-guitar-octave-in-the-glare": {
+    "name": "Octave in the glare",
+    "written": "616b41d05bafe1fc"
+  },
+  "laptop-guitar-cloud-from-memory": {
+    "name": "Cloud from memory",
+    "written": "d2bc0ece8130c336"
+  },
+  "laptop-guitar-pier-end-echoes": {
+    "name": "Pier-end echoes",
+    "written": "89b2056d74b019b9"
+  },
+  "laptop-guitar-drone-on-hot-tiles": {
+    "name": "Drone on hot tiles",
+    "written": "15009a1edeed1dfc"
+  },
+  "laptop-guitar-esplanade-finish": {
+    "name": "Esplanade finish",
+    "written": "9d6202ed151aa346"
+  },
+  "laptop-guitar-boardwalk-master": {
+    "name": "Boardwalk master",
+    "written": "2fa6de3030a19f08"
+  },
+  "laptop-guitar-blinding-polish": {
+    "name": "Blinding polish",
+    "written": "405d54edd17e83f0"
+  },
+  "laptop-guitar-awning-finish": {
+    "name": "Awning finish",
+    "written": "df3f90c97de7c42e"
+  },
+  "laptop-guitar-glittering-finish": {
+    "name": "Glittering finish",
+    "written": "01688d3e884361f0"
+  },
+  "laptop-guitar-poolside-finish": {
+    "name": "Poolside finish",
+    "written": "8e87a9dba05ad937"
+  }
+}

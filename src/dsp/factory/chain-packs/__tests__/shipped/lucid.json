@@ -1,0 +1,402 @@
+{
+  "lucid-lighthouse-hall": {
+    "name": "Lighthouse hall",
+    "written": "d97a5a4501703c03"
+  },
+  "lucid-dreamt-vault": {
+    "name": "Dreamt vault",
+    "written": "c79d3820168d9c7f"
+  },
+  "lucid-before-dawn-sheen": {
+    "name": "Before-dawn sheen",
+    "written": "f90e6515c0c0e65c"
+  },
+  "lucid-bunk-bed-plate": {
+    "name": "Bunk-bed plate",
+    "written": "c721025cbf1bf332"
+  },
+  "lucid-copper-plate": {
+    "name": "Copper plate",
+    "written": "5f0494f8a3e057e5"
+  },
+  "lucid-unlit-plate": {
+    "name": "Unlit plate",
+    "written": "328118be956d1315"
+  },
+  "lucid-pylon-choir": {
+    "name": "Pylon choir",
+    "written": "6e01d025ee0c2194"
+  },
+  "lucid-fifths-in-sea-fret": {
+    "name": "Fifths in sea fret",
+    "written": "5d6bace8435e64ab"
+  },
+  "lucid-chant-by-nightlight": {
+    "name": "Chant by nightlight",
+    "written": "2b49c2ea90227f4e"
+  },
+  "lucid-hall-at-lights-out": {
+    "name": "Hall at lights out",
+    "written": "f282d84750144df4"
+  },
+  "lucid-shade-heard-asleep": {
+    "name": "Shade heard asleep",
+    "written": "dee553e7b01c96b8"
+  },
+  "lucid-hall-on-the-stairs": {
+    "name": "Hall on the stairs",
+    "written": "19d977b153b24779"
+  },
+  "lucid-plate-at-low-water": {
+    "name": "Plate at low water",
+    "written": "4fb358abf04f092f"
+  },
+  "lucid-half-lit-hall": {
+    "name": "Half-lit hall",
+    "written": "dd0a2216117fb789"
+  },
+  "lucid-eyes-shut-sway": {
+    "name": "Eyes-shut sway",
+    "written": "04f7847a16cb554f"
+  },
+  "lucid-night-light-plate": {
+    "name": "Night-light plate",
+    "written": "4311b94f52aa6a7c"
+  },
+  "lucid-eiderdown-voice": {
+    "name": "Eiderdown voice",
+    "written": "835a0c80f9b5e0bb"
+  },
+  "lucid-slate-roof-drift": {
+    "name": "Slate-roof drift",
+    "written": "dbe78cce3aafb57b"
+  },
+  "lucid-bedtime-cathedral": {
+    "name": "Bedtime cathedral",
+    "written": "3f91ceeec13c61b0"
+  },
+  "lucid-hall-in-the-yard": {
+    "name": "Hall in the yard",
+    "written": "6924aed809153889"
+  },
+  "lucid-shed-drone": {
+    "name": "Shed drone",
+    "written": "33cb06b1b1c56374"
+  },
+  "lucid-moorland-hall": {
+    "name": "Moorland hall",
+    "written": "eabb1dd6fcd3be3c"
+  },
+  "lucid-springs-in-the-yard": {
+    "name": "Springs in the yard",
+    "written": "82312f45a2f51972"
+  },
+  "lucid-lane-end-drift": {
+    "name": "Lane-end drift",
+    "written": "acfe3fe22404c821"
+  },
+  "lucid-night-light-patter": {
+    "name": "Night-light patter",
+    "written": "03377f3a5bfd07c6"
+  },
+  "lucid-ring-barely-awake": {
+    "name": "Ring barely awake",
+    "written": "3c39388fc3b33905"
+  },
+  "lucid-trace-in-the-yard": {
+    "name": "Trace in the yard",
+    "written": "ea0f49d5a31571ee"
+  },
+  "lucid-yard-repeats": {
+    "name": "Yard repeats",
+    "written": "df81e4fca13c05cc"
+  },
+  "lucid-echo-heard-asleep": {
+    "name": "Echo heard asleep",
+    "written": "a4e9427b13949634"
+  },
+  "lucid-echo-down-the-mine": {
+    "name": "Echo down the mine",
+    "written": "7f1afc75769450a3"
+  },
+  "lucid-echo-in-a-dream": {
+    "name": "Echo in a dream",
+    "written": "d9fe72f22ef8621c"
+  },
+  "lucid-china-clay-echo": {
+    "name": "China-clay echo",
+    "written": "2c3068de2b102de8"
+  },
+  "lucid-drift-out-of-tune": {
+    "name": "Drift out of tune",
+    "written": "16110812c6a76542"
+  },
+  "lucid-lights-out-swells": {
+    "name": "Lights-out swells",
+    "written": "c8020ccecee8888d"
+  },
+  "lucid-echo-under-the-bed": {
+    "name": "Echo under the bed",
+    "written": "ed68496ecc6c385b"
+  },
+  "lucid-unlit-echo": {
+    "name": "Unlit echo",
+    "written": "5ca1ee435896b6e4"
+  },
+  "lucid-echo-barely-awake": {
+    "name": "Echo barely awake",
+    "written": "d5afabca960b713d"
+  },
+  "lucid-seasick-echo": {
+    "name": "Seasick echo",
+    "written": "8d10c6e5dfe18f73"
+  },
+  "lucid-tin-roof-echo": {
+    "name": "Tin-roof echo",
+    "written": "9faf8f77d32aa254"
+  },
+  "lucid-echoes-gone-sour": {
+    "name": "Echoes gone sour",
+    "written": "587002189a9a28e2"
+  },
+  "lucid-bracken-echo": {
+    "name": "Bracken echo",
+    "written": "bba458bc80718bd3"
+  },
+  "lucid-creek-drift": {
+    "name": "Creek drift",
+    "written": "324e98c4229a4985"
+  },
+  "lucid-echo-through-walls": {
+    "name": "Echo through walls",
+    "written": "dbb20cb72dd56d81"
+  },
+  "lucid-misheard-echo": {
+    "name": "Misheard echo",
+    "written": "ba2a1d2def1a035e"
+  },
+  "lucid-haze-before-dawn": {
+    "name": "Haze before dawn",
+    "written": "13a861bbf0018b6e"
+  },
+  "lucid-hedgerow-descent": {
+    "name": "Hedgerow descent",
+    "written": "af259c2d321a17e4"
+  },
+  "lucid-fuse-box-sampler": {
+    "name": "Fuse-box sampler",
+    "written": "2195f65effdcddfd"
+  },
+  "lucid-far-west-dust": {
+    "name": "Far-west dust",
+    "written": "b0503527d3b78de1"
+  },
+  "lucid-shed-record": {
+    "name": "Shed record",
+    "written": "55838e45048cdf8b"
+  },
+  "lucid-half-dreamt-reel": {
+    "name": "Half-dreamt reel",
+    "written": "4bf930a3d3e3762b"
+  },
+  "lucid-tape-half-asleep": {
+    "name": "Tape half asleep",
+    "written": "281b052954f92ef7"
+  },
+  "lucid-floorboard-record": {
+    "name": "Floorboard record",
+    "written": "4ac0a9b8ae799386"
+  },
+  "lucid-wonky-tape": {
+    "name": "Wonky tape",
+    "written": "b8d683d1c7d902d2"
+  },
+  "lucid-lullaby-tape": {
+    "name": "Lullaby tape",
+    "written": "9e6c088c5d0eb50e"
+  },
+  "lucid-next-door-sampler": {
+    "name": "Next-door sampler",
+    "written": "3f5f2818c5638e18"
+  },
+  "lucid-mizzle-sampler": {
+    "name": "Mizzle sampler",
+    "written": "f935fbcfad86b76f"
+  },
+  "lucid-small-hours-fuzz": {
+    "name": "Small-hours fuzz",
+    "written": "7e41fd1bccab04f4"
+  },
+  "lucid-uneasy-sampler": {
+    "name": "Uneasy sampler",
+    "written": "9e6fe34157d46e05"
+  },
+  "lucid-bracken-cassette": {
+    "name": "Bracken cassette",
+    "written": "66a55262a3463f13"
+  },
+  "lucid-eyes-shut-reel": {
+    "name": "Eyes-shut reel",
+    "written": "f29fbc3ac1405b3f"
+  },
+  "lucid-down-the-lane-signal": {
+    "name": "Down-the-lane signal",
+    "written": "644195a41a2e53e9"
+  },
+  "lucid-threadbare-cassette": {
+    "name": "Threadbare cassette",
+    "written": "c550b054def48535"
+  },
+  "lucid-inland-tide": {
+    "name": "Inland tide",
+    "written": "1d8aec3e892b7b81"
+  },
+  "lucid-granite-sway": {
+    "name": "Granite sway",
+    "written": "4771a32ab52d7fee"
+  },
+  "lucid-cove-ripple": {
+    "name": "Cove ripple",
+    "written": "1bd40835ff2a9966"
+  },
+  "lucid-chorus-in-a-dream": {
+    "name": "Chorus in a dream",
+    "written": "27d54468b9e4cd04"
+  },
+  "lucid-china-clay-sway": {
+    "name": "China-clay sway",
+    "written": "864a048d12b3e438"
+  },
+  "lucid-back-lane-double": {
+    "name": "Back-lane double",
+    "written": "153e1fa3d6c9e844"
+  },
+  "lucid-far-west-chorus": {
+    "name": "Far-west chorus",
+    "written": "1f6e104303cd63a0"
+  },
+  "lucid-phaser-in-the-adit": {
+    "name": "Phaser in the adit",
+    "written": "bebc33673af064ec"
+  },
+  "lucid-reel-under-slates": {
+    "name": "Reel under slates",
+    "written": "f74477216dfc95a1"
+  },
+  "lucid-foghorn-wobble": {
+    "name": "Foghorn wobble",
+    "written": "53cacb238dc32855"
+  },
+  "lucid-chorus-in-the-lane": {
+    "name": "Chorus in the lane",
+    "written": "4c841c2786a98b60"
+  },
+  "lucid-headland-chorus": {
+    "name": "Headland chorus",
+    "written": "d692b7358d3d562e"
+  },
+  "lucid-foghorn-grains": {
+    "name": "Foghorn grains",
+    "written": "48286fb5966e202a"
+  },
+  "lucid-mineshaft-tide": {
+    "name": "Mineshaft tide",
+    "written": "25b4135c62508a34"
+  },
+  "lucid-drone-still-ringing": {
+    "name": "Drone still ringing",
+    "written": "196d0eaf6983dd86"
+  },
+  "lucid-pylon-swell": {
+    "name": "Pylon swell",
+    "written": "6c685d288b497633"
+  },
+  "lucid-dreamt-mist": {
+    "name": "Dreamt mist",
+    "written": "12bc0c10fa2868ba"
+  },
+  "lucid-haze-off-the-coast": {
+    "name": "Haze off the coast",
+    "written": "8fe0b77e5a4b700d"
+  },
+  "lucid-drift-by-the-hedge": {
+    "name": "Drift by the hedge",
+    "written": "e30871519eb6c59e"
+  },
+  "lucid-depths-past-the-shed": {
+    "name": "Depths past the shed",
+    "written": "d52e80e80470f630"
+  },
+  "lucid-under-floor-cellos": {
+    "name": "Under-floor cellos",
+    "written": "0b4f0794cdf07501"
+  },
+  "lucid-octave-sunk-low": {
+    "name": "Octave sunk low",
+    "written": "312e8c2c8f105620"
+  },
+  "lucid-copper-loop": {
+    "name": "Copper loop",
+    "written": "7f3ec80bf23d1d50"
+  },
+  "lucid-unlit-octave": {
+    "name": "Unlit octave",
+    "written": "037f6887d56cff28"
+  },
+  "lucid-under-floor-depths": {
+    "name": "Under-floor depths",
+    "written": "60564ede5b542ded"
+  },
+  "lucid-drowsy-undertow": {
+    "name": "Drowsy undertow",
+    "written": "8a135e5b3145eca1"
+  },
+  "lucid-octave-on-the-moor": {
+    "name": "Octave on the moor",
+    "written": "0cfeb6c0bdd9ceae"
+  },
+  "lucid-lighthouse-fourth": {
+    "name": "Lighthouse fourth",
+    "written": "e47031e0882d9fc0"
+  },
+  "lucid-adit-undertow": {
+    "name": "Adit undertow",
+    "written": "a33bdfbd8515f09f"
+  },
+  "lucid-bedtime-grains": {
+    "name": "Bedtime grains",
+    "written": "2861cb2623952d3c"
+  },
+  "lucid-echo-past-the-shed": {
+    "name": "Echo past the shed",
+    "written": "a5ccbeb252f1be3e"
+  },
+  "lucid-engine-house-fourth": {
+    "name": "Engine-house fourth",
+    "written": "10ff0263caee8791"
+  },
+  "lucid-gorse-master": {
+    "name": "Gorse master",
+    "written": "c6636eadbfa1b71e"
+  },
+  "lucid-tin-mine-finish": {
+    "name": "Tin-mine finish",
+    "written": "c3373bca88d7eaf8"
+  },
+  "lucid-half-asleep-master": {
+    "name": "Half-asleep master",
+    "written": "ce510506b921f642"
+  },
+  "lucid-hymnbook-mixdown": {
+    "name": "Hymnbook mixdown",
+    "written": "b72bea1b293310d3"
+  },
+  "lucid-mineshaft-polish": {
+    "name": "Mineshaft polish",
+    "written": "e8626db4a8f4acc2"
+  },
+  "lucid-drowsy-finish": {
+    "name": "Drowsy finish",
+    "written": "91addc12cc621d24"
+  }
+}

@@ -1,0 +1,402 @@
+{
+  "soft-pedal-hall-on-parquet": {
+    "name": "Hall on parquet",
+    "written": "ee746f7b6842845f"
+  },
+  "soft-pedal-draughty-valley": {
+    "name": "Draughty valley",
+    "written": "affb07b05dd75679"
+  },
+  "soft-pedal-floorboard-hall": {
+    "name": "Floorboard hall",
+    "written": "294008aaa96b8928"
+  },
+  "soft-pedal-twilit-hall": {
+    "name": "Twilit hall",
+    "written": "b5d9c983392ae350"
+  },
+  "soft-pedal-balcony-plate": {
+    "name": "Balcony plate",
+    "written": "9aaf57547da29e52"
+  },
+  "soft-pedal-undamped-hall": {
+    "name": "Undamped hall",
+    "written": "e1b33c89ce35990d"
+  },
+  "soft-pedal-hall-one-floor-up": {
+    "name": "Hall one floor up",
+    "written": "5e8a4528e4fbcf3c"
+  },
+  "soft-pedal-aisle-cathedral": {
+    "name": "Aisle cathedral",
+    "written": "670c78ca9809c479"
+  },
+  "soft-pedal-stacked-chair-hall": {
+    "name": "Stacked-chair hall",
+    "written": "6de304f4cf94cbd8"
+  },
+  "soft-pedal-overstrung-cathedral": {
+    "name": "Overstrung cathedral",
+    "written": "aadc334a2e6c0fa9"
+  },
+  "soft-pedal-undertow-after-hours": {
+    "name": "Undertow after hours",
+    "written": "9139a9ee1295cd22"
+  },
+  "soft-pedal-fifths-at-closing": {
+    "name": "Fifths at closing",
+    "written": "bdac9c288449ed5b"
+  },
+  "soft-pedal-plate-at-closing": {
+    "name": "Plate at closing",
+    "written": "1a57b893df2fba5e"
+  },
+  "soft-pedal-dusk-hall": {
+    "name": "Dusk hall",
+    "written": "1e2f2f1692251896"
+  },
+  "soft-pedal-floorboard-echoes": {
+    "name": "Floorboard echoes",
+    "written": "f58600157ef0540b"
+  },
+  "soft-pedal-lamplit-swell": {
+    "name": "Lamplit swell",
+    "written": "33325c12f6bebf73"
+  },
+  "soft-pedal-after-hours-hall": {
+    "name": "After-hours hall",
+    "written": "a63d89773a1b1a67"
+  },
+  "soft-pedal-foyer-undertow": {
+    "name": "Foyer undertow",
+    "written": "a5138ab713261d31"
+  },
+  "soft-pedal-aisle-hall": {
+    "name": "Aisle hall",
+    "written": "ba5a6b8dd022ac6a"
+  },
+  "soft-pedal-lento-tide": {
+    "name": "Lento tide",
+    "written": "130c1bc12eeae118"
+  },
+  "soft-pedal-pedal-down-hall": {
+    "name": "Pedal-down hall",
+    "written": "c9c4d74def52a6ae"
+  },
+  "soft-pedal-draped-swell": {
+    "name": "Draped swell",
+    "written": "45f31c5046ff9141"
+  },
+  "soft-pedal-treated-hall": {
+    "name": "Treated hall",
+    "written": "bf77a75fc7069ec3"
+  },
+  "soft-pedal-midweek-hall": {
+    "name": "Midweek hall",
+    "written": "afa845e4fe8f08a2"
+  },
+  "soft-pedal-half-stick-ring": {
+    "name": "Half-stick ring",
+    "written": "eb8ce6b505348a1e"
+  },
+  "soft-pedal-wobble-under-the-lid": {
+    "name": "Wobble under the lid",
+    "written": "bded29ae6a9f69de"
+  },
+  "soft-pedal-stage-door-murmur": {
+    "name": "Stage-door murmur",
+    "written": "08d0bbd53ae00d08"
+  },
+  "soft-pedal-halo-to-empty-rows": {
+    "name": "Halo to empty rows",
+    "written": "c136c4892baa2422"
+  },
+  "soft-pedal-rehearsal-swell": {
+    "name": "Rehearsal swell",
+    "written": "7b01c5438a4de099"
+  },
+  "soft-pedal-ring-under-drapes": {
+    "name": "Ring under drapes",
+    "written": "4fb046b5d289c9ce"
+  },
+  "soft-pedal-recital-ring": {
+    "name": "Recital ring",
+    "written": "be543ac93b304c77"
+  },
+  "soft-pedal-lid-down-hall": {
+    "name": "Lid-down hall",
+    "written": "69ad2233ff8b505b"
+  },
+  "soft-pedal-vestibule-whisper": {
+    "name": "Vestibule whisper",
+    "written": "c2bdc41d17f21fec"
+  },
+  "soft-pedal-upstairs-fog": {
+    "name": "Upstairs fog",
+    "written": "37b10b14c9e19892"
+  },
+  "soft-pedal-draped-hall": {
+    "name": "Draped hall",
+    "written": "d4f203f6265570a1"
+  },
+  "soft-pedal-draughty-ring": {
+    "name": "Draughty ring",
+    "written": "b646e073919349ea"
+  },
+  "soft-pedal-panelled-choir": {
+    "name": "Panelled choir",
+    "written": "8aa477811686b21f"
+  },
+  "soft-pedal-plaster-haze": {
+    "name": "Plaster haze",
+    "written": "ad202f7ef739cf21"
+  },
+  "soft-pedal-trace-half-heard": {
+    "name": "Trace half heard",
+    "written": "ca0ecbe17350c20b"
+  },
+  "soft-pedal-felted-echo": {
+    "name": "Felted echo",
+    "written": "16e90f9e35df9f9d"
+  },
+  "soft-pedal-empty-stage-trail": {
+    "name": "Empty-stage trail",
+    "written": "5a5b7bce065a1857"
+  },
+  "soft-pedal-rafter-trail": {
+    "name": "Rafter trail",
+    "written": "52e52003d2ff3346"
+  },
+  "soft-pedal-rained-in-echoes": {
+    "name": "Rained-in echoes",
+    "written": "ad879335315147b6"
+  },
+  "soft-pedal-brushed-echo": {
+    "name": "Brushed echo",
+    "written": "a4eb177b08f76195"
+  },
+  "soft-pedal-plaster-repeats": {
+    "name": "Plaster repeats",
+    "written": "cbd9a9a786dde206"
+  },
+  "soft-pedal-rehearsal-echo": {
+    "name": "Rehearsal echo",
+    "written": "92cd64a7026db4b5"
+  },
+  "soft-pedal-evening-echo": {
+    "name": "Evening echo",
+    "written": "6a2c9526f83216e1"
+  },
+  "soft-pedal-plaster-memory": {
+    "name": "Plaster memory",
+    "written": "8ca1f2223ea88ffa"
+  },
+  "soft-pedal-fermata-echo": {
+    "name": "Fermata echo",
+    "written": "0e14cd79ec93c715"
+  },
+  "soft-pedal-echo-by-the-stove": {
+    "name": "Echo by the stove",
+    "written": "6ee8e49c1b120d9c"
+  },
+  "soft-pedal-reel-on-the-quiet": {
+    "name": "Reel on the quiet",
+    "written": "d0a5529d716c4aac"
+  },
+  "soft-pedal-stacked-chair-tape": {
+    "name": "Stacked-chair tape",
+    "written": "1ecb25f94d59b4e8"
+  },
+  "soft-pedal-walnut-tape": {
+    "name": "Walnut tape",
+    "written": "24ed21f4e5757df8"
+  },
+  "soft-pedal-tape-on-soft-pedal": {
+    "name": "Tape on soft pedal",
+    "written": "be0ede25e9ddfae3"
+  },
+  "soft-pedal-parquet-cassette": {
+    "name": "Parquet cassette",
+    "written": "8628034998dbff2b"
+  },
+  "soft-pedal-detuned-reel": {
+    "name": "Detuned reel",
+    "written": "b26f22c44f77c2a7"
+  },
+  "soft-pedal-chorus-as-it-rains": {
+    "name": "Chorus as it rains",
+    "written": "8000668e60a0a8ab"
+  },
+  "soft-pedal-balcony-phaser": {
+    "name": "Balcony phaser",
+    "written": "55b82e62b1d66d35"
+  },
+  "soft-pedal-double-after-hours": {
+    "name": "Double after hours",
+    "written": "a8e9edd169ee03f1"
+  },
+  "soft-pedal-twilit-chorus": {
+    "name": "Twilit chorus",
+    "written": "7378b2c89dbda356"
+  },
+  "soft-pedal-swell-past-the-door": {
+    "name": "Swell past the door",
+    "written": "69b5ab47b9f517a4"
+  },
+  "soft-pedal-upright-sway": {
+    "name": "Upright sway",
+    "written": "2cf7ceeda12762f7"
+  },
+  "soft-pedal-shuttered-chorus": {
+    "name": "Shuttered chorus",
+    "written": "196c4bf513715cd6"
+  },
+  "soft-pedal-swell-either-side": {
+    "name": "Swell either side",
+    "written": "df48739d0a3f22cb"
+  },
+  "soft-pedal-overcast-rotary": {
+    "name": "Overcast rotary",
+    "written": "e3eb49880860cf45"
+  },
+  "soft-pedal-draughty-chorus": {
+    "name": "Draughty chorus",
+    "written": "207a1c314803be1a"
+  },
+  "soft-pedal-swirl-at-dusk": {
+    "name": "Swirl at dusk",
+    "written": "4aa84e2a816135da"
+  },
+  "soft-pedal-doorway-rotary": {
+    "name": "Doorway rotary",
+    "written": "a8cd71b03877f143"
+  },
+  "soft-pedal-alcove-chorus": {
+    "name": "Alcove chorus",
+    "written": "e1d94db876ae3279"
+  },
+  "soft-pedal-wall-to-wall-chorus": {
+    "name": "Wall-to-wall chorus",
+    "written": "3371a616d7481cec"
+  },
+  "soft-pedal-back-row-swell": {
+    "name": "Back-row swell",
+    "written": "0e2644d44e509d36"
+  },
+  "soft-pedal-brushed-swell": {
+    "name": "Brushed swell",
+    "written": "2eae3acda4315f99"
+  },
+  "soft-pedal-rained-in-cellos": {
+    "name": "Rained-in cellos",
+    "written": "2651d430ce8c9d5a"
+  },
+  "soft-pedal-depths-in-a-draught": {
+    "name": "Depths in a draught",
+    "written": "c0addd7ad147c7fa"
+  },
+  "soft-pedal-swell-on-parquet": {
+    "name": "Swell on parquet",
+    "written": "07fee009a800a21f"
+  },
+  "soft-pedal-lento-swell": {
+    "name": "Lento swell",
+    "written": "cb13b37cde2eaac9"
+  },
+  "soft-pedal-swell-in-the-stalls": {
+    "name": "Swell in the stalls",
+    "written": "3224f4985720eeac"
+  },
+  "soft-pedal-annexe-swell": {
+    "name": "Annexe swell",
+    "written": "2e62219f01606b8a"
+  },
+  "soft-pedal-midweek-pad": {
+    "name": "Midweek pad",
+    "written": "9b22a7df96d5f730"
+  },
+  "soft-pedal-vestibule-pad": {
+    "name": "Vestibule pad",
+    "written": "daf5219cf62140b1"
+  },
+  "soft-pedal-upstairs-haze": {
+    "name": "Upstairs haze",
+    "written": "926c19847d8ccce7"
+  },
+  "soft-pedal-twilit-pad": {
+    "name": "Twilit pad",
+    "written": "d1f6253752008e57"
+  },
+  "soft-pedal-memory-slow-to-empty": {
+    "name": "Memory slow to empty",
+    "written": "14b967a6be5931f8"
+  },
+  "soft-pedal-horizon-on-a-weekday": {
+    "name": "Horizon on a weekday",
+    "written": "3fd11a97c9b94f33"
+  },
+  "soft-pedal-octave-in-the-bass": {
+    "name": "Octave in the bass",
+    "written": "51d6c04e464e3615"
+  },
+  "soft-pedal-foyer-octave": {
+    "name": "Foyer octave",
+    "written": "335ec02abc6c681c"
+  },
+  "soft-pedal-annexe-depths": {
+    "name": "Annexe depths",
+    "written": "c53ba8d966e7509f"
+  },
+  "soft-pedal-evening-octave": {
+    "name": "Evening octave",
+    "written": "7b18ce9f3f434398"
+  },
+  "soft-pedal-draped-octave": {
+    "name": "Draped octave",
+    "written": "76bbe8b218aa7cd6"
+  },
+  "soft-pedal-right-hand-halo": {
+    "name": "Right-hand halo",
+    "written": "5607f4a1fdcaad3f"
+  },
+  "soft-pedal-brushed-blur": {
+    "name": "Brushed blur",
+    "written": "15beceef6da8b91e"
+  },
+  "soft-pedal-undertow-in-felt": {
+    "name": "Undertow in felt",
+    "written": "f702a65700cbf13a"
+  },
+  "soft-pedal-depths-by-one-lamp": {
+    "name": "Depths by one lamp",
+    "written": "56ca3f29ad52abde"
+  },
+  "soft-pedal-dusk-master": {
+    "name": "Dusk master",
+    "written": "e6dc84f971f1c493"
+  },
+  "soft-pedal-back-row-mixdown": {
+    "name": "Back-row mixdown",
+    "written": "66ccd5f0619d2206"
+  },
+  "soft-pedal-stove-side-finish": {
+    "name": "Stove-side finish",
+    "written": "43624fb83a5e6349"
+  },
+  "soft-pedal-pianissimo-mixdown": {
+    "name": "Pianissimo mixdown",
+    "written": "bc3212e7229f770e"
+  },
+  "soft-pedal-overstrung-lacquer": {
+    "name": "Overstrung lacquer",
+    "written": "dc53d4ecbc9f5a8d"
+  },
+  "soft-pedal-shuttered-master": {
+    "name": "Shuttered master",
+    "written": "850e665109a6105f"
+  },
+  "soft-pedal-mixdown-half-heard": {
+    "name": "Mixdown half heard",
+    "written": "e61ac8ef7ba3faa5"
+  }
+}

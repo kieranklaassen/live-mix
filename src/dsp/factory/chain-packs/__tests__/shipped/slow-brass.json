@@ -1,0 +1,402 @@
+{
+  "slow-brass-after-hours-plate": {
+    "name": "After-hours plate",
+    "written": "ef79fc829ac74d14"
+  },
+  "slow-brass-two-guitar-nave": {
+    "name": "Two-guitar nave",
+    "written": "f28b34e3c6ef7115"
+  },
+  "slow-brass-hall-in-still-air": {
+    "name": "Hall in still air",
+    "written": "0a55005f0fd997b4"
+  },
+  "slow-brass-heat-haze-plate": {
+    "name": "Heat-haze plate",
+    "written": "c6fbb6aa14f20a17"
+  },
+  "slow-brass-water-tower-sheen": {
+    "name": "Water-tower sheen",
+    "written": "a6f14d152bfbc6a0"
+  },
+  "slow-brass-rehearsal-plate": {
+    "name": "Rehearsal plate",
+    "written": "abf5331ce25eaa01"
+  },
+  "slow-brass-hall-till-morning": {
+    "name": "Hall till morning",
+    "written": "7897318608edb044"
+  },
+  "slow-brass-waiting-room-hall": {
+    "name": "Waiting-room hall",
+    "written": "925d021d5042f418"
+  },
+  "slow-brass-choir-in-the-eaves": {
+    "name": "Choir in the eaves",
+    "written": "55155a3c5c6e79c2"
+  },
+  "slow-brass-fire-door-hall": {
+    "name": "Fire-door hall",
+    "written": "d5c1ce911fdee73b"
+  },
+  "slow-brass-muted-fog": {
+    "name": "Muted fog",
+    "written": "c5367bbd8a9aa062"
+  },
+  "slow-brass-borrowed-bloom": {
+    "name": "Borrowed bloom",
+    "written": "984dd624d1831e4f"
+  },
+  "slow-brass-proscenium-vault": {
+    "name": "Proscenium vault",
+    "written": "3f6a4a14a3f9343c"
+  },
+  "slow-brass-fermata-hall": {
+    "name": "Fermata hall",
+    "written": "6759af0e7fecda8d"
+  },
+  "slow-brass-hall-on-the-ward": {
+    "name": "Hall on the ward",
+    "written": "2e6ce44c50a704a6"
+  },
+  "slow-brass-valley-nodding-off": {
+    "name": "Valley nodding off",
+    "written": "22a4beee7dbd8fb2"
+  },
+  "slow-brass-august-hall": {
+    "name": "August hall",
+    "written": "71f473a075a42bb0"
+  },
+  "slow-brass-back-row-hall": {
+    "name": "Back-row hall",
+    "written": "152f4c2e6da91159"
+  },
+  "slow-brass-lights-off-echoes": {
+    "name": "Lights-off echoes",
+    "written": "13517fa8b5b67fc4"
+  },
+  "slow-brass-floorboard-tide": {
+    "name": "Floorboard tide",
+    "written": "1f412005108dd376"
+  },
+  "slow-brass-muted-cathedral": {
+    "name": "Muted cathedral",
+    "written": "87b520be1261ff2c"
+  },
+  "slow-brass-swell-at-the-door": {
+    "name": "Swell at the door",
+    "written": "1e29acfec23c229c"
+  },
+  "slow-brass-hot-night-depths": {
+    "name": "Hot-night depths",
+    "written": "3fb0e2373814403c"
+  },
+  "slow-brass-cave-in-still-air": {
+    "name": "Cave in still air",
+    "written": "81488775249d3df7"
+  },
+  "slow-brass-hall-in-the-heat": {
+    "name": "Hall in the heat",
+    "written": "8eb23b2970adf5a2"
+  },
+  "slow-brass-upper-circle-hall": {
+    "name": "Upper-circle hall",
+    "written": "33ca886816817e3a"
+  },
+  "slow-brass-shade-all-evening": {
+    "name": "Shade all evening",
+    "written": "05d7daaacef7b012"
+  },
+  "slow-brass-swell-in-the-pit": {
+    "name": "Swell in the pit",
+    "written": "714b2a01e50fde1f"
+  },
+  "slow-brass-night-shift-loop": {
+    "name": "Night-shift loop",
+    "written": "9f3661491773c0de"
+  },
+  "slow-brass-patient-phrase": {
+    "name": "Patient phrase",
+    "written": "802c31bf3630f01a"
+  },
+  "slow-brass-sleepless-swells": {
+    "name": "Sleepless swells",
+    "written": "bce169b90d377f60"
+  },
+  "slow-brass-echo-from-the-end": {
+    "name": "Echo from the end",
+    "written": "83eb0f226ca6a141"
+  },
+  "slow-brass-vestry-echo": {
+    "name": "Vestry echo",
+    "written": "b2ef35b4ebff7031"
+  },
+  "slow-brass-screen-door-loop": {
+    "name": "Screen-door loop",
+    "written": "381dccfef1530359"
+  },
+  "slow-brass-echo-by-the-exit": {
+    "name": "Echo by the exit",
+    "written": "57c79f7ebac9adab"
+  },
+  "slow-brass-echoes-after-closing": {
+    "name": "Echoes after closing",
+    "written": "12b312c76f661cce"
+  },
+  "slow-brass-stage-door-hiss": {
+    "name": "Stage-door hiss",
+    "written": "cbe25ce45d5223e7"
+  },
+  "slow-brass-thunderhead-cassette": {
+    "name": "Thunderhead cassette",
+    "written": "fc7a7d67a6d99f6a"
+  },
+  "slow-brass-cassette-at-the-door": {
+    "name": "Cassette at the door",
+    "written": "1dc9e54d7d7cf2dc"
+  },
+  "slow-brass-reel-nodding-off": {
+    "name": "Reel nodding off",
+    "written": "262c4a52ab4dfbac"
+  },
+  "slow-brass-house-lights-tape": {
+    "name": "House-lights tape",
+    "written": "7a693d0b1b46f730"
+  },
+  "slow-brass-dog-days-tape": {
+    "name": "Dog-days tape",
+    "written": "f2b6c5c582322d2f"
+  },
+  "slow-brass-noise-left-running": {
+    "name": "Noise left running",
+    "written": "2cefdc19ebd77f3b"
+  },
+  "slow-brass-hiss-for-two": {
+    "name": "Hiss for two",
+    "written": "8bc43e618c3f9971"
+  },
+  "slow-brass-left-on-hiss": {
+    "name": "Left-on hiss",
+    "written": "e6f90d974a11971f"
+  },
+  "slow-brass-backstage-reel": {
+    "name": "Backstage reel",
+    "written": "63d2b6157c2b71cf"
+  },
+  "slow-brass-fire-door-amp": {
+    "name": "Fire-door amp",
+    "written": "c681fdcc18d5b1d5"
+  },
+  "slow-brass-sleepless-cassette": {
+    "name": "Sleepless cassette",
+    "written": "6f818fe213c739e5"
+  },
+  "slow-brass-tide-before-rain": {
+    "name": "Tide before rain",
+    "written": "d489d96ad831e3c2"
+  },
+  "slow-brass-tide-at-the-back": {
+    "name": "Tide at the back",
+    "written": "cf9c0a0f70243436"
+  },
+  "slow-brass-backstage-drift": {
+    "name": "Backstage drift",
+    "written": "62cb5d811e0c54b6"
+  },
+  "slow-brass-sway-in-the-wings": {
+    "name": "Sway in the wings",
+    "written": "d08c29c1c0d8c799"
+  },
+  "slow-brass-chorus-on-the-porch": {
+    "name": "Chorus on the porch",
+    "written": "741e503673e89408"
+  },
+  "slow-brass-lights-off-chorus": {
+    "name": "Lights-off chorus",
+    "written": "74af16fd75e24c7e"
+  },
+  "slow-brass-second-desk-drift": {
+    "name": "Second-desk drift",
+    "written": "83181b8e183c3359"
+  },
+  "slow-brass-cedar-pad": {
+    "name": "Cedar pad",
+    "written": "26a774aea842e3f4"
+  },
+  "slow-brass-wash-in-no-hurry": {
+    "name": "Wash in no hurry",
+    "written": "2307e13857c3d908"
+  },
+  "slow-brass-strings-between-sets": {
+    "name": "Strings between sets",
+    "written": "96b97909fe437550"
+  },
+  "slow-brass-bloom-between-sets": {
+    "name": "Bloom between sets",
+    "written": "d689b56c7385b882"
+  },
+  "slow-brass-velvet-wash": {
+    "name": "Velvet wash",
+    "written": "601f8be1b7829448"
+  },
+  "slow-brass-water-tower-wash": {
+    "name": "Water-tower wash",
+    "written": "5cfe6cd00d4cf43c"
+  },
+  "slow-brass-unlit-strings": {
+    "name": "Unlit strings",
+    "written": "4f74bc8ba22dc930"
+  },
+  "slow-brass-rosin-undertow": {
+    "name": "Rosin undertow",
+    "written": "07c4e7bcb45b3350"
+  },
+  "slow-brass-after-hours-tide": {
+    "name": "After-hours tide",
+    "written": "a64924214f360ae2"
+  },
+  "slow-brass-limestone-depths": {
+    "name": "Limestone depths",
+    "written": "78156368bd82c53c"
+  },
+  "slow-brass-hill-country-strings": {
+    "name": "Hill-country strings",
+    "written": "12711c580f814a4b"
+  },
+  "slow-brass-unhurried-haze": {
+    "name": "Unhurried haze",
+    "written": "4f8b8888ede8a9e7"
+  },
+  "slow-brass-wash-by-lamplight": {
+    "name": "Wash by lamplight",
+    "written": "3e205f3d8f131592"
+  },
+  "slow-brass-small-hours-sustain": {
+    "name": "Small-hours sustain",
+    "written": "bc9f8fe065f8a07b"
+  },
+  "slow-brass-creek-bed-pad": {
+    "name": "Creek-bed pad",
+    "written": "2a55827b414b455d"
+  },
+  "slow-brass-vestry-haze": {
+    "name": "Vestry haze",
+    "written": "c2c09422b1f3d19c"
+  },
+  "slow-brass-echoes-in-the-pit": {
+    "name": "Echoes in the pit",
+    "written": "2bf17814a14448aa"
+  },
+  "slow-brass-memory-between-sets": {
+    "name": "Memory between sets",
+    "written": "091d979cfdaef45f"
+  },
+  "slow-brass-fermata-drone": {
+    "name": "Fermata drone",
+    "written": "89a428af06d60e25"
+  },
+  "slow-brass-two-guitar-wash": {
+    "name": "Two-guitar wash",
+    "written": "6f29a713448c8062"
+  },
+  "slow-brass-velvet-afterglow": {
+    "name": "Velvet afterglow",
+    "written": "b1e43b422f2cc0d6"
+  },
+  "slow-brass-rosin-cloud": {
+    "name": "Rosin cloud",
+    "written": "9304b64c5b23b359"
+  },
+  "slow-brass-largo-strings": {
+    "name": "Largo strings",
+    "written": "9c4810e0ca2f45c2"
+  },
+  "slow-brass-half-asleep-pad": {
+    "name": "Half-asleep pad",
+    "written": "fde0e2a3710f11b2"
+  },
+  "slow-brass-cloakroom-strings": {
+    "name": "Cloakroom strings",
+    "written": "23c6440a19173901"
+  },
+  "slow-brass-back-row-fog": {
+    "name": "Back-row fog",
+    "written": "764883c4dc71658a"
+  },
+  "slow-brass-swell-by-lamplight": {
+    "name": "Swell by lamplight",
+    "written": "2f9d67bb50042ade"
+  },
+  "slow-brass-octave-on-the-porch": {
+    "name": "Octave on the porch",
+    "written": "f2930e4258dd1e4c"
+  },
+  "slow-brass-octave-at-the-back": {
+    "name": "Octave at the back",
+    "written": "39576a49e0445eb8"
+  },
+  "slow-brass-green-room-undertow": {
+    "name": "Green-room undertow",
+    "written": "45b98531ce134c20"
+  },
+  "slow-brass-balcony-undertow": {
+    "name": "Balcony undertow",
+    "written": "d8a157b552935da6"
+  },
+  "slow-brass-night-shift-octave": {
+    "name": "Night-shift octave",
+    "written": "83608be420d4632c"
+  },
+  "slow-brass-next-room-cellos": {
+    "name": "Next-room cellos",
+    "written": "a34cfb84662c4856"
+  },
+  "slow-brass-one-chord-bass": {
+    "name": "One-chord bass",
+    "written": "285f1c83d7ea6df1"
+  },
+  "slow-brass-replay-by-the-exit": {
+    "name": "Replay by the exit",
+    "written": "a3855a8c707f80e9"
+  },
+  "slow-brass-largo-drone": {
+    "name": "Largo drone",
+    "written": "4c4397c54b1fdf8f"
+  },
+  "slow-brass-bass-clef-octave": {
+    "name": "Bass-clef octave",
+    "written": "af84e0c73e612a5e"
+  },
+  "slow-brass-exit-sign-bass": {
+    "name": "Exit-sign bass",
+    "written": "a0eb82e0cc7a659a"
+  },
+  "slow-brass-upper-circle-swell": {
+    "name": "Upper-circle swell",
+    "written": "f4c628d5eea48669"
+  },
+  "slow-brass-empty-house-finish": {
+    "name": "Empty-house finish",
+    "written": "904e0cacd14b419f"
+  },
+  "slow-brass-one-chord-finish": {
+    "name": "One-chord finish",
+    "written": "396cb2390d44982c"
+  },
+  "slow-brass-limestone-finish": {
+    "name": "Limestone finish",
+    "written": "f62adc7d76f586cb"
+  },
+  "slow-brass-waiting-room-finish": {
+    "name": "Waiting-room finish",
+    "written": "ae1a17a817a4147a"
+  },
+  "slow-brass-mixdown-till-morning": {
+    "name": "Mixdown till morning",
+    "written": "af20a0f2052824eb"
+  },
+  "slow-brass-county-road-master": {
+    "name": "County-road master",
+    "written": "3d2511fd81bb5e9d"
+  }
+}

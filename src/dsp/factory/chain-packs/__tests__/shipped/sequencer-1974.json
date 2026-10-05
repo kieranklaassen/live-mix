@@ -1,0 +1,402 @@
+{
+  "sequencer-1974-dial-lit-nave": {
+    "name": "Dial-lit nave",
+    "written": "eb0e8e274db47358"
+  },
+  "sequencer-1974-improvised-hall": {
+    "name": "Improvised hall",
+    "written": "b1d58b4a4353900e"
+  },
+  "sequencer-1974-s-bahn-choir": {
+    "name": "S-bahn choir",
+    "written": "b31b334338a1af94"
+  },
+  "sequencer-1974-island-city-halo": {
+    "name": "Island-city halo",
+    "written": "1678b17d572345e4"
+  },
+  "sequencer-1974-divided-city-wash": {
+    "name": "Divided-city wash",
+    "written": "2f303b59171d5574"
+  },
+  "sequencer-1974-midnight-wash": {
+    "name": "Midnight wash",
+    "written": "378628987fdb2f82"
+  },
+  "sequencer-1974-waves-on-step-eight": {
+    "name": "Waves on step eight",
+    "written": "d2a0c8fd91d09e4e"
+  },
+  "sequencer-1974-dry-ice-cathedral": {
+    "name": "Dry-ice cathedral",
+    "written": "754f094012d1c252"
+  },
+  "sequencer-1974-tower-block-springs": {
+    "name": "Tower-block springs",
+    "written": "ee22bb6fa4343d0d"
+  },
+  "sequencer-1974-lamp-lit-springs": {
+    "name": "Lamp-lit springs",
+    "written": "b4cc755181d2a57d"
+  },
+  "sequencer-1974-all-night-plate": {
+    "name": "All-night plate",
+    "written": "dd6270fe9430282a"
+  },
+  "sequencer-1974-shade-all-night": {
+    "name": "Shade all night",
+    "written": "ac262cf80ef5d4bd"
+  },
+  "sequencer-1974-sheen-in-november": {
+    "name": "Sheen in November",
+    "written": "cb4a60212d886505"
+  },
+  "sequencer-1974-courtyard-voices": {
+    "name": "Courtyard voices",
+    "written": "17fa509cd38f7428"
+  },
+  "sequencer-1974-november-flutter": {
+    "name": "November flutter",
+    "written": "0d81b3ded8b25c91"
+  },
+  "sequencer-1974-switchboard-halo": {
+    "name": "Switchboard halo",
+    "written": "8f3a248ab3bb9403"
+  },
+  "sequencer-1974-drone-after-hours": {
+    "name": "Drone after hours",
+    "written": "16df4691ca41b218"
+  },
+  "sequencer-1974-echo-near-dawn": {
+    "name": "Echo near dawn",
+    "written": "aa23afe720ffaf4e"
+  },
+  "sequencer-1974-scope-lit-echo": {
+    "name": "Scope-lit echo",
+    "written": "d81185145f29f75a"
+  },
+  "sequencer-1974-last-tram-echo": {
+    "name": "Last-tram echo",
+    "written": "b4640f61e11cfadb"
+  },
+  "sequencer-1974-eight-step-echo": {
+    "name": "Eight-step echo",
+    "written": "30d1c7e50ff587f3"
+  },
+  "sequencer-1974-tower-block-echo": {
+    "name": "Tower-block echo",
+    "written": "a2860524d5c2ce12"
+  },
+  "sequencer-1974-back-room-loop": {
+    "name": "Back-room loop",
+    "written": "3eb202ff8612ced3"
+  },
+  "sequencer-1974-echo-by-the-wall": {
+    "name": "Echo by the wall",
+    "written": "b10082bf0aef72a9"
+  },
+  "sequencer-1974-sixteen-step-flutter": {
+    "name": "Sixteen-step flutter",
+    "written": "a2c5418ff8ff0b10"
+  },
+  "sequencer-1974-tenement-reel": {
+    "name": "Tenement reel",
+    "written": "e0fdbcb87f4656ac"
+  },
+  "sequencer-1974-late-session-trail": {
+    "name": "Late-session trail",
+    "written": "b0bedfea7f63f099"
+  },
+  "sequencer-1974-island-city-echo": {
+    "name": "Island-city echo",
+    "written": "5dbc04c72c243db4"
+  },
+  "sequencer-1974-hand-patched-echo": {
+    "name": "Hand-patched echo",
+    "written": "7d2487fb8746ef80"
+  },
+  "sequencer-1974-empty-street-trace": {
+    "name": "Empty-street trace",
+    "written": "67a90bbdcf848297"
+  },
+  "sequencer-1974-night-run-echo": {
+    "name": "Night-run echo",
+    "written": "d13f93ef27b71eed"
+  },
+  "sequencer-1974-midnight-echo": {
+    "name": "Midnight echo",
+    "written": "d9539f18e79c139c"
+  },
+  "sequencer-1974-echo-in-the-yard": {
+    "name": "Echo in the yard",
+    "written": "f734f44ef9142567"
+  },
+  "sequencer-1974-courtyard-echo": {
+    "name": "Courtyard echo",
+    "written": "42f4d56d2a70626d"
+  },
+  "sequencer-1974-canal-side-loop": {
+    "name": "Canal-side loop",
+    "written": "5d13ee774be781c1"
+  },
+  "sequencer-1974-wet-street-repeats": {
+    "name": "Wet-street repeats",
+    "written": "854b2ee596c71910"
+  },
+  "sequencer-1974-shuttered-trail": {
+    "name": "Shuttered trail",
+    "written": "2a2847ff513a89a3"
+  },
+  "sequencer-1974-echo-till-morning": {
+    "name": "Echo till morning",
+    "written": "9db666c5fc945256"
+  },
+  "sequencer-1974-coal-cellar-echo": {
+    "name": "Coal-cellar echo",
+    "written": "c556533ded56607c"
+  },
+  "sequencer-1974-slow-turning-drift": {
+    "name": "Slow-turning drift",
+    "written": "ae834d4cb76ae0a2"
+  },
+  "sequencer-1974-second-row-reel": {
+    "name": "Second-row reel",
+    "written": "6d5311a9803c370c"
+  },
+  "sequencer-1974-rehearsal-reel": {
+    "name": "Rehearsal reel",
+    "written": "a701b2e63b9f5fd7"
+  },
+  "sequencer-1974-free-running-flutter": {
+    "name": "Free-running flutter",
+    "written": "65afaced9878ce65"
+  },
+  "sequencer-1974-patch-cord-tape": {
+    "name": "Patch-cord tape",
+    "written": "0e5d85a71b026e57"
+  },
+  "sequencer-1974-reel-by-lamplight": {
+    "name": "Reel by lamplight",
+    "written": "684eb1f952049716"
+  },
+  "sequencer-1974-candlelit-tape": {
+    "name": "Candlelit tape",
+    "written": "aca1017b1faf00ab"
+  },
+  "sequencer-1974-flight-case-reel": {
+    "name": "Flight-case reel",
+    "written": "559eefb6b0d8c12b"
+  },
+  "sequencer-1974-coal-cellar-reel": {
+    "name": "Coal-cellar reel",
+    "written": "af5fe3c3b05d45ab"
+  },
+  "sequencer-1974-planetarium-reel": {
+    "name": "Planetarium reel",
+    "written": "328626af284f08c2"
+  },
+  "sequencer-1974-tape-out-of-tune": {
+    "name": "Tape out of tune",
+    "written": "5f4439d3e8c50c4f"
+  },
+  "sequencer-1974-chancel-flutter": {
+    "name": "Chancel flutter",
+    "written": "f8805e2a0b38221f"
+  },
+  "sequencer-1974-reel-in-the-snow": {
+    "name": "Reel in the snow",
+    "written": "1c3fa9584d7055f4"
+  },
+  "sequencer-1974-snowbound-phaser": {
+    "name": "Snowbound phaser",
+    "written": "8afb18754fd53273"
+  },
+  "sequencer-1974-control-room-flanger": {
+    "name": "Control-room flanger",
+    "written": "83b40b5c353a81a8"
+  },
+  "sequencer-1974-slow-turning-phaser": {
+    "name": "Slow-turning phaser",
+    "written": "ecadb482d7b5b8c9"
+  },
+  "sequencer-1974-patchbay-swirl": {
+    "name": "Patchbay swirl",
+    "written": "ba99c72bcfebc30c"
+  },
+  "sequencer-1974-filter-on-row-two": {
+    "name": "Filter on row two",
+    "written": "c5280aa3191fc2fc"
+  },
+  "sequencer-1974-overnight-sweep": {
+    "name": "Overnight sweep",
+    "written": "dad60f57f78586d7"
+  },
+  "sequencer-1974-sweep-over-the-city": {
+    "name": "Sweep over the city",
+    "written": "526c317f11e7f17a"
+  },
+  "sequencer-1974-rotary-past-midnight": {
+    "name": "Rotary past midnight",
+    "written": "aa0d97190ab0f454"
+  },
+  "sequencer-1974-transept-swirl": {
+    "name": "Transept swirl",
+    "written": "63975e0c99d12737"
+  },
+  "sequencer-1974-wall-side-warble": {
+    "name": "Wall-side warble",
+    "written": "c0dfe438ec5f8ded"
+  },
+  "sequencer-1974-rotary-by-patch-cord": {
+    "name": "Rotary by patch cord",
+    "written": "8a67a2249c5a6a08"
+  },
+  "sequencer-1974-half-lit-swirl": {
+    "name": "Half-lit swirl",
+    "written": "1713a8423b7bc8c4"
+  },
+  "sequencer-1974-sodium-lit-filter": {
+    "name": "Sodium-lit filter",
+    "written": "84bb3e77f0bea3fa"
+  },
+  "sequencer-1974-cloister-pulse": {
+    "name": "Cloister pulse",
+    "written": "5008619d89a98ced"
+  },
+  "sequencer-1974-rooftop-phaser": {
+    "name": "Rooftop phaser",
+    "written": "c22f3b9c9e058bfe"
+  },
+  "sequencer-1974-last-tram-ripple": {
+    "name": "Last-tram ripple",
+    "written": "8be61af2f8c3fdd6"
+  },
+  "sequencer-1974-filter-turning-slow": {
+    "name": "Filter turning slow",
+    "written": "2a95e554c6d3221c"
+  },
+  "sequencer-1974-swirl-by-lamplight": {
+    "name": "Swirl by lamplight",
+    "written": "001fe4366c7da581"
+  },
+  "sequencer-1974-cloud-in-the-snow": {
+    "name": "Cloud in the snow",
+    "written": "3399ad88312dc8dd"
+  },
+  "sequencer-1974-phaser-in-dry-ice": {
+    "name": "Phaser in dry ice",
+    "written": "ec61fcca6aa924bc"
+  },
+  "sequencer-1974-planetarium-flanger": {
+    "name": "Planetarium flanger",
+    "written": "710a004bc2f2cbe2"
+  },
+  "sequencer-1974-control-room-cloud": {
+    "name": "Control-room cloud",
+    "written": "38749e4498d40c97"
+  },
+  "sequencer-1974-night-run-flanger": {
+    "name": "Night-run flanger",
+    "written": "f3134f428f70675c"
+  },
+  "sequencer-1974-small-hours-strings": {
+    "name": "Small-hours strings",
+    "written": "966f016e6bedbeb2"
+  },
+  "sequencer-1974-midnight-strings": {
+    "name": "Midnight strings",
+    "written": "4360ccfb75cb441b"
+  },
+  "sequencer-1974-swell-before-dawn": {
+    "name": "Swell before dawn",
+    "written": "919d276150acdcee"
+  },
+  "sequencer-1974-winter-night-strings": {
+    "name": "Winter-night strings",
+    "written": "f3534dd41152885f"
+  },
+  "sequencer-1974-pad-turning-slow": {
+    "name": "Pad turning slow",
+    "written": "b5ae38febde74748"
+  },
+  "sequencer-1974-walnut-strings": {
+    "name": "Walnut strings",
+    "written": "2363136ab0f40ba5"
+  },
+  "sequencer-1974-pad-left-running": {
+    "name": "Pad left running",
+    "written": "4cb776bc7a3bfff4"
+  },
+  "sequencer-1974-pad-on-the-hour": {
+    "name": "Pad on the hour",
+    "written": "11b3f32bd5438424"
+  },
+  "sequencer-1974-rehearsal-bloom": {
+    "name": "Rehearsal bloom",
+    "written": "b45775a9aabe1b9b"
+  },
+  "sequencer-1974-all-night-depths": {
+    "name": "All-night depths",
+    "written": "537e787f0dc137cb"
+  },
+  "sequencer-1974-sixteen-step-octave": {
+    "name": "Sixteen-step octave",
+    "written": "b8275d1db1be525a"
+  },
+  "sequencer-1974-empty-street-octave": {
+    "name": "Empty-street octave",
+    "written": "5ac194a7bb23e8c4"
+  },
+  "sequencer-1974-eight-step-bass": {
+    "name": "Eight-step bass",
+    "written": "044a4b91943a6672"
+  },
+  "sequencer-1974-late-session-swell": {
+    "name": "Late-session swell",
+    "written": "dbe94272d4b632f1"
+  },
+  "sequencer-1974-lamp-lit-harmony": {
+    "name": "Lamp-lit harmony",
+    "written": "80730338cc9793c1"
+  },
+  "sequencer-1974-blur-in-the-rack": {
+    "name": "Blur in the rack",
+    "written": "a732890b043918e1"
+  },
+  "sequencer-1974-underfloor-fourth": {
+    "name": "Underfloor fourth",
+    "written": "90da73381ba34333"
+  },
+  "sequencer-1974-octave-over-the-city": {
+    "name": "Octave over the city",
+    "written": "32ec7cdb8ab99064"
+  },
+  "sequencer-1974-winter-night-polish": {
+    "name": "Winter-night polish",
+    "written": "2830def2a57266e0"
+  },
+  "sequencer-1974-sodium-lit-master": {
+    "name": "Sodium-lit master",
+    "written": "de136a3248f7cda8"
+  },
+  "sequencer-1974-mixdown-all-night": {
+    "name": "Mixdown all night",
+    "written": "eab69790e02f2383"
+  },
+  "sequencer-1974-second-row-master": {
+    "name": "Second-row master",
+    "written": "e1e89de180bb7c93"
+  },
+  "sequencer-1974-mixdown-on-the-hour": {
+    "name": "Mixdown on the hour",
+    "written": "def4d252a4f198ca"
+  },
+  "sequencer-1974-dial-lit-finish": {
+    "name": "Dial-lit finish",
+    "written": "95b9f7f68a3206d7"
+  },
+  "sequencer-1974-mixdown-in-the-yard": {
+    "name": "Mixdown in the yard",
+    "written": "f20452590e40f1e7"
+  }
+}

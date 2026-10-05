@@ -1,0 +1,402 @@
+{
+  "rosewood-four-hand-trace": {
+    "name": "Four-hand trace",
+    "written": "3836733eae68d90d"
+  },
+  "rosewood-ring-at-rehearsal": {
+    "name": "Ring at rehearsal",
+    "written": "4994fc17c32706b3"
+  },
+  "rosewood-broad-leaf-air": {
+    "name": "Broad-leaf air",
+    "written": "d45b64ee9301baad"
+  },
+  "rosewood-vault-on-the-count": {
+    "name": "Vault on the count",
+    "written": "2fa5a8bddcb1c23f"
+  },
+  "rosewood-air-over-gourds": {
+    "name": "Air over gourds",
+    "written": "f067ecfed3d28774"
+  },
+  "rosewood-hall-on-soft-yarn": {
+    "name": "Hall on soft yarn",
+    "written": "777c8b40b28d4fc1"
+  },
+  "rosewood-unvarnished-ring": {
+    "name": "Unvarnished ring",
+    "written": "db11add97f802dc1"
+  },
+  "rosewood-tuning-bench-halo": {
+    "name": "Tuning-bench halo",
+    "written": "c65ca469aae18aea"
+  },
+  "rosewood-halo-on-bare-wood": {
+    "name": "Halo on bare wood",
+    "written": "71eff5bcd812cd18"
+  },
+  "rosewood-padauk-trace": {
+    "name": "Padauk trace",
+    "written": "a10c4fd82f19184d"
+  },
+  "rosewood-room-in-the-round": {
+    "name": "Room in the round",
+    "written": "b84a547cd80876c1"
+  },
+  "rosewood-far-wall-plate": {
+    "name": "Far-wall plate",
+    "written": "67e9d6e1197117e1"
+  },
+  "rosewood-recital-hall": {
+    "name": "Recital hall",
+    "written": "813677b03ab13bb4"
+  },
+  "rosewood-four-hand-drone": {
+    "name": "Four-hand drone",
+    "written": "5fdd3bbd34600740"
+  },
+  "rosewood-patter-in-the-wings": {
+    "name": "Patter in the wings",
+    "written": "4a99f9a5b44ccfb8"
+  },
+  "rosewood-backstage-ring": {
+    "name": "Backstage ring",
+    "written": "5ebe3b4169cbc154"
+  },
+  "rosewood-birch-shaft-room": {
+    "name": "Birch-shaft room",
+    "written": "f137b2ff87a2fe0c"
+  },
+  "rosewood-plate-at-the-bridge": {
+    "name": "Plate at the bridge",
+    "written": "5e7868fa34c5ebef"
+  },
+  "rosewood-four-mallet-haze": {
+    "name": "Four-mallet haze",
+    "written": "4debca49ec49a157"
+  },
+  "rosewood-hall-among-gongs": {
+    "name": "Hall among gongs",
+    "written": "bbb7bb450c969691"
+  },
+  "rosewood-bamboo-air": {
+    "name": "Bamboo air",
+    "written": "7717928dc0b37a31"
+  },
+  "rosewood-sawn-plank-halo": {
+    "name": "Sawn-plank halo",
+    "written": "caf692f6bffffe30"
+  },
+  "rosewood-plum-rain-ring": {
+    "name": "Plum-rain ring",
+    "written": "827cd5ba721d57dc"
+  },
+  "rosewood-workshop-hall": {
+    "name": "Workshop hall",
+    "written": "adc060576159f732"
+  },
+  "rosewood-bronze-ring": {
+    "name": "Bronze ring",
+    "written": "9a1fdf67f7d4a486"
+  },
+  "rosewood-unvarnished-trace": {
+    "name": "Unvarnished trace",
+    "written": "38cba0535b692d5c"
+  },
+  "rosewood-lacquered-repeats": {
+    "name": "Lacquered repeats",
+    "written": "329519ec3e92ab38"
+  },
+  "rosewood-echoes-in-circles": {
+    "name": "Echoes in circles",
+    "written": "fb615fad8fe7811d"
+  },
+  "rosewood-unconducted-echo": {
+    "name": "Unconducted echo",
+    "written": "891bc7541d0de1b3"
+  },
+  "rosewood-birch-shaft-trace": {
+    "name": "Birch-shaft trace",
+    "written": "ee6996f6bc0f3256"
+  },
+  "rosewood-cicada-noon-echo": {
+    "name": "Cicada-noon echo",
+    "written": "ba757e01b58d6638"
+  },
+  "rosewood-gourd-memory": {
+    "name": "Gourd memory",
+    "written": "caf7566ac2f6c057"
+  },
+  "rosewood-loop-between-bowls": {
+    "name": "Loop between bowls",
+    "written": "3a056cf3084ac0f2"
+  },
+  "rosewood-kneeling-echoes": {
+    "name": "Kneeling echoes",
+    "written": "ecbbb910e9d49cfd"
+  },
+  "rosewood-echo-in-rosewood": {
+    "name": "Echo in rosewood",
+    "written": "f656bd80ecaac759"
+  },
+  "rosewood-cedar-echo": {
+    "name": "Cedar echo",
+    "written": "bd60036addd43ed1"
+  },
+  "rosewood-soft-mallet-repeats": {
+    "name": "Soft-mallet repeats",
+    "written": "8197328e1f469c4d"
+  },
+  "rosewood-backstage-echo": {
+    "name": "Backstage echo",
+    "written": "abd50026fe5380ee"
+  },
+  "rosewood-hinoki-arpeggio": {
+    "name": "Hinoki arpeggio",
+    "written": "5564d8170dfe8f34"
+  },
+  "rosewood-echo-for-two-hands": {
+    "name": "Echo for two hands",
+    "written": "a2799addf0c2a4ed"
+  },
+  "rosewood-two-player-echo": {
+    "name": "Two-player echo",
+    "written": "b176f4f26103b146"
+  },
+  "rosewood-cut-cane-echo": {
+    "name": "Cut-cane echo",
+    "written": "0cd3313b3e4bfa72"
+  },
+  "rosewood-birch-shaft-echo": {
+    "name": "Birch-shaft echo",
+    "written": "95779bd662c8ceee"
+  },
+  "rosewood-hardwood-echo": {
+    "name": "Hardwood echo",
+    "written": "f8b67b8b73c818c5"
+  },
+  "rosewood-yarn-wound-memory": {
+    "name": "Yarn-wound memory",
+    "written": "25e45afe6a1475c6"
+  },
+  "rosewood-gourd-echo": {
+    "name": "Gourd echo",
+    "written": "3bd155688d6fa100"
+  },
+  "rosewood-oiled-wood-loop": {
+    "name": "Oiled-wood loop",
+    "written": "fd8164c37dae81e0"
+  },
+  "rosewood-workshop-cascade": {
+    "name": "Workshop cascade",
+    "written": "b3ce0daa6c63649f"
+  },
+  "rosewood-counted-echo": {
+    "name": "Counted echo",
+    "written": "43a56dd4a869f5f3"
+  },
+  "rosewood-humid-echoes": {
+    "name": "Humid echoes",
+    "written": "7ab63d17ad427df3"
+  },
+  "rosewood-cascade-before-dusk": {
+    "name": "Cascade before dusk",
+    "written": "91ee675c081a2c57"
+  },
+  "rosewood-bamboo-octave": {
+    "name": "Bamboo octave",
+    "written": "70864f33d496f04b"
+  },
+  "rosewood-four-mallet-echo": {
+    "name": "Four-mallet echo",
+    "written": "cd82e9cc21c59fc0"
+  },
+  "rosewood-rawhide-echo": {
+    "name": "Rawhide echo",
+    "written": "f3485b2573643d59"
+  },
+  "rosewood-midsummer-echoes": {
+    "name": "Midsummer echoes",
+    "written": "91c5b8836609fb1d"
+  },
+  "rosewood-hill-thunder-tape": {
+    "name": "Hill-thunder tape",
+    "written": "8ddb3d21d68d613e"
+  },
+  "rosewood-two-player-bloom": {
+    "name": "Two-player bloom",
+    "written": "8b2b3d235ae3e9c0"
+  },
+  "rosewood-plum-rain-glow": {
+    "name": "Plum-rain glow",
+    "written": "745bcadcdc77b63e"
+  },
+  "rosewood-rattan-reel": {
+    "name": "Rattan reel",
+    "written": "7638e8b6ea572b55"
+  },
+  "rosewood-reel-among-gongs": {
+    "name": "Reel among gongs",
+    "written": "baafafc09ec93c6e"
+  },
+  "rosewood-oiled-wood-cassette": {
+    "name": "Oiled-wood cassette",
+    "written": "e7d54302f1b6531e"
+  },
+  "rosewood-cord-wound-reel": {
+    "name": "Cord-wound reel",
+    "written": "ed004ce6089cf79f"
+  },
+  "rosewood-padauk-replay": {
+    "name": "Padauk replay",
+    "written": "d26a79f9581415bc"
+  },
+  "rosewood-reel-round-again": {
+    "name": "Reel round again",
+    "written": "c4da0af9337d8bb6"
+  },
+  "rosewood-chorus-in-bronze": {
+    "name": "Chorus in bronze",
+    "written": "2a64e0d946def895"
+  },
+  "rosewood-conservatory-tremolo": {
+    "name": "Conservatory tremolo",
+    "written": "2ee64a7677c41f18"
+  },
+  "rosewood-rainy-season-swell": {
+    "name": "Rainy-season swell",
+    "written": "8e84853a36257f8b"
+  },
+  "rosewood-hinoki-pad": {
+    "name": "Hinoki pad",
+    "written": "6e53b2ec9fc33ba0"
+  },
+  "rosewood-brazier-ripple": {
+    "name": "Brazier ripple",
+    "written": "769abcc76ea8b945"
+  },
+  "rosewood-roof-tile-chorus": {
+    "name": "Roof-tile chorus",
+    "written": "9460a47b68921ee4"
+  },
+  "rosewood-tremolo-in-the-grove": {
+    "name": "Tremolo in the grove",
+    "written": "53be4733f4109436"
+  },
+  "rosewood-broad-leaf-pulse": {
+    "name": "Broad-leaf pulse",
+    "written": "398130c113015249"
+  },
+  "rosewood-streamside-glitter": {
+    "name": "Streamside glitter",
+    "written": "a51a001444f63e29"
+  },
+  "rosewood-barefoot-cascade": {
+    "name": "Barefoot cascade",
+    "written": "f63e5c46ef9a8bb4"
+  },
+  "rosewood-sustain-after-rain": {
+    "name": "Sustain after rain",
+    "written": "920deff0455073aa"
+  },
+  "rosewood-unhurried-tide": {
+    "name": "Unhurried tide",
+    "written": "35b22e9c1523fe0d"
+  },
+  "rosewood-halo-off-the-hills": {
+    "name": "Halo off the hills",
+    "written": "21d5143d4848ce5c"
+  },
+  "rosewood-soft-mallet-swell": {
+    "name": "Soft-mallet swell",
+    "written": "f0773ea95ee84de1"
+  },
+  "rosewood-grove-wind-octaves": {
+    "name": "Grove-wind octaves",
+    "written": "dca38745c95f7060"
+  },
+  "rosewood-high-bar-arpeggio": {
+    "name": "High-bar arpeggio",
+    "written": "0036b474aeedbe9c"
+  },
+  "rosewood-hard-stick-halo": {
+    "name": "Hard-stick halo",
+    "written": "efba16963fbd286b"
+  },
+  "rosewood-rehearsal-pad": {
+    "name": "Rehearsal pad",
+    "written": "c51012814993af88"
+  },
+  "rosewood-fifths-at-the-bridge": {
+    "name": "Fifths at the bridge",
+    "written": "908b1ddcba0b6b08"
+  },
+  "rosewood-hill-thunder-sheen": {
+    "name": "Hill-thunder sheen",
+    "written": "f002098323dbde15"
+  },
+  "rosewood-fifth-by-the-stream": {
+    "name": "Fifth by the stream",
+    "written": "6e90decbf9f2146c"
+  },
+  "rosewood-octave-on-small-bars": {
+    "name": "Octave on small bars",
+    "written": "5048f0b6a60296ce"
+  },
+  "rosewood-charcoal-bass": {
+    "name": "Charcoal bass",
+    "written": "9a037706f787ddba"
+  },
+  "rosewood-goatskin-octaves": {
+    "name": "Goatskin octaves",
+    "written": "199a05295b170cc6"
+  },
+  "rosewood-sparks-under-tiles": {
+    "name": "Sparks under tiles",
+    "written": "d6a848f404603407"
+  },
+  "rosewood-silk-string-voicing": {
+    "name": "Silk-string voicing",
+    "written": "f2127c6891794d88"
+  },
+  "rosewood-rosewood-triad": {
+    "name": "Rosewood triad",
+    "written": "b8641d089d0b7bb1"
+  },
+  "rosewood-charcoal-octave": {
+    "name": "Charcoal octave",
+    "written": "f3a9047e5b5efcc5"
+  },
+  "rosewood-wide-set-fifths": {
+    "name": "Wide-set fifths",
+    "written": "c1207e1e122112bd"
+  },
+  "rosewood-heartwood-mixdown": {
+    "name": "Heartwood mixdown",
+    "written": "51de1ae2d4fbd257"
+  },
+  "rosewood-conservatory-finish": {
+    "name": "Conservatory finish",
+    "written": "f47a79b9e7e839e9"
+  },
+  "rosewood-cedar-finish": {
+    "name": "Cedar finish",
+    "written": "e49d0efbc6682b59"
+  },
+  "rosewood-counted-master": {
+    "name": "Counted master",
+    "written": "14490596d12a60f5"
+  },
+  "rosewood-sawn-plank-finish": {
+    "name": "Sawn-plank finish",
+    "written": "ca9f566218749e99"
+  },
+  "rosewood-rosewood-mixdown": {
+    "name": "Rosewood mixdown",
+    "written": "48b896273bf9fa58"
+  },
+  "rosewood-mixdown-under-tiles": {
+    "name": "Mixdown under tiles",
+    "written": "2a9fbb1f59064be5"
+  }
+}

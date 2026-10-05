@@ -1,0 +1,402 @@
+{
+  "oxide-tired-shade": {
+    "name": "Tired shade",
+    "written": "d47f21b9342b4d35"
+  },
+  "oxide-attic-halo": {
+    "name": "Attic halo",
+    "written": "7856ce8cd0fdbb7e"
+  },
+  "oxide-ferric-wash": {
+    "name": "Ferric wash",
+    "written": "6b9f98268005a6fe"
+  },
+  "oxide-wash-played-thin": {
+    "name": "Wash played thin",
+    "written": "9d1a31e85d8cc33c"
+  },
+  "oxide-muffled-wash": {
+    "name": "Muffled wash",
+    "written": "fa877bf215d8cc93"
+  },
+  "oxide-choir-on-old-stock": {
+    "name": "Choir on old stock",
+    "written": "a17b478c37700ebe"
+  },
+  "oxide-tired-hall": {
+    "name": "Tired hall",
+    "written": "7ab4b8f5828ca31b"
+  },
+  "oxide-undertow-nearly-gone": {
+    "name": "Undertow nearly gone",
+    "written": "4983e0664a3fb320"
+  },
+  "oxide-fading-swell": {
+    "name": "Fading swell",
+    "written": "ac426ee8afcaab46"
+  },
+  "oxide-lobby-springs": {
+    "name": "Lobby springs",
+    "written": "ae16d4f35083375a"
+  },
+  "oxide-slowed-loop": {
+    "name": "Slowed loop",
+    "written": "c64b022e37bdeab6"
+  },
+  "oxide-loop-on-the-shelf": {
+    "name": "Loop on the shelf",
+    "written": "c87cbd72442688e4"
+  },
+  "oxide-stretched-loop": {
+    "name": "Stretched loop",
+    "written": "f07e839baac623f0"
+  },
+  "oxide-rewound-undertow": {
+    "name": "Rewound undertow",
+    "written": "4381eb84d7b5e595"
+  },
+  "oxide-unmarked-loop": {
+    "name": "Unmarked loop",
+    "written": "ab9f936b9232dab7"
+  },
+  "oxide-rust-red-haze": {
+    "name": "Rust-red haze",
+    "written": "8dd37a346707db94"
+  },
+  "oxide-loop-unlabelled": {
+    "name": "Loop unlabelled",
+    "written": "c68dc80923eb4779"
+  },
+  "oxide-flaking-echo": {
+    "name": "Flaking echo",
+    "written": "169825eeb36e6ecb"
+  },
+  "oxide-lobby-echo": {
+    "name": "Lobby echo",
+    "written": "64f07a4d17f23c55"
+  },
+  "oxide-late-summer-echo": {
+    "name": "Late-summer echo",
+    "written": "39c475dc71b40734"
+  },
+  "oxide-archive-trail": {
+    "name": "Archive trail",
+    "written": "891fbf72ead1f389"
+  },
+  "oxide-dusty-echo": {
+    "name": "Dusty echo",
+    "written": "144e42beacb48987"
+  },
+  "oxide-spliced-wash": {
+    "name": "Spliced wash",
+    "written": "890a401546506a10"
+  },
+  "oxide-echo-unlabelled": {
+    "name": "Echo unlabelled",
+    "written": "c274281b37e6ab57"
+  },
+  "oxide-muffled-octaves": {
+    "name": "Muffled octaves",
+    "written": "bfbbd09ca0781498"
+  },
+  "oxide-thinning-loop": {
+    "name": "Thinning loop",
+    "written": "a5a03a82f167363d"
+  },
+  "oxide-yellowed-loop": {
+    "name": "Yellowed loop",
+    "written": "30119c3396fd4e59"
+  },
+  "oxide-spliced-echo": {
+    "name": "Spliced echo",
+    "written": "a008c34970abe780"
+  },
+  "oxide-loop-on-pass-forty": {
+    "name": "Loop on pass forty",
+    "written": "1f46e722b8817474"
+  },
+  "oxide-brown-loop": {
+    "name": "Brown loop",
+    "written": "1de721591782d26d"
+  },
+  "oxide-hissing-reel": {
+    "name": "Hissing reel",
+    "written": "b15f638dc99656ac"
+  },
+  "oxide-loop-under-dust": {
+    "name": "Loop under dust",
+    "written": "d7224f5fd6b3b00e"
+  },
+  "oxide-forgotten-loop": {
+    "name": "Forgotten loop",
+    "written": "9b4c4eca5835c67b"
+  },
+  "oxide-seventh-year-loop": {
+    "name": "Seventh-year loop",
+    "written": "dcac9747bce6b918"
+  },
+  "oxide-dust-in-late-light": {
+    "name": "Dust in late light",
+    "written": "9e92e40bd9a07c0f"
+  },
+  "oxide-fading-static": {
+    "name": "Fading static",
+    "written": "e9916693cf0bf9e8"
+  },
+  "oxide-rusting-record": {
+    "name": "Rusting record",
+    "written": "ce6d60adf4d837a4"
+  },
+  "oxide-endless-record": {
+    "name": "Endless record",
+    "written": "5d291cfe3a2ac161"
+  },
+  "oxide-run-out-tape": {
+    "name": "Run-out tape",
+    "written": "89c02cb527bae83d"
+  },
+  "oxide-noise-under-dust": {
+    "name": "Noise under dust",
+    "written": "9ac9c732a8a41f8d"
+  },
+  "oxide-boxed-filter": {
+    "name": "Boxed filter",
+    "written": "c97a1bc43c503a07"
+  },
+  "oxide-stretched-sampler": {
+    "name": "Stretched sampler",
+    "written": "039f8b709006f5ac"
+  },
+  "oxide-drift-on-old-stock": {
+    "name": "Drift on old stock",
+    "written": "3ec771e84dadeebf"
+  },
+  "oxide-late-summer-tape": {
+    "name": "Late-summer tape",
+    "written": "a7292cb2de13653d"
+  },
+  "oxide-afternoon-tape": {
+    "name": "Afternoon tape",
+    "written": "1ad238f70f75f8d6"
+  },
+  "oxide-drift-in-the-attic": {
+    "name": "Drift in the attic",
+    "written": "e08f7be59ac41770"
+  },
+  "oxide-slow-spool-cassette": {
+    "name": "Slow-spool cassette",
+    "written": "405b682698c006a1"
+  },
+  "oxide-reel-thinning-out": {
+    "name": "Reel thinning out",
+    "written": "076fd8962c067628"
+  },
+  "oxide-twice-played-record": {
+    "name": "Twice-played record",
+    "written": "60804a38c4bca632"
+  },
+  "oxide-attic-dust": {
+    "name": "Attic dust",
+    "written": "1e0bb1495d34e192"
+  },
+  "oxide-shedding-cassette": {
+    "name": "Shedding cassette",
+    "written": "90cefbb4a292751a"
+  },
+  "oxide-hissing-radio": {
+    "name": "Hissing radio",
+    "written": "6cdef924c816ac10"
+  },
+  "oxide-flaking-tape": {
+    "name": "Flaking tape",
+    "written": "60e015c9b3adcd37"
+  },
+  "oxide-afternoon-amp": {
+    "name": "Afternoon amp",
+    "written": "a73d0f43a2cb8c93"
+  },
+  "oxide-loop-left-in-sun": {
+    "name": "Loop left in sun",
+    "written": "507a08c486fd9535"
+  },
+  "oxide-print-through-memory": {
+    "name": "Print-through memory",
+    "written": "21b1797265d0c6c7"
+  },
+  "oxide-crackle-years-on": {
+    "name": "Crackle years on",
+    "written": "1e8e476e11f9b87f"
+  },
+  "oxide-brittle-loop": {
+    "name": "Brittle loop",
+    "written": "f463255241604132"
+  },
+  "oxide-tired-swirl": {
+    "name": "Tired swirl",
+    "written": "1e5b2bbda6c42c89"
+  },
+  "oxide-slow-spool-chorus": {
+    "name": "Slow-spool chorus",
+    "written": "65e92e8f67f31540"
+  },
+  "oxide-leader-wobble": {
+    "name": "Leader wobble",
+    "written": "03096449b0c0606c"
+  },
+  "oxide-last-pass-rotary": {
+    "name": "Last-pass rotary",
+    "written": "5b55c05a2588e8d9"
+  },
+  "oxide-drift-kept-too-long": {
+    "name": "Drift kept too long",
+    "written": "55adab65b39510d1"
+  },
+  "oxide-thinning-chorus": {
+    "name": "Thinning chorus",
+    "written": "744644e8169c833a"
+  },
+  "oxide-brown-chorus": {
+    "name": "Brown chorus",
+    "written": "8f21e8d98b23b9ee"
+  },
+  "oxide-phaser-on-the-shelf": {
+    "name": "Phaser on the shelf",
+    "written": "a9a41dc316739c06"
+  },
+  "oxide-warble-unlabelled": {
+    "name": "Warble unlabelled",
+    "written": "0953b5c75778525e"
+  },
+  "oxide-echo-left-in-sun": {
+    "name": "Echo left in sun",
+    "written": "fc46bd503f348c65"
+  },
+  "oxide-seventh-year-grains": {
+    "name": "Seventh-year grains",
+    "written": "851bc902267be8e5"
+  },
+  "oxide-bandstand-harmony": {
+    "name": "Bandstand harmony",
+    "written": "2f5d3ca0a3509c32"
+  },
+  "oxide-dusty-wash": {
+    "name": "Dusty wash",
+    "written": "0766ad141f33af6a"
+  },
+  "oxide-shelved-pad": {
+    "name": "Shelved pad",
+    "written": "6a25f07c88b9185f"
+  },
+  "oxide-bandstand-drone": {
+    "name": "Bandstand drone",
+    "written": "ebb0d2536c97dc74"
+  },
+  "oxide-swell-in-the-attic": {
+    "name": "Swell in the attic",
+    "written": "0dc5cc88397643fe"
+  },
+  "oxide-grains-nearly-gone": {
+    "name": "Grains nearly gone",
+    "written": "94c9fa0e628d7bcf"
+  },
+  "oxide-ferric-pad": {
+    "name": "Ferric pad",
+    "written": "90c64b48a4bde3f9"
+  },
+  "oxide-swells-thinning-out": {
+    "name": "Swells thinning out",
+    "written": "129f78a0e9a53873"
+  },
+  "oxide-old-stock-swell": {
+    "name": "Old-stock swell",
+    "written": "4c1f350c925ebbca"
+  },
+  "oxide-yellowed-undertow": {
+    "name": "Yellowed undertow",
+    "written": "341f440c67d6672b"
+  },
+  "oxide-fog-next-door": {
+    "name": "Fog next door",
+    "written": "c6fcb550bbf4de47"
+  },
+  "oxide-sagging-undertow": {
+    "name": "Sagging undertow",
+    "written": "2310fcb9dff01e0c"
+  },
+  "oxide-fifth-next-door": {
+    "name": "Fifth next door",
+    "written": "7429b03c6b67f508"
+  },
+  "oxide-old-stock-octave": {
+    "name": "Old-stock octave",
+    "written": "472daf76ddf7bfda"
+  },
+  "oxide-old-stock-loop": {
+    "name": "Old-stock loop",
+    "written": "d94363ac0b63b8c6"
+  },
+  "oxide-motor-down-undertow": {
+    "name": "Motor-down undertow",
+    "written": "bf6d88f16493336b"
+  },
+  "oxide-slowed-replay": {
+    "name": "Slowed replay",
+    "written": "042b720b5f50871f"
+  },
+  "oxide-sunlit-fourth": {
+    "name": "Sunlit fourth",
+    "written": "6db97892f7c7e399"
+  },
+  "oxide-run-out-octave": {
+    "name": "Run-out octave",
+    "written": "c391bb7124f13b6f"
+  },
+  "oxide-fortieth-pass-depths": {
+    "name": "Fortieth-pass depths",
+    "written": "39f468b8e6ab4737"
+  },
+  "oxide-octave-off-the-shelf": {
+    "name": "Octave off the shelf",
+    "written": "fba6c40d55a3d957"
+  },
+  "oxide-lobby-bass": {
+    "name": "Lobby bass",
+    "written": "42f3e02ea280a436"
+  },
+  "oxide-shedding-undertow": {
+    "name": "Shedding undertow",
+    "written": "d3e9782526987dce"
+  },
+  "oxide-octave-kept-too-long": {
+    "name": "Octave kept too long",
+    "written": "96b889fc78d494d7"
+  },
+  "oxide-rusting-octaves": {
+    "name": "Rusting octaves",
+    "written": "35a653e75ed1b004"
+  },
+  "oxide-forgotten-finish": {
+    "name": "Forgotten finish",
+    "written": "1e8194ab81d266b2"
+  },
+  "oxide-archive-finish": {
+    "name": "Archive finish",
+    "written": "d19ee957086b188a"
+  },
+  "oxide-unmarked-finish": {
+    "name": "Unmarked finish",
+    "written": "5b1c4122fddfb44b"
+  },
+  "oxide-dusty-finish": {
+    "name": "Dusty finish",
+    "written": "f9bb35adbdf1d0bb"
+  },
+  "oxide-mixdown-under-dust": {
+    "name": "Mixdown under dust",
+    "written": "295d9ca058947b73"
+  },
+  "oxide-powdered-lacquer": {
+    "name": "Powdered lacquer",
+    "written": "ece0e000106aa40f"
+  }
+}

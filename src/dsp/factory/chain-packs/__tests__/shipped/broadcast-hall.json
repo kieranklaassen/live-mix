@@ -1,0 +1,402 @@
+{
+  "broadcast-hall-skylight-room": {
+    "name": "Skylight room",
+    "written": "3b3291e562144404"
+  },
+  "broadcast-hall-foyer-room": {
+    "name": "Foyer room",
+    "written": "ec0ed5740649dd01"
+  },
+  "broadcast-hall-quayside-room": {
+    "name": "Quayside room",
+    "written": "6ec00510bd9ef676"
+  },
+  "broadcast-hall-curtained-room": {
+    "name": "Curtained room",
+    "written": "be2516f8c1d919e7"
+  },
+  "broadcast-hall-lid-open-room": {
+    "name": "Lid-open room",
+    "written": "a381940cf08870a9"
+  },
+  "broadcast-hall-shade-in-one-pass": {
+    "name": "Shade in one pass",
+    "written": "0dbb906f40c62cd2"
+  },
+  "broadcast-hall-sign-off-drone": {
+    "name": "Sign-off drone",
+    "written": "8b40f3d76c6cfbe2"
+  },
+  "broadcast-hall-workshop-wash": {
+    "name": "Workshop wash",
+    "written": "4300f0fdd883c133"
+  },
+  "broadcast-hall-hall-under-the-lid": {
+    "name": "Hall under the lid",
+    "written": "00f5b179fc1aaae2"
+  },
+  "broadcast-hall-after-hours-ring": {
+    "name": "After-hours ring",
+    "written": "ad8dc82646dd5e4a"
+  },
+  "broadcast-hall-hall-past-the-weir": {
+    "name": "Hall past the weir",
+    "written": "d01647ccc564145b"
+  },
+  "broadcast-hall-hall-left-running": {
+    "name": "Hall left running",
+    "written": "4c9c9264760c626e"
+  },
+  "broadcast-hall-swell-in-the-yard": {
+    "name": "Swell in the yard",
+    "written": "26e05b9aecc8ca7a"
+  },
+  "broadcast-hall-courtyard-hall": {
+    "name": "Courtyard hall",
+    "written": "e9ba6d372cfdc2f6"
+  },
+  "broadcast-hall-machine-room-hall": {
+    "name": "Machine-room hall",
+    "written": "d01bba920a09a92f"
+  },
+  "broadcast-hall-cloakroom-halo": {
+    "name": "Cloakroom halo",
+    "written": "283f96a5a09ea79f"
+  },
+  "broadcast-hall-sheen-in-oak-panels": {
+    "name": "Sheen in oak panels",
+    "written": "d8019bb23bcd2222"
+  },
+  "broadcast-hall-parquet-springs": {
+    "name": "Parquet springs",
+    "written": "c0d3935bbf5b5946"
+  },
+  "broadcast-hall-sign-off-hall": {
+    "name": "Sign-off hall",
+    "written": "65b867374c4bfdfd"
+  },
+  "broadcast-hall-room-by-the-river": {
+    "name": "Room by the river",
+    "written": "e5a94ffebee53ab1"
+  },
+  "broadcast-hall-piano-top-ring": {
+    "name": "Piano-top ring",
+    "written": "b4bf253317411717"
+  },
+  "broadcast-hall-springs-by-lamplight": {
+    "name": "Springs by lamplight",
+    "written": "6145a14f56369000"
+  },
+  "broadcast-hall-control-room-echo": {
+    "name": "Control-room echo",
+    "written": "226df8f44ca66fa2"
+  },
+  "broadcast-hall-off-air-echo": {
+    "name": "Off-air echo",
+    "written": "ec129d60659679db"
+  },
+  "broadcast-hall-hand-built-reel": {
+    "name": "Hand-built reel",
+    "written": "b93e0a993ce99275"
+  },
+  "broadcast-hall-machine-room-loop": {
+    "name": "Machine-room loop",
+    "written": "18fe470572109b3c"
+  },
+  "broadcast-hall-loop-after-hours": {
+    "name": "Loop after hours",
+    "written": "da58ad2cd87e1ffd"
+  },
+  "broadcast-hall-piano-lid-loop": {
+    "name": "Piano-lid loop",
+    "written": "15982a98049e9aa5"
+  },
+  "broadcast-hall-riverside-repeats": {
+    "name": "Riverside repeats",
+    "written": "ef53aacc3f80c3e3"
+  },
+  "broadcast-hall-damped-trail": {
+    "name": "Damped trail",
+    "written": "3bf9c1e02d2becd5"
+  },
+  "broadcast-hall-echo-off-the-floor": {
+    "name": "Echo off the floor",
+    "written": "33771a6687454c61"
+  },
+  "broadcast-hall-embankment-echo": {
+    "name": "Embankment echo",
+    "written": "98091bc608aa701e"
+  },
+  "broadcast-hall-loop-on-air": {
+    "name": "Loop on air",
+    "written": "a22881214602a5c3"
+  },
+  "broadcast-hall-back-row-echo": {
+    "name": "Back-row echo",
+    "written": "333363fd0e3f5a10"
+  },
+  "broadcast-hall-soundcheck-echo": {
+    "name": "Soundcheck echo",
+    "written": "6847c44033ce9e10"
+  },
+  "broadcast-hall-run-through-wash": {
+    "name": "Run-through wash",
+    "written": "6fb37de10d56750b"
+  },
+  "broadcast-hall-dust-cover-echo": {
+    "name": "Dust-cover echo",
+    "written": "77d4a5fb2a2e0eb0"
+  },
+  "broadcast-hall-moderator-echo": {
+    "name": "Moderator echo",
+    "written": "1a2783e1ec1b633b"
+  },
+  "broadcast-hall-stairwell-memory": {
+    "name": "Stairwell memory",
+    "written": "bd31f0ad0ec7cb1e"
+  },
+  "broadcast-hall-on-air-echo": {
+    "name": "On-air echo",
+    "written": "573d11c73bdca3a0"
+  },
+  "broadcast-hall-loop-at-soundcheck": {
+    "name": "Loop at soundcheck",
+    "written": "e8eef1cf7fa3c5e0"
+  },
+  "broadcast-hall-skylight-repeats": {
+    "name": "Skylight repeats",
+    "written": "553f60eeb9bfcb90"
+  },
+  "broadcast-hall-echo-on-parquet": {
+    "name": "Echo on parquet",
+    "written": "8265740a9ec17c63"
+  },
+  "broadcast-hall-rehearsal-repeats": {
+    "name": "Rehearsal repeats",
+    "written": "7b51faa436010668"
+  },
+  "broadcast-hall-foyer-fifths": {
+    "name": "Foyer fifths",
+    "written": "2623f397250fb449"
+  },
+  "broadcast-hall-unhurried-trail": {
+    "name": "Unhurried trail",
+    "written": "7546e0663be7aab8"
+  },
+  "broadcast-hall-red-brick-reel": {
+    "name": "Red-brick reel",
+    "written": "78618578bec7041d"
+  },
+  "broadcast-hall-riverside-reel": {
+    "name": "Riverside reel",
+    "written": "83960a6f32a06f56"
+  },
+  "broadcast-hall-after-hours-reel": {
+    "name": "After-hours reel",
+    "written": "724190cf7c8ecded"
+  },
+  "broadcast-hall-reel-on-the-stage": {
+    "name": "Reel on the stage",
+    "written": "5cf7036cbf407920"
+  },
+  "broadcast-hall-reel-at-sign-off": {
+    "name": "Reel at sign-off",
+    "written": "596e9114fef5891e"
+  },
+  "broadcast-hall-closedown-loop": {
+    "name": "Closedown loop",
+    "written": "d470c2e4820b01ad"
+  },
+  "broadcast-hall-panelled-tape": {
+    "name": "Panelled tape",
+    "written": "b99faa49b921c4f7"
+  },
+  "broadcast-hall-rotary-at-closedown": {
+    "name": "Rotary at closedown",
+    "written": "07d3adff24b00b6d"
+  },
+  "broadcast-hall-broadcast-loop": {
+    "name": "Broadcast loop",
+    "written": "caf41b606996255f"
+  },
+  "broadcast-hall-slipping-flutter": {
+    "name": "Slipping flutter",
+    "written": "1f88ff8d89064301"
+  },
+  "broadcast-hall-tape-at-closedown": {
+    "name": "Tape at closedown",
+    "written": "786fdd2c5262d90b"
+  },
+  "broadcast-hall-session-drift": {
+    "name": "Session drift",
+    "written": "8c1e87413881b960"
+  },
+  "broadcast-hall-patchbay-loop": {
+    "name": "Patchbay loop",
+    "written": "a7cfbbd53df4442f"
+  },
+  "broadcast-hall-tape-by-the-window": {
+    "name": "Tape by the window",
+    "written": "4a37b9580479c037"
+  },
+  "broadcast-hall-canteen-flutter": {
+    "name": "Canteen flutter",
+    "written": "4b0f16a4d74e7169"
+  },
+  "broadcast-hall-overdub-reel": {
+    "name": "Overdub reel",
+    "written": "7b04f81653d58cd1"
+  },
+  "broadcast-hall-parquet-reel": {
+    "name": "Parquet reel",
+    "written": "30609fa6e9a8fe66"
+  },
+  "broadcast-hall-interval-radio": {
+    "name": "Interval radio",
+    "written": "59f5d060d9cf25bd"
+  },
+  "broadcast-hall-red-light-reel": {
+    "name": "Red-light reel",
+    "written": "e1a29d000f7ac1ee"
+  },
+  "broadcast-hall-tenth-row-valves": {
+    "name": "Tenth-row valves",
+    "written": "22dea1db0a1d1d49"
+  },
+  "broadcast-hall-stairwell-flutter": {
+    "name": "Stairwell flutter",
+    "written": "02b41465bf56f40c"
+  },
+  "broadcast-hall-live-room-drift": {
+    "name": "Live-room drift",
+    "written": "09e89857fc8beb9d"
+  },
+  "broadcast-hall-dust-cover-chorus": {
+    "name": "Dust-cover chorus",
+    "written": "90423ad4cacc4032"
+  },
+  "broadcast-hall-oak-panel-chorus": {
+    "name": "Oak-panel chorus",
+    "written": "435620e4040d0848"
+  },
+  "broadcast-hall-chorus-on-the-stage": {
+    "name": "Chorus on the stage",
+    "written": "672dcc7fe83f8349"
+  },
+  "broadcast-hall-workshop-flutter": {
+    "name": "Workshop flutter",
+    "written": "1c1dee5f0a77aa45"
+  },
+  "broadcast-hall-gallery-rotary": {
+    "name": "Gallery rotary",
+    "written": "7245d1283cec267a"
+  },
+  "broadcast-hall-parquet-chorus": {
+    "name": "Parquet chorus",
+    "written": "d139920227117ab4"
+  },
+  "broadcast-hall-canteen-rotary": {
+    "name": "Canteen rotary",
+    "written": "3f7316701dc6e5d4"
+  },
+  "broadcast-hall-tremolo-under-glass": {
+    "name": "Tremolo under glass",
+    "written": "9bd50d37811a4d52"
+  },
+  "broadcast-hall-rotary-after-hours": {
+    "name": "Rotary after hours",
+    "written": "0c31ef045a6ae03c"
+  },
+  "broadcast-hall-cloakroom-phaser": {
+    "name": "Cloakroom phaser",
+    "written": "986936c13e3cc583"
+  },
+  "broadcast-hall-courtyard-chorus": {
+    "name": "Courtyard chorus",
+    "written": "390a728902ef6dd3"
+  },
+  "broadcast-hall-on-air-swirl": {
+    "name": "On-air swirl",
+    "written": "636ba9c003e4ef4b"
+  },
+  "broadcast-hall-tea-break-pad": {
+    "name": "Tea-break pad",
+    "written": "1149bffbfecdbaf4"
+  },
+  "broadcast-hall-harmony-on-parquet": {
+    "name": "Harmony on parquet",
+    "written": "b18793976894aa6b"
+  },
+  "broadcast-hall-lid-open-afterglow": {
+    "name": "Lid-open afterglow",
+    "written": "83aefc51934f2d27"
+  },
+  "broadcast-hall-interval-pad": {
+    "name": "Interval pad",
+    "written": "b311c67c6fe3ae1b"
+  },
+  "broadcast-hall-halo-off-the-floor": {
+    "name": "Halo off the floor",
+    "written": "b908bce23206431f"
+  },
+  "broadcast-hall-upriver-pad": {
+    "name": "Upriver pad",
+    "written": "4dbbcb74aaea9594"
+  },
+  "broadcast-hall-octave-sent-out-live": {
+    "name": "Octave sent out live",
+    "written": "e68d6438889b60ed"
+  },
+  "broadcast-hall-floorboard-loop": {
+    "name": "Floorboard loop",
+    "written": "90bdd9c8b30ba6e4"
+  },
+  "broadcast-hall-depths-underfoot": {
+    "name": "Depths underfoot",
+    "written": "fdfdadc52f281584"
+  },
+  "broadcast-hall-piano-lid-drift": {
+    "name": "Piano-lid drift",
+    "written": "e5a6e7f1437761c7"
+  },
+  "broadcast-hall-riverside-bass": {
+    "name": "Riverside bass",
+    "written": "5a2bde1cc5d90915"
+  },
+  "broadcast-hall-embankment-cellos": {
+    "name": "Embankment cellos",
+    "written": "3371b1206942cc52"
+  },
+  "broadcast-hall-octave-on-the-stairs": {
+    "name": "Octave on the stairs",
+    "written": "1e6d4ba2c81f7ef1"
+  },
+  "broadcast-hall-reel-wound-back": {
+    "name": "Reel wound back",
+    "written": "8cc1bbca7e751800"
+  },
+  "broadcast-hall-tiptoe-mixdown": {
+    "name": "Tiptoe mixdown",
+    "written": "6ff94eae07cf7b6f"
+  },
+  "broadcast-hall-gallery-polish": {
+    "name": "Gallery polish",
+    "written": "7510287504bd35ca"
+  },
+  "broadcast-hall-closedown-polish": {
+    "name": "Closedown polish",
+    "written": "0228052904be9aca"
+  },
+  "broadcast-hall-talkback-master": {
+    "name": "Talkback master",
+    "written": "fd2f72321912ab95"
+  },
+  "broadcast-hall-lacquer-on-parquet": {
+    "name": "Lacquer on parquet",
+    "written": "ef8e074211d69337"
+  },
+  "broadcast-hall-moderator-mixdown": {
+    "name": "Moderator mixdown",
+    "written": "75467187a1950d76"
+  }
+}
