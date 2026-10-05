@@ -716,8 +716,17 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   checkClipFields(raw, path, check)
 }
 
-/** A clip's own fields: everything but whose id and which source, which the score has to say. */
-function checkClipFields(raw: Record<string, unknown>, path: string, check: Checker): void {
+/**
+ * A clip's own fields: everything but whose id and which source, which the
+ * score has to say. `loopPair: false` leaves out the one rule that sets two
+ * fields against each other, a loop that ends after it starts.
+ */
+function checkClipFields(
+  raw: Record<string, unknown>,
+  path: string,
+  check: Checker,
+  loopPair = true,
+): void {
   check.number(raw.startSec, `${path}.startSec`, { min: 0 })
   check.number(raw.offsetSec, `${path}.offsetSec`, { min: 0 })
   check.number(raw.durationSec, `${path}.durationSec`, { min: 0 })
@@ -736,6 +745,7 @@ function checkClipFields(raw: Record<string, unknown>, path: string, check: Chec
   if (raw.loopEndSec !== undefined) {
     if (
       check.number(raw.loopEndSec, `${path}.loopEndSec`, { min: 0 }) &&
+      loopPair &&
       typeof raw.loopStartSec === 'number' &&
       (raw.loopEndSec as number) <= raw.loopStartSec
     ) {
@@ -748,13 +758,15 @@ function checkClipFields(raw: Record<string, unknown>, path: string, check: Chec
 /**
  * What the validator has against a clip taken by itself, before it is in a
  * score: its fields and their ranges. An operation asks this of a clip it is
- * handed, so none goes in that `validateScore` would refuse afterwards.
+ * handed, so none goes in that `validateScore` would refuse afterwards. An
+ * update that names one end of a loop asks with `loopPair: false`: the other
+ * end is whatever the score has, and an undo brings back one end at a time.
  */
-export function clipIssues(clip: unknown): ScoreIssue[] {
+export function clipIssues(clip: unknown, options: { loopPair?: boolean } = {}): ScoreIssue[] {
   const check = new Checker()
   if (check.record(clip, 'clip')) {
     check.string(clip.id, 'clip.id')
-    checkClipFields(clip, 'clip', check)
+    checkClipFields(clip, 'clip', check, options.loopPair ?? true)
   }
   return check.issues
 }

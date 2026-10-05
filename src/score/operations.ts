@@ -745,15 +745,16 @@ function isPlacementKey(key: string): key is ClipPlacementKey {
 /**
  * A clip an operation carries: its `meta`, when set, has to be plain JSON,
  * and its fields, as the score would keep them, what the validator takes (no
- * start before 0, no pan past 1).
+ * start before 0, no pan past 1). `loopPair` is false for an update that
+ * names one end of the loop only.
  */
-function checkedClip(op: Operation, clip: Clip): Clip {
+function checkedClip(op: Operation, clip: Clip, loopPair = true): Clip {
   if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
     fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
   }
   if (clip.meta !== undefined) assertNoProto(op, `clip "${clip.id}" meta`, clip.meta)
   const tidy = tidyClip(clip)
-  const [issue] = clipIssues(tidy)
+  const [issue] = clipIssues(tidy, { loopPair })
   if (issue) fail(op, `clip "${clip.id}" ${issue.path.slice('clip.'.length)}: ${issue.message}`)
   return tidy
 }
@@ -1637,7 +1638,13 @@ function patchClip(
   }
   const merged: Record<string, unknown> = { ...clip, ...patch }
   for (const key of CLIP_PLACEMENT_KEYS) if (merged[key] === null) delete merged[key]
-  const next = checkedClip(op, merged as unknown as Clip)
+  // A loop has to end after it starts when the patch says both ends. One end
+  // alone is set against whatever the score has for the other, which another
+  // writer may have moved since (a sound made again, shorter): an undo that
+  // brings one end back is taken, as it always was, and the pair is settled
+  // by whoever moved the other.
+  const bothEnds = patch.loopStartSec !== undefined && patch.loopEndSec !== undefined
+  const next = checkedClip(op, merged as unknown as Clip, bothEnds)
   return replaceHost(score, track.id, {
     ...track,
     clips: sortClips(track.clips.map((candidate) => (candidate === clip ? next : candidate))),
