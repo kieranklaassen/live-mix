@@ -64,6 +64,19 @@ describe('scales', () => {
       '2.5 kHz',
       '12 kHz',
     ])
+    // The unit is that of the number printed: no "1000 Hz" under a thousand and a half.
+    expect([hzText(999.4), hzText(999.5), hzText(999.6), hzText(1000.6)]).toEqual([
+      '999 Hz',
+      '1 kHz',
+      '1 kHz',
+      '1 kHz',
+    ])
+    expect([hzText(1049), hzText(9960), hzText(9999.6), hzText(10400)]).toEqual([
+      '1 kHz',
+      '10 kHz',
+      '10 kHz',
+      '10 kHz',
+    ])
     expect(dbText(3)).toMatch(/^\+3/)
     expect(dbText(-4.5)).toMatch(/^[−-]4\.5/)
   })

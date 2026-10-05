@@ -366,9 +366,11 @@ export function freqGrid(frame: Paint, box: Box, minHz = FREQ_MIN, maxHz = FREQ_
 
 /** A frequency as it is said: "80 Hz", "1.2 kHz", "12 kHz". */
 export function hzText(hz: number): string {
+  // The unit is chosen by the number printed: 999.6 rounds to a thousand, which is "1 kHz".
+  const whole = Math.round(hz)
+  if (!(whole >= 1000)) return `${whole} Hz`
   if (hz >= 10000) return `${Math.round(hz / 1000)} kHz`
-  if (hz >= 1000) return `${(hz / 1000).toFixed(1).replace(/\.0$/, '')} kHz`
-  return `${Math.round(hz)} Hz`
+  return `${(hz / 1000).toFixed(1).replace(/\.0$/, '')} kHz`
 }
 
 /** A level as it is said, with a real minus: "+3.0 dB", "−12.5 dB". */

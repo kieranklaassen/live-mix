@@ -113,7 +113,7 @@ export function Fader({
   })
   const { normalized, interacting, handlers } = control
   const print = (shown: number): string =>
-    format ? format(shown) : formatControlValue(shown, unit)
+    format ? format(shown) : formatControlValue(shown, unit, { step })
   const valueText = print(control.value)
   const percent = `${normalized * 100}%`
   const gesture = disabled

@@ -256,6 +256,37 @@ describe('the kit’s own controls', () => {
     )
   })
 
+  it('a knob whose words are only for the value it holds names no value for a double-click', () => {
+    // A hosted plug-in's own text: the same whatever value is asked for.
+    const own = () => '9.6 s'
+    const { rerender } = render(
+      <Knob label="Decay" value={0.8} defaultValue={0.25} min={0} max={1} format={own} />,
+    )
+    const gesture = (): string => resolveInfo(screen.getByRole('slider'))?.text ?? ''
+    expect(gesture()).toBe(controlGestureInfo({ reset: '9.6 s' }))
+    rerender(
+      <Knob
+        label="Decay"
+        value={0.8}
+        defaultValue={0.25}
+        min={0}
+        max={1}
+        format={own}
+        formatPresentOnly
+      />,
+    )
+    expect(gesture()).toBe(
+      'Drag up or down, or scroll over it. Hold Shift for fine steps. Double-click, or Delete with the keys on it, returns it to its default.',
+    )
+    expect(gesture()).toBe(controlGestureInfo({}))
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '9.6 s')
+    // With no `format` the knob prints its default itself, and says it.
+    rerender(
+      <Knob label="Decay" value={0.8} defaultValue={0.25} min={0} max={1} formatPresentOnly />,
+    )
+    expect(gesture()).toBe(controlGestureInfo({ reset: '0.25' }))
+  })
+
   it('a power switch, a toggle and a meter have entries', () => {
     render(
       <>

@@ -333,6 +333,8 @@ export function DevicePanel({
                     ? (value) => String(Math.round(value))
                     : (value) => ownText?.paramText(name) ?? formatParamValue(spec, value)
               }
+              // A device's own words are for the value it holds now: none are had for its default.
+              formatPresentOnly={!choice && ownText?.paramText(name) !== undefined}
               onChange={(value) => {
                 d.setParam(name, value)
                 if (presetName) setPresetName('')

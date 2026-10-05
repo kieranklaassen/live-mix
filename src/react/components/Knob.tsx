@@ -57,6 +57,12 @@ export interface KnobProps {
   gestureIdleMs?: number
   /** Replace the default unit formatting of the readout. */
   format?: (value: number) => string
+  /**
+   * `format` words only the value the knob holds now, whatever it is given
+   * (a hosted plug-in's own text). The info view then names no value for a
+   * double-click: it "returns it to its default".
+   */
+  formatPresentOnly?: boolean
   hideLabel?: boolean
   hideValue?: boolean
   /** Default `arc`. */
@@ -171,6 +177,7 @@ export function Knob({
   resetValue,
   gestureIdleMs,
   format,
+  formatPresentOnly = false,
   hideLabel = false,
   hideValue = false,
   cap = 'arc',
@@ -223,14 +230,14 @@ export function Knob({
           Math.max(fillStart, normalized),
         )
   const print = (shown: number): string =>
-    format ? format(shown) : formatControlValue(shown, unit)
+    format ? format(shown) : formatControlValue(shown, unit, { step })
   const valueText = print(control.value)
   const stroke = tokenRef('stroke', '2px')
   const gesture = disabled
     ? null
     : controlGestureInfo({
         axis,
-        reset: print(resetValue ?? defaultValue),
+        reset: format && formatPresentOnly ? undefined : print(resetValue ?? defaultValue),
         wheel,
         twoPlaces: hasTwoPlaces({ min, max, step, wholeSteps }),
       })

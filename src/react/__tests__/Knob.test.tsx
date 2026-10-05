@@ -39,6 +39,17 @@ describe('Knob', () => {
     expect(screen.getByText('1.00 kHz')).toHaveClass('lm-knob__value')
   })
 
+  it('prints a unit of its own with the decimals of its step', () => {
+    const { rerender } = render(
+      <Knob label="Degree" defaultValue={1200} min={0} max={1200} step={1} unit="ct" />,
+    )
+    expect(slider()).toHaveAttribute('aria-valuetext', '1200 ct')
+    rerender(<Knob label="Degree" defaultValue={1200} min={0} max={1200} unit="ct" />)
+    expect(slider()).toHaveAttribute('aria-valuetext', '1200.00 ct')
+    rerender(<Knob label="Level" value={-0.04} defaultValue={0} min={-12} max={12} unit="dB" />)
+    expect(slider()).toHaveAttribute('aria-valuetext', '0.0 dB')
+  })
+
   it('draws through --lm-* tokens only', () => {
     const { container } = render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} />)
     const svg = container.querySelector('svg')
