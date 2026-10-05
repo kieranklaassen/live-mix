@@ -5,11 +5,13 @@
 
 import { useCallback, useMemo } from 'react'
 
+import { soundsOnPass } from '../../core/clips/chance'
 import { isAudibleClip, type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
 import { type Transport } from '../../core/transport/Transport'
 import { startsInWindow } from '../../core/transport/window'
 import { useExternalSnapshot } from '../store'
+import { useMaybeEngine } from './useEngine'
 import { useTransport } from './useTransport'
 
 /** Anything with clips: an `AudioTrack`, an `ElementTrack`, or a `ClipList` itself. */
@@ -77,9 +79,9 @@ export interface ScheduleSnapshot {
   positionSec: number
   iteration: number
   playing: boolean
-  /** Clips whose span covers the playhead, in start order. */
+  /** Clips whose span covers the playhead, in start order: not a muted one, nor one with a `chance` that sits this pass out. */
   sounding: readonly ScheduledClipView[]
-  /** Clip starts inside `[playhead, playhead + horizonSec)`, soonest first, wrapping into the next loop pass. */
+  /** Clip starts inside `[playhead, playhead + horizonSec)`, soonest first, wrapping into the next loop pass; the same clips left out. */
   upcoming: readonly ScheduledClipView[]
 }
 
@@ -96,14 +98,26 @@ export function useSchedule(
   const { clips } = useClips(source)
   const horizonSec = options.horizonSec ?? 8
   const transport = useTransport(options.transport, { fps: options.fps ?? 10 })
-  const { positionSec, iteration, playing, loop } = transport
+  const { positionSec, iteration, pass, playing, loop } = transport
+  // What a clip with a `chance` is drawn from: the seed of the scheduler that
+  // plays this transport. The provided engine's is at hand; a transport of
+  // the host's own is read with the seed a scheduler starts on.
+  const engine = useMaybeEngine()
+  const seed = engine?.transport === transport.transport ? engine.scheduler.seed : 0
 
   const schedule = useMemo((): ScheduleSnapshot => {
     // Muted clips stay in `clips` for drawing; the scheduler never starts them.
     const audible = clips.filter(isAudibleClip)
+    // Nor one left to chance, on a pass it sits out: a start `ahead` passes
+    // of the loop from here is drawn for that pass, as the scheduler draws it.
+    const sounds = (clip: Clip, ahead: number): boolean => soundsOnPass(clip, pass + ahead, seed)
     const sounding: ScheduledClipView[] = []
     for (const clip of audible) {
-      if (clip.startSec <= positionSec && positionSec < clip.startSec + clip.durationSec) {
+      if (
+        clip.startSec <= positionSec &&
+        positionSec < clip.startSec + clip.durationSec &&
+        sounds(clip, 0)
+      ) {
         sounding.push({ clip, startsInSec: clip.startSec - positionSec, iteration })
       }
     }
@@ -117,10 +131,12 @@ export function useSchedule(
       loop,
     })) {
       const clip = byId.get(hit.clipId)
-      if (clip) upcoming.push({ clip, startsInSec: hit.startsInSec, iteration: hit.iteration })
+      if (clip && sounds(clip, hit.iteration - iteration)) {
+        upcoming.push({ clip, startsInSec: hit.startsInSec, iteration: hit.iteration })
+      }
     }
     return { positionSec, iteration, playing, sounding, upcoming }
-  }, [clips, positionSec, iteration, playing, loop, horizonSec])
+  }, [clips, positionSec, iteration, pass, playing, loop, horizonSec, seed])
 
   return { clips, ...schedule }
 }
