@@ -545,6 +545,27 @@ describe('apply', () => {
     ).toThrow()
   })
 
+  it('no device is called "master": the name is the master bus’s own, and a score with one is refused whole', () => {
+    const device: ScoreDevice = { id: 'master', deviceId: 'utility', params: {}, bypass: false }
+    expect(() => apply(base, { type: 'device.add', owner: 'master', device })).toThrow(/reserved/)
+    expect(() => apply(base, { type: 'device.add', owner: 'kick', device })).toThrow(/reserved/)
+    expect(() => apply(base, { type: 'device.replace', id: 'kick-filter', device })).toThrow(
+      /reserved/,
+    )
+    expect(() =>
+      apply(base, {
+        type: 'return.add',
+        return: {
+          id: 'echo',
+          name: 'Echo',
+          destination: masterDestination(),
+          device,
+          strip: defaultStrip(),
+        },
+      }),
+    ).toThrow(/reserved/)
+  })
+
   it('lanes: one per parameter, breakpoints deduped by time and sorted', () => {
     expect(() =>
       apply(base, {

@@ -593,6 +593,7 @@ function assertFreshOwnerId(score: Score, op: Operation, id: string): void {
 function assertFreshDeviceIds(score: Score, op: Operation, devices: readonly ScoreDevice[]): void {
   const seen = new Set<string>()
   for (const device of devices) {
+    if (device.id === MASTER_OWNER) fail(op, `"${MASTER_OWNER}" is reserved`)
     if (seen.has(device.id) || findDevice(score, device.id)) {
       fail(op, `device id "${device.id}" is already in the score`)
     }
