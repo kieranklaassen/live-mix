@@ -77,6 +77,8 @@ export const PALETTE: PackPalette = {
     lattice: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.4,
     'plate-reverb:Dark plate': 1.6,
     'plate-reverb:Long plate': 1.4,
     'plate-reverb:Medium plate': 1.6,

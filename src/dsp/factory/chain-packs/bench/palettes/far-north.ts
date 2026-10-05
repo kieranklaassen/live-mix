@@ -71,6 +71,8 @@ export const PALETTE: PackPalette = {
     'vintage-digital': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.05,
     'swell:Bowed': 2,
     'swell:Slow bow': 2,
     'swell:String section': 1.6,

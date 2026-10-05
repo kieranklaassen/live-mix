@@ -83,6 +83,8 @@ export const PALETTE: PackPalette = {
     'low-bitrate': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.05,
     'rotary:Chorale': 1.6,
     'rotary:Slow burn': 1.8,
     'rotary:Growl': 1.5,

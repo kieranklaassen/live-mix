@@ -85,6 +85,8 @@ export const PALETTE: PackPalette = {
     radio: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.02,
     'vowel-reverb:Choir of ah': 1.6,
     'vowel-reverb:Cathedral': 1.6,
     'vowel-reverb:High choir': 1.5,

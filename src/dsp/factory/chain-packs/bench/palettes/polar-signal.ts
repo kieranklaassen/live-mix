@@ -74,6 +74,8 @@ export const PALETTE: PackPalette = {
     'spring-reverb': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0,
     // The far station, the static and the horn across the water.
     'radio:Night shortwave': 1.6,
     'radio:Far station': 1.6,

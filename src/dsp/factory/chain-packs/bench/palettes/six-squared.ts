@@ -76,6 +76,8 @@ export const PALETTE: PackPalette = {
     glitch: 0.1,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.3,
     'auto-filter:Glacial low-pass': 2,
     'auto-filter:Dub sweep': 1.5,
     'hall-reverb:Warm undertow': 1.5,

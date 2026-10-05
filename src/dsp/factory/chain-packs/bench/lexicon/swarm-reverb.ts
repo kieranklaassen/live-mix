@@ -56,7 +56,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Slow stretch': {
       says: 'a long blurred cave that slides slowly between intervals',
-      brief: 'a slowly sliding cave',
+      brief: 'a cave that slides in pitch',
       nouns: ['cave', 'cavern'],
       roles: ['hall'],
       traits: ['long', 'slow', 'unsteady', 'strange'],

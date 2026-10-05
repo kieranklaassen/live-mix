@@ -79,6 +79,8 @@ export const PALETTE: PackPalette = {
     shimmer: 0.03,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.45,
     'tape:Seasick': 1.8,
     'chorus:Warped tape': 1.8,
     'phaser:Warm six-stage': 1.5,

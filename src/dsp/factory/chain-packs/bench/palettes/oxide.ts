@@ -113,6 +113,10 @@ export const PALETTE: PackPalette = {
       ],
     },
   ],
+  voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.3,
+  },
   heads: [
     'Shedding',
     'Flaking',

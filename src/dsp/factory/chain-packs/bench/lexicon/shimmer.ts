@@ -90,18 +90,18 @@ export const LEXICON: DeviceLexicon = {
       traits: ['high', 'wide'],
     },
     'Rising tail alone': {
-      says: 'the octave-climbing tail of a large reverb by itself',
+      says: 'the octave-climbing tail of a large reverb with no dry sound',
       brief: 'a rising reverb tail alone',
       nouns: ['halo', 'ascent', 'shimmer'],
       roles: ['halo'],
       traits: ['heavy', 'far', 'bright', 'high', 'wide'],
     },
     'Still pipes': {
-      says: 'a small still reverb ringing in stacked octaves and fifths',
+      says: 'a small reverb with a long still ring of octaves and fifths',
       brief: 'a still octave-fifth reverb',
       nouns: ['halo', 'fifths', 'shimmer'],
       roles: ['halo'],
-      traits: ['dark', 'high'],
+      traits: ['dark', 'high', 'long'],
     },
     'Swaying hall': {
       says: 'a hall that sways in pitch with a trace of the octave above',

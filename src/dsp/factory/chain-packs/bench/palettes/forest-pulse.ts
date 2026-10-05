@@ -72,6 +72,8 @@ export const PALETTE: PackPalette = {
     lattice: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.2,
     // The record, its surface, and the fog.
     'vinyl:Warped': 1.5,
     'vinyl:Dust and scratches': 2,

@@ -59,7 +59,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a hall with long lows',
       nouns: ['undertow', 'hall'],
       roles: ['hall'],
-      traits: ['warm', 'dark'],
+      traits: ['warm', 'dark', 'long'],
     },
     'Airy tail': {
       says: 'a hall whose top rings on while its lows stop short',

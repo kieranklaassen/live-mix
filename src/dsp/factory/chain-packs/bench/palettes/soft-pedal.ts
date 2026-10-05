@@ -95,6 +95,8 @@ export const PALETTE: PackPalette = {
     radio: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0,
     // The pack's own: the detuned double in each of its forms, the long dark room, the strings that ring on under the pedal.
     'stereo-detune:Piano haze': 1.4,
     'stereo-detune:Classic': 1.3,

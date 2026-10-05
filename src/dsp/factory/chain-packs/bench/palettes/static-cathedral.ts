@@ -74,6 +74,8 @@ export const PALETTE: PackPalette = {
     'spring-reverb': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.04,
     'hall-reverb:Vast nave': 2.5,
     'hall-reverb:Cathedral': 2,
     'expanse:Low cathedral': 1.8,

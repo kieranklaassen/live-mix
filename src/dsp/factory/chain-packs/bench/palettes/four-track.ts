@@ -83,6 +83,8 @@ export const PALETTE: PackPalette = {
     glitch: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.1,
     'tape:Cassette four-track': 2.2,
     'tape:Under a blanket': 2,
     'tape:Warm thump': 2,

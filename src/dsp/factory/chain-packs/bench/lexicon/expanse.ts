@@ -36,7 +36,7 @@ export const LEXICON: DeviceLexicon = {
     'Far echoes': {
       says: 'a huge space that answers in separate far-off echoes',
       brief: 'far-off separate echoes',
-      nouns: ['echoes', 'canyon', 'space'],
+      nouns: ['echoes', 'canyon'],
       roles: ['hall'],
       traits: ['long', 'far'],
     },
@@ -105,7 +105,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Wash alone': {
       says: 'a huge slow wash that swells in and hangs with no dry sound',
-      brief: 'a huge wash by itself',
+      brief: 'a huge wash heard alone',
       nouns: ['wash', 'fog', 'tide'],
       roles: ['hall'],
       traits: ['heavy', 'far', 'long', 'wide', 'slow'],

@@ -87,7 +87,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a short pulsing room',
       nouns: ['room', 'pulse'],
       roles: ['room'],
-      traits: ['short', 'faint'],
+      traits: ['short', 'faint', 'fast'],
     },
     'Endless tail': {
       says: 'a dark hall that takes about twenty seconds to die away',

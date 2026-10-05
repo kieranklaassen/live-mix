@@ -82,6 +82,8 @@ export const PALETTE: PackPalette = {
     'low-bitrate': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.25,
     // The pack's own: two decks, a late return, the octave above, a held vowel, a held pedal.
     'tape-loop:Two decks': 2,
     'tape-loop:Clean layers': 1.5,

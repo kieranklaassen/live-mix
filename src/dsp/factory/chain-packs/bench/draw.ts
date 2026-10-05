@@ -130,17 +130,18 @@ export interface Placed {
 /**
  * Why a preset cannot follow the ones before it in a chain drawn from a
  * shared recipe; undefined when it can. `role` is the job it would do there,
- * `lead` whether the chain would be named for it. A master chain is made of
- * hints and is held to none of this beyond its slots.
+ * `leadAt` the place of the preset the chain is named for. A master chain is
+ * made of hints and is held to none of this beyond its slots.
  */
 export function clash(
   before: readonly Placed[],
   candidate: Candidate,
   role: Role | undefined,
-  lead: boolean,
+  leadAt: number,
   category: FactoryChainCategory,
 ): string | undefined {
   if (category === 'master') return undefined
+  const lead = before.length === leadAt
   const job = role ?? candidate.voice.roles[0]
   const jobOf = (placed: Placed) => placed.role ?? placed.pick.voice.roles[0]
   const is = (placed: Placed, trait: Trait) => placed.pick.voice.traits.includes(trait)
@@ -156,6 +157,8 @@ export function clash(
       return 'a hint of what an earlier preset already does in full'
   }
   if (has('heavy') && had('faint')) return 'a hint under a preset that takes the dry sound away'
+  if (has('heavy') && has('long') && leadAt < before.length)
+    return 'named for a preset that a long tail with no dry sound then covers'
   if (has('long') && had('faint')) return 'a hint under a tail that covers it'
   if (before.some((placed) => is(placed, 'faint') && jobOf(placed) === job))
     return 'a hint of what a later preset does in full'
@@ -188,7 +191,7 @@ export function chainClash(
       placed.slice(0, at),
       picks[at],
       recipe.slots[at]?.role,
-      at === recipe.lead,
+      recipe.lead,
       recipe.category,
     )
     if (why) return why
@@ -250,7 +253,7 @@ export function drawChain(
   cost: (candidate: Candidate) => number,
 ): Drawn | undefined {
   const picks: Candidate[] = []
-  for (const [index, slot] of recipe.slots.entries()) {
+  for (const slot of recipe.slots) {
     const heavy = picks.some((pick) => pick.voice.traits.includes('heavy'))
     const spent = picks.reduce((sum, pick) => sum + cost(pick), 0)
     const open = pool.filter((candidate) => {
@@ -258,10 +261,7 @@ export function drawChain(
       if (picks.some((other) => other.device === candidate.device)) return false
       if (heavy && candidate.voice.traits.includes('heavy')) return false
       const before = picks.map((pick, at): Placed => ({ pick, role: recipe.slots[at]?.role }))
-      if (
-        !recipe.own &&
-        clash(before, candidate, slot.role, index === recipe.lead, recipe.category)
-      )
+      if (!recipe.own && clash(before, candidate, slot.role, recipe.lead, recipe.category))
         return false
       return spent + cost(candidate) <= DRAW_LIMITS.costPct
     })

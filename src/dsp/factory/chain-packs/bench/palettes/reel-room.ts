@@ -82,6 +82,8 @@ export const PALETTE: PackPalette = {
     'vintage-digital': 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0,
     // The recorder's own hiss, which the lexicon hears as bright, ahead of rumble and hum.
     'noise-floor:Tape floor': 8,
     'noise-floor:Breathing tape': 8,

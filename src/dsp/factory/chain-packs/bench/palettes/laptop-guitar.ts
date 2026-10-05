@@ -68,6 +68,8 @@ export const PALETTE: PackPalette = {
     rotary: 0,
   },
   voices: {
+    // A flanger in all but its device: weighed as this pack weighs flangers.
+    'tremolo:Drifting comb': 0.05,
     'grain-cloud:Soft cloud': 1.6,
     'grain-cloud:Octave rain': 1.5,
     'glitch:Gentle stumble': 1.5,

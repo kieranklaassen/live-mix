@@ -8,9 +8,9 @@ export const LEXICON: DeviceLexicon = {
     Reverse: {
       says: 'a reverb that swells up behind each note and cuts off',
       brief: 'a rising, cut-off reverb',
-      nouns: ['cloud', 'swell'],
+      nouns: ['swell'],
       roles: ['room'],
-      traits: ['wide'],
+      traits: ['wide', 'backwards'],
     },
     Gated: {
       says: 'a short burst of reverb that holds and stops dead',
@@ -20,9 +20,9 @@ export const LEXICON: DeviceLexicon = {
       traits: ['short', 'fast', 'faint'],
     },
     Bloom: {
-      says: 'a cloud of reverb that swells in after each note and fades',
-      brief: 'a swelling reverb cloud',
-      nouns: ['cloud', 'swell', 'bloom'],
+      says: 'a reverb that swells in after each note and fades away',
+      brief: 'a swelling, fading reverb',
+      nouns: ['swell', 'bloom'],
       roles: ['hall'],
       traits: ['slow', 'wide'],
     },
@@ -41,9 +41,9 @@ export const LEXICON: DeviceLexicon = {
       traits: ['long', 'wide'],
     },
     Ghost: {
-      says: 'a dark reverb that rises behind each note, then lingers',
+      says: 'a dark reverb that rises behind each note and lingers',
       brief: 'a dark rising reverb',
-      nouns: ['cloud', 'shade'],
+      nouns: ['shade', 'swell'],
       roles: ['hall'],
       traits: ['dark', 'slow', 'wide'],
     },
@@ -57,9 +57,9 @@ export const LEXICON: DeviceLexicon = {
     'Long rise': {
       says: 'a reverb that rises for about four seconds behind each note',
       brief: 'a long rising reverb',
-      nouns: ['swell', 'cloud'],
+      nouns: ['swell'],
       roles: ['hall'],
-      traits: ['slow', 'wide', 'heavy'],
+      traits: ['slow', 'wide', 'heavy', 'backwards'],
     },
     Scattered: {
       says: 'a handful of separate echoes that fall away and repeat',
@@ -98,8 +98,8 @@ export const LEXICON: DeviceLexicon = {
     },
     'Dark swell': {
       says: 'a dull reverb that swells in over seconds and fades slowly',
-      brief: 'a slow dark swell',
-      nouns: ['swell', 'cloud', 'fog'],
+      brief: 'a slow, dark swell of reverb',
+      nouns: ['swell', 'fog'],
       roles: ['hall'],
       traits: ['dark', 'slow', 'wide'],
     },
@@ -111,7 +111,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['bright', 'cold'],
     },
     'Late wall': {
-      says: 'a late wall of reverb that holds, then fades away',
+      says: 'a late wall of reverb that holds and fades away',
       brief: 'a late wall of reverb',
       nouns: ['room'],
       roles: ['room'],
