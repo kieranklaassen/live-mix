@@ -382,6 +382,21 @@ describe('engine change events and latency (U24 hooks follow-up)', () => {
     engine.dispose()
   })
 
+  it('ioLatency() no longer counts the latency of a stream that was detached', () => {
+    const ctx = createMockContext({ baseLatency: 0.005, outputLatency: 0.02 })
+    const engine = createEngine({ context: asAudioContext(ctx) })
+    const mic = engine.addLiveInputTrack('mic')
+    const stream = {
+      getAudioTracks: () => [{ getSettings: () => ({ latency: 0.2 }) }],
+    } as unknown as MediaStream
+    mic.attach(stream)
+    expect(engine.ioLatency().inputSec).toBe(0.2)
+    mic.detach()
+    expect(mic.inputLatencySec).toBe(0)
+    expect(engine.ioLatency()).toMatchObject({ inputSec: 0, totalSec: 0.025 })
+    engine.dispose()
+  })
+
   it('ioLatency() treats missing latency fields as zero', () => {
     const ctx = createMockContext()
     ;(ctx as { outputLatency?: number }).outputLatency = undefined
