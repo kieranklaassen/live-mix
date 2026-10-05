@@ -356,6 +356,28 @@ describe('Session: stopping', () => {
     expect(clips('kick')[0].durationSec).toBe(3600)
     expect(clips('pad')[0].durationSec).toBe(3600)
   })
+
+  it('a stop does not start a transport that is not playing', async () => {
+    const { engine, session, advance, clips } = await rig()
+    // Stopped, with nothing launched: there is nothing to stop, and the piece does not begin to play.
+    session.stopAll()
+    session.stopTrack('kick')
+    session.launchSlot('pad-chorus') // an empty slot is a stop button
+    expect(engine.transport.state).toBe('stopped')
+
+    engine.transport.start()
+    await advance(7.9)
+    session.launchScene('verse') // at 8
+    await advance(1.2) // 9.1
+    engine.transport.pause()
+    // Paused: the stops are placed on the next line from where it stands, and it stays paused.
+    session.stopSlot('kick-verse')
+    expect(engine.transport.state).toBe('paused')
+    session.stopAll()
+    expect(engine.transport.state).toBe('paused')
+    expect(clips('kick')).toEqual([{ id: 'kick-verse@1', startSec: 8, durationSec: 2 }])
+    expect(clips('pad')).toEqual([{ id: 'pad-verse@2', startSec: 8, durationSec: 2 }])
+  })
 })
 
 describe('slotClipOf', () => {

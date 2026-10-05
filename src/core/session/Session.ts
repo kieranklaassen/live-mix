@@ -329,7 +329,7 @@ export class Session {
   stopSlot(slotId: string, options: LaunchOptions = {}): void {
     const slot = this.requireSlot(slotId)
     if (!this.activeLaunch(slotId)) return
-    const at = this.launchTime(options.quantize ?? slot.quantize ?? this.quantize)
+    const at = this.launchTime(options.quantize ?? slot.quantize ?? this.quantize, false)
     // A slot stopped and pressed again before the stop has come has two
     // launches, the one that is ending and the one that waits: both are stopped.
     const ops: Operation[] = []
@@ -343,7 +343,7 @@ export class Session {
 
   /** Stop whatever plays or is queued on a track at the next grid line. */
   stopTrack(track: string, options: LaunchOptions = {}): void {
-    const at = this.launchTime(options.quantize ?? this.quantize)
+    const at = this.launchTime(options.quantize ?? this.quantize, false)
     const ops = this.stopTrackOps(track, at)
     if (ops.length === 0) return
     this.apply(batch(ops), `stop ${track}`)
@@ -352,7 +352,7 @@ export class Session {
 
   /** Stop every slot at the next grid line. One undo step. */
   stopAll(options: LaunchOptions = {}): void {
-    const at = this.launchTime(options.quantize ?? this.quantize)
+    const at = this.launchTime(options.quantize ?? this.quantize, false)
     const ops: Operation[] = []
     for (const track of this.tracks()) ops.push(...this.stopTrackOps(track.id, at))
     if (ops.length === 0) return
@@ -418,10 +418,12 @@ export class Session {
   /**
    * The arrangement second a launch requested now lands at. Past the end of
    * an enabled loop the time wraps into the next pass (and reads below the
-   * playhead, which `place` records as `nextPass`).
+   * playhead, which `place` records as `nextPass`). A stop lands on the same
+   * lines, but only a launch starts a transport that is not playing
+   * (`starts`): a stop pressed while it stands still leaves it standing.
    */
-  private launchTime(quantize: LaunchQuantize): number {
-    const position = this.currentPosition()
+  private launchTime(quantize: LaunchQuantize, starts = true): number {
+    const position = this.currentPosition(starts)
     const now = position.positionSec
     this.lastPositionSec = now
     let at = quantizeLaunch(this.tempo, now, quantize)
@@ -431,10 +433,10 @@ export class Session {
     return at
   }
 
-  private currentPosition(): TransportPosition {
+  private currentPosition(starts: boolean): TransportPosition {
     const transport = this.engine?.transport
     if (!transport) return { positionSec: this.lastPositionSec, iteration: 0, finished: false }
-    if (transport.state !== 'playing' && this.autoStart) transport.start()
+    if (starts && transport.state !== 'playing' && this.autoStart) transport.start()
     return transport.position()
   }
 
