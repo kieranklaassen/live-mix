@@ -167,6 +167,36 @@ describe('OscInput', () => {
     expect(input.opened).toBe(false)
   })
 
+  it('settles open() when it is closed while the socket is still connecting', async () => {
+    const sockets: FakeSocket[] = []
+    const input = new OscInput({
+      url: 'ws://slow',
+      createSocket: (url) => {
+        const socket = new FakeSocket(url)
+        sockets.push(socket)
+        return socket
+      },
+    })
+    // The page lets go while the bridge has not answered yet (an effect cleaned up).
+    const opening = input.open()
+    input.close()
+    const later = new Promise<string>((resolve) => setTimeout(() => resolve('still waiting'), 20))
+    await expect(Promise.race([opening.then(() => 'settled'), later])).resolves.toBe('settled')
+    expect(sockets[0].closed).toBe(1)
+    expect(input.opened).toBe(false)
+
+    // Opened again it connects anew, and the first socket's late answer changes nothing.
+    const again = input.open()
+    expect(sockets).toHaveLength(2)
+    sockets[1].open()
+    await again
+    expect(input.opened).toBe(true)
+    sockets[0].open()
+    sockets[0].fail()
+    expect(input.opened).toBe(true)
+    expect(sockets[1].closed).toBe(0)
+  })
+
   it('needs a url or a transport, and resolves at once for an already-open socket', async () => {
     await expect(new OscInput().open()).rejects.toThrow(/needs a url or a transport/)
     const socket = new FakeSocket('ws://x')
