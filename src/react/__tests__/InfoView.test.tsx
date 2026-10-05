@@ -276,6 +276,13 @@ describe('the kit’s own controls', () => {
     )
     expect(paramInfo({ ...spec, taper: 'linear', name: 'Shape' })).toBeUndefined()
   })
+
+  it('has no words for a parameter whose name every object has a property by', () => {
+    const spec = { id: 0, min: 0, max: 1, default: 0.5, taper: 'linear' as const, unit: '' }
+    // A hosted plug-in names its own parameters.
+    expect(paramInfo({ ...spec, name: 'Constructor' })).toBeUndefined()
+    expect(paramInfo({ ...spec, name: '__proto__' })).toBeUndefined()
+  })
 })
 
 describe('InfoView', () => {
