@@ -275,7 +275,8 @@ export class VirtualPush {
             filter.vendorId === this.usbDevice.vendorId &&
             filter.productId === this.usbDevice.productId,
         )
-        if (!match) return Promise.reject(new Error('No device selected.'))
+        // With the cable out the chooser lists nothing: there is nothing for a person to pick.
+        if (!match || !this.plugged) return Promise.reject(new Error('No device selected.'))
         this.usbGranted = true
         return Promise.resolve(this.usbDevice)
       },

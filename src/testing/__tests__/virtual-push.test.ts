@@ -65,3 +65,19 @@ describe('VirtualPush.plug', () => {
     expect(push.frames).toBe(1)
   })
 })
+
+describe('VirtualPush.usb', () => {
+  it('has no display to pick while the cable is out, and nothing is allowed by asking', async () => {
+    const push = new VirtualPush()
+    const { vendorId, productId } = push.usbDevice
+    const ask = () => push.usb().requestDevice({ filters: [{ vendorId, productId }] })
+    push.unplug()
+    // The browser's chooser lists nothing, and all a person can do is close it.
+    await expect(ask()).rejects.toThrow('No device selected.')
+    push.plug()
+    expect(await push.usb().getDevices()).toEqual([])
+    // With the cable in it is picked, and known from then on.
+    expect(await ask()).toBe(push.usbDevice)
+    expect(await push.usb().getDevices()).toEqual([push.usbDevice])
+  })
+})
