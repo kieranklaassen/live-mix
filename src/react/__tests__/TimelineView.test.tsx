@@ -25,6 +25,22 @@ function clip(id: string, startSec: number, durationSec: number, sourceId = id):
   }
 }
 
+/** Runs `body` with a ceiling on what arrays take in, so a loop that would never end throws and the run goes on. */
+function withinReason<T>(body: () => T, ceiling = 200_000): T {
+  const push = Array.prototype.push
+  let taken = 0
+  Array.prototype.push = function (this: unknown[], ...items: unknown[]): number {
+    taken += items.length
+    if (taken > ceiling) throw new Error('an array grew without end')
+    return push.apply(this, items)
+  }
+  try {
+    return body()
+  } finally {
+    Array.prototype.push = push
+  }
+}
+
 describe('TimelineView', () => {
   it('draws a lane per track with clips placed in seconds and a playhead', () => {
     const fixture = createTestEngine()
@@ -77,6 +93,20 @@ describe('TimelineView', () => {
     act(() => fixture.frames.flush(1000))
     expect(screen.getByTestId('tl-playhead')).toHaveStyle({ left: '15px' })
     expect(screen.getByTestId('tl')).toHaveClass('lm-timeline--playing')
+  })
+
+  it('draws a loop that is on and has no end as no loop: the canvas keeps its length', () => {
+    // A new engine's timeline has no end, and its loop is switched on as it stands by the transport bar.
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    pad.clips.add(clip('a', 0, 2))
+    render(<TimelineView pixelsPerSecond={10} data-testid="tl" />, { wrapper: fixture.wrapper })
+    withinReason(() => act(() => fixture.engine.transport.setLoop({ enabled: true })))
+    expect(fixture.engine.transport.loop).toEqual({ enabled: true, lengthSec: Infinity })
+    const timeline = screen.getByTestId('tl')
+    expect(timeline.querySelector<HTMLElement>('.lm-timeline__canvas')?.style.width).toBe('160px')
+    expect(timeline.querySelector('.lm-timeline__loop')).toBeNull()
+    expect(screen.getByRole('slider', { name: 'Position' })).toHaveAttribute('aria-valuemax', '16')
   })
 
   it('seeks from the ruler by click and keyboard, and reports clip clicks', () => {
@@ -151,6 +181,11 @@ describe('TimelineView', () => {
         .filter((tick) => tick.major)
         .map((tick) => tick.sec),
     ).toEqual([0, 50])
+  })
+
+  it('gives a length that has no end no ticks, and returns', () => {
+    expect(withinReason(() => rulerTicks(Infinity, 40))).toEqual([])
+    expect(rulerTicks(Number.NaN, 40)).toEqual([])
   })
 
   it('waveformPath outlines the maxima forward and the minima back', () => {

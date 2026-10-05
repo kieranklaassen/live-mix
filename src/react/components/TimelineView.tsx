@@ -9,6 +9,7 @@ import { useCallback, useRef, type CSSProperties, type KeyboardEvent, type Mouse
 import { type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
 import { type SampleStore } from '../../core/tracks/SampleStore'
+import { isLooping } from '../../core/transport/anchor'
 import { type Transport } from '../../core/transport/Transport'
 import { useSchedule, type ClipSource } from '../hooks/useClips'
 import { useMaybeEngine } from '../hooks/useEngine'
@@ -102,6 +103,8 @@ export function rulerTicks(
     pixelsPerSecond >= 60 ? 1 : pixelsPerSecond >= 25 ? 2 : pixelsPerSecond >= 10 ? 5 : 10
   const major = every * 5
   const ticks: { sec: number; major: boolean }[] = []
+  // A length with no end has no last tick to stop at.
+  if (!Number.isFinite(durationSec)) return ticks
   for (let sec = 0; sec <= durationSec; sec += every) ticks.push({ sec, major: sec % major === 0 })
   return ticks
 }
@@ -127,9 +130,9 @@ export function TimelineView({
   const t = useTransport(transport, { fps })
   const lastEnd = useLastClipEnd(laneList)
 
-  const length =
-    durationSec ??
-    Math.max(16, lastEnd + 2, t.loop.enabled ? t.loop.lengthSec : 0, t.positionSec + 8)
+  // A loop switched on over a timeline with no end (a new engine's) wraps nowhere: it is drawn as no loop.
+  const loopSec = isLooping(t.loop) ? t.loop.lengthSec : 0
+  const length = durationSec ?? Math.max(16, lastEnd + 2, loopSec, t.positionSec + 8)
   const widthPx = length * pixelsPerSecond
 
   const seekAt = (event: MouseEvent<HTMLElement>): void => {
@@ -205,10 +208,10 @@ export function TimelineView({
               </span>
             ))}
           </div>
-          {t.loop.enabled ? (
+          {loopSec > 0 ? (
             <div
               className="lm-timeline__loop"
-              style={{ left: 0, width: t.loop.lengthSec * pixelsPerSecond }}
+              style={{ left: 0, width: loopSec * pixelsPerSecond }}
               aria-hidden="true"
             />
           ) : null}
