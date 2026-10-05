@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { type Clip } from '../../core/clips/Clip'
+import { type JsonObject } from '../../core/json'
 import {
   OPERATION_TYPES,
   ScoreOperationError,
@@ -431,6 +432,32 @@ describe('apply', () => {
     expect(coalesceKey(set)).toBe('score.setMeta|chords,key')
     expect(coalesceKey(swap)).toBe('score.setMeta|chords')
     expect(describeOperation(set)).toBe('set score meta chords, key')
+  })
+
+  it('a meta entry named "__proto__" is refused: it was said to be set and was not in the score', () => {
+    // As JSON gives it: the name is an entry of its own, not the object's prototype.
+    const json = (text: string): JsonObject => JSON.parse(text) as JsonObject
+    const named = json('{"__proto__": {"key": "C"}}')
+    const nested = json('{"chords": [{"__proto__": 1}]}')
+    for (const meta of [named, nested]) {
+      expect(() => apply(base, { type: 'score.setMeta', patch: meta })).toThrow(/__proto__/)
+      expect(() =>
+        apply(base, { type: 'clip.update', track: 'kick', id: 'a1', patch: { meta } }),
+      ).toThrow(/__proto__/)
+      expect(() =>
+        apply(base, { type: 'clip.add', track: 'kick', clip: clip('z', 'a', 2, { meta }) }),
+      ).toThrow(/__proto__/)
+      expect(() => apply(base, { type: 'source.update', id: 'a', patch: { meta } })).toThrow(
+        /__proto__/,
+      )
+      expect(() => apply(base, { type: 'source.add', source: { id: 'c', meta } })).toThrow(
+        /__proto__/,
+      )
+    }
+    // Taking the entry off (there is none) and every other name still go.
+    const kept = apply(base, { type: 'score.setMeta', patch: json('{"constructor": 1}') })
+    expect(kept.meta).toEqual({ constructor: 1 })
+    expect(validateScore(parseScore(serializeScore(kept)))).toEqual([])
   })
 
   it('source.update patches a source, clears with null and inverts to what was there', () => {

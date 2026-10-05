@@ -721,6 +721,22 @@ function withInserts(score: Score, op: Operation, owner: string, inserts: ScoreD
 
 const tidyClip = normaliseClip
 
+/**
+ * Whether JSON has an entry named `__proto__` anywhere in it. That is JSON,
+ * but a score cannot keep it: a copy made by assignment takes the name for
+ * the copy's prototype and the entry is gone.
+ */
+function namesProto(value: JsonValue): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  if (Array.isArray(value)) return value.some(namesProto)
+  return Object.hasOwn(value, '__proto__') || Object.values(value).some(namesProto)
+}
+
+/** Refused, so that an operation never says an entry was set which the score then has not got. */
+function assertNoProto(op: Operation, what: string, value: JsonValue): void {
+  if (namesProto(value)) fail(op, `${what} cannot keep an entry named "__proto__"`)
+}
+
 function isPlacementKey(key: string): key is ClipPlacementKey {
   return (CLIP_PLACEMENT_KEYS as readonly string[]).includes(key)
 }
@@ -734,6 +750,7 @@ function checkedClip(op: Operation, clip: Clip): Clip {
   if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
     fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
   }
+  if (clip.meta !== undefined) assertNoProto(op, `clip "${clip.id}" meta`, clip.meta)
   const tidy = tidyClip(clip)
   const [issue] = clipIssues(tidy)
   if (issue) fail(op, `clip "${clip.id}" ${issue.path.slice('clip.'.length)}: ${issue.message}`)
@@ -759,7 +776,10 @@ function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): Sc
   if (patch.meta !== undefined) {
     if (patch.meta === null) delete next.meta
     else if (!isJsonObject(patch.meta)) fail(op, 'source meta must be a plain JSON object')
-    else next.meta = patch.meta
+    else {
+      assertNoProto(op, 'source meta', patch.meta)
+      next.meta = patch.meta
+    }
   }
   return normaliseSource(next)
 }
@@ -900,7 +920,10 @@ function applyOne(score: Score, op: Operation): Score {
         const value = op.patch[key]
         if (value === null) delete meta[key]
         else if (!isJsonValue(value)) fail(op, `meta "${key}" must be plain JSON`)
-        else meta[key] = value
+        else {
+          assertNoProto(op, 'meta', { [key]: value })
+          meta[key] = value
+        }
       }
       const next: Score = { ...score }
       const normalised = normaliseMeta(meta)
@@ -1005,6 +1028,7 @@ function applyOne(score: Score, op: Operation): Score {
       if (op.source.meta !== undefined && !isJsonObject(op.source.meta)) {
         fail(op, 'source meta must be a plain JSON object')
       }
+      if (op.source.meta !== undefined) assertNoProto(op, 'source meta', op.source.meta)
       const source = normaliseSource(op.source)
       const sources = insertAt(op, score.sources, source, op.index)
       return fitting({ ...score, sources }, op, `sources[${sources.indexOf(source)}]`)
