@@ -201,6 +201,8 @@ export class LinkAudioReceiver {
     const stop: LinkSourceMessage = { type: 'dispose' }
     this.output.port.postMessage(stop)
     this.output.port.onmessage = null
+    // Nor what the intake had posted before it hears this: it would open the channel again.
+    this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
     this.setStatus('closed', 'closed')
   }

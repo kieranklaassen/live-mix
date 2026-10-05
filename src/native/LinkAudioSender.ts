@@ -174,6 +174,8 @@ export class LinkAudioSender {
     }
     const stop: LinkTapMessage = { type: 'dispose' }
     this.input.port.postMessage(stop)
+    // What the pump had posted before it hears this must not open the channel again.
+    this.worker.onmessage = null
     this.worker.postMessage({ type: 'stop' })
     this.setStatus('closed', 'closed')
   }

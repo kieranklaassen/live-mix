@@ -146,6 +146,22 @@ describe('LinkAudioSender', () => {
     expect(workers[0].posted).toHaveLength(said)
   })
 
+  it('stays closed when the pump reports the connection after it was disposed', async () => {
+    const { create, workers } = await build()
+    const sender = await create()
+    const seen: string[] = []
+    sender.onStatus = (status) => seen.push(status)
+    const stats: number[] = []
+    sender.onStats = ({ blocks }) => stats.push(blocks)
+    sender.dispose()
+    // What the pump had posted before it was told to stop arrives after.
+    workers[0].onmessage?.({ data: { type: 'open' } })
+    workers[0].onmessage?.({ data: { type: 'stats', stats: { blocks: 94, dropped: 0 } } })
+    expect(sender.status).toBe('closed')
+    expect(seen).toEqual(['closed'])
+    expect(stats).toEqual([])
+  })
+
   it('refuses a host that was built without Link', async () => {
     const { create } = await build({ link: false })
     await expect(create()).rejects.toThrow(/without Ableton Link/)

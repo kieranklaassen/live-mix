@@ -156,6 +156,18 @@ describe('LinkAudioReceiver', () => {
     expect(workers[0].posted).toHaveLength(said)
   })
 
+  it('stays closed when the intake reports the connection after it was disposed', async () => {
+    const { create, workers } = await build()
+    const receiver = await create()
+    const seen: string[] = []
+    receiver.onStatus = (status) => seen.push(status)
+    receiver.dispose()
+    // What the intake had posted before it was told to stop arrives after.
+    workers[0].onmessage?.({ data: { type: 'open' } })
+    expect(receiver.status).toBe('closed')
+    expect(seen).toEqual(['closed'])
+  })
+
   it('refuses a host that was built without Link, or before it could receive', async () => {
     const without = await build({ link: false })
     await expect(without.create()).rejects.toThrow(/without Ableton Link/)
