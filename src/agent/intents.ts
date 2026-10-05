@@ -744,7 +744,7 @@ const undo: ToolSpec = {
     if (entry.outcome !== 'applied' || entry.operations.length === 0) {
       throw new ToolError('rejected', `call ${entry.callId} applied no operations`)
     }
-    if (entry.undoneBy !== undefined) {
+    if (view.audit.isUndone(entry)) {
       throw new ToolError(
         'rejected',
         `call ${entry.callId} was already undone by ${entry.undoneBy}`,

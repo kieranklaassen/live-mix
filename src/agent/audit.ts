@@ -26,7 +26,7 @@ export interface AuditEntry {
   message?: string
   /** One line for the model: what happened. */
   summary: string
-  /** Set when a later `undo` reverted this call. */
+  /** Set when a later `undo` reverted this call; `isUndone` says whether that undo still stands. */
   undoneBy?: number
   /** Writes of this call still waiting behind a hold; they join `operations` when they land. */
   waiting?: number
@@ -75,13 +75,24 @@ export class AgentAuditLog {
   }
 
   /**
+   * Whether an `undo` took this call back and that undo still stands. An undo
+   * that was itself undone took nothing back in the end: the call it named is
+   * applied again, and is not stepped over as one already undone.
+   */
+  isUndone(entry: AuditEntry): boolean {
+    if (entry.undoneBy === undefined) return false
+    const by = this.find(entry.undoneBy)
+    return by === undefined || !this.isUndone(by)
+  }
+
+  /**
    * The last applied (not undone) call by `author` that changed the score, skipping
    * `excludeTools`. A call with a write still waiting counts: it is not stepped over.
    */
   lastApplied(author?: Author, excludeTools: readonly string[] = ['undo']): AuditEntry | undefined {
     for (let index = this.list.length - 1; index >= 0; index -= 1) {
       const entry = this.list[index]
-      if (entry.outcome !== 'applied' || entry.undoneBy !== undefined) continue
+      if (entry.outcome !== 'applied' || this.isUndone(entry)) continue
       if (entry.operations.length === 0 && !entry.waiting) continue
       if (excludeTools.includes(entry.tool)) continue
       if (author && (entry.author.id !== author.id || entry.author.kind !== author.kind)) continue

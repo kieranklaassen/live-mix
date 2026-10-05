@@ -260,6 +260,33 @@ describe('AgentController.call: the pipeline', () => {
     expect(controller.undo().ok).toBe(false)
   })
 
+  it('an undo that is itself undone took nothing back: its call stands, and is the next to undo', async () => {
+    const { controller, clock } = await rig()
+    const set = (value: number) =>
+      controller.call('strip_set', { owner: 'music', param: 'level', value }) as ToolSuccess
+    set(0.5)
+    const second = set(0.3)
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result.undone).toBe(second.callId)
+    expect(musicLevel(controller)).toBe(0.5)
+    // The undo is one of the agent's earlier calls too, and taking it back puts the level set again.
+    const redone = controller.undo(undone.callId) as ToolSuccess
+    expect(redone.result).toEqual({ undone: undone.callId, tool: 'undo', operations: 1 })
+    expect(musicLevel(controller)).toBe(0.3)
+    // The undo that was taken back cannot be taken back twice.
+    expect((controller.undo(undone.callId) as ToolFailure).error.message).toContain(
+      'already undone',
+    )
+    // What stands is the second call, not the first: a plain undo takes that one back.
+    clock.ms += 60_000
+    const again = controller.undo() as ToolSuccess
+    expect(again.result).toEqual({ undone: second.callId, tool: 'strip_set', operations: 1 })
+    expect(musicLevel(controller)).toBe(0.5)
+    expect((controller.undo(second.callId) as ToolFailure).error.message).toContain(
+      'already undone',
+    )
+  })
+
   it('a disposed controller refuses calls and stops its cadence', async () => {
     const intervals: (() => void)[] = []
     const cleared: number[] = []
