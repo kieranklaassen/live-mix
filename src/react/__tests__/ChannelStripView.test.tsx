@@ -169,4 +169,24 @@ describe('ChannelStripView', () => {
         .map((send) => send.getAttribute('aria-label')),
     ).toEqual(['Send to room', 'Send to room', 'Send to plate'])
   })
+
+  it('shows the level of a send that was taken off and put on again at another level', async () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const pad = engine.addAudioTrack('pad')
+    const hall = engine.addReturnTrack('hall', {
+      device: await engine.devices.create('delay', engine.context),
+    })
+    pad.strip.sends.add(hall, { level: 0.5 })
+    const view = () => <ChannelStripView strip={pad} meter={false} />
+    const { rerender } = render(view(), { wrapper: fixture.wrapper })
+    expect(screen.getByText('-6 dB')).toHaveClass('lm-strip__send-value')
+    // What the score's renderer does when a send gains or loses its level.
+    pad.strip.sends.remove(hall)
+    pad.strip.sends.add(hall, { level: 1 })
+    rerender(view())
+    const send = screen.getByRole('slider', { name: 'Send to hall' })
+    expect(Number(send.getAttribute('aria-valuenow'))).toBeCloseTo(0, 1)
+    expect(screen.getByText('0 dB')).toHaveClass('lm-strip__send-value')
+  })
 })

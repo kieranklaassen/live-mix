@@ -295,6 +295,13 @@ export function ChannelStripView({
 function SendControl({ send, now }: { send: Send; now: () => number }) {
   const { gainNode } = send
   const [db, setDb] = useState(() => levelToFaderDb(gainNode?.gain.value ?? 1))
+  // The level kept here is one node's: a send taken off and put on again
+  // (as when it gains or loses its level) has a new node at a level of its own.
+  const [levelled, setLevelled] = useState(gainNode)
+  if (levelled !== gainNode) {
+    setLevelled(gainNode)
+    setDb(levelToFaderDb(gainNode?.gain.value ?? 1))
+  }
   if (!gainNode) {
     return <span className="lm-strip__send-direct">→ {send.target.name}</span>
   }
