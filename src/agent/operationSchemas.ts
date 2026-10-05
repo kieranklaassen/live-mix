@@ -56,6 +56,38 @@ const paramMap: JsonSchema = {
   additionalProperties: { type: 'number' },
 }
 
+// The fields the validator's `checkClipFields` and `checkWarp` take beside the
+// rest of a clip: without them here a looping or warped clip, and so any
+// stretch track, was refused before it reached the score that holds it. A
+// slot's clip keeps its markers and no loop region (a launch makes one of its
+// offset and length).
+const loopRegion: Record<string, JsonSchema> = {
+  loopStartSec: number(
+    'Where the source region a looping clip cycles over begins, in source seconds; offsetSec may sit anywhere inside it.',
+    { min: 0 },
+  ),
+  loopEndSec: number(
+    'Where that region ends, after loopStartSec; absent = the end of the source.',
+    {
+      min: 0,
+    },
+  ),
+}
+const warp: JsonSchema = {
+  type: 'array',
+  description:
+    'Warp markers for tempo-synced playback on a stretch track: each pins a second of the source to a beat from the clip start.',
+  items: {
+    type: 'object',
+    properties: {
+      sourceSec: number('Seconds into the source.', { min: 0 }),
+      beat: number('Beat from the clip start.', { min: 0 }),
+    },
+    required: ['sourceSec', 'beat'],
+    additionalProperties: false,
+  },
+}
+
 /** `$defs` shared by the operation schemas; each tool schema carries only what it references. */
 export const OPERATION_DEFS: Record<string, JsonSchema> = {
   Destination: {
@@ -133,6 +165,8 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       fadeCurve: { type: 'string', enum: ['linear', 'equalPower'] },
       gainDb: number('Loudness trim in dB (the track caps it at ±12).'),
       loop: { type: 'boolean', description: 'Loop the source when the clip outlives it.' },
+      ...loopRegion,
+      warp,
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean', description: 'Keep the clip on the track without playing it.' },
       reversed: { type: 'boolean', description: "Play the clip's slice of the source backwards." },
@@ -176,6 +210,8 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       fadeCurve: { type: 'string', enum: ['linear', 'equalPower'] },
       gainDb: number('Loudness trim in dB.'),
       loop: { type: 'boolean' },
+      ...loopRegion,
+      warp,
       semitones: number('Pitch shift on a stretch source.'),
       muted: { type: 'boolean' },
       reversed: { type: 'boolean' },
@@ -236,6 +272,11 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       strip: ref('Strip'),
       lookaheadSec: number('Audio tracks: scheduler lookahead.', { min: 0 }),
       preloadSec: number('Audio tracks: preload lead.', { min: 0 }),
+      stretch: {
+        type: 'boolean',
+        description:
+          "Audio tracks: play through the time-stretcher, which a clip's warp markers and semitones need. A stretch track has no loop length of its own. Absent = plain buffer playback.",
+      },
       loopLengthSec: {
         type: 'number',
         exclusiveMinimum: 0,
@@ -457,6 +498,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       fadeCurve: { type: 'string', enum: ['linear', 'equalPower'] },
       gainDb: number('Loudness trim in dB.'),
       loop: { type: 'boolean', description: 'Loop until stopped.' },
+      warp,
       semitones: number('Pitch shift on a stretch source.'),
       reversed: { type: 'boolean', description: 'Play the slice backwards.' },
       chance: number('Chance of sounding on each pass, 0 to 1; 1 plays every pass.', {
