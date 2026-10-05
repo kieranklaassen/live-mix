@@ -370,7 +370,8 @@ export class AgentController implements ControllerView {
         // A copy: a write that lands later is added to the entry, not to what the call was answered.
         operations: [...applied],
         inverses,
-        waiting: tickets.length,
+        // Counted as they stand now: a later write of this call to the same targets retired the earlier wait.
+        waiting: tickets.filter((ticket) => this.waiting.get(ticket) === callId).length,
         result: spec.definition.category === 'query' ? undefined : result,
         summary: `${plan.label}${describeNotes(notes)}`,
       })

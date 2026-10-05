@@ -248,6 +248,42 @@ describe('AgentController through the arbiter', () => {
     expect(level()).toBe(0.8)
   })
 
+  it('a wait retired by a later write of the same call is not counted as still waiting', async () => {
+    const { controller, arbiter, clock, level } = await rig()
+    controller.registry.register({
+      definition: {
+        name: 'twice',
+        description: 'test',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        category: 'operation',
+      },
+      available: () => true,
+      plan: () => ({
+        operations: [
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.1 },
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.2 },
+        ],
+        effects: [],
+        result: {},
+        label: 'twice',
+      }),
+    })
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    expect(controller.call('twice', {}).ok).toBe(true)
+    // The second write took the first one's place in the queue: one write waits, not two.
+    expect(arbiter.pending()).toHaveLength(1)
+    expect(controller.audit.find(1)?.waiting).toBe(1)
+
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.2)
+    expect(controller.audit.find(1)?.waiting).toBe(0)
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result).toEqual({ undone: 1, tool: 'twice', operations: 1 })
+    expect(level()).toBe(0.8)
+  })
+
   it('an undo that waited and landed has undone its call', async () => {
     const { controller, arbiter, clock, level } = await rig()
     controller.call('set_music_volume', { level: 0.6 })
