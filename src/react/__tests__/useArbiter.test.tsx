@@ -94,6 +94,22 @@ describe('useArbiter', () => {
     expect(findStripHost(document.score, 'kick')?.strip.level).toBe(0.5)
   })
 
+  it('reads the arbiter it is given now, not the one before it at the same revision', async () => {
+    const first = await rig()
+    const second = await rig()
+    first.arbiter.touch(kickLevel)
+    second.arbiter.lock('strip:pad:level', { reason: 'test' })
+    expect(first.arbiter.revision).toBe(second.arbiter.revision)
+    const { result, rerender } = renderHook(({ arbiter }) => useArbiter(arbiter), {
+      initialProps: { arbiter: first.arbiter },
+    })
+    expect(result.current.holds).toHaveLength(1)
+    rerender({ arbiter: second.arbiter })
+    expect(result.current.arbiter).toBe(second.arbiter)
+    expect(result.current.holds).toEqual([])
+    expect(result.current.locks).toMatchObject([{ target: 'strip:pad:level' }])
+  })
+
   it('resolves the provided arbiter and throws without one', async () => {
     const { arbiter, wrapper } = await rig()
     const { result } = renderHook(() => useArbiter(), { wrapper })
@@ -142,6 +158,22 @@ describe('useArbiterTarget', () => {
     expect(result.current.status).toBe('locked by rails')
     act(() => arbiter.unlock('strip:kick:level'))
     expect(result.current.status).toBe('')
+  })
+
+  it('reads the target it is given now, not the one before it', async () => {
+    const { wrapper } = await rig()
+    const { result, rerender } = renderHook(({ target }) => useArbiterTarget(target), {
+      wrapper,
+      initialProps: { target: 'strip:kick:level' },
+    })
+    act(() => result.current.touch())
+    expect(result.current.status).toBe('held by you')
+    // No arbiter event falls between the two renders: the revision does not tell them apart.
+    rerender({ target: 'strip:pad:level' })
+    expect(result.current.key).toBe('strip:pad:level')
+    expect(result.current.status).toBe('')
+    rerender({ target: 'strip:kick:level' })
+    expect(result.current.status).toBe('held by you')
   })
 
   it('shows an agent pending on a free target (a lock lifted with a write still queued)', async () => {
