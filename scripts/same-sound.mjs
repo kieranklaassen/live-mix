@@ -5,8 +5,11 @@
 // reading for a display (`meters` in device.json) changes its .wasm and must
 // not change one sample of what it puts out; this is the check for that.
 //
-// Usage: node scripts/same-sound.mjs <id> [<id> ...] [--ref <git ref>]   (default ref: origin/main)
+// Usage: node scripts/same-sound.mjs <id> [<id> ...] [--ref <git ref>] [--shipped]   (default ref: origin/main)
 //        the new .wasm is read while `device_meter` is being called, as a watched device is.
+//        --shipped plays the presets and sweeps the parameters the device had at the
+//        ref, for one that has gained a parameter which, left where it starts, must
+//        leave every sound it made as it was.
 
 import { execFileSync } from 'node:child_process'
 import { readFileSync } from 'node:fs'
@@ -17,11 +20,12 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const args = process.argv.slice(2)
 const refAt = args.indexOf('--ref')
 const ref = refAt === -1 ? 'origin/main' : args[refAt + 1]
+const shipped = args.includes('--shipped')
 const ids = args.filter(
   (arg, index) => !arg.startsWith('--') && (refAt === -1 || index !== refAt + 1),
 )
 if (ids.length === 0) {
-  console.error('usage: node scripts/same-sound.mjs <id> [<id> ...] [--ref <git ref>]')
+  console.error('usage: node scripts/same-sound.mjs <id> [<id> ...] [--ref <git ref>] [--shipped]')
   process.exit(1)
 }
 
@@ -88,7 +92,15 @@ function same(a, b) {
 
 let failed = false
 for (const id of ids) {
-  const manifest = JSON.parse(readFileSync(join(root, 'cpp/devices', id, 'device.json'), 'utf8'))
+  const today = JSON.parse(readFileSync(join(root, 'cpp/devices', id, 'device.json'), 'utf8'))
+  const manifest = shipped
+    ? JSON.parse(
+        execFileSync('git', ['show', `${ref}:cpp/devices/${id}/device.json`], {
+          cwd: root,
+          maxBuffer: 64 * 1024 * 1024,
+        }).toString(),
+      )
+    : today
   if (manifest.category === 'instrument') {
     console.log(`${id}: an instrument; this check plays effects only`)
     continue
@@ -131,7 +143,7 @@ for (const id of ids) {
   let differs = null
   for (const [name, params, sweep] of runs) {
     const a = render(await load(before), params, sweep, 0)
-    const b = render(await load(after), params, sweep, (manifest.meters ?? []).length)
+    const b = render(await load(after), params, sweep, (today.meters ?? []).length)
     const at = same(a, b)
     if (at !== -1) {
       differs = `${name}: first difference at sample ${at}`

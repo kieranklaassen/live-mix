@@ -6,6 +6,7 @@
 //    1  gain: -12..24 dB, default 0
 //    2  release: 0.2..10 s, default 1.5
 //    3  ride: 0..1, default 1
+//    4  autoGain: 0..24 dB, default 0
 
 #pragma once
 
@@ -17,12 +18,13 @@ enum Param : int {
   kGain = 1,
   kRelease = 2,
   kRide = 3,
-  kNumParams = 4,
+  kAutoGain = 4,
+  kNumParams = 5,
 };
 
-inline constexpr float kParamMin[kNumParams] = {-12.0f, -12.0f, 0.2f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {0.0f, 24.0f, 10.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {-1.0f, 0.0f, 1.5f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {-12.0f, -12.0f, 0.2f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {0.0f, 24.0f, 10.0f, 1.0f, 24.0f};
+inline constexpr float kParamDefault[kNumParams] = {-1.0f, 0.0f, 1.5f, 1.0f, 0.0f};
 
 }  // namespace ambient_limiter
 }  // namespace livemix

@@ -54,6 +54,27 @@ export const QUIET_PRESETS: Readonly<Record<string, readonly string[]>> = {
   'ambient-limiter': ['Master', 'Streaming', 'Slow tide', 'Wall only'],
 }
 
+/** What a preset made to be loud is held to in place of the level every other preset keeps. */
+export interface FullLevel {
+  /** The highest sample it may put out, dBFS: the ceiling it sets. */
+  peakDb: number
+  /** How many LU over the dry phrase it may come out: the gain it may add. */
+  louderLu: number
+}
+
+/**
+ * Presets made to bring a quiet mix up to full scale. That is what the two
+ * level rules keep every other preset from doing (a peak over -1 dBFS, more
+ * than 6 LU over the dry phrase), so each of these is held to the ceiling it
+ * sets and to the gain it may add instead, and to every other rule as it is.
+ */
+export const FULL_LEVEL_PRESETS: Readonly<Record<string, Readonly<Record<string, FullLevel>>>> = {
+  'ambient-limiter': {
+    'Full level': { peakDb: -0.3, louderLu: 12 },
+    'Full and dense': { peakDb: -0.3, louderLu: 15 },
+  },
+}
+
 /** The longest a preset's name may be: what a row of a preset list shows whole. */
 export const LONGEST_NAME = 24
 
@@ -273,6 +294,8 @@ export interface PresetReading {
   nearest: { name: string; distance: number } | null
   /** One of `QUIET_PRESETS`: meant to change little. */
   quiet: boolean
+  /** One of `FULL_LEVEL_PRESETS`: the level it is held to instead, or null. */
+  full: FullLevel | null
   /** Any sample that is not a number. */
   broken: boolean
 }
@@ -346,6 +369,7 @@ export async function readEffect(
       ),
       nearest: null,
       quiet: (QUIET_PRESETS[descriptor.id] ?? []).includes(name),
+      full: FULL_LEVEL_PRESETS[descriptor.id]?.[name] ?? null,
       broken: [audio, bright].some((rendered) =>
         rendered.channels.some((channel) => channel.some((sample) => !Number.isFinite(sample))),
       ),
@@ -374,10 +398,12 @@ export function presetProblems(preset: PresetReading, dry: AudioMeasurement): st
   const problems = [...preset.invalid]
   const m = preset.measured
   if (preset.broken) problems.push('puts out samples that are not numbers')
-  if (m.peakDb > -1) problems.push(`peaks at ${m.peakDb.toFixed(1)} dBFS`)
+  // A hundredth of a dB for the rounding of a ceiling that is held to the sample.
+  if (m.peakDb > (preset.full ? preset.full.peakDb + 0.01 : -1))
+    problems.push(`peaks at ${m.peakDb.toFixed(1)} dBFS`)
   if (!(m.lufs > dry.lufs - 12))
     problems.push(`is ${(dry.lufs - m.lufs).toFixed(1)} LU quieter than the dry phrase`)
-  if (m.lufs > dry.lufs + 6)
+  if (m.lufs > dry.lufs + (preset.full?.louderLu ?? 6))
     problems.push(`is ${(m.lufs - dry.lufs).toFixed(1)} LU louder than the dry phrase`)
   if (Math.abs(m.dc) > 0.01) problems.push(`leaves an offset of ${m.dc.toFixed(3)}`)
   // The one preset that is the effect as it starts may leave the sound alone: it is where the knobs go home to.
@@ -404,7 +430,7 @@ export function formatEffect(reading: EffectReading): string {
     const m = preset.measured
     const problems = presetProblems(preset, reading.dry)
     lines.push(
-      `  ${problems.length ? 'FAIL' : preset.quiet ? 'ok ~' : 'ok  '} ${preset.name.padEnd(24)} LU ${f(m.lufs - reading.dry.lufs).padStart(5)}  peak ${f(m.peakDb).padStart(5)}  ` +
+      `  ${problems.length ? 'FAIL' : preset.quiet ? 'ok ~' : preset.full ? 'ok ^' : 'ok  '} ${preset.name.padEnd(24)} LU ${f(m.lufs - reading.dry.lufs).padStart(5)}  peak ${f(m.peakDb).padStart(5)}  ` +
         `tail ${f(m.tailDb).padStart(6)}  centroid ${f(m.centroidHz, 0).padStart(5)}  width ${f(m.widthDb).padStart(6)}  ` +
         `dry ${f(preset.fromDry, 2).padStart(5)}  default ${f(preset.fromDefault, 2).padStart(5)}  ` +
         `nearest ${(preset.nearest ? f(preset.nearest.distance, 2) : '-').padStart(5)} ${preset.nearest?.name ?? ''}`,
