@@ -52,6 +52,25 @@ describe('NativeHostClient', () => {
     expect(host.socket.closed).toBe(true)
   })
 
+  it('lets go of a host that answers hello with an error', async () => {
+    const host = new FakePluginHost()
+    await expect(
+      NativeHostClient.connect(FAKE_HOST_ADDRESS, {
+        createSocket: (url) => {
+          const socket = host.createSocket(url)
+          const deliver = socket.deliver.bind(socket)
+          socket.deliver = (message) =>
+            deliver({
+              id: (message as { id?: number }).id,
+              error: { message: 'unknown method "hello"' },
+            })
+          return socket
+        },
+      }),
+    ).rejects.toThrow('unknown method')
+    expect(host.socket.closed).toBe(true)
+  })
+
   it('times out when nothing answers', async () => {
     const silent = new FakePluginHost()
     await expect(

@@ -125,8 +125,14 @@ export class NativeHostClient {
     )
     socket.onerror = () => client.finish('the connection to the plug-in host failed')
 
+    // A hello the host refuses leaves nobody holding the client: let go of it here.
+    const info = await timed(client.call<NativeHostInfo | undefined>('hello')).catch(
+      (error: unknown) => {
+        client.close()
+        throw error
+      },
+    )
     // An answer with nothing in it is not the host's either: refused the same way, and let go of.
-    const info = await timed(client.call<NativeHostInfo | undefined>('hello'))
     if (info?.protocol !== NATIVE_PROTOCOL_VERSION) {
       client.close()
       throw new Error(
