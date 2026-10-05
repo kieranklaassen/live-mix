@@ -1780,6 +1780,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   eq3: { ...PLATE_PALETTES.eq3, finish: 'matte', cap: 'skirt' },
   'parametric-eq': { ...PLATE_PALETTES['parametric-eq'], finish: 'fade', cap: 'dot' },
   'ambient-eq': { ...PLATE_PALETTES['ambient-eq'], finish: 'linen', cap: 'disc' },
+  tamer: { ...PLATE_PALETTES.tamer, finish: 'brushed', cap: 'pointer' },
   compressor: { ...PLATE_PALETTES.compressor, finish: 'hammered', cap: 'skirt' },
   // A short name on the plate where the whole one leaves a preset's name no room at the foot.
   'ambient-comp': {

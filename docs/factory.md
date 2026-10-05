@@ -144,7 +144,7 @@ import {
 |             | Count | Groups                                                                                                                                        |
 | ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
-| **Chains**  | 216   | Space (30), echo (28), tape (39), motion (26), texture (34), pitch (35), master (24); every WASM effect is in at least one                    |
+| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
 | **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
 
 The bank is data: importing it loads no module and touches no audio. A host
@@ -404,7 +404,7 @@ instruments, three pairs of organ presets measure under 1 dB apart on the
 organ phrase (Clarinet stop organ and Flugelhorn organ, Hollow glass organ
 and Tape flute pipes, Saw rotary organ and Rotor brass organ): the
 rule is for presets of one instrument, and these are different instruments
-under the hands. And seventeen of the twenty-four master chains sit within
+under the hands. And eighteen of the twenty-five master chains sit within
 0.3 dB of another on the dry phrase, because a master chain is meant to do
 little to a phrase that peaks at −10 dBFS: they part when they are driven.
 

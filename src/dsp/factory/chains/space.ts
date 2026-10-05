@@ -350,4 +350,14 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       },
     ],
   },
+  {
+    id: 'smooth-long-tail',
+    name: 'Smooth long tail',
+    category: 'space',
+    description: 'A long bright tail with the tones that ring out of it turned down as they build.',
+    effects: [
+      { deviceId: 'ether-reverb', preset: 'Shining tail' },
+      { deviceId: 'tamer', preset: 'Bright tail' },
+    ],
+  },
 ]

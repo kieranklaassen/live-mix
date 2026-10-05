@@ -39,19 +39,35 @@ export const FEWER_PRESETS: Readonly<Record<string, number>> = {
   'spectral-drifter': 14,
   'stereo-widener': 6,
   'hall-reverb': 12,
+  tamer: 10,
 }
 
 /**
  * Presets that leave the sound close to how it came, on purpose: the settings
  * a host's mixer starts a channel's EQ and compressor on, by the channel's
  * name, and a master limiter's ways of doing one job, which part company only
- * while it is leaned on. They are held to every rule but the two about being
- * told apart by ear, and no sibling is faulted for sounding like one of them.
+ * while it is leaned on. And every preset of the Tamer, which turns down the
+ * tones that ring out of a bed of sound and leaves clean notes alone: neither
+ * probe has anything in it to take away, so on them it is a wire whatever it
+ * is set to (its native harness is where its settings are told apart). They
+ * are held to every rule but the two about being told apart by ear, and no
+ * sibling is faulted for sounding like one of them.
  */
 export const QUIET_PRESETS: Readonly<Record<string, readonly string[]>> = {
   'ambient-comp': ['Level', 'Glue', 'Keys', 'Mic'],
   'ambient-eq': ['Open', 'Layer', 'Drone', 'Texture', 'Keys', 'Voice', 'Master'],
   'ambient-limiter': ['Master', 'Streaming', 'Slow tide', 'Wall only'],
+  tamer: [
+    'Gentle',
+    'Harsh sample',
+    'Bright tail',
+    'Master',
+    'Ringing tones',
+    'Mud',
+    'Broad and slow',
+    'Mic',
+    'Flatten',
+  ],
 }
 
 /** What a preset made to be loud is held to in place of the level every other preset keeps. */
