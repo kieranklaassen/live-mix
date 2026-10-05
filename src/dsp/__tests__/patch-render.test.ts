@@ -224,6 +224,19 @@ describe('renderPatch', () => {
     )
   })
 
+  it('refuses to hand back a sample that is no number', async () => {
+    // Every effect bypassed: what comes out is what went in.
+    const through: Patch = { ...ECHO, effects: [{ deviceId: 'tape-echo', bypass: true }] }
+    for (const bad of [Infinity, -Infinity, NaN]) {
+      const input = click(0.1)
+      input.channels[0][100] = bad
+      expect(Number.isFinite(peakOf(input.channels)), `the peak with ${bad} in it`).toBe(false)
+      await expect(render(through, { durationSec: 0.5, input }), `${bad}`).rejects.toThrow(
+        /non-finite/,
+      )
+    }
+  })
+
   it('stops when its signal aborts', async () => {
     const controller = new AbortController()
     const pending = renderPatch(BELL, {

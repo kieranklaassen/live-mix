@@ -214,13 +214,14 @@ export function foldLoop(
   return out
 }
 
-/** Peak of planar audio, linear. */
+/** Peak of planar audio, linear; NaN when a sample is not a number. */
 export function peakOf(channels: readonly Float32Array[]): number {
   let peak = 0
   for (const channel of channels) {
     for (const sample of channel) {
       const value = Math.abs(sample)
-      if (value > peak) peak = value
+      // NaN is larger than nothing, so it is asked for by name: once it is the peak it stays.
+      if (value > peak || Number.isNaN(value)) peak = value
     }
   }
   return peak
