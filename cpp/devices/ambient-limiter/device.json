@@ -2,14 +2,15 @@
   "id": "ambient-limiter",
   "name": "Ambient Limiter",
   "category": "dynamics",
-  "description": "A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over.",
+  "description": "A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over. With Auto gain it also turns a quiet mix up to the ceiling and holds it there.",
   "class": "AmbientLimiter",
   "header": "ambient_limiter.h",
   "sources": [],
   "latencySamples": 77,
   "meters": [
     { "key": "reduction", "name": "Gain reduction", "unit": "dB" },
-    { "key": "ride", "name": "Ride reduction", "unit": "dB", "display": true }
+    { "key": "ride", "name": "Ride reduction", "unit": "dB", "display": true },
+    { "key": "lift", "name": "Auto gain", "unit": "dB" }
   ],
   "params": [
     {
@@ -28,7 +29,7 @@
       "max": 24,
       "default": 0,
       "unit": "dB",
-      "description": "Level going into the limiter. Raising it pushes more of the sound into the ceiling, so the result is louder and denser."
+      "description": "Level going into the limiter. Raising it pushes more of the sound into the ceiling: louder and denser. With Auto gain on it is how far past the ceiling the mix is pushed."
     },
     {
       "key": "release",
@@ -47,6 +48,15 @@
       "max": 1,
       "default": 1,
       "description": "How much of a sustained over is turned down smoothly ahead of the brickwall. At zero only the brickwall works."
+    },
+    {
+      "key": "autoGain",
+      "name": "Auto gain",
+      "min": 0,
+      "max": 24,
+      "default": 0,
+      "unit": "dB",
+      "description": "How far the limiter may turn a quiet mix up. It brings the loudest part to the ceiling and stays there, so quiet parts and tails stay quiet. At zero it is off."
     }
   ],
   "presets": {
@@ -59,7 +69,9 @@
     "Pinned": { "ceiling": -12, "gain": 12 },
     "Late night": { "ceiling": -9, "gain": 2, "release": 4 },
     "Pull back": { "gain": -3 },
-    "Breathing": { "ceiling": -9, "gain": 4, "release": 0.3 }
+    "Breathing": { "ceiling": -9, "gain": 4, "release": 0.3 },
+    "Full level": { "ceiling": -0.3, "autoGain": 12 },
+    "Full and dense": { "ceiling": -0.3, "gain": 3, "release": 2.5, "autoGain": 12 }
   },
   "formerPresets": {
     "Headroom": "Margin"
@@ -69,6 +81,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A slow feed-forward gain stage (peak-hold detector, 250 ms down, Release up) in front of the library's own true-peak brickwall, livemix::TruePeakLimiter (cpp/devices/true-peak-limiter/true_peak_limiter.h), prepared with a fixed 72-frame lookahead so the latency is 77 samples at every sample rate. Not a model of any unit."
+    "note": "Written for live-mix on cpp/kit. A slow feed-forward gain stage (peak-hold detector, 250 ms down, Release up) in front of the library's own true-peak brickwall, livemix::TruePeakLimiter (cpp/devices/true-peak-limiter/true_peak_limiter.h), prepared with a fixed 72-frame lookahead so the latency is 77 samples at every sample rate. Auto gain is one more slow gain under the ride, which gives way to a sustained over and otherwise holds still. Not a model of any unit."
   }
 }

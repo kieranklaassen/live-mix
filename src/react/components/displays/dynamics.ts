@@ -668,7 +668,7 @@ const LIMIT_TOP_DB = 6
 const LIMIT_FOOT_DB = -30
 
 interface LimiterState {
-  /** The level arriving at the ceiling, after Gain, dB. */
+  /** The level arriving at the ceiling, after Gain and the auto gain, dB. */
   arriving: History
   /** The level that leaves, dB. */
   leaving: History
@@ -677,6 +677,13 @@ interface LimiterState {
   ride: History
   /** The reduction now. */
   now: number
+  /** What the auto gain adds now, dB (0 or above). */
+  lift: number
+}
+
+/** What the auto gain is adding, as a number at the foot of the last seconds, at the left: the reduction has the right. */
+function liftFigure(frame: DisplayFrame, box: Box, db: number): void {
+  label(frame, `+${db.toFixed(1)}`, box.x + 2, box.y + box.h - 2, 'left', 9)
 }
 
 const limiterBox = (view: Pick<DisplayView, 'width' | 'height'>): Box => ({
@@ -712,15 +719,16 @@ function limiterHandles(view: DisplayView): DisplayHandle[] {
 const ambientLimiter = plateDisplay<LimiterState>({
   place: 'window',
   columns: 2,
-  params: ['ceiling', 'gain'],
+  params: ['ceiling', 'gain', 'autoGain'],
   live: { meters: true, signal: true },
-  info: 'The last six seconds, around full scale: the sound arriving after Gain, and filled in what leaves under the ceiling, the line that can be dragged. From the top hangs the gain taken off, solid for the slow ride and lighter for the brickwall that catches the moments.',
+  info: 'The last six seconds around full scale: the sound arriving after Gain and Auto gain, and filled in what leaves under the ceiling, the line to drag. From the top hangs the gain taken off, solid for the slow ride, lighter for the brickwall. At the foot on the left is what Auto gain adds now.',
   init: () => ({
     arriving: new History(PAST_SEC, 120, FLOOR_DB, 'max'),
     leaving: new History(PAST_SEC, 120, FLOOR_DB, 'max'),
     reduction: new History(PAST_SEC, 120, 0, 'min'),
     ride: new History(PAST_SEC, 120, 0, 'min'),
     now: 0,
+    lift: 0,
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -730,6 +738,8 @@ const ambientLimiter = plateDisplay<LimiterState>({
     const span = LIMIT_TOP_DB - LIMIT_FOOT_DB
 
     state.now = frame.signal ? Math.min(0, frame.meter('reduction')) : 0
+    // The auto gain is kept while nothing sounds, so it is read then too.
+    state.lift = frame.hasMeter('lift') ? Math.max(0, frame.meter('lift')) : 0
     if (frame.signal) {
       const leaving = gainToDb(frame.signal.output.peak)
       state.leaving.push(frame.now, leaving)
@@ -737,7 +747,7 @@ const ambientLimiter = plateDisplay<LimiterState>({
       state.arriving.push(
         frame.now,
         frame.signal.input
-          ? gainToDb(frame.signal.input.peak) + frame.value('gain')
+          ? gainToDb(frame.signal.input.peak) + frame.value('gain') + state.lift
           : leaving - state.now,
       )
       state.reduction.push(frame.now, state.now)
@@ -765,6 +775,7 @@ const ambientLimiter = plateDisplay<LimiterState>({
     })
     levelLine(frame, box, limitY(ceiling, box), 'ceiling', dbText(ceiling))
     reductionFigure(frame, box, state.now)
+    if (frame.value('autoGain') > 0) liftFigure(frame, box, state.lift)
   },
   handles: limiterHandles,
 })
@@ -1259,7 +1270,7 @@ export const DYNAMICS_FACES: Readonly<Record<string, PlateFace>> = {
   },
   'ambient-limiter': {
     display: ambientLimiter,
-    face: ['ceiling', 'gain', 'release', 'ride'],
+    face: ['ceiling', 'autoGain', 'gain', 'release'],
   },
   'fet-limiter': {
     display: fetLimiter,

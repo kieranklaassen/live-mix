@@ -337,7 +337,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'acoustic-guitar', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'ambient-comp', instrument: false, samples: false, meters: 1, memoryMb: 4 },
   { id: 'ambient-eq', instrument: false, samples: false, meters: 6, memoryMb: 4 },
-  { id: 'ambient-limiter', instrument: false, samples: false, meters: 2, memoryMb: 4 },
+  { id: 'ambient-limiter', instrument: false, samples: false, meters: 3, memoryMb: 4 },
   { id: 'analog-delay', instrument: false, samples: false, meters: 2, memoryMb: 4 },
   { id: 'analog-drive', instrument: false, samples: false, meters: 2, memoryMb: 4 },
   { id: 'atmosphere', instrument: true, samples: false, meters: 0, memoryMb: 4 },

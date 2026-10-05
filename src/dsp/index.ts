@@ -89,6 +89,12 @@ export {
 } from './registry'
 export { isWasmDescriptor, type WasmDeviceDescriptor } from './descriptor'
 export {
+  limitRendered,
+  type LimitRenderedOptions,
+  type LimitRenderedParams,
+  type LimitedRender,
+} from './limit-rendered'
+export {
   DEFAULT_PHRASE_GAIN,
   canRenderPatch,
   foldLoop,

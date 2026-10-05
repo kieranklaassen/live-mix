@@ -11,7 +11,8 @@
 // writes tmp/effect-presets-<what>.txt: one line per preset with its level,
 // tail, colour and width, how far it is from the dry phrase and from the
 // effect as it starts, and the sibling it is nearest to. A line that reads
-// `ok ~` is one of `QUIET_PRESETS`, which is not asked to be told apart.
+// `ok ~` is one of `QUIET_PRESETS`, which is not asked to be told apart, and
+// one that reads `ok ^` is one of `FULL_LEVEL_PRESETS`, held to its own level.
 
 import { mkdirSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -27,6 +28,7 @@ import { STOCK_WASM_DEVICES, registerStockWasmDevices } from '../index'
 import {
   EFFECTS,
   FEWER_PRESETS,
+  FULL_LEVEL_PRESETS,
   LONGEST_NAME,
   PRESETS_EACH,
   QUIET_PRESETS,
@@ -142,6 +144,24 @@ describe('effect presets', () => {
       expect(descriptor, `${id} is an effect`).toBeDefined()
       for (const name of names)
         expect(Object.keys(descriptor?.presets ?? {}), `${id} "${name}"`).toContain(name)
+    }
+  })
+
+  it('lets only presets that are there be as loud as their own ceiling, each with gain to get there', () => {
+    for (const [id, presets] of Object.entries(FULL_LEVEL_PRESETS)) {
+      const descriptor = EFFECTS.find((effect) => effect.id === id)
+      expect(descriptor, `${id} is an effect`).toBeDefined()
+      for (const [name, level] of Object.entries(presets)) {
+        const preset = descriptor?.presets?.[name]
+        expect(preset, `${id} "${name}"`).toBeDefined()
+        expect(
+          level.peakDb,
+          `${id} "${name}" is held to full scale at the most`,
+        ).toBeLessThanOrEqual(0)
+        // Loud by what it is set to add, not by an accident of the probe.
+        const added = (preset?.autoGain ?? 0) + (preset?.gain ?? 0)
+        expect(level.louderLu, `${id} "${name}" adds ${added} dB`).toBeLessThanOrEqual(added)
+      }
     }
   })
 
