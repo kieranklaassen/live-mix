@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { type Author } from '../log'
-import { ScoreOperationError } from '../operations'
+import { ScoreOperationError, type Operation } from '../operations'
 import { createScore, normaliseScore, parseScore, serializeScore } from '../schema'
 import { ScoreDocument, type ScoreChange } from '../ScoreDocument'
 import { demoScore } from './fixtures'
@@ -67,6 +67,16 @@ describe('ScoreDocument', () => {
     expect(document.log.length).toBe(0)
     expect(document.canUndo).toBe(false)
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('something that is no operation changes nothing either', () => {
+    const document = new ScoreDocument(demoScore())
+    const before = document.score
+    const unknown = { type: 'clip.split', track: 'kick', id: 'a1' } as unknown as Operation
+    expect(() => document.apply(unknown)).toThrow(ScoreOperationError)
+    expect(document.score).toBe(before)
+    expect(document.log.length).toBe(0)
+    expect(document.canUndo).toBe(false)
   })
 
   it('undo and redo apply the stored inverse/operation and append to the log', () => {

@@ -608,6 +608,16 @@ describe('apply', () => {
     ).toThrow(ScoreOperationError)
   })
 
+  it('refuses what is no operation of this vocabulary, alone or in a batch, and never takes it for the score', () => {
+    // A log or a version written by a later build can carry one.
+    const unknown = { type: 'clip.split', track: 'kick', id: 'a1' } as unknown as Operation
+    expect(() => apply(base, unknown)).toThrow(ScoreOperationError)
+    expect(() => invert(base, unknown)).toThrow(ScoreOperationError)
+    expect(() =>
+      apply(base, { type: 'batch', ops: [{ type: 'score.rename', name: 'x' }, unknown] }),
+    ).toThrow(/clip\.split/)
+  })
+
   it('every applied result stays valid', () => {
     const ops: Operation[] = [
       { type: 'score.rename', name: 'x' },

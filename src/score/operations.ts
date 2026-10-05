@@ -1472,8 +1472,10 @@ export function apply(score: Score, op: Operation): Score {
     }
 
     default: {
+      // Typed callers never get here; a log or a version written by a later
+      // build can. Handed back, the operation would be taken for the score.
       const exhaustive: never = op
-      return exhaustive
+      return fail(exhaustive, 'is not an operation this build knows')
     }
   }
 }
@@ -2024,7 +2026,7 @@ export function invert(score: Score, op: Operation): Operation {
 
     default: {
       const exhaustive: never = op
-      return exhaustive
+      return fail(exhaustive, 'is not an operation this build knows')
     }
   }
 }
