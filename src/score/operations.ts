@@ -45,6 +45,7 @@ import {
   slotAt,
   sortBreakpoints,
   sortClips,
+  sourceIssues,
   targetKey,
   validateScore,
   type ParamTarget,
@@ -757,6 +758,13 @@ function checkedClip(op: Operation, clip: Clip): Clip {
   return tidy
 }
 
+/** A source as an operation leaves it: no empty url or id, no length below zero. */
+function checkedSource(op: Operation, source: ScoreSource): ScoreSource {
+  const [issue] = sourceIssues(source)
+  if (issue) fail(op, `${issue.path.slice('source.'.length)}: ${issue.message}`)
+  return source
+}
+
 function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): ScoreSource {
   const next: ScoreSource = { ...source }
   if (patch.url !== undefined) {
@@ -1029,9 +1037,8 @@ function applyOne(score: Score, op: Operation): Score {
         fail(op, 'source meta must be a plain JSON object')
       }
       if (op.source.meta !== undefined) assertNoProto(op, 'source meta', op.source.meta)
-      const source = normaliseSource(op.source)
-      const sources = insertAt(op, score.sources, source, op.index)
-      return fitting({ ...score, sources }, op, `sources[${sources.indexOf(source)}]`)
+      const source = checkedSource(op, normaliseSource(op.source))
+      return { ...score, sources: insertAt(op, score.sources, source, op.index) }
     }
 
     case 'source.remove': {
@@ -1057,7 +1064,7 @@ function applyOne(score: Score, op: Operation): Score {
       const source =
         score.sources.find((candidate) => candidate.id === op.id) ??
         fail(op, `no source "${op.id}"`)
-      const next = patchSource(op, source, op.patch)
+      const next = checkedSource(op, patchSource(op, source, op.patch))
       if (next.url === undefined) {
         for (const track of score.elementTracks) {
           if (track.clips.some((clip) => clip.sourceId === op.id)) {
@@ -1065,8 +1072,10 @@ function applyOne(score: Score, op: Operation): Score {
           }
         }
       }
-      const sources = score.sources.map((candidate) => (candidate === source ? next : candidate))
-      return fitting({ ...score, sources }, op, `sources[${sources.indexOf(next)}]`)
+      return {
+        ...score,
+        sources: score.sources.map((candidate) => (candidate === source ? next : candidate)),
+      }
     }
 
     case 'track.add': {

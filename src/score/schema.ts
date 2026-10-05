@@ -759,6 +759,25 @@ export function clipIssues(clip: unknown): ScoreIssue[] {
   return check.issues
 }
 
+/** A source's own fields: everything but its id, which the score has to say is the only one. */
+function checkSourceFields(source: Record<string, unknown>, path: string, check: Checker): void {
+  if (source.url !== undefined) check.string(source.url, `${path}.url`)
+  if (source.durationSec !== undefined)
+    check.number(source.durationSec, `${path}.durationSec`, { min: 0 })
+  if (source.analysis !== undefined) check.record(source.analysis, `${path}.analysis`)
+  checkMeta(source.meta, `${path}.meta`, check)
+}
+
+/** As `clipIssues`, for a source an operation is handed. */
+export function sourceIssues(source: unknown): ScoreIssue[] {
+  const check = new Checker()
+  if (check.record(source, 'source')) {
+    check.string(source.id, 'source.id')
+    checkSourceFields(source, 'source', check)
+  }
+  return check.issues
+}
+
 /** An optional `meta`: a JSON object, nothing the library interprets. */
 function checkMeta(raw: unknown, path: string, check: Checker): void {
   if (raw !== undefined && !isJsonObject(raw)) check.fail(path, 'expected a plain JSON object')
@@ -1156,11 +1175,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
       const path = `sources[${index}]`
       if (!check.record(source, path)) return
       if (check.string(source.id, `${path}.id`)) sourceIds.claim(source.id, `${path}.id`)
-      if (source.url !== undefined) check.string(source.url, `${path}.url`)
-      if (source.durationSec !== undefined)
-        check.number(source.durationSec, `${path}.durationSec`, { min: 0 })
-      if (source.analysis !== undefined) check.record(source.analysis, `${path}.analysis`)
-      checkMeta(source.meta, `${path}.meta`, check)
+      checkSourceFields(source, path, check)
     })
   }
   if (check.array(raw.tracks, 'tracks')) {
