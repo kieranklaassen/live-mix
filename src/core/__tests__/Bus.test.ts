@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { type Device } from '../devices/Device'
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
@@ -83,6 +83,46 @@ describe('Bus', () => {
     bus.removeInsert(b)
     expect(bus.inserts).toEqual([])
     expect(fader.isConnectedTo(dest)).toBe(true)
+  })
+
+  it('an insert that cannot be wired leaves the bus feeding its destination and its taps', () => {
+    const ctx = createMockContext()
+    const dest = ctx.destination
+    const bus = new Bus(asAudioContext(ctx), {
+      name: 'b',
+      destination: dest as unknown as AudioNode,
+    })
+    const fader = ctx.gains[0]
+    const tap = ctx.createAnalyser()
+    bus.addTap(tap as unknown as AudioNode)
+
+    // Its output refuses the destination, as a node of another context does.
+    const deaf = fakeDevice(ctx, 'deaf')
+    vi.spyOn(deaf.output, 'connect').mockImplementation(() => {
+      throw new Error('InvalidAccessError')
+    })
+    expect(() => bus.addInsert(deaf)).toThrow(/InvalidAccessError/)
+    expect(bus.inserts).toEqual([])
+    expect(bus.output).toBe(fader)
+    expect(fader.isConnectedTo(dest)).toBe(true)
+    expect(fader.isConnectedTo(tap)).toBe(true)
+    expect(fader.isConnectedTo(deaf.input as never)).toBe(false)
+
+    // Its input refuses the bus: the fader cannot be connected to it.
+    const foreign = fakeDevice(ctx, 'foreign')
+    vi.spyOn(fader, 'connect').mockImplementationOnce(() => {
+      throw new Error('InvalidAccessError')
+    })
+    expect(() => bus.addInsert(foreign)).toThrow(/InvalidAccessError/)
+    expect(bus.inserts).toEqual([])
+    expect(fader.isConnectedTo(dest)).toBe(true)
+    expect(fader.isConnectedTo(tap)).toBe(true)
+
+    const next = fakeDevice(ctx, 'next')
+    bus.addInsert(next)
+    expect(bus.inserts).toEqual([next])
+    expect(fader.reaches(dest)).toBe(true)
+    expect((next.output as never as typeof fader).isConnectedTo(tap)).toBe(true)
   })
 
   it('connectTo re-points the chain tail', () => {

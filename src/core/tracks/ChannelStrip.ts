@@ -575,8 +575,18 @@ export class ChannelStrip {
     const { panner } = this.ensureNodes()
     const before = this.insertTail()
     before.disconnect(panner)
-    before.connect(device.input)
-    device.output.connect(panner)
+    let fed = false
+    try {
+      before.connect(device.input)
+      fed = true
+      device.output.connect(panner)
+    } catch (error) {
+      // A device that cannot be wired (one of another context) must not cost
+      // the strip its signal: the chain is closed again as it was.
+      if (fed) before.disconnect(device.input)
+      before.connect(panner)
+      throw error
+    }
     this.insertList.push(device)
     this.changed('inserts')
   }

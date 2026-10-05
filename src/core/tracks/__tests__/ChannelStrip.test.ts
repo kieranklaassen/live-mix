@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   asAudioContext,
   asAudioNode,
   createMockContext,
   type MockAudioContext,
+  type MockAudioNode,
   type MockAudioParam,
   type MockGainNode,
   type MockStereoPannerNode,
@@ -60,6 +61,20 @@ function asMock(node: AudioNode): MockGainNode {
 
 function panParam(node: StereoPannerNode): MockAudioParam {
   return (node as unknown as MockStereoPannerNode).pan
+}
+
+/**
+ * Makes a stand-in node throw when told to let go of a node it does not feed,
+ * as a browser's node does (the stand-in alone lets it pass).
+ */
+function strict(node: MockAudioNode): void {
+  vi.spyOn(node, 'disconnect').mockImplementation((...args: unknown[]) => {
+    const [target] = args
+    if (target === undefined) node.outputs.clear()
+    else if (!node.outputs.delete(target as MockAudioNode)) {
+      throw new Error('InvalidAccessError: the node is not connected to that one')
+    }
+  })
 }
 
 function strip(ctx: MockAudioContext, name: string, options: { solo?: SoloInPlace } = {}) {
@@ -230,6 +245,44 @@ describe('ChannelStrip topology', () => {
     s.removeInsert(b)
     expect(s.inserts).toEqual([])
     expect(inputGain.isConnectedTo(panner)).toBe(true)
+  })
+
+  it('an insert that cannot be wired leaves the chain as it was, and the next one goes on', () => {
+    const ctx = createMockContext()
+    const s = strip(ctx, 'a')
+    const good = fakeDevice(ctx, 'good')
+    s.addInsert(good)
+    const inputGain = asMock(s.input)
+    const tail = asMock(good.output)
+    const panner = ctx.panners[0]
+    strict(tail)
+
+    // Its output refuses the panner, as a node of another context does.
+    const deaf = fakeDevice(ctx, 'deaf')
+    vi.spyOn(asMock(deaf.output), 'connect').mockImplementation(() => {
+      throw new Error('InvalidAccessError')
+    })
+    expect(() => s.addInsert(deaf)).toThrow(/InvalidAccessError/)
+    expect(s.inserts).toEqual([good])
+    expect(tail.isConnectedTo(panner)).toBe(true)
+    expect(tail.isConnectedTo(asMock(deaf.input))).toBe(false)
+    expect(inputGain.reaches(ctx.destination)).toBe(true)
+
+    // Its input refuses the chain: the tail cannot be connected to it.
+    const foreign = fakeDevice(ctx, 'foreign')
+    vi.spyOn(tail, 'connect').mockImplementationOnce(() => {
+      throw new Error('InvalidAccessError')
+    })
+    expect(() => s.addInsert(foreign)).toThrow(/InvalidAccessError/)
+    expect(s.inserts).toEqual([good])
+    expect(tail.isConnectedTo(panner)).toBe(true)
+    expect(inputGain.reaches(ctx.destination)).toBe(true)
+
+    const next = fakeDevice(ctx, 'next')
+    s.addInsert(next)
+    expect(s.inserts).toEqual([good, next])
+    expect(tail.isConnectedTo(asMock(next.input))).toBe(true)
+    expect(inputGain.reaches(ctx.destination)).toBe(true)
   })
 
   it('post-fader sends tap the gate, so a mute silences them too', () => {
