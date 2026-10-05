@@ -111,7 +111,9 @@ export class LinkAudioReceiver {
     this.channel = options.channel
     this.currentDelay = delaySec
     this.now = options.now ?? (() => performance.now())
-    this.offsetMs = options.offsetMs ?? 0
+    // As `setOffsetMs` takes it: what is no number is no offset.
+    const { offsetMs = 0 } = options
+    this.offsetMs = Number.isFinite(offsetMs) ? offsetMs : 0
     this.outputClock = new OutputClock(context, { now: this.now })
   }
 

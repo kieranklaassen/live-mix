@@ -99,7 +99,9 @@ export class LinkAudioSender {
     this.worker = worker
     this.name = options.name
     this.now = options.now ?? (() => performance.now())
-    this.offsetMs = options.offsetMs ?? 0
+    // As `setOffsetMs` takes it: what is no number is no offset.
+    const { offsetMs = 0 } = options
+    this.offsetMs = Number.isFinite(offsetMs) ? offsetMs : 0
     this.outputClock = new OutputClock(context, { now: this.now })
   }
 

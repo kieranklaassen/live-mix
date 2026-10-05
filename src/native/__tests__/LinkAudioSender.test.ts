@@ -115,6 +115,14 @@ describe('LinkAudioSender', () => {
     expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_005_000 })
   })
 
+  it('takes an offset that is no number for none, at creation as later', async () => {
+    const { create, workers } = await build({ offsetMs: Number.NaN })
+    const sender = await create()
+    expect(workers[0].posted[1]).toEqual({ type: 'clock', contextTime: 2, hostMicros: 12_010_000 })
+    sender.setOffsetMs(Number.NaN)
+    expect(workers[0].posted[2]).toMatchObject({ type: 'clock', hostMicros: 12_010_000 })
+  })
+
   it('reports the connection and what the pump sent', async () => {
     const { create, workers } = await build()
     const sender = await create()
