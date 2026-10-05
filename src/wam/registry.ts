@@ -113,7 +113,8 @@ export async function describeWamDevice(
       params: probe.params,
       wam: probe.descriptor,
       importModule,
-      host: probe.host,
+      // The group the probe was made in, installed the way the caller asked for.
+      host: { ...host, ...probe.host },
     })
   } finally {
     probe.dispose()
