@@ -21,6 +21,7 @@ import { type Author } from '../../score/log'
 import { type Operation } from '../../score/operations'
 import { findStripHost } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
+import { ChannelRowView } from '../components/ChannelRowView'
 import { DeviceChainView } from '../components/DeviceChainView'
 import { demoScore } from '../../score/__tests__/fixtures'
 import { useArbiter, useArbiterTarget } from '../hooks/useArbiter'
@@ -211,6 +212,53 @@ describe('hooks write through the arbiter', () => {
     clock.ms = 10_000
     arbiter.tick()
     expect(findStripHost(document.score, 'kick')?.strip.level).toBe(0.1)
+  })
+
+  it('useTrack lets go of a fader still in hand when another strip takes its place, or it leaves the page', async () => {
+    const { arbiter, wrapper } = await rig()
+    const { result, rerender, unmount } = renderHook(
+      ({ name }: { name: string }) => useTrack(name),
+      { wrapper, initialProps: { name: 'kick' } },
+    )
+    act(() => result.current.touch('level'))
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    // The view shows another strip now: the hand's pointer up will be told to that one.
+    rerender({ name: 'pad' })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    act(() => result.current.release('level'))
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+
+    act(() => result.current.touch('pan'))
+    expect(arbiter.stateOf('strip:pad:pan').hold?.touching).toBe(true)
+    unmount()
+    expect(arbiter.stateOf('strip:pad:pan').hold?.touching).toBe(false)
+  })
+
+  it('useTrack lets go of a fader whose track left the score while it was in hand', async () => {
+    const { arbiter, document, wrapper } = await rig()
+    const { result } = renderHook(() => useTrack('kick'), { wrapper })
+    act(() => result.current.touch('level'))
+    act(() => {
+      arbiter.apply({ type: 'track.remove', id: 'kick' })
+    })
+    expect(findStripHost(document.score, 'kick')).toBeUndefined()
+    act(() => result.current.release('level'))
+    // Undo brings the track back: its fader is not held against the coach by a hand long gone.
+    expect(arbiter.stateOf(kickLevel).hold?.touching ?? false).toBe(false)
+  })
+
+  it('a row given another strip in the middle of a move leaves neither fader held', async () => {
+    const { arbiter, engine, wrapper } = await rig()
+    const row = (name: string) =>
+      createElement(ChannelRowView, { strip: engine.track(name), meter: false })
+    const { rerender } = render(row('kick'), { wrapper })
+    const fader = screen.getByRole('slider', { name: 'Level' })
+    fireEvent.pointerDown(fader, { pointerId: 1, button: 0, clientX: 10, clientY: 0 })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(true)
+    rerender(row('pad'))
+    fireEvent.pointerUp(fader, { pointerId: 1 })
+    expect(arbiter.stateOf(kickLevel).hold?.touching).toBe(false)
+    expect(arbiter.stateOf('strip:pad:level').hold?.touching ?? false).toBe(false)
   })
 
   it('toggles flip the score value: quick repeats before the renderer catches up alternate', async () => {
