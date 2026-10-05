@@ -123,8 +123,8 @@ const PLAIN_NOUNS: ReadonlySet<string> = new Set([
  */
 export const MASTER_NOUNS: readonly string[] = ['finish', 'master', 'mixdown', 'polish', 'lacquer']
 
-/** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park"). */
-const NEVER_FIRST: ReadonlySet<string> = new Set(['polish'])
+/** Nouns that only follow a pack's word: with a capital at the head of a name they read as something else ("Polish in the park", "Finish a flight up", "Master on the porch"). */
+const NEVER_FIRST: ReadonlySet<string> = new Set(['polish', 'finish', 'master'])
 
 /** The nouns a chain of this group, led by `lead`, can be named for. */
 export const nameNouns = (category: FactoryChainCategory, lead: Candidate): readonly string[] =>
