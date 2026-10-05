@@ -22,6 +22,7 @@ import {
 } from '../components/chain-reorder'
 import { DeviceChainView, groupDevices, reorderInserts } from '../components/DeviceChainView'
 import { deviceSkin } from '../components/device-skins'
+import { forgetPresses } from '../components/presses'
 import { createTestEngine, type TestEngine } from './harness'
 
 // jsdom's own `URL` is not one `fileURLToPath` takes: the path is joined instead.
@@ -667,6 +668,69 @@ describe('DeviceChainView', () => {
     expect(pad.strip.inserts).toEqual([eq, delay, filter])
   })
 
+  it('lifts no plate for a finger on its face, which scrolls the chain; the grip and a mouse take it', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    const [filter, eq, delay] = await chain(fixture, ['filter', 'eq3', 'delay'])
+    for (const device of [filter, eq, delay]) pad.strip.addInsert(device)
+    render(<DeviceChainView strip={pad} skin={deviceSkin} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    const items = [0, 1, 2].map((index) => screen.getByTestId(`chain-item-${index}`))
+    layOut(items)
+    const face = (item: HTMLElement): HTMLElement => {
+      const name = item.querySelector<HTMLElement>('.lm-plate__name')
+      if (!name) throw new Error('a plate has a name tag')
+      return name
+    }
+    // The stylesheet's rule, which jsdom does not read: the grip and a title bar keep a touch to
+    // themselves, and a plate's face leaves it to the browser, which scrolls the chain with it.
+    const css = await readFile(stylesheet, 'utf8')
+    const rule = (selector: string) =>
+      css.slice(css.indexOf(selector), css.indexOf('}', css.indexOf(selector)))
+    expect(rule('.lm-chain__handle,\n.lm-chain__item .lm-device__header {')).toContain(
+      'touch-action: none',
+    )
+    expect(rule('.lm-chain__item .lm-plate {')).not.toContain('touch-action')
+    // A finger that rests on the face slides a few px before the browser calls it a swipe:
+    // that lifts nothing, and nothing is moved wherever the finger goes from there.
+    fireEvent.pointerDown(face(items[0]), {
+      pointerId: 1,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 20,
+    })
+    fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'touch', clientX: 26 })
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+    fireEvent.pointerMove(window, { pointerId: 1, pointerType: 'touch', clientX: 290 })
+    expect(screen.queryByTestId('chain-carried')).toBeNull()
+    fireEvent.pointerUp(window, { pointerId: 1, pointerType: 'touch' })
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+    // By the grip a finger carries it.
+    fireEvent.pointerDown(within(items[0]).getByTitle('Drag to reorder'), {
+      pointerId: 2,
+      pointerType: 'touch',
+      button: 0,
+      clientX: 2,
+    })
+    fireEvent.pointerMove(window, { pointerId: 2, pointerType: 'touch', clientX: 290 })
+    expect(screen.getByTestId('chain-carried')).toBeInTheDocument()
+    fireEvent.pointerUp(window, { pointerId: 2, pointerType: 'touch' })
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // And a mouse takes a plate anywhere on its face, as before.
+    const now = [0, 1, 2].map((index) => screen.getByTestId(`chain-item-${index}`))
+    layOut(now)
+    fireEvent.pointerDown(face(now[0]), {
+      pointerId: 3,
+      pointerType: 'mouse',
+      button: 0,
+      clientX: 20,
+    })
+    fireEvent.pointerMove(window, { pointerId: 3, pointerType: 'mouse', clientX: 290 })
+    fireEvent.pointerUp(window, { pointerId: 3, pointerType: 'mouse' })
+    expect(pad.strip.inserts).toEqual([delay, filter, eq])
+  })
+
   it('lets go without pressing the control the pointer landed on', async () => {
     const { pad, devices, titles } = await threeDevices()
     const [filter, eq, delay] = devices
@@ -936,6 +1000,56 @@ describe('DeviceChainView', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }))
     expect(onRemove).toHaveBeenCalledWith(eq, 0)
     expect(pad.strip.inserts).toEqual([eq])
+  })
+
+  it('goes on with the device a move cell moved, pressed again with the pointer where it was', async () => {
+    const { pad, devices } = await threeDevices()
+    const [filter, eq, delay] = devices
+    const still = { detail: 1, clientX: 40, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+    // The neighbour slid under the pointer, its own cell where the pressed one was.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // At the chain's end the device stays, and the one under the pointer is not sent off instead.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The pointer moved on: the cell under it is the one that is meant.
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), {
+      detail: 1,
+      clientX: 60,
+      clientY: 10,
+    })
+    expect(pad.strip.inserts).toEqual([delay, eq, filter])
+    // The other way from where it stands now, held still again.
+    const back = { detail: 1, clientX: 160, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter earlier' }), back)
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }), back)
+    expect(pad.strip.inserts).toEqual([filter, delay, eq])
+    // A press the keys made is on the cell that has the focus, wherever a pointer was left.
+    fireEvent.click(screen.getByRole('button', { name: 'Move delay later' }))
+    expect(pad.strip.inserts).toEqual([filter, eq, delay])
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 earlier' }), back)
+    expect(pad.strip.inserts).toEqual([eq, filter, delay])
+  })
+
+  it('takes a double click on a cross for one press: the device that slid under the pointer stays', async () => {
+    forgetPresses()
+    const { pad, devices } = await threeDevices()
+    const [, eq, delay] = devices
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Filter' }), { detail: 1 })
+    expect(pad.strip.inserts).toEqual([eq, delay])
+    // The second press of the double click lands on the cross of the device now there,
+    // and a third in the same run is not that device's own either.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 2 })
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 3 })
+    expect(pad.strip.inserts).toEqual([eq, delay])
+    // A press that starts afresh is, and so is one the keys make.
+    fireEvent.click(screen.getByRole('button', { name: 'Remove EQ Three' }), { detail: 1 })
+    expect(pad.strip.inserts).toEqual([delay])
+    fireEvent.click(screen.getByRole('button', { name: 'Remove Delay' }))
+    expect(pad.strip.inserts).toEqual([])
+    forgetPresses()
   })
 
   it('adds a registry device into the chain from the picker', async () => {

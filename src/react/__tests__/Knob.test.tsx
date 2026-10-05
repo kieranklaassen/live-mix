@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Knob } from '../components/Knob'
+import { forgetPresses } from '../components/presses'
 
 afterEach(cleanup)
 
@@ -67,6 +68,50 @@ describe('Knob', () => {
     fireEvent.keyDown(control, { key: 'End' })
     expect(onChange).toHaveBeenLastCalledWith(1)
     expect(control).toHaveAttribute('aria-valuenow', '1')
+  })
+
+  it('adds fine steps up on a knob whose value the host holds: ten are one whole step', () => {
+    const seen: number[] = []
+    function Host() {
+      const [value, setValue] = useState(50)
+      return (
+        <Knob
+          label="Depth"
+          value={value}
+          defaultValue={50}
+          min={0}
+          max={100}
+          step={1}
+          onChange={(next) => {
+            seen.push(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+    render(<Host />)
+    for (let press = 0; press < 3; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowUp', shiftKey: true })
+    expect(seen).toEqual([50.1, 50.2, 50.3])
+    for (let press = 0; press < 7; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowUp', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(51)
+    expect(slider()).toHaveAttribute('aria-valuenow', '51')
+    for (let press = 0; press < 3; press += 1)
+      fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(50.7)
+    // A whole step from between two goes on from the step shown.
+    fireEvent.keyDown(slider(), { key: 'ArrowUp' })
+    expect(seen[seen.length - 1]).toBe(52)
+    // And a key that lands on the step shown, from beside it, is still a move.
+    fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(51.9)
+    expect(slider()).toHaveAttribute('aria-valuenow', '52')
+    fireEvent.keyDown(slider(), { key: 'End' })
+    fireEvent.keyDown(slider(), { key: 'ArrowDown', shiftKey: true })
+    expect(seen[seen.length - 1]).toBe(99.9)
+    fireEvent.keyDown(slider(), { key: 'End' })
+    expect(seen[seen.length - 1]).toBe(100)
   })
 
   it('with `wholeSteps`, a key moves a whole step with Shift held too', () => {
@@ -483,6 +528,100 @@ describe('Knob', () => {
     )
     fireEvent.doubleClick(slider())
     expect(onChange).toHaveBeenLastCalledWith(0.25)
+  })
+
+  it('takes a double click for its own only when the first press was on it too', () => {
+    forgetPresses()
+    const onChange = vi.fn()
+    render(
+      <>
+        <button type="button">More</button>
+        <Knob label="Mix" defaultValue={0.5} min={0} max={1} step={0.01} onChange={onChange} />
+      </>,
+    )
+    const cell = screen.getByRole('button', { name: 'More' })
+    fireEvent.keyDown(slider(), { key: 'End' })
+    expect(onChange).toHaveBeenLastCalledWith(1)
+    // The cell is pressed and moves away; the knob stands under the pointer for the second press,
+    // and the browser sends the double click there.
+    fireEvent.click(cell, { detail: 1 })
+    fireEvent.click(slider(), { detail: 2 })
+    fireEvent.doubleClick(slider(), { detail: 2 })
+    expect(onChange).toHaveBeenLastCalledWith(1)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    // Both presses on the knob: that is its reset.
+    fireEvent.click(slider(), { detail: 1 })
+    fireEvent.click(slider(), { detail: 2 })
+    fireEvent.doubleClick(slider(), { detail: 2 })
+    expect(onChange).toHaveBeenLastCalledWith(0.5)
+    // And one a script makes, with no press before it, is taken as it comes.
+    fireEvent.keyDown(slider(), { key: 'End' })
+    fireEvent.click(cell, { detail: 1 })
+    fireEvent.doubleClick(slider())
+    expect(onChange).toHaveBeenLastCalledWith(0.5)
+    forgetPresses()
+  })
+
+  it('moves a list one entry for a notch of the wheel, a notch at a time, and adds up what is less', () => {
+    const seen: number[] = []
+    function Host() {
+      const [value, setValue] = useState(0)
+      return (
+        <Knob
+          label="Shape"
+          value={value}
+          defaultValue={0}
+          min={0}
+          max={3}
+          step={1}
+          wholeSteps
+          onChange={(next) => {
+            seen.push(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+    vi.useFakeTimers()
+    try {
+      render(<Host />)
+      const notch = (deltaY: number, init: WheelEventInit = {}): void => {
+        act(() => {
+          slider().dispatchEvent(new WheelEvent('wheel', { deltaY, cancelable: true, ...init }))
+        })
+      }
+      // One notch, then nothing for longer than a move stays open, then another.
+      notch(-100)
+      expect(seen).toEqual([1])
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      notch(-100)
+      expect(seen).toEqual([1, 2])
+      act(() => {
+        vi.advanceTimersByTime(600)
+      })
+      // A trackpad: twenty-four events of 4 px are short of a notch, the next one makes it.
+      for (let event = 0; event < 24; event += 1) notch(4)
+      expect(seen).toEqual([1, 2])
+      notch(4)
+      expect(seen).toEqual([1, 2, 1])
+      // Turned the other way, what was left of a step is dropped.
+      notch(60)
+      notch(-60)
+      expect(seen).toEqual([1, 2, 1])
+      notch(-40)
+      expect(seen).toEqual([1, 2, 1, 2])
+      // At the end it stays, and with Shift a notch is a tenth of a step.
+      notch(-300)
+      expect(seen).toEqual([1, 2, 1, 2, 3])
+      notch(-100)
+      notch(100, { shiftKey: true })
+      expect(seen).toEqual([1, 2, 1, 2, 3])
+      expect(slider()).toHaveAttribute('aria-valuenow', '3')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('does not announce a value that did not move', () => {
