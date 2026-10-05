@@ -555,14 +555,18 @@ export class Performer {
     for (const off of this.unsubscribe.splice(0)) off()
     try {
       const at = this.engine.now()
-      for (const dial of this.current.dials) {
-        for (const target of dial.targets) {
-          if (target.kind !== 'host') continue
-          this.host?.(target.id, shapeDial(target, dial.value), {
-            at,
-            seconds: DEFAULT_DIAL_GLIDE_SECONDS,
-          })
+      try {
+        for (const dial of this.current.dials) {
+          for (const target of dial.targets) {
+            if (target.kind !== 'host') continue
+            this.host?.(target.id, shapeDial(target, dial.value), {
+              at,
+              seconds: DEFAULT_DIAL_GLIDE_SECONDS,
+            })
+          }
         }
+      } catch {
+        // What the host moves is the host's own, and may be gone; the tracks are let go all the same.
       }
       for (const track of this.sceneRides.keys()) {
         this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })

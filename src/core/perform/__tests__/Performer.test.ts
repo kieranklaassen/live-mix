@@ -850,6 +850,23 @@ describe('Performer: leaving', () => {
     expect(() => performer.go('dawn')).toThrow(/disposed/)
   })
 
+  it('dispose lets every track go though the host can move nothing any more', () => {
+    const set = twoScenes()
+    set.dials = [{ id: 'tone', name: 'Tone', value: 1, targets: [{ kind: 'host', id: 'cutoff' }] }]
+    let gone = false
+    const { performer, approach } = rig(set, {
+      host: () => {
+        if (gone) throw new Error('the filter is gone')
+      },
+    })
+    performer.go('dawn')
+    expect(approach('b')?.[0]).toBe(0)
+    gone = true
+    expect(() => performer.dispose()).not.toThrow()
+    expect(approach('a')?.[0]).toBe(1)
+    expect(approach('b')?.[0]).toBe(1)
+  })
+
   it('goes with its engine', () => {
     const { engine, performer } = rig()
     performer.go('dawn')
