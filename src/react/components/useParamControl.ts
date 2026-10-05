@@ -79,6 +79,7 @@ export interface ParamControlHandlers {
   onClick: (event: MouseEvent<HTMLElement>) => void
   onDoubleClick: (event: MouseEvent<HTMLElement>) => void
   onKeyDown: (event: KeyboardEvent<HTMLElement>) => void
+  onKeyUp: (event: KeyboardEvent<HTMLElement>) => void
   onBlur: () => void
 }
 
@@ -541,6 +542,15 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     [beginGesture, commitNorm, commitValue, endGesture, touchGesture],
   )
 
+  /**
+   * Enter goes up. The click the browser makes of it came as the key went
+   * down; one a host kept never reached `onClick`, and a click no pointer made
+   * that comes later (a script's, a screen reader's) is not that Enter's.
+   */
+  const onKeyUp = useCallback((event: KeyboardEvent<HTMLElement>) => {
+    if (event.key === 'Enter') enterRef.current = false
+  }, [])
+
   const onBlur = useCallback(() => {
     enterRef.current = false
     if (!draggingRef.current) endGesture()
@@ -612,6 +622,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       onClick,
       onDoubleClick,
       onKeyDown,
+      onKeyUp,
       onBlur,
     },
     ref,
