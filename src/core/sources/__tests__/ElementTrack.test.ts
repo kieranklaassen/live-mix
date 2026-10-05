@@ -401,6 +401,23 @@ describe('ElementTrack voice control', () => {
     expect(elements.map((e) => e.playCalls.count)).toEqual([1, 1])
     expect(elements.map((e) => e.pauseCalls.count)).toEqual([1, 1])
   })
+
+  it('unlockAll leaves a bed that is sounding to sound, and one that starts in the same turn', async () => {
+    const { track, source, elements } = setup()
+    const sounding = source('sounding')
+    const starting = source('starting')
+    track.addSource(sounding)
+    track.addSource(starting)
+    track.play('a', voiceOptions(sounding), 0)
+    expect(elements[0].paused).toBe(false)
+
+    const unlocking = track.unlockAll() // the gesture that starts playback, a second time
+    track.play('b', voiceOptions(starting), 0)
+    await unlocking
+    expect(elements.map((e) => e.paused)).toEqual([false, false])
+    expect(elements.map((e) => e.muted)).toEqual([false, false])
+    expect(elements.map((e) => e.pauseCalls.count)).toEqual([0, 0])
+  })
 })
 
 describe('ElementTrack as Schedulables', () => {
