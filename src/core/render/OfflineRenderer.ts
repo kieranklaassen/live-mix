@@ -160,8 +160,9 @@ export interface ScheduleAheadOptions {
  * every start inside `[startSec, startSec + durationSec]` has been handed to
  * the graph. Samples a tick asks for are awaited before the tick is repeated
  * at the same virtual time, so a start is never lost to a decode in flight
- * (live, the load completes between timer ticks). Exposed for hosts that
- * render on their own context.
+ * (live, the load completes between timer ticks). A sample that cannot be
+ * loaded is left out, as it is live. Exposed for hosts that render on their
+ * own context.
  */
 export async function scheduleAhead(engine: Engine, options: ScheduleAheadOptions): Promise<void> {
   const { startSec, durationSec, tickSec, setNow } = options
@@ -180,8 +181,15 @@ export async function scheduleAhead(engine: Engine, options: ScheduleAheadOption
     setNow(t)
     engine.scheduler.tick()
     while (engine.samples.pendingCount > 0 || pendingStretch(engine) > 0) {
+      const loads = engine.samples.metrics.loads
+      const building = pendingStretch(engine)
       await Promise.all([engine.samples.settled(), ...engine.stretchTracks.map((t) => t.settled())])
       engine.scheduler.tick()
+      // Nothing that was waited for arrived, and the tick asked for it again:
+      // a sample that cannot be loaded, a stretch node that cannot be built.
+      // Repeating the tick would ask without end, so the render goes on
+      // without it, as live: the next step of the clock asks once more.
+      if (engine.samples.metrics.loads === loads && pendingStretch(engine) >= building) break
     }
     engine.automation.tick()
     if (engine.transport.state !== 'playing') break
