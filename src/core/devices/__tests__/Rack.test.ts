@@ -778,6 +778,25 @@ describe('Rack presets', () => {
     ).rejects.toThrow(/missing device/)
   })
 
+  it('captures a rack whose mapped device was taken off its chain, leaving that mapping out', () => {
+    const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
+    const rack = createRack(ctx, { name: 'Space' })
+    const chain = rack.addChain()
+    const utility = createUtility(ctx)
+    const filter = createFilter(ctx)
+    chain.addInsert(utility)
+    chain.addInsert(filter)
+    rack.mapMacro(0, utility, 'gainDb')
+    rack.mapMacro(0, filter, 'frequency')
+    chain.removeInsert(utility)
+
+    const preset = captureRackPreset(rack, 'Tonight', { registry: devices })
+    expect(preset.chains[0].devices.map((device) => device.preset.deviceId)).toEqual(['filter'])
+    expect(preset.macros[0].mappings).toEqual([
+      { chain: 0, device: 0, param: 'frequency', min: 20, max: 20000, curve: 'linear' },
+    ])
+  })
+
   it('loads and captures U23 presets of the macros and mix through the registry', async () => {
     const ctx = asAudioContext(createMockContext({ sampleRate: SR }))
     const centred = await devices.create('rack', ctx, { preset: 'Centred' })

@@ -716,17 +716,21 @@ export function captureRackPreset(
   const macros = rack.macros.map((macro): RackMacroPreset => ({
     name: macro.name,
     value: macro.value,
-    mappings: rack.macroMappings(macro.index).map((mapping): RackMacroMappingPreset => {
-      const chainIndex = rack.chains.findIndex((chain) => chain.inserts.includes(mapping.device))
+    mappings: rack.macroMappings(macro.index).flatMap((mapping): RackMacroMappingPreset[] => {
+      const chainIndex = rack.chains.findIndex((chain) => chain.devices.includes(mapping.device))
+      // A device taken off its chain is in no preset, so its mapping has no place to name.
+      if (chainIndex === -1) return []
       const deviceIndex = rack.chains[chainIndex].devices.indexOf(mapping.device)
-      return {
-        chain: chainIndex,
-        device: deviceIndex,
-        param: mapping.param,
-        min: mapping.min,
-        max: mapping.max,
-        curve: mapping.curve,
-      }
+      return [
+        {
+          chain: chainIndex,
+          device: deviceIndex,
+          param: mapping.param,
+          min: mapping.min,
+          max: mapping.max,
+          curve: mapping.curve,
+        },
+      ]
     }),
   }))
   return { name, mix: rack.getParam('mix'), macros, chains }
