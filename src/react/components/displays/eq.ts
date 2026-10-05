@@ -998,6 +998,242 @@ const autoFilter = plateDisplay({
   handles: autoFilterHandles,
 })
 
+// --- Tamer ------------------------------------------------------------------
+
+/**
+ * The Tamer only cuts, so its scale hangs from the line where nothing is
+ * changed: a line of words' room over that line, so the words at the head and
+ * the points that stand on the line keep clear of each other, and a little
+ * past the deepest cut under it.
+ */
+export const TAMER_TOP_DB = 6
+export const TAMER_FOOT_DB = -21
+/** No cut is deeper than this, and Depth is how much of it a tone standing 18 dB clear of its bed is cut by (`kMaxCutDb`). */
+export const TAMER_MOST_DB = 18
+
+/**
+ * The places the device reads its cut at for this display (`display_hz_` in
+ * `tamer.h`): 48 of them, evenly spaced in pitch from 40 Hz to 20 kHz.
+ */
+export const TAMER_POINTS: readonly number[] = Array.from(
+  { length: 48 },
+  (_, p) => 40 * Math.pow(500, p / 47),
+)
+/** The device's readings that carry the cut at those places: four places to a reading, one digit in base 64 each, in half dB. */
+const TAMER_READINGS: readonly string[] = Array.from({ length: 12 }, (_, r) => `cut${r + 1}`)
+const TAMER_PER_READING = 4
+const TAMER_STEPS = 64
+
+/** The cut at every place, in dB (0 or below), out of the device's twelve readings. */
+export function tamerCuts(reading: (name: string) => number, into: Float32Array): Float32Array {
+  for (let r = 0; r < TAMER_READINGS.length; r++) {
+    let packed = Math.round(reading(TAMER_READINGS[r]))
+    if (!(packed > 0)) packed = 0
+    for (let i = 0; i < TAMER_PER_READING; i++) {
+      const place = r * TAMER_PER_READING + i
+      if (place >= into.length) break
+      const steps = packed % TAMER_STEPS
+      packed = (packed - steps) / TAMER_STEPS
+      into[place] = steps > 0 ? -steps / 2 : 0
+    }
+  }
+  return into
+}
+
+/** The width Sharpness has the device listen with, in octaves: one at 0, a twelfth at 1 (`width_for`). */
+export const tamerWidth = (sharpness: number): number =>
+  Math.pow(2, -clamp(sharpness, 0, 1) * Math.log2(12))
+
+/** A cut's filter is this many times as wide as what it listens with (`kFilterWidths`). */
+const TAMER_FILTER_WIDTHS = 2
+
+/**
+ * The Q of one of the Tamer's cuts at `hz`, as `lay_out_width` designs it:
+ * twice as wide as what Sharpness listens with, and the width kept in octaves
+ * up to the top (the bilinear transform would narrow it by w / sin w), which
+ * to the kit's `biquad` is a Q that falls a little towards the top. Low down,
+ * where the device's bands are wider than Sharpness's width, its filter is
+ * twice the band instead; the display has no bands and does not draw that.
+ */
+export function tamerQ(sharpness: number, hz: number, sampleRate: number): number {
+  const w = (2 * Math.PI * clamp(hz, 1, 0.45 * sampleRate)) / sampleRate
+  const octaves = TAMER_FILTER_WIDTHS * tamerWidth(sharpness)
+  return 1 / (2 * Math.sinh((0.5 * Math.LN2 * octaves * w) / Math.sin(w)))
+}
+
+/** The middle of the range it listens in, where the example of one cut stands. */
+const tamerMiddle = (view: DisplayView): number => Math.sqrt(view.value('from') * view.value('to'))
+
+/** How far a turn of the wheel by one notch moves Sharpness: twenty notches from one end to the other. */
+const TAMER_WHEEL_STEP = 0.05
+/** How much of the plate lies over the display where the device does not listen. */
+const TAMER_VEIL = 0.5
+
+interface TamerState {
+  /** The cut at each place as the device last reported it, and as it is drawn: the half-dB steps eased. */
+  read: Float32Array
+  cuts: Float32Array
+}
+
+function tamerHandles(view: DisplayView): DisplayHandle[] {
+  const box = curveBox(view)
+  const zero = yOfDb(0, box, TAMER_TOP_DB, TAMER_FOOT_DB)
+  // An end of the range stands on the line where nothing is cut, at its frequency.
+  const end = (param: 'from' | 'to', name: string): DisplayHandle => {
+    const [min, max] = rangeOf(view, param, [20, 20000])
+    return {
+      key: param,
+      name,
+      x: xOfHz(view.value(param), box),
+      y: zero,
+      drag: (x) => ({ [param]: clamp(hzOfX(x, box), min, max) }),
+      reset: () => ({ [param]: startOf(view, param, view.value(param)) }),
+    }
+  }
+  const [depthMin, depthMax] = rangeOf(view, 'depth', [0, 1])
+  const [sharpMin, sharpMax] = rangeOf(view, 'sharpness', [0, 1])
+  return [
+    end('from', 'From'),
+    {
+      key: 'depth',
+      name: 'Depth',
+      // At the foot of the example cut: where it stands is the range's, only its depth is set.
+      x: xOfHz(tamerMiddle(view), box),
+      y: yOfDb(-view.value('depth') * TAMER_MOST_DB, box, TAMER_TOP_DB, TAMER_FOOT_DB),
+      // Over the line there is no cut to make: the device never adds.
+      drag: (_x, y) => ({
+        depth: clamp(
+          Math.max(0, -dbOfY(y, box, TAMER_TOP_DB, TAMER_FOOT_DB)) / TAMER_MOST_DB,
+          depthMin,
+          depthMax,
+        ),
+      }),
+      // The wheel narrows and widens the cuts.
+      wheel: (steps) => ({
+        sharpness: clamp(view.value('sharpness') + TAMER_WHEEL_STEP * steps, sharpMin, sharpMax),
+      }),
+      reset: () => ({ depth: startOf(view, 'depth', 0.5) }),
+    },
+    end('to', 'To'),
+  ]
+}
+
+const tamer = plateDisplay<TamerState>({
+  place: 'window',
+  columns: 1,
+  params: ['from', 'to', 'depth', 'sharpness', 'listen'],
+  live: { meters: true, spectrum: true },
+  info: 'In the second colour, what is being cut now, hanging from the 0 dB line over the spectrum of what comes out, and the deepest cut in dB in the corner. Drag the two points on the line to set where it listens. The dotted line is one cut: drag its point for Depth, turn the wheel on it for Sharpness.',
+  init: () => ({
+    read: new Float32Array(TAMER_POINTS.length),
+    cuts: new Float32Array(TAMER_POINTS.length),
+  }),
+  draw(frame) {
+    const { ctx, colours, state } = frame
+    ground(frame)
+    const box = curveBox(frame)
+    const level = (db: number): number => yOfDb(db, box, TAMER_TOP_DB, TAMER_FOOT_DB)
+    const zero = level(0)
+    const foot = box.y + box.h
+    const running = frame.signal !== null && frame.powered
+
+    // What is being cut, place by place, from the device.
+    let cutting = false
+    if (running) tamerCuts((name) => frame.meter(name), state.read)
+    for (let place = 0; place < state.cuts.length; place++) {
+      state.cuts[place] = running
+        ? follow(state.cuts[place], state.read[place], frame.dt, 0.06, 0.06)
+        : 0
+      if (state.cuts[place] < -0.05) cutting = true
+    }
+
+    freqGrid(frame, box)
+    dbGrid(frame, box, TAMER_TOP_DB, TAMER_FOOT_DB, 6)
+    clipped(ctx, box, () => {
+      spectrum(frame, box, { topDb: 0, bottomDb: SPECTRUM_FOOT_DB, alpha: 0.5 })
+    })
+
+    const handles = tamerHandles(frame)
+    const [from, , to] = handles
+    // Where it does not listen, below From and above To, the plate is laid
+    // back over the grid and the sound, and a post stands at each end of the
+    // range. With From above To there is no range, and all of it is laid over.
+    const right = Math.max(from.x, to.x)
+    fillRect(ctx, { x: box.x, y: box.y, w: from.x - box.x, h: box.h }, colours.plate, TAMER_VEIL)
+    fillRect(
+      ctx,
+      { x: right, y: box.y, w: box.x + box.w - right, h: box.h },
+      colours.plate,
+      TAMER_VEIL,
+    )
+    for (const end of [from, to])
+      rule(ctx, end.x, zero, end.x, foot, { colour: colours.ink, alpha: INK.rule })
+
+    clipped(ctx, box, () => {
+      // The cut as it stands now, through the device's places. Under the
+      // first of them, 40 Hz, it reports nothing, and no cut is centred down
+      // there: the line is carried level to the edge.
+      const now: Point[] = [[box.x, level(state.cuts[0])]]
+      TAMER_POINTS.forEach((hz, place) => now.push([xOfHz(hz, box), level(state.cuts[place])]))
+      if (cutting) fillTo(ctx, now, zero, colours.accent, 0.9)
+      // One cut as Depth and Sharpness have it, in the middle of the range:
+      // as deep as a tone standing 18 dB clear of its bed is cut, and as wide
+      // as the filter the device makes for it.
+      const middle = tamerMiddle(frame)
+      const example = biquad(
+        'peaking',
+        middle,
+        tamerQ(frame.value('sharpness'), middle, frame.sampleRate),
+        -frame.value('depth') * TAMER_MOST_DB,
+        frame.sampleRate,
+      )
+      trace(
+        ctx,
+        responseThrough(
+          box,
+          (hz) => biquadDb(example, hz, frame.sampleRate),
+          TAMER_TOP_DB,
+          TAMER_FOOT_DB,
+          [middle],
+        ),
+        { colour: colours.ink, width: 1, alpha: INK.back, dash: [1, 3] },
+      )
+      trace(ctx, now, { colour: colours.ink })
+    })
+
+    for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    const hot = handles.find((point) => point.key === frame.hot)
+    // The deepest cut in force, as a number: the one figure it is watched by.
+    // The device's reading is the deepest of its filters. Where filters lie
+    // over one another their cuts add and the curve hangs lower than any one
+    // of them, and a narrow cut falls between two places of the curve: the
+    // number is the deeper of the two.
+    let deepest = 0
+    if (running) {
+      const reduction = frame.meter('reduction')
+      if (reduction < 0) deepest = reduction
+      for (const cut of state.read) if (cut < deepest) deepest = cut
+    }
+    captions(frame, box, handles, [
+      { words: dbText(deepest), side: 'right', size: 9 },
+      // While Listen is on, what is heard is what is taken away: said first,
+      // so the word keeps its corner when a point is taken.
+      frame.value('listen') >= 0.5 ? { words: 'Listen', side: 'left' } : null,
+      hot
+        ? {
+            words: `${hot.name}  ${
+              hot.key === 'depth'
+                ? dbText(-frame.value('depth') * TAMER_MOST_DB)
+                : hzText(frame.value(hot.key))
+            }`,
+            side: 'left',
+          }
+        : null,
+    ])
+  },
+  handles: tamerHandles,
+})
+
 export const EQ_FACES: Readonly<Record<string, PlateFace>> = {
   'parametric-eq': {
     display: parametricEq,
@@ -1021,5 +1257,9 @@ export const EQ_FACES: Readonly<Record<string, PlateFace>> = {
     // "Env Amount" and "LFO Amount" take two lines, and the second stands
     // against the knob below; the one word says which of the two moves the cutoff.
     labels: { envAmount: 'Env', lfoAmount: 'LFO' },
+  },
+  tamer: {
+    display: tamer,
+    face: ['depth', 'sharpness'],
   },
 }

@@ -1,0 +1,217 @@
+{
+  "id": "tamer",
+  "name": "Tamer",
+  "category": "eq",
+  "description": "Finds the tones that ring out above the bed of sound around them, as they happen, and turns only those down. Leaves clean notes alone. Adds no delay.",
+  "class": "Tamer",
+  "header": "tamer.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of what stands out is taken away. Low only touches the worst tones; all the way up levels every peak with the sound around it. Zero turns it off."
+    },
+    {
+      "key": "sharpness",
+      "name": "Sharpness",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How narrow the cuts are. Up picks out single ringing tones and leaves their neighbours; down evens out broad humps, more like a tone control."
+    },
+    {
+      "key": "time",
+      "name": "Time",
+      "min": 10,
+      "max": 1000,
+      "default": 60,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How fast a cut comes in. Short catches the harsh start of a sound; long only acts on what stays. It lets go four times slower."
+    },
+    {
+      "key": "from",
+      "name": "From",
+      "min": 80,
+      "max": 2000,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The bottom of the range that is worked on. Everything below is left alone, so raise it to keep the weight of a sound out of reach."
+    },
+    {
+      "key": "to",
+      "name": "To",
+      "min": 1000,
+      "max": 20000,
+      "default": 16000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The top of the range that is worked on. Everything above is left alone, so lower it to keep the air of a sound out of reach."
+    },
+    {
+      "key": "listen",
+      "name": "Listen",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On plays only what is being taken away, so the settings can be tuned by ear. Turn it off again to hear the result."
+    }
+  ],
+  "meters": [
+    {
+      "key": "reduction",
+      "name": "Reduction",
+      "unit": "dB"
+    },
+    {
+      "key": "cut1",
+      "name": "Cut, points 1 to 4",
+      "display": true
+    },
+    {
+      "key": "cut2",
+      "name": "Cut, points 5 to 8",
+      "display": true
+    },
+    {
+      "key": "cut3",
+      "name": "Cut, points 9 to 12",
+      "display": true
+    },
+    {
+      "key": "cut4",
+      "name": "Cut, points 13 to 16",
+      "display": true
+    },
+    {
+      "key": "cut5",
+      "name": "Cut, points 17 to 20",
+      "display": true
+    },
+    {
+      "key": "cut6",
+      "name": "Cut, points 21 to 24",
+      "display": true
+    },
+    {
+      "key": "cut7",
+      "name": "Cut, points 25 to 28",
+      "display": true
+    },
+    {
+      "key": "cut8",
+      "name": "Cut, points 29 to 32",
+      "display": true
+    },
+    {
+      "key": "cut9",
+      "name": "Cut, points 33 to 36",
+      "display": true
+    },
+    {
+      "key": "cut10",
+      "name": "Cut, points 37 to 40",
+      "display": true
+    },
+    {
+      "key": "cut11",
+      "name": "Cut, points 41 to 44",
+      "display": true
+    },
+    {
+      "key": "cut12",
+      "name": "Cut, points 45 to 48",
+      "display": true
+    }
+  ],
+  "presets": {
+    "Even": {
+      "depth": 0.5,
+      "sharpness": 0.6,
+      "time": 60,
+      "from": 120,
+      "to": 16000,
+      "listen": 0
+    },
+    "Gentle": {
+      "depth": 0.3,
+      "sharpness": 0.4,
+      "time": 120,
+      "from": 120,
+      "to": 16000,
+      "listen": 0
+    },
+    "Harsh sample": {
+      "depth": 0.8,
+      "sharpness": 0.8,
+      "time": 30,
+      "from": 1500,
+      "to": 12000,
+      "listen": 0
+    },
+    "Bright tail": {
+      "depth": 0.65,
+      "sharpness": 0.7,
+      "time": 250,
+      "from": 1000,
+      "to": 16000,
+      "listen": 0
+    },
+    "Master": {
+      "depth": 0.25,
+      "sharpness": 0.5,
+      "time": 200,
+      "from": 150,
+      "to": 14000,
+      "listen": 0
+    },
+    "Ringing tones": {
+      "depth": 0.9,
+      "sharpness": 1,
+      "time": 150,
+      "from": 120,
+      "to": 16000,
+      "listen": 0
+    },
+    "Mud": {
+      "depth": 0.6,
+      "sharpness": 0.5,
+      "time": 100,
+      "from": 100,
+      "to": 1000,
+      "listen": 0
+    },
+    "Broad and slow": {
+      "depth": 0.6,
+      "sharpness": 0.1,
+      "time": 500,
+      "from": 120,
+      "to": 16000,
+      "listen": 0
+    },
+    "Mic": {
+      "depth": 0.5,
+      "sharpness": 0.8,
+      "time": 40,
+      "from": 200,
+      "to": 8000,
+      "listen": 0
+    },
+    "Flatten": {
+      "depth": 1,
+      "sharpness": 0.3,
+      "time": 100,
+      "from": 80,
+      "to": 20000,
+      "listen": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. In the family of the resonance suppressors: a spectral compressor keyed on each band's level against the sound on both sides of it, with the cuts made by minimum-phase peaking filters so that it adds no latency. Not a model of any product."
+  }
+}

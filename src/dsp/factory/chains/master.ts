@@ -344,4 +344,15 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
+  {
+    id: 'ringing-eased',
+    name: 'Ringing eased',
+    category: 'master',
+    description:
+      'Tones that ring out of a dense mix are eased as they happen, then a true-peak ceiling holds.',
+    effects: [
+      { deviceId: 'tamer', preset: 'Master' },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
 ]

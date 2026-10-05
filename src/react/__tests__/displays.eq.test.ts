@@ -1,5 +1,5 @@
 // The truth of the EQ and filter displays: each curve against numbers worked
-// out from the filter it stands for, what the handles set, what the two
+// out from the filter it stands for, what the handles set, what the three
 // compiled devices' readings put on the display, and the compiled devices
 // themselves against what is drawn of them.
 
@@ -16,12 +16,19 @@ import {
   EQ3_DB,
   EQ_FACES,
   FILTER_DB,
+  TAMER_FOOT_DB,
+  TAMER_MOST_DB,
+  TAMER_POINTS,
+  TAMER_TOP_DB,
   autoFilterDb,
   autoFilterSweep,
   biquadTurns,
   clearCuts,
   seriesDb,
   svfDb,
+  tamerCuts,
+  tamerQ,
+  tamerWidth,
 } from '../components/displays/eq'
 import { type DisplayHandle } from '../components/plate-display'
 import {
@@ -131,9 +138,9 @@ function dbAt(
 }
 
 describe('the family', () => {
-  it('is five windows, each with handles', () => {
+  it('is six windows, each with handles', () => {
     expect(Object.keys(EQ_FACES).sort()).toEqual(
-      ['ambient-eq', 'auto-filter', 'eq3', 'filter', 'parametric-eq'].sort(),
+      ['ambient-eq', 'auto-filter', 'eq3', 'filter', 'parametric-eq', 'tamer'].sort(),
     )
     for (const { display } of Object.values(EQ_FACES)) {
       expect(display.place).toBe('window')
@@ -882,6 +889,440 @@ describe('the Auto Filter display', () => {
   })
 })
 
+describe('the Tamer display', () => {
+  const tamer = face('tamer')
+  const { box } = tamer
+  const level = (db: number): number => yOfDb(db, box, TAMER_TOP_DB, TAMER_FOOT_DB)
+  /** What the drawn curve says is cut at a frequency, in dB. */
+  const cutAt = (drawn: RecordingContext, hz: number): number =>
+    dbAt(mainCurve(drawn), hz, box, TAMER_TOP_DB, TAMER_FOOT_DB)
+  /** The one dotted line: the shape of one cut. */
+  const dotted = (drawn: RecordingContext): [number, number][] => {
+    const lines = shapes(drawn).filter(
+      (shape) => shape.op === 'stroke' && shape.dash.length > 0 && shape.points.length > 10,
+    )
+    expect(lines.length, 'one dotted line').toBe(1)
+    return lines[0].points
+  }
+  const inAccent = (drawn: RecordingContext): Shape[] =>
+    shapes(drawn).filter((shape) => shape.colour === PLAIN_COLOURS.accent)
+  /** The thirteen readings with these places cut by so many dB. */
+  const readings = (cuts: Record<number, number>, reduction: number): Record<string, number> => {
+    const packed = new Array<number>(12).fill(0)
+    for (const [place, cut] of Object.entries(cuts))
+      packed[Math.floor(Number(place) / 4)] +=
+        Math.round(-cut * 2) * Math.pow(64, Number(place) % 4)
+    return Object.fromEntries([
+      ['reduction', reduction],
+      ...packed.map((value, r) => [`cut${r + 1}`, value]),
+    ]) as Record<string, number>
+  }
+  const read = (meters: Readonly<Record<string, number>>): number[] => [
+    ...tamerCuts((name) => meters[name], new Float32Array(48)),
+  ]
+
+  it('hangs its scale from the 0 dB line, with room over it for a line of words', () => {
+    // The points of the range stand on the 0 dB line and the words at the
+    // head: a point in hand is 5 px to its rim, a line of words 12 px deep.
+    expect(level(0)).toBeGreaterThan(box.y + 12 + 5)
+    expect(level(0)).toBeLessThan(box.y + box.h / 3)
+    // The deepest cut there is stands whole over the foot.
+    expect(TAMER_MOST_DB).toBe(18)
+    expect(level(-TAMER_MOST_DB) + 5).toBeLessThan(box.y + box.h)
+  })
+
+  it('has the places of the curve where the device reads them', () => {
+    // `display_hz_`: 48 places evenly spaced in pitch from 40 Hz to 20 kHz.
+    expect(TAMER_POINTS.length).toBe(48)
+    expect(TAMER_POINTS[0]).toBe(40)
+    expect(TAMER_POINTS[47]).toBeCloseTo(20000, 6)
+    const step = Math.log2(20000 / 40) / 47
+    for (let place = 1; place < 48; place++)
+      expect(Math.log2(TAMER_POINTS[place] / TAMER_POINTS[place - 1])).toBeCloseTo(step, 9)
+  })
+
+  it('reads every place out of the twelve readings', () => {
+    // The ends of a digit too: half a decibel is 1, and 63 is 31.5 dB.
+    const cuts = { 0: -0.5, 3: -31.5, 4: -18, 5: -3.5, 22: -9, 23: -0.5, 44: -31.5, 47: -12 }
+    const meters = readings(cuts, -18)
+    // As the device packs them: place 5 is the second digit of the second reading.
+    expect(meters.cut1).toBe(1 + 63 * 262144)
+    expect(meters.cut2).toBe(36 + 7 * 64)
+    expect(meters.cut12).toBe(63 + 24 * 262144)
+    const places = read(meters)
+    for (let place = 0; place < 48; place++)
+      expect(places[place], `place ${place}`).toBe((cuts as Record<number, number>)[place] ?? 0)
+    // Four places at their deepest are the largest reading there is, and a float holds it exactly.
+    const largest = Math.pow(64, 4) - 1
+    expect(largest).toBeLessThan(Math.pow(2, 24))
+    expect(Math.fround(largest)).toBe(largest)
+    expect(read({ cut7: largest }).filter((cut) => cut !== 0)).toEqual([-31.5, -31.5, -31.5, -31.5])
+    // A reading that is no number of the device's is no cut.
+    for (const bad of [Number.NaN, -6, Number.POSITIVE_INFINITY])
+      expect(
+        read(Object.fromEntries(Array.from({ length: 12 }, (_, r) => [`cut${r + 1}`, bad]))).every(
+          (cut) => cut === 0,
+        ),
+        String(bad),
+      ).toBe(true)
+  })
+
+  interface Cut {
+    hz: number
+    q: number
+    /** The filter's gain in dB, 0 or below. */
+    db: number
+  }
+
+  /**
+   * `Tamer::meter(index)` for index 1 to 12, term by term. The cut at a place
+   * is the sum over the live filters of each one's skirt there, by the rule
+   * the device solves its gains with: `1 / (1 + Q²(r − 1/r)²)` of the gain at
+   * `r` times the centre. Four places to a reading from the highest digit
+   * down, each `int(2 * cut + 0.5)` kept to 0..63.
+   */
+  const skirt = (r: number, q: number): number => {
+    const d = q * (r - 1 / r)
+    return 1 / (1 + d * d)
+  }
+  const cutAsTheDevice = (filters: readonly Cut[], place: number): number => {
+    let db = 0
+    for (const filter of filters) db -= filter.db * skirt(TAMER_POINTS[place] / filter.hz, filter.q)
+    return db
+  }
+  const packedAsTheDevice = (filters: readonly Cut[], index: number): number => {
+    const first = (index - 1) * 4
+    let packed = 0
+    for (let place = first + 3; place >= first; place--) {
+      const steps = Math.trunc(2 * cutAsTheDevice(filters, place) + 0.5)
+      packed = packed * 64 + Math.min(63, Math.max(0, steps))
+    }
+    return Math.fround(packed)
+  }
+  const asTheDevice = (filters: readonly Cut[]): Record<string, number> => ({
+    reduction: Math.min(0, ...filters.map((filter) => filter.db)),
+    ...Object.fromEntries(
+      Array.from({ length: 12 }, (_, r) => [`cut${r + 1}`, packedAsTheDevice(filters, r + 1)]),
+    ),
+  })
+
+  it('brings a cut of 3.5 dB at one place back as 3.5 dB at that frequency', () => {
+    // A filter far narrower than the places are apart, centred on place 21:
+    // the second digit of the sixth reading (places 20 to 23), 7 half
+    // decibels times 64, and nothing anywhere else.
+    const meters = asTheDevice([{ hz: TAMER_POINTS[21], q: 40, db: -3.5 }])
+    expect(meters).toEqual({ ...readings({}, -3.5), cut6: 448 })
+    expect(TAMER_POINTS[21]).toBeCloseTo(40 * Math.pow(500, 21 / 47), 9)
+    expect(TAMER_POINTS[21]).toBeCloseTo(642.7, 1)
+    const running = tamer.run(1, { meters, signal: testSignal() })
+    expect(cutAt(running, TAMER_POINTS[21])).toBeCloseTo(-3.5, 2)
+    expect(cutAt(running, TAMER_POINTS[20])).toBeCloseTo(0, 6)
+    expect(cutAt(running, TAMER_POINTS[22])).toBeCloseTo(0, 6)
+    expect(running.words()).toContain('−3.5 dB')
+  })
+
+  it('reads the readings as the device packs them: skirts that add, rounded, and kept to a digit', () => {
+    // Two wide filters lying over one another and a third far off. Where the
+    // two overlap the curve is deeper than either: their skirts add.
+    const filters = [
+      { hz: 900, q: 0.667, db: -9 },
+      { hz: 1400, q: 0.667, db: -7 },
+      { hz: 9000, q: 4, db: -4.2 },
+    ]
+    const meters = asTheDevice(filters)
+    const places = read(meters)
+    for (let place = 0; place < 48; place++) {
+      const exact = cutAsTheDevice(filters, place)
+      // To the half decibel, a half rounding away from 0.
+      expect(places[place], `place ${place}`).toBe(0 - Math.floor(2 * exact + 0.5) / 2)
+      expect(Math.abs(places[place] + exact)).toBeLessThanOrEqual(0.25)
+    }
+    expect(Math.min(...places)).toBeLessThan(-12)
+    const running = tamer.run(1, { meters, signal: testSignal() })
+    for (const place of [0, 12, 24, 27, 30, 41, 47])
+      expect(cutAt(running, TAMER_POINTS[place]), `place ${place}`).toBeCloseTo(places[place], 2)
+    // A sum deeper than a digit holds, which the device's 18 dB a filter never
+    // reaches at one place, reads as 31.5 dB and leaves the places beside it alone.
+    const deep = asTheDevice([
+      { hz: TAMER_POINTS[9], q: 200, db: -18 },
+      { hz: TAMER_POINTS[9], q: 200, db: -18 },
+    ])
+    expect(
+      read(deep)
+        .map((cut, place) => (cut === 0 ? null : [place, cut]))
+        .filter(Boolean),
+    ).toEqual([[9, -31.5]])
+  })
+
+  it('shows in the accent what is being cut, and nothing at rest or switched off', () => {
+    const meters = readings({ 20: -4, 21: -8.5, 22: -6 }, -5.2)
+    const running = tamer.run(1, { meters, signal: testSignal() })
+    // One fill, between the 0 dB line and the curve, and the curve over it in the ink.
+    const accent = inAccent(running)
+    expect(accent.length).toBe(1)
+    expect(accent[0].op).toBe('fill')
+    expect(cutAt(running, TAMER_POINTS[21])).toBeCloseTo(-8.5, 2)
+    expect(cutAt(running, TAMER_POINTS[20])).toBeCloseTo(-4, 2)
+    expect(cutAt(running, TAMER_POINTS[30])).toBe(0)
+    // The fill closes along the 0 dB line.
+    expect(accent[0].points.slice(-2).map(([, y]) => y)).toEqual([level(0), level(0)])
+    // It comes in eased, never past the reading.
+    const early = tamer.run(0.1, { meters, signal: testSignal() })
+    expect(cutAt(early, TAMER_POINTS[21])).toBeLessThan(-1)
+    expect(cutAt(early, TAMER_POINTS[21])).toBeGreaterThan(-8.5)
+
+    // At rest, switched off and without sound nothing is being cut: a flat line at 0, no accent.
+    const stills = [
+      tamer.draw({ meters }),
+      tamer.run(1, { meters, signal: testSignal(), powered: false }),
+      tamer.run(1, { meters }),
+      tamer.run(1, { meters: readings({}, 0), signal: testSignal() }),
+    ]
+    for (const still of stills) {
+      expect(inAccent(still)).toEqual([])
+      for (const [, y] of mainCurve(still)) expect(y).toBe(level(0))
+      expect(still.words()).toEqual(['0.0 dB'])
+    }
+  })
+
+  it('says the deepest cut as the deeper of the reading and the curve', () => {
+    const number = (meters: Record<string, number>): string[] =>
+      tamer.run(1, { meters, signal: testSignal() }).words()
+    // Filters that lie over one another add: the curve hangs lower than the deepest of them.
+    expect(number(readings({ 20: -4, 21: -8.5, 22: -6 }, -5.2))).toEqual(['−8.5 dB'])
+    // A cut narrower than the places are apart falls between two of them.
+    expect(number(readings({ 25: -16 }, -17.8))).toEqual(['−17.8 dB'])
+    // A reading that is no number is no cut.
+    expect(number(readings({}, Number.NaN))).toEqual(['0.0 dB'])
+  })
+
+  it('carries the curve level from its first place to the left edge', () => {
+    // Under 40 Hz the device reads nothing.
+    const curve = mainCurve(tamer.run(1, { meters: readings({ 0: -3 }, -3), signal: testSignal() }))
+    expect(curve.length).toBe(49)
+    expect(curve[0][0]).toBe(box.x)
+    expect(curve[1][0]).toBeCloseTo(xOfHz(40, box), 9)
+    expect(curve[0][1]).toBe(curve[1][1])
+    expect(curve[1][1]).toBeCloseTo(level(-3), 2)
+    expect(curve[48][0]).toBeCloseTo(box.x + box.w, 9)
+  })
+
+  it('lays the plate back over what lies outside From and To, with a post at each', () => {
+    /** The veils: the patches of the plate that are as high as the box. */
+    const veils = (values: Record<string, number>): number[][] => {
+      const drawn = tamer.draw({ values })
+      let fill = ''
+      const found: number[][] = []
+      for (const call of drawn.calls) {
+        if (call.name === 'set fillStyle') fill = String(call.args[0])
+        else if (call.name === 'fillRect' && fill === PLAIN_COLOURS.plate && call.args[3] === box.h)
+          found.push(call.args as number[])
+      }
+      return found
+    }
+    const [below, above] = veils({ from: 300, to: 5000 })
+    expect(below[0]).toBe(box.x)
+    expect(below[2]).toBeCloseTo(xOfHz(300, box) - box.x, 9)
+    expect(above[0]).toBeCloseTo(xOfHz(5000, box), 9)
+    expect(above[0] + above[2]).toBeCloseTo(box.x + box.w, 9)
+    // From above To is no range at all: the whole of it is laid over, once.
+    const none = veils({ from: 2000, to: 1000 })
+    expect(none.length).toBe(2)
+    expect(none[0][0] + none[0][2]).toBeCloseTo(none[1][0], 9)
+    expect(none[0][2] + none[1][2]).toBeCloseTo(box.w, 9)
+    // A post from the 0 dB line to the foot at each end of the range.
+    const posts = shapes(tamer.draw({ values: { from: 300, to: 5000 } })).filter(
+      (shape) =>
+        shape.op === 'stroke' &&
+        shape.points.length === 2 &&
+        shape.points[0][1] === level(0) &&
+        shape.points[1][1] === box.y + box.h,
+    )
+    expect(posts.map((post) => post.points[0][0])).toEqual([
+      Math.floor(xOfHz(300, box)) + 0.5,
+      Math.floor(xOfHz(5000, box)) + 0.5,
+    ])
+  })
+
+  it('ports the width of a cut: twice what Sharpness listens with', () => {
+    // `width_for`: an octave at 0, a twelfth at 1.
+    expect(tamerWidth(0)).toBe(1)
+    expect(tamerWidth(1)).toBeCloseTo(1 / 12, 9)
+    expect(tamerWidth(0.5)).toBeCloseTo(Math.pow(2, -0.5 * 3.5849625), 9)
+    // `lay_out_width`: Q = 1 / (2 sinh(ln 2 / 2 × 2w)), with the width kept
+    // in octaves up to the top by w / sin w, which is nothing low down.
+    for (const sharpness of [0, 0.3, 0.6, 1]) {
+      const plain = 1 / (2 * Math.sinh((Math.LN2 / 2) * 2 * tamerWidth(sharpness)))
+      expect(tamerQ(sharpness, 100, RATE) / plain).toBeCloseTo(1, 3)
+      expect(tamerQ(sharpness, 1000, RATE) / plain).toBeGreaterThan(0.99)
+      expect(tamerQ(sharpness, 1000, RATE)).toBeLessThan(plain)
+    }
+    expect(tamerQ(0, 100, RATE)).toBeCloseTo(0.667, 3)
+    expect(tamerQ(1, 100, RATE)).toBeCloseTo(8.65, 2)
+    // The device's own design, `alpha = sin w × sinh(ln 2 / 2 × width × w / sin w)`,
+    // is the kit's `sin w / 2Q` at that Q: high up, where the two would part, too.
+    const w = (2 * Math.PI * 6000) / RATE
+    const alpha = Math.sin(w) * Math.sinh(((Math.LN2 / 2) * 2 * tamerWidth(0.4) * w) / Math.sin(w))
+    expect(Math.sin(w) / (2 * tamerQ(0.4, 6000, RATE))).toBeCloseTo(alpha, 12)
+  })
+
+  it('draws the shape of one cut as a dotted line: Depth times 18 dB deep at the middle of the range', () => {
+    const values = { from: 200, to: 5000, depth: 0.5, sharpness: 0.3 }
+    const line = dotted(tamer.draw({ values }))
+    const at = (hz: number): number => dbAt(line, hz, box, TAMER_TOP_DB, TAMER_FOOT_DB)
+    // The middle of 200 Hz and 5 kHz, in pitch, is 1 kHz.
+    expect(at(1000)).toBeCloseTo(-9, 2)
+    expect(at(25)).toBeCloseTo(0, 1)
+    expect(at(19000)).toBeCloseTo(0, 1)
+    // It is the peak the device would make there.
+    const peak = biquad('peaking', 1000, tamerQ(0.3, 1000, RATE), -9, RATE)
+    for (const hz of [300, 700, 1000, 1500, 4000])
+      expect(at(hz)).toBeCloseTo(biquadDb(peak, hz, RATE), 1)
+    // It follows the range and Depth: all of the 18 dB at Depth 1.
+    const moved = dotted(tamer.draw({ values: { from: 1000, to: 16000, depth: 1 } }))
+    expect(dbAt(moved, 4000, box, TAMER_TOP_DB, TAMER_FOOT_DB)).toBeCloseTo(-18, 2)
+    // Whole at its foot, however narrow, wherever the middle falls between two pixels.
+    for (const to of [3000, 3100, 3200, 3300])
+      expect(
+        Math.max(
+          ...dotted(tamer.draw({ values: { to, depth: 0.5, sharpness: 1 } })).map(([, y]) => y),
+        ),
+      ).toBeCloseTo(level(-9), 6)
+  })
+
+  it('draws the cut narrower as Sharpness rises: half its depth where the width says', () => {
+    /** How wide the dotted cut is at half its depth, in octaves. */
+    const width = (sharpness: number): number => {
+      const line = dotted(tamer.draw({ values: { from: 200, to: 5000, depth: 0.5, sharpness } }))
+      const half = level(-4.5)
+      const crossings: number[] = []
+      for (let i = 1; i < line.length; i++) {
+        const [x0, y0] = line[i - 1]
+        const [x1, y1] = line[i]
+        if (y0 < half !== y1 < half) crossings.push(x0 + ((half - y0) / (y1 - y0)) * (x1 - x0))
+      }
+      expect(crossings.length).toBe(2)
+      return ((crossings[1] - crossings[0]) / box.w) * Math.log2(1000)
+    }
+    // The width of a peak is between the places where it has half its gain in
+    // dB: two octaves at Sharpness 0, and 2 × 2^(−0.5 × 3.585) = 0.58 at 0.5.
+    expect(width(0)).toBeCloseTo(2 * tamerWidth(0), 1)
+    expect(width(0.5)).toBeCloseTo(2 * tamerWidth(0.5), 1)
+    expect(width(0.5)).toBeCloseTo(0.58, 1)
+    expect(width(0.8)).toBeLessThan(width(0.5))
+  })
+
+  it('draws the cut flat at Depth 0, with its point on the 0 dB line', () => {
+    for (const sharpness of [0, 0.6, 1]) {
+      const values = { depth: 0, sharpness }
+      for (const [, y] of dotted(tamer.draw({ values }))) expect(y).toBeCloseTo(level(0), 9)
+      expect(tamer.handle('depth', values).y).toBe(level(0))
+    }
+  })
+
+  it('has a point for each end of the range and one at the foot of the cut', () => {
+    const values = { from: 200, to: 5000, depth: 0.5, sharpness: 0.6 }
+    const points = tamer.handles(values)
+    expect(points.map((point) => point.key)).toEqual(['from', 'depth', 'to'])
+    expect(points.map((point) => point.name)).toEqual(['From', 'Depth', 'To'])
+
+    // The ends stand on the 0 dB line at their frequencies; across sets them, in Hz.
+    const [from, depth, to] = points
+    expect([from.x, from.y]).toEqual([xOfHz(200, box), level(0)])
+    expect([to.x, to.y]).toEqual([xOfHz(5000, box), level(0)])
+    expect(Object.keys(from.drag(xOfHz(500, box), 70))).toEqual(['from'])
+    expect(from.drag(xOfHz(500, box), 70).from).toBeCloseTo(500, 6)
+    expect(to.drag(xOfHz(9000, box), 3).to).toBeCloseTo(9000, 6)
+    // Each keeps to the frequencies its knob has.
+    expect(from.drag(-20, 0)).toEqual({ from: 80 })
+    expect(from.drag(xOfHz(9000, box), 0)).toEqual({ from: 2000 })
+    expect(to.drag(xOfHz(200, box), 0)).toEqual({ to: 1000 })
+    expect(to.drag(900, 0)).toEqual({ to: 20000 })
+    expect(from.wheel).toBeUndefined()
+    expect(to.wheel).toBeUndefined()
+    expect(from.reset?.()).toEqual({ from: 120 })
+    expect(to.reset?.()).toEqual({ to: 16000 })
+
+    // The third stands at the foot of the cut, in the middle of the range: up and down is Depth.
+    expect(depth.x).toBeCloseTo(xOfHz(1000, box), 9)
+    expect(depth.y).toBeCloseTo(level(-9), 9)
+    expect(Object.keys(depth.drag(3, level(-13.5)))).toEqual(['depth'])
+    expect(depth.drag(3, level(-13.5)).depth).toBeCloseTo(0.75, 6)
+    expect(depth.drag(depth.x, depth.y).depth).toBeCloseTo(0.5, 6)
+    // Over the line there is nothing to cut, and under 18 dB no more.
+    expect(depth.drag(depth.x, level(0))).toEqual({ depth: 0 })
+    expect(depth.drag(depth.x, -50)).toEqual({ depth: 0 })
+    expect(depth.drag(depth.x, 500)).toEqual({ depth: 1 })
+    expect(depth.reset?.()).toEqual({ depth: 0.5 })
+    // The wheel on it is Sharpness, twenty notches from end to end.
+    expect(depth.wheel?.(1).sharpness).toBeCloseTo(0.65, 9)
+    expect(depth.wheel?.(-2).sharpness).toBeCloseTo(0.5, 9)
+    expect(Object.keys(depth.wheel?.(1) ?? {})).toEqual(['sharpness'])
+    expect(depth.wheel?.(20)).toEqual({ sharpness: 1 })
+    expect(depth.wheel?.(-20)).toEqual({ sharpness: 0 })
+
+    // At the deepest cut the point is whole on the display, 5 px to its rim in hand.
+    const deepest = tamer.handle('depth', { depth: 1 })
+    expect(deepest.y).toBeCloseTo(level(-18), 9)
+    expect(deepest.y + 5).toBeLessThan(box.y + box.h)
+    // It goes with the range: the middle of 1 and 4 kHz is 2 kHz.
+    expect(tamer.handle('depth', { from: 1000, to: 4000 }).x).toBeCloseTo(xOfHz(2000, box), 9)
+  })
+
+  it('keeps every point clear of the others at each factory preset', () => {
+    // The ends stand on one line and can be brought together, and at Depth 0
+    // the third is on that line too: no preset has them so.
+    const presets = stock.get('tamer')?.presets ?? {}
+    expect(Object.keys(presets).length).toBeGreaterThanOrEqual(10)
+    for (const [name, preset] of Object.entries(presets)) {
+      const values: Record<string, number> = {}
+      for (const [param, value] of Object.entries(preset))
+        if (value !== undefined) values[param] = value
+      const points = tamer.handles(values)
+      for (const a of points)
+        for (const b of points)
+          if (a.key < b.key)
+            expect(
+              Math.hypot(a.x - b.x, a.y - b.y),
+              `${name}: ${a.key} and ${b.key}`,
+            ).toBeGreaterThan(7)
+    }
+  })
+
+  it('says what the point in hand is at, and Listen while Listen is on', () => {
+    const said = (options: FrameOptions): [string, number, number][] =>
+      tamer
+        .draw(options)
+        .calls.filter((call) => call.name === 'fillText')
+        .map((call) => call.args as [string, number, number])
+    const head = box.y + 8
+    const number: [string, number, number] = ['0.0 dB', box.x + box.w - 2, head]
+    expect(said({})).toEqual([number])
+    // The point in hand at the left of the head: an end in Hz, the cut in dB and nothing else.
+    expect(said({ hot: 'from' })).toEqual([number, ['From  120 Hz', box.x + 2, head]])
+    expect(said({ hot: 'to' })).toEqual([number, ['To  16 kHz', box.x + 2, head]])
+    expect(said({ hot: 'depth', values: { depth: 0.25, sharpness: 0.9 } })).toEqual([
+      number,
+      ['Depth  −4.5 dB', box.x + 2, head],
+    ])
+    // Listen keeps its corner while a point is taken: what the point is at goes to the foot.
+    expect(said({ values: { listen: 1 } })).toEqual([number, ['Listen', box.x + 2, head]])
+    expect(said({ values: { listen: 1 }, hot: 'from' })).toEqual([
+      number,
+      ['Listen', box.x + 2, head],
+      ['From  120 Hz', box.x + 2, box.y + box.h - 3],
+    ])
+    // The words at the head keep their corners wherever the points of the range stand.
+    for (const from of [80, 400, 2000])
+      for (const to of [1000, 5000, 20000])
+        for (const depth of [0, 1])
+          expect(
+            said({ values: { from, to, depth, listen: 1 } }),
+            `${from} Hz to ${to} Hz at Depth ${depth}`,
+          ).toEqual([number, ['Listen', box.x + 2, head]])
+  })
+})
+
 describe('the words on a display', () => {
   /** The words a point stands in: 5 px a letter, as the recording canvas measures them. */
   function covered(drawn: RecordingContext, points: readonly DisplayHandle[]): string[] {
@@ -926,7 +1367,13 @@ describe('the words on a display', () => {
     for (const gain of [-12, 12])
       for (const tone of ['low', 'body', 'presence', 'air'])
         settings.push(['ambient-eq', tone, { [tone]: gain }])
-    expect(settings.length).toBeGreaterThan(80)
+    for (const depth of [0, 1])
+      for (const from of [80, 2000]) {
+        settings.push(['tamer', 'depth', { depth, from }])
+        settings.push(['tamer', 'from', { depth, from, listen: 1 }])
+        for (const to of [1000, 20000]) settings.push(['tamer', 'to', { depth, from, to }])
+      }
+    expect(settings.length).toBeGreaterThan(90)
     for (const [id, key, values] of settings) {
       const made = face(id)
       for (const hot of [key, null]) {
@@ -1139,10 +1586,139 @@ describe('the compiled devices against what is drawn of them', () => {
     ).toBe(1)
   })
 
+  /**
+   * Three seconds through the Tamer of a bed of pink noise at 0.05 RMS with a
+   * sine of amplitude 0.05 at `hz` standing out of it, about 15 dB over the
+   * bed in its twelfth of an octave: the thirteen readings as they stand at
+   * the end, and what the device did to the sine over the last second, in dB.
+   */
+  async function tamed(
+    values: Record<string, number>,
+    hz: number,
+  ): Promise<{ meters: Record<string, number>; measured: number }> {
+    const device = await loadWasmDevice('tamer', RATE)
+    const params = stock.get('tamer')?.params ?? {}
+    for (const [name, value] of Object.entries(values)) device.set(params[name], value)
+    // White noise through three one-pole filters whose sum falls 3 dB an octave.
+    const white = noiseSource()
+    const bed = new Float32Array(RATE * 3)
+    let b0 = 0
+    let b1 = 0
+    let b2 = 0
+    let power = 0
+    for (let n = 0; n < bed.length; n++) {
+      const sample = white()
+      b0 = 0.99765 * b0 + sample * 0.099046
+      b1 = 0.963 * b1 + sample * 0.2965164
+      b2 = 0.57 * b2 + sample * 1.0526913
+      bed[n] = b0 + b1 + b2 + sample * 0.1848
+      power += bed[n] * bed[n]
+    }
+    const scale = 0.05 / Math.sqrt(power / bed.length)
+    const step = (2 * Math.PI * hz) / RATE
+    const block = new Float32Array(BLOCK)
+    // The sine in what goes in and in what comes out, by its two quadratures: the noise falls out of the sum.
+    const tone = { inSin: 0, inCos: 0, outSin: 0, outCos: 0 }
+    for (let done = 0; done + BLOCK <= bed.length; done += BLOCK) {
+      for (let i = 0; i < BLOCK; i++)
+        block[i] = scale * bed[done + i] + 0.05 * Math.sin(step * (done + i))
+      device.processBlock(block)
+      if (done < RATE * 2) continue
+      const out = device.view(device.device.device_out_left(), BLOCK)
+      for (let i = 0; i < BLOCK; i++) {
+        const sin = Math.sin(step * (done + i))
+        const cos = Math.cos(step * (done + i))
+        tone.inSin += block[i] * sin
+        tone.inCos += block[i] * cos
+        tone.outSin += out[i] * sin
+        tone.outCos += out[i] * cos
+      }
+    }
+    const meters: Record<string, number> = {}
+    Object.keys(stock.get('tamer')?.meters ?? {}).forEach(
+      (name, index) => (meters[name] = device.device.device_meter?.(index) ?? Number.NaN),
+    )
+    const measured =
+      20 * Math.log10(Math.hypot(tone.outSin, tone.outCos) / Math.hypot(tone.inSin, tone.inCos))
+    return { meters, measured }
+  }
+
+  /** What the Tamer display draws of these readings once it has eased to them. */
+  function tamerDrawn(meters: Record<string, number>, values: Record<string, number>) {
+    const tamer = face('tamer')
+    const running = tamer.run(1, { meters, signal: testSignal(), values })
+    const curve = mainCurve(running)
+    return {
+      running,
+      at: (hz: number): number => dbAt(curve, hz, tamer.box, TAMER_TOP_DB, TAMER_FOOT_DB),
+    }
+  }
+
+  it('the Tamer: a tone that stands out of its bed is cut where the curve hangs lowest, by what the curve says', async () => {
+    const ringing = 1130
+    // Sharpness 0: the cuts are two octaves wide, and the places of the curve resolve them.
+    const values = { depth: 1, sharpness: 0 }
+    const { meters, measured } = await tamed(values, ringing)
+    expect(Object.keys(meters)).toEqual([
+      'reduction',
+      ...Array.from({ length: 12 }, (_, r) => `cut${r + 1}`),
+    ])
+    expect(meters.reduction).toBeLessThan(-3)
+    const cuts = tamerCuts((name) => meters[name], new Float32Array(48))
+    const deepest = cuts.indexOf(Math.min(...cuts))
+    expect(Math.abs(Math.log2(TAMER_POINTS[deepest] / ringing))).toBeLessThan(0.5)
+
+    const { running, at } = tamerDrawn(meters, values)
+    // The curve at the tone is what the device does to the tone.
+    expect(Math.abs(at(ringing) - measured), `${at(ringing)} drawn, ${measured} done`).toBeLessThan(
+      1,
+    )
+    expect(at(ringing)).toBeCloseTo(Math.min(...cuts), 0)
+    // `reduction` is the deepest of the device's filters. Here they lie over
+    // one another and their cuts add, so the curve is no shallower than that
+    // reading says, and the number on the display is the curve's.
+    expect(at(ringing)).toBeLessThan(meters.reduction + 0.5)
+    expect(running.words()).toEqual([
+      `−${Math.max(-Math.min(...cuts), -meters.reduction).toFixed(1)} dB`,
+    ])
+    // Two octaves away a third of it at most is left, and three octaves away next to nothing.
+    for (const octaves of [-2, 2]) {
+      expect(at(ringing * Math.pow(2, octaves))).toBeGreaterThan(at(ringing) / 3)
+      expect(at(ringing * Math.pow(2, octaves))).toBeLessThanOrEqual(0)
+    }
+    for (const octaves of [-3, 3]) expect(at(ringing * Math.pow(2, octaves))).toBeGreaterThan(-1)
+    expect(
+      shapes(running).filter(
+        (shape) => shape.op === 'fill' && shape.colour === PLAIN_COLOURS.accent,
+      ).length,
+    ).toBe(1)
+  })
+
+  it('the Tamer: a cut narrower than the places are apart reads between the deepest filter and nothing', async () => {
+    const ringing = 1130
+    // Sharpness 1: a cut is a sixth of an octave wide, and the places are 0.19 of one apart.
+    const values = { depth: 1, sharpness: 1 }
+    const { meters } = await tamed(values, ringing)
+    expect(meters.reduction).toBeLessThan(-9)
+    const cuts = tamerCuts((name) => meters[name], new Float32Array(48))
+    const octavesOff = TAMER_POINTS.map((hz) => Math.abs(Math.log2(hz / ringing)))
+    const nearest = octavesOff.indexOf(Math.min(...octavesOff))
+    expect(cuts.indexOf(Math.min(...cuts))).toBe(nearest)
+    expect(cuts[nearest]).toBeLessThan(-3)
+    expect(cuts[nearest]).toBeGreaterThanOrEqual(meters.reduction - 0.25)
+    const { running, at } = tamerDrawn(meters, values)
+    expect(at(TAMER_POINTS[nearest])).toBeCloseTo(cuts[nearest], 1)
+    expect(at(ringing * 2)).toBeGreaterThan(-1)
+    expect(at(ringing / 2)).toBeGreaterThan(-1)
+    // The number is the filter's, which is the deeper.
+    expect(running.words()).toEqual([`−${(-meters.reduction).toFixed(1)} dB`])
+  })
+
   it('reading a device changes nothing it puts out', async () => {
     const settings: Record<string, Record<string, number>> = {
       'auto-filter': { lfoAmount: 100, lfoRateHz: 3, envAmount: 60, resonance: 6 },
       'ambient-eq': { clear: 1, clearTime: 0.2, lowCut: 80, presence: 4 },
+      tamer: { depth: 1, sharpness: 0.3, time: 10 },
     }
     for (const [id, values] of Object.entries(settings)) {
       const params = stock.get(id)?.params ?? {}

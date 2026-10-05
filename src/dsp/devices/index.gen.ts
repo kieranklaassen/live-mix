@@ -68,6 +68,7 @@ import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
 import { SWARM_REVERB_DESCRIPTOR, SWARM_REVERB_DEVICE } from './swarm-reverb.gen'
 import { SWELL_DESCRIPTOR, SWELL_DEVICE } from './swell.gen'
 import { SYMPATHETIC_DESCRIPTOR, SYMPATHETIC_DEVICE } from './sympathetic.gen'
+import { TAMER_DESCRIPTOR, TAMER_DEVICE } from './tamer.gen'
 import { TANPURA_DESCRIPTOR, TANPURA_DEVICE } from './tanpura.gen'
 import { TAPE_DESCRIPTOR, TAPE_DEVICE } from './tape.gen'
 import { TAPE_ECHO_DESCRIPTOR, TAPE_ECHO_DEVICE } from './tape-echo.gen'
@@ -149,6 +150,7 @@ export * from './sustainer.gen'
 export * from './swarm-reverb.gen'
 export * from './swell.gen'
 export * from './sympathetic.gen'
+export * from './tamer.gen'
 export * from './tanpura.gen'
 export * from './tape.gen'
 export * from './tape-echo.gen'
@@ -232,6 +234,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SWARM_REVERB_DESCRIPTOR,
   SWELL_DESCRIPTOR,
   SYMPATHETIC_DESCRIPTOR,
+  TAMER_DESCRIPTOR,
   TANPURA_DESCRIPTOR,
   TAPE_DESCRIPTOR,
   TAPE_ECHO_DESCRIPTOR,
@@ -316,6 +319,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SWARM_REVERB_DEVICE,
   SWELL_DEVICE,
   SYMPATHETIC_DEVICE,
+  TAMER_DEVICE,
   TANPURA_DEVICE,
   TAPE_DEVICE,
   TAPE_ECHO_DEVICE,
@@ -400,6 +404,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'swarm-reverb', instrument: false, samples: false, meters: 1, memoryMb: 4 },
   { id: 'swell', instrument: false, samples: false, meters: 3, memoryMb: 4 },
   { id: 'sympathetic', instrument: false, samples: false, meters: 6, memoryMb: 4 },
+  { id: 'tamer', instrument: false, samples: false, meters: 13, memoryMb: 4 },
   { id: 'tanpura', instrument: true, samples: false, meters: 0, memoryMb: 4 },
   { id: 'tape', instrument: false, samples: false, meters: 6, memoryMb: 4 },
   { id: 'tape-echo', instrument: false, samples: false, meters: 2, memoryMb: 4 },
