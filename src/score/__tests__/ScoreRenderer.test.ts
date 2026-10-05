@@ -1591,6 +1591,43 @@ describe('ScoreRenderer: a device id that changes strip', () => {
         }
       },
     })
+    // A device whose module never loads, and one that can be made once and not again.
+    devices.register({
+      id: 'unloadable',
+      name: 'Unloadable',
+      kind: 'node',
+      category: 'other',
+      version: 1,
+      params: { gain: { ...gain, taper: 'linear' } },
+      create: () => Promise.reject(new Error('its module did not load')),
+    })
+    let made = 0
+    devices.register({
+      id: 'once',
+      name: 'Once',
+      kind: 'node',
+      category: 'instrument',
+      version: 1,
+      params: { gain: { ...gain, taper: 'linear' } },
+      create: (ctx): Promise<NoteDevice> => {
+        made += 1
+        if (made > 1) return Promise.reject(new Error('it could not be made again'))
+        const node = ctx.createGain()
+        return Promise.resolve({
+          id: 'once',
+          input: node,
+          output: node,
+          params: { gain: { ...gain, taper: 'linear' } },
+          setParam: () => {},
+          getParam: () => 1,
+          bypass: false,
+          latencySec: 0,
+          noteOn: () => {},
+          noteOff: () => {},
+          dispose: () => node.disconnect(),
+        })
+      },
+    })
     return devices
   }
 
@@ -1794,6 +1831,77 @@ describe('ScoreRenderer: a device id that changes strip', () => {
     expect(disposals.map((spy) => spy.mock.calls.length)).toEqual([1, 0, 0])
     expect(renderer.rendered).toBe(document.score)
     expect(strays(renderer, document.score)).toEqual([])
+  })
+
+  it('leaves the insert on its strip when the pass that takes it elsewhere fails before its new one is made', async () => {
+    const { renderer, document, errors, edit } = await rig(scoreWith('two'), registry())
+    const start = document.score
+    const echo = renderer.device('echo-1')
+    const disposal = vi.spyOn(echo, 'dispose')
+
+    // To the return, whose turn comes after the track's, with a master insert that cannot be made.
+    await edit(
+      { type: 'device.remove', id: 'echo-1' },
+      { type: 'device.add', owner: 'hall', device: moving(), index: 0 },
+      {
+        type: 'device.add',
+        owner: 'master',
+        device: { id: 'bad', deviceId: 'unloadable', params: {}, bypass: false },
+        index: 0,
+      },
+    )
+    expect(errors.map(String)).toEqual(['Error: its module did not load'])
+    expect(renderer.rendered).toBe(start)
+    expect(strays(renderer, start)).toEqual([])
+    expect(renderer.device('echo-1')).toBe(echo)
+    expect(disposal).not.toHaveBeenCalled()
+
+    // Without the insert that cannot be made, the same move lands.
+    await edit({ type: 'device.remove', id: 'bad' })
+    expect(errors).toHaveLength(1)
+    expect(renderer.rendered).toBe(document.score)
+    expect(strays(renderer, document.score)).toEqual([])
+    expect(renderer.device('echo-1')).not.toBe(echo)
+    expect(disposal).toHaveBeenCalledTimes(1)
+  })
+
+  it('leaves the insert on its strip when its new one cannot be made, on a strip built first or as an instrument', async () => {
+    const fragile: ScoreDevice = { id: 'fragile-1', deviceId: 'once', params: {}, bypass: false }
+    for (const to of ['one', 'keys-instrument'] as const) {
+      const first = scoreWith(null, { two: [fragile] })
+      const { renderer, document, errors, engine } = await rig(first, registry())
+      const start = document.score
+      const device = renderer.device('fragile-1')
+      const disposal = vi.spyOn(device, 'dispose')
+      const instrument = renderer.instrument('keys').device
+
+      const next =
+        to === 'one'
+          ? scoreWith(null, { one: [fragile] })
+          : {
+              ...scoreWith(null),
+              tracks: scoreWith(null).tracks.map((track) =>
+                track.kind === 'instrument' ? { ...track, device: fragile } : track,
+              ),
+            }
+      document.load(next)
+      await renderer.whenIdle()
+      expect(errors.map(String), to).toEqual(['Error: it could not be made again'])
+      expect(renderer.rendered, to).toBe(start)
+      expect(strays(renderer, start), to).toEqual([])
+      expect(renderer.device('fragile-1'), to).toBe(device)
+      expect(disposal, to).not.toHaveBeenCalled()
+      expect(renderer.instrument('keys').device, to).toBe(instrument)
+
+      // The piece it had, loaded again, lands on what stands.
+      document.load(first)
+      await renderer.whenIdle()
+      expect(errors, to).toHaveLength(1)
+      expect(renderer.rendered, to).toBe(document.score)
+      expect(strays(renderer, document.score), to).toEqual([])
+      expect(renderer.device('fragile-1'), to).toBe(device)
+      engine.dispose()
+    }
   })
 })
 
