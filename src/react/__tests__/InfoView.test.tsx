@@ -207,6 +207,36 @@ describe('the kit’s own controls', () => {
     expect(resolveInfo(screen.getByRole('slider'))?.text).toBe('Wet and dry.')
   })
 
+  it('a knob of two places says that a press switches it, and names no double-click', () => {
+    const listen = (wheel: boolean) => (
+      <Knob
+        label="Listen"
+        defaultValue={0}
+        min={0}
+        max={1}
+        step={1}
+        wholeSteps
+        wheel={wheel}
+        format={(value) => ['Off', 'On'][value] ?? '?'}
+        info="On plays only what is being taken away."
+      />
+    )
+    const { rerender } = render(listen(true))
+    expect(infoParagraphs(resolveInfo(screen.getByRole('slider'))?.text ?? '')).toEqual([
+      'On plays only what is being taken away.',
+      'A press switches it, and so does Enter with the keys on it. A drag up or down, or a scroll over it, turns it too. Delete with the keys on it returns it to Off.',
+    ])
+    rerender(listen(false))
+    expect(infoParagraphs(resolveInfo(screen.getByRole('slider'))?.text ?? '')[1]).toBe(
+      'A press switches it, and so does Enter with the keys on it. A drag up or down turns it too. Delete with the keys on it returns it to Off.',
+    )
+    // A list of three is turned, as ever.
+    rerender(<Knob label="Shape" defaultValue={0} min={0} max={2} step={1} wholeSteps />)
+    expect(resolveInfo(screen.getByRole('slider'))?.text).toBe(
+      controlGestureInfo({ reset: '0.00' }),
+    )
+  })
+
   it('a fader names the way it is dragged and what a double-click sets', () => {
     render(
       <Fader

@@ -5,7 +5,8 @@ import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Knob } from '../components/Knob'
-import { forgetPresses } from '../components/presses'
+import { hasTwoPlaces } from '../components/control-math'
+import { forgetPresses, pressFollowsOneElsewhere } from '../components/presses'
 import { useParamControl } from '../components/useParamControl'
 
 afterEach(cleanup)
@@ -920,5 +921,399 @@ describe('Knob', () => {
     )
     expect(screen.queryByText('Type')).toBeNull()
     expect(slider()).toHaveAttribute('aria-valuetext', 'BP')
+  })
+})
+
+describe('a knob of two places', () => {
+  /** A knob as a plate draws an Off and On parameter, its value held by the host; `events` is what the host is told. */
+  function Switch({ events, start = 0 }: { events: string[]; start?: number }) {
+    const [value, setValue] = useState(start)
+    return (
+      <Knob
+        label="Listen"
+        value={value}
+        defaultValue={0}
+        min={0}
+        max={1}
+        step={1}
+        wholeSteps
+        format={(shown) => ['Off', 'On'][shown] ?? '?'}
+        onChange={(next) => {
+          events.push(`change ${next}`)
+          setValue(next)
+        }}
+        onChangeStart={() => events.push('start')}
+        onChangeEnd={() => events.push('end')}
+      />
+    )
+  }
+
+  /** A press as a browser sends it: down and up where it is, and the click it ends in. */
+  function press(element: HTMLElement, at: { x?: number; y?: number; detail?: number } = {}) {
+    const point = { clientX: at.x ?? 20, clientY: at.y ?? 20 }
+    fireEvent.pointerDown(element, { pointerId: 1, button: 0, ...point })
+    fireEvent.pointerUp(element, { pointerId: 1, ...point })
+    fireEvent.click(element, { detail: at.detail ?? 1, ...point })
+  }
+
+  it('is switched by a press, either way, as one move each', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(<Switch events={events} />)
+    press(slider())
+    expect(events).toEqual(['start', 'change 1', 'end'])
+    expect(slider()).toHaveAttribute('aria-valuenow', '1')
+    expect(slider()).toHaveAttribute('aria-valuetext', 'On')
+    press(slider(), { y: 60 })
+    expect(events).toEqual(['start', 'change 1', 'end', 'start', 'change 0', 'end'])
+    expect(slider()).toHaveAttribute('aria-valuenow', '0')
+    expect(slider()).toHaveAttribute('aria-valuetext', 'Off')
+    // It is still a slider between its two ends.
+    expect(slider()).toHaveAttribute('aria-valuemin', '0')
+    expect(slider()).toHaveAttribute('aria-valuemax', '1')
+  })
+
+  it('is switched by a finger and by a pen as by a mouse, and keeps its own value when no host holds it', () => {
+    forgetPresses()
+    const onChange = vi.fn()
+    render(
+      <Knob
+        label="Hold"
+        defaultValue={1}
+        min={0}
+        max={1}
+        step={1}
+        wholeSteps
+        onChange={onChange}
+      />,
+    )
+    const control = slider()
+    for (const [pointerType, to] of [
+      ['touch', 0],
+      ['pen', 1],
+      ['mouse', 0],
+    ] as const) {
+      const pointer = { pointerId: 5, pointerType, clientX: 30, clientY: 30 }
+      fireEvent.pointerDown(control, { ...pointer, button: 0 })
+      fireEvent.pointerUp(control, pointer)
+      expect(onChange, pointerType).toHaveBeenLastCalledWith(to)
+      expect(control).toHaveAttribute('aria-valuenow', String(to))
+    }
+    expect(onChange).toHaveBeenCalledTimes(3)
+    // Only the first button presses it.
+    fireEvent.pointerDown(control, { pointerId: 5, button: 2, clientX: 30, clientY: 30 })
+    fireEvent.pointerUp(control, { pointerId: 5, clientX: 30, clientY: 30 })
+    expect(onChange).toHaveBeenCalledTimes(3)
+  })
+
+  it('takes a hand that shakes a little for a press, and one that goes further for a drag', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(<Switch events={events} />)
+    const control = slider()
+    // Three pixels off and back: a press.
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 22, clientY: 18 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 20, clientY: 17 })
+    fireEvent.pointerUp(control, { pointerId: 1, clientX: 20, clientY: 17 })
+    expect(events).toEqual(['start', 'change 1', 'end'])
+    // A finger the same, though its first pixels are held back from turning it.
+    events.length = 0
+    const finger = { pointerId: 7, pointerType: 'touch' }
+    fireEvent.pointerDown(control, { ...finger, button: 0, clientX: 20, clientY: 20 })
+    fireEvent.pointerMove(control, { ...finger, clientX: 21, clientY: 22 })
+    fireEvent.pointerUp(control, { ...finger, clientX: 21, clientY: 22 })
+    expect(events).toEqual(['start', 'change 0', 'end'])
+    // Four pixels away it is a drag, and one too short to turn it: let go, even back where it
+    // went down, it has changed nothing.
+    events.length = 0
+    for (const [dx, dy] of [
+      [0, -4],
+      [4, 0],
+      [3, 3],
+      [0, 40],
+    ]) {
+      fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 20, clientY: 20 })
+      fireEvent.pointerMove(control, { pointerId: 1, clientX: 20 + dx, clientY: 20 + dy })
+      fireEvent.pointerMove(control, { pointerId: 1, clientX: 20, clientY: 20 })
+      fireEvent.pointerUp(control, { pointerId: 1, clientX: 20, clientY: 20 })
+    }
+    expect(events).toEqual(['start', 'end', 'start', 'end', 'start', 'end', 'start', 'end'])
+    expect(slider()).toHaveAttribute('aria-valuenow', '0')
+  })
+
+  it('is still turned by a drag, by the wheel and by the arrow keys', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(<Switch events={events} />)
+    const control = slider()
+    // Up past the middle of its travel turns it on, and letting go there does not switch it back.
+    drag(control, 100, 20)
+    expect(events).toEqual(['start', 'change 1', 'end'])
+    // A drag there and back within one hold is two changes of one move, and no third at its end.
+    events.length = 0
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 0, clientY: 20 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 100 })
+    fireEvent.pointerMove(control, { pointerId: 1, clientX: 0, clientY: 20 })
+    fireEvent.pointerUp(control, { pointerId: 1, clientX: 0, clientY: 20 })
+    expect(events).toEqual(['start', 'change 0', 'change 1', 'end'])
+    drag(control, 20, 100)
+    expect(slider()).toHaveAttribute('aria-valuenow', '0')
+    events.length = 0
+    fireEvent.keyDown(control, { key: 'ArrowUp' })
+    expect(events).toEqual(['start', 'change 1'])
+    fireEvent.keyDown(control, { key: 'ArrowDown' })
+    expect(events).toEqual(['start', 'change 1', 'change 0'])
+    act(() => {
+      control.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, cancelable: true }))
+    })
+    expect(events).toEqual(['start', 'change 1', 'change 0', 'change 1'])
+    fireEvent.blur(control)
+    expect(events.at(-1)).toBe('end')
+  })
+
+  it('is not switched by a press the browser takes back, nor by one whose pointer is taken from it', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(<Switch events={events} />)
+    const control = slider()
+    fireEvent.pointerDown(control, { pointerId: 7, pointerType: 'touch', button: 0, clientY: 20 })
+    fireEvent.pointerCancel(control, { pointerId: 7, pointerType: 'touch' })
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientY: 20 })
+    fireEvent.lostPointerCapture(control, { pointerId: 1 })
+    expect(events).toEqual(['start', 'end', 'start', 'end'])
+    // Nor by the going up of a pointer that did not go down on it.
+    fireEvent.pointerUp(control, { pointerId: 1, clientY: 20 })
+    expect(events).toEqual(['start', 'end', 'start', 'end'])
+  })
+
+  it('a key that turned it under a held pointer is that move: letting go does not switch it again', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(<Switch events={events} />)
+    const control = slider()
+    fireEvent.pointerDown(control, { pointerId: 1, button: 0, clientX: 20, clientY: 20 })
+    fireEvent.keyDown(control, { key: 'ArrowUp' })
+    fireEvent.pointerUp(control, { pointerId: 1, clientX: 20, clientY: 20 })
+    expect(events).toEqual(['start', 'change 1', 'end'])
+  })
+
+  it('takes a double click for two presses: back where it began, and no reset', () => {
+    forgetPresses()
+    const events: string[] = []
+    // Its default is Off and it stands at On: a reset would be heard as a third change.
+    render(<Switch events={events} start={1} />)
+    const control = slider()
+    press(control, { detail: 1 })
+    press(control, { detail: 2 })
+    fireEvent.doubleClick(control, { detail: 2 })
+    expect(events).toEqual(['start', 'change 0', 'end', 'start', 'change 1', 'end'])
+    expect(control).toHaveAttribute('aria-valuenow', '1')
+    // A double click a script makes resets nothing either; Delete is its way to the default.
+    fireEvent.doubleClick(control)
+    expect(events).toHaveLength(6)
+    events.length = 0
+    fireEvent.keyDown(control, { key: 'Delete' })
+    expect(events).toEqual(['start', 'change 0', 'end'])
+  })
+
+  it('leaves the second press of a double click that began on something else alone', () => {
+    forgetPresses()
+    const events: string[] = []
+    render(
+      <>
+        <button type="button">More</button>
+        <Switch events={events} />
+      </>,
+    )
+    const cell = screen.getByRole('button', { name: 'More' })
+    // The cell is pressed and moves away; the knob stands under the pointer for the second press.
+    fireEvent.click(cell, { detail: 1, clientX: 20, clientY: 20 })
+    press(slider(), { detail: 2 })
+    fireEvent.doubleClick(slider(), { detail: 2 })
+    expect(events).toEqual(['start', 'end'])
+    // The press after that is the knob's own.
+    press(slider())
+    expect(events).toEqual(['start', 'end', 'start', 'change 1', 'end'])
+    // A press on the cell and then one on the knob somewhere else are two presses.
+    events.length = 0
+    fireEvent.click(cell, { detail: 1, clientX: 20, clientY: 20 })
+    press(slider(), { x: 20, y: 60 })
+    expect(events).toEqual(['start', 'change 0', 'end'])
+    // And so are two at one place with more than a double click's time between them.
+    const click = new MouseEvent('click', { detail: 1, clientX: 5, clientY: 5, bubbles: true })
+    cell.dispatchEvent(click)
+    const at = { clientX: 5, clientY: 5 }
+    expect(pressFollowsOneElsewhere(slider(), { ...at, timeStamp: click.timeStamp + 100 })).toBe(
+      true,
+    )
+    expect(pressFollowsOneElsewhere(slider(), { ...at, timeStamp: click.timeStamp + 600 })).toBe(
+      false,
+    )
+    expect(pressFollowsOneElsewhere(cell, { ...at, timeStamp: click.timeStamp + 100 })).toBe(false)
+    forgetPresses()
+  })
+
+  it('is switched by Enter with the keys on it, at the click the browser makes of the key', () => {
+    forgetPresses()
+    const events: string[] = []
+    const page = vi.fn()
+    window.addEventListener('keydown', page)
+    try {
+      render(<Switch events={events} />)
+      const control = slider()
+      // The key is left to the browser, which makes a click of it on a button, and kept from the page.
+      expect(fireEvent.keyDown(control, { key: 'Enter' })).toBe(true)
+      expect(events).toEqual([])
+      fireEvent.click(control)
+      expect(events).toEqual(['start', 'change 1', 'end'])
+      expect(page).not.toHaveBeenCalled()
+      // Held down it is one press: the clicks of the repeats switch nothing.
+      fireEvent.keyDown(control, { key: 'Enter', repeat: true })
+      fireEvent.click(control)
+      expect(events).toHaveLength(3)
+      // The Space bar is the page's, and the click it makes of a button switches nothing.
+      fireEvent.keyDown(control, { key: ' ' })
+      fireEvent.click(control)
+      expect(page).toHaveBeenCalledTimes(1)
+      // Nor does a click a script makes, nor Enter with a modifier, which is the page's too.
+      fireEvent.click(control)
+      fireEvent.keyDown(control, { key: 'Enter', metaKey: true })
+      fireEvent.click(control)
+      expect(page).toHaveBeenCalledTimes(2)
+      expect(events).toHaveLength(3)
+    } finally {
+      window.removeEventListener('keydown', page)
+    }
+  })
+
+  it('is only picked, not switched, by a press or Enter a host keeps from it', () => {
+    forgetPresses()
+    const events: string[] = []
+    const picked: (string | null)[] = []
+    // A host in a mapping mode: every press on a control is taken before the control hears of it.
+    const take = (event: Event): void => {
+      event.preventDefault()
+      event.stopPropagation()
+      if (event.type === 'click') picked.push((event.target as Element).getAttribute('aria-label'))
+    }
+    const taken = ['pointerdown', 'pointerup', 'click', 'dblclick']
+    for (const type of taken) window.addEventListener(type, take, true)
+    try {
+      render(<Switch events={events} />)
+      press(slider())
+      fireEvent.keyDown(slider(), { key: 'Enter' })
+      fireEvent.click(slider())
+      expect(picked).toEqual(['Listen', 'Listen'])
+      expect(events).toEqual([])
+    } finally {
+      for (const type of taken) window.removeEventListener(type, take, true)
+    }
+    // A press that was down before the mode came on is the knob's own, and so is its end.
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientX: 20, clientY: 20 })
+    fireEvent.pointerUp(slider(), { pointerId: 1, clientX: 20, clientY: 20 })
+    expect(events).toEqual(['start', 'change 1', 'end'])
+  })
+
+  it('a disabled one is not switched', () => {
+    forgetPresses()
+    const onChange = vi.fn()
+    render(
+      <Knob
+        label="Hold"
+        defaultValue={0}
+        min={0}
+        max={1}
+        step={1}
+        wholeSteps
+        disabled
+        onChange={onChange}
+      />,
+    )
+    press(slider())
+    fireEvent.keyDown(slider(), { key: 'Enter' })
+    fireEvent.click(slider())
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it('a press changes no knob of three places, no continuous one and no knob that is not all whole steps', () => {
+    forgetPresses()
+    const onChange = vi.fn()
+    const page = vi.fn()
+    window.addEventListener('keydown', page)
+    try {
+      const knobs = [
+        <Knob
+          key="list"
+          label="Shape"
+          defaultValue={1}
+          min={0}
+          max={2}
+          step={1}
+          wholeSteps
+          onChange={onChange}
+        />,
+        <Knob key="smooth" label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />,
+        <Knob
+          key="stepped"
+          label="Mix"
+          defaultValue={0.5}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={onChange}
+        />,
+        // One step from end to end, but a fine key sets it between them: not two places.
+        <Knob
+          key="fine"
+          label="Amount"
+          defaultValue={0}
+          min={0}
+          max={1}
+          step={1}
+          onChange={onChange}
+        />,
+      ]
+      for (const knob of knobs) {
+        const { unmount } = render(knob)
+        press(slider())
+        // Enter is the page's on these, and the click it makes does nothing.
+        fireEvent.keyDown(slider(), { key: 'Enter' })
+        fireEvent.click(slider())
+        unmount()
+      }
+      expect(onChange).not.toHaveBeenCalled()
+      expect(page).toHaveBeenCalledTimes(knobs.length)
+    } finally {
+      window.removeEventListener('keydown', page)
+    }
+    // Their double click is the reset it was.
+    render(
+      <Knob
+        label="Shape"
+        defaultValue={1}
+        min={0}
+        max={2}
+        step={1}
+        wholeSteps
+        onChange={onChange}
+      />,
+    )
+    fireEvent.keyDown(slider(), { key: 'End' })
+    press(slider(), { detail: 1 })
+    press(slider(), { detail: 2 })
+    fireEvent.doubleClick(slider(), { detail: 2 })
+    expect(onChange.mock.calls).toEqual([[2], [1]])
+  })
+
+  it('knows a control of two places by its steps', () => {
+    expect(hasTwoPlaces({ min: 0, max: 1, step: 1, wholeSteps: true })).toBe(true)
+    expect(hasTwoPlaces({ min: -12, max: 12, step: 24, wholeSteps: true })).toBe(true)
+    expect(hasTwoPlaces({ min: 0, max: 0.3, step: 0.3, wholeSteps: true })).toBe(true)
+    expect(hasTwoPlaces({ min: 0, max: 2, step: 1, wholeSteps: true })).toBe(false)
+    expect(hasTwoPlaces({ min: 0, max: 1, step: 1 })).toBe(false)
+    expect(hasTwoPlaces({ min: 0, max: 1, wholeSteps: true })).toBe(false)
+    expect(hasTwoPlaces({ min: 0, max: 1, step: 0.7, wholeSteps: true })).toBe(false)
+    expect(hasTwoPlaces({ min: 1, max: 1, step: 1, wholeSteps: true })).toBe(false)
   })
 })

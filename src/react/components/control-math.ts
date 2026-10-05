@@ -137,6 +137,21 @@ export function quantize(value: number, step: number, min: number, max: number):
   return clamp(rounded, min, max)
 }
 
+/**
+ * True for a control of two places (off and on): its value takes whole steps
+ * only, and one step is all of its travel. A press switches such a control.
+ */
+export function hasTwoPlaces(control: {
+  min: number
+  max: number
+  step?: number
+  wholeSteps?: boolean
+}): boolean {
+  const { min, max, step = 0 } = control
+  if (control.wholeSteps !== true || !(step > 0) || !(max > min)) return false
+  return Math.abs((max - min) / step - 1) < 1e-9
+}
+
 /** Move `steps` steps (a tenth of a step when `fine`) and quantize. */
 export function stepBy(
   value: number,

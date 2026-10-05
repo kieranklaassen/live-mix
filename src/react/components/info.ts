@@ -168,6 +168,8 @@ export interface ControlGestureOptions {
   reset: string
   /** The mouse wheel moves it too. */
   wheel?: boolean
+  /** The control has two places (off and on): a press switches it, and a double-click resets nothing. */
+  twoPlaces?: boolean
 }
 
 /** How a knob or a fader is worked: the line the info view puts under what the control does. */
@@ -175,8 +177,12 @@ export function controlGestureInfo({
   axis = 'vertical',
   reset,
   wheel = true,
+  twoPlaces = false,
 }: ControlGestureOptions): string {
   const way =
     axis === 'horizontal' ? 'left or right' : axis === 'both' ? 'in any direction' : 'up or down'
+  if (twoPlaces) {
+    return `A press switches it, and so does Enter with the keys on it. A drag ${way}${wheel ? ', or a scroll over it,' : ''} turns it too. Delete with the keys on it returns it to ${reset}.`
+  }
   return `Drag ${way}${wheel ? ', or scroll over it' : ''}. Hold Shift for fine steps. Double-click, or Delete with the keys on it, returns it to ${reset}.`
 }
