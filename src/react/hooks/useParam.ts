@@ -6,7 +6,7 @@
 // or, inside a provider with an `arbiter` whose renderer created the device,
 // through an attributed `device.setParam` operation (U30).
 
-import { useCallback, useMemo, useReducer, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
 import { isObservableDevice, type Device } from '../../core/devices/Device'
 import {
@@ -111,9 +111,11 @@ const DRAG = '\u0000drag'
 function useAttributedParams(device: Device) {
   const arbiter = useMaybeArbiter()
   const gestures = useRef<Record<string, number>>({})
-  return useMemo(() => {
+  const attributed = useMemo(() => {
     const id = scoreDeviceId(arbiter, device)
     const target = (name: string) => ({ kind: 'device' as const, device: id ?? '', param: name })
+    // The parameters this hand has touched and not let go of yet.
+    const inHand = new Set<string>()
     return {
       attributed: id !== null,
       /** Apply through the arbiter; false when the device is not in the score. */
@@ -142,12 +144,18 @@ function useAttributedParams(device: Device) {
         arbiter && id !== null ? findScoreDevice(arbiter.score, id)?.device.bypass : undefined,
       touch: (name: string): void => {
         gestures.current[name] = (gestures.current[name] ?? 0) + 1
-        if (arbiter && id !== null) arbiter.touch(target(name))
+        if (!arbiter || id === null) return
+        arbiter.touch(target(name))
+        inHand.add(name)
       },
       /** A drag that moves several parameters begins: they are held, and it is one gesture. */
       touchMany: (names: readonly string[]): void => {
         gestures.current[DRAG] = (gestures.current[DRAG] ?? 0) + 1
-        if (arbiter && id !== null) for (const name of names) arbiter.touch(target(name))
+        if (!arbiter || id === null) return
+        for (const name of names) {
+          arbiter.touch(target(name))
+          inHand.add(name)
+        }
       },
       /** The drag's parameters as one operation of its gesture; false when the device is not in the score. */
       dragMany: (params: Readonly<Record<string, number>>): boolean => {
@@ -160,16 +168,34 @@ function useAttributedParams(device: Device) {
       },
       releaseMany: (names: readonly string[]): void => {
         if (!arbiter || id === null) return
-        for (const name of names) arbiter.release(target(name))
+        for (const name of names) {
+          inHand.delete(name)
+          arbiter.release(target(name))
+        }
         arbiter.endGesture()
       },
       release: (name: string): void => {
         if (!arbiter || id === null) return
+        inHand.delete(name)
         arbiter.release(target(name))
+        arbiter.endGesture()
+      },
+      /** Whatever is still in hand is let go: the device is leaving the view. */
+      letGo: (): void => {
+        if (!arbiter || inHand.size === 0) return
+        for (const name of inHand) arbiter.release(target(name))
+        inHand.clear()
         arbiter.endGesture()
       },
     }
   }, [arbiter, device])
+
+  // A panel that leaves the page with a knob in hand, or is given another
+  // device, lets go here: the pointer's up is told to the other device or to
+  // nobody, and the hold would stand against every other writer for good.
+  useEffect(() => attributed.letGo, [attributed])
+
+  return attributed
 }
 
 /** Parameter values, bypass and presets of one device, with ramped setters. */

@@ -87,7 +87,7 @@ hold 8 notes).
 | `acoustic-guitar` | Acoustic Guitar    | live-mix            | instrument | 10     | 28,418 B  | 55.8 µs, 2.09 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
 | `ambient-comp`    | Ambient Compressor | live-mix            | dynamics   | 9      | 11,205 B  | 3.8 µs, 0.14 %        | 5.5 µs, 0.21 %             | 0                 | 4           |
 | `ambient-eq`      | Ambient EQ         | live-mix            | eq         | 8      | 28,200 B  | 16.3 µs, 0.61 %       | 21.3 µs, 0.80 %            | 0                 | 4           |
-| `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 4      | 8,197 B   | 10.4 µs, 0.39 %       | 12.5 µs, 0.47 %            | 77                | 4           |
+| `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 5      | 9,318 B   | 10.0 µs, 0.38 %       | 12.0 µs, 0.45 %            | 77                | 4           |
 | `analog-delay`    | Analog Delay       | live-mix            | delay      | 12     | 19,255 B  | 28.2 µs, 1.06 %       | 18.3 µs, 0.68 %            | 0                 | 4           |
 | `analog-drive`    | Analog Drive       | live-mix            | drive      | 10     | 33,308 B  | 79.8 µs, 2.99 %       | 31.5 µs, 1.18 %            | 39                | 4           |
 | `atmosphere`      | Atmosphere         | live-mix            | instrument | 10     | 33,556 B  | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
@@ -372,6 +372,34 @@ listen:
   presets sit 3 to 6 LU under the dry phrase; "Piano to pad" on `swell` is
   8.6 LU under. The presets with "alone" or "only" in the name are all wet,
   for a send.
+
+## ambient-limiter: auto gain
+
+With `autoGain` above 0 the limiter turns a quiet mix up by itself, by at most
+that many dB, to the line its ride works to (Ceiling − 0.5 dB, read before
+Gain). It starts at the setting and gives way to what stands over the line:
+the first 3 s of sound set it (50 ms), after that a sustained over is taken out
+of it with a 3 s time constant while the ride holds the over, handed back to
+the ride dB for dB so the output does not dip. It rises 1.2 dB a minute and
+never on what is under −45 dBFS, and it is kept through a sleep, so a quiet
+passage stays quiet and a tail dies away as it would. At 0 the device is what
+it was before the parameter, sample for sample
+(`node scripts/same-sound.mjs ambient-limiter --shipped`).
+
+A file cannot be found out as it plays: it would start too loud and come down
+over its first swell. An export that ends in this limiter with Auto gain on
+leaves it out of the graph and runs the render through it afterwards:
+
+```ts
+import { limitRendered } from '@kieranklaassen/live-mix/dsp'
+
+const { autoGainDb } = await limitRendered(audio, { ceiling: -0.3, autoGain: 12 })
+```
+
+It hears the whole of `audio` once, takes the lowest its auto gain came to, and
+then limits with that one gain on what goes in and Auto gain off, in place and
+with the lookahead taken off again (mono or stereo, at any rate). That is the
+level the piece has live once the limiter has heard it through.
 
 ## spectral-drifter
 

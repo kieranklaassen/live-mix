@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { dbToGain } from '../../core/devices/native/units'
+import { type StripHost } from '../../core/tracks/ChannelStrip'
 import { type MockGainNode } from '../../testing'
 import { MixerView } from '../components/MixerView'
 import { createTestEngine } from './harness'
@@ -80,5 +81,42 @@ describe('MixerView', () => {
     expect(screen.getByRole('region', { name: 'pad strip' })).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Master' })).toBeNull()
     expect(screen.queryByRole('group', { name: 'Groups' })).toBeNull()
+  })
+
+  it('keeps one strip each for two tracks of one name when the list is put in another order', () => {
+    // An audio track and a live input may go by one name: each kind keeps its own names.
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const drums = engine.addAudioTrack('drums')
+    const take = engine.addAudioTrack('voice')
+    const mic = engine.addLiveInputTrack('voice')
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mixer = (hosts: StripHost[]) => (
+      <MixerView tracks={hosts} master={false} stripProps={{ meter: false }} />
+    )
+    const { rerender } = render(mixer([drums, take, mic]), { wrapper: fixture.wrapper })
+    rerender(mixer([take, mic, drums]))
+    expect(screen.getAllByRole('region').map((strip) => strip.getAttribute('aria-label'))).toEqual([
+      'voice strip',
+      'voice strip',
+      'drums strip',
+    ])
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
+  })
+
+  it('lists a device put on the master, or taken off it, while the mixer is on the page', async () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const limiter = await engine.devices.create('compressor', engine.context)
+    render(<MixerView data-testid="mixer" />, { wrapper: fixture.wrapper })
+    const inserts = within(screen.getByRole('region', { name: 'Master strip' })).getByRole('list', {
+      name: 'Inserts',
+    })
+    expect(within(inserts).queryByText('compressor')).toBeNull()
+    act(() => engine.master.addInsert(limiter))
+    expect(within(inserts).getByText('compressor')).toBeInTheDocument()
+    act(() => engine.master.removeInsert(limiter))
+    expect(within(inserts).queryByText('compressor')).toBeNull()
   })
 })

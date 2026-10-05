@@ -25,6 +25,22 @@ function clip(id: string, startSec: number, durationSec: number, sourceId = id):
   }
 }
 
+/** Runs `body` with a ceiling on what arrays take in, so a loop that would never end throws and the run goes on. */
+function withinReason<T>(body: () => T, ceiling = 200_000): T {
+  const push = Array.prototype.push
+  let taken = 0
+  Array.prototype.push = function (this: unknown[], ...items: unknown[]): number {
+    taken += items.length
+    if (taken > ceiling) throw new Error('an array grew without end')
+    return push.apply(this, items)
+  }
+  try {
+    return body()
+  } finally {
+    Array.prototype.push = push
+  }
+}
+
 describe('TimelineView', () => {
   it('draws a lane per track with clips placed in seconds and a playhead', () => {
     const fixture = createTestEngine()
@@ -79,6 +95,20 @@ describe('TimelineView', () => {
     expect(screen.getByTestId('tl')).toHaveClass('lm-timeline--playing')
   })
 
+  it('draws a loop that is on and has no end as no loop: the canvas keeps its length', () => {
+    // A new engine's timeline has no end, and its loop is switched on as it stands by the transport bar.
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    pad.clips.add(clip('a', 0, 2))
+    render(<TimelineView pixelsPerSecond={10} data-testid="tl" />, { wrapper: fixture.wrapper })
+    withinReason(() => act(() => fixture.engine.transport.setLoop({ enabled: true })))
+    expect(fixture.engine.transport.loop).toEqual({ enabled: true, lengthSec: Infinity })
+    const timeline = screen.getByTestId('tl')
+    expect(timeline.querySelector<HTMLElement>('.lm-timeline__canvas')?.style.width).toBe('160px')
+    expect(timeline.querySelector('.lm-timeline__loop')).toBeNull()
+    expect(screen.getByRole('slider', { name: 'Position' })).toHaveAttribute('aria-valuemax', '16')
+  })
+
   it('seeks from the ruler by click and keyboard, and reports clip clicks', () => {
     const fixture = createTestEngine()
     const pad = fixture.engine.addAudioTrack('pad')
@@ -123,6 +153,24 @@ describe('TimelineView', () => {
     )
   })
 
+  it('draws a waveform when its sound is decoded after the clip was drawn, and drops it with the sound', async () => {
+    const fixture = createTestEngine({ samples: { peaks: 8 } })
+    const { engine } = fixture
+    const pad = engine.addAudioTrack('pad')
+    pad.clips.add(clip('a', 0, 0.5, 'tone'))
+    render(<TimelineView pixelsPerSecond={100} />, { wrapper: fixture.wrapper })
+    const wave = (): Element | null =>
+      screen.getByRole('listitem').querySelector('svg.lm-timeline__waveform')
+    expect(wave()).toBeNull()
+    const buffer = fixture.ctx.createBuffer(1, 48_000, 48_000)
+    await act(async () => {
+      await engine.samples.load('tone', buffer as unknown as AudioBuffer)
+    })
+    expect(wave()).not.toBeNull()
+    act(() => engine.samples.forget('tone'))
+    expect(wave()).toBeNull()
+  })
+
   it('accepts explicit lanes without a provider and switches off seeking', () => {
     const fixture = createTestEngine()
     const pad = fixture.engine.addAudioTrack('pad')
@@ -138,6 +186,32 @@ describe('TimelineView', () => {
     expect(screen.queryByRole('slider')).toBeNull()
   })
 
+  it('keeps one lane each for two lanes of one name when the lanes are put in another order', () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const drums = { name: 'drums', source: engine.addAudioTrack('drums') }
+    const take = { name: 'voice', source: engine.addAudioTrack('take') }
+    const double = { name: 'voice', source: engine.addAudioTrack('double') }
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const timeline = (lanes: (typeof drums)[]) => (
+      <TimelineView lanes={lanes} transport={engine.transport} samples={null} />
+    )
+    const { rerender } = render(timeline([drums, take, double]))
+    rerender(timeline([take, double, drums]))
+    expect(screen.getAllByRole('list').map((lane) => lane.getAttribute('aria-label'))).toEqual([
+      'voice clips',
+      'voice clips',
+      'drums clips',
+    ])
+    expect(screen.getAllByTitle(/^(voice|drums)$/).map((name) => name.textContent)).toEqual([
+      'voice',
+      'voice',
+      'drums',
+    ])
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
+  })
+
   it('spaces ruler ticks by scale', () => {
     expect(rulerTicks(4, 100).map((tick) => tick.sec)).toEqual([0, 1, 2, 3, 4])
     expect(
@@ -151,6 +225,11 @@ describe('TimelineView', () => {
         .filter((tick) => tick.major)
         .map((tick) => tick.sec),
     ).toEqual([0, 50])
+  })
+
+  it('gives a length that has no end no ticks, and returns', () => {
+    expect(withinReason(() => rulerTicks(Infinity, 40))).toEqual([])
+    expect(rulerTicks(Number.NaN, 40)).toEqual([])
   })
 
   it('waveformPath outlines the maxima forward and the minima back', () => {

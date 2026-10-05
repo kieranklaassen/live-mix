@@ -3,7 +3,10 @@
 // independence and parameter abuse; the rest asserts what makes it this
 // limiter: the ceiling holds on the true-peak measure, a drone leaning on it
 // comes out clean where the brickwall alone distorts it, the ride moves at
-// the times its controls say, and a short burst barely moves it. Every figure
+// the times its controls say, and a short burst barely moves it. Then the
+// auto gain: a quiet mix is brought to the line and held there, a tail dies
+// away as it came, a louder passage takes its place without a dip and is not
+// pumped back, and at zero the device is the one it was. Every figure
 // asserted is also printed.
 
 #include "../devices/ambient-limiter/ambient_limiter.h"
@@ -69,14 +72,17 @@ static double true_peak(const std::vector<float>& x) {
   return worst;
 }
 
-// The output with the meter and the ride's own share read every kStep frames.
+// The output with the meter, the ride's own share and the auto gain read
+// every kStep frames.
 struct Trace {
   Stereo out;
   std::vector<float> meter;
   std::vector<float> ride;
+  std::vector<float> lift;
   // The reading taken at the end of the kStep frames that hold `sample`.
   float meter_at(size_t sample) const { return meter[std::min(sample / kStep, meter.size() - 1)]; }
   float ride_at(size_t sample) const { return ride[std::min(sample / kStep, ride.size() - 1)]; }
+  float lift_at(size_t sample) const { return lift[std::min(sample / kStep, lift.size() - 1)]; }
 };
 
 static Trace trace(AmbientLimiter& d, const std::vector<float>& left,
@@ -98,6 +104,7 @@ static Trace trace(AmbientLimiter& d, const std::vector<float>& left,
     }
     t.meter.push_back(d.meter(0));
     t.ride.push_back(d.ride_db());
+    t.lift.push_back(d.meter(2));
     done += frames;
   }
   return t;
@@ -164,6 +171,34 @@ static double worst_step_ratio(const std::vector<float>& x, double hz, size_t fr
     worst = std::max(worst, max_step(x, i, i + cycle + 1) / (own * peak(x, i, i + cycle + 1)));
   }
   return worst;
+}
+
+// The lowest and the highest peak of one cycle of a `hz` tone in [from, to),
+// in dB re the default ceiling: how level a tone's level is.
+struct Span {
+  double lowest, highest;
+};
+static Span cycle_peaks(const std::vector<float>& x, double hz, size_t from, size_t to) {
+  const size_t cycle = at(1.0 / hz);
+  Span span = {1.0e9, -1.0e9};
+  for (size_t i = from; i + cycle <= to; i += cycle) {
+    const double level = db(peak(x, i, i + cycle) / kCeiling);
+    span.lowest = std::min(span.lowest, level);
+    span.highest = std::max(span.highest, level);
+  }
+  return span;
+}
+
+// `seconds` of a tone whose level moves from `from_db` to `to_db` over the
+// default ceiling, evenly in dB, with its phase carried on from `start`.
+static void add_slope(std::vector<float>& x, double hz, double seconds, double from_db,
+                      double to_db, size_t start) {
+  const size_t n = at(seconds);
+  for (size_t i = 0; i < n; ++i) {
+    const double level = from_db + (to_db - from_db) * static_cast<double>(i) / n;
+    x.push_back(static_cast<float>(
+        over(level) * std::sin(2.0 * kPi * hz * static_cast<double>(start + i) / kRate)));
+  }
 }
 
 int main() {
@@ -531,6 +566,320 @@ int main() {
     EXPECT(dip == 0.0, "they are read as silence: the ride does not answer them");
     EXPECT(worst < 1.0e-6, "and two seconds later the tone is the input, delayed");
     EXPECT(device.meter(0) == 0.0f, "with the meter at rest");
+  }
+
+  // 14. Auto gain at zero is the device it was: the reading stays 0 through
+  // a drone it limits, and with the setting sent again nothing is found anew.
+  {
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 0.0f);
+    Trace t = trace(device, drone);
+    const float most = *std::max_element(t.lift.begin(), t.lift.end());
+    std::printf("14. Auto gain 0 under the drone: reading at most %g dB (target 0)\n",
+                static_cast<double>(most));
+    EXPECT(most == 0.0f, "at zero the auto gain adds nothing");
+  }
+
+  // 15. A quiet mix is brought to the line: a tone 12 dB under the ceiling
+  // with 24 dB allowed comes out 0.5 dB under it, from its first second on,
+  // the ceiling held from the first sample, and then the gain stands still.
+  const double kToneHz = 110.0;
+  {
+    std::vector<float> in;
+    add_tone(in, kToneHz, 8.0, over(-12.0));
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 24.0f);
+    Trace t = trace(device, in);
+    const Span early = cycle_peaks(t.out.left, kToneHz, at(0.5), at(1.0));
+    const Span late = cycle_peaks(t.out.left, kToneHz, at(4.0), at(8.0));
+    const double held = db(true_peak(t.out.left) / kCeiling);
+    const double rest = residual(t.out.left, kToneHz, at(4.0), at(8.0));
+    std::printf("15. tone 12 dB under, Auto gain 24: peak %.3f dB re ceiling after half a second, "
+                "%.3f to %.3f from 4 s on (target -0.5 +/- 0.2), auto gain %.3f dB (target 11.5 "
+                "+/- 0.2), true peak %+.3f dB, all that is not the tone %.1f dB (target under "
+                "-60)\n",
+                early.highest, late.lowest, late.highest, static_cast<double>(device.meter(2)),
+                held, rest);
+    EXPECT(early.lowest > -1.5 && early.highest < 0.0, "half a second in it stands near the line");
+    EXPECT_NEAR(t.lift_at(at(0.5)), 11.5, 0.5, "and the auto gain has found it: the first note sets it");
+    EXPECT(late.highest < -0.3 && late.lowest > -0.7, "it settles 0.5 dB under the ceiling");
+    EXPECT(late.highest - late.lowest < 0.05, "and stays there: the gain no longer moves");
+    EXPECT_NEAR(device.meter(2), 11.5, 0.2, "the reading is the 11.5 dB it added");
+    EXPECT(held <= 0.1, "the ceiling holds from the first sample");
+    EXPECT(rest < -60.0, "a gain that stands still leaves the tone clean");
+    EXPECT(device.found(), "it has found the level");
+    EXPECT(t.meter_at(at(8.0) - 1) > -0.05, "with nothing left for the ride to hold");
+  }
+
+  // 16. It adds no more than its setting: a tone 20 dB under with 6 dB
+  // allowed is the tone 6 dB up, 77 samples late.
+  {
+    std::vector<float> in;
+    add_tone(in, 440.0, 2.0, over(-20.0));
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 6.0f);
+    Stereo out = run(device, in);
+    const float gain = std::pow(10.0f, 6.0f / 20.0f);
+    double worst = 0.0;
+    for (size_t i = 0; i < out.size(); ++i) {
+      const double want = i >= kLatency ? static_cast<double>(in[i - kLatency] * gain) : 0.0;
+      worst = std::max(worst, std::fabs(out.left[i] - want));
+    }
+    std::printf("16. tone 20 dB under, Auto gain 6: largest distance from the tone 6 dB up and 77 "
+                "samples late %.2e (target under 1e-6), reading %g dB\n",
+                worst, static_cast<double>(device.meter(2)));
+    EXPECT(worst < 1.0e-6, "under the line it is plain gain, the setting and no more");
+    EXPECT(device.meter(2) == 6.0f, "and the reading is the setting");
+  }
+
+  // 17. A tail dies away as it came: once the level is found, a tone falling
+  // 6 dB a second for 9 s leaves with the gain it had (the 1.2 dB a minute it
+  // may rise is 0.14 dB over the 7 s it spends above the floor), silence is
+  // exact silence, and the next sound finds the gain where it was left.
+  {
+    std::vector<float> in;
+    add_tone(in, kToneHz, 5.0, over(-12.0));
+    add_slope(in, kToneHz, 9.0, -12.0, -66.0, in.size());
+    const size_t ends = in.size();
+    in.resize(ends + at(4.0), 0.0f);
+    const size_t again = in.size();
+    add_tone(in, kToneHz, 2.0, over(-12.0), again);
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 24.0f);
+    Trace t = trace(device, in);
+    const double before = t.lift_at(at(5.0) - 1);
+    const double after = t.lift_at(ends - 1);
+    const double asleep = t.lift_at(again - 1);
+    // The tone 8.5 s into its fall is 51 dB down; so is what leaves.
+    const double fall = db(tone_level(t.out.left, kToneHz, kRate, at(13.4), at(13.6)) /
+                           tone_level(t.out.left, kToneHz, kRate, at(4.4), at(4.6)));
+    std::printf("17. a tail of 6 dB a second: auto gain %.3f dB before it, %.3f after (target "
+                "within 0.2), %.3f through the silence; the tail is %.2f dB down 8.5 s in (target "
+                "-51 +/- 0.3)\n",
+                before, after, asleep, fall);
+    EXPECT(after >= before && after - before < 0.2, "a tail is not turned up as it dies away");
+    EXPECT_NEAR(fall, -51.0, 0.3, "what leaves falls as what arrived");
+    EXPECT(peak(t.out.left, ends + at(1.0), again) == 0.0, "silence in, exact silence out");
+    EXPECT(asleep == after, "asleep, the auto gain stays where it was");
+    const Span next = cycle_peaks(t.out.left, kToneHz, again + at(0.5), in.size());
+    std::printf("17. the same tone after the silence: peak %.3f to %.3f dB re ceiling (target "
+                "-0.5 +/- 0.3)\n",
+                next.lowest, next.highest);
+    EXPECT(next.highest < -0.2 && next.lowest > -0.8, "the next sound is at the level found");
+    EXPECT(peak(t.out.left, again, again + kLatency) == 0.0 &&
+               std::fabs(db(peak(t.out.left, again + kLatency, again + kLatency + at(0.01)) /
+                            peak(in, again, again + at(0.01))) - after) < 0.05,
+           "from its first cycle: no fade up after a sleep");
+  }
+
+  // 18. A louder passage takes the place of a quieter one without a dip, and
+  // the quieter one is not pumped back up after it: 6 s at 21 dB under, 12 s
+  // at 12 dB under, 40 s at 21 dB under again.
+  {
+    std::vector<float> in;
+    add_tone(in, kToneHz, 6.0, over(-21.0));
+    add_tone(in, kToneHz, 12.0, over(-12.0), in.size());
+    add_tone(in, kToneHz, 40.0, over(-21.0), in.size());
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 24.0f);
+    Trace t = trace(device, in);
+    const Span quiet = cycle_peaks(t.out.left, kToneHz, at(4.0), at(6.0));
+    const Span loud = cycle_peaks(t.out.left, kToneHz, at(7.0), at(18.0));
+    const double held = db(true_peak(t.out.left) / kCeiling);
+    const double ride = *std::min_element(t.ride.begin(), t.ride.end());
+    std::printf("18. quiet, then 9 dB louder: the quiet part at %.3f dB re ceiling, the loud part "
+                "from its second second on %.3f to %.3f (target -0.5 +/- 0.2 throughout), true "
+                "peak %+.3f dB, deepest ride %.2f dB\n",
+                quiet.highest, loud.lowest, loud.highest, held, ride);
+    EXPECT(quiet.highest < -0.3 && quiet.lowest > -0.7, "the quiet part was brought to the line");
+    EXPECT(loud.highest < -0.3 && loud.lowest > -0.7,
+           "the loud part stays at the line while the auto gain takes it over: no dip");
+    EXPECT(held <= 0.1, "the ceiling holds where it comes in");
+    EXPECT(ride < -5.0, "the ride holds the over down first");
+    const double left_to_ride = t.ride_at(at(18.0) - 1);
+    const double taken = t.lift_at(at(6.0) - 1) - t.lift_at(at(18.0) - 1);
+    std::printf("18. after 12 s of it the auto gain has given up %.2f of the 9 dB (target 8.8 +/- "
+                "0.3), the ride still holds %.2f\n",
+                taken, left_to_ride);
+    EXPECT_NEAR(taken, 8.84, 0.3, "the auto gain gives way with a 3 s time constant");
+    EXPECT(left_to_ride > -0.4, "and the ride has handed nearly all of it over");
+    // Back to the quiet level: 9 dB under the loud part, and rising 1.2 dB a minute.
+    const double soon = db(tone_level(t.out.left, kToneHz, kRate, at(21.0), at(22.0)) /
+                           tone_level(t.out.left, kToneHz, kRate, at(17.0), at(18.0)));
+    const double later = db(tone_level(t.out.left, kToneHz, kRate, at(51.0), at(52.0)) /
+                            tone_level(t.out.left, kToneHz, kRate, at(21.0), at(22.0)));
+    std::printf("18. the quiet part after it: %.2f dB under the loud part (target -9 +/- 0.4), and "
+                "%.3f dB up 30 s later (target 0.6 +/- 0.1)\n",
+                soon, later);
+    EXPECT_NEAR(soon, -9.0, 0.4, "the quiet part comes back 9 dB under the loud one, not pumped");
+    EXPECT_NEAR(later, 0.6, 0.1, "and rises 1.2 dB a minute from there");
+  }
+
+  // 19. One loud moment barely moves it: the 3 ms burst of test 8 on a tone
+  // the auto gain has brought to the line.
+  {
+    std::vector<float> in;
+    add_tone(in, 440.0, 12.0, over(-12.0));
+    const size_t burst = at(5.0);
+    for (size_t i = 0; i < at(0.003); ++i) {
+      in[burst + i] += over(0.0) * static_cast<float>(std::sin(
+                                       2.0 * kPi * 1000.0 * static_cast<double>(i) / kRate));
+    }
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 24.0f);
+    Trace t = trace(device, in);
+    const double moved = t.lift_at(burst - 1) - t.lift_at(at(5.2));
+    // The ride's own answer to the burst (test 8) is back after four of its releases.
+    const double late = db(tone_level(t.out.left, 440.0, kRate, at(11.0), at(12.0)) /
+                           tone_level(t.out.left, 440.0, kRate, at(4.0), at(5.0)));
+    std::printf("19. a 3 ms burst 12 dB over the tone: auto gain down %.3f dB (target under 0.3), "
+                "the tone 6 s later %.3f dB from where it was (target within 0.3), true peak "
+                "%+.3f dB re ceiling\n",
+                moved, late, db(true_peak(t.out.left) / kCeiling));
+    EXPECT(moved >= 0.0 && moved < 0.3, "a 3 ms burst takes under 0.3 dB of the auto gain");
+    EXPECT(std::fabs(late) < 0.3, "and once the ride is back the tone is where it was");
+    EXPECT(db(true_peak(t.out.left) / kCeiling) <= 0.1, "the ceiling holds through it");
+  }
+
+  // 20. What is under -45 dBFS is not the piece: with the level found and
+  // room left, 20 s of hiss at -50 dBFS do not raise the gain, where 20 s of
+  // a tone at -40 dBFS raise it by the 0.4 dB they may.
+  {
+    std::vector<float> first;
+    add_tone(first, kToneHz, 5.0, over(-12.0));
+    double rise[2];
+    for (int loud = 0; loud < 2; ++loud) {
+      device.init(kRate);
+      device.set_param(p::kAutoGain, 24.0f);
+      run(device, first);
+      // Past the 40 ms the hold still reads the tone, short of the 100 ms to sleep.
+      run(device, silence(0.06f, kRate));
+      const double before = device.meter(2);
+      if (loud) {
+        std::vector<float> tone;
+        add_tone(tone, kToneHz, 20.0, 0.01);
+        run(device, tone);
+      } else {
+        rng_state() = 0x5EEDu;
+        run(device, noise(20.0f, kRate, 0.00316f));
+      }
+      rise[loud] = device.meter(2) - before;
+    }
+    std::printf("20. 20 s at -50 dBFS raise the auto gain %.4f dB (target 0), 20 s at -40 dBFS "
+                "%.3f dB (target 0.4 +/- 0.05)\n",
+                rise[0], rise[1]);
+    EXPECT(rise[0] == 0.0, "hiss under the floor does not raise the auto gain");
+    EXPECT_NEAR(rise[1], 0.4, 0.05, "a quiet sound over the floor raises it 1.2 dB a minute");
+  }
+
+  // 21. With Auto gain on, Gain is how far the levelled mix is pushed into
+  // the ceiling: the auto gain is what it is without it, and the ride holds
+  // the 3 dB.
+  {
+    std::vector<float> in;
+    add_tone(in, kToneHz, 8.0, over(-6.0));
+    double lift[2], ride[2];
+    for (int pushed = 0; pushed < 2; ++pushed) {
+      device.init(kRate);
+      device.set_param(p::kAutoGain, 12.0f);
+      device.set_param(p::kGain, pushed ? 3.0f : 0.0f);
+      Trace t = trace(device, in);
+      lift[pushed] = device.meter(2);
+      ride[pushed] = t.ride_at(at(8.0) - 1);
+    }
+    std::printf("21. tone 6 dB under, Auto gain 12: auto gain %.3f dB at Gain 0 and %.3f at Gain "
+                "+3 (target 5.5 +/- 0.2 both), ride %.3f and %.3f dB (target 0 and -3 +/- 0.2)\n",
+                lift[0], lift[1], ride[0], ride[1]);
+    EXPECT_NEAR(lift[0], 5.5, 0.2, "the auto gain brings the tone to the line");
+    EXPECT_NEAR(lift[1], lift[0], 0.1, "Gain does not change what the auto gain finds");
+    EXPECT(ride[0] > -0.1, "at Gain 0 the ride has nothing to hold");
+    EXPECT_NEAR(ride[1], -3.0, 0.2, "at Gain +3 the ride holds those 3 dB");
+  }
+
+  // 22. The setting turned while a tone plays: down, up and to zero it
+  // glides, lands where it says, and at zero the device is plain again.
+  {
+    std::vector<float> in;
+    add_tone(in, 220.0, 6.0, over(-20.0));
+    auto part = [&](double from, double to) {
+      return std::vector<float>(in.begin() + at(from), in.begin() + at(to));
+    };
+    device.init(kRate);
+    device.set_param(p::kAutoGain, 12.0f);
+    Stereo out = run(device, part(0.0, 1.0));
+    const double first = device.meter(2);
+    device.set_param(p::kAutoGain, 4.0f);
+    out = concat(out, run(device, part(1.0, 2.0)));
+    const double down = device.meter(2);
+    device.set_param(p::kAutoGain, 4.0f);  // sent again: not a turn
+    device.set_param(p::kAutoGain, 16.0f);
+    out = concat(out, run(device, part(2.0, 3.0)));
+    const double up = device.meter(2);
+    device.set_param(p::kAutoGain, 0.0f);
+    out = concat(out, run(device, part(3.0, 6.0)));
+    const double ratio = worst_step_ratio(out.left, 220.0, kLatency + 480, out.size());
+    const double plain = delay_error(out.left, in, at(5.0));
+    std::printf("22. Auto gain 12, 4, 16, 0 under a 220 Hz tone: reading %.2f, %.2f, %.2f, %g dB; "
+                "cycle by cycle %.3f times its own step (target under 1.5); at 0 it is %.2e from "
+                "the delayed input (target under 1e-6)\n",
+                first, down, up, static_cast<double>(device.meter(2)), ratio, plain);
+    EXPECT(first == 12.0, "it starts at the setting");
+    EXPECT(down == 4.0, "turned down, it comes down to the setting");
+    EXPECT(up == 16.0, "turned up, it rises to the setting while under the line");
+    EXPECT(device.meter(2) == 0.0f, "at zero the reading is 0");
+    EXPECT(ratio < 1.5, "the setting turned under a tone glides");
+    EXPECT(plain < 1.0e-6, "and at zero the tone is the input, delayed");
+  }
+
+  // 22. The setting sent again as it is is not a turn: a host that writes
+  // every value when one changes does not make it find the level anew. With
+  // the level found on a tone and the tone then 9 dB down, the gain stays;
+  // turned by a hair, it goes up to the line.
+  {
+    std::vector<float> in;
+    add_tone(in, kToneHz, 5.0, over(-12.0));
+    add_tone(in, kToneHz, 2.0, over(-21.0), in.size());
+    double after[2];
+    for (int turned = 0; turned < 2; ++turned) {
+      device.init(kRate);
+      device.set_param(p::kAutoGain, 24.0f);
+      run(device, std::vector<float>(in.begin(), in.begin() + at(5.0)));
+      device.set_param(p::kAutoGain, turned ? 23.9f : 24.0f);
+      run(device, std::vector<float>(in.begin() + at(5.0), in.end()));
+      after[turned] = device.meter(2);
+    }
+    std::printf("22. the tone 9 dB down for 2 s: auto gain %.3f dB with the setting sent again "
+                "(target 11.5 +/- 0.2), %.3f with it turned (target 20.5 +/- 0.2)\n",
+                after[0], after[1]);
+    EXPECT_NEAR(after[0], 11.5, 0.2, "the same setting sent again changes nothing");
+    EXPECT_NEAR(after[1], 20.5, 0.2, "a turn of the setting finds the level anew");
+  }
+
+  // 23. With the auto gain working, and a silence it sleeps through, the
+  // output is the same in blocks of 1, 128 and 2048 frames.
+  {
+    // Neither tone starts on a sample that is zero: the device wakes on the
+    // first sample that is not, which a block of one frame alone can tell.
+    std::vector<float> in;
+    add_tone(in, kToneHz, 1.5, over(-6.0), 1);
+    in.resize(in.size() + at(1.0), 0.0f);
+    add_tone(in, 330.0, 1.0, over(-12.0), in.size() + 1);
+    Stereo sized[3];
+    const int blocks[3] = {1, 128, 2048};
+    for (int b = 0; b < 3; ++b) {
+      device.init(kRate);
+      device.set_param(p::kAutoGain, 18.0f);
+      sized[b] = run(device, in, blocks[b]);
+    }
+    double worst = 0.0;
+    for (size_t i = 0; i < in.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(sized[0].left[i]) - sized[1].left[i]));
+      worst = std::max(worst, std::fabs(static_cast<double>(sized[2].left[i]) - sized[1].left[i]));
+    }
+    std::printf("23. Auto gain 18 across a silence, blocks of 1, 128 and 2048: largest difference "
+                "%.2e (target 0)\n",
+                worst);
+    EXPECT(worst == 0.0, "with the auto gain working the output does not depend on block size");
   }
 
   // 13. Cost with both stages working: noise 6 dB over the ceiling, which the

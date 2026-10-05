@@ -12,7 +12,7 @@ import { type GroupTrack } from '../../core/tracks/GroupTrack'
 import { useMaybeEngine } from '../hooks/useEngine'
 import { ChannelStripView, type ChannelStripViewProps, type StripKind } from './ChannelStripView'
 import { MasterStripView } from './MasterStripView'
-import { cx } from './tokens'
+import { cx, uniqueKeys } from './tokens'
 
 export interface MixerViewProps {
   /** Defaults to the provided engine's audio and stretch tracks. */
@@ -69,17 +69,19 @@ export function MixerView({
 
   return (
     <div className={cx('lm-mixer', className)} style={style} data-testid={testId}>
-      {sections.map((section) =>
-        section.hosts.length === 0 ? null : (
+      {sections.map((section) => {
+        if (section.hosts.length === 0) return null
+        const keys = uniqueKeys(section.hosts.map((host) => host.name))
+        return (
           <div
             key={section.kind}
             className={cx('lm-mixer__section', `lm-mixer__section--${section.kind}`)}
             role="group"
             aria-label={section.title}
           >
-            {section.hosts.map((host) => (
+            {section.hosts.map((host, index) => (
               <ChannelStripView
-                key={host.name}
+                key={keys[index]}
                 {...stripProps}
                 strip={host}
                 kind={section.kind}
@@ -89,8 +91,8 @@ export function MixerView({
               />
             ))}
           </div>
-        ),
-      )}
+        )
+      })}
       {masterBus ? (
         <div
           className="lm-mixer__section lm-mixer__section--master"

@@ -571,6 +571,22 @@ describe('the Ambient Limiter display', () => {
     expect(highest(over)).toBeCloseTo(yOfLimit(db(0.5) + 9), 3)
   })
 
+  it('counts what Auto gain adds into the level arriving, and prints it only while Auto gain is on', () => {
+    const playing = { meters: { reduction: -2, ride: -2, lift: 7 }, signal: sound(0.5, gain(-1)) }
+    const on = limiter.run(1, { values: { autoGain: 12 }, ...playing })
+    // What arrived: −6.02 dB and 7 dB of auto gain, over the ceiling.
+    const over = drawn(on).shapes.find(
+      (shape) => shape.op === 'fill' && shape.colour === INK_COLOUR && shape.alpha === 0.5,
+    )
+    expect(highest(over)).toBeCloseTo(yOfLimit(db(0.5) + 7), 3)
+    expect(on.words()).toContain('+7.0')
+    const off = limiter.run(1, {
+      meters: { reduction: -2, ride: -2, lift: 0 },
+      signal: sound(0.5, gain(-1)),
+    })
+    expect(off.words().some((word) => word.startsWith('+'))).toBe(false)
+  })
+
   it('keeps the level that leaves in sight under a reduction deep enough to reach it', () => {
     // 12 dB off hangs to −6 dB on the scale; what leaves stands at −1 dB, behind it.
     const context = limiter.run(1, {

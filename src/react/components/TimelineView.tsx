@@ -4,19 +4,27 @@
 // region and a playhead sampled from the transport. Read-only apart from
 // seeking by clicking the ruler.
 
-import { useCallback, useRef, type CSSProperties, type KeyboardEvent, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react'
 
 import { type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
-import { type SampleStore } from '../../core/tracks/SampleStore'
+import { type LoadedSample, type SampleStore } from '../../core/tracks/SampleStore'
+import { isLooping } from '../../core/transport/anchor'
 import { type Transport } from '../../core/transport/Transport'
 import { useSchedule, type ClipSource } from '../hooks/useClips'
 import { useMaybeEngine } from '../hooks/useEngine'
 import { useTransport } from '../hooks/useTransport'
-import { useExternalSnapshot } from '../store'
+import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { formatTimeSec } from './control-math'
 import { infoProps } from './info'
-import { cx } from './tokens'
+import { cx, uniqueKeys } from './tokens'
 import { clipPeaks, Waveform } from './Waveform'
 
 export interface TimelineLane {
@@ -93,6 +101,23 @@ function useLastClipEnd(lanes: readonly TimelineLane[]): number {
   return useExternalSnapshot(subscribe, read, Object.is)
 }
 
+/**
+ * The decoded sound of each clip, re-read when the store takes one in or lets
+ * one go: a sound is decoded after its clip is on the lane as a rule, and the
+ * waveform is drawn when it arrives.
+ */
+function useClipSamples(
+  store: SampleStore | null,
+  clips: readonly Clip[],
+): readonly (LoadedSample | undefined)[] {
+  const subscribe = useMemo<Subscribe>(
+    () => (store ? (onChange) => store.onChange(() => onChange()) : neverSubscribe),
+    [store],
+  )
+  const read = useCallback(() => clips.map((clip) => store?.peek(clip.sourceId)), [store, clips])
+  return useExternalSnapshot(subscribe, read)
+}
+
 /** Ruler ticks: every second, labelled every `major` seconds. */
 export function rulerTicks(
   durationSec: number,
@@ -102,6 +127,8 @@ export function rulerTicks(
     pixelsPerSecond >= 60 ? 1 : pixelsPerSecond >= 25 ? 2 : pixelsPerSecond >= 10 ? 5 : 10
   const major = every * 5
   const ticks: { sec: number; major: boolean }[] = []
+  // A length with no end has no last tick to stop at.
+  if (!Number.isFinite(durationSec)) return ticks
   for (let sec = 0; sec <= durationSec; sec += every) ticks.push({ sec, major: sec % major === 0 })
   return ticks
 }
@@ -126,10 +153,11 @@ export function TimelineView({
   const store = samples === undefined ? (engine?.samples ?? null) : samples
   const t = useTransport(transport, { fps })
   const lastEnd = useLastClipEnd(laneList)
+  const laneKeys = uniqueKeys(laneList.map((lane) => lane.name))
 
-  const length =
-    durationSec ??
-    Math.max(16, lastEnd + 2, t.loop.enabled ? t.loop.lengthSec : 0, t.positionSec + 8)
+  // A loop switched on over a timeline with no end (a new engine's) wraps nowhere: it is drawn as no loop.
+  const loopSec = isLooping(t.loop) ? t.loop.lengthSec : 0
+  const length = durationSec ?? Math.max(16, lastEnd + 2, loopSec, t.positionSec + 8)
   const widthPx = length * pixelsPerSecond
 
   const seekAt = (event: MouseEvent<HTMLElement>): void => {
@@ -166,8 +194,8 @@ export function TimelineView({
     >
       <div className="lm-timeline__names">
         <div className="lm-timeline__corner" aria-hidden="true" />
-        {laneList.map((lane) => (
-          <div key={lane.name} className="lm-timeline__lane-name" title={lane.name}>
+        {laneList.map((lane, index) => (
+          <div key={laneKeys[index]} className="lm-timeline__lane-name" title={lane.name}>
             {lane.name}
           </div>
         ))}
@@ -205,17 +233,17 @@ export function TimelineView({
               </span>
             ))}
           </div>
-          {t.loop.enabled ? (
+          {loopSec > 0 ? (
             <div
               className="lm-timeline__loop"
-              style={{ left: 0, width: t.loop.lengthSec * pixelsPerSecond }}
+              style={{ left: 0, width: loopSec * pixelsPerSecond }}
               aria-hidden="true"
             />
           ) : null}
           <div className="lm-timeline__lanes">
-            {laneList.map((lane) => (
+            {laneList.map((lane, index) => (
               <TimelineLaneView
-                key={lane.name}
+                key={laneKeys[index]}
                 lane={lane}
                 transport={t.transport}
                 pixelsPerSecond={pixelsPerSecond}
@@ -262,6 +290,7 @@ function TimelineLaneView({
 }: TimelineLaneViewProps) {
   const schedule = useSchedule(lane.source, { transport, horizonSec, fps: 10 })
   const { clips } = schedule
+  const loaded = useClipSamples(samples, clips)
   const sounding = new Set(schedule.sounding.map((view) => view.clip.id))
   const upcoming = new Set(schedule.upcoming.map((view) => view.clip.id))
 
@@ -273,8 +302,8 @@ function TimelineLaneView({
       onClick={onBackgroundClick}
       data-testid={testId}
     >
-      {clips.map((clip) => {
-        const peaks = samples ? clipPeaks(samples.peek(clip.sourceId), clip) : null
+      {clips.map((clip, index) => {
+        const peaks = clipPeaks(loaded[index], clip)
         return (
           <div
             key={clip.id}

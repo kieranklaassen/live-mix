@@ -185,4 +185,21 @@ describe('the catalogue', () => {
     const extend = controller.listTools().find((tool) => tool.name === 'extend_section')
     expect(extend).toBeUndefined()
   })
+
+  it('refuses a key that every object answers to, where no property of that name is declared', () => {
+    const schema = {
+      type: 'object' as const,
+      properties: { theme: { type: 'string' as const } },
+      additionalProperties: false,
+    }
+    expect(validateSchema(schema, { theme: 'paper' })).toEqual([])
+    expect(validateSchema(schema, { theme: 'paper', nope: 1 })).toHaveLength(1)
+    // As a model's arguments arrive: parsed, so "__proto__" is a key of its own.
+    for (const key of ['constructor', 'toString', 'hasOwnProperty', 'valueOf', '__proto__']) {
+      const args: unknown = JSON.parse(`{"theme":"paper","${key}":1}`)
+      expect(validateSchema(schema, args), key).toEqual([
+        { path: key, message: 'is not a known property' },
+      ])
+    }
+  })
 })

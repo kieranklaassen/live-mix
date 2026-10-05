@@ -4,6 +4,7 @@ import { act, cleanup, fireEvent, render, renderHook, screen } from '@testing-li
 import { createElement, type ReactNode } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { Arbiter } from '../../score/Arbiter'
 import { findStripHost } from '../../score/schema'
 import { ScoreDocument } from '../../score/ScoreDocument'
 import { VersionHistory } from '../../score/versions'
@@ -93,6 +94,37 @@ describe('VersionList', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Remove half' }))
     expect(history.versions.map((version) => version.id)).toEqual(['v1', 'v3'])
     expect(screen.getAllByRole('listitem')).toHaveLength(2)
+  })
+
+  it('tells the host of a restore that landed, not of one a lock refused', () => {
+    const clock = { ms: 60_000 }
+    const document = new ScoreDocument(demoScore(), { now: () => clock.ms })
+    const arbiter = new Arbiter(document, {
+      now: () => clock.ms,
+      setTimeoutFn: () => 0,
+      clearTimeoutFn: () => {},
+    })
+    const history = new VersionHistory(document, { now: () => clock.ms, arbiter, id: () => 'v1' })
+    const level = (): number => findStripHost(document.score, 'kick')?.strip.level ?? NaN
+    const onRestore = vi.fn()
+    render(<VersionList versions={history} data-testid="vl" onRestore={onRestore} />)
+    act(() => {
+      document.apply({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.5 })
+    })
+
+    // Something of the system's has the level (a bounce under way, say): a person's write is refused.
+    const target = { kind: 'strip', owner: 'kick', param: 'level' } as const
+    act(() => {
+      arbiter.lock(target, { author: { id: 'bounce', kind: 'system' } })
+    })
+    fireEvent.click(screen.getByTestId('vl-restore-v1'))
+    expect(level()).toBe(0.5)
+    expect(onRestore).not.toHaveBeenCalled()
+
+    act(() => arbiter.unlock(target))
+    fireEvent.click(screen.getByTestId('vl-restore-v1'))
+    expect(level()).toBe(0.8)
+    expect(onRestore).toHaveBeenCalledTimes(1)
   })
 
   it('manualOnly hides checkpoints and shows the empty state', () => {

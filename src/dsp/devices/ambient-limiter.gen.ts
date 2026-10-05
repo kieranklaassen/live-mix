@@ -26,7 +26,7 @@ export const AMBIENT_LIMITER_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'Level going into the limiter. Raising it pushes more of the sound into the ceiling, so the result is louder and denser.',
+      'Level going into the limiter. Raising it pushes more of the sound into the ceiling: louder and denser. With Auto gain on it is how far past the ceiling the mix is pushed.',
   },
   release: {
     id: 2,
@@ -50,6 +50,17 @@ export const AMBIENT_LIMITER_PARAMS = {
     description:
       'How much of a sustained over is turned down smoothly ahead of the brickwall. At zero only the brickwall works.',
   },
+  autoGain: {
+    id: 4,
+    name: 'Auto gain',
+    min: 0,
+    max: 24,
+    default: 0,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'How far the limiter may turn a quiet mix up. It brings the loudest part to the ceiling and stays there, so quiet parts and tails stay quiet. At zero it is off.',
+  },
 } as const satisfies Record<string, ParamSpec>
 
 export type AmbientLimiterParamName = keyof typeof AMBIENT_LIMITER_PARAMS
@@ -57,6 +68,7 @@ export type AmbientLimiterParamName = keyof typeof AMBIENT_LIMITER_PARAMS
 export const AMBIENT_LIMITER_METERS = {
   reduction: { id: 0, name: 'Gain reduction', unit: 'dB' },
   ride: { id: 1, name: 'Ride reduction', unit: 'dB', display: true },
+  lift: { id: 2, name: 'Auto gain', unit: 'dB' },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const AMBIENT_LIMITER_DEVICE = defineWasmDevice({
@@ -72,7 +84,7 @@ export const AMBIENT_LIMITER_DESCRIPTOR = wasmDeviceDescriptor(AMBIENT_LIMITER_D
   name: 'Ambient Limiter',
   category: 'dynamics',
   description:
-    'A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over.',
+    'A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over. With Auto gain it also turns a quiet mix up to the ceiling and holds it there.',
   presets: {
     Master: { ceiling: -1, gain: 0, release: 1.5, ride: 1 },
     Loud: { gain: 5, release: 2.5 },
@@ -84,6 +96,8 @@ export const AMBIENT_LIMITER_DESCRIPTOR = wasmDeviceDescriptor(AMBIENT_LIMITER_D
     'Late night': { ceiling: -9, gain: 2, release: 4 },
     'Pull back': { gain: -3 },
     Breathing: { ceiling: -9, gain: 4, release: 0.3 },
+    'Full level': { ceiling: -0.3, autoGain: 12 },
+    'Full and dense': { ceiling: -0.3, gain: 3, release: 2.5, autoGain: 12 },
   },
   formerPresets: { Headroom: 'Margin' },
   retiredPresets: {
@@ -93,7 +107,7 @@ export const AMBIENT_LIMITER_DESCRIPTOR = wasmDeviceDescriptor(AMBIENT_LIMITER_D
 
 export type AmbientLimiter = WasmDevice<typeof AMBIENT_LIMITER_PARAMS>
 
-/** A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over. */
+/** A true-peak ceiling for the master that turns a sustained swell down smoothly first, so a drone leaning on it stays clean and one loud moment is soon over. With Auto gain it also turns a quiet mix up to the ceiling and holds it there. */
 export function createAmbientLimiter(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof AMBIENT_LIMITER_PARAMS> = {},

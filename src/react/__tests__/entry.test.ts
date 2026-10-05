@@ -254,6 +254,21 @@ describe('entries', () => {
     expect(rule('.lm-stroke__automation-label')).not.toContain('position:')
   })
 
+  it('the stylesheet reads no variable that neither it nor a component declares', async () => {
+    const css = await readFile(join(src, 'react/styles.css'), 'utf8')
+    const dir = join(src, 'react/components')
+    let components = ''
+    for (const file of await readdir(dir)) {
+      if (file.endsWith('.tsx')) components += await readFile(join(dir, file), 'utf8')
+    }
+    // Read with nothing to fall back on: a name nobody declares draws as if the line were not there.
+    const read = new Set([...css.matchAll(/var\(--lm-([a-z0-9-]+)\)/g)].map((match) => match[1]))
+    const undeclared = [...read].filter(
+      (name) => !css.includes(`--lm-${name}:`) && !components.includes(`'--lm-${name}'`),
+    )
+    expect(undeclared).toEqual([])
+  })
+
   it('components reference colours only through --lm-* variables', async () => {
     const dir = join(src, 'react/components')
     const offenders: string[] = []

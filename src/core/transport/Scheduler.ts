@@ -204,6 +204,7 @@ export class Scheduler {
   readonly transport: Transport
   private readonly registrations = new Map<Schedulable, Registration>()
   private readonly tickListeners = new Set<SchedulerTickListener>()
+  private readonly seedListeners = new Set<() => void>()
   private timer: ReturnType<typeof setInterval> | null = null
   // Inside `rescale`: edits and loop changes do not re-derive the queue yet.
   private rescaling = false
@@ -254,6 +255,18 @@ export class Scheduler {
       }
     }
     this.rejoin(drawn)
+    for (const listener of [...this.seedListeners]) listener()
+  }
+
+  /**
+   * Called after `setSeed` has taken, for a view that draws which clips a
+   * chance sounds on this pass. Returns the unsubscribe.
+   */
+  onSeedChange(listener: () => void): () => void {
+    this.seedListeners.add(listener)
+    return () => {
+      this.seedListeners.delete(listener)
+    }
   }
 
   /**
@@ -644,6 +657,7 @@ export class Scheduler {
     this.stopTimer()
     this.registrations.clear()
     this.tickListeners.clear()
+    this.seedListeners.clear()
   }
 
   private onTransportChange(change: TransportChange): void {

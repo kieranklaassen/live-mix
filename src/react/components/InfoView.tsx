@@ -102,8 +102,20 @@ export function useInfo({ root, disabled = false }: UseInfoOptions = {}): InfoEn
         read()
       }, 0)
     }
+    // The same when something else does it: a control erased by the agent, or
+    // by a button outside what is described, goes with no press in here, and
+    // one that held the focus sends no event as it goes.
     const observer = typeof MutationObserver === 'undefined' ? null : new MutationObserver(readSoon)
-    observer?.observe(scope, { subtree: true, attributes: true, attributeFilter: WATCHED })
+    observer?.observe(scope, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: WATCHED,
+    })
+
+    // Nothing in this part of the page has been pointed at yet: what was said
+    // of the part it took the place of (a root mounted again) is dropped.
+    read()
 
     scope.addEventListener('pointerover', follow)
     scope.addEventListener('pointerleave', leave)

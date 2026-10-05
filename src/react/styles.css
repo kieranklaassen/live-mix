@@ -1903,7 +1903,7 @@
 .lm-device__notice {
   max-width: 28ch;
   margin: 0;
-  color: var(--lm-text-muted);
+  color: var(--lm-muted);
   font-size: var(--lm-label-size);
   line-height: 1.4;
 }
