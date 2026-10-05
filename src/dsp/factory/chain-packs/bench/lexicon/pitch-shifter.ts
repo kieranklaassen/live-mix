@@ -13,7 +13,7 @@ export const LEXICON: DeviceLexicon = {
       traits: ['high', 'bright'],
     },
     'Octave down': {
-      says: 'a single voice an octave below the dry sound, darkened',
+      says: 'a single darkened voice an octave below the dry sound',
       brief: 'an octave below',
       nouns: ['octave', 'bass'],
       roles: ['pitch'],
@@ -31,21 +31,21 @@ export const LEXICON: DeviceLexicon = {
       brief: 'octaves above and below',
       nouns: ['octaves'],
       roles: ['pitch'],
-      traits: ['low', 'high'],
+      traits: ['low', 'high', 'bright', 'clean'],
     },
     'Pad fifth': {
       says: 'a wide, slightly detuned fifth above held chords',
       brief: 'a wide fifth above chords',
       nouns: ['fifths', 'fifth'],
       roles: ['pitch'],
-      traits: ['wide', 'high'],
+      traits: ['wide', 'high', 'clean'],
     },
     'Pad below': {
       says: 'a dark octave below held chords, every note moved cleanly',
       brief: 'a dark octave below chords',
-      nouns: ['octave', 'floor'],
+      nouns: ['octave', 'bass'],
       roles: ['pitch'],
-      traits: ['low', 'dark'],
+      traits: ['low', 'dark', 'clean'],
     },
     Doubler: {
       says: 'two copies a few cents sharp and flat, left and right',
@@ -57,7 +57,7 @@ export const LEXICON: DeviceLexicon = {
     'Rising steps': {
       says: 'echoes that climb an octave on every repeat',
       brief: 'echoes climbing by octaves',
-      nouns: ['steps', 'stairs', 'echoes'],
+      nouns: ['echoes', 'octaves'],
       roles: ['echo', 'pitch'],
       traits: ['high', 'bright'],
     },
@@ -71,9 +71,9 @@ export const LEXICON: DeviceLexicon = {
     'Broken choir': {
       says: 'a fluttering fifth above and fourth below, out of tune',
       brief: 'a fluttering, sour harmony',
-      nouns: ['choir', 'voices'],
+      nouns: ['harmony', 'flutter'],
       roles: ['pitch'],
-      traits: ['unsteady', 'worn', 'wide'],
+      traits: ['unsteady', 'strange', 'wide'],
     },
     'Slow cloud': {
       says: 'a scattered cloud of long grains, some an octave up',
@@ -85,14 +85,14 @@ export const LEXICON: DeviceLexicon = {
     'Metal grains': {
       says: 'a buzzing metallic fifth above from very short grains',
       brief: 'a buzzing metallic fifth',
-      nouns: ['metal', 'buzz', 'grains'],
+      nouns: ['buzz', 'grains'],
       roles: ['pitch', 'grain'],
       traits: ['cold', 'strange', 'high'],
     },
     'Falling steps': {
       says: 'echoes that fall a fourth further on every repeat',
       brief: 'echoes falling by fourths',
-      nouns: ['steps', 'descent', 'echoes'],
+      nouns: ['descent', 'echoes'],
       roles: ['echo', 'pitch'],
       traits: ['low'],
     },
@@ -106,9 +106,9 @@ export const LEXICON: DeviceLexicon = {
     'Faint air': {
       says: 'a faint octave above, a little air over the dry sound',
       brief: 'a faint octave of air',
-      nouns: ['air', 'octave'],
+      nouns: ['octave', 'trace'],
       roles: ['pitch'],
-      traits: ['faint', 'high'],
+      traits: ['faint', 'high', 'clean'],
     },
     'Two octaves': {
       says: 'dark voices one and two octaves below the dry sound',
