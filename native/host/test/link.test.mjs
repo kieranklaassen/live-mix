@@ -425,11 +425,14 @@ session('listens to a channel a peer sends, with every sample at its moment', as
         })),
     )
   try {
-    // Two bars of beats: eight on the left, two on the right.
+    // Two bars of beats: eight on the left, two on the right. The wait is long for the same reason as the
+    // sending test's: a listener that asks for a channel before the sender has heard its announcement is
+    // sent nothing until it asks again, five seconds on, and the test before this one has just ended the
+    // host's own channel, so its next announcement may still be a quarter of a second away.
     await until(
       () => clicks().filter((click) => click.side === 1).length >= 2,
       'two bars of the channel',
-      8000,
+      14000,
     )
     for (const block of blocks) {
       assert.deepEqual(
