@@ -410,6 +410,23 @@ describe('PushDevice', () => {
     expect(events).toHaveLength(2)
   })
 
+  it('is closed, and names no colour, when it is closed while it is still opening', async () => {
+    const { push, device } = plug()
+    const opening = device.open({ colors: COLORS })
+    await Promise.all([device.close(), opening])
+    expect(device.opened).toBe(false)
+    // The palette is the device's again: a name of the app's colours names no place in it.
+    expect(device.color('root')).toBe(PUSH_DEFAULT_COLORS.black)
+    // Opened again with no colours of its own, a pad lit by that name stays dark.
+    await device.open()
+    device.setPad(0, 0, 'root')
+    expect(push.pad(0, 0).color).toBe(PUSH_DEFAULT_COLORS.black)
+    // The same for colours that were on their way in when it was closed.
+    const colouring = device.setColors(COLORS)
+    await Promise.all([device.close(), colouring])
+    expect(device.color('water')).toBe(PUSH_DEFAULT_COLORS.black)
+  })
+
   it('wants to know which Push it is talking to', () => {
     const port = { name: 'IAC Driver Bus 1', onmidimessage: null, send: () => undefined }
     expect(() => new PushDevice({ input: port, output: port })).toThrow(/not a Push 2 or Push 3/)
