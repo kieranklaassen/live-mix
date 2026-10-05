@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { Profiler } from 'react'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { TransportBar } from '../components/TransportBar'
@@ -40,6 +41,28 @@ describe('TransportBar', () => {
     fixture.ctx.currentTime = 2.5
     act(() => fixture.frames.flush(1000))
     expect(screen.getByLabelText('Position')).toHaveTextContent('0:02.5')
+  })
+
+  it('shows where the playhead is from the first frame of playing, not where it last ran', () => {
+    const fixture = createTestEngine()
+    const { transport } = fixture.engine
+    const drawn: (string | null)[] = []
+    render(
+      <Profiler id="bar" onRender={() => drawn.push(screen.getByLabelText('Position').textContent)}>
+        <TransportBar />
+      </Profiler>,
+      { wrapper: fixture.wrapper },
+    )
+    act(() => transport.seek(30))
+    drawn.length = 0
+    act(() => transport.start())
+    expect(new Set(drawn)).toEqual(new Set(['0:30.0']))
+
+    act(() => transport.pause())
+    act(() => transport.seek(5))
+    drawn.length = 0
+    act(() => transport.start())
+    expect(new Set(drawn)).toEqual(new Set(['0:05.0']))
   })
 
   it('toggles the loop and shows its length', () => {

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
+import { useLayoutEffect } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -254,5 +255,26 @@ describe('useFrameSampled', () => {
     rerender({ active: true })
     expect(result.current).toBe(4)
     expect(frames.size).toBe(1)
+  })
+
+  it('takes its sample afresh in the render that turns it on: the old one is never drawn', () => {
+    const frames = new ManualFrames()
+    let level = 3
+    const drawn: number[] = []
+    const { rerender } = renderHook(
+      ({ active }: { active: boolean }) => {
+        const value = useFrameSampled(active, 30, () => level, frames)
+        useLayoutEffect(() => {
+          drawn.push(value)
+        })
+        return value
+      },
+      { initialProps: { active: false } },
+    )
+    // A playhead moved at rest: nothing samples it until it runs.
+    level = 4
+    drawn.length = 0
+    rerender({ active: true })
+    expect(drawn).toEqual([4])
   })
 })
