@@ -404,10 +404,11 @@ export class NativeDevice
       worker.postMessage({ type: 'start', memory, url: client.audioUrl(slot.slot, 2) })
       if (options.params) {
         // A saved value for a parameter this version of the plug-in no longer
-        // has must not keep the plug-in from loading.
+        // has must not keep the plug-in from loading. Its own names only:
+        // `constructor` is on every object and in no plug-in.
         device.setParams(
           Object.fromEntries(
-            Object.entries(options.params).filter(([name]) => name in device.params),
+            Object.entries(options.params).filter(([name]) => Object.hasOwn(device.params, name)),
           ),
         )
       }
