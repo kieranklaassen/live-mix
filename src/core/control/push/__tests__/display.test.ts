@@ -170,6 +170,34 @@ describe('PushDisplay', () => {
     expect(push.errors).toEqual([])
   })
 
+  it('keeps one keep-alive when it is opened twice at once, and none after close', async () => {
+    const push = new VirtualPush()
+    const ticking = new Set<() => void>()
+    const timer: PushDisplayTimer = {
+      setInterval: (handler) => {
+        ticking.add(handler)
+        return handler
+      },
+      clearInterval: (handle) => {
+        ticking.delete(handle as () => void)
+      },
+    }
+    const display = await PushDisplay.request(push.usb(), { timer })
+    await Promise.all([display.open(), display.open()])
+    expect(ticking.size).toBe(1)
+    display.show(solid(9, 9, 9))
+    await display.settled()
+    expect(display.framesSent).toBe(1)
+    await display.close()
+    // Nothing is left ticking at a display that was let go.
+    expect(ticking.size).toBe(0)
+    // Opened again, it counts its frames from there.
+    await display.open()
+    expect(display.framesSent).toBe(0)
+    await display.close()
+    expect(push.errors).toEqual([])
+  })
+
   it('says so when another program holds the display', async () => {
     const push = new VirtualPush({ displayBusy: true })
     const display = await PushDisplay.request(push.usb(), { timer: manualTimer() })

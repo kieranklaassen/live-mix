@@ -265,7 +265,11 @@ export class PushDisplay {
     this.interfaceNumber = place.interfaceNumber
     this.endpoint = place.endpoint
     await this.device.claimInterface(this.interfaceNumber)
+    // Opened twice at once, the second to get here finds it done. A keep-alive
+    // of its own would be one that `close` never stops.
+    if (this.open_) return
     this.open_ = true
+    this.frames = 0
     this.keepAlive = this.timer.setInterval(() => {
       if (this.last && !this.sending) this.push(this.last)
     }, PUSH_DISPLAY_KEEPALIVE_MS)
