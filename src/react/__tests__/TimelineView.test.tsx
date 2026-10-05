@@ -186,6 +186,32 @@ describe('TimelineView', () => {
     expect(screen.queryByRole('slider')).toBeNull()
   })
 
+  it('keeps one lane each for two lanes of one name when the lanes are put in another order', () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const drums = { name: 'drums', source: engine.addAudioTrack('drums') }
+    const take = { name: 'voice', source: engine.addAudioTrack('take') }
+    const double = { name: 'voice', source: engine.addAudioTrack('double') }
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const timeline = (lanes: (typeof drums)[]) => (
+      <TimelineView lanes={lanes} transport={engine.transport} samples={null} />
+    )
+    const { rerender } = render(timeline([drums, take, double]))
+    rerender(timeline([take, double, drums]))
+    expect(screen.getAllByRole('list').map((lane) => lane.getAttribute('aria-label'))).toEqual([
+      'voice clips',
+      'voice clips',
+      'drums clips',
+    ])
+    expect(screen.getAllByTitle(/^(voice|drums)$/).map((name) => name.textContent)).toEqual([
+      'voice',
+      'voice',
+      'drums',
+    ])
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
+  })
+
   it('spaces ruler ticks by scale', () => {
     expect(rulerTicks(4, 100).map((tick) => tick.sec)).toEqual([0, 1, 2, 3, 4])
     expect(

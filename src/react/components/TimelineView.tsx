@@ -24,7 +24,7 @@ import { useTransport } from '../hooks/useTransport'
 import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { formatTimeSec } from './control-math'
 import { infoProps } from './info'
-import { cx } from './tokens'
+import { cx, uniqueKeys } from './tokens'
 import { clipPeaks, Waveform } from './Waveform'
 
 export interface TimelineLane {
@@ -153,6 +153,7 @@ export function TimelineView({
   const store = samples === undefined ? (engine?.samples ?? null) : samples
   const t = useTransport(transport, { fps })
   const lastEnd = useLastClipEnd(laneList)
+  const laneKeys = uniqueKeys(laneList.map((lane) => lane.name))
 
   // A loop switched on over a timeline with no end (a new engine's) wraps nowhere: it is drawn as no loop.
   const loopSec = isLooping(t.loop) ? t.loop.lengthSec : 0
@@ -193,8 +194,8 @@ export function TimelineView({
     >
       <div className="lm-timeline__names">
         <div className="lm-timeline__corner" aria-hidden="true" />
-        {laneList.map((lane) => (
-          <div key={lane.name} className="lm-timeline__lane-name" title={lane.name}>
+        {laneList.map((lane, index) => (
+          <div key={laneKeys[index]} className="lm-timeline__lane-name" title={lane.name}>
             {lane.name}
           </div>
         ))}
@@ -240,9 +241,9 @@ export function TimelineView({
             />
           ) : null}
           <div className="lm-timeline__lanes">
-            {laneList.map((lane) => (
+            {laneList.map((lane, index) => (
               <TimelineLaneView
-                key={lane.name}
+                key={laneKeys[index]}
                 lane={lane}
                 transport={t.transport}
                 pixelsPerSecond={pixelsPerSecond}

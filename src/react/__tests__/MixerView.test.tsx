@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { dbToGain } from '../../core/devices/native/units'
+import { type StripHost } from '../../core/tracks/ChannelStrip'
 import { type MockGainNode } from '../../testing'
 import { MixerView } from '../components/MixerView'
 import { createTestEngine } from './harness'
@@ -80,5 +81,27 @@ describe('MixerView', () => {
     expect(screen.getByRole('region', { name: 'pad strip' })).toBeInTheDocument()
     expect(screen.queryByRole('group', { name: 'Master' })).toBeNull()
     expect(screen.queryByRole('group', { name: 'Groups' })).toBeNull()
+  })
+
+  it('keeps one strip each for two tracks of one name when the list is put in another order', () => {
+    // An audio track and a live input may go by one name: each kind keeps its own names.
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const drums = engine.addAudioTrack('drums')
+    const take = engine.addAudioTrack('voice')
+    const mic = engine.addLiveInputTrack('voice')
+    const errors = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const mixer = (hosts: StripHost[]) => (
+      <MixerView tracks={hosts} master={false} stripProps={{ meter: false }} />
+    )
+    const { rerender } = render(mixer([drums, take, mic]), { wrapper: fixture.wrapper })
+    rerender(mixer([take, mic, drums]))
+    expect(screen.getAllByRole('region').map((strip) => strip.getAttribute('aria-label'))).toEqual([
+      'voice strip',
+      'voice strip',
+      'drums strip',
+    ])
+    expect(errors).not.toHaveBeenCalled()
+    errors.mockRestore()
   })
 })
