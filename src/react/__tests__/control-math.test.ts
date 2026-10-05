@@ -299,6 +299,34 @@ describe('the stock devices', () => {
     ])
   })
 
+  it('can each be turned as a knob: a range with width, a default and a top the step lands on, a label for every value of a list, a number in every text', () => {
+    for (const device of stock) {
+      for (const [name, spec] of Object.entries(device.params)) {
+        const at = `${device.id}.${name}`
+        expect(spec.max, at).toBeGreaterThan(spec.min)
+        expect(spec.default, at).toBeGreaterThanOrEqual(spec.min)
+        expect(spec.default, at).toBeLessThanOrEqual(spec.max)
+        if (spec.choices) expect(spec.choices, at).toHaveLength(spec.max - spec.min + 1)
+        if (spec.taper === 'log') expect(spec.min, at).toBeGreaterThan(0)
+        // A double click lands on the default and End on the top: both are places the knob has.
+        const step = isChoiceParam(spec) ? 1 : paramStep(spec)
+        expect(quantize(spec.default, step, spec.min, spec.max), at).toBe(spec.default)
+        expect(quantize(spec.max, step, spec.min, spec.max), at).toBe(spec.max)
+        for (const value of [spec.min, spec.default, spec.max]) {
+          expect(formatParamValue(spec, value), at).not.toMatch(
+            /NaN|Infinity|undefined|^-0(\.0+)?( |$)/,
+          )
+        }
+        for (const [preset, values] of Object.entries(device.presets ?? {})) {
+          const value = values[name]
+          if (value === undefined) continue
+          expect(value, `${at} in "${preset}"`).toBeGreaterThanOrEqual(spec.min)
+          expect(value, `${at} in "${preset}"`).toBeLessThanOrEqual(spec.max)
+        }
+      }
+    }
+  })
+
   it('leave a tone, a pan, a tuning or a vowel continuous, as their presets set them', () => {
     const continuous = [
       'analog-drive.tone',
