@@ -417,7 +417,9 @@ describe('ScoreRenderer: incremental edits', () => {
           output: node,
           params: gain,
           setParam: (name, value) => {
-            if (!(name in gain)) throw new Error(`live-mix: hosted has no parameter "${name}"`)
+            if (!Object.hasOwn(gain, name)) {
+              throw new Error(`live-mix: hosted has no parameter "${name}"`)
+            }
             sets.push([name, value])
             values.set(name, value)
           },
@@ -443,6 +445,11 @@ describe('ScoreRenderer: incremental edits', () => {
       { type: 'device.setParam', device: 'hosted-1', param: 'gone', value: 0.6 },
       { type: 'device.setParam', device: 'hosted-1', param: 'gain', value: 0.8 },
     )
+    expect(errors).toEqual([])
+    expect(sets).toEqual([['gain', 0.8]])
+    expect(renderer.rendered).toBe(document.score)
+    // Nor under a name every object answers to and no plug-in lists.
+    await edit({ type: 'device.setParam', device: 'hosted-1', param: 'constructor', value: 0.4 })
     expect(errors).toEqual([])
     expect(sets).toEqual([['gain', 0.8]])
     expect(renderer.rendered).toBe(document.score)

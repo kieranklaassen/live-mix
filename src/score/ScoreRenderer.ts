@@ -1042,8 +1042,10 @@ export class ScoreRenderer {
     // A hosted plug-in refuses a name it does not have (a value saved for a
     // parameter this version of it dropped). The stand-in for one that is not
     // there lists no parameters and keeps whatever it is given.
+    // Its own names only: `constructor` is on every object and in no plug-in.
     const taken = (name: string): boolean =>
-      name in device.params || (device as Device & { unavailable?: boolean }).unavailable === true
+      Object.hasOwn(device.params, name) ||
+      (device as Device & { unavailable?: boolean }).unavailable === true
     if (before.bypass !== after.bypass) device.bypass = after.bypass
     for (const [name, value] of Object.entries(next)) {
       if (previous[name] === value) continue
