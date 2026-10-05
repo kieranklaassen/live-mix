@@ -49,20 +49,25 @@ export function withVersionCheckpoints(
  * else it carries. A spread alone copies only what the object holds itself, so
  * a session that is an instance of a class came back without its class's hooks,
  * and a hook taken off its session and called bare had no `this` to keep its
- * state on.
+ * state on. Only what a class holds as a method is taken from it: what it works
+ * out on demand (a getter) is not read here, so wrapping a session runs none of
+ * its code.
  */
 function hooksOf(session: AgentSession): AgentSession {
   const hooks: Record<string, unknown> = { ...session }
+  const seen = new Set<string>()
   for (
     let from: object | null = session;
     from !== null && from !== Object.prototype;
     from = Object.getPrototypeOf(from) as object | null
   ) {
     for (const name of Object.getOwnPropertyNames(from)) {
-      if (name === 'constructor') continue
-      const value = (session as Record<string, unknown>)[name]
-      if (typeof value === 'function') {
-        hooks[name] = (value as (...args: unknown[]) => unknown).bind(session)
+      // The nearest holder of a name is the one the session answers with.
+      if (name === 'constructor' || seen.has(name)) continue
+      seen.add(name)
+      const held = Object.getOwnPropertyDescriptor(from, name)
+      if (held && typeof held.value === 'function') {
+        hooks[name] = (held.value as (...args: unknown[]) => unknown).bind(session)
       }
     }
   }

@@ -87,7 +87,10 @@ function frameChain(scheduler: FrameScheduler): FrameSubscribe {
     beat.listeners = beat.listeners.filter((other) => other !== listener)
     if (beat.listeners.length > 0) return
     beats = beats.filter((other) => other !== beat)
-    if (beats.length === 0 && waiting) {
+    // A frame asked for with no handle cannot be called off by name: it is left to come, finds
+    // nobody (or whoever has joined by then) and is the one chain, where calling it off in name
+    // only would have the next subscriber ask for a second.
+    if (beats.length === 0 && waiting && handle !== null && handle !== undefined) {
       scheduler.cancel(handle)
       handle = null
       waiting = false

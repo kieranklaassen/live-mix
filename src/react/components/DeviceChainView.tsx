@@ -403,11 +403,13 @@ export function DeviceChainView({
     // The pinned inserts the score holds head its chain; nothing steps in front of them.
     const first = inserts.slice(0, skip).filter((device) => scoreSlot(device)).length
     const to = moved.index + delta
-    const applied =
+    // A step the arbiter holds back is on its way: it lands when the hold ends, and its cell is
+    // given the focus back then. Only one that will not come lets go of the cell.
+    const comes =
       to >= first &&
       to < scoreInserts(arbiter, owner).length &&
-      arbiter.apply({ type: 'device.move', id: moved.device.id, index: to }).outcome === 'applied'
-    if (!applied) stays()
+      arbiter.apply({ type: 'device.move', id: moved.device.id, index: to }).outcome !== 'dropped'
+    if (!comes) stays()
   }
 
   const add = async (id: string): Promise<void> => {
