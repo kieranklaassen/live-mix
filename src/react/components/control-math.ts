@@ -257,21 +257,29 @@ export function heldPeak(previous: HeldPeak, db: number, now: number, holdMs: nu
 
 // --- Formatting ----------------------------------------------------------------
 
+/** `toFixed` with no minus zero: a value that rounds to nothing reads "0.00", not "-0.00". */
+function fixed(value: number, digits: number): string {
+  const text = value.toFixed(digits)
+  return Number(text) === 0 ? (0).toFixed(digits) : text
+}
+
 function formatHz(value: number, digits?: number, sp = ' '): string {
-  if (value >= 1000) return `${(value / 1000).toFixed(digits ?? 2)}${sp}kHz`
   // Under one hertz a single decimal reads the same over much of a slow rate's travel ("0.0 Hz").
   const size = Math.abs(value)
-  return `${value.toFixed(digits ?? (size >= 100 ? 0 : size > 0 && size < 1 ? 2 : 1))}${sp}Hz`
+  const hz = fixed(value, digits ?? (size >= 100 ? 0 : size > 0 && size < 1 ? 2 : 1))
+  // The unit is chosen by the number printed: 999.6 rounds to a thousand, which is "1.00 kHz".
+  if (value >= 1000 || Number(hz) >= 1000) return `${(value / 1000).toFixed(digits ?? 2)}${sp}kHz`
+  return `${hz}${sp}Hz`
 }
 
 function formatMs(value: number, digits?: number, sp = ' '): string {
-  return `${value < 10 ? value.toFixed(digits ?? 1) : Math.round(value)}${sp}ms`
+  return `${value < 10 ? fixed(value, digits ?? 1) : Math.round(value)}${sp}ms`
 }
 
 function formatDb(value: number, digits?: number, sp = ' '): string {
   if (value === Number.NEGATIVE_INFINITY) return `-∞${sp}dB`
   const sign = value > 0 ? '+' : ''
-  return `${sign}${value.toFixed(digits ?? 1)}${sp}dB`
+  return `${sign}${fixed(value, digits ?? 1)}${sp}dB`
 }
 
 /** −1…1 → `L50` / `C` / `R50`. */
@@ -286,6 +294,24 @@ export interface FormatControlValueOptions {
   digits?: number
   /** What sits between the number and its unit: `' '` (default) or `''` for `20ms`. */
   spacing?: ' ' | ''
+  /**
+   * The step the value moves in. With a unit the formatter does not know, a
+   * value on that step prints no more decimals than the step has ("1200 ct"
+   * for a step of 1); one that stands between two steps keeps its two.
+   */
+  step?: number
+}
+
+/** The most decimals a value with a unit the formatter does not know is printed with. */
+const UNKNOWN_UNIT_DECIMALS = 2
+
+/** The decimals for such a value: the step's where the value sits on the step, else the two. */
+function unknownUnitDecimals(value: number, step: number | undefined): number {
+  if (step === undefined || !(step > 0)) return UNKNOWN_UNIT_DECIMALS
+  const least = Math.min(UNKNOWN_UNIT_DECIMALS, stepDecimals(step))
+  return Number(value.toFixed(least)) === Number(value.toFixed(UNKNOWN_UNIT_DECIMALS))
+    ? least
+    : UNKNOWN_UNIT_DECIMALS
 }
 
 export function formatControlValue(
@@ -301,7 +327,7 @@ export function formatControlValue(
   switch (known) {
     case 'ratio':
     case '':
-      return value.toFixed(digits ?? 2)
+      return fixed(value, digits ?? 2)
     case 'ms':
       return formatMs(value, digits, sp)
     case 's':
@@ -309,7 +335,7 @@ export function formatControlValue(
       // attack a compressor has): the time is told in milliseconds there.
       if (digits === undefined && value !== 0 && Math.abs(value) < 0.0995)
         return formatMs(value * 1000, undefined, sp)
-      return `${value.toFixed(digits ?? 2)}${sp}s`
+      return `${fixed(value, digits ?? 2)}${sp}s`
     case 'dB':
       return formatDb(value, digits, sp)
     case 'Hz':
@@ -322,7 +348,8 @@ export function formatControlValue(
       return String(value)
     default: {
       const _exhaustive: never = known
-      return `${value.toFixed(digits ?? 2)}${sp}${String(_exhaustive)}`
+      const decimals = digits ?? unknownUnitDecimals(value, options.step)
+      return `${fixed(value, decimals)}${sp}${String(_exhaustive)}`
     }
   }
 }
@@ -387,6 +414,8 @@ export function paramTaper(spec: ParamSpec): ControlTaper {
 /**
  * Format a parameter value with the spec's unit (choices print their label,
  * or the integer; a value that moves in whole steps prints whole: "12 st").
+ * A unit the formatter does not know takes the decimals of the step its knob
+ * turns in (`paramStep`): "1200 ct", not "1200.00 ct".
  */
 export function formatParamValue(spec: ParamSpec, value: number): string {
   if (isChoiceParam(spec)) {
@@ -396,5 +425,5 @@ export function formatParamValue(spec: ParamSpec, value: number): string {
   if (spec.step !== undefined && Number.isInteger(spec.step) && spec.step > 0) {
     return `${Math.round(value)} ${spec.unit}`
   }
-  return formatControlValue(value, spec.unit || 'ratio')
+  return formatControlValue(value, spec.unit || 'ratio', { step: paramStep(spec) })
 }

@@ -164,8 +164,11 @@ export function sameInfo(a: InfoEntry | null, b: InfoEntry | null): boolean {
 export interface ControlGestureOptions {
   /** The way a drag moves it. */
   axis?: 'vertical' | 'horizontal' | 'both'
-  /** What a double-click or Delete sets, as the control prints it. */
-  reset: string
+  /**
+   * What a double-click or Delete sets, as the control prints it. Left out
+   * where the control cannot print it: the line then says "its default".
+   */
+  reset?: string
   /** The mouse wheel moves it too. */
   wheel?: boolean
   /** The control has two places (off and on): a press switches it, and a double-click resets nothing. */
@@ -175,7 +178,7 @@ export interface ControlGestureOptions {
 /** How a knob or a fader is worked: the line the info view puts under what the control does. */
 export function controlGestureInfo({
   axis = 'vertical',
-  reset,
+  reset = 'its default',
   wheel = true,
   twoPlaces = false,
 }: ControlGestureOptions): string {

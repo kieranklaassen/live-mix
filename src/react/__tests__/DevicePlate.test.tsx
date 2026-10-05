@@ -17,6 +17,7 @@ import {
   isDarkPlate,
   type DeviceSkin,
 } from '../components/device-skins'
+import { controlGestureInfo, infoParagraphs, resolveInfo } from '../components/info'
 import { Knob, type KnobCap } from '../components/Knob'
 import { HOSTED_PLATES, PLATE_PALETTES } from '../components/plate-palettes'
 import { MissingNativeDevice } from '../../native/missing'
@@ -396,6 +397,22 @@ describe('DevicePlate', () => {
     expect(plate).toHaveClass('lm-plate--open')
     fireEvent.click(screen.getByTestId('plate-more'))
     expect(screen.getAllByRole('slider')).toHaveLength(2)
+  })
+
+  it("names no value for a double-click on a knob that carries the device's own words", async () => {
+    const fixture = createTestEngine()
+    // A device that words one of its values itself, as a hosted plug-in does: for the value now.
+    const device = Object.assign(await make(fixture), {
+      paramText: (name: string) => (name === 'q' ? '9.6 s' : undefined),
+    })
+    render(<DevicePlate device={device} skin={SKIN} />, { wrapper: fixture.wrapper })
+    const gesture = (name: string): string | undefined =>
+      infoParagraphs(resolveInfo(screen.getByRole('slider', { name }))?.text ?? '').at(-1)
+    expect(screen.getByRole('slider', { name: 'Q' })).toHaveAttribute('aria-valuetext', '9.6 s')
+    expect(gesture('Q')).toBe(controlGestureInfo({}))
+    expect(gesture('Q')).toMatch(/returns it to its default\.$/)
+    // The knob the kit words itself still names its default.
+    expect(gesture('Freq')).toBe(controlGestureInfo({ reset: '1.00 kHz' }))
   })
 
   it('says which device and parameter each part is, as a panel does, for a host that maps controllers', async () => {

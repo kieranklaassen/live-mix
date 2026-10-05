@@ -219,6 +219,17 @@ describe('Fader', () => {
     expect(onChangeEnd).toHaveBeenCalledTimes(1)
   })
 
+  it('prints a unit of its own with the decimals of its step, and no minus before a zero', () => {
+    const { rerender } = render(
+      <Fader label="Spread" defaultValue={90} min={0} max={180} step={1} unit="deg" />,
+    )
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '90 deg')
+    rerender(<Fader label="Spread" defaultValue={90} min={0} max={180} unit="deg" />)
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '90.00 deg')
+    rerender(<Fader label="Level" value={-0.04} defaultValue={0} min={-60} max={6} unit="dB" />)
+    expect(screen.getByRole('slider')).toHaveAttribute('aria-valuetext', '0.0 dB')
+  })
+
   it('supports a custom formatter and a disabled state', () => {
     render(
       <Fader

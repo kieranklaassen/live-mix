@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Device, type MeteredDevice } from '../../core/devices/Device'
 import { MissingNativeDevice } from '../../native/missing'
 import { DeviceFrame, DevicePanel, formatDeviceMeter } from '../components/DevicePanel'
+import { controlGestureInfo, infoParagraphs, resolveInfo } from '../components/info'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -108,6 +109,24 @@ describe('DevicePanel', () => {
       'aria-valuetext',
       'Low pass',
     )
+  })
+
+  it("names no value for a double-click on a knob that carries the device's own words", async () => {
+    const fixture = createTestEngine()
+    // A device that words one of its values itself, as a hosted plug-in does: for the value now.
+    const device = Object.assign(await filter(fixture), {
+      paramText: (name: string) => (name === 'q' ? '9.6 s' : undefined),
+    })
+    render(<DevicePanel device={device} data-testid="panel" />, { wrapper: fixture.wrapper })
+    const gesture = (name: string): string | undefined =>
+      infoParagraphs(resolveInfo(screen.getByRole('slider', { name }))?.text ?? '').at(-1)
+    expect(screen.getByRole('slider', { name: 'Q' })).toHaveAttribute('aria-valuetext', '9.6 s')
+    expect(gesture('Q')).toBe(controlGestureInfo({}))
+    expect(gesture('Q')).toMatch(/returns it to its default\.$/)
+    // The knobs the kit words itself still name their defaults.
+    expect(gesture('Frequency')).toBe(controlGestureInfo({ reset: '1.00 kHz' }))
+    expect(gesture('Gain')).toBe(controlGestureInfo({ reset: '0.0 dB' }))
+    expect(gesture('Type')).toBe(controlGestureInfo({ reset: 'Low pass' }))
   })
 
   it('moves a list by whole entries with Shift held too, never to a place between two', async () => {

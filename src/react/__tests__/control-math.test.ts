@@ -265,6 +265,67 @@ describe('formatting', () => {
     expect(formatControlValue(-0.5, 'Hz')).toBe('-0.50 Hz')
   })
 
+  it('writes no minus before a value that rounds to zero', () => {
+    expect(formatControlValue(-0.004, 'ratio')).toBe('0.00')
+    expect(formatControlValue(-0.001, '')).toBe('0.00')
+    expect(formatControlValue(-0.04, 'dB')).toBe('0.0 dB')
+    expect(formatControlValue(-0.4, 'dB', 0)).toBe('0 dB')
+    expect(formatControlValue(-0.04, 'ms')).toBe('0.0 ms')
+    expect(formatControlValue(-0.00004, 's')).toBe('0.0 ms')
+    expect(formatControlValue(-0.004, 's', 2)).toBe('0.00 s')
+    expect(formatControlValue(-0.001, 'Hz')).toBe('0.00 Hz')
+    expect(formatControlValue(-0.004, 'st')).toBe('0.00 st')
+    expect(formatControlValue(-0.004, 'ratio', { digits: 3 })).toBe('-0.004')
+    // The first value that is printed as something keeps its minus, and zero has no plus.
+    expect(formatControlValue(-0.005, 'ratio')).toBe('-0.01')
+    expect(formatControlValue(-0.05, 'dB')).toBe('-0.1 dB')
+    expect(formatControlValue(-0.06, 'ms')).toBe('-0.1 ms')
+    expect(formatControlValue(-0.01, 'Hz')).toBe('-0.01 Hz')
+    expect(formatControlValue(0, 'ratio')).toBe('0.00')
+    expect(formatControlValue(0, 'dB')).toBe('0.0 dB')
+    expect(formatControlValue(0, 'ms')).toBe('0.0 ms')
+  })
+
+  it('says kilohertz for a frequency that is printed as a thousand', () => {
+    expect(formatControlValue(999.6, 'Hz')).toBe('1.00 kHz')
+    expect(formatControlValue(999.5, 'Hz')).toBe('1.00 kHz')
+    expect(formatControlValue(999.96, 'Hz', 1)).toBe('1.0 kHz')
+    expect(formatControlValue(999.6, 'Hz', { spacing: '' })).toBe('1.00kHz')
+    expect(formatControlValue(999.4, 'Hz')).toBe('999 Hz')
+    expect(formatControlValue(999.4, 'Hz', 1)).toBe('999.4 Hz')
+    expect(formatControlValue(1000, 'Hz')).toBe('1.00 kHz')
+    expect(formatControlValue(1000.6, 'Hz')).toBe('1.00 kHz')
+    // A tenth of a second and ten milliseconds are met true to the digit printed.
+    expect(formatControlValue(0.09949, 's')).toBe('99 ms')
+    expect(formatControlValue(0.0995, 's')).toBe('0.10 s')
+    expect(formatControlValue(9.96, 'ms')).toBe('10.0 ms')
+    expect(formatControlValue(10, 'ms')).toBe('10 ms')
+  })
+
+  it('prints a unit it does not know with the decimals of the step, two at the most', () => {
+    expect(formatControlValue(1200, 'ct', { step: 1 })).toBe('1200 ct')
+    expect(formatControlValue(0, 'ct', { step: 1 })).toBe('0 ct')
+    expect(formatControlValue(-7, 'st', { step: 1 })).toBe('-7 st')
+    expect(formatControlValue(90, 'deg', { step: 0.1 })).toBe('90.0 deg')
+    expect(formatControlValue(2.5, 'st', { step: 0.5 })).toBe('2.5 st')
+    expect(formatControlValue(2.25, 'x', { step: 0.25 })).toBe('2.25 x')
+    expect(formatControlValue(1.16, 'x', { step: 0.001 })).toBe('1.16 x')
+    expect(formatControlValue(1200, 'ct', { step: 1, spacing: '' })).toBe('1200ct')
+    // A value between two steps (a fine key, a preset) is not rounded onto one.
+    expect(formatControlValue(386.31, 'ct', { step: 1 })).toBe('386.31 ct')
+    expect(formatControlValue(1200.1, 'ct', { step: 1 })).toBe('1200.10 ct')
+    expect(formatControlValue(90.05, 'deg', { step: 0.1 })).toBe('90.05 deg')
+    // No step, or none at all: the two decimals as before. Digits asked for are given.
+    expect(formatControlValue(1200, 'ct')).toBe('1200.00 ct')
+    expect(formatControlValue(1200, 'ct', { step: 0 })).toBe('1200.00 ct')
+    expect(formatControlValue(1200, 'ct', { step: 1, digits: 1 })).toBe('1200.0 ct')
+    // The units it knows are printed their own way, whatever the step.
+    expect(formatControlValue(3, 'dB', { step: 1 })).toBe('+3.0 dB')
+    expect(formatControlValue(0.5, 'ratio', { step: 1 })).toBe('0.50')
+    expect(formatControlValue(1.5, 's', { step: 1 })).toBe('1.50 s')
+    expect(formatControlValue(55.5, 'Hz', { step: 1 })).toBe('55.5 Hz')
+  })
+
   it('formats transport time', () => {
     expect(formatTimeSec(0)).toBe('0:00.0')
     expect(formatTimeSec(3.25)).toBe('0:03.2')
@@ -466,5 +527,25 @@ describe('ParamSpec helpers', () => {
     expect(formatParamValue(freq, 1000)).toBe('1.00 kHz')
     expect(formatParamValue(gain, -3)).toBe('-3.0 dB')
     expect(formatParamValue(mix, 0.5)).toBe('0.50')
+  })
+
+  it('prints a value in a unit of its own with the decimals its knob turns in', () => {
+    // No `step` of their own: the knob's is worked out from the range.
+    const cents: ParamSpec = { ...tone, id: 9, name: 'Degree', min: 0, max: 1200, unit: 'ct' }
+    const spread: ParamSpec = { ...tone, id: 10, name: 'Stereo', min: 0, max: 180, unit: 'deg' }
+    const detune: ParamSpec = { ...tone, id: 11, name: 'Detune', min: 0, max: 30, unit: 'ct' }
+    const ratio: ParamSpec = { ...freq, id: 12, name: 'Ratio', min: 1, max: 20, unit: ':1' }
+    expect(paramStep(cents)).toBe(1)
+    expect(formatParamValue(cents, 1200)).toBe('1200 ct')
+    expect(formatParamValue(cents, 0)).toBe('0 ct')
+    expect(formatParamValue(cents, 386.31)).toBe('386.31 ct')
+    expect(paramStep(spread)).toBe(0.1)
+    expect(formatParamValue(spread, 90)).toBe('90.0 deg')
+    expect(paramStep(detune)).toBe(0.01)
+    expect(formatParamValue(detune, 8)).toBe('8.00 ct')
+    // A log taper has no step: its two decimals stay.
+    expect(formatParamValue(ratio, 12)).toBe('12.00 :1')
+    expect(formatParamValue(tone, -0.0004)).toBe('0.00')
+    expect(formatParamValue(gain, -0.04)).toBe('0.0 dB')
   })
 })
