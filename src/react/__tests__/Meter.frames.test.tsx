@@ -451,20 +451,24 @@ describe('Meter on a source, drawn on frames', () => {
     expect(bar).toHaveAttribute('data-db', '-3.0')
   })
 
-  it('given another source, keeps no lamp and no held mark of the last one', () => {
+  it.each([
+    ['plain', (meter: ReactNode): ReactNode => meter],
+    ['StrictMode', (meter: ReactNode): ReactNode => <StrictMode>{meter}</StrictMode>],
+  ])('given another source, keeps no lamp and no held mark of the last one: %s', (_name, wrap) => {
     const fixture = createTestEngine()
     const other = new AnalyserMeter(asAudioContext(fixture.ctx))
     const props: MeterProps = { look: 'segments', holdMs: 1000 }
-    const { container, rerender } = render(<Meter {...props} source={fixture.engine.master} />, {
-      wrapper: fixture.wrapper,
-    })
+    const { container, rerender } = render(
+      wrap(<Meter {...props} source={fixture.engine.master} />),
+      { wrapper: fixture.wrapper },
+    )
     fixture.ctx.analysers[0].level = 1
     act(() => fixture.frames.flush(100))
     expect(container.querySelector('.lm-meter__clip')).toHaveAttribute('data-on')
     expect(container.querySelector('.lm-meter__hold')).not.toBeNull()
 
     // The other source has been silent all along: nothing of it clipped, and it has no peak to hold.
-    rerender(<Meter {...props} source={other} />)
+    rerender(wrap(<Meter {...props} source={other} />))
     clock += 10
     act(() => fixture.frames.flush(200))
     expect(container.querySelector('.lm-meter__bar--peak')).toHaveAttribute('data-db', '-∞')
