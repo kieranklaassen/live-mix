@@ -150,10 +150,17 @@ describe('AgentController.call: the pipeline', () => {
       'ops[0].ops[0].loud',
       'ops[0].ops[0].mute',
     ])
-    expect(controller.audit.entries.map((entry) => entry.code)).toEqual([
-      'invalid_args',
-      'invalid_args',
-    ])
+    // A child of the inner batch that is no operation at all is named, not looked up.
+    for (const child of [5, null, 'strip.mute', { type: 'nope' }, { owner: 'music' }]) {
+      const result = controller.call('batch', {
+        ops: [{ type: 'batch', ops: [child] }],
+      }) as ToolFailure
+      expect(result.error.code, JSON.stringify(child)).toBe('invalid_args')
+      expect(result.error.issues?.[0].path, JSON.stringify(child)).toMatch(/^ops\[0\]\.ops\[0\]/)
+    }
+    expect(controller.audit.entries.map((entry) => entry.code)).toEqual(
+      new Array(7).fill('invalid_args'),
+    )
   })
 
   it('rate-limits per tool and reports when to retry', async () => {

@@ -117,11 +117,13 @@ export function batchIssues(ops: readonly unknown[], path = 'ops'): SchemaIssue[
       childSchemas.set(type, schema)
     }
     const at = `${path}[${index}]`
-    for (const issue of validateSchema(schema, args)) {
+    const own = validateSchema(schema, args)
+    for (const issue of own) {
       issues.push({ ...issue, path: issue.path === '' ? at : `${at}.${issue.path}` })
     }
-    if (type === 'batch' && Array.isArray(args.ops)) {
-      issues.push(...batchIssues(args.ops, `${at}.ops`))
+    // Only a batch whose own children are operations by name has schemas to hold them to.
+    if (type === 'batch' && own.length === 0) {
+      issues.push(...batchIssues(args.ops as readonly unknown[], `${at}.ops`))
     }
   })
   return issues
