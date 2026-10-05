@@ -17,4 +17,4 @@ An operation the document takes has to leave a score `validateScore` accepts: th
 - `ScoreRenderer`: when a device put in the middle of an insert chain could not be made (its module did not load), the inserts after it had already been taken off the strip and were left off: no longer heard, and still counted as rendered, so every later render failed with `device "…" is already rendered`. They go back on in the order they had before the error is passed on; under a renderer disposed meanwhile they are disposed.
 - `diffScores`: a `0` beside a `-0` was reported as a change (`0 → 0`), between a document and the same document read back from what was saved.
 
-New: `clipIssues(clip)` in the score schema, the validator's check of a clip's own fields, which the clip operations ask. What `validateScore` and `parseScore` say of a score is unchanged.
+New: `clipIssues(clip)` and `sourceIssues(source)` in the score schema, the validator's checks of a clip's and of a source's own fields, which the operations ask. What `validateScore` and `parseScore` say of a score is unchanged.
