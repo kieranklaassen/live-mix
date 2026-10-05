@@ -435,11 +435,14 @@ export class SampleStore {
     source: SampleSource,
     known: KnownSample = {},
   ): Promise<LoadedSample> {
+    // A browser's decoder empties the ArrayBuffer it is handed. The caller's bytes are its own to
+    // keep (a resolver hands the same ones over when the sample is asked for again, here after it
+    // was dropped or on an offline render's context), so the decoder is given a copy of them.
     const buffer =
       typeof source === 'string'
         ? await this.ctx.decodeAudioData(await this.fetchBytes(source))
         : source instanceof ArrayBuffer
-          ? await this.ctx.decodeAudioData(source)
+          ? await this.ctx.decodeAudioData(source.slice(0))
           : source
     return {
       kind: 'buffer',

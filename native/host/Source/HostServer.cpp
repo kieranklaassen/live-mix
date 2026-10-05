@@ -724,9 +724,11 @@ void HostServer::handleLink (const Connection& connection, const juce::var& id, 
         return;
     }
 
-    // linkStart
-    const auto beat = static_cast<double> (params["beat"]);
-    if (! std::isfinite (beat))
+    // linkStart. A beat that is left out, or is no number (which is `null` by
+    // the time a page has sent it), reads as 0 and would move the session there.
+    const auto& asked = params["beat"];
+    const auto beat = static_cast<double> (asked);
+    if (! (asked.isInt() || asked.isInt64() || asked.isDouble()) || ! std::isfinite (beat))
     {
         fail (connection, id, "linkStart needs a beat");
         return;

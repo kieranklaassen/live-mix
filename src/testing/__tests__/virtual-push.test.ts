@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { PUSH_DISPLAY_FRAME_BYTES, PUSH_FRAME_HEADER } from '../../core/control/push/display'
 import { PUSH_ENCODERS, pushEncoderSteps } from '../../core/control/push/protocol'
 import { VirtualPush } from '../index'
 
@@ -31,5 +32,52 @@ describe('VirtualPush.turn', () => {
     expect(() => push.turn('tempo', Infinity)).toThrow(RangeError)
     expect(() => push.turn('tempo', -Infinity)).toThrow(RangeError)
     expect(steps).toEqual([])
+  })
+})
+
+describe('VirtualPush.plug', () => {
+  it('comes back as it powers up: no clock started, the strip at rest, and no frame half taken', async () => {
+    const push = new VirtualPush()
+    const display = push.usbDevice
+    const [live] = [...push.midiAccess().outputs.values()]
+    await display.open()
+    await display.claimInterface(0)
+    // The host started the clock, a finger slid up the strip, and a frame was on its way
+    // (its header and a part of its pixels sent) when the cable came out.
+    live.send([0xfa])
+    push.slide(1)
+    await display.transferOut(1, new Uint8Array(PUSH_FRAME_HEADER))
+    await display.transferOut(1, new Uint8Array(1024))
+    expect(push.animating).toBe(true)
+    const moved = push.stripLeds()
+    push.unplug()
+    push.plug()
+    // A device that has just powered up has had no MIDI start,
+    expect(push.animating).toBe(false)
+    expect(push.stripLeds()).not.toEqual(moved)
+    expect(push.stripLeds()).toEqual(new VirtualPush().stripLeds())
+    // and the first frame it is sent is a frame: its header is not taken for the rest of the old one's pixels.
+    await display.open()
+    await display.claimInterface(0)
+    await display.transferOut(1, new Uint8Array(PUSH_FRAME_HEADER))
+    await display.transferOut(1, new Uint8Array(PUSH_DISPLAY_FRAME_BYTES))
+    expect(push.errors).toEqual([])
+    expect(push.frames).toBe(1)
+  })
+})
+
+describe('VirtualPush.usb', () => {
+  it('has no display to pick while the cable is out, and nothing is allowed by asking', async () => {
+    const push = new VirtualPush()
+    const { vendorId, productId } = push.usbDevice
+    const ask = () => push.usb().requestDevice({ filters: [{ vendorId, productId }] })
+    push.unplug()
+    // The browser's chooser lists nothing, and all a person can do is close it.
+    await expect(ask()).rejects.toThrow('No device selected.')
+    push.plug()
+    expect(await push.usb().getDevices()).toEqual([])
+    // With the cable in it is picked, and known from then on.
+    expect(await ask()).toBe(push.usbDevice)
+    expect(await push.usb().getDevices()).toEqual([push.usbDevice])
   })
 })

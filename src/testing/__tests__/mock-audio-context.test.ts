@@ -104,6 +104,24 @@ describe('MockAudioContext', () => {
     expect(b.disconnectCalls.count).toBe(1)
   })
 
+  it('taken off a parameter, a node keeps the nodes it feeds', () => {
+    const ctx = createMockContext()
+    const lfo = ctx.createOscillator()
+    const depth = ctx.createGain()
+    const delay = ctx.createDelay()
+    // An LFO that is heard and also moves a delay's time.
+    lfo.connect(depth)
+    lfo.connect(delay.delayTime)
+    lfo.disconnect(delay.delayTime)
+    expect(lfo.isConnectedTo(depth)).toBe(true)
+    // With nothing named, or an output's number, everything goes.
+    lfo.disconnect(0)
+    expect(lfo.isConnectedTo(depth)).toBe(false)
+    lfo.connect(depth)
+    lfo.disconnect()
+    expect(lfo.isConnectedTo(depth)).toBe(false)
+  })
+
   it('decodes to a buffer whose duration equals the byte length by default', async () => {
     const ctx = createMockContext()
     const buffer = await ctx.decodeAudioData(new ArrayBuffer(8))

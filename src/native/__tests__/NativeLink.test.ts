@@ -91,6 +91,18 @@ describe('NativeLink', () => {
     expect(link.beatAt(at)).toBeCloseTo(16, 9)
   })
 
+  it('is refused a start at a beat that is no number, as the host refuses it', async () => {
+    const { link, time } = await open()
+    await link.set({ enabled: true })
+    await link.start(16)
+    time.ms += 500
+    await expect(link.start(Number.NaN)).rejects.toThrow('linkStart needs a beat')
+    await expect(link.followStart(Number.NaN)).rejects.toThrow('linkStart needs a beat')
+    // The beat is where the tempo has carried it, not at 0.
+    expect(link.beatAt()).toBeCloseTo(17, 9)
+    expect((await link.refresh()).beat).toBeCloseTo(17, 9)
+  })
+
   it('in a session, a beat asked for now waits for its place in the bar', async () => {
     const { host, link, time } = await open()
     await link.set({ enabled: true })

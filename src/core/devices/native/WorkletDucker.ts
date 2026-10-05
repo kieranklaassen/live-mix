@@ -24,6 +24,7 @@ import {
 import {
   DUCKER_PARAMS,
   DUCKER_PROCESSOR_NAME,
+  DUCKER_REPORT_HZ,
   type DuckerHostMessage,
   type DuckerMessage,
   type DuckerParamName,
@@ -70,7 +71,7 @@ export class WorkletDucker implements ObservableDevice, MeteredDevice, Sidechain
   readonly node: AudioWorkletNode
   readonly latencySec = 0
   readonly latencySamples = 0
-  /** The readings a display draws; none when the processor was told not to report (`reportHz: 0`). */
+  /** The readings a display draws; none when the processor was told not to report (a `reportHz` not above 0). */
   readonly meters: Readonly<Record<string, DeviceMeterSpec>>
   private readonly values = new Map<DuckerParamName, number>()
   private readonly changes = new Emitter<DeviceChange>()
@@ -91,7 +92,8 @@ export class WorkletDucker implements ObservableDevice, MeteredDevice, Sidechain
       windowSize: options.windowSize,
       reportHz: options.reportHz,
     }
-    this.meters = options.reportHz === 0 ? NO_METERS : DUCKER_METERS
+    // As the processor reads it: it reports only at a rate above 0.
+    this.meters = (options.reportHz ?? DUCKER_REPORT_HZ) > 0 ? DUCKER_METERS : NO_METERS
     try {
       this.node = (options.createNode ?? defaultCreateNode)(ctx, DUCKER_PROCESSOR_NAME, {
         numberOfInputs: 2,

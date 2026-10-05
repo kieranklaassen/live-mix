@@ -434,7 +434,11 @@ export interface PlateDisplayLayerProps extends Omit<DisplayInputs, 'frames' | '
   heading: string
   /** A drag on a handle begins: the parameters it will move. */
   onDragStart(names: readonly string[]): void
-  /** The drag moved: the parameters' new values, in their own units. */
+  /**
+   * The drag moved: the parameters' new values, in their own units. The wheel
+   * turned over a handle that is in hand comes here too, inside that drag, and
+   * may carry a parameter that `onDragStart` did not name (a band's width).
+   */
   onDrag(params: Readonly<Record<string, number>>): void
   onDragEnd(names: readonly string[]): void
   className?: string
@@ -492,6 +496,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const tap = useRef<Tap | null>(null)
   /** Whether each of the last two presses moved its handle: a double click made of nudges is not a double press. */
   const moves = useRef<[boolean, boolean]>([false, false])
+  /** Whether the last press was a finger's or a pen's: those reach a handle from further off than a mouse does. */
+  const far = useRef(false)
 
   useEffect(() => {
     if (!canvas.current) return
@@ -506,6 +512,12 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   // After every render: a knob moved, the power changed, the plate opened.
   useEffect(() => {
     runner.current?.sync()
+  })
+
+  /** What the display was given the last time it was drawn up: a drag begun under it ends with its `onDragEnd`. */
+  const drawnWith = useRef(props)
+  useEffect(() => {
+    drawnWith.current = props
   })
 
   // A turn of the wheel over a handle is the handle's, not the page's: that
@@ -524,13 +536,14 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       pixels: number
       timer?: ReturnType<typeof setTimeout>
     } | null = null
-    const rest = (): void => {
+    const end = (owner: PlateDisplayLayerProps): void => {
       if (!turning) return
       clearTimeout(turning.timer)
       const { names } = turning
       turning = null
-      if (names) latest.current.onDragEnd(names)
+      if (names) owner.onDragEnd(names)
     }
+    const rest = (): void => end(latest.current)
     wheelRest.current = rest
     const onWheel = (event: WheelEvent): void => {
       // A swipe that goes more across than up or down is the chain's, to scroll by.
@@ -578,7 +591,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     element.addEventListener('click', onClick)
     element.addEventListener('touchstart', onTouchStart, { passive: false })
     return () => {
-      rest()
+      // Given another device, the turn that is open began on the one before: it ends for that one.
+      end(drawnWith.current)
       wheelRest.current = null
       element.removeEventListener('wheel', onWheel)
       element.removeEventListener('click', onClick)
@@ -587,14 +601,18 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   }, [display, device])
 
   // A display that leaves the page with a handle in hand hears nothing of the
-  // pointer going up: the drag ends here, so what it holds is let go.
+  // pointer going up: the drag ends here, so what it holds is let go. One
+  // given another device in the middle of a drag ends it the same way, for the
+  // device it leaves: the hand began on that one and moves nothing of the next.
+  // Another display for the same device ends nothing: a host that makes its
+  // display anew at every render has one at every move of the hand.
   useEffect(
     () => () => {
       const held = grab.current
       grab.current = null
-      if (held) latest.current.onDragEnd(held.names)
+      if (held) drawnWith.current.onDragEnd(held.names)
     },
-    [],
+    [device],
   )
 
   const interactive = display.handles !== undefined
@@ -602,7 +620,8 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
     if (event.button !== 0 || grab.current) return
     const at = pointIn(event.currentTarget, event)
-    const handle = runner.current?.hit(at.x, at.y, event.pointerType !== 'mouse')
+    far.current = event.pointerType !== 'mouse'
+    const handle = runner.current?.hit(at.x, at.y, far.current)
     if (!handle) {
       // A press beside the handles is a press on the plate: a chain carries it from there.
       delete event.currentTarget.dataset.lmHandle
@@ -729,7 +748,9 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
               // the browser: they were two nudges, and the second one stays.
               if (moves.current[0] || moves.current[1]) return
               const at = pointIn(event.currentTarget, event)
-              const params = runner.current?.hit(at.x, at.y, false)?.reset?.()
+              // A pen's double press is the browser's double click too: it puts back
+              // the handle its presses took, from as far off as they reached it.
+              const params = runner.current?.hit(at.x, at.y, far.current)?.reset?.()
               if (!params) return
               wheelRest.current?.()
               const names = Object.keys(params)

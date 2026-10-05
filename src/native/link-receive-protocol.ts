@@ -24,6 +24,8 @@ export const HOST_MESSAGE_LINK_AUDIO_IN = 4
  * sender's count of the block.
  */
 export const LINK_AUDIO_IN_HEADER_BYTES = 32
+/** The fastest stream a block is read at: the fastest the host takes from a page that sends. */
+const LINK_AUDIO_IN_MAX_SAMPLE_RATE = 768000
 
 export interface LinkSourceProcessorOptions {
   /**
@@ -109,6 +111,9 @@ export function decodeLinkAudioInBlock(message: ArrayBuffer): LinkAudioInBlock |
   const [type, frames, channels, sampleRate] = new Uint32Array(message, 0, 4)
   if (type !== HOST_MESSAGE_LINK_AUDIO_IN) return null
   if (frames === 0 || (channels !== 1 && channels !== 2) || sampleRate === 0) return null
+  // A peer says its own rate, and the playout keeps two seconds of a stream
+  // at that rate: for one no device runs at it would ask for memory by the gigabyte.
+  if (sampleRate > LINK_AUDIO_IN_MAX_SAMPLE_RATE) return null
   if (message.byteLength !== LINK_AUDIO_IN_HEADER_BYTES + frames * channels * 4) return null
   const view = new DataView(message)
   const atMicros = view.getFloat64(16, true)

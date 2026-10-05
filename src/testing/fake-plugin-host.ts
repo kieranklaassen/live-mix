@@ -289,8 +289,10 @@ export class FakePluginHost {
         }
         this.linkFollowers.add(socket)
         if (request.method === 'link') reply(this.link.apply(request.params))
-        else if (request.method === 'linkStart') reply(this.link.start(request.params))
-        else reply(this.link.stop(request.params))
+        else if (request.method === 'linkStop') reply(this.link.stop(request.params))
+        // Like the real one: a beat that is no number (`null`, once sent) is not taken for beat 0.
+        else if (typeof request.params.beat !== 'number') fail('linkStart needs a beat')
+        else reply(this.link.start(request.params))
         break
       case 'plugins':
         reply(this.known(plugins))

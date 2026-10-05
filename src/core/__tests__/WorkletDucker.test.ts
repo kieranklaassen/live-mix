@@ -207,6 +207,18 @@ describe('WorkletDucker (host)', () => {
     expect(isMeteredDevice(ducker)).toBe(false)
   })
 
+  it('has none either for a rate the processor takes as no reports: below 0, or no number', () => {
+    // The processor reports only at a rate above 0 (`ducker.processor.ts`).
+    for (const reportHz of [-1, Number.NaN, -Infinity]) {
+      const { ducker } = setup({ reportHz })
+      expect(ducker.meters, String(reportHz)).toEqual({})
+      expect(isMeteredDevice(ducker), String(reportHz)).toBe(false)
+    }
+    // And it has them at any rate the processor reports at.
+    expect(isMeteredDevice(setup({ reportHz: 0.5 }).ducker)).toBe(true)
+    expect(isMeteredDevice(setup({ reportHz: undefined }).ducker)).toBe(true)
+  })
+
   it('explains an unregistered processor instead of surfacing InvalidStateError', () => {
     const ctx = createMockContext()
     const createNode: DuckerNodeFactory = () => {

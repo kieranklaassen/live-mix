@@ -322,7 +322,6 @@ export const WORKLET_DUCKER_DESCRIPTOR: DeviceDescriptor<typeof DUCKER_PARAMS> =
   },
 }
 
-/** Every stock worklet-backed device shipped in `./dsp` (WASM modules and the ducker). */
 export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   name: 'Felt Piano',
   category: 'instrument',
@@ -347,6 +346,7 @@ export const FELT_PIANO_DESCRIPTOR = wasmDeviceDescriptor(FELT_PIANO_DEVICE, {
   },
 })
 
+/** Every stock worklet-backed device shipped in `./dsp` (WASM modules and the ducker). */
 export const STOCK_WASM_DEVICES: readonly DeviceDescriptor[] = [
   PLATE_REVERB_DESCRIPTOR,
   FDN_REVERB_DESCRIPTOR,

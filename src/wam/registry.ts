@@ -50,7 +50,10 @@ export interface WamDeviceMeta<P extends Record<string, ParamSpec> = Record<stri
   presets?: PresetTable<P>
 }
 
-/** Options `describeWamDevice` hands to the probe and every later `create`. */
+/**
+ * Options `describeWamDevice` hands to the probe. `host` and `importModule`
+ * go to every later `create` as well; `initialState` is the probe's alone.
+ */
 export type WamProbeOptions = Pick<WamDeviceOptions, 'host' | 'importModule' | 'initialState'>
 
 /** Everything `wamDeviceDescriptor` needs to build a descriptor without a probe. */

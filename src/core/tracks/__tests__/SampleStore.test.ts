@@ -43,6 +43,35 @@ describe('SampleStore', () => {
     expect(ctx.decodeCalls.count).toBe(1)
   })
 
+  it('leaves the bytes it is given whole, so the same bytes decode again', async () => {
+    // A browser's decoder empties the ArrayBuffer it is handed and refuses one that is empty already.
+    const decode = (data: ArrayBuffer, context: { sampleRate: number }): MockAudioBuffer => {
+      if (data.byteLength === 0) {
+        throw new DOMException('Cannot decode detached ArrayBuffer', 'DataCloneError')
+      }
+      const buffer = new MockAudioBuffer(
+        1,
+        data.byteLength * context.sampleRate,
+        context.sampleRate,
+      )
+      structuredClone(data, { transfer: [data] })
+      return buffer
+    }
+    const ctx = createMockContext({ decode })
+    const store = new SampleStore(asAudioContext(ctx))
+    const bytes = new ArrayBuffer(3)
+    expect((await store.load('a', bytes)).durationSec).toBe(3)
+    // The sample is dropped (a forget here; the budget or a release as well) and whoever resolves
+    // the source hands over the bytes it has: the same ones.
+    store.forget('a')
+    expect((await store.load('a', bytes)).durationSec).toBe(3)
+    // And so does a second store on another context, as an offline render makes.
+    const offline = new SampleStore(asAudioContext(createMockContext({ decode })))
+    expect((await offline.load('a', bytes)).durationSec).toBe(3)
+    expect(bytes.byteLength).toBe(3)
+    expect(ctx.decodeCalls.count).toBe(2)
+  })
+
   it('computes waveform peaks at decode time when asked', async () => {
     const ctx = createMockContext()
     const store = new SampleStore(asAudioContext(ctx), { peaks: 16 })

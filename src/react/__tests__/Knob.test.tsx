@@ -1226,6 +1226,41 @@ describe('a knob of two places', () => {
     expect(events).toEqual(['start', 'change 1', 'end'])
   })
 
+  it('an Enter whose click a host kept is over when the key goes up: a later click of no pointer is not its', () => {
+    forgetPresses()
+    const events: string[] = []
+    const take = (event: Event): void => {
+      event.preventDefault()
+      event.stopPropagation()
+    }
+    render(<Switch events={events} />)
+    const control = slider()
+    // In the host's mode: the key goes down, the click the browser makes of it is kept, the key goes up.
+    window.addEventListener('click', take, true)
+    try {
+      fireEvent.keyDown(control, { key: 'Enter' })
+      fireEvent.click(control)
+      fireEvent.keyUp(control, { key: 'Enter' })
+    } finally {
+      window.removeEventListener('click', take, true)
+    }
+    // The mode is over and the keys are still on the knob. A click that no pointer made (a script's,
+    // a screen reader's) is not that Enter's, however much later it comes.
+    fireEvent.click(control)
+    expect(events).toEqual([])
+    expect(control).toHaveAttribute('aria-valuenow', '0')
+    // The next Enter is its own press, and its click switches as ever, before the key goes up.
+    fireEvent.keyDown(control, { key: 'Enter' })
+    fireEvent.click(control)
+    fireEvent.keyUp(control, { key: 'Enter' })
+    expect(events).toEqual(['start', 'change 1', 'end'])
+    // Another key going up between an Enter and its click takes nothing from it.
+    fireEvent.keyDown(control, { key: 'Enter' })
+    fireEvent.keyUp(control, { key: 'Shift' })
+    fireEvent.click(control)
+    expect(events).toEqual(['start', 'change 1', 'end', 'start', 'change 0', 'end'])
+  })
+
   it('a disabled one is not switched', () => {
     forgetPresses()
     const onChange = vi.fn()
