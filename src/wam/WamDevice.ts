@@ -382,6 +382,11 @@ export class WamDevice implements NoteDevice {
     if (this.disposed) return null
     const gui = await this.module.createGui()
     if (!gui) return null
+    // Disposed while the plugin was making it: nothing is left to take it down later.
+    if (this.disposed) {
+      this.module.destroyGui(gui)
+      return null
+    }
     this.guis.add(gui)
     return gui
   }

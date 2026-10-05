@@ -321,6 +321,16 @@ describe('WamDevice bypass, GUI, MIDI and dispose', () => {
     await expect(device.createGui()).resolves.toBeNull()
   })
 
+  it('takes down a GUI the plugin hands over after the device is disposed', async () => {
+    const { device, instance } = await makeEffect()
+    // The plugin is still making its element when the device goes.
+    const pending = device.createGui()
+    device.dispose()
+    await expect(pending).resolves.toBeNull()
+    expect(instance.guis).toHaveLength(1)
+    expect(instance.guis[0].destroyed).toBe(true)
+  })
+
   it('returns null when the plugin has no GUI', async () => {
     const NoGui = defineFakeWam({ ...FAKE_EFFECT_CONFIG, gui: false })
     const ctx = createMockContext()
