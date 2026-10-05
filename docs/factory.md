@@ -826,19 +826,27 @@ these. They are drawn, by a bench that is in the repository
   moves times and rates by up to an eighth, and then measures: the chain on
   three dry sounds (a sparse electric piano, a held chord, struck bells), and
   on the piano at full level for half a minute. In a shared recipe it does
-  not put the same job in twice (two long tails, two wobbles, two reversals),
-  a hint beside a preset that takes the dry sound away, a width that a later
-  effect folds to the middle or a brightness that a later one takes off
-  again, and it does not name a chain for a preset that is only a hint; a
-  pack's own recipes are held to their slots alone. It trims the chain to the level a pack plays at with the chain's
-  own output, and keeps it only if it is inside the limits below and at
-  least 1 dB by the bench's print from every chain kept before it, in the
-  bank and in every pack. A master chain is a few tenths from the dry sound
-  by design, and so from every other: it is told only from the master chains
-  of its own pack, by 0.3 dB. A chain's name is one of its pack's words and
-  what its leading effect is ("Harbour plate", "Loop under snow"); a master
-  chain is named for what it gives a mix ("Stopover finish", "Mixdown at
-  dusk"). Its sentence is each effect as the lexicon says it, in order.
+  not put the same job in twice (two long tails, two wobbles, two reversals,
+  two far-off rooms, a hiss under a preset that already hisses, the top taken
+  off twice), nor a hint where it cannot be heard (beside a preset that takes
+  the dry sound away, before a space that covers it, in a job another preset
+  of the chain does in full), nor an effect that undoes an earlier one (a
+  width folded to the middle again, a brightness taken off again, a dullness
+  lifted again, repeats or a pulse under a long tail with no dry sound), and
+  it does not name a chain for a preset that is only a hint; a pack's own
+  recipes are held to their slots alone. It trims the chain to the level a
+  pack plays at with the chain's own output, and keeps it only if it is
+  inside the limits below and at least 1 dB by the bench's print from every
+  chain kept before it, in the bank and in every pack. A master chain is a
+  few tenths from the dry sound by design, and so from every other: it is
+  told only from the master chains of its own pack, by 0.3 dB. A chain's name
+  is one of its pack's words and what its leading effect is ("Harbour plate",
+  "Loop under snow"); a master chain is named for what it gives a mix
+  ("Stopover finish", "Tiptoe mixdown"), each with a pack word of its own. A
+  name and its plural are one name ("Seasick echo", "Seasick echoes"), and a
+  noun that reads as something else with a capital never stands first
+  ("Polish in the park", "Record past the gate"). Its sentence is each effect
+  as the lexicon says it, in order.
 
 | The bench refuses | When                                                                                                    |
 | ----------------- | ------------------------------------------------------------------------------------------------------- |
@@ -886,7 +894,12 @@ the bass of a whole mix, two effects that cancel. The first reading struck
 about one chain in seven. What it found was mended where it came from, in the
 lexicon's nouns, clauses and tags, the recipes and the palettes' words, not
 chain by chain; `settle` then held every chain to the mends, about half were
-drawn again, and the new ones were read in their turn.
+drawn again, and the new ones were read in their turn. The second reading
+struck about one new chain in fourteen, most for a name ("Plate on the
+stairs", "Finish a flight up") and a few for a pattern no rule yet refused (a
+faint room before a hall, the top dulled twice); those were mended the same
+way, an eighth of the chains were drawn once more, and those were read a
+third time.
 
 The bench keeps what it has drawn under `tmp/chain-bench/` and draws only what
 a pack still lacks, so a pack that is short after a change is topped up, not
