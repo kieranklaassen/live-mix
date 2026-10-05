@@ -173,6 +173,29 @@ describe('useSchedule', () => {
     expect(drawn).toEqual(new Set([true, false]))
   })
 
+  it('draws again for a new seed, with the playhead where it stood', () => {
+    const fixture = createTestEngine()
+    const { engine } = fixture
+    const track = engine.addAudioTrack('music')
+    const maybe = { ...clip('maybe', 0, 4), chance: 0.5 }
+    track.clips.set([maybe])
+    // The first seed that sounds `maybe` on pass 0, and the first that sits it out.
+    const seedThat = (sounds: boolean): number => {
+      for (let seed = 1; seed < 200; seed += 1) {
+        if (soundsOnPass(maybe, 0, seed) === sounds) return seed
+      }
+      throw new Error('no seed either way in 200')
+    }
+    const { result } = renderHook(() => useSchedule(track), { wrapper: fixture.wrapper })
+    const sounding = (): string[] => result.current.sounding.map((view) => view.clip.id)
+    act(() => engine.transport.seek(1))
+
+    act(() => engine.scheduler.setSeed(seedThat(false)))
+    expect(sounding()).toEqual([])
+    act(() => engine.scheduler.setSeed(seedThat(true)))
+    expect(sounding()).toEqual(['maybe'])
+  })
+
   it('recomputes when the clip list changes', () => {
     const fixture = createTestEngine()
     const track = fixture.engine.addAudioTrack('music')

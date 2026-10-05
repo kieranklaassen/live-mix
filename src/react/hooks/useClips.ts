@@ -10,7 +10,7 @@ import { isAudibleClip, type Clip } from '../../core/clips/Clip'
 import { type ClipList } from '../../core/tracks/ClipList'
 import { type Transport } from '../../core/transport/Transport'
 import { startsInWindow } from '../../core/transport/window'
-import { useExternalSnapshot } from '../store'
+import { neverSubscribe, useExternalSnapshot, type Subscribe } from '../store'
 import { useMaybeEngine } from './useEngine'
 import { useTransport } from './useTransport'
 
@@ -103,7 +103,13 @@ export function useSchedule(
   // plays this transport. The provided engine's is at hand; a transport of
   // the host's own is read with the seed a scheduler starts on.
   const engine = useMaybeEngine()
-  const seed = engine?.transport === transport.transport ? engine.scheduler.seed : 0
+  const scheduler = engine?.transport === transport.transport ? engine.scheduler : null
+  const subscribeSeed = useMemo<Subscribe>(
+    () => (scheduler ? (onChange) => scheduler.onSeedChange(() => onChange()) : neverSubscribe),
+    [scheduler],
+  )
+  const readSeed = useCallback((): number => scheduler?.seed ?? 0, [scheduler])
+  const seed = useExternalSnapshot(subscribeSeed, readSeed, Object.is)
 
   const schedule = useMemo((): ScheduleSnapshot => {
     // Muted clips stay in `clips` for drawing; the scheduler never starts them.
