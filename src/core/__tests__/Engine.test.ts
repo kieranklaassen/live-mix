@@ -85,6 +85,37 @@ describe('createEngine', () => {
     expect(() => engine.addBus('x')).toThrow(/disposed/)
   })
 
+  it('a dispose listener that throws does not leave the engine running: the rest is taken down, then it is thrown on', () => {
+    const ctx = createMockContext()
+    const live = new Set<number>()
+    let nextId = 1
+    const engine = createEngine({
+      context: asAudioContext(ctx),
+      setIntervalFn: () => {
+        live.add(nextId)
+        return nextId++ as unknown as ReturnType<typeof setInterval>
+      },
+      clearIntervalFn: (id) => {
+        live.delete(id as unknown as number)
+      },
+    })
+    engine.addBus('music')
+    engine.transport.start(0)
+    expect(live.size).toBeGreaterThan(0)
+
+    const later: string[] = []
+    engine.onDispose(() => {
+      throw new Error('a companion broke')
+    })
+    engine.onDispose(() => later.push('ran'))
+    expect(() => engine.dispose()).toThrow(/a companion broke/)
+    // The scheduler's timer among them: left, it goes on starting clips on an engine nobody can dispose again.
+    expect(live.size).toBe(0)
+    expect(later).toEqual(['ran'])
+    expect(ctx.gains[1].disconnectCalls.count).toBe(1)
+    expect(() => engine.dispose()).not.toThrow()
+  })
+
   it('the core entry is import-safe without a window (SSR)', () => {
     expect(typeof window).toBe('undefined')
     expect(typeof core.createEngine).toBe('function')

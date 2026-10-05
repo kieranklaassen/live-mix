@@ -861,7 +861,17 @@ export class Engine {
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
-    for (const listener of [...this.disposeListeners]) listener()
+    // A companion that throws must not stop the rest: the engine is marked
+    // disposed by now and would never be taken down, its timers running on.
+    // The first failure is thrown on once everything is down.
+    const failures: unknown[] = []
+    for (const listener of [...this.disposeListeners]) {
+      try {
+        listener()
+      } catch (error) {
+        failures.push(error)
+      }
+    }
     this.disposeListeners.clear()
     this.automation.dispose()
     for (const retainer of this.retainers.values()) retainer.dispose()
@@ -894,6 +904,7 @@ export class Engine {
     this.alignmentDelays.clear()
     this.changes.emit({ kind: 'dispose' })
     this.changes.clear()
+    if (failures.length > 0) throw failures[0]
   }
 
   /** Every path the latency report covers, with its destination resolved by input node. */
