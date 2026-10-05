@@ -22,7 +22,6 @@ import {
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from 'react'
 
@@ -327,17 +326,6 @@ export function DeviceChainView({
   /** The device a move cell last moved under the pointer, and where the pointer was. */
   const stepped = useRef<{ device: Device; id?: string; x: number; y: number } | null>(null)
 
-  /**
-   * The pointer has gone somewhere since the step: a press where the step was
-   * made, once it is back there, is a new press on the cell that stands there now.
-   */
-  const strayed = (event: ReactPointerEvent<HTMLElement>): void => {
-    const held = stepped.current
-    if (held === null) return
-    if (Math.abs(event.clientX - held.x) > STILL_PX || Math.abs(event.clientY - held.y) > STILL_PX)
-      stepped.current = null
-  }
-
   // A second press is asked whose first press it was.
   useEffect(() => watchPresses(), [])
 
@@ -480,7 +468,6 @@ export function DeviceChainView({
       role="list"
       aria-label={`${strip.name} devices`}
       onClickCapture={ownPress}
-      onPointerMove={strayed}
       data-testid={testId}
       data-lm-strip={strip.name}
     >
