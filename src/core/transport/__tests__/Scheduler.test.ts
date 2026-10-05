@@ -1516,6 +1516,25 @@ describe('Scheduler leaves clips to chance', () => {
     ])
   })
 
+  it('tells its listeners of a seed that took: not of the same seed again, nor once it is disposed of', () => {
+    const { scheduler } = buildChance(7)
+    const told: number[] = []
+    const later: number[] = []
+    const stop = scheduler.onSeedChange(() => told.push(scheduler.seed))
+    scheduler.onSeedChange(() => later.push(scheduler.seed))
+    scheduler.setSeed(8)
+    scheduler.setSeed(8)
+    expect(told).toEqual([8])
+    stop()
+    scheduler.setSeed(9)
+    expect(told).toEqual([8])
+    expect(later).toEqual([8, 9])
+    // A scheduler that is done with keeps nobody: a view that outlives it is not drawn again for it.
+    scheduler.dispose()
+    scheduler.setSeed(10)
+    expect(later).toEqual([8, 9])
+  })
+
   it('lets go of a sounding clip whose chance now sits the pass out, on rejoin', () => {
     const clips = [
       { id: 'pad', startSec: 1, durationSec: 2 } as {

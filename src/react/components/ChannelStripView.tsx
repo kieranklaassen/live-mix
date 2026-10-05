@@ -33,7 +33,7 @@ import { Knob } from './Knob'
 import { Meter } from './Meter'
 import { STRIP_INFO } from './mixer-info'
 import { ToggleButton } from './Toggle'
-import { cx } from './tokens'
+import { cx, uniqueKeys } from './tokens'
 
 export type StripKind = 'track' | 'group' | 'return' | 'live' | 'instrument' | 'master'
 
@@ -171,6 +171,7 @@ export function ChannelStripView({
   const now = (): number => (engine?.context ?? strip.destination.context).currentTime
   const meterSource: MeterSource | null = meter === true ? tapped : meter === false ? null : meter
   const sends = showSends ? readSends(strip) : []
+  const sendKeys = uniqueKeys(sends.map((send) => send.target.name))
   const unityTick = normalizeValue(0, faderMinDb, faderMaxDb, 'fader')
 
   return (
@@ -193,8 +194,8 @@ export function ChannelStripView({
       {children}
       {sends.length > 0 ? (
         <ul className="lm-strip__sends" aria-label="Sends">
-          {sends.map((send) => (
-            <li key={send.target.name} className="lm-strip__send">
+          {sends.map((send, index) => (
+            <li key={sendKeys[index]} className="lm-strip__send">
               <SendControl send={send} now={now} />
             </li>
           ))}
@@ -294,6 +295,13 @@ export function ChannelStripView({
 function SendControl({ send, now }: { send: Send; now: () => number }) {
   const { gainNode } = send
   const [db, setDb] = useState(() => levelToFaderDb(gainNode?.gain.value ?? 1))
+  // The level kept here is one node's: a send taken off and put on again
+  // (as when it gains or loses its level) has a new node at a level of its own.
+  const [levelled, setLevelled] = useState(gainNode)
+  if (levelled !== gainNode) {
+    setLevelled(gainNode)
+    setDb(levelToFaderDb(gainNode?.gain.value ?? 1))
+  }
   if (!gainNode) {
     return <span className="lm-strip__send-direct">→ {send.target.name}</span>
   }

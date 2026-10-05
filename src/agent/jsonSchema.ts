@@ -156,7 +156,13 @@ function check(
     }
     for (const [key, child] of Object.entries(record)) {
       if (child === undefined) continue
-      const property = schema.properties?.[key]
+      // Its own names only: a key every object answers to ("constructor") would
+      // otherwise find that member and be taken for a declared property.
+      const properties = schema.properties
+      const property =
+        properties && Object.prototype.hasOwnProperty.call(properties, key)
+          ? properties[key]
+          : undefined
       if (property) {
         check(root, property, child, join(path, key), issues)
       } else if (schema.additionalProperties === false) {

@@ -193,6 +193,18 @@ export function useFrameSampled<T>(
   isEqual: (previous: T, next: T) => boolean = shallowEqual,
 ): T {
   const [value, setValue] = useState(sample)
+  // What was sampled while inactive is as old as the moment it went inactive.
+  // Turned on, the value is taken afresh in that same render, so the first
+  // frame drawn is not the old one: a playhead moved at rest and then started
+  // would stand for a frame where it last ran.
+  const [sampledActive, setSampledActive] = useState(active)
+  if (sampledActive !== active) {
+    setSampledActive(active)
+    if (active) {
+      const next = sample()
+      if (!isEqual(value, next)) setValue(next)
+    }
+  }
   const latest = useRef({ sample, isEqual })
   latest.current = { sample, isEqual }
 

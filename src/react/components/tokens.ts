@@ -713,3 +713,18 @@ export function themeStyle(theme: LiveMixTheme): CSSProperties {
 export function cx(...names: (string | false | null | undefined)[]): string {
   return names.filter(Boolean).join(' ')
 }
+
+/**
+ * A list key for each name: the name itself, and for a name that comes again
+ * the name with its turn among them. Tracks of different kinds may go by one
+ * name, and two list items with one key leave a copy behind in the page when
+ * the list is put in another order.
+ */
+export function uniqueKeys(names: readonly string[]): string[] {
+  const turns = new Map<string, number>()
+  return names.map((name) => {
+    const turn = turns.get(name) ?? 0
+    turns.set(name, turn + 1)
+    return turn === 0 ? name : `${name}\u0000${turn}`
+  })
+}

@@ -76,6 +76,28 @@ describe('useTransport', () => {
     expect(result.current.positionSec).toBeCloseTo(1)
   })
 
+  it('counts the passes of the loop through a pause and a seek, where `iteration` starts anew', () => {
+    const { engine, ctx, frames, wrapper } = createTestEngine()
+    const { result } = renderHook(() => useTransport(), { wrapper })
+    act(() => engine.transport.setLoop({ enabled: true, lengthSec: 8 }))
+    act(() => engine.transport.start())
+    act(() => engine.transport.pause())
+    act(() => engine.transport.start())
+    expect([result.current.pass, result.current.iteration]).toEqual([0, 1])
+
+    ctx.advanceClock(17)
+    act(() => frames.flush(0))
+    expect(result.current.pass).toBe(2)
+    expect(result.current.positionSec).toBeCloseTo(1)
+    act(() => engine.transport.pause())
+    act(() => engine.transport.seek(3))
+    expect(result.current.pass).toBe(2)
+    expect(result.current.position).toEqual({ positionSec: 3, iteration: 3, finished: false })
+
+    act(() => engine.transport.stop())
+    expect(result.current.pass).toBe(0)
+  })
+
   it('stops the frame loop on unmount', () => {
     const { engine, frames, wrapper } = createTestEngine()
     const { unmount } = renderHook(() => useTransport(), { wrapper })

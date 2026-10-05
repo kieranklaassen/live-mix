@@ -35,6 +35,12 @@ export interface TransportSnapshot {
   position: TransportPosition
   positionSec: number
   iteration: number
+  /**
+   * The counted pass of the loop: 0 the first time through, one more each
+   * time it comes round (`Transport.pass`). A pause, a seek and a loop change
+   * keep it, where `iteration` is a new number after each of them.
+   */
+  pass: number
   finished: boolean
 }
 
@@ -47,7 +53,19 @@ interface TransportStateSnapshot {
   /** Position at the last change; the resting position when not playing. */
   positionSec: number
   iteration: number
+  pass: number
   finished: boolean
+}
+
+/** A position and the counted pass it is in. */
+interface CountedPosition extends TransportPosition {
+  pass: number
+}
+
+/** Both off one reading of the clock. */
+function countedPosition(transport: Transport): CountedPosition {
+  const position = transport.position()
+  return { ...position, pass: transport.passOf(position.iteration) }
 }
 
 /**
@@ -66,30 +84,36 @@ export function useTransport(
     [target],
   )
   const read = useCallback((): TransportStateSnapshot => {
-    const position = target.position()
+    const position = countedPosition(target)
     return {
       state: target.state,
       loopEnabled: target.loop.enabled,
       loopLengthSec: target.loop.lengthSec,
       positionSec: position.positionSec,
       iteration: position.iteration,
+      pass: position.pass,
       finished: position.finished,
     }
   }, [target])
   const snapshot = useExternalSnapshot(subscribe, read)
 
   const playing = snapshot.state === 'playing'
-  const samplePosition = useCallback((): TransportPosition => target.position(), [target])
+  const samplePosition = useCallback((): CountedPosition => countedPosition(target), [target])
   const sampled = useFrameSampled(playing, frameIntervalMs(options.fps), samplePosition, frame)
-  const resting = useMemo<TransportPosition>(
+  const resting = useMemo<CountedPosition>(
     () => ({
       positionSec: snapshot.positionSec,
       iteration: snapshot.iteration,
+      pass: snapshot.pass,
       finished: snapshot.finished,
     }),
-    [snapshot.positionSec, snapshot.iteration, snapshot.finished],
+    [snapshot.positionSec, snapshot.iteration, snapshot.pass, snapshot.finished],
   )
-  const position = playing ? sampled : resting
+  const at = playing ? sampled : resting
+  const position = useMemo<TransportPosition>(
+    () => ({ positionSec: at.positionSec, iteration: at.iteration, finished: at.finished }),
+    [at.positionSec, at.iteration, at.finished],
+  )
 
   const controls = useMemo<TransportControls>(
     () => ({
@@ -119,9 +143,10 @@ export function useTransport(
     stopped: snapshot.state === 'stopped',
     loop,
     position,
-    positionSec: position.positionSec,
-    iteration: position.iteration,
-    finished: position.finished,
+    positionSec: at.positionSec,
+    iteration: at.iteration,
+    pass: at.pass,
+    finished: at.finished,
     ...controls,
   }
 }

@@ -187,7 +187,7 @@ function Playing() {
   const t = useTransport()
   return (
     <span className="pg-mode" data-testid="transport-state">
-      {t.state} · loop {t.loop.enabled ? `${t.loop.lengthSec}s` : 'off'} · pass {t.iteration + 1}
+      {t.state} · loop {t.loop.enabled ? `${t.loop.lengthSec}s` : 'off'} · pass {t.pass + 1}
     </span>
   )
 }
