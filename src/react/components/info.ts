@@ -151,7 +151,7 @@ export function sameInfo(a: InfoEntry | null, b: InfoEntry | null): boolean {
 export interface ControlGestureOptions {
   /** The way a drag moves it. */
   axis?: 'vertical' | 'horizontal' | 'both'
-  /** What a double-click sets, as the control prints it. */
+  /** What a double-click or Delete sets, as the control prints it. */
   reset: string
   /** The mouse wheel moves it too. */
   wheel?: boolean
@@ -165,5 +165,5 @@ export function controlGestureInfo({
 }: ControlGestureOptions): string {
   const way =
     axis === 'horizontal' ? 'left or right' : axis === 'both' ? 'in any direction' : 'up or down'
-  return `Drag ${way}${wheel ? ', or scroll over it' : ''}. Hold Shift for fine steps. Double-click returns it to ${reset}.`
+  return `Drag ${way}${wheel ? ', or scroll over it' : ''}. Hold Shift for fine steps. Double-click, or Delete with the keys on it, returns it to ${reset}.`
 }
