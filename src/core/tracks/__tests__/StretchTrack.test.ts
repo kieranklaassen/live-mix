@@ -530,3 +530,96 @@ describe('StretchTrack scheduling', () => {
     withResolve.dispose()
   })
 })
+
+describe('StretchTrack: a source built for a start that does not come', () => {
+  /** A track with clip `a` at 1 s, the transport started, the first tick run. */
+  async function ahead() {
+    const made = setup()
+    await made.samples.load('s-a', buffer(made.ctx, 10))
+    made.track.clips.add(clip('a', 1))
+    made.transport.start(0)
+    made.scheduler.tick()
+    return made
+  }
+
+  it('is let go when the transport pauses before the start, and built again when it plays on', async () => {
+    const { ctx, nodes, track, transport, scheduler } = await ahead()
+    await track.settled()
+    expect(nodes).toHaveLength(1)
+
+    transport.pause() // the start under which it was built is gone: the next one has another key
+    expect(nodes[0].dropped).toBe(1)
+
+    transport.start(0.5)
+    scheduler.tick()
+    await track.settled()
+    expect(nodes).toHaveLength(2)
+    ctx.currentTime = 1.4 // inside the lookahead of the start, now at 1.5 s on the clock
+    scheduler.tick()
+    expect(track.voices().map((voice) => voice.source.node)).toEqual([nodes[1]])
+    expect(nodes[1].dropped).toBe(0)
+  })
+
+  it('is let go when the transport seeks or stops', async () => {
+    const seeking = await ahead()
+    await seeking.track.settled()
+    seeking.transport.seek(0.25)
+    expect(seeking.nodes[0].dropped).toBe(1)
+
+    const stopping = await ahead()
+    await stopping.track.settled()
+    stopping.transport.stop()
+    expect(stopping.nodes[0].dropped).toBe(1)
+  })
+
+  it('is let go when its clip is moved or removed, and the moved start is built anew', async () => {
+    const moved = await ahead()
+    await moved.track.settled()
+    moved.scheduler.tick() // the built source is noted as ready
+    moved.track.clips.update('a', { startSec: 1.25 })
+    expect(moved.nodes[0].dropped).toBe(1)
+    await moved.track.settled()
+    expect(moved.nodes).toHaveLength(2)
+    moved.ctx.currentTime = 1.15
+    moved.scheduler.tick()
+    expect(moved.track.voices().map((voice) => voice.source.node)).toEqual([moved.nodes[1]])
+
+    const removed = await ahead()
+    await removed.track.settled()
+    removed.scheduler.tick()
+    removed.track.clips.remove('a')
+    expect(removed.nodes[0].dropped).toBe(1)
+  })
+
+  it('is let go on arrival when the transport paused, or its clip moved, while it was being built', async () => {
+    const paused = await ahead()
+    expect(paused.track.pendingCount).toBe(1)
+    paused.transport.pause()
+    await paused.track.settled()
+    expect(paused.nodes).toHaveLength(1)
+    expect(paused.nodes[0].dropped).toBe(1)
+
+    const moved = await ahead()
+    moved.track.clips.update('a', { startSec: 1.25 })
+    await moved.track.settled()
+    expect(moved.nodes).toHaveLength(2)
+    expect(moved.nodes.map((node) => node.dropped)).toEqual([1, 0])
+  })
+
+  it('an edit elsewhere leaves a source that is still wanted as it is', async () => {
+    const { ctx, nodes, track, scheduler } = await ahead()
+    await track.settled()
+    scheduler.tick()
+    track.clips.add(clip('b', 3))
+    track.clips.update('b', { gainDb: -6 })
+    scheduler.rejoin(['a'])
+    // Muted and unmuted before its start: the start is still its own, on the source built for it.
+    track.clips.update('a', { muted: true })
+    track.clips.update('a', { muted: false })
+    expect(nodes).toHaveLength(1)
+    expect(nodes[0].dropped).toBe(0)
+    ctx.currentTime = 0.9
+    scheduler.tick()
+    expect(track.voices().map((voice) => voice.source.node)).toEqual([nodes[0]])
+  })
+})

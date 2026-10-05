@@ -82,6 +82,8 @@ export interface StretchVoice {
 interface Prepared {
   source: StretchSource
   sourceId: string
+  /** The start it was built for. */
+  start: ScheduledStart
 }
 
 export class StretchTrack implements StripHost {
@@ -105,6 +107,8 @@ export class StretchTrack implements StripHost {
   private readonly active = new Map<string, StretchVoice>()
   private readonly prepared = new Map<string, Prepared>()
   private readonly preparing = new Map<string, Promise<void>>()
+  /** Counts the times every start was called off: a source built for one of them is then nobody's. */
+  private calledOff = 0
   private readonly endTimers = new Map<StretchVoice, TimeoutId>()
   private scheduler: Scheduler | null = null
   private unregister: (() => void)[] = []
@@ -148,6 +152,12 @@ export class StretchTrack implements StripHost {
       () => this.preloadSec,
       () => this.clips.audible(),
       (start) => this.prepareStart(start),
+      // A source built for a start that will not come (its clip moved or went,
+      // or the transport stopped: the next start has another key) is let go
+      // here. Kept, it would hold its worklet and its copy of the sample until
+      // the track is disposed, one more for every pause. A clip that is only
+      // muted keeps its source: unmuted in time, it starts on it.
+      { cancel: (key) => this.dropPrepared(key), cancelAll: () => this.dropAllPrepared() },
     )
     if (options.scheduler) this.attach(options.scheduler)
   }
@@ -318,6 +328,7 @@ export class StretchTrack implements StripHost {
       this.requestLoad(clip)
       return false
     }
+    const calledOff = this.calledOff
     const building = StretchSource.create(this.ctx, {
       id: `${clip.sourceId}@${key}`,
       buffer: sample.buffer,
@@ -325,11 +336,13 @@ export class StretchTrack implements StripHost {
       configure: this.configure,
     })
       .then((source) => {
-        if (this.disposed) {
+        // Built for a start that was called off meanwhile, or whose clip has
+        // moved or gone: nothing will ask for it under this key.
+        if (this.disposed || calledOff !== this.calledOff || !this.stands(start)) {
           source.dispose()
           return
         }
-        this.prepared.set(key, { source, sourceId: clip.sourceId })
+        this.prepared.set(key, { source, sourceId: clip.sourceId, start })
       })
       .catch(() => {
         // The node could not be built: the start is declined until it can.
@@ -339,6 +352,24 @@ export class StretchTrack implements StripHost {
       })
     this.preparing.set(key, building)
     return false
+  }
+
+  /** Whether `start` can still be asked for: its clip is there, where it was. */
+  private stands(start: ScheduledStart): boolean {
+    return this.clips.get(start.clipId)?.startSec === start.startSec
+  }
+
+  private dropPrepared(key: string): void {
+    const entry = this.prepared.get(key)
+    if (!entry || this.stands(entry.start)) return
+    entry.source.dispose()
+    this.prepared.delete(key)
+  }
+
+  private dropAllPrepared(): void {
+    this.calledOff += 1
+    for (const entry of this.prepared.values()) entry.source.dispose()
+    this.prepared.clear()
   }
 
   private requestLoad(clip: Clip): void {
