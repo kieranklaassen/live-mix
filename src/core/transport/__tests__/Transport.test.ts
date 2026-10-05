@@ -643,6 +643,20 @@ describe('Transport counted pass', () => {
     expect(() => transport.setPass(Number.NaN)).toThrow(RangeError)
   })
 
+  it('refuses a pass that never comes, and stays where it was', () => {
+    const { ctx, transport, changes } = build(LOOP)
+    transport.start()
+    ctx.currentTime = 5.5
+    const elapsed = transport.elapsed()
+    changes.length = 0
+    // No run of the timeline holds it: taken, `elapsed()` would read no end
+    // of seconds, and so would every count of beats made from it.
+    expect(() => transport.setPass(Infinity)).toThrow(RangeError)
+    expect(transport.pass()).toBe(1)
+    expect(transport.elapsed()).toBe(elapsed)
+    expect(changes).toEqual([])
+  })
+
   it('stays where it is with the loop off', () => {
     const { ctx, transport } = build({ enabled: false, lengthSec: 4 })
     transport.setPass(3)

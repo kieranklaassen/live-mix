@@ -175,6 +175,8 @@ export class Transport {
    */
   setPass(pass: number): void {
     if (Number.isNaN(pass)) throw new RangeError('Transport: pass must be a number')
+    // No run of the timeline holds it (as `seekElapsed` has it); below 0 is 0.
+    if (pass === Infinity) throw new RangeError('Transport: pass must be finite')
     const next = Math.max(0, Math.floor(pass))
     // One reading of the clock: the position is pinned again at the moment it was read at.
     const now = this.clock()
