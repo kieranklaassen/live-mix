@@ -297,6 +297,29 @@ test('processes audio in order, and parameters reach the plug-in', async () => {
   assert.equal(await audio.closed, true)
 })
 
+// JSON cannot write a value that is no number, and the host reads one out of
+// the text "nan" all the same. Clamped to 0..1 it is still no number, and a
+// plug-in given it puts it into every sample it plays from then on.
+test('a parameter value or a sample rate that is no number is not taken', async () => {
+  const slot = await loadTestPlugin('LiveMix Test Gain')
+  const audio = await connectAudio(slot.slot)
+  control.notify('setParam', { slot: slot.slot, index: 0, value: 'nan' })
+  // Answered after the value was read: requests are taken in their order.
+  const { params } = await control.call('getParams', { slot: slot.slot })
+  near(params[0].value, 0.5)
+  const ones = new Float32Array(256).fill(1)
+  const [left] = await audio.process([ones, ones], 256)
+  near(left[255], 1)
+  await control.call('unload', { slot: slot.slot })
+
+  const { plugins } = await control.call('plugins')
+  const plugin = plugins.find((entry) => entry.name === 'LiveMix Test Gain')
+  await assert.rejects(
+    control.call('load', { plugin: plugin.id, sampleRate: 'nan', blockSize: 512 }),
+    /out of range/,
+  )
+})
+
 test('saves and restores the plug-in state', async () => {
   const slot = await loadTestPlugin('LiveMix Test Gain')
   control.notify('setParam', { slot: slot.slot, index: 0, value: 0.75 })

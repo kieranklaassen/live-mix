@@ -1109,7 +1109,8 @@ void HostServer::load (const Connection& connection, const juce::var& id, const 
     const auto sampleRate = params.hasProperty ("sampleRate") ? static_cast<double> (params["sampleRate"]) : 48000.0;
     const auto blockSize = params.hasProperty ("blockSize") ? static_cast<int> (params["blockSize"]) : 1024;
     const auto state = params["state"].toString();
-    if (sampleRate < 8000.0 || sampleRate > 768000.0 || blockSize < 16 || blockSize > static_cast<int> (maxFramesPerMessage))
+    // Asked the way that is false for a rate that is no number.
+    if (! (sampleRate >= 8000.0 && sampleRate <= 768000.0) || blockSize < 16 || blockSize > static_cast<int> (maxFramesPerMessage))
     {
         fail (connection, id, "sampleRate or blockSize out of range");
         return;

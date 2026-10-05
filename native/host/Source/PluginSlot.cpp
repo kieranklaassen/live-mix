@@ -4,6 +4,8 @@
 
 #include <juce_gui_basics/juce_gui_basics.h>
 
+#include <cmath>
+
 namespace livemix
 {
 
@@ -306,7 +308,9 @@ int PluginSlot::latencySamples() const
 
 void PluginSlot::setParameter (int index, float normalised)
 {
-    if (plugin == nullptr || index < 0 || index >= numParameters)
+    // A value that is no number is no position: clamping lets it through,
+    // and the plug-in would put it into everything it plays.
+    if (plugin == nullptr || index < 0 || index >= numParameters || ! std::isfinite (normalised))
         return;
     auto* parameter = plugin->getParameters().getUnchecked (index);
     parameter->setValue (juce::jlimit (0.0f, 1.0f, normalised));
