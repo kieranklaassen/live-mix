@@ -1096,17 +1096,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-hall-by-the-pond',
-    name: 'Hall by the pond',
-    category: 'master',
-    description:
-      'A faint hall tail of about three seconds, then a true-peak ceiling that lets go again over several seconds.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.69 } },
-    ],
-  },
-  {
     id: 'window-garden-camellia-iron',
     name: 'Camellia iron',
     category: 'master',
@@ -1172,6 +1161,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'hall-reverb', preset: 'Room', params: { preDelay: 32.7, midDecay: 1.1 } },
       { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.22, gain: -0.0618 } },
+    ],
+  },
+  {
+    id: 'window-garden-pebble-tape',
+    name: 'Pebble tape',
+    category: 'master',
+    description:
+      'A clean pass over fast new tape, with nothing added, then a gentle compressor, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'tape', preset: 'Clean transfer' },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 104, release: 1.82 } },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { gain: 2.37 } },
     ],
   },
 ]

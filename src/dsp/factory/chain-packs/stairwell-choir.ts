@@ -1161,17 +1161,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-underpass-preamp',
-    name: 'Underpass preamp',
-    category: 'master',
-    description:
-      'The first hint of weight from a tape preamp, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'stairwell-choir-banister-glue',
     name: 'Banister glue',
     category: 'master',
@@ -1207,14 +1196,30 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-hymn-air',
-    name: 'Hymn air',
+    id: 'stairwell-choir-fader-two-floors-up',
+    name: 'Fader two floors up',
     category: 'master',
     description:
-      'A low cut that thins the bass, with a little air on top, then a true-peak ceiling with the level eased back before it.',
+      'A low cut and a low-mid dip, then a slow levelling compressor, then a fast limiter with the level lifted a little into it.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.37 } },
-      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { gain: 0.771 } },
+      { deviceId: 'ambient-eq', preset: 'Layer' },
+      { deviceId: 'ambient-comp', preset: 'Level' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift' },
+    ],
+  },
+  {
+    id: 'stairwell-choir-stair-foot-room',
+    name: 'Stair-foot room',
+    category: 'master',
+    description:
+      'A small room that is over in about a second, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Room',
+        params: { preDelay: 33.7, lowDecay: 1.47, midDecay: 1.16 },
+      },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
 ]

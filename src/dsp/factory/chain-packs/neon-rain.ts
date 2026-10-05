@@ -555,14 +555,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-atrium-echo',
-    name: 'Atrium echo',
+    id: 'neon-rain-noodle-bar-echoes',
+    name: 'Noodle-bar echoes',
     category: 'echo',
     description:
-      'A light two-voice chorus that widens more than it moves, then a wide echo whose repeats drift slowly in pitch.',
+      'Echoes that fall a fourth further on every repeat, then two full-range copies tuned further apart, reaching lower.',
     effects: [
-      { deviceId: 'chorus', preset: 'Subtle widener' },
-      { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 567, modRate: 0.111 } },
+      { deviceId: 'pitch-shifter', preset: 'Falling steps', params: { size: 76.1, delay: 418 } },
+      { deviceId: 'stereo-detune', preset: 'Wider' },
     ],
   },
   {
@@ -1143,74 +1143,76 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'neon-rain-neon-hall',
-    name: 'Neon hall',
+    id: 'neon-rain-glow-in-the-flare',
+    name: 'Glow in the flare',
     category: 'master',
     description:
-      'A faint hall tail of about three seconds, then a true-peak ceiling with the level pushed up into it.',
+      'A lopsided soft curve that adds the octave above each note, then a low ceiling that keeps loud passages down for a while.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Octave glow' },
+      { deviceId: 'ambient-limiter', preset: 'Late night' },
+    ],
+  },
+  {
+    id: 'neon-rain-after-hours-lift',
+    name: 'After-hours lift',
+    category: 'master',
+    description:
+      'A parallel compressor that lifts quiet playing and tails, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'neon-rain-sprawling-width',
+    name: 'Sprawling width',
+    category: 'master',
+    description:
+      'A low cut and some presence, then the sides lifted a little, wider with nothing added, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Voice', params: { clearTime: 1.62 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.35, gain: 2.34 } },
+    ],
+  },
+  {
+    id: 'neon-rain-trace-in-light-rain',
+    name: 'Trace in light rain',
+    category: 'master',
+    description:
+      'A faint hall tail of about three seconds, then a fast limiter leaned on lightly, catching stray peaks.',
     effects: [
       {
         deviceId: 'hall-reverb',
         preset: 'Faint halo',
-        params: { preDelay: 37.8, lowDecay: 2.71, midDecay: 2.96 },
+        params: { preDelay: 36.7, lowDecay: 2.59, midDecay: 3.11 },
       },
-      { deviceId: 'ambient-limiter', preset: 'Loud', params: { gain: -0.418 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
   {
-    id: 'neon-rain-rain-streak-reel',
-    name: 'Rain-streak reel',
+    id: 'neon-rain-glue-in-the-alley',
+    name: 'Glue in the alley',
     category: 'master',
     description:
-      'A tape reel with soft saturation, slight wobble and hiss, then a true-peak ceiling that lets go again over several seconds.',
+      'A warm, full equaliser, then a quicker compressor, then a fast limiter with the level lifted a little into it.',
     effects: [
-      { deviceId: 'patina', preset: 'Quarter inch reel' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.67 } },
+      { deviceId: 'ambient-comp', preset: 'Mic' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift' },
     ],
   },
   {
-    id: 'neon-rain-late-shift-glue',
-    name: 'Late-shift glue',
+    id: 'neon-rain-shopfront-reel',
+    name: 'Shopfront reel',
     category: 'master',
     description:
-      'A fast, firm compressor that stops only the peaks, then a fast limiter leaned on lightly, catching stray peaks.',
+      'A reel driven hot, then a fast compressor that takes the spike off plucked notes, then a safety limiter.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 10.7, release: 0.22 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch', params: { outputGain: -4.61 } },
-    ],
-  },
-  {
-    id: 'neon-rain-wet-neon-tape',
-    name: 'Wet-neon tape',
-    category: 'master',
-    description:
-      'A tape-style curve that rounds the peaks and dulls the top, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'saturator', preset: 'On tape' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -3.28 } },
-    ],
-  },
-  {
-    id: 'neon-rain-sampler-in-the-flare',
-    name: 'Sampler in the flare',
-    category: 'master',
-    description:
-      'An early sampler whose quiet tails crumble into grain, then a fast, firm compressor that stops only the peaks, then a safety limiter.',
-    effects: [
-      { deviceId: 'patina', preset: 'Early sampler' },
-      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 11.1 } },
-      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: -2.13 } },
-    ],
-  },
-  {
-    id: 'neon-rain-filter-at-the-kerb',
-    name: 'Filter at the kerb',
-    category: 'master',
-    description:
-      'A low cut that thins the bass, with a little air on top, then a fast limiter with the level lifted a little into it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Texture' },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.5 } },
+      { deviceId: 'tape', preset: 'Hot glue' },
+      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { attack: 10.2, release: 0.158 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
 ]

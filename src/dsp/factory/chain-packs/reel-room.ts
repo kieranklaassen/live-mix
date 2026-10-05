@@ -651,17 +651,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-air-under-tin',
-    name: 'Air under tin',
-    category: 'motion',
-    description:
-      'A trace of chorus on the top of the sound only, into a cathedral with about six seconds of tail.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Faint air', params: { rate: 0.232, delayMs: 8.95 } },
-      { deviceId: 'hall-reverb', preset: 'Cathedral' },
-    ],
-  },
-  {
     id: 'reel-room-flat-roof-choir',
     name: 'Flat-roof choir',
     category: 'motion',
@@ -719,6 +708,17 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Tide', params: { attack: 2410, release: 710 } },
       { deviceId: 'auto-filter', preset: 'Glacial low-pass' },
+    ],
+  },
+  {
+    id: 'reel-room-stubble-choir',
+    name: 'Stubble choir',
+    category: 'motion',
+    description:
+      'A transformer overloaded into a thick, loose fuzz, then a choir of a hall whose vowel wanders on its own.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron melt' },
+      { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 8.37, preDelay: 17.9 } },
     ],
   },
   {
@@ -1201,42 +1201,42 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'reel-room-coal-chute-reel',
-    name: 'Coal-chute reel',
+    id: 'reel-room-erase-head-coil',
+    name: 'Erase-head coil',
     category: 'master',
     description:
-      'A tape reel with soft saturation, slight wobble and hiss, then a low ceiling that lets go quickly, so loud passages breathe.',
+      'A low, warm transformer, then an equaliser that adds lows and body and eases the top, then a slow-riding ceiling.',
     effects: [
-      { deviceId: 'patina', preset: 'Quarter inch reel' },
+      { deviceId: 'analog-drive', preset: 'Low warmth' },
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.55 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: -3.54 } },
+    ],
+  },
+  {
+    id: 'reel-room-glue-by-the-barn',
+    name: 'Glue by the barn',
+    category: 'master',
+    description:
+      'A mid-forward tone with the lows and the top trimmed, then a parallel compressor, then a low, breathing ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.55 } },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 445, release: 3.24 } },
       {
         deviceId: 'ambient-limiter',
         preset: 'Breathing',
-        params: { release: 0.337, gain: -0.298 },
+        params: { release: 0.329, gain: -0.177 },
       },
     ],
   },
   {
-    id: 'reel-room-township-reel',
-    name: 'Township reel',
+    id: 'reel-room-tape-by-the-silo',
+    name: 'Tape by the silo',
     category: 'master',
     description:
-      'A lightly worn reel, then a pluck-taming compressor, then a true-peak ceiling six decibels down, with room to spare.',
+      'A fresh reel of tape, open on top and nearly steady, then a fast limiter with the level lifted a little into it.',
     effects: [
-      { deviceId: 'patina', preset: 'Quarter inch reel' },
-      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { attack: 10.4, release: 0.134 } },
-      { deviceId: 'ambient-limiter', preset: 'Margin' },
-    ],
-  },
-  {
-    id: 'reel-room-glue-off-a-spool',
-    name: 'Glue off a spool',
-    category: 'master',
-    description:
-      'A little soft saturation, then a swell-holding compressor, then a true-peak ceiling that eases long swells down first.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-comp', preset: 'Hold swells', params: { attack: 145, release: 6.61 } },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.37, gain: -2.28 } },
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -5.37 } },
     ],
   },
 ]

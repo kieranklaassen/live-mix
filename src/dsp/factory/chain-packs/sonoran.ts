@@ -240,17 +240,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-cienega-hall',
-    name: 'Cienega hall',
-    category: 'space',
-    description:
-      'A gentle low-pass at a kilohertz, into a plain hall that rings for about three seconds.',
-    effects: [
-      { deviceId: 'auto-filter', preset: 'Init' },
-      { deviceId: 'shimmer', preset: 'Plain hall' },
-    ],
-  },
-  {
     id: 'sonoran-small-hours-glow',
     name: 'Small-hours glow',
     category: 'space',
@@ -306,17 +295,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-mission-space',
-    name: 'Mission space',
-    category: 'space',
-    description:
-      'A thin veil of reverb kept low under the sound, into a huge space that answers in separate far-off echoes.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { decay: 2.72, breathRate: 0.292 } },
-      { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 19.7, modRate: 0.263 } },
-    ],
-  },
-  {
     id: 'sonoran-starlit-depths',
     name: 'Starlit depths',
     category: 'space',
@@ -363,6 +341,28 @@ export const CHAINS: readonly FactoryChain[] = [
       },
       { deviceId: 'ether-reverb', preset: 'Faint air' },
       { deviceId: 'hall-reverb', preset: 'Far away' },
+    ],
+  },
+  {
+    id: 'sonoran-moth-wing-tail',
+    name: 'Moth-wing tail',
+    category: 'space',
+    description:
+      'A phaser held still, two fixed peaks like a vowel, into the drifting tail of a long reverb with no dry sound.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Still formant' },
+      { deviceId: 'bloom-reverb', preset: 'Tail alone' },
+    ],
+  },
+  {
+    id: 'sonoran-echoes-miles-off',
+    name: 'Echoes miles off',
+    category: 'space',
+    description:
+      'A triode valve stage, smoothly overdriven, into a huge space that answers in separate far-off echoes.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Triode glow' },
+      { deviceId: 'expanse', preset: 'Far echoes', params: { modRate: 0.261 } },
     ],
   },
   {
@@ -1202,14 +1202,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-cattle-guard-trace',
-    name: 'Cattle-guard trace',
+    id: 'sonoran-moonrise-curve',
+    name: 'Moonrise curve',
     category: 'master',
     description:
-      'A faint hall tail of about three seconds, then a fast limiter that steps in only on the loudest peaks.',
+      'An equaliser that adds lows and body and eases the top, then a fast limiter with the level lifted a little into it.',
     effects: [
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
+      { deviceId: 'ambient-eq', preset: 'Warm' },
+      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -6.17 } },
     ],
   },
 ]
