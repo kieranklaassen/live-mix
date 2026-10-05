@@ -228,8 +228,10 @@ controller holds defers the write — the call succeeds with
 operation lands later under the call's label — or, with `onHeld: { agent:
 'drop' }`, fails the call with `rejected` naming the holder. A write that
 lands is added to its call's audit entry (`operations`, `inverses`), so
-`undo` reverts that call; an `undo` whose own write is dropped while it waits
-(stale, superseded) leaves the call it named to be undone again. `score_replace`
+`undo` reverts that call; while a call still has a write waiting
+(`entry.waiting`) `undo` refuses it, so half a call is never taken back; an
+`undo` whose own write is dropped while it waits (stale, superseded) leaves
+the call it named to be undone again. `score_replace`
 (a restored version) needs the `structure` consent like the other whole-
 document edits.
 
@@ -245,7 +247,7 @@ document edits.
 
 Every call — applied, rejected or dry-run — is an `AuditEntry` in
 `controller.audit` (`{ callId, atMs, author, tool, args, outcome, code?,
-rails, operations, inverses, result?, summary, undoneBy? }`; the last 500 by
+rails, operations, inverses, result?, summary, undoneBy?, waiting? }`; the last 500 by
 default). Score operations a call applied are also entries in the document's
 `OperationLog` with the same author and the label
 `agent:<tool>#<callId> <what>`, so the transcript and the score history

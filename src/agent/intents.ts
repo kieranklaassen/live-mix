@@ -734,6 +734,13 @@ const undo: ToolSpec = {
         ? view.audit.find(args.callId as number)
         : view.audit.lastApplied(ctx.author)
     if (!entry) throw new ToolError('rejected', 'nothing to undo')
+    // Undoing now would take back what applied and leave the waiting write to land after.
+    if (entry.waiting) {
+      throw new ToolError(
+        'rejected',
+        `call ${entry.callId} still has a write waiting behind a hold; undo it once that write lands`,
+      )
+    }
     if (entry.outcome !== 'applied' || entry.operations.length === 0) {
       throw new ToolError('rejected', `call ${entry.callId} applied no operations`)
     }

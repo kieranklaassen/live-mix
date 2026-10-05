@@ -370,6 +370,7 @@ export class AgentController implements ControllerView {
         // A copy: a write that lands later is added to the entry, not to what the call was answered.
         operations: [...applied],
         inverses,
+        waiting: tickets.length,
         result: spec.definition.category === 'query' ? undefined : result,
         summary: `${plan.label}${describeNotes(notes)}`,
       })
@@ -484,12 +485,13 @@ export class AgentController implements ControllerView {
     this.waiting.delete(ticket)
     const entry = this.audit.find(callId)
     if (!entry) return
+    if (entry.waiting) entry.waiting -= 1
     if (event.type === 'landed') {
       entry.operations.push({ seq: event.entry.seq, type: event.pending.op.type })
       entry.inverses.push(event.entry.inverse)
       return
     }
-    if (entry.operations.length > 0 || [...this.waiting.values()].includes(callId)) return
+    if (entry.operations.length > 0 || entry.waiting) return
     for (const undone of this.audit.entries) {
       if (undone.undoneBy === callId) delete undone.undoneBy
     }

@@ -209,6 +209,45 @@ describe('AgentController through the arbiter', () => {
     expect(waited.operations).toEqual([])
   })
 
+  it('a call with a write still waiting is not undone by halves', async () => {
+    const { controller, arbiter, clock, document, level } = await rig()
+    controller.registry.register({
+      definition: {
+        name: 'two_step',
+        description: 'test',
+        parameters: { type: 'object', properties: {}, additionalProperties: false },
+        category: 'operation',
+      },
+      available: () => true,
+      plan: () => ({
+        operations: [
+          { type: 'strip.set', owner: 'voice', param: 'level', value: 0.6 },
+          { type: 'strip.set', owner: 'music', param: 'level', value: 0.1 },
+        ],
+        effects: [],
+        result: {},
+        label: 'two steps',
+      }),
+    })
+    arbiter.touch({ kind: 'strip', owner: 'music', param: 'level' }, listener)
+    const mixed = controller.call('two_step', {}) as ToolSuccess
+    expect(mixed.result.deferred).toBe(1)
+
+    const tooSoon = controller.undo() as ToolFailure
+    expect(tooSoon.ok).toBe(false)
+    expect(tooSoon.error.message).toContain('still has a write waiting')
+    expect(findStripHost(document.score, 'voice')?.strip.level).toBe(0.6)
+
+    arbiter.release(undefined, listener)
+    clock.ms += 5000
+    arbiter.tick()
+    expect(level()).toBe(0.1)
+    const undone = controller.undo() as ToolSuccess
+    expect(undone.result).toEqual({ undone: 1, tool: 'two_step', operations: 2 })
+    expect(findStripHost(document.score, 'voice')?.strip.level).toBe(1)
+    expect(level()).toBe(0.8)
+  })
+
   it('an undo that waited and landed has undone its call', async () => {
     const { controller, arbiter, clock, level } = await rig()
     controller.call('set_music_volume', { level: 0.6 })
