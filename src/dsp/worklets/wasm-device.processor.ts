@@ -226,11 +226,20 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
         this.bypassMix = Math.max(this.bypassTarget, this.bypassMix - this.bypassStep)
       }
       const wet = 1 - this.bypassMix
-      outLeft[i] = this.outLeft[i] * wet + this.dryLeft[i] * this.bypassMix
-      if (outRight) outRight[i] = this.outRight[i] * wet + this.dryRight[i] * this.bypassMix
+      outLeft[i] = processed(this.outLeft[i], wet) + this.dryLeft[i] * this.bypassMix
+      if (outRight) {
+        outRight[i] = processed(this.outRight[i], wet) + this.dryRight[i] * this.bypassMix
+      }
     }
     return true
   }
+}
+
+// The device's share of a crossfade. A device whose output is no number (one
+// such sample at its input is enough for a reverb's memory) is left behind by
+// a full bypass like any other: NaN times a wet of 0 would still be NaN.
+function processed(sample: number, wet: number): number {
+  return wet === 0 && !Number.isFinite(sample) ? 0 : sample * wet
 }
 
 registerProcessor(WASM_DEVICE_PROCESSOR_NAME, WasmDeviceProcessor)
