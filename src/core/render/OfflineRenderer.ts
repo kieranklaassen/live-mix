@@ -115,23 +115,37 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
     now: () => virtualNow,
     ...inertTimers(),
   })
-  await options.build(engine, { stem: 'master', sampleRate, durationSec })
-  const latency =
-    (options.alignLatency ?? true)
-      ? engine.alignLatency({ liveInputs: true })
-      : engine.latencyReport()
+  try {
+    await options.build(engine, { stem: 'master', sampleRate, durationSec })
+    const latency =
+      (options.alignLatency ?? true)
+        ? engine.alignLatency({ liveInputs: true })
+        : engine.latencyReport()
 
-  await scheduleAhead(engine, {
-    startSec: options.startSec ?? 0,
-    durationSec,
-    tickSec,
-    setNow: (sec) => {
-      virtualNow = sec
-    },
-  })
+    await scheduleAhead(engine, {
+      startSec: options.startSec ?? 0,
+      durationSec,
+      tickSec,
+      setNow: (sec) => {
+        virtualNow = sec
+      },
+    })
 
-  const buffer = await context.startRendering()
-  return { buffer, audio: planarFromAudioBuffer(buffer), sampleRate, durationSec, engine, latency }
+    const buffer = await context.startRendering()
+    return {
+      buffer,
+      audio: planarFromAudioBuffer(buffer),
+      sampleRate,
+      durationSec,
+      engine,
+      latency,
+    }
+  } catch (error) {
+    // Only a result carries the engine out to be disposed: a render that fails
+    // lets go of its own, with every device the build had made by then.
+    engine.dispose()
+    throw error
+  }
 }
 
 export interface ScheduleAheadOptions {
@@ -191,20 +205,26 @@ export interface StemsOptions extends Omit<RenderOptions, 'build'> {
 export async function renderStems(options: StemsOptions): Promise<Record<string, RenderResult>> {
   const results: Record<string, RenderResult> = {}
   const names = [...((options.includeMaster ?? true) ? ['master'] : []), ...options.stems]
-  for (const stem of names) {
-    results[stem] = await renderOffline({
-      ...options,
-      build: async (engine, info) => {
-        await options.build(engine, { ...info, stem })
-        if (stem !== 'master') {
-          const track =
-            engine.tracks.find((t) => t.name === stem) ??
-            engine.stretchTracks.find((t) => t.name === stem)
-          if (!track) throw new Error(`live-mix: renderStems: no track "${stem}"`)
-          track.strip.setSolo(true, { at: 0 })
-        }
-      },
-    })
+  try {
+    for (const stem of names) {
+      results[stem] = await renderOffline({
+        ...options,
+        build: async (engine, info) => {
+          await options.build(engine, { ...info, stem })
+          if (stem !== 'master') {
+            const track =
+              engine.tracks.find((t) => t.name === stem) ??
+              engine.stretchTracks.find((t) => t.name === stem)
+            if (!track) throw new Error(`live-mix: renderStems: no track "${stem}"`)
+            track.strip.setSolo(true, { at: 0 })
+          }
+        },
+      })
+    }
+  } catch (error) {
+    // The stems rendered so far are handed to nobody: let their engines go.
+    for (const stem of Object.keys(results)) results[stem].engine.dispose()
+    throw error
   }
   return results
 }

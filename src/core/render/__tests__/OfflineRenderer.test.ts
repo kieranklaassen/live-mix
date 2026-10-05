@@ -277,6 +277,81 @@ describe('renderStems with a stretch track', () => {
   })
 })
 
+describe('a render that fails', () => {
+  /** Counts the engines a build was handed and those that were disposed. */
+  function watched(build: (engine: Engine) => Promise<void>): {
+    build: (engine: Engine) => Promise<void>
+    made: () => number
+    disposed: () => number
+  } {
+    let made = 0
+    let disposed = 0
+    return {
+      build: async (engine) => {
+        made += 1
+        engine.onDispose(() => {
+          disposed += 1
+        })
+        await build(engine)
+      },
+      made: () => made,
+      disposed: () => disposed,
+    }
+  }
+
+  it('disposes the engine it made when the build throws: nobody else can reach it', async () => {
+    const seen = watched(async (engine) => {
+      await arrangement(engine)
+      throw new Error('the build broke')
+    })
+    await expect(
+      renderOffline({ durationSec: 1, createContext: factory, build: seen.build }),
+    ).rejects.toThrow(/the build broke/)
+    expect(seen.made()).toBe(1)
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('disposes it when the context cannot render', async () => {
+    const seen = watched(arrangement)
+    const failing: OfflineContextFactory = (size) => {
+      const ctx = factory(size)
+      ctx.startRendering = () => Promise.reject(new Error('out of memory'))
+      return ctx
+    }
+    await expect(
+      renderOffline({ durationSec: 1, createContext: failing, build: seen.build }),
+    ).rejects.toThrow(/out of memory/)
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('leaves the engine of a render that succeeds for its caller to dispose', async () => {
+    const seen = watched(arrangement)
+    const result = await renderOffline({
+      durationSec: 1,
+      createContext: factory,
+      build: seen.build,
+    })
+    expect(seen.disposed()).toBe(0)
+    result.engine.dispose()
+    expect(seen.disposed()).toBe(1)
+  })
+
+  it('disposes the stems already rendered when a later stem fails', async () => {
+    const seen = watched(arrangement)
+    await expect(
+      renderStems({
+        durationSec: 1,
+        createContext: factory,
+        stems: ['music', 'nope'],
+        build: seen.build,
+      }),
+    ).rejects.toThrow(/no track "nope"/)
+    // The master, 'music' and the one that failed.
+    expect(seen.made()).toBe(3)
+    expect(seen.disposed()).toBe(3)
+  })
+})
+
 describe('maxAbsDifference', () => {
   it('measures the largest sample deviation and flags shape mismatches', () => {
     const a = { channels: [Float32Array.from([0, 0.5, 1])], sampleRate: 48000 }
