@@ -311,6 +311,44 @@ describe('hooks write through the arbiter', () => {
     expect(result.current.value).toBeCloseTo(0.6)
   })
 
+  it('useDevice lets go of knobs still in hand when another device takes its place, or it leaves the page', async () => {
+    const { arbiter, renderer, wrapper } = await rig()
+    const filter = renderer.device('kick-filter')
+    const verb = renderer.device('hall-verb')
+    const held = (device: string, param: string): boolean =>
+      arbiter.stateOf({ kind: 'device', device, param }).hold?.touching ?? false
+    const { result, rerender, unmount } = renderHook(
+      ({ device }: { device: typeof filter }) => useDevice(device),
+      { wrapper, initialProps: { device: filter } },
+    )
+    act(() => result.current.touch('frequency'))
+    act(() => result.current.touchMany(['gain', 'q']))
+    expect([held('kick-filter', 'frequency'), held('kick-filter', 'gain')]).toEqual([true, true])
+    // The panel shows another device now: the pointer's up will be told to that one.
+    rerender({ device: verb })
+    expect(['frequency', 'gain', 'q'].map((param) => held('kick-filter', param))).toEqual([
+      false,
+      false,
+      false,
+    ])
+
+    act(() => result.current.touch('wet'))
+    expect(held('hall-verb', 'wet')).toBe(true)
+    unmount()
+    expect(held('hall-verb', 'wet')).toBe(false)
+  })
+
+  it('useDeviceParam lets go of its knob when it leaves the page in hand', async () => {
+    const { arbiter, renderer, wrapper } = await rig()
+    const verb = renderer.device('hall-verb')
+    const { result, unmount } = renderHook(() => useDeviceParam(verb, 'wet'), { wrapper })
+    act(() => result.current.touch())
+    unmount()
+    expect(
+      arbiter.stateOf({ kind: 'device', device: 'hall-verb', param: 'wet' }).hold?.touching,
+    ).toBe(false)
+  })
+
   it('useDevice bypass, presets and reset are score operations for a score device', async () => {
     const { document, renderer, wrapper } = await rig()
     const filter = renderer.device('kick-filter')
