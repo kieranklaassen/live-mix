@@ -57,6 +57,7 @@ import { type ScoreDocument } from './ScoreDocument'
 import {
   MASTER_OWNER,
   STRIP_PARAM_RANGES,
+  allDevices,
   assertValidScore,
   createScore,
   defaultStrip,
@@ -567,6 +568,14 @@ export class ScoreRenderer {
       }
     }
 
+    // 3b. An insert that `next` has on another strip leaves the one it is on
+    // before any strip adds. The strips take their inserts one after another
+    // (the master, new owners, then the rest), and an id is one device: left
+    // on its strip until that strip's turn, it would still be rendered when
+    // the strip it goes to makes it. A pass in which no insert changes strip
+    // takes nothing down here.
+    this.releaseMovedInserts(next)
+
     // 4. Master.
     if (prev.master.level !== next.master.level && !nextSpecs.has(targetKey(masterLevelTarget()))) {
       this.engine.master.setLevel(next.master.level)
@@ -1075,6 +1084,48 @@ export class ScoreRenderer {
     await restore
   }
 
+  /** Takes one insert off its chain for good, its bindings first: the same id made again is bound afresh. */
+  private dropInsert(
+    chain: ChannelStrip | Bus,
+    devices: Device[],
+    ids: string[],
+    index: number,
+  ): void {
+    const id = ids[index]
+    this.teardownBindingsOnDevice(id)
+    chain.removeInsert(devices[index])
+    devices[index].dispose()
+    this.deviceMap.delete(id)
+    devices.splice(index, 1)
+    ids.splice(index, 1)
+  }
+
+  /**
+   * Takes off its strip every insert that `next` has somewhere else: on
+   * another strip, on the master, or as a track's or a return's own device.
+   * It is made anew where it goes, as an insert taken off and put back is; a
+   * device is not carried from one strip to another.
+   */
+  private releaseMovedInserts(next: Score): void {
+    const places = new Map(allDevices(next).map((place) => [place.device.id, place]))
+    const release = (
+      chain: ChannelStrip | Bus,
+      devices: Device[],
+      ids: string[],
+      owner: string,
+    ): void => {
+      for (let index = ids.length - 1; index >= 0; index -= 1) {
+        const place = places.get(ids[index])
+        if (!place || (place.slot === 'insert' && place.owner === owner)) continue
+        this.dropInsert(chain, devices, ids, index)
+      }
+    }
+    release(this.engine.master, this.masterInserts, this.masterInsertIds, MASTER_OWNER)
+    for (const [id, handle] of this.owners) {
+      release(handle.strip, handle.inserts, handle.insertIds, id)
+    }
+  }
+
   private async reconcileInserts(
     chain: ChannelStrip | Bus,
     before: readonly ScoreDevice[],
@@ -1091,12 +1142,7 @@ export class ScoreRenderer {
       const id = ids[index]
       const next = afterById.get(id)
       if (next && next.deviceId === beforeById.get(id)?.deviceId) continue
-      this.teardownBindingsOnDevice(id)
-      chain.removeInsert(devices[index])
-      devices[index].dispose()
-      this.deviceMap.delete(id)
-      devices.splice(index, 1)
-      ids.splice(index, 1)
+      this.dropInsert(chain, devices, ids, index)
     }
     // Keep the matching prefix; rebuild the tail in the new order.
     let prefix = 0

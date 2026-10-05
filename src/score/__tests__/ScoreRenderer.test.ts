@@ -1550,6 +1550,253 @@ describe('ScoreRenderer: lifecycle', () => {
   })
 })
 
+describe('ScoreRenderer: a device id that changes strip', () => {
+  // A strip of every kind, in the order a pass builds them: the master, then
+  // the tracks, the groups and the returns.
+  const PLACES = ['master', 'one', 'two', 'keys', 'voice', 'bus', 'hall'] as const
+  type Place = (typeof PLACES)[number]
+
+  const moving = (): ScoreDevice => ({ id: 'echo-1', deviceId: 'delay', params: {}, bypass: false })
+  const staying = (place: Place): ScoreDevice => ({
+    id: `${place}-own`,
+    deviceId: 'utility',
+    params: {},
+    bypass: false,
+  })
+
+  function registry(): DeviceRegistry {
+    const devices = new DeviceRegistry(NODE_DEVICES)
+    const gain = { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' }
+    devices.register({
+      id: 'synth',
+      name: 'Synth',
+      kind: 'node',
+      category: 'instrument',
+      version: 1,
+      params: { gain: { ...gain, taper: 'linear' } },
+      create: (ctx): NoteDevice => {
+        const node = ctx.createGain()
+        return {
+          id: 'synth',
+          input: node,
+          output: node,
+          params: { gain: { ...gain, taper: 'linear' } },
+          setParam: () => {},
+          getParam: () => 1,
+          bypass: false,
+          latencySec: 0,
+          noteOn: () => {},
+          noteOff: () => {},
+          dispose: () => node.disconnect(),
+        }
+      },
+    })
+    return devices
+  }
+
+  /** Every strip with an insert of its own, and the moving one in front of it on `place`. */
+  function scoreWith(
+    place: Place | null,
+    extra: Partial<Record<Place, ScoreDevice[]>> = {},
+  ): Score {
+    const inserts = (at: Place): ScoreDevice[] => [
+      ...(at === place ? [moving()] : []),
+      staying(at),
+      ...(extra[at] ?? []),
+    ]
+    const score = createScore({ id: 'strips', name: 'Strips' })
+    const destination = masterDestination()
+    score.tracks = [
+      {
+        kind: 'audio',
+        id: 'one',
+        name: 'One',
+        destination,
+        strip: defaultStrip({ inserts: inserts('one') }),
+        clips: [],
+      },
+      {
+        kind: 'audio',
+        id: 'two',
+        name: 'Two',
+        destination,
+        strip: defaultStrip({ inserts: inserts('two') }),
+        clips: [],
+      },
+      {
+        kind: 'instrument',
+        id: 'keys',
+        name: 'Keys',
+        destination,
+        strip: defaultStrip({ inserts: inserts('keys') }),
+        device: { id: 'keys-synth', deviceId: 'synth', params: {}, bypass: false },
+      },
+      {
+        kind: 'live',
+        id: 'voice',
+        name: 'Voice',
+        destination,
+        strip: defaultStrip({ inserts: inserts('voice') }),
+      },
+    ]
+    score.groups = [
+      { id: 'bus', name: 'Bus', destination, strip: defaultStrip({ inserts: inserts('bus') }) },
+    ]
+    score.returns = [
+      {
+        id: 'hall',
+        name: 'Hall',
+        destination,
+        device: { id: 'hall-verb', deviceId: 'convolver-reverb', params: {}, bypass: false },
+        strip: defaultStrip({ soloSafe: true, inserts: inserts('hall') }),
+      },
+    ]
+    score.master = { level: 1, inserts: inserts('master') }
+    return score
+  }
+
+  function chainOf(renderer: ScoreRenderer, place: Place): readonly Device[] {
+    switch (place) {
+      case 'master':
+        return renderer.engine.master.inserts
+      case 'one':
+      case 'two':
+        return renderer.audioTrack(place).strip.inserts
+      case 'keys':
+        return renderer.instrument(place).strip.inserts
+      case 'voice':
+        return renderer.liveInput(place).strip.inserts
+      case 'bus':
+        return renderer.group(place).strip.inserts
+      case 'hall':
+        return renderer.returnTrack(place).strip.inserts
+    }
+  }
+
+  function documentChain(score: Score, place: Place): readonly ScoreDevice[] {
+    if (place === 'master') return score.master.inserts
+    const host = [...score.tracks, ...score.groups, ...score.returns].find(
+      (candidate) => candidate.id === place,
+    )
+    return host?.strip.inserts ?? []
+  }
+
+  function rendered(renderer: ScoreRenderer, id: string): Device | null {
+    try {
+      return renderer.device(id)
+    } catch {
+      return null
+    }
+  }
+
+  /** Where a strip's inserts in the graph are not the document's, in order. */
+  function strays(renderer: ScoreRenderer, score: Score): string[] {
+    const out: string[] = []
+    for (const place of PLACES) {
+      const graph = chainOf(renderer, place)
+      const specs = documentChain(score, place)
+      const same =
+        graph.length === specs.length &&
+        specs.every(
+          (spec, index) =>
+            graph[index] === rendered(renderer, spec.id) && graph[index].id === spec.deviceId,
+        )
+      if (!same) {
+        out.push(
+          `${place} has ${graph.map((device) => device.id).join(',') || 'nothing'} for ${specs.map((spec) => spec.id).join(',')}`,
+        )
+      }
+    }
+    return out
+  }
+
+  /** Takes the moving device from each strip to each other in one pass, and says what went wrong where. */
+  async function everyPair(change: (rig: Rig, to: Place) => void): Promise<string[]> {
+    const failures: string[] = []
+    for (const from of PLACES) {
+      for (const to of PLACES) {
+        if (from === to) continue
+        const made = await rig(scoreWith(from), registry())
+        const { renderer, document, errors, engine } = made
+        const said = strays(renderer, document.score).map((stray) => `at first ${stray}`)
+        const kept = PLACES.map((place) => renderer.device(`${place}-own`))
+        const keptDisposals = kept.map((device) => vi.spyOn(device, 'dispose'))
+        const left = renderer.device('echo-1')
+        const leftDisposal = vi.spyOn(left, 'dispose')
+        const reconcile = vi.spyOn(
+          renderer as unknown as { reconcile: () => Promise<void> },
+          'reconcile',
+        )
+        change(made, to)
+        await renderer.whenIdle()
+        said.push(...errors.map(String))
+        if (reconcile.mock.calls.length !== 1) said.push(`${reconcile.mock.calls.length} passes`)
+        if (renderer.rendered !== document.score) said.push('the pass did not land')
+        said.push(...strays(renderer, document.score))
+        PLACES.forEach((place, index) => {
+          if (rendered(renderer, `${place}-own`) !== kept[index]) {
+            said.push(`${place}-own is another instance`)
+          }
+          if (keptDisposals[index].mock.calls.length > 0) said.push(`${place}-own was disposed`)
+        })
+        // A device that changes strip is taken down and made anew, as one taken off and put back is.
+        if (rendered(renderer, 'echo-1') === left) said.push('echo-1 is the instance it was')
+        if (leftDisposal.mock.calls.length !== 1) {
+          said.push(`the echo-1 that left was disposed ${leftDisposal.mock.calls.length} times`)
+        }
+        if (said.length > 0) failures.push(`${from} -> ${to}: ${said.join('; ')}`)
+        engine.dispose()
+      }
+    }
+    return failures
+  }
+
+  it('follows a piece opened over another that has the id on another strip, for every pair of strips', async () => {
+    const failures = await everyPair(({ document }, to) => document.load(scoreWith(to)))
+    expect(failures).toEqual([])
+  })
+
+  it('follows an id that leaves one strip in one edit and lands on another in the next, as one pass', async () => {
+    const failures = await everyPair(({ document }, to) => {
+      document.apply({ type: 'device.remove', id: 'echo-1' })
+      document.apply({ type: 'device.add', owner: to, device: moving(), index: 0 })
+    })
+    expect(failures).toEqual([])
+  })
+
+  it('a device that only changes place on its strip is the instance it was, also in a pass where another leaves the strip', async () => {
+    const eq: ScoreDevice = { id: 'one-eq', deviceId: 'eq3', params: {}, bypass: false }
+    const { renderer, document, errors, edit } = await rig(
+      scoreWith('one', { one: [eq] }),
+      registry(),
+    )
+    const strip = renderer.audioTrack('one').strip
+    const [echo, own, equaliser] = ['echo-1', 'one-own', 'one-eq'].map((id) => renderer.device(id))
+    const disposals = [echo, own, equaliser].map((device) => vi.spyOn(device, 'dispose'))
+    const is = (expected: readonly Device[]): boolean =>
+      strip.inserts.length === expected.length &&
+      strip.inserts.every((device, index) => device === expected[index])
+    expect(is([echo, own, equaliser])).toBe(true)
+
+    await edit({ type: 'device.move', id: 'one-eq', index: 0 })
+    expect(is([equaliser, echo, own])).toBe(true)
+    expect(disposals.map((spy) => spy.mock.calls.length)).toEqual([0, 0, 0])
+
+    // The echo leaves for the next track while the two that stay change places, in one pass.
+    await edit(
+      { type: 'device.remove', id: 'echo-1' },
+      { type: 'device.add', owner: 'two', device: moving(), index: 0 },
+      { type: 'device.move', id: 'one-own', index: 0 },
+    )
+    expect(errors).toEqual([])
+    expect(is([own, equaliser])).toBe(true)
+    expect([renderer.device('one-own'), renderer.device('one-eq')]).toEqual([own, equaliser])
+    expect(disposals.map((spy) => spy.mock.calls.length)).toEqual([1, 0, 0])
+    expect(renderer.rendered).toBe(document.score)
+    expect(strays(renderer, document.score)).toEqual([])
+  })
+})
+
 describe('ScoreRenderer: stretch tracks (U31 follow-up)', () => {
   const createStretch: StretchNodeFactory = () =>
     Promise.resolve({
