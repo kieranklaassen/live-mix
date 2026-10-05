@@ -5,7 +5,6 @@
 Time and what fires on it: edges of the transport, the session grid, lanes, modulators and the performer.
 
 - `Transport`: `start(NaN)`, a loop with `lengthSec: undefined` (which a partial loop lets a host write) and `setPass(Infinity)` throw a `RangeError` before anything is changed. The first left a position that is no number, the second a transport that says it plays with no anchor and no length, the last an elapsed time without end, on which a `Performer` told beats for ever.
-- `LaneWriter`: a lane lets go of what it wrote before a pause when the transport plays again. Paused inside a ramp and started from another place, the ramp written before the pause was still scheduled, and the parameter ran along it until the lane's next breakpoint.
 - `ClockLaneWriter`: a lane edited while it was overridden keeps the value its `release` set. The next tick cancelled from the same time on and took that value with it, so the ramp that followed started from where the override had left the parameter.
 - `nodeDeviceParam`: a segment with the curve `exponential` that ends on silence once the device has turned its units (a delay's `mix` at 1, a utility's `gainDb` at the bottom, its `width` at 1) is written as a straight ramp. The graph refuses an exponential ramp to 0, and the refusal stopped every lane and route written after it on each control pass.
 - `EnvelopeFollower`: a level or a time that is no number is passed over and the envelope held. One such reading left the envelope at `NaN` until `reset()`.
