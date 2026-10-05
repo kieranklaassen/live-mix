@@ -67,6 +67,27 @@ describe('MockAudioContext', () => {
     ])
   })
 
+  it('lists a node of every kind it can make among all its nodes', () => {
+    const ctx = createMockContext()
+    const made = [
+      ctx.createGain(),
+      ctx.createBufferSource(),
+      ctx.createOscillator(),
+      ctx.createAnalyser(),
+      ctx.createConvolver(),
+      ctx.createBiquadFilter(),
+      ctx.createDelay(),
+      ctx.createWaveShaper(),
+      ctx.createDynamicsCompressor(),
+      ctx.createStereoPanner(),
+      ctx.createMediaStreamDestination(),
+      ctx.createMediaStreamSource({}),
+      ctx.createMediaElementSource({}),
+      ctx.createWorkletNode('a-processor'),
+    ]
+    expect(ctx.allNodes().map((node) => node.kind)).toEqual(made.map((node) => node.kind))
+  })
+
   it('records connections and answers reachability', () => {
     const ctx = createMockContext()
     const a = ctx.createGain()

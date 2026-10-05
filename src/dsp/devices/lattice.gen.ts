@@ -144,6 +144,7 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    step: 1,
     description:
       'Scale steps added to the first voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
@@ -209,6 +210,7 @@ export const LATTICE_PARAMS = {
     default: 2,
     taper: 'linear',
     unit: 'steps',
+    step: 1,
     description:
       'Scale steps added to the second voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
@@ -274,6 +276,7 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    step: 1,
     description:
       'Scale steps added to the third voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },
@@ -339,6 +342,7 @@ export const LATTICE_PARAMS = {
     default: 0,
     taper: 'linear',
     unit: 'steps',
+    step: 1,
     description:
       'Scale steps added to the fourth voice, up or down. In the Interval role this is the harmony: two steps up is a third above.',
   },

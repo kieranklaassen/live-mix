@@ -193,15 +193,16 @@ bool WsConnection::read (WsMessage& message)
             return false;
 
         const bool control = (opcode & 0x8) != 0;
-        if (length > maxMessageBytes || (control && length > 125))
+        juce::MemoryBlock controlPayload;
+        auto& target = control ? controlPayload : message.data;
+        const auto offset = target.getSize();
+        // The limit is on the whole message: one sent in pieces is as large as their sum.
+        if (length > maxMessageBytes - offset || (control && length > 125))
         {
             close();
             return false;
         }
 
-        juce::MemoryBlock controlPayload;
-        auto& target = control ? controlPayload : message.data;
-        const auto offset = target.getSize();
         target.setSize (offset + static_cast<size_t> (length));
         auto* payload = static_cast<uint8_t*> (target.getData()) + offset;
         if (length > 0 && ! readExact (payload, static_cast<size_t> (length)))

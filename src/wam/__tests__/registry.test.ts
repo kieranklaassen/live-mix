@@ -56,6 +56,22 @@ describe('describeWamDevice', () => {
     device.dispose()
   })
 
+  it('installs the host on a later context with the initializer the probe was given', async () => {
+    const Effect = defineFakeWam(FAKE_EFFECT_CONFIG)
+    const host = fakeHostInitializer()
+    const descriptor = await describeWamDevice(asAudioContext(createMockContext()), Effect, {
+      host: { initialize: host.initialize },
+    })
+    expect(host.calls.count).toBe(1)
+
+    // Another context, as an offline render or the next session has: its host is installed the same way.
+    const later = asAudioContext(createMockContext())
+    const device = await descriptor.create(later, {})
+    expect(host.calls.count).toBe(2)
+    expect(host.calls.last).toEqual([later, 'fake-group', 'fake-key'])
+    device.dispose()
+  })
+
   it('takes id, name and category from meta, and instrument from the plugin', async () => {
     const Synth = defineFakeWam(FAKE_SYNTH_CONFIG)
     const ctx = createMockContext()

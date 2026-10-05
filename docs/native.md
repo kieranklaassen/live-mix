@@ -146,7 +146,12 @@ One scan process takes `perProcess` plug-ins (40) and the next carries on
 where it stopped, because plug-ins leave threads and memory behind in the
 process that loaded them and enough of them end it. A crash after other
 plug-ins in the same process may be their doing, so that plug-in gets a
-process to itself before it is left out.
+process to itself before it is left out. While a scan runs, the host and its
+scan process talk through two files in the data directory
+(`live-mix-scan-….list` and `.results`), which go when the scan ends; they are
+not in the system's temp folder, where anybody could write into them, unless
+no data directory is given or it cannot be written. A host that is killed
+during a scan leaves its two files there.
 
 The list is saved while the scan runs, so a host that is quit half way does
 not start from nothing: `client.info.scanUnfinished` is true on the next

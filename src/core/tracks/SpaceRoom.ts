@@ -53,7 +53,7 @@ interface RoomNodes {
   /** What feeds the strip. */
   exit: AudioNode
   convolver: ConvolverNode
-  drive: { into: GainNode; outOf: GainNode } | null
+  drive: { into: GainNode; shaper: WaveShaperNode; outOf: GainNode } | null
   drift: { delay: DelayNode; oscillators: OscillatorNode[]; depths: GainNode[] } | null
   /** The gains either side of the convolver once the room has been tilted: `post` is k, `pre` 1/k. */
   tilt: {
@@ -219,7 +219,7 @@ export class SpaceRoom {
       shaper.connect(outOf)
       outOf.connect(convolver)
       nodes.entry = into
-      nodes.drive = { into, outOf }
+      nodes.drive = { into, shaper, outOf }
     }
     if (settings.driftCents > 0) {
       const drift = spaceDrift(settings)
@@ -324,6 +324,7 @@ export class SpaceRoom {
   private takeDown(nodes: RoomNodes): void {
     try {
       nodes.drive?.into.disconnect()
+      nodes.drive?.shaper.disconnect()
       nodes.drive?.outOf.disconnect()
       nodes.convolver.disconnect()
       for (const oscillator of nodes.drift?.oscillators ?? []) {

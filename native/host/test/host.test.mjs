@@ -8,7 +8,16 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -287,6 +296,34 @@ test('processes audio in order, and parameters reach the plug-in', async () => {
 
   await control.call('unload', { slot: slot.slot })
   assert.equal(await audio.closed, true)
+})
+
+// JSON cannot write a value that is no number, and the host reads one out of
+// the text "nan" all the same. Clamped to 0..1 it is still no number, and a
+// plug-in given it puts it into every sample it plays from then on.
+test('a parameter value or a sample rate that is no number is not taken', async () => {
+  const slot = await loadTestPlugin('LiveMix Test Gain')
+  const audio = await connectAudio(slot.slot)
+  control.notify('setParam', { slot: slot.slot, index: 0, value: 'nan' })
+  // Answered after the value was read: requests are taken in their order.
+  const { params } = await control.call('getParams', { slot: slot.slot })
+  near(params[0].value, 0.5)
+  const ones = new Float32Array(256).fill(1)
+  const [left] = await audio.process([ones, ones], 256)
+  near(left[255], 1)
+  // A number past either end, however far, is still taken to that end.
+  control.notify('setParam', { slot: slot.slot, index: 0, value: 1e39 })
+  near((await control.call('getParams', { slot: slot.slot })).params[0].value, 1)
+  control.notify('setParam', { slot: slot.slot, index: 0, value: -1e39 })
+  near((await control.call('getParams', { slot: slot.slot })).params[0].value, 0)
+  await control.call('unload', { slot: slot.slot })
+
+  const { plugins } = await control.call('plugins')
+  const plugin = plugins.find((entry) => entry.name === 'LiveMix Test Gain')
+  await assert.rejects(
+    control.call('load', { plugin: plugin.id, sampleRate: 'nan', blockSize: 512 }),
+    /out of range/,
+  )
 })
 
 test('saves and restores the plug-in state', async () => {
@@ -834,6 +871,65 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
       assert.equal(scan.plugins.length, 3)
       assert.deepEqual(scan.crashed, [])
       assert.equal((await connection.call('hello')).scanUnfinished, false)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// The search for plug-in files runs in the host itself, and it followed a link
+// to a folder wherever it led. One link back up the tree had it find every
+// plug-in again under each longer path the link makes; two had it walk for
+// ever, and the host answered nobody.
+test('a plug-in folder with links back into itself is searched once', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-loop-'))
+  const plugins = join(folder, 'plugins')
+  mkdirSync(plugins)
+  symlinkSync(testPlugins, join(plugins, 'elsewhere'))
+  symlinkSync('.', join(plugins, 'back'))
+  const scanFolder = (connection, more = {}) =>
+    connection.call('scan', { paths: [plugins], defaultPaths: false, ...more })
+  try {
+    await withTrouble(null, join(folder, 'data'), async (connection) => {
+      assert.deepEqual(namesOf(await scanFolder(connection)), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+      ])
+      // A second link, and one that leads to the folder above.
+      symlinkSync('.', join(plugins, 'again'))
+      symlinkSync('..', join(plugins, 'up'))
+      assert.deepEqual(namesOf(await scanFolder(connection, { rescan: true })), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+      ])
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// What the scanner writes down is taken as its word for what each file holds,
+// and on Linux the temp folder is every person's and every program's to write
+// in: a line put into a list there would name somebody else's plug-in as one
+// the scan found. The lists are the person's own, and gone after the scan.
+test('a scan keeps its lists out of the temp folder everybody can write in', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-lists-'))
+  const listsIn = (place) => readdirSync(place).filter((name) => name.startsWith('live-mix-scan-'))
+  try {
+    await withTrouble('hang', folder, async (connection) => {
+      const before = listsIn(tmpdir())
+      void scanWithTrouble(connection, { idle: 60 }).catch(() => {})
+      await connection.event(
+        'scanProgress',
+        (entry) => /LiveMix Test Trouble/.test(entry.file),
+        1000,
+      )
+      assert.deepEqual(
+        listsIn(tmpdir()).filter((name) => !before.includes(name)),
+        [],
+      )
+      await connection.call('stopScan')
+      assert.deepEqual(listsIn(folder), [])
     })
   } finally {
     rmSync(folder, { recursive: true, force: true })

@@ -149,6 +149,7 @@
       "max": 14,
       "default": 0,
       "unit": "steps",
+      "step": 1,
       "description": "Scale steps added to the first voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
@@ -200,6 +201,7 @@
       "max": 14,
       "default": 2,
       "unit": "steps",
+      "step": 1,
       "description": "Scale steps added to the second voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
@@ -251,6 +253,7 @@
       "max": 14,
       "default": 0,
       "unit": "steps",
+      "step": 1,
       "description": "Scale steps added to the third voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {
@@ -302,6 +305,7 @@
       "max": 14,
       "default": 0,
       "unit": "steps",
+      "step": 1,
       "description": "Scale steps added to the fourth voice, up or down. In the Interval role this is the harmony: two steps up is a third above."
     },
     {

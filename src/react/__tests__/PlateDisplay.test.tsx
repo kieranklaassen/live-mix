@@ -731,6 +731,77 @@ describe('a handle on a display', () => {
     fireEvent.pointerUp(surface, { pointerId: 2 })
     expect(document.log.entries.at(-1)?.gesture).toBe('ui:kick-filter:drag#2')
   })
+
+  it('is still one undo step when the wheel is turned over the handle while it is in hand', async () => {
+    const fixture = createTestEngine({ devices: new DeviceRegistry(NODE_DEVICES) })
+    const buffer = new MockAudioBuffer(2, 48000 * 10, 48000) as unknown as AudioBuffer
+    await fixture.engine.samples.load('a', buffer)
+    await fixture.engine.samples.load('b', buffer)
+    const clock = { ms: 0 }
+    const document = new ScoreDocument(demoScore(), { now: () => clock.ms })
+    const renderer = loadScore(fixture.engine, document, { onError: () => {} })
+    await renderer.whenIdle()
+    const arbiter = new Arbiter(document, {
+      now: () => clock.ms,
+      renderer,
+      setTimeoutFn: () => 0,
+      clearTimeoutFn: () => {},
+    })
+    const wrapper = ({ children }: { children: ReactNode }): ReactNode =>
+      createElement(
+        LiveMixProvider,
+        { engine: fixture.engine, frame: fixture.frames, arbiter },
+        children,
+      )
+    const filter = renderer.device('kick-filter')
+    const display = withHandle()
+    render(
+      <DevicePlate
+        device={filter}
+        skin={{ ...BASE, display, face: ['type', 'gain'] }}
+        data-testid="plate"
+      />,
+      { wrapper },
+    )
+    const surface = screen.getByTestId('plate-display')
+    const frame = (display.draw as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as DisplayFrame
+    const at = display.handles?.(frame)[0]
+    if (!at) throw new Error('no handle')
+    const logged = document.log.length
+    const before = document.serialize()
+
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: at.x, clientY: at.y })
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: at.x + 2, clientY: at.y + 2 })
+      // The other hand's finger on the wheel, the pointer still down on the point.
+      const notch = new WheelEvent('wheel', {
+        deltaY: -100,
+        clientX: at.x + 2,
+        clientY: at.y + 2,
+        bubbles: true,
+        cancelable: true,
+      })
+      act(() => void surface.dispatchEvent(notch))
+      expect(notch.defaultPrevented).toBe(true)
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: at.x + 4, clientY: at.y + 4 })
+      // The wheel rests while the drag goes on.
+      act(() => void vi.advanceTimersByTime(500))
+      fireEvent.pointerMove(surface, { pointerId: 1, clientX: at.x + 6, clientY: at.y + 6 })
+      fireEvent.pointerUp(surface, { pointerId: 1 })
+      act(() => void vi.advanceTimersByTime(500))
+    } finally {
+      vi.useRealTimers()
+    }
+    const entries = document.log.entries.slice(logged)
+    expect(entries).toHaveLength(4)
+    expect(entries.map((entry) => entry.gesture)).toEqual(
+      entries.map(() => 'ui:kick-filter:drag#1'),
+    )
+    // One undo takes the whole drag back, what the wheel turned with it.
+    document.undo()
+    expect(document.serialize()).toBe(before)
+  })
 })
 
 describe('a handle under the wheel, under a finger and under another handle', () => {
