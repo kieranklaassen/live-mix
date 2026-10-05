@@ -64,6 +64,16 @@ describe('limitRendered', () => {
     expect(peakDb(audio.channels[0], 1.99, 2)).toBeGreaterThan(-5)
   })
 
+  it('sets only the parameters the limiter has: a name every object has is not one of them', async () => {
+    // A saved device's values, read back from a file, may carry any name.
+    const saved = JSON.parse('{"ceiling":-6,"constructor":0,"toString":0}') as LimitRenderedParams
+    const audio = tone([[2, 3]])
+    await limit(audio, saved)
+    // `constructor` has no id, and a parameter id that is no number is the first one: the ceiling.
+    expect(toDb(peakOf(audio.channels))).toBeLessThanOrEqual(-6)
+    expect(toDb(peakOf(audio.channels))).toBeGreaterThan(-7)
+  })
+
   it('turns a quiet sound up to the ceiling by one gain, from its first cycle', async () => {
     const audio = tone([[6, -6]])
     const { autoGainDb } = await limit(audio, { ceiling: -0.3, autoGain: 12 })

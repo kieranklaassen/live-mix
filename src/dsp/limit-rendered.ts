@@ -81,7 +81,8 @@ export async function limitRendered(
     device._initialize?.()
     device.device_init(sampleRate, device.device_max_block_frames())
     for (const [name, value] of Object.entries(values)) {
-      if (value !== undefined && name in AMBIENT_LIMITER_PARAMS) {
+      // Its own parameters only: `constructor` is on every object.
+      if (value !== undefined && Object.hasOwn(AMBIENT_LIMITER_PARAMS, name)) {
         device.device_set_param(AMBIENT_LIMITER_PARAMS[name as AmbientLimiterParamName].id, value)
       }
     }
