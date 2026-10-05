@@ -194,7 +194,8 @@ function deviceBinding(
   param: string,
   options: BindingOptions,
 ): ControlBinding | null {
-  const spec = device.params[param]
+  // The device's own parameters only: `constructor` and `toString` are on every object.
+  const spec = Object.hasOwn(device.params, param) ? device.params[param] : undefined
   if (!spec) return null
   if (!isChoice(spec)) {
     return {

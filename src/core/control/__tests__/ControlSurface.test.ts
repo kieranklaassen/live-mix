@@ -216,6 +216,21 @@ describe('ControlSurface dispatch', () => {
     }
   })
 
+  it('takes a parameter named as every object answers for one the device does not have', async () => {
+    const { engine } = fixture()
+    const filter = await engine.devices.create('filter', engine.context)
+    const surface = new ControlSurface({ engine })
+    surface.registerDevice('pad-filter', filter)
+    // A stored table is a stranger's word: these are on every object, and no parameter of the filter.
+    for (const param of ['constructor', 'toString', '__proto__']) {
+      const target: ControlTarget = { kind: 'device', device: 'pad-filter', param }
+      surface.map({ source: cc74, target })
+      expect(surface.read(target)).toBeNull()
+      expect(surface.handle(cc(cc74, 64)).applied).toEqual([])
+      expect(surface.set(target, 0.5)).toBe(false)
+    }
+  })
+
   it('fires transport actions on presses and rising edges', () => {
     const { engine } = fixture()
     const surface = new ControlSurface({ engine })

@@ -177,6 +177,17 @@ describe('ControlSurface through the arbiter', () => {
     expect(findDevice(document.score, 'kick-filter')?.device.params.type).toBe(1)
   })
 
+  it('a mapping onto a parameter the device does not have, named as every object answers, writes nothing', async () => {
+    const { surface, document, renderer } = await rig()
+    surface.registerDevice('kick-filter', renderer.device('kick-filter'))
+    surface.map({
+      source: cc7,
+      target: { kind: 'device', device: 'kick-filter', param: 'constructor' },
+    })
+    expect(surface.handle(absoluteEvent(cc7, 0.5)).applied).toEqual([])
+    expect(document.log.length).toBe(0)
+  })
+
   it('a target the score lacks falls back to the direct engine write; a lock drops the controller', async () => {
     const { surface, engine, document, arbiter, renderer, results } = await rig()
     engine.addAudioTrack('extra')
