@@ -131,6 +131,8 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
   const takenAtRef = useRef(shown)
   /** What a host held then, which may stand between two steps: that press gives it back as it was. */
   const heldAtRef = useRef(value)
+  /** Whether that press has given the host a value yet: one that turned up a step and back has, and shows the same. */
+  const wroteRef = useRef(false)
   /** How far a finger has gone without turning the control yet, in pixels; null once it turns, and for a mouse. */
   const heldBackRef = useRef<number | null>(null)
   /** How far that finger has gone across the control's own way meanwhile. */
@@ -213,6 +215,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     if (next === (held !== undefined && !draggingRef.current ? held : shownRef.current)) return
     shownRef.current = next
     setInternal(next)
+    if (draggingRef.current) wroteRef.current = true
     latest.current.onChange?.(next)
   }, [])
 
@@ -262,6 +265,7 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
       lastPointRef.current = { x: event.clientX, y: event.clientY }
       takenAtRef.current = shownRef.current
       heldAtRef.current = latest.current.value
+      wroteRef.current = false
       // A finger's first pixels are held back: until it has gone a little way
       // it may be a swipe along whatever the control stands in, which the
       // browser is about to take, and a control that had already turned would
@@ -304,16 +308,18 @@ export function useParamControl(options: ParamControlOptions): ParamControl {
     (event: PointerEvent<HTMLElement>) => {
       if (pointerIdRef.current !== event.pointerId) return
       const taken = takenAtRef.current
-      if (draggingRef.current && taken !== shownRef.current) {
-        const o = latest.current
-        const held = heldAtRef.current
+      const o = latest.current
+      const held = heldAtRef.current
+      // The value shown is a host's rounded to a step, and the host is to have its own again.
+      const own = held !== undefined && Number.isFinite(held) ? clamp(held, o.min, o.max) : taken
+      // A press that turned the control up a step and back shows what it showed, and the host
+      // holds that rounded value all the same: it has been written to, and gets its own back too.
+      const turned = taken !== shownRef.current || (wroteRef.current && own !== taken)
+      if (draggingRef.current && turned) {
         normRef.current = normalizeValue(taken, o.min, o.max, o.taper, o.skew)
         shownRef.current = taken
         setInternal(taken)
-        // The value shown is a host's rounded to a step, and the host is to have its own again.
-        o.onChange?.(
-          held !== undefined && Number.isFinite(held) ? clamp(held, o.min, o.max) : taken,
-        )
+        o.onChange?.(own)
       }
       endPointer(event)
     },

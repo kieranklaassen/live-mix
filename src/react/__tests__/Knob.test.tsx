@@ -289,6 +289,49 @@ describe('Knob', () => {
     expect(seen).toHaveLength(2)
   })
 
+  it('gives the host its own value back when the press went up a step and down again before the browser took it', () => {
+    const seen: number[] = []
+    function Host() {
+      const [value, setValue] = useState(0.3333)
+      return (
+        <Knob
+          label="Mix"
+          value={value}
+          defaultValue={0.5}
+          min={0}
+          max={1}
+          step={0.01}
+          onChange={(next) => {
+            seen.push(next)
+            setValue(next)
+          }}
+        />
+      )
+    }
+    render(<Host />)
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    // 110 px is the whole travel: 2 px up is a little under two hundredths, and 2 px down is back.
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientX: 0, clientY: 98 })
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientX: 0, clientY: 100 })
+    // The knob shows what it showed, and the host was left with that rounded value.
+    expect(slider()).toHaveAttribute('aria-valuenow', '0.33')
+    expect(seen[seen.length - 1]).toBe(0.33)
+    fireEvent.pointerCancel(slider(), { pointerId: 1 })
+    expect(seen[seen.length - 1]).toBe(0.3333)
+    expect(slider()).toHaveAttribute('aria-valuenow', '0.33')
+  })
+
+  it('says nothing more on a cancelled press that went up and back when the host held a whole step', () => {
+    const onChange = vi.fn()
+    render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} step={0.01} onChange={onChange} />)
+    fireEvent.pointerDown(slider(), { pointerId: 1, button: 0, clientX: 0, clientY: 100 })
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientX: 0, clientY: 98 })
+    fireEvent.pointerMove(slider(), { pointerId: 1, clientX: 0, clientY: 100 })
+    const before = onChange.mock.calls.length
+    fireEvent.pointerCancel(slider(), { pointerId: 1 })
+    expect(onChange).toHaveBeenCalledTimes(before)
+  })
+
   it('holds back a finger’s first pixels, so a swipe the browser takes never turns it at all', () => {
     const onChange = vi.fn()
     render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} onChange={onChange} />)
