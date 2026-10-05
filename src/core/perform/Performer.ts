@@ -374,7 +374,10 @@ export class Performer {
     this.queued = null
     this.queuedRides.clear()
     for (const track of this.sceneRides.keys()) {
-      if (!(track in rides)) this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })
+      // Named by what is taken up itself: every object has something under `constructor`.
+      if (!Object.hasOwn(rides, track)) {
+        this.resolveStrip(track)?.setRide(1, { layer: SCENE_RIDE_LAYER, at })
+      }
     }
     this.sceneRides.clear()
     for (const [track, value] of Object.entries(rides)) {
@@ -708,7 +711,9 @@ export class Performer {
     }
     const glide: PerformGlide = { at, seconds: this.barsToSeconds(morphBars) }
     for (const dial of this.current.dials) {
-      const value = scene.dials[dial.id]
+      // Only a dial the scene names itself: one called `constructor` is not
+      // handed what every object has under that name.
+      const value = Object.hasOwn(scene.dials, dial.id) ? scene.dials[dial.id] : undefined
       if (value === undefined) continue
       this.dialValues.set(dial.id, value)
       this.applyDial(dial, glide)

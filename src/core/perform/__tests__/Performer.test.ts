@@ -407,6 +407,24 @@ describe('Performer: dials', () => {
     performer.load(twoScenes())
     expect(approach('b', DIAL_RIDE_LAYER)?.[0]).toBe(1)
   })
+
+  it('leaves a dial the scene does not name where it is, whatever the dial is called', () => {
+    const set = dialSet()
+    // A name every plain object answers to with something of its own.
+    set.dials.push({
+      id: 'constructor',
+      name: 'Constructor',
+      value: 1,
+      targets: [{ kind: 'ride', track: 'a' }],
+    })
+    const { performer, ride, events } = rig(set)
+    // Dawn names no dial at all.
+    performer.go('dawn')
+    expect(performer.state.dials).toEqual({ energy: 1, duck: 0, constructor: 1 })
+    expect(events.filter((event) => event.type === 'dial')).toEqual([])
+    // And the track that dial moves was not taken out by a value that is no number.
+    expect(ride('a', DIAL_RIDE_LAYER)).toBeNull()
+  })
 })
 
 describe('Performer: follow rules', () => {
@@ -704,6 +722,18 @@ describe('Performer: taking up a performance', () => {
     performer.refresh()
     expect(ride('b')?.lastEvent('setTargetAtTime')?.args[0]).toBe(0)
     expect(ride('b', DIAL_RIDE_LAYER)?.lastEvent('setTargetAtTime')?.args[0]).toBe(0.5)
+  })
+
+  it('puts back a ride the performance taken up does not name, whatever the track is called', () => {
+    const { engine, performer, approach } = rig()
+    engine.addAudioTrack('constructor')
+    performer.ride('constructor', 0)
+    expect(approach('constructor')?.[0]).toBe(0)
+    // Nothing is ridden in what is taken up: the track comes back, and is not
+    // forgotten where it was for having a name every object has something under.
+    performer.restore({ rides: {} })
+    expect(approach('constructor')).toEqual([1, START, 0.005])
+    expect(performer.state.rides).toEqual({})
   })
 })
 
