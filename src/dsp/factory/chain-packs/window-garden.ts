@@ -7,81 +7,14 @@ import { type FactoryChain } from '../types'
 
 export const CHAINS: readonly FactoryChain[] = [
   {
-    id: 'window-garden-swarm-by-the-basin',
-    name: 'Swarm by the basin',
-    category: 'space',
-    description:
-      'A tight cluster of echoes close behind each note, into an undamped hall with about three seconds of tail.',
-    effects: [
-      {
-        deviceId: 'swarm-reverb',
-        preset: 'Tight swarm',
-        params: { length: 0.0945, glide: 0.623, mix: 0.18 },
-      },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Bright air',
-        params: { decay: 3.14, breathRate: 0.301, mix: 0.21 },
-      },
-    ],
-  },
-  {
     id: 'window-garden-midday-patter',
     name: 'Midday patter',
     category: 'space',
     description:
-      'A fine patter of thin high echoes with no bass in them, into a plain hall of about four seconds with no vowel in it.',
+      'A fine patter of thin high echoes with no bass in them, into a plain hall of about four seconds.',
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Glass rain' },
       { deviceId: 'vowel-reverb', preset: 'Plain hall' },
-    ],
-  },
-  {
-    id: 'window-garden-swarm-for-one-room',
-    name: 'Swarm for one room',
-    category: 'space',
-    description:
-      'A quick patter of separate echoes behind each note, into a medium hall with only a breath of a vowel in its tail.',
-    effects: [
-      { deviceId: 'swarm-reverb', preset: 'Pattering', params: { length: 0.323, glide: 0.663 } },
-      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 3.84, preDelay: 21.6 } },
-    ],
-  },
-  {
-    id: 'window-garden-echoes-left-plain',
-    name: 'Echoes left plain',
-    category: 'space',
-    description:
-      'A space that answers in hard separate echoes, into a plain hall with about four seconds of tail.',
-    effects: [
-      { deviceId: 'expanse', preset: 'Hard echoes', params: { decay: 4.11, modRate: 0.352 } },
-      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.63, breathRate: 0.287 } },
-    ],
-  },
-  {
-    id: 'window-garden-brookside-scatter',
-    name: 'Brookside scatter',
-    category: 'space',
-    description:
-      'A slow pan from side to side, a few seconds each way, into one slow scatter of echoes over about a second and no tail.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.144 } },
-      { deviceId: 'swarm-reverb', preset: 'Long scatter', params: { glide: 0.554 } },
-    ],
-  },
-  {
-    id: 'window-garden-veranda-hall',
-    name: 'Veranda hall',
-    category: 'space',
-    description:
-      'A hall whose lows outlast its damped top, then a phaser held still, two fixed peaks like a vowel.',
-    effects: [
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Dark hall',
-        params: { preDelay: 52.3, lowDecay: 4.49, midDecay: 3.25 },
-      },
-      { deviceId: 'phaser', preset: 'Still formant' },
     ],
   },
   {
@@ -96,17 +29,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-opening-hour-slope',
-    name: 'Opening-hour slope',
-    category: 'space',
-    description:
-      'Two duller copies a few cents off, tucked behind the sound, into a reverb that falls away in a straight line.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Soft halo', params: { delay: 13.1 } },
-      { deviceId: 'shaped-reverb', preset: 'Falling', params: { time: 1.44, preDelay: 22 } },
-    ],
-  },
-  {
     id: 'window-garden-glinting-hall',
     name: 'Glinting hall',
     category: 'space',
@@ -115,21 +37,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Pattering', params: { length: 0.312, glide: 0.608 } },
       { deviceId: 'fdn-reverb', preset: 'Bright air' },
-    ],
-  },
-  {
-    id: 'window-garden-plain-plate',
-    name: 'Plain plate',
-    category: 'space',
-    description:
-      'A resonant upper-mid peak that rises when played hard, into a medium plate with a smooth tail of a few seconds.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Resonant peak',
-        params: { lfoRateHz: 1.01, envAttackMs: 19.8, envReleaseMs: 290 },
-      },
-      { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
   {
@@ -148,7 +55,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall in the foyer',
     category: 'space',
     description:
-      'A far-miked room laid in under the clean sound, into an undamped hall of about three seconds with light lows.',
+      'A far-off room laid in under the untouched sound, into an undamped hall of about three seconds with light lows.',
     effects: [
       { deviceId: 're-amp', preset: 'Room underneath' },
       {
@@ -159,55 +66,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-trace-over-moss',
-    name: 'Trace over moss',
-    category: 'space',
-    description:
-      'A single saturated tape slap behind each note, into a faint hall tail of about three seconds.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 86.9 } },
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
-    ],
-  },
-  {
-    id: 'window-garden-courtyard-cluster',
-    name: 'Courtyard cluster',
-    category: 'space',
-    description:
-      'A combo amplifier miked fairly close in a small room, into a tight cluster of tape repeats, like a very small room.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Combo in a room' },
-      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 100 } },
-    ],
-  },
-  {
-    id: 'window-garden-wash-on-a-weekday',
-    name: 'Wash on a weekday',
-    category: 'space',
-    description:
-      'A big lift of presence and air, with ringing held in check, into a smeared wash of grains that climbs by octaves.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 'grain-delay', preset: 'Shimmer wash' },
-    ],
-  },
-  {
-    id: 'window-garden-foyer-steel',
-    name: 'Foyer steel',
-    category: 'space',
-    description:
-      'A brief swell of reverb close behind each note, into a bright undamped plate of a couple of seconds.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Short halo' },
-      { deviceId: 'plate-reverb', preset: 'Bright plate' },
-    ],
-  },
-  {
     id: 'window-garden-closed-day-hall',
     name: 'Closed-day hall',
     category: 'space',
     description:
-      'A hall whose lows outlast its damped top, then a plain two-voice chorus with a voice towards each side.',
+      'A hall whose lows outlast its damped top, then a plain chorus with a detuned copy towards each side.',
     effects: [
       {
         deviceId: 'hall-reverb',
@@ -222,7 +85,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Close-walled cell',
     category: 'space',
     description:
-      'Two dull copies that wander, a haze round the notes, into a small dark room that is gone in about a second.',
+      'Two dull copies that wander in a haze round the notes, into a small dark room that is gone in about a second.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Piano haze', params: { delay: 16.2 } },
       { deviceId: 'expanse', preset: 'Small dark room' },
@@ -233,7 +96,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pebble hall',
     category: 'space',
     description:
-      'A wavering double spread wide to both sides, into a hall that answers about a quarter of a second late.',
+      'A wavering double of the sound spread wide to both sides, into a hall that answers about a quarter of a second late.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Doubler' },
       {
@@ -244,84 +107,208 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-slap-at-opening',
-    name: 'Slap at opening',
+    id: 'window-garden-patter-by-the-basin',
+    name: 'Patter by the basin',
     category: 'space',
     description:
-      'A console channel run hot with its level pulled back down, into a single saturated tape slap behind each note.',
+      'One slow scatter of echoes over about a second and no tail, into a plain hall with about four seconds of tail.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Hot channel', params: { output: -20.1 } },
-      { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 99.8 } },
+      { deviceId: 'swarm-reverb', preset: 'Long scatter', params: { length: 1.09, glide: 0.553 } },
+      { deviceId: 'fdn-reverb', preset: 'Hall' },
     ],
   },
   {
-    id: 'window-garden-slap-by-the-pond',
-    name: 'Slap by the pond',
+    id: 'window-garden-patter-by-the-door',
+    name: 'Patter by the door',
     category: 'space',
     description:
-      'A valve preamp curve, lopsided and a little brighter on top, into a small room that answers about an eighth of a second late.',
+      'A quick patter of separate echoes behind each note, into a quiet plate tail that comes in late behind each note.',
     effects: [
-      { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -8.97 } },
-      { deviceId: 'ether-reverb', preset: 'Slap room' },
-    ],
-  },
-  {
-    id: 'window-garden-hushed-sheen',
-    name: 'Hushed sheen',
-    category: 'space',
-    description:
-      'A deep slow chorus on a long delay, swaying over seconds, into a quiet plate tail that comes in late behind each note.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.161 } },
+      { deviceId: 'swarm-reverb', preset: 'Pattering', params: { length: 0.386, glide: 0.565 } },
       { deviceId: 'plate-reverb', preset: 'Faint sheen' },
     ],
   },
   {
-    id: 'window-garden-bamboo-strings',
-    name: 'Bamboo strings',
+    id: 'window-garden-foyer-echoes',
+    name: 'Foyer echoes',
     category: 'space',
     description:
-      'A short, soft tape echo close behind the playing, into five strings in F major that ring for about half a second.',
+      'A handful of separate echoes that fall away and repeat, into a bright undamped plate of a couple of seconds.',
     effects: [
-      { deviceId: 'tape-echo', preset: 'Short and soft' },
-      { deviceId: 'sympathetic', preset: 'Brief pluck', params: { decay: 0.547 } },
+      { deviceId: 'shaped-reverb', preset: 'Scattered' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 4.4 } },
     ],
   },
   {
-    id: 'window-garden-gallery-room',
-    name: 'Gallery room',
+    id: 'window-garden-hall-in-a-vitrine',
+    name: 'Hall in a vitrine',
     category: 'space',
     description:
-      'A plain hall that rings for about three seconds, then a slow compressor that evens out swells over seconds.',
+      'A big lift of presence and air, with ringing held in check, then a soft slapback echo close behind each note, into an undamped hall.',
     effects: [
-      { deviceId: 'shimmer', preset: 'Plain hall' },
-      { deviceId: 'ambient-comp', preset: 'Level' },
-    ],
-  },
-  {
-    id: 'window-garden-room-kept-small',
-    name: 'Room kept small',
-    category: 'space',
-    description:
-      'Two full-range copies tuned further apart, reaching lower, into the close reflections of a very small room.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Wider', params: { delay: 21 } },
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+      { deviceId: 'analog-delay', preset: 'Slapback', params: { time: 97.5, modRate: 0.529 } },
       {
-        deviceId: 'fdn-reverb',
-        preset: 'Short ambience',
-        params: { decay: 0.363, breathRate: 0.296 },
+        deviceId: 'hall-reverb',
+        preset: 'Bright hall',
+        params: { preDelay: 44.4, lowDecay: 1.83, midDecay: 2.99 },
       },
     ],
   },
   {
-    id: 'window-garden-pond-skater-room',
-    name: 'Pond-skater room',
+    id: 'window-garden-echo-at-opening',
+    name: 'Echo at opening',
     category: 'space',
     description:
-      'The sides lifted a little, wider with nothing added, into a dark cellar of a room that folds the sound to mono.',
+      'A few decibels of soft saturation with the top eased, then a short, soft tape echo close behind the playing.',
     effects: [
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'bloom-reverb', preset: 'Narrow cellar' },
+      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -4.58 } },
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 174 } },
+    ],
+  },
+  {
+    id: 'window-garden-plate-after-drizzle',
+    name: 'Plate after drizzle',
+    category: 'space',
+    description:
+      'A small chapel with a short sung eh in its tail, into a medium plate with a smooth tail of a few seconds.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 1.7, preDelay: 5.61 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { predelayMs: 19.6 } },
+    ],
+  },
+  {
+    id: 'window-garden-celadon-echoes',
+    name: 'Celadon echoes',
+    category: 'space',
+    description:
+      'A few decibels of soft saturation with the top eased, into a quick patter of separate echoes behind each note.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue', params: { outputDb: -5.49 } },
+      { deviceId: 'swarm-reverb', preset: 'Pattering', params: { length: 0.325, glide: 0.595 } },
+    ],
+  },
+  {
+    id: 'window-garden-brookside-hall',
+    name: 'Brookside hall',
+    category: 'space',
+    description:
+      'A big lift of presence and air, with ringing held in check, into a medium hall with only a breath of voice in its tail.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 3.93, preDelay: 19 } },
+    ],
+  },
+  {
+    id: 'window-garden-raked-gravel-plate',
+    name: 'Raked-gravel plate',
+    category: 'space',
+    description:
+      'A warm, full equaliser, then a far-off room laid in under the untouched sound, into a bright undamped plate of a couple of seconds.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.44 } },
+      { deviceId: 're-amp', preset: 'Room underneath' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
+    ],
+  },
+  {
+    id: 'window-garden-cypress-plate',
+    name: 'Cypress plate',
+    category: 'space',
+    description:
+      'A bright undamped plate of a couple of seconds, then a big lift of presence and air, with ringing held in check.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+    ],
+  },
+  {
+    id: 'window-garden-tea-bowl-hall',
+    name: 'Tea-bowl hall',
+    category: 'space',
+    description:
+      'A triode valve stage, smoothly overdriven, into a hall whose top rings on while its lows stop short.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Triode glow' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { preDelay: 27.9, midDecay: 4.4 } },
+    ],
+  },
+  {
+    id: 'window-garden-hall-left-plain',
+    name: 'Hall left plain',
+    category: 'space',
+    description:
+      'A gentle high cut that shades the top end, then a tight tape cluster, into an undamped hall with about three seconds of tail.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.54 } },
+      { deviceId: 'tape-echo', preset: 'Tiny room cluster', params: { time: 87 } },
+      { deviceId: 'fdn-reverb', preset: 'Bright air', params: { mix: 0.271 } },
+    ],
+  },
+  {
+    id: 'window-garden-courtyard-room',
+    name: 'Courtyard room',
+    category: 'space',
+    description:
+      'A plain chorus with a detuned copy towards each side, into a reverb that fades evenly to nothing in a second or two.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Classic chorus' },
+      { deviceId: 'shaped-reverb', preset: 'Falling', params: { time: 1.57, preDelay: 21.2 } },
+    ],
+  },
+  {
+    id: 'window-garden-weekday-room',
+    name: 'Weekday room',
+    category: 'space',
+    description:
+      'A trace of chorus on the top of the sound only, into a tight cluster of echoes close behind each note.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Faint air', params: { rate: 0.264, delayMs: 10.5 } },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { length: 0.0926, glide: 0.547 } },
+    ],
+  },
+  {
+    id: 'window-garden-sparrow-hall',
+    name: 'Sparrow hall',
+    category: 'space',
+    description:
+      'A single saturated tape echo close behind each note, into a plain hall with about four seconds of tail.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Single slap' },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 4.23, breathRate: 0.32 } },
+    ],
+  },
+  {
+    id: 'window-garden-windless-hall',
+    name: 'Windless hall',
+    category: 'space',
+    description:
+      'A string voice that doubles each note almost at once, into a wide hall that answers about a fifth of a second late.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Doubler', params: { rise: 0.0519, fall: 0.887 } },
+      { deviceId: 'ether-reverb', preset: 'Late hall' },
+    ],
+  },
+  {
+    id: 'window-garden-wagtail-swell',
+    name: 'Wagtail swell',
+    category: 'space',
+    description:
+      'A fast, steady reel with soft saturation, into a reverb that swells up behind each note and cuts off.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 1.19 } },
+    ],
+  },
+  {
+    id: 'window-garden-windless-sheen',
+    name: 'Windless sheen',
+    category: 'space',
+    description:
+      'A valve preamp, gently driven and a little bright on top, into a quiet plate tail that comes in late behind each note.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Tube preamp', params: { outputDb: -9.14 } },
+      { deviceId: 'plate-reverb', preset: 'Faint sheen' },
     ],
   },
   {
@@ -329,7 +316,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Paper-screen echo',
     category: 'echo',
     description:
-      'Tape repeats that lose their lows and thin out as they fade, into a short room whose tail splits towards a fifth up and down.',
+      'Tape repeats that lose their lows and thin out as they fade, into a short bright room whose tail splits a fifth up and down.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Thin and fading', params: { time: 356 } },
       { deviceId: 'bloom-reverb', preset: 'Quick sparkle', params: { decay: 1.07 } },
@@ -384,7 +371,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echo before noon',
     category: 'echo',
     description:
-      'A tape echo whose warm repeats soften as they fade, into a short mono slap of a few reflections.',
+      'A tape echo whose warm repeats soften as they fade, into a short mono burst of a few close reflections.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 389 } },
       { deviceId: 'shaped-reverb', preset: 'Mono slap', params: { time: 0.154 } },
@@ -395,21 +382,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Loop on tatami',
     category: 'echo',
     description:
-      'A quick loop of about the last half second, soon faded, into a quick patter of separate echoes behind each note.',
+      'A quick loop of about the last half second that soon fades, into a quick patter of separate echoes behind each note.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Quick loop', params: { length: 0.544 } },
       { deviceId: 'swarm-reverb', preset: 'Pattering', params: { length: 0.325, glide: 0.57 } },
-    ],
-  },
-  {
-    id: 'window-garden-cypress-ladder',
-    name: 'Cypress ladder',
-    category: 'echo',
-    description:
-      'Each note replayed as an arpeggio of octaves and fifths, into a soft slap close behind each note.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Rising steps' },
-      { deviceId: 'analog-delay', preset: 'Slapback', params: { time: 103, modRate: 0.665 } },
     ],
   },
   {
@@ -424,70 +400,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-stone-basin-echo',
-    name: 'Stone-basin echo',
-    category: 'echo',
-    description:
-      'A fast steady reel, then a faint trace of tape echo behind the playing, into a plain hall with about four seconds of tail.',
-    effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'tape-echo', preset: 'Faint trace', params: { time: 485 } },
-      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.85, breathRate: 0.272 } },
-    ],
-  },
-  {
     id: 'window-garden-under-eaves-echoes',
     name: 'Under-eaves echoes',
     category: 'echo',
     description:
-      'A handful of separate echoes that fall away and repeat, into a single saturated tape slap behind each note.',
+      'A handful of separate echoes that fall away and repeat, into a single saturated tape echo close behind each note.',
     effects: [
       { deviceId: 'shaped-reverb', preset: 'Scattered' },
       { deviceId: 'tape-echo', preset: 'Single slap' },
-    ],
-  },
-  {
-    id: 'window-garden-slap-at-ten',
-    name: 'Slap at ten',
-    category: 'echo',
-    description:
-      'A lopsided soft curve that adds the octave above each note, then a single saturated tape slap behind each note.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Octave glow' },
-      { deviceId: 'tape-echo', preset: 'Single slap' },
-    ],
-  },
-  {
-    id: 'window-garden-vitrine-bounce',
-    name: 'Vitrine bounce',
-    category: 'echo',
-    description:
-      'Dotted tape repeats that bounce from side to side, then the whole sound folded to mono.',
-    effects: [
-      { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { mix: 0.24 } },
-      { deviceId: 'stereo-widener', preset: 'Mono' },
-    ],
-  },
-  {
-    id: 'window-garden-museum-slap',
-    name: 'Museum slap',
-    category: 'echo',
-    description:
-      'A slow comb sliding against the dry sound, sides opposed, then a short, soft tape echo close behind the playing.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.0923 } },
-      { deviceId: 'tape-echo', preset: 'Short and soft' },
-    ],
-  },
-  {
-    id: 'window-garden-porcelain-bounce',
-    name: 'Porcelain bounce',
-    category: 'echo',
-    description:
-      'A one-voice chorus, the pitch bending against the dry sound, then a plain echo whose repeats bounce from side to side.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Slow chorus', params: { rate: 0.617 } },
-      { deviceId: 'echo-memory', preset: 'Side to side' },
     ],
   },
   {
@@ -495,7 +415,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Atrium echo',
     category: 'echo',
     description:
-      'A clean, steady echo with no wobble and an open top, into a medium plate with a smooth tail of a few seconds.',
+      'A clean, steady echo with no wobble and little dulling, into a medium plate with a smooth tail of a few seconds.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 201, modRate: 0.637 } },
       { deviceId: 'plate-reverb', preset: 'Medium plate', params: { predelayMs: 21.2 } },
@@ -506,7 +426,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drizzle echo',
     category: 'echo',
     description:
-      'Three tape heads in a row, a cluster on every repeat, into a tiny boxy room that is gone almost at once.',
+      'A tape echo whose three heads make a cluster of each repeat, into a tiny boxy room that is gone almost at once.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 560 } },
       { deviceId: 'expanse', preset: 'Small box' },
@@ -539,7 +459,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Shoji loop',
     category: 'echo',
     description:
-      'A low cut that thins the bass, with a little air on top, then a one-second tape loop that soon dies away.',
+      'A low cut that thins the bass, with a little air on top, then a tape loop about a second round that soon dies away.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Texture', params: { clearTime: 1.52 } },
       { deviceId: 'tape-loop', preset: 'One second round' },
@@ -550,7 +470,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echo under eaves',
     category: 'echo',
     description:
-      'Twelve phaser stages tuned far apart, drifting slowly, then a tape echo whose warm repeats soften as they fade.',
+      'A dense many-notched phaser drifting opposite on each side, then a tape echo whose warm repeats soften as they fade.',
     effects: [
       { deviceId: 'phaser', preset: 'Twelve stage cloud' },
       { deviceId: 'tape-echo', preset: 'Warm repeats' },
@@ -561,10 +481,85 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Lantern echo',
     category: 'echo',
     description:
-      'A plain echo that is a little darker on each repeat, into a plain short room whose tail stays at pitch.',
+      'A plain echo that is a little darker on each repeat, into a plain room that is gone in a couple of seconds.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Plain echo' },
       { deviceId: 'bloom-reverb', preset: 'Still room' },
+    ],
+  },
+  {
+    id: 'window-garden-cypress-echo',
+    name: 'Cypress echo',
+    category: 'echo',
+    description:
+      'A plain echo that is a little darker on each repeat, then two copies heard just after the sound, the left one first.',
+    effects: [
+      {
+        deviceId: 'echo-memory',
+        preset: 'Plain echo',
+        params: { time: 360, reach: 21.1, size: 2.83 },
+      },
+      { deviceId: 'stereo-detune', preset: 'Late copy' },
+    ],
+  },
+  {
+    id: 'window-garden-fern-echo',
+    name: 'Fern echo',
+    category: 'echo',
+    description:
+      'A tape echo whose three heads make a cluster of each repeat, then a faint, dull echo with a slow chorus on it.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 560 } },
+      { deviceId: 'analog-delay', preset: 'Faint halo', params: { time: 288, modRate: 0.361 } },
+    ],
+  },
+  {
+    id: 'window-garden-white-wall-echo',
+    name: 'White-wall echo',
+    category: 'echo',
+    description:
+      'A hint of wavefolder, then a plain, centred echo rebuilt from grains, into a fully damped hall with a few seconds of tail.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Folded glass' },
+      { deviceId: 'grain-delay', preset: 'Plain repeat', params: { time: 399, size: 109 } },
+      { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 19.3 } },
+    ],
+  },
+  {
+    id: 'window-garden-tatami-loop',
+    name: 'Tatami loop',
+    category: 'echo',
+    description:
+      'A short tape loop where each pass comes back quieter, into a faint hall tail of about three seconds.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Slow fade', params: { length: 1.65 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Faint halo',
+        params: { preDelay: 35.5, lowDecay: 2.21, midDecay: 2.69 },
+      },
+    ],
+  },
+  {
+    id: 'window-garden-loop-on-gravel',
+    name: 'Loop on gravel',
+    category: 'echo',
+    description:
+      'A thin double-speed tape loop an octave above the playing, into a faint scatter of echoes just behind the sound.',
+    effects: [
+      { deviceId: 'tape-loop', preset: 'Octave up ghosts', params: { length: 3.08 } },
+      { deviceId: 'swarm-reverb', preset: 'Faint scatter' },
+    ],
+  },
+  {
+    id: 'window-garden-early-light-echo',
+    name: 'Early-light echo',
+    category: 'echo',
+    description:
+      'Two tape heads that make every repeat gallop, then a scooped tone with lows and highs up and the body down.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Two head gallop', params: { time: 648 } },
+      { deviceId: 'ambient-eq', preset: 'Hollow' },
     ],
   },
   {
@@ -572,35 +567,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Garden sampler',
     category: 'tape',
     description:
-      'Early sampler converters, then only the two detuned copies, hard left and right, into a tight damped little room that is barely there.',
+      'Early sampler converters, then detuned copies heard alone, into a tight, damped little room close around the sound.',
     effects: [
       { deviceId: 'vintage-digital', preset: 'Sampler' },
       { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 15.2 } },
       { deviceId: 'plate-reverb', preset: 'Tight room' },
-    ],
-  },
-  {
-    id: 'window-garden-glazed-glass',
-    name: 'Glazed glass',
-    category: 'tape',
-    description:
-      'Unfiltered old converters, then detuned copies of the highs only, the body left as it was, into a small plain room.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Glassy' },
-      { deviceId: 'stereo-detune', preset: 'Top only' },
-      { deviceId: 'fdn-reverb', preset: 'Room' },
-    ],
-  },
-  {
-    id: 'window-garden-bits-by-the-hedge',
-    name: 'Bits by the hedge',
-    category: 'tape',
-    description:
-      'A thin twelve-bit glaze, then two soft detuned copies, into a small damped room that is over within a second.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Glaze' },
-      { deviceId: 'stereo-detune', preset: 'Soft halo' },
-      { deviceId: 'ether-reverb', preset: 'Room' },
     ],
   },
   {
@@ -620,22 +591,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-tape-on-stone',
-    name: 'Tape on stone',
-    category: 'tape',
-    description:
-      'A reel of tape at middle speed, with a little drift and hiss, then whole phrases coming back three times, each one duller.',
-    effects: [
-      { deviceId: 'tape', preset: 'Quarter inch', params: { output: 2.11 } },
-      { deviceId: 'cascade', preset: 'Phrase returns', params: { time: 1590 } },
-    ],
-  },
-  {
     id: 'window-garden-morning-radio',
     name: 'Morning radio',
     category: 'tape',
     description:
-      'A quick slap while short glimpses of earlier notes return, then a clear transistor radio, into an undamped hall.',
+      'A close echo and glimpses, then a small mono transistor radio with a clear, steady signal, into an undamped hall.',
     effects: [
       { deviceId: 'echo-memory', preset: 'Glimpses' },
       { deviceId: 'radio', preset: 'Clean transistor' },
@@ -647,37 +607,73 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-white-wall-loop',
-    name: 'White-wall loop',
+    id: 'window-garden-sampler-before-noon',
+    name: 'Sampler before noon',
     category: 'tape',
     description:
-      'A short loop at double speed, an octave up and soon gone, then the converters of an early sampler, twelve bits, low rate.',
+      'Early sampler converters, then a sharp and a flat copy of the highs only, to either side, into a tight little room.',
     effects: [
-      { deviceId: 'micro-looper', preset: 'Octave up', params: { length: 1.24 } },
       { deviceId: 'vintage-digital', preset: 'Sampler' },
+      { deviceId: 'stereo-detune', preset: 'Top only' },
+      { deviceId: 'plate-reverb', preset: 'Tight room' },
     ],
   },
   {
-    id: 'window-garden-footbridge-deck',
-    name: 'Footbridge deck',
+    id: 'window-garden-tea-room-glass',
+    name: 'Tea-room glass',
     category: 'tape',
     description:
-      'A tape-style curve only just leaned on, then a fast, steady reel pushed into soft saturation, into a sparkling small room.',
+      'Glassy old converters, then a sharp and a flat copy of the highs only, to either side, into a bright chamber.',
     effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'tape', preset: 'Mastering deck', params: { output: -2.96 } },
-      { deviceId: 'shimmer', preset: 'Sparkle room', params: { decay: 1.28, predelay: 20.2 } },
+      { deviceId: 'vintage-digital', preset: 'Glassy' },
+      { deviceId: 'stereo-detune', preset: 'Top only' },
+      { deviceId: 'ether-reverb', preset: 'Bright chamber' },
     ],
   },
   {
-    id: 'window-garden-tape-from-indoors',
-    name: 'Tape from indoors',
+    id: 'window-garden-sampler-in-a-vitrine',
+    name: 'Sampler in a vitrine',
     category: 'tape',
     description:
-      'A fresh reel of tape, open on top and nearly steady, then a tape echo whose warm repeats soften as they fade.',
+      'A hot console channel, forward in the upper mids, then a grainy early sampler, into a brief swell of reverb close behind each note.',
     effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'tape-echo', preset: 'Warm repeats', params: { time: 418 } },
+      { deviceId: 'analog-drive', preset: 'Hot channel' },
+      { deviceId: 'patina', preset: 'Early sampler', params: { output: -2.26 } },
+      { deviceId: 'shaped-reverb', preset: 'Short halo', params: { time: 0.279 } },
+    ],
+  },
+  {
+    id: 'window-garden-veranda-grain',
+    name: 'Veranda grain',
+    category: 'tape',
+    description:
+      'The first hint of weight from a tape preamp, then five-bit converters fed hot, coarse and grainy on every note, into a bright chamber.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint', params: { output: -2.18 } },
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
+      { deviceId: 'expanse', preset: 'Bright chamber' },
+    ],
+  },
+  {
+    id: 'window-garden-tape-in-the-shade',
+    name: 'Tape in the shade',
+    category: 'tape',
+    description:
+      'A thick, soft cassette, full in the lows and dull on top, then dotted tape repeats that bounce from side to side.',
+    effects: [
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { time: 601 } },
+    ],
+  },
+  {
+    id: 'window-garden-shaded-sampler',
+    name: 'Shaded sampler',
+    category: 'tape',
+    description:
+      'Smooth, dull converters with a hiss that rides high notes, then a scooped tone with lows and highs up and the body down.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Jittery' },
+      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.62 } },
     ],
   },
   {
@@ -685,7 +681,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Heron swell',
     category: 'motion',
     description:
-      'A hollow three-voice chorus swelling over about ten seconds, into a thin veil of reverb kept low under the sound.',
+      'A hollow chorus that swells over about ten seconds, into a thin veil of reverb kept low under the sound.',
     effects: [
       { deviceId: 'chorus', preset: 'Hollow swell' },
       { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { decay: 2.2, breathRate: 0.296 } },
@@ -696,7 +692,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Koi-pond chorus',
     category: 'motion',
     description:
-      'A light two-voice chorus that widens more than it moves, into a tight chamber close round the sound for about a second.',
+      'A light chorus that widens more than it moves, into a tight chamber close round the sound for about a second.',
     effects: [
       { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.323, delayMs: 7.05 } },
       { deviceId: 'hall-reverb', preset: 'Tight chamber' },
@@ -707,7 +703,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'East-wing drift',
     category: 'motion',
     description:
-      'Three voices drifting over a cycle of about twelve seconds, into the close reflections of a very small room.',
+      'A wide chorus drifting over a cycle of about twelve seconds, into the close reflections of a very small room.',
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.0885, delayMs: 26.6 } },
       {
@@ -722,21 +718,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Chorus on a bench',
     category: 'motion',
     description:
-      'Three voices drifting over a cycle of about twelve seconds, into a small plain room that is over in about a second.',
+      'A wide chorus drifting over a cycle of about twelve seconds, into a small plain room that is over in about a second.',
     effects: [
       { deviceId: 'chorus', preset: 'Slow drift' },
       { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.32, breathRate: 0.267 } },
-    ],
-  },
-  {
-    id: 'window-garden-chorus-in-no-hurry',
-    name: 'Chorus in no hurry',
-    category: 'motion',
-    description:
-      'A shallow three-voice chorus that thickens above the lows, into a small room that is over in about a second.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Vocal thickener', params: { rate: 0.38, delayMs: 18.6 } },
-      { deviceId: 'hall-reverb', preset: 'Room' },
     ],
   },
   {
@@ -744,7 +729,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wagtail chorus',
     category: 'motion',
     description:
-      'A three-voice chorus that leaves the lows dry and steady, into a faint short reverb with a slight upward drift.',
+      'A chorus on the upper range that leaves the lows steady, into a faint short reverb with a slight upward drift.',
     effects: [
       { deviceId: 'chorus', preset: 'Guitar shimmer' },
       { deviceId: 'bloom-reverb', preset: 'Faint glow', params: { decay: 3.15 } },
@@ -755,7 +740,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Garden sway',
     category: 'motion',
     description:
-      'A slow pan, then two tape heads that make every repeat gallop, into a hall with about two and a half seconds of tail.',
+      'A slow pan from side to side, a few seconds each way, then two tape heads that make every repeat gallop, into a mid-sized hall.',
     effects: [
       { deviceId: 'tremolo', preset: 'Slow pan' },
       { deviceId: 'tape-echo', preset: 'Two head gallop' },
@@ -763,107 +748,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-lantern-chorus',
-    name: 'Lantern chorus',
-    category: 'motion',
-    description:
-      'A trace of chorus on the top of the sound only, then a steady tape echo with no wobble, dirt or dulling, into a quiet late plate.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Faint air', params: { rate: 0.265, delayMs: 9.6 } },
-      { deviceId: 'tape-echo', preset: 'Clean and steady', params: { time: 401 } },
-      { deviceId: 'plate-reverb', preset: 'Faint sheen' },
-    ],
-  },
-  {
     id: 'window-garden-flanger-in-daylight',
     name: 'Flanger in daylight',
     category: 'motion',
     description:
-      'A very short flanger swept nearly down to nothing, into a wide hall that answers about a fifth of a second late.',
+      'A deep flanger that sweeps right up through the top, into a wide hall that answers about a fifth of a second late.',
     effects: [
       { deviceId: 'flanger', preset: 'Through-zero feel', params: { rate: 0.313, delayMs: 0.763 } },
       { deviceId: 'ether-reverb', preset: 'Late hall' },
-    ],
-  },
-  {
-    id: 'window-garden-reading-room-hollow',
-    name: 'Reading-room hollow',
-    category: 'motion',
-    description:
-      'A hollow phaser with peaks where its notches would be, into a tight cluster of echoes close behind each note.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.238 } },
-      { deviceId: 'swarm-reverb', preset: 'Tight swarm' },
-    ],
-  },
-  {
-    id: 'window-garden-pine-shade-ripple',
-    name: 'Pine-shade ripple',
-    category: 'motion',
-    description:
-      'A faint, very slow phasing that barely stirs the sound, then a jet-plane flanger sweep with a sharper comb.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Still water', params: { delay: 5.63, lfoRate: 0.0452 } },
-      { deviceId: 'flanger', preset: 'Classic jet', params: { rate: 0.279, delayMs: 2.66 } },
-    ],
-  },
-  {
-    id: 'window-garden-pan-on-the-sill',
-    name: 'Pan on the sill',
-    category: 'motion',
-    description:
-      'A slow pan from side to side, a few seconds each way, into a small plate that is gone in a second or two.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Slow pan' },
-      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 11.1 } },
-    ],
-  },
-  {
-    id: 'window-garden-pan-on-gravel',
-    name: 'Pan on gravel',
-    category: 'motion',
-    description:
-      'A wavering double spread wide to both sides, then a pan that wanders to a new place every second or so.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Doubler' },
-      { deviceId: 'tremolo', preset: 'Wandering pan', params: { rate: 0.682 } },
-    ],
-  },
-  {
-    id: 'window-garden-pondside-ripple',
-    name: 'Pondside ripple',
-    category: 'motion',
-    description:
-      'A faint, very slow phasing that barely stirs the sound, into a small chapel with a short sung eh in its tail.',
-    effects: [
-      {
-        deviceId: 'freq-shifter',
-        preset: 'Still water',
-        params: { delay: 5.46, lfoRate: 0.0516, mix: 0.21 },
-      },
-      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { mix: 0.18 } },
-    ],
-  },
-  {
-    id: 'window-garden-ensemble-among-ferns',
-    name: 'Ensemble among ferns',
-    category: 'motion',
-    description:
-      'A thick three-voice ensemble chorus that turns slowly, then a rumble cut and a single decibel of presence.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Lush ensemble' },
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-    ],
-  },
-  {
-    id: 'window-garden-tide-on-stone',
-    name: 'Tide on stone',
-    category: 'motion',
-    description:
-      'A slow phasing drift from partials moved less than a hertz, then a low cut and a small dip in the low mids, to make room.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Slow drift', params: { delay: 50.3, lfoRate: 0.0789 } },
-      { deviceId: 'ambient-eq', preset: 'Layer', params: { clearTime: 1.32 } },
     ],
   },
   {
@@ -871,21 +763,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Overcast chorus',
     category: 'motion',
     description:
-      'A tape preamp pushed just enough to add weight, then a three-voice chorus spread wide across the sides.',
+      'A tape preamp pushed just enough to add weight, then a full chorus spread wide to left and right.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Warm glue' },
       { deviceId: 'chorus', preset: 'Wide chorus' },
-    ],
-  },
-  {
-    id: 'window-garden-early-light-pan',
-    name: 'Early-light pan',
-    category: 'motion',
-    description:
-      'A light two-voice chorus that widens more than it moves, then a slow pan from side to side, a few seconds each way.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.336, delayMs: 8.91 } },
-      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.154 } },
     ],
   },
   {
@@ -893,26 +774,135 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Camellia chorus',
     category: 'motion',
     description:
-      'A thick three-voice ensemble chorus that turns slowly, into a clean speaker in a room, miked from well back.',
+      'A thick ensemble chorus turning about every two seconds, into a clean speaker heard from well back in a room.',
     effects: [
       { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.513, delayMs: 17.7 } },
       { deviceId: 're-amp', preset: 'Just the room', params: { output: 3.74 } },
     ],
   },
   {
-    id: 'window-garden-sparrow-rotor',
-    name: 'Sparrow rotor',
+    id: 'window-garden-paper-screen-chorus',
+    name: 'Paper-screen chorus',
     category: 'motion',
     description:
-      'A slow dark bass rotor, then a short, soft tape echo close behind the playing, into a hall whose top rings on while its lows stop short.',
+      'A full chorus spread wide to left and right, into a small room that is over in about a second.',
     effects: [
-      { deviceId: 'rotary', preset: 'Dark drum' },
-      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 142 } },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { rate: 0.872, delayMs: 11.7 } },
+      { deviceId: 'hall-reverb', preset: 'Room' },
+    ],
+  },
+  {
+    id: 'window-garden-gallery-chorus',
+    name: 'Gallery chorus',
+    category: 'motion',
+    description:
+      'A thin chorus of one copy bending against the dry sound, then a gentle high cut that shades the top end.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Slow chorus' },
+      { deviceId: 'ambient-eq', preset: 'Shaded', params: { clearTime: 1.39 } },
+    ],
+  },
+  {
+    id: 'window-garden-flanger-in-the-foyer',
+    name: 'Flanger in the foyer',
+    category: 'motion',
+    description:
+      'A hollow flanger that sweeps every two or three seconds, into a cloud of reverb that swells in after each note and fades.',
+    effects: [
+      { deviceId: 'flanger', preset: 'Negative hollow', params: { rate: 0.392, delayMs: 1.63 } },
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.23 } },
+    ],
+  },
+  {
+    id: 'window-garden-pond-skater-sway',
+    name: 'Pond-skater sway',
+    category: 'motion',
+    description:
+      'A bright, lean console channel driven for an edge on top, then the tone rocking slowly from dark to bright, sides opposed.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Sheen' },
+      { deviceId: 'tremolo', preset: 'Tilting tone', params: { rate: 0.281 } },
+    ],
+  },
+  {
+    id: 'window-garden-pondside-sway',
+    name: 'Pondside sway',
+    category: 'motion',
+    description:
+      'A stereo image at its widest, with one side a touch late, then a deep slow chorus on a long delay, swaying over seconds.',
+    effects: [
+      { deviceId: 'stereo-widener', preset: 'Ultra wide' },
+      { deviceId: 'chorus', preset: 'Deep sea' },
+    ],
+  },
+  {
+    id: 'window-garden-skylight-drift',
+    name: 'Skylight drift',
+    category: 'motion',
+    description:
+      'A pan that wanders to a new place every second or so, into a small plain room that is over in about a second.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Wandering pan', params: { rate: 0.677 } },
+      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.27, breathRate: 0.278 } },
+    ],
+  },
+  {
+    id: 'window-garden-phaser-on-stone',
+    name: 'Phaser on stone',
+    category: 'motion',
+    description:
+      'A phaser with no dry sound, pulling the two sides apart, into a hall whose lows ring on long after the rest has gone.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Stereo scatter', params: { rate: 0.229 } },
       {
         deviceId: 'hall-reverb',
-        preset: 'Airy tail',
-        params: { preDelay: 28.3, lowDecay: 1.07, midDecay: 4.86 },
+        preset: 'Warm undertow',
+        params: { preDelay: 56.3, lowDecay: 7.48, midDecay: 1.96 },
       },
+    ],
+  },
+  {
+    id: 'window-garden-opening-hour-sway',
+    name: 'Opening-hour sway',
+    category: 'motion',
+    description:
+      'A slow pan from side to side, a few seconds each way, into a small room that sparkles two octaves above the sound.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.152 } },
+      { deviceId: 'shimmer', preset: 'Sparkle room', params: { decay: 1.18, predelay: 20.6 } },
+    ],
+  },
+  {
+    id: 'window-garden-tide-on-gravel',
+    name: 'Tide on gravel',
+    category: 'motion',
+    description:
+      'A deep slow chorus on a long delay, swaying over seconds, into a reverb that fades evenly to nothing in a second or two.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.154 } },
+      { deviceId: 'shaped-reverb', preset: 'Falling' },
+    ],
+  },
+  {
+    id: 'window-garden-unhurried-sway',
+    name: 'Unhurried sway',
+    category: 'motion',
+    description:
+      'A light chorus that widens more than it moves, then a slow pan from side to side, a few seconds each way.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Subtle widener', params: { rate: 0.313, delayMs: 7.42 } },
+      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.153 } },
+    ],
+  },
+  {
+    id: 'window-garden-phaser-before-noon',
+    name: 'Phaser before noon',
+    category: 'motion',
+    description:
+      'A hollow peaking phaser that turns about every four seconds, into a small plain room that is over in about a second.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Negative notch', params: { rate: 0.281 } },
+      { deviceId: 'fdn-reverb', preset: 'Room', params: { decay: 1.11, breathRate: 0.289 } },
     ],
   },
   {
@@ -935,7 +925,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'White-wall organ',
     category: 'texture',
     description:
-      'A steady, unmoving voice per note, like organ pipes, into a tight damped little room that is barely there.',
+      'A still, steady tone like organ pipes under each note, into a tight, damped little room close around the sound.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Still pipes' },
       { deviceId: 'plate-reverb', preset: 'Tight room' },
@@ -957,43 +947,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Swell in pine shade',
     category: 'texture',
     description:
-      "A smooth swell on every note, like a string section's bows, into the close reflections of a very small room.",
+      'A smooth swell that brings every note in like bowed strings, into the close reflections of a very small room.',
     effects: [
       { deviceId: 'swell', preset: 'String section' },
       { deviceId: 'fdn-reverb', preset: 'Short ambience' },
-    ],
-  },
-  {
-    id: 'window-garden-skylight-halo',
-    name: 'Skylight halo',
-    category: 'texture',
-    description:
-      'A faint swell of octave loops behind each note, then a mid-forward tone with the lows and the top trimmed.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Faint halo', params: { mix: 0.09 } },
-      { deviceId: 'ambient-eq', preset: 'Forward', params: { clearTime: 1.68 } },
-    ],
-  },
-  {
-    id: 'window-garden-closed-day-drops',
-    name: 'Closed-day drops',
-    category: 'texture',
-    description:
-      'Scattered short grains an octave up, falling like rain, into an undamped hall with about three seconds of tail.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Octave rain', params: { size: 98.5, density: 6.3 } },
-      { deviceId: 'fdn-reverb', preset: 'Bright air', params: { decay: 3.35, breathRate: 0.28 } },
-    ],
-  },
-  {
-    id: 'window-garden-hushed-organ',
-    name: 'Hushed organ',
-    category: 'texture',
-    description:
-      'A steady, unmoving voice per note, like organ pipes, then a deep slow chorus on a long delay, swaying over seconds.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Still pipes' },
-      { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.138 } },
     ],
   },
   {
@@ -1001,10 +958,43 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Atrium grains',
     category: 'texture',
     description:
-      'A scattered cloud of long grains, some an octave up, then a clean, steady echo with no wobble and an open top.',
+      'A scattered cloud of long grains, some an octave up, then a clean, steady echo with no wobble and little dulling.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Slow cloud', params: { size: 252, delay: 131 } },
       { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 199, modRate: 0.589 } },
+    ],
+  },
+  {
+    id: 'window-garden-paper-screen-halo',
+    name: 'Paper-screen halo',
+    category: 'texture',
+    description:
+      'A thin held pad with no lows that swells in behind the notes, then a long slow flanger, nearly a chorus, opposite on each side.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Thin halo' },
+      { deviceId: 'flanger', preset: 'Wide wash', params: { rate: 0.142, delayMs: 8.36 } },
+    ],
+  },
+  {
+    id: 'window-garden-cypress-strings',
+    name: 'Cypress strings',
+    category: 'texture',
+    description:
+      'A string pad with a second section an octave above, then a dark slow rotating speaker that mostly turns the lows.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Octave halo', params: { rise: 1.01, fall: 5.18 } },
+      { deviceId: 'rotary', preset: 'Dark drum' },
+    ],
+  },
+  {
+    id: 'window-garden-pebble-swell',
+    name: 'Pebble swell',
+    category: 'texture',
+    description:
+      'A late swell on every note like a rocked volume pedal, then a sharp and a flat copy kept in the centre, thick not wide.',
+    effects: [
+      { deviceId: 'swell', preset: 'Volume pedal', params: { attack: 277, release: 162 } },
+      { deviceId: 'stereo-detune', preset: 'Thickener' },
     ],
   },
   {
@@ -1052,127 +1042,129 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'window-garden-octave-catching-sun',
-    name: 'Octave catching sun',
-    category: 'pitch',
-    description:
-      'A single voice an octave above the dry sound, then an early sampler at a low rate, its top filtered away.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Octave up', params: { size: 67.4 } },
-      { deviceId: 'patina', preset: 'Muffled sampler' },
-    ],
-  },
-  {
     id: 'window-garden-ginkgo-chord',
     name: 'Ginkgo chord',
     category: 'pitch',
     description:
-      'A pure-tuned third and fifth above, with an octave below, into a short reverb that swells in just after each note.',
+      'A pure-tuned third, fifth and low octave in C major, into a short reverb that swells in just after each note.',
     effects: [
       { deviceId: 'lattice', preset: 'Just intonation triad', params: { output: 4.48 } },
       { deviceId: 'expanse', preset: 'Quick swell' },
     ],
   },
   {
-    id: 'window-garden-tea-room-glint',
-    name: 'Tea-room glint',
+    id: 'window-garden-footbridge-octave',
+    name: 'Footbridge octave',
     category: 'pitch',
     description:
-      'A faint octave above each note, slightly detuned, into deep voices on an ee that come in late behind each note.',
+      'A detuned octave above each note, like doubled strings, then a thin twelve-bit glaze from converters at a moderate rate.',
     effects: [
-      { deviceId: 'octaves', preset: 'Faint octave' },
-      { deviceId: 'vowel-reverb', preset: 'Late basses', params: { decay: 6.66, preDelay: 187 } },
+      { deviceId: 'octaves', preset: 'Twelve string' },
+      { deviceId: 'vintage-digital', preset: 'Glaze' },
     ],
   },
   {
-    id: 'window-garden-halo-after-drizzle',
-    name: 'Halo after drizzle',
+    id: 'window-garden-porcelain-sevenths',
+    name: 'Porcelain sevenths',
     category: 'pitch',
     description:
-      'A quiet fifth and octave above the line, a touch late, then a slow comb sliding against the dry sound, sides opposed.',
+      'A third, fifth and seventh above each note, in C major, then a thin band of tone with the lows cut and the top rolled off.',
     effects: [
-      { deviceId: 'lattice', preset: 'Quiet fifth halo' },
-      { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.0887 } },
+      { deviceId: 'lattice', preset: 'Seventh chord stack', params: { output: 7.33 } },
+      { deviceId: 'ambient-eq', preset: 'Thin', params: { clearTime: 1.45 } },
     ],
   },
   {
-    id: 'window-garden-camellia-iron',
-    name: 'Camellia iron',
-    category: 'master',
+    id: 'window-garden-bamboo-sparks',
+    name: 'Bamboo sparks',
+    category: 'pitch',
     description:
-      'A transformer that fills out the lows and dulls the top, then a fast, firm compressor that stops only the peaks, then a safety limiter.',
+      'Scattered sparks two octaves up, echoing higher still, into a thin veil of reverb kept low under the sound.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { attack: 10.8, release: 0.194 } },
-      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: -3.04 } },
+      { deviceId: 'pitch-shifter', preset: 'High sparks' },
+      { deviceId: 'fdn-reverb', preset: 'Thin veil' },
     ],
   },
   {
-    id: 'window-garden-overcast-grain',
-    name: 'Overcast grain',
+    id: 'window-garden-veranda-finish',
+    name: 'Veranda finish',
     category: 'master',
     description:
-      'An early sampler whose quiet tails crumble into grain, then a safety limiter with its ceiling brought down a little.',
+      'A stereo image widened a little, with the bass left central, then a true-peak ceiling set two decibels under full scale.',
     effects: [
-      { deviceId: 'patina', preset: 'Early sampler' },
-      { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: -0.514 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.57 } },
     ],
   },
   {
-    id: 'window-garden-glue-in-the-foyer',
-    name: 'Glue in the foyer',
+    id: 'window-garden-daylight-finish',
+    name: 'Daylight finish',
     category: 'master',
     description:
-      'A warm, full equaliser, then a pluck-taming compressor, then a fast limiter with the level lifted a little into it.',
+      'A fresh reel of tape, open on top and nearly steady, then a true-peak ceiling that lets go again over several seconds.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.46 } },
-      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { release: 0.143 } },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -4.68 } },
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
   {
-    id: 'window-garden-weekday-tape',
-    name: 'Weekday tape',
+    id: 'window-garden-sun-warmed-polish',
+    name: 'Sun-warmed polish',
     category: 'master',
     description:
-      'A tape-style curve that rounds the peaks and dulls the top, then a true-peak ceiling that eases long swells down first.',
+      'The first hint of weight from a tape preamp, then a subsonic cut, then a true-peak ceiling that eases long swells down first.',
     effects: [
-      { deviceId: 'saturator', preset: 'On tape' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -3.28 } },
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.66 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
   {
-    id: 'window-garden-tea-bowl-scoop',
-    name: 'Tea-bowl scoop',
+    id: 'window-garden-overcast-lacquer',
+    name: 'Overcast lacquer',
     category: 'master',
     description:
-      'A scooped tone with lows and highs up and the body down, then a true-peak ceiling six decibels down, with room to spare.',
+      'A fresh reel of tape, open on top and nearly steady, then a parallel compressor that lifts quiet playing and tails, then a safety limiter.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Hollow' },
-      { deviceId: 'ambient-limiter', preset: 'Margin' },
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 415, release: 2.69 } },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
     ],
   },
   {
-    id: 'window-garden-bamboo-room',
-    name: 'Bamboo room',
+    id: 'window-garden-stone-basin-master',
+    name: 'Stone-basin master',
     category: 'master',
     description:
-      'A small room that is over in about a second, then a true-peak ceiling with the level pushed up into it.',
+      'A rumble cut and a small lift of presence, then a slow compressor that evens out swells over seconds, then a smooth true-peak ceiling.',
     effects: [
-      { deviceId: 'hall-reverb', preset: 'Room', params: { preDelay: 32.7, midDecay: 1.1 } },
-      { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.22, gain: -0.0618 } },
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.35 } },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 285, release: 2.17 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
   {
-    id: 'window-garden-pebble-tape',
-    name: 'Pebble tape',
+    id: 'window-garden-polish-on-tatami',
+    name: 'Polish on tatami',
     category: 'master',
     description:
-      'A clean pass over fast new tape, with nothing added, then a gentle compressor, then a true-peak ceiling set two decibels under full scale.',
+      'Light tape-style saturation, then a gentle compressor, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
-      { deviceId: 'tape', preset: 'Clean transfer' },
-      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 104, release: 1.82 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { gain: 2.37 } },
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 111, release: 2.22 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.67 } },
+    ],
+  },
+  {
+    id: 'window-garden-cloakroom-mixdown',
+    name: 'Cloakroom mixdown',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a subsonic cut with the low mids and the presence eased, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
     ],
   },
 ]

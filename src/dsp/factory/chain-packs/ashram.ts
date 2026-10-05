@@ -7,17 +7,6 @@ import { type FactoryChain } from '../types'
 
 export const CHAINS: readonly FactoryChain[] = [
   {
-    id: 'ashram-twilight-strings',
-    name: 'Twilight strings',
-    category: 'space',
-    description:
-      'Eight strings in C major that ring on as under a held pedal, into a long plate with a wide and even tail.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Piano pedal' },
-      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 37.9 } },
-    ],
-  },
-  {
     id: 'ashram-garland-wash',
     name: 'Garland wash',
     category: 'space',
@@ -33,54 +22,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-incense-strings',
-    name: 'Incense strings',
-    category: 'space',
-    description:
-      'Five strings in F major that ring for about half a second, into a dark plate whose tail is soft on top.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Brief pluck' },
-      { deviceId: 'plate-reverb', preset: 'Dark plate' },
-    ],
-  },
-  {
-    id: 'ashram-strings-for-evening',
-    name: 'Strings for evening',
-    category: 'space',
-    description:
-      'A brief ring of sixteen strings behind each note, into a large space whose tail swells in behind each note.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Short halo', params: { decay: 0.857 } },
-      { deviceId: 'expanse', preset: 'Bloom', params: { decay: 13.3, modRate: 0.282 } },
-    ],
-  },
-  {
-    id: 'ashram-camphor-strings',
-    name: 'Camphor strings',
-    category: 'space',
-    description:
-      'Four long strings on an A minor chord held in the centre, into a large hall whose tail rises and falls every few seconds.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Centre drone' },
-      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 7.21, breathRate: 0.186 } },
-    ],
-  },
-  {
-    id: 'ashram-devotional-room',
-    name: 'Devotional room',
-    category: 'space',
-    description:
-      'A sharp copy on the left and a flat one on the right, into a small room that is over in about a second.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic', params: { delay: 12.8 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Room',
-        params: { preDelay: 33.1, lowDecay: 1.54, midDecay: 1.32 },
-      },
-    ],
-  },
-  {
     id: 'ashram-wash-at-the-gate',
     name: 'Wash at the gate',
     category: 'space',
@@ -89,17 +30,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'lattice', preset: 'Tuned double', params: { v1Delay: 15.7, v2Delay: 30.5 } },
       { deviceId: 'plate-reverb', preset: 'Endless wash' },
-    ],
-  },
-  {
-    id: 'ashram-orange-grove-plate',
-    name: 'Orange-grove plate',
-    category: 'space',
-    description:
-      'A plate heard alone with none of the dry sound left, then a compressor as slow as a hand on a fader.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Full wet send' },
-      { deviceId: 'ambient-comp', preset: 'Slow fader', params: { makeup: -0.119 } },
     ],
   },
   {
@@ -118,7 +48,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall in dry hills',
     category: 'space',
     description:
-      'An amplifier stack, all bass, with the mic turned away, into a fully damped hall with a few seconds of tail.',
+      'A dark amplifier stack with the bass full up and no treble, into a fully damped hall with a few seconds of tail.',
     effects: [
       { deviceId: 're-amp', preset: 'Dark and woolly', params: { output: -2.86 } },
       { deviceId: 'ether-reverb', preset: 'Dark hall', params: { predelayMs: 18.1 } },
@@ -129,21 +59,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Dusk cathedral',
     category: 'space',
     description:
-      'A single saturated tape slap behind each note, into a cathedral whose long tail sings a soft open ah.',
+      'A single saturated tape echo close behind each note, into a cathedral whose long tail sings a soft open ah.',
     effects: [
       { deviceId: 'tape-echo', preset: 'Single slap', params: { time: 99.5 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 20.5, preDelay: 41.8 } },
-    ],
-  },
-  {
-    id: 'ashram-back-room-strings',
-    name: 'Back-room strings',
-    category: 'space',
-    description:
-      'Four strings that retune to what is played and ring briefly, into a huge bright space with a wide and very long tail.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Echo the tune', params: { mix: 0.24 } },
-      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 35.4, mix: 0.24 } },
     ],
   },
   {
@@ -151,21 +70,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Plate till daybreak',
     category: 'space',
     description:
-      'A bowed swell at half strength under the dry attacks, into a far-off plate with a long soft tail and little dry sound.',
+      'A bowed swell that lets part of each attack through, into a far-off plate haze with a long, soft tail.',
     effects: [
       { deviceId: 'swell', preset: 'Half bowed', params: { attack: 263, release: 135 } },
       { deviceId: 'plate-reverb', preset: 'Distant haze' },
-    ],
-  },
-  {
-    id: 'ashram-hum-in-marigolds',
-    name: 'Hum in marigolds',
-    category: 'space',
-    description:
-      'A heavy low shelf that puts weight under the sound, into a dull closed-mouth hum of deep voices behind the sound.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.75 } },
-      { deviceId: 'vowel-reverb', preset: 'Humming', params: { decay: 9.06, preDelay: 19.4 } },
     ],
   },
   {
@@ -191,55 +99,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-choir-by-the-creek',
-    name: 'Choir by the creek',
-    category: 'space',
-    description:
-      'A vast reverb where most of the tail climbs by octaves, into one slack spring in the centre whose echoes chirp brightly.',
-    effects: [
-      { deviceId: 'shimmer', preset: 'Endless ascent', params: { predelay: 58.6 } },
-      { deviceId: 'spring-reverb', preset: 'Single slack coil', params: { decay: 3.89 } },
-    ],
-  },
-  {
-    id: 'ashram-sway-in-sage',
-    name: 'Sway in sage',
-    category: 'space',
-    description:
-      'A phaser held still, two fixed peaks like a vowel, into a hall whose tail sways in pitch with a trace of the octave.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Still formant' },
-      { deviceId: 'shimmer', preset: 'Swaying hall', params: { decay: 4.15, predelay: 21.8 } },
-    ],
-  },
-  {
-    id: 'ashram-sopranos-on-the-hill',
-    name: 'Sopranos on the hill',
-    category: 'space',
-    description:
-      'A vast hall whose long tail sings a high bright ah, into a huge bright space with a wide and very long tail.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'High choir', params: { decay: 25.2, preDelay: 18.9 } },
-      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { mix: 0.268 } },
-    ],
-  },
-  {
-    id: 'ashram-ghee-lamp-strings',
-    name: 'Ghee-lamp strings',
-    category: 'space',
-    description:
-      'A plain short room whose tail stays at pitch, into sixteen strings that learn the tune and ring on long.',
-    effects: [
-      { deviceId: 'bloom-reverb', preset: 'Still room', params: { decay: 2.7 } },
-      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 9.53 } },
-    ],
-  },
-  {
     id: 'ashram-plate-at-sundown',
     name: 'Plate at sundown',
     category: 'space',
     description:
-      'A tape-style curve that rounds the peaks and dulls the top, into a medium plate with a smooth tail of a few seconds.',
+      'Tape-style saturation that rounds peaks and dulls the top, into a medium plate with a smooth tail of a few seconds.',
     effects: [
       { deviceId: 'saturator', preset: 'On tape' },
       { deviceId: 'plate-reverb', preset: 'Medium plate', params: { predelayMs: 21.5 } },
@@ -250,58 +114,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Room under oaks',
     category: 'space',
     description:
-      'Twelve phaser stages tuned far apart, drifting slowly, into a far-miked room laid in under the clean sound.',
+      'A dense many-notched phaser drifting opposite on each side, into a far-off room laid in under the untouched sound.',
     effects: [
       { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.125 } },
       { deviceId: 're-amp', preset: 'Room underneath', params: { output: 6.57 } },
-    ],
-  },
-  {
-    id: 'ashram-chirp-in-saffron',
-    name: 'Chirp in saffron',
-    category: 'space',
-    description:
-      'Three slack springs where every echo is a long chirp, then a fast, firm compressor that stops only the peaks.',
-    effects: [
-      { deviceId: 'spring-reverb', preset: 'Slack and strange' },
-      { deviceId: 'ambient-comp', preset: 'Peak stop', params: { makeup: -1.68 } },
-    ],
-  },
-  {
-    id: 'ashram-walls-for-the-altar',
-    name: 'Walls for the altar',
-    category: 'space',
-    description:
-      'A triode valve stage, smoothly overdriven, into the close reflections of a very small room.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Triode glow' },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Short ambience',
-        params: { decay: 0.38, breathRate: 0.331 },
-      },
-    ],
-  },
-  {
-    id: 'ashram-strings-at-the-gate',
-    name: 'Strings at the gate',
-    category: 'space',
-    description:
-      "A smooth swell on every note, like a string section's bows, into eight strings in C major that ring on as under a held pedal.",
-    effects: [
-      { deviceId: 'swell', preset: 'String section', params: { attack: 314, release: 590 } },
-      { deviceId: 'sympathetic', preset: 'Piano pedal', params: { decay: 2.8 } },
-    ],
-  },
-  {
-    id: 'ashram-plate-across-canyon',
-    name: 'Plate across canyon',
-    category: 'space',
-    description:
-      'A far-off plate with a long soft tail and little dry sound, then a big lift of presence and air, with ringing held in check.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.53 } },
-      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.653 } },
     ],
   },
   {
@@ -309,7 +125,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Shrine hall',
     category: 'space',
     description:
-      "A smooth swell on every note, like a string section's bows, into an undamped hall with about three seconds of tail.",
+      'A smooth swell that brings every note in like bowed strings, into an undamped hall with about three seconds of tail.',
     effects: [
       { deviceId: 'swell', preset: 'String section', params: { attack: 363, release: 548 } },
       { deviceId: 'fdn-reverb', preset: 'Bright air' },
@@ -327,36 +143,188 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-veranda-loop',
-    name: 'Veranda loop',
-    category: 'echo',
+    id: 'ashram-stone-step-ring',
+    name: 'Stone-step ring',
+    category: 'space',
     description:
-      'A tape loop whose passes cross from side to side, into a vast space whose tail swells in and hangs a minute or more.',
+      'Sixteen strings in C major that ring for about ten seconds, into a quiet plate tail that comes in late behind each note.',
     effects: [
-      { deviceId: 'tape-loop', preset: 'Crossing sides', params: { length: 1.56 } },
-      { deviceId: 'expanse', preset: 'Event horizon', params: { decay: 58.7 } },
+      { deviceId: 'sympathetic', preset: 'Long ring' },
+      { deviceId: 'plate-reverb', preset: 'Faint sheen' },
     ],
   },
   {
-    id: 'ashram-echo-after-rain',
-    name: 'Echo after rain',
-    category: 'echo',
+    id: 'ashram-doorstep-ring',
+    name: 'Doorstep ring',
+    category: 'space',
     description:
-      'A slow, dull echo from a worn-out bucket-brigade line, into a short reverb that swells in just after each note.',
+      'A brief ring of sixteen C major strings behind each note, into a cathedral with about six seconds of tail.',
     effects: [
-      { deviceId: 'analog-delay', preset: 'Noisy clock' },
-      { deviceId: 'expanse', preset: 'Quick swell', params: { decay: 2.13, modRate: 0.352 } },
+      { deviceId: 'sympathetic', preset: 'Short halo', params: { decay: 0.82 } },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Cathedral',
+        params: { preDelay: 89, lowDecay: 7.35, midDecay: 5.34 },
+      },
     ],
   },
   {
-    id: 'ashram-teak-echo',
-    name: 'Teak echo',
-    category: 'echo',
+    id: 'ashram-ring-by-the-lamp',
+    name: 'Ring by the lamp',
+    category: 'space',
     description:
-      'A slow compressor that evens out swells over seconds, then a dull, wobbling, saturated echo on worn tape.',
+      'Sixteen strings that learn the tune and ring on long, into a hint of open space behind the sound.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Level', params: { makeup: 2.29 } },
-      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 633 } },
+      { deviceId: 'sympathetic', preset: 'Learn and hold' },
+      { deviceId: 'expanse', preset: 'Faint air' },
+    ],
+  },
+  {
+    id: 'ashram-ring-in-saffron',
+    name: 'Ring in saffron',
+    category: 'space',
+    description:
+      'A wide wash of sixteen long strings in D minor, into a wide open space with a slowly wavering tail.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Minor wash', params: { decay: 9.9, mix: 0.504 } },
+      { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.24 } },
+    ],
+  },
+  {
+    id: 'ashram-pilgrim-whisper',
+    name: 'Pilgrim whisper',
+    category: 'space',
+    description:
+      'A fast, steady reel with soft saturation, into a medium hall with only a breath of voice in its tail.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'vowel-reverb', preset: 'Whispering', params: { decay: 3.4, preDelay: 19.7 } },
+    ],
+  },
+  {
+    id: 'ashram-last-set-drone',
+    name: 'Last-set drone',
+    category: 'space',
+    description:
+      'A thin veil of reverb kept low under the sound, into four long strings on an A minor chord held in the centre.',
+    effects: [
+      { deviceId: 'fdn-reverb', preset: 'Thin veil', params: { mix: 0.072 } },
+      { deviceId: 'sympathetic', preset: 'Centre drone', params: { mix: 0.21 } },
+    ],
+  },
+  {
+    id: 'ashram-devotional-choir',
+    name: 'Devotional choir',
+    category: 'space',
+    description:
+      'A soft sung oo that follows a moment behind each note, into a hall whose lows outlast its damped top.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Oo behind' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Dark hall',
+        params: { preDelay: 52.6, lowDecay: 4.49, midDecay: 3.27 },
+      },
+    ],
+  },
+  {
+    id: 'ashram-evening-murmur',
+    name: 'Evening murmur',
+    category: 'space',
+    description:
+      'A dull closed-mouth hum of deep voices behind the sound, into an undamped hall with about three seconds of tail.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Humming', params: { decay: 9.36, preDelay: 17.6 } },
+      { deviceId: 'fdn-reverb', preset: 'Bright air', params: { decay: 2.84, breathRate: 0.272 } },
+    ],
+  },
+  {
+    id: 'ashram-camphor-choir',
+    name: 'Camphor choir',
+    category: 'space',
+    description:
+      'A big lift of the low end that puts weight under the sound, into a hall of deep voices that sing ee late behind each note.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.09 } },
+      { deviceId: 'vowel-reverb', preset: 'Late basses' },
+    ],
+  },
+  {
+    id: 'ashram-fifths-in-no-hurry',
+    name: 'Fifths in no hurry',
+    category: 'space',
+    description:
+      'A reverb whose tail drifts up towards the fifth as it rings, into a hard-driven two-spring tank that answers a moment late.',
+    effects: [
+      { deviceId: 'bloom-reverb', preset: 'Rising fifths', params: { decay: 8.19 } },
+      { deviceId: 'spring-reverb', preset: 'Dub send', params: { decay: 3.05, predelay: 52.7 } },
+    ],
+  },
+  {
+    id: 'ashram-barefoot-cellar',
+    name: 'Barefoot cellar',
+    category: 'space',
+    description:
+      'A dark, driven amplifier stack with the mic off to one side, into a dark cellar of a room that folds the sound to mono.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Warm stack', params: { output: -3.71 } },
+      { deviceId: 'bloom-reverb', preset: 'Narrow cellar', params: { decay: 3.19 } },
+    ],
+  },
+  {
+    id: 'ashram-evening-raga-space',
+    name: 'Evening-raga space',
+    category: 'space',
+    description:
+      'A wide open space with a slowly wavering tail, then a wavering double of the sound spread wide to both sides.',
+    effects: [
+      { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.315 } },
+      { deviceId: 'analog-delay', preset: 'Doubler', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'ashram-canyon-road-choir',
+    name: 'Canyon-road choir',
+    category: 'space',
+    description:
+      'An equaliser that takes presence, air and lows away, into a huge hall whose tail hums a soft oo for a long while.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.4 } },
+      { deviceId: 'vowel-reverb', preset: 'Endless oo' },
+    ],
+  },
+  {
+    id: 'ashram-wash-in-the-grove',
+    name: 'Wash in the grove',
+    category: 'space',
+    description:
+      'A plate wash that hangs on for half a minute, then a fast reel with no hiss, driven hard so peaks are squashed.',
+    effects: [
+      { deviceId: 'plate-reverb', preset: 'Endless wash', params: { predelayMs: 63.5 } },
+      { deviceId: 'tape', preset: 'Hot glue' },
+    ],
+  },
+  {
+    id: 'ashram-dry-creek-choir',
+    name: 'Dry-creek choir',
+    category: 'space',
+    description:
+      'A half-hidden slow swell, then a hall of deep voices that sing ee late behind each note, into three long springs that chirp and drip.',
+    effects: [
+      { deviceId: 'swell', preset: 'Shadow', params: { attack: 1420, release: 317 } },
+      { deviceId: 'vowel-reverb', preset: 'Late basses' },
+      { deviceId: 'spring-reverb', preset: 'Long three spring', params: { decay: 4.23 } },
+    ],
+  },
+  {
+    id: 'ashram-daybreak-ring',
+    name: 'Daybreak ring',
+    category: 'space',
+    description:
+      'A big lift of presence and air, with ringing held in check, into thirteen drone strings in D major kept near the centre.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.531 } },
+      { deviceId: 'sympathetic', preset: 'Sitar drone', params: { mix: 0.24 } },
     ],
   },
   {
@@ -364,21 +332,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Rosewood echo',
     category: 'echo',
     description:
-      'An echo whose repeats hop up a fifth and down a fourth, into a reverb that grows backwards behind each note and cuts off.',
+      'An echo whose repeats hop up a fifth and down a fourth, into a reverb that swells up behind each note and cuts off.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Fifth hop', params: { time: 344, modRate: 0.536 } },
       { deviceId: 'shaped-reverb', preset: 'Reverse', params: { time: 1.3 } },
-    ],
-  },
-  {
-    id: 'ashram-trace-after-rain',
-    name: 'Trace after rain',
-    category: 'echo',
-    description:
-      'A bowed swell at half strength under the dry attacks, then a faint trace of tape echo behind the playing.',
-    effects: [
-      { deviceId: 'swell', preset: 'Half bowed', params: { attack: 323, release: 143 } },
-      { deviceId: 'tape-echo', preset: 'Faint trace', params: { time: 439 } },
     ],
   },
   {
@@ -401,7 +358,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echo on the hill',
     category: 'echo',
     description:
-      'A pan that wanders to a new place every second or so, then a clean, steady echo with no wobble and an open top.',
+      'A pan that wanders to a new place every second or so, then a clean, steady echo with no wobble and little dulling.',
     effects: [
       { deviceId: 'tremolo', preset: 'Wandering pan' },
       { deviceId: 'analog-delay', preset: 'Clean echo' },
@@ -412,7 +369,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echo at the shrine',
     category: 'echo',
     description:
-      'A transformer driven so the low end thickens and loosens, then three tape heads in a row, a cluster on every repeat.',
+      'A transformer driven so the low end thickens and loosens, then a tape echo whose three heads make a cluster of each repeat.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
       { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 580 } },
@@ -434,10 +391,55 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Sway in incense',
     category: 'echo',
     description:
-      'A short echo whose pitch sways like a seasick vibrato, into a hall heard from far off with little dry sound left.',
+      'A short echo whose pitch sways like a seasick vibrato, into a damped hall of about five seconds, heard from far off.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Seasick', params: { time: 165, modRate: 3.11 } },
       { deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.597 } },
+    ],
+  },
+  {
+    id: 'ashram-echo-up-the-canyon',
+    name: 'Echo up the canyon',
+    category: 'echo',
+    description:
+      'A tape echo whose three heads make a cluster of each repeat, into a dull closed-mouth hum of deep voices behind the sound.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 548 } },
+      { deviceId: 'vowel-reverb', preset: 'Humming', params: { decay: 10.7, preDelay: 19.5 } },
+    ],
+  },
+  {
+    id: 'ashram-echo-pitched-low',
+    name: 'Echo pitched low',
+    category: 'echo',
+    description:
+      'A dark slow rotating speaker that mostly turns the lows, then an echo that slides down an octave like tape slowed by hand.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Dark drum' },
+      { deviceId: 'analog-delay', preset: 'Falling tape', params: { time: 507 } },
+    ],
+  },
+  {
+    id: 'ashram-echoes-in-sandalwood',
+    name: 'Echoes in sandalwood',
+    category: 'echo',
+    description:
+      'A nasal horn loudspeaker heard from far across a big room, then a handful of separate echoes that fall away and repeat.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Station platform', params: { output: 4.64 } },
+      { deviceId: 'shaped-reverb', preset: 'Scattered', params: { time: 2.45 } },
+    ],
+  },
+  {
+    id: 'ashram-rose-petal-drift',
+    name: 'Rose-petal drift',
+    category: 'echo',
+    description:
+      'A transformer that fills out the lows and dulls the top, then a wide echo whose repeats drift slowly in pitch, into a very long sung oo.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Low warmth' },
+      { deviceId: 'analog-delay', preset: 'Slow drift', params: { time: 594, modRate: 0.088 } },
+      { deviceId: 'vowel-reverb', preset: 'Endless oo' },
     ],
   },
   {
@@ -456,7 +458,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Live-oak voices',
     category: 'tape',
     description:
-      'A tape reel pushed hard into thick saturation, into a choir of a hall whose vowel wanders on its own.',
+      'A tape reel pushed hard, saturated and thick, into a hall whose choir wanders from vowel to vowel.',
     effects: [
       { deviceId: 'patina', preset: 'Reel pushed hard' },
       { deviceId: 'vowel-reverb', preset: 'Vowel drift', params: { decay: 8.99, preDelay: 22 } },
@@ -467,7 +469,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'After-hours choir',
     category: 'tape',
     description:
-      'A cassette with a full head bump and a rolled-off top, into a large hall whose tail hums a deep oh in bass voices.',
+      'A thick, soft cassette, full in the lows and dull on top, into a large hall whose tail hums a deep oh in bass voices.',
     effects: [
       { deviceId: 'tape', preset: 'Warm thump' },
       { deviceId: 'vowel-reverb', preset: 'Low monks', params: { decay: 12.2, preDelay: 18 } },
@@ -485,28 +487,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-rose-water-sampler',
-    name: 'Rose-water sampler',
-    category: 'tape',
-    description:
-      'A coarse early sampler, gritty, with bright hash on top, then a short, soft tape echo close behind the playing.',
-    effects: [
-      { deviceId: 'patina', preset: 'Eight bit' },
-      { deviceId: 'tape-echo', preset: 'Short and soft' },
-    ],
-  },
-  {
-    id: 'ashram-reel-by-the-creek',
-    name: 'Reel by the creek',
-    category: 'tape',
-    description:
-      'A reel of tape at middle speed, with a little drift and hiss, then a single saturated tape slap behind each note.',
-    effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'tape-echo', preset: 'Single slap' },
-    ],
-  },
-  {
     id: 'ashram-fuzz-with-garlands',
     name: 'Fuzz with garlands',
     category: 'tape',
@@ -518,25 +498,48 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-reel-at-the-gate',
-    name: 'Reel at the gate',
+    id: 'ashram-marigold-tape',
+    name: 'Marigold tape',
     category: 'tape',
     description:
-      'A slow rotating speaker with its amplifier driven hard, then a reel of tape at middle speed, with a little drift and hiss.',
+      'A thick, soft cassette, full in the lows and dull on top, into a large hall whose tail rises and falls every few seconds.',
     effects: [
-      { deviceId: 'rotary', preset: 'Slow burn' },
-      { deviceId: 'tape', preset: 'Quarter inch', params: { output: -3.47 } },
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'fdn-reverb', preset: 'Breathing' },
     ],
   },
   {
-    id: 'ashram-bits-in-the-grove',
-    name: 'Bits in the grove',
+    id: 'ashram-sunday-cassette',
+    name: 'Sunday cassette',
     category: 'tape',
     description:
-      'A wide string pad that never stops shifting and shimmering, then an early sampler at a low rate, its top filtered away.',
+      'A hollow peaking phaser that turns about every four seconds, then a thick, soft cassette, full in the lows and dull on top.',
     effects: [
-      { deviceId: 'pad-follower', preset: 'Restless' },
-      { deviceId: 'patina', preset: 'Muffled sampler' },
+      { deviceId: 'phaser', preset: 'Negative notch' },
+      { deviceId: 'tape', preset: 'Warm thump' },
+    ],
+  },
+  {
+    id: 'ashram-silk-echo',
+    name: 'Silk echo',
+    category: 'tape',
+    description:
+      'A fast, steady reel with soft saturation, then a dull, wobbling, saturated echo on worn tape, into a wide room heard from its far end.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck', params: { output: -2.58 } },
+      { deviceId: 'tape-echo', preset: 'Worn tape', params: { time: 623 } },
+      { deviceId: 'ether-reverb', preset: 'Distant' },
+    ],
+  },
+  {
+    id: 'ashram-record-past-the-gate',
+    name: 'Record past the gate',
+    category: 'tape',
+    description:
+      'An equaliser that adds lows and body and eases the top, then a warped record through a dark cartridge, swaying slowly.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm' },
+      { deviceId: 'vinyl', preset: 'Slow platter' },
     ],
   },
   {
@@ -544,7 +547,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Rose-water rotary',
     category: 'motion',
     description:
-      'A combo amplifier driven hard, miked right on the cone, then a clean slow rotating speaker blended under the dry sound, into a vast nave.',
+      'A combo amplifier driven hard and recorded right up close, then a clean slow rotating speaker blended under the dry sound, into a vast nave.',
     effects: [
       { deviceId: 're-amp', preset: 'Speaker on the edge', params: { output: -5.41 } },
       { deviceId: 'rotary', preset: 'Soft blend' },
@@ -552,39 +555,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-evening-raga-cabinet',
-    name: 'Evening-raga cabinet',
-    category: 'motion',
-    description:
-      'A tape preamp pushed just enough to add weight, then a slow rotating speaker heard through one microphone, into a far-off plate haze.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: -8.6 } },
-      { deviceId: 'rotary', preset: 'Mono cabinet' },
-      { deviceId: 'plate-reverb', preset: 'Distant haze' },
-    ],
-  },
-  {
-    id: 'ashram-sundown-rotary',
-    name: 'Sundown rotary',
-    category: 'motion',
-    description:
-      'A warm amplifier stack, then a slow rotating speaker with its amplifier driven hard, into one dull, late spring.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Warm stack', params: { output: -4.17 } },
-      { deviceId: 'rotary', preset: 'Slow burn' },
-      {
-        deviceId: 'spring-reverb',
-        preset: 'Dark late coil',
-        params: { decay: 4.99, predelay: 74.3 },
-      },
-    ],
-  },
-  {
     id: 'ashram-half-heard-swirl',
     name: 'Half-heard swirl',
     category: 'motion',
     description:
-      'Driven amplifier valves heard through a flat speaker, then a far fast spinning horn, into a long plate with a wide and even tail.',
+      'Amplifier valves driven until they round off every peak, then a far fast rotating speaker, into a long plate with a wide and even tail.',
     effects: [
       { deviceId: 're-amp', preset: 'Just the valves', params: { output: 0.193 } },
       { deviceId: 'rotary', preset: 'Far shimmer' },
@@ -608,103 +583,11 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Satsang rotary',
     category: 'motion',
     description:
-      'A tape-style curve only just leaned on, then a slow rotating speaker heard from across the room, into two taut, long springs.',
+      'Light tape-style saturation, then a slow rotating speaker heard from across the room, into two taut, long springs.',
     effects: [
       { deviceId: 'saturator', preset: 'Soft tape warmth' },
       { deviceId: 'rotary', preset: 'Across the room' },
       { deviceId: 'spring-reverb', preset: 'Tight long tank' },
-    ],
-  },
-  {
-    id: 'ashram-strings-by-the-lamp',
-    name: 'Strings by the lamp',
-    category: 'motion',
-    description:
-      'Sixteen strings that learn the tune and ring on long, then a deep eight-stage phaser with sharp peaks between notches.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 9.4 } },
-      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.213 } },
-    ],
-  },
-  {
-    id: 'ashram-strings-at-sundown',
-    name: 'Strings at sundown',
-    category: 'motion',
-    description:
-      'Thirteen drone strings in D major kept near the centre, then a slow rotating speaker set shallow and mixed half dry.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Sitar drone', params: { decay: 5.28, mix: 0.24 } },
-      { deviceId: 'rotary', preset: 'Faint motion', params: { mix: 0.36 } },
-    ],
-  },
-  {
-    id: 'ashram-whitewashed-harp',
-    name: 'Whitewashed harp',
-    category: 'motion',
-    description:
-      'Sixteen strings in C major that ring for about ten seconds, then three voices drifting over a cycle of about twelve seconds.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Long ring' },
-      { deviceId: 'chorus', preset: 'Slow drift' },
-    ],
-  },
-  {
-    id: 'ashram-harp-after-rain',
-    name: 'Harp after rain',
-    category: 'motion',
-    description:
-      'Sixteen strings that learn the tune and ring on long, then a slow rotating speaker with its amplifier driven hard.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { decay: 8.44, mix: 0.36 } },
-      { deviceId: 'rotary', preset: 'Slow burn' },
-    ],
-  },
-  {
-    id: 'ashram-rotor-in-marigolds',
-    name: 'Rotor in marigolds',
-    category: 'motion',
-    description:
-      'A half-deep swell that leaves a ghost of each attack, then a slow rotating speaker that is mostly its low, dark drum.',
-    effects: [
-      { deviceId: 'swell', preset: 'Ghost pick', params: { attack: 513, release: 136 } },
-      { deviceId: 'rotary', preset: 'Dark drum' },
-    ],
-  },
-  {
-    id: 'ashram-unhurried-sweep',
-    name: 'Unhurried sweep',
-    category: 'motion',
-    description:
-      'A short swell that rounds the front off every note, then a resonant low-pass that swings open about every two seconds.',
-    effects: [
-      { deviceId: 'swell', preset: 'Slow attack', params: { attack: 155, release: 78.1 } },
-      {
-        deviceId: 'auto-filter',
-        preset: 'Dub sweep',
-        params: { lfoRateHz: 0.508, envAttackMs: 11.1, envReleaseMs: 207 },
-      },
-    ],
-  },
-  {
-    id: 'ashram-ensemble-in-sage',
-    name: 'Ensemble in sage',
-    category: 'motion',
-    description:
-      'A thick three-voice ensemble chorus that turns slowly, into a small dark room that is gone in about a second.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Lush ensemble' },
-      { deviceId: 'expanse', preset: 'Small dark room' },
-    ],
-  },
-  {
-    id: 'ashram-turmeric-speaker',
-    name: 'Turmeric speaker',
-    category: 'motion',
-    description:
-      'A slow rotating speaker heard from across the room, into a dark hall that takes about twenty seconds to die away.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Across the room' },
-      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0709 } },
     ],
   },
   {
@@ -719,147 +602,220 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-phaser-for-the-altar',
-    name: 'Phaser for the altar',
-    category: 'motion',
-    description:
-      'A warm amplifier stack, then a trace of slow four-stage phaser under the dry sound, into a long undamped tail kept low behind the sound.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Warm stack' },
-      { deviceId: 'phaser', preset: 'Faint shade' },
-      { deviceId: 'ether-reverb', preset: 'Shining tail' },
-    ],
-  },
-  {
-    id: 'ashram-sun-warmed-platter',
-    name: 'Sun-warmed platter',
-    category: 'motion',
-    description:
-      'A warped record through a dark cartridge, swaying slowly, into the drifting tail of a long reverb with no dry sound.',
-    effects: [
-      { deviceId: 'vinyl', preset: 'Slow platter', params: { spin: 4.45 } },
-      { deviceId: 'bloom-reverb', preset: 'Tail alone', params: { decay: 15.8 } },
-    ],
-  },
-  {
-    id: 'ashram-jasmine-growl',
-    name: 'Jasmine growl',
-    category: 'motion',
-    description:
-      'A fast rotating speaker with its amplifier growling, into a far-miked room laid in under the clean sound.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Growl' },
-      { deviceId: 're-amp', preset: 'Room underneath', params: { output: 1.08 } },
-    ],
-  },
-  {
-    id: 'ashram-saffron-fall',
-    name: 'Saffron fall',
-    category: 'motion',
-    description:
-      'A valve stage driven hard until it thickens and sags, then a ten-stage phaser falling from the top again and again.',
-    effects: [
-      { deviceId: 'patina', preset: 'Hot valve', params: { output: -2.64 } },
-      { deviceId: 'phaser', preset: 'Endless fall', params: { rate: 0.425 } },
-    ],
-  },
-  {
-    id: 'ashram-foothill-waves',
-    name: 'Foothill waves',
-    category: 'motion',
-    description:
-      'A reverb that breathes in slow waves over and over, into a faint ring of six strings in A major.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Breathing' },
-      { deviceId: 'sympathetic', preset: 'Faint ring' },
-    ],
-  },
-  {
     id: 'ashram-chorus-in-sage',
     name: 'Chorus in sage',
     category: 'motion',
     description:
-      'A plain two-voice chorus with a voice towards each side, into a wordless choir alone with none of the dry sound left.',
+      'A plain chorus with a detuned copy towards each side, into a wordless choir alone with none of the dry sound left.',
     effects: [
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.742, delayMs: 11.5 } },
       { deviceId: 'vowel-reverb', preset: 'Choir alone', params: { decay: 9.23, preDelay: 22.2 } },
     ],
   },
   {
-    id: 'ashram-rose-petal-pan',
-    name: 'Rose-petal pan',
+    id: 'ashram-sycamore-rotary',
+    name: 'Sycamore rotary',
     category: 'motion',
     description:
-      'A hard pan that jumps from one side to the other, then a single saturated tape slap behind each note.',
+      'A tape preamp driven for thick lows and a dull top, then a fast rotating speaker with its amplifier growling, into a bright plate.',
     effects: [
-      { deviceId: 'tremolo', preset: 'Side to side' },
-      { deviceId: 'tape-echo', preset: 'Single slap' },
+      { deviceId: 'analog-drive', preset: 'Tape weight', params: { output: -7.31 } },
+      { deviceId: 'rotary', preset: 'Growl' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
     ],
   },
   {
-    id: 'ashram-oil-lamp-fall',
-    name: 'Oil-lamp fall',
+    id: 'ashram-incense-rotary',
+    name: 'Incense rotary',
     category: 'motion',
     description:
-      'A resonant high-pass falling for about two seconds at a time, into a hall whose lows ring on long after the rest has gone.',
+      'A tape preamp pushed just enough to add weight, then a rotating speaker on its slow speed, into a medium plate.',
     effects: [
-      { deviceId: 'auto-filter', preset: 'Falling high-pass' },
+      { deviceId: 'analog-drive', preset: 'Warm glue' },
+      { deviceId: 'rotary', preset: 'Chorale' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { predelayMs: 22.2 } },
+    ],
+  },
+  {
+    id: 'ashram-ring-for-evening',
+    name: 'Ring for evening',
+    category: 'motion',
+    description:
+      'Thirteen drone strings in D major kept near the centre, then a dark slow rotating speaker that mostly turns the lows.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Sitar drone', params: { mix: 0.24 } },
+      { deviceId: 'rotary', preset: 'Dark drum' },
+    ],
+  },
+  {
+    id: 'ashram-prayer-hour-drone',
+    name: 'Prayer-hour drone',
+    category: 'motion',
+    description:
+      'Thirteen drone strings in D major kept near the centre, then a deep eight-stage phaser with sharp peaks between notches.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Sitar drone', params: { decay: 6.46 } },
+      { deviceId: 'phaser', preset: 'Deep eight-stage', params: { rate: 0.19 } },
+    ],
+  },
+  {
+    id: 'ashram-sunday-halo',
+    name: 'Sunday halo',
+    category: 'motion',
+    description:
+      'Eight strings in C major that ring on as under a held pedal, then a six-stage phaser turning about every three seconds.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Piano pedal' },
+      { deviceId: 'phaser', preset: 'Warm six-stage', params: { rate: 0.273 } },
+    ],
+  },
+  {
+    id: 'ashram-cross-legged-ring',
+    name: 'Cross-legged ring',
+    category: 'motion',
+    description:
+      'Four long strings on an A minor chord held in the centre, then a four-stage phaser kept high, leaving the low end alone.',
+    effects: [
+      { deviceId: 'sympathetic', preset: 'Centre drone' },
+      { deviceId: 'phaser', preset: 'Bass safe', params: { rate: 0.338, mix: 0.357 } },
+    ],
+  },
+  {
+    id: 'ashram-back-room-rotary',
+    name: 'Back-room rotary',
+    category: 'motion',
+    description:
+      'A slow rotating speaker heard from across the room, into one taut dull spring that answers late and rings long.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Across the room' },
+      { deviceId: 'spring-reverb', preset: 'Dark late coil' },
+    ],
+  },
+  {
+    id: 'ashram-lotus-pond-rotary',
+    name: 'Lotus-pond rotary',
+    category: 'motion',
+    description:
+      'A slow rotating speaker heard from across the room, into a short reverb that swells in just after each note.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Across the room' },
+      { deviceId: 'expanse', preset: 'Quick swell' },
+    ],
+  },
+  {
+    id: 'ashram-live-oak-rotary',
+    name: 'Live-oak rotary',
+    category: 'motion',
+    description:
+      'A rotating speaker on its slow speed, into a faint hall tail of about three seconds.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Chorale' },
+      { deviceId: 'hall-reverb', preset: 'Faint halo' },
+    ],
+  },
+  {
+    id: 'ashram-dry-season-swell',
+    name: 'Dry-season swell',
+    category: 'motion',
+    description:
+      'A hollow chorus that swells over about ten seconds, into a vast nave that rings for about eight seconds.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Hollow swell', params: { rate: 0.104, delayMs: 8.14 } },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { preDelay: 89.3, midDecay: 7.28 } },
+    ],
+  },
+  {
+    id: 'ashram-floor-cushion-wobble',
+    name: 'Floor-cushion wobble',
+    category: 'motion',
+    description:
+      'A deep pitch wobble with the two sides bending out of step, then dotted tape repeats that bounce from side to side.',
+    effects: [
+      { deviceId: 'tremolo', preset: 'Wide wobble', params: { rate: 3.32 } },
+      { deviceId: 'tape-echo', preset: 'Dotted bounce' },
+    ],
+  },
+  {
+    id: 'ashram-brass-lamp-rotary',
+    name: 'Brass-lamp rotary',
+    category: 'motion',
+    description:
+      'A fast rotating speaker that pulses the lows deeply, then a steady tape echo with no wobble, dirt or dulling.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Heavy rotors' },
+      { deviceId: 'tape-echo', preset: 'Clean and steady', params: { time: 413, mix: 0.198 } },
+    ],
+  },
+  {
+    id: 'ashram-oil-lamp-rotary',
+    name: 'Oil-lamp rotary',
+    category: 'motion',
+    description:
+      'A fast rotating speaker with its amplifier growling, into a dull reverb that swells in over seconds and fades slowly.',
+    effects: [
+      { deviceId: 'rotary', preset: 'Growl' },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
+    ],
+  },
+  {
+    id: 'ashram-chorus-after-prayers',
+    name: 'Chorus after prayers',
+    category: 'motion',
+    description:
+      'A tape reel pushed hard, saturated and thick, then a deep slow chorus, into a huge bright space with a wide and very long tail.',
+    effects: [
+      { deviceId: 'patina', preset: 'Reel pushed hard', params: { output: -5.01 } },
+      { deviceId: 'chorus', preset: 'Deep sea' },
+      { deviceId: 'ether-reverb', preset: 'Cathedral', params: { predelayMs: 39.7 } },
+    ],
+  },
+  {
+    id: 'ashram-kneeling-rotary',
+    name: 'Kneeling rotary',
+    category: 'motion',
+    description:
+      'A big lift of the low end that puts weight under the sound, then a fast rotating speaker that pulses the lows deeply.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.32 } },
+      { deviceId: 'rotary', preset: 'Heavy rotors' },
+    ],
+  },
+  {
+    id: 'ashram-chorus-in-marigolds',
+    name: 'Chorus in marigolds',
+    category: 'motion',
+    description:
+      'A late copy on each side, like the same part played twice, then a wide string pad that never stops shifting and shimmering.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Loose double' },
+      { deviceId: 'pad-follower', preset: 'Restless' },
+    ],
+  },
+  {
+    id: 'ashram-twilight-drift',
+    name: 'Twilight drift',
+    category: 'motion',
+    description:
+      'Tape-style saturation that rounds peaks and dulls the top, then a wandering pan, into a hall with long lows.',
+    effects: [
+      { deviceId: 'saturator', preset: 'On tape', params: { outputDb: -12.1 } },
+      { deviceId: 'tremolo', preset: 'Wandering pan' },
       {
         deviceId: 'hall-reverb',
         preset: 'Warm undertow',
-        params: { preDelay: 57.2, lowDecay: 7.93, midDecay: 2.22, mix: 0.24 },
+        params: { preDelay: 64.1, midDecay: 1.93 },
       },
     ],
   },
   {
-    id: 'ashram-live-oak-horn',
-    name: 'Live-oak horn',
+    id: 'ashram-hilltop-chorus',
+    name: 'Hilltop chorus',
     category: 'motion',
     description:
-      'A fast spinning horn laid over the dry sound, then two tape heads that make every repeat gallop.',
+      'A thick ensemble chorus turning about every two seconds, then a slow rotating speaker with its amplifier driven hard.',
     effects: [
-      { deviceId: 'rotary', preset: 'Guitar swirl' },
-      { deviceId: 'tape-echo', preset: 'Two head gallop' },
-    ],
-  },
-  {
-    id: 'ashram-strings-in-no-hurry',
-    name: 'Strings in no hurry',
-    category: 'texture',
-    description:
-      'A deep, slow compressor, then a string pad that takes seconds to swell in after a chord, into a plain hall with about four seconds of tail.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Drone bed' },
-      { deviceId: 'pad-follower', preset: 'Slow swell' },
-      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 4.12, breathRate: 0.288 } },
-    ],
-  },
-  {
-    id: 'ashram-courtyard-felt',
-    name: 'Courtyard felt',
-    category: 'texture',
-    description:
-      'A volume-pedal swell, then a muffled pad with all its top taken off, slow to fade, into an undamped hall with about three seconds of tail.',
-    effects: [
-      { deviceId: 'swell', preset: 'Volume pedal', params: { attack: 252, release: 161 } },
-      { deviceId: 'pad-follower', preset: 'Felted pad' },
-      { deviceId: 'fdn-reverb', preset: 'Bright air' },
-    ],
-  },
-  {
-    id: 'ashram-courtyard-basses',
-    name: 'Courtyard basses',
-    category: 'texture',
-    description:
-      'A swell-holding compressor, then a dark pad like cellos, into a vast hall that opens to the sound in very slow waves.',
-    effects: [
-      {
-        deviceId: 'ambient-comp',
-        preset: 'Hold swells',
-        params: { attack: 160, release: 6.12, makeup: 3.57 },
-      },
-      { deviceId: 'pad-follower', preset: 'Dark cellos', params: { rise: 1.32, fall: 7.11 } },
-      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 11 } },
+      { deviceId: 'chorus', preset: 'Lush ensemble' },
+      { deviceId: 'rotary', preset: 'Slow burn' },
     ],
   },
   {
@@ -887,76 +843,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'ashram-bluff-top-pad',
-    name: 'Bluff-top pad',
-    category: 'texture',
-    description:
-      'A slow compressor that evens out swells over seconds, then a dark, round pad that melts slowly from chord to chord.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Level' },
-      { deviceId: 'sustainer', preset: 'Dark bed', params: { attack: 1.14, glide: 2.37 } },
-    ],
-  },
-  {
-    id: 'ashram-basses-pitched-low',
-    name: 'Basses pitched low',
-    category: 'texture',
-    description:
-      'A dark string pad doubled an octave below the playing, then two copies in tune that wander like extra takes.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Low section', params: { rise: 0.742, fall: 5.42 } },
-      { deviceId: 'stereo-detune', preset: 'Drifting' },
-    ],
-  },
-  {
-    id: 'ashram-hold-past-the-gate',
-    name: 'Hold past the gate',
-    category: 'texture',
-    description:
-      'Every note sustained after it is played, with no smearing, into a bright undamped plate of a couple of seconds.',
-    effects: [
-      { deviceId: 'spectral-blur', preset: 'Clean sustain' },
-      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.31 } },
-    ],
-  },
-  {
-    id: 'ashram-strings-pitched-low',
-    name: 'Strings pitched low',
-    category: 'texture',
-    description:
-      'A dark, low string pad like cellos under the playing, then a steep low-pass at four hundred hertz, the top gone.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Dark cellos' },
-      {
-        deviceId: 'auto-filter',
-        preset: 'Low-pass gate',
-        params: { lfoRateHz: 1.04, envAttackMs: 9.91, envReleaseMs: 180 },
-      },
-    ],
-  },
-  {
-    id: 'ashram-cross-legged-voices',
-    name: 'Cross-legged voices',
-    category: 'texture',
-    description:
-      'A held pad whose every overtone wavers, like a choir, into a hall with about two and a half seconds of tail.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Wavering choir', params: { attack: 0.352, glide: 0.589 } },
-      { deviceId: 'hall-reverb', preset: 'Hall' },
-    ],
-  },
-  {
-    id: 'ashram-brass-lamp-felt',
-    name: 'Brass-lamp felt',
-    category: 'texture',
-    description:
-      'A muffled pad with all its top taken off, slow to fade, then a bucket-brigade echo with a slow chorus on its repeats.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Felted pad', params: { rise: 0.837, fall: 13.5 } },
-      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 284, modRate: 1 } },
-    ],
-  },
-  {
     id: 'ashram-sandalwood-pad',
     name: 'Sandalwood pad',
     category: 'texture',
@@ -976,77 +862,126 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Courtyard depths',
     category: 'texture',
     description:
-      'A low blurred bed under the sound, nothing above the bass, into a bright undamped plate of a couple of seconds.',
+      'A blurred bed of bass that hangs low under the sound, into a bright undamped plate of a couple of seconds.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Sub bed' },
       { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 4.86 } },
     ],
   },
   {
-    id: 'ashram-shadow-between-sets',
-    name: 'Shadow between sets',
+    id: 'ashram-coastal-unison',
+    name: 'Coastal unison',
     category: 'texture',
     description:
-      'A slow swell after each silence, with some dry attack left, into a small room that sparkles two octaves above the sound.',
+      'A half-hidden slow swell, then a string voice that doubles each note almost at once, into a hall with long lows.',
     effects: [
-      { deviceId: 'swell', preset: 'Shadow', params: { attack: 1520, release: 318 } },
-      { deviceId: 'shimmer', preset: 'Sparkle room', params: { decay: 1.08, predelay: 18.8 } },
+      { deviceId: 'swell', preset: 'Shadow', params: { attack: 1260, release: 297 } },
+      { deviceId: 'pad-follower', preset: 'Doubler' },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow' },
     ],
   },
   {
-    id: 'ashram-lotus-pond-drawbars',
-    name: 'Lotus-pond drawbars',
-    category: 'pitch',
+    id: 'ashram-stone-step-drone',
+    name: 'Stone-step drone',
+    category: 'texture',
     description:
-      'Every note doubled one and two octaves below and above, then a fast rotating speaker whose drum pulses the lows deeply.',
+      'A slow drone that swells from the playing and never fades, into a hard-driven two-spring tank that answers a moment late.',
     effects: [
-      { deviceId: 'octaves', preset: 'Organ' },
-      { deviceId: 'rotary', preset: 'Heavy rotors' },
+      { deviceId: 'sustainer', preset: 'Endless drone', params: { attack: 3.23, glide: 3.95 } },
+      { deviceId: 'spring-reverb', preset: 'Dub send' },
     ],
   },
   {
-    id: 'ashram-last-set-pipes',
-    name: 'Last-set pipes',
-    category: 'pitch',
+    id: 'ashram-glow-for-the-altar',
+    name: 'Glow for the altar',
+    category: 'texture',
     description:
-      'Four octaves of pipes that swell in behind each note, then a slow rotating speaker heard through one microphone.',
+      'A short glow of held tone that dies just after each note, then a high cut set low enough to muffle everything.',
     effects: [
-      { deviceId: 'octaves', preset: 'Cathedral' },
-      { deviceId: 'rotary', preset: 'Mono cabinet' },
+      { deviceId: 'sustainer', preset: 'Brief afterglow', params: { mix: 0.3 } },
+      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.67 } },
     ],
   },
   {
-    id: 'ashram-floor-cushion-jangle',
-    name: 'Floor-cushion jangle',
-    category: 'pitch',
+    id: 'ashram-pad-before-dawn',
+    name: 'Pad before dawn',
+    category: 'texture',
     description:
-      'A detuned octave above each note, like doubled strings, then a slow rotating speaker that is mostly its low, dark drum.',
+      'A held tone that takes over each note at once and soon fades, into a far-off plate haze with a long, soft tail.',
     effects: [
-      { deviceId: 'octaves', preset: 'Twelve string' },
-      { deviceId: 'rotary', preset: 'Dark drum' },
+      { deviceId: 'sustainer', preset: 'Quick catch', params: { attack: 0.0197, glide: 0.048 } },
+      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.45 } },
     ],
   },
   {
-    id: 'ashram-pipes-past-the-gate',
-    name: 'Pipes past the gate',
-    category: 'pitch',
+    id: 'ashram-harmony-under-oaks',
+    name: 'Harmony under oaks',
+    category: 'texture',
     description:
-      'Four octaves of pipes that swell in behind each note, then a fast rotating speaker with its amplifier growling.',
+      'A held pad where each new chord piles onto the last, then a slow reel that sways, into a bright undamped plate of a couple of seconds.',
     effects: [
-      { deviceId: 'octaves', preset: 'Cathedral', params: { attack: 0.331 } },
-      { deviceId: 'rotary', preset: 'Growl' },
+      { deviceId: 'sustainer', preset: 'Stacked harmony' },
+      { deviceId: 'tape', preset: 'Seasick' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.12 } },
     ],
   },
   {
-    id: 'ashram-harp-in-sandalwood',
-    name: 'Harp in sandalwood',
-    category: 'pitch',
+    id: 'ashram-undertow-on-the-hill',
+    name: 'Undertow on the hill',
+    category: 'texture',
     description:
-      'A swell-holding compressor, then a rising pentatonic run, into a plate heard alone with none of the dry sound left.',
+      'A blurred bed of bass that hangs low under the sound, into sixteen strings that learn the tune and ring on long.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Hold swells' },
-      { deviceId: 'lattice', preset: 'Pentatonic harp', params: { output: 2.77 } },
-      { deviceId: 'plate-reverb', preset: 'Full wet send' },
+      { deviceId: 'spectral-blur', preset: 'Sub bed' },
+      { deviceId: 'sympathetic', preset: 'Learn and hold' },
+    ],
+  },
+  {
+    id: 'ashram-pad-in-no-hurry',
+    name: 'Pad in no hurry',
+    category: 'texture',
+    description:
+      'A held pad that swells in slowly like bowed strings, then a slow rotating speaker heard from across the room.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'rotary', preset: 'Across the room' },
+    ],
+  },
+  {
+    id: 'ashram-daybreak-pad',
+    name: 'Daybreak pad',
+    category: 'texture',
+    description:
+      'A held pad that stands alone in place of what was played, into a small dark room that is gone in about a second.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Held sound alone' },
+      { deviceId: 'expanse', preset: 'Small dark room' },
+    ],
+  },
+  {
+    id: 'ashram-rose-water-pad',
+    name: 'Rose-water pad',
+    category: 'texture',
+    description:
+      'A held pad whose every overtone wavers in pitch and level, into three springs heard alone with none of the dry sound left.',
+    effects: [
+      {
+        deviceId: 'sustainer',
+        preset: 'Wavering choir',
+        params: { attack: 0.386, glide: 0.57, mix: 0.39 },
+      },
+      { deviceId: 'spring-reverb', preset: 'Tank alone', params: { decay: 3.1 } },
+    ],
+  },
+  {
+    id: 'ashram-wood-smoke-pad',
+    name: 'Wood-smoke pad',
+    category: 'texture',
+    description:
+      'A held pad caught from each chord that glides to the next, then a high cut set low enough to muffle everything.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal', params: { attack: 0.233, glide: 0.397 } },
+      { deviceId: 'ambient-eq', preset: 'Muffled', params: { clearTime: 1.57 } },
     ],
   },
   {
@@ -1054,22 +989,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Altar octave',
     category: 'pitch',
     description:
-      'A single voice an octave below the dry sound, darkened, then a deep slow chorus on a long delay, swaying over seconds.',
+      'A single darkened voice an octave below the dry sound, then a deep slow chorus on a long delay, swaying over seconds.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Octave down', params: { size: 94.1 } },
       { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.134 } },
-    ],
-  },
-  {
-    id: 'ashram-late-set-sparkle',
-    name: 'Late-set sparkle',
-    category: 'pitch',
-    description:
-      'A soft wash of octave and fifth loops over each note, then a huge space that answers in separate far-off echoes, into a huge open valley.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Sparkle bed', params: { time: 338 } },
-      { deviceId: 'expanse', preset: 'Far echoes' },
-      { deviceId: 'fdn-reverb', preset: 'Open valley' },
     ],
   },
   {
@@ -1088,81 +1011,148 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Up-canyon chord',
     category: 'pitch',
     description:
-      'A pure-tuned third and fifth above, with an octave below, then scattered short grains an octave up, falling like rain.',
+      'A pure-tuned third, fifth and low octave in C major, then scattered short grains an octave up, falling like rain.',
     effects: [
       { deviceId: 'lattice', preset: 'Just intonation triad', params: { output: 7 } },
       { deviceId: 'grain-cloud', preset: 'Octave rain', params: { size: 79, density: 6.79 } },
     ],
   },
   {
-    id: 'ashram-daybreak-grit',
-    name: 'Daybreak grit',
-    category: 'master',
+    id: 'ashram-octaves-by-the-creek',
+    name: 'Octaves by the creek',
+    category: 'pitch',
     description:
-      'Dark, thick valve grit, then a pluck-taming compressor, then a fast limiter with the level lifted a little into it.',
+      'Four octaves that swell in on each note, like a pipe organ, then a slow rotating speaker heard through one microphone.',
     effects: [
-      { deviceId: 'saturator', preset: 'Bass grit' },
-      { deviceId: 'ambient-comp', preset: 'Pluck tamer' },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -5.52 } },
+      { deviceId: 'octaves', preset: 'Cathedral' },
+      { deviceId: 'rotary', preset: 'Mono cabinet' },
     ],
   },
   {
-    id: 'ashram-iron-at-sundown',
-    name: 'Iron at sundown',
-    category: 'master',
+    id: 'ashram-ochre-swell',
+    name: 'Ochre swell',
+    category: 'pitch',
     description:
-      'A low, warm transformer, then a scooped, hollow tone, then a true-peak ceiling that eases long swells down first.',
+      'A deep bass two octaves down that swells in slowly, then a dark slow rotating speaker that mostly turns the lows.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.67 } },
-      { deviceId: 'ambient-limiter', preset: 'Master' },
+      { deviceId: 'octaves', preset: 'Slow pedals', params: { attack: 1.41 } },
+      { deviceId: 'rotary', preset: 'Dark drum' },
     ],
   },
   {
-    id: 'ashram-coastal-tape',
-    name: 'Coastal tape',
-    category: 'master',
+    id: 'ashram-glow-by-the-creek',
+    name: 'Glow by the creek',
+    category: 'pitch',
     description:
-      'A tape preamp pushed just enough to add weight, then a true-peak ceiling set two decibels under full scale.',
+      'High octaves that fade in late above each note, then a rotating speaker on its fast speed.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Warm glue' },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.36, gain: -2.4 } },
+      { deviceId: 'octaves', preset: 'Slow halo' },
+      { deviceId: 'rotary', preset: 'Tremolo' },
     ],
   },
   {
-    id: 'ashram-sunday-reel',
-    name: 'Sunday reel',
-    category: 'master',
+    id: 'ashram-hilltop-octave',
+    name: 'Hilltop octave',
+    category: 'pitch',
     description:
-      'A tape-style curve only just leaned on, then a quicker compressor, then a safety limiter with its ceiling brought down a little.',
+      'A detuned octave above each note, like doubled strings, then a rotating speaker on its fast speed.',
     effects: [
-      { deviceId: 'saturator', preset: 'Soft tape warmth' },
-      { deviceId: 'ambient-comp', preset: 'Mic' },
-      { deviceId: 'fet-limiter', preset: 'Lower ceiling', params: { outputGain: 2.31 } },
+      { deviceId: 'octaves', preset: 'Twelve string' },
+      { deviceId: 'rotary', preset: 'Tremolo' },
     ],
   },
   {
-    id: 'ashram-stone-step-tape',
-    name: 'Stone-step tape',
-    category: 'master',
+    id: 'ashram-lotus-pond-shimmer',
+    name: 'Lotus-pond shimmer',
+    category: 'pitch',
     description:
-      'A reel driven hot, then an equaliser that adds lows and body and eases the top, then a brickwall ceiling that touches nothing beneath it.',
+      'Grains fed back an octave up, climbing higher each pass, then a slow reel that trembles fast, mixed against the dry sound.',
     effects: [
-      { deviceId: 'tape', preset: 'Hot glue' },
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.52 } },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: -2.58 } },
+      { deviceId: 'grain-cloud', preset: 'Rising shimmer' },
+      { deviceId: 'tape', preset: 'Flutter shimmer' },
     ],
   },
   {
-    id: 'ashram-ochre-tape',
-    name: 'Ochre tape',
+    id: 'ashram-depths-in-sage',
+    name: 'Depths in sage',
+    category: 'pitch',
+    description:
+      'A soft, deep bass one and two octaves below each note, then a tape loop about a second round that soon dies away.',
+    effects: [
+      { deviceId: 'octaves', preset: 'Deep' },
+      { deviceId: 'tape-loop', preset: 'One second round', params: { length: 1.07 } },
+    ],
+  },
+  {
+    id: 'ashram-pilgrim-polish',
+    name: 'Pilgrim polish',
     category: 'master',
     description:
-      'A reel of tape, then a gentle compressor that sets the sound a little way back, then a true-peak ceiling with the level pushed up into it.',
+      'A gentle compressor, then a slightly wider image, then a true-peak ceiling that eases long swells down first.',
     effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 88, release: 1.84 } },
-      { deviceId: 'ambient-limiter', preset: 'Loud', params: { release: 2.53, gain: 2.34 } },
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 104, release: 1.77 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.37, gain: 3.85 } },
+    ],
+  },
+  {
+    id: 'ashram-dry-creek-mixdown',
+    name: 'Dry-creek mixdown',
+    category: 'master',
+    description:
+      'A fast, steady reel with soft saturation, then a parallel compressor, then a true-peak ceiling that eases long swells down first.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.39 } },
+    ],
+  },
+  {
+    id: 'ashram-bluff-top-finish',
+    name: 'Bluff-top finish',
+    category: 'master',
+    description:
+      'A few decibels of soft saturation with the top eased, then a subsonic cut, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.71 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch', params: { outputGain: -5.9 } },
+    ],
+  },
+  {
+    id: 'ashram-master-in-marigolds',
+    name: 'Master in marigolds',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a gentle compressor, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-comp', preset: 'Sit back' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.42, gain: 2.03 } },
+    ],
+  },
+  {
+    id: 'ashram-master-between-sets',
+    name: 'Master between sets',
+    category: 'master',
+    description:
+      'A little soft saturation, then a very gentle compressor, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Warm glue' },
+      { deviceId: 'ambient-comp', preset: 'Glue' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { gain: -3.87 } },
+    ],
+  },
+  {
+    id: 'ashram-finish-at-the-shrine',
+    name: 'Finish at the shrine',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a small dip in the low mids, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.43 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only' },
     ],
   },
 ]

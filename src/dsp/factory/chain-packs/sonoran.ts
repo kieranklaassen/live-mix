@@ -7,52 +7,11 @@ import { type FactoryChain } from '../types'
 
 export const CHAINS: readonly FactoryChain[] = [
   {
-    id: 'sonoran-hall-in-the-open',
-    name: 'Hall in the open',
-    category: 'space',
-    description:
-      'A deep, slow compressor that lifts a quiet bed and holds it, into a huge dark open space that answers late and rings on.',
-    effects: [
-      { deviceId: 'ambient-comp', preset: 'Drone bed', params: { makeup: 7.3 } },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Open valley',
-        params: { decay: 9.25, predelayMs: 117, breathRate: 0.323 },
-      },
-    ],
-  },
-  {
-    id: 'sonoran-open-range-hum',
-    name: 'Open-range hum',
-    category: 'space',
-    description:
-      'A mid-forward tone with the lows and the top trimmed, into a dull closed-mouth hum of deep voices behind the sound.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Forward' },
-      { deviceId: 'vowel-reverb', preset: 'Humming' },
-    ],
-  },
-  {
-    id: 'sonoran-well-off-the-rim',
-    name: 'Well off the rim',
-    category: 'space',
-    description:
-      'A deep dark well of slow blurred echoes, then a firm compressor that listens only above the low end.',
-    effects: [
-      { deviceId: 'swarm-reverb', preset: 'Dark well', params: { length: 1.14, glide: 0.64 } },
-      {
-        deviceId: 'ambient-comp',
-        preset: 'Ride the mids',
-        params: { attack: 58.3, release: 0.56, makeup: 10.7 },
-      },
-    ],
-  },
-  {
     id: 'sonoran-tide-in-the-open',
     name: 'Tide in the open',
     category: 'space',
     description:
-      'A trace of room around the sound, into a reverb that swells and ebbs in waves of about four seconds.',
+      'A trace of room around the sound, into a reverb that swells and ebbs in waves of over a second each.',
     effects: [
       { deviceId: 'ether-reverb', preset: 'Faint air' },
       { deviceId: 'shaped-reverb', preset: 'Slow tide', params: { time: 3.89 } },
@@ -85,33 +44,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-saguaro-tail',
-    name: 'Saguaro tail',
-    category: 'space',
-    description:
-      'The drifting tail of a long reverb with no dry sound, into a vast nave that rings for about eight seconds.',
-    effects: [
-      { deviceId: 'bloom-reverb', preset: 'Tail alone', params: { decay: 16.1 } },
-      { deviceId: 'hall-reverb', preset: 'Vast nave' },
-    ],
-  },
-  {
-    id: 'sonoran-room-by-the-fire',
-    name: 'Room by the fire',
-    category: 'space',
-    description:
-      'Three detuned voices spread hard apart with no dry sound, into a plain hall that rings for about three seconds.',
-    effects: [
-      { deviceId: 'chorus', preset: 'Voices only', params: { rate: 0.327, delayMs: 14.6 } },
-      { deviceId: 'shimmer', preset: 'Plain hall', params: { decay: 2.91, predelay: 13.9 } },
-    ],
-  },
-  {
     id: 'sonoran-hall-out-past-town',
     name: 'Hall out past town',
     category: 'space',
     description:
-      'A hall heard from far off with little dry sound left, then a low cut that thins the bass, with a little air on top.',
+      'A damped hall of about five seconds, heard from far off, then a low cut that thins the bass, with a little air on top.',
     effects: [
       {
         deviceId: 'hall-reverb',
@@ -137,7 +74,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo among cactus',
     category: 'space',
     description:
-      'A room heard from its far end with little dry sound left, into a small glassy reverb with a glint two octaves up.',
+      'A wide room heard from its far end, into a small glassy reverb with a glint two octaves up.',
     effects: [
       { deviceId: 'ether-reverb', preset: 'Distant', params: { mix: 0.531 } },
       { deviceId: 'shimmer', preset: 'Glass', params: { decay: 5.93, predelay: 19.7, mix: 0.18 } },
@@ -170,7 +107,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo under stars',
     category: 'space',
     description:
-      'A swell that takes seconds to rise after each silence, into a late reverb that climbs by octaves and fifths.',
+      'A swell that takes seconds to rise after each silence, into a reverb that comes in late and climbs by octaves and fifths.',
     effects: [
       { deviceId: 'swell', preset: 'Tide', params: { attack: 2520, release: 661 } },
       { deviceId: 'shimmer', preset: 'Late answer', params: { decay: 8.83, predelay: 369 } },
@@ -181,7 +118,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Ironwood hall',
     category: 'space',
     description:
-      'Two dark late copies, a shadow either side of the sound, into a damped hall whose tail lasts ten seconds and more.',
+      'Two dark late copies that shadow the sound on either side, into a damped hall whose tail lasts ten seconds and more.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Shadow' },
       { deviceId: 'ether-reverb', preset: 'Dark infinite', params: { predelayMs: 62.2 } },
@@ -192,7 +129,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Windless cloud',
     category: 'space',
     description:
-      'A console channel run hot with its level pulled back down, into a dull reverb that swells in over seconds and fades slowly.',
+      'A hot console channel, forward in the upper mids, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Hot channel' },
       { deviceId: 'shaped-reverb', preset: 'Dark swell', params: { time: 3.76 } },
@@ -203,7 +140,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Hall a valley over',
     category: 'space',
     description:
-      'One slow scatter of echoes over about a second and no tail, into a hall heard from far off with little dry sound left.',
+      'One slow scatter of echoes over about a second and no tail, into a damped hall of about five seconds, heard from far off.',
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Long scatter', params: { glide: 0.55 } },
       { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.68, midDecay: 5.04 } },
@@ -221,36 +158,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-cholla-hall',
-    name: 'Cholla hall',
-    category: 'space',
-    description:
-      'A wide open space with a slowly wavering tail, then a low-pass that opens and closes over about half a minute.',
-    effects: [
-      {
-        deviceId: 'expanse',
-        preset: 'Open space',
-        params: { decay: 9.7, modRate: 0.389, mix: 0.316 },
-      },
-      {
-        deviceId: 'auto-filter',
-        preset: 'Glacial low-pass',
-        params: { lfoRateHz: 0.0296, envAttackMs: 10.5, envReleaseMs: 191 },
-      },
-    ],
-  },
-  {
-    id: 'sonoran-small-hours-glow',
-    name: 'Small-hours glow',
-    category: 'space',
-    description:
-      'A tight cluster of echoes close behind each note, into a faint short reverb with a slight upward drift.',
-    effects: [
-      { deviceId: 'swarm-reverb', preset: 'Tight swarm' },
-      { deviceId: 'bloom-reverb', preset: 'Faint glow', params: { decay: 3.64 } },
-    ],
-  },
-  {
     id: 'sonoran-dry-lake-cathedral',
     name: 'Dry-lake cathedral',
     category: 'space',
@@ -259,39 +166,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1660, release: 784 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 18.1, preDelay: 41.8 } },
-    ],
-  },
-  {
-    id: 'sonoran-katydid-harp',
-    name: 'Katydid harp',
-    category: 'space',
-    description:
-      'A subsonic cut and a slow ear that eases whatever rings on, into sixteen hard-driven strings in F major that ring for seconds.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Master', params: { clearTime: 2.83 } },
-      { deviceId: 'sympathetic', preset: 'Glass harp', params: { decay: 6.6 } },
-    ],
-  },
-  {
-    id: 'sonoran-open-sky-harp',
-    name: 'Open-sky harp',
-    category: 'space',
-    description:
-      'Sixteen strings in E minor heard alone with no dry sound, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'sympathetic', preset: 'Strings alone', params: { decay: 8.61 } },
-      { deviceId: 'expanse', preset: 'Open space', params: { mix: 0.304 } },
-    ],
-  },
-  {
-    id: 'sonoran-coyote-tide',
-    name: 'Coyote tide',
-    category: 'space',
-    description:
-      'A long slow flanger, nearly a chorus, opposite on each side, into a huge slow wash that swells in and hangs with no dry sound.',
-    effects: [
-      { deviceId: 'flanger', preset: 'Wide wash', params: { rate: 0.157, delayMs: 8.23 } },
-      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 40.9, modRate: 0.105 } },
     ],
   },
   {
@@ -310,7 +184,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Far-ridge hall',
     category: 'space',
     description:
-      'A hall heard from far off with little dry sound left, then a deep, slow compressor that lifts a quiet bed and holds it.',
+      'A damped hall of about five seconds, heard from far off, then a deep, slow compressor that lifts the quiet and holds it.',
     effects: [
       { deviceId: 'hall-reverb', preset: 'Far away' },
       { deviceId: 'ambient-comp', preset: 'Drone bed', params: { makeup: 8.19 } },
@@ -328,33 +202,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-hall-off-the-rim',
-    name: 'Hall off the rim',
-    category: 'space',
-    description:
-      'A glacial low-pass, then a trace of room around the sound, into a hall heard from far off with little dry sound left.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Glacial low-pass',
-        params: { lfoRateHz: 0.0273, envAttackMs: 9.76, envReleaseMs: 206 },
-      },
-      { deviceId: 'ether-reverb', preset: 'Faint air' },
-      { deviceId: 'hall-reverb', preset: 'Far away' },
-    ],
-  },
-  {
-    id: 'sonoran-moth-wing-tail',
-    name: 'Moth-wing tail',
-    category: 'space',
-    description:
-      'A phaser held still, two fixed peaks like a vowel, into the drifting tail of a long reverb with no dry sound.',
-    effects: [
-      { deviceId: 'phaser', preset: 'Still formant' },
-      { deviceId: 'bloom-reverb', preset: 'Tail alone' },
-    ],
-  },
-  {
     id: 'sonoran-echoes-miles-off',
     name: 'Echoes miles off',
     category: 'space',
@@ -366,14 +213,146 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-basin-wash',
-    name: 'Basin wash',
-    category: 'echo',
+    id: 'sonoran-mud-brick-space',
+    name: 'Mud-brick space',
+    category: 'space',
     description:
-      'Dotted tape repeats that pile up in a darkening wash, into a long plate with a wide and even tail.',
+      'A string-like swell, then a hollow peaking phaser that turns about every four seconds, into a wide open space with a slowly wavering tail.',
     effects: [
-      { deviceId: 'tape-echo', preset: 'Dub wash' },
-      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 38 } },
+      { deviceId: 'swell', preset: 'String section', params: { attack: 314, release: 529 } },
+      { deviceId: 'phaser', preset: 'Negative notch' },
+      { deviceId: 'expanse', preset: 'Open space' },
+    ],
+  },
+  {
+    id: 'sonoran-yucca-swell',
+    name: 'Yucca swell',
+    category: 'space',
+    description:
+      'A cloud of reverb that swells in after each note and fades, then a low, gentle compressor that brings up everything quiet.',
+    effects: [
+      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { time: 2.28 } },
+      {
+        deviceId: 'ambient-comp',
+        preset: 'Raise the quiet',
+        params: { attack: 95.7, release: 0.908, makeup: 11.4 },
+      },
+    ],
+  },
+  {
+    id: 'sonoran-space-by-the-road',
+    name: 'Space by the road',
+    category: 'space',
+    description:
+      'A mid-forward tone with the lows and the top trimmed, into a vast space whose tail swells in and hangs a minute or more.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Forward' },
+      { deviceId: 'expanse', preset: 'Event horizon', params: { decay: 55.3, modRate: 0.153 } },
+    ],
+  },
+  {
+    id: 'sonoran-bosque-halo',
+    name: 'Bosque halo',
+    category: 'space',
+    description:
+      'A bright chamber that rings for a couple of seconds, into a reverb whose tail climbs nearly an octave as it rings.',
+    effects: [
+      { deviceId: 'expanse', preset: 'Bright chamber' },
+      { deviceId: 'bloom-reverb', preset: 'Octave halo', params: { decay: 6.13 } },
+    ],
+  },
+  {
+    id: 'sonoran-cave-on-bare-rock',
+    name: 'Cave on bare rock',
+    category: 'space',
+    description:
+      'A tape preamp pushed just enough to add weight, into a cave whose echoes bend slowly up and down in pitch.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue' },
+      { deviceId: 'swarm-reverb', preset: 'Bending' },
+    ],
+  },
+  {
+    id: 'sonoran-drone-under-cirrus',
+    name: 'Drone under cirrus',
+    category: 'space',
+    description:
+      'A big lift of the low end that puts weight under the sound, into a huge hall whose tail hums a soft oo for a long while.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep' },
+      { deviceId: 'vowel-reverb', preset: 'Endless oo' },
+    ],
+  },
+  {
+    id: 'sonoran-caliche-tide',
+    name: 'Caliche tide',
+    category: 'space',
+    description:
+      'A warm, full equaliser, then a reverb that swells up behind each note and cuts off, into a slowly breathing hall.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.57 } },
+      { deviceId: 'shaped-reverb', preset: 'Reverse' },
+      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 8.83, breathRate: 0.215 } },
+    ],
+  },
+  {
+    id: 'sonoran-saguaro-hall',
+    name: 'Saguaro hall',
+    category: 'space',
+    description:
+      'A late copy on each side, like the same part played twice, into a hall with about two and a half seconds of tail.',
+    effects: [
+      { deviceId: 'chorus', preset: 'Loose double', params: { rate: 0.205, delayMs: 26.8 } },
+      { deviceId: 'hall-reverb', preset: 'Hall' },
+    ],
+  },
+  {
+    id: 'sonoran-tinaja-hall',
+    name: 'Tinaja hall',
+    category: 'space',
+    description:
+      'A short, soft tape echo close behind the playing, into a damped hall whose tail lasts ten seconds and more.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Short and soft', params: { time: 171 } },
+      { deviceId: 'ether-reverb', preset: 'Dark infinite', params: { predelayMs: 59.2 } },
+    ],
+  },
+  {
+    id: 'sonoran-poorwill-cathedral',
+    name: 'Poorwill cathedral',
+    category: 'space',
+    description:
+      'A cathedral with about six seconds of tail, then a wide chorus drifting over a cycle of about twelve seconds.',
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Cathedral',
+        params: { preDelay: 74.7, lowDecay: 7.79, midDecay: 6.57 },
+      },
+      { deviceId: 'chorus', preset: 'Slow drift' },
+    ],
+  },
+  {
+    id: 'sonoran-coyote-choir',
+    name: 'Coyote choir',
+    category: 'space',
+    description:
+      'A short swell that rounds the front off every note, then a sung oo just behind, into the drifting tail of a long reverb with no dry sound.',
+    effects: [
+      { deviceId: 'swell', preset: 'Slow attack', params: { attack: 164, release: 76.6 } },
+      { deviceId: 'vowel-reverb', preset: 'Oo behind' },
+      { deviceId: 'bloom-reverb', preset: 'Tail alone', params: { decay: 15.9 } },
+    ],
+  },
+  {
+    id: 'sonoran-cienega-hall',
+    name: 'Cienega hall',
+    category: 'space',
+    description:
+      'A slow swell on only the first note after each silence, into a damped hall of about five seconds, heard from far off.',
+    effects: [
+      { deviceId: 'swell', preset: 'First note only', params: { attack: 1350, release: 1380 } },
+      { deviceId: 'hall-reverb', preset: 'Far away', params: { lowDecay: 4.86, midDecay: 4.91 } },
     ],
   },
   {
@@ -385,17 +364,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'analog-delay', preset: 'Fifth hop' },
       { deviceId: 'fdn-reverb', preset: 'Open valley' },
-    ],
-  },
-  {
-    id: 'sonoran-saguaro-hop',
-    name: 'Saguaro hop',
-    category: 'echo',
-    description:
-      'An echo whose repeats jump up an octave and back, into a reverb that breathes in slow waves over and over.',
-    effects: [
-      { deviceId: 'analog-delay', preset: 'Octave hop' },
-      { deviceId: 'shaped-reverb', preset: 'Breathing', params: { time: 1.95 } },
     ],
   },
   {
@@ -414,7 +382,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Elf-owl echo',
     category: 'echo',
     description:
-      'A bucket-brigade echo whose soft repeats dull as they fade, into a reverb that breathes in slow waves over and over.',
+      'A bucket-brigade echo whose soft repeats dull as they fade, into a long reverb that comes and goes in waves, over and over.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Dark echo', params: { time: 358, modRate: 0.664 } },
       { deviceId: 'shaped-reverb', preset: 'Breathing', params: { time: 1.88 } },
@@ -447,7 +415,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Moonrise descent',
     category: 'echo',
     description:
-      'Echoes that fall a fourth further on every repeat, into a reverb that falls away in a straight line.',
+      'Echoes that fall a fourth further on every repeat, into a reverb that fades evenly to nothing in a second or two.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Falling steps', params: { size: 73.9, delay: 423 } },
       { deviceId: 'shaped-reverb', preset: 'Falling' },
@@ -469,7 +437,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Satellite echo',
     category: 'echo',
     description:
-      'A slow echo with a long dark trail and a few recollections, into a plain short room whose tail stays at pitch.',
+      'A slow echo with a long dark trail and a few recollections, into a plain room that is gone in a couple of seconds.',
     effects: [
       {
         deviceId: 'echo-memory',
@@ -480,41 +448,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-loop-on-warm-rock',
-    name: 'Loop on warm rock',
-    category: 'echo',
-    description:
-      'A fading tape loop, then an equaliser that takes presence, air and lows away, into a wide open space with a slowly wavering tail.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Slow fade', params: { length: 1.97 } },
-      { deviceId: 'ambient-eq', preset: 'Distant' },
-      { deviceId: 'expanse', preset: 'Open space', params: { decay: 10.9, modRate: 0.42 } },
-    ],
-  },
-  {
     id: 'sonoran-granite-echo',
     name: 'Granite echo',
     category: 'echo',
     description:
-      'A fast, steady reel pushed into soft saturation, then a bucket-brigade echo with a slow chorus on its repeats.',
+      'A fast, steady reel with soft saturation, then a bucket-brigade echo with a slow chorus on its repeats.',
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck' },
       { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 305, modRate: 0.919 } },
-    ],
-  },
-  {
-    id: 'sonoran-tinaja-mirror',
-    name: 'Tinaja mirror',
-    category: 'echo',
-    description:
-      'Recalled moments that mostly come back reversed or slowed, into a dark hall that takes about twenty seconds to die away.',
-    effects: [
-      {
-        deviceId: 'echo-memory',
-        preset: 'Backwards',
-        params: { time: 558, reach: 13.5, size: 1.43 },
-      },
-      { deviceId: 'fdn-reverb', preset: 'Endless tail' },
     ],
   },
   {
@@ -533,21 +474,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bajada echo',
     category: 'echo',
     description:
-      'A clean, steady echo with no wobble and an open top, into a long undamped tail kept low behind the sound.',
+      'A clean, steady echo with no wobble and little dulling, into a long bright reverb tail kept low behind the sound.',
     effects: [
       { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 219, modRate: 0.674 } },
       { deviceId: 'ether-reverb', preset: 'Shining tail' },
-    ],
-  },
-  {
-    id: 'sonoran-edgeless-trail',
-    name: 'Edgeless trail',
-    category: 'echo',
-    description:
-      'A slow echo with a long dark trail and a few recollections, then dotted tape repeats that pile up in a darkening wash.',
-    effects: [
-      { deviceId: 'echo-memory', preset: 'Dark trail' },
-      { deviceId: 'tape-echo', preset: 'Dub wash' },
     ],
   },
   {
@@ -555,66 +485,121 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Starlit pad',
     category: 'echo',
     description:
-      'The first notes played, held as a wide smeared pad, into a plain short room whose tail stays at pitch.',
+      'A wide smeared pad held from the first notes played, into a plain room that is gone in a couple of seconds.',
     effects: [
       { deviceId: 'micro-looper', preset: 'Frozen pad' },
       { deviceId: 'bloom-reverb', preset: 'Still room', params: { decay: 2.7 } },
     ],
   },
   {
-    id: 'sonoran-dark-sky-weight',
-    name: 'Dark-sky weight',
-    category: 'tape',
+    id: 'sonoran-echo-at-last-light',
+    name: 'Echo at last light',
+    category: 'echo',
     description:
-      'A transformer that fills out the lows and dulls the top, into a large hall whose tail rises and falls every few seconds.',
+      'A bucket-brigade echo with a slow chorus on its repeats, into a vast hall that opens to the sound in very slow waves.',
     effects: [
-      { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 8.29, breathRate: 0.204 } },
+      { deviceId: 'analog-delay', preset: 'Chorused', params: { time: 313, modRate: 0.806 } },
+      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 13, breathRate: 0.053 } },
     ],
   },
   {
-    id: 'sonoran-unfenced-tape',
-    name: 'Unfenced tape',
-    category: 'tape',
+    id: 'sonoran-cereus-repeats',
+    name: 'Cereus repeats',
+    category: 'echo',
     description:
-      'A tape-style curve that rounds the peaks and dulls the top, into a vast hall that opens to the sound in very slow waves.',
+      'A bucket-brigade echo whose soft repeats dull as they fade, into a dark hall that takes about twenty seconds to die away.',
+    effects: [
+      { deviceId: 'analog-delay', preset: 'Dark echo' },
+      { deviceId: 'fdn-reverb', preset: 'Endless tail', params: { breathRate: 0.0703 } },
+    ],
+  },
+  {
+    id: 'sonoran-open-range-loop',
+    name: 'Open-range loop',
+    category: 'echo',
+    description:
+      'A half-speed loop that plays the last phrase an octave down, into a dark plate whose tail is soft on top.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 2.3 } },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { predelayMs: 15.9 } },
+    ],
+  },
+  {
+    id: 'sonoran-cereus-echo',
+    name: 'Cereus echo',
+    category: 'echo',
+    description:
+      'A tape echo whose three heads make a cluster of each repeat, into a hall whose lows ring on long after the rest has gone.',
+    effects: [
+      { deviceId: 'tape-echo', preset: 'Three heads', params: { time: 569 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow' },
+    ],
+  },
+  {
+    id: 'sonoran-echo-out-past-town',
+    name: 'Echo out past town',
+    category: 'echo',
+    description:
+      'Tape-style saturation that rounds peaks and dulls the top, then a chorused echo, into a huge dark cathedral with only the lows left ringing.',
     effects: [
       { deviceId: 'saturator', preset: 'On tape' },
-      { deviceId: 'fdn-reverb', preset: 'Slow swell', params: { decay: 11.7, breathRate: 0.0533 } },
+      { deviceId: 'analog-delay', preset: 'Chorused' },
+      { deviceId: 'expanse', preset: 'Low cathedral', params: { decay: 33.1, modRate: 0.107 } },
     ],
   },
   {
-    id: 'sonoran-monsoon-tape',
-    name: 'Monsoon tape',
+    id: 'sonoran-tail-light-reel',
+    name: 'Tail-light reel',
     category: 'tape',
     description:
-      'A clean pass over fast new tape, with nothing added, into a damped hall whose tail lasts ten seconds and more.',
+      'A reel of tape at middle speed, with a little drift and hiss, into a plate wash that hangs on for half a minute.',
     effects: [
-      { deviceId: 'tape', preset: 'Clean transfer' },
-      { deviceId: 'ether-reverb', preset: 'Dark infinite', params: { predelayMs: 63.3 } },
+      { deviceId: 'tape', preset: 'Quarter inch', params: { output: -2.28 } },
+      { deviceId: 'plate-reverb', preset: 'Endless wash' },
     ],
   },
   {
-    id: 'sonoran-sundown-reel',
-    name: 'Sundown reel',
+    id: 'sonoran-caliche-warmth',
+    name: 'Caliche warmth',
     category: 'tape',
     description:
-      'A valve preamp curve, lopsided and a little brighter on top, then a reel of tape at middle speed, with a little drift and hiss.',
+      'Tape-style saturation that rounds only the loudest peaks, into a wide open space with a slowly wavering tail.',
     effects: [
-      { deviceId: 'saturator', preset: 'Tube preamp' },
-      { deviceId: 'tape', preset: 'Quarter inch', params: { output: -4.3 } },
+      { deviceId: 'saturator', preset: 'Soft tape warmth', params: { outputDb: -6.93 } },
+      { deviceId: 'expanse', preset: 'Open space', params: { decay: 10.8, modRate: 0.38 } },
     ],
   },
   {
-    id: 'sonoran-tape-by-the-road',
-    name: 'Tape by the road',
+    id: 'sonoran-palo-verde-warmth',
+    name: 'Palo-verde warmth',
     category: 'tape',
     description:
-      'A thick, soft cassette, then a fresh reel of tape, open on top and nearly steady, into a small dark room that is gone in about a second.',
+      'A transformer driven so the low end thickens and loosens, into a large hall whose tail rises and falls every few seconds.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron lows' },
+      { deviceId: 'fdn-reverb', preset: 'Breathing' },
+    ],
+  },
+  {
+    id: 'sonoran-cassette-off-the-rim',
+    name: 'Cassette off the rim',
+    category: 'tape',
+    description:
+      'A thick, soft cassette, full in the lows and dull on top, into a vast nave that rings for about eight seconds.',
     effects: [
       { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'patina', preset: 'New tape', params: { output: -2.38 } },
-      { deviceId: 'expanse', preset: 'Small dark room' },
+      { deviceId: 'hall-reverb', preset: 'Vast nave', params: { lowDecay: 7.73, midDecay: 7.93 } },
+    ],
+  },
+  {
+    id: 'sonoran-tape-after-dark',
+    name: 'Tape after dark',
+    category: 'tape',
+    description:
+      'A big lift of the low end that puts weight under the sound, then a thick, soft cassette, full in the lows and dull on top.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 2.97 } },
+      { deviceId: 'tape', preset: 'Warm thump' },
     ],
   },
   {
@@ -622,7 +607,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Open-range filter',
     category: 'motion',
     description:
-      'A glacial low-pass, then a thick three-voice ensemble chorus that turns slowly, into a fully damped hall with a few seconds of tail.',
+      'A glacial low-pass, then a thick ensemble chorus turning about every two seconds, into a fully damped hall with a few seconds of tail.',
     effects: [
       {
         deviceId: 'auto-filter',
@@ -638,22 +623,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Ridgeline swell',
     category: 'motion',
     description:
-      'A slow breathing level, then a plain two-voice chorus with a voice towards each side, into a far-off plate haze.',
+      'The level breathing in and out about every four seconds, then a plain chorus, into a far-off plate haze with a long, soft tail.',
     effects: [
       { deviceId: 'tremolo', preset: 'Gentle breath' },
       { deviceId: 'chorus', preset: 'Classic chorus', params: { rate: 0.885, delayMs: 10.7 } },
-      { deviceId: 'plate-reverb', preset: 'Distant haze' },
-    ],
-  },
-  {
-    id: 'sonoran-lamp-lit-pan',
-    name: 'Lamp-lit pan',
-    category: 'motion',
-    description:
-      'A slow pan, then three voices drifting over a cycle of about twelve seconds, into a far-off plate haze.',
-    effects: [
-      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.13 } },
-      { deviceId: 'chorus', preset: 'Slow drift' },
       { deviceId: 'plate-reverb', preset: 'Distant haze' },
     ],
   },
@@ -670,18 +643,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-javelina-notch',
-    name: 'Javelina notch',
-    category: 'motion',
-    description:
-      'A slowly drifting notch, then a slow ensemble chorus, into a large space whose tail swells in behind each note.',
-    effects: [
-      { deviceId: 'auto-filter', preset: 'Slow notch' },
-      { deviceId: 'chorus', preset: 'Lush ensemble', params: { rate: 0.55, delayMs: 19.7 } },
-      { deviceId: 'expanse', preset: 'Bloom' },
-    ],
-  },
-  {
     id: 'sonoran-foothill-filter',
     name: 'Foothill filter',
     category: 'motion',
@@ -691,18 +652,6 @@ export const CHAINS: readonly FactoryChain[] = [
       { deviceId: 'auto-filter', preset: 'Slow notch' },
       { deviceId: 'chorus', preset: 'Deep sea', params: { rate: 0.148 } },
       { deviceId: 'expanse', preset: 'Open space', params: { modRate: 0.403 } },
-    ],
-  },
-  {
-    id: 'sonoran-cloud-in-the-scrub',
-    name: 'Cloud in the scrub',
-    category: 'motion',
-    description:
-      'A warm tape preamp, then twelve phaser stages tuned far apart, drifting slowly, into a faint hall tail of about three seconds.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Warm glue' },
-      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.106 } },
-      { deviceId: 'hall-reverb', preset: 'Faint halo' },
     ],
   },
   {
@@ -721,18 +670,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-rotary-under-cirrus',
-    name: 'Rotary under cirrus',
-    category: 'motion',
-    description:
-      'Dark, thick valve grit, then a soft slow rotary blend, into a hall with about two and a half seconds of tail.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Bass grit', params: { outputDb: -20.1 } },
-      { deviceId: 'rotary', preset: 'Soft blend' },
-      { deviceId: 'hall-reverb', preset: 'Hall' },
-    ],
-  },
-  {
     id: 'sonoran-firelight-sweep',
     name: 'Firelight sweep',
     category: 'motion',
@@ -744,86 +681,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-hollow-slow-as-sleep',
-    name: 'Hollow slow as sleep',
-    category: 'motion',
-    description:
-      'A short hollow flanger on negative feedback, then a pan that wanders to a new place every second or so.',
-    effects: [
-      { deviceId: 'flanger', preset: 'Negative hollow', params: { rate: 0.426, delayMs: 1.48 } },
-      { deviceId: 'tremolo', preset: 'Wandering pan' },
-    ],
-  },
-  {
-    id: 'sonoran-open-sky-hollow',
-    name: 'Open-sky hollow',
-    category: 'motion',
-    description:
-      'A short hollow flanger on negative feedback, into a mellow reverb whose tail splits upwards and downwards.',
-    effects: [
-      { deviceId: 'flanger', preset: 'Negative hollow' },
-      { deviceId: 'bloom-reverb', preset: 'Scatter' },
-    ],
-  },
-  {
-    id: 'sonoran-yucca-phaser',
-    name: 'Yucca phaser',
-    category: 'motion',
-    description:
-      'A thick, soft cassette, then a glacial phaser sweep, into a plate heard alone with none of the dry sound left.',
-    effects: [
-      { deviceId: 'tape', preset: 'Warm thump' },
-      { deviceId: 'phaser', preset: 'Glacial sweep' },
-      { deviceId: 'plate-reverb', preset: 'Full wet send' },
-    ],
-  },
-  {
-    id: 'sonoran-tinaja-voices',
-    name: 'Tinaja voices',
-    category: 'motion',
-    description:
-      'A choir of a hall whose vowel wanders on its own, then a low-pass that opens and closes over about half a minute.',
-    effects: [
-      { deviceId: 'vowel-reverb', preset: 'Vowel drift' },
-      {
-        deviceId: 'auto-filter',
-        preset: 'Glacial low-pass',
-        params: { lfoRateHz: 0.0283, envAttackMs: 10.1, envReleaseMs: 209 },
-      },
-    ],
-  },
-  {
     id: 'sonoran-headlight-phaser',
     name: 'Headlight phaser',
     category: 'motion',
     description:
-      'A ten-stage phaser falling from the top again and again, into a far-off plate with a long soft tail and little dry sound.',
+      'A ten-stage phaser falling from the top again and again, into a far-off plate haze with a long, soft tail.',
     effects: [
       { deviceId: 'phaser', preset: 'Endless fall', params: { rate: 0.412 } },
       { deviceId: 'plate-reverb', preset: 'Distant haze' },
-    ],
-  },
-  {
-    id: 'sonoran-stock-tank-hollow',
-    name: 'Stock-tank hollow',
-    category: 'motion',
-    description:
-      "A smooth swell on every note, like a string section's bows, then a short hollow flanger on negative feedback.",
-    effects: [
-      { deviceId: 'swell', preset: 'String section', params: { attack: 314, release: 552 } },
-      { deviceId: 'flanger', preset: 'Negative hollow' },
-    ],
-  },
-  {
-    id: 'sonoran-monsoon-chorale',
-    name: 'Monsoon chorale',
-    category: 'motion',
-    description:
-      'A rotating speaker on its slow speed, then whole phrases coming back three times, each one duller, into a hall with no dry sound.',
-    effects: [
-      { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'cascade', preset: 'Phrase returns', params: { time: 1590 } },
-      { deviceId: 'fdn-reverb', preset: 'Full wet send' },
     ],
   },
   {
@@ -831,54 +696,133 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drift after rain',
     category: 'motion',
     description:
-      'Only the two detuned copies, hard left and right, then three voices drifting over a cycle of about twelve seconds.',
+      'A sharp copy hard left, a flat one hard right, heard alone, then a wide chorus drifting over a cycle of about twelve seconds.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 14.5 } },
       { deviceId: 'chorus', preset: 'Slow drift', params: { rate: 0.0862, delayMs: 22.1 } },
     ],
   },
   {
-    id: 'sonoran-thunderhead-pedal',
-    name: 'Thunderhead pedal',
-    category: 'texture',
+    id: 'sonoran-small-hours-sway',
+    name: 'Small-hours sway',
+    category: 'motion',
     description:
-      'A long clean sustain, then an equaliser that takes presence, air and lows away, into a dark, very long hall.',
+      'A slow pan from side to side, a few seconds each way, then a hollow chorus that swells over about ten seconds, into a late-arriving hall.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Long clean hold' },
-      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.4 } },
-      {
-        deviceId: 'fdn-reverb',
-        preset: 'Endless tail',
-        params: { decay: 18.1, breathRate: 0.0817 },
-      },
+      { deviceId: 'tremolo', preset: 'Slow pan', params: { rate: 0.124 } },
+      { deviceId: 'chorus', preset: 'Hollow swell', params: { rate: 0.0982, delayMs: 8.55 } },
+      { deviceId: 'ether-reverb', preset: 'Late hall' },
     ],
   },
   {
-    id: 'sonoran-two-lane-strings',
-    name: 'Two-lane strings',
-    category: 'texture',
+    id: 'sonoran-moonless-tide',
+    name: 'Moonless tide',
+    category: 'motion',
     description:
-      'A quiet string pad kept far behind the playing, then a steep low-pass at four hundred hertz, the top gone, into a slowly breathing hall.',
+      'A glacial low-pass, then a chorus on the upper range that leaves the lows steady, into a plate heard alone with none of the dry sound left.',
     effects: [
-      { deviceId: 'pad-follower', preset: 'Barely there', params: { rise: 1.8, fall: 7.85 } },
       {
         deviceId: 'auto-filter',
-        preset: 'Low-pass gate',
-        params: { lfoRateHz: 0.938, envAttackMs: 8.76, envReleaseMs: 202 },
+        preset: 'Glacial low-pass',
+        params: { lfoRateHz: 0.0321, envAttackMs: 10.4, envReleaseMs: 183 },
       },
-      { deviceId: 'fdn-reverb', preset: 'Breathing' },
+      { deviceId: 'chorus', preset: 'Guitar shimmer', params: { rate: 1.28, delayMs: 15.2 } },
+      { deviceId: 'plate-reverb', preset: 'Full wet send' },
     ],
   },
   {
-    id: 'sonoran-arroyo-pedal',
-    name: 'Arroyo pedal',
-    category: 'texture',
+    id: 'sonoran-thunderhead-filter',
+    name: 'Thunderhead filter',
+    category: 'motion',
     description:
-      'A pad held from each chord, then a warm, full equaliser, into a long dark reverb whose tail sinks slowly in pitch.',
+      'A resonant low-pass that swings open about every two seconds, then a chorused echo, into a slowly breathing hall.',
     effects: [
-      { deviceId: 'sustainer', preset: 'Sustain pedal' },
-      { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.56 } },
-      { deviceId: 'bloom-reverb', preset: 'Long dark', params: { decay: 24.8 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Dub sweep',
+        params: { lfoRateHz: 0.495, envAttackMs: 11.1, envReleaseMs: 220 },
+      },
+      { deviceId: 'analog-delay', preset: 'Chorused' },
+      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 8.49, breathRate: 0.218 } },
+    ],
+  },
+  {
+    id: 'sonoran-sweep-in-still-air',
+    name: 'Sweep in still air',
+    category: 'motion',
+    description:
+      'A sagging valve stage, then a deep flanger that sweeps right up through the top, into a plain hall of about four seconds.',
+    effects: [
+      { deviceId: 'patina', preset: 'Valve bloom' },
+      { deviceId: 'flanger', preset: 'Through-zero feel' },
+      { deviceId: 'vowel-reverb', preset: 'Plain hall' },
+    ],
+  },
+  {
+    id: 'sonoran-agave-flanger',
+    name: 'Agave flanger',
+    category: 'motion',
+    description:
+      'A full, warm transformer, then a gentle flanger sweeping about every four seconds, into a far-off plate haze with a long, soft tail.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Low warmth' },
+      { deviceId: 'flanger', preset: 'Gentle sweep' },
+      { deviceId: 'plate-reverb', preset: 'Distant haze' },
+    ],
+  },
+  {
+    id: 'sonoran-edgeless-flanger',
+    name: 'Edgeless flanger',
+    category: 'motion',
+    description:
+      'A long slow flanger, nearly a chorus, opposite on each side, into a long plate with a wide and even tail.',
+    effects: [
+      { deviceId: 'flanger', preset: 'Wide wash' },
+      { deviceId: 'plate-reverb', preset: 'Long plate', params: { predelayMs: 39.4 } },
+    ],
+  },
+  {
+    id: 'sonoran-basin-phaser',
+    name: 'Basin phaser',
+    category: 'motion',
+    description:
+      'A phaser taking about a quarter of a minute to come round, into a huge slow wash that swells in and hangs with no dry sound.',
+    effects: [
+      { deviceId: 'phaser', preset: 'Slow swirl', params: { rate: 0.0667 } },
+      { deviceId: 'expanse', preset: 'Wash alone' },
+    ],
+  },
+  {
+    id: 'sonoran-arroyo-drift',
+    name: 'Arroyo drift',
+    category: 'motion',
+    description:
+      'A hard-clipped copy held at one level under the clean sound, then a slow flanger-like sweep, opposite on each side.',
+    effects: [
+      { deviceId: 'saturator', preset: 'Sustain bed' },
+      { deviceId: 'tremolo', preset: 'Drifting comb', params: { rate: 0.0902 } },
+    ],
+  },
+  {
+    id: 'sonoran-swirl-on-bare-rock',
+    name: 'Swirl on bare rock',
+    category: 'motion',
+    description:
+      'A fast, steady reel with soft saturation, then a four-stage phaser with two broad notches, turning slowly.',
+    effects: [
+      { deviceId: 'tape', preset: 'Mastering deck', params: { output: 2.41 } },
+      { deviceId: 'phaser', preset: 'Classic four-stage', params: { rate: 0.291 } },
+    ],
+  },
+  {
+    id: 'sonoran-phaser-rim-to-rim',
+    name: 'Phaser rim to rim',
+    category: 'motion',
+    description:
+      'Repeats that climb in pitch on the left, sink on the right, then a dense many-notched phaser drifting opposite on each side.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Spiral', params: { delay: 41.6 } },
+      { deviceId: 'phaser', preset: 'Twelve stage cloud', params: { rate: 0.115 } },
     ],
   },
   {
@@ -895,22 +839,6 @@ export const CHAINS: readonly FactoryChain[] = [
         preset: 'Full wet send',
         params: { decay: 8.61, breathRate: 0.309 },
       },
-    ],
-  },
-  {
-    id: 'sonoran-strings-till-morning',
-    name: 'Strings till morning',
-    category: 'texture',
-    description:
-      'A dark string pad that lingers long after each chord, then a gentle low-pass at a kilohertz, into a huge open valley.',
-    effects: [
-      { deviceId: 'pad-follower', preset: 'Lingering' },
-      {
-        deviceId: 'auto-filter',
-        preset: 'Init',
-        params: { lfoRateHz: 0.945, envAttackMs: 9.99, envReleaseMs: 218 },
-      },
-      { deviceId: 'fdn-reverb', preset: 'Open valley' },
     ],
   },
   {
@@ -951,28 +879,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-power-line-tunnel',
-    name: 'Power-line tunnel',
-    category: 'texture',
-    description:
-      'A piece of each note looped into a long, swelling drone, then a plain echo that is a little darker on each repeat.',
-    effects: [
-      { deviceId: 'cascade', preset: 'Long drone', params: { time: 792 } },
-      { deviceId: 'echo-memory', preset: 'Plain echo' },
-    ],
-  },
-  {
-    id: 'sonoran-firelight-tide',
-    name: 'Firelight tide',
-    category: 'texture',
-    description:
-      'Long slow grains an octave down, most of them reversed, into a vast hall that opens to the sound in very slow waves.',
-    effects: [
-      { deviceId: 'grain-cloud', preset: 'Low tide', params: { size: 1010, density: 5.6 } },
-      { deviceId: 'fdn-reverb', preset: 'Slow swell' },
-    ],
-  },
-  {
     id: 'sonoran-cellos-down-the-wash',
     name: 'Cellos down the wash',
     category: 'texture',
@@ -988,7 +894,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Glimpses on hardpan',
     category: 'texture',
     description:
-      'A quick slap while short glimpses of earlier notes return, into a hall of about four seconds with no dry sound in it.',
+      'A quick slapback echo over short glimpses of earlier notes, into a hall of about four seconds with no dry sound in it.',
     effects: [
       {
         deviceId: 'echo-memory',
@@ -1003,37 +909,107 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'sonoran-strings-till-morning',
+    name: 'Strings till morning',
+    category: 'texture',
+    description:
+      'A held pad that swells in slowly like bowed strings, then a high cut set low enough to muffle everything, into a space that swells in.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings', params: { attack: 2.25, glide: 1.44 } },
+      { deviceId: 'ambient-eq', preset: 'Muffled' },
+      { deviceId: 'expanse', preset: 'Bloom', params: { decay: 12.7 } },
+    ],
+  },
+  {
+    id: 'sonoran-monsoon-tide',
+    name: 'Monsoon tide',
+    category: 'texture',
+    description:
+      'A string pad that arrives long after the chord and stays, then a big lift of the low end, into a far-off plate haze with a long, soft tail.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'Late tide' },
+      { deviceId: 'ambient-eq', preset: 'Deep', params: { clearTime: 3.08 } },
+      { deviceId: 'plate-reverb', preset: 'Distant haze' },
+    ],
+  },
+  {
+    id: 'sonoran-dry-lake-drone',
+    name: 'Dry-lake drone',
+    category: 'texture',
+    description:
+      'An unfading slow drone, then a mid-forward tone with the lows and the top trimmed, into a wide open space with a slowly wavering tail.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Endless drone', params: { attack: 3.06, glide: 3.63 } },
+      { deviceId: 'ambient-eq', preset: 'Forward' },
+      { deviceId: 'expanse', preset: 'Open space', params: { decay: 10.8, modRate: 0.351 } },
+    ],
+  },
+  {
+    id: 'sonoran-strings-on-the-roof',
+    name: 'Strings on the roof',
+    category: 'texture',
+    description:
+      'A soft string pad that swells in behind what is played, then a far-off, dulled tone, into a huge wash by itself.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'String pad' },
+      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.52 } },
+      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 44.8, modRate: 0.0962 } },
+    ],
+  },
+  {
     id: 'sonoran-poorwill-wash',
     name: 'Poorwill wash',
     category: 'texture',
     description:
-      'A reverse-sounding swell, then a slowly dissolving wash, into a cathedral whose long tail sings a soft open ah.',
+      'A wide, darkened wash in which every note slowly dissolves, then grain repeats that fall an octave and darken each time.',
     effects: [
-      { deviceId: 'swell', preset: 'Backwards', params: { attack: 396, release: 107 } },
-      { deviceId: 'spectral-blur', preset: 'Slow dissolve' },
-      { deviceId: 'vowel-reverb', preset: 'Cathedral' },
+      { deviceId: 'spectral-blur', preset: 'Slow dissolve', params: { mix: 0.42 } },
+      { deviceId: 'grain-delay', preset: 'Falling embers', params: { mix: 0.24 } },
     ],
   },
   {
-    id: 'sonoran-depths-under-cirrus',
-    name: 'Depths under cirrus',
+    id: 'sonoran-tide-overhead',
+    name: 'Tide overhead',
     category: 'texture',
     description:
-      'A low blurred bed under the sound, nothing above the bass, then a clean pass over fast new tape, with nothing added.',
+      'A short swell that rounds the front off every note, then long slow grains an octave down, most of them reversed, into a hall with long lows.',
     effects: [
-      { deviceId: 'spectral-blur', preset: 'Sub bed' },
-      { deviceId: 'tape', preset: 'Clean transfer', params: { output: -2.14 } },
+      { deviceId: 'swell', preset: 'Slow attack' },
+      { deviceId: 'grain-cloud', preset: 'Low tide', params: { size: 883, density: 5.06 } },
+      { deviceId: 'hall-reverb', preset: 'Warm undertow' },
     ],
   },
   {
-    id: 'sonoran-playa-fader',
-    name: 'Playa fader',
+    id: 'sonoran-cholla-drone',
+    name: 'Cholla drone',
     category: 'texture',
     description:
-      'A slow compressor that evens out swells over seconds, then a string voice that doubles each note almost at once.',
+      'A slow drone that swells from the playing and never fades, then a chorus heard alone, its detuned copies spread hard apart.',
     effects: [
-      { deviceId: 'ambient-comp', preset: 'Level', params: { makeup: 2.32 } },
-      { deviceId: 'pad-follower', preset: 'Doubler', params: { rise: 0.0442, fall: 0.857 } },
+      { deviceId: 'sustainer', preset: 'Endless drone', params: { attack: 3.33, glide: 3.9 } },
+      { deviceId: 'chorus', preset: 'Voices only', params: { rate: 0.347, delayMs: 16.4 } },
+    ],
+  },
+  {
+    id: 'sonoran-dark-sky-afterglow',
+    name: 'Dark-sky afterglow',
+    category: 'texture',
+    description:
+      'A slow swell after each silence that opens only at the end, then a dark string pad that lingers long after each chord.',
+    effects: [
+      { deviceId: 'swell', preset: 'Sunrise', params: { attack: 1340, release: 797 } },
+      { deviceId: 'pad-follower', preset: 'Lingering', params: { rise: 1.13, fall: 17.5 } },
+    ],
+  },
+  {
+    id: 'sonoran-katydid-sustain',
+    name: 'Katydid sustain',
+    category: 'texture',
+    description:
+      'A long clear sustain that holds each note for seconds, into a plain hall with about four seconds of tail.',
+    effects: [
+      { deviceId: 'spectral-blur', preset: 'Long clean hold' },
+      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.7, breathRate: 0.304 } },
     ],
   },
   {
@@ -1041,7 +1017,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bosque octave',
     category: 'pitch',
     description:
-      'A muffled half-speed octave below, all lows, in the middle, into a hall heard from far off with little dry sound left.',
+      'A muffled half-speed octave below, kept in the centre, into a damped hall of about five seconds, heard from far off.',
     effects: [
       { deviceId: 'half-speed', preset: 'Muffled floor' },
       {
@@ -1067,7 +1043,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Moonlit undertow',
     category: 'pitch',
     description:
-      'A dark half-speed octave kept low under the dry sound, into a huge dark cathedral with only the lows left ringing.',
+      'A dark, smooth half-speed octave under the dry sound, into a huge dark cathedral with only the lows left ringing.',
     effects: [
       { deviceId: 'half-speed', preset: 'Under the mix', params: { length: 1320 } },
       { deviceId: 'expanse', preset: 'Low cathedral', params: { decay: 27.9, modRate: 0.0931 } },
@@ -1085,26 +1061,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-caliche-depths',
-    name: 'Caliche depths',
-    category: 'pitch',
-    description:
-      'A firm, slow compressor that keeps long swells held down, then a quarter-speed crawl two octaves down, smooth and unbroken.',
-    effects: [
-      {
-        deviceId: 'ambient-comp',
-        preset: 'Hold swells',
-        params: { attack: 163, release: 6.7, makeup: 2.44 },
-      },
-      { deviceId: 'half-speed', preset: 'Quarter speed', params: { length: 3700 } },
-    ],
-  },
-  {
     id: 'sonoran-windmill-bass',
     name: 'Windmill bass',
     category: 'pitch',
     description:
-      'Deep pedal notes two octaves down that swell in slowly, then a deep slow chorus on a long delay, swaying over seconds.',
+      'A deep bass two octaves down that swells in slowly, then a deep slow chorus on a long delay, swaying over seconds.',
     effects: [
       { deviceId: 'octaves', preset: 'Slow pedals' },
       { deviceId: 'chorus', preset: 'Deep sea' },
@@ -1122,94 +1083,106 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sonoran-kit-fox-tide',
-    name: 'Kit-fox tide',
+    id: 'sonoran-two-lane-depths',
+    name: 'Two-lane depths',
     category: 'pitch',
     description:
-      'Long slow grains an octave down, most of them reversed, then a wash of three fed-back tape heads that hovers and fades.',
+      'A soft, deep bass one and two octaves below each note, into sixteen strings that learn the tune and ring on long.',
     effects: [
-      { deviceId: 'grain-cloud', preset: 'Low tide' },
-      { deviceId: 'tape-echo', preset: 'Hovering wash' },
+      { deviceId: 'octaves', preset: 'Deep' },
+      { deviceId: 'sympathetic', preset: 'Learn and hold', params: { mix: 0.36 } },
     ],
   },
   {
-    id: 'sonoran-mesquite-octave',
-    name: 'Mesquite octave',
+    id: 'sonoran-observatory-undertow',
+    name: 'Observatory undertow',
     category: 'pitch',
     description:
-      'A rounded octave below every note of a chord, into a late wall of reverb that holds and stops dead.',
+      'A dark, smooth half-speed octave under the dry sound, into a cavern built from a rush of short echoes.',
     effects: [
-      { deviceId: 'octaves', preset: 'Sub octave' },
-      { deviceId: 'shaped-reverb', preset: 'Late wall' },
+      { deviceId: 'half-speed', preset: 'Under the mix' },
+      { deviceId: 'swarm-reverb', preset: 'Cavern', params: { length: 0.46, glide: 0.655 } },
     ],
   },
   {
-    id: 'sonoran-agave-reel',
-    name: 'Agave reel',
-    category: 'master',
+    id: 'sonoran-cattle-guard-replay',
+    name: 'Cattle-guard replay',
+    category: 'pitch',
     description:
-      'A fast, steady reel pushed into soft saturation, then a fast compressor that takes the spike off plucked notes, then an eased-back ceiling.',
+      'A half-speed replay an octave down, with no dry sound, into a dull reverb that swells in over seconds and fades slowly.',
     effects: [
-      { deviceId: 'tape', preset: 'Mastering deck' },
-      { deviceId: 'ambient-comp', preset: 'Pluck tamer', params: { release: 0.147 } },
-      { deviceId: 'ambient-limiter', preset: 'Pull back', params: { release: 1.39, gain: 0.629 } },
+      { deviceId: 'half-speed', preset: 'Half speed' },
+      { deviceId: 'shaped-reverb', preset: 'Dark swell' },
     ],
   },
   {
-    id: 'sonoran-lamp-lit-preamp',
-    name: 'Lamp-lit preamp',
+    id: 'sonoran-agave-finish',
+    name: 'Agave finish',
     category: 'master',
     description:
-      'The first hint of weight from a tape preamp, then a fast limiter leaned on lightly, catching stray peaks.',
+      'A fresh reel of tape, open on top and nearly steady, then a parallel compressor, then a slow-riding ceiling.',
+    effects: [
+      { deviceId: 'patina', preset: 'New tape' },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 449, release: 3.32 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide' },
+    ],
+  },
+  {
+    id: 'sonoran-master-slow-as-sleep',
+    name: 'Master slow as sleep',
+    category: 'master',
+    description:
+      'A small dip in the low mids, then a slow compressor that evens out swells over seconds, then a smooth true-peak ceiling.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.45 } },
+      { deviceId: 'ambient-comp', preset: 'Level', params: { attack: 280, release: 1.85 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { release: 1.39 } },
+    ],
+  },
+  {
+    id: 'sonoran-javelina-lacquer',
+    name: 'Javelina lacquer',
+    category: 'master',
+    description:
+      'The first hint of weight from a tape preamp, then a brickwall ceiling that touches nothing beneath it.',
     effects: [
       { deviceId: 'analog-drive', preset: 'First hint' },
+      { deviceId: 'ambient-limiter', preset: 'Wall only' },
+    ],
+  },
+  {
+    id: 'sonoran-mixdown-before-sunup',
+    name: 'Mixdown before sunup',
+    category: 'master',
+    description:
+      'A gentle compressor that draws loud and quiet together, then a slightly wider image, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 94, release: 1.78 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety', params: { outputGain: 3.89 } },
+    ],
+  },
+  {
+    id: 'sonoran-katydid-mixdown',
+    name: 'Katydid mixdown',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a fast limiter leaned on lightly, catching stray peaks.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.64 } },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
     ],
   },
   {
-    id: 'sonoran-cereus-tape',
-    name: 'Cereus tape',
+    id: 'sonoran-polish-by-the-road',
+    name: 'Polish by the road',
     category: 'master',
     description:
-      'A fresh reel of tape, then a gentle compressor, then a true-peak ceiling six decibels down, with room to spare.',
+      'A fast, steady reel with soft saturation, then a small dip in the low mids, then a true-peak ceiling set two decibels under full scale.',
     effects: [
-      { deviceId: 'patina', preset: 'New tape' },
-      { deviceId: 'ambient-comp', preset: 'Sit back', params: { attack: 111, release: 1.97 } },
-      { deviceId: 'ambient-limiter', preset: 'Margin', params: { release: 1.59, gain: 2.33 } },
-    ],
-  },
-  {
-    id: 'sonoran-ironwood-glue',
-    name: 'Ironwood glue',
-    category: 'master',
-    description:
-      'A low cut and a small dip in the low mids, to make room, then a parallel compressor, then a slow-riding ceiling.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Layer' },
-      { deviceId: 'ambient-comp', preset: 'Lift' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 6.08 } },
-    ],
-  },
-  {
-    id: 'sonoran-power-line-reel',
-    name: 'Power-line reel',
-    category: 'master',
-    description:
-      'A reel of tape at middle speed, with a little drift and hiss, then a brickwall ceiling that touches nothing beneath it.',
-    effects: [
-      { deviceId: 'tape', preset: 'Quarter inch' },
-      { deviceId: 'ambient-limiter', preset: 'Wall only', params: { release: 1.65 } },
-    ],
-  },
-  {
-    id: 'sonoran-moonrise-curve',
-    name: 'Moonrise curve',
-    category: 'master',
-    description:
-      'An equaliser that adds lows and body and eases the top, then a fast limiter with the level lifted a little into it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm' },
-      { deviceId: 'fet-limiter', preset: 'Gentle lift', params: { outputGain: -6.17 } },
+      { deviceId: 'tape', preset: 'Mastering deck' },
+      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.64 } },
     ],
   },
 ]
