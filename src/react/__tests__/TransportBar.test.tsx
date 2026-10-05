@@ -78,6 +78,18 @@ describe('TransportBar', () => {
     expect(loop).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('gives a timeline with no end no loop length, where it read 0:00.0', () => {
+    // A new engine's: the loop is off and its length is Infinity.
+    const fixture = createTestEngine()
+    render(<TransportBar />, { wrapper: fixture.wrapper })
+    const loop = screen.getByRole('button', { name: 'Loop' })
+    expect(loop).not.toHaveTextContent('0:00.0')
+    expect(loop).toHaveAttribute('title', 'Loop')
+    act(() => fixture.engine.transport.setLoop({ lengthSec: 8 }))
+    expect(loop).toHaveTextContent('0:08.0')
+    expect(loop).toHaveAttribute('title', 'Loop 0:08.0')
+  })
+
   it('counts the passes of the loop, not the starts and seeks', () => {
     const fixture = createTestEngine()
     const { transport } = fixture.engine

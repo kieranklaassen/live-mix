@@ -39,6 +39,8 @@ export function TransportBar({
   'data-testid': testId,
 }: TransportBarProps) {
   const t = useTransport(transport, { fps })
+  // A timeline with no end (a new engine's) has no loop length to print.
+  const loopLength = Number.isFinite(t.loop.lengthSec) ? formatTimeSec(t.loop.lengthSec) : null
 
   return (
     <div
@@ -83,13 +85,15 @@ export function TransportBar({
           pressed={t.loop.enabled}
           onPressedChange={(enabled) => t.setLoop({ enabled })}
           label="Loop"
-          title={`Loop ${formatTimeSec(t.loop.lengthSec)}`}
+          title={loopLength === null ? 'Loop' : `Loop ${loopLength}`}
           info={TRANSPORT_INFO.loop}
           className="lm-transport__button lm-transport__button--loop"
           data-testid={testId ? `${testId}-loop` : undefined}
         >
           <span aria-hidden="true">⟲</span>
-          <span className="lm-transport__loop-length">{formatTimeSec(t.loop.lengthSec)}</span>
+          {loopLength === null ? null : (
+            <span className="lm-transport__loop-length">{loopLength}</span>
+          )}
         </ToggleButton>
       ) : null}
       {t.loop.enabled && t.pass > 0 ? (
