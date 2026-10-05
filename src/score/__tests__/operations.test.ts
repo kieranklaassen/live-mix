@@ -618,6 +618,93 @@ describe('apply', () => {
     ).toThrow(/clip\.split/)
   })
 
+  it('takes no number that is not finite: the score could not be rendered, or read back once saved', () => {
+    const withNumber = (value: number): Operation[] => [
+      { type: 'transport.loop', lengthSec: value },
+      {
+        type: 'tempo.set',
+        segments: [
+          { atSec: 0, bpm: 100 },
+          { atSec: value, bpm: 90 },
+        ],
+      },
+      { type: 'source.add', source: { id: 'c', durationSec: value } },
+      { type: 'clip.add', track: 'kick', clip: clip('n', 'a', value) },
+      { type: 'clip.move', track: 'kick', id: 'a1', startSec: value },
+      { type: 'clip.trim', track: 'kick', id: 'a1', durationSec: value },
+      { type: 'clip.update', track: 'kick', id: 'a1', patch: { gainDb: value } },
+      { type: 'clip.replaceFrom', track: 'kick', fromSec: 0, clips: [clip('n', 'a', value)] },
+      {
+        type: 'device.add',
+        owner: 'pad',
+        device: { id: 'x', deviceId: 'filter', params: { frequency: value }, bypass: false },
+      },
+      { type: 'device.preset', device: 'glue', preset: null, params: { ratio: value } },
+      { type: 'send.add', owner: 'pad', target: 'hall', level: value },
+      { type: 'send.set', owner: 'kick', target: 'hall', level: value },
+      {
+        type: 'lane.add',
+        lane: {
+          id: 'x',
+          target: { kind: 'strip', owner: 'kick', param: 'level' },
+          defaultValue: value,
+          breakpoints: [],
+        },
+      },
+      { type: 'lane.setBreakpoints', id: 'pad-level', breakpoints: [{ timeSec: 1, value }] },
+      { type: 'lane.setBreakpoints', id: 'pad-level', breakpoints: [{ timeSec: value, value: 1 }] },
+      { type: 'lane.addBreakpoint', id: 'pad-level', breakpoint: { timeSec: 2, value } },
+      { type: 'modulator.add', modulator: { id: 'm', kind: 'macro', value } },
+      { type: 'modulator.update', id: 'lfo1', patch: { rateHz: value } },
+      { type: 'route.update', id: 'r1', depth: value },
+      {
+        type: 'track.add',
+        track: {
+          kind: 'live',
+          id: 'x',
+          name: '',
+          destination: masterDestination(),
+          strip: defaultStrip({ level: value }),
+        },
+      },
+    ]
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      for (const op of withNumber(value)) {
+        expect(() => apply(base, op), `${op.type} with ${value}`).toThrow(ScoreOperationError)
+      }
+    }
+    // The same operations with a number a score can hold all go through.
+    for (const op of withNumber(0.5)) expect(validateScore(apply(base, op)), op.type).toEqual([])
+    // Inside a batch too, and then nothing of the batch is applied.
+    expect(() =>
+      apply(base, {
+        type: 'batch',
+        ops: [
+          { type: 'score.rename', name: 'x' },
+          { type: 'clip.move', track: 'kick', id: 'a1', startSec: Number.NaN },
+        ],
+      }),
+    ).toThrow(/startSec must be a finite number/)
+  })
+
+  it('clip.replaceFrom needs a cut that is a number: without one every clip went and undo brought none back', () => {
+    const op: Operation = {
+      type: 'clip.replaceFrom',
+      track: 'kick',
+      fromSec: Number.NaN,
+      clips: [],
+    }
+    expect(() => applyWithInverse(base, op)).toThrow(/fromSec must be a finite number/)
+  })
+
+  it('what a source’s analysis holds is the host’s own, a loudness of silence included', () => {
+    const analysis = { lufs: Number.NEGATIVE_INFINITY }
+    const added = apply(base, { type: 'source.add', source: { id: 'quiet', analysis } })
+    expect(added.sources[2].analysis).toEqual(analysis)
+    const updated = apply(base, { type: 'source.update', id: 'a', patch: { analysis } })
+    expect(updated.sources[0].analysis).toEqual(analysis)
+  })
+
   it('every applied result stays valid', () => {
     const ops: Operation[] = [
       { type: 'score.rename', name: 'x' },

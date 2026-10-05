@@ -839,6 +839,35 @@ function modulatorFields(modulator: ScoreModulator): (keyof ModulatorPatch)[] {
 
 /** The score after `op`. Pure: `score` is never mutated. Throws `ScoreOperationError`. */
 export function apply(score: Score, op: Operation): Score {
+  const next = applyOne(score, op)
+  // Asked last, so an operation's own refusal says what was wrong with it. A
+  // batch's children were asked one by one, and a whole score was validated.
+  if (op.type !== 'batch' && op.type !== 'score.replace') {
+    const path = nonFinitePath(op, '')
+    if (path !== null) fail(op, `${path} must be a finite number`)
+  }
+  return next
+}
+
+/**
+ * Where an operation carries a number that is not finite, or null. JSON has
+ * no NaN and no Infinity: a score that took one is refused by the renderer,
+ * and once saved cannot be read back. What a source's `analysis` holds is the
+ * host's own (the loudness of silence is −Infinity) and is not looked at.
+ */
+function nonFinitePath(value: unknown, path: string): string | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? null : path
+  if (typeof value !== 'object' || value === null) return null
+  for (const [key, item] of Object.entries(value)) {
+    const at = Array.isArray(value) ? `${path}[${key}]` : path === '' ? key : `${path}.${key}`
+    if (at === 'source.analysis' || at === 'patch.analysis') continue
+    const found = nonFinitePath(item, at)
+    if (found !== null) return found
+  }
+  return null
+}
+
+function applyOne(score: Score, op: Operation): Score {
   switch (op.type) {
     case 'score.rename':
       return { ...score, name: op.name }
