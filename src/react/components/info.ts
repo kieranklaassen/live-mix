@@ -77,6 +77,18 @@ function squeeze(text: string | null | undefined): string {
   return (text ?? '').replace(/\s+/g, ' ').trim()
 }
 
+/** A list's entries and what is typed in a box are what the control holds, not what it is called. */
+const HOLDS_TEXT = new Set(['select', 'textarea'])
+
+/** The text under `node` but for what `skip` holds: a label's words without the list it stands around. */
+function textAround(node: Node, skip: Element): string {
+  if (node === skip) return ''
+  if (node.nodeType === 3) return node.nodeValue ?? ''
+  let text = ''
+  for (const child of Array.from(node.childNodes)) text += textAround(child, skip)
+  return text
+}
+
 /** The name an element goes by: its label, what labels it, else its own short text. */
 export function infoName(element: Element): string {
   const label = squeeze(element.getAttribute('aria-label'))
@@ -91,12 +103,13 @@ export function infoName(element: Element): string {
     )
     if (named) return named
   }
+  const holds = HOLDS_TEXT.has(element.tagName.toLowerCase())
   const labels = (element as HTMLInputElement).labels
   if (labels && labels.length > 0) {
-    const named = squeeze(labels[0].textContent)
+    const named = squeeze(holds ? textAround(labels[0], element) : labels[0].textContent)
     if (named && named.length <= NAME_MAX) return named
   }
-  const text = squeeze(element.textContent)
+  const text = holds ? '' : squeeze(element.textContent)
   if (text && text.length <= NAME_MAX) return text
   return squeeze(element.getAttribute('placeholder'))
 }
