@@ -170,8 +170,9 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
             height={height}
           />
         ) : null}
-        {seams.map((x) => (
-          <g key={`seam-${x}`} className="lm-stroke__seam">
+        {seams.map((x, index) => (
+          // By its count: a short sound repeated over a few px has several seams on the same px.
+          <g key={`seam-${index}`} className="lm-stroke__seam">
             <path className="lm-stroke__seam-line" d={`M${x + 0.5} 0V${height}`} />
             <path
               className="lm-stroke__seam-notch"

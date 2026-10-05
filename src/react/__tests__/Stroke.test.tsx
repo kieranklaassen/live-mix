@@ -7,6 +7,7 @@ import { type WaveformPeaks } from '../../core/clips/peaks'
 import { PaintField } from '../components/PaintField'
 import { SOUND_KIND_LABELS, SoundIcon } from '../components/SoundIcon'
 import { Stroke } from '../components/Stroke'
+import { repeatSeams } from '../components/stroke-math'
 
 afterEach(cleanup)
 
@@ -60,6 +61,23 @@ describe('Stroke', () => {
     expect(stroke.querySelectorAll('.lm-stroke__hit')).toHaveLength(3)
     expect(stroke.querySelector('.lm-stroke__tag')).toHaveTextContent('Bells×3')
     expect(stroke.querySelector('.lm-sound-icon--loop')).not.toBeNull()
+  })
+
+  it('leaves no seam behind when a short sound repeated many times is drawn at another width', () => {
+    // Three passes to a px: several seams fall on the same px.
+    const view = render(
+      <Stroke width={100} height={40} brush={0} peaks={peaks} repeats={300} data-testid="s" />,
+    )
+    const seams = (): number => screen.getByTestId('s').querySelectorAll('.lm-stroke__seam').length
+    expect(seams()).toBe(repeatSeams(300, 100).length)
+    view.rerender(
+      <Stroke width={60} height={40} brush={0} peaks={peaks} repeats={300} data-testid="s" />,
+    )
+    expect(seams()).toBe(repeatSeams(300, 60).length)
+    view.rerender(
+      <Stroke width={60} height={40} brush={0} peaks={peaks} repeats={2} data-testid="s" />,
+    )
+    expect(seams()).toBe(1)
   })
 
   it('draws fades shaded, and unshaded when they are a crossfade', () => {
