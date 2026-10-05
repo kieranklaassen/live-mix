@@ -1,0 +1,79 @@
+import { type DeviceLexicon } from './types'
+
+export const LEXICON: DeviceLexicon = {
+  device: 'ambient-limiter',
+  jitter: ['release'],
+  trim: [{ param: 'gain', kind: 'db' }],
+  voices: {
+    Master: {
+      says: 'a true-peak ceiling that eases long swells down first',
+      brief: 'a smooth true-peak ceiling',
+      nouns: ['ceiling', 'limiter'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    Loud: {
+      says: 'a true-peak ceiling with the level pushed up into it',
+      brief: 'a pushed true-peak ceiling',
+      nouns: ['ceiling', 'limiter', 'press'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    Streaming: {
+      says: 'a true-peak ceiling set two decibels under full scale',
+      brief: 'a ceiling with some headroom',
+      nouns: ['ceiling', 'limiter'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    'Slow tide': {
+      says: 'a true-peak ceiling that lets go again over several seconds',
+      brief: 'a slow-riding ceiling',
+      nouns: ['tide', 'ceiling'],
+      roles: ['ceiling'],
+      traits: ['slow', 'clean', 'faint'],
+    },
+    'Wall only': {
+      says: 'a brickwall ceiling that touches nothing beneath it',
+      brief: 'a bare brickwall ceiling',
+      nouns: ['wall', 'ceiling'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    Margin: {
+      says: 'a true-peak ceiling six decibels down, with room to spare',
+      brief: 'a ceiling with a wide margin',
+      nouns: ['margin', 'ceiling'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    Pinned: {
+      says: 'a low ceiling with the sound pushed hard up against it',
+      brief: 'a low, hard-pushed ceiling',
+      nouns: ['ceiling', 'press', 'lid'],
+      roles: ['ceiling'],
+      traits: [],
+    },
+    'Late night': {
+      says: 'a low ceiling that keeps loud passages down for a while',
+      brief: 'a low, slow ceiling',
+      nouns: ['ceiling', 'lid'],
+      roles: ['ceiling'],
+      traits: ['slow', 'clean', 'faint'],
+    },
+    'Pull back': {
+      says: 'a true-peak ceiling with the level eased back before it',
+      brief: 'an eased-back ceiling',
+      nouns: ['ceiling', 'limiter'],
+      roles: ['ceiling'],
+      traits: ['clean', 'faint'],
+    },
+    Breathing: {
+      says: 'a low ceiling that lets go quickly, so loud passages breathe',
+      brief: 'a low, breathing ceiling',
+      nouns: ['ceiling', 'breath'],
+      roles: ['ceiling'],
+      traits: ['faint'],
+    },
+  },
+}

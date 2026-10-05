@@ -1,0 +1,93 @@
+import { type DeviceLexicon } from './types'
+
+export const LEXICON: DeviceLexicon = {
+  device: 'hall-reverb',
+  jitter: ['preDelay', 'lowDecay', 'midDecay'],
+  trim: [{ param: 'mix', kind: 'mix' }],
+  voices: {
+    Room: {
+      says: 'a small room that is over in about a second',
+      brief: 'a small room',
+      nouns: ['room'],
+      roles: ['room'],
+      traits: ['short', 'faint'],
+    },
+    Hall: {
+      says: 'a hall with about two and a half seconds of tail',
+      brief: 'a mid-sized hall',
+      nouns: ['hall'],
+      roles: ['hall'],
+      traits: ['clean'],
+    },
+    Cathedral: {
+      says: 'a cathedral with about six seconds of tail',
+      brief: 'a cathedral',
+      nouns: ['cathedral', 'vault', 'hall'],
+      roles: ['hall'],
+      traits: ['long'],
+    },
+    'Tight chamber': {
+      says: 'a tight chamber close round the sound for about a second',
+      brief: 'a tight chamber',
+      nouns: ['chamber', 'room'],
+      roles: ['room'],
+      traits: ['short', 'faint'],
+    },
+    'Faint halo': {
+      says: 'a faint hall tail of about three seconds',
+      brief: 'a faint hall tail',
+      nouns: ['trace', 'hall'],
+      roles: ['hall'],
+      traits: ['faint', 'clean'],
+    },
+    'Dark hall': {
+      says: 'a hall whose lows outlast its damped top',
+      brief: 'a low-heavy damped hall',
+      nouns: ['hall'],
+      roles: ['hall'],
+      traits: ['warm'],
+    },
+    'Bright hall': {
+      says: 'an undamped hall of about three seconds with light lows',
+      brief: 'an undamped hall',
+      nouns: ['hall', 'air'],
+      roles: ['hall'],
+      traits: ['clean', 'bright'],
+    },
+    'Warm undertow': {
+      says: 'a hall whose lows ring on long after the rest has gone',
+      brief: 'a hall with long lows',
+      nouns: ['undertow', 'hall'],
+      roles: ['hall'],
+      traits: ['warm', 'dark'],
+    },
+    'Airy tail': {
+      says: 'a hall whose top rings on while its lows stop short',
+      brief: 'a thin hall with short lows',
+      nouns: ['tail', 'hall', 'air'],
+      roles: ['hall'],
+      traits: ['cold'],
+    },
+    'Vast nave': {
+      says: 'a vast nave that rings for about eight seconds',
+      brief: 'a vast nave',
+      nouns: ['nave', 'cathedral', 'vault'],
+      roles: ['hall'],
+      traits: ['long'],
+    },
+    'Far away': {
+      says: 'a hall heard from far off with little dry sound left',
+      brief: 'a far-off hall',
+      nouns: ['hall', 'distance'],
+      roles: ['hall'],
+      traits: ['far', 'wide'],
+    },
+    'Full wet send': {
+      says: 'a hall of about four seconds with no dry sound in it',
+      brief: 'a hall on its own',
+      nouns: ['hall', 'send'],
+      roles: ['hall'],
+      traits: ['heavy', 'far', 'wide'],
+    },
+  },
+}
