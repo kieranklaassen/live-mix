@@ -242,6 +242,29 @@ describe('formatting', () => {
     expect(formatControlValue(2.5, 'st')).toBe('2.50 st')
   })
 
+  it("tells a short time and a slow rate apart over the low part of a knob's travel", () => {
+    // A compressor's attack: every one of these read "0.00 s".
+    expect(formatControlValue(0.0001, 's')).toBe('0.1 ms')
+    expect(formatControlValue(0.0005, 's')).toBe('0.5 ms')
+    expect(formatControlValue(0.003, 's')).toBe('3.0 ms')
+    expect(formatControlValue(0.02, 's')).toBe('20 ms')
+    expect(formatControlValue(0.099, 's')).toBe('99 ms')
+    expect(formatControlValue(0.0996, 's')).toBe('0.10 s')
+    expect(formatControlValue(0.25, 's')).toBe('0.25 s')
+    expect(formatControlValue(0, 's')).toBe('0.00 s')
+    expect(formatControlValue(0.003, 's', { spacing: '' })).toBe('3.0ms')
+    // Digits asked for are given, in seconds.
+    expect(formatControlValue(0.003, 's', 3)).toBe('0.003 s')
+    // A slow rate: these read "0.0 Hz" and "0.1 Hz".
+    expect(formatControlValue(0.01, 'Hz')).toBe('0.01 Hz')
+    expect(formatControlValue(0.04, 'Hz')).toBe('0.04 Hz')
+    expect(formatControlValue(0.15, 'Hz')).toBe('0.15 Hz')
+    expect(formatControlValue(0.999, 'Hz')).toBe('1.00 Hz')
+    expect(formatControlValue(1, 'Hz')).toBe('1.0 Hz')
+    expect(formatControlValue(0, 'Hz')).toBe('0.0 Hz')
+    expect(formatControlValue(-0.5, 'Hz')).toBe('-0.50 Hz')
+  })
+
   it('formats transport time', () => {
     expect(formatTimeSec(0)).toBe('0:00.0')
     expect(formatTimeSec(3.25)).toBe('0:03.2')

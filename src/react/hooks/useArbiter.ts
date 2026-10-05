@@ -3,7 +3,7 @@
 // the touch/lock controls. `useArbiterTarget` is the per-control shape: the
 // badge next to a fader that reads "held by you" or "coach pending".
 
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { type Hold, type Lock } from '../../core/params/arbitration'
 import {
@@ -47,8 +47,22 @@ export interface ArbiterControls {
 
 export type UseArbiterResult = ArbiterSnapshot & ArbiterControls & { arbiter: Arbiter }
 
-function sameRevision(a: { revision: number }, b: { revision: number }): boolean {
-  return a.revision === b.revision
+interface Revision {
+  arbiter: Arbiter
+  revision: number
+}
+
+/** Of one arbiter and at one count: the count alone hands a hook given another arbiter the last one's state. */
+function sameRevision(a: Revision, b: Revision): boolean {
+  return a.arbiter === b.arbiter && a.revision === b.revision
+}
+
+/** And of one target: a control given another target is given no event to read it by. */
+function sameTargetRevision(
+  a: Revision & { state: TargetState },
+  b: Revision & { state: TargetState },
+): boolean {
+  return sameRevision(a, b) && a.state.key === b.state.key
 }
 
 function useArbiterSubscription(arbiter: Arbiter) {
@@ -74,7 +88,8 @@ export function useArbiter(arbiter?: Arbiter): UseArbiterResult {
   const target = resolveArbiter(arbiter, useMaybeArbiter(), 'useArbiter')
   const subscribe = useArbiterSubscription(target)
   const read = useCallback(
-    (): ArbiterSnapshot => ({
+    (): ArbiterSnapshot & Revision => ({
+      arbiter: target,
       holds: target.holds(),
       locks: target.locks(),
       pending: target.pending(),
@@ -107,7 +122,7 @@ export function useArbiter(arbiter?: Arbiter): UseArbiterResult {
     }),
     [target],
   )
-  return { arbiter: target, ...snapshot, ...controls }
+  return { ...snapshot, ...controls }
 }
 
 export interface UseArbiterTargetResult extends TargetState {
@@ -134,10 +149,10 @@ export function useArbiterTarget(
   const key = typeof target === 'string' ? target : JSON.stringify(target)
   const stable = useMemo(() => target, [key])
   const read = useCallback(
-    () => ({ state: source.stateOf(stable), revision: source.revision }),
+    () => ({ arbiter: source, state: source.stateOf(stable), revision: source.revision }),
     [source, stable],
   )
-  const { state } = useExternalSnapshot(subscribe, read, sameRevision)
+  const { state } = useExternalSnapshot(subscribe, read, sameTargetRevision)
   const me = source.author
   const heldByMe =
     state.holder !== null && state.holder.id === me.id && state.holder.kind === me.kind
@@ -150,11 +165,27 @@ export function useArbiterTarget(
       : agentPending
         ? `${state.pending.find((pending) => pending.author.kind === 'agent')?.author.id ?? 'agent'} pending`
         : ''
+  // Whether this hook's own touch is still in hand.
+  const inHand = useRef(false)
   const touch = useCallback(() => {
     source.touch(stable)
+    inHand.current = true
   }, [source, stable])
   const release = useCallback(() => {
+    inHand.current = false
     source.release(stable)
   }, [source, stable])
+  // A control that leaves the page in hand, or is given another target, lets
+  // go here, as the strip and device hooks do: the pointer's up is told to the
+  // other target or to nobody, and the hold would stand against every other
+  // writer for good.
+  useEffect(
+    () => () => {
+      if (!inHand.current) return
+      inHand.current = false
+      source.release(stable)
+    },
+    [source, stable],
+  )
   return { ...state, heldByMe, heldByOther, agentPending, status, touch, release }
 }

@@ -88,6 +88,19 @@ describe('gain slew', () => {
     expect(notes).toHaveLength(1)
   })
 
+  it('a move from or to what is no number passes unslewed, and the budget is not spent on it', () => {
+    const rails = new Rails()
+    const notes: RailNote[] = []
+    // No telling how far these go: the document refuses what is no number, as it always did.
+    expect(rails.slewGain('music', NaN, 0.5, 0, notes)).toBe(0.5)
+    expect(rails.slewGain('music', 0.8, NaN, 0, notes)).toBeNaN()
+    expect(notes).toEqual([])
+    // The bucket is whole and holds a number: a full-scale move, then nothing until it refills.
+    expect(rails.slewGain('music', 0, 1, 0, notes)).toBe(1)
+    expect(rails.slewGain('music', 1, 0, 0, notes)).toBe(1)
+    expect(rails.slewGain('music', 1, 0, 1000, notes)).toBe(0)
+  })
+
   it('is disabled with an infinite rate', () => {
     const rails = new Rails({ maxGainChangePerSec: Infinity })
     const notes: RailNote[] = []
@@ -194,6 +207,17 @@ describe('rate limits', () => {
     expect(rails.peekCall('anything', 0)).toBeNull()
     expect(rails.takeCall('anything', 0)).toBeNull()
     expect(rails.peekCall('anything', 0)).toBe(1000)
+  })
+
+  it("a tool named as every object answers, or by the table's word for the rest, has the limit it declares", () => {
+    const rails = new Rails()
+    const declared = { burst: 1, perMinute: 6 }
+    for (const tool of ['constructor', 'toString', '__proto__', 'default']) {
+      expect(rails.rateLimitFor(tool, declared), tool).toEqual(declared)
+      expect(rails.takeCall(tool, 0, declared), tool).toBeNull()
+      expect(rails.takeCall(tool, 0, declared), tool).toBe(10_000)
+    }
+    expect(rails.rateLimitFor('constructor')).toEqual(DEFAULT_RATE_LIMITS.default)
   })
 
   it('unknown tools use the default limit', () => {

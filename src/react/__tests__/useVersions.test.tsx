@@ -53,6 +53,24 @@ describe('useVersions', () => {
     expect(result.current.scoreOf('v2')).toBeDefined()
   })
 
+  it('lists the history it is given now, not the one before it at the same revision', () => {
+    const first = rig()
+    const second = rig()
+    first.history.save('one')
+    second.history.save('other')
+    expect(first.history.revision).toBe(second.history.revision)
+    const { result, rerender } = renderHook(({ history }) => useVersions(history), {
+      initialProps: { history: first.history },
+    })
+    expect(result.current.latest?.label).toBe('one')
+    rerender({ history: second.history })
+    expect(result.current.history).toBe(second.history)
+    expect(result.current.versions.map((version) => version.label)).toEqual([
+      'Session start',
+      'other',
+    ])
+  })
+
   it('resolves the provided history and throws without one', () => {
     const { history, wrapper } = rig()
     const { result } = renderHook(() => useVersions(), { wrapper })

@@ -8,7 +8,7 @@
 
 import { type Engine } from '../core/Engine'
 import { type IntervalId } from '../core/clock'
-import { type Arbiter } from '../score/Arbiter'
+import { type Arbiter, type ArbiterEvent } from '../score/Arbiter'
 import { type Author } from '../score/log'
 import { ScoreOperationError, type Operation } from '../score/operations'
 import { type ScoreDocument } from '../score/ScoreDocument'
@@ -16,7 +16,7 @@ import { AgentAuditLog, type AuditEntry } from './audit'
 import { intentTools } from './intents'
 import { formatIssues, validateSchema } from './jsonSchema'
 import { operationTools } from './operations'
-import { consentForBatch } from './operations'
+import { batchIssues, consentForBatch } from './operations'
 import { AGENT_AUTHOR, RailRejection, Rails, type AgentRailsOptions } from './rails'
 import {
   ToolError,
@@ -110,6 +110,9 @@ export class AgentController implements ControllerView {
   private readonly metersOverride: (() => SnapshotMeters | null) | null
   private readonly snapshots = new Map<number, AgentSnapshot>()
   private readonly listeners = new Set<SnapshotListener>()
+  /** The call each write still waiting behind a hold belongs to, by the arbiter's ticket. */
+  private readonly waiting = new Map<number, number>()
+  private readonly unsubscribeArbiter: (() => void) | null
   private cadenceId: IntervalId | null = null
   private cadenceMs = 0
   private growthSec = 0
@@ -123,6 +126,7 @@ export class AgentController implements ControllerView {
     if (this.arbiter && this.document && this.arbiter.document !== this.document) {
       throw new Error("live-mix: AgentController: the arbiter must wrap the controller's document")
     }
+    this.unsubscribeArbiter = this.arbiter?.onChange((event) => this.settle(event)) ?? null
     this.session = options.session ?? {}
     this.roles = { ...options.roles }
     this.staticLibrary = options.library ?? []
@@ -230,6 +234,10 @@ export class AgentController implements ControllerView {
       return fail('unavailable', `"${name}" has no backend in this session`)
     }
     const issues = validateSchema(spec.definition.parameters, args)
+    // A batch's schema takes any object with a `type` for a child: each is held to its own tool's.
+    if (issues.length === 0 && spec.definition.operation === 'batch') {
+      issues.push(...batchIssues(args.ops as readonly unknown[]))
+    }
     if (issues.length > 0) {
       return fail('invalid_args', `${name}: ${formatIssues(issues)}`, { issues })
     }
@@ -310,7 +318,10 @@ export class AgentController implements ControllerView {
             }
             break
           case 'deferred':
-            if (outcome.ticket !== undefined) tickets.push(outcome.ticket)
+            if (outcome.ticket !== undefined) {
+              tickets.push(outcome.ticket)
+              this.waiting.set(outcome.ticket, callId)
+            }
             notes.push({
               rail: 'arbitration',
               action: 'deferred',
@@ -356,8 +367,11 @@ export class AgentController implements ControllerView {
         args,
         outcome: 'applied',
         rails: notes,
-        operations: applied,
+        // A copy: a write that lands later is added to the entry, not to what the call was answered.
+        operations: [...applied],
         inverses,
+        // Counted as they stand now: a later write of this call to the same targets retired the earlier wait.
+        waiting: tickets.filter((ticket) => this.waiting.get(ticket) === callId).length,
         result: spec.definition.category === 'query' ? undefined : result,
         summary: `${plan.label}${describeNotes(notes)}`,
       })
@@ -442,6 +456,8 @@ export class AgentController implements ControllerView {
     this.disposed = true
     this.setCadence(0)
     this.listeners.clear()
+    this.unsubscribeArbiter?.()
+    this.waiting.clear()
   }
 
   // --- Internals ------------------------------------------------------------------------------
@@ -454,6 +470,32 @@ export class AgentController implements ControllerView {
     if (this.listeners.size === 0) return
     const snapshot = this.snapshot()
     for (const listener of [...this.listeners]) listener(snapshot)
+  }
+
+  /**
+   * A write that waited behind a hold has landed, or been let go. One that
+   * landed is its call's own from then on: the audit entry carries it and its
+   * inverse, so `undo` takes back that call and not the one before it. An undo
+   * that was let go took nothing back, and the call it named can be undone again.
+   */
+  private settle(event: ArbiterEvent): void {
+    if (event.type !== 'landed' && event.type !== 'dropped') return
+    const ticket = event.type === 'landed' ? event.pending.ticket : event.ticket
+    const callId = ticket === undefined ? undefined : this.waiting.get(ticket)
+    if (ticket === undefined || callId === undefined) return
+    this.waiting.delete(ticket)
+    const entry = this.audit.find(callId)
+    if (!entry) return
+    if (entry.waiting) entry.waiting -= 1
+    if (event.type === 'landed') {
+      entry.operations.push({ seq: event.entry.seq, type: event.pending.op.type })
+      entry.inverses.push(event.entry.inverse)
+      return
+    }
+    if (entry.operations.length > 0 || entry.waiting) return
+    for (const undone of this.audit.entries) {
+      if (undone.undoneBy === callId) delete undone.undoneBy
+    }
   }
 
   private missingConsent(spec: ToolSpec, args: Record<string, unknown>): ConsentScope | null {
