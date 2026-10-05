@@ -44,7 +44,8 @@ function identifiedList(list: Json[]): list is (Identified & Record<string, Json
 }
 
 function sameJson(a: Json, b: Json): boolean {
-  if (Object.is(a, b)) return true
+  // `===` as well: a zero and a minus zero are written the same once saved.
+  if (a === b || Object.is(a, b)) return true
   if (Array.isArray(a) || Array.isArray(b)) {
     if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false
     return a.every((item, index) => sameJson(item, b[index]))
