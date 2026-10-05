@@ -984,17 +984,17 @@ function applyOne(score: Score, op: Operation): Score {
       }
     }
 
-    case 'source.add':
+    case 'source.add': {
       if (score.sources.some((source) => source.id === op.source.id)) {
         fail(op, `source "${op.source.id}" already exists`)
       }
       if (op.source.meta !== undefined && !isJsonObject(op.source.meta)) {
         fail(op, 'source meta must be a plain JSON object')
       }
-      return {
-        ...score,
-        sources: insertAt(op, score.sources, normaliseSource(op.source), op.index),
-      }
+      const source = normaliseSource(op.source)
+      const sources = insertAt(op, score.sources, source, op.index)
+      return fitting({ ...score, sources }, op, `sources[${sources.indexOf(source)}]`)
+    }
 
     case 'source.remove': {
       if (!score.sources.some((source) => source.id === op.id)) fail(op, `no source "${op.id}"`)
@@ -1020,10 +1020,15 @@ function applyOne(score: Score, op: Operation): Score {
         score.sources.find((candidate) => candidate.id === op.id) ??
         fail(op, `no source "${op.id}"`)
       const next = patchSource(op, source, op.patch)
-      return {
-        ...score,
-        sources: score.sources.map((candidate) => (candidate === source ? next : candidate)),
+      if (next.url === undefined) {
+        for (const track of score.elementTracks) {
+          if (track.clips.some((clip) => clip.sourceId === op.id)) {
+            fail(op, `source "${op.id}" is streamed by a clip on element track "${track.id}"`)
+          }
+        }
       }
+      const sources = score.sources.map((candidate) => (candidate === source ? next : candidate))
+      return fitting({ ...score, sources }, op, `sources[${sources.indexOf(next)}]`)
     }
 
     case 'track.add': {

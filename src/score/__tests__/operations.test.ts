@@ -398,6 +398,33 @@ describe('apply', () => {
     expect(audio(score, 'kick').clips.map((c) => c.sourceId)).toEqual(['a', 'b'])
   })
 
+  it('a source keeps its url while an element track streams it, and none is added or left with an empty one', () => {
+    const streamed = apply(base, {
+      type: 'elementTrack.add',
+      track: {
+        id: 'stream',
+        name: 'Stream',
+        destination: masterDestination(),
+        clips: [clip('s1', 'a', 0)],
+      },
+    })
+    expect(() => apply(streamed, { type: 'source.update', id: 'a', patch: { url: null } })).toThrow(
+      /is streamed by a clip on element track "stream"/,
+    )
+    // The rest of it can still be changed, and so can the url of one nothing streams.
+    const patched = apply(streamed, { type: 'source.update', id: 'a', patch: { durationSec: 5 } })
+    expect(patched.sources[0]).toMatchObject({ url: '/a.mp3', durationSec: 5 })
+    expect(
+      apply(base, { type: 'source.update', id: 'a', patch: { url: null } }).sources[0],
+    ).toEqual({ id: 'a', durationSec: 10 })
+    expect(() => apply(base, { type: 'source.update', id: 'a', patch: { url: '' } })).toThrow(/url/)
+    expect(() => apply(base, { type: 'source.add', source: { id: 'c', url: '' } })).toThrow(/url/)
+    expect(() => apply(base, { type: 'source.add', source: { id: 'c', durationSec: -1 } })).toThrow(
+      /durationSec/,
+    )
+    expect(() => apply(base, { type: 'source.add', source: { id: '' } })).toThrow(/id/)
+  })
+
   it('clip.replaceFrom keeps what starts before the cut and refuses clips before it', () => {
     const replaced = apply(base, {
       type: 'clip.replaceFrom',
