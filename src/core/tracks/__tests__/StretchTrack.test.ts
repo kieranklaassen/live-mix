@@ -9,6 +9,7 @@ import {
 } from '../../../testing'
 import { type Clip } from '../../clips/Clip'
 import { equalPowerFadeOut } from '../../clips/curves'
+import { strictCurves } from '../../clips/__tests__/strict-curves'
 import {
   type StretchNode,
   type StretchNodeFactory,
@@ -528,6 +529,43 @@ describe('StretchTrack scheduling', () => {
     await withResolve.settled()
     expect(withResolve.voices()).toHaveLength(0)
     withResolve.dispose()
+  })
+})
+
+describe('StretchTrack equal-power envelopes at their edges', () => {
+  it('a clip with no fade-in, and one joined so late that its fades no longer fit, write only what a browser takes', async () => {
+    const restore = strictCurves()
+    try {
+      const { ctx, samples, track, transport, scheduler } = setup()
+      await samples.load('s-a', buffer(ctx, 10))
+      await samples.load('s-b', buffer(ctx, 10))
+      track.clips.add(clip('a', 0, { fadeCurve: 'equalPower', fadeInSec: 0, fadeOutSec: 0 }))
+      track.clips.add(clip('b', 0, { fadeCurve: 'equalPower', fadeInSec: 2, fadeOutSec: 2 }))
+      transport.seek(3) // one second of each clip is left: less than either fade of `b`
+      transport.start(0)
+      await track.settled()
+      ctx.currentTime = 0.5
+      expect(() => scheduler.tick()).not.toThrow()
+      const events = (key: string) =>
+        (
+          track.voice(key)?.gain as unknown as {
+            gain: { events: { method: string; args: unknown[] }[] }
+          }
+        ).gain.events.map((e) => [e.method, ...e.args.slice(-2)])
+      expect(events('a:0:0.000')).toEqual([['setValueAtTime', 1, 0.5]])
+      // Half a second is left of `b`: its fade-in takes it all, and no fade-out is laid over it.
+      expect(events('b:0:0.000')).toEqual([
+        ['setValueAtTime', 0, 0.5],
+        ['setValueCurveAtTime', 0.5, 0.5],
+      ])
+      expect(() => track.fadeOutVoice('a:0:0.000', 0.5, 0)).not.toThrow()
+      expect(events('a:0:0.000').slice(-2)).toEqual([
+        ['cancelScheduledValues', 0.5],
+        ['setValueAtTime', 0, 0.5],
+      ])
+    } finally {
+      restore()
+    }
   })
 })
 

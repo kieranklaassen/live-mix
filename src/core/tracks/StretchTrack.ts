@@ -14,7 +14,7 @@
 // `settled()` before re-ticking).
 
 import { type Clip } from '../clips/Clip'
-import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
+import { writeEqualPowerEnvelope, writeEqualPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
 import { type ClipWindow } from '../clips/window'
 import { type TempoMap } from '../time/TempoMap'
@@ -212,7 +212,7 @@ export class StretchTrack implements StripHost {
     const end = at + seconds
     voice.gain.gain.cancelScheduledValues(at)
     if (voice.fadeCurve === 'equalPower') {
-      voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
+      writeEqualPowerFadeOut(voice.gain.gain, at, seconds)
     } else {
       voice.gain.gain.setValueAtTime(voice.gain.gain.value, at)
       voice.gain.gain.linearRampToValueAtTime(0, end)
@@ -450,9 +450,9 @@ export class StretchTrack implements StripHost {
   ): void {
     const param = gain.gain
     if (clip.fadeCurve === 'equalPower') {
-      param.setValueAtTime(0, start)
-      param.setValueCurveAtTime(equalPowerFadeIn(), start, clip.fadeInSec)
-      param.setValueCurveAtTime(equalPowerFadeOut(), end - clip.fadeOutSec, clip.fadeOutSec)
+      // What is left of the clip from `start`, as `play` took it for `end`.
+      const durationSec = clip.durationSec - late
+      writeEqualPowerEnvelope(param, start, durationSec, clip.fadeInSec, clip.fadeOutSec)
       return
     }
     const fadeInEnd = when + Math.min(clip.fadeInSec, clip.durationSec)

@@ -25,7 +25,7 @@
 
 import { type Bus } from '../buses/Bus'
 import { type Clip, type FadeCurve } from '../clips/Clip'
-import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
+import { writeEqualPowerEnvelope, writeEqualPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
 import { type ClipWindow } from '../clips/window'
 import { DEFAULT_LOOKAHEAD_SECONDS, trimGain } from '../tracks/AudioTrack'
@@ -246,7 +246,7 @@ export class ElementTrack {
       const end = at + seconds
       voice.gain.gain.cancelScheduledValues(at)
       if (voice.fadeCurve === 'equalPower') {
-        voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
+        writeEqualPowerFadeOut(voice.gain.gain, at, seconds)
       } else {
         // Anchor at the current value so a fade-out landing mid-fade-in ramps
         // from where the gain is, not from the cancelled ramp's start value.
@@ -400,11 +400,11 @@ export class ElementTrack {
     const startAt = Math.max(when, this.now())
     const end = startAt + playback.durationSec
     const gain = this.ctx.createGain()
-    gain.gain.setValueAtTime(0, startAt)
-    gain.gain.setValueCurveAtTime(equalPowerFadeIn(), startAt, playback.fadeInSec)
-    gain.gain.setValueCurveAtTime(
-      equalPowerFadeOut(),
-      startAt + playback.durationSec - playback.fadeOutSec,
+    writeEqualPowerEnvelope(
+      gain.gain,
+      startAt,
+      playback.durationSec,
+      playback.fadeInSec,
       playback.fadeOutSec,
     )
     gain.gain.setValueAtTime(0, end)

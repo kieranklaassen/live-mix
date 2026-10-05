@@ -8,6 +8,7 @@ import {
   type MockAudioContext,
 } from '../../../testing'
 import { equalPowerFadeIn, equalPowerFadeOut } from '../../clips/curves'
+import { strictCurves } from '../../clips/__tests__/strict-curves'
 import { fadeGain } from '../../clips/fade'
 import { type Clip } from '../../clips/Clip'
 import { REJOIN_FADE_SECONDS, Scheduler } from '../../transport/Scheduler'
@@ -732,6 +733,45 @@ describe('AudioTrack equal-power voices (Breathwork Live scheduleEntry parity)',
     fadeOutSec: CROSSFADE_SECONDS,
     fadeCurve: 'equalPower' as const,
     gainDb,
+  })
+
+  it('with no fade-in, no fade-out, or fades longer than the clip, writes only what a browser takes', () => {
+    const restore = strictCurves()
+    try {
+      const { ctx, track } = setup()
+      const events = (index: number) =>
+        ctx.gains[index].gain.events.map((e) => [e.method, ...e.args.slice(-2)])
+      // No fade-in: at full level from its first frame, then the fade-out as ever.
+      expect(track.play('in', { ...entry(ctx), fadeInSec: 0 }, 0)).not.toBeNull()
+      expect(events(1)).toEqual([
+        ['setValueAtTime', 1, 0],
+        ['setValueCurveAtTime', 10 - CROSSFADE_SECONDS, CROSSFADE_SECONDS],
+      ])
+      // No fade-out: it stays at full level to its end.
+      expect(track.play('out', { ...entry(ctx), fadeOutSec: 0 }, 0)).not.toBeNull()
+      expect(events(2)).toEqual([
+        ['setValueAtTime', 0, 0],
+        ['setValueCurveAtTime', 0, CROSSFADE_SECONDS],
+      ])
+      // Fades longer than the clip: the fade-in is kept, the fade-out has what is left.
+      expect(
+        track.play('long', { ...entry(ctx), durationSec: 3, fadeInSec: 2, fadeOutSec: 2 }, 0),
+      ).not.toBeNull()
+      expect(events(3)).toEqual([
+        ['setValueAtTime', 0, 0],
+        ['setValueCurveAtTime', 0, 2],
+        ['setValueCurveAtTime', 2, 1],
+      ])
+      // And a fade-out asked for over no time at all is a cut, not a curve of no length.
+      ctx.currentTime = 1
+      expect(() => track.fadeOutVoice('out', 1, 0)).not.toThrow()
+      expect(events(2).slice(-2)).toEqual([
+        ['cancelScheduledValues', 1],
+        ['setValueAtTime', 0, 1],
+      ])
+    } finally {
+      restore()
+    }
   })
 
   it('records exactly the scheduleEntry events, gain created before source', () => {

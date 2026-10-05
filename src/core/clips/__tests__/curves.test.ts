@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
-import { EQUAL_POWER_CURVE_LENGTH, equalPowerFadeIn, equalPowerFadeOut } from '../curves'
+import { MockAudioParam } from '../../../testing'
+import {
+  EQUAL_POWER_CURVE_LENGTH,
+  equalPowerFadeIn,
+  equalPowerFadeOut,
+  writeEqualPowerEnvelope,
+  writeEqualPowerFadeOut,
+} from '../curves'
+import { strictCurves } from './strict-curves'
 
 // Breathwork Live's originals (musicEngine.ts, CURVE_LENGTH = 64), kept
 // verbatim so the port is checked sample-for-sample, not just by shape.
@@ -82,5 +90,70 @@ describe('equal-power curves', () => {
     expect(fadeOut[8]).toBeCloseTo(0, 6)
     expect(fadeIn[4]).toBeCloseTo(Math.SQRT1_2, 6)
     expect(fadeOut[4]).toBeCloseTo(Math.SQRT1_2, 6)
+  })
+})
+
+describe('writeEqualPowerEnvelope', () => {
+  /** The envelope's events under a stand-in that refuses what a browser refuses of a curve. */
+  function written(startAt: number, durationSec: number, fadeInSec: number, fadeOutSec: number) {
+    const restore = strictCurves()
+    try {
+      const param = new MockAudioParam()
+      writeEqualPowerEnvelope(
+        param as unknown as AudioParam,
+        startAt,
+        durationSec,
+        fadeInSec,
+        fadeOutSec,
+      )
+      return param.events
+    } finally {
+      restore()
+    }
+  }
+
+  it('writes the scheduleEntry events when both fades have a length and fit in the clip', () => {
+    expect(written(2, 10, 3, 4)).toEqual([
+      { method: 'setValueAtTime', args: [0, 2] },
+      { method: 'setValueCurveAtTime', args: [equalPowerFadeIn(), 2, 3] },
+      { method: 'setValueCurveAtTime', args: [equalPowerFadeOut(), 2 + 10 - 4, 4] },
+    ])
+  })
+
+  it('writes no curve of no length: full level from the start, and to the end', () => {
+    expect(written(2, 10, 0, 4).map((e) => e.method)).toEqual([
+      'setValueAtTime',
+      'setValueCurveAtTime',
+    ])
+    expect(written(2, 10, 0, 4)[0].args).toEqual([1, 2])
+    expect(written(2, 10, 3, 0).map((e) => e.method)).toEqual([
+      'setValueAtTime',
+      'setValueCurveAtTime',
+    ])
+    expect(written(2, 10, 0, 0)).toEqual([{ method: 'setValueAtTime', args: [1, 2] }])
+  })
+
+  it('lays no curve over another: fades that fill the clip meet, and longer ones share it', () => {
+    // 5.91 + 2.88 - 1.12 falls a hair short of 5.91 + 1.76: written as they come, the two would overlap.
+    const meeting = written(5.91, 2.88, 1.76, 1.12)
+    expect(meeting[2].args[1]).toBe(5.91 + 1.76)
+    expect(written(0, 3, 2, 2).map((e) => e.args.slice(1))).toEqual([[0], [0, 2], [2, 1]])
+    // A fade-in as long as the clip, or longer, leaves no room for a fade-out.
+    expect(written(0, 3, 5, 2).map((e) => e.args.slice(1))).toEqual([[0], [0, 3]])
+  })
+
+  it('a fade-out over no time is a cut', () => {
+    const restore = strictCurves()
+    try {
+      const param = new MockAudioParam()
+      writeEqualPowerFadeOut(param as unknown as AudioParam, 4, 0)
+      writeEqualPowerFadeOut(param as unknown as AudioParam, 5, 0.5)
+      expect(param.events).toEqual([
+        { method: 'setValueAtTime', args: [0, 4] },
+        { method: 'setValueCurveAtTime', args: [equalPowerFadeOut(), 5, 0.5] },
+      ])
+    } finally {
+      restore()
+    }
   })
 })

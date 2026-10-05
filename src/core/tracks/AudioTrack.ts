@@ -63,7 +63,7 @@
 // each voice connects straight to the destination as in Phase 0.
 
 import { type Clip, type FadeCurve } from '../clips/Clip'
-import { equalPowerFadeIn, equalPowerFadeOut } from '../clips/curves'
+import { writeEqualPowerEnvelope, writeEqualPowerFadeOut } from '../clips/curves'
 import { fadeGain } from '../clips/fade'
 import {
   clipLowpassHz,
@@ -810,7 +810,7 @@ export class AudioTrack implements StripHost {
     this.timings.delete(voice)
     voice.gain.gain.cancelScheduledValues(at)
     if (voice.fadeCurve === 'equalPower') {
-      voice.gain.gain.setValueCurveAtTime(equalPowerFadeOut(), at, seconds)
+      writeEqualPowerFadeOut(voice.gain.gain, at, seconds)
     } else {
       // Anchor at the current value so a fade-out landing mid-fade-in ramps
       // from where the gain is, not from the cancelled ramp's start value.
@@ -1218,11 +1218,11 @@ export class AudioTrack implements StripHost {
   private playEqualPower(key: string, playback: VoicePlayback, when: number): ClipVoice | null {
     const startAt = Math.max(when, this.now())
     const gain = this.ctx.createGain()
-    gain.gain.setValueAtTime(0, startAt)
-    gain.gain.setValueCurveAtTime(equalPowerFadeIn(), startAt, playback.fadeInSec)
-    gain.gain.setValueCurveAtTime(
-      equalPowerFadeOut(),
-      startAt + playback.durationSec - playback.fadeOutSec,
+    writeEqualPowerEnvelope(
+      gain.gain,
+      startAt,
+      playback.durationSec,
+      playback.fadeInSec,
       playback.fadeOutSec,
     )
     // Per-clip loudness trim (LUFS normalization): the fade gain chains
