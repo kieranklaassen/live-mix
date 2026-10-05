@@ -9,7 +9,7 @@ import { LEVEL_RAMP_SECONDS, type Bus } from '../buses/Bus'
 import { type Macro } from '../automation/Modulator'
 import { type Device } from '../devices/Device'
 import { type Engine } from '../Engine'
-import { denormalizeParam, normalizeParam } from '../params'
+import { denormalizeParam, normalizeParam, type ParamSpec } from '../params'
 import { type ChannelStrip, type StripHost } from '../tracks/ChannelStrip'
 import { type Send } from '../tracks/Send'
 import { type Transport } from '../transport/Transport'
@@ -40,6 +40,12 @@ export interface ControlBinding {
   fire(): void
   /** The value `write(unit)` would set, in the target's own units (level, pan −1..1, Hz, 0/1 for on/off). */
   value(unit: number): number
+  /**
+   * Where the controller stands, for a target that cannot say it back (a
+   * choice keeps only the whole number). The surface tells it before every
+   * write, whoever carries the write out.
+   */
+  hold?(unit: number): void
 }
 
 /**
@@ -90,7 +96,7 @@ export interface BindingOptions {
   levelMax: number
   /** Audio clock for the send ramp. */
   now: () => number
-  /** Last positions this surface wrote where the object keeps none (sends, master). */
+  /** Last positions this surface wrote where the object keeps none (sends, master, a choice between two of its steps). */
   remembered: Map<string, number>
   /** Key of the target in `remembered`. */
   key: string
@@ -179,14 +185,44 @@ function masterBinding(master: Bus, options: BindingOptions): ControlBinding {
   }
 }
 
-function deviceBinding(device: Device, param: string): ControlBinding | null {
+function isChoice(spec: ParamSpec): boolean {
+  return spec.choices !== undefined && spec.choices.length > 0
+}
+
+function deviceBinding(
+  device: Device,
+  param: string,
+  options: BindingOptions,
+): ControlBinding | null {
   const spec = device.params[param]
   if (!spec) return null
+  if (!isChoice(spec)) {
+    return {
+      read: () => normalizeParam(spec, device.getParam(param)),
+      write: (unit) => device.setParam(param, denormalizeParam(spec, unit)),
+      fire: () => {},
+      value: (unit) => denormalizeParam(spec, unit),
+    }
+  }
+  // A choice is one of its whole numbers: the panel prints the nearest and the
+  // DSP switches there, so a position between two is written as the nearer
+  // and the piece never holds a fraction of a choice.
+  const value = (unit: number): number => Math.round(denormalizeParam(spec, unit))
   return {
-    read: () => normalizeParam(spec, device.getParam(param)),
-    write: (unit) => device.setParam(param, denormalizeParam(spec, unit)),
+    // Where the controller stands between two choices only the surface knows,
+    // and only while the choice is still the one that position means: an
+    // encoder's small steps add up, and a knob that caught it stays caught.
+    read: () => {
+      const current = device.getParam(param)
+      const held = options.remembered.get(options.key)
+      return held !== undefined && value(held) === current ? held : normalizeParam(spec, current)
+    },
+    write: (unit) => device.setParam(param, value(unit)),
     fire: () => {},
-    value: (unit) => denormalizeParam(spec, unit),
+    value,
+    hold: (unit) => {
+      options.remembered.set(options.key, clampUnit(unit))
+    },
   }
 }
 
@@ -252,7 +288,7 @@ export function resolveBinding(
     }
     case 'device': {
       const device = resolver.device(target.device)
-      return device ? deviceBinding(device, target.param) : null
+      return device ? deviceBinding(device, target.param, options) : null
     }
     case 'macro': {
       const macro = resolver.macro(target.macro)

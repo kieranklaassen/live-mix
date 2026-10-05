@@ -489,6 +489,7 @@ export class ControlSurface {
   /** The write hook first (an arbiter, a document); the engine's ramped setter otherwise. */
   private write(target: ControlTarget, binding: ControlBinding, unit: number): void {
     const key = controlTargetKey(target)
+    binding.hold?.(unit)
     if (
       this.writeHook?.({ target, unit, value: binding.value(unit), gesture: `controller:${key}` })
     ) {

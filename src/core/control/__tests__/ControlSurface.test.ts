@@ -178,6 +178,44 @@ describe('ControlSurface dispatch', () => {
     expect(surface.devices.size).toBe(0)
   })
 
+  it('lands a controller on a whole choice of a parameter that is a list, never between two', async () => {
+    const { engine } = fixture()
+    const filter = await engine.devices.create('filter', engine.context)
+    const surface = new ControlSurface({ engine })
+    surface.registerDevice('pad-filter', filter)
+    const type: ControlTarget = { kind: 'device', device: 'pad-filter', param: 'type' }
+    surface.map({ source: cc74, target: type })
+
+    // Eight responses, 0 to 7: wherever the knob stands, the device holds one of them.
+    for (let raw = 0; raw <= 127; raw += 1) {
+      surface.handle(cc(cc74, raw))
+      expect(filter.getParam('type')).toBe(Math.round((raw / 127) * 7))
+    }
+
+    // An encoder's steps add up between two choices, though the device keeps only the whole one.
+    surface.set(type, 0)
+    surface.map({ source: cc1, target: type, mode: 'relative' })
+    for (let step = 0; step < 30; step += 1) {
+      surface.handle(cc(cc1, 1))
+      expect(Number.isInteger(filter.getParam('type'))).toBe(true)
+    }
+    expect(filter.getParam('type')).toBe(2)
+    expect(surface.read(type)).toBeCloseTo(30 / 127)
+    // Moved by another hand, it stands where that hand put it.
+    filter.setParam('type', 5)
+    expect(surface.read(type)).toBeCloseTo(5 / 7)
+
+    // A knob with soft takeover that caught it keeps it over the steps between two choices.
+    filter.setParam('type', 0)
+    surface.map({ source: cc74, target: type, pickup: true })
+    expect(surface.handle(cc(cc74, 64)).applied).toEqual([])
+    expect(filter.getParam('type')).toBe(0)
+    for (let raw = 0; raw <= 40; raw += 1) {
+      expect(surface.handle(cc(cc74, raw)).applied).toHaveLength(1)
+      expect(filter.getParam('type')).toBe(Math.round((raw / 127) * 7))
+    }
+  })
+
   it('fires transport actions on presses and rising edges', () => {
     const { engine } = fixture()
     const surface = new ControlSurface({ engine })
