@@ -380,8 +380,9 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
         ...PACK_SOUNDS,
         ...everyOther.map((row) => row.chain),
       ]
+      // A name a reader struck is not given to another chain of the pack: settle would take it out again.
       const names = freshNames(
-        patches.map((patch) => patch.name),
+        [...patches.map((patch) => patch.name), ...(readStruck()[packId] ?? [])],
         patches.map((patch) => patch.id),
       )
       const known: Known = dry
@@ -541,6 +542,10 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
 
 /** Chains a reader struck by name, by pack: `{ "<pack id>": ["<chain name>", ...] }`. Not there until someone has read a pack. */
 const STRUCK_PATH = `${BENCH_DIR}/struck.json`
+const readStruck = (): Record<string, string[]> =>
+  existsSync(STRUCK_PATH)
+    ? (JSON.parse(readFileSync(STRUCK_PATH, 'utf8')) as Record<string, string[]>)
+    : {}
 
 describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are told apart', () => {
   it('settles', async () => {
@@ -549,9 +554,7 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
     const ids = new Set<string>()
     const signatures = new Set(FACTORY_CHAINS.map((chain) => signature(chain.effects)))
     const known: Known = readBank().map((row) => ({ id: row.id, pack: '', prints: row.prints }))
-    const struck = existsSync(STRUCK_PATH)
-      ? (JSON.parse(readFileSync(STRUCK_PATH, 'utf8')) as Record<string, string[]>)
-      : {}
+    const struck = readStruck()
     const shared = new Map(RECIPES.map((recipe) => [recipe.id, recipe]))
     const lines: string[] = []
     for (const pack of FACTORY_PACKS) {
