@@ -445,6 +445,28 @@ describe('DeviceChainView', () => {
     expect(knob).toHaveFocus()
   })
 
+  it('keeps no focus to give back for a press that moved nothing', async () => {
+    const { pad, devices } = await threeDevices()
+    dropFocusOnMove()
+    const [filter, eq, delay] = devices
+    const still = { detail: 1, clientX: 40, clientY: 10 }
+    fireEvent.click(screen.getByRole('button', { name: 'Move filter later' }), still)
+    fireEvent.click(screen.getByRole('button', { name: 'Move eq3 later' }), still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The device is at the chain's end: the cell under the pointer, pressed with the focus on it, moves nothing.
+    const under = screen.getByRole('button', { name: 'Move eq3 later' })
+    under.focus()
+    fireEvent.click(under, still)
+    expect(pad.strip.inserts).toEqual([eq, delay, filter])
+    // The focus goes to the page, and later the chain changes from elsewhere.
+    under.blur()
+    expect(document.body).toHaveFocus()
+    act(() => pad.strip.removeInsert(delay))
+    expect(pad.strip.inserts).toEqual([eq, filter])
+    expect(under).not.toHaveFocus()
+    expect(document.body).toHaveFocus()
+  })
+
   it('gives the focus back on a plate too, whose tools are not drawn once the focus is gone', async () => {
     const fixture = createTestEngine()
     const pad = fixture.engine.addAudioTrack('pad')

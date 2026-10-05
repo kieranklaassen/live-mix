@@ -1,8 +1,10 @@
 import Ajv2020 from 'ajv/dist/2020'
 import { describe, expect, it } from 'vitest'
 
-import { OPERATION_TYPES, apply } from '../../score/operations'
-import { demoScore } from '../../score/__tests__/fixtures'
+import { slotClipOf } from '../../core/session/Slot'
+import { OPERATION_TYPES, apply, type OperationType } from '../../score/operations'
+import { defaultStrip } from '../../score/schema'
+import { clip, demoScore } from '../../score/__tests__/fixtures'
 import { validateSchema } from '../jsonSchema'
 import { operationForToolName, operationSchema, toolNameForOperation } from '../operationSchemas'
 import { TOOL_NAME_PATTERN, toAnthropicTools, toOpenAiTools } from '../registry'
@@ -89,6 +91,67 @@ describe('operation tool schemas', () => {
     expect(validate(slot({ pan: 2 }))).toBe(false)
     expect(validate(slot({ lowpassHz: 5 }))).toBe(false)
     expect(validate(slot({ spaceDb: 'far' }))).toBe(false)
+  })
+
+  it('takes the clip and the track the score takes: a loop region, warp markers, a stretch track', () => {
+    const looped = clip('lp', 'a', 8, { loop: true, loopStartSec: 1, loopEndSec: 3 })
+    const warp = [
+      { sourceSec: 0, beat: 0 },
+      { sourceSec: 2, beat: 4 },
+    ]
+    const warped = clip('wp', 'a', 12, { semitones: 2, warp })
+    const taken: [OperationType, Record<string, unknown>][] = [
+      ['clip.add', { track: 'pad', clip: looped }],
+      ['clip.add', { track: 'pad', clip: warped }],
+      ['clip.update', { track: 'kick', id: 'b1', patch: { loopStartSec: 1, loopEndSec: 3, warp } }],
+      ['clip.replaceFrom', { track: 'kick', fromSec: 4, clips: [looped, warped] }],
+      [
+        'track.add',
+        {
+          track: {
+            kind: 'audio',
+            id: 'tape',
+            name: 'Tape',
+            destination: { kind: 'master' },
+            strip: defaultStrip(),
+            stretch: true,
+            clips: [warped],
+          },
+        },
+      ],
+      [
+        'slot.add',
+        {
+          slot: {
+            id: 's',
+            track: 'kick',
+            scene: 'verse',
+            launchMode: 'trigger',
+            legato: true,
+            clip: slotClipOf(warped),
+          },
+        },
+      ],
+    ]
+    for (const [type, args] of taken) {
+      const schema = operationSchema(type)
+      const validate = ajv.compile(schema)
+      expect(validate(args), `${type}: ${JSON.stringify(validate.errors)}`).toBe(true)
+      expect(validateSchema(schema, args), type).toEqual([])
+      const before = (OPERATION_PRELUDE[type] ?? []).reduce(apply, demoScore())
+      expect(() => apply(before, { type, ...args } as never)).not.toThrow()
+    }
+    // Held to the validator's ranges like the rest of a clip.
+    const refused = (args: Record<string, unknown>) =>
+      validateSchema(operationSchema('clip.add'), { track: 'pad', ...args }).length
+    expect(refused({ clip: { ...looped, loopStartSec: -1 } })).toBeGreaterThan(0)
+    expect(refused({ clip: { ...warped, warp: [{ sourceSec: 0 }] } })).toBeGreaterThan(0)
+    expect(refused({ clip: { ...warped, warp: [{ sourceSec: 0, beat: -1 }] } })).toBeGreaterThan(0)
+    expect(
+      validateSchema(operationSchema('track.add'), {
+        track: { ...(taken[4][1].track as object), stretch: 'yes' },
+      }).length,
+    ).toBeGreaterThan(0)
   })
 
   it('missing required fields are reported by path', () => {

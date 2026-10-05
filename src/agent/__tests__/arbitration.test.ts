@@ -362,4 +362,52 @@ describe('withVersionCheckpoints', () => {
     expect(versions.list()).toHaveLength(4)
     expect(withVersionCheckpoints({}, versions)).toEqual({})
   })
+
+  it('calls every hook on the session it came from, one that is an instance of a class too', async () => {
+    const { document, clock } = await rig()
+    const versions = new VersionHistory(document, { now: () => clock.ms, autoCheckpoints: false })
+    class Conductor {
+      section = 0
+      faded: number | null = null
+      advanceSection(): number {
+        this.section += 1
+        return this.section
+      }
+      extendSection(seconds: number): number {
+        return this.section * 100 + seconds
+      }
+      isSpeaking(): boolean {
+        return this.faded === null
+      }
+      fadeOut(seconds: number): void {
+        this.faded = seconds
+      }
+    }
+    const conductor = new Conductor()
+    const session = withVersionCheckpoints(conductor, versions)
+    const controller = new AgentController({ document, session, now: () => clock.ms })
+    expect(controller.call('advance_section', {})).toMatchObject({
+      ok: true,
+      result: { sectionIndex: 1 },
+    })
+    expect(conductor.section).toBe(1)
+    // The hooks the wrapper leaves alone are still there, and still the conductor's.
+    expect(session.extendSection?.(10)).toBe(110)
+    expect(session.isSpeaking?.()).toBe(true)
+    expect(controller.call('fade_out', { seconds: 5 }).ok).toBe(true)
+    expect(conductor.faded).toBe(5)
+    expect(session.isSpeaking?.()).toBe(false)
+    expect(versions.list().map((version) => version.milestone)).toEqual(['section', 'end'])
+
+    // An object of hooks that keeps its state on itself is called on itself as well.
+    const counting = {
+      index: 3,
+      advanceSection(): number {
+        this.index += 1
+        return this.index
+      },
+    }
+    expect(withVersionCheckpoints(counting, versions).advanceSection?.()).toBe(4)
+    expect(counting.index).toBe(4)
+  })
 })

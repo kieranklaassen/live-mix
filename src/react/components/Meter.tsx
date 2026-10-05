@@ -519,24 +519,50 @@ function MeterBars({
   )
 }
 
-/**
- * A meter on a source. It samples the source on frames as `useMeter` does,
- * and hands each new reading to the bars to draw instead of rendering it.
- */
-function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
+// A meter is its source's: given another, it is another meter. The reading it
+// shows, the mark it holds and the lamp it lit were the last signal's, so
+// nothing of them is kept. The key is the source itself, as a chain's panel is
+// its device's.
+const sourceKeys = new WeakMap<object, number>()
+let sourceKeyCount = 0
+
+function sourceKey(source: object): number {
+  let key = sourceKeys.get(source)
+  if (key === undefined) {
+    key = sourceKeyCount += 1
+    sourceKeys.set(source, key)
+  }
+  return key
+}
+
+/** A meter on a source: the source named, or the engine's master. */
+function SourceMeter({ source, ...rest }: MeterProps) {
   const target = useEnginePart(source, (engine) => engine.master, 'useMeter')
+  return <LiveMeterBars key={sourceKey(target)} {...rest} target={target} />
+}
+
+/**
+ * The bars of one source. They sample it on frames as `useMeter` does, and
+ * hand each new reading to the bars to draw instead of rendering it. Mounted
+ * anew for another source, so the first reading is that source's own, also
+ * for a meter that is not active and reads its source only once.
+ */
+function LiveMeterBars({
+  target,
+  fps,
+  active = true,
+  ...rest
+}: Omit<MeterProps, 'source'> & { target: MeterSource }) {
   const frame = useFrameScheduler()
   const [live] = useState<LiveMeter>(() => ({
     reading: readMeter(target),
     draw: null,
     lapses: Infinity,
   }))
-  const latest = useRef(target)
-  latest.current = target
   const intervalMs = frameIntervalMs(fps)
 
   useEffect(() => {
-    const sample = (): MeterSnapshot => readMeter(latest.current)
+    const sample = (): MeterSnapshot => readMeter(target)
     const show = (next: MeterSnapshot): void => {
       if (!shallowEqual(live.reading, next)) live.reading = next
       // A sample like the last is drawn only to bring down a mark that has stood its time.
@@ -547,7 +573,7 @@ function SourceMeter({ source, fps, active = true, ...rest }: MeterProps) {
     show(sample())
     if (!active) return
     return subscribeFrames(frame, intervalMs, () => show(sample()))
-  }, [active, intervalMs, frame, live])
+  }, [active, intervalMs, frame, live, target])
 
   return <MeterBars {...rest} reading={live.reading} live={live} />
 }

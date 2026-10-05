@@ -261,6 +261,40 @@ describe('ScoreDocument', () => {
     expect(document.score.sources[0].durationSec).toBe(12)
   })
 
+  it('an undo or a redo that is refused leaves its step where it was', () => {
+    const document = new ScoreDocument(demoScore())
+    document.apply({ type: 'clip.move', track: 'kick', id: 'b1', startSec: 6 })
+    document.endGesture()
+    document.apply({ type: 'strip.mute', owner: 'pad', mute: true })
+    const listener = vi.fn()
+    document.onChange(listener)
+    // An amendment that does not commute with the step on top: its track is gone.
+    document.apply({ type: 'track.remove', id: 'pad' }, { history: false })
+    listener.mockClear()
+    const logged = document.log.length
+    const before = document.score
+    const labels = () => ({
+      undo: document.history.undoStack.map((step) => step.label),
+      redo: document.history.redoStack.map((step) => step.label),
+    })
+
+    expect(() => document.undo()).toThrow(ScoreOperationError)
+    // Nothing was undone: there is nothing to redo, and the step is still the next to undo.
+    expect(labels()).toEqual({ undo: ['move clip b1 to 6s', 'mute pad'], redo: [] })
+    expect(document.score).toBe(before)
+    expect(document.log.length).toBe(logged)
+    expect(listener).not.toHaveBeenCalled()
+
+    // The same the other way: a redo whose operation no longer fits stays to be redone.
+    const other = new ScoreDocument(demoScore())
+    other.apply({ type: 'strip.mute', owner: 'pad', mute: true })
+    other.undo()
+    other.apply({ type: 'track.remove', id: 'pad' }, { history: false })
+    expect(() => other.redo()).toThrow(ScoreOperationError)
+    expect(other.canUndo).toBe(false)
+    expect(other.history.redoStack.map((step) => step.label)).toEqual(['mute pad'])
+  })
+
   it('score.setMeta is saved with the document and undone like any other edit', () => {
     const document = new ScoreDocument(demoScore())
     document.apply({ type: 'score.setMeta', patch: { chords: [0, 2, 5, 3] } })

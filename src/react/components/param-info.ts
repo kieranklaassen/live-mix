@@ -51,5 +51,8 @@ const COMMON: Readonly<Record<string, string>> = {
 
 /** A sentence on what the parameter does: the device's own, else the common meaning of its name. */
 export function paramInfo(spec: ParamSpec): string | undefined {
-  return spec.description ?? COMMON[spec.name.trim().toLowerCase()]
+  const name = spec.name.trim().toLowerCase()
+  // Only the names listed: a plug-in may call a parameter what every object has a property by.
+  const common = Object.prototype.hasOwnProperty.call(COMMON, name) ? COMMON[name] : undefined
+  return spec.description ?? common
 }

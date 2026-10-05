@@ -356,6 +356,8 @@ export function DeviceChainView({
     cell: HTMLElement,
     press: { detail: number; clientX: number; clientY: number },
   ): void => {
+    // A step before this one whose device the chain has yet to show in its new place.
+    const awaited = pressed.current !== null
     // The cell that was pressed has the focus given back once the device stands in its new place.
     if (document.activeElement === cell) pressed.current = cell
     // The device goes a place and its neighbour slides under the pointer, its own cell where the
@@ -382,18 +384,32 @@ export function DeviceChainView({
         ? { device, id: arbiter?.deviceIdFor(device), x: press.clientX, y: press.clientY }
         : null
     } else stepped.current = null
+    // A press that moves nothing brings no new place to give the focus back in: kept, the cell
+    // would be handed the focus by whatever changes the chain next, however much later.
+    const stays = (): void => {
+      if (!awaited) pressed.current = null
+    }
     if (!arbiter || owner === null) {
       // At the chain's end there is no further place, and a press there moves nothing.
       if (index + delta >= skip && index + delta < inserts.length) move(index, index + delta)
+      else stays()
       return
     }
     const moved = index < skip ? undefined : scoreSlot(inserts[index])
-    if (!moved) return
+    if (!moved) {
+      stays()
+      return
+    }
     // The pinned inserts the score holds head its chain; nothing steps in front of them.
     const first = inserts.slice(0, skip).filter((device) => scoreSlot(device)).length
     const to = moved.index + delta
-    if (to >= first && to < scoreInserts(arbiter, owner).length)
-      arbiter.apply({ type: 'device.move', id: moved.device.id, index: to })
+    // A step the arbiter holds back is on its way: it lands when the hold ends, and its cell is
+    // given the focus back then. Only one that will not come lets go of the cell.
+    const comes =
+      to >= first &&
+      to < scoreInserts(arbiter, owner).length &&
+      arbiter.apply({ type: 'device.move', id: moved.device.id, index: to }).outcome !== 'dropped'
+    if (!comes) stays()
   }
 
   const add = async (id: string): Promise<void> => {

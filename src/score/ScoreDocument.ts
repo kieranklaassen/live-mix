@@ -122,14 +122,14 @@ export class ScoreDocument {
 
   /** Undo the latest step (a whole gesture at once); null when there is nothing to undo. */
   undo(options: Pick<ApplyOptions, 'author' | 'atMs'> = {}): LogEntry | null {
-    const step = this.history.takeUndo()
+    const step = this.history.peekUndo()
     if (!step) return null
     return this.replay(step, step.inverse, 'undo', options)
   }
 
   /** Redo the latest undone step; null when there is nothing to redo. */
   redo(options: Pick<ApplyOptions, 'author' | 'atMs'> = {}): LogEntry | null {
-    const step = this.history.takeRedo()
+    const step = this.history.peekRedo()
     if (!step) return null
     return this.replay(step, step.op, 'redo', options)
   }
@@ -178,7 +178,15 @@ export class ScoreDocument {
     options: Pick<ApplyOptions, 'author' | 'atMs'>,
   ): LogEntry {
     const previous = this.current
+    // An undo or a redo ends the gesture before it, refused or not.
+    this.history.seal()
+    // Applied before the step leaves its stack: one whose operation no longer
+    // fits the score is refused here, and a step moved first would lie on the
+    // other stack with nothing done (redo offering what was never undone, the
+    // next undo taking back the step before it).
     const { score, inverse } = applyWithInverse(previous, op)
+    if (kind === 'undo') this.history.takeUndo()
+    else this.history.takeRedo()
     const entry = this.currentLog.append(
       {
         op,

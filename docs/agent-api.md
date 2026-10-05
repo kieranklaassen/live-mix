@@ -253,7 +253,10 @@ default). Score operations a call applied are also entries in the document's
 `agent:<tool>#<callId> <what>`, so the transcript and the score history
 cross-reference. If a later step of a call fails, the operations already
 applied are rolled back (their inverses are appended, labelled `rollback`),
-and the call is reported `failed`.
+and the call is reported `failed`. `undoneBy` names the `undo` that reverted a
+call; an undo that was itself undone (`undo { callId }` of it) took nothing
+back, so `controller.audit.isUndone(entry)` is false for the call it named and
+a plain `undo` reverts that call next.
 
 ## Snapshot (R28)
 

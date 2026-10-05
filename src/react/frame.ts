@@ -76,6 +76,9 @@ function frameChain(scheduler: FrameScheduler): FrameSubscribe {
   // Both lists are replaced, never changed in place, so a frame walks the ones it started with.
   let beats: readonly FrameBeat[] = []
   let handle: unknown = null
+  // Whether a frame is asked for. Kept apart from the handle, which is the scheduler's to choose:
+  // one that hands out nothing would be asked again by every subscriber, a chain for each.
+  let waiting = false
   let frame = 0
 
   const leave = (beat: FrameBeat, listener: FrameListener): void => {
@@ -84,19 +87,25 @@ function frameChain(scheduler: FrameScheduler): FrameSubscribe {
     beat.listeners = beat.listeners.filter((other) => other !== listener)
     if (beat.listeners.length > 0) return
     beats = beats.filter((other) => other !== beat)
-    if (beats.length === 0 && handle !== null) {
+    // A frame asked for with no handle cannot be called off by name: it is left to come, finds
+    // nobody (or whoever has joined by then) and is the one chain, where calling it off in name
+    // only would have the next subscriber ask for a second.
+    if (beats.length === 0 && waiting && handle !== null && handle !== undefined) {
       scheduler.cancel(handle)
       handle = null
+      waiting = false
     }
   }
 
   const step = (timeMs: number): void => {
+    waiting = false
     if (beats.length === 0) {
       handle = null
       return
     }
     // Asked for first, so the last subscriber leaving during this frame has a frame to cancel.
     handle = scheduler.request(step)
+    waiting = true
     frame += 1
     let failed = false
     let failure: unknown
@@ -128,7 +137,10 @@ function frameChain(scheduler: FrameScheduler): FrameSubscribe {
     const joined = beat
     const listener: FrameListener = { onFrame, joined: frame, live: true }
     joined.listeners = [...joined.listeners, listener]
-    handle ??= scheduler.request(step)
+    if (!waiting) {
+      handle = scheduler.request(step)
+      waiting = true
+    }
     return () => leave(joined, listener)
   }
 }

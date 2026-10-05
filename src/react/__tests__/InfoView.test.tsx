@@ -130,6 +130,35 @@ describe('resolveInfo', () => {
     expect(resolveInfo(null)).toBeNull()
   })
 
+  it('names a list by its label, never by the entries it holds', () => {
+    render(
+      <>
+        <label {...infoProps(null, 'Which way the filter cuts.')}>
+          <span>Mode</span>
+          <select data-testid="labelled" defaultValue="low">
+            <option value="low">Low-pass</option>
+            <option value="high">High-pass</option>
+          </select>
+        </label>
+        <select data-testid="bare" defaultValue="a" {...infoProps(null, 'One of two.')}>
+          <option value="a">Sine</option>
+          <option value="b">Saw</option>
+        </select>
+        <textarea data-testid="notes" defaultValue="written here" title="Notes on the piece" />
+      </>,
+    )
+    expect(resolveInfo(screen.getByTestId('labelled'))).toEqual({
+      title: 'Mode',
+      text: 'Which way the filter cuts.',
+    })
+    // With no label there is no name: the entries are what it holds, not what it is called.
+    expect(resolveInfo(screen.getByTestId('bare'))).toEqual({ title: '', text: 'One of two.' })
+    expect(resolveInfo(screen.getByTestId('notes'))).toEqual({
+      title: '',
+      text: 'Notes on the piece',
+    })
+  })
+
   it('takes a short text as a name and leaves a long one', () => {
     render(
       <>
@@ -275,6 +304,13 @@ describe('the kit’s own controls', () => {
       'Its own words.',
     )
     expect(paramInfo({ ...spec, taper: 'linear', name: 'Shape' })).toBeUndefined()
+  })
+
+  it('has no words for a parameter whose name every object has a property by', () => {
+    const spec = { id: 0, min: 0, max: 1, default: 0.5, taper: 'linear' as const, unit: '' }
+    // A hosted plug-in names its own parameters.
+    expect(paramInfo({ ...spec, name: 'Constructor' })).toBeUndefined()
+    expect(paramInfo({ ...spec, name: '__proto__' })).toBeUndefined()
   })
 })
 

@@ -165,6 +165,65 @@ describe('subscribeFrames', () => {
     callbacks[0](0)
     expect(callbacks).toHaveLength(1)
   })
+
+  it('keeps one chain on a scheduler that hands out no handle', () => {
+    // A host's own loop: it queues the callback and has nothing to give back for it.
+    const queue: ((timeMs: number) => void)[] = []
+    const frames: FrameScheduler = {
+      request: (callback) => {
+        queue.push(callback)
+        return undefined
+      },
+      cancel: () => {},
+    }
+    const flush = (timeMs: number): void => {
+      for (const callback of queue.splice(0)) callback(timeMs)
+    }
+    const stopFirst = subscribeFrames(frames, 10, vi.fn())
+    expect(queue).toHaveLength(1)
+    // A second subscriber before the first frame, and a third between two frames.
+    const stopSecond = subscribeFrames(frames, 10, vi.fn())
+    expect(queue).toHaveLength(1)
+    flush(0)
+    const stopThird = subscribeFrames(frames, 25, vi.fn())
+    expect(queue).toHaveLength(1)
+    flush(20)
+    expect(queue).toHaveLength(1)
+    stopFirst()
+    stopSecond()
+    stopThird()
+  })
+
+  it('stays one chain on such a scheduler when the last subscriber leaves and another joins before the frame', () => {
+    // Its `cancel` has nothing to cancel by, so the frame asked for still comes: one meter put in
+    // another's place in a commit, an effect run again, a mount under StrictMode.
+    const queue: ((timeMs: number) => void)[] = []
+    const frames: FrameScheduler = {
+      request: (callback) => {
+        queue.push(callback)
+        return undefined
+      },
+      cancel: () => {},
+    }
+    const flush = (timeMs: number): void => {
+      for (const callback of queue.splice(0)) callback(timeMs)
+    }
+    let stop = subscribeFrames(frames, 10, vi.fn())
+    expect(queue).toHaveLength(1)
+    const onFrame = vi.fn()
+    for (let round = 1; round <= 5; round += 1) {
+      stop()
+      stop = subscribeFrames(frames, 10, onFrame)
+      flush(round * 20)
+      expect(queue).toHaveLength(1)
+    }
+    expect(onFrame).toHaveBeenCalledTimes(5)
+    // With nobody left the frame that still comes asks for no other.
+    stop()
+    flush(200)
+    expect(queue).toHaveLength(0)
+    expect(onFrame).toHaveBeenCalledTimes(5)
+  })
 })
 
 describe('subscribeFrameSampled', () => {

@@ -371,15 +371,21 @@ export function validateSessionScript(input: unknown): ScriptIssue[] {
         issues.push({ path: `${cuePath}.text`, message: 'a cue needs words, not only pauses' })
       }
     })
-    const holds = [...(section.holds ?? [])].sort((a, b) => a.atSec - b.atSec)
-    holds.forEach((hold, h) => {
-      const holdPath = `${path}.holds[${h}]`
+    // In time order to find the overlaps, each with its place in the script:
+    // that place is what a path names, and holds may come in any order.
+    const holds = (section.holds ?? [])
+      .map((hold, index) => ({ hold, index }))
+      .sort((a, b) => a.hold.atSec - b.hold.atSec)
+    holds.forEach(({ hold, index }, h) => {
       if (hold.atSec + hold.durationSec > section.durationSec) {
-        issues.push({ path: `${holdPath}`, message: 'the hold runs past the end of the part' })
+        issues.push({
+          path: `${path}.holds[${index}]`,
+          message: 'the hold runs past the end of the part',
+        })
       }
       const next = holds[h + 1]
-      if (next && next.atSec < hold.atSec + hold.durationSec) {
-        issues.push({ path: `${path}.holds[${h + 1}].atSec`, message: 'holds overlap' })
+      if (next && next.hold.atSec < hold.atSec + hold.durationSec) {
+        issues.push({ path: `${path}.holds[${next.index}].atSec`, message: 'holds overlap' })
       }
     })
   })
