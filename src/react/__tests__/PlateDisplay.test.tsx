@@ -1064,6 +1064,41 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     expect(before.onDragEnd).toHaveBeenCalledTimes(1)
   })
 
+  it('keeps a handle in hand when a host makes the display anew at every render of the same device', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const { display, at } = twoPoints()
+    const handlers = { onDragStart: vi.fn(), onDrag: vi.fn(), onDragEnd: vi.fn() }
+    const layer = (values: Record<string, number>) => (
+      <PlateDisplayLayer
+        display={{ ...display }}
+        device={device}
+        source={null}
+        width={176}
+        height={100}
+        powered
+        params={device.params}
+        values={values}
+        heading="Sweep"
+        data-testid="display"
+        {...handlers}
+      />
+    )
+    const { rerender } = render(layer({}), { wrapper: fixture.wrapper })
+    const surface = screen.getByTestId('display')
+    fireEvent.pointerDown(surface, { pointerId: 1, button: 0, clientX: 40, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 50, clientY: 30 })
+    // The move wrote a parameter, and the host drew its plate again with a display of its own making.
+    rerender(layer({ frequency: 1 }))
+    expect(handlers.onDragEnd).not.toHaveBeenCalled()
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 60, clientY: 30 })
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 70, clientY: 30 })
+    fireEvent.pointerUp(surface, { pointerId: 1, clientX: 70, clientY: 30 })
+    expect(at.b).toBe(70)
+    expect(handlers.onDrag).toHaveBeenCalledTimes(3)
+    expect(handlers.onDragEnd.mock.calls).toEqual([[['b']]])
+  })
+
   it('lays the handle moved last on top of one it comes to stand on, so each can be taken again', async () => {
     const { display, at } = twoPoints()
     const { surface, onDragStart } = await mount(display)

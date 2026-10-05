@@ -604,13 +604,15 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
   // pointer going up: the drag ends here, so what it holds is let go. One
   // given another device in the middle of a drag ends it the same way, for the
   // device it leaves: the hand began on that one and moves nothing of the next.
+  // Another display for the same device ends nothing: a host that makes its
+  // display anew at every render has one at every move of the hand.
   useEffect(
     () => () => {
       const held = grab.current
       grab.current = null
       if (held) drawnWith.current.onDragEnd(held.names)
     },
-    [display, device],
+    [device],
   )
 
   const interactive = display.handles !== undefined
