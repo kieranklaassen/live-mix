@@ -1056,6 +1056,12 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     expect(after.onDragStart.mock.calls).toEqual([[['b']]])
     expect(after.onDragEnd.mock.calls).toEqual([[['b']]])
     expect(before.onDragEnd).toHaveBeenCalledTimes(1)
+    // A turn of the wheel that is still open ends the same way: for the device it began on.
+    wheel(surface, { deltaY: -100, clientX: 60, clientY: 30 })
+    expect(after.onDragStart).toHaveBeenLastCalledWith(['bWidth'])
+    rerender(layer(first, before))
+    expect(after.onDragEnd).toHaveBeenLastCalledWith(['bWidth'])
+    expect(before.onDragEnd).toHaveBeenCalledTimes(1)
   })
 
   it('lays the handle moved last on top of one it comes to stand on, so each can be taken again', async () => {

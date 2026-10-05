@@ -508,6 +508,12 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     runner.current?.sync()
   })
 
+  /** What the display was given the last time it was drawn up: a drag begun under it ends with its `onDragEnd`. */
+  const drawnWith = useRef(props)
+  useEffect(() => {
+    drawnWith.current = props
+  })
+
   // A turn of the wheel over a handle is the handle's, not the page's: that
   // takes a listener that may refuse the scroll, which React's are not.
   // Notches that follow one another are one turn of the wheel, and one undo
@@ -524,13 +530,14 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
       pixels: number
       timer?: ReturnType<typeof setTimeout>
     } | null = null
-    const rest = (): void => {
+    const end = (owner: PlateDisplayLayerProps): void => {
       if (!turning) return
       clearTimeout(turning.timer)
       const { names } = turning
       turning = null
-      if (names) latest.current.onDragEnd(names)
+      if (names) owner.onDragEnd(names)
     }
+    const rest = (): void => end(latest.current)
     wheelRest.current = rest
     const onWheel = (event: WheelEvent): void => {
       // A swipe that goes more across than up or down is the chain's, to scroll by.
@@ -578,19 +585,14 @@ export function PlateDisplayLayer(props: PlateDisplayLayerProps) {
     element.addEventListener('click', onClick)
     element.addEventListener('touchstart', onTouchStart, { passive: false })
     return () => {
-      rest()
+      // Given another device, the turn that is open began on the one before: it ends for that one.
+      end(drawnWith.current)
       wheelRest.current = null
       element.removeEventListener('wheel', onWheel)
       element.removeEventListener('click', onClick)
       element.removeEventListener('touchstart', onTouchStart)
     }
   }, [display, device])
-
-  /** What the display was given the last time it was drawn up: a drag begun under it ends with its `onDragEnd`. */
-  const drawnWith = useRef(props)
-  useEffect(() => {
-    drawnWith.current = props
-  })
 
   // A display that leaves the page with a handle in hand hears nothing of the
   // pointer going up: the drag ends here, so what it holds is let go. One
