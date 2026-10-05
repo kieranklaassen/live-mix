@@ -28,6 +28,12 @@ function setup() {
   return { ctx, bus, output }
 }
 
+/** What `promise` resolved with, or `'waiting'` when it has not settled a task later. */
+function soon<T>(promise: Promise<T>): Promise<T | 'waiting'> {
+  const waiting = new Promise<'waiting'>((resolve) => setTimeout(() => resolve('waiting'), 0))
+  return Promise.race([promise, waiting])
+}
+
 async function workletRecorder(ctx: MockAudioContext, source: Bus | AudioNode) {
   const recorder = await WorkletRecorder.create(asAudioContext(ctx), source, {
     processorUrl: 'blob:recorder',
@@ -131,6 +137,63 @@ describe('WorkletRecorder', () => {
     expect(recorder.state).toBe('idle')
   })
 
+  it('a stop asked twice while the processor has not answered resolves both, and asks once', async () => {
+    const { ctx, bus } = setup()
+    const { recorder, node } = await workletRecorder(ctx, bus)
+    recorder.start()
+    const first = recorder.stop()
+    const second = recorder.stop()
+    node.port.receive({
+      type: 'chunk',
+      channels: [Float32Array.from([1, 1])],
+      frames: 2,
+      startFrame: 0,
+    } satisfies RecorderHostMessage)
+    node.port.receive({ type: 'stopped', totalFrames: 2 } satisfies RecorderHostMessage)
+
+    const answers = [await soon(first), await soon(second)]
+    expect(
+      answers.map((answer) => (answer === 'waiting' ? answer : answer.audio.channels[0].length)),
+    ).toEqual([2, 2])
+    // A second `stop` would be answered by a second `stopped`, which could land in the next take.
+    const stops = node.port.posted.calls.filter(
+      ([message]) => (message as { type: string }).type === 'stop',
+    )
+    expect(stops).toHaveLength(1)
+  })
+
+  it('dispose answers a stop that waits with what had arrived: the port is closed, no answer will come', async () => {
+    const { ctx, bus } = setup()
+    const { recorder, node } = await workletRecorder(ctx, bus)
+    recorder.start()
+    node.port.receive({
+      type: 'chunk',
+      channels: [Float32Array.from([1, 1, 1])],
+      frames: 3,
+      startFrame: 0,
+    } satisfies RecorderHostMessage)
+    const stopped = recorder.stop()
+    recorder.dispose()
+    const answer = await soon(stopped)
+    expect(answer === 'waiting' ? answer : answer.audio.channels[0].length).toBe(3)
+    expect(recorder.state).toBe('stopped')
+  })
+
+  it('disposed while recording, it tells the processor to stop and a later stop resolves', async () => {
+    const { ctx, bus } = setup()
+    const { recorder, node } = await workletRecorder(ctx, bus)
+    recorder.start()
+    recorder.dispose()
+    // The processor outlives its node; left recording it copies its input for a port nobody reads.
+    expect(node.port.posted.calls.map(([message]) => (message as { type: string }).type)).toEqual([
+      'start',
+      'stop',
+    ])
+    expect(recorder.state).toBe('stopped')
+    const answer = await soon(recorder.stop())
+    expect(answer === 'waiting' ? answer : answer.kind).toBe('planar')
+  })
+
   it('accepts a raw AudioNode source and defaults to worklet mode via createRecorder', async () => {
     const { ctx } = setup()
     const gain = ctx.createGain()
@@ -176,7 +239,75 @@ class FakeMediaRecorder implements MediaRecorderLike {
   }
 }
 
+/** A MediaRecorder as a browser has it: `stop()` goes inactive at once and answers in a later task. */
+class DeferredMediaRecorder extends FakeMediaRecorder {
+  stopCalls = 0
+
+  override stop(): void {
+    this.stopCalls += 1
+    this.state = 'inactive'
+  }
+
+  finish(): void {
+    this.ondataavailable?.({ data: new Blob(['abc'], { type: this.mimeType }) })
+    this.onstop?.()
+  }
+}
+
+function deferredRecorder() {
+  const { ctx, bus } = setup()
+  let fake: DeferredMediaRecorder | undefined
+  const recorder = new MediaStreamRecorder(asAudioContext(ctx), bus, {
+    mode: 'media-recorder',
+    createMediaRecorder: (stream, init) => (fake = new DeferredMediaRecorder(stream, init)),
+  })
+  if (!fake) throw new Error('unreachable')
+  return { recorder, fake }
+}
+
 describe('MediaStreamRecorder', () => {
+  it('a stop asked twice before the browser has answered resolves both, and asks once', async () => {
+    const { recorder, fake } = deferredRecorder()
+    recorder.start()
+    const first = recorder.stop()
+    const second = recorder.stop()
+    fake.finish()
+    const answers = [await soon(first), await soon(second)]
+    expect(answers.map((answer) => (answer === 'waiting' ? answer : answer.blob.size))).toEqual([
+      3, 3,
+    ])
+    expect(fake.stopCalls).toBe(1)
+  })
+
+  it('disposed while recording, it stops the MediaRecorder, and a later stop is answered by it', async () => {
+    const { recorder, fake } = deferredRecorder()
+    recorder.start()
+    recorder.dispose()
+    // Nobody else holds the MediaRecorder: left recording it encodes for as long as the page lives.
+    expect(fake.state).toBe('inactive')
+    const stopped = recorder.stop()
+    fake.finish()
+    const answer = await soon(stopped)
+    expect(answer === 'waiting' ? answer : answer.blob.size).toBe(3)
+    expect(fake.stopCalls).toBe(1)
+    expect(recorder.state).toBe('stopped')
+  })
+
+  it('a MediaRecorder that refuses to start leaves the recorder idle, to be started again', async () => {
+    const { recorder, fake } = deferredRecorder()
+    const start = fake.start.bind(fake)
+    fake.start = () => {
+      throw new Error('NotSupportedError: the stream has no track to record')
+    }
+    expect(() => recorder.start()).toThrow(/NotSupportedError/)
+    expect(recorder.state).toBe('idle')
+    const answer = await soon(recorder.stop())
+    expect(answer === 'waiting' ? answer : answer.kind).toBe('blob')
+    fake.start = start
+    recorder.start()
+    expect(fake.state).toBe('recording')
+  })
+
   it('feeds a MediaStreamDestination into MediaRecorder and resolves a Blob on stop', async () => {
     const { ctx, bus, output } = setup()
     FakeMediaRecorder.instances = []
