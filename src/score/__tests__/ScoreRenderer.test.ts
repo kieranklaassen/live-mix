@@ -393,6 +393,68 @@ describe('ScoreRenderer: incremental edits', () => {
     expect(Object.getPrototypeOf(params)).toBe(Object.prototype)
   })
 
+  it('a changed value for a parameter a loaded plug-in does not have is not written to it, and the render lands', async () => {
+    const gain = {
+      gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+    } as const
+    const sets: [string, number][] = []
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    // As a hosted plug-in registers: its table is only known once it is loaded.
+    registry.register({
+      id: 'hosted',
+      name: 'Hosted',
+      kind: 'native',
+      category: 'plugin',
+      version: 1,
+      params: {},
+      dynamicParams: true,
+      create: (ctx) => {
+        const node = ctx.createGain()
+        const values = new Map<string, number>()
+        const device: Device = {
+          id: 'hosted',
+          input: node,
+          output: node,
+          params: gain,
+          setParam: (name, value) => {
+            if (!Object.hasOwn(gain, name)) {
+              throw new Error(`live-mix: hosted has no parameter "${name}"`)
+            }
+            sets.push([name, value])
+            values.set(name, value)
+          },
+          getParam: (name) => values.get(name) ?? 1,
+          bypass: false,
+          latencySec: 0,
+          dispose: () => node.disconnect(),
+        }
+        return device
+      },
+    })
+    const score = demoScore()
+    // `gone` was saved with a version of the plug-in that still had it.
+    score.master.inserts.push({
+      id: 'hosted-1',
+      deviceId: 'hosted',
+      params: { gone: 0.2, gain: 0.5 },
+      bypass: false,
+    })
+    const { renderer, document, errors, edit } = await rig(score, registry)
+    expect(errors).toEqual([])
+    await edit(
+      { type: 'device.setParam', device: 'hosted-1', param: 'gone', value: 0.6 },
+      { type: 'device.setParam', device: 'hosted-1', param: 'gain', value: 0.8 },
+    )
+    expect(errors).toEqual([])
+    expect(sets).toEqual([['gain', 0.8]])
+    expect(renderer.rendered).toBe(document.score)
+    // Nor under a name every object answers to and no plug-in lists.
+    await edit({ type: 'device.setParam', device: 'hosted-1', param: 'constructor', value: 0.4 })
+    expect(errors).toEqual([])
+    expect(sets).toEqual([['gain', 0.8]])
+    expect(renderer.rendered).toBe(document.score)
+  })
+
   it('sends: level ramps in place, direct↔level swaps rewire, removals unwire', async () => {
     const { renderer, edit } = await rig()
     const kick = renderer.audioTrack('kick').strip
@@ -1272,6 +1334,44 @@ describe('ScoreRenderer: lifecycle', () => {
     expect(renderer.rendered).toBe(before)
   })
 
+  it('an insert that cannot be made leaves the ones after it on the chain, and later renders go through', async () => {
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    registry.register({
+      id: 'unloadable',
+      name: 'Unloadable',
+      kind: 'node',
+      category: 'other',
+      version: 1,
+      params: {
+        gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+      },
+      create: () => Promise.reject(new Error('its module did not load')),
+    })
+    const { renderer, document, errors, edit } = await rig(demoScore(), registry)
+    await edit({
+      type: 'device.add',
+      owner: 'kick',
+      device: { id: 'kick-eq', deviceId: 'eq3', params: {}, bypass: false },
+    })
+    const strip = renderer.audioTrack('kick').strip
+    const chain = [renderer.device('kick-filter'), renderer.device('kick-eq')]
+    // In front of the equaliser, which comes off the chain to make room for it.
+    await edit({
+      type: 'device.add',
+      owner: 'kick',
+      index: 1,
+      device: { id: 'mid', deviceId: 'unloadable', params: {}, bypass: false },
+    })
+    expect(errors.map(String)).toEqual(['Error: its module did not load'])
+    expect(strip.inserts).toEqual(chain)
+    document.undo()
+    await renderer.whenIdle()
+    await edit({ type: 'strip.set', owner: 'kick', param: 'level', value: 0.5 })
+    expect(errors).toHaveLength(1)
+    expect(strip.inserts).toEqual(chain)
+    expect(renderer.rendered).toBe(document.score)
+  })
+
   it('dispose removes everything the renderer created; engine.dispose disposes the renderer', async () => {
     const { renderer, engine, document } = await rig()
     renderer.dispose()
@@ -1363,6 +1463,59 @@ describe('ScoreRenderer: lifecycle', () => {
         expect(engine.liveInputs, `after ${moment} turns`).toHaveLength(1)
         expect(engine.master.inserts, `after ${moment} turns`).toEqual([second.device('glue')])
       }
+    })
+
+    it('takes down an insert that was off the chain for one still being made', async () => {
+      const params = {
+        gain: { id: 0, name: 'Gain', min: 0, max: 1, default: 1, taper: 'linear', unit: '' },
+      } as const
+      let finish = (): void => {}
+      const registry = new DeviceRegistry(NODE_DEVICES)
+      registry.register({
+        id: 'slow',
+        name: 'Slow',
+        kind: 'node',
+        category: 'other',
+        version: 1,
+        params,
+        create: (ctx) =>
+          new Promise<Device>((resolve) => {
+            finish = () => {
+              const node = ctx.createGain()
+              resolve({
+                id: 'slow',
+                input: node,
+                output: node,
+                params,
+                setParam: () => {},
+                getParam: () => 1,
+                bypass: false,
+                latencySec: 0,
+                dispose: () => node.disconnect(),
+              })
+            }
+          }),
+      })
+      const { engine, renderer, document, errors, edit } = await rig(demoScore(), registry)
+      await edit({
+        type: 'device.add',
+        owner: 'kick',
+        device: { id: 'kick-eq', deviceId: 'eq3', params: {}, bypass: false },
+      })
+      const dispose = vi.spyOn(renderer.device('kick-eq'), 'dispose')
+      document.apply({
+        type: 'device.add',
+        owner: 'kick',
+        index: 1,
+        device: { id: 'mid', deviceId: 'slow', params: {}, bypass: false },
+      })
+      await turns(10)
+      unloadScore(engine)
+      finish()
+      await renderer.whenIdle()
+      await turns(50)
+      expect(errors).toEqual([])
+      expect(dispose).toHaveBeenCalledTimes(1)
     })
 
     it('the engine going away under a render is no failure of the render', async () => {

@@ -88,7 +88,8 @@ function checkDevice(
     })
   }
   for (const [name, value] of Object.entries(device.params ?? {})) {
-    const spec = descriptor.params[name]
+    // Its own parameters only: `constructor` is on every object.
+    const spec = Object.hasOwn(descriptor.params, name) ? descriptor.params[name] : undefined
     if (!spec) {
       issues.push({
         path: `${path}.params.${name}`,

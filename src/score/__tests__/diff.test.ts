@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
 import { describeFieldChange, diffScores } from '../diff'
-import { apply } from '../operations'
+import { apply, type Operation } from '../operations'
+import { parseScore, serializeScore } from '../schema'
 import { clip, demoScore } from './fixtures'
 
 describe('diffScores', () => {
@@ -71,6 +72,20 @@ describe('diffScores', () => {
       { path: 'transport.loop.enabled', kind: 'changed', before: false, after: true },
       { path: 'transport.loop.lengthSec', kind: 'changed', before: null, after: 8 },
     ])
+  })
+
+  it('a zero and a minus zero are one value: saved, both are written 0', () => {
+    const centred = (value: number): Operation => ({
+      type: 'strip.set',
+      owner: 'kick',
+      param: 'pan',
+      value,
+    })
+    const before = apply(demoScore(), centred(0))
+    const after = apply(before, centred(-0))
+    expect(Object.is(after.tracks[0].strip.pan, -0)).toBe(true)
+    expect(diffScores(before, after)).toEqual([])
+    expect(diffScores(after, parseScore(serializeScore(after)))).toEqual([])
   })
 
   it('describes changes in one line each', () => {

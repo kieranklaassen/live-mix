@@ -713,6 +713,20 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (check.string(raw.sourceId, `${path}.sourceId`) && !ctx.ids.sources.has(raw.sourceId)) {
     check.fail(`${path}.sourceId`, `unknown source "${raw.sourceId}"`)
   }
+  checkClipFields(raw, path, check)
+}
+
+/**
+ * A clip's own fields: everything but whose id and which source, which the
+ * score has to say. `loopPair: false` leaves out the one rule that sets two
+ * fields against each other, a loop that ends after it starts.
+ */
+function checkClipFields(
+  raw: Record<string, unknown>,
+  path: string,
+  check: Checker,
+  loopPair = true,
+): void {
   check.number(raw.startSec, `${path}.startSec`, { min: 0 })
   check.number(raw.offsetSec, `${path}.offsetSec`, { min: 0 })
   check.number(raw.durationSec, `${path}.durationSec`, { min: 0 })
@@ -731,6 +745,7 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (raw.loopEndSec !== undefined) {
     if (
       check.number(raw.loopEndSec, `${path}.loopEndSec`, { min: 0 }) &&
+      loopPair &&
       typeof raw.loopStartSec === 'number' &&
       (raw.loopEndSec as number) <= raw.loopStartSec
     ) {
@@ -738,6 +753,41 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
     }
   }
   checkWarp(raw, path, check)
+}
+
+/**
+ * What the validator has against a clip taken by itself, before it is in a
+ * score: its fields and their ranges. An operation asks this of a clip it is
+ * handed, so none goes in that `validateScore` would refuse afterwards. An
+ * update that names one end of a loop asks with `loopPair: false`: the other
+ * end is whatever the score has, and an undo brings back one end at a time.
+ */
+export function clipIssues(clip: unknown, options: { loopPair?: boolean } = {}): ScoreIssue[] {
+  const check = new Checker()
+  if (check.record(clip, 'clip')) {
+    check.string(clip.id, 'clip.id')
+    checkClipFields(clip, 'clip', check, options.loopPair ?? true)
+  }
+  return check.issues
+}
+
+/** A source's own fields: everything but its id, which the score has to say is the only one. */
+function checkSourceFields(source: Record<string, unknown>, path: string, check: Checker): void {
+  if (source.url !== undefined) check.string(source.url, `${path}.url`)
+  if (source.durationSec !== undefined)
+    check.number(source.durationSec, `${path}.durationSec`, { min: 0 })
+  if (source.analysis !== undefined) check.record(source.analysis, `${path}.analysis`)
+  checkMeta(source.meta, `${path}.meta`, check)
+}
+
+/** As `clipIssues`, for a source an operation is handed. */
+export function sourceIssues(source: unknown): ScoreIssue[] {
+  const check = new Checker()
+  if (check.record(source, 'source')) {
+    check.string(source.id, 'source.id')
+    checkSourceFields(source, 'source', check)
+  }
+  return check.issues
 }
 
 /** An optional `meta`: a JSON object, nothing the library interprets. */
@@ -1137,11 +1187,7 @@ export function validateScore(input: unknown, options: ValidateScoreOptions = {}
       const path = `sources[${index}]`
       if (!check.record(source, path)) return
       if (check.string(source.id, `${path}.id`)) sourceIds.claim(source.id, `${path}.id`)
-      if (source.url !== undefined) check.string(source.url, `${path}.url`)
-      if (source.durationSec !== undefined)
-        check.number(source.durationSec, `${path}.durationSec`, { min: 0 })
-      if (source.analysis !== undefined) check.record(source.analysis, `${path}.analysis`)
-      checkMeta(source.meta, `${path}.meta`, check)
+      checkSourceFields(source, path, check)
     })
   }
   if (check.array(raw.tracks, 'tracks')) {

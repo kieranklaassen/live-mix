@@ -24,6 +24,8 @@ import { type ScoreScene } from '../core/session/Scene'
 import { LAUNCH_MODES, type LaunchMode, type ScoreSlot, type SlotClip } from '../core/session/Slot'
 import {
   MASTER_OWNER,
+  STRIP_PARAMS,
+  clipIssues,
   findDevice,
   findElementTrack,
   findGroup,
@@ -43,6 +45,7 @@ import {
   slotAt,
   sortBreakpoints,
   sortClips,
+  sourceIssues,
   targetKey,
   validateScore,
   type ParamTarget,
@@ -593,6 +596,7 @@ function assertFreshOwnerId(score: Score, op: Operation, id: string): void {
 function assertFreshDeviceIds(score: Score, op: Operation, devices: readonly ScoreDevice[]): void {
   const seen = new Set<string>()
   for (const device of devices) {
+    if (device.id === MASTER_OWNER) fail(op, `"${MASTER_OWNER}" is reserved`)
     if (seen.has(device.id) || findDevice(score, device.id)) {
       fail(op, `device id "${device.id}" is already in the score`)
     }
@@ -602,6 +606,18 @@ function assertFreshDeviceIds(score: Score, op: Operation, devices: readonly Sco
 
 function hostDevices(host: ScoreStripHost): ScoreDevice[] {
   return 'device' in host ? [host.device, ...host.strip.inserts] : [...host.strip.inserts]
+}
+
+/**
+ * `next` as it is, unless the validator has something against the record an
+ * add just put at `path`. A whole track, group or return comes with a strip,
+ * sends and clips that no operation looked at one by one: a send to a return
+ * that is not there, a clip of an unknown source.
+ */
+function fitting(next: Score, op: Operation, path: string): Score {
+  const issue = validateScore(next).find((candidate) => candidate.path.startsWith(path))
+  if (issue) fail(op, `${issue.path.slice(path.length + 1)}: ${issue.message}`)
+  return next
 }
 
 function assertDestinationExists(score: Score, op: Operation, destination: ScoreDestination): void {
@@ -706,16 +722,48 @@ function withInserts(score: Score, op: Operation, owner: string, inserts: ScoreD
 
 const tidyClip = normaliseClip
 
+/**
+ * Whether JSON has an entry named `__proto__` anywhere in it. That is JSON,
+ * but a score cannot keep it: a copy made by assignment takes the name for
+ * the copy's prototype and the entry is gone.
+ */
+function namesProto(value: JsonValue): boolean {
+  if (typeof value !== 'object' || value === null) return false
+  if (Array.isArray(value)) return value.some(namesProto)
+  return Object.hasOwn(value, '__proto__') || Object.values(value).some(namesProto)
+}
+
+/** Refused, so that an operation never says an entry was set which the score then has not got. */
+function assertNoProto(op: Operation, what: string, value: JsonValue): void {
+  if (namesProto(value)) fail(op, `${what} cannot keep an entry named "__proto__"`)
+}
+
 function isPlacementKey(key: string): key is ClipPlacementKey {
   return (CLIP_PLACEMENT_KEYS as readonly string[]).includes(key)
 }
 
-/** A clip an operation carries: its `meta`, when set, has to be plain JSON. */
-function checkedClip(op: Operation, clip: Clip): Clip {
+/**
+ * A clip an operation carries: its `meta`, when set, has to be plain JSON,
+ * and its fields, as the score would keep them, what the validator takes (no
+ * start before 0, no pan past 1). `loopPair` is false for an update that
+ * names one end of the loop only.
+ */
+function checkedClip(op: Operation, clip: Clip, loopPair = true): Clip {
   if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
     fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
   }
-  return tidyClip(clip)
+  if (clip.meta !== undefined) assertNoProto(op, `clip "${clip.id}" meta`, clip.meta)
+  const tidy = tidyClip(clip)
+  const [issue] = clipIssues(tidy, { loopPair })
+  if (issue) fail(op, `clip "${clip.id}" ${issue.path.slice('clip.'.length)}: ${issue.message}`)
+  return tidy
+}
+
+/** A source as an operation leaves it: no empty url or id, no length below zero. */
+function checkedSource(op: Operation, source: ScoreSource): ScoreSource {
+  const [issue] = sourceIssues(source)
+  if (issue) fail(op, `${issue.path.slice('source.'.length)}: ${issue.message}`)
+  return source
 }
 
 function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): ScoreSource {
@@ -737,7 +785,10 @@ function patchSource(op: Operation, source: ScoreSource, patch: SourcePatch): Sc
   if (patch.meta !== undefined) {
     if (patch.meta === null) delete next.meta
     else if (!isJsonObject(patch.meta)) fail(op, 'source meta must be a plain JSON object')
-    else next.meta = patch.meta
+    else {
+      assertNoProto(op, 'source meta', patch.meta)
+      next.meta = patch.meta
+    }
   }
   return normaliseSource(next)
 }
@@ -839,6 +890,35 @@ function modulatorFields(modulator: ScoreModulator): (keyof ModulatorPatch)[] {
 
 /** The score after `op`. Pure: `score` is never mutated. Throws `ScoreOperationError`. */
 export function apply(score: Score, op: Operation): Score {
+  const next = applyOne(score, op)
+  // Asked last, so an operation's own refusal says what was wrong with it. A
+  // batch's children were asked one by one, and a whole score was validated.
+  if (op.type !== 'batch' && op.type !== 'score.replace') {
+    const path = nonFinitePath(op, '')
+    if (path !== null) fail(op, `${path} must be a finite number`)
+  }
+  return next
+}
+
+/**
+ * Where an operation carries a number that is not finite, or null. JSON has
+ * no NaN and no Infinity: a score that took one is refused by the renderer,
+ * and once saved cannot be read back. What a source's `analysis` holds is the
+ * host's own (the loudness of silence is −Infinity) and is not looked at.
+ */
+function nonFinitePath(value: unknown, path: string): string | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? null : path
+  if (typeof value !== 'object' || value === null) return null
+  for (const [key, item] of Object.entries(value)) {
+    const at = Array.isArray(value) ? `${path}[${key}]` : path === '' ? key : `${path}.${key}`
+    if (at === 'source.analysis' || at === 'patch.analysis') continue
+    const found = nonFinitePath(item, at)
+    if (found !== null) return found
+  }
+  return null
+}
+
+function applyOne(score: Score, op: Operation): Score {
   switch (op.type) {
     case 'score.rename':
       return { ...score, name: op.name }
@@ -849,7 +929,10 @@ export function apply(score: Score, op: Operation): Score {
         const value = op.patch[key]
         if (value === null) delete meta[key]
         else if (!isJsonValue(value)) fail(op, `meta "${key}" must be plain JSON`)
-        else meta[key] = value
+        else {
+          assertNoProto(op, 'meta', { [key]: value })
+          meta[key] = value
+        }
       }
       const next: Score = { ...score }
       const normalised = normaliseMeta(meta)
@@ -906,7 +989,9 @@ export function apply(score: Score, op: Operation): Score {
         ...op.track,
         clips: sortClips(op.track.clips.map(tidyClip)),
       }
-      return { ...score, elementTracks: insertAt(op, score.elementTracks, track, op.index) }
+      const elementTracks = insertAt(op, score.elementTracks, track, op.index)
+      const path = `elementTracks[${elementTracks.indexOf(track)}]`
+      return fitting({ ...score, elementTracks }, op, path)
     }
 
     case 'elementTrack.remove': {
@@ -931,7 +1016,12 @@ export function apply(score: Score, op: Operation): Score {
     case 'elementTrack.setClips': {
       const track = requireElementTrack(score, op, op.id)
       assertStreamableClips(score, op, op.clips)
-      const clips = sortClips(op.clips.map(tidyClip))
+      const ids = new Set<string>()
+      for (const clip of op.clips) {
+        if (ids.has(clip.id)) fail(op, `clip "${clip.id}" is there twice`)
+        ids.add(clip.id)
+      }
+      const clips = sortClips(op.clips.map((clip) => checkedClip(op, clip)))
       return {
         ...score,
         elementTracks: score.elementTracks.map((candidate) =>
@@ -940,17 +1030,17 @@ export function apply(score: Score, op: Operation): Score {
       }
     }
 
-    case 'source.add':
+    case 'source.add': {
       if (score.sources.some((source) => source.id === op.source.id)) {
         fail(op, `source "${op.source.id}" already exists`)
       }
       if (op.source.meta !== undefined && !isJsonObject(op.source.meta)) {
         fail(op, 'source meta must be a plain JSON object')
       }
-      return {
-        ...score,
-        sources: insertAt(op, score.sources, normaliseSource(op.source), op.index),
-      }
+      if (op.source.meta !== undefined) assertNoProto(op, 'source meta', op.source.meta)
+      const source = checkedSource(op, normaliseSource(op.source))
+      return { ...score, sources: insertAt(op, score.sources, source, op.index) }
+    }
 
     case 'source.remove': {
       if (!score.sources.some((source) => source.id === op.id)) fail(op, `no source "${op.id}"`)
@@ -975,7 +1065,14 @@ export function apply(score: Score, op: Operation): Score {
       const source =
         score.sources.find((candidate) => candidate.id === op.id) ??
         fail(op, `no source "${op.id}"`)
-      const next = patchSource(op, source, op.patch)
+      const next = checkedSource(op, patchSource(op, source, op.patch))
+      if (next.url === undefined) {
+        for (const track of score.elementTracks) {
+          if (track.clips.some((clip) => clip.sourceId === op.id)) {
+            fail(op, `source "${op.id}" is streamed by a clip on element track "${track.id}"`)
+          }
+        }
+      }
       return {
         ...score,
         sources: score.sources.map((candidate) => (candidate === source ? next : candidate)),
@@ -990,7 +1087,8 @@ export function apply(score: Score, op: Operation): Score {
         op.track.kind === 'audio'
           ? { ...op.track, clips: sortClips(op.track.clips.map(tidyClip)) }
           : { ...op.track }
-      return { ...score, tracks: insertAt(op, score.tracks, track, op.index) }
+      const tracks = insertAt(op, score.tracks, track, op.index)
+      return fitting({ ...score, tracks }, op, `tracks[${tracks.indexOf(track)}]`)
     }
 
     case 'track.remove': {
@@ -1006,11 +1104,14 @@ export function apply(score: Score, op: Operation): Score {
       return { ...score, tracks: moveTo(op, score.tracks, from, op.index) }
     }
 
-    case 'group.add':
+    case 'group.add': {
       assertFreshOwnerId(score, op, op.group.id)
       assertDestinationExists(score, op, op.group.destination)
       assertFreshDeviceIds(score, op, hostDevices(op.group))
-      return { ...score, groups: insertAt(op, score.groups, { ...op.group }, op.index) }
+      const group = { ...op.group }
+      const groups = insertAt(op, score.groups, group, op.index)
+      return fitting({ ...score, groups }, op, `groups[${groups.indexOf(group)}]`)
+    }
 
     case 'group.remove': {
       const group = findGroup(score, op.id) ?? fail(op, `no group "${op.id}"`)
@@ -1034,11 +1135,14 @@ export function apply(score: Score, op: Operation): Score {
       return { ...score, groups: moveTo(op, score.groups, from, op.index) }
     }
 
-    case 'return.add':
+    case 'return.add': {
       assertFreshOwnerId(score, op, op.return.id)
       assertDestinationExists(score, op, op.return.destination)
       assertFreshDeviceIds(score, op, hostDevices(op.return))
-      return { ...score, returns: insertAt(op, score.returns, { ...op.return }, op.index) }
+      const ret = { ...op.return }
+      const returns = insertAt(op, score.returns, ret, op.index)
+      return fitting({ ...score, returns }, op, `returns[${returns.indexOf(ret)}]`)
+    }
 
     case 'return.remove': {
       const ret = findReturn(score, op.id) ?? fail(op, `no return "${op.id}"`)
@@ -1095,6 +1199,7 @@ export function apply(score: Score, op: Operation): Score {
 
     case 'strip.set': {
       if (!Number.isFinite(op.value)) fail(op, 'value must be finite')
+      assertStripParam(op, op.param)
       if (op.owner === MASTER_OWNER) {
         if (op.param !== 'level') fail(op, 'the master only has a level')
         return { ...score, master: { ...score.master, level: Math.max(0, op.value) } }
@@ -1167,7 +1272,7 @@ export function apply(score: Score, op: Operation): Score {
       }
       return replaceHost(score, track.id, {
         ...track,
-        clips: sortClips([...kept, ...op.clips.map(tidyClip)]),
+        clips: sortClips([...kept, ...op.clips.map((clip) => checkedClip(op, clip))]),
       })
     }
 
@@ -1472,15 +1577,29 @@ export function apply(score: Score, op: Operation): Score {
     }
 
     default: {
+      // Typed callers never get here; a log or a version written by a later
+      // build can. Handed back, the operation would be taken for the score.
       const exhaustive: never = op
-      return exhaustive
+      return fail(exhaustive, 'is not an operation this build knows')
     }
+  }
+}
+
+/**
+ * A strip is written and read by the name of its parameter, so the name has
+ * to be one: any other word would put a number where the strip keeps its
+ * mute or its inserts.
+ */
+function assertStripParam(op: Operation, param: string): void {
+  if (!(STRIP_PARAMS as readonly string[]).includes(param)) {
+    fail(op, `"${param}" is no strip parameter`)
   }
 }
 
 function assertTargetExists(score: Score, op: Operation, target: ParamTarget): void {
   switch (target.kind) {
     case 'strip':
+      assertStripParam(op, target.param)
       if (target.owner === MASTER_OWNER) {
         if (target.param !== 'level') fail(op, 'the master only has a level')
         return
@@ -1489,6 +1608,8 @@ function assertTargetExists(score: Score, op: Operation, target: ParamTarget): v
       return
     case 'device':
       requireDevice(score, op, target.device)
+      if (target.param === '')
+        fail(op, `the target on device "${target.device}" names no parameter`)
       return
     default: {
       const exhaustive: never = target
@@ -1517,7 +1638,13 @@ function patchClip(
   }
   const merged: Record<string, unknown> = { ...clip, ...patch }
   for (const key of CLIP_PLACEMENT_KEYS) if (merged[key] === null) delete merged[key]
-  const next = checkedClip(op, merged as unknown as Clip)
+  // A loop has to end after it starts when the patch says both ends. One end
+  // alone is set against whatever the score has for the other, which another
+  // writer may have moved since (a sound made again, shorter): an undo that
+  // brings one end back is taken, as it always was, and the pair is settled
+  // by whoever moved the other.
+  const bothEnds = patch.loopStartSec !== undefined && patch.loopEndSec !== undefined
+  const next = checkedClip(op, merged as unknown as Clip, bothEnds)
   return replaceHost(score, track.id, {
     ...track,
     clips: sortClips(track.clips.map((candidate) => (candidate === clip ? next : candidate))),
@@ -2024,7 +2151,7 @@ export function invert(score: Score, op: Operation): Operation {
 
     default: {
       const exhaustive: never = op
-      return exhaustive
+      return fail(exhaustive, 'is not an operation this build knows')
     }
   }
 }

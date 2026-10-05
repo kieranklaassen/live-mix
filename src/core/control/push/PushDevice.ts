@@ -212,6 +212,8 @@ export class PushDevice {
   private runningStatus = 0
   private partial: number[] = []
   private open_ = false
+  /** Counts every `open` and `close`: what was still on its way when it moves on stops there. */
+  private turn = 0
   private sysex = true
   private identityValue: PushIdentity | null = null
   private stripValue: number | null = null
@@ -259,15 +261,19 @@ export class PushDevice {
   async open(options: PushOpenOptions = {}): Promise<void> {
     if (this.open_) return
     this.open_ = true
+    const turn = (this.turn += 1)
     // A port that refused sysex last time may be a healthy one now.
     this.sysex = true
     this.input.onmidimessage = (event) => {
       if (event.data) this.receive(event.data)
     }
     const identity = await this.ask(PUSH_IDENTITY_REQUEST, (data) => data[1] === 0x7e)
+    // Closed while the question was out: `close` has put the device back, and nothing more is done to it.
+    if (turn !== this.turn) return
     this.identityValue = identity ? parsePushIdentity(identity) : null
     // The reply goes out on both ports, so it arrives whichever mode the device was in.
     await this.command(PUSH_COMMANDS.setMidiMode, [PUSH_MIDI_MODES[this.port]], true)
+    if (turn !== this.turn) return
     this.sendSysex(
       pushSysex(PUSH_COMMANDS.setAftertouchMode, [
         PUSH_AFTERTOUCH_MODES[options.aftertouch ?? 'poly'],
@@ -275,6 +281,7 @@ export class PushDevice {
     )
     this.setTouchStrip(options.touchStrip ?? PUSH_TOUCH_STRIP_DEFAULT)
     if (options.colors) await this.setColors(options.colors)
+    if (turn !== this.turn) return
     // LED animations are timed by MIDI clock and stand still until a start has been seen.
     this.send([MIDI_START])
     this.clear(true)
@@ -286,6 +293,7 @@ export class PushDevice {
    */
   async close(): Promise<void> {
     if (!this.open_) return
+    this.turn += 1
     this.clear(true)
     if (this.sysex) {
       for (const entry of this.saved) {
@@ -329,9 +337,12 @@ export class PushDevice {
       if (!this.saved.some((entry) => entry.index === index)) fresh.push(index)
       this.colorValues.set(name, colors[name])
     })
+    const turn = this.turn
     for (const index of fresh) {
       if (!this.sysex) break
       const reply = await this.command(PUSH_COMMANDS.getPaletteEntry, [index], true)
+      // Closed while the question was out: the palette is the device's again, and the names name nothing.
+      if (turn !== this.turn) return
       const entry = reply ? parsePushPaletteEntry(reply) : null
       if (entry) this.saved.push(entry)
     }

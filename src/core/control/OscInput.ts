@@ -65,7 +65,11 @@ function defaultSocketFactory(): WebSocketFactory {
   }
 }
 
-/** A transport over one WebSocket; resolves `ready` on open, rejects on error before open. */
+/**
+ * A transport over one WebSocket; resolves `ready` on open, rejects on error
+ * before open. Closed while it is still connecting, `ready` resolves too:
+ * nobody is left waiting on a socket that was let go.
+ */
 export function webSocketTransport(
   url: string,
   createSocket: WebSocketFactory = defaultSocketFactory(),
@@ -73,10 +77,12 @@ export function webSocketTransport(
   const socket = createSocket(url)
   socket.binaryType = 'arraybuffer'
   const packets = new Emitter<OscPacketBytes>()
+  let letGo = (): void => {}
   const ready = new Promise<void>((resolve, reject) => {
     if (socket.readyState === WEBSOCKET_OPEN) resolve()
     socket.onopen = () => resolve()
     socket.onerror = () => reject(new Error(`live-mix: OSC WebSocket ${url} failed to connect`))
+    letGo = resolve
   })
   socket.onmessage = (event) => {
     const { data } = event
@@ -96,6 +102,7 @@ export function webSocketTransport(
       socket.onopen = null
       socket.onerror = null
       socket.close()
+      letGo()
     },
   }
 }

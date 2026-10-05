@@ -56,7 +56,7 @@ import {
   type SerializedMappingTable,
   type StorageLike,
 } from './serialize'
-import { type ControlSource } from './source'
+import { sameSource, type ControlSource } from './source'
 import { controlTargetKey, type ControlTarget } from './target'
 
 /** Anything that produces control events: `MidiInput`, `OscInput`, or a test. */
@@ -489,6 +489,7 @@ export class ControlSurface {
   /** The write hook first (an arbiter, a document); the engine's ramped setter otherwise. */
   private write(target: ControlTarget, binding: ControlBinding, unit: number): void {
     const key = controlTargetKey(target)
+    binding.hold?.(unit)
     if (
       this.writeHook?.({ target, unit, value: binding.value(unit), gesture: `controller:${key}` })
     ) {
@@ -504,8 +505,28 @@ export class ControlSurface {
   }
 
   private setTable(table: MappingTable): void {
+    this.forgetMoved(table)
     this.currentTable = table
     this.changes.emit({ type: 'table', table })
+  }
+
+  /**
+   * What is remembered between events is the controller's: where its knob
+   * last stood and whether it had caught the target, whether its switch was
+   * down. A target that is given to another source, or taken off, starts
+   * afresh: the first press of the new switch counts, and a new knob with
+   * soft takeover has to catch the target itself.
+   */
+  private forgetMoved(table: MappingTable): void {
+    const next = new Map<string, ControlSource>()
+    for (const mapping of table) next.set(controlTargetKey(mapping.target), mapping.source)
+    for (const mapping of this.currentTable) {
+      const key = controlTargetKey(mapping.target)
+      const source = next.get(key)
+      if (source && sameSource(source, mapping.source)) continue
+      this.state.pickup.delete(key)
+      this.state.edge.delete(key)
+    }
   }
 
   private setLearn(learn: LearnState): void {

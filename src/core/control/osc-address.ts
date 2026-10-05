@@ -35,9 +35,10 @@ export function oscPatternToRegExp(pattern: string): RegExp | null {
           body = body.slice(1)
         }
         if (body.length === 0) return null
-        // Ranges keep their dash; everything else is escaped.
+        // Ranges keep their dash; everything else is escaped. A `/` is never
+        // one of the class: not of "anything but x", nor of a range that spans it.
         const cls = body.replace(/[\\\]^]/g, '\\$&')
-        out += `[${negate ? '^' : ''}${cls}]`
+        out += `(?!/)[${negate ? '^' : ''}${cls}]`
         index = close + 1
         break
       }

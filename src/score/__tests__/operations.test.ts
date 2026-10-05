@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { type Clip } from '../../core/clips/Clip'
+import { type JsonObject } from '../../core/json'
 import {
   OPERATION_TYPES,
   ScoreOperationError,
@@ -26,6 +27,7 @@ import {
   type Score,
   type ScoreDevice,
   type ScoreTrack,
+  type StripParam,
 } from '../schema'
 import { clip, demoScore, pick, seededRandom } from './fixtures'
 
@@ -57,6 +59,100 @@ describe('apply', () => {
     const padless = apply(base, { type: 'track.remove', id: 'pad' })
     expect(padless.lanes).toEqual([])
     expect(validateScore(removed)).toEqual([])
+  })
+
+  it('a track, group or return is added only as the score can hold it: its sends, its clips and their sources', () => {
+    const audioTrack = (clips: Clip[], extra: object = {}): Operation => ({
+      type: 'track.add',
+      track: {
+        kind: 'audio',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip(),
+        clips,
+        ...extra,
+      },
+    })
+    const sending = (sends: { target: string; level: number | null }[]): Operation => ({
+      type: 'track.add',
+      track: {
+        kind: 'live',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip({ sends }),
+      },
+    })
+    expect(() => apply(base, audioTrack([clip('c', 'zz', 0)]))).toThrow(/unknown source "zz"/)
+    expect(() => apply(base, audioTrack([clip('c', 'a', 0), clip('c', 'a', 4)]))).toThrow(
+      /duplicate id "c"/,
+    )
+    expect(() => apply(base, audioTrack([clip('c', 'a', -1)]))).toThrow(/clips\[0\]\.startSec/)
+    expect(() => apply(base, audioTrack([], { stretch: true, loopLengthSec: 4 }))).toThrow(
+      /no loop of its own/,
+    )
+    expect(() => apply(base, sending([{ target: 'nope', level: 1 }]))).toThrow(
+      /unknown return "nope"/,
+    )
+    expect(() =>
+      apply(
+        base,
+        sending([
+          { target: 'hall', level: 1 },
+          { target: 'hall', level: 0.5 },
+        ]),
+      ),
+    ).toThrow(/duplicate send to "hall"/)
+    expect(() =>
+      apply(base, {
+        type: 'group.add',
+        group: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          strip: defaultStrip({ sends: [{ target: 'nope', level: 1 }] }),
+        },
+      }),
+    ).toThrow(/unknown return "nope"/)
+    expect(() =>
+      apply(base, {
+        type: 'return.add',
+        return: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          device: { id: 'new-delay', deviceId: 'delay', params: {}, bypass: false },
+          strip: defaultStrip({ sends: [{ target: 'new', level: 1 }] }),
+        },
+      }),
+    ).toThrow(/cannot send to itself/)
+    expect(() =>
+      apply(base, {
+        type: 'elementTrack.add',
+        track: {
+          id: 'new',
+          name: 'New',
+          destination: masterDestination(),
+          clips: [clip('c', 'a', 0), clip('c', 'a', 4)],
+        },
+      }),
+    ).toThrow(/duplicate id "c"/)
+    // What the score can hold goes in, at the place asked for.
+    const added = apply(base, {
+      type: 'track.add',
+      index: 0,
+      track: {
+        kind: 'audio',
+        id: 'new',
+        name: 'New',
+        destination: masterDestination(),
+        strip: defaultStrip({ sends: [{ target: 'hall', level: null }] }),
+        clips: [clip('c', 'a', 0)],
+      },
+    })
+    expect(added.tracks[0].id).toBe('new')
+    expect(validateScore(added)).toEqual([])
   })
 
   it('dissolving a group re-routes its members to where it fed', () => {
@@ -148,6 +244,69 @@ describe('apply', () => {
     expect(() => apply(added, update({ chance: 1.5 }))).toThrow(/chance must be from 0 to 1/)
     expect(() => apply(added, update({ chance: -0.1 }))).toThrow(ScoreOperationError)
     expect(validateScore(parseScore(serializeScore(added)))).toEqual([])
+  })
+
+  it('a clip is taken only as the score can hold it, however it comes: added, moved, trimmed, updated, replaced or set', () => {
+    const update = (patch: ClipPatch): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'a1',
+      patch,
+    })
+    const refused: [Operation, RegExp][] = [
+      [{ type: 'clip.add', track: 'kick', clip: clip('z', 'a', -1) }, /startSec/],
+      [{ type: 'clip.add', track: 'kick', clip: clip('', 'a', 2) }, /id/],
+      [{ type: 'clip.add', track: 'kick', clip: clip('z', 'a', 2, { chance: -0.5 }) }, /chance/],
+      [{ type: 'clip.move', track: 'kick', id: 'a1', startSec: -0.5 }, /startSec/],
+      [{ type: 'clip.trim', track: 'kick', id: 'a1', durationSec: -2 }, /durationSec/],
+      [{ type: 'clip.trim', track: 'kick', id: 'a1', offsetSec: -1 }, /offsetSec/],
+      [update({ pan: 2 }), /pan/],
+      [update({ lowpassHz: 1 }), /lowpassHz/],
+      [update({ fadeInSec: -1 }), /fadeInSec/],
+      [update({ fadeOutSec: -1 }), /fadeOutSec/],
+      [update({ loopStartSec: 4, loopEndSec: 2 }), /loopEndSec/],
+      [update({ fadeCurve: 'steep' as Clip['fadeCurve'] }), /fadeCurve/],
+      [
+        {
+          type: 'clip.replaceFrom',
+          track: 'kick',
+          fromSec: 0,
+          clips: [clip('z', 'a', 2, { durationSec: -1 })],
+        },
+        /durationSec/,
+      ],
+    ]
+    for (const [op, message] of refused) {
+      expect(() => apply(base, op), JSON.stringify(op)).toThrow(message)
+    }
+    const streamed = apply(base, {
+      type: 'elementTrack.add',
+      track: { id: 'stream', name: 'Stream', destination: masterDestination(), clips: [] },
+    })
+    const set = (clips: Clip[]): Operation => ({
+      type: 'elementTrack.setClips',
+      id: 'stream',
+      clips,
+    })
+    expect(() => apply(streamed, set([clip('s1', 'a', 0, { pan: 3 })]))).toThrow(/pan/)
+    expect(() => apply(streamed, set([clip('s1', 'a', 0), clip('s1', 'a', 8)]))).toThrow(
+      /clip "s1" is there twice/,
+    )
+    // What the score can hold still goes, at the edges of each range too.
+    let score = apply(streamed, set([clip('s1', 'a', 0, { pan: -1 }), clip('s2', 'a', 8)]))
+    score = apply(
+      score,
+      update({ pan: 1, lowpassHz: 20, fadeInSec: 0, loopStartSec: 1, loopEndSec: 2 }),
+    )
+    score = apply(score, { type: 'clip.move', track: 'kick', id: 'a1', startSec: 0 })
+    score = apply(score, {
+      type: 'clip.trim',
+      track: 'kick',
+      id: 'a1',
+      offsetSec: 0,
+      durationSec: 0,
+    })
+    expect(validateScore(score)).toEqual([])
   })
 
   it('transport.seed sets what chance is drawn from; 0 is the same as none, and it inverts', () => {
@@ -275,6 +434,32 @@ describe('apply', () => {
     expect(describeOperation(set)).toBe('set score meta chords, key')
   })
 
+  it('a meta entry named "__proto__" is refused: it was said to be set and was not in the score', () => {
+    // As JSON gives it: the name is an entry of its own, not the object's prototype.
+    const json = (text: string): JsonObject => JSON.parse(text) as JsonObject
+    const named = json('{"__proto__": {"key": "C"}}')
+    const nested = json('{"chords": [{"__proto__": 1}]}')
+    for (const meta of [named, nested]) {
+      expect(() => apply(base, { type: 'score.setMeta', patch: meta })).toThrow(/__proto__/)
+      expect(() =>
+        apply(base, { type: 'clip.update', track: 'kick', id: 'a1', patch: { meta } }),
+      ).toThrow(/__proto__/)
+      expect(() =>
+        apply(base, { type: 'clip.add', track: 'kick', clip: clip('z', 'a', 2, { meta }) }),
+      ).toThrow(/__proto__/)
+      expect(() => apply(base, { type: 'source.update', id: 'a', patch: { meta } })).toThrow(
+        /__proto__/,
+      )
+      expect(() => apply(base, { type: 'source.add', source: { id: 'c', meta } })).toThrow(
+        /__proto__/,
+      )
+    }
+    // Taking the entry off (there is none) and every other name still go.
+    const kept = apply(base, { type: 'score.setMeta', patch: json('{"constructor": 1}') })
+    expect(kept.meta).toEqual({ constructor: 1 })
+    expect(validateScore(parseScore(serializeScore(kept)))).toEqual([])
+  })
+
   it('source.update patches a source, clears with null and inverts to what was there', () => {
     const { score, inverse } = applyWithInverse(base, {
       type: 'source.update',
@@ -302,6 +487,33 @@ describe('apply', () => {
     ).toThrow(/durationSec/)
     // Clips keep pointing at it: the id cannot change.
     expect(audio(score, 'kick').clips.map((c) => c.sourceId)).toEqual(['a', 'b'])
+  })
+
+  it('a source keeps its url while an element track streams it, and none is added or left with an empty one', () => {
+    const streamed = apply(base, {
+      type: 'elementTrack.add',
+      track: {
+        id: 'stream',
+        name: 'Stream',
+        destination: masterDestination(),
+        clips: [clip('s1', 'a', 0)],
+      },
+    })
+    expect(() => apply(streamed, { type: 'source.update', id: 'a', patch: { url: null } })).toThrow(
+      /is streamed by a clip on element track "stream"/,
+    )
+    // The rest of it can still be changed, and so can the url of one nothing streams.
+    const patched = apply(streamed, { type: 'source.update', id: 'a', patch: { durationSec: 5 } })
+    expect(patched.sources[0]).toMatchObject({ url: '/a.mp3', durationSec: 5 })
+    expect(
+      apply(base, { type: 'source.update', id: 'a', patch: { url: null } }).sources[0],
+    ).toEqual({ id: 'a', durationSec: 10 })
+    expect(() => apply(base, { type: 'source.update', id: 'a', patch: { url: '' } })).toThrow(/url/)
+    expect(() => apply(base, { type: 'source.add', source: { id: 'c', url: '' } })).toThrow(/url/)
+    expect(() => apply(base, { type: 'source.add', source: { id: 'c', durationSec: -1 } })).toThrow(
+      /durationSec/,
+    )
+    expect(() => apply(base, { type: 'source.add', source: { id: '' } })).toThrow(/id/)
   })
 
   it('clip.replaceFrom keeps what starts before the cut and refuses clips before it', () => {
@@ -533,6 +745,58 @@ describe('apply', () => {
     expect(canon(apply(swapped.score, swapped.inverse))).toEqual(canon(score))
   })
 
+  it('only a strip parameter is set, or aimed at by a lane or a route: no other field of the strip', () => {
+    for (const word of ['mute', 'inserts', 'constructor', '__proto__', '']) {
+      const param = word as StripParam
+      expect(
+        () => apply(base, { type: 'strip.set', owner: 'kick', param, value: 1 }),
+        `strip.set ${word}`,
+      ).toThrow(/is no strip parameter/)
+      expect(
+        () =>
+          apply(base, {
+            type: 'lane.add',
+            lane: {
+              id: 'aimed',
+              target: { kind: 'strip', owner: 'kick', param },
+              defaultValue: 0,
+              breakpoints: [],
+            },
+          }),
+        `lane.add ${word}`,
+      ).toThrow(/is no strip parameter/)
+      expect(
+        () =>
+          apply(base, {
+            type: 'route.add',
+            route: {
+              id: 'aimed',
+              source: 'lfo1',
+              target: { kind: 'strip', owner: 'kick', param },
+              depth: 0.5,
+              polarity: 'bipolar',
+            },
+          }),
+        `route.add ${word}`,
+      ).toThrow(/is no strip parameter/)
+    }
+    // A device's parameter is whatever the device calls it, but it has a name.
+    expect(() =>
+      apply(base, {
+        type: 'lane.add',
+        lane: {
+          id: 'aimed',
+          target: { kind: 'device', device: 'kick-filter', param: '' },
+          defaultValue: 0,
+          breakpoints: [],
+        },
+      }),
+    ).toThrow(/names no parameter/)
+    const trimmed = apply(base, { type: 'strip.set', owner: 'kick', param: 'inputGain', value: 2 })
+    expect(findTrack(trimmed, 'kick')?.strip.inputGain).toBe(2)
+    expect(validateScore(trimmed)).toEqual([])
+  })
+
   it('the master takes a level and inserts but no pan, mute or sends', () => {
     const score = apply(base, { type: 'strip.set', owner: 'master', param: 'level', value: 0.5 })
     expect(score.master.level).toBe(0.5)
@@ -543,6 +807,27 @@ describe('apply', () => {
     expect(() =>
       apply(base, { type: 'send.add', owner: 'master', target: 'hall', level: 1 }),
     ).toThrow()
+  })
+
+  it('no device is called "master": the name is the master bus’s own, and a score with one is refused whole', () => {
+    const device: ScoreDevice = { id: 'master', deviceId: 'utility', params: {}, bypass: false }
+    expect(() => apply(base, { type: 'device.add', owner: 'master', device })).toThrow(/reserved/)
+    expect(() => apply(base, { type: 'device.add', owner: 'kick', device })).toThrow(/reserved/)
+    expect(() => apply(base, { type: 'device.replace', id: 'kick-filter', device })).toThrow(
+      /reserved/,
+    )
+    expect(() =>
+      apply(base, {
+        type: 'return.add',
+        return: {
+          id: 'echo',
+          name: 'Echo',
+          destination: masterDestination(),
+          device,
+          strip: defaultStrip(),
+        },
+      }),
+    ).toThrow(/reserved/)
   })
 
   it('lanes: one per parameter, breakpoints deduped by time and sorted', () => {
@@ -606,6 +891,103 @@ describe('apply', () => {
         ],
       }),
     ).toThrow(ScoreOperationError)
+  })
+
+  it('refuses what is no operation of this vocabulary, alone or in a batch, and never takes it for the score', () => {
+    // A log or a version written by a later build can carry one.
+    const unknown = { type: 'clip.split', track: 'kick', id: 'a1' } as unknown as Operation
+    expect(() => apply(base, unknown)).toThrow(ScoreOperationError)
+    expect(() => invert(base, unknown)).toThrow(ScoreOperationError)
+    expect(() =>
+      apply(base, { type: 'batch', ops: [{ type: 'score.rename', name: 'x' }, unknown] }),
+    ).toThrow(/clip\.split/)
+  })
+
+  it('takes no number that is not finite: the score could not be rendered, or read back once saved', () => {
+    const withNumber = (value: number): Operation[] => [
+      { type: 'transport.loop', lengthSec: value },
+      {
+        type: 'tempo.set',
+        segments: [
+          { atSec: 0, bpm: 100 },
+          { atSec: value, bpm: 90 },
+        ],
+      },
+      { type: 'source.add', source: { id: 'c', durationSec: value } },
+      { type: 'clip.add', track: 'kick', clip: clip('n', 'a', value) },
+      { type: 'clip.move', track: 'kick', id: 'a1', startSec: value },
+      { type: 'clip.trim', track: 'kick', id: 'a1', durationSec: value },
+      { type: 'clip.update', track: 'kick', id: 'a1', patch: { gainDb: value } },
+      { type: 'clip.replaceFrom', track: 'kick', fromSec: 0, clips: [clip('n', 'a', value)] },
+      {
+        type: 'device.add',
+        owner: 'pad',
+        device: { id: 'x', deviceId: 'filter', params: { frequency: value }, bypass: false },
+      },
+      { type: 'device.preset', device: 'glue', preset: null, params: { ratio: value } },
+      { type: 'send.add', owner: 'pad', target: 'hall', level: value },
+      { type: 'send.set', owner: 'kick', target: 'hall', level: value },
+      {
+        type: 'lane.add',
+        lane: {
+          id: 'x',
+          target: { kind: 'strip', owner: 'kick', param: 'level' },
+          defaultValue: value,
+          breakpoints: [],
+        },
+      },
+      { type: 'lane.setBreakpoints', id: 'pad-level', breakpoints: [{ timeSec: 1, value }] },
+      { type: 'lane.setBreakpoints', id: 'pad-level', breakpoints: [{ timeSec: value, value: 1 }] },
+      { type: 'lane.addBreakpoint', id: 'pad-level', breakpoint: { timeSec: 2, value } },
+      { type: 'modulator.add', modulator: { id: 'm', kind: 'macro', value } },
+      { type: 'modulator.update', id: 'lfo1', patch: { rateHz: value } },
+      { type: 'route.update', id: 'r1', depth: value },
+      {
+        type: 'track.add',
+        track: {
+          kind: 'live',
+          id: 'x',
+          name: '',
+          destination: masterDestination(),
+          strip: defaultStrip({ level: value }),
+        },
+      },
+    ]
+    for (const value of [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY]) {
+      for (const op of withNumber(value)) {
+        expect(() => apply(base, op), `${op.type} with ${value}`).toThrow(ScoreOperationError)
+      }
+    }
+    // The same operations with a number a score can hold all go through.
+    for (const op of withNumber(0.5)) expect(validateScore(apply(base, op)), op.type).toEqual([])
+    // Inside a batch too, and then nothing of the batch is applied.
+    expect(() =>
+      apply(base, {
+        type: 'batch',
+        ops: [
+          { type: 'score.rename', name: 'x' },
+          { type: 'clip.move', track: 'kick', id: 'a1', startSec: Number.NaN },
+        ],
+      }),
+    ).toThrow(/startSec.* a finite number/)
+  })
+
+  it('clip.replaceFrom needs a cut that is a number: without one every clip went and undo brought none back', () => {
+    const op: Operation = {
+      type: 'clip.replaceFrom',
+      track: 'kick',
+      fromSec: Number.NaN,
+      clips: [],
+    }
+    expect(() => applyWithInverse(base, op)).toThrow(/fromSec must be a finite number/)
+  })
+
+  it('what a source’s analysis holds is the host’s own, a loudness of silence included', () => {
+    const analysis = { lufs: Number.NEGATIVE_INFINITY }
+    const added = apply(base, { type: 'source.add', source: { id: 'quiet', analysis } })
+    expect(added.sources[2].analysis).toEqual(analysis)
+    const updated = apply(base, { type: 'source.update', id: 'a', patch: { analysis } })
+    expect(updated.sources[0].analysis).toEqual(analysis)
   })
 
   it('every applied result stays valid', () => {

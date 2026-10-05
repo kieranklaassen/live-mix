@@ -14,7 +14,7 @@ import { Arbiter, type ArbiterResult } from '../Arbiter'
 import { arbitratedControlWriter, controlWriteToOperation } from '../controlWriter'
 import { loadScore } from '../loadScore'
 import { type Author } from '../log'
-import { findStripHost } from '../schema'
+import { findDevice, findStripHost } from '../schema'
 import { ScoreDocument } from '../ScoreDocument'
 import { demoScore } from './fixtures'
 
@@ -157,6 +157,35 @@ describe('ControlSurface through the arbiter', () => {
     surface.handle(absoluteEvent(cc7, 0.6))
     expect(document.history.undoStack).toHaveLength(1)
     expect(document.history.undoStack[0].count).toBe(2)
+  })
+
+  it('a controller on a list of choices writes a whole choice into the score, not a place between two', async () => {
+    const { surface, document, renderer } = await rig()
+    const type = { kind: 'device', device: 'kick-filter', param: 'type' } as const
+    surface.registerDevice('kick-filter', renderer.device('kick-filter'))
+    surface.map({ source: cc7, target: type })
+    // Eight responses, 0 to 7; this far up the knob is nearest the second.
+    surface.handle(absoluteEvent(cc7, 27 / 127))
+    expect(document.log.entries.at(-1)?.op).toEqual({
+      type: 'device.setParam',
+      device: 'kick-filter',
+      param: 'type',
+      value: 1,
+    })
+    await renderer.whenIdle()
+    expect(renderer.device('kick-filter').getParam('type')).toBe(1)
+    expect(findDevice(document.score, 'kick-filter')?.device.params.type).toBe(1)
+  })
+
+  it('a mapping onto a parameter the device does not have, named as every object answers, writes nothing', async () => {
+    const { surface, document, renderer } = await rig()
+    surface.registerDevice('kick-filter', renderer.device('kick-filter'))
+    surface.map({
+      source: cc7,
+      target: { kind: 'device', device: 'kick-filter', param: 'constructor' },
+    })
+    expect(surface.handle(absoluteEvent(cc7, 0.5)).applied).toEqual([])
+    expect(document.log.length).toBe(0)
   })
 
   it('a target the score lacks falls back to the direct engine write; a lock drops the controller', async () => {

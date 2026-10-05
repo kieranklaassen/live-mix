@@ -112,7 +112,8 @@ export function resolvePreset(source: PresetSource, preset: string | Preset): Pr
 export function presetParams(source: PresetSource, preset: Preset): Record<string, number> {
   const params = defaultPreset(source).params as Record<string, number>
   for (const [name, value] of Object.entries(preset.params)) {
-    const spec = source.params[name]
+    // Its own parameters only: `constructor` is on every object.
+    const spec = Object.hasOwn(source.params, name) ? source.params[name] : undefined
     if (spec) params[name] = clampParam(spec, value)
   }
   return params
@@ -142,7 +143,8 @@ export function applyPreset(device: Device, preset: Preset): ApplyPresetResult {
   }
   const result: ApplyPresetResult = { applied: [], skipped: [] }
   for (const [name, value] of Object.entries(preset.params)) {
-    if (name in device.params) {
+    // Its own parameters only: `constructor` is on every object.
+    if (Object.hasOwn(device.params, name)) {
       device.setParam(name, value)
       result.applied.push(name)
     } else {

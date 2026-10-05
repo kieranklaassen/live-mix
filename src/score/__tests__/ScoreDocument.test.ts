@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import { type Author } from '../log'
-import { ScoreOperationError } from '../operations'
-import { createScore, normaliseScore, parseScore, serializeScore } from '../schema'
+import { ScoreOperationError, type ClipPatch, type Operation } from '../operations'
+import { createScore, normaliseScore, parseScore, serializeScore, validateScore } from '../schema'
 import { ScoreDocument, type ScoreChange } from '../ScoreDocument'
 import { demoScore } from './fixtures'
 
@@ -67,6 +67,16 @@ describe('ScoreDocument', () => {
     expect(document.log.length).toBe(0)
     expect(document.canUndo).toBe(false)
     expect(listener).not.toHaveBeenCalled()
+  })
+
+  it('something that is no operation changes nothing either', () => {
+    const document = new ScoreDocument(demoScore())
+    const before = document.score
+    const unknown = { type: 'clip.split', track: 'kick', id: 'a1' } as unknown as Operation
+    expect(() => document.apply(unknown)).toThrow(ScoreOperationError)
+    expect(document.score).toBe(before)
+    expect(document.log.length).toBe(0)
+    expect(document.canUndo).toBe(false)
   })
 
   it('undo and redo apply the stored inverse/operation and append to the log', () => {
@@ -199,6 +209,33 @@ describe('ScoreDocument', () => {
       'undo',
       'redo',
     ])
+  })
+
+  it('an undo brings back one end of a loop over an amendment that moved the other end', () => {
+    const document = new ScoreDocument(demoScore())
+    const update = (patch: ClipPatch, history = true): void => {
+      document.apply({ type: 'clip.update', track: 'kick', id: 'a1', patch }, { history })
+    }
+    const loop = (): (number | undefined)[] => {
+      const track = document.score.tracks.find((candidate) => candidate.id === 'kick')
+      const clip = track?.kind === 'audio' ? track.clips.find((one) => one.id === 'a1') : undefined
+      return [clip?.offsetSec, clip?.loopStartSec, clip?.loopEndSec]
+    }
+    update({ offsetSec: 6, loop: true, loopStartSec: 6, loopEndSec: 10 }, false)
+    // A trim outward: the step names the start of the loop and not its end.
+    update({ offsetSec: 1, loopStartSec: 1 })
+    // The sound was made again, shorter: whoever loaded it amends the end.
+    update({ loopEndSec: 4 }, false)
+    // The undo puts the start back where it was, past that end. The pair is
+    // the amender's to settle, as it was to set; the step is not lost.
+    expect(() => document.undo()).not.toThrow()
+    expect(loop()).toEqual([6, 6, 4])
+    expect(document.canUndo).toBe(false)
+    expect(document.canRedo).toBe(true)
+    update({ offsetSec: 0, loopStartSec: 0 }, false)
+    expect(validateScore(document.score)).toEqual([])
+    document.redo()
+    expect(loop()).toEqual([1, 1, 4])
   })
 
   it('history: false amends the document without an undo step and keeps the redo stack', () => {

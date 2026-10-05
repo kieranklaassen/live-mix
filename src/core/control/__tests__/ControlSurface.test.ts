@@ -178,6 +178,59 @@ describe('ControlSurface dispatch', () => {
     expect(surface.devices.size).toBe(0)
   })
 
+  it('lands a controller on a whole choice of a parameter that is a list, never between two', async () => {
+    const { engine } = fixture()
+    const filter = await engine.devices.create('filter', engine.context)
+    const surface = new ControlSurface({ engine })
+    surface.registerDevice('pad-filter', filter)
+    const type: ControlTarget = { kind: 'device', device: 'pad-filter', param: 'type' }
+    surface.map({ source: cc74, target: type })
+
+    // Eight responses, 0 to 7: wherever the knob stands, the device holds one of them.
+    for (let raw = 0; raw <= 127; raw += 1) {
+      surface.handle(cc(cc74, raw))
+      expect(filter.getParam('type')).toBe(Math.round((raw / 127) * 7))
+    }
+
+    // An encoder's steps add up between two choices, though the device keeps only the whole one.
+    surface.set(type, 0)
+    surface.map({ source: cc1, target: type, mode: 'relative' })
+    for (let step = 0; step < 30; step += 1) {
+      surface.handle(cc(cc1, 1))
+      expect(Number.isInteger(filter.getParam('type'))).toBe(true)
+    }
+    expect(filter.getParam('type')).toBe(2)
+    expect(surface.read(type)).toBeCloseTo(30 / 127)
+    // Moved by another hand, it stands where that hand put it.
+    filter.setParam('type', 5)
+    expect(surface.read(type)).toBeCloseTo(5 / 7)
+
+    // A knob with soft takeover that caught it keeps it over the steps between two choices.
+    filter.setParam('type', 0)
+    surface.map({ source: cc74, target: type, pickup: true })
+    expect(surface.handle(cc(cc74, 64)).applied).toEqual([])
+    expect(filter.getParam('type')).toBe(0)
+    for (let raw = 0; raw <= 40; raw += 1) {
+      expect(surface.handle(cc(cc74, raw)).applied).toHaveLength(1)
+      expect(filter.getParam('type')).toBe(Math.round((raw / 127) * 7))
+    }
+  })
+
+  it('takes a parameter named as every object answers for one the device does not have', async () => {
+    const { engine } = fixture()
+    const filter = await engine.devices.create('filter', engine.context)
+    const surface = new ControlSurface({ engine })
+    surface.registerDevice('pad-filter', filter)
+    // A stored table is a stranger's word: these are on every object, and no parameter of the filter.
+    for (const param of ['constructor', 'toString', '__proto__']) {
+      const target: ControlTarget = { kind: 'device', device: 'pad-filter', param }
+      surface.map({ source: cc74, target })
+      expect(surface.read(target)).toBeNull()
+      expect(surface.handle(cc(cc74, 64)).applied).toEqual([])
+      expect(surface.set(target, 0.5)).toBe(false)
+    }
+  })
+
   it('fires transport actions on presses and rising edges', () => {
     const { engine } = fixture()
     const surface = new ControlSurface({ engine })
@@ -547,6 +600,46 @@ describe('ControlSurface table, inputs and persistence', () => {
     expect(surface.load(json)).toMatchObject([{ source: cc74, target: level }])
     expect(surface.load('garbage')).toEqual([])
     expect(surface.load({ format: 1 })).toMatchObject([{ source: cc1, target: mute }])
+  })
+
+  it('starts afresh with a target that is given to another controller', () => {
+    const { engine } = fixture()
+    const pad = engine.addAudioTrack('pad')
+    const surface = new ControlSurface({ engine })
+    const cc20: ControlSource = { kind: 'cc', channel: 1, controller: 20 }
+    const cc21: ControlSource = { kind: 'cc', channel: 1, controller: 21 }
+    const go: ControlTarget = { kind: 'action', id: 'go' }
+    const run = vi.fn()
+    surface.registerAction('go', run)
+
+    // A switch is left on, and the action is then given to another switch: its first press is one.
+    surface.map({ source: cc20, target: go })
+    surface.handle(cc(cc20, 127))
+    expect(run).toHaveBeenCalledTimes(1)
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(2)
+    // Mapped again to the switch it has, that switch is still down: nothing rises.
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(2)
+    // Taken off and given back, it is a new mapping.
+    surface.unmap(go)
+    surface.map({ source: cc21, target: go })
+    surface.handle(cc(cc21, 127))
+    expect(run).toHaveBeenCalledTimes(3)
+
+    // A knob with soft takeover caught the fader; another knob, standing elsewhere, has to catch it itself.
+    pad.strip.setLevel(0.75)
+    surface.map({ source: cc20, target: level, pickup: true })
+    surface.handle(cc(cc20, 64))
+    surface.handle(cc(cc20, 63))
+    const caught = pad.strip.level
+    expect(caught).toBeCloseTo((63 / 127) * 1.5)
+    surface.map({ source: cc21, target: level, pickup: true })
+    expect(surface.handle(cc(cc21, 127)).applied).toEqual([])
+    expect(pad.strip.level).toBe(caught)
+    expect(surface.handle(cc(cc21, 60)).applied).toHaveLength(1)
   })
 
   it('reports applied changes with the value written', () => {
