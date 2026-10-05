@@ -45,14 +45,14 @@ export const LEXICON: DeviceLexicon = {
       brief: 'a bad, sticking connection',
       nouns: ['signal', 'buzz'],
       roles: ['wear', 'grain'],
-      traits: ['strange', 'fast'],
+      traits: ['cold', 'strange', 'fast'],
     },
     'Stuck stream': {
       says: 'an audio stream that keeps sticking in long, buzzing loops',
       brief: 'an audio stream that sticks',
       nouns: ['buzz', 'signal'],
       roles: ['wear', 'grain'],
-      traits: ['strange'],
+      traits: ['cold', 'strange'],
     },
     'Frozen stream': {
       says: 'a watery audio stream whose notes hang on as a grainy wash',
@@ -63,7 +63,7 @@ export const LEXICON: DeviceLexicon = {
     },
     'Thin air': {
       says: 'the discarded part of an audio stream, thin, in a short wash',
-      brief: 'a thin smeared remainder',
+      brief: 'a smeared digital trace',
       nouns: ['trace', 'air'],
       roles: ['wear', 'grain'],
       traits: ['bright', 'cold', 'strange'],
@@ -101,7 +101,7 @@ export const LEXICON: DeviceLexicon = {
       brief: 'an audio stream full of gaps',
       nouns: ['gaps', 'holes', 'signal'],
       roles: ['wear'],
-      traits: ['strange'],
+      traits: ['cold', 'strange'],
     },
     'Through a wall': {
       says: 'an audio stream cut off above the mids, as if through a wall',

@@ -50,7 +50,7 @@ export const LEXICON: DeviceLexicon = {
     Phone: {
       says: 'an eight-bit digital telephone line, band-limited and dull',
       brief: 'a digital telephone line',
-      nouns: ['converter', 'line'],
+      nouns: ['converter'],
       roles: ['wear'],
       traits: ['dark'],
     },

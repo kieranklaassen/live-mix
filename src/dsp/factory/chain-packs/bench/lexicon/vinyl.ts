@@ -29,7 +29,7 @@ export const LEXICON: DeviceLexicon = {
     'Jukebox single': {
       says: 'a played single on a bright cartridge, lightly crackling',
       brief: 'a bright, played single',
-      nouns: ['single', 'record', 'jukebox'],
+      nouns: ['record', 'jukebox'],
       roles: ['wear'],
       traits: ['bright', 'noisy'],
     },
