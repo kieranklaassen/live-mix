@@ -538,6 +538,37 @@ describe('hooks write through the arbiter', () => {
     expect(kick.strip.inserts).toHaveLength(1)
   })
 
+  it('DeviceChainView keeps no focus to give back for a step the score did not take', async () => {
+    const { document, engine, renderer, wrapper } = await rig()
+    const kick = engine.track('kick')
+    render(createElement(DeviceChainView, { strip: kick, 'data-testid': 'chain' }), { wrapper })
+    const picker = screen.getByRole('combobox', { name: 'Add device' })
+    fireEvent.change(picker, { target: { value: 'delay' } })
+    await act(() => renderer.whenIdle())
+    await waitFor(() => expect(screen.getAllByRole('heading')).toHaveLength(2))
+    // The filter goes to the chain's end; pressed again with the pointer where it was, it is
+    // still the filter that is meant, and it has no further place.
+    const still = { detail: 1, clientX: 40, clientY: 10 }
+    fireEvent.click(screen.getByTestId('chain-later-0'), still)
+    await act(() => renderer.whenIdle())
+    const moves = document.log.entries.length
+    const under = screen.getByTestId('chain-later-0')
+    under.focus()
+    fireEvent.click(under, still)
+    expect(document.log.entries).toHaveLength(moves)
+    // The focus goes to the page, and later the chain changes from elsewhere.
+    under.blur()
+    act(() => {
+      document.undo()
+    })
+    await act(() => renderer.whenIdle())
+    expect(kick.strip.inserts.map((device) => renderer.deviceIdFor(device))).toEqual([
+      'kick-filter',
+      'delay-1',
+    ])
+    expect(globalThis.document.activeElement).toBe(globalThis.document.body)
+  })
+
   it('DeviceChainView never steps a device in front of a pinned insert the score holds', async () => {
     const { document, engine, renderer, wrapper } = await rig()
     const kick = engine.track('kick')
