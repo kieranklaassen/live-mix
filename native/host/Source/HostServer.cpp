@@ -800,7 +800,14 @@ void HostServer::startScan (const Connection& connection, const juce::var& id, c
         }
     }
 
-    const auto scratch = juce::File::getSpecialLocation (juce::File::tempDirectory);
+    // The two files a scan and its worker talk through are kept beside the
+    // plug-in list, in a folder that is the person's own. What the results
+    // file says is taken as the scanner's word for what a plug-in file holds,
+    // and the system's temp folder is everybody's to write in on Linux: a
+    // line someone else put there would name a plug-in of theirs as found.
+    auto scratch = options.dataDirectory;
+    if (scratch == juce::File() || ! scratch.createDirectory().wasOk() || ! scratch.hasWriteAccess())
+        scratch = juce::File::getSpecialLocation (juce::File::tempDirectory);
     const auto stamp = juce::Uuid().toString();
     scan->list = scratch.getChildFile ("live-mix-scan-" + stamp + ".list");
     scan->results = scratch.getChildFile ("live-mix-scan-" + stamp + ".results");

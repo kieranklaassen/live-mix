@@ -8,7 +8,15 @@
 
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { copyFileSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { after, before, test } from 'node:test'
@@ -834,6 +842,34 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
       assert.equal(scan.plugins.length, 3)
       assert.deepEqual(scan.crashed, [])
       assert.equal((await connection.call('hello')).scanUnfinished, false)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// What the scanner writes down is taken as its word for what each file holds,
+// and on Linux the temp folder is every person's and every program's to write
+// in: a line put into a list there would name somebody else's plug-in as one
+// the scan found. The lists are the person's own, and gone after the scan.
+test('a scan keeps its lists out of the temp folder everybody can write in', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-lists-'))
+  const listsIn = (place) => readdirSync(place).filter((name) => name.startsWith('live-mix-scan-'))
+  try {
+    await withTrouble('hang', folder, async (connection) => {
+      const before = listsIn(tmpdir())
+      void scanWithTrouble(connection, { idle: 60 }).catch(() => {})
+      await connection.event(
+        'scanProgress',
+        (entry) => /LiveMix Test Trouble/.test(entry.file),
+        1000,
+      )
+      assert.deepEqual(
+        listsIn(tmpdir()).filter((name) => !before.includes(name)),
+        [],
+      )
+      await connection.call('stopScan')
+      assert.deepEqual(listsIn(folder), [])
     })
   } finally {
     rmSync(folder, { recursive: true, force: true })
