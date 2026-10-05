@@ -15,6 +15,7 @@ import {
   mkdtempSync,
   readdirSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -865,6 +866,37 @@ test('a scan nobody waits for any more ends its scanner and keeps what it found'
       assert.equal(scan.plugins.length, 3)
       assert.deepEqual(scan.crashed, [])
       assert.equal((await connection.call('hello')).scanUnfinished, false)
+    })
+  } finally {
+    rmSync(folder, { recursive: true, force: true })
+  }
+})
+
+// The search for plug-in files runs in the host itself, and it followed a link
+// to a folder wherever it led. One link back up the tree had it find every
+// plug-in again under each longer path the link makes; two had it walk for
+// ever, and the host answered nobody.
+test('a plug-in folder with links back into itself is searched once', async () => {
+  const folder = mkdtempSync(join(tmpdir(), 'live-mix-host-loop-'))
+  const plugins = join(folder, 'plugins')
+  mkdirSync(plugins)
+  symlinkSync(testPlugins, join(plugins, 'elsewhere'))
+  symlinkSync('.', join(plugins, 'back'))
+  const scanFolder = (connection, more = {}) =>
+    connection.call('scan', { paths: [plugins], defaultPaths: false, ...more })
+  try {
+    await withTrouble(null, join(folder, 'data'), async (connection) => {
+      assert.deepEqual(namesOf(await scanFolder(connection)), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+      ])
+      // A second link, and one that leads to the folder above.
+      symlinkSync('.', join(plugins, 'again'))
+      symlinkSync('..', join(plugins, 'up'))
+      assert.deepEqual(namesOf(await scanFolder(connection, { rescan: true })), [
+        'LiveMix Test Gain',
+        'LiveMix Test Sine',
+      ])
     })
   } finally {
     rmSync(folder, { recursive: true, force: true })

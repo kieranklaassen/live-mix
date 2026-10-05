@@ -4,6 +4,7 @@
 
 #include <cmath>
 #include <condition_variable>
+#include <cstdlib>
 #include <cstring>
 #include <deque>
 #include <mutex>
@@ -67,6 +68,62 @@ namespace
     juce::String originName (PluginSlot::Origin origin)
     {
         return origin == PluginSlot::Origin::client ? "client" : "plugin";
+    }
+
+    /** Where a folder really is, whatever links lead to it; its own path where the system does not say. */
+    juce::String realPathOf (const juce::File& directory)
+    {
+       #if ! JUCE_WINDOWS
+        if (auto* real = ::realpath (directory.getFullPathName().toRawUTF8(), nullptr))
+        {
+            const auto path = juce::String::fromUTF8 (real);
+            std::free (real);
+            return path;
+        }
+       #endif
+        return directory.getFullPathName();
+    }
+
+    /** What `format` takes for a plug-in under `directory`; `above` are the folders this one was reached through. */
+    void findPluginFiles (juce::AudioPluginFormat& format, const juce::File& directory,
+                          juce::StringArray& found, juce::StringArray& above)
+    {
+        // A link that leads back to a folder it lies under: walked again, it
+        // would only find again what that folder was already searched for.
+        const auto place = realPathOf (directory);
+        if (above.contains (place))
+            return;
+        above.add (place);
+        for (const auto& entry : juce::RangedDirectoryIterator (directory, false, "*", juce::File::findFilesAndDirectories))
+        {
+            const auto file = entry.getFile();
+            if (format.fileMightContainThisPluginType (file.getFullPathName()))
+                found.add (file.getFullPathName());
+            else if (file.isDirectory())
+                findPluginFiles (format, file, found, above);
+        }
+        above.remove (above.size() - 1);
+    }
+
+    /**
+        The plug-ins of `format` under `paths`, as the format's own search
+        finds them. A VST3 folder is walked here, because the format's walk
+        follows a link to a folder wherever it leads, and this is the host's
+        own process: one link back up the tree had it find every plug-in again
+        under each longer path the link makes, and two had it walk for ever.
+    */
+    juce::StringArray pluginFilesOf (juce::AudioPluginFormat& format, const juce::FileSearchPath& paths)
+    {
+        if (format.getName() != "VST3")
+            return format.searchPathsForPlugins (paths, true, true);
+
+        juce::StringArray found;
+        for (int index = 0; index < paths.getNumPaths(); ++index)
+        {
+            juce::StringArray above;
+            findPluginFiles (format, paths[index], found, above);
+        }
+        return found;
     }
 }
 
@@ -901,7 +958,7 @@ void HostServer::stepScan()
         job.settled = 0;
         job.emptyWorkers = 0;
         job.secondGo = -1;
-        for (const auto& identifier : format->searchPathsForPlugins (paths, true, true))
+        for (const auto& identifier : pluginFilesOf (*format, paths))
             if (! knownPlugins.getBlacklistedFiles().contains (identifier)
                 && ! couldNotLoad.contains (identifier)
                 && ! knownPlugins.isListingUpToDate (identifier, *format))
