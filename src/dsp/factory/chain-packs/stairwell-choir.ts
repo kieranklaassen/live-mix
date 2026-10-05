@@ -11,7 +11,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Skylit cathedral',
     category: 'space',
     description:
-      'A sharp copy on the left and a flat one on the right, into a cathedral whose long tail sings a soft open ah.',
+      'A sharp copy on the left and a flat one on the right, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Classic', params: { delay: 14.2 } },
       { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 20.2, preDelay: 36.7 } },
@@ -44,7 +44,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Empty-pool choir',
     category: 'space',
     description:
-      'A full-range sharp and flat copy, wide to either side, into a huge hall whose tail hums a soft oo for a long while.',
+      'A sharp copy and a flat one, full-range, wide to either side, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'stereo-detune', preset: 'Wider' },
       { deviceId: 'vowel-reverb', preset: 'Endless oo', params: { preDelay: 22.3 } },
@@ -93,7 +93,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Halo in bare tile',
     category: 'space',
     description:
-      'The octave-climbing tail of a large reverb by itself, into a large space whose tail swells in behind each note.',
+      'The octave-climbing tail of a large reverb with no dry sound, into a large space whose tail swells in behind each note.',
     effects: [
       { deviceId: 'shimmer', preset: 'Rising tail alone' },
       { deviceId: 'expanse', preset: 'Bloom' },
@@ -152,7 +152,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Banister sky',
     category: 'space',
     description:
-      'A wide open space with a slowly wavering tail, then a big lift of presence and air, with ringing held in check.',
+      'A wide open space with a slowly wavering tail, then a big lift of presence and air.',
     effects: [
       { deviceId: 'expanse', preset: 'Open space', params: { decay: 9.63, modRate: 0.409 } },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.592 } },
@@ -167,17 +167,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'swell', preset: 'Glacier' },
       { deviceId: 'shimmer', preset: 'Endless ascent' },
-    ],
-  },
-  {
-    id: 'stairwell-choir-motet-cloud',
-    name: 'Motet cloud',
-    category: 'space',
-    description:
-      'A sharp copy on the left and a flat one on the right, into a dark reverb that rises behind each note, then lingers.',
-    effects: [
-      { deviceId: 'stereo-detune', preset: 'Classic' },
-      { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.04, preDelay: 57.7 } },
     ],
   },
   {
@@ -229,27 +218,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-newel-post-hall',
-    name: 'Newel-post hall',
-    category: 'space',
-    description:
-      'A lift of presence and air, then a clean speaker at the far end of a big, echoing room, into a hall with no dry sound.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 're-amp', preset: 'Far end of the hall', params: { output: -4.23 } },
-      {
-        deviceId: 'hall-reverb',
-        preset: 'Full wet send',
-        params: { preDelay: 22.3, lowDecay: 3.83, midDecay: 3.75 },
-      },
-    ],
-  },
-  {
     id: 'stairwell-choir-shadow-two-floors-up',
     name: 'Shadow two floors up',
     category: 'space',
     description:
-      'An equaliser that adds lows and body and eases the top, into a soft sung oo that follows a moment behind each note.',
+      'An equaliser that adds lows and body and eases the top, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Warm', params: { clearTime: 1.44 } },
       { deviceId: 'vowel-reverb', preset: 'Oo behind', params: { decay: 4.7, preDelay: 87.9 } },
@@ -293,28 +266,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-plate-on-the-stairs',
-    name: 'Plate on the stairs',
-    category: 'space',
-    description:
-      'A medium plate with a smooth tail of a few seconds, then a stereo image widened a little, with the bass left central.',
-    effects: [
-      { deviceId: 'plate-reverb', preset: 'Medium plate' },
-      { deviceId: 'stereo-widener', preset: 'Gently wide' },
-    ],
-  },
-  {
-    id: 'stairwell-choir-glint-sung-high',
-    name: 'Glint sung high',
-    category: 'space',
-    description:
-      'A short room fed in pulses about twice a second, into a small glassy reverb with a glint two octaves up.',
-    effects: [
-      { deviceId: 'fdn-reverb', preset: 'Pulsing gate', params: { decay: 1.63, breathRate: 1.83 } },
-      { deviceId: 'shimmer', preset: 'Glass' },
-    ],
-  },
-  {
     id: 'stairwell-choir-concrete-haze',
     name: 'Concrete haze',
     category: 'space',
@@ -331,6 +282,55 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'stairwell-choir-empty-pool-hall',
+    name: 'Empty-pool hall',
+    category: 'space',
+    description:
+      'A big lift of the low end that puts weight under the sound, then a wide room heard from its far end, into a swaying hall.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Deep' },
+      { deviceId: 'ether-reverb', preset: 'Distant', params: { mix: 0.5 } },
+      {
+        deviceId: 'shimmer',
+        preset: 'Swaying hall',
+        params: { decay: 3.96, predelay: 22.1, mix: 0.21 },
+      },
+    ],
+  },
+  {
+    id: 'stairwell-choir-a-cappella-voices',
+    name: 'A-cappella voices',
+    category: 'space',
+    description:
+      'A wordless choir alone with none of the dry sound left, into a bright undamped plate of a couple of seconds.',
+    effects: [
+      { deviceId: 'vowel-reverb', preset: 'Choir alone' },
+      { deviceId: 'plate-reverb', preset: 'Bright plate' },
+    ],
+  },
+  {
+    id: 'stairwell-choir-spiral-stair-sparkle',
+    name: 'Spiral-stair sparkle',
+    category: 'space',
+    description:
+      'A sharp and a flat copy of the highs only, to either side, into a short bright room whose tail splits a fifth up and down.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Top only' },
+      { deviceId: 'bloom-reverb', preset: 'Quick sparkle' },
+    ],
+  },
+  {
+    id: 'stairwell-choir-stair-foot-room',
+    name: 'Stair-foot room',
+    category: 'space',
+    description:
+      'A sharp copy hard left and a flat one hard right, alone, into a bright wide chamber that is over in about a second.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Wet only', params: { delay: 16.3 } },
+      { deviceId: 'ether-reverb', preset: 'Bright chamber', params: { predelayMs: 4.75 } },
+    ],
+  },
+  {
     id: 'stairwell-choir-echoing-reel',
     name: 'Echoing reel',
     category: 'echo',
@@ -339,21 +339,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'tape-loop', preset: 'Slow fade', params: { length: 1.92 } },
       { deviceId: 'ether-reverb', preset: 'Shining tail', params: { predelayMs: 28.5 } },
-    ],
-  },
-  {
-    id: 'stairwell-choir-handrail-memory',
-    name: 'Handrail memory',
-    category: 'echo',
-    description:
-      'A quick slapback echo over short glimpses of earlier notes, into a cathedral with about six seconds of tail.',
-    effects: [
-      {
-        deviceId: 'echo-memory',
-        preset: 'Glimpses',
-        params: { time: 67, reach: 22.3, size: 0.592 },
-      },
-      { deviceId: 'hall-reverb', preset: 'Cathedral' },
     ],
   },
   {
@@ -372,7 +357,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Landing trace',
     category: 'echo',
     description:
-      'A faint echo and faint recollections behind the playing, into a vast hall whose long tail sings a high bright ah.',
+      'A faint echo with earlier phrases coming faintly back, into a vast hall whose long tail sings a high bright "ah".',
     effects: [
       { deviceId: 'echo-memory', preset: 'Faint recall' },
       { deviceId: 'vowel-reverb', preset: 'High choir', params: { decay: 24.9, preDelay: 21.3 } },
@@ -398,17 +383,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'micro-looper', preset: 'Drifting' },
       { deviceId: 'vowel-reverb', preset: 'Faint voices', params: { decay: 3.77, preDelay: 20.9 } },
-    ],
-  },
-  {
-    id: 'stairwell-choir-fire-stair-echoes',
-    name: 'Fire-stair echoes',
-    category: 'echo',
-    description:
-      'Echoes that fall a fourth further on every repeat, into a huge slow wash that swells in and hangs with no dry sound.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Falling steps', params: { size: 79, delay: 367 } },
-      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 37.6, modRate: 0.0909 } },
     ],
   },
   {
@@ -501,7 +475,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Echoing trace',
     category: 'echo',
     description:
-      'A faint echo and faint recollections behind the playing, into a long reverb that comes and goes in waves, over and over.',
+      'A faint echo with earlier phrases coming faintly back, into a long reverb that comes and goes in waves, over and over.',
     effects: [
       {
         deviceId: 'echo-memory',
@@ -535,17 +509,6 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'micro-looper', preset: 'Reverse bed', params: { length: 2.92 } },
       { deviceId: 'vowel-reverb', preset: 'Choir alone' },
-    ],
-  },
-  {
-    id: 'stairwell-choir-choir-at-stair-foot',
-    name: 'Choir at stair foot',
-    category: 'echo',
-    description:
-      'A clean tape loop that piles up layers without wear, into a small chapel with a short sung eh in its tail.',
-    effects: [
-      { deviceId: 'tape-loop', preset: 'Clean layers', params: { length: 2.34 } },
-      { deviceId: 'vowel-reverb', preset: 'Chapel', params: { decay: 1.78, preDelay: 5.03 } },
     ],
   },
   {
@@ -586,22 +549,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Three-flight loop',
     category: 'echo',
     description:
-      'A scooped tone with lows and highs up and the body down, then a tape loop about a second round that soon dies away.',
+      'A scooped tone with lows and highs up and the body down, then a tape loop about one second long that soon dies away.',
     effects: [
       { deviceId: 'ambient-eq', preset: 'Hollow' },
       { deviceId: 'tape-loop', preset: 'One second round', params: { length: 1.06 } },
-    ],
-  },
-  {
-    id: 'stairwell-choir-hummed-loop',
-    name: 'Hummed loop',
-    category: 'echo',
-    description:
-      'A half-speed loop, then a big lift of presence and air, with ringing held in check, into a plain hall with about four seconds of tail.',
-    effects: [
-      { deviceId: 'micro-looper', preset: 'Half speed', params: { length: 2.42 } },
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 'fdn-reverb', preset: 'Hall', params: { decay: 3.78, breathRate: 0.284 } },
     ],
   },
   {
@@ -638,41 +589,55 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-drift-under-a-dome',
-    name: 'Drift under a dome',
-    category: 'tape',
+    id: 'stairwell-choir-sotto-voce-trace',
+    name: 'Sotto-voce trace',
+    category: 'echo',
     description:
-      'A slow tape chorus, then the soft air of an open microphone under the sound, into a huge wash by itself.',
+      'A faint echo with earlier phrases coming faintly back, into a bright undamped plate of a couple of seconds.',
     effects: [
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      { deviceId: 'noise-floor', preset: 'Close mic', params: { response: 0.416, hold: 10.4 } },
-      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 38.6, modRate: 0.0941 } },
+      {
+        deviceId: 'echo-memory',
+        preset: 'Faint recall',
+        params: { time: 489, reach: 21.5, size: 1.97 },
+      },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 4.92 } },
     ],
   },
   {
-    id: 'stairwell-choir-a-cappella-drift',
-    name: 'A-cappella drift',
-    category: 'tape',
+    id: 'stairwell-choir-introit-cathedral',
+    name: 'Introit cathedral',
+    category: 'echo',
     description:
-      'A drifting reel laid against the dry sound to make a chorus, into an undamped hall of about three seconds with light lows.',
+      'A soft echo while earlier phrases drift back under it, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
-      { deviceId: 'tape', preset: 'Drifting chorus' },
+      { deviceId: 'echo-memory', preset: 'Recalling' },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { preDelay: 42 } },
+    ],
+  },
+  {
+    id: 'stairwell-choir-canon-loop',
+    name: 'Canon loop',
+    category: 'echo',
+    description:
+      'A loop of the last phrase played backwards as a bed, then grain repeats that climb by fifths on every pass.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Reverse bed', params: { length: 3.31 } },
+      { deviceId: 'grain-delay', preset: 'Rising fifths', params: { time: 657, size: 154 } },
+    ],
+  },
+  {
+    id: 'stairwell-choir-loop-by-the-rail',
+    name: 'Loop by the rail',
+    category: 'echo',
+    description:
+      'A soft loop of whatever was just played, into a hall of about four seconds with no dry sound in it.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Soft bed', params: { length: 2.24 } },
       {
         deviceId: 'hall-reverb',
-        preset: 'Bright hall',
-        params: { preDelay: 38.3, lowDecay: 2.14, midDecay: 3.36 },
+        preset: 'Full wet send',
+        params: { preDelay: 22.2, lowDecay: 4.09, midDecay: 3.65 },
       },
-    ],
-  },
-  {
-    id: 'stairwell-choir-drift-off-concrete',
-    name: 'Drift off concrete',
-    category: 'tape',
-    description:
-      'A big lift of the low end that puts weight under the sound, then a drifting reel laid against the dry sound to make a chorus.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Deep' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
     ],
   },
   {
@@ -699,31 +664,48 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-introit-chorus',
-    name: 'Introit chorus',
+    id: 'stairwell-choir-sunbeam-tape',
+    name: 'Sunbeam tape',
     category: 'tape',
     description:
-      'A big lift of presence and air, with ringing held in check, then a slow tape chorus, then a slow dark-trailing echo.',
+      'A thick, soft cassette, full in the lows and dull on top, then the start of each note struck again and again as it fades.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Bright' },
-      { deviceId: 'tape', preset: 'Drifting chorus' },
-      {
-        deviceId: 'echo-memory',
-        preset: 'Dark trail',
-        params: { time: 1120, reach: 27.2, size: 4.61 },
-      },
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'cascade', preset: 'Restruck', params: { time: 510 } },
     ],
   },
   {
-    id: 'stairwell-choir-soprano-organ',
-    name: 'Soprano organ',
-    category: 'motion',
+    id: 'stairwell-choir-clapboard-tape',
+    name: 'Clapboard tape',
+    category: 'tape',
     description:
-      'Four octaves that swell in on each note, like a pipe organ, then a rotating speaker on its slow speed, into a long bright tail.',
+      'A thick, soft cassette, full in the lows and dull on top, into a dark reverb that rises behind each note and lingers.',
     effects: [
-      { deviceId: 'octaves', preset: 'Cathedral' },
-      { deviceId: 'rotary', preset: 'Chorale' },
-      { deviceId: 'ether-reverb', preset: 'Shining tail', params: { predelayMs: 33.7, mix: 0.12 } },
+      { deviceId: 'tape', preset: 'Warm thump' },
+      { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.13, preDelay: 54 } },
+    ],
+  },
+  {
+    id: 'stairwell-choir-hiss-from-the-pews',
+    name: 'Hiss from the pews',
+    category: 'tape',
+    description:
+      'A big lift of presence and air, then a clean bright reel under a thick layer of tape hiss, then a dark fog of slow backwards swells.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Bright' },
+      { deviceId: 'tape', preset: 'Hiss and air' },
+      { deviceId: 'reverse-delay', preset: 'Dark fog' },
+    ],
+  },
+  {
+    id: 'stairwell-choir-concrete-reel',
+    name: 'Concrete reel',
+    category: 'tape',
+    description:
+      'A clean bright reel under a thick layer of tape hiss, into a small plate that is gone in a second or two.',
+    effects: [
+      { deviceId: 'tape', preset: 'Hiss and air' },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { predelayMs: 11 } },
     ],
   },
   {
@@ -758,7 +740,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Descant glow',
     category: 'motion',
     description:
-      'High octaves that fade in late above each note, then a slow rotating speaker that barely moves the sound, into an undamped hall.',
+      'High octaves that fade in late above each note, then a slow rotating speaker with a shallow, gentle sway, into an undamped hall.',
     effects: [
       { deviceId: 'octaves', preset: 'Slow halo' },
       { deviceId: 'rotary', preset: 'Faint motion', params: { mix: 0.36 } },
@@ -788,14 +770,26 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-hymn-rotary',
-    name: 'Hymn rotary',
+    id: 'stairwell-choir-halo-after-vespers',
+    name: 'Halo after vespers',
     category: 'motion',
     description:
-      'A slow rotating speaker heard from across the room, into the octave-climbing tail of a large reverb by itself.',
+      'High octaves that fade in late above each note, then the level rising and falling at random, like surf, into a singing cathedral.',
     effects: [
-      { deviceId: 'rotary', preset: 'Across the room' },
-      { deviceId: 'shimmer', preset: 'Rising tail alone' },
+      { deviceId: 'octaves', preset: 'Slow halo', params: { attack: 0.778 } },
+      { deviceId: 'tremolo', preset: 'Sea swell', params: { rate: 0.33 } },
+      { deviceId: 'vowel-reverb', preset: 'Cathedral', params: { decay: 20.8 } },
+    ],
+  },
+  {
+    id: 'stairwell-choir-quavering-double',
+    name: 'Quavering double',
+    category: 'motion',
+    description:
+      'Two copies in tune that wander like extra takes, into a long thin cave whose single echoes swell and fade.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Drifting', params: { delay: 24.7 } },
+      { deviceId: 'swarm-reverb', preset: 'Glinting', params: { length: 0.631, glide: 0.549 } },
     ],
   },
   {
@@ -871,7 +865,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Pad in a dry pool',
     category: 'texture',
     description:
-      'A softened attack, then a soft string pad that swells in behind what is played, into a huge wash by itself.',
+      'A softened attack, then a soft string pad that swells in behind what is played, into a huge wash heard alone.',
     effects: [
       { deviceId: 'swell', preset: 'Soft pick' },
       { deviceId: 'pad-follower', preset: 'String pad' },
@@ -883,7 +877,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Wordless shimmer',
     category: 'texture',
     description:
-      'A half-hidden slow swell, then a wide cloud of piled-up chords whose overtones all drift, into a swelling reverb cloud.',
+      'A half-hidden slow swell, then a wide drifting chord cloud, into a reverb that swells in after each note and fades away.',
     effects: [
       { deviceId: 'swell', preset: 'Shadow' },
       { deviceId: 'sustainer', preset: 'Shimmer cloud', params: { attack: 1.02, glide: 0.886 } },
@@ -984,27 +978,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-vespers-shimmer',
-    name: 'Vespers shimmer',
-    category: 'pitch',
-    description:
-      'A grainy octave sheen, then a quick slapback echo over short glimpses of earlier notes, into a late-arriving hall.',
-    effects: [
-      { deviceId: 'pitch-shifter', preset: 'Shimmer' },
-      {
-        deviceId: 'echo-memory',
-        preset: 'Glimpses',
-        params: { time: 68.2, reach: 19.4, size: 0.663 },
-      },
-      { deviceId: 'ether-reverb', preset: 'Late hall', params: { predelayMs: 179 } },
-    ],
-  },
-  {
     id: 'stairwell-choir-offertory-fifths',
     name: 'Offertory fifths',
     category: 'pitch',
     description:
-      'A wide, slightly detuned fifth above held chords, into a huge hall whose tail hums a soft oo for a long while.',
+      'A wide, slightly detuned fifth above held chords, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Pad fifth' },
       { deviceId: 'vowel-reverb', preset: 'Endless oo' },
@@ -1075,7 +1053,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Steeple octave',
     category: 'pitch',
     description:
-      'An octave above, then a tape loop that plays its layers back in reverse, into a cathedral whose long tail sings a soft open ah.',
+      'A single voice an octave above the dry sound, then a tape loop that plays its layers back in reverse, into a singing cathedral.',
     effects: [
       { deviceId: 'pitch-shifter', preset: 'Octave up' },
       { deviceId: 'tape-loop', preset: 'Backwards layers', params: { length: 5.61 } },
@@ -1138,6 +1116,18 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'stairwell-choir-octaves-sung-high',
+    name: 'Octaves sung high',
+    category: 'pitch',
+    description:
+      'An octave above and an octave below a single line, then a soft echo while earlier phrases drift back under it, into a thin bright reverb.',
+    effects: [
+      { deviceId: 'lattice', preset: 'Octaves', params: { output: 8 } },
+      { deviceId: 'echo-memory', preset: 'Recalling' },
+      { deviceId: 'expanse', preset: 'Thin air' },
+    ],
+  },
+  {
     id: 'stairwell-choir-marble-finish',
     name: 'Marble finish',
     category: 'master',
@@ -1173,18 +1163,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'stairwell-choir-finish-a-flight-up',
-    name: 'Finish a flight up',
-    category: 'master',
-    description:
-      'A rumble cut and a small lift of presence, then a parallel compressor that lifts quiet playing and tails, then a safety limiter.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.44 } },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 406, release: 3.08 } },
-      { deviceId: 'fet-limiter', preset: 'Safety' },
-    ],
-  },
-  {
     id: 'stairwell-choir-stairwell-master',
     name: 'Stairwell master',
     category: 'master',
@@ -1205,6 +1183,18 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'ambient-comp', preset: 'Glue' },
       { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'stairwell-choir-long-breath-finish',
+    name: 'Long-breath finish',
+    category: 'master',
+    description:
+      'A rumble cut and a small lift of presence, then a parallel compressor, then a brickwall ceiling that touches nothing beneath it.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Keys', params: { clearTime: 1.39 } },
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 406, release: 3.2 } },
+      { deviceId: 'ambient-limiter', preset: 'Wall only' },
     ],
   },
 ]

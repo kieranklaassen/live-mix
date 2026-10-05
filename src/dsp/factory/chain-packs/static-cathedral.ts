@@ -40,17 +40,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-brownout-cloud',
-    name: 'Brownout cloud',
-    category: 'space',
-    description:
-      'A reverb that rises for about four seconds behind each note, then a nasal horn loudspeaker heard from far across a big room.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Long rise' },
-      { deviceId: 're-amp', preset: 'Station platform', params: { output: 7.02 } },
-    ],
-  },
-  {
     id: 'static-cathedral-cloister-nave',
     name: 'Cloister nave',
     category: 'space',
@@ -104,17 +93,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-cluster-in-midwinter',
-    name: 'Cluster in midwinter',
-    category: 'space',
-    description:
-      'A combo amplifier heard from the far side of a big room, into a tight cluster of echoes close behind each note.',
-    effects: [
-      { deviceId: 're-amp', preset: 'Down the hall' },
-      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { length: 0.089, glide: 0.569 } },
-    ],
-  },
-  {
     id: 'static-cathedral-mist-in-cold-stone',
     name: 'Mist in cold stone',
     category: 'space',
@@ -130,7 +108,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Flagstone cavern',
     category: 'space',
     description:
-      'A vast blurred hollow that rings for half a minute, then a low, gentle compressor that brings up everything quiet.',
+      'A vast blurred hollow that rings for half a minute, then a gentle compressor that brings up everything quiet.',
     effects: [
       { deviceId: 'swarm-reverb', preset: 'Vast hollow' },
       { deviceId: 'ambient-comp', preset: 'Raise the quiet', params: { makeup: 10.8 } },
@@ -159,17 +137,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-space-in-the-crypt',
-    name: 'Space in the crypt',
-    category: 'space',
-    description:
-      'Bright tape-style saturation mixed in under the clean sound, into a huge space that answers in separate far-off echoes.',
-    effects: [
-      { deviceId: 'saturator', preset: 'Parallel shine' },
-      { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 20.1, modRate: 0.264 } },
-    ],
-  },
-  {
     id: 'static-cathedral-choir-by-the-font',
     name: 'Choir by the font',
     category: 'space',
@@ -192,27 +159,37 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-evensong-memory',
-    name: 'Evensong memory',
-    category: 'echo',
+    id: 'static-cathedral-hall-in-midwinter',
+    name: 'Hall in midwinter',
+    category: 'space',
     description:
-      'Moments drifting back, then a far-off horn loudspeaker, into a hall of about four seconds with no dry sound in it.',
+      'A huge dark open space that answers late and rings on, then a dull, hard-clipped fuzz with a rough digital edge.',
     effects: [
-      { deviceId: 'echo-memory', preset: 'No echo' },
-      { deviceId: 're-amp', preset: 'Station platform', params: { output: 3.92 } },
-      { deviceId: 'hall-reverb', preset: 'Full wet send' },
+      { deviceId: 'fdn-reverb', preset: 'Open valley', params: { mix: 0.27 } },
+      { deviceId: 'saturator', preset: 'Lo-fi' },
     ],
   },
   {
-    id: 'static-cathedral-stutter-in-the-roof',
-    name: 'Stutter in the roof',
-    category: 'echo',
+    id: 'static-cathedral-chancel-tide',
+    name: 'Chancel tide',
+    category: 'space',
     description:
-      'An endless stutter made of the first fragment played, then a far-off combo amp, into a huge wash by itself.',
+      'A scooped, hollow tone, then a clean speaker at the far end of a big, echoing room, into a long reverb in waves.',
     effects: [
-      { deviceId: 'micro-looper', preset: 'Stutter held', params: { length: 0.175 } },
-      { deviceId: 're-amp', preset: 'Down the hall' },
-      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 42.2, modRate: 0.0951 } },
+      { deviceId: 'ambient-eq', preset: 'Hollow', params: { clearTime: 1.44 } },
+      { deviceId: 're-amp', preset: 'Far end of the hall', params: { output: 2.77 } },
+      { deviceId: 'shaped-reverb', preset: 'Breathing' },
+    ],
+  },
+  {
+    id: 'static-cathedral-thaw-cluster',
+    name: 'Thaw cluster',
+    category: 'space',
+    description:
+      'Two dark late copies that shadow the sound on either side, into a tight cluster of echoes close behind each note.',
+    effects: [
+      { deviceId: 'stereo-detune', preset: 'Shadow', params: { delay: 26.4 } },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { length: 0.0907, glide: 0.623 } },
     ],
   },
   {
@@ -291,6 +268,30 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'static-cathedral-vestry-repeats',
+    name: 'Vestry repeats',
+    category: 'echo',
+    description:
+      'Phrases repeated by chance, then a transformer that fills out the lows and dulls the top, into a huge wash heard alone.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Phrase repeats' },
+      { deviceId: 'analog-drive', preset: 'Low warmth', params: { output: -7.33 } },
+      { deviceId: 'expanse', preset: 'Wash alone', params: { decay: 44.4, modRate: 0.096 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-loop-held-for-good',
+    name: 'Loop held for good',
+    category: 'echo',
+    description:
+      'An endless stutter made of the first fragment played, then a torn, folded-over fuzz, into a slowly breathing hall.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Stutter held' },
+      { deviceId: 'analog-drive', preset: 'Torn cone' },
+      { deviceId: 'fdn-reverb', preset: 'Breathing', params: { decay: 8.47, breathRate: 0.187 } },
+    ],
+  },
+  {
     id: 'static-cathedral-tallow-room',
     name: 'Tallow room',
     category: 'tape',
@@ -319,7 +320,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Amp past the pews',
     category: 'tape',
     description:
-      'A torn, folded-over fuzz, then a driven combo amplifier with its hiss and hum right up, into a slowly sliding cave.',
+      'A torn, folded-over fuzz, then a hissing, humming amp, into a long blurred cave that slides slowly between intervals.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Torn cone' },
       { deviceId: 're-amp', preset: 'Noisy valves' },
@@ -331,21 +332,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Haze after mass',
     category: 'tape',
     description:
-      'A wavefolder at full drive, broken up like a torn speaker, then a scrambled audio stream that smears every attack into haze.',
+      'A wavefolder at full drive, broken up like a torn speaker, then a scrambled audio stream that smears each attack to a haze.',
     effects: [
       { deviceId: 'saturator', preset: 'Blown speaker', params: { outputDb: -21 } },
       { deviceId: 'low-bitrate', preset: 'Smeared haze' },
-    ],
-  },
-  {
-    id: 'static-cathedral-lenten-fuzz',
-    name: 'Lenten fuzz',
-    category: 'tape',
-    description:
-      'An overloaded console channel under the clean sound, then a dial left between stations, mostly whistle and static.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Crushed', params: { output: -11.9 } },
-      { deviceId: 'radio', preset: 'Between stations' },
     ],
   },
   {
@@ -386,7 +376,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Roofless haze',
     category: 'tape',
     description:
-      'A scrambled audio stream that smears every attack into haze, then a far radio station, sinking in and out of heavy static.',
+      'A scrambled audio stream that smears each attack to a haze, then a far radio station, fading in and out of heavy static.',
     effects: [
       { deviceId: 'low-bitrate', preset: 'Smeared haze' },
       { deviceId: 'patina', preset: 'Distant station' },
@@ -404,22 +394,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-grey-noon-grain',
-    name: 'Grey-noon grain',
-    category: 'tape',
-    description:
-      'Five-bit converters fed hot, coarse and grainy on every note, into a vast nave that rings for about eight seconds.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Crushed' },
-      { deviceId: 'hall-reverb', preset: 'Vast nave' },
-    ],
-  },
-  {
     id: 'static-cathedral-leaded-hallway',
     name: 'Leaded hallway',
     category: 'tape',
     description:
-      'Thin valve grit mixed in under the clean sound, then a far-off combo amp, into a huge hall whose tail hums a soft oo for a long while.',
+      'Thin valve grit mixed in under the clean sound, then a far-off combo amp, into a huge hall whose tail hums a soft "oo" for a long while.',
     effects: [
       { deviceId: 'analog-drive', preset: 'Parallel grit' },
       { deviceId: 're-amp', preset: 'Down the hall' },
@@ -466,45 +445,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-static-in-the-crypt',
-    name: 'Static in the crypt',
-    category: 'tape',
-    description:
-      'A low-heavy transformer, then a shortwave station at night, into a clean speaker at the far end of a big, echoing room.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'radio', preset: 'Night shortwave' },
-      { deviceId: 're-amp', preset: 'Far end of the hall' },
-    ],
-  },
-  {
-    id: 'static-cathedral-converter-under-snow',
-    name: 'Converter under snow',
-    category: 'tape',
-    description:
-      'An eight-bit digital telephone line, band-limited and dull, into a thin bright reverb with all its lows cut away.',
-    effects: [
-      { deviceId: 'vintage-digital', preset: 'Phone' },
-      { deviceId: 'expanse', preset: 'Thin air', params: { decay: 11.6, modRate: 0.178 } },
-    ],
-  },
-  {
-    id: 'static-cathedral-tape-after-mass',
-    name: 'Tape after mass',
-    category: 'tape',
-    description:
-      'A warm, full equaliser, then a four-track cassette, then a soft echo while earlier phrases drift back under it.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Warm' },
-      { deviceId: 'tape', preset: 'Cassette four-track' },
-      {
-        deviceId: 'echo-memory',
-        preset: 'Recalling',
-        params: { time: 475, reach: 21.3, size: 2.82 },
-      },
-    ],
-  },
-  {
     id: 'static-cathedral-warble-in-midwinter',
     name: 'Warble in midwinter',
     category: 'tape',
@@ -521,32 +461,10 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Radio with no heat',
     category: 'tape',
     description:
-      'A medium-wave set whose dial slips off into whistle and back, into a short diffuse haze around the sound, like a small room.',
+      'A medium-wave set whose dial slips off to a whistle and back, into a short diffuse haze around the sound, like a small room.',
     effects: [
       { deviceId: 'radio', preset: 'Drifting dial' },
       { deviceId: 'spectral-blur', preset: 'Diffuse room' },
-    ],
-  },
-  {
-    id: 'static-cathedral-drift-breaking-up',
-    name: 'Drift breaking up',
-    category: 'tape',
-    description:
-      'A ringing sweep that seems to climb without end, then a slow reel whose pitch sways widely and never settles.',
-    effects: [
-      { deviceId: 'freq-shifter', preset: 'Barber pole', params: { delay: 11.4, lfoRate: 0.0806 } },
-      { deviceId: 'tape', preset: 'Seasick', params: { output: -4.62 } },
-    ],
-  },
-  {
-    id: 'static-cathedral-fuse-wire-signal',
-    name: 'Fuse-wire signal',
-    category: 'tape',
-    description:
-      'A nasal shortwave channel crossed by whistles and data tones, then the low hum of an amplifier left switched on.',
-    effects: [
-      { deviceId: 'radio', preset: 'Numbers' },
-      { deviceId: 'noise-floor', preset: 'Amp left on', params: { response: 0.414, hold: 28.7 } },
     ],
   },
   {
@@ -561,34 +479,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-censer-radio',
-    name: 'Censer radio',
-    category: 'tape',
-    description:
-      'A small boxy radio, then radio static that drifts and crackles under the sound, into a dark, very long hall.',
-    effects: [
-      { deviceId: 'radio', preset: 'Kitchen radio' },
-      { deviceId: 'noise-floor', preset: 'Radio static', params: { response: 0.373, hold: 10.5 } },
-      { deviceId: 'fdn-reverb', preset: 'Endless tail' },
-    ],
-  },
-  {
-    id: 'static-cathedral-grit-in-the-roof',
-    name: 'Grit in the roof',
-    category: 'tape',
-    description:
-      'An equaliser that takes presence, air and lows away, then a coarse early sampler, gritty, with bright fizz on top.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Distant', params: { clearTime: 1.59 } },
-      { deviceId: 'patina', preset: 'Eight bit' },
-    ],
-  },
-  {
     id: 'static-cathedral-buttress-fuzz',
     name: 'Buttress fuzz',
     category: 'tape',
     description:
-      'A bright, buzzing fuzz from a valve driven all the way, then a big lift of presence and air, with ringing held in check.',
+      'A bright, buzzing fuzz from a valve driven all the way, then a big lift of presence and air.',
     effects: [
       { deviceId: 'patina', preset: 'Valve fuzz', params: { output: -9.12 } },
       { deviceId: 'ambient-eq', preset: 'Bright', params: { clearTime: 0.586 } },
@@ -618,6 +513,118 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'low-bitrate', preset: 'Bad connection' },
       { deviceId: 'freq-shifter', preset: 'Falling spiral' },
+    ],
+  },
+  {
+    id: 'static-cathedral-whiteout-whistles',
+    name: 'Whiteout whistles',
+    category: 'tape',
+    description:
+      'A biting pentode stage, then a crowded shortwave band, into a small damped room that is over within a second.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Bite', params: { output: -4.43 } },
+      { deviceId: 'radio', preset: 'Crowded band' },
+      { deviceId: 'ether-reverb', preset: 'Room', params: { predelayMs: 9.19 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-guttering-shortwave',
+    name: 'Guttering shortwave',
+    category: 'tape',
+    description:
+      'A shortwave broadcast, narrow and mono, fading under static, then a faint echo with earlier phrases coming faintly back.',
+    effects: [
+      { deviceId: 'patina', preset: 'Shortwave' },
+      {
+        deviceId: 'echo-memory',
+        preset: 'Faint recall',
+        params: { time: 460, reach: 21.3, size: 2.12 },
+      },
+    ],
+  },
+  {
+    id: 'static-cathedral-thaw-grit',
+    name: 'Thaw grit',
+    category: 'tape',
+    description:
+      'A thick, loose fuzz from an overloaded transformer, then coarse five-bit converters, into a bright wide room that rings for a second or two.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Iron melt', params: { output: -9.53 } },
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
+      { deviceId: 'ether-reverb', preset: 'Ether' },
+    ],
+  },
+  {
+    id: 'static-cathedral-empty-pew-signal',
+    name: 'Empty-pew signal',
+    category: 'tape',
+    description:
+      'A mistuned sideband signal in static, every pitch gone sour, into a far-off plate haze with a long, soft tail.',
+    effects: [
+      { deviceId: 'radio', preset: 'Sideband voices' },
+      { deviceId: 'plate-reverb', preset: 'Distant haze', params: { mix: 0.451 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-grit-in-the-crypt',
+    name: 'Grit in the crypt',
+    category: 'tape',
+    description:
+      'Five-bit converters fed hot, coarse and grainy on every note, then radio static that sounds only with each note played.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Crushed' },
+      { deviceId: 'noise-floor', preset: 'Static notes', params: { response: 0.0479, hold: 1.04 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-disc-in-midwinter',
+    name: 'Disc in midwinter',
+    category: 'tape',
+    description:
+      'The skips of a scratched disc, stuck on tiny fragments, then backwards grains of each phrase, repeating as they fade.',
+    effects: [
+      { deviceId: 'glitch', preset: 'Skipping disc' },
+      { deviceId: 'grain-delay', preset: 'Backwards shards', params: { time: 403, size: 274 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-warped-dust',
+    name: 'Warped dust',
+    category: 'tape',
+    description:
+      'A half-speed loop, then a flaking, hissing reel that ducks and dulls at random, into a bright undamped plate of a couple of seconds.',
+    effects: [
+      { deviceId: 'micro-looper', preset: 'Half speed' },
+      { deviceId: 'tape', preset: 'Crumbling oxide', params: { output: 3.95 } },
+      { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 5.56 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-bell-rope-sampler',
+    name: 'Bell-rope sampler',
+    category: 'tape',
+    description:
+      'Smooth converters that hiss, then muffled tape hiss, steady and thick, into a hall whose top rings on while its lows stop short.',
+    effects: [
+      { deviceId: 'vintage-digital', preset: 'Jittery' },
+      { deviceId: 'noise-floor', preset: 'Muffled hiss' },
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Airy tail',
+        params: { preDelay: 29.5, lowDecay: 1.08, midDecay: 4.78 },
+      },
+    ],
+  },
+  {
+    id: 'static-cathedral-mullion-sampler',
+    name: 'Mullion sampler',
+    category: 'tape',
+    description:
+      'A hissing, humming amp, then early sampler converters, into a tight cluster of echoes close behind each note.',
+    effects: [
+      { deviceId: 're-amp', preset: 'Noisy valves' },
+      { deviceId: 'vintage-digital', preset: 'Sampler' },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { length: 0.109, glide: 0.672 } },
     ],
   },
   {
@@ -696,29 +703,25 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-candle-end-filter',
-    name: 'Candle-end filter',
-    category: 'motion',
-    description:
-      'A resonant upper-mid peak that rises when played hard, into a very long reverb whose tail keeps climbing by octaves.',
-    effects: [
-      {
-        deviceId: 'auto-filter',
-        preset: 'Resonant peak',
-        params: { lfoRateHz: 0.948, envAttackMs: 21.1, envReleaseMs: 275 },
-      },
-      { deviceId: 'bloom-reverb', preset: 'Endless rise', params: { decay: 27.7 } },
-    ],
-  },
-  {
     id: 'static-cathedral-compline-sway',
     name: 'Compline sway',
     category: 'motion',
     description:
-      'A bright, buzzing fuzz from a hard clipper driven flat, then the whole sound swaying sharp and flat every few seconds.',
+      'A bright, buzzing fuzz from a hard clipper driven flat out, then the whole sound swaying sharp and flat every few seconds.',
     effects: [
       { deviceId: 'saturator', preset: 'Fuzz pedal', params: { outputDb: -20 } },
       { deviceId: 'freq-shifter', preset: 'Seasick', params: { delay: 19.4, lfoRate: 0.277 } },
+    ],
+  },
+  {
+    id: 'static-cathedral-churchyard-filter',
+    name: 'Churchyard filter',
+    category: 'motion',
+    description:
+      'A resonant upper-mid peak that rises when played hard, into a combo amplifier heard from the far side of a big room.',
+    effects: [
+      { deviceId: 'auto-filter', preset: 'Resonant peak' },
+      { deviceId: 're-amp', preset: 'Down the hall', params: { output: -2.32 } },
     ],
   },
   {
@@ -834,22 +837,11 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-bell-rope-echoes',
-    name: 'Bell-rope echoes',
-    category: 'texture',
-    description:
-      'Soft repeats an octave up or down, under the dry sound, then raw converters at a very low rate, bright and clanging.',
-    effects: [
-      { deviceId: 'glitch', preset: 'Octave ghosts' },
-      { deviceId: 'vintage-digital', preset: 'Clang' },
-    ],
-  },
-  {
     id: 'static-cathedral-pad-down-the-nave',
     name: 'Pad down the nave',
     category: 'texture',
     description:
-      'A wide pad made of the sound with its attacks dissolved, into a far-off room laid in under the untouched sound.',
+      'A wide pad made of the sound with its attacks dissolved, into a far-off room laid in beneath the sound.',
     effects: [
       { deviceId: 'spectral-blur', preset: 'Pad from anything' },
       { deviceId: 're-amp', preset: 'Room underneath' },
@@ -860,7 +852,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Soot strings',
     category: 'texture',
     description:
-      'A string pad that stands alone in place of what is played, into a small room that casts a shadow an octave below.',
+      'A string pad that follows the playing and is heard alone, into a small room that casts a shadow an octave below.',
     effects: [
       { deviceId: 'pad-follower', preset: 'Pad alone' },
       { deviceId: 'shimmer', preset: 'Low shadow', params: { predelay: 21.8 } },
@@ -915,7 +907,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Drone under snow',
     category: 'texture',
     description:
-      'An unfading slow drone, then a deep pitch wobble in the centre, like a warped tape, into a late-arriving hall.',
+      'An unfading slow drone, then a deep pitch wobble, like a warped tape, into a wide hall that answers about a fifth of a second late.',
     effects: [
       { deviceId: 'sustainer', preset: 'Endless drone', params: { attack: 2.68, glide: 3.77 } },
       { deviceId: 'chorus', preset: 'Warped tape' },
@@ -983,6 +975,21 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'static-cathedral-wash-through-stone',
+    name: 'Wash through stone',
+    category: 'texture',
+    description:
+      'A grainy wash that never fades, gathering all that is played, then a steep low-pass that removes all above four hundred hertz.',
+    effects: [
+      { deviceId: 'low-bitrate', preset: 'Endless wash', params: { mix: 0.418 } },
+      {
+        deviceId: 'auto-filter',
+        preset: 'Low-pass gate',
+        params: { lfoRateHz: 0.959, envAttackMs: 9.49, envReleaseMs: 183 },
+      },
+    ],
+  },
+  {
     id: 'static-cathedral-transept-fifth',
     name: 'Transept fifth',
     category: 'pitch',
@@ -1015,7 +1022,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Bass in the loft',
     category: 'pitch',
     description:
-      'The octave below alone, rounded off like a bass, then a watery, warbling copy laid under the clean sound, into a slow dark swell.',
+      'The octave below alone, rounded off like a bass, then a watery, warbling copy laid under the clean sound, into a slow, dark swell of reverb.',
     effects: [
       { deviceId: 'octaves', preset: 'Bass alone' },
       { deviceId: 'low-bitrate', preset: 'Watery trace' },
@@ -1027,7 +1034,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Loose-wire chime',
     category: 'pitch',
     description:
-      'High inharmonic chimes, then a nasal shortwave channel, into a cathedral whose long tail sings a soft open ah.',
+      'High inharmonic chimes, then a nasal shortwave channel, into a cathedral whose long tail sings a soft open "ah".',
     effects: [
       { deviceId: 'freq-shifter', preset: 'High chime', params: { delay: 254, lfoRate: 0.0784 } },
       { deviceId: 'radio', preset: 'Numbers' },
@@ -1061,7 +1068,7 @@ export const CHAINS: readonly FactoryChain[] = [
     name: 'Buried bass',
     category: 'pitch',
     description:
-      'The octave below alone, rounded off like a bass, into a soft sung oo that follows a moment behind each note.',
+      'The octave below alone, rounded off like a bass, into a soft sung "oo" that trails each note by a moment.',
     effects: [
       { deviceId: 'octaves', preset: 'Bass alone' },
       { deviceId: 'vowel-reverb', preset: 'Oo behind', params: { decay: 4.13, preDelay: 89.7 } },
@@ -1128,18 +1135,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-finish-through-stone',
-    name: 'Finish through stone',
-    category: 'master',
-    description:
-      'The first hint of weight from a tape preamp, then a very gentle compressor, then a fast limiter leaned on lightly, catching stray peaks.',
-    effects: [
-      { deviceId: 'analog-drive', preset: 'First hint' },
-      { deviceId: 'ambient-comp', preset: 'Glue', params: { attack: 661, release: 4.04 } },
-      { deviceId: 'fet-limiter', preset: 'Light touch' },
-    ],
-  },
-  {
     id: 'static-cathedral-derelict-finish',
     name: 'Derelict finish',
     category: 'master',
@@ -1174,18 +1169,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-scorched-master',
-    name: 'Scorched master',
-    category: 'master',
-    description:
-      'A rumble cut and a small lift of presence, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
-    effects: [
-      { deviceId: 'ambient-eq', preset: 'Keys' },
-      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 355, release: 3.03 } },
-      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.39 } },
-    ],
-  },
-  {
     id: 'static-cathedral-mixdown-at-evensong',
     name: 'Mixdown at evensong',
     category: 'master',
@@ -1198,15 +1181,39 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'static-cathedral-master-by-the-font',
-    name: 'Master by the font',
+    id: 'static-cathedral-pillar-master',
+    name: 'Pillar master',
     category: 'master',
     description:
-      'A subsonic cut with the low mids and the presence eased, then a slightly wider image, then a slow-riding ceiling.',
+      'A rumble cut and a small lift of presence, then a slightly wider image, then a fast limiter leaned on lightly, catching stray peaks.',
     effects: [
-      { deviceId: 'ambient-eq', preset: 'Drone' },
+      { deviceId: 'ambient-eq', preset: 'Keys' },
       { deviceId: 'stereo-widener', preset: 'Gently wide' },
-      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { release: 5.36, gain: 2.06 } },
+      { deviceId: 'fet-limiter', preset: 'Light touch' },
+    ],
+  },
+  {
+    id: 'static-cathedral-roofless-master',
+    name: 'Roofless master',
+    category: 'master',
+    description:
+      'A parallel compressor that lifts quiet playing and tails, then a slightly wider image, then a safety limiter.',
+    effects: [
+      { deviceId: 'ambient-comp', preset: 'Lift', params: { attack: 395, release: 2.94 } },
+      { deviceId: 'stereo-widener', preset: 'Gently wide' },
+      { deviceId: 'fet-limiter', preset: 'Safety' },
+    ],
+  },
+  {
+    id: 'static-cathedral-mixdown-by-the-font',
+    name: 'Mixdown by the font',
+    category: 'master',
+    description:
+      'A small dip in the low mids, then a parallel compressor, then a true-peak ceiling set two decibels under full scale.',
+    effects: [
+      { deviceId: 'ambient-eq', preset: 'Drone', params: { clearTime: 1.47 } },
+      { deviceId: 'ambient-comp', preset: 'Lift' },
+      { deviceId: 'ambient-limiter', preset: 'Streaming', params: { release: 1.44 } },
     ],
   },
 ]

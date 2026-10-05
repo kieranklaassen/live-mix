@@ -206,17 +206,6 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'polar-signal-swell-by-lamplight',
-    name: 'Swell by lamplight',
-    category: 'space',
-    description:
-      'A dark reverb that rises behind each note and lingers, then a firm, slow compressor that keeps long swells held down.',
-    effects: [
-      { deviceId: 'shaped-reverb', preset: 'Ghost', params: { time: 2.04, preDelay: 61 } },
-      { deviceId: 'ambient-comp', preset: 'Hold swells', params: { attack: 148, release: 6.23 } },
-    ],
-  },
-  {
     id: 'polar-signal-starlit-haze',
     name: 'Starlit haze',
     category: 'space',
@@ -240,6 +229,21 @@ export const CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'grain-cloud', preset: 'Detuned double', params: { size: 128, density: 42.4 } },
       { deviceId: 'plate-reverb', preset: 'Bright plate', params: { predelayMs: 4.87 } },
+    ],
+  },
+  {
+    id: 'polar-signal-generator-hall',
+    name: 'Generator hall',
+    category: 'space',
+    description:
+      'A huge dark open space that answers late and rings on, then a thin band of tone with the lows cut and the top rolled off.',
+    effects: [
+      {
+        deviceId: 'fdn-reverb',
+        preset: 'Open valley',
+        params: { decay: 8.76, predelayMs: 129, breathRate: 0.33 },
+      },
+      { deviceId: 'ambient-eq', preset: 'Thin' },
     ],
   },
   {

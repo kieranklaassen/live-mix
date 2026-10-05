@@ -1175,14 +1175,14 @@ export const CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'orbit-steel-campfire-finish',
-    name: 'Campfire finish',
+    id: 'orbit-steel-buoyant-master',
+    name: 'Buoyant master',
     category: 'master',
     description:
-      'A few decibels of soft saturation with the top eased, then a true-peak ceiling that eases long swells down first.',
+      'A few decibels of soft saturation with the top eased, then a true-peak ceiling that lets go again over several seconds.',
     effects: [
       { deviceId: 'saturator', preset: 'Warm glue' },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -4.53 } },
+      { deviceId: 'ambient-limiter', preset: 'Slow tide', params: { gain: -4.53 } },
     ],
   },
 ]
