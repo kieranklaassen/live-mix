@@ -245,6 +245,9 @@ describe('the catalogue', () => {
       expect(validateSchema({ type: 'array', items: nullable }, [value]), typeof value).toEqual([
         { path: '[0]', message: `expected number | null, got ${typeof value}` },
       ])
+      // A schema that asks for no type takes anything, as it did and as Ajv does.
+      expect(ajv.compile({})(value), typeof value).toBe(true)
+      expect(validateSchema({}, value), typeof value).toEqual([])
     }
     // An absent key is still absent, whatever it may be given as.
     expect(

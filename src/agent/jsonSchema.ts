@@ -124,8 +124,10 @@ function check(
     schema.type === undefined ? [] : Array.isArray(schema.type) ? schema.type : [schema.type]
   if (actual === null) {
     // Not JSON at all: taken for a null, it went past every schema that allows one.
-    const expected = allowed.length > 0 ? allowed.join(' | ') : 'a JSON value'
-    issues.push({ path, message: `expected ${expected}, got ${typeof value}` })
+    // A schema that asks for no type asks nothing of it either.
+    if (allowed.length > 0) {
+      issues.push({ path, message: `expected ${allowed.join(' | ')}, got ${typeof value}` })
+    }
     return
   }
   if (schema.type !== undefined) {
