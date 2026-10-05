@@ -809,7 +809,10 @@ these. They are drawn, by a bench that is in the repository
   finished mix). It was written by hand from each device's own description,
   its preset values and a table of every preset measured alone
   (`bench/probe.test.ts`). `bench/lexicon.test.ts` holds it to the devices:
-  a preset added to an effect needs its words before the tests pass.
+  a preset added to an effect needs its words before the tests pass. An
+  effect added since the chains were drawn has no file until someone writes
+  it, and no pack chain uses it: the Tamer is the first
+  (`LEXICON_COMPLETE=1` lists what is missing).
 - **The recipes** (`bench/recipes.ts`) say what follows what: a loop, then
   wear, into a hall. They are the same for every pack. A tone in a track's
   chain has to be one that is heard, and a master chain is an equaliser, a
