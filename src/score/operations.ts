@@ -24,6 +24,7 @@ import { type ScoreScene } from '../core/session/Scene'
 import { LAUNCH_MODES, type LaunchMode, type ScoreSlot, type SlotClip } from '../core/session/Slot'
 import {
   MASTER_OWNER,
+  STRIP_PARAMS,
   findDevice,
   findElementTrack,
   findGroup,
@@ -1151,6 +1152,7 @@ function applyOne(score: Score, op: Operation): Score {
 
     case 'strip.set': {
       if (!Number.isFinite(op.value)) fail(op, 'value must be finite')
+      assertStripParam(op, op.param)
       if (op.owner === MASTER_OWNER) {
         if (op.param !== 'level') fail(op, 'the master only has a level')
         return { ...score, master: { ...score.master, level: Math.max(0, op.value) } }
@@ -1536,9 +1538,21 @@ function applyOne(score: Score, op: Operation): Score {
   }
 }
 
+/**
+ * A strip is written and read by the name of its parameter, so the name has
+ * to be one: any other word would put a number where the strip keeps its
+ * mute or its inserts.
+ */
+function assertStripParam(op: Operation, param: string): void {
+  if (!(STRIP_PARAMS as readonly string[]).includes(param)) {
+    fail(op, `"${param}" is no strip parameter`)
+  }
+}
+
 function assertTargetExists(score: Score, op: Operation, target: ParamTarget): void {
   switch (target.kind) {
     case 'strip':
+      assertStripParam(op, target.param)
       if (target.owner === MASTER_OWNER) {
         if (target.param !== 'level') fail(op, 'the master only has a level')
         return
@@ -1547,6 +1561,8 @@ function assertTargetExists(score: Score, op: Operation, target: ParamTarget): v
       return
     case 'device':
       requireDevice(score, op, target.device)
+      if (target.param === '')
+        fail(op, `the target on device "${target.device}" names no parameter`)
       return
     default: {
       const exhaustive: never = target

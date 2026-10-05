@@ -26,6 +26,7 @@ import {
   type Score,
   type ScoreDevice,
   type ScoreTrack,
+  type StripParam,
 } from '../schema'
 import { clip, demoScore, pick, seededRandom } from './fixtures'
 
@@ -652,6 +653,58 @@ describe('apply', () => {
     expect(swapped.score.lanes.map((lane) => lane.id)).not.toContain('keys-gain')
     // Undo: the instrument and the lane on it are back.
     expect(canon(apply(swapped.score, swapped.inverse))).toEqual(canon(score))
+  })
+
+  it('only a strip parameter is set, or aimed at by a lane or a route: no other field of the strip', () => {
+    for (const word of ['mute', 'inserts', 'constructor', '__proto__', '']) {
+      const param = word as StripParam
+      expect(
+        () => apply(base, { type: 'strip.set', owner: 'kick', param, value: 1 }),
+        `strip.set ${word}`,
+      ).toThrow(/is no strip parameter/)
+      expect(
+        () =>
+          apply(base, {
+            type: 'lane.add',
+            lane: {
+              id: 'aimed',
+              target: { kind: 'strip', owner: 'kick', param },
+              defaultValue: 0,
+              breakpoints: [],
+            },
+          }),
+        `lane.add ${word}`,
+      ).toThrow(/is no strip parameter/)
+      expect(
+        () =>
+          apply(base, {
+            type: 'route.add',
+            route: {
+              id: 'aimed',
+              source: 'lfo1',
+              target: { kind: 'strip', owner: 'kick', param },
+              depth: 0.5,
+              polarity: 'bipolar',
+            },
+          }),
+        `route.add ${word}`,
+      ).toThrow(/is no strip parameter/)
+    }
+    // A device's parameter is whatever the device calls it, but it has a name.
+    expect(() =>
+      apply(base, {
+        type: 'lane.add',
+        lane: {
+          id: 'aimed',
+          target: { kind: 'device', device: 'kick-filter', param: '' },
+          defaultValue: 0,
+          breakpoints: [],
+        },
+      }),
+    ).toThrow(/names no parameter/)
+    const trimmed = apply(base, { type: 'strip.set', owner: 'kick', param: 'inputGain', value: 2 })
+    expect(findTrack(trimmed, 'kick')?.strip.inputGain).toBe(2)
+    expect(validateScore(trimmed)).toEqual([])
   })
 
   it('the master takes a level and inserts but no pan, mute or sends', () => {
