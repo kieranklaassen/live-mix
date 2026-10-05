@@ -38,6 +38,7 @@ import { FACTORY_SOUNDS } from '../../sounds'
 import { type FactoryChain, type FactoryChainCategory } from '../../types'
 import {
   candidates,
+  chainClash,
   chainTraits,
   drawChain,
   fits,
@@ -53,6 +54,7 @@ import {
   type DrawRecipe,
 } from './draw'
 import { LEXICON } from './lexicon'
+import { type Trait } from './lexicon/types'
 import { keysTrim, LEVEL, otherTrim, trimmed } from './level'
 import {
   BENCH_INPUTS,
@@ -85,7 +87,7 @@ import {
   type Kept,
   type Prints,
 } from './store'
-import { chainName, chainSentence, freshNames, slug } from './words'
+import { chainName, chainSentence, freshNames, nameNouns, nameStands, slug } from './words'
 
 const mode = process.env.CHAIN_BENCH
 const packId = process.env.CHAIN_BENCH_PACK ?? ''
@@ -203,6 +205,18 @@ async function measure(drawn: Drawn, known: Known): Promise<Measured | string> {
   const pushed = stressFaults(stress, holds)
   if (pushed.length > 0) return pushed[0]
   return { effects, on, nearest, stress }
+}
+
+/**
+ * What a word of a name that says something of the sound is held to: the
+ * traits of the preset the chain is named for; hiss and a sound held for good
+ * are the whole chain's wherever they come from.
+ */
+function nameTraits(picks: readonly Candidate[], lead: number): Set<Trait> {
+  const whole = chainTraits(picks)
+  const traits = new Set(picks[lead].voice.traits)
+  for (const trait of ['noisy', 'frozen'] as const) if (whole.has(trait)) traits.add(trait)
+  return traits
 }
 
 /** What the builder still has to draw for one group: the pack's own recipes first, then the shared ones. */
@@ -452,12 +466,13 @@ describe.skipIf(mode !== 'build')('chain bench: a pack is drawn', () => {
             continue
           }
           const lead = drawn.picks[drawn.lead]
-          // A word that says something of the sound is held to the preset the chain is named for;
-          // hiss and a sound held for good are the whole chain's wherever they come from.
-          const whole = chainTraits(drawn.picks)
-          const traits = new Set(lead.voice.traits)
-          for (const trait of ['noisy', 'frozen'] as const) if (whole.has(trait)) traits.add(trait)
-          const name = chainName(random, palette, lead, traits, names)
+          const name = chainName(
+            random,
+            palette,
+            nameNouns(drawn.category, lead),
+            nameTraits(drawn.picks, drawn.lead),
+            names,
+          )
           if (!name) {
             noteDrawn(state, drawn, false)
             refuse('NO NAME left')
@@ -545,7 +560,6 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           const voice = LEXICON.get(device)?.voices[preset]
           return voice && { device, preset, voice }
         })
-        const words = row.chain.name.toLowerCase().split(/[^a-z]+/)
         let why = ''
         if (struck[pack.id]?.includes(row.chain.name)) why = 'a reader struck it'
         else if (recipe?.slots.length !== picks.length) why = 'its recipe is gone'
@@ -553,8 +567,17 @@ describe.skipIf(mode !== 'settle')('chain bench: packs drawn side by side are to
           why = 'a preset no longer fits its slot'
         else if (picks.filter((pick) => pick?.voice.traits.includes('heavy')).length > 1)
           why = 'two presets that each take the dry sound away'
-        else if (palette.avoid?.some((noun) => words.includes(noun)))
-          why = 'its name has a word the pack avoids'
+        else if (!own.has(row.recipe) && chainClash(recipe, picks as Candidate[]))
+          why = chainClash(recipe, picks as Candidate[]) ?? ''
+        else if (
+          !nameStands(
+            palette,
+            nameNouns(row.chain.category, (picks as Candidate[])[row.lead]),
+            nameTraits(picks as Candidate[], row.lead),
+            row.chain.name,
+          )
+        )
+          why = 'its name is not one its words give any more'
         else if (names.has(row.chain.name.toLowerCase())) why = 'its name is taken'
         else if (ids.has(row.chain.id)) why = 'its id is taken'
         else if (signatures.has(signature(row.chain.effects)))

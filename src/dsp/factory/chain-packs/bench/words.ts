@@ -2,6 +2,7 @@
 // the presets it holds and the words its pack is named with. The sentence is
 // true as far as the lexicon is: it says each effect in the order it stands.
 
+import { type FactoryChainCategory } from '../../types'
 import { type Candidate } from './draw'
 import { type Role, type Trait } from './lexicon/types'
 import { type Head, type PackPalette } from './palettes/types'
@@ -20,6 +21,14 @@ export const WORD_LIMITS = {
 } as const
 
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1)
+
+// A palette's tails are written lower case; a month, a day and the side of a tape keep their capital in print.
+const PROPER =
+  /\b(january|february|march|april|june|july|august|september|october|november|december|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/g
+const printed = (tail: string) =>
+  tail
+    .replace(PROPER, capital)
+    .replace(/\bside ([a-z])\b/, (_all, side: string) => `side ${side.toUpperCase()}`)
 
 export const slug = (name: string) =>
   name
@@ -107,6 +116,17 @@ const PLAIN_NOUNS: ReadonlySet<string> = new Set([
   'wall',
 ])
 
+/**
+ * What a master chain is named for: the finish it gives a mix, whatever
+ * stands first in it. A compressor's or an equaliser's own noun after a
+ * pack's word ("Pollen glue") names nothing a reader can use.
+ */
+export const MASTER_NOUNS: readonly string[] = ['finish', 'master', 'mixdown', 'polish', 'lacquer']
+
+/** The nouns a chain of this group, led by `lead`, can be named for. */
+export const nameNouns = (category: FactoryChainCategory, lead: Candidate): readonly string[] =>
+  category === 'master' ? MASTER_NOUNS : lead.voice.nouns
+
 const headWord = (head: Head) => (typeof head === 'string' ? head : head.word)
 
 /** Whether a pack's word says the noun over again: the noun is in it, or one of its words begins as the noun does. */
@@ -124,33 +144,22 @@ interface Naming {
   weight: number
 }
 
-/**
- * A name for a chain led by `lead`: one of the pack's heads before one of
- * the lead's nouns ("Harbour plate"), or a noun before one of the pack's
- * tails ("Plate at dusk"). `traits` are what a word with `for` is held to:
- * the leading preset's own, since the name is its noun. Undefined when every
- * name it could have is taken.
- */
-export function chainName(
-  random: Random,
+/** Every name the pack's words and these nouns give, whoever has taken it: `used` weighs a word by how often it has served. */
+function namings(
   palette: PackPalette,
-  lead: Candidate,
+  nouns: readonly string[],
   traits: ReadonlySet<Trait>,
-  state: NameState,
-): string | undefined {
+  used: { head: (word: string) => number; tail: (word: string) => number },
+): Naming[] {
   const options: Naming[] = []
-  const free = (name: string) =>
-    name.length <= WORD_LIMITS.name &&
-    !state.taken.has(name.toLowerCase()) &&
-    !state.ids.has(`${palette.pack}-${slug(name)}`)
-  const allowed = lead.voice.nouns.filter((noun) => !palette.avoid?.includes(noun))
+  const allowed = nouns.filter((noun) => !palette.avoid?.includes(noun))
   const telling = allowed.filter((noun) => !PLAIN_NOUNS.has(noun))
   ;(telling.length > 0 ? telling : allowed).forEach((noun, index) => {
     const nounWeight = 0.6 ** index
     for (const head of palette.heads) {
       const word = headWord(head)
-      const used = state.heads.get(word) ?? 0
-      if (used >= WORD_LIMITS.headUses) continue
+      const uses = used.head(word)
+      if (uses >= WORD_LIMITS.headUses) continue
       // "Loop loop", "Looping loop", "Stairwell stairs".
       if (echoes(word, noun)) continue
       let fit = 1
@@ -158,24 +167,54 @@ export function chainName(
         if (!head.for.some((trait) => traits.has(trait))) continue
         fit = 3
       }
-      const name = `${word} ${noun}`
-      if (free(name)) {
-        options.push({ name, head: word, weight: (nounWeight * fit) / (1 + used) ** 2 })
-      }
+      options.push({
+        name: `${word} ${noun}`,
+        head: word,
+        weight: (nounWeight * fit) / (1 + uses) ** 2,
+      })
     }
     for (const entry of palette.tails) {
       const tail = headWord(entry)
-      const used = state.tails.get(tail) ?? 0
-      if (used >= WORD_LIMITS.tailUses || echoes(tail, noun)) continue
+      const uses = used.tail(tail)
+      if (uses >= WORD_LIMITS.tailUses || echoes(tail, noun)) continue
       let fit = 1
       if (typeof entry !== 'string') {
         if (!entry.for.some((trait) => traits.has(trait))) continue
         fit = 3
       }
-      const name = `${capital(noun)} ${tail}`
-      if (free(name)) options.push({ name, tail, weight: (nounWeight * fit) / (1 + used) ** 2 })
+      options.push({
+        name: `${capital(noun)} ${printed(tail)}`,
+        tail,
+        weight: (nounWeight * fit) / (1 + uses) ** 2,
+      })
     }
   })
+  return options.filter((option) => option.name.length <= WORD_LIMITS.name)
+}
+
+/**
+ * A name for a chain: one of the pack's heads before one of `nouns`
+ * ("Harbour plate"), or a noun before one of the pack's tails ("Plate at
+ * dusk"). The nouns are the leading preset's own, or a master chain's
+ * (`nameNouns`). `traits` are what a word with `for` is held to: the leading
+ * preset's own, since the name is its noun. Undefined when every name it
+ * could have is taken.
+ */
+export function chainName(
+  random: Random,
+  palette: PackPalette,
+  nouns: readonly string[],
+  traits: ReadonlySet<Trait>,
+  state: NameState,
+): string | undefined {
+  const options = namings(palette, nouns, traits, {
+    head: (word) => state.heads.get(word) ?? 0,
+    tail: (word) => state.tails.get(word) ?? 0,
+  }).filter(
+    (option) =>
+      !state.taken.has(option.name.toLowerCase()) &&
+      !state.ids.has(`${palette.pack}-${slug(option.name)}`),
+  )
   // Heads and tails are weighed as two lists, so that a pack with many heads still ends some names in a tail.
   const total = (list: readonly Naming[]) => list.reduce((sum, option) => sum + option.weight, 0)
   const headed = options.filter((option) => option.head !== undefined)
@@ -189,6 +228,22 @@ export function chainName(
   state.taken.add(choice.name.toLowerCase())
   state.ids.add(`${palette.pack}-${slug(choice.name)}`)
   return choice.name
+}
+
+/**
+ * Whether a name is still one the pack's words and these nouns give: a chain
+ * named with a word its palette has since dropped, or for a noun its preset
+ * no longer has, does not keep the name.
+ */
+export function nameStands(
+  palette: PackPalette,
+  nouns: readonly string[],
+  traits: ReadonlySet<Trait>,
+  name: string,
+): boolean {
+  return namings(palette, nouns, traits, { head: () => 0, tail: () => 0 }).some(
+    (option) => option.name === name,
+  )
 }
 
 /** A space is what a chain runs into; anything else follows what is before it. */

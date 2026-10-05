@@ -349,7 +349,6 @@ export const PALETTE: PackPalette = {
     'Hemlock',
     'Alder',
     'Mudflat',
-    'Slough',
     'River-bar',
     'Spare-room',
     'Punched-in',
@@ -409,5 +408,5 @@ export const PALETTE: PackPalette = {
     { word: 'run slow', for: ['low'] },
     { word: 'flipped over', for: ['backwards'] },
   ],
-  avoid: ['shade'],
+  avoid: ['shade', 'gate'],
 }

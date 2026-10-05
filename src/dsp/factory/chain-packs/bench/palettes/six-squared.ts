@@ -161,7 +161,6 @@ export const PALETTE: PackPalette = {
     'tone-ceiling': 0.6,
     'width-ceiling': 0.4,
     'tone-width-ceiling': 0.5,
-    'room-ceiling': 0.4,
   },
   own: [
     {
@@ -264,7 +263,6 @@ export const PALETTE: PackPalette = {
   ],
   heads: [
     'Ring-road',
-    'Night-bus',
     'Estate',
     'Flyover',
     'Bypass',
@@ -274,7 +272,6 @@ export const PALETTE: PackPalette = {
     'Comedown',
     'Bus-shelter',
     'Motorway',
-    'Underpass',
     'Top-deck',
     'Closing-time',
     'Lock-up',
@@ -291,7 +288,6 @@ export const PALETTE: PackPalette = {
     'Back-seat',
     'Cooling-tower',
     'Bedsit',
-    'Phone-box',
     'Roundabout',
     'Outskirts',
     'Redbrick',
@@ -306,7 +302,6 @@ export const PALETTE: PackPalette = {
     'Allotment',
     'Pebble-dash',
     'Bay-window',
-    'Clocks-back',
     'Fog-lamp',
     'Dancefloor',
     'Forecourt',
@@ -354,7 +349,6 @@ export const PALETTE: PackPalette = {
     'in a ginnel',
     'in a lay-by',
     'in fine rain',
-    'midweek',
     'in sleet',
     'at a bus stop',
     { word: 'streets away', for: ['far'] },

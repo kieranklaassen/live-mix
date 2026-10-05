@@ -316,7 +316,6 @@ export const PALETTE: PackPalette = {
     'Next-door',
     'Lullaby',
     'Dreamt',
-    'Sleepwalk',
     'Half-dreamt',
     'Eyes-shut',
     'Peninsula',
@@ -324,7 +323,6 @@ export const PALETTE: PackPalette = {
     'Headland',
     'Foghorn',
     'Lighthouse',
-    'Wheal',
     'Tin-roof',
     'Village-hall',
     'Box-room',
@@ -392,5 +390,5 @@ export const PALETTE: PackPalette = {
     { word: 'still ringing', for: ['long'] },
     { word: 'never fading', for: ['frozen'] },
   ],
-  avoid: ['metal'],
+  avoid: ['metal', 'blur', 'collapse', 'twin'],
 }

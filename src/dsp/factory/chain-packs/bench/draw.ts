@@ -7,7 +7,7 @@ import { patchDeviceParams } from '../../../../core/devices/patch'
 import { type FactoryChainCategory } from '../../types'
 import { benchEffect } from './effects'
 import { LEXICON } from './lexicon'
-import { type Trait, type Voice } from './lexicon/types'
+import { type Role, type Trait, type Voice } from './lexicon/types'
 import { type OwnRecipe, type OwnSlot, type PackPalette } from './palettes/types'
 import { weighted, type Random } from './random'
 import { RECIPES } from './recipes'
@@ -47,10 +47,11 @@ export const DRAW_LIMITS = {
   /** What the effects of a chain may cost together by the bench's table, percent of real time. */
   costPct: 12,
   /**
-   * A preset the pack leans from by more than this (a weight under a tenth)
-   * fills a slot only when nothing the pack leans to can; a recipe likewise.
+   * A preset the pack leans from by more than this (a weight under a
+   * quarter) fills a slot only when nothing the pack leans to can; a recipe
+   * likewise. What a pack turns well down a reader takes for foreign to it.
    */
-  leastLean: 0.1,
+  leastLean: 0.25,
 } as const
 
 /** Every preset a chain can use: all the lexicon has a job for, less what the bench's table refuses. */
@@ -111,6 +112,64 @@ export function fits(slot: OwnSlot, candidate: Candidate): boolean {
   return true
 }
 
+/** What a chain has room for once: a second one does the first one's job over again. */
+const ONCE: readonly Trait[] = ['unsteady', 'backwards', 'long', 'frozen']
+/** The jobs that leave no dry sound beside them: what they take away is gone for everything before them. */
+const THROUGH: readonly Role[] = ['tone', 'wear', 'drive']
+
+/**
+ * Why a preset cannot follow the ones before it in a chain drawn from a
+ * shared recipe; undefined when it can. `role` is the job it would do there,
+ * `lead` whether the chain would be named for it. A master chain is made of
+ * hints and is held to none of this beyond its slots.
+ */
+export function clash(
+  before: readonly Candidate[],
+  candidate: Candidate,
+  role: Role | undefined,
+  lead: boolean,
+  category: FactoryChainCategory,
+): string | undefined {
+  if (category === 'master') return undefined
+  const has = (trait: Trait) => candidate.voice.traits.includes(trait)
+  const had = (trait: Trait) => before.some((pick) => pick.voice.traits.includes(trait))
+  for (const trait of ONCE) if (has(trait) && had(trait)) return `two presets that are ${trait}`
+  if (has('faint')) {
+    if (lead) return 'named for a preset that is only a hint'
+    if (had('faint')) return 'two presets that are each only a hint'
+    if (had('heavy')) return 'a hint under a preset that takes the dry sound away'
+  }
+  if (has('heavy') && had('faint')) return 'a hint under a preset that takes the dry sound away'
+  if (has('narrow') && had('wide')) return 'a width that is folded to the middle again'
+  if (
+    has('dark') &&
+    THROUGH.includes(role ?? candidate.voice.roles[0]) &&
+    (had('bright') || had('high'))
+  ) {
+    return 'a brightness that is taken away again'
+  }
+  return undefined
+}
+
+/** `clash` for a whole chain as it stands, slot by slot. */
+export function chainClash(
+  recipe: Pick<DrawRecipe, 'slots' | 'lead' | 'category'>,
+  picks: readonly Candidate[],
+): string | undefined {
+  for (let index = 1; index <= picks.length; index += 1) {
+    const at = index - 1
+    const why = clash(
+      picks.slice(0, at),
+      picks[at],
+      recipe.slots[at]?.role,
+      at === recipe.lead,
+      recipe.category,
+    )
+    if (why) return why
+  }
+  return undefined
+}
+
 function lean(palette: PackPalette, candidate: Candidate): number {
   let weight = palette.devices?.[candidate.device] ?? 1
   weight *= palette.voices?.[key(candidate.device, candidate.preset)] ?? 1
@@ -133,6 +192,8 @@ export interface DrawRecipe {
   slots: readonly OwnSlot[]
   lead: number
   weight: number
+  /** A pack's own recipe: its writer chose what stands beside what, and it is held to its slots alone. */
+  own?: boolean
 }
 
 /** The shared recipes of one group as this pack weighs them. */
@@ -146,7 +207,7 @@ export function sharedRecipes(palette: PackPalette, category: FactoryChainCatego
   return leant.length > 0 ? leant : all
 }
 
-export const ownRecipe = (recipe: OwnRecipe): DrawRecipe => ({ ...recipe, weight: 1 })
+export const ownRecipe = (recipe: OwnRecipe): DrawRecipe => ({ ...recipe, weight: 1, own: true })
 
 /**
  * Fill a recipe's slots, first to last. A slot takes the preset its job,
@@ -163,13 +224,15 @@ export function drawChain(
   cost: (candidate: Candidate) => number,
 ): Drawn | undefined {
   const picks: Candidate[] = []
-  for (const slot of recipe.slots) {
+  for (const [index, slot] of recipe.slots.entries()) {
     const heavy = picks.some((pick) => pick.voice.traits.includes('heavy'))
     const spent = picks.reduce((sum, pick) => sum + cost(pick), 0)
     const open = pool.filter((candidate) => {
       if (!fits(slot, candidate)) return false
       if (picks.some((other) => other.device === candidate.device)) return false
       if (heavy && candidate.voice.traits.includes('heavy')) return false
+      if (!recipe.own && clash(picks, candidate, slot.role, index === recipe.lead, recipe.category))
+        return false
       return spent + cost(candidate) <= DRAW_LIMITS.costPct
     })
     // What the pack leans away from does not come in while anything else will do the job.

@@ -83,6 +83,12 @@ export const TRAITS = [
   'backwards',
   /** Holds without end. */
   'frozen',
+  /**
+   * Fit to stand on a whole mix, last of all: it takes no low end away and no
+   * top, moves no band by more than a couple of decibels, does not pump or
+   * breathe, folds nothing to mono and adds nothing that is heard as an effect.
+   */
+  'whole',
 ] as const
 export type Trait = (typeof TRAITS)[number]
 

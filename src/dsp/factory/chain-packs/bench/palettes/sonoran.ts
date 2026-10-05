@@ -231,7 +231,6 @@ export const PALETTE: PackPalette = {
     'drive-tone': 1.4,
     'wear-hiss': 0.05,
     'drive-hiss': 0.05,
-    'wear-wear': 0.2,
     'wear-echo': 0.6,
     'wear-hiss-hall': 0.1,
     'drive-wear': 1.3,

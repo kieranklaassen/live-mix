@@ -183,7 +183,6 @@ export const PALETTE: PackPalette = {
     'drive-wear': 0.3,
     'drive-tone': 0.2,
     'drive-wear-room': 0.2,
-    'wear-wear': 0.15,
     'drive-hiss': 0,
     // Motion.
     'motion-hall': 2,
@@ -346,9 +345,7 @@ export const PALETTE: PackPalette = {
     'Boarding',
     'Gate-side',
     'Runway',
-    'Apron',
     'Tarmac',
-    'Mezzanine',
     'Atrium',
     'Skylight',
     'Walkway',
@@ -394,7 +391,6 @@ export const PALETTE: PackPalette = {
     'Timetable',
     'Transfer',
     'Paging',
-    'Courtesy',
     { word: 'Overhead', for: ['high'] },
     { word: 'Descending', for: ['low'] },
     { word: 'Taxiing', for: ['slow'] },
@@ -405,7 +401,6 @@ export const PALETTE: PackPalette = {
     { word: 'Lights-down', for: ['dark'] },
     { word: 'Snowed-in', for: ['frozen'] },
     { word: 'Ventilated', for: ['noisy'] },
-    { word: 'Wide-bodied', for: ['wide'] },
     { word: 'Half-heard', for: ['faint'] },
   ],
   tails: [
