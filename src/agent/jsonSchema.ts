@@ -49,21 +49,6 @@ function typeOf(value: unknown): JsonSchemaType | null {
   return null
 }
 
-/** The length of a text as JSON Schema counts it: in characters, so a pair of surrogates is one. */
-function lengthOf(text: string): number {
-  let length = text.length
-  for (let index = 0; index < text.length - 1; index += 1) {
-    const unit = text.charCodeAt(index)
-    if (unit < 0xd800 || unit > 0xdbff) continue
-    const next = text.charCodeAt(index + 1)
-    if (next >= 0xdc00 && next <= 0xdfff) {
-      length -= 1
-      index += 1
-    }
-  }
-  return length
-}
-
 function matchesType(actual: JsonSchemaType, expected: JsonSchemaType): boolean {
   return expected === actual || (expected === 'number' && actual === 'integer')
 }
@@ -152,12 +137,12 @@ function check(
       issues.push({ path, message: `expected < ${schema.exclusiveMaximum}, got ${number}` })
     }
   }
-  if (actual === 'string' && (schema.minLength !== undefined || schema.maxLength !== undefined)) {
-    const length = lengthOf(value as string)
-    if (schema.minLength !== undefined && length < schema.minLength) {
+  if (actual === 'string') {
+    const text = value as string
+    if (schema.minLength !== undefined && text.length < schema.minLength) {
       issues.push({ path, message: `expected at least ${schema.minLength} characters` })
     }
-    if (schema.maxLength !== undefined && length > schema.maxLength) {
+    if (schema.maxLength !== undefined && text.length > schema.maxLength) {
       issues.push({ path, message: `expected at most ${schema.maxLength} characters` })
     }
   }

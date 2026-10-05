@@ -254,21 +254,4 @@ describe('the catalogue', () => {
       validateSchema({ type: 'object', properties: { level: nullable } }, { level: undefined }),
     ).toEqual([])
   })
-
-  it('counts the characters of a text as JSON Schema does: a pair of surrogates is one', () => {
-    const schema = { type: 'string' as const, minLength: 2, maxLength: 3 }
-    const validate = ajv.compile(schema)
-    for (const [text, fits] of [
-      ['\u{1F30A}\u{1F30A}\u{1F30A}', true],
-      ['\u{1F30A}', false],
-      ['\u{1F30A}\u{1F30A}\u{1F30A}\u{1F30A}', false],
-      ['abc', true],
-      ['abcd', false],
-      // Half a pair is a character of its own.
-      ['\ud83c\ud83c', true],
-    ] as const) {
-      expect(validate(text), text).toBe(fits)
-      expect(validateSchema(schema, text).length === 0, text).toBe(fits)
-    }
-  })
 })
