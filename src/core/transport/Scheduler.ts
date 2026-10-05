@@ -255,7 +255,7 @@ export class Scheduler {
       }
     }
     this.rejoin(drawn)
-    for (const listener of this.seedListeners) listener()
+    for (const listener of [...this.seedListeners]) listener()
   }
 
   /**
@@ -657,6 +657,7 @@ export class Scheduler {
     this.stopTimer()
     this.registrations.clear()
     this.tickListeners.clear()
+    this.seedListeners.clear()
   }
 
   private onTransportChange(change: TransportChange): void {
