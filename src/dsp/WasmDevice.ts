@@ -25,6 +25,14 @@ import {
   type WasmDeviceProcessorOptions,
 } from './abi'
 import { compileWasm, resolveProcessorUrl, type AssetOverrides, type WasmSource } from './assets'
+import {
+  prepareZoneLoad,
+  type ZoneCapacity,
+  type ZoneMap,
+  type ZonePlan,
+  type ZonePlanOptions,
+  type ZoneSample,
+} from './zones/zone-map'
 
 /** Static description of a WASM device: where its module lives and its params. */
 export interface WasmDeviceDefinition<
@@ -39,6 +47,8 @@ export interface WasmDeviceDefinition<
   latencySamples?: (sampleRate: number) => number
   /** Readings the module reports through `device_meter`, by name; ids are positions in its list. */
   meters?: Readonly<Record<string, DeviceMeterSpec>>
+  /** A multi-sample instrument: how many zones and sounds it holds and the size of its sample pool. */
+  zones?: ZoneCapacity
   /**
    * An app-local worklet processor implementing the same ABI plus extras
    * (ambient-live's instrument). Defaults to the library's generic processor.
@@ -79,6 +89,8 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   readonly node: AudioWorkletNode
   readonly latencySec: number
   readonly latencySamples: number
+  /** What a multi-sample instrument holds; undefined for every other device. */
+  readonly zones: ZoneCapacity | undefined
   private readonly values = new Map<string, number>()
   private readonly changes = new Emitter<DeviceChange>()
   private readonly meterIntervalFrames: number
@@ -99,6 +111,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     this.load = load
     this.params = definition.params
     this.meters = definition.meters ?? NO_METERS
+    this.zones = definition.zones
     this.meterIntervalFrames = Math.max(1, Math.round(sampleRate / DEVICE_METER_HZ))
     this.node = node
     this.latencySamples = Math.max(
@@ -268,6 +281,49 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       { type: 'sample', channels: copies, sampleRate } satisfies DeviceMessage,
       copies.map((copy) => copy.buffer),
     )
+  }
+
+  /**
+   * Hand a multi-sample instrument its zones and the sounds they play: a
+   * zone map and a table of decoded audio keyed by the names the zones use
+   * (docs/zone-sampler.md). The instrument is fitted to the device's sample memory
+   * first (`planZoneLoad`): it loads whole, or not at all and the returned
+   * plan says why, or with `overBudget: 'thin'` in part and the plan says
+   * what was left out. The audio is copied, so the caller's buffers stay
+   * usable and can be let go. A device that takes no zones refuses.
+   */
+  loadZones(
+    map: ZoneMap,
+    samples: Readonly<Record<string, ZoneSample | undefined>>,
+    options: ZonePlanOptions = {},
+  ): ZonePlan {
+    if (!this.zones) {
+      return {
+        ok: false,
+        reason: `${this.id} takes no zones`,
+        bytes: 0,
+        budgetBytes: 0,
+        missing: [],
+        problems: [],
+      }
+    }
+    const { plan, load } = prepareZoneLoad(map, samples, this.zones, options)
+    if (!load || this.disposed) return plan
+    this.post({ type: 'zones-begin' })
+    for (const sample of load.samples) {
+      this.node.port.postMessage(
+        {
+          type: 'zone-sample',
+          channels: sample.channels,
+          sampleRate: sample.sampleRate,
+        } satisfies DeviceMessage,
+        sample.channels.map((channel) => channel.buffer),
+      )
+    }
+    this.node.port.postMessage({ type: 'zones', fields: load.fields } satisfies DeviceMessage, [
+      load.fields.buffer,
+    ])
+    return plan
   }
 
   /** Send an app-specific message to a custom processor (see `processor` in the definition). */

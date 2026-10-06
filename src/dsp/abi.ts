@@ -28,6 +28,21 @@ export interface DeviceExports {
   /** Where the host writes the sound: channel 0, then channel 1 `capacity` frames later. */
   device_sample_buffer?: () => number
   device_sample_commit?: (frames: number, channels: number, sampleRate: number) => void
+  /**
+   * Zone devices only (a multi-sample instrument): how many zones and how many
+   * floats of sample data fit, and the calls that hand it sounds and zones
+   * (see `WasmDevice.loadZones` and cpp/common/device_api.h).
+   */
+  device_zone_capacity?: () => number
+  device_zone_pool_capacity?: () => number
+  device_zones_begin?: () => void
+  /** Room for one sound: its index, or -1 when it does not fit. */
+  device_zone_sample?: (frames: number, channels: number, sampleRate: number) => number
+  /** Where the host writes that sound: channel 0, then channel 1 `frames` later. */
+  device_zone_sample_buffer?: (index: number) => number
+  /** Where the host writes one zone's fields before `device_zone_add`. */
+  device_zone_fields?: () => number
+  device_zone_add?: () => number
   /** Devices with meters only: the reading at `index` of the manifest's `meters`, as it is now. */
   device_meter?: (index: number) => number
 }
@@ -39,6 +54,12 @@ export type DeviceMessage =
   | { type: 'note-on'; noteId: number; frequency: number; gain: number }
   | { type: 'note-off'; noteId: number }
   | { type: 'sample'; channels: Float32Array[]; sampleRate: number }
+  /** A zone device forgets its instrument; the sounds and zones of the new one follow. */
+  | { type: 'zones-begin' }
+  /** One sound of the new instrument; they are numbered in the order they arrive. */
+  | { type: 'zone-sample'; channels: Float32Array[]; sampleRate: number }
+  /** Its zones, `ZONE_FIELD_COUNT` floats each, once every sound has been sent. */
+  | { type: 'zones'; fields: Float32Array }
   /** Report the first `count` meters every `intervalFrames` frames; a count of 0 stops. */
   | { type: 'meters'; count: number; intervalFrames: number }
   /** The device is gone: stop processing, so the node can be let go and takes no more time. */

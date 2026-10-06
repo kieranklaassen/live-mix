@@ -165,6 +165,7 @@ hold 8 notes).
 | `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B  | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 | `west-coast`      | West Coast         | live-mix            | instrument | 12     | 31,237 B  | 115.7 µs, 4.34 %      | 8.2 µs, 0.31 %             | 0                 | 4           |
 | `zither`          | Zither             | live-mix            | instrument | 13     | 50,006 B  | 50.8 µs, 1.91 %       | 27.9 µs, 1.05 %            | 0                 | 4           |
+| `zone-sampler`    | Zone Sampler       | live-mix            | instrument | 7      | 32,368 B  | 48.0 µs, 1.80 %       | 6.5 µs, 0.24 %             | 0                 | 64          |
 
 What the table does not show:
 
@@ -202,7 +203,8 @@ What the table does not show:
   catch cost 6 to 9 % of their time, the rest under 1 %. Low Bitrate (4,096
   samples), Vintage Digital (129) and the two drives (39) report latency.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
-  delay and sample buffers: 20 to 24 MB for the long loops and the sampler.
+  delay and sample buffers: 20 to 24 MB for the long loops and the sampler,
+  64 MB for the zone sampler's pool of sounds ([zone-sampler.md](./zone-sampler.md)).
 - **Levels.** One note at velocity 0.8 peaks between -16 and -22 dBFS on the
   default patch of every instrument here, and ten notes at full velocity stay
   under 0 dBFS. `felt-piano` predates this convention and is about 15 dB
@@ -271,6 +273,7 @@ None of these twenty-five has been listened to. Each was built by one worker and
 | `tape-orchestra`  | A leveller takes most of the pumping out of held keys (1.1 to 2.9 dB left); keys above 4 kHz alias 54 to 60 dB down; horns and choir speak slowly                                                                                                     | One high choir, reed or flute key held for twenty seconds                                      |
 | `west-coast`      | Plucks are peaky (crest 19 dB) and nearly mono; aliasing 50 dB down in the worst corner                                                                                                                                                               | The default pluck; "Slow bloom"                                                                |
 | `zither`          | No stiffness, so partials are exactly harmonic; the finger and body detail is subtle; ten loud keys reach the limiter on three presets                                                                                                                | A strummed chord on the chord zither presets                                                   |
+| `zone-sampler`    | Nobody has listened to it; not loaded with an instrument another tool made; the previews play three built-in tones, so its bank presets are untried on real instruments                                                                               | A loop's crossfade on a real recording; keys between two zones; a steal at 48 voices           |
 | `outdoors`        | Birds are whistled syllables and frogs a formant buzz, so both may read as synthetic                                                                                                                                                                  | Birds, the frog buzz, the near crack of thunder                                                |
 
 ## Effect presets

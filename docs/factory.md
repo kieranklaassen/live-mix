@@ -556,6 +556,12 @@ working, a kind of tape. Every pack has at least two presets for each of the
 thirty-four instruments and gives the rest to the instruments its idea turns
 on, so whatever instrument is loaded, every pack has something for it.
 
+An instrument that comes after the packs shipped is not asked of them
+(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`): a
+pack is exactly a hundred presets and a shipped preset stays what it is, so
+two more could only come in by dropping two that shipped. Its presets are in
+the bank.
+
 ```ts
 import {
   FACTORY_PACKS, // FactoryPack[]: id, name, description, count, sounds, chains

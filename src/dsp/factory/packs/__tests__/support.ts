@@ -37,8 +37,17 @@ export const PACK_LIMITS = {
   perInstrument: 2,
 } as const
 
+/**
+ * Instruments that came after the packs shipped. A pack is exactly a hundred
+ * presets and a shipped preset stays what it is, so a pack cannot take two
+ * more for a new instrument without dropping two it shipped with. Such an
+ * instrument has its presets in the bank; a pack made from now on is free to
+ * use it, and none is held to.
+ */
+export const AFTER_THE_PACKS: readonly string[] = ['zone-sampler']
+
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(
-  (device) => device.category === 'instrument',
+  (device) => device.category === 'instrument' && !AFTER_THE_PACKS.includes(device.id),
 ).map((device) => device.id)
 
 const CATEGORIES: readonly FactoryPresetCategory[] = [

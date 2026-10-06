@@ -14,6 +14,7 @@ import { type WasmDeviceProcessorOptions } from '../abi'
 import * as generated from '../devices/index.gen'
 import { STOCK_WASM_DEVICES } from '../registry'
 import { type WasmDeviceDefinition, type WorkletNodeFactory, type WasmDevice } from '../WasmDevice'
+import { loadDeviceZones } from '../zones/device'
 import { DEVICE_EXPORT_NAMES, loadWasmDevice } from './wasm-device-harness'
 // @ts-expect-error: plain ESM build script without types.
 import { staleOutputs } from '../../../scripts/gen-devices.mjs'
@@ -34,6 +35,16 @@ const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
 
 const BLOCK = 128
 
+const ZONE_EXPORT_NAMES = [
+  'device_zone_capacity',
+  'device_zone_pool_capacity',
+  'device_zones_begin',
+  'device_zone_sample',
+  'device_zone_sample_buffer',
+  'device_zone_fields',
+  'device_zone_add',
+] as const
+
 describe('generated device files', () => {
   it.skipIf(Boolean(only))('are what scripts/gen-devices.mjs writes today', async () => {
     expect(await (staleOutputs as () => Promise<string[]>)()).toEqual([])
@@ -52,7 +63,7 @@ describe('generated device files', () => {
 
 describe.each(entries)(
   '$id (generated device)',
-  ({ id, instrument, samples, meters, memoryMb }) => {
+  ({ id, instrument, samples, zones, meters, memoryMb }) => {
     const definition = definitionOf(id)
     const specs = Object.values(definition.params)
 
@@ -63,6 +74,7 @@ describe.each(entries)(
       expect(typeof device.device_note_on === 'function').toBe(instrument)
       expect(typeof device.device_note_off === 'function').toBe(instrument)
       expect(typeof device.device_sample_commit === 'function').toBe(samples)
+      for (const name of ZONE_EXPORT_NAMES) expect(typeof device[name] === 'function').toBe(zones)
       expect(typeof device.device_meter === 'function').toBe(meters > 0)
       expect(harness.maxBlock).toBe(2048)
       expect(harness.device.memory.buffer.byteLength).toBe(memoryMb * 1024 * 1024)
@@ -164,6 +176,29 @@ describe.each(entries)(
       const { peak } = harness.renderSilence(1)
       expect(Number.isFinite(peak)).toBe(true)
       expect(peak).toBeGreaterThan(1e-3)
+    })
+
+    it.runIf(zones)('holds what its definition says, and plays a zone handed to it', async () => {
+      const harness = await loadWasmDevice(id)
+      const device = harness.device
+      expect(device.device_zone_capacity?.()).toBe(definition.zones?.maxZones)
+      expect(device.device_zone_pool_capacity?.()).toBe(definition.zones?.poolFloats)
+      // The pool and the tables fit in the module's fixed memory.
+      expect((definition.zones?.poolFloats ?? 0) * 4).toBeLessThan(memoryMb * 1024 * 1024)
+      const frames = 24000
+      const sound = Float32Array.from({ length: frames }, (_, i) =>
+        Math.sin((2 * Math.PI * 220 * i) / 48000),
+      )
+      const zone = Float32Array.of(0, 60, 0, 0, 127, 0, 127, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0)
+      expect(loadDeviceZones(device, { samples: [], fields: zone })).toBe(0)
+      device.device_note_on?.(1, 261.63, 0.8)
+      expect(harness.renderSilence(0.25).peak).toBe(0)
+      const load = { samples: [{ channels: [sound], sampleRate: 48000 }], fields: zone }
+      expect(loadDeviceZones(device, load)).toBe(1)
+      device.device_note_on?.(1, 261.63, 0.8)
+      const { peak } = harness.renderSilence(0.25)
+      expect(Number.isFinite(peak)).toBe(true)
+      expect(peak).toBeGreaterThan(1e-2)
     })
 
     it('builds a WasmDevice with its parameter table through the generated factory', async () => {

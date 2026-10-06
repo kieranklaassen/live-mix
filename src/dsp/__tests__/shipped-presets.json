@@ -1677,5 +1677,14 @@
     "Broad and slow": {"depth":0.6,"sharpness":0.1,"time":500,"from":120,"to":16000,"listen":0},
     "Mic": {"depth":0.5,"sharpness":0.8,"time":40,"from":200,"to":8000,"listen":0},
     "Flatten": {"depth":1,"sharpness":0.3,"time":100,"from":120,"to":20000,"listen":0}
+  },
+  "zone-sampler": {
+    "(default)": {"tune":0,"fine":0,"attack":0.003,"release":0.4,"tone":14000,"velocity":0.7,"volume":-9},
+    "Keys": {"tune":0,"fine":0,"attack":0.003,"release":0.4,"tone":14000,"velocity":0.7,"volume":-9},
+    "Soft keys": {"tune":0,"fine":0,"attack":0.03,"release":1.2,"tone":4500,"velocity":0.5,"volume":-9},
+    "Slow swell": {"tune":0,"fine":0,"attack":0.9,"release":3.5,"tone":6000,"velocity":0.3,"volume":-9},
+    "Short and bright": {"tune":0,"fine":0,"attack":0.001,"release":0.12,"tone":18000,"velocity":0.9,"volume":-9},
+    "Octave down": {"tune":-12,"fine":0,"attack":0.02,"release":0.9,"tone":5000,"velocity":0.6,"volume":-9},
+    "Even touch": {"tune":0,"fine":0,"attack":0.003,"release":0.6,"tone":10000,"velocity":0,"volume":-9}
   }
 }
