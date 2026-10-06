@@ -47,6 +47,34 @@ void device_process(int frames);
 //   float* device_sample_buffer(void);
 //   void device_sample_commit(int frames, int channels, float sample_rate);
 //
+// Zone devices (a multi-sample instrument) add a way to hand them many
+// sounds and the zones that map them to keys. All of it runs on the audio
+// thread between device_process calls, one call per message from the host:
+//
+//   int    device_zone_capacity(void);        zones that fit
+//   int    device_zone_pool_capacity(void);   floats of sample data that fit
+//   void   device_zones_begin(void);          forget the instrument; what sounds fades
+//   int    device_zone_sample(int frames, int channels, float sample_rate);
+//                                             room for one sound: its index, or -1
+//   float* device_zone_sample_buffer(int index);
+//                                             where the host writes it: channel 0,
+//                                             then channel 1 `frames` later
+//   float* device_zone_fields(void);          kZoneFieldCount floats the host fills
+//   int    device_zone_add(void);             a zone from those fields: its index, or -1
+//
+// A zone plays from the moment it is added, so an instrument can also grow
+// one recorded note at a time. The fields, in order (frames are positions in
+// the zone's sound; src/dsp/zones/zone-map.ts writes them):
+//
+//    0 sample index       7 gain, dB                14 loop crossfade, frames
+//    1 root key           8 pan, -1..1              15 round-robin group (0 none)
+//    2 tune, cents        9 start frame             16 position in the group, from 1
+//    3 low key           10 end frame (0: the end)  17 positions in the group
+//    4 high key          11 loop: 0 off, 1 on,      18 pitch tracking, 0..1
+//    5 low velocity         2 while held            19 reserved (0)
+//    6 high velocity     12 loop start frame
+//                        13 loop end frame, exclusive (0: the end)
+
 // Devices that report on their own work (a compressor's gain reduction) add
 // one reading per entry of `meters` in their manifest. The host calls it
 // between device_process calls, and only while a meter is being watched.

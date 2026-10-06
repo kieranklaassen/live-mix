@@ -21,6 +21,7 @@ import {
   type DeviceMessage,
   type WasmDeviceProcessorOptions,
 } from '../abi'
+import { addDeviceZones, beginDeviceZones, writeDeviceZoneSample } from '../zones/device'
 
 class WasmDeviceProcessor extends AudioWorkletProcessor {
   // Null once the host has disposed the device: the instance and its memory are let go of there and then.
@@ -41,6 +42,9 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   private meterCount = 0
   private meterInterval = 0
   private meterElapsed = 0
+  // False when a sound of the instrument being loaded did not fit: its zones
+  // name their sounds by position, so none of them is added.
+  private zonesWhole = true
   // False once the host has disposed the device: `process` then ends the node.
   private running = true
   // Where this processor shows that it is at work, for the engine's load figure.
@@ -96,6 +100,21 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
         break
       case 'sample':
         this.loadSample(device, message.channels, message.sampleRate)
+        break
+      // An instrument arrives as one message a sound, so the copies are
+      // spread over as many gaps between blocks as the thread allows.
+      case 'zones-begin':
+        beginDeviceZones(device)
+        this.zonesWhole = true
+        break
+      case 'zone-sample':
+        if (writeDeviceZoneSample(device, message.channels, message.sampleRate) < 0) {
+          this.zonesWhole = false
+        }
+        break
+      case 'zones':
+        if (this.zonesWhole) addDeviceZones(device, message.fields)
+        else beginDeviceZones(device)
         break
       case 'meters':
         this.meterCount = device.device_meter ? Math.max(0, Math.floor(message.count)) : 0

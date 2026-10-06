@@ -255,7 +255,7 @@ describe('every sound of the factory', () => {
         WebAssembly.Module.exports(module).some((entry) => entry.name === 'device_sample_capacity'),
       )
       .map(([id]) => id)
-    expect(takesSample.sort()).toEqual(['grain-synth', 'sampler'])
+    expect(takesSample.sort()).toEqual(['grain-synth', 'sampler', 'zone-sampler'])
 
     const problems: string[] = []
     for (const sound of SOUNDS) {

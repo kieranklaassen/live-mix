@@ -36,6 +36,7 @@ import { TINE_PIANO_PRESETS } from './tine-piano'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
 import { ZITHER_PRESETS } from './zither'
+import { ZONE_SAMPLER_PRESETS } from './zone-sampler'
 
 export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...EMBER_PRESETS,
@@ -72,4 +73,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WEST_COAST_PRESETS,
   ...ZITHER_PRESETS,
   ...OUTDOORS_PRESETS,
+  ...ZONE_SAMPLER_PRESETS,
 ]

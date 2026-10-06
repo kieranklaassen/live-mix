@@ -17,6 +17,8 @@ import { compileWasm, type WasmSource } from './assets'
 import { isWasmDescriptor, type WasmDeviceDescriptor } from './descriptor'
 import { noteFrequency } from './note-frequency'
 import { describeStockWasmDevice } from './registry'
+import { loadDeviceZones } from './zones/device'
+import { type PreparedZoneLoad } from './zones/zone-map'
 
 /** One note of a phrase, timed from the start of the render. */
 export interface PhraseNote {
@@ -52,6 +54,11 @@ export interface RenderPatchOptions {
   input?: PlanarAudio
   /** The sound a sample instrument (granular synth, sampler) plays, at any rate. */
   sample?: PlanarAudio
+  /**
+   * The instrument a multi-sample device plays, as `prepareZoneLoad` returns
+   * it (`load`); other instruments ignore it.
+   */
+  zones?: PreparedZoneLoad
   /**
    * Rendered and thrown away before the returned audio starts, so a loop
    * begins with the attack over and the reverb already full.
@@ -260,6 +267,7 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
     if (!device.bypass) effects.push(await createStage(device, sampleRate, options))
   }
   if (instrument && options.sample) instrument.loadSample(options.sample)
+  if (instrument && options.zones) loadDeviceZones(instrument.device, options.zones)
   if (instrument && !instrument.device.device_note_on) {
     throw new Error(`live-mix: ${instrument.id} takes no notes`)
   }

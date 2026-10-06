@@ -1,0 +1,122 @@
+{
+  "id": "zone-sampler",
+  "name": "Zone Sampler",
+  "category": "instrument",
+  "description": "Multi-sample instrument: many recordings mapped across the keys by note and by how hard you play, each key taking the nearest one and repitching it.",
+  "class": "ZoneSampler",
+  "header": "zone_sampler.h",
+  "sources": [],
+  "samples": true,
+  "zones": { "max": 512, "samples": 512, "poolFloats": 16000000 },
+  "memoryMb": 64,
+  "params": [
+    {
+      "key": "tune",
+      "name": "Tune",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st",
+      "description": "Transposes the whole instrument. Pitch and speed move together, so lower also plays each recording slower."
+    },
+    {
+      "key": "fine",
+      "name": "Fine",
+      "min": -100,
+      "max": 100,
+      "default": 0,
+      "unit": "ct",
+      "description": "A small pitch offset on top of Tune, for matching the instrument to others."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.001,
+      "max": 8,
+      "default": 0.003,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade in. Short keeps each recording's own start; long turns it into a swell."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.01,
+      "max": 12,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 200,
+      "max": 18000,
+      "default": 14000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Low-pass filter on the whole instrument. Lower settings take the top off for a darker, softer sound."
+    },
+    {
+      "key": "velocity",
+      "name": "Velocity",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much playing harder makes a note louder. At zero every note plays at full level; which recording a key picks still follows how hard it is played."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. Pushed hard, a soft clipper rounds off the peaks."
+    }
+  ],
+  "presets": {
+    "Keys": {
+      "attack": 0.003,
+      "release": 0.4,
+      "tone": 14000,
+      "velocity": 0.7
+    },
+    "Soft keys": {
+      "attack": 0.03,
+      "release": 1.2,
+      "tone": 4500,
+      "velocity": 0.5
+    },
+    "Slow swell": {
+      "attack": 0.9,
+      "release": 3.5,
+      "tone": 6000,
+      "velocity": 0.3
+    },
+    "Short and bright": {
+      "attack": 0.001,
+      "release": 0.12,
+      "tone": 18000,
+      "velocity": 0.9
+    },
+    "Octave down": {
+      "tune": -12,
+      "attack": 0.02,
+      "release": 0.9,
+      "tone": 5000,
+      "velocity": 0.6
+    },
+    "Even touch": {
+      "attack": 0.003,
+      "release": 0.6,
+      "tone": 10000,
+      "velocity": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The voice path (Hermite read, power-holding loop crossfade, fade-out tail for a stolen voice) follows cpp/devices/sampler; the zones, the sample pool and the zone entry points are new."
+  }
+}
