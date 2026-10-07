@@ -33,7 +33,7 @@ export const GLYPHS = {
   redo: 'M7.5 2v3h-3M7.5 5a3.2 3.2 0 1 0-1 2.6',
   play: 'M3 2l5 3l-5 3z',
   pause: 'M3.5 2v6M6.5 2v6',
-  start: 'M2.5 2v6M8 2L3.5 5L8 8z',
+  start: 'M2 2h1v6H2zM8 2L3.5 5L8 8z',
   add: 'M5 2v6M2 5h6',
   close: 'M2.5 2.5l5 5M7.5 2.5l-5 5',
   copy: 'M3.5 3.5h5v5h-5zM1.5 6.5v-5h5',

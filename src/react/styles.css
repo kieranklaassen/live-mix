@@ -4334,6 +4334,12 @@
   text-overflow: ellipsis;
 }
 
+/* On a head two rows high the note is a line of words under the name, not a count beside it. */
+.lm-lane-head__row--second .lm-lane-head__note {
+  flex: 1 1 0;
+  font: 400 var(--lm-label-size) / 19px var(--lm-font);
+}
+
 .lm-lane-head .lm-swatch {
   margin-left: 10px;
 }
