@@ -170,6 +170,15 @@ export {
   type ElementSourceOptions,
 } from './core/sources/ElementSource'
 export {
+  FOLLOW_DRIFT_SEEK,
+  FOLLOW_MAX_SEEK_LEAD,
+  FOLLOW_SEEK_TOLERANCE,
+  followStep,
+  type FollowingElement,
+  type FollowStep,
+  type FollowTarget,
+} from './core/sources/follow-step'
+export {
   ELEMENT_DRIFT_TOLERANCE_SECONDS,
   ElementTrack,
   type ElementTrackOptions,
