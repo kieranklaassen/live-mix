@@ -14,8 +14,8 @@ import {
 
 describe('rulerScale', () => {
   it('picks its ticks from the scale, in four steps', () => {
-    expect(rulerScale(400)).toEqual({ minorSec: 0.1, labelSec: 1, majorColumns: 10 })
-    expect(rulerScale(100)).toEqual({ minorSec: 0.1, labelSec: 1, majorColumns: 10 })
+    expect(rulerScale(400)).toEqual({ minorSec: 0.2, labelSec: 1, majorColumns: 5 })
+    expect(rulerScale(100)).toEqual({ minorSec: 0.2, labelSec: 1, majorColumns: 5 })
     expect(rulerScale(99)).toEqual({ minorSec: 2, labelSec: 10, majorColumns: 5 })
     expect(rulerScale(20)).toEqual({ minorSec: 2, labelSec: 10, majorColumns: 5 })
     expect(rulerScale(19)).toEqual({ minorSec: 10, labelSec: 30, majorColumns: 3 })

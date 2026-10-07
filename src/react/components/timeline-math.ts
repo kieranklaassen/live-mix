@@ -23,12 +23,12 @@ export function clampPxPerSecond(pxPerSecond: number): number {
 }
 
 /**
- * Which ticks a ruler draws at a scale: tenths under a second from 100 px per
+ * Which ticks a ruler draws at a scale: fifths of a second under a second from 100 px per
  * second, two seconds under ten from 20, ten under thirty from 5, and thirty
  * under two minutes below that.
  */
 export function rulerScale(pxPerSecond: number): RulerScale {
-  if (pxPerSecond >= 100) return { minorSec: 0.1, labelSec: 1, majorColumns: 10 }
+  if (pxPerSecond >= 100) return { minorSec: 0.2, labelSec: 1, majorColumns: 5 }
   if (pxPerSecond >= 20) return { minorSec: 2, labelSec: 10, majorColumns: 5 }
   if (pxPerSecond >= 5) return { minorSec: 10, labelSec: 30, majorColumns: 3 }
   return { minorSec: 30, labelSec: 120, majorColumns: 4 }

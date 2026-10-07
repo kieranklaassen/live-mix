@@ -649,7 +649,7 @@ A speed is not a component: a constant speed is a `tags` entry and a ramp is
 `automation` with the label "Speed", on `Stroke` and `VideoStroke` alike.
 
 The arithmetic is exported for hosts that scroll and zoom (`timeline-math`):
-`rulerScale` (tenths under a second from 100 px per second, two seconds under
+`rulerScale` (fifths of a second under a second from 100 px per second, two seconds under
 ten from 20, ten under thirty from 5, thirty under two minutes below),
 `rulerLabels`, `zoomAround` (the time under the pointer stays under it),
 `fitPxPerSecond`, `pageScroll` (the page turn while playing) and
