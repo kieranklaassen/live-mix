@@ -57,6 +57,15 @@ try {
     }
   }
 
+  // `./motion` stands alone: its built entry is one file that imports
+  // nothing, so a consumer who wants motion loads none of the engine.
+  const motionImports = [
+    ...readFileSync('dist/motion/index.js', 'utf8').matchAll(/(?:from|import)\s*["']([^"']+)["']/g),
+  ].map((match) => match[1])
+  if (motionImports.length > 0) {
+    throw new Error(`check-pack: dist/motion/index.js imports ${motionImports.join(', ')}`)
+  }
+
   // A built script finds its files (a device's .wasm, a worklet) beside
   // itself: `new URL('../wasm/x.wasm', import.meta.url)`. Code splitting may
   // move that line into a shared chunk at another depth, where the same path
@@ -89,7 +98,8 @@ try {
     `check-pack: ${files.size} files, ${targets.length} export targets resolve, ` +
       `${located} files found from where the scripts look for them, ` +
       `${wasm.length} wasm, ${worklets.length} worklet(s), ` +
-      `optional peers (${optionalPeers.join(', ')}) confined to their entries`,
+      `optional peers (${optionalPeers.join(', ')}) confined to their entries, ` +
+      `./motion imports nothing`,
   )
 } finally {
   rmSync(dir, { recursive: true, force: true })
