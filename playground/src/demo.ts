@@ -374,7 +374,11 @@ export function demoScore(wasm: boolean): Score {
       id: 'drums',
       name: 'drums',
       destination: { kind: 'group', id: 'rhythm' },
-      strip: defaultStrip({ level: 0.9, inserts: [device('drums-comp', 'compressor')] }),
+      strip: defaultStrip({
+        level: 0.9,
+        // The make-up the browser's compressor used to add by itself at these settings.
+        inserts: [device('drums-comp', 'compressor', { makeupDb: 3.66 })],
+      }),
       clips: [clip('drums-1', 'drums-loop', 0, LOOP_SEC, { loop: true })],
     },
     {

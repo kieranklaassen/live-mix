@@ -137,6 +137,10 @@ const coreSymbols = [
   'buildLatencyReport',
   'PDC_MAX_DELAY_SECONDS',
   'rampParamTo',
+  'cutQDb',
+  'compressorNodeMakeupDb',
+  'FLAT_CUT_Q_DB',
+  'isCutFilter',
   // Score (U28)
   'SCORE_FORMAT_VERSION',
   'createScore',

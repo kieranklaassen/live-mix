@@ -34,6 +34,12 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   // Dry copies for the bypass crossfade; the device clears its input buffers.
   private dryLeft = new Float32Array(0)
   private dryRight = new Float32Array(0)
+  // The dry signal of the last `latencySamples` frames, as a ring: the dry copy
+  // is as late as the device's own output, so a bypass moves nothing in time.
+  // Empty for a device that reports no latency.
+  private heldLeft: Float32Array
+  private heldRight: Float32Array
+  private heldAt = 0
   // 0 = fully processed, 1 = fully dry. Ramps per sample toward the target.
   private bypassMix = 0
   private bypassTarget = 0
@@ -67,6 +73,9 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       device.device_set_param(paramId, value)
     }
     this.bypassStep = 1 / Math.max(1, BYPASS_RAMP_SECONDS * sampleRate)
+    const held = Math.max(0, Math.floor(processorOptions.latencySamples ?? 0))
+    this.heldLeft = new Float32Array(held)
+    this.heldRight = new Float32Array(held)
     this.load = loadCells(processorOptions.load)
     this.loadMark = processorOptions.load?.slot ?? 0
 
@@ -148,6 +157,8 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     this.inRight = none
     this.dryLeft = none
     this.dryRight = none
+    this.heldLeft = none
+    this.heldRight = none
   }
 
   // Copy a sound into a sample device's fixed store (cpp/kit/sample.h).
@@ -191,6 +202,30 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     return alive
   }
 
+  // Trade each dry sample for the one from `latencySamples` frames ago. Run on
+  // every block, bypassed or not, so the held sound is the right one the moment
+  // a bypass begins.
+  private holdDryBack(frames: number): void {
+    const heldLeft = this.heldLeft
+    const size = heldLeft.length
+    if (size === 0) return
+    const heldRight = this.heldRight
+    const dryLeft = this.dryLeft
+    const dryRight = this.dryRight
+    let at = this.heldAt
+    for (let i = 0; i < frames; i += 1) {
+      const left = heldLeft[at]
+      const right = heldRight[at]
+      heldLeft[at] = dryLeft[i]
+      heldRight[at] = dryRight[i]
+      dryLeft[i] = left
+      dryRight[i] = right
+      at += 1
+      if (at === size) at = 0
+    }
+    this.heldAt = at
+  }
+
   private render(
     device: DeviceExports,
     inputs: Float32Array[][],
@@ -225,6 +260,7 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
       this.dryLeft.fill(0)
       this.dryRight.fill(0)
     }
+    this.holdDryBack(frames)
 
     device.device_process(frames)
     if (this.meterCount > 0) this.reportMeters(device, frames)

@@ -11,10 +11,12 @@ import {
   type MockAudioNode,
 } from '../../../../testing'
 import { isMeteredDevice } from '../../Device'
+import { resolvePreset } from '../../presets'
 import {
   COMPRESSOR_DESCRIPTOR,
   COMPRESSOR_LOOKAHEAD_SECONDS,
   COMPRESSOR_PARAMS,
+  compressorNodeMakeupDb,
   createCompressor,
 } from '../Compressor'
 import { DELAY_PARAMS, createDelay } from '../Delay'
@@ -23,7 +25,7 @@ import { FILTER_PARAMS, FILTER_TYPES, createFilter, filterTypeAt, filterTypeInde
 import { NODE_DEVICE_RAMP_SECONDS } from '../NodeDevice'
 import { PARAMETRIC_EQ_BANDS, PARAMETRIC_EQ_PARAMS, createParametricEq } from '../ParametricEq'
 import { UTILITY_PARAMS, createUtility, utilityGain } from '../Utility'
-import { dbToGain, gainToDb } from '../units'
+import { FLAT_CUT_Q_DB, cutQDb, dbToGain, gainToDb } from '../units'
 import { gainIn, io, rampTo } from './graph-helpers'
 
 const RAMP = NODE_DEVICE_RAMP_SECONDS
@@ -41,6 +43,14 @@ describe('units', () => {
     expect(gainToDb(0.5)).toBeCloseTo(-6.02, 2)
     expect(gainToDb(0)).toBe(-Infinity)
   })
+
+  it('gives a cut its Q in decibels, as a BiquadFilterNode reads a lowpass and a highpass', () => {
+    expect(cutQDb(1)).toBe(0)
+    expect(cutQDb(2)).toBeCloseTo(6.0206, 4)
+    // No bump at the corner (Butterworth): √½ as a number, −3.01 as the node takes it.
+    expect(cutQDb(Math.SQRT1_2)).toBeCloseTo(-3.0103, 4)
+    expect(FLAT_CUT_Q_DB).toBe(cutQDb(Math.SQRT1_2))
+  })
 })
 
 describe('Filter', () => {
@@ -54,7 +64,7 @@ describe('Filter', () => {
     expect(reaches(input, biquad) && reaches(biquad, output)).toBe(true)
     expect(biquad.type).toBe('lowpass')
     expect(biquad.frequency.value).toBe(500)
-    expect(biquad.Q.value).toBe(FILTER_PARAMS.q.default)
+    expect(filter.getParam('q')).toBe(FILTER_PARAMS.q.default)
 
     filter.setParam('type', filterTypeIndex('highshelf'))
     expect(biquad.type).toBe('highshelf')
@@ -66,6 +76,45 @@ describe('Filter', () => {
     expect(rampTo(biquad.Q)).toEqual([4, 1 + RAMP])
     filter.setParam('gain', 30)
     expect(rampTo(biquad.gain)).toEqual([FILTER_PARAMS.gain.max, 1 + RAMP])
+  })
+
+  it('gives a low-pass and a high-pass their Q in decibels, so the default has no bump', () => {
+    const ctx = createMockContext({ currentTime: 1 })
+    const filter = createFilter(asAudioContext(ctx))
+    const [biquad] = ctx.filters
+
+    // √½ on the control is a Butterworth cut: −3.01 dB to the node, not a 0.7 dB peak.
+    expect(biquad.type).toBe('lowpass')
+    expect(biquad.Q.value).toBeCloseTo(-3.0103, 4)
+    filter.setParam('q', 2)
+    expect(rampTo(biquad.Q)).toEqual([cutQDb(2), 1 + RAMP])
+    filter.setParam('type', filterTypeIndex('highpass'))
+    expect(rampTo(biquad.Q)).toEqual([cutQDb(2), 1 + RAMP])
+
+    const rumble = createFilter(asAudioContext(ctx), {
+      params: { type: filterTypeIndex('highpass'), frequency: 80, q: Math.SQRT1_2 },
+    })
+    expect(rumble.getParam('q')).toBe(Math.SQRT1_2)
+    expect(ctx.filters[1].type).toBe('highpass')
+    expect(ctx.filters[1].Q.value).toBeCloseTo(-3.0103, 4)
+  })
+
+  it('writes the Q again, at once, when the type turns between a cut and another shape', () => {
+    const ctx = createMockContext({ currentTime: 1 })
+    const filter = createFilter(asAudioContext(ctx), { params: { q: 4 } })
+    const [biquad] = ctx.filters
+    expect(biquad.Q.value).toBeCloseTo(cutQDb(4), 9)
+
+    // The type turns at once, and what the node's Q means turns with it.
+    filter.setParam('type', filterTypeIndex('bandpass'))
+    expect(rampTo(biquad.Q)).toEqual([4, 1])
+    filter.setParam('q', 8)
+    expect(rampTo(biquad.Q)).toEqual([8, 1 + RAMP])
+    filter.setParam('type', filterTypeIndex('peaking'))
+    expect(rampTo(biquad.Q)).toEqual([8, 1 + RAMP])
+    filter.setParam('type', filterTypeIndex('highpass'))
+    expect(rampTo(biquad.Q)).toEqual([cutQDb(8), 1])
+    expect(filter.getParam('q')).toBe(8)
   })
 
   it('maps the type scale onto every biquad response and back', () => {
@@ -126,8 +175,10 @@ describe('ParametricEq', () => {
     }
     expect(input.outputs.has(filters[0])).toBe(true)
     expect(reaches(filters[5], output)).toBe(true)
-    expect(filters[0].Q.value).toBe(Math.SQRT1_2)
-    expect(filters[5].Q.value).toBe(Math.SQRT1_2)
+    // Both cuts are flat up to their corner: a Q of √½, which the node takes in decibels.
+    expect(filters[0].Q.value).toBe(FLAT_CUT_Q_DB)
+    expect(filters[5].Q.value).toBe(FLAT_CUT_Q_DB)
+    expect(FLAT_CUT_Q_DB).toBeCloseTo(-3.0103, 4)
     expect(filters.slice(1, 5).map((f) => f.frequency.value)).toEqual([100, 400, 1600, 6400])
     expect(filters[2].gain.value).toBe(-4)
 
@@ -163,6 +214,8 @@ describe('Delay', () => {
 
     expect(ctx.delays).toHaveLength(1)
     expect(damping.type).toBe('lowpass')
+    // Flat under its corner, so a pass round the loop never gives back more than it took.
+    expect(damping.Q.value).toBe(FLAT_CUT_Q_DB)
     expect(line.delayTime.value).toBe(0.25)
     expect(damping.frequency.value).toBe(DELAY_PARAMS.damping.default)
     expect(feedback.gain.value).toBe(DELAY_PARAMS.feedback.default)
@@ -191,12 +244,14 @@ describe('Compressor', () => {
     const compressor = createCompressor(asAudioContext(ctx), { params: { makeupDb: 6 } })
     const { input, output } = io(compressor)
     const [node] = ctx.compressors
-    const makeup = gainIn(ctx.gains, (g) => node.outputs.has(g))
+    const cancel = gainIn(ctx.gains, (g) => node.outputs.has(g))
+    const makeup = gainIn(ctx.gains, (g) => cancel.outputs.has(g))
 
     expect(ctx.compressors).toHaveLength(1)
     expect(input.outputs.has(node)).toBe(true)
     expect(reaches(makeup, output)).toBe(true)
-    expect(compressor.latencySec).toBe(COMPRESSOR_LOOKAHEAD_SECONDS)
+    // The 6 ms of look-ahead in whole samples at this rate, as the node counts them.
+    expect(compressor.latencySec).toBe(Math.floor(COMPRESSOR_LOOKAHEAD_SECONDS * 44100) / 44100)
     expect(node.threshold.value).toBe(COMPRESSOR_PARAMS.threshold.default)
     expect(node.ratio.value).toBe(COMPRESSOR_PARAMS.ratio.default)
     expect(makeup.gain.value).toBeCloseTo(dbToGain(6))
@@ -216,6 +271,87 @@ describe('Compressor', () => {
 
     node.reduction = -7.5
     expect(compressor.reductionDb).toBe(-7.5)
+  })
+
+  it('takes the node’s own make-up off again, so a make-up of 0 adds no gain', () => {
+    // A DynamicsCompressorNode adds a gain of its own behind its curve: what
+    // the curve takes off full scale, to the power 0.6. At the node's defaults
+    // that is 3.66 dB on everything, a sound under the threshold too.
+    expect(compressorNodeMakeupDb(-24, 30, 12)).toBeCloseTo(3.66, 2)
+    expect(compressorNodeMakeupDb(-18, 12, 2)).toBeCloseTo(3.51, 2)
+    expect(compressorNodeMakeupDb(-24, 0, 4)).toBeCloseTo(10.8, 6)
+    expect(compressorNodeMakeupDb(0, 0, 1)).toBeCloseTo(0, 9)
+
+    const ctx = createMockContext({ currentTime: 2 })
+    const compressor = createCompressor(asAudioContext(ctx))
+    const [node] = ctx.compressors
+    const cancel = gainIn(ctx.gains, (g) => node.outputs.has(g))
+    const makeup = gainIn(ctx.gains, (g) => cancel.outputs.has(g))
+    expect(cancel).not.toBe(makeup)
+    expect(makeup.gain.value).toBe(1)
+    // The two gains behind the node come to 1 over the node's own.
+    expect(gainToDb(cancel.gain.value)).toBeCloseTo(-compressorNodeMakeupDb(-24, 30, 12), 9)
+    // Set where it starts, with nothing scheduled: there is no fade in to it.
+    expect(cancel.gain.events).toEqual([])
+
+    // The node's make-up moves with the threshold, the knee and the ratio, and the device with it.
+    compressor.setParam('threshold', -18)
+    expect(rampTo(node.threshold)).toEqual([-18, 2 + RAMP])
+    expect(rampTo(cancel.gain)?.[1]).toBe(2 + RAMP)
+    expect(gainToDb(rampTo(cancel.gain)?.[0] as number)).toBeCloseTo(
+      -compressorNodeMakeupDb(-18, 30, 12),
+      9,
+    )
+    compressor.setParam('knee', 12)
+    expect(gainToDb(rampTo(cancel.gain)?.[0] as number)).toBeCloseTo(
+      -compressorNodeMakeupDb(-18, 12, 12),
+      9,
+    )
+    compressor.setParam('ratio', 2)
+    expect(gainToDb(rampTo(cancel.gain)?.[0] as number)).toBeCloseTo(
+      -compressorNodeMakeupDb(-18, 12, 2),
+      9,
+    )
+    expect(gainToDb(rampTo(cancel.gain)?.[0] as number)).toBeCloseTo(-3.51, 2)
+    // Attack, release and Make-up leave it alone.
+    const scheduled = cancel.gain.events.length
+    compressor.setParam('attack', 0.02)
+    compressor.setParam('release', 0.3)
+    compressor.setParam('makeupDb', 3)
+    expect(cancel.gain.events.length).toBe(scheduled)
+    expect(rampTo(makeup.gain)?.[0]).toBeCloseTo(dbToGain(3), 9)
+  })
+
+  it('starts where its settings put it: a preset’s cancelling gain is there from the first sample', () => {
+    const ctx = createMockContext()
+    createCompressor(asAudioContext(ctx), {
+      params: { threshold: -18, knee: 12, ratio: 2, makeupDb: 0 },
+    })
+    const [node] = ctx.compressors
+    const cancel = gainIn(ctx.gains, (g) => node.outputs.has(g))
+    expect(gainToDb(cancel.gain.value)).toBeCloseTo(-compressorNodeMakeupDb(-18, 12, 2), 9)
+    expect(cancel.gain.events).toEqual([])
+  })
+
+  it('gives each preset the make-up the node was adding under it, so it is as loud as it was', () => {
+    // What each preset's Make-up was before the device took the node's own off.
+    const before = { Gentle: 2, Voice: 4, Glue: 1, Limit: 0 }
+    for (const [name, was] of Object.entries(before)) {
+      const params = resolvePreset(COMPRESSOR_DESCRIPTOR, name).params
+      const node = compressorNodeMakeupDb(params.threshold, params.knee, params.ratio)
+      expect(Math.abs(params.makeupDb - (was + node)), name).toBeLessThan(0.006)
+    }
+    // The default device is the one whose sound changes: no make-up is none.
+    expect(COMPRESSOR_PARAMS.makeupDb.default).toBe(0)
+  })
+
+  it('reports the samples the node looks ahead: 6 ms, rounded down', () => {
+    const at = (sampleRate: number): number =>
+      createCompressor(asAudioContext(createMockContext({ sampleRate }))).latencySamples
+    expect(at(48000)).toBe(288)
+    // 264.6 samples: Chromium's node delays by 264.
+    expect(at(44100)).toBe(264)
+    expect(at(96000)).toBe(576)
   })
 
   it('reports its gain reduction as a meter, declared on its descriptor', () => {

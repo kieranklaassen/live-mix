@@ -80,6 +80,24 @@ const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
 
 const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
 
+/** A definition's latency in whole samples at `sampleRate`: its own count, else its rounded seconds. */
+function reportedLatencySamples(
+  definition: Pick<
+    WasmDeviceDefinition<Record<string, ParamSpec>>,
+    'latencySec' | 'latencySamples'
+  >,
+  sampleRate: number,
+): number {
+  return Math.max(
+    0,
+    Math.round(
+      definition.latencySamples
+        ? definition.latencySamples(sampleRate)
+        : (definition.latencySec ?? 0) * sampleRate,
+    ),
+  )
+}
+
 export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, ParamSpec>>
   implements NoteDevice, ObservableDevice, MeteredDevice
 {
@@ -114,14 +132,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     this.zones = definition.zones
     this.meterIntervalFrames = Math.max(1, Math.round(sampleRate / DEVICE_METER_HZ))
     this.node = node
-    this.latencySamples = Math.max(
-      0,
-      Math.round(
-        definition.latencySamples
-          ? definition.latencySamples(sampleRate)
-          : (definition.latencySec ?? 0) * sampleRate,
-      ),
-    )
+    this.latencySamples = reportedLatencySamples(definition, sampleRate)
     // A definition that only knows its sample count still reports seconds, so
     // delay compensation sees the device whichever field it reads.
     this.latencySec = definition.latencySec ?? this.latencySamples / sampleRate
@@ -153,6 +164,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     void wasmMemoryBytes(module).then((bytes) => {
       load.memoryBytes = bytes
     })
+    const latencySamples = reportedLatencySamples(definition, context.sampleRate)
     const processorOptions: WasmDeviceProcessorOptions = {
       module,
       deviceId: definition.id,
@@ -160,6 +172,8 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
         ([name, spec]) => [spec.id, initial.get(name) ?? spec.default] as const,
       ),
       ...(load.slot ? { load: load.slot } : {}),
+      // The processor plays a bypassed device's dry signal this late, so the bypass moves nothing in time.
+      ...(latencySamples > 0 ? { latencySamples } : {}),
     }
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
     let node: AudioWorkletNode

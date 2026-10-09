@@ -10,6 +10,7 @@ import { ParamLane, WorkletRecorder, createEngine, renderOffline } from '@kieran
 import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 import type { ScheduleSnapshot } from '@kieranklaassen/live-mix/testing'
 import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } from '../session'
+import { measureDeviceDefaults } from './device-defaults'
 import { fingerprint, type Fingerprint } from './fingerprint'
 import { measureLevelFollow } from './level-follow'
 import { measurePlacements } from './placement'
@@ -100,6 +101,7 @@ declare global {
       run: typeof run
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
+      measureDeviceDefaults: typeof measureDeviceDefaults
       measureLevelFollow: typeof measureLevelFollow
       measurePlacements: typeof measurePlacements
       measureRooms: typeof measureRooms
@@ -113,6 +115,7 @@ window.liveMixHarness = {
   run,
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
+  measureDeviceDefaults,
   measureLevelFollow,
   measurePlacements,
   measureRooms,

@@ -81,6 +81,8 @@ export interface WasmDeviceProcessorOptions {
   params?: readonly (readonly [paramId: number, value: number])[]
   /** The mark the processor shows while it works, where the engine's load is measured (core/load.ts). */
   load?: LoadSlot
+  /** The latency the device reports, in samples: how late the dry signal of a bypass is played. */
+  latencySamples?: number
 }
 
 /** Registered processor name; shared by the host and the worklet file. */
