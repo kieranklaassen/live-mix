@@ -253,6 +253,13 @@ add or replace skins. A plate is 140 px high and
 `plateLayout(knobs, pictured, display?)` gives its width and where its display
 stands.
 
+A plate keeps for itself whether the `+n` cell has opened it (`defaultOpen`,
+`onOpenChange`). A host that keeps it, so that it can be opened from somewhere
+else or is still open when the plate is drawn again, passes `open`: the plate
+then shows what it is told, and a press on the cell only asks through
+`onOpenChange`. `moreProps` puts the host's own `data-*` attributes on that
+cell.
+
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
 `HOSTED_PLATES` by the plug-in's id, with a finish and a knob cap, so the same
@@ -465,12 +472,16 @@ app's own: `open`, `anchorRef`, `onClose` and the same props.
 
 `filters` is a row of the app's own under the search (chips), `rowTools` cells
 at the end of a row (a star, a play cell: a press on one is not a pick), and
-`rowProps` and `cellProps` put an app's own attributes on a row and on the
-cell. Any other `data-*` attribute a `PickCell`, a `PresetCell` or a
-`DevicePresetCell` is handed goes to every control it draws (the cell or the
-three cells, and each row of the list), and one a `DevicePlate` is handed goes
-to the plate: a host that names what a control does, as an editor's
+`rowProps`, `cellProps` and `actionProps` put an app's own attributes on a row,
+on the cell and on the action cell at the list's foot. Any other `data-*`
+attribute a `PickCell`, a `PresetCell` or a `DevicePresetCell` is handed goes
+to every control it draws that does the pick (the cell or the three cells, each
+row of the list, and the list's action cell), and one a `DevicePlate` is handed
+goes to the plate: a host that names what a control does, as an editor's
 `data-action` does for its agent, finds the name on whatever is pressed. The
+search field does nothing but narrow the list and carries none. `DataAttributes`
+is the type of such a set. The cell names its list while it is open
+(`aria-controls`; a `PickList` under a cell of the app's own takes the `id`). The
 panel's parts are exported for a picker with rows of another shape:
 `PickerPanel`, `PickerSearch`, `PickerGroup`, `PickerAction`, `Highlight`,
 `Keycap`, `cursorStep`, `tabStops`, `focusCell` and `useRowInView`. Their
@@ -510,7 +521,9 @@ import { DevicePlate, DevicePresetCell, deviceSkin } from '@kieranklaassen/live-
 ```
 
 `presets` are the app's own, in the kit's `Preset` format, listed before the
-device's (`ownOnly` leaves the device's out). A pick is one write of every
+device's (`ownOnly` leaves the device's out). A name stands for one preset
+alone: where one of the app's has the name of one of the device's, the app's is
+the one listed. A pick is one write of every
 parameter the device has: the ones the preset names to its values and the rest
 to where the device starts them, by value and never by name, since one of the
 app's own is no preset the device knows. On a plate's foot the cell folds with
