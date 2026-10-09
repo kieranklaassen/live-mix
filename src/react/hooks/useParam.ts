@@ -38,7 +38,12 @@ export { denormalizeParam, normalizeParam }
  * can play the drag as it moves and keep it as one step when it is let go.
  */
 export interface DeviceWrites {
-  /** A control is in hand: `names` are the parameters it moves. Until `release`, every `set` belongs to this one hold. */
+  /**
+   * A control is in hand: `names` are the parameters it moves. Until `release`,
+   * every `set` belongs to this one hold, also one that carries a parameter
+   * `names` left out: the wheel turned over a display's handle in hand sets a
+   * band's width inside that handle's drag.
+   */
   touch?(names: readonly string[]): void
   /**
    * Parameters to set, by name: as a control in hand moves, or, with nothing

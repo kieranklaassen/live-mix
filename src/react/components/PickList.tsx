@@ -143,10 +143,14 @@ export interface PickListProps<T extends PickItem = PickItem> {
   rowTools?: (item: T) => ReactNode
   /** More attributes for a row: an app's own marks on it. */
   rowProps?: (item: T) => HTMLAttributes<HTMLDivElement> & DataAttributes
+  /** More attributes for the action cell at the foot, the button that does the pick: an app's own marks on it. */
+  actionProps?: DataAttributes
   /** A row's entry in the info view; left out, it says what a press and a double press do. */
   rowInfo?: (item: T, state: { current: boolean; cursor: boolean; match: boolean }) => InfoProps
   /** The panel's entry in the info view. */
   info?: InfoProps
+  /** The dialog's id, for the `aria-controls` of the cell that opens it. Left out, the list makes one. */
+  id?: string
   /** The panel's test id; its parts are `<id>-search`, `<id>-list`, `<id>-row-<slug of the id>`, `<id>-action`. */
   'data-testid'?: string
 }
@@ -171,11 +175,14 @@ export function PickList<T extends PickItem = PickItem>({
   filters,
   rowTools,
   rowProps,
+  actionProps,
   rowInfo,
   info,
+  id,
   'data-testid': testId,
 }: PickListProps<T>) {
-  const panelId = useId()
+  const madeId = useId()
+  const panelId = id ?? madeId
   const searchRef = useRef<HTMLInputElement>(null)
   const [query, setQuery] = useState('')
   // The row the cursor was put on; null leaves it on what the list opens on.
@@ -196,9 +203,12 @@ export function PickList<T extends PickItem = PickItem>({
   // The row Return acts on: the cursor's, else the first the search found, else (nothing typed)
   // the one that is on, and the first where nothing is.
   const onAt = current == null ? -1 : rows.findIndex((row) => row.item.id === current)
+  // A cursor whose row has left the list (a row's own tool removed it, a filter narrowed the
+  // items) is no cursor: the list is on what it would open on, never on nothing.
+  const cursorAt = cursor === null ? -1 : rows.findIndex((row) => row.item.id === cursor)
   const at =
-    cursor !== null
-      ? rows.findIndex((row) => row.item.id === cursor)
+    cursorAt >= 0
+      ? cursorAt
       : searching
         ? found > 0
           ? 0
@@ -226,6 +236,7 @@ export function PickList<T extends PickItem = PickItem>({
   const lower = verb.toLowerCase()
   // What Return does, as a sentence says it: "loads", "adds", and "applies" for a verb that ends as Apply does.
   const does = /[^aeiou]y$/.test(lower) ? `${lower.slice(0, -1)}ies` : `${lower}s`
+  const Does = `${does.charAt(0).toUpperCase()}${does.slice(1)}`
 
   return (
     <PickerPanel
@@ -374,12 +385,13 @@ export function PickList<T extends PickItem = PickItem>({
               : `Nothing to ${lower}`
           }
           data-testid={testId ? `${testId}-action` : undefined}
+          {...actionProps}
           info={infoProps(
             verb,
             target
               ? target.item.id === current
                 ? `${target.item.name} is on already, so there is nothing to ${lower}. Move the cursor to another row.`
-                : `${verb}s ${target.item.name} and closes the list. Return does the same; with Shift held the list stays open.`
+                : `${Does} ${target.item.name} and closes the list. Return does the same; with Shift held the list stays open.`
               : rows.length > 0
                 ? `The search found nothing, so there is nothing to ${lower}. Up or Down puts the cursor on one of the dimmed rows.`
                 : `Nothing is listed, so there is nothing to ${lower}.`,
@@ -414,8 +426,9 @@ export interface PickCellProps<T extends PickItem = PickItem> extends Omit<
   /** The cell's test id; its list is `<id>-list` with the parts of a `PickList`. */
   'data-testid'?: string
   /**
-   * Any other `data-*` attribute goes to the cell's button and to every row of
-   * its list, for a host that marks what a control does.
+   * Any other `data-*` attribute goes to the cell's button, to every row of
+   * its list and to the list's action cell, for a host that marks what a
+   * control does.
    */
   [data: `data-${string}`]: string | undefined
 }
@@ -433,8 +446,9 @@ export function PickCell<T extends PickItem = PickItem>({
   ...rest
 }: PickCellProps<T>) {
   const anchorRef = useRef<HTMLButtonElement>(null)
+  const listId = useId()
   const [open, setOpen] = useState(false)
-  const [data, { rowProps, ...list }] = splitData(rest)
+  const [data, { rowProps, actionProps, ...list }] = splitData(rest)
   return (
     <>
       <button
@@ -443,6 +457,7 @@ export function PickCell<T extends PickItem = PickItem>({
         disabled={disabled}
         aria-haspopup="dialog"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         title={title}
         onClick={() => setOpen((was) => !was)}
         className={cx('lm-pick-cell', open && 'lm-pick-cell--open', className)}
@@ -460,7 +475,9 @@ export function PickCell<T extends PickItem = PickItem>({
       </button>
       <PickList
         {...list}
+        id={listId}
         rowProps={(item) => ({ ...data, ...rowProps?.(item) })}
+        actionProps={{ ...data, ...actionProps }}
         open={open}
         anchorRef={anchorRef}
         onClose={() => setOpen(false)}

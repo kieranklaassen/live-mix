@@ -25,6 +25,9 @@ import { infoProps, infoText, type InfoProps } from './info'
 import { matchRanges } from './pick-search'
 import { cx } from './tokens'
 
+// `useLayoutEffect` warns during server rendering; a cell's panel is mounted while it is closed.
+const useIsomorphicLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
+
 /** Where a panel sits in the window, in pixels. */
 export interface PickerPlace {
   left: number
@@ -221,7 +224,7 @@ export function PickerPanel({
   // Another cell can be put under an open panel: the place is taken again when the cell is another one.
   const aimedAt = anchorRef.current
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!open) {
       setPlace(null)
       return
@@ -641,6 +644,8 @@ export interface PickerActionProps {
   /** The cell's entry in the info view; left out, it is made of `title`. */
   info?: InfoProps
   'data-testid'?: string
+  /** Any other `data-*` attribute goes to the button, for a host that marks what a control does. */
+  [data: `data-${string}`]: string | undefined
 }
 
 /** The picker's one action: what return does, spelled out. */
@@ -652,6 +657,7 @@ export function PickerAction({
   className,
   info,
   'data-testid': testId,
+  ...data
 }: PickerActionProps) {
   return (
     <button
@@ -661,6 +667,7 @@ export function PickerAction({
       title={title}
       className={cx('lm-picker__action', className)}
       data-testid={testId}
+      {...data}
       {...(info ??
         infoProps(
           'Action',

@@ -5,7 +5,7 @@
 // and what a pick does as props: an app that keeps its own document writes
 // the pick there. `DevicePresetCell` is the same cell read off a device.
 
-import { useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
+import { useId, useMemo, useRef, useState, type HTMLAttributes, type ReactNode } from 'react'
 
 import { type Device } from '../../core/devices/Device'
 import {
@@ -87,8 +87,9 @@ export interface PresetCellProps {
   /** The cell's test id; its parts are `<id>-name`, `<id>-previous`, `<id>-next` and `<id>-picker` (a `PickList`). */
   'data-testid'?: string
   /**
-   * Any other `data-*` attribute goes to the three cells and to every row of
-   * the list, for a host that marks what a control does.
+   * Any other `data-*` attribute goes to the three cells, to every row of the
+   * list and to the list's action cell, for a host that marks what a control
+   * does.
    */
   [data: `data-${string}`]: string | undefined
 }
@@ -122,6 +123,7 @@ export function PresetCell({
   ...data
 }: PresetCellProps) {
   const anchorRef = useRef<HTMLButtonElement | null>(null)
+  const listId = useId()
   const [open, setOpen] = useState(false)
   // The preset picked last, for telling two presets apart that put the knobs in the same place.
   const [last, setLast] = useState<string | null>(null)
@@ -154,9 +156,10 @@ export function PresetCell({
     if (next) apply(next)
   }
 
-  const list: Pick<PickListProps<PresetItem>, 'rowTools' | 'rowProps'> = {
+  const list: Pick<PickListProps<PresetItem>, 'rowTools' | 'rowProps' | 'actionProps'> = {
     rowTools: rowTools ? (item) => rowTools(item.preset) : undefined,
     rowProps: (item) => ({ ...data, ...rowProps?.(item.preset) }),
+    actionProps: data,
   }
 
   return (
@@ -176,6 +179,7 @@ export function PresetCell({
           type="button"
           aria-haspopup="dialog"
           aria-expanded={open}
+          aria-controls={open ? listId : undefined}
           aria-label={`${name} preset: ${label}`}
           onClick={() => setOpen((was) => !was)}
           title={`${label}: the preset ${name} is on (${position}). Click to see them all.`}
@@ -227,6 +231,7 @@ export function PresetCell({
         </button>
       </div>
       <PickList
+        id={listId}
         open={open}
         anchorRef={anchorRef}
         onClose={() => setOpen(false)}
@@ -286,9 +291,18 @@ export function DevicePresetCell({
   ...cell
 }: DevicePresetCellProps) {
   const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
+  // A name stands for one preset alone: where an app's own has the name of one of the device's,
+  // the app's is the one listed.
   const presets = useMemo(
     (): readonly Preset[] =>
-      ownOnly ? (own ?? []) : own?.length ? [...own, ...d.presets] : d.presets,
+      ownOnly
+        ? (own ?? [])
+        : own?.length
+          ? [
+              ...own,
+              ...d.presets.filter((preset) => !own.some((mine) => mine.name === preset.name)),
+            ]
+          : d.presets,
     [own, ownOnly, d.presets],
   )
   const retired = useMemo(() => retiredPresets(d.descriptor), [d.descriptor])

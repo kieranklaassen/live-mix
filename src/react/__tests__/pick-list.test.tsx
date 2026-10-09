@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type Patch } from '../../core/devices/patch'
@@ -136,12 +137,22 @@ describe('PickCell and its list', () => {
     expect(cell).toHaveAttribute('aria-expanded', 'false')
     expect(cell).toHaveAttribute('data-action', 'apply_chain')
     expect(screen.queryByRole('dialog')).toBeNull()
+    // It names the dialog it opens only while there is one.
+    expect(cell).not.toHaveAttribute('aria-controls')
+    fireEvent.click(cell)
+    expect(cell).toHaveAttribute('aria-controls', screen.getByRole('dialog').id)
+    expect(screen.getByRole('dialog').id).not.toBe('')
   })
 
   it('says what Return does in a word that is spelled right, whatever the verb', () => {
     const { cell } = setup()
     fireEvent.click(cell)
     expect(screen.getByText('Up and down move, return applies.')).toBeInTheDocument()
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    expect(screen.getByTestId('chains-list-action')).toHaveAttribute(
+      'data-lm-info',
+      expect.stringContaining('Applies Podcast voice and closes the list.'),
+    )
   })
 
   it('gives any other data attribute to the cell and to every row of its list', () => {
@@ -153,8 +164,50 @@ describe('PickCell and its list', () => {
     for (const row of options) expect(row).toHaveAttribute('data-area', 'mix')
     // A row keeps the marks that are its own.
     expect(rows()).toEqual(CHAINS.map((chain) => chain.id))
+    // The button that does the pick is a control of the same kind, and carries the mark too.
+    expect(screen.getByTestId('chains-list-action')).toHaveAttribute('data-area', 'mix')
     // The list is not the cell: the panel carries no mark of the cell's.
     expect(screen.getByRole('dialog')).not.toHaveAttribute('data-area')
+  })
+
+  it('falls back to what it would open on when the row under the cursor leaves the list', () => {
+    function Narrowing() {
+      const [items, setItems] = useState(CHAINS)
+      return (
+        <PickCell
+          label="Chains for a voice"
+          items={items}
+          current="clean-voice"
+          onPick={() => {}}
+          verb="Apply"
+          filters={
+            <button type="button" onClick={() => setItems(CHAINS.slice(0, 2))}>
+              Fewer
+            </button>
+          }
+          rowProps={(item) => ({ 'data-chain': item.id })}
+          data-testid="chains"
+        >
+          Chains
+        </PickCell>
+      )
+    }
+    render(<Narrowing />)
+    fireEvent.click(screen.getByTestId('chains'))
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    expect(screen.getByTestId('chains-list-action')).toHaveTextContent('Apply Voiceover over music')
+    fireEvent.click(screen.getByRole('button', { name: 'Fewer' }))
+    // The row is gone: the list is on what is on, and its action says so, not "Nothing to apply".
+    expect(rows()).toEqual(['clean-voice', 'podcast-voice'])
+    expect(screen.getByRole('option', { selected: true })).toHaveAttribute(
+      'data-chain',
+      'clean-voice',
+    )
+    expect(screen.getByTestId('chains-list-action')).toHaveTextContent('On Clean voice')
+    // And the arrows move from there.
+    fireEvent.keyDown(search(), { key: 'ArrowDown' })
+    expect(screen.getByTestId('chains-list-action')).toHaveTextContent('Apply Podcast voice')
   })
 
   it('opens on what is on now, with the keys in the search', () => {

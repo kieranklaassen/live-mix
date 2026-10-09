@@ -213,6 +213,12 @@ describe('entries', () => {
     'PresetCell',
     'DevicePresetCell',
     'presetLabel',
+    'PICKER_PHONE_WIDTH',
+    'PICK_CHEVRON_DOWN',
+    'PICK_CHEVRON_LEFT',
+    'PICK_CHEVRON_RIGHT',
+    'PRESET_DEFAULT_LABEL',
+    'PRESET_NONE_LABEL',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

@@ -62,6 +62,7 @@ export {
   tokenRef,
   tokenVar,
   water,
+  type DataAttributes,
   type LiveMixTheme,
   type LiveMixThemeName,
   type LiveMixToken,

@@ -123,6 +123,13 @@ describe('PresetCell', () => {
     const options = screen.getAllByRole('option')
     expect(options).toHaveLength(PRESETS.length)
     for (const row of options) expect(row).toHaveAttribute('data-action', 'apply_preset')
+    // The button at the foot of the list loads the preset: it is marked as the cells are.
+    expect(screen.getByTestId('fxp-picker-action')).toHaveAttribute('data-action', 'apply_preset')
+    // The name says which dialog it opened, while it is open.
+    expect(screen.getByTestId('fxp-name')).toHaveAttribute(
+      'aria-controls',
+      screen.getByRole('dialog').id,
+    )
   })
 
   it('steps to the next and the one before, round the ends, without opening the list', () => {
@@ -204,6 +211,37 @@ describe('DevicePresetCell', () => {
     expect(
       [...document.querySelectorAll('.lm-picker__group-name')].map((head) => head.textContent),
     ).toEqual(['For video', 'Compressor'])
+  })
+
+  it('lists the app’s preset alone where one of the device’s has its name', async () => {
+    const fixture = createTestEngine()
+    const device = await fixture.engine.devices.create('compressor', fixture.engine.context)
+    const mine = [
+      preset('Glue', { threshold: -30, ratio: 2 }),
+      preset('Voice, even', { threshold: -22, ratio: 3, makeupDb: 2 }),
+    ]
+    render(<DevicePresetCell device={device} presets={mine} data-testid="fxp" />, {
+      wrapper: fixture.wrapper,
+    })
+    fireEvent.click(screen.getByTestId('fxp-name'))
+    expect(screen.getAllByRole('option').map((row) => row.textContent)).toEqual([
+      'Glue',
+      'Voice, even',
+      'Gentle',
+      'Voice',
+      'Limit',
+    ])
+    fireEvent.keyDown(screen.getByRole('combobox'), { key: 'Enter' })
+    // The one loaded is the app's: its threshold, not the device's own Glue.
+    expect(device.getParam('threshold')).toBe(-30)
+    expect(screen.getByTestId('fxp-name')).toHaveTextContent('Glue')
+    // And the steps go round every name once.
+    const names: string[] = []
+    for (let step = 0; step < 5; step += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Next preset of Compressor' }))
+      names.push(screen.getByTestId('fxp-name').textContent ?? '')
+    }
+    expect(names).toEqual(['Voice, even', 'Gentle', 'Voice', 'Limit', 'Glue'])
   })
 
   it('offers only the app’s presets when told to', async () => {
