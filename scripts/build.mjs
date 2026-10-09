@@ -52,7 +52,9 @@ async function main() {
     clean: true,
     treeshake: true,
     // Optional peers: consumers that import `./react` or `./wam` install them.
-    external: ['react', '@webaudiomodules/sdk', '@webaudiomodules/api'],
+    // `react-dom` is named apart from `react`: the kit's picker opens in a
+    // portal, and a peer that is not named here is bundled whole.
+    external: ['react', 'react-dom', '@webaudiomodules/sdk', '@webaudiomodules/api'],
     outDir: 'dist',
     silent: true,
   })

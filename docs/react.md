@@ -1,7 +1,8 @@
 # React: hooks, the UI kit and the playground
 
 `@kieranklaassen/live-mix/react` is the only entry that imports React
-(`react >= 18`, an optional peer). It ships two layers on top of the engine
+(`react >= 18`, an optional peer, and `react-dom >= 18` beside it, for the
+portal a picker opens in). It ships two layers on top of the engine
 (R32, KTD11): **headless hooks** that subscribe to the core's change events,
 and a **styled kit** built on them and themed through `--lm-*` CSS variables.
 Both render on the server from the same snapshots; `.` and `./dsp` never
