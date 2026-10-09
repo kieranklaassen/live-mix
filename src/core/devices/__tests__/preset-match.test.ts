@@ -4,8 +4,15 @@ import { type ParamSpec } from '../../params'
 import { atDefaults, currentPreset, presetIsOn, retiredPresets, stepPreset } from '../preset-match'
 import { type Preset } from '../presets'
 
-const spec = (min: number, max: number, def: number): ParamSpec =>
-  ({ id: 0, name: '', min, max, default: def, taper: 'linear', unit: '' }) as ParamSpec
+const spec = (min: number, max: number, def: number): ParamSpec => ({
+  id: 0,
+  name: '',
+  min,
+  max,
+  default: def,
+  taper: 'linear',
+  unit: '',
+})
 
 const SPECS = { cutoff: spec(20, 20000, 1000), mix: spec(0, 1, 0.5), drive: spec(0, 1, 0) }
 const preset = (name: string, params: Record<string, number>): Preset => ({
