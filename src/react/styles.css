@@ -5222,3 +5222,338 @@
 .lm-changed--outside::before {
   border-style: dashed;
 }
+
+/* A picker (`Picker.tsx`, `PickList.tsx`): a panel that opens off a cell,
+   rows of the grid like everything else, with the accent along its top edge.
+   First the search row, then the list (the cursor's row ringed), and at the
+   foot a hint and the one action, filled with the accent. */
+.lm-pick {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-block-start: 1px solid var(--lm-accent);
+  outline: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+  color: var(--lm-text);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  container-type: inline-size;
+}
+
+.lm-pick__search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-end: 1px solid var(--lm-border);
+  background: var(--lm-sunken);
+}
+
+.lm-pick__find {
+  display: flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--lm-dim);
+}
+
+.lm-pick__find--on {
+  color: var(--lm-accent);
+}
+
+/* The search field sits on the row's own ground, with no ring of its own: the row is the field. */
+.lm-pick__field,
+.lm-pick__field:focus {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: inherit;
+  caret-color: var(--lm-accent);
+}
+
+.lm-pick__field::placeholder {
+  color: var(--lm-dim);
+}
+
+.lm-pick__count-cell {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.lm-pick__count {
+  color: var(--lm-dim);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lm-pick__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* The dim ink: a hairline is made to be nearly the ground. */
+  scrollbar-color: var(--lm-dim) transparent;
+}
+
+.lm-pick__list:focus {
+  outline: none;
+}
+
+/* A group's head stays at the top while its rows scroll under it: a row
+   brought into view stops that far short of the top, below the head. */
+.lm-pick__list:has([data-pinned-head]) {
+  scroll-padding-block-start: 20px;
+}
+
+.lm-pick__group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 6px;
+  border-block-end: 1px solid var(--lm-border);
+  background: var(--lm-panel);
+  color: var(--lm-muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lm-pick__group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-pick__group-count {
+  flex: 0 0 auto;
+  color: var(--lm-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-pick__row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-end: 1px solid var(--lm-grid-line-strong);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-pick__row:hover {
+  background: var(--lm-raised);
+}
+
+/* The row return acts on. It wears the ring the focus has: a raised ground
+   alone is next to the panel's in the light themes. An outline, so that a
+   row that is on as well keeps its own line. */
+.lm-pick__row--cursor,
+.lm-pick__row--cursor:hover {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: -1px;
+  background: var(--lm-raised);
+}
+
+/* What is on now: the accent down the row's side. */
+.lm-pick__row--on {
+  box-shadow: inset 2px 0 0 var(--lm-accent);
+}
+
+.lm-pick__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  color: var(--lm-text);
+  text-overflow: ellipsis;
+}
+
+.lm-pick__row--dim .lm-pick__name {
+  color: var(--lm-muted);
+}
+
+.lm-pick__detail {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline-end: 6px;
+  overflow: hidden;
+  color: var(--lm-dim);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+
+/* The name comes first: where a panel is too narrow for both, what a row is for is in its tooltip. */
+@container (max-width: 239px) {
+  .lm-pick__detail {
+    display: none;
+  }
+}
+
+.lm-pick__on {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-end: 6px;
+  color: var(--lm-accent);
+  font-size: 9px;
+}
+
+.lm-pick__empty {
+  margin: 0;
+  padding: 6px;
+  color: var(--lm-dim);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.lm-pick__foot {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-start: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+}
+
+.lm-pick__hint {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0 6px;
+  color: var(--lm-dim);
+  font-size: 9px;
+}
+
+.lm-pick__hint > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-pick__action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 70%;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+  font: inherit;
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-pick__action:disabled {
+  background: var(--lm-raised);
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+.lm-pick__action:focus-visible {
+  outline: 1px solid var(--lm-text);
+  outline-offset: -2px;
+}
+
+.lm-pick__action-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The letters a search found in a name. */
+.lm-match {
+  background: none;
+  color: var(--lm-accent);
+}
+
+.lm-keycap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  height: 12px;
+  padding: 0 3px;
+  border: 1px solid var(--lm-hairline);
+  color: var(--lm-dim);
+  font-family: inherit;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* A cell that opens a list (`PickCell`): a name and a chevron in one outlined
+   cell, lit while its list is open. */
+.lm-pick-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px 0 6px;
+  border: 1px solid var(--lm-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-pick-cell:hover:not(:disabled),
+.lm-pick-cell--open {
+  background: var(--lm-text);
+  color: var(--lm-bg);
+}
+
+.lm-pick-cell:disabled {
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+.lm-pick-cell:focus-visible {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: 1px;
+}
+
+.lm-pick-cell__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

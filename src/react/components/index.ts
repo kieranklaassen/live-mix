@@ -363,3 +363,45 @@ export {
 export { INFO_IDLE, InfoView, useInfo, type InfoViewProps, type UseInfoOptions } from './InfoView'
 export { paramInfo } from './param-info'
 export { STRIP_INFO, TRANSPORT_INFO } from './mixer-info'
+export {
+  matchRanges,
+  queryWords,
+  searchRows,
+  searchScore,
+  type MatchRange,
+  type Searchable,
+} from './pick-search'
+export {
+  cursorStep,
+  focusCell,
+  Highlight,
+  Keycap,
+  PICK_CHEVRON_DOWN,
+  PICK_CHEVRON_LEFT,
+  PICK_CHEVRON_RIGHT,
+  PICKER_PHONE_WIDTH,
+  PickerAction,
+  PickerGroup,
+  PickerPanel,
+  pickerPlace,
+  PickerSearch,
+  tabStops,
+  useRowInView,
+  type PickerActionProps,
+  type PickerPanelProps,
+  type PickerPlace,
+  type PickerPlaceInput,
+  type PickerSearchProps,
+} from './Picker'
+export {
+  deviceItems,
+  patchItems,
+  PickCell,
+  PickList,
+  pickRows,
+  pickSlug,
+  type PickCellProps,
+  type PickItem,
+  type PickListProps,
+  type PickRow,
+} from './PickList'
