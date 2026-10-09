@@ -210,6 +210,9 @@ describe('entries', () => {
     'pickSlug',
     'deviceItems',
     'patchItems',
+    'PresetCell',
+    'DevicePresetCell',
+    'presetLabel',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

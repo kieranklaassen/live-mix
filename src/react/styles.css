@@ -5557,3 +5557,124 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* An effect's preset cell (`PresetCell`): the preset's name and the two cells
+   that step through the rest, in one outlined tag on the effect itself. It
+   takes the colours of where it stands: a plate's ink on a plate, the
+   theme's text on a plain panel. */
+.lm-fxp {
+  --lm-fxp-ink: var(--lm-plate-ink, var(--lm-text));
+  --lm-fxp-ground: var(--lm-plate, var(--lm-panel));
+
+  display: flex;
+  flex: 0 1 auto;
+  align-items: stretch;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  block-size: 20px;
+  border: 1px solid color-mix(in srgb, var(--lm-fxp-ink) 60%, transparent);
+  /* Its own ground, so a plate's drawing never runs behind the name. */
+  background: var(--lm-fxp-ground);
+  color: var(--lm-fxp-ink);
+}
+
+.lm-fxp__name,
+.lm-fxp__step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* The name is shown whole or not at all, never cut short: it stands with the
+   chevron on the first line of a wrapping row, and a name too long for the
+   cell falls to a second line the cell does not show. The chevron is as high
+   as the cell, so that first line always is. */
+.lm-fxp__name {
+  flex: 1 1 auto;
+  flex-flow: row-reverse wrap;
+  gap: 0 3px;
+  align-content: flex-start;
+  justify-content: space-between;
+  min-inline-size: 16px;
+  padding-inline: 5px 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lm-fxp__name > svg {
+  order: -1;
+  block-size: 100%;
+}
+
+.lm-fxp__label {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  block-size: 100%;
+}
+
+/* A name within a pixel of fitting fits: the cell may stand that far into the gap before it. */
+.lm-plate__presets > .lm-fxp {
+  max-inline-size: calc(100% + 1px);
+  margin-inline-start: -1px;
+}
+
+.lm-fxp__step {
+  flex: 0 0 16px;
+  border-inline-start: 1px solid color-mix(in srgb, var(--lm-fxp-ink) 35%, transparent);
+}
+
+.lm-fxp__name:hover,
+.lm-fxp__step:hover,
+.lm-fxp[data-open] .lm-fxp__name {
+  background: var(--lm-fxp-ink);
+  color: var(--lm-fxp-ground);
+}
+
+.lm-fxp__name:focus-visible,
+.lm-fxp__step:focus-visible {
+  outline: 1px solid var(--lm-fxp-ink);
+  outline-offset: 1px;
+}
+
+/* On a plate the cell has the room the plate's name leaves, and the preset's
+   name comes first. Under 136px the step cells give it their room; under
+   50px there is room for the chevron alone, which opens the list. */
+@container lm-plate-presets (max-width: 135px) {
+  .lm-fxp__step {
+    display: none;
+  }
+}
+
+@container lm-plate-presets (max-width: 49px) {
+  .lm-fxp {
+    min-inline-size: 20px;
+  }
+
+  .lm-fxp__label {
+    display: none;
+  }
+
+  .lm-fxp__name {
+    justify-content: center;
+    padding-inline: 3px;
+  }
+}
+
+/* Under a finger nothing points at the plate: the list does the stepping. */
+@media (hover: none) {
+  .lm-plate .lm-fxp__step {
+    display: none;
+  }
+}
