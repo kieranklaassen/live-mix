@@ -54,7 +54,7 @@ import {
 } from './plate-display'
 import { PlateDisplayLayer } from './PlateDisplay'
 import { DeviceToggle } from './Toggle'
-import { cx } from './tokens'
+import { cx, type DataAttributes } from './tokens'
 
 /** The grid a plate sits on: a 20 px cell. */
 const CELL = 20
@@ -214,7 +214,15 @@ export interface DevicePlateProps {
   presetPicker?: ReactNode
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
+  /**
+   * Whether every knob shows, for a host that keeps it: given, the plate holds
+   * no state of its own, and the cell that opens the rest only asks through
+   * `onOpenChange`.
+   */
+  open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** More attributes for the cell that opens the rest: an app's own marks on it. */
+  moreProps?: DataAttributes
   /** Extra tools after the preset picker (a chain's move buttons). */
   actions?: ReactNode
   /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
@@ -295,7 +303,9 @@ export function DevicePlate({
   showPresets,
   presetPicker,
   defaultOpen = false,
+  open: openGiven,
   onOpenChange,
+  moreProps,
   actions,
   hint,
   source = null,
@@ -307,7 +317,8 @@ export function DevicePlate({
 }: DevicePlateProps) {
   const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
-  const [open, setOpen] = useState(defaultOpen)
+  const [openHere, setOpen] = useState(defaultOpen)
+  const open = openGiven ?? openHere
   const held = usePlateInHand()
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
@@ -343,7 +354,7 @@ export function DevicePlate({
   const roomy = roomyLetters(layout.column)
 
   const toggleOpen = (): void => {
-    setOpen(!open)
+    if (openGiven === undefined) setOpen(!open)
     onOpenChange?.(!open)
   }
 
@@ -555,6 +566,7 @@ export function DevicePlate({
           )}
           onClick={toggleOpen}
           data-testid={testId ? `${testId}-more` : undefined}
+          {...moreProps}
         >
           {open ? '−' : `+${rest.length}`}
         </button>

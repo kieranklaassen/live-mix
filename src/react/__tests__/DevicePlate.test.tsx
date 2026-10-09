@@ -399,6 +399,42 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(2)
   })
 
+  it('shows what a host says is open, and only asks it for the rest', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const onOpenChange = vi.fn()
+    const plate = (open: boolean) => (
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        open={open}
+        onOpenChange={onOpenChange}
+        moreProps={{ 'data-action': 'show_controls' }}
+        data-testid="plate"
+      />
+    )
+    const { rerender } = render(plate(false), { wrapper: fixture.wrapper })
+    const more = screen.getByTestId('plate-more')
+    expect(more).toHaveAttribute('data-action', 'show_controls')
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+
+    // The press asks; the plate stays as the host has it until the host says otherwise.
+    fireEvent.click(more)
+    expect(onOpenChange).toHaveBeenLastCalledWith(true)
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+    expect(screen.getByTestId('plate-more')).toHaveAttribute('aria-expanded', 'false')
+
+    rerender(plate(true))
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+    expect(screen.getByTestId('plate-more')).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByTestId('plate-more'))
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+
+    rerender(plate(false))
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+  })
+
   it("names no value for a double-click on a knob that carries the device's own words", async () => {
     const fixture = createTestEngine()
     // A device that words one of its values itself, as a hosted plug-in does: for the value now.
