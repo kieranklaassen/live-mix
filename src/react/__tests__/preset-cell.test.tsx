@@ -101,6 +101,30 @@ describe('PresetCell', () => {
     expect(name).toHaveTextContent('No preset')
   })
 
+  it('gives any other data attribute to its three cells and to every row of the list', () => {
+    render(
+      <PresetCell
+        name="Compressor"
+        presets={PRESETS}
+        values={START}
+        specs={SPECS}
+        onPick={() => {}}
+        cellProps={(cell) => (cell === 'next' ? { 'data-step': 'on' } : undefined)}
+        data-action="apply_preset"
+        data-testid="fxp"
+      />,
+    )
+    for (const part of ['name', 'previous', 'next']) {
+      expect(screen.getByTestId(`fxp-${part}`)).toHaveAttribute('data-action', 'apply_preset')
+    }
+    expect(screen.getByTestId('fxp-next')).toHaveAttribute('data-step', 'on')
+    expect(screen.getByTestId('fxp')).not.toHaveAttribute('data-action')
+    fireEvent.click(screen.getByTestId('fxp-name'))
+    const options = screen.getAllByRole('option')
+    expect(options).toHaveLength(PRESETS.length)
+    for (const row of options) expect(row).toHaveAttribute('data-action', 'apply_preset')
+  })
+
   it('steps to the next and the one before, round the ends, without opening the list', () => {
     const onPick = vi.fn()
     render(<Held start={START} onPick={onPick} />)

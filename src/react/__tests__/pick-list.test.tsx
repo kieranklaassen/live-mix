@@ -118,6 +118,7 @@ describe('PickCell and its list', () => {
         title="The chains a voice can start from"
         cellProps={{ 'data-action': 'apply_chain' }}
         rowProps={(item) => ({ 'data-chain': item.id })}
+        data-area="mix"
         data-testid="chains"
       >
         Chains
@@ -135,6 +136,19 @@ describe('PickCell and its list', () => {
     expect(cell).toHaveAttribute('aria-expanded', 'false')
     expect(cell).toHaveAttribute('data-action', 'apply_chain')
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('gives any other data attribute to the cell and to every row of its list', () => {
+    const { cell } = setup()
+    expect(cell).toHaveAttribute('data-area', 'mix')
+    fireEvent.click(cell)
+    const options = screen.getAllByRole('option')
+    expect(options.length).toBe(CHAINS.length)
+    for (const row of options) expect(row).toHaveAttribute('data-area', 'mix')
+    // A row keeps the marks that are its own.
+    expect(rows()).toEqual(CHAINS.map((chain) => chain.id))
+    // The list is not the cell: the panel carries no mark of the cell's.
+    expect(screen.getByRole('dialog')).not.toHaveAttribute('data-area')
   })
 
   it('opens on what is on now, with the keys in the search', () => {

@@ -22,6 +22,7 @@ import { Glyph } from './Glyph'
 import { infoProps, type InfoProps } from './info'
 import { PickList, type PickItem, type PickListProps } from './PickList'
 import { PICK_CHEVRON_DOWN, PICK_CHEVRON_LEFT, PICK_CHEVRON_RIGHT } from './Picker'
+import { type DataAttributes } from './tokens'
 
 /** What the cell says while every parameter is where the device starts it. */
 export const PRESET_DEFAULT_LABEL = 'Default'
@@ -78,13 +79,18 @@ export interface PresetCellProps {
   /** More attributes for the three cells (an app's own marks on them), by which cell it is. */
   cellProps?: (
     cell: 'name' | 'previous' | 'next',
-  ) => (HTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string>) | undefined
+  ) => (HTMLAttributes<HTMLButtonElement> & DataAttributes) | undefined
   /** More attributes for a row of the list. */
-  rowProps?: (preset: Preset) => HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>
+  rowProps?: (preset: Preset) => HTMLAttributes<HTMLDivElement> & DataAttributes
   /** The cell's entry in the info view. */
   info?: InfoProps
   /** The cell's test id; its parts are `<id>-name`, `<id>-previous`, `<id>-next` and `<id>-picker` (a `PickList`). */
   'data-testid'?: string
+  /**
+   * Any other `data-*` attribute goes to the three cells and to every row of
+   * the list, for a host that marks what a control does.
+   */
+  [data: `data-${string}`]: string | undefined
 }
 
 /**
@@ -113,6 +119,7 @@ export function PresetCell({
   rowProps,
   info,
   'data-testid': testId,
+  ...data
 }: PresetCellProps) {
   const anchorRef = useRef<HTMLButtonElement | null>(null)
   const [open, setOpen] = useState(false)
@@ -149,7 +156,7 @@ export function PresetCell({
 
   const list: Pick<PickListProps<PresetItem>, 'rowTools' | 'rowProps'> = {
     rowTools: rowTools ? (item) => rowTools(item.preset) : undefined,
-    rowProps: rowProps ? (item) => rowProps(item.preset) : undefined,
+    rowProps: (item) => ({ ...data, ...rowProps?.(item.preset) }),
   }
 
   return (
@@ -180,6 +187,7 @@ export function PresetCell({
               ? `Names the preset ${name} is on. The list is open: a press on the name closes it.`
               : `Names the preset ${name} is on, ${position}: ${PRESET_DEFAULT_LABEL} while every knob is where the effect starts, ${PRESET_NONE_LABEL} when the knobs fit none. A press opens the list of them.`,
           )}
+          {...data}
           {...cellProps?.('name')}
         >
           <span className="lm-fxp__label">{label}</span>
@@ -196,6 +204,7 @@ export function PresetCell({
             'Previous preset',
             `Steps ${name} to the preset before this one, without opening the list. From the first it goes round to the last, and with no preset on it takes the last.`,
           )}
+          {...data}
           {...cellProps?.('previous')}
         >
           <Glyph d={PICK_CHEVRON_LEFT} />
@@ -211,6 +220,7 @@ export function PresetCell({
             'Next preset',
             `Steps ${name} to the next preset, without opening the list. From the last it goes round to the first, and with no preset on it takes the first.`,
           )}
+          {...data}
           {...cellProps?.('next')}
         >
           <Glyph d={PICK_CHEVRON_RIGHT} />

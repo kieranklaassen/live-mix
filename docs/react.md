@@ -465,7 +465,12 @@ app's own: `open`, `anchorRef`, `onClose` and the same props.
 `filters` is a row of the app's own under the search (chips), `rowTools` cells
 at the end of a row (a star, a play cell: a press on one is not a pick), and
 `rowProps` and `cellProps` put an app's own attributes on a row and on the
-cell. The panel's parts are exported for a picker with rows of another shape:
+cell. Any other `data-*` attribute a `PickCell`, a `PresetCell` or a
+`DevicePresetCell` is handed goes to every control it draws (the cell or the
+three cells, and each row of the list), and one a `DevicePlate` is handed goes
+to the plate: a host that names what a control does, as an editor's
+`data-action` does for its agent, finds the name on whatever is pressed. The
+panel's parts are exported for a picker with rows of another shape:
 `PickerPanel`, `PickerSearch`, `PickerGroup`, `PickerAction`, `Highlight`,
 `Keycap`, `cursorStep`, `tabStops`, `focusCell` and `useRowInView`. Their
 classes are `lm-picker*`; `lm-pick` is the wrapper of a select and stays so.

@@ -726,6 +726,24 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(4)
     expect(screen.queryByTestId('plate-more')).toBeNull()
   })
+
+  it('carries a host’s own marks on the plate itself, and keeps its own', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={QUIET_SKIN}
+        data-action="set_effect"
+        data-lm-device="not this"
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveAttribute('data-action', 'set_effect')
+    expect(plate).toHaveAttribute('data-lm-device', device.id)
+  })
 })
 
 describe('DeviceChainView with skins', () => {

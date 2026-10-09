@@ -33,7 +33,7 @@ import {
   cursorStep,
   useRowInView,
 } from './Picker'
-import { cx } from './tokens'
+import { cx, splitData, type DataAttributes } from './tokens'
 
 /** One thing a list offers. */
 export interface PickItem {
@@ -142,7 +142,7 @@ export interface PickListProps<T extends PickItem = PickItem> {
   /** What stands at a row's right end: an app's star, play or delete cells. */
   rowTools?: (item: T) => ReactNode
   /** More attributes for a row: an app's own marks on it. */
-  rowProps?: (item: T) => HTMLAttributes<HTMLDivElement> & Record<`data-${string}`, string>
+  rowProps?: (item: T) => HTMLAttributes<HTMLDivElement> & DataAttributes
   /** A row's entry in the info view; left out, it says what a press and a double press do. */
   rowInfo?: (item: T, state: { current: boolean; cursor: boolean; match: boolean }) => InfoProps
   /** The panel's entry in the info view. */
@@ -406,11 +406,16 @@ export interface PickCellProps<T extends PickItem = PickItem> extends Omit<
   disabled?: boolean
   className?: string
   /** More attributes for the cell's button: an app's own marks on it. */
-  cellProps?: HTMLAttributes<HTMLButtonElement> & Record<`data-${string}`, string>
+  cellProps?: HTMLAttributes<HTMLButtonElement> & DataAttributes
   /** The cell's entry in the info view. */
   cellInfo?: InfoProps
   /** The cell's test id; its list is `<id>-list` with the parts of a `PickList`. */
   'data-testid'?: string
+  /**
+   * Any other `data-*` attribute goes to the cell's button and to every row of
+   * its list, for a host that marks what a control does.
+   */
+  [data: `data-${string}`]: string | undefined
 }
 
 /** A cell that opens a `PickList` off itself: the cell of an Add effect or of a strip's chains. */
@@ -423,10 +428,11 @@ export function PickCell<T extends PickItem = PickItem>({
   cellProps,
   cellInfo,
   'data-testid': testId,
-  ...list
+  ...rest
 }: PickCellProps<T>) {
   const anchorRef = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
+  const [data, { rowProps, ...list }] = splitData(rest)
   return (
     <>
       <button
@@ -444,6 +450,7 @@ export function PickCell<T extends PickItem = PickItem>({
             null,
             infoText(title, 'Opens a list to search and pick from. A second press closes it.'),
           ))}
+        {...data}
         {...cellProps}
       >
         <span className="lm-pick-cell__label">{children}</span>
@@ -451,6 +458,7 @@ export function PickCell<T extends PickItem = PickItem>({
       </button>
       <PickList
         {...list}
+        rowProps={(item) => ({ ...data, ...rowProps?.(item) })}
         open={open}
         anchorRef={anchorRef}
         onClose={() => setOpen(false)}

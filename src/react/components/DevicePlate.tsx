@@ -229,6 +229,8 @@ export interface DevicePlateProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /** Any other `data-*` attribute goes to the plate itself, for a host that marks what a control does. */
+  [data: `data-${string}`]: string | undefined
 }
 
 const PictureLayer = memo(
@@ -301,6 +303,7 @@ export function DevicePlate({
   className,
   style,
   'data-testid': testId,
+  ...data
 }: DevicePlateProps) {
   const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
@@ -422,6 +425,7 @@ export function DevicePlate({
           ...style,
         } as CSSProperties
       }
+      {...data}
       data-testid={testId}
       data-lm-device={device.id}
       data-powered={powered ? 'true' : 'false'}
