@@ -303,6 +303,12 @@ const coreSymbols = [
   // Patches into a score
   'patchEffectOps',
   'scoreDeviceFromPatch',
+  // Which preset a device is on
+  'presetIsOn',
+  'currentPreset',
+  'stepPreset',
+  'atDefaults',
+  'retiredPresets',
   // Offline render holds and the device traits hosted plug-ins use (U39)
   'RENDER_QUANTUM_FRAMES',
   'canHoldRender',
