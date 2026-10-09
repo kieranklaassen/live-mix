@@ -161,7 +161,7 @@ export function PresetCell({
         {...(info ??
           infoProps(
             'Presets',
-            `The preset ${name} is on, and the two cells that step through its ${presets.length} presets: on a narrow plate they are there while it is pointed at. The name opens the list of them; where the name has no room, the chevron alone does.`,
+            `The preset ${name} is on, and the two cells that step through its ${presets.length} presets where the plate has room for them. The name opens the list of them; where the name has no room, the chevron alone does.`,
           ))}
       >
         <button
