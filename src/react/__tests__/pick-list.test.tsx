@@ -138,6 +138,12 @@ describe('PickCell and its list', () => {
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 
+  it('says what Return does in a word that is spelled right, whatever the verb', () => {
+    const { cell } = setup()
+    fireEvent.click(cell)
+    expect(screen.getByText('Up and down move, return applies.')).toBeInTheDocument()
+  })
+
   it('gives any other data attribute to the cell and to every row of its list', () => {
     const { cell } = setup()
     expect(cell).toHaveAttribute('data-area', 'mix')

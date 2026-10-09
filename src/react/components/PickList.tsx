@@ -224,6 +224,8 @@ export function PickList<T extends PickItem = PickItem>({
   const groupCount = (group: string | undefined) =>
     rows.filter((row) => row.item.group === group).length
   const lower = verb.toLowerCase()
+  // What Return does, as a sentence says it: "loads", "adds", and "applies" for a verb that ends as Apply does.
+  const does = /[^aeiou]y$/.test(lower) ? `${lower.slice(0, -1)}ies` : `${lower}s`
 
   return (
     <PickerPanel
@@ -261,7 +263,7 @@ export function PickList<T extends PickItem = PickItem>({
         }}
         placeholder={placeholder ?? `Search ${label.toLowerCase()}`}
         label={placeholder ?? `Search ${label.toLowerCase()}`}
-        hint={`Type part of a name. Up and down move, return ${lower}s.`}
+        hint={`Type part of a name. Up and down move, return ${does}.`}
         shown={searching ? found : items.length}
         total={items.length}
         controls={`${panelId}-list`}
@@ -325,8 +327,8 @@ export function PickList<T extends PickItem = PickItem>({
                     on
                       ? `${item.name} is on now.`
                       : selected
-                        ? `The cursor is on ${item.name}: Return ${lower}s it and closes the list. A double press does the same.`
-                        : `A press puts the cursor on ${item.name}. A double press ${lower}s it and closes the list.`,
+                        ? `The cursor is on ${item.name}: Return ${does} it and closes the list. A double press does the same.`
+                        : `A press puts the cursor on ${item.name}. A double press ${does} it and closes the list.`,
                     !row.match && 'Dimmed: the search did not find it.',
                   ),
                 ))}
@@ -356,10 +358,10 @@ export function PickList<T extends PickItem = PickItem>({
           className="lm-picker__hint"
           {...infoProps(
             'Keys of the list',
-            `Up and Down move the cursor a row, Page Up and Page Down a page. Return ${lower}s what it is on and closes the list; with Shift held the list stays open, to try one after another. A letter typed anywhere goes to the search, Tab goes round the controls of the list, and Escape closes the list.`,
+            `Up and Down move the cursor a row, Page Up and Page Down a page. Return ${does} what it is on and closes the list; with Shift held the list stays open, to try one after another. A letter typed anywhere goes to the search, Tab goes round the controls of the list, and Escape closes the list.`,
           )}
         >
-          <span>Up and down move, return {lower}s.</span>
+          <span>Up and down move, return {does}.</span>
         </p>
         <PickerAction
           onClick={() => load(target, false)}
