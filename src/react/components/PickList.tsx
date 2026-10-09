@@ -193,7 +193,9 @@ export function PickList<T extends PickItem = PickItem>({
   const rows = useMemo(() => pickRows(items, query), [items, query])
   const searching = query.trim() !== ''
   const found = rows.filter((row) => row.match).length
-  // The row Return acts on: the cursor's, else the first the search found, else (nothing typed) the one that is on.
+  // The row Return acts on: the cursor's, else the first the search found, else (nothing typed)
+  // the one that is on, and the first where nothing is.
+  const onAt = current == null ? -1 : rows.findIndex((row) => row.item.id === current)
   const at =
     cursor !== null
       ? rows.findIndex((row) => row.item.id === cursor)
@@ -201,7 +203,11 @@ export function PickList<T extends PickItem = PickItem>({
         ? found > 0
           ? 0
           : -1
-        : rows.findIndex((row) => row.item.id === current)
+        : onAt >= 0
+          ? onAt
+          : rows.length > 0
+            ? 0
+            : -1
   const target = at >= 0 ? rows[at] : undefined
   const rowId = (index: number) => `${panelId}-row-${index}`
   const activeId = at >= 0 ? rowId(at) : undefined
@@ -267,7 +273,7 @@ export function PickList<T extends PickItem = PickItem>({
         id={`${panelId}-list`}
         role="listbox"
         aria-label={label}
-        className="lm-pick__list"
+        className="lm-picker__list"
         // A list that scrolls is a Tab stop of the browser's own making: the keys reach its rows from the search field.
         tabIndex={-1}
         data-testid={testId ? `${testId}-list` : undefined}
@@ -305,10 +311,10 @@ export function PickList<T extends PickItem = PickItem>({
                 if (!(event.target as HTMLElement).closest('button')) load(row, false)
               }}
               className={cx(
-                'lm-pick__row',
-                selected && 'lm-pick__row--cursor',
-                on && 'lm-pick__row--on',
-                !row.match && 'lm-pick__row--dim',
+                'lm-picker__row',
+                selected && 'lm-picker__row--cursor',
+                on && 'lm-picker__row--on',
+                !row.match && 'lm-picker__row--dim',
               )}
               data-testid={testId ? `${testId}-row-${pickSlug(item.id)}` : undefined}
               {...(rowInfo?.(item, { current: on, cursor: selected, match: row.match }) ??
@@ -326,18 +332,18 @@ export function PickList<T extends PickItem = PickItem>({
                 ))}
               {...rowProps?.(item)}
             >
-              <span className="lm-pick__name">
+              <span className="lm-picker__name">
                 <Highlight text={item.name} query={query} />
               </span>
-              {item.detail ? <span className="lm-pick__detail">{item.detail}</span> : null}
-              {on ? <span className="lm-pick__on">on now</span> : null}
+              {item.detail ? <span className="lm-picker__detail">{item.detail}</span> : null}
+              {on ? <span className="lm-picker__on">on now</span> : null}
               {rowTools?.(item)}
             </div>,
           ]
         })}
         {rows.length === 0 ? (
           <p
-            className="lm-pick__empty"
+            className="lm-picker__empty"
             data-testid={testId ? `${testId}-empty` : undefined}
             {...infoProps('Nothing listed', 'There is nothing to pick from here.')}
           >
@@ -345,9 +351,9 @@ export function PickList<T extends PickItem = PickItem>({
           </p>
         ) : null}
       </div>
-      <div className="lm-pick__foot">
+      <div className="lm-picker__foot">
         <p
-          className="lm-pick__hint"
+          className="lm-picker__hint"
           {...infoProps(
             'Keys of the list',
             `Up and Down move the cursor a row, Page Up and Page Down a page. Return ${lower}s what it is on and closes the list; with Shift held the list stays open, to try one after another. A letter typed anywhere goes to the search, Tab goes round the controls of the list, and Escape closes the list.`,

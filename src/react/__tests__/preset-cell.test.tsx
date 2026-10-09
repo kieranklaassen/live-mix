@@ -178,7 +178,7 @@ describe('DevicePresetCell', () => {
       'Limit',
     ])
     expect(
-      [...document.querySelectorAll('.lm-pick__group-name')].map((head) => head.textContent),
+      [...document.querySelectorAll('.lm-picker__group-name')].map((head) => head.textContent),
     ).toEqual(['For video', 'Compressor'])
   })
 

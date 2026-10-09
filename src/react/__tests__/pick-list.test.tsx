@@ -194,7 +194,7 @@ describe('PickCell and its list', () => {
     fireEvent.change(search(), { target: { value: 'bed' } })
     expect(rows()).toEqual(['over-music', 'clean-voice', 'podcast-voice'])
     expect(screen.getByTestId('chains-list-search-count')).toHaveTextContent('1 of 3')
-    expect(screen.getByTestId('chains-list-row-clean-voice')).toHaveClass('lm-pick__row--dim')
+    expect(screen.getByTestId('chains-list-row-clean-voice')).toHaveClass('lm-picker__row--dim')
     fireEvent.change(search(), { target: { value: 'pod' } })
     expect(
       screen.getByTestId('chains-list-row-podcast-voice').querySelector('.lm-match'),
@@ -303,10 +303,11 @@ describe('PickCell and its list', () => {
     )
     fireEvent.click(screen.getByTestId('add'))
     const heads = () =>
-      [...document.querySelectorAll('.lm-pick__group')].map((head) => head.textContent)
+      [...document.querySelectorAll('.lm-picker__group')].map((head) => head.textContent)
     expect(heads()).toEqual(['Tone1', 'Dynamics2'])
-    // Nothing is on, so nothing is under the cursor until a key or a search puts it there.
-    expect(screen.queryByRole('option', { selected: true })).toBeNull()
+    // Nothing is on, so the cursor starts on the first row: Return has something to add.
+    expect(screen.getByRole('option', { selected: true })).toHaveTextContent('EQ')
+    expect(screen.getByTestId('add-list-action')).toHaveTextContent('Add EQ')
     fireEvent.change(screen.getByRole('combobox'), { target: { value: 'duck' } })
     expect(heads()).toEqual([])
     expect(screen.getByTestId('add-list-action')).toHaveTextContent('Add Ducker')

@@ -439,7 +439,7 @@ export function PickerPanel({
       id={id}
       role="dialog"
       aria-label={label}
-      className={cx('lm-pick', className)}
+      className={cx('lm-picker', className)}
       style={{ left: place.left, top: place.top, width: place.width, height: place.height }}
       onKeyDown={handleKeyDown}
       onKeyUp={(event) => event.stopPropagation()}
@@ -523,10 +523,10 @@ export function PickerSearch({
       `Finds rows by what is typed and draws the letters it found in the accent colour. ${sentence(hint)}`,
     )
   return (
-    <div className="lm-pick__search">
+    <div className="lm-picker__search">
       <span
         aria-hidden="true"
-        className={cx('lm-pick__find', value !== '' && 'lm-pick__find--on')}
+        className={cx('lm-picker__find', value !== '' && 'lm-picker__find--on')}
         {...fieldInfo}
       >
         <Glyph kind="find" />
@@ -546,13 +546,13 @@ export function PickerSearch({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="lm-pick__field"
+        className="lm-picker__field"
         data-testid={testId}
         {...fieldInfo}
       />
-      <span className="lm-pick__count-cell">
+      <span className="lm-picker__count-cell">
         <span
-          className="lm-pick__count"
+          className="lm-picker__count"
           title={shown === total ? `${total} in all` : `${shown} shown of ${total}`}
           data-testid={testId ? `${testId}-count` : undefined}
           {...infoProps(
@@ -598,7 +598,7 @@ export function PickerGroup({
   return (
     <div
       role="presentation"
-      className="lm-pick__group"
+      className="lm-picker__group"
       data-pinned-head=""
       data-testid={testId}
       {...(info ??
@@ -607,8 +607,8 @@ export function PickerGroup({
           'Heads a group of rows in the list. The number at its right counts the rows under it.',
         ))}
     >
-      <span className="lm-pick__group-name">{label}</span>
-      <span className="lm-pick__group-count">{count}</span>
+      <span className="lm-picker__group-name">{label}</span>
+      <span className="lm-picker__group-count">{count}</span>
     </div>
   )
 }
@@ -659,7 +659,7 @@ export function PickerAction({
       disabled={disabled}
       onClick={onClick}
       title={title}
-      className={cx('lm-pick__action', className)}
+      className={cx('lm-picker__action', className)}
       data-testid={testId}
       {...(info ??
         infoProps(
@@ -672,7 +672,7 @@ export function PickerAction({
           ),
         ))}
     >
-      <span className="lm-pick__action-name">{children}</span>
+      <span className="lm-picker__action-name">{children}</span>
       <Glyph kind="return" />
     </button>
   )
