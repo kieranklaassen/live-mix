@@ -19,7 +19,7 @@ import {
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { type ParamSpec } from '../../core/params'
 import { useDeviceMeter } from '../hooks/useMeter'
-import { useDevice } from '../hooks/useParam'
+import { useDevice, type DeviceWrites } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { infoProps, infoText } from './info'
 import { Knob } from './Knob'
@@ -101,6 +101,13 @@ export interface DevicePanelProps {
   device: Device
   /** Where to find the descriptor (name, presets); defaults to the provided engine's registry. */
   registry?: DeviceRegistry
+  /**
+   * Who takes what the controls set. A host that keeps its own document (an
+   * edit with its own undo) gives this, hears a control taken in hand and let
+   * go, and makes the device follow; left out, the device is written, or the
+   * arbiter that made it.
+   */
+  writes?: DeviceWrites
   /** Defaults to the descriptor's name, else the device id. */
   title?: string
   /**
@@ -181,6 +188,7 @@ export function DeviceMeterReadout({
 export function DevicePanel({
   device,
   registry,
+  writes,
   title,
   params,
   choiceLabels,
@@ -195,7 +203,7 @@ export function DevicePanel({
   style,
   'data-testid': testId,
 }: DevicePanelProps) {
-  const d = useDevice(device, registry ? { registry } : {})
+  const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
   // The preset named was picked on the device the panel had then: another one has had none picked.
   const [pickedOn, setPickedOn] = useState(device)

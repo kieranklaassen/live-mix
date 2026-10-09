@@ -562,6 +562,41 @@ describe('DevicePlate', () => {
     expect(screen.getByTestId('plate')).toHaveAttribute('data-powered', 'false')
   })
 
+  it("hands a knob's drag and the lamp to a host that takes the writes, and sets nothing itself", async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const told: unknown[][] = []
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        writes={{
+          touch: (names) => told.push(['touch', [...names]]),
+          set: (params) => told.push(['set', Object.keys(params)]),
+          release: (names) => told.push(['release', [...names]]),
+          setBypass: (bypass) => told.push(['bypass', bypass]),
+        }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const knob = screen.getByRole('slider', { name: 'Freq' })
+    fireEvent.pointerDown(knob, { pointerId: 1, button: 0, clientX: 0, clientY: 200 })
+    fireEvent.pointerMove(knob, { pointerId: 1, clientX: 0, clientY: 150 })
+    fireEvent.pointerMove(knob, { pointerId: 1, clientX: 0, clientY: 100 })
+    fireEvent.pointerUp(knob, { pointerId: 1 })
+    expect(told[0]).toEqual(['touch', ['frequency']])
+    expect(told.at(-1)).toEqual(['release', ['frequency']])
+    const between = told.slice(1, -1)
+    expect(between.length).toBeGreaterThan(0)
+    for (const entry of between) expect(entry).toEqual(['set', ['frequency']])
+    expect(device.getParam('frequency')).toBe(1000)
+    fireEvent.click(screen.getByRole('switch', { name: 'Filter power' }))
+    expect(told.at(-1)).toEqual(['bypass', true])
+    expect(device.bypass).toBe(false)
+    expect(screen.getByTestId('plate')).toHaveAttribute('data-powered', 'true')
+  })
+
   it('redraws the picture when a parameter it reads moves, and not otherwise', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)

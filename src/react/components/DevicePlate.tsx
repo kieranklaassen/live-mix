@@ -31,7 +31,7 @@ import {
 } from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { normalizeParam } from '../../core/params'
-import { useDevice } from '../hooks/useParam'
+import { useDevice, type DeviceWrites } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { DeviceMeterReadout, isBipolar, printedMeters } from './DevicePanel'
 import {
@@ -192,6 +192,13 @@ export interface DevicePlateProps {
   skin: DeviceSkin
   /** Where to find the descriptor (name, presets); defaults to the provided engine's registry. */
   registry?: DeviceRegistry
+  /**
+   * Who takes what the controls set. A host that keeps its own document (an
+   * edit with its own undo) gives this, hears a control taken in hand and let
+   * go, and makes the device follow; left out, the device is written, or the
+   * arbiter that made it.
+   */
+  writes?: DeviceWrites
   /** The device's full name, for its label and its info text; defaults to the descriptor's. */
   title?: string
   /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
@@ -279,6 +286,7 @@ export function DevicePlate({
   device,
   skin,
   registry,
+  writes,
   title,
   choiceLabels,
   showBypass = true,
@@ -294,7 +302,7 @@ export function DevicePlate({
   style,
   'data-testid': testId,
 }: DevicePlateProps) {
-  const d = useDevice(device, registry ? { registry } : {})
+  const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
   const [open, setOpen] = useState(defaultOpen)
   const held = usePlateInHand()
