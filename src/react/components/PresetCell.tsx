@@ -236,6 +236,8 @@ export function PresetCell({
         anchorRef={anchorRef}
         onClose={() => setOpen(false)}
         label={`Presets of ${name}`}
+        // The effect's name as it is written: a list's own words would say `eq`.
+        placeholder={`Search presets of ${name}`}
         items={items}
         current={onAt >= 0 ? (on?.name ?? null) : null}
         onPick={(item) => apply(item.preset)}

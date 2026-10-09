@@ -149,6 +149,11 @@ describe('PresetCell', () => {
     render(<Held start={{ threshold: -22, ratio: 3, makeupDb: 2 }} onPick={onPick} />)
     fireEvent.click(screen.getByTestId('fxp-name'))
     expect(screen.getByRole('dialog', { name: 'Presets of Compressor' })).toBeInTheDocument()
+    // The search names the effect as it is written, capitals and all.
+    expect(screen.getByRole('combobox')).toHaveAttribute(
+      'placeholder',
+      'Search presets of Compressor',
+    )
     expect(screen.getByTestId('fxp')).toHaveAttribute('data-open', 'true')
     expect(screen.getByRole('option', { selected: true })).toHaveTextContent('Voice, even')
     fireEvent.keyDown(screen.getByRole('combobox'), { key: 'ArrowDown' })
