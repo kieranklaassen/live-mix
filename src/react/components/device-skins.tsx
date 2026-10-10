@@ -1918,6 +1918,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'sine-shadow': { ...PLATE_PALETTES['sine-shadow'], finish: 'matte', cap: 'dot' },
   warp: { ...PLATE_PALETTES.warp, finish: 'gloss', cap: 'pointer' },
   stops: { ...PLATE_PALETTES.stops, finish: 'fade', cap: 'disc' },
+  reveal: { ...PLATE_PALETTES.reveal, finish: 'gloss', cap: 'disc' },
 }
 
 /**

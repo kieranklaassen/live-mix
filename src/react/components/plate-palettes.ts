@@ -162,6 +162,7 @@ export const PLATE_PALETTES = {
   'sine-shadow': { plate: '#04043e', ink: '#e9ecff', accent: '#ff7ab8' },
   warp: { plate: '#f47fa8', ink: '#1c0410', accent: '#1d1da8' },
   stops: { plate: '#6a2170', ink: '#f9eef6', accent: '#ffb59e' },
+  reveal: { plate: '#7c0a4e', ink: '#fdeef6', accent: '#bfeaff' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
