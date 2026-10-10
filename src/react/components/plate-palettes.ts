@@ -128,6 +128,19 @@ export const PLATE_PALETTES = {
   'string-bass': { plate: '#99500a', ink: '#fff3e0', accent: '#ffe066' },
   generations: { plate: '#a9684f', ink: '#1a0b06', accent: '#fff4dd' },
   distance: { plate: '#d8c4d8', ink: '#281a30', accent: '#b02a1a' },
+  flock: { plate: '#f58cc4', ink: '#3a0a26', accent: '#1f48d0' },
+  'magnet-piano': { plate: '#10124f', ink: '#eceeff', accent: '#ff8a5c' },
+  overtone: { plate: '#6e0f1c', ink: '#fdeee6', accent: '#ffc94d' },
+  staircase: { plate: '#bc00b4', ink: '#fff0fd', accent: '#ffd24d' },
+  shortwave: { plate: '#123a14', ink: '#e6f6e0', accent: '#ffb347' },
+  ice: { plate: '#7ff0e0', ink: '#052a2a', accent: '#cc1144' },
+  rewind: { plate: '#4a0d66', ink: '#f6e9ff', accent: '#7ef0d0' },
+  droplets: { plate: '#0f86e0', ink: '#02162b', accent: '#fff6c7' },
+  'prepared-piano': { plate: '#a67e62', ink: '#170c05', accent: '#fff6e3' },
+  graft: { plate: '#8fd02e', ink: '#16250a', accent: '#7a1d4f' },
+  'wind-harp': { plate: '#f7f26a', ink: '#2a2a06', accent: '#1560a8' },
+  afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
+  feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

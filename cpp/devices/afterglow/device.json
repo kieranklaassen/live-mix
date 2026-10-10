@@ -1,0 +1,266 @@
+{
+  "id": "afterglow",
+  "name": "Afterglow",
+  "category": "instrument",
+  "description": "A struck instrument whose notes turn into a pad: each key is struck as felt, bell, pluck or glass, and its own overtones are then held and slowly raised into a glow that keeps changing.",
+  "class": "Afterglow",
+  "header": "afterglow.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "source",
+      "name": "Struck by",
+      "choices": ["Felt", "Bell", "Pluck", "Glass"],
+      "default": 0,
+      "description": "What is struck: a soft felt piano, a bell, a plucked string or a glass. Each has its own overtones, which the glow then holds. Heard from the next note."
+    },
+    {
+      "key": "strike",
+      "name": "Strike",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "Level of the strike itself. At zero the hit is gone and each note only swells in as a pad."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.2,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the strike rings. High notes and high overtones die sooner than low ones, and letting the key go does not stop it."
+    },
+    {
+      "key": "glow",
+      "name": "Glow",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "Level of the pad that rises out of each strike, made of the same overtones held in the air. At zero only the strike is left."
+    },
+    {
+      "key": "bloom",
+      "name": "Bloom",
+      "min": 0.3,
+      "max": 20,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the glow takes to rise after the strike. A key let go sooner still blooms, to a fainter glow the shorter it was held."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0.1,
+      "max": 30,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the glow lasts once the key is let go. Long settings let many notes pile up into a slow cloud, and a key struck again keeps one glow."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Brightness of the glow. The middle is the strike as it sounds a moment after the hit; lower is rounder, higher brings the upper overtones out."
+    },
+    {
+      "key": "halo",
+      "name": "Halo",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Adds a shimmer an octave above inside the glow, built on its lowest overtones and beating twice as fast as they do."
+    },
+    {
+      "key": "evolve",
+      "name": "Evolve",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far the overtones of the glow slowly come and go, each at its own pace, while the played note itself and the level of the whole stay where they are."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Splits every overtone of the glow into two a little apart, so each beats slowly on its own. Higher beats faster and deeper, and at zero the glow is still."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Spreads the overtones of the glow to the left and the right and the two halves of each apart, so the beating moves between the speakers. At zero the instrument is mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Felt afterglow": {},
+    "Bell halo": {
+      "source": 1,
+      "strike": 0.7,
+      "decay": 7,
+      "glow": 0.6,
+      "bloom": 2.5,
+      "fade": 8,
+      "tone": 0.55,
+      "halo": 0.6,
+      "drift": 0.25
+    },
+    "Glass breath": {
+      "source": 3,
+      "strike": 0.35,
+      "decay": 3,
+      "glow": 0.8,
+      "bloom": 3,
+      "fade": 7,
+      "halo": 0.1,
+      "evolve": 0.5,
+      "drift": 0.2,
+      "volume": -11
+    },
+    "Pluck and haze": {
+      "source": 2,
+      "strike": 0.85,
+      "decay": 2.5,
+      "glow": 0.5,
+      "bloom": 1,
+      "fade": 4,
+      "tone": 0.6,
+      "volume": -6
+    },
+    "Only the glow": {
+      "strike": 0,
+      "glow": 0.9,
+      "bloom": 2,
+      "fade": 6,
+      "evolve": 0.6,
+      "volume": -15
+    },
+    "Only the strike": {
+      "decay": 5,
+      "glow": 0,
+      "volume": -7
+    },
+    "Slow bloom": {
+      "strike": 0.6,
+      "glow": 0.8,
+      "bloom": 8,
+      "fade": 12,
+      "tone": 0.45,
+      "evolve": 0.6,
+      "volume": -11.5
+    },
+    "Long fade": {
+      "strike": 0.7,
+      "decay": 6,
+      "glow": 0.6,
+      "bloom": 1,
+      "fade": 25,
+      "drift": 0.2,
+      "volume": -11
+    },
+    "Dark felt": {
+      "strike": 0.9,
+      "decay": 2,
+      "glow": 0.7,
+      "bloom": 2.5,
+      "fade": 7,
+      "tone": 0.15,
+      "halo": 0,
+      "drift": 0.15,
+      "width": 0.4,
+      "volume": -10
+    },
+    "Bright chimes": {
+      "source": 1,
+      "strike": 0.9,
+      "decay": 2.5,
+      "glow": 0.5,
+      "bloom": 0.6,
+      "fade": 3,
+      "tone": 0.8,
+      "halo": 0.4,
+      "volume": -6
+    },
+    "Shimmer keys": {
+      "glow": 0.7,
+      "bloom": 1,
+      "tone": 0.65,
+      "halo": 0.9,
+      "drift": 0.5,
+      "volume": -13
+    },
+    "Still glass": {
+      "source": 3,
+      "strike": 0.6,
+      "glow": 0.7,
+      "halo": 0,
+      "evolve": 0,
+      "drift": 0,
+      "width": 0.3
+    },
+    "Restless light": {
+      "strike": 0.4,
+      "glow": 0.85,
+      "bloom": 2.5,
+      "fade": 9,
+      "halo": 0.4,
+      "evolve": 1,
+      "drift": 0.75,
+      "width": 1,
+      "volume": -13
+    },
+    "Harp into air": {
+      "source": 2,
+      "strike": 0.9,
+      "glow": 0.7,
+      "bloom": 4,
+      "fade": 10,
+      "tone": 0.4,
+      "halo": 0.3,
+      "volume": -11
+    },
+    "Quick swell": {
+      "strike": 0.3,
+      "decay": 1.5,
+      "glow": 0.9,
+      "bloom": 0.4,
+      "fade": 1.5,
+      "tone": 0.6,
+      "volume": -15.5
+    },
+    "Low tide bell": {
+      "source": 1,
+      "strike": 0.6,
+      "decay": 12,
+      "glow": 0.7,
+      "bloom": 5,
+      "fade": 14,
+      "tone": 0.25,
+      "halo": 0,
+      "evolve": 0.7,
+      "drift": 0.4
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each note is a small bank of sine partials at the ratios of a struck string, bell, plucked string or glass rim (textbook values, rounded), heard once as a decaying strike and once as a held pad at the same frequencies. The strike has no hammer, body or room and the pad is plain additive synthesis; it is not a model of any one instrument or product."
+  }
+}

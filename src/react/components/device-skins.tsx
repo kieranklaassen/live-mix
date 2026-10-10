@@ -1879,6 +1879,19 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'string-bass': { ...PLATE_PALETTES['string-bass'], finish: 'grain', cap: 'disc' },
   generations: { ...PLATE_PALETTES.generations, finish: 'linen', cap: 'disc' },
   distance: { ...PLATE_PALETTES.distance, finish: 'fade', cap: 'dot' },
+  flock: { ...PLATE_PALETTES.flock, finish: 'fade', cap: 'dot' },
+  'magnet-piano': { ...PLATE_PALETTES['magnet-piano'], finish: 'gloss', cap: 'pointer' },
+  overtone: { ...PLATE_PALETTES.overtone, finish: 'fade', cap: 'disc' },
+  staircase: { ...PLATE_PALETTES.staircase, finish: 'matte', cap: 'pointer' },
+  shortwave: { ...PLATE_PALETTES.shortwave, finish: 'hammered', cap: 'disc' },
+  ice: { ...PLATE_PALETTES.ice, finish: 'speckle', cap: 'pointer' },
+  rewind: { ...PLATE_PALETTES.rewind, finish: 'brushed', cap: 'skirt' },
+  droplets: { ...PLATE_PALETTES.droplets, finish: 'gloss', cap: 'disc' },
+  'prepared-piano': { ...PLATE_PALETTES['prepared-piano'], finish: 'linen', cap: 'skirt' },
+  graft: { ...PLATE_PALETTES.graft, finish: 'grain', cap: 'dot' },
+  'wind-harp': { ...PLATE_PALETTES['wind-harp'], finish: 'linen', cap: 'dot' },
+  afterglow: { ...PLATE_PALETTES.afterglow, finish: 'fade', cap: 'skirt' },
+  feedback: { ...PLATE_PALETTES.feedback, finish: 'hammered', cap: 'pointer' },
 }
 
 /**

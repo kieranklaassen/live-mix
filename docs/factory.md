@@ -143,7 +143,7 @@ import {
 
 |             | Count | Groups                                                                                                                                                                                                                                                                                                                                                 |
 | ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Presets** | 844   | Twenty for each of the forty-one stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                             |
+| **Presets** | 1,104 | Twenty for each of the fifty-four stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                            |
 | **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                                                                                                                                                             |
 | **Sounds**  | 244   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); and 76 loops of drums (32), glitches (20) and pitched pulses (24). 111 keep time: those 76 and 35 of the bass lines |
 
@@ -666,7 +666,8 @@ on, so whatever instrument is loaded, every pack has something for it.
 
 An instrument that comes after the packs shipped is not asked of them
 (`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
-two kits and the four bass instruments): a
+two kits, the four bass instruments and the thirteen invented ones from
+`flock` on): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
 the bank.

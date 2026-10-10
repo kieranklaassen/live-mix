@@ -1,0 +1,291 @@
+{
+  "id": "graft",
+  "name": "Graft",
+  "category": "instrument",
+  "description": "A crossed physical model: breath, bow, mallet or pluck set on a string, a stopped pipe, a bar or a bowl, sixteen instruments from two choices.",
+  "class": "Graft",
+  "header": "graft.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "exciter",
+      "name": "Exciter",
+      "choices": ["Breath", "Bow", "Mallet", "Pluck"],
+      "default": 0,
+      "description": "What sets the body going. Breath and Bow hold a note for as long as the key is down; Mallet and Pluck strike once and let it ring. Applies to the next note."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "choices": ["String", "Pipe", "Bar", "Bowl"],
+      "default": 0,
+      "description": "What rings. String has every harmonic, Pipe is hollow with the odd ones, Bar has the spread partials of metal or wood, Bowl beats slowly. Applies to the next note."
+    },
+    {
+      "key": "pressure",
+      "name": "Pressure",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How hard the body is driven: breath or bow force, or the weight of the strike. More is louder and brighter. A struck note keeps the weight it was struck with."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Where the body is excited, from the end to the middle. Near the end is thin with many partials; the middle is round and hollow. A struck bar or bowl keeps its place."
+    },
+    {
+      "key": "bright",
+      "name": "Bright",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How long the high partials live against the low ones. Low is wood or felt, dull soon after the start; high is metal that stays bright as it rings."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.1,
+      "max": 20,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the body rings once the exciter stops. For a struck or plucked note it is the whole length of the note."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The noise of the exciter: breath in the tone, rosin under the bow, the thud of a mallet, the scrape of a pluck. It also keeps a blown or bowed bar or bowl shimmering."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0.005,
+      "max": 6,
+      "default": 0.12,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long Breath and Bow take to speak. Short starts at once; long lets each note rise slowly out of nothing. Mallet and Pluck ignore it."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 12,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the body may keep ringing after the key is let go. Short damps it like a hand laid on it; long leaves it to its own Decay."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Slow life in pitch, level and tone, different for every note, so held notes drift a little against each other and never stand still."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the sound is spread between left and right: the partials of each note, and the notes themselves across the keyboard. At zero the instrument is mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Blown string": {},
+    "Bowed string": {
+      "exciter": 1,
+      "pressure": 0.55,
+      "position": 0.25,
+      "bright": 0.55,
+      "air": 0.15,
+      "swell": 0.08,
+      "release": 0.6,
+      "wander": 0.25,
+      "volume": -10
+    },
+    "Struck string": {
+      "exciter": 2,
+      "position": 0.3,
+      "bright": 0.6,
+      "decay": 5,
+      "air": 0.15,
+      "wander": 0.1,
+      "volume": -8.5
+    },
+    "Plucked string": {
+      "exciter": 3,
+      "pressure": 0.55,
+      "position": 0.25,
+      "bright": 0.55,
+      "decay": 4,
+      "air": 0.1,
+      "release": 0.5,
+      "wander": 0.1
+    },
+    "Blown pipe": {
+      "body": 1,
+      "pressure": 0.4,
+      "bright": 0.6,
+      "air": 0.45,
+      "swell": 0.06,
+      "release": 0.25,
+      "wander": 0.3,
+      "width": 0.5
+    },
+    "Bowed pipe": {
+      "exciter": 1,
+      "body": 1,
+      "pressure": 0.6,
+      "position": 0.5,
+      "bright": 0.45,
+      "air": 0.2,
+      "swell": 0.35,
+      "release": 0.8,
+      "volume": -10
+    },
+    "Struck pipe": {
+      "exciter": 2,
+      "body": 1,
+      "pressure": 0.45,
+      "bright": 0.45,
+      "decay": 1.3,
+      "air": 0.35,
+      "release": 0.3,
+      "wander": 0.1,
+      "width": 0.5,
+      "volume": -7
+    },
+    "Plucked pipe": {
+      "exciter": 3,
+      "body": 1,
+      "pressure": 0.55,
+      "position": 0.5,
+      "bright": 0.6,
+      "decay": 2.2,
+      "air": 0.3,
+      "wander": 0.1,
+      "volume": -8.5
+    },
+    "Blown bar": {
+      "body": 2,
+      "pressure": 0.6,
+      "bright": 0.4,
+      "air": 0.2,
+      "swell": 0.05,
+      "release": 0.2,
+      "wander": 0.15,
+      "width": 0.7,
+      "volume": -10.5
+    },
+    "Bowed bar": {
+      "exciter": 1,
+      "body": 2,
+      "pressure": 0.4,
+      "position": 0.3,
+      "bright": 0.8,
+      "decay": 8,
+      "air": 0.1,
+      "swell": 0.6,
+      "release": 5,
+      "width": 0.8,
+      "volume": -8.5
+    },
+    "Struck bar": {
+      "exciter": 2,
+      "body": 2,
+      "pressure": 0.55,
+      "position": 0.3,
+      "bright": 0.75,
+      "decay": 4,
+      "air": 0.15,
+      "wander": 0.1,
+      "width": 0.8,
+      "volume": -7.5
+    },
+    "Struck wood bar": {
+      "exciter": 2,
+      "body": 2,
+      "pressure": 0.4,
+      "position": 0.45,
+      "bright": 0.12,
+      "decay": 1.5,
+      "air": 0.2,
+      "release": 0.6,
+      "wander": 0.1,
+      "width": 0.8,
+      "volume": -7
+    },
+    "Plucked bar": {
+      "exciter": 3,
+      "body": 2,
+      "pressure": 0.6,
+      "position": 0.2,
+      "bright": 0.6,
+      "decay": 2.5,
+      "wander": 0.1,
+      "width": 0.8,
+      "volume": -8.5
+    },
+    "Blown bowl": {
+      "body": 3,
+      "pressure": 0.3,
+      "position": 0.4,
+      "bright": 0.7,
+      "decay": 10,
+      "air": 0.5,
+      "swell": 0.4,
+      "release": 3,
+      "wander": 0.25,
+      "width": 0.8,
+      "volume": -8
+    },
+    "Bowed bowl": {
+      "exciter": 1,
+      "body": 3,
+      "pressure": 0.35,
+      "position": 0.3,
+      "bright": 0.85,
+      "decay": 14,
+      "air": 0.08,
+      "swell": 1.5,
+      "release": 8,
+      "width": 0.9,
+      "volume": -8
+    },
+    "Struck bowl": {
+      "exciter": 2,
+      "body": 3,
+      "pressure": 0.45,
+      "position": 0.25,
+      "bright": 0.8,
+      "decay": 12,
+      "air": 0.1,
+      "release": 6,
+      "width": 0.85,
+      "volume": -8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Four exciters (a soft flow curve, a stick and slip friction curve, a mallet pulse, a pluck) each drive one of four bodies (a waveguide string, a waveguide stopped at one end, the modes of a free bar, the beating mode pairs of a bowl). The exciters meet the body at one point only and the bodies are idealised; it is not a model of any one instrument or product."
+  }
+}

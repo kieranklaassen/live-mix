@@ -1,0 +1,280 @@
+{
+  "id": "wind-harp",
+  "name": "Wind Harp",
+  "category": "instrument",
+  "description": "A harp of strings played by the wind: it rises and falls across the held keys and lights one harmonic of each string after another, so a chord shimmers and breathes by itself.",
+  "class": "WindHarp",
+  "header": "wind_harp.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "wind",
+      "name": "Wind",
+      "min": 0,
+      "max": 1,
+      "default": 0.42,
+      "description": "How hard the wind blows. A light wind sings the low harmonics of each string and a strong one the high ones, with the air around it rising too."
+    },
+    {
+      "key": "gust",
+      "name": "Gust",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the wind comes and goes. At zero it is steady and each string holds its harmonic; higher, it swells and fades and the lit harmonics climb and fall with it."
+    },
+    {
+      "key": "lull",
+      "name": "Lull",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How often the wind drops away to almost nothing for a few seconds and lets the strings ring down. At zero it never does."
+    },
+    {
+      "key": "strings",
+      "name": "Strings",
+      "min": 1,
+      "max": 4,
+      "default": 2,
+      "step": 1,
+      "description": "Strings per key, tuned a little apart and spread across the stereo field, each catching the wind its own way. One is pure; more beat and sing different harmonics."
+    },
+    {
+      "key": "glint",
+      "name": "Glint",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far up the harmonics the wind can light. Low keeps to the string's own note and its first overtones; high lets the top ones flash."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.3,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a harmonic sings on after the wind has moved off it, and how slowly it wakes. Short follows every gust; long blurs them into a glow."
+    },
+    {
+      "key": "hum",
+      "name": "Hum",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How much of each string's own low note is always there under the harmonics, whatever the wind is doing."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The sound of the wind itself: a soft rush of noise around the strings that swells and brightens with the same gusts."
+    },
+    {
+      "key": "touch",
+      "name": "Touch",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A soft pluck when a key goes down, so a short note still sounds. At zero nothing is plucked and a note fades in as the wind finds it."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a string takes to fade after its key is let go. The wind keeps playing it while it fades."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far apart the strings of a key and the two sides of the air sit in the stereo field, down to mono at zero."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many keys are held."
+    }
+  ],
+  "presets": {
+    "Wind harp": {},
+    "Still air": {
+      "wind": 0.15,
+      "gust": 0.25,
+      "lull": 0,
+      "glint": 0.45,
+      "hum": 0.5,
+      "air": 0.04,
+      "volume": -12.5
+    },
+    "High gale": {
+      "wind": 0.85,
+      "gust": 0.8,
+      "strings": 3,
+      "glint": 1,
+      "ring": 2.5,
+      "hum": 0.1,
+      "air": 0.3,
+      "volume": -6.5
+    },
+    "Long lulls": {
+      "wind": 0.5,
+      "gust": 0.3,
+      "lull": 1,
+      "ring": 3.5,
+      "hum": 0.1,
+      "air": 0.15,
+      "touch": 0.1,
+      "volume": -7
+    },
+    "Plucked course": {
+      "wind": 0.2,
+      "gust": 0.3,
+      "lull": 0,
+      "strings": 4,
+      "ring": 3,
+      "air": 0,
+      "touch": 1,
+      "width": 0.9,
+      "volume": -19
+    },
+    "Glass whistle": {
+      "wind": 0.75,
+      "gust": 0.35,
+      "lull": 0,
+      "strings": 1,
+      "glint": 1,
+      "ring": 1.5,
+      "hum": 0,
+      "air": 0.08,
+      "touch": 0,
+      "volume": -4
+    },
+    "Low hum": {
+      "wind": 0.1,
+      "gust": 0.3,
+      "lull": 0,
+      "glint": 0.3,
+      "ring": 6,
+      "hum": 1,
+      "air": 0.04,
+      "touch": 0.15,
+      "release": 4,
+      "volume": -15.5
+    },
+    "Sea breeze": {
+      "wind": 0.45,
+      "gust": 0.9,
+      "lull": 0.4,
+      "ring": 3,
+      "air": 0.55,
+      "touch": 0.15,
+      "volume": -8
+    },
+    "Shimmer course": {
+      "wind": 0.6,
+      "lull": 0,
+      "strings": 4,
+      "glint": 0.85,
+      "ring": 5,
+      "hum": 0.1,
+      "width": 1,
+      "volume": -7.5
+    },
+    "Slow swell": {
+      "wind": 0.3,
+      "gust": 0.7,
+      "lull": 0.1,
+      "strings": 3,
+      "ring": 12,
+      "touch": 0,
+      "release": 8
+    },
+    "Bare string": {
+      "wind": 0.3,
+      "gust": 0.25,
+      "lull": 0,
+      "strings": 1,
+      "air": 0,
+      "touch": 0.5,
+      "width": 0,
+      "volume": -11.5
+    },
+    "Fence wires": {
+      "wind": 0.7,
+      "gust": 0.6,
+      "strings": 3,
+      "glint": 0.75,
+      "ring": 1.5,
+      "hum": 0.8,
+      "air": 0.12,
+      "touch": 0.1,
+      "volume": -8.5
+    },
+    "Night wind": {
+      "wind": 0.25,
+      "gust": 0.8,
+      "lull": 0.5,
+      "ring": 5,
+      "hum": 0.1,
+      "air": 1,
+      "touch": 0,
+      "release": 5,
+      "volume": -11.5
+    },
+    "Soft pluck": {
+      "wind": 0.4,
+      "gust": 0.25,
+      "lull": 0,
+      "strings": 1,
+      "glint": 0.6,
+      "ring": 1.2,
+      "hum": 0,
+      "air": 0,
+      "touch": 0.7,
+      "release": 1.2,
+      "volume": -10.5
+    },
+    "Overtone ladder": {
+      "wind": 0.5,
+      "gust": 1,
+      "lull": 0,
+      "strings": 1,
+      "glint": 1,
+      "ring": 0.8,
+      "hum": 0.15,
+      "air": 0.04,
+      "touch": 0.1,
+      "volume": -7
+    },
+    "Storm front": {
+      "wind": 0.7,
+      "gust": 1,
+      "lull": 0.6,
+      "strings": 4,
+      "glint": 0.8,
+      "ring": 4,
+      "air": 0.5,
+      "width": 1,
+      "volume": -8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit after the wind harp, a box of strings set where the wind crosses them. Modelled in outline: the wind sheds vortices at a rate that follows its speed, a string answers at whichever of its harmonics lies nearest that rate, and the harmonic locks on and rings after the wind has moved off. Simplified: each string is sixteen exactly harmonic sines whose levels follow the wind, the wind is one seeded slow process (three slow sines, a random walk and lulls) and not a flow, the rate is counted in harmonics of each key and leans up for low keys instead of being one frequency for all, and the pluck and the air are stylised. The constants were chosen here and checked by measurement; it is not a model of any one instrument or product."
+  }
+}

@@ -12,6 +12,7 @@ import { GLINTS_FACES } from './glints'
 import { STRING_INSTRUMENT_FACES } from './instrument-strings'
 import { AIR_INSTRUMENT_FACES } from './instrument-air'
 import { BARS_INSTRUMENT_FACES } from './instrument-bars'
+import { BODY_INSTRUMENT_FACES } from './instrument-bodies'
 import { BOWED_INSTRUMENT_FACES } from './instrument-bowed'
 import { GUITAR_INSTRUMENT_FACES } from './instrument-guitars'
 import { KEYS_INSTRUMENT_FACES } from './instrument-keys'
@@ -26,6 +27,10 @@ import { WAVE_INSTRUMENT_FACES } from './instrument-waves'
 import { WIND_INSTRUMENT_FACES } from './instrument-winds'
 import { FOG_FACES } from './fog'
 import { GENERATIONS_FACES } from './generations'
+import { TURN_INSTRUMENT_FACES } from './instrument-turns'
+import { VOICE_INSTRUMENT_FACES } from './instrument-voices'
+import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
+import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -77,4 +82,9 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...STRING_BASS_INSTRUMENT_FACES,
   ...GENERATIONS_FACES,
   ...DISTANCE_FACES,
+  ...WIRE_INSTRUMENT_FACES,
+  ...VOICE_INSTRUMENT_FACES,
+  ...WEATHER_INSTRUMENT_FACES,
+  ...TURN_INSTRUMENT_FACES,
+  ...BODY_INSTRUMENT_FACES,
 }
