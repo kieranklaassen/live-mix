@@ -66,6 +66,40 @@ static void add_note(std::vector<float>& x, float hz, float at, float seconds, f
   }
 }
 
+// A chord held at full scale: seven notes in equal temperament (C3 G3 C4 E4
+// G4 B4 D5), six partials each, 50 ms in and out. Its two Gs (196.00 and
+// 392.00 Hz) are in step with any gap of a whole or half number of seconds.
+static std::vector<float> held_chord(float seconds) {
+  std::vector<float> x(static_cast<size_t>(seconds * kRate), 0.0f);
+  const double notes[7] = {48, 55, 60, 64, 67, 71, 74};
+  const double two_pi = 6.283185307179586;
+  for (int n = 0; n < 7; ++n) {
+    const double hz = 440.0 * std::pow(2.0, (notes[n] - 69.0) / 12.0);
+    for (int partial = 1; partial <= 6; ++partial) {
+      const double turn = two_pi * hz * partial / kRate;
+      const double start = 1.3 * partial + 0.9 * n;
+      for (size_t i = 0; i < x.size(); ++i) {
+        x[i] += static_cast<float>(std::sin(turn * static_cast<double>(i) + start) / partial);
+      }
+    }
+  }
+  const size_t edge = static_cast<size_t>(0.05f * kRate);
+  for (size_t i = 0; i < edge; ++i) {
+    const float in = static_cast<float>(i) / static_cast<float>(edge);
+    x[i] *= in;
+    x[x.size() - 1 - i] *= in;
+  }
+  const float top = static_cast<float>(peak(x));
+  for (float& v : x) v /= top;
+  return x;
+}
+
+// The level of both sides of [from, to) together.
+static double level(const Stereo& x, size_t from, size_t to) {
+  const double left = rms(x.left, from, to), right = rms(x.right, from, to);
+  return std::sqrt(0.5 * (left * left + right * right));
+}
+
 // How an event arrives, against the same passage without it: `sudden` is the
 // share of the change that is already there after 8 samples (a smoothed
 // change has barely begun, a jump is all there), `step` the largest
@@ -495,6 +529,8 @@ int main() {
     device.set_param(p::kFollowers, 4.0f);
     device.set_param(p::kGap, 0.1f);
     device.set_param(p::kRound, 0.95f);
+    device.set_param(p::kInterval2, 7.0f);
+    device.set_param(p::kInterval3, -12.0f);
     device.set_param(p::kInterval4, 12.0f);
     device.set_param(p::kCrab, 2.0f);
     device.set_param(p::kMix, 1.0f);
@@ -502,25 +538,26 @@ int main() {
     Stereo loud = run(device, noise(20.0f, kRate, 1.0f));
     std::printf("canon round 0.95 on full-scale noise: peak %.2f, rms %.2f\n",
                 std::max(peak(loud.left), peak(loud.right)), rms(loud.left, 480000));
-    EXPECT(finite(loud.left) && finite(loud.right) && peak(loud.left) < 2.01 && peak(loud.right) < 2.01,
-           "the highest round on a full-scale line stays bounded");
+    EXPECT(finite(loud.left) && finite(loud.right) && peak(loud.left) < 1.74 && peak(loud.right) < 1.74,
+           "the highest round on a full-scale line stays bounded: the followers together never pass 1.73");
     // The output is limited whatever the line holds, so the line is asked too:
-    // what returns to it is never past twice full scale.
+    // what returns to it is never past twice full scale, and is held in level.
     std::printf("canon round 0.95 on full-scale noise: the line holds %.2f at the most\n", device.meter(1));
-    EXPECT(device.meter(1) < 3.01f, "the line itself stays bounded under the highest round");
+    EXPECT(device.meter(1) < 2.2f, "the line itself stays bounded under the highest round");
 
     // The hardest case for the loop: a full-scale tone that fits the gap, so
-    // every lap adds in step. Unlimited it would settle at twenty times full
-    // scale; what returns is limited to twice, so the line holds three at most.
+    // every lap adds in step. Left alone it would settle at twenty times full
+    // scale (and, limited, sat at 2.8); the level hold keeps the line within
+    // a couple of dB of the tone itself.
     plain(device);
     device.set_param(p::kGap, 0.1f);
     device.set_param(p::kRound, 0.95f);
     Stereo ringing = run(device, sine(100.0f, 20.0f, kRate, 1.0f));
     std::printf("canon round 0.95 on a full-scale tone in step with the gap: the line holds %.2f, out %.2f\n",
                 device.meter(1), peak(ringing.left));
-    EXPECT(finite(ringing.left) && device.meter(1) < 3.01f && peak(ringing.left) < 2.01,
-           "a tone in step with the round stays bounded, in the line and out of it");
-    EXPECT(device.meter(1) > 2.0f, "that tone does build up to where the limit holds it");
+    EXPECT(finite(ringing.left) && device.meter(1) < 1.27f && peak(ringing.left) < 1.74,
+           "a tone in step with the round is held to a couple of dB over itself in the line");
+    EXPECT(device.meter(1) > 1.05f, "and the round is still there under it");
 
     plain(device);
     device.set_param(p::kFollowers, 4.0f);
@@ -528,13 +565,207 @@ int main() {
     device.set_param(p::kRound, 0.95f);
     rng_state() = 0xFACEu;
     Stereo held = run(device, noise(8.0f, kRate, 0.2f));
-    Stereo after = render(device, 4.4f, kRate);
-    // The last lap that was fed, against the one ten laps (4 s) later.
-    const double kept = rms(after.left, 192000, 211200) / rms(after.left, 0, 19200);
+    Stereo after = render(device, 4.8f, kRate);
+    // The second lap after the noise stops (the hold has let go by then: it
+    // was holding a steady noise that the round had piled up) against the
+    // one ten laps (4 s) later.
+    const double kept = rms(after.left, 211200, 230400) / rms(after.left, 19200, 38400);
     std::printf("canon round 0.95 at unison: ten laps on, %.3f of the level (0.95^10 = %.3f)\n", kept,
                 std::pow(0.95, 10.0));
     EXPECT(std::fabs(kept / std::pow(0.95, 10.0) - 1.0) < 0.05, "the round dies away at the rate Round sets");
     EXPECT(finite(held.left) && peak(held.left) < 2.01, "a round that builds up stays bounded");
+  }
+
+  // The round held in level. A sound held while it comes round piles up lap
+  // on lap (before the hold, the full-scale chord through two followers at
+  // unison a second apart and Round 0.85 sat 9.4 dB over the input, flat
+  // against the limit, and a tone in step came out at 2.24). So: a full-scale
+  // chord held for a minute through every setting that uses the round, and
+  // the round at its highest, peaks no more than 6 dB over the input, does
+  // not grow, and keeps its level near the dry.
+  {
+    const std::vector<float> chord = held_chord(60.0f);
+    const size_t second = static_cast<size_t>(kRate);
+    const double played = rms(chord, 10 * second, 58 * second);
+    struct Setting {
+      const char* name;
+      float followers, gap, intervals[4], crab, fade, spread, tone, round, mix;
+      double most;  // dB over the input, at the most
+    };
+    const Setting settings[] = {
+        {"Endless round", 2, 1.0f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 3500, 0.85f, 0.4f, 3.3},
+        {"Long memory", 2, 3.0f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 5000, 0.7f, 0.5f, 3.3},
+        {"Rising stair", 1, 0.4f, {2, 0, 0, 0}, 0, 0.25f, 0.5f, 6000, 0.8f, 0.45f, 3.3},
+        {"Sinking stair", 1, 0.55f, {-2, 0, 0, 0}, 0, 0.25f, 0.5f, 4000, 0.85f, 0.45f, 3.3},
+        {"Dark canon", 3, 1.0f, {0, -5, -12, 0}, 0, 0.1f, 0.5f, 900, 0.5f, 0.6f, 3.3},
+        {"Backwards choir", 4, 0.8f, {-12, 0, 7, 12}, 2, 0.25f, 1.0f, 8000, 0.4f, 0.55f, 3.3},
+        {"two at unison a second apart, Round 0.85, Mix 0.5", 2, 1.0f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 3500, 0.85f, 0.5f, 3.3},
+        {"the same with Round at its highest", 2, 1.0f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 3500, 0.95f, 0.5f, 3.3},
+        {"one follower 0.1 s behind, Round at its highest", 1, 0.1f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 8000, 0.95f, 0.5f, 3.3},
+        {"one follower 7.5 s behind, Round at its highest", 1, 7.5f, {0, 0, 0, 0}, 0, 0.25f, 0.5f, 8000, 0.95f, 0.5f, 3.3},
+    };
+    for (const Setting& set : settings) {
+      device.init(kRate);
+      device.set_param(p::kFollowers, set.followers);
+      device.set_param(p::kGap, set.gap);
+      for (int k = 0; k < 4; ++k) device.set_param(p::kInterval1 + k, set.intervals[k]);
+      device.set_param(p::kCrab, set.crab);
+      device.set_param(p::kFade, set.fade);
+      device.set_param(p::kSpread, set.spread);
+      device.set_param(p::kTone, set.tone);
+      device.set_param(p::kRound, set.round);
+      device.set_param(p::kMix, set.mix);
+      Stereo out = run(device, chord);
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double early = db(level(out, 20 * second, 30 * second) / played);
+      const double late = db(level(out, 48 * second, 58 * second) / played);
+      std::printf("canon held full-scale chord, %s: peak %.2f, %+.2f dB at 20 to 30 s, %+.2f dB at 48 to 58 s\n",
+                  set.name, top, early, late);
+      EXPECT(finite(out.left) && finite(out.right) && top <= 2.0,
+             "a full-scale chord held through the round peaks no more than 6 dB over the input");
+      EXPECT(late - early < 0.5, "a chord held through the round does not grow");
+      EXPECT(late < set.most, "a chord held through the round keeps within about 3 dB of the input");
+    }
+
+    // The default is three followers at unison 1.5 s apart, and this chord's
+    // Gs are in step with that gap: the three and the dry add up on them
+    // with no round at all. The round at its highest adds little to that.
+    double with[2] = {0.0, 0.0};
+    for (int high = 0; high < 2; ++high) {
+      device.init(kRate);
+      if (high) device.set_param(p::kRound, 0.95f);
+      Stereo out = run(device, chord);
+      with[high] = db(level(out, 48 * second, 58 * second) / played);
+      EXPECT(std::max(peak(out.left), peak(out.right)) <= 2.0, "the default with any Round peaks under 6 dB over");
+      EXPECT(with[high] - db(level(out, 20 * second, 30 * second) / played) < 0.5, "and does not grow");
+    }
+    std::printf("canon held full-scale chord, the default: %+.2f dB; with Round at its highest %+.2f dB\n",
+                with[0], with[1]);
+    EXPECT(with[0] < 3.0, "the default keeps a held chord within 3 dB of the input");
+    EXPECT(with[1] - with[0] < 1.7 && with[1] < 4.2,
+           "Round at its highest adds under 1.7 dB to a held chord through the default");
+
+    // The worst there is for adding up: a full-scale tone with a whole number
+    // of cycles in the gap, four followers as loud as each other, the round
+    // at its highest. At the Mix where dry and wet add to the most (two
+    // thirds) it comes out at twice full scale and no more.
+    for (float mix : {0.5f, 2.0f / 3.0f, 1.0f}) {
+      plain(device);
+      device.set_param(p::kFollowers, 4.0f);
+      device.set_param(p::kGap, 0.3f);
+      device.set_param(p::kRound, 0.95f);
+      device.set_param(p::kMix, mix);
+      Stereo out = run(device, sine(200.0f, 30.0f, kRate, 1.0f));
+      std::printf("canon full-scale tone in step, four followers, Round 0.95, Mix %.2f: peak %.3f, the line holds %.2f\n",
+                  mix, peak(out.left), device.meter(1));
+      EXPECT(peak(out.left) <= 2.0 && device.meter(1) < 1.27f,
+             "a full-scale tone in step with the gap comes out no more than 6 dB over itself at any Mix");
+    }
+  }
+
+  // The hold itself. It does not pump: over the second half of a held chord
+  // it stays where it is (within 1 dB), and the level of the output moves no
+  // more from one tenth of a second to the next than it does with no round.
+  // It leaves alone what it should: a round that is dying away, and a steady
+  // one no louder than the playing, pass it exactly. And once a held chord
+  // stops, the round dies away at Round's own rate from the second lap on.
+  {
+    const std::vector<float> chord = held_chord(40.0f);
+    const size_t second = static_cast<size_t>(kRate);
+    double spread[2] = {0.0, 0.0};
+    float lowest = 1.0f, highest = 0.0f;
+    for (int round = 0; round < 2; ++round) {
+      plain(device);
+      device.set_param(p::kFollowers, 2.0f);
+      device.set_param(p::kGap, 1.0f);
+      device.set_param(p::kRound, round ? 0.85f : 0.0f);
+      device.set_param(p::kMix, 0.5f);
+      Stereo out;
+      for (size_t at = 0; at < chord.size(); at += second / 10) {
+        const std::vector<float> piece(chord.begin() + at, chord.begin() + at + second / 10);
+        const Stereo more = run(device, piece);
+        out.left.insert(out.left.end(), more.left.begin(), more.left.end());
+        out.right.insert(out.right.end(), more.right.begin(), more.right.end());
+        if (round && at >= 20 * second) {
+          lowest = std::min(lowest, device.hold());
+          highest = std::max(highest, device.hold());
+        }
+      }
+      double least = 1.0e9, most = 0.0;
+      for (size_t at = 20 * second; at + second / 10 <= 38 * second; at += second / 20) {
+        const double here = level(out, at, at + second / 10);
+        least = std::min(least, here);
+        most = std::max(most, here);
+      }
+      spread[round] = db(most / least);
+    }
+    std::printf("canon held chord, Round 0.85: the hold stays within %.3f to %.3f (%.2f dB); the level moves %.2f dB "
+                "between tenths of a second, %.2f dB with no round\n",
+                lowest, highest, db(highest / lowest), spread[1], spread[0]);
+    EXPECT(lowest < 0.8f, "the hold is at work on a chord held through Round 0.85");
+    EXPECT(db(highest / lowest) < 1.0, "the hold stays put over a held chord");
+    EXPECT(spread[1] < spread[0] + 0.5, "a held chord's level moves no more with the round than without");
+
+    // The chord stops: the lap that was sounding, then each lap by Round.
+    Stereo after = render(device, 12.5f, kRate);
+    double worst_lap = 0.0;
+    for (int lap = 2; lap <= 5; ++lap) {
+      const size_t from = static_cast<size_t>(lap) * 2 * second;
+      const double fell = level(after, from, from + 2 * second) / level(after, from - 2 * second, from);
+      worst_lap = std::max(worst_lap, std::fabs(fell / 0.85 - 1.0));
+    }
+    const double first_lap = level(after, 2 * second, 4 * second) / level(after, 0, 2 * second);
+    std::printf("canon after the held chord stops: the first lap falls by %.3f, later laps within %.3f of 0.85\n",
+                first_lap, worst_lap);
+    EXPECT(worst_lap < 0.02, "once the playing stops the round dies away by Round every lap");
+    EXPECT(first_lap > 0.7 && first_lap < 0.86, "and the hold has let go inside the first lap");
+    EXPECT(device.hold() == 1.0f, "the hold is fully off by then");
+
+    // A struck note going round (Round 0.9), and a steady noise through
+    // Round 0.5 (which puts 1.2 dB on the line): the hold never moves.
+    bool touched = false;
+    plain(device);
+    device.set_param(p::kFollowers, 2.0f);
+    device.set_param(p::kGap, 0.25f);
+    device.set_param(p::kRound, 0.9f);
+    std::vector<float> struck = silence(6.0f, kRate);
+    add_note(struck, 440.0f, 0.02f, 0.1f, 0.8f);
+    for (size_t at = 0; at < struck.size(); at += 480) {
+      run(device, std::vector<float>(struck.begin() + at, struck.begin() + at + 480));
+      if (device.hold() != 1.0f) touched = true;
+    }
+    EXPECT(!touched, "a round that is dying away passes the hold exactly");
+    touched = false;
+    plain(device);
+    device.set_param(p::kGap, 0.3f);
+    device.set_param(p::kRound, 0.5f);
+    rng_state() = 0x51DEu;
+    const std::vector<float> steady = noise(12.0f, kRate, 0.5f);
+    for (size_t at = 0; at < steady.size(); at += 480) {
+      run(device, std::vector<float>(steady.begin() + at, steady.begin() + at + 480));
+      if (device.hold() != 1.0f) touched = true;
+    }
+    EXPECT(!touched, "a steady round no louder than the playing passes the hold exactly");
+
+    // The hold is counted in samples: at work, it is the same at every block size.
+    const std::vector<float> short_chord(chord.begin(), chord.begin() + 6 * second);
+    Stereo by_size[3];
+    const int sizes[3] = {1, 96, 2048};
+    for (int which = 0; which < 3; ++which) {
+      plain(device);
+      device.set_param(p::kGap, 0.25f);
+      device.set_param(p::kRound, 0.95f);
+      device.set_param(p::kMix, 0.5f);
+      by_size[which] = run(device, short_chord, sizes[which]);
+    }
+    double differ = 0.0;
+    for (size_t i = 0; i < short_chord.size(); ++i) {
+      differ = std::max(differ, std::fabs(static_cast<double>(by_size[0].left[i]) - by_size[1].left[i]));
+      differ = std::max(differ, std::fabs(static_cast<double>(by_size[0].left[i]) - by_size[2].left[i]));
+    }
+    std::printf("canon block sizes 1, 96 and 2048 with the hold at work: differ by %g (the hold ends at %.3f)\n",
+                differ, device.hold());
+    EXPECT(differ < 1.0e-6 && device.hold() < 0.9f, "the level hold is the same at every block size");
   }
 
   // Fade: each follower is 12 dB x Fade quieter than the one before.

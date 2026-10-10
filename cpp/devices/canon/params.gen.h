@@ -5,9 +5,9 @@
 //    0  followers: 1..4, default 3
 //    1  gap: 0.1..7.5 s, default 1.5
 //    2  interval1: -12..12, default 0
-//    3  interval2: -12..12, default 7
-//    4  interval3: -12..12, default -12
-//    5  interval4: -12..12, default 12
+//    3  interval2: -12..12, default 0
+//    4  interval3: -12..12, default 0
+//    5  interval4: -12..12, default 0
 //    6  crab: 0 Off, 1 Last, 2 Every other, 3 All, default 0
 //    7  fade: 0..1, default 0.25
 //    8  spread: 0..1, default 0.5
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {1.0f, 0.1f, -12.0f, -12.0f, -12.0f, -12.0f, 0.0f, 0.0f, 0.0f, 500.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {4.0f, 7.5f, 12.0f, 12.0f, 12.0f, 12.0f, 3.0f, 1.0f, 1.0f, 18000.0f, 0.95f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {3.0f, 1.5f, 0.0f, 7.0f, -12.0f, 12.0f, 0.0f, 0.25f, 0.5f, 8000.0f, 0.0f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {3.0f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.25f, 0.5f, 8000.0f, 0.0f, 0.5f};
 
 }  // namespace canon
 }  // namespace livemix

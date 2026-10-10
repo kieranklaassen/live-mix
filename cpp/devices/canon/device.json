@@ -79,7 +79,7 @@
       "name": "Interval 2",
       "min": -12,
       "max": 12,
-      "default": 7,
+      "default": 0,
       "step": 1,
       "description": "Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
@@ -88,7 +88,7 @@
       "name": "Interval 3",
       "min": -12,
       "max": 12,
-      "default": -12,
+      "default": 0,
       "step": 1,
       "description": "Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
@@ -97,7 +97,7 @@
       "name": "Interval 4",
       "min": -12,
       "max": 12,
-      "default": 12,
+      "default": 0,
       "step": 1,
       "description": "Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
@@ -153,31 +153,9 @@
   ],
   "presets": {
     "Round of three": {},
-    "Plain round": {
-      "gap": 2,
-      "interval2": 0,
-      "interval3": 0,
-      "fade": 0
-    },
-    "Octave shadow": {
-      "followers": 1,
-      "gap": 0.4,
-      "interval1": -12,
-      "mix": 0.4
-    },
-    "Triad echo": {
-      "gap": 0.25,
-      "interval1": 4,
-      "interval2": 7,
-      "interval3": 12,
-      "fade": 0.4,
-      "spread": 0.8,
-      "mix": 0.45
-    },
     "Crab canon": {
       "followers": 2,
       "gap": 1.2,
-      "interval2": 0,
       "crab": 3,
       "fade": 0
     },
@@ -186,12 +164,15 @@
       "gap": 0.6,
       "crab": 1
     },
+    "Faint answer": {
+      "followers": 1,
+      "gap": 0.9,
+      "tone": 5000,
+      "mix": 0.2
+    },
     "Slow procession": {
       "followers": 4,
       "gap": 1.9,
-      "interval2": -12,
-      "interval3": 7,
-      "interval4": 0,
       "fade": 0.2,
       "spread": 0.7,
       "tone": 4500
@@ -199,9 +180,50 @@
     "Endless round": {
       "followers": 2,
       "gap": 1,
-      "interval2": 0,
       "tone": 3500,
-      "round": 0.85
+      "round": 0.85,
+      "mix": 0.4
+    },
+    "Long memory": {
+      "followers": 2,
+      "gap": 3,
+      "tone": 5000,
+      "round": 0.7
+    },
+    "Octave shadow": {
+      "followers": 1,
+      "gap": 0.4,
+      "interval1": -12,
+      "mix": 0.4
+    },
+    "Octaves apart": {
+      "followers": 2,
+      "gap": 0.75,
+      "interval1": 12,
+      "interval2": -12,
+      "fade": 0,
+      "spread": 1
+    },
+    "Wide choir": {
+      "followers": 4,
+      "gap": 0.12,
+      "interval2": 12,
+      "interval4": -12,
+      "fade": 0,
+      "spread": 1
+    },
+    "Canon at the fifth": {
+      "interval2": 7,
+      "interval3": -12
+    },
+    "Triad from one line": {
+      "gap": 0.25,
+      "interval1": 4,
+      "interval2": 7,
+      "interval3": 12,
+      "fade": 0.4,
+      "spread": 0.8,
+      "mix": 0.45
     },
     "Rising stair": {
       "followers": 1,
@@ -219,33 +241,6 @@
       "round": 0.85,
       "mix": 0.45
     },
-    "Faint answer": {
-      "followers": 1,
-      "gap": 0.9,
-      "tone": 5000,
-      "mix": 0.2
-    },
-    "Wide choir": {
-      "followers": 4,
-      "gap": 0.12,
-      "interval2": 12,
-      "interval3": 0,
-      "interval4": -12,
-      "fade": 0,
-      "spread": 1
-    },
-    "Backwards choir": {
-      "followers": 4,
-      "gap": 0.8,
-      "interval1": -12,
-      "interval2": 0,
-      "interval3": 7,
-      "interval4": 12,
-      "crab": 2,
-      "spread": 1,
-      "round": 0.4,
-      "mix": 0.55
-    },
     "Dark canon": {
       "gap": 1,
       "interval2": -5,
@@ -255,20 +250,16 @@
       "round": 0.5,
       "mix": 0.6
     },
-    "Octaves apart": {
-      "followers": 2,
-      "gap": 0.75,
-      "interval1": 12,
-      "interval2": -12,
-      "fade": 0,
-      "spread": 1
-    },
-    "Long memory": {
-      "followers": 2,
-      "gap": 3,
-      "interval2": 7,
-      "tone": 5000,
-      "round": 0.7
+    "Backwards choir": {
+      "followers": 4,
+      "gap": 0.8,
+      "interval1": -12,
+      "interval3": 7,
+      "interval4": 12,
+      "crab": 2,
+      "spread": 1,
+      "round": 0.4,
+      "mix": 0.55
     }
   },
   "origin": {

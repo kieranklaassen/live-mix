@@ -342,7 +342,7 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   static constexpr float kHoldGone = 16.0f;  // the playing has stopped: 12 dB under its loudest
   static constexpr float kHoldNear = 1.06f;  // within half a dB of the hold: still needed
   static constexpr float kHoldInStep = 2.0f;
-  static constexpr float kHoldStopLeast = 0.1f;
+  static constexpr float kHoldStopLeast = 0.05f;
   static constexpr float kHoldStopMost = 0.5f;
   static constexpr float kHoldFloor = 1.0e-13f;
   // For a display (see meter): the length of one of the two stretches a level
@@ -726,10 +726,10 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
                         ? std::exp(std::log(round) * static_cast<float>(kControlPeriod) / static_cast<float>(lap))
                         : 0.0f;
       // The playing has stopped once it has stayed 12 dB under its loudest
-      // for about a lap (a tenth to half a second): a one-pole falls that
-      // far in 2.76 of its time.
+      // for a quarter of a lap (a twentieth to half a second): a one-pole
+      // falls that far in 2.76 of its time.
       const float sr = sample_rate();
-      const float stop = kit::clamp(static_cast<float>(lap), kHoldStopLeast * sr, kHoldStopMost * sr);
+      const float stop = kit::clamp(0.25f * static_cast<float>(lap), kHoldStopLeast * sr, kHoldStopMost * sr);
       present_coeff_ = 1.0f - std::exp(-2.76f * static_cast<float>(kControlPeriod) / stop);
     }
     heard_ = kit::max(played_, flush_denormal(heard_ * heard_fall_));
@@ -744,11 +744,12 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       const float root = cross * cross + sent_ * (most - played_);
       goal = kit::clamp((std::sqrt(root > 0.0f ? root : 0.0f) - cross) / sent_, 0.0f, 1.0f);
     }
-    // Down at once. Up again at once when the playing has stopped; while it
-    // goes on, only after a whole lap and a quarter has gone by without the
-    // hold being needed (what needed it comes round again a lap later), and
-    // then slowly: so neither the playing's own rise and fall nor the turn
-    // of the round moves the hold about.
+    // Down at once (10 ms). Up again at once (50 ms) when the playing has
+    // stopped, so the round then dies away at its own rate; while the
+    // playing goes on, only after a lap and a quarter has gone by without
+    // the hold being needed (what needed it comes round again a lap later),
+    // and then slowly (8 s): so neither the playing's own rise and fall nor
+    // the turn of the round moves the hold about.
     const bool going = present_ * kHoldGone > heard_;
     hold_ = hold_next_;
     if (goal < hold_next_) {
