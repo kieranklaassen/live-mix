@@ -1686,5 +1686,43 @@
     "Short and bright": {"tune":0,"fine":0,"attack":0.001,"release":0.12,"tone":18000,"velocity":0.9,"volume":-9},
     "Octave down": {"tune":-12,"fine":0,"attack":0.02,"release":0.9,"tone":5000,"velocity":0.6,"volume":-9},
     "Even touch": {"tune":0,"fine":0,"attack":0.003,"release":0.6,"tone":10000,"velocity":0,"volume":-9}
+  },
+  "flock": {
+    "(default)": {"birds":5,"gather":1.2,"from":0,"stray":0.3,"flutter":0.5,"tone":0.25,"chirp":0,"octaves":0.3,"leave":2.5,"width":0.7,"volume":-9},
+    "Evening flock": {"birds":5,"gather":1.2,"from":0,"stray":0.3,"flutter":0.5,"tone":0.25,"chirp":0,"octaves":0.3,"leave":2.5,"width":0.7,"volume":-9},
+    "One whistle": {"birds":1,"gather":0.06,"from":0,"stray":0,"flutter":0.5,"tone":0,"chirp":0,"octaves":0,"leave":0.35,"width":0,"volume":-6},
+    "Clean unison": {"birds":4,"gather":0.5,"from":0,"stray":0,"flutter":0.5,"tone":0.4,"chirp":0,"octaves":0,"leave":1.2,"width":0.7,"volume":-9},
+    "Wide smear": {"birds":8,"gather":3,"from":0,"stray":0.8,"flutter":0.25,"tone":0.1,"chirp":0,"octaves":0,"leave":5,"width":1,"volume":-9},
+    "Dawn calls": {"birds":6,"gather":0.4,"from":2,"stray":0.35,"flutter":1.2,"tone":0.1,"chirp":0.9,"octaves":0.6,"leave":3,"width":0.7,"volume":-7},
+    "Reed choir": {"birds":5,"gather":0.5,"from":2,"stray":0.22,"flutter":0.35,"tone":0.9,"chirp":0,"octaves":0.4,"leave":1.8,"width":0.7,"volume":-9},
+    "Slow arrival": {"birds":8,"gather":8,"from":0,"stray":0.3,"flutter":0.5,"tone":0.2,"chirp":0,"octaves":0.3,"leave":8,"width":0.9,"volume":-9},
+    "Falling in": {"birds":6,"gather":2.5,"from":1,"stray":0.25,"flutter":0.5,"tone":0.15,"chirp":0,"octaves":0,"leave":2.5,"width":0.7,"volume":-9},
+    "Swift blips": {"birds":3,"gather":0.035,"from":2,"stray":0.15,"flutter":0.5,"tone":0.3,"chirp":0,"octaves":0,"leave":0.12,"width":0.5,"volume":-9},
+    "Octave cloud": {"birds":8,"gather":1.5,"from":0,"stray":0.3,"flutter":0.5,"tone":0,"chirp":0,"octaves":1,"leave":2.5,"width":1,"volume":-9},
+    "Nervous swarm": {"birds":7,"gather":0.3,"from":0,"stray":0.55,"flutter":6,"tone":0.35,"chirp":0,"octaves":0.2,"leave":1,"width":0.7,"volume":-9},
+    "Low murmur": {"birds":7,"gather":4,"from":0,"stray":0.45,"flutter":0.15,"tone":0.65,"chirp":0,"octaves":0.15,"leave":6,"width":0.6,"volume":-9},
+    "Hollow pair": {"birds":2,"gather":0.15,"from":0,"stray":0.2,"flutter":0.5,"tone":0.6,"chirp":0,"octaves":0,"leave":0.6,"width":1,"volume":-7.5},
+    "Scattering": {"birds":6,"gather":0.2,"from":2,"stray":0.4,"flutter":0.5,"tone":0.2,"chirp":0,"octaves":0.3,"leave":7,"width":0.7,"volume":-9},
+    "Sparse calls": {"birds":2,"gather":1,"from":0,"stray":0.2,"flutter":0.2,"tone":0.3,"chirp":1,"octaves":0,"leave":4,"width":0.9,"volume":-9},
+    "Glass swarm": {"birds":8,"gather":0.8,"from":2,"stray":0.18,"flutter":2.5,"tone":0,"chirp":0,"octaves":0.6,"leave":3,"width":1,"volume":-9}
+  },
+  "magnet-piano": {
+    "(default)": {"bloom":1,"harmonic":1,"bright":0.2,"hammer":0,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":1.5,"body":0.4,"width":0.6,"volume":-6},
+    "Glass swell": {"bloom":1,"harmonic":1,"bright":0.2,"hammer":0,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":1.5,"body":0.4,"width":0.6,"volume":-6},
+    "Felt and magnets": {"bloom":2.2,"harmonic":1,"bright":0.45,"hammer":0.85,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":2.2,"body":0.55,"width":0.6,"volume":-6},
+    "High whistle": {"bloom":0.6,"harmonic":8,"bright":0,"hammer":0,"shimmer":0.12,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":1.2,"body":0.1,"width":0.6,"volume":-5},
+    "Bowed glass": {"bloom":0.3,"harmonic":1,"bright":0.4,"hammer":0,"shimmer":0.5,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":0.8,"body":0,"width":0.6,"volume":-6},
+    "Slow tide": {"bloom":5,"harmonic":1,"bright":0.35,"hammer":0,"shimmer":0.4,"sweep":0.5,"sweepRate":0.06,"sympathy":0.3,"damper":5,"body":0.4,"width":0.6,"volume":-3.5},
+    "Overtone choir": {"bloom":1.5,"harmonic":4,"bright":0.6,"hammer":0,"shimmer":0.25,"sweep":0.6,"sweepRate":0.2,"sympathy":0.3,"damper":3,"body":0.3,"width":0.6,"volume":-5},
+    "Soft hammer": {"bloom":6,"harmonic":1,"bright":0.1,"hammer":1,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":1,"body":0.7,"width":0.6,"volume":-4},
+    "Dark wood": {"bloom":0.9,"harmonic":1,"bright":0.6,"hammer":0.5,"shimmer":0.15,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":1.5,"body":1,"width":0.3,"volume":-8},
+    "Twelfth organ": {"bloom":0.15,"harmonic":3,"bright":0.15,"hammer":0,"shimmer":0.2,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":0.4,"body":0.4,"width":0.6,"volume":-6},
+    "Octave halo": {"bloom":1.4,"harmonic":2,"bright":0.15,"hammer":0,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":1,"damper":4,"body":0.4,"width":0.6,"volume":-6},
+    "Quick reed": {"bloom":0.06,"harmonic":1,"bright":0.7,"hammer":0,"shimmer":0.1,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":0.25,"body":0.6,"width":0.6,"volume":-8.5},
+    "Wide shimmer": {"bloom":2,"harmonic":1,"bright":0.3,"hammer":0,"shimmer":1,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":3,"body":0.4,"width":1,"volume":-6},
+    "Ringing room": {"bloom":2.5,"harmonic":1,"bright":0.25,"hammer":0.4,"shimmer":0.25,"sweep":0,"sweepRate":0.12,"sympathy":1,"damper":6,"body":0.4,"width":0.6,"volume":-6},
+    "Low magnets": {"bloom":2.5,"harmonic":1,"bright":0.9,"hammer":0,"shimmer":0.5,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":4,"body":0.8,"width":0.6,"volume":-6},
+    "Ripple": {"bloom":0.2,"harmonic":3.5,"bright":0.15,"hammer":0,"shimmer":0.25,"sweep":1,"sweepRate":1.2,"sympathy":0.3,"damper":2,"body":0.4,"width":0.6,"volume":-6},
+    "Still sine": {"bloom":0.5,"harmonic":1,"bright":0,"hammer":0,"shimmer":0,"sweep":0,"sweepRate":0.12,"sympathy":0,"damper":1.5,"body":0,"width":0,"volume":-8.5}
   }
 }
