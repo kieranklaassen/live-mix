@@ -525,6 +525,7 @@ const haze = plateDisplay<HazeState>({
     )
     const heard = gainToDb(state.wall) + wet
     if (frame.dt > 0) hazeTrace(state, live ? heard : -Infinity, frame.dt)
+    let nowAt: Point | null = null
     clipped(ctx, { x: tail.x, y: tail.y - 1, w: tail.w, h: tail.h + 2 }, () => {
       fillTo(ctx, body, foot, colours.ink, INK.fill)
       if (highDb > FOOT_DB) {
@@ -542,7 +543,7 @@ const haze = plateDisplay<HazeState>({
         lit.push(...ahead)
         fillTo(ctx, lit, foot, colours.accent, 0.5)
         trace(ctx, lit, { colour: colours.accent, width: 1.5 })
-        if (now > 0) dot(ctx, ahead[0][0], ahead[0][1], 2, colours.accent, { ring: colours.ink })
+        if (now > 0) nowAt = ahead[0]
       }
       trace(ctx, body, { colour: colours.ink })
       if (wet > FOOT_DB) {
@@ -554,6 +555,9 @@ const haze = plateDisplay<HazeState>({
         })
       }
     })
+    // Where the wall stands now on its way down (whole, where the box's edge would cut it).
+    const stands = nowAt as Point | null
+    if (stands) dot(ctx, stands[0], stands[1], 2, colours.accent, { ring: colours.ink })
     label(frame, secondsText(seconds), tail.x + tail.w - 1, tail.y + 8, 'right')
 
     for (const point of hazeHandles(frame))

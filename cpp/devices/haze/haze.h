@@ -14,7 +14,7 @@
 //
 // FUZZ, per side, at four times the sample rate:
 //
-//   x ─► ÷ (level + floor) ─► fold (Octave) ─► × drive ─► tanh ─► DC block ─► × level × hold ─► y
+//   x ─► ÷ (level + floor) ─► fold (Octave) ─► × drive ─► tanh ─► ÷ drive ─► DC block ─► × level × hold ─► y
 //
 // - The fuzz works on the sound with its level taken out and puts the level
 //   back afterwards. The level is the RMS of the louder side over 25 ms, as
@@ -57,13 +57,20 @@
 //   the frequency it left, so the loop's gain is the average over the wall's
 //   resonances and not the highest of them. The price is that what has been
 //   round several times is flat of where it started, so the top of Feed is
-//   set where the late tail leans flat by about a quarter tone at 440 Hz and
-//   no more: the returned share is worked out from the wall's own loss, 0.45
-//   of it at the top, which makes the tail nearly twice as long. Only what is
-//   above the bass goes round.
+//   set where the tail of a 440 Hz note leans a quarter of a semitone flat
+//   when it is 20 dB down and two thirds of one when it is 40 dB down, and no
+//   more: the returned share is worked out from the wall's own loss, 0.45 of
+//   it at the top, which makes the tail about twice as long (1.8 to 2.7
+//   times, measured). Only what is above the bass goes round.
 // - The sweeps and the shift run by a count of samples that goes on through
 //   silence and sleep, and the device goes to sleep and wakes on the sample,
 //   not the block, so the output is the same at every block size.
+// - Nothing that a thrown control moves is stepped: the lines' gains walk to
+//   where Decay has them a sample at a time (and Decay is glided as 1 / Decay,
+//   which is what they go by), the curve's 1 / drive is taken on the very
+//   samples the drive shaped, and Size and Blur's lengths glide in double (a
+//   float stalls short of where it is going and is landed there, which on a
+//   delay of thousands of samples is a jump).
 //
 // Storage: eight lines of 16384 samples, eighteen allpasses and two loop delays
 // of 4096 (sized for 96 kHz), the oversampling filters: about 0.9 MB.

@@ -381,7 +381,7 @@ int main() {
       device.set_param(p::kDecay, 0.5f);
       rng_state() = 0x51EE9u;
       Stereo out = run(device, noise(0.3f, kRate, 0.5f), block);
-      out = concat(out, render(device, 8.0f, kRate, block));
+      out = concat(out, render(device, 8.0007f, kRate, block));  // the wake lands off a control tick
       device.set_param(p::kHaze, 0.9f);
       device.set_param(p::kBlur, 0.2f);
       device.set_param(p::kDecay, 3.0f);
@@ -391,7 +391,7 @@ int main() {
       device.set_param(p::kFeed, 0.8f);
       device.set_param(p::kWidth, 0.3f);
       device.set_param(p::kMix, 0.8f);
-      // 0.37 s into the silence's last block at 2048: the wake is not on a control tick.
+      // The wake is 0.1 s into a block at 2048 and one sample past a control tick.
       return concat(out, run(device, soft_noise(2.0f, 0.2f), block));
     };
     const Stereo a = sequence(128);
@@ -659,18 +659,27 @@ int main() {
       device.set_param(p::kBlur, (corner & 2) ? 1.0f : 0.0f);
       Stereo out = run(device, held);
       const double top = std::max(peak(out.left), peak(out.right));
-      const double early = db(rms(out.left, 20 * 48000, 30 * 48000));
-      const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+      const auto both = [&out](size_t from, size_t to) {
+        const double left = rms(out.left, from, to), right = rms(out.right, from, to);
+        return 10.0 * std::log10(0.5 * (left * left + right * right));
+      };
+      const double early = both(20 * 48000, 30 * 48000);
+      const double late = both(50 * 48000, 60 * 48000);
       char label[160];
       std::snprintf(label, sizeof label, "held chord, Feed, Haze and Decay at the top, corner %d of Tone and Blur: peak %.2f, %+.1f dB over 30 s", corner, top, late - early);
-      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.5, label);
+      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.0, label);
     }
   }
 
   // Level: a full-scale chord held for a minute at the default and at each
   // end of every control. The peak stays under 6 dB over full scale, the
   // last ten seconds are no louder than ten seconds from the first half, and
-  // the wall alone is within a few dB of what was played into it.
+  // the wall alone is within a few dB of what was played into it. The level
+  // is the power of the two sides: the eight sweeps come round together every
+  // 100 s, and within that the level of one side wanders by 1.5 dB from one
+  // ten seconds to another at the top of Size (0.7 dB for the two together;
+  // held for four minutes, every ten seconds is the same 100 s later to a
+  // tenth of a dB, so none of it is growth).
   {
     const std::vector<float> held = chord(60.0f, 0.333f);
     const double in_level = db(rms(held));
@@ -681,8 +690,12 @@ int main() {
         if (id >= 0) device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
         Stereo out = run(device, held);
         const double top = std::max(peak(out.left), peak(out.right));
-        const double early = db(rms(out.left, 20 * 48000, 30 * 48000));
-        const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+        const auto both = [&out](size_t from, size_t to) {
+          const double left = rms(out.left, from, to), right = rms(out.right, from, to);
+          return 10.0 * std::log10(0.5 * (left * left + right * right));
+        };
+        const double early = both(20 * 48000, 30 * 48000);
+        const double late = both(50 * 48000, 60 * 48000);
         hottest = std::max(hottest, top);
         most_growth = std::max(most_growth, late - early);
         if (!(id == p::kMix && end == 0)) {
@@ -692,7 +705,7 @@ int main() {
         char label[120];
         std::snprintf(label, sizeof label, "held chord, param %d at its %s: peak %.2f, %+.1f dB against the input, %+.1f dB over 30 s",
                       id, end == 0 ? "minimum" : "maximum", top, late - in_level, late - early);
-        EXPECT(finite(out.left) && top < 2.0 && late - early < 1.5 && late - in_level < 4.0 && late - in_level > -6.0, label);
+        EXPECT(finite(out.left) && top < 2.0 && late - early < 1.0 && late - in_level < 4.0 && late - in_level > -6.0, label);
       }
     }
     std::printf("haze: full-scale chord for a minute over every control's ends: peak at most %.2f, level %+.1f to %+.1f dB against the input, growth at most %+.1f dB\n",
@@ -825,8 +838,12 @@ int main() {
       for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
       Stereo out = run(device, held);
       const double top = std::max(peak(out.left), peak(out.right));
-      const double early = db(rms(out.left, 20 * 48000, 30 * 48000));
-      const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+      const auto both = [&out](size_t from, size_t to) {
+        const double left = rms(out.left, from, to), right = rms(out.right, from, to);
+        return 10.0 * std::log10(0.5 * (left * left + right * right));
+      };
+      const double early = both(20 * 48000, 30 * 48000);
+      const double late = both(50 * 48000, 60 * 48000);
       hottest = std::max(hottest, top);
       most_growth = std::max(most_growth, late - early);
       loudest = std::max(loudest, late - in_level);
@@ -834,7 +851,7 @@ int main() {
       char label[160];
       std::snprintf(label, sizeof label, "held chord through %s: peak %.2f, %+.1f dB against the input, %+.1f dB over 30 s",
                     preset.name, top, late - in_level, late - early);
-      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.5 && late - in_level < 4.0 && late - in_level > -6.0, label);
+      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.0 && late - in_level < 4.0 && late - in_level > -6.0, label);
       for (float note = 21.0f; note <= 108.0f; note += 6.0f) {
         const float hz = 440.0f * std::pow(2.0f, (note - 69.0f) / 12.0f);
         device.init(kRate);
@@ -940,6 +957,57 @@ int main() {
                 half[0], half[1], first[0] - first[1]);
     EXPECT(half[0] < 60.0, "Blur 0 keeps the attack through the fuzz");
     EXPECT(first[0] - first[1] > -14.0, "the fuzz does not swallow the first hundredth of a second");
+  }
+
+  // The very front of an attack: a sample that stands far over the 25 ms
+  // level is divided by itself (to kAttackReach on the curve) and not by the
+  // level, which has not caught up. A high plucked note through the wall
+  // alone at Haze 0.9, Blur 0: the wall's first 3 ms against a clean wall's.
+  // (Divided by the level alone, the curve flattens the front to the level of
+  // what came before it: 9 dB lower.)
+  {
+    std::vector<float> pluck(24000, 0.0f);
+    for (size_t i = 4800; i < pluck.size(); ++i) {
+      const double t = (i - 4800) / 48000.0;
+      double wave = 0.0;
+      for (int k = 1; k <= 6; ++k) wave += std::sin(2.0 * kPi * 880.0 * k * t) / k * std::exp(-t * k * 0.8);
+      pluck[i] = static_cast<float>(0.18 * std::min(1.0, t / 0.002) * std::exp(-t / 0.3) * wave);
+    }
+    double front[2] = {0.0, 0.0};
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kBlur, 0.0f);
+      device.set_param(p::kOctave, 0.0f);
+      device.set_param(p::kHaze, k == 0 ? 0.9f : 0.0f);
+      Stereo out = run(device, pluck);
+      front[k] = db(peak(out.left, 4800, 4800 + 144));
+    }
+    std::printf("haze: the first 3 ms of a high plucked note through the wall alone at Blur 0: %+.1f dB at Haze 0.9 against a clean wall's\n",
+                front[0] - front[1]);
+    EXPECT(front[0] - front[1] > -12.5, "the front of an attack is not flattened to the level before it");
+  }
+
+  // The wall answers at once at a part-way Mix too: a share of the fuzz goes
+  // straight out beside the lines (kEarlyLeast), so what the device adds to
+  // the dry sound begins with the sound, not with the lines' first return
+  // 45 ms later. A click at Mix 0.5, clean: the output less the dry share, in
+  // the 20 ms after the click, against the click.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 0.5f);
+    device.set_param(p::kHaze, 0.0f);
+    device.set_param(p::kBlur, 0.0f);
+    device.set_param(p::kOctave, 0.0f);
+    std::vector<float> click(24000, 0.0f);
+    for (size_t i = 0; i < 48; ++i) click[4800 + i] = static_cast<float>(0.5 * std::sin(kPi * i / 48.0));
+    Stereo out = run(device, click);
+    double most = 0.0;
+    for (size_t i = 4800; i < 4800 + 960; ++i) {
+      most = std::max(most, std::fabs(double(out.left[i]) - std::sqrt(0.5) * click[i]));
+    }
+    std::printf("haze: at Mix 0.5 the wall's part in the 20 ms after a click: %.1f dB against the click\n", db(most / 0.5));
+    EXPECT(db(most / 0.5) > -30.0, "the wall answers at once at a part-way Mix");
   }
 
   // The wall alone answers every note: held sines on every semitone of the
