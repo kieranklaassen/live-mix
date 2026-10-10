@@ -85,6 +85,7 @@ hold 8 notes).
 | Device id         | Name               | Source              | Kind       | Params | `.wasm`   | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
 | ----------------- | ------------------ | ------------------- | ---------- | ------ | --------- | --------------------- | -------------------------- | ----------------- | ----------- |
 | `acoustic-guitar` | Acoustic Guitar    | live-mix            | instrument | 10     | 28,418 B  | 55.8 µs, 2.09 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
+| `afterglow`       | Afterglow          | live-mix            | instrument | 12     | 32,285 B  | 18.6 µs, 0.70 %       | 37.9 µs, 1.42 %            | 0                 | 4           |
 | `ambient-comp`    | Ambient Compressor | live-mix            | dynamics   | 9      | 11,205 B  | 3.8 µs, 0.14 %        | 5.5 µs, 0.21 %             | 0                 | 4           |
 | `ambient-eq`      | Ambient EQ         | live-mix            | eq         | 8      | 28,200 B  | 16.3 µs, 0.61 %       | 21.3 µs, 0.80 %            | 0                 | 4           |
 | `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 5      | 9,318 B   | 10.0 µs, 0.38 %       | 12.0 µs, 0.45 %            | 77                | 4           |
@@ -102,17 +103,21 @@ hold 8 notes).
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
 | `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B  | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `droplets`        | Droplets           | live-mix            | instrument | 12     | 30,104 B  | 6.0 µs, 0.22 %        | 8.7 µs, 0.33 %             | 0                 | 4           |
 | `drum-kit`        | Drum Kit           | live-mix            | instrument | 10     | 29,156 B  | 17.9 µs, 0.67 %       | 0.7 µs, 0.03 %             | 0                 | 4           |
 | `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B  | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `echo-memory`     | Echo Memory        | live-mix            | delay      | 12     | 25,341 B  | 27.2 µs, 1.02 %       | 16.4 µs, 0.61 %            | 0                 | 20          |
 | `ember`           | Ember              | kkfonie Tatami      | instrument | 43     | 37,239 B  | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
 | `expanse`         | Expanse            | live-mix            | reverb     | 11     | 31,432 B  | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
+| `feedback`        | Feedback           | live-mix            | instrument | 11     | 30,214 B  | 15.7 µs, 0.59 %       | 33.1 µs, 1.24 %            | 0                 | 4           |
 | `flanger`         | Flanger            | kkfonie Tatami      | modulation | 7      | 11,926 B  | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
+| `flock`           | Flock              | live-mix            | instrument | 11     | 31,243 B  | 16.0 µs, 0.60 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
 | `flute`           | Flute              | live-mix            | instrument | 9      | 25,369 B  | 76.8 µs, 2.88 %       | 44.2 µs, 1.66 %            | 0                 | 4           |
 | `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,809 B  | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
 | `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B  | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
 | `glitch`          | Glitch             | live-mix            | texture    | 12     | 21,163 B  | 10.3 µs, 0.38 %       | 5.3 µs, 0.20 %             | 0                 | 10          |
 | `glitch-kit`      | Glitch Kit         | live-mix            | instrument | 9      | 30,863 B  | 2.6 µs, 0.10 %        | 0.6 µs, 0.02 %             | 0                 | 4           |
+| `graft`           | Graft              | live-mix            | instrument | 12     | 49,489 B  | 30.2 µs, 1.13 %       | 56.3 µs, 2.11 %            | 0                 | 4           |
 | `grain-cloud`     | Cloud              | live-mix            | texture    | 12     | 15,870 B  | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
 | `grain-delay`     | Grain Delay        | live-mix            | delay      | 11     | 17,855 B  | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
 | `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,018 B  | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
@@ -121,9 +126,11 @@ hold 8 notes).
 | `handpan`         | Handpan            | live-mix            | instrument | 9      | 25,680 B  | 21.4 µs, 0.80 %       | 10.2 µs, 0.38 %            | 0                 | 4           |
 | `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B  | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
+| `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B  | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
 | `low-bitrate`     | Low Bitrate        | live-mix            | texture    | 10     | 32,898 B  | 11.7 µs, 0.44 %       | 12.6 µs, 0.47 %            | 4096              | 4           |
+| `magnet-piano`    | Magnet Piano       | live-mix            | instrument | 12     | 28,672 B  | 11.8 µs, 0.44 %       | 19.3 µs, 0.72 %            | 0                 | 4           |
 | `mallets`         | Mallets            | live-mix            | instrument | 10     | 27,223 B  | 27.3 µs, 1.02 %       | 2.3 µs, 0.09 %             | 0                 | 4           |
 | `micro-looper`    | Micro Looper       | live-mix            | delay      | 10     | 40,216 B  | 40.5 µs, 1.52 %       | 43.2 µs, 1.62 %            | 0                 | 16          |
 | `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B  | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
@@ -131,21 +138,26 @@ hold 8 notes).
 | `octaves`         | Octaves            | live-mix            | pitch      | 10     | 65,517 B  | 95.7 µs, 3.59 %       | 48.2 µs, 1.81 %            | 0                 | 4           |
 | `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,100 B  | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
 | `outdoors`        | Outdoors           | live-mix            | instrument | 9      | 103,411 B | 81.2 µs, 3.05 %       | 35.4 µs, 1.33 %            | 0                 | 4           |
+| `overtone`        | Overtone           | live-mix            | instrument | 12     | 26,084 B  | 38.1 µs, 1.43 %       | 45.1 µs, 1.69 %            | 0                 | 4           |
 | `pad-follower`    | Pad Follower       | live-mix            | texture    | 10     | 47,099 B  | 41.8 µs, 1.57 %       | 38.3 µs, 1.43 %            | 0                 | 4           |
 | `patina`          | Patina             | live-mix            | texture    | 8      | 36,191 B  | 39.8 µs, 1.49 %       | 29.2 µs, 1.10 %            | 271               | 4           |
 | `pedal-steel`     | Pedal Steel        | live-mix            | instrument | 9      | 31,754 B  | 25.7 µs, 0.97 %       | 23.6 µs, 0.88 %            | 0                 | 4           |
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B  | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `pitch-shifter`   | Pitch Shifter      | live-mix            | pitch      | 12     | 50,960 B  | 64.8 µs, 2.43 %       | 41.7 µs, 1.56 %            | 0                 | 6           |
+| `prepared-piano`  | Prepared Piano     | live-mix            | instrument | 11     | 31,857 B  | 12.1 µs, 0.45 %       | 29.3 µs, 1.10 %            | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B  | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
+| `rewind`          | Rewind             | live-mix            | instrument | 12     | 33,769 B  | 4.9 µs, 0.18 %        | 8.2 µs, 0.31 %             | 0                 | 4           |
 | `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B  | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
 | `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,588 B  | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
 | `saturator`       | Saturator          | kkfonie Tatami      | drive      | 9      | 23,626 B  | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
 | `shaped-reverb`   | Shaped Reverb      | live-mix            | reverb     | 12     | 34,325 B  | 57.2 µs, 2.15 %       | 35.5 µs, 1.33 %            | 0                 | 6           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
+| `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 18,615 B  | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B  | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
+| `staircase`       | Staircase          | live-mix            | instrument | 11     | 28,945 B  | 18.1 µs, 0.68 %       | 34.9 µs, 1.31 %            | 0                 | 4           |
 | `stereo-detune`   | Stereo Detune      | live-mix            | spatial    | 8      | 25,561 B  | 51.9 µs, 1.95 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
 | `string-machine`  | String Machine     | live-mix            | instrument | 10     | 19,113 B  | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
 | `sustainer`       | Sustain            | live-mix            | texture    | 11     | 41,796 B  | 23.9 µs, 0.90 %       | 23.8 µs, 0.89 %            | 0                 | 4           |
@@ -166,12 +178,14 @@ hold 8 notes).
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |
 | `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B  | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 | `west-coast`      | West Coast         | live-mix            | instrument | 12     | 31,237 B  | 115.7 µs, 4.34 %      | 8.2 µs, 0.31 %             | 0                 | 4           |
+| `wind-harp`       | Wind Harp          | live-mix            | instrument | 12     | 35,654 B  | 17.7 µs, 0.67 %       | 29.2 µs, 1.10 %            | 0                 | 4           |
 | `zither`          | Zither             | live-mix            | instrument | 13     | 50,006 B  | 50.8 µs, 1.91 %       | 27.9 µs, 1.05 %            | 0                 | 4           |
 | `zone-sampler`    | Zone Sampler       | live-mix            | instrument | 7      | 32,368 B  | 48.0 µs, 1.80 %       | 6.5 µs, 0.24 %             | 0                 | 64          |
 
 What the table does not show:
 
-- **`ember` and `bowed-string` are `experimental`.** Ember's default patch
+- **`ember`, `bowed-string` and `prepared-piano` are `experimental`**
+  (Prepared Piano: see the invented instruments below). Ember's default patch
   costs 2.9 % with eight notes, but unison multiplies it: the Super Saw preset
   (seven unison voices) measures 8.7 % with eight notes. Eight bowed notes
   cost 4.1 %, and the worst case (twelve, with the detuned second string)
@@ -209,6 +223,24 @@ What the table does not show:
   asleep. Read the native one: a busy bar on every key, played round. Before
   the Drum Kit's noise envelope was flushed its tail ran on subnormals and the
   same bar cost 1.8 %.
+- **The thirteen invented instruments** (Afterglow, Droplets, Feedback,
+  Flock, Graft, Ice, Magnet Piano, Overtone, Prepared Piano, Rewind,
+  Shortwave, Staircase, Wind Harp) were measured apart from the rest: the
+  native column is from the CI job of the pull request that added them (a
+  faster core: the Harp read 0.44 % there against the 0.53 % of its row), the
+  wasm column is CPU time on a cloud machine (the Harp read 0.70 % there
+  against 0.64 %). Eight held notes of the default patch stay under 2.2 % in
+  wasm, Graft the dearest. Heaviest loads measured in wasm: Ice far off with
+  the shore full and the lake cracking at its full rate 3.8 %, Wind Harp with
+  four strings, Ring 20 s and Gust 1 3.0 %, sixteen Afterglow keys 2.8 %,
+  Magnet Piano with Hammer and Bright at 1 2.6 %, Rewind with eight keys in an
+  8 s swell and Ghost and Shimmer full 2.2 %; the worst preset of each of the
+  others costs at most 2.3 %. **Prepared Piano is over the flag when it is
+  struck hard and often:** a strike wakes up to 42 partials a key, which go
+  to sleep as they die, so its cost follows the playing, not the notes held.
+  Eight notes held cost 1.1 %, eight keys struck every second 3.6 to 3.9 %,
+  and all twelve voices struck twice a second 6.2 % (2.8 % natively), so it is
+  `experimental`.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
   delay and sample buffers: 20 to 24 MB for the long loops and the sampler,
   64 MB for the zone sampler's pool of sounds ([zone-sampler.md](./zone-sampler.md)).

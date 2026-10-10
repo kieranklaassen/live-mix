@@ -143,6 +143,7 @@ export const PREPARED_PIANO_DESCRIPTOR = wasmDeviceDescriptor(PREPARED_PIANO_DEV
   category: 'instrument',
   description:
     'A piano with things between its strings: bolts turn notes into small gongs, rubber into woody thunks, felt mutes them and paper buzzes, and in Mixed every key has its own object.',
+  experimental: true,
   presets: {
     'Small orchestra': { preparation: 0, amount: 0.6 },
     'Plain piano': { amount: 0, rattle: 0, thud: 0.2 },

@@ -6,6 +6,7 @@
   "class": "PreparedPiano",
   "header": "prepared_piano.h",
   "sources": [],
+  "experimental": true,
   "params": [
     {
       "key": "preparation",
