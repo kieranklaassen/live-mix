@@ -538,7 +538,8 @@ describe('the tone of Seasons', () => {
         let sum = 0
         let count = 0
         for (let n = 0; n < 5 * RATE; n += block) {
-          for (let i = 0; i < block; i++) input[i] = 0.1 * Math.sin((2 * Math.PI * hz * (n + i)) / RATE)
+          for (let i = 0; i < block; i++)
+            input[i] = 0.1 * Math.sin((2 * Math.PI * hz * (n + i)) / RATE)
           harness.processBlock(input)
           if (n < 2 * RATE) continue
           const left = harness.view(harness.device.device_out_left(), block)
