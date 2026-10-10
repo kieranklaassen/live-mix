@@ -141,6 +141,7 @@ export const PLATE_PALETTES = {
   'wind-harp': { plate: '#f7f26a', ink: '#2a2a06', accent: '#1560a8' },
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
+  canon: { plate: '#1f7a54', ink: '#f2f7ec', accent: '#ffd27a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
