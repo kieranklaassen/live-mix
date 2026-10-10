@@ -52,6 +52,19 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'fm-bass',
   'acid-bass',
   'string-bass',
+  'flock',
+  'magnet-piano',
+  'overtone',
+  'staircase',
+  'shortwave',
+  'ice',
+  'rewind',
+  'droplets',
+  'prepared-piano',
+  'graft',
+  'wind-harp',
+  'afterglow',
+  'feedback',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

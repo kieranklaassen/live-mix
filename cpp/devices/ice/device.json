@@ -1,0 +1,186 @@
+{
+  "id": "ice",
+  "name": "Ice",
+  "category": "instrument",
+  "description": "A frozen lake tuned to the keys: each strike arrives as a falling chirp that settles on a ringing note, echoes come back off far shores, and the ice goes on cracking by itself while a key is held.",
+  "class": "Ice",
+  "header": "ice.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How far away the ice is struck. Near is a plain ping; far stretches every strike into a long chirp that gathers as it falls onto the note. Heard from the next strike."
+    },
+    {
+      "key": "bright",
+      "name": "Bright",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How high the falling chirp starts. Low is a short dark swoop; high is a longer drop that begins faintly, far above the keys. Heard from the next strike."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.3,
+      "max": 30,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the note a strike settles on keeps ringing. The overtones above it die sooner than the note itself."
+    },
+    {
+      "key": "thick",
+      "name": "Thick",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Thin ice is all zing and shimmer, with the overtones louder than the note. Thick ice is a round note with a deep body an octave under it."
+    },
+    {
+      "key": "crack",
+      "name": "Crack",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "The brittle snap at the moment of the strike: a few thousandths of a second of bright noise. Far strikes snap more softly."
+    },
+    {
+      "key": "stretch",
+      "name": "Stretch",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Pulls the overtones of the ring sharp, as a stiff plate does. At zero they are in tune with the note; higher makes the ring more like a bell or a sheet of metal."
+    },
+    {
+      "key": "shore",
+      "name": "Shore",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Echoes of each strike coming back off three far shores, each later, quieter, darker and longer in its chirp, from either side."
+    },
+    {
+      "key": "cracks",
+      "name": "Cracks",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How often the lake cracks by itself while keys are held, on the held notes and now and then an octave above. At zero it only sounds when played."
+    },
+    {
+      "key": "roam",
+      "name": "Roam",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the cracks the lake makes by itself differ from one another: nearer or farther, louder or softer, and from where between the speakers."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far apart the strikes, the cracks and the shore echoes sit between the speakers, down to mono at zero."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strikes pile up."
+    }
+  ],
+  "presets": {
+    "Frozen lake": {},
+    "Near ping": { "distance": 0, "shore": 0.15, "cracks": 0, "crack": 0.5 },
+    "Far crack": { "distance": 1, "bright": 0.8, "shore": 0.7, "cracks": 0.2 },
+    "Thin ice": { "thick": 0, "stretch": 0.5, "ring": 3, "bright": 0.85, "crack": 0.6 },
+    "Thick ice": { "thick": 1, "bright": 0.35, "ring": 8, "crack": 0.2 },
+    "Lake at night": { "distance": 0.7, "ring": 8, "shore": 0.8, "cracks": 0.7, "roam": 1 },
+    "Ice bells": {
+      "distance": 0.15,
+      "stretch": 0,
+      "ring": 9,
+      "crack": 0.15,
+      "shore": 0.2,
+      "cracks": 0
+    },
+    "Brittle snap": {
+      "distance": 0.05,
+      "ring": 1.5,
+      "thick": 0.2,
+      "crack": 1,
+      "shore": 0,
+      "cracks": 0,
+      "volume": -2.5
+    },
+    "Far shores": { "distance": 0.6, "shore": 1, "cracks": 0 },
+    "Slow thaw": {
+      "distance": 0.8,
+      "bright": 0.3,
+      "ring": 20,
+      "thick": 0.8,
+      "crack": 0,
+      "cracks": 0.25,
+      "roam": 0.8
+    },
+    "Zing": {
+      "distance": 0.9,
+      "bright": 1,
+      "ring": 1.5,
+      "thick": 0.1,
+      "stretch": 0.7,
+      "shore": 0.5,
+      "cracks": 0
+    },
+    "Deep floe": {
+      "distance": 0.3,
+      "bright": 0.1,
+      "ring": 14,
+      "thick": 1,
+      "stretch": 0.1,
+      "cracks": 0.3,
+      "roam": 0.4
+    },
+    "Plate tones": {
+      "distance": 0.1,
+      "ring": 6,
+      "thick": 0.4,
+      "stretch": 1,
+      "shore": 0.1,
+      "cracks": 0
+    },
+    "Restless ice": { "ring": 1.2, "shore": 0.3, "cracks": 1, "roam": 1 },
+    "Clear ping": {
+      "distance": 0.25,
+      "ring": 4,
+      "crack": 0,
+      "stretch": 0,
+      "shore": 0,
+      "cracks": 0
+    },
+    "Distant field": {
+      "distance": 1,
+      "bright": 0.45,
+      "ring": 3,
+      "crack": 0,
+      "shore": 1,
+      "cracks": 0.5,
+      "roam": 0.6,
+      "width": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, modelling the dispersion of bending waves in a floating plate, where arrival time goes as one over the root of frequency, so a far strike is heard as a chirp falling as one over time squared. Simplified: every strike is a few sine partials, fainter the further above their places they still are, swept by that law in closed form onto fixed ring frequencies with stiff-plate ratios, the shore echoes are three fixed later arrivals, and the lake's own cracks are a seeded schedule. It is not a model of any one instrument, recording or product."
+  }
+}

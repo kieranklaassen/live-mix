@@ -1,0 +1,215 @@
+{
+  "id": "prepared-piano",
+  "name": "Prepared Piano",
+  "category": "instrument",
+  "description": "A piano with things between its strings: bolts turn notes into small gongs, rubber into woody thunks, felt mutes them and paper buzzes, and in Mixed every key has its own object.",
+  "class": "PreparedPiano",
+  "header": "prepared_piano.h",
+  "sources": [],
+  "experimental": true,
+  "params": [
+    {
+      "key": "preparation",
+      "name": "Preparation",
+      "choices": ["Mixed", "Bolts", "Rubber", "Felt", "Paper"],
+      "default": 0,
+      "description": "What lies between the strings. Mixed gives every key its own object, the same one each time. Heard from the next note."
+    },
+    {
+      "key": "amount",
+      "name": "Amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the object bites into the string, from a plain piano to a fully prepared one. Heard from the next note."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.05,
+      "max": 0.5,
+      "default": 0.2,
+      "description": "Where along the string the object sits, from near the end to the middle. It decides which overtones the object catches. Heard from the next note."
+    },
+    {
+      "key": "rattle",
+      "name": "Rattle",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "The buzz of a loose object against the string. Hard keys buzz far more than soft ones, and the buzz dies away before the note does."
+    },
+    {
+      "key": "hammer",
+      "name": "Hammer",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How hard the hammer is. Soft is round and dark, hard is bright and sharp. Heard from the next note."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long the strings ring, both while a key is held and after it is let go. Low notes still ring longer than high ones."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How far the strings of each note are tuned apart. A little makes a slow shimmer, a lot a loose saloon piano."
+    },
+    {
+      "key": "thud",
+      "name": "Thud",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The knock of the key and the frame under every strike. It has no pitch and is the same on every key. Heard from the next note."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "A low-pass filter over the whole instrument. Lower is darker and further away, higher lets the buzz and the hammer through."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the keyboard is spread between the speakers, low notes to the left and high to the right, down to mono at zero."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Small orchestra": {
+      "preparation": 0,
+      "amount": 0.6
+    },
+    "Plain piano": {
+      "amount": 0,
+      "rattle": 0,
+      "thud": 0.2
+    },
+    "Bolt gongs": {
+      "preparation": 1,
+      "amount": 0.85,
+      "hammer": 0.4,
+      "decay": 1.6
+    },
+    "Light bolts": {
+      "preparation": 1,
+      "amount": 0.55,
+      "position": 0.5,
+      "hammer": 0.6,
+      "rattle": 0.2,
+      "decay": 0.8
+    },
+    "Rattling bolts": {
+      "preparation": 1,
+      "amount": 0.7,
+      "rattle": 0.9,
+      "hammer": 0.65
+    },
+    "Rubber thunks": {
+      "preparation": 2,
+      "amount": 0.85,
+      "hammer": 0.45,
+      "thud": 0.5,
+      "tone": 0.65,
+      "volume": -0.5
+    },
+    "Soft rubber": {
+      "preparation": 2,
+      "amount": 0.55,
+      "hammer": 0.3,
+      "decay": 1.5,
+      "volume": -4
+    },
+    "Felt mute": {
+      "preparation": 3,
+      "amount": 1,
+      "hammer": 0.3,
+      "thud": 0.15,
+      "volume": -5
+    },
+    "Felt whisper": {
+      "preparation": 3,
+      "amount": 0.6,
+      "hammer": 0.15,
+      "decay": 2,
+      "tone": 0.6,
+      "rattle": 0
+    },
+    "Paper buzz": {
+      "preparation": 4,
+      "amount": 0.8
+    },
+    "Paper sizzle": {
+      "preparation": 4,
+      "amount": 1,
+      "rattle": 1,
+      "hammer": 0.75,
+      "tone": 0.9
+    },
+    "Wood blocks": {
+      "preparation": 2,
+      "amount": 0.8,
+      "position": 0.5,
+      "hammer": 0.9,
+      "decay": 0.4,
+      "thud": 0.5,
+      "tone": 1,
+      "volume": 0.7
+    },
+    "Temple gongs": {
+      "preparation": 1,
+      "amount": 1,
+      "position": 0.33,
+      "hammer": 0.25,
+      "decay": 3,
+      "detune": 0.6
+    },
+    "Tin chimes": {
+      "preparation": 1,
+      "amount": 0.5,
+      "position": 0.08,
+      "hammer": 0.9,
+      "decay": 0.6,
+      "tone": 1
+    },
+    "Loose unisons": {
+      "amount": 0.45,
+      "detune": 1,
+      "hammer": 0.7
+    },
+    "Dark orchestra": {
+      "amount": 0.9,
+      "rattle": 0.6,
+      "hammer": 0.35,
+      "decay": 2,
+      "tone": 0.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models a piano note as two strings of stretch-tuned partials struck by a hammer, with an object on them: a bolt loads one string (its partials fall by how much each moves where the bolt sits, and the string is tuned back to the key), rubber and felt damp the partials that move there, paper and loose objects buzz when the string swings far enough. Simplified: modal synthesis with at most 24 partials a string, no soundboard, no sympathetic strings, a fixed table of objects by key, and the buzz is a threshold on the string's swing rather than a collision model. It is not a model of any one instrument or product."
+  }
+}
