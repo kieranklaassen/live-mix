@@ -35,6 +35,58 @@ static std::vector<float> harmonics(float hz, int count, float seconds, float ga
 
 static double cents(double a, double b) { return 1200.0 * std::log2(a / b); }
 
+// The strongest frequency within `span` cents of `guess` over [from, to): a scan, then two finer ones.
+static double partial_near(const std::vector<float>& x, double guess, double span, size_t from, size_t to,
+                           float rate = kRate) {
+  double best_hz = guess, best = -1.0;
+  double centre = guess;
+  for (int pass = 0; pass < 3; ++pass) {
+    for (int i = -12; i <= 12; ++i) {
+      const double hz = centre * std::pow(2.0, span * i / 12.0 / 1200.0);
+      const double level = tone_level(x, hz, rate, from, to);
+      if (level > best) {
+        best = level;
+        best_hz = hz;
+      }
+    }
+    centre = best_hz;
+    span /= 8.0;
+  }
+  return best_hz;
+}
+
+// What is left of x over [from, to) once the sine at `hz` is taken out by least squares, as RMS.
+static double residual(const std::vector<float>& x, double hz, size_t from, size_t to) {
+  double ss = 0, cc = 0, sc = 0, xs = 0, xc = 0;
+  for (size_t i = from; i < to; ++i) {
+    const double phase = 2.0 * kPi * hz * static_cast<double>(i) / kRate;
+    const double s = std::sin(phase), c = std::cos(phase);
+    ss += s * s;
+    cc += c * c;
+    sc += s * c;
+    xs += x[i] * s;
+    xc += x[i] * c;
+  }
+  const double det = ss * cc - sc * sc;
+  const double a = (xs * cc - xc * sc) / det, b = (xc * ss - xs * sc) / det;
+  double sum = 0;
+  for (size_t i = from; i < to; ++i) {
+    const double phase = 2.0 * kPi * hz * static_cast<double>(i) / kRate;
+    const double r = x[i] - a * std::sin(phase) - b * std::cos(phase);
+    sum += r * r;
+  }
+  return std::sqrt(sum / static_cast<double>(to - from));
+}
+
+// The worst difference between `out` and `in` delayed by the latency, from `from` on.
+static double off_by(const std::vector<float>& out, const std::vector<float>& in, float gain = 1.0f, size_t from = 0) {
+  double worst = 0.0;
+  for (size_t i = from; i + kLate < in.size(); ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(out[i + kLate]) - static_cast<double>(gain * in[i])));
+  }
+  return worst;
+}
+
 int main() {
   Conformance spec;
   spec.name = "warp";
@@ -46,25 +98,311 @@ int main() {
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
-  // PROBE
+  // 1. Where the partials land: ten harmonics on the pivot come out at pivot × n^e, e = 2^stretch, each
+  // at the level it came in at.
   {
-    const std::vector<float> tone = harmonics(220.0f, 10, 3.0f, 0.3f);
-    for (float stretch : {-0.5f, 0.0f, 0.3f, 0.7f}) {
+    const std::vector<float> tone = harmonics(220.0f, 10, 2.0f, 0.3f);
+    double worst_cents = 0.0, worst_db = 0.0;
+    for (float stretch : {-0.6f, 0.3f, 0.8f}) {
       still(device);
       device.set_param(p::kStretch, stretch);
       device.set_param(p::kPivot, 220.0f);
       const Stereo out = run(device, tone);
       const double e = std::pow(2.0, stretch);
-      std::printf("stretch %.2f (e %.3f): rms in %.4f out %.4f\n", stretch, e, rms(tone), rms(out.left, 48000));
       for (int n = 1; n <= 10; ++n) {
         const double want = 220.0 * std::pow(n, e);
-        if (want > 20000) continue;
-        const double got = dominant_frequency(out.left, kRate, want * 0.97, want * 1.03, 48000, 144000);
-        const double level = tone_level(out.left, got, kRate, 48000, 144000);
-        std::printf("  n %2d want %9.2f got %9.2f (%+.2f ct) level %.4f (in %.4f)\n", n, want, got,
-                    cents(got, want), level, 0.3 / n);
+        const double got = partial_near(out.left, want, 60.0, 48000, 90000);
+        worst_cents = std::max(worst_cents, std::fabs(cents(got, want)));
+        worst_db = std::max(worst_db, std::fabs(db(tone_level(out.left, got, kRate, 48000, 90000) / (0.3 / n))));
+      }
+      EXPECT_NEAR(db(rms(out.left, 48000) / rms(tone)), 0.0, 0.5, "the level of a harmonic tone holds");
+    }
+    std::printf("partials at pivot x n^e: worst %.3f cents, worst level %.3f dB\n", worst_cents, worst_db);
+    EXPECT(worst_cents < 1.0, "ten harmonics on the pivot land at pivot x n^e within a cent, at three stretches");
+    EXPECT(worst_db < 0.3, "and each at the level it had");
+  }
+
+  // 2. The pivot does not move: a sine on it comes out as it went in, whatever the stretch (what is left
+  // over is the far skirt of its window, which other regions carry off: 55 dB under it or less).
+  {
+    const std::vector<float> tone = sine(220.0f, 1.5f, kRate, 0.5f);
+    double worst = 0.0;
+    for (float stretch : {-1.0f, 1.0f}) {
+      still(device);
+      device.set_param(p::kStretch, stretch);
+      device.set_param(p::kPivot, 220.0f);
+      const Stereo out = run(device, tone);
+      worst = std::max(worst, off_by(out.left, tone, 1.0f, 24000));
+    }
+    std::printf("a sine on the pivot: off the input by %.3g (%.1f dB under it)\n", worst, -db(worst / 0.5));
+    EXPECT(worst < 1.0e-3, "a sine on the pivot is the input, a latency late, to 54 dB");
+    // And a sine an octave over the pivot goes up by e octaves, and is still one sine.
+    still(device);
+    device.set_param(p::kStretch, 0.5f);
+    device.set_param(p::kPivot, 220.0f);
+    const Stereo out = run(device, sine(440.0f, 1.5f, kRate, 0.5f));
+    const double want = 220.0 * std::pow(2.0, std::pow(2.0, 0.5));
+    EXPECT_NEAR(cents(partial_near(out.left, want, 60.0, 24000, 66000), want), 0.0, 0.5,
+                "a sine an octave over the pivot lands e octaves over it");
+    const double rest = db(residual(out.left, want, 24000, 66000) / (0.5 * 0.7071));
+    std::printf("a sine stretched away from the pivot: the rest is %.1f dB under it\n", -rest);
+    EXPECT(rest < -50.0, "and is still one sine: nothing else within 50 dB of it");
+  }
+
+  // 3. Stretch in the middle with Shift at 0 is the input, a latency late; Mix 0 is the input bit for bit;
+  // and part way the dry path is in step with the wet one (no comb: the sum is the input, 3 dB up).
+  {
+    rng_state() = 77;
+    std::vector<float> in = noise(1.0f, kRate, 0.4f);
+    const std::vector<float> chord = harmonics(196.0f, 12, 1.0f, 0.2f);
+    for (size_t i = 0; i < in.size(); ++i) in[i] = 0.3f * in[i] + chord[i];
+    still(device);
+    device.set_param(p::kStretch, 0.0f);
+    Stereo out = run(device, in);
+    const double wet = off_by(out.left, in);
+    std::printf("stretch 0, shift 0: the wet path is off the input by %.3g\n", wet);
+    EXPECT(wet < 2.0e-6, "Stretch 0 and Shift 0: the wet path is the input, a latency late");
+    EXPECT(out.left == out.right, "mono in, mono out, bit for bit, at Width 0");
+
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    out = run(device, in);
+    bool same = true;
+    for (size_t i = 0; i + kLate < in.size(); ++i) same = same && out.left[i + kLate] == in[i] && out.right[i + kLate] == in[i];
+    EXPECT(same, "Mix 0 is the input, a latency late, bit for bit (at the default stretch)");
+    EXPECT(peak(out.left, 0, kLate) == 0.0, "and nothing before it");
+
+    still(device);
+    device.set_param(p::kStretch, 0.0f);
+    device.set_param(p::kMix, 0.5f);
+    out = run(device, in);
+    EXPECT(off_by(out.left, in, 1.4142135f) < 1.0e-5, "Mix 0.5 with nothing moved: dry and wet in step, no comb");
+  }
+
+  // 4. Sines stay sines: a sine moved by any part of a bin comes out one sine at the new pitch, at its
+  // level, with everything else at least 50 dB under it.
+  {
+    double worst_residual = -200.0, worst_level = 0.0, worst_cents = 0.0;
+    for (float hz : {220.0f, 3000.0f}) {
+      const std::vector<float> tone = sine(hz, 1.5f, kRate, 0.5f);
+      for (float semitones = 0.07f; semitones < 2.0f; semitones += 0.13f) {
+        still(device);
+        device.set_param(p::kStretch, 0.0f);
+        device.set_param(p::kShift, semitones);
+        const Stereo out = run(device, tone);
+        const double want = hz * std::pow(2.0, semitones / 12.0);
+        const double got = partial_near(out.left, want, 30.0, 24000, 66000);
+        worst_cents = std::max(worst_cents, std::fabs(cents(got, want)));
+        worst_level = std::max(worst_level, std::fabs(db(tone_level(out.left, got, kRate, 24000, 66000) / 0.5)));
+        worst_residual = std::max(worst_residual, db(residual(out.left, want, 24000, 66000) / (0.5 * 0.7071)));
       }
     }
+    std::printf("a moved sine: pitch within %.3f cents, level within %.3f dB, the rest %.1f dB under it\n",
+                worst_cents, worst_level, -worst_residual);
+    EXPECT(worst_cents < 0.2, "a moved sine lands on its pitch");
+    EXPECT(worst_level < 0.1, "at its level, whatever part of a bin it moved by");
+    EXPECT(worst_residual < -50.0, "and stays a sine: nothing else within 50 dB of it");
+  }
+
+  // 5. Shift moves everything by its semitones, the pivot too.
+  {
+    const std::vector<float> tone = harmonics(220.0f, 8, 1.5f, 0.3f);
+    double worst = 0.0;
+    for (float semitones : {-12.0f, -5.0f, 7.0f, 12.0f}) {
+      still(device);
+      device.set_param(p::kStretch, 0.0f);
+      device.set_param(p::kShift, semitones);
+      const Stereo out = run(device, tone);
+      for (int n = 1; n <= 8; ++n) {
+        const double want = 220.0 * n * std::pow(2.0, semitones / 12.0);
+        worst = std::max(worst, std::fabs(cents(partial_near(out.left, want, 60.0, 24000, 66000), want)));
+      }
+    }
+    std::printf("shift: worst partial %.3f cents off\n", worst);
+    EXPECT(worst < 1.0, "Shift moves every partial by its semitones");
+    // After a stretch: pivot × n^e × 2^(shift / 12).
+    still(device);
+    device.set_param(p::kStretch, 0.4f);
+    device.set_param(p::kShift, 3.0f);
+    const Stereo out = run(device, tone);
+    const double want = 220.0 * std::pow(3.0, std::pow(2.0, 0.4)) * std::pow(2.0, 3.0 / 12.0);
+    EXPECT_NEAR(cents(partial_near(out.left, want, 60.0, 24000, 66000), want), 0.0, 1.0,
+                "Shift comes after the stretch");
+  }
+
+  // 6. Lean: turned up, what lies under the pivot stays and what lies over it moves; turned down, the
+  // other way round.
+  {
+    const std::vector<float> tone = harmonics(110.0f, 8, 1.5f, 0.3f);  // 110..880 around a pivot of 440
+    const double e = std::pow(2.0, 0.5);
+    for (float lean : {1.0f, -1.0f, 0.5f}) {
+      still(device);
+      device.set_param(p::kStretch, 0.5f);
+      device.set_param(p::kPivot, 440.0f);
+      device.set_param(p::kLean, lean);
+      const Stereo out = run(device, tone);
+      const double e_below = std::pow(2.0, 0.5 * std::min(1.0, 1.0 - lean));
+      const double e_above = std::pow(2.0, 0.5 * std::min(1.0, 1.0 + lean));
+      const double low = 440.0 * std::pow(220.0 / 440.0, e_below);
+      const double high = 440.0 * std::pow(880.0 / 440.0, e_above);
+      EXPECT_NEAR(cents(partial_near(out.left, low, 60.0, 24000, 66000), low), 0.0, 1.0, "Lean: the partial under the pivot");
+      EXPECT_NEAR(cents(partial_near(out.left, high, 60.0, 24000, 66000), high), 0.0, 1.0, "Lean: the partial over the pivot");
+    }
+    (void)e;
+  }
+
+  // 7. Width: the two sides are stretched apart, left less and right more, by kWidthDepth of the
+  // stretch's range each at Width 1; a partial on the pivot stays on both sides.
+  {
+    const std::vector<float> tone = harmonics(220.0f, 6, 1.5f, 0.3f);
+    still(device);
+    device.set_param(p::kStretch, 0.3f);
+    device.set_param(p::kWidth, 1.0f);
+    const Stereo out = run(device, tone);
+    for (int n : {1, 3, 5}) {
+      const double left = 220.0 * std::pow(n, std::pow(2.0, 0.3 - Warp::kWidthDepth));
+      const double right = 220.0 * std::pow(n, std::pow(2.0, 0.3 + Warp::kWidthDepth));
+      EXPECT_NEAR(cents(partial_near(out.left, left, 20.0, 24000, 66000), left), 0.0, 1.0, "Width: the left partial");
+      EXPECT_NEAR(cents(partial_near(out.right, right, 20.0, 24000, 66000), right), 0.0, 1.0, "Width: the right partial");
+    }
+    EXPECT(correlation(out.left, out.right, 24000, 66000) < 0.9, "Width makes the two sides differ");
+    EXPECT_NEAR(db(rms(out.left, 24000) / rms(out.right, 24000)), 0.0, 0.3, "and keeps them as loud as each other");
+  }
+
+  // 8. Tone: a tilt about 1 kHz of kToneDbPerOctave an octave at the ends, the pivot of the tilt untouched.
+  {
+    for (float tone : {-1.0f, 1.0f}) {
+      still(device);
+      device.set_param(p::kStretch, 0.0f);
+      device.set_param(p::kTone, tone);
+      const std::vector<float> in = sine(4000.0f, 1.0f, kRate, 0.2f);
+      Stereo out = run(device, in);
+      EXPECT_NEAR(db(tone_level(out.left, 4000.0, kRate, 24000, 44000) / 0.2), 2.0 * tone * Warp::kToneDbPerOctave, 0.3,
+                  "Tone: two octaves over 1 kHz");
+      still(device);
+      device.set_param(p::kStretch, 0.0f);
+      device.set_param(p::kTone, tone);
+      out = run(device, sine(250.0f, 1.0f, kRate, 0.2f));
+      EXPECT_NEAR(db(tone_level(out.left, 250.0, kRate, 24000, 44000) / 0.2), -2.0 * tone * Warp::kToneDbPerOctave, 0.3,
+                  "Tone: two octaves under 1 kHz");
+    }
+  }
+
+  // 9. Drift: the stretch wanders by the clock. The wander is three sines read from the frame's number
+  // (the constants are the device's), up to kDriftDepth either way; what the meter says is that formula,
+  // the partials are where that stretch puts them, and a silence the device sleeps through does not
+  // stop the clock.
+  {
+    auto wander = [](uint32_t frame) {
+      double sum = 0.0;
+      for (int i = 0; i < 3; ++i) {
+        const uint32_t step = static_cast<uint32_t>(static_cast<double>(Warp::kDriftHz) * Warp::Stft::kHop / kRate *
+                                                    Warp::kDriftRate[i] * 4294967296.0);
+        const uint32_t phase = Warp::kDriftStart[i] + frame * step;
+        sum += Warp::kDriftWeight[i] * std::sin(2.0 * kPi * (phase / 4294967296.0));
+      }
+      return sum;
+    };
+    const std::vector<float> second = sine(440.0f, 1.0f, kRate, 0.4f);
+    still(device);
+    device.set_param(p::kStretch, 0.3f);
+    device.set_param(p::kDrift, 1.0f);
+    double lowest = 10.0, highest = -10.0, worst_meter = 0.0, worst_cents = 0.0;
+    for (int t = 1; t <= 40; ++t) {
+      const Stereo out = run(device, second);
+      const uint32_t frame = static_cast<uint32_t>((t * 48000 - 1) / Warp::Stft::kHop);
+      const double now = device.meter(0);
+      worst_meter = std::max(worst_meter, std::fabs(now - (0.3 + Warp::kDriftDepth * wander(frame))));
+      lowest = std::min(lowest, now);
+      highest = std::max(highest, now);
+      // The partial over the last quarter second, against the stretch at the middle of it.
+      const double middle = 0.3 + Warp::kDriftDepth * wander(frame - (Warp::kLatency + 6000) / Warp::Stft::kHop);
+      const double want = 220.0 * std::pow(2.0, std::pow(2.0, middle));
+      worst_cents = std::max(worst_cents, std::fabs(cents(partial_near(out.left, want, 40.0, 36000, 48000), want)));
+    }
+    std::printf("drift over 40 s: stretch %.3f to %.3f, the meter off its formula by %.2g, the partial by %.2f cents\n",
+                lowest, highest, worst_meter, worst_cents);
+    EXPECT(worst_meter < 1.0e-4, "Drift: the stretch in use is the clock's wander");
+    EXPECT(worst_cents < 4.0, "Drift: the partial is where the wandering stretch puts it");
+    EXPECT(lowest < 0.3 - 0.5 * Warp::kDriftDepth && highest > 0.3 + 0.5 * Warp::kDriftDepth, "Drift covers its range");
+    EXPECT(lowest > 0.3 - Warp::kDriftDepth - 1.0e-3 && highest < 0.3 + Warp::kDriftDepth + 1.0e-3, "and stays in it");
+
+    // Through a sleep: eight seconds of tone, and one second, five of silence and two more.
+    std::vector<float> whole = sine(440.0f, 8.0f, kRate, 0.4f);
+    std::vector<float> broken = whole;
+    for (size_t i = 48000; i < 6 * 48000; ++i) broken[i] = 0.0f;
+    still(device);
+    device.set_param(p::kStretch, 0.3f);
+    device.set_param(p::kDrift, 1.0f);
+    const Stereo a = run(device, whole);
+    const float meter_a = device.meter(0);
+    still(device);
+    device.set_param(p::kStretch, 0.3f);
+    device.set_param(p::kDrift, 1.0f);
+    const Stereo b = run(device, broken);
+    EXPECT(peak(b.left, 3 * 48000, 5 * 48000) == 0.0, "(the device slept through the silence)");
+    EXPECT(device.meter(0) == meter_a, "Drift keeps its place through a sleep, as a clock would");
+    const double fa = partial_near(a.left, 560.0, 300.0, 7 * 48000 + 12000, 8 * 48000);
+    const double fb = partial_near(b.left, 560.0, 300.0, 7 * 48000 + 12000, 8 * 48000);
+    EXPECT_NEAR(cents(fb, fa), 0.0, 0.5, "and the partial is where it would have been");
+  }
+
+  // 10. Follow: the pivot goes to the lowest strong partial at or above the Pivot setting, so each note
+  // of a line keeps its pitch and its overtones are stretched from it.
+  {
+    const double e = std::pow(2.0, 0.5);
+    std::vector<float> line = harmonics(196.0f, 6, 1.5f, 0.3f);
+    const std::vector<float> next = harmonics(293.66f, 6, 1.5f, 0.3f);
+    line.insert(line.end(), next.begin(), next.end());
+    auto with = [&](float follow, float pivot) {
+      still(device);
+      device.set_param(p::kStretch, 0.5f);
+      device.set_param(p::kPivot, pivot);
+      device.set_param(p::kFollow, follow);
+      return run(device, line);
+    };
+    Stereo out = with(1.0f, 100.0f);
+    const size_t a0 = 36000, a1 = 66000, b0 = 72000 + 36000, b1 = 72000 + 66000;
+    EXPECT_NEAR(cents(partial_near(out.left, 196.0, 100.0, a0, a1), 196.0), 0.0, 1.0, "Follow: the first note keeps its pitch");
+    EXPECT_NEAR(cents(partial_near(out.left, 196.0 * std::pow(3.0, e), 60.0, a0, a1), 196.0 * std::pow(3.0, e)), 0.0,
+                1.0, "Follow: its third partial is stretched from it");
+    EXPECT_NEAR(cents(partial_near(out.left, 293.66, 100.0, b0, b1), 293.66), 0.0, 1.0, "Follow: the second note keeps its pitch");
+    EXPECT_NEAR(cents(partial_near(out.left, 293.66 * std::pow(3.0, e), 60.0, b0, b1), 293.66 * std::pow(3.0, e)), 0.0,
+                1.0, "Follow: its third partial is stretched from it");
+    EXPECT_NEAR(device.meter(1), 293.66, 0.3, "Follow: the pivot reported is the note");
+    // Off, the pivot stays at the knob and the notes move.
+    out = with(0.0f, 100.0f);
+    const double moved = 100.0 * std::pow(1.96, e);
+    EXPECT_NEAR(cents(partial_near(out.left, moved, 60.0, a0, a1), moved), 0.0, 1.0, "Follow off: the note is stretched from the knob");
+    EXPECT(tone_level(out.left, 196.0, kRate, a0, a1) < 0.003, "Follow off: nothing is left at the note's own pitch");
+    EXPECT_NEAR(device.meter(1), 100.0, 0.01, "Follow off: the pivot reported is the knob");
+    // The Pivot knob is the lowest the pivot may go: over the first note's fundamental, its octave is taken.
+    out = with(1.0f, 250.0f);
+    EXPECT_NEAR(cents(partial_near(out.left, 392.0, 100.0, a0, a1), 392.0), 0.0, 1.0, "Follow: the lowest partial over the knob stays");
+
+    // It stays with a note that fades under its own overtones (to 30 dB under), and with the lower of two
+    // notes; when the lower one stops, it goes to the one left.
+    std::vector<float> fading = harmonics(196.0f, 6, 3.0f, 0.3f);
+    for (size_t i = 48000; i < fading.size(); ++i) {
+      fading[i] -= 0.29f * static_cast<float>(std::sin(2.0 * kPi * 196.0 * static_cast<double>(i) / kRate));
+    }
+    still(device);
+    device.set_param(p::kStretch, 0.5f);
+    device.set_param(p::kPivot, 100.0f);
+    device.set_param(p::kFollow, 1.0f);
+    run(device, fading);
+    EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: the pivot stays with a fundamental that has faded");
+    std::vector<float> pair = harmonics(293.66f, 6, 3.0f, 0.2f);
+    const std::vector<float> lower = harmonics(196.0f, 6, 1.5f, 0.2f);
+    for (size_t i = 0; i < lower.size(); ++i) pair[i] += lower[i];
+    still(device);
+    device.set_param(p::kStretch, 0.5f);
+    device.set_param(p::kPivot, 100.0f);
+    device.set_param(p::kFollow, 1.0f);
+    run(device, std::vector<float>(pair.begin(), pair.begin() + 60000));
+    EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: of two notes, the lower is the pivot");
+    run(device, std::vector<float>(pair.begin() + 60000, pair.end()));
+    EXPECT_NEAR(device.meter(1), 293.66, 0.3, "Follow: when it stops, the pivot goes to the note that is left");
   }
 
   device.init(kRate);

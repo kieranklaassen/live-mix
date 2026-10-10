@@ -37,10 +37,11 @@
 //    from the frame's first sample); that costs up to 0.9 dB of level, which
 //    kInterpolationLoss gives back.
 // 3. The angle is kept per input bin, so the partial that sits there next
-//    frame carries on from it. A region that is not being moved (Δ under a
-//    ten-thousandth of a bin) lets its angle fall back to nought, so that
-//    with Stretch in the middle and Shift at 0 the wet path lines up with the
-//    dry one again, whatever was played before.
+//    frame carries on from it. A region that is to move by less than a
+//    fiftieth of a bin (0.23 Hz) is at rest: it stays where it is and its
+//    angle falls back to nought, so a partial on the pivot, and everything
+//    with Stretch in the middle and Shift at 0, lines up with the dry path
+//    again, whatever was played before.
 //
 // - Lean scales the stretch on one side of the pivot down to nothing: the
 //   exponent above the pivot is 2^(stretch × min(1, 1 + lean)), below it
@@ -81,6 +82,11 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   static constexpr float kDriftDepth = 0.12f;  // of stretch, at Drift 1
   static constexpr float kWidthDepth = 0.04f;  // of stretch each side, at Width 1
   static constexpr float kDriftHz = 0.043f;
+  // The drift's three sines: their rates against kDriftHz, their weights, and where each starts
+  // (in 2^32 of a turn).
+  static constexpr double kDriftRate[3] = {1.0, 0.6180339887, 1.7320508076};
+  static constexpr float kDriftWeight[3] = {0.5f, 0.3f, 0.2f};
+  static constexpr uint32_t kDriftStart[3] = {0x1F3A5C00u, 0x8E2B9D00u, 0xC4D17A00u};
   static constexpr float kTonePivotHz = 1000.0f;
   static constexpr float kToneDbPerOctave = 4.5f;
   static constexpr float kToneMaxBoostDb = 12.0f;
@@ -121,9 +127,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     tone_dirty_ = true;
     // The drift's three phases per frame, as fractions of 2^32 of a turn.
     const double turns_per_frame = static_cast<double>(kDriftHz) * Stft::kHop / sr;
-    static constexpr double kRates[3] = {1.0, 0.6180339887, 1.7320508076};
     for (int i = 0; i < 3; ++i) {
-      drift_step_[i] = static_cast<uint32_t>(turns_per_frame * kRates[i] * 4294967296.0);
+      drift_step_[i] = static_cast<uint32_t>(turns_per_frame * kDriftRate[i] * 4294967296.0);
     }
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
@@ -200,16 +205,18 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   static constexpr int kMaxPeaks = kBins / 3 + 2;
   // A region moved by half a bin comes out this share quieter; in between by 4 ε (1 - ε) of it.
   static constexpr float kInterpolationLoss = 0.095f;
-  // A region whose move is under this many bins is at rest: its angle falls back to nought.
-  static constexpr float kAtRest = 1.0e-4f;
+  // A region whose move is under this many bins (0.23 Hz at 48 kHz) is at rest: it is left where it
+  // is and its angle falls back to nought. The measure of a partial's place is good to a ten-
+  // thousandth of a bin and worse in the frames of an attack; without a rest wider than that a
+  // partial on the pivot would keep whatever angle its attack left it, and part way up Mix it
+  // would cancel against the dry one, or not, by chance.
+  static constexpr float kAtRest = 0.02f;
   static constexpr float kRestDecay = 0.75f;
   // Follow: a partial is strong within 18 dB of the strongest, the pivot stays with a partial until
   // it is 36 dB under, and a partial within 3 % (half a semitone) is the one it had.
   static constexpr float kAcquirePower = 0.01585f;
   static constexpr float kReleasePower = 2.512e-4f;
   static constexpr float kSameNote = 0.03f;
-  static constexpr float kDriftWeight[3] = {0.5f, 0.3f, 0.2f};
-  static constexpr uint32_t kDriftStart[3] = {0x1F3A5C00u, 0x8E2B9D00u, 0xC4D17A00u};
 
   struct Channel {
     float last_re[kBins], last_im[kBins];  // the previous analysis frame
@@ -385,6 +392,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     // (Hop / Frame), wrapped. At rest it falls back to nought.
     float turn = channel.turn[peak];
     if (std::fabs(move) < kAtRest) {
+      move = 0.0f;
       turn *= kRestDecay;
       if (std::fabs(turn) < 1.0e-6f) turn = 0.0f;
     } else {
