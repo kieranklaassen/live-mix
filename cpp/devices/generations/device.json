@@ -1,0 +1,199 @@
+{
+  "id": "generations",
+  "name": "Generations",
+  "category": "texture",
+  "description": "A loop that records itself again through a small room on every pass, so what you played slowly dissolves into the ringing tones of the room.",
+  "class": "Generations",
+  "header": "generations.h",
+  "sources": [],
+  "memoryMb": 32,
+  "meters": [
+    {
+      "key": "turn",
+      "name": "Loop position",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Loop level",
+      "display": true
+    },
+    {
+      "key": "hold",
+      "name": "Level hold",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.5,
+      "max": 12,
+      "default": 1.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the loop is, the time before a sound comes back through the room. Short loops age quickly. Moved while the loop sounds, it repeats or cuts a slice of the loop."
+    },
+    {
+      "key": "room",
+      "name": "Room",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "The size of the room. A larger room rings on lower tones, a smaller one on higher tones, and all of its tones move together."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How strongly the room prints its tones on each pass. Low settings dissolve the sound slowly, high settings turn it into ringing tones within a few passes."
+    },
+    {
+      "key": "keep",
+      "name": "Keep",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How much of each pass is recorded again. Low settings let the loop fade quickly. At the top it does not fade at all and holds for ever, until Keep is turned down."
+    },
+    {
+      "key": "damping",
+      "name": "Damping",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The highs lost on every pass. Higher settings make each generation darker, until only the low tones of the room are left."
+    },
+    {
+      "key": "hiss",
+      "name": "Hiss",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Noise added on every pass, following the level of the loop. The room colours it too, so high settings turn old layers into breath on the room's tones."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Tunes the room a little differently on the left and the right, so the sound spreads wider with every pass. At zero both sides share one room."
+    },
+    {
+      "key": "listen",
+      "name": "Listen",
+      "choices": ["On", "Off"],
+      "default": 0,
+      "description": "Off stops new playing from reaching the loop while what is there goes on ageing. On lets the input in again."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the dry signal and the loop. The loop is only what comes back, so a sound is first heard from it one Length after it was played."
+    }
+  ],
+  "presets": {
+    "Into the room": {},
+    "Slow dissolve": {
+      "length": 3.2,
+      "resonance": 0.2,
+      "keep": 0.9
+    },
+    "Room tone hangs": {
+      "length": 1.2,
+      "resonance": 0.6,
+      "keep": 1,
+      "mix": 0.45
+    },
+    "Quick to tones": {
+      "length": 0.5,
+      "resonance": 0.85,
+      "keep": 0.92
+    },
+    "Large dark room": {
+      "room": 0.95,
+      "damping": 0.75,
+      "keep": 0.88,
+      "length": 2.2
+    },
+    "Small bright room": {
+      "room": 0.05,
+      "damping": 0,
+      "resonance": 0.5,
+      "length": 0.9
+    },
+    "Faint afterimage": {
+      "mix": 0.2,
+      "resonance": 0.25,
+      "keep": 0.7,
+      "length": 2.4
+    },
+    "Breath on tones": {
+      "hiss": 1,
+      "resonance": 0.7,
+      "keep": 0.9,
+      "length": 0.8
+    },
+    "One shared room": {
+      "width": 0,
+      "resonance": 0.45,
+      "length": 1.1
+    },
+    "Drifting apart": {
+      "width": 1,
+      "resonance": 0.55,
+      "keep": 0.93,
+      "length": 0.7
+    },
+    "Single return": {
+      "keep": 0,
+      "resonance": 0.8,
+      "length": 0.6,
+      "mix": 0.4
+    },
+    "Clean copies": {
+      "resonance": 0,
+      "damping": 0,
+      "hiss": 0,
+      "keep": 0.75,
+      "length": 1
+    },
+    "Worn copies": {
+      "resonance": 0.1,
+      "damping": 0.9,
+      "hiss": 0.6,
+      "keep": 0.85,
+      "length": 1.4
+    },
+    "Half a second": {
+      "length": 0.5,
+      "resonance": 0.3,
+      "keep": 0.6,
+      "mix": 0.35
+    },
+    "Long patience": {
+      "length": 5.5,
+      "resonance": 0.5,
+      "keep": 0.95,
+      "damping": 0.2
+    },
+    "Tones alone": {
+      "mix": 1,
+      "resonance": 1,
+      "keep": 0.88,
+      "length": 0.9,
+      "hiss": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The process of playing a recording back into a room and recording it again, generation after generation, as a live loop with a modelled room of eight resonances; not a model of any room, recording or machine."
+  }
+}

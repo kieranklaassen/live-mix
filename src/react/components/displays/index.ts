@@ -24,6 +24,7 @@ import { SUBTRACTIVE_INSTRUMENT_FACES } from './instrument-subtractive'
 import { WAVE_INSTRUMENT_FACES } from './instrument-waves'
 import { WIND_INSTRUMENT_FACES } from './instrument-winds'
 import { FOG_FACES } from './fog'
+import { GENERATIONS_FACES } from './generations'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -73,4 +74,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...FM_BASS_INSTRUMENT_FACES,
   ...ACID_BASS_INSTRUMENT_FACES,
   ...STRING_BASS_INSTRUMENT_FACES,
+  ...GENERATIONS_FACES,
 }

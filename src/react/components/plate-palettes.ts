@@ -126,6 +126,7 @@ export const PLATE_PALETTES = {
   'fm-bass': { plate: '#16d8c4', ink: '#03241f', accent: '#8a1040' },
   'acid-bass': { plate: '#b4e61a', ink: '#16210a', accent: '#b3125e' },
   'string-bass': { plate: '#99500a', ink: '#fff3e0', accent: '#ffe066' },
+  generations: { plate: '#a9684f', ink: '#1a0b06', accent: '#fff4dd' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
