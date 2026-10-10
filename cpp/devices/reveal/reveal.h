@@ -102,7 +102,6 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     const float frames_per_second = sr / static_cast<float>(Stft::kHop);
     // Power falls twice as fast as amplitude.
     level_fall_ = kit::time_to_coeff(0.5f * kLevelFallSeconds, frames_per_second);
-    hold_rise_ = kit::time_to_coeff(kHoldRiseSeconds, frames_per_second);
     frames_per_second_ = frames_per_second;
     mix_.set_time(kSmoothingSeconds, sr);
     output_.set_time(kSmoothingSeconds, sr);
@@ -178,7 +177,12 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   static constexpr float kTopOfRange = 0.45f;        // of the sample rate
   static constexpr double kTwelfth = 1.0594630943592953;  // 2^(1/12)
   static constexpr float kLevelFallSeconds = 0.06f;  // a band's level falls back over this
-  static constexpr float kHoldRiseSeconds = 0.04f;   // the level hold comes back over this
+  // What was loud is remembered, falling this many dB a second: 3 over Rise
+  // in seconds, between these.
+  static constexpr float kSlowestMemory = 3.0f;
+  static constexpr float kFastestMemory = 150.0f;
+  static constexpr float kForgottenDb = -110.0f;  // under this a memory is none
+  static constexpr float kNoneDb = -300.0f;       // what a band holding nothing reads
   // What a partial spills, as the most a bin d bins away can hold of it
   // (the Hann window's worst, between two bins, with a few dB to spare):
   // all of it at 1 bin and 11 dB less for each bin on; 35 + 2.5 d dB down;
@@ -191,8 +195,6 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   static constexpr float kFocusFromHz = 60.0f;       // Focus takes the lift away towards one of these
   static constexpr float kFocusToHz = 12000.0f;
   static constexpr float kBroadOctaves = 2.0f;       // at Detail 0 the lift is averaged over this
-  static constexpr float kFallShare = 1.0f / 6.0f;   // of Rise: how fast a lift lets go
-  static constexpr float kLeastFallSeconds = 0.015f;
   static constexpr float kRestDb = 0.02f;            // a lift under this with nothing asked is none
   // A band's power under this is nothing: -180 dB against a full-scale sine.
   static constexpr float kNothing = 1.0e-18f;
@@ -209,6 +211,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     for (int b = 0; b < kMaxBands; ++b) {
       level_[b] = 0.0f;
       lift_[b] = 0.0f;
+      loud_db_[b] = kNoneDb;
       band_gain_[b] = 1.0f;
     }
     band_gain_[kNoBand] = 1.0f;
@@ -217,6 +220,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       level_reading_[r] = 0.0f;
     }
     hold_ = 1.0f;
+    heard_ = 0.0f;
     hold_db_ = 0.0f;
     most_lift_ = 0.0f;
     listen_frame_ = 0.0f;
@@ -263,10 +267,9 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   }
 
   // The bands a band's lift is averaged with, for a width in octaves: those
-  // whose centres lie within a quarter of it either way, taken twice over
-  // (two passes), so that the whole reaches half the width either way.
+  // whose centres lie within half of it either way.
   void lay_out_spans(float octaves) {
-    const float reach = 0.25f * octaves;
+    const float reach = 0.5f * octaves;
     int low = 0;
     int high = 0;
     for (int b = 0; b < bands_; ++b) {
@@ -276,6 +279,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       span_low_[b] = static_cast<uint8_t>(low);
       span_high_[b] = static_cast<uint8_t>(high);
     }
+    reach_ = reach;
     averaged_ = reach > 0.0f;
   }
 
@@ -313,9 +317,10 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       detail_seen_ = detail;
       lay_out_spans(kBroadOctaves * (1.0f - detail) * (1.0f - detail));
     }
-    const float fall_seconds = kit::max(kFallShare * rise_seconds, kLeastFallSeconds);
     const float rise = kit::time_to_coeff(rise_seconds, frames_per_second_);
-    const float fall = kit::time_to_coeff(fall_seconds, frames_per_second_);
+    // How fast what was loud is forgotten, per frame, in dB and as power.
+    const float memory_db = kit::clamp(3.0f / rise_seconds, kSlowestMemory, kFastestMemory) / frames_per_second_;
+    const float memory_fall = std::exp(-0.23025851f * memory_db);
 
     for (int k = 0; k < kBins; ++k) power_[k] = re[k] * re[k] + im[k] * im[k] + power_right_[k];
 
@@ -392,52 +397,67 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       alive = alive || held > 0.0f;
       level_db[b] = 10.0f * std::log10(held * (1.0f / kSinePower) + 1.0e-30f);
     }
-    for (int b = bands_; b < kMaxBands; ++b) level_db[b] = -300.0f;
+    for (int b = bands_; b < kMaxBands; ++b) level_db[b] = kNoneDb;
 
-    // The loud around each band: a tent over the peaks, 3 dB down per octave.
+    // What was loud is remembered for a while: a band's level, or what it
+    // was, falling steadily.
+    for (int b = 0; b < bands_; ++b) {
+      float kept = loud_db_[b] - memory_db;
+      if (level_db[b] > kept) kept = level_db[b];
+      if (kept < kForgottenDb) kept = kNoneDb;
+      loud_db_[b] = kept;
+      alive = alive || kept > kNoneDb;
+    }
+
+    // The loud around each band: a tent over what is loud or was, 3 dB down per octave.
     float around_db[kMaxBands];
-    around_db[0] = level_db[0];
-    for (int b = 1; b < bands_; ++b) around_db[b] = kit::max(level_db[b], around_db[b - 1] - around_step_[b]);
+    around_db[0] = loud_db_[0];
+    for (int b = 1; b < bands_; ++b) around_db[b] = kit::max(loud_db_[b], around_db[b - 1] - around_step_[b]);
     for (int b = bands_ - 2; b >= 0; --b) {
       around_db[b] = kit::max(around_db[b], around_db[b + 1] - around_step_[b + 1]);
     }
 
     // The lift asked for, band by band: Amount of the deficit, Range at most,
-    // nothing under Floor, weighted by Focus.
-    float ask[kMaxBands + 1];
-    float gate[kMaxBands];
+    // weighted by Focus; and how far the band is over Floor, 0 to 1.
+    float ask[kMaxBands];
+    float over[kMaxBands];
     for (int b = 0; b < bands_; ++b) {
       const float deficit = around_db[b] - level_db[b];
-      const float over = kit::clamp((level_db[b] - floor_db) * (1.0f / kKneeDb), 0.0f, 1.0f);
       const float weight = focus >= 0.0f ? 1.0f - focus * (1.0f - focus_at_[b]) : 1.0f + focus * focus_at_[b];
       float lift = amount * deficit;
       if (lift > range) lift = range;
-      // Half of the fade before the averaging and half after, so that it is
-      // the same fade whatever Detail is.
-      gate[b] = averaged_ ? std::sqrt(over) : over;
-      ask[b] = lift * weight * gate[b];
+      ask[b] = lift * weight;
+      over[b] = kit::clamp((level_db[b] - floor_db) * (1.0f / kKneeDb), 0.0f, 1.0f);
     }
+    // Detail: the mean over the bands around it that hold sound, each
+    // counted by how far it is over Floor and by how near it is in pitch.
     if (averaged_) {
-      float running[kMaxBands + 1];
-      for (int pass = 0; pass < 2; ++pass) {
-        running[0] = 0.0f;
-        for (int b = 0; b < bands_; ++b) running[b + 1] = running[b] + ask[b];
-        for (int b = 0; b < bands_; ++b) {
-          const int low = span_low_[b];
-          const int high = span_high_[b];
-          ask[b] = (running[high + 1] - running[low]) / static_cast<float>(high + 1 - low);
+      float asked[kMaxBands];
+      for (int b = 0; b < bands_; ++b) asked[b] = ask[b] * over[b];
+      const float per_octave = 1.0f / reach_;
+      for (int b = 0; b < bands_; ++b) {
+        float sum = 0.0f;
+        float count = 0.0f;
+        for (int n = span_low_[b]; n <= span_high_[b]; ++n) {
+          const float apart = octave_[n] - octave_[b];
+          const float near = 1.0f - (apart < 0.0f ? -apart : apart) * per_octave;
+          sum += near * asked[n];
+          count += near * over[n];
         }
+        ask[b] = count > 1.0e-6f ? sum / count : 0.0f;
       }
-      for (int b = 0; b < bands_; ++b) ask[b] *= gate[b];
     }
+    // Nothing under Floor, fading in over the 6 dB above it.
+    for (int b = 0; b < bands_; ++b) ask[b] *= over[b];
 
-    // The lift held moves towards that: up over Rise, down six times faster.
+    // The lift held moves up towards that over Rise, and comes down to it
+    // at once: a band that has grown loud is not thrown forward.
     float most = 0.0f;
     for (int b = 0; b < bands_; ++b) {
       const float target = ask[b];
       float held = lift_[b];
-      held = target + (held - target) * (target > held ? rise : fall);
-      if (target == 0.0f && held < kRestDb) held = 0.0f;
+      held = target < held ? target : target + (held - target) * rise;
+      if (held < kRestDb) held = target < kRestDb ? 0.0f : held;
       lift_[b] = held;
       alive = alive || held > 0.0f;
       if (held > most) most = held;
@@ -458,12 +478,19 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       power_out += power_[k] * gain * gain;
     }
 
-    // Level hold: down at once, back over 40 ms.
-    const float keep = power_out > power_in && power_in > 0.0f ? std::sqrt(power_in / power_out) : 1.0f;
-    hold_ = keep < hold_ ? keep : keep + (hold_ - keep) * hold_rise_;
+    // Level hold: the frame is turned down by what the lifts add to its
+    // power. What was loud a moment ago counts as still there (a remembered
+    // power that passes at unity), so the quiet that is left when a note
+    // stops stays lifted, and comes back to its own level as that fades.
+    float remembered = heard_ * memory_fall;
+    if (power_in > remembered) remembered = power_in;
+    if (remembered < kNothing * kSinePower) remembered = 0.0f;
+    heard_ = remembered;
+    const float still = remembered - power_in;
+    hold_ = power_out > power_in ? std::sqrt((power_in + still) / (power_out + still)) : 1.0f;
     if (hold_ > 0.9999f) hold_ = 1.0f;
     hold_db_ = hold_ < 1.0f ? 20.0f * std::log10(hold_) : 0.0f;
-    alive_ = alive || hold_ < 1.0f;
+    alive_ = alive || remembered > 0.0f;
 
     // What the display reads: four bands to a number, six bits each.
     for (int r = 0; r < kReadings; ++r) {
@@ -499,6 +526,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   uint8_t span_low_[kMaxBands] = {};
   uint8_t span_high_[kMaxBands] = {};
   float level_[kMaxBands] = {};  // power, held
+  float loud_db_[kMaxBands] = {};  // what is loud or was, dB
   float lift_[kMaxBands] = {};   // dB, held
   float band_gain_[kNoBand + 1] = {};  // the last is kNoBand's: 1
   float lift_reading_[kReadings] = {};
@@ -508,12 +536,13 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   int bands_ = 2;
   float frames_per_second_ = 93.75f;
   float level_fall_ = 0.0f;
-  float hold_rise_ = 0.0f;
+  float heard_ = 0.0f;  // the power of the loudest frame of late, falling
   float detail_seen_ = -1.0f;
   float hold_ = 1.0f;
   float hold_db_ = 0.0f;
   float most_lift_ = 0.0f;
   float listen_frame_ = 0.0f;
+  float reach_ = 0.0f;  // octaves either way that Detail averages over
   bool averaged_ = false;
   bool alive_ = false;
 };

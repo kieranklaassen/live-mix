@@ -79,7 +79,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 4.0f;
+  spec.tail_seconds = 14.0f;
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
@@ -196,6 +196,256 @@ int main() {
     device.init(kRate);
     const Stereo quiet = render(device, 1.0f, kRate);
     EXPECT(peak(quiet.left) == 0.0 && peak(quiet.right) == 0.0, "silence in, silence out");
+  }
+
+  // --- Rise sets the time the lift takes ---------------------------------------------------
+  // The lift comes up in dB as 1 - exp(-t / Rise): 63 % of the way after Rise.
+  {
+    const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 8.0f);
+    for (float rise : {100.0f, 400.0f, 1600.0f}) {
+      set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, rise}});
+      const Stereo out = run(device, in);
+      const double full = change_db(in, out.left, 3520.0, 7 * 48000 - 2400, 7 * 48000);
+      double reached = -1.0;
+      const size_t window = 2400, hop = 240;
+      for (size_t at = 0; at + window < 6 * 48000; at += hop) {
+        if (change_db(in, out.left, 3520.0, at, at + window) >= 0.632 * full) {
+          reached = (at + window / 2) / 48000.0;
+          break;
+        }
+      }
+      std::printf("rise %6.0f ms: the lift reaches 63 %% of %.2f dB after %.0f ms\n", rise, full, reached * 1000.0);
+      EXPECT_NEAR(reached * 1000.0, rise, 0.12 * rise + 40.0, "Rise is the time the lift takes to come up");
+    }
+  }
+
+  // --- It comes down at once -----------------------------------------------------------------
+  // The quiet sine stands lifted; then a loud one starts in its own band, and
+  // the lift held there has to be gone before it is thrown forward.
+  {
+    std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 6.0f);
+    const std::vector<float> strike = sine(3520.0f, 2.0f, kRate, 0.4f);
+    const size_t at = 4 * 48000;
+    for (size_t i = 0; i < strike.size(); ++i) in[at + i] += strike[i];
+    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 600.0f}});
+    const Stereo out = run(device, in);
+    const double before = change_db(in, out.left, 3520.0, at - 4800, at);
+    const double first = db(peak(out.left, at + kLate, at + kLate + 4800) / 0.9);
+    const double later = change_db(in, out.left, 3520.0, at + 24000, at + 48000);
+    std::printf("a loud note starts where %.1f dB of lift stood: its first 100 ms peak %+.2f dB over itself, "
+                "then %+.2f dB\n",
+                before, first, later);
+    EXPECT(before > 12.0, "the quiet sine stood lifted");
+    EXPECT(first < 1.0, "a note that starts where a lift was is not thrown forward");
+    EXPECT(std::fabs(later) < 0.3, "and then stands where it came in");
+  }
+
+  // --- No pumping on a held chord, and the level is held -------------------------------------
+  {
+    // Four notes with partials falling 12 dB an octave, and a bed of noise 50 dB down.
+    std::vector<float> chord(10 * 48000, 0.0f);
+    for (double note : {110.0, 164.81, 220.0, 277.18}) {
+      for (int h = 1; h <= 12; ++h) {
+        const float gain = 0.12f / static_cast<float>(h * h);
+        const std::vector<float> partial = sine(static_cast<float>(note * h), 10.0f, kRate, gain);
+        for (size_t i = 0; i < chord.size(); ++i) chord[i] += partial[i];
+      }
+    }
+    rng_state() = 777;
+    const std::vector<float> bed = noise(10.0f, kRate, 0.002f);
+    const std::vector<float> in = add(chord, bed);
+    for (int setting = 0; setting < 3; ++setting) {
+      if (setting == 0) set_up(device, {});
+      if (setting == 1) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 1.0f}});
+      if (setting == 2) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 0.0f}, {p::kRise, 20.0f}});
+      const Stereo out = run(device, in);
+      const size_t window = 4800;
+      double low = 1.0e9, high = -1.0e9, in_low = 1.0e9, in_high = -1.0e9;
+      for (size_t at = 5 * 48000; at + window <= 9 * 48000; at += window) {
+        const double level = db(rms(out.left, at + kLate, at + kLate + window));
+        const double came = db(rms(in, at, at + window));
+        low = std::min(low, level);
+        high = std::max(high, level);
+        in_low = std::min(in_low, came);
+        in_high = std::max(in_high, came);
+      }
+      const double held = db(rms(out.left, 5 * 48000 + kLate, 9 * 48000 + kLate) / rms(in, 5 * 48000, 9 * 48000));
+      std::printf("held chord, setting %d: level moves %.3f dB (the input %.3f dB), out %+.2f dB against in, "
+                  "lift %.1f dB, hold %.2f dB\n",
+                  setting, high - low, in_high - in_low, held, device.meter(0), device.meter(1));
+      EXPECT(high - low < in_high - in_low + (setting == 2 ? 0.5 : 0.2), "a held chord does not pump");
+      EXPECT(std::fabs(held) < 0.5, "the overall level is held within half a dB");
+      if (setting > 0) EXPECT(device.meter(0) > 20.0 && device.meter(1) < -3.0, "while a great deal is lifted");
+    }
+  }
+
+  // --- What was loud is remembered: the quiet left behind stays lifted, then lets go --------
+  // The loud sine stops; the quiet one goes on. At Rise 300 ms the memory
+  // falls 10 dB a second, so the lift (half the deficit) falls 5 dB a second.
+  {
+    std::vector<float> in = sine(3520.0f, 8.0f, kRate, 0.005f);
+    const std::vector<float> loud = sine(220.0f, 3.0f, kRate, 0.5f);
+    for (size_t i = 0; i < loud.size(); ++i) in[i] += loud[i] * std::min(1.0f, (loud.size() - i) / 480.0f);
+    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 300.0f}});
+    const Stereo out = run(device, in);
+    const double with = change_db(in, out.left, 3520.0, 2 * 48000, 3 * 48000 - 4800);
+    const double soon = change_db(in, out.left, 3520.0, 3 * 48000 + 9600, 3 * 48000 + 14400);
+    const double after = change_db(in, out.left, 3520.0, 4 * 48000 + 9600, 4 * 48000 + 14400);
+    const double gone = change_db(in, out.left, 3520.0, 7 * 48000, 7 * 48000 + 24000);
+    std::printf("the loud sine stops: the quiet one stands %+.2f dB with it, %+.2f dB 0.25 s after, %+.2f dB "
+                "1.25 s after, %+.2f dB at the end\n",
+                with, soon, after, gone);
+    EXPECT(soon > with - 2.5, "the quiet that is left stays lifted when the loud stops");
+    EXPECT_NEAR(soon - after, 5.0, 1.0, "and lets go as the memory of the loud fades, 5 dB a second here");
+    EXPECT(std::fabs(gone) < 0.1, "until it stands at its own level");
+  }
+
+  // --- Latency, the dry path and Mix -----------------------------------------------------
+  {
+    rng_state() = 77;
+    const std::vector<float> in = noise(1.0f, kRate, 0.5f);
+    set_up(device, {{p::kMix, 0.0f}, {p::kAmount, 1.0f}, {p::kOutput, 12.0f}});
+    const Stereo dry = run(device, in);
+    bool same = true;
+    for (size_t i = 0; i + kLate < in.size(); ++i) same = same && dry.left[i + kLate] == in[i];
+    EXPECT(same, "mix 0 is the input, 2304 samples late, bit for bit");
+    EXPECT(peak(dry.left, 0, kLate) == 0.0, "and nothing before that");
+
+    // Part-way Mix: a quiet held tone anywhere on the piano, under a loud one
+    // two octaves and a fifth off, comes out between its dry and its wet
+    // level, never under the dry one.
+    double worst_dip = 0.0, worst_off = 0.0, least_wet = 100.0;
+    for (int key = 12; key < 88; key += 3) {
+      const double hz = 27.5 * std::pow(2.0, key / 12.0);
+      const double other = hz < 700.0 ? hz * 5.993 : hz / 5.993;
+      const std::vector<float> tones = two_tones(other, hz, 30.0, 3.0f);
+      double lifts[2];
+      int n = 0;
+      for (float mix : {1.0f, 0.5f}) {
+        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 12.0f}, {p::kDetail, 1.0f}, {p::kRise, 50.0f}, {p::kMix, mix}});
+        const Stereo out = run(device, tones);
+        lifts[n++] = change_db(tones, out.left, hz, 96000, 120000);
+      }
+      const double expected = db(0.5 + 0.5 * std::pow(10.0, lifts[0] / 20.0));
+      least_wet = std::min(least_wet, lifts[0]);
+      worst_dip = std::min(worst_dip, lifts[1]);
+      worst_off = std::max(worst_off, std::fabs(lifts[1] - expected));
+    }
+    std::printf("mix 0.5 over the piano: worst dip %.3f dB, worst distance from the plain crossfade %.3f dB\n",
+                worst_dip, worst_off);
+    std::printf("  (the wet lift of those tones is %.2f dB at the least)\n", least_wet);
+    EXPECT(least_wet > 8.0, "every one of those tones is lifted at Mix 1");
+    EXPECT(worst_dip > -0.1, "part-way Mix never takes a held tone down");
+    EXPECT(worst_off < 0.3, "and is the plain crossfade of two signals in phase");
+  }
+
+  // --- Left and right take the same gains --------------------------------------------------
+  {
+    const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 3.0f);
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 50.0f}});
+    const Stereo mono = run(device, in);
+    EXPECT(mono.left == mono.right, "mono in, mono out, bit for bit");
+
+    // Opposite phase: the same lift, the same level, still opposite.
+    std::vector<float> flipped(in.size());
+    for (size_t i = 0; i < in.size(); ++i) flipped[i] = -in[i];
+    device.init(kRate);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kRange, 30.0f);
+    device.set_param(p::kDetail, 1.0f);
+    device.set_param(p::kRise, 50.0f);
+    const Stereo anti = run(device, in, flipped);
+    bool opposite = true;
+    for (size_t i = 0; i < in.size(); ++i) opposite = opposite && anti.left[i] == -anti.right[i];
+    EXPECT(opposite && anti.left == mono.left, "left and right in opposite phase come out as they would in phase");
+
+    // The loud sine on the left only, the quiet one on the right at half the
+    // level it has on the left: the balance of the quiet one is kept.
+    std::vector<float> left = two_tones(220.0, 3520.0, 40.0, 3.0f);
+    std::vector<float> right = sine(3520.0f, 3.0f, kRate, 0.0025f);
+    device.init(kRate);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kRange, 30.0f);
+    device.set_param(p::kDetail, 1.0f);
+    device.set_param(p::kRise, 50.0f);
+    const Stereo wide = run(device, left, right);
+    const double on_left = change_db(left, wide.left, 3520.0, 96000, 120000);
+    const double on_right = change_db(right, wide.right, 3520.0, 96000, 120000);
+    std::printf("stereo: the quiet sine is lifted %+.2f dB on the left and %+.2f dB on the right\n", on_left, on_right);
+    EXPECT(on_left > 15.0 && std::fabs(on_left - on_right) < 0.05, "both sides take the same lift: the image stays");
+  }
+
+  // --- Detail: single partials, or regions ---------------------------------------------------
+  // A loud sine at 1 kHz and a quiet one 30 dB under it at 1.2 kHz, 0.263 of
+  // an octave apart. At Detail 1 only the quiet one is lifted, by Amount of
+  // its deficit. Under that the lift is the mean over the sounding bands
+  // within (1 - Detail)² octaves, nearer ones counting more: at Detail 0 the
+  // other sine counts 0.737 against 1 for the band itself.
+  {
+    const std::vector<float> in = two_tones(1000.0, 1200.0, 30.0, 4.0f);
+    double quiet[4], loud[4];
+    int n = 0;
+    for (float detail : {1.0f, 0.6f, 0.3f, 0.0f}) {
+      set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, detail}, {p::kRise, 100.0f}});
+      const Stereo out = run(device, in);
+      const double hold = device.meter(1);
+      quiet[n] = change_db(in, out.left, 1200.0, 2 * 48000, 3 * 48000) - hold;
+      loud[n] = change_db(in, out.left, 1000.0, 2 * 48000, 3 * 48000) - hold;
+      std::printf("detail %.1f: the quiet sine %+.2f dB, the loud one %+.2f dB (before the level hold of %.2f dB)\n",
+                  detail, quiet[n], loud[n], hold);
+      ++n;
+    }
+    const double own = 0.5 * (30.0 - kAroundDbPerOctave * std::log2(1.2));
+    EXPECT_NEAR(quiet[0], own, 0.7, "at Detail 1 the quiet partial gets its own lift");
+    EXPECT(std::fabs(loud[0]) < 0.1, "and the loud one none");
+    EXPECT_NEAR(quiet[1], own, 0.7, "at Detail 0.6 the two are still apart");
+    EXPECT(quiet[2] < quiet[1] - 1.0 && quiet[3] < quiet[2] - 1.0, "less Detail shares the lift out");
+    EXPECT(loud[2] > 1.0 && loud[3] > loud[2] + 1.0, "so that the loud partial beside it comes up too");
+    EXPECT_NEAR(quiet[3], own / 1.737, 0.8, "at Detail 0 the quiet one keeps 1 part in 1.737 of the lift");
+    EXPECT_NEAR(loud[3], own * 0.737 / 1.737, 0.8, "and the loud one takes the rest");
+  }
+
+  // --- Focus: which end is revealed ----------------------------------------------------------
+  // A loud sine at 1 kHz with a quiet one three octaves under it and one
+  // three over, each 30 dB down: a deficit of 21 dB each.
+  {
+    const std::vector<float> in = add(two_tones(1000.0, 125.0, 30.0, 4.0f), sine(8000.0f, 4.0f, kRate, 0.5f * 0.031623f));
+    double low[3], high[3];
+    int n = 0;
+    for (float focus : {-1.0f, 0.0f, 1.0f}) {
+      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 100.0f},
+                      {p::kFocus, focus}});
+      const Stereo out = run(device, in);
+      const double hold = device.meter(1);
+      low[n] = change_db(in, out.left, 125.0, 2 * 48000, 3 * 48000) - hold;
+      high[n] = change_db(in, out.left, 8000.0, 2 * 48000, 3 * 48000) - hold;
+      std::printf("focus %+.0f: 125 Hz %+.2f dB, 8 kHz %+.2f dB\n", focus, low[n], high[n]);
+      ++n;
+    }
+    // Focus takes the lift away in proportion to the distance from its end, 60 Hz to 12 kHz.
+    const double at_low = std::log2(125.0 / 60.0) / std::log2(200.0);
+    const double at_high = std::log2(8000.0 / 60.0) / std::log2(200.0);
+    EXPECT_NEAR(low[1], 21.0, 1.0, "Focus in the middle: the low sine gets all its lift");
+    EXPECT_NEAR(high[1], 21.0, 1.0, "and the high one");
+    EXPECT_NEAR(low[0], 21.0 * (1.0 - at_low), 1.0, "Focus down keeps the low end");
+    EXPECT_NEAR(high[0], 21.0 * (1.0 - at_high), 1.0, "and lets go of the top");
+    EXPECT_NEAR(low[2], 21.0 * at_low, 1.0, "Focus up lets go of the low end");
+    EXPECT_NEAR(high[2], 21.0 * at_high, 1.0, "and keeps the top");
+  }
+
+  // --- Listen: only what is added ------------------------------------------------------------
+  {
+    const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 4.0f);
+    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 100.0f},
+                    {p::kListen, 1.0f}, {p::kMix, 0.3f}});
+    const Stereo out = run(device, in);
+    const double loud = change_db(in, out.left, 220.0, 2 * 48000, 3 * 48000);
+    const double quiet = change_db(in, out.left, 3520.0, 2 * 48000, 3 * 48000);
+    // 13.85 dB of lift is a gain of 4.93: what is added is 3.93 times the quiet sine.
+    std::printf("listen: the loud sine %+.1f dB, the quiet one %+.2f dB (what is added: %+.2f dB)\n", loud, quiet,
+                db(std::pow(10.0, 13.85 / 20.0) - 1.0));
+    EXPECT(loud < -60.0, "Listen leaves out what is not lifted");
+    EXPECT_NEAR(quiet, db(std::pow(10.0, 13.85 / 20.0) - 1.0), 0.5, "and plays what is added, whatever Mix says");
   }
 
   return finish("reveal");
