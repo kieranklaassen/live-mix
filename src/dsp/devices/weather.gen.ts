@@ -18,30 +18,8 @@ export const WEATHER_PARAMS = {
     description:
       'Which weather the sound is left out in: gusting wind, passing clouds, rain, surf breaking over it, or a storm of wind, rain and far thunder together.',
   },
-  force: {
-    id: 1,
-    name: 'Force',
-    min: 0,
-    max: 1,
-    default: 0.5,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How strong the weather is: the height of the gusts, the depth of the shadows, how hard it rains, the size of the waves. At zero the sound is left alone.',
-  },
-  pace: {
-    id: 2,
-    name: 'Pace',
-    min: 0.25,
-    max: 4,
-    default: 1,
-    taper: 'log',
-    unit: '',
-    description:
-      "How fast the weather changes: low for long slow gusts, clouds and waves, high for short quick ones and thicker rain. A drop's tick and a thunder roll keep their length.",
-  },
   exposure: {
-    id: 3,
+    id: 1,
     name: 'Exposure',
     min: 0,
     max: 1,
@@ -52,7 +30,7 @@ export const WEATHER_PARAMS = {
       'How much the weather moves the sound itself: level sinks and highs dull under each gust, shadow, drop or wave, and wind and surf roughen it. At zero it is untouched.',
   },
   voice: {
-    id: 4,
+    id: 2,
     name: 'Voice',
     min: 0,
     max: 1,
@@ -62,8 +40,19 @@ export const WEATHER_PARAMS = {
     description:
       "How much of the weather's own sound is heard: whistle, hush, drops, wash and thunder. It is as loud as the playing lets it be. At zero only what Exposure does is left.",
   },
+  calm: {
+    id: 3,
+    name: 'Calm',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How long the lulls between gusts, clouds, showers and waves are. At zero one follows the other. Turned up, the sound is left in peace for longer.',
+  },
   colour: {
-    id: 5,
+    id: 4,
     name: 'Colour',
     min: 0,
     max: 1,
@@ -74,7 +63,7 @@ export const WEATHER_PARAMS = {
       'Dark to bright weather. Low settings howl, thud and roar and dull more of the sound. High settings whistle, tick and fizz and take only its top.',
   },
   sway: {
-    id: 6,
+    id: 5,
     name: 'Sway',
     min: 0,
     max: 1,
@@ -84,19 +73,8 @@ export const WEATHER_PARAMS = {
     description:
       'How much the weather moves from side to side: gusts lean, drops scatter, clouds and waves cross from one side to the other. At zero it all stays in the middle.',
   },
-  calm: {
-    id: 7,
-    name: 'Calm',
-    min: 0,
-    max: 1,
-    default: 0.3,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How long the lulls between gusts, clouds, showers and waves are. At zero one follows the other. Turned up, the sound is left in peace for longer.',
-  },
   linger: {
-    id: 8,
+    id: 6,
     name: 'Linger',
     min: 1,
     max: 60,
@@ -107,7 +85,7 @@ export const WEATHER_PARAMS = {
       "How long the weather's own sound stays as it was after the playing falls away or stops, before it sinks to where the playing is now and, in silence, fades out.",
   },
   mix: {
-    id: 9,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -115,6 +93,28 @@ export const WEATHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description: 'Balance between the dry signal and the sound out in the weather.',
+  },
+  force: {
+    id: 8,
+    name: 'Force',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How strong the weather is: the height of the gusts, the depth of the shadows, how hard it rains, the size of the waves. At zero the sound is left alone.',
+  },
+  pace: {
+    id: 9,
+    name: 'Pace',
+    min: 0.25,
+    max: 4,
+    default: 1,
+    taper: 'log',
+    unit: '',
+    description:
+      "How fast the weather changes: low for long slow gusts, clouds and waves, high for short quick ones and thicker rain. A drop's tick and a thunder roll keep their length.",
   },
 } as const satisfies Record<string, ParamSpec>
 

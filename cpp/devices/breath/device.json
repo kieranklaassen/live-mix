@@ -30,16 +30,6 @@
       "description": "How long the breath takes to fill. The sound rises, brightens and widens over this time."
     },
     {
-      "key": "hold",
-      "name": "Hold",
-      "min": 0.02,
-      "max": 20,
-      "default": 0.5,
-      "taper": "log",
-      "unit": "s",
-      "description": "How long the breath stays full before it lets go. At its lowest it turns straight around."
-    },
-    {
       "key": "out",
       "name": "Out",
       "min": 0.2,
@@ -48,16 +38,6 @@
       "taper": "log",
       "unit": "s",
       "description": "How long the breath takes to empty. The sound sinks, darkens and narrows over this time."
-    },
-    {
-      "key": "rest",
-      "name": "Rest",
-      "min": 0.02,
-      "max": 20,
-      "default": 1,
-      "taper": "log",
-      "unit": "s",
-      "description": "How long the breath stays empty before the next one begins. At its lowest it turns straight around."
     },
     {
       "key": "depth",
@@ -100,20 +80,40 @@
       "description": "The curve of the way in and out. Low is a straight ramp with hard corners, high is a soft swell that slows into each turn."
     },
     {
-      "key": "vary",
-      "name": "Vary",
-      "min": 0,
-      "max": 1,
-      "default": 0.2,
-      "description": "How much each breath differs in length from the last, so the cycle never quite repeats. At zero every breath is the same."
-    },
-    {
       "key": "mix",
       "name": "Mix",
       "min": 0,
       "max": 1,
       "default": 1,
       "description": "Balance between the untouched sound and the breathing one."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0.02,
+      "max": 20,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the breath stays full before it lets go. At its lowest it turns straight around."
+    },
+    {
+      "key": "rest",
+      "name": "Rest",
+      "min": 0.02,
+      "max": 20,
+      "default": 1,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the breath stays empty before the next one begins. At its lowest it turns straight around."
+    },
+    {
+      "key": "vary",
+      "name": "Vary",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How much each breath differs in length from the last, so the cycle never quite repeats. At zero every breath is the same."
     }
   ],
   "presets": {

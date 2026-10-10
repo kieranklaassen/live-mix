@@ -3,15 +3,15 @@
 // Parameter ids and ranges of Murmuration, shared with
 // src/dsp/devices/murmuration.gen.ts:
 //    0  birds: 1..16, default 8
-//    1  range: 1..60 m, default 10
-//    2  speed: 0.05..4 x, default 1
-//    3  together: 0..1, default 0.6
-//    4  turns: 0..1, default 0.3
+//    1  speed: 0.05..4 x, default 1
+//    2  turns: 0..1, default 0.3
+//    3  mix: 0..1, default 0.4
+//    4  range: 1..60 m, default 10
 //    5  air: 0..1, default 0.5
-//    6  spread: 0..1, default 0.8
-//    7  lift: 0..1, default 0.3
-//    8  ground: 20..500 Hz, default 200
-//    9  mix: 0..1, default 0.4
+//    6  lift: 0..1, default 0.3
+//    7  ground: 20..500 Hz, default 200
+//    8  together: 0..1, default 0.6
+//    9  spread: 0..1, default 0.8
 
 #pragma once
 
@@ -20,21 +20,21 @@ namespace murmuration {
 
 enum Param : int {
   kBirds = 0,
-  kRange = 1,
-  kSpeed = 2,
-  kTogether = 3,
-  kTurns = 4,
+  kSpeed = 1,
+  kTurns = 2,
+  kMix = 3,
+  kRange = 4,
   kAir = 5,
-  kSpread = 6,
-  kLift = 7,
-  kGround = 8,
-  kMix = 9,
+  kLift = 6,
+  kGround = 7,
+  kTogether = 8,
+  kSpread = 9,
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {1.0f, 1.0f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {16.0f, 60.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 500.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {8.0f, 10.0f, 1.0f, 0.6f, 0.3f, 0.5f, 0.8f, 0.3f, 200.0f, 0.4f};
+inline constexpr float kParamMin[kNumParams] = {1.0f, 0.05f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 20.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {16.0f, 4.0f, 1.0f, 1.0f, 60.0f, 1.0f, 1.0f, 500.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {8.0f, 1.0f, 0.3f, 0.4f, 10.0f, 0.5f, 0.3f, 200.0f, 0.6f, 0.8f};
 
 }  // namespace murmuration
 }  // namespace livemix

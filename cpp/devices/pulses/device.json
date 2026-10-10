@@ -65,6 +65,38 @@
       "description": "Starts the second gate this many steps ahead of the first, a fixed canon between the two. Drift moves on from there."
     },
     {
+      "key": "shade",
+      "name": "Shade",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Dulls the sound as each pulse closes, so the pulses open bright out of a darker bed. At zero only the level moves."
+    },
+    {
+      "key": "apart",
+      "name": "Apart",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Where the two gates sit. At zero both pulse in the middle; at full the first is on the left and the second on the right."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched signal and the pulsed one. Lower settings make the pulses shallower."
+    },
+    {
+      "key": "accent",
+      "name": "Accent",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Turns down every step but the first, so the start of the pattern stands out and the slide between the two gates is easier to follow."
+    },
+    {
       "key": "edge",
       "name": "Edge",
       "min": 0,
@@ -87,38 +119,6 @@
       "max": 1,
       "default": 0.65,
       "description": "How much of the sound is left between pulses. At zero the gaps are silent; turned up, the pulses ride on a bed of the sound, and at full only Shade still moves."
-    },
-    {
-      "key": "shade",
-      "name": "Shade",
-      "min": 0,
-      "max": 1,
-      "default": 0.5,
-      "description": "Dulls the sound as each pulse closes, so the pulses open bright out of a darker bed. At zero only the level moves."
-    },
-    {
-      "key": "apart",
-      "name": "Apart",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "description": "Where the two gates sit. At zero both pulse in the middle; at full the first is on the left and the second on the right."
-    },
-    {
-      "key": "accent",
-      "name": "Accent",
-      "min": 0,
-      "max": 1,
-      "default": 0.3,
-      "description": "Turns down every step but the first, so the start of the pattern stands out and the slide between the two gates is easier to follow."
-    },
-    {
-      "key": "mix",
-      "name": "Mix",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "description": "Balance between the untouched signal and the pulsed one. Lower settings make the pulses shallower."
     }
   ],
   "presets": {
