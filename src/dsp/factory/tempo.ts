@@ -37,7 +37,8 @@ export function factoryTempo(bpm: number): number {
  * a rate (Hz: an LFO), and so move with the tempo of a sound that has one.
  */
 const TIMED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'time' | 'rate'>>>> = {
-  'analog-delay': { time: 'time' },
+  // The wobble of the echo is an LFO too: it comes round with a loop only while it keeps to the beat.
+  'analog-delay': { time: 'time', modRate: 'rate' },
   'tape-echo': { time: 'time' },
   'echo-memory': { time: 'time' },
   'reverse-delay': { time: 'time' },

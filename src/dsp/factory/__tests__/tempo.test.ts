@@ -125,6 +125,15 @@ describe('the tempo of a sound', () => {
     expect(paramsOf(fast.effects[0]).time).toBeCloseTo(62.5, 6)
   })
 
+  it('keeps the wobble of an echo going round with the beat', () => {
+    const patch = patchAtTempo(
+      { effects: [{ deviceId: 'analog-delay', params: { time: 375, modRate: 0.5 } }] },
+      tempoRatio(120, 90),
+    )
+    // One turn a bar at 120 is one turn a bar at 90.
+    expect(paramsOf(patch.effects[0]).modRate).toBeCloseTo(0.5 * (90 / 120), 9)
+  })
+
   it('leaves the devices that keep no time as they are', () => {
     const patch = { effects: [{ deviceId: 'plate-reverb', params: { mix: 0.3 } }] }
     expect(patchAtTempo(patch, 1.5).effects[0]).toBe(patch.effects[0])
