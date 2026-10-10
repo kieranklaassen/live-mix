@@ -454,4 +454,33 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'plate-reverb', preset: 'Medium plate' },
     ],
   },
+  {
+    id: 'one-string-arco-bass',
+    name: 'One string arco bass',
+    category: 'bass',
+    description:
+      'One bowed low string with a full wooden body that takes a moment to speak, set in the centre, with a little room.',
+    instrument: {
+      deviceId: 'bowed-string',
+      params: {
+        mode: 2,
+        attack: 0.1,
+        release: 0.5,
+        brightness: 0.4,
+        pressure: 0.5,
+        body: 0.8,
+        vibrato: 0.05,
+        detune: 0,
+        volume: -7,
+      },
+    },
+    effects: [
+      {
+        deviceId: 'rotary',
+        preset: 'Mono cabinet',
+        params: { hornDepth: 0, drumDepth: 0, drive: 0 },
+      },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.12 } },
+    ],
+  },
 ]

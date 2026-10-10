@@ -440,4 +440,28 @@ export const TINE_PIANO_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'felted-tine-bass',
+    name: 'Felted tine bass',
+    category: 'bass',
+    description:
+      'Dark, softly struck low tines that are almost all fundamental, through a valve stage with a little room behind them.',
+    instrument: { deviceId: 'tine-piano', preset: 'Dark felt', params: { volume: -14 } },
+    effects: [
+      { deviceId: 're-amp', preset: 'Just the valves' },
+      { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.1 } },
+    ],
+  },
+  {
+    id: 'barking-tine-bass',
+    name: 'Barking tine bass',
+    category: 'bass',
+    description:
+      'Low tines set close to the pickup so that hard notes bark, pushed through a tube preamp, in a small box of a room.',
+    instrument: { deviceId: 'tine-piano', preset: 'Barking stage', params: { volume: -12 } },
+    effects: [
+      { deviceId: 'saturator', preset: 'Tube preamp' },
+      { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 250, mix: 0.15 } },
+    ],
+  },
 ]

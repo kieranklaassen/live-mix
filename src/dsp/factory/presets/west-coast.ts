@@ -460,4 +460,32 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'ambient-limiter', preset: 'Margin' },
     ],
   },
+  {
+    id: 'folded-gate-bass',
+    name: 'Folded gate bass',
+    category: 'bass',
+    description:
+      'A folded sine struck through a low-pass gate: rich at the strike, then mellow and held a third open, in a small box.',
+    instrument: {
+      deviceId: 'west-coast',
+      params: {
+        fold: 0.3,
+        symmetry: 0.2,
+        fm: 0,
+        ratio: 1,
+        timbreEnv: 0.5,
+        attack: 0.001,
+        decay: 1.3,
+        sustain: 0.35,
+        colour: 0.45,
+        chance: 0,
+        drift: 0,
+        volume: -7,
+      },
+    },
+    effects: [
+      { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 250, mix: 0.2 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, release: 0.2, ride: 0 } },
+    ],
+  },
 ]

@@ -320,4 +320,28 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
     ],
     preview: 'keys',
   },
+  {
+    id: 'low-brass-bass',
+    name: 'Low brass bass',
+    category: 'bass',
+    description:
+      'A single low brass player with a tongued start, round and steady, with a tight swarm of echoes kept above the bass.',
+    instrument: {
+      deviceId: 'horns',
+      params: {
+        type: 4,
+        blow: 0.5,
+        breath: 0.1,
+        section: 0,
+        attack: 0.05,
+        release: 0.3,
+        vibrato: 0,
+        volume: 0,
+      },
+    },
+    effects: [
+      { deviceId: 'tape', preset: 'Clean transfer' },
+      { deviceId: 'swarm-reverb', preset: 'Tight swarm', params: { lowCut: 250, mix: 0.2 } },
+    ],
+  },
 ]
