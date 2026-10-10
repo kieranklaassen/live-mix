@@ -2,6 +2,7 @@
 // category; within a category they keep the order they have here.
 
 import { type FactoryPreset } from '../types'
+import { ACID_BASS_PRESETS } from './acid-bass'
 import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
@@ -76,4 +77,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...OUTDOORS_PRESETS,
   ...ZONE_SAMPLER_PRESETS,
   ...SUB_BASS_PRESETS,
+  ...ACID_BASS_PRESETS,
 ]
