@@ -1,0 +1,93 @@
+{
+  "id": "glimmer",
+  "name": "Glimmer",
+  "category": "modulation",
+  "description": "Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go.",
+  "class": "Glimmer",
+  "header": "glimmer.h",
+  "sources": [],
+  "meters": [{ "key": "clock", "name": "Flicker clock", "display": true }],
+  "latencySamples": 2304,
+  "params": [
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "How far each band of the spectrum dips between its flashes. Low is a faint sheen; at full every band falls to silence and comes back."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.03,
+      "max": 12,
+      "default": 2.2,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the bands flicker. Slow is drifting weather inside the sound; fast is a shimmer on its surface."
+    },
+    {
+      "key": "grain",
+      "name": "Grain",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How narrow the flickering bands are. Low moves broad regions of the spectrum together; high lets single partials flicker on their own."
+    },
+    {
+      "key": "pattern",
+      "name": "Pattern",
+      "choices": ["Scatter", "Upward", "Downward", "Outward"],
+      "default": 0,
+      "description": "Scatter flickers every band in its own time. Upward and Downward send a ripple through the spectrum, and Outward sends it both ways from the middle."
+    },
+    {
+      "key": "lean",
+      "name": "Lean",
+      "min": -1,
+      "max": 1,
+      "default": 0.3,
+      "description": "Which part of the spectrum flickers most. To the right the lows hold steady under glittering highs; to the left the highs hold steady."
+    },
+    {
+      "key": "soft",
+      "name": "Soft",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How gently each band comes and goes. High is a smooth swell and fall; low is a short sudden glint with dark around it."
+    },
+    {
+      "key": "vary",
+      "name": "Vary",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How unlike one flash is to the next. At zero a band flashes as brightly every time; higher lets some flashes come dim or stay away."
+    },
+    {
+      "key": "apart",
+      "name": "Apart",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How differently the two sides flicker. At zero both sides move as one; higher spreads the flicker across the stereo field."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched sound and the flickering one."
+    }
+  ],
+  "presets": {
+    "Light on water": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A tremolo for every narrow band of the spectrum on kit::Stft, each band on its own seeded clock, with the long-term power of every band held."
+  }
+}
