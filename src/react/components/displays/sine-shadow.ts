@@ -353,5 +353,7 @@ export const SINE_SHADOW_FACES: Readonly<Record<string, PlateFace>> = {
   'sine-shadow': {
     display: sineShadow,
     face: ['partials', 'transpose', 'release', 'mix'],
+    // "Transpose" between "Partials" and "Release" leaves no room between the words.
+    labels: { transpose: 'Pitch' },
   },
 }
