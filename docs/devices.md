@@ -302,6 +302,22 @@ the open hat in the order notes arrive, so an open hat then a closed one in
 the same block leaves only the closed one. The keys of both kits are in
 `rhythm.ts` (`KIT`, `FAULT`) and in [factory.md](./factory.md#kits).
 
+### The four bass instruments: what measurement says is weak
+
+None of the four has been listened to. Each was built by one worker and read
+by a second, who measured the pitch of every preset from E0 to A3 at several
+sample rates, looked for a click at every kind of key change, played every
+preset on a bass line, moved every control end to end against what its
+description says and broke the device on purpose to see whether its harness
+noticed. What that left open:
+
+| Device        | Weak or unproven                                                                                                                                                                                                                                                                                                                                                                                                      | Listen first                                                                         |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `sub-bass`    | A sine with harmonics added up to the seventh, so its held presets differ mostly in how they start, fall and glide; "Pure sine" has nothing over its fundamental and is not heard on small speakers; with Volume at the top a high key folds back 37 dB down                                                                                                                                                          | "Soft sub" against "Pure sine" on the speakers a piece is for; "Deep dive"           |
+| `fm-bass`     | "Held hum" and "Deep weight" (Ratio 1/2) sound an octave under the key; at Ratio 1/2 with Depth near the top, Sub cancels that lower partial (no preset goes there); "Low growl" struck at full gain has its fundamental 22 dB under the rest for 0.15 s; the loudest corner (Ratio 7, Depth 0.95, Sub 1, from B flat 4) passes the clip knee                                                                         | "Low growl" played hard; "Held hum" for the octave it reads as                       |
+| `acid-bass`   | A key pressed over a held one slides, comes back to full loudness and does not strike the filter or the accent again, so a line of keys that all overlap opens the filter once; an accent (a key struck over 0.7) also shortens the decay; at C4 "Held sub tone" and "Dub weight" are 14 dB thinner than at A1                                                                                                        | "Rubber slides" and "Long glide drone" with overlapping keys; Drive on a dark square |
+| `string-bass` | Growl is trains of impulses through a band-pass, not a model of a string on a neck; Mute at the top flattens a note by up to 8 cents; four strings struck at full gain pass the clip knee on thirteen presets (by up to 8 dB on "Near the bridge") and one string does on three; every pluck differs a little by design, so a loop made of it never comes round to the same samples; the upright's thump has no pitch | "Singing fretless" on a slow line; "Slapped upright"; four low strings played hard   |
+
 ## Effect presets
 
 Every effect comes with presets of its own: sixteen each, fewer for the eight
@@ -406,7 +422,7 @@ listen:
 ## Instrument presets
 
 Every instrument comes with sixteen presets of its own (Ember has seventeen),
-561 over the 35 instruments: the list a player steps through where the
+657 over the 41 instruments: the list a player steps through where the
 instrument stands, apart from the bank's sounds, which are an instrument with
 effects after it. Until this list was filled most instruments had six.
 

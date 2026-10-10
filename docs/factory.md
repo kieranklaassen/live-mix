@@ -141,11 +141,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                                                                                                                 |
-| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 740   | Twenty for each of the thirty-seven stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                              |
-| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                             |
-| **Sounds**  | 176   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; and 76 loops that keep time: drums (32), glitches (20), pitched pulses (24) |
+|             | Count | Groups                                                                                                                                                                                                                                                                                                                                                 |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Presets** | 844   | Twenty for each of the forty-one stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                             |
+| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                                                                                                                                                             |
+| **Sounds**  | 244   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); and 76 loops of drums (32), glitches (20) and pitched pulses (24). 111 keep time: those 76 and 35 of the bass lines |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -154,10 +154,10 @@ Beside the bank are the packs, a hundred presets each, which are fetched
 apart from it: see [Packs](#packs).
 
 - `renderPresetPreview(preset)` plays the preset's phrase (its category's:
-  a held chord for a pad, a broken chord for keys and plucked strings, four
-  strikes for a bell, one moving line for wind, a low fifth for a drone;
-  `preview` overrides it) for eight seconds with the
-  tail.
+  a held chord for a pad, a broken chord for keys and plucked strings, six
+  low notes for a bass with one of them reaching into the next, four strikes
+  for a bell, one moving line for wind, a low fifth for a drone; `preview`
+  overrides it) for eight seconds with the tail.
 - `renderChainPreview(chain, { input })` runs the first six seconds of `input`
   through the chain and lets it ring for two more. Without an input a dry
   electric piano phrase plays (`CHAIN_PREVIEW_PATCH`, `CHAIN_PREVIEW_PHRASE`).
@@ -210,9 +210,11 @@ then called.
 
 A sound with a beat to it (a drum loop, a pulse, a bass line) has a `bpm`:
 the tempo it is written at, 120 in everything the bank ships. It is a loop of
-whole bars in four (2, 4 or 8 s at 120), its first stroke on a downbeat,
-every stroke on a grid, and it is played at any other tempo by moving the
-notes: nothing is stretched.
+whole bars in four (one to eight of them: 2 to 16 s at 120) kept from a bar
+line, every stroke on a grid counted from it (a drum loop starts on the
+downbeat; a bass line that answers on the offbeats starts with a rest; one
+upright bass line is in free time between its bar lines), and it is played
+at any other tempo by moving the notes: nothing is stretched.
 
 ```ts
 import { renderFactorySound, soundAtTempo } from '@kieranklaassen/live-mix/dsp'
@@ -246,7 +248,10 @@ per, hold, swing, lateSec })` lays one voice out in steps (`X` loud, `x`,
 otherwise, so a row `per: 12` is triplets and `per: 5` goes against the
 four), and `bars(count, rows, { passes, crossfadeSec })` makes the rows a
 loop of that many bars and sets `bpm`. A row shorter than the loop repeats
-to fill it and has to fill it exactly.
+to fill it and has to fill it exactly. `inTime(seconds, strokes)` is the same
+for a line written as strokes (`[atSec, durSec, note, gain]`), which a bass
+line is: a note held over a bar line or reaching into the next one, where a
+bass that slides, slides, has no place in a row of steps.
 
 The bank's sounds that keep time are held to this by `time.test.ts`: whole
 bars at 120, the same strokes in every round, kept from a bar line; the same
@@ -487,7 +492,7 @@ another sound, and a sound that is to be longer, shorter or looped is a new
 sound with a new number.
 
 The bank as written sits inside them: preset previews have their loudest
-400 ms between −30 and −23 dBFS with peaks under −8.5 (Muted echo pattern and
+400 ms between −30 and −22 dBFS with peaks under −8.5 (Muted echo pattern and
 Muted acoustic echo shipped at −33 and stay there), chains come out between
 3.7 LU under the dry input and 2.8 LU over it (but for Night shortwave, a
 narrow radio band that fades by design and sits 6 LU under it), stereo width
@@ -558,7 +563,8 @@ loudest second against the quietest); for a sound that ends, `lead` (silence
 before it starts) and `end` (the level it stops at). Then, in capitals, what
 wants a look: `KIND`, `QUIET` or `LOUD` (outside the band for its kind:
 drones −19 to −12 LUFS, pads −22 to −13, textures −25 to −15, one-shots and
-phrases −24 to −13), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
+phrases −24 to −13, beats −36 to −13: a line on a grid reads as a beat, and
+so do a few clicks with silence between them), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
 24 characters in some key), `SLOW` (over 12 % of real time), `SEAM`, `FOLD`
 (over 1.5 dB), `STEP-IN`, `CUT`, `LATE`. They are prompts and not rules:
 `FOLD` on waves that are between two swells at the wrap is the waves.
@@ -591,20 +597,23 @@ and the last column the render cost.
 The sounds are in `src/dsp/factory/sounds/`, a file per family, put together
 in order in `index.ts`:
 
-| File               | Numbers    | What                                                                                               |
-| ------------------ | ---------- | -------------------------------------------------------------------------------------------------- |
-| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                                               |
-| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                                                |
-| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                                                 |
-| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                                                       |
-| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                                                 |
-| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                                                |
-| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out                                           |
-| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round                                          |
-| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device                                |
-| `beats-drums.ts`   | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
-| `beats-glitch.ts`  | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
-| `beats-pulses.ts`  | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
+| File                   | Numbers    | What                                                                                               |
+| ---------------------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| `first.ts`             | 101 to 134 | The first thirty-four, of every kind                                                               |
+| `drones-held.ts`       | 135 to 140 | Held notes on the acoustic and modelled instruments                                                |
+| `drones-synth.ts`      | 141 to 146 | Synthesizer drones                                                                                 |
+| `pads-synth.ts`        | 147 to 153 | Synthesizer chords that move                                                                       |
+| `pads-acoustic.ts`     | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                                                 |
+| `textures.ts`          | 161 to 170 | Weather, water, night, rooms and machines: no pitch                                                |
+| `oneshots.ts`          | 171 to 184 | One note or one chord, struck or plucked, that rings out                                           |
+| `phrases.ts`           | 185 to 194 | Short phrases on one instrument, most of which come round                                          |
+| `made.ts`              | 195 to 200 | Sounds made from another sound of the bank, through a sample device                                |
+| `bass-notes.ts`        | 201 to 232 | Single bass notes on the five bass instruments, and held bass tones that loop                      |
+| `bass-lines-synth.ts`  | 233 to 252 | Bass lines that come round on the sub, FM, acid and ladder basses, written at 120                  |
+| `bass-lines-played.ts` | 253 to 268 | Bass lines that come round on the string bass: fingers, a pick, a fretless, an upright             |
+| `beats-drums.ts`       | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
+| `beats-glitch.ts`      | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
+| `beats-pulses.ts`      | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
 
 `recipe.ts` has what a recipe is written with:
 
@@ -656,7 +665,8 @@ thirty-four instruments and gives the rest to the instruments its idea turns
 on, so whatever instrument is loaded, every pack has something for it.
 
 An instrument that comes after the packs shipped is not asked of them
-(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`): a
+(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
+two kits and the four bass instruments): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
 the bank.
