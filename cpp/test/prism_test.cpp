@@ -568,10 +568,18 @@ int main() {
   // gain that jumped would step by up to 0.25.
   {
     const std::vector<float> tone = sine(220.0f, 1.0f, kRate, 0.25f);
+    // The step from the last sample before the move to the first after it counts too: a gain that jumps
+    // does so there, between two renders.
+    auto steepest = [](const Stereo& before, const Stereo& after) {
+      std::vector<float> left(1, before.left.back()), right(1, before.right.back());
+      left.insert(left.end(), after.left.begin(), after.left.end());
+      right.insert(right.end(), after.right.begin(), after.right.end());
+      return std::max(max_step(left), max_step(right));
+    };
     device.init(kRate);
-    run(device, tone);
+    const Stereo led = run(device, tone);
     const Stereo still = run(device, tone);
-    const double unmoved = std::max(max_step(still.left), max_step(still.right));
+    const double unmoved = steepest(led, still);
     const double reference = 2.0 * kPi * 220.0 / kRate * 0.5;
     struct Move {
       int id;
@@ -585,10 +593,10 @@ int main() {
     double worst = 0.0;
     for (const Move& move : moves) {
       device.init(kRate);
-      run(device, tone);
+      const Stereo before = run(device, tone);
       device.set_param(move.id, move.to);
       const Stereo out = run(device, tone);
-      const double step = std::max(max_step(out.left), max_step(out.right));
+      const double step = steepest(before, out);
       worst = std::max(worst, step / reference);
       if (step > reference) {
         std::printf("FAIL: moving %s to %g while sounding: step %.4f against %.4f\n", move.what, move.to, step, reference);
@@ -597,10 +605,10 @@ int main() {
     }
     device.init(kRate);
     device.set_param(p::kShape, static_cast<float>(kScatter));
-    run(device, tone);
+    const Stereo undealt = run(device, tone);
     device.set_param(p::kShuffle, 9.0f);
     const Stereo dealt = run(device, tone);
-    worst = std::max(worst, std::max(max_step(dealt.left), max_step(dealt.right)) / reference);
+    worst = std::max(worst, steepest(undealt, dealt) / reference);
     // A sweep of Time, a move every block, as a hand would turn it.
     device.init(kRate);
     run(device, tone);
