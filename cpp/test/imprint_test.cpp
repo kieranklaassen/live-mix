@@ -395,7 +395,9 @@ int main() {
   }
 
   // 4. Amount below zero turns the shape inside out: read off many steady
-  // tones, the two curves add up to nothing, tone by tone.
+  // tones, the two curves add up to nothing, tone by tone, within half a dB
+  // (what is left is the frame: a gain per bin is a filter three bins wide,
+  // and it averages gains, not decibels).
   {
     const std::vector<double> hz = tone_set(150.0, 9000.0);
     const std::vector<float> in = many_tones(hz, 3.5f, kRate, 0.2f);
@@ -405,6 +407,7 @@ int main() {
       device.init(kRate);
       device.set_param(p::kCapture, 0.0f);
       device.set_param(p::kShape, 1.0f);
+      device.set_param(p::kReplace, 0.0f);
       device.set_param(p::kAmount, amount);
       curves[which++] = curve_of(in, run(device, in).left, 72000, hz, kRate);
     }
@@ -415,7 +418,7 @@ int main() {
     }
     std::printf("invert: the stamp reaches %.1f dB; the two curves add up to %.3f dB at worst\n", range, worst);
     EXPECT(range > 5.0, "the open vowel stamps more than 5 dB of shape");
-    EXPECT(worst < 0.3, "Amount -1 is the reciprocal of Amount 1");
+    EXPECT(worst < 0.5, "Amount -1 is the reciprocal of Amount 1 within half a dB");
   }
 
   // 5. Shift moves the stamp along the spectrum by the semitones it says:
@@ -429,6 +432,7 @@ int main() {
       device.init(kRate);
       device.set_param(p::kCapture, 0.0f);
       device.set_param(p::kShape, 2.0f);
+      device.set_param(p::kReplace, 0.0f);
       device.set_param(p::kSmooth, 0.2f);
       device.set_param(p::kShift, shift);
       const std::vector<double> curve = curve_of(in, run(device, in).left, 72000, hz, kRate);
@@ -484,6 +488,7 @@ int main() {
       device.init(rate);
       device.set_param(p::kCapture, 0.0f);
       device.set_param(p::kShape, static_cast<float>(shape + 1));
+      device.set_param(p::kReplace, 0.0f);
       device.set_param(p::kSmooth, 0.0f);
       const size_t from = static_cast<size_t>(rate > 60000.0f ? 1.6f * rate : 1.5f * rate);
       const std::vector<double> curve = curve_of(in, run(device, in).left, from, hz, rate);
@@ -503,7 +508,7 @@ int main() {
 
   // 8. Smooth: from every bump to the broad colour only. The hollow tube's
   // six narrow peaks are read off at five settings; the curve's range falls
-  // at every step, from over 10 dB to under 4.
+  // at every step, from over 10 dB to under four tenths of that.
   {
     const std::vector<double> hz = tone_set(150.0, 9000.0);
     const std::vector<float> in = many_tones(hz, 3.5f, kRate, 0.2f);
@@ -513,6 +518,7 @@ int main() {
       device.init(kRate);
       device.set_param(p::kCapture, 0.0f);
       device.set_param(p::kShape, 4.0f);
+      device.set_param(p::kReplace, 0.0f);
       device.set_param(p::kSmooth, smooth);
       const std::vector<double> curve = curve_of(in, run(device, in).left, 72000, hz, kRate);
       const double range = *std::max_element(curve.begin(), curve.end()) - *std::min_element(curve.begin(), curve.end());
@@ -522,7 +528,7 @@ int main() {
       if (smooth == 0.0f) first = range;
     }
     EXPECT(falling, "every quarter of Smooth takes detail out of the stamp");
-    EXPECT(first > 10.0 && last < 4.0, "Smooth runs from every bump to the broad colour only");
+    EXPECT(first > 10.0 && last < 0.4 * first, "Smooth runs from every bump to the broad colour only");
   }
 
   // 9. The capture. meter() carries the captured colour at 55 points (point

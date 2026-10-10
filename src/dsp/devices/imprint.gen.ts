@@ -65,7 +65,7 @@ export const IMPRINT_PARAMS = {
     name: 'Replace',
     min: 0,
     max: 1,
-    default: 0,
+    default: 0.25,
     taper: 'linear',
     unit: '',
     description:
@@ -139,6 +139,33 @@ export const IMPRINT_DESCRIPTOR = wasmDeviceDescriptor(IMPRINT_DEVICE, {
   category: 'eq',
   description:
     'Learns the tone colour of what it hears, holds it when Capture is switched off, and presses that colour on everything played after.',
+  presets: {
+    'Open vowel': {
+      capture: 1,
+      shape: 1,
+      amount: 1,
+      shift: 0,
+      replace: 0.25,
+      smooth: 0.5,
+      learn: 2,
+      mix: 1,
+    },
+    'Round vowel': { shape: 2, amount: 1.2 },
+    'Thin vowel': { shape: 3, amount: 1.5 },
+    'Hollow tube': { shape: 4, amount: 1.2, smooth: 0.3 },
+    'Bright bell': { shape: 5, amount: 1.5, smooth: 0.15 },
+    'Dark box': { shape: 6, replace: 0.6 },
+    'Deeper colour': { shape: 0, amount: 1, replace: 0 },
+    'Evened out': { shape: 0, amount: -1, replace: 0, smooth: 0.6, learn: 3 },
+    'Small body': { shape: 1, amount: 1.3, shift: 12, replace: 0.35 },
+    'Large body': { shape: 2, amount: 1.3, shift: -9 },
+    'Inside out': { shape: 1, amount: -2, replace: 0 },
+    'All vowel': { shape: 3, replace: 1 },
+    'Thin glass': { shape: 5, amount: 2, shift: 7, smooth: 0 },
+    'Faint vowel': { shape: 2, amount: 0.8, replace: 0, mix: 0.7 },
+    'Distant pipe': { shape: 4, shift: -5, replace: 0.7, smooth: 0.4 },
+    'Remembered notes': { shape: 0, amount: 1.5, replace: 0, smooth: 0, learn: 8 },
+  },
 })
 
 export type Imprint = WasmDevice<typeof IMPRINT_PARAMS>

@@ -8,21 +8,81 @@
   "sources": [],
   "latencySamples": 2304,
   "meters": [
-    { "key": "shape1", "name": "Captured colour, points 1 to 4", "display": true },
-    { "key": "shape2", "name": "Captured colour, points 5 to 8", "display": true },
-    { "key": "shape3", "name": "Captured colour, points 9 to 12", "display": true },
-    { "key": "shape4", "name": "Captured colour, points 13 to 16", "display": true },
-    { "key": "shape5", "name": "Captured colour, points 17 to 20", "display": true },
-    { "key": "shape6", "name": "Captured colour, points 21 to 24", "display": true },
-    { "key": "shape7", "name": "Captured colour, points 25 to 28", "display": true },
-    { "key": "shape8", "name": "Captured colour, points 29 to 32", "display": true },
-    { "key": "shape9", "name": "Captured colour, points 33 to 36", "display": true },
-    { "key": "shape10", "name": "Captured colour, points 37 to 40", "display": true },
-    { "key": "shape11", "name": "Captured colour, points 41 to 44", "display": true },
-    { "key": "shape12", "name": "Captured colour, points 45 to 48", "display": true },
-    { "key": "shape13", "name": "Captured colour, points 49 to 52", "display": true },
-    { "key": "shape14", "name": "Captured colour, points 53 to 55", "display": true },
-    { "key": "heard", "name": "Share of the Learn time heard", "display": true }
+    {
+      "key": "shape1",
+      "name": "Captured colour, points 1 to 4",
+      "display": true
+    },
+    {
+      "key": "shape2",
+      "name": "Captured colour, points 5 to 8",
+      "display": true
+    },
+    {
+      "key": "shape3",
+      "name": "Captured colour, points 9 to 12",
+      "display": true
+    },
+    {
+      "key": "shape4",
+      "name": "Captured colour, points 13 to 16",
+      "display": true
+    },
+    {
+      "key": "shape5",
+      "name": "Captured colour, points 17 to 20",
+      "display": true
+    },
+    {
+      "key": "shape6",
+      "name": "Captured colour, points 21 to 24",
+      "display": true
+    },
+    {
+      "key": "shape7",
+      "name": "Captured colour, points 25 to 28",
+      "display": true
+    },
+    {
+      "key": "shape8",
+      "name": "Captured colour, points 29 to 32",
+      "display": true
+    },
+    {
+      "key": "shape9",
+      "name": "Captured colour, points 33 to 36",
+      "display": true
+    },
+    {
+      "key": "shape10",
+      "name": "Captured colour, points 37 to 40",
+      "display": true
+    },
+    {
+      "key": "shape11",
+      "name": "Captured colour, points 41 to 44",
+      "display": true
+    },
+    {
+      "key": "shape12",
+      "name": "Captured colour, points 45 to 48",
+      "display": true
+    },
+    {
+      "key": "shape13",
+      "name": "Captured colour, points 49 to 52",
+      "display": true
+    },
+    {
+      "key": "shape14",
+      "name": "Captured colour, points 53 to 55",
+      "display": true
+    },
+    {
+      "key": "heard",
+      "name": "Share of the Learn time heard",
+      "display": true
+    }
   ],
   "params": [
     {
@@ -69,7 +129,7 @@
       "name": "Replace",
       "min": 0,
       "max": 1,
-      "default": 0,
+      "default": 0.25,
       "description": "At zero the colour is laid over the sound's own. Turned up, the sound's own colour is flattened first, so different sounds come out with the same colour."
     },
     {
@@ -99,7 +159,97 @@
       "description": "Balance between the untouched sound and the stamped one."
     }
   ],
-  "presets": {},
+  "presets": {
+    "Open vowel": {
+      "capture": 1,
+      "shape": 1,
+      "amount": 1,
+      "shift": 0,
+      "replace": 0.25,
+      "smooth": 0.5,
+      "learn": 2,
+      "mix": 1
+    },
+    "Round vowel": {
+      "shape": 2,
+      "amount": 1.2
+    },
+    "Thin vowel": {
+      "shape": 3,
+      "amount": 1.5
+    },
+    "Hollow tube": {
+      "shape": 4,
+      "amount": 1.2,
+      "smooth": 0.3
+    },
+    "Bright bell": {
+      "shape": 5,
+      "amount": 1.5,
+      "smooth": 0.15
+    },
+    "Dark box": {
+      "shape": 6,
+      "replace": 0.6
+    },
+    "Deeper colour": {
+      "shape": 0,
+      "amount": 1,
+      "replace": 0
+    },
+    "Evened out": {
+      "shape": 0,
+      "amount": -1,
+      "replace": 0,
+      "smooth": 0.6,
+      "learn": 3
+    },
+    "Small body": {
+      "shape": 1,
+      "amount": 1.3,
+      "shift": 12,
+      "replace": 0.35
+    },
+    "Large body": {
+      "shape": 2,
+      "amount": 1.3,
+      "shift": -9
+    },
+    "Inside out": {
+      "shape": 1,
+      "amount": -2,
+      "replace": 0
+    },
+    "All vowel": {
+      "shape": 3,
+      "replace": 1
+    },
+    "Thin glass": {
+      "shape": 5,
+      "amount": 2,
+      "shift": 7,
+      "smooth": 0
+    },
+    "Faint vowel": {
+      "shape": 2,
+      "amount": 0.8,
+      "replace": 0,
+      "mix": 0.7
+    },
+    "Distant pipe": {
+      "shape": 4,
+      "shift": -5,
+      "replace": 0.7,
+      "smooth": 0.4
+    },
+    "Remembered notes": {
+      "shape": 0,
+      "amount": 1.5,
+      "replace": 0,
+      "smooth": 0,
+      "learn": 8
+    }
+  },
   "origin": {
     "kind": "new",
     "note": "Written for live-mix on cpp/kit and kit::Stft. A spectral envelope follower and a gain per bin, in the family of cross synthesis by envelope transfer; not a model of any product."
