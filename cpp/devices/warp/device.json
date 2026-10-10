@@ -20,8 +20,14 @@
       "display": true
     },
     {
-      "key": "partial1Hz",
-      "name": "Partial 1 frequency",
+      "key": "partial1In",
+      "name": "Partial 1 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial1Out",
+      "name": "Partial 1 out",
       "unit": "Hz",
       "display": true
     },
@@ -31,8 +37,14 @@
       "display": true
     },
     {
-      "key": "partial2Hz",
-      "name": "Partial 2 frequency",
+      "key": "partial2In",
+      "name": "Partial 2 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial2Out",
+      "name": "Partial 2 out",
       "unit": "Hz",
       "display": true
     },
@@ -42,8 +54,14 @@
       "display": true
     },
     {
-      "key": "partial3Hz",
-      "name": "Partial 3 frequency",
+      "key": "partial3In",
+      "name": "Partial 3 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial3Out",
+      "name": "Partial 3 out",
       "unit": "Hz",
       "display": true
     },
@@ -53,8 +71,14 @@
       "display": true
     },
     {
-      "key": "partial4Hz",
-      "name": "Partial 4 frequency",
+      "key": "partial4In",
+      "name": "Partial 4 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial4Out",
+      "name": "Partial 4 out",
       "unit": "Hz",
       "display": true
     },
@@ -64,8 +88,14 @@
       "display": true
     },
     {
-      "key": "partial5Hz",
-      "name": "Partial 5 frequency",
+      "key": "partial5In",
+      "name": "Partial 5 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial5Out",
+      "name": "Partial 5 out",
       "unit": "Hz",
       "display": true
     },
@@ -75,8 +105,14 @@
       "display": true
     },
     {
-      "key": "partial6Hz",
-      "name": "Partial 6 frequency",
+      "key": "partial6In",
+      "name": "Partial 6 in",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial6Out",
+      "name": "Partial 6 out",
       "unit": "Hz",
       "display": true
     },
@@ -98,19 +134,19 @@
     {
       "key": "pivot",
       "name": "Pivot",
-      "min": 30,
+      "min": 20,
       "max": 2000,
-      "default": 220,
+      "default": 40,
       "taper": "log",
       "unit": "Hz",
-      "description": "The pitch that does not move. Everything else is stretched away from it or squeezed toward it. With Follow on, the lowest pitch the pivot may land on."
+      "description": "The pitch that does not move. Everything else is stretched away from it or squeezed toward it. With Follow on, the lowest note that gets a pivot of its own."
     },
     {
       "key": "follow",
       "name": "Follow",
       "choices": ["Off", "On"],
-      "default": 0,
-      "description": "On moves the pivot to the lowest strong partial being played at or above the Pivot setting, so each note of a single line keeps its pitch while its overtones move."
+      "default": 1,
+      "description": "On puts a pivot on every note being played, at or above the Pivot setting, so melodies and chords keep their pitches while each note's overtones move."
     },
     {
       "key": "lean",
@@ -158,7 +194,7 @@
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.7,
+      "default": 1,
       "description": "Balance between the dry signal and the warped one. Part way, partials near the pivot beat slowly against their dry selves."
     }
   ],

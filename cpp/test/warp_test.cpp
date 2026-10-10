@@ -16,9 +16,12 @@ static Warp device;
 static const float kRate = 48000.0f;
 static const size_t kLate = Warp::kLatency;
 
-// The device with nothing moving by itself: no drift, no width, all wet.
+// The device with nothing moving by itself: one pivot where the knob is (220 Hz until a check moves
+// it), no drift, no width, all wet.
 static void still(Warp& d, float rate = kRate) {
   d.init(rate);
+  d.set_param(p::kFollow, 0.0f);
+  d.set_param(p::kPivot, 220.0f);
   d.set_param(p::kDrift, 0.0f);
   d.set_param(p::kWidth, 0.0f);
   d.set_param(p::kMix, 1.0f);
@@ -33,6 +36,13 @@ static std::vector<float> harmonics(float hz, int count, float seconds, float ga
     }
   }
   return out;
+}
+
+// One sample of a note at 196 Hz with three harmonics, for a note struck under a held one.
+static float lower_octave(size_t i) {
+  float sum = 0.0f;
+  for (int n = 1; n <= 3; ++n) sum += 0.2f / n * static_cast<float>(std::sin(2.0 * kPi * 196.0 * n * static_cast<double>(i) / kRate));
+  return sum;
 }
 
 static double cents(double a, double b) { return 1200.0 * std::log2(a / b); }
@@ -349,62 +359,85 @@ int main() {
     EXPECT_NEAR(cents(fb, fa), 0.0, 0.5, "and the partial is where it would have been");
   }
 
-  // 10. Follow: the pivot goes to the lowest strong partial at or above the Pivot setting, so each note
-  // of a line keeps its pitch and its overtones are stretched from it.
+  // 10. Follow: every note being played, at or above the Pivot setting, gets a pivot of its own, so a
+  // line and a chord keep their pitches and each note's overtones are stretched from it.
   {
     const double e = std::pow(2.0, 0.5);
+    auto at = [&](const std::vector<float>& x, double want, size_t from, size_t to, double span = 60.0) {
+      return cents(partial_near(x, want, span, from, to), want);
+    };
     std::vector<float> line = harmonics(196.0f, 6, 1.5f, 0.3f);
     const std::vector<float> next = harmonics(293.66f, 6, 1.5f, 0.3f);
     line.insert(line.end(), next.begin(), next.end());
-    auto with = [&](float follow, float pivot) {
+    auto with = [&](const std::vector<float>& in, float follow, float pivot) {
       still(device);
       device.set_param(p::kStretch, 0.5f);
       device.set_param(p::kPivot, pivot);
       device.set_param(p::kFollow, follow);
-      return run(device, line);
+      return run(device, in);
     };
-    Stereo out = with(1.0f, 100.0f);
+    Stereo out = with(line, 1.0f, 100.0f);
     const size_t a0 = 36000, a1 = 66000, b0 = 72000 + 36000, b1 = 72000 + 66000;
-    EXPECT_NEAR(cents(partial_near(out.left, 196.0, 100.0, a0, a1), 196.0), 0.0, 1.0, "Follow: the first note keeps its pitch");
-    EXPECT_NEAR(cents(partial_near(out.left, 196.0 * std::pow(3.0, e), 60.0, a0, a1), 196.0 * std::pow(3.0, e)), 0.0,
-                1.0, "Follow: its third partial is stretched from it");
-    EXPECT_NEAR(cents(partial_near(out.left, 293.66, 100.0, b0, b1), 293.66), 0.0, 1.0, "Follow: the second note keeps its pitch");
-    EXPECT_NEAR(cents(partial_near(out.left, 293.66 * std::pow(3.0, e), 60.0, b0, b1), 293.66 * std::pow(3.0, e)), 0.0,
-                1.0, "Follow: its third partial is stretched from it");
+    EXPECT_NEAR(at(out.left, 196.0, a0, a1, 100.0), 0.0, 1.0, "Follow: the first note keeps its pitch");
+    EXPECT_NEAR(at(out.left, 196.0 * std::pow(3.0, e), a0, a1), 0.0, 1.0, "Follow: its third partial is stretched from it");
+    EXPECT_NEAR(at(out.left, 293.66, b0, b1, 100.0), 0.0, 1.0, "Follow: the second note keeps its pitch");
+    EXPECT_NEAR(at(out.left, 293.66 * std::pow(3.0, e), b0, b1), 0.0, 1.0, "Follow: its third partial is stretched from it");
     EXPECT_NEAR(device.meter(1), 293.66, 0.3, "Follow: the pivot reported is the note");
     // Off, the pivot stays at the knob and the notes move.
-    out = with(0.0f, 100.0f);
-    const double moved = 100.0 * std::pow(1.96, e);
-    EXPECT_NEAR(cents(partial_near(out.left, moved, 60.0, a0, a1), moved), 0.0, 1.0, "Follow off: the note is stretched from the knob");
+    out = with(line, 0.0f, 100.0f);
+    EXPECT_NEAR(at(out.left, 100.0 * std::pow(1.96, e), a0, a1), 0.0, 1.0, "Follow off: the note is stretched from the knob");
     EXPECT(tone_level(out.left, 196.0, kRate, a0, a1) < 0.003, "Follow off: nothing is left at the note's own pitch");
     EXPECT_NEAR(device.meter(1), 100.0, 0.01, "Follow off: the pivot reported is the knob");
-    // The Pivot knob is the lowest the pivot may go: over the first note's fundamental, its octave is taken.
-    out = with(1.0f, 250.0f);
-    EXPECT_NEAR(cents(partial_near(out.left, 392.0, 100.0, a0, a1), 392.0), 0.0, 1.0, "Follow: the lowest partial over the knob stays");
+    // The Pivot knob is the lowest a pivot may be: over the first note's fundamental, its octave is taken.
+    out = with(line, 1.0f, 250.0f);
+    EXPECT_NEAR(at(out.left, 392.0, a0, a1, 100.0), 0.0, 1.0, "Follow: the lowest partial over the knob stays");
 
-    // It stays with a note that fades under its own overtones (to 30 dB under), and with the lower of two
-    // notes; when the lower one stops, it goes to the one left.
+    // A chord: both notes stay, each with its own stretched overtones (a partial the two share goes with
+    // the note it is the lower harmonic of).
+    std::vector<float> chord = harmonics(196.0f, 6, 3.0f, 0.2f);
+    const std::vector<float> upper = harmonics(293.66f, 6, 3.0f, 0.2f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += upper[i];
+    out = with(chord, 1.0f, 100.0f);
+    const size_t c0 = 48000, c1 = 120000;
+    EXPECT_NEAR(at(out.left, 196.0, c0, c1, 100.0), 0.0, 1.0, "Follow, a chord: the lower note keeps its pitch");
+    EXPECT_NEAR(at(out.left, 293.66, c0, c1, 100.0), 0.0, 1.0, "Follow, a chord: the upper note keeps its pitch");
+    EXPECT_NEAR(db(tone_level(out.left, 196.0, kRate, c0, c1) / 0.2), 0.0, 0.3, "Follow, a chord: the lower note at its level");
+    EXPECT_NEAR(db(tone_level(out.left, 293.66, kRate, c0, c1) / 0.2), 0.0, 0.3, "Follow, a chord: the upper note at its level");
+    EXPECT_NEAR(at(out.left, 196.0 * std::pow(2.0, e), c0, c1), 0.0, 1.0, "Follow, a chord: the lower note's octave is stretched from it");
+    // (588 Hz of the lower note and 587.3 Hz of the upper one are a single peak, so this one is a blend)
+    EXPECT_NEAR(at(out.left, 293.66 * std::pow(2.0, e), c0, c1), 0.0, 3.0, "Follow, a chord: the upper note's octave from the upper note");
+    EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: the pivot reported is the lowest note");
+
+    // A pivot stays with a note that fades under its own overtones (to 30 dB under them).
     std::vector<float> fading = harmonics(196.0f, 6, 3.0f, 0.3f);
     for (size_t i = 48000; i < fading.size(); ++i) {
       fading[i] -= 0.29f * static_cast<float>(std::sin(2.0 * kPi * 196.0 * static_cast<double>(i) / kRate));
     }
-    still(device);
-    device.set_param(p::kStretch, 0.5f);
-    device.set_param(p::kPivot, 100.0f);
-    device.set_param(p::kFollow, 1.0f);
-    run(device, fading);
+    out = with(fading, 1.0f, 100.0f);
     EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: the pivot stays with a fundamental that has faded");
-    std::vector<float> pair = harmonics(293.66f, 6, 3.0f, 0.2f);
-    const std::vector<float> lower = harmonics(196.0f, 6, 1.5f, 0.2f);
-    for (size_t i = 0; i < lower.size(); ++i) pair[i] += lower[i];
-    still(device);
-    device.set_param(p::kStretch, 0.5f);
-    device.set_param(p::kPivot, 100.0f);
-    device.set_param(p::kFollow, 1.0f);
-    run(device, std::vector<float>(pair.begin(), pair.begin() + 60000));
-    EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: of two notes, the lower is the pivot");
-    run(device, std::vector<float>(pair.begin() + 60000, pair.end()));
-    EXPECT_NEAR(device.meter(1), 293.66, 0.3, "Follow: when it stops, the pivot goes to the note that is left");
+    EXPECT_NEAR(at(out.left, 196.0 * std::pow(2.0, e), 96000, 140000), 0.0, 1.0, "and its overtones stay where they were");
+    // One rich note: its overtones are overtones (a sawtooth's are 6 dB under what would make them
+    // notes), and every one moves.
+    out = with(harmonics(196.0f, 10, 2.0f, 0.3f), 1.0f, 40.0f);
+    double worst = 0.0;
+    for (int n = 1; n <= 10; ++n) worst = std::max(worst, std::fabs(at(out.left, 196.0 * std::pow(n, e), 48000, 90000)));
+    EXPECT(worst < 1.0, "Follow: the ten harmonics of one rich note land at note x n^e");
+    // A note struck on a harmonic of a held bass (E4 on the third harmonic of A2) is a note: it stays,
+    // and the bass's own third harmonic goes where the stretch puts it.
+    std::vector<float> bass = harmonics(110.0f, 8, 3.0f, 0.25f);
+    for (size_t i = 72000; i < bass.size(); ++i) {
+      bass[i] += 0.2f * static_cast<float>(std::sin(2.0 * kPi * 329.63 * static_cast<double>(i - 72000) / kRate));
+    }
+    out = with(bass, 1.0f, 40.0f);
+    EXPECT_NEAR(at(out.left, 110.0 * std::pow(3.0, e), 30000, 66000), 0.0, 1.0, "Follow: before, the bass's third harmonic is stretched");
+    EXPECT_NEAR(db(tone_level(out.left, 329.63, kRate, 100000, 140000) / 0.2), 0.0, 3.0, "Follow: a note struck on it stays at its own pitch");
+    EXPECT_NEAR(at(out.left, 110.0 * std::pow(2.0, e), 100000, 140000), 0.0, 1.0, "and the bass's other overtones are where they were");
+    // A held note keeps its pitch when a note an octave under it is struck.
+    std::vector<float> held = harmonics(392.0f, 4, 3.0f, 0.2f);
+    for (size_t i = 72000; i < held.size(); ++i) held[i] += lower_octave(i - 72000);
+    out = with(held, 1.0f, 100.0f);
+    EXPECT_NEAR(at(out.left, 392.0, 100000, 140000, 100.0), 0.0, 1.0, "Follow: a held note stays when its lower octave is struck");
+    EXPECT_NEAR(at(out.left, 196.0, 100000, 140000, 100.0), 0.0, 1.0, "and the new note is in tune too");
   }
 
   // 11. Bad input: NaN, infinity and 1e30 go in as silence; the output stays finite, and a latency and
@@ -485,13 +518,20 @@ int main() {
       int param;
       float from, to;
       bool sweep;
+      float follow;  // with Follow on or off (a pivot at 220 Hz)
     };
     const Event events[] = {
-        {"Stretch swept", p::kStretch, -0.6f, 0.8f, true}, {"Pivot swept", p::kPivot, 80.0f, 900.0f, true},
-        {"Shift swept", p::kShift, -7.0f, 7.0f, true},    {"Lean swept", p::kLean, -1.0f, 1.0f, true},
-        {"Tone swept", p::kTone, -1.0f, 1.0f, true},      {"Follow switched on", p::kFollow, 0.0f, 1.0f, false},
-        {"Follow switched off", p::kFollow, 1.0f, 0.0f, false}, {"Mix thrown", p::kMix, 1.0f, 0.0f, false},
-        {"Stretch thrown", p::kStretch, 0.8f, -0.8f, false},
+        {"Stretch swept", p::kStretch, -0.6f, 0.8f, true, 0.0f},
+        {"Stretch swept, following", p::kStretch, -0.6f, 0.8f, true, 1.0f},
+        {"Pivot swept", p::kPivot, 80.0f, 900.0f, true, 0.0f},
+        {"Pivot swept, following", p::kPivot, 80.0f, 900.0f, true, 1.0f},
+        {"Shift swept", p::kShift, -7.0f, 7.0f, true, 1.0f},
+        {"Lean swept", p::kLean, -1.0f, 1.0f, true, 0.0f},
+        {"Tone swept", p::kTone, -1.0f, 1.0f, true, 1.0f},
+        {"Follow switched on", p::kFollow, 0.0f, 1.0f, false, 0.0f},
+        {"Follow switched off", p::kFollow, 1.0f, 0.0f, false, 1.0f},
+        {"Mix thrown", p::kMix, 1.0f, 0.0f, false, 1.0f},
+        {"Stretch thrown", p::kStretch, 0.8f, -0.8f, false, 1.0f},
     };
     // One render: the chord's first 0.67 s to settle, then 0.67 s in blocks of 128 with the control held
     // at `fixed` (0 to 1 along its way) or, with `fixed` under 0, moved as the event says.
@@ -499,6 +539,8 @@ int main() {
       const auto at = [&](float along) { return event.from + (event.to - event.from) * along; };
       device.init(kRate);
       device.set_param(p::kMix, 0.7f);
+      device.set_param(p::kFollow, event.follow);
+      device.set_param(p::kPivot, event.follow > 0.5f ? 40.0f : 220.0f);
       device.set_param(event.param, at(fixed < 0.0f ? 0.0f : fixed));
       run(device, std::vector<float>(chord.begin(), chord.begin() + 32000));
       Stereo out;
