@@ -2,9 +2,10 @@
 // Every one keeps time (`bpm`, ../tempo.ts) and is written in rows (./rhythm.ts).
 // What every sound here is held to is in docs/factory.md.
 //
-// Five sorts: one drum alone on a steady row (a short stroke of it is one hit, a long one a clock),
-// sparse beats of two to four drums, rows that go against the four, drums into an echo on a division
-// of the beat, and kits that are far off or worn.
+// Five sorts: one drum alone on a steady row from the start of the loop (one beat of it is a single
+// hit of the kick, the rim, the brush or a tom, two to four of the hats, the shaker and the tick, and
+// a sub that is still ringing), sparse beats of two to four drums, rows that go against the four,
+// drums into an echo on a division of the beat, and kits that are far off or on tape.
 //
 // A kit's notes stay where they are when the key of a piece moves and its `tune` moves instead, so
 // `tune` is set for the drums of each loop that have a pitch (the kick and sub, the toms, the tones
@@ -101,6 +102,7 @@ const ALONE: readonly FactorySound[] = [
     }),
     effects: [],
     ...bars(1, [row(KIT.shaker, 'X-o- x-o- X-o- x-oo')]),
+    // No two strokes of the noise are alike, so the linear fold dips 2.2 dB here and this one 0.45.
     loopFold: 'power',
   }),
   sound({
@@ -109,7 +111,7 @@ const ALONE: readonly FactorySound[] = [
     name: 'Slow rim knock',
     kind: 'beat',
     description:
-      'A dry rim knock on every second beat, the second of each pair a little harder, in a small room.',
+      'A short rim knock on every second beat, the second of each pair a little harder, in a small room.',
     instrument: kit({ kit: SOFT, tune: 0, length: 1.2, snap: 0.35, tone: 0.5 }),
     effects: [room(0.14)],
     ...bars(2, [row(KIT.rim, 'x... .... X... ....')]),
@@ -121,8 +123,8 @@ const ALONE: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'A bright woodblock tick on every third sixteenth note, starting over each time it comes round.',
-    instrument: kit({ kit: TIGHT, tune: 3, length: 0.7, snap: 0.7, tone: 0.7, width: 0.6 }),
-    effects: [room(0.1)],
+    instrument: kit({ kit: TIGHT, tune: 3, length: 1, snap: 0.7, tone: 0.7, width: 0.6 }),
+    effects: [room(0.14)],
     ...bars(1, [row(KIT.tick, 'x..o ..x. .o.. x...')]),
   }),
   sound({
@@ -142,6 +144,7 @@ const ALONE: readonly FactorySound[] = [
     }),
     effects: [room(0.1)],
     ...bars(2, [row(KIT.brush, 'x... .... X... ....')]),
+    // As for the shaker: 2.2 dB down on the linear fold, 0.1 on this one.
     loopFold: 'power',
   }),
   sound({
@@ -153,6 +156,7 @@ const ALONE: readonly FactorySound[] = [
       'A long low tom and a softer high tom answer each other two beats apart, far off in a long dark hall.',
     instrument: kit({ kit: SOFT, tune: -2, length: 2, punch: 0.5, snap: 0.2, tone: 0.55 }),
     // The lows of the hall die in a second: a tom's own note beating in a long tail reads as more hits.
+    // The short pre-delay is for the distance alone: the toms read as four hits at any.
     effects: [
       {
         deviceId: 'hall-reverb',
@@ -238,10 +242,10 @@ const SPARSE: readonly FactorySound[] = [
     name: 'Sub and shaker',
     kind: 'beat',
     description:
-      'A deep sub drum once every four beats under a soft shaker in eighth notes that leans on the offbeats.',
+      'A deep sub drum on one, answered more softly off the third beat, under a shaker in eighth notes that leans on the offbeats.',
     instrument: kit({ kit: DEEP, tune: 3, length: 2.6, snap: 0.2, tone: 0.45, width: 0.5 }),
     effects: [],
-    ...bars(1, [row(KIT.sub, 'x... .... .... ....'), row(KIT.shaker, 'x.X. x.X. x.X. x.Xo')]),
+    ...bars(1, [row(KIT.sub, 'x... .... ..o. ....'), row(KIT.shaker, 'x.X. x.X. x.X. x.Xo')]),
   }),
   sound({
     id: 'drums-lazy-shuffle',
@@ -357,7 +361,7 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Five-step tick',
     kind: 'beat',
     description:
-      'A woodblock tick every five sixteenth notes, now hard and now soft, walking across a tight kick on every beat.',
+      'A woodblock tick every five sixteenth notes, hard then soft, walks across a tight kick on every beat until it starts over.',
     instrument: kit({ kit: TIGHT, tune: -2, length: 0.9, punch: 0.4, snap: 0.5, tone: 0.6 }),
     effects: [room(0.12)],
     ...bars(4, [
@@ -386,7 +390,7 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Seven-step rim',
     kind: 'beat',
     description:
-      'A dry rim figure seven sixteenth notes long, turning against a short kick on one and three and a hat on two and four.',
+      'A rim figure seven sixteenth notes long turns against a short kick on one and three and a hat on two and four, then starts over.',
     instrument: kit({ kit: PAPER, tune: 1, length: 1.1, punch: 0.35, snap: 0.45, tone: 0.55 }),
     effects: [room(0.1)],
     ...bars(4, [
@@ -401,7 +405,7 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Five against four',
     kind: 'beat',
     description:
-      'Five even woodblock ticks in the time of four beats, over a dry kick on one and a brush on three.',
+      'Five even woodblock ticks in the time of four beats, over a short kick on one and a brush on three.',
     instrument: kit({ kit: PAPER, tune: -1, length: 1.2, punch: 0.3, snap: 0.35, tone: 0.55 }),
     effects: [room(0.1)],
     ...bars(2, [
@@ -412,8 +416,9 @@ const AGAINST: readonly FactorySound[] = [
   }),
 ]
 
-// Into an echo on a division of the beat. Two passes are dropped, so the loop starts with the last
-// echoes of the time before in it.
+// Into an echo on a division of the beat. Two passes are dropped (three of the rim, whose echo is
+// the longest), so the loop starts with the last echoes of the times before in it. An analog delay's
+// `spread` is at 0: its two sides drift apart on a clock of their own, and no two passes are alike.
 const ECHOED: readonly FactorySound[] = [
   sound({
     id: 'drums-rim-echo',
@@ -421,24 +426,25 @@ const ECHOED: readonly FactorySound[] = [
     name: 'Rim into echo',
     kind: 'beat',
     description:
-      'One rim knock answered by a dark echo on every third sixteenth note that fades before it comes again, in a room.',
+      'One rim knock into a long echo on every third sixteenth note, whose repeats go on under the next knock and fill the gaps, in a room.',
     instrument: kit({ kit: SOFT, tune: 0, length: 1.2, snap: 0.4, tone: 0.55 }),
     effects: [
       {
         deviceId: 'analog-delay',
         params: {
           time: 375,
-          feedback: 0.5,
+          feedback: 0.95,
           modDepth: 0,
-          tone: 4000,
+          tone: 6000,
           age: 0.15,
-          spread: 0.4,
-          mix: 0.45,
+          spread: 0,
+          mix: 0.65,
         },
       },
       room(0.3),
     ],
-    ...bars(1, [row(KIT.rim, 'X... .... .... ....')], { passes: 2 }),
+    // The pass after the one kept differs from it by -22 dB after two passes and -29 dB after three.
+    ...bars(1, [row(KIT.rim, 'X... .... .... ....')], { passes: 3 }),
   }),
   sound({
     id: 'drums-tick-tape-echo',
@@ -446,14 +452,14 @@ const ECHOED: readonly FactorySound[] = [
     name: 'Tape echo tick',
     kind: 'beat',
     description:
-      'A bright tick struck once off the beat and a tape echo that repeats it on every offbeat after, each one duller.',
-    instrument: kit({ kit: TIGHT, tune: 3, length: 0.8, snap: 0.6, tone: 0.65 }),
+      'A bright tick struck once off the beat and a tape echo that repeats it on every offbeat after, fading and duller each time.',
+    instrument: kit({ kit: TIGHT, tune: 3, length: 1.4, snap: 0.6, tone: 0.65 }),
     effects: [
       {
         deviceId: 'tape-echo',
         params: {
           time: 500,
-          feedback: 0.6,
+          feedback: 0.8,
           heads: 0,
           wow: 0,
           flutter: 0,
@@ -461,7 +467,7 @@ const ECHOED: readonly FactorySound[] = [
           lowCut: 200,
           highCut: 6000,
           spread: 0.5,
-          mix: 0.5,
+          mix: 0.6,
         },
       },
       room(0.3),
@@ -476,10 +482,12 @@ const ECHOED: readonly FactorySound[] = [
     description:
       'One soft clap every four beats, a little harder every other time, into a very long dark hall.',
     instrument: kit({ kit: SOFT, tune: 0, length: 1.2, snap: 0.3, tone: 0.5, width: 0.3 }),
+    // At the preset's pre-delay of 80 ms the hall's first return reads as a second clap; at 40 or under it does not.
     effects: [
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { preDelay: 20, mix: 0.58 } },
     ],
     ...bars(4, [row(KIT.clap, 'X... .... .... .... x... .... .... ....')], { passes: 2 }),
+    // The nearer of the two: 0.6 dB up at the fold, where the linear one is 1.3 down.
     loopFold: 'power',
   }),
   sound({
@@ -489,13 +497,13 @@ const ECHOED: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'A few closed hats into a thin tape echo on every third sixteenth note, so the echoes fill the gaps between them.',
-    instrument: kit({ kit: TIGHT, tune: -2, length: 0.9, snap: 0.45, tone: 0.55, width: 0.3 }),
+    instrument: kit({ kit: TIGHT, tune: -2, length: 1.2, snap: 0.45, tone: 0.55, width: 0.3 }),
     effects: [
       {
         deviceId: 'tape-echo',
         params: {
           time: 375,
-          feedback: 0.55,
+          feedback: 0.6,
           heads: 0,
           wow: 0,
           flutter: 0,
@@ -503,12 +511,14 @@ const ECHOED: readonly FactorySound[] = [
           lowCut: 600,
           highCut: 9000,
           spread: 0.6,
-          mix: 0.4,
+          mix: 0.5,
         },
       },
       room(0.12),
     ],
     ...bars(1, [row(KIT.hat, 'x... x... x... x...')], { passes: 2 }),
+    // The noise of a hat is new each time: 1.3 dB down on the linear fold, 0.4 on this one.
+    loopFold: 'power',
   }),
   sound({
     id: 'drums-snare-triplet-echo',
@@ -516,24 +526,24 @@ const ECHOED: readonly FactorySound[] = [
     name: 'Snare triplet echo',
     kind: 'beat',
     description:
-      'A kick on one and a snare on three whose dark echo comes back in quarter-note triplets, in a small room.',
-    instrument: kit({ kit: SOFT, tune: 5, length: 1.1, punch: 0.3, snap: 0.3, tone: 0.5 }),
+      'A soft kick on one and a snare on three, both answered by a dark echo in quarter-note triplets, in a small room.',
+    instrument: kit({ kit: SOFT, tune: 5, length: 1.3, punch: 0.3, snap: 0.3, tone: 0.5 }),
     effects: [
       {
         deviceId: 'analog-delay',
         params: {
           time: 333.333,
-          feedback: 0.45,
+          feedback: 0.55,
           modDepth: 0,
           tone: 3200,
           age: 0.15,
-          spread: 0.5,
-          mix: 0.35,
+          spread: 0,
+          mix: 0.45,
         },
       },
       room(0.15),
     ],
-    ...bars(1, [row(KIT.kick, 'X... .... .... ....'), row(KIT.snare, '.... .... x... ....')], {
+    ...bars(1, [row(KIT.kick, '-... .... .... ....'), row(KIT.snare, '.... .... X... ....')], {
       passes: 2,
     }),
   }),
@@ -576,10 +586,10 @@ const FAR: readonly FactorySound[] = [
   sound({
     id: 'drums-paper-tape',
     number: 330,
-    name: 'Worn paper kit',
+    name: 'Cassette paper kit',
     kind: 'beat',
     description:
-      'A dry kit of paper and card playing a plain beat through a worn cassette, dull and a little crushed.',
+      'A dry kit of paper and card playing a plain beat through cassette tape, dull, hissing and a little crushed.',
     instrument: kit({
       kit: PAPER,
       tune: 1,
@@ -598,7 +608,8 @@ const FAR: readonly FactorySound[] = [
           wow: 0,
           flutter: 0,
           speed: 3,
-          age: 0.3,
+          // No wear: it brings dropouts, and one of them would be the same dip every time round.
+          age: 0,
           hiss: 0.3,
           bump: 0.5,
           tone: 0.45,
@@ -617,7 +628,7 @@ const FAR: readonly FactorySound[] = [
     name: 'Deep slow kit',
     kind: 'beat',
     description:
-      'A long dark kick and a dull snare taking turns four beats apart, over a sub drum that rings from each to the next.',
+      'A long dark kick and a dull snare take turns four beats apart over a ringing sub drum, with one more kick before the last snare.',
     instrument: kit({
       kit: DEEP,
       tune: 1,
@@ -658,7 +669,7 @@ const FAR: readonly FactorySound[] = [
     name: 'Opening filter beat',
     kind: 'beat',
     description:
-      'A tight kick, rim and sixteenth-note hats under a filter that opens over four beats and shuts again.',
+      'A tight kick and rim, and sixteenth-note hats that come up from nothing as a filter opens over four beats and shuts again.',
     instrument: kit({ kit: TIGHT, tune: 3, length: 0.9, punch: 0.4, snap: 0.4, tone: 0.55 }),
     effects: [
       {

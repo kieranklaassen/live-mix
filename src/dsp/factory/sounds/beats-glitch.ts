@@ -5,7 +5,7 @@
 // Four sorts: one fault on its own (a single hit when the stroke is short, a clock when it is long),
 // patterns of two to five faults, rows that go against the four, and three that are mostly what an
 // echo or a room makes of one fault. The keys are faults and not pitches (`FAULT`), so a piece in
-// another key moves the kit's `tune` and nothing else; every loop was measured with it at +5 and -4.
+// another key moves the kit's `tune` and nothing else; every loop was measured in all twelve keys.
 //
 // The kit draws its scatter from a seeded generator, one draw for each hit in the order they are
 // struck: a loop is the same at every render and at every tempo, and adding or taking away one hit
@@ -31,7 +31,7 @@ const rests = (steps: number): string => '.'.repeat(steps)
 /**
  * `bars` for a loop whose passes are not the same audio twice (crackle drawn afresh at each hit, a
  * long tail under the first hit): the linear fold of `cycled`, right for the same wave again, dips
- * by 1.5 to 2.7 dB over two unrelated stretches. These are folded at equal power.
+ * by 0.9 to 2.7 dB over two unrelated stretches. These are folded at equal power.
  */
 const loose = (...written: Parameters<typeof bars>): ReturnType<typeof bars> => ({
   ...bars(...written),
@@ -40,7 +40,7 @@ const loose = (...written: Parameters<typeof bars>): ReturnType<typeof bars> => 
 
 const ALONE: readonly FactorySound[] = [
   // The lilt is small on purpose: at 0.07 of a step the analysis is 0.67 sure of the pulse (0.6 is
-  // the least it takes), and at 0.12 it calls the loop a texture.
+  // the least it takes), and from 0.09 on it calls the loop melodic.
   sound({
     id: 'glitch-click-eighths',
     number: 341,
@@ -74,9 +74,11 @@ const ALONE: readonly FactorySound[] = [
     effects: [],
     ...bars(4, [row(FAULT.pip, 'x... .... .... ....')]),
   }),
-  // `melodic` is what a bed of crackle reads as: each burst is twenty-odd ticks at random times, so
-  // the analysis hears many irregular hits and a ringing band, not eight strokes. Bursts short
-  // enough to read as a beat (length 0.5) are no bed. Two bars: the throws of four lean to the left.
+  // `melodic` is what a bed of crackle reads as: each burst is ticks at random times that run on
+  // into the next, so the analysis finds two dozen irregular hits and not eight strokes. Shorter
+  // bursts (length 1 and less) read as a texture in most keys, and are no bed. The length and the
+  // scatter are what keep it over the -24 LUFS a melodic sound is held to: -22.6 at the least over
+  // twelve keys, -23.1 at 60 beats a minute.
   sound({
     id: 'glitch-crackle-bed',
     number: 344,
@@ -86,12 +88,12 @@ const ALONE: readonly FactorySound[] = [
       'A dense burst of crackle on every beat that thins out before the next one: surface noise with a pulse in it.',
     instrument: kit({
       tune: -5,
-      length: 2.2,
+      length: 3,
       tone: 0.35,
       edge: 0.2,
       density: 0.95,
-      scatter: 0.6,
-      spread: 0.9,
+      scatter: 0.4,
+      spread: 0.7,
     }),
     effects: [],
     ...loose(2, [row(FAULT.crackle, 'x... x... x... x...')]),
@@ -103,13 +105,13 @@ const ALONE: readonly FactorySound[] = [
     name: 'Static offbeats',
     kind: 'beat',
     description:
-      'A short burst of rough static on every off-beat that has died away by the beat, a little crushed.',
+      'Nothing on the beat and a short burst of rough static on every off-beat, a little crushed, gone before the next beat.',
     instrument: kit({ length: 0.8, tone: 0.7, edge: 0.5, crush: 0.3, scatter: 0.5, spread: 0.8 }),
     effects: [],
     ...bars(4, [row(FAULT.static, '..x. ..x. ..x. ..x.')]),
   }),
-  // Scatter is nearly off: with it up the kit picks a click or a sine for each stutter's grain, and
-  // at one peak the click grain carries 10 dB less, so the row would be loud and faint by turns.
+  // Scatter is off: with any of it the kit draws a click or a sine for each stutter's grain, and at
+  // one peak the click grain carries 10.5 dB less, so a stutter here and there would be faint.
   sound({
     id: 'glitch-slow-stutter',
     number: 346,
@@ -117,7 +119,7 @@ const ALONE: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'One tiny sine grain repeated fast and fading, like a buffer that skips, once every two beats.',
-    instrument: kit({ tone: 0.45, density: 0.8, scatter: 0.05, spread: 0.4 }),
+    instrument: kit({ tone: 0.45, density: 0.8, scatter: 0, spread: 0.4 }),
     effects: [],
     ...bars(4, [row(FAULT.stutter, 'x... .... x... ....')]),
   }),
@@ -130,7 +132,7 @@ const PATTERNS: readonly FactorySound[] = [
     name: 'Pop and clicks',
     kind: 'beat',
     description:
-      'A soft pop on the first and third beat with dry clicks in the gaps between, each in a slightly different place.',
+      'A low pop on the first and third beat with dry clicks in the gaps between, each click in a slightly different place.',
     instrument: kit({ scatter: 0.45, spread: 0.7 }),
     effects: [],
     ...bars(2, [
@@ -138,8 +140,8 @@ const PATTERNS: readonly FactorySound[] = [
       row(FAULT.click, '..x. ...x ..x. o... ..x. ...x ..x. o.xo'),
     ]),
   }),
-  // The call is on one beat and the answer on the next. A cut carries 15 dB more than a click at the
-  // same mark, so the cuts are written soft.
+  // The call is on one beat and the answer on the next. A cut carries 13 to 14 dB more energy than
+  // a click at the same mark, so the cuts are written soft.
   sound({
     id: 'glitch-cuts-answer',
     number: 348,
@@ -161,7 +163,7 @@ const PATTERNS: readonly FactorySound[] = [
     name: 'Wide faults',
     kind: 'beat',
     description:
-      'Clicks, doubled clicks, a cut of hiss and a breath of static thrown far to the left and right, no two in one place.',
+      'Clicks, doubled clicks, a cut of hiss and a breath of static thrown wide to the left and right of the middle.',
     instrument: kit({ tone: 0.6, edge: 0.6, density: 0.6, scatter: 0.8, spread: 1 }),
     effects: [],
     ...bars(4, [
@@ -187,15 +189,13 @@ const PATTERNS: readonly FactorySound[] = [
       row(FAULT.chirp + UP, '.... .... .... .... .... .... ..-. ....'),
     ]),
   }),
-  // The edge is hard for the buzz: below about 0.85 its first pulse is lost in the fade-in and the
-  // buzz starts one pulse late.
   sound({
     id: 'glitch-zap-turn',
     number: 351,
-    name: 'Zap at the turn',
+    name: 'Zap turnaround',
     kind: 'beat',
     description:
-      'Off-beat clicks over a pop and a low buzz, and after sixteen beats a falling zap marks the turn.',
+      'Off-beat clicks over a pop and a low buzz, and a falling zap in place of the last click marks the turn.',
     instrument: kit({ tune: 5, tone: 0.45, edge: 0.85, scatter: 0.3, spread: 0.6 }),
     effects: [],
     ...bars(4, [
@@ -211,7 +211,7 @@ const PATTERNS: readonly FactorySound[] = [
     name: 'Three three two',
     kind: 'beat',
     description:
-      'A pop on a three-three-two division of eighth notes and a click after the first and the last, coarse and crushed.',
+      'Crushed pops in a three-three-two of eighth notes, a soft click on the first and third off-beats and, every other time, the fourth.',
     instrument: kit({ tone: 0.65, edge: 0.8, crush: 0.7, scatter: 0.1, spread: 0.6 }),
     effects: [],
     ...bars(2, [
@@ -219,8 +219,9 @@ const PATTERNS: readonly FactorySound[] = [
       row(FAULT.click, '..o. .... ..o. .... ..o. .... ..o. ..o.'),
     ]),
   }),
-  // Five hits in eight beats, each a different fault. Dry: a small room after the pip made a second
-  // onset 0.1 s behind it at some tunings, and the loop then read as a texture.
+  // Five hits in eight beats, each a different fault. Dry: a small plate room at a mix of 0.2 gave
+  // the pip a second onset 0.16 to 0.18 s behind it with the kit tuned +5 or -4, and the loop then
+  // read as a texture.
   sound({
     id: 'glitch-nearly-empty',
     number: 353,
@@ -240,10 +241,10 @@ const PATTERNS: readonly FactorySound[] = [
   }),
 ]
 
-// Against the four. The analysis takes its tempo from the commonest gap between hits, so a row that
-// runs free in threes or sevens for a whole loop is heard at that rate, with no confidence, and the
-// loop reads as a texture. Each of these keeps a row on the beat under the one that goes against it,
-// and the row in threes starts over every four beats.
+// Against the four. The analysis takes its tempo from the gaps between hits, and a row that ran
+// free in threes or sevens for a whole loop read as a texture when it was tried. Each of these keeps
+// a row on the beat under the one that goes against it, and the row in threes starts over every
+// four beats.
 const AGAINST: readonly FactorySound[] = [
   sound({
     id: 'glitch-clicks-in-threes',
@@ -251,7 +252,7 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Clicks in threes',
     kind: 'beat',
     description:
-      'A dull click every three sixteenth notes against a soft pop on every beat, starting over every four beats.',
+      'A dull click every three sixteenth notes against a low pop on every beat, starting over every four beats.',
     instrument: kit({ tune: -7, tone: 0.25, edge: 0.1, scatter: 0.3, spread: 0.7 }),
     effects: [],
     ...bars(2, [row(FAULT.pop, 'x... o... o... o...'), row(FAULT.click, 'x..x ..x. .x.. x...')]),
@@ -297,7 +298,7 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Triplet ticks',
     kind: 'beat',
     description:
-      'Small bright ticks in triplets, three to the beat, over a soft pop on the first and third beat.',
+      'Small bright ticks in triplets, three to the beat, over a pop on the first and third beat.',
     instrument: kit({ tune: 7, length: 0.6, tone: 0.7, scatter: 0.35, spread: 0.8 }),
     effects: [{ deviceId: 'fdn-reverb', preset: 'Short ambience', params: { mix: 0.15 } }],
     ...bars(2, [
@@ -333,9 +334,10 @@ const ECHOED: readonly FactorySound[] = [
     ],
     ...bars(2, [row(FAULT.pip, 'X... .... x... ....')], { passes: 2 }),
   }),
-  // The echo's first repeat goes to the left, so the loop leans 2.5 dB that way; with the echo's
-  // spread full it leans 3. Scatter is low: the first click of the loop is the next pass's, and
-  // with more scatter the two differ by 2 dB.
+  // The clicks stay in the middle and the echo's spread is full, so the repeats go left, right,
+  // left. The first repeat is as loud as its click and on the left: the loop leans 2.5 dB that way.
+  // Scatter is low: the first click of the loop is the next pass's, and at 0.5 the fold is 1.4 dB
+  // under the same stretch rendered straight.
   sound({
     id: 'glitch-scattered-clicks',
     number: 359,
@@ -343,7 +345,7 @@ const ECHOED: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'A few dry clicks, each thrown into a short dull tape echo that repeats it on the sixteenth notes from side to side.',
-    instrument: kit({ length: 1.5, tone: 0.6, edge: 0.5, scatter: 0.3, spread: 0.4 }),
+    instrument: kit({ length: 1.5, tone: 0.6, edge: 0.5, scatter: 0.3, spread: 0 }),
     effects: [
       {
         deviceId: 'tape-echo',
@@ -356,15 +358,17 @@ const ECHOED: readonly FactorySound[] = [
           drive: 0.2,
           lowCut: 500,
           highCut: 2500,
-          spread: 0.5,
+          spread: 1,
           mix: 0.5,
         },
       },
     ],
     ...loose(2, [row(FAULT.click, 'x... ..x. .... .x.. x... .... ..x. ....')], { passes: 2 }),
   }),
-  // A plate and not a hall: a hall's pre-delay (20 ms at the least) gave the cut a second onset, and
-  // a hall this long left the second half of each bar 19 to 24 dB under the first (the plate: 12).
+  // A plate and not the hall: the hall's Cathedral as it is set gave the cut a second onset 0.1 s
+  // behind it (a texture), and with its pre-delay at the least the loudest second of the loop stood
+  // 22 dB over the quietest, against 12 with the plate. Here the second half of each bar is 10 to
+  // 11 dB under the first.
   sound({
     id: 'glitch-cut-dark-plate',
     number: 360,
