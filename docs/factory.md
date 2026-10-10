@@ -372,8 +372,8 @@ what an amount of 1 allows):
 The methods are old ones. The chord is a weighted choice: a third down or up
 first (two notes of a triad in common), a fourth or a fifth next (one), a step
 last (none), and the further ones only come in above a third and two thirds
-of the amount; no sound is ever stood on B, the one white key with no fifth
-above it. The rests are a Euclidean rhythm: the moments that sound are spread
+of the amount; no sound's lowest note is ever put on B, the one white key with
+no fifth above it. The rests are a Euclidean rhythm: the moments that sound are spread
 over the phrase as evenly as their number allows, turned so the first one
 sounds. Everything else is a chance per note or per sound.
 
@@ -385,10 +385,26 @@ nothing else about it changed. `chordMoves(sound)` lists the steps a sound
 can take, nearest first (never onto B, never out of range; where the near
 way leaves the range the same chord an octave the other way is taken, and
 `describeVariant` says how far the notes went), and `soundDegree(sound)` is
-the white key it is written on, 0 for C to 6 for B, by its lowest note: with
-`keyChord` and `chordName` a host names the chord in whatever key it plays
-the sound in. A chord a sound cannot take leaves it where it is written.
-Without `chord` every variant is what it was before there was one.
+the white key it is written on, 0 for C to 6 for B: with `keyChord` and
+`chordName` a host names the chord in whatever key it plays the sound in. A
+chord a sound cannot take leaves it where it is written. Without `chord`
+every variant is what it was before there was one.
+
+The chord a sound is written on is the one its name says, the first note the
+name has in braces ("Thumb dub line {A}m" is on A), and its lowest note where
+the name has none. The two are the same for most sounds and differ for a bass
+line that dips under its root, or a round whose lowest voice is not its root:
+26 sounds of the bank and 156 of the packs. For those, `chordMoves` leaves
+out the chord that the name makes B, and offers the one that only brings the
+lowest note to B (C under "Thumb dub line", with the B below it), which they
+can now be put on. The one exception is a sound that never plays the note it
+is named by, because its instrument sounds it ("Tanpura pluck {D}" plays a G
+and its first string gives the D): it is named by its title and is still
+never put where its key is B. Nothing that could be played is taken away:
+the step that is no longer offered still moves the notes as it did, so a
+piece saved with it plays what it played. The chord a variant draws by
+itself is unchanged too, and still goes by the lowest note, so a draw can
+land one of those sounds on the chord its name makes B.
 
 ```ts
 chordMoves(sound) // [1, -2, 2, -3, 3] for a sound written on C
