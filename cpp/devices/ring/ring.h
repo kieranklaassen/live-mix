@@ -204,14 +204,17 @@ class Ring : public kit::DeviceBase<ring::kNumParams> {
       if (slowness[0] > 0.0f || (slowness[1] > 0.0f && gain[1] > 0.0f)) {
         // The sine in closed form (√2·sin: the two sides' squares sum to
         // 2 + 2·cos of the angle between them at most), the rest from tables.
-        float tame[kNumWaves];
-        tame[kWaveSine] = kit::kSqrtHalf / kit::SineTable::cos_lookup(0.5f * offset);
-        for (int table = 0; table < ring::Waves::kNumShapes; ++table) {
-          tame[kWaveTriangle + table] = ring::Waves::slow_gain(table, offset);
+        // They change with Width only, and are worked out when it does.
+        if (offset != offset_seen_) {
+          tame_[kWaveSine] = kit::kSqrtHalf / kit::SineTable::cos_lookup(0.5f * offset);
+          for (int table = 0; table < ring::Waves::kNumShapes; ++table) {
+            tame_[kWaveTriangle + table] = ring::Waves::slow_gain(table, offset);
+          }
+          offset_seen_ = offset;
         }
         for (int k = 0; k < 2; ++k) {
           if (slowness[k] <= 0.0f) continue;
-          for (int w = 0; w < kNumWaves; ++w) level[k][w] *= 1.0f + slowness[k] * (tame[w] - 1.0f);
+          for (int w = 0; w < kNumWaves; ++w) level[k][w] *= 1.0f + slowness[k] * (tame_[w] - 1.0f);
         }
         const float both = kit::min(1.0f, gain[0] * gain[0] * slowness[0] + gain[1] * gain[1] * slowness[1]);
         dry_gain += both * ((1.0f - mix) - dry_gain);
@@ -400,6 +403,7 @@ class Ring : public kit::DeviceBase<ring::kNumParams> {
     low_seen_ = -1.0f;
     tone_seen_ = -1.0f;
     mix_seen_ = -1.0f;
+    offset_seen_ = -1.0f;
     clock_.reset(kControlPeriod);
   }
 
@@ -519,6 +523,9 @@ class Ring : public kit::DeviceBase<ring::kNumParams> {
   float low_seen_ = -1.0f;
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f;
+  float offset_seen_ = -1.0f;
+  // What a slow carrier of each shape is scaled by at the Width last seen.
+  float tame_[kNumWaves] = {1.0f, 1.0f, 1.0f, 1.0f};
   float dry_gain_ = 1.0f;
   float wet_gain_ = 0.0f;
   long hold_ = 1;
