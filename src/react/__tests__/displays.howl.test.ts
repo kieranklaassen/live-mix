@@ -20,6 +20,7 @@ import {
   HOWL_MAX_HZ,
   HOWL_MIN_HZ,
   HOWL_POSTS_APART,
+  HOWL_SETTLED_CENTS,
   HOWL_SOUND_FOOT_DB,
   HOWL_TOP_DB,
   howlBodyDb,
@@ -32,6 +33,7 @@ import {
   howlNote,
   howlOvertone,
   howlPosts,
+  howlSettled,
 } from '../components/displays/howl'
 import { type DisplayHandle } from '../components/plate-display'
 import {
@@ -234,7 +236,12 @@ describe.each(SHAPES)('the picture at %i by %i', (width, height) => {
     draw({ values, width, height, ...more })
 
   it('draws the loop gain of the left side as its curve', () => {
-    for (const values of [{}, { gain: 1, body: 2400 }, { gain: 0.3, body: 150, width: 0 }]) {
+    const cases: Record<string, number>[] = [
+      {},
+      { gain: 1, body: 2400 },
+      { gain: 0.3, body: 150, width: 0 },
+    ]
+    for (const values of cases) {
       const points = curveOf(at(values))
       const centre = howlCentreHz(valueOf(values, 'body'), 0, valueOf(values, 'width'), 0, 0)
       const top = howlLoopDb(valueOf(values, 'gain'))
@@ -381,7 +388,8 @@ describe.each(SHAPES)('the points at %i by %i', (width, height) => {
   }
 
   it('has one on the curve: Body across, Gain up and down', () => {
-    for (const values of [{}, { body: 120, gain: 0 }, { body: 2400, gain: 1 }]) {
+    const cases: Record<string, number>[] = [{}, { body: 120, gain: 0 }, { body: 2400, gain: 1 }]
+    for (const values of cases) {
       const body = point('body', values)
       expect(body.x).toBeCloseTo(xOf(valueOf(values, 'body'), plot), 9)
       expect(body.y).toBeCloseTo(yOfLoop(howlLoopDb(valueOf(values, 'gain')), plot), 9)
@@ -427,7 +435,12 @@ describe.each(SHAPES)('the points at %i by %i', (width, height) => {
     expect(yOfLoop(howlLoopDb(0), plot) - yOfLoop(howlLoopDb(1), plot)).toBeGreaterThan(40)
     expect(xOf(2400, plot) - xOf(120, plot)).toBeGreaterThan(40)
     expect(xOf(1000, plot) - xOf(25, plot)).toBeGreaterThan(60)
-    for (const values of [{}, { gain: 0, body: 120, distance: 8 }, { gain: 0, distance: 1 }]) {
+    const cases: Record<string, number>[] = [
+      {},
+      { gain: 0, body: 120, distance: 8 },
+      { gain: 0, distance: 1 },
+    ]
+    for (const values of cases) {
       const [body, distance] = points(values)
       expect(Math.hypot(body.x - distance.x, body.y - distance.y)).toBeGreaterThan(8)
     }
@@ -528,6 +541,18 @@ describe.each(SHAPES)('the singing tones at %i by %i', (width, height) => {
     const singing = sing({ mix: 1 }, meters)
     expect(singing.words()).toContain('G4 E5')
     expect(patchUnder(singing, 'G4 E5', PLAIN_COLOURS.plate)).not.toBeNull()
+    // A side between two overtones (the body moving from one to the next) is given no note.
+    const between = sing({ mix: 1 }, { ...meters, pitch: 540 })
+    expect(between.words()).toContain('E5')
+    expect(between.words()).not.toContain('G4 E5')
+    expect(howlSettled(540, howlFundamentalHz(7.645))).toBe(0)
+    expect(howlSettled(654, howlFundamentalHz(7.645))).toBe(5)
+    expect(
+      howlSettled(654 * Math.pow(2, (HOWL_SETTLED_CENTS - 1) / 1200), howlFundamentalHz(7.645)),
+    ).toBe(5)
+    expect(
+      howlSettled(654 * Math.pow(2, (HOWL_SETTLED_CENTS + 1) / 1200), howlFundamentalHz(7.645)),
+    ).toBe(0)
     // The note Distance tunes stands at the end of the rail, at rest too.
     expect(draw({ width, height }).words()).toEqual(['C3'])
     expect(draw({ values: { distance: 1000 / 110 }, width, height }).words()).toEqual(['A2'])

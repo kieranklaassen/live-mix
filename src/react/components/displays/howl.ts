@@ -135,6 +135,25 @@ export function howlNote(hz: number): string {
   return `${NOTES[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`
 }
 
+/**
+ * A side is said to sing a note once its pitch reading is this near a whole
+ * multiple of the fundamental, in cents. (While the playing is loud in the loop
+ * the reading leans a few Hz toward it; measured, up to 28 cents.)
+ */
+export const HOWL_SETTLED_CENTS = 35
+
+/**
+ * The overtone a side has settled on, or 0 while it is between two: as the
+ * body moves from one overtone to the next both sound for a moment and the
+ * pitch reading passes between them, which is no note of the loop's.
+ */
+export function howlSettled(pitchHz: number, fundamentalHz: number): number {
+  const overtone = Math.round(pitchHz / fundamentalHz)
+  if (overtone < 1) return 0
+  const cents = 1200 * Math.log2(pitchHz / (overtone * fundamentalHz))
+  return Math.abs(cents) <= HOWL_SETTLED_CENTS ? overtone : 0
+}
+
 // --- The picture ------------------------------------------------------------
 
 /** The frequency scale: from under the lowest fundamental to over the seventh harmonic of most howls. */
@@ -311,7 +330,10 @@ function drawSinging(
   return [left, right]
 }
 
-/** The words: what the point in hand is set to, or else the notes that sing; and on the rail the note Distance tunes. */
+/**
+ * The words: what the point in hand is set to, or else the notes that sing
+ * (the overtone each side has settled on); and on the rail the note Distance tunes.
+ */
 function drawWords(
   frame: DisplayFrame<HowlState>,
   plot: Box,
@@ -329,7 +351,11 @@ function drawWords(
   else if (frame.hot === 'distance')
     words = `${distance.toFixed(distance < 10 ? 1 : 0)} ms  ${hzText(fundamental)}`
   else {
-    const notes = tones.filter(sings).map((tone) => howlNote(tone.pitch))
+    const notes = tones
+      .filter(sings)
+      .map((tone) => howlSettled(tone.pitch, fundamental))
+      .filter((overtone) => overtone > 0)
+      .map((overtone) => howlNote(overtone * fundamental))
     words = [...new Set(notes)].join(' ')
   }
   if (!words) return
