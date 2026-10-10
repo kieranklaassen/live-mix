@@ -106,11 +106,28 @@ static double phase_at(const std::vector<float>& envelope, double hz, double env
 // The difference of two phases in cycles, brought into -0.5..0.5.
 static double turn(double cycles) { return cycles - std::floor(cycles + 0.5); }
 
+// The largest second difference: what a click of size s adds s to, where a smooth sound has next to none.
+static double max_bend(const std::vector<float>& x, size_t start = 0) {
+  double worst = 0.0;
+  for (size_t i = start + 2; i < x.size(); ++i)
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  return worst;
+}
+
 static const int kWindow = 1024;  // the envelope's two boxes: nulls every 46.9 Hz
 static const int kHop = 256;
 static const double kEnvRate = kRate / kHop;
 // Skip what the device and the boxes need to settle: the latency, a frame, the boxes.
 static const size_t kSettled = static_cast<size_t>((kLatency + 2 * kFrame) / kHop);
+
+// The presets of device.json, for the level checks: each lists what it changes from the defaults.
+struct Preset {
+  const char* name;
+  std::vector<Setting> settings;
+};
+static const std::vector<Preset> kPresets = {
+    {"Light on water", {}},
+};
 
 int main() {
   Conformance spec;
@@ -553,9 +570,276 @@ int main() {
     EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, "exact silence after bad input");
   }
 
-  device.init(kRate);
+  // --- Clicks ------------------------------------------------------------------------------------
+  // A 110 Hz sine at half scale steps by 0.0072 a sample, and by twice that at the full lift. Every
+  // control is thrown from one end to the other while it sounds, and every Pattern switched to and
+  // from every other: the largest step is held to what the same sound steps by with no event in it
+  // (the two settings each run on their own), and a little for the turn between them.
+  {
+    const std::vector<float> tone = sine(110.0f, 2.0f, kRate, 0.5f);
+    const std::vector<float> first(tone.begin(), tone.begin() + 48000 + 77);
+    const std::vector<float> second(tone.begin() + 48000 + 77, tone.end());
+    struct Move {
+      int id;
+      float from, to;
+    };
+    std::vector<Move> moves;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      if (id == p::kPattern) continue;
+      moves.push_back({id, p::kParamMin[id], p::kParamMax[id]});
+      moves.push_back({id, p::kParamMax[id], p::kParamMin[id]});
+    }
+    for (int a = 0; a < 4; ++a)
+      for (int b = 0; b < 4; ++b)
+        if (a != b) moves.push_back({p::kPattern, static_cast<float>(a), static_cast<float>(b)});
+    const size_t onset = kLatency + 2 * kFrame;  // past the tone's own start, which is a corner
+    double worst_ratio = 0.0, worst_bend = 0.0;
+    int worst_id = -1, worst_bend_id = -1;
+    for (const Move& move : moves) {
+      double plain = 0.0, plain_bend = 0.0;
+      for (float value : {move.from, move.to}) {
+        set(kRate, {{p::kDepth, 1.0f}, {p::kGrain, 0.5f}, {move.id, value}});
+        const Stereo out = run(device, tone);
+        plain = std::max(plain, std::max(max_step(out.left, onset), max_step(out.right, onset)));
+        plain_bend = std::max(plain_bend, std::max(max_bend(out.left, onset), max_bend(out.right, onset)));
+      }
+      set(kRate, {{p::kDepth, 1.0f}, {p::kGrain, 0.5f}, {move.id, move.from}});
+      Stereo out = run(device, first);
+      device.set_param(move.id, move.to);
+      out = concat(out, run(device, second));
+      const double ratio = std::max(max_step(out.left, onset), max_step(out.right, onset)) / std::max(plain, 0.0072);
+      // The sine's own bend at full lift is 0.0001; the turn of a 5 ms glide of Mix adds its slope's start.
+      const double bend = std::max(max_bend(out.left, onset), max_bend(out.right, onset)) - plain_bend;
+      if (ratio > worst_ratio) {
+        worst_ratio = ratio;
+        worst_id = move.id;
+      }
+      if (bend > worst_bend) {
+        worst_bend = bend;
+        worst_bend_id = move.id;
+      }
+    }
+    std::printf("moves while sounding: the worst step is %.3f of the same sound's own (control %d); "
+                "the worst bend added is %.6f (control %d)\n",
+                worst_ratio, worst_id, worst_bend, worst_bend_id);
+    EXPECT(worst_ratio < 1.05, "no control clicks when it is thrown across its range while sounding");
+    EXPECT(worst_bend < 0.001, "nor leaves a corner in the wave");
+  }
+
+  // --- Rest --------------------------------------------------------------------------------------
+  // After the sound stops and any control is moved, the device comes to rest: exact silence.
+  {
+    rng_state() = 12;
+    const std::vector<float> burst = noise(0.3f, kRate, 0.5f);
+    bool rests = true;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (float value : {p::kParamMin[id], p::kParamMax[id]}) {
+        set(kRate, {});
+        run(device, burst);
+        render(device, 0.02f, kRate);
+        device.set_param(id, value);
+        render(device, 0.5f, kRate);
+        const Stereo after = render(device, 0.25f, kRate);
+        rests = rests && peak(after.left) == 0.0 && peak(after.right) == 0.0;
+      }
+    }
+    EXPECT(rests, "the device comes to rest after every control move");
+  }
+
+  // --- Other sample rates ------------------------------------------------------------------------
+  // Hertz and seconds are worked out again: at 44.1 and 96 kHz the same partials (on bands 3, 5, 7
+  // and 9 at Grain 0.2, where a band is 100 Hz wide at the bottom at every rate) move at Rate and
+  // follow one another by the same sixths of a cycle.
+  {
+    const Bands wide(0.2f);
+    std::vector<double> four;
+    for (int j = 3; j <= 9; j += 2) four.push_back(wide.centre(j));
+    for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+      const std::vector<float> tones = comb(four, 16.0f, 0.1f, rate);
+      set(rate, {{p::kDepth, 0.8f}, {p::kRate, 2.0f}, {p::kGrain, 0.2f}, {p::kPattern, kUpward},
+                 {p::kLean, 0.0f},  {p::kSoft, 1.0f}, {p::kVary, 0.0f},  {p::kApart, 0.0f}});
+      const Stereo out = run(device, tones);
+      const double env_rate = rate / kHop;
+      std::vector<double> phases;
+      double worst_hz = 0.0, least_dip = 1.0;
+      for (double hz : four) {
+        const std::vector<float> env = from(partial(out.left, hz, kWindow, kHop, rate), 2 * kSettled);
+        worst_hz = std::max(worst_hz, std::fabs(dominant_frequency(centred(env), env_rate, 1.0, 4.0) - 2.0));
+        least_dip = std::min(least_dip, 1.0 - lowest(env) / highest(env));
+        phases.push_back(phase_at(env, 2.0, env_rate));
+      }
+      double worst = 0.0;
+      for (size_t h = 1; h < four.size(); ++h) worst = std::max(worst, std::fabs(turn(phases[h] - phases[0] + 2.0 * h / 6.0)));
+      std::printf("%.0f Hz: the partials move within %.3f Hz of Rate, dip by %.3f at the least, and keep their order to %.4f cycles\n",
+                  rate, worst_hz, least_dip, worst);
+      EXPECT(worst_hz < 0.04, "the flicker's rate is in Hz at every sample rate");
+      EXPECT(least_dip > 0.76, "its depth is the same");
+      EXPECT(worst < 0.02, "and the bands lie at the same frequencies");
+    }
+  }
+
+  // --- Level ---------------------------------------------------------------------------------------
+  // A held chord at full scale (four notes of four harmonics each, the loudest sample 1.0) for a
+  // minute, through every preset and with every control at each end: the peak is never more than
+  // 6 dB over the input's, the last twenty seconds are no louder than the first, and the level of
+  // the whole minute is within 3 dB of the input's (within 7 where the lift stops, which only the
+  // far ends of Depth, Soft and Vary together reach).
+  {
+    std::vector<float> chord(60 * 48000, 0.0f);
+    const double notes[] = {110.0, 164.81, 220.0, 277.18};
+    for (int note = 0; note < 4; ++note)
+      for (int harmonic = 1; harmonic <= 4; ++harmonic)
+        for (size_t i = 0; i < chord.size(); ++i)
+          chord[i] += static_cast<float>(std::sin(note * 1.3 + harmonic * 0.4 +
+                                                  2.0 * kPi * notes[note] * harmonic * static_cast<double>(i) / kRate) /
+                                         harmonic);
+    const double top = peak(chord);
+    for (float& v : chord) v = static_cast<float>(v / top);
+    const double in_rms = rms(chord);
+    double worst_peak = 0.0, loudest = -99.0, quietest = 99.0, most_growth = -99.0;
+    const auto hold = [&](const char* what, bool report) {
+      const Stereo out = run(device, chord);
+      const double high = std::max(peak(out.left), peak(out.right));
+      const double level = db(rms(out.left) / in_rms);
+      const double growth = db(rms(out.left, 40 * 48000, 60 * 48000) / rms(out.left, 48000, 21 * 48000));
+      worst_peak = std::max(worst_peak, high);
+      loudest = std::max(loudest, level);
+      quietest = std::min(quietest, level);
+      most_growth = std::max(most_growth, growth);
+      if (report) std::printf("  %-18s peak %.3f, level %+.2f dB, last 20 s against first %+.2f dB\n", what, high, level, growth);
+      EXPECT(finite(out.left) && finite(out.right), "a held chord at full scale stays finite");
+    };
+    std::printf("a full-scale chord held for a minute:\n");
+    for (const Preset& preset : kPresets) {
+      device.init(kRate);
+      for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+      hold(preset.name, true);
+    }
+    EXPECT(worst_peak <= 2.0 * 1.02, "no preset peaks more than 6 dB over a full-scale chord");
+    EXPECT(loudest < 3.0 && quietest > -3.0, "every preset holds the chord's level within 3 dB");
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (float value : {p::kParamMin[id], p::kParamMax[id]}) {
+        set(kRate, {{id, value}});
+        hold("", false);
+      }
+    }
+    set(kRate, {{p::kDepth, 1.0f}, {p::kSoft, 0.0f}, {p::kVary, 1.0f}, {p::kGrain, 1.0f}, {p::kRate, 12.0f}});
+    hold("deep, sudden, varied", true);
+    std::printf("  over presets and extremes: peak %.3f, level %+.2f to %+.2f dB, most growth %+.2f dB\n", worst_peak,
+                quietest, loudest, most_growth);
+    EXPECT(worst_peak <= 2.0 * 1.02, "nothing peaks more than 6 dB over a full-scale chord");
+    EXPECT(loudest < 3.0 && quietest > -7.0, "the level holds, and falls by no more than the lift is short of");
+    EXPECT(most_growth < 2.0, "and nothing grows");
+  }
+
+  // --- Part-way Mix ------------------------------------------------------------------------------
+  // The wet sound is the dry one times a gain that is never negative, in step with it: at Mix 0.5
+  // no held tone over the piano's range can fall under half (6 dB), whatever the preset, and with
+  // Depth 0 it is the input at any Mix. Twenty-two tones from A0 to C8, four seconds each.
+  {
+    double least = 9.0, most = 0.0, plain = 0.0;
+    for (int key = 0; key < 88; key += 4) {
+      const double hz = 27.5 * std::pow(2.0, key / 12.0);
+      const std::vector<float> tone = sine(static_cast<float>(hz), 4.0f, kRate, 0.5f);
+      const size_t span = static_cast<size_t>(4.0 * kRate / hz);  // four periods
+      for (const Preset& preset : kPresets) {
+        device.init(kRate);
+        for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+        device.set_param(p::kMix, 0.5f);
+        const Stereo out = run(device, tone);
+        for (size_t at = kLatency + 2 * kFrame; at + span <= tone.size(); at += span) {
+          for (const std::vector<float>* side : {&out.left, &out.right}) {
+            const double ratio = rms(*side, at, at + span) / rms(tone, at - kLatency, at - kLatency + span);
+            least = std::min(least, ratio);
+            most = std::max(most, ratio);
+          }
+        }
+      }
+      set(kRate, {{p::kDepth, 0.0f}, {p::kMix, 0.5f}});
+      const Stereo flat = run(device, tone);
+      for (size_t i = 0; i + kLatency < tone.size(); ++i)
+        plain = std::max(plain, std::fabs(static_cast<double>(flat.left[i + kLatency]) - tone[i]));
+    }
+    std::printf("mix 0.5, every preset, tones A0 to C8: a tone's level is %.3f to %.3f of its input; "
+                "depth 0 differs from the input by %.3g\n", least, most, plain);
+    EXPECT(least > 0.49, "at mix 0.5 no tone dips by more than 6 dB: the wet never cancels the dry");
+    EXPECT(most < 1.52, "nor rises by more than half the lift");
+    EXPECT(plain < 1.0e-6, "depth 0 is the input at any mix");
+  }
+  // And through the device as it starts, the long-term level of every one of those tones.
+  {
+    double low = 99.0, high = -99.0;
+    for (int key = 0; key < 88; key += 4) {
+      const double hz = 27.5 * std::pow(2.0, key / 12.0);
+      const std::vector<float> tone = sine(static_cast<float>(hz), 24.0f, kRate, 0.5f);
+      set(kRate, {});
+      const Stereo out = run(device, tone);
+      const double level = db(rms(out.left, 48000, tone.size()) / rms(tone, 48000, tone.size()));
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::printf("as it starts, tones A0 to C8 over 23 s: level %+.2f to %+.2f dB of the input\n", low, high);
+    EXPECT(low > -1.5 && high < 1.5, "as it starts, every held tone keeps its level over time");
+  }
+
+  // --- What the frames do to an attack (printed, and held) ------------------------------------------
+  // A gain per bin is a filter as long as the frame: a click through the device keeps most of its
+  // energy in its own sample and spreads the rest over the frame about it, ahead of it as well as
+  // behind, the more the finer the bands. How much lands ahead of the click is printed; nothing
+  // lies further off than one frame.
+  {
+    std::vector<float> click(48000, 0.0f);
+    click[20000] = 1.0f;
+    for (float grain : {0.0f, 0.7f, 1.0f}) {
+      set(kRate, {{p::kGrain, grain}, {p::kApart, 0.0f}});
+      const Stereo out = run(device, click);
+      const size_t at = 20000 + kLatency;
+      double before = 0.0, after = 0.0, all = 0.0;
+      for (size_t i = at - kFrame; i < at + kFrame; ++i) {
+        const double power = static_cast<double>(out.left[i]) * out.left[i];
+        all += power;
+        if (i + 48 < at) before += power;
+        if (i > at + 48) after += power;
+      }
+      const double beyond = std::max(peak(out.left, 0, at - kFrame), peak(out.left, at + kFrame));
+      std::printf("a click at grain %.1f: %.1f dB of its energy lands more than 1 ms ahead of it, %.1f dB behind; "
+                  "beyond a frame either way %.3g\n",
+                  grain, 10.0 * std::log10(before / all + 1e-12), 10.0 * std::log10(after / all + 1e-12), beyond);
+      EXPECT(before / all < 0.05, "a click keeps its energy at its own time, but for a twentieth ahead at the most");
+      EXPECT(beyond == 0.0, "and none of it lies further off than a frame");
+    }
+  }
+
+  // --- Cost: the average, and the worst block (one with a frame in it) -----------------------------
   rng_state() = 5;
   const std::vector<float> input = noise(10.0f, kRate, 0.25f);
+  const auto blocks = [&](const char* what, bool turning) {
+    std::vector<double> micros;
+    double total = 0.0;
+    for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+      // The dearest thing a hand can do: Grain turned all the while, which lays the bands out again every frame.
+      if (turning) device.set_param(p::kGrain, 0.5f + 0.5f * static_cast<float>((done / 128) % 100) / 100.0f);
+      const auto start = std::chrono::steady_clock::now();
+      device.process(128);
+      const double took = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
+      micros.push_back(took);
+      total += took;
+    }
+    std::sort(micros.begin(), micros.end());
+    // Every other block holds a frame, of one side or the other: the 95th percentile is one of them.
+    const double p95 = micros[micros.size() * 95 / 100];
+    std::printf("glimmer %s: median block %.1f us, mean %.1f us (%.2f%% of real time), worst block (95th percentile) %.1f us, "
+                "%.2f%% of its 2667 us (native)\n",
+                what, micros[micros.size() / 2], total / static_cast<double>(micros.size()),
+                100.0 * total / static_cast<double>(micros.size()) / 2666.7, p95, 100.0 * p95 / 2666.7);
+  };
+  device.init(kRate);
   report_cost("glimmer", 10.0f, kRate, [&] { run(device, input); });
+  device.init(kRate);
+  blocks("as it starts", false);
+  set(kRate, {{p::kGrain, 1.0f}, {p::kApart, 1.0f}, {p::kVary, 1.0f}, {p::kSoft, 0.5f}, {p::kDepth, 1.0f}});
+  blocks("at its dearest (160 bands, two sides, varied)", false);
+  blocks("at its dearest with Grain turning", true);
   return finish("glimmer");
 }
