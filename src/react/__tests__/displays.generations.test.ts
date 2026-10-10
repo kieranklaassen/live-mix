@@ -452,6 +452,15 @@ describe('The picture of Generations', () => {
       expect(parts.marks[at - 1].kind).toBe('rect')
       expect(parts.marks[at - 1].colour).toBe(PLATE)
     }
+    // The trace of what comes out crosses that corner when the sound has lows:
+    // the numbers are put down after it, each on its patch, not struck through.
+    const live = partsOf(
+      running({ meters: { turn: 0.4, level: 0.2, hold: 2 }, signal: spectrumOf(-50, 4, 20) }),
+    )
+    const traced = live.marks.findIndex((m) => m.kind === 'stroke' && m.colour === ACCENT)
+    expect(traced).toBeGreaterThan(-1)
+    for (const words of ['1', '4'])
+      expect(live.marks.findIndex((m) => m.words === words)).toBeGreaterThan(traced)
     // Where the shapes are one there is one number.
     const flat = partsOf(drawDisplay(display, params, { values: { resonance: 0 }, meters }))
     expect(flat.words).toEqual(['1'])
@@ -547,7 +556,14 @@ describe('The points of Generations', () => {
       drawn.calls.filter((call) => call.name === 'arc').length
     expect(rings(drawDisplay(display, params, { meters }))).toBe(2)
     const tone = drawDisplay(display, params, { meters, hot: 'tone', dragging: true })
-    expect(tone.words()).toContain('150 Hz  +6.3 dB')
+    // The frequency said is where the point stands on the scale: the room's third tone.
+    expect(tone.words()).toContain('304 Hz  +6.3 dB')
+    for (const room of [0, 0.25, 0.5, 1]) {
+      const at = handleOf('tone', { room })
+      const said = drawDisplay(display, params, { meters, hot: 'tone', values: { room } }).words()
+      const hz = `${Math.round(hzAtPixel(at.x - box.x))} Hz`
+      expect(said.some((words) => words.startsWith(hz))).toBe(true)
+    }
     const damping = drawDisplay(display, params, { meters, hot: 'damping' })
     expect(damping.words()).toContain('Damping 7.3 kHz')
     expect(

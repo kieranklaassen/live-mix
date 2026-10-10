@@ -44,6 +44,20 @@ static std::vector<float> noise_once(float burst, float total, float rate, float
   return out;
 }
 
+// Sines at `hz` from `from` for `seconds` with 20 ms ends, added to `x`.
+static void add_sines(std::vector<float>& x, const std::vector<double>& hz, double from, double seconds,
+                      double gain, double rate) {
+  const size_t at = static_cast<size_t>(from * rate);
+  const size_t n = static_cast<size_t>(seconds * rate);
+  for (size_t i = 0; i < n && at + i < x.size(); ++i) {
+    const double t = static_cast<double>(i) / rate;
+    const double env = std::min(1.0, std::min(t, seconds - t) / 0.02);
+    double v = 0.0;
+    for (double f : hz) v += std::sin(2.0 * kPi * f * t);
+    x[at + i] += static_cast<float>(gain * env * v);
+  }
+}
+
 static size_t peak_index(const std::vector<float>& x, size_t from, size_t to) {
   size_t best = from;
   for (size_t i = from; i < to && i < x.size(); ++i) {
@@ -526,6 +540,97 @@ int main() {
     EXPECT(rms(loud.left, 59 * 48000) < 0.4, "at the same ceiling");
   }
 
+  // Playing into a loop that sounds does not turn up what is already on it. A
+  // tone of the room is put on the loop; then notes between the room's tones,
+  // which the room takes much from, are played over it for ten passes. The
+  // tone goes on falling by Keep a pass, as it does when nothing is played.
+  {
+    const double room = p::kParamDefault[p::kRoom];
+    const double tone = mode_hz(room, 2);
+    std::vector<double> between;
+    for (int k = 0; k + 1 < Generations::kModes; ++k) {
+      between.push_back(std::sqrt(mode_hz(room, k) * mode_hz(room, k + 1)));
+    }
+    const size_t loop = 48000;
+    std::vector<float> first(13 * loop, 0.0f), playing(13 * loop, 0.0f);
+    add_sines(first, {tone}, 0.0, 0.9, 0.15, kRate);
+    // Each burst starts a little off the loop's time, so the passes do not stand in step.
+    for (int pass = 1; pass < 12; ++pass) {
+      add_sines(playing, between, pass + 0.02 + 0.0137 * ((pass * 5) % 7), 0.85, 0.03, kRate);
+    }
+    std::vector<float> both = first;
+    for (size_t i = 0; i < both.size(); ++i) both[i] += playing[i];
+    double fall[3];
+    double at2[3], at10[3];
+    int which = 0;
+    for (const std::vector<float>* in : {&first, &both, &playing}) {
+      bare(device, kRate, 1.0f, 0.8f);
+      device.set_param(p::kResonance, 0.6f);
+      Stereo out = run(device, *in);
+      at2[which] = tone_level(out.left, tone, kRate, 2 * loop, 3 * loop);
+      at10[which] = tone_level(out.left, tone, kRate, 10 * loop, 11 * loop);
+      ++which;
+    }
+    // What the playing alone leaves at the tone is taken off (as powers).
+    fall[0] = db(at10[0] / at2[0]);
+    fall[1] = db(std::sqrt(std::max(1.0e-20, at10[1] * at10[1] - at10[2] * at10[2])) /
+                 std::sqrt(std::max(1.0e-20, at2[1] * at2[1] - at2[2] * at2[2])));
+    std::printf("generations: a tone on the loop falls %.2f dB over eight passes alone and %.2f dB with "
+                "notes played over it (Keep says %.2f)\n",
+                fall[0], fall[1], 8.0 * db(0.8));
+    EXPECT_NEAR(fall[0], 8.0 * db(0.8), 1.0, "a tone left alone falls by Keep a pass");
+    EXPECT_NEAR(fall[1], 8.0 * db(0.8), 2.0, "and as fast while new notes are played over it");
+  }
+
+  // A note comes back at the level it was played whether the loop was empty
+  // or full of the room's tones: its level is its own, not the loop's.
+  {
+    const double room = p::kParamDefault[p::kRoom];
+    const double note = std::sqrt(mode_hz(room, 2) * mode_hz(room, 3));
+    const size_t loop = 24000;
+    double back[2][2];
+    for (int busy = 0; busy < 2; ++busy) {
+      std::vector<float> in(static_cast<size_t>(24 * kRate), 0.0f);
+      if (busy) {
+        // Twenty seconds of the room's own tones, a burst a loop.
+        std::vector<double> tones;
+        for (int k : {0, 1, 4, 5, 6}) tones.push_back(mode_hz(room, k));
+        for (int n = 0; n < 40; ++n) add_sines(in, tones, 0.5 * n + 0.03, 0.4, 0.05, kRate);
+      }
+      add_sines(in, {note}, 20.5, 0.3, 0.2, kRate);
+      bare(device, kRate, 0.5f, 0.9f);
+      device.set_param(p::kResonance, 0.85f);
+      Stereo out = run(device, in);
+      const size_t at = static_cast<size_t>(20.5 * kRate);
+      const double played = tone_level(in, note, kRate, at, at + 14400);
+      back[busy][0] = db(tone_level(out.left, note, kRate, at + loop, at + loop + 14400) / played);
+      back[busy][1] = db(tone_level(out.left, note, kRate, at + 2 * loop, at + 2 * loop + 14400) / played);
+    }
+    std::printf("generations: a note between the tones returns at %.2f and %.2f dB into an empty loop, "
+                "%.2f and %.2f dB into a loop full of the room's tones\n",
+                back[0][0], back[0][1], back[1][0], back[1][1]);
+    EXPECT_NEAR(back[0][0], 0.0, 1.0, "into an empty loop a note first returns as loud as it was played");
+    EXPECT_NEAR(back[1][0], back[0][0], 1.0, "and as loud into a loop that is full of the room's tones");
+    EXPECT_NEAR(back[1][1], back[0][1], 1.5, "on its second return too");
+  }
+
+  // Played into without end at Keep 1, a quiet tone is held near its own
+  // level: the loop does not climb to the loudest it can hold.
+  {
+    bare(device, kRate, 0.5f, 1.0f);
+    std::vector<float> in = sine(110.0f, 60.0f, kRate, 0.03f);
+    Stereo out = run(device, in);
+    const double played = rms(in, 30 * 48000, 31 * 48000);
+    const double mid = rms(out.left, 30 * 48000, 31 * 48000);
+    const double late = rms(out.left, 59 * 48000);
+    std::printf("generations: a tone held at %.1f dBFS into a loop at Keep 1 comes back %.2f dB over it "
+                "after 30 s and %.2f dB after 60 s\n",
+                db(played), db(mid / played), db(late / played));
+    EXPECT(db(late / played) < 6.5,
+           "a quiet tone played without end is held within 6 dB of its own level");
+    EXPECT(db(late / played) > -1.0, "and is not turned down under it");
+    EXPECT_NEAR(db(late / mid), 0.0, 0.2, "where it stays");
+  }
   // Nothing clicks when the knobs most likely to be moved are moved while
   // the loop sounds: each against the same render with nothing moved.
   {
@@ -622,6 +727,21 @@ int main() {
       EXPECT(worst_difference(run(device, last), run(other, last)) == 0.0,
              "and after that it is the same device, sample for sample: nothing is stuck");
     }
+  }
+
+  // A held offset is not sound: the loop's low cut leaves only its two edges,
+  // and they come back with their own energy (as the room's tones, a few
+  // passes on), not with the energy of the whole offset put into them.
+  for (float offset : {0.8f, 1.0e30f}) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    std::vector<float> in(static_cast<size_t>(8.0f * kRate), 0.0f);
+    for (size_t i = 0; i < 24000; ++i) in[i] = offset;
+    Stereo out = run(device, in);
+    std::printf("generations: half a second held at %g comes back with a peak of %.2f\n", offset,
+                peak(out.left));
+    EXPECT(finite(out.left) && peak(out.left) < (offset > 1.0f ? 1.9 : 1.6),
+           "a held offset comes back as its two edges, not as a burst");
   }
 
   // The device sleeps once the loop has faded, and wakes with an empty loop.

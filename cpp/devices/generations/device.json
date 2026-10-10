@@ -6,7 +6,7 @@
   "class": "Generations",
   "header": "generations.h",
   "sources": [],
-  "memoryMb": 12,
+  "memoryMb": 32,
   "meters": [
     {
       "key": "turn",
@@ -33,7 +33,7 @@
       "default": 1.6,
       "taper": "log",
       "unit": "s",
-      "description": "How long the loop is, the time before what was played comes back through the room. Short loops age quickly, long ones take minutes to dissolve."
+      "description": "How long the loop is, the time before a sound comes back through the room. Short loops age quickly. Moved while the loop sounds, it repeats or cuts a slice of the loop."
     },
     {
       "key": "room",
@@ -57,7 +57,7 @@
       "min": 0,
       "max": 1,
       "default": 0.8,
-      "description": "How much of each pass is recorded again. Low settings let the loop fade quickly, and at the top the room tone hangs for as long as it is left."
+      "description": "How much of each pass is recorded again. Low settings let the loop fade quickly. At the top it does not fade at all and holds for ever, until Keep is turned down."
     },
     {
       "key": "damping",
@@ -96,7 +96,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Balance between the dry signal and the loop."
+      "description": "Balance between the dry signal and the loop. The loop is only what comes back, so a sound is first heard from it one Length after it was played."
     }
   ],
   "presets": {
@@ -141,7 +141,7 @@
       "keep": 0.9,
       "length": 0.8
     },
-    "One room, mono": {
+    "One shared room": {
       "width": 0,
       "resonance": 0.45,
       "length": 1.1

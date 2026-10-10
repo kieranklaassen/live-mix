@@ -15,7 +15,7 @@ export const GENERATIONS_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the loop is, the time before what was played comes back through the room. Short loops age quickly, long ones take minutes to dissolve.',
+      'How long the loop is, the time before a sound comes back through the room. Short loops age quickly. Moved while the loop sounds, it repeats or cuts a slice of the loop.',
   },
   room: {
     id: 1,
@@ -48,7 +48,7 @@ export const GENERATIONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of each pass is recorded again. Low settings let the loop fade quickly, and at the top the room tone hangs for as long as it is left.',
+      'How much of each pass is recorded again. Low settings let the loop fade quickly. At the top it does not fade at all and holds for ever, until Keep is turned down.',
   },
   damping: {
     id: 4,
@@ -103,7 +103,8 @@ export const GENERATIONS_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry signal and the loop.',
+    description:
+      'Balance between the dry signal and the loop. The loop is only what comes back, so a sound is first heard from it one Length after it was played.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -137,7 +138,7 @@ export const GENERATIONS_DESCRIPTOR = wasmDeviceDescriptor(GENERATIONS_DEVICE, {
     'Small bright room': { room: 0.05, damping: 0, resonance: 0.5, length: 0.9 },
     'Faint afterimage': { mix: 0.2, resonance: 0.25, keep: 0.7, length: 2.4 },
     'Breath on tones': { hiss: 1, resonance: 0.7, keep: 0.9, length: 0.8 },
-    'One room, mono': { width: 0, resonance: 0.45, length: 1.1 },
+    'One shared room': { width: 0, resonance: 0.45, length: 1.1 },
     'Drifting apart': { width: 1, resonance: 0.55, keep: 0.93, length: 0.7 },
     'Single return': { keep: 0, resonance: 0.8, length: 0.6, mix: 0.4 },
     'Clean copies': { resonance: 0, damping: 0, hiss: 0, keep: 0.75, length: 1 },

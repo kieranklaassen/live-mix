@@ -12,9 +12,10 @@
 //
 // Live, in the second colour: the spectrum of what comes out, its strongest
 // part set level with the tops so it can be laid against the three shapes;
-// what a pass still takes from the sound (the gain the level hold gives back),
-// as a bar hanging from the tops; and where the record head is in the loop,
-// along the foot.
+// what a pass still takes from the sound (the device's third reading: the gain
+// that makes up what the room took from all that is sounding), as a bar
+// hanging from the tops; and where the record head is in the loop, along the
+// foot.
 //
 // The numbers below are `cpp/devices/generations/generations.h`'s own: the
 // names say which. A change there is a change here.
@@ -435,18 +436,6 @@ const generations = plateDisplay<GenerationsState>({
       trace(ctx, one, heard ? { colour: colours.ink } : { colour: colours.ink, width: 1 })
     })
 
-    // Which shape is which, at the left where they lie apart: each number
-    // stands on its own curve, and only where the one above leaves it room.
-    if (heard) {
-      let last = Number.NEGATIVE_INFINITY
-      GENERATIONS_PASSES.forEach((passes, index) => {
-        const y = state.curves[index][0][1]
-        if (y - last < 10 || y > foot - 1 || y - 9 < box.y) return
-        label(frame, String(passes), box.x + 3, y - 2)
-        last = y
-      })
-    }
-
     if (running) {
       // What comes out, its strongest part level with the tops.
       if (readSpectrum(frame, box) && state.strongest !== null) {
@@ -489,17 +478,33 @@ const generations = plateDisplay<GenerationsState>({
       state.strongest = null
     }
 
+    // Which shape is which, at the left where they lie apart: each number
+    // stands on its own curve, and only where the one above leaves it room.
+    // They go down after the trace of what comes out, which crosses that
+    // corner whenever the sound has lows, so a number is never struck through.
+    if (heard) {
+      let last = Number.NEGATIVE_INFINITY
+      GENERATIONS_PASSES.forEach((passes, index) => {
+        const y = state.curves[index][0][1]
+        if (y - last < 10 || y > foot - 1 || y - 9 < box.y) return
+        label(frame, String(passes), box.x + 3, y - 2)
+        last = y
+      })
+    }
+
     const handles = generationsHandles(frame)
     for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
 
     // The point in hand, in words: at the foot on the right, where neither
-    // point comes and no number stands.
+    // point comes and no number stands. For the room it is the tone the point
+    // stands on, the frequency it is at on the scale.
     const hot = handles.find((point) => point.key === frame.hot)
     if (hot) {
       const damping = clamp(frame.value('damping'), 0, 1)
+      const heldHz = generationsRoomHz(frame.value('room')) * GENERATIONS_TONES[HELD_TONE]
       const words =
         hot.key === 'tone'
-          ? `${hzText(generationsRoomHz(frame.value('room')))}  +${contrast.toFixed(1)} dB`
+          ? `${hzText(heldHz)}  +${contrast.toFixed(1)} dB`
           : damping > 0
             ? `Damping ${hzText(generationsDampingHz(damping))}`
             : 'Damping off'
