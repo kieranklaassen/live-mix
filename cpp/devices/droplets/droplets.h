@@ -122,7 +122,7 @@ class Droplets : public kit::DeviceBase<droplets::kNumParams> {
 
   void note_on(int note_id, float frequency, float gain) {
     if (!(frequency == frequency)) return;  // NaN
-    frequency = kit::clamp(frequency, kMinHz, kMaxHz);
+    frequency = kit::clamp(frequency, kMinHz, kit::min(kMaxHz, 0.4f * sample_rate()));
     if (!(gain == gain)) gain = 0.5f;
     gain = kit::clamp(gain, 0.0f, 1.0f);
     if (num_keys_ == 0) {
