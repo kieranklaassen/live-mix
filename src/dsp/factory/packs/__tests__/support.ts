@@ -57,6 +57,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'rewind',
   'droplets',
   'prepared-piano',
+  'graft',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

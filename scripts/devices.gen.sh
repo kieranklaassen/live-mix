@@ -68,6 +68,8 @@ build_generated_devices() {
     cpp/devices/glitch/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device glitch-kit \
     cpp/devices/glitch-kit/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device graft \
+    cpp/devices/graft/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-cloud \
     cpp/devices/grain-cloud/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-delay \
@@ -261,6 +263,8 @@ test_generated_devices() {
     cpp/test/glitch_test.cpp
   native_test glitch_kit_test \
     cpp/test/glitch_kit_test.cpp
+  native_test graft_test \
+    cpp/test/graft_test.cpp
   native_test grain_cloud_test \
     cpp/test/grain_cloud_test.cpp
   native_test grain_delay_test \

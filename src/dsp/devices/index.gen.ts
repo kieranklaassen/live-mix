@@ -33,6 +33,7 @@ import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
 import { GLITCH_KIT_DESCRIPTOR, GLITCH_KIT_DEVICE } from './glitch-kit.gen'
+import { GRAFT_DESCRIPTOR, GRAFT_DEVICE } from './graft.gen'
 import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
 import { GRAIN_SYNTH_DESCRIPTOR, GRAIN_SYNTH_DEVICE } from './grain-synth.gen'
@@ -127,6 +128,7 @@ export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
 export * from './glitch.gen'
 export * from './glitch-kit.gen'
+export * from './graft.gen'
 export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
 export * from './grain-synth.gen'
@@ -223,6 +225,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   FREQ_SHIFTER_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
   GLITCH_KIT_DESCRIPTOR,
+  GRAFT_DESCRIPTOR,
   GRAIN_CLOUD_DESCRIPTOR,
   GRAIN_DELAY_DESCRIPTOR,
   GRAIN_SYNTH_DESCRIPTOR,
@@ -320,6 +323,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   FREQ_SHIFTER_DEVICE,
   GLITCH_DEVICE,
   GLITCH_KIT_DEVICE,
+  GRAFT_DEVICE,
   GRAIN_CLOUD_DEVICE,
   GRAIN_DELAY_DEVICE,
   GRAIN_SYNTH_DEVICE,
@@ -424,6 +428,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
   { id: 'glitch-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'graft', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'grain-cloud', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 10 },
   { id: 'grain-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
   { id: 'grain-synth', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 12 },

@@ -20,6 +20,7 @@ import { FLOCK_PRESETS } from './flock'
 import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GLITCH_KIT_PRESETS } from './glitch-kit'
+import { GRAFT_PRESETS } from './graft'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { GUITAR_PRESETS } from './guitar'
 import { HANDPAN_PRESETS } from './handpan'
@@ -96,4 +97,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...REWIND_PRESETS,
   ...DROPLETS_PRESETS,
   ...PREPARED_PIANO_PRESETS,
+  ...GRAFT_PRESETS,
 ]
