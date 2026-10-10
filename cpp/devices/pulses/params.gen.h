@@ -7,9 +7,9 @@
 //    2  fill: 1..16, default 5
 //    3  drift: 0..1, default 0.5
 //    4  shift: 0..15, default 0
-//    5  edge: 0..1, default 0.35
-//    6  length: 0.1..1, default 0.7
-//    7  floor: 0..1, default 0.5
+//    5  edge: 0..1, default 0.15
+//    6  length: 0.1..1, default 0.85
+//    7  floor: 0..1, default 0.65
 //    8  shade: 0..1, default 0.5
 //    9  apart: 0..1, default 1
 //   10  accent: 0..1, default 0.3
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.25f, 2.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {20.0f, 16.0f, 16.0f, 1.0f, 15.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {4.0f, 8.0f, 5.0f, 0.5f, 0.0f, 0.35f, 0.7f, 0.5f, 0.5f, 1.0f, 0.3f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {4.0f, 8.0f, 5.0f, 0.5f, 0.0f, 0.15f, 0.85f, 0.65f, 0.5f, 1.0f, 0.3f, 1.0f};
 
 }  // namespace pulses
 }  // namespace livemix

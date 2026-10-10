@@ -6,7 +6,9 @@
 // sticks or depends on the block size.
 //
 // A constant input of 1 is the measuring signal for most of it: with Mix at 1
-// and Shade at 0 the output is then the gain itself.
+// and Shade at 0 the output is then the gain itself, the gates' own times the
+// make-up. `unmade` takes the make-up off again, as this file works it out the
+// long way (expected_makeup), so the gates are read as they are.
 
 #include "../devices/pulses/pulses.h"
 #include "support/test_kit.h"
@@ -76,6 +78,71 @@ static double worst_difference(const std::vector<float>& a, const std::vector<fl
   return worst;
 }
 
+// What the device should make its pulsed sound up by, worked out the long way
+// from its knobs: the gain one side gets is stepped through a whole pattern
+// (and, where a side hears both gates and they drift, through every place the
+// second can be in against the first), its mean square taken, and the sound
+// brought back to the level it came in at, by 4 dB at the most.
+static double expected_makeup(const Pulses& d) {
+  const auto whole = [](float v) { return static_cast<int>(v + 0.5f); };
+  const int steps = std::min(16, std::max(2, whole(d.param(p::kSteps))));
+  const int fill = std::min(steps, std::max(1, whole(d.param(p::kFill))));
+  const int shift = whole(d.param(p::kShift)) % steps;
+  const double drift = d.param(p::kDrift);
+  const double length = d.param(p::kLength);
+  const double floor = static_cast<double>(d.param(p::kFloor)) * d.param(p::kFloor);
+  const double others = 1.0 - 0.7 * d.param(p::kAccent);
+  const double same = 0.5 + 0.5 * d.param(p::kApart);
+  const double half = 0.5 * length;
+  const double ramp =
+      std::min(half, std::max(0.005 * d.param(p::kRate), (1.0 - d.param(p::kEdge)) * half));
+  auto gate = [&](double place) {
+    place -= std::floor(place / steps) * steps;
+    const int index = std::min(steps - 1, static_cast<int>(place));
+    if ((index * fill) % steps >= fill) return 0.0;
+    const double along = place - index;
+    if (along >= length) return 0.0;
+    const double from_end = along < half ? along : length - along;
+    const double shape = from_end >= ramp ? 1.0 : 0.5 - 0.5 * std::cos(kPi * from_end / ramp);
+    return (index == 0 ? 1.0 : others) * shape;
+  };
+  double sum = 0.0;
+  long count = 0;
+  if (drift > 0.0 && same < 1.0) {
+    const int grid = 400, offsets = 32 * steps;
+    for (int o = 0; o < offsets; ++o) {
+      const double ahead = (o + 0.5) * steps / offsets;
+      for (int n = 0; n < steps * grid; ++n) {
+        const double place = (n + 0.5) / grid;
+        const double g =
+            floor + (1.0 - floor) * (same * gate(place) + (1.0 - same) * gate(place + ahead));
+        sum += g * g;
+        ++count;
+      }
+    }
+  } else {
+    // One gate alone (drifting, a side each), or the two as they stand.
+    const int grid = 20000;
+    const double ahead = drift > 0.0 ? 0.0 : shift;
+    for (int n = 0; n < steps * grid; ++n) {
+      const double place = (n + 0.5) / grid;
+      const double g =
+          floor + (1.0 - floor) * (same * gate(place) + (1.0 - same) * gate(place + ahead));
+      sum += g * g;
+      ++count;
+    }
+  }
+  return std::min(1.5848932, 1.0 / std::sqrt(sum / count));  // 4 dB
+}
+
+// The output with the make-up taken off: the gates' own gain.
+static Stereo unmade(const Pulses& d, Stereo out) {
+  const float by = static_cast<float>(1.0 / expected_makeup(d));
+  for (float& v : out.left) v *= by;
+  for (float& v : out.right) v *= by;
+  return out;
+}
+
 // What one pole at `corner` Hz does to `hz`, as the kit's OnePole computes it.
 static double one_pole_gain(double corner, double hz, double sample_rate, double* phase) {
   const double a = std::exp(-2.0 * kPi * corner / sample_rate);
@@ -132,7 +199,9 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 0.5f;
-  spec.max_peak = 1.0f;  // a gate only turns down
+  // A gate only turns down, and the make-up is 4 dB at the most (the noise of
+  // the conformance pass peaks at 0.9).
+  spec.max_peak = 0.9f * Pulses::kMaxMakeup + 0.001f;
   check_effect(device, spec, kRate);
 
   const double step = kRate / 10.0;                              // samples, at Rate 10
@@ -146,7 +215,7 @@ int main() {
     for (const int* pair : pairs) {
       const int steps = pair[0], fill = pair[1];
       bare(device, 10.0f, steps, fill);
-      Stereo out = run(device, dc(static_cast<float>(2 * steps) / 10.0f));
+      Stereo out = unmade(device, run(device, dc(static_cast<float>(2 * steps) / 10.0f)));
       const std::vector<double> onsets = crossings(out.left, 0.5, true);
       char label[120];
       std::snprintf(label, sizeof label, "%d in %d: two rounds of the pattern have %d pulses",
@@ -166,7 +235,7 @@ int main() {
     }
     // More Fill than Steps is every step.
     bare(device, 10.0f, 4, 16);
-    Stereo all = run(device, dc(0.8f));
+    Stereo all = unmade(device, run(device, dc(0.8f)));
     EXPECT(crossings(all.left, 0.5, true).size() == 8, "Fill past Steps sounds every step");
   }
 
@@ -178,7 +247,7 @@ int main() {
       bare(device, 10.0f, 2, 2);
       device.set_param(p::kApart, 1.0f);
       device.set_param(p::kDrift, drift);
-      Stereo out = run(device, dc(30.0f));
+      Stereo out = unmade(device, run(device, dc(30.0f)));
       const std::vector<double> first = crossings(out.left, 0.5, true);
       const std::vector<double> second = crossings(out.right, 0.5, true);
       const double first_rate = (first.size() - 1) * kRate / (first.back() - first.front());
@@ -241,7 +310,7 @@ int main() {
   }
 
   // 4. Edge sets the rise: half a cosine as long as (1 - Edge) of half the
-  // pulse, and never shorter than 2 ms. From 10 % to 90 % of a half cosine is
+  // pulse, and never shorter than 5 ms. From 10 % to 90 % of a half cosine is
   // 0.5903 of its length.
   {
     const double tenth_to_ninth = (std::acos(-0.8) - std::acos(0.8)) / kPi;
@@ -251,7 +320,7 @@ int main() {
       bare(device, 4.0f, 2, 2);
       device.set_param(p::kLength, 0.8f);
       device.set_param(p::kEdge, edges[which]);
-      Stereo out = run(device, dc(1.0f));
+      Stereo out = unmade(device, run(device, dc(1.0f)));
       // The second pulse, from 12000.
       const std::vector<double> low = crossings(out.left, 0.1, true, 11990);
       const std::vector<double> high = crossings(out.left, 0.9, true, 11990);
@@ -267,15 +336,15 @@ int main() {
       const double fall = down_high.empty() || down_low.empty() ? 0.0 : down_low[0] - down_high[0];
       EXPECT_NEAR(fall, rise, 0.6, "the fall is as long as the rise");
     }
-    // The second gate's steps are shorter, and its hardest edge is still 2 ms.
+    // The second gate's steps are shorter, and its hardest edge is still 5 ms.
     bare(device, 4.0f, 2, 2);
     device.set_param(p::kApart, 1.0f);
     device.set_param(p::kDrift, 1.0f);
-    Stereo out = run(device, dc(1.0f));
+    Stereo out = unmade(device, run(device, dc(1.0f)));
     const std::vector<double> low = crossings(out.right, 0.1, true, 10000);
     const std::vector<double> high = crossings(out.right, 0.9, true, 10000);
     EXPECT_NEAR(low.empty() || high.empty() ? 0.0 : high[0] - low[0], tenth_to_ninth * edge_samples,
-                0.6, "the faster gate's hardest edge is the same 2 ms");
+                0.6, "the faster gate's hardest edge is the same 5 ms");
   }
 
   // 5. Length is the pulse's share of its step: at half height it is that
@@ -285,7 +354,7 @@ int main() {
     for (float length : lengths) {
       bare(device, 4.0f, 2, 2);
       device.set_param(p::kLength, length);
-      Stereo out = run(device, dc(1.0f));
+      Stereo out = unmade(device, run(device, dc(1.0f)));
       const std::vector<double> up = crossings(out.left, 0.5, true, 11990);
       const std::vector<double> down = crossings(out.left, 0.5, false, 11990);
       const double width = up.empty() || down.empty() ? 0.0 : down[0] - up[0];
@@ -303,12 +372,12 @@ int main() {
     for (float floor : floors) {
       bare(device, 4.0f, 2, 2);
       device.set_param(p::kFloor, floor);
-      Stereo out = run(device, dc(1.0f));
+      Stereo out = unmade(device, run(device, dc(1.0f)));
       char label[120];
       std::snprintf(label, sizeof label, "Floor %.2f: the gaps hold %.4f of the sound", floor,
                     floor * floor);
-      EXPECT_NEAR(lowest(out.left, 8000, 11000), floor * floor, 1.0e-6, label);
-      EXPECT_NEAR(peak(out.left, 12000, 18000), 1.0, 1.0e-6, "and a pulse is the whole of it");
+      EXPECT_NEAR(lowest(out.left, 8000, 11000), floor * floor, 2.0e-6, label);
+      EXPECT_NEAR(peak(out.left, 12000, 18000), 1.0, 2.0e-6, "and a pulse is the whole of it");
     }
   }
 
@@ -318,15 +387,15 @@ int main() {
     for (float accent : accents) {
       bare(device, 10.0f, 4, 4);
       device.set_param(p::kAccent, accent);
-      Stereo out = run(device, dc(0.8f));
+      Stereo out = unmade(device, run(device, dc(0.8f)));
       char label[120];
       std::snprintf(label, sizeof label, "Accent %.1f: the first step stays whole", accent);
-      EXPECT_NEAR(peak(out.left, 0, 4800), 1.0, 1.0e-6, label);
-      EXPECT_NEAR(peak(out.left, 19200, 24000), 1.0, 1.0e-6, label);
+      EXPECT_NEAR(peak(out.left, 0, 4800), 1.0, 2.0e-6, label);
+      EXPECT_NEAR(peak(out.left, 19200, 24000), 1.0, 2.0e-6, label);
       std::snprintf(label, sizeof label, "Accent %.1f: the other steps reach %.2f", accent,
                     1.0 - 0.7 * accent);
       for (int n = 1; n < 4; ++n) {
-        EXPECT_NEAR(peak(out.left, n * 4800, (n + 1) * 4800), 1.0 - 0.7 * accent, 1.0e-6, label);
+        EXPECT_NEAR(peak(out.left, n * 4800, (n + 1) * 4800), 1.0 - 0.7 * accent, 2.0e-6, label);
       }
     }
   }
@@ -343,7 +412,7 @@ int main() {
         bare(device, 2.0f, 2, 1);
         device.set_param(p::kFloor, 0.5f);
         device.set_param(p::kShade, shade);
-        Stereo out = run(device, sine(static_cast<float>(hz), 1.0f, kRate, 0.5f));
+        Stereo out = unmade(device, run(device, sine(static_cast<float>(hz), 1.0f, kRate, 0.5f)));
         double phase = 0.0;
         const double pole = one_pole_gain(400.0, hz, kRate, &phase);
         const double re = (1.0 - shade) + shade * pole * std::cos(phase);
@@ -369,18 +438,18 @@ int main() {
       bare(device, 10.0f, 2, 1);
       device.set_param(p::kShift, 1.0f);
       device.set_param(p::kApart, apart);
-      Stereo out = run(device, dc(0.4f));
+      Stereo out = unmade(device, run(device, dc(0.4f)));
       // The top of the first gate's pulse, and then of the second's.
       const double near = 0.5 + 0.5 * apart, other = 0.5 - 0.5 * apart;
       char label[120];
       std::snprintf(label, sizeof label, "Apart %.1f: the first gate is %.2f left and %.2f right",
                     apart, near, other);
-      EXPECT_NEAR(out.left[1200], near, 1.0e-6, label);
-      EXPECT_NEAR(out.right[1200], other, 1.0e-6, label);
+      EXPECT_NEAR(out.left[1200], near, 2.0e-6, label);
+      EXPECT_NEAR(out.right[1200], other, 2.0e-6, label);
       std::snprintf(label, sizeof label, "Apart %.1f: the second gate is %.2f left and %.2f right",
                     apart, other, near);
-      EXPECT_NEAR(out.left[6000], other, 1.0e-6, label);
-      EXPECT_NEAR(out.right[6000], near, 1.0e-6, label);
+      EXPECT_NEAR(out.left[6000], other, 2.0e-6, label);
+      EXPECT_NEAR(out.right[6000], near, 2.0e-6, label);
     }
     // Both in the middle is one sound on both sides, drifting or not.
     device.init(kRate);
@@ -405,7 +474,7 @@ int main() {
     device.set_param(p::kApart, 1.0f);
     device.set_param(p::kAccent, 0.5f);
     device.set_param(p::kShift, 3.0f);
-    Stereo out = run(device, dc(2.0f));
+    Stereo out = unmade(device, run(device, dc(2.0f)));
     double worst = 0.0;
     const size_t ahead = static_cast<size_t>(3 * step);
     for (size_t i = 0; i + ahead < out.size(); ++i) {
@@ -425,7 +494,8 @@ int main() {
     EXPECT(round.right == once.right, "Shift 9 of 4 steps is Shift 1");
   }
 
-  // 11. Mix 0 is the input, sample for sample; half way is half the depth.
+  // 11. Mix 0 is the input, sample for sample; half way is half the depth,
+  // and half the make-up.
   {
     device.init(kRate);
     device.set_param(p::kMix, 0.0f);
@@ -437,69 +507,200 @@ int main() {
     device.set_param(p::kMix, 0.5f);
     Stereo half = run(device, dc(1.0f));
     EXPECT_NEAR(lowest(half.left, 8000, 11000), 0.5, 1.0e-6, "Mix 0.5: a silent gap is half");
-    EXPECT_NEAR(peak(half.left), 1.0, 1.0e-6, "Mix 0.5: a pulse is whole");
+    EXPECT_NEAR(peak(half.left), 0.5 + 0.5 * expected_makeup(device), 2.0e-6,
+                "Mix 0.5: a pulse is half the sound as it came and half of it made up");
   }
 
-  // 12. Nothing is louder than what came in, at the defaults or anywhere.
+  // 12. The make-up. A gate only turns down, so the pulsed sound is brought
+  // back to the level it came in at: a constant comes out with a root mean
+  // square of 1 over whole rounds of the pattern (and, where a side hears both
+  // gates and they drift, over a whole turn of the drift) wherever the gates
+  // take less than 4 dB away. Where they take more it is made up by 4 dB.
   {
+    struct Case {
+      const char* what;
+      float steps, fill, length, edge, floor, accent, apart, drift, shift;
+      bool whole;  // made up all the way
+    };
+    const Case cases[8] = {
+        {"every step, all swell", 2, 2, 1.0f, 0.0f, 0.5f, 0.0f, 1.0f, 0.0f, 0, true},
+        {"5 of 8 on a high floor, drifting", 8, 5, 0.85f, 0.15f, 0.75f, 0.3f, 1.0f, 0.5f, 0, true},
+        {"3 of 4, long and hard", 4, 3, 0.9f, 1.0f, 0.3f, 0.0f, 1.0f, 0.0f, 0, true},
+        {"4 of 8 nearly in the middle, a canon", 8, 4, 0.8f, 0.5f, 0.8f, 0.2f, 0.3f, 0.0f, 1, true},
+        {"2 of 4 in the middle, drifting", 4, 2, 0.7f, 0.3f, 0.8f, 0.0f, 0.0f, 1.0f, 0, true},
+        {"the pattern of the defaults, accented", 8, 5, 0.85f, 0.15f, 0.65f, 1.0f, 1.0f, 0.0f, 0,
+         false},
+        {"3 of 16 over silence", 16, 3, 0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0, false},
+        {"1 of 2, short, a side each", 2, 1, 0.3f, 0.6f, 0.2f, 0.0f, 1.0f, 0.0f, 1, false},
+    };
+    for (const Case& c : cases) {
+      // At 16 steps a second a turn of the full drift is Steps / 2 seconds,
+      // and a whole number of rounds.
+      bare(device, 16.0f, static_cast<int>(c.steps), static_cast<int>(c.fill));
+      device.set_param(p::kLength, c.length);
+      device.set_param(p::kEdge, c.edge);
+      device.set_param(p::kFloor, c.floor);
+      device.set_param(p::kAccent, c.accent);
+      device.set_param(p::kApart, c.apart);
+      device.set_param(p::kDrift, c.drift);
+      device.set_param(p::kShift, c.shift);
+      const float seconds = c.drift == 1.0f ? c.steps / 2.0f : c.steps / 16.0f * 4.0f;
+      Stereo out = run(device, dc(seconds));
+      const double level = rms(out.left);
+      const double top = std::max(peak(out.left), peak(out.right));
+      char label[160];
+      if (c.whole) {
+        std::snprintf(label, sizeof label, "%s: a constant comes out as loud as it went in (%.2f dB)",
+                      c.what, db(level));
+        EXPECT_NEAR(db(level), 0.0, 0.03, label);
+        EXPECT(top > 1.0 && top < Pulses::kMaxMakeup, "made up, and by less than the most");
+      } else {
+        std::snprintf(label, sizeof label, "%s: made up by 4 dB and no more (top %.4f)", c.what, top);
+        EXPECT_NEAR(top, Pulses::kMaxMakeup, 2.0e-6, label);
+        EXPECT(level < 1.0, "which leaves it under the level it came in at");
+      }
+      // A side each and the gates drifting: the right side is as loud.
+      if (c.apart == 1.0f && c.drift > 0.0f && c.drift < 1.0f && c.whole) {
+        EXPECT_NEAR(db(rms(out.right)), 0.0, 0.1, "and the other side as loud as the first");
+      }
+    }
+    // It follows Fill, Floor and Length: the more the gates let through, the
+    // less is made up. The top of the first pulse on a constant is the make-up.
+    auto top_at = [&](int param, float value) {
+      bare(device, 16.0f, 8, 5);
+      device.set_param(p::kFloor, 0.7f);
+      device.set_param(p::kLength, 0.8f);
+      device.set_param(p::kEdge, 0.3f);
+      device.set_param(param, value);
+      const double top = peak(run(device, dc(1.0f)).left);
+      EXPECT_NEAR(top, expected_makeup(device), 2.0e-6, "the make-up is what the long sum gives");
+      return top;
+    };
+    EXPECT(top_at(p::kFill, 5.0f) > top_at(p::kFill, 6.0f) + 0.01 &&
+               top_at(p::kFill, 6.0f) > top_at(p::kFill, 8.0f) + 0.01,
+           "more Fill, less make-up");
+    EXPECT(top_at(p::kFloor, 0.7f) > top_at(p::kFloor, 0.85f) + 0.01 &&
+               top_at(p::kFloor, 0.85f) > top_at(p::kFloor, 1.0f) + 0.01,
+           "more Floor, less make-up");
+    EXPECT_NEAR(top_at(p::kFloor, 1.0f), 1.0, 1.0e-6, "Floor at full: no gate, and nothing made up");
+    EXPECT(top_at(p::kLength, 0.6f) > top_at(p::kLength, 0.8f) + 0.01 &&
+               top_at(p::kLength, 0.8f) > top_at(p::kLength, 1.0f) + 0.01,
+           "more Length, less make-up");
+    EXPECT(top_at(p::kEdge, 0.0f) > top_at(p::kEdge, 1.0f) + 0.01, "a harder Edge, less make-up");
+    EXPECT(top_at(p::kAccent, 1.0f) > top_at(p::kAccent, 0.0f) + 0.01, "more Accent, more make-up");
+
+    // No sample is more than 4 dB over the loudest that came in: at the
+    // defaults, with the knobs thrown about under it, and at full scale.
     rng_state() = 0xFACEu;
     const std::vector<float> in = noise(2.0f, kRate, 1.0f);
     const double in_peak = peak(in);
+    const double ceiling = Pulses::kMaxMakeup * in_peak * (1.0 + 1.0e-6);
     device.init(kRate);
     Stereo out = run(device, in);
-    EXPECT(peak(out.left) <= in_peak && peak(out.right) <= in_peak,
-           "defaults: no sample is louder than the loudest that came in");
-    EXPECT(rms(out.left) < rms(in), "defaults: quieter than the input on the whole");
+    EXPECT(peak(out.left) <= ceiling && peak(out.right) <= ceiling,
+           "defaults: no sample is more than 4 dB over the loudest that came in");
     device.init(kRate);
-    device.set_param(p::kShade, 1.0f);
-    device.set_param(p::kFloor, 0.7f);
-    device.set_param(p::kRate, 20.0f);
-    device.set_param(p::kDrift, 1.0f);
-    out = run(device, in);
-    EXPECT(peak(out.left) <= in_peak && peak(out.right) <= in_peak,
-           "all Shade on a high Floor: still no louder than the input");
+    device.set_param(p::kFloor, 0.0f);
+    device.set_param(p::kFill, 1.0f);
+    rng_state() = 0xFACEu;
+    double worst = 0.0;
+    for (int n = 0; n < 40; ++n) {
+      // Sparse and silent to full and open and back, every 50 ms, with the
+      // make-up still on its way.
+      const bool open = n % 2 == 1;
+      device.set_param(p::kFloor, open ? 1.0f : 0.0f);
+      device.set_param(p::kFill, open ? 16.0f : 1.0f);
+      device.set_param(p::kLength, open ? 1.0f : 0.1f);
+      device.set_param(p::kShade, open ? 1.0f : 0.0f);
+      Stereo part = run(device, noise(0.05f, kRate, 1.0f));
+      worst = std::max(worst, std::max(peak(part.left), peak(part.right)));
+    }
+    EXPECT(worst <= ceiling, "knobs thrown between closed and open: still no more than 4 dB over");
+    // And on a steady sound the defaults are within 2 dB of what came in.
+    device.init(kRate);
+    Stereo held = run(device, dc(8.0f));
+    const double held_db = db(rms(held.left, 0, 8 * 48000));
+    char label[120];
+    std::snprintf(label, sizeof label, "defaults: a held sound comes out %.2f dB from what came in",
+                  held_db);
+    EXPECT(held_db > -2.0 && held_db < 0.5, label);
   }
 
   // 13. The hardest Edge does not click. On a constant the largest step is
-  // the edge's own slope, half a cosine over 2 ms; on a tone it is that and
-  // the tone's own.
+  // the edge's own slope, half a cosine over 5 ms; on a tone it is that and
+  // the tone's own. And on a low note the chop leaves little where the note
+  // has nothing of its own: a 55 Hz tone, chopped four times a second, with
+  // the lines of the output summed from 500 Hz to 2 kHz (one second holds 55
+  // cycles and four pulses, so every line is whole).
   {
     const double edge_slope = 0.5 * kPi / edge_samples;
     bare(device, 16.0f, 8, 8);
-    Stereo flat = run(device, dc(2.0f));
+    Stereo flat = unmade(device, run(device, dc(2.0f)));
     EXPECT(max_step(flat.left) < 1.01 * edge_slope,
            "hardest Edge on a constant: no step past the edge's own slope");
     EXPECT(max_step(flat.left) > 0.95 * edge_slope, "and the edge is as steep as it says");
     bare(device, 16.0f, 8, 8);
-    Stereo tone = run(device, sine(100.0f, 2.0f, kRate, 0.5f));
+    Stereo tone = unmade(device, run(device, sine(100.0f, 2.0f, kRate, 0.5f)));
     const double tone_slope = 0.5 * 2.0 * kPi * 100.0 / kRate;
     EXPECT(max_step(tone.left) < 1.01 * (0.5 * edge_slope + tone_slope),
            "hardest Edge on a tone: no step past the edge's slope and the tone's");
+
+    bare(device, 8.0f, 2, 1);
+    Stereo low = run(device, sine(55.0f, 3.0f, kRate, 0.5f));
+    const size_t from = 48000, n = 48000;
+    double away = 0.0;
+    for (int line = 500; line <= 2000; ++line) {
+      double re = 0.0, im = 0.0;
+      const double w = 2.0 * kPi * line / n;
+      // A rotating phasor: one multiply a sample instead of a sine and a cosine.
+      double c = 1.0, sn = 0.0;
+      const double dc_ = std::cos(w), ds = std::sin(w);
+      for (size_t i = 0; i < n; ++i) {
+        const double x = low.left[from + i];
+        re += x * c;
+        im -= x * sn;
+        const double next = c * dc_ - sn * ds;
+        sn = sn * dc_ + c * ds;
+        c = next;
+      }
+      away += 2.0 * (re * re + im * im) / (static_cast<double>(n) * n);
+    }
+    const double whole = rms(low.left, from, from + n);
+    const double away_db = 10.0 * std::log10(away / (whole * whole) + 1.0e-30);
+    char label[160];
+    std::snprintf(label, sizeof label,
+                  "hardest Edge on 55 Hz: 500 Hz to 2 kHz holds %.1f dB of the output (a 2 ms edge: -43)",
+                  away_db);
+    EXPECT(away_db < -55.0, label);
   }
 
-  // 14. A pattern changed in the middle of a pulse is a ramp, not a jump:
-  // the slew's limit, a quarter over the edge's slope. The same render with
-  // nothing changed never moves faster than the edge.
+  // 14. A pattern changed in the middle of a pulse is one more edge, not a
+  // jump: the gate moves at the slew's limit, a quarter over the slope of the
+  // edge the pulses have. The same render with nothing changed never moves
+  // faster than the edge. (The make-up is on its way to the new pattern's
+  // meanwhile, 50 ms slow: a few parts in a hundred over these 20 ms.)
   {
     const double edge_slope = 0.5 * kPi / edge_samples;
     const double limit = Pulses::kSlewHeadroom * edge_slope;
-    struct Event {
-      const char* what;
-      int param;
-      float value;
-      float into;  // seconds before the change
-    };
     // Four steps at 4 a second, every other one sounding, long pulses, the
     // second gate three steps ahead and gaining a step every two seconds.
     // 0.55 s in, the first gate is on its third step's pulse and the second
     // in the gap before it; 0.7 s in, both are on that pulse.
-    //   Fill 1 silences the first gate's step; Steps 2 and Shift 0 put the
-    //   second gate on a pulse; Drift 0 takes back what it had gained, which
-    //   had carried it over a step's edge.
-    const Event events[4] = {{"Fill", p::kFill, 1.0f, 0.55f},
-                             {"Steps", p::kSteps, 2.0f, 0.55f},
-                             {"Shift", p::kShift, 0.0f, 0.55f},
-                             {"Drift to zero", p::kDrift, 0.0f, 0.7f}};
+    //   Fill 1 silences the first gate's step; Steps 3 (two of three, the
+    //   second gate no longer ahead) and Shift 0 put the second gate on a
+    //   pulse; Drift 0 takes back what it had gained, which had carried it
+    //   over a step's edge.
+    struct Event {
+      const char* what;
+      int param;
+      float value;
+      float into;    // seconds before the change
+      double faster;  // the gate that moves, against the first: its steps are that much shorter
+    };
+    const Event events[4] = {{"Fill", p::kFill, 1.0f, 0.55f, 1.0},
+                             {"Steps", p::kSteps, 3.0f, 0.55f, 1.125},
+                             {"Shift", p::kShift, 0.0f, 0.55f, 1.125},
+                             {"Drift to zero", p::kDrift, 0.0f, 0.7f, 1.0}};
     for (const Event& event : events) {
       for (int moved = 0; moved < 2; ++moved) {
         bare(device, 4.0f, 4, 2);
@@ -507,9 +708,10 @@ int main() {
         device.set_param(p::kApart, 1.0f);
         device.set_param(p::kShift, 3.0f);
         device.set_param(p::kDrift, 1.0f);
-        Stereo out = run(device, dc(event.into));
+        const float by = static_cast<float>(1.0 / expected_makeup(device));
+        Stereo out = run(device, dc(event.into, by));
         if (moved == 1) device.set_param(event.param, event.value);
-        Stereo after = run(device, dc(0.02f));
+        Stereo after = run(device, dc(0.02f, by));
         const double worst = std::max(max_step(after.left), max_step(after.right));
         const double travel = std::max(std::fabs(after.left.back() - out.left.back()),
                                        std::fabs(after.right.back() - out.right.back()));
@@ -519,51 +721,108 @@ int main() {
         } else {
           std::snprintf(label, sizeof label, "%s changed inside a pulse moves a gate all the way",
                         event.what);
-          EXPECT(travel > 0.99, label);
+          EXPECT(travel > 0.95, label);
           std::snprintf(label, sizeof label, "%s changed inside a pulse: a ramp at the slew's limit",
                         event.what);
-          EXPECT(worst < 1.001 * limit && worst > 0.99 * limit, label);
+          EXPECT(worst < 1.025 * limit && worst > 0.99 * limit, label);
         }
       }
     }
+    // Where the pulses swell, the change is a swell too. The same four
+    // events with Edge at 0.3: a pulse rises over 0.7 of half its length,
+    // 3780 samples (an eighth less for the second gate while it drifts at
+    // full), and a gate thrown from open to shut or back takes two thirds of
+    // that. With the slew set by the hardest edge it took 1 ms, which is a
+    // click on a held note.
+    const double soft_ramp = 0.7 * 0.45 * 12000.0;
+    const double soft_limit = Pulses::kSlewHeadroom * 0.5 * kPi / soft_ramp;
+    for (const Event& event : events) {
+      bare(device, 4.0f, 4, 2);
+      device.set_param(p::kLength, 0.9f);
+      device.set_param(p::kEdge, 0.3f);
+      device.set_param(p::kApart, 1.0f);
+      device.set_param(p::kShift, 3.0f);
+      device.set_param(p::kDrift, 1.0f);
+      const double made = expected_makeup(device);
+      run(device, dc(event.into));
+      device.set_param(event.param, event.value);
+      Stereo after = run(device, dc(0.03f));
+      const double worst = std::max(max_step(after.left), max_step(after.right));
+      char label[160];
+      std::snprintf(label, sizeof label,
+                    "%s changed inside a soft pulse: no faster than the pulse's own edge and a quarter (%.2f of it)",
+                    event.what, worst / (made * soft_limit * event.faster));
+      EXPECT(worst < 1.03 * made * soft_limit * event.faster, label);
+      std::snprintf(label, sizeof label, "%s changed inside a soft pulse: and that fast, it did move",
+                    event.what);
+      EXPECT(worst > 0.9 * made * soft_limit * event.faster, label);
+    }
   }
 
-  // 15. The smoothed knobs glide: thrown from one end to the other on a
-  // constant, the output moves no faster than a 5 ms smoother starts.
+  // 15. The smoothed knobs glide: thrown on a constant, the output moves no
+  // faster than a 5 ms smoother starts. The patterns here are sparse, so the
+  // make-up is at its most before the throw and after it and stays out of
+  // the measurement.
   {
     const double start = 1.0 - std::exp(-1.0 / (0.005 * kRate));
+    const double made = Pulses::kMaxMakeup;
     struct Throw {
       const char* what;
       int param;
       float from, to;
       double swing;  // how far the output can go
     };
-    const Throw throws[6] = {{"Floor", p::kFloor, 0.0f, 1.0f, 1.0}, {"Mix", p::kMix, 1.0f, 0.0f, 1.0},
-                             {"Apart", p::kApart, 1.0f, 0.0f, 0.5}, {"Accent", p::kAccent, 0.0f, 1.0f, 0.7},
-                             {"Floor", p::kFloor, 1.0f, 0.0f, 1.0}, {"Mix", p::kMix, 0.0f, 1.0f, 1.0}};
+    const Throw throws[6] = {{"Floor", p::kFloor, 0.0f, 0.6f, 0.36 * made},
+                             {"Mix", p::kMix, 1.0f, 0.0f, 1.0},
+                             {"Apart", p::kApart, 1.0f, 0.0f, 0.5 * made},
+                             {"Accent", p::kAccent, 0.0f, 1.0f, 0.7 * made},
+                             {"Floor", p::kFloor, 0.6f, 0.0f, 0.36 * made},
+                             {"Mix", p::kMix, 0.0f, 1.0f, 1.0}};
     for (const Throw& t : throws) {
-      // Two steps at 2 a second, the first sounding, the second gate a step
+      // Four steps at 2 a second, the first sounding, the second gate a step
       // ahead: 0.3 s in, the first gate is on its pulse and the second in its
-      // gap. Accent is heard on the second step, so there every step sounds
-      // and the moment is 0.7 s in.
-      bare(device, 2.0f, 2, t.param == p::kAccent ? 2 : 1);
+      // gap. Accent is heard on a step that is not the first: there two of
+      // eight steps sound, the first and the fifth, and the moment is 2.2 s in.
+      const bool accent = t.param == p::kAccent;
+      bare(device, 2.0f, accent ? 8 : 4, accent ? 2 : 1);
       device.set_param(p::kLength, 0.9f);
-      device.set_param(p::kShift, t.param == p::kAccent ? 0.0f : 1.0f);
+      device.set_param(p::kShift, accent ? 0.0f : 1.0f);
       device.set_param(p::kApart, 1.0f);
       device.set_param(t.param, t.from);
-      const float into = t.param == p::kAccent ? 0.7f : 0.3f;
+      EXPECT_NEAR(expected_makeup(device), made, 1.0e-6, "the make-up is at its most before the throw");
+      const float into = accent ? 2.2f : 0.3f;
       Stereo before = run(device, dc(into));
       device.set_param(t.param, t.to);
+      EXPECT_NEAR(expected_makeup(device), made, 1.0e-6, "and after it");
       Stereo after = run(device, dc(0.05f));
       const double worst = std::max(max_step(after.left), max_step(after.right));
       const double travel = std::max(std::fabs(after.left.back() - before.left.back()),
                                      std::fabs(after.right.back() - before.right.back()));
       char label[120];
-      std::snprintf(label, sizeof label, "%s thrown %.0f to %.0f is heard", t.what, t.from, t.to);
+      std::snprintf(label, sizeof label, "%s thrown %.1f to %.1f is heard", t.what, t.from, t.to);
       EXPECT(travel > 0.98 * t.swing, label);
-      std::snprintf(label, sizeof label, "%s thrown %.0f to %.0f glides in 5 ms", t.what, t.from,
+      std::snprintf(label, sizeof label, "%s thrown %.1f to %.1f glides in 5 ms", t.what, t.from,
                     t.to);
       EXPECT(worst < 1.02 * start * t.swing && worst > 0.9 * start * t.swing, label);
+    }
+    // The make-up glides too, and slower: Fill thrown from 5 of 8 to all of
+    // them on a high floor, in a gap, where nothing else moves. It has 50 ms.
+    {
+      bare(device, 2.0f, 8, 5);
+      device.set_param(p::kFloor, 0.8f);
+      device.set_param(p::kEdge, 0.3f);
+      const double from = expected_makeup(device);
+      Stereo before = run(device, dc(0.4f));  // in the gap after the first step's pulse
+      device.set_param(p::kFill, 8.0f);
+      const double to = expected_makeup(device);
+      Stereo after = run(device, dc(0.09f));
+      const double slow = 1.0 - std::exp(-1.0 / (Pulses::kMakeupSeconds * kRate));
+      const double swing = 0.64 * (from - to);
+      EXPECT(swing > 0.05, "Fill thrown up takes some of the make-up off");
+      EXPECT_NEAR(before.left.back(), 0.64 * from, 1.0e-5, "the gap stands at the floor, made up");
+      EXPECT(max_step(after.left) < 1.02 * slow * swing && max_step(after.left) > 0.9 * slow * swing,
+             "Fill thrown up: the make-up glides to its new place in 50 ms");
+      EXPECT(std::fabs(after.left.back() - 0.64 * to) < 0.2 * swing, "and is most of the way there by 90 ms");
     }
     // Shade, Length and Edge shape the pulse, and the slew would hide a jump
     // of theirs from a bound on the step. So each is thrown while it matters
@@ -647,8 +906,9 @@ int main() {
 
   // 17. The clocks run free: the gain at a moment is the same whether sound
   // has been coming all along or began after a silence, long or short, and
-  // whatever the block size. A knob moved in the silence is there when sound
-  // comes back.
+  // whatever the block size, to the last bit: asleep the clocks go on by the
+  // same sums as awake. A knob moved in the silence is there when sound comes
+  // back.
   {
     const float gaps[8] = {0.003f, 0.05f, 0.09f, 0.11f, 0.14f, 0.19f, 0.4f, 1.3f};
     const int blocks[4] = {128, 1, 2048, 0};  // 0 is a ragged mix
@@ -679,7 +939,7 @@ int main() {
       // tone all the way, with the knobs where they end up.
       const std::vector<float> first = sine(220.0f, 0.3f, kRate, 0.5f);
       const std::vector<float> rest = silence(gap, kRate);
-      const std::vector<float> second = sine(330.0f, 0.4f, kRate, 0.5f);
+      const std::vector<float> second = sine(330.0f, 1.2f, kRate, 0.5f);
       Stereo reference;
       for (int block : blocks) {
         device.init(kRate);
@@ -704,8 +964,10 @@ int main() {
       }
       // The same second note on a device that had the knobs there from the
       // start and heard a constant through the gap, so it never rested: a
-      // tenth of a second on (its filter has forgotten the constant, and a
-      // knob moved in a short gap has glided in), the two are one.
+      // tenth of a second on (its filter has forgotten the constant), the two
+      // are one. After a gap too short to count as new sound the knobs glide
+      // in as they would under sound, and the make-up, the slowest of them,
+      // is there 0.8 s on.
       twin.init(kRate);
       twin.set_param(p::kDrift, 0.9f);
       twin.set_param(p::kFloor, 0.8f);
@@ -719,7 +981,7 @@ int main() {
       Stereo b = run(twin, second);
       const size_t from = first.size() + rest.size();
       double free_running = 0.0;
-      for (size_t i = 4800; i < second.size(); ++i) {
+      for (size_t i = gap >= 0.1f ? 4800 : 38400; i < second.size(); ++i) {
         free_running = std::max(free_running, std::fabs(static_cast<double>(b.left[i]) - reference.left[from + i]));
         free_running = std::max(free_running, std::fabs(static_cast<double>(b.right[i]) - reference.right[from + i]));
       }
@@ -735,7 +997,7 @@ int main() {
     std::snprintf(label, sizeof label,
                   "across a silence the output does not depend on the block size (worst %g)",
                   worst_block);
-    EXPECT(worst_block < 1.0e-6, label);
+    EXPECT(worst_block == 0.0, label);
     std::snprintf(label, sizeof label,
                   "after a silence the gates are where a device that never rested has them (worst %g)",
                   worst_knob);
@@ -761,6 +1023,39 @@ int main() {
     EXPECT_NEAR(device.meter(1), 0.125, 1.0e-4, "and the second has gone on gaining");
     Stereo woken = run(device, sine(440.0f, 0.5f, kRate, 0.5f));
     EXPECT(peak(woken.left) > 0.4, "wakes on new input");
+    // Half a minute asleep, and the next second is the same to the last bit
+    // whatever the block size: the clocks are doubles, and a sum taken a block
+    // at a time is not the sum taken a sample at a time. Silent gaps and soft
+    // edges, where the start of every pulse shows the smallest difference.
+    Stereo reference;
+    const int blocks[5] = {128, 1, 32, 2048, 37};
+    for (int block : blocks) {
+      device.init(kRate);
+      device.set_param(p::kRate, 20.0f);
+      device.set_param(p::kSteps, 16.0f);
+      device.set_param(p::kFill, 16.0f);
+      device.set_param(p::kDrift, 1.0f);
+      device.set_param(p::kEdge, 0.0f);
+      device.set_param(p::kFloor, 0.0f);
+      device.set_param(p::kShade, 0.0f);
+      run(device, sine(440.0f, 0.2f, kRate, 0.5f), block);
+      render(device, 30.0f, kRate, block);
+      Stereo after = run(device, sine(330.0f, 1.0f, kRate, 0.5f), block);
+      if (block == 128) {
+        reference = after;
+      } else {
+        size_t differ = 0;
+        for (size_t i = 0; i < after.size(); ++i) {
+          differ += (after.left[i] != reference.left[i]) + (after.right[i] != reference.right[i]);
+        }
+        char label[120];
+        std::snprintf(label, sizeof label,
+                      "after 30 s asleep in blocks of %d: %zu samples differ from blocks of 128", block,
+                      differ);
+        EXPECT(differ == 0, label);
+      }
+    }
+    EXPECT_NEAR(db(Pulses::kMaxMakeup), 4.0, 1.0e-4, "the most that is made up is 4 dB");
   }
 
   device.init(kRate);

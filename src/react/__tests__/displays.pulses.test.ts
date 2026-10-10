@@ -11,10 +11,14 @@ import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm
 import { INK, PLAIN_COLOURS } from '../components/display-kit'
 import {
   PULSES_FACES,
+  PULSES_MOST,
+  pulsesComesRound,
   pulsesGate,
   pulsesHeard,
   pulsesHeardHigh,
   pulsesLayout,
+  pulsesMakeup,
+  pulsesMeanSquare,
   pulsesMeetSeconds,
   pulsesRamp,
   pulsesRounds,
@@ -35,10 +39,12 @@ const display = PULSES_FACES.pulses.display
 // The device's own numbers, copied from `cpp/devices/pulses/pulses.h`.
 /** `kMaxDrift`: the second gate is at most an eighth faster. */
 const MAX_DRIFT = 0.125
-/** `kMinEdgeSeconds`: the hardest edge takes 2 ms. */
-const MIN_EDGE_SEC = 0.002
+/** `kMinEdgeSeconds`: the hardest edge takes 5 ms. */
+const MIN_EDGE_SEC = 0.005
 /** `kAccentDrop`: Accent takes up to 0.7 off every step but the first. */
 const ACCENT_DROP = 0.7
+/** `kMaxMakeup`: the pulsed sound is made up by 4 dB at the most. */
+const MAX_MAKEUP = 1.5848932
 
 type Values = Readonly<Record<string, number>>
 
@@ -228,10 +234,10 @@ describe('the arithmetic of the Pulses display against the device', () => {
     expect(pulsesShape(0.7, 0.8, 0.2)).toBeCloseTo(0.5, 12)
     expect(pulsesShape(0.8, 0.8, 0.2)).toBe(0)
     expect(pulsesShape(0.95, 0.8, 0.2)).toBe(0)
-    // Edge takes the rise from half the pulse to the hardest edge, 2 ms whatever the Rate.
-    expect(pulsesRamp(0, 0.8, 0.008)).toBeCloseTo(0.4, 12)
-    expect(pulsesRamp(0.5, 0.8, 0.008)).toBeCloseTo(0.2, 12)
-    expect(pulsesRamp(1, 0.8, MIN_EDGE_SEC * 4)).toBeCloseTo(0.008, 12)
+    // Edge takes the rise from half the pulse to the hardest edge, 5 ms whatever the Rate.
+    expect(pulsesRamp(0, 0.8, 0.02)).toBeCloseTo(0.4, 12)
+    expect(pulsesRamp(0.5, 0.8, 0.02)).toBeCloseTo(0.2, 12)
+    expect(pulsesRamp(1, 0.8, MIN_EDGE_SEC * 4)).toBeCloseTo(0.02, 12)
     // A pulse shorter than two of the hardest edges is all edge.
     expect(pulsesRamp(1, 0.1, MIN_EDGE_SEC * 20 * 2)).toBeCloseTo(0.05, 12)
   })
@@ -244,6 +250,41 @@ describe('the arithmetic of the Pulses display against the device', () => {
     expect(set.others).toBeCloseTo(1 - ACCENT_DROP, 12)
     expect(settingsOf({ drift: 1 }).faster).toBe(MAX_DRIFT)
     expect(settingsOf({ drift: 0 }).faster).toBe(0)
+  })
+
+  it('makes the pulsed sound up as the device does: to the level it came in at, by 4 dB at the most', () => {
+    expect(PULSES_MOST).toBe(MAX_MAKEUP)
+    expect(20 * Math.log10(PULSES_MOST)).toBeCloseTo(4, 5)
+    // Worked by hand. Every step of two, all swell, a side each, Floor 0.5 (a
+    // quarter left): a pulse's mean is a half and its mean square three
+    // eighths, so the gain's mean square is 1/16 + 2 * 1/4 * 3/4 * 1/2 + 9/16 * 3/8.
+    const throb = settingsOf({ steps: 2, fill: 2, edge: 0, length: 1, floor: 0.5, accent: 0 })
+    expect(pulsesMeanSquare(throb)).toBeCloseTo(1 / 16 + 3 / 16 + 27 / 128, 12)
+    expect(throb.makeup).toBeCloseTo(1 / Math.sqrt(59 / 128), 12)
+    // One step of four, a hard pulse half a step long, over silence: an eighth
+    // of the time open (less a quarter of a 5 ms rise at each end), which is
+    // far more than 4 dB to make up.
+    const sparse = settingsOf({ steps: 4, fill: 1, edge: 1, length: 0.5, floor: 0, rate: 4 })
+    expect(pulsesMeanSquare(sparse)).toBeCloseTo((0.5 - 1.25 * 0.02) / 4, 12)
+    expect(sparse.makeup).toBe(MAX_MAKEUP)
+    // Floor at full is no gate at all, and nothing is made up.
+    expect(settingsOf({ floor: 1 }).makeup).toBeCloseTo(1, 12)
+    expect(pulsesMakeup(1)).toBe(1)
+    // Both gates in the middle. Locked, they are one gate; drifting, what the
+    // two share is the product of their means, so less comes through and more
+    // is made up; a step apart with one step of two sounding they never meet.
+    const middle = { steps: 2, fill: 1, edge: 0, length: 1, floor: 0.7, accent: 0, apart: 0 }
+    const one = pulsesMeanSquare(settingsOf({ ...middle, drift: 0, apart: 1 }))
+    expect(pulsesMeanSquare(settingsOf({ ...middle, drift: 0 }))).toBeCloseTo(one, 12)
+    const up = 1 - 0.49
+    expect(pulsesMeanSquare(settingsOf({ ...middle, drift: 0.5 }))).toBeCloseTo(
+      0.49 * 0.49 + 2 * 0.49 * up * 0.25 + up * up * (0.5 * (0.375 / 2) + 0.5 * 0.25 * 0.25),
+      12,
+    )
+    expect(pulsesMeanSquare(settingsOf({ ...middle, drift: 0, shift: 1 }))).toBeCloseTo(
+      0.49 * 0.49 + 2 * 0.49 * up * 0.25 + up * up * (0.5 * (0.375 / 2)),
+      12,
+    )
   })
 
   it('lets through what the device lets through, a sample at a time, on both sides', async () => {
@@ -265,6 +306,10 @@ describe('the arithmetic of the Pulses display against the device', () => {
       // Every step, the hardest edge, the fastest: the second gate's edge is as long in time.
       { rate: 20, steps: 16, fill: 16, drift: 0.7, edge: 1, length: 1, floor: 0, accent: 0 },
       { rate: 3, steps: 2, fill: 5, shift: 9, drift: 0.9, edge: 0, length: 0.9, apart: 0 },
+      // Made up by less than the most: a high Floor; a canon in the middle; and the gates locked.
+      { rate: 6, floor: 0.85, drift: 0.8, apart: 0.3 },
+      { rate: 5, steps: 8, fill: 4, shift: 1, drift: 0, apart: 0.2, floor: 0.8, accent: 0.5 },
+      { rate: 7, steps: 4, fill: 3, drift: 0, edge: 0.6, length: 1, floor: 0.6, mix: 0.6 },
     ]
     for (const values of settings) {
       const device = await deviceAt(values)
@@ -304,12 +349,15 @@ describe('the arithmetic of the Pulses display against the device', () => {
         most = Math.max(most, Math.abs(left[n]))
       return most / 0.5
     }
+    // One pulse in two steps over a quarter of the sound is made up by the most.
+    expect(set.makeup).toBe(MAX_MAKEUP)
     expect(crest(0.08, 0.2)).toBeCloseTo(pulsesHeardHigh(1, set), 2)
-    expect(pulsesHeardHigh(1, set)).toBe(1)
+    expect(pulsesHeardHigh(1, set)).toBe(MAX_MAKEUP)
     // A quarter is left of the whole sound and half of that of its top.
-    expect(pulsesHeardHigh(0, set)).toBeCloseTo(0.125, 12)
-    expect(crest(0.6, 0.9)).toBeCloseTo(0.125, 2)
-    expect(pulsesHeard(0, 0, set)).toBeCloseTo(0.25, 12)
+    expect(pulsesHeardHigh(0, set)).toBeCloseTo(0.125 * MAX_MAKEUP, 12)
+    // (A 30th of the top still comes through the 400 Hz pole at 12 kHz, a quarter turn late.)
+    expect(Math.abs(crest(0.6, 0.9) - 0.125 * MAX_MAKEUP)).toBeLessThan(0.01)
+    expect(pulsesHeard(0, 0, set)).toBeCloseTo(0.25 * MAX_MAKEUP, 12)
   })
 
   it('reports where the first gate is and what the second has gained, as the display takes them', async () => {
@@ -323,14 +371,127 @@ describe('the arithmetic of the Pulses display against the device', () => {
     expect(reading(device, 0)).toBeCloseTo(wrap(gone / set.steps), 4)
     expect(reading(device, 1)).toBeCloseTo((gone * set.faster) / set.steps, 5)
     // From there the display counts what is left of the 16 s.
-    expect(pulsesMeetSeconds(reading(device, 1), set)).toBeCloseTo(16 - 4.03, 2)
+    expect(pulsesMeetSeconds(reading(device, 1) * set.steps, set)).toBeCloseTo(16 - 4.03, 2)
     // And when that time has gone the two are in the same place: nothing gained.
     render(device, 16 - 4.03, () => 0.5)
     expect(Math.abs(wrap(reading(device, 1) + 0.5) - 0.5)).toBeLessThan(1e-4)
-    // With a Shift the second gate starts ahead and has less to gain.
-    expect(pulsesMeetSeconds(0.25, set)).toBeCloseTo(12, 9)
-    expect(pulsesMeetSeconds(0.25, settingsOf({ drift: 0 }))).toBe(Infinity)
+    // With a Shift of one step the second gate starts ahead and has less to gain.
+    expect(pulsesMeetSeconds(1, set)).toBeCloseTo(12, 9)
+    expect(pulsesMeetSeconds(1, settingsOf({ drift: 0 }))).toBe(Infinity)
   })
+
+  it('knows how far the second gate has to gain for the two sides to sound the same', () => {
+    // Accent marks the first step, so only a whole pattern brings the two together.
+    expect(pulsesComesRound(settingsOf({ steps: 8, fill: 4 }))).toBe(8)
+    expect(pulsesComesRound(settingsOf({ steps: 2, fill: 2, accent: 0.01 }))).toBe(2)
+    // With no Accent the pattern itself comes round sooner where Fill and Steps share a divisor.
+    expect(pulsesComesRound(settingsOf({ steps: 8, fill: 4, accent: 0 }))).toBe(2)
+    expect(pulsesComesRound(settingsOf({ steps: 16, fill: 12, accent: 0 }))).toBe(4)
+    expect(pulsesComesRound(settingsOf({ steps: 2, fill: 2, accent: 0 }))).toBe(1)
+    expect(pulsesComesRound(settingsOf({ steps: 6, fill: 9, accent: 0 }))).toBe(1)
+    expect(pulsesComesRound(settingsOf({ steps: 8, fill: 5, accent: 0 }))).toBe(8)
+    expect(pulsesComesRound(settingsOf({ steps: 7, fill: 4, accent: 0 }))).toBe(7)
+    // 4 of 8 with no Accent, at 4 steps a second and an eighth faster: two steps are gained in 4 s.
+    const even = settingsOf({ steps: 8, fill: 4, accent: 0, drift: 1 })
+    expect(pulsesMeetSeconds(0, even)).toBeCloseTo(4, 9)
+    expect(pulsesMeetSeconds(1.5, even)).toBeCloseTo(1, 9)
+    expect(pulsesMeetSeconds(7, even)).toBeCloseTo(2, 9)
+  })
+
+  // What follows is held to the device's sound itself: a constant through the
+  // compiled device, and how far apart its two sides are over each round of
+  // the pattern. Where that falls to nothing the gates have met.
+  async function meetings(
+    values: Values,
+    seconds: number,
+  ): Promise<{ met: number[]; said: { at: number; left: number }[] }> {
+    const device = await deviceAt(values)
+    const set = settingsOf(values)
+    const round = Math.round((set.steps / set.rate) * RATE)
+    const hop = 2400
+    const block = new Float32Array(128).fill(0.5)
+    const total = Math.round(seconds * RATE)
+    // The running sum of how far apart the sides are, so any stretch is two readings of it.
+    const sums = new Float64Array(Math.floor(total / hop) + 1)
+    const said: { at: number; left: number }[] = []
+    let sum = 0
+    for (let done = 0; done < total; done += 128) {
+      if (done % RATE === 0)
+        said.push({
+          at: done / RATE,
+          left: pulsesMeetSeconds(set.shift + reading(device, 1) * set.steps, set),
+        })
+      device.processBlock(block)
+      const left = device.view(device.device.device_out_left(), 128)
+      const right = device.view(device.device.device_out_right(), 128)
+      for (let i = 0; i < 128; i++) {
+        if ((done + i) % hop === 0) sums[(done + i) / hop] = sum
+        sum += Math.abs(left[i] - right[i])
+      }
+    }
+    // How far apart over the round about each hop, and where that is least and near nothing.
+    const rounds = Math.round(round / hop)
+    const apartAt = (n: number): number => (sums[n + rounds] - sums[n]) / (rounds * hop)
+    const count = Math.floor(total / hop) - rounds
+    let most = 0
+    for (let n = 0; n < count; n++) most = Math.max(most, apartAt(n))
+    // The gates go on gaining through the round measured over, so the least is
+    // not nothing: each stretch under an eighth of the most is one meeting, at its lowest.
+    const met: number[] = []
+    let least = -1
+    for (let n = rounds; n < count; n++) {
+      const here = apartAt(n)
+      if (here < 0.125 * most) {
+        if (least < 0 || here < apartAt(least)) least = n
+      } else if (least >= 0) {
+        met.push(((least + rounds / 2) * hop) / RATE)
+        least = -1
+      }
+    }
+    return { met, said }
+  }
+
+  it('counts down to the moment the two sides are the same again, to the second, over ten minutes', async () => {
+    // At its defaults: 8 steps at 4 a second, the second gate a 64th faster.
+    const { met, said } = await meetings({}, 600)
+    expect(met.length).toBe(4)
+    met.forEach((at, n) => expect(Math.abs(at - 128 * (n + 1))).toBeLessThan(0.5))
+    // Every second of the ten minutes the time written is the time there was left.
+    let worst = 0
+    for (const { at, left } of said) {
+      const next = met.find((time) => time > at + 0.5) ?? 128 * 5
+      if (next - at > 1) worst = Math.max(worst, Math.abs(at + left - next))
+    }
+    expect(worst).toBeLessThan(0.5)
+    expect(said[0].left).toBeCloseTo(128, 6)
+    expect(pulsesTimeText(said[1].left)).toBe('2:07')
+    expect(pulsesTimeText(said[599].left)).toBe('0:41')
+  }, 300_000)
+
+  it('counts down to the nearer moment where the pattern comes round within itself', async () => {
+    // 4 of 8 with no Accent is the same two steps on: with Drift at a half the
+    // second gate gains a step in 16 s, so the sides are the same every 32 s,
+    // a quarter of the time a whole pattern takes.
+    const values = { steps: 8, fill: 4, accent: 0, drift: 0.5 }
+    const every = 2 / (4 * 0.125 * 0.125)
+    expect(every).toBe(32)
+    const { met, said } = await meetings(values, 140)
+    expect(met.length).toBe(4)
+    met.forEach((at, n) => expect(Math.abs(at - every * (n + 1))).toBeLessThan(0.5))
+    let worst = 0
+    for (const { at, left } of said) {
+      const next = met.find((time) => time > at + 0.5)
+      if (next !== undefined && next - at > 1) worst = Math.max(worst, Math.abs(at + left - next))
+    }
+    expect(worst).toBeLessThan(0.5)
+    expect(pulsesTimeText(said[1].left)).toBe('0:31')
+    // With the first step marked, only every fourth of those is a meeting.
+    const marked = await meetings({ ...values, accent: 1 }, 140)
+    expect(marked.met.length).toBe(1)
+    expect(Math.abs(marked.met[0] - 4 * every)).toBeLessThan(0.5)
+    expect(marked.said[0].left).toBeCloseTo(4 * every, 6)
+    expect(pulsesTimeText(marked.said[1].left)).toBe('2:07')
+  }, 300_000)
 
   it('says a time shortly, and never with a fraction in one glyph', () => {
     expect(pulsesTimeText(0)).toBe('0:00')
@@ -378,10 +539,44 @@ describe('the Pulses display', () => {
   })
 
   it('shows eight steps or more, a short pattern as many times over as that takes', () => {
-    expect([2, 3, 4, 5, 7, 8, 9, 16].map(pulsesRounds)).toEqual([4, 3, 2, 2, 2, 1, 1, 1])
+    expect([2, 3, 4, 5, 7, 8, 9, 16].map((steps) => pulsesRounds(steps, 4))).toEqual([
+      4, 3, 2, 2, 2, 1, 1, 1,
+    ])
+    expect(pulsesRounds(8, 10)).toBe(1)
   })
 
-  it('draws each side as the device lets it through, the right side ahead by what the second gate has gained', () => {
+  it('shows sixteen or more past ten steps a second, so the mark crosses in 0.8 s or more', () => {
+    expect([2, 3, 5, 8, 9, 16].map((steps) => pulsesRounds(steps, 10.5))).toEqual([
+      8, 6, 4, 2, 2, 1,
+    ])
+    const { lanes } = pulsesLayout(size)
+    for (const [rate, steps] of [
+      [20, 8],
+      [20, 2],
+      [11, 7],
+      [10, 8],
+      [20, 16],
+    ]) {
+      const crossing = (pulsesRounds(steps, rate) * steps) / rate
+      expect(crossing).toBeGreaterThanOrEqual(0.8)
+      // At 30 frames a second that is under 7 px a frame across the 145 px of the lanes.
+      expect(lanes.w / crossing / 30).toBeLessThan(7)
+    }
+    // The steps are ticked on the middle line: 17 ticks for 8 steps at 20 a second.
+    const { mid } = pulsesLayout(size)
+    const ticks = (rate: number): number =>
+      strokes(drawDisplay(display, PULSES_PARAMS, { values: { rate }, ...size })).filter(
+        (stroke) =>
+          stroke.points.length === 2 &&
+          stroke.alpha === INK.rule &&
+          stroke.points[0].x === stroke.points[1].x &&
+          Math.abs((stroke.points[0].y + stroke.points[1].y) / 2 - mid) < 1e-9,
+      ).length
+    expect(ticks(20)).toBe(17)
+    expect(ticks(4)).toBe(9)
+  })
+
+  it('draws each side as the device lets it through, the right side ahead by what the second gate has gained: this time across from the mark on, the next time behind it', () => {
     const cases: [Values, { place: number; lead: number }][] = [
       [{}, { place: 0, lead: 0 }],
       [{}, { place: 0.4, lead: 0.3 }],
@@ -402,16 +597,20 @@ describe('the Pulses display', () => {
       const { lanes, mid, lane } = pulsesLayout(shape)
       for (const [values, meters] of cases) {
         const set = settingsOf(values)
-        const total = pulsesRounds(set.steps) * set.steps
+        const total = pulsesRounds(set.steps, set.rate) * set.steps
         const drawn = drawDisplay(display, PULSES_PARAMS, { values, meters, ...shape })
         const [upper, lower] = laneLines(drawn)
-        // What the second gate had gained when the first was at the lanes' left end.
-        const lead = meters.lead * set.steps - meters.place * set.steps * set.faster
-        const heard = (x: number, side: 0 | 1): number => {
+        // What the second gate had gained when the first was at the lanes' left
+        // end this time across, and what it will have gained there the next time.
+        const now = meters.place * set.steps
+        const lead = meters.lead * set.steps - now * set.faster
+        const next = lead + total * set.faster
+        const nowX = lanes.x + (now / total) * lanes.w
+        const heard = (x: number, side: 0 | 1, ahead: number): number => {
           const gone = ((x - lanes.x) / lanes.w) * total
           const first = pulsesGate(gone % set.steps, set)
           const second = pulsesGate(
-            (((gone * (1 + set.faster) + set.shift + lead) % set.steps) + set.steps) % set.steps,
+            (((gone * (1 + set.faster) + set.shift + ahead) % set.steps) + set.steps) % set.steps,
             set,
             true,
           )
@@ -421,16 +620,34 @@ describe('the Pulses display', () => {
           [upper, 0],
           [lower, 1],
         ] as const) {
-          const height = (x: number): number =>
-            side === 0 ? mid - 0.5 - heard(x, side) * lane : mid + 0.5 + heard(x, side) * lane
+          const height = (x: number, ahead: number): number =>
+            side === 0
+              ? mid - 0.5 - (heard(x, side, ahead) / MAX_MAKEUP) * lane
+              : mid + 0.5 + (heard(x, side, ahead) / MAX_MAKEUP) * lane
           expect(line.points[0].x).toBeCloseTo(lanes.x, 9)
           expect(line.points[line.points.length - 1].x).toBeCloseTo(lanes.x + lanes.w, 9)
-          // Every point of the line is on the device's level there,
-          for (const at of line.points) expect(apart([at], at.x, height(at.x))).toBeLessThan(1e-6)
-          // and between its points the line is the level too: at every half pixel across.
+          // Every point of the line is on the device's level there: behind the
+          // mark the next time across, from the mark on this one, and at the
+          // mark itself one or the other.
+          for (const at of line.points) {
+            const off =
+              at.x < nowX - 1e-9
+                ? apart([at], at.x, height(at.x, next))
+                : at.x > nowX + 1e-9
+                  ? apart([at], at.x, height(at.x, lead))
+                  : Math.min(
+                      apart([at], at.x, height(at.x, next)),
+                      apart([at], at.x, height(at.x, lead)),
+                    )
+            expect(off).toBeLessThan(1e-6)
+          }
+          // Between its points the line is the level too: at every half pixel
+          // across, but for the pixel the mark stands on.
           let worst = 0
-          for (let x = lanes.x; x <= lanes.x + lanes.w; x += 0.5)
-            worst = Math.max(worst, apart(line.points, x, height(x)))
+          for (let x = lanes.x; x <= lanes.x + lanes.w; x += 0.5) {
+            if (Math.abs(x - nowX) < 0.85) continue
+            worst = Math.max(worst, apart(line.points, x, height(x, x < nowX ? next : lead)))
+          }
           expect(worst, `${JSON.stringify(values)} side ${side}`).toBeLessThan(0.5)
         }
       }
@@ -454,13 +671,22 @@ describe('the Pulses display', () => {
     const meters = { place: 0.3, lead: 0.2 }
     const dry = drawDisplay(display, PULSES_PARAMS, { values: { mix: 0 }, meters, ...size })
     const [upper, lower] = laneLines(dry)
-    // All of the sound on both sides, all the way across.
-    for (const at of upper.points) expect(at.y).toBeCloseTo(mid - 0.5 - lane, 9)
-    for (const at of lower.points) expect(at.y).toBeCloseTo(mid + 0.5 + lane, 9)
-    // Half the Mix is half as deep: the level between pulses stands at 1 - 0.5 * (1 - 0.25).
+    // The sound as it came on both sides, all the way across: 1 of the 1.585 a lane holds.
+    for (const at of upper.points) expect(at.y).toBeCloseTo(mid - 0.5 - lane / MAX_MAKEUP, 9)
+    for (const at of lower.points) expect(at.y).toBeCloseTo(mid + 0.5 + lane / MAX_MAKEUP, 9)
+    // Half the Mix is half as deep. At the defaults Floor leaves 0.65 squared
+    // and the make-up is at its most: between pulses stands half the sound as
+    // it came and half of 1.585 * 0.4225 of it.
+    expect(settingsOf().makeup).toBe(MAX_MAKEUP)
     const half = drawDisplay(display, PULSES_PARAMS, { values: { mix: 0.5 }, meters, ...size })
     const lowest = Math.max(...laneLines(half)[0].points.map((at) => at.y))
-    expect(lowest).toBeCloseTo(mid - 0.5 - 0.625 * lane, 6)
+    expect(lowest).toBeCloseTo(
+      mid - 0.5 - ((0.5 + 0.5 * MAX_MAKEUP * 0.4225) / MAX_MAKEUP) * lane,
+      6,
+    )
+    // And the top of the first step's pulse half the sound and half of it made up.
+    const highest = Math.min(...laneLines(half)[0].points.map((at) => at.y))
+    expect(highest).toBeCloseTo(mid - 0.5 - ((0.5 + 0.5 * MAX_MAKEUP) / MAX_MAKEUP) * lane, 6)
     // The bars are the pattern itself and stand as they stood: five of eight steps over the upper lane.
     const over = (drawn: RecordingContext) => bars(drawn).filter((bar) => bar.y === lanes.y - 3)
     expect(over(dry)).toEqual(over(drawDisplay(display, PULSES_PARAMS, { meters, ...size })))
@@ -481,22 +707,33 @@ describe('the Pulses display', () => {
     expect(first.map((bar) => bar.alpha)).toEqual([1, INK.back, INK.back])
     // The second gate goes an eighth faster: its steps are 8/9 as long, and it
     // was 2 steps of Shift and what it had gained ahead at the lanes' left end.
+    // The mark is half way across: from there on the bars are this crossing's,
+    // behind it the next one's, a step further ahead (an eighth of eight).
     const second = bars(drawn).filter((bar) => bar.y === lanes.y + lanes.h + 1)
     const lead = meters.lead * 8 - meters.place * 8 * set.faster
-    const starts = [0, 3, 6, 8, 11, 14]
-      .map((at) => (at - set.shift - lead) / (1 + set.faster))
-      .filter((at) => at + 0.6 / (1 + set.faster) > 0 && at < 8)
-    expect(second.length).toBe(starts.length)
+    const expected: { from: number; to: number }[] = []
+    for (const [low, top, ahead] of [
+      [0, 4, lead + 1],
+      [4, 8, lead],
+    ]) {
+      for (const at of [-8, -5, -2, 0, 3, 6, 8, 11, 14]) {
+        const from = (at - set.shift - ahead) / (1 + set.faster)
+        const to = from + 0.6 / (1 + set.faster)
+        if (Math.min(top, to) > Math.max(low, from))
+          expected.push({ from: Math.max(low, from), to: Math.min(top, to) })
+      }
+    }
+    expect(second.length).toBe(expected.length)
     second.forEach((bar, i) => {
-      const from = Math.max(0, starts[i])
-      const to = Math.min(8, starts[i] + 0.6 / (1 + set.faster))
-      expect((bar.x - lanes.x) / step).toBeCloseTo(from, 9)
-      expect(bar.w / step).toBeCloseTo(to - from, 9)
+      expect((bar.x - lanes.x) / step).toBeCloseTo(expected[i].from, 9)
+      expect(bar.w / step).toBeCloseTo(expected[i].to - expected[i].from, 9)
     })
     // A bar begins where its pulse does: the lower line leaves the level between pulses there.
     const [, lower] = laneLines(drawn)
     const rest = Math.min(...lower.points.map((at) => at.y))
-    for (const bar of second.filter((one) => one.x > lanes.x)) {
+    for (const bar of second.filter(
+      (one) => one.x > lanes.x && Math.abs(one.x - (lanes.x + 4 * step)) > 1e-6,
+    )) {
       const before = lower.points.filter((at) => at.x <= bar.x + 1e-9).pop()
       const after = lower.points.find((at) => at.x > bar.x + 2)
       expect(before?.y).toBeCloseTo(rest, 6)
@@ -527,9 +764,15 @@ describe('the Pulses display', () => {
         (dot) => dot.colour === PLAIN_COLOURS.accent && dot.r === 2.5,
       )
       expect(marks[0].x).toBeCloseTo(x, 9)
-      expect(marks[0].y).toBeCloseTo(mid - 0.5 - pulsesHeard(first, second, set) * lane, 6)
+      expect(marks[0].y).toBeCloseTo(
+        mid - 0.5 - (pulsesHeard(first, second, set) / MAX_MAKEUP) * lane,
+        6,
+      )
       expect(marks[1].x).toBeCloseTo(x, 9)
-      expect(marks[1].y).toBeCloseTo(mid + 0.5 + pulsesHeard(second, first, set) * lane, 6)
+      expect(marks[1].y).toBeCloseTo(
+        mid + 0.5 + (pulsesHeard(second, first, set) / MAX_MAKEUP) * lane,
+        6,
+      )
     }
   })
 
@@ -559,21 +802,39 @@ describe('the Pulses display', () => {
     expect((nowLine(stood) - lanes.x) / lanes.w).toBeCloseTo(0.3 / 4, 2)
   })
 
-  it('keeps the lower lane still through a sweep: what the second gate gains is drawn in already', () => {
+  it('redraws the lower lane only at the mark: ahead of it nothing moves through a crossing, and nothing jumps when the mark comes round', () => {
     // The device's two readings move together: the lead by `faster` of what the place moves.
     const values = { drift: 1 }
     const set = settingsOf(values)
-    const at = (place: number) =>
+    const { lanes } = pulsesLayout(size)
+    const lowerAt = (place: number, round = 0) =>
       laneLines(
         drawDisplay(display, PULSES_PARAMS, {
           values,
-          meters: { place, lead: 0.2 + place * set.faster },
+          meters: { place, lead: wrap(0.2 + (round + place) * set.faster) },
           ...size,
         }),
       )[1].points
-    const early = at(0.1)
-    const late = at(0.8)
-    early.forEach((point, i) => expect(late[i].y).toBeCloseTo(point.y, 6))
+    const early = lowerAt(0.1)
+    const late = lowerAt(0.6)
+    // From the later mark on, both drawings are this crossing: the same line.
+    const from = lanes.x + 0.6 * lanes.w + 1
+    for (let x = from; x <= lanes.x + lanes.w; x += 0.5)
+      expect(heightAt(late, x)).toBeCloseTo(heightAt(early, x), 6)
+    // Up to the earlier mark both are the next crossing: the same line again.
+    for (let x = lanes.x; x < lanes.x + 0.1 * lanes.w - 1; x += 0.5)
+      expect(heightAt(late, x)).toBeCloseTo(heightAt(early, x), 6)
+    // Between the two marks the lane has been drawn again, a step further on
+    // (an eighth of the eight steps across): it is not the line it was.
+    let changed = 0
+    for (let x = lanes.x + 0.1 * lanes.w + 1; x < lanes.x + 0.6 * lanes.w - 1; x += 0.5)
+      changed = Math.max(changed, Math.abs(heightAt(late, x) - heightAt(early, x)))
+    expect(changed).toBeGreaterThan(2)
+    // The mark at the very end of a crossing and at the start of the next: the same picture.
+    const ending = lowerAt(0.9999)
+    const starting = lowerAt(0.0001, 1)
+    for (let x = lanes.x + 1; x < lanes.x + lanes.w - 1; x += 0.5)
+      expect(Math.abs(heightAt(starting, x) - heightAt(ending, x))).toBeLessThan(0.05)
   })
 
   it('counts the lead through one pattern on the line below, and writes the time until the gates meet', () => {
@@ -621,14 +882,41 @@ describe('the Pulses display', () => {
     expect(ticks.map((tick) => tick.points[1].y - tick.points[0].y)).toEqual([
       5, 3, 3, 3, 3, 3, 3, 3, 5,
     ])
+    // 4 of 8 with no Accent sounds the same every two steps of lead: a longer
+    // tick at each of those, and the time is to the nearest of them. Three
+    // steps ahead, one is left to gain: 1 / (4 * 0.125) s at full Drift.
+    const even = drawDisplay(display, PULSES_PARAMS, {
+      values: { fill: 4, accent: 0, drift: 1 },
+      meters: { place: 0, lead: 3 / 8 },
+      ...size,
+    })
+    const evenTicks = strokes(even).filter(
+      (stroke) =>
+        stroke.points.length === 2 &&
+        stroke.points[0].x === stroke.points[1].x &&
+        Math.abs((stroke.points[0].y + stroke.points[1].y) / 2 - bar.y) < 1e-9,
+    )
+    expect(evenTicks.map((tick) => tick.points[1].y - tick.points[0].y)).toEqual([
+      5, 3, 5, 3, 5, 3, 5, 3, 5,
+    ])
+    expect(lead(even)).toBeCloseTo(3 / 8, 9)
+    expect(even.words()).toContain('0:02')
+    // The same with the first step marked: five steps are left to gain.
+    const marked = drawDisplay(display, PULSES_PARAMS, {
+      values: { fill: 4, accent: 0.5, drift: 1 },
+      meters: { place: 0, lead: 3 / 8 },
+      ...size,
+    })
+    expect(marked.words()).toContain('0:10')
   })
 
-  it('draws one pulse enlarged: the whole sound, and its top that Shade takes away', () => {
+  it('draws one pulse enlarged: the whole sound made up, and its top that Shade takes away', () => {
     const { zoom } = pulsesLayout(size)
     for (const values of [
       {},
       { edge: 1, length: 0.3, floor: 0, shade: 1, rate: 20 },
       { edge: 0, length: 1, floor: 0.8, shade: 0.3, mix: 0.4 },
+      { edge: 0.4, length: 0.9, floor: 0.9, fill: 7 },
     ] as Values[]) {
       const set = settingsOf(values)
       const ramp = pulsesRamp(set.edge, set.length, MIN_EDGE_SEC * set.rate)
@@ -646,7 +934,8 @@ describe('the Pulses display', () => {
         const height = (x: number): number => {
           const open = pulsesShape((x - zoom.x) / zoom.w, set.length, ramp)
           const heard = top ? pulsesHeardHigh(open, set) : pulsesHeard(open, open, set)
-          return zoom.y + (1 - heard) * zoom.h
+          // The top of the pulse's box is the most the sound is made up by.
+          return zoom.y + (1 - heard / MAX_MAKEUP) * zoom.h
         }
         expect(line.points[0].x).toBe(zoom.x)
         expect(line.points[line.points.length - 1].x).toBe(zoom.x + zoom.w)
@@ -658,6 +947,21 @@ describe('the Pulses display', () => {
         expect(worst, JSON.stringify(values)).toBeLessThan(0.5)
       }
     }
+    // A line across at the level the sound came in at: 1 of 1.585 up the box.
+    const level = zoom.y + (1 - 1 / MAX_MAKEUP) * zoom.h
+    const across = strokes(drawDisplay(display, PULSES_PARAMS, { ...size })).filter(
+      (stroke) =>
+        stroke.points.length === 2 &&
+        stroke.alpha === INK.rule &&
+        stroke.points[0].x === zoom.x &&
+        stroke.points[1].x === zoom.x + zoom.w,
+    )
+    expect(across.length).toBe(1)
+    expect(Math.abs(across[0].points[0].y - level)).toBeLessThanOrEqual(0.5)
+    // Where less than 4 dB is taken away the pulse stands under the top by what is not made up.
+    const high = settingsOf({ floor: 0.9, fill: 7 })
+    expect(high.makeup).toBeLessThan(MAX_MAKEUP - 0.2)
+    expect(high.makeup).toBeGreaterThan(1)
     // With no Shade the top is the whole and is not drawn apart.
     const plain = drawDisplay(display, PULSES_PARAMS, { values: { shade: 0 }, ...size })
     expect(
@@ -671,17 +975,20 @@ describe('the Pulses display', () => {
 describe('the points of the Pulses display', () => {
   const size = { width: 224, height: 48 }
   const { zoom } = pulsesLayout(size)
+  /** How high a level stands in the enlarged pulse: 1 is the sound as it came, the top the most it is made up by. */
+  const levelY = (heard: number): number => zoom.y + (1 - heard / MAX_MAKEUP) * zoom.h
 
   it('stands Edge where the rise ends on the top of the pulse, and Length and Floor where the pulse ends', () => {
     const { edge, end } = handlesAt({}, size)
-    // At 4 steps a second the rise is 0.65 of half the 0.7 the pulse lasts.
+    // At 4 steps a second the rise is 0.85 of half the 0.85 the pulse lasts.
     expect(edge.name).toBe('Edge')
-    expect(edge.x).toBeCloseTo(6 + 0.65 * 0.35 * 49, 9)
-    expect(edge.y).toBe(6)
-    // The pulse ends 0.7 of the way across, on the quarter left between pulses.
+    expect(edge.x).toBeCloseTo(6 + 0.85 * 0.425 * 49, 9)
+    // The pulse is made up by the most, so its top is the top of the box.
+    expect(edge.y).toBeCloseTo(6, 9)
+    // The pulse ends 0.85 of the way across, on what is left between pulses: 0.65 squared of the top.
     expect(end.name).toBe('Length and Floor')
-    expect(end.x).toBeCloseTo(6 + 0.7 * 49, 9)
-    expect(end.y).toBeCloseTo(6 + 0.75 * 36, 9)
+    expect(end.x).toBeCloseTo(6 + 0.85 * 49, 9)
+    expect(end.y).toBeCloseTo(6 + (1 - 0.4225) * 36, 9)
     // The line drawn passes through both: all open from the one, down to the level at the other.
     const drawn = drawDisplay(display, PULSES_PARAMS, { ...size })
     const [whole] = strokes(drawn).filter(
@@ -703,12 +1010,33 @@ describe('the points of the Pulses display', () => {
     expect(dots(hot)).toContainEqual({ x: end.x, y: end.y, r: 4.5, colour: PLAIN_COLOURS.accent })
   })
 
+  it('stands both rings on the line drawn where less than the most is made up, and at less than full Mix', () => {
+    for (const values of [
+      { floor: 0.9, fill: 7 },
+      { floor: 0.8, edge: 0.5, mix: 0.7 },
+      { floor: 1 },
+      { steps: 2, fill: 2, edge: 0, length: 1, floor: 0.55, apart: 0, drift: 0, accent: 0 },
+    ] as Values[]) {
+      const set = settingsOf(values)
+      const { edge, end } = handlesAt(values, size)
+      expect(edge.y).toBeCloseTo(levelY(1 - set.mix + set.mix * set.makeup), 9)
+      expect(end.y).toBeCloseTo(levelY(1 - set.mix + set.mix * set.makeup * set.floor), 9)
+      const drawn = drawDisplay(display, PULSES_PARAMS, { values, ...size })
+      const [whole] = strokes(drawn).filter(
+        (stroke) => stroke.width === 1.5 && stroke.points.length > 2,
+      )
+      expect(Math.min(...whole.points.map((at) => at.y))).toBeCloseTo(edge.y, 6)
+      expect(Math.max(...whole.points.map((at) => at.y))).toBeCloseTo(end.y, 6)
+    }
+  })
+
   it('leaves every knob where it is when a point is only taken', () => {
     for (const values of [
       {},
       { edge: 1, rate: 20, length: 0.1 },
       { edge: 0.93, length: 0.4, floor: 0.07, mix: 0.2 },
       { edge: 0, length: 1, floor: 1 },
+      { floor: 0.9, fill: 8 },
     ] as Values[]) {
       const { edge, end } = handlesAt(values, size)
       const now = (name: 'edge' | 'length' | 'floor'): number =>
@@ -726,7 +1054,7 @@ describe('the points of the Pulses display', () => {
   it('sets what lies under the hand: dragged there, the point stands there', () => {
     // Edge, to places along the top between the hardest edge and the middle of the pulse.
     for (const values of [{}, { length: 1, rate: 1 }, { length: 0.4, rate: 12 }] as Values[]) {
-      const length = values.length ?? 0.7
+      const length = values.length ?? 0.85
       const least = MIN_EDGE_SEC * (values.rate ?? 4)
       for (const share of [0.1, 0.33, 0.5, 0.8, 1]) {
         const x = zoom.x + (least + share * (length / 2 - least)) * zoom.w
@@ -735,28 +1063,50 @@ describe('the points of the Pulses display', () => {
         expect(handlesAt({ ...values, ...set }, size).edge.x).toBeCloseTo(x, 9)
       }
     }
-    // Length and Floor, to places about the pulse: at full Mix and at less.
-    for (const mix of [1, 0.75, 0.3, 0]) {
-      for (const [x, y] of [
-        [12, 40],
-        [30, 20],
-        [48.5, 7],
-        [55, 30],
-      ]) {
-        const { end } = handlesAt({ mix }, size)
-        const travel = Math.max(0.5, mix) * zoom.h
-        const set = end.drag(x, Math.min(y, zoom.y + travel))
-        const there = handlesAt({ mix, ...set }, size).end
-        expect(there.x).toBeCloseTo(x, 9)
-        expect(there.y).toBeCloseTo(Math.min(y, zoom.y + travel), 9)
+    // Length and Floor, to places about the pulse, between the level the sound
+    // came in at (all Floor) and what Mix leaves of it with none: at full Mix
+    // and at less, where the make-up is at its most and where it is not. The
+    // ring stands on what is heard between pulses, so the Floor found is the
+    // one that leaves that much once it is made up, at the Length the hand is at.
+    for (const base of [{}, { fill: 8, edge: 0.6 }, { steps: 2, fill: 2, apart: 0, drift: 0 }]) {
+      for (const mix of [1, 0.75, 0.3, 0]) {
+        const reach = Math.max(0.5, mix)
+        const top = levelY(1)
+        const foot = levelY(1 - reach)
+        for (const [x, share] of [
+          [12, 1],
+          [30, 0.6],
+          [48.5, 0.02],
+          [55, 0.35],
+          [20, 0],
+        ]) {
+          const y = top + share * (foot - top)
+          const { end } = handlesAt({ ...base, mix }, size)
+          const set = end.drag(x, y)
+          const there = handlesAt({ ...base, mix, ...set }, size).end
+          expect(there.x).toBeCloseTo(x, 9)
+          expect(there.y, JSON.stringify({ base, mix, x, share })).toBeCloseTo(y, 6)
+        }
       }
     }
-    // Worked by hand: 24.5 px of 49 across is Length 0.5; 9 px of 36 down is 0.75 left, Floor its root.
+    // Worked by hand: 24.5 px of 49 across is Length 0.5; 27 px of 36 down is a
+    // quarter of the top, and with the make-up at its most there (half a step
+    // of pulse over a quarter) that is a quarter left: Floor a half.
     const { end } = handlesAt({}, size)
-    expect(end.drag(6 + 24.5, 6 + 9).length).toBeCloseTo(0.5, 12)
-    expect(end.drag(6 + 24.5, 6 + 9).floor).toBeCloseTo(Math.sqrt(0.75), 12)
-    // And Edge 0.5 is a rise of a quarter of the pulse: 0.175 of a step.
-    expect(handlesAt({}, size).edge.drag(6 + 0.175 * 49, 6).edge).toBeCloseTo(0.5, 12)
+    expect(end.drag(6 + 24.5, 6 + 27).length).toBeCloseTo(0.5, 12)
+    expect(settingsOf({ length: 0.5, floor: 0.5 }).makeup).toBe(MAX_MAKEUP)
+    expect(end.drag(6 + 24.5, 6 + 27).floor).toBeCloseTo(0.5, 9)
+    // Where less is made up the same place is more Floor: every step sounding
+    // on a floor of 0.81 makes up by less than a fifth, so the level between
+    // pulses that the hand is at takes a higher Floor than its height alone says.
+    const full = handlesAt({ fill: 8 }, size).end
+    const high = full.drag(full.x, levelY(0.9)).floor
+    const made = settingsOf({ fill: 8, floor: high })
+    expect(made.makeup).toBeLessThan(1.2)
+    expect(made.makeup * made.floor).toBeCloseTo(0.9, 9)
+    expect(high * high).toBeGreaterThan(0.9 / MAX_MAKEUP + 0.1)
+    // And Edge 0.5 is a rise of a quarter of the pulse: 0.2125 of a step.
+    expect(handlesAt({}, size).edge.drag(6 + 0.2125 * 49, 6).edge).toBeCloseTo(0.5, 12)
   })
 
   it('stops at the ends however far a point is dragged, and a double press gives the defaults', () => {
@@ -766,19 +1116,19 @@ describe('the points of the Pulses display', () => {
     expect(end.drag(-900, -900)).toEqual({ length: 0.1, floor: 1 })
     expect(end.drag(900, 900)).toEqual({ length: 1, floor: 0 })
     const moved = handlesAt({ edge: 0.9, length: 0.2, floor: 0.9 }, size)
-    expect(moved.edge.reset?.()).toEqual({ edge: 0.35 })
-    expect(moved.end.reset?.()).toEqual({ length: 0.7, floor: 0.5 })
+    expect(moved.edge.reset?.()).toEqual({ edge: 0.15 })
+    expect(moved.end.reset?.()).toEqual({ length: 0.85, floor: 0.65 })
   })
 
   it('stands Edge on the hardest edge there is, and takes harder from the hand left of it', () => {
-    // At 20 steps a second 2 ms is 0.04 of a step: no rise is shorter, whatever Edge says.
+    // At 20 steps a second 5 ms is a tenth of a step: no rise is shorter, whatever Edge says.
     const hard = handlesAt({ edge: 1, rate: 20 }, size).edge
-    expect(hard.x).toBeCloseTo(6 + 0.04 * 49, 9)
-    expect(handlesAt({ edge: 0.95, rate: 20 }, size).edge.x).toBeCloseTo(6 + 0.04 * 49, 9)
+    expect(hard.x).toBeCloseTo(6 + 0.1 * 49, 9)
+    expect(handlesAt({ edge: 0.8, rate: 20 }, size).edge.x).toBeCloseTo(6 + 0.1 * 49, 9)
     // Left of it Edge goes on to its end, so the knob is not left short of it.
     expect(hard.drag(6, 6)).toEqual({ edge: 1 })
     expect(handlesAt({ edge: 0.5, rate: 20 }, size).edge.drag(6 + 0.02 * 49, 6).edge).toBeCloseTo(
-      1 - 0.02 / 0.35,
+      1 - 0.02 / 0.425,
       12,
     )
   })
@@ -793,14 +1143,18 @@ describe('the points of the Pulses display', () => {
       return Math.max(...whole.points.map((at) => at.y))
     }
     expect(handlesAt({ mix: 0.8, floor: 0 }, size).end.y).toBeCloseTo(level(0.8), 9)
-    expect(level(0.8)).toBeCloseTo(6 + 0.8 * 36, 9)
+    // With no Floor, what is left between pulses is what Mix lets by of the sound as it came.
+    expect(level(0.8)).toBeCloseTo(levelY(0.2), 9)
     for (const mix of [0.5, 0.3, 0])
-      expect(handlesAt({ mix, floor: 0 }, size).end.y).toBeCloseTo(6 + 18, 9)
-    expect(level(0)).toBe(6)
-    // There all of Floor is 18 px: 9 px down is half left, Floor its root.
+      expect(handlesAt({ mix, floor: 0 }, size).end.y).toBeCloseTo(levelY(0.5), 9)
+    expect(level(0)).toBeCloseTo(levelY(1), 9)
+    // There the ring's way is from half the sound up to all of it. Where a
+    // quarter is left and made up by the most, it stands on half and half of
+    // 1.585 quarters: Floor a half.
     const dry = handlesAt({ mix: 0 }, size).end
-    expect(dry.drag(dry.x, 6 + 9).floor).toBeCloseTo(Math.SQRT1_2, 12)
+    expect(dry.drag(dry.x, levelY(0.5 + 0.5 * MAX_MAKEUP * 0.25)).floor).toBeCloseTo(0.5, 9)
     expect(dry.drag(dry.x, 900).floor).toBe(0)
+    expect(dry.drag(dry.x, -900).floor).toBe(1)
   })
 
   it('keeps both rings whole on the display at every setting and size', () => {
