@@ -155,6 +155,7 @@ export const PLATE_PALETTES = {
   stretch: { plate: '#3c3c18', ink: '#f3f0dc', accent: '#8fd4ff' },
   prism: { plate: '#ecd624', ink: '#1c1803', accent: '#5a1ca8' },
   'scale-filter': { plate: '#31c4b0', ink: '#06231f', accent: '#7a1150' },
+  sift: { plate: '#aaa838', ink: '#12140a', accent: '#3a1a8a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

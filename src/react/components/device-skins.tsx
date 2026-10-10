@@ -1911,6 +1911,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   stretch: { ...PLATE_PALETTES.stretch, finish: 'speckle', cap: 'disc' },
   prism: { ...PLATE_PALETTES.prism, finish: 'gloss', cap: 'pointer' },
   'scale-filter': { ...PLATE_PALETTES['scale-filter'], finish: 'gloss', cap: 'dot' },
+  sift: { ...PLATE_PALETTES.sift, finish: 'speckle', cap: 'pointer' },
 }
 
 /**
