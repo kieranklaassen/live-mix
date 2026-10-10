@@ -13,7 +13,7 @@
 //    8  tone: 0..1, default 0.4
 //    9  swell: 0..1, default 1
 //   10  detune: 0..1, default 0.2
-//   11  mix: 0..1, default 0.65
+//   11  mix: 0..1, default 0.8
 
 #pragma once
 
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 3000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 120.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.65f};
+inline constexpr float kParamDefault[kNumParams] = {0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 120.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.8f};
 
 }  // namespace stops
 }  // namespace livemix

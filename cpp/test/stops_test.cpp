@@ -281,18 +281,19 @@ int main() {
         device.set_param(p::kSwell, swell);
         const Stereo out = run(device, in);
         const double got = db(tone_level(out.left, 2.0 * hz, kRate, 36000, 72000) / 0.1);
-        const double want = tone_db(2.0 * hz, tone, swell) + 40.0 * std::log10(swell);
+        const double want = tone_db(2.0 * hz, tone, swell) - 24.0 * (1.0 - swell);  // kShutterDb 24
         worst = std::max(worst, std::fabs(got - want));
       }
     }
     std::printf("Tone and Swell on the octave of 196, 1318.5 and 3000 Hz: within %.2f dB of the formula\n", worst);
-    EXPECT(worst < 0.15, "Tone and Swell shape the ranks as tone_db() and Swell squared say");
+    EXPECT(worst < 0.15, "Tone and Swell shape the ranks as tone_db() and the shutters' 24 dB say");
 
     bare(device);
     device.set_param(p::kOctave, 1.0f);
     device.set_param(p::kSwell, 0.0f);
-    const Stereo shut = run(device, sine(440.0f, 1.0f, kRate, 0.5f));
-    EXPECT(peak(shut.left) == 0.0, "Swell at 0 shuts the ranks off");
+    const Stereo shut = run(device, sine(150.0f, 1.5f, kRate, 0.5f));
+    EXPECT_NEAR(db(tone_level(shut.left, 300.0, kRate, 36000, 72000) / 0.5), -24.0, 0.1,
+                "Swell at 0: the shutters take 24 dB (and no more below 400 Hz)");
 
     // Detune: kDetuneCents 14 times each rank's kDetuneShare.
     double off = 0.0;
@@ -587,6 +588,89 @@ int main() {
     EXPECT(tone_level(two.left, 880.0, kRate, from, to) > 50.0 * tone_level(two.left, 1108.74, kRate, from, to) &&
                tone_level(two.right, 1108.74, kRate, from, to) > 50.0 * tone_level(two.right, 880.0, kRate, from, to),
            "two notes, one a side: each side sounds the octave of its own note");
+  }
+
+  // 13. Other sample rates: the same effect. The octave is the octave, as
+  // loud; Speak is the same time; the latency is the same count of samples.
+  for (float rate : {44100.0f, 96000.0f}) {
+    bare(device, rate);
+    device.set_param(p::kOctave, 1.0f);
+    const std::vector<float> in = sine(441.3f, 2.0f, rate, 0.5f);
+    Stereo out = run(device, in);
+    const size_t from = static_cast<size_t>(rate), to = static_cast<size_t>(2.0f * rate);
+    char label[160];
+    std::snprintf(label, sizeof label, "at %.0f Hz the octave of 441.3 Hz is at 882.6 Hz", rate);
+    EXPECT_NEAR(dominant_frequency(out.left, rate, 800.0, 960.0, from, to), 882.6, 0.05, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz the octave is as loud as its source", rate);
+    EXPECT_NEAR(db(tone_level(out.left, 882.6, rate, from, to) / 0.5), 0.0, 0.2, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz nothing else above -55 dB", rate);
+    EXPECT(db(residue(out.left, {882.6}, rate, from, to) / (0.5 * 0.7071)) < -55.0, label);
+
+    const size_t start = static_cast<size_t>(0.5f * rate);
+    std::vector<float> late = silence(0.5f, rate);
+    late.insert(late.end(), in.begin(), in.end());
+    bare(device, rate);
+    device.set_param(p::kOctave, 1.0f);
+    device.set_param(p::kSpeak, 400.0f);
+    out = run(device, late);
+    const double full = rms(out.left, out.left.size() - static_cast<size_t>(0.25f * rate), out.left.size());
+    double reached = -1.0;
+    const size_t step = static_cast<size_t>(0.005f * rate);
+    for (size_t at = start + Stops::kLatency; at + step < out.left.size(); at += step) {
+      if (rms(out.left, at, at + step) >= 0.9 * full) {
+        reached = 1000.0 * static_cast<double>(at - start - Stops::kLatency) / rate;
+        break;
+      }
+    }
+    std::snprintf(label, sizeof label, "at %.0f Hz Speak 400 ms is 400 ms", rate);
+    EXPECT_NEAR(reached, 400.0, 60.0, label);
+
+    device.init(rate);
+    device.set_param(p::kMix, 0.0f);
+    rng_state() = 11;
+    const std::vector<float> hiss = noise(0.5f, rate, 0.5f);
+    out = run(device, hiss);
+    bool same = true;
+    for (size_t i = 0; i + Stops::kLatency < hiss.size(); ++i) same = same && out.left[i + Stops::kLatency] == hiss[i];
+    std::snprintf(label, sizeof label, "at %.0f Hz Mix 0 is the input 4608 samples late", rate);
+    EXPECT(same, label);
+  }
+
+  // 14. Cost: the average, and the worst block (one with a frame in it), at
+  // the defaults on a played chord and at the worst there is: every rank
+  // full, Chiff full, on noise, where every third bin is a partial.
+  {
+    const std::vector<float> chord = held_chord(10.0f);
+    rng_state() = 0xBEEFu;
+    const std::vector<float> hiss = noise(10.0f, kRate, 0.25f);
+    for (int which = 0; which < 2; ++which) {
+      const std::vector<float>& input = which == 0 ? chord : hiss;
+      const char* name = which == 0 ? "stops" : "stops, every rank and full Chiff on noise";
+      auto set = [&] {
+        device.init(kRate);
+        if (which == 1) {
+          for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
+          device.set_param(p::kChiff, 1.0f);
+          device.set_param(p::kMix, 1.0f);
+        }
+      };
+      set();
+      report_cost(name, 10.0f, kRate, [&] { run(device, input); });
+      set();
+      std::vector<double> micros;
+      for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+        const auto start = std::chrono::steady_clock::now();
+        device.process(128);
+        micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+      }
+      std::sort(micros.begin(), micros.end());
+      // One block in four holds a frame of one channel or the other, so the
+      // 95th percentile is one of them without the scheduler's noise.
+      const double p95 = micros[micros.size() * 95 / 100];
+      std::printf("%s worst block: %.1f us, %.2f%% of its 2667 us (median %.1f us)\n", name, p95, 100.0 * p95 / 2666.7,
+                  micros[micros.size() / 2]);
+    }
   }
 
   return finish("stops");

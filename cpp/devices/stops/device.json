@@ -8,12 +8,36 @@
   "sources": [],
   "latencySamples": 4608,
   "meters": [
-    { "key": "sub", "name": "Sub sounding", "display": true },
-    { "key": "unison", "name": "Unison sounding", "display": true },
-    { "key": "fifth", "name": "Fifth sounding", "display": true },
-    { "key": "octave", "name": "Octave sounding", "display": true },
-    { "key": "twelfth", "name": "Twelfth sounding", "display": true },
-    { "key": "fifteenth", "name": "Fifteenth sounding", "display": true }
+    {
+      "key": "subLevel",
+      "name": "Sub sounding",
+      "display": true
+    },
+    {
+      "key": "unisonLevel",
+      "name": "Unison sounding",
+      "display": true
+    },
+    {
+      "key": "fifthLevel",
+      "name": "Fifth sounding",
+      "display": true
+    },
+    {
+      "key": "octaveLevel",
+      "name": "Octave sounding",
+      "display": true
+    },
+    {
+      "key": "twelfthLevel",
+      "name": "Twelfth sounding",
+      "display": true
+    },
+    {
+      "key": "fifteenthLevel",
+      "name": "Fifteenth sounding",
+      "display": true
+    }
   ],
   "params": [
     {
@@ -111,12 +135,181 @@
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.65,
+      "default": 0.8,
       "description": "How much of the organ is heard. At nothing the output is the input, and turning up brings in the ranks and whatever Unison takes away."
     }
   ],
   "presets": {
-    "Principal chorus": {}
+    "Principal chorus": {
+      "sub": 0.55,
+      "unison": 1,
+      "fifth": 0,
+      "octave": 0.7,
+      "twelfth": 0.3,
+      "fifteenth": 0.2,
+      "speak": 120,
+      "chiff": 0.25,
+      "tone": 0.4,
+      "swell": 1,
+      "detune": 0.2,
+      "mix": 0.8
+    },
+    "Pedal under": {
+      "sub": 0.85,
+      "fifth": 0,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 200,
+      "chiff": 0.1,
+      "tone": 0.25,
+      "mix": 0.75
+    },
+    "Octave above": {
+      "sub": 0,
+      "fifth": 0,
+      "octave": 0.8,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 60,
+      "chiff": 0.15,
+      "tone": 0.45,
+      "detune": 0.15,
+      "mix": 0.6
+    },
+    "Open fifths": {
+      "sub": 0.3,
+      "fifth": 0.75,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 150,
+      "tone": 0.35,
+      "mix": 0.6
+    },
+    "Full organ": {
+      "sub": 0.8,
+      "fifth": 0.35,
+      "octave": 0.9,
+      "twelfth": 0.6,
+      "fifteenth": 0.6,
+      "speak": 60,
+      "chiff": 0.3,
+      "tone": 0.55,
+      "mix": 0.9
+    },
+    "Flute stops": {
+      "sub": 0.3,
+      "octave": 0.65,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 90,
+      "chiff": 0.7,
+      "tone": 0.1,
+      "detune": 0.1,
+      "mix": 0.7
+    },
+    "Slow bloom": {
+      "sub": 0.4,
+      "octave": 0.8,
+      "twelfth": 0.5,
+      "fifteenth": 0.4,
+      "speak": 1800,
+      "chiff": 0,
+      "tone": 0.35,
+      "mix": 0.8
+    },
+    "Only the pipes": {
+      "sub": 0.6,
+      "unison": 0,
+      "octave": 0.8,
+      "twelfth": 0.4,
+      "fifteenth": 0.3,
+      "speak": 80,
+      "mix": 1
+    },
+    "Glass on top": {
+      "sub": 0,
+      "octave": 0,
+      "twelfth": 0.5,
+      "fifteenth": 0.9,
+      "speak": 300,
+      "chiff": 0,
+      "tone": 0.8,
+      "detune": 0.35,
+      "mix": 0.55
+    },
+    "Nearly dry": {
+      "sub": 0,
+      "octave": 0.5,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 250,
+      "mix": 0.3
+    },
+    "Old pipes": {
+      "sub": 0.4,
+      "octave": 0.8,
+      "twelfth": 0.5,
+      "fifteenth": 0,
+      "speak": 100,
+      "chiff": 0.5,
+      "detune": 1,
+      "mix": 0.7
+    },
+    "Breath first": {
+      "sub": 0.5,
+      "octave": 0.7,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "speak": 900,
+      "chiff": 1,
+      "tone": 0.3,
+      "mix": 0.8
+    },
+    "Shutters closed": {
+      "sub": 0.8,
+      "fifth": 0.3,
+      "octave": 0.9,
+      "twelfth": 0.7,
+      "fifteenth": 0.6,
+      "speak": 200,
+      "swell": 0.45,
+      "mix": 1
+    },
+    "Sub and silver": {
+      "sub": 0.9,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0.7,
+      "speak": 150,
+      "tone": 0.6,
+      "mix": 0.7
+    },
+    "Hollow fifths": {
+      "sub": 0,
+      "unison": 0.5,
+      "fifth": 0.9,
+      "octave": 0,
+      "twelfth": 0.8,
+      "fifteenth": 0,
+      "speak": 400,
+      "detune": 0.4,
+      "mix": 0.75
+    },
+    "Drone to organ": {
+      "sub": 0.8,
+      "unison": 0.75,
+      "fifth": 0.5,
+      "octave": 0.7,
+      "twelfth": 0.5,
+      "fifteenth": 0.3,
+      "speak": 3000,
+      "chiff": 0,
+      "tone": 0.3,
+      "detune": 0.7,
+      "mix": 1
+    }
   },
   "origin": {
     "kind": "new",

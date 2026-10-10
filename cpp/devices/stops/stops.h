@@ -45,9 +45,10 @@
 // - Tone and Swell shape what the ranks put out. Tone under the middle rolls
 //   them off above 400 Hz; over the middle it tilts them about 1.5 kHz,
 //   thinner below (8 dB at most) and brighter above (6 dB at most). Swell is
-//   their level (its square) and a roll-off above 400 Hz as the shutters
-//   close. Detune puts each rank a few cents off, each its own way, the same
-//   in both channels.
+//   a box's shutters: shut, the ranks are 24 dB down and rolled off 6 dB an
+//   octave above 400 Hz, and every part of the way there is as much in dB.
+//   Detune puts each rank a few cents off, each its own way, the same in
+//   both channels.
 // - Level. A drawbar at 1 is a copy as loud as its source. Past that, the
 //   ranks together are held to the power of what they copy, and a ceiling on
 //   their sum is linear to ±0.5 and never past ±1: with the unison full the
@@ -198,6 +199,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   static constexpr float kBrightCutDb = 8.0f;    // the most it takes below
   static constexpr float kBrightLiftDb = 6.0f;   // the most it adds above
   static constexpr float kShutterSlopeDb = 6.0f;  // per octave above the pivot, Swell at 0
+  static constexpr float kShutterDb = 24.0f;      // and the level it takes from all of it, Swell at 0
   // Ranks fade out between 16 and 20 kHz (or these shares of the Nyquist
   // frequency, if that is lower), and below hearing between 18 and 28 Hz.
   static constexpr float kTopFadeFromHz = 16000.0f;
@@ -289,8 +291,10 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       drawn[s] = position * std::sqrt(position);
       power += drawn[s] * drawn[s];
     }
+    // The shutters take kShutterDb away when shut, evenly in dB over the knob.
     const float swell = param(kSwell);
-    const float together = swell * swell * (power > 1.0f ? 1.0f / std::sqrt(power) : 1.0f);
+    const float shutters = std::exp(-kShutterDb * (1.0f - swell) * 0.11512925f);
+    const float together = shutters * (power > 1.0f ? 1.0f / std::sqrt(power) : 1.0f);
     const float detune = param(kDetune) * kDetuneCents;
     for (int s = 0; s < kRanks; ++s) {
       gain_[s] = drawn[s] * together;
