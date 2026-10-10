@@ -418,7 +418,8 @@ const OVERTONE_DONE = 0.001
  * 100 dB down within 20 seconds at its longest. So a stretch whose first
  * known note is younger than the difference began with that note for certain,
  * unless the list is full: it keeps 128 notes (`PLAYED_MOST`) and drops the
- * oldest for a new one, held or not, however young.
+ * oldest that was let go for a new one, however young, and a held one when
+ * all 128 are held.
  */
 const OVERTONE_SURE_SECONDS = 40
 const OVERTONE_NOTES_KEPT = 128
