@@ -116,6 +116,53 @@ target range (negative inverts); `bipolar` centres the swing on the base.
 notifies UIs, and `setRoute(route, { depth, polarity })` edits in place.
 Rack macros are targets (`rack.macroTarget(i, { base })`) and sources.
 
+## A device that moves its own parameters
+
+The matrix writes a device parameter with `setParam` every 40 ms: for a WASM
+device that is a message to its worklet, so the value moves in steps, and in
+an offline render, where the whole clock has run before the first block is
+rendered, it does not move at all. A WASM device on the stock processor moves
+its own parameters instead (`ModulatedDevice`, `isModulatedDevice(device)`):
+
+```ts
+import { isModulatedDevice, modulatedParamValue } from '@kieranklaassen/live-mix'
+
+if (isModulatedDevice(device)) {
+  device.modulate('cutoff', {
+    routes: [
+      {
+        source: { kind: 'lfo', shape: 'sine', rateHz: 0.2, depth: 1, anchorPhase: 0, anchorSec: 0 },
+        depth: 0.25, // a quarter of the knob's travel each way
+        polarity: 'bipolar',
+      },
+    ],
+  })
+  device.paramAt('cutoff') // where it is now; getParam('cutoff') stays where the knob is set
+  device.modulate('cutoff', null) // ends it: the parameter is at its base again
+}
+```
+
+The worklet works the value out once a block (128 frames) from the block's
+own place on the audio clock (`currentFrame / sampleRate`) and the device's
+own smoothing carries it between blocks, so it is the same live, in a render
+and on screen: `modulatedParamValue(spec, base, modulation, timeSec)` is the
+formula, `paramModSource(source)` turns an `Lfo` or a `Random` into its
+numbers (anything else is no function of time and stays in the matrix), and
+`paramModReach` says how far the swing goes. The offset is a fraction of the
+knob's **travel**: a log parameter swings as many octaves up as down, a
+stepped one lands on its steps. `deviceParamTarget` goes along the travel
+too, so a route means the same on either path. `setParam` on a moved
+parameter sets the base it swings around. A device that brings its own
+processor (`definition.processor`) has `modulates: false` and refuses.
+
+`modulate` is a message to the worklet. On a running context it lands within
+a block or two; an offline context may render everything before it delivers
+any message, so a device that is to move in a render is **made** moving:
+`registry.create(id, context, { params, modulations: { cutoff: … } })` (or
+`WasmDevice.create` with the same option) puts it in the processor's
+options, and the first block already has it. The score renderer makes its
+devices that way.
+
 ## Where it is stored
 
 Lanes (`ScoreLane`: target = a strip param or a device param, breakpoints),

@@ -306,6 +306,12 @@ const coreSymbols = [
   'isEditorDevice',
   'isMeteredDevice',
   'isParamTextDevice',
+  // Parameters a device moves itself, on the audio thread
+  'isModulatedDevice',
+  'modulatedParamValue',
+  'paramModReach',
+  'paramModSource',
+  'paramValueAtOffset',
   // Ableton Push 2 and 3
   'ABLETON_USB_VENDOR_ID',
   'PUSH_3_BUTTONS',
