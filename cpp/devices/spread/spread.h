@@ -8,8 +8,8 @@
 //
 //   L,R ─► M ──────────────────────────────────────────────┬──────────► L = (M + S') · output
 //          │                                               │            R = (M - S') · output
-//          └─► scatter (4 allpasses) ─► × Make/2 ─┐        │
-//   L,R ─► S ─────────────────────────────────────(+)─► curve ─► Safe ─► S'
+//          └─► scatter (4 allpasses) ─► curve of what is over 1 ─► × Make ─┐
+//   L,R ─► S ─► curve ───────────────────────────────────────────────────(+)─► Safe ─► S'
 //
 // Storage: four delay lines of 2048 samples for the scatter (11.4 ms at
 // 96 kHz), 32 KB; everything else is a few filters. No latency.
@@ -32,20 +32,23 @@
 // - Slope moves the two stages apart: stage one sits at split / r and stage
 //   two at split · r, r = 2^(1 - Slope). At Slope 1 both stand on the split
 //   (24 dB an octave); at 0 they are two octaves apart and the regions blend.
-// - Make: the middle through four allpasses in series (the scatter), times
-//   Make / 2, is added to the sides before the curve. So the made width follows
-//   the curve: none where a region is at 0, as loud as the middle where a
-//   region is at 2 and Make is full. Smear scales the allpass times (0.35 to
-//   1.6 of 1.3, 2.9, 4.7 and 7.1 ms); a settled time is a whole number of
-//   samples, so the scatter is exactly allpass, and a moving one glides.
+// - Make: a width over 1 asks for more sides than came in, and a mono sound
+//   has none to raise. So the middle goes through four allpasses in series
+//   (the scatter) and then through a second curve of the same shape whose
+//   regions are what each width has over 1 (nothing for a region at 1 or
+//   under, 1 for a region at 2); that, times Make, is added to the sides. At
+//   Make 1 a region at 2 gets made sides as loud as the middle; a region at 1
+//   or under gets none, so it stays as it came. Smear scales the allpass times
+//   (0.35 to 1.6 of 1.3, 2.9, 4.7 and 7.1 ms); a settled time is a whole number
+//   of samples, so the scatter is exactly allpass, and a moving one glides.
 // - Safe: three slow ears (20 ms, on power) on the middle, on the sides as
 //   they came in and on the sides going out. The sides going out are held to
 //   the larger of the middle times a ceiling (0.25 / Safe², so level with the
 //   middle at Safe 0.5 and 12 dB under it at 1) and the sides as they came
 //   in: it holds what was added and never narrows the source. Safe 0 holds
 //   nothing.
-// - With Low, Mid and High at 1, Make at 0 and Output at 0 dB the device is
-//   out of circuit: the output is the input, sample for sample.
+// - With Low, Mid and High at 1 and Output at 0 dB the device is out of
+//   circuit whatever Make is: the output is the input, sample for sample.
 // - Gains are smoothed over 5 ms at the control rate (every 16 samples) and
 //   ramped per sample between ticks; the filters are retuned at the ticks.
 //
@@ -107,19 +110,22 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       if ((position_ & (kPeriod - 1)) == 0) tick();
       ++position_;
       if (ramping_) {
-        for (int j = 0; j < kGains; ++j) gain_[j] += gain_step_[j];
+        for (int j = 0; j < kGains; ++j) {
+          gain_[j] += gain_step_[j];
+          made_gain_[j] += made_gain_step_[j];
+        }
       }
 
       const float mid = 0.5f * (left + right);
       const float side = 0.5f * (left - right);
 
-      // The scatter always runs, so that Make coming up finds it full.
+      // The scatter and its curve always run, so that Make coming up finds them full.
       float scattered = mid;
       for (int a = 0; a < kScatter; ++a) scattered = scatter_[a].process(scattered, kScatterGain[a]);
-      const float make = make_.next();
-      const float made = side + make * kMakeGain * scattered;
-
-      const float shaped = stage_[1].process(stage_[0].process(made, gain_), gain_);
+      const float made =
+          made_stage_[1].process(made_stage_[0].process(scattered, made_gain_), made_gain_);
+      const float shaped =
+          stage_[1].process(stage_[0].process(side, gain_), gain_) + make_.next() * made;
 
       // Safe: the sides going out against the middle and the sides coming in.
       ear_mid_ = flush_denormal(ear_mid_ + ear_coeff_ * (mid * mid - ear_mid_));
@@ -134,7 +140,7 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       if (want == 1.0f && hold_ > 1.0f - kHoldLanded) hold_ = 1.0f;
 
       const float output = output_.next();
-      if (flat_ && make == 0.0f && output == 1.0f && hold_ == 1.0f) {
+      if (flat_ && made == 0.0f && output == 1.0f && hold_ == 1.0f) {
         // Out of circuit: nothing is asked of the sides.
         out_left_[i] = left;
         out_right_[i] = right;
@@ -161,7 +167,6 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   static constexpr float kSmearLeast = 0.35f;  // of the times above, at Smear 0
   static constexpr float kSmearMost = 1.6f;    // and at Smear 1
   static constexpr float kSmearGlideSeconds = 0.05f;
-  static constexpr float kMakeGain = 0.5f;  // Make 1 under a region at 2 is as loud as the middle
   static constexpr float kSpreadOctaves = 1.0f;  // each stage's distance from the split at Slope 0
   static constexpr float kTopOfRange = 0.45f;    // of the sample rate: no stage is tuned above it
   static constexpr float kSafeCeiling = 0.25f;   // sides over middle at Safe 1 (12 dB under)
@@ -280,6 +285,16 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     gain_target_[kMidHighGain] = std::sqrt(m * h);
     gain_target_[kHighGain] = h;
     gain_target_[kRestGain] = std::cbrt(l * m * h);
+    // The made sides: the same shape for what each width has over 1.
+    const float el = std::sqrt(kit::max(low - 1.0f, 0.0f));
+    const float em = std::sqrt(kit::max(mid - 1.0f, 0.0f));
+    const float eh = std::sqrt(kit::max(high - 1.0f, 0.0f));
+    made_gain_target_[kLowGain] = el;
+    made_gain_target_[kLowMidGain] = std::sqrt(el * em);
+    made_gain_target_[kMidGain] = em;
+    made_gain_target_[kMidHighGain] = std::sqrt(em * eh);
+    made_gain_target_[kHighGain] = eh;
+    made_gain_target_[kRestGain] = std::cbrt(el * em * eh);
     for (int r = 0; r < 3; ++r) width_set_[r] = r == 0 ? low : (r == 1 ? mid : high);
   }
 
@@ -289,6 +304,8 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     const float apart = std::exp2(kSpreadOctaves * (1.0f - slope));
     stage_[0].tune(kit::min(low_hz / apart, top), kit::min(high_hz / apart, top), sr);
     stage_[1].tune(kit::min(low_hz * apart, top), kit::min(high_hz * apart, top), sr);
+    made_stage_[0].tune(kit::min(low_hz / apart, top), kit::min(high_hz / apart, top), sr);
+    made_stage_[1].tune(kit::min(low_hz * apart, top), kit::min(high_hz * apart, top), sr);
     low_hz_set_ = low_hz;
     high_hz_set_ = high_hz;
     slope_set_ = slope;
@@ -304,7 +321,10 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   // Control rate: land the ramps of the last period, move the smoothed values
   // and aim the gains and the filters at where they stand now.
   void tick() {
-    for (int j = 0; j < kGains; ++j) gain_[j] = gain_target_[j];
+    for (int j = 0; j < kGains; ++j) {
+      gain_[j] = gain_target_[j];
+      made_gain_[j] = made_gain_target_[j];
+    }
     const float low = width_[0].next();
     const float mid = width_[1].next();
     const float high = width_[2].next();
@@ -313,6 +333,7 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       aim(low, mid, high);
       for (int j = 0; j < kGains; ++j) {
         gain_step_[j] = (gain_target_[j] - gain_[j]) * (1.0f / kPeriod);
+        made_gain_step_[j] = (made_gain_target_[j] - made_gain_[j]) * (1.0f / kPeriod);
       }
     }
     const float low_hz = low_hz_.next();
@@ -337,6 +358,8 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     for (int j = 0; j < kGains; ++j) {
       gain_[j] = gain_target_[j];
       gain_step_[j] = 0.0f;
+      made_gain_[j] = made_gain_target_[j];
+      made_gain_step_[j] = 0.0f;
     }
     ramping_ = false;
     tune(low_hz_.value, high_hz_.value, slope_.value);
@@ -346,6 +369,7 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   // Nothing is sounding: clear what holds sound and start the clock again.
   void rest() {
     for (Stage& stage : stage_) stage.reset();
+    for (Stage& stage : made_stage_) stage.reset();
     for (ScatterAllpass& allpass : scatter_) allpass.line.clear();
     ear_mid_ = 0.0f;
     ear_in_ = 0.0f;
@@ -355,7 +379,8 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     land();
   }
 
-  Stage stage_[2];
+  Stage stage_[2];       // the curve on the sides
+  Stage made_stage_[2];  // the curve of what is over 1, on the scattered middle
   ScatterAllpass scatter_[kScatter];
   kit::Smoother width_[3];  // Low, Mid, High: at the control rate
   kit::Smoother low_hz_, high_hz_, slope_;  // at the control rate
@@ -365,6 +390,9 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   float gain_[kGains] = {};         // what the stages use now
   float gain_target_[kGains] = {};  // where the ramp of this period ends
   float gain_step_[kGains] = {};
+  float made_gain_[kGains] = {};  // the same three for the made sides
+  float made_gain_target_[kGains] = {};
+  float made_gain_step_[kGains] = {};
   float width_set_[3] = {};         // the widths the targets were worked out for
   float low_hz_set_ = 0.0f;         // and what the filters are tuned for
   float high_hz_set_ = 0.0f;
