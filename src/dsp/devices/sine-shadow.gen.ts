@@ -61,7 +61,7 @@ export const SINE_SHADOW_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Pulls every sine toward the nearest note. At full the sines sit on the notes of the keyboard, and a sound that is off its note beats against its shadow.',
+      'Pulls every sine toward the nearest note of the keyboard. A partial that is off its note beats against its sine while the sound is in the mix, so use it with Mix at full.',
   },
   steady: {
     id: 5,
@@ -115,7 +115,8 @@ export const SINE_SHADOW_PARAMS = {
     default: 0.5,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the sound and its shadow. All the way up leaves only the sines.',
+    description:
+      'Brings the shadow in under the sound. Up to halfway the sound stays whole and the sines rise beneath it. Past halfway the sound gives way until only the sines are left.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -190,7 +191,7 @@ export const SINE_SHADOW_DESCRIPTOR = wasmDeviceDescriptor(SINE_SHADOW_DEVICE, {
     'Octave halo': { transpose: 12, partials: 6, attack: 600, release: 5, spread: 0.7, mix: 0.4 },
     'Glass redraw': { partials: 16, attack: 60, release: 1.2, steady: 0.1, spread: 0.3, mix: 1 },
     'One sine': { partials: 1, attack: 200, release: 4, glide: 150, mix: 0.6 },
-    'Chord outline': { partials: 5, snap: 1, attack: 500, release: 8, mix: 0.8 },
+    'Chord outline': { partials: 5, snap: 1, attack: 500, release: 8, mix: 1 },
     'Low shadow': { transpose: -12, partials: 4, tone: 0.15, attack: 800, release: 6, mix: 0.45 },
     'Long linger': { partials: 10, attack: 1500, release: 20, spread: 0.8 },
     'Nearly dry': { partials: 4, attack: 1200, release: 6, mix: 0.2 },

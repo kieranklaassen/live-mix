@@ -318,7 +318,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "Pulls every sine toward the nearest note. At full the sines sit on the notes of the keyboard, and a sound that is off its note beats against its shadow."
+      "description": "Pulls every sine toward the nearest note of the keyboard. A partial that is off its note beats against its sine while the sound is in the mix, so use it with Mix at full."
     },
     {
       "key": "steady",
@@ -360,7 +360,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Balance between the sound and its shadow. All the way up leaves only the sines."
+      "description": "Brings the shadow in under the sound. Up to halfway the sound stays whole and the sines rise beneath it. Past halfway the sound gives way until only the sines are left."
     }
   ],
   "presets": {
@@ -393,7 +393,7 @@
       "snap": 1,
       "attack": 500,
       "release": 8,
-      "mix": 0.8
+      "mix": 1
     },
     "Low shadow": {
       "transpose": -12,

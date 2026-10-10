@@ -7,7 +7,9 @@ import { describe, expect, it } from 'vitest'
 
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
+  SHADOW_EXAMPLE_HARMONICS,
   SHADOW_EXAMPLE_HZ,
+  SHADOW_EXAMPLE_LEVEL,
   SHADOW_FOOT_DB,
   SHADOW_SHOWN,
   SINE_SHADOW_FACES,
@@ -121,7 +123,7 @@ describe('Sine Shadow: the device’s own numbers', () => {
     expect(shadowBand(11760, 32000)).toBeCloseTo(0.5, 9)
   })
 
-  it('gives the sines the sine of Mix quarter turns (kit::equal_power)', () => {
+  it('gives the sines the sine of Mix quarter turns (mix_gains)', () => {
     expect(shadowWet(0)).toBe(0)
     expect(shadowWet(0.5)).toBeCloseTo(Math.SQRT1_2, 9)
     expect(shadowWet(1)).toBeCloseTo(1, 9)
@@ -131,7 +133,7 @@ describe('Sine Shadow: the device’s own numbers', () => {
   it('works its example as track() and aim() do: the strongest partials as Tone weighs them, moved by Transpose', () => {
     const plain = shadowExample(3, 0, 0.5)
     expect(plain.map((line) => line.hz)).toEqual([110, 220, 330])
-    expect(plain.map((line) => line.level)).toEqual([0.5, 0.25, 0.5 / 3])
+    expect(plain.map((line) => line.level)).toEqual([0.25, 0.125, 0.25 / 3])
     // An octave up: the same partials, the same levels, twice the pitch.
     const up = shadowExample(3, 12, 0.5)
     expect(up.map((line) => line.hz)).toEqual([220, 440, 660])
@@ -141,20 +143,40 @@ describe('Sine Shadow: the device’s own numbers', () => {
     // Dark: the third harmonic, at 330 Hz, is over 300 Hz and loses 300 / 330 of its level.
     const dark = shadowExample(3, 0, 0)
     expect(dark[2].hz).toBe(330)
-    expect(dark[2].level).toBeCloseTo((0.5 / 3) * (300 / 330), 9)
+    expect(dark[2].level).toBeCloseTo((0.25 / 3) * (300 / 330), 9)
     // Tone weighs a partial at its own pitch, not at the sine's: an octave up changes nothing of that.
     expect(shadowExample(3, 12, 0)[2].level).toBeCloseTo(dark[2].level, 9)
     // Bright at three quarters takes the square root of 110 h / 2500 off harmonic h: still the lowest, weaker.
     const bright = shadowExample(2, 0, 0.75)
-    expect(bright[0].level).toBeCloseTo(0.5 * Math.sqrt(110 / 2500), 9)
-    expect(bright[1].level).toBeCloseTo(0.25 * Math.sqrt(220 / 2500), 9)
+    expect(bright[0].level).toBeCloseTo(0.25 * Math.sqrt(110 / 2500), 9)
+    expect(bright[1].level).toBeCloseTo(0.125 * Math.sqrt(220 / 2500), 9)
     // Partials is the count, up to the 24 the device shows; two octaves up the top ones run into the fade.
     expect(shadowExample(24, 0, 0.5)).toHaveLength(SHADOW_SHOWN)
     expect(shadowExample(99, 0, 0.5)).toHaveLength(SHADOW_SHOWN)
     const high = shadowExample(24, 24, 0.5)
     expect(high[23].hz).toBeCloseTo(24 * SHADOW_EXAMPLE_HZ * 4, 6)
-    expect(high[23].level).toBeCloseTo(0.5 / 24, 9)
+    expect(high[23].level).toBeCloseTo(0.25 / 24, 9)
     expect(shadowBand(40 * 110 * 4)).toBe(0)
+  })
+
+  it('keeps its example under the device’s ceiling at every Mix, so the ceiling is no part of it', () => {
+    // mix_gains(): the sound whole up to half way, then the cosine; the sines the sine of Mix quarter turns.
+    // The ceiling: kCeiling (2) less the room the sound takes, over the sines' gain, and never more than 2.
+    let least = 2
+    for (let mix = 0.01; mix <= 1; mix += 0.01) {
+      const dry = mix <= 0.5 ? 1 : Math.cos((mix - 0.5) * Math.PI)
+      least = Math.min(least, (2 - dry) / shadowWet(mix))
+    }
+    expect(least).toBeGreaterThan(1.28)
+    let sum = 0
+    for (let h = 1; h <= SHADOW_SHOWN; h++) sum += SHADOW_EXAMPLE_LEVEL / h
+    expect(SHADOW_EXAMPLE_HARMONICS).toBeGreaterThanOrEqual(SHADOW_SHOWN)
+    expect(sum).toBeLessThan(least)
+    // Tone only ever takes off, so no setting sums to more.
+    for (const tone of [0, 0.3, 0.5, 0.8, 1]) {
+      const total = shadowExample(24, 0, tone).reduce((all, line) => all + line.level, 0)
+      expect(total).toBeLessThanOrEqual(sum + 1e-9)
+    }
   })
 })
 

@@ -48,10 +48,15 @@ export const SHADOW_FOOT_DB = -72
 /** Under this nothing sounds, as for the plate that draws the display. */
 const QUIET = 1e-4
 
-/** The worked example: a note of this pitch with so many harmonics, harmonic `h` at this level over `h`. */
+/**
+ * The worked example: a note of this pitch with so many harmonics, harmonic
+ * `h` at this level over `h`. The 24 strongest sum to 0.94, under the least
+ * the device's ceiling ever is (1.29, at Mix 0.62), so the ceiling never
+ * turns the example down and it is left out here.
+ */
 export const SHADOW_EXAMPLE_HZ = 110
 export const SHADOW_EXAMPLE_HARMONICS = 40
-export const SHADOW_EXAMPLE_LEVEL = 0.5
+export const SHADOW_EXAMPLE_LEVEL = 0.25
 
 /** What Tone makes of a partial at `hz`: `lean()`, 1 at the centre and never more, 6 dB an octave at the ends. */
 export function shadowLean(tone: number, hz: number): number {
@@ -75,7 +80,7 @@ export function shadowBand(hz: number, sampleRate = 48000): number {
   return 1
 }
 
-/** The gain Mix gives the sines: `kit::equal_power`, the sine of Mix quarter turns. */
+/** The gain Mix gives the sines: `mix_gains()`, the sine of Mix quarter turns. */
 export const shadowWet = (mix: number): number => Math.sin(clamp(mix, 0, 1) * (Math.PI / 2))
 
 export interface ShadowLine {
@@ -89,7 +94,11 @@ export interface ShadowLine {
  * The sines the device makes of the example note, as `track()` and `aim()`
  * do: each harmonic scores its level as Tone weighs it at its own pitch, the
  * strongest `partials` are followed, and each sine sounds `transpose`
- * semitones away at that weighed level, faded at the ends of the range.
+ * semitones away at that weighed level, faded at the ends of the range. Two
+ * things the device does to a sine's pitch are under a pixel on this scale
+ * (12 px an octave on a plate) and left out: Snap pulls it half a semitone at
+ * the most, and a sine that Transpose puts within six cents of another
+ * harmonic takes that harmonic's pitch.
  */
 export function shadowExample(
   partials: number,
