@@ -149,7 +149,7 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
     held_ = 0;
     for (int i = 0; i < kMaxHeld; ++i) keys_[i] = Key();
     pitch_ = kRestPitch;
-    glide_step_ = 0.0f;
+    glide_step_ = 0.0;
     glide_target_ = kRestPitch;
     glide_left_ = 0;
     drop_octaves_ = 0.0f;
@@ -160,7 +160,7 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
     join_step_ = 0.0f;
     join_left_ = 0;
     retune_ = false;
-    frequency_ = std::exp2(pitch_);
+    frequency_ = static_cast<float>(std::exp2(pitch_));
     turned_by_ = -1.0;
     level_ = 0.0f;
     attack_from_ = 0.0f;
@@ -256,7 +256,7 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
           pitch_ += glide_step_;
           if (--glide_left_ == 0) pitch_ = glide_target_;
         }
-        const float octaves = pitch_ + pitch_offset();
+        const float octaves = static_cast<float>(pitch_) + pitch_offset();
         if (fall_left_ > 0) {
           fall_level_ *= fall_coeff_;
           --fall_left_;
@@ -444,7 +444,7 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
     if (samples >= 1.0f) {
       glide_left_ = static_cast<int>(samples);
       glide_target_ = key.pitch;
-      glide_step_ = (key.pitch - pitch_) / static_cast<float>(glide_left_);
+      glide_step_ = (static_cast<double>(key.pitch) - pitch_) / static_cast<double>(glide_left_);
     } else {
       glide_left_ = 0;
       pitch_ = key.pitch;
@@ -570,11 +570,13 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
   float inner_step_ = 0.25f;
   float max_hz_ = kMaxHz;
   float fade_slope_ = 3.0f / kFadeToHz;
-  float pitch_ = kRestPitch;
+  // log2 of the frequency; double, so that the steps of a slow glide over a
+  // small interval (a unit in the last place of a float, or less) add up.
+  double pitch_ = kRestPitch;
   float frequency_ = 55.0f;
   double turned_by_ = -1.0;  // the step turn_sin_ and turn_cos_ were made for
   float turn_sin_ = 0.0f, turn_cos_ = 1.0f;
-  float glide_step_ = 0.0f;
+  double glide_step_ = 0.0;
   float glide_target_ = kRestPitch;
   float drop_octaves_ = 0.0f;
   float fall_level_ = 0.0f;

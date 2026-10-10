@@ -813,6 +813,38 @@ static void test_keys() {
   Stereo silent = render(device, 0.25f, kRate);
   EXPECT(peak(silent.left) == 0.0, "the last key up ends the note");
 
+  // A slow glide over a small interval keeps its time, on a low key and a
+  // high one and at any sample rate: a semitone in 2 s is half way after 1 s.
+  // (With the pitch kept in single precision each step of such a glide is
+  // about a unit in the last place: it ran a tenth fast at 48 kHz, and at
+  // 96 kHz above 256 Hz it stood still and jumped at the end.)
+  for (float rate : {48000.0f, 96000.0f}) {
+    for (double hz : {kA1, 2.0 * kA3}) {
+      plain(device, rate);
+      device.set_param(p::kGlide, 2.0f);
+      device.note_on(1, static_cast<float>(hz), 0.8f);
+      render(device, 0.3f, rate);
+      device.note_on(2, static_cast<float>(hz * std::exp2(1.0 / 12.0)), 0.8f);
+      Stereo slow = render(device, 2.3f, rate);
+      // Four cycles centred on the moment, so their mean pitch is the pitch there.
+      auto up_at = [&](double seconds) { return cents(pitch_at(slow.left, seconds - 2.0 / hz, 4, rate), hz); };
+      const double quarter_way = up_at(0.5 + kLatency), half_way = up_at(1.0 + kLatency), most = up_at(1.8 + kLatency);
+      const double landed = up_at(2.15);
+      std::snprintf(label, sizeof label,
+                    "a semitone in 2 s from %.0f Hz at %.0f Hz: %.1f cents up at 0.5 s (25), %.1f at 1 s (50), %.1f at 1.8 s "
+                    "(90), %.2f after it (100)",
+                    hz, rate, quarter_way, half_way, most, landed);
+      std::printf("%s\n", label);
+      EXPECT(std::fabs(quarter_way - 25.0) < 1.5 && std::fabs(half_way - 50.0) < 1.5 && std::fabs(most - 90.0) < 1.5 &&
+                 std::fabs(landed - 100.0) < 0.5,
+             label);
+      device.note_off(1);
+      device.note_off(2);
+    }
+  }
+  plain(device);
+  device.set_param(p::kGlide, 0.4f);
+
   // Keys played apart do not slide, and neither do keys that land together
   // (a chord in a score): nothing has sounded yet to slide from.
   device.note_on(4, static_cast<float>(kA3), 0.8f);

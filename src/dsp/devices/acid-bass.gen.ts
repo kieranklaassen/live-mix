@@ -70,7 +70,7 @@ export const ACID_BASS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much hard-played notes stand out: louder, opening the filter further and snapping shut fast. Several in a row open further each time.',
+      'How much hard-played notes stand out: louder, opening the filter further and snapping shut fast. A second one straight after opens further still.',
   },
   slide: {
     id: 6,

@@ -98,7 +98,7 @@ class FmBass : public kit::DeviceBase<fm_bass::kNumParams> {
     for (int i = 0; i < kMaxHeld; ++i) keys_[i] = Key();
     pitch_ = kStartPitch;
     frequency_ = kStartHz;
-    glide_step_ = 0.0f;
+    glide_step_ = 0.0;
     glide_pitch_ = kStartPitch;
     glide_hz_ = kStartHz;
     glide_left_ = 0;
@@ -193,7 +193,7 @@ class FmBass : public kit::DeviceBase<fm_bass::kNumParams> {
           pitch_ = glide_pitch_;
           frequency_ = glide_hz_;
         } else {
-          frequency_ = std::exp2(pitch_);
+          frequency_ = static_cast<float>(std::exp2(pitch_));
         }
       }
       advance_contours();
@@ -432,7 +432,7 @@ class FmBass : public kit::DeviceBase<fm_bass::kNumParams> {
       glide_left_ = static_cast<int>(samples);
       glide_pitch_ = key.pitch;
       glide_hz_ = key.hz;
-      glide_step_ = (key.pitch - pitch_) / static_cast<float>(glide_left_);
+      glide_step_ = (static_cast<double>(key.pitch) - pitch_) / static_cast<double>(glide_left_);
     } else {
       glide_left_ = 0;
       pitch_ = key.pitch;
@@ -551,9 +551,11 @@ class FmBass : public kit::DeviceBase<fm_bass::kNumParams> {
   int loud_at_ = 0, late_ = 34;
   float inner_rate_ = 192000.0f;
   float fold_hz_ = 168000.0f;
-  float pitch_ = kStartPitch;
+  // log2 of the frequency; double, so that the steps of a slow glide over a
+  // small interval (a unit in the last place of a float, or less) add up.
+  double pitch_ = kStartPitch;
   float frequency_ = kStartHz;
-  float glide_step_ = 0.0f;
+  double glide_step_ = 0.0;
   float glide_pitch_ = kStartPitch;
   float glide_hz_ = kStartHz;
   float amp_ = 0.0f, bend_ = 0.0f;

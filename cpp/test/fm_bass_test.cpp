@@ -1075,6 +1075,34 @@ static void check_voice_and_glide() {
                   half, end);
     EXPECT(std::fabs(half - 600.0) < 60.0 && std::fabs(end) < 1.0, label);
   }
+  // A slow glide over a small interval keeps its time at any sample rate: a
+  // semitone in 1 s is half way after half a second. (With the pitch kept in
+  // single precision each step of such a glide is about a unit in the last
+  // place or less: it ran up to a tenth fast or slow, and at 192 kHz it
+  // stood still and jumped at the end.)
+  for (float rate : {48000.0f, 96000.0f, 192000.0f}) {
+    for (double hz : {kA1, kC4}) {
+      plain(device, rate);
+      device.set_param(p::kGlide, 1.0f);
+      device.note_on(1, static_cast<float>(hz), 0.8f);
+      render(device, 0.3f, rate);
+      device.note_on(2, static_cast<float>(hz * std::exp2(1.0 / 12.0)), 0.8f);
+      Stereo slow = render(device, 1.4f, rate);
+      // The mean pitch of a window is the pitch at its middle: the line is straight.
+      auto up_at = [&](double seconds, double half_window) {
+        const size_t from = static_cast<size_t>((seconds - half_window) * rate);
+        const size_t to = static_cast<size_t>((seconds + half_window) * rate);
+        return cents(peak_frequency(slow.left, rate, 0.97 * hz, 1.09 * hz, from, to), hz);
+      };
+      const double half_way = up_at(0.5, 0.1), most = up_at(0.8, 0.1), landed = up_at(1.2, 0.15);
+      std::snprintf(label, sizeof label,
+                    "a semitone in 1 s from %.1f Hz at %.0f Hz: %.1f cents up at 0.5 s (50), %.1f at 0.8 s (80), %.2f "
+                    "after it (100)",
+                    hz, rate, half_way, most, landed);
+      std::printf("%s\n", label);
+      EXPECT(std::fabs(half_way - 50.0) < 2.0 && std::fabs(most - 80.0) < 2.0 && std::fabs(landed - 100.0) < 0.5, label);
+    }
+  }
   plain(device);
   device.note_on(1, static_cast<float>(kC4), 0.8f);
   render(device, 0.3f, kRate);
