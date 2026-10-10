@@ -518,5 +518,7 @@ export const GENERATIONS_FACES: Readonly<Record<string, PlateFace>> = {
   generations: {
     display: generations,
     face: ['length', 'keep', 'listen', 'mix'],
+    // Beside Damping on the upright plate the whole word touches its neighbour.
+    labels: { resonance: 'Reso' },
   },
 }

@@ -326,6 +326,17 @@ export function wordsCorner(
   return home
 }
 
+/**
+ * The patch the words stand on in their corner, `wide` pixels across with its
+ * margins: the box `label` lays under them. The reflections are kept out of
+ * it, so a dot never shows through the letters.
+ */
+export function wordsPatch(layout: Layout, corner: 'left' | 'right', wide: number): Box {
+  const { box } = layout
+  const x = corner === 'left' ? layout.earX + 8 - 2 : box.x + box.w - 1 - wide + 2
+  return { x, y: box.y, w: wide, h: 10 }
+}
+
 /** Whether the device's readings have come: it reports a bend of 1 at rest, never 0. */
 const reads = (frame: DisplayFrame): boolean =>
   frame.powered && frame.hasMeter('position') && frame.meter('bend') > 0
@@ -422,6 +433,22 @@ const distance = plateDisplay({
       rule(ctx, near.x, rulerY, far.x, rulerY, { colour: colours.ink, width: 3, alpha: INK.text })
     rule(ctx, x, rulerY - 4, x, rulerY + 4, { colour: colours.accent, width: 2 })
 
+    // In words: how far it is now and, while it moves, how far its pitch is bent.
+    // They stand in the corner the walk does not come under, so they never lie over the sound.
+    const cents = live ? bendCents(frame.meter('bend')) : 0
+    const metres = metresText(scene.metres)
+    const words = cents === 0 ? metres : `${metres} ${bendText(cents)}`
+    ctx.font = `8px ${frame.fontFamily}`
+    const wide =
+      Math.ceil(Math.max(ctx.measureText(words).width, ctx.measureText(WORDS_WIDEST).width)) + 4
+    const corner = wordsCorner(
+      layout,
+      { distance: frame.value('distance'), wander: frame.value('wander') },
+      scene.place,
+      wide,
+    )
+    const patch = wordsPatch(layout, corner, Math.ceil(ctx.measureText(words).width) + 4)
+
     clipped(ctx, box, () => {
       // The diffuse room: a haze round the source, as large as it is loud.
       if (scene.room > 0)
@@ -430,11 +457,19 @@ const distance = plateDisplay({
         })
       // The first reflections, each where its image stands: as far as its
       // path is long, and as far up (left) or down (right) as it is heard.
+      // One that stands under the words is cut off at their patch: a dot
+      // showing through the letters reads as dirt on the figures.
+      ctx.save()
+      ctx.beginPath()
+      ctx.rect(box.x, box.y, box.w, box.h)
+      ctx.rect(patch.x, patch.y, patch.w, patch.h)
+      ctx.clip('evenodd')
       for (const tap of scene.early) {
         if (!(tap.gain > 0)) continue
         const at = reflectionAt(layout, tap)
         dot(ctx, at.x, at.y, at.r, colours.ink, { alpha: INK.text })
       }
+      ctx.restore()
     })
 
     // The points: the ends of the walk on the scale, Distance on the line.
@@ -476,20 +511,6 @@ const distance = plateDisplay({
     ctx.lineWidth = 1
     ctx.stroke()
 
-    // In words: how far it is now and, while it moves, how far its pitch is bent.
-    // They stand in the corner the walk does not come under, so they never lie over the sound.
-    const cents = live ? bendCents(frame.meter('bend')) : 0
-    const metres = metresText(scene.metres)
-    const words = cents === 0 ? metres : `${metres} ${bendText(cents)}`
-    ctx.font = `8px ${frame.fontFamily}`
-    const wide =
-      Math.ceil(Math.max(ctx.measureText(words).width, ctx.measureText(WORDS_WIDEST).width)) + 4
-    const corner = wordsCorner(
-      layout,
-      { distance: frame.value('distance'), wander: frame.value('wander') },
-      scene.place,
-      wide,
-    )
     if (corner === 'left') label(frame, words, layout.earX + 8, box.y + 8)
     else label(frame, words, box.x + box.w - 1, box.y + 8, 'right')
   },

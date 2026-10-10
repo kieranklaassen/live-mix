@@ -34,6 +34,7 @@ import {
   sceneOf,
   sideGain,
   walkOf,
+  wordsPatch,
 } from '../components/displays/distance'
 import { type DisplayHold } from '../components/plate-display'
 import {
@@ -1012,6 +1013,54 @@ describe('the picture of Distance', () => {
     expect(sides[0]).toBe('right')
     expect(sides[32]).toBe('left')
     expect(sides.filter((side, n) => n > 0 && side !== sides[n - 1])).toHaveLength(1)
+  })
+
+  it('cuts the first reflections off at the words, so no dot shows through the letters', () => {
+    for (const [width, height] of [
+      [224, 48],
+      [204, 100],
+    ]) {
+      for (const distance of [0.05, 0.3, 0.6, 0.9]) {
+        for (const bend of [1, 1.04]) {
+          const values = { distance, room: 0.6, wander: 0.2 }
+          const drawn = draw({ width, height, values, ...at(distance, bend) })
+          const layout = layoutOf({ width, height })
+          // The patch `label` lays under the words above the line.
+          let fill = ''
+          let laid: number[] = []
+          for (const call of drawn.calls) {
+            if (call.name === 'set fillStyle') fill = String(call.args[0])
+            else if (call.name === 'fillRect' && fill === ground) laid = call.args as number[]
+            else if (call.name === 'fillText' && (call.args[2] as number) < 20) break
+          }
+          expect(laid).toHaveLength(4)
+          // The reflections are drawn inside the picture and outside that patch.
+          const cut = drawn.calls.findIndex(
+            (call) => call.name === 'clip' && call.args[0] === 'evenodd',
+          )
+          expect(cut).toBeGreaterThan(1)
+          expect(drawn.calls[cut - 2].name).toBe('rect')
+          expect(drawn.calls[cut - 2].args).toEqual([
+            layout.box.x,
+            layout.box.y,
+            layout.box.w,
+            layout.box.h,
+          ])
+          expect(drawn.calls[cut - 1].name).toBe('rect')
+          expect(drawn.calls[cut - 1].args).toEqual(laid)
+          const patch = wordsPatch(layout, laid[0] < width / 2 ? 'left' : 'right', laid[2])
+          expect([patch.x, patch.y, patch.w, patch.h]).toEqual(laid)
+          // Every reflection is drawn after the cut and before it is lifted, and nothing else is.
+          const lifted = drawn.calls.findIndex((call, n) => n > cut && call.name === 'restore')
+          const arcs = drawn.calls
+            .map((call, n) => ({ call, n }))
+            .filter(({ call }) => call.name === 'arc')
+          const inside = arcs.filter(({ n }) => n > cut && n < lifted)
+          expect(inside).toHaveLength(marksOf(drawn).early.length)
+          expect(inside.length).toBeGreaterThan(0)
+        }
+      }
+    }
   })
 
   it('stands at Distance while the device says nothing, and while it is switched off', () => {

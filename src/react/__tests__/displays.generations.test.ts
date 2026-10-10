@@ -683,3 +683,26 @@ describe('Generations while it runs', () => {
     )
   })
 })
+
+describe('the knobs of the upright plate', () => {
+  it('have words that stand apart: no two neighbours in a row read as one', () => {
+    const { face = [], labels = {} } = GENERATIONS_FACES.generations
+    // The eight on the upright plate: the face, then the device's other knobs in their order.
+    const eight = [...face, ...Object.keys(params).filter((name) => !face.includes(name))].slice(
+      0,
+      8,
+    )
+    expect(eight).toHaveLength(8)
+    const word = (name: string): string => labels[name] ?? params[name].name
+    for (const name of eight) expect(word(name).length, name).toBeLessThanOrEqual(9)
+    // A knob's cell is 51 px and a capital with its spacing about 7: two words of more than 14
+    // letters between them touch.
+    for (const row of [eight.slice(0, 4), eight.slice(4)]) {
+      for (let n = 0; n + 1 < row.length; n++) {
+        const pair = word(row[n]).length + word(row[n + 1]).length
+        expect(pair, `${word(row[n])} beside ${word(row[n + 1])}`).toBeLessThanOrEqual(14)
+      }
+    }
+    expect(word('resonance')).toBe('Reso')
+  })
+})
