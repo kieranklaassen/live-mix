@@ -484,6 +484,57 @@ int main() {
     }
   }
 
+  // No clicks, held tighter: a low sine (whose own curve is nearly straight
+  // from sample to sample) and each control thrown from one end to the other
+  // and back. The largest bend in the output, y[n] - 2 y[n-1] + y[n-2] on
+  // either side, over the second and a half after the throw, against the
+  // largest in a run that rests at either end. (Decay thrown was 8 times the
+  // resting bend: the lines' gains moved by the control tick, and the first
+  // tick took a line from 0.44 to 0.75. Size thrown was 6 times, 1.2 s after
+  // the throw: the float it glided in stalled short and was landed, two or
+  // three samples of every line at once.)
+  {
+    auto low_sine = [](double seconds, double from) {
+      std::vector<float> x(static_cast<size_t>(seconds * 48000.0));
+      const size_t at = static_cast<size_t>(from * 48000.0);
+      for (size_t i = 0; i < x.size(); ++i) {
+        x[i] = static_cast<float>(0.5 * std::sin(2.0 * kPi * 110.0 * static_cast<double>(i + at) / 48000.0));
+      }
+      return x;
+    };
+    auto bend = [](const Stereo& o, size_t from) {
+      double most = 0.0;
+      for (size_t i = from + 2; i < o.left.size(); ++i) {
+        most = std::max(most, std::fabs(double(o.left[i]) - 2.0 * o.left[i - 1] + o.left[i - 2]));
+        most = std::max(most, std::fabs(double(o.right[i]) - 2.0 * o.right[i - 1] + o.right[i - 2]));
+      }
+      return most;
+    };
+    double worst = 0.0;
+    int worst_id = 0;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      const float ends[2] = {id == p::kDecay ? 0.5f : 0.0f, id == p::kDecay ? 30.0f : 1.0f};
+      double rest = 0.0, thrown = 0.0;
+      for (int k = 0; k < 2; ++k) {
+        device.init(kRate);
+        device.set_param(id, ends[k]);
+        rest = std::max(rest, bend(run(device, low_sine(6.0, 0.0)), 3 * 48000));
+        device.init(kRate);
+        device.set_param(id, ends[k]);
+        run(device, low_sine(3.0, 0.0));
+        device.set_param(id, ends[1 - k]);
+        thrown = std::max(thrown, bend(run(device, low_sine(1.5, 3.0)), 0));
+      }
+      if (thrown / rest > worst) {
+        worst = thrown / rest;
+        worst_id = id;
+      }
+    }
+    std::printf("haze: each control thrown end to end under a low sine: the bend at most %.1f times the resting one (control %d)\n",
+                worst, worst_id);
+    EXPECT(worst < 3.5, "no control thrown from end to end leaves a jump in the wave");
+  }
+
   // Feed is bounded and never grows: a full-scale chord held for a minute
   // at the top of Feed, Haze and Decay.
   {

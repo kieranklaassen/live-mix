@@ -2,7 +2,7 @@
   "id": "haze",
   "name": "Haze",
   "category": "reverb",
-  "description": "A short reverb into a soft fuzz into a long reverb: notes lose their attacks, grow overtones and hang as one glowing wall.",
+  "description": "A short reverb into a soft fuzz into a long reverb: notes blur, grow overtones as they are played harder and hang as one glowing wall.",
   "class": "Haze",
   "header": "haze.h",
   "sources": [],
@@ -25,7 +25,7 @@
       "min": 0,
       "max": 1,
       "default": 0.55,
-      "description": "How hard the blurred sound is pushed into the fuzz. Higher grows more overtones while the loudness stays where it was."
+      "description": "How hard the blurred sound is pushed into the fuzz. Zero is clean. Higher grows more overtones, loud playing more than soft, and the loudness stays where it was."
     },
     {
       "key": "blur",
@@ -33,7 +33,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How much the sound is smeared before the fuzz. Low keeps the attacks and their bite; high lets every note swell in and melt into the next."
+      "description": "How long the sound is smeared before the fuzz. Low keeps more of the attacks; high lets every note swell in and melt into the next. Moving it bends the pitch."
     },
     {
       "key": "decay",
@@ -83,7 +83,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer; it always dies away in the end."
+      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, more than twice as long at the top, where the fading tail leans flat."
     },
     {
       "key": "width",
@@ -222,6 +222,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit: an allpass smear, a level-following waveshaper at four times the sample rate and an eight-line feedback delay network. Not a model of any pedal or plug-in."
+    "note": "Written for live-mix on cpp/kit: a nested allpass smear, a waveshaper at four times the sample rate whose drive follows the playing, and an eight-line feedback delay network with its return shifted a few hertz. Not a model of any pedal or plug-in."
   }
 }

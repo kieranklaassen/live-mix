@@ -15,7 +15,7 @@ export const HAZE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the blurred sound is pushed into the fuzz. Higher grows more overtones while the loudness stays where it was.',
+      'How hard the blurred sound is pushed into the fuzz. Zero is clean. Higher grows more overtones, loud playing more than soft, and the loudness stays where it was.',
   },
   blur: {
     id: 1,
@@ -26,7 +26,7 @@ export const HAZE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the sound is smeared before the fuzz. Low keeps the attacks and their bite; high lets every note swell in and melt into the next.',
+      'How long the sound is smeared before the fuzz. Low keeps more of the attacks; high lets every note swell in and melt into the next. Moving it bends the pitch.',
   },
   decay: {
     id: 2,
@@ -90,7 +90,7 @@ export const HAZE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Sends the wall back through the blur and the fuzz. More makes it thicker and longer; it always dies away in the end.',
+      'Sends the wall back through the blur and the fuzz. More makes it thicker and longer, more than twice as long at the top, where the fading tail leans flat.',
   },
   width: {
     id: 8,
@@ -123,7 +123,7 @@ export const HAZE_DESCRIPTOR = wasmDeviceDescriptor(HAZE_DEVICE, {
   name: 'Haze',
   category: 'reverb',
   description:
-    'A short reverb into a soft fuzz into a long reverb: notes lose their attacks, grow overtones and hang as one glowing wall.',
+    'A short reverb into a soft fuzz into a long reverb: notes blur, grow overtones as they are played harder and hang as one glowing wall.',
   presets: {
     'Glowing wall': {},
     'Faint warmth': { haze: 0.3, blur: 0.4, decay: 2, mix: 0.15, tone: 0.4, octave: 0, feed: 0 },
@@ -155,7 +155,7 @@ export const HAZE_DESCRIPTOR = wasmDeviceDescriptor(HAZE_DEVICE, {
 
 export type Haze = WasmDevice<typeof HAZE_PARAMS>
 
-/** A short reverb into a soft fuzz into a long reverb: notes lose their attacks, grow overtones and hang as one glowing wall. */
+/** A short reverb into a soft fuzz into a long reverb: notes blur, grow overtones as they are played harder and hang as one glowing wall. */
 export function createHaze(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof HAZE_PARAMS> = {},

@@ -128,6 +128,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       damping_[n].reset();
       length_[n] = kLineSeconds[n] * sr;
       gain_[n] = 0.0f;
+      gain_to_[n] = 0.0f;
+      gain_step_[n] = 0.0f;
       sweep_[n] = 0.0f;
       sweep_step_[n] = 0.0f;
     }
@@ -272,8 +274,11 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       // The gain that puts the level back, kept until the sample it was taken
       // from comes out of the oversampler (39.5 samples later: between two).
       // Taken at once, the 25 ms level's own ripple would be a gain that moves
-      // at twice the note, which is a third harmonic 42 dB under it.
-      post_[post_at_] = kit::min(sum, kCeiling) * hold(push) / drive;
+      // at twice the note, which is a third harmonic 42 dB under it. The
+      // curve's own 1 / drive is not in it: that is taken at the curve, on the
+      // very samples the drive shaped, so a Haze thrown from one end to the
+      // other never meets a gain worked out for another drive.
+      post_[post_at_] = kit::min(sum, kCeiling) * hold(push);
       const float post = 0.5f * (post_[(post_at_ - kFuzzDelay) & (kPostSize - 1)] +
                                  post_[(post_at_ - kFuzzDelay - 1) & (kPostSize - 1)]);
       // And the drive is kept until the wave it was worked out for reaches the
@@ -281,6 +286,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       drive_ring_[post_at_] = drive;
       const float curve_drive = 0.5f * (drive_ring_[(post_at_ - kCurveDelay) & (kPostSize - 1)] +
                                         drive_ring_[(post_at_ - kCurveDelay - 1) & (kPostSize - 1)]);
+      const float curve_gain = 1.0f / curve_drive;
       post_at_ = (post_at_ + 1) & (kPostSize - 1);
       const float fold = octave_.next();
       const float keep = 1.0f - fold;
@@ -294,8 +300,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         for (int k = 0; k < 2; ++k) {
           float p, q;
           inner_[c].up(pair[k], &p, &q);
-          p = curve(p, curve_drive, keep, fold, &mean);
-          q = curve(q, curve_drive, keep, fold, &mean);
+          p = curve(p, curve_drive, curve_gain, keep, fold, &mean);
+          q = curve(q, curve_drive, curve_gain, keep, fold, &mean);
           half[k] = inner_[c].down(p, q);
         }
         fold_mean_[c] = mean;
@@ -321,6 +327,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       hadamard8(v);
       for (int n = 0; n < kLines; ++n) {
         const float feed = 0.5f * fuzz[n & 1];
+        gain_[n] += gain_step_[n];
         const float x = damping_[n].lowpass(v[n] * gain_[n]) + ((n & 2) ? -feed : feed);
         // Linear to ±2, landing on ±4: out of the way of any normal level.
         line_[n].write(flush_denormal(4.0f * kit::soft_clip(0.25f * x)));
@@ -512,6 +519,28 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // A smoother that has arrived costs one compare.
   static float glide(kit::Smoother& s) { return s.value == s.target ? s.value : s.next(); }
 
+  // The same in double, for what scales a delay of thousands of samples. A
+  // float that glides over 0.15 s stalls 4e-4 short of where it is going (its
+  // step falls under half a float step) and is landed there: on Size that was
+  // a jump of two or three samples in every line, 1.2 s after the knob moved.
+  struct LongGlide {
+    double value = 0.0, target = 0.0, coeff = 0.0;
+    void set_time(float seconds, float rate) { coeff = std::exp(-1.0 / (static_cast<double>(seconds) * rate)); }
+    void snap(float v) { value = target = v; }
+    void set(float v, bool primed) {
+      target = v;
+      if (!primed) value = v;
+    }
+    float next() {
+      if (value != target) {
+        const double delta = value - target;
+        value = (delta > -1.0e-10 && delta < 1.0e-10) ? target : target + delta * coeff;
+      }
+      return static_cast<float>(value);
+    }
+  };
+  static float glide(LongGlide& s) { return s.next(); }
+
   // What the wet path takes of an input sample: NaN is silence, and nothing
   // beyond ±8 goes in, so a bad sample cannot lodge in a loop.
   static float safe(float x) {
@@ -521,10 +550,10 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
 
   // The curve at four times the rate: the wave `q` (level taken out, peaks
   // near 1), part of it folded for the octave, driven into tanh.
-  float curve(float q, float drive, float keep, float fold, float* mean) const {
+  float curve(float q, float drive, float gain, float keep, float fold, float* mean) const {
     const float folded = std::sqrt(q * q + kFoldSoft * kFoldSoft) - kFoldSoft;
     *mean += fold_coeff_ * (folded - *mean);
-    return kit::fast_tanh(drive * (keep * q + fold * kFoldGain * (folded - *mean)));
+    return gain * kit::fast_tanh(drive * (keep * q + fold * kFoldGain * (folded - *mean)));
   }
 
   // The gain that puts a sine back at the RMS it had, for peaks that reach
@@ -578,23 +607,27 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // the share Feed returns, Tone's filters, the hold table, the sweeps.
   void control() {
     using namespace haze;
-    derive(decay_.next(), tone_.next());
+    derive(1.0f / decay_.next(), tone_.next());
+    // The lines' gains walk to where Decay has them over the tick, a sample
+    // at a time: stepped by the tick, a thrown Decay was a jump in the wall
+    // each time a line came round.
+    for (int n = 0; n < kLines; ++n) gain_step_[n] = (gain_to_[n] - gain_[n]) * (1.0f / kControlPeriod);
     set_sweeps(samples_ / kControlPeriod, 0);
   }
 
   void derive(float decay, float tone) {
     using namespace haze;
     const float sr = sample_rate();
-    const float size = size_.value;
+    const float size = static_cast<float>(size_.value);
     for (int n = 0; n < kLines; ++n) {
       // The gain that takes Decay to fall 60 dB, and a one-pole on top of it
       // that takes 0.4 of Decay at the top of the band (Jot's absorbent
       // filter: unity at the bottom, so Decay is the time there).
       const float exponent = -3.0f * length_[n] * size / (decay * sr);  // log10 of the gain
-      gain_[n] = std::pow(10.0f, exponent);
+      gain_to_[n] = std::pow(10.0f, exponent);
       damping_[n].a = kit::min(kDampingSlope * exponent, kDampingMost);
     }
-    const float middle = gain_[kLines / 2];
+    const float middle = gain_to_[kLines / 2];
     const float loss = kit::max(1.0f - middle * middle, 1.0e-4f);
     // Feed: the gain on what returns, for the share of the wall's loss it is
     // to make good, and never over kFeedMost (a short Decay loses nearly all
@@ -637,7 +670,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
 
     // The first reverb's loop: its gain is Blur's, held under the gain that
     // would take Decay to die away.
-    const float reach = reach_.target;
+    const float reach = static_cast<float>(reach_.target);
     const float loop =
         kit::min(kBlurLoop * param(kBlur), kit::rt60_gain(kit::max(blur_seconds_ * reach * sr, 1.0f), decay, sr));
     loop_.set_target(loop);
@@ -676,12 +709,18 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // Everything at its target now: at init, and when the device wakes.
   void settle() {
     using namespace haze;
-    kit::Smoother* all[] = {&drive_, &reach_, &width_, &width_gain_, &dry_, &wet_, &size_};
+    kit::Smoother* all[] = {&drive_, &width_, &width_gain_, &dry_, &wet_};
     for (kit::Smoother* s : all) s->snap(s->target);
+    reach_.value = reach_.target;
+    size_.value = size_.target;
     octave_.snap(octave_.target);
-    decay_.snap(param(kDecay));
+    decay_.snap(1.0f / param(kDecay));
     tone_.snap(param(kTone));
-    derive(decay_.value, tone_.value);
+    derive(1.0f / decay_.value, tone_.value);
+    for (int n = 0; n < kLines; ++n) {
+      gain_[n] = gain_to_[n];
+      gain_step_[n] = 0.0f;
+    }
     late_.snap(late_.target);
     early_.snap(early_.target);
     thin_.snap(thin_.target);
@@ -708,7 +747,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         set_reach();
         break;
       case kDecay:
-        decay_.set(value, primed());
+        decay_.set(1.0f / value, primed());
         set_reach();
         break;
       case kMix: {
@@ -770,6 +809,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   kit::OnePole damping_[kLines];
   float length_[kLines] = {};
   float gain_[kLines] = {};
+  float gain_to_[kLines] = {};
+  float gain_step_[kLines] = {};
   float sweep_[kLines] = {};
   float sweep_step_[kLines] = {};
   float sweep_depth_ = 0.0f;
@@ -780,9 +821,14 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   double shift_turn_[2] = {};
   float back_[2] = {};
 
-  kit::Smoother drive_, reach_, loop_, back_gain_, width_, width_gain_, dry_, wet_, late_, early_, thin_, size_;
+  kit::Smoother drive_, loop_, back_gain_, width_, width_gain_, dry_, wet_, late_, early_, thin_;
+  LongGlide reach_, size_;
   kit::LinearRamp octave_;
-  kit::Smoother decay_, tone_;  // stepped on the control clock
+  // Stepped on the control clock. decay_ holds 1 / Decay: the lines' gains
+  // are 10 to a power that goes as 1 / Decay, so a thrown Decay moves them
+  // evenly (gliding Decay itself took the gain of a line from 0.44 to 0.75 in
+  // the first tick of a throw from the bottom to the top).
+  kit::Smoother decay_, tone_;
   long hold_ = 1;   // samples of quiet before sleep
   long quiet_ = 1;  // samples of quiet so far; asleep at hold_
   uint64_t samples_ = 0;  // since init, asleep or not
