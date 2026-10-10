@@ -50,6 +50,7 @@ import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
 import { CURRENTS_FACES } from './currents'
+import { MURMURATION_FACES } from './murmuration'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -101,4 +102,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...RING_FACES,
   ...UNDERWATER_FACES,
   ...PULSES_FACES,
+  ...MURMURATION_FACES,
 }

@@ -1,0 +1,254 @@
+{
+  "id": "murmuration",
+  "name": "Murmuration",
+  "category": "modulation",
+  "description": "Turns one voice into a flock of up to sixteen that fly around the listener, each with its own distance, delay and bend in pitch.",
+  "class": "Murmuration",
+  "header": "murmuration.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "flight",
+      "name": "Flight time",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "turns",
+      "name": "Turns as flown",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "birds",
+      "name": "Birds",
+      "min": 1,
+      "max": 16,
+      "default": 8,
+      "step": 1,
+      "description": "How many copies of the sound fly. One is a single moving echo, a few are a chorus, many are a crowd."
+    },
+    {
+      "key": "range",
+      "name": "Range",
+      "min": 1,
+      "max": 60,
+      "default": 10,
+      "taper": "log",
+      "unit": "m",
+      "description": "How far out the flock flies. A short range is a tight shimmer close by, a long one spreads the copies into late echoes that bend further in pitch."
+    },
+    {
+      "key": "speed",
+      "name": "Speed",
+      "min": 0.05,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "unit": "x",
+      "description": "How fast the flock flies. Slow drifts and barely bends the pitch, fast swoops and wavers. A flock with a long range is held to a safe speed."
+    },
+    {
+      "key": "together",
+      "name": "Together",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How close the birds keep. Up is a tight knot that moves as one thick voice, down scatters them over the whole range as separate echoes."
+    },
+    {
+      "key": "turns",
+      "name": "Turns",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How often the whole flock wheels: it rushes off, bunches up, swings round and comes back, bending the pitch as it goes. Zero is a steady drift. A change eases in."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones stand out and far ones fade."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides."
+    },
+    {
+      "key": "lift",
+      "name": "Lift",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets the birds fly at different heights, where the low ones are duller than the high ones, so each copy has a tone of its own that keeps changing."
+    },
+    {
+      "key": "ground",
+      "name": "Ground",
+      "min": 20,
+      "max": 500,
+      "default": 200,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Keeps the low end on the ground. Sound below it passes straight through instead of flying, so the flock cannot thin out a bass note. Fully down lets everything fly."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place."
+    }
+  ],
+  "presets": {
+    "Evening flock": {},
+    "Two close by": {
+      "birds": 2,
+      "range": 3,
+      "speed": 0.6,
+      "together": 0.8,
+      "turns": 0,
+      "air": 0.2,
+      "spread": 0.5,
+      "mix": 0.35
+    },
+    "Thick ensemble": {
+      "birds": 16,
+      "range": 12,
+      "speed": 1.2,
+      "together": 0.55,
+      "turns": 0.2,
+      "air": 0.3,
+      "spread": 1,
+      "mix": 0.55
+    },
+    "Slow drift": {
+      "birds": 6,
+      "range": 14,
+      "speed": 0.2,
+      "together": 0.5,
+      "turns": 0.1,
+      "mix": 0.4
+    },
+    "Cloud far off": {
+      "birds": 16,
+      "range": 45,
+      "speed": 0.35,
+      "together": 0.1,
+      "air": 0.8,
+      "spread": 1,
+      "lift": 0.6,
+      "mix": 0.7
+    },
+    "Wheeling": {
+      "birds": 12,
+      "range": 16,
+      "speed": 1.6,
+      "together": 0.7,
+      "turns": 1,
+      "mix": 0.6
+    },
+    "One bird": {
+      "birds": 1,
+      "range": 25,
+      "speed": 1.1,
+      "together": 1,
+      "turns": 0.6,
+      "air": 0.7,
+      "mix": 0.4
+    },
+    "Barely there": {
+      "birds": 4,
+      "range": 5,
+      "speed": 0.5,
+      "together": 0.7,
+      "air": 0.4,
+      "mix": 0.15
+    },
+    "Wide and dull": {
+      "birds": 10,
+      "range": 30,
+      "speed": 0.6,
+      "together": 0.2,
+      "air": 1,
+      "spread": 1,
+      "lift": 0,
+      "mix": 0.6
+    },
+    "Seasick": {
+      "birds": 5,
+      "range": 40,
+      "speed": 4,
+      "together": 0.9,
+      "turns": 0.8,
+      "air": 0.3,
+      "ground": 20,
+      "mix": 1
+    },
+    "Wet shimmer": {
+      "birds": 16,
+      "range": 8,
+      "speed": 2.6,
+      "together": 0.3,
+      "air": 0.1,
+      "lift": 1,
+      "mix": 1
+    },
+    "Straight ahead": {
+      "birds": 12,
+      "range": 12,
+      "together": 0.4,
+      "spread": 0,
+      "mix": 0.45
+    },
+    "Slapback flock": {
+      "birds": 3,
+      "range": 50,
+      "speed": 0.1,
+      "together": 1,
+      "turns": 0,
+      "air": 0.1,
+      "mix": 0.4
+    },
+    "Comb by the ear": {
+      "birds": 8,
+      "range": 1.5,
+      "speed": 2.5,
+      "together": 0.3,
+      "air": 1,
+      "spread": 1,
+      "mix": 0.5
+    },
+    "High and bright": {
+      "birds": 9,
+      "range": 18,
+      "speed": 0.8,
+      "together": 0.45,
+      "air": 0.2,
+      "lift": 1,
+      "mix": 0.55
+    },
+    "Scattered room": {
+      "birds": 16,
+      "range": 60,
+      "speed": 0.3,
+      "together": 0,
+      "turns": 0,
+      "air": 0.6,
+      "spread": 1,
+      "mix": 0.45
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A chorus whose voices are birds in a small flight model (flock.h): each bird's distance is its delay, so its movement is its pitch bend."
+  }
+}
