@@ -15,7 +15,7 @@
 //       │               ▲                             │
 //       │               └─ damping ◄─ decay gain ◄─ Hadamard     (the wall)
 //       │                                             │
-//       └── Feed ◄── shift up 1 Hz ◄── low cut ◄──────┘
+//       └── Feed ◄── shift up 3 Hz ◄── low cut ◄──────┘
 //
 // FUZZ, per side, at four times the sample rate:
 //
@@ -44,18 +44,19 @@
 // - The wall is an eight-line feedback delay network (Hadamard), its lines
 //   20 to 160 ms by Size, read with a slow free-running sweep each. Its wet
 //   level is lowered as Decay rises so that Decay is not also a volume knob.
-// - Feed returns the wall to the front, moved up by about 1 Hz on the way
-//   (a single-sideband shift, 0.7 Hz on the left and 1.1 Hz on the right).
+// - Feed returns the wall to the front, moved up by a few Hz on the way
+//   (a single-sideband shift, 2.3 Hz on the left and 3.1 Hz on the right).
 //   Without the shift the loop howls: one resonance of the wall feeds itself
 //   and a single tone holds for good. With it, what returns never lands on
 //   the frequency it left, so the loop's gain is the average over the wall's
-//   resonances and not the highest of them, and what is heard is a slow beat
-//   between the wall and what it sent round. The returned share is worked
-//   out from the wall's own loss: at the top of Feed just under half of what
-//   the wall loses comes back, the fuzz is fed about as much by the wall as
-//   by the input, and the tail is three to four times as long (measured; more
-//   at the shortest Decay). The loop loses on every pass, and the fuzz cannot
-//   put out more than full scale, which is the ceiling.
+//   resonances and not the highest of them, and what is heard is a beat
+//   between the wall and what it sent round, and at the top of Feed a
+//   cluster that leans sharp. The returned share is worked out from the
+//   wall's own loss: at the top of Feed two thirds of what the wall loses
+//   comes back, the fuzz is fed nearly twice as much by the wall as by the
+//   input, and the tail is about three times as long. The loop loses on every
+//   pass, and the fuzz cannot put out more than full scale, which is the
+//   ceiling.
 // - The sweeps run by a count of samples that goes on through silence and
 //   sleep, so the output is the same at every block size.
 //
@@ -320,11 +321,11 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr float kPreFilterHz = 5000.0f;
   static constexpr float kDcHz = 20.0f;
   // Tone 0..1: the low-pass from 800 Hz to 12 kHz, and the tilt about 1 kHz
-  // from +4 dB of lows and -6 dB of highs to the reverse.
+  // from +3 dB of lows and -6 dB of highs to the reverse.
   static constexpr float kTiltHz = 1000.0f;
   static constexpr float kToneLowHz = 800.0f;
   static constexpr float kToneHighHz = 12000.0f;
-  static constexpr float kTiltLowDb = 4.0f;
+  static constexpr float kTiltLowDb = 3.0f;
   static constexpr float kTiltHighDb = 6.0f;
   // The first reverb: allpass lengths in samples at 48 kHz (7 to 37 ms, 97 ms
   // in all), the delay that closes its loop, the allpass coefficient, and the
@@ -354,19 +355,22 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr float kSweepStepHz = 0.09f;
   // A line holds 1/(1 - g²) of the power fed to it and a side taps a quarter
   // of what all eight hold: kLineShare. Feed returns kFeedShare of the wall's
-  // loss at its top. (The share is of power, as if what returns never met
-  // itself in phase; it does, and the tail measures three to four times as
-  // long at the top of Feed where the share alone would make it under two.)
+  // loss at its top, which makes the tail 1 / (1 - kFeedShare) as long
+  // (measured: 2.2 to 3.2 times).
   static constexpr float kLineShare = 0.25f;
   static constexpr float kWetGain = 1.26f;
-  static constexpr float kFeedShare = 0.45f;
+  static constexpr float kFeedShare = 0.65f;
   static constexpr float kFeedMost = 0.9f;
   // What Feed returns is moved up in frequency on the way, by a little less
   // on the left than on the right, so that no resonance of the wall or of the
   // first reverb can feed itself. Both sides go the same way: with one up and
   // one down the sound wandered about a resonance and stayed (measured: a
-  // tone near 176 Hz held at -8 dBFS for good at the top of Feed).
-  static constexpr float kFeedShiftHz[2] = {0.7f, 1.1f};
+  // tone near 176 Hz held at -8 dBFS for good at the top of Feed). And far
+  // enough to leave a resonance of the first reverb in a pass or two: at
+  // 0.7 and 1.1 Hz the tail at the top of Feed was four to five times as
+  // long and a third of its power was one tone; at these it is as long as
+  // the share says and no more one tone than with no Feed at all.
+  static constexpr float kFeedShiftHz[2] = {2.3f, 3.1f};
   static constexpr float kMeterFallSeconds = 0.1f;
 
   // kit::hadamard<8> written out (the loop form is several times slower).
