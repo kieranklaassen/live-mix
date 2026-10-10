@@ -2009,5 +2009,24 @@
     "Dark snow": {"fall":-4,"curve":1,"size":1200,"density":12,"scatter":0.8,"vary":0.6,"shape":0,"spread":1,"again":0.5,"tone":1200,"mix":0.5},
     "Deep well": {"fall":-24,"curve":0.2,"size":2500,"density":2,"scatter":0.3,"vary":0.2,"shape":0.1,"spread":0.8,"again":0.6,"tone":3000,"mix":0.5},
     "Falls alone": {"fall":-7,"curve":0.5,"size":700,"density":5,"scatter":0.25,"vary":0.2,"shape":0.3,"spread":0.7,"again":0.2,"tone":8000,"mix":1}
+  },
+  "glints": {
+    "(default)": {"density":5,"pitch":3,"size":70,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.25},
+    "First light": {"density":5,"pitch":3,"size":70,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.25},
+    "Faint dust": {"density":7,"pitch":3,"size":30,"scatter":600,"follow":0.5,"sparkle":0.8,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.12},
+    "Steady rain": {"density":8,"pitch":3,"size":70,"scatter":1200,"follow":0,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.25},
+    "Glitter": {"density":25,"pitch":3,"size":25,"scatter":500,"follow":0.7,"sparkle":0.9,"spread":1,"trail":0.3,"trailTime":180,"mix":0.25},
+    "Slow stars": {"density":0.8,"pitch":2,"size":200,"scatter":1500,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.75,"trailTime":420,"mix":0.3},
+    "Fifths above": {"density":5,"pitch":1,"size":120,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.28},
+    "Overtone spray": {"density":18,"pitch":4,"size":40,"scatter":800,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.28},
+    "Wide halo": {"density":10,"pitch":0,"size":300,"scatter":200,"follow":0.3,"sparkle":0.15,"spread":1,"trail":0.3,"trailTime":180,"mix":0.28},
+    "Only the sparks": {"density":14,"pitch":3,"size":70,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":1},
+    "Tight ticks": {"density":24,"pitch":3,"size":12,"scatter":0,"follow":1,"sparkle":1,"spread":0.8,"trail":0,"trailTime":180,"mix":0.25},
+    "Long trails": {"density":2,"pitch":3,"size":70,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.85,"trailTime":600,"mix":0.28},
+    "Flutter echo": {"density":4,"pitch":3,"size":20,"scatter":350,"follow":0.6,"sparkle":0.5,"spread":0.8,"trail":0.8,"trailTime":60,"mix":0.28},
+    "Soft blips": {"density":6,"pitch":0,"size":150,"scatter":350,"follow":0.6,"sparkle":0,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.3},
+    "Late answers": {"density":4,"pitch":3,"size":100,"scatter":2000,"follow":0.2,"sparkle":0.5,"spread":0.8,"trail":0.4,"trailTime":180,"mix":0.28},
+    "Overtone chimes": {"density":3,"pitch":4,"size":250,"scatter":350,"follow":0.6,"sparkle":0.3,"spread":0.8,"trail":0.6,"trailTime":300,"mix":0.3},
+    "Thrown by touch": {"density":30,"pitch":3,"size":40,"scatter":100,"follow":1,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.28}
   }
 }

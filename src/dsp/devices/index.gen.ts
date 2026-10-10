@@ -29,6 +29,7 @@ import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
+import { GLINTS_DESCRIPTOR, GLINTS_DEVICE } from './glints.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
 import { GRAIN_CLOUD_DESCRIPTOR, GRAIN_CLOUD_DEVICE } from './grain-cloud.gen'
 import { GRAIN_DELAY_DESCRIPTOR, GRAIN_DELAY_DEVICE } from './grain-delay.gen'
@@ -113,6 +114,7 @@ export * from './flanger.gen'
 export * from './flute.gen'
 export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
+export * from './glints.gen'
 export * from './glitch.gen'
 export * from './grain-cloud.gen'
 export * from './grain-delay.gen'
@@ -199,6 +201,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   FLUTE_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
+  GLINTS_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
   GRAIN_CLOUD_DESCRIPTOR,
   GRAIN_DELAY_DESCRIPTOR,
@@ -286,6 +289,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   FLUTE_DEVICE,
   FM_GLASS_DEVICE,
   FREQ_SHIFTER_DEVICE,
+  GLINTS_DEVICE,
   GLITCH_DEVICE,
   GRAIN_CLOUD_DEVICE,
   GRAIN_DELAY_DEVICE,
@@ -380,6 +384,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
+  { id: 'glints', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
   { id: 'grain-cloud', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 10 },
   { id: 'grain-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
