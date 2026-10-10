@@ -1,0 +1,109 @@
+{
+  "id": "warp",
+  "name": "Warp",
+  "category": "pitch",
+  "description": "Stretches or squeezes the spacing of the partials around a pivot note that stays put, so strings turn into bells and bells into dense beating clusters.",
+  "class": "Warp",
+  "header": "warp.h",
+  "sources": [],
+  "latencySamples": 4608,
+  "meters": [
+    { "key": "stretchNow", "name": "Stretch now", "display": true },
+    { "key": "pivotNow", "name": "Pivot now", "unit": "Hz", "display": true },
+    { "key": "partial1Hz", "name": "Partial 1 frequency", "unit": "Hz", "display": true },
+    { "key": "partial1Level", "name": "Partial 1 level", "display": true },
+    { "key": "partial2Hz", "name": "Partial 2 frequency", "unit": "Hz", "display": true },
+    { "key": "partial2Level", "name": "Partial 2 level", "display": true },
+    { "key": "partial3Hz", "name": "Partial 3 frequency", "unit": "Hz", "display": true },
+    { "key": "partial3Level", "name": "Partial 3 level", "display": true },
+    { "key": "partial4Hz", "name": "Partial 4 frequency", "unit": "Hz", "display": true },
+    { "key": "partial4Level", "name": "Partial 4 level", "display": true },
+    { "key": "partial5Hz", "name": "Partial 5 frequency", "unit": "Hz", "display": true },
+    { "key": "partial5Level", "name": "Partial 5 level", "display": true },
+    { "key": "partial6Hz", "name": "Partial 6 frequency", "unit": "Hz", "display": true },
+    { "key": "partial6Level", "name": "Partial 6 level", "display": true }
+  ],
+  "params": [
+    {
+      "key": "stretch",
+      "name": "Stretch",
+      "min": -1,
+      "max": 1,
+      "default": 0.3,
+      "description": "Pulls the partials apart or pushes them together around the pivot. Up, a string turns to a bell; down, they crowd into a beating cluster. The middle leaves them alone."
+    },
+    {
+      "key": "pivot",
+      "name": "Pivot",
+      "min": 30,
+      "max": 2000,
+      "default": 220,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The pitch that does not move. Everything else is stretched away from it or squeezed toward it. With Follow on, the lowest pitch the pivot may land on."
+    },
+    {
+      "key": "follow",
+      "name": "Follow",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On moves the pivot to the lowest strong partial being played at or above the Pivot setting, so each note of a single line keeps its pitch while its overtones move."
+    },
+    {
+      "key": "lean",
+      "name": "Lean",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Which side of the pivot is warped. Turned up, only the partials above the pivot move; turned down, only those below it. The middle moves both."
+    },
+    {
+      "key": "shift",
+      "name": "Shift",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "st",
+      "description": "Transposes the whole warped sound after the stretch, pivot included."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Leans the warped sound darker or brighter. Stretching throws partials upward, and turning this down takes the edge off them."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Gives the left and right sides slightly different stretches, so each partial beats slowly between the speakers. At zero a mono sound stays mono."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "Balance between the dry signal and the warped one. Part way, partials near the pivot beat slowly against their dry selves."
+    }
+  ],
+  "presets": {
+    "Bell metal": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A peak-locked phase vocoder on kit::Stft: every spectral peak and the bins around it are moved together to pivot x (f / pivot)^stretch."
+  }
+}
