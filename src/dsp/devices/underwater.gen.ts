@@ -112,7 +112,8 @@ export const UNDERWATER_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry signal and the sound under water.',
+    description:
+      'Balance between the dry signal and the sound under water. Part way, the water is shallower and gentler, so the blend stays one sound.',
   },
 } as const satisfies Record<string, ParamSpec>
 
