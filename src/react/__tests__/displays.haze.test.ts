@@ -20,22 +20,25 @@ import {
   HAZE_BODY_HZ,
   HAZE_FACES,
   HAZE_HIGH_HZ,
-  HAZE_MEASURED,
+  HAZE_STEP,
   fastTanh,
-  hazeBlurSeconds,
+  hazeBendAt,
   hazeBoxes,
   hazeCurve,
   hazeCurveAt,
   hazeDecayFor,
   hazeDrive,
+  hazeDriveAt,
   hazeFall,
   hazeFallEnd,
-  hazeFallThrough,
-  hazeSeconds,
-  hazeShare,
+  hazeFallNear,
+  hazeFollow,
+  hazeLevelOf,
+  hazeNowAt,
+  hazePush,
   hazeTailAt,
   hazeToneDb,
-  hazeWallSeconds,
+  hazeTrace,
   hazeWetDb,
 } from '../components/displays/haze'
 import { type DisplayHandle } from '../components/plate-display'
@@ -71,8 +74,11 @@ function constants(name: string): number[] {
 
 describe("the figures of Haze's display", () => {
   it('are the constants of haze.h', () => {
-    expect(HAZE.driveMin).toBe(constant('kDriveMin'))
     expect(HAZE.driveMax).toBe(constant('kDriveMax'))
+    expect(HAZE.driveCurve).toBe(constant('kDriveCurve'))
+    expect(HAZE.driveLeast).toBe(constant('kDriveLeast'))
+    expect(HAZE.followLevel).toBe(constant('kFollowLevel'))
+    expect(HAZE.followMost).toBe(constant('kFollowMost'))
     expect(HAZE.floor).toBe(constant('kFloor'))
     expect(HAZE.foldSoft).toBe(constant('kFoldSoft'))
     expect(HAZE.foldGain).toBe(constant('kFoldGain'))
@@ -87,22 +93,19 @@ describe("the figures of Haze's display", () => {
     expect(HAZE.maxScale).toBe(constant('kMaxScale'))
     expect(HAZE.dampingSlope).toBe(constant('kDampingSlope'))
     expect(HAZE.dampingMost).toBe(constant('kDampingMost'))
-    expect(HAZE.lineShare).toBe(constant('kLineShare'))
-    expect(HAZE.feedShare).toBe(constant('kFeedShare'))
-    expect(HAZE.feedMost).toBe(constant('kFeedMost'))
-    expect(HAZE.blurLoop).toBe(constant('kBlurLoop'))
-    // The middle line of the eight is the one `derive()` takes the wall's loss from.
+    // The middle line of the eight is the one the fall is worked out for.
     const lines = constants('kLineSeconds')
     expect(lines).toHaveLength(8)
     expect(HAZE.lineSeconds).toBe(lines[4])
-    expect(header).toContain('const float middle = gain_[kLines / 2];')
-    // One trip round the first reverb: its loop's delay and its five allpasses, left side.
-    const trip =
-      constants('kBlurLoopDelay')[0] +
-      constants('kBlurAllpass')
-        .slice(0, 5)
-        .reduce((a, b) => a + b)
-    expect(HAZE.blurTrip).toBeCloseTo(trip / 48000, 9)
+    expect(header).toContain('const float middle = gain_to_[kLines / 2];')
+  })
+
+  it('draws nothing that the header has no sum for', () => {
+    // Feed and Blur hold the wall up by an amount that was once a fit to
+    // measurements (within a quarter): the display has no figure for either now.
+    expect(display.params).not.toContain('feed')
+    expect(display.params).not.toContain('blur')
+    expect(Object.keys(HAZE).join(' ')).not.toMatch(/feed|blur/i)
   })
 })
 
@@ -148,9 +151,15 @@ function headerHold(push: number, table: readonly number[]): number {
  * wave `q`, with the fold's mean the mean over a cycle of a sine, which is
  * what the device's slow mean of it settles on.
  */
-function headerCurve(q: number, haze: number, octave: number): number {
-  const drive =
-    constant('kDriveMin') * Math.pow(constant('kDriveMax') / constant('kDriveMin'), haze)
+function headerCurve(q: number, haze: number, octave: number, level = 1): number {
+  // `apply()` and `render()`: Haze's drive, the share of it this level is given, never quite nothing.
+  const asked =
+    (constant('kDriveMax') * (Math.pow(constant('kDriveCurve'), haze) - 1)) /
+    (constant('kDriveCurve') - 1)
+  const follow = Math.sqrt(
+    ((1 + constant('kFollowLevel')) * level) / (level + constant('kFollowLevel')),
+  )
+  const drive = Math.max(asked * Math.min(follow, constant('kFollowMost')), constant('kDriveLeast'))
   const folded = constant('kFoldMost') * octave
   const cycle = Array.from({ length: 4800 }, (_, j) => Math.sin((2 * Math.PI * (j + 0.5)) / 4800))
   const mean = cycle.reduce((sum, n) => sum + fold(n), 0) / cycle.length
@@ -158,7 +167,8 @@ function headerCurve(q: number, haze: number, octave: number): number {
     fastTanh(drive * ((1 - folded) * n + folded * kFoldGain * (fold(n) - mean)))
   // The DC blocker after the curve (`dc_`, 20 Hz) takes out the mean of what a held wave leaves.
   const dc = cycle.reduce((sum, n) => sum + driven(n), 0) / cycle.length
-  return ((driven(q) - dc) * headerHold(drive, headerTable(folded))) / drive
+  // `curve()` takes 1 / drive on the spot, and `post_` keeps the hold of the push.
+  return ((driven(q) - dc) / drive) * headerHold(drive, headerTable(folded))
 }
 
 describe("the curve of Haze's display", () => {
@@ -169,14 +179,49 @@ describe("the curve of Haze's display", () => {
     expect(fastTanh(-7)).toBe(-1)
   })
 
-  it('is the drive the device has at each Haze', () => {
-    expect(hazeDrive(0)).toBeCloseTo(0.25, 9)
-    expect(hazeDrive(0.5)).toBeCloseTo(Math.sqrt(0.25 * 6), 9)
-    expect(hazeDrive(1)).toBeCloseTo(6, 9)
-    expect(header).toContain('kDriveMin * std::pow(kDriveMax / kDriveMin, value)')
+  it('is the drive the device has at each Haze: none at the bottom', () => {
+    expect(hazeDrive(0)).toBe(0)
+    expect(hazeDrive(0.5)).toBeCloseTo((8 * (Math.sqrt(24) - 1)) / 23, 9)
+    expect(hazeDrive(1)).toBeCloseTo(8, 9)
+    expect(header).toContain(
+      'drive_.set(kDriveMax * (std::pow(kDriveCurve, value) - 1.0f) / (kDriveCurve - 1.0f), primed());',
+    )
   })
 
-  it('is the curve the header works out, at every Haze and Octave', () => {
+  it('gives a softer sound less of that drive, as the device does', () => {
+    expect(header).toContain(
+      'const float follow = std::sqrt((1.0f + kFollowLevel) * level / (level + kFollowLevel));',
+    )
+    expect(header).toContain(
+      'const float drive = kit::max(glide(drive_) * kit::min(follow, kFollowMost), kDriveLeast);',
+    )
+    expect(header).toContain('const float push = drive * level * norm;')
+    expect(hazeFollow(1)).toBeCloseTo(1, 12)
+    expect(hazeFollow(0.25)).toBeCloseTo(Math.sqrt(1.25 * 0.5), 12)
+    expect(hazeFollow(4)).toBe(1)
+    expect(hazeFollow(0)).toBe(0)
+    expect(hazeDriveAt(0.55, 1)).toBeCloseTo(hazeDrive(0.55), 12)
+    expect(hazeDriveAt(0.55, 0.05)).toBeCloseTo(
+      hazeDrive(0.55) * Math.sqrt((1.25 * 0.05) / 0.3),
+      12,
+    )
+    // Never quite nothing: the curve is a wire by then.
+    expect(hazeDriveAt(0, 1)).toBe(HAZE.driveLeast)
+    expect(hazePush(0.55, 0.5)).toBeCloseTo((hazeDriveAt(0.55, 0.5) * 0.5) / 0.51, 12)
+  })
+
+  it('works the level back out of the push it reads, at every Haze', () => {
+    for (const haze of [0, 0.1, 0.55, 1]) {
+      for (const level of [0.001, 0.01, 0.06, 0.25, 0.7, 1, 1.6]) {
+        const back = hazeLevelOf(hazePush(haze, level), haze)
+        expect(back / level, `Haze ${haze}, level ${level}`).toBeGreaterThan(0.999)
+        expect(back / level, `Haze ${haze}, level ${level}`).toBeLessThan(1.001)
+      }
+    }
+    expect(hazeLevelOf(0, 0.55)).toBe(0)
+  })
+
+  it('is the curve the header works out, at every Haze, Octave and level', () => {
     let worst = 0
     for (const haze of [0, 0.25, 0.55, 0.8, 1]) {
       for (const octave of [0, 0.2, 0.6, 1]) {
@@ -185,6 +230,10 @@ describe("the curve of Haze's display", () => {
             worst,
             Math.abs(hazeCurve(q, haze, octave) - headerCurve(q, haze, octave)),
           )
+          for (const level of [0.03, 0.2]) {
+            const now = hazeBendAt(hazeDriveAt(haze, level), octave)
+            worst = Math.max(worst, Math.abs(now(q) - headerCurve(q, haze, octave, level)))
+          }
         }
       }
     }
@@ -193,10 +242,13 @@ describe("the curve of Haze's display", () => {
     // table and the device's means are running ones: they part by under 0.02.
     expect(worst).toBeLessThan(0.02)
     expect(header).toContain('dc_[c].process(outer_[c].down(half[0], half[1])) * post')
+    expect(header).toContain(
+      'return gain * kit::fast_tanh(drive * (keep * q + fold * kFoldGain * (folded - *mean)));',
+    )
   })
 
   it('leaves a sine as loud as it came, which is what the device was measured to do', () => {
-    // haze_test.cpp: a sine in at -15.1 dB leaves at -15.3 to -14.7 dB over Haze.
+    // haze_test.cpp: a sine in at -15.1 dB leaves at -16.2 to -15.8 dB over Haze.
     for (const haze of [0, 0.3, 0.55, 0.8, 1]) {
       for (const octave of [0, 0.5, 1]) {
         let sum = 0
@@ -214,10 +266,14 @@ describe("the curve of Haze's display", () => {
     }
   })
 
-  it('bends more with Haze and folds over with Octave', () => {
-    // No drive to speak of: nearly the line of no change. Full drive: flat at the top.
-    expect(hazeCurve(0.5, 0, 0) / hazeCurve(1, 0, 0)).toBeGreaterThan(0.49)
+  it('is straight at Haze 0, bends more with Haze, less for a softer sound, and folds over with Octave', () => {
+    // No drive: the line of no change. Full drive: flat at the top.
+    for (const q of [-1, -0.4, 0.3, 1]) expect(hazeCurve(q, 0, 0)).toBeCloseTo(q, 5)
     expect(hazeCurve(0.5, 1, 0) / hazeCurve(1, 1, 0)).toBeGreaterThan(0.95)
+    // A sound 26 dB under full scale is on a straighter curve than a full one.
+    const soft = hazeBendAt(hazeDriveAt(0.8, 0.05), 0)
+    const full = hazeBendAt(hazeDriveAt(0.8, 1), 0)
+    expect(soft(0.5) / soft(1)).toBeLessThan(full(0.5) / full(1) - 0.1)
     for (const haze of [0, 0.5, 1]) {
       expect(hazeCurve(-0.7, haze, 0)).toBeCloseTo(-hazeCurve(0.7, haze, 0), 9)
       // Folded, both halves of the wave go up: the octave above.
@@ -238,8 +294,15 @@ describe("the curve of Haze's display", () => {
 function toneThroughFilters(hz: number, tone: number): number {
   const rate = 48000
   const a = Math.exp((-2 * Math.PI * constant('kTiltHz')) / rate)
-  const tiltLow = Math.pow(10, ((1 - 2 * tone) * constant('kTiltLowDb')) / 20)
-  const tiltHigh = Math.pow(10, ((2 * tone - 1) * constant('kTiltHighDb')) / 20)
+  // `derive()`: below the middle of Tone the lows stay and the highs go; above it both turn.
+  const turn = 2 * tone - 1
+  const tiltLow = Math.pow(10, (-Math.max(turn, 0) * constant('kTiltLowDb')) / 20)
+  const tiltHigh = Math.pow(
+    10,
+    (turn > 0
+      ? turn * constant('kTiltHighDb')
+      : turn * (constant('kTiltHighDb') + constant('kTiltLowDb'))) / 20,
+  )
   const cutoff =
     constant('kToneLowHz') * Math.pow(constant('kToneHighHz') / constant('kToneLowHz'), tone)
   const g = Math.tan((Math.PI * cutoff) / rate)
@@ -268,6 +331,12 @@ function toneThroughFilters(hz: number, tone: number): number {
 
 describe("the highs of Haze's display", () => {
   it("stand where the device's tilt and low-pass put them", () => {
+    expect(header).toContain(
+      'const float tilt_low = kit::db_to_gain(-kit::max(turn, 0.0f) * kTiltLowDb);',
+    )
+    expect(header).toContain(
+      'kit::db_to_gain(turn > 0.0f ? turn * kTiltHighDb : turn * (kTiltHighDb + kTiltLowDb));',
+    )
     for (const tone of [0, 0.25, 0.5, 0.75, 1]) {
       for (const hz of [100, HAZE_BODY_HZ, 1000, HAZE_HIGH_HZ, 8000]) {
         const filters = toneThroughFilters(hz, tone)
@@ -277,6 +346,12 @@ describe("the highs of Haze's display", () => {
         ).toBeLessThan(0.1)
       }
     }
+  })
+
+  it('leave the lows where they were below the middle of Tone', () => {
+    // A dark wall is not a louder one: the tilt adds nothing under the middle.
+    for (const tone of [0, 0.2, 0.4, 0.5]) expect(Math.abs(hazeToneDb(60, tone))).toBeLessThan(0.1)
+    expect(hazeToneDb(60, 1)).toBeLessThan(-2.5)
   })
 
   it('are level with the body at the middle of Tone, under it below and over it above', () => {
@@ -295,12 +370,14 @@ describe("the highs of Haze's display", () => {
     // `derive()`: a line's gain is 10^e with e = -3 × its seconds / Decay, and
     // its one-pole's coefficient is kDampingSlope × e. By hand at Decay 2 s,
     // Size 0.6 (the middle line 79.1 ms): e = -0.1187, pole 0.359, the pole
-    // takes 0.55 dB a pass at 3 kHz beside the gain's 2.37, so 60 dB take
-    // 60 × 0.0791 / 2.92 = 1.62 s. The compiled device, a band about 3 kHz of
-    // noise through it at the top of Tone: 1.62 s (and 6.4 s at Decay 8 s,
-    // where this gives 7.1).
-    expect(hazeFall(HAZE_HIGH_HZ, 2, 0.6)).toBeCloseTo(1.62, 1)
-    expect(hazeFall(HAZE_HIGH_HZ, 8, 0.6)).toBeCloseTo(7.15, 1)
+    // takes 0.55 dB a pass at 3 kHz beside the gain's 2.37, and the swept
+    // read 0.11 more (1 − (1 − cos w) / 3 of the power, w = 0.393), so 60 dB
+    // take 60 × 0.0791 / 3.03 = 1.57 s.
+    expect(header).toContain(
+      'v[n] = line_[n].read_linear(kit::clamp(length_[n] * size + sweep_[n], 2.0f, max_line));',
+    )
+    expect(hazeFall(HAZE_HIGH_HZ, 2, 0.6)).toBeCloseTo(1.57, 2)
+    expect(hazeFall(HAZE_HIGH_HZ, 8, 0.6)).toBeCloseTo(6.12, 2)
     // The bottom of the band falls in Decay itself.
     expect(hazeFall(20, 6, 0.6)).toBeCloseTo(6, 1)
     for (const decay of [0.5, 2, 6, 30]) {
@@ -314,102 +391,46 @@ describe("the highs of Haze's display", () => {
 
 // --- The fall, against the compiled device ---------------------------------------
 
-/**
- * Measured from the compiled device (the native build of haze.h, which the
- * harness holds to the same output as haze.wasm): a noise under 800 Hz held
- * for two seconds, wet only, and the seconds from its end until the level of
- * the two sides (windows of 50 ms) is 60 dB under the level of its last
- * 200 ms, the mean of two noises. Decay (s), Size, Feed, Blur, Tone, seconds.
- * These are 53 of the 213 settings measured; `fallOf` below measures the same
- * way from haze.wasm, and a test holds a few of these to it.
- */
-const MEASURED: readonly (readonly [number, number, number, number, number, number])[] = [
-  [0.5, 0.6, 0, 0.6, 0.5, 1.23],
-  [0.5, 0.6, 0.5, 0.6, 0.5, 1.35],
-  [0.5, 0.6, 1, 0.6, 0.5, 1.88],
-  [1, 0.6, 0, 0.6, 0.5, 1.75],
-  [1, 0.6, 0.5, 0.6, 0.5, 1.95],
-  [1, 0.6, 1, 0.6, 0.5, 2.73],
-  [2, 0.6, 0, 0.6, 0.5, 2.15],
-  [2, 0.6, 0.5, 0.6, 0.5, 2.62],
-  [2, 0.6, 1, 0.6, 0.5, 5.03],
-  [4, 0.6, 0, 0.6, 0.5, 4.03],
-  [4, 0.6, 0.5, 0.6, 0.5, 4.78],
-  [4, 0.6, 1, 0.6, 0.5, 10.12],
-  [8, 0.6, 0, 0.6, 0.5, 7.9],
-  [8, 0.6, 0.5, 0.6, 0.5, 9.1],
-  [8, 0.6, 1, 0.6, 0.5, 16.77],
-  [0.5, 0.6, 0, 0, 0.5, 0.57],
-  [0.5, 0.6, 0, 1, 0.5, 1.25],
-  [0.5, 0.6, 1, 0, 0.5, 1.1],
-  [0.5, 0.6, 1, 1, 0.5, 2.2],
-  [2, 0.6, 0, 0, 0.5, 1.98],
-  [2, 0.6, 0, 1, 0.5, 3.42],
-  [2, 0.6, 1, 0, 0.5, 4.0],
-  [2, 0.6, 1, 1, 0.5, 6.17],
-  [8, 0.6, 0, 0, 0.5, 7.8],
-  [8, 0.6, 0, 1, 0.5, 8.0],
-  [8, 0.6, 1, 0, 0.5, 16.3],
-  [8, 0.6, 1, 1, 0.5, 22.38],
-  [30, 0.6, 0, 0, 0.5, 28.55],
-  [30, 0.6, 0, 1, 0.5, 28.88],
-  [30, 0.6, 1, 0, 0.5, 54.15],
-  [30, 0.6, 1, 1, 0.5, 63.58],
-  [1, 0.6, 1, 0, 0, 1.7],
-  [1, 0.6, 1, 0, 1, 1.3],
-  [4, 0.6, 1, 0, 0, 7.58],
-  [4, 0.6, 1, 0, 1, 5.92],
-  [16, 0.6, 1, 0, 0, 25.7],
-  [16, 0.6, 1, 0, 1, 20.12],
-  [2, 0.6, 0.5, 1, 0, 3.67],
-  [2, 0.6, 0.5, 1, 1, 3.67],
-  [30, 0.6, 0.5, 1, 0, 32.77],
-  [30, 0.6, 0.5, 1, 1, 29.12],
-  [0.5, 0, 1, 0.6, 0.5, 2.7],
-  [0.5, 1, 1, 0.6, 0.5, 2.0],
-  [2, 0, 1, 0.6, 0.5, 7.92],
-  [2, 1, 1, 0.6, 0.5, 4.33],
-  [8, 0, 1, 0.6, 0.5, 17.02],
-  [8, 1, 1, 0.6, 0.5, 17.15],
-  [30, 0, 1, 0.6, 0.5, 52.62],
-  [30, 1, 1, 0.6, 0.5, 55.15],
-  [1, 0, 0, 0.6, 0.5, 1.77],
-  [1, 1, 0, 0.6, 0.5, 1.77],
-  [16, 0, 0, 0.6, 0.5, 15.32],
-  [16, 1, 0, 0.6, 0.5, 15.57],
-]
-
-/** haze.wasm at a setting (the rest at their defaults). */
 async function deviceAt(values: Readonly<Record<string, number>>): Promise<WasmDeviceHarness> {
   const device = await loadWasmDevice('haze')
   for (const [name, value] of Object.entries(values)) device.set(params[name], value)
   return device
 }
 
-/** The seconds haze.wasm takes to fall 60 dB after a held noise, measured as the table above was. */
-async function fallOf(values: Readonly<Record<string, number>>): Promise<number> {
+/**
+ * The seconds haze.wasm takes to fall 60 dB about a frequency: a band of noise
+ * about `hz` held for two seconds through the wall alone, clean (Haze and
+ * Octave at nothing, so what rings is what went in), and the seconds from its
+ * end until the level of the two sides (windows of 51 ms) is 60 dB under the
+ * level of its last 200 ms. The mean of two noises.
+ */
+async function fallOf(values: Readonly<Record<string, number>>, hz: number): Promise<number> {
   const rate = 48000
   const block = 128
   const held = 2
   const decay = values.decay ?? params.decay.default
   let total = 0
   for (const seed of [0xfeed, 0xbeef]) {
-    const device = await deviceAt({ ...values, mix: 1 })
+    const device = await deviceAt({ haze: 0, octave: 0, ...values, mix: 1 })
     let state = seed
-    let low = 0
-    const a = Math.exp((-2 * Math.PI * 800) / rate)
+    // A resonator about `hz`, some 75 Hz wide.
+    const r = 0.995
+    const turn = 2 * r * Math.cos((2 * Math.PI * hz) / rate)
+    let y1 = 0
+    let y2 = 0
     const input = new Float32Array(block)
-    const blocks = Math.ceil(((held + decay * 5 + 5) * rate) / block)
+    const blocks = Math.ceil(((held + decay * 3 + 3) * rate) / block)
     const heldBlocks = Math.round((held * rate) / block)
-    // The power of the two sides in windows of 50 ms (18 blocks and a bit: by blocks of 128, 2400 frames is 18.75).
     const power: number[] = []
     let reference = 0
     for (let n = 0; n < blocks; n++) {
       for (let i = 0; i < block; i++) {
         state = (Math.imul(state, 1664525) + 1013904223) >>> 0
         const white = n < heldBlocks ? state / 2147483648 - 1 : 0
-        low = white + (low - white) * a
-        input[i] = low * 1.65
+        const y = white + turn * y1 - r * r * y2
+        y2 = y1
+        y1 = y
+        input[i] = n < heldBlocks ? y * 0.02 * Math.sqrt(hz / 250) : 0
       }
       device.processBlock(input)
       const left = device.view(device.device.device_out_left(), block)
@@ -436,98 +457,57 @@ async function fallOf(values: Readonly<Record<string, number>>): Promise<number>
 }
 
 describe("the fall of Haze's display", () => {
-  it('is the share of its loss that the device sets Feed to make good', () => {
-    // `derive()` by hand at Decay 2 s, Size 0.6: the middle line is 0.071938 × 1.1
-    // = 79.1 ms, its gain 10^(-3 × 0.0791 / 2) = 0.761, the loss 1 − 0.761² = 0.421.
-    // Feed 1 would return √(0.65 × 0.421 / 0.25) = 1.05, held to kFeedMost 0.9:
-    // the share is 0.9² × 0.25 / 0.421 = 0.481. At Decay 8 s the loss is 0.128,
-    // the return 0.576 and the share kFeedShare itself.
-    expect(hazeShare(2, 0.6, 1)).toBeCloseTo(0.481, 2)
-    expect(hazeShare(8, 0.6, 1)).toBeCloseTo(0.65, 6)
-    expect(hazeShare(8, 0.6, 0.5)).toBeCloseTo(0.65 / 4, 6)
-    expect(hazeShare(8, 0.6, 0)).toBe(0)
+  it("is the middle line's gain a pass and the damping on top of it", () => {
     expect(header).toContain(
-      'feed * kit::min(std::sqrt(kFeedShare * loss / kLineShare), kFeedMost)',
+      'const float exponent = -3.0f * length_[n] * size / (decay * sr);  // log10 of the gain',
     )
-    expect(header).toContain('back * back * kLineShare / loss')
+    expect(header).toContain('gain_to_[n] = std::pow(10.0f, exponent);')
+    expect(header).toContain('damping_[n].a = kit::min(kDampingSlope * exponent, kDampingMost);')
+    // By hand at Decay 6 s, Size 0.6: a pass of 79.1 ms loses 60 × 0.0791 / 6 = 0.791 dB,
+    // and the damping (pole 0.12) takes 0.001 dB more at 250 Hz: 6.0 s all but a hundredth.
+    expect(hazeFall(HAZE_BODY_HZ, 6, 0.6)).toBeGreaterThan(5.98)
+    expect(hazeFall(HAZE_BODY_HZ, 6, 0.6)).toBeLessThan(6)
   })
 
-  it("rings the first reverb by its loop's gain, held under Decay's", () => {
-    // `derive()`: the loop's gain is kBlurLoop × Blur, and no more than the gain
-    // that takes Decay to fall 60 dB over a trip (120.2 ms). Full Blur at a long
-    // Decay: 0.6, which alone is -3 × 0.1202 / log10(0.6) = 1.63 s, and 2.3 times
-    // that as measured. At Decay 0.5 s the gain is held to 0.19: 0.5 s, times 2.3.
-    expect(header).toContain(
-      'kit::min(kBlurLoop * param(kBlur), kit::rt60_gain(blur_seconds_ * sr, decay, sr))',
-    )
-    expect(hazeBlurSeconds(30, 1)).toBeCloseTo(HAZE_MEASURED.ring * 1.626, 2)
-    expect(hazeBlurSeconds(0.5, 1)).toBeCloseTo(HAZE_MEASURED.ring * 0.5, 6)
-    expect(hazeBlurSeconds(6, 0)).toBe(0)
-    expect(hazeBlurSeconds(6, 0.6)).toBeGreaterThan(hazeBlurSeconds(6, 0.3))
-  })
-
-  it('takes as long as the compiled device was measured to, within a quarter everywhere', () => {
-    let squares = 0
-    let within = 0
-    for (const [decay, size, feed, blur, tone, measured] of MEASURED) {
-      const drawn = hazeSeconds(decay, size, feed, blur, tone)
-      const off = Math.log(drawn / measured)
-      squares += off * off
-      if (Math.abs(off) < Math.log(1.1)) within += 1
-      expect(
-        Math.abs(off),
-        `Decay ${decay}, Size ${size}, Feed ${feed}, Blur ${blur}, Tone ${tone}: ${drawn.toFixed(2)} s drawn, ${measured} s measured`,
-      ).toBeLessThan(Math.log(1.28))
-    }
-    // A tenth off on the whole, and within a tenth for more than half of them.
-    expect(Math.sqrt(squares / MEASURED.length)).toBeLessThan(0.1)
-    expect(within / MEASURED.length).toBeGreaterThan(0.5)
-  })
-
-  it('takes as long as the wall alone does where nothing is fed back and nothing blurred', () => {
-    for (const [decay, size, feed, blur, tone, measured] of MEASURED) {
-      if (feed > 0 || blur > 0 || decay < 1) continue
-      expect(Math.abs(hazeSeconds(decay, size, feed, blur, tone) / measured - 1)).toBeLessThan(0.1)
-      expect(hazeSeconds(decay, size, feed, blur, tone)).toBeCloseTo(HAZE_MEASURED.wall * decay, 9)
-      expect(hazeWallSeconds(decay, size, feed, blur, tone)).toBeCloseTo(
-        HAZE_MEASURED.wall * decay,
-        9,
-      )
-    }
-  })
-
-  it('takes as long as haze.wasm does now', async () => {
+  it('takes as long as haze.wasm does about 250 Hz with nothing fed back and nothing blurred', async () => {
     const settings: Record<string, number>[] = [
-      { decay: 1, feed: 0, blur: 0 },
-      { decay: 2, feed: 0, blur: 1 },
-      { decay: 2, feed: 1, blur: 0.6 },
-      { decay: 4, feed: 0.5, blur: 0, tone: 1 },
-      {},
+      { decay: 1, size: 0.6 },
+      { decay: 2, size: 0 },
+      { decay: 4, size: 1 },
+      { decay: 6, size: 0.6, tone: 0 },
     ]
     for (const values of settings) {
-      const at = (name: string): number => values[name] ?? params[name].default
-      const drawn = hazeSeconds(at('decay'), at('size'), at('feed'), at('blur'), at('tone'))
-      const measured = await fallOf(values)
+      const drawn = hazeFall(HAZE_BODY_HZ, values.decay, values.size)
+      const measured = await fallOf({ ...values, feed: 0, blur: 0 }, HAZE_BODY_HZ)
       expect(
-        Math.abs(Math.log(drawn / measured)),
+        Math.abs(drawn / measured - 1),
         `${JSON.stringify(values)}: ${drawn.toFixed(2)} s drawn, ${measured.toFixed(2)} s from haze.wasm`,
-      ).toBeLessThan(Math.log(1.25))
+      ).toBeLessThan(0.08)
     }
   })
 
-  it('grows with Decay, with Feed and with Blur over the whole of each', () => {
-    for (let step = 0; step < 20; step++) {
-      const t = step / 20
-      const decay = 0.5 * Math.pow(60, t)
-      expect(hazeSeconds(decay * 1.2, 0.6, 0.25, 0.6, 0.5)).toBeGreaterThan(
-        hazeSeconds(decay, 0.6, 0.25, 0.6, 0.5),
-      )
-      expect(hazeSeconds(6, 0.6, t + 0.05, 0.6, 0.5)).toBeGreaterThan(
-        hazeSeconds(6, 0.6, t, 0.6, 0.5),
-      )
-      expect(hazeSeconds(2, 0.6, 0.25, t + 0.05, 0.5)).toBeGreaterThan(
-        hazeSeconds(2, 0.6, 0.25, t, 0.5),
-      )
+  it('and its highs as long as haze.wasm does about 3 kHz', async () => {
+    for (const decay of [2, 6]) {
+      const drawn = hazeFall(HAZE_HIGH_HZ, decay, 0.6)
+      const measured = await fallOf({ decay, size: 0.6, feed: 0, blur: 0, tone: 1 }, HAZE_HIGH_HZ)
+      expect(
+        Math.abs(drawn / measured - 1),
+        `Decay ${decay}: ${drawn.toFixed(2)} s drawn, ${measured.toFixed(2)} s from haze.wasm`,
+      ).toBeLessThan(0.1)
+    }
+  })
+
+  it('grows with Decay over the whole of it, and a Decay is found again from its fall', () => {
+    for (const size of [0, 0.6, 1]) {
+      let before = 0
+      for (let decay = 0.5; decay <= 30; decay *= 1.25) {
+        const seconds = hazeFall(HAZE_BODY_HZ, decay, size)
+        expect(seconds).toBeGreaterThan(before)
+        before = seconds
+        expect(hazeDecayFor(seconds, size, 0.5, 30)).toBeCloseTo(decay, 6)
+      }
+      expect(hazeDecayFor(0.01, size, 0.5, 30)).toBe(0.5)
+      expect(hazeDecayFor(500, size, 0.5, 30)).toBe(30)
     }
   })
 })
@@ -621,14 +601,9 @@ describe("what Haze's display draws", () => {
           // Between two pixels the drawn curve is straight: half a pixel of a steep stretch.
           expect(Math.abs(heightAt(bent.points, x) - y), `the curve at ${q}`).toBeLessThan(0.6)
         }
-        // The fall: from the wall's own level at the stop to 60 dB under it at the seconds it takes.
-        const seconds = hazeSeconds(
-          view.value('decay'),
-          view.value('size'),
-          view.value('feed'),
-          view.value('blur'),
-          view.value('tone'),
-        )
+        // The fall: from the wall's own level at the stop to 60 dB under it at the seconds
+        // the wall itself takes about 250 Hz, whatever Feed and Blur are.
+        const seconds = hazeFall(HAZE_BODY_HZ, view.value('decay'), view.value('size'))
         const [fromX, fromY] = hazeTailAt(tail, 0, 0)
         const [toX, toY] = hazeFallEnd(tail, seconds)
         const fall = ink.find(
@@ -660,20 +635,50 @@ describe("what Haze's display draws", () => {
     const [x, y] = hazeFallEnd(tail, 24)
     expect(x).toBe(tail.x + tail.w)
     expect(y).toBeCloseTo(hazeTailAt(tail, 12, -30)[1], 9)
-    // And back: the fall through a point is the one that ends there.
-    expect(hazeFallThrough(tail, x, y)).toBeCloseTo(24, 6)
-    expect(hazeFallThrough(tail, hazeTailAt(tail, 3, 0)[0], foot)).toBeCloseTo(3, 6)
-    expect(hazeFallThrough(tail, ...hazeTailAt(tail, 2, -20))).toBeCloseTo(6, 6)
+    // And back: the fall whose end is the point of the end's path nearest a hand.
+    expect(hazeFallNear(tail, x, y)).toBeCloseTo(24, 6)
+    expect(hazeFallNear(tail, hazeTailAt(tail, 3, 0)[0], foot)).toBeCloseTo(3, 6)
+    // A hand that strays up off the foot still has the end under it, across.
+    expect(hazeFallNear(tail, hazeTailAt(tail, 3, 0)[0], foot - 9)).toBeCloseTo(3, 6)
+    // And one that strays in from the right edge has it level with it.
+    expect(hazeFallNear(tail, x - 6, y)).toBeCloseTo(24, 6)
+    // Past the box on either side the end stops at the corner or the edge.
+    expect(hazeFallNear(tail, tail.x + tail.w + 40, foot + 30)).toBeCloseTo(12, 6)
+    expect(hazeFallNear(tail, tail.x - 30, foot + 5)).toBeCloseTo(0.01, 6)
+  })
+
+  it('draws the highs from where Tone puts them, falling as the damping has them', () => {
+    for (const tone of [0.5, 1]) {
+      const values = { tone, decay: 4 }
+      const view = viewOf(display, params, { values })
+      const { tail } = hazeBoxes(view)
+      const { strokes } = linesOf(drawDisplay(display, params, { values }))
+      const highDb = hazeToneDb(HAZE_HIGH_HZ, tone) - hazeToneDb(HAZE_BODY_HZ, tone)
+      const seconds = hazeFall(HAZE_HIGH_HZ, 4, view.value('size'))
+      const [fromX, fromY] = hazeTailAt(tail, 0, highDb)
+      const [toX, toY] = hazeTailAt(tail, (seconds * (highDb + 60)) / 60, -60)
+      const highs = strokes.find(
+        (stroke) =>
+          stroke.points.length === 2 &&
+          Math.abs(stroke.points[0][0] - fromX) < 0.01 &&
+          Math.abs(stroke.points[0][1] - fromY) < 0.01 &&
+          Math.abs(stroke.points[1][0] - toX) < 0.01 &&
+          Math.abs(stroke.points[1][1] - toY) < 0.01,
+      )
+      expect(highs, `the highs at Tone ${tone}`).toBeDefined()
+    }
   })
 
   it('writes the seconds of the fall', () => {
     const words = (values: Record<string, number>): string[] =>
       drawDisplay(display, params, { values }).words()
-    const at = (decay: number, feed: number): string =>
-      `${hazeSeconds(decay, params.size.default, feed, params.blur.default, params.tone.default).toFixed(1)} s`
-    expect(words({})).toContain(at(params.decay.default, params.feed.default))
-    expect(words({ decay: 2, feed: 1 })).toContain(at(2, 1))
-    expect(words({ decay: 30, feed: 0 })).toContain(at(30, 0))
+    const at = (decay: number): string =>
+      `${hazeFall(HAZE_BODY_HZ, decay, params.size.default).toFixed(1)} s`
+    expect(words({})).toContain(at(params.decay.default))
+    expect(words({})).toContain('6.0 s')
+    // The wall's own, with Feed up or not: no figure is claimed for what Feed adds.
+    expect(words({ decay: 2, feed: 1 })).toContain(at(2))
+    expect(words({ decay: 30, feed: 0 })).toContain(at(30))
   })
 })
 
@@ -713,13 +718,7 @@ describe("the handles of Haze's display", () => {
           Math.abs(heightAt(bent.points, haze.x) - haze.y),
           'the Haze point is on the curve',
         ).toBeLessThan(0.6)
-        const seconds = hazeSeconds(
-          view.value('decay'),
-          view.value('size'),
-          view.value('feed'),
-          view.value('blur'),
-          view.value('tone'),
-        )
+        const seconds = hazeFall(HAZE_BODY_HZ, view.value('decay'), view.value('size'))
         expect([decay.x, decay.y]).toEqual(hazeFallEnd(tail, seconds))
       }
     }
@@ -758,40 +757,46 @@ describe("the handles of Haze's display", () => {
     }
   })
 
-  it('set Decay to the value whose fall passes under the hand, whatever Feed and Blur add', () => {
+  it('set Decay to the value whose fall ends under the hand, along the foot and up the right edge', () => {
     for (const [width, height] of sizes) {
       const { tail } = hazeBoxes({ width, height })
       const foot = tail.y + tail.h
-      const others: Record<string, number>[] = [
-        {},
-        { feed: 1, blur: 1 },
-        { feed: 0, blur: 0, size: 0 },
-        { feed: 0.6, tone: 0 },
-      ]
+      const others: Record<string, number>[] = [{}, { feed: 1, blur: 1 }, { size: 0 }, { size: 1 }]
       for (const rest of others) {
-        const at = (name: string): number => rest[name] ?? params[name].default
-        const fallOfDecay = (decay: number): number =>
-          hazeSeconds(decay, at('size'), at('feed'), at('blur'), at('tone'))
-        for (const seconds of [3, 5, 8, 11]) {
-          // Along the foot: the fall ends where the hand is.
-          const [x] = hazeTailAt(tail, seconds, 0)
-          const set = handlesAt({ ...rest, decay: 1 }, width, height).decay.drag(x, foot)
-          expect(Object.keys(set)).toEqual(['decay'])
-          if (fallOfDecay(params.decay.min) < seconds && fallOfDecay(params.decay.max) > seconds) {
-            expect(fallOfDecay(set.decay)).toBeCloseTo(seconds, 3)
+        const size = rest.size ?? params.size.default
+        const fallOfDecay = (decay: number): number => hazeFall(HAZE_BODY_HZ, decay, size)
+        for (const seconds of [1, 3, 5, 8, 11]) {
+          // Along the foot, and with the hand strayed up off it: the fall ends under the hand.
+          for (const stray of [0, 4, 11]) {
+            const [x] = hazeTailAt(tail, seconds, 0)
+            // (Nearer the right edge than the foot, the end is on the edge: not this hand.)
+            if (stray > tail.x + tail.w - x - 0.5) continue
+            const set = handlesAt({ ...rest, decay: 1.3 }, width, height).decay.drag(
+              x,
+              foot - stray,
+            )
+            expect(Object.keys(set)).toEqual(['decay'])
+            expect(fallOfDecay(set.decay)).toBeCloseTo(seconds, 6)
             const moved = handlesAt({ ...rest, decay: set.decay }, width, height).decay
-            expect(moved.x).toBeCloseTo(x, 2)
+            expect(moved.x).toBeCloseTo(x, 6)
             expect(moved.y).toBeCloseTo(foot, 6)
           }
         }
-        // On the right edge: a fall longer than the picture, taken where it leaves it.
-        const [edgeX, edgeY] = hazeTailAt(tail, 12, -40)
-        const long = handlesAt({ ...rest, decay: 1 }, width, height).decay.drag(edgeX, edgeY).decay
-        if (fallOfDecay(params.decay.max) > 18) {
-          expect(fallOfDecay(long)).toBeCloseTo(18, 3)
-          const moved = handlesAt({ ...rest, decay: long }, width, height).decay
-          expect(moved.x).toBeCloseTo(edgeX, 6)
-          expect(moved.y).toBeCloseTo(edgeY, 2)
+        // On the right edge, and strayed in from it: a fall longer than the picture, ending level with the hand.
+        for (const seconds of [14, 18, 26]) {
+          for (const stray of [0, 3, 8]) {
+            const [edgeX, edgeY] = hazeFallEnd(tail, seconds)
+            // (Nearer the foot than the edge, the end is on the foot: not this hand.)
+            if (stray > foot - edgeY - 0.5) continue
+            const long = handlesAt({ ...rest, decay: 1.3 }, width, height).decay.drag(
+              edgeX - stray,
+              edgeY,
+            ).decay
+            expect(fallOfDecay(long)).toBeCloseTo(seconds, 6)
+            const moved = handlesAt({ ...rest, decay: long }, width, height).decay
+            expect(moved.x).toBeCloseTo(edgeX, 6)
+            expect(moved.y).toBeCloseTo(edgeY, 6)
+          }
         }
       }
       // Past what Decay can do it stops at its ends.
@@ -799,17 +804,16 @@ describe("the handles of Haze's display", () => {
       expect(handlesAt({}, width, height).decay.drag(tail.x + tail.w, tail.y).decay).toBe(
         params.decay.max,
       )
+      expect(handlesAt({}, width, height).decay.drag(tail.x - 50, foot + 20).decay).toBe(
+        params.decay.min,
+      )
     }
   })
 
-  it('solve Decay for a fall', () => {
-    const rest = { size: 0.6, feed: 0.5, blur: 0.6, tone: 0.5 }
-    for (const decay of [0.7, 2, 6, 19]) {
-      const seconds = hazeSeconds(decay, rest.size, rest.feed, rest.blur, rest.tone)
-      expect(hazeDecayFor(seconds, rest, 0.5, 30)).toBeCloseTo(decay, 4)
-    }
-    expect(hazeDecayFor(0.01, rest, 0.5, 30)).toBe(0.5)
-    expect(hazeDecayFor(500, rest, 0.5, 30)).toBe(30)
+  it('leave a handle where it is when the hand has not moved', () => {
+    const { haze, decay } = handlesAt({ haze: 0.37, decay: 7.3 })
+    expect(haze.drag(haze.x, haze.y)).toEqual({ haze: 0.37 })
+    expect(decay.drag(decay.x, decay.y)).toEqual({ decay: 7.3 })
   })
 
   it('go back to the defaults when asked', () => {
@@ -824,43 +828,57 @@ describe("the handles of Haze's display", () => {
 describe("the live marks of Haze's display", () => {
   const accentOf = (
     drawn: RecordingContext,
-  ): { strokes: Stroke[]; dots: { x: number; y: number }[] } => {
+  ): { strokes: Stroke[]; dots: { x: number; y: number }[]; now: { x: number; y: number }[] } => {
     const { strokes, circles } = linesOf(drawn)
     return {
       strokes: strokes.filter((stroke) => stroke.colour === PLAIN_COLOURS.accent),
       dots: circles.filter((circle) => circle.r === 2.5),
+      now: circles.filter((circle) => circle.r === 2),
     }
   }
 
   it('reads the push and the wall from the device, which reports what its header says', async () => {
-    // `process()`: push = drive × level / (level + kFloor), the level a sine's
-    // peak; the wall is the peak that leaves before Mix. A 220 Hz sine at 0.25
-    // with nothing blurred: the level is 0.25 (the 5 kHz low-pass before the
-    // fuzz takes a thousandth), so the push is 0.9615 of the drive.
+    // `render()`: push = the drive in use × level / (level + kFloor), the level
+    // a sine's peak; the wall is the peak that leaves before Mix. A 220 Hz sine
+    // at 0.25 with nothing blurred: the level is 0.25 (the 5 kHz low-pass
+    // before the fuzz takes a thousandth).
     for (const haze of [0, 0.55, 1]) {
       const device = await deviceAt({ haze, blur: 0, mix: 1 })
       const peak = device.feedTone(1.5, 220, 0.25, 1.4)
       const push = device.device.device_meter?.(0) ?? Number.NaN
       const wall = device.device.device_meter?.(1) ?? Number.NaN
-      expect(push / hazeDrive(haze), `the push at Haze ${haze}`).toBeGreaterThan(0.94)
-      expect(push / hazeDrive(haze), `the push at Haze ${haze}`).toBeLessThan(0.98)
+      expect(push / hazePush(haze, 0.25), `the push at Haze ${haze}`).toBeGreaterThan(0.97)
+      expect(push / hazePush(haze, 0.25), `the push at Haze ${haze}`).toBeLessThan(1.03)
       // The wall's meter is its peak over the last tenth of a second; Mix is at 1, so that is what left.
       expect(wall).toBeGreaterThan(0)
       expect(Math.abs(gainToDb(wall) - gainToDb(peak))).toBeLessThan(1.5)
 
-      // Drawn: the dots stand on the curve where the peaks reach, 0.96 of the way out.
+      // Drawn: the dots stand at the ends of the curve this level is on, 0.96 of the way out.
       const values = { haze, blur: 0, mix: 1 }
       const view = viewOf(display, params, { values, width: 224, height: 48 })
       const { curve, tail } = hazeBoxes(view)
       const lit = accentOf(
         drawDisplay(display, params, { values, width: 224, height: 48, meters: { push, wall } }),
       )
-      const reach = push / hazeDrive(haze)
+      const level = hazeLevelOf(push, haze)
+      const reach = level / (level + HAZE.floor)
+      expect(reach).toBeGreaterThan(0.95)
+      expect(reach).toBeLessThan(0.975)
       expect(lit.dots).toHaveLength(2)
       for (const [n, side] of [-1, 1].entries()) {
-        const [x, y] = hazeCurveAt(curve, side * reach, haze, view.value('octave'))
+        const [x, y] = hazeNowAt(curve, side * reach, haze, view.value('octave'), level)
         expect(lit.dots[n].x).toBeCloseTo(x, 6)
         expect(lit.dots[n].y).toBeCloseTo(y, 6)
+      }
+      // A sound at a quarter of full scale is on a straighter curve than the ink one.
+      if (haze > 0) {
+        const octave = view.value('octave')
+        const ink = hazeBendAt(hazeDriveAt(haze, 1), octave)
+        const now = hazeBendAt(hazeDriveAt(haze, level), octave)
+        expect(now(0.25) / now(1)).toBeLessThan(ink(0.25) / ink(1) - 0.01)
+        expect(hazeNowAt(curve, 0.25, haze, octave, level)[1]).toBeGreaterThan(
+          hazeCurveAt(curve, 0.25, haze, octave)[1],
+        )
       }
       // And the wall is lit from its level now, falling as the wall falls.
       const [x0, y0] = hazeTailAt(tail, 0, gainToDb(wall))
@@ -878,13 +896,7 @@ describe("the live marks of Haze's display", () => {
     const values = { mix: 0.45, decay: 6 }
     const view = viewOf(display, params, { values, width: 224, height: 48 })
     const { tail } = hazeBoxes(view)
-    const seconds = hazeSeconds(
-      6,
-      view.value('size'),
-      view.value('feed'),
-      view.value('blur'),
-      view.value('tone'),
-    )
+    const seconds = hazeFall(HAZE_BODY_HZ, 6, view.value('size'))
     const wet = hazeWetDb(0.45)
     // kit::equal_power: the wet gain is the sine of a quarter turn of Mix.
     expect(wet).toBeCloseTo(20 * Math.log10(Math.sin((Math.PI / 2) * 0.45)), 9)
@@ -906,6 +918,8 @@ describe("the live marks of Haze's display", () => {
     const [endX, endY] = hazeTailAt(tail, (seconds * (level + 60)) / 60, -60)
     expect(wedge.points[1][0]).toBeCloseTo(endX, 6)
     expect(wedge.points[1][1]).toBeCloseTo(endY, 6)
+    // A still picture has no past: no point for "now" on the way down.
+    expect(lit.now).toEqual([])
   })
 
   it('lights nothing in silence, switched off, or with Mix at nothing', () => {
@@ -913,6 +927,7 @@ describe("the live marks of Haze's display", () => {
       const lit = accentOf(drawDisplay(display, params, options))
       expect(lit.strokes).toEqual([])
       expect(lit.dots).toEqual([])
+      expect(lit.now).toEqual([])
     }
     none({ meters: { push: 0, wall: 0 } })
     none({ meters: { push: 1.2, wall: 0.5 }, powered: false })
@@ -940,5 +955,93 @@ describe("the live marks of Haze's display", () => {
     // The sound stops: the marks are still falling a tenth of a second on, and gone in two seconds.
     expect(dots(0.4)).toBe(2)
     expect(dots(2.5)).toBe(0)
+  })
+
+  it('keeps the wall as it reads on the way down: one point while it stands, a level every step once it falls', () => {
+    const state = { past: [] as number[], clock: 0, top: Number.NEGATIVE_INFINITY }
+    const frame = 1 / 30
+    // Standing at its height, a little up and down: one point at 0 s.
+    for (const db of [-12, -11.4, -12.3, -11.8, -12.6]) hazeTrace(state, db, frame)
+    expect(state.past).toEqual([-12.6])
+    expect(state.clock).toBe(0)
+    expect(state.top).toBe(-11.4)
+    // Falling 6 dB a second for four seconds: the level at every step since it left its height.
+    let db = -12.6
+    for (let n = 0; n < 120; n++) {
+      db -= 6 * frame
+      hazeTrace(state, db, frame)
+    }
+    expect(state.clock).toBeGreaterThan(3.9)
+    expect(state.past.length).toBe(Math.floor(state.clock / HAZE_STEP) + 1)
+    for (let k = 1; k < state.past.length; k++) {
+      // The level put down at step k is the level a frame at most after k steps of the fall.
+      const since = state.past[0] - state.past[k]
+      expect(since).toBeGreaterThan(6 * k * HAZE_STEP - 0.01)
+      expect(since).toBeLessThan(6 * (k * HAZE_STEP + frame) + 0.01)
+    }
+    // New playing: a rise of 3 dB begins it again at 0 s, from the new level.
+    hazeTrace(state, db + 5, frame)
+    expect(state.past).toEqual([db + 5])
+    expect(state.clock).toBe(0)
+    expect(state.top).toBe(db + 5)
+    // A level that stops falling (a held sound, softer than before) is no fall: again from there.
+    for (let n = 0; n < 20; n++) hazeTrace(state, (db -= 0.4), frame)
+    expect(state.past.length).toBeGreaterThan(1)
+    for (let n = 0; n < 60; n++) hazeTrace(state, db, frame)
+    expect(state.past).toEqual([db])
+    expect(state.clock).toBe(0)
+    // Under the quiet line nothing is kept.
+    hazeTrace(state, -70, frame)
+    expect(state.past).toEqual([])
+    hazeTrace(state, Number.NEGATIVE_INFINITY, frame)
+    expect(state.past).toEqual([])
+    expect(state.top).toBe(Number.NEGATIVE_INFINITY)
+  })
+
+  it("draws that past in the second ink, and from now on down at the wall's own rate", () => {
+    // The wall stands for a second, then falls 5 dB a second: half as fast as
+    // the wall's own 6 s would have it, as it does with Feed up.
+    const values = { mix: 1, decay: 6 }
+    const view = viewOf(display, params, { values, width: 224, height: 48 })
+    const { tail } = hazeBoxes(view)
+    const own = hazeFall(HAZE_BODY_HZ, 6, view.value('size'))
+    const top = gainToDb(0.5)
+    const wallAt = (time: number): number => 0.5 * Math.pow(10, (-5 * Math.max(0, time - 1)) / 20)
+    const drawn = accentOf(
+      runDisplay(display, params, 5, { values, width: 224, height: 48 }, (time) => ({
+        meters: { push: 1.4, wall: wallAt(time) },
+      })),
+    )
+    const lit = found(
+      drawn.strokes.find((stroke) => stroke.width === 1.5),
+      'the lit fall',
+    )
+    // It began when the wall had left its height by 1.5 dB (0.3 s into the fall), so 3.7 s are kept.
+    const now = found(drawn.now[0], 'the point for now')
+    const [nowX] = hazeTailAt(tail, 3.7, 0)
+    expect(Math.abs(now.x - nowX)).toBeLessThan(tail.w / 60)
+    // Each second of it stands where the level was read: 5 dB lower each, not the wall's own 10.
+    const dbPerPx = 70 / tail.h
+    for (const seconds of [1, 2, 3]) {
+      const [x, y] = hazeTailAt(tail, seconds, top - 1.5 - 5 * seconds)
+      expect(
+        Math.abs(heightAt(lit.points, x) - y) * dbPerPx,
+        `${seconds} s into the fall`,
+      ).toBeLessThan(1)
+    }
+    // From now on down: straight to the foot at the wall's own rate.
+    const end = lit.points[lit.points.length - 1]
+    const level = top - 5 * 4
+    const [endX, endY] = hazeTailAt(tail, 3.7 + (own * (level + 60)) / 60, -60)
+    expect(end[1]).toBeCloseTo(endY, 6)
+    expect(Math.abs(end[0] - endX)).toBeLessThan(tail.w / 40)
+    // Nothing of it is left once the wall is silent.
+    const after = accentOf(
+      runDisplay(display, params, 6, { values, width: 224, height: 48 }, (time) => ({
+        meters: time < 5 ? { push: 1.4, wall: wallAt(time) } : { push: 0, wall: 0 },
+      })),
+    )
+    expect(after.strokes.filter((stroke) => stroke.width === 1.5)).toEqual([])
+    expect(after.now).toEqual([])
   })
 })
