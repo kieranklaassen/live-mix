@@ -78,6 +78,7 @@ export const PLATE_PALETTES = {
   tremolo: { plate: '#165a8f', ink: '#f2f9ff', accent: '#ffd75e' },
   falling: { plate: '#404b6b', ink: '#f3efe6', accent: '#ffa25c' },
   glints: { plate: '#0b6b3a', ink: '#e4f6ea', accent: '#ffe07a' },
+  melt: { plate: '#b5642a', ink: '#2a1204', accent: '#fff0c9' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

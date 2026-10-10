@@ -1822,6 +1822,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
   falling: { ...PLATE_PALETTES.falling, finish: 'speckle', cap: 'dot' },
   glints: { ...PLATE_PALETTES.glints, finish: 'gloss', cap: 'dot' },
+  melt: { ...PLATE_PALETTES.melt, finish: 'gloss', cap: 'dot' },
 }
 
 /**
