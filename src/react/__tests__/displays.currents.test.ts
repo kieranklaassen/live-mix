@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { CURRENTS_PARAMS } from '../../dsp/devices/currents.gen'
+import { CURRENTS_DESCRIPTOR, CURRENTS_PARAMS } from '../../dsp/devices/currents.gen'
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { type ParamSpec } from '../../core/params'
 import { INK, PLAIN_COLOURS } from '../components/display-kit'
@@ -915,5 +915,142 @@ describe('the Currents display, second check', () => {
       expect(full - still).toBeGreaterThanOrEqual(23.9)
       expect(full).toBeLessThanOrEqual(height - 4)
     }
+  })
+})
+
+describe('the Currents presets, second check', () => {
+  const presets = CURRENTS_DESCRIPTOR.presets ?? {}
+  const preset = (name: string): Values => {
+    const values = presets[name]
+    if (!values) throw new Error(`no preset ${name}`)
+    return values as Values
+  }
+  /** `seconds` of `input` through the device on `values`, 128 samples at a time: what `each` makes of every block. */
+  async function through(
+    values: Values,
+    seconds: number,
+    input: (sample: number) => number,
+    each: (dry: Float32Array, left: Float32Array, right: Float32Array) => void,
+  ): Promise<void> {
+    const device = await loadWasmDevice('currents', RATE)
+    set(device, values)
+    const dry = new Float32Array(128)
+    const blocks = Math.floor((seconds * RATE) / 128)
+    for (let n = 0; n < blocks; n++) {
+      for (let i = 0; i < 128; i++) dry[i] = input(n * 128 + i)
+      device.processBlock(dry)
+      each(
+        dry,
+        device.view(device.device.device_out_left(), 128),
+        device.view(device.device.device_out_right(), 128),
+      )
+    }
+  }
+  const between = (values: number[], low: number, high: number): number => {
+    const sorted = [...values].sort((a, b) => a - b)
+    const at = (share: number): number => sorted[Math.round(share * (sorted.length - 1))]
+    return at(high) - at(low)
+  }
+
+  it('never chops a held tone at the fastest band, nor turns it over', async () => {
+    // As first tuned "Flutter" took a tone at the top band from 1.67 of its level to under none of
+    // it (turned over) inside 16 ms, twelve times a second: a held 6.4 kHz tone lost 42 % of its
+    // power to sidebands. The level here is the output against the input, a block at a time.
+    const w = (TWO_PI * kTopHz) / RATE
+    for (const name of Object.keys(presets)) {
+      const levels: number[] = []
+      await through(
+        preset(name),
+        4,
+        (sample) => 0.25 * Math.sin(w * sample),
+        (dry, left, right) => {
+          let out = 0
+          let power = 0
+          for (let i = 0; i < 128; i++) {
+            out += (left[i] + right[i]) * dry[i]
+            power += 2 * dry[i] * dry[i]
+          }
+          levels.push(out / power)
+        },
+      )
+      let fall = 0
+      for (let n = 40; n + 6 < levels.length; n++) fall = Math.max(fall, levels[n] - levels[n + 6])
+      expect(fall, `${name}: the largest fall inside 16 ms`).toBeLessThan(0.8)
+      expect(Math.min(...levels.slice(40)), `${name}: the lowest level`).toBeGreaterThan(0)
+    }
+  })
+
+  it('"Ripples" moves a note that falls between two of its bands', async () => {
+    // As first tuned (Focus 0.6, Depth 0.5) such a note moved 2.4 dB in level and 3.6 dB from side to side.
+    const values = preset('Ripples')
+    const hz = Math.sqrt(centreHz(120, 6, 1) * centreHz(120, 6, 2))
+    const w = (TWO_PI * hz) / RATE
+    const level: number[] = []
+    const side: number[] = []
+    let left = 0
+    let right = 0
+    let dry = 0
+    let blocks = 0
+    await through(
+      values,
+      16,
+      (sample) => 0.25 * Math.sin(w * sample),
+      (input, outLeft, outRight) => {
+        for (let i = 0; i < 128; i++) {
+          left += outLeft[i] * outLeft[i]
+          right += outRight[i] * outRight[i]
+          dry += input[i] * input[i]
+        }
+        blocks += 1
+        if (blocks % 8 !== 0) return
+        // The first second is the device settling.
+        if (blocks * 128 > RATE) {
+          level.push(10 * Math.log10((left + right) / (2 * dry)))
+          side.push(10 * Math.log10(left / right))
+        }
+        left = right = dry = 0
+      },
+    )
+    expect(between(level, 0.05, 0.95)).toBeGreaterThan(4.5)
+    expect(between(side, 0.05, 0.95)).toBeGreaterThan(6)
+  })
+
+  it('"Undertow" does not take a dense sound down out of hearing', async () => {
+    // As first tuned (Depth 0.9, four bands from 20 Hz) two dozen notes fell 14.5 dB at the worst moment of 200 s.
+    const tones = Array.from({ length: 24 }, (_, k) => ({
+      w: (TWO_PI * 80 * Math.pow(2, k / 4)) / RATE,
+      phase: k * 1.7,
+    }))
+    let out = 0
+    let dry = 0
+    let blocks = 0
+    let lowest = Infinity
+    let highest = -Infinity
+    await through(
+      preset('Undertow'),
+      200,
+      (sample) => {
+        let sum = 0
+        for (const tone of tones) sum += Math.sin(tone.w * sample + tone.phase)
+        return 0.03 * sum
+      },
+      (input, left, right) => {
+        for (let i = 0; i < 128; i++) {
+          out += left[i] * left[i] + right[i] * right[i]
+          dry += 2 * input[i] * input[i]
+        }
+        blocks += 1
+        // A quarter of a second at a time, after the first second.
+        if (blocks % 94 !== 0) return
+        if (blocks * 128 > RATE) {
+          const db = 10 * Math.log10(out / dry)
+          lowest = Math.min(lowest, db)
+          highest = Math.max(highest, db)
+        }
+        out = dry = 0
+      },
+    )
+    expect(lowest).toBeGreaterThan(-9)
+    expect(highest).toBeLessThan(3.2)
   })
 })
