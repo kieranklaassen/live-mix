@@ -26,6 +26,8 @@ import {
   metresOf,
   metresText,
   placeOfMetres,
+  fallOf,
+  lateGain,
   reflections,
   roomLevel,
   roomWidth,
@@ -65,7 +67,12 @@ const K = {
   kCeilingSlope: 0.3,
   kRoomLevelSmall: 0.5,
   kRoomLevelLarge: 0.25,
+  kFall: 0.35,
   kEarlyPower: 0.5,
+  // What the room is made up by for the low cut on its way in (not drawn: the haze is the room's
+  // level with pink noise in it, which the make-up restores).
+  kSendMakeup: 1.0639,
+  kSendCutHz: 40,
   kImageAcross: [0, 0, -1.14, 0.86, -1.14, 0.86, -2, 2.86],
   kImageUp: [1, 2, 0, 0, 2, 1, 0, 0],
   kImageKeeps: [0.35, 0.7, 0.7, 0.7, 0.49, 0.245, 0.49, 0.343],
@@ -253,6 +260,7 @@ describe("the display's arithmetic is the device's", () => {
     expect(DISTANCE.ceilingSlope).toBe(K.kCeilingSlope)
     expect(DISTANCE.roomLevelSmall).toBe(K.kRoomLevelSmall)
     expect(DISTANCE.roomLevelLarge).toBe(K.kRoomLevelLarge)
+    expect(DISTANCE.fall).toBe(K.kFall)
     expect(DISTANCE.earlyPower).toBe(K.kEarlyPower)
     expect([...DISTANCE.imageAcross]).toEqual([...K.kImageAcross])
     expect([...DISTANCE.imageUp]).toEqual([...K.kImageUp])
@@ -409,11 +417,16 @@ describe('what the display draws is what the compiled device does', () => {
         if (when > 0) expect(Math.abs(out.left[when - 1])).toBeLessThan(1e-6)
       }
     }
-    // With no Level it is the inverse of the distance, and with all of it louder by what was lost.
+    // With no Level it is the inverse of the distance and the fall of the whole on top (8^-1.35),
+    // with all of it louder by what was lost, and half way the fall is half given back.
     expect(sceneOf(0.6, { room: 0.5, air: 0, level: 0, width: 0.5 }, RATE).direct).toBeCloseTo(
-      1 / 8,
+      Math.pow(8, -1.35),
       12,
     )
+    expect(fallOf(0.6)).toBeCloseTo(Math.pow(8, -0.35), 12)
+    const half = sceneOf(0.6, { room: 0.5, air: 0, level: 0.5, width: 0.5 }, RATE)
+    const whole = sceneOf(0.6, { room: 0.5, air: 0, level: 1, width: 0.5 }, RATE)
+    expect(half.lift).toBeCloseTo(Math.sqrt(whole.lift * fallOf(0.6)), 12)
     expect(sceneOf(0.6, { room: 0.5, air: 0, level: 1, width: 0.5 }, RATE).lift).toBeGreaterThan(2)
   })
 
@@ -496,15 +509,22 @@ describe('what the display draws is what the compiled device does', () => {
     ]) {
       const set = { room, air: 0, level: 0.5, width }
       const scene = sceneOf(place, set, RATE)
-      const out = await answer({ ...still, distance: place, ...set }, 8192)
+      // The diffuse room answers from the right wall's reflection on, each side of it to its own
+      // side of the input; the reflections are of the middle. So the same sample on both sides and
+      // then one on the left with its opposite on the right give the reflections alone: the left
+      // of the first less the left of the second, the right of the first and of the second.
+      const same = await answer({ ...still, distance: place, ...set }, 8192)
+      const opposite = await answer({ ...still, distance: place, ...set }, 8192, 1, -1)
+      const leftAt = (n: number): number => same.left[n] - opposite.left[n]
+      const rightAt = (n: number): number => same.right[n] + opposite.right[n]
       const when = arrival(place)
-      // The four that answer before the diffuse room can: floor, ceiling, right wall, right wall and floor.
-      for (const k of [0, 1, 3, 5]) {
+      // Floor, ceiling, left wall, right wall, right wall and floor.
+      for (const k of [0, 1, 2, 3, 5]) {
         const tap = scene.early[k]
         const lag = Math.floor(lagOf(place, tap.path))
         // It lands between two samples and is shared between them.
-        const left = out.left[when + lag] + out.left[when + lag + 1]
-        const right = out.right[when + lag] + out.right[when + lag + 1]
+        const left = leftAt(when + lag) + leftAt(when + lag + 1)
+        const right = rightAt(when + lag) + rightAt(when + lag + 1)
         const what = `at ${place} in room ${room}, reflection ${k}`
         expect(Math.hypot(left, right), what).toBeCloseTo(tap.gain, 4)
         expect((right * right - left * left) / (right * right + left * left), what).toBeCloseTo(
@@ -512,9 +532,56 @@ describe('what the display draws is what the compiled device does', () => {
           3,
         )
         // Nothing just before it.
-        expect(Math.abs(out.left[when + lag - 2]), what).toBeLessThan(1e-6)
+        expect(Math.abs(leftAt(when + lag - 2)), what).toBeLessThan(1e-6)
       }
     }
+  })
+
+  it('the haze: the diffuse room is as loud as the display has it, in every room, at every Level', async () => {
+    // A tone on the left with its opposite on the right has no middle, so there are no
+    // reflections in it; far away with Width 1 next to nothing of it is left in the direct sound
+    // (the sides are closed to atan(1/d)); what comes out is the diffuse room. The room is an
+    // allpass, so once the tone is held it comes out as loud as the room's gain: the display's
+    // level, the make-up for the low cut, and what the cut leaves at the tone.
+    const hz = 500
+    const cut = hz / Math.hypot(hz, K.kSendCutHz)
+    for (const place of [0.8, 1]) {
+      for (const room of [0, 0.5, 1]) {
+        for (const level of [0, 0.5, 1]) {
+          const set = { room, air: 0, level, width: 1 }
+          const scene = sceneOf(place, set, RATE)
+          const h = await loadWasmDevice('distance')
+          const settings: Settings = { ...still, distance: place, decay: 0.3, ...set }
+          for (const [name, value] of Object.entries(settings)) h.set(P[name as keyof typeof P], value)
+          let power = 0
+          let counted = 0
+          for (let block = 0; block < 900; block++) {
+            const left = new Float32Array(128)
+            const right = new Float32Array(128)
+            for (let n = 0; n < 128; n++) {
+              left[n] = 0.25 * Math.sin((2 * Math.PI * hz * (block * 128 + n)) / RATE)
+              right[n] = -left[n]
+            }
+            h.processBlock(left, right)
+            if (block < 600) continue
+            const out = h.view(h.device.device_out_left(), 128)
+            for (let n = 0; n < 128; n++) power += out[n] * out[n]
+            counted += 128
+          }
+          const heard = Math.sqrt(power / counted) / (0.25 * Math.SQRT1_2)
+          const what = `at ${place} in room ${room}, Level ${level}`
+          expect(heard / (K.kSendMakeup * cut * scene.room), what).toBeGreaterThan(0.97)
+          expect(heard / (K.kSendMakeup * cut * scene.room), what).toBeLessThan(1.03)
+        }
+      }
+    }
+    // The room has its level, its share of the sound (none at 1 m) and nothing else in it.
+    expect(lateGain(0, 0.5)).toBe(0)
+    expect(lateGain(0.6, 0.5)).toBeCloseTo(0.5 * Math.sqrt(0.5) * (1 - 1 / 8), 12)
+    expect(sceneOf(0.6, { room: 0.5, air: 0, level: 0, width: 0.5 }, RATE).room).toBeCloseTo(
+      lateGain(0.6, 0.5) * fallOf(0.6),
+      12,
+    )
   })
 
   const meter = (h: Awaited<ReturnType<typeof loadWasmDevice>>, name: keyof typeof M): number =>
@@ -650,9 +717,10 @@ describe('the picture of Distance', () => {
       // At 1 m it is as loud as it came in: the largest there is.
       expect(sized(0, 0)).toBeCloseTo(layout.full, 12)
       expect(layout.full).toBeGreaterThanOrEqual(3.5)
-      // With no Level it loses 6 dB a doubling: so much of the way to the floor.
+      // With no Level it loses 6 dB a doubling against the room and 2.1 dB more for the fall of
+      // the whole: so much of the way to the floor.
       for (const place of [0.2, 0.4, 0.6, 0.8, 1]) {
-        const db = -20 * Math.log10(Math.pow(32, place))
+        const db = -20 * (1 + K.kFall) * Math.log10(Math.pow(32, place))
         const share = Math.max(0, 1 - db / SIZE_FLOOR_DB)
         expect(sized(place, 0)).toBeCloseTo(layout.least + (layout.full - layout.least) * share, 6)
       }
@@ -761,12 +829,12 @@ describe('the picture of Distance', () => {
     expect(waiting).toEqual([wide.early[6], wide.early[7]])
   })
 
-  it('has the room grow as the source recedes, from nothing at 1 m', () => {
+  it('has the room gain on the direct sound as the source recedes, from nothing at 1 m', () => {
     const layout = layoutOf({ width: 184, height: 48 })
     const close = marksOf(draw({ ...at(0) }))
     expect(close.early).toHaveLength(0)
     expect(close.haze).toHaveLength(0)
-    let last = 0
+    let last = -Infinity
     const early: number[] = []
     for (const place of [0.1, 0.3, 0.5, 0.7, 0.9]) {
       const set = { room: 0.5, air: 0.5, level: 0.5, width: 0.5 }
@@ -783,11 +851,31 @@ describe('the picture of Distance', () => {
         ROOM_HAZE * (layout.least + (layout.full - layout.least) * share),
         9,
       )
-      expect(marks.haze[0].r).toBeGreaterThan(last)
-      last = marks.haze[0].r
-      early.push(marks.early.reduce((total, dot) => total + dot.r * dot.r, 0))
+      // Against the dot it grows with every step (by itself it does not: at this Level the whole
+      // gets quieter on the way out, and the haze with it).
+      const against = marks.haze[0].r / ROOM_HAZE - marks.dots[0].r
+      expect(against).toBeGreaterThan(last)
+      expect(scene.room / scene.direct).toBeCloseTo(
+        0.5 * Math.pow(0.5, 0.5) * (Math.pow(32, place) - 1),
+        9,
+      )
+      last = against
+      early.push(
+        marks.early.reduce((total, dot) => total + dot.r * dot.r, 0) /
+          (marks.dots[0].r * marks.dots[0].r),
+      )
     }
-    // The reflections: more ink far away than close by.
+    // With the loudness held the haze itself grows on the way out, up to the size of a sound as
+    // loud as it came in, and never shrinks.
+    const held = [0.1, 0.3, 0.5, 0.7, 0.9].map(
+      (place) =>
+        marksOf(draw({ values: { room: 0.5, air: 0, level: 1, width: 0.5 }, ...at(place) })).haze[0]
+          .r,
+    )
+    for (let n = 1; n < held.length; n++) expect(held[n]).toBeGreaterThan(held[n - 1])
+    expect(held[4]).toBeLessThanOrEqual(ROOM_HAZE * layout.full)
+    // The reflections: more ink against the dot's with every step away.
+    for (let n = 1; n < early.length; n++) expect(early[n]).toBeGreaterThan(early[n - 1])
     expect(early[4]).toBeGreaterThan(early[0] * 1.5)
   })
 
