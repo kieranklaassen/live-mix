@@ -2,7 +2,7 @@
   "id": "bowls",
   "name": "Bowls",
   "category": "reverb",
-  "description": "A table of metal singing bowls tuned to a key: play in the key and the bowls you touch ring on after you, each with its own slow beat and its place between the sides.",
+  "description": "A table of metal singing bowls tuned to a key: play in the key and the bowls you touch sing with you and ring on after, each with its own slow beat and its place between the sides.",
   "class": "Bowls",
   "header": "bowls.h",
   "sources": [],
@@ -87,7 +87,7 @@
       "default": 10,
       "taper": "log",
       "unit": "s",
-      "description": "How long a bowl rings after the sound that touched it. Long rings also answer a held note more narrowly in pitch."
+      "description": "How long a bowl rings after the sound that touched it. Under a few seconds the low bowls tell a note from its neighbour less well."
     },
     {
       "key": "beat",
@@ -102,8 +102,8 @@
       "name": "Strike",
       "min": 0,
       "max": 1,
-      "default": 0.4,
-      "description": "How easily the sound sets the bowls off. Low answers only notes held on a bowl's pitch; high lets every attack strike the bowls near it."
+      "default": 0.5,
+      "description": "How hard the playing drives the bowls. Low is a quiet answer to notes on a bowl's pitch; high rings them louder and lets every attack strike the bowls near it."
     },
     {
       "key": "metal",
@@ -111,7 +111,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials of a bowl struck hard."
+      "description": "The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials, strongest when a bowl is struck."
     },
     {
       "key": "spread",
@@ -134,13 +134,13 @@
     "Bowl table": {},
     "Faint halo": {
       "mix": 0.15,
-      "strike": 0.25,
+      "strike": 0.3,
       "ring": 8,
       "metal": 0.35
     },
     "Bowls alone": {
       "mix": 1,
-      "strike": 0.6,
+      "strike": 0.8,
       "ring": 12
     },
     "Low fifths": {
@@ -150,9 +150,8 @@
       "register": 0.3,
       "ring": 30,
       "beat": 0.3,
-      "strike": 0.5,
       "metal": 0.25,
-      "mix": 0.45
+      "mix": 0.4
     },
     "Small bright set": {
       "bowls": 10,
@@ -168,17 +167,16 @@
       "register": 0.4,
       "ring": 3,
       "strike": 1,
-      "metal": 0.9,
-      "mix": 0.4
+      "metal": 0.9
     },
     "Long ring": {
       "root": 9,
       "scale": 1,
       "ring": 40,
       "beat": 0.25,
-      "strike": 0.3,
+      "strike": 0.4,
       "metal": 0.35,
-      "mix": 0.45
+      "mix": 0.4
     },
     "Minor table": {
       "root": 9,
@@ -206,7 +204,6 @@
       "ring": 14,
       "beat": 0.45,
       "metal": 0.3,
-      "strike": 0.5,
       "mix": 0.45
     },
     "Pelog gongs": {
@@ -219,20 +216,19 @@
       "strike": 0.6,
       "metal": 0.2,
       "spread": 0.8,
-      "mix": 0.45
+      "mix": 0.4
     },
     "Fast beating": {
       "bowls": 6,
       "ring": 8,
       "beat": 1,
-      "strike": 0.5,
       "mix": 0.45
     },
     "Still bowls": {
       "beat": 0,
       "ring": 14,
       "metal": 0.3,
-      "strike": 0.35,
+      "strike": 0.4,
       "mix": 0.4
     },
     "Short chime": {
@@ -249,7 +245,6 @@
       "register": 0.45,
       "ring": 25,
       "beat": 0.35,
-      "strike": 0.5,
       "spread": 0,
       "mix": 0.4
     },
@@ -259,13 +254,12 @@
       "register": 0.45,
       "ring": 25,
       "beat": 0.2,
-      "strike": 0.35,
       "spread": 1,
-      "mix": 0.45
+      "mix": 0.4
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Modal singing bowls driven in sympathy by the input: three partial pairs per bowl as complex rotators on cpp/kit, tuned to a key."
+    "note": "Modal singing bowls driven in sympathy by the input: three partial pairs per bowl as complex rotators on cpp/kit, fed through resonators on each note, tuned to a key."
   }
 }

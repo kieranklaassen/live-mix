@@ -14,6 +14,7 @@ import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   BOWLS_FACES,
   BOWL_SCALES,
+  FALL_HEIGHT,
   beatHz,
   bowlGlow,
   bowlName,
@@ -25,6 +26,7 @@ import {
   firstStep,
   noteOfStep,
   registerOfY,
+  ringLeft,
   ringOfX,
   slotBeat,
   slotPlace,
@@ -615,6 +617,39 @@ describe('the handles of Bowls', () => {
       expect(
         ends.some(([x, y]) => Math.abs(x - grip) < 1e-9 && Math.abs(y - at.ring.y) < 1e-9),
       ).toBe(true)
+      // The fall between: at every point of it the height is the share of Ring's 60 dB still left
+      // at the time that lies there (3 s into a ring of 6 s, half of them).
+      const fall = ends.filter(([x, y]) => x > at.ring.x && x < grip && y < at.ring.y)
+      expect(fall.length).toBeGreaterThan(12)
+      for (const [x, y] of fall) {
+        const seconds = 0.5 * Math.pow(80, (x - at.ring.x) / at.ring.w)
+        expect(at.ring.y - y).toBeCloseTo(FALL_HEIGHT * (1 - seconds / 6), 6)
+      }
+      const half = xOfRing(3, at)
+      const near = fall.reduce((best, point) =>
+        Math.abs(point[0] - half) < Math.abs(best[0] - half) ? point : best,
+      )
+      expect(at.ring.y - near[1]).toBeGreaterThan(0.4 * FALL_HEIGHT)
+      expect(at.ring.y - near[1]).toBeLessThan(0.6 * FALL_HEIGHT)
+    }
+  })
+
+  it("draws the fall the compiled device has: a bowl's reading is down half of 60 dB half of Ring after the touch", async () => {
+    // Ring 4 s, dull metal (the lowest pair alone): A4 held on its bowl, then let go.
+    const loaded = await compiled({ ring: 4, metal: 0, bowls: 12 })
+    const slot = bowlsTable(0, 0, 12, 0.5).find((bowl) => bowl.note === 69)?.slot
+    expect(slot).toBeDefined()
+    play(loaded, 3, swell(69, 0.5))
+    play(loaded, 0.02, silence)
+    const touched = digitOf(metersOf(loaded), 'levels', slot ?? 0)
+    expect(touched).toBeGreaterThan(40)
+    for (const part of [0.25, 0.5, 0.625]) {
+      const again = await compiled({ ring: 4, metal: 0, bowls: 12 })
+      play(again, 3, swell(69, 0.5))
+      play(again, 0.02 + 4 * part, silence)
+      const now = digitOf(metersOf(again), 'levels', slot ?? 0)
+      // The reading is whole dB: within 1.5 dB of the 60 dB times the share the picture has gone.
+      expect(Math.abs(touched - now - 60 * (1 - ringLeft(4 * part, 4)))).toBeLessThanOrEqual(1.5)
     }
   })
 

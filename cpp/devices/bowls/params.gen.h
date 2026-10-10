@@ -8,7 +8,7 @@
 //    3  register: 0..1, default 0.5
 //    4  ring: 0.5..40 s, default 10
 //    5  beat: 0..1, default 0.4
-//    6  strike: 0..1, default 0.4
+//    6  strike: 0..1, default 0.5
 //    7  metal: 0..1, default 0.5
 //    8  spread: 0..1, default 0.6
 //    9  mix: 0..1, default 0.35
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 3.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {11.0f, 7.0f, 12.0f, 1.0f, 40.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 8.0f, 0.5f, 10.0f, 0.4f, 0.4f, 0.5f, 0.6f, 0.35f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 8.0f, 0.5f, 10.0f, 0.4f, 0.5f, 0.5f, 0.6f, 0.35f};
 
 }  // namespace bowls
 }  // namespace livemix

@@ -71,7 +71,7 @@ export const BOWLS_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long a bowl rings after the sound that touched it. Long rings also answer a held note more narrowly in pitch.',
+      'How long a bowl rings after the sound that touched it. Under a few seconds the low bowls tell a note from its neighbour less well.',
   },
   beat: {
     id: 5,
@@ -89,11 +89,11 @@ export const BOWLS_PARAMS = {
     name: 'Strike',
     min: 0,
     max: 1,
-    default: 0.4,
+    default: 0.5,
     taper: 'linear',
     unit: '',
     description:
-      "How easily the sound sets the bowls off. Low answers only notes held on a bowl's pitch; high lets every attack strike the bowls near it.",
+      "How hard the playing drives the bowls. Low is a quiet answer to notes on a bowl's pitch; high rings them louder and lets every attack strike the bowls near it.",
   },
   metal: {
     id: 7,
@@ -104,7 +104,7 @@ export const BOWLS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials of a bowl struck hard.',
+      'The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials, strongest when a bowl is struck.',
   },
   spread: {
     id: 8,
@@ -153,11 +153,11 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
   name: 'Bowls',
   category: 'reverb',
   description:
-    'A table of metal singing bowls tuned to a key: play in the key and the bowls you touch ring on after you, each with its own slow beat and its place between the sides.',
+    'A table of metal singing bowls tuned to a key: play in the key and the bowls you touch sing with you and ring on after, each with its own slow beat and its place between the sides.',
   presets: {
     'Bowl table': {},
-    'Faint halo': { mix: 0.15, strike: 0.25, ring: 8, metal: 0.35 },
-    'Bowls alone': { mix: 1, strike: 0.6, ring: 12 },
+    'Faint halo': { mix: 0.15, strike: 0.3, ring: 8, metal: 0.35 },
+    'Bowls alone': { mix: 1, strike: 0.8, ring: 12 },
     'Low fifths': {
       root: 9,
       scale: 4,
@@ -165,9 +165,8 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       register: 0.3,
       ring: 30,
       beat: 0.3,
-      strike: 0.5,
       metal: 0.25,
-      mix: 0.45,
+      mix: 0.4,
     },
     'Small bright set': {
       bowls: 10,
@@ -178,8 +177,8 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       metal: 0.85,
       mix: 0.4,
     },
-    'Every attack': { bowls: 12, register: 0.4, ring: 3, strike: 1, metal: 0.9, mix: 0.4 },
-    'Long ring': { root: 9, scale: 1, ring: 40, beat: 0.25, strike: 0.3, metal: 0.35, mix: 0.45 },
+    'Every attack': { bowls: 12, register: 0.4, ring: 3, strike: 1, metal: 0.9 },
+    'Long ring': { root: 9, scale: 1, ring: 40, beat: 0.25, strike: 0.4, metal: 0.35, mix: 0.4 },
     'Minor table': { root: 9, scale: 3, bowls: 12, register: 0.4, ring: 12, mix: 0.4 },
     'Whole tone glass': {
       scale: 5,
@@ -199,7 +198,6 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       ring: 14,
       beat: 0.45,
       metal: 0.3,
-      strike: 0.5,
       mix: 0.45,
     },
     'Pelog gongs': {
@@ -212,10 +210,10 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       strike: 0.6,
       metal: 0.2,
       spread: 0.8,
-      mix: 0.45,
+      mix: 0.4,
     },
-    'Fast beating': { bowls: 6, ring: 8, beat: 1, strike: 0.5, mix: 0.45 },
-    'Still bowls': { beat: 0, ring: 14, metal: 0.3, strike: 0.35, mix: 0.4 },
+    'Fast beating': { bowls: 6, ring: 8, beat: 1, mix: 0.45 },
+    'Still bowls': { beat: 0, ring: 14, metal: 0.3, strike: 0.4, mix: 0.4 },
     'Short chime': { ring: 0.8, strike: 0.8, metal: 0.75, bowls: 10, mix: 0.4 },
     'Centre three': {
       root: 9,
@@ -224,7 +222,6 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       register: 0.45,
       ring: 25,
       beat: 0.35,
-      strike: 0.5,
       spread: 0,
       mix: 0.4,
     },
@@ -234,16 +231,15 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       register: 0.45,
       ring: 25,
       beat: 0.2,
-      strike: 0.35,
       spread: 1,
-      mix: 0.45,
+      mix: 0.4,
     },
   },
 })
 
 export type Bowls = WasmDevice<typeof BOWLS_PARAMS>
 
-/** A table of metal singing bowls tuned to a key: play in the key and the bowls you touch ring on after you, each with its own slow beat and its place between the sides. */
+/** A table of metal singing bowls tuned to a key: play in the key and the bowls you touch sing with you and ring on after, each with its own slow beat and its place between the sides. */
 export function createBowls(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof BOWLS_PARAMS> = {},

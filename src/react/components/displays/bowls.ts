@@ -2,12 +2,14 @@
 // its place between the sides; the bowls lie in rows by pitch, the lowest in
 // the nearest row and the largest. A bowl is as far out of round as it beats,
 // is lit as loud as it rings now, and turns with its beat. Across the top is
-// how long a bowl rings, on a scale of seconds; up the left is Register, on a
-// scale of octaves.
+// how long a bowl rings, on a scale of seconds, with the fall of the ring over
+// that time; up the left is Register, on a scale of octaves.
 //
 // Everything is the device's own: the notes, the slots and their places and
 // beat rates are worked out as `bowls.h` works them out, and what rings and
-// where each bowl is in its beat come from the device's readings.
+// where each bowl is in its beat come from the device's readings. The picture
+// is the table as it stands: a bowl that a retune has taken off it rings out
+// unseen (the readings are of the bowls that stand).
 
 import { INK, clamp, ground, handle, lerp, rule, text, trace, type Box } from '../display-kit'
 import {
@@ -192,6 +194,17 @@ export const xOfRing = (seconds: number, at: BowlsLayout): number =>
 export const ringOfX = (x: number, at: BowlsLayout): number =>
   RING_MIN * Math.pow(RING_MAX / RING_MIN, clamp((x - at.ring.x) / at.ring.w, 0, 1))
 
+/**
+ * How much of its ring a bowl still has `seconds` after the touch, 1 down to 0: the lowest pair of
+ * `bowls.h` falls 60 dB in Ring seconds, evenly in dB, and this is the share of those 60 dB left.
+ */
+export const ringLeft = (seconds: number, ring: number): number =>
+  clamp(1 - seconds / Math.max(ring, 1e-6), 0, 1)
+
+/** The fall is drawn this many pixels high where the whole ring is left, through this many points. */
+export const FALL_HEIGHT = 7
+const FALL_POINTS = 24
+
 // --- What the device reports ---------------------------------------------------
 
 /** One slot's digit of a reading: four slots to a reading, six bits each, lowest slot first. */
@@ -284,15 +297,15 @@ const bowlsDisplay = plateDisplay({
         alpha: tall ? INK.text : INK.back,
       })
     }
-    // The ring falling away from the touch to nothing at Ring.
-    trace(
-      ctx,
-      [
-        [at.ring.x, at.ring.y - 7],
-        [ringX, at.ring.y],
-      ],
-      { colour: colours.ink, width: 1.5 },
-    )
+    // The ring falling away after the touch, as the device lets it: 60 dB by Ring, the height of the
+    // line the dB it still has. (On a scale of seconds that is even by ratio it holds, then drops.)
+    const fall: [number, number][] = []
+    for (let k = 0; k <= FALL_POINTS; k += 1) {
+      const x = lerp(at.ring.x, ringX, k / FALL_POINTS)
+      fall.push([x, at.ring.y - FALL_HEIGHT * ringLeft(ringOfX(x, at), frame.value('ring'))])
+    }
+    fall[FALL_POINTS] = [ringX, at.ring.y]
+    trace(ctx, fall, { colour: colours.ink, width: 1.5 })
 
     // Register's scale: C2 at its foot, a mark at each C up to C5.
     rule(ctx, at.gauge.x, at.gauge.head, at.gauge.x, at.gauge.foot, {
