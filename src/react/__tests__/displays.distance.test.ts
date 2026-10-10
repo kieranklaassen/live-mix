@@ -512,15 +512,20 @@ describe('what the display draws is what the compiled device does', () => {
       const scene = sceneOf(place, set, RATE)
       // The diffuse room answers from the right wall's reflection on. Each side of it is sent its
       // own side of the input and, narrowed, some of the other: the whole of a sample that is the
-      // same on both sides, and the display's `side` of one that is opposite on the two. The
-      // reflections are of the middle, so the opposite sample has none. Taking the answer to the
-      // opposite sample, over `side`, from the answer to the same sample leaves the reflections
-      // alone (the right side of the opposite sample is its left turned over).
+      // same on both sides, and the display's `side` of one that is opposite on the two. What the
+      // two loops give is drawn in as well, by the root of `side` (the device's `room_side`), and
+      // made up so the room stays as loud. The reflections are of the middle, so the opposite
+      // sample has none: its two sides, over `side`, are the two loops alone, mixed the opposite
+      // way to the same sample's, and what each loop gave the same sample comes out of them.
       const same = await answer({ ...still, distance: place, ...set }, 8192)
       const opposite = await answer({ ...still, distance: place, ...set }, 8192, 1, -1)
       expect(scene.side).toBeGreaterThan(0.2)
-      const leftAt = (n: number): number => same.left[n] - opposite.left[n] / scene.side
-      const rightAt = (n: number): number => same.right[n] + opposite.right[n] / scene.side
+      const drawn = Math.sqrt(scene.side)
+      const [more, less] = [(1 + drawn * drawn) / (2 * drawn), (1 - drawn * drawn) / (2 * drawn)]
+      const leftAt = (n: number): number =>
+        same.left[n] - (more * opposite.left[n] - less * opposite.right[n]) / scene.side
+      const rightAt = (n: number): number =>
+        same.right[n] - (less * opposite.left[n] - more * opposite.right[n]) / scene.side
       const when = arrival(place)
       // Floor, ceiling, left wall, right wall, right wall and floor.
       for (const k of [0, 1, 2, 3, 5]) {
