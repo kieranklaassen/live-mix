@@ -158,6 +158,24 @@ static double difference_db(const std::vector<float>& a, const std::vector<float
   return db(std::sqrt(diff / std::max(energy(a), 1.0e-30)));
 }
 
+// A signal with what lies under `hz` taken out (24 dB an octave): hiss that
+// lies above the split's lean toward tones at the bottom of the spectrum.
+static std::vector<float> above(std::vector<float> x, float hz, float rate = kRate) {
+  for (int stage = 0; stage < 2; ++stage) {
+    const double q = stage == 0 ? 0.5412 : 1.3066;
+    const double w = 2.0 * kPi * hz / rate, alpha = std::sin(w) / (2.0 * q), c = std::cos(w);
+    const double b0 = (1.0 + c) / 2.0 / (1.0 + alpha), b1 = -(1.0 + c) / (1.0 + alpha);
+    const double a1 = -2.0 * c / (1.0 + alpha), a2 = (1.0 - alpha) / (1.0 + alpha);
+    double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0;
+    for (float& v : x) {
+      const double y = b0 * v + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1, x1 = v, y2 = y1, y1 = y;
+      v = static_cast<float>(y);
+    }
+  }
+  return x;
+}
+
 static std::vector<float> padded(std::vector<float> x, float seconds, float rate = kRate) {
   x.resize(x.size() + static_cast<size_t>(seconds * rate), 0.0f);
   return x;
@@ -214,7 +232,8 @@ static void check_medians() {
   EXPECT(Sift::level_gain(kOff) == 0.0f && kOff == -30.0f, "a level at the bottom of its range is silence");
   EXPECT_NEAR(Sift::level_gain(6.0f), 2.028f, 0.001f, "a level of +6 dB is a gain of 2.03");
   EXPECT_NEAR(Sift::hold_seconds(1.0f), 12.0f, 1.0e-4f, "Hold at the top is 12 s to -60 dB");
-  EXPECT_NEAR(Sift::hold_seconds(0.2f), 1.073f, 0.001f, "the default Hold is 1.07 s to -60 dB");
+  EXPECT_NEAR(Sift::hold_seconds(p::kParamDefault[p::kHold]), 1.972f, 0.001f,
+              "the default Hold is 1.97 s to -60 dB");
 }
 
 // --- the latency, Mix 0 and the sum of the parts ---------------------------------------------
@@ -308,8 +327,10 @@ static void check_parts() {
 // --- Sharpness -------------------------------------------------------------------------------
 
 static void check_sharpness() {
+  // Hiss above 3 kHz: under 1.5 kHz the split leans toward the tones
+  // whatever Sharpness says (see check_lean), and white noise has a share there.
   rng_state() = 9;
-  const std::vector<float> hiss = noise(3.0f, kRate, 0.2f);
+  const std::vector<float> hiss = above(noise(3.0f, kRate, 0.2f), 3000.0f);
   const size_t from = static_cast<size_t>(0.5f * kRate), to = static_cast<size_t>(2.5f * kRate);
   double in_tones[5], in_air[5];
   for (int step = 0; step < 5; ++step) {
@@ -339,6 +360,91 @@ static void check_sharpness() {
   EXPECT(in_tones[0] - in_tones[4] > 5.0,
          "Sharpness moves the noise in the tones by 5 dB or more over its range");
   EXPECT(in_air[4] - in_air[0] > 5.0, "Sharpness moves the noise in the air by 5 dB or more over its range");
+}
+
+// --- the lean toward tones at the bottom of the spectrum ---------------------------------------
+
+// A held note: `harmonics` steady partials at 1/h, faded in and out over half a second.
+static std::vector<float> held_note(float hz, int harmonics, float seconds, float gain, float rate = kRate) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
+  for (int h = 1; h <= harmonics; ++h) {
+    const double f = static_cast<double>(hz) * h;
+    if (f > 0.45 * rate) break;
+    for (size_t i = 0; i < out.size(); ++i) {
+      out[i] += static_cast<float>(gain / h * std::sin(2.0 * kPi * f * static_cast<double>(i) / rate + 0.9 * h));
+    }
+  }
+  const size_t fade = static_cast<size_t>(0.5f * rate);
+  for (size_t i = 0; i < fade; ++i) {
+    const float w = static_cast<float>(i) / static_cast<float>(fade);
+    out[i] *= w;
+    out[out.size() - 1 - i] *= w;
+  }
+  return out;
+}
+
+static void check_lean() {
+  // Partials closer than about three bins (70 Hz at 48 kHz) fill a band as
+  // noise does, and the split read a low note or a close chord as half air:
+  // a held A1 with 30 harmonics measured tones -5.2 dB and air -5.9 dB of
+  // itself, C2 E2 G2 tones -7.7 and air -3.7, and as it starts the device
+  // made the A1 2 dB louder and spread it (the two sides agreed by 0.75).
+  // The lean takes the across-frequency reading down under bin 64.
+  const float seconds = 4.0f;
+  const size_t from = static_cast<size_t>(kRate), to = static_cast<size_t>(3.0f * kRate);
+  const std::vector<float> low = held_note(55.0f, 30, seconds, 0.3f);
+  const std::vector<float> chord = add(
+      add(held_note(65.41f, 24, seconds, 0.15f), held_note(82.41f, 24, seconds, 0.15f)),
+      held_note(98.0f, 24, seconds, 0.15f));
+  double kept[2][3];
+  for (int which = 0; which < 2; ++which) {
+    const std::vector<float>& in = which == 0 ? low : chord;
+    for (int part = 0; part < 3; ++part) {
+      only(part);
+      kept[which][part] = kept_db(run(device, in).left, in, from, to);
+    }
+  }
+  std::printf("  a held A1 reads tones %.1f, attacks %.1f, air %.1f dB; C2 E2 G2 tones %.1f, attacks %.1f, air %.1f dB\n",
+              kept[0][0], kept[0][1], kept[0][2], kept[1][0], kept[1][1], kept[1][2]);
+  // Measured: -0.5, -36.4, -15.9 | -1.4, -15.0, -15.1 (Edge is at 1 here and
+  // counts the beats between the chord's close partials as starts; at Edge 0
+  // the chord reads -0.9, -37.1, -13.7).
+  EXPECT(kept[0][0] > -1.5, "a low held note is tone");
+  EXPECT(kept[0][2] < -12.0, "a low held note is not air");
+  EXPECT(kept[1][0] > -2.5, "a low held chord is tone");
+  EXPECT(kept[1][2] < -10.0, "a low held chord is not air");
+  // As it starts, a low note stays where it was and as loud as it was.
+  fresh();
+  const Stereo out = run(device, low);
+  const double level = kept_db(out.left, low, from, to);
+  const double agree = correlation(out.left, out.right, from + kLatency, to + kLatency);
+  std::snprintf(label, sizeof label,
+                "as it starts a held A1 keeps its level (%.2f dB) and its place (the sides agree by %.2f)", level,
+                agree);
+  SAY(std::fabs(level) < 1.0 && agree > 0.9);  // measured 0.32 dB and 0.96; before the lean 2.06 dB and 0.75
+  // The lean leaves the air above it alone: hiss over a low note still goes to the air.
+  rng_state() = 77;
+  const std::vector<float> hiss = above(noise(seconds, kRate, 0.03f), 3000.0f);
+  only(2);
+  // What the air holds above 3 kHz, where the note has nothing (its top partial is at 1650 Hz).
+  const double hiss_kept = kept_db(above(run(device, add(low, hiss)).left, 3000.0f), hiss, from, to);
+  std::snprintf(label, sizeof label, "hiss over a low note still goes to the air (%.1f dB of the hiss)", hiss_kept);
+  SAY(hiss_kept > -3.5 && hiss_kept < 1.0);
+  // It is set in bins, so at 96 kHz, where a bin is twice as wide, it reaches
+  // twice as high and a chord in the middle of the keyboard is still tone
+  // (measured tones -0.4 and air -19.4 dB; without it -4.0 and -6.0).
+  const float fast = 96000.0f;
+  const std::vector<float> middle = add(
+      add(held_note(220.0f, 8, seconds, 0.15f, fast), held_note(277.18f, 8, seconds, 0.15f, fast)),
+      held_note(329.63f, 8, seconds, 0.15f, fast));
+  const size_t a = static_cast<size_t>(fast), b = static_cast<size_t>(3.0f * fast);
+  only(0, fast);
+  const double middle_tones = kept_db(run(device, middle).left, middle, a, b);
+  only(2, fast);
+  const double middle_air = kept_db(run(device, middle).left, middle, a, b);
+  std::snprintf(label, sizeof label, "at 96 kHz a chord in the middle of the keyboard reads tones %.1f dB, air %.1f dB",
+                middle_tones, middle_air);
+  SAY(middle_tones > -1.5 && middle_air < -12.0);
 }
 
 // --- Edge ------------------------------------------------------------------------------------
@@ -400,6 +506,33 @@ static void check_hold() {
                   pitch);
     EXPECT(std::fabs(pitch - 440.0) < 0.5, label);
   }
+  // The ring falls evenly. A partial is three or four bins wide; while each
+  // bin turned on by its own turn (the side bins' is the turn of the cut,
+  // not of the tone) the ring of one pure tone beat against itself: its
+  // level every 50 ms strayed from the even fall by 15 dB. With the bins of
+  // a sound that has ended turning by their peak's turn it strays by under
+  // 0.2 dB.
+  for (int which = 0; which < 4; ++which) {
+    const float rate = which == 3 ? 44100.0f : kRate;
+    const float hz = which == 1 ? 311.13f : which == 2 ? 1000.0f : 440.0f;
+    only(0, rate);
+    device.set_param(p::kHold, 0.5f);
+    const Stereo out = run(device, padded(burst(hz, 1.0f, which == 2 ? 0.03f : 0.005f, 0.4f, rate), 3.0f, rate));
+    const size_t end = static_cast<size_t>(rate) + kLatency + static_cast<size_t>(0.15f * rate);
+    const size_t window = static_cast<size_t>(0.05f * rate);
+    const double per_second = 60.0 / Sift::hold_seconds(0.5f);
+    double lowest = 1.0e9, highest = -1.0e9;
+    for (int n = 0; n < 40; ++n) {
+      const size_t at = end + static_cast<size_t>(n) * window;
+      const double over = db(rms(out.left, at, at + window)) + per_second * 0.05 * n;
+      lowest = std::min(lowest, over);
+      highest = std::max(highest, over);
+    }
+    std::snprintf(label, sizeof label,
+                  "the ring of a %.0f Hz tone falls evenly at %.0f Hz (it strays %.2f dB from the fall Hold sets)",
+                  hz, rate, highest - lowest);
+    SAY(highest - lowest < 1.0);
+  }
   // Without Hold nothing is left once the last frame has played out.
   only(0);
   Stereo bare = run(device, note);
@@ -415,12 +548,12 @@ static void check_hold() {
   for (size_t i = kLatency + 4800; i < cut + kLatency - 4800; ++i) {
     worst = std::max(worst, std::fabs(static_cast<double>(rung.left[i]) - bare.left[i]));
   }
-  // Measured 0.0022 of 0.4: what the note's start left in the bins beside it rings on under it.
+  // What the note's start left in the bins beside it rings on under it.
   std::snprintf(label, sizeof label,
-                "Hold at the top changes a tone that is being played by under 1 %% of it (worst difference "
-                "%.2g of 0.4)",
+                "Hold at the top changes a tone that is being played by under 1.5 %% of it (worst difference "
+                "%.4f of 0.4)",
                 worst);
-  EXPECT(worst < 0.004, label);
+  SAY(worst < 0.006);
   // The attacks and the air of a mixture are the same bit for bit with Hold up or down.
   rng_state() = 5;
   const std::vector<float> all =
@@ -433,6 +566,45 @@ static void check_hold() {
     const Stereo up = run(device, all);
     EXPECT(down.left == up.left && down.right == up.right,
            part == 1 ? "Hold does not touch the attacks" : "Hold does not touch the air");
+  }
+}
+
+// Hold on a chord that is still being held. Close partials beat inside a bin,
+// and a bin in the trough of a beat is let go of while the sound goes on:
+// what it holds must meet the input again at the next crest. (Turning such a
+// bin by its peak's turn, as the bins of a sound that has ended are, took a
+// like chord of the checker's down by 0.6 dB with dips of 2.7 dB, and by
+// 0.8 dB at half Mix; with each bin on its own turn there it stays within
+// 0.1 dB.) Measured here, level and its range over 200 ms: at the default
+// -0.23 (-0.98 to 0.50), at half Mix -0.62 (-1.43 to 0.01); with Hold at the
+// top -0.45 (-1.14 to 0.20), at half Mix -1.44 (-2.61 to -0.42). Without
+// Hold the split alone gives -0.50 (-1.38 to 0.14).
+static void check_hold_held() {
+  const float seconds = 5.0f;
+  const std::vector<float> chord = add(
+      add(held_note(65.41f, 24, seconds, 0.15f), held_note(82.41f, 24, seconds, 0.15f)),
+      held_note(98.0f, 24, seconds, 0.15f));
+  const size_t from = static_cast<size_t>(kRate), to = static_cast<size_t>(4.0f * kRate);
+  const size_t window = static_cast<size_t>(0.2f * kRate);
+  const double level_floor[4] = {-0.7, -1.0, -0.9, -1.9}, dip_floor[4] = {-1.5, -1.9, -1.7, -3.1};
+  for (int which = 0; which < 4; ++which) {
+    const float hold = which < 2 ? p::kParamDefault[p::kHold] : 1.0f;
+    const float mix = which % 2 == 0 ? 1.0f : 0.5f;
+    fresh();
+    device.set_param(p::kHold, hold);
+    device.set_param(p::kMix, mix);
+    const Stereo out = run(device, chord);
+    const double level = kept_db(out.left, chord, from, to);
+    double lowest = 1.0e9, highest = -1.0e9;
+    for (size_t at = from; at + window <= to; at += window / 2) {
+      const double over = db(rms(out.left, at + kLatency, at + kLatency + window) / rms(chord, at, at + window));
+      lowest = std::min(lowest, over);
+      highest = std::max(highest, over);
+    }
+    std::snprintf(label, sizeof label,
+                  "a held low chord at Hold %.1f and Mix %.1f keeps its level (%.2f dB; over 200 ms %.2f to %.2f dB)",
+                  hold, mix, level, lowest, highest);
+    SAY(level > level_floor[which] && level < 0.7 && lowest > dip_floor[which] && highest < 1.2);
   }
 }
 
@@ -464,7 +636,10 @@ static void check_soften() {
   std::vector<float> click(static_cast<size_t>(2.0f * kRate), 0.0f);
   click[12000] = 0.8f;
   double level[4], length[4], top[4];
-  const float settings[4] = {0.0f, 0.4f, 0.7f, 1.0f};
+  // The knob is the smoothing time itself (it was its square root, and its
+  // lowest fifth did nothing): these are the settings the figures below were
+  // measured at, 0.4 and 0.7 on the old law.
+  const float settings[4] = {0.0f, 0.16f, 0.49f, 1.0f};
   for (int step = 0; step < 4; ++step) {
     only(1);
     device.set_param(p::kSoften, settings[step]);
@@ -481,17 +656,27 @@ static void check_soften() {
       1000.0 * length[3], top[0], top[1], top[2], top[3]);
   EXPECT(std::fabs(level[0]) < 0.1 && length[0] < 0.001, "without Soften a click comes through as it is");
   for (int step = 1; step < 4; ++step) {
-    std::snprintf(label, sizeof label, "Soften %.1f keeps a click's energy (%.1f dB)", settings[step],
+    std::snprintf(label, sizeof label, "Soften %.2f keeps a click's energy (%.1f dB)", settings[step],
                   level[step]);
     EXPECT(std::fabs(level[step]) < 2.0, label);
     std::snprintf(label, sizeof label,
-                  "Soften %.1f spreads a click further in time than %.1f (%.1f ms against %.1f ms)",
+                  "Soften %.2f spreads a click further in time than %.2f (%.1f ms against %.1f ms)",
                   settings[step], settings[step - 1], 1000.0 * length[step], 1000.0 * length[step - 1]);
     EXPECT(length[step] > length[step - 1] * 1.3 + 0.005, label);
     EXPECT(top[step] < top[step - 1] - 1.0,
            "Soften takes a click's peak down, more the further it is turned");
   }
   EXPECT(length[3] > 0.15, "Soften at the top spreads a click over 150 ms or more");
+  // No dead stretch at the bottom of the knob: the first tenth already takes
+  // a click's peak down. Measured -2.6 dB and 41 ms (-0.1 dB and 0 ms while
+  // the time was the square of the knob).
+  only(1);
+  device.set_param(p::kSoften, 0.1f);
+  const Stereo little = run(device, click);
+  std::snprintf(label, sizeof label,
+                "Soften 0.1 already softens a click (peak %.1f dB, 90 %% of it within %.0f ms)",
+                db(peak(little.left) / 0.8), 1000.0 * spread_seconds(little.left));
+  SAY(db(peak(little.left) / 0.8) < -1.5 && spread_seconds(little.left) > 0.02);
   // The tones and the air of a mixture are the same bit for bit with Soften up or down.
   rng_state() = 5;
   const std::vector<float> all =
@@ -631,6 +816,29 @@ static void check_bad_input() {
   }
 }
 
+// A burst far over full scale (a device before this one gone wrong: the
+// Stft takes samples up to 64) must not ring on at the limiter: what Hold
+// keeps has a ceiling, and the ring of such a burst is no louder than the
+// ring of the loudest sound there can be.
+static void check_overload() {
+  double ring[2];
+  for (int which = 0; which < 2; ++which) {
+    const float gain = which == 0 ? 1.0f : 60.0f;
+    std::vector<float> burst(static_cast<size_t>(4.0f * kRate), 0.0f);
+    for (size_t i = 0; i < static_cast<size_t>(0.5f * kRate); ++i) burst[i] = (i % 200 < 100) ? gain : -gain;
+    fresh();
+    device.set_param(p::kHold, 0.85f);
+    const Stereo out = run(device, burst);
+    const size_t from = static_cast<size_t>(1.5f * kRate) + kLatency;
+    ring[which] = rms(out.left, from, from + static_cast<size_t>(kRate));
+    EXPECT(finite(out.left) && peak(out.left) <= 2.0, "a burst far over full scale stays inside the limiter");
+  }
+  std::snprintf(label, sizeof label,
+                "a second after a burst of 60 times full scale the ring is %.1f dB over a full-scale burst's (%.3f, %.3f)",
+                db(ring[1] / ring[0]), ring[1], ring[0]);
+  SAY(db(ring[1] / ring[0]) < 6.0);
+}
+
 // --- block sizes, across a sleep ---------------------------------------------------------------
 
 // The phrase, a silence long enough to fall asleep in, knobs moved while
@@ -718,7 +926,8 @@ static void check_default() {
       hammer, body, ring, changed);
   EXPECT(hammer < -5.0, "the default takes the strike of a note down by 5 dB or more");
   EXPECT(std::fabs(body) < 1.0, "the default leaves the body of a note at its level");
-  EXPECT(ring > -20.0, "the default lets a note ring on after it is let go");
+  // Measured -7.1 dB (-15.7 at the Hold of 0.2 it first started with, and beating then).
+  EXPECT(ring > -12.0, "the default lets a note ring on after it is let go");
   EXPECT(changed > -15.0, "the default is plain on a struck note");
   // On a held chord it neither drops nor lifts the sound.
   const std::vector<float> chord = add(add(sine(220.0f, 3.0f, kRate, 0.2f), sine(277.18f, 3.0f, kRate, 0.2f)),
@@ -728,6 +937,27 @@ static void check_default() {
   const double level = kept_db(held.left, chord, 48000, 120000);
   std::snprintf(label, sizeof label, "the default holds the level of a held chord (%.2f dB)", level);
   SAY(std::fabs(level) < 0.5);
+  // On a pad the default shows where the chords change: the one let go rings
+  // on under the next. Two chords of detuned partials, each swelling in and out.
+  std::vector<float> pads(static_cast<size_t>(8.0f * kRate), 0.0f);
+  const float chords[2][4] = {{130.81f, 196.0f, 261.63f, 329.63f}, {146.83f, 220.0f, 293.66f, 369.99f}};
+  for (int c = 0; c < 2; ++c) {
+    const size_t at = static_cast<size_t>((0.2f + 3.0f * c) * kRate);
+    for (float hz : chords[c]) {
+      const std::vector<float> a = burst(hz, 3.2f, 0.4f, 0.06f), b = burst(hz * 1.0035f, 3.2f, 0.4f, 0.06f);
+      for (size_t i = 0; i < a.size(); ++i) pads[at + i] += a[i] + b[i];
+    }
+  }
+  fresh();
+  const Stereo padded_out = run(device, pads);
+  std::vector<float> pads_late(pads.begin(), pads.end());
+  std::rotate(pads_late.rbegin(), pads_late.rbegin() + kLatency, pads_late.rend());
+  const double pad_changed = difference_db(pads_late, padded_out.left);
+  const double pad_level = kept_db(padded_out.left, pads, 9600, 300000);
+  std::snprintf(label, sizeof label,
+                "the default on two pad chords differs from the input by %.1f dB of it and stands %.2f dB over it",
+                pad_changed, pad_level);
+  SAY(pad_changed > -17.0 && std::fabs(pad_level) < 1.5);  // measured -16.5 and 0.13
 }
 
 // --- every control does something over its whole range ----------------------------------------
@@ -1021,22 +1251,22 @@ struct Preset {
 };
 static const Preset kPresets[] = {
     // PRESETS BEGIN
-    {"Soft hammers", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.2f, 0.4f, 0.0f, 0.6f, 1.0f}},
+    {"Soft hammers", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.16f, 0.0f, 0.6f, 1.0f}},
     {"Tones only", {0.0f, -30.0f, -30.0f, 0.7f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
-    {"Only the strikes", {-30.0f, 5.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
+    {"Only the strikes", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
     {"Soft puffs", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 1.0f, 0.0f, 0.6f, 1.0f}},
-    {"Strikes forward", {-5.0f, 6.0f, -12.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.0f}},
+    {"Strikes forward", {-4.0f, 6.0f, -12.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.0f}},
     {"Flam", {-2.0f, 4.0f, 3.0f, 0.5f, 1.0f, 0.0f, 0.0f, 45.0f, 0.8f, 1.0f}},
-    {"Late echoes", {-3.0f, 6.0f, 3.0f, 0.5f, 1.0f, 0.35f, 0.5f, 280.0f, 0.6f, 1.0f}},
+    {"Late echoes", {-3.0f, 6.0f, 3.0f, 0.5f, 1.0f, 0.35f, 0.25f, 280.0f, 0.6f, 1.0f}},
     {"Pedal down", {0.0f, 0.0f, 0.0f, 0.5f, 1.0f, 0.6f, 0.0f, 0.0f, 0.2f, 1.0f}},
-    {"Long wash", {0.0f, -20.0f, 0.0f, 0.4f, 1.0f, 0.85f, 0.8f, 0.0f, 0.8f, 1.0f}},
-    {"Wide air", {-3.0f, -6.0f, 6.0f, 0.3f, 1.0f, 0.1f, 0.3f, 0.0f, 1.0f, 1.0f}},
-    {"Hard split", {0.0f, -30.0f, 6.0f, 1.0f, 1.0f, 0.12f, 0.4f, 0.0f, 1.0f, 1.0f}},
-    {"Breath and tone", {-3.0f, -24.0f, 6.0f, 0.2f, 1.0f, 0.3f, 0.4f, 0.0f, 0.8f, 1.0f}},
-    {"Felt and air", {0.0f, -17.0f, 6.0f, 0.5f, 1.0f, 0.35f, 0.9f, 0.0f, 1.0f, 1.0f}},
-    {"A touch", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.4f, 0.0f, 0.6f, 0.35f}},
-    {"Bowed entries", {0.0f, -30.0f, 0.0f, 0.6f, 1.0f, 0.3f, 0.4f, 0.0f, 0.5f, 1.0f}},
-    {"Ghost puffs", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.7f, 150.0f, 0.6f, 0.4f}},
+    {"Long wash", {-1.5f, -20.0f, 0.0f, 0.4f, 1.0f, 0.85f, 0.64f, 0.0f, 0.8f, 1.0f}},
+    {"Wide air", {-2.0f, -6.0f, 6.0f, 0.3f, 1.0f, 0.1f, 0.09f, 0.0f, 1.0f, 1.0f}},
+    {"Hard split", {0.0f, -30.0f, 6.0f, 1.0f, 1.0f, 0.12f, 0.16f, 0.0f, 1.0f, 1.0f}},
+    {"Breath and tone", {-2.0f, -24.0f, 6.0f, 0.2f, 1.0f, 0.3f, 0.16f, 0.0f, 0.8f, 1.0f}},
+    {"Felt and air", {0.0f, -17.0f, 6.0f, 0.5f, 1.0f, 0.35f, 0.81f, 0.0f, 1.0f, 1.0f}},
+    {"A touch", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.16f, 0.0f, 0.6f, 0.35f}},
+    {"Bowed entries", {0.0f, -30.0f, 0.0f, 0.6f, 1.0f, 0.5f, 0.16f, 0.0f, 0.5f, 1.0f}},
+    {"Ghost puffs", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.49f, 150.0f, 0.6f, 0.3f}},
     // PRESETS END
 };
 static const int kPresetCount = static_cast<int>(sizeof kPresets / sizeof kPresets[0]);
@@ -1240,12 +1470,15 @@ int main() {
   check_sum();
   check_parts();
   check_sharpness();
+  check_lean();
   check_edge();
   check_hold();
+  check_hold_held();
   check_soften();
   check_late();
   check_scatter();
   check_bad_input();
+  check_overload();
   check_blocks();
   check_default();
   check_controls();

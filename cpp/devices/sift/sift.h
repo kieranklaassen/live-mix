@@ -18,7 +18,11 @@
 //   every second bin up to eight either side: what is there over at least two
 //   thirds of a band 17 bins wide (400 Hz at 48 kHz). A partial is four bins
 //   wide and up to three of them in the band are not in it. It is raised by
-//   kAcrossBias so that steady noise reads the same both ways.
+//   kAcrossBias so that steady noise reads the same both ways, and taken down
+//   again toward the bottom of the spectrum (the lean, below): partials
+//   closer than about three bins fill the band as noise would, and low in the
+//   spectrum what is steady and fills its band is far more often a low note
+//   or a close chord than air.
 // - tones   = 1 / (1 + (kMargin × sudden / steady)^slope)
 //   attacks = 1 / (1 + (kMargin × steady / sudden)^slope)
 //   air     = 1 - tones - attacks: what is neither by a margin of 6 dB.
@@ -39,8 +43,13 @@
 // noise at -17 dB and nothing of a held sine; the air keeps noise at -2 dB
 // and nothing of the other two. Sharpness takes the noise in the tones from
 // -12 to -18 dB. What the split cannot tell: partials closer than about
-// 70 Hz (a low or dense chord) are not resolved by a frame of 43 ms and read
-// partly as air.
+// 70 Hz (a low note, a close chord) are not resolved by a frame of 43 ms.
+// Without the lean a held A1 with 30 harmonics read tones -5.2 dB and air
+// -5.9 dB of itself, and C2 E2 G2 tones -7.7 and air -3.7; with it the A1
+// reads tones -0.4 and air -16 dB, the chord -1.3 and -14 dB, while a breathy
+// pad keeps its air (-14.2 before, -15.0 after) and struck notes their
+// attacks. Above the lean (bin 64, 1.5 kHz at 48 kHz) a dense chord's upper
+// partials still read partly as air.
 //
 // Each channel is split on its own, by the same arithmetic on the same
 // frames: a mono input stays mono while Scatter is down, and one side's
@@ -51,9 +60,16 @@
 //
 // - Hold: a tone bin the input lets go of rings on at the level it had,
 //   falling 60 dB in 12 s × Hold^1.5, and goes on turning by the turn it was
-//   last measured to make, so a held partial stays at its pitch.
+//   last measured to make, so a held partial stays at its pitch; once the
+//   sound has ended the bins of one partial turn together, by the turn of
+//   its strongest bin, so that the ring does not beat. All that is
+//   held together has a ceiling (kHeldCeiling), twice the power of a
+//   full-scale square wave: a burst of 64 times full scale rings on as a
+//   full-scale sound would, not at the limiter.
 // - Soften: each attack bin's power runs through two one-pole smoothers
-//   (0.1 s × Soften² each), which keeps its energy and turns its edge into a
+//   (0.1 s × Soften each: the time is the knob, so that every tenth of it
+//   takes about 3 dB more off a click's peak, and the bottom of it is not a
+//   stretch where nothing happens), which keeps its energy and turns its edge into a
 //   rise and a fall; what sounds beyond the frame's own share is given fresh
 //   random phase, so the puff is diffuse and never a frame replayed.
 // - Late: the attacks are resynthesised apart and delayed in time, 0 to
@@ -235,6 +251,14 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       strike_im_[k] = 0.0f;
     }
     for (int k = 0; k < kBins + 2 * kReach; ++k) padded_[k] = 0;
+    for (int k = 0; k < kBins; ++k) let_go_[k] = 0;
+    for (int k = 0; k < kBins; ++k) {
+      const float bin = static_cast<float>(k);
+      const float t = bin <= kLeanLow    ? 0.0f
+                      : bin >= kLeanHigh ? 1.0f
+                                         : std::log(bin / kLeanLow) / std::log(kLeanHigh / kLeanLow);
+      across_[k] = kAcrossBias * (kLeanFloor + (1.0f - kLeanFloor) * t);
+    }
     mask_dirty_ = true;
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
@@ -342,6 +366,14 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   // The third smallest of nine across frequency reads steady noise this much
   // under what the middle of nine along time reads it (measured: 3.26 dB).
   static constexpr float kAcrossBias = 1.455f;
+  // The lean: up to bin kLeanLow (300 Hz at 48 kHz) the across-frequency
+  // reading counts for a quarter, from bin kLeanHigh (1.5 kHz) up for all of
+  // it, in between by the logarithm of the bin. It is set in bins, not hertz:
+  // what it makes up for is partials too close for the frame to part, and
+  // that is a number of bins at any sample rate.
+  static constexpr float kLeanFloor = 0.25f;
+  static constexpr float kLeanLow = 12.8f;
+  static constexpr float kLeanHigh = 64.0f;
   static constexpr float kMaxSoftenSeconds = 0.1f;
   // The furthest Scatter turns the air's phase, in half turns either way:
   // from here on the two sides have nothing left in common (measured 0.03).
@@ -353,6 +385,9 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   // The mean square of a signal from the sum of its bins' powers: a
   // full-scale sine (0.5) reads 1.5 × kFullScale² over its three bins.
   static constexpr float kPowerScale = 1.0f / (3.0f * Stft::kFullScale * Stft::kFullScale);
+  // The most the tones of one frame may hold, as the sum of the bins'
+  // powers: a mean square of 2, twice a full-scale square wave's.
+  static constexpr float kHeldCeiling = 2.0f / kPowerScale;
 
   struct Channel {
     Stft body;     // analysis, and the tones and the air resynthesised
@@ -513,7 +548,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     for (int k = 0; k < kBins; ++k) {
       const int32_t* w = padded_ + k;
       sudden_[k] =
-          kAcrossBias * magnitude_of(third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]));
+          across_[k] * magnitude_of(third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]));
     }
     for (int k = 0; k < kBins; ++k) {
       const float sum = steady_[k] + sudden_[k];
@@ -583,52 +618,97 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       // holds up: the frames in which a sound is cut off have the phase of
       // the cut, not of the sound. Kept unnormalised until needed.
       const float was = magnitude_of(before[k]);
+      bool measured = false;
       if (size > 0.1f * held && size * size >= 0.8f * was * was) {
         const float tr = a * pr[k] + b * pi[k];
         const float ti = b * pr[k] - a * pi[k];
         if (tr * tr + ti * ti > 1.0e-24f) {
           channel.turn_re[k] = tr;
           channel.turn_im[k] = ti;
+          measured = true;
         }
       }
-      float ur, ui;
-      if (want >= held) {
+      const bool driven = want >= held;
+      if (driven) {
         // Driven by the input: its own level and its own phase.
         held = want;
         if (size > 1.0e-12f) {
           const float inverse = 1.0f / size;
-          ur = a * inverse;
-          ui = b * inverse;
+          channel.phase_re[k] = a * inverse;
+          channel.phase_im[k] = b * inverse;
         } else {
-          ur = 1.0f;
-          ui = 0.0f;
+          channel.phase_re[k] = 1.0f;
+          channel.phase_im[k] = 0.0f;
         }
-      } else {
-        // Let go of: what it held, turned on by the turn it last made.
-        float tr = channel.turn_re[k];
-        float ti = channel.turn_im[k];
+      }
+      if (held < kFloor) held = 0.0f;
+      channel.held[k] = held;
+      let_go_[k] = driven ? 0 : measured ? 1 : 2;
+      ringing = ringing || held > 0.0f;
+      power += held * held;
+    }
+    // Let go of: what a bin held, turned on. A partial is three or four bins
+    // wide and when it ends its bins must turn together, or the ring beats
+    // against itself (measured: a 440 Hz tone let go rang with swings of 15 dB
+    // while each bin kept its own turn, which in the side bins is the turn of
+    // the cut and not of the tone). So a bin whose input has gone turns by
+    // the turn of the peak it belongs to, the strongest bin found by climbing
+    // up to two bins uphill, when that peak's input has gone too: the sound
+    // has ended. While the peak's input holds up the sound is still there and
+    // the bin is only in the trough of a beat between close partials; it
+    // keeps its own turn then, which meets the input again at the next crest
+    // (following the peak there took a held low chord down by 0.6 dB with
+    // dips of 2.7 dB; this way it stays within 0.1 dB with dips of 1.4).
+    const float* holds = channel.held;
+    for (int k = 0; k < kBins; ++k) {
+      float ur = channel.phase_re[k];
+      float ui = channel.phase_im[k];
+      if (let_go_[k]) {
+        int lead = k;
+        for (int step = 0; step < 2 && let_go_[k] == 2; ++step) {
+          const float above = lead + 1 < kBins ? holds[lead + 1] : 0.0f;
+          const float below = lead > 0 ? holds[lead - 1] : 0.0f;
+          if (above > holds[lead] && above >= below) {
+            ++lead;
+          } else if (below > holds[lead]) {
+            --lead;
+          } else {
+            break;
+          }
+        }
+        if (let_go_[lead] != 2) lead = k;
+        float tr = channel.turn_re[lead];
+        float ti = channel.turn_im[lead];
         const float length = tr * tr + ti * ti;
         if (length < 0.999f || length > 1.001f) {
           const float inverse = 1.0f / std::sqrt(length);
           tr *= inverse;
           ti *= inverse;
-          channel.turn_re[k] = tr;
-          channel.turn_im[k] = ti;
+          channel.turn_re[lead] = tr;
+          channel.turn_im[lead] = ti;
         }
-        ur = channel.phase_re[k] * tr - channel.phase_im[k] * ti;
-        ui = channel.phase_re[k] * ti + channel.phase_im[k] * tr;
-        const float keep = 1.5f - 0.5f * (ur * ur + ui * ui);  // back to unit length
-        ur *= keep;
-        ui *= keep;
+        const float vr = ur * tr - ui * ti;
+        const float vi = ur * ti + ui * tr;
+        const float keep = 1.5f - 0.5f * (vr * vr + vi * vi);  // back to unit length
+        ur = vr * keep;
+        ui = vi * keep;
+        channel.phase_re[k] = ur;
+        channel.phase_im[k] = ui;
       }
-      if (held < kFloor) held = 0.0f;
-      channel.held[k] = held;
-      channel.phase_re[k] = ur;
-      channel.phase_im[k] = ui;
-      ringing = ringing || held > 0.0f;
-      power += held * held;
-      re[k] = gain * held * ur;
-      im[k] = gain * held * ui;
+      re[k] = gain * holds[k] * ur;
+      im[k] = gain * holds[k] * ui;
+    }
+    // What is held has a ceiling, so that a burst far over full scale (a
+    // device before this one gone wrong) rings on no louder than the loudest
+    // sound there can be, and not at the limiter for seconds.
+    if (power > kHeldCeiling) {
+      const float down = std::sqrt(kHeldCeiling / power);
+      for (int k = 0; k < kBins; ++k) {
+        channel.held[k] *= down;
+        re[k] *= down;
+        im[k] *= down;
+      }
+      power = kHeldCeiling;
     }
     channel.ringing = ringing;
     return power;
@@ -698,10 +778,12 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       }
       return power;
     }
-    // Two smoothers of 0.1 s × Soften² each on the bin's power: the sum of it
+    // Two smoothers of 0.1 s × Soften each on the bin's power: the sum of it
     // over time is what it was, so the attack keeps its energy.
     const float pole = 1.0f - std::exp(-static_cast<float>(Stft::kHop) /
-                                       (kMaxSoftenSeconds * soften * soften * sample_rate()));
+                                       (kMaxSoftenSeconds * soften * sample_rate()));
+    // How far the frame's own share is turned, in half turns either way.
+    const float turned = std::sqrt(soften);
     // The same angles for both sides: a mono attack stays in the middle.
     kit::Rng rng;
     rng.seed(0x7F4A7C15u ^ (number * 2246822519u));
@@ -724,10 +806,10 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       power += puff;
       const float out = std::sqrt(puff);
       // How much of what sounds is this frame's own. That share keeps the
-      // frame's phase, turned by up to ±Soften half turns; the rest, which
+      // frame's phase, turned by up to ±√Soften half turns; the rest, which
       // is the past still fading, has no phase of its own and gets any.
       const float share = (now >= puff || !(puff > 0.0f)) ? 1.0f : own / out;
-      const float spread = 1.0f - share * (1.0f - soften);
+      const float spread = 1.0f - share * (1.0f - turned);
       float ur = 1.0f;
       float ui = 0.0f;
       if (size > 1.0e-12f) {
@@ -754,6 +836,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   float tone_[kBins];    // the tones' share of each bin
   float strike_[kBins];  // the attacks' share
   int32_t padded_[kBins + 2 * kReach];
+  float across_[kBins];  // kAcrossBias times the lean, per bin
+  uint8_t let_go_[kBins];  // Hold: 0 a bin the input drives, 1 let go with its turn measured, 2 let go, input gone
   float strike_re_[kBins];
   float strike_im_[kBins];
   float mask_[kMaskSteps + 1];

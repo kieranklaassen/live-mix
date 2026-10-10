@@ -7,8 +7,8 @@
 //    2  air: -30..6 dB, default 3
 //    3  sharpness: 0..1, default 0.5
 //    4  edge: 0..1, default 1
-//    5  hold: 0..1, default 0.2
-//    6  soften: 0..1, default 0.4
+//    5  hold: 0..1, default 0.3
+//    6  soften: 0..1, default 0.16
 //    7  late: 0..300 ms, default 0
 //    8  scatter: 0..1, default 0.6
 //    9  mix: 0..1, default 1
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {-30.0f, -30.0f, -30.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {6.0f, 6.0f, 6.0f, 1.0f, 1.0f, 1.0f, 1.0f, 300.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.2f, 0.4f, 0.0f, 0.6f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.16f, 0.0f, 0.6f, 1.0f};
 
 }  // namespace sift
 }  // namespace livemix
