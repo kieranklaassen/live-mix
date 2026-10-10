@@ -84,6 +84,8 @@ build_generated_devices() {
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device low-bitrate \
     cpp/devices/low-bitrate/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device magnet-piano \
+    cpp/devices/magnet-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
     cpp/devices/mallets/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device micro-looper \
@@ -257,6 +259,8 @@ test_generated_devices() {
     cpp/test/lattice_test.cpp
   native_test low_bitrate_test \
     cpp/test/low_bitrate_test.cpp
+  native_test magnet_piano_test \
+    cpp/test/magnet_piano_test.cpp
   native_test mallets_test \
     cpp/test/mallets_test.cpp
   native_test micro_looper_test \

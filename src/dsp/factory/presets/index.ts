@@ -23,6 +23,7 @@ import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
+import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
@@ -76,4 +77,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...OUTDOORS_PRESETS,
   ...ZONE_SAMPLER_PRESETS,
   ...FLOCK_PRESETS,
+  ...MAGNET_PIANO_PRESETS,
 ]
