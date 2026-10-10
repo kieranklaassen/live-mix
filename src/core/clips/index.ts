@@ -2,7 +2,7 @@
 // lookahead window. Nothing here touches Web Audio.
 
 export { clipChance, normaliseSeed, seededRandom, seededUnit, soundsOnPass } from './chance'
-export { isAudibleClip, type Clip, type FadeCurve } from './Clip'
+export { isAudibleClip, type Clip, type ClipTurns, type FadeCurve } from './Clip'
 export { EQUAL_POWER_CURVE_LENGTH, equalPowerFadeIn, equalPowerFadeOut } from './curves'
 export { fadeGain } from './fade'
 export {
@@ -35,6 +35,7 @@ export {
   leavesOnStep,
   type SoundFrames,
 } from './seam'
+export { clipSourceIds, clipSourceOnPass, sameTurns, turnLength, turnOnPass } from './turns'
 export {
   clipsInWindow,
   clipsSoundingAt,

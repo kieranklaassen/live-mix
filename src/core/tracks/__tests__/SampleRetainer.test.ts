@@ -229,6 +229,23 @@ describe('SampleRetainer', () => {
     scheduler.dispose()
   })
 
+  it('a clip that takes turns is held by the source of the pass that starts', async () => {
+    const { ctx, samples, track, transport, scheduler, retainer } = setup({ loop: true })
+    await samples.load('s-a', minutes(60))
+    await samples.load('s-b', minutes(60))
+    track.clips.add(clip('a', 0.5, { durationSec: 1, turns: { sourceIds: ['s-a', 's-b'] } }))
+    transport.start()
+    scheduler.tick()
+    expect(retainer.heldSourceIds()).toEqual(['s-a'])
+    ctx.currentTime = 28
+    scheduler.tick()
+    expect(retainer.heldKeys()).toEqual(['a:1:0.500'])
+    expect(retainer.heldSourceIds()).toEqual(['s-b'])
+    expect(samples.holds('s-a')).toBe(0)
+    expect(samples.holds('s-b')).toBe(1)
+    scheduler.dispose()
+  })
+
   it('detach and dispose release holds; a missing clip is accepted without a hold', async () => {
     const { ctx, samples, track, transport, scheduler, retainer } = setup()
     await samples.load('s-a', minutes(60))

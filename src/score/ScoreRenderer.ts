@@ -21,6 +21,7 @@
 
 import { LEVEL_RAMP_SECONDS } from '../core/buses/Bus'
 import { type Clip } from '../core/clips/Clip'
+import { sameTurns } from '../core/clips/turns'
 import { type Device } from '../core/devices/Device'
 import { NodeDevice } from '../core/devices/native/NodeDevice'
 import { isNoteDevice, isStatefulDevice, type NoteDevice } from '../core/devices/Device'
@@ -1614,6 +1615,7 @@ function sameClips(a: readonly Clip[], b: readonly Clip[]): boolean {
       (clip.muted ?? false) === (other.muted ?? false) &&
       (clip.reversed ?? false) === (other.reversed ?? false) &&
       (clip.chance ?? 1) === (other.chance ?? 1) &&
+      sameTurns(clip.turns, other.turns) &&
       clip.pan === other.pan &&
       clip.lowpassHz === other.lowpassHz &&
       clip.spaceDb === other.spaceDb
