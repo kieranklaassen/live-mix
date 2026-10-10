@@ -1,0 +1,245 @@
+{
+  "id": "glints",
+  "name": "Glints",
+  "category": "texture",
+  "description": "Throws off sparse bright sparks, short pieces of what is playing an octave or two up, each a little later and somewhere else between the speakers.",
+  "class": "Glints",
+  "header": "glints.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "sparks",
+      "name": "Sparks thrown",
+      "display": true
+    },
+    {
+      "key": "pace",
+      "name": "Sparks a second now",
+      "display": true
+    },
+    {
+      "key": "spark1",
+      "name": "Newest spark",
+      "display": true
+    },
+    {
+      "key": "spark2",
+      "name": "Spark before it",
+      "display": true
+    },
+    {
+      "key": "spark3",
+      "name": "Third newest spark",
+      "display": true
+    },
+    {
+      "key": "spark4",
+      "name": "Fourth newest spark",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "density",
+      "name": "Density",
+      "min": 0.2,
+      "max": 40,
+      "default": 5,
+      "taper": "log",
+      "unit": "/s",
+      "description": "How many sparks are thrown each second. Low leaves single glints far apart; high runs them together into a glitter."
+    },
+    {
+      "key": "pitch",
+      "name": "Pitch",
+      "choices": ["Octave", "Octave and fifth", "Two octaves", "Mixed", "Overtones"],
+      "default": 3,
+      "description": "How far above the playing the sparks sound. Mixed draws from the first three. Overtones throws the natural harmonics up to the eighth, some of which lie between the keys."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 8,
+      "max": 300,
+      "default": 70,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long each spark lasts. Short ones are bright ticks. Long ones are small fast phrases, and they wait longer before they can sound."
+    },
+    {
+      "key": "scatter",
+      "name": "Scatter",
+      "min": 0,
+      "max": 2000,
+      "default": 350,
+      "unit": "ms",
+      "description": "How long after the sound a spark may come. At zero the sparks keep as close to the playing as they can; higher lets them fall later and looser."
+    },
+    {
+      "key": "follow",
+      "name": "Follow",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much the playing sets the pace. At zero sparks fall steadily by chance. At full they come only while you play, more of them the louder and brighter it is."
+    },
+    {
+      "key": "sparkle",
+      "name": "Sparkle",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How bright the sparks are. Higher thins their body and sharpens their front edge, so soft blips turn into fine points of light."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far sparks are thrown to the left and right. Zero keeps every spark in the centre."
+    },
+    {
+      "key": "trail",
+      "name": "Trail",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "An echo on the sparks only, crossing from side to side and darker each time. Higher gives each spark more repeats before it dies away."
+    },
+    {
+      "key": "trailTime",
+      "name": "Trail Time",
+      "min": 40,
+      "max": 800,
+      "default": 180,
+      "taper": "log",
+      "unit": "ms",
+      "description": "The gap between a spark and each of its echoes. Moving it bends the pitch of the echoes that are sounding."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Balance between the dry signal and the sparks. Low settings leave the dry sound almost whole; fully up is the sparks alone."
+    }
+  ],
+  "presets": {
+    "First light": {},
+    "Faint dust": {
+      "mix": 0.12,
+      "density": 7,
+      "size": 30,
+      "sparkle": 0.8,
+      "scatter": 600,
+      "follow": 0.5
+    },
+    "Steady rain": {
+      "follow": 0,
+      "density": 8,
+      "scatter": 1200
+    },
+    "Glitter": {
+      "density": 25,
+      "size": 25,
+      "sparkle": 0.9,
+      "scatter": 500,
+      "follow": 0.7,
+      "spread": 1
+    },
+    "Slow stars": {
+      "density": 0.8,
+      "size": 200,
+      "pitch": 2,
+      "trail": 0.75,
+      "trailTime": 420,
+      "scatter": 1500,
+      "mix": 0.3
+    },
+    "Fifths above": {
+      "pitch": 1,
+      "density": 5,
+      "size": 120,
+      "mix": 0.28
+    },
+    "Overtone spray": {
+      "pitch": 4,
+      "density": 18,
+      "size": 40,
+      "scatter": 800,
+      "mix": 0.28
+    },
+    "Wide halo": {
+      "size": 300,
+      "density": 10,
+      "spread": 1,
+      "sparkle": 0.15,
+      "pitch": 0,
+      "scatter": 200,
+      "follow": 0.3,
+      "mix": 0.28
+    },
+    "Only the sparks": {
+      "mix": 1,
+      "density": 14
+    },
+    "Tight ticks": {
+      "size": 12,
+      "scatter": 0,
+      "follow": 1,
+      "density": 24,
+      "sparkle": 1,
+      "trail": 0
+    },
+    "Long trails": {
+      "trail": 0.85,
+      "trailTime": 600,
+      "density": 2,
+      "mix": 0.28
+    },
+    "Flutter echo": {
+      "trail": 0.8,
+      "trailTime": 60,
+      "density": 4,
+      "size": 20,
+      "mix": 0.28
+    },
+    "Soft blips": {
+      "sparkle": 0,
+      "size": 150,
+      "density": 6,
+      "pitch": 0,
+      "mix": 0.3
+    },
+    "Late answers": {
+      "scatter": 2000,
+      "follow": 0.2,
+      "density": 4,
+      "size": 100,
+      "trail": 0.4,
+      "mix": 0.28
+    },
+    "Overtone chimes": {
+      "pitch": 4,
+      "size": 250,
+      "density": 3,
+      "trail": 0.6,
+      "trailTime": 300,
+      "sparkle": 0.3,
+      "mix": 0.3
+    },
+    "Thrown by touch": {
+      "follow": 1,
+      "density": 30,
+      "size": 40,
+      "scatter": 100,
+      "mix": 0.28
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Short windowed pieces of the input are replayed at whole multiples of its speed (2 to 8), so each lands on a harmonic of what it was cut from; the faster ones read half-band decimated copies of the input so that they do not alias. Replaying windowed fragments of sound at other speeds is after the approach of Curtis Roads, 'Microsound', cited from memory with no constants or details taken from it. Not a model of any particular unit."
+  }
+}
