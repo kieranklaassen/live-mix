@@ -140,8 +140,8 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
   presets: {
     'Firm and airy': {},
     'Wide top': { high: 2, highHz: 2200, make: 1, smear: 0.5 },
-    'Air only': { high: 2, highHz: 7000, slope: 1, make: 1, smear: 0.2 },
-    'Open middle': { mid: 1.8, high: 1.2, make: 0.9 },
+    'Air only': { low: 1, high: 2, highHz: 5000, slope: 1, make: 1, smear: 0.2 },
+    'Open middle': { mid: 1.8, high: 1.2, make: 0.9, output: -1 },
     'Wide pad': {
       low: 0.5,
       mid: 1.6,
@@ -154,16 +154,16 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
       output: -1.5,
     },
     'Hazy edges': { mid: 1.3, high: 2, highHz: 1500, slope: 0, make: 1, smear: 1 },
-    'Tight shimmer': { high: 2, highHz: 5000, slope: 1, make: 0.8, smear: 0 },
+    'Tight shimmer': { low: 1, high: 2, highHz: 1800, slope: 1, make: 1, smear: 0 },
     'Wide ends': { low: 2, mid: 0.6, high: 2, lowHz: 150, make: 0.8 },
-    'Wide bass': { low: 2, high: 1, lowHz: 300, make: 1, smear: 0.7, safe: 0.3 },
-    'Nearly dry': { high: 1.3, make: 0.4 },
+    'Wide bass': { low: 2, high: 1, lowHz: 300, make: 1, smear: 0.7, safe: 0.3, output: -1 },
+    'Firm bass': { high: 1, lowHz: 400, slope: 1, make: 0 },
     'Everything wide': { low: 2, mid: 2, high: 2, make: 1, safe: 0, output: -3 },
     'Wide but safe': { low: 1.5, mid: 2, high: 2, make: 1, safe: 1 },
     'Soft tilt': { mid: 1.4, high: 2, lowHz: 100, highHz: 2000, slope: 0, make: 0.7 },
     'Narrow top': { low: 1, mid: 1.6, high: 0, highHz: 4000, make: 0.8 },
     'Centre focus': { mid: 0.3, high: 1.6, lowHz: 250, make: 0.6 },
-    'All in the middle': { low: 0, mid: 0, high: 0, make: 0 },
+    'To the middle': { low: 0, mid: 0, high: 0, make: 0 },
   },
 })
 

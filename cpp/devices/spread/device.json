@@ -110,8 +110,9 @@
       "smear": 0.5
     },
     "Air only": {
+      "low": 1,
       "high": 2,
-      "highHz": 7000,
+      "highHz": 5000,
       "slope": 1,
       "make": 1,
       "smear": 0.2
@@ -119,7 +120,8 @@
     "Open middle": {
       "mid": 1.8,
       "high": 1.2,
-      "make": 0.9
+      "make": 0.9,
+      "output": -1
     },
     "Wide pad": {
       "low": 0.5,
@@ -141,10 +143,11 @@
       "smear": 1
     },
     "Tight shimmer": {
+      "low": 1,
       "high": 2,
-      "highHz": 5000,
+      "highHz": 1800,
       "slope": 1,
-      "make": 0.8,
+      "make": 1,
       "smear": 0
     },
     "Wide ends": {
@@ -160,11 +163,14 @@
       "lowHz": 300,
       "make": 1,
       "smear": 0.7,
-      "safe": 0.3
+      "safe": 0.3,
+      "output": -1
     },
-    "Nearly dry": {
-      "high": 1.3,
-      "make": 0.4
+    "Firm bass": {
+      "high": 1,
+      "lowHz": 400,
+      "slope": 1,
+      "make": 0
     },
     "Everything wide": {
       "low": 2,
@@ -202,7 +208,7 @@
       "lowHz": 250,
       "make": 0.6
     },
-    "All in the middle": {
+    "To the middle": {
       "low": 0,
       "mid": 0,
       "high": 0,

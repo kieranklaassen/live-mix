@@ -645,20 +645,20 @@ int main() {
     // presets: begin (the sixteen of device.json, every control filled in; tmp/preset-table.py writes them)
       {"Firm and airy", {0.0f, 1.0f, 1.7f, 180.0f, 3200.0f, 0.5f, 0.7f, 0.4f, 0.5f, 0.0f}},
       {"Wide top", {0.0f, 1.0f, 2.0f, 180.0f, 2200.0f, 0.5f, 1.0f, 0.5f, 0.5f, 0.0f}},
-      {"Air only", {0.0f, 1.0f, 2.0f, 180.0f, 7000.0f, 1.0f, 1.0f, 0.2f, 0.5f, 0.0f}},
-      {"Open middle", {0.0f, 1.8f, 1.2f, 180.0f, 3200.0f, 0.5f, 0.9f, 0.4f, 0.5f, 0.0f}},
+      {"Air only", {1.0f, 1.0f, 2.0f, 180.0f, 5000.0f, 1.0f, 1.0f, 0.2f, 0.5f, 0.0f}},
+      {"Open middle", {0.0f, 1.8f, 1.2f, 180.0f, 3200.0f, 0.5f, 0.9f, 0.4f, 0.5f, -1.0f}},
       {"Wide pad", {0.5f, 1.6f, 2.0f, 120.0f, 3200.0f, 0.2f, 0.9f, 0.8f, 0.4f, -1.5f}},
       {"Hazy edges", {0.0f, 1.3f, 2.0f, 180.0f, 1500.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.0f}},
-      {"Tight shimmer", {0.0f, 1.0f, 2.0f, 180.0f, 5000.0f, 1.0f, 0.8f, 0.0f, 0.5f, 0.0f}},
+      {"Tight shimmer", {1.0f, 1.0f, 2.0f, 180.0f, 1800.0f, 1.0f, 1.0f, 0.0f, 0.5f, 0.0f}},
       {"Wide ends", {2.0f, 0.6f, 2.0f, 150.0f, 3200.0f, 0.5f, 0.8f, 0.4f, 0.5f, 0.0f}},
-      {"Wide bass", {2.0f, 1.0f, 1.0f, 300.0f, 3200.0f, 0.5f, 1.0f, 0.7f, 0.3f, 0.0f}},
-      {"Nearly dry", {0.0f, 1.0f, 1.3f, 180.0f, 3200.0f, 0.5f, 0.4f, 0.4f, 0.5f, 0.0f}},
+      {"Wide bass", {2.0f, 1.0f, 1.0f, 300.0f, 3200.0f, 0.5f, 1.0f, 0.7f, 0.3f, -1.0f}},
+      {"Firm bass", {0.0f, 1.0f, 1.0f, 400.0f, 3200.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
       {"Everything wide", {2.0f, 2.0f, 2.0f, 180.0f, 3200.0f, 0.5f, 1.0f, 0.4f, 0.0f, -3.0f}},
       {"Wide but safe", {1.5f, 2.0f, 2.0f, 180.0f, 3200.0f, 0.5f, 1.0f, 0.4f, 1.0f, 0.0f}},
       {"Soft tilt", {0.0f, 1.4f, 2.0f, 100.0f, 2000.0f, 0.0f, 0.7f, 0.4f, 0.5f, 0.0f}},
       {"Narrow top", {1.0f, 1.6f, 0.0f, 180.0f, 4000.0f, 0.5f, 0.8f, 0.4f, 0.5f, 0.0f}},
       {"Centre focus", {0.0f, 0.3f, 1.6f, 250.0f, 3200.0f, 0.5f, 0.6f, 0.4f, 0.5f, 0.0f}},
-      {"All in the middle", {0.0f, 0.0f, 0.0f, 180.0f, 3200.0f, 0.5f, 0.0f, 0.4f, 0.5f, 0.0f}},
+      {"To the middle", {0.0f, 0.0f, 0.0f, 180.0f, 3200.0f, 0.5f, 0.0f, 0.4f, 0.5f, 0.0f}},
     // presets: end
     };
     const float seconds = 60.0f;
