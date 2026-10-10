@@ -465,6 +465,21 @@ int main() {
     char label[160];
     std::snprintf(label, sizeof label, "Width 1, all scattered: the sides are unrelated (correlation %.3f)", apart);
     EXPECT(std::fabs(apart) < 0.2, label);
+    // And the knob's travel reaches there evenly: at its middle the sides
+    // are still half alike, at three quarters still on their way apart.
+    // (They were all but unrelated from three quarters on, so the top of
+    // the knob did nothing at the default Diffuse.)
+    double along[2];
+    int step = 0;
+    for (float width : {0.5f, 0.75f}) {
+      wet(device);
+      device.set_param(p::kWidth, width);
+      device.set_param(p::kDiffuse, 1.0f);
+      Stereo part = run(device, in);
+      along[step++] = correlation(part.left, part.right, 48000, part.left.size());
+    }
+    std::snprintf(label, sizeof label, "Width 0.5 and 0.75, all scattered: the sides are still alike by %.3f and %.3f", along[0], along[1]);
+    EXPECT(along[0] > 0.35 && along[0] < 0.6 && along[1] > 0.08 && along[1] < along[0], label);
     wet(device);
     device.set_param(p::kWidth, 1.0f);
     device.set_param(p::kDiffuse, 0.0f);

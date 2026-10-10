@@ -1039,12 +1039,17 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     }
     // Both channels draw the same angles from `shared`; Width moves the
     // right channel towards its own. Fully scattered the two sides have
-    // nothing in common once the right is kWidest of the way there, so the
-    // knob's whole travel ends at that point and its top is not dead.
+    // nothing in common once the right is kWidest of the way there, and
+    // most of that is done in the first half of the way: so the knob's
+    // travel ends at kWidest and is bent (Width squared) to spread what it
+    // does over all of it, the more so the nearer to fully scattered.
     kit::Rng shared, own;
     seed(&shared, &own, 0x2000u, number);
-    const float widest = scatter > kWidest ? kWidest / scatter : 1.0f;
-    const float apart = c == 0 ? 0.0f : param(stretch::kWidth) * widest;
+    float apart = c == 0 ? 0.0f : param(stretch::kWidth);
+    if (scatter > kWidest) {
+      const float full = (scatter - kWidest) / (1.0f - kWidest);
+      apart *= (kWidest / scatter) * (1.0f + full * (apart - 1.0f));
+    }
     const float reach = scatter * kit::kPi;
     const float gain = gain_ * level;
     for (int k = 0; k <= half; ++k) {
