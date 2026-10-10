@@ -19,6 +19,7 @@ import { SAMPLE_INSTRUMENT_FACES } from './instrument-samples'
 import { SUBTRACTIVE_INSTRUMENT_FACES } from './instrument-subtractive'
 import { WAVE_INSTRUMENT_FACES } from './instrument-waves'
 import { WIND_INSTRUMENT_FACES } from './instrument-winds'
+import { FOG_FACES } from './fog'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -57,4 +58,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...AIR_INSTRUMENT_FACES,
   ...SAMPLE_INSTRUMENT_FACES,
   ...KIT_INSTRUMENT_FACES,
+  ...FOG_FACES,
 }

@@ -1869,6 +1869,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'grain-synth': { ...PLATE_PALETTES['grain-synth'], finish: 'speckle', cap: 'dot' },
   'drum-kit': { ...PLATE_PALETTES['drum-kit'], finish: 'grain', cap: 'disc' },
   'glitch-kit': { ...PLATE_PALETTES['glitch-kit'], finish: 'speckle', cap: 'pointer' },
+  fog: { ...PLATE_PALETTES.fog, finish: 'fade', cap: 'dot' },
 }
 
 /**

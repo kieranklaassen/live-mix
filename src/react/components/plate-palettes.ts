@@ -118,6 +118,7 @@ export const PLATE_PALETTES = {
   'grain-synth': { plate: '#a8408a', ink: '#fff0f9', accent: '#ffdb4d' },
   'drum-kit': { plate: '#2a2420', ink: '#f3eadb', accent: '#ff6b4a' },
   'glitch-kit': { plate: '#f2d31b', ink: '#15130a', accent: '#c2185b' },
+  fog: { plate: '#869e9c', ink: '#0f1d1c', accent: '#7a1f12' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
