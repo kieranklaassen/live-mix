@@ -54,8 +54,7 @@ const GLINTS_HEAD_ROOM = 12
 const GLINTS_SOFT_EDGE_SEC = 0.006
 const GLINTS_SHARP_EDGE_SEC = 0.0003
 const GLINTS_MOST_EDGE = 0.3
-/** `glints.h`: how much Sparkle lifts a spark (`kSparkleLift`), and what a Trail of one gives back each time round (`kMaxFeedback`). */
-const GLINTS_SPARKLE_LIFT = 1
+/** `glints.h`: what a Trail of one gives back each time round (`kMaxFeedback`). */
 const GLINTS_MAX_FEEDBACK = 0.85
 /** `glints.h`, `throw_spark()`: what a spark's reading holds: lateness in steps of 2 ms, loudness in steps of 6 dB up from −42. */
 const GLINTS_LATE_STEP_SEC = 0.002
@@ -85,8 +84,18 @@ const GLINTS_BAND_MOST = 0.2
 /** The faintest a crowd of sparks is drawn, so that one of forty a second is still seen. */
 const GLINTS_CROWD_LEAST = 0.4
 /** How strongly a flight is laid under its point of light while the spark sounds, and just after. */
-const GLINTS_FLIGHT = 0.7
-const GLINTS_GLOW = 0.55
+const GLINTS_FLIGHT = 0.9
+const GLINTS_GLOW = 0.75
+/**
+ * How strongly sparks are drawn at the least Mix that lets them be heard: the
+ * rest comes with Mix. A spark lasts a few frames and its afterglow is all
+ * most eyes get of it, so at a Mix that leaves the dry sound nearly whole it
+ * still has to be plain beside the bands it starts from.
+ */
+export const GLINTS_FAINTEST = 0.7
+/** A point of light: its size with the spark's window shut, and what the window open to the full adds. */
+export const GLINTS_POINT = 2.2
+export const GLINTS_POINT_OPEN = 3.4
 /** How far apart the two rings stand at the least, when both are on one row. */
 const GLINTS_RING_GAP = 9
 
@@ -279,7 +288,7 @@ function glintsHandles(view: DisplayView): DisplayHandle[] {
   const sizeX = glintsX(glintsLeast(high, size), layout)
   // Scatter stands where the lowest row's sparks start at the most. With no
   // Scatter on a single row that is where Size stands, so it is drawn a little
-  // clear of it and moved from where the setting lies.
+  // clear of it.
   const leastLow = glintsLeast(low, size)
   const scatterAt = glintsX(leastLow + scatter * 0.001, layout)
   const scatterX = low === high ? Math.max(scatterAt, sizeX + GLINTS_RING_GAP) : scatterAt
@@ -304,11 +313,17 @@ function glintsHandles(view: DisplayView): DisplayHandle[] {
       x: scatterX,
       y: glintsY(low, set, layout),
       drag: (x, _y, hold) => {
+        // Taken where it is drawn clear of Size it is that far past its
+        // setting: no jump at the press, and over twice the gap to the right
+        // the setting catches the pointer up, so that from there on the ring
+        // is under the hand. To the left it keeps its distance down to none.
         const kept = hold ?? {}
         kept.clear ??= scatterX - scatterAt
+        kept.from ??= x
+        const behind = kept.clear * clamp(1 - (x - kept.from) / (2 * GLINTS_RING_GAP), 0, 1)
         return {
           scatter: clamp(
-            (glintsLateAt(x - kept.clear, layout) - leastLow) * 1000,
+            (glintsLateAt(x - behind, layout) - leastLow) * 1000,
             scatterSpec?.min ?? 0,
             scatterSpec?.max ?? 2000,
           ),
@@ -484,7 +499,9 @@ const glints = plateDisplay<GlintsState>({
     // repeat is the same sound that much later, so it stands that much
     // further back, and on the other side, for the trail crosses.
     // As strong as Mix lets the sparks be heard, and fainter where the device turns a crowd down.
-    const strong = (0.4 + 0.6 * wet) * Math.max(GLINTS_CROWD_LEAST, glintsCrowd(density, length))
+    const strong =
+      (GLINTS_FAINTEST + (1 - GLINTS_FAINTEST) * wet) *
+      Math.max(GLINTS_CROWD_LEAST, glintsCrowd(density, length))
     const mark = (spark: KeptSpark | GlintsSpark, age: number, colour: string): void => {
       const lasts = 'length' in spark ? spark.length : length
       const edge = 'edge' in spark ? spark.edge : glintsEdge(sparkle, length)
@@ -519,8 +536,8 @@ const glints = plateDisplay<GlintsState>({
             ctx,
             at,
             y + side,
-            (1.6 + 3 * window) * loud * (0.5 + 0.5 * gain),
-            sparkle * GLINTS_SPARKLE_LIFT,
+            (GLINTS_POINT + GLINTS_POINT_OPEN * window) * loud * (0.5 + 0.5 * gain),
+            sparkle,
             colour,
             strong * gain * (sounding ? 1 : fade),
           )

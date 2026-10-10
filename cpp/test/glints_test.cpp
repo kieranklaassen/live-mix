@@ -110,6 +110,61 @@ static double median(std::vector<double> values) {
   return values[values.size() / 2];
 }
 
+// A played phrase for the checks that a sine cannot stand in for: thirteen struck notes over eight
+// seconds with gaps between the groups, each a set of partials falling with their number, the
+// higher ones dying sooner, under a 3 ms attack.
+static std::vector<float> phrase(float seconds, float rate, float gain) {
+  std::vector<double> sum(static_cast<size_t>(seconds * rate), 0.0);
+  const double notes[][2] = {{0.10, 220.00}, {0.55, 329.63}, {1.00, 440.00}, {1.45, 523.25}, {2.60, 196.00},
+                             {3.05, 293.66}, {3.50, 392.00}, {3.95, 493.88}, {5.60, 174.61}, {6.05, 261.63},
+                             {6.50, 349.23}, {6.95, 440.00}, {7.40, 659.25}};
+  for (const auto& note : notes) {
+    const size_t start = static_cast<size_t>(note[0] * rate);
+    for (int n = 1; n <= 30; ++n) {
+      const double hz = n * note[1];
+      if (hz > 0.45 * rate) break;
+      const double level = std::pow(n, -1.25), tau = 0.32 / std::pow(n, 0.6);
+      for (size_t i = start; i < sum.size(); ++i) {
+        const double t = static_cast<double>(i - start) / rate;
+        if (t > 9.0 * tau) break;
+        sum[i] += level * std::min(1.0, t / 0.003) * std::exp(-t / tau) * std::sin(2.0 * kPi * hz * t + 0.7 * n);
+      }
+    }
+  }
+  double most = 0.0;
+  for (double v : sum) most = std::max(most, std::fabs(v));
+  std::vector<float> out(sum.size());
+  for (size_t i = 0; i < out.size(); ++i) out[i] = static_cast<float>(gain * sum[i] / most);
+  return out;
+}
+
+// The level of what lies above `hz`: the root mean square after a 12 dB an octave high-pass.
+static double rms_above(const std::vector<float>& x, double hz, size_t from = 0, size_t to = SIZE_MAX) {
+  to = std::min(to, x.size());
+  const double a = std::exp(-2.0 * kPi * hz / kRate);
+  double low1 = 0.0, low2 = 0.0, sum = 0.0;
+  for (size_t i = from; i < to; ++i) {
+    low1 = x[i] + (low1 - x[i]) * a;
+    const double once = x[i] - low1;
+    low2 = once + (low2 - once) * a;
+    const double twice = once - low2;
+    sum += twice * twice;
+  }
+  return to > from ? std::sqrt(sum / static_cast<double>(to - from)) : 0.0;
+}
+
+// When each spark is thrown, in seconds: the device's own count, read every 16 samples.
+static std::vector<double> thrown_at(Glints& d, const std::vector<float>& input) {
+  std::vector<double> at;
+  double count = d.meter(0);
+  for (size_t done = 0; done + 16 <= input.size(); done += 16) {
+    for (int i = 0; i < 16; ++i) d.in_left()[i] = d.in_right()[i] = input[done + i];
+    d.process(16);
+    for (; count < d.meter(0); count += 1.0) at.push_back(static_cast<double>(done) / kRate);
+  }
+  return at;
+}
+
 // What the device says of its newest spark (meter 2), unpacked.
 struct Told {
   int row;
@@ -443,7 +498,8 @@ int main() {
       else ++middles;
     }
     EXPECT(lefts >= 8 && rights >= 8, "Spread 1: sparks on the left and sparks on the right");
-    EXPECT(middles < (lefts + rights) / 2, "Spread 1: most sparks are well to one side");
+    // A spark is 10 dB or more to one side when its pan is past 0.59, which is three in four of them.
+    EXPECT(5 * middles < 2 * (lefts + rights + middles), "Spread 1: most sparks are well to one side");
     // The same sparks in the centre have the same power over the two sides, and a spark hard to
     // one side is on that side as loud as what it reads.
     bare(device);
@@ -453,8 +509,8 @@ int main() {
     const double wide_power = rms(wide.left) * rms(wide.left) + rms(wide.right) * rms(wide.right);
     const double middle_power = 2.0 * rms(middle.left) * rms(middle.left);
     EXPECT(std::fabs(10.0 * std::log10(wide_power / middle_power)) < 0.1, "Spread keeps the power of a spark");
-    EXPECT_NEAR(std::max(peak(wide.left), peak(wide.right)), 0.3, 0.02,
-                "a spark hard to one side peaks at the level of what it reads");
+    EXPECT_NEAR(std::max(peak(wide.left), peak(wide.right)), 0.3 * Glints::kSparkGain, 0.04,
+                "a spark hard to one side peaks at kSparkGain times the level of what it reads");
   }
 
   // --- Trail: an echo on the sparks only, on the other side, a Trail Time later, 0.85 x Trail as loud.
@@ -501,7 +557,8 @@ int main() {
     EXPECT_NEAR(centre.left[1], 0.425, 0.03, "Trail 0.5: an echo 200 ms later, 0.85 x 0.5 as loud");
     EXPECT_NEAR(centre.left[2], 0.18, 0.03, "Trail 0.5: and again 400 ms later, by the same again");
     const Echoes none = echoes(0.0f, 0.0f);
-    EXPECT(none.found && none.left[1] == 0.0 && none.left[2] == 0.0, "Trail 0: no echo");
+    // Nothing to speak of: the feedback glides to nothing and is 1e-14 of itself by now.
+    EXPECT(none.found && none.left[1] < 1.0e-9 && none.left[2] < 1.0e-9, "Trail 0: no echo");
     const Echoes thrown = echoes(0.5f, 1.0f);
     const bool on_left = thrown.left[0] > thrown.right[0];
     const double* near = on_left ? thrown.left : thrown.right;
@@ -540,9 +597,11 @@ int main() {
       low[which] = band(out.left, 300.0, 48000);
       high[which] = band(out.left, 6000.0, 48000);
     }
-    EXPECT(db(low[1] / low[0]) < -25.0, "Sparkle 1 takes the body out of a spark: 300 Hz falls by 25 dB or more");
-    EXPECT(db(high[1] / high[0]) > 4.0 && db(high[1] / high[0]) < 6.1,
-           "Sparkle 1 gives back 6 dB, less what its high-pass takes at 6 kHz");
+    // A 2 kHz high-pass of 12 dB an octave leaves 300 Hz 33 dB down, and the lift gives 12 back.
+    EXPECT(db(low[1] / low[0]) < -18.0 && db(low[1] / low[0]) > -24.0,
+           "Sparkle 1 takes the body out of a spark: 300 Hz falls by 21 dB");
+    EXPECT(db(high[1] / high[0]) > 10.5 && db(high[1] / high[0]) < 12.1,
+           "Sparkle 1 gives back 12 dB, less what its high-pass takes at 6 kHz");
   }
 
   // --- Mix: 0 is the input, sample for sample; 1 has none of it.
@@ -645,7 +704,7 @@ int main() {
       const double before = device.meter(0);
       Stereo after = run(device, sine(330.0f, 3.0f, kRate, 0.3f));
       EXPECT(finite(after.left) && finite(after.right), "good input after bad: finite from its first sample");
-      EXPECT(peak(after.left) < 1.2 && peak(after.right) < 1.2, "good input after bad: nothing runaway was kept");
+      EXPECT(peak(after.left) < 1.7 && peak(after.right) < 1.7, "good input after bad: nothing runaway was kept");
       EXPECT(device.meter(0) - before > 20.0 && rms(after.left, 48000) > 0.003,
              "good input after bad: sparks are thrown as before");
       EXPECT(std::isfinite(device.meter(1)) && device.meter(1) > 5.0 && device.meter(1) <= 20.0,
@@ -661,7 +720,7 @@ int main() {
     run(device, std::vector<float>(4800, INFINITY));
     run(device, std::vector<float>(4800, 1.0e30f));
     Stereo sound = run(device, sine(330.0f, 3.0f, kRate, 0.3f));
-    EXPECT(finite(sound.left) && finite(sound.right) && peak(sound.left) < 1.2 && rms(sound.left, 24000) > 0.001,
+    EXPECT(finite(sound.left) && finite(sound.right) && peak(sound.left) < 1.7 && rms(sound.left, 24000) > 0.001,
            "after nothing but bad samples the sparks are of the sound that follows");
   }
 
@@ -816,6 +875,140 @@ int main() {
     std::snprintf(label, sizeof label, "%g Hz: Density 5 throws %g sparks in 30 s", rate, device.meter(0));
     EXPECT(std::fabs(device.meter(0) - 150.0) < 30.0, label);
     EXPECT_NEAR(told(device).late, 0.2 + (93.0 + 48.0) / rate, 0.0021, "x3 of 100 ms is 200 ms late at any rate");
+  }
+
+  // --- The second check's additions. Each of these failed on the device as it was first built.
+
+  // No holes in the pace. The dice start from one seed at every first sound after a rest, and the
+  // first seed's third interval was 5.8 mean intervals: at the defaults every phrase began with two
+  // sparks and then nothing for close to three seconds.
+  {
+    device.init(kRate);
+    const std::vector<double> at = thrown_at(device, sine(330.0f, 20.0f, kRate, 0.3f));
+    double longest = at.empty() ? 99.0 : at[0];
+    for (size_t n = 1; n < at.size(); ++n) longest = std::max(longest, at[n] - at[n - 1]);
+    char label[120];
+    std::snprintf(label, sizeof label, "defaults, a held tone: %zu sparks in 20 s, the longest wait %.2f s", at.size(), longest);
+    // A 0.3 sine at 330 Hz reads -21 dB: the pace is 3.9 a second, and 2.5 mean intervals are 0.64 s.
+    EXPECT(at.size() >= 60 && at.size() <= 95 && longest < 0.7, label);
+    EXPECT(!at.empty() && at[0] < 0.5, "defaults: the first spark comes within half a second of the first sound");
+    // And at any pace: no interval over 0.3 + 0.7 x 3 x 1.052 = 2.51 mean intervals, the mean still one.
+    bare(device);
+    device.set_param(p::kDensity, 2.0f);
+    const std::vector<double> rain = thrown_at(device, sine(330.0f, 240.0f, kRate, 0.3f));
+    double most = 0.0, least = 99.0;
+    for (size_t n = 1; n < rain.size(); ++n) {
+      most = std::max(most, rain[n] - rain[n - 1]);
+      least = std::min(least, rain[n] - rain[n - 1]);
+    }
+    std::snprintf(label, sizeof label, "Density 2 for four minutes: %zu sparks, waits from %.3f to %.3f s", rain.size(), least, most);
+    EXPECT(rain.size() > 430 && rain.size() < 530, label);
+    EXPECT(most > 1.2 && most < 1.26, "no wait is longer than 2.5 mean intervals, and some reach it");
+    EXPECT(least > 0.149 && least < 0.17, "and none is shorter than 0.3 of one");
+  }
+
+  // The default is plainly there on a played phrase, and leaves the dry sound nearly whole.
+  {
+    const std::vector<float> played = phrase(10.0f, kRate, 0.5f);
+    device.init(kRate);
+    Stereo out = run(device, played);
+    const double sparks = device.meter(0);
+    const double dry_gain = std::cos(p::kParamDefault[p::kMix] * kPi / 2.0);
+    EXPECT(db(dry_gain) > -1.0, "at the default Mix the dry sound is under 1 dB down");
+    std::vector<float> wet_left(played.size()), wet_right(played.size());
+    for (size_t i = 0; i < played.size(); ++i) {
+      wet_left[i] = out.left[i] - static_cast<float>(dry_gain) * played[i];
+      wet_right[i] = out.right[i] - static_cast<float>(dry_gain) * played[i];
+    }
+    char label[160];
+    std::snprintf(label, sizeof label, "defaults: a ten-second phrase gets %g sparks", sparks);
+    EXPECT(sparks >= 25.0 && sparks <= 50.0, label);
+    // In each second that has playing in it, a spark within 10 dB of the loudest note of that second.
+    int seconds = 0, sparkling = 0;
+    for (int second = 0; second < 8; ++second) {
+      const size_t from = static_cast<size_t>(second) * 48000, to = from + 48000;
+      const double note = peak(played, from, to);
+      if (note < 0.05) continue;
+      ++seconds;
+      if (std::max(peak(wet_left, from, to), peak(wet_right, from, to)) > 0.316 * note) ++sparkling;
+    }
+    std::snprintf(label, sizeof label, "defaults: %d of the %d seconds with playing hold a spark within 10 dB of their loudest note",
+                  sparkling, seconds);
+    EXPECT(seconds >= 7 && sparkling >= seconds - 1, label);
+    // What the sparks add above 2 kHz against what the phrase has there itself.
+    const double added = std::sqrt(0.5 * (std::pow(rms_above(wet_left, 2000.0), 2.0) + std::pow(rms_above(wet_right, 2000.0), 2.0)));
+    const double had = rms_above(played, 2000.0);
+    std::snprintf(label, sizeof label, "defaults: the sparks add %.1f dB above 2 kHz against the phrase's own", db(added / had));
+    EXPECT(db(added / had) > -7.0 && db(added / had) < 6.0, label);
+    const double whole = db(std::sqrt(0.5 * (rms(out.left) * rms(out.left) + rms(out.right) * rms(out.right))) / rms(played));
+    std::snprintf(label, sizeof label, "defaults: the phrase comes out %.2f dB against how it went in", whole);
+    EXPECT(whole > -1.0 && whole < 1.5, label);
+    // The dry side alone, measured: playing too soft for Follow 1 to throw anything.
+    device.init(kRate);
+    device.set_param(p::kFollow, 1.0f);
+    const std::vector<float> soft = sine(220.0f, 1.0f, kRate, 0.001f);
+    Stereo passed = run(device, soft);
+    EXPECT(db(rms(passed.left, 4800) / rms(soft, 4800)) > -1.0 && rms(passed.left, 4800) < rms(soft, 4800),
+           "defaults: with no spark thrown the sound comes out under 1 dB down");
+  }
+
+  // Sparkle does something over its whole range on a played phrase. With the high-pass going to
+  // 3.5 kHz and 6 dB given back, what the sparks had above 2 kHz fell from 0.7 on.
+  {
+    const std::vector<float> played = phrase(10.0f, kRate, 0.5f);
+    double top[5], all[5];
+    for (int step = 0; step < 5; ++step) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kFollow, 0.0f);
+      device.set_param(p::kTrail, 0.0f);
+      device.set_param(p::kDensity, 8.0f);
+      device.set_param(p::kSparkle, 0.2f + 0.2f * static_cast<float>(step));
+      Stereo out = run(device, played);
+      top[step] = std::sqrt(std::pow(rms_above(out.left, 2000.0), 2.0) + std::pow(rms_above(out.right, 2000.0), 2.0));
+      all[step] = std::sqrt(rms(out.left) * rms(out.left) + rms(out.right) * rms(out.right));
+    }
+    char label[200];
+    std::snprintf(label, sizeof label, "Sparkle 0.2 to 1 on a phrase: above 2 kHz the sparks rise by %.1f, %.1f, %.1f and %.1f dB",
+                  db(top[1] / top[0]), db(top[2] / top[1]), db(top[3] / top[2]), db(top[4] / top[3]));
+    EXPECT(top[1] > 1.05 * top[0] && top[2] > 1.05 * top[1] && top[3] > 1.05 * top[2] && top[4] > 1.05 * top[3] &&
+               top[4] > 1.8 * top[0],
+           label);
+    std::snprintf(label, sizeof label, "Sparkle 1 on a phrase: the sparks are %.1f dB against Sparkle 0.6 in all", db(all[4] / all[2]));
+    EXPECT(db(all[4] / all[2]) > -4.0 && db(all[4] / all[2]) < 4.0, label);
+  }
+
+  // What folds back at the top of a decimated ring. A half-band lets the sixth of an octave above
+  // its ring's top fold in under it, 6 dB down at the edge: x3 of 6.2 kHz reads the fold at 5.8 kHz
+  // and plays it at 17.4 kHz, where the sound has nothing. Cut at 0.915 of the ring's top the kernel
+  // let that through 23 dB under a spark; cut at 0.8 it is 45 dB under.
+  {
+    auto third = [&](float hz, double at) {
+      bare(device);
+      device.set_param(p::kPitch, 1.0f);
+      device.set_param(p::kDensity, 10.0f);
+      Stereo out = run(device, sine(hz, 10.0f, kRate, 0.3f));
+      return band(out.left, at, 48000);
+    };
+    const double clean = third(2000.0f, 6000.0);
+    const double folded = std::max(third(6200.0f, 17400.0), std::max(third(6100.0f, 17700.0), third(6350.0f, 16950.0)));
+    char label[160];
+    std::snprintf(label, sizeof label, "x3 just above the top of its ring: what folds back is %.1f dB under a spark", -db(folded / clean));
+    EXPECT(clean > 0.01 && folded < 0.01 * clean, label);
+    // x5 to x7 read the ring of an eighth: 3.1 kHz folds to 2.9 kHz and comes back at 14.5, 17.4 and 20.3 kHz.
+    auto series = [&](float hz, double at) {
+      bare(device);
+      device.set_param(p::kPitch, 4.0f);
+      device.set_param(p::kDensity, 20.0f);
+      Stereo out = run(device, sine(hz, 20.0f, kRate, 0.3f));
+      return band(out.left, at, 48000);
+    };
+    const double clean5 = series(1000.0f, 5000.0);
+    const double folded5 = std::max(series(3100.0f, 14500.0), std::max(series(3100.0f, 17400.0), series(3100.0f, 20300.0)));
+    std::snprintf(label, sizeof label, "x5 to x7 just above the top of their ring: what folds back is %.1f dB under a spark", -db(folded5 / clean5));
+    EXPECT(clean5 > 0.003 && folded5 < 0.01 * clean5, label);
+    // And what the lower cut costs: x3 still plays 3.8 kHz, at 11.4 kHz, within 2 dB of a spark of 2 kHz.
+    EXPECT(third(3800.0f, 11400.0) > 0.8 * clean, "x3 plays up to 11.4 kHz within 2 dB");
   }
 
   // --- Cost, at the defaults and at the worst setting: forty sparks a second of 300 ms each

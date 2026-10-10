@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Glints, shared with
 // src/dsp/devices/glints.gen.ts:
-//    0  density: 0.2..40 /s, default 3
+//    0  density: 0.2..40 /s, default 5
 //    1  pitch: 0 Octave, 1 Octave and fifth, 2 Two octaves, 3 Mixed, 4 Overtones, default 3
 //    2  size: 8..300 ms, default 70
 //    3  scatter: 0..2000 ms, default 350
@@ -11,7 +11,7 @@
 //    6  spread: 0..1, default 0.8
 //    7  trail: 0..1, default 0.3
 //    8  trailTime: 40..800 ms, default 180
-//    9  mix: 0..1, default 0.4
+//    9  mix: 0..1, default 0.25
 
 #pragma once
 
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.2f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 40.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {40.0f, 4.0f, 300.0f, 2000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 800.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {3.0f, 3.0f, 70.0f, 350.0f, 0.6f, 0.5f, 0.8f, 0.3f, 180.0f, 0.4f};
+inline constexpr float kParamDefault[kNumParams] = {5.0f, 3.0f, 70.0f, 350.0f, 0.6f, 0.5f, 0.8f, 0.3f, 180.0f, 0.25f};
 
 }  // namespace glints
 }  // namespace livemix

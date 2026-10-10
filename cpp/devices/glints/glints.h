@@ -23,8 +23,14 @@
 //   sample at a time, x4 the ÷4 copy, x8 the ÷8 copy. x3 and x6 move through
 //   theirs by three quarters of a sample, x5 by five eighths and x7 by seven
 //   eighths, so only eight fractional positions ever occur: an eight-phase,
-//   16-tap windowed sinc reads them.
-// - The pace is Density sparks a second, each interval drawn by chance.
+//   16-tap windowed sinc reads them. A half-band is 6 dB down at the top of
+//   its ring and lets what lies just above fold in under it, so the sinc is
+//   cut at 0.8 of the ring's top: what folds back in a spark is 47 dB under
+//   the spark (measured at 44.1 kHz), and x3 and x5 to x7 reach about 0.75
+//   of the way to the top of what x2, x4 and x8 play.
+// - The pace is Density sparks a second, each interval drawn by chance and
+//   never more than two and a half mean intervals, so a sparse setting has
+//   no hole many times as long as the gaps around it.
 //   Follow ties it to the playing: the level of the input, with what is above
 //   3 kHz counted for more, read on a decibel scale from nothing to full.
 // - Trail is an echo on the sparks alone: a delay whose repeats cross from
@@ -221,14 +227,27 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
   static constexpr float kSoftEdgeSeconds = 0.006f;
   static constexpr float kSharpEdgeSeconds = 0.0003f;
   static constexpr float kMostEdge = 0.3f;
-  // Sparkle's high-pass, from 150 Hz to 3.5 kHz, and how much louder a spark
-  // is at Sparkle 1 than at 0 for what that takes away.
+  // Sparkle's high-pass, from 150 Hz to 2 kHz, and how much louder a spark
+  // is at Sparkle 1 than at 0 for what that takes away, in dB, equal steps
+  // for equal turns. On a played phrase the body an octave or two above the
+  // notes lies under 2 kHz: a higher cut or a smaller lift and the top of
+  // the knob only made the sparks quieter (measured: with 3.5 kHz and 6 dB
+  // every band of the sparks under 6 kHz fell from Sparkle 0.7 on).
   static constexpr float kCutLowHz = 150.0f;
-  static constexpr float kCutHighHz = 3500.0f;
-  static constexpr float kSparkleLift = 1.0f;
+  static constexpr float kCutHighHz = 2000.0f;
+  static constexpr float kSparkleLiftDb = 12.0f;
+  // How loud a spark is against what it reads, before Sparkle's lift: a
+  // spark is a few tens of milliseconds of a sound and has to stand beside
+  // the whole of it, at a Mix that leaves the dry sound nearly whole. As
+  // much as a pure tone allows: at the defaults a spark of a sine landing
+  // on the sine's own crest peaks just under 6 dB over the sine.
+  static constexpr float kSparkGain = 1.35f;
   // The pace: an interval is this much of its mean for certain and the rest
-  // by chance, so two sparks never fall on one another's front edge.
+  // by chance (an exponential draw cut off at kMostChance and scaled so the
+  // mean stays one), so two sparks never fall on one another's front edge
+  // and none waits more than 2.5 mean intervals.
   static constexpr float kLeastInterval = 0.3f;
+  static constexpr float kMostChance = 3.0f;
   // Follow: the level that counts as nothing and as full, in dB, and the
   // weights of the body of the sound and of what is above kBrightHz.
   static constexpr float kFollowFloorDb = -48.0f;
@@ -262,6 +281,8 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
   static constexpr int kControlPeriod = 16;
   static constexpr int kTaps = 16;
   static constexpr float kLoudest = 8.0f;
+  // 1 / (1 - exp(-kMostChance)): the mean of an exponential draw cut off there, turned over.
+  static constexpr float kChanceScale = 1.0523957f;
   // Sample counts start here so that no position is ever negative; a whole
   // number of level buckets.
   static constexpr long long kOrigin = 1LL << 24;
@@ -312,7 +333,9 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
     for (kit::Halfband2x& half : half_) half.reset();
     held1_ = held2_ = held3_ = 0.0f;
     while (written_ & ((1 << kBucketShift) - 1)) record(0.0f);
-    rng_.seed(0x61A9C7E5u);
+    // A seed whose first dozen intervals are ordinary ones (0.45 to 1.7 mean
+    // intervals): every phrase after a rest starts on these same draws.
+    rng_.seed(0x5BB3CBAEu);
     due_ = 0.0f;
     next_due_ = interval();
     level_.reset();
@@ -378,7 +401,8 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
 
   // The next interval between two sparks, in mean intervals.
   float interval() {
-    return kLeastInterval - (1.0f - kLeastInterval) * std::log(1.0f - rng_.uniform());
+    const float chance = kit::min(-std::log(1.0f - rng_.uniform()), kMostChance);
+    return kLeastInterval + (1.0f - kLeastInterval) * chance * kChanceScale;
   }
 
   int capacity(int ring) const { return ring == 3 ? kRing3 : (ring == 2 ? kRing2 : kRing1); }
@@ -457,14 +481,15 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
 
     // Constant-power pan with most sparks away from the centre, so Spread 1
     // is properly wide. A spark thrown hard to one side plays what it reads
-    // at the level it was played, on that side alone; one in the centre has
-    // the same power over the two sides. Sparkle makes it louder for what its
-    // high-pass takes away. Once Density and Size have more than one sounding
-    // at a time they are turned down by the root of how many, so a glitter
-    // is no louder than one spark after another.
+    // kSparkGain times as loud as it was played, on that side alone; one in
+    // the centre has the same power over the two sides. Sparkle makes it
+    // louder for what its high-pass takes away. Once Density and Size have
+    // more than one sounding at a time they are turned down by the root of
+    // how many, so a glitter is no louder than one spark after another.
     const float pan = param(kSpread) * (side < 0.0f ? -1.0f : 1.0f) * (1.0f - depth * depth * depth);
     const float overlap = param(kDensity) * length / sr;
-    const float gain = (1.0f + kSparkleLift * sparkle) * kit::min(1.0f, 1.0f / std::sqrt(overlap));
+    const float lift = std::exp(sparkle * (kSparkleLiftDb * 0.11512925f));  // dB to a gain
+    const float gain = kSparkGain * lift * kit::min(1.0f, 1.0f / std::sqrt(overlap));
     kit::pan_gains(pan, &spark.gain_left, &spark.gain_right);
     spark.gain_left *= gain;
     spark.gain_right *= gain;
@@ -519,11 +544,14 @@ class Glints : public kit::DeviceBase<glints::kNumParams> {
   }
 
   // The eight fractional positions a spark can read at: a 16-tap windowed
-  // sinc for each (Kaiser, about 50 dB), cut a little under the ring's
-  // Nyquist. A cubic would leave images of the ring's top octave at -15 dB.
+  // sinc for each (Kaiser, about 50 dB), cut at 0.8 of the ring's Nyquist so
+  // that it is well down where the half-band before it let the band above
+  // fold in (the top sixth of the ring). Cut at 0.915 that fold came through
+  // 22 dB under the spark; a cubic would leave images of the ring's top
+  // octave at -15 dB.
   void make_kernel() {
     const double pi = 3.14159265358979323846;
-    const double cutoff = 0.915;
+    const double cutoff = 0.8;
     const double beta = 4.55;
     for (int phase = 0; phase < 8; ++phase) {
       double sum = 0.0;

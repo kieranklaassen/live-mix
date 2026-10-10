@@ -8,6 +8,9 @@ import { describe, expect, it } from 'vitest'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   GLINTS_FACES,
+  GLINTS_FAINTEST,
+  GLINTS_POINT,
+  GLINTS_POINT_OPEN,
   GLINTS_SPAN_SEC,
   glintsChance,
   glintsCrowd,
@@ -589,27 +592,36 @@ describe('the rings of the Glints display', () => {
     expect(ring.reset?.()).toEqual({ scatter: 350 })
   })
 
-  it('keeps the two rings apart on one row, and moves Scatter from where the setting lies', () => {
+  it('keeps the two rings apart on one row, and brings Scatter under the hand within twice the gap', () => {
     const values = { pitch: 0, scatter: 0 }
     const layout = layoutOf({ values })
     const size = handleOf('size', values)
     const scatter = handleOf('scatter', values)
     expect(scatter.y).toBeCloseTo(size.y, 6)
     expect(scatter.x - size.x).toBeCloseTo(9, 6)
-    // Taken and not moved it is still no Scatter; moved by so many pixels it is the Scatter
-    // that lies so many pixels from where none stands.
+    // Taken and not moved it is still no Scatter. Moved right the setting makes up the gap
+    // over twice its width, half as fast again as the hand, and from there on is where the hand is.
     const hold: DisplayHold = {}
     expect(scatter.drag(scatter.x, scatter.y, hold).scatter).toBeCloseTo(0, 6)
     const least = deviceLeast(0, 70)
     const none = glintsX(least, layout)
-    for (const by of [4, 20, 60]) {
+    let before = 0
+    for (const by of [4, 12, 18, 20, 60]) {
       // The plate asks for the rings again at every move: the hold remembers the press.
       const moved = handleOf('scatter', { ...values, scatter: 123 })
-      expect(moved.drag(scatter.x + by, scatter.y, hold).scatter).toBeCloseTo(
-        (glintsLateAt(none + by, layout) - least) * 1000,
+      const set = moved.drag(scatter.x + by, scatter.y, hold).scatter
+      expect(set).toBeCloseTo(
+        (glintsLateAt(none + Math.min(1.5 * by, 9 + by), layout) - least) * 1000,
         3,
       )
+      expect(set).toBeGreaterThan(before)
+      before = set
+      // The ring as it is then drawn: under the hand once the gap is made up.
+      if (by >= 18)
+        expect(handleOf('scatter', { ...values, scatter: set }).x).toBeCloseTo(scatter.x + by, 3)
     }
+    // Back to the left of the press it keeps its distance, down to no Scatter where it was taken.
+    expect(scatter.drag(scatter.x - 3, scatter.y, hold).scatter).toBeCloseTo(0, 6)
     // The same hand at the same place sets the same thing every time.
     expect(scatter.drag(scatter.x + 20, 0, hold)).toEqual(scatter.drag(scatter.x + 20, 0, hold))
     // On two rows they are never in each other's way.
@@ -705,8 +717,10 @@ describe('the Glints display while the device throws', () => {
       ...armAt(frames),
       window: deviceWindow(frames / 30 / 0.3, edge),
     }))
-    // The arm grows with the window by one rule: (1.6 + 3 w) for the loudest reading at Sparkle half way.
-    for (const { arm, window } of sizes) expect(arm / (1.6 + 3 * window)).toBeCloseTo(1.05, 4)
+    // The arm grows with the window by one rule, for the loudest reading at Sparkle half way.
+    for (const { arm, window } of sizes) {
+      expect(arm / (GLINTS_POINT + GLINTS_POINT_OPEN * window)).toBeCloseTo(1.05, 4)
+    }
     expect(sizes[0].arm).toBeGreaterThan(sizes[3].arm)
     // After its 300 ms it stays where it ended, x2 having made up its whole length, and fades out.
     const ended = glintsX(0.5 - 0.3, layout)
@@ -717,6 +731,30 @@ describe('the Glints display while the device throws', () => {
     expect(after.alpha).toBeGreaterThan(later.alpha)
     expect(later.alpha).toBeGreaterThan(0)
     expect(armAt(60).alpha).toBe(0)
+  })
+
+  it('draws a spark plainly at the default Mix, while it sounds and for a moment after', () => {
+    // As the plate first shows it: every setting where it starts, a spark of -12 dB on x3.
+    expect(Math.cos((params.mix.default * Math.PI) / 2)).toBeGreaterThan(10 ** (-1 / 20))
+    const lasts = params.size.default * 0.001
+    const code = deviceCode(1, 0, 0.4, -12)
+    const seen = (frames: number): { flight: Mark; point: Mark } => {
+      const drawn = runWith([{ at: thrownAt(15), code }], until(15 + frames))
+      return { flight: flights(drawn, ACCENT)[0], point: lights(drawn, ACCENT)[0] }
+    }
+    // The frame that first sees it: still sounding.
+    expect(1 / 30).toBeLessThan(lasts)
+    const sounding = seen(1)
+    expect(sounding.point.alpha).toBeGreaterThan(GLINTS_FAINTEST)
+    expect(sounding.flight.alpha).toBeGreaterThan(0.6)
+    // A third of a second on its sound is long over: what is left is still plain, a cross three pixels across at the least.
+    const after = seen(10)
+    expect(10 / 30).toBeGreaterThan(lasts)
+    expect(after.flight.alpha).toBeGreaterThan(0.4)
+    expect(after.point.alpha).toBeGreaterThan(0.4)
+    expect(right(after.point) - left(after.point)).toBeGreaterThan(3)
+    // And it is gone when its glow and its two repeats are: nothing is left standing.
+    expect(seen(60).point).toBeUndefined()
   })
 
   it('shows Sparkle in the point of light: longer arms about a tighter core', () => {
@@ -738,7 +776,7 @@ describe('the Glints display while the device throws', () => {
     const bright = shape(1)
     expect(bright.arm).toBeGreaterThan(2 * dull.arm)
     expect(bright.core).toBeLessThan(0.5 * dull.core)
-    // The device lifts a spark by 1 + Sparkle: the arms grow by that much and half again as the core shrinks.
+    // Sparkle sharpens a spark's edge and takes its body away: the arms grow as the core shrinks.
     expect(dull.arm / dull.core).toBeCloseTo(0.6 / 0.9, 6)
     expect(bright.arm / bright.core).toBeCloseTo(1.5 / 0.4, 6)
   })

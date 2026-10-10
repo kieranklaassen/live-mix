@@ -11,7 +11,7 @@ export const GLINTS_PARAMS = {
     name: 'Density',
     min: 0.2,
     max: 40,
-    default: 3,
+    default: 5,
     taper: 'log',
     unit: '/s',
     description:
@@ -27,7 +27,7 @@ export const GLINTS_PARAMS = {
     unit: '',
     choices: ['Octave', 'Octave and fifth', 'Two octaves', 'Mixed', 'Overtones'],
     description:
-      'How far above the playing the sparks sound. Mixed draws from the first three, and Overtones climbs the harmonics of each note for stranger colours.',
+      'How far above the playing the sparks sound. Mixed draws from the first three. Overtones throws the natural harmonics up to the eighth, some of which lie between the keys.',
   },
   size: {
     id: 2,
@@ -111,10 +111,11 @@ export const GLINTS_PARAMS = {
     name: 'Mix',
     min: 0,
     max: 1,
-    default: 0.4,
+    default: 0.25,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry signal and the sparks.',
+    description:
+      'Balance between the dry signal and the sparks. Low settings leave the dry sound almost whole; fully up is the sparks alone.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -144,17 +145,9 @@ export const GLINTS_DESCRIPTOR = wasmDeviceDescriptor(GLINTS_DEVICE, {
     'Throws off sparse bright sparks, short pieces of what is playing an octave or two up, each a little later and somewhere else between the speakers.',
   presets: {
     'First light': {},
-    'Faint dust': { mix: 0.25, density: 6, size: 30, sparkle: 0.65, scatter: 600, follow: 0.5 },
-    'Steady rain': { follow: 0, density: 8, scatter: 1200, mix: 0.45 },
-    Glitter: {
-      density: 25,
-      size: 25,
-      sparkle: 0.8,
-      scatter: 500,
-      follow: 0.7,
-      spread: 1,
-      mix: 0.5,
-    },
+    'Faint dust': { mix: 0.12, density: 7, size: 30, sparkle: 0.8, scatter: 600, follow: 0.5 },
+    'Steady rain': { follow: 0, density: 8, scatter: 1200 },
+    Glitter: { density: 25, size: 25, sparkle: 0.9, scatter: 500, follow: 0.7, spread: 1 },
     'Slow stars': {
       density: 0.8,
       size: 200,
@@ -162,10 +155,10 @@ export const GLINTS_DESCRIPTOR = wasmDeviceDescriptor(GLINTS_DEVICE, {
       trail: 0.75,
       trailTime: 420,
       scatter: 1500,
-      mix: 0.5,
+      mix: 0.3,
     },
-    'Fifths above': { pitch: 1, density: 5, size: 120, mix: 0.5 },
-    'Overtone spray': { pitch: 4, density: 18, size: 40, scatter: 800, mix: 0.55 },
+    'Fifths above': { pitch: 1, density: 5, size: 120, mix: 0.28 },
+    'Overtone spray': { pitch: 4, density: 18, size: 40, scatter: 800, mix: 0.28 },
     'Wide halo': {
       size: 300,
       density: 10,
@@ -174,22 +167,14 @@ export const GLINTS_DESCRIPTOR = wasmDeviceDescriptor(GLINTS_DEVICE, {
       pitch: 0,
       scatter: 200,
       follow: 0.3,
-      mix: 0.5,
+      mix: 0.28,
     },
     'Only the sparks': { mix: 1, density: 14 },
-    'Tight ticks': {
-      size: 12,
-      scatter: 0,
-      follow: 1,
-      density: 24,
-      sparkle: 0.7,
-      trail: 0,
-      mix: 0.55,
-    },
-    'Long trails': { trail: 0.85, trailTime: 600, density: 2, mix: 0.5 },
-    'Flutter echo': { trail: 0.8, trailTime: 60, density: 4, size: 20, mix: 0.5 },
-    'Soft blips': { sparkle: 0, size: 150, density: 6, pitch: 0, mix: 0.55 },
-    'Late answers': { scatter: 2000, follow: 0.2, density: 4, size: 100, trail: 0.4, mix: 0.5 },
+    'Tight ticks': { size: 12, scatter: 0, follow: 1, density: 24, sparkle: 1, trail: 0 },
+    'Long trails': { trail: 0.85, trailTime: 600, density: 2, mix: 0.28 },
+    'Flutter echo': { trail: 0.8, trailTime: 60, density: 4, size: 20, mix: 0.28 },
+    'Soft blips': { sparkle: 0, size: 150, density: 6, pitch: 0, mix: 0.3 },
+    'Late answers': { scatter: 2000, follow: 0.2, density: 4, size: 100, trail: 0.4, mix: 0.28 },
     'Overtone chimes': {
       pitch: 4,
       size: 250,
@@ -197,9 +182,9 @@ export const GLINTS_DESCRIPTOR = wasmDeviceDescriptor(GLINTS_DEVICE, {
       trail: 0.6,
       trailTime: 300,
       sparkle: 0.3,
-      mix: 0.55,
+      mix: 0.3,
     },
-    'Thrown by touch': { follow: 1, density: 30, size: 40, scatter: 100, mix: 0.5 },
+    'Thrown by touch': { follow: 1, density: 30, size: 40, scatter: 100, mix: 0.28 },
   },
 })
 
