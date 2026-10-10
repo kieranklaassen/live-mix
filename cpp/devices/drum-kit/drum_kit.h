@@ -25,7 +25,12 @@
 //   Tune, Length, Punch, Snap, Variation) is read when the drum is struck.
 // - A drum struck again while it rings takes its other slot and the older
 //   one fades in 4 ms. Drums never take each other's slots, so a pile of
-//   notes is bounded at 24 slots.
+//   notes is bounded at 24 slots. A drum is one drum whatever octave its key
+//   is played in: struck at two octaves at once, the second strike cuts the
+//   first in those 4 ms.
+// - The closed hat and the shaker choke the open hat in 8 ms, in the order
+//   the notes arrive: an open hat and then a closed one in the same block
+//   leave only the closed one.
 // - Tone is one low-pass per slot, retuned on the control clock from the
 //   smoothed knob: the top of a tonal drum, the upper edge of a noise drum.
 // - Width moves each drum's place; at 0 both channels are the same sample.
@@ -38,7 +43,14 @@
 //
 // The hats' and the shaker's bands move half as far as the tuning (in
 // octaves), so that an octave up is still in the hearing range; everything
-// else moves by the full interval.
+// else moves by the full interval. A tonal drum is not tuned under 24 Hz: its
+// lowest partial is held there and the others keep their ratio to it, so the
+// lowest octaves of the kick and the sub play at the floor (longer, not
+// lower) and none of them is infrasound. No partial goes above 0.45 of the
+// sample rate.
+//
+// A note whose frequency or gain is not a finite number, or whose frequency
+// is not above zero, is dropped.
 
 #include "../../kit/kit.h"
 #include "../../kit/keymap.h"
@@ -96,8 +108,9 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
   }
 
   void note_on(int /*note_id*/, float frequency, float gain) {
-    if (!(frequency == frequency)) return;  // NaN
-    if (!(gain == gain)) gain = 0.5f;
+    // A note that is not a note is dropped: NaN or an infinity in either
+    // number, or a frequency that is not above zero.
+    if (!is_finite(frequency) || !is_finite(gain) || !(frequency > 0.0f)) return;
     gain = kit::clamp(gain, 0.0f, 1.0f);
     const kit::OctaveKey key = kit::octave_key(frequency);
     // Nothing sounds, so a knob moved in the silence has arrived, and the
@@ -148,6 +161,28 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
     idle_.settle(output_peak(frames), frames);
   }
 
+  // For the harness (cpp/test/drum_kit_test.cpp).
+  bool asleep() const { return idle_.asleep(); }
+  int sounding() const { return active_; }
+  // How many of the slots' decaying numbers are subnormal: none, ever. A
+  // subnormal costs many times a normal number on most processors.
+  int subnormal_states() const {
+    int count = 0;
+    for (int d = 0; d < kNumDrums; ++d) {
+      for (int s = 0; s < kSlotsPerDrum; ++s) {
+        const Slot& slot = slots_[d][s];
+        const float states[] = {slot.partial_env[0], slot.partial_env[1], slot.sweep,     slot.noise_env,
+                                slot.bite,           slot.carry,          slot.edge.ic1,  slot.edge.ic2,
+                                slot.edge_side.ic1,  slot.edge_side.ic2,  slot.shape.ic1, slot.shape.ic2,
+                                slot.shape2.ic1,     slot.shape2.ic2};
+        for (float state : states) {
+          if (state != 0.0f && std::fabs(state) < kSmallestNormal) ++count;
+        }
+      }
+    }
+    return count;
+  }
+
  private:
   static constexpr int kControlPeriod = 16;
   static constexpr float kSixtyDb = 6.907755279f;
@@ -157,6 +192,10 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
   static constexpr float kCarrySeconds = 0.008f;   // what a taken slot leaves
   static constexpr float kDriveGain = 6.0f;
   static constexpr float kDriveMakeup = 0.3095f;   // 0.3 / fast_tanh(0.3 * 6)
+  static constexpr float kBodyFloorHz = 24.0f;     // no tonal drum is tuned under this
+  static constexpr float kSmallestNormal = 1.17549435e-38f;
+
+  static bool is_finite(float x) { return x - x == 0.0f; }  // false for NaN and the infinities
 
   // What a Kit choice changes, as factors on the Soft kit.
   struct Character {
@@ -264,13 +303,16 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
 
   void partial(Slot& slot, int index, float hz, float gain, float seconds) const {
     const float sr = sample_rate();
-    slot.increment[index] = kit::clamp(hz, 12.0f, 0.2f * sr) / sr;
+    slot.increment[index] = kit::clamp(hz, kBodyFloorHz, 0.45f * sr) / sr;
     slot.partial_gain[index] = gain;
     slot.partial_env[index] = 1.0f;
     slot.partial_coeff[index] = t60_coeff(seconds);
     slot.phase[index] = 0.0f;
     if (slot.partials < index + 1) slot.partials = index + 1;
   }
+
+  // Where a drum's lowest partial is tuned: never under the floor.
+  static float held(float hz) { return kit::max(hz, kBodyFloorHz); }
 
   void fall(Slot& slot, float depth, float seconds) const {
     // Keep the swept pitch under 0.45 of the sample rate.
@@ -370,7 +412,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
 
     switch (drum) {
       case kKick: {
-        partial(slot, 0, 49.0f * c.low_pitch * ratio, 1.0f, 0.45f * tonal);
+        partial(slot, 0, held(49.0f * c.low_pitch * ratio), 1.0f, 0.45f * tonal);
         fall(slot, (0.3f + 5.0f * punch) * c.sweep_depth * hardness,
              (0.012f + 0.014f * (1.0f - punch)) * c.sweep_time);
         slot.attack = 0.0f;
@@ -386,7 +428,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         break;
       }
       case kSub: {
-        partial(slot, 0, 49.0f * c.low_pitch * ratio, 1.0f, 0.9f * tonal);
+        partial(slot, 0, held(49.0f * c.low_pitch * ratio), 1.0f, 0.9f * tonal);
         fall(slot, 0.06f * c.sweep_depth, 0.04f * c.sweep_time);
         slot.attack = 0.0f;
         slot.attack_step = ramp_step((0.014f - 0.008f * gain) * c.attack);
@@ -397,8 +439,10 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
       }
       case kSnare: {
         const float tones = kit::lerp(1.0f, 0.45f, snap);
-        partial(slot, 0, 185.0f * c.pitch * ratio, 0.60f * tones, 0.11f * tonal);
-        partial(slot, 1, 330.0f * c.pitch * ratio, 0.40f * tones, 0.09f * tonal);
+        // Held at the floor by its lower tone; the upper one keeps its ratio.
+        const float lift = held(185.0f * c.pitch * ratio) / (185.0f * c.pitch * ratio);
+        partial(slot, 0, 185.0f * c.pitch * ratio * lift, 0.60f * tones, 0.11f * tonal);
+        partial(slot, 1, 330.0f * c.pitch * ratio * lift, 0.40f * tones, 0.09f * tonal);
         fall(slot, 0.18f * c.sweep_depth * hardness, 0.012f * c.sweep_time);
         slot.attack = 0.0f;
         slot.attack_step = ramp_step(0.0015f * c.attack);
@@ -484,7 +528,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
       case kLowTom:
       case kHighTom: {
         const bool high = drum == kHighTom;
-        const float hz = (high ? 165.0f : 110.0f) * c.pitch * ratio;
+        const float hz = held((high ? 165.0f : 110.0f) * c.pitch * ratio);
         const float seconds = (high ? 0.30f : 0.40f) * tonal;
         partial(slot, 0, hz, 1.0f, seconds);
         partial(slot, 1, hz * 1.59f, 0.16f, seconds * 0.4f);
@@ -534,6 +578,8 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         slot.phase[k] += slot.increment[k] * bend;
         if (slot.phase[k] >= 1.0f) slot.phase[k] -= 1.0f;
         if (slot.partial_env[k] > remaining) remaining = slot.partial_env[k];
+        // No flush: the slot ends once its slowest envelope is 120 dB down,
+        // and no partial is then under 1e-17 (the snare's upper tone).
         slot.partial_env[k] *= slot.partial_coeff[k];
       }
       if (slot.attack < 1.0f) {
@@ -553,7 +599,9 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
       float envelope = slot.noise_env;
       if (envelope > remaining) remaining = envelope;
       if (slot.bursts > 0) remaining = 1.0f;
-      slot.noise_env *= slot.noise_coeff;
+      // A click's envelope is over long before its drum is: without the
+      // flush it would sit in the subnormals for the rest of the slot's life.
+      slot.noise_env = flush_denormal(slot.noise_env * slot.noise_coeff);
       if (slot.noise_attack < 1.0f) {
         envelope *= smoothstep(slot.noise_attack);
         slot.noise_attack = kit::min(1.0f, slot.noise_attack + slot.noise_attack_step);

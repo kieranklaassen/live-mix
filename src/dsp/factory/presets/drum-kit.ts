@@ -5,7 +5,7 @@ export const DRUM_KIT_PRESETS: readonly FactoryPreset[] = [
     id: 'drum-felt-small-room',
     name: 'Felt kit small room',
     category: 'drum',
-    description: 'The plain soft kit with a round kick and brushed snare, close in a small room.',
+    description: 'The soft kit with a rounder kick and a little more ring, close in a small room.',
     instrument: { deviceId: 'drum-kit', preset: 'Felt kit' },
     effects: [{ deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.12 } }],
     preview: 'drum',

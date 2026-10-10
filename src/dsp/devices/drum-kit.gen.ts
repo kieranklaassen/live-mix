@@ -37,7 +37,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'log',
     unit: '',
     description:
-      'How long every drum rings, from short dry taps to long tails. Heard from the next hit.',
+      'How long every drum rings, from short dry taps to long tails; short hats, shaker and brush are also quieter. Heard from the next hit.',
   },
   punch: {
     id: 3,
@@ -59,7 +59,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The click on the kick, the noise on the snare and the bite at the front of the hats. At zero every drum starts soft. Heard from the next hit.',
+      'The click on the kick, the noise on the snare and the bite at the front of the hats, down to a soft start on every drum at zero. Heard from the next hit.',
   },
   tone: {
     id: 5,
@@ -70,7 +70,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Dull to bright: a low-pass over the tonal drums and the upper edge of the noise drums.',
+      'Dull to bright: a low-pass over the tonal drums and the upper edge of the noise drums. Dull also makes the hats and shaker quieter.',
   },
   drive: {
     id: 6,
@@ -81,7 +81,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Soft saturation over the whole kit with its level made good, so more of it is thicker and not louder.',
+      'Soft saturation over the whole kit: the loudest hits stay about where they are and everything quieter comes up, so more of it is thicker and more even.',
   },
   variation: {
     id: 7,
@@ -92,7 +92,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much each hit differs from the last in level, tone, length and noise. At zero every hit of a drum is the same. Heard from the next hit.',
+      'How much each hit differs from the last in level, tone, length and noise, down to none at zero. Heard from the next hit.',
   },
   width: {
     id: 8,
@@ -103,7 +103,7 @@ export const DRUM_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the hats, shaker, clap, rim, tick and toms sit from the centre. At zero the kit is mono. The kick and sub stay in the middle.',
+      'How far the hats, shaker, clap, rim, tick and toms sit from the centre, down to mono at zero. The kick, sub, snare and brush stay in the middle.',
   },
   volume: {
     id: 9,
@@ -133,7 +133,7 @@ export const DRUM_KIT_DESCRIPTOR = wasmDeviceDescriptor(DRUM_KIT_DEVICE, {
   description:
     'Synthesized drum kit for quiet music: twelve soft drums, one on each key of the octave, made from sines, noise and filters, with the octave of the key tuning the drum.',
   presets: {
-    'Felt kit': { kit: 0, length: 1, punch: 0.35, snap: 0.3, tone: 0.5, volume: -2 },
+    'Felt kit': { length: 1.15, punch: 0.2, snap: 0.15, variation: 0.3, volume: -2 },
     'Deep and slow': { kit: 1, length: 1.3, punch: 0.2, snap: 0.2, volume: -4 },
     'Small and tight': { kit: 2, length: 0.7, punch: 0.5, snap: 0.55, tone: 0.6, volume: -0.5 },
     'Paper kit': { kit: 3, snap: 0.4, tone: 0.6, width: 0.5 },
@@ -142,7 +142,7 @@ export const DRUM_KIT_DESCRIPTOR = wasmDeviceDescriptor(DRUM_KIT_DEVICE, {
       length: 1.5,
       punch: 0,
       snap: 0,
-      tone: 0.2,
+      tone: 0.25,
       variation: 0.5,
       width: 0.6,
       volume: -3,
@@ -177,9 +177,17 @@ export const DRUM_KIT_DESCRIPTOR = wasmDeviceDescriptor(DRUM_KIT_DEVICE, {
       variation: 0.6,
       volume: -2.5,
     },
-    'Low and far': { kit: 1, tune: -7, punch: 0.1, snap: 0, tone: 0.25, width: 1, volume: -5.5 },
+    'Low and far': {
+      kit: 1,
+      tune: -7,
+      length: 1.2,
+      punch: 0.1,
+      snap: 0,
+      tone: 0.4,
+      width: 1,
+      volume: -5.5,
+    },
     'Airy and long': {
-      kit: 0,
       tune: 2,
       length: 3,
       punch: 0.2,
@@ -198,26 +206,17 @@ export const DRUM_KIT_DESCRIPTOR = wasmDeviceDescriptor(DRUM_KIT_DEVICE, {
       width: 0.3,
       volume: 1.5,
     },
-    'Pushed hard': {
-      kit: 2,
-      tune: -2,
-      length: 1,
-      punch: 0.8,
-      snap: 0.7,
-      tone: 0.6,
-      drive: 1,
-      volume: -2,
-    },
+    'Pushed hard': { kit: 2, tune: -2, punch: 0.8, snap: 0.7, tone: 0.6, drive: 1, volume: -2 },
     Muffled: {
-      kit: 0,
-      tune: -1,
-      length: 0.7,
+      tune: -3,
+      length: 1.2,
       punch: 0.25,
-      snap: 0,
-      tone: 0,
+      snap: 0.15,
+      tone: 0.3,
+      drive: 0.4,
       variation: 0.1,
       width: 0.1,
-      volume: -1,
+      volume: -3.5,
     },
     'Paper thuds': {
       kit: 3,
@@ -229,16 +228,7 @@ export const DRUM_KIT_DESCRIPTOR = wasmDeviceDescriptor(DRUM_KIT_DEVICE, {
       width: 0.6,
       volume: -3.5,
     },
-    'Heavy steps': {
-      kit: 1,
-      tune: -12,
-      length: 3.5,
-      punch: 0.6,
-      snap: 0.3,
-      tone: 0.5,
-      drive: 0.3,
-      volume: -8,
-    },
+    'Heavy steps': { kit: 1, tune: -12, length: 3.5, punch: 0.6, drive: 0.3, volume: -8 },
   },
 })
 

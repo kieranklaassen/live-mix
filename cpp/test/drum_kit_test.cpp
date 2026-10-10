@@ -5,8 +5,10 @@
 //
 // DRUM_KIT_PRINT=1 prints what was measured.
 
+#include <chrono>
 #include <cstdlib>
 #include <functional>
+#include <limits>
 
 #include "../devices/drum-kit/drum_kit.h"
 #include "support/test_kit.h"
@@ -185,6 +187,12 @@ static double max_diff(const Stereo& a, const Stereo& b) {
     worst = std::max(worst, std::fabs(static_cast<double>(a.right[i]) - b.right[i]));
   }
   return worst;
+}
+
+static std::vector<float> side_of(const Stereo& x) {
+  std::vector<float> out(x.size());
+  for (size_t i = 0; i < out.size(); ++i) out[i] = 0.5f * (x.left[i] - x.right[i]);
+  return out;
 }
 
 // What a drum is, in two numbers that survive a retuning of a few cents.
@@ -847,6 +855,37 @@ static void test_velocity() {
   device.note_on(1, std::nanf(""), 0.7f);
   Stereo nothing = render(device, 0.2f, kRate);
   EXPECT(peak(nothing.left) == 0.0 && peak(nothing.right) == 0.0, "a note with no frequency is ignored");
+
+  // A note that is no note takes no slot and leaves the kit as it was: a
+  // frequency or a gain that is not a finite number, a frequency not above 0.
+  const float nan = std::nanf(""), inf = std::numeric_limits<float>::infinity();
+  struct Bad {
+    float hz, gain;
+    const char* what;
+  };
+  const Bad bad[] = {{nan, 0.7f, "a frequency that is not a number"},
+                     {inf, 0.7f, "an infinite frequency"},
+                     {-inf, 0.7f, "a frequency of minus infinity"},
+                     {0.0f, 0.7f, "a frequency of zero"},
+                     {-100.0f, 0.7f, "a negative frequency"},
+                     {key_hz(D), nan, "a gain that is not a number"},
+                     {key_hz(D), inf, "an infinite gain"},
+                     {key_hz(D), -inf, "a gain of minus infinity"}};
+  plain(other);
+  Stereo fresh = hit(other, D, 0.7f, 0.3f);
+  for (const Bad& b : bad) {
+    char label[160];
+    plain(device);
+    device.note_on(1, b.hz, b.gain);
+    const int taken = device.sounding();
+    Stereo out = render(device, 0.3f, kRate);
+    const bool silent = finite(out.left) && finite(out.right) && peak(out.left) == 0.0 && peak(out.right) == 0.0;
+    Stereo next = hit(device, D, 0.7f, 0.3f);
+    NOTE("bad note: %s takes %d slots, output %s, the next snare %s\n", b.what, taken, silent ? "silent" : "NOT silent",
+         next.left == fresh.left ? "as a fresh one" : "DIFFERENT");
+    std::snprintf(label, sizeof label, "a note with %s is dropped", b.what);
+    EXPECT(taken == 0 && silent && device.sounding() <= 1 && next.left == fresh.left && next.right == fresh.right, label);
+  }
 }
 
 // 6. Variation: none repeats exactly, all of it differs within about 6 dB.
@@ -1131,6 +1170,89 @@ static void test_retrigger() {
     std::snprintf(label, sizeof label, "a %s chokes the open hat in about 8 ms", kNames[key]);
     EXPECT(at_2ms > 0.5 && at_2ms < 0.98 && at_10ms < 0.01, label);
   }
+  // The choke reaches both of the open hat's slots: struck twice, the hat
+  // rings in its second slot and is choked there as it is in the first.
+  {
+    plain(device);
+    device.note_on(1, key_hz(G), 0.7f);
+    Stereo first = render(device, 0.03f, kRate);
+    device.note_on(2, key_hz(G), 0.7f);
+    Stereo second = concat(first, render(device, 0.03f, kRate));
+    device.note_on(3, key_hz(F), 0.7f);
+    Stereo choked = concat(second, render(device, 0.44f, kRate));
+    plain(device);
+    Stereo lead = render(device, 0.06f, kRate);
+    Stereo closer = concat(lead, hit(device, F, 0.7f, 0.44f));
+    std::vector<float> left_over(choked.size());
+    for (size_t i = 0; i < left_over.size(); ++i) left_over[i] = choked.left[i] - closer.left[i];
+    // The second hat is 30 ms old when it is choked: held against the lone hat 30 ms earlier.
+    const double unchoked = rms(ringing.left, at(0.12), at(0.14));
+    const double at_150 = rms(left_over, at(0.15), at(0.17)) / unchoked;
+    const double at_2ms = rms(left_over, at(0.0615), at(0.0625)) / rms(ringing.left, at(0.0315), at(0.0325));
+    NOTE("choke of the second slot: the open hat is %.3f of itself 2 ms on, %.6f at 150 ms\n", at_2ms, at_150);
+    EXPECT(at_150 < 0.0316 && at_2ms > 0.5 && at_2ms < 0.98, "the choke reaches an open hat ringing in its second slot");
+  }
+
+  // An open hat struck again: the older one is gone in 4 ms and what is left
+  // is the new hit alone, sample for sample.
+  {
+    plain(device);
+    device.note_on(1, key_hz(G), 0.7f);
+    Stereo head = render(device, 0.1f, kRate);
+    Stereo twice = concat(head, hit(device, G, 0.7f, 0.4f));
+    double early = 0.0, late = 0.0;
+    for (size_t i = at(0.1); i < twice.size(); ++i) {
+      const double d = std::fabs(static_cast<double>(twice.left[i]) - ringing.left[i - at(0.1)]);
+      if (i < at(0.102)) early = std::max(early, d);
+      if (i >= at(0.106)) late = std::max(late, d);
+    }
+    NOTE("retrigger: open hat struck again: %.5f of the older one in the first 2 ms, %g 6 ms on\n", early, late);
+    EXPECT(early > 1.0e-4 && late < 1.0e-6, "an open hat struck again lets its older hit go in 4 ms");
+  }
+
+  // A fade is never slowed by a later, slower one: an open hat struck again
+  // and choked a millisecond on still loses its older hit in 4 ms, not in 8.
+  {
+    auto hats = [&](bool with_first) {
+      plain(device);
+      std::vector<Event> events;
+      if (with_first) events.push_back({0, [](DrumKit& d) { d.note_on(1, key_hz(G), 0.7f); }});
+      events.push_back({at(0.03), [](DrumKit& d) { d.note_on(2, key_hz(G), 0.7f); }});
+      events.push_back({at(0.031), [](DrumKit& d) { d.note_on(3, key_hz(F), 0.7f); }});
+      return play(device, events, at(0.08), {64});
+    };
+    Stereo all = hats(true);
+    Stereo rest = hats(false);
+    double fading = 0.0, gone = 0.0;
+    for (size_t i = at(0.031); i < at(0.038); ++i) {
+      const double d = std::fabs(static_cast<double>(all.left[i]) - rest.left[i]);
+      if (i < at(0.033)) fading = std::max(fading, d);
+      if (i >= at(0.0345)) gone = std::max(gone, d);
+    }
+    NOTE("fades: the older open hat is %.5f while it fades, %g half a millisecond after its 4 ms\n", fading, gone);
+    EXPECT(fading > 1.0e-4 && gone < 1.0e-6, "a choke does not slow a fade that is already quicker");
+  }
+
+  // What a retaken slot leaves is gone in about 8 ms: the kick struck three
+  // times a millisecond apart, less the third strike alone.
+  {
+    soft_kit(device);
+    Stereo once = hit(device, C, 0.8f, 0.2f);
+    soft_kit(device);
+    const std::vector<Event> events = {{0, [](DrumKit& d) { d.note_on(1, key_hz(C), 0.8f); }},
+                                       {48, [](DrumKit& d) { d.note_on(2, key_hz(C), 0.8f); }},
+                                       {96, [](DrumKit& d) { d.note_on(3, key_hz(C), 0.8f); }}};
+    Stereo thrice_kick = play(device, events, at(0.1), {64});
+    std::vector<float> remains(thrice_kick.size(), 0.0f);
+    for (size_t i = 96; i < remains.size(); ++i) remains[i] = thrice_kick.left[i] - once.left[i - 96];
+    const double left = peak(remains, 96, 96 + at(0.001));
+    const double at_5ms = peak(remains, 96 + at(0.0045), 96 + at(0.0055));
+    const double at_16ms = peak(remains, 96 + at(0.016), 96 + at(0.020));
+    NOTE("carry: a retaken slot leaves %.4f, %.5f of it 5 ms on, %.7f 16 ms on\n", left, at_5ms / left, at_16ms / left);
+    EXPECT(left > 0.01 && at_5ms > 1.0e-3 * left && at_5ms < 0.1 * left && at_16ms < 1.0e-4 * left,
+           "what a retaken slot leaves dies away in about 8 ms");
+  }
+
   const double choke = suddenness(
       [](DrumKit& d) {
         plain(d);
@@ -1231,6 +1353,45 @@ static void test_rates() {
       EXPECT_NEAR(there.centre / home.centre, 1.0, 0.12, label);
     }
   }
+
+  // The clap's bursts are 10 ms apart in time, not in samples.
+  for (float rate : {44100.0f, 96000.0f}) {
+    char label[160];
+    plain(device, rate);
+    Stereo clap = hit(device, Gs, 0.7f, 0.5f, rate);
+    double level[40];
+    for (int ms = 0; ms < 40; ++ms) level[ms] = rms(clap.left, at(0.001 * ms, rate), at(0.001 * (ms + 1), rate));
+    const double burst1 = std::max(level[1], level[2]), gap1 = std::min(level[8], level[9]);
+    const double burst2 = std::max(level[11], level[12]), gap2 = std::min(level[18], level[19]);
+    const double burst3 = std::max(level[21], level[22]), gap3 = std::min(level[28], level[29]);
+    const double tail = std::max(level[31], level[32]);
+    NOTE("rate %.0f: clap bursts %.4f %.4f %.4f with %.4f %.4f %.4f before the next, tail from %.4f\n", rate, burst1,
+         burst2, burst3, gap1, gap2, gap3, tail);
+    std::snprintf(label, sizeof label, "the clap's three bursts are 10 ms apart at %.0f Hz", rate);
+    EXPECT(burst2 > 2.0 * gap1 && burst3 > 2.0 * gap2 && tail > 2.0 * gap3 && burst1 > 2.0 * gap1, label);
+  }
+
+  // The tick two octaves up: its partials are where the tuning puts them
+  // (8.8 and 13.64 kHz) at every rate, and it is as loud.
+  double tick_home = 0.0;
+  for (float rate : {48000.0f, 44100.0f, 96000.0f}) {
+    char label[160];
+    plain(device, rate);
+    Stereo tick = hit(device, As, 0.7f, 0.3f, rate, 2);
+    const size_t from = at(0.0005, rate), to = at(0.006, rate);
+    const double lower = dominant(tick.left, rate, 7000.0, 11000.0, from, to);
+    const double upper = dominant(tick.left, rate, 11500.0, 16000.0, from, to);
+    const double share = tone_level(tick.left, upper, rate, from, to) / tone_level(tick.left, lower, rate, from, to);
+    const double level = db(rms(tick.left, 0, at(0.02, rate)));
+    if (rate == 48000.0f) tick_home = level;
+    NOTE("rate %.0f: tick two octaves up at %.0f and %.0f Hz (the upper %.2f of the lower), level %+.2f dB\n", rate, lower,
+         upper, share, level - tick_home);
+    std::snprintf(label, sizeof label, "the tick two octaves up has its partials at 8.8 and 13.64 kHz at %.0f Hz", rate);
+    // Read while the little fall in pitch is still on: a few per cent above where they rest.
+    EXPECT(lower > 8800.0 && lower < 9300.0 && std::fabs(upper / lower - 3410.0 / 2200.0) < 0.02 && share > 0.15, label);
+    std::snprintf(label, sizeof label, "the tick two octaves up is as loud at %.0f Hz", rate);
+    EXPECT_NEAR(level - tick_home, 0.0, 1.0, label);
+  }
 }
 
 // 11. No clicks from the smoothed controls, and nothing depends on the block size.
@@ -1303,6 +1464,52 @@ static void test_clicks_and_blocks() {
     EXPECT_NEAR(now, there, 0.02, "and leaves it where a drum struck at that setting is");
   }
 
+  // Tone moved by a hair under a ringing clap changes nothing that can be
+  // heard: every filter of the slot, the sides' too, keeps its state as it
+  // is retuned.
+  {
+    auto clap = [&](bool wobble) {
+      plain(device);
+      device.set_param(p::kWidth, 1.0f);
+      device.set_param(p::kLength, 4.0f);
+      std::vector<Event> events = {{0, [](DrumKit& d) { d.note_on(1, key_hz(Gs), 0.8f); }}};
+      for (size_t n = 1; wobble && n < 150; ++n) {
+        events.push_back({n * 64, [n](DrumKit& d) { d.set_param(p::kTone, n % 2 ? 0.502f : 0.5f); }});
+      }
+      return play(device, events, 150 * 64, {64});
+    };
+    Stereo still = clap(false);
+    Stereo moved_hair = clap(true);
+    const double side_change = distance(side_of(still), side_of(moved_hair));
+    const double mid_change = distance(still.left, moved_hair.left);
+    NOTE("tone by a hair under a clap: the sides change by %.5f of their level, the left channel by %.5f\n", side_change,
+         mid_change);
+    EXPECT(rms(side_of(still)) > 1.0e-3 && side_change > 0.0 && side_change < 0.02 && mid_change < 0.02,
+           "retuning a slot's filters keeps their state, the sides' too");
+  }
+
+  // Tone is followed on a control clock of 16 samples that starts with the
+  // hit: thrown one sample after a tick, it is heard before the next period is over.
+  {
+    auto snare = [&](bool thrown) {
+      plain(device);
+      std::vector<Event> events = {{0, [](DrumKit& d) { d.note_on(1, key_hz(D), 0.8f); }}};
+      if (thrown) events.push_back({1025, [](DrumKit& d) { d.set_param(p::kTone, 0.0f); }});
+      return play(device, events, 1025 + 400, {64});
+    };
+    Stereo held = snare(false);
+    Stereo thrown = snare(true);
+    size_t first = 400;
+    for (size_t i = 1025; i < held.size(); ++i) {
+      if (held.left[i] != thrown.left[i]) {
+        first = i - 1025;
+        break;
+      }
+    }
+    NOTE("control clock: Tone thrown under a snare is first heard %zu samples on\n", first);
+    EXPECT(first <= 16, "Tone is followed within 16 samples");
+  }
+
   // A phrase with a silence that steps across the moment the kit falls
   // asleep, and knobs moved inside the silence: the same audio at every
   // block size.
@@ -1370,6 +1577,140 @@ static void test_clicks_and_blocks() {
   EXPECT(moved_under.left == untouched.left, "Kit, Tune, Length, Punch, Snap and Variation are heard from the next hit");
 }
 
+// 12. The ends of the range: no drum is infrasound, no partial folds.
+static void test_range() {
+  auto rest_hz = [](int key, int octave, float tune, float kit, double from, double to, float seconds) {
+    plain(device);
+    device.set_param(p::kKit, kit);
+    device.set_param(p::kTune, tune);
+    Stereo out = hit(device, key, 0.7f, seconds, kRate, octave);
+    return dominant(out.left, kRate, 8.0, 200.0, at(from), at(to));
+  };
+  const double down1 = rest_hz(C, -1, 0.0f, 0.0f, 0.3, 1.0, 3.0f);
+  const double down2 = rest_hz(C, -2, 0.0f, 0.0f, 0.3, 1.3, 3.0f);
+  const double deep1 = rest_hz(C, -1, 0.0f, 1.0f, 0.3, 1.3, 3.0f);
+  const double sub2 = rest_hz(Cs, -2, 0.0f, 0.0f, 0.3, 1.5, 4.0f);
+  NOTE("floor: kick an octave down %.2f Hz, two octaves down %.2f Hz, Deep an octave down %.2f Hz, sub two down %.2f Hz\n",
+       down1, down2, deep1, sub2);
+  EXPECT_NEAR(down1, 24.5, 0.6, "the kick an octave down is at half its pitch, 24.5 Hz");
+  EXPECT_NEAR(down2, 24.0, 0.6, "the kick two octaves down is held at the 24 Hz floor, not at 12 Hz");
+  EXPECT_NEAR(deep1, 24.0, 0.6, "the Deep kick an octave down is held at the floor");
+  EXPECT_NEAR(sub2, 24.0, 0.6, "the sub two octaves down is held at the floor");
+  plain(device);
+  Stereo low1 = hit(device, C, 0.7f, 4.0f, kRate, -1);
+  plain(device);
+  Stereo low2 = hit(device, C, 0.7f, 4.0f, kRate, -2);
+  EXPECT(ring_time(low2.left, kRate) > 1.3 * ring_time(low1.left, kRate), "held at the floor the kick still rings longer");
+  // Three octaves down (the lowest octave and Tune at -12) no tonal drum is under the floor.
+  for (int key : {C, Cs, D, A, B}) {
+    char label[120];
+    const double hz = rest_hz(key, -2, -12.0f, 0.0f, key == D ? 0.02 : 0.3, key == D ? 0.4 : 1.5, 4.0f);
+    NOTE("floor: %s three octaves down is strongest at %.2f Hz\n", kNames[key], hz);
+    std::snprintf(label, sizeof label, "the %s three octaves down is not under the floor (%.1f Hz)", kNames[key], hz);
+    EXPECT(hz > 23.3, label);
+  }
+  // The snare's upper tone keeps its ratio to the held lower one.
+  {
+    plain(device);
+    device.set_param(p::kTune, -12.0f);
+    device.set_param(p::kSnap, 0.0f);
+    Stereo snare = hit(device, D, 0.7f, 2.0f, kRate, -2);
+    const double low = dominant(snare.left, kRate, 16.0, 32.0, at(0.03), at(0.4));
+    const double high = dominant(snare.left, kRate, 34.0, 60.0, at(0.03), at(0.4));
+    NOTE("floor: the snare three octaves down has its tones at %.1f and %.1f Hz\n", low, high);
+    EXPECT_NEAR(high / low, 330.0 / 185.0, 0.04, "held at the floor the snare's two tones keep their ratio");
+  }
+  // The octave is kept to two either way and Tune adds an octave: beyond that nothing moves.
+  plain(device);
+  Stereo top = hit(device, E, 0.7f, 0.3f, kRate, 2);
+  plain(device);
+  Stereo beyond = hit(device, E, 0.7f, 0.3f, kRate, 4);
+  EXPECT(top.left == beyond.left && rms(top.left) > 0.0, "keys beyond two octaves away are the drum two octaves away");
+}
+
+// 13. At rest: nothing decays into the subnormals, a drum ends 120 dB down,
+// and the kit asleep costs a cleared buffer.
+static void test_rest() {
+  struct Setting {
+    const char* name;
+    float kit, length, snap;
+  };
+  const Setting settings[] = {{"at its defaults", 0.0f, 1.0f, 0.3f}, {"long and deep", 1.0f, 4.0f, 1.0f}};
+  for (const Setting& setting : settings) {
+    char label[160];
+    int states = 0, worst_key = -1;
+    size_t samples = 0;
+    for (int key = 0; key < 12; ++key) {
+      plain(device);
+      device.set_param(p::kKit, setting.kit);
+      device.set_param(p::kLength, setting.length);
+      device.set_param(p::kSnap, setting.snap);
+      // Struck three times a millisecond apart, so that a slot is retaken and carries.
+      for (int n = 0; n < 3; ++n) {
+        device.note_on(n, key_hz(key), 0.7f);
+        device.process(48);
+      }
+      const int before = states;
+      for (int block = 0; block < 20 * 750 && device.sounding() > 0; ++block) {
+        device.process(64);
+        states += device.subnormal_states();
+        for (int i = 0; i < 64; ++i) {
+          const float l = device.out_left()[i], r = device.out_right()[i];
+          if ((l != 0.0f && std::fabs(l) < 1.17549435e-38f) || (r != 0.0f && std::fabs(r) < 1.17549435e-38f)) ++samples;
+        }
+      }
+      if (states > before && worst_key < 0) worst_key = key;
+    }
+    NOTE("rest: %s, %d subnormal states and %zu subnormal samples over the life of every drum\n", setting.name, states,
+         samples);
+    std::snprintf(label, sizeof label, "no slot holds a subnormal number while its drum rings, %s%s%s", setting.name,
+                  worst_key < 0 ? "" : ": first the ", worst_key < 0 ? "" : kNames[worst_key]);
+    EXPECT(states == 0 && samples == 0, label);
+  }
+
+  // A drum rings on under -60 dB and its slot ends 120 dB down.
+  plain(device);
+  Stereo sub = hit(device, Cs, 0.7f, 2.5f);
+  const double far_down = db(rms(sub.left, at(1.3), at(1.4))) - db(peak(sub.left));
+  NOTE("rest: the sub is %.1f dB under its peak 1.35 s on\n", far_down);
+  EXPECT(far_down > -105.0 && far_down < -80.0, "a drum rings on under -60 dB: the sub is about 90 dB down at 1.35 s");
+  EXPECT(peak(sub.left, at(2.0)) == 0.0 && peak(sub.right, at(2.0)) == 0.0, "and its slot has ended by 2 s");
+
+  // The idle gate. Awake or asleep the kit takes what is on its input and plays none of it.
+  plain(device);
+  EXPECT(device.asleep() && device.sounding() == 0, "a new kit is asleep");
+  device.note_on(1, key_hz(As), 0.7f);
+  device.in_left()[5] = 0.5f;
+  device.in_right()[6] = -0.5f;
+  device.process(64);
+  EXPECT(!device.asleep() && device.sounding() == 1, "a hit wakes it");
+  EXPECT(device.in_left()[5] == 0.0f && device.in_right()[6] == 0.0f, "awake the kit clears its input");
+  render(device, 1.0f, kRate);
+  EXPECT(device.asleep() && device.sounding() == 0, "it sleeps again once its last drum has ended");
+  device.in_left()[5] = 0.5f;
+  device.process(64);
+  EXPECT(device.in_left()[5] == 0.0f && device.out_left()[5] == 0.0f && device.asleep(),
+         "asleep it clears its input and stays asleep");
+  // Asleep, a block is a buffer cleared; awake with nothing sounding (the
+  // 50 ms after the last drum) it is the whole loop. The quickest of many.
+  double awake = 1.0e9, asleep = 1.0e9;
+  const auto blocks = [](int count) {
+    const auto start = std::chrono::steady_clock::now();
+    for (int n = 0; n < count; ++n) device.process(128);
+    return std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count() / count;
+  };
+  for (int round = 0; round < 60; ++round) {
+    plain(device);
+    device.note_on(1, key_hz(As), 0.0f);
+    while (device.sounding() > 0) device.process(128);
+    awake = std::min(awake, blocks(8));
+    render(device, 0.2f, kRate);
+    asleep = std::min(asleep, blocks(8));
+  }
+  NOTE("rest: a block of 128 costs %.3f us awake with nothing sounding, %.3f us asleep\n", awake, asleep);
+  EXPECT(asleep * 4.0 < awake, "asleep the kit does not run its loop");
+}
+
 int main() {
   Conformance spec;
   spec.name = "drum-kit";
@@ -1392,6 +1733,8 @@ int main() {
   test_levels();
   test_rates();
   test_clicks_and_blocks();
+  test_range();
+  test_rest();
 
   // The longest drum at the longest length ends, and the kit sleeps.
   plain(device);
