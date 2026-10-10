@@ -140,7 +140,7 @@
       "min": 0,
       "max": 0.95,
       "default": 0,
-      "description": "Feeds the last follower back into the line, so the whole canon comes round again, quieter each time. Its interval and its crab are applied once more on every pass."
+      "description": "Feeds the last follower back into the line, so the canon comes round again, quieter each time, with its interval and crab applied again. A held sound does not pile up."
     },
     {
       "key": "mix",
@@ -188,7 +188,8 @@
       "followers": 2,
       "gap": 3,
       "tone": 5000,
-      "round": 0.7
+      "round": 0.7,
+      "mix": 0.4
     },
     "Octave shadow": {
       "followers": 1,

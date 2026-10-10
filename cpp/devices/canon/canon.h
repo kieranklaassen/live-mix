@@ -342,6 +342,9 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   static constexpr float kHoldGone = 16.0f;  // the playing has stopped: 12 dB under its loudest
   static constexpr float kHoldNear = 1.06f;  // within half a dB of the hold: still needed
   static constexpr float kHoldInStep = 2.0f;
+  // The loudest that was played falls by Round to this power every lap, in
+  // power: three quarters as fast as the round itself (Round squared).
+  static constexpr float kHoldFall = 1.5f;
   static constexpr float kHoldStopLeast = 0.05f;
   static constexpr float kHoldStopMost = 0.5f;
   static constexpr float kHoldFloor = 1.0e-13f;
@@ -705,11 +708,12 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   // return is turned down by just as much as brings them back to it. The
   // three powers (played, returning, the two together) are taken over a tenth
   // of a second. "What was played" is the loudest the input has been, let
-  // fall half as fast as the round itself dies away (by Round's share of its
-  // power every lap): a round that is dying away, or one no louder than the
-  // playing, never reaches it, and the hold then passes it exactly. All of
-  // it is counted in samples from where the device woke, so the host's
-  // blocks change nothing.
+  // fall three quarters as fast as the round itself dies away: a round that
+  // is dying away, or one no louder than the playing, never reaches it, and
+  // the hold then passes it exactly; and after loud playing the hold is back
+  // at the level of soft playing soon after the loud round has sunk under
+  // it. All of it is counted in samples from where the device woke, so the
+  // host's blocks change nothing.
   void steady() {
     present_ = flush_denormal(present_ + (played_sum_ - present_) * present_coeff_);
     played_ = flush_denormal(played_ + (played_sum_ - played_) * level_coeff_);
@@ -723,7 +727,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       fall_round_ = round;
       fall_lap_ = lap;
       heard_fall_ = round > 0.0f
-                        ? std::exp(std::log(round) * static_cast<float>(kControlPeriod) / static_cast<float>(lap))
+                        ? std::exp(kHoldFall * std::log(round) * static_cast<float>(kControlPeriod) /
+                                   static_cast<float>(lap))
                         : 0.0f;
       // The playing has stopped once it has stayed 12 dB under its loudest
       // for a quarter of a lap (a twentieth to half a second): a one-pole

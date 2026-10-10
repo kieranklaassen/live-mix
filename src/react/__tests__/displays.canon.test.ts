@@ -324,8 +324,9 @@ describe('the picture', () => {
   })
 
   it('stands a stem under a follower that plays forwards, from the line to its note', () => {
-    const lay = layoutAt()
-    const drawn = drawDisplay(display, params, { meters: resting })
+    const values = { interval2: 7, interval3: -12 }
+    const lay = layoutAt(values)
+    const drawn = drawDisplay(display, params, { values, meters: resting })
     for (const k of [1, 2]) {
       const at = Math.round(lay.entries[k]) + 0.5
       const stem = stemTo(drawn, at, lay.rowOf(k === 1 ? 7 : -12))
@@ -333,6 +334,10 @@ describe('the picture', () => {
       expect(stem?.points[0]).toEqual([at, lay.zero])
       expect(stem?.colour).toBe(ink)
     }
+    // As the device starts all three play at unison: every note lies on the line.
+    const plain = notes(drawDisplay(display, params, { meters: resting }))
+    expect(plain.length).toBe(3)
+    for (const note of plain) expect(note.y + note.h / 2).toBeCloseTo(layoutAt().zero, 6)
   })
 
   it("runs a crab's stem along the line where the device's count of the gap puts its reader", () => {
@@ -394,14 +399,14 @@ describe('the picture', () => {
   })
 
   it('draws the way back to the mark only when Round sends something along it', () => {
-    const dashed = (round: number) =>
-      marks(drawDisplay(display, params, { values: { round }, meters: resting })).paths.filter(
-        (path) => path.dashed,
-      )
+    const dashed = (round: number, interval3 = -12) =>
+      marks(
+        drawDisplay(display, params, { values: { round, interval3 }, meters: resting }),
+      ).paths.filter((path) => path.dashed)
     expect(dashed(0)).toEqual([])
     const some = dashed(0.3)
     expect(some.length).toBe(1)
-    const lay = layoutAt({ round: 0.3 })
+    const lay = layoutAt({ round: 0.3, interval3: -12 })
     // From the last follower's note, up, and back to the mark.
     expect(some[0].points[0][0]).toBe(Math.round(lay.entries[2]) + 0.5)
     expect(some[0].points[0][1]).toBeCloseTo(lay.rowOf(-12), 6)
@@ -409,14 +414,20 @@ describe('the picture', () => {
     expect(some[0].alpha).toBeGreaterThan(INK.rule)
     expect(dashed(0.95)[0].alpha).toBeGreaterThan(some[0].alpha)
     expect(dashed(0.95)[0].alpha).toBeCloseTo(1, 9)
+    // At unison, as the device starts, it leaves from the line itself.
+    expect(dashed(0.3, 0)[0].points[0][1]).toBeCloseTo(lay.zero, 6)
   })
 
   it('says the gap and the intervals in words, on a patch where the line runs under them', () => {
-    const drawn = drawDisplay(display, params, { meters: resting })
+    // As the device starts: a plain round, three followers at unison.
+    const plain = drawDisplay(display, params, { meters: resting })
+    expect(plain.words()).toEqual(['+12', '0', '−12', '0', '0', '0', timeText(1.5)])
+    const apart = { interval2: 7, interval3: -12, interval4: 12 }
+    const drawn = drawDisplay(display, params, { values: apart, meters: resting })
     expect(drawn.words()).toEqual(['+12', '0', '−12', '0', '+7', '−12', timeText(1.5)])
     for (const words of ['+7']) expect(patchUnder(drawn, words, plate)).not.toBeNull()
     // Close together the figures give way, and come back for the note in hand.
-    const close = { followers: 4, gap: params.gap.min }
+    const close = { ...apart, followers: 4, gap: params.gap.min }
     const crowded = drawDisplay(display, params, { values: close, meters: resting })
     expect(crowded.words()).toEqual(['+12', '0', '−12', timeText(0.1)])
     const held = drawDisplay(display, params, { values: close, meters: resting, hot: 'interval2' })
