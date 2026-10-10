@@ -32,6 +32,7 @@ import { TURN_INSTRUMENT_FACES } from './instrument-turns'
 import { VOICE_INSTRUMENT_FACES } from './instrument-voices'
 import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
+import { IMPRINT_FACES } from './imprint'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -117,4 +118,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PRISM_FACES,
   ...SCALE_FILTER_FACES,
   ...SIFT_FACES,
+  ...IMPRINT_FACES,
 }

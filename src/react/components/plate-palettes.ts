@@ -156,6 +156,7 @@ export const PLATE_PALETTES = {
   prism: { plate: '#ecd624', ink: '#1c1803', accent: '#5a1ca8' },
   'scale-filter': { plate: '#31c4b0', ink: '#06231f', accent: '#7a1150' },
   sift: { plate: '#aaa838', ink: '#12140a', accent: '#3a1a8a' },
+  imprint: { plate: '#5a3a8c', ink: '#f6f1e4', accent: '#ffa6c9' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

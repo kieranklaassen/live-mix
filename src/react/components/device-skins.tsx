@@ -1912,6 +1912,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   prism: { ...PLATE_PALETTES.prism, finish: 'gloss', cap: 'pointer' },
   'scale-filter': { ...PLATE_PALETTES['scale-filter'], finish: 'gloss', cap: 'dot' },
   sift: { ...PLATE_PALETTES.sift, finish: 'speckle', cap: 'pointer' },
+  imprint: { ...PLATE_PALETTES.imprint, finish: 'linen', cap: 'disc' },
 }
 
 /**
