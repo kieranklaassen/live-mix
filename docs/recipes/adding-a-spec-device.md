@@ -104,6 +104,141 @@ Faults the conformance pass does not see, each found while building a device and
 - **`kit::BlepOsc` folds more than its comment says at the top of the keyboard**: measure fold-back at C6 with the filters open, and use a closed-form band-limited wave or a longer correction where it matters ([write-up](../solutions/design-patterns/polyblep-folded-energy-and-closed-form-pulse.md)).
 - **A click check needs a reference with no event in it**, and a harness is only worth what it fails on: break the device on purpose and see which checks notice ([click checks](../solutions/best-practices/click-checks-need-an-event-free-reference.md), [mutation checks](../solutions/best-practices/mutation-check-a-measuring-harness.md)).
 
+## Spectral devices
+
+A device that works on the spectrum builds on `kit::Stft` (`cpp/kit/stft.h`): one channel of streaming
+short-time Fourier analysis and resynthesis, Hann on the way in and on the way out, proved once in
+`cpp/test/stft_test.cpp`. It is not part of `kit.h`; include it beside the kit. Every call is documented at its
+definition. (`cpp/devices/spectral-blur/` is older and carries its own framing: read it for what a device does
+per bin, not for the frames.)
+
+```cpp
+#include "../../kit/kit.h"
+#include "../../kit/stft.h"
+#include "params.gen.h"
+
+namespace livemix {
+class Veil : public kit::DeviceBase<veil::kNumParams> {
+ public:
+  using Stft = kit::Stft<2048, 512>;               // frame, hop
+  static constexpr int kLatency = Stft::kLatency;  // 2304: "latencySamples" in device.json
+
+  void init(float sample_rate) {
+    using namespace veil;
+    init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
+    const float sr = this->sample_rate();
+    stft_[0].init();                   // left: works as soon as a frame is whole
+    stft_[1].init(Stft::kMaxStagger);  // right: half a hop later, on the very same frames
+    // … every per-bin table (from sr) and all per-bin state …
+    idle_.reset(sr, static_cast<float>(Stft::kLatency + Stft::kFrame + Stft::kHop) / sr);
+  }
+
+  void process(int frames) {
+    frames = begin_block(frames);
+    if (!idle_.wake(input_present(frames) || alive_[0] || alive_[1])) {
+      silence_output(frames);
+      stft_[0].skip(frames);  // the frame clock runs on through the sleep
+      stft_[1].skip(frames);
+      return;
+    }
+    for (int i = 0; i < frames; ++i) {
+      float in[2];
+      take_input(i, &in[0], &in[1]);
+      // … dry_gain and wet_gain from the smoothed mix …
+      float out[2];
+      for (int c = 0; c < 2; ++c) {
+        const float wet = stft_[c].process(in[c], [this, c](float* re, float* im) { frame(c, re, im); });
+        out[c] = stft_[c].dry() * dry_gain + wet * wet_gain;
+      }
+      out_left_[i] = out[0];
+      out_right_[i] = out[1];
+    }
+    idle_.settle(output_peak(frames), frames);
+  }
+
+ private:
+  // One frame of channel c: Stft::kBins bins, real and imaginary parts, changed in place.
+  void frame(int c, float* re, float* im);
+
+  Stft stft_[2];
+  bool alive_[2] = {false, false};  // any bin still holding sound
+};
+}  // namespace livemix
+```
+
+**The frame.** `process(x, fn)` takes one sample and returns one. Every `Hop` samples it first calls
+`fn(float* re, float* im)` with the spectrum of the newest whole frame: `kBins = Frame/2 + 1` bins to change in
+place, bin k at `k × rate / Frame` Hz (`bin_to_hz`, `hz_to_bin`, `nearest_bin`). A sine of amplitude 1 on a
+bin's centre reads `kFullScale` (`Frame/4`) there and half that in each neighbour; noise of RMS 1 reads
+`√(3·Frame/8)` per bin (27.7 at 2048). With a callable that changes nothing the output is the input
+`kLatency` samples late, to 4e-7. Pick the frame for the job:
+
+| `kit::Stft<…>` | a bin at 48 kHz | a frame lasts | `latencySamples` | a frame costs (WASM) | storage per channel |
+| -------------- | --------------- | ------------- | ---------------- | -------------------- | ------------------- |
+| `<1024, 256>`  | 46.9 Hz         | 21 ms         | 1152             | 8 µs                 | 44 KB               |
+| `<2048, 512>`  | 23.4 Hz         | 43 ms         | 2304             | 17 µs                | 88 KB               |
+| `<4096, 1024>` | 11.7 Hz         | 85 ms         | 4608             | 38 µs                | 176 KB              |
+
+**Latency and the dry path.** `kLatency` is `Frame + Hop/2`, the same for both channels whatever their
+stagger. Put that number in the manifest as `latencySamples`, and take the dry signal from `stft_[c].dry()`: the
+input of `kLatency` samples ago, read from the ring the frames come from, so `mix` does not comb and at `mix` 0
+the output is the input `kLatency` late, bit for bit. Assert both in the harness.
+
+**The stagger.** A frame is two transforms. `init(stagger)` does one channel's work up to half a hop
+(`kMaxStagger`) later, on the same stretch of input, so that with the channels at 0 and `kMaxStagger` no
+128-frame block ever holds the transforms of both (for a hop of 256 or more). The stagger does not move the
+frames or the output, not by a bit: mono in is still mono out. Channel 0's frame n always comes before channel
+1's frame n; whatever is worked out once per frame (a gain table, a shared decision) is worked out when channel
+0's comes, not once per call.
+
+**Sleep.** The frame clock counts samples. In the branch that sleeps call `skip(frames)` on every `Stft`, as
+above: the frames then fall on the same samples whatever the block size, which is what decides when sleep
+begins. `stft.frame()` numbers the frames, with the same number for both channels and for the same place in
+time whatever was slept through: seed per-frame randomness from it, never from a count of calls. With both, the
+output is the same at block sizes 1, 128 and 2048 across a silence; without either it is not (a test device
+differed by 0.6 of full scale). The idle hold is at least `kLatency + Frame + Hop` samples, plus whatever the
+device itself delays; and sleep only on exact zeros: set what a bin holds to zero once it is under a floor (1e-6
+is -174 dBFS a bin at 2048), keep `alive` true until every bin is there, and nothing stale can come back.
+Silence in is exact silence out `kLatency + Frame` after the last sample.
+
+**Cost.** The transforms are the small part: under 0.2 % of real time a channel at 48 kHz at a quarter hop
+whatever the frame size (0.4 % for a stereo device, twice that at 96 kHz or at an eighth hop), and
+`analyse()` in place of `process()`, for a device that measures and does not resynthesise, is under half. The
+rest is the callable. At a quarter hop the whole 5 % is about 240 ns per bin per frame per channel; aim for a
+fifth of that. Per bin in WASM: a gain or a rotator (multiply by a unit vector) 1 ns, `kit::to_polar` 8 ns,
+`kit::from_polar` 4 ns, against about 20 ns for `std::atan2` and 12 to 25 ns for a `std::sin` and a `std::cos`;
+`std::exp`, `std::pow` and `std::log` per bin belong in a table built in `init` or when a knob moves. The budget
+is an average, and a frame's work lands in one block: report the worst block as well (the harness of
+`spectral-blur` shows how).
+
+**Pitfalls**, each measured:
+
+- **A frozen frame replayed buzzes at the frame rate.** The same spectrum handed over frame after frame repeats
+  every `Hop` samples exactly: 93.75 Hz at 2048/512 and 48 kHz. A bin that is held goes on turning: advance its
+  phase each frame by the turn it was last measured to make.
+- **Random phase costs up to 6 dB.** Fresh random phases every frame come out 6.0 dB down at a quarter hop and
+  9.0 dB at an eighth, because frames that no longer agree add as power. Raise the magnitudes by what is lost
+  (`spectral_blur.h` has the gain for partly random phase).
+- **Bins of one partial must turn together.** A partial is three or four bins wide. A held sine whose bins each
+  turn by their own bin's centre ripples by 35 dB at the frame rate and lands on the bin's pitch; turned by the
+  partial's own frequency it is steady to 0.03 dB. Measure the turn (`Stft::advance_to_hz` from two frames'
+  phases, or the rotator `X × conj(X_last)`, normalised) and give a peak's neighbours the peak's turn.
+- **A gain per bin is a filter three bins wide.** At a bin's centre the response is 2/3 of that bin's gain and
+  1/6 of each neighbour's: one bin set to zero is a dip of 9.5 dB, not silence.
+- **Hertz and seconds are worked out again for the sample rate.** Bins are `rate / Frame` wide and a frame comes
+  every `Hop / rate` seconds: at 96 kHz the bins are twice as wide and the frames twice as often. Anything per
+  bin meant in Hz, and anything per frame meant in seconds, is computed in `init` from `sample_rate()`, and
+  storage counted in frames is sized for 96 kHz.
+- **Parameters read once per frame need no smoother**: the overlap crossfades any change over a frame. `mix` is
+  smoothed per sample as everywhere.
+- **The frame is a circle.** A delay or a stretch done in the spectrum wraps round the frame's ends; the output
+  window fades the ends, it does not undo the wrap. Keep a phase that accumulates wrapped (`kit::princarg`).
+- **Silence is exact zeros.** The first frame after `init` and every frame of a silence is all zeros: whatever
+  divides by a magnitude (a normalised rotator, a ratio of two frames) needs a floor.
+- **Bad input stops at the block.** `process()` takes a NaN, an infinite or a runaway sample as zero (in `dry()`
+  too), so the spectrum and whatever is kept per bin never see one. Any path of the device's own beside the
+  `Stft` still has to survive them.
+
 ## The harness
 
 ```cpp
