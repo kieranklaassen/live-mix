@@ -7,7 +7,7 @@
 //    2  decay: 0.5..30 s, default 6
 //    3  mix: 0..1, default 0.45
 //    4  size: 0..1, default 0.6
-//    5  tone: 0..1, default 0.45
+//    5  tone: 0..1, default 0.5
 //    6  octave: 0..1, default 0.2
 //    7  feed: 0..1, default 0.25
 //    8  width: 0..1, default 1
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 30.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.55f, 0.6f, 6.0f, 0.45f, 0.6f, 0.45f, 0.2f, 0.25f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.55f, 0.6f, 6.0f, 0.45f, 0.6f, 0.5f, 0.2f, 0.25f, 1.0f};
 
 }  // namespace haze
 }  // namespace livemix

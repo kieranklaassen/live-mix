@@ -58,7 +58,7 @@
       "name": "Tone",
       "min": 0,
       "max": 1,
-      "default": 0.45,
+      "default": 0.5,
       "description": "Tilts the fuzz before it enters the long reverb, from dark wool at the bottom to bright glare at the top."
     },
     {

@@ -15,19 +15,19 @@
 //       │               ▲                             │
 //       │               └─ damping ◄─ decay gain ◄─ Hadamard     (the wall)
 //       │                                             │
-//       └────────── Feed ◄── low cut ◄────────────────┘
+//       └── Feed ◄── shift up 1 Hz ◄── low cut ◄──────┘
 //
 // FUZZ, per side, at four times the sample rate:
 //
 //   x ─► ÷ (level + floor) ─► fold (Octave) ─► × drive ─► tanh ─► DC block ─► × level × hold ─► y
 //
 // - The fuzz works on the sound with its level taken out and puts the level
-//   back afterwards. A follower (8 ms up, 120 ms down, both sides together)
-//   gives the level; the wave is divided by it, driven into the curve, and
+//   back afterwards. The level is the RMS of the louder side over 25 ms, as
+//   a sine's peak; the wave is divided by it, driven into the curve, and
 //   multiplied by it again times a hold that makes a sine come out at the RMS
 //   it went in with, at every drive (a table of the curve's own RMS, made
 //   again when Octave moves). So Haze adds overtones and not loudness, an
-//   attack that outruns the follower is squashed instead of spat out, and
+//   attack that outruns the level is squashed instead of spat out, and
 //   nothing leaves the fuzz louder than the level that went in.
 // - The floor (-40 dBFS) is what keeps quiet tails smooth: under it the
 //   division stops growing, so the push into the curve falls with the level
@@ -44,15 +44,22 @@
 // - The wall is an eight-line feedback delay network (Hadamard), its lines
 //   20 to 160 ms by Size, read with a slow free-running sweep each. Its wet
 //   level is lowered as Decay rises so that Decay is not also a volume knob.
-// - Feed returns the wall to the front. The returned share is worked out
-//   from the wall's own loss, so that at the top of Feed three quarters of
-//   what the wall loses comes back: the tail is up to four times as long, the
-//   fuzz is fed mostly by the wall itself, and the loop still loses on every
-//   pass. The fuzz cannot put out more than full scale, which is the ceiling.
+// - Feed returns the wall to the front, moved up by about 1 Hz on the way
+//   (a single-sideband shift, 0.7 Hz on the left and 1.1 Hz on the right).
+//   Without the shift the loop howls: one resonance of the wall feeds itself
+//   and a single tone holds for good. With it, what returns never lands on
+//   the frequency it left, so the loop's gain is the average over the wall's
+//   resonances and not the highest of them, and what is heard is a slow beat
+//   between the wall and what it sent round. The returned share is worked
+//   out from the wall's own loss: at the top of Feed just under half of what
+//   the wall loses comes back, the fuzz is fed about as much by the wall as
+//   by the input, and the tail is three to four times as long (measured; more
+//   at the shortest Decay). The loop loses on every pass, and the fuzz cannot
+//   put out more than full scale, which is the ceiling.
 // - The sweeps run by a count of samples that goes on through silence and
 //   sleep, so the output is the same at every block size.
 //
-// Storage: eight lines of 16384 samples, twelve allpasses and two loop delays
+// Storage: eight lines of 16384 samples, fourteen allpasses and two loop delays
 // of 4096 (sized for 96 kHz), the oversampling filters: about 0.8 MB.
 
 #include "../../kit/kit.h"
@@ -98,24 +105,30 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       low_cut_[c].set(kLowCutHz, kit::kSqrtHalf, sr);
       feed_cut_[c].reset();
       feed_cut_[c].set_cutoff(kLowCutHz, sr);
+      shifter_[c].reset();
       back_[c] = 0.0f;
     }
+    // One trip: the allpasses delay energy by their lengths, then the loop's delay.
+    blur_seconds_ = kBlurLoopDelay[0] / 48000.0f;
+    for (int a = 0; a < kBlurStages; ++a) blur_seconds_ += kBlurAllpass[0][a] / 48000.0f;
     for (int n = 0; n < kLines; ++n) {
       line_[n].clear();
       damping_[n].reset();
-      damping_[n].set_cutoff(kDampingHz, sr);
       length_[n] = kLineSeconds[n] * sr;
       gain_[n] = 0.0f;
       sweep_[n] = 0.0f;
       sweep_step_[n] = 0.0f;
     }
-    follower_.reset();
-    follower_.set(kAttackSeconds, kReleaseSeconds, sr);
+    power_[0] = 0.0f;
+    power_[1] = 0.0f;
+    level_coeff_ = 1.0f - kit::time_to_coeff(kLevelSeconds, sr);
     fold_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kFoldMeanHz), sr);
     sweep_depth_ = kSweepSeconds * sr;
+    shift_turn_[0] = static_cast<double>(kFeedShiftHz[0]) / sr;
+    shift_turn_[1] = static_cast<double>(kFeedShiftHz[1]) / sr;
 
-    kit::Smoother* fast[] = {&drive_, &direct_, &smear_, &loop_, &back_gain_,
-                             &width_, &dry_,    &wet_,   &level_};
+    kit::Smoother* fast[] = {&drive_, &direct_, &smear_, &loop_,       &back_gain_,
+                             &width_, &dry_,    &wet_,   &width_gain_, &level_};
     for (kit::Smoother* s : fast) s->set_time(kSmoothingSeconds, sr);
     octave_.set_time(kSmoothingSeconds, sr);
     // Size moves read points: it glides slowly enough to bend, not zip.
@@ -187,9 +200,12 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       }
 
       // The level, taken out before the curve and put back after it.
-      const float left_size = pre[0] < 0.0f ? -pre[0] : pre[0];
-      const float right_size = pre[1] < 0.0f ? -pre[1] : pre[1];
-      const float level = follower_.process(left_size > right_size ? left_size : right_size);
+      power_[0] = flush_denormal(power_[0] + level_coeff_ * (pre[0] * pre[0] - power_[0]));
+      power_[1] = flush_denormal(power_[1] + level_coeff_ * (pre[1] * pre[1] - power_[1]));
+      // As a sine's peak: √2 times the RMS of the louder side. (The mean of
+      // the louder sample of the two would read two sides of equal power
+      // 2 dB high, and the fuzz would give that back as gain.)
+      const float level = std::sqrt(2.0f * (power_[0] > power_[1] ? power_[0] : power_[1]));
       const float sum = level + kFloor;
       const float norm = 1.0f / sum;
       const float drive = glide(drive_);
@@ -240,15 +256,20 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       }
       // What Feed returns next sample: the lines alone, so the share that
       // comes back is the share control() worked out.
-      back_[0] = feed_cut_[0].highpass(lines_left);
-      back_[1] = feed_cut_[1].highpass(lines_right);
+      const float lines[2] = {lines_left, lines_right};
+      for (int c = 0; c < 2; ++c) {
+        const double turns = shift_turn_[c] * static_cast<double>(samples_);
+        const float turn = static_cast<float>(turns - std::floor(turns));
+        float same, quarter;
+        shifter_[c].process(feed_cut_[c].highpass(lines[c]), &same, &quarter);
+        back_[c] = same * kit::SineTable::cos_lookup(turn) - quarter * kit::SineTable::lookup(turn);
+      }
 
       const float wet_left = low_cut_[0].highpass(lines_left + feed[0]);
       const float wet_right = low_cut_[1].highpass(lines_right + feed[1]);
-      const float width = glide(width_);
-      const float gain = glide(level_);
+      const float gain = glide(level_) * glide(width_gain_);
       const float mid = 0.5f * (wet_left + wet_right) * gain;
-      const float side = 0.5f * (wet_left - wet_right) * width * gain;
+      const float side = 0.5f * (wet_left - wet_right) * glide(width_) * gain;
       // Exact up to ±1 and landing on ±2: the wall never leaves more than
       // 6 dB over full scale, whatever is held into it for however long.
       const float wall_left = 2.0f * kit::soft_clip(0.5f * (mid + side));
@@ -282,14 +303,13 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr int kTablePoints = 24;
 
   // Haze 0..1 is the drive into the curve, on a scale of equal ratios.
-  static constexpr float kDriveMin = 0.15f;
-  static constexpr float kDriveMax = 24.0f;
+  static constexpr float kDriveMin = 0.25f;
+  static constexpr float kDriveMax = 6.0f;
   // The level under which the push into the curve falls away (-40 dBFS),
   // and the most the fuzz puts the level back to.
   static constexpr float kFloor = 0.01f;
   static constexpr float kCeiling = 1.0f;
-  static constexpr float kAttackSeconds = 0.008f;
-  static constexpr float kReleaseSeconds = 0.12f;
+  static constexpr float kLevelSeconds = 0.025f;
   // The fold: sqrt(x² + s²) − s, its mean followed at 15 Hz, twice as loud as
   // the wave it replaces; Octave 1 leaves 15 % of the wave itself.
   static constexpr float kFoldSoft = 0.05f;
@@ -322,19 +342,31 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr float kMaxScale = 1.5f;
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f}, {241.0f, 181.0f}};
   static constexpr float kInputDiffusion = 0.6f;
-  static constexpr float kDampingHz = 6500.0f;
+  // The top of the band dies away in 0.4 of Decay: the pole is
+  // (ln 10 / 4) (1 - 1 / 0.4²) times the log of the line's gain, and no more
+  // than kDampingMost (at a Decay under about a second).
+  static constexpr float kDampingSlope = -3.0221f;
+  static constexpr float kDampingMost = 0.6f;
   static constexpr float kLowCutHz = 90.0f;
   // Each line's read point sweeps ±0.6 ms at 0.23 Hz and up, 0.09 Hz apart.
   static constexpr float kSweepSeconds = 0.0006f;
   static constexpr float kSweepHz = 0.23f;
   static constexpr float kSweepStepHz = 0.09f;
   // A line holds 1/(1 - g²) of the power fed to it and a side taps a quarter
-  // of what all eight hold: kLineShare. The wet level takes back kDecayComp
-  // of that (in dB), and Feed returns kFeedShare of the wall's loss at its top.
+  // of what all eight hold: kLineShare. Feed returns kFeedShare of the wall's
+  // loss at its top. (The share is of power, as if what returns never met
+  // itself in phase; it does, and the tail measures three to four times as
+  // long at the top of Feed where the share alone would make it under two.)
   static constexpr float kLineShare = 0.25f;
-  static constexpr float kWetGain = 1.5f;
-  static constexpr float kDecayComp = 0.35f;
-  static constexpr float kFeedShare = 0.7f;
+  static constexpr float kWetGain = 1.26f;
+  static constexpr float kFeedShare = 0.45f;
+  static constexpr float kFeedMost = 0.9f;
+  // What Feed returns is moved up in frequency on the way, by a little less
+  // on the left than on the right, so that no resonance of the wall or of the
+  // first reverb can feed itself. Both sides go the same way: with one up and
+  // one down the sound wandered about a resonance and stayed (measured: a
+  // tone near 176 Hz held at -8 dBFS for good at the top of Feed).
+  static constexpr float kFeedShiftHz[2] = {0.7f, 1.1f};
   static constexpr float kMeterFallSeconds = 0.1f;
 
   // kit::hadamard<8> written out (the loop form is several times slower).
@@ -431,14 +463,35 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     using namespace haze;
     const float sr = sample_rate();
     const float size = size_.value;
-    for (int n = 0; n < kLines; ++n) gain_[n] = kit::rt60_gain(length_[n] * size, decay, sr);
+    for (int n = 0; n < kLines; ++n) {
+      // The gain that takes Decay to fall 60 dB, and a one-pole on top of it
+      // that takes kDampingRatio of Decay at the top of the band (Jot's
+      // absorbent filter: unity at the bottom, so Decay is the time there).
+      const float exponent = -3.0f * length_[n] * size / (decay * sr);  // log10 of the gain
+      gain_[n] = std::pow(10.0f, exponent);
+      damping_[n].a = kit::min(kDampingSlope * exponent, kDampingMost);
+    }
     const float middle = gain_[kLines / 2];
     const float loss = kit::max(1.0f - middle * middle, 1.0e-4f);
+    // Feed: the gain on what returns, for the share of the wall's loss it is
+    // to make good, and never over kFeedMost (a short Decay loses nearly all
+    // it has each pass, and making that good would be a loop of its own).
     const float feed = param(kFeed);
-    const float share = kFeedShare * feed * feed;
-    // Feed makes the wall hold 1 / (1 - share) as much; that is taken back whole.
-    level_.set_target(kWetGain * std::pow(loss, kDecayComp) * std::sqrt(1.0f - share));
-    back_gain_.set_target(feed * std::sqrt(kFeedShare * loss / kLineShare));
+    const float back = feed * kit::min(std::sqrt(kFeedShare * loss / kLineShare), kFeedMost);
+    const float share = back * back * kLineShare / loss;
+    back_gain_.set_target(back);
+    // A side of the wall holds kLineShare / loss of the power fed to it and
+    // passes a quarter straight through (the early part); Feed makes it hold
+    // 1 / (1 - share) as much. All of that is taken back, so a held sound
+    // leaves the wall as loud as it left the fuzz whatever Decay and Feed are.
+    level_.set_target(kWetGain * std::sqrt((1.0f - share) * loss / (kLineShare * (1.0f + loss))));
+
+    // The first reverb rings no longer than the wall: its loop's gain is
+    // Blur's, held under the gain that would take Decay to die away.
+    const float loop = kit::min(kBlurLoop * param(kBlur), kit::rt60_gain(blur_seconds_ * sr, decay, sr));
+    loop_.set_target(loop);
+    // The loop holds 1 / (1 - loop²) of the power it is fed.
+    smear_.set_target(smear_share_ * std::sqrt(1.0f - loop * loop));
 
     const float cutoff = kToneLowHz * std::pow(kToneHighHz / kToneLowHz, tone);
     tone_filter_[0].set(cutoff, kit::kSqrtHalf, sr);
@@ -473,13 +526,15 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // Everything at its target now: at init, and when the device wakes.
   void settle() {
     using namespace haze;
-    kit::Smoother* all[] = {&drive_, &direct_, &smear_, &loop_, &width_, &dry_, &wet_, &size_};
+    kit::Smoother* all[] = {&drive_, &direct_, &width_, &width_gain_, &dry_, &wet_, &size_};
     for (kit::Smoother* s : all) s->snap(s->target);
     octave_.snap(octave_.target);
     decay_.snap(param(kDecay));
     tone_.snap(param(kTone));
     derive(decay_.value, tone_.value);
     level_.snap(level_.target);
+    loop_.snap(loop_.target);
+    smear_.snap(smear_.target);
     back_gain_.snap(back_gain_.target);
     set_sweeps(samples_ / kControlPeriod, static_cast<int>(samples_ & (kControlPeriod - 1)));
   }
@@ -495,11 +550,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         float direct, smear;
         kit::equal_power(value, &direct, &smear);
         if (value >= 1.0f) direct = 0.0f;  // cos(pi/2) in floats is -4e-8, not 0
-        const float loop = kBlurLoop * value;
         direct_.set(direct, primed());
-        // The loop holds 1 / (1 - loop²) of the power it is fed.
-        smear_.set(smear * std::sqrt(1.0f - loop * loop), primed());
-        loop_.set(loop, primed());
+        smear_share_ = smear;  // the loop and the smear's gain follow on the control clock
         break;
       }
       case kDecay:
@@ -524,6 +576,9 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         break;
       case kWidth:
         width_.set(value, primed());
+        // The two sides of the wall are unlike, so their middle alone has half
+        // their power: a narrower wall is raised to stay as loud.
+        width_gain_.set(std::sqrt(2.0f / (1.0f + value * value)), primed());
         break;
       default:
         break;  // Feed is read on the control clock
@@ -535,9 +590,12 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   kit::DelayLine<kSmallSize> blur_loop_[2];
   int blur_loop_length_[2] = {};
   kit::OnePole pre_filter_[2];
-  kit::Follower follower_;
+  float power_[2] = {};  // mean square of each side into the fuzz
+  float level_coeff_ = 0.0f;
   kit::Halfband2x outer_[2];
   haze_dsp::Halfband<8> inner_[2];
+  float smear_share_ = 0.0f;   // Blur's share of the smear, before the loop's gain is taken off
+  float blur_seconds_ = 0.12f;  // one trip round the first reverb
   float fold_mean_[2] = {};
   float fold_coeff_ = 0.0f;
   kit::DcBlocker dc_[2];
@@ -559,9 +617,11 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   float sweep_depth_ = 0.0f;
   kit::Svf low_cut_[2];
   kit::OnePole feed_cut_[2];
+  kit::Hilbert shifter_[2];
+  double shift_turn_[2] = {};
   float back_[2] = {};
 
-  kit::Smoother drive_, direct_, smear_, loop_, back_gain_, width_, dry_, wet_, level_, size_;
+  kit::Smoother drive_, direct_, smear_, loop_, back_gain_, width_, width_gain_, dry_, wet_, level_, size_;
   kit::LinearRamp octave_;
   kit::Smoother decay_, tone_;  // stepped on the control clock
   kit::IdleGate idle_;
