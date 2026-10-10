@@ -61,6 +61,7 @@ import { PITCH_SHIFTER_DESCRIPTOR, PITCH_SHIFTER_DEVICE } from './pitch-shifter.
 import { RADIO_DESCRIPTOR, RADIO_DEVICE } from './radio.gen'
 import { RE_AMP_DESCRIPTOR, RE_AMP_DEVICE } from './re-amp.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
+import { REWIND_DESCRIPTOR, REWIND_DEVICE } from './rewind.gen'
 import { ROTARY_DESCRIPTOR, ROTARY_DEVICE } from './rotary.gen'
 import { SAMPLER_DESCRIPTOR, SAMPLER_DEVICE } from './sampler.gen'
 import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
@@ -152,6 +153,7 @@ export * from './pitch-shifter.gen'
 export * from './radio.gen'
 export * from './re-amp.gen'
 export * from './reverse-delay.gen'
+export * from './rewind.gen'
 export * from './rotary.gen'
 export * from './sampler.gen'
 export * from './saturator.gen'
@@ -245,6 +247,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   RADIO_DESCRIPTOR,
   RE_AMP_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
+  REWIND_DESCRIPTOR,
   ROTARY_DESCRIPTOR,
   SAMPLER_DESCRIPTOR,
   SATURATOR_DESCRIPTOR,
@@ -339,6 +342,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   RADIO_DEVICE,
   RE_AMP_DEVICE,
   REVERSE_DELAY_DEVICE,
+  REWIND_DEVICE,
   ROTARY_DEVICE,
   SAMPLER_DEVICE,
   SATURATOR_DEVICE,
@@ -440,6 +444,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'radio', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 're-amp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 20 },
+  { id: 'rewind', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'rotary', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'sampler', instrument: true, samples: true, zones: false, meters: 0, memoryMb: 24 },
   { id: 'saturator', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },

@@ -54,6 +54,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'staircase',
   'shortwave',
   'ice',
+  'rewind',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

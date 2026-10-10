@@ -2142,5 +2142,24 @@
     "Restless ice": {"distance":0.45,"bright":0.6,"ring":1.2,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.3,"cracks":1,"roam":1,"width":0.8,"volume":-6},
     "Clear ping": {"distance":0.25,"bright":0.6,"ring":4,"thick":0.5,"crack":0,"stretch":0,"shore":0,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
     "Distant field": {"distance":1,"bright":0.45,"ring":3,"thick":0.5,"crack":0,"stretch":0.3,"shore":1,"cracks":0.5,"roam":0.6,"width":1,"volume":-6}
+  },
+  "rewind": {
+    "(default)": {"source":0,"strike":0,"swell":1.5,"tail":0.45,"snap":0.4,"rise":0.5,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Turned piano": {"source":0,"strike":0,"swell":1.5,"tail":0.45,"snap":0.4,"rise":0.5,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Stops dead": {"source":0,"strike":0,"swell":0.8,"tail":0,"snap":0.8,"rise":0.5,"tone":0.5,"ghost":0,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Slow bloom": {"source":0,"strike":0,"swell":4,"tail":0.7,"snap":0.15,"rise":0.25,"tone":0.5,"ghost":0.6,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-10.5},
+    "Bell arrival": {"source":1,"strike":0,"swell":2.5,"tail":0.8,"snap":0.3,"rise":0.5,"tone":0.6,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Pluck back": {"source":2,"strike":0,"swell":0.6,"tail":0.1,"snap":0.7,"rise":0.5,"tone":0.5,"ghost":0,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Bowl gather": {"source":3,"strike":0,"swell":5,"tail":1,"snap":0.4,"rise":0.3,"tone":0.5,"ghost":0.7,"wobble":0.15,"shimmer":0.4,"width":0.6,"volume":-9},
+    "Let go": {"source":0,"strike":1,"swell":2,"tail":0.5,"snap":0.4,"rise":0.5,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Held bowl": {"source":3,"strike":1,"swell":6,"tail":0.9,"snap":0.4,"rise":0.2,"tone":0.5,"ghost":0.8,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Snap shut": {"source":0,"strike":0,"swell":0.2,"tail":0,"snap":1,"rise":0.7,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-6},
+    "Worn reel": {"source":0,"strike":0,"swell":2,"tail":0.45,"snap":0.4,"rise":0.5,"tone":0.3,"ghost":0.25,"wobble":0.8,"shimmer":0.5,"width":0.6,"volume":-9},
+    "Ghost room": {"source":0,"strike":0,"swell":3,"tail":0.3,"snap":0.4,"rise":0.6,"tone":0.5,"ghost":1,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-10},
+    "Late surge": {"source":0,"strike":0,"swell":2.5,"tail":0.45,"snap":0.6,"rise":1,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Beating bells": {"source":1,"strike":1,"swell":1.5,"tail":0.45,"snap":0.4,"rise":0.5,"tone":0.7,"ghost":0.5,"wobble":0.15,"shimmer":0.8,"width":0.6,"volume":-7.5},
+    "Soft return": {"source":0,"strike":0,"swell":1.2,"tail":0.6,"snap":0,"rise":0.5,"tone":0.25,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-10.5},
+    "Mirror note": {"source":0,"strike":0,"swell":1,"tail":1,"snap":0.4,"rise":0.4,"tone":0.5,"ghost":0.25,"wobble":0.15,"shimmer":0.2,"width":0.6,"volume":-9},
+    "Wide drift": {"source":2,"strike":1,"swell":3,"tail":0.45,"snap":0.4,"rise":0.5,"tone":0.5,"ghost":0.4,"wobble":0.15,"shimmer":0.7,"width":1,"volume":-6.5}
   }
 }
