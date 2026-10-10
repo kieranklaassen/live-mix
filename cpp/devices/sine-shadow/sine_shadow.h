@@ -140,6 +140,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
     mix_seen_ = -1.0f;
+    slept_ = false;
     pan_coeff_ = 1.0f - kit::time_to_coeff(kSmoothingSeconds, sr);
     fade_coeff_ = 1.0f - kit::time_to_coeff(0.002f, sr);
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -179,11 +180,15 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         small_[0].skip(frames);
         small_[1].skip(frames);
       }
-      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
+      slept_ = true;
       shown_count_ = 0;
       ceiling_gain_ = 1.0f;
       retune_ = false;
       return;
+    }
+    if (slept_) {
+      slept_ = false;
+      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in under the first sound
     }
     for (int i = 0; i < frames; ++i) {
       float in[2];
@@ -717,6 +722,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   float lock_ = kLock;  // the share of the phase error the lock takes up per frame
   float ceiling_gain_ = 1.0f;
   bool retune_ = false;
+  bool slept_ = false;  // the block before this one was slept through
 
   kit::Smoother mix_;
   kit::IdleGate idle_;
