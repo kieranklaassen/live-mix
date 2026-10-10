@@ -11,8 +11,8 @@ import { type Clip } from '../clips/Clip'
 import { type LaunchQuantize } from './launch'
 import { type ScoreFollowAction } from './followActions'
 
-/** A clip as a slot holds it: what to play, not where. */
-export type SlotClip = Omit<Clip, 'id' | 'startSec'>
+/** A clip as a slot holds it: what to play, not where, and one source only (no `turns`). */
+export type SlotClip = Omit<Clip, 'id' | 'startSec' | 'turns'>
 
 /**
  * How a slot reacts to press and release:
