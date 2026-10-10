@@ -91,6 +91,8 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   int bands() const { return bands_; }
   float band_hz(int band) const { return centre_bin_[band] * sample_rate() * (1.0f / Stft::kFrame); }
   float lift_db(int band) const { return lift_[band]; }
+  // True once it holds nothing and has stopped working.
+  bool asleep() const { return idle_.asleep(); }
 
   void init(float sample_rate) {
     using namespace reveal;
@@ -182,6 +184,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   static constexpr float kSlowestMemory = 3.0f;
   static constexpr float kFastestMemory = 150.0f;
   static constexpr float kForgottenDb = -110.0f;  // under this a memory is none
+  static constexpr float kForgotten = 1.0e-11f;   // the same as a power against a full-scale sine
   static constexpr float kNoneDb = -300.0f;       // what a band holding nothing reads
   // What a partial spills, as the most a bin d bins away can hold of it
   // (the Hann window's worst, between two bins, with a few dB to spare):
@@ -194,7 +197,8 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   static constexpr float kKneeDb = 6.0f;             // over Floor: the lift fades in
   static constexpr float kFocusFromHz = 60.0f;       // Focus takes the lift away towards one of these
   static constexpr float kFocusToHz = 12000.0f;
-  static constexpr float kBroadOctaves = 2.0f;       // at Detail 0 the lift is averaged over this
+  static constexpr float kDetailOctaves = 3.5849625f;  // log2(12): Detail 0 to 1 is an octave to a twelfth
+  static constexpr float kTwelfthOctave = 1.0f / 12.0f + 1.0e-4f;
   static constexpr float kRestDb = 0.02f;            // a lift under this with nothing asked is none
   // A band's power under this is nothing: -180 dB against a full-scale sine.
   static constexpr float kNothing = 1.0e-18f;
@@ -266,10 +270,9 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     }
   }
 
-  // The bands a band's lift is averaged with, for a width in octaves: those
-  // whose centres lie within half of it either way.
-  void lay_out_spans(float octaves) {
-    const float reach = 0.5f * octaves;
+  // The bands a band's lift is averaged with: those whose centres lie
+  // within `reach` octaves either way.
+  void lay_out_spans(float reach) {
     int low = 0;
     int high = 0;
     for (int b = 0; b < bands_; ++b) {
@@ -280,7 +283,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       span_high_[b] = static_cast<uint8_t>(high);
     }
     reach_ = reach;
-    averaged_ = reach > 0.0f;
+    averaged_ = reach > kTwelfthOctave;
   }
 
   // One frame of channel c. The left channel's frame comes first and does
@@ -315,7 +318,8 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     listen_frame_ = param(kListen) >= 0.5f ? 1.0f : 0.0f;
     if (detail != detail_seen_) {
       detail_seen_ = detail;
-      lay_out_spans(kBroadOctaves * (1.0f - detail) * (1.0f - detail));
+      // An octave either way at 0, a twelfth (the next band, which then counts nothing) at 1.
+      lay_out_spans(std::exp2(-detail * kDetailOctaves));
     }
     const float rise = kit::time_to_coeff(rise_seconds, frames_per_second_);
     // How fast what was loud is forgotten, per frame, in dB and as power.
@@ -484,7 +488,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     // stops stays lifted, and comes back to its own level as that fades.
     float remembered = heard_ * memory_fall;
     if (power_in > remembered) remembered = power_in;
-    if (remembered < kNothing * kSinePower) remembered = 0.0f;
+    if (remembered < kForgotten * kSinePower) remembered = 0.0f;
     heard_ = remembered;
     const float still = remembered - power_in;
     hold_ = power_out > power_in ? std::sqrt((power_in + still) / (power_out + still)) : 1.0f;
