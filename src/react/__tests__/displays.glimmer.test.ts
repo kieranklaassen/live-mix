@@ -18,15 +18,19 @@ import {
   glimmerBlend,
   glimmerCentre,
   glimmerDepthAt,
-  glimmerDip,
+  glimmerDipAt,
   glimmerFlash,
   glimmerHeardClock,
   glimmerHeight,
+  glimmerJoin,
   glimmerLayout,
   glimmerLift,
   glimmerLight,
+  glimmerOverlap,
   glimmerPlace,
+  glimmerRaise,
   glimmerShare,
+  glimmerTallest,
   glimmerTrack,
   type GlimmerSettings,
 } from '../components/displays/glimmer'
@@ -184,6 +188,62 @@ describe("the law of Glimmer's bands and lights", () => {
     ])
       for (let d = 0.05; d <= 1; d += 0.05)
         expect(glimmerLift(d, soft, vary)).toBeGreaterThanOrEqual(glimmerLift(d - 0.05, soft, vary))
+  })
+
+  it('raises the join of two bands by what it would lose, from how their lights go together', () => {
+    // A raised cosine times itself a sixth of a cycle on: 1/4 + cos(60°)/8; on itself, 3/8.
+    expect(glimmerOverlap(1 / 6, 1)).toBeCloseTo(0.25 + 0.125 * 0.5, 6)
+    expect(glimmerOverlap(0, 1)).toBeCloseTo(0.375, 6)
+    // A short flash (a fifth of a cycle at Soft 0, 0.18 on itself) barely reaches itself a sixth of a cycle on.
+    expect(glimmerOverlap(0, 0)).toBeCloseTo(0.18, 2)
+    expect(glimmerOverlap(1 / 6, 0)).toBeGreaterThan(0)
+    expect(glimmerOverlap(1 / 6, 0)).toBeLessThan(0.05)
+    const bands = glimmerBands(0.5)
+    const flat = { ...defaults, lean: 0, apart: 0 }
+    // Scatter at full Depth, Soft 1, Vary 0: the lift is 1/√(3/8), two lights are independent with mean
+    // 1/2, so E[g·g'] = L²/4 = 2/3: a third is lost half way, and the join is raised by 1/√(1 − 1/6) − 1.
+    expect(glimmerRaise(7, { ...flat, depth: 1, soft: 1, vary: 0, pattern: 0 }, bands)).toBeCloseTo(
+      1 / Math.sqrt(1 - 1 / 6) - 1,
+      9,
+    )
+    expect(glimmerRaise(7, { ...flat, depth: 0 }, bands)).toBe(0)
+    // By counting: the mean power of the join half way between two bands, raised, is the input's again.
+    for (const [depth, soft, vary, pattern] of [
+      [1, 1, 0, 0],
+      [0.8, 0.5, 0, 0],
+      [0.7, 0.75, 0.5, 0],
+      [1, 1, 0, 1],
+      [0.9, 0.3, 0, 2],
+    ]) {
+      const settings = { ...flat, depth, soft, vary, pattern }
+      const lift = glimmerLift(depth, soft, vary)
+      expect(lift).toBeLessThan(MAX_LIFT)
+      const gain = (x: number, height: number): number =>
+        lift * (1 - depth + depth * height * glimmerLight(x, 0, CLOCK_WRAP, soft, 0))
+      const steps = 240
+      const heights = vary > 0 ? 12 : 1
+      let sum = 0
+      let count = 0
+      for (let n = 0; n < steps; n++)
+        for (let m = 0; m < (pattern === 0 ? steps : 1); m++)
+          for (let h = 0; h < heights; h++)
+            for (let k = 0; k < heights; k++) {
+              const under = gain((n + 0.5) / steps, 1 - (vary * (h + 0.5)) / heights)
+              // On Scatter the neighbour is anywhere in its cycle; on a wave a sixth of a cycle on.
+              const at = pattern === 0 ? (m + 0.5) / steps : (n + 0.5) / steps + 1 / 6
+              const over = gain(at, 1 - (vary * (k + 0.5)) / heights)
+              sum += ((under + over) / 2) ** 2
+              count += 1
+            }
+      const raise = glimmerRaise(7, settings, bands)
+      expect((sum / count) * (1 + raise) ** 2, `${depth} ${soft} ${vary} ${pattern}`).toBeCloseTo(1, 2)
+      // And the join never stands over the tallest a gain can: the picture's edge.
+      expect(glimmerJoin(lift, lift, 0.5, raise)).toBeLessThanOrEqual(glimmerTallest(settings) + 1e-12)
+    }
+    // Half way the whole raise, none on a band's own stretch, and never over the cap.
+    expect(glimmerJoin(1, 2, 0.5, 0.1)).toBeCloseTo(1.5 * 1.1, 12)
+    expect(glimmerJoin(1.3, 0.4, 0, 0.1)).toBe(1.3)
+    expect(glimmerJoin(2, 2, 0.5, 0.1)).toBe(MAX_LIFT)
   })
 
   it('gives each flash a height of its own under Vary, the same again when the clock comes round', () => {
@@ -349,6 +409,62 @@ describe("Glimmer's law against the compiled device", () => {
     expect(error).toBeLessThan(0.01)
   })
 
+  it('joins two bands as the device does: half way between them, their gains met and raised', async () => {
+    // Tones half way between two bands, high enough that the join is many bins wide (from 4 kHz up at this Grain).
+    const between = [12, 14, 16, 18]
+    const joined = between.map((j) => glimmerCentre(j + 0.5, bands))
+    for (const pattern of [0, 1]) {
+      const device = await loadWasmDevice('glimmer', RATE)
+      const values = { depth: 1, rate: 0.7, pattern, lean: 0, soft: 0.8, vary: 0, apart: 0.6 }
+      set(device, { grain, mix: 1, ...values })
+      const out = throughDevice(device, joined, size, 5.5)
+      const settings: GlimmerSettings = { ...defaults, ...values }
+      let error = 0
+      let plain = 0
+      for (let at = 0.5 * RATE; at < 5.4 * RATE; at += 0.05 * RATE) {
+        const theta = (values.rate * (at - HEARD_LATE)) / RATE
+        for (const side of [0, 1] as const)
+          between.forEach((j, index) => {
+            const under = glimmerBand(j, theta, settings, bands, side).gain
+            const over = glimmerBand(j + 1, theta, settings, bands, side).gain
+            const heard = sizeOf(out[side], joined[index], at) / size
+            const law = glimmerJoin(under, over, glimmerBlend(0.5), glimmerRaise(j, settings, bands))
+            error = Math.max(error, Math.abs(heard - law))
+            plain = Math.max(plain, Math.abs(heard - (under + over) / 2))
+          })
+      }
+      expect(error, `pattern ${pattern}`).toBeLessThan(0.012)
+      // Without the raise the law would be out by several times that.
+      expect(plain, `pattern ${pattern}`).toBeGreaterThan(pattern === 0 ? 0.08 : 0.02)
+    }
+  })
+
+  it('reports how far an attack has turned it to the dry sound: from a latency less 1280 samples after, for 45 ms', async () => {
+    const device = await loadWasmDevice('glimmer', RATE)
+    const read = device.device.device_meter
+    if (!read) throw new Error('the device reports no readings')
+    const tone = (start: number, click: boolean): Float32Array =>
+      Float32Array.from({ length: BLOCK }, (_, i) => 0.2 * Math.sin((start + i) / 9) + (click && i === 0 ? 0.6 : 0))
+    let blocks = 0
+    // A held tone: once its own beginning has passed, nothing passes.
+    for (; blocks < 400; blocks++) device.processBlock(tone(blocks * BLOCK, false))
+    expect(read(1)).toBe(0)
+    // A click on it. `kPassAhead` 1280 before it is heard (`kLatency` 2304 later) the output starts to turn.
+    const readings: number[] = []
+    for (let n = 0; n < 40; n++, blocks++) {
+      device.processBlock(tone(blocks * BLOCK, n === 0))
+      readings.push(read(1))
+    }
+    // Block n ends (n + 1)·128 samples after the click. Nothing before 1024 samples; all dry from
+    // 1280 to 2560 (`kPassAfter` 256 past the click's own time); back by 2560 + 768 and a segment.
+    for (let n = 0; n < 7; n++) expect(readings[n], `block ${n}`).toBe(0)
+    for (let n = 10; n < 19; n++) expect(readings[n], `block ${n}`).toBe(1)
+    for (let n = 27; n < 40; n++) expect(readings[n], `block ${n}`).toBe(0)
+    expect(readings[8]).toBeGreaterThan(0)
+    expect(readings[22]).toBeGreaterThan(0)
+    expect(readings[22]).toBeLessThan(1)
+  })
+
   it('reports its clock in cycles of Rate, kept through silence, and starts again at 4096', async () => {
     const device = await loadWasmDevice('glimmer', RATE)
     set(device, { rate: 12 })
@@ -507,7 +623,9 @@ function lawAt(
   const t = glimmerBlend(place - j)
   const under = glimmerBand(j, theta, settings, bands, side)
   const over = glimmerBand(j + 1, theta, settings, bands, side)
-  const between = (a: number, b: number): number => a + (b - a) * t
+  // Between two bands their gains are joined, and the join raised by what it would lose (`frame()`).
+  const raise = glimmerRaise(j, settings, bands)
+  const between = (a: number, b: number): number => glimmerJoin(a, b, t, raise)
   return {
     gain: between(under.gain, over.gain),
     crest: between(under.lift, over.lift),
@@ -550,7 +668,7 @@ describe("the picture on Glimmer's plate", () => {
         const grain = valueOf(values, 'grain')
         const mix = valueOf(values, 'mix')
         const theta = glimmerHeardClock(clock, valueOf(values, 'rate'), RATE)
-        const tallest = glimmerLift(settings.depth, settings.soft, settings.vary)
+        const tallest = glimmerTallest(settings)
         const tall = (gain: number): number => glimmerHeight(gain, tallest, mix)
         const columns = columnsOf(drawn, size)
         let lit = 0
@@ -619,6 +737,29 @@ describe("the picture on Glimmer's plate", () => {
         const dashed = strokes(drawn).filter((stroke) => stroke.dashed)
         expect(dashed[0].points[0].y).toBe(crisp(field.y))
       }
+    // An attack passing round the flicker is Mix taken down by as much as the device reports: all
+    // the way, level water; half way, the picture of half the Mix.
+    for (const size of SHAPES) {
+      const passing = drawDisplay(display, params, { values: {}, ...size, meters: { clock: 5.5, pass: 1 } })
+      const { field } = glimmerLayout(size)
+      for (const { column } of columnsOf(passing, size)) {
+        expect(column.above).toBeUndefined()
+        expect(column.waterTop).toBeCloseTo(field.y, 6)
+      }
+      const half = columnsOf(
+        drawDisplay(display, params, { values: { mix: 0.8 }, ...size, meters: { clock: 5.5, pass: 0.5 } }),
+        size,
+      )
+      const same = columnsOf(
+        drawDisplay(display, params, { values: { mix: 0.4 }, ...size, meters: { clock: 5.5 } }),
+        size,
+      )
+      half.forEach(({ column }, i) => {
+        expect(column.top).toBeCloseTo(same[i].column.top, 9)
+        expect(column.foot).toBeCloseTo(same[i].column.foot, 9)
+        expect(column.waterTop).toBeCloseTo(same[i].column.waterTop, 9)
+      })
+    }
     // Half the Mix, half the way: a band's light at Mix 0.5 adds half of what it adds to the gain at Mix 1.
     expect(glimmerHeight(1.6, 2, 0.5) * 1.5).toBeCloseTo(1.3, 12)
     expect(glimmerHeight(0, 2, 0.5) * 1.5).toBeCloseTo(0.5, 12)
@@ -738,18 +879,13 @@ describe("the handles on Glimmer's display", () => {
     for (const size of SHAPES)
       for (const values of settings) {
         const { field, water, up } = glimmerLayout(size)
-        const soft = valueOf(values, 'soft')
-        const vary = valueOf(values, 'vary')
         const mix = valueOf(values, 'mix')
         for (const depth of [0, 0.1, 0.35, 0.65, 0.9, 1]) {
           const at = handlesAt({ ...values, depth }, size).depth
-          // Where the ring stands is the dip of a band of that Depth, as the law has it.
-          const lift = glimmerLift(depth, soft, vary)
-          expect(at.y).toBeCloseTo(water - glimmerHeight(lift * (1 - depth), lift, mix) * up, 9)
           // Taken from anywhere and put there, the ring sets that Depth: one drag, one value.
           const from = handlesAt({ ...values, depth: 0.5 }, size).depth
           expect(from.drag(from.x + 30, at.y).depth).toBeCloseTo(depth, 5)
-          // And it stands on the water's edge in its own column, as that is drawn.
+          // It stands on the water's edge in its own column, as that is drawn.
           const drawn = drawDisplay(display, params, {
             values: { ...values, depth },
             ...size,
@@ -760,6 +896,10 @@ describe("the handles on Glimmer's display", () => {
             Math.abs(each.x - at.x) < Math.abs(best.x - at.x) ? each : best,
           )
           expect(nearest.column.waterTop).toBeCloseTo(at.y, 6)
+          // Which is the law's: the trough of the band there (or of the join it lies in), against the tallest a gain stands.
+          const settings = settingsOf({ ...values, depth })
+          const { trough } = lawAt(hzOfX(nearest.x, field), 0, settings, valueOf(values, 'grain'), 0)
+          expect(at.y).toBeCloseTo(water - glimmerHeight(trough, glimmerTallest(settings), mix) * up, 9)
           // At the end where Lean leaves the bands all of Depth.
           expect(at.x).toBe(valueOf(values, 'lean') >= 0 ? field.x + field.w - 7 : field.x + 7)
         }
@@ -784,27 +924,33 @@ describe("the handles on Glimmer's display", () => {
         const full = handlesAt({ ...values, depth: 1 }).depth
         // The ring travels as it would at this much Mix, never less: 20 px and more on the strip.
         expect(none.y).toBeCloseTo(water - up, 9)
-        expect(full.y).toBeCloseTo(water - glimmerDip(1, soft, vary, DEPTH_TRAVEL_LEAST) * up, 9)
+        // At full Depth the edge is the silence a band falls to, as Mix 0.75 would let it be heard.
+        const tallest = glimmerTallest(settingsOf({ ...values, depth: 1 }))
+        expect(full.y).toBeCloseTo(water - glimmerHeight(0, tallest, DEPTH_TRAVEL_LEAST) * up, 9)
         expect(full.y - none.y).toBeGreaterThanOrEqual(20)
         for (const depth of [0.2, 0.5, 0.8]) {
           const at = handlesAt({ ...values, depth }).depth
           expect(none.drag(none.x, at.y).depth).toBeCloseTo(depth, 5)
         }
       }
-    // The dip only falls while Depth rises, so one height is one Depth.
-    for (const [soft, vary, mix] of [
-      [0, 0, 1],
-      [0.6, 0.35, 1],
-      [1, 1, 0.75],
+    // The water's edge only falls while Depth rises, so one height is one Depth: on a band's centre
+    // and half way between two (where the join is raised), on Scatter and on a wave.
+    const bands = glimmerBands(GLIMMER_PARAMS.grain.default)
+    for (const [soft, vary, mix, pattern] of [
+      [0, 0, 1, 0],
+      [0.6, 0.35, 1, 0],
+      [1, 1, 0.75, 0],
+      [0.75, 0.35, 1, 1],
+      [0, 1, 0.75, 3],
     ])
-      for (let depth = 0.02; depth <= 1.0001; depth += 0.02) {
-        expect(glimmerDip(depth, soft, vary, mix)).toBeLessThan(
-          glimmerDip(depth - 0.02, soft, vary, mix),
-        )
-        expect(glimmerDepthAt(glimmerDip(depth, soft, vary, mix), soft, vary, mix)).toBeCloseTo(
-          depth,
-          6,
-        )
+      for (const place of [30, 30.5, 40.25]) {
+        const hz = glimmerCentre(place, bands)
+        const settings = { ...defaults, soft, vary, pattern, lean: 0 }
+        for (let depth = 0.02; depth <= 1.0001; depth += 0.02) {
+          const here = glimmerDipAt(depth, hz, settings, bands, mix)
+          expect(here).toBeLessThan(glimmerDipAt(depth - 0.02, hz, settings, bands, mix))
+          expect(glimmerDepthAt(here, hz, settings, bands, mix)).toBeCloseTo(depth, 6)
+        }
       }
   })
 

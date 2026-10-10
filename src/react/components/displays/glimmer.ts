@@ -5,7 +5,8 @@
 // a band's gain that stays while its light is out; the second colour is what
 // its light adds now. A faint line marks the crests, a dashed one the sound
 // untouched. At the right end is a ruler of Rate, with a lamp in its ring
-// that flashes once a cycle.
+// that flashes once a cycle. While an attack passes round the flicker (the
+// device reports by how much) the water is as level as Mix taken down by that.
 //
 // Nothing here is an impression: the device keeps no state per band, so its
 // gains are a law of its clock and its knobs, and the display works the same
@@ -58,6 +59,10 @@ const MID_HZ = 800
 const WAVE_CELLS = 6
 /** `kMaxLift`: no band is lifted by more (+6 dB). */
 const MAX_LIFT = 2
+/** `kWaveApart`: of a cycle between the two sides at Apart 1, on the waves. */
+const WAVE_APART = 1 / 3
+/** `kOverlapPoints`: a cycle in so many points, for a flash's overlap with itself. */
+const OVERLAP_POINTS = 96
 /** `kGlintPlateau`, `kGlintReach`: the flash at Soft 0, in cycles either side of its middle. */
 const GLINT_PLATEAU = 0.06
 const GLINT_REACH = 0.14
@@ -205,7 +210,10 @@ export function glimmerPhase(
       : pattern === DOWNWARD
         ? -j / WAVE_CELLS
         : Math.abs(j - glimmerPlace(MID_HZ, bands)) / WAVE_CELLS
-  return { phase: theta - behind + (side === 1 ? 0.5 * apart : 0), period: GLIMMER_CLOCK_WRAP }
+  return {
+    phase: theta - behind + (side === 1 ? WAVE_APART * apart : 0),
+    period: GLIMMER_CLOCK_WRAP,
+  }
 }
 
 /** One band as the device has it now: its depth under Lean, its lift, its light and its gain. */
@@ -232,6 +240,118 @@ export function glimmerBand(
   const light = glimmerLight(phase, j, period, settings.soft, settings.vary)
   return { depth, lift, light, gain: lift * (1 - depth + depth * light) }
 }
+
+/** `flash()`: the unit flash at `x` of a cycle (0 to 1, its middle at a half). */
+function unitFlash(x: number, a: number, b: number): number {
+  const off = Math.abs(x - 0.5)
+  if (off >= b) return 0
+  return off <= a ? 1 : 0.5 + 0.5 * Math.cos((Math.PI * (off - a)) / (b - a))
+}
+
+/** `overlap()`: the mean over a cycle of a flash times itself `lag` of a cycle on, over 96 points as the device sums it. */
+export function glimmerOverlap(lag: number, soft: number): number {
+  const { a, b } = glimmerFlash(soft)
+  let sum = 0
+  for (let i = 0; i < OVERLAP_POINTS; i++) {
+    const x = (i + 0.5) / OVERLAP_POINTS
+    const on = x + lag
+    sum += unitFlash(x, a, b) * unitFlash(on - Math.floor(on), a, b)
+  }
+  return sum / OVERLAP_POINTS
+}
+
+/** A flash's overlap with itself as far on as two neighbouring bands of a wave are apart. */
+export interface GlimmerOverlaps {
+  /** A sixth of a cycle on: any two neighbours of a wave. */
+  wave: number
+  /** As far on as the two bands either side of Outward's middle are apart, and the lower of those two. */
+  middle: number
+  cell: number
+}
+
+/** `overlap_wave_`, `overlap_middle_`, `middle_cell_`: worked out once for a Soft and a Grain. */
+export function glimmerOverlaps(settings: GlimmerSettings, bands: GlimmerBands): GlimmerOverlaps {
+  const middle = glimmerPlace(MID_HZ, bands)
+  const cell = Math.floor(middle)
+  return {
+    wave: glimmerOverlap(1 / WAVE_CELLS, settings.soft),
+    middle: glimmerOverlap(Math.abs(2 * (middle - cell) - 1) / WAVE_CELLS, settings.soft),
+    cell,
+  }
+}
+
+/**
+ * What the join of two bands of depths `dUnder` and `dOver` is raised by half
+ * way between them, when a flash of one overlaps a flash of the other by
+ * `overlap` of a cycle (on a wave; on Scatter the two lights are independent).
+ * Two gains that move apart from one another join to less power than either
+ * has; the device raises the join by what it loses.
+ */
+export function glimmerRaiseOf(
+  dUnder: number,
+  dOver: number,
+  settings: GlimmerSettings,
+  overlap: number,
+): number {
+  const { a, b } = glimmerFlash(settings.soft)
+  const mean = (a + b) * (1 - 0.5 * settings.vary)
+  const square = (1.25 * a + 0.75 * b) * (1 - settings.vary + (settings.vary * settings.vary) / 3)
+  const pattern = clamp(Math.round(settings.pattern), SCATTER, OUTWARD)
+  // Two bands' flashes are each as tall as they like under Vary.
+  const heights = (1 - 0.5 * settings.vary) * (1 - 0.5 * settings.vary)
+  const lights = pattern === SCATTER ? mean * mean : heights * overlap
+  const part = (d: number): { floor: number; swing: number; level: number } => {
+    const still = 1 - d
+    const power = still * still + 2 * d * still * mean + d * d * square
+    const lift = Math.min(MAX_LIFT, 1 / Math.sqrt(power))
+    return { floor: lift * still, swing: lift * d, level: lift * Math.sqrt(power) }
+  }
+  const under = part(dUnder)
+  const over = part(dOver)
+  const together =
+    under.floor * over.floor +
+    (under.floor * over.swing + over.floor * under.swing) * mean +
+    under.swing * over.swing * lights
+  const lost = clamp(1 - together / (under.level * over.level), 0, 0.99)
+  return 1 / Math.sqrt(1 - 0.5 * lost) - 1
+}
+
+/** `raise_[j]`: what the join of band j and the next is raised by, half way between them. */
+export function glimmerRaise(
+  j: number,
+  settings: GlimmerSettings,
+  bands: GlimmerBands,
+  overlaps: GlimmerOverlaps = glimmerOverlaps(settings, bands),
+): number {
+  const pattern = clamp(Math.round(settings.pattern), SCATTER, OUTWARD)
+  const depth = (cell: number): number =>
+    settings.depth * glimmerShare(glimmerCentre(cell, bands), settings.lean)
+  return glimmerRaiseOf(
+    depth(j),
+    depth(j + 1),
+    settings,
+    pattern === OUTWARD && j === overlaps.cell ? overlaps.middle : overlaps.wave,
+  )
+}
+
+/**
+ * The tallest a gain can stand: the crest of a band with all of Depth, or the
+ * join of two such bands both at their crests, which is raised. The picture's edge.
+ */
+export function glimmerTallest(settings: GlimmerSettings): number {
+  const lift = glimmerLift(settings.depth, settings.soft, settings.vary)
+  const raise = glimmerRaiseOf(
+    settings.depth,
+    settings.depth,
+    settings,
+    glimmerOverlap(1 / WAVE_CELLS, settings.soft),
+  )
+  return Math.min(MAX_LIFT, lift * (1 + raise))
+}
+
+/** `frame()`: the gain at `t` of the way from one band to the next: their join, raised, and never over the cap. */
+export const glimmerJoin = (under: number, over: number, t: number, raise: number): number =>
+  Math.min(MAX_LIFT, lerp(under, over, t) * (1 + 4 * t * (1 - t) * raise))
 
 // --- The picture ------------------------------------------------------------------
 
@@ -313,24 +433,63 @@ const settingsOf = (view: Pick<DisplayView, 'value'>): GlimmerSettings => ({
 export const glimmerHeight = (gain: number, top: number, mix: number): number =>
   (1 + mix * (gain - 1)) / (1 + mix * (top - 1))
 
-/** How high the dip of a band of full depth stands: its trough against its crest. */
-export function glimmerDip(depth: number, soft: number, vary: number, mix: number): number {
-  const lift = glimmerLift(depth, soft, vary)
-  return glimmerHeight(lift * (1 - depth), lift, mix)
+/**
+ * How high the water's edge stands at `hz` with Depth at `depth`: the dip of
+ * the band there, or of the join of the two it lies between, against the
+ * tallest a gain can stand. What the picture draws in that column.
+ */
+export function glimmerDipAt(
+  depth: number,
+  hz: number,
+  settings: GlimmerSettings,
+  bands: GlimmerBands,
+  mix: number,
+): number {
+  const now = { ...settings, depth }
+  const place = glimmerPlace(hz, bands)
+  const j = Math.floor(place)
+  const trough = (cell: number): number => {
+    const d = depth * glimmerShare(glimmerCentre(cell, bands), settings.lean)
+    return glimmerLift(d, settings.soft, settings.vary) * (1 - d)
+  }
+  const edge = glimmerJoin(
+    trough(j),
+    trough(j + 1),
+    glimmerBlend(place - j),
+    glimmerRaise(j, now, bands),
+  )
+  return glimmerHeight(edge, glimmerTallest(now), mix)
 }
 
-/** The Depth whose dip stands at `height`: found by halving, as the dip only falls while Depth rises. */
-export function glimmerDepthAt(height: number, soft: number, vary: number, mix: number): number {
+/** The Depth whose water's edge at `hz` stands at `height`: found by halving, as the edge only falls while Depth rises. */
+export function glimmerDepthAt(
+  height: number,
+  hz: number,
+  settings: GlimmerSettings,
+  bands: GlimmerBands,
+  mix: number,
+): number {
   if (height >= 1) return 0
-  if (height <= glimmerDip(1, soft, vary, mix)) return 1
+  if (height <= glimmerDipAt(1, hz, settings, bands, mix)) return 1
   let low = 0
   let high = 1
   for (let n = 0; n < 30; n++) {
     const middle = (low + high) / 2
-    if (glimmerDip(middle, soft, vary, mix) > height) low = middle
+    if (glimmerDipAt(middle, hz, settings, bands, mix) > height) low = middle
     else high = middle
   }
   return (low + high) / 2
+}
+
+/**
+ * How many columns the picture is drawn in, a pixel each, and the middle of
+ * the one a point lies in (the lower one, for a point on the line between two).
+ */
+const columnsOf = (field: Box): number => Math.max(2, Math.round(field.w))
+function columnMiddle(x: number, field: Box): number {
+  const columns = columnsOf(field)
+  const step = field.w / columns
+  return field.x + (clamp(Math.ceil((x - field.x) / step) - 1, 0, columns - 1) + 0.5) * step
 }
 
 /**
@@ -349,8 +508,15 @@ const rateAt = (hz: number, low: number, high: number): number =>
 
 function glimmerHandles(view: DisplayView): DisplayHandle[] {
   const { field, water, up, rulerX, rulerFoot, rulerTop } = glimmerLayout(view)
-  const { depth, lean, soft, vary } = settingsOf(view)
+  const settings = settingsOf(view)
+  const { depth, lean } = settings
   const travel = depthTravel(view)
+  // A view has no sample rate: the bands as they lie at 48 kHz (at 96 kHz the finest are wider, and
+  // the ring may stand a pixel off the edge where its column is a join).
+  const bands = glimmerBands(clamp(view.value('grain'), 0, 1))
+  // The Depth ring stands on the water's edge of its own column, at the end where the bands keep all of Depth.
+  const depthX = lean >= 0 ? field.x + field.w - DEPTH_INSET : field.x + DEPTH_INSET
+  const depthHz = hzOfX(columnMiddle(depthX, field), field)
   const rate = view.spec('rate')
   const low = rate?.min ?? 0.03
   const high = rate?.max ?? 12
@@ -365,17 +531,17 @@ function glimmerHandles(view: DisplayView): DisplayHandle[] {
       drag: (_x, y) => ({
         rate: low * Math.pow(high / low, clamp((rulerFoot - y) / (rulerFoot - rulerTop), 0, 1)),
       }),
-      reset: () => ({ rate: rate?.default ?? 2.2 }),
+      reset: () => ({ rate: rate?.default ?? 1 }),
     },
     {
       // On the dip of the bands that keep all of Depth: the top of the spectrum, or its bottom when Lean is to the left.
       key: 'depth',
       name: 'Depth',
-      x: lean >= 0 ? field.x + field.w - DEPTH_INSET : field.x + DEPTH_INSET,
-      y: water - glimmerDip(depth, soft, vary, travel) * up,
+      x: depthX,
+      y: water - glimmerDipAt(depth, depthHz, settings, bands, travel) * up,
       drag: (_x, y) => ({
         depth: clamp(
-          glimmerDepthAt((water - y) / up, soft, vary, travel),
+          glimmerDepthAt((water - y) / up, depthHz, settings, bands, travel),
           depthSpec?.min ?? 0,
           depthSpec?.max ?? 1,
         ),
@@ -390,10 +556,11 @@ interface GlimmerState {
   theta: number
   reading: number
   stood: number
-  /** Every band now: its crest (its lift), its trough, and its gain on each side. */
+  /** Every band now: its crest (its lift), its trough, its gain on each side, and what its join with the next is raised by. */
   crest: Float64Array
   trough: Float64Array
   gain: [Float64Array, Float64Array]
+  raise: Float64Array
   /** The line of the crests, a point a pixel, written again on every frame. */
   top: Spot[]
 }
@@ -471,7 +638,11 @@ function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
   ground(frame)
   const { field, water, up, down, rulerX, rulerFoot, rulerTop } = glimmerLayout(frame)
   const settings = settingsOf(frame)
-  const mix = clamp(frame.value('mix'), 0, 1)
+  // An attack passes round the flicker: while one does, the device turns its output to the dry
+  // sound by so much (its `pass` reading), which is Mix taken down by as much.
+  const pass =
+    frame.powered && frame.hasMeter('pass') ? clamp(frame.meter('pass'), 0, 1) : 0
+  const mix = clamp(frame.value('mix'), 0, 1) * (1 - pass)
   const rate = frame.value('rate')
   const bands = glimmerBands(clamp(frame.value('grain'), 0, 1), frame.sampleRate)
 
@@ -483,15 +654,17 @@ function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
   // Every band under 20 kHz, and the one above the last, as the device has them now.
   const count = Math.min(BANDS_MOST, Math.floor(glimmerPlace(FREQ_MAX, bands)) + 2)
   const two = settings.apart > 0
+  const overlaps = glimmerOverlaps(settings, bands)
   for (let j = 0; j < count; j++) {
     const left = glimmerBand(j, theta, settings, bands, 0)
     state.crest[j] = left.lift
     state.trough[j] = left.lift * (1 - left.depth)
     state.gain[0][j] = left.gain
     state.gain[1][j] = two ? glimmerBand(j, theta, settings, bands, 1).gain : left.gain
+    state.raise[j] = glimmerRaise(j, settings, bands, overlaps)
   }
-  // The tallest crest there can be is that of a band with all of Depth: the picture's edge.
-  const tallest = glimmerLift(settings.depth, settings.soft, settings.vary)
+  // The tallest a gain can stand is the picture's edge.
+  const tallest = glimmerTallest(settings)
   const heightOf = (gain: number): number => glimmerHeight(gain, tallest, mix)
 
   freqGrid(frame, field)
@@ -499,7 +672,7 @@ function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
   // A column a pixel. The water in the ink, as far from the line as the band's
   // dip; what its light adds now in the accent: the left side above the line,
   // the right side below it as the left's reflection.
-  const columns = Math.max(2, Math.round(field.w))
+  const columns = columnsOf(field)
   const step = field.w / columns
   const top = fit(state.top, columns)
   for (let i = 0; i < columns; i++) {
@@ -507,11 +680,13 @@ function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
     const place = glimmerPlace(hzOfX(x, field), bands)
     const j = Math.min(count - 2, Math.floor(place))
     const t = glimmerBlend(place - j)
-    const dip = heightOf(lerp(state.trough[j], state.trough[j + 1], t))
-    const left = heightOf(lerp(state.gain[0][j], state.gain[0][j + 1], t))
-    const right = heightOf(lerp(state.gain[1][j], state.gain[1][j + 1], t))
+    // Between two bands the device joins their gains and raises the join by what it would lose.
+    const raise = state.raise[j]
+    const dip = heightOf(glimmerJoin(state.trough[j], state.trough[j + 1], t, raise))
+    const left = heightOf(glimmerJoin(state.gain[0][j], state.gain[0][j + 1], t, raise))
+    const right = heightOf(glimmerJoin(state.gain[1][j], state.gain[1][j + 1], t, raise))
     top[i][0] = x
-    top[i][1] = water - heightOf(lerp(state.crest[j], state.crest[j + 1], t)) * up
+    top[i][1] = water - heightOf(glimmerJoin(state.crest[j], state.crest[j + 1], t, raise)) * up
     const sound = heard(frame.signal, hzOfX(x - step / 2, field), hzOfX(x + step / 2, field))
     const column = field.x + i * step
     const light = lerp(LIGHT_LEAST, LIGHT_MOST, sound)
@@ -574,7 +749,7 @@ const display = plateDisplay<GlimmerState>({
   place: 'strip',
   params: ['depth', 'rate', 'grain', 'pattern', 'lean', 'soft', 'vary', 'apart', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'The spectrum from low to high, each band as tall as its gain now: the left side above the line and the right below it as a reflection. The second colour is what the light adds, the dashed line the sound untouched. Drag the ring at the right for Rate and the ring on the water for Depth.',
+  info: 'The spectrum from low to high, each band as tall as its gain now: the left side above the line, the right below it as a reflection. The second colour is what the light adds, the dashed line the sound untouched. An attack levels the water as it passes. Drag the rings for Rate and Depth.',
   init: () => ({
     theta: 0,
     reading: Number.NaN,
@@ -582,6 +757,7 @@ const display = plateDisplay<GlimmerState>({
     crest: new Float64Array(BANDS_MOST),
     trough: new Float64Array(BANDS_MOST),
     gain: [new Float64Array(BANDS_MOST), new Float64Array(BANDS_MOST)],
+    raise: new Float64Array(BANDS_MOST),
     top: [],
   }),
   draw: glimmerDraw,
