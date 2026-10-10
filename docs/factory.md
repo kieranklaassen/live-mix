@@ -141,11 +141,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                                        |
-| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
-| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
-| **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
+|             | Count | Groups                                                                                                                                                                                                                 |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 740   | Twenty for each of the thirty-seven stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                              |
+| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                             |
+| **Sounds**  | 176   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; and 76 loops that keep time: drums (32), glitches (20), pitched pulses (24) |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -225,8 +225,9 @@ soundAtTempo(sound, 96).durationSec // 5 for a loop of 4 s at 120: as many beats
 many beats in and as many beats long, the sound as many beats long, and
 `bpm` the tempo it is now at. A drum rings as long as it did, so only what
 lies between the hits changes. An echo's `time` and an LFO's rate in the
-patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, `tremolo` and
-`auto-filter`), so a dotted-eighth echo is one at every tempo; a value the
+patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, the analog
+delay's wobble, `tremolo`, `auto-filter` and the string machine's ensemble
+speed), so a dotted-eighth echo is one at every tempo; a value the
 control cannot reach is halved or doubled until it can, which is still on
 the beat. A loop's crossfade is never made longer than it is written. The
 tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to 480). A sound
@@ -246,6 +247,15 @@ otherwise, so a row `per: 12` is triplets and `per: 5` goes against the
 four), and `bars(count, rows, { passes, crossfadeSec })` makes the rows a
 loop of that many bars and sets `bpm`. A row shorter than the loop repeats
 to fill it and has to fill it exactly.
+
+The bank's sounds that keep time are held to this by `time.test.ts`: whole
+bars at 120, the same strokes in every round, kept from a bar line; the same
+strokes on the same beats at 60, 90, 150 and 200; and rendered at 96 as many
+beats long to the frame, at the bank's level, and still round on itself. A
+sound added with a `bpm` is held to it by being there. `renderFactorySound`
+takes the latency such a sound's devices report out of its start
+(`alignLatency` in `renderPatch`: a tape is 415 frames late), so two loops
+laid side by side land together.
 
 A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
 stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
@@ -578,17 +588,20 @@ and the last column the render cost.
 The sounds are in `src/dsp/factory/sounds/`, a file per family, put together
 in order in `index.ts`:
 
-| File               | Numbers    | What                                                                |
-| ------------------ | ---------- | ------------------------------------------------------------------- |
-| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                |
-| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                 |
-| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                  |
-| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                        |
-| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                  |
-| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                 |
-| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out            |
-| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round           |
-| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device |
+| File               | Numbers    | What                                                                                               |
+| ------------------ | ---------- | -------------------------------------------------------------------------------------------------- |
+| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                                               |
+| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                                                |
+| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                                                 |
+| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                                                       |
+| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                                                 |
+| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                                                |
+| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out                                           |
+| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round                                          |
+| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device                                |
+| `beats-drums.ts`   | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
+| `beats-glitch.ts`  | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
+| `beats-pulses.ts`  | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
 
 `recipe.ts` has what a recipe is written with:
 
