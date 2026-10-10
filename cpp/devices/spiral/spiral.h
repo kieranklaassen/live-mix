@@ -3,30 +3,39 @@
 // Spiral: a reverb whose tail climbs (or sinks) for as long as it rings and
 // never arrives. The endless staircase, made from whatever is played.
 //
-//   in ─► 4 allpasses ─┬──────────── early ────────────┐
-//                      ▼                               ▼
-//                     (+)─► 8 delay lines ─┬─► taps ──(+)──► tail
-//                      ▲                   │
-//                      └ damping ◄ decay ◄ Hadamard
+//   in ─► 4 allpasses ─┬─────────── early ───────────┐
+//                      ▼                              ▼
+//                     (+)─► 8 delay lines ─► mixes ──(+)──► six gliding voices
+//                      ▲                   │              an octave apart, each
+//                      └ damping ◄ decay ◄─┘              with its own two mixes
 //
-//   tail ─► six gliding voices an octave apart ─► bell of level over pitch
-//        ─► 5 allpasses (Blur) ─► low-pass (Tone) ─► low cut ─► width
-//        ─► level hold ─► wet
+//   voices ─► bell of level over pitch ─► 5 allpasses (Blur) ─► low-pass (Tone)
+//          ─► low cut ─► width ─► level hold ─► wet
 //
 // - The tank is where the tail lives: Decay is its RT60, Size its line
-//   lengths, Tone its damping. Its level is scaled by (1 - g²)^(1/4): half,
-//   in dB, of what a loop of gain g stores, so Decay is not also a volume
-//   knob. (All of it would be right for noise and wrong for a held note,
-//   which mostly falls between the modes of a long tail.) Its lines do not move by
-//   themselves: a tank whose modes wander lets a held note fade and swell
-//   by 20 dB, and here the level of each partial is what the bell is made
+//   lengths, Tone its damping. Its lines do not move by themselves: a tank
+//   whose modes wander lets a held note fade and swell (5 dB on average and
+//   up to 13 dB within four seconds, measured with a wander of one part in a
+//   hundred), and here the level of each partial is what the bell is made
 //   of. What moves is the voices.
+// - What a voice is given is the early sound (the input after the four
+//   allpasses, at a fixed level) and the tank's share. The early sound is
+//   flat over pitch, so a held tone is in the tail at every pitch, whatever
+//   the tank's modes do there; the tank's share is scaled by (1 - g²)^0.3
+//   for a loop gain g, between leaving a long tail as loud as a short one
+//   (a held sound would pile up) and taking all of what the loop stores
+//   back (a single note would leave next to nothing), and it is evened:
+//   see `control`. Each voice and side reads its own mix of the eight
+//   lines.
 // - The glide is one clock: a position P in octaves that moves at Climb
-//   octaves a minute and wraps every six. Voice v stands at
+//   octaves a minute and turns over every six. Voice v stands at
 //   u = (P + v) mod 6 and plays the tail at 2^(u - 3) times its pitch: six
 //   shifts an octave apart, from three octaves down to three up, all
 //   gliding together. The clock is a 64-bit count that runs by the sample,
-//   asleep or awake, so the glide keeps its place through any silence.
+//   asleep or awake, by Climb as it is set (not smoothed: its slope turns a
+//   corner, the pitch does not jump), so the glide keeps its place through
+//   any silence. With Climb at its centre the clock goes to the nearest
+//   whole octave and rests: a still tail is in tune, the same every time.
 // - The bell: Voices says how many octaves sound. Over the N octaves from
 //   ceil(N/2) below the played pitch, a voice at the share x of that range
 //   has the level sin(pi x)^(2q), and none outside it; Spread sets q from 4
@@ -37,9 +46,10 @@
 // - Each voice is a three-head delay-line shifter that looks for the start
 //   of every pass (glide_voice.h), so a held note comes out as one gliding
 //   tone and not as a ladder of fixed lines.
-// - Blur is the gain of five allpasses in a row: flat in level at every
-//   setting, from five plain delays (66 ms in all) to a smear of over half
-//   a second that melts the passes of the heads into one wash.
+// - Blur is the length of five allpasses in a row (gain 0.7): flat in level
+//   at every setting, nothing at 0 (so the tail does not wait for them) and
+//   66 ms of lines at 1, a smear of some hundreds of ms that melts the
+//   passes of the heads into one wash.
 // - The level hold bounds the wet path: unity for ordinary levels, never
 //   above full scale (see `hold`).
 // - Sleep is counted by the sample, not by the block, so the output is the
@@ -73,8 +83,8 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
       }
       for (int a = 0; a < kBlurStages; ++a) {
         blur_allpass_[c][a].clear();
-        blur_length_[c][a] = kit::clamp_int(
-            static_cast<int>(kBlurSeconds[a] * (c == 0 ? 1.0f : kBlurSkew) * sr), 1, kBlurSize - 1);
+        blur_length_[c][a] = kit::min(kBlurSeconds[a] * (c == 0 ? 1.0f : kBlurSkew) * sr,
+                                      static_cast<float>(kBlurSize - 4));
       }
       tone_filter_[c].reset();
       low_cut_[c].reset();
@@ -95,19 +105,26 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     dry_.set_time(kSmoothingSeconds, sr);
     wet_.set_time(kSmoothingSeconds, sr);
     width_.set_time(kSmoothingSeconds, sr);
-    blur_.set_time(kSmoothingSeconds, sr);
+    tank_.set_time(0.02f, sr);
+    heard_coeff_ = 1.0f - kit::time_to_coeff(kHeardSeconds, sr);
+    heard_ = 0.0f;
+    expected_ = 0.0f;
+    keep_ = 0.0f;
+    take_ = 0.0f;
+    unkept_ = 1.0f;
+    blur_.set_time(kBlurSeconds_, sr);
     size_.set_time(0.15f, sr);
     // Stepped on the control clock.
     decay_.set_time(0.02f, sr / kControlPeriod);
     level_.set_time(0.02f, sr / kControlPeriod);
-    climb_.set_time(0.03f, sr / kControlPeriod);
+    tone_.set_time(0.02f, sr / kControlPeriod);
     decay_.snap(param(kDecay));
-    climb_.snap(param(kClimb));
     clock_.reset(kControlPeriod);
 
     glide_ = 0;
     glide_step_ = 0;
-    per_octave_minute_ = kTwoTo64 / (60.0 * kStack * static_cast<double>(sr));
+    per_octave_minute_ = static_cast<double>(kOctave) / (60.0 * static_cast<double>(sr));
+    home_step_ = static_cast<uint64_t>(step_for(kHomeRate));
     envelope_ = 0.0f;
     envelope_release_ = kit::time_to_coeff(kHoldRelease, sr);
     // The longest silent gap the device makes: the blur's delays and a
@@ -128,7 +145,7 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   // (P + v) mod 6); 1, the level of the wet path before Mix, 0 asleep.
   float meter(int index) const {
     if (index == 0) {
-      return static_cast<float>(static_cast<double>(glide_ >> 40) * (kStack / 16777216.0));
+      return static_cast<float>(static_cast<double>(glide_ >> 37) * (1.0 / 16777216.0));
     }
     if (index == 1) return asleep_ ? 0.0f : envelope_;
     return 0.0f;
@@ -156,7 +173,7 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
         wake();
       }
       if (clock_.tick()) control(false);
-      glide_ += static_cast<uint64_t>(glide_step_);
+      glide_ = moved(glide_, 1);
 
       // Input diffusion, per side. The wet path never sees a sample that is
       // not a number or is out of all range; the dry path passes what came.
@@ -180,43 +197,82 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
           v[n] = line_[n].read_linear(kit::clamp(length_[n] * size, 2.0f, max_line));
         }
       }
-      const float tail_left = 0.5f * (v[0] - v[2] + v[4] - v[6]) + feed[0];
-      const float tail_right = 0.5f * (v[1] - v[3] + v[5] - v[7]) + feed[1];
       hadamard8(v);
+      // What comes back round, heard through the same door the sound went
+      // in by: line n is fed its side's sound in one sense or the other, and
+      // `port` takes what returns to it in that same sense.
+      float port[2] = {0.0f, 0.0f};
       for (int n = 0; n < kLines; ++n) {
         const float back = damping_[n].lowpass(v[n] * gain_[n]);
+        port[n & 1] += (n & 2) ? -back : back;
         const float x = back + ((n & 2) ? -feed[n & 1] : feed[n & 1]);
         // Linear to ±2, landing on ±4: out of the way of any normal level.
         line_[n].write(flush_denormal(4.0f * kit::soft_clip(0.25f * x)));
       }
+      // What is heard of the tank now (the power at its two doors, over a
+      // tenth of a second, as it stood before the loop gains took their
+      // part) beside what would be there of a sound with no pitch of its
+      // own: see `even`.
+      const float stored = (port[0] * port[0] + port[1] * port[1]) * unkept_;
+      heard_ += (stored - heard_) * heard_coeff_ + 1.0e-30f;
+      expected_ = expected_ * keep_ + (feed[0] * feed[0] + feed[1] * feed[1]) * take_ + 1.0e-30f;
 
-      // The gliding voices under the bell.
+      // The gliding voices under the bell, all given the same sound: the
+      // early sound turned over, and the tank heard at the door it is fed
+      // by. That is the pair an allpass puts out (the input reflected, the
+      // loop let through), and it is chosen for what a held tone does in a
+      // tank that rings for a long time, where its modes stand far apart
+      // beside their width. Heard at the door it is fed by, a loop that
+      // loses nothing returns the sound turned over plus a part a quarter
+      // turn from it, at every pitch; so between two modes, where any other
+      // tap may cancel the early sound, this one adds to it, and the two
+      // sides together are never under early + tank. On a mode it is over,
+      // and `even` (see control()) turns that down.
+      const float tank = 0.5f * glide(tank_);
+      const float tail_left = tank * port[0] - kEarly * feed[0];
+      const float tail_right = tank * port[1] - kEarly * feed[1];
       float wet[2] = {0.0f, 0.0f};
       for (int n = 0; n < kStack; ++n) {
         voice_[n].process(tail_left, tail_right, glide(voice_gain_[n]), &wet[0], &wet[1]);
       }
 
-      // Blur, Tone, low cut.
-      const float blur = glide(blur_);
-      for (int c = 0; c < 2; ++c) {
-        float x = wet[c];
-        for (int a = 0; a < kBlurStages; ++a) {
-          x = blur_allpass_[c][a].process(x, blur_length_[c][a], blur);
+      // Blur (its allpasses on whole samples once the knob has come to
+      // rest), Tone, low cut.
+      if (blur_.remaining == 0) {
+        for (int c = 0; c < 2; ++c) {
+          float x = wet[c];
+          for (int a = 0; a < kBlurStages; ++a) {
+            x = blur_allpass_[c][a].process(x, blur_whole_[c][a], kBlurGain);
+          }
+          wet[c] = x;
         }
-        wet[c] = low_cut_[c].highpass(tone_filter_[c].lowpass(x));
+      } else {
+        const float blur = blur_.next();
+        for (int c = 0; c < 2; ++c) {
+          float x = wet[c];
+          for (int a = 0; a < kBlurStages; ++a) {
+            x = blur_allpass_[c][a].process_modulated(x, kit::max(blur_length_[c][a] * blur, 1.0f),
+                                                      kBlurGain);
+          }
+          wet[c] = x;
+        }
       }
+      for (int c = 0; c < 2; ++c) wet[c] = low_cut_[c].highpass(tone_filter_[c].lowpass(wet[c]));
 
       const float width = glide(width_);
       const float mid = 0.5f * (wet[0] + wet[1]);
       const float side = 0.5f * (wet[0] - wet[1]) * width;
-      const float scaled_left = (mid + side) * level_.value;
-      const float scaled_right = (mid - side) * level_.value;
+      const float scaled_left = mid + side;
+      const float scaled_right = mid - side;
       const float held = hold(scaled_left, scaled_right);
       const float wet_left = scaled_left * held;
       const float wet_right = scaled_right * held;
 
-      out_left_[i] = in[0] * glide(dry_) + wet_left * glide(wet_);
-      out_right_[i] = in[1] * dry_.value + wet_right * wet_.value;
+      // With Mix full the dry path is out altogether: a sample that is not a
+      // number does not get through as nothing times itself.
+      const float dry = glide(dry_);
+      out_left_[i] = (dry != 0.0f ? in[0] * dry : 0.0f) + wet_left * glide(wet_);
+      out_right_[i] = (dry != 0.0f ? in[1] * dry : 0.0f) + wet_right * wet_.value;
 
       // Asleep once nothing has come in and the wet path has stayed under
       // -140 dBFS for half a second, counted here by the sample.
@@ -252,7 +308,8 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   // the right; Blur 1 is this gain.
   static constexpr float kBlurSeconds[kBlurStages] = {0.0053f, 0.0079f, 0.0117f, 0.0173f, 0.0239f};
   static constexpr float kBlurSkew = 1.07f;
-  static constexpr float kBlurGain = 0.75f;
+  static constexpr float kBlurGain = 0.7f;
+  static constexpr float kBlurSeconds_ = 0.4f;
   // One pass of a voice's head at ratios up to 2 (80 ms: no pass travels
   // more than that), and the range its start is searched over (16 ms: a full
   // cycle down to 62 Hz). The longest delay a head can reach is the start
@@ -264,12 +321,23 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   static constexpr float kWidePower = 0.5f;
   static constexpr float kBellSeconds = 0.02f;
   static constexpr float kLowCutHz = 30.0f;
-  static constexpr float kWetGain = 1.15f;
+  // The early sound a voice is given, and the tank's share beside it: the
+  // tank at kTank x (1 - g²)^kLaw (see control()).
+  static constexpr float kEarly = 1.5f;
+  static constexpr float kTank = 1.1f;
+  static constexpr float kLaw = 0.3f;
+  static constexpr float kEvenOver = 1.25f;
+  static constexpr float kHeardSeconds = 0.1f;
   static constexpr float kHoldRelease = 0.12f;
   static constexpr float kFloor = 1.0e-7f;
   static constexpr float kSane = 8.0f;
-  static constexpr double kTwoTo64 = 18446744073709551616.0;
-  static constexpr uint64_t kVoiceTurn = 0xFFFFFFFFFFFFFFFFull / kStack;  // one octave of P
+  // The clock counts 2^61 to the octave and turns over after six of them.
+  static constexpr uint64_t kOctave = 1ull << 61;
+  static constexpr uint64_t kTurn = kOctave * kStack;
+  // Climb nearer the centre than this is the centre: the clock goes to the
+  // nearest whole octave at kHomeRate octaves a minute and stays there.
+  static constexpr float kCentre = 0.05f;
+  static constexpr float kHomeRate = 12.0f;
 
   // kit::hadamard<8> written out (as cpp/devices/shimmer does): the loop
   // form costs six times as much without unrolling.
@@ -315,9 +383,33 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     return static_cast<int64_t>(static_cast<double>(climb) * per_octave_minute_);
   }
 
+  // The clock `count` samples on from `at`, asleep or awake alike. With Climb
+  // off its centre it moves by Climb; at the centre it goes to the nearest
+  // whole octave and rests there, so a tail that holds still is in tune
+  // with what is played, the same every time.
+  uint64_t moved(uint64_t at, int count) const {
+    if (glide_step_ > 0) {
+      at += static_cast<uint64_t>(glide_step_) * static_cast<uint64_t>(count);
+      return at >= kTurn ? at - kTurn : at;
+    }
+    if (glide_step_ < 0) {
+      const uint64_t back = static_cast<uint64_t>(-glide_step_) * static_cast<uint64_t>(count);
+      return at >= back ? at - back : at + kTurn - back;
+    }
+    const uint64_t over = at & (kOctave - 1);
+    if (over == 0) return at;
+    const uint64_t reach = home_step_ * static_cast<uint64_t>(count);
+    if (over >= kOctave / 2) {
+      const uint64_t left = kOctave - over;
+      at = reach >= left ? at + left : at + reach;
+      return at >= kTurn ? at - kTurn : at;
+    }
+    return reach >= over ? at - over : at - reach;
+  }
+
   // `count` samples asleep: the glide and the control clock run on.
   void sleep_on(int count) {
-    glide_ += static_cast<uint64_t>(step_for(param(spiral::kClimb)) * count);
+    glide_ = moved(glide_, count);
     clock_.counter = (clock_.counter + count) % clock_.period;
   }
 
@@ -335,8 +427,10 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
 
   // Where voice `n` stands on the clock, in octaves from 0 up to 6.
   float voice_position(int n) const {
-    const uint64_t turn = glide_ + kVoiceTurn * static_cast<uint64_t>(n);
-    return static_cast<float>(static_cast<double>(turn >> 40) * (kStack / 16777216.0));
+    // Wrapped before the sum is made: two numbers under kTurn can pass 2^64.
+    const uint64_t ahead = kOctave * static_cast<uint64_t>(n);
+    const uint64_t turn = glide_ >= kTurn - ahead ? glide_ - (kTurn - ahead) : glide_ + ahead;
+    return static_cast<float>(static_cast<double>(turn >> 37) * (1.0 / 16777216.0));
   }
 
   // Every 32 samples: the clock's step, each voice's ratio and level under
@@ -346,13 +440,10 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     using namespace spiral;
     const float sr = sample_rate();
     if (snap) {
-      climb_.snap(param(kClimb));
       decay_.snap(param(kDecay));
     } else {
-      climb_.next();
       decay_.next();
     }
-    glide_step_ = step_for(climb_.value);
 
     // The bell over the N octaves that sound.
     const int count = kit::clamp_int(static_cast<int>(param(spiral::kVoices) + 0.5f), 2, kStack);
@@ -384,16 +475,47 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     for (int n = 0; n < kLines; ++n) gain_[n] = kit::rt60_gain(length_[n] * size, decay, sr);
     // A loop of gain g holds 1 / (1 - g²) times the power it is fed: take
     // half of that back (in dB), so Decay is not also a volume knob.
+    // The doors hear the loop after its gains: that part is given back.
     const float middle = gain_[kLines / 2] * gain_[kLines / 2];
-    const float level = kWetGain * std::sqrt(std::sqrt(kit::max(1.0f - middle, 1.0e-5f)));
+    float mean = 0.0f;
+    for (int n = 0; n < kLines; ++n) mean += gain_[n] * gain_[n];
+    mean *= 1.0f / kLines;
+    unkept_ = 1.0f / kit::max(mean, 0.01f);
+    const float level = kTank * std::pow(kit::max(1.0f - middle, 1.0e-5f), kLaw) * std::sqrt(unkept_);
     if (snap) {
       level_.snap(level);
     } else {
       level_.set_target(level);
       level_.next();
     }
+    // Evening the tank. A tank that rings for long has sharp modes: a pure
+    // held tone that sits on one rings it up many times louder than a tone
+    // beside it does, however the taps are chosen. The power a sound with
+    // no pitch of its own would have stored is known (what was fed, kept as
+    // the tank keeps it: `expected_`); when the tank holds more than
+    // kEvenOver times that, its share in the voices is turned down to it.
+    // Nothing is ever turned up, and once the input stops both fall at the
+    // tank's own rate, so the turn stays where it was and the tail's length
+    // is the tank's.
+    keep_ = std::exp(-13.8155f / (decay * sr));
+    take_ = (1.0f - keep_) * (kLines / 2) / kit::max(1.0f - mean, 1.0e-5f);
+    const float allowed = kEvenOver * expected_;
+    const float even = heard_ > allowed && heard_ > 1.0e-20f ? std::sqrt(allowed / heard_) : 1.0f;
+    if (snap) {
+      tank_.snap(level_.value * even);
+    } else {
+      tank_.set_target(level_.value * even);
+    }
 
-    const float tone = param(kTone);
+    // Tone moves over a fiftieth of a second, by ratio: thrown, it does not click.
+    const float aim = std::log2(param(kTone));
+    if (snap) {
+      tone_.snap(aim);
+    } else {
+      tone_.set_target(aim);
+      tone_.next();
+    }
+    const float tone = std::exp2(tone_.value);
     damping_[0].set_cutoff(tone, sr);
     for (int n = 1; n < kLines; ++n) damping_[n].a = damping_[0].a;
     tone_filter_[0].set(tone, kit::kSqrtHalf, sr);
@@ -424,11 +546,9 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
         }
         break;
       case kClimb:
-        if (primed()) {
-          climb_.set_target(value);
-        } else {
-          climb_.snap(value);
-        }
+        // The clock's step, taken at once: the slope of the glide turns a
+        // corner, the pitch does not jump.
+        glide_step_ = (value > -kCentre && value < kCentre) ? 0 : step_for(value);
         break;
       case kSize: {
         const float size = kit::lerp(kMinScale, kMaxScale, value);
@@ -441,7 +561,14 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
         break;
       }
       case kBlur:
-        blur_.set(value * kBlurGain, primed());
+        // Blur is the length of the allpasses: none at 0, so nothing waits.
+        blur_.set(value, primed());
+        for (int c = 0; c < 2; ++c) {
+          for (int a = 0; a < kBlurStages; ++a) {
+            blur_whole_[c][a] =
+                kit::clamp_int(static_cast<int>(blur_length_[c][a] * value + 0.5f), 1, kBlurSize - 4);
+          }
+        }
         break;
       case kWidth:
         width_.set(value, primed());
@@ -463,18 +590,27 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   kit::Smoother voice_gain_[kStack];
 
   kit::AllpassDelay<kBlurSize> blur_allpass_[2][kBlurStages];
-  int blur_length_[2][kBlurStages] = {};
+  float blur_length_[2][kBlurStages] = {};
+  int blur_whole_[2][kBlurStages] = {};
   kit::Svf tone_filter_[2];
   kit::OnePole low_cut_[2];
 
-  kit::Smoother dry_, wet_, width_, blur_, size_;
-  kit::Smoother decay_, level_, climb_;
+  kit::Smoother dry_, wet_, width_, size_;
+  kit::LinearRamp blur_;  // by even steps: the allpasses' lines never move faster than 66 ms in kBlurSeconds_
+  kit::Smoother decay_, level_, tank_, tone_;
+  float heard_ = 0.0f;     // the power of the tank's eight outputs
+  float expected_ = 0.0f;  // what a sound with no pitch would have stored
+  float heard_coeff_ = 0.0f;
+  float keep_ = 0.0f;
+  float take_ = 0.0f;
+  float unkept_ = 1.0f;  // 1 / the mean power gain of the loop
   kit::ControlClock clock_;
 
   // The glide clock: P / 6 as a 64-bit fraction of a turn, and its step a
   // sample (signed: Climb below the centre runs it backwards).
   uint64_t glide_ = 0;
   int64_t glide_step_ = 0;
+  uint64_t home_step_ = 0;
   double per_octave_minute_ = 0.0;
 
   float envelope_ = 0.0f;

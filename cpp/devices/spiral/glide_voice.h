@@ -3,7 +3,10 @@
 // One gliding voice of Spiral: a stereo delay-line pitch shifter whose ratio
 // may move every control tick.
 //
-// Each channel is a delay line read by three heads a third of a pass apart
+// Each channel is a delay line, and both are read by the same three heads (one
+// delay per head, the same on both sides: half the reading and half the
+// searching of a head per side, and what stands between the two sides is the
+// tank's, untouched) a third of a pass apart
 // under Hann bells (three bells that far apart sum to 1.5 in amplitude and to
 // 1.125 in power, both constant, hence the 2/3). A head with delay d reads
 // the line at (now - d) and its delay changes by (1 - ratio) a sample, so it
@@ -42,10 +45,14 @@ class GlideVoice {
     for (int c = 0; c < 2; ++c) {
       line_[c].clear();
       guard_[c].reset();
-      for (int k = 0; k < kHeads; ++k) delay_[c][k] = 8.0f;
     }
+    for (int k = 0; k < kHeads; ++k) delay_[k] = 8.0f;
     ratio_ = 1.0f;
     step_ = 1.0f / 4096.0f;
+    turn_cos_ = static_cast<float>(std::cos(6.283185307179586 * step_));
+    turn_sin_ = static_cast<float>(std::sin(6.283185307179586 * step_));
+    cos_ = kit::SineTable::cos_lookup(phase_);
+    sin_ = kit::SineTable::lookup(phase_);
     span_ = 512.0f;
     pad_ = 520.0f;
     search_ = 512.0f;
@@ -58,7 +65,12 @@ class GlideVoice {
     ratio_ = ratio;
     const float away = ratio > 1.0f ? ratio - 1.0f : 1.0f - ratio;
     const float pass = away > 1.0f ? grain / away : grain;
-    step_ = 1.0f / pass;
+    const float step = 1.0f / pass;
+    if (step != step_) {
+      step_ = step;
+      turn_cos_ = static_cast<float>(std::cos(6.283185307179586 * step));
+      turn_sin_ = static_cast<float>(std::sin(6.283185307179586 * step));
+    }
     span_ = pass * (1.0f / 6.0f);
     pad_ = ratio * span_ + 4.0f;
     search_ = search;
@@ -84,8 +96,14 @@ class GlideVoice {
     line_[0].write(guard_[0].lowpass(in_left));
     line_[1].write(guard_[1].lowpass(in_right));
 
+    // The pass, and the bells' cosine and sine turned on with it (the three
+    // bells are a third of a turn apart, so one turning pair gives all
+    // three); set afresh from the table at every start of a head.
     const float before = phase_;
     phase_ += step_;
+    const float turned = cos_ * turn_cos_ - sin_ * turn_sin_;
+    sin_ = sin_ * turn_cos_ + cos_ * turn_sin_;
+    cos_ = turned;
     int starting = -1;
     if (phase_ >= 1.0f) {
       phase_ -= 1.0f;
@@ -95,34 +113,36 @@ class GlideVoice {
     } else if (before < kThird && phase_ >= kThird) {
       starting = 2;
     }
-    float position[kHeads];
-    position[0] = phase_;
-    position[1] = phase_ + kThird;
-    if (position[1] >= 1.0f) position[1] -= 1.0f;
-    position[2] = phase_ + kTwoThirds;
-    if (position[2] >= 1.0f) position[2] -= 1.0f;
 
     const float slide = 1.0f - ratio_;
     const float longest = static_cast<float>(Size - 8);
-    for (int c = 0; c < 2; ++c) {
-      for (int k = 0; k < kHeads; ++k) {
-        delay_[c][k] = kit::clamp(delay_[c][k] + slide, pad_, longest);
-      }
-    }
-    const bool audible = gain > kAudible;
+    for (int k = 0; k < kHeads; ++k) delay_[k] = kit::clamp(delay_[k] + slide, pad_, longest);
     if (starting >= 0) {
+      cos_ = kit::SineTable::cos_lookup(phase_);
+      sin_ = kit::SineTable::lookup(phase_);
       const float base = (ratio_ > 1.0f ? (ratio_ - 1.0f) / step_ : 0.0f) + pad_;
-      for (int c = 0; c < 2; ++c) {
-        delay_[c][starting] =
-            kit::min(audible ? find_start(c, starting, position, base) : base, longest);
-      }
+      delay_[starting] = kit::min(gain > kAudible ? find_start(starting, base) : base, longest);
     }
     if (gain == 0.0f) return;
+
+    // cos(a + 120°) and cos(a + 240°) from cos a and sin a.
+    const float bell[kHeads] = {0.5f - 0.5f * cos_, 0.5f + 0.25f * cos_ + kQuarterRootThree * sin_,
+                                0.5f + 0.25f * cos_ - kQuarterRootThree * sin_};
+    const int now = line_[0].write_position();
     float sum[2] = {0.0f, 0.0f};
     for (int k = 0; k < kHeads; ++k) {
-      const float bell = 0.5f - 0.5f * kit::SineTable::cos_lookup(position[k]);
-      sum[0] += bell * line_[0].read_hermite(delay_[0][k]);
-      sum[1] += bell * line_[1].read_hermite(delay_[1][k]);
+      // kit::hermite as four weights, worked out once for both sides.
+      const int whole = static_cast<int>(delay_[k]);
+      const float t = delay_[k] - static_cast<float>(whole);
+      const float w0 = bell[k] * (((-0.5f * t + 1.0f) * t - 0.5f) * t);
+      const float w1 = bell[k] * ((1.5f * t - 2.5f) * t * t + 1.0f);
+      const float w2 = bell[k] * (((-1.5f * t + 2.0f) * t + 0.5f) * t);
+      const float w3 = bell[k] * ((0.5f * t - 0.5f) * t * t);
+      const int at = now - whole;
+      sum[0] += w0 * line_[0].at(at + 1) + w1 * line_[0].at(at) + w2 * line_[0].at(at - 1) +
+                w3 * line_[0].at(at - 2);
+      sum[1] += w0 * line_[1].at(at + 1) + w1 * line_[1].at(at) + w2 * line_[1].at(at - 1) +
+                w3 * line_[1].at(at - 2);
     }
     const float scale = gain * (2.0f / 3.0f);
     *left += sum[0] * scale;
@@ -132,33 +152,45 @@ class GlideVoice {
  private:
   static constexpr float kThird = 1.0f / 3.0f;
   static constexpr float kTwoThirds = 2.0f / 3.0f;
+  static constexpr float kQuarterRootThree = 0.43301270189f;
   static constexpr float kAudible = 1.0e-4f;  // a head quieter than -80 dB starts anywhere
   static constexpr int kPoints = 48;          // samples of the comparison
   static constexpr int kCandidates = 128;     // coarse steps across the search range
 
-  // The delay at which head `k` of channel `c`, starting a pass now, best
-  // continues what the other two will play over the next `span_` samples.
-  float find_start(int c, int k, const float* position, float base) {
-    const kit::DelayLine<Size>& line = line_[c];
-    const int now = line.write_position();
+  // The delay at which head `k`, starting a pass now, best continues what
+  // the other two will play over the next `span_` samples. One delay serves
+  // both sides, so it is looked for on the side where the other two are the
+  // louder: what is periodic has the same period on both.
+  float find_start(int k, float base) {
+    const int now = line_[0].write_position();
     const float stride = span_ / kPoints;
-    float reference[kPoints];
+    float heard[2][kPoints];
     int ahead[kPoints];
-    float energy = 0.0f;
+    float loud[2] = {0.0f, 0.0f};
     for (int i = 0; i < kPoints; ++i) {
       const float j = static_cast<float>(i) * stride;
       ahead[i] = static_cast<int>(j * ratio_ + 0.5f);
-      float value = 0.0f;
+      float value[2] = {0.0f, 0.0f};
       for (int h = 0; h < kHeads; ++h) {
         if (h == k) continue;
-        const float later = position[h] + j * step_;
+        float later = phase_ + static_cast<float>(h) * kThird;
+        if (later >= 1.0f) later -= 1.0f;
+        later += j * step_;
         if (later >= 1.0f) continue;
         const float bell = 0.5f - 0.5f * kit::SineTable::cos_lookup(later);
-        value += bell * line.at_linear(static_cast<float>(now + ahead[i]) - delay_[c][h]);
+        const float where = static_cast<float>(now + ahead[i]) - delay_[h];
+        value[0] += bell * line_[0].at_linear(where);
+        value[1] += bell * line_[1].at_linear(where);
       }
-      reference[i] = value;
-      energy += value * value;
+      heard[0][i] = value[0];
+      heard[1][i] = value[1];
+      loud[0] += value[0] * value[0];
+      loud[1] += value[1] * value[1];
     }
+    const int side = loud[1] > loud[0] ? 1 : 0;
+    const kit::DelayLine<Size>& line = line_[side];
+    const float* reference = heard[side];
+    const float energy = loud[side];
     const int range = static_cast<int>(search_);
     if (energy < 1.0e-16f) return base + search_ * rng_.uniform();  // nothing playing: anywhere
 
@@ -212,7 +244,11 @@ class GlideVoice {
   kit::Svf guard_[2];
   kit::Rng rng_;
   float phase_ = 0.0f;
-  float delay_[2][kHeads] = {};
+  float cos_ = 1.0f;  // of the pass's phase, turned by the sample
+  float sin_ = 0.0f;
+  float turn_cos_ = 1.0f;
+  float turn_sin_ = 0.0f;
+  float delay_[kHeads] = {};
   float ratio_ = 1.0f;
   float step_ = 1.0f / 4096.0f;
   float span_ = 512.0f;

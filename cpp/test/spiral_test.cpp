@@ -5,6 +5,7 @@
 #include "../devices/spiral/spiral.h"
 #include "support/test_kit.h"
 
+#include <complex>
 #include <ctime>
 
 using namespace testkit;
@@ -50,6 +51,10 @@ static void wet_only(Spiral& d) {
   d.set_param(p::kDecay, 3.0f);
 }
 
+// The slowest Climb that is not the centre (where the clock goes home to a
+// whole octave): the clock all but stands, a thousandth of an octave a second.
+static const float kCreep = 0.06f;
+
 // Run the glide clock on to `octaves` with no sound: asleep, at 12 octaves
 // a minute, then leave Climb at `after`.
 static void turn_to(Spiral& d, float octaves, float after) {
@@ -82,6 +87,52 @@ static std::vector<float> chord(float seconds, float gain) {
   return out;
 }
 
+// A plain FFT (in place, a power of two) for the spectrum checks.
+static void fft(std::vector<std::complex<double>>& a) {
+  const size_t n = a.size();
+  for (size_t i = 1, j = 0; i < n; ++i) {
+    size_t bit = n >> 1;
+    for (; j & bit; bit >>= 1) j ^= bit;
+    j ^= bit;
+    if (i < j) std::swap(a[i], a[j]);
+  }
+  for (size_t len = 2; len <= n; len <<= 1) {
+    const std::complex<double> turn(std::cos(-2.0 * kPi / len), std::sin(-2.0 * kPi / len));
+    for (size_t i = 0; i < n; i += len) {
+      std::complex<double> w(1.0, 0.0);
+      for (size_t k = 0; k < len / 2; ++k) {
+        const std::complex<double> u = a[i + k], v = a[i + k + len / 2] * w;
+        a[i + k] = u + v;
+        a[i + k + len / 2] = u - v;
+        w *= turn;
+      }
+    }
+  }
+}
+
+// The power in each bin of `n` samples of `x` from `from`, under a Hann window.
+static std::vector<double> power_of(const std::vector<float>& x, size_t from, size_t n) {
+  std::vector<std::complex<double>> a(n);
+  for (size_t i = 0; i < n; ++i) {
+    a[i] = x[from + i] * (0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(n)));
+  }
+  fft(a);
+  std::vector<double> out(n / 2);
+  for (size_t k = 0; k < n / 2; ++k) out[k] = std::norm(a[k]);
+  return out;
+}
+
+// The power in sixth-octave bands from 40 Hz to 16 kHz of 4096 samples from `from`.
+static std::vector<double> band_powers(const std::vector<float>& x, size_t from) {
+  const std::vector<double> power = power_of(x, from, 4096);
+  std::vector<double> out(52, 0.0);
+  for (size_t k = 1; k < power.size(); ++k) {
+    const int band = static_cast<int>(std::floor(6.0 * std::log2(static_cast<double>(k) * kRate / 4096.0 / 40.0)));
+    if (band >= 0 && band < 52) out[band] += power[k];
+  }
+  return out;
+}
+
 int main() {
   Conformance spec;
   spec.name = "spiral";
@@ -97,7 +148,7 @@ int main() {
   // for the voice at u = P + v, and P moves at Climb octaves a minute from
   // where the clock stood: up for one sign, down for the other, still at 0.
   // Two voices under a narrow bell, so one partial leads.
-  for (float climb : {6.0f, -6.0f, 0.0f}) {
+  for (float climb : {6.0f, -6.0f, kCreep}) {
     wet_only(device);
     device.set_param(p::kVoices, 2.0f);
     device.set_param(p::kSpread, 0.0f);
@@ -116,13 +167,13 @@ int main() {
       if (t == 2.0f) first = found;
       last = found;
     }
-    std::printf("glide at %+.0f oct/min: partial moved %.1f cents in 4 s (%.1f expected), worst error %.1f cents\n",
+    std::printf("glide at %+.2f oct/min: partial moved %.1f cents in 4 s (%.1f expected), worst error %.1f cents\n",
                 climb, 1200.0 * std::log2(last / first), 1200.0 * climb / 15.0, worst);
     EXPECT(worst < 12.0, "a partial of the tail stands where the glide clock says");
     const double moved = 12.0 * std::log2(last / first);
-    if (climb > 0.0f) EXPECT_NEAR(moved, 4.8, 0.2, "the tail climbs at Climb octaves a minute");
+    if (climb == 6.0f) EXPECT_NEAR(moved, 4.8, 0.2, "the tail climbs at Climb octaves a minute");
     if (climb < 0.0f) EXPECT_NEAR(moved, -4.8, 0.2, "the tail sinks at Climb octaves a minute");
-    if (climb == 0.0f) EXPECT_NEAR(moved, 0.0, 0.05, "the tail holds still at Climb 0");
+    if (climb == kCreep) EXPECT_NEAR(moved, 0.048, 0.05, "the tail all but stands at the slowest Climb");
   }
 
   // 2. The bell. With the clock at 0.5 and four voices, the partials of a
@@ -133,10 +184,11 @@ int main() {
     wet_only(device);
     device.set_param(p::kVoices, 4.0f);
     device.set_param(p::kSpread, spread);
-    turn_to(device, 0.5f, 0.0f);
+    turn_to(device, 0.5f, kCreep);
     Stereo out = run(device, sine(440.0f, 4.0f, kRate, 0.25f));
-    const Stack stack = stack_at(0.5, 4, spread);
-    const size_t from = static_cast<size_t>(2.0f * kRate), to = static_cast<size_t>(4.0f * kRate);
+    // The clock creeps on: read half a second about 3.25 s, where it stands at 0.50325.
+    const Stack stack = stack_at(0.5 + kCreep / 60.0 * 3.25, 4, spread);
+    const size_t from = static_cast<size_t>(3.0f * kRate), to = static_cast<size_t>(3.5f * kRate);
     double level[6];
     for (int v = 0; v < 6; ++v) {
       level[v] = tone_level(out.left, 440.0 * std::exp2(stack.shift[v]), kRate, from, to);
@@ -154,6 +206,31 @@ int main() {
         EXPECT(measured < -50.0, "a voice outside the octaves that sound is silent");
       }
     }
+  }
+
+  // The same all the way round the clock: at each of its six octaves the
+  // four voices that should sound do, at the bell's levels, and the other
+  // two are silent. (A sinking tail starts at the top of the clock.)
+  for (int octave = 0; octave < 6; ++octave) {
+    wet_only(device);
+    device.set_param(p::kVoices, 4.0f);
+    device.set_param(p::kSpread, 1.0f);
+    turn_to(device, octave + 0.5f, kCreep);
+    Stereo out = run(device, sine(440.0f, 4.0f, kRate, 0.25f));
+    const Stack stack = stack_at(octave + 0.5 + kCreep / 60.0 * 3.25, 4, 1.0);
+    const size_t from = static_cast<size_t>(3.0f * kRate), to = static_cast<size_t>(3.5f * kRate);
+    double level[6], total = 0.0;
+    for (int v = 0; v < 6; ++v) {
+      level[v] = tone_level(out.left, 440.0 * std::exp2(stack.shift[v]), kRate, from, to);
+      total += level[v] * level[v];
+    }
+    double worst = 0.0;
+    for (int v = 0; v < 6; ++v) {
+      const double share = level[v] / std::sqrt(total);
+      worst = std::max(worst, std::fabs(share - stack.level[v]));
+    }
+    std::printf("clock at %d.5 octaves: the six voices are within %.3f of the bell's shares\n", octave, worst);
+    EXPECT(worst < 0.05, "the stack is the bell's at every octave of the clock");
   }
 
   // 3. Through a wrap. Steady noise in, the clock running at 12 octaves a
@@ -265,8 +342,8 @@ int main() {
       level[n++] = db(rms(out.left, 30 * 48000, 40 * 48000) / (0.1 * 0.408));
     }
     std::printf("held chord, wet alone against the input: %.1f dB at Decay 1 s, %.1f dB at 60 s\n", level[0], level[1]);
-    EXPECT(std::fabs(level[0] - level[1]) < 9.0, "Decay does not change the level of a held sound much");
-    EXPECT(level[0] > -10.0 && level[0] < 6.0 && level[1] > -10.0 && level[1] < 6.0,
+    EXPECT(std::fabs(level[0] - level[1]) < 2.5, "Decay does not change the level of a held sound");
+    EXPECT(level[0] > -4.0 && level[0] < 3.0 && level[1] > -4.0 && level[1] < 3.0,
            "the wet path of a held chord is about as loud as the chord");
   }
 
@@ -275,7 +352,7 @@ int main() {
   // so it cannot cancel the dry one for long).
   {
     double worst = 100.0, highest = -100.0;
-    for (int note = 28; note <= 100; note += 6) {
+    for (int note = 28; note <= 100; ++note) {
       const float hz = 440.0f * std::exp2((note - 69) / 12.0f);
       device.init(kRate);
       Stereo out = run(device, sine(hz, 8.0f, kRate, 0.25f));
@@ -286,8 +363,8 @@ int main() {
       }
     }
     std::printf("held tones, MIDI 28 to 100, default: output between %.1f and %+.1f dB of the input\n", worst, highest);
-    EXPECT(worst > -4.0, "a held tone does not drop out at the default Mix");
-    EXPECT(highest < 6.0, "a held tone is not thrown up at the default Mix");
+    EXPECT(worst > -3.0, "a held tone does not drop out at the default Mix");
+    EXPECT(highest < 3.5, "a held tone is not thrown up at the default Mix");
   }
 
   // 8. Bad input: samples that are not numbers, infinite or absurd go
@@ -360,6 +437,10 @@ int main() {
         {p::kMix, 0.1f, 0.9f, "Mix does not click"},
         {p::kSpread, 0.0f, 1.0f, "Spread does not click"},
         {p::kBlur, 0.0f, 1.0f, "Blur does not click"},
+        {p::kBlur, 1.0f, 0.0f, "Blur taken away does not click"},
+        {p::kTone, 500.0f, 16000.0f, "Tone thrown open does not click"},
+        {p::kTone, 16000.0f, 500.0f, "Tone thrown shut does not click"},
+        {p::kClimb, -12.0f, 0.0f, "Climb put on its centre does not click"},
         {p::kWidth, 1.0f, 0.0f, "Width does not click"},
         {p::kSize, 0.2f, 0.8f, "Size does not click"},
         {p::kDecay, 1.0f, 30.0f, "Decay does not click"},
@@ -411,16 +492,12 @@ int main() {
 
   // 13. Tone, Blur and Size each do their own thing. Tone takes highs off;
   // Blur leaves the level alone and smears a click over more time; Size
-  // makes the space answer later.
+  // makes the tank answer later.
   {
-    auto centre_of = [](const std::vector<float>& x) {
-      double weight = 0.0, moment = 0.0;
-      for (size_t i = 0; i < x.size(); ++i) {
-        const double e = static_cast<double>(x[i]) * x[i];
-        weight += e;
-        moment += e * static_cast<double>(i);
-      }
-      return weight > 0.0 ? moment / weight / kRate : 0.0;
+    auto energy_of = [](const std::vector<float>& x, size_t from, size_t to) {
+      double sum = 0.0;
+      for (size_t i = from; i < to; ++i) sum += static_cast<double>(x[i]) * x[i];
+      return sum;
     };
     // The time a click's first 5 % of energy takes to come out.
     auto onset_of = [](const std::vector<float>& x) {
@@ -456,16 +533,21 @@ int main() {
       device.set_param(p::kSize, which ? 1.0f : 0.0f);
       device.set_param(p::kDecay, 0.5f);
       Stereo space = run(device, impulse(3.0f, kRate, 0.5f));
-      answer[which] = centre_of(space.left);
+      // The early sound is the same at every Size and is out by 70 ms: what
+      // Size moves is when the tank first answers (by 70 ms when small,
+      // after 110 ms when large).
+      answer[which] = energy_of(space.left, 5280, 7200) / energy_of(space.left, 3360, 5280);
     }
     std::printf("Tone 16 kHz to 800 Hz: energy above 3 kHz %.4f to %.5f\n", bright[0], bright[1]);
     std::printf("Blur 0 to 1: level %+.2f dB, a click's first twentieth is out after %.0f ms and %.0f ms\n",
                 level[1] - level[0], centre[0] * 1000.0, centre[1] * 1000.0);
-    std::printf("Size 0 to 1: a click's energy centred at %.0f ms and %.0f ms\n", answer[0] * 1000.0, answer[1] * 1000.0);
+    std::printf("Size 0 to 1: a click's energy from 110 to 150 ms is %.2f and %.2f of that from 70 to 110 ms\n", answer[0],
+                answer[1]);
     EXPECT(bright[1] < bright[0] * 0.2, "Tone takes the highs off the tail");
     EXPECT(std::fabs(level[1] - level[0]) < 1.0, "Blur does not change the level");
-    EXPECT(centre[1] < centre[0] - 0.02, "Blur smears a click: some of it is out before the plain delays");
-    EXPECT(answer[1] > answer[0] + 0.015, "a larger Size answers later");
+    EXPECT(centre[0] < 0.03, "with no Blur the tail of a click starts within 30 ms");
+    EXPECT(centre[1] > centre[0] + 0.015, "Blur smears a click over more time");
+    EXPECT(answer[1] > 2.0 * answer[0], "a larger Size brings the tank's first return later");
   }
 
   // 14. Voices and Spread. With the clock at a whole octave the partials of
@@ -476,13 +558,13 @@ int main() {
       wet_only(device);
       device.set_param(p::kVoices, static_cast<float>(voices));
       device.set_param(p::kSpread, 1.0f);
-      turn_to(device, 0.5f, 0.0f);
+      turn_to(device, 0.5f, kCreep);
       Stereo out = run(device, sine(440.0f, 3.0f, kRate, 0.25f));
-      const Stack stack = stack_at(0.5, voices, 1.0);
+      const Stack stack = stack_at(0.5 + kCreep / 60.0 * 2.75, voices, 1.0);
       int sounding = 0, expected = 0;
       double strongest = 0.0, level[6];
       for (int v = 0; v < 6; ++v) {
-        level[v] = tone_level(out.left, 440.0 * std::exp2(stack.shift[v]), kRate, 96000, 144000);
+        level[v] = tone_level(out.left, 440.0 * std::exp2(stack.shift[v]), kRate, 120000, 144000);
         strongest = std::max(strongest, level[v]);
         if (stack.level[v] > 0.0) ++expected;
       }
@@ -495,7 +577,7 @@ int main() {
     for (int which = 0; which < 2; ++which) {
       wet_only(device);
       device.set_param(p::kSpread, which ? 1.0f : 0.0f);
-      turn_to(device, 1.0f, 0.0f);
+      turn_to(device, 1.0f, 0.0f);  // the centre: the clock rests on the whole octave
       Stereo out = run(device, sine(440.0f, 3.0f, kRate, 0.25f));
       double total = 0.0, middle = 0.0;
       for (int octave = -3; octave <= 2; ++octave) {
@@ -615,7 +697,7 @@ int main() {
     EXPECT(worst_growth < 1.0, "a held chord does not pile up at any preset");
     EXPECT(worst_dip > -4.0, "the wet path does not cancel a held tone at any preset's Mix");
     EXPECT(worst_lift < 7.0, "a held tone is not thrown up at any preset");
-    EXPECT(send_low > -24.0 && send_high < 9.0, "the tail alone holds a tone at every pitch, within a reverb's range");
+    EXPECT(send_low > -7.0 && send_high < 5.0, "the tail alone holds a tone at every pitch (check 21 has every semitone)");
   }
 
   // 17. The level hold. The tail alone never passes full scale, however hard
@@ -669,6 +751,306 @@ int main() {
       most = std::max(most, level);
     }
     EXPECT(most - least < 1.5, "Voices and Spread leave the level of the tail alone");
+  }
+
+  // --- The second check's tests: each of these fails on the device as it was first built. ---
+
+  // 19. Climb at its centre. The clock goes to the nearest whole octave and
+  // rests there, asleep or awake, so a tail that holds still is in tune
+  // with what is played and "Held still" is one sound whenever it is
+  // loaded: after 7.3 s of climbing at the default (the clock at 0.365) the
+  // partials of a held 440 Hz stand on 440 and its octaves, as loud as on a
+  // device fresh from init.
+  {
+    const std::vector<float> tone = sine(440.0f, 3.0f, kRate, 0.25f);
+    double level[2][3];
+    for (int which = 0; which < 2; ++which) {
+      device.init(kRate);
+      if (which) {
+        run(device, sine(330.0f, 7.3f, kRate, 0.2f));
+        EXPECT_NEAR(device.meter(0), 0.365, 0.001, "7.3 s at 3 octaves a minute is 0.365 octaves");
+      }
+      device.set_param(p::kClimb, 0.0f);
+      device.set_param(p::kVoices, 3.0f);
+      device.set_param(p::kSpread, 1.0f);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 2.0f);
+      render(device, 30.0f, kRate);
+      EXPECT(device.meter(0) == 0.0f, "with Climb at its centre the clock rests on a whole octave");
+      Stereo out = run(device, tone);
+      for (int octave = -1; octave <= 1; ++octave) {
+        level[which][octave + 1] = db(tone_level(out.left, 440.0 * std::exp2(octave), kRate, 96000, 144000));
+      }
+    }
+    std::printf("Climb at its centre: 220 and 440 Hz of a held 440 are %.1f and %.1f dB fresh, %.1f and %.1f dB after climbing\n",
+                level[0][0], level[0][1], level[1][0], level[1][1]);
+    EXPECT_NEAR(level[1][0], level[0][0], 1.5, "the octave below is as loud whenever the centre is reached");
+    EXPECT_NEAR(level[1][1], level[0][1], 1.5, "the played pitch is as loud whenever the centre is reached");
+    EXPECT(level[0][1] > -20.0 && level[0][2] < level[0][1] - 40.0, "three voices at rest: the pitch and the octave below");
+    // And it goes there by the clock: from 0.365 the nearest is 0, at 12 octaves a minute, 1.825 s.
+    device.init(kRate);
+    device.set_param(p::kClimb, 12.0f);
+    render(device, 1.825f, kRate);  // 0.365 octaves, asleep
+    device.set_param(p::kClimb, 0.0f);
+    render(device, 0.9125f, kRate);
+    EXPECT_NEAR(device.meter(0), 0.1825, 0.001, "half way home after half the time");
+    render(device, 1.0f, kRate);
+    EXPECT(device.meter(0) == 0.0f, "home, and no further");
+    device.set_param(p::kClimb, 12.0f);
+    render(device, 3.0f, kRate);  // 0.6: the nearest whole octave is 1
+    device.set_param(p::kClimb, 0.0f);
+    render(device, 3.0f, kRate);
+    EXPECT(device.meter(0) == 1.0f, "from past the half the clock goes up to the next octave");
+  }
+
+  // 20. The clock to the sample. It is a function of the time and of Climb
+  // as it was set, and of nothing else: the same through sound, silence and
+  // sleep, at every block size, with Climb changed while asleep and while
+  // sounding (the first build smoothed Climb while awake and not asleep, so
+  // a change of Climb moved the clock by a different amount awake).
+  {
+    rng_state() = 0xC10Cu;
+    std::vector<float> in(static_cast<size_t>(4.0f * kRate), 0.0f);
+    for (size_t i = 0; i < 9600; ++i) in[i] = 0.3f * white();
+    for (size_t i = 0; i < 24000; ++i) in[3 * 48000 + i] = 0.3f * white();
+    float clock[2] = {0.0f, 0.0f};
+    Stereo reference;
+    const int patterns[5][4] = {{128, 128, 128, 128}, {1, 1, 1, 1}, {2048, 2048, 2048, 2048}, {32, 512, 7, 2048}, {2048, 1, 300, 64}};
+    for (int which = 0; which < 5; ++which) {
+      device.init(kRate);
+      device.set_param(p::kDecay, 0.5f);
+      device.set_param(p::kClimb, 9.0f);
+      Stereo out;
+      out.left.resize(in.size());
+      out.right.resize(in.size());
+      size_t done = 0, turn = 0;
+      while (done < in.size()) {
+        size_t frames = std::min<size_t>(patterns[which][turn++ % 4], in.size() - done);
+        // Climb changed at 2 s, asleep, and at 3.2 s, sounding: on the same samples whatever the block.
+        for (size_t edge : {static_cast<size_t>(96000), static_cast<size_t>(153600)}) {
+          if (done < edge && done + frames > edge) frames = edge - done;
+        }
+        if (done == 96000) device.set_param(p::kClimb, -4.0f);
+        if (done == 153600) device.set_param(p::kClimb, 7.0f);
+        for (size_t i = 0; i < frames; ++i) {
+          device.in_left()[i] = in[done + i];
+          device.in_right()[i] = in[done + i];
+        }
+        device.process(static_cast<int>(frames));
+        for (size_t i = 0; i < frames; ++i) {
+          out.left[done + i] = device.out_left()[i];
+          out.right[done + i] = device.out_right()[i];
+        }
+        done += frames;
+      }
+      if (which == 0) {
+        reference = out;
+        clock[0] = device.meter(0);
+        EXPECT(peak(out.left, 96000, 144000) == 0.0, "asleep when Climb was changed");
+      } else {
+        EXPECT(out.left == reference.left && out.right == reference.right,
+               "the same output at every block size, with Climb changed asleep and awake");
+        EXPECT(device.meter(0) == clock[0], "the clock stands on the same sample's place at every block size");
+      }
+    }
+    // 2 s at 9, 1.2 s at -4, 0.8 s at 7 octaves a minute: 0.3 - 0.08 + 0.0933.
+    EXPECT_NEAR(clock[0], 0.3 - 0.08 + 7.0 / 60.0 * 0.8, 2.0e-5, "the clock is the sum of Climb over the time, to the sample");
+    // The same Climb history with no sound at all.
+    device.init(kRate);
+    device.set_param(p::kClimb, 9.0f);
+    render(device, 2.0f, kRate);
+    device.set_param(p::kClimb, -4.0f);
+    render(device, 1.2f, kRate);
+    device.set_param(p::kClimb, 7.0f);
+    render(device, 0.8f, kRate);
+    clock[1] = device.meter(0);
+    EXPECT(clock[1] == clock[0], "and the same with nothing played at all");
+  }
+
+  // 21. Even over pitch. The tail alone ("On a send": Decay 12 s, Mix 1) of
+  // a pure held tone, at every semitone of the keyboard, both sides: no
+  // note is lost and none is thrown up (the first build: -20.8 to +7.5 dB,
+  // 5.7 dB about the mean), and each is steady in time.
+  {
+    double low = 100.0, high = -100.0, sum = 0.0, squares = 0.0, swing = 0.0;
+    int count = 0;
+    for (int note = 28; note <= 100; ++note) {
+      device.init(kRate);
+      device.set_param(p::kClimb, 2.0f);
+      device.set_param(p::kDecay, 12.0f);
+      device.set_param(p::kSpread, 0.6f);
+      device.set_param(p::kBlur, 0.6f);
+      device.set_param(p::kMix, 1.0f);
+      Stereo out = run(device, sine(440.0f * std::exp2((note - 69) / 12.0f), 10.0f, kRate, 0.25f));
+      auto both = [&](size_t from, size_t to) {
+        const double l = rms(out.left, from, to), r = rms(out.right, from, to);
+        return db(std::sqrt(0.5 * (l * l + r * r)) / (0.25 * 0.7071));
+      };
+      const double level = both(6 * 48000, 10 * 48000);
+      double least = 100.0, most = -100.0;
+      for (size_t at = 6 * 48000; at + 24000 <= out.size(); at += 24000) {
+        least = std::min(least, both(at, at + 24000));
+        most = std::max(most, both(at, at + 24000));
+      }
+      swing = std::max(swing, most - least);
+      low = std::min(low, level);
+      high = std::max(high, level);
+      sum += level;
+      squares += level * level;
+      ++count;
+    }
+    const double mean_level = sum / count;
+    const double spread = std::sqrt(squares / count - mean_level * mean_level);
+    std::printf("the tail alone, held tones at every semitone 28..100: %+.1f to %+.1f dB of the input, mean %+.1f, %.1f dB about it; steady to %.1f dB\n",
+                low, high, mean_level, spread, swing);
+    EXPECT(low > -7.0, "no pitch is lost in the tail alone");
+    EXPECT(high < 5.0, "no pitch is thrown up in the tail alone");
+    EXPECT(spread < 2.5, "the tail alone is even over the keyboard");
+    EXPECT(swing < 3.5, "and steady in time on a held tone");
+  }
+
+  // 22. A held tone through unison at the default Mix. Every 20 s a voice
+  // glides through the played pitch and beats against the dry sound, slowly
+  // at the moment it passes: the tail being as loud as the note, the two
+  // can all but cancel on one side for a twentieth of a second. That is
+  // what a voice gliding through a held pitch is; it is bounded here, in
+  // 50 ms windows, so that it cannot grow into a note dropping out.
+  {
+    double low = 100.0, high = -100.0;
+    for (int note : {45, 57, 69, 81}) {
+      device.init(kRate);
+      turn_to(device, 0.9f, 3.0f);
+      Stereo out = run(device, sine(440.0f * std::exp2((note - 69) / 12.0f), 5.0f, kRate, 0.25f));
+      for (size_t at = 24000; at + 2400 <= out.size(); at += 1200) {
+        const double level = db(rms(out.left, at, at + 2400) / (0.25 * 0.7071));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+    }
+    std::printf("held tones through unison at the default Mix, 50 ms windows: %+.1f to %+.1f dB of the input\n", low, high);
+    EXPECT(low > -10.5 && high < 5.0, "a voice passing the played pitch does not take the note away");
+  }
+
+  // 23. A hit. The tail of a drum hit, alone, at the defaults: it starts at
+  // once (the first build: nothing for 80 ms with no Blur, then the hit
+  // again) and its highest moment is its first, within a tenth of a second,
+  // not a repeat that comes later.
+  {
+    std::vector<float> hit(static_cast<size_t>(0.8f * kRate));
+    rng_state() = 0xD12u;
+    for (size_t i = 0; i < hit.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      hit[i] = static_cast<float>(0.7 * std::exp(-t * 40.0) * std::sin(2.0 * kPi * 70.0 * t) +
+                                  (t < 0.03 ? 0.5 * white() * std::exp(-t * 150.0) : 0.0));
+    }
+    for (float blur : {0.0f, 0.5f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kBlur, blur);
+      Stereo out = run(device, hit);
+      double top = 0.0;
+      size_t top_at = 0, first = 0;
+      std::vector<double> envelope;
+      for (size_t at = 0; at + 240 <= static_cast<size_t>(0.4f * kRate); at += 240) {
+        envelope.push_back(rms(out.left, at, at + 240));
+        if (envelope.back() > top) {
+          top = envelope.back();
+          top_at = envelope.size() - 1;
+        }
+      }
+      while (first < envelope.size() && envelope[first] < 0.1 * top) ++first;
+      std::printf("a drum hit, the tail alone, Blur %.1f: within 20 dB of its highest after %zu ms, highest at %zu ms\n", blur,
+                  first * 5, top_at * 5);
+      EXPECT(first * 5 <= 40, "the tail of a hit starts within 40 ms");
+      EXPECT(top_at * 5 <= 100, "the hit's highest moment in the tail is its first, not a later repeat");
+    }
+  }
+
+  // 24. Through a wrap, in spectrum. The level is steady (check 3); here
+  // the sixth-octave band spectrum in 85 ms windows, for a held chord and
+  // for band noise, with two voices under the narrowest bell (one voice
+  // leads, so a step would show most) and with six under the widest: the
+  // change from one window to the next is no larger about the instants a
+  // voice leaves at one end and enters at the other than anywhere else.
+  {
+    rng_state() = 0xA11CEu;
+    std::vector<float> band = noise(17.0f, kRate, 0.5f);
+    double lowpass = 0.0, highpass = 0.0;
+    for (float& v : band) {
+      highpass += 0.145 * (v - highpass);
+      lowpass += 0.026 * (highpass - lowpass);
+      v = static_cast<float>(highpass - lowpass);
+    }
+    const std::vector<float> held = chord(17.0f, 0.5f);
+    for (int which = 0; which < 4; ++which) {
+      wet_only(device);
+      device.set_param(p::kDecay, 2.0f);
+      device.set_param(p::kClimb, 12.0f);
+      device.set_param(p::kVoices, which < 2 ? 2.0f : 6.0f);
+      device.set_param(p::kSpread, which < 2 ? 0.0f : 1.0f);
+      device.set_param(p::kBlur, 0.15f);
+      Stereo out = run(device, (which & 1) ? band : held);
+      // Band powers every 1024 samples from 3 s on.
+      std::vector<std::vector<double>> frames;
+      for (size_t at = 3 * 48000; at + 4096 <= out.size(); at += 1024) frames.push_back(band_powers(out.left, at));
+      std::vector<double> near, far;
+      for (size_t f = 4; f < frames.size(); ++f) {
+        double change = 0.0, total = 0.0;
+        for (size_t b = 0; b < frames[f].size(); ++b) {
+          change += std::fabs(frames[f][b] - frames[f - 4][b]);
+          total += frames[f][b] + frames[f - 4][b];
+        }
+        // The middle of the pair of windows, and how far that is from a wrap (every 5 s).
+        const double t = 3.0 + static_cast<double>(f) * 1024.0 / kRate;
+        const double phase = std::fmod(t, 5.0);
+        (phase < 0.2 || phase > 4.8 ? near : far).push_back(change / (total + 1.0e-20));
+      }
+      std::sort(near.begin(), near.end());
+      std::sort(far.begin(), far.end());
+      const double near_mid = near[near.size() / 2], far_mid = far[far.size() / 2];
+      const double near_top = near.back(), far_top = far.back();
+      std::printf("through wraps, %s, %s: spectrum change in 85 ms about a wrap %.3f (most %.3f), elsewhere %.3f (most %.3f)\n",
+                  which < 2 ? "2 voices, narrowest bell" : "6 voices, widest bell", (which & 1) ? "band noise" : "a held chord",
+                  near_mid, near_top, far_mid, far_top);
+      EXPECT(near_mid < far_mid * 1.25 + 0.01, "the spectrum does not step where a voice wraps");
+      EXPECT(near_top < far_top * 1.25 + 0.01, "nor once in a while");
+    }
+  }
+
+  // 25. What is in the tail that is not one of the six octaves of a held
+  // tone (splices, and what a voice reading faster than real time folds
+  // back): the part further than 2.5 % from every octave, six voices under
+  // the widest bell, Tone open. The clock creeps, so the partials stand.
+  {
+    for (float hz : {1000.0f, 6000.0f, 10000.0f}) {
+      device.init(kRate);
+      device.set_param(p::kVoices, 6.0f);
+      device.set_param(p::kSpread, 1.0f);
+      device.set_param(p::kBlur, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 1.0f);
+      device.set_param(p::kTone, 16000.0f);
+      turn_to(device, 0.5f, kCreep);
+      Stereo out = run(device, sine(hz, 4.0f, kRate, 0.25f));
+      double stray = 0.0, total = 0.0;
+      for (size_t at = 2 * 48000; at + 32768 <= out.size(); at += 32768) {
+        const double glide = 0.5 + kCreep / 60.0 * (static_cast<double>(at + 16384) / kRate);
+        const std::vector<double> power = power_of(out.left, at, 32768);
+        for (size_t k = 2; k < power.size(); ++k) {
+          const double f = static_cast<double>(k) * kRate / 32768.0;
+          bool wanted = false;
+          for (int v = 0; v < 6 && !wanted; ++v) {
+            const double at_hz = hz * std::exp2(std::fmod(glide + v, 6.0) - 3.0);
+            wanted = std::fabs(f - at_hz) < 0.025 * at_hz + 4.5;
+          }
+          total += power[k];
+          if (!wanted) stray += power[k];
+        }
+      }
+      const double share = 10.0 * std::log10(stray / total + 1.0e-20);
+      std::printf("a held %.0f Hz, six voices, Tone open: %.1f dB of the tail is not at one of its octaves\n", hz, share);
+      EXPECT(share < (hz > 3000.0f ? -27.0 : -45.0), "what the voices add that is not the glide stays small");
+    }
   }
 
   // Cost, as CPU time over many blocks (the wall clock is not to be trusted
