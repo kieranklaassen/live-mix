@@ -2,7 +2,7 @@
   "id": "canon",
   "name": "Canon",
   "category": "delay",
-  "description": "A round from one line: up to four followers repeat what you played, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.",
+  "description": "A round from one line: up to four followers repeat what you play, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.",
   "class": "Canon",
   "header": "canon.h",
   "sources": [],
@@ -72,7 +72,7 @@
       "max": 12,
       "default": 0,
       "step": 1,
-      "description": "Transposes the first follower by this many semitones, up or down. At zero it plays the line exactly as it was played."
+      "description": "Transposes the first follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
       "key": "interval2",
@@ -81,7 +81,7 @@
       "max": 12,
       "default": 7,
       "step": 1,
-      "description": "Transposes the second follower by this many semitones, up or down. At zero it plays the line exactly as it was played."
+      "description": "Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
       "key": "interval3",
@@ -90,7 +90,7 @@
       "max": 12,
       "default": -12,
       "step": 1,
-      "description": "Transposes the third follower by this many semitones, up or down. At zero it plays the line exactly as it was played."
+      "description": "Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
       "key": "interval4",
@@ -99,14 +99,14 @@
       "max": 12,
       "default": 12,
       "step": 1,
-      "description": "Transposes the fourth follower by this many semitones, up or down. At zero it plays the line exactly as it was played."
+      "description": "Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
       "key": "crab",
       "name": "Crab",
       "choices": ["Off", "Last", "Every other", "All"],
       "default": 0,
-      "description": "Which followers play each gap's worth of the line backwards. Last is the final follower, Every other the second and the fourth."
+      "description": "Which followers play backwards, one gap of the line at a time, counted from the first note after a rest. Last is the final follower, Every other the second and fourth."
     },
     {
       "key": "fade",
@@ -273,6 +273,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. The musical canon as a delay: one stereo line of 37.5 s, read by up to four followers on whole frames, each transposed by a two-head splicing shifter on a short ring of its own (shifter.h, after the Smooth splice of the Pitch Shifter device)."
+    "note": "Written for live-mix on cpp/kit. The musical canon as a delay: one stereo line of 37.5 s, read by up to four followers on whole frames, each transposed by a splicing shifter on a short ring of its own (shifter.h: one head, spliced where the wave lines up and only as often as the interval needs, and set a fixed way behind every attack; the search for the splice is after the Smooth splice of the Pitch Shifter device)."
   }
 }

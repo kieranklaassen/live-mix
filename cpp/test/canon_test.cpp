@@ -69,10 +69,11 @@ static void add_note(std::vector<float>& x, float hz, float at, float seconds, f
 // How an event arrives, against the same passage without it: `sudden` is the
 // share of the change that is already there after 8 samples (a smoothed
 // change has barely begun, a jump is all there), `step` the largest
-// sample-to-sample jump with the event over the largest without it, and
-// `change` how much the event changed the sound at all. Taken at eight
-// moments a little apart, the worst kept, so a jump cannot hide in a zero
-// crossing.
+// sample-to-sample jump with the event over the largest without it or with
+// the new setting there from the start (a follower moved up a fifth has
+// steps half as large again of its own, which is no click), and `change`
+// how much the event changed the sound at all. Taken at eight moments a
+// little apart, the worst kept, so a jump cannot hide in a zero crossing.
 struct Arrival {
   double sudden = 0.0;
   double step = 0.0;
@@ -87,12 +88,13 @@ static Arrival arrival(const std::function<void(Canon&)>& setup, const std::vect
     const size_t at = input.size() - listen - 4096 + static_cast<size_t>(moment) * 131;
     const std::vector<float> before(input.begin(), input.begin() + at);
     const std::vector<float> after(input.begin() + at, input.begin() + at + listen);
-    Stereo quiet, moved;
-    for (int pass = 0; pass < 2; ++pass) {
+    Stereo quiet, moved, settled;
+    for (int pass = 0; pass < 3; ++pass) {
       setup(device);
+      if (pass == 2) event(device);
       run(device, before);
       if (pass == 1) event(device);
-      (pass == 0 ? quiet : moved) = run(device, after);
+      (pass == 0 ? quiet : pass == 1 ? moved : settled) = run(device, after);
     }
     double first = 0.0, whole = 0.0;
     for (size_t i = 0; i < listen; ++i) {
@@ -103,7 +105,8 @@ static Arrival arrival(const std::function<void(Canon&)>& setup, const std::vect
     }
     if (whole > 0.0) worst.sudden = std::max(worst.sudden, first / whole);
     worst.change = std::max(worst.change, whole);
-    const double steady = std::max(max_step(quiet.left), max_step(quiet.right));
+    const double steady = std::max(std::max(max_step(quiet.left), max_step(quiet.right)),
+                                   std::max(max_step(settled.left), max_step(settled.right)));
     const double stepped = std::max(max_step(moved.left), max_step(moved.right));
     if (steady > 0.0) worst.step = std::max(worst.step, stepped / steady);
   }
@@ -199,10 +202,10 @@ int main() {
     EXPECT(quietest > 0.05, "each of the four transposed followers sounds");
   }
 
-  // A transposed follower holds a note steady: the splice lines the two
-  // heads up, so nearly all the power is at the new pitch (a blind crossfade
-  // leaves a fifth of it in sidebands). A chord keeps its notes, each within
-  // a sixth of a semitone.
+  // A transposed follower holds a note steady: a splice puts the new head
+  // where the wave lines up with the old one, so nearly all the power is at
+  // the new pitch (a blind crossfade leaves a fifth of it in sidebands). A
+  // chord keeps its notes, each within a sixth of a semitone.
   {
     double worst = 1.0;
     for (int semis : {12, 7, -5, -12}) {
@@ -215,6 +218,22 @@ int main() {
     }
     std::printf("canon transposed tone: least share of the power at the new pitch %.4f\n", worst);
     EXPECT(worst > 0.99, "a transposed follower holds a single note steady");
+
+    // The lowest notes there are: a splice looks 30 ms back, which holds one
+    // cycle down to 33 Hz. (With 20 ms a low E of a bass came back with a
+    // third of its power beside the note.)
+    double lowest = 1.0;
+    for (int semis : {2, 7, -5}) {
+      for (float hz : {41.2f, 55.0f}) {
+        plain(device);
+        device.set_param(p::kInterval1, static_cast<float>(semis));
+        Stereo out = run(device, sine(hz, 3.0f, kRate, 0.5f));
+        lowest = std::min(lowest, purity(out.left, {hz * std::pow(2.0, semis / 12.0)}, 48000, 144000));
+      }
+    }
+    std::printf("canon transposed low note (41 and 55 Hz): least share of the power at the new pitch %.4f\n",
+                lowest);
+    EXPECT(lowest > 0.99, "a transposed follower holds the lowest notes steady too");
 
     plain(device);
     device.set_param(p::kInterval1, 7.0f);
@@ -232,10 +251,12 @@ int main() {
            "a transposed chord comes back at the level it went in");
   }
 
-  // A transposed follower still enters on the gap: how late the shifter
-  // plays an attack is taken off the reader's delay. A struck note, placed
-  // twelve ways against the heads' sweep; its entry is where it first
-  // reaches half its height.
+  // A transposed follower still enters on the gap, and plays an attack once.
+  // The shifter puts its head a fixed way behind every attack, and that way
+  // is taken off the reader's delay. A struck note, placed twelve ways
+  // against where the head stands; its entry is where it first reaches half
+  // its height. (Two heads that are always crossing play an attack two or
+  // three times, the loudest of them up to 60 ms after the first.)
   {
     const auto entry = [](const std::vector<float>& x) {
       const double top = peak(x);
@@ -244,30 +265,42 @@ int main() {
       }
       return 0.0;
     };
-    double worst_mean = 0.0, worst_one = 0.0;
-    for (int semis : {12, 7, -5, -12}) {
+    double worst_mean = 0.0, worst_one = 0.0, worst_top = 0.0, worst_before = 0.0, worst_height = 0.0;
+    for (int semis : {12, 7, 2, -5, -12}) {
       double sum = 0.0;
       for (int placing = 0; placing < 12; ++placing) {
         plain(device);
         device.set_param(p::kInterval1, static_cast<float>(semis));
         std::vector<float> in = silence(1.2f, kRate);
-        in[0] = 1.0e-6f;  // wakes the device, so the heads' timetable starts here
+        in[0] = 1.0e-6f;  // wakes the device, so the head has been moving since here
         const size_t from = 4800 + static_cast<size_t>(placing) * 107;
         for (size_t i = 0; i < 14400; ++i) {
           in[from + i] = static_cast<float>(0.8 * std::sin(2.0 * kPi * 440.0 * i / kRate) *
                                             std::min(1.0, i / 48.0) * std::exp(-static_cast<double>(i) / 4800.0));
         }
         Stereo out = run(device, in);
-        const double late = (entry(out.left) - entry(in) - 24000.0) / 48.0;
+        const double came = entry(out.left);
+        const double late = (came - entry(in) - 24000.0) / 48.0;
         sum += late;
         worst_one = std::max(worst_one, std::fabs(late));
+        // Played once: its highest sample comes with the entry, as it went
+        // in (there 1 ms after), nothing comes before it, and it is as high.
+        const size_t top = peak_index(out.left, 0, out.left.size());
+        worst_top = std::max(worst_top, (static_cast<double>(top) - came) / 48.0);
+        worst_before = std::max(worst_before, peak(out.left, 0, static_cast<size_t>(came) - 96) / peak(out.left));
+        worst_height = std::max(worst_height, std::fabs(db(peak(out.left) / peak(in))));
       }
       worst_mean = std::max(worst_mean, std::fabs(sum / 12.0));
     }
     std::printf("canon transposed entry: on average %.2f ms off the gap at the most, one note %.2f ms\n",
                 worst_mean, worst_one);
-    EXPECT(worst_mean < 3.0, "a transposed follower's attack falls on the gap on average");
-    EXPECT(worst_one < 13.0, "a transposed follower's attack is never far from the gap");
+    std::printf("canon transposed attack: highest %.2f ms after the entry, %.3f of it before, height off by %.2f dB\n",
+                worst_top, worst_before, worst_height);
+    EXPECT(worst_mean < 1.5, "a transposed follower's attack falls on the gap on average");
+    EXPECT(worst_one < 2.0, "a transposed follower's attack falls on the gap wherever the head stands");
+    EXPECT(worst_top < 6.0, "a transposed follower plays an attack once: its height comes with its entry");
+    EXPECT(worst_before < 0.1, "nothing of a note sounds before its entry");
+    EXPECT(worst_height < 2.0, "a transposed attack is as high as it was played");
   }
 
   // A crab plays each gap's worth backwards: a rising sweep returns falling,
@@ -316,10 +349,11 @@ int main() {
   }
 
   // Where a crab's gap runs out the next one takes over without a hole or a
-  // click. The two are different sound, so they cross with equal power:
-  // noise keeps its level across the join. A held tone meets itself there,
-  // and 230.83 Hz does so half a wave out of step, which is the worst there
-  // is: it dips, by 4.4 dB over the crossing, but it does not jump.
+  // click. On unrelated sound the two cross with equal power: noise keeps
+  // its level across the join. A held tone meets itself there, in step or
+  // out of it as chance has it (230.83 Hz exactly half a wave out, which
+  // under a plain crossing is a dip of 4.5 dB, and others bump by 3): the
+  // new reader starts where it is in step, and the tone keeps its level.
   {
     // From the third gap on: what the second join crosses out of is the
     // silence before the line began.
@@ -341,20 +375,70 @@ int main() {
     EXPECT(db(low / rms(hiss)) > -1.5 && db(high / rms(hiss)) < 1.5,
            "a crab's joins keep the level of unrelated sound");
 
-    plain(device);
-    device.set_param(p::kGap, 0.3f);
-    device.set_param(p::kCrab, 3.0f);
-    out = run(device, sine(230.8333f, 2.0f, kRate, 0.5f));
     low = 1.0e9;
-    for (size_t at = kFrom; at + 1440 <= out.left.size(); at += 240) {
-      low = std::min(low, rms(out.left, at, at + 1440));
+    high = 0.0;
+    double step = 0.0;
+    for (float hz : {110.0f, 164.81f, 230.8333f, 311.13f, 440.0f, 587.33f, 830.61f}) {
+      plain(device);
+      device.set_param(p::kGap, 0.3f);
+      device.set_param(p::kCrab, 3.0f);
+      out = run(device, sine(hz, 2.0f, kRate, 0.5f));
+      // 10 ms at a time (whole cycles at none of these, so 1 dB of slack).
+      for (size_t at = kFrom; at + 480 <= out.left.size(); at += 120) {
+        const double level = rms(out.left, at, at + 480);
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      step = std::max(step, max_step(out.left, kFrom) / max_step(sine(hz, 0.1f, kRate, 0.5f)));
     }
-    const double tone_step = max_step(sine(230.8333f, 0.1f, kRate, 0.5f));
-    std::printf("canon crab joins on a tone: lowest level %.2f dB, step x%.2f\n", db(low / 0.3536),
-                max_step(out.left, kFrom) / tone_step);
-    EXPECT(db(low / 0.3536) > -6.0, "a crab's joins leave no hole in a held tone");
+    std::printf("canon crab joins on held tones: level between %.2f and %.2f dB of the tone, step x%.2f\n",
+                db(low / 0.3536), db(high / 0.3536), step);
+    EXPECT(db(low / 0.3536) > -2.0, "a crab's joins leave no dip in a held tone");
+    EXPECT(db(high / 0.3536) < 2.0, "a crab's joins leave no bump in a held tone");
     // Two copies of the tone in step add to 1.41 of it at the most: a click would be more.
-    EXPECT(max_step(out.left, kFrom) < 1.5 * tone_step, "a crab's joins do not click");
+    EXPECT(step < 1.5, "a crab's joins do not click");
+  }
+
+  // The crabs count their gaps from the first note after a rest, not from the
+  // first sample that is not exact silence: with a hiss at -100 dBFS under
+  // the playing (any microphone, any converter) a note still comes back
+  // whole, mirrored about its own gap, and so does a note after a rest that
+  // does not fall on the first one's count.
+  {
+    const size_t gap = 28800, length = 24000;
+    plain(device);
+    device.set_param(p::kGap, 0.6f);
+    device.set_param(p::kCrab, 3.0f);
+    rng_state() = 0x4155u;
+    std::vector<float> in = noise(5.0f, kRate, 1.0e-5f);
+    const size_t starts[2] = {39840, 39840 + length + 96000 + 13579};
+    add_note(in, 330.0f, static_cast<float>(starts[0]) / kRate, 0.5f, 0.5f);
+    add_note(in, 247.0f, static_cast<float>(starts[1]) / kRate, 0.5f, 0.5f);
+    Stereo out = run(device, in);
+    double least_alike = 1.0, least_share = 1.0;
+    for (int note = 0; note < 2; ++note) {
+      // The count starts on the note's first sample over -60 dBFS.
+      size_t first = starts[note];
+      while (std::fabs(in[first]) <= 0.001f) ++first;
+      double both = 0.0, played = 0.0, came = 0.0, inside = 0.0, all = 0.0;
+      for (size_t j = 0; first + j < starts[note] + length; ++j) {
+        const double a = in[first + j], b = out.left[first + 2 * gap - 1 - j];
+        both += a * b;
+        played += a * a;
+        came += b * b;
+      }
+      for (size_t t = first + gap; t < first + 3 * gap; ++t) {
+        const double b = static_cast<double>(out.left[t]) * out.left[t];
+        all += b;
+        if (t >= first + 2 * gap - length && t < first + 2 * gap) inside += b;
+      }
+      least_alike = std::min(least_alike, both / std::sqrt(played * came + 1.0e-30));
+      least_share = std::min(least_share, inside / (all + 1.0e-30));
+    }
+    std::printf("canon crab over a hiss: a note comes back mirrored about its own gap %.4f alike, %.4f of it there\n",
+                least_alike, least_share);
+    EXPECT(least_alike > 0.999 && least_share > 0.99,
+           "a crab's gaps are counted from the first note after a rest, whatever hiss lies under it");
   }
 
   // Round: the last follower feeds the line, so the canon comes round again,
@@ -725,7 +809,7 @@ int main() {
   }
 
   // The same sound at block sizes 1, 128 and 2048, across a sleep, with
-  // crabs counting their gaps and the shifters splicing on their timetable.
+  // crabs counting their gaps and the shifters splicing as they go.
   {
     rng_state() = 0xB10Cu;
     std::vector<float> passage = noise(0.4f, kRate, 0.4f);
@@ -755,6 +839,51 @@ int main() {
     EXPECT(worst < 1.0e-6, "the same sound at block sizes 1, 128 and 2048, across a sleep");
     EXPECT(peak(by_size[0].left, 456000, 480000) == 0.0 && peak(by_size[0].left, 480000) > 0.05,
            "the passage did sleep in between, and woke");
+  }
+
+  // Where the host's blocks fall changes nothing at the edge of sleep either:
+  // a note that begins within a block or two of the sample the device falls
+  // asleep on. (Asleep by the block, the device restarted its count of gaps
+  // for one block size and not for the other, and the two parted by 0.4.)
+  {
+    const auto setup = [](Canon& d) {
+      d.init(kRate);
+      d.set_param(p::kFollowers, 1.0f);
+      d.set_param(p::kGap, 0.25f);
+      d.set_param(p::kCrab, 3.0f);
+      d.set_param(p::kMix, 1.0f);
+    };
+    rng_state() = 0x51EEu;
+    const std::vector<float> burst = noise(0.1f, kRate, 0.4f);
+    // The sample it falls asleep on, found a sample at a time.
+    setup(device);
+    run(device, burst);
+    long falls = 0;
+    const std::vector<float> one(1, 0.0f);
+    while (!device.asleep() && falls < 4 * 48000) {
+      run(device, one, 1);
+      ++falls;
+    }
+    EXPECT(falls > 24000 && falls < 4 * 48000, "the device falls asleep after its burst");
+    double worst = 0.0;
+    for (long offset = -2304; offset <= 2304; offset += 384) {
+      std::vector<float> in = burst;
+      in.resize(burst.size() + static_cast<size_t>(falls + offset), 0.0f);
+      const size_t at = in.size();
+      const std::vector<float> note = sine(330.0f, 0.5f, kRate, 0.4f);
+      in.insert(in.end(), note.begin(), note.end());
+      in.resize(in.size() + 24000, 0.0f);
+      Stereo by_size[2];
+      for (int s = 0; s < 2; ++s) {
+        setup(device);
+        by_size[s] = run(device, in, s == 0 ? 1 : 2048);
+      }
+      for (size_t i = at; i < in.size(); ++i) {
+        worst = std::max(worst, std::fabs(static_cast<double>(by_size[0].left[i]) - by_size[1].left[i]));
+      }
+    }
+    std::printf("canon block sizes 1 and 2048, a note at the edge of sleep: differ by %g\n", worst);
+    EXPECT(worst < 1.0e-6, "the same sound at block sizes 1 and 2048 when a note begins as the device falls asleep");
   }
 
   // Level: at its defaults a steady sound comes out about as loud as it went

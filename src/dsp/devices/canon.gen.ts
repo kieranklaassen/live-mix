@@ -39,7 +39,7 @@ export const CANON_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'Transposes the first follower by this many semitones, up or down. At zero it plays the line exactly as it was played.',
+      'Transposes the first follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
   },
   interval2: {
     id: 3,
@@ -51,7 +51,7 @@ export const CANON_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'Transposes the second follower by this many semitones, up or down. At zero it plays the line exactly as it was played.',
+      'Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
   },
   interval3: {
     id: 4,
@@ -63,7 +63,7 @@ export const CANON_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'Transposes the third follower by this many semitones, up or down. At zero it plays the line exactly as it was played.',
+      'Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
   },
   interval4: {
     id: 5,
@@ -75,7 +75,7 @@ export const CANON_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'Transposes the fourth follower by this many semitones, up or down. At zero it plays the line exactly as it was played.',
+      'Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
   },
   crab: {
     id: 6,
@@ -87,7 +87,7 @@ export const CANON_PARAMS = {
     unit: '',
     choices: ['Off', 'Last', 'Every other', 'All'],
     description:
-      "Which followers play each gap's worth of the line backwards. Last is the final follower, Every other the second and the fourth.",
+      'Which followers play backwards, one gap of the line at a time, counted from the first note after a rest. Last is the final follower, Every other the second and fourth.',
   },
   fade: {
     id: 7,
@@ -169,7 +169,7 @@ export const CANON_DESCRIPTOR = wasmDeviceDescriptor(CANON_DEVICE, {
   name: 'Canon',
   category: 'delay',
   description:
-    'A round from one line: up to four followers repeat what you played, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.',
+    'A round from one line: up to four followers repeat what you play, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.',
   presets: {
     'Round of three': {},
     'Plain round': { gap: 2, interval2: 0, interval3: 0, fade: 0 },
@@ -236,7 +236,7 @@ export const CANON_DESCRIPTOR = wasmDeviceDescriptor(CANON_DEVICE, {
 
 export type Canon = WasmDevice<typeof CANON_PARAMS>
 
-/** A round from one line: up to four followers repeat what you played, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again. */
+/** A round from one line: up to four followers repeat what you play, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again. */
 export function createCanon(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof CANON_PARAMS> = {},

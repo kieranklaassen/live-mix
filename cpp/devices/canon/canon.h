@@ -11,28 +11,43 @@
 //          │          └─► follower 4 ─► shift ─► place ─┘
 //          └─ limit ◄─ × Round ◄─ 30 Hz low cut ◄─ tone ◄─ the last follower, before placing
 //
-// - The line is one stereo float ring of 37.5 s at 96 kHz (29 MB, line.h):
+// - The line is one stereo float ring of 37.5 s at 96 kHz (28.9 MB of the
+//   device's 29.7, under the 32 it is given; line.h):
 //   four gaps of 7.5 s, and one more for a crab that reads back through its
 //   own gap. A follower reads it on whole frames, so follower k at unison is
 //   the line k gaps ago, bit for bit.
-// - A crab follower plays each gap's worth backwards: the gaps are counted
-//   from the first note after a silence, and inside gap number m follower k
-//   starts k - 1 gaps back at the gap's last frame and walks back two frames
-//   of delay a sample. So what a forward follower would play at place a of a
-//   gap, the crab plays at its mirror, Gap - 1 - a.
+// - A crab follower plays each gap's worth backwards. The gaps are counted
+//   from the first note after a rest: the first sample over -60 dBFS after
+//   the input has stayed under that for as long as the furthest follower
+//   reaches back. (Not from the first sample that is not exact silence: a
+//   hiss under the playing would put the joins anywhere.) Inside gap number
+//   m follower k starts k - 1 gaps back at the gap's last frame and walks
+//   back two frames of delay a sample. So what a forward follower would play
+//   at place a of a gap, the crab plays at its mirror, Gap - 1 - a.
+// - Where a crab's gap runs out, the reader of the next gap takes over in a
+//   crossing. Two pieces of one held sound meet there, in step or out of it
+//   as chance has it, which under a plain equal-power crossing is a dip of
+//   up to 10 dB or a bump of 5. So where the two are one sound the new
+//   reader starts up to 10 ms further back, where the line best agrees with
+//   what the old one goes on to play, and the crossing is scaled by how
+//   well the two agree: a held note keeps its level through the join.
+//   Unrelated sound (two notes, noise) crosses on the sample, at equal
+//   power. The followers' joins come 1.7 ms apart, so no block looks for
+//   more than one.
 // - A follower's reader never glides. When Gap, Crab or an interval moves it,
 //   or a crab's gap runs out, a new reader starts at the new place and the
 //   two cross over (equal power, 30 ms or a quarter of the gap), one
 //   crossing at a time: a move made during a crossing waits for its end.
-// - Transposing is a stage after the reader (shifter.h): two heads on a
-//   short ring, spliced where the wave lines up. How late it plays an attack
-//   on average (21 ms an octave up, 14 ms an octave down) is taken off the
-//   reader's delay, so the attack of a transposed forward follower still
-//   falls on the gap on average, and within 12 ms of it wherever it lands in
-//   the heads' sweep. A crab is not corrected and plays that much late. At
-//   zero the shifter is out of the path; turning an interval to or from zero
-//   crosses the two over in 30 ms, and between two intervals the pitch
-//   glides (12 ms).
+// - Transposing is a stage after the reader (shifter.h): one head on a
+//   short ring, spliced where the wave lines up and only as often as the
+//   interval needs, and put a fixed way behind every attack. How late it
+//   plays an attack (11 ms an octave up, 4 ms an octave down) is taken off
+//   the reader's delay, so the attack of a transposed forward follower
+//   falls on the gap. A crab plays no attacks (it comes to each note from
+//   its end) and is not corrected: what a transposed crab plays is 6 to 24
+//   ms late by its interval, the most a fifth down. At zero the shifter is
+//   out of the path; turning an interval to or from zero crosses the two
+//   over in 30 ms, and between two intervals the pitch glides (12 ms).
 // - Fade makes each follower 12 dB times Fade quieter than the one before,
 //   and the followers together are scaled to the power of one, so a count of
 //   four is no louder than one. Spread puts them left and right in turn (a
@@ -46,9 +61,10 @@
 //   loop gain is Round, under one, and what returns is limited (exactly
 //   linear up to full scale, never past twice that).
 // - Rest: once nothing above -140 dBFS has been written for as long as the
-//   furthest reader reaches, the device sleeps, and it wakes with a blank
-//   line and the gaps counted from the first sample that is not silence,
-//   wherever in a block that falls.
+//   furthest reader reaches, the device sleeps from the next sample of exact
+//   silence on, and it wakes with a blank line on the first sample that is
+//   not silence. Both are settled sample by sample, so where the host's
+//   blocks fall changes nothing.
 
 #include "../../kit/kit.h"
 #include "line.h"
@@ -67,7 +83,6 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     line_.clear();
-    window_ = canon_dsp::Shifter::window_samples(sr);
     for (int k = 0; k < kVoices; ++k) {
       Follower& f = followers_[k];
       f.shifter.prepare(sr);
@@ -90,6 +105,9 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     tone_.set_time(kSmoothingSeconds, sr / kControlPeriod);
     meter_window_ = static_cast<int>(kMeterSeconds * sr);
     if (meter_window_ < 1) meter_window_ = 1;
+    const float held = kit::min(sr, 96000.0f);  // the line is sized for 96 kHz
+    slip_most_ = static_cast<int>(kSlipSeconds * held);
+    stagger_ = static_cast<int>(kStaggerSeconds * held);
     count_ = 1;
     asleep_ = true;
     for (int id = 0; id < kNumParams; ++id) apply(id);
@@ -132,35 +150,40 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   void process(int frames) {
     using namespace canon;
     frames = begin_block(frames);
-    const bool excited = input_present(frames);
-    int first = 0;
-    if (asleep_) {
-      if (!excited) {
-        silence_output(frames);
-        return;
-      }
-      asleep_ = false;
-      line_.forget();
-      restart();
-      // The device starts on the first sample that is not silence, wherever in
-      // the block that is: the crabs' gaps and the shifters' splices are
-      // counted from there, so the block size does not move them.
-      while (in_left_[first] == 0.0f && in_right_[first] == 0.0f) {
-        out_left_[first] = 0.0f;
-        out_right_[first] = 0.0f;
-        ++first;
-      }
+    if (asleep_ && !input_present(frames)) {
+      silence_output(frames);
+      return;
     }
-    float loudest = 0.0f;  // of the followers, heard or not: the line runs on at Mix 0
-    for (int i = first; i < frames; ++i) {
+    for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      const bool silent = in[0] == 0.0f && in[1] == 0.0f;
+      if (asleep_) {
+        if (silent) {
+          out_left_[i] = 0.0f;
+          out_right_[i] = 0.0f;
+          continue;
+        }
+        // The device starts on the first sample that is not silence, wherever
+        // in the block that is, so the block size does not move anything.
+        asleep_ = false;
+        line_.forget();
+        restart();
+      }
       // A bad sample from upstream (not a number, infinite, absurdly large)
       // must not sit in the line for half a minute.
       in[0] = sane(in[0]);
       in[1] = sane(in[1]);
 
       if (clock_.tick()) control();
+      // A first note after a rest: the crabs count their gaps from here.
+      const float heard = kit::max(in[0] < 0.0f ? -in[0] : in[0], in[1] < 0.0f ? -in[1] : in[1]);
+      if (heard > kNote) {
+        if (quiet_ > rest_) chunk_ = 0;
+        quiet_ = 0;
+      } else if (quiet_ < kLongEnough) {
+        ++quiet_;
+      }
       if (chunk_ >= gap_) chunk_ = 0;
 
       // The followers, last to first: each adds itself to what the later
@@ -184,8 +207,6 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
           read(f, k, &left, &right);
           f.shifter.write(left, right);
           shift(f, k, &left, &right);
-          const float size = kit::max(left < 0.0f ? -left : left, right < 0.0f ? -right : right);
-          if (size > loudest) loudest = size;
 
           const float feed = f.feed.next();
           back[0] += feed * left;
@@ -246,12 +267,10 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
 
       ++chunk_;
       ++run_;
-    }
-    // Asleep once nothing comes in, nothing above the floor has been written
-    // for as long as any reader reaches, and the followers and the output
-    // have died away.
-    if (!excited && blank_ > reach_ && loudest <= kFloor && output_peak(frames) <= kFloor) {
-      asleep_ = true;
+      // Asleep from the next sample on, once nothing comes in and nothing
+      // above the floor has been written for as long as any reader reaches:
+      // by then every follower has played its last.
+      if (silent && blank_ > reach_) asleep_ = true;
     }
   }
 
@@ -261,7 +280,9 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
 
  private:
   // The longest Gap at 96 kHz, and the line: five of them (a crab at the
-  // fourth place reaches back that far) and the tail of its fade.
+  // fourth place reaches back that far) and what its old reader reads on
+  // through a join: 5 ms of waiting its turn, 10 ms of slip and a crossing
+  // of 30 ms, at two frames a sample (7680 frames).
   static constexpr int kMaxGap = 720000;
   static constexpr int kMinGap = 64;
   static constexpr int kLineFrames = 5 * kMaxGap + 8192;
@@ -277,6 +298,17 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   // Each follower is this much quieter than the one before at Fade 1.
   static constexpr float kFadeDb = 12.0f;
   static constexpr float kRumbleHz = 30.0f;
+  // A note, for the crabs' count of gaps: anything over -60 dBFS.
+  static constexpr float kNote = 0.001f;
+  // The furthest a crab's new reader starts back from its place to take over
+  // in step, and how long after the one before each follower's join comes.
+  static constexpr float kSlipSeconds = 0.01f;
+  static constexpr float kStaggerSeconds = 1.0f / 600.0f;
+  static constexpr int kJoinPoints = 32;   // compared for every slip
+  static constexpr int kCheckPoints = 96;  // and for the one chosen
+  static constexpr float kSlipAlike = 0.5f;   // a slip is taken only where the two agree this well
+  static constexpr float kSlipGain = 0.1f;    // and better than at the reader's own place by this
+  static constexpr float kJoinQuiet = 1.0e-7f;  // the old reader's stretch under about -85 dBFS
   static constexpr float kSqrtTwo = 1.41421356f;
   // For a display (see meter): the length of one of the two stretches a level
   // is the highest sample of, and where the clock goes round.
@@ -302,6 +334,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   struct Follower {
     Reader now, old;
     float cross = 1.0f, cross_step = 0.0f;  // the old reader sounds while cross < 1
+    int slip = 0;        // frames a crab's reader stands behind its place (see align)
+    float agree = 0.0f;  // how alike the two readers of a crab's join are, 0..1
     bool fresh = true;                      // nothing to cross over from
     bool crab = false;
     bool shifting = false;
@@ -334,7 +368,7 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     Reader want;
     if (f.crab) {
       want.step = 2;
-      want.delay = k * gap_ + 2 * chunk_ + 1;
+      want.delay = k * gap_ + 2 * chunk_ + 1 + f.slip;
     } else {
       want.step = 0;
       want.delay = (k + 1) * gap_ - f.lead;
@@ -342,10 +376,22 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     }
     if (f.fresh) {
       f.fresh = false;
+      if (f.crab) want.delay -= f.slip;
+      f.slip = 0;
       f.now = want;
       f.cross = 1.0f;
-    } else if (f.cross >= 1.0f && (f.now.delay != want.delay || f.now.step != want.step)) {
+    } else if (f.cross >= 1.0f && (f.now.delay != want.delay || f.now.step != want.step) &&
+               !(f.crab && f.now.step == 2 && chunk_ < k * stagger_)) {
+      // (A crab whose gap has just run out waits its turn: see stagger_.)
       f.old = f.now;
+      f.agree = 0.0f;
+      if (f.crab) {
+        want.delay -= f.slip;
+        f.slip = align(f.old, want.delay, &f.agree);
+        want.delay += f.slip;
+      } else {
+        f.slip = 0;
+      }
       f.now = want;
       f.cross = 0.0f;
       f.cross_step = 1.0f / static_cast<float>(cross_samples_);
@@ -356,12 +402,121 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       float old_left, old_right;
       line_.read(f.old.delay, &old_left, &old_right);
       f.old.delay += f.old.step;
-      const float in_gain = kit::SineTable::lookup(0.25f * f.cross);
-      const float out_gain = kit::SineTable::cos_lookup(0.25f * f.cross);
+      float in_gain = kit::SineTable::lookup(0.25f * f.cross);
+      float out_gain = kit::SineTable::cos_lookup(0.25f * f.cross);
+      if (f.agree > 0.0f) {
+        // The two are alike by `agree`: equal power would add them up to
+        // 3 dB over. Scaled back to the level of one.
+        const float level = 1.0f / std::sqrt(1.0f + 2.0f * in_gain * out_gain * f.agree);
+        in_gain *= level;
+        out_gain *= level;
+      }
       *left = *left * in_gain + old_left * out_gain;
       *right = *right * in_gain + old_right * out_gain;
       f.cross += f.cross_step;
     }
+  }
+
+  // The two sides of the line as one, `delay` frames back.
+  float heard(int delay) const {
+    float left, right;
+    line_.read(delay, &left, &right);
+    return left + right;
+  }
+
+  // A crab's join: how many frames behind `start` its new reader should
+  // begin so that it takes over in step with what the old reader (`old`,
+  // also walking backwards) goes on to play, and how alike the two then are.
+  // Both walk back a frame of the line a sample, so sample n of the crossing
+  // is the frame n further back for each: the two stretches are compared as
+  // they lie in the line now, at 32 unevenly spaced points under a Hann bell,
+  // for every slip up to 10 ms (an eighth of the gap at the most).
+  int align(const Reader& old, int start, float* agree) const {
+    *agree = 0.0f;
+    if (old.step != 2) return 0;
+    const int most = slip_most_ < gap_ / 8 ? slip_most_ : gap_ / 8;
+    if (most < 1) return 0;
+    const float stride = static_cast<float>(cross_samples_) / kJoinPoints;
+    int offset[kJoinPoints];
+    float reference[kJoinPoints];
+    float weight[kJoinPoints];
+    float energy = 0.0f;
+    for (int i = 0; i < kJoinPoints; ++i) {
+      const float wander = static_cast<float>(i) * 0.6180340f;
+      offset[i] = static_cast<int>((static_cast<float>(i) + wander - std::floor(wander)) * stride);
+      weight[i] = 0.5f - 0.5f * kit::SineTable::cos_lookup((static_cast<float>(i) + 0.5f) / kJoinPoints);
+      const float sample = heard(old.delay + offset[i]);
+      reference[i] = weight[i] * sample;
+      energy += reference[i] * sample;
+    }
+    if (energy < kJoinQuiet) return 0;  // nothing there to be in step with
+    const float scale = 1.0f / std::sqrt(energy);
+    const auto score = [&](int slip) {
+      float match = 0.0f;
+      float power = 1.0e-20f;
+      for (int i = 0; i < kJoinPoints; ++i) {
+        const float sample = heard(start + slip + offset[i]);
+        match += reference[i] * sample;
+        power += weight[i] * sample * sample;
+      }
+      return match * scale / std::sqrt(power);
+    };
+    // Among equal matches (a held note gives one per cycle) the nearest.
+    const auto biased = [&](int slip) {
+      return score(slip) - 0.02f * static_cast<float>(slip) / static_cast<float>(most);
+    };
+    const int coarse = most / 128 + 1;
+    int best = 0;
+    float best_score = biased(0);
+    for (int slip = coarse; slip <= most; slip += coarse) {
+      const float value = biased(slip);
+      if (value > best_score) {
+        best_score = value;
+        best = slip;
+      }
+    }
+    const int centre = best;
+    for (int slip = centre - coarse + 1; slip < centre + coarse; ++slip) {
+      if (slip == centre || slip < 0 || slip > most) continue;
+      const float value = biased(slip);
+      if (value > best_score) {
+        best_score = value;
+        best = slip;
+      }
+    }
+    // How alike the two are there, measured again at other points: the
+    // best of many slips reads too high at the points that chose it, and
+    // unrelated sound (noise, two different notes) would be turned down.
+    // The reader stays at its own place unless the slip is plainly one sound
+    // meeting itself and plainly better: unrelated sound, which a slip does
+    // nothing for, stays on the sample.
+    const float found = alike(old.delay, start + best);
+    const float plain = best == 0 ? found : alike(old.delay, start);
+    if (found < kSlipAlike || plain >= found - kSlipGain) {
+      *agree = kit::clamp(plain, 0.0f, 1.0f);
+      return 0;
+    }
+    *agree = kit::clamp(found, 0.0f, 1.0f);
+    return best;
+  }
+
+  // How alike what two backward readers go on to play is, -1..1, over one
+  // crossing: the stretches behind `a` and `b` frames back, at 96 points.
+  float alike(int a, int b) const {
+    float match = 0.0f, power_a = 1.0e-20f, power_b = 1.0e-20f;
+    const float stride = static_cast<float>(cross_samples_) / kCheckPoints;
+    for (int i = 0; i < kCheckPoints; ++i) {
+      const float wander = static_cast<float>(i) * 0.7548777f;
+      const int at = static_cast<int>((static_cast<float>(i) + wander - std::floor(wander)) * stride);
+      const float bell =
+          0.5f - 0.5f * kit::SineTable::cos_lookup((static_cast<float>(i) + 0.5f) / kCheckPoints);
+      const float x = heard(a + at);
+      const float y = heard(b + at);
+      match += bell * x * y;
+      power_a += bell * x * x;
+      power_b += bell * y * y;
+    }
+    return match / std::sqrt(power_a * power_b);
   }
 
   // The follower's interval: nothing at zero, the shifter otherwise, and the
@@ -377,15 +532,13 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       f.shifting = true;
       f.ratio = kit::semitones_to_ratio(f.semis.value);
       f.ratio_step = 0.0f;
-      // The splices of follower k fall an eighth of a window after those of
-      // the one before, by the device's own count of samples.
-      const long long half = window_ / 2;
-      const long long into = (run_ - static_cast<long long>(k) * (window_ / 8)) % half;
-      f.shifter.restart(static_cast<int>(into <= 0 ? -into : half - into));
+      // Each follower's head starts a quarter of its room after the one
+      // before, so followers at one interval do not splice together.
+      f.shifter.restart(0.25f * static_cast<float>(k));
     }
     f.ratio += f.ratio_step;
     float shifted_left, shifted_right;
-    f.shifter.render(f.ratio, f.target_ratio, &shifted_left, &shifted_right);
+    f.shifter.render(f.ratio, &shifted_left, &shifted_right);
     if (blend >= 1.0f) {
       *left = shifted_left;
       *right = shifted_right;
@@ -414,13 +567,18 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     chunk_ = 0;
     run_ = 0;
     blank_ = 0;
+    quiet_ = kLongEnough;
+    rest_ = 0;
     meter_count_ = 0;
     line_peak_[0] = line_peak_[1] = 0.0f;
     for (int k = 0; k < kVoices; ++k) {
       Follower& f = followers_[k];
       f.fresh = true;
       f.cross = 1.0f;
+      f.slip = 0;
+      f.agree = 0.0f;
       f.shifting = false;
+      f.shifter.clear();
       f.semis.snap(f.semis.target);
       f.blend.snap(f.blend.target);
       f.gain_left.snap(f.gain_left.target);
@@ -464,9 +622,10 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
         f.ratio_step = (next - f.ratio) * (1.0f / kControlPeriod);
       }
     }
-    // A crossing reads on behind a crab, and a shifter holds its own ring's worth.
-    reach_ = static_cast<long>(furthest) + 2 * cross_samples_ + canon_dsp::Shifter::kSize +
-             static_cast<long>(0.05f * sr);
+    // A crossing reads on behind a crab (which may wait its turn and stand a
+    // slip further back), and a shifter holds its own ring's worth.
+    rest_ = static_cast<long>(furthest) + 2 * (cross_samples_ + kVoices * stagger_) + slip_most_;
+    reach_ = rest_ + canon_dsp::Shifter::kSize + static_cast<long>(0.05f * sr);
 
     // Tone: one pole per follower; at the top of its range the pole is gone.
     const float tone = tone_.next();
@@ -580,10 +739,13 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   int gap_ = kMinGap;      // the gap in samples
   int chunk_ = 0;          // samples into the gap the crabs count
   int cross_samples_ = 8;
-  int window_ = 2400;      // the shifters' window, for their timetable
   long long run_ = 0;      // samples since the device woke
   long blank_ = 0;         // samples since anything above the floor was written
   long reach_ = kLongEnough;
+  long quiet_ = kLongEnough;  // samples since the input was last a note
+  long rest_ = 0;          // how long a rest lasts: as far back as any reader reads
+  int slip_most_ = 480;    // the furthest a crab's new reader stands back (see align)
+  int stagger_ = 80;       // samples between one follower's join and the next one's
   float open_tone_ = 0.0f;
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;

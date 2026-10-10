@@ -393,7 +393,12 @@ const canon = plateDisplay<CanonState>({
         const roomAbove = above - 8 >= lay.back + 3
         const roomBelow = below <= lay.foot - 5
         const up = semitones >= 0 ? roomAbove || !roomBelow : !roomBelow && roomAbove
-        label(frame, intervalText(semitones), x + 5, up ? above : below)
+        // The figures of a follower at the far right end at the edge of the picture.
+        const words = intervalText(semitones)
+        ctx.font = `8px ${frame.fontFamily}`
+        const fits = x + 5 + Math.ceil(ctx.measureText(words).width) + 2 <= right
+        if (fits) label(frame, words, x + 5, up ? above : below)
+        else label(frame, words, right - 2, up ? above : below, 'right')
       }
     }
 

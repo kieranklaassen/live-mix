@@ -425,6 +425,24 @@ describe('the picture', () => {
   })
 })
 
+describe('a follower at the far right', () => {
+  it('keeps its figures inside the picture at the longest Gap, at every size', () => {
+    for (const [width, height] of [
+      [128, 100],
+      [204, 100],
+      [224, 48],
+    ]) {
+      const values = { followers: 4, gap: params.gap.max, interval4: -11 }
+      const drawn = drawDisplay(display, params, { values, meters: resting, width, height })
+      const patch = patchUnder(drawn, '−11', plate)
+      expect(patch).not.toBeNull()
+      if (!patch) continue
+      expect(patch.x + patch.w).toBeLessThanOrEqual(width - 4)
+      expect(patch.x).toBeGreaterThan(layoutAt(values, width, height).now)
+    }
+  })
+})
+
 describe('the points to drag', () => {
   const handles = (values: Record<string, number> = {}) =>
     display.handles?.(viewOf(display, params, { values })) ?? []
