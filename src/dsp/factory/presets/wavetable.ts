@@ -476,4 +476,29 @@ export const WAVETABLE_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'vinyl', preset: 'Charity shop find' },
     ],
   },
+  {
+    id: 'hollow-table-bass',
+    name: 'Hollow table bass',
+    category: 'bass',
+    description:
+      'A hollow wave that narrows and widens while it is held and takes a third of a second to arrive, with a faint sung chapel.',
+    instrument: {
+      deviceId: 'wavetable',
+      params: {
+        table: 3,
+        position: 0.25,
+        motion: 0.5,
+        rate: 0.25,
+        detune: 0,
+        sub: 0,
+        cutoff: 700,
+        resonance: 0.1,
+        attack: 0.3,
+        release: 0.9,
+        spread: 0,
+        volume: -7,
+      },
+    },
+    effects: [{ deviceId: 'vowel-reverb', preset: 'Chapel', params: { lowCut: 250, mix: 0.2 } }],
+  },
 ]

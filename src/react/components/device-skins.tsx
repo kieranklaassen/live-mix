@@ -1873,6 +1873,10 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   constellation: { ...PLATE_PALETTES.constellation, finish: 'fade', cap: 'dot' },
   'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'speckle', cap: 'disc' },
   orbits: { ...PLATE_PALETTES.orbits, finish: 'speckle', cap: 'dot' },
+  'sub-bass': { ...PLATE_PALETTES['sub-bass'], finish: 'gloss', cap: 'skirt' },
+  'fm-bass': { ...PLATE_PALETTES['fm-bass'], finish: 'brushed', cap: 'dot' },
+  'acid-bass': { ...PLATE_PALETTES['acid-bass'], finish: 'matte', cap: 'pointer' },
+  'string-bass': { ...PLATE_PALETTES['string-bass'], finish: 'grain', cap: 'disc' },
 }
 
 /**

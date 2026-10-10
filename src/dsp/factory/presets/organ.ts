@@ -491,4 +491,32 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'fdn-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
+  {
+    id: 'reed-organ-pedal',
+    name: 'Reed organ pedal',
+    category: 'bass',
+    description:
+      'Reed organ pedal notes, a mildly reedy rank with quieter octaves under and over it, through a slowly turning mono cabinet in a chamber.',
+    instrument: {
+      deviceId: 'organ',
+      params: {
+        sub: 0.3,
+        octave: 0.25,
+        twelfth: 0,
+        fifteenth: 0,
+        reed: 0.4,
+        celeste: 0,
+        breath: 0.1,
+        bellows: 0,
+        attack: 0.03,
+        release: 0.25,
+        tone: 1500,
+        volume: -7,
+      },
+    },
+    effects: [
+      { deviceId: 'rotary', preset: 'Mono cabinet' },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.1 } },
+    ],
+  },
 ]

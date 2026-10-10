@@ -122,6 +122,10 @@ export const PLATE_PALETTES = {
   constellation: { plate: '#0b1026', ink: '#e9ecfb', accent: '#ffcf70' },
   'skipping-stone': { plate: '#3d5560', ink: '#edf4f2', accent: '#ffcf87' },
   orbits: { plate: '#44508f', ink: '#f1efe6', accent: '#ffb454' },
+  'sub-bass': { plate: '#4b16c4', ink: '#f3edff', accent: '#ffc94a' },
+  'fm-bass': { plate: '#16d8c4', ink: '#03241f', accent: '#8a1040' },
+  'acid-bass': { plate: '#b4e61a', ink: '#16210a', accent: '#b3125e' },
+  'string-bass': { plate: '#99500a', ink: '#fff3e0', accent: '#ffe066' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

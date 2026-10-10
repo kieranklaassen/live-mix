@@ -468,4 +468,32 @@ export const FM_GLASS_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'hall-reverb', preset: 'Dark hall', params: { mix: 0.35 } },
     ],
   },
+  {
+    id: 'glass-mallet-bass',
+    name: 'Glass mallet bass',
+    category: 'bass',
+    description:
+      "A struck FM bass: a modulator at the note's own pitch knocks and fades into a round tone, with chorus on the top only.",
+    instrument: {
+      deviceId: 'fm-glass',
+      params: {
+        algorithm: 2,
+        ratio: 1,
+        brightness: 0.4,
+        decay: 1.2,
+        attack: 0.002,
+        release: 0.3,
+        sustain: 0,
+        detune: 0,
+        feedback: 0.25,
+        velocity: 0.5,
+        spread: 0,
+        volume: -8.5,
+      },
+    },
+    effects: [
+      { deviceId: 'saturator', preset: 'Soft tape warmth' },
+      { deviceId: 'chorus', preset: 'Wide chorus', params: { hpHz: 400, mix: 0.25 } },
+    ],
+  },
 ]
