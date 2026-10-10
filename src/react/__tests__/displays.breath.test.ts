@@ -7,7 +7,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { BREATH_PARAMS } from '../../dsp/devices/breath.gen'
+import { BREATH_DESCRIPTOR, BREATH_PARAMS } from '../../dsp/devices/breath.gen'
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { type ParamSpec } from '../../core/params'
 import { INK, PLAIN_COLOURS, type Box } from '../components/display-kit'
@@ -23,6 +23,7 @@ import {
   breathAt,
   breathBox,
   breathCutoffHz,
+  breathDepthOf,
   breathFloor,
   breathGain,
   breathHighs,
@@ -68,7 +69,7 @@ const SIZES = [
 const SETTINGS: readonly Values[] = [
   {},
   { in: 4, hold: 4, out: 4, rest: 4, depth: 0.5, colour: 0.35, air: 0.15, ease: 0.5 },
-  { in: 0.25, hold: 0, out: 0.32, rest: 0, depth: 0.5, colour: 0.4, air: 0.8, ease: 0.4 },
+  { in: 0.25, hold: 0.02, out: 0.32, rest: 0.02, depth: 0.5, colour: 0.4, air: 0.8, ease: 0.4 },
   { in: 0.3, hold: 1.6, out: 3, rest: 0.8, depth: 1, colour: 0.6, air: 0.7, ease: 0.3 },
   { in: 2, hold: 0.3, out: 12, rest: 2, depth: 0.8, colour: 1, air: 1, ease: 1, mix: 0.6 },
   { in: 2, hold: 2, out: 2, rest: 2, depth: 1, colour: 0, air: 0, ease: 0 },
@@ -77,6 +78,12 @@ const SETTINGS: readonly Values[] = [
 const valueOf = (values: Values, name: string): number => values[name] ?? specs[name].default
 const partsOf = (values: Values): BreathParts =>
   breathParts({ value: (name) => valueOf(values, name) })
+/**
+ * Where a device that has run for `seconds` is in its cycle (0..1 of it as set,
+ * from the start of In), with Vary at 0: it starts full, at the top of Hold.
+ */
+const cycleAt = (seconds: number, parts: BreathParts): number =>
+  ((seconds + parts.in) / parts.total) % 1
 
 function set(device: WasmDeviceHarness, values: Values): void {
   for (const [name, value] of Object.entries(values)) device.set(specs[name], value)
@@ -224,9 +231,16 @@ describe('the Breath display: the formulas', () => {
   })
 
   it('has the floor, the way in and the cutoff worked out by hand', () => {
+    // The floor is (1 − Depth^1.5)²: a quarter of the knob is seven eighths squared, 2.3 dB down.
     expect(breathFloor(0)).toBe(1)
-    expect(breathFloor(0.5)).toBeCloseTo(0.25, 12)
+    expect(breathFloor(0.25)).toBeCloseTo(0.765625, 12)
+    expect(breathFloor(0.5)).toBeCloseTo((1 - Math.SQRT2 / 4) ** 2, 12)
+    expect(20 * Math.log10(breathFloor(0.5))).toBeCloseTo(-7.58, 2)
+    expect(20 * Math.log10(breathFloor(specs.depth.default))).toBeCloseTo(-5.07, 2)
     expect(breathFloor(1)).toBe(0)
+    for (const depth of [0, 0.1, 0.4, 0.75, 1]) {
+      expect(breathDepthOf(breathFloor(depth))).toBeCloseTo(depth, 12)
+    }
     // A line at Ease 0, half a cosine at 1, and half way between at a half.
     expect(breathRise(0.25, 0)).toBeCloseTo(0.25, 12)
     expect(breathRise(0.25, 1)).toBeCloseTo(0.5 - 0.5 * Math.SQRT1_2, 12)
@@ -240,10 +254,10 @@ describe('the Breath display: the formulas', () => {
     expect(breathCutoffHz(1)).toBeCloseTo(200, 9)
     expect(breathCutoffHz(0.5)).toBeCloseTo((200 * 99) / 9, 9)
     expect(breathCutoffHz(0)).toBe(Infinity)
-    expect(breathGain(0, 0.5)).toBeCloseTo(0.25, 12)
-    expect(breathGain(1, 0.5)).toBe(1)
-    expect(breathGain(0.5, 0.5)).toBeCloseTo(0.625, 12)
-    expect(breathLevel(0, 0.5, 0.5)).toBeCloseTo(0.625, 12)
+    expect(breathGain(0, 0.25)).toBeCloseTo(0.765625, 12)
+    expect(breathGain(1, 0.25)).toBe(1)
+    expect(breathGain(0.5, 0.25)).toBeCloseTo(0.8828125, 12)
+    expect(breathLevel(0, 0.25, 0.5)).toBeCloseTo(0.8828125, 12)
     expect(breathLevel(0, 1, 0)).toBe(1)
   })
 
@@ -269,12 +283,12 @@ describe('the Breath display: the formulas', () => {
   const STEADY: readonly { name: string; values: Values }[] = [
     { name: 'the breath as it starts', values: { vary: 0, colour: 0, width: 0, air: 0 } },
     {
-      name: 'no Hold and no Rest, half mixed',
+      name: 'the shortest Hold and Rest, half mixed',
       values: {
         in: 0.7,
-        hold: 0,
+        hold: 0.02,
         out: 1.1,
-        rest: 0,
+        rest: 0.02,
         depth: 0.8,
         ease: 0.3,
         mix: 0.6,
@@ -307,7 +321,8 @@ describe('the Breath display: the formulas', () => {
     const out = render(device, parts.total * 2.25, () => 0.5)
     let worst = 0
     for (let n = 0; n < out.length; n += 37) {
-      const b = breathAt((n / RATE / parts.total) % 1, parts, valueOf(values, 'ease'))
+      // The device starts full, at the top of Hold: In is already behind it.
+      const b = breathAt(cycleAt(n / RATE, parts), parts, valueOf(values, 'ease'))
       const model = breathLevel(b, valueOf(values, 'depth'), valueOf(values, 'mix'))
       worst = Math.max(worst, Math.abs(out[n] / 0.5 - model))
     }
@@ -346,7 +361,7 @@ describe('the Breath display: the formulas', () => {
           im += out[n] * Math.sin(w * n)
         }
         const measured = (2 * Math.hypot(re, im)) / span / 0.5
-        const b = breathAt(at / parts.total, parts, values.ease)
+        const b = breathAt(cycleAt(at, parts), parts, values.ease)
         const model = breathHighs(b, values.depth, values.colour, mix, RATE)
         expect(Math.abs(measured - model), `at ${at} s: ${measured} against ${model}`).toBeLessThan(
           0.004 + 0.03 * model,
@@ -357,6 +372,79 @@ describe('the Breath display: the formulas', () => {
       expect(floor).toBeLessThan(breathLevel(0, values.depth, mix) - 0.2 * mix)
     },
   )
+
+  it('starts where the device starts: full, at the end of In', async () => {
+    const starts: readonly Values[] = [
+      {},
+      { in: 2, hold: 2, out: 2, rest: 2 },
+      { in: 0.25, hold: 0.02 },
+    ]
+    for (const values of starts) {
+      const device = await loadWasmDevice('breath', RATE)
+      set(device, values)
+      const parts = partsOf(values)
+      const phase = meter(device, 0)
+      expect(phase).toBeCloseTo(parts.in / parts.total, 6)
+      expect(cycleAt(0, parts)).toBeCloseTo(phase, 6)
+      // The mark stands on the corner at the top, on the sound untouched.
+      const size = SIZES[1]
+      const drawn = drawDisplay(display, specs, { values, ...size, meters: { phase, pace: 1 } })
+      const { by, box } = handlesOf(values, size)
+      expect(theMark(drawn).x).toBeCloseTo(by('full').x, 4)
+      expect(theMark(drawn).y).toBeCloseTo(box.y, 4)
+      // And the first samples of a steady input come out as they went in (but for the little the
+      // spread makes of the step, which the left side has added and the right taken away).
+      const out = render(device, 0.01, () => 0.5)
+      for (const sample of out) expect(Math.abs(sample - 0.5)).toBeLessThan(0.002)
+    }
+  })
+
+  it('has the air the device makes: as loud as the breathing sound, so Depth takes it down', async () => {
+    // The air alone: what a steady input comes out as with Air up, less the same with Air at 0.
+    const base = { in: 4, hold: 0.5, out: 4, rest: 0.5, colour: 0, width: 0, ease: 0, vary: 0 }
+    const airOf = async (depth: number): Promise<Float32Array> => {
+      const outs: Float32Array[] = []
+      for (const air of [1, 0]) {
+        const device = await loadWasmDevice('breath', RATE)
+        set(device, { ...base, depth, air })
+        outs.push(render(device, 9, () => 0.25))
+      }
+      return outs[0].map((sample, n) => sample - outs[1][n])
+    }
+    const rms = (of: Float32Array, from: number, to: number): number => {
+      let sum = 0
+      const first = Math.round(from * RATE)
+      const last = Math.round(to * RATE)
+      for (let n = first; n < last; n++) sum += of[n] * of[n]
+      return Math.sqrt(sum / (last - first))
+    }
+    const parts = partsOf(base)
+    const flat = await airOf(0)
+    const deep = await airOf(0.8)
+    // The device has run 0.5 s of Hold when Out begins, and In begins at 5 s.
+    for (const [from, to] of [
+      [1.0, 1.5],
+      [2.25, 2.75],
+      [3.5, 4.0],
+      [5.5, 6.0],
+      [6.75, 7.25],
+      [8.0, 8.5],
+    ]) {
+      const { stage, t } = breathPlace(cycleAt((from + to) / 2, parts), parts)
+      expect(stage === 'in' || stage === 'out').toBe(true)
+      const gain = breathGain(breathIn(stage, t, base.ease), 0.8)
+      // The same noise in both, so their ratio is the breath's gain there.
+      const ratio = rms(deep, from, to) / rms(flat, from, to)
+      expect(Math.abs(ratio - gain), `${from} s: ${ratio} against ${gain}`).toBeLessThan(0.04)
+      // The stroke is the root of the level, so the squares of the two strokes stand as the gain.
+      const tall = breathAirSize(1, 1, stage, t, gain) / breathAirSize(1, 1, stage, t)
+      expect(tall * tall).toBeCloseTo(gain, 9)
+    }
+    // And none in Hold or in Rest, as the display has none there.
+    expect(rms(flat, 0.1, 0.4)).toBe(0)
+    expect(rms(flat, 4.6, 4.9)).toBe(0)
+    expect(rms(flat, 2.25, 2.75)).toBeGreaterThan(0.01)
+  })
 
   it('leaves the highs with the level where Colour is nothing or the breath is full', () => {
     for (const b of [0, 0.3, 1]) {
@@ -452,8 +540,11 @@ describe('the Breath display: the drawing', () => {
         // A stroke is set on the pixel; its place in the cycle is read to within one.
         const fits = [-1, -0.5, 0, 0.5, 1].some((off) => {
           const { stage, t } = breathPlace(phaseOf(x + off, box), parts)
-          const want = breathAirSize(values.air, values.mix, stage, t) * BREATH_AIR_SHARE * box.h
           const b = breathIn(stage, t, values.ease)
+          // As loud as the breathing sound: Depth turns the air down with it.
+          const gain = breathGain(b, values.depth)
+          const want =
+            breathAirSize(values.air, values.mix, stage, t, gain) * BREATH_AIR_SHARE * box.h
           const y = yOf(breathLevel(b, values.depth, values.mix), box)
           return Math.abs(tall - want) < 0.25 && Math.abs(middle - y) < 0.6
         })
@@ -462,13 +553,31 @@ describe('the Breath display: the drawing', () => {
         expect(stage === 'in' || stage === 'out').toBe(true)
         tallest = Math.max(tallest, tall)
       }
-      // The tallest stands near the middle of a slope, as tall as Air and Mix make it.
-      const most = Math.sqrt(values.air * values.air * values.mix) * BREATH_AIR_SHARE * box.h
+      // The tallest stands where the flow times the breath's gain is the most: past the middle of
+      // In, on the fuller side, and under what Air and Mix alone would make it.
+      let most = 0
+      for (let n = 0; n <= 2000; n++) {
+        const gain = breathGain(breathIn('in', n / 2000, values.ease), values.depth)
+        most = Math.max(most, breathAirSize(values.air, values.mix, 'in', n / 2000, gain))
+      }
+      most *= BREATH_AIR_SHARE * box.h
       expect(tallest).toBeGreaterThan(most * 0.97)
       expect(tallest).toBeLessThanOrEqual(most + 1e-9)
+      expect(most).toBeLessThan(
+        0.95 * Math.sqrt(values.air * values.air * values.mix) * BREATH_AIR_SHARE * box.h,
+      )
+      // With no Depth the same strokes are taller, and tallest in the middle.
+      const flat = airStrokes(
+        drawDisplay(display, specs, { values: { ...values, depth: 0 }, ...size }),
+      )
+      expect(flat).toHaveLength(air.length)
+      const tallOf = (stroke: Stroke): number => Math.abs(stroke.points[1].y - stroke.points[0].y)
+      flat.forEach((stroke, i) => expect(tallOf(stroke)).toBeGreaterThan(tallOf(air[i])))
     }
     expect(breathAirSize(0.5, 1, 'in', 0.5)).toBeCloseTo(0.5, 12)
     expect(breathAirSize(1, 0.25, 'out', 0.5)).toBeCloseTo(0.5, 12)
+    // A quarter of the gain is half the height.
+    expect(breathAirSize(1, 1, 'in', 0.5, 0.25)).toBeCloseTo(0.5, 12)
     expect(airStrokes(drawDisplay(display, specs, { values: { air: 0 } }))).toHaveLength(0)
     expect(airStrokes(drawDisplay(display, specs, { values: { air: 1, mix: 0 } }))).toHaveLength(0)
   })
@@ -517,41 +626,128 @@ describe('the Breath display: the drawing', () => {
     expect(words('full')).toEqual(['in 2.0 s  hold 1.0 s'])
     expect(words('turn')).toEqual(['hold 1.0 s  out 4.0 s'])
     expect(words('empty')).toEqual(['out 4.0 s  rest 1.5 s'])
-    // The floor: a quarter of the level is 12 dB down.
-    expect(words('depth')).toEqual(['−12.0 dB'])
+    // The floor at half the knob: (1 − 0.5^1.5)² of the level, 7.6 dB down.
+    expect(words('depth')).toEqual(['−7.6 dB'])
     expect(drawDisplay(display, specs, { values: { depth: 1 }, hot: 'depth' }).words()).toEqual([
       'silence',
     ])
+    // The floor as it is heard: with Mix at a half, half of the untouched sound is under the breath.
+    const mixed = (values: Values): string[] =>
+      drawDisplay(display, specs, { values, hot: 'depth' }).words()
+    expect(mixed({ depth: 1, mix: 0.5 })).toEqual(['−6.0 dB'])
+    expect(mixed({ depth: 0.25, mix: 0.5 })).toEqual(['−1.1 dB'])
+    expect(mixed({ depth: 1, mix: 0 })).toEqual(['0.0 dB'])
   })
 
-  it('keeps the figures clear of the corners at the top', () => {
+  /** How much of a line lies in an area (grown by `by`), in pixels along it, read a tenth of a pixel at a time. */
+  const under = (
+    line: Stroke,
+    area: { x: number; y: number; w: number; h: number },
+    by = 0,
+  ): number => {
+    let sum = 0
+    for (let n = 1; n < line.points.length; n++) {
+      const from = line.points[n - 1]
+      const to = line.points[n]
+      const long = Math.hypot(to.x - from.x, to.y - from.y)
+      const steps = Math.max(1, Math.ceil(long * 10))
+      for (let k = 0; k < steps; k++) {
+        const x = from.x + ((to.x - from.x) * (k + 0.5)) / steps
+        const y = from.y + ((to.y - from.y) * (k + 0.5)) / steps
+        if (
+          x >= area.x - by &&
+          x <= area.x + area.w + by &&
+          y >= area.y - by &&
+          y <= area.y + area.h + by
+        )
+          sum += long / steps
+      }
+    }
+    return sum
+  }
+
+  it('writes the figures where they hide neither a point nor the level', () => {
     for (const size of SIZES) {
       for (const values of [
         ...SETTINGS,
+        ...Object.values(BREATH_DESCRIPTOR.presets ?? {}),
         { in: 1.5, hold: 6, out: 1.5, rest: 0.5 },
-        { in: 6, hold: 0, out: 0.5, rest: 0 },
+        { in: 6, hold: 0.02, out: 0.5, rest: 0.02 },
+        { depth: 0 },
+        { mix: 0 },
       ]) {
-        for (const hot of [null, 'full', 'turn', 'empty']) {
+        for (const hot of [null, 'full', 'turn', 'empty', 'depth']) {
           const drawn = drawDisplay(display, specs, { values, ...size, hot })
           const [words] = drawn.words()
           const patch = found('patch', patchUnder(drawn, words, PLAIN_COLOURS.plate))
-          expect(patch.x).toBeGreaterThanOrEqual(0)
-          expect(patch.x + patch.w).toBeLessThanOrEqual(size.width)
-          const { by } = handlesOf(values, size)
-          const corners = [by('full'), by('turn')]
-          const free = [patch.x, patch.x + patch.w]
-          const clear = corners.every((c) => c.x < free[0] - 5 || c.x > free[1] + 5)
-          // Where there is room for them anywhere along the top, that is where they are.
-          const room = (from: number, to: number): boolean =>
-            corners.every((c) => c.x < from - 7 || c.x > to + 7)
-          const box = breathBox(size)
-          const anywhere =
-            room(box.x + box.w - 1 - patch.w, box.x + box.w - 1) ||
-            room(box.x + 8.25, box.x + 8.25 + patch.w)
-          if (anywhere) expect(clear, `${JSON.stringify(values)} ${hot}`).toBe(true)
+          const what = `${JSON.stringify(values)} ${hot} at ${size.width} by ${size.height}`
+          expect(patch.x, what).toBeGreaterThanOrEqual(0)
+          expect(patch.x + patch.w, what).toBeLessThanOrEqual(size.width)
+          expect(patch.y, what).toBeGreaterThanOrEqual(0)
+          expect(patch.y + patch.h, what).toBeLessThanOrEqual(size.height)
+          // No point's ring is under them.
+          for (const point of handlesOf(values, size).all) {
+            const away = Math.max(
+              patch.x - point.x,
+              point.x - patch.x - patch.w,
+              patch.y - point.y,
+              point.y - patch.y - patch.h,
+            )
+            expect(away, `${point.key} of ${what}`).toBeGreaterThanOrEqual(5.25)
+          }
+          const level = levelLine(drawn)
+          if (hot === null || hot === 'depth') {
+            // How long the breath is, and the floor: the level is not under them, nor within a pixel.
+            expect(under(level, patch, 1), what).toBe(0)
+          } else {
+            // The two lengths at a corner are half the strip wide: where a steep, deep breath
+            // leaves them no clear place, they take the one that hides the least of the level.
+            expect(under(level, patch), what).toBeLessThan(patch.w / 5)
+          }
         }
       }
     }
+  })
+
+  it('writes the figures at the top where the top is free, and at the foot under a shallow breath', () => {
+    const size = SIZES[1]
+    const box = breathBox(size)
+    const base = (values: Values): number => {
+      const drawn = drawDisplay(display, specs, { values, ...size })
+      const patch = found('patch', patchUnder(drawn, drawn.words()[0], PLAIN_COLOURS.plate))
+      return patch.y + patch.h / 2
+    }
+    // A deep breath leaves the top of its Rest free.
+    expect(base({ depth: 0.9 })).toBeLessThan(box.y + box.h / 2)
+    // The breath as it starts stands in the upper half of a strip: the figures go under its hump.
+    expect(base({})).toBeGreaterThan(box.y + box.h / 2)
+    expect(base({ depth: 0.25 })).toBeGreaterThan(box.y + box.h / 2)
+    // The highs are left to be seen where there is a place that leaves them.
+    const drawn = drawDisplay(display, specs, { ...size })
+    const patch = found('patch', patchUnder(drawn, drawn.words()[0], PLAIN_COLOURS.plate))
+    expect(under(highsLine(drawn), patch)).toBe(0)
+  })
+
+  it('writes the figures over the line of the mark', () => {
+    const size = SIZES[1]
+    const box = breathBox(size)
+    const drawn = drawDisplay(display, specs, { ...size, meters: { phase: 0.5, pace: 1 } })
+    // The mark's line: upright, the whole height of the scale, where the breath is.
+    const x = box.x + 0.5 * box.w
+    const markRule = drawn.calls.findIndex((call, i) => {
+      const next = drawn.calls[i + 1]
+      return (
+        call.name === 'moveTo' &&
+        next?.name === 'lineTo' &&
+        Math.abs((call.args[0] as number) - x) < 0.6 &&
+        Math.abs((next.args[0] as number) - x) < 0.6 &&
+        Math.abs((call.args[1] as number) - box.y) < 0.6 &&
+        Math.abs((next.args[1] as number) - box.y - box.h) < 0.6
+      )
+    })
+    expect(markRule).toBeGreaterThan(-1)
+    const words = drawn.calls.findIndex((call) => call.name === 'fillText')
+    expect(words).toBeGreaterThan(markRule)
   })
 })
 
@@ -572,7 +768,7 @@ describe('the Breath display: what is live', () => {
       frames += BLOCK
       if (n % 97 !== 0) continue
       const phase = meter(device, 0)
-      const clock = (frames / RATE / parts.total) % 1
+      const clock = cycleAt(frames / RATE, parts)
       const apart = Math.abs(((phase - clock + 1.5) % 1) - 0.5)
       expect(apart, `after ${frames} frames`).toBeLessThan(2e-4)
       expect(meter(device, 1)).toBeCloseTo(1, 6)
@@ -625,7 +821,7 @@ describe('the Breath display: what is live', () => {
   })
 
   it('carries the mark between two readings at the pace of this breath', () => {
-    const values = { in: 0.25, hold: 0, out: 0.32, rest: 0, vary: 1 }
+    const values = { in: 0.25, hold: 0.02, out: 0.32, rest: 0.02, vary: 1 }
     const parts = partsOf(values)
     const size = SIZES[1]
     const box = breathBox(size)
@@ -754,21 +950,26 @@ describe('the Breath display: the points', () => {
       for (const [name, value] of Object.entries(want)) expect(got[name]).toBeCloseTo(value, 9)
     }
     near(by('full').drag(x(2), 0, {}), { in: 2, hold: 1.5, out: 4.5 })
-    near(by('full').drag(x(3.5), 0, {}), { in: 3.5, hold: 0, out: 4.5 })
-    // Past the end of Hold it pushes on into Out.
-    near(by('full').drag(x(5), 0, {}), { in: 5, hold: 0, out: 3 })
+    // Hold is never under its least, a fiftieth of a second.
+    near(by('full').drag(x(3.48), 0, {}), { in: 3.48, hold: 0.02, out: 4.5 })
+    // Past that it pushes on into Out.
+    near(by('full').drag(x(3.5), 0, {}), { in: 3.5, hold: 0.02, out: 4.48 })
+    near(by('full').drag(x(5), 0, {}), { in: 5, hold: 0.02, out: 2.98 })
+    near(by('full').drag(x(9), 0, {}), { in: 7.78, hold: 0.02, out: 0.2 })
     near(by('full').drag(x(0), 0, {}), { in: 0.2, hold: 3.3, out: 4.5 })
     near(by('turn').drag(x(6), 0, {}), { in: 3, hold: 3, out: 2 })
-    near(by('turn').drag(x(3), 0, {}), { in: 3, hold: 0, out: 5 })
-    // Before the end of In it pushes back into In.
-    near(by('turn').drag(x(1), 0, {}), { in: 1, hold: 0, out: 7 })
+    near(by('turn').drag(x(3.02), 0, {}), { in: 3, hold: 0.02, out: 4.98 })
+    // Before that it pushes back into In.
+    near(by('turn').drag(x(3), 0, {}), { in: 2.98, hold: 0.02, out: 5 })
+    near(by('turn').drag(x(1), 0, {}), { in: 0.98, hold: 0.02, out: 7 })
+    near(by('turn').drag(x(0), 0, {}), { in: 0.2, hold: 0.02, out: 7.78 })
     near(by('turn').drag(x(9), 0, {}), { in: 3, hold: 4.8, out: 0.2 })
     near(by('empty').drag(x(8.5), 0, {}), { hold: 0.5, out: 5, rest: 0.5 })
-    near(by('empty').drag(x(9), 0, {}), { hold: 0.5, out: 5.5, rest: 0 })
+    near(by('empty').drag(x(9), 0, {}), { hold: 0.5, out: 5.48, rest: 0.02 })
     near(by('empty').drag(x(5), 0, {}), { hold: 0.5, out: 1.5, rest: 4 })
     // Out is never under its least: from there the corner pushes back into Hold.
     near(by('empty').drag(x(3.4), 0, {}), { hold: 0.2, out: 0.2, rest: 5.6 })
-    near(by('empty').drag(x(0), 0, {}), { hold: 0, out: 0.2, rest: 5.8 })
+    near(by('empty').drag(x(0), 0, {}), { hold: 0.02, out: 0.2, rest: 5.78 })
   })
 
   it('remembers the press: a corner pushed through a part gives it back on the way back', () => {
@@ -793,16 +994,16 @@ describe('the Breath display: the points', () => {
     // Without the hold the same way there and back would have left Hold what the push made of it.
     let loose: Values = {}
     for (const to of [5, 3]) loose = merged(loose, handlesOf(loose).by('full').drag(x(to), 0))
-    expect(valueOf(loose, 'hold')).toBeCloseTo(2, 9)
+    expect(valueOf(loose, 'hold')).toBeCloseTo(2.02, 9)
   })
 
   it.each(SIZES)('follows the hand as far as the lengths go, at $width by $height', (size) => {
     for (const values of [
       ...SETTINGS,
       { in: 20, hold: 20, out: 20, rest: 20 },
-      { in: 0.2, hold: 0, out: 0.2, rest: 0 },
-      { in: 15, hold: 0, out: 0.2, rest: 18 },
-      { in: 0.2, hold: 19, out: 20, rest: 0 },
+      { in: 0.2, hold: 0.02, out: 0.2, rest: 0.02 },
+      { in: 15, hold: 0.02, out: 0.2, rest: 18 },
+      { in: 0.2, hold: 19, out: 20, rest: 0.02 },
     ]) {
       const { box } = handlesOf(values, size)
       const total = partsOf(values).total
@@ -848,7 +1049,8 @@ describe('the Breath display: the points', () => {
           expect(depth).toBeGreaterThanOrEqual(0)
           expect(depth).toBeLessThanOrEqual(1)
           const fall = Math.min(1, Math.max(0, step / 20) / travel)
-          expect(depth).toBeCloseTo(1 - Math.sqrt(1 - fall), 9)
+          // The floor is (1 − Depth^1.5)², so Depth is (1 − √floor) to the power of two thirds.
+          expect(depth).toBeCloseTo((1 - Math.sqrt(1 - fall)) ** (2 / 3), 9)
           // The point is then under the hand, as far down as it goes.
           const landed = handlesOf({ mix, depth }, size).by('depth').y
           expect(landed).toBeCloseTo(box.y + Math.min(travel, Math.max(0, step / 20)) * box.h, 6)
@@ -858,7 +1060,12 @@ describe('the Breath display: the points', () => {
     const { by, box } = handlesOf({})
     expect(by('depth').drag(0, box.y, {}).depth).toBe(0)
     expect(by('depth').drag(0, box.y + box.h, {}).depth).toBe(1)
-    expect(by('depth').drag(0, box.y + box.h / 2, {}).depth).toBeCloseTo(1 - Math.SQRT1_2, 9)
+    expect(by('depth').drag(0, box.y + box.h / 2, {}).depth).toBeCloseTo(
+      (1 - Math.SQRT1_2) ** (2 / 3),
+      9,
+    )
+    // A floor of seven eighths squared is a quarter of the knob.
+    expect(by('depth').drag(0, box.y + (1 - 0.765625) * box.h, {}).depth).toBeCloseTo(0.25, 9)
   })
 
   it('leaves everything as it is when a point is pressed and not moved, and resets to the start', () => {
@@ -872,7 +1079,7 @@ describe('the Breath display: the points', () => {
       }
     }
     const { by } = handlesOf({ in: 7, hold: 3, out: 9, rest: 4, depth: 0.9 })
-    expect(by('depth').reset?.()).toEqual({ depth: 0.55 })
+    expect(by('depth').reset?.()).toEqual({ depth: 0.4 })
     expect(by('full').reset?.()).toEqual({ in: 3, hold: 0.5, out: 9 })
     expect(by('turn').reset?.()).toEqual({ in: 7, hold: 0.5, out: 4.5 })
     expect(by('empty').reset?.()).toEqual({ hold: 3, out: 4.5, rest: 1 })

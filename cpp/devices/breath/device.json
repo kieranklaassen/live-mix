@@ -7,8 +7,16 @@
   "header": "breath.h",
   "sources": [],
   "meters": [
-    { "key": "phase", "name": "Breath phase", "display": true },
-    { "key": "pace", "name": "Breath pace", "display": true }
+    {
+      "key": "phase",
+      "name": "Breath phase",
+      "display": true
+    },
+    {
+      "key": "pace",
+      "name": "Breath pace",
+      "display": true
+    }
   ],
   "params": [
     {
@@ -24,11 +32,12 @@
     {
       "key": "hold",
       "name": "Hold",
-      "min": 0,
+      "min": 0.02,
       "max": 20,
       "default": 0.5,
+      "taper": "log",
       "unit": "s",
-      "description": "How long the breath stays full before it lets go. At zero it turns straight around."
+      "description": "How long the breath stays full before it lets go. At its lowest it turns straight around."
     },
     {
       "key": "out",
@@ -43,19 +52,20 @@
     {
       "key": "rest",
       "name": "Rest",
-      "min": 0,
+      "min": 0.02,
       "max": 20,
       "default": 1,
+      "taper": "log",
       "unit": "s",
-      "description": "How long the breath stays empty before the next one begins. At zero it turns straight around."
+      "description": "How long the breath stays empty before the next one begins. At its lowest it turns straight around."
     },
     {
       "key": "depth",
       "name": "Depth",
       "min": 0,
       "max": 1,
-      "default": 0.55,
-      "description": "How far the level falls when the breath is empty. At full the sound breathes out to silence."
+      "default": 0.4,
+      "description": "How far the level falls when the breath is empty. The lower half is a gentle swell, and only the very top breathes out to silence."
     },
     {
       "key": "colour",
@@ -71,7 +81,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much the stereo width follows the breath. The sound narrows to mono as it empties and spreads past its own width as it fills."
+      "description": "How much the stereo width follows the breath. The sound narrows to mono as it empties and opens to its own width, and a little past it, as it fills."
     },
     {
       "key": "air",
@@ -79,7 +89,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "Breath noise on the way in and on the way out, rising in pitch as the breath fills. It is as loud as the sound going in, so silence stays silent."
+      "description": "Breath noise while the breath moves, rising in pitch as it fills. It is as loud as the breathing sound, so it fades with a note and silence stays silent."
     },
     {
       "key": "ease",
@@ -112,7 +122,7 @@
       "hold": 0.5,
       "out": 4.5,
       "rest": 1,
-      "depth": 0.55,
+      "depth": 0.4,
       "colour": 0.5,
       "width": 0.5,
       "air": 0.35,
@@ -125,7 +135,7 @@
       "hold": 4,
       "out": 4,
       "rest": 4,
-      "depth": 0.5,
+      "depth": 0.45,
       "colour": 0.35,
       "width": 0.3,
       "air": 0.15,
@@ -136,10 +146,10 @@
       "in": 4,
       "hold": 7,
       "out": 8,
-      "rest": 0,
-      "depth": 0.7,
+      "rest": 0.02,
+      "depth": 0.6,
       "colour": 0.65,
-      "width": 0.7,
+      "width": 0.55,
       "air": 0.4,
       "ease": 0.9,
       "vary": 0
@@ -149,8 +159,8 @@
       "hold": 0.3,
       "out": 12,
       "rest": 2,
-      "depth": 0.8,
-      "colour": 0.85,
+      "depth": 0.55,
+      "colour": 0.7,
       "width": 0.6,
       "air": 0.5,
       "ease": 1,
@@ -158,10 +168,10 @@
     },
     "Short of breath": {
       "in": 0.6,
-      "hold": 0,
+      "hold": 0.02,
       "out": 0.8,
       "rest": 0.1,
-      "depth": 0.3,
+      "depth": 0.4,
       "colour": 0.3,
       "width": 0.3,
       "air": 0.45,
@@ -174,9 +184,9 @@
       "out": 3.2,
       "rest": 2.6,
       "depth": 0.45,
-      "colour": 0.75,
+      "colour": 0.6,
       "width": 0.2,
-      "air": 0.6,
+      "air": 0.5,
       "ease": 1,
       "vary": 0.5
     },
@@ -197,20 +207,27 @@
       "hold": 1,
       "out": 6,
       "rest": 1,
-      "depth": 0.2,
+      "depth": 0.25,
       "colour": 0.25,
       "width": 0.3,
       "air": 0.1,
       "ease": 1,
       "vary": 0.2
     },
-    "Only the air": { "depth": 0, "colour": 0, "width": 0, "air": 1, "in": 2, "out": 3 },
+    "Only the air": {
+      "depth": 0,
+      "colour": 0,
+      "width": 0,
+      "air": 1,
+      "in": 2,
+      "out": 3
+    },
     "Opening wide": {
       "in": 5,
       "hold": 1,
       "out": 5,
-      "rest": 0,
-      "depth": 0.15,
+      "rest": 0.02,
+      "depth": 0.25,
       "colour": 0,
       "width": 1,
       "air": 0,
@@ -218,7 +235,7 @@
     },
     "Dark lungs": {
       "in": 3.5,
-      "hold": 0,
+      "hold": 0.02,
       "out": 5,
       "rest": 0.5,
       "depth": 0.25,
@@ -232,7 +249,7 @@
       "hold": 1.6,
       "out": 3,
       "rest": 0.8,
-      "depth": 1,
+      "depth": 0.8,
       "colour": 0.6,
       "width": 0.8,
       "air": 0.7,
@@ -241,22 +258,22 @@
     },
     "Panting": {
       "in": 0.25,
-      "hold": 0,
+      "hold": 0.02,
       "out": 0.32,
-      "rest": 0,
+      "rest": 0.02,
       "depth": 0.5,
       "colour": 0.4,
       "width": 0.6,
-      "air": 0.8,
+      "air": 0.7,
       "ease": 0.4,
       "vary": 0.5
     },
     "Held then let go": {
       "in": 1.5,
-      "hold": 6,
+      "hold": 4,
       "out": 1.5,
       "rest": 0.5,
-      "depth": 0.85,
+      "depth": 0.7,
       "colour": 0.45,
       "width": 0.5,
       "air": 0.3,
@@ -280,10 +297,10 @@
       "hold": 2,
       "out": 18,
       "rest": 4,
-      "depth": 0.35,
-      "colour": 0.85,
+      "depth": 0.45,
+      "colour": 0.8,
       "width": 0.9,
-      "air": 0.15,
+      "air": 0.5,
       "ease": 1,
       "vary": 0.4
     }

@@ -20,24 +20,34 @@
 //
 // and four things follow it:
 //
-//   level   gain = floor + (1 − floor)·b,  floor = (1 − Depth)²
+//   level   gain = floor + (1 − floor)·b,  floor = (1 − Depth^1.5)²: a full
+//           breath is the input's own level, and the empty one is 5 dB down
+//           at Depth 0.4, 7.6 at a half, 15 at 0.7 and silence only at 1
 //   colour  a low pass of two equal poles, 3 dB down at
 //           kClosedHz·(kRange − 1) / (kRange^c − 1),  c = Colour·(1 − b):
 //           200 Hz when it is all the way shut, and past every sample rate as
 //           c reaches 0, where the poles' coefficient is exactly 0 and the
 //           filter is a wire
 //   width   the sides are turned down by Width·(1 − b) and, as the breath
-//           fills, a spread made from the middle is let in: the middle with
-//           its lows cut, 1.3 ms late and through three short all-passes,
-//           added to one side and taken from the other, so the mono sum
-//           never changes. The delay keeps the spread from leaning on the
-//           middle at the same instant, which would favour one side.
+//           fills, a little spread made from the middle is let in: the middle
+//           with its lows cut, 1.3 ms late and through three short
+//           all-passes, added to one side and taken from the other, so the
+//           mono sum never changes. The delay keeps the spread from leaning
+//           on the middle at the same instant, which would favour one side.
+//           The spread is small on purpose (kSpread): it changes each side's
+//           level tone by tone, and at 0.2 no single tone stands more than
+//           3.5 dB apart between the sides at full Width; at 0.6 it was 12 dB
+//           and a held note swung to one side with every breath.
 //   air     noise, a band wide, whose centre rises with the breath from 800 Hz
-//           to 4.5 kHz, loudest half way through In and Out (sin(π·t)) and
-//           silent in Hold and Rest. It is as loud as the input is (a level
-//           follower), so there is none over silence.
+//           to 4.5 kHz. It flows while the breath moves (sin(π·t) over In and
+//           over Out, nothing in Hold and Rest) and is as loud as the
+//           breathing sound is: the input's level (a follower, 80 ms to let
+//           go) times the breath's own gain. So there is none over silence,
+//           it dies with a note, and Depth turns it down with the sound.
 //
-// - The cycle runs freely. Nothing in the sound restarts it, and it goes on
+// - The cycle starts full, at the top of Hold: a Breath put on a sound that
+//   is playing begins as that sound, untouched, and lets go from there. From
+//   then on it runs freely. Nothing in the sound restarts it, and it goes on
 //   while the device is at rest: a note that arrives later lands wherever the
 //   breath has got to. Vary makes each breath longer or shorter than set, by
 //   up to half an octave of time either way, drawn afresh at the start of
@@ -46,7 +56,7 @@
 //   need no smoothing. Depth, Colour, Width, Air, Ease and Mix glide (5 ms).
 // - Rest and sleep. After kQuietSeconds without a sample of input everything
 //   has rung out (the level follower is the slowest: under its floor in
-//   3.5 s from the loudest input) and the device stops working: it writes
+//   1.2 s from the loudest input) and the device stops working: it writes
 //   zeros and moves the cycle on by a block at a time. That moment is counted
 //   in samples, not in blocks, and the first sound after it starts from a
 //   known state (`arrive`: knobs where they are set, filters empty, the noise
@@ -56,8 +66,10 @@
 // - Wet and dry are the same sound at another gain and tone, so Mix is a
 //   linear crossfade. With Depth, Colour, Width and Air at 0, or Mix at 0,
 //   the output is the input sample for sample.
-// - The input is limited to ±16 and a sample that is not a number is taken as
-//   silence, on the dry path too, so nothing bad stays in the filters.
+// - The input is limited to ±16, and a sample that is not a number, or is
+//   under 1e-30 (600 dB under full scale, on its way to a denormal), is
+//   taken as silence, on the dry path too: nothing bad stays in the filters
+//   and a sound dying away for ever does not cost eight times the work.
 //
 // Storage: three all-pass lines of 1,024 samples (6.1 ms at 96 kHz), a delay
 // of 256 (1.3 ms at 96 kHz), two tables (513 and 257 floats) and the block
@@ -81,9 +93,13 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
   // The spread: how much of the middle goes to the sides at full Width on a
   // full breath, the low cut and the delay in front of it, and its three
   // all-passes.
-  static constexpr float kSpread = 0.6f;
+  static constexpr float kSpread = 0.2f;
   static constexpr float kSpreadLowHz = 200.0f;
   static constexpr float kSpreadDelaySeconds = 0.0013f;
+  // After a rest the spread is fed over this long, so a sound that is
+  // already playing when the device first hears it (a Breath put on a held
+  // pad) does not arrive in the all-passes as an edge.
+  static constexpr float kWakeSeconds = 0.01f;
   static constexpr int kNumAllpasses = 3;
   static constexpr float kAllpassSeconds[kNumAllpasses] = {0.0021f, 0.0037f, 0.0061f};
   static constexpr float kAllpassGain = 0.55f;
@@ -93,17 +109,21 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
   static constexpr float kAirQ = 0.9f;
   static constexpr float kAirGain = 1.25f;
   static constexpr float kAirAttackSeconds = 0.01f;
-  static constexpr float kAirReleaseSeconds = 0.25f;
+  static constexpr float kAirReleaseSeconds = 0.08f;
   // Under this the follower counts as silence: 100 dB under full scale.
   static constexpr float kAirFloor = 1.0e-5f;
   // Vary at 1: a breath is up to this many octaves of time longer or shorter.
   static constexpr float kVaryOctaves = 0.5f;
   static constexpr float kInputLimit = 16.0f;
+  // Under this a sample is silence.
+  static constexpr float kSilent = 1.0e-30f;
   static constexpr float kQuietSeconds = 4.0f;
 
-  // The floor the level falls to when the breath is empty.
+  // The floor the level falls to when the breath is empty: (1 − Depth^1.5)².
+  // The knob's lower half is the breaths one leaves on (2 dB at 0.25, 7.6 dB
+  // at a half) and silence is its very end.
   static float floor_gain(float depth) {
-    const float open = 1.0f - depth;
+    const float open = 1.0f - depth * std::sqrt(depth);
     return open * open;
   }
 
@@ -166,8 +186,10 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
     spread_low_.set(kSpreadLowHz, kit::kSqrtHalf, sr);
     follower_.set(kAirAttackSeconds, kAirReleaseSeconds, sr);
     for (kit::Smoother* smoother : smoothers()) smoother->set_time(kSmoothingSeconds, sr);
+    wake_.set_time(kWakeSeconds, sr);
 
-    stage_ = kStageIn;
+    // Full: the first sample of Hold.
+    stage_ = kStageHold;
     t_ = 0.0;
     pace_rng_.seed(0x6B8B4567u);
     draw_ = pace_rng_.bipolar();
@@ -184,7 +206,8 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
 
   // The readings named by "meters" in device.json, for a display to draw:
   // 0, where the breath is in its cycle as it is set (0 at the start of In,
-  // 1 at the end of Rest, each part taking its share of the four lengths);
+  // 1 at the end of Rest, each part taking its share of the four lengths;
+  // after init it stands at the end of In, where Hold begins);
   // 1, how much longer than set this breath is (1 with Vary at 0).
   float meter(int index) const {
     using namespace breath;
@@ -230,7 +253,7 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
       const float mid = 0.5f * (in[0] + in[1]);
       const float side = 0.5f * (in[0] - in[1]);
       float spread = spread_delay_.read(spread_delay_samples_);
-      spread_delay_.write(spread_low_.highpass(mid));
+      spread_delay_.write(spread_low_.highpass(mid * wake_.next()));
       for (int k = 0; k < kNumAllpasses; ++k) {
         spread = allpass_[k].process(spread, allpass_delay_[k], kAllpassGain);
       }
@@ -242,9 +265,13 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
       const float floor = floor_.next();
       const float gain = floor + (1.0f - floor) * b;
       for (int c = 0; c < 2; ++c) {
-        low_[c][0] = flush_denormal(wet[c] + (low_[c][0] - wet[c]) * a);
-        low_[c][1] = flush_denormal(low_[c][0] + (low_[c][1] - low_[c][0]) * a);
-        wet[c] = low_[c][1] * gain;
+        // What is kept is flushed, what is heard is not: with the poles at 0
+        // the output is the input itself, down to its smallest sample.
+        const float first = wet[c] + (low_[c][0] - wet[c]) * a;
+        const float second = first + (low_[c][1] - first) * a;
+        low_[c][0] = flush_denormal(first);
+        low_[c][1] = flush_denormal(second);
+        wet[c] = second * gain;
       }
 
       // Air.
@@ -260,7 +287,8 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
         const float a3 = g * a2;
         // Half a sine over the part: nothing at its two ends, the most half way.
         const float flow = moving ? kit::SineTable::lookup(0.5f * t) : 0.0f;
-        const float amount = level > kAirFloor ? air * flow * level : 0.0f;
+        // As loud as the breathing sound: the input's level times the breath's gain.
+        const float amount = level > kAirFloor ? air * flow * gain * level : 0.0f;
         for (int c = 0; c < 2; ++c) {
           kit::Svf& band = air_band_[c];
           band.g = g;
@@ -298,6 +326,7 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
   // A sample the filters can take: in range, and a number.
   static float limit(float x) {
     if (!(x == x)) return 0.0f;
+    if (x > -kSilent && x < kSilent) return 0.0f;
     return x < -kInputLimit ? -kInputLimit : (x > kInputLimit ? kInputLimit : x);
   }
 
@@ -321,13 +350,17 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
     for (kit::AllpassDelay<kAllpassSize>& stage : allpass_) stage.clear();
     spread_delay_.clear();
     spread_low_.reset();
+    wake_.snap(0.0f);
+    wake_.set_target(1.0f);
     follower_.reset();
     noise_[0].seed(0x1F123BB5u);
     noise_[1].seed(0x7A4D0C3Bu);
   }
 
-  // How fast each part goes by, per sample, at this breath's pace. A Hold or
-  // a Rest shorter than a sample is left out of the cycle.
+  // How fast each part goes by, per sample, at this breath's pace. The
+  // shortest part there is (a Hold or a Rest of 20 ms, at the quickest pace)
+  // is hundreds of samples long at any rate a sound card runs at; the floor
+  // of one sample only keeps the division safe.
   void update_rates() {
     using namespace breath;
     const float sr = sample_rate();
@@ -335,8 +368,7 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
     const float seconds[kNumStages] = {param(kIn), param(kHold), param(kOut), param(kRest)};
     for (int s = 0; s < kNumStages; ++s) {
       const double samples = static_cast<double>(seconds[s]) * pace_ * sr;
-      empty_[s] = samples < 1.0;
-      inc_[s] = empty_[s] ? 1.0 : 1.0 / samples;
+      inc_[s] = samples < 1.0 ? 1.0 : 1.0 / samples;
     }
   }
 
@@ -346,20 +378,18 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
     if (t_ >= 1.0) roll();
   }
 
-  // The part has ended: carry what is over into the next one that has a
-  // length, drawing the next breath's pace as In begins.
+  // The part has ended: carry what is over into the next, drawing the next
+  // breath's pace as In begins.
   void roll() {
     double over = (t_ - 1.0) / inc_[stage_];
-    // In and Out are thousands of samples long, so a block passes two parts
-    // at the most; the count is only a fence.
+    // In and Out are thousands of samples long, so a block at rest passes a
+    // few parts at the most; the count is only a fence.
     for (int passed = 0; passed < 64; ++passed) {
-      do {
-        stage_ = (stage_ + 1) % kNumStages;
-        if (stage_ == kStageIn) {
-          draw_ = pace_rng_.bipolar();
-          update_rates();
-        }
-      } while (empty_[stage_]);
+      stage_ = (stage_ + 1) % kNumStages;
+      if (stage_ == kStageIn) {
+        draw_ = pace_rng_.bipolar();
+        update_rates();
+      }
       const double length = 1.0 / inc_[stage_];
       if (over < length) {
         t_ = over * inc_[stage_];
@@ -412,6 +442,8 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
   kit::Rng noise_[2];
   kit::Rng pace_rng_;
   kit::Smoother floor_, colour_, width_, air_, ease_, mix_;
+  // 0 at the first sound after a rest, then up to 1: what the spread is fed.
+  kit::Smoother wake_;
   float pole_[kPoleSteps + 1] = {};
   float air_g_[kAirSteps + 1] = {};
   float low_[2][2] = {};
@@ -419,10 +451,9 @@ class Breath : public kit::DeviceBase<breath::kNumParams> {
   int spread_delay_samples_ = 1;
   float air_scale_ = 1.0f;
   // The cycle: which part, how far through it, and how fast each part goes.
-  int stage_ = kStageIn;
+  int stage_ = kStageHold;
   double t_ = 0.0;
   double inc_[kNumStages] = {1.0, 1.0, 1.0, 1.0};
-  bool empty_[kNumStages] = {false, false, false, false};
   float draw_ = 0.0f;
   float pace_ = 1.0f;
   // Samples since the last one that was not silence, up to the limit.

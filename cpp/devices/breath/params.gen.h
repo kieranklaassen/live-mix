@@ -3,10 +3,10 @@
 // Parameter ids and ranges of Breath, shared with
 // src/dsp/devices/breath.gen.ts:
 //    0  in: 0.2..20 s, default 3
-//    1  hold: 0..20 s, default 0.5
+//    1  hold: 0.02..20 s, default 0.5
 //    2  out: 0.2..20 s, default 4.5
-//    3  rest: 0..20 s, default 1
-//    4  depth: 0..1, default 0.55
+//    3  rest: 0.02..20 s, default 1
+//    4  depth: 0..1, default 0.4
 //    5  colour: 0..1, default 0.5
 //    6  width: 0..1, default 0.5
 //    7  air: 0..1, default 0.35
@@ -34,9 +34,9 @@ enum Param : int {
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.2f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {0.2f, 0.02f, 0.2f, 0.02f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {20.0f, 20.0f, 20.0f, 20.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {3.0f, 0.5f, 4.5f, 1.0f, 0.55f, 0.5f, 0.5f, 0.35f, 0.75f, 0.2f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {3.0f, 0.5f, 4.5f, 1.0f, 0.4f, 0.5f, 0.5f, 0.35f, 0.75f, 0.2f, 1.0f};
 
 }  // namespace breath
 }  // namespace livemix

@@ -63,10 +63,15 @@ export function breathParts(view: Pick<DisplayView, 'value'>): BreathParts {
   return total > 0 ? { ...parts, total } : { in: 1, hold: 0, out: 1, rest: 0, total: 2 }
 }
 
-/** The floor the level falls to on an empty breath: `Breath::floor_gain`. */
+/** The floor the level falls to on an empty breath, `(1 − Depth^1.5)²`: `Breath::floor_gain`. */
 export function breathFloor(depth: number): number {
-  const open = 1 - depth
+  const open = 1 - depth * Math.sqrt(depth)
   return open * open
+}
+
+/** The Depth that has that floor: `breathFloor` the other way round. */
+export function breathDepthOf(floor: number): number {
+  return Math.pow(1 - Math.sqrt(clamp(floor, 0, 1)), 2 / 3)
 }
 
 /** The way in at `t` (0..1): a line at Ease 0, half a cosine at 1: `Breath::rise`. */
@@ -110,12 +115,19 @@ export function breathAir(stage: BreathStage, t: number): number {
 
 /**
  * How tall the air's stroke stands at a place, of the tallest: the square
- * root of the air's level there, which is Air squared times the flow times
- * Mix. The root, so that a quarter of the knob is a quarter of the height and
- * a little air is still seen.
+ * root of the air's level there, which is Air squared times the flow, times
+ * the breath's own gain there (the air is as loud as the breathing sound, so
+ * Depth turns it down with it), times Mix. The root, so that a quarter of the
+ * knob is a quarter of the height and a little air is still seen.
  */
-export function breathAirSize(air: number, mix: number, stage: BreathStage, t: number): number {
-  return Math.sqrt(air * air * mix * breathAir(stage, t))
+export function breathAirSize(
+  air: number,
+  mix: number,
+  stage: BreathStage,
+  t: number,
+  gain = 1,
+): number {
+  return Math.sqrt(air * air * mix * breathAir(stage, t) * gain)
 }
 
 /** The gain on the breathing sound for a breath `b`: the floor up to unity. */
@@ -217,9 +229,10 @@ function pressedParts(hold: DisplayHold | undefined, parts: BreathParts): Breath
  * one part ends and the next begins: taken across, a corner gives time to the
  * part at one side of it and takes as much from the part at the other, so
  * the breath stays as long as it was and the corner stays under the hand. A
- * corner pushed against a part that has no time left pushes on into the next.
- * The fourth stands on the floor at the start of the breath: up and down is
- * Depth, taken back through Mix, which scales the fall with it.
+ * corner pushed against a part that is as short as it goes (a Hold of 20 ms)
+ * pushes on into the next. The fourth stands on the floor at the start of the
+ * breath: up and down is Depth, taken back through Mix, which scales the fall
+ * with it.
  */
 function breathHandles(view: DisplayView): DisplayHandle[] {
   const box = breathBox(view)
@@ -227,9 +240,9 @@ function breathHandles(view: DisplayView): DisplayHandle[] {
   const depth = view.value('depth')
   const mix = view.value('mix')
   const ins = rangeOf(view, 'in', 0.2, 20)
-  const holds = rangeOf(view, 'hold', 0, 20)
+  const holds = rangeOf(view, 'hold', 0.02, 20)
   const outs = rangeOf(view, 'out', 0.2, 20)
-  const rests = rangeOf(view, 'rest', 0, 20)
+  const rests = rangeOf(view, 'rest', 0.02, 20)
   // Where the three corners stand, in seconds from the start of In.
   const fullX = xOfSeconds(parts.in, parts, box)
   const turnX = xOfSeconds(parts.in + parts.hold, parts, box)
@@ -254,7 +267,7 @@ function breathHandles(view: DisplayView): DisplayHandle[] {
         const level = 1 - clamp((y - box.y) / box.h, 0, 1)
         const floor = clamp(1 - (1 - level) / travel, 0, 1)
         return {
-          depth: clamp(1 - Math.sqrt(floor), depthSpec?.min ?? 0, depthSpec?.max ?? 1),
+          depth: clamp(breathDepthOf(floor), depthSpec?.min ?? 0, depthSpec?.max ?? 1),
         }
       },
       reset: () => ({ depth: depthSpec?.default ?? depth }),
@@ -269,15 +282,17 @@ function breathHandles(view: DisplayView): DisplayHandle[] {
         if (still(x, fullX)) return { in: parts.in, hold: parts.hold, out: parts.out }
         const turn = from.in + from.hold
         const empty = turn + from.out
+        // The latest In can end where Hold is as short as it goes.
+        const latest = turn - holds.min
         const at = secondsOf(x, from)
-        if (at <= turn || turn > ins.max) {
+        if (at <= latest || latest > ins.max) {
           // In against Hold.
-          const length = clamp(at, Math.max(ins.min, turn - holds.max), Math.min(ins.max, turn))
+          const length = clamp(at, Math.max(ins.min, turn - holds.max), Math.min(ins.max, latest))
           return { in: length, hold: turn - length, out: from.out }
         }
         // Hold has nothing left to give: on into Out.
-        const length = clamp(at, turn, Math.min(ins.max, empty - outs.min))
-        return { in: length, hold: 0, out: empty - length }
+        const length = clamp(at, latest, Math.min(ins.max, empty - holds.min - outs.min))
+        return { in: length, hold: holds.min, out: empty - holds.min - length }
       },
       reset: () => ({
         in: view.spec('in')?.default ?? parts.in,
@@ -295,19 +310,21 @@ function breathHandles(view: DisplayView): DisplayHandle[] {
         if (still(x, turnX)) return { in: parts.in, hold: parts.hold, out: parts.out }
         const full = from.in
         const empty = full + from.hold + from.out
+        // The soonest Hold can end where In is left as it is.
+        const soonest = full + holds.min
         const at = secondsOf(x, from)
-        if (at >= full || empty - full > outs.max) {
+        if (at >= soonest || empty - soonest > outs.max) {
           // Hold against Out.
           const end = clamp(
             at,
-            Math.max(full, empty - outs.max),
+            Math.max(soonest, empty - outs.max),
             Math.min(full + holds.max, empty - outs.min),
           )
           return { in: from.in, hold: end - full, out: empty - end }
         }
         // Hold has nothing left to give: back into In.
-        const length = clamp(at, Math.max(ins.min, empty - outs.max), full)
-        return { in: length, hold: 0, out: empty - length }
+        const end = clamp(at, Math.max(ins.min + holds.min, empty - outs.max), soonest)
+        return { in: end - holds.min, hold: holds.min, out: empty - end }
       },
       reset: () => ({
         in: parts.in,
@@ -333,12 +350,16 @@ function breathHandles(view: DisplayView): DisplayHandle[] {
           const end = clamp(
             at,
             Math.max(soonest, from.total - rests.max),
-            Math.min(turn + outs.max, from.total),
+            Math.min(turn + outs.max, from.total - rests.min),
           )
           return { hold: from.hold, out: end - turn, rest: from.total - end }
         }
         // Out is as short as it goes: back into Hold.
-        const end = clamp(at, Math.max(full + outs.min, from.total - rests.max), soonest)
+        const end = clamp(
+          at,
+          Math.max(full + holds.min + outs.min, from.total - rests.max),
+          soonest,
+        )
         return { hold: end - outs.min - full, out: outs.min, rest: from.total - end }
       },
       reset: () => ({
@@ -366,10 +387,42 @@ const FILLED_AT = 0.25
 const AIR_STEP = 3
 /** How tall the air's tallest stroke stands, as a share of the height of the scale. */
 export const BREATH_AIR_SHARE = 0.2
-/** How near a corner may stand to the figures before they are written at the other side, in pixels. */
-const FIGURES_CLEAR = 7
+/** How tall the patch the figures stand on is, and how far over the foot of the letters it starts: the kit's. */
+const FIGURES_TALL = 10
+const FIGURES_RISE = 8
 
 const wrap = (cycles: number): number => cycles - Math.floor(cycles)
+
+/** How much of a line lies in an area, in pixels along it. */
+function within(line: readonly Point[], area: Box): number {
+  let sum = 0
+  for (let n = 1; n < line.length; n++) {
+    const [x0, y0] = line[n - 1]
+    const [x1, y1] = line[n]
+    // The part of this piece that is inside, 0..1 along it: from where it comes in to where it leaves.
+    let from = 0
+    let to = 1
+    const cut = (start: number, step: number, low: number, high: number): void => {
+      if (step === 0) {
+        if (start < low || start > high) to = -1
+        return
+      }
+      const one = (low - start) / step
+      const other = (high - start) / step
+      from = Math.max(from, Math.min(one, other))
+      to = Math.min(to, Math.max(one, other))
+    }
+    cut(x0, x1 - x0, area.x, area.x + area.w)
+    cut(y0, y1 - y0, area.y, area.y + area.h)
+    if (to > from) sum += (to - from) * Math.hypot(x1 - x0, y1 - y0)
+  }
+  return sum
+}
+
+/** How far a place is from an area: 0 inside it. */
+function apart(x: number, y: number, area: Box): number {
+  return Math.max(area.x - x, x - area.x - area.w, area.y - y, y - area.y - area.h, 0)
+}
 
 const breath = plateDisplay<BreathState>({
   place: 'strip',
@@ -443,8 +496,10 @@ const breath = plateDisplay<BreathState>({
         for (let n = 1; n <= count; n++) {
           const t = n / (count + 1)
           const x = startX + (endX - startX) * t
-          const y = yOfLevel(breathLevel(breathIn(stage, t, ease), depth, mix), box)
-          strokes.push([x, y, breathAirSize(air, mix, stage, t) * BREATH_AIR_SHARE * box.h])
+          const b = breathIn(stage, t, ease)
+          const y = yOfLevel(breathLevel(b, depth, mix), box)
+          const tall = breathAirSize(air, mix, stage, t, breathGain(b, depth))
+          strokes.push([x, y, tall * BREATH_AIR_SHARE * box.h])
         }
       }
     }
@@ -468,7 +523,9 @@ const breath = plateDisplay<BreathState>({
     trace(ctx, highs, { colour: colours.ink, width: 1, alpha: INK.back })
     trace(ctx, level, { colour: colours.ink, width: 1.5 })
 
-    // What is in hand, in figures; else how long this breath is.
+    // What is in hand, in figures; else how long this breath is. Depth's is the floor as it is
+    // heard, with what Mix lets in of the untouched sound: the level the line stands at over Rest.
+    const heardFloor = breathLevel(0, depth, mix)
     const figures =
       frame.hot === 'full'
         ? `in ${secondsText(parts.in)}  hold ${secondsText(parts.hold)}`
@@ -477,32 +534,47 @@ const breath = plateDisplay<BreathState>({
           : frame.hot === 'empty'
             ? `out ${secondsText(parts.out)}  rest ${secondsText(parts.rest)}`
             : frame.hot === 'depth'
-              ? breathFloor(depth) > 1e-4
-                ? dbText(gainToDb(breathFloor(depth)))
+              ? heardFloor > 1e-4
+                ? dbText(gainToDb(heardFloor))
                 : 'silence'
               : secondsText(parts.total * pace)
-    // They stand at the top: at the right, or at the left, or between, wherever no corner of the top stands.
+    // They stand where they hide the least: along the top or along the foot, at the right, at the
+    // left or between. A point's ring under them counts the most, then how much of the level is,
+    // then how much of it runs close by, then how much of the highs is.
     ctx.font = `8px ${frame.fontFamily}`
     const wide = Math.ceil(ctx.measureText(figures).width) + 4
     const right = box.x + box.w - 1
-    const left = box.x + RING_ROOM + 3
+    const left = box.x + RING_ROOM + 3 + wide
     const middle = box.x + (box.w + wide) / 2
-    const corners = points.filter(
-      (point) => point.key !== 'depth' && point.y < box.y + 12 + RING_ROOM,
-    )
-    // How far the nearest corner is from figures whose right end is at `end`.
-    const clear = (end: number): number =>
-      Math.min(
-        ...corners.map((point) => Math.max(end - wide - point.x, point.x - end, 0)),
-        Infinity,
+    const high = box.y + 9
+    const low = foot - 3
+    const places: readonly (readonly [number, number])[] = [
+      [right, high],
+      [left, high],
+      [middle, high],
+      [middle, low],
+      [right, low],
+      [left, low],
+    ]
+    const hidden = ([end, base]: readonly [number, number]): number => {
+      const patch = { x: end - wide + 2, y: base - FIGURES_RISE, w: wide, h: FIGURES_TALL }
+      const near = { x: patch.x - 2, y: patch.y - 2, w: patch.w + 4, h: patch.h + 4 }
+      const ring = points.some((point) => apart(point.x, point.y, patch) < RING_ROOM + 1)
+      return (
+        (ring ? 1e6 : 0) +
+        1e3 * within(level, patch) +
+        30 * within(level, near) +
+        within(highs, patch)
       )
-    const places = [right, left + wide, middle]
-    const free = places.find((end) => clear(end) >= FIGURES_CLEAR)
-    const end = free ?? places.reduce((best, at) => (clear(at) > clear(best) ? at : best), right)
-    label(frame, figures, end, box.y + 9, 'right')
+    }
+    const place = places.reduce((best, one) => (hidden(one) < hidden(best) ? one : best))
 
     if (metered) {
       rule(ctx, nowX, box.y, nowX, foot, { colour: colours.ink, alpha: INK.rule })
+    }
+    // Over the mark's line, so that the figures are read whole as it goes by.
+    label(frame, figures, place[0], place[1], 'right')
+    if (metered) {
       const b = breathAt(now, parts, ease)
       dot(ctx, nowX, yOfLevel(breathLevel(b, depth, mix), box), 3, colours.accent, {
         ring: colours.ink,
