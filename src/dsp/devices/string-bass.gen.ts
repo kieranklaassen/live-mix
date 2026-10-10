@@ -15,7 +15,7 @@ export const STRING_BASS_PARAMS = {
     unit: '',
     choices: ['Electric', 'Fretless', 'Upright'],
     description:
-      'The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note.',
+      'The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and, with Growl up, its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note.',
   },
   touch: {
     id: 1,

@@ -12,7 +12,7 @@
       "name": "Type",
       "choices": ["Electric", "Fretless", "Upright"],
       "default": 0,
-      "description": "The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note."
+      "description": "The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and, with Growl up, its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note."
     },
     {
       "key": "touch",

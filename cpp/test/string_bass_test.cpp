@@ -287,14 +287,15 @@ static void test_pitch() {
         if (std::fabs(error) >= 3.0) std::printf("  pitch %s %s %.1f Hz: %+.2f cents\n", kTypeNames[type], s.name, hz, error);
       }
     }
-    for (float rate : {44100.0f, 96000.0f}) {
-      for (float hz : {kA0, kA1, kA2, kA3}) {
+    // E0 as well: the lowest key of a bass is the first to outgrow the line at a high rate.
+    for (float rate : {44100.0f, 96000.0f, 192000.0f}) {
+      for (float hz : {20.6017f, kA0, kA1, kA2, kA3}) {
         bare(type, rate);
         const std::vector<float> out = note(hz, 0.7f, 3.0f, rate);
         worst = std::max(worst, std::fabs(cents(fine_pitch(out, rate, hz, at(0.06, rate), out.size()), hz)));
       }
     }
-    std::printf("pitch %s: worst %.2f cents (A0, A1, A2, A3; as shipped, bright and dark; 44.1, 48 and 96 kHz)\n",
+    std::printf("pitch %s: worst %.2f cents (A0, A1, A2, A3; as shipped, bright and dark; with E0 at 44.1, 96 and 192 kHz)\n",
                 kTypeNames[type], worst);
     char label[120];
     std::snprintf(label, sizeof label, "%s is within 3 cents at A0, A1, A2 and A3 at any setting", kTypeNames[type]);

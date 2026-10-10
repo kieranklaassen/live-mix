@@ -75,8 +75,8 @@ namespace livemix {
 class StringBass : public kit::DeviceBase<string_bass::kNumParams> {
  public:
   static constexpr int kMaxVoices = 4;
-  // 8184 samples of line: 11.7 Hz at 96 kHz, so E0 (20.6 Hz) fits at every rate.
-  static constexpr int kLineSize = 8192;
+  // 16376 samples of line: 11.7 Hz at 192 kHz, so E0 (20.6 Hz) fits at every rate.
+  static constexpr int kLineSize = 16384;
   enum Type : int { kElectric = 0, kFretless = 1, kUpright = 2, kNumTypes = 3 };
   static constexpr int kStrings = 4;
   static constexpr int kBodyModes = 3;
