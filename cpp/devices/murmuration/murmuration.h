@@ -50,8 +50,10 @@
 //   side its own side at the voice's level, a bird hard left gives the left
 //   side 3 dB up and nothing on the right. So a sound that is the same on
 //   both sides is flown all round, a sound that is wide stays wide, and one
-//   that is out of phase between the sides does not cancel. The mono fold of
-//   a mono sound is within 3 dB of the stereo sum.
+//   that is out of phase between the sides does not cancel. Folded to mono a
+//   bird keeps between its own level and 3 dB more, but the birds then meet
+//   in one place: a held note is 10 dB down in the fold about twice as often
+//   as in stereo (3 % of the time at the defaults against 1.7 %).
 // - Turns follows its control at flock::kTurnsSlew per second of flight, and
 //   Range and Together glide over a quarter of a second, since each moves
 //   every delay: a step of any of them bends the birds instead of throwing
