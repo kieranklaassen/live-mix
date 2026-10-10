@@ -6,8 +6,12 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { type Patch } from '../../core/devices/patch'
+import { compileFromDisk, measureAudio } from '../../dsp/__tests__/render-support'
 import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { DISTANCE_METERS, DISTANCE_PARAMS } from '../../dsp/devices/distance.gen'
+import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from '../../dsp/factory/__tests__/chain-input'
+import { renderPatch } from '../../dsp/patch-render'
 import { INK, PLAIN_COLOURS, gainToDb } from '../components/display-kit'
 import {
   BRIGHT_HZ,
@@ -512,15 +516,20 @@ describe('what the display draws is what the compiled device does', () => {
       const scene = sceneOf(place, set, RATE)
       // The diffuse room answers from the right wall's reflection on. Each side of it is sent its
       // own side of the input and, narrowed, some of the other: the whole of a sample that is the
-      // same on both sides, and the display's `side` of one that is opposite on the two. The
-      // reflections are of the middle, so the opposite sample has none. Taking the answer to the
-      // opposite sample, over `side`, from the answer to the same sample leaves the reflections
-      // alone (the right side of the opposite sample is its left turned over).
+      // same on both sides, and the display's `side` of one that is opposite on the two. What the
+      // two loops give is drawn in as well, by the root of `side` (the device's `room_side`), and
+      // made up so the room stays as loud. The reflections are of the middle, so the opposite
+      // sample has none: its two sides, over `side`, are the two loops alone, mixed the opposite
+      // way to the same sample's, and what each loop gave the same sample comes out of them.
       const same = await answer({ ...still, distance: place, ...set }, 8192)
       const opposite = await answer({ ...still, distance: place, ...set }, 8192, 1, -1)
       expect(scene.side).toBeGreaterThan(0.2)
-      const leftAt = (n: number): number => same.left[n] - opposite.left[n] / scene.side
-      const rightAt = (n: number): number => same.right[n] + opposite.right[n] / scene.side
+      const drawn = Math.sqrt(scene.side)
+      const [more, less] = [(1 + drawn * drawn) / (2 * drawn), (1 - drawn * drawn) / (2 * drawn)]
+      const leftAt = (n: number): number =>
+        same.left[n] - (more * opposite.left[n] - less * opposite.right[n]) / scene.side
+      const rightAt = (n: number): number =>
+        same.right[n] - (less * opposite.left[n] - more * opposite.right[n]) / scene.side
       const when = arrival(place)
       // Floor, ceiling, left wall, right wall, right wall and floor.
       for (const k of [0, 1, 2, 3, 5]) {
@@ -1226,4 +1235,39 @@ describe('the points of Distance', () => {
       expect(far.drag(far.x - step, far.y, other).wander).toBeCloseTo(0.4, 6)
     }
   })
+})
+
+// --- Not the display: the presets, measured as the bank measures a chain of one device (its dry
+// phrase, which is nearly the same on both sides, through each). ---
+describe("the presets on the bank's phrase", () => {
+  it('are as loud as the dry phrase within 3 LU, and narrower the farther they stand', async () => {
+    const render = { durationSec: 10, compile: compileFromDisk, sliceMs: 0 } as const
+    const dry = await renderPatch(CHAIN_TEST_PATCH, { phrase: CHAIN_TEST_PHRASE, ...render })
+    const dryLufs = measureAudio(dry).lufs
+    const presets = Object.entries(stockDescriptors().get('distance')?.presets ?? {})
+    expect(presets.length).toBe(16)
+    for (const [name, set] of presets) {
+      const patch: Patch = {
+        id: 'x',
+        name: 'x',
+        category: 'space',
+        description: 'x.',
+        effects: [{ deviceId: 'distance', preset: name }],
+      }
+      const out = await renderPatch(patch, { input: dry, ...render })
+      const heard = measureAudio(out)
+      expect(Math.abs(heard.lufs - dryLufs), `${name}, LU from the dry phrase`).toBeLessThan(3)
+      // Side over middle: the room does not open the sound out, and far away it has drawn in.
+      const far = (set.distance ?? 0.4) >= 0.7
+      expect(heard.widthDb, `${name}, side over middle`).toBeLessThan(far ? -5 : -3)
+      // Summed to one channel it keeps its level.
+      const [left, right = left] = out.channels
+      let [mid, both] = [0, 0]
+      for (let i = 0; i < left.length; i++) {
+        mid += ((left[i] + right[i]) / 2) ** 2
+        both += (left[i] ** 2 + right[i] ** 2) / 2
+      }
+      expect(10 * Math.log10(mid / both), `${name}, summed to one channel`).toBeGreaterThan(-2)
+    }
+  }, 600_000)
 })

@@ -33,7 +33,14 @@
 //   d^Width, so 0 never narrows and 1 narrows as geometry has it. What is
 //   sent to the diffuse room is narrowed the same, so a source off to one
 //   side comes to the middle whole, with its room; the first reflections are
-//   of the middle of the input to begin with.
+//   of the middle of the input to begin with. The diffuse room draws in
+//   too: its two sides are two loops with nothing in common, as wide as
+//   sound gets, and its sides are turned down against its middle by the
+//   root of the direct sound's gain (half as many dB: 6.5 dB at 32 m with
+//   Width at its middle, 14 dB at the top), with the whole room made up for
+//   what that takes so it stays as loud. So far away, where the room is
+//   nearly all there is, a sound in the middle stays in the middle and the
+//   whole sums to one channel without the room dropping out.
 // - The room: listener and source stand on one line down a room W wide
 //   (4 m to 40 m with Room), 7 % of W off its middle. Eight image sources
 //   (floor, ceiling, each side wall, two of second order, the far left wall
@@ -289,6 +296,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
       const float round = loop_gain_.next();
       const float tilt = loop_tilt_.next();
       const float late = late_.next();
+      float ring[2];
       for (int c = 0; c < 2; ++c) {
         float x = send[c];
         for (int a = 0; a < kDiffusers; ++a) {
@@ -321,12 +329,14 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
         past[3] = past[2];
         past[2] = into_loop;
         ringing = kit::max(ringing, std::fabs(out));
-        if (c == 0) {
-          room_left += late * out;
-        } else {
-          room_right += late * out;
-        }
+        ring[c] = out;
       }
+      // The room draws in with the source: its sides are turned down
+      // against its middle, and the whole made up so that it stays as loud.
+      const float room_same = late * room_same_.next();
+      const float room_cross = late * room_cross_.next();
+      room_left += room_same * ring[0] + room_cross * ring[1];
+      room_right += room_same * ring[1] + room_cross * ring[0];
 
       // The room is exact up to ±1 and lands on ±2: nothing that comes in
       // hot can go out hotter than that. The direct sound is never louder
@@ -375,6 +385,10 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     if (!(seen > 1.0f)) return 1.0f;
     return kit::min(1.0f, std::atan(1.0f / seen) * (4.0f / kit::kPi));
   }
+
+  // The gain on the sides of the diffuse room against its middle: the
+  // root of the direct sound's, so in dB the room closes half as fast.
+  static float room_side(float place, float width) { return std::sqrt(side_gain(place, width)); }
 
   // The width of the room, metres, and the level of its diffuse sound.
   static float room_width(float room) { return kNarrowestRoom * std::pow(10.0f, room); }
@@ -731,6 +745,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     late_.land();
     feed_same_.land();
     feed_cross_.land();
+    room_same_.land();
+    room_cross_.land();
     loop_gain_.land();
     loop_tilt_.land();
     for (int k = 0; k < kTaps; ++k) {
@@ -757,6 +773,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     late_.value += late_.step * samples;
     feed_same_.value += feed_same_.step * samples;
     feed_cross_.value += feed_cross_.step * samples;
+    room_same_.value += room_same_.step * samples;
+    room_cross_.value += room_cross_.step * samples;
     loop_gain_.value += loop_gain_.step * samples;
     loop_tilt_.value += loop_tilt_.step * samples;
     for (int k = 0; k < kTaps; ++k) {
@@ -865,6 +883,13 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     cross_.aim(0.5f * (1.0f - side) * direct * lift);
     feed_same_.aim(0.5f * (1.0f + side));
     feed_cross_.aim(0.5f * (1.0f - side));
+    // The room's two sides are two loops with nothing in common, so its
+    // middle and its sides are as loud as each other until the sides are
+    // turned down; what that takes of its power is made up.
+    const float narrow = room_side(place, width_.value);
+    const float kept = std::sqrt(2.0f / (1.0f + narrow * narrow));
+    room_same_.aim(kept * 0.5f * (1.0f + narrow));
+    room_cross_.aim(kept * 0.5f * (1.0f - narrow));
     late_.aim(kSendMakeup * late * lift);
     for (int k = 0; k < kTaps; ++k) {
       tap_left_[k].aim(gains[k][0] * lift);
@@ -891,7 +916,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   Glide centre_, half_, doppler_, room_;
   kit::Smoother air_, width_, level_, decay_;
   Ramp air_keep_, same_, cross_, late_;
-  Ramp feed_same_, feed_cross_, loop_gain_, loop_tilt_;
+  Ramp feed_same_, feed_cross_, room_same_, room_cross_, loop_gain_, loop_tilt_;
   Ramp tap_left_[kTaps], tap_right_[kTaps];
   Reach delay_, send_lag_;
   Reach tap_lag_[kTaps];

@@ -93,7 +93,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much the sound narrows towards the middle as it moves away. Zero keeps it as wide as it came in."
+      "description": "How much the sound and the room around it narrow towards the middle as it moves away. Zero narrows nothing."
     }
   ],
   "presets": {
@@ -110,7 +110,7 @@
       "room": 0.3,
       "air": 0.3,
       "wander": 0,
-      "level": 0.3
+      "level": 0.6
     },
     "Across the room": {
       "distance": 0.5,
@@ -125,7 +125,7 @@
       "air": 1,
       "wander": 0,
       "decay": 0.5,
-      "level": 0.7,
+      "level": 0.8,
       "width": 1
     },
     "Back of the hall": {
@@ -152,7 +152,8 @@
       "wander": 0.8,
       "rate": 0.03,
       "decay": 2,
-      "level": 0.8
+      "level": 0.9,
+      "width": 0.8
     },
     "Passing by": {
       "distance": 0.4,
@@ -169,7 +170,7 @@
       "wander": 1,
       "rate": 1,
       "decay": 0.4,
-      "level": 1,
+      "level": 0.9,
       "width": 1
     },
     "Breathing": {
@@ -177,7 +178,7 @@
       "wander": 0.6,
       "rate": 0.15,
       "doppler": 0,
-      "level": 0.5
+      "level": 0.8
     },
     "Through fog": {
       "distance": 0.85,
@@ -203,7 +204,8 @@
       "wander": 0.2,
       "rate": 0.05,
       "decay": 0.25,
-      "width": 0.3
+      "width": 0.3,
+      "level": 0.9
     },
     "Wide and near": {
       "distance": 0.2,
@@ -232,6 +234,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Inverse distance law, travel time at the speed of sound, air absorption as a low-pass that follows distance, image sources for the first reflections and a feedback delay network (Jot and Chaigne, AES 1991) for the diffuse room. No unit or product is modelled."
+    "note": "Written for live-mix on cpp/kit. Inverse distance law, travel time at the speed of sound, air absorption as a low-pass that follows distance, image sources for the first reflections and, for the diffuse room, a nested all-pass loop on each side (all-pass reverberators after Schroeder, JAES 1962, nested as in Gardner, 1992), which is as loud at every frequency. No unit or product is modelled."
   }
 }

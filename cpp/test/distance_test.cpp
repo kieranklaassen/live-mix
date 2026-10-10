@@ -328,13 +328,85 @@ int main() {
     Stereo narrowed = run(device, in.left, nothing);
     EXPECT_NEAR(db(rms(narrowed.right, from) / rms(narrowed.left, from)), 0.0, 1.0,
                 "far away with Width 1 a sound on the left is in the middle");
-    EXPECT(correlation(narrowed.left, narrowed.right, from) < 0.5,
-           "and the room round it is wide: its two sides are not the same");
+    EXPECT(correlation(narrowed.left, narrowed.right, from) > 0.8,
+           "and the room round it has drawn in with it: its two sides are nearly the same");
     still(device, 1.0f);
     device.set_param(p::kWidth, 0.0f);
     Stereo kept = run(device, in.left, nothing);
     EXPECT(db(rms(kept.right, from) / rms(kept.left, from)) < -10.0,
            "with Width 0 it stays on the left, and its room with it");
+  }
+
+  // Far away the whole is narrower, the room with it. The diffuse room is
+  // two loops with nothing in common, as wide as sound gets; its sides are
+  // turned down against its middle by the root of the direct sound's gain
+  // on the sides, and the room is made up for what that takes. So a source
+  // in the middle stays in the middle at 32 m (the sides well under the
+  // middle, and little lost when the two channels are summed to one), Width
+  // closes it further, Width 0 narrows nothing, and a wide source goes on
+  // narrowing all the way out instead of opening again into the room.
+  // (As first checked the room was let out a side a loop whatever Width
+  // was: a source in the middle read -1.1 dB side against middle at 32 m
+  // at every Width and lost 2.5 dB summed to one channel, and a wide source
+  // read -0.1, -2.2, -3.1, -2.1, -1.4, -1.0 dB over the six places below.)
+  {
+    Stereo wide = audible(pink(6.0f, 0.1f));
+    Stereo mono = wide;
+    mono.right = mono.left;
+    const size_t from = static_cast<size_t>(2.0f * kRate);
+    // Side against middle, dB, and what summing the two sides to one loses, dB.
+    auto read = [&](const Stereo& out, double* side_mid, double* summed) {
+      double mid = 0.0, side = 0.0, both = 0.0;
+      for (size_t i = from; i < out.left.size(); ++i) {
+        const double m = 0.5 * (out.left[i] + out.right[i]);
+        const double d = 0.5 * (out.left[i] - out.right[i]);
+        mid += m * m;
+        side += d * d;
+        both += 0.5 * (static_cast<double>(out.left[i]) * out.left[i] +
+                       static_cast<double>(out.right[i]) * out.right[i]);
+      }
+      *side_mid = 10.0 * std::log10(std::max(side, 1e-30) / std::max(mid, 1e-30));
+      *summed = 10.0 * std::log10(std::max(mid, 1e-30) / std::max(both, 1e-30));
+    };
+    double at_width[3] = {0.0, 0.0, 0.0};
+    double summed_at[3] = {0.0, 0.0, 0.0};
+    const float widths[3] = {0.0f, 0.5f, 1.0f};
+    for (int w = 0; w < 3; ++w) {
+      still(device, 1.0f);
+      device.set_param(p::kWidth, widths[w]);
+      read(run(device, mono.left, mono.right), &at_width[w], &summed_at[w]);
+    }
+    char label[180];
+    std::snprintf(label, sizeof label, "at 32 m a source in the middle has its sides 5 dB or more under its middle (%.1f dB)", at_width[1]);
+    EXPECT(at_width[1] < -5.0, label);
+    std::snprintf(label, sizeof label, "and loses less than 1.5 dB summed to one channel (%.1f dB)", summed_at[1]);
+    EXPECT(summed_at[1] > -1.5, label);
+    std::snprintf(label, sizeof label, "Width at the top closes the room 4 dB further (%.1f dB)", at_width[2]);
+    EXPECT(at_width[2] < at_width[1] - 4.0, label);
+    std::snprintf(label, sizeof label, "Width 0 narrows nothing: the room is as wide as its two loops are (%.1f dB)", at_width[0]);
+    EXPECT(at_width[0] > -3.0, label);
+    // The room's sides against its middle are what the model says: the root
+    // of the direct sound's side gain, here read where the room is all but
+    // everything, against Width 0 where nothing is turned down.
+    for (int w = 1; w < 3; ++w) {
+      const double law = db(Distance::room_side(1.0f, widths[w]));
+      std::snprintf(label, sizeof label, "the room's sides at Width %.1f are down by the root of the direct sound's (%.1f dB against %.1f)",
+                    widths[w], at_width[w] - at_width[0], law);
+      EXPECT_NEAR(at_width[w] - at_width[0], law, 1.5, label);
+    }
+    double last = 1.0e9;
+    for (int step = 0; step <= 5; ++step) {
+      const float place = 0.2f * static_cast<float>(step);
+      still(device, place);
+      double side_mid = 0.0, summed = 0.0;
+      read(run(device, wide.left, wide.right), &side_mid, &summed);
+      if (step > 0) {
+        std::snprintf(label, sizeof label, "a wide source is narrower at Distance %.1f than at %.1f (%.1f dB side against middle)",
+                      place, place - 0.2f, side_mid);
+        EXPECT(side_mid < last - 0.5, label);
+      }
+      last = side_mid;
+    }
   }
 
   // The air: the direct sound alone (the first milliseconds of an impulse,
