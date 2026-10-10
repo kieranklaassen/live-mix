@@ -64,10 +64,10 @@ namespace seasons_parts {
 constexpr int kSeasons = 4;  // spring, summer, autumn, winter
 
 // What each season is, at Depth 1 and with its part's knob full up.
-constexpr float kLowShelfDb[kSeasons] = {-3.0f, 3.0f, 2.0f, -5.0f};
-constexpr float kLowShelfHz[kSeasons] = {220.0f, 260.0f, 180.0f, 320.0f};
-constexpr float kHighShelfDb[kSeasons] = {4.0f, -2.0f, -9.0f, 2.0f};
-constexpr float kHighShelfHz[kSeasons] = {3200.0f, 4500.0f, 1300.0f, 6000.0f};
+constexpr float kLowShelfDb[kSeasons] = {-2.0f, 3.0f, 2.0f, -7.0f};
+constexpr float kLowShelfHz[kSeasons] = {200.0f, 260.0f, 180.0f, 400.0f};
+constexpr float kHighShelfDb[kSeasons] = {4.5f, -2.0f, -9.0f, 3.0f};
+constexpr float kHighShelfHz[kSeasons] = {2800.0f, 4500.0f, 1300.0f, 6500.0f};
 // The room: level of the early taps and of the network, and its decay to -60 dB.
 constexpr float kEarlyLevel[kSeasons] = {0.7f, 0.25f, 0.4f, 0.1f};
 constexpr float kLateLevel[kSeasons] = {1.2f, 1.5f, 1.8f, 1.6f};
@@ -87,14 +87,14 @@ constexpr float kTumble[kSeasons] = {0.0f, 0.02f, 0.14f, 0.0f};
 constexpr float kShimmerMs[kSeasons] = {0.1f, 0.02f, 0.0f, 0.0f};
 constexpr float kSwayMs[kSeasons] = {0.3f, 2.2f, 0.6f, 0.3f};
 constexpr float kTumbleMs[kSeasons] = {0.0f, 0.2f, 1.0f, 0.0f};
-constexpr float kShiftHz[kSeasons] = {2.5f, 0.0f, -2.5f, 0.0f};
+constexpr float kShiftHz[kSeasons] = {4.0f, 0.0f, -3.0f, 0.0f};
 // Texture (crumble, glitter, warmth) and width.
 constexpr float kCrumble[kSeasons] = {0.0f, 0.0f, 1.0f, 0.15f};
 constexpr float kGlitter[kSeasons] = {0.35f, 0.0f, 0.0f, 1.0f};
 constexpr float kWarmth[kSeasons] = {0.0f, 1.0f, 0.45f, 0.0f};
 constexpr float kWidth[kSeasons] = {1.0f, 1.5f, 0.9f, 0.45f};
 // What holds the loudness round the year (dB at Depth 1), found by measuring.
-constexpr float kTrimDb[kSeasons] = {0.35f, -1.55f, 0.8f, 2.05f};
+constexpr float kTrimDb[kSeasons] = {0.05f, -1.55f, 0.5f, 2.75f};
 
 constexpr float kShimmerHz = 5.3f;
 constexpr float kSwayHz = 0.19f;
