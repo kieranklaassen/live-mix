@@ -251,8 +251,9 @@
       "follow": 0
     },
     "Howl alone": {
-      "gain": 0.8,
-      "hold": 8,
+      "gain": 0.9,
+      "hold": 15,
+      "follow": 0.2,
       "mix": 1
     }
   },

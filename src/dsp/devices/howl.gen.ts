@@ -185,7 +185,7 @@ export const HOWL_DESCRIPTOR = wasmDeviceDescriptor(HOWL_DEVICE, {
     'Wide pair': { gain: 0.8, body: 440, hold: 12, move: 0.15, width: 1 },
     'Long hang': { gain: 0.75, hold: 30, move: 0.4, pace: 0.04, follow: 0.3 },
     'Ring, no howl': { gain: 0.5, distance: 4.545, body: 660, hold: 1, move: 0, follow: 0 },
-    'Howl alone': { gain: 0.8, hold: 8, mix: 1 },
+    'Howl alone': { gain: 0.9, hold: 15, follow: 0.2, mix: 1 },
   },
 })
 

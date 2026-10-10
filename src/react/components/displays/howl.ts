@@ -267,7 +267,9 @@ function drawSinging(
     const pitch = running ? frame.meter(side === 1 ? 'pitchRight' : 'pitch') : 0
     const reading =
       pitch >= HOWL_MIN_HZ ? Math.max(0, frame.meter(side === 1 ? 'levelRight' : 'level')) : 0
-    state.heard[side] = running ? follow(state.heard[side], reading * heard, frame.dt, 0.05, 0.15) : 0
+    state.heard[side] = running
+      ? follow(state.heard[side], reading * heard, frame.dt, 0.05, 0.15)
+      : 0
     return { side, pitch, level: state.heard[side] }
   }
   const left = toneOf(0)
@@ -280,14 +282,28 @@ function drawSinging(
       const hz = harmonic * tone.pitch
       const top = sound(tone.level * edge * share)
       if (hz > HOWL_MAX_HZ || top > foot - 1) continue
-      trace(ctx, [[xOf(hz, plot), foot], [xOf(hz, plot), top]], {
-        colour: colours.accent,
-        width: 1,
-        alpha: INK.text,
-      })
+      trace(
+        ctx,
+        [
+          [xOf(hz, plot), foot],
+          [xOf(hz, plot), top],
+        ],
+        {
+          colour: colours.accent,
+          width: 1,
+          alpha: INK.text,
+        },
+      )
     }
     const top = sound(tone.level)
-    trace(ctx, [[x, foot], [x, top]], { colour: colours.accent, width: tone.side === 0 ? 2 : 1 })
+    trace(
+      ctx,
+      [
+        [x, foot],
+        [x, top],
+      ],
+      { colour: colours.accent, width: tone.side === 0 ? 2 : 1 },
+    )
     dot(ctx, x, top, tone.side === 0 ? 2.75 : 1.75, colours.accent, {
       ring: tone.side === 0 ? colours.ink : undefined,
     })
@@ -351,7 +367,10 @@ const howl = plateDisplay<HowlState>({
 
     // The scale: 100 Hz and 1 kHz, and the line where the loop gives back what went in.
     for (const hz of [100, 1000])
-      rule(ctx, xOf(hz, plot), plot.y, xOf(hz, plot), foot, { colour: colours.ink, alpha: INK.grid })
+      rule(ctx, xOf(hz, plot), plot.y, xOf(hz, plot), foot, {
+        colour: colours.ink,
+        alpha: INK.grid,
+      })
     rule(ctx, plot.x, zero, plot.x + plot.w, zero, { colour: colours.ink, alpha: INK.rule })
 
     // How far the bodies may wander: from the left one at its lowest to the right one at its highest.
@@ -383,8 +402,9 @@ const howl = plateDisplay<HowlState>({
         const x = xOf(k * fundamental, plot)
         const db = most(k * fundamental)
         rule(ctx, x, foot, x, level(db), { colour: colours.ink, alpha: INK.back })
+        // Two pixels wide over the one the post stands on, on whole pixels.
         if (db > 0)
-          rule(ctx, x, zero, x, level(db), {
+          rule(ctx, Math.round(x), zero, Math.round(x), level(db), {
             colour: colours.ink,
             width: 2,
             alpha: lerp(INK.back, INK.trace, heard),
@@ -419,7 +439,10 @@ const howl = plateDisplay<HowlState>({
     const tones = drawSinging(frame, plot, running, heard)
 
     // The rail, with the note the loop is tuned by at its end.
-    rule(ctx, plot.x, rail - 0.5, plot.x + plot.w, rail - 0.5, { colour: colours.ink, alpha: INK.grid })
+    rule(ctx, plot.x, rail - 0.5, plot.x + plot.w, rail - 0.5, {
+      colour: colours.ink,
+      alpha: INK.grid,
+    })
     const [body, distance] = howlHandles(frame)
     rule(ctx, distance.x, foot, distance.x, rail, { colour: colours.ink, alpha: INK.back })
     handle(frame, body.x, body.y, { hot: frame.hot === body.key })

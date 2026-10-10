@@ -62,13 +62,7 @@ const handles = (
   height = size.height,
 ): readonly DisplayHandle[] =>
   display.handles?.(viewOf(display, params, { values, width, height })) ?? []
-const handleOf = (key: string, values: Record<string, number> = {}): DisplayHandle => {
-  const found = handles(values).find((point) => point.key === key)
-  if (!found) throw new Error(`no handle ${key}`)
-  return found
-}
-const draw = (options: FrameOptions = {}): RecordingContext =>
-  drawDisplay(display, params, options)
+const draw = (options: FrameOptions = {}): RecordingContext => drawDisplay(display, params, options)
 /** The device's readings with nothing singing. */
 const QUIET = {
   level: 0,
@@ -127,7 +121,8 @@ const strokes = (drawn: RecordingContext): Shape[] =>
 /** The loop's gain curve of the left side: the one long line in the ink at full strength. */
 function curveOf(drawn: RecordingContext): [number, number][] {
   const curves = strokes(drawn).filter(
-    (shape) => shape.width === 1.5 && shape.points.length > 10 && shape.colour === PLAIN_COLOURS.ink,
+    (shape) =>
+      shape.width === 1.5 && shape.points.length > 10 && shape.colour === PLAIN_COLOURS.ink,
   )
   expect(curves.length, 'one curve in front').toBe(1)
   return curves[0].points
@@ -170,7 +165,8 @@ describe("the loop's numbers, as howl.h has them", () => {
 
   it('ports the body: unity at its centre, a band pass of Q 2 either side', () => {
     expect(HOWL_BODY_Q).toBe(2) // kBodyQ
-    for (const centre of [120, 520, 2400]) expect(howlBodyDb(centre, centre, RATE)).toBeCloseTo(0, 6)
+    for (const centre of [120, 520, 2400])
+      expect(howlBodyDb(centre, centre, RATE)).toBeCloseTo(0, 6)
     // The analogue band pass at a ratio r of its centre is 1 / sqrt(1 + Q² (r - 1/r)²); the
     // device's is that at the ratio of the two tangents, which low down is the ratio of the frequencies.
     const analogue = (ratio: number): number =>
@@ -261,11 +257,13 @@ describe.each(SHAPES)('the picture at %i by %i', (width, height) => {
     expect(behind({ width: 0 })).toHaveLength(0)
     const [right] = behind({ width: 1, body: 500, gain: 0.8 })
     const centre = howlCentreHz(500, 0, 1, 1, 0)
-    expect(Math.abs(yAt(right.points, xOf(centre, plot)) - loopY(howlLoopDb(0.8)))).toBeLessThan(0.5)
+    expect(Math.abs(yAt(right.points, xOf(centre, plot)) - loopY(howlLoopDb(0.8)))).toBeLessThan(
+      0.5,
+    )
   })
 
   it('stands a post on every whole multiple of the fundamental, as high as the loop gain there', () => {
-    const values = { distance: 10, body: 400, gain: 0.8, width: 0, move: 0 }
+    const values = { distance: 10, body: 400, gain: 0.75, width: 0, move: 0 }
     const drawn = at(values)
     const posts = uprights(drawn, PLAIN_COLOURS.ink).filter(
       (shape) =>
@@ -279,15 +277,15 @@ describe.each(SHAPES)('the picture at %i by %i', (width, height) => {
     expected.forEach((k, index) => {
       const post = posts[index]
       expect(post.points[0][0]).toBe(Math.floor(xOf(k * 100, plot)) + 0.5)
-      const db = howlLoopDb(0.8) + howlBodyDb(k * 100, 400, RATE)
+      const db = howlLoopDb(0.75) + howlBodyDb(k * 100, 400, RATE)
       expect(Math.min(post.points[0][1], post.points[1][1])).toBeCloseTo(loopY(db), 6)
     })
     // The part of a post over the line is drawn again, heavier: here the third, fourth and fifth.
     const over = uprights(drawn, PLAIN_COLOURS.ink).filter((shape) => shape.width === 2)
-    const singing = expected.filter((k) => howlLoopDb(0.8) + howlBodyDb(k * 100, 400, RATE) > 0)
+    const singing = expected.filter((k) => howlLoopDb(0.75) + howlBodyDb(k * 100, 400, RATE) > 0)
     expect(singing).toEqual([3, 4, 5])
     expect(over.map((shape) => shape.points[0][0])).toEqual(
-      singing.map((k) => Math.floor(xOf(k * 100, plot)) + 0.5),
+      singing.map((k) => Math.round(xOf(k * 100, plot))),
     )
     for (const shape of over) expect(Math.max(shape.points[0][1], shape.points[1][1])).toBe(zero)
   })
@@ -314,7 +312,8 @@ describe.each(SHAPES)('the picture at %i by %i', (width, height) => {
         xOf(next, plot) - xOf(last * fundamental, plot) < HOWL_POSTS_APART || next > HOWL_MAX_HZ
       expect(crowded, `after post ${last} at ${distance} ms`).toBe(true)
       const fills = shapes(at({ distance })).filter(
-        (shape) => shape.op === 'fill' && shape.points.length > 4 && shape.colour === PLAIN_COLOURS.ink,
+        (shape) =>
+          shape.op === 'fill' && shape.points.length > 4 && shape.colour === PLAIN_COLOURS.ink,
       )
       if (next > HOWL_MAX_HZ) expect(fills).toHaveLength(0)
       else {
@@ -516,7 +515,9 @@ describe.each(SHAPES)('the singing tones at %i by %i', (width, height) => {
         expect(harmonics[index].alpha).toBe(INK.text)
       })
     }
-    expect(accents(sing({ mix: 1, edge: 0 }, meters)).filter((mark) => mark.width === 1)).toHaveLength(0)
+    expect(
+      accents(sing({ mix: 1, edge: 0 }, meters)).filter((mark) => mark.width === 1),
+    ).toHaveLength(0)
     // A harmonic past the scale is left out: the seventh of 1 kHz.
     const high = accents(sing({ mix: 1, edge: 1 }, { pitch: 1000, level: 0.5 }))
     expect(high.filter((mark) => mark.width === 1)).toHaveLength(2)
@@ -617,7 +618,8 @@ describe('the compiled device against what is drawn of it', () => {
       const { plot } = howlBoxes(size)
       // The post the picture shows highest.
       const posts = howlPosts(fundamental, plot)
-      const height = (k: number): number => howlLoopDb(0.8) + howlBodyDb(k * fundamental, body, RATE)
+      const height = (k: number): number =>
+        howlLoopDb(0.8) + howlBodyDb(k * fundamental, body, RATE)
       const best = posts.reduce((a, b) => (height(b) > height(a) ? b : a))
       expect(height(best)).toBeGreaterThan(0)
       expect(best).toBe(howlOvertone(body, fundamental, RATE))
@@ -625,7 +627,10 @@ describe('the compiled device against what is drawn of it', () => {
       const { meter, strike } = await loop({ distance, body, gain: 0.8 })
       const tail = strike(196, 0.5, 1.5)
       const sung = crossingHz(tail, RATE, 1.5 * RATE)
-      expect(Math.abs(1200 * Math.log2(sung / (best * fundamental))), `${distance} ms`).toBeLessThan(3)
+      expect(
+        Math.abs(1200 * Math.log2(sung / (best * fundamental))),
+        `${distance} ms`,
+      ).toBeLessThan(3)
       // The readings the display marks the tone from: its frequency, its level, and where the body stands.
       expect(Math.abs(1200 * Math.log2(meter('pitch') / sung))).toBeLessThan(10)
       expect(meter('pitchRight')).toBeCloseTo(meter('pitch'), 1)
