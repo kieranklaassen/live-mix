@@ -446,7 +446,8 @@ in, and it is told the notes. With `live: { signal: true, notes: true }`,
 gain, age, released }`, in seconds before now, `released` null while the key is
 held. They come from `NoteWatchDevice.playedNotes()`, which every compiled
 device answers (`WasmDevice` remembers the held notes and, for a minute,
-the ones let go; nothing of it reaches the sound), and are empty at rest and
+the ones let go, 128 at the most, the oldest one let go making room first;
+nothing of it reaches the sound), and are empty at rest and
 for a device that remembers none. What a display is told is what the
 instrument was told, not what still sounds: how long a string rings on is
 worked out in the display from the device's own figures (the Harp's
