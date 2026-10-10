@@ -180,12 +180,12 @@ export const meltBand = (plot: Box, smearSec: number): number =>
   plot.h * MELT_BAND_SHARE * clamp(smearSec / MELT_SMEAR_FULL_SEC, 0, 1)
 
 /** How much of the line is left when none of the tail is in the mix: its shape is still there to read. */
-export const MELT_UNHEARD = 0.35
+export const MELT_UNHEARD = 0.5
 /** How strongly the band is laid at full level, against the line. */
-export const MELT_BAND_INK = 0.6
+export const MELT_BAND_INK = 0.7
 /** Half the line's thickness, and half the lit line's, in pixels. */
-export const MELT_LINE_HALF = 0.8
-export const MELT_LIT_HALF = 1.3
+export const MELT_LINE_HALF = 1.1
+export const MELT_LIT_HALF = 1.9
 /** How far the dry sound's mark stands either side of the played pitch at Mix 0, as a share of the plot's height, over the 2 px it always has. */
 export const MELT_DRY_SHARE = 0.16
 /** A sound this loud is lit in full, and one 54 dB under it not at all. */

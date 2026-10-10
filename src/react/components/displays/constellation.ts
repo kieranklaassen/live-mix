@@ -295,8 +295,12 @@ const WOBBLE_PX = 3
 /** The level that went in is kept this long, in slots this fine. */
 const PAST_SEC = 16
 const SLOTS_PER_SEC = 60
-/** How strongly the glow of the sound on its way is laid, at full scale. */
-const GLOW_INK = 0.3
+/**
+ * How strongly the glow of the sound on its way is laid, at full scale. Over a
+ * plate as dark as a night sky more than this turns the whole field the
+ * accent's colour under steady playing, and the stars no longer stand off it.
+ */
+const GLOW_INK = 0.17
 /** How strongly a dot is laid, from the darkest star to the brightest. */
 const DARK_INK = 0.42
 /** The one point the display has. */

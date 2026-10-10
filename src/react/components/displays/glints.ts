@@ -94,10 +94,12 @@ const GLINTS_GLOW = 0.75
  */
 export const GLINTS_FAINTEST = 0.7
 /** A point of light: its size with the spark's window shut, and what the window open to the full adds. */
-export const GLINTS_POINT = 2.2
-export const GLINTS_POINT_OPEN = 3.4
+export const GLINTS_POINT = 2.8
+export const GLINTS_POINT_OPEN = 4.6
 /** How far apart the two rings stand at the least, when both are on one row. */
 const GLINTS_RING_GAP = 9
+/** The room under the lowest row that lets the seconds stand at the foot of the picture, in pixels. */
+export const GLINTS_FOOT_ROOM = 10
 
 export interface GlintsSpark {
   /** Which speed: 0 is twice as fast. */
@@ -580,9 +582,13 @@ const glints = plateDisplay<GlintsState>({
       named.push(y)
       text(frame, `×${row + 2}`, field.x - 3, y + 3, { align: 'right' })
     }
+    // The seconds stand at the foot where the lowest row leaves them the room (the upright plate), and
+    // over the lowest row where it does not (the strip).
     const lowest = glintsY(0, set, layout)
+    const footY = field.y + field.h - 1
+    const timeY = footY - lowest >= GLINTS_FOOT_ROOM ? footY : lowest - reach - 3
     for (const seconds of GLINTS_TIME_NAMED) {
-      label(frame, `${seconds} s`, glintsX(seconds, layout) + 3, lowest - reach - 3)
+      label(frame, `${seconds} s`, glintsX(seconds, layout) + 3, timeY)
     }
 
     for (const point of glintsHandles(frame)) {

@@ -460,5 +460,10 @@ const canon = plateDisplay<CanonState>({
 })
 
 export const CANON_FACES: Readonly<Record<string, PlateFace>> = {
-  canon: { display: canon, face: ['followers', 'crab', 'round', 'mix'] },
+  canon: {
+    display: canon,
+    face: ['followers', 'crab', 'round', 'mix'],
+    // Four knobs of the same name side by side read as one line of words on the upright plate.
+    labels: { interval1: 'Int 1', interval2: 'Int 2', interval3: 'Int 3', interval4: 'Int 4' },
+  },
 }
