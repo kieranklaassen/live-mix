@@ -516,6 +516,36 @@ describe('WasmDevice notes and custom processors', () => {
     expect(device.playedNotes().at(-1)?.id).toBe(239)
   })
 
+  it('keeps a held key while a run of other notes goes by: the oldest note let go makes room', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
+      wasm: plateModule,
+      createNode: mockNodeFactory,
+    })
+    // A drone held under an arpeggio: two hundred notes in twenty seconds, each let go before the next.
+    device.noteOn(36, 65.41, 0.7)
+    for (let step = 0; step < 200; step++) {
+      clock.mockReturnValue(1100 + step * 100)
+      device.noteOn(300 + step, 440)
+      clock.mockReturnValue(1150 + step * 100)
+      device.noteOff(300 + step)
+    }
+    const played = device.playedNotes()
+    expect(played).toHaveLength(128)
+    // The drone still sounds, so it is still there for its display to light, first as the oldest.
+    expect(played[0]).toMatchObject({ id: 36, onMs: 1000, offMs: null })
+    // What went was the oldest of the run, and the newest are all kept.
+    expect(played[1].id).toBe(300 + 200 - 127)
+    expect(played.at(-1)?.id).toBe(499)
+    // Let go at last, it is forgotten like any other once the run needs its place.
+    clock.mockReturnValue(30_000)
+    device.noteOff(36)
+    device.noteOn(600, 440)
+    expect(device.playedNotes().some((note) => note.id === 36)).toBe(false)
+    expect(device.playedNotes()).toHaveLength(128)
+  })
+
   it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
     const ctx = createMockContext()
     const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
