@@ -1,10 +1,14 @@
 // Bass lines on the bass synthesizers, written at 120 bpm on a grid of sixteenths; every one comes round.
 // Numbers 233 to 252. What every sound here is held to is in docs/factory.md.
 //
-// Every instrument parameter a line depends on is written out, so a line measures the same
-// whatever its device preset is set to. On the sub, FM and acid basses each round has a rest long
-// enough for the instrument to fall silent, where it starts again from a known state: one round
-// is then the next, sample for sample. The ladder bass never starts again: see the first of its lines.
+// Every instrument parameter is written out, so a line measures the same whatever its device
+// preset is set to. One that does nothing in a line is at zero: a glide where no two notes overlap,
+// an accent where no note is struck harder than 0.7 (the acid bass's Slide has no zero). On the
+// sub, FM and acid basses each round has a rest long enough for the instrument to fall silent,
+// where it starts again from a known state: one round is then the next, sample for sample. The
+// rests are beats long and the fades seconds long, so that holds only up to a tempo: every one of
+// these lines is measured exact from 60 to 160 bpm. The ladder bass never starts again: see the
+// first of its lines.
 
 import { hall, soften } from '../parts'
 import { type FactorySound } from '../types'
@@ -16,6 +20,9 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     id: 'slow-sub-line-am',
     number: 233,
     name: 'Slow sub line {A}m',
+    // A pad to the analysis, which hears no hit in a swell of 0.4 s (an attack of 30 ms gives it
+    // three, one of 60 ms none), so this one line keeps no time: time.test.ts lets only a beat or a
+    // phrase have a tempo. Given one all the same (`inTime`), it measures a pad at 80, 100 and 140 bpm.
     kind: 'pad',
     description:
       'A deep sine bass swells slowly onto a long {A}, then two shorter notes a fourth and a third above; it comes round.',
@@ -31,7 +38,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         decay: 12,
         release: 0.7,
         drive: 0.2,
-        glide: 0.3,
+        glide: 0,
         volume: -7,
       },
     },
@@ -48,7 +55,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     name: 'Dub sub offbeats {D}m',
     kind: 'beat',
     description:
-      'A driven sine bass answers on the offbeats on {D}, with rests on the beats; it comes round.',
+      'A driven sine bass answers on the offbeats on {D}, three of its notes held over the next beat; it comes round.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Dub weight',
@@ -61,7 +68,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         decay: 1.5,
         release: 0.1,
         drive: 0.7,
-        glide: 0.12,
+        glide: 0,
         volume: -8,
       },
     },
@@ -111,7 +118,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     },
     effects: [hall('Room', 0.15)],
     ...inTime(8, [
-      [0, 3, 36, 0.9],
+      [0, 2.75, 36, 0.9],
       [4, 1.7, 36, 0.75],
       [6, 1.6, 31, 0.7],
     ]),
@@ -155,7 +162,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     name: 'Sub heartbeat {G}',
     kind: 'beat',
     description:
-      'A soft sine bass beats like a heart on a low {G}, a strong beat and a lighter one every second; it comes round.',
+      'A soft sine bass beats like a heart on a low {G}, a strong beat and a lighter one twice a bar; it comes round.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Soft pulse',
@@ -202,7 +209,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         feedback: 0,
         sub: 0.4,
         decay: 0.7,
-        release: 0.2,
+        release: 0.12,
         glide: 0,
         volume: -9,
       },
@@ -276,7 +283,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     name: 'Wooden bass taps {G}',
     kind: 'beat',
     description:
-      'A hollow wooden FM bass taps pairs of sixteenths on {G} and single notes round it, with rests; it comes round.',
+      'A wooden FM bass taps pairs of sixteenths on {G} and single notes round it, with rests; it comes round.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Wooden knock',
@@ -345,7 +352,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         sub: 0.3,
         decay: 9,
         release: 1,
-        glide: 0.25,
+        glide: 0,
         volume: -9.5,
       },
     },
@@ -353,7 +360,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     ...inTime(16, [
       [0, 5.5, 38, 0.85],
       [6, 3.5, 41, 0.65],
-      [10, 4.5, 40, 0.7],
+      [10, 4, 40, 0.7],
     ]),
   }),
   sound({
@@ -537,7 +544,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         resonance: 0.5,
         envMod: 0.7,
         decay: 4,
-        accent: 0.3,
+        accent: 0,
         slide: 0.3,
         sustain: 18,
         drive: 0.051,
@@ -557,7 +564,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     name: 'Sliding acid {C}',
     kind: 'beat',
     description:
-      'A rubbery acid bass on {C}: each figure is struck once and then slides from note to note through three more; it comes round.',
+      'A rubbery acid bass on {C}: each figure opens the filter once and then slides from note to note through three more; it comes round.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Rubber slides',
@@ -567,7 +574,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         resonance: 0.78,
         envMod: 0.42,
         decay: 0.45,
-        accent: 0.5,
+        accent: 0,
         slide: 0.2,
         sustain: 3,
         drive: 0.106,
@@ -647,7 +654,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         resonance: 0.15,
         envMod: 0.2,
         decay: 0.8,
-        accent: 0.25,
+        accent: 0,
         slide: 0.15,
         sustain: 4,
         drive: 0,
@@ -679,11 +686,15 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'A two-oscillator sawtooth bass through a four-pole filter runs eighths on {D}, each note closing fast; it comes round.',
-    // The oscillators run free and are never started again, so no round is exactly the next. At home
-    // the notes and Beat are chosen so that both oscillators make a whole number of cycles in a round
-    // (724 at the pitch of the keys, one oscillator two fewer and one two more), which leaves their slow
-    // drift as the only difference; in another key they do not. The fold is 20 ms, as it is on the
-    // three lines after this one.
+    // The oscillators run free and are never started again, so no two rounds are the same wave, and a
+    // fold over a sounding note dips by however far the two are out of step: by up to 7 dB over 20 ms,
+    // according to the key and the tempo. So this line and the three after it end each round on a
+    // rest, in which the last note falls 40 dB or more under the peak (measured up to 140 bpm), and
+    // fold over 2 ms: inside the strike of the first note, where one round's strike takes the place
+    // of the next's. The first 20 ms of a round are then within 0.3 dB of the round played straight,
+    // in every key. The bench's `fold` reads the level of those 2 ms, which is where in its cycle the
+    // wave happens to be and not a loudness: it says FOLD of them in some keys, and at home on the
+    // octave pulse.
     instrument: {
       deviceId: 'ladder-bass',
       preset: 'Sequence bass',
@@ -735,9 +746,8 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         [7, 0.2, 48, 0.7],
         [7.25, 0.2, 38, 0.6],
         [7.5, 0.2, 43, 0.65],
-        [7.75, 0.2, 45, 0.6],
       ],
-      { crossfadeSec: 0.02 },
+      { crossfadeSec: 0.002 },
     ),
   }),
   sound({
@@ -782,9 +792,8 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         [3, 0.2, 31, 0.8],
         [3.25, 0.2, 43, 0.55],
         [3.5, 0.2, 31, 0.7],
-        [3.75, 0.2, 43, 0.55],
       ],
-      { crossfadeSec: 0.02 },
+      { crossfadeSec: 0.002 },
     ),
   }),
   sound({
@@ -793,7 +802,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
     name: 'Slow opening line {F}',
     kind: 'melodic',
     description:
-      'Four slow notes from {F} on a two-oscillator bass: each opens a resonant filter and closes over two bars; it comes round.',
+      'Four slow notes from {F} on a two-oscillator bass: each opens a resonant filter that closes as the note fades; it comes round.',
     instrument: {
       deviceId: 'ladder-bass',
       preset: 'Slow opener',
@@ -819,7 +828,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         [8, 3.8, 41, 0.75],
         [12, 3.6, 43, 0.7],
       ],
-      { crossfadeSec: 0.02 },
+      { crossfadeSec: 0.002 },
     ),
   }),
   sound({
@@ -841,7 +850,7 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         contour: 0.3,
         decay: 3,
         drive: 0.3,
-        glide: 0.08,
+        glide: 0,
         volume: -9,
       },
     },
@@ -854,9 +863,9 @@ export const BASS_LINES_SYNTH: readonly FactorySound[] = [
         [3, 0.9, 38, 0.6],
         [4, 1.9, 40, 0.8],
         [6, 0.9, 43, 0.6],
-        [7, 0.9, 33, 0.6],
+        [7, 0.5, 33, 0.6],
       ],
-      { crossfadeSec: 0.02 },
+      { crossfadeSec: 0.002 },
     ),
   }),
 ]

@@ -1334,11 +1334,21 @@ As reported:
     Release does nothing at Ride 0.
   - Time: `tape` is 8.7 ms late and `patina` 5.7, which a bass line that
     keeps time shows against the grid, so neither is on one.
-  - `ladder-bass`: its oscillators never restart, so each round of a loop
-    meets the last at another phase and the fold of a ladder line moves from
-    key to key (−6.1 dB five semitones down on one line, −2.1 dB six up on
-    another); its filter envelope cannot open slowly, only close; a filter
-    closing fast reads 16 cents flat on A1 while it closes.
+  - `ladder-bass`: its oscillators never restart, so no two rounds of a loop
+    are the same wave and a fold over a sounding note dips by however far
+    they are out of step (up to 6.9 dB over 20 ms, by key and tempo). Its
+    four lines end each round on a rest and fold over 2 ms inside the first
+    strike, which holds the first 20 ms of a round within 0.3 dB of the
+    round played straight in every key; the bench's `fold` then reads where
+    in its cycle the wave is, not a level, and says FOLD of some keys. Its
+    filter envelope cannot open slowly, only close; a filter closing fast
+    reads 16 cents flat on A1 while it closes.
+  - A line that keeps time is exact, round for round, only while its rests
+    and fades fit between the beats: the sub, FM and acid lines are measured
+    exact from 60 to 160 bpm. One sub line (233) swells too slowly for the
+    analysis to hear a hit, reads as a pad and keeps no time. One acid line
+    (244) reads as a texture at 130 bpm and above, its dotted figure taken
+    for the beat.
   - `string-bass`: the small differences between its plucks are never
     reseeded, so two rounds of a loop differ by a residue of −19 to −24 dB
     (a note moves by up to 1.4 dB); Upright's thump has no pitch and reads as
