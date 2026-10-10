@@ -9,6 +9,7 @@ import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   GLINTS_FACES,
   GLINTS_FAINTEST,
+  GLINTS_FOOT_ROOM,
   GLINTS_POINT,
   GLINTS_POINT_OPEN,
   GLINTS_SPAN_SEC,
@@ -951,6 +952,38 @@ describe('the Glints display at the two shapes it is given', () => {
           9,
         )
         expect(glintsLateAt(glintsX(0.35, layout), layout)).toBeCloseTo(0.35, 9)
+      }
+    }
+  })
+
+  it('stands the seconds at the foot where the lowest row leaves the room, and over that row where it does not', () => {
+    const seconds = (width: number, height: number, values: Record<string, number> = {}) =>
+      marksOf(drawDisplay(display, params, { values, meters, width, height })).filter(
+        (mark) => mark.kind === 'words' && /^\d s$/.test(mark.words ?? ''),
+      )
+    for (const values of [{}, { pitch: 4 }, { pitch: 0, spread: 1 }] as Record<string, number>[]) {
+      // Upright the lowest row stands well clear of the foot: the seconds are on the foot, as on a scale.
+      const tall = glintsLayout(viewOf(display, params, { values, width: 204, height: 100 }))
+      const set = values.pitch ?? params.pitch.default
+      const lowTall = glintsY(0, set, tall)
+      expect(tall.field.y + tall.field.h - 1 - lowTall).toBeGreaterThanOrEqual(GLINTS_FOOT_ROOM)
+      const onFoot = seconds(204, 100, values)
+      expect(onFoot.map((mark) => mark.words)).toEqual(['1 s', '2 s'])
+      for (const mark of onFoot) {
+        expect(mark.points[0][1]).toBe(tall.field.y + tall.field.h - 1)
+        // Under the lowest row's line, never on it.
+        expect(mark.points[0][1] - 8).toBeGreaterThan(lowTall)
+        expect(mark.points[0][0]).toBeCloseTo(glintsX(Number(mark.words?.[0]), tall) + 3, 9)
+      }
+      // On the strip there is no such room: they stand over the lowest row, clear of its band.
+      const strip = glintsLayout(viewOf(display, params, { values, width: 224, height: 48 }))
+      const lowStrip = glintsY(0, set, strip)
+      expect(strip.field.y + strip.field.h - 1 - lowStrip).toBeLessThan(GLINTS_FOOT_ROOM)
+      const over = seconds(224, 48, values)
+      expect(over.map((mark) => mark.words)).toEqual(['1 s', '2 s'])
+      for (const mark of over) {
+        expect(mark.points[0][1]).toBeCloseTo(lowStrip - glintsReach(set, strip) - 3, 9)
+        expect(mark.points[0][1]).toBeGreaterThanOrEqual(8)
       }
     }
   })
