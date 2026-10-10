@@ -45,7 +45,7 @@
 //
 // The path runs by a clock of its own from init(): a count of samples, kept
 // through silence and sleep, never reset by the sound; Direction is the sign
-// of its step. Sleep is decided per sample (kHoldSeconds of exact silence in
+// of its step, and a new Rate or Direction is reached over kGlideSeconds. Sleep is decided per sample (kHoldSeconds of exact silence in
 // and under the floor out), so the output is the same at any block size.
 //
 // Storage: a room line of 4096 samples (38 ms at 96 kHz), about 17 KB. No
@@ -186,6 +186,10 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     blur_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     phase_ = 0.0;
+    increment_ = 0.0;
+    glide_left_ = 0;
+    glide_samples_ = static_cast<long>(kGlideSeconds * sr);
+    if (glide_samples_ < 1) glide_samples_ = 1;
     hold_ = static_cast<long>(kHoldSeconds * sr);
     if (hold_ < 1) hold_ = 1;
     quiet_ = hold_;
@@ -326,8 +330,14 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     return kit::clamp(x, -kInputCeiling, kInputCeiling);
   }
 
-  // One sample of the clock, either way round.
+  // One sample of the clock, either way round. A new Rate or Direction is
+  // reached in a straight line over kGlideSeconds, so a source turned back
+  // slows, stops and returns: no corner in what the ears get.
   void advance() {
+    if (glide_left_ > 0) {
+      increment_ += glide_step_;
+      if (--glide_left_ == 0) increment_ = increment_target_;
+    }
     phase_ += increment_;
     if (phase_ >= kPathTurns) {
       phase_ -= kPathTurns;
@@ -426,7 +436,14 @@ class Around : public kit::DeviceBase<around::kNumParams> {
       case kRate:
       case kDirection: {
         const double way = param(kDirection) >= 0.5f ? -1.0 : 1.0;
-        increment_ = way * static_cast<double>(param(kRate)) / static_cast<double>(sample_rate());
+        increment_target_ = way * static_cast<double>(param(kRate)) / static_cast<double>(sample_rate());
+        if (primed()) {
+          glide_left_ = glide_samples_;
+          glide_step_ = (increment_target_ - increment_) / static_cast<double>(glide_samples_);
+        } else {
+          glide_left_ = 0;
+          increment_ = increment_target_;
+        }
         speed_.set_target(param(kRate));
         break;
       }
@@ -463,6 +480,10 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   int room_delay_[2][kRoomTaps] = {};
   double phase_ = 0.0;      // turns, 0..kPathTurns
   double increment_ = 0.0;  // turns per sample, signed by Direction
+  double increment_target_ = 0.0;
+  double glide_step_ = 0.0;
+  long glide_left_ = 0;
+  long glide_samples_ = 1;
   float turn_ = 0.0f;       // cycles
   float turn_target_ = 0.0f;
   float turn_coeff_ = 0.0f;

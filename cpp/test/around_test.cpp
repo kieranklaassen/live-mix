@@ -402,7 +402,8 @@ static void movement() {
 
   // Direction is which way the clock runs: Anticlockwise goes by the left
   // first, and a change while sounding turns the source back from where it
-  // is (the reading comes back down by as much as it went up).
+  // is: it slows, stops and returns over kGlideSeconds (0.03 s, in which it
+  // gets nowhere), and the reading comes back down as it went up.
   {
     device.init(kRate);
     set(device, {0, 1.3f, 1, 0, 0, 0, 0, 1, 1});
@@ -424,9 +425,9 @@ static void movement() {
     EXPECT_NEAR(device.meter(0), 0.5 / 16.0, 1.0e-6, "a second clockwise at half a turn a second");
     device.set_param(p::kDirection, 1.0f);
     run(device, sine(1000.0f, 0.75f, kRate, 0.5f));
-    EXPECT_NEAR(device.meter(0), 0.125 / 16.0, 1.0e-6, "then back the way it came");
+    EXPECT_NEAR(device.meter(0), (0.5 - 0.5 * (0.75 - 0.03)) / 16.0, 1.0e-6, "then back the way it came");
     render(device, 0.5f, kRate);
-    EXPECT_NEAR(device.meter(0), (16.0 - 0.125) / 16.0, 1.0e-6, "and back past the start, asleep too");
+    EXPECT_NEAR(device.meter(0), (16.0 + 0.14 - 0.25) / 16.0, 1.0e-6, "and back past the start, asleep too");
   }
 
   // The clock keeps its place through silence, short and long, asleep or
@@ -888,6 +889,75 @@ static void levels() {
     }
     EXPECT(level[0] > -14.0 && level[0] < -9.0, "Blur 1: the room is 9 to 14 dB under a played phrase");
     EXPECT_NEAR(level[0] - level[1], 6.02, 0.1, "Blur scales the room");
+  }
+
+  // The room on held pure tones (every semitone from A0 to C8): its echoes
+  // meet the source in or out of step by pitch. With the source in front
+  // one ear moves by no more than 6 dB at Blur 1 and 2 dB at the default;
+  // with it at a side the far ear, which is quiet there, can be met as an
+  // equal and cancelled at one pitch, but the two ears' power stays within
+  // 3 dB at any place. And the room does not pump: it is as loud against the
+  // source at any input level and at every place of a Near 1 circle.
+  {
+    auto range = [&](float blur, float turn, double* ear_low, double* both_low, double* both_high) {
+      *ear_low = *both_low = 99.0;
+      *both_high = -99.0;
+      for (int note = 21; note <= 108; ++note) {
+        const float hz = 440.0f * std::pow(2.0f, static_cast<float>(note - 69) / 12.0f);
+        double level[2][2];
+        for (int k = 0; k < 2; ++k) {
+          device.init(kRate);
+          set(device, {0, 0.01f, 0.85f, 0.7f, 0, turn, k == 0 ? 0.0f : blur, 1});
+          Stereo out = run(device, sine(hz, 0.5f, kRate, 0.5f));
+          level[k][0] = tone_level(out.left, hz, kRate, 9600, 24000);
+          level[k][1] = tone_level(out.right, hz, kRate, 9600, 24000);
+        }
+        for (int e = 0; e < 2; ++e) *ear_low = std::min(*ear_low, db(level[1][e] / level[0][e]));
+        const double both = db(std::hypot(level[1][0], level[1][1]) / std::hypot(level[0][0], level[0][1]));
+        *both_low = std::min(*both_low, both);
+        *both_high = std::max(*both_high, both);
+      }
+    };
+    double ear, low, high;
+    range(0.35f, 0.0f, &ear, &low, &high);
+    std::printf("note: the room on held tones, source in front: Blur 0.35 one ear down to %.2f dB, "
+                "both ears %.2f to %+.2f dB", ear, low, high);
+    EXPECT(ear > -2.0 && low > -1.0 && high < 1.5, "the default's room moves a held tone by under 2 dB");
+    range(1.0f, 0.0f, &ear, &low, &high);
+    std::printf("; Blur 1 one ear down to %.2f dB, both ears %.2f to %+.2f dB\n", ear, low, high);
+    EXPECT(ear > -6.5 && low > -2.5 && high < 3.0, "Blur 1 in front: one ear within 6.5 dB, both within 3");
+    range(1.0f, 90.0f, &ear, &low, &high);
+    std::printf("note: Blur 1, source at the side: the far ear down to %.1f dB at its worst pitch, "
+                "both ears %.2f to %+.2f dB\n", ear, low, high);
+    EXPECT(low > -3.2 && high < 3.0, "Blur 1 at the side: the two ears' power within 3 dB");
+
+    std::vector<float> chord(static_cast<size_t>(13.0f * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      chord[i] = static_cast<float>(0.2 * (std::sin(2.0 * kPi * 440.0 * t) + std::sin(2.0 * kPi * 554.37 * t) +
+                                           std::sin(2.0 * kPi * 659.26 * t)));
+    }
+    Stereo with, without;
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      set(device, {0, 0.08f, 1, 0.9f, 1, 0, k == 0 ? 0.0f : 0.7f, 1});
+      (k == 0 ? without : with) = run(device, chord);
+    }
+    double least = 99.0, most = -99.0;
+    for (size_t at = 4800; at + 2400 <= chord.size(); at += 2400) {
+      double room = 0.0, source = 0.0;
+      for (size_t i = at; i < at + 2400; ++i) {
+        const double l = with.left[i] - without.left[i], r = with.right[i] - without.right[i];
+        room += l * l + r * r;
+        source += static_cast<double>(without.left[i]) * without.left[i] +
+                  static_cast<double>(without.right[i]) * without.right[i];
+      }
+      least = std::min(least, 10.0 * std::log10(room / source));
+      most = std::max(most, 10.0 * std::log10(room / source));
+    }
+    std::printf("note: Far side fades on a held chord, the whole circle: the room is %.1f to %.1f dB "
+                "against the source\n", least, most);
+    EXPECT(most - least < 2.5, "the room keeps its level against the source all the way round");
   }
 }
 

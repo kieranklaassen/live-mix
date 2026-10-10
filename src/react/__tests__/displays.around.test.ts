@@ -17,10 +17,13 @@ import {
   AROUND_TOP_HZ,
   AROUND_TURNS,
   aroundBoxes,
+  AROUND_SHADE_HZ,
   aroundEar,
-  aroundFarDelay,
+  aroundEars,
   aroundLateSec,
+  aroundNearDb,
   aroundNearGain,
+  aroundShadeKept,
   aroundPlace,
   aroundPoint,
   type AroundPlace,
@@ -36,11 +39,18 @@ const around = AROUND_FACES.around.display
 
 // The numbers of `cpp/devices/around/around.h` the display must agree with,
 // copied here by hand so a change on either side shows:
-//   kItdSeconds 0.00066, kPan 0.6 (12 dB at the full side), kNearDb 12,
-//   kPathTurns 16, the top and foot of the scale the display draws (12, −30).
+//   kItdSeconds 0.00066, kPan 0.6 (12 dB at the full side), kShade 0.8,
+//   kShadeHz 241.1 (kShade·2 / ((1 + kPan)·2π·kItdSeconds)), kNearDb 12,
+//   kNearUpDb 2.5, kBend 0.0057929 (ten cents), kPathSpeed 6.2832 for the
+//   Circle, kPathTurns 16, the top and foot of the scale the display draws
+//   (12, −30).
 const ITD_SEC = 0.00066
 const PAN = 0.6
+const SHADE = 0.8
+const SHADE_HZ = 241.1438
 const NEAR_DB = 12
+const NEAR_UP_DB = 2.5
+const BEND = 0.0057929
 const TURNS = 16
 const TOP_DB = 12
 const FOOT_DB = -30
@@ -186,7 +196,13 @@ function rects(
 }
 
 const WIDE = 204
-const at = (place: Partial<AroundPlace>): AroundPlace => ({ x: 0, y: 0, away: 0, ...place })
+const at = (place: Partial<AroundPlace>): AroundPlace => ({
+  x: 0,
+  y: 0,
+  reach: 0,
+  away: 0,
+  ...place,
+})
 
 describe('the maths the display of Around is drawn from', () => {
   it('puts each path where its formula has it', () => {
@@ -248,21 +264,53 @@ describe('the maths the display of Around is drawn from', () => {
 
   it('works the cues out as the header does', () => {
     expect(AROUND_ITD_SEC).toBe(ITD_SEC)
-    // The delay: none in the middle, all of it at the side, 0.25 · 1.1 / 0.6 half way.
-    expect(aroundFarDelay(0)).toBe(0)
-    expect(aroundFarDelay(1)).toBeCloseTo(1, 12)
-    expect(aroundFarDelay(0.5)).toBeCloseTo(0.4583333, 6)
-    // The far ear's bass at the full side: 0.66 ms late with Head 1, half that at a half, the near ear never.
-    const side = at({ x: 1 })
-    expect(aroundLateSec(-1, side, 1)).toBeCloseTo(ITD_SEC, 9)
-    expect(aroundLateSec(-1, side, 0.5)).toBeCloseTo(ITD_SEC / 2, 9)
-    expect(aroundLateSec(1, side, 1)).toBe(0)
-    expect(aroundLateSec(-1, at({ x: -1 }), 1)).toBe(0)
-    // Near: nothing at the near point, 12 dB opposite it, 6 dB a quarter turn on.
-    expect(gainToDb(aroundNearGain(at({ away: 1 }), 1))).toBeCloseTo(-NEAR_DB, 9)
-    expect(gainToDb(aroundNearGain(at({ away: 0.5 }), 1))).toBeCloseTo(-NEAR_DB / 2, 9)
-    expect(aroundNearGain(at({ away: 0 }), 1)).toBe(1)
-    expect(aroundNearGain(at({ away: 1 }), 0)).toBe(1)
+    expect(AROUND_SHADE_HZ).toBeCloseTo(SHADE_HZ, 3)
+    // At the full side with Head 1: the ears (1 ∓ 0.6) / √1.36, the far ear's band over the split
+    // at a fifth, the near ear's lifted by what the far lost: 0.8 · 0.4 / 1.6 = 0.2.
+    const side = at({ x: 1, reach: 1 })
+    const full = aroundEars(side, 1, 0)
+    expect(full.gain[0]).toBeCloseTo((1 - PAN) / Math.sqrt(1 + PAN * PAN), 12)
+    expect(full.gain[1]).toBeCloseTo((1 + PAN) / Math.sqrt(1 + PAN * PAN), 12)
+    expect(full.tilt[0]).toBeCloseTo(1 - SHADE, 12)
+    expect(full.tilt[1]).toBeCloseTo(1.2, 12)
+    // Half way to the left with Head 1: shade 0.4 on the right ear, lift 0.4 · 0.7 / 1.3 on the left.
+    const half = aroundEars(at({ x: -0.5, reach: 0.5 }), 1, 0)
+    expect(half.tilt[1]).toBeCloseTo(0.6, 12)
+    expect(half.tilt[0]).toBeCloseTo(1 + (0.4 * 0.7) / 1.3, 12)
+    // The lift is what the far ear lost: the two ears summed are flat at every place, Head and Near.
+    for (const x of [-1, -0.6, -0.2, 0, 0.3, 0.75, 1])
+      for (const head of [0.3, 1])
+        for (const kept of [1, 0.4]) {
+          const ears = aroundEars(at({ x, reach: 1, away: 0.3 }), head, 0.5, kept)
+          expect(ears.gain[0] * ears.tilt[0] + ears.gain[1] * ears.tilt[1]).toBeCloseTo(
+            ears.gain[0] + ears.gain[1],
+            12,
+          )
+        }
+    // The ears' lateness in the bass is the split's own lag: 0.66 ms at the full side with Head 1,
+    // 0.33 with Head a half (shade 0.4, lift 0.1), the left ear late with the source at the right.
+    expect(aroundLateSec(side, 1, 0).seconds).toBeCloseTo(ITD_SEC, 9)
+    expect(aroundLateSec(side, 1, 0).side).toBe(-1)
+    expect(aroundLateSec(side, 0.5, 0).seconds).toBeCloseTo(ITD_SEC / 2, 9)
+    expect(aroundLateSec(at({ x: -1, reach: 1 }), 1, 0).side).toBe(1)
+    expect(aroundLateSec(at({ y: 1, reach: 1 }), 1, 0).seconds).toBe(0)
+    // Near: 2.5 dB up at the near point, 9.5 down opposite it, 3.5 down a quarter turn on, nothing in the head.
+    expect(aroundNearDb(at({ reach: 1, away: 0 }), 1)).toBeCloseTo(NEAR_UP_DB, 12)
+    expect(aroundNearDb(at({ reach: 1, away: 1 }), 1)).toBeCloseTo(NEAR_UP_DB - NEAR_DB, 12)
+    expect(aroundNearDb(at({ reach: 1, away: 0.5 }), 1)).toBeCloseTo(NEAR_UP_DB - NEAR_DB / 2, 12)
+    expect(aroundNearGain(at({ reach: 0, away: 0 }), 1)).toBe(1)
+    expect(aroundNearGain(at({ reach: 1, away: 1 }), 0)).toBe(1)
+    expect(gainToDb(aroundNearGain(at({ reach: 0.6, away: 0.6 }), 0.5))).toBeCloseTo(-2.85, 9)
+    // Speed: a Circle keeps its whole shadow until Head·0.8·Rate·Radius·2π passes kBend·2π·kShadeHz
+    // (8.78 a second), and then that much over it: 0.4365 at Rate 4, Radius 1, Head 1.
+    expect(aroundShadeKept('circle', 1, 1, 1)).toBe(1)
+    expect(aroundShadeKept('circle', 4, 1, 0.4)).toBe(1)
+    expect(aroundShadeKept('circle', 4, 1, 1)).toBeCloseTo(
+      (BEND * TWO_PI * SHADE_HZ) / (SHADE * 4 * 6.2832),
+      5,
+    )
+    expect(aroundShadeKept('circle', 4, 1, 1)).toBeCloseTo(0.4365, 3)
+    expect(aroundShadeKept('pendulum', 4, 1, 1)).toBeLessThan(aroundShadeKept('circle', 4, 1, 1))
     // With Head 0 the ears differ in level alone: (1 ± 0.6) / √1.36 at the side, 12 dB apart at any pitch.
     for (const hz of [100, 1000, 9000]) {
       const near = aroundEar(1, side, 0, 0, hz, RATE)
@@ -271,30 +319,34 @@ describe('the maths the display of Around is drawn from', () => {
       expect(far).toBeCloseTo((1 - PAN) / Math.sqrt(1 + PAN * PAN), 9)
       expect(gainToDb(near / far)).toBeCloseTo(12.04, 2)
     }
-    // In front nothing is done to either ear, and Mix 0 leaves the sound as it came from anywhere.
-    for (const hz of [100, 1000, 9000]) {
-      expect(aroundEar(-1, at({ y: 1 }), 1, 0, hz, RATE)).toBeCloseTo(1, 9)
-      expect(aroundEar(-1, at({ x: 1, y: -0.5, away: 1 }), 1, 1, hz, RATE, 0)).toBe(1)
+    // With Head 1 the far ear falls from 12 dB under the near in the bass to 27 on top, and never climbs.
+    expect(
+      gainToDb(aroundEar(1, side, 1, 0, 30, RATE) / aroundEar(-1, side, 1, 0, 30, RATE)),
+    ).toBeCloseTo(12.1, 1)
+    expect(
+      gainToDb(aroundEar(1, side, 1, 0, 8000, RATE) / aroundEar(-1, side, 1, 0, 8000, RATE)),
+    ).toBeCloseTo(27, 0)
+    let before = Infinity
+    for (let hz = 30; hz < 16000; hz *= 1.05) {
+      const far = aroundEar(-1, side, 1, 0, hz, RATE)
+      expect(far).toBeLessThanOrEqual(before)
+      before = far
     }
-    // With Head 1 the far ear loses its top: the high band is left at a fifth (−14 dB) under the
-    // 12 dB, give or take what leaks of the late low band; the harness measured 24.8 dB over 4 to 12 kHz.
-    let nearPower = 0
-    let farPower = 0
-    for (let hz = 4000; hz <= 12000; hz += 125) {
-      nearPower += aroundEar(1, side, 1, 0, hz, RATE) ** 2
-      farPower += aroundEar(-1, side, 1, 0, hz, RATE) ** 2
-    }
-    const top = 10 * Math.log10(farPower / nearPower)
-    expect(top).toBeLessThan(-23.5)
-    expect(top).toBeGreaterThan(-26)
-    // From straight behind both ears are alike, and duller where the notch is than in the bass.
-    const behind = at({ y: -1 })
-    expect(aroundEar(-1, behind, 1, 0, 7500, RATE)).toBeCloseTo(
-      aroundEar(1, behind, 1, 0, 7500, RATE),
-      12,
-    )
-    expect(gainToDb(aroundEar(1, behind, 1, 0, 250, RATE))).toBeGreaterThan(-0.1)
-    expect(gainToDb(aroundEar(1, behind, 1, 0, 7500, RATE))).toBeLessThan(-7)
+    // Front and back are coloured alike in both ears: in front 2.2 dB up at 7.5 kHz, behind 2.6 down,
+    // the bass as it came; Mix 0 leaves the sound as it came from anywhere.
+    const front = at({ y: 1, reach: 1 })
+    const behind = at({ y: -1, reach: 1, away: 1 })
+    for (const place of [front, behind])
+      expect(aroundEar(-1, place, 1, 0, 7500, RATE)).toBeCloseTo(
+        aroundEar(1, place, 1, 0, 7500, RATE),
+        12,
+      )
+    expect(gainToDb(aroundEar(1, front, 1, 0, 7500, RATE))).toBeCloseTo(2.23, 1)
+    expect(gainToDb(aroundEar(1, behind, 1, 0, 7500, RATE))).toBeCloseTo(-2.61, 1)
+    expect(Math.abs(gainToDb(aroundEar(1, behind, 1, 0, 250, RATE)))).toBeLessThan(0.01)
+    expect(aroundEar(1, front, 0, 0, 7500, RATE)).toBeCloseTo(1, 12)
+    for (const hz of [100, 1000, 9000])
+      expect(aroundEar(-1, at({ x: 1, y: -0.5, reach: 1, away: 1 }), 1, 1, hz, RATE, 0)).toBe(1)
   })
 })
 
@@ -331,6 +383,11 @@ describe('the display of Around against the compiled device', () => {
       values: { path: 0, radius: 1, head: 1, near: 0.3, turn: 0, blur: 0, mix: 1 },
       run: 0.62,
     },
+    {
+      name: 'a circle the other way round',
+      values: { path: 0, direction: 1, radius: 1, head: 0.8, near: 0.7, turn: 20, blur: 0, mix: 1 },
+      run: 0.3,
+    },
   ]
 
   it('gives each ear what the device gives it, at the place the device reports', async () => {
@@ -339,9 +396,11 @@ describe('the display of Around against the compiled device', () => {
     for (const { name, values, run } of cases) {
       const heard = await hear(values, run)
       const place = aroundPlace(AROUND_PATHS[values.path], heard.turns, values.radius, values.turn)
-      // The device is where its clock has it: four turns a second while it ran, next to none after.
-      expect(heard.turns, name).toBeGreaterThan(4 * run)
-      expect(heard.turns, name).toBeLessThan(4 * run + 0.02)
+      // The device is where its clock has it: four turns a second while it ran, 0.06 of a turn more
+      // while Rate came down in its 0.03 s, next to none after; backwards when Direction says so.
+      const gone = values.direction ? TURNS - heard.turns : heard.turns
+      expect(gone, name).toBeGreaterThan(4 * run + 0.055)
+      expect(gone, name).toBeLessThan(4 * run + 0.075)
       TONES.forEach((hz, t) => {
         const ears: [-1 | 1, number][] = [
           [-1, heard.left[t]],
@@ -355,29 +414,62 @@ describe('the display of Around against the compiled device', () => {
         }
       })
       apart = Math.max(apart, Math.abs(gainToDb(heard.left[0] / heard.right[0])))
-      duller = Math.max(
-        duller,
-        gainToDb(heard.left[0] / heard.left[3]),
-        gainToDb(heard.right[0] / heard.right[3]),
-      )
+      duller = Math.max(duller, Math.abs(gainToDb(heard.left[2] / heard.right[2])))
     }
-    // The places were worth measuring: somewhere the ears are far apart, and somewhere the top is well down.
+    // The places were worth measuring: somewhere the ears are far apart in the bass, and somewhere
+    // further apart still at 4 kHz, where the far ear is in the head's shadow.
     expect(apart).toBeGreaterThan(6)
-    expect(duller).toBeGreaterThan(8)
+    expect(duller).toBeGreaterThan(apart + 4)
+  })
+
+  it('thins the shadow at speed as the device does', async () => {
+    // A Circle at four turns a second, started at the right: the left ear's response from a click,
+    // read over 5 ms (the source goes 7 degrees in that).
+    const values = { path: 0, rate: 4, radius: 1, head: 1, near: 0, turn: 90, blur: 0, mix: 1 }
+    const device = await loadWasmDevice('around', RATE)
+    set(device, values)
+    const block = new Float32Array(256)
+    block[0] = 1
+    device.processBlock(block)
+    const left = device.view(device.device.device_out_left(), 256)
+    const gain = (hz: number): number => {
+      let re = 0
+      let im = 0
+      for (let i = 0; i < 256; i++) {
+        re += left[i] * Math.cos((TWO_PI * hz * i) / RATE)
+        im -= left[i] * Math.sin((TWO_PI * hz * i) / RATE)
+      }
+      return Math.hypot(re, im)
+    }
+    const kept = aroundShadeKept('circle', 4, 1, 1)
+    expect(kept).toBeLessThan(0.5)
+    const place = aroundPlace('circle', 0.01, 1, 90)
+    for (const hz of [1000, 4000, 8000]) {
+      const model = gainToDb(aroundEar(-1, place, 1, 0, hz, RATE, 1, kept))
+      expect(Math.abs(model - gainToDb(gain(hz))), `${hz} Hz`).toBeLessThan(0.5)
+      // The whole shadow would be far from it.
+      expect(
+        Math.abs(gainToDb(aroundEar(-1, place, 1, 0, hz, RATE)) - gainToDb(gain(hz))),
+      ).toBeGreaterThan(4)
+    }
   })
 
   it('says how late the far ear is as the device has it', async () => {
     // Started at the front of a path turned a quarter to the right: at the right, the left ear the far one.
     for (const head of [1, 0.5]) {
       const values = { path: 0, radius: 1, head, near: 0, turn: 90, blur: 0, mix: 1 }
-      const heard = await hear(values, 0, [100])
+      const heard = await hear(values, 0, [40])
       const place = aroundPlace('circle', heard.turns, 1, 90)
       expect(place.x).toBeGreaterThan(0.999)
       const late = heard.lateLeft - heard.lateRight
       expect(late).toBeGreaterThan(0.0006 * head)
-      // The words are the delay of the lowest bass; at 100 Hz the split lags a hair less.
-      expect(Math.abs(late - aroundLateSec(-1, place, head))).toBeLessThan(0.00002)
-      expect(Math.abs(heard.lateRight)).toBeLessThan(0.00001)
+      // The words are the lateness of the lowest bass; at 40 Hz it is 0.02 ms less.
+      const words = aroundLateSec(place, head, 0)
+      expect(words.side).toBe(-1)
+      expect(Math.abs(late - words.seconds)).toBeLessThan(0.00003)
+      // The far ear lags and the near ear leads: the lateness is the split's own, not a delay.
+      expect(heard.lateLeft).toBeGreaterThan(0.0004 * head)
+      expect(heard.lateRight).toBeLessThan(-0.00005 * head)
     }
   })
 
@@ -441,9 +533,9 @@ describe('what the display of Around draws from above', () => {
     const right = dots(draw({ path: 0, radius: 1, turn: 0 }, 0.25))[2]
     expect(right.x).toBeCloseTo(boxes.cx + boxes.reach, 6)
     expect(right.y).toBeCloseTo(boxes.cy, 6)
-    // Near 1: full size at the near point, a quarter of the way to nothing less opposite it.
-    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0))[2].r).toBeCloseTo(4.5, 6)
-    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0.5))[2].r).toBeCloseTo(2 + 2.5 * 0.2512, 3)
+    // Near 1: 2.5 dB up at the near point (a third larger), 9.5 dB down opposite it.
+    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0))[2].r).toBeCloseTo(2 + 2.5 * 1.3335, 3)
+    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0.5))[2].r).toBeCloseTo(2 + 2.5 * 0.335, 3)
   })
 
   it('draws each path through the places its formula gives', () => {
@@ -505,6 +597,12 @@ describe('what the display of Around draws from above', () => {
       expect(tail[0].points[24].x).toBeCloseTo(to.x, 6)
       expect(tail[0].points[24].y).toBeCloseTo(to.y, 6)
     }
+    // Going the other way round, where it was is on the other side of it.
+    const back = { path: 0, rate: 1, direction: 1, radius: 1 }
+    const tail = strokes(draw(back, 2.2)).filter((stroke) => stroke.colour === PLAIN_COLOURS.accent)
+    expect(tail[0].points[0].x).toBeCloseTo(sourceAt(back, 2.7).x, 6)
+    expect(tail[0].points[0].y).toBeCloseTo(sourceAt(back, 2.7).y, 6)
+    expect(tail[0].points[24].x).toBeCloseTo(sourceAt(back, 2.2).x, 6)
   })
 })
 
@@ -539,8 +637,8 @@ describe('what the display of Around draws of the two ears', () => {
     // At the right with no head: the right ear 2.75 dB up and the left 9.3 down, and written so.
     const words = draw({ path: 0, radius: 1, head: 0, near: 0 }, 0.25).words()
     expect(words).toEqual(['−9', 'L', '+3', 'R'])
-    // In front both ears have the sound as it came.
-    expect(draw({ path: 0, radius: 1, head: 1, near: 1 }, 0).words()).toEqual(['0', 'L', '0', 'R'])
+    // In front both ears have the bass as it came.
+    expect(draw({ path: 0, radius: 1, head: 1, near: 0 }, 0).words()).toEqual(['0', 'L', '0', 'R'])
   })
 
   it('gives a wide display each ear over frequency, the right ear dashed', () => {
@@ -572,9 +670,10 @@ describe('what the display of Around draws of the two ears', () => {
       // The far ear is the lower line in the bass, and its lateness is written out.
       const lower = turns < 0.5 ? 1 : 0
       expect(curves[lower].points[0].y).toBeGreaterThan(curves[1 - lower].points[0].y)
-      const late = aroundLateSec(turns < 0.5 ? -1 : 1, place, 1)
+      const late = aroundLateSec(place, 1, 0.4)
+      expect(late.side).toBe(turns < 0.5 ? -1 : 1)
       expect(drawn.words()).toContain(
-        `${turns < 0.5 ? 'L' : 'R'} ${(late * 1000).toFixed(2)} ms late`,
+        `${turns < 0.5 ? 'L' : 'R'} ${(late.seconds * 1000).toFixed(2)} ms late`,
       )
     }
     // At the full right with Head 1 the left ear is 0.66 ms late; with Head 0, or in front, no ear is.
@@ -585,6 +684,21 @@ describe('what the display of Around draws of the two ears', () => {
         .join(' '),
     ).not.toContain('late')
     expect(draw(values, 0, WIDE).words().join(' ')).not.toContain('late')
+    // At four turns a second the shadow the path's speed leaves is what is drawn, and written.
+    const fast = { ...values, rate: 4 }
+    const kept = aroundShadeKept('circle', 4, 1, 1)
+    const place = aroundPlace('circle', 0.25, 1, 0)
+    const [, left] = strokes(draw(fast, 0.25, WIDE)).filter(
+      (stroke) => stroke.points.length === Math.floor(plot.w / 2) + 1,
+    )
+    for (const point of left.points) {
+      const hz = hzOfX(point.x, plot, 100, 16000)
+      const db = gainToDb(aroundEar(-1, place, 1, 0.4, hz, RATE, 1, kept))
+      expect(point.y).toBeCloseTo(yOfDb(db, plot, TOP_DB, FOOT_DB), 6)
+    }
+    expect(draw(fast, 0.25, WIDE).words()).toContain(
+      `L ${(ITD_SEC * kept * 1000).toFixed(2)} ms late`,
+    )
   })
 
   it('draws only what Mix lets be heard, and goes on reading the device at Mix 0', () => {
@@ -736,6 +850,26 @@ describe('the display of Around while the device runs', () => {
       }
       // Holding each reading for its two frames would be off by a sixtieth of Rate: 0.067 of a turn at 4 Hz.
       expect(worst).toBeLessThan(rate / 200 + 0.002)
+    }
+    // The other way round, it is carried on the other way.
+    {
+      const values = { path: 0, rate: 1, direction: 1, radius: 1, turn: 0 }
+      const state = around.init?.()
+      let worst = 0
+      for (let n = 0; n < 240; n++) {
+        const time = n / 60
+        const read = Math.floor(time * 30 + 1e-9) / 30
+        const drawn = drawDisplay(around, AROUND_PARAMS, {
+          values,
+          meters: { phase: wrap((3.1 - read) / TURNS) },
+          state,
+          now: 10 + time,
+          dt: n === 0 ? 0 : 1 / 60,
+        })
+        const off = wrap(shown(drawn) - (3.1 - time) + 0.5) - 0.5
+        if (n > 30) worst = Math.max(worst, Math.abs(off))
+      }
+      expect(worst).toBeLessThan(1 / 200 + 0.002)
     }
     // Power off: the reading as it stands, however long the frame.
     const off = drawDisplay(around, AROUND_PARAMS, {

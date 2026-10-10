@@ -61,7 +61,7 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is a little duller than the front. At zero it is plain panning.',
+      'How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is duller than the front. Zero is plain panning.',
   },
   near: {
     id: 5,
