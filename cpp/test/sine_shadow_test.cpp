@@ -26,6 +26,39 @@ static void wet_only(SineShadow& d, float rate = kRate) {
   d.set_param(p::kSteady, 0.0f);
 }
 
+// The presets, copied from device.json (the harness cannot read it): the level and part-way Mix checks run
+// through every one.
+struct Setting {
+  int id;
+  float value;
+};
+struct Preset {
+  const char* name;
+  std::vector<Setting> settings;
+};
+static const std::vector<Preset> kPresets = {
+    {"Sine shadow", {}},
+    {"Octave halo", {{p::kTranspose, 12.0f}, {p::kPartials, 6.0f}, {p::kAttack, 600.0f}, {p::kRelease, 5.0f}, {p::kSpread, 0.7f}, {p::kMix, 0.4f}}},
+    {"Glass redraw", {{p::kPartials, 16.0f}, {p::kAttack, 60.0f}, {p::kRelease, 1.2f}, {p::kSteady, 0.1f}, {p::kSpread, 0.3f}, {p::kMix, 1.0f}}},
+    {"One sine", {{p::kPartials, 1.0f}, {p::kAttack, 200.0f}, {p::kRelease, 4.0f}, {p::kGlide, 150.0f}, {p::kMix, 0.6f}}},
+    {"Chord outline", {{p::kPartials, 5.0f}, {p::kSnap, 1.0f}, {p::kAttack, 500.0f}, {p::kRelease, 8.0f}, {p::kMix, 0.8f}}},
+    {"Low shadow", {{p::kTranspose, -12.0f}, {p::kPartials, 4.0f}, {p::kTone, 0.15f}, {p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.45f}}},
+    {"Long linger", {{p::kPartials, 10.0f}, {p::kAttack, 1500.0f}, {p::kRelease, 20.0f}, {p::kSpread, 0.8f}}},
+    {"Nearly dry", {{p::kPartials, 4.0f}, {p::kAttack, 1200.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.2f}}},
+    {"Fifth above", {{p::kTranspose, 7.0f}, {p::kPartials, 6.0f}, {p::kAttack, 300.0f}, {p::kRelease, 4.0f}, {p::kMix, 0.4f}}},
+    {"Two octaves up", {{p::kTranspose, 24.0f}, {p::kPartials, 8.0f}, {p::kTone, 0.3f}, {p::kAttack, 900.0f}, {p::kRelease, 7.0f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
+    {"Wide glass", {{p::kPartials, 20.0f}, {p::kTone, 0.7f}, {p::kAttack, 150.0f}, {p::kRelease, 2.5f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
+    {"Slow bloom", {{p::kPartials, 12.0f}, {p::kAttack, 5000.0f}, {p::kRelease, 15.0f}, {p::kMix, 0.4f}}},
+    {"Sliding sines", {{p::kPartials, 6.0f}, {p::kAttack, 200.0f}, {p::kRelease, 5.0f}, {p::kSteady, 0.0f}, {p::kGlide, 1500.0f}, {p::kMix, 0.6f}}},
+    {"Tuned drone", {{p::kPartials, 6.0f}, {p::kSnap, 1.0f}, {p::kAttack, 1200.0f}, {p::kRelease, 30.0f}, {p::kSteady, 0.4f}, {p::kTone, 0.3f}, {p::kMix, 1.0f}}},
+    {"Noise to tones", {{p::kPartials, 24.0f}, {p::kAttack, 40.0f}, {p::kRelease, 0.6f}, {p::kSteady, 0.0f}, {p::kGlide, 5.0f}, {p::kMix, 0.7f}}},
+    {"Shadow alone", {{p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 1.0f}}},
+};
+static void set_preset(SineShadow& d, const Preset& preset, float rate = kRate) {
+  d.init(rate);
+  for (const Setting& s : preset.settings) d.set_param(s.id, s.value);
+}
+
 // A sum of sines: frequencies and gains, phases from a fixed sequence.
 static std::vector<float> tones(const std::vector<double>& hz, const std::vector<double>& gain, float seconds,
                                 float rate = kRate) {
@@ -284,6 +317,38 @@ int main() {
     char label[96];
     std::snprintf(label, sizeof label, "Snap %.1f: a tone 40 cents sharp comes out %.2f cents sharp", snap, off);
     EXPECT(held.size() == 1 && std::fabs(off - 40.0 * (1.0 - snap)) < 0.5, label);
+  }
+
+  // Snap against the dry sound. A partial within 3 cents of its note (kInTune) is left alone and stays a
+  // quarter turn from its sine: no beat. One further off is pulled, and then sound and sine are two tones a
+  // few cents apart, which beat: at Mix 0.8 the level swings between -3.8 and +2.0 dB (0.951 - 0.309 and
+  // 0.951 + 0.309), once a period of their difference.
+  {
+    double swing[2][2];
+    int n = 0;
+    for (double sharp : {2.0, 10.0}) {
+      const std::vector<float> tone = sine(static_cast<float>(440.0 * std::pow(2.0, sharp / 1200.0)), 8.0f, kRate, 0.5f);
+      device.init(kRate);
+      device.set_param(p::kSpread, 0.0f);
+      device.set_param(p::kSnap, 1.0f);
+      device.set_param(p::kMix, 0.8f);
+      const Stereo out = run(device, tone);
+      double low = 1.0e9, high = 0.0;
+      for (size_t from = at(2.0); from + at(0.05) <= out.size(); from += at(0.05)) {
+        const double level = rms(out.left, from, from + at(0.05)) / rms(tone, from, from + at(0.05));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      swing[n][0] = db(low);
+      swing[n][1] = db(high);
+      ++n;
+    }
+    std::printf("Snap 1 at Mix 0.8, level against the input: a tone 2 cents sharp %+.2f to %+.2f dB, 10 cents sharp "
+                "%+.2f to %+.2f dB\n",
+                swing[0][0], swing[0][1], swing[1][0], swing[1][1]);
+    EXPECT(swing[0][0] > -0.3 && swing[0][1] < 0.3, "Snap leaves a partial that is on its note: no beat against the sound");
+    EXPECT(swing[1][0] > -4.3 && swing[1][1] < 2.5, "one pulled onto its note beats against the sound no deeper than Mix says");
+    EXPECT(swing[1][0] < -3.0 && swing[1][1] > 1.5, "and it does beat: the sine is on the note, the sound is not");
   }
 
   // Attack is the time a sine takes from nothing to nine tenths of its partial's level.
@@ -632,6 +697,58 @@ int main() {
     EXPECT(std::max(early, late) < 2.0 * in_peak, "a held full-scale chord peaks within 6 dB of the input");
     EXPECT(late < 1.02 * early, "and does not grow over a minute");
     EXPECT_NEAR(db(both(out, at(50.0)) / rms(full, at(50.0))), 0.0, 0.3, "and comes out as loud as it went in");
+  }
+  // The same through every preset, and the part-way Mix sweep through every preset: held tones A0 to C8 at
+  // the preset's own Mix come out no quieter than the dry sound alone would at that Mix (a shadow that
+  // cancelled its sound would take it below) and no louder than they went in. Where a preset moves the
+  // sines off their partials (Transpose, Snap) the two add as powers over time; with Snap a tone that is off
+  // its note beats against its sine, so those are measured over four seconds.
+  {
+    double worst = 0.0, growth = 0.0, under = 0.0, over = 0.0;
+    const char* worst_name = "";
+    const char* under_name = "";
+    const char* over_name = "";
+    const double in_peak = peak(full);
+    for (const Preset& preset : kPresets) {
+      set_preset(device, preset);
+      const Stereo out = run(device, full);
+      const double top = std::max(peak(out.left), peak(out.right));
+      if (top > worst) {
+        worst = top;
+        worst_name = preset.name;
+      }
+      const double mid = std::max(peak(out.left, at(20.0), at(30.0)), peak(out.right, at(20.0), at(30.0)));
+      const double last = std::max(peak(out.left, at(50.0)), peak(out.right, at(50.0)));
+      growth = std::max(growth, last / std::max(mid, in_peak));
+      const double mix = device.param(p::kMix);
+      const double dry_alone = std::cos(0.5 * kPi * mix);
+      for (int note = 21; note <= 108; note += 3) {
+        for (double sharp : {0.0, 0.5}) {
+          const double hz = 440.0 * std::pow(2.0, (note + sharp - 69.0) / 12.0);
+          const std::vector<float> tone = sine(static_cast<float>(hz), 8.0f, kRate, 0.5f);
+          set_preset(device, preset);
+          const Stereo held = run(device, tone);
+          const double level = both(held, at(4.0)) / rms(tone, at(4.0));
+          if (dry_alone > 0.01 && db(level / dry_alone) < under) {
+            under = db(level / dry_alone);
+            under_name = preset.name;
+          }
+          if (db(level) > over) {
+            over = db(level);
+            over_name = preset.name;
+          }
+        }
+      }
+    }
+    std::printf("a full-scale chord for a minute at every preset: worst peak %.3f (%s), input %.3f\n", worst, worst_name,
+                in_peak);
+    std::printf("held tones A0 to C8 at every preset: at worst %.2f dB under the dry sound alone (%s), %.2f dB over the "
+                "input (%s)\n",
+                under, under_name, over, over_name);
+    EXPECT(worst < 2.0 * in_peak, "at every preset the chord peaks within 6 dB of the input");
+    EXPECT(growth < 1.05, "and does not grow");
+    EXPECT(under > -0.5, "at no preset does a held tone fall below what the dry sound alone gives");
+    EXPECT(over < 0.5, "and at none does it come out louder than it went in");
   }
   // The same at each end of every control: 20 s each.
   {

@@ -72,6 +72,12 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   // turns of a peak's bins agree that far once in twenty frames, on a held
   // note nearly always, on a note with vibrato in most).
   static constexpr float kSure = 0.6f;
+  // The frames a new sine takes its partial's pitch as measured, before
+  // Glide begins to smooth it (an eighth of a second).
+  static constexpr int kYoung = 6;
+  // Snap leaves a partial alone that is within this of its note, in
+  // semitones (3 cents).
+  static constexpr double kInTune = 0.03;
   static constexpr int kSpare = 4;
   // The longest Steady asks a partial to last, in seconds (at 1; it goes
   // with the square of the control).
@@ -242,6 +248,8 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   struct Voice {
     int state = kFree;
     int age = 0;           // frames it has followed its partial
+    int young = 0;         // frames left in which it takes its partial's pitch as measured
+    bool unison = true;    // its pitch is its partial's own: the lock holds its phase
     int side = 0;          // the channel its phase is read from
     bool still = false;    // its partial stood still since the frame before
     float bin = 0.0f;      // the partial's frequency, in bins of the input
@@ -337,10 +345,18 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     double hz = static_cast<double>(kit::max(v.bin, 0.5f)) * bin_hz_;
     const double transpose = std::floor(param(kTranspose) + 0.5f);
     const double snap = param(kSnap);
+    v.unison = true;
     if (transpose != 0.0 || snap != 0.0) {
       double note = 69.0 + 12.0 * std::log2(hz / 440.0) + transpose;
-      note += snap * (std::floor(note + 0.5) - note);
-      hz = 440.0 * std::exp2((note - 69.0) / 12.0);
+      // A partial that is on its note already (to kInTune) is left where
+      // it is: pulled the last cent or two, its sine would beat against it
+      // once in many seconds, and the two would cancel for a second of each.
+      const double pull = snap * (std::floor(note + 0.5) - note);
+      if (transpose != 0.0 || std::fabs(pull) > kInTune) {
+        note += pull;
+        hz = 440.0 * std::exp2((note - 69.0) / 12.0);
+        v.unison = false;
+      }
     }
     v.inc_target = hz / sample_rate();
     v.band = band(static_cast<float>(hz));
@@ -540,6 +556,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
       if (fresh) {
         v = Voice();
         v.state = kFollowing;
+        v.young = kYoung;
         const float note = std::floor(69.5f + 12.0f * (std::log2(peak.bin * bin_hz_) - 8.7813597f));
         // Every note has a spot of its own between the sides, far from its
         // neighbours' (the golden section), and its own side of the phase.
@@ -582,13 +599,22 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
       }
       active_[active_count_++] = index;
     }
-    const bool unison = std::floor(param(kTranspose) + 0.5f) == 0.0f && param(kSnap) == 0.0f;
     for (int n = 0; n < active_count_; ++n) {
       const int index = active_[n];
       Voice& v = voices_[index];
       aim(v);
       v.slew = 0.0f;
       if (v.state != kFollowing) continue;
+      // A sine's first frames: its partial's pitch is still being found
+      // (the first frames of a sound measure it a little off), so the sine
+      // takes each measure as it comes and Glide waits. A long Glide would
+      // otherwise carry the first, wrong one for seconds, and the sine's
+      // phase with it.
+      const bool young = v.young > 0;
+      if (young) {
+        --v.young;
+        v.inc = v.inc_target;
+      }
       // Where the partial's phase stands at the sample about to be made:
       // the bin's phase is the partial's at the frame's first sample plus
       // half a turn per bin between them (the Hann window is centred), and
@@ -600,13 +626,13 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
                               0.5 * (static_cast<double>(peak.bin) - peak.k);
       const double now = at_start + static_cast<double>(peak.bin) * (frame_ + stagger_) / frame_ + v.flip;
       v.goal = now - std::floor(now);
-      if (!unison || !v.still) continue;
+      if (!v.unison || !(v.still || young)) continue;
       // The lock, once the sine is at its partial's pitch.
       if (std::fabs(v.inc - v.inc_target) * frame_ > 0.3) continue;
       double error = v.goal - v.phase;
       error -= std::floor(error + 0.5);
       const float most = static_cast<float>(kLockRatio * v.inc_target) + kLockHz / sample_rate();
-      v.slew = kit::clamp(static_cast<float>(lock_ * error / hop_), -most, most);
+      v.slew = kit::clamp(static_cast<float>((young ? kLock : lock_) * error / hop_), -most, most);
     }
     // A new sine starts on its partial's phase, at the pitch of the nearest
     // sine still sounding within an octave (its own where there is none).
@@ -625,6 +651,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         if (apart < nearest) {
           nearest = apart;
           v.inc = other.inc;
+          v.young = 0;  // it slides in from there: Glide's from its first sample
         }
       }
     }
