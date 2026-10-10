@@ -5,7 +5,10 @@
 // its formula for one quiet partial, with the points that set it. The scale
 // is the device's own: dB under the loudest band of late, which is what its
 // Floor is counted down from, so a quiet sound fills the picture as a loud
-// one does and Floor's line stands where the knob says.
+// one does and Floor's line stands where the knob says. A band with nothing
+// in it lies under the foot of the scale and has no line: the line stops
+// beside it and begins again after it, so a few clean notes are drawn as the
+// few bands they are in and not as a row of boxes standing on the foot.
 
 import {
   INK,
@@ -312,6 +315,44 @@ export function revealAfterDb(
   return Math.max(REVEAL_SILENT_DB, levelDb + gainToDb(Math.abs(revealHeard(view, liftDb, holdDb))))
 }
 
+/**
+ * A line of steps, two points to a band, with nothing drawn at a band that
+ * is `silent` (under the foot of the scale): the pen is lifted over such a
+ * band, where a line through every point would fall to the foot and stand
+ * back up beside it.
+ */
+function stepped(
+  ctx: CanvasRenderingContext2D,
+  points: readonly Point[],
+  silent: readonly boolean[],
+  colour: string,
+  alpha: number,
+): void {
+  ctx.beginPath()
+  let down = false
+  for (let b = 0; b < silent.length; b++) {
+    const [left, right] = [points[2 * b], points[2 * b + 1]]
+    if (silent[b]) {
+      ctx.moveTo(left[0], left[1])
+      ctx.moveTo(right[0], right[1])
+      down = false
+      continue
+    }
+    if (down) ctx.lineTo(left[0], left[1])
+    else ctx.moveTo(left[0], left[1])
+    ctx.lineTo(right[0], right[1])
+    down = true
+  }
+  ctx.globalAlpha = alpha
+  ctx.strokeStyle = colour
+  ctx.lineWidth = 1
+  ctx.lineJoin = 'round'
+  ctx.lineCap = 'round'
+  ctx.setLineDash([])
+  ctx.stroke()
+  ctx.globalAlpha = 1
+}
+
 const reveal = plateDisplay<RevealState>({
   place: 'window',
   columns: 1,
@@ -362,6 +403,8 @@ const reveal = plateDisplay<RevealState>({
     // coming out are steps, as wide as the bands are.
     const before: Point[] = []
     const lower: Point[] = []
+    const beforeSilent: boolean[] = []
+    const lowerSilent: boolean[] = []
     let most = 0
     let mostDb = 0
     clipped(ctx, box, () => {
@@ -377,6 +420,10 @@ const reveal = plateDisplay<RevealState>({
         // What comes out is the line going in and, over it, what was lifted;
         // where a band comes out under what it went in at, a line of its own.
         lower.push([left, Math.max(wentY, comesY)], [right, Math.max(wentY, comesY)])
+        // Under the foot of the scale there is nothing to draw: a band with
+        // nothing in it, and one easing down to nothing or up from it.
+        beforeSilent.push(went < REVEAL_FOOT_DB)
+        lowerSilent.push(Math.min(went, comes) < REVEAL_FOOT_DB)
         if (comes - went > REVEAL_SEEN_DB)
           lifted.push({ x: left, y: comesY, w: right - left, h: wentY - comesY })
         if (went > REVEAL_SILENT_DB && state.lifts[b] > most) {
@@ -396,8 +443,8 @@ const reveal = plateDisplay<RevealState>({
         ctx.fill()
         ctx.globalAlpha = 1
         for (const patch of lifted) fillRect(ctx, patch, colours.accent, 1)
-        trace(ctx, lower, { colour: colours.ink, width: 1, alpha: INK.back })
-        trace(ctx, before, { colour: colours.ink, width: 1 })
+        stepped(ctx, lower, lowerSilent, colours.ink, INK.back)
+        stepped(ctx, before, beforeSilent, colours.ink, 1)
       }
     })
 

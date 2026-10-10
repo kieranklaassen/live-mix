@@ -158,6 +158,34 @@ function lines(drawn: RecordingContext): Line[] {
   return found
 }
 
+interface Stroke {
+  /** Each point of the path, and whether the pen was down on the way to it. */
+  moves: { drawn: boolean; x: number; y: number }[]
+  alpha: number
+  dash: number[]
+}
+
+/** Every line stroked, point by point, with whether the pen drew its way there or was lifted. */
+function strokes(drawn: RecordingContext): Stroke[] {
+  const found: Stroke[] = []
+  let moves: Stroke['moves'] = []
+  let dash: number[] = []
+  const pen: Record<string, unknown> = { globalAlpha: 1 }
+  for (const call of drawn.calls) {
+    if (call.name.startsWith('set ')) pen[call.name.slice(4)] = call.args[0]
+    else if (call.name === 'beginPath') moves = []
+    else if (call.name === 'moveTo' || call.name === 'lineTo')
+      moves.push({
+        drawn: call.name === 'lineTo',
+        x: call.args[0] as number,
+        y: call.args[1] as number,
+      })
+    else if (call.name === 'setLineDash') dash = [...(call.args[0] as number[])]
+    else if (call.name === 'stroke') found.push({ moves, alpha: pen.globalAlpha as number, dash })
+  }
+  return found
+}
+
 /** The dotted line: one quiet partial as the settings have it come out. */
 function dotted(drawn: RecordingContext): [number, number][] {
   const found = lines(drawn).filter((line) => line.dash.length === 2 && line.points.length > 8)
@@ -519,6 +547,70 @@ describe("Reveal's display while it runs", () => {
     // The bands lie side by side from the lowest to the top of the scale.
     for (let b = 1; b < bands.count; b++) expect(left(b)).toBeCloseTo(right(b - 1), 9)
     expect(right(84)).toBeCloseTo(box.x + box.w, 1)
+  })
+
+  it('lifts the pen over a band with nothing in it, so no line falls to the foot and stands back up', () => {
+    // Bands 20 and 21 sound side by side and band 40 alone; every other band has nothing in it.
+    const drawn = draw({
+      meters: readings({ 20: { level: -30 }, 21: { level: -36 }, 40: { level: -60 } }, -2),
+      signal: testSignal(),
+    })
+    const long = strokes(drawn).filter((line) => line.dash.length === 0 && line.moves.length > 100)
+    // The line going in, and under it the line of what comes out lower.
+    expect(long.map((line) => line.alpha)).toEqual([0.5, 1])
+    const foot = box.y + box.h
+    for (const [line, hold] of [
+      [long[1], 0],
+      [long[0], -2],
+    ] as const) {
+      const at = (band: number) => [line.moves[2 * band], line.moves[2 * band + 1]]
+      // A band alone is one flat stroke as wide as the band: the pen comes to it lifted.
+      expect(at(40).map((move) => move.drawn)).toEqual([false, true])
+      expect(at(40).map((move) => [move.x, move.y])).toEqual([
+        [left(40), level(-60 + hold)],
+        [right(40), level(-60 + hold)],
+      ])
+      // Two bands side by side are joined: the step between them is drawn.
+      expect(at(20).map((move) => move.drawn)).toEqual([false, true])
+      expect(at(21).map((move) => move.drawn)).toEqual([true, true])
+      expect(at(21)[0].y).toBeCloseTo(level(-36 + hold), 9)
+      // A band with nothing in it is passed over: its place is kept and nothing is drawn to it.
+      for (const band of [0, 19, 22, 39, 41, 84]) {
+        expect(at(band).map((move) => move.drawn)).toEqual([false, false])
+        expect(at(band)[0].y).toBe(level(REVEAL_SILENT_DB))
+      }
+      // So nothing is drawn to a place under the foot.
+      for (const move of line.moves) if (move.drawn) expect(move.y).toBeLessThan(foot)
+    }
+    // Listen: a band that is not lifted is not heard, so what comes out has no line there, and the sound going in still has.
+    const added = strokes(
+      draw({
+        values: { listen: 1 },
+        meters: readings({ 20: { level: -30 }, 40: { lift: 12, level: -60 } }, 0),
+        signal: testSignal(),
+      }),
+    ).filter((line) => line.dash.length === 0 && line.moves.length > 100)
+    expect(added[0].moves[2 * 20 + 1].drawn).toBe(false)
+    expect(added[0].moves[2 * 40 + 1].drawn).toBe(true)
+    expect(added[1].moves[2 * 20 + 1].drawn).toBe(true)
+    // A band that has just fallen silent eases down: while it is still on the scale its line is drawn, and once under the foot it is not.
+    const falling = (seconds: number): Stroke =>
+      strokes(
+        runDisplay(
+          display,
+          params,
+          seconds,
+          { meters: readings({ 40: { level: -60 } }, 0), signal: testSignal() },
+          (time) => (time > 0.01 ? { meters: readings({}, 0) } : {}),
+        ),
+      ).filter((line) => line.dash.length === 0 && line.moves.length > 100)[1]
+    const soon = falling(0.05).moves[2 * 40 + 1]
+    expect(soon.drawn).toBe(true)
+    expect(soon.y).toBeGreaterThan(level(-60))
+    expect(soon.y).toBeLessThan(foot)
+    const later = falling(1).moves[2 * 40 + 1]
+    expect(later.drawn).toBe(false)
+    expect(later.y).toBeGreaterThan(foot)
   })
 
   it('fills what was lifted in the second colour, from where a band went in to where it comes out', () => {
