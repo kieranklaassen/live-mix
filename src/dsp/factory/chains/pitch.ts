@@ -443,7 +443,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'Each line is repeated an octave up and then an octave down, and every attack is blurred into a slow swell; Gap sets the wait.',
     effects: [
       { deviceId: 'canon', preset: 'Octaves apart' },
-      { deviceId: 'fog', preset: 'Slow rise', params: { width: 0.5 } },
+      { deviceId: 'fog', preset: 'Slow rise', params: { width: 0.85 } },
     ],
   },
 ]

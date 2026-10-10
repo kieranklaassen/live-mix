@@ -453,7 +453,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       'Seven scattered echoes with every attack blurred into a soft cloud, so the repeats arrive as swells; Size sets how long a cloud lasts.',
     effects: [
       { deviceId: 'constellation', preset: 'Scattered seven', params: { mix: 0.5 } },
-      { deviceId: 'fog', preset: 'Soft cloud', params: { size: 220, soften: 0.5, width: 0.6 } },
+      { deviceId: 'fog', preset: 'Soft cloud', params: { size: 220, soften: 0.5 } },
     ],
   },
   {

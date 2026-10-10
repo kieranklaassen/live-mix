@@ -366,7 +366,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     category: 'space',
     description:
       'Every attack is blurred into a slow cloud, so notes swell in and nothing rings on after them; Size sets how long the cloud lasts.',
-    effects: [{ deviceId: 'fog', preset: 'Slow rise', params: { width: 0.5 } }],
+    effects: [{ deviceId: 'fog', preset: 'Slow rise' }],
   },
   {
     id: 'lost-in-fog',
@@ -375,9 +375,8 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description:
       'Attacks blur into a long cloud and the sound stands far off in a dull room, wandering a little; Distance brings it back.',
     effects: [
-      { deviceId: 'fog', preset: 'Deep fog', params: { width: 0 } },
-      { deviceId: 'distance', preset: 'Through fog', params: { level: 1 } },
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
+      { deviceId: 'fog', preset: 'Deep fog' },
+      { deviceId: 'distance', preset: 'Through fog', params: { width: 0.5, level: 1 } },
     ],
   },
   {
@@ -386,10 +385,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     category: 'space',
     description:
       'The sound heard from far across a large space: darker, later and mostly room, drifting slowly; Distance moves it nearer.',
-    effects: [
-      { deviceId: 'distance', preset: 'Far shore' },
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
-    ],
+    effects: [{ deviceId: 'distance', preset: 'Far shore', params: { level: 0.95 } }],
   },
   {
     id: 'walking-the-nave',
@@ -398,8 +394,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description:
       'The sound walks slowly nearer and farther inside a cathedral, its pitch bending a little as it moves; Wander sets how far it goes.',
     effects: [
-      { deviceId: 'distance', preset: 'Slow tide', params: { rate: 0.06, decay: 0.8, level: 0.9 } },
-      { deviceId: 'stereo-widener', preset: 'Narrow' },
+      { deviceId: 'distance', preset: 'Slow tide', params: { rate: 0.06, decay: 0.8 } },
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
     ],
   },
@@ -410,7 +405,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     description:
       'Notes swell in out of a cloud, and long pieces of them rise an octave as they fade; Fall sets how far they climb.',
     effects: [
-      { deviceId: 'fog', preset: 'Slow rise', params: { width: 0.5 } },
+      { deviceId: 'fog', preset: 'Slow rise' },
       { deviceId: 'falling', preset: 'Rising mist' },
     ],
   },
