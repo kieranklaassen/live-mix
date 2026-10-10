@@ -9,13 +9,18 @@ import { describe, expect, it } from 'vitest'
 import { INK, PLAIN_COLOURS } from '../components/display-kit'
 import {
   PRISM_FACES,
+  PRISM_LEAST_SEC,
   PRISM_LINE_PER,
   PRISM_LIT_GROW,
   PRISM_PASSES,
   PRISM_SHADES,
   PRISM_TRANSIT_ALPHA,
   prismAgainSec,
+  prismAxis,
+  prismBase,
+  prismBendRoom,
   prismDeal,
+  prismDelayOfHz,
   prismDelaySec,
   prismLayout,
   prismLoopGain,
@@ -27,6 +32,9 @@ import {
   prismRowY,
   prismSecAt,
   prismShade,
+  prismStripHz,
+  prismStripPlace,
+  prismStripWidth,
   prismWet,
   prismX,
   prismY,
@@ -165,44 +173,91 @@ const transitOf = (marks: readonly Mark[]): Mark[] =>
 // --- The device's numbers ---------------------------------------------------
 
 /**
- * `Prism::delay_samples(bin)` at 48 kHz, printed by a native run of the device
- * at seven settings (the frame is 2048 long, so bin k is k × 23.4375 Hz).
+ * `Prism::delay_samples(bin)`, printed by a native run of the device at eleven
+ * settings and three sample rates (the frame is 2048 long, so bin k is
+ * k × rate / 2048 Hz: 23.4375 Hz at 48 kHz). Bins 2 to 8 lie under 200 Hz,
+ * where every colour is the first; 9 and 12 share the strip from 200 to 300 Hz.
  */
-const DEVICE_BINS = [2, 4, 7, 13, 27, 55, 90, 140, 215, 300, 420, 900]
-const DEVICE_TABLE: readonly (Partial<PrismSettings> & { samples: readonly number[] })[] = [
+const DEVICE_BINS = [2, 4, 7, 8, 9, 12, 13, 27, 55, 90, 140, 215, 300, 420, 900]
+const DEVICE_TABLE: readonly (Partial<PrismSettings> & {
+  rate: number
+  samples: readonly number[]
+})[] = [
   // prettier-ignore
-  { time: 600, fan: 1, shape: 0, bend: 0, bands: 12, smear: 0.25, shuffle: 1, samples: [3600.0, 5897.7, 8342.5, 12582.6, 15249.8, 19610.0, 21967.6, 24259.5, 26534.7, 28685.4, 28800.0, 28800.0] },
+  { rate: 48000, time: 600, fan: 1, shape: 0, bend: 0, bands: 12, smear: 0.25, shuffle: 1, samples: [3600.0, 3600.0, 3600.0, 3600.0, 10607.5, 10607.5, 12762.6, 15284.6, 19570.0, 21992.4, 24247.0, 26537.5, 28688.9, 28800.0, 28800.0] },
   // prettier-ignore
-  { time: 1500, fan: 0.6, shape: 1, bend: 0.5, bands: 7, smear: 0, shuffle: 1, samples: [72000.0, 68706.5, 68706.5, 65063.6, 60928.6, 56023.8, 56023.8, 49631.8, 49631.8, 34200.0, 34200.0, 34200.0] },
+  { rate: 48000, time: 1500, fan: 0.6, shape: 1, bend: 0.5, bands: 7, smear: 0, shuffle: 1, samples: [72000.0, 72000.0, 72000.0, 72000.0, 65063.6, 65063.6, 65063.6, 60928.6, 56023.8, 56023.8, 49631.8, 49631.8, 34200.0, 34200.0, 34200.0] },
   // prettier-ignore
-  { time: 900, fan: 1, shape: 2, bend: -0.7, bands: 24, smear: 1, shuffle: 1, samples: [5400.0, 5833.6, 9102.5, 18526.7, 40382.1, 22212.8, 12571.0, 7776.9, 5772.7, 5406.0, 5400.0, 5400.0] },
+  { rate: 48000, time: 900, fan: 1, shape: 2, bend: -0.7, bands: 24, smear: 1, shuffle: 1, samples: [5400.0, 5400.0, 5400.0, 5400.0, 14719.1, 14719.1, 21692.9, 41442.0, 22988.6, 12295.0, 7848.2, 5767.6, 5405.6, 5400.0, 5400.0] },
   // prettier-ignore
-  { time: 250, fan: 0.3, shape: 3, bend: 0, bands: 5, smear: 0.5, shuffle: 1, samples: [12000.0, 11710.3, 10559.5, 10157.6, 8895.6, 10053.8, 10373.6, 10660.4, 11726.4, 11942.7, 12000.0, 12000.0] },
+  { rate: 48000, time: 250, fan: 0.3, shape: 3, bend: 0, bands: 5, smear: 0.5, shuffle: 1, samples: [12000.0, 12000.0, 12000.0, 12000.0, 10286.0, 10286.0, 10067.6, 8878.2, 10033.9, 10386.0, 10654.2, 11727.8, 11944.4, 12000.0, 12000.0] },
   // prettier-ignore
-  { time: 1200, fan: 1, shape: 4, bend: 0, bands: 8, smear: 0, shuffle: 3, samples: [21600.0, 28800.0, 28800.0, 57600.0, 7200.0, 14400.0, 43200.0, 50400.0, 50400.0, 36000.0, 36000.0, 36000.0] },
+  { rate: 48000, time: 1200, fan: 1, shape: 4, bend: 0, bands: 8, smear: 0, shuffle: 3, samples: [21600.0, 21600.0, 21600.0, 21600.0, 57600.0, 57600.0, 7200.0, 7200.0, 14400.0, 43200.0, 50400.0, 50400.0, 36000.0, 36000.0, 36000.0] },
   // prettier-ignore
-  { time: 2000, fan: 1, shape: 4, bend: 0, bands: 48, smear: 1, shuffle: 7, samples: [35234.0, 69442.5, 75248.8, 88456.4, 45636.0, 44573.6, 43066.3, 22120.2, 52842.9, 58755.5, 70978.7, 70978.7] },
+  { rate: 48000, time: 2000, fan: 1, shape: 4, bend: 0, bands: 48, smear: 1, shuffle: 7, samples: [35234.0, 35234.0, 35234.0, 35234.0, 67533.0, 67533.0, 29722.7, 46242.4, 65350.0, 35800.8, 23279.8, 53368.4, 59124.3, 70978.7, 70978.7] },
   // prettier-ignore
-  { time: 40, fan: 1, shape: 4, bend: 0.3, bands: 2, smear: 0.5, shuffle: 16, samples: [1920.0, 1868.6, 1803.0, 1728.7, 1638.4, 789.7, 684.2, 577.1, 452.1, 315.6, 288.0, 288.0] },
+  { rate: 48000, time: 40, fan: 1, shape: 4, bend: 0.3, bands: 2, smear: 0.5, shuffle: 16, samples: [1920.0, 1920.0, 1920.0, 1920.0, 1752.6, 1752.6, 1711.8, 1635.0, 1152.0, 1152.0, 1152.0, 1152.0, 1152.0, 1152.0, 1152.0] },
+  // prettier-ignore
+  { rate: 48000, time: 90, fan: 1, shape: 0, bend: 0, bands: 48, smear: 1, shuffle: 1, samples: [1152.0, 1152.0, 1152.0, 1152.0, 1651.8, 1651.8, 1913.9, 2396.2, 2905.6, 3328.1, 3650.0, 3993.4, 4253.3, 4320.0, 4320.0] },
+  // prettier-ignore
+  { rate: 44100, time: 600, fan: 1, shape: 0, bend: 0, bands: 12, smear: 0.25, shuffle: 1, samples: [3307.5, 3307.5, 3307.5, 3307.5, 3307.5, 9745.7, 9745.7, 13843.4, 17880.5, 20089.0, 22201.2, 24282.9, 26251.8, 26460.0, 26460.0] },
+  // prettier-ignore
+  { rate: 96000, time: 600, fan: 1, shape: 0, bend: 0, bands: 12, smear: 0.25, shuffle: 1, samples: [7200.0, 7200.0, 7200.0, 29720.2, 29720.2, 30594.0, 30594.0, 39074.3, 44408.6, 52607.9, 57228.5, 57600.0, 57600.0, 57600.0, 57600.0] },
+  // prettier-ignore
+  { rate: 96000, time: 2000, fan: 1, shape: 4, bend: 0, bands: 48, smear: 1, shuffle: 7, samples: [70468.1, 70468.1, 70468.1, 129060.2, 129060.2, 93147.5, 93147.5, 164887.9, 116102.6, 154475.9, 78885.3, 141957.4, 141957.4, 141957.4, 141957.4] },
 ]
 
 describe('the curve of the Prism', () => {
   it('gives every bin the delay the device gives it, at every Shape', () => {
-    for (const { samples, ...values } of DEVICE_TABLE) {
+    for (const { samples, rate, ...values } of DEVICE_TABLE) {
       const at = settings(values)
       DEVICE_BINS.forEach((bin, i) => {
-        const seconds = prismDelaySec(prismPlace((bin * 48000) / 2048), at)
-        // The device keeps its table in single precision: half a sample in thirty thousand.
-        expect(seconds * 48000, `${JSON.stringify(values)} bin ${bin}`).toBeCloseTo(samples[i], 0)
+        const seconds = prismDelayOfHz((bin * rate) / 2048, at, undefined, rate)
+        // The device keeps its table in single precision: half a sample in thirty thousand
+        // (and one in a hundred and forty thousand, at 96 kHz).
+        expect(
+          Math.abs(seconds * rate - samples[i]),
+          `${JSON.stringify(values)} at ${rate} bin ${bin}`,
+        ).toBeLessThan(rate > 50000 ? 1.5 : 0.5)
       })
     }
   })
 
+  it('reads the curve at the middle of a strip, and everything under two strips as the first colour', () => {
+    // A strip is 100 Hz wide, or four bins of the frame where that is more: 187.5 Hz at 96 kHz.
+    expect(prismStripWidth(44100)).toBe(100)
+    expect(prismStripWidth(48000)).toBe(100)
+    expect(prismStripWidth(96000)).toBe(187.5)
+    for (const hz of [20, 60, 110, 199.9]) expect(prismStripHz(hz, 48000)).toBe(60)
+    expect(prismStripHz(200, 48000)).toBe(250)
+    expect(prismStripHz(299.9, 48000)).toBe(250)
+    expect(prismStripHz(300, 48000)).toBe(350)
+    expect(prismStripHz(374, 96000)).toBe(60)
+    expect(prismStripHz(376, 96000)).toBe(2.5 * 187.5)
+    // Two notes 35 Hz apart under 200 Hz wait alike at any setting, where a band's edge used to part them.
+    for (const row of DEVICE_TABLE) {
+      const { rate } = row
+      const at = settings(row)
+      const low = prismDelaySec(prismAxis(82.4), at, undefined, rate)
+      expect(prismDelaySec(prismAxis(117.4), at, undefined, rate)).toBe(low)
+      expect(prismDelaySec(prismAxis(165), at, undefined, rate)).toBe(low)
+      expect(prismDelaySec(prismAxis(20), at, undefined, rate)).toBe(low)
+    }
+    // A place past the axis's ends is read at its own frequency: 15 kHz is the last colour.
+    expect(prismStripPlace(prismAxis(15000), 48000)).toBe(1)
+    expect(prismDelaySec(prismAxis(1040), settings())).toBe(prismDelayOfHz(1040, settings()))
+    expect(prismStripPlace(prismAxis(30), 48000)).toBe(0)
+    // No colour comes sooner than the device's floor, which lies inside the picture.
+    expect(PRISM_LEAST_SEC).toBe(0.024)
+    expect(prismDelaySec(0, settings({ time: 30 }))).toBe(0.024)
+    expect(prismDelaySec(1, settings({ time: 30, smear: 0 }))).toBeCloseTo(0.03, 9)
+  })
+
   it('deals Scatter as the device does: evenly spaced orders, the same for one Shuffle', () => {
     // Shuffle 3 over eight bands at Time 1200 and Fan 1 is the table's fifth row: a band waits
-    // 150 ms and 150 ms more for each place in the deal. The bins of the table lie in bands
-    // 0, 1, 1, 2, 3, 4, 5, 6, 6, 7 (a band is an octave wide, from 85 Hz on), which reads
-    // 450, 600, 1200, 150, 300, 900, 1050 and 750 ms from the lowest band up.
+    // 150 ms and 150 ms more for each place in the deal: 450, 600, 1200, 150, 300, 900, 1050 and
+    // 750 ms from the lowest band up (a band is an octave wide, from 85 Hz on). Everything under
+    // 200 Hz is the lowest band, so the second band's 600 ms is no colour's wait.
     const deal = prismDeal(8, 3)
     expect(deal).toEqual([2, 3, 7, 0, 1, 5, 6, 4].map((n) => n / 7))
     expect(prismDeal(8, 3)).toEqual(deal)
@@ -232,8 +287,10 @@ describe('what a pass leaves, and when the next one comes', () => {
     const plain = settings({ time: 480, smear: 0 })
     expect(prismAgainSec(prismDelaySec(prismPlace(545), plain), 48000)).toBeCloseTo(0.256, 6)
     expect(prismAgainSec(prismDelaySec(prismPlace(3182), plain), 48000)).toBeCloseTo(0.40533, 4)
-    // Never under one hop: the shortest wait there is, 6 ms, comes round every 10.7 ms.
-    expect(prismAgainSec(0.006, 48000)).toBeCloseTo(512 / 48000, 9)
+    // The shortest wait there is, 24 ms, is two hops and a quarter: it comes round every 21.3 ms.
+    expect(prismAgainSec(PRISM_LEAST_SEC, 48000)).toBeCloseTo(1024 / 48000, 9)
+    // Never under one hop.
+    expect(prismAgainSec(0.001, 48000)).toBeCloseTo(512 / 48000, 9)
     // By then it has come out so often.
     expect(prismPassesBy(0.3, 0.355, 0.352)).toBe(0)
     expect(prismPassesBy(0.355, 0.355, 0.352)).toBe(1)
@@ -314,7 +371,7 @@ describe('the picture of the Prism', () => {
       for (const values of loops) {
         const layout = prismLayout({ width, height })
         const at = settings(values)
-        const wet = prismWet(values.mix ?? 0.4)
+        const wet = prismWet(values.mix ?? 0.3)
         const repeats = repeatsOf(
           marksOf(drawDisplay(display, params, { values, width, height, meters: silent })),
         )
@@ -471,7 +528,7 @@ describe('the points of the Prism', () => {
           expect(prismDelaySec(prismPoints(at).last, moved)).toBeCloseTo(seconds, 6)
         }
         // Past the ends of its range it stops there.
-        expect(handle.drag(-50, handle.y, {}).time).toBe(20)
+        expect(handle.drag(-50, handle.y, {}).time).toBe(30)
         expect(handle.drag(width + 400, handle.y, {}).time).toBe(4000)
         expect(handle.reset?.()).toEqual({ time: 600 })
       }
@@ -505,25 +562,30 @@ describe('the points of the Prism', () => {
       }
     }
   })
-  it('draws Fan at the edge when the first colour comes before the picture begins, and moves it from where it lies', () => {
-    // Time 20 ms with Fan whole: the first colour would come at 2.5 ms (the device holds it at 6),
-    // a decade's sixth left of the picture's 10 ms.
-    const values = { time: 20 }
+  it('stands Fan on the floor of the device when the first colour would come sooner, and moves it from where it lies', () => {
+    // Time 60 ms with Fan whole: the first colour would come at 7.5 ms, and the device holds it
+    // at 24 ms. The point stands there, on the curve.
+    const values = { time: 60 }
     const layout = prismLayout({ width: 128, height: 100 })
     const handle = handleOf('fan', { values })
-    expect(handle.x).toBe(layout.plot.x)
+    expect(handle.x).toBeCloseTo(prismX(PRISM_LEAST_SEC, layout.plot), 9)
     const hold: DisplayHold = {}
     // Taken and not moved, nothing changes.
     expect(handle.drag(handle.x, handle.y, hold).fan).toBe(1)
-    // Ten pixels to the right is a quarter of a decade later than where it lay: 2.5 ms × 10^(1/4).
+    // Ten pixels to the right is a quarter of a decade later than where it lay: 7.5 ms × 10^(1/4).
     const moved = handle.drag(handle.x + 10, handle.y, hold).fan
-    const first = 0.0025 * Math.pow(10, 10 / 40)
-    expect(moved).toBeCloseTo((1 - first / 0.02) / 0.875, 6)
+    const first = 0.0075 * Math.pow(10, 10 / 40)
+    expect(moved).toBeCloseTo((1 - first / 0.06) / 0.875, 6)
     // The plate asks for the point again after every move; the same hold carries the hand on.
+    // The colour is still held at the floor, and so is the point.
     const next = handleOf('fan', { values: { ...values, fan: moved } })
-    expect(next.x).toBe(layout.plot.x)
-    const further = next.drag(handle.x + 20, handle.y, hold).fan
-    expect(further).toBeCloseTo((1 - (0.0025 * Math.pow(10, 20 / 40)) / 0.02) / 0.875, 6)
+    expect(next.x).toBeCloseTo(handle.x, 9)
+    // Thirty pixels on it comes at 42 ms, clear of the floor, and the point goes with the curve.
+    const further = next.drag(handle.x + 30, handle.y, hold).fan
+    const later = 0.0075 * Math.pow(10, 30 / 40)
+    expect(further).toBeCloseTo((1 - later / 0.06) / 0.875, 6)
+    const clear = handleOf('fan', { values: { ...values, fan: further } })
+    expect(clear.x).toBeCloseTo(prismX(later, layout.plot), 6)
   })
 
   it('take Bend to the wait the hand is at, and leave it where bending moves nothing', () => {
@@ -561,11 +623,51 @@ describe('the points of the Prism', () => {
           handleOf(key, { values: { [name]: high }, width, height }).x -
             handleOf(key, { values: { [name]: low }, width, height }).x,
         )
-      expect(reach('time', 'time', 20, 4000)).toBeGreaterThan(0.7 * layout.plot.w)
+      expect(reach('time', 'time', 30, 4000)).toBeGreaterThan(0.7 * layout.plot.w)
       expect(reach('fan', 'fan', 0, 1)).toBeGreaterThan(0.25 * layout.plot.w)
-      // Bend has the least: 28 pixels flat, and the wheel beside.
+      // Bend has the least, for the curve itself moves no further: thirty pixels flat, of which
+      // each way has its share (the middle of the order had eight one way), and the wheel beside.
       expect(reach('bend', 'bend', -1, 1)).toBeGreaterThan(24)
+      expect(reach('bend', 'bend', 0, 1)).toBeGreaterThan(10)
+      expect(reach('bend', 'bend', -1, 0)).toBeGreaterThan(10)
     }
+  })
+
+  it('stand Bend on the band with the most room to be bent both ways', () => {
+    // Up from a fifth of the order and down from it the wait goes as far, 0.37 of a decade.
+    expect(prismBendRoom(0.2) / Math.LN10).toBeCloseTo(0.374, 2)
+    // From the middle of the order it goes 0.18 of a decade one way and 0.50 the other.
+    expect(prismBendRoom(0.5) / Math.LN10).toBeCloseTo(0.185, 2)
+    // At the default that is the fourth band of twelve, the lowest with a wait of its own.
+    expect(prismPoints(settings()).middle).toBeCloseTo(3 / 11, 9)
+    for (const values of SHAPES) {
+      const at = settings(values)
+      const points = prismPoints(at)
+      const steps = at.bands - 1
+      const roomAt = (place: number): number => {
+        const base = prismBase(prismStripPlace(place, 48000), at)
+        return base > 1e-6 && base < 1 - 1e-6 ? prismBendRoom(base) : 0
+      }
+      for (let band = 0; band <= steps; band++) {
+        const place = band / steps
+        if (place === points.last || place === points.first) continue
+        expect(
+          roomAt(points.middle),
+          `${JSON.stringify(values)} band ${band}`,
+        ).toBeGreaterThanOrEqual(roomAt(place) - 1e-9)
+      }
+    }
+  })
+
+  it('leaves the upright plate the knobs the picture has no point for', () => {
+    // Upright, a plate shows eight knobs: the face's four, then the device's others in their
+    // order (`DevicePlate`). Bend has its point and its wheel on the picture and stands behind
+    // Tilt in the device's order, so the eighth knob is Tilt: what Feedback's repeats lose.
+    const face = PRISM_FACES.prism.face ?? []
+    const all = Object.keys(params)
+    const upright = [...face, ...all.filter((name) => !face.includes(name))].slice(0, 8)
+    expect(upright).toEqual(['time', 'shape', 'feedback', 'mix', 'fan', 'bands', 'smear', 'tilt'])
+    expect(handleOf('bend').wheel).toBeDefined()
   })
 
   it('say the point in hand in words, on a patch at the end away from it', () => {
@@ -634,7 +736,7 @@ const within = (mark: Mark, x: number, y: number, grow = 0): boolean =>
 describe('the sound on its way through the Prism', () => {
   const layout = prismLayout({ width: 128, height: 100 })
   const { plot, rows } = layout
-  const wet = prismWet(0.4)
+  const wet = prismWet(0.3)
   /** The rows of the picture that one reading speaks for, each with its wait. */
   const rowsOf = (zone: number, at: PrismSettings = DEFAULTS) =>
     Array.from({ length: rows }, (_, row) => {

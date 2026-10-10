@@ -9,7 +9,7 @@ export const PRISM_PARAMS = {
   time: {
     id: 0,
     name: 'Time',
-    min: 20,
+    min: 30,
     max: 4000,
     default: 600,
     taper: 'log',
@@ -26,7 +26,7 @@ export const PRISM_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes eight times sooner than the last.',
+      'How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes up to eight times sooner than the last.',
   },
   shape: {
     id: 2,
@@ -40,19 +40,8 @@ export const PRISM_PARAMS = {
     description:
       'The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band its own time.',
   },
-  bend: {
-    id: 3,
-    name: 'Bend',
-    min: -1,
-    max: 1,
-    default: 0,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind.',
-  },
   bands: {
-    id: 4,
+    id: 3,
     name: 'Bands',
     min: 2,
     max: 48,
@@ -61,10 +50,10 @@ export const PRISM_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together.',
+      'How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together. The lowest notes always share one.',
   },
   smear: {
-    id: 5,
+    id: 4,
     name: 'Smear',
     min: 0,
     max: 1,
@@ -75,7 +64,7 @@ export const PRISM_PARAMS = {
       "Melts the steps between bands into a glide, so each band's arrival is spread out instead of landing all at once.",
   },
   feedback: {
-    id: 6,
+    id: 5,
     name: 'Feedback',
     min: 0,
     max: 1,
@@ -83,10 +72,10 @@ export const PRISM_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of each colour is sent round again, each at its own time, so the repeats fan out further on every pass. At the top they circle for a very long time.',
+      'How much of each colour goes round again at its own time, so the repeats fan out further on every pass. At the top nothing fades but what Tilt takes away.',
   },
   tilt: {
-    id: 7,
+    id: 6,
     name: 'Tilt',
     min: -1,
     max: 1,
@@ -95,6 +84,17 @@ export const PRISM_PARAMS = {
     unit: '',
     description:
       'What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone.',
+  },
+  bend: {
+    id: 7,
+    name: 'Bend',
+    min: -1,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind.',
   },
   drift: {
     id: 8,
@@ -135,10 +135,11 @@ export const PRISM_PARAMS = {
     name: 'Mix',
     min: 0,
     max: 1,
-    default: 0.4,
+    default: 0.3,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry signal and the delayed colours.',
+    description:
+      'Balance between the dry sound and the delayed colours. Turned well up, a held note and its own echo grow alike in level and can cancel each other at some pitches.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -171,18 +172,10 @@ export const PRISM_DESCRIPTOR = wasmDeviceDescriptor(PRISM_DEVICE, {
   presets: {
     'Low to high': {},
     'High to low': { shape: 1, time: 700, feedback: 0.35, bands: 10 },
-    'Slow unfolding': { time: 2400, bands: 24, smear: 0.6, feedback: 0.5, mix: 0.45 },
-    'One plain echo': { fan: 0, time: 380, feedback: 0.45, width: 0.3, mix: 0.35 },
-    'Short chirp': { time: 90, bands: 48, smear: 1, feedback: 0.25, tilt: 0, mix: 0.5 },
-    'Scattered notes': {
-      shape: 4,
-      bands: 8,
-      smear: 0,
-      time: 1200,
-      feedback: 0.5,
-      shuffle: 3,
-      mix: 0.45,
-    },
+    'Slow unfolding': { time: 2400, bands: 24, smear: 0.6, feedback: 0.5 },
+    'One plain echo': { fan: 0, time: 380, feedback: 0.45, width: 0.3 },
+    'Short chirp': { time: 90, bands: 48, smear: 1, feedback: 0.25, tilt: 0 },
+    'Scattered notes': { shape: 4, bands: 8, smear: 0, time: 1200, feedback: 0.5, shuffle: 3 },
     'Partial cloud': {
       shape: 4,
       bands: 48,
@@ -191,24 +184,15 @@ export const PRISM_DESCRIPTOR = wasmDeviceDescriptor(PRISM_DEVICE, {
       feedback: 0.7,
       shuffle: 7,
       width: 1,
-      mix: 0.6,
     },
     'Middle first': { shape: 3, time: 800, feedback: 0.35, smear: 0.5 },
     'Edges first': { shape: 2, time: 900, bend: 0.4, feedback: 0.3 },
     'Faint trail': { time: 300, fan: 0.6, feedback: 0.2, mix: 0.15 },
-    'Endless fan': { time: 1500, bands: 16, feedback: 0.92, tilt: -0.4, mix: 0.5 },
+    'Long fan': { time: 1500, bands: 16, feedback: 0.92, tilt: -0.4 },
     'Four colours': { bands: 4, smear: 0, time: 1000, feedback: 0.45, tilt: 0 },
     Darkening: { time: 500, feedback: 0.75, tilt: -1, bands: 6 },
     'Thinning out': { shape: 1, time: 650, feedback: 0.75, tilt: 0.8 },
-    'Ringing glass': {
-      time: 24,
-      bands: 9,
-      smear: 0,
-      feedback: 0.9,
-      tilt: -0.3,
-      drift: 0.2,
-      mix: 0.45,
-    },
+    'Short flutter': { time: 30, bands: 9, smear: 0, feedback: 0.9, tilt: -0.3, drift: 0.2 },
     'Colours alone': { time: 700, feedback: 0.5, width: 0.8, mix: 1 },
   },
 })

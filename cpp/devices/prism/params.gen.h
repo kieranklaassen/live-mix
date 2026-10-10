@@ -2,18 +2,18 @@
 //
 // Parameter ids and ranges of Prism, shared with
 // src/dsp/devices/prism.gen.ts:
-//    0  time: 20..4000 ms, default 600
+//    0  time: 30..4000 ms, default 600
 //    1  fan: 0..1, default 1
 //    2  shape: 0 Rising, 1 Falling, 2 Peak, 3 Valley, 4 Scatter, default 0
-//    3  bend: -1..1, default 0
-//    4  bands: 2..48, default 12
-//    5  smear: 0..1, default 0.25
-//    6  feedback: 0..1, default 0.4
-//    7  tilt: -1..1, default -0.25
+//    3  bands: 2..48, default 12
+//    4  smear: 0..1, default 0.25
+//    5  feedback: 0..1, default 0.4
+//    6  tilt: -1..1, default -0.25
+//    7  bend: -1..1, default 0
 //    8  drift: 0..1, default 0.5
 //    9  shuffle: 1..16, default 1
 //   10  width: 0..1, default 0.6
-//   11  mix: 0..1, default 0.4
+//   11  mix: 0..1, default 0.3
 
 #pragma once
 
@@ -24,11 +24,11 @@ enum Param : int {
   kTime = 0,
   kFan = 1,
   kShape = 2,
-  kBend = 3,
-  kBands = 4,
-  kSmear = 5,
-  kFeedback = 6,
-  kTilt = 7,
+  kBands = 3,
+  kSmear = 4,
+  kFeedback = 5,
+  kTilt = 6,
+  kBend = 7,
   kDrift = 8,
   kShuffle = 9,
   kWidth = 10,
@@ -36,9 +36,9 @@ enum Param : int {
   kNumParams = 12,
 };
 
-inline constexpr float kParamMin[kNumParams] = {20.0f, 0.0f, 0.0f, -1.0f, 2.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {4000.0f, 1.0f, 4.0f, 1.0f, 48.0f, 1.0f, 1.0f, 1.0f, 1.0f, 16.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {600.0f, 1.0f, 0.0f, 0.0f, 12.0f, 0.25f, 0.4f, -0.25f, 0.5f, 1.0f, 0.6f, 0.4f};
+inline constexpr float kParamMin[kNumParams] = {30.0f, 0.0f, 0.0f, 2.0f, 0.0f, 0.0f, -1.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {4000.0f, 1.0f, 4.0f, 48.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 16.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {600.0f, 1.0f, 0.0f, 12.0f, 0.25f, 0.4f, -0.25f, 0.0f, 0.5f, 1.0f, 0.6f, 0.3f};
 
 }  // namespace prism
 }  // namespace livemix

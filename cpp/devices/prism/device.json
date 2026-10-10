@@ -49,7 +49,7 @@
     {
       "key": "time",
       "name": "Time",
-      "min": 20,
+      "min": 30,
       "max": 4000,
       "default": 600,
       "taper": "log",
@@ -62,7 +62,7 @@
       "min": 0,
       "max": 1,
       "default": 1,
-      "description": "How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes eight times sooner than the last."
+      "description": "How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes up to eight times sooner than the last."
     },
     {
       "key": "shape",
@@ -72,21 +72,13 @@
       "description": "The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band its own time."
     },
     {
-      "key": "bend",
-      "name": "Bend",
-      "min": -1,
-      "max": 1,
-      "default": 0,
-      "description": "Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind."
-    },
-    {
       "key": "bands",
       "name": "Bands",
       "min": 2,
       "max": 48,
       "default": 12,
       "step": 1,
-      "description": "How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together."
+      "description": "How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together. The lowest notes always share one."
     },
     {
       "key": "smear",
@@ -102,7 +94,7 @@
       "min": 0,
       "max": 1,
       "default": 0.4,
-      "description": "How much of each colour is sent round again, each at its own time, so the repeats fan out further on every pass. At the top they circle for a very long time."
+      "description": "How much of each colour goes round again at its own time, so the repeats fan out further on every pass. At the top nothing fades but what Tilt takes away."
     },
     {
       "key": "tilt",
@@ -111,6 +103,14 @@
       "max": 1,
       "default": -0.25,
       "description": "What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone."
+    },
+    {
+      "key": "bend",
+      "name": "Bend",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind."
     },
     {
       "key": "drift",
@@ -142,8 +142,8 @@
       "name": "Mix",
       "min": 0,
       "max": 1,
-      "default": 0.4,
-      "description": "Balance between the dry signal and the delayed colours."
+      "default": 0.3,
+      "description": "Balance between the dry sound and the delayed colours. Turned well up, a held note and its own echo grow alike in level and can cancel each other at some pitches."
     }
   ],
   "presets": {
@@ -158,23 +158,20 @@
       "time": 2400,
       "bands": 24,
       "smear": 0.6,
-      "feedback": 0.5,
-      "mix": 0.45
+      "feedback": 0.5
     },
     "One plain echo": {
       "fan": 0,
       "time": 380,
       "feedback": 0.45,
-      "width": 0.3,
-      "mix": 0.35
+      "width": 0.3
     },
     "Short chirp": {
       "time": 90,
       "bands": 48,
       "smear": 1,
       "feedback": 0.25,
-      "tilt": 0,
-      "mix": 0.5
+      "tilt": 0
     },
     "Scattered notes": {
       "shape": 4,
@@ -182,8 +179,7 @@
       "smear": 0,
       "time": 1200,
       "feedback": 0.5,
-      "shuffle": 3,
-      "mix": 0.45
+      "shuffle": 3
     },
     "Partial cloud": {
       "shape": 4,
@@ -192,8 +188,7 @@
       "time": 2000,
       "feedback": 0.7,
       "shuffle": 7,
-      "width": 1,
-      "mix": 0.6
+      "width": 1
     },
     "Middle first": {
       "shape": 3,
@@ -213,12 +208,11 @@
       "feedback": 0.2,
       "mix": 0.15
     },
-    "Endless fan": {
+    "Long fan": {
       "time": 1500,
       "bands": 16,
       "feedback": 0.92,
-      "tilt": -0.4,
-      "mix": 0.5
+      "tilt": -0.4
     },
     "Four colours": {
       "bands": 4,
@@ -239,14 +233,13 @@
       "feedback": 0.75,
       "tilt": 0.8
     },
-    "Ringing glass": {
-      "time": 24,
+    "Short flutter": {
+      "time": 30,
       "bands": 9,
       "smear": 0,
       "feedback": 0.9,
       "tilt": -0.3,
-      "drift": 0.2,
-      "mix": 0.45
+      "drift": 0.2
     },
     "Colours alone": {
       "time": 700,

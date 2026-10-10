@@ -2,7 +2,9 @@
 //
 // Frequency runs upward and the wait runs across, on a scale of equal ratios
 // from 10 ms to 10 s. The line is the device's own curve: the delay of every
-// row of the picture by the formula of `cpp/devices/prism/prism.h`. Right of
+// row of the picture by the formula of `cpp/devices/prism/prism.h`, read as
+// the device reads it: at the middle of the strip of the spectrum the row lies
+// in, so the lowest notes are seen to share one wait. Right of
 // it stand the repeats, each a whole wait later and as much fainter as
 // Feedback and Tilt make that colour by then. While sound runs, what went in
 // is drawn where it is by now: so long ago across, so strong, octave by
@@ -45,7 +47,17 @@ export const PRISM_OCTAVES = 7
 /** `kFirstShare`: with Fan whole the first colour comes at an eighth of Time. */
 export const PRISM_FIRST_SHARE = 0.125
 /** `kLeastSeconds`: no colour comes sooner than this. */
-export const PRISM_LEAST_SEC = 0.006
+export const PRISM_LEAST_SEC = 0.024
+/**
+ * `kStripHz`, `kStripBins` and the frame of `Stft<2048, 512>`: the curve is
+ * read at the middle of a strip so wide, or four bins of the frame where that
+ * is more, and everything under two strips' width is the first colour.
+ */
+export const PRISM_STRIP_HZ = 100
+export const PRISM_STRIP_BINS = 4
+export const PRISM_FRAME = 2048
+/** The rate the points are worked out at when no one says: a strip is 100 Hz wide at every rate up to 51.2 kHz. */
+export const PRISM_NOMINAL_RATE = 48000
 /** `kBendBase`: Bend raises the order to the power 4 to the minus Bend. */
 export const PRISM_BEND_BASE = 4
 /** `kTiltDb`, `kDarkFromHz`, `kThinFromHz`: what a pass loses per octave, above 250 Hz one way and under 4 kHz the other. */
@@ -73,12 +85,32 @@ export interface PrismSettings {
   tilt: number
 }
 
+/** Where a frequency lies along the axis run on past its ends: 0 at 60 Hz, 1 seven octaves up. */
+export const prismAxis = (hz: number): number =>
+  Math.log2(Math.max(hz, 1e-3) / PRISM_LOW_HZ) / PRISM_OCTAVES
+
 /** Where a frequency lies on the curve's axis: 0 at 60 Hz, 1 seven octaves up, and held there beyond. */
-export const prismPlace = (hz: number): number =>
-  clamp(Math.log2(Math.max(hz, 1e-3) / PRISM_LOW_HZ) / PRISM_OCTAVES, 0, 1)
+export const prismPlace = (hz: number): number => clamp(prismAxis(hz), 0, 1)
 
 /** The frequency at a place on the axis, on past its two ends. */
 export const prismHz = (place: number): number => PRISM_LOW_HZ * Math.pow(2, PRISM_OCTAVES * place)
+
+/** `Prism::strip_width`: how wide a strip is at a sample rate, in Hz. */
+export const prismStripWidth = (sampleRate: number): number =>
+  Math.max(PRISM_STRIP_HZ, (PRISM_STRIP_BINS * sampleRate) / PRISM_FRAME)
+
+/** `Prism::strip_hz`: the frequency the curve is read at for a frequency, the middle of its strip. */
+export function prismStripHz(hz: number, sampleRate: number): number {
+  const width = prismStripWidth(sampleRate)
+  return hz < 2 * width ? PRISM_LOW_HZ : (Math.floor(hz / width) + 0.5) * width
+}
+
+/**
+ * `place_` in `Prism::init`: where on the axis the curve is read for a place
+ * on it, which may lie past the axis's ends as the picture's rows do.
+ */
+export const prismStripPlace = (place: number, sampleRate: number): number =>
+  prismPlace(prismStripHz(prismHz(place), sampleRate))
 
 const wholeBands = (bands: number): number => clamp(Math.round(bands), 2, 48)
 
@@ -147,12 +179,28 @@ export const prismOrder = (
 export const prismWaitOf = (order: number, settings: PrismSettings): number =>
   (settings.time / 1000) * (1 - clamp(settings.fan, 0, 1) * (1 - PRISM_FIRST_SHARE) * (1 - order))
 
-/** `Prism::rebuild`: how long a place on the axis waits, in seconds. */
+/**
+ * `Prism::rebuild`: how long a frequency waits, in seconds. The order is that
+ * of the strip the frequency lies in.
+ */
+export const prismDelayOfHz = (
+  hz: number,
+  settings: PrismSettings,
+  deal?: readonly number[],
+  sampleRate: number = PRISM_NOMINAL_RATE,
+): number =>
+  Math.max(
+    PRISM_LEAST_SEC,
+    prismWaitOf(prismOrder(prismPlace(prismStripHz(hz, sampleRate)), settings, deal), settings),
+  )
+
+/** How long a place on the axis waits, in seconds: a row of the picture, or a point on it. */
 export const prismDelaySec = (
   place: number,
   settings: PrismSettings,
   deal?: readonly number[],
-): number => Math.max(PRISM_LEAST_SEC, prismWaitOf(prismOrder(place, settings, deal), settings))
+  sampleRate: number = PRISM_NOMINAL_RATE,
+): number => prismDelayOfHz(prismHz(place), settings, deal, sampleRate)
 
 /**
  * `Prism::rebuild`: what is left of a colour after one more pass. Feedback,
@@ -242,16 +290,35 @@ function settingsOf(view: Pick<DisplayView, 'value'>): PrismSettings {
 // --- The points -------------------------------------------------------------
 
 /**
+ * How far Bend can take the wait of a colour of that order (before bending)
+ * with Fan whole: the lesser of the two ways, as the logarithm of the ratio of
+ * waits, which is distance across the picture. A colour in the middle of the
+ * order has nearly three quarters of its way on one side; one that comes at a
+ * fifth of the order has as far to go either way.
+ */
+export function prismBendRoom(base: number): number {
+  const wait = (order: number): number => 1 - (1 - PRISM_FIRST_SHARE) * (1 - order)
+  const here = wait(base)
+  return Math.min(
+    Math.log(wait(Math.pow(base, prismPower(1))) / here),
+    Math.log(here / wait(Math.pow(base, prismPower(-1)))),
+  )
+}
+
+/**
  * Where the three points stand on the axis. Each is at the middle of a band,
  * where Smear changes nothing: Time on the band that comes last (the highest
- * of them), Fan on the band that comes first (the lowest), Bend on a band
- * whose order is nearest the middle, where bending moves it furthest. With
- * no such band (two bands have only a first and a last) Bend stands a quarter
- * of the way up the lowest step, where Smear lets it be bent.
+ * of them), Fan on the band that comes first (the lowest), Bend on the band
+ * with the most room to be bent both ways (`prismBendRoom`). With no such
+ * band (two bands have only a first and a last) Bend stands a quarter of the
+ * way up the lowest step, where Smear lets it be bent. A band's order
+ * is read where the device reads it, at the middle of the strip the band's
+ * middle lies in, so the bands the lowest strip has swallowed count as it.
  */
 export function prismPoints(
   settings: PrismSettings,
   deal: readonly number[] = prismDeal(settings.bands, settings.shuffle),
+  sampleRate: number = PRISM_NOMINAL_RATE,
 ): { last: number; first: number; middle: number } {
   const steps = wholeBands(settings.bands) - 1
   let last = 0
@@ -259,9 +326,9 @@ export function prismPoints(
   let middle = -1
   let most = -1
   let least = 2
-  let off = 1
+  let room = 0
   for (let band = 0; band <= steps; band++) {
-    const base = prismBase(band / steps, settings, deal)
+    const base = prismBase(prismStripPlace(band / steps, sampleRate), settings, deal)
     if (base >= most) {
       most = base
       last = band
@@ -273,10 +340,10 @@ export function prismPoints(
   }
   for (let band = 0; band <= steps; band++) {
     if (band === last || band === first) continue
-    const base = prismBase(band / steps, settings, deal)
+    const base = prismBase(prismStripPlace(band / steps, sampleRate), settings, deal)
     if (base <= 1e-6 || base >= 1 - 1e-6) continue
-    if (Math.abs(base - 0.5) < off - 1e-9) {
-      off = Math.abs(base - 0.5)
+    if (prismBendRoom(base) > room + 1e-9) {
+      room = prismBendRoom(base)
       middle = band
     }
   }
@@ -315,7 +382,11 @@ function prismHandles(view: DisplayView): DisplayHandle[] {
   const { plot } = prismLayout(view)
   const settings = settingsOf(view)
   const deal = prismDeal(settings.bands, settings.shuffle)
-  const points = prismPoints(settings, deal)
+  // A frame knows the rate the device runs at; a hand on the plate goes by the usual one.
+  const rate = 'sampleRate' in view ? (view as DisplayFrame).sampleRate : PRISM_NOMINAL_RATE
+  const points = prismPoints(settings, deal, rate)
+  /** Where the device reads the curve for a point: the middle of its strip. */
+  const read = (place: number): number => prismStripPlace(place, rate)
   const seconds = settings.time / 1000
   const spread = clamp(settings.fan, 0, 1) * (1 - PRISM_FIRST_SHARE)
   const range = (name: string, low: number, high: number): [number, number] => [
@@ -323,16 +394,16 @@ function prismHandles(view: DisplayView): DisplayHandle[] {
     view.spec(name)?.max ?? high,
   ]
   const standing = (place: number): number =>
-    clamp(prismX(prismDelaySec(place, settings, deal), plot), plot.x, plot.x + plot.w)
+    clamp(prismX(prismDelaySec(place, settings, deal, rate), plot), plot.x, plot.x + plot.w)
 
   // Time: the wait of the band that comes last is put under the hand.
-  const lastShare = 1 - spread * (1 - prismOrder(points.last, settings, deal))
-  const [timeMin, timeMax] = range('time', 20, 4000)
+  const lastShare = 1 - spread * (1 - prismOrder(read(points.last), settings, deal))
+  const [timeMin, timeMax] = range('time', 30, 4000)
   // Fan: the wait of the band that comes first is put under the hand.
-  const firstOrder = prismOrder(points.first, settings, deal)
+  const firstOrder = prismOrder(read(points.first), settings, deal)
   const reach = (1 - PRISM_FIRST_SHARE) * (1 - firstOrder)
-  // Bend: the wait of a band in the middle of the order is put under the hand.
-  const base = prismBase(points.middle, settings, deal)
+  // Bend: the wait of the band with most room to be bent is put under the hand.
+  const base = prismBase(read(points.middle), settings, deal)
   const bends = spread > 1e-6 && base > 1e-6 && base < 1 - 1e-6
   const [bendMin, bendMax] = range('bend', -1, 1)
   const waitAtBend = (bend: number): number =>
@@ -394,9 +465,11 @@ function prismHandles(view: DisplayView): DisplayHandle[] {
                 const order = 1 - (1 - prismSecAt(place, plot) / seconds) / spread
                 const low = Math.pow(base, prismPower(bendMin))
                 const high = Math.pow(base, prismPower(bendMax))
-                const held = clamp(order, Math.min(low, high), Math.max(low, high))
+                // Past what bending can do, the end of its range itself.
+                if (order <= Math.min(low, high)) return low < high ? bendMin : bendMax
+                if (order >= Math.max(low, high)) return low < high ? bendMax : bendMin
                 return clamp(
-                  -Math.log(Math.log(held) / Math.log(base)) / Math.log(PRISM_BEND_BASE),
+                  -Math.log(Math.log(order) / Math.log(base)) / Math.log(PRISM_BEND_BASE),
                   bendMin,
                   bendMax,
                 )
@@ -443,7 +516,7 @@ export function prismCurve(
   const zone = new Uint8Array(rows)
   for (let row = 0; row < rows; row++) {
     const place = prismPlaceAt(prismRowY(row, layout, per), plot)
-    delay[row] = prismDelaySec(place, settings, deal)
+    delay[row] = prismDelaySec(place, settings, deal, sampleRate)
     again[row] = prismAgainSec(delay[row], sampleRate)
     loop[row] = prismLoopGain(prismHz(place), settings.feedback, settings.tilt)
     zone[row] = prismZone(place)
@@ -730,8 +803,7 @@ const display = plateDisplay<PrismState>({
       rule(ctx, x, plot.y, x, foot, { colour: colours.ink, alpha: INK.grid })
       text(frame, words, x, box.y + box.h - 1, { align: 'center', alpha: TEXT_LEAST })
     }
-    const lineOf = (hz: number): number =>
-      Math.round(prismY(Math.log2(hz / PRISM_LOW_HZ) / PRISM_OCTAVES, plot))
+    const lineOf = (hz: number): number => Math.round(prismY(prismAxis(hz), plot))
     for (const [hz] of SCALE_HZ)
       rule(ctx, plot.x, lineOf(hz), plot.x + plot.w, lineOf(hz), {
         colour: colours.ink,
