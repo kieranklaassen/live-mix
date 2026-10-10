@@ -29,6 +29,7 @@ import { OUTDOORS_PRESETS } from './outdoors'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
+import { SUB_BASS_PRESETS } from './sub-bass'
 import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
@@ -74,4 +75,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZITHER_PRESETS,
   ...OUTDOORS_PRESETS,
   ...ZONE_SAMPLER_PRESETS,
+  ...SUB_BASS_PRESETS,
 ]
