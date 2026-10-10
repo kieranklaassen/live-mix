@@ -714,6 +714,16 @@ static void test_tuning() {
   }
   std::printf("tuning: worst %.2f cents over 5 surfaces, 5 notes from A0 to C8, 3 sample rates\n", worst);
   EXPECT(std::fabs(worst) < 5.0, "every drop is within 5 cents of its note at 44.1, 48 and 96 kHz");
+
+  // A key over the top of the band at a low rate is brought under it, so
+  // its drop has a tone: without that it has no partial left and is silent.
+  single(device, kGlass, 16000.0f);
+  device.note_on(1, 8000.0f, 0.8f);
+  Stereo top = render(device, 0.5f, 16000.0f);
+  const double loudest = both_peak(top);
+  const double found = strongest(top.left, 16000.0, 5000.0, 7900.0, at(0.01, 16000.0f), at(0.3, 16000.0f));
+  std::printf("at 16 kHz the top key (8 kHz): peak %.4f, strongest at %.0f Hz\n", loudest, found);
+  EXPECT(loudest > 1e-3 && std::fabs(cents(found, 6400.0)) < 30.0, "at 16 kHz the top key sounds, at 0.4 of the rate");
 }
 
 // --- what the drops land on ------------------------------------------------------------------

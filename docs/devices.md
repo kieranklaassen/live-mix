@@ -104,7 +104,7 @@ hold 8 notes).
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
 | `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B  | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
-| `droplets`        | Droplets           | live-mix            | instrument | 12     | 30,104 B  | 6.0 µs, 0.22 %        | 8.7 µs, 0.33 %             | 0                 | 4           |
+| `droplets`        | Droplets           | live-mix            | instrument | 12     | 30,128 B  | 6.0 µs, 0.22 %        | 8.7 µs, 0.33 %             | 0                 | 4           |
 | `drum-kit`        | Drum Kit           | live-mix            | instrument | 10     | 29,156 B  | 17.9 µs, 0.67 %       | 0.7 µs, 0.03 %             | 0                 | 4           |
 | `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B  | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `echo-memory`     | Echo Memory        | live-mix            | delay      | 12     | 25,341 B  | 27.2 µs, 1.02 %       | 16.4 µs, 0.61 %            | 0                 | 20          |
