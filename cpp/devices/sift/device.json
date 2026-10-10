@@ -7,9 +7,21 @@
   "header": "sift.h",
   "sources": [],
   "meters": [
-    { "key": "tones", "name": "Tones level", "display": true },
-    { "key": "attacks", "name": "Attacks level", "display": true },
-    { "key": "air", "name": "Air level", "display": true }
+    {
+      "key": "tones",
+      "name": "Tones level",
+      "display": true
+    },
+    {
+      "key": "attacks",
+      "name": "Attacks level",
+      "display": true
+    },
+    {
+      "key": "air",
+      "name": "Air level",
+      "display": true
+    }
   ],
   "latencySamples": 4352,
   "params": [
@@ -29,7 +41,7 @@
       "max": 6,
       "default": -12,
       "unit": "dB",
-      "description": "The level of the sudden part of the sound: hammers, picks, consonants, clicks. At the bottom every note begins without its strike."
+      "description": "The level of the sudden part of the sound: hammers, picks, consonants, clicks and the first moment of each note. At the bottom every note begins without its strike."
     },
     {
       "key": "air",
@@ -49,11 +61,19 @@
       "description": "How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own."
     },
     {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks."
+    },
+    {
       "key": "hold",
       "name": "Hold",
       "min": 0,
       "max": 1,
-      "default": 0.3,
+      "default": 0.2,
       "description": "Lets the tones ring on after the playing has let them go, at the pitch they had. Low is a short bloom behind each note, high a wash that lasts many seconds."
     },
     {
@@ -91,7 +111,119 @@
     }
   ],
   "presets": {
-    "Soft hammers": {}
+    "Soft hammers": {},
+    "Tones only": {
+      "attacks": -40,
+      "air": -40,
+      "sharpness": 0.7,
+      "hold": 0,
+      "soften": 0,
+      "scatter": 0
+    },
+    "Only the strikes": {
+      "tones": -40,
+      "attacks": 5,
+      "air": -40,
+      "soften": 0,
+      "hold": 0,
+      "scatter": 0
+    },
+    "Soft puffs": {
+      "tones": -40,
+      "attacks": 6,
+      "air": -40,
+      "soften": 1,
+      "hold": 0
+    },
+    "Strikes forward": {
+      "tones": -5,
+      "attacks": 6,
+      "air": -12,
+      "soften": 0,
+      "hold": 0,
+      "scatter": 0.3
+    },
+    "Flam": {
+      "tones": -2,
+      "attacks": 4,
+      "soften": 0,
+      "late": 45,
+      "hold": 0,
+      "scatter": 0.8
+    },
+    "Late echoes": {
+      "tones": -3,
+      "attacks": 6,
+      "soften": 0.5,
+      "late": 280,
+      "hold": 0.35
+    },
+    "Pedal down": {
+      "attacks": 0,
+      "soften": 0,
+      "hold": 0.5,
+      "air": 0,
+      "scatter": 0.2
+    },
+    "Long wash": {
+      "attacks": -24,
+      "soften": 0.8,
+      "hold": 0.85,
+      "air": 0,
+      "scatter": 0.8,
+      "sharpness": 0.4
+    },
+    "Wide air": {
+      "tones": -3,
+      "attacks": -6,
+      "air": 6,
+      "scatter": 1,
+      "sharpness": 0.3,
+      "hold": 0.1,
+      "soften": 0.3
+    },
+    "Hard split": {
+      "sharpness": 1,
+      "attacks": -40,
+      "air": 6,
+      "scatter": 1,
+      "hold": 0.12
+    },
+    "Breath and tone": {
+      "tones": -5,
+      "attacks": -30,
+      "air": 6,
+      "scatter": 0.8,
+      "sharpness": 0.2,
+      "hold": 0.3
+    },
+    "Felt and air": {
+      "attacks": -20,
+      "soften": 0.9,
+      "air": 6,
+      "scatter": 1,
+      "hold": 0.35
+    },
+    "A touch": {
+      "mix": 0.35,
+      "hold": 0.3
+    },
+    "Bowed entries": {
+      "attacks": -40,
+      "hold": 0.45,
+      "air": 0,
+      "scatter": 0.5,
+      "sharpness": 0.6
+    },
+    "Ghost puffs": {
+      "mix": 0.5,
+      "tones": -40,
+      "attacks": 6,
+      "air": -40,
+      "soften": 0.7,
+      "late": 150,
+      "hold": 0
+    }
   },
   "origin": {
     "kind": "new",

@@ -26,7 +26,7 @@ export const SIFT_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'The level of the sudden part of the sound: hammers, picks, consonants, clicks. At the bottom every note begins without its strike.',
+      'The level of the sudden part of the sound: hammers, picks, consonants, clicks and the first moment of each note. At the bottom every note begins without its strike.',
   },
   air: {
     id: 2,
@@ -50,19 +50,30 @@ export const SIFT_PARAMS = {
     description:
       'How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own.',
   },
-  hold: {
+  edge: {
     id: 4,
+    name: 'Edge',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks.',
+  },
+  hold: {
+    id: 5,
     name: 'Hold',
     min: 0,
     max: 1,
-    default: 0.3,
+    default: 0.2,
     taper: 'linear',
     unit: '',
     description:
       'Lets the tones ring on after the playing has let them go, at the pitch they had. Low is a short bloom behind each note, high a wash that lasts many seconds.',
   },
   soften: {
-    id: 5,
+    id: 6,
     name: 'Soften',
     min: 0,
     max: 1,
@@ -73,7 +84,7 @@ export const SIFT_PARAMS = {
       'Smears each attack in time, so a click turns into a short puff with a soft start and a fading end. Its strength is kept and its edge is lost.',
   },
   late: {
-    id: 6,
+    id: 7,
     name: 'Late',
     min: 0,
     max: 300,
@@ -84,7 +95,7 @@ export const SIFT_PARAMS = {
       'Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone.',
   },
   scatter: {
-    id: 7,
+    id: 8,
     name: 'Scatter',
     min: 0,
     max: 1,
@@ -95,7 +106,7 @@ export const SIFT_PARAMS = {
       'Spreads the air between the two sides until left and right no longer agree, while tones and attacks stay where they were.',
   },
   mix: {
-    id: 8,
+    id: 9,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -130,6 +141,29 @@ export const SIFT_DESCRIPTOR = wasmDeviceDescriptor(SIFT_DEVICE, {
     'Sifts a sound into its tones, its attacks and its air as it plays, with a level and a blur for each: tones that ring on, attacks made soft or late, air spread wide.',
   presets: {
     'Soft hammers': {},
+    'Tones only': { attacks: -40, air: -40, sharpness: 0.7, hold: 0, soften: 0, scatter: 0 },
+    'Only the strikes': { tones: -40, attacks: 5, air: -40, soften: 0, hold: 0, scatter: 0 },
+    'Soft puffs': { tones: -40, attacks: 6, air: -40, soften: 1, hold: 0 },
+    'Strikes forward': { tones: -5, attacks: 6, air: -12, soften: 0, hold: 0, scatter: 0.3 },
+    Flam: { tones: -2, attacks: 4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
+    'Late echoes': { tones: -3, attacks: 6, soften: 0.5, late: 280, hold: 0.35 },
+    'Pedal down': { attacks: 0, soften: 0, hold: 0.5, air: 0, scatter: 0.2 },
+    'Long wash': { attacks: -24, soften: 0.8, hold: 0.85, air: 0, scatter: 0.8, sharpness: 0.4 },
+    'Wide air': {
+      tones: -3,
+      attacks: -6,
+      air: 6,
+      scatter: 1,
+      sharpness: 0.3,
+      hold: 0.1,
+      soften: 0.3,
+    },
+    'Hard split': { sharpness: 1, attacks: -40, air: 6, scatter: 1, hold: 0.12 },
+    'Breath and tone': { tones: -5, attacks: -30, air: 6, scatter: 0.8, sharpness: 0.2, hold: 0.3 },
+    'Felt and air': { attacks: -20, soften: 0.9, air: 6, scatter: 1, hold: 0.35 },
+    'A touch': { mix: 0.35, hold: 0.3 },
+    'Bowed entries': { attacks: -40, hold: 0.45, air: 0, scatter: 0.5, sharpness: 0.6 },
+    'Ghost puffs': { mix: 0.5, tones: -40, attacks: 6, air: -40, soften: 0.7, late: 150, hold: 0 },
   },
 })
 

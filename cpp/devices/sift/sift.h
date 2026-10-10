@@ -30,8 +30,14 @@
 // stays mono while Scatter is down, and one side's click is not taken out of
 // the other side's tone.
 //
+// - Edge: the first moment of a tone goes with the attacks. A bin's tone is
+//   new by how far it stands over what the bin held before (the second
+//   largest of the four frames before): that share of it, times Edge, is
+//   moved from the tones to the attacks. At Edge 0 an attack is only what is
+//   everywhere in frequency for a moment; at 1 it is also the first 30 ms or
+//   so of every note, and the tones begin without their start.
 // - Hold: a tone bin the input lets go of rings on at the level it had,
-//   falling 60 dB in 12 s × Hold², and goes on turning by the turn it was
+//   falling 60 dB in 12 s × Hold^1.5, and goes on turning by the turn it was
 //   last measured to make, so a held partial stays at its pitch.
 // - Soften: each attack bin's power runs through two one-pole smoothers
 //   (0.1 s × Soften² each), which keeps its energy and turns its edge into a
@@ -56,9 +62,12 @@
 // Cost: the two medians are sorting networks of minimum and maximum over nine
 // values, without a branch, a sort or any state: 19 exchanges for the middle
 // of nine along time, and the 25 of a full sort along frequency, of which the
-// compiler keeps the ones the third smallest depends on.
+// compiler keeps the ones the third smallest depends on. They run on the
+// bits of the magnitudes (see bits_of), about 20 ns a bin each in WASM.
 // At 96 kHz the frame is half as long in time and the bins twice as wide; the
 // split is the same in frames and bins.
+
+#include <cstring>
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"
@@ -82,8 +91,25 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     return (kit::db_to_gain(db) - kFloorGain) * (1.0f / (1.0f - kFloorGain));
   }
 
+  // A magnitude as the whole number its bits spell, and back. Magnitudes are
+  // never negative, and floats that are not negative stand in the order of
+  // their bits: the medians are taken on the bits, where the smaller and the
+  // larger of two are each one instruction and a float's are a branch (in
+  // WASM under V8 the same networks on floats cost three times as much).
+  static int32_t bits_of(float magnitude) {
+    int32_t bits;
+    std::memcpy(&bits, &magnitude, sizeof bits);
+    return bits;
+  }
+  static float magnitude_of(int32_t bits) {
+    float magnitude;
+    std::memcpy(&magnitude, &bits, sizeof magnitude);
+    return magnitude;
+  }
+
   // The middle of nine values: 19 exchanges, no branch.
-  static float median9(float a, float b, float c, float d, float e, float f, float g, float h, float i) {
+  template <typename T>
+  static T median9(T a, T b, T c, T d, T e, T f, T g, T h, T i) {
     order(b, c), order(e, f), order(h, i);
     order(a, b), order(d, e), order(g, h);
     order(b, c), order(e, f), order(h, i);
@@ -96,7 +122,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
 
   // The third smallest of nine values: a sort of nine in 25 exchanges (three
   // columns of three sorted, then merged), read at its third place.
-  static float third9(float a, float b, float c, float d, float e, float f, float g, float h, float i) {
+  template <typename T>
+  static T third9(T a, T b, T c, T d, T e, T f, T g, T h, T i) {
     order(a, b), order(d, e), order(g, h);
     order(b, c), order(e, f), order(h, i);
     order(a, b), order(d, e), order(g, h);
@@ -108,6 +135,28 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     order(c, d), order(f, g);
     return c;
   }
+
+  // The second largest of four values.
+  template <typename T>
+  static T second4(T a, T b, T c, T d) {
+    order(a, b), order(c, d);
+    const T lower = b < d ? b : d;
+    const T higher = a < c ? c : a;
+    return lower < higher ? higher : lower;
+  }
+
+  // How much of a bin's tone is new, 0 to 1, by what the bin held before as
+  // a share of what it holds now: a smooth step down from kEdgeAll to kEdgeNone.
+  static constexpr float kEdgeAll = 0.25f;
+  static constexpr float kEdgeNone = 0.75f;
+  static float newness(float held_before) {
+    const float t = kit::clamp((kEdgeNone - held_before) / (kEdgeNone - kEdgeAll), 0.0f, 1.0f);
+    return t * t * (3.0f - 2.0f * t);
+  }
+
+  // Hold as the time a let-go tone takes to fall 60 dB, in seconds.
+  static float hold_seconds(float hold) { return kMaxHoldSeconds * hold * std::sqrt(hold); }
+  static constexpr float kMaxHoldSeconds = 12.0f;
 
   void init(float sample_rate) {
     using namespace sift;
@@ -138,7 +187,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
           channel.re[n][k] = 0.0f;
           channel.im[n][k] = 0.0f;
         }
-        for (int n = 0; n < kSpan; ++n) channel.magnitude[n][k] = 0.0f;
+        for (int n = 0; n < kSpan; ++n) channel.magnitude[n][k] = 0;
         channel.held[k] = 0.0f;
         channel.phase_re[k] = 1.0f;
         channel.phase_im[k] = 0.0f;
@@ -167,7 +216,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       strike_re_[k] = 0.0f;
       strike_im_[k] = 0.0f;
     }
-    for (int k = 0; k < kBins + 2 * kReach; ++k) padded_[k] = 0.0f;
+    for (int k = 0; k < kBins + 2 * kReach; ++k) padded_[k] = 0;
     mask_dirty_ = true;
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
@@ -274,9 +323,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   static constexpr float kSoftSlope = 1.5f;
   static constexpr float kSlopeRange = 8.0f;
   // The third smallest of nine across frequency reads steady noise this much
-  // under what the middle of nine along time reads it (measured: 3.0 dB).
-  static constexpr float kAcrossBias = 1.41f;
-  static constexpr float kMaxHoldSeconds = 12.0f;
+  // under what the middle of nine along time reads it (measured: 3.26 dB).
+  static constexpr float kAcrossBias = 1.455f;
   static constexpr float kMaxSoftenSeconds = 0.1f;
   static constexpr float kLateFadeSeconds = 0.02f;
   // A bin under this holds nothing: -174 dBFS (a full-scale sine reads 512).
@@ -293,7 +341,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     kit::DelayLine<kDrySize> dry;
     float re[kKeep][kBins];          // the newest frames' spectra
     float im[kKeep][kBins];
-    float magnitude[kSpan][kBins];   // and the magnitudes of the newest nine
+    int32_t magnitude[kSpan][kBins];  // and the magnitudes of the newest nine, as bits_of() gives them
     float held[kBins];               // Hold: what each tone bin holds
     float phase_re[kBins], phase_im[kBins];  // its phase as a unit vector
     float turn_re[kBins], turn_im[kBins];    // its phase advance per frame
@@ -309,9 +357,10 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     int meter_at;
   };
 
-  static void order(float& low, float& high) {
-    const float a = low;
-    const float b = high;
+  template <typename T>
+  static void order(T& low, T& high) {
+    const T a = low;
+    const T b = high;
     low = a < b ? a : b;
     high = a < b ? b : a;
   }
@@ -376,7 +425,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     {
       float* keep_re = channel.re[channel.slot];
       float* keep_im = channel.im[channel.slot];
-      float* now = channel.magnitude[channel.row];
+      int32_t* now = channel.magnitude[channel.row];
       float loudest = 0.0f;
       for (int k = 0; k < kBins; ++k) {
         const float a = re[k];
@@ -384,16 +433,16 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
         keep_re[k] = a;
         keep_im[k] = b;
         const float size = std::sqrt(a * a + b * b);
-        now[k] = size;
+        now[k] = bits_of(size);
         loudest = size > loudest ? size : loudest;
       }
       channel.silent = loudest > 0.0f ? 0 : (channel.silent < kSpan ? channel.silent + 1 : kSpan);
     }
     // rows[j] is the magnitudes of j frames ago; the frame split is rows[kLook].
-    const float* rows[kSpan];
+    const int32_t* rows[kSpan];
     for (int j = 0; j < kSpan; ++j) rows[j] = channel.magnitude[(channel.row + kSpan - j) % kSpan];
-    const float* level = rows[kLook];
-    const float* before = rows[kLook + 1];
+    const int32_t* level = rows[kLook];
+    const int32_t* before = rows[kLook + 1];
     const float* xr = channel.re[(channel.slot - kLook) & (kKeep - 1)];
     const float* xi = channel.im[(channel.slot - kLook) & (kKeep - 1)];
     const float* pr = channel.re[(channel.slot - kLook - 1) & (kKeep - 1)];
@@ -428,10 +477,10 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   }
 
   // The shares of the frame split: tone_[k] and strike_[k]; the air is the rest.
-  void split(const float* const* rows, const float* level) {
+  void split(const int32_t* const* rows, const int32_t* level) {
     for (int k = 0; k < kBins; ++k) {
-      steady_[k] = median9(rows[0][k], rows[1][k], rows[2][k], rows[3][k], rows[4][k], rows[5][k], rows[6][k],
-                           rows[7][k], rows[8][k]);
+      steady_[k] = magnitude_of(median9(rows[0][k], rows[1][k], rows[2][k], rows[3][k], rows[4][k], rows[5][k],
+                                        rows[6][k], rows[7][k], rows[8][k]));
     }
     // The spectrum of a real signal mirrors itself about 0 Hz and about the
     // top bin, and so does what the median reads past either end.
@@ -441,8 +490,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       padded_[kReach + kBins - 1 + j] = level[kBins - 1 - j];
     }
     for (int k = 0; k < kBins; ++k) {
-      const float* w = padded_ + k;
-      sudden_[k] = kAcrossBias * third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]);
+      const int32_t* w = padded_ + k;
+      sudden_[k] = kAcrossBias * magnitude_of(third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]));
     }
     for (int k = 0; k < kBins; ++k) {
       const float sum = steady_[k] + sudden_[k];
@@ -460,10 +509,25 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       tone_[k] = mask_[i] + (mask_[i + 1] - mask_[i]) * f;
       strike_[k] = mask_[j + 1] + (mask_[j] - mask_[j + 1]) * f;
     }
+    // Edge: the first moment of a tone goes with the attacks. A bin's tone is
+    // new by how far it stands over what the bin held before, the second
+    // largest of the four frames before this one: all of it is new under a
+    // quarter of the bin's level now, none of it from three quarters up.
+    const float edge = param(sift::kEdge);
+    if (edge > 0.0f) {
+      for (int k = 0; k < kBins; ++k) {
+        const float now = magnitude_of(level[k]);
+        const float before = magnitude_of(second4(rows[kLook + 1][k], rows[kLook + 2][k], rows[kLook + 3][k], rows[kLook + 4][k]));
+        if (before >= kEdgeNone * now) continue;
+        const float moved = tone_[k] * edge * newness(before / now);
+        tone_[k] -= moved;
+        strike_[k] += moved;
+      }
+    }
   }
 
   // The tones into re and im, at their level; returns their power.
-  float tones(Channel& channel, const float* level, const float* before, const float* xr, const float* xi,
+  float tones(Channel& channel, const int32_t* level, const int32_t* before, const float* xr, const float* xi,
               const float* pr, const float* pi, float* re, float* im) {
     using namespace sift;
     const float gain = gain_[0];
@@ -476,26 +540,27 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       }
       for (int k = 0; k < kBins; ++k) {
         const float share = tone_[k];
-        const float size = share * level[k];
+        const float size = share * magnitude_of(level[k]);
         power += size * size;
         re[k] = gain * share * xr[k];
         im[k] = gain * share * xi[k];
       }
       return power;
     }
-    // -60 dB after 12 s × Hold², per frame.
-    const float decay = std::exp(-6.9077553f * Stft::kHop / (kMaxHoldSeconds * hold * hold * sample_rate()));
+    // -60 dB after hold_seconds(), per frame.
+    const float decay = std::exp(-6.9077553f * Stft::kHop / (hold_seconds(hold) * sample_rate()));
     bool ringing = false;
     for (int k = 0; k < kBins; ++k) {
       const float a = xr[k];
       const float b = xi[k];
-      const float size = level[k];
+      const float size = magnitude_of(level[k]);
       const float want = tone_[k] * size;
       float held = channel.held[k] * decay;
       // The turn since the frame before, measured only while the bin's input
       // holds up: the frames in which a sound is cut off have the phase of
       // the cut, not of the sound. Kept unnormalised until needed.
-      if (size > 0.1f * held && size * size >= 0.8f * before[k] * before[k]) {
+      const float was = magnitude_of(before[k]);
+      if (size > 0.1f * held && size * size >= 0.8f * was * was) {
         const float tr = a * pr[k] + b * pi[k];
         const float ti = b * pr[k] - a * pi[k];
         if (tr * tr + ti * ti > 1.0e-24f) {
@@ -586,7 +651,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   }
 
   // The attacks into strike_re_ and strike_im_, at their level; returns their power.
-  float attacks(Channel& channel, uint32_t number, const float* level, const float* xr, const float* xi) {
+  float attacks(Channel& channel, uint32_t number, const int32_t* level, const float* xr, const float* xi) {
     using namespace sift;
     const float gain = gain_[1];
     const float soften = param(kSoften);
@@ -601,7 +666,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       }
       for (int k = 0; k < kBins; ++k) {
         const float share = strike_[k];
-        const float size = share * level[k];
+        const float size = share * magnitude_of(level[k]);
         power += size * size;
         strike_re_[k] = gain * share * xr[k];
         strike_im_[k] = gain * share * xi[k];
@@ -618,7 +683,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     const float half_turn = 0.5f * kAngles;
     bool puffing = false;
     for (int k = 0; k < kBins; ++k) {
-      const float size = level[k];
+      const float size = magnitude_of(level[k]);
       const float own = strike_[k] * size;
       const float now = own * own;
       float rise = channel.rise[k];
@@ -661,7 +726,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   float sudden_[kBins];
   float tone_[kBins];    // the tones' share of each bin
   float strike_[kBins];  // the attacks' share
-  float padded_[kBins + 2 * kReach];
+  int32_t padded_[kBins + 2 * kReach];
   float strike_re_[kBins];
   float strike_im_[kBins];
   float mask_[kMaskSteps + 1];
