@@ -489,6 +489,36 @@ here:
 - `drone`: Shape does nothing at Partials 0. `west-coast`: Colour does
   nothing on a pure sine.
 
+What reading them once more for their displays turned up, none of it changed
+either:
+
+- `bowed-string`: with Release at or over Decay, a string let go in Sustain or
+  Bow keeps the loss it had while driven, because `shape()` is not run again
+  (`bowed_string.h`, the two release paths): at 880 Hz with Decay 6 it rings
+  2.9 s, not 6.
+- `handpan`: `Handpan::start` draws a note's size and its sign in one product,
+  so which is drawn first is the compiler's choice. gcc and clang draw the
+  size first; the WASM build's order was not checked.
+- `modal-bells`: `ModalBells::gains` tilts Brightness by a mode's ratio before
+  Stretch, so Stretch moves a mode without moving how bright it is.
+- `tine-piano`: the header says the right side's tremolo is behind the left;
+  the code puts it ahead. The sound is as the code has it.
+- `harp`: Sweep rolls only the keys that arrive in one block of 128 frames
+  (`Harp::schedule`), so a chord from a clip is rolled and the same chord
+  played by hand, its keys a few milliseconds apart, never is.
+- `ember`: at Unison 8 with Unison Detune 0 the copies start an eighth of a
+  cycle apart and stay there, so they cancel: the fundamental comes out about
+  18 dB down (measured).
+- `thesis`: Resonance above 50 changes nothing (the output is the same to the
+  bit), Gravity only puts bands a fifth up, and Root C stops at B6. Its
+  `StereoWidener::AllpassFilter::process` stores its input, not its output, so
+  it is a feed-forward comb and not an allpass: past Width 75 a band's level
+  swings with its pitch and its side (880 Hz at Width 80 comes out 15 dB down
+  on the left and 1.5 dB down on the right).
+- `drum-kit`: `drum_kit.h` says a hit's hardness is 1 at the reference gain
+  of 0.7; `0.5 + 0.7 * gain` gives 0.99 there. The comment is off, not the
+  sound.
+
 ## ambient-limiter: auto gain
 
 With `autoGain` above 0 the limiter turns a quiet mix up by itself, by at most

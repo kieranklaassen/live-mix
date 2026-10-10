@@ -123,7 +123,13 @@ export {
   type DeviceFrameProps,
   type DevicePanelProps,
 } from './DevicePanel'
-export { DevicePlate, plateLayout, type DevicePlateProps, type PlateLayout } from './DevicePlate'
+export {
+  DevicePlate,
+  plateLayout,
+  plateSections,
+  type DevicePlateProps,
+  type PlateLayout,
+} from './DevicePlate'
 export { DisplayRunner, PlateDisplayLayer, type PlateDisplayLayerProps } from './PlateDisplay'
 export {
   DISPLAY_STRIP_HEIGHT,
@@ -138,12 +144,14 @@ export {
   type DisplayHandle,
   type DisplayLevel,
   type DisplayPlace,
+  type DisplayNote,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
   type PlateFace,
 } from './plate-display'
 export * as displayKit from './display-kit'
+export * as instrumentDisplayKit from './displays/instrument-parts'
 export { PLATE_FACES } from './displays'
 export {
   DEVICE_SKINS,

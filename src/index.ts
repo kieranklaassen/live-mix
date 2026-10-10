@@ -16,6 +16,8 @@ export {
   isMeteredDevice,
   isModulatedDevice,
   isNoteDevice,
+  isNoteWatchDevice,
+  isSampleWatchDevice,
   isObservableDevice,
   isParamTextDevice,
   isStatefulDevice,
@@ -27,8 +29,11 @@ export {
   type MeteredDevice,
   type ModulatedDevice,
   type NoteDevice,
+  type NoteWatchDevice,
   type ObservableDevice,
   type ParamTextDevice,
+  type PlayedNote,
+  type SampleWatchDevice,
   type StatefulDevice,
 } from './core/devices/Device'
 export { Emitter, type Listener } from './core/events'

@@ -65,6 +65,14 @@ export interface DeviceSkin {
   face?: readonly string[]
   /** Shorter words for a knob than its parameter's name. */
   labels?: Readonly<Record<string, string>>
+  /**
+   * The knobs in sections (an oscillator, a filter, an envelope), for a plate
+   * that shows every knob at once (`spread`): each section stands together,
+   * with a gap to the next. Left out, the knobs are one run.
+   */
+  sections?: readonly (readonly string[])[]
+  /** Asks for a display twice as wide on a spread plate of nine columns or more. */
+  wide?: boolean
   picture?: PlatePicture
   /**
    * What the device is doing, on a canvas that moves with it (`plate-display.ts`).
@@ -1820,6 +1828,44 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   },
   phaser: { ...PLATE_PALETTES.phaser, finish: 'fade', cap: 'skirt' },
   tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
+  // The instruments: a plate as an effect has one, and a display of what is played (`PLATE_FACES`).
+  harp: { ...PLATE_PALETTES.harp, finish: 'grain', cap: 'disc' },
+  zither: { ...PLATE_PALETTES.zither, finish: 'grain', cap: 'pointer' },
+  'chord-harp': { ...PLATE_PALETTES['chord-harp'], finish: 'linen', cap: 'dot' },
+  tanpura: { ...PLATE_PALETTES.tanpura, finish: 'grain', cap: 'skirt' },
+  guitar: { ...PLATE_PALETTES.guitar, finish: 'gloss', cap: 'skirt' },
+  'acoustic-guitar': { ...PLATE_PALETTES['acoustic-guitar'], finish: 'grain', cap: 'dot' },
+  'pedal-steel': { ...PLATE_PALETTES['pedal-steel'], finish: 'brushed', cap: 'pointer' },
+  'bowed-string': { ...PLATE_PALETTES['bowed-string'], finish: 'gloss', cap: 'pointer' },
+  'chamber-strings': { ...PLATE_PALETTES['chamber-strings'], finish: 'linen', cap: 'disc' },
+  'string-machine': { ...PLATE_PALETTES['string-machine'], finish: 'fade', cap: 'skirt' },
+  'tape-orchestra': { ...PLATE_PALETTES['tape-orchestra'], finish: 'speckle', cap: 'pointer' },
+  'felt-piano': { ...PLATE_PALETTES['felt-piano'], finish: 'linen', cap: 'disc' },
+  'tine-piano': { ...PLATE_PALETTES['tine-piano'], finish: 'speckle', cap: 'skirt' },
+  'fm-glass': { ...PLATE_PALETTES['fm-glass'], finish: 'gloss', cap: 'dot' },
+  mallets: { ...PLATE_PALETTES.mallets, finish: 'matte', cap: 'disc' },
+  handpan: { ...PLATE_PALETTES.handpan, finish: 'hammered', cap: 'dot' },
+  'modal-bells': { ...PLATE_PALETTES['modal-bells'], finish: 'hammered', cap: 'pointer' },
+  flute: { ...PLATE_PALETTES.flute, finish: 'brushed', cap: 'dot' },
+  clarinet: { ...PLATE_PALETTES.clarinet, finish: 'matte', cap: 'pointer' },
+  horns: { ...PLATE_PALETTES.horns, finish: 'brushed', cap: 'disc' },
+  organ: { ...PLATE_PALETTES.organ, finish: 'grain', cap: 'skirt' },
+  choir: { ...PLATE_PALETTES.choir, finish: 'fade', cap: 'dot' },
+  dusk: { ...PLATE_PALETTES.dusk, finish: 'fade', cap: 'skirt' },
+  aurora: { ...PLATE_PALETTES.aurora, finish: 'gloss', cap: 'dot' },
+  ember: { ...PLATE_PALETTES.ember, finish: 'matte', cap: 'skirt' },
+  'ladder-bass': { ...PLATE_PALETTES['ladder-bass'], finish: 'matte', cap: 'pointer' },
+  wavetable: { ...PLATE_PALETTES.wavetable, finish: 'gloss', cap: 'disc' },
+  'west-coast': { ...PLATE_PALETTES['west-coast'], finish: 'brushed', cap: 'pointer' },
+  drone: { ...PLATE_PALETTES.drone, finish: 'speckle', cap: 'disc' },
+  atmosphere: { ...PLATE_PALETTES.atmosphere, finish: 'fade', cap: 'dot' },
+  outdoors: { ...PLATE_PALETTES.outdoors, finish: 'linen', cap: 'pointer' },
+  thesis: { ...PLATE_PALETTES.thesis, finish: 'speckle', cap: 'skirt' },
+  sampler: { ...PLATE_PALETTES.sampler, finish: 'matte', cap: 'skirt' },
+  'zone-sampler': { ...PLATE_PALETTES['zone-sampler'], finish: 'matte', cap: 'dot' },
+  'grain-synth': { ...PLATE_PALETTES['grain-synth'], finish: 'speckle', cap: 'dot' },
+  'drum-kit': { ...PLATE_PALETTES['drum-kit'], finish: 'grain', cap: 'disc' },
+  'glitch-kit': { ...PLATE_PALETTES['glitch-kit'], finish: 'speckle', cap: 'pointer' },
 }
 
 /**
