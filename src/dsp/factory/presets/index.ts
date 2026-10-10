@@ -30,6 +30,7 @@ import { ORGAN_PRESETS } from './organ'
 import { OUTDOORS_PRESETS } from './outdoors'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
+import { STRING_BASS_PRESETS } from './string-bass'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { SUB_BASS_PRESETS } from './sub-bass'
 import { TANPURA_PRESETS } from './tanpura'
@@ -80,4 +81,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SUB_BASS_PRESETS,
   ...FM_BASS_PRESETS,
   ...ACID_BASS_PRESETS,
+  ...STRING_BASS_PRESETS,
 ]
