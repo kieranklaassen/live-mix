@@ -249,6 +249,9 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
 
       // Pitch: the key (gliding or not) plus what is left of the drop.
       if (glide_left_ > 0 || fall_left_ > 0 || join_left_ > 0 || retune_) {
+        // One more pass after all three have ended lands exactly on the key
+        // (the last step of a fall, or of a join, is still short of it).
+        retune_ = glide_left_ > 0 || fall_left_ > 0 || join_left_ > 0;
         if (glide_left_ > 0) {
           pitch_ += glide_step_;
           if (--glide_left_ == 0) pitch_ = glide_target_;
@@ -262,8 +265,6 @@ class SubBass : public kit::DeviceBase<sub_bass::kNumParams> {
           join_ -= join_step_;
           --join_left_;
         }
-        // One more pass after all three have ended lands exactly on the key.
-        retune_ = glide_left_ > 0 || fall_left_ > 0 || join_left_ > 0;
         frequency_ = kit::min(std::exp2(octaves), max_hz_);
       }
 

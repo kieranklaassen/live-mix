@@ -78,7 +78,7 @@
       "min": 0,
       "max": 1,
       "default": 0.15,
-      "description": "Soft saturation that thickens the tone and gives it an edge without making it louder. It bites hardest on loud notes and at the start of a note, and lets the tail go clean."
+      "description": "Soft saturation that thickens the tone and gives it an edge without making it louder. It bites hardest on loud notes and while a note is at its loudest, and lets the tail go clean."
     },
     {
       "key": "glide",
@@ -133,56 +133,57 @@
     },
     "Short thump": {
       "shape": 0.05,
-      "harmonics": 0.3,
-      "drop": 14,
-      "fall": 28,
+      "harmonics": 0.2,
+      "drop": 12,
+      "fall": 30,
       "attack": 0.001,
-      "decay": 0.28,
-      "release": 0.08,
-      "drive": 0.35,
-      "glide": 0
+      "decay": 0.7,
+      "release": 0.3,
+      "drive": 0.2,
+      "glide": 0,
+      "volume": -5
     },
     "Small speaker hum": {
-      "shape": 0.85,
-      "harmonics": 0.8,
+      "shape": 1,
+      "harmonics": 0.9,
       "drop": 0,
       "attack": 0.03,
       "decay": 20,
       "release": 0.5,
-      "drive": 0.25,
+      "drive": 0.35,
       "volume": -11
     },
     "Slow swell": {
-      "shape": 0.2,
-      "harmonics": 0.15,
+      "shape": 0.3,
+      "harmonics": 0.5,
       "drop": 0,
       "attack": 2.0,
       "decay": 20,
       "release": 5,
-      "drive": 0.1,
+      "drive": 0.25,
       "glide": 0.3,
-      "volume": -6
+      "volume": -7
     },
     "Gliding sub": {
-      "shape": 0.25,
-      "harmonics": 0.3,
+      "shape": 0,
+      "harmonics": 0.5,
       "drop": 0,
-      "attack": 0.02,
+      "attack": 0.08,
       "decay": 20,
-      "release": 0.5,
-      "drive": 0.2,
-      "glide": 0.45
+      "release": 1.5,
+      "drive": 0.1,
+      "glide": 0.6
     },
     "Driven pulse": {
       "shape": 0.3,
-      "harmonics": 0.4,
-      "drop": 4,
-      "fall": 20,
-      "attack": 0.002,
-      "decay": 0.7,
-      "release": 0.15,
+      "harmonics": 0.5,
+      "drop": 0,
+      "attack": 0.006,
+      "decay": 1.4,
+      "release": 0.3,
       "drive": 0.8,
-      "glide": 0.03
+      "glide": 0.03,
+      "volume": -7
     },
     "Deep dive": {
       "shape": 0.1,
@@ -201,7 +202,8 @@
       "attack": 0.08,
       "decay": 1.6,
       "release": 0.9,
-      "drive": 0
+      "drive": 0,
+      "volume": -7.5
     },
     "Dark drone": {
       "shape": 0,
@@ -214,7 +216,7 @@
       "glide": 1.5
     },
     "Pedal tone": {
-      "shape": 0.2,
+      "shape": 0.35,
       "harmonics": 1,
       "drop": 0,
       "attack": 0.015,
@@ -225,26 +227,28 @@
       "volume": -11
     },
     "Dub weight": {
-      "shape": 0.35,
-      "harmonics": 0.15,
-      "drop": 2,
-      "fall": 60,
-      "attack": 0.008,
-      "decay": 20,
-      "release": 0.25,
-      "drive": 0.45,
-      "glide": 0.12
+      "shape": 0.3,
+      "harmonics": 0,
+      "drop": 3,
+      "fall": 90,
+      "attack": 0.01,
+      "decay": 2.5,
+      "release": 0.3,
+      "drive": 0.7,
+      "glide": 0.12,
+      "volume": -8
     },
     "Hard knock": {
-      "shape": 0,
+      "shape": 0.5,
       "harmonics": 0.1,
       "drop": 30,
-      "fall": 55,
+      "fall": 45,
       "attack": 0.001,
-      "decay": 0.4,
-      "release": 0.1,
-      "drive": 0.55,
-      "glide": 0
+      "decay": 0.75,
+      "release": 0.25,
+      "drive": 0.9,
+      "glide": 0,
+      "volume": -5
     },
     "Falling sigh": {
       "shape": 0.05,

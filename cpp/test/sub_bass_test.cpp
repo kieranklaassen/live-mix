@@ -11,6 +11,8 @@
 
 #include "../devices/sub-bass/sub_bass.h"
 
+#include <algorithm>
+#include <cctype>
 #include <complex>
 #include <cstdlib>
 #include <string>
@@ -515,6 +517,20 @@ static void test_drop() {
     std::printf("%s\n", label);
     EXPECT(std::fabs(cents(landed, c.key)) < 2.0 && std::fabs(cents(settled, c.key)) < 3.0, label);
   }
+
+  // Landed is on the key itself, not the last step of the fall short of it:
+  // from the largest Drop in the shortest Fall that step is 0.7 cents, and a
+  // note left there stays that sharp for as long as it is held.
+  plain(device);
+  device.set_param(p::kDrop, 36.0f);
+  device.set_param(p::kFall, 5.0f);
+  device.note_on(1, static_cast<float>(kA3), 0.8f);
+  Stereo short_fall = render(device, 2.5f, kRate);
+  const double rests =
+      cents(peak_frequency(short_fall.left, kRate, kA3 * 0.999, kA3 * 1.001, 4800, short_fall.size()), kA3);
+  std::snprintf(label, sizeof label, "Drop 36 st, Fall 5 ms: the held note rests %.4f cents from the key (0.05 at most)", rests);
+  std::printf("%s\n", label);
+  EXPECT(std::fabs(rests) < 0.05, label);
 
   // Drop 0 starts on the key.
   plain(device);
@@ -1284,9 +1300,104 @@ static void load(SubBass& d, const Preset& preset) {
   for (const auto& value : preset.values) d.set_param(value.first, value.second);
 }
 
+// Eight seconds of a bass line between A1 and A2, gains 0.6 to 1: short and
+// long notes, one repeated key, two keys that overlap, a second of nothing
+// before the last two.
+struct LineNote {
+  double at, hz, gain, length;
+};
+static const LineNote kLine[] = {
+    {0.0, 55.0, 0.8, 0.4},  {0.5, 55.0, 0.6, 0.2},  {1.0, 65.41, 0.9, 0.4}, {1.5, 82.41, 0.7, 0.4},
+    {2.0, 110.0, 1.0, 0.8}, {3.0, 98.0, 0.6, 0.4},  {3.5, 82.41, 0.8, 0.6}, {4.0, 73.42, 0.7, 0.4},
+    {4.5, 55.0, 1.0, 1.0},  {6.0, 82.41, 0.6, 0.3}, {6.5, 110.0, 0.9, 0.5},
+};
+
+static std::vector<float> bass_line(SubBass& d) {
+  struct Event {
+    size_t at;
+    int id;
+    bool on;
+    double hz, gain;
+  };
+  std::vector<Event> events;
+  int id = 1;
+  for (const LineNote& note : kLine) {
+    events.push_back({static_cast<size_t>(note.at * kRate + 0.5), id, true, note.hz, note.gain});
+    events.push_back({static_cast<size_t>((note.at + note.length) * kRate + 0.5), id, false, 0.0, 0.0});
+    ++id;
+  }
+  std::sort(events.begin(), events.end(), [](const Event& a, const Event& b) { return a.at < b.at; });
+  const size_t total = static_cast<size_t>(8.0f * kRate);
+  std::vector<float> out;
+  size_t next = 0;
+  while (out.size() < total) {
+    while (next < events.size() && events[next].at <= out.size()) {
+      const Event& event = events[next++];
+      if (event.on) {
+        d.note_on(event.id, static_cast<float>(event.hz), static_cast<float>(event.gain));
+      } else {
+        d.note_off(event.id);
+      }
+    }
+    const size_t until = next < events.size() ? std::min(events[next].at, total) : total;
+    const Stereo part = render(d, static_cast<float>(until - out.size()) / kRate, kRate);
+    out.insert(out.end(), part.left.begin(), part.left.end());
+  }
+  return out;
+}
+
+// The loudest 400 ms of a render, as an rms level in dBFS.
+static double loudest_400ms(const std::vector<float>& x) {
+  const size_t window = static_cast<size_t>(0.4f * kRate);
+  double best = 0.0;
+  for (size_t from = 0; from + window <= x.size(); from += 2400) best = std::max(best, rms(x, from, from + window));
+  return db(best);
+}
+
+// A picture of a render as sound: the level in each third of an octave from
+// 20 Hz to 10 kHz, every 43 ms, in dB under the render's loudest cell and
+// floored 60 dB under it. Two renders are held against each other by the
+// mean difference over the cells either of them fills.
+static const int kPictureBands = 28;
+static std::vector<double> picture(const std::vector<float>& x) {
+  std::vector<double> cells;
+  for (size_t from = 0; from + 4096 <= x.size(); from += 2048) {
+    const std::vector<double> magnitude = spectrum(x, from, 4096);
+    std::vector<double> band(kPictureBands, 0.0);
+    for (size_t k = 1; k < magnitude.size(); ++k) {
+      const double hz = static_cast<double>(k) * kRate / 4096.0;
+      const int b = std::max(0, static_cast<int>(std::floor(3.0 * std::log2(hz / 20.0) + 0.5)));
+      if (b < kPictureBands) band[b] += magnitude[k] * magnitude[k];
+    }
+    cells.insert(cells.end(), band.begin(), band.end());
+  }
+  double top = 0.0;
+  for (double cell : cells) top = std::max(top, cell);
+  for (double& cell : cells) cell = std::max(-60.0, 10.0 * std::log10(std::max(cell / std::max(top, 1.0e-30), 1.0e-30)));
+  return cells;
+}
+
+static double picture_distance(const std::vector<double>& a, const std::vector<double>& b) {
+  double sum = 0.0;
+  size_t count = 0;
+  for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
+    if (a[i] <= -60.0 && b[i] <= -60.0) continue;
+    sum += std::fabs(a[i] - b[i]);
+    ++count;
+  }
+  return count > 0 ? sum / static_cast<double>(count) : 0.0;
+}
+
+// Median of a list, and how far under and over it the list reaches.
+static double middle(std::vector<double> values) {
+  std::sort(values.begin(), values.end());
+  return 0.5 * (values[(values.size() - 1) / 2] + values[values.size() / 2]);
+}
+
 // The manifest's presets: sixteen, the default patch first, each sounding at
-// a sane level, no two rendering alike, and at least five of them slow,
-// long or dark by measurement.
+// a sane level, no two rendering or sounding alike, none jumping in level
+// against the others, and at least five of them slow, long or dark by
+// measurement.
 static void test_presets() {
   const std::vector<Preset> presets = load_presets();
   std::snprintf(label, sizeof label, "the manifest has sixteen presets (found %zu)", presets.size());
@@ -1300,13 +1411,30 @@ static void test_presets() {
   EXPECT(is_default, "the first preset is the default patch");
 
   std::vector<std::vector<float>> renders;
-  std::vector<double> loudest;  // of an A1 at gain 0.7 held one second, per preset
+  std::vector<double> loudest;       // the peak of an A1 at gain 0.7 held one second, per preset
+  std::vector<double> loudest_held;  // its loudest 400 ms
+  std::vector<double> loudest_line;  // the loudest 400 ms of the bass line
+  std::vector<double> peak_line;
+  std::vector<std::vector<double>> pictures;
   int gentle = 0;
   for (const Preset& preset : presets) {
     const char last = preset.name.empty() ? '0' : preset.name.back();
-    std::snprintf(label, sizeof label, "preset \"%s\": a name of 24 characters at most that does not end in a digit",
+    std::snprintf(label, sizeof label,
+                  "preset \"%s\": a name of 20 characters at most with no space at either end that does not end in a digit",
                   preset.name.c_str());
-    EXPECT(!preset.name.empty() && preset.name.size() <= 24 && !(last >= '0' && last <= '9'), label);
+    EXPECT(!preset.name.empty() && preset.name.size() <= 20 && !(last >= '0' && last <= '9') && last != ' ' &&
+               preset.name.front() != ' ',
+           label);
+    int same_name = 0;
+    for (const Preset& twin : presets) {
+      bool same = twin.name.size() == preset.name.size();
+      for (size_t i = 0; same && i < twin.name.size(); ++i) {
+        same = std::tolower(static_cast<unsigned char>(twin.name[i])) == std::tolower(static_cast<unsigned char>(preset.name[i]));
+      }
+      if (same) ++same_name;
+    }
+    std::snprintf(label, sizeof label, "preset \"%s\": no other preset has its name, whatever the case", preset.name.c_str());
+    EXPECT(same_name == 1, label);
     bool known = true;
     for (const auto& value : preset.values) known = known && value.first >= 0 && value.first < p::kNumParams;
     std::snprintf(label, sizeof label, "preset \"%s\" names parameters the device has", preset.name.c_str());
@@ -1355,6 +1483,21 @@ static void test_presets() {
     device.note_off(1);
     brief = concat(brief, render(device, 2.0f, kRate));
     loudest.push_back(db(peak(brief.left)));
+    loudest_held.push_back(loudest_400ms(brief.left));
+
+    // The bass line, as a test of every preset alone renders it: it is
+    // heard, it stays under -3 dBFS, and it carries no DC.
+    load(device, preset);
+    const std::vector<float> line = bass_line(device);
+    loudest_line.push_back(loudest_400ms(line));
+    peak_line.push_back(db(peak(line)));
+    pictures.push_back(picture(line));
+    const double line_dc = dc_offset(line, 0, line.size());
+    std::snprintf(label, sizeof label,
+                  "preset \"%s\" on the bass line: loudest 400 ms %.1f dBFS (over -50), peak %.1f dBFS (-3 at most), DC %.1e "
+                  "(under 0.01)",
+                  preset.name.c_str(), loudest_line.back(), peak_line.back(), line_dc);
+    EXPECT(finite(line) && loudest_line.back() > -50.0 && peak_line.back() <= -3.0 && std::fabs(line_dc) < 0.01, label);
 
     // A phrase that uses everything: a key, a second over it (glide), both
     // let go, and a loud key played apart.
@@ -1393,6 +1536,50 @@ static void test_presets() {
       std::snprintf(label, sizeof label, "preset \"%s\" held 1 s peaks %.1f dB from the middle preset (6 at most)",
                     presets[i].name.c_str(), loudest[i] - median);
       EXPECT(std::fabs(loudest[i] - median) < 6.0, label);
+    }
+  }
+
+  // The same on the loudest 400 ms, of that note and of the bass line.
+  if (loudest_line.size() == presets.size()) {
+    const struct {
+      const char* what;
+      const std::vector<double>* levels;
+    } spreads[] = {{"an A1 at gain 0.7 held 1 s", &loudest_held}, {"the bass line", &loudest_line}};
+    for (const auto& spread : spreads) {
+      const std::vector<double>& levels = *spread.levels;
+      const double median = middle(levels);
+      size_t low = 0, high = 0;
+      for (size_t i = 0; i < levels.size(); ++i) {
+        if (levels[i] < levels[low]) low = i;
+        if (levels[i] > levels[high]) high = i;
+        std::snprintf(label, sizeof label, "preset \"%s\", %s: its loudest 400 ms is %.1f dB from the middle preset's (6 at most)",
+                      presets[i].name.c_str(), spread.what, levels[i] - median);
+        EXPECT(std::fabs(levels[i] - median) < 6.0, label);
+      }
+      std::printf("%s: the presets' loudest 400 ms run from %.1f dBFS (\"%s\") to %.1f (\"%s\"), the middle one %.1f "
+                  "(%.1f dB under it to %.1f over)\n",
+                  spread.what, levels[low], presets[low].name.c_str(), levels[high], presets[high].name.c_str(), median,
+                  median - levels[low], levels[high] - median);
+    }
+    const double top = *std::max_element(peak_line.begin(), peak_line.end());
+    std::printf("the bass line peaks at %.1f dBFS at most over the presets\n", top);
+
+    // No two sound alike: the pictures of the bass line, pair by pair.
+    struct Pair {
+      double apart;
+      size_t a, b;
+    };
+    std::vector<Pair> pairs;
+    for (size_t a = 0; a < pictures.size(); ++a) {
+      for (size_t b = a + 1; b < pictures.size(); ++b) pairs.push_back({picture_distance(pictures[a], pictures[b]), a, b});
+    }
+    std::sort(pairs.begin(), pairs.end(), [](const Pair& x, const Pair& y) { return x.apart < y.apart; });
+    for (size_t i = 0; i < 4 && i < pairs.size(); ++i) {
+      std::snprintf(label, sizeof label, "%s presets in sound on the bass line: \"%s\" and \"%s\", %.1f dB apart on average (4 at least)",
+                    i == 0 ? "the closest" : "the next closest", presets[pairs[i].a].name.c_str(),
+                    presets[pairs[i].b].name.c_str(), pairs[i].apart);
+      std::printf("%s\n", label);
+      EXPECT(pairs[i].apart > 4.0, label);
     }
   }
 
