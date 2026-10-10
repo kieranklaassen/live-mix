@@ -2,6 +2,7 @@
 // id. One file per family holds the displays; this is where they meet.
 
 import { type PlateFace } from '../plate-display'
+import { CANON_FACES } from './canon'
 import { DELAY_FACES } from './delay'
 import { DRIVE_FACES } from './drive'
 import { DYNAMICS_FACES } from './dynamics'
@@ -28,4 +29,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  ...CANON_FACES,
 }
