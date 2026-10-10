@@ -65,8 +65,9 @@
 //   pitch, and what was a fixed comb is a slow breathing. The turn goes
 //   round the loop with the sound. At Drift 0 the echo is an exact copy.
 // - Width pans each bin by its order of arrival, the first to the left and
-//   the last to the right, by a balance law that leaves the level of a
-//   centred sound as it was (and nothing under 120 Hz moves). The two sides
+//   the last to the right, by balance: the side a bin leans to keeps it as
+//   it was and the other side gets tan of the angle, down to nothing (and
+//   nothing under 120 Hz moves). No side is ever raised, and the two sides
 //   are never summed.
 // - What is in the air stays there: a knob changes where new sound is
 //   thrown, not what was thrown already.
@@ -261,7 +262,8 @@ inline void Prism::init(float sample_rate) {
 inline void Prism::set_param(int id, float value) {
   if (!store_param(id, value)) return;
   if (id == prism::kMix) {
-    mix_.set(param(id), primed());
+    // Asleep there is nothing to glide under: the knob is simply there when the device wakes.
+    mix_.set(param(id), primed() && !idle_.asleep());
   } else {
     dirty_ = true;  // the tables are made again when the next frame comes
   }
@@ -401,11 +403,14 @@ inline void Prism::rebuild() {
     }
     loop_[k] = feedback * std::exp(-0.115129255f * lost_db);
 
-    // Width: the first to the left, the last to the right, by balance.
+    // Width: the first to the left, the last to the right, by balance: the
+    // side a bin leans to keeps it whole and the other side loses it.
     const float position = width * (2.0f * order - 1.0f) * pan_depth_[k];
     const float angle = (position + 1.0f) * 0.125f;  // turns: an eighth is the middle
-    pan_[0][k] = 1.41421356f * kit::SineTable::cos_lookup(angle);
-    pan_[1][k] = 1.41421356f * kit::SineTable::lookup(angle);
+    const float left = kit::SineTable::cos_lookup(angle);
+    const float right = kit::SineTable::lookup(angle);
+    pan_[0][k] = position > 0.0f ? left / right : 1.0f;
+    pan_[1][k] = position < 0.0f ? right / left : 1.0f;
   }
   // Zero frequency and the top bin are real: they are delayed and not turned.
   for (int k = 0; k < kBins; k += kBins - 1) {

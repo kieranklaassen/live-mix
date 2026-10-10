@@ -6,6 +6,8 @@
 #include "../devices/prism/prism.h"
 #include "support/test_kit.h"
 
+#include <limits>
+
 using namespace testkit;
 using livemix::Prism;
 namespace p = livemix::prism;
@@ -431,7 +433,401 @@ int main() {
     EXPECT(worst_difference(renders[0], renders[2]) > 0.01, "Scatter: another Shuffle sounds different");
   }
 
-  // PART 5
+  // Width lays the colours across the field in the order they come: Rising, the low band leans left and the
+  // high band right, by the balance the header gives; under 120 Hz nothing moves; no side is raised.
+  {
+    auto sides = [&](double hz, float width, double* left, double* right) {
+      plain(device);
+      device.set_param(p::kWidth, width);
+      const size_t total = static_cast<size_t>(1.5 * kRate);
+      const Stereo out = run(device, burst(hz, 2400, 4800, total));
+      *left = rms(out.left);
+      *right = rms(out.right);
+    };
+    auto balance = [](double order, double hz, double width, double* left, double* right) {
+      const double depth = std::min(1.0, std::max(0.0, std::log2(hz / 120.0) / std::log2(300.0 / 120.0)));
+      const double position = width * (2.0 * order - 1.0) * depth;
+      const double angle = (position + 1.0) * kPi / 4.0;
+      *left = position > 0.0 ? std::cos(angle) / std::sin(angle) : 1.0;
+      *right = position < 0.0 ? std::sin(angle) / std::cos(angle) : 1.0;
+    };
+    double centre_l, centre_r, l, r, want_l, want_r;
+    sides(4947.0, 0.0f, &centre_l, &centre_r);
+    sides(4947.0, 1.0f, &l, &r);
+    balance(10.0 / 11.0, 4947.0, 1.0, &want_l, &want_r);
+    std::printf("width 1, 4947 Hz: left %.3f right %.3f of the centred level (%.3f, %.3f)\n", l / centre_l, r / centre_r,
+                want_l, want_r);
+    EXPECT_NEAR(l / centre_l, want_l, 0.01, "Width 1: the last colour is taken from the left");
+    EXPECT_NEAR(r / centre_r, 1.0, 0.001, "Width 1: and is whole on the right");
+    sides(4947.0, 0.5f, &l, &r);
+    balance(10.0 / 11.0, 4947.0, 0.5, &want_l, &want_r);
+    EXPECT_NEAR(l / centre_l, want_l, 0.01, "Width 0.5: half as far");
+    sides(545.0, 0.0f, &centre_l, &centre_r);
+    sides(545.0, 1.0f, &l, &r);
+    balance(5.0 / 11.0, 545.0, 1.0, &want_l, &want_r);
+    EXPECT_NEAR(r / centre_r, want_r, 0.01, "Width 1: an early colour leans left");
+    EXPECT_NEAR(l / centre_l, 1.0, 0.001, "Width 1: and is whole there");
+    sides(93.3, 0.0f, &centre_l, &centre_r);
+    sides(93.3, 1.0f, &l, &r);
+    EXPECT(std::fabs(l / centre_l - 1.0) < 0.001 && std::fabs(r / centre_r - 1.0) < 0.001,
+           "Width 1: under 120 Hz nothing moves");
+
+    // The two sides are never summed: a sound on the left alone leaves the right silent, and a sound in
+    // anti-phase comes back as loud as the same sound in phase.
+    rng_state() = 3;
+    std::vector<float> in = noise(0.5f, kRate, 0.25f);
+    in.resize(static_cast<size_t>(1.5f * kRate), 0.0f);
+    std::vector<float> flipped = in;
+    for (float& v : flipped) v = -v;
+    device.init(kRate);
+    const Stereo one_side = run(device, in, silence(1.5f, kRate));
+    EXPECT(peak(one_side.right) == 0.0 && rms(one_side.left) > 0.01, "a sound on the left alone stays there");
+    device.init(kRate);
+    const Stereo in_phase = run(device, in, in);
+    device.init(kRate);
+    const Stereo anti = run(device, in, flipped);
+    EXPECT_NEAR(db(rms(anti.left) / rms(in_phase.left)), 0.0, 0.01, "an anti-phase input does not vanish (left)");
+    EXPECT_NEAR(db(rms(anti.right) / rms(in_phase.right)), 0.0, 0.01, "an anti-phase input does not vanish (right)");
+  }
+
+  // Level. A full-scale held chord for a minute comes back at no more than twice its amplitude and never grows,
+  // at Feedback 1 with nothing to stop the repeats adding up in step (Drift 0, Tilt 0), at short and long Times,
+  // and at each extreme of every control; and the level hold lets go when the chord stops.
+  {
+    const float seconds = 60.0f;
+    std::vector<float> chord(static_cast<size_t>(seconds * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      chord[i] = 0.25f * static_cast<float>(std::sin(2.0 * kPi * 110.0 * t) + std::sin(2.0 * kPi * 277.18 * t + 1.0) +
+                                            std::sin(2.0 * kPi * 659.25 * t + 2.0) + std::sin(2.0 * kPi * 1975.5 * t + 3.0));
+    }
+    const double in_peak = peak(chord);
+    double worst_peak = 0.0, worst_growth = 0.0;
+    auto held = [&](const char* what) {
+      const Stereo out = run(device, chord);
+      const size_t second = static_cast<size_t>(kRate);
+      // Growth is read from the level of two stretches of 25 s: with Drift on the peaks wander over 7 to 14 s
+      // (1.3 to 1.7 times the input's over three minutes, at a level that stays within 1 dB), which is not growth.
+      const double early = std::max(rms(out.left, 10 * second, 35 * second), rms(out.right, 10 * second, 35 * second));
+      const double late = std::max(rms(out.left, 35 * second, 60 * second), rms(out.right, 35 * second, 60 * second));
+      const double top = std::max(peak(out.left), peak(out.right));
+      worst_peak = std::max(worst_peak, top / in_peak);
+      worst_growth = std::max(worst_growth, late / early);
+      if (!(finite(out.left) && finite(out.right)) || top > 2.1 * in_peak || late > 1.05 * early) {
+        std::printf("FAIL: held chord, %s: peak %.2f times the input's, the level of seconds 35 to 60 is %.3f of seconds 10 to 35\n", what,
+                    top / in_peak, late / early);
+        ++failures();
+      }
+    };
+    for (float time : {20.0f, 87.0f, 600.0f, 4000.0f}) {
+      for (float mix : {1.0f, 0.5f}) {
+        device.init(kRate);
+        device.set_param(p::kFeedback, 1.0f);
+        device.set_param(p::kTilt, 0.0f);
+        device.set_param(p::kDrift, 0.0f);
+        device.set_param(p::kFan, 0.0f);
+        device.set_param(p::kTime, time);
+        device.set_param(p::kMix, mix);
+        held("Feedback 1, one echo time");
+      }
+    }
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (int end = 0; end < 2; ++end) {
+        device.init(kRate);
+        device.set_param(p::kFeedback, 1.0f);
+        device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
+        char what[64];
+        std::snprintf(what, sizeof what, "Feedback 1, param %d at its %s", id, end == 0 ? "minimum" : "maximum");
+        held(what);
+      }
+    }
+    std::printf("held full-scale chord, 60 s: peak at most %.2f times the input's (%.1f dB), the level of the later 25 s at most %.3f of the earlier\n",
+                worst_peak, db(worst_peak), worst_growth);
+    EXPECT(worst_peak <= 2.1, "a held full-scale chord never comes back at more than twice its amplitude");
+
+    // Feedback 1 goes in the end: the chord for 5 s, then silence; a minute later it is 60 dB down or more.
+    device.init(kRate);
+    device.set_param(p::kFeedback, 1.0f);
+    device.set_param(p::kTilt, 0.0f);
+    device.set_param(p::kMix, 1.0f);
+    chord.resize(static_cast<size_t>(5.0f * kRate));
+    run(device, chord);
+    const Stereo first = render(device, 10.0f, kRate);
+    render(device, 50.0f, kRate);
+    const Stereo last = render(device, 10.0f, kRate);
+    std::printf("Feedback 1: the ten seconds after the chord %.1f dB, a minute later %.1f dB\n", db(rms(first.left)),
+                db(rms(last.left)));
+    EXPECT(rms(first.left) > 0.05, "Feedback 1: the sound goes on circling after the input stops");
+    EXPECT(db(rms(last.left) / rms(first.left)) < -50.0, "Feedback 1: and is gone a minute later");
+  }
+
+  // Moving a control while a note sounds does not click: Time (the one most likely moved), Fan, Bands, and the
+  // two choices, Shape and (in Scatter) Shuffle. The same render with nothing moved steps by 0.0037 a sample (dry
+  // and echo partly cancel there); a move may change the level, so the bar is the steepest a clean 220 Hz tone
+  // can be at twice the input's level, which is as loud as the device gets: 2π × 220 / 48000 × 0.5 = 0.0144. A
+  // gain that jumped would step by up to 0.25.
+  {
+    const std::vector<float> tone = sine(220.0f, 1.0f, kRate, 0.25f);
+    device.init(kRate);
+    run(device, tone);
+    const Stereo still = run(device, tone);
+    const double unmoved = std::max(max_step(still.left), max_step(still.right));
+    const double reference = 2.0 * kPi * 220.0 / kRate * 0.5;
+    struct Move {
+      int id;
+      float to;
+      const char* what;
+    };
+    const Move moves[] = {{p::kTime, 150.0f, "Time"},   {p::kTime, 2400.0f, "Time"},   {p::kFan, 0.2f, "Fan"},
+                          {p::kBands, 3.0f, "Bands"},   {p::kShape, 1.0f, "Shape"},    {p::kShape, 4.0f, "Shape"},
+                          {p::kSmear, 1.0f, "Smear"},   {p::kWidth, 0.0f, "Width"},    {p::kFeedback, 0.95f, "Feedback"},
+                          {p::kMix, 1.0f, "Mix"},       {p::kDrift, 0.0f, "Drift"}};
+    double worst = 0.0;
+    for (const Move& move : moves) {
+      device.init(kRate);
+      run(device, tone);
+      device.set_param(move.id, move.to);
+      const Stereo out = run(device, tone);
+      const double step = std::max(max_step(out.left), max_step(out.right));
+      worst = std::max(worst, step / reference);
+      if (step > reference) {
+        std::printf("FAIL: moving %s to %g while sounding: step %.4f against %.4f\n", move.what, move.to, step, reference);
+        ++failures();
+      }
+    }
+    device.init(kRate);
+    device.set_param(p::kShape, static_cast<float>(kScatter));
+    run(device, tone);
+    device.set_param(p::kShuffle, 9.0f);
+    const Stereo dealt = run(device, tone);
+    worst = std::max(worst, std::max(max_step(dealt.left), max_step(dealt.right)) / reference);
+    // A sweep of Time, a move every block, as a hand would turn it.
+    device.init(kRate);
+    run(device, tone);
+    Stereo swept;
+    swept.left.reserve(tone.size());
+    swept.right.reserve(tone.size());
+    for (size_t done = 0; done + kBlock <= tone.size(); done += kBlock) {
+      device.set_param(p::kTime, 600.0f * std::pow(4.0f, static_cast<float>(done) / tone.size()));
+      for (int i = 0; i < kBlock; ++i) device.in_left()[i] = device.in_right()[i] = tone[done + i];
+      device.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        swept.left.push_back(device.out_left()[i]);
+        swept.right.push_back(device.out_right()[i]);
+      }
+    }
+    worst = std::max(worst, std::max(max_step(swept.left), max_step(swept.right)) / reference);
+    std::printf("controls moved while a note sounds: the largest step is %.4f (unmoved %.4f, bar %.4f)\n",
+                worst * reference, unmoved, reference);
+    EXPECT(unmoved < reference, "the unmoved render is under the bar");
+    EXPECT(worst < 1.0, "no control clicks when moved, the choices and a sweep of Time included");
+  }
+
+  // Bad input: a NaN, an infinity and 1e30 go in as silence. The output stays finite and is, sample for sample,
+  // what the same input with zeros in their place gives: nothing of them is kept.
+  {
+    rng_state() = 77;
+    const std::vector<float> good = noise(2.0f, kRate, 0.5f);
+    std::vector<float> zeroed = good, bad = good;
+    for (size_t i : {20000u, 20001u, 20002u}) zeroed[i] = 0.0f;
+    bad[20000] = std::nanf("");
+    bad[20001] = std::numeric_limits<float>::infinity();
+    bad[20002] = -1.0e30f;
+    device.init(kRate);
+    device.set_param(p::kFeedback, 0.9f);
+    const Stereo want = run(device, zeroed);
+    device.init(kRate);
+    device.set_param(p::kFeedback, 0.9f);
+    const Stereo got = run(device, bad);
+    EXPECT(finite(got.left) && finite(got.right), "NaN, infinity and 1e30 in: finite out");
+    EXPECT(worst_difference(want, got) == 0.0, "and nothing of them stays in the loop");
+    EXPECT(rms(got.left, 60000, 96000) > 0.1, "and the device goes on sounding after them");
+  }
+
+  // Block sizes across a silence. The silence is stepped across the moment the device falls asleep (the last
+  // echo lands 0.2 s after the sound and the hold is 0.1 s), and Drift runs on by the frame clock all the while.
+  {
+    double worst = 0.0;
+    for (float gap = 0.0f; gap < 0.6f; gap += 0.013f) {
+      rng_state() = 99;
+      std::vector<float> phrase = noise(0.2f, kRate, 0.5f);
+      const std::vector<float> quiet = silence(0.25f + gap, kRate);
+      const std::vector<float> again = noise(0.3f, kRate, 0.5f);
+      phrase.insert(phrase.end(), quiet.begin(), quiet.end());
+      phrase.insert(phrase.end(), again.begin(), again.end());
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        device.init(kRate);
+        device.set_param(p::kTime, 200.0f);
+        device.set_param(p::kFeedback, 0.0f);
+        device.set_param(p::kDrift, 1.0f);
+        const Stereo out = run(device, phrase, block);
+        if (block == 128) {
+          reference = out;
+        } else {
+          worst = std::max(worst, worst_difference(out, reference));
+        }
+      }
+    }
+    std::printf("block sizes across a silence: worst difference %.3g\n", worst);
+    EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+  }
+
+  // The device sleeps and wakes, and knobs moved while it sleeps are simply there when it wakes: after a phrase
+  // and its tail, a device whose knobs are moved in its sleep gives what one that had them from the start gives.
+  {
+    rng_state() = 41;
+    const std::vector<float> phrase = noise(0.3f, kRate, 0.5f);
+    const std::vector<float> rest = silence(9.7f, kRate);
+    auto moved = [&](Prism& d) {
+      d.set_param(p::kTime, 150.0f);
+      d.set_param(p::kShape, static_cast<float>(kFalling));
+      d.set_param(p::kMix, 0.9f);
+      d.set_param(p::kWidth, 0.0f);
+    };
+    device.init(kRate);
+    run(device, phrase);
+    const Stereo tail = run(device, rest);
+    const size_t n = tail.size();
+    EXPECT(peak(tail.left, 0, 48000) > 0.001, "the repeats ring on after the phrase");
+    EXPECT(peak(tail.left, n - 24000, n) == 0.0 && peak(tail.right, n - 24000, n) == 0.0, "asleep after the tail: exact zeros");
+    EXPECT(device.meter(3) == 0.0f, "asleep the meters read 0");
+    moved(device);
+    const Stereo woken = run(device, phrase);
+    static Prism fresh;
+    fresh.init(kRate);
+    moved(fresh);
+    run(fresh, silence(0.3f + 9.7f, kRate));
+    const Stereo first = run(fresh, phrase);
+    EXPECT(rms(woken.left) > 0.05, "wakes on new input");
+    EXPECT(worst_difference(woken, first) == 0.0, "knobs moved asleep snap: the same as a device that had them all along");
+  }
+
+  // The meters: the level entering each octave of the curve's axis, as the amplitude of a sine. A tone of 0.5 at
+  // 700 Hz reads 0.5 in the fourth and nothing in the others; a burst reads again when its repeat comes round,
+  // Feedback smaller; and reading them changes nothing.
+  {
+    plain(device);
+    run(device, sine(700.0f, 0.5f, kRate, 0.5f));
+    EXPECT_NEAR(device.meter(3), 0.5, 0.01, "a tone of 0.5 in 480 to 960 Hz reads 0.5 there");
+    double others = 0.0;
+    for (int z = 0; z < Prism::kZones; ++z) {
+      if (z != 3) others = std::max(others, static_cast<double>(device.meter(z)));
+    }
+    EXPECT(others < 0.01, "and nothing in the other octaves");
+    EXPECT(device.meter(-1) == 0.0f && device.meter(Prism::kZones) == 0.0f, "an unknown meter reads 0");
+
+    plain(device);
+    Curve curve;
+    curve.time_ms = 320.0;  // 30 hops
+    curve.fan = 0.0;
+    set_curve(device, curve);
+    device.set_param(p::kFeedback, 0.5f);
+    const size_t total = static_cast<size_t>(1.0 * kRate);
+    const std::vector<float> in = burst(700.0, 0, 4800, total, 0.5f);
+    double first = 0.0, between = 1.0, second = 0.0;
+    for (size_t done = 0; done + kBlock <= total; done += kBlock) {
+      for (int i = 0; i < kBlock; ++i) device.in_left()[i] = device.in_right()[i] = in[done + i];
+      device.process(kBlock);
+      const double level = device.meter(3);
+      const double at = static_cast<double>(done) / kRate;
+      if (at < 0.2) first = std::max(first, level);
+      if (at > 0.27 && at < 0.3) between = std::min(between, level);
+      if (at > 0.32 && at < 0.52) second = std::max(second, level);
+    }
+    std::printf("meter: a burst reads %.3f, %.4f between, %.3f when its repeat comes round\n", first, between, second);
+    EXPECT(first > 0.3 && first < 0.5, "the burst reads as it enters");
+    EXPECT(between < 0.1 * first, "the reading falls away after it");
+    EXPECT_NEAR(second / first, 0.5, 0.03, "and reads again, Feedback smaller, when the repeat enters");
+
+    rng_state() = 12;
+    const std::vector<float> phrase = noise(0.5f, kRate, 0.3f);
+    device.init(kRate);
+    const Stereo unread = run(device, phrase);
+    device.init(kRate);
+    Stereo read;
+    for (size_t done = 0; done + kBlock <= phrase.size(); done += kBlock) {
+      for (int i = 0; i < kBlock; ++i) device.in_left()[i] = device.in_right()[i] = phrase[done + i];
+      device.process(kBlock);
+      for (int z = 0; z < Prism::kZones; ++z) (void)device.meter(z);
+      for (int i = 0; i < kBlock; ++i) {
+        read.left.push_back(device.out_left()[i]);
+        read.right.push_back(device.out_right()[i]);
+      }
+    }
+    EXPECT(worst_difference(unread, read) == 0.0, "reading the meters changes nothing");
+  }
+
+  // Part-way Mix. Dry and an echo of a held tone are a comb: with Drift at 0 one pitch is down for as long as
+  // it is held and another up. With Drift at its default the comb moves, and over time a held tone and its echo
+  // add as powers at every pitch. Tones over the piano's range at the default, both channels, after 4 s.
+  {
+    auto held_tones = [&](float drift, double* low, double* high, double* dip) {
+      *low = 99.0, *high = -99.0, *dip = 99.0;
+      const double full = 0.25 / std::sqrt(2.0);
+      for (double note = 28.0; note <= 100.0; note += 3.13) {
+        const double hz = 440.0 * std::pow(2.0, (note - 69.0) / 12.0);
+        device.init(kRate);
+        device.set_param(p::kDrift, drift);
+        const Stereo out = run(device, sine(hz, 34.0f, kRate, 0.25f));
+        const size_t from = static_cast<size_t>(4.0f * kRate);
+        auto level = [&](size_t a, size_t b) {
+          const double l = rms(out.left, a, b), r = rms(out.right, a, b);
+          return db(std::sqrt((l * l + r * r) / 2.0) / full);
+        };
+        const double mean = level(from, out.size());
+        *low = std::min(*low, mean);
+        *high = std::max(*high, mean);
+        for (size_t at = from; at + 9600 <= out.size(); at += 9600) *dip = std::min(*dip, level(at, at + 9600));
+      }
+    };
+    double low, high, dip;
+    held_tones(0.0f, &low, &high, &dip);
+    std::printf("held tones at the default Mix, Drift 0: %+.1f to %+.1f dB by pitch, for good\n", low, high);
+    EXPECT(high - low > 6.0, "Drift 0: dry and echo stand in a fixed comb (this is what Drift is for)");
+    held_tones(p::kParamDefault[p::kDrift], &low, &high, &dip);
+    std::printf("held tones at the default Mix and Drift: %+.1f to %+.1f dB over 30 s by pitch; the deepest 0.2 s %+.1f dB\n",
+                low, high, dip);
+    EXPECT(low > -2.0 && high < 2.0, "the default: over time a held tone keeps its level at every pitch");
+  }
+
+  // Cost: the average, and the worst block (one with a frame in it), at the defaults and at the dearest setting:
+  // every bin its own time, the longest Time (the whole ring in use), Feedback 1, on noise (a peak every few bins).
+  {
+    rng_state() = 0xBEEFu;
+    const std::vector<float> input = noise(10.0f, kRate, 0.25f);
+    for (int which = 0; which < 2; ++which) {
+      const char* label = which == 0 ? "prism" : "prism (worst setting)";
+      auto setup = [&] {
+        device.init(kRate);
+        if (which == 1) {
+          device.set_param(p::kTime, 4000.0f);
+          device.set_param(p::kBands, 48.0f);
+          device.set_param(p::kSmear, 1.0f);
+          device.set_param(p::kFeedback, 1.0f);
+          device.set_param(p::kShape, static_cast<float>(kScatter));
+          device.set_param(p::kWidth, 1.0f);
+        }
+      };
+      setup();
+      report_cost(label, 10.0f, kRate, [&] { run(device, input); });
+      setup();
+      std::vector<double> micros;
+      for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+        const auto start = std::chrono::steady_clock::now();
+        device.process(128);
+        micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+      }
+      std::sort(micros.begin(), micros.end());
+      // Half the blocks hold a frame, so the 95th percentile is one of them without the scheduler's noise.
+      const double p95 = micros[micros.size() * 95 / 100];
+      double sum = 0.0;
+      for (double m : micros) sum += m;
+      std::printf("%s: mean block %.1f us (%.2f%%), worst block (95th percentile) %.1f us, %.2f%% of its 2667 us\n", label,
+                  sum / micros.size(), 100.0 * sum / micros.size() / 2666.7, p95, 100.0 * p95 / 2666.7);
+    }
+  }
 
   return finish("prism");
 }
