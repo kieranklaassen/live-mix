@@ -88,15 +88,23 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   static constexpr float kDarkHz = 300.0f;
   static constexpr float kBrightHz = 2500.0f;
   // The partials looked for, in hertz of the input.
-  static constexpr float kLowestHz = 32.0f;
+  static constexpr float kLowestHz = 21.0f;
   static constexpr float kHighestHz = 12000.0f;
   // A sine fades out below and above these (its own pitch, after Transpose).
-  static constexpr float kFadeInLowHz = 20.0f;
-  static constexpr float kFadeInHighHz = 30.0f;
+  static constexpr float kFadeInLowHz = 16.0f;
+  static constexpr float kFadeInHighHz = 22.0f;
   static constexpr float kFadeOutLowHz = 12000.0f;
   static constexpr float kFadeOutHighHz = 16000.0f;
-  // Share of the phase error taken up per frame by the lock.
+  // The phase lock: the share of the error taken up per frame (less when
+  // Glide is longer than a frame: then a frame's share of Glide), only while
+  // the partial stands still to kStillBins from one frame to the next, and
+  // never by bending the sine more than kLockRatio of its pitch and
+  // kLockHz. A partial that moves is followed by Glide alone: a lock that
+  // chased it would step the sine's pitch at the frame rate.
   static constexpr float kLock = 0.35f;
+  static constexpr float kStillBins = 0.03f;
+  static constexpr float kLockRatio = 0.003f;
+  static constexpr float kLockHz = 0.4f;
 
   void init(float sample_rate) {
     using namespace sine_shadow;
@@ -232,6 +240,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     int state = kFree;
     int age = 0;           // frames it has followed its partial
     int side = 0;          // the channel its phase is read from
+    bool still = false;    // its partial stood still since the frame before
     float bin = 0.0f;      // the partial's frequency, in bins of the input
     float level = 0.0f;    // the partial's level as last measured
     float lean = 1.0f;     // what Tone makes of it
@@ -278,9 +287,12 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         // The time is to 60 dB down.
         release_coeff_ = 1.0f - kit::time_to_coeff(param(kRelease) / 6.9077553f, sr);
         break;
-      case kGlide:
+      case kGlide: {
         glide_coeff_ = 1.0f - kit::time_to_coeff(param(kGlide) * 0.001f, sr);
+        const float share = static_cast<float>(hop_) / (param(kGlide) * 0.001f * sr);
+        lock_ = share < kLock ? share : kLock;
         break;
+      }
       case kMix:
         mix_.set(param(kMix), primed());
         break;
@@ -522,6 +534,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         if (v.age > need_ + kSpare) v.age = need_ + kSpare;
         if (v.age < 0) v.age = 0;
       }
+      v.still = !fresh && std::fabs(peak.bin - v.bin) <= kStillBins;
       v.bin = peak.bin;
       v.level = peak.level;
       v.lean = weight_[peak.k];
@@ -562,13 +575,13 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
                               0.5 * (static_cast<double>(peak.bin) - peak.k);
       const double now = at_start + static_cast<double>(peak.bin) * (frame_ + stagger_) / frame_ + v.flip;
       v.goal = now - std::floor(now);
-      if (!unison) continue;
-      // The lock: a share of the error taken up over the coming frame, once
-      // the sine is at its partial's pitch.
+      if (!unison || !v.still) continue;
+      // The lock, once the sine is at its partial's pitch.
       if (std::fabs(v.inc - v.inc_target) * frame_ > 0.3) continue;
       double error = v.goal - v.phase;
       error -= std::floor(error + 0.5);
-      v.slew = static_cast<float>(kLock * error / hop_);
+      const float most = static_cast<float>(kLockRatio * v.inc_target) + kLockHz / sample_rate();
+      v.slew = kit::clamp(static_cast<float>(lock_ * error / hop_), -most, most);
     }
     // A new sine starts on its partial's phase, at the pitch of the nearest
     // sine still sounding within an octave (its own where there is none).
@@ -701,6 +714,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
 
   float attack_coeff_ = 1.0f, release_coeff_ = 1.0f, glide_coeff_ = 1.0f;
   float pan_coeff_ = 1.0f, fade_coeff_ = 1.0f;
+  float lock_ = kLock;  // the share of the phase error the lock takes up per frame
   float ceiling_gain_ = 1.0f;
   bool retune_ = false;
 
