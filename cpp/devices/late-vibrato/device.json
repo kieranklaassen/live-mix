@@ -1,0 +1,275 @@
+{
+  "id": "late-vibrato",
+  "name": "Late Vibrato",
+  "category": "modulation",
+  "description": "A vibrato that waits: held notes begin straight and start to sway the longer they last, as a singer or a bow would.",
+  "class": "LateVibrato",
+  "header": "late_vibrato.h",
+  "sources": [],
+  "latencySamples": 960,
+  "meters": [
+    {
+      "key": "age",
+      "name": "Note age",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "depth",
+      "name": "Sway depth",
+      "unit": "ct",
+      "display": true
+    },
+    {
+      "key": "phase",
+      "name": "Sway phase",
+      "display": true
+    },
+    {
+      "key": "rate",
+      "name": "Sway rate",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "wait",
+      "name": "Wait",
+      "min": 10,
+      "max": 4000,
+      "default": 350,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long a note is held before it starts to sway. Notes shorter than this pass straight through."
+    },
+    {
+      "key": "grow",
+      "name": "Grow",
+      "min": 20,
+      "max": 8000,
+      "default": 900,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long the sway takes to open from nothing to its full depth once the wait is over."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 100,
+      "default": 28,
+      "unit": "ct",
+      "description": "How far the pitch bends each way once the sway is fully open. Slow rates hold less of it than fast ones."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.3,
+      "max": 10,
+      "default": 5.2,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the pitch sways as it begins. Slow is a drift; fast is a nervous shake."
+    },
+    {
+      "key": "quicken",
+      "name": "Quicken",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Speeds the sway up as it opens, the way a player presses into a long note. Zero keeps one rate throughout."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Lets level and brightness rise with the sway and pulse along with each cycle, so a held note opens up as it starts to move."
+    },
+    {
+      "key": "human",
+      "name": "Human",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets the rate and the depth wander slowly, so no two cycles are quite alike. Zero is a perfectly even sway."
+    },
+    {
+      "key": "sense",
+      "name": "Sense",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How small an attack counts as a new note and sends the sway back to straight. Low, only a note after silence does; high, every new touch does."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Moves the right side's sway out of step with the left, so a held note spreads across the stereo field as it opens."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the straight sound and the swaying one. Part way, a held note opens into a chorus instead of a vibrato."
+    }
+  ],
+  "presets": {
+    "Late vibrato": {},
+    "Singer": {
+      "wait": 250,
+      "grow": 600,
+      "depth": 40,
+      "rate": 5.6,
+      "quicken": 0.4,
+      "swell": 0.5,
+      "human": 0.5,
+      "width": 0
+    },
+    "Slow bow": {
+      "wait": 500,
+      "grow": 1500,
+      "depth": 22,
+      "rate": 4.2,
+      "quicken": 0.2,
+      "swell": 0.7,
+      "human": 0.4,
+      "width": 0.3
+    },
+    "Barely there": {
+      "wait": 600,
+      "grow": 1500,
+      "depth": 8,
+      "rate": 4.5,
+      "quicken": 0.1,
+      "swell": 0.1,
+      "width": 0.1
+    },
+    "Opens to chorus": {
+      "wait": 200,
+      "grow": 700,
+      "depth": 18,
+      "rate": 0.9,
+      "quicken": 0,
+      "swell": 0,
+      "width": 0.8,
+      "mix": 0.5
+    },
+    "Wide drone": {
+      "wait": 800,
+      "grow": 3000,
+      "depth": 30,
+      "rate": 3,
+      "quicken": 0.2,
+      "swell": 0.4,
+      "sense": 0.15,
+      "width": 1
+    },
+    "Long patience": {
+      "wait": 2500,
+      "grow": 4000,
+      "depth": 45,
+      "rate": 5,
+      "sense": 0.3
+    },
+    "Nervous": {
+      "wait": 60,
+      "grow": 150,
+      "depth": 35,
+      "rate": 8.5,
+      "quicken": 0.8,
+      "human": 0.7,
+      "sense": 0.9,
+      "swell": 0.1
+    },
+    "Seasick": {
+      "wait": 150,
+      "grow": 2500,
+      "depth": 95,
+      "rate": 2.2,
+      "quicken": 0,
+      "human": 0.6,
+      "width": 0.6,
+      "swell": 0
+    },
+    "Bloom only": {
+      "wait": 200,
+      "grow": 1200,
+      "depth": 0,
+      "rate": 4,
+      "quicken": 0,
+      "swell": 1,
+      "width": 0.5
+    },
+    "Tape wobble": {
+      "wait": 10,
+      "grow": 20,
+      "depth": 12,
+      "rate": 0.6,
+      "quicken": 0,
+      "swell": 0,
+      "human": 1,
+      "sense": 0,
+      "width": 0.04
+    },
+    "Warble": {
+      "wait": 300,
+      "grow": 300,
+      "depth": 60,
+      "rate": 10,
+      "quicken": 1,
+      "swell": 0.3,
+      "human": 0.2
+    },
+    "Wide shimmer": {
+      "wait": 100,
+      "grow": 400,
+      "depth": 14,
+      "rate": 6,
+      "quicken": 0.2,
+      "swell": 0.6,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Every touch": {
+      "wait": 120,
+      "grow": 300,
+      "depth": 30,
+      "rate": 6,
+      "quicken": 0.5,
+      "sense": 1
+    },
+    "Deep drift": {
+      "wait": 300,
+      "grow": 4000,
+      "depth": 16,
+      "rate": 0.4,
+      "quicken": 0,
+      "human": 0.8,
+      "width": 1,
+      "mix": 0.6,
+      "swell": 0.2
+    },
+    "Trill": {
+      "wait": 400,
+      "grow": 200,
+      "depth": 100,
+      "rate": 7,
+      "quicken": 0,
+      "swell": 0,
+      "human": 0,
+      "width": 0
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A modulated delay whose depth follows how long the sound has sustained since its last attack; the sway itself runs freely."
+  }
+}
