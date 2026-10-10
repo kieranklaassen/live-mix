@@ -9,6 +9,7 @@ import { EQ_FACES } from './eq'
 import { STRING_INSTRUMENT_FACES } from './instrument-strings'
 import { AIR_INSTRUMENT_FACES } from './instrument-air'
 import { BARS_INSTRUMENT_FACES } from './instrument-bars'
+import { BODY_INSTRUMENT_FACES } from './instrument-bodies'
 import { BOWED_INSTRUMENT_FACES } from './instrument-bowed'
 import { GUITAR_INSTRUMENT_FACES } from './instrument-guitars'
 import { KEYS_INSTRUMENT_FACES } from './instrument-keys'
@@ -67,4 +68,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...VOICE_INSTRUMENT_FACES,
   ...WEATHER_INSTRUMENT_FACES,
   ...TURN_INSTRUMENT_FACES,
+  ...BODY_INSTRUMENT_FACES,
 }
