@@ -167,7 +167,7 @@ export const CURRENTS_DESCRIPTOR = wasmDeviceDescriptor(CURRENTS_DEVICE, {
     'Breaking waves': { depth: 0.8, sway: 0.4, rate: 0.25, tide: 0.3, shape: 1, chance: 0.2 },
     Ripples: { depth: 0.7, sway: 0.4, rate: 1.2, tide: 0.8, bands: 6, focus: 0.35 },
     'Shimmer on top': { depth: 0.8, sway: 0.7, rate: 0.6, bands: 6, lowHold: 800 },
-    'Deep swell': { depth: 0.8, sway: 0.2, rate: 0.07, tide: 0.2, bands: 3, focus: 0 },
+    'Deep swell': { depth: 0.7, sway: 0.2, rate: 0.07, tide: 0.2, bands: 3, focus: 0 },
     'Glass notes': { depth: 1, sway: 0.5, rate: 0.3, tide: 1, bands: 6, chance: 0.6, focus: 1 },
     'Side to side': { depth: 0, sway: 1, rate: 0.3, tide: 0.6 },
     Breathing: { depth: 0.8, sway: 0, rate: 0.15, shape: 0.4 },
