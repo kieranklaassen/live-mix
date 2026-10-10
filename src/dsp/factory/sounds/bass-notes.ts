@@ -9,12 +9,27 @@ import { breathe, hall, quarterTurn, soften } from '../parts'
 import { type FactorySound } from '../types'
 import { looped, played, sound } from './recipe'
 
-/** Holds the body of a plucked note up under its pick: a ceiling the pluck leans on, let go at once. */
+/**
+ * Holds the body of a plucked note up under its pick: a ceiling the pluck leans on, let go at once.
+ * It only works once `gain` brings the pluck over the ceiling: the upright ring, peaking near -19 dBFS
+ * at its volume, needs more than 7.
+ */
 const hold = (gain: number): PatchDevice => ({
   deviceId: 'ambient-limiter',
   preset: 'Pinned',
   params: { ceiling: -12, gain, release: 0.3, ride: 0, autoGain: 0 },
 })
+
+/**
+ * `quarterTurn` three times round: the fold still meets every partial a quarter turn off, and inside one
+ * loop the wave passes through every shape that turning its partials together gives, the most peaked one
+ * among them. The bank brings the peak to -6 dBFS, so a held tone comes out up to 1.7 LU less loud for
+ * it, with the same partials at the same levels.
+ */
+const threeQuarterTurn = (seconds: number): PatchDevice => {
+  const turn = quarterTurn(seconds)
+  return { ...turn, params: { ...turn.params, fine: 3 / (4 * seconds) } }
+}
 
 export const BASS_NOTES: readonly FactorySound[] = [
   // Sub bass: a sine, its fall onto the note and the harmonics added to it.
@@ -372,7 +387,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         decay: 6,
         accent: 0.3,
         slide: 0.3,
-        sustain: 7,
+        sustain: 12,
         drive: 0.6,
         volume: -9,
       },
@@ -412,7 +427,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
     number: 216,
     name: 'Finger bass {E}',
     kind: 'oneshot',
-    description: 'The open {E} of an electric bass played with a finger, warm, left to ring.',
+    description: 'A low {E} on an electric bass played with a finger, warm, left to ring.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Warm fingers',
@@ -429,7 +444,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -6,
       },
     },
-    effects: [hold(6), hall('Room', 0.1)],
+    effects: [hall('Room', 0.1)],
     ...played(4, [[0, 3.2, 28]], 0.4),
   }),
   sound({
@@ -514,7 +529,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
     name: 'Upright pluck {A}',
     kind: 'oneshot',
     description:
-      'The open {A} of an upright bass plucked once, round and short, with the thump of its body.',
+      'A low {A} on an upright bass plucked once, round and short, with the thump of its body.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Round upright',
@@ -556,7 +571,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -7.5,
       },
     },
-    effects: [hold(5), hall('Room', 0.15)],
+    effects: [hold(9), hall('Room', 0.15)],
     ...played(6, [[0, 4.6, 36]], 0.5),
   }),
   sound({
@@ -582,7 +597,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -5.5,
       },
     },
-    effects: [hold(5), hall('Room', 0.1)],
+    effects: [hall('Room', 0.1)],
     ...played(
       4,
       [
@@ -656,7 +671,8 @@ export const BASS_NOTES: readonly FactorySound[] = [
     ),
   }),
 
-  // Held tones: each loops. A steady one is tuned to whole cycles and given a quarter turn.
+  // Held tones: each loops. A steady one is tuned to whole cycles and given a quarter turn, or three where
+  // its partials can make a taller wave (see `threeQuarterTurn`).
   sound({
     id: 'pure-sub-a',
     number: 225,
@@ -706,7 +722,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -11,
       },
     },
-    effects: [hall('Room', 0.1), quarterTurn(8)],
+    effects: [hall('Room', 0.1), threeQuarterTurn(8)],
     ...looped(8, 1, 1, [36]),
     tuning: 'whole-cycles',
   }),
@@ -721,7 +737,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
       preset: 'Held sub tone',
       params: {
         wave: 1,
-        cutoff: 420,
+        cutoff: 800,
         resonance: 0.2,
         envMod: 0,
         decay: 2,
@@ -732,7 +748,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -6.5,
       },
     },
-    effects: [hall('Room', 0.1), quarterTurn(8)],
+    effects: [hall('Room', 0.1), threeQuarterTurn(8)],
     ...looped(8, 1, 1, [[43, 0.6]]),
     tuning: 'whole-cycles',
   }),
@@ -785,14 +801,13 @@ export const BASS_NOTES: readonly FactorySound[] = [
     number: 229,
     name: 'Dark bass tone {F}',
     kind: 'drone',
-    description:
-      'A held sawtooth bass on {F} behind a nearly closed filter: dark, round and still.',
+    description: 'A held sawtooth bass on {F} behind a low filter: dark, round and still.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Soft dark line',
       params: {
         wave: 0,
-        cutoff: 160,
+        cutoff: 280,
         resonance: 0.15,
         envMod: 0,
         decay: 2,
@@ -803,7 +818,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -7,
       },
     },
-    effects: [hall('Room', 0.12), quarterTurn(8)],
+    effects: [hall('Room', 0.12), threeQuarterTurn(8)],
     ...looped(8, 1, 1, [[41, 0.6]]),
     tuning: 'whole-cycles',
   }),
@@ -813,7 +828,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
     name: 'Beating bass {D}',
     kind: 'pad',
     description:
-      'Two sawtooth bass oscillators on {D} three cents apart: the low tone fades and returns once in eight seconds.',
+      'Two sawtooth bass oscillators on {D} three cents apart: the low tone slowly fades and returns as they beat.',
     instrument: {
       deviceId: 'ladder-bass',
       preset: 'Pedal drone',
@@ -830,7 +845,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -9,
       },
     },
-    effects: [hall('Room', 0.12), quarterTurn(8)],
+    effects: [hall('Room', 0.12), threeQuarterTurn(8)],
     ...looped(8, 2, 2, [38]),
     tuning: 'whole-cycles',
   }),
@@ -840,14 +855,14 @@ export const BASS_NOTES: readonly FactorySound[] = [
     name: 'Resonant bass tone {A}',
     kind: 'drone',
     description:
-      'A held sawtooth bass on {A} with the filter ringing on its third harmonic: nasal and still.',
+      'A held sawtooth bass on {A} with the filter ringing in its lower overtones: nasal and still.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Long glide drone',
       params: {
         wave: 0,
         cutoff: 330,
-        resonance: 0.65,
+        resonance: 0.55,
         envMod: 0,
         decay: 2,
         accent: 0,
@@ -857,7 +872,7 @@ export const BASS_NOTES: readonly FactorySound[] = [
         volume: -9,
       },
     },
-    effects: [hall('Room', 0.12), quarterTurn(8)],
+    effects: [hall('Room', 0.12), threeQuarterTurn(8)],
     ...looped(8, 1, 1, [[45, 0.6]]),
     tuning: 'whole-cycles',
   }),
@@ -867,13 +882,13 @@ export const BASS_NOTES: readonly FactorySound[] = [
     name: 'Breathing sub {E}',
     kind: 'pad',
     description:
-      'A held sine bass on {E} with soft overtones, breathing in and out once in eight seconds.',
+      'A held sine bass on {E} under its octave and fifth, breathing in and out once in eight seconds.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Dark drone',
       params: {
         shape: 0.25,
-        harmonics: 0.5,
+        harmonics: 0.85,
         drop: 0,
         fall: 40,
         attack: 0.05,
