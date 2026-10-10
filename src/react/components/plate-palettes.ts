@@ -77,6 +77,7 @@ export const PLATE_PALETTES = {
   phaser: { plate: '#f29a6b', ink: '#2a0f02', accent: '#4a1a70' },
   tremolo: { plate: '#165a8f', ink: '#f2f9ff', accent: '#ffd75e' },
   falling: { plate: '#404b6b', ink: '#f3efe6', accent: '#ffa25c' },
+  glints: { plate: '#0b6b3a', ink: '#e4f6ea', accent: '#ffe07a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

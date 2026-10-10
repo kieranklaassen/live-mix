@@ -1821,6 +1821,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   phaser: { ...PLATE_PALETTES.phaser, finish: 'fade', cap: 'skirt' },
   tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
   falling: { ...PLATE_PALETTES.falling, finish: 'speckle', cap: 'dot' },
+  glints: { ...PLATE_PALETTES.glints, finish: 'gloss', cap: 'dot' },
 }
 
 /**
