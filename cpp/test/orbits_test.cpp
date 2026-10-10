@@ -2,8 +2,10 @@
 // it asserts what makes it Orbits: every loop brings a sound back at its own
 // period, the periods are Length x (1 + Offset)^k, a pass costs Feedback and
 // Wear, Hold keeps what the loops have and lets nothing in, the level hold
-// keeps a full loop from building, Drift moves the play heads and not the
-// tape, and nothing clicks or depends on the block size when it is handled.
+// keeps a full loop from building at whatever level it is played and leaves
+// the new playing as it was played, an input that is all sides comes back,
+// Drift moves the play heads and not the tape, and nothing clicks, chirps or
+// depends on the block size when it is handled.
 
 #include "../devices/orbits/orbits.h"
 
@@ -145,7 +147,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 175.0f;
+  spec.tail_seconds = 300.0f;
   spec.max_peak = 3.0f;
   check_effect(device, spec, kRate);
 
@@ -154,7 +156,7 @@ int main() {
     device.init(kRate);
     rng_state() = 0x1234567u;
     run(device, noise(1.0f, kRate, 0.5f));
-    Stereo tail = render(device, 260.0f, kRate);
+    Stereo tail = render(device, 400.0f, kRate);
     size_t last = 0;
     for (size_t i = 0; i < tail.size(); ++i) {
       if (tail.left[i] != 0.0f || tail.right[i] != 0.0f) last = i;
@@ -162,7 +164,7 @@ int main() {
     const double seconds = static_cast<double>(last) / kRate;
     std::printf("orbits: default patch silent %.1f s after the input stops (%.1f dB after 20 s)\n",
                 seconds, db(rms(tail.left, 19 * 48000, 21 * 48000)));
-    EXPECT(seconds > 60.0 && seconds < 175.0, "the default tail ends within tail_seconds, not instantly");
+    EXPECT(seconds > 60.0 && seconds < 300.0, "the default tail ends within tail_seconds, not instantly");
   }
 
   // 1. Every loop brings an impulse back at its own period, for three
@@ -281,6 +283,34 @@ int main() {
            "Hold off again: and what they held fades");
   }
 
+  // Hold keeps loud loops as well as soft ones: loops played full at
+  // Feedback 1, to where the record limiter works, are the same to the bit
+  // sixty passes later.
+  {
+    apart(device, 0.5f, 10.0f, 1.0f);
+    rng_state() = 0xA11CEu;
+    std::vector<float> loud = sine(220.0f, 4.0f, kRate, 0.9f);
+    const std::vector<float> hiss = noise(4.0f, kRate, 0.5f);
+    for (size_t i = 0; i < loud.size(); ++i) loud[i] += hiss[i];
+    run(device, loud);
+    device.set_param(p::kHold, 1.0f);
+    render(device, 1.0f, kRate);
+    Stereo held = render(device, 32.0f, kRate);
+    const size_t n = expected_period(0.5, 10.0, 0);
+    const size_t m = expected_period(0.5, 10.0, 1);
+    double worst = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(held.left[i + 60 * n]) - held.left[i]));
+    }
+    for (size_t i = 0; i < m; ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(held.right[i + 50 * m]) - held.right[i]));
+    }
+    std::printf("orbits: loud loops on Hold: peak %.3f, worst difference after 60 passes %g\n",
+                peak(held.left, 0, n), worst);
+    EXPECT(peak(held.left, 0, n) > 0.9, "Hold: the loops were played full");
+    EXPECT(worst == 0.0, "Hold: a loop played full is the same to the bit sixty passes later");
+  }
+
   // 6. Feedback 1 holds too while nothing is played: 60 passes later the
   // layer is where it was and no pass was louder.
   {
@@ -298,36 +328,139 @@ int main() {
     EXPECT(lowest == first && highest == first, "Feedback 1, Wear 0: every one of 60 passes at the same level");
   }
 
-  // 7. The level hold: playing on into loops at Feedback 1 does not build.
-  // A loop settles near -6 dBFS, and when the playing stops it stays there.
+  // 7. The level hold: playing on into loops at Feedback 1 does not build,
+  // at whatever level it is played. A loop comes to hold twice the power of
+  // the playing and no more, and when the playing stops it keeps what it has.
   {
+    double held[2] = {0.0, 0.0};
+    int which = 0;
+    for (float gain : {0.25f, 0.03125f}) {
+      apart(device, 0.5f, 10.0f, 1.0f);
+      Stereo out = run(device, sine(220.0f, 60.0f, kRate, gain));
+      const double early = peak(out.left, 24000, 48000) / gain;
+      const double late = peak(out.left, 58 * 48000, 59 * 48000) / gain;
+      held[which++] = late;
+      std::printf("orbits: a %.3f tone into Feedback 1: the loop peaks at %.3f of it after one pass, %.3f after a minute\n",
+                  gain, early, late);
+      EXPECT_NEAR(early, 1.0, 1.0e-4, "level hold: the first pass is the tone as played");
+      EXPECT_NEAR(late, std::sqrt(2.0), 0.04,
+                  "level hold: after a minute the loop holds twice the power of the playing");
+      Stereo rest = render(device, 30.0f, kRate);
+      const double then = rms(rest.left, 3 * 48000, 4 * 48000);
+      const double much_later = rms(rest.left, 28 * 48000, 29 * 48000);
+      EXPECT(then == much_later, "level hold: with nothing coming in the loop keeps its level, to the bit");
+      EXPECT(then > 0.7 * gain, "level hold: and that is the loop that was playing, not a faded one");
+    }
+    EXPECT_NEAR(held[1] / held[0], 1.0, 1.0e-3, "level hold: the same at an eighth of the level");
+
+    // Notes and gaps, quietly: the loops fill, then stay where they are, and
+    // four times the level in is four times the level out.
+    rng_state() = 0xB0B0u;
+    std::vector<float> bursts(static_cast<size_t>(60.0f * kRate), 0.0f);
+    for (size_t burst = 0; burst * 19200 + 7200 <= bursts.size(); ++burst) {
+      for (size_t i = 0; i < 7200; ++i) {
+        const float fade = i < 480 ? static_cast<float>(i) / 480.0f : i >= 6720 ? static_cast<float>(7200 - i) / 480.0f : 1.0f;
+        bursts[burst * 19200 + i] = 0.05f * fade * white();
+      }
+    }
+    std::vector<float> louder = bursts;
+    for (float& v : louder) v *= 4.0f;
     apart(device, 0.5f, 10.0f, 1.0f);
-    Stereo out = run(device, sine(220.0f, 60.0f, kRate, 0.25f));
-    const double early = peak(out.left, 2 * 24000, 3 * 24000);
-    const double late = peak(out.left, 58 * 48000, 59 * 48000);
-    std::printf("orbits: a 0.25 tone into Feedback 1: loop peaks %.3f after one pass, %.3f after a minute\n",
-                early, late);
-    EXPECT(late < 0.5, "level hold: a minute of playing into a held loop stays under the limiter's knee");
-    EXPECT(late > 0.38, "level hold: the loop is full, not turned down");
-    Stereo rest = render(device, 30.0f, kRate);
-    const double then = rms(rest.left, 48000, 96000);
-    const double much_later = rms(rest.left, 28 * 48000, 29 * 48000);
-    EXPECT_NEAR(db(much_later / then), 0.0, 0.01, "level hold: with nothing coming in the loop keeps its level");
-    EXPECT(then > 0.2, "level hold: and that level is the ceiling's, not a faded one");
+    Stereo quiet = run(device, bursts);
+    apart(device, 0.5f, 10.0f, 1.0f);
+    Stereo loud = run(device, louder);
+    const double played = rms(bursts, 480, 6720);
+    const double sooner = rms(quiet.left, 20 * 48000, 30 * 48000);
+    const double later = rms(quiet.left, 50 * 48000, 60 * 48000);
+    std::printf("orbits: bursts of %.4f into Feedback 1: the loop holds %.4f after 20 s, %.4f after 50 s\n",
+                played, sooner, later);
+    EXPECT(later > 0.8 * played, "level hold: quiet playing fills the loop");
+    EXPECT(later < 1.8 * played, "level hold: and leaves it near twice the power of the playing, not at a fixed ceiling");
+    EXPECT(std::fabs(db(later / sooner)) < 1.0, "level hold: it does not creep up over a minute");
+    double apart_by = 0.0;
+    for (size_t i = 0; i < quiet.size(); ++i) {
+      apart_by = std::max(apart_by, std::fabs(4.0 * quiet.left[i] - loud.left[i]));
+    }
+    EXPECT(apart_by < 1.0e-6, "level hold: four times the playing is four times the loop, sample for sample");
+
+    // It does not pump: under a held chord the share of a pass that is kept
+    // is steady. (With two loops a side apart the left channel is the first
+    // loop's tape one period ago, so what was written is on it one period
+    // later, and the share is what was written less the playing, over the
+    // tape.)
+    {
+      apart(device, 0.5f, 10.0f, 1.0f);
+      std::vector<float> chord(static_cast<size_t>(30.5f * kRate));
+      for (size_t i = 0; i < chord.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        chord[i] = static_cast<float>(0.11 * std::sin(2.0 * kPi * 220.0 * t) + 0.1 * std::sin(2.0 * kPi * 277.18 * t) +
+                                      0.1 * std::sin(2.0 * kPi * 349.23 * t));
+      }
+      Stereo out = run(device, chord);
+      const size_t n = expected_period(0.5, 10.0, 0);
+      const double floor = 0.25 * peak(out.left, 20 * 48000, 30 * 48000);
+      double mean_swing = 0.0, worst_swing = 0.0, mean_share = 0.0;
+      int windows = 0;
+      for (size_t at = 20 * 48000; at + 12000 <= 30 * 48000; at += 12000) {
+        double lowest = 1.0e9, highest = -1.0e9;
+        for (size_t i = at; i < at + 12000; ++i) {
+          if (std::fabs(out.left[i]) < floor) continue;
+          const double share = db(std::fabs((static_cast<double>(out.left[i + n]) - chord[i]) / out.left[i]));
+          lowest = std::min(lowest, share);
+          highest = std::max(highest, share);
+        }
+        mean_swing += highest - lowest;
+        mean_share += 0.5 * (highest + lowest);
+        worst_swing = std::max(worst_swing, highest - lowest);
+        ++windows;
+      }
+      mean_swing /= windows;
+      mean_share /= windows;
+      std::printf("orbits: under a held chord a pass is kept at %.2f dB, moving %.2f dB inside a quarter second (worst %.2f)\n",
+                  mean_share, mean_swing, worst_swing);
+      EXPECT(mean_share < -1.0, "level hold: the chord presses the old layers down");
+      EXPECT(worst_swing < 0.5, "level hold: evenly, not riding the chord");
+    }
+
+    // Nor does it touch the playing: a loud note into an empty loop comes
+    // back sample for sample, and a note played over a full loop comes back
+    // at the level it was played.
+    {
+      apart(device, 0.5f, 10.0f, 0.8f);
+      const std::vector<float> note = tone_at(440.0f, 0.0f, 0.3f, 1.2f, 0.9f);
+      Stereo out = run(device, note);
+      const size_t n = expected_period(0.5, 10.0, 0);
+      double worst = 0.0;
+      for (size_t i = 0; i < 14400; ++i) {
+        worst = std::max(worst, std::fabs(static_cast<double>(out.left[n + i]) - note[i]));
+      }
+      EXPECT(worst < 1.0e-6, "level hold: a loud note comes back as it was played, attack and all");
+
+      apart(device, 0.5f, 10.0f, 1.0f);
+      run(device, sine(220.0f, 10.0f, kRate, 0.2f));
+      std::vector<float> over = sine(220.0f, 1.0f, kRate, 0.2f);
+      const std::vector<float> struck = tone_at(1000.0f, 0.2f, 0.1f, 1.0f, 0.4f);
+      for (size_t i = 0; i < over.size(); ++i) over[i] += struck[i];
+      Stereo full = run(device, over);
+      const double back = tone_level(full.left, 1000.0, kRate, n + 10080, n + 13920);
+      std::printf("orbits: a 0.4 note over a full loop comes back at %.3f\n", back);
+      EXPECT_NEAR(back, 0.4, 0.012, "level hold: a note over a full loop is recorded at the level played");
+    }
 
     // Full scale, five loops, everything that can add up: bounded.
     clean(device, 5, 0.25f, 0.1f, 1.0f);
     device.set_param(p::kWear, 1.0f);
-    Stereo loud = run(device, sine(110.0f, 30.0f, kRate, 1.0f));
-    std::printf("orbits: full-scale tone into five loops at Feedback 1 peaks at %.3f\n", peak(loud.left));
-    EXPECT(finite(loud) && peak(loud.left) < 2.3 && peak(loud.right) < 2.3,
+    Stereo tone = run(device, sine(110.0f, 30.0f, kRate, 1.0f));
+    std::printf("orbits: full-scale tone into five loops at Feedback 1 peaks at %.3f\n", peak(tone.left));
+    EXPECT(finite(tone) && peak(tone.left) < 3.4 && peak(tone.right) < 3.4,
            "full scale into five held loops stays bounded");
-    EXPECT(rms(loud.left, 29 * 48000) > 0.1, "and keeps sounding");
+    EXPECT(rms(tone.left, 29 * 48000) > 0.1, "and keeps sounding");
     rng_state() = 0xFACEu;
     clean(device, 5, 0.25f, 30.0f, 1.0f);
     device.set_param(p::kSpread, 1.0f);
     Stereo hiss = run(device, noise(30.0f, kRate, 1.0f));
-    EXPECT(finite(hiss) && peak(hiss.left) < 2.3 && peak(hiss.right) < 2.3,
+    std::printf("orbits: full-scale noise into five loops at Feedback 1 peaks at %.3f\n", peak(hiss.left));
+    EXPECT(finite(hiss) && peak(hiss.left) < 3.4 && peak(hiss.right) < 3.4,
            "full-scale noise into five held loops stays bounded");
   }
 
@@ -431,30 +564,99 @@ int main() {
                 "at the same power");
   }
 
-  // 11. Length and Offset move the taps like tape: no click, a bend while
-  // they move, and afterwards a pass takes the new period to the sample.
+  // A loop is mono and hears the middle of the input and half of its sides,
+  // from the side it stands on: a sound on one side is louder in the loop on
+  // that side, and an input that is all sides does not vanish.
+  {
+    const size_t n = expected_period(0.5, 10.0, 0);
+    const size_t m = expected_period(0.5, 10.0, 1);
+    const std::vector<float> click = impulse(1.2f, kRate, 0.4f);
+    const std::vector<float> nothing(click.size(), 0.0f);
+    std::vector<float> turned = click;
+    for (float& v : turned) v = -v;
+    apart(device, 0.5f, 10.0f, 0.0f);
+    Stereo one_side = run(device, click, nothing);
+    EXPECT_NEAR(one_side.left[n], 0.3, 1.0e-6, "the loop on the left hears three quarters of a sound on the left");
+    EXPECT_NEAR(one_side.right[m], 0.1, 1.0e-6, "and the loop on the right a quarter of it");
+    apart(device, 0.5f, 10.0f, 0.0f);
+    Stereo sides = run(device, click, turned);
+    EXPECT_NEAR(sides.left[n], 0.2, 1.0e-6, "an input that is all sides comes back: half of it in the left loop");
+    EXPECT_NEAR(sides.right[m], -0.2, 1.0e-6, "and half of it, as the right had it, in the right loop");
+    clean(device, 3, 0.5f, 20.0f, 0.0f);
+    device.set_param(p::kSpread, 1.0f);
+    Stereo three = run(device, click, turned);
+    EXPECT(std::fabs(three.left[expected_period(0.5, 20.0, 0)]) < 1.0e-9, "the loop in the middle hears the middle alone");
+    EXPECT(std::fabs(three.left[expected_period(0.5, 20.0, 1)]) > 0.1 &&
+               std::fabs(three.right[expected_period(0.5, 20.0, 2)]) > 0.1,
+           "and the loops either side of it have the sides");
+  }
+
+  // 11. Length and Offset move the taps. A short way is wound like tape:
+  // no click, the pitch bent by half an octave at most while the tap moves.
+  // A long way is cut over: no click and no bend at all. Afterwards a pass
+  // takes the new period to the sample.
   {
     const double own_step = 0.2 * 2.0 * kPi * 220.0 / kRate;
+    const std::vector<float> tone = sine(220.0f, 6.0f, kRate, 0.2f);
+    // Wound: 0.2 s of tape either way. (The wet is the tape under the tap.)
     apart(device, 1.0f, 10.0f, 0.5f);
     run(device, sine(220.0f, 4.0f, kRate, 0.2f));
-    device.set_param(p::kLength, 1.4f);
-    Stereo longer = run(device, sine(220.0f, 6.0f, kRate, 0.2f));
-    device.set_param(p::kLength, 0.7f);
-    Stereo shorter = run(device, sine(220.0f, 6.0f, kRate, 0.2f));
+    device.set_param(p::kLength, 1.2f);
+    Stereo longer = run(device, tone);
+    device.set_param(p::kLength, 1.0f);
+    Stereo shorter = run(device, tone);
     device.set_param(p::kOffset, 25.0f);
-    Stereo wider = run(device, sine(220.0f, 6.0f, kRate, 0.2f));
-    std::printf("orbits: largest step while the taps move: %.4f longer, %.4f shorter, %.4f offset (steady tone %.4f)\n",
+    Stereo wider = run(device, tone);
+    const double down = dominant_frequency(longer.left, kRate, 60.0, 1000.0, 4800, 16800);
+    const double up = dominant_frequency(shorter.left, kRate, 60.0, 1000.0, 2400, 9600);
+    std::printf("orbits: a tap wound 0.2 s: 220 Hz plays at %.1f Hz while the loop grows, %.1f Hz while it shrinks\n",
+                down, up);
+    std::printf("orbits: largest step while the taps are wound: %.4f longer, %.4f shorter, %.4f offset (steady tone %.4f)\n",
                 max_step(longer.left), max_step(shorter.left), max_step(wider.right), own_step);
-    // Summed passes of a 0.2 tone reach 0.4; a closing tap plays up to four times faster.
-    EXPECT(max_step(longer.left) < 6.0 * own_step, "lengthening the loops does not click");
-    EXPECT(max_step(shorter.left) < 12.0 * own_step, "shortening the loops does not click");
-    EXPECT(max_step(wider.right) < 6.0 * own_step, "moving Offset does not click");
+    // Summed passes of a 0.2 tone reach 0.4, and the tape runs at 1.41 at most.
+    EXPECT(max_step(longer.left) < 3.0 * own_step, "lengthening the loops a little does not click");
+    EXPECT(max_step(shorter.left) < 4.5 * own_step, "shortening the loops a little does not click");
+    EXPECT(max_step(wider.right) < 3.0 * own_step, "moving Offset does not click");
     EXPECT(max_step(wider.left) < 3.0 * own_step, "and leaves the first loop alone");
-    EXPECT(tone_level(longer.left, 220.0, kRate, 0, 9600) <
-               0.6 * tone_level(longer.left, 220.0, kRate, 240000, 288000),
-           "the pitch bends away while a tap moves");
+    EXPECT(down > 220.0 * 0.70 && down < 220.0 * 0.75, "a growing loop plays half an octave down and no further");
+    EXPECT(up > 220.0 * 1.36 && up < 220.0 * 1.42, "a shrinking loop plays half an octave up and no further");
     EXPECT_NEAR(dominant_frequency(longer.left, kRate, 100.0, 1000.0, 240000, 288000), 220.0, 0.5,
-                "and comes back when it stops");
+                "and the pitch comes back when the tap stops");
+
+    // Cut over: from 2 s to a quarter of a second, to 4 s, to half a second,
+    // with a tone in the loops (233 Hz, so the two taps of a cut are out of
+    // step with each other). Nothing but that tone is heard: wound at four
+    // times the speed it would be two octaves up for seconds.
+    const std::vector<float> other = sine(233.0f, 6.0f, kRate, 0.2f);
+    const double other_step = 0.2 * 2.0 * kPi * 233.0 / kRate;
+    apart(device, 2.0f, 10.0f, 0.9f);
+    Stereo before = run(device, other);
+    const double usual = energy_above(before.left, 600.0, kRate, 4 * 48000, 5 * 48000);
+    double worst_step = 0.0, furthest = 0.0, brightest = 0.0, thinnest = 1.0e9;
+    double level_before = rms(before.left, before.size() - 4800, before.size());
+    for (float length : {0.25f, 4.0f, 0.5f}) {
+      device.set_param(p::kLength, length);
+      Stereo cut = run(device, other);
+      worst_step = std::max(worst_step, std::max(max_step(cut.left), max_step(cut.right)));
+      for (size_t at = 0; at + 9600 <= 96000; at += 4800) {
+        furthest = std::max(furthest,
+                            std::fabs(dominant_frequency(cut.left, kRate, 60.0, 2000.0, at, at + 9600) - 233.0));
+        brightest = std::max(brightest, energy_above(cut.left, 600.0, kRate, at, at + 9600));
+        brightest = std::max(brightest, energy_above(cut.right, 600.0, kRate, at, at + 9600));
+      }
+      // The 100 ms that hold the crossfade, against the 100 ms before it.
+      // (Later the level is the new loop's own: a tone and a loop that is
+      // not a whole number of its cycles long partly cancel.)
+      thinnest = std::min(thinnest, rms(cut.left, 0, 4800) / level_before);
+      level_before = rms(cut.left, cut.size() - 4800, cut.size());
+    }
+    std::printf("orbits: three cuts with a 233 Hz tone in the loops: furthest from it %.2f Hz, share above 600 Hz at most %.3f (the tone alone %.3f), largest step %.4f (the tone's %.4f), level across a cut at least %.2f of before\n",
+                furthest, brightest, usual, worst_step, other_step, thinnest);
+    EXPECT(worst_step < 3.0 * other_step, "a long move of Length does not click");
+    EXPECT(furthest < 12.0, "a long move of Length does not bend the pitch: the tone stays the tone");
+    EXPECT(brightest < 1.5 * usual, "and nothing higher is heard while it cuts over");
+    EXPECT(thinnest > 0.5, "nor a hole where it cuts");
+
     clean(device, 3, 1.0f, 10.0f, 0.0f);
     run(device, sine(220.0f, 0.5f, kRate, 0.2f));
     device.set_param(p::kLength, 0.6f);
@@ -576,6 +778,29 @@ int main() {
            "held loops are still turning minutes later");
   }
 
+  // The readings a display draws. What a loop holds is on its third
+  // reading for as long as it holds it, whoever was watching when it was
+  // played; the level at its record head falls to nothing, not to a number
+  // too small to be a number.
+  {
+    apart(device, 12.0f, 30.0f, 1.0f);
+    run(device, tone_at(330.0f, 0.2f, 0.3f, 1.0f, 0.5f));
+    EXPECT_NEAR(device.meter(10), 0.5, 0.01, "a loop's third reading is the highest level on it");
+    EXPECT_NEAR(device.meter(11), 0.5, 0.01, "for every loop that turns");
+    EXPECT(device.meter(12) == 0.0f, "and nothing for a loop that is off");
+    EXPECT(device.meter(5) < 1.0e-3f, "while the level at the record head has fallen");
+    render(device, 6.0f, kRate);
+    const float head = device.meter(5);
+    EXPECT(head == 0.0f || std::fpclassify(head) == FP_NORMAL,
+           "the record head's level between notes is nothing or a number, not a denormal");
+    render(device, 24.0f, kRate);
+    EXPECT_NEAR(device.meter(10), 0.5, 0.01, "half a minute on, the loop still holds it and still says so");
+    device.set_param(p::kFeedback, 0.0f);
+    render(device, 12.0f, kRate);
+    EXPECT(device.meter(10) == 0.0f && device.meter(0) == -1.0f, "a loop that has let go reads empty, at rest");
+    EXPECT(device.meter(-1) == 0.0f && device.meter(15) == 0.0f, "there are fifteen readings");
+  }
+
   // 16. Block size, across a rest. A phrase, a silence that ends before,
   // at and after the moment the loops come to rest, a knob moved inside
   // the silence, the phrase again: the same at every block size.
@@ -675,10 +900,16 @@ int main() {
   device.set_param(p::kDrift, 1.0f);
   device.set_param(p::kLength, 6.0f);
   run(device, noise(0.5f, kRate, 0.25f));
-  report_cost("orbits five loops with every tap gliding", 10.0f, kRate, [&] {
+  report_cost("orbits five loops with every tap wound", 10.0f, kRate, [&] {
     for (int n = 0; n < 10; ++n) {
-      device.set_param(p::kLength, n % 2 == 0 ? 3.0f : 6.0f);
+      device.set_param(p::kLength, n % 2 == 0 ? 5.8f : 6.0f);
       run(device, std::vector<float>(input.begin() + n * 48000, input.begin() + (n + 1) * 48000));
+    }
+  });
+  report_cost("orbits five loops cutting over all the time", 10.0f, kRate, [&] {
+    for (int n = 0; n < 250; ++n) {
+      device.set_param(p::kLength, n % 2 == 0 ? 3.0f : 6.0f);
+      run(device, std::vector<float>(input.begin() + n * 1920, input.begin() + (n + 1) * 1920));
     }
   });
 

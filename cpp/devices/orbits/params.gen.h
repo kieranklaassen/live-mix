@@ -4,8 +4,8 @@
 // src/dsp/devices/orbits.gen.ts:
 //    0  loops: 2..5, default 3
 //    1  length: 0.25..12 s, default 2
-//    2  offset: 0.1..30, default 1.5
-//    3  feedback: 0..1, default 0.8
+//    2  offset: 0.1..30, default 0.5
+//    3  feedback: 0..1, default 0.88
 //    4  wear: 0..1, default 0.25
 //    5  drift: 0..1, default 0.2
 //    6  spread: 0..1, default 0.7
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {2.0f, 0.25f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {5.0f, 12.0f, 30.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {3.0f, 2.0f, 1.5f, 0.8f, 0.25f, 0.2f, 0.7f, 0.0f, 0.4f};
+inline constexpr float kParamDefault[kNumParams] = {3.0f, 2.0f, 0.5f, 0.88f, 0.25f, 0.2f, 0.7f, 0.0f, 0.4f};
 
 }  // namespace orbits
 }  // namespace livemix

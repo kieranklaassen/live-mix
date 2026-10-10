@@ -8,16 +8,81 @@
   "sources": [],
   "memoryMb": 32,
   "meters": [
-    { "key": "phase1", "name": "Loop 1 place", "display": true },
-    { "key": "phase2", "name": "Loop 2 place", "display": true },
-    { "key": "phase3", "name": "Loop 3 place", "display": true },
-    { "key": "phase4", "name": "Loop 4 place", "display": true },
-    { "key": "phase5", "name": "Loop 5 place", "display": true },
-    { "key": "level1", "name": "Loop 1 level", "display": true },
-    { "key": "level2", "name": "Loop 2 level", "display": true },
-    { "key": "level3", "name": "Loop 3 level", "display": true },
-    { "key": "level4", "name": "Loop 4 level", "display": true },
-    { "key": "level5", "name": "Loop 5 level", "display": true }
+    {
+      "key": "phase1",
+      "name": "Loop 1 place",
+      "display": true
+    },
+    {
+      "key": "phase2",
+      "name": "Loop 2 place",
+      "display": true
+    },
+    {
+      "key": "phase3",
+      "name": "Loop 3 place",
+      "display": true
+    },
+    {
+      "key": "phase4",
+      "name": "Loop 4 place",
+      "display": true
+    },
+    {
+      "key": "phase5",
+      "name": "Loop 5 place",
+      "display": true
+    },
+    {
+      "key": "level1",
+      "name": "Loop 1 level",
+      "display": true
+    },
+    {
+      "key": "level2",
+      "name": "Loop 2 level",
+      "display": true
+    },
+    {
+      "key": "level3",
+      "name": "Loop 3 level",
+      "display": true
+    },
+    {
+      "key": "level4",
+      "name": "Loop 4 level",
+      "display": true
+    },
+    {
+      "key": "level5",
+      "name": "Loop 5 level",
+      "display": true
+    },
+    {
+      "key": "held1",
+      "name": "Loop 1 holds",
+      "display": true
+    },
+    {
+      "key": "held2",
+      "name": "Loop 2 holds",
+      "display": true
+    },
+    {
+      "key": "held3",
+      "name": "Loop 3 holds",
+      "display": true
+    },
+    {
+      "key": "held4",
+      "name": "Loop 4 holds",
+      "display": true
+    },
+    {
+      "key": "held5",
+      "name": "Loop 5 holds",
+      "display": true
+    }
   ],
   "params": [
     {
@@ -37,23 +102,23 @@
       "default": 2,
       "taper": "log",
       "unit": "s",
-      "description": "How long the first loop is, the time before a note comes round again. Moving it bends the pitch of what the loops hold."
+      "description": "How long the first loop is, the time before a note comes round again. A small move bends the pitch of what the loops hold, a large one cuts over to the new length."
     },
     {
       "key": "offset",
       "name": "Offset",
       "min": 0.1,
       "max": 30,
-      "default": 1.5,
+      "default": 0.5,
       "taper": "log",
-      "description": "How much longer each loop is than the one before. Small and the copies slide slowly out of step, large and the loops hardly ever line up again."
+      "description": "How much longer each loop is than the one before. Small and the copies slide slowly out of step, large and they hardly ever line up. Very long loops are kept closer."
     },
     {
       "key": "feedback",
       "name": "Feedback",
       "min": 0,
       "max": 1,
-      "default": 0.8,
+      "default": 0.88,
       "description": "How much of each pass is kept for the next. Low and layers die away quickly. At the top the loops hold what they have and new playing presses old layers down."
     },
     {
@@ -78,7 +143,7 @@
       "min": 0,
       "max": 1,
       "default": 0.7,
-      "description": "Places the loops across the stereo field, alternating left and right from the middle outward. At zero they all sit in the middle."
+      "description": "Places the loops across the stereo field, alternating left and right from the middle outward. Each loop is mono and hears more of the side it stands on."
     },
     {
       "key": "hold",
@@ -100,8 +165,8 @@
     "Slow phasing": {
       "loops": 3,
       "length": 2,
-      "offset": 1.5,
-      "feedback": 0.8,
+      "offset": 0.5,
+      "feedback": 0.88,
       "wear": 0.25,
       "drift": 0.2,
       "spread": 0.7,
@@ -111,12 +176,32 @@
     "Two voices": {
       "loops": 2,
       "length": 1.5,
-      "offset": 0.5,
-      "feedback": 0.85,
+      "offset": 0.2,
+      "feedback": 0.9,
       "wear": 0.1,
       "drift": 0.1,
       "spread": 1,
       "mix": 0.45
+    },
+    "Out of step": {
+      "loops": 3,
+      "length": 2,
+      "offset": 1.5,
+      "feedback": 0.8,
+      "wear": 0.25,
+      "drift": 0.2,
+      "spread": 0.7,
+      "mix": 0.4
+    },
+    "Wide weave": {
+      "loops": 4,
+      "length": 1.1,
+      "offset": 6,
+      "feedback": 0.78,
+      "wear": 0.35,
+      "drift": 0.35,
+      "spread": 1,
+      "mix": 0.55
     },
     "Five moons": {
       "loops": 5,
@@ -194,7 +279,7 @@
       "wear": 0,
       "drift": 0.25,
       "spread": 0.8,
-      "mix": 0.45
+      "mix": 0.35
     },
     "Pulse pair": {
       "loops": 2,
@@ -204,7 +289,7 @@
       "wear": 0.15,
       "drift": 0,
       "spread": 1,
-      "mix": 0.4
+      "mix": 0.35
     },
     "Middle pile": {
       "loops": 5,
@@ -216,35 +301,15 @@
       "spread": 0,
       "mix": 0.45
     },
-    "Slow canon": {
-      "loops": 3,
-      "length": 4,
-      "offset": 12,
-      "feedback": 0.7,
-      "wear": 0.15,
-      "drift": 0.15,
-      "spread": 1,
-      "mix": 0.5
-    },
     "Floating pair": {
       "loops": 2,
       "length": 2.4,
-      "offset": 0.2,
+      "offset": 0.3,
       "feedback": 0.88,
       "wear": 0.2,
       "drift": 1,
       "spread": 1,
       "mix": 0.5
-    },
-    "Wide weave": {
-      "loops": 4,
-      "length": 1.1,
-      "offset": 6,
-      "feedback": 0.78,
-      "wear": 0.35,
-      "drift": 0.35,
-      "spread": 1,
-      "mix": 0.55
     },
     "Dark tide": {
       "loops": 5,
@@ -254,11 +319,11 @@
       "wear": 0.7,
       "drift": 0.6,
       "spread": 0.9,
-      "mix": 0.6
+      "mix": 0.55
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit: several sound-on-sound loops of unequal whole-sample periods on one input, each with its own play head, a level hold in the feedback path and a place across the stereo field."
+    "note": "Written for live-mix on cpp/kit: several sound-on-sound loops of unequal whole-sample periods on one input, each with its own play head, a level hold on what it keeps and a place across the stereo field."
   }
 }

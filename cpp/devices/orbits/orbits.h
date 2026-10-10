@@ -6,13 +6,13 @@
 // slow phasing of one figure against itself, far apart it is long loops that
 // do not line up again for hours.
 //
-//                    ┌─► loop 1 ─► play head ─► place 1 ─┐
-//   in ─► mono ─► listen ─► loop 2 ─► play head ─► place 2 ─┼─► wet
-//                    └─► ...                              ┘
+//                ┌─► loop 1 ─► play head ─► place 1 ─┐
+//   in ─► listen ─┼─► loop 2 ─► play head ─► place 2 ─┼─► wet
+//                └─► ...                              ┘
 //
-//   one loop:   x ─(+)─► level hold ─► limit ─► tape ─┬─► play head (Drift) ─► out
-//                   ▲                                │
-//                   └──────── Feedback ◄─ Wear ◄─────┘  tap, one period back
+//   one loop:   x ─(+)─► limit ─► tape ─┬─► play head (Drift) ─► out
+//                   ▲                  │
+//                   └─ level hold ◄─ Feedback ◄─ Wear ◄─┘  tap, one period back
 //
 // - Loop k (0 for the first) is `Length x (1 + Offset)^k` long, to the whole
 //   sample. Its feedback tap sits exactly one period behind its record head,
@@ -23,29 +23,45 @@
 // - Wear is in the feedback path only: a one-pole low-pass (16 kHz down to
 //   2 kHz) and soft saturation, so the first return is clean and every later
 //   pass has one more generation of it.
-// - The level hold keeps a loop from building: a follower (1 ms up, 250 ms
-//   down) watches what the record head is given, the new playing and the
-//   kept pass together, and while that stands over -7 dBFS both are turned
-//   down by the excess. Playing into a full loop presses the old layers down
-//   instead of piling up; under the ceiling it does nothing and the copy
-//   stays exact. After it the record head has a limiter that is exactly
-//   linear below -6 dBFS and never has gain, for what the follower is too
-//   slow to catch.
+// - The level hold keeps a loop from building, at whatever level it is
+//   played: a place on a loop may hold up to twice the power of the loudest
+//   playing of the last seconds (3 dB over it, what Feedback 0.71 comes to
+//   by itself), and where the kept pass and the new playing together would
+//   come to more than that, the kept pass is turned down until they do
+//   not. So new playing presses old layers down, there where it lands, and
+//   is itself recorded as played. A loop that already holds more (it was
+//   played louder a while ago) is not pulled down to that at once: new
+//   playing takes out of it twice what it puts in, pass by pass. The powers
+//   are averages over a tenth of a second and the gain is eased over 30 ms,
+//   so it follows how loud the playing is and not its waveform. With
+//   nothing played nothing is pressed and a pass is exact, from about a
+//   second after the playing stops; for that second the gain is still on
+//   its way back. After it the record head has a limiter that is exactly
+//   linear up to full scale and never has gain, for peaks the averages
+//   cannot see.
 // - Drift moves each loop's play head (not its tap) a few milliseconds either
 //   way, slowly and differently per loop: the copies shift against each other
 //   and float in pitch (3 Hz on a 1 kHz tone at most), and nothing of it is
 //   recorded, so it does not build up over passes.
-// - Hold stops the loops listening and sets what they keep per pass to all of
-//   it, unworn, over 20 ms. The loops keep turning against each other.
-// - The loops are mono (the two inputs are summed) and each has its place
-//   across the stereo field: Spread lays them out from the middle outward,
-//   alternating sides. Their sum is scaled by 1/sqrt(loops), so the first
-//   return of a note is about as loud as the note whatever the count.
-// - Length, Offset and Loops move the taps: a tap glides to its new period
-//   (a 0.25 s lag, at most three samples of tape per sample, picking up
-//   speed over 15 ms), bending what that loop holds while it moves. A loop
-//   that is switched off fades out over 20 ms and starts blank when it is
-//   switched on again.
+// - Hold stops the loops listening and, once it is fully on (20 ms), makes
+//   every pass a copy of the one before, sample for sample: no fading, no
+//   wear, no level hold, no limiter. The loops keep turning against each
+//   other for as long as they are left.
+// - The loops are mono and each has its place across the stereo field:
+//   Spread lays them out from the middle outward, alternating sides. Each
+//   hears the middle of the input and half of its sides, the left of it for a
+//   loop whose place is left and the right for one on the right (the loop in
+//   the middle hears the middle alone), so a wide or out-of-phase input comes
+//   back and a mono one is the same in every loop. Their sum is scaled by
+//   1/sqrt(loops), so the first return of a note is about as loud as the
+//   note whatever the count.
+// - Length, Offset and Loops move the taps. A tap that has less than a
+//   quarter of a second to go is wound there like tape (a 0.25 s lag, the
+//   tape under it never slower or faster than half an octave, picking up
+//   speed over 15 ms), which bends what that loop holds while it moves. One
+//   that has further to go cuts over: the loop crossfades to its new length
+//   in 40 ms, with no bend. A loop that is switched off fades out over 20 ms
+//   and starts blank when it is switched on again.
 // - Storage: five rings of 1,440,000 samples (30 s at 48 kHz, 15 s at
 //   96 kHz), 27.5 MB. Where Length and Offset ask the longest loop for more
 //   than a ring holds, the ratio between neighbouring loops is brought down
@@ -85,13 +101,18 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
     glide_ = 1.0 - std::exp(-1.0 / (static_cast<double>(kLengthLagSeconds) * sr));
     motor_ = 1.0f - kit::time_to_coeff(kMotorLagSeconds, sr);
     heard_decay_ = kit::time_to_coeff(kHeardSeconds, sr);
+    ease_ = 1.0f - kit::time_to_coeff(kEaseSeconds, sr);
+    far_ = static_cast<double>(kFarSeconds) * sr;
+    cut_step_ = 1.0f / (kCutSeconds * sr);
+    balance_ = 1.0f - kit::time_to_coeff(kBalanceSeconds, sr);
+    forget_ = kit::time_to_coeff(kPlayedSeconds, sr);
     for (int k = 0; k < kMaxLoops; ++k) {
       Loop& o = loops_[k];
       o.ring.clear();
       o.on.set_time(kSwitchSeconds, sr);
       o.left.set_time(kSmoothingSeconds, sr);
       o.right.set_time(kSmoothingSeconds, sr);
-      o.level.set(kHoldAttackSeconds, kHoldReleaseSeconds, sr);
+      o.lean.set_time(kSmoothingSeconds, sr);
       o.drift.set_rate(kDriftHz[k], sr);
       o.on.snap(0.0f);
     }
@@ -110,12 +131,17 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
   // 5 to 9: the level that loop's record head has just written (its highest
   // sample, let fall over 30 ms), which is the new playing and what was kept
   // of the pass before; 0 for a loop that is off and at rest.
+  // 10 to 14: the highest level anywhere on that loop: the highest sample
+  // its record head wrote in the turn before this one and in this one so
+  // far. It says what a loop holds to someone who has not watched it turn.
   float meter(int index) const {
-    if (index < 0 || index >= 2 * kMaxLoops) return 0.0f;
+    if (index < 0 || index >= 3 * kMaxLoops) return 0.0f;
     const Loop& o = loops_[index % kMaxLoops];
     const bool turning = !rest_ && (o.on.value > 0.0f || o.on.target > 0.0f);
     if (index < kMaxLoops) return turning ? static_cast<float>(o.turn / o.length) : -1.0f;
-    return turning ? o.heard : 0.0f;
+    if (!turning) return 0.0f;
+    if (index < 2 * kMaxLoops) return o.heard;
+    return o.most > o.most_before ? o.most : o.most_before;
   }
 
   void process(int frames) {
@@ -149,54 +175,106 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
       const float depth = drift_.next() * depth_scale;
       // Hold: nothing new goes in, and all of a pass is kept.
       const float keep = feedback + hold * (1.0f - feedback);
-      const float heard = (1.0f - hold) * 0.5f * (in_left + in_right);
+      const float listen = 1.0f - hold;
+      const float middle = 0.5f * (in_left + in_right);
+      const float sides = 0.5f * (in_left - in_right);
 
       float wet_left = 0.0f;
       float wet_right = 0.0f;
       for (Loop& o : loops_) {
         const float on = o.on.next();
         if (on == 0.0f && o.on.target == 0.0f) continue;
-        if (o.length != o.target) {
-          // The tap is moved by a motor: it picks up speed and it lands.
-          const float asked =
-              kit::clamp(static_cast<float>((o.target - o.length) * glide_), -kMaxSlew, kMaxSlew);
-          o.speed += (asked - o.speed) * motor_;
-          o.length += o.speed;
-          if (std::fabs(o.target - o.length) < 1.0e-3 && std::fabs(o.speed) < 1.0e-3f) {
+        const bool cutting = o.cut < 1.0f;
+        if (cutting) {
+          o.cut += cut_step_;
+        } else if (o.length != o.target) {
+          const double away = o.target - o.length;
+          if (away > far_ || away < -far_) {
+            // Too far to wind: the loop cuts over to its new length.
+            o.from = o.length;
             o.length = o.target;
             o.speed = 0.0f;
+            o.cut = 0.0f;
+            if (o.turn >= o.length) o.turn = std::fmod(o.turn, o.length);
+          } else {
+            // The tap is moved by a motor: it picks up speed and it lands.
+            const float asked =
+                kit::clamp(static_cast<float>(away * glide_), -kSlewShorter, kSlewLonger);
+            o.speed += (asked - o.speed) * motor_;
+            o.length += o.speed;
+            if (std::fabs(o.target - o.length) < 1.0e-3 && std::fabs(o.speed) < 1.0e-3f) {
+              o.length = o.target;
+              o.speed = 0.0f;
+            }
           }
         }
 
         // The feedback tap, one period behind the record head.
-        const float old = o.ring.read(o.length);
+        float old = o.ring.read(o.length);
+        // The play head: on the tap, or wandering around it with Drift.
+        const float wobble = o.wobble.next();
+        float play = depth > 0.0f ? o.ring.read(o.length + depth * wobble) : old;
+        if (o.cut < 1.0f) {
+          // Cutting over: from the length it had to the one it has, both at tape speed.
+          const float share = 0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * kit::clamp(o.cut, 0.0f, 1.0f));
+          const float gone = o.ring.read(o.from);
+          const float gone_play = depth > 0.0f ? o.ring.read(o.from + depth * wobble) : gone;
+          old = gone + share * (old - gone);
+          play = gone_play + share * (play - gone_play);
+        }
         // What a pass costs: at Wear 0 the filter's pole is 0 and the
         // saturation's share is 0, and `back` is `old` to the bit.
         float back = o.dull.lowpass(old);
         back += wear * (kit::fast_tanh(back * kDrive) * (1.0f / kDrive) - back);
         if (hold > 0.0f) back = hold >= 1.0f ? old : back + hold * (old - back);
-        // Level hold: what the record head is given, new and old together,
-        // is turned down by as much as it stands over the ceiling.
-        const float sum = heard + keep * back;
-        const float level = o.level.process(sum);
-        const float room = level > kCeiling ? kCeiling / level : 1.0f;
-        const float written = guard(kit::soft_clip(room * sum));
+        // What this loop hears: the middle, and the sides from where it stands.
+        const float fresh = listen * (middle + o.lean.next() * sides);
+        const float kept = keep * back;
+
+        // Level hold. Averages of the power of the new playing, of the kept
+        // pass and of the two against each other say what the two together
+        // come to; where that is more than the loop may hold here, the kept
+        // pass is turned down by just enough.
+        const float fresh_power = fresh * fresh;
+        o.played = flush_denormal(o.played + (fresh_power - o.played) * balance_);
+        o.stays = flush_denormal(o.stays + (kept * kept - o.stays) * balance_);
+        o.both = flush_denormal(o.both + (fresh * kept - o.both) * balance_);
+        // How loud the playing is at its loudest, kept through the gaps
+        // between notes: the highest that average has been, let fall slowly.
+        const float remembered = flush_denormal(o.loudest * forget_);
+        o.loudest = o.played > remembered ? o.played : remembered;
+        float share = 1.0f;
+        if (o.played > kNegligible * o.stays) {
+          const float may = kit::max(kHoldOver * o.loudest, o.stays - kTakeOut * o.played);
+          if (o.stays + 2.0f * o.both + o.played > may) {
+            // stays p^2 + 2 both p + played = may, for the share p of the kept pass.
+            const float root = o.both * o.both + o.stays * (may - o.played);
+            share = kit::clamp((std::sqrt(root > 0.0f ? root : 0.0f) - o.both) / o.stays, 0.0f, 1.0f);
+          }
+        }
+        // Eased, so the averages' ripple is not on the layer; and all of the
+        // pass, to the bit, once nothing asks for less.
+        o.press += (share - o.press) * ease_;
+        if (share == 1.0f && o.press > kNearlyAll) o.press = 1.0f;
+        // Hold fully on: a copy of the pass before and nothing else.
+        const float written = hold >= 1.0f ? old : guard(limit(fresh + o.press * kept));
         const float size = written < 0.0f ? -written : written;
 
-        // The play head: on the tap, or wandering around it with Drift.
-        const float wobble = o.wobble.next();
-        const float play = depth > 0.0f ? o.ring.read(o.length + depth * wobble) : old;
-
         o.ring.write(written);
-        const float fallen = o.heard * heard_decay_;
+        const float fallen = flush_denormal(o.heard * heard_decay_);
         o.heard = size > fallen ? size : fallen;
+        if (size > o.most) o.most = size;
         if (size > kit::IdleGate::kFloor) {
           o.blank = 0;
         } else if (o.blank < kLongEnough) {
           ++o.blank;
         }
         o.turn += 1.0;
-        if (o.turn >= o.length) o.turn -= o.length;
+        if (o.turn >= o.length) {
+          o.turn -= o.length;
+          o.most_before = o.most;
+          o.most = 0.0f;
+        }
 
         wet_left += play * on * o.left.next();
         wet_right += play * on * o.right.next();
@@ -247,14 +325,35 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
   // A play head is moved to a new distance, not put there: Drift's depth
   // takes this long, so turning it bends the pitch by cents and no more.
   static constexpr float kDriftLagSeconds = 0.5f;
-  // Fastest a tap moves, in samples of tape per sample.
-  static constexpr float kMaxSlew = 3.0f;
+  // Fastest a tap is wound, in samples of tape per sample: the tape under it
+  // runs at 1 less this, half an octave down while a loop grows longer and
+  // half an octave up while it grows shorter.
+  static constexpr float kSlewLonger = 0.2929f;
+  static constexpr float kSlewShorter = 0.4142f;
+  // A tap with further than this to go is not wound there: the loop cuts
+  // over to its new length, with a crossfade this long.
+  static constexpr float kFarSeconds = 0.25f;
+  static constexpr float kCutSeconds = 0.04f;
   static constexpr float kDrive = 1.5f;
-  // Level hold: -7 dBFS, a little under the record limiter's knee, so that a
-  // loop it has levelled is left alone by the limiter.
-  static constexpr float kCeiling = 0.45f;
-  static constexpr float kHoldAttackSeconds = 0.001f;
-  static constexpr float kHoldReleaseSeconds = 0.25f;
+  // Level hold: a loop may hold this many times the power of the playing.
+  static constexpr float kHoldOver = 2.0f;
+  // Where it holds more, new playing takes out this much more than it puts
+  // in (its own power again), until the loop is down to that.
+  static constexpr float kTakeOut = 1.0f;
+  // The averages it works on, and how long the playing's level is remembered.
+  static constexpr float kBalanceSeconds = 0.1f;
+  static constexpr float kPlayedSeconds = 4.0f;
+  // Playing this far under what a loop holds (-40 dB) presses nothing down.
+  static constexpr float kNegligible = 1.0e-4f;
+  // How fast the share of the kept pass moves, and from where it is all of
+  // it (a last step of a hundredth of a dB, so that a pass can be exact).
+  static constexpr float kEaseSeconds = 0.03f;
+  static constexpr float kNearlyAll = 0.999f;
+  // The record limiter: exactly linear up to full scale, and never over this.
+  static constexpr float kKnee = 1.0f;
+  static constexpr float kTop = 1.5f;
+  // How much of the input's sides a loop hears, from the side it stands on.
+  static constexpr float kLean = 0.5f;
   // Drift at full: the play head wanders 12 ms either way, about 7 cents at
   // its fastest. A rate per loop, none a simple multiple of another.
   static constexpr float kDriftSeconds = 0.012f;
@@ -284,13 +383,20 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
     orbits::Ring<kRingFrames> ring;
     double length = 96000.0;   // the tap's distance, gliding, in samples
     double target = 96000.0;   // where it is going: a whole number
+    double from = 96000.0;     // the distance it had before it cut over
     double turn = 0.0;         // the head's place in its turn, in samples
     float speed = 0.0f;        // how fast the tap is moving, in samples per sample
+    float cut = 1.0f;          // how far a cut-over has got, 0 to 1
     long blank = 0;            // how long the record head has written nothing
     float heard = 0.0f;        // for meter() only: never read by the sound
+    float most = 0.0f;         // for meter() only: the highest sample written this turn
+    float most_before = 0.0f;  // and in the turn before
+    // Level hold: mean squares of the new playing, of the kept pass, of the
+    // two multiplied, and the playing's level as it is remembered.
+    float played = 0.0f, stays = 0.0f, both = 0.0f, loudest = 0.0f;
+    float press = 1.0f;        // the share of the kept pass that is written
     kit::OnePole dull;
-    kit::Follower level;
-    kit::Smoother on, left, right;
+    kit::Smoother on, left, right, lean;
     kit::Drift drift;
     Line wobble;
   };
@@ -302,6 +408,38 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
     return x <= -kInputBound ? -kInputBound : 0.0f;
   }
   static float guard(float x) { return (x > -2.0f && x < 2.0f) ? flush_denormal(x) : 0.0f; }
+
+  // The record limiter: what goes on the tape is what it is given up to full
+  // scale, to the bit, and bends over to kTop above that.
+  static float limit(float x) {
+    const float size = x < 0.0f ? -x : x;
+    if (size <= kKnee) return x;
+    const float bent = kKnee + (kTop - kKnee) * kit::fast_tanh((size - kKnee) * (1.0f / (kTop - kKnee)));
+    return x < 0.0f ? -bent : bent;
+  }
+
+  // The loop forgets everything but its place and its period.
+  static void wipe(Loop& o) {
+    o.ring.forget();
+    o.dull.reset();
+    o.length = o.target;
+    o.from = o.target;
+    o.speed = 0.0f;
+    o.cut = 1.0f;
+    o.turn = 0.0;
+    o.blank = 0;
+    o.heard = 0.0f;
+    o.most = 0.0f;
+    o.most_before = 0.0f;
+    o.played = 0.0f;
+    o.stays = 0.0f;
+    o.both = 0.0f;
+    o.loudest = 0.0f;
+    o.press = 1.0f;
+    o.left.snap(o.left.target);
+    o.right.snap(o.right.target);
+    o.lean.snap(o.lean.target);
+  }
 
   // Which place loop `k` of `loops` takes across the field, 0 at the far left
   // and loops - 1 at the far right: from the middle outward, a side in turn.
@@ -327,7 +465,8 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
     const double reach = kDriftSeconds * sample_rate() + 16.0;
     for (const Loop& o : loops_) {
       if (o.on.value == 0.0f && o.on.target == 0.0f) continue;
-      const double period = o.length > o.target ? o.length : o.target;
+      double period = o.length > o.target ? o.length : o.target;
+      if (o.cut < 1.0f && o.from > period) period = o.from;
       if (static_cast<double>(o.blank) <= period + reach) return false;
     }
     return true;
@@ -338,17 +477,8 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
   void restart() {
     for (int k = 0; k < kMaxLoops; ++k) {
       Loop& o = loops_[k];
-      o.ring.forget();
-      o.dull.reset();
-      o.level.reset();
-      o.length = o.target;
-      o.speed = 0.0f;
-      o.turn = 0.0;
-      o.blank = 0;
-      o.heard = 0.0f;
+      wipe(o);
       o.on.snap(o.on.target);
-      o.left.snap(o.left.target);
-      o.right.snap(o.right.target);
       o.drift.seed(kDriftSeed[k]);
     }
     feedback_.snap(feedback_.target);
@@ -395,19 +525,12 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
         const float angle = (across + 1.0f) * (kit::kHalfPi * 0.5f);
         o.left.set_target(side(share * 1.41421356f * std::cos(angle)));
         o.right.set_target(side(share * 1.41421356f * std::sin(angle)));
-        if (o.on.value == 0.0f && o.on.target == 0.0f) {
-          // Switched on: a blank loop, at its period, in its place.
-          o.ring.forget();
-          o.dull.reset();
-          o.level.reset();
-          o.length = o.target;
-          o.speed = 0.0f;
-          o.turn = 0.0;
-          o.blank = 0;
-          o.heard = 0.0f;
-          o.left.snap(o.left.target);
-          o.right.snap(o.right.target);
-        }
+        // It hears the sides of the input from the side it stands on,
+        // however far Spread has moved it there.
+        const int stands = 2 * place(k, count) - (count - 1);
+        o.lean.set_target(stands < 0 ? kLean : stands > 0 ? -kLean : 0.0f);
+        // Switched on: a blank loop, at its period, in its place.
+        if (o.on.value == 0.0f && o.on.target == 0.0f) wipe(o);
       }
       o.on.set_target(wanted ? 1.0f : 0.0f);
     }
@@ -447,8 +570,13 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
   kit::Smoother feedback_, wear_, drift_, hold_, mix_;
   kit::ControlClock clock_;
   double glide_ = 0.0;
+  double far_ = 12000.0;
   float motor_ = 0.0f;
+  float cut_step_ = 0.0f;
+  float balance_ = 0.0f;
+  float forget_ = 0.0f;
   float heard_decay_ = 0.0f;
+  float ease_ = 0.0f;
   float wear_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
   bool moving_ = false;
