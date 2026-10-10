@@ -131,10 +131,10 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
   void process(int frames);
 
   // The readings named by "meters": for each octave of the curve's axis, the
-  // level of what was last written to the history there (input and repeats
-  // together, both channels), as the amplitude of a sine of that energy,
-  // with a fall of 120 ms so no frame is missed between two readings. Asleep
-  // they read 0.
+  // level of the sound that last came in there (both channels, before the
+  // repeats are added: the display draws those itself, from the curve), as
+  // the amplitude of a sine of that energy, with a fall of 120 ms so no frame
+  // is missed between two readings. Asleep they read 0.
   float meter(int index) const {
     if (index < 0 || index >= kZones || idle_.asleep()) return 0.0f;
     return zone_level_[index];
@@ -254,7 +254,7 @@ inline void Prism::init(float sample_rate) {
   mix_.set_time(kSmoothingSeconds, sr);
   mix_.snap(param(kMix));
   mix_seen_ = -1.0f;
-  // What is in flight when the history has emptied: a latency and a frame.
+  // What is in flight when the ring has emptied: a latency and a frame.
   idle_.reset(sr, static_cast<float>(Stft::kLatency + Stft::kFrame + Stft::kHop) / sr);
   rebuild();
 }
@@ -467,6 +467,7 @@ inline void Prism::frame(int c, float* re, float* im) {
   const float* pan = pan_[c];
   for (int k = 0; k < stride; ++k) {
     const float gain = scale * loop_[k];
+    zone_energy_[zone_[k]] += re[k] * re[k] + im[k] * im[k];
     float hr = re[k] + gain * due[k][0];
     float hi = im[k] + gain * due[k][1];
     float energy = hr * hr + hi * hi;
@@ -474,8 +475,6 @@ inline void Prism::frame(int c, float* re, float* im) {
       hr = 0.0f;
       hi = 0.0f;
       energy = 0.0f;
-    } else {
-      zone_energy_[zone_[k]] += energy;
     }
     out_re[k] = due[k][2] * pan[k];
     out_im[k] = due[k][3] * pan[k];

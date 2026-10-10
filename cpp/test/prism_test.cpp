@@ -134,7 +134,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  // The repeats at the default die in about 6 s; the history then takes 8.2 s to empty before the device sleeps.
+  // The repeats at the default die in about 6 s, and the device sleeps once the furthest throw has landed.
   spec.tail_seconds = 24.0f;
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
@@ -703,9 +703,10 @@ int main() {
     EXPECT(worst_difference(woken, first) == 0.0, "knobs moved asleep snap: the same as a device that had them all along");
   }
 
-  // The meters: the level entering each octave of the curve's axis, as the amplitude of a sine. A tone of 0.5 at
-  // 700 Hz reads 0.5 in the fourth and nothing in the others; a burst reads again when its repeat comes round,
-  // Feedback smaller; and reading them changes nothing.
+  // The meters: the level coming in to each octave of the curve's axis, as the amplitude of a sine. A tone of 0.5
+  // at 700 Hz reads 0.5 in the fourth and nothing in the others; a burst reads once, as it comes in, and not
+  // again when its repeat comes round (the display draws the repeats from the curve, and would count them twice);
+  // and reading them changes nothing.
   {
     plain(device);
     run(device, sine(700.0f, 0.5f, kRate, 0.5f));
@@ -735,10 +736,11 @@ int main() {
       if (at > 0.27 && at < 0.3) between = std::min(between, level);
       if (at > 0.32 && at < 0.52) second = std::max(second, level);
     }
-    std::printf("meter: a burst reads %.3f, %.4f between, %.3f when its repeat comes round\n", first, between, second);
+    std::printf("meter: a burst reads %.3f, %.4f between, %.4f when its repeat comes round\n", first, between, second);
     EXPECT(first > 0.3 && first < 0.5, "the burst reads as it enters");
     EXPECT(between < 0.1 * first, "the reading falls away after it");
-    EXPECT_NEAR(second / first, 0.5, 0.03, "and reads again, Feedback smaller, when the repeat enters");
+    // The reading only goes on falling: 20 dB every 120 ms, with nothing new when the repeat is heard.
+    EXPECT(second < between, "and the repeat that comes round is not read as sound coming in");
 
     rng_state() = 12;
     const std::vector<float> phrase = noise(0.5f, kRate, 0.3f);
