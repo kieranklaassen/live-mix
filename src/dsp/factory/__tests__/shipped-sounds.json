@@ -499,6 +499,166 @@
     "durationSec": 8,
     "loops": false
   },
+  "201": {
+    "id": "sub-boom-e",
+    "durationSec": 6,
+    "loops": false
+  },
+  "202": {
+    "id": "soft-sub-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "203": {
+    "id": "sub-thump-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "204": {
+    "id": "hum-note-g",
+    "durationSec": 4,
+    "loops": false
+  },
+  "205": {
+    "id": "sub-swell-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "206": {
+    "id": "click-sub-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "207": {
+    "id": "fm-round-knock-c",
+    "durationSec": 2.5,
+    "loops": false
+  },
+  "208": {
+    "id": "fm-wooden-knock-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "209": {
+    "id": "fm-rubber-note-e",
+    "durationSec": 2,
+    "loops": false
+  },
+  "210": {
+    "id": "fm-growl-a",
+    "durationSec": 4,
+    "loops": false
+  },
+  "211": {
+    "id": "fm-glass-pluck-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "212": {
+    "id": "acid-squelch-d",
+    "durationSec": 2,
+    "loops": false
+  },
+  "213": {
+    "id": "acid-accent-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "214": {
+    "id": "acid-slow-close-g",
+    "durationSec": 6,
+    "loops": false
+  },
+  "215": {
+    "id": "acid-hollow-square-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "216": {
+    "id": "finger-bass-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "217": {
+    "id": "picked-bass-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "218": {
+    "id": "muted-bass-thud-g",
+    "durationSec": 2,
+    "loops": false
+  },
+  "219": {
+    "id": "fretless-bloom-d",
+    "durationSec": 4,
+    "loops": false
+  },
+  "220": {
+    "id": "upright-pluck-a",
+    "durationSec": 2,
+    "loops": false
+  },
+  "221": {
+    "id": "upright-ring-c",
+    "durationSec": 6,
+    "loops": false
+  },
+  "222": {
+    "id": "bass-octave-e",
+    "durationSec": 4,
+    "loops": false
+  },
+  "223": {
+    "id": "thick-ladder-bass-a",
+    "durationSec": 3,
+    "loops": false
+  },
+  "224": {
+    "id": "slide-bass-f",
+    "durationSec": 3,
+    "loops": false
+  },
+  "225": {
+    "id": "pure-sub-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "226": {
+    "id": "harmonic-sub-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "227": {
+    "id": "square-hum-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "228": {
+    "id": "fm-slow-growl-a",
+    "durationSec": 16,
+    "loops": true
+  },
+  "229": {
+    "id": "dark-bass-tone-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "230": {
+    "id": "beating-bass-d",
+    "durationSec": 8,
+    "loops": true
+  },
+  "231": {
+    "id": "resonant-bass-tone-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "232": {
+    "id": "breathing-sub-e",
+    "durationSec": 8,
+    "loops": true
+  },
   "253": {
     "id": "fingered-ostinato-g",
     "durationSec": 8,
