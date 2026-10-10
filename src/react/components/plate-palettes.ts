@@ -76,6 +76,7 @@ export const PLATE_PALETTES = {
   'freq-shifter': { plate: '#3a0f3f', ink: '#f8eaf8', accent: '#9ff0d0' },
   phaser: { plate: '#f29a6b', ink: '#2a0f02', accent: '#4a1a70' },
   tremolo: { plate: '#165a8f', ink: '#f2f9ff', accent: '#ffd75e' },
+  currents: { plate: '#1b7491', ink: '#f0fafb', accent: '#ffe9c4' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
