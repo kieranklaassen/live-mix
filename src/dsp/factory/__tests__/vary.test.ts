@@ -12,8 +12,10 @@ import { DEFAULT_PHRASE_GAIN, peakOf, type PhraseNote } from '../../patch-render
 import {
   FACTORY_PEAK_DB,
   FACTORY_SOUNDS,
+  chordMoves,
   describeVariant,
   renderFactorySound,
+  soundDegree,
   transposeFactorySound,
   variationAmounts,
   varySound,
@@ -433,6 +435,128 @@ describe('a variant of a sound', () => {
       for (const seed of many.slice(0, 40)) {
         expect(varySound(grains, only('chords', seed))).toBe(grains)
       }
+    })
+
+    describe('with the chord said', () => {
+      const to: Record<number, number> = {
+        [-3]: 43,
+        [-2]: 45,
+        [-1]: 47,
+        0: 48,
+        1: 50,
+        2: 52,
+        3: 53,
+      }
+
+      it('stands on that chord whatever the seed, and changes nothing else at no amount', () => {
+        for (const steps of [-3, -2, 1, 2, 3]) {
+          for (const seed of many.slice(0, 40)) {
+            const variation = { seed, chord: steps }
+            const notes = varySound(held, variation).phrase.notes
+            expect(describeVariant(held, variation)).toEqual({
+              chordSteps: steps,
+              octaves: 0,
+              rate: 1,
+              rests: 0,
+              swaps: 0,
+              laterSec: 0,
+            })
+            expect(lowest(notes)).toBe(to[steps])
+            expect(white(notes)).toBe(true)
+            notes.forEach((note, index) => {
+              const was = held.phrase.notes[index]
+              expect(note.atSec).toBe(was.atSec)
+              expect(note.durSec).toBe(was.durSec)
+              expect(note.gain ?? DEFAULT_PHRASE_GAIN).toBe(was.gain ?? DEFAULT_PHRASE_GAIN)
+            })
+          }
+        }
+        // A phrase too: every note the same way along the white keys.
+        const up = varySound(phrase, { seed: 3, chord: 2 }).phrase.notes
+        expect(up.map((note) => note.note)).toEqual([52, 64, 67, 71, 76, 79, 83, 88])
+      })
+
+      it('is the sound itself on its own chord, and on one it cannot stand on', () => {
+        expect(varySound(held, { seed: 5, chord: 0 })).toBe(held)
+        // A step down from C is B, the one chord of the key a sound is never put on.
+        expect(varySound(held, { seed: 5, chord: -1 })).toBe(held)
+        expect(varySound(held, { seed: 5, chord: Number.NaN })).toBe(held)
+        const grains = { ...held, source: 'some-other-sound' }
+        expect(varySound(grains, { seed: 5, chord: 2 })).toBe(grains)
+        // Seven steps is the same chord, and five up is the one two down.
+        expect(varySound(held, { seed: 5, chord: 7 })).toBe(held)
+        expect(lowest(varySound(held, { seed: 5, chord: 5 }).phrase.notes)).toBe(45)
+      })
+
+      it('takes the same chord an octave the other way where the near one is out of range', () => {
+        const high = looped(8, 3, 2, [84, 91, 95])
+        const notes = varySound(high, { seed: 1, chord: 2 }).phrase.notes
+        expect(lowest(notes)).toBe(76)
+        expect(describeVariant(high, { seed: 1, chord: 2 }).chordSteps).toBe(-5)
+        expect(Math.max(...notes.map((note) => note.note))).toBeLessThanOrEqual(96)
+      })
+
+      it('overrides what the seed would have drawn, and leaves the rest of the kind to it', () => {
+        let octaves = 0
+        for (const seed of many) {
+          const variation = { ...only('chords', seed), chord: 3 }
+          const changes = describeVariant(held, variation)
+          expect(changes.chordSteps).toBe(3)
+          octaves += changes.octaves
+          const notes = varySound(held, variation).phrase.notes
+          expect(lowest(notes)).toBe(53)
+          expect(white(notes)).toBe(true)
+        }
+        // A note an octave away is still drawn.
+        expect(octaves).toBeGreaterThan(0)
+        // The other kinds are what they were without the chord, moved onto it.
+        for (const seed of SEEDS) {
+          const plain = varySound(phrase, { seed, pattern: 1, touch: 1, speed: 1 }).phrase.notes
+          const moved = varySound(phrase, { seed, pattern: 1, touch: 1, speed: 1, chord: 2 }).phrase
+            .notes
+          expect(moved).toHaveLength(plain.length)
+          moved.forEach((note, index) => {
+            expect(note.atSec).toBe(plain[index].atSec)
+            expect(note.durSec).toBe(plain[index].durSec)
+            expect(note.gain).toBe(plain[index].gain)
+          })
+        }
+        expect(problems(FACTORY_SOUNDS[0], { seed: 4, amount: 1, chord: 2 })).toEqual([])
+      })
+
+      it('lists the chords a sound can stand on, nearest first, and the white key it is on', () => {
+        expect(soundDegree(held)).toBe(0)
+        expect(chordMoves(held)).toEqual([1, -2, 2, -3, 3])
+        const onD = looped(8, 3, 2, [50, 57, 65])
+        expect(soundDegree(onD)).toBe(1)
+        // A third down from D is B.
+        expect(chordMoves(onD)).toEqual([-1, 1, 2, -3, 3])
+        // A black key is counted with the white key under it.
+        expect(soundDegree(looped(8, 3, 2, [49, 56]))).toBe(0)
+        const grains = { ...held, source: 'some-other-sound' }
+        expect(soundDegree(grains)).toBeNull()
+        expect(chordMoves(grains)).toEqual([])
+        // A sound on a kit plays drums: no chord to name, and none to be put on.
+        const drums = { ...held, kit: true }
+        expect(soundDegree(drums)).toBeNull()
+        expect(chordMoves(drums)).toEqual([])
+        expect(varySound(drums, { seed: 9, chord: 2 })).toBe(drums)
+        expect(describeVariant(drums, { seed: 9, chords: 1, chord: 2 }).chordSteps).toBe(0)
+        for (const steps of chordMoves(onD)) {
+          expect(describeVariant(onD, { seed: 9, chord: steps }).chordSteps).not.toBe(0)
+        }
+      })
+
+      it('leaves every variant drawn without one as it was', () => {
+        for (const sound of FACTORY_SOUNDS.slice(0, 12)) {
+          for (const seed of SEEDS) {
+            const variation = { seed, chords: 0.4, speed: 0.25, pattern: 0.5, touch: 0.5 }
+            expect(varySound(sound, { ...variation, chord: undefined })).toEqual(
+              varySound(sound, variation),
+            )
+          }
+        }
+      })
     })
 
     it('is moved into the key after it is varied, so it is in the key', () => {

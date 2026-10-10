@@ -1043,6 +1043,169 @@ describe('AudioTrack as Schedulables', () => {
     scheduler.dispose()
   })
 
+  describe('a clip that takes turns', () => {
+    /** Plays `passes` passes of the 32 s loop and returns the buffer each start of the clip was given. */
+    async function turnsPlayed(
+      turns: Clip['turns'],
+      passes: number,
+      prepare: (parts: ReturnType<typeof scheduled>) => void = () => {},
+    ) {
+      const parts = scheduled({ lookaheadSec: 1, loop: true })
+      const { ctx, samples, track, transport, scheduler } = parts
+      const buffers = { 's-a': buffer(ctx, 10), 's-b': buffer(ctx, 10), 's-c': buffer(ctx, 10) }
+      for (const [id, audio] of Object.entries(buffers)) await samples.load(id, audio)
+      track.clips.add(clip('a', 0.5, { durationSec: 1, turns }))
+      prepare(parts)
+      transport.start()
+      scheduler.tick()
+      for (let pass = 1; pass < passes; pass += 1) {
+        ctx.currentTime = pass * 32 - 0.2
+        scheduler.tick()
+      }
+      const names = new Map(Object.entries(buffers).map(([id, audio]) => [audio, id]))
+      const played = ctx.sources.map((source) => names.get(source.buffer as unknown as AudioBuffer))
+      scheduler.dispose()
+      return played
+    }
+
+    it('plays the source of the pass each start is on, and the first again after the last', async () => {
+      expect(await turnsPlayed({ sourceIds: ['s-a', 's-b', 's-c'] }, 7)).toEqual([
+        's-a',
+        's-b',
+        's-c',
+        's-a',
+        's-b',
+        's-c',
+        's-a',
+      ])
+    })
+
+    it('holds a turn for as many passes as it says', async () => {
+      expect(await turnsPlayed({ sourceIds: ['s-a', 's-b'], every: 2 }, 6)).toEqual([
+        's-a',
+        's-a',
+        's-b',
+        's-b',
+        's-a',
+        's-a',
+      ])
+    })
+
+    it('counts the passes the transport counts: a pass that is set is that turn', async () => {
+      const played = await turnsPlayed({ sourceIds: ['s-a', 's-b', 's-c'] }, 2, ({ transport }) =>
+        transport.setPass(4),
+      )
+      expect(played).toEqual(['s-b', 's-c'])
+    })
+
+    it('plays its turns and not its own source where that is not one of them', async () => {
+      expect(await turnsPlayed({ sourceIds: ['s-b', 's-c'] }, 3)).toEqual(['s-b', 's-c', 's-b'])
+    })
+
+    it('entered partway, it plays the turn of the pass it is entered on', async () => {
+      const { ctx, samples, track, transport, scheduler } = scheduled({
+        lookaheadSec: 1,
+        loop: true,
+      })
+      const first = buffer(ctx, 10)
+      const second = buffer(ctx, 10)
+      await samples.load('s-a', first)
+      await samples.load('s-b', second)
+      track.clips.add(clip('a', 0, { durationSec: 8, turns: { sourceIds: ['s-a', 's-b'] } }))
+      transport.setPass(1)
+      transport.seek(3)
+      transport.start()
+      scheduler.tick()
+      expect(ctx.sources).toHaveLength(1)
+      expect(ctx.sources[0].buffer).toBe(second)
+      scheduler.dispose()
+    })
+
+    it('waits for the source of its turn, and asks for that one to be read', async () => {
+      const ctx = createMockContext({ sampleRate: 48000 })
+      const dest = ctx.createGain()
+      const samples = new SampleStore(asAudioContext(ctx))
+      const requested: string[] = []
+      const track = new AudioTrack(asAudioContext(ctx), {
+        name: 'music',
+        destination: dest as unknown as AudioNode,
+        samples,
+        now: () => ctx.currentTime,
+        lookaheadSec: 1,
+        resolveSource: (asked) => {
+          requested.push(asked.sourceId)
+          return undefined
+        },
+      })
+      const transport = new Transport({
+        now: () => ctx.currentTime,
+        loop: { enabled: true, lengthSec: 32 },
+      })
+      const scheduler = new Scheduler({ transport, tickMs: 40 })
+      track.attach(scheduler)
+      await samples.load('s-a', buffer(ctx, 10))
+      track.clips.add(clip('a', 0.5, { durationSec: 1, turns: { sourceIds: ['s-a', 's-b'] } }))
+      transport.setPass(1)
+      transport.start()
+      scheduler.tick()
+      // Pass 1 is the second turn: its source is not read, so nothing sounds, and it is the one asked for.
+      expect(ctx.sources).toHaveLength(0)
+      expect(new Set(requested)).toEqual(new Set(['s-b']))
+      const second = buffer(ctx, 10)
+      await samples.load('s-b', second)
+      scheduler.tick()
+      expect(ctx.sources).toHaveLength(1)
+      expect(ctx.sources[0].buffer).toBe(second)
+      scheduler.dispose()
+    })
+
+    it('on a track with a loop of its own, counts that loop’s passes', async () => {
+      const { ctx, samples, track, transport, scheduler } = scheduled({
+        lookaheadSec: 1,
+        loop: true,
+      })
+      const first = buffer(ctx, 10)
+      const second = buffer(ctx, 10)
+      await samples.load('s-a', first)
+      await samples.load('s-b', second)
+      track.loopLengthSec = 10
+      track.clips.add(clip('a', 0.5, { durationSec: 1, turns: { sourceIds: ['s-a', 's-b'] } }))
+      transport.start()
+      scheduler.tick()
+      // The track comes round every 10 s while the transport is still in its first pass.
+      for (const at of [9.8, 19.8, 29.8]) {
+        ctx.currentTime = at
+        scheduler.tick()
+      }
+      expect(ctx.sources.map((source) => source.buffer)).toEqual([first, second, first, second])
+      expect(transport.pass()).toBe(0)
+      scheduler.dispose()
+    })
+
+    it('turns changed while it sounds leave what sounds, and are heard from the next start', async () => {
+      const { ctx, samples, track, transport, scheduler } = scheduled({
+        lookaheadSec: 1,
+        loop: true,
+      })
+      const first = buffer(ctx, 10)
+      const second = buffer(ctx, 10)
+      await samples.load('s-a', first)
+      await samples.load('s-b', second)
+      track.clips.add(clip('a', 0, { durationSec: 8 }))
+      transport.start()
+      scheduler.tick()
+      ctx.currentTime = 2
+      track.clips.update('a', { turns: { sourceIds: ['s-b'] } })
+      expect(ctx.sources).toHaveLength(1)
+      expect(ctx.sources[0].stopCalls.count).toBe(0)
+      ctx.currentTime = 31.8
+      scheduler.tick()
+      expect(ctx.sources).toHaveLength(2)
+      expect(ctx.sources[1].buffer).toBe(second)
+      scheduler.dispose()
+    })
+  })
+
   it('dispose detaches from the scheduler and silences voices', async () => {
     const { ctx, samples, track, transport, scheduler } = scheduled({ lookaheadSec: 1 })
     await samples.load('s-a', buffer(ctx, 10))

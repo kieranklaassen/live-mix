@@ -489,6 +489,8 @@ export class Session {
     // What the slot leaves to chance is left to chance on the track too: the
     // placed clip sits out the passes the seed gives it.
     if (slot.clip.chance !== undefined) clip.chance = slot.clip.chance
+    // And the turns it takes: the placed clip plays each source on the passes the slot's clip would.
+    if (slot.clip.turns !== undefined) clip.turns = slot.clip.turns
     // Where the slot's clip sits in the mix goes onto the track with it.
     if (slot.clip.pan !== undefined) clip.pan = slot.clip.pan
     if (slot.clip.lowpassHz !== undefined) clip.lowpassHz = slot.clip.lowpassHz

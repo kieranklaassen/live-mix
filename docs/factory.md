@@ -359,6 +359,25 @@ above it. The rests are a Euclidean rhythm: the moments that sound are spread
 over the phrase as evenly as their number allows, turned so the first one
 sounds. Everything else is a chance per note or per sound.
 
+A host can also say the chord and leave only the rest to the seed:
+`chord` in the variation is steps along the white keys from where the sound
+is written, −3 to 3, and it stands in for the draw at any amount of
+`chords`, 0 included, so `{ seed, chord: 2 }` is the sound a third up and
+nothing else about it changed. `chordMoves(sound)` lists the steps a sound
+can take, nearest first (never onto B, never out of range; where the near
+way leaves the range the same chord an octave the other way is taken, and
+`describeVariant` says how far the notes went), and `soundDegree(sound)` is
+the white key it is written on, 0 for C to 6 for B, by its lowest note: with
+`keyChord` and `chordName` a host names the chord in whatever key it plays
+the sound in. A chord a sound cannot take leaves it where it is written.
+Without `chord` every variant is what it was before there was one.
+
+```ts
+chordMoves(sound) // [1, -2, 2, -3, 3] for a sound written on C
+varySound(sound, { seed: 1, chord: 3 }) // on the fourth, otherwise as written
+varySound(sound, { seed: 7, chords: 0.4, touch: 0.5, chord: -2 }) // variant 7, on the sixth
+```
+
 What no kind changes: the instrument and its settings, the effects, the
 length, the loop and its fold, the key, and the attack a sound starts on. In a
 sound that ends, the notes it ends on are never later and no key is down
