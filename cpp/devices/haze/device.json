@@ -181,7 +181,8 @@
       "decay": 14,
       "size": 1,
       "tone": 0,
-      "octave": 0
+      "octave": 0,
+      "mix": 0.35
     },
     "Glass halo": {
       "haze": 0.25,
@@ -205,7 +206,7 @@
       "haze": 0.6,
       "blur": 1,
       "decay": 20,
-      "mix": 0.7,
+      "mix": 0.65,
       "size": 1,
       "tone": 0.3,
       "feed": 0.5

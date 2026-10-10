@@ -493,6 +493,68 @@ int main() {
     EXPECT(tonal[2] < 0.45, "the tail at the top of Feed is not one tone");
   }
 
+  // The top of Feed at every corner of the other controls: Tone, Haze,
+  // Octave, Blur and Size each at both ends, Decay at 2 s. After a burst the
+  // wall falls 60 dB in a time that ends (Tone's tilt once added 6 dB inside
+  // the loop, and at the top of Tone and Feed the tail never fell), and a
+  // full-scale chord held into the same corner at the longest Decay stays
+  // under the ceiling and does not grow.
+  {
+    double longest = 0.0, shortest = 1.0e9;
+    int longest_corner = 0;
+    for (int corner = 0; corner < 32; ++corner) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 2.0f);
+      device.set_param(p::kFeed, 1.0f);
+      device.set_param(p::kTone, (corner & 1) ? 1.0f : 0.0f);
+      device.set_param(p::kHaze, (corner & 2) ? 1.0f : 0.0f);
+      device.set_param(p::kOctave, (corner & 4) ? 1.0f : 0.0f);
+      device.set_param(p::kBlur, (corner & 8) ? 1.0f : 0.0f);
+      device.set_param(p::kSize, (corner & 16) ? 1.0f : 0.0f);
+      rng_state() = 0xFEEDu;
+      std::vector<float> burst = soft_noise(1.0f, 0.3f);
+      burst.resize(static_cast<size_t>(kRate * 26.0f), 0.0f);
+      Stereo out = run(device, burst);
+      const double start = db(rms(out.left, 43200, 48000));
+      double seconds = 25.0;
+      for (int window = 0; window < 250; ++window) {
+        const size_t from = 48000 + static_cast<size_t>(window) * 4800;
+        if (db(rms(out.left, from, from + 4800)) < start - 60.0) {
+          seconds = 0.1 * window + 0.05;
+          break;
+        }
+      }
+      if (seconds > longest) {
+        longest = seconds;
+        longest_corner = corner;
+      }
+      shortest = std::min(shortest, seconds);
+      char label[160];
+      std::snprintf(label, sizeof label, "top of Feed, corner %d (Tone, Haze, Octave, Blur, Size by bit): the wall falls 60 dB in %.1f s", corner, seconds);
+      EXPECT(finite(out.left) && seconds < 12.0, label);
+    }
+    std::printf("haze: top of Feed at Decay 2 s over 32 corners of Tone, Haze, Octave, Blur and Size: 60 dB down in %.1f to %.1f s (the longest at corner %d)\n",
+                shortest, longest, longest_corner);
+    const std::vector<float> held = chord(60.0f, 0.333f);
+    for (int corner = 0; corner < 4; ++corner) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 30.0f);
+      device.set_param(p::kFeed, 1.0f);
+      device.set_param(p::kHaze, 1.0f);
+      device.set_param(p::kTone, (corner & 1) ? 1.0f : 0.0f);
+      device.set_param(p::kBlur, (corner & 2) ? 1.0f : 0.0f);
+      Stereo out = run(device, held);
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double early = db(rms(out.left, 20 * 48000, 30 * 48000));
+      const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+      char label[160];
+      std::snprintf(label, sizeof label, "held chord, Feed, Haze and Decay at the top, corner %d of Tone and Blur: peak %.2f, %+.1f dB over 30 s", corner, top, late - early);
+      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.5, label);
+    }
+  }
+
   // Level: a full-scale chord held for a minute at the default and at each
   // end of every control. The peak stays under 6 dB over full scale, the
   // last ten seconds are no louder than ten seconds from the first half, and
@@ -594,6 +656,87 @@ int main() {
       std::snprintf(label, sizeof label, "asleep after param %d was moved in the tail (peak %g)", id, peak(rest.left));
       EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, label);
     }
+  }
+
+  // Every preset (the table is device.json's, in the order of its params:
+  // haze, blur, decay, mix, size, tone, octave, feed, width): a full-scale
+  // chord held for a minute stays under 6 dB over full scale, does not grow,
+  // and leaves within a few dB of what came; held tones over the piano's
+  // range do not fall far under the input at the preset's own Mix. A preset
+  // with Mix at 1 has no dry tone for the wall to stand against: there a
+  // tone's level is the wall's own answer at that pitch, and under 90 Hz its
+  // low cut, so it is bounded apart and from E1 up.
+  {
+    struct Preset {
+      const char* name;
+      float values[p::kNumParams];
+    };
+    static const Preset presets[] = {
+    {"Glowing wall", {0.55f, 0.6f, 6.0f, 0.45f, 0.6f, 0.5f, 0.2f, 0.25f, 1.0f}},
+    {"Faint warmth", {0.3f, 0.4f, 2.0f, 0.15f, 0.6f, 0.4f, 0.0f, 0.0f, 1.0f}},
+    {"Wool blanket", {0.7f, 0.8f, 8.0f, 0.45f, 0.6f, 0.1f, 0.0f, 0.3f, 1.0f}},
+    {"Bright glare", {0.85f, 0.5f, 5.0f, 0.5f, 0.6f, 0.9f, 0.35f, 0.25f, 1.0f}},
+    {"Octave glow", {0.5f, 0.7f, 7.0f, 0.45f, 0.6f, 0.65f, 0.7f, 0.25f, 1.0f}},
+    {"Endless wall", {0.75f, 0.9f, 30.0f, 0.55f, 0.9f, 0.5f, 0.2f, 0.7f, 1.0f}},
+    {"Small room fuzz", {0.8f, 0.15f, 0.8f, 0.4f, 0.1f, 0.5f, 0.2f, 0.0f, 1.0f}},
+    {"Wall alone", {0.6f, 0.7f, 8.0f, 1.0f, 0.6f, 0.5f, 0.2f, 0.25f, 1.0f}},
+    {"Slow bloom", {0.45f, 1.0f, 10.0f, 0.6f, 0.8f, 0.4f, 0.2f, 0.4f, 1.0f}},
+    {"Feedback cloud", {0.65f, 0.6f, 4.0f, 0.5f, 0.6f, 0.45f, 0.2f, 1.0f, 1.0f}},
+    {"Thin veil", {0.15f, 0.7f, 4.0f, 0.3f, 0.6f, 0.6f, 0.0f, 0.25f, 1.0f}},
+    {"Low rumble", {0.9f, 0.9f, 14.0f, 0.35f, 1.0f, 0.0f, 0.0f, 0.25f, 1.0f}},
+    {"Glass halo", {0.25f, 0.3f, 12.0f, 0.3f, 0.3f, 1.0f, 1.0f, 0.0f, 1.0f}},
+    {"Narrow beam", {0.7f, 0.6f, 3.0f, 0.4f, 0.3f, 0.55f, 0.2f, 0.25f, 0.0f}},
+    {"Drone bed", {0.6f, 1.0f, 20.0f, 0.65f, 1.0f, 0.3f, 0.2f, 0.5f, 1.0f}},
+    {"Bite and tail", {0.9f, 0.0f, 3.5f, 0.4f, 0.6f, 0.6f, 0.1f, 0.25f, 1.0f}},
+    };
+    const std::vector<float> held = chord(60.0f, 0.333f);
+    const double in_level = db(rms(held));
+    double hottest = 0.0, loudest = -200.0, quietest = 200.0, most_growth = -200.0, worst = 0.0;
+    double worst_alone = 0.0, lowest_alone = 0.0;
+    const char* worst_at = "";
+    float worst_hz = 0.0f, worst_alone_hz = 0.0f;
+    for (const Preset& preset : presets) {
+      device.init(kRate);
+      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      Stereo out = run(device, held);
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double early = db(rms(out.left, 20 * 48000, 30 * 48000));
+      const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+      hottest = std::max(hottest, top);
+      most_growth = std::max(most_growth, late - early);
+      loudest = std::max(loudest, late - in_level);
+      quietest = std::min(quietest, late - in_level);
+      char label[160];
+      std::snprintf(label, sizeof label, "held chord through %s: peak %.2f, %+.1f dB against the input, %+.1f dB over 30 s",
+                    preset.name, top, late - in_level, late - early);
+      EXPECT(finite(out.left) && top < 2.0 && late - early < 1.5 && late - in_level < 4.0 && late - in_level > -6.0, label);
+      for (float note = 21.0f; note <= 108.0f; note += 6.0f) {
+        const float hz = 440.0f * std::pow(2.0f, (note - 69.0f) / 12.0f);
+        device.init(kRate);
+        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+        const std::vector<float> tone = sine(hz, 3.0f, kRate, 0.25f);
+        Stereo held_tone = run(device, tone);
+        const double change = db(rms(held_tone.left, 3 * 24000, 3 * 48000) / rms(tone, 3 * 24000, 3 * 48000));
+        if (preset.values[p::kMix] >= 1.0f) {
+          if (note < 27.0f) lowest_alone = change;
+          else if (change < worst_alone) {
+            worst_alone = change;
+            worst_alone_hz = hz;
+          }
+        } else if (change < worst) {
+          worst = change;
+          worst_at = preset.name;
+          worst_hz = hz;
+        }
+      }
+    }
+    std::printf("haze: full-scale chord for a minute through every preset: peak at most %.2f, level %+.1f to %+.1f dB against the input, growth at most %+.1f dB\n",
+                hottest, quietest, loudest, most_growth);
+    std::printf("haze: held tones A0 to A7 through every preset: the worst %+.1f dB at %.0f Hz in %s\n", worst, worst_hz, worst_at);
+    std::printf("haze: held tones through the wall alone (Mix 1): %+.1f dB at A0, from E1 up the worst %+.1f dB at %.0f Hz\n",
+                lowest_alone, worst_alone, worst_alone_hz);
+    EXPECT(worst > -8.0, "no held tone drops more than 8 dB through any preset with the dry in it");
+    EXPECT(worst_alone > -12.0, "the wall alone answers every tone from E1 up within 12 dB");
   }
 
   device.init(kRate);

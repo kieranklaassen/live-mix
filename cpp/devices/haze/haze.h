@@ -488,7 +488,19 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     // passes a quarter straight through (the early part); Feed makes it hold
     // 1 / (1 - share) as much. All of that is taken back, so a held sound
     // leaves the wall as loud as it left the fuzz whatever Decay and Feed are.
-    level_.set_target(kWetGain * std::sqrt((1.0f - share) * loss / (kLineShare * (1.0f + loss))));
+    //
+    // Tone's tilt only ever takes away on the way into the wall, and what its
+    // louder side would have added is put back here, after the wall: Feed's
+    // loop runs through the tilt, and a tilt that added 6 dB to one side of
+    // 1 kHz made the loop's gain there more than one (measured: at the top
+    // of Feed and of Tone the tail never fell).
+    const float tilt_low = kit::db_to_gain((1.0f - 2.0f * tone) * kTiltLowDb);
+    const float tilt_high = kit::db_to_gain((2.0f * tone - 1.0f) * kTiltHighDb);
+    const float tilt_most = kit::max(tilt_low, tilt_high);
+    tilt_low_ = tilt_low / tilt_most;
+    tilt_high_ = tilt_high / tilt_most;
+    level_.set_target(kWetGain * tilt_most *
+                      std::sqrt((1.0f - share) * loss / (kLineShare * (1.0f + loss))));
 
     // The first reverb rings no longer than the wall: its loop's gain is
     // Blur's, held under the gain that would take Decay to die away.
@@ -504,8 +516,6 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     tone_filter_[1].a1 = tone_filter_[0].a1;
     tone_filter_[1].a2 = tone_filter_[0].a2;
     tone_filter_[1].a3 = tone_filter_[0].a3;
-    tilt_low_ = kit::db_to_gain((1.0f - 2.0f * tone) * kTiltLowDb);
-    tilt_high_ = kit::db_to_gain((2.0f * tone - 1.0f) * kTiltHighDb);
 
     if (octave_.value != table_fold_) build_table(octave_.value);
   }

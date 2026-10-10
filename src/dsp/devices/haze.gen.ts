@@ -136,7 +136,7 @@ export const HAZE_DESCRIPTOR = wasmDeviceDescriptor(HAZE_DEVICE, {
     'Slow bloom': { haze: 0.45, blur: 1, decay: 10, mix: 0.6, size: 0.8, tone: 0.4, feed: 0.4 },
     'Feedback cloud': { haze: 0.65, decay: 4, mix: 0.5, tone: 0.45, feed: 1 },
     'Thin veil': { haze: 0.15, blur: 0.7, decay: 4, mix: 0.3, tone: 0.6, octave: 0 },
-    'Low rumble': { haze: 0.9, blur: 0.9, decay: 14, size: 1, tone: 0, octave: 0 },
+    'Low rumble': { haze: 0.9, blur: 0.9, decay: 14, size: 1, tone: 0, octave: 0, mix: 0.35 },
     'Glass halo': {
       haze: 0.25,
       blur: 0.3,
@@ -148,7 +148,7 @@ export const HAZE_DESCRIPTOR = wasmDeviceDescriptor(HAZE_DEVICE, {
       feed: 0,
     },
     'Narrow beam': { haze: 0.7, decay: 3, mix: 0.4, size: 0.3, tone: 0.55, width: 0 },
-    'Drone bed': { haze: 0.6, blur: 1, decay: 20, mix: 0.7, size: 1, tone: 0.3, feed: 0.5 },
+    'Drone bed': { haze: 0.6, blur: 1, decay: 20, mix: 0.65, size: 1, tone: 0.3, feed: 0.5 },
     'Bite and tail': { haze: 0.9, blur: 0, decay: 3.5, mix: 0.4, tone: 0.6, octave: 0.1 },
   },
 })
