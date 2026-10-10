@@ -128,7 +128,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
   name: 'Glimmer',
   category: 'modulation',
   description:
-    'Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks pass untouched.',
+    'Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks that stand out pass untouched.',
   presets: {
     'Light on water': {},
     'Faint sheen': {
@@ -228,7 +228,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
 
 export type Glimmer = WasmDevice<typeof GLIMMER_PARAMS>
 
-/** Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks pass untouched. */
+/** Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks that stand out pass untouched. */
 export function createGlimmer(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof GLIMMER_PARAMS> = {},

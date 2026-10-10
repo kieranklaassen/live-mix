@@ -102,7 +102,10 @@
 // output turns to the dry sound (over 256), stays on it until 256 after, and
 // turns back over 768. Held sound has no attacks and is not touched; a note
 // struck over a held chord takes the chord's flicker away for those 45 ms.
-// Both sides pass together, so a mono input stays mono.
+// Both sides pass together, so a mono input stays mono. An attack has to
+// stand out to be one: a note whose peak is 4 dB over the level of the chord
+// it is struck into opens the pass, one 6 dB under it does not and is
+// smeared as before (to −14 dB of its own peak, 20 dB under the chord).
 //
 // Everything is read once per frame, at the frame's own time on the sample
 // count: the overlap cross-fades any change over a frame, so nothing but
@@ -113,7 +116,8 @@
 // of a frame's work. No state is kept per bin: the device sleeps as soon as
 // the frames in flight have played out.
 //
-// Storage: two Stft channels of 88 KB, and about 5 KB of tables.
+// Storage: two Stft channels of 88 KB, and about 18 KB of tables (three
+// values per bin, a dozen per band); 227 KB with the kit's block buffers.
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"

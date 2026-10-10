@@ -640,8 +640,7 @@ function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
   const settings = settingsOf(frame)
   // An attack passes round the flicker: while one does, the device turns its output to the dry
   // sound by so much (its `pass` reading), which is Mix taken down by as much.
-  const pass =
-    frame.powered && frame.hasMeter('pass') ? clamp(frame.meter('pass'), 0, 1) : 0
+  const pass = frame.powered && frame.hasMeter('pass') ? clamp(frame.meter('pass'), 0, 1) : 0
   const mix = clamp(frame.value('mix'), 0, 1) * (1 - pass)
   const rate = frame.value('rate')
   const bands = glimmerBands(clamp(frame.value('grain'), 0, 1), frame.sampleRate)

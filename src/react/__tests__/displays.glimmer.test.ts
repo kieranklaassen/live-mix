@@ -236,9 +236,14 @@ describe("the law of Glimmer's bands and lights", () => {
               count += 1
             }
       const raise = glimmerRaise(7, settings, bands)
-      expect((sum / count) * (1 + raise) ** 2, `${depth} ${soft} ${vary} ${pattern}`).toBeCloseTo(1, 2)
+      expect((sum / count) * (1 + raise) ** 2, `${depth} ${soft} ${vary} ${pattern}`).toBeCloseTo(
+        1,
+        2,
+      )
       // And the join never stands over the tallest a gain can: the picture's edge.
-      expect(glimmerJoin(lift, lift, 0.5, raise)).toBeLessThanOrEqual(glimmerTallest(settings) + 1e-12)
+      expect(glimmerJoin(lift, lift, 0.5, raise)).toBeLessThanOrEqual(
+        glimmerTallest(settings) + 1e-12,
+      )
     }
     // Half way the whole raise, none on a band's own stretch, and never over the cap.
     expect(glimmerJoin(1, 2, 0.5, 0.1)).toBeCloseTo(1.5 * 1.1, 12)
@@ -428,7 +433,12 @@ describe("Glimmer's law against the compiled device", () => {
             const under = glimmerBand(j, theta, settings, bands, side).gain
             const over = glimmerBand(j + 1, theta, settings, bands, side).gain
             const heard = sizeOf(out[side], joined[index], at) / size
-            const law = glimmerJoin(under, over, glimmerBlend(0.5), glimmerRaise(j, settings, bands))
+            const law = glimmerJoin(
+              under,
+              over,
+              glimmerBlend(0.5),
+              glimmerRaise(j, settings, bands),
+            )
             error = Math.max(error, Math.abs(heard - law))
             plain = Math.max(plain, Math.abs(heard - (under + over) / 2))
           })
@@ -444,7 +454,10 @@ describe("Glimmer's law against the compiled device", () => {
     const read = device.device.device_meter
     if (!read) throw new Error('the device reports no readings')
     const tone = (start: number, click: boolean): Float32Array =>
-      Float32Array.from({ length: BLOCK }, (_, i) => 0.2 * Math.sin((start + i) / 9) + (click && i === 0 ? 0.6 : 0))
+      Float32Array.from(
+        { length: BLOCK },
+        (_, i) => 0.2 * Math.sin((start + i) / 9) + (click && i === 0 ? 0.6 : 0),
+      )
     let blocks = 0
     // A held tone: once its own beginning has passed, nothing passes.
     for (; blocks < 400; blocks++) device.processBlock(tone(blocks * BLOCK, false))
@@ -740,14 +753,22 @@ describe("the picture on Glimmer's plate", () => {
     // An attack passing round the flicker is Mix taken down by as much as the device reports: all
     // the way, level water; half way, the picture of half the Mix.
     for (const size of SHAPES) {
-      const passing = drawDisplay(display, params, { values: {}, ...size, meters: { clock: 5.5, pass: 1 } })
+      const passing = drawDisplay(display, params, {
+        values: {},
+        ...size,
+        meters: { clock: 5.5, pass: 1 },
+      })
       const { field } = glimmerLayout(size)
       for (const { column } of columnsOf(passing, size)) {
         expect(column.above).toBeUndefined()
         expect(column.waterTop).toBeCloseTo(field.y, 6)
       }
       const half = columnsOf(
-        drawDisplay(display, params, { values: { mix: 0.8 }, ...size, meters: { clock: 5.5, pass: 0.5 } }),
+        drawDisplay(display, params, {
+          values: { mix: 0.8 },
+          ...size,
+          meters: { clock: 5.5, pass: 0.5 },
+        }),
         size,
       )
       const same = columnsOf(
@@ -898,8 +919,17 @@ describe("the handles on Glimmer's display", () => {
           expect(nearest.column.waterTop).toBeCloseTo(at.y, 6)
           // Which is the law's: the trough of the band there (or of the join it lies in), against the tallest a gain stands.
           const settings = settingsOf({ ...values, depth })
-          const { trough } = lawAt(hzOfX(nearest.x, field), 0, settings, valueOf(values, 'grain'), 0)
-          expect(at.y).toBeCloseTo(water - glimmerHeight(trough, glimmerTallest(settings), mix) * up, 9)
+          const { trough } = lawAt(
+            hzOfX(nearest.x, field),
+            0,
+            settings,
+            valueOf(values, 'grain'),
+            0,
+          )
+          expect(at.y).toBeCloseTo(
+            water - glimmerHeight(trough, glimmerTallest(settings), mix) * up,
+            9,
+          )
           // At the end where Lean leaves the bands all of Depth.
           expect(at.x).toBe(valueOf(values, 'lean') >= 0 ? field.x + field.w - 7 : field.x + 7)
         }
