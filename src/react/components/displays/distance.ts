@@ -295,6 +295,39 @@ export const bendCents = (ratio: number): number =>
 export const bendText = (cents: number): string =>
   `${cents > 0 ? '+' : cents < 0 ? '−' : ''}${Math.abs(cents)} ct`
 
+/** The words as wide as they usually get: the corner they stand in is chosen for this much. */
+export const WORDS_WIDEST = '00 m +000 ct'
+
+/**
+ * The corner the words stand in, so that they never lie over the sound: the
+ * one its walk does not come under. A walk that keeps clear of both leaves
+ * them where the source is set away from; one that comes under both has them
+ * step to the corner the source is farther from now. `wide` is their patch's
+ * width, `x` where the source is now; the sound is taken as large as its
+ * haze can be. Where the sound does not reach up to them (a tall window)
+ * they stay where the source is set away from.
+ */
+export function wordsCorner(
+  layout: Layout,
+  set: { distance: number; wander: number },
+  place: number,
+  wide: number,
+): 'left' | 'right' {
+  const home = set.distance > 0.5 ? 'left' : 'right'
+  const reach = ROOM_HAZE * layout.full
+  if (layout.axisY - reach >= layout.box.y + 10) return home
+  const walk = walkOf(set.distance, set.wander)
+  const leftEnd = layout.earX + 6 + wide
+  const rightStart = layout.box.x + layout.box.w + 1 - wide
+  const underLeft = xOfPlace(layout, Math.min(walk.near, place)) - reach < leftEnd
+  const underRight = xOfPlace(layout, Math.max(walk.far, place)) + reach > rightStart
+  if (underLeft && underRight)
+    return xOfPlace(layout, place) > (leftEnd + rightStart) / 2 ? 'left' : 'right'
+  if (underRight) return 'left'
+  if (underLeft) return 'right'
+  return home
+}
+
 /** Whether the device's readings have come: it reports a bend of 1 at rest, never 0. */
 const reads = (frame: DisplayFrame): boolean =>
   frame.powered && frame.hasMeter('position') && frame.meter('bend') > 0
@@ -446,11 +479,20 @@ const distance = plateDisplay({
     ctx.stroke()
 
     // In words: how far it is now and, while it moves, how far its pitch is bent.
-    // They stand in the corner the source is set away from, so they do not lie over it.
+    // They stand in the corner the walk does not come under, so they never lie over the sound.
     const cents = live ? bendCents(frame.meter('bend')) : 0
     const metres = metresText(scene.metres)
     const words = cents === 0 ? metres : `${metres} ${bendText(cents)}`
-    if (frame.value('distance') > 0.5) label(frame, words, layout.earX + 8, box.y + 8)
+    ctx.font = `8px ${frame.fontFamily}`
+    const wide =
+      Math.ceil(Math.max(ctx.measureText(words).width, ctx.measureText(WORDS_WIDEST).width)) + 4
+    const corner = wordsCorner(
+      layout,
+      { distance: frame.value('distance'), wander: frame.value('wander') },
+      scene.place,
+      wide,
+    )
+    if (corner === 'left') label(frame, words, layout.earX + 8, box.y + 8)
     else label(frame, words, box.x + box.w - 1, box.y + 8, 'right')
   },
   handles: distanceHandles,

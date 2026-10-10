@@ -927,6 +927,93 @@ describe('the picture of Distance', () => {
     expect(wordAt(0.8)?.x).toBeLessThan(20)
   })
 
+  it('keeps the words off the sound wherever it walks, and still where the walk lets them be', () => {
+    // The patch the words stand on: the last one of the plate laid before words above the line.
+    const wordsPatch = (drawn: RecordingContext) => {
+      let fill = ''
+      let patch: { x: number; y: number; w: number; h: number } | null = null
+      for (const call of drawn.calls) {
+        if (call.name === 'set fillStyle') fill = String(call.args[0])
+        else if (call.name === 'fillRect' && fill === ground) {
+          const [x, y, w, h] = call.args as number[]
+          patch = { x, y, w, h }
+        } else if (call.name === 'fillText' && (call.args[2] as number) < 20) return patch
+      }
+      return null
+    }
+    const corner = (drawn: RecordingContext, width: number): 'left' | 'right' => {
+      const patch = wordsPatch(drawn)
+      return patch !== null && patch.x + patch.w / 2 < width / 2 ? 'left' : 'right'
+    }
+    for (const [width, height] of [
+      [224, 48],
+      [184, 48],
+    ]) {
+      for (const distance of [0, 0.2, 0.4, 0.5, 0.55, 0.7, 1]) {
+        for (const wander of [0, 0.25, 0.6, 1]) {
+          const walk = walkOf(distance, wander)
+          for (const [room, level] of [
+            [0, 1],
+            [1, 0],
+            [0.5, 0.5],
+          ]) {
+            for (let step = 0; step <= 16; step++) {
+              const place = walk.near + ((walk.far - walk.near) * step) / 16
+              for (const bend of [1, 0.92, 1.08]) {
+                const values = { distance, wander, room, level }
+                const drawn = draw({ width, height, values, ...at(place, bend) })
+                const patch = wordsPatch(drawn)
+                expect(patch).not.toBeNull()
+                if (patch === null) continue
+                const marks = marksOf(drawn)
+                // Neither the dot nor the haze round it comes under the words' patch.
+                for (const mark of [...marks.dots, ...marks.haze]) {
+                  const dx = Math.max(patch.x - mark.x, 0, mark.x - (patch.x + patch.w))
+                  const dy = Math.max(patch.y - mark.y, 0, mark.y - (patch.y + patch.h))
+                  const said = `${width}: Distance ${distance}, Wander ${wander}, at ${place}`
+                  expect(Math.hypot(dx, dy), said).toBeGreaterThanOrEqual(mark.r)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    // A walk that leaves a corner free has the words stay in it the whole way.
+    for (const [distance, wander] of [
+      [0.4, 0.25],
+      [0.5, 0.1],
+      [0.8, 0.3],
+      [0.3, 0.6],
+    ]) {
+      const walk = walkOf(distance, wander)
+      const corners = new Set<string>()
+      for (let step = 0; step <= 32; step++) {
+        const place = walk.near + ((walk.far - walk.near) * step) / 32
+        const bend = step % 3 === 0 ? 1 : step % 3 === 1 ? 0.9 : 1.1
+        const values = { distance, wander }
+        corners.add(corner(draw({ width: 224, height: 48, values, ...at(place, bend) }), 224))
+      }
+      expect(corners.size, `Distance ${distance}, Wander ${wander}`).toBe(1)
+    }
+    // One that comes under both has them step across once on the way out.
+    const sides: string[] = []
+    for (let step = 0; step <= 32; step++) {
+      const values = { distance: 0.5, wander: 1 }
+      sides.push(corner(draw({ width: 224, height: 48, values, ...at(step / 32, 1.05) }), 224))
+    }
+    expect(sides[0]).toBe('right')
+    expect(sides[32]).toBe('left')
+    expect(sides.filter((side, n) => n > 0 && side !== sides[n - 1])).toHaveLength(1)
+    // On a tall window the sound does not reach up to them: they stay where the source is set away from.
+    for (const place of [0, 0.5, 1]) {
+      const values = { distance: 0.4, wander: 1 }
+      expect(corner(draw({ width: 204, height: 100, values, ...at(place, 1.05) }), 204)).toBe(
+        'right',
+      )
+    }
+  })
+
   it('stands at Distance while the device says nothing, and while it is switched off', () => {
     const where = (options: FrameOptions): number => marksOf(draw(options)).dots[0].x
     const knob = draw({ values: { distance: 0.6 }, ...at(0.6) })
