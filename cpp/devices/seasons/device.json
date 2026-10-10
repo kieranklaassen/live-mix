@@ -34,8 +34,8 @@
       "name": "Year",
       "min": 0,
       "max": 1,
-      "default": 0,
-      "description": "Where in the year the sound is: spring, then summer, autumn and winter, and round to spring again, blending from each to the next. A turning year carries on from here."
+      "default": 0.125,
+      "description": "Where in the year the sound is: spring, summer, autumn, winter, a quarter of the dial each, blending between. Both ends meet. A turning year goes on from here."
     },
     {
       "key": "turning",
@@ -114,14 +114,14 @@
   "presets": {
     "Spring, turning": {},
     "High summer": {
-      "year": 0.25,
+      "year": 0.375,
       "turn": 0,
       "depth": 0.85,
       "space": 0.7,
       "motion": 0.7
     },
     "Leaf fall": {
-      "year": 0.5,
+      "year": 0.625,
       "turn": 0,
       "depth": 0.9,
       "space": 0.5,
@@ -129,7 +129,7 @@
       "grit": 0.8
     },
     "Deep winter": {
-      "year": 0.75,
+      "year": 0.875,
       "turn": 0,
       "depth": 0.9,
       "space": 0.8,
@@ -137,13 +137,13 @@
       "tail": 0.65
     },
     "Slow year": {
-      "year": 0.42,
+      "year": 0.545,
       "turning": 600,
       "depth": 0.65,
       "space": 0.5
     },
     "Quick year": {
-      "year": 0.2,
+      "year": 0.325,
       "turning": 12,
       "depth": 1,
       "space": 0.7,
@@ -151,7 +151,7 @@
       "grit": 0.7
     },
     "Thaw": {
-      "year": 0.875,
+      "year": 0.0,
       "turn": 0,
       "depth": 0.85,
       "space": 0.7,
@@ -159,7 +159,7 @@
       "grit": 0.9
     },
     "Long evening": {
-      "year": 0.33,
+      "year": 0.455,
       "turn": 0,
       "depth": 0.8,
       "space": 0.9,
@@ -168,7 +168,7 @@
       "tail": 0.9
     },
     "First frost": {
-      "year": 0.625,
+      "year": 0.75,
       "turn": 0,
       "depth": 0.85,
       "space": 0.7,
@@ -176,7 +176,7 @@
       "tail": 0.6
     },
     "Touch of sun": {
-      "year": 0.22,
+      "year": 0.345,
       "turn": 0,
       "depth": 0.3,
       "space": 0.35,
@@ -184,7 +184,7 @@
       "grit": 0.2
     },
     "Frozen lake": {
-      "year": 0.75,
+      "year": 0.875,
       "turn": 0,
       "depth": 1,
       "space": 1,
@@ -194,7 +194,7 @@
       "mix": 0.8
     },
     "Wide midsummer": {
-      "year": 0.25,
+      "year": 0.375,
       "turn": 0,
       "depth": 1,
       "space": 0.9,
@@ -203,7 +203,7 @@
       "width": 1.6
     },
     "Dry leaves": {
-      "year": 0.5,
+      "year": 0.625,
       "turn": 0,
       "depth": 1,
       "space": 0,
@@ -211,14 +211,14 @@
       "grit": 1
     },
     "Backward year": {
-      "year": 0.35,
+      "year": 0.475,
       "turning": 40,
       "depth": 0.9,
       "space": 0.7,
       "turn": 2
     },
     "Bare branches": {
-      "year": 0.75,
+      "year": 0.875,
       "turn": 0,
       "depth": 1,
       "space": 0.2,
@@ -228,7 +228,7 @@
       "width": 0.6
     },
     "Spring showers": {
-      "year": 0.97,
+      "year": 0.095,
       "turn": 0,
       "depth": 1,
       "space": 0.8,

@@ -12,11 +12,13 @@
 //                                          vibrato)          (decay, damping, low cut, four lines
 //                                                             breathing, two turned in pitch)
 //
-// - The year is a place on a circle, 0..1: 0 spring, 0.25 summer, 0.5 autumn,
-//   0.75 winter. Each season has a weight cos²(2π·distance) inside a quarter
-//   of the circle either side of its centre and none beyond, so two
-//   neighbours are heard at a time and their weights add to one all the way
-//   round, across the join at 1 to 0 as well. Every figure below is the
+// - The year is a place on a circle, 0..1. The two ends of the Year knob are
+//   the turn of the year, half way from winter to spring, so each season has
+//   a whole quarter of the knob: spring is at 0.125, summer at 0.375, autumn
+//   at 0.625, winter at 0.875. Each season has a weight cos²(2π·distance)
+//   inside a quarter of the circle either side of its centre and none beyond,
+//   so two neighbours are heard at a time and their weights add to one all
+//   the way round, across the join at 1 to 0 as well. Every figure below is the
 //   weighted blend of the four seasons' figures (decibels and amounts as they
 //   are, frequencies and times in octaves), and Depth takes each from "nothing
 //   is done" to that blend. At Depth 0 the wet signal is the input to the bit.
@@ -114,9 +116,13 @@ constexpr float kTumbleHz = 0.83f;
 constexpr float kTumbleRatio = 0.6180340f;  // the second tumble sine, against the first
 constexpr float kVibratoBaseMs = 6.0f;
 
+// Where spring's middle is on the Year knob; each season after it is a
+// quarter further on.
+constexpr float kSpringAt = 0.125f;
+
 // The weight of season k at `year` (any real number; the circle is 0..1).
 inline float weight(int k, float year) {
-  float d = year - 0.25f * static_cast<float>(k);
+  float d = year - kSpringAt - 0.25f * static_cast<float>(k);
   d -= std::floor(d + 0.5f);  // -0.5..0.5, the shorter way round
   if (d < 0.0f) d = -d;
   if (d >= 0.25f) return 0.0f;

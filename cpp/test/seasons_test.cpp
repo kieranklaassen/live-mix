@@ -251,12 +251,26 @@ static std::vector<float> chord(float seconds, float gain) {
 
 // --- settings --------------------------------------------------------------------------------
 
-// A year that stands still at `year`, as far into the season as it goes.
-static void still(Seasons& d, float year, float rate = kRate) {
+// The Year knob's value for a place counted from spring's middle (0 spring,
+// 0.25 summer, 0.5 autumn, 0.75 winter): the knob's two ends are the turn of
+// the year, an eighth before spring.
+static float knob_at(float place) {
+  const float knob = place + livemix::seasons_parts::kSpringAt;
+  return knob - std::floor(knob);
+}
+
+// A year that stands still with the Year knob at `knob`, as far into the
+// season as it goes.
+static void still_knob(Seasons& d, float knob, float rate = kRate) {
   d.init(rate);
   d.set_param(p::kTurn, 0.0f);
-  d.set_param(p::kYear, year);
+  d.set_param(p::kYear, knob);
   d.set_param(p::kDepth, 1.0f);
+}
+
+// A year that stands still at `place`, counted from spring's middle.
+static void still(Seasons& d, float place, float rate = kRate) {
+  still_knob(d, knob_at(place), rate);
 }
 
 struct Preset {
@@ -403,9 +417,9 @@ int main(int argc, char**) {
   // --- the dial is a circle ---------------------------------------------------------------
   // Year 1 is Year 0: the same samples.
   {
-    still(device, 0.0f);
+    still_knob(device, 0.0f);
     const Stereo first = run(device, noise_in.left, noise_in.right);
-    still(device, 1.0f);
+    still_knob(device, 1.0f);
     const Stereo last = run(device, noise_in.left, noise_in.right);
     EXPECT(first.left == last.left && first.right == last.right, "Year 1 is Year 0, sample for sample");
   }
@@ -612,12 +626,12 @@ int main(int argc, char**) {
     // into winter), in steps of a thousandth of the dial: a real step would
     // not shrink with the spacing.
     double fine_level = 0.0, fine_colour = 0.0;
-    for (float around : {0.0f, 0.625f}) {
+    for (float around : {0.0f, 0.75f}) {  // the knob's own values
       double last_loud = 0.0, last_colour = 0.0;
       for (int k = -3; k <= 3; ++k) {
         float year = around + static_cast<float>(k) / 1024.0f;
         if (year < 0.0f) year += 1.0f;
-        still(device, year);
+        still_knob(device, year);
         const Stereo out = run(device, material.left, material.right);
         const double here = db(level(out, second)), tint = centroid(out.left, second);
         if (k > -3) {
@@ -727,13 +741,13 @@ int main(int argc, char**) {
       read[b] = device.meter(0);
     }
     if (g_print) std::printf("after 20 s, 19.5 of them silent, at 40 s a year: %.5f %.5f %.5f\n", read[0], read[1], read[2]);
-    EXPECT_NEAR(read[1], 0.5, 1.0e-3, "the year turns on through silence and sleep");
+    EXPECT_NEAR(read[1], 0.625, 1.0e-3, "the year turns on through silence and sleep");
     EXPECT(read[0] == read[1] && read[1] == read[2], "and stands in the same place at every block size");
 
     // The Year knob places the year, and a turning year carries on from there.
     device.init(kRate);
     device.set_param(p::kTurning, 10.0f);
-    run(device, std::vector<float>(static_cast<size_t>(3.0f * kRate), 0.01f));  // now at 0.3
+    run(device, std::vector<float>(static_cast<size_t>(3.0f * kRate), 0.01f));  // now at 0.425
     device.set_param(p::kYear, 0.75f);
     run(device, std::vector<float>(static_cast<size_t>(1.0f * kRate), 0.01f));
     EXPECT_NEAR(device.meter(0), 0.85, 2.0e-3, "the Year knob places a turning year, which carries on from there");
@@ -760,9 +774,9 @@ int main(int argc, char**) {
       float year;
     };
     const Jump jumps[] = {
-        {"Year from spring to autumn", p::kYear, 0.0f, 0.5f, 0.0f},
+        {"Year from spring to autumn", p::kYear, 0.125f, 0.625f, 0.0f},
         {"Year across the join", p::kYear, 0.95f, 0.05f, 0.95f},
-        {"Year from summer to winter", p::kYear, 0.25f, 0.75f, 0.25f},
+        {"Year from summer to winter", p::kYear, 0.375f, 0.875f, 0.25f},
         {"Depth to nothing", p::kDepth, 1.0f, 0.0f, 0.25f},
         {"Space to nothing", p::kSpace, 1.0f, 0.0f, 0.75f},
         {"Space full up", p::kSpace, 0.0f, 1.0f, 0.25f},
@@ -818,8 +832,8 @@ int main(int argc, char**) {
     EXPECT(sped < 1.5 * own + 0.001, "a change of Turning does not click");
 
     // The Year knob goes the shorter way round: from just before the join to
-    // just after it the year never passes through autumn.
-    still(device, 0.95f);
+    // just after it the year never goes the long way round.
+    still_knob(device, 0.95f);
     run(device, std::vector<float>(4800, 0.01f));
     device.set_param(p::kYear, 0.05f);
     bool short_way = true;
@@ -1073,7 +1087,7 @@ int main(int argc, char**) {
       EXPECT(std::fabs(ring / decay[3] - 1.0) < 0.12, "winter's tail is as long at another sample rate");
       EXPECT(std::fabs(tremble / shimmer[0] - 1.0) < 0.15, "spring shimmers as much and as fast at another sample rate");
       EXPECT(std::fabs(count / 7.0 / dips[2] - 1.0) < 0.2, "autumn crumbles as often at another sample rate");
-      EXPECT_NEAR(year, 0.25, 1.0e-3, "the year takes as many seconds at another sample rate");
+      EXPECT_NEAR(year, 0.375, 1.0e-3, "the year takes as many seconds at another sample rate");
     }
   }
 
@@ -1289,7 +1303,7 @@ int main(int argc, char**) {
         for (int at = 0; at < 3; ++at) {
           device.init(kRate);
           device.set_param(p::kTurn, 0.0f);
-          device.set_param(p::kYear, 0.25f * static_cast<float>(s));
+          device.set_param(p::kYear, knob_at(0.25f * static_cast<float>(s)));
           const int id = knobs[k];
           device.set_param(id, p::kParamMin[id] + 0.5f * static_cast<float>(at) * (p::kParamMax[id] - p::kParamMin[id]));
           out[at] = run(device, pad_in.left, pad_in.right);

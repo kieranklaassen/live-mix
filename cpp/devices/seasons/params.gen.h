@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Seasons, shared with
 // src/dsp/devices/seasons.gen.ts:
-//    0  year: 0..1, default 0
+//    0  year: 0..1, default 0.125
 //    1  turning: 10..1800 s, default 120
 //    2  depth: 0..1, default 0.75
 //    3  space: 0..1, default 0.6
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1800.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2.0f, 2.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 120.0f, 0.75f, 0.6f, 0.6f, 0.5f, 0.5f, 1.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.125f, 120.0f, 0.75f, 0.6f, 0.6f, 0.5f, 0.5f, 1.0f, 1.0f, 1.0f};
 
 }  // namespace seasons
 }  // namespace livemix
