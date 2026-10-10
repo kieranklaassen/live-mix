@@ -923,7 +923,7 @@ describe('the Currents presets, second check', () => {
   const preset = (name: string): Values => {
     const values = presets[name]
     if (!values) throw new Error(`no preset ${name}`)
-    return values as Values
+    return values
   }
   /** `seconds` of `input` through the device on `values`, 128 samples at a time: what `each` makes of every block. */
   async function through(
