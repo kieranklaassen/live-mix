@@ -195,6 +195,113 @@
       "tone": 3200,
       "wobble": 0.9,
       "velocity": 0.5
+    },
+    "Attack only": {
+      "start": 0,
+      "end": 0.1,
+      "loop": 0,
+      "crossfade": 0,
+      "attack": 0.001,
+      "release": 0.2,
+      "tone": 16000,
+      "wobble": 0,
+      "velocity": 0.9,
+      "volume": -4
+    },
+    "Fluttering start": {
+      "start": 0,
+      "end": 0.05,
+      "loop": 2,
+      "attack": 0.02,
+      "release": 0.9,
+      "tone": 10000,
+      "wobble": 0.05,
+      "velocity": 0.7,
+      "volume": -7
+    },
+    "Frozen slice": {
+      "start": 0.5,
+      "end": 0.52,
+      "crossfade": 30,
+      "attack": 1.2,
+      "release": 5,
+      "tone": 5000,
+      "wobble": 0.35,
+      "velocity": 0.3
+    },
+    "Breathing loop": {
+      "start": 0.8,
+      "end": 1,
+      "loop": 2,
+      "attack": 0.3,
+      "release": 2.5,
+      "tone": 7000,
+      "wobble": 0.25,
+      "velocity": 0.4,
+      "volume": -8
+    },
+    "Rising swells": {
+      "start": 0.85,
+      "end": 1,
+      "crossfade": 40,
+      "reverse": 1,
+      "attack": 0.01,
+      "release": 1.2,
+      "tone": 12000,
+      "wobble": 0.1,
+      "velocity": 0.5,
+      "volume": -3
+    },
+    "Backward drift": {
+      "crossfade": 400,
+      "reverse": 1,
+      "tune": -5,
+      "attack": 0.9,
+      "release": 3.5,
+      "tone": 5000,
+      "wobble": 0.7,
+      "velocity": 0.4
+    },
+    "High glass": {
+      "tune": 12,
+      "crossfade": 150,
+      "attack": 0.15,
+      "release": 2.5,
+      "tone": 16000,
+      "wobble": 0.1,
+      "velocity": 0.5
+    },
+    "Low fifth pad": {
+      "start": 0.2,
+      "end": 0.8,
+      "loop": 2,
+      "tune": -7,
+      "attack": 0.4,
+      "release": 2,
+      "tone": 3500,
+      "wobble": 0.45,
+      "velocity": 0.4
+    },
+    "Far away swell": {
+      "crossfade": 250,
+      "attack": 2,
+      "release": 6,
+      "tone": 400,
+      "wobble": 0.4,
+      "velocity": 0.2,
+      "volume": -6
+    },
+    "Deep slow drone": {
+      "start": 0.05,
+      "end": 0.95,
+      "loop": 2,
+      "tune": -24,
+      "attack": 3,
+      "release": 9,
+      "tone": 1200,
+      "wobble": 0.6,
+      "velocity": 0,
+      "volume": -8
     }
   },
   "origin": {
