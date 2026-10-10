@@ -1686,5 +1686,43 @@
     "Short and bright": {"tune":0,"fine":0,"attack":0.001,"release":0.12,"tone":18000,"velocity":0.9,"volume":-9},
     "Octave down": {"tune":-12,"fine":0,"attack":0.02,"release":0.9,"tone":5000,"velocity":0.6,"volume":-9},
     "Even touch": {"tune":0,"fine":0,"attack":0.003,"release":0.6,"tone":10000,"velocity":0,"volume":-9}
+  },
+  "drum-kit": {
+    "(default)": {"kit":0,"tune":0,"length":1,"punch":0.35,"snap":0.3,"tone":0.5,"drive":0,"variation":0.2,"width":0.4,"volume":0},
+    "Felt kit": {"kit":0,"tune":0,"length":1.15,"punch":0.2,"snap":0.15,"tone":0.5,"drive":0,"variation":0.3,"width":0.4,"volume":-2},
+    "Deep and slow": {"kit":1,"tune":0,"length":1.3,"punch":0.2,"snap":0.2,"tone":0.5,"drive":0,"variation":0.2,"width":0.4,"volume":-4},
+    "Small and tight": {"kit":2,"tune":0,"length":0.7,"punch":0.5,"snap":0.55,"tone":0.6,"drive":0,"variation":0.2,"width":0.4,"volume":-0.5},
+    "Paper kit": {"kit":3,"tune":0,"length":1,"punch":0.35,"snap":0.4,"tone":0.6,"drive":0,"variation":0.2,"width":0.5,"volume":0},
+    "Brushed": {"kit":0,"tune":3,"length":1.5,"punch":0,"snap":0,"tone":0.25,"drive":0,"variation":0.5,"width":0.6,"volume":-3},
+    "Dark room": {"kit":1,"tune":-5,"length":2.6,"punch":0.35,"snap":0.1,"tone":0.1,"drive":0.45,"variation":0.2,"width":0.7,"volume":-6},
+    "Bright ticks": {"kit":2,"tune":5,"length":0.45,"punch":0.35,"snap":0.8,"tone":0.85,"drive":0,"variation":0.2,"width":0.8,"volume":1.5},
+    "Long toms": {"kit":0,"tune":-2,"length":2.6,"punch":0.6,"snap":0.3,"tone":0.55,"drive":0,"variation":0.2,"width":0.4,"volume":-5},
+    "Dusty": {"kit":3,"tune":-4,"length":1.5,"punch":0.35,"snap":0.15,"tone":0.2,"drive":0.75,"variation":0.6,"width":0.4,"volume":-2.5},
+    "Low and far": {"kit":1,"tune":-7,"length":1.2,"punch":0.1,"snap":0,"tone":0.4,"drive":0,"variation":0.2,"width":1,"volume":-5.5},
+    "Airy and long": {"kit":0,"tune":2,"length":3,"punch":0.2,"snap":0.5,"tone":0.9,"drive":0,"variation":0.2,"width":0.9,"volume":-5.5},
+    "Toy box": {"kit":3,"tune":10,"length":0.9,"punch":0.7,"snap":0.6,"tone":0.7,"drive":0,"variation":0.2,"width":0.3,"volume":1.5},
+    "Pushed hard": {"kit":2,"tune":-2,"length":1,"punch":0.8,"snap":0.7,"tone":0.6,"drive":1,"variation":0.2,"width":0.4,"volume":-2},
+    "Muffled": {"kit":0,"tune":-3,"length":1.2,"punch":0.25,"snap":0.15,"tone":0.3,"drive":0.4,"variation":0.1,"width":0.1,"volume":-3.5},
+    "Paper thuds": {"kit":3,"tune":-9,"length":2.5,"punch":0.9,"snap":0.2,"tone":0.4,"drive":0,"variation":0.2,"width":0.6,"volume":-3.5},
+    "Heavy steps": {"kit":1,"tune":-12,"length":3.5,"punch":0.6,"snap":0.3,"tone":0.5,"drive":0.3,"variation":0.2,"width":0.4,"volume":-8}
+  },
+  "glitch-kit": {
+    "(default)": {"tune":0,"length":1,"tone":0.5,"edge":0.35,"density":0.4,"crush":0,"scatter":0.25,"spread":0.5,"volume":0},
+    "Clean clicks": {"tune":0,"length":1,"tone":0.5,"edge":0.35,"density":0.4,"crush":0,"scatter":0.25,"spread":0.5,"volume":0},
+    "Soft faults": {"tune":0,"length":1.8,"tone":0.15,"edge":0,"density":0.4,"crush":0,"scatter":0.35,"spread":0.5,"volume":0},
+    "Hard cuts": {"tune":0,"length":0.6,"tone":1,"edge":1,"density":0.6,"crush":0,"scatter":0.05,"spread":0.5,"volume":1.5},
+    "Old console": {"tune":7,"length":0.8,"tone":0.85,"edge":1,"density":0.55,"crush":0.6,"scatter":0,"spread":0.5,"volume":1},
+    "Surface noise": {"tune":0,"length":2.5,"tone":0.4,"edge":0.2,"density":0.95,"crush":0,"scatter":0.8,"spread":0.9,"volume":-3},
+    "Small signals": {"tune":7,"length":0.4,"tone":0.7,"edge":0.35,"density":0.2,"crush":0,"scatter":0.25,"spread":0.5,"volume":3},
+    "Broken stream": {"tune":0,"length":0.8,"tone":0.75,"edge":0.9,"density":0.85,"crush":0.6,"scatter":0.6,"spread":1,"volume":0},
+    "Dull ticks": {"tune":-5,"length":0.6,"tone":0.05,"edge":0.1,"density":0.4,"crush":0,"scatter":0.25,"spread":0.5,"volume":3},
+    "Scattered": {"tune":0,"length":1.3,"tone":0.5,"edge":0.35,"density":0.6,"crush":0,"scatter":1,"spread":1,"volume":-1},
+    "Low bitrate kit": {"tune":-3,"length":1.2,"tone":0.45,"edge":0.6,"density":0.4,"crush":1,"scatter":0.25,"spread":0.5,"volume":-1},
+    "Octave down": {"tune":-12,"length":2,"tone":0.6,"edge":0.3,"density":0.4,"crush":0,"scatter":0.25,"spread":0.5,"volume":-3},
+    "High pips": {"tune":12,"length":1,"tone":1,"edge":0.2,"density":0.3,"crush":0,"scatter":0.25,"spread":0.5,"volume":1},
+    "Long bursts": {"tune":0,"length":4,"tone":0.65,"edge":0.5,"density":0.7,"crush":0,"scatter":0.25,"spread":0.5,"volume":-5},
+    "Tight centre": {"tune":0,"length":0.3,"tone":0.8,"edge":0.7,"density":0.4,"crush":0,"scatter":0,"spread":0,"volume":3},
+    "Coarse and low": {"tune":-12,"length":1,"tone":0.7,"edge":0.8,"density":0.4,"crush":0.8,"scatter":0.25,"spread":0.5,"volume":-1},
+    "Bright dust": {"tune":9,"length":2,"tone":0.9,"edge":0.35,"density":1,"crush":0,"scatter":0.7,"spread":0.8,"volume":-2}
   }
 }
