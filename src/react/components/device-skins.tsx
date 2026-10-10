@@ -1903,6 +1903,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   currents: { ...PLATE_PALETTES.currents, finish: 'brushed', cap: 'disc' },
   ring: { ...PLATE_PALETTES.ring, finish: 'hammered', cap: 'dot' },
   underwater: { ...PLATE_PALETTES.underwater, finish: 'fade', cap: 'dot' },
+  pulses: { ...PLATE_PALETTES.pulses, finish: 'hammered', cap: 'dot' },
 }
 
 /**
