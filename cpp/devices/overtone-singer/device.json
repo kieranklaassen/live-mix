@@ -171,7 +171,7 @@
       "low": 9,
       "high": 16,
       "focus": 0.9,
-      "drone": 0.75,
+      "drone": 0.85,
       "pace": 1.5,
       "glide": 150
     },
@@ -204,7 +204,7 @@
       "high": 12,
       "pace": 2,
       "glide": 90,
-      "drone": 0.75
+      "drone": 0.85
     },
     "Bird calls": {
       "pattern": 4,
@@ -214,7 +214,7 @@
       "pace": 5,
       "glide": 70,
       "focus": 0.9,
-      "drone": 0.7
+      "drone": 0.85
     },
     "Faint melody": {
       "mix": 0.3,
@@ -241,6 +241,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Two state-variable band-passes in series per side on one harmonic of a root note, moved from harmonic to harmonic by a free-running seeded melody, over the dry sound, with the resonant part held under a share of the input's own level."
+    "note": "Written for live-mix on cpp/kit. Two peaks in series per side on one harmonic of a root note, each the dry sound and a state-variable band-pass lifted over it, moved from harmonic to harmonic by a free-running seeded melody, with the reach of the peaks held so that the resonant part stays under a share of the input's own level."
   }
 }

@@ -43,7 +43,7 @@ export const SINGER_LIFT = 14.142136
 /** Each of the two stages is the width over this, so the two in series are the width (`kStageShare`). */
 export const SINGER_STAGE_SHARE = 0.6435943
 
-/** From over the lift at the highest Focus (36 dB) down past the dips either side of the resonance. */
+/** From over the lift at the highest Focus (36 dB) down to what a Drone of 0.16 leaves around the resonance. */
 export const SINGER_TOP_DB = 38
 export const SINGER_FOOT_DB = -32
 /**
@@ -58,6 +58,8 @@ const SPECTRUM_FOOT_DB = -84
 const DRONE_UNDER_DB = 6
 /** How far inside the right edge the Drone point stands, so its ring is whole. */
 const DRONE_INSET = 2
+/** What a notch of the wheel over Low or High moves Focus by: the lift's line is a fifth of the plot high, so a hand on it sets Focus in twentieths. */
+const FOCUS_NOTCH = 0.02
 /** The harmonics the melody can visit (`low` and `high`). */
 const HARMONIC_LEAST = 2
 const HARMONIC_MOST = 16
@@ -81,6 +83,16 @@ export const singerLiftDb = (focus: number): number =>
 export const singerRootHz = (root: number, octave: number): number =>
   440 * Math.pow(2, (12 * (Math.round(octave) + 1) + Math.round(root) - 69) / 12)
 
+/**
+ * What the bilinear transform leaves of a band-pass's width on `turn` radians
+ * a sample (`width_kept`): sin(turn) / turn, as the device's own series. Each
+ * stage's Q is multiplied by it, so the width is what Focus says at any rate.
+ */
+export function singerWidthKept(turn: number): number {
+  const t2 = turn * turn
+  return 1 - (t2 / 6) * (1 - (t2 / 20) * (1 - t2 / 42))
+}
+
 /** `kit::tan_prewarp`: the tangent the device's filters are set with. */
 function tanPrewarp(x: number): number {
   if (x > 0.7) return Math.tan(x)
@@ -92,18 +104,21 @@ export interface SingerSetting {
   focus: number
   drone: number
   mix: number
-  /** How far the ceiling holds the resonant part down, as a gain: 1 when it does not. */
+  /** What the ceiling leaves of the lift over the drone on the centre, as a gain (the `ceiling` reading): 1 when it holds nothing. */
   held?: number
 }
 
 /**
  * What the Overtone Singer does to a frequency while its resonance stands on
  * `position` (a harmonic of `rootHz`, a fraction while it glides), in dB.
- * Ported from `OvertoneSinger::process`: wet = a²·x + (lift − a²)·H²(x), where
- * a is Drone, H one state-variable band-pass (the analog one at the frequency
- * the tangent warps to) and the two in series stand on root × position; the
- * ceiling's gain is on the resonant part alone; Mix crossfades with the dry
- * sound. It is kept as a complex number because the parts add with their phases.
+ * Ported from `OvertoneSinger::process`: wet = (a + ρ·H)²(x), two peaks in
+ * series, where a is Drone, H one state-variable band-pass (the analog one at
+ * the frequency the tangent warps to, its Q set for the width the transform
+ * leaves) standing on root × position, and ρ the reach of each peak: √lift − a
+ * when the ceiling holds nothing, and less when it does, so that the lift over
+ * the drone on the centre, (a + ρ)² − a², is `held` of lift − a². Mix
+ * crossfades with the dry sound. It is kept as a complex number because the
+ * parts add with their phases.
  */
 export function singerDb(
   setting: SingerSetting,
@@ -114,20 +129,23 @@ export function singerDb(
   const width = singerWidth(setting.focus)
   const centre = clamp(rootHz * position, 5, 0.49 * sampleRate)
   const g = tanPrewarp((Math.PI * centre) / sampleRate)
-  const k = 1 / Math.max((SINGER_STAGE_SHARE * position) / width, 0.1)
-  const through = setting.drone * setting.drone
-  const lifted = (setting.held ?? 1) * (SINGER_LIFT / Math.sqrt(width) - through)
-  const { mix } = setting
+  const q =
+    ((SINGER_STAGE_SHARE * position) / width) * singerWidthKept((2 * Math.PI * centre) / sampleRate)
+  const k = 1 / Math.max(q, 0.1)
+  const { drone, mix } = setting
+  const through = drone * drone
+  const lift = SINGER_LIFT / Math.sqrt(width)
+  const reach = Math.sqrt(through + (setting.held ?? 1) * (lift - through)) - drone
   return (hz) => {
     const w = Math.tan((Math.PI * clamp(hz, 0, 0.499 * sampleRate)) / sampleRate) / g
-    // One stage is j·k·w / (1 − w² + j·k·w).
+    // One stage is j·k·w / (1 − w² + j·k·w), and one peak the drone and the reach of it.
     const denRe = 1 - w * w
     const denIm = k * w
     const den = denRe * denRe + denIm * denIm
-    const re = (k * w * denIm) / den
-    const im = (k * w * denRe) / den
-    const outRe = 1 - mix + mix * (through + lifted * (re * re - im * im))
-    const outIm = mix * lifted * 2 * re * im
+    const peakRe = drone + (reach * k * w * denIm) / den
+    const peakIm = (reach * k * w * denRe) / den
+    const outRe = 1 - mix + mix * (peakRe * peakRe - peakIm * peakIm)
+    const outIm = mix * 2 * peakRe * peakIm
     const power = outRe * outRe + outIm * outIm
     return power > 1e-12 ? 10 * Math.log10(power) : FLOOR_DB
   }
@@ -181,6 +199,15 @@ function singerHandles(view: DisplayView): DisplayHandle[] {
   const drone = view.value('drone')
   const [least, most] = rangeOf(view, 'low', [HARMONIC_LEAST, HARMONIC_MOST])
   const [droneMin, droneMax] = rangeOf(view, 'drone', [0, 1])
+  const [focusMin, focusMax] = rangeOf(view, 'focus', [0, 1])
+  // The wheel over either end of the range is Focus alone, a fiftieth a notch.
+  const focusWheel = (steps: number): Record<string, number> => ({
+    focus: clamp(
+      Math.round((view.value('focus') + steps * FOCUS_NOTCH) * 100) / 100,
+      focusMin,
+      focusMax,
+    ),
+  })
   // The lift is a straight line in Focus, so a height is one Focus.
   const none = singerLiftDb(0)
   const all = singerLiftDb(1)
@@ -191,16 +218,34 @@ function singerHandles(view: DisplayView): DisplayHandle[] {
     clamp(Math.round(harmonicOfX(x, plot)), from, to)
   const droneDb = droneScaleDb(drone)
   const droneShown = Math.max(droneDb, SINGER_FOOT_DB)
+  // An end stops at the other, so Low stays the low one. With the two ends on
+  // one harmonic there is one point, and the hand that takes it cannot say
+  // which end it wants: the way it pulls says. The harmonic they stood on is
+  // kept for as long as the hand holds, and the range runs from it to the hand.
+  const endDrag =
+    (end: 'low' | 'high') =>
+    (x: number, y: number, hold?: DisplayHold): Record<string, number> => {
+      const kept = hold ?? {}
+      kept.joined ??= low === high ? low : 0
+      const focus = focusAt(y)
+      if (kept.joined > 0) {
+        const at = harmonicAt(x, least, most)
+        return { low: Math.min(at, kept.joined), high: Math.max(at, kept.joined), focus }
+      }
+      return end === 'low'
+        ? { low: harmonicAt(x, least, Math.max(low, high)), focus }
+        : { high: harmonicAt(x, Math.min(low, high), most), focus }
+    }
   return [
     {
       key: 'low',
       name: 'Low',
       // The two ends of the melody's range stand at the height Focus lifts the
-      // resonance to: across is the harmonic, up and down is Focus. An end
-      // stops at the other, so Low stays the low one.
+      // resonance to: across is the harmonic, up and down is Focus.
       x: xOfHarmonic(low, plot),
       y: liftY,
-      drag: (x, y) => ({ low: harmonicAt(x, least, Math.max(low, high)), focus: focusAt(y) }),
+      drag: endDrag('low'),
+      wheel: focusWheel,
       reset: () => ({ low: startOf(view, 'low', 6), focus: startOf(view, 'focus', 0.6) }),
     },
     {
@@ -208,7 +253,8 @@ function singerHandles(view: DisplayView): DisplayHandle[] {
       name: 'High',
       x: xOfHarmonic(high, plot),
       y: liftY,
-      drag: (x, y) => ({ high: harmonicAt(x, Math.min(low, high), most), focus: focusAt(y) }),
+      drag: endDrag('high'),
+      wheel: focusWheel,
       reset: () => ({ high: startOf(view, 'high', 12), focus: startOf(view, 'focus', 0.6) }),
     },
     {
@@ -347,7 +393,7 @@ const overtoneSinger = plateDisplay({
   columns: 2,
   params: ['root', 'octave', 'low', 'high', 'pattern', 'focus', 'drone', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'The harmonics of the root as a ladder, with the curve of the resonance where it stands now over the spectrum of what comes out; the mark at the foot is the harmonic it moves to. The two points on the dashed line set Low and High across and Focus by their height; the point at the right sets Drone.',
+  info: 'The harmonics of the root as a ladder, with the curve of the resonance over the spectrum of what comes out; the mark at the foot is the harmonic it moves to. The two points on the dashed line set Low and High across and Focus by height, or finely by the wheel; the point at the right sets Drone.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)

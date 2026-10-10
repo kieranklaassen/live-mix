@@ -208,9 +208,11 @@ function spans(drawn: RecordingContext): number[][] {
 /**
  * The device's formula a second time, straight from the comment at the head
  * of `overtone_singer.h`, with the tangent itself where the kit has its
- * approximation: wet = a² + held·(lift − a²)·H², H = j·k·w / (1 − w² + j·k·w),
- * k = width / (0.6435943 · position), lift = 14.142136 / √width,
- * width = 2 · (0.05 / 2)^Focus roots.
+ * approximation and the sine itself where the device has a series: two peaks
+ * in series, wet = a² + 2·a·ρ·H + ρ²·H², H = j·k·w / (1 − w² + j·k·w),
+ * k = width / (0.6435943 · position · sin(turn) / turn) with turn the centre
+ * in radians a sample, lift = 14.142136 / √width, width = 2 · (0.05 / 2)^Focus
+ * roots, and ρ = √lift − a, or what leaves `held` of the lift over the drone.
  */
 function formulaDb(
   setting: { focus: number; drone: number; mix: number; held?: number },
@@ -220,17 +222,21 @@ function formulaDb(
 ): number {
   const width = 2 * Math.pow(0.05 / 2, setting.focus)
   const lift = 14.142136 / Math.sqrt(width)
-  const k = width / (0.6435943 * position)
+  const turn = (2 * Math.PI * rootHz * position) / RATE
+  const k = width / (0.6435943 * position * (Math.sin(turn) / turn))
   const w = Math.tan((Math.PI * hz) / RATE) / Math.tan((Math.PI * rootHz * position) / RATE)
   const denRe = 1 - w * w
   const denIm = k * w
   const den = denRe * denRe + denIm * denIm
   const re = (k * w * denIm) / den
   const im = (k * w * denRe) / den
-  const through = setting.drone * setting.drone
-  const lifted = (setting.held ?? 1) * (lift - through)
-  const outRe = 1 - setting.mix + setting.mix * (through + lifted * (re * re - im * im))
-  const outIm = setting.mix * lifted * 2 * re * im
+  const a = setting.drone
+  const reach = Math.sqrt(a * a + (setting.held ?? 1) * (lift - a * a)) - a
+  // a² + 2·a·ρ·H + ρ²·H², with H² = (re² − im²) + j·2·re·im.
+  const wetRe = a * a + 2 * a * reach * re + reach * reach * (re * re - im * im)
+  const wetIm = 2 * a * reach * im + reach * reach * 2 * re * im
+  const outRe = 1 - setting.mix + setting.mix * wetRe
+  const outIm = setting.mix * wetIm
   return 10 * Math.log10(outRe * outRe + outIm * outIm)
 }
 
@@ -340,6 +346,32 @@ describe('the curve of the Overtone Singer display', () => {
           Math.abs(drawnDb(curve, harmonic) - said),
           `${JSON.stringify(values)} at ${harmonic}: ${drawnDb(curve, harmonic)} against ${said}`,
         ).toBeLessThan(harmonic === 8.4 ? 1e-6 : 0.4)
+      }
+    }
+  })
+
+  it('never goes under what Drone leaves, beside the resonance or anywhere, held by the ceiling or not', () => {
+    for (const drone of [1, 0.5]) {
+      for (const focus of [0, 0.3, 0.6, 1]) {
+        for (const ceiling of [0, -6, -20]) {
+          const around = 40 * Math.log10(drone)
+          const curve = mainCurve(running(readings(9, { ceiling }), { focus, drone }))
+          for (const [, y] of curve)
+            expect(dbAtY(y), `Drone ${drone} Focus ${focus} ceiling ${ceiling}`).toBeGreaterThan(
+              around - 1e-6,
+            )
+          // And the harmonics either side are the device's formula: over the drone, not under.
+          for (const harmonic of [8, 10]) {
+            const said = formulaDb(
+              { focus, drone, mix: 1, held: Math.pow(10, ceiling / 20) },
+              110,
+              9,
+              110 * harmonic,
+            )
+            expect(said).toBeGreaterThan(around)
+            expect(Math.abs(drawnDb(curve, harmonic) - said)).toBeLessThan(0.05)
+          }
+        }
       }
     }
   })
@@ -582,6 +614,33 @@ describe('the points of the Overtone Singer display', () => {
     expect(high.drag(high.x, high.y).high).toBe(4)
   })
 
+  it('open a range closed on one harmonic whichever way the hand pulls', () => {
+    const closed = { low: 9, high: 9 }
+    for (const key of ['low', 'high'] as const) {
+      const point = handle(key, closed)
+      const hold: DisplayHold = {}
+      // Taken and held still it moves nothing, and both ends are in the hand.
+      expect(point.drag(point.x, point.y, hold)).toMatchObject({ low: 9, high: 9 })
+      expect(Object.keys(point.drag(point.x, point.y, hold)).sort()).toEqual([
+        'focus',
+        'high',
+        'low',
+      ])
+      // Pulled up the ladder it is High that goes, and the plate has the new range at the next move.
+      expect(point.drag(xOfHarmonic(12, plot), point.y, hold)).toMatchObject({ low: 9, high: 12 })
+      const open = handle(key, { low: 9, high: 12 })
+      // The same hand pulled back down past where they stood: now it is Low.
+      expect(open.drag(xOfHarmonic(5, plot), point.y, hold)).toMatchObject({ low: 5, high: 9 })
+      expect(handle(key, { low: 5, high: 9 }).drag(point.x, point.y, hold)).toMatchObject(closed)
+      // Past either end of the ladder it stops at the ladder's.
+      expect(point.drag(-50, point.y, hold)).toMatchObject({ low: 2, high: 9 })
+      expect(point.drag(size.width + 50, point.y, hold)).toMatchObject({ low: 9, high: 16 })
+    }
+    // A range that is open: an end is itself alone, taken with a hold or without.
+    expect(Object.keys(handle('low').drag(40, 20, {})).sort()).toEqual(['focus', 'low'])
+    expect(Object.keys(handle('high').drag(40, 20)).sort()).toEqual(['focus', 'high'])
+  })
+
   it('set the Drone whose level is under the hand', () => {
     for (const drone of [1, 0.71, 0.5, 0.3, 0.2]) {
       const there = handle('drone', { drone })
@@ -628,6 +687,21 @@ describe('the points of the Overtone Singer display', () => {
     // The scale under the foot and back.
     for (const drone of [0, 0.01, 0.1, atFoot, 0.4, 1])
       expect(droneOfScaleDb(droneScaleDb(drone))).toBeCloseTo(drone, 12)
+  })
+
+  it('set Focus alone by the wheel over Low or High, a fiftieth a notch, and stop at its ends', () => {
+    for (const key of ['low', 'high'] as const) {
+      expect(handle(key).wheel?.(1)).toEqual({ focus: 0.62 })
+      expect(handle(key).wheel?.(-3)).toEqual({ focus: 0.54 })
+      expect(handle(key, { focus: 0.99 }).wheel?.(2)).toEqual({ focus: 1 })
+      expect(handle(key, { focus: 0.03 }).wheel?.(-4)).toEqual({ focus: 0 })
+      // A notch moves the point about a third of a pixel: finer than a hand on it.
+      const before = handle(key).y
+      const after = handle(key, { focus: 0.62 }).y
+      expect(before - after).toBeGreaterThan(0.2)
+      expect(before - after).toBeLessThan(0.6)
+    }
+    expect(handle('drone').wheel).toBeUndefined()
   })
 
   it('go back to where the device starts on a double press', () => {

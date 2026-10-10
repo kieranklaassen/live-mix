@@ -7,9 +7,11 @@
 //             melody (free-running, seeded) ──► harmonic now, per side
 //                                                │
 //                                                ▼  centre = Root · harmonic
-//   in ─┬─► band-pass ─► band-pass ─► × (lift − a²) ─► ceiling ─┐
-//       ├─► × a² (the drone) ──────────────────────────────────(+)─► wet
-//       └─► dry ───────────────────────────────────────────── Mix ─► out
+//   in ─┬─► [band-pass] ─┬─► [band-pass] ─► × (g·r)² ──────┐
+//       │                └─► × 2·a·(g·r) ─────────────────(+)─► wet
+//       ├─► × a² (the drone) ──────────────────────────────┘
+//       └─► dry ───────────────────────────────── Mix ─► out
+//                          a = Drone, r = √lift − a, g = the ceiling (1 or less)
 //
 // - The harmonic series is Root (C to B, in Octave 1 to 4) times 2 to 16.
 //   The melody visits the harmonics from Low to High by Pattern, one move
@@ -17,35 +19,49 @@
 //   at both ends as a mouth moves. A glide is a straight line in harmonic
 //   number (so in Hz) under a raised cosine. Moves are counted in samples
 //   from init and never look at the sound.
-// - The resonance is two band-passes in series on the same centre (the two
-//   formants an overtone singer brings together), so its skirts fall twice
-//   as fast as one filter's and the harmonics either side are left behind.
-//   Its width is a share of the ROOT, not of its centre: Focus 0 is two
+// - The resonance is two peaks in series on the same centre (the two
+//   formants an overtone singer brings together). Each is P = a + r·H, with
+//   a the Drone knob, H a band-pass of unity gain on the centre and
+//   r = √lift − a, so the pair is (a + r·H)² = a² + 2·a·r·H + r²·H², which is
+//   what the three paths above add up to, and does to a frequency exactly
+//   a² + (lift − a²)·|H|²: the drone's share and the resonance's two-stage
+//   curve ADDED, the lift on the centre and a² far from it whatever Drone
+//   is, and never less than a² anywhere. With all the Drone the sound around
+//   the resonance is whole: no harmonic is turned down as the melody passes.
+//   (A sum a²·x + lift·H²(x) would turn the harmonics either side down by 8
+//   or 9 dB, the resonance having turned half a turn against the drone there.)
+// - Its width is a share of the ROOT, not of its centre: Focus 0 is two
 //   roots wide (a broad vowel colour over three harmonics), Focus 1 a
-//   twentieth of a root (one harmonic, ringing), the same on every harmonic,
-//   so the neighbours are about as far down at the 16th as at the 4th.
-// - The wet sound is a²·x + (lift − a²)·H²(x), with a the Drone knob: a² far
-//   from the centre and the lift on it, whatever Drone is. The lift depends
-//   on Focus alone, 14.14 / √width, +20 dB at Focus 0 to +36 dB at Focus 1,
-//   which keeps a whistle drawn out of noise as loud while Focus narrows
-//   it. On its skirts the resonance has turned nearly half a turn against
-//   the drone, so either side of the peak the two partly cancel: a dip
-//   (9 dB at the defaults, where it falls on the harmonics next door and so
-//   sets the sung one further apart), deeper the more Drone is taken away.
-//   It is part of the response and the display draws it.
+//   twentieth of a root (one harmonic, ringing), the same on every harmonic
+//   and at every sample rate (the band-pass's Q is set for the width the
+//   bilinear transform leaves it). The lift depends on Focus alone,
+//   14.14 / √width, +20 dB at Focus 0 to +36 dB at Focus 1, which keeps a
+//   whistle drawn out of noise as loud while Focus narrows it.
 // - The ceiling. A lift that size is there for the partials of a dull sound,
 //   which lie 30 or 40 dB under its level; on a partial that is already loud
-//   it would be a runaway. So the resonant part (everything but the drone)
-//   is held to a share of the level of the sound coming in: 1 − a²/2 of the
-//   input's peak envelope. It may take the room the drone leaves and half as
-//   much again.
-//   A lone tone on the centre therefore comes out between unity (Drone 0)
-//   and +3.5 dB (Drone 1), whatever Focus is; a partial that is 30 dB down in
-//   a rich sound gets the whole lift. The gain is found from two followers
-//   (the input's peak: 1 ms up, 500 ms down; the resonance's peak: at once
-//   up, 150 ms down), is the same for both sides, and never lets the
-//   resonant part past the share, sample by sample. Nothing here knows an
-//   absolute level: the device does the same at -40 dBFS as at full scale.
+//   it would be a runaway. So the resonant part (everything but the drone's
+//   a²·x) is held to a share of the level of the sound coming in NOW: its
+//   amplitude to 1 − a²/2 of √2 times the input's root mean square. A lone
+//   tone on the centre therefore comes out between unity (Drone 0) and
+//   +3.5 dB (Drone 1), whatever Focus is, and a whistle is never louder than
+//   the sound it is drawn from (half as loud with all the Drone); a partial
+//   30 dB down in a rich sound gets the whole lift.
+//   What the ceiling turns down is r, the reach of each peak, to g·r: the
+//   pair is then (a + g·r·H)², still a² plus a two-stage curve and still
+//   never less than a², only with less lift. (One gain on the whole resonant
+//   part would let the harmonics beside the peak dip while it held.) g is
+//   the largest that keeps 2·a·g·r·|one stage| + (g·r)²·|two stages| under
+//   the share, so the resonant part is under it sample by sample.
+//   All the measures are quick, so the ceiling goes with the sound: the
+//   input's mean square through two poles of 20 ms (as fast down as up: after
+//   a loud hit over a quiet pad it is back in a fifth of a second, and it
+//   follows a note that dies away), and the envelope of each band-pass taken
+//   from the filter's own three outputs (band squared less low times high),
+//   which has no ripple on a single partial and so needs no slow release to
+//   keep the gain from buzzing: it is held only 20 ms, so a loud partial
+//   under the melody does not duck the note after it. The gain is the
+//   same for both sides. Nothing here knows an absolute level: the device
+//   does the same at -40 dBFS as at full scale.
 // - Spread makes the right side take each note that share of a step after
 //   the left: at 1 it is always one note behind, a canon between the sides.
 // - Mix is a linear crossfade: wet and dry are in time and coherent. At 0
@@ -79,11 +95,15 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
   static constexpr float kLift = 14.142136f;
   // Two equal band-passes in series are -3 dB at √(√2 − 1) of one's width.
   static constexpr float kStageShare = 0.6435943f;
-  // The resonant part may reach 1 − kCeilingDrone·a² of the input's peak.
+  // The resonant part's amplitude may reach 1 − kCeilingDrone·a² of √2 times
+  // the input's root mean square (of a sine's peak, that is).
   static constexpr float kCeilingDrone = 0.5f;
-  static constexpr float kInputAttackSeconds = 0.001f;
-  static constexpr float kInputReleaseSeconds = 0.5f;
-  static constexpr float kResonanceReleaseSeconds = 0.15f;
+  // The input's mean square goes through two poles of this, up and down alike.
+  static constexpr float kLevelSeconds = 0.02f;
+  // The band-passes' envelopes: at once up, this long down.
+  static constexpr float kResonanceReleaseSeconds = 0.02f;
+  // The reading of how far the ceiling holds is a mean over this.
+  static constexpr float kReadingSeconds = 0.03f;
   static constexpr float kRootGlideSeconds = 0.010f;
   // Input past this is not sound: clamped (and what is not a number, dropped).
   // And the ceiling does not take its measure from a sample past
@@ -103,6 +123,15 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
   static float root_hz(int root, int octave) {
     return kit::midi_to_hz(static_cast<float>(12 * (octave + 1) + root));
   }
+  // What the bilinear transform leaves of a band-pass's width on `turn`
+  // radians a sample: sin(turn) / turn, as a series (within 0.0005 up to
+  // 1.2 radians; the highest centre there is, B in octave 4 times 16, is 1.13
+  // at 44.1 kHz). A stage's Q is multiplied by it, so the width in Hz is what
+  // Focus says at every sample rate and not a fifth less at the top of 44.1 kHz.
+  static float width_kept(float turn) {
+    const float t2 = turn * turn;
+    return 1.0f - t2 * (1.0f / 6.0f) * (1.0f - t2 * (1.0f / 20.0f) * (1.0f - t2 * (1.0f / 42.0f)));
+  }
 
   void init(float sample_rate) {
     using namespace overtone_singer;
@@ -117,11 +146,13 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
     focus_.set_time(kSmoothingSeconds, sr);
     drone_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
-    input_attack_ = 1.0f - std::exp(-1.0f / (kInputAttackSeconds * sr));
-    input_release_ = 1.0f - std::exp(-1.0f / (kInputReleaseSeconds * sr));
-    resonance_decay_ = std::exp(-1.0f / (kResonanceReleaseSeconds * sr));
-    input_level_ = 0.0f;
-    resonance_level_ = 0.0f;
+    level_coeff_ = 1.0f - std::exp(-1.0f / (kLevelSeconds * sr));
+    // The envelopes are kept squared, so they fall twice as fast in that measure.
+    resonance_decay_ = std::exp(-2.0f / (kResonanceReleaseSeconds * sr));
+    reading_coeff_ = 1.0f - std::exp(-1.0f / (kReadingSeconds * sr));
+    power_[0] = power_[1] = 0.0f;
+    one_power_ = two_power_ = 0.0f;
+    held_ = 1.0f;
     rest_samples_ = static_cast<long>(kRestSeconds * sr);
     rest_run_ = rest_samples_;
     resting_ = true;
@@ -149,8 +180,10 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
   // The readings named by "meters" in device.json, for a display to draw:
   // 0 and 1, the harmonic the left and the right resonance stand on now (a
   // fraction while one glides); 2, the harmonic the left one is going to;
-  // 3, how far the ceiling holds the resonance down, in dB (0 when it does
-  // not; the deepest of the last block). All four are kept by process().
+  // 3, how far the ceiling holds the resonance down, in dB: what is left of
+  // the lift over the drone on the centre, so the pair of peaks does
+  // a² + reading·(lift − a²)·|H|² (0 when it holds nothing; a mean over the
+  // last 30 ms). All four are kept by process().
   float meter(int index) const {
     if (index == 0) return position_seen_[0];
     if (index == 1) return position_seen_[1];
@@ -171,13 +204,13 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
       // Asleep is at rest: nothing sounds, and only the melody is counted on.
       skip(frames);
       silence_output(frames);
+      held_ = 1.0f;
       held_db_seen_ = 0.0f;
       note_positions();
       return;
     }
     const float sr = sample_rate();
     float ring_peak = 0.0f;
-    float held = 1.0f;
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
@@ -198,14 +231,16 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
       if (focus != last_focus_) {
         last_focus_ = focus;
         width_ = width_of(focus);
-        lift_ = kLift / std::sqrt(width_);
+        root_lift_ = std::sqrt(kLift / std::sqrt(width_));
         retune_ = true;
       }
       for (int c = 0; c < 2; ++c) {
         const float position = glide_[c].value();
         if (position == last_position_[c] && !retune_) continue;
         last_position_[c] = position;
-        stage_[c][0].set(root_hz_ * position, kStageShare * position / width_, sr);
+        // The centre as the filter will have it, for the width it keeps there.
+        const float centre = kit::clamp(root_hz_ * position, 5.0f, 0.49f * sr);
+        stage_[c][0].set(centre, kStageShare * position / width_ * width_kept(kit::kTwoPi * centre / sr), sr);
         stage_[c][1].g = stage_[c][0].g;
         stage_[c][1].k = stage_[c][0].k;
         stage_[c][1].a1 = stage_[c][0].a1;
@@ -214,32 +249,68 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
       }
       retune_ = false;
 
-      // The drone's share a²·x, and the resonance on top of it: what the
-      // two band-passes pass, lifted so that the centre comes out at the lift.
-      const float a = drone_.next();
-      const float through = a * a;
-      const float lifted = lift_ - through;
-      float resonance[2];
+      // Two band-passes in series. A filter's band output squared, less its
+      // low output times its high, is the square of the band's envelope: on
+      // one partial exactly, wherever it lies (low is the band a quarter turn
+      // behind and high a quarter turn ahead, one divided and one multiplied
+      // by the same ratio), so there is no ripple to smooth away.
+      float one[2];
+      float two[2];
       float ring = 0.0f;
+      float one_now = 0.0f;
+      float two_now = 0.0f;
       for (int c = 0; c < 2; ++c) {
-        resonance[c] = lifted * stage_[c][1].bandpass(stage_[c][0].bandpass(in[c]));
-        ring = kit::max(ring, kit::max(kit::max(std::fabs(stage_[c][0].ic1), std::fabs(stage_[c][0].ic2)),
-                                       kit::max(std::fabs(stage_[c][1].ic1), std::fabs(stage_[c][1].ic2))));
+        kit::Svf& first = stage_[c][0];
+        kit::Svf& second = stage_[c][1];
+        first.process(in[c]);
+        one[c] = first.k * first.band;
+        second.process(one[c]);
+        two[c] = second.k * second.band;
+        const float k2 = first.k * first.k;
+        const float one_band = first.band * first.band;
+        const float two_band = second.band * second.band;
+        one_now = kit::max(one_now, k2 * kit::max(one_band, one_band - first.low * first.high));
+        two_now = kit::max(two_now, k2 * kit::max(two_band, two_band - second.low * second.high));
+        ring = kit::max(ring, kit::max(kit::max(std::fabs(first.ic1), std::fabs(first.ic2)),
+                                       kit::max(std::fabs(second.ic1), std::fabs(second.ic2))));
       }
 
+      // The level of the sound coming in, as a mean square, and the two
+      // envelopes, squared: at once up, kResonanceReleaseSeconds down.
       float level = kit::max(std::fabs(in[0]), std::fabs(in[1]));
       if (level > kLevelLimit) level = 0.0f;
-      input_level_ = flush_denormal(input_level_ +
-                                    (level > input_level_ ? input_attack_ : input_release_) * (level - input_level_));
-      resonance_level_ = flush_denormal(kit::max(kit::max(std::fabs(resonance[0]), std::fabs(resonance[1])),
-                                                 resonance_level_ * resonance_decay_));
-      const float ceiling = (1.0f - kCeilingDrone * through) * input_level_;
-      const float gain = resonance_level_ > ceiling ? ceiling / resonance_level_ : 1.0f;
-      if (gain < held) held = gain;
+      power_[0] = flush_denormal(power_[0] + level_coeff_ * (level * level - power_[0]));
+      power_[1] = flush_denormal(power_[1] + level_coeff_ * (power_[0] - power_[1]));
+      one_power_ = flush_denormal(kit::max(one_now, one_power_ * resonance_decay_));
+      two_power_ = flush_denormal(kit::max(two_now, two_power_ * resonance_decay_));
+
+      // The pair of peaks (a + r·H)² is a²·x and, on top of it, the resonant
+      // part 2·a·r·H(x) + r²·H²(x). The ceiling is on that part, and what it
+      // turns down is the reach r: to g·r, with g the largest for which
+      // 2·a·g·r·|H(x)| + (g·r)²·|H²(x)| stays under the share.
+      const float a = drone_.next();
+      const float through = a * a;
+      const float reach = root_lift_ - a;
+      const float cross = 2.0f * a * reach;
+      const float square = reach * reach;
+      const float share = 1.0f - kCeilingDrone * through;
+      const float ceiling = share * std::sqrt(2.0f * power_[1]);
+      const float one_level = cross * std::sqrt(one_power_);
+      const float two_level = square * std::sqrt(two_power_);
+      float gain = 1.0f;
+      if (one_level + two_level > ceiling) {
+        gain = ceiling > 0.0f
+                   ? 2.0f * ceiling / (one_level + std::sqrt(one_level * one_level + 4.0f * two_level * ceiling))
+                   : 0.0f;
+      }
+      const float cross_held = gain * cross;
+      const float square_held = gain * gain * square;
+      // The reading: what is left of the lift over the drone, on the centre.
+      held_ += reading_coeff_ * ((cross_held + square_held) / (cross + square) - held_);
 
       const float mix = mix_.next();
-      out_left_[i] = in[0] + mix * (through * in[0] + gain * resonance[0] - in[0]);
-      out_right_[i] = in[1] + mix * (through * in[1] + gain * resonance[1] - in[1]);
+      out_left_[i] = in[0] + mix * (through * in[0] + cross_held * one[0] + square_held * two[0] - in[0]);
+      out_right_[i] = in[1] + mix * (through * in[1] + cross_held * one[1] + square_held * two[1] - in[1]);
 
       // At rest once there has been no input, and nothing ringing that could
       // be heard at any setting, for kRestSeconds. Only sound ends it.
@@ -253,7 +324,8 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
         rest_run_ = 0;
       }
     }
-    held_db_seen_ = kit::gain_to_db(held);
+    // A gain within a ten-thousandth of one holds nothing: 0 dB, exactly.
+    held_db_seen_ = held_ > 0.9999f ? 0.0f : kit::gain_to_db(held_);
     note_positions();
     idle_.settle(kit::max(output_peak(frames), ring_peak), frames);
   }
@@ -441,8 +513,9 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       for (kit::Svf& stage : stage_[c]) stage.reset();
     }
-    input_level_ = 0.0f;
-    resonance_level_ = 0.0f;
+    power_[0] = power_[1] = 0.0f;
+    one_power_ = two_power_ = 0.0f;
+    held_ = 1.0f;
     resting_ = false;
     rest_run_ = 0;
   }
@@ -551,17 +624,21 @@ class OvertoneSinger : public kit::DeviceBase<overtone_singer::kNumParams> {
   bool retune_ = true;
   float root_hz_ = 130.8f;
   float width_ = 0.2f;
-  float lift_ = 15.0f;
-  float input_attack_ = 1.0f;
-  float input_release_ = 1.0f;
+  float root_lift_ = 4.0f;
+  float level_coeff_ = 1.0f;
   float resonance_decay_ = 0.0f;
-  float input_level_ = 0.0f;
-  float resonance_level_ = 0.0f;
+  float reading_coeff_ = 1.0f;
+  // The input's mean square after one pole and after two, and the envelopes
+  // of one band-pass and of the two in series, squared.
+  float power_[2] = {0.0f, 0.0f};
+  float one_power_ = 0.0f;
+  float two_power_ = 0.0f;
   float last_root_log2_ = kUnset;
   float last_focus_ = kUnset;
   float last_position_[2] = {-1.0f, -1.0f};
   // For meter() only: never read by the sound.
   float position_seen_[2] = {2.0f, 2.0f};
+  float held_ = 1.0f;
   float held_db_seen_ = 0.0f;
 };
 

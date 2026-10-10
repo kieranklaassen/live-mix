@@ -71,21 +71,30 @@ static double root_of(int root, int octave) { return 440.0 * std::pow(2.0, (12 *
 static double width_of(double focus) { return 2.0 * std::pow(0.05 / 2.0, focus); }
 static double lift_of(double focus) { return 14.142136 / std::sqrt(width_of(focus)); }
 
-// What the header says the device does to a frequency, as a gain: the
-// drone's share and the lifted resonance (two band-passes in series, each the
-// analog one at the warped frequency), and the dry sound added by Mix.
+// What the bilinear transform leaves of a band-pass's width, as the header has it.
+static double width_kept(double turn) {
+  const double t2 = turn * turn;
+  return 1.0 - t2 / 6.0 * (1.0 - t2 / 20.0 * (1.0 - t2 / 42.0));
+}
+
+// What the header says the device does to a frequency, as a gain: two peaks
+// in series, each the drone and a band-pass (the analog one at the warped
+// frequency) lifted to make up the rest, and the dry sound added by Mix.
 static double expected_gain(double hz, double harmonic, double root, double focus, double drone, double mix,
                             double rate) {
-  const double g = std::tan(kPi * root * harmonic / rate);
-  const double k = width_of(focus) / (0.6435943 * harmonic);
+  const double centre = root * harmonic;
+  const double g = std::tan(kPi * centre / rate);
+  const double k = width_of(focus) / (0.6435943 * harmonic * width_kept(2.0 * kPi * centre / rate));
   const double w = std::tan(kPi * hz / rate) / g;
   // H = j·k·w / (1 − w² + j·k·w)
   const double den_re = 1.0 - w * w, den_im = k * w;
   const double den = den_re * den_re + den_im * den_im;
   const double h_re = (k * w * den_im) / den, h_im = (k * w * den_re) / den;
-  const double lifted = lift_of(focus) - drone * drone;
-  const double wet_re = drone * drone + lifted * (h_re * h_re - h_im * h_im);
-  const double wet_im = lifted * 2.0 * h_re * h_im;
+  // One peak is drone + (√lift − drone)·H; the pair is its square.
+  const double reach = std::sqrt(lift_of(focus)) - drone;
+  const double peak_re = drone + reach * h_re, peak_im = reach * h_im;
+  const double wet_re = peak_re * peak_re - peak_im * peak_im;
+  const double wet_im = 2.0 * peak_re * peak_im;
   return std::hypot(1.0 - mix + mix * wet_re, mix * wet_im);
 }
 
@@ -504,6 +513,24 @@ static void test_focus() {
     std::snprintf(label, sizeof label, "Focus %.1f: the resonance is the curve the header says", focus);
     EXPECT(worst < 0.3, label);
   }
+  // The width is what Focus says at the top of the range at every rate: the
+  // highest centre there is (B in octave 4 times 16, 7902 Hz) is a sixth of
+  // the way round at 44.1 kHz, where a band-pass set by its analog Q comes
+  // out a fifth narrower.
+  for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+    const double top_root = root_of(11, 4);
+    const double centre = 16.0 * top_root, width_hz = width_of(0.6) * top_root;
+    setup(device, rate,
+          {{p::kRoot, 11.0f}, {p::kOctave, 4}, {p::kLow, 16}, {p::kHigh, 16}, {p::kPattern, OvertoneSinger::kHold},
+           {p::kFocus, 0.6f}, {p::kDrone, 0.0f}});
+    std::vector<double> probes = {centre - 0.5 * width_hz, centre, centre + 0.5 * width_hz};
+    std::vector<double> gains = measure_gains(device, rate, 40.0, probes, 1.2f, 0.6f);
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz the resonance on 7902 Hz is 3 dB down half its width either side (%.2f and %.2f dB)", rate,
+                  db(gains[0] / gains[1]), db(gains[2] / gains[1]));
+    EXPECT(std::fabs(db(gains[0] / gains[1]) + 3.01) < 0.25 && std::fabs(db(gains[2] / gains[1]) + 3.01) < 0.25, label);
+  }
   EXPECT_NEAR(db(lift_of(0.0)), 20.0, 0.01, "the lift at Focus 0 is 20 dB");
   EXPECT_NEAR(db(lift_of(1.0)), 36.02, 0.01, "the lift at Focus 1 is 36 dB");
 
@@ -553,7 +580,7 @@ static void test_drone() {
   const float focus = 0.6f;
   for (float drone : {1.0f, 0.5f, 0.25f, 0.0f}) {
     std::vector<double> probes = {2.5 * root, 30.0 * root, 10.0 * root, 9.0 * root, 11.0 * root};
-    // From the top out to the next harmonic: the skirt and the dip in it.
+    // From the top out to the next harmonic: the skirt.
     for (int n = 1; n <= 24; ++n) probes.push_back((10.0 + 0.08 * n) * root);
     setup(device, kRate,
           {{p::kLow, 10}, {p::kHigh, 10}, {p::kPattern, OvertoneSinger::kHold}, {p::kFocus, focus}, {p::kDrone, drone}});
@@ -567,7 +594,7 @@ static void test_drone() {
       if (n >= 2) least = std::min(least, gains[n]);
     }
     std::printf("  Drone %.2f: %.2f and %.2f dB far from the resonance (said %.2f), %.2f dB on it, %.2f and %.2f dB on "
-                "the harmonics next door, %.2f dB in the dip; worst of 29 points %.3f dB off the curve\n",
+                "the harmonics next door, %.2f dB at the least out to the next one; worst of 29 points %.3f dB off the curve\n",
                 drone, db(gains[0]), db(gains[1]), db(around), db(gains[2]), db(gains[3]), db(gains[4]), db(least),
                 worst);
     char label[120];
@@ -582,12 +609,20 @@ static void test_drone() {
     }
     std::snprintf(label, sizeof label, "Drone %.2f leaves the top of the resonance where Focus put it", drone);
     EXPECT_NEAR(db(gains[2]), db(lift_of(focus)), 0.25, label);
-    std::snprintf(label, sizeof label, "Drone %.2f: the skirt and its dip are the curve the header says", drone);
+    std::snprintf(label, sizeof label, "Drone %.2f: the skirt is the curve the header says", drone);
     EXPECT(worst < 0.3, label);
+    if (drone > 0.0f) {
+      // No dip beside the peak: the drone is whole from the top out to the
+      // harmonics either side and beyond.
+      std::snprintf(label, sizeof label,
+                    "Drone %.2f: nothing from the top of the resonance to the next harmonic is under the drone (least "
+                    "%.2f dB for %.2f)",
+                    drone, db(least), db(around));
+      EXPECT(db(least) > db(around) - 0.1, label);
+    }
     if (drone == 1.0f) {
-      // At the defaults the dip falls on the harmonics either side.
-      EXPECT(db(gains[3]) < -3.0 && db(gains[4]) < -3.0 && db(least) > -12.0,
-             "with all the drone the harmonics next door are turned down several dB, not taken out");
+      EXPECT(db(gains[3]) > -0.1 && db(gains[4]) > -0.1 && db(gains[3]) < 8.0 && db(gains[4]) < 8.0,
+             "with all the drone the harmonics next door are not turned down");
     }
   }
   // Mix adds the dry sound to that, in phase.
@@ -649,8 +684,13 @@ static void test_ceiling() {
       square[i] = std::fmod(static_cast<double>(i) * root / kRate, 1.0) < 0.5 ? 1.0f : -1.0f;
     }
     Stereo out = run(device, square);
-    EXPECT(finite(out.left) && finite(out.right) && peak(out.left) <= 1.5015 && peak(out.right) <= 1.5015,
-           "a full-scale square under a leaping melody at Focus 1 stays under one and a half times its peak");
+    // The resonant part is under half of the peak of a sine as strong as the
+    // square (root 2), sample by sample, over the square itself.
+    char label[160];
+    std::snprintf(label, sizeof label,
+                  "a full-scale square under a leaping melody at Focus 1 stays under 1 + half of root 2 (peak %.4f and %.4f)",
+                  peak(out.left), peak(out.right));
+    EXPECT(finite(out.left) && finite(out.right) && peak(out.left) <= 1.7072 && peak(out.right) <= 1.7072, label);
   }
   // At rest the reading is 0 dB, and a partial far under the ceiling is not held.
   {
@@ -659,6 +699,194 @@ static void test_ceiling() {
     std::vector<double> probes = {8.0 * root};
     measure_gains(device, kRate, 0.283 * root, probes, 1.0f, 0.5f);
     EXPECT(device.meter(3) == 0.0f, "a quiet partial in a loud sound is not held");
+  }
+}
+
+// Sixteen harmonics of `hz` at the amplitudes `amp` gives.
+static std::vector<float> partials(double hz, float seconds, float rate, const std::function<double(int)>& amp) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate));
+  for (size_t i = 0; i < out.size(); ++i) {
+    double sum = 0.0;
+    for (int n = 1; n <= 16; ++n) sum += amp(n) * std::sin(2.0 * kPi * hz * n * static_cast<double>(i) / rate + 0.7 * n);
+    out[i] = static_cast<float>(sum);
+  }
+  return out;
+}
+
+// The ceiling goes with the sound: something loud that has passed does not
+// leave it open, a note that dies away takes its whistle with it, and a loud
+// partial under the melody does not duck the note after it.
+static void test_ceiling_follows() {
+  const double root = root_of(9, 2);
+  const float hz = static_cast<float>(root);
+
+  // A loud hit over a quiet pad: 0.4 s later the whistle is what it was.
+  for (float drone : {1.0f, 0.0f}) {
+    const Settings held = {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 8}, {p::kHigh, 8},
+                           {p::kPattern, OvertoneSinger::kHold}, {p::kFocus, 0.6f}, {p::kDrone, drone}};
+    const std::vector<float> pad = drone_of(hz, 5.0f, kRate, 0.02f);
+    std::vector<float> hit = pad;
+    rng_state() = 0x417u;
+    const size_t at = static_cast<size_t>(2.0f * kRate);
+    for (size_t i = 0; i < 1440; ++i) {
+      hit[at + i] += static_cast<float>(0.9 * white() * std::exp(-(static_cast<double>(i) / kRate) / 0.008));
+    }
+    setup(device, kRate, held);
+    Stereo plain = run(device, pad);
+    setup(device, kRate, held);
+    Stereo struck = run(device, hit);
+    const size_t from = at + static_cast<size_t>(0.4f * kRate), to = at + static_cast<size_t>(0.5f * kRate);
+    const double whistle = db(tone_level(struck.left, 8.0 * root, kRate, from, to) /
+                              tone_level(plain.left, 8.0 * root, kRate, from, to));
+    const size_t later = at + static_cast<size_t>(0.3f * kRate);
+    const double most = db(peak(struck.left, later, pad.size()) / peak(plain.left, later, pad.size()));
+    char label[220];
+    std::snprintf(label, sizeof label,
+                  "Drone %.0f: 0.4 s after a loud hit over a quiet pad the whistle is where it was (%+.2f dB), and "
+                  "from 0.3 s on the output's peak too (%+.2f dB)",
+                  drone, whistle, most);
+    EXPECT(std::fabs(whistle) < 1.0 && std::fabs(most) < 1.0, label);
+  }
+
+  // A burst near the limit of what counts as sound, then a drone. The burst
+  // rings in the resonance for a while, but a fifth of a second on it is
+  // under the ceiling of the drone that is there now, and half a second on
+  // nothing is left of it.
+  {
+    const Settings held = {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 8}, {p::kHigh, 8},
+                           {p::kPattern, OvertoneSinger::kHold}, {p::kFocus, 1.0f}};
+    const std::vector<float> after = drone_of(hz, 1.0f, kRate, 0.4f);
+    rng_state() = 0xB0057u;
+    setup(device, kRate, held);
+    run(device, noise(0.03f, kRate, 3.9f));
+    Stereo hot = run(device, after);
+    setup(twin, kRate, held);
+    run(twin, silence(0.03f, kRate));
+    Stereo cold = run(twin, after);
+    const double soon = peak(hot.left, 9600, 24000), bound = 1.5 * peak(after);
+    const double ratio = peak(hot.left, 24000, 48000) / peak(cold.left, 24000, 48000);
+    char label[220];
+    std::snprintf(label, sizeof label,
+                  "after a burst of 3.9 a drone stays under one and a half times its own peak from 0.2 s on (%.3f for "
+                  "%.3f), and half a second on comes out as with nothing before it (%.4f of that)",
+                  soon, bound, ratio);
+    EXPECT(soon < bound && std::fabs(ratio - 1.0) < 0.02, label);
+  }
+
+  // A note dying away: the whistle does not rise against it.
+  for (float drone : {1.0f, 0.0f}) {
+    setup(device, kRate,
+          {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 8}, {p::kHigh, 8}, {p::kPattern, OvertoneSinger::kHold},
+           {p::kFocus, 0.6f}, {p::kDrone, drone}});
+    std::vector<float> note = drone_of(hz, 4.0f, kRate, 0.4f);
+    for (size_t i = 48000; i < note.size(); ++i) {
+      note[i] *= static_cast<float>(std::exp(-(static_cast<double>(i) - 48000.0) / (0.5 * kRate)));
+    }
+    Stereo out = run(device, note);
+    auto over_note = [&](size_t from) {
+      const size_t to = from + 2400;
+      return db(tone_level(out.left, 8.0 * root, kRate, from, to) / rms(note, from, to));
+    };
+    const double held = over_note(38400), dying = over_note(48000 + 57600);
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "Drone %.0f: the whistle stands %.2f dB against a held note and %.2f dB against the same note 1.2 s "
+                  "into dying away",
+                  drone, held, dying);
+    EXPECT(dying - held < 2.0 && dying - held > -2.0, label);
+  }
+
+  // A fast melody over one strong partial (the 8th, 40 dB over the others it
+  // sings): each note as loud as when the melody rests on it.
+  {
+    auto amp = [](int n) { return n == 1 ? 0.3 : (n == 8 ? 0.1 : 0.001); };
+    for (float pace : {2.0f, 6.0f}) {
+      const std::vector<float> in = partials(root, 15.0f / pace + 0.2f, kRate, amp);
+      const Settings moving = {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 8}, {p::kHigh, 12},
+                               {p::kPattern, OvertoneSinger::kUp}, {p::kPace, pace}, {p::kGlide, 20.0f},
+                               {p::kFocus, 0.75f}};
+      setup(device, kRate, moving);
+      Stereo out = run(device, in);
+      double worst = 0.0;
+      int worst_harmonic = 0;
+      for (int step = 5; step < 15; ++step) {
+        const int harmonic = 8 + step % 5;
+        const size_t from = static_cast<size_t>((step + 0.5) / pace * kRate);
+        const size_t to = static_cast<size_t>((step + 0.95) / pace * kRate);
+        setup(twin, kRate,
+              {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, harmonic}, {p::kHigh, harmonic},
+               {p::kPattern, OvertoneSinger::kHold}, {p::kFocus, 0.75f}});
+        Stereo rest = run(twin, in);
+        const double apart = db(tone_level(out.left, root * harmonic, kRate, from, to) /
+                                tone_level(rest.left, root * harmonic, kRate, from, to));
+        if (std::fabs(apart) > std::fabs(worst)) {
+          worst = apart;
+          worst_harmonic = harmonic;
+        }
+      }
+      char label[200];
+      std::snprintf(label, sizeof label,
+                    "at Pace %.0f every note sung after a strong partial is as loud as when held (worst %+.2f dB, on "
+                    "the %dth)",
+                    pace, worst, worst_harmonic);
+      EXPECT(std::fabs(worst) < (pace > 4.0f ? 3.0 : 0.5), label);
+    }
+  }
+}
+
+// With all the Drone the drone is whole while the ceiling holds the whistle
+// too: no harmonic of a rich drone is turned down, with the melody held or
+// passing.
+static void test_whole_drone() {
+  const double root = root_of(9, 2);
+  const std::vector<float> in = drone_of(static_cast<float>(root), 4.0f, kRate, 0.4f);
+  for (float focus : {0.3f, 0.6f, 1.0f}) {
+    setup(device, kRate,
+          {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 8}, {p::kHigh, 8}, {p::kPattern, OvertoneSinger::kHold},
+           {p::kFocus, focus}});
+    Stereo out = run(device, in);
+    double least = 99.0, sung = 0.0;
+    int where = 0;
+    for (int n = 1; n <= 16; ++n) {
+      const double gain = db(tone_level(out.left, root * n, kRate, 96000, in.size()) /
+                             tone_level(in, root * n, kRate, 96000, in.size()));
+      if (n == 8) sung = gain;
+      if (n != 8 && gain < least) {
+        least = gain;
+        where = n;
+      }
+    }
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "Focus %.1f on a drone of sixteen harmonics, the ceiling holding (%.1f dB): the sung one %+.1f dB, the "
+                  "least of the others %+.2f dB (the %dth)",
+                  focus, device.meter(3), sung, least, where);
+    EXPECT(device.meter(3) < -3.0f && sung > 6.0 && least > -0.6, label);
+  }
+  {
+    const std::vector<float> longer = drone_of(static_cast<float>(root), 13.0f, kRate, 0.4f);
+    setup(device, kRate,
+          {{p::kRoot, 9.0f}, {p::kOctave, 2.0f}, {p::kLow, 6}, {p::kHigh, 12}, {p::kPace, 1.0f}, {p::kGlide, 250.0f},
+           {p::kFocus, 0.6f}});
+    Stereo out = run(device, longer);
+    double least = 99.0;
+    int where = 0;
+    for (int n = 4; n <= 14; ++n) {
+      for (size_t from = 24000; from + 9600 <= longer.size(); from += 4800) {
+        const double gain = db(tone_level(out.left, root * n, kRate, from, from + 9600) /
+                               tone_level(longer, root * n, kRate, from, from + 9600));
+        if (gain < least) {
+          least = gain;
+          where = n;
+        }
+      }
+    }
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "as the melody passes over a drone no harmonic is ever turned down (least %+.2f dB, the %dth, in a "
+                  "fifth of a second)",
+                  least, where);
+    EXPECT(least > -1.0, label);
   }
 }
 
@@ -1037,7 +1265,8 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 2.0f;
-  // The device's own bound: one and a half times the input's peak.
+  // The device's own bound on the kit's noise of 0.9: the noise itself and
+  // half of root 2 times its root mean square (0.52) on top, 1.27.
   spec.max_peak = 1.36f;
   check_effect(device, spec, kRate);
 
@@ -1047,6 +1276,8 @@ int main() {
   test_focus();
   test_drone();
   test_ceiling();
+  test_ceiling_follows();
+  test_whole_drone();
   test_level();
   test_dry();
   test_spread();

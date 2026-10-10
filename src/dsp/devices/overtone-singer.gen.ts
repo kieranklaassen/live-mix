@@ -163,11 +163,11 @@ export const OVERTONE_SINGER_DESCRIPTOR = wasmDeviceDescriptor(OVERTONE_SINGER_D
     'Slow wander': { pattern: 3, pace: 0.12, glide: 4000, focus: 0.5, low: 5, high: 12 },
     'Two voices': { spread: 1, pace: 0.7, glide: 350, drone: 0.8 },
     'Bugle call': { low: 3, high: 6, octave: 3, pattern: 4, pace: 2.5, glide: 30, focus: 0.7 },
-    'High whistle': { octave: 3, low: 9, high: 16, focus: 0.9, drone: 0.75, pace: 1.5, glide: 150 },
+    'High whistle': { octave: 3, low: 9, high: 16, focus: 0.9, drone: 0.85, pace: 1.5, glide: 150 },
     'Low chant': { octave: 1, low: 4, high: 9, pace: 0.4, glide: 900, focus: 0.45 },
     'One held note': { pattern: 5, low: 8, high: 8, focus: 0.85 },
     'Running scale': { pattern: 1, low: 6, high: 14, pace: 6, glide: 40, focus: 0.75, drone: 0.85 },
-    'Falling steps': { pattern: 2, low: 4, high: 12, pace: 2, glide: 90, drone: 0.75 },
+    'Falling steps': { pattern: 2, low: 4, high: 12, pace: 2, glide: 90, drone: 0.85 },
     'Bird calls': {
       pattern: 4,
       octave: 3,
@@ -176,7 +176,7 @@ export const OVERTONE_SINGER_DESCRIPTOR = wasmDeviceDescriptor(OVERTONE_SINGER_D
       pace: 5,
       glide: 70,
       focus: 0.9,
-      drone: 0.7,
+      drone: 0.85,
     },
     'Faint melody': { mix: 0.3, focus: 0.7 },
     'Glass harmonics': {
