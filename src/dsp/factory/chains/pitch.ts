@@ -446,4 +446,93 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'fog', preset: 'Slow rise', params: { width: 0.85 } },
     ],
   },
+  {
+    id: 'sung-overtones',
+    name: 'Sung overtones',
+    category: 'pitch',
+    description:
+      "A narrow resonance steps slowly up and down the harmonics of the key's note and whistles a melody out of the sound; Pace sets its speed.",
+    effects: [
+      {
+        deviceId: 'overtone-singer',
+        preset: 'Overtone melody',
+        params: { drone: 0.9, pace: 0.7, glide: 400 },
+      },
+    ],
+  },
+  {
+    id: 'chant-with-breath',
+    name: 'Chant with breath',
+    category: 'pitch',
+    description:
+      "A low resonance moves slowly over the harmonics of the key's note like a chant, breathing in and out, in a cathedral; Root moves its note.",
+    effects: [
+      { deviceId: 'overtone-singer', preset: 'Low chant', params: { focus: 0.6, drone: 0.9 } },
+      { deviceId: 'breath', preset: 'Calm breath' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'singers-vibrato',
+    name: "Singer's vibrato",
+    category: 'pitch',
+    description:
+      "A melody is whistled on the harmonics of the key's note, and every held note begins to sway in pitch as a singer's does; Depth sets how far.",
+    effects: [
+      { deviceId: 'overtone-singer', preset: 'Overtone melody', params: { drone: 0.85 } },
+      { deviceId: 'late-vibrato', preset: 'Singer' },
+    ],
+  },
+  {
+    id: 'whistles-scattered',
+    name: 'Whistles scattered',
+    category: 'pitch',
+    description:
+      'A resonance leaps among four harmonics like a bugle call and seven echoes scatter each leap across the sides; Span sets how long they fall.',
+    effects: [
+      { deviceId: 'overtone-singer', preset: 'Bugle call' },
+      { deviceId: 'constellation', preset: 'Scattered seven' },
+    ],
+  },
+  {
+    id: 'bell-in-the-key',
+    name: 'Bell in the key',
+    category: 'pitch',
+    description:
+      "A ring modulator tuned to the key's note splits every partial in two, so plain notes ring like bells that stay in key; Mix sets how much.",
+    effects: [{ deviceId: 'ring', preset: 'Bell in key', params: { lowCut: 400 } }],
+  },
+  {
+    id: 'bell-under-water',
+    name: 'Bell under water',
+    category: 'pitch',
+    description:
+      'Every note rings as a dark bell tuned to the key, heard from deep under water with slow bubbles rising off it; Depth lets it up.',
+    effects: [
+      { deviceId: 'ring', preset: 'Dark bell' },
+      { deviceId: 'underwater', preset: 'Deep water' },
+    ],
+  },
+  {
+    id: 'frost-bells',
+    name: 'Frost bells',
+    category: 'pitch',
+    description:
+      'Small high bells tuned to the key ring thinly over every note in a frozen room with a long tail; Octave sets how high they are.',
+    effects: [
+      { deviceId: 'ring', preset: 'Frost', params: { octave: 6, mix: 0.3 } },
+      { deviceId: 'seasons', preset: 'Deep winter' },
+    ],
+  },
+  {
+    id: 'melting-bells',
+    name: 'Melting bells',
+    category: 'pitch',
+    description:
+      'Every note rings as a dark bell tuned to the key and its tail sags in pitch, darkens and blurs like wax running; Sag sets how fast.',
+    effects: [
+      { deviceId: 'ring', preset: 'Dark bell', params: { width: 0.5 } },
+      { deviceId: 'melt', preset: 'Slow melt', params: { width: 0.7 } },
+    ],
+  },
 ]
