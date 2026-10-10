@@ -1,0 +1,292 @@
+{
+  "id": "string-bass",
+  "name": "String Bass",
+  "category": "instrument",
+  "description": "Plucked bass strings, modelled: an electric bass played with the fingers or a pick, fretted or fretless, and an upright bass plucked, each a string heard through a pickup or a wooden body, for bass lines that sound like hands.",
+  "class": "StringBass",
+  "header": "string_bass.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "type",
+      "name": "Type",
+      "choices": ["Electric", "Fretless", "Upright"],
+      "default": 0,
+      "description": "The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note."
+    },
+    {
+      "key": "touch",
+      "name": "Touch",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "What plucks the string, from the flesh of a finger to a pick. A finger is soft, dark and slow to speak; a pick is bright with a click at the start. Playing harder brightens every note as well."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0.05,
+      "max": 0.5,
+      "default": 0.22,
+      "description": "Where along the string it is plucked. Near the bridge is tight and nasal; towards the middle of the string it is round and hollow."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "The tone control of the instrument: turned down it rolls the top off until only the round low end is left; turned up the string's edge comes through."
+    },
+    {
+      "key": "mute",
+      "name": "Mute",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The side of the hand resting on the strings by the bridge. More of it makes every note shorter and duller, down to a thud."
+    },
+    {
+      "key": "sustain",
+      "name": "Sustain",
+      "min": 0.5,
+      "max": 20,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held string rings before it has died away. The top of the sound always goes first, so a long note ends dark, and high notes ring for less time than low ones."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.03,
+      "max": 3,
+      "default": 0.15,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly a string is stopped when its key is let go. Short is a hand landing on the string; long lets the note fade out by itself."
+    },
+    {
+      "key": "growl",
+      "name": "Growl",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The string against the neck. On Fretless the tone swells open after the pluck and sings; on Electric and Upright notes that are hit hard rattle for a moment, and soft ones stay clean. At zero there is none."
+    },
+    {
+      "key": "resonance",
+      "name": "Resonance",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How much of the instrument's own colour is heard: the nasal peak of the pickup on Electric and Fretless, the low hollow resonances of the wooden body on Upright."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when several strings are hit hard."
+    }
+  ],
+  "presets": {
+    "Warm fingers": {
+      "type": 0,
+      "touch": 0.3,
+      "position": 0.22,
+      "tone": 0.55,
+      "mute": 0,
+      "sustain": 5,
+      "release": 0.15,
+      "growl": 0.25,
+      "resonance": 0.35
+    },
+    "Bright pick": {
+      "type": 0,
+      "touch": 0.9,
+      "position": 0.11,
+      "tone": 0.9,
+      "mute": 0,
+      "sustain": 6,
+      "release": 0.15,
+      "growl": 0.1,
+      "resonance": 0.55,
+      "volume": -6
+    },
+    "Muted thud": {
+      "type": 0,
+      "touch": 0.2,
+      "position": 0.35,
+      "tone": 0.3,
+      "mute": 0.7,
+      "sustain": 5,
+      "release": 0.08,
+      "growl": 0,
+      "resonance": 0.2,
+      "volume": 2.5
+    },
+    "Singing fretless": {
+      "type": 1,
+      "touch": 0.35,
+      "position": 0.2,
+      "tone": 0.6,
+      "mute": 0,
+      "sustain": 7,
+      "release": 0.25,
+      "growl": 0.75,
+      "resonance": 0.5,
+      "volume": -7.5
+    },
+    "Round upright": {
+      "type": 2,
+      "touch": 0.25,
+      "position": 0.3,
+      "tone": 0.45,
+      "mute": 0,
+      "sustain": 2.5,
+      "release": 0.12,
+      "growl": 0.2,
+      "resonance": 0.45,
+      "volume": -2
+    },
+    "Long wooden ring": {
+      "type": 2,
+      "touch": 0.3,
+      "position": 0.25,
+      "tone": 0.5,
+      "mute": 0,
+      "sustain": 16,
+      "release": 1.2,
+      "growl": 0.3,
+      "resonance": 0.9,
+      "volume": -7.5
+    },
+    "Dark flat strings": {
+      "type": 0,
+      "touch": 0.2,
+      "position": 0.3,
+      "tone": 0.22,
+      "mute": 0,
+      "sustain": 1.8,
+      "release": 0.15,
+      "growl": 0,
+      "resonance": 0.1,
+      "volume": -3
+    },
+    "Quiet deep fretless": {
+      "type": 1,
+      "touch": 0.05,
+      "position": 0.4,
+      "tone": 0.3,
+      "mute": 0,
+      "sustain": 18,
+      "release": 2.5,
+      "growl": 0.4,
+      "resonance": 0.2,
+      "volume": -6.5
+    },
+    "Pick with a rattle": {
+      "type": 0,
+      "touch": 1,
+      "position": 0.2,
+      "tone": 0.9,
+      "mute": 0,
+      "sustain": 3,
+      "release": 0.1,
+      "growl": 1,
+      "resonance": 0.9,
+      "volume": -6
+    },
+    "Near the bridge": {
+      "type": 0,
+      "touch": 0.45,
+      "position": 0.07,
+      "tone": 0.7,
+      "mute": 0.1,
+      "sustain": 3,
+      "release": 0.15,
+      "growl": 0.15,
+      "resonance": 0.75,
+      "volume": -2.5
+    },
+    "Thumb at the neck": {
+      "type": 0,
+      "touch": 0,
+      "position": 0.5,
+      "tone": 0.35,
+      "mute": 0,
+      "sustain": 8,
+      "release": 0.4,
+      "growl": 0,
+      "resonance": 0.15,
+      "volume": -5.5
+    },
+    "Muted pick": {
+      "type": 0,
+      "touch": 0.65,
+      "position": 0.2,
+      "tone": 0.55,
+      "mute": 0.4,
+      "sustain": 5,
+      "release": 0.08,
+      "growl": 0.2,
+      "resonance": 0.5,
+      "volume": -2.5
+    },
+    "Let it ring": {
+      "type": 0,
+      "touch": 0.15,
+      "position": 0.3,
+      "tone": 0.45,
+      "mute": 0,
+      "sustain": 20,
+      "release": 3,
+      "growl": 0.1,
+      "resonance": 0.3,
+      "volume": -7.5
+    },
+    "Growling fretless": {
+      "type": 1,
+      "touch": 0.6,
+      "position": 0.13,
+      "tone": 0.75,
+      "mute": 0,
+      "sustain": 5,
+      "release": 0.2,
+      "growl": 1,
+      "resonance": 0.8,
+      "volume": -8
+    },
+    "Slapped upright": {
+      "type": 2,
+      "touch": 0.7,
+      "position": 0.12,
+      "tone": 0.7,
+      "mute": 0,
+      "sustain": 6,
+      "release": 0.2,
+      "growl": 1,
+      "resonance": 0.85,
+      "volume": -3
+    },
+    "Dark soft upright": {
+      "type": 2,
+      "touch": 0,
+      "position": 0.45,
+      "tone": 0.15,
+      "mute": 0.2,
+      "sustain": 10,
+      "release": 1.0,
+      "growl": 0,
+      "resonance": 0.9,
+      "volume": -4.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each note is one string: an extended Karplus-Strong loop (kit::PluckedString with kit::PluckExciter, after Jaffe and Smith, with a one-pole loss filter and allpass stiffness) on one of four strings tuned E A D G. The two electric types are heard through a pickup modelled as a comb whose place on the sounding string follows the fret, then a resonant low-pass; the upright is heard at the bridge, direct and through three band-pass resonances for its body, with a low thump added at each pluck. Simplified: one polarisation per string, one pickup, no slides, hammered notes, harmonics or sympathetic strings, no amplifier or speaker, and a mono output. The growl is not a model of a string meeting a neck: on Fretless it is one impulse per period of the note through a band-pass that rises after the pluck, on Electric and Upright an impulse each time the swing of a loud note passes a fixed height. Key up is a fade behind a closing low-pass, not a damped loop. These are choices, not measurements of any instrument: the pickup places, the body frequencies and their sharpness, how ring time falls with pitch and with frequency, the pluck's hardness from finger to pick, the size and pitch of the thump, and every level. Tuned by measurement only in cpp/test/string_bass_test.cpp: nobody has listened to it."
+  }
+}

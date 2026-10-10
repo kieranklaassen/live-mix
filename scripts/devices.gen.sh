@@ -130,6 +130,8 @@ build_generated_devices() {
     cpp/devices/spring-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-bass \
+    cpp/devices/string-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device sub-bass \
@@ -305,6 +307,8 @@ test_generated_devices() {
     cpp/test/spring_reverb_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
+  native_test string_bass_test \
+    cpp/test/string_bass_test.cpp
   native_test string_machine_test \
     cpp/test/string_machine_test.cpp
   native_test sub_bass_test \

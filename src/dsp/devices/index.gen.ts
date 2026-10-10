@@ -64,6 +64,7 @@ import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
+import { STRING_BASS_DESCRIPTOR, STRING_BASS_DEVICE } from './string-bass.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { SUB_BASS_DESCRIPTOR, SUB_BASS_DEVICE } from './sub-bass.gen'
 import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
@@ -149,6 +150,7 @@ export * from './shimmer.gen'
 export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
 export * from './stereo-detune.gen'
+export * from './string-bass.gen'
 export * from './string-machine.gen'
 export * from './sub-bass.gen'
 export * from './sustainer.gen'
@@ -236,6 +238,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPECTRAL_BLUR_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
+  STRING_BASS_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
   SUB_BASS_DESCRIPTOR,
   SUSTAINER_DESCRIPTOR,
@@ -324,6 +327,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPECTRAL_BLUR_DEVICE,
   SPRING_REVERB_DEVICE,
   STEREO_DETUNE_DEVICE,
+  STRING_BASS_DEVICE,
   STRING_MACHINE_DEVICE,
   SUB_BASS_DEVICE,
   SUSTAINER_DEVICE,
@@ -419,6 +423,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spectral-blur', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'string-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sub-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
