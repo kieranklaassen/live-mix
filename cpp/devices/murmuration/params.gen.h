@@ -10,7 +10,8 @@
 //    5  air: 0..1, default 0.5
 //    6  spread: 0..1, default 0.8
 //    7  lift: 0..1, default 0.3
-//    8  mix: 0..1, default 0.5
+//    8  ground: 20..500 Hz, default 200
+//    9  mix: 0..1, default 0.4
 
 #pragma once
 
@@ -26,13 +27,14 @@ enum Param : int {
   kAir = 5,
   kSpread = 6,
   kLift = 7,
-  kMix = 8,
-  kNumParams = 9,
+  kGround = 8,
+  kMix = 9,
+  kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {1.0f, 1.0f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {16.0f, 60.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {8.0f, 10.0f, 1.0f, 0.6f, 0.3f, 0.5f, 0.8f, 0.3f, 0.5f};
+inline constexpr float kParamMin[kNumParams] = {1.0f, 1.0f, 0.05f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {16.0f, 60.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 500.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {8.0f, 10.0f, 1.0f, 0.6f, 0.3f, 0.5f, 0.8f, 0.3f, 200.0f, 0.4f};
 
 }  // namespace murmuration
 }  // namespace livemix

@@ -2,13 +2,15 @@
 
 // Murmuration: a chorus made by flying a flock instead of wobbling delays.
 //
-//   in ─┬───────────────────────────────────────────────── dry ─┐
-//       └─ L+R ─► one delay line ─► bird 1: read at its distance / 343 m/s
-//                                   ─► dulled by distance and height
-//                                   ─► quieter by distance ─► panned by its side ─┐
-//                                   bird 2 … bird 16 the same                     ├─► sum
-//                                                                                 ┘    │
-//                 out ◄─ mix (equal power) ◄─ level hold where the flock is tight ◄───┘
+//   in ─┬──────────────────────────────────────────────────────────── dry ─┐
+//       ├─ low (below Ground, each side) ──────────────────── straight on ─┤
+//       └─ the rest, each side ─► a delay line a side                      │
+//             bird 1: both sides read at its distance / 343 m/s            │
+//                     ─► dulled by distance and height                     │
+//                     ─► quieter by distance ─► leant to its side ─┐       │
+//             bird 2 … bird 16 the same                            ├─► sum │
+//                                                                  ┘    │  │
+//       out ◄─ mix (equal power) ◄─ level hold where the flock is tight ◄──┘
 //
 // - Where the birds are is flock.h: a closed form of the flight time, which
 //   runs at Speed from the moment the device starts and never stops, sound or
@@ -17,34 +19,55 @@
 //   plays sharp and one flying away plays flat: real Doppler, bounded by
 //   flock::kMaxDepthRate (see max_bend). Range is the farthest distance in
 //   metres; the nearest is an eighth of it.
+// - Ground: a flock that keeps together is one late copy of a low note, and
+//   one late copy mixed with the dry sound cancels the note whose half period
+//   is the delay, for as long as the flock stays at that distance (measured
+//   before this was here: a 33 Hz note more than 10 dB down for six seconds
+//   on end at the defaults). So what lies below Ground does not fly: a
+//   one-pole takes it out of what the birds copy and it goes straight to the
+//   output at its own level, whatever Mix says:
+//       out = low + dry gain * (in - low) + wet gain * flock(in - low)
+//   At Mix 0 that is the input, sample for sample. With Ground fully down
+//   nothing is kept and everything flies.
 // - Air is the power of the distance law (1 is open air, 6 dB per doubling)
 //   and how many octaves the farthest bird is dulled. A bird three sevenths
 //   of the way out is as loud as the voice, which keeps the flock's mean
-//   level near the input's: nearer birds are louder, farther ones quieter.
+//   level near the input's: nearer birds are louder, farther ones quieter,
+//   and the flock as a whole is held to 3 dB over the voice
+//   (flock::ceiling).
 // - The sum is divided by the square root of the number of birds, which holds
 //   the level where their delays are far enough apart to add in power. In a
 //   tight flock the lows still add in phase, so the wet sum goes through a
 //   second-order shelf that takes them down by as much as the birds agree:
 //   its depth is the birds' own count, its corner the spread of their delays.
-// - Birds fade in and out over 30 ms when the count changes; every bird keeps
-//   its own flight whatever the count, so the others do not move.
+// - Birds fade in and out over 30 ms when the count changes (flock::ease);
+//   every bird keeps its own flight whatever the count, so the others do not
+//   move.
 // - Spread opens the flock up to a quarter turn either side of straight
-//   ahead. A bird is panned by the sine of its bearing, equal power, by level
-//   only (no time difference between the sides), so the mono fold never
-//   cancels: it is within 3 dB of the stereo sum. A bird straight ahead is
-//   at the voice's own level on both sides.
+//   ahead. Each bird copies both sides of the input and leans them towards
+//   where it flies, by level only (the sine of its bearing, equal power, no
+//   time difference between the sides): a bird straight ahead gives each
+//   side its own side at the voice's level, a bird hard left gives the left
+//   side 3 dB up and nothing on the right. So a sound that is the same on
+//   both sides is flown all round, a sound that is wide stays wide, and one
+//   that is out of phase between the sides does not cancel. The mono fold of
+//   a mono sound is within 3 dB of the stereo sum.
+// - Turns follows its control at flock::kTurnsSlew per second of flight, and
+//   Range and Together glide over a quarter of a second, since each moves
+//   every delay: a step of any of them bends the birds instead of throwing
+//   them. The rest glide over 50 ms.
 // - Rest: after kRestSeconds of exact silence in, nothing is left in the
-//   delay line that a bird can reach, and the device stops working until
+//   delay lines that a bird can reach, and the device stops working until
 //   sound returns. That moment is counted in samples, not blocks, and the
 //   flight time goes on meanwhile, so the output is the same at any block
 //   size across a silence. Knobs moved at rest are where they were put when
 //   sound returns. (kit::IdleGate decides by block, which is why it is not
 //   used here.)
-// - Bad input: what goes into the delay line is clamped to ±16 and anything
-//   that is not a number goes in as silence. The dry path is a wire.
+// - Bad input: what the birds and Ground are given is clamped to ±16 and
+//   anything that is not a number counts as silence. The dry path is a wire.
 //
-// Storage: one mono delay line of 32768 samples (175 ms at 96 kHz and room
-// to glide), 128 KB.
+// Storage: two delay lines of 32768 samples, interleaved (175 ms at 96 kHz
+// and room to glide), 256 KB.
 
 #include "../../kit/kit.h"
 #include "flock.h"
@@ -62,6 +85,7 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     init_base(sample_rate, kParamMin, kParamMax, kParamDefault);
     const float sr = this->sample_rate();
     line_.clear();
+    low_[0] = low_[1] = 0.0f;
     for (Bird& bird : birds_) bird = Bird();
     for (kit::Svf& filter : hold_) {
       filter.reset();
@@ -79,6 +103,9 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     tau_before_ = 0.0;
     for (int id = 0; id < kNumParams; ++id) apply(id);
     settle_controls();
+    low_open_ = low_open_next_ = low_open_of(now_.ground);
+    low_open_step_ = 0.0f;
+    low_on_ = low_on_of();
     hold_gain_ = 0.0f;
     hold_gain_step_ = 0.0f;
     hold_gain_next_ = 0.0f;
@@ -88,10 +115,12 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
-  // The reading named by "meters" in device.json, for the display: the
+  // The readings named by "meters" in device.json, for the display. 0: the
   // flight time of the last sample put out, in seconds, wrapped at
-  // flock::kPeriod. Every bird's place is flock::place at this time.
+  // flock::kPeriod; every bird's place is flock::place at this time. 1: the
+  // Turns the flight is flown with, which follows the control slowly.
   float meter(int index) const {
+    if (index == 1) return now_.turns;
     if (index != 0) return 0.0f;
     // A whole control period done leaves the clock at nought again.
     const int done = phase_ == 0 ? kControlPeriod : phase_;
@@ -141,6 +170,12 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
         continue;
       }
 
+      // What lies below Ground stays where it is; the birds copy the rest.
+      const float safe[2] = {feed(in[0]), feed(in[1])};
+      low_open_ += low_open_step_;
+      low_[0] = flush_denormal(low_[0] + (safe[0] * low_on_ - low_[0]) * low_open_);
+      low_[1] = flush_denormal(low_[1] + (safe[1] * low_on_ - low_[1]) * low_open_);
+
       float wet[2] = {0.0f, 0.0f};
       for (int b = 0; b < flock::kMaxBirds; ++b) {
         Bird& bird = birds_[b];
@@ -148,12 +183,14 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
         bird.delay += bird.delay_step;
         bird.left += bird.left_step;
         bird.right += bird.right_step;
-        const float heard = line_.read_hermite(bird.delay);
-        bird.tone = flush_denormal(bird.tone + (heard - bird.tone) * bird.open);
-        wet[0] += bird.tone * bird.left;
-        wet[1] += bird.tone * bird.right;
+        float heard[2];
+        line_.read(bird.delay, &heard[0], &heard[1]);
+        bird.tone[0] = flush_denormal(bird.tone[0] + (heard[0] - bird.tone[0]) * bird.open);
+        bird.tone[1] = flush_denormal(bird.tone[1] + (heard[1] - bird.tone[1]) * bird.open);
+        wet[0] += bird.tone[0] * bird.left;
+        wet[1] += bird.tone[1] * bird.right;
       }
-      line_.write(feed(0.5f * (in[0] + in[1])));
+      line_.write(safe[0] - low_[0], safe[1] - low_[1]);
 
       hold_gain_ += hold_gain_step_;
       for (int c = 0; c < 2; ++c) wet[c] += hold_gain_ * hold_[c].lowpass(wet[c]);
@@ -162,15 +199,16 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
       // Equal power from the sine table: exact at Mix 0, and forced at Mix 1.
       const float dry_gain = mix >= 1.0f ? 0.0f : kit::SineTable::cos_lookup(0.25f * mix);
       const float wet_gain = kit::SineTable::lookup(0.25f * mix);
-      out_left_[i] = in[0] * dry_gain + wet[0] * wet_gain;
-      out_right_[i] = in[1] * dry_gain + wet[1] * wet_gain;
+      const float low_gain = 1.0f - dry_gain;
+      out_left_[i] = in[0] * dry_gain + wet[0] * wet_gain + low_[0] * low_gain;
+      out_right_[i] = in[1] * dry_gain + wet[1] * wet_gain + low_[1] * low_gain;
     }
   }
 
  private:
   static constexpr int kLineSize = 32768;
   // Geometry glides so a knob bends the birds instead of zipping them; Range
-  // moves every delay, so it is the slowest.
+  // and Together move every delay, so they are the slowest.
   static constexpr float kGlideSeconds = 0.05f;
   static constexpr float kRangeGlideSeconds = 0.25f;
   static constexpr float kFadeSeconds = 0.03f;
@@ -191,14 +229,46 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
   // measuring the flock itself, octave by octave (the harness prints it).
   static constexpr float kHoldCorner = 1.8f;
   static constexpr float kHoldRise = 0.14f;
+  // What a bird that is not flying weighs where the hold's corner is worked
+  // out, so that the corner is already where a bird that joins will need it.
+  static constexpr float kStandby = 1.0e-3f;
+
+  // The two sides of the input, a sample of each side by side, so that one
+  // bird's read of both costs one index. Read before write, as kit::DelayLine:
+  // read(d) is x[n - d], d >= 2.
+  struct Line {
+    static constexpr int kMask = kLineSize - 1;
+    float buffer[2 * kLineSize] = {};
+    int at = 0;
+
+    void clear() {
+      for (float& sample : buffer) sample = 0.0f;
+      at = 0;
+    }
+    void write(float left, float right) {
+      buffer[2 * at] = left;
+      buffer[2 * at + 1] = right;
+      at = (at + 1) & kMask;
+    }
+    void read(float delay, float* left, float* right) const {
+      const int whole = static_cast<int>(delay);
+      const float fraction = delay - static_cast<float>(whole);
+      const float* ym1 = &buffer[2 * ((at - whole + 1) & kMask)];
+      const float* y0 = &buffer[2 * ((at - whole) & kMask)];
+      const float* y1 = &buffer[2 * ((at - whole - 1) & kMask)];
+      const float* y2 = &buffer[2 * ((at - whole - 2) & kMask)];
+      *left = kit::hermite(ym1[0], y0[0], y1[0], y2[0], fraction);
+      *right = kit::hermite(ym1[1], y0[1], y1[1], y2[1], fraction);
+    }
+  };
 
   struct Bird {
     float delay = 4.0f, delay_step = 0.0f, delay_next = 4.0f;
     float left = 0.0f, left_step = 0.0f, left_next = 0.0f;
     float right = 0.0f, right_step = 0.0f, right_next = 0.0f;
-    float open = 1.0f;   // the one-pole's step: 1 - exp(-2 pi f / sr)
-    float tone = 0.0f;   // its state
-    float active = 0.0f; // 0..1, the fade when Birds changes
+    float open = 1.0f;             // the one-pole's step: 1 - exp(-2 pi f / sr)
+    float tone[2] = {0.0f, 0.0f};  // its state, a side each
+    float active = 0.0f;           // 0..1, the fade when Birds changes
     bool sounding = false;
   };
 
@@ -212,7 +282,7 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
 
   // The controls as the flight reads them: gliding while sound runs.
   struct Controls {
-    float range, speed, together, turns, air, spread, lift;
+    float range, speed, together, turns, air, spread, lift, ground;
   };
 
   static float feed(float x) {
@@ -234,8 +304,8 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
 
   Controls targets() const {
     using namespace murmuration;
-    return {param(kRange), param(kSpeed), param(kTogether), param(kTurns),
-            param(kAir),   param(kSpread), param(kLift)};
+    return {param(kRange), param(kSpeed),  param(kTogether), param(kTurns),
+            param(kAir),   param(kSpread), param(kLift),     param(kGround)};
   }
 
   void settle_controls() {
@@ -243,6 +313,17 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     mix_.snap(param(murmuration::kMix));
     const int count = bird_count();
     for (int b = 0; b < flock::kMaxBirds; ++b) birds_[b].active = b < count ? 1.0f : 0.0f;
+  }
+
+  // The step of the one-pole that keeps what lies below Ground.
+  float low_open_of(float hz) const {
+    return 1.0f - std::exp(-kit::kTwoPi * kit::min(hz, 0.45f * sample_rate()) / sample_rate());
+  }
+  // Ground fully down keeps nothing: the one-pole is given less and less of
+  // the sound (low_on_ glides to nought) and what it held runs out through it.
+  float low_on_of() const {
+    using namespace murmuration;
+    return param(kGround) > kParamMin[kGround] ? 1.0f : 0.0f;
   }
 
   int bird_count() const {
@@ -288,39 +369,61 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
   void voices_at(double tau, Voice* voices, Hold* hold) const {
     const float sr = sample_rate();
     const flock::Flight flight = flock::flight(tau, now_.together, now_.turns);
-    const float most = kit::DelayLine<kLineSize>::max_delay() - 4.0f;
+    const float most = static_cast<float>(kLineSize - 8);
+    float share[flock::kMaxBirds];
     float power = 0.0f;
-    for (int b = 0; b < flock::kMaxBirds; ++b) power += birds_[b].active * birds_[b].active;
+    for (int b = 0; b < flock::kMaxBirds; ++b) {
+      share[b] = flock::ease(birds_[b].active);
+      power += share[b] * share[b];
+    }
     const float norm = power > 1.0e-9f ? 1.0f / std::sqrt(power) : 0.0f;
-    float sum = 0.0f, sum_sq = 0.0f, sum_d = 0.0f, sum_dd = 0.0f;
+    // The birds that fly, by loudness: how many there are to agree. And every
+    // bird, flying or standing by, for how far apart in time they are: the
+    // spread of the delays pair by pair, which is what a bird that joins or
+    // leaves changes the sum by.
+    float weight[flock::kMaxBirds];
+    float sum = 0.0f, sum_sq = 0.0f;
+    float all = 0.0f, all_sq = 0.0f, all_d = 0.0f, all_dd = 0.0f;
+    float first = 0.0f;
     for (int b = 0; b < flock::kMaxBirds; ++b) {
       Voice& voice = voices[b];
-      if (birds_[b].active <= 0.0f) {
+      const flock::Place place = flock::place(b, tau, flight);
+      const float seconds = flock::delay_seconds(now_.range, place.u);
+      const float loud = flock::loudness(place.u, now_.air);
+      if (b == 0) first = seconds;
+      const float apart = seconds - first;
+      const float standing = loud * kit::max(share[b], kStandby);
+      all += standing;
+      all_sq += standing * standing;
+      all_d += standing * apart;
+      all_dd += standing * apart * apart;
+      weight[b] = loud * share[b];
+      sum += weight[b];
+      sum_sq += weight[b] * weight[b];
+      if (share[b] <= 0.0f) {
         voice = {birds_[b].delay_next, 0.0f, 0.0f, birds_[b].open};
         continue;
       }
-      const flock::Place place = flock::place(b, tau, flight);
-      const float seconds = flock::delay_seconds(now_.range, place.u);
-      const float weight = birds_[b].active * flock::loudness(place.u, now_.air);
       const float turn = (flock::pan(place.v, now_.spread) + 1.0f) * 0.125f;
       voice.delay = kit::clamp(seconds * sr, 2.0f, most);
-      voice.left = weight * norm * kAhead * kit::SineTable::cos_lookup(turn);
-      voice.right = weight * norm * kAhead * kit::SineTable::lookup(turn);
+      voice.left = kAhead * kit::SineTable::cos_lookup(turn);
+      voice.right = kAhead * kit::SineTable::lookup(turn);
       const float hz =
           kit::min(flock::cutoff_hz(place.u, place.h, now_.air, now_.lift), 0.49f * sr);
       voice.open = 1.0f - std::exp(-kit::kTwoPi * hz / sr);
-      sum += weight;
-      sum_sq += weight * weight;
-      sum_d += weight * seconds;
-      sum_dd += weight * seconds * seconds;
     }
-    // How many birds there are to agree (weighted), and how far apart in time.
-    *hold = {0.0f, 1000.0f, 0.5f};
-    if (sum <= 1.0e-9f || sum_sq <= 1.0e-12f) return;
-    const float agree = sum * sum / sum_sq;
-    if (agree <= 1.0001f) return;
-    const float mean = sum_d / sum;
-    const float spread = std::sqrt(kit::max(0.0f, sum_dd / sum - mean * mean));
+    // No louder as a whole than the ceiling allows.
+    const float level = norm * flock::ceiling(sum_sq * norm * norm);
+    for (int b = 0; b < flock::kMaxBirds; ++b) {
+      voices[b].left *= weight[b] * level;
+      voices[b].right *= weight[b] * level;
+    }
+
+    const float mean = all_d / all;
+    const float variance = kit::max(0.0f, all_dd / all - mean * mean);
+    const float pairs = all * all / all_sq;  // above 1: there are sixteen birds here
+    const float spread = std::sqrt(variance * pairs / (pairs - 1.0f));
+    const float agree = sum_sq > 1.0e-12f ? kit::max(1.0f, sum * sum / sum_sq) : 1.0f;
     const float log_agree = std::log2(agree);
     hold->gain = 1.0f / std::sqrt(agree) - 1.0f;
     hold->corner = kit::clamp(kHoldCorner * std::exp2(kHoldRise * log_agree) /
@@ -333,13 +436,19 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
   // fly to the next tick's time, and aim every bird there in a straight line.
   void tick() {
     const Controls to = targets();
+    const float per_tick = static_cast<float>(kControlPeriod) / sample_rate();
     now_.range = to.range + (now_.range - to.range) * range_coeff_;
+    now_.together = to.together + (now_.together - to.together) * range_coeff_;
     now_.speed = to.speed + (now_.speed - to.speed) * glide_coeff_;
-    now_.together = to.together + (now_.together - to.together) * glide_coeff_;
-    now_.turns = to.turns + (now_.turns - to.turns) * glide_coeff_;
     now_.air = to.air + (now_.air - to.air) * glide_coeff_;
     now_.spread = to.spread + (now_.spread - to.spread) * glide_coeff_;
     now_.lift = to.lift + (now_.lift - to.lift) * glide_coeff_;
+    // Ground moves what the lines hold against what goes straight on, and the
+    // lines take as long as a bird is late to follow: slowly, or the two add.
+    now_.ground = to.ground + (now_.ground - to.ground) * range_coeff_;
+    low_on_ = low_on_of() + (low_on_ - low_on_of()) * range_coeff_;
+    const float slew = flock::kTurnsSlew * flock::flight_rate(now_.speed, now_.range) * per_tick;
+    now_.turns += kit::clamp(to.turns - now_.turns, -slew, slew);
     const int count = bird_count();
     for (int b = 0; b < flock::kMaxBirds; ++b) {
       Bird& bird = birds_[b];
@@ -363,7 +472,7 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
       bird.right = bird.right_next;
       // A bird that was not sounding comes in where it is, not from where it was last heard.
       bird.delay = was ? bird.delay_next : voice.delay;
-      if (!was) bird.tone = 0.0f;
+      if (!was) bird.tone[0] = bird.tone[1] = 0.0f;
       bird.delay_next = voice.delay;
       bird.left_next = voice.left;
       bird.right_next = voice.right;
@@ -376,6 +485,9 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     hold_gain_next_ = hold.gain;
     hold_gain_step_ = (hold_gain_next_ - hold_gain_) * per;
     for (kit::Svf& filter : hold_) filter.set(hold.corner, hold.q, sample_rate());
+    low_open_ = low_open_next_;
+    low_open_next_ = low_open_of(now_.ground);
+    low_open_step_ = (low_open_next_ - low_open_) * per;
   }
 
   // Sound after rest: the knobs have arrived, and every bird stands where the
@@ -392,7 +504,7 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     for (int b = 0; b < flock::kMaxBirds; ++b) {
       Bird& bird = birds_[b];
       bird.sounding = bird.active > 0.0f;
-      bird.tone = 0.0f;
+      bird.tone[0] = bird.tone[1] = 0.0f;
       bird.delay_next = to[b].delay;
       bird.left_next = to[b].left;
       bird.right_next = to[b].right;
@@ -411,14 +523,22 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
       filter.reset();
       filter.set(hold_to.corner, hold_to.q, sample_rate());
     }
+    low_[0] = low_[1] = 0.0f;
+    low_open_ = low_open_next_ = low_open_of(now_.ground);
+    low_open_step_ = 0.0f;
+    low_on_ = low_on_of();
   }
 
-  kit::DelayLine<kLineSize> line_;
+  Line line_;
   Bird birds_[flock::kMaxBirds];
   Controls now_ = {};
   kit::Smoother mix_;
   kit::Svf hold_[2];
   float hold_gain_ = 0.0f, hold_gain_step_ = 0.0f, hold_gain_next_ = 0.0f;
+  // What lies below Ground, a side each, and the one-pole's step.
+  float low_[2] = {0.0f, 0.0f};
+  float low_open_ = 0.0f, low_open_step_ = 0.0f, low_open_next_ = 0.0f;
+  float low_on_ = 1.0f;
   float glide_coeff_ = 0.0f;
   float range_coeff_ = 0.0f;
   float fade_step_ = 1.0f;

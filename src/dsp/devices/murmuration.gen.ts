@@ -60,7 +60,7 @@ export const MURMURATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How often the whole flock wheels: it rushes off, bunches up, swings round and comes back, with a swell of pitch and level. Zero is a steady drift.',
+      'How often the whole flock wheels: it rushes off, bunches up, swings round and comes back, bending the pitch as it goes. Zero is a steady drift. A change eases in.',
   },
   air: {
     id: 5,
@@ -95,15 +95,27 @@ export const MURMURATION_PARAMS = {
     description:
       'Lets the birds fly at different heights, where the low ones are duller than the high ones, so each copy has a tone of its own that keeps changing.',
   },
-  mix: {
+  ground: {
     id: 8,
+    name: 'Ground',
+    min: 20,
+    max: 500,
+    default: 200,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Keeps the low end on the ground. Sound below it passes straight through instead of flying, so the flock cannot thin out a bass note. Fully down lets everything fly.',
+  },
+  mix: {
+    id: 9,
     name: 'Mix',
     min: 0,
     max: 1,
-    default: 0.5,
+    default: 0.4,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry sound and the flock. Fully wet leaves only the birds.',
+    description:
+      'Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -111,6 +123,7 @@ export type MurmurationParamName = keyof typeof MURMURATION_PARAMS
 
 export const MURMURATION_METERS = {
   flight: { id: 0, name: 'Flight time', unit: 's', display: true },
+  turns: { id: 1, name: 'Turns as flown', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const MURMURATION_DEVICE = defineWasmDevice({
@@ -140,32 +153,50 @@ export const MURMURATION_DESCRIPTOR = wasmDeviceDescriptor(MURMURATION_DEVICE, {
     },
     'Thick ensemble': {
       birds: 16,
-      range: 6,
+      range: 12,
       speed: 1.2,
-      together: 0.85,
+      together: 0.55,
       turns: 0.2,
       air: 0.3,
       spread: 1,
-      mix: 0.6,
+      mix: 0.55,
     },
-    'Slow drift': { birds: 6, range: 14, speed: 0.2, together: 0.5, turns: 0.1 },
+    'Slow drift': { birds: 6, range: 14, speed: 0.2, together: 0.5, turns: 0.1, mix: 0.4 },
     'Cloud far off': {
       birds: 16,
       range: 45,
-      speed: 0.5,
+      speed: 0.35,
       together: 0.1,
       air: 0.8,
       spread: 1,
       lift: 0.6,
       mix: 0.7,
     },
-    Wheeling: { birds: 12, range: 20, speed: 2, together: 0.7, turns: 1, mix: 0.6 },
-    'One bird': { birds: 1, range: 25, speed: 1.5, together: 1, turns: 0.6, air: 0.7 },
+    Wheeling: { birds: 12, range: 16, speed: 1.6, together: 0.7, turns: 1, mix: 0.6 },
+    'One bird': { birds: 1, range: 25, speed: 1.1, together: 1, turns: 0.6, air: 0.7, mix: 0.4 },
     'Barely there': { birds: 4, range: 5, speed: 0.5, together: 0.7, air: 0.4, mix: 0.15 },
-    'Wide and dull': { birds: 10, range: 30, together: 0.2, air: 1, spread: 1, lift: 0, mix: 0.6 },
-    Seasick: { birds: 5, range: 40, speed: 4, together: 0.9, turns: 0.8, air: 0.3, mix: 1 },
-    'Wet shimmer': { birds: 16, range: 8, speed: 3, together: 0.3, air: 0.1, lift: 1, mix: 1 },
-    'Mono swarm': { birds: 12, range: 12, together: 0.4, spread: 0 },
+    'Wide and dull': {
+      birds: 10,
+      range: 30,
+      speed: 0.6,
+      together: 0.2,
+      air: 1,
+      spread: 1,
+      lift: 0,
+      mix: 0.6,
+    },
+    Seasick: {
+      birds: 5,
+      range: 40,
+      speed: 4,
+      together: 0.9,
+      turns: 0.8,
+      air: 0.3,
+      ground: 20,
+      mix: 1,
+    },
+    'Wet shimmer': { birds: 16, range: 8, speed: 2.6, together: 0.3, air: 0.1, lift: 1, mix: 1 },
+    'Mono swarm': { birds: 12, range: 12, together: 0.4, spread: 0, mix: 0.45 },
     'Slapback flock': {
       birds: 3,
       range: 50,
@@ -175,7 +206,15 @@ export const MURMURATION_DESCRIPTOR = wasmDeviceDescriptor(MURMURATION_DEVICE, {
       air: 0.1,
       mix: 0.4,
     },
-    'Near the ear': { birds: 8, range: 1.5, speed: 2.5, together: 0.3, air: 1, spread: 1 },
+    'Comb by the ear': {
+      birds: 8,
+      range: 1.5,
+      speed: 2.5,
+      together: 0.3,
+      air: 1,
+      spread: 1,
+      mix: 0.5,
+    },
     'High and bright': {
       birds: 9,
       range: 18,

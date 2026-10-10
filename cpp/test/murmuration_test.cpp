@@ -19,7 +19,7 @@ static const float kRate = 48000.0f;
 
 struct Settings {
   float birds = 8.0f, range = 10.0f, speed = 1.0f, together = 0.6f, turns = 0.3f;
-  float air = 0.5f, spread = 0.8f, lift = 0.3f, mix = 0.5f;
+  float air = 0.5f, spread = 0.8f, lift = 0.3f, ground = 200.0f, mix = 0.4f;
 };
 
 static void set(Murmuration& d, const Settings& s) {
@@ -31,6 +31,7 @@ static void set(Murmuration& d, const Settings& s) {
   d.set_param(p::kAir, s.air);
   d.set_param(p::kSpread, s.spread);
   d.set_param(p::kLift, s.lift);
+  d.set_param(p::kGround, s.ground);
   d.set_param(p::kMix, s.mix);
 }
 
@@ -39,9 +40,11 @@ static void start(Murmuration& d, const Settings& s, float rate = kRate) {
   set(d, s);
 }
 
-// The birds alone, each as clear and as loud as the next, in the middle.
+// The birds alone, each as clear and as loud as the next, in the middle, and
+// nothing kept on the ground.
 static Settings bare() {
   Settings s;
+  s.ground = p::kParamMin[p::kGround];
   s.air = 0.0f;
   s.lift = 0.0f;
   s.spread = 0.0f;
@@ -395,6 +398,13 @@ static double one_pole_db(double corner, double hz) {
   return db((1.0 - a) / std::sqrt(1.0 - 2.0 * a * std::cos(w) + a * a));
 }
 
+// What one bird alone carries of the voice at depth `u`: the distance law
+// under the flock's ceiling (a flock of one has its own power to hold).
+static double one_bird_level(float u, float air) {
+  const float loud = flock::loudness(u, air);
+  return static_cast<double>(loud) * flock::ceiling(loud * loud);
+}
+
 // One bird on a steady tone: how loud it is over each 50 ms, against the voice.
 static std::vector<double> levels_of(const Settings& s, float hz, float seconds, size_t window) {
   start(device, s);
@@ -418,7 +428,7 @@ static void test_air() {
   double worst = 0.0, loudest = -99.0, quietest = 99.0;
   for (size_t i = 0; i < low.size(); ++i) {
     const double middle = 24000.0 + (i + 0.5) * window;
-    const double said = db(flock::loudness(place_at(0, middle, s).u, 1.0f));
+    const double said = db(one_bird_level(place_at(0, middle, s).u, 1.0f));
     worst = std::max(worst, std::fabs(low[i] - said));
     loudest = std::max(loudest, low[i]);
     quietest = std::min(quietest, low[i]);
@@ -426,7 +436,8 @@ static void test_air() {
   std::printf("air: at Air 1 one bird runs from %.1f to %.1f dB against the voice, within %.2f dB "
               "of the distance law\n",
               quietest, loudest, worst);
-  EXPECT(worst < 0.5, "at Air 1 a bird's level is the inverse of its distance");
+  EXPECT(worst < 0.5, "at Air 1 a bird's level is the inverse of its distance, under the ceiling");
+  EXPECT(loudest < 3.2, "one bird at its nearest is 3 dB over the voice and no more");
   EXPECT(loudest - quietest > 6.0, "a bird that flies in and out crosses 6 dB at Air 1");
 
   // The same flight at Air 0: one level throughout.
@@ -444,7 +455,7 @@ static void test_air() {
     for (size_t i = 0; i < high.size(); ++i) {
       const flock::Place place = place_at(0, 24000.0 + (i + 0.5) * window, s);
       const double dull = one_pole_db(flock::cutoff_hz(place.u, place.h, air, 0.0f), 6000.0);
-      off = std::max(off, std::fabs(high[i] - (db(flock::loudness(place.u, air)) + dull)));
+      off = std::max(off, std::fabs(high[i] - (db(one_bird_level(place.u, air)) + dull)));
       most = std::max(most, dull);
       least = std::min(least, dull);
     }
@@ -734,6 +745,7 @@ static void test_clicks() {
   };
   Settings s;
   s.mix = 1.0f;
+  s.ground = p::kParamMin[p::kGround];
   // No event: the steepest the flock makes a 220 Hz tone on its own.
   start(device, s);
   run(device, tone);
@@ -872,6 +884,7 @@ static void test_blocks() {
   moved.spread = 0.2f;
   moved.lift = 0.9f;
   moved.turns = 0.9f;
+  moved.ground = 60.0f;
   moved.mix = 0.9f;
   set(device, moved);
   Stereo late = run(device, second);
@@ -973,6 +986,275 @@ static void test_bounds() {
   }
 }
 
+// --- What the second check found --------------------------------------------
+//
+// Each group below fails on the device as it was first built.
+
+// A held note through the device: its level over stretches of whole periods
+// (60 ms or more), in dB against the note that went in.
+static std::vector<double> held_levels(const Settings& s, float hz, float seconds) {
+  const float amp = 0.25f;
+  start(device, s);
+  Stereo out = run(device, sine(hz, seconds, kRate, amp));
+  const double periods = std::max(4.0, std::ceil(0.06 * hz));
+  const size_t window = static_cast<size_t>(std::llround(periods * kRate / hz));
+  std::vector<double> levels;
+  for (size_t from = 48000; from + window < out.size(); from += window) {
+    levels.push_back(10.0 * std::log10(std::max(power(out, from, from + window), 1.0e-20) /
+                                       (static_cast<double>(amp) * amp)));
+  }
+  return levels;
+}
+
+// A control stepped at sample `at` while `in` runs, against the same sound
+// with the control at its old and at its new value throughout (the flight
+// does not listen, so those two bound what the flock does on its own): the
+// jump from one sample to the next that the step adds, in dB against `amp`,
+// and how much sharper the worst corner is than either steady run's.
+struct Stepped {
+  double step_db;
+  double kink;
+  double peak;
+  double steady_peak;
+};
+
+static double corner(const std::vector<float>& x, size_t from, size_t to) {
+  double worst = 0.0;
+  for (size_t i = from + 2; i < to && i < x.size(); ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  }
+  return worst;
+}
+
+static Stepped stepped(const Settings& before, int param, float to, const std::vector<float>& in,
+                       size_t at, double amp) {
+  const std::vector<float> head(in.begin(), in.begin() + static_cast<long>(at));
+  const std::vector<float> rest(in.begin() + static_cast<long>(at), in.end());
+  const size_t from = at - 64, until = std::min(in.size(), at + 28800);
+  double step[3], kink[3], top[3];
+  for (int pass = 0; pass < 3; ++pass) {  // old value, new value, stepped
+    start(device, before);
+    if (pass == 1) device.set_param(param, to);
+    Stereo out = run(device, head);
+    if (pass == 2) device.set_param(param, to);
+    out = concat(out, run(device, rest));
+    step[pass] = std::max(max_step(out.left, from, until), max_step(out.right, from, until));
+    kink[pass] = std::max(corner(out.left, from, until), corner(out.right, from, until));
+    top[pass] = std::max(peak(out.left, from, until), peak(out.right, from, until));
+  }
+  const double steady = std::max(step[0], step[1]);
+  return {db(std::max(step[2] - steady, 1.0e-9) / amp), kink[2] / std::max(kink[0], kink[1]), top[2],
+          std::max(top[0], top[1])};
+}
+
+// --- Ground: the low end does not fly ----------------------------------------
+
+static void test_ground() {
+  // A flock that is tight against the wavelength is one late copy of a low
+  // note, and against the dry note that is a comb: without Ground the lowest
+  // notes went 10 dB down for seconds on end. At the defaults none does.
+  double lowest = 0.0;
+  for (float hz : {32.70f, 55.0f, 82.41f, 110.0f, 146.83f}) {
+    for (double level : held_levels(Settings(), hz, 40.0f)) lowest = std::min(lowest, level);
+  }
+  Settings flown;
+  flown.ground = p::kParamMin[p::kGround];
+  flown.mix = 0.5f;
+  double lost = 0.0;
+  for (double level : held_levels(flown, 32.70f, 40.0f)) lost = std::min(lost, level);
+  std::printf("ground: held notes of 33 to 147 Hz at the defaults dip to %.1f dB at worst; with "
+              "Ground fully down 33 Hz dips to %.1f dB\n",
+              lowest, lost);
+  EXPECT(lowest > -8.0, "at the defaults no low note is lost to the comb");
+  EXPECT(lost < -15.0, "with Ground fully down the low end flies, and the comb reaches it");
+
+  // Fully wet, what is under Ground still comes straight through, at once.
+  Settings wet;
+  wet.mix = 1.0f;
+  start(device, wet);
+  Stereo out = run(device, impulse(0.05f, kRate, 0.5f));
+  EXPECT(std::fabs(out.left[0]) > 0.005, "fully wet, the low end under Ground is there at once");
+  double swing = 0.0;
+  for (double level : held_levels(wet, 40.0f, 20.0f)) swing = std::max(swing, std::fabs(level));
+  std::printf("ground: fully wet, a 40 Hz note stays within %.2f dB of what went in\n", swing);
+  EXPECT(swing < 2.5, "fully wet, a note well under Ground passes at its own level");
+
+  // Ground turned from end to end while a flown tone runs: no click, no burst.
+  Settings s;
+  s.mix = 1.0f;
+  const std::vector<float> tone = sine(220.0f, 3.0f, kRate, 0.5f);
+  double worst = -200.0, sharpest = 0.0, burst = 0.0;
+  for (float to : {p::kParamMin[p::kGround], p::kParamMax[p::kGround]}) {
+    for (size_t at : {size_t{96000}, size_t{100047}}) {
+      const Stepped r = stepped(s, p::kGround, to, tone, at, 0.5);
+      worst = std::max(worst, r.step_db);
+      sharpest = std::max(sharpest, r.kink);
+      burst = std::max(burst, r.peak / r.steady_peak);
+    }
+  }
+  std::printf("ground: stepped to either end on a 220 Hz tone: step %.1f dB against the tone, "
+              "corner x%.1f, peak x%.2f\n",
+              worst, sharpest, burst);
+  EXPECT(worst < -50.0 && sharpest < 30.0, "Ground stepped to either end does not click");
+  EXPECT(burst < 1.3, "Ground stepped to either end does not burst");
+}
+
+// --- The two sides of the input ----------------------------------------------
+
+static void test_stereo_input() {
+  // Each bird carries both sides of what it copies. The birds were fed the
+  // sum of the sides: a sound that is opposite on the two sides had no flock.
+  Settings s;
+  s.mix = 1.0f;
+  s.ground = p::kParamMin[p::kGround];
+  rng_state() = 0x57E0u;
+  const std::vector<float> one = band_noise(6.0f, 100.0f, 4000.0f, 0.2f);
+  std::vector<float> flipped(one.size()), nothing(one.size(), 0.0f);
+  for (size_t i = 0; i < one.size(); ++i) flipped[i] = -one[i];
+  start(device, s);
+  Stereo alike = run(device, one, one);
+  start(device, s);
+  Stereo opposed = run(device, one, flipped);
+  const double kept = 10.0 * std::log10(std::max(power(opposed, 24000, opposed.size()), 1.0e-24) /
+                                        power(alike, 24000, alike.size()));
+  std::printf("stereo: a sound opposite on the two sides comes back %.2f dB against the same sound "
+              "alike on both\n",
+              kept);
+  EXPECT(std::fabs(kept) < 0.5, "a sound that is opposite on the two sides has its flock");
+  double off = 0.0;
+  for (size_t i = 0; i < alike.size(); ++i) {
+    off = std::max(off, std::fabs(static_cast<double>(alike.right[i]) + opposed.right[i]));
+    off = std::max(off, std::fabs(static_cast<double>(alike.left[i]) - opposed.left[i]));
+  }
+  EXPECT(off < 1.0e-6, "each side of the flock is that side of the input, flown");
+
+  // A sound on one side stays on its side.
+  start(device, s);
+  Stereo left_only = run(device, one, nothing);
+  EXPECT(peak(left_only.right) == 0.0, "a sound on the left alone puts nothing on the right");
+  EXPECT(rms(left_only.left, 24000) > 0.02, "and is flown on the left");
+  s = Settings();
+  start(device, s);
+  left_only = run(device, one, nothing);
+  EXPECT(peak(left_only.right) == 0.0, "at the defaults too");
+}
+
+// --- The ceiling --------------------------------------------------------------
+
+static void test_ceiling() {
+  // The law itself: no flock is passed at more than kCeilingPower, and one
+  // at the voice's own level is left alone.
+  double most = 0.0;
+  for (float power_in = 0.01f; power_in < 400.0f; power_in *= 1.1f) {
+    const double held = static_cast<double>(power_in) * flock::ceiling(power_in) * flock::ceiling(power_in);
+    most = std::max(most, held);
+  }
+  EXPECT(most <= flock::kCeilingPower * 1.0001, "the ceiling holds any flock to twice the voice's power");
+  EXPECT(flock::ceiling(1.0f) > 0.99f, "a flock as loud as the voice is left alone");
+
+  // A tight flock close by at Air 1 was 12 dB over the sound it copied.
+  double worst = -99.0;
+  for (int birds : {1, 16}) {
+    Settings s = bare();
+    s.birds = static_cast<float>(birds);
+    s.range = 3.0f;
+    s.together = 1.0f;
+    s.turns = 1.0f;
+    s.speed = 2.0f;
+    s.air = 1.0f;
+    for (double level : held_levels(s, 110.0f, 60.0f)) worst = std::max(worst, level);
+  }
+  std::printf("ceiling: a tight flock close by at Air 1, a 110 Hz note fully wet: %.2f dB against "
+              "the note at its loudest\n",
+              worst);
+  EXPECT(worst < 3.3, "a tight flock passing close at Air 1 is 3 dB over the voice and no more");
+  EXPECT(worst > 1.0, "and is still louder than the voice when it is near");
+}
+
+// --- Birds and Turns stepped while a low note is flown -------------------------
+
+static void test_steps() {
+  // Sixteen scattered birds to one and back on a 55 Hz note: the level hold
+  // used to jump to a corner of its own at one bird, 43 dB under the note.
+  Settings s = bare();
+  s.range = 60.0f;
+  s.together = 0.0f;
+  s.air = 1.0f;
+  s.spread = 0.8f;
+  const std::vector<float> low = sine(55.0f, 3.6f, kRate, 0.5f);
+  double worst = -200.0, sharpest = 0.0, burst = 0.0;
+  for (int from : {16, 1}) {
+    s.birds = static_cast<float>(from);
+    for (size_t at : {size_t{96000}, size_t{100047}, size_t{134013}}) {
+      const Stepped r = stepped(s, p::kBirds, from == 16 ? 1.0f : 16.0f, low, at, 0.5);
+      worst = std::max(worst, r.step_db);
+      sharpest = std::max(sharpest, r.kink);
+      burst = std::max(burst, r.peak / r.steady_peak);
+    }
+  }
+  std::printf("steps: Birds 16 to 1 and 1 to 16 on a flown 55 Hz note: step %.1f dB against the "
+              "note, corner x%.1f, peak x%.2f\n",
+              worst, sharpest, burst);
+  EXPECT(worst < -50.0, "Birds stepped between 1 and 16 adds no step to a low note");
+  EXPECT(sharpest < 30.0, "Birds stepped between 1 and 16 adds no corner to a low note");
+  EXPECT(burst < 1.25, "Birds stepped between 1 and 16 does not burst");
+
+  // Turns brought up in the middle of a slot it picks: the whole flock used
+  // to be thrown to the wheel's place in 50 ms, 32 dB under the note.
+  int slot = 1;
+  while (flock::chance(slot, 0x51u) > 0.2f) ++slot;
+  Settings calm = bare();
+  calm.together = 0.3f;
+  const double rate = flock::flight_rate(calm.speed, calm.range);
+  const size_t at = static_cast<size_t>((slot + 0.5) * flock::kSlotSeconds / rate * kRate);
+  const std::vector<float> note = sine(110.0f, static_cast<float>(at) / kRate + 1.0f, kRate, 0.5f);
+  const Stepped up = stepped(calm, p::kTurns, 1.0f, note, at, 0.5);
+  calm.turns = 1.0f;
+  const Stepped down = stepped(calm, p::kTurns, 0.0f, note, at, 0.5);
+  std::printf("steps: Turns 0 to 1 and 1 to 0 mid wheel on a flown 110 Hz note: step %.1f dB, "
+              "corner x%.1f\n",
+              std::max(up.step_db, down.step_db), std::max(up.kink, down.kink));
+  EXPECT(up.step_db < -50.0 && down.step_db < -50.0, "Turns stepped mid wheel adds no step");
+  EXPECT(up.kink < 10.0 && down.kink < 10.0, "Turns stepped mid wheel adds no corner");
+
+  // The flight follows Turns at kTurnsSlew per second of flight, the second
+  // meter reads what is flown, and at rest the knob is simply there.
+  Settings t;
+  t.speed = 2.0f;
+  start(device, t);
+  rng_state() = 0x7A5u;
+  run(device, noise(0.5f, kRate, 0.3f));
+  EXPECT_NEAR(device.meter(1), 0.3, 1.0e-6, "the second meter reads Turns as flown");
+  device.set_param(p::kTurns, 1.0f);
+  run(device, noise(2.0f, kRate, 0.3f));
+  const double flown = 0.3 + flock::kTurnsSlew * flock::flight_rate(2.0f, t.range) * 2.0;
+  EXPECT_NEAR(device.meter(1), flown, 0.002, "Turns is followed at kTurnsSlew per second of flight");
+  render(device, 1.0f, kRate);
+  device.set_param(p::kTurns, 0.0f);
+  run(device, noise(0.01f, kRate, 0.3f));
+  EXPECT_NEAR(device.meter(1), 0.0, 1.0e-6, "a Turns set at rest is there when sound returns");
+}
+
+// --- How far a held note swells -----------------------------------------------
+
+static void test_swell() {
+  // Eight copies of a note line up now and then: at the defaults the note
+  // never stands more than 7.5 dB over what went in, and 19 times in 20 it
+  // is within 5 dB.
+  double most = -99.0, often = -99.0;
+  for (float hz : {440.0f, 739.99f, 1244.51f}) {
+    std::vector<double> levels = held_levels(Settings(), hz, 60.0f);
+    std::sort(levels.begin(), levels.end());
+    most = std::max(most, levels.back());
+    often = std::max(often, levels[levels.size() * 95 / 100]);
+  }
+  std::printf("swell: held notes of 440, 740 and 1245 Hz at the defaults over a minute: %.1f dB "
+              "over the note at most, %.1f dB at the 95th part in 100\n",
+              most, often);
+  EXPECT(most < 7.5, "a held note at the defaults swells by less than 7.5 dB");
+  EXPECT(often < 5.0, "and is within 5 dB of itself 19 times in 20");
+}
+
 int main() {
   Conformance spec;
   spec.name = "murmuration";
@@ -998,6 +1280,11 @@ int main() {
   test_blocks();
   test_bad_input();
   test_bounds();
+  test_ground();
+  test_stereo_input();
+  test_ceiling();
+  test_steps();
+  test_swell();
 
   // Cost: the flock as it starts, and the most it can be asked for.
   rng_state() = 0xBEEFu;

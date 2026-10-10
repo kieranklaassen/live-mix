@@ -213,12 +213,39 @@ inline float flight_rate(float speed, float range) {
 // loud as the voice at kLevelRatio times the nearest distance. That is where
 // the flight keeps a bird's mean power within 1.5 dB of one at any setting
 // (the harness measures it): nearer birds are louder than the voice, up to
-// 12 dB at the nearest point at Air 1, and farther ones quieter, down to 6.
+// 12 dB at the nearest point at Air 1, and farther ones quieter, down to 6,
+// before the ceiling below.
 constexpr float kLevelRatio = 4.0f;
 inline float loudness(float u, float air) {
   const float ratio = (1.0f + (kFarOverNear - 1.0f) * u) * (1.0f / kLevelRatio);
   return std::exp(-air * std::log(ratio));
 }
+
+// The flock as a whole is held to kCeilingPower times the voice's power
+// (3 dB): by the law above a tight flock passing close at Air 1 would be
+// 12 dB over the sound it copies, for as long as it stays there. `power` is
+// the birds' mean square loudness; what comes back scales every bird alike,
+// so the near ones still stand out from the far ones. The knee is soft: at
+// the voice's own power it takes off 0.07 dB.
+constexpr float kCeilingPower = 2.0f;
+inline float ceiling(float power) {
+  const float over = power * (1.0f / kCeilingPower);
+  const float fourth = over * over * over * over;
+  return 1.0f / std::sqrt(std::sqrt(std::sqrt(1.0f + fourth)));
+}
+
+// A bird that joins or leaves when Birds changes does it on this curve of
+// the fade's 0..1: no step at either end, in level or in slope.
+inline float ease(float x) {
+  const float t = kit::clamp(x, 0.0f, 1.0f);
+  return t * t * (3.0f - 2.0f * t);
+}
+
+// Turns changes what the flock is doing in the wheel it is in, so the flight
+// follows the control no faster than this per second of flight: a wheel that
+// a turn of the knob brings in or takes away moves the birds no faster than
+// a wheel of the flight's own does.
+constexpr float kTurnsSlew = 0.03f;
 
 // Where a bird is heard between the sides, -1 left to 1 right: Spread opens
 // the flock up to a quarter turn either side of straight ahead, and a bird is
