@@ -318,7 +318,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "Pulls every sine toward the nearest note. At zero the sines sit exactly on the partials, at full they sit on the notes of the keyboard."
+      "description": "Pulls every sine toward the nearest note. At full the sines sit on the notes of the keyboard, and a sound that is off its note beats against its shadow."
     },
     {
       "key": "steady",

@@ -61,7 +61,7 @@ export const SINE_SHADOW_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Pulls every sine toward the nearest note. At zero the sines sit exactly on the partials, at full they sit on the notes of the keyboard.',
+      'Pulls every sine toward the nearest note. At full the sines sit on the notes of the keyboard, and a sound that is off its note beats against its shadow.',
   },
   steady: {
     id: 5,

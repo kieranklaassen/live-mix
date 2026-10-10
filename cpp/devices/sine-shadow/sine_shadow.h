@@ -14,24 +14,28 @@
 //   path is the input itself. Both channels are measured, on the same frames,
 //   and a partial is a peak of their summed power: a sound that is out of
 //   phase between the sides casts the same shadow as one that is not.
-// - A peak is a partial when it was there in the frame before (its frequency
-//   is the turn its phase made between the two, Stft::advance_to_bin) and has
-//   held its pitch and level for as long as Steady asks: that, and not a
-//   mask, is what keeps noise and the splash of an attack out (a steady sine
-//   has no side-lobe peaks on the bins: its skirt only falls). The Partials
-//   strongest are
-//   followed; one that is followed keeps its place until another is twice as
-//   strong, so two partials of about one level do not trade places every
-//   frame.
+// - Each peak is gathered over a stretch of bins as wide as its pitch asks
+//   (a partial with vibrato spreads over more bins the higher it lies). It is
+//   a partial when it was there in the frame before: its frequency is the
+//   turn its phase made between the two (Stft::advance_to_bin), summed over
+//   the stretch and both channels. How far those turns agree says how sure
+//   the pitch is: a sine is born only from a sure peak, and Steady counts the
+//   sure frames a partial has had. That, and not a mask, is what keeps noise
+//   and the splash of an attack out. The Partials strongest are followed; one
+//   that is followed keeps its place until another is kKeep times as strong,
+//   so two partials of about one level do not trade places every frame.
 // - A sine follows its partial's level through an attack and a release of its
-//   own, and its frequency through Glide. When the partial is lost the sine
+//   own, and its frequency through Glide (after its first few frames, in
+//   which it takes the pitch as measured). When the partial is lost the sine
 //   lingers (Release) at the pitch it had; if the partial comes back while it
 //   still sounds, the same sine takes it up again. A new sine starts at the
 //   pitch of the nearest sine still sounding and glides from there.
-// - With Transpose and Snap at zero a sine keeps a quarter turn from its
-//   partial's own phase (a slow phase lock, on one side or the other by the
+// - A sine at its partial's own pitch (Transpose at zero, and Snap at zero or
+//   the partial within 3 cents of its note) keeps a quarter turn from the
+//   partial's phase (a slow phase lock, on one side or the other by the
 //   note), so sound and shadow add as powers at every Mix: a held tone can
-//   neither cancel against its shadow nor double with it.
+//   neither cancel against its shadow nor double with it. A sine that Snap
+//   has pulled off its partial beats against it, as two tones do.
 // - The ceiling holds the sum of the sines' levels on either side at
 //   kCeiling, by a gain on the whole shadow and not by a waveshaper: however
 //   many sines linger, the shadow's peak stays under it and stays pure.
@@ -493,7 +497,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     }
 
     // Each partial goes to the sine nearest in pitch that follows or
-    // lingers; what it scores is its level as Tone weighs it, doubled while
+    // lingers; what it scores is its level as Tone weighs it, raised while
     // it is being followed already.
     for (int n = 0; n < active_count_; ++n) claimed_[active_[n]] = -1;
     int standing = 0;
