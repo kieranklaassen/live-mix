@@ -78,12 +78,14 @@ CXX="${CXX:-c++}"
 
 "$out_dir/fet_limiter_test"
 
-# native_test <name> <sources...>: compile one harness and run it.
+# native_test <name> <sources...>: compile one harness and run it. No harness
+# depends on another, so each is queued here and they run several at a time
+# below (NATIVE_JOBS, by default one a core): one after another they take the
+# best part of an hour.
+queue="$out_dir/queue.txt"
+: > "$queue"
 native_test() {
-  local name="$1"
-  shift
-  "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra "$@" -o "$out_dir/$name"
-  "$out_dir/$name"
+  echo "$*" >> "$queue"
 }
 
 # The shared DSP kit (cpp/kit) and the spec devices built on it. The device
@@ -93,3 +95,43 @@ native_test stft_test cpp/test/stft_test.cpp
 
 source scripts/devices.gen.sh
 test_generated_devices
+
+# One queued harness: what it prints is kept in a file of its own, so that the
+# output of harnesses running side by side is not shuffled together.
+run_native_test() {
+  local name="$1"
+  shift
+  rm -f "$out_dir/$name.failed"
+  if "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra "$@" -o "$out_dir/$name" \
+    > "$out_dir/$name.log" 2>&1 && "$out_dir/$name" >> "$out_dir/$name.log" 2>&1; then
+    echo "ok     $name"
+  else
+    touch "$out_dir/$name.failed"
+    echo "FAILED $name"
+  fi
+}
+export -f run_native_test
+export CXX out_dir
+
+jobs="${NATIVE_JOBS:-$(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 2)}"
+xargs -P "$jobs" -L 1 bash -c 'run_native_test "$@"' native-test < "$queue"
+
+# Everything each harness said, in the order of the list; the failed ones come
+# last, so that they are what the log ends on.
+failed=0
+while read -r name _; do
+  [ -e "$out_dir/$name.failed" ] && continue
+  echo "== $name"
+  cat "$out_dir/$name.log"
+done < "$queue"
+while read -r name _; do
+  [ -e "$out_dir/$name.failed" ] || continue
+  failed=$((failed + 1))
+  echo "== FAILED $name"
+  cat "$out_dir/$name.log"
+done < "$queue"
+if [ "$failed" -ne 0 ]; then
+  echo "native harnesses: $failed failed" >&2
+  exit 1
+fi
+echo "native harnesses: $(wc -l < "$queue" | tr -d ' ') passed"

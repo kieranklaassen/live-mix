@@ -767,6 +767,30 @@ describe('the sound: its sides, the squeeze on it, and the body round it', () =>
     expect(count({ resonance: 1, depth: 1, mix: 0 })).toHaveLength(0)
   })
 
+  it('cuts the rings of a sound on the bottom at the floor of the water', () => {
+    for (const [width, height] of SIZES) {
+      const marks = marksOf(draw({ resonance: 1, depth: 1 }, {}, { width, height }))
+      const rings = bodyRings(marks)
+      expect(rings).toHaveLength(4)
+      // Left alone the widest would run on past the water, into the display's edge.
+      const widest = rings[3].ellipses[0]
+      expect(widest.y + widest.ry).toBeGreaterThan(height - 4)
+      // They are laid inside a cut that is the water's own box, the one after the cut of the surface.
+      const cuts = marks.filter((mark) => mark.kind === 'clip')
+      expect(cuts).toHaveLength(2)
+      expect(cuts[1].points).toEqual([
+        [4, 4],
+        [width - 4, 4],
+        [width - 4, height - 4],
+        [4, height - 4],
+      ])
+      expect(marks.indexOf(cuts[1])).toBeLessThan(marks.indexOf(rings[0]))
+    }
+    // With no Body there is no ring and nothing to cut.
+    const plain = marksOf(draw({ resonance: 0, depth: 1 }))
+    expect(plain.filter((mark) => mark.kind === 'clip')).toHaveLength(1)
+  })
+
   it('lights with the sound coming out, and is an outline of dashes with none of the water in the mix', () => {
     const lit = (output: number): Mark[] => {
       const drawn = runDisplay(display, UNDERWATER_PARAMS, 1, {

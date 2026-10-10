@@ -141,7 +141,7 @@ export const SEASONS_DESCRIPTOR = wasmDeviceDescriptor(SEASONS_DEVICE, {
   description:
     'One dial turns the year: a bright quick spring, a warm wide summer, a dark crumbling autumn and a thin frozen winter, with every blend between, and the year can turn by itself.',
   presets: {
-    'Spring, turning': {},
+    'Spring turning': {},
     'High summer': { year: 0.375, turn: 0, depth: 0.85, space: 0.7, motion: 0.7 },
     'Leaf fall': { year: 0.625, turn: 0, depth: 0.9, space: 0.5, motion: 0.8, grit: 0.8 },
     'Deep winter': { year: 0.875, turn: 0, depth: 0.9, space: 0.8, grit: 0.6, tail: 0.65 },

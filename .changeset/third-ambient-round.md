@@ -25,3 +25,5 @@ Space:
 A round:
 
 - `canon` (Canon): up to four followers repeat what you play, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.
+
+In the bank and in the kit: each of the ten has its place in the factory bank, 25 new effect chains, eight of which put two of the new effects together. `cpp/kit/stft.h` (`kit::Stft<Frame, Hop>`, a streaming short-time Fourier transform, with a recipe section "Spectral devices") ships with them for the spectral effects to come.

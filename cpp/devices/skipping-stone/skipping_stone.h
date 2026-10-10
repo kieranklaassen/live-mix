@@ -569,7 +569,8 @@ class SkippingStone : public kit::DeviceBase<skipping_stone::kNumParams> {
     const float sr = sample_rate();
     float seconds[kMaxLandings];
     const int skips = kit::clamp_int(static_cast<int>(param(kSkips) + 0.5f), 1, kMaxLandings);
-    const int count = landings(param(kFirst), param(kBounce), skips, seconds);
+    // Never none: `seconds[count - 1]` below is read whatever First is.
+    const int count = kit::clamp_int(landings(param(kFirst), param(kBounce), skips, seconds), 1, kMaxLandings);
     const float loss = kit::db_to_gain(-param(kLoss));
     const float sharp = 1.0f - param(kRipple);
     const float flight = seconds[count - 1] - seconds[0];

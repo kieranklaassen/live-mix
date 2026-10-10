@@ -503,7 +503,16 @@ const underwater = plateDisplay<UnderwaterState>({
 
     // The body of water ringing round it: a ring for every 3 dB of the hump.
     const hump = underwaterHumpDb(frame.value('resonance'), depth)
-    if (mix > QUIET) {
+    // The water has a bottom: a ring of a sound lying deep is drawn as far as the floor and no further.
+    if (mix > QUIET && hump > 0) {
+      ctx.save()
+      ctx.beginPath()
+      ctx.moveTo(box.x, box.y)
+      ctx.lineTo(box.x + box.w, box.y)
+      ctx.lineTo(box.x + box.w, foot)
+      ctx.lineTo(box.x, foot)
+      ctx.closePath()
+      ctx.clip()
       for (let k = 0; k < 4; k++) {
         const share = clamp(hump / 3 - k, 0, 1)
         if (share <= 0) break
@@ -513,6 +522,7 @@ const underwater = plateDisplay<UnderwaterState>({
         ctx.lineWidth = 1
         ctx.stroke()
       }
+      ctx.restore()
       ctx.globalAlpha = 1
     }
 

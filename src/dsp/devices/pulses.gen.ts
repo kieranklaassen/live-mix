@@ -63,41 +63,8 @@ export const PULSES_PARAMS = {
     description:
       'Starts the second gate this many steps ahead of the first, a fixed canon between the two. Drift moves on from there.',
   },
-  edge: {
-    id: 5,
-    name: 'Edge',
-    min: 0,
-    max: 1,
-    default: 0.15,
-    taper: 'linear',
-    unit: '',
-    description:
-      'The shape of each pulse. Low swells in and out over the whole pulse; high cuts in and out like a chop.',
-  },
-  length: {
-    id: 6,
-    name: 'Length',
-    min: 0.1,
-    max: 1,
-    default: 0.85,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of its step each pulse lasts. Short leaves air between the pulses; at full each pulse ends as the next begins.',
-  },
-  floor: {
-    id: 7,
-    name: 'Floor',
-    min: 0,
-    max: 1,
-    default: 0.65,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of the sound is left between pulses. At zero the gaps are silent; turned up, the pulses ride on a bed of the sound, and at full only Shade still moves.',
-  },
   shade: {
-    id: 8,
+    id: 5,
     name: 'Shade',
     min: 0,
     max: 1,
@@ -108,7 +75,7 @@ export const PULSES_PARAMS = {
       'Dulls the sound as each pulse closes, so the pulses open bright out of a darker bed. At zero only the level moves.',
   },
   apart: {
-    id: 9,
+    id: 6,
     name: 'Apart',
     min: 0,
     max: 1,
@@ -118,8 +85,19 @@ export const PULSES_PARAMS = {
     description:
       'Where the two gates sit. At zero both pulse in the middle; at full the first is on the left and the second on the right.',
   },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the untouched signal and the pulsed one. Lower settings make the pulses shallower.',
+  },
   accent: {
-    id: 10,
+    id: 8,
     name: 'Accent',
     min: 0,
     max: 1,
@@ -129,16 +107,38 @@ export const PULSES_PARAMS = {
     description:
       'Turns down every step but the first, so the start of the pattern stands out and the slide between the two gates is easier to follow.',
   },
-  mix: {
-    id: 11,
-    name: 'Mix',
+  edge: {
+    id: 9,
+    name: 'Edge',
     min: 0,
     max: 1,
-    default: 1,
+    default: 0.15,
     taper: 'linear',
     unit: '',
     description:
-      'Balance between the untouched signal and the pulsed one. Lower settings make the pulses shallower.',
+      'The shape of each pulse. Low swells in and out over the whole pulse; high cuts in and out like a chop.',
+  },
+  length: {
+    id: 10,
+    name: 'Length',
+    min: 0.1,
+    max: 1,
+    default: 0.85,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of its step each pulse lasts. Short leaves air between the pulses; at full each pulse ends as the next begins.',
+  },
+  floor: {
+    id: 11,
+    name: 'Floor',
+    min: 0,
+    max: 1,
+    default: 0.65,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the sound is left between pulses. At zero the gaps are silent; turned up, the pulses ride on a bed of the sound, and at full only Shade still moves.',
   },
 } as const satisfies Record<string, ParamSpec>
 

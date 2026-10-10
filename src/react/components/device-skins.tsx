@@ -1899,15 +1899,15 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
     cap: 'dot',
     name: 'Singer',
   },
-  breath: { ...PLATE_PALETTES.breath, finish: 'fade', cap: 'dot' },
+  breath: { ...PLATE_PALETTES.breath, finish: 'matte', cap: 'dot' },
   currents: { ...PLATE_PALETTES.currents, finish: 'brushed', cap: 'disc' },
-  ring: { ...PLATE_PALETTES.ring, finish: 'hammered', cap: 'dot' },
+  ring: { ...PLATE_PALETTES.ring, finish: 'brushed', cap: 'skirt' },
   underwater: { ...PLATE_PALETTES.underwater, finish: 'fade', cap: 'dot' },
-  pulses: { ...PLATE_PALETTES.pulses, finish: 'hammered', cap: 'dot' },
+  pulses: { ...PLATE_PALETTES.pulses, finish: 'gloss', cap: 'disc' },
   murmuration: { ...PLATE_PALETTES.murmuration, finish: 'fade', cap: 'dot' },
-  weather: { ...PLATE_PALETTES.weather, finish: 'speckle', cap: 'dot' },
-  'late-vibrato': { ...PLATE_PALETTES['late-vibrato'], finish: 'linen', cap: 'pointer' },
-  seasons: { ...PLATE_PALETTES.seasons, finish: 'linen', cap: 'dot' },
+  weather: { ...PLATE_PALETTES.weather, finish: 'fade', cap: 'pointer' },
+  'late-vibrato': { ...PLATE_PALETTES['late-vibrato'], finish: 'grain', cap: 'skirt' },
+  seasons: { ...PLATE_PALETTES.seasons, finish: 'gloss', cap: 'skirt' },
 }
 
 /**

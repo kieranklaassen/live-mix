@@ -47,23 +47,6 @@
       "description": "Which weather the sound is left out in: gusting wind, passing clouds, rain, surf breaking over it, or a storm of wind, rain and far thunder together."
     },
     {
-      "key": "force",
-      "name": "Force",
-      "min": 0,
-      "max": 1,
-      "default": 0.5,
-      "description": "How strong the weather is: the height of the gusts, the depth of the shadows, how hard it rains, the size of the waves. At zero the sound is left alone."
-    },
-    {
-      "key": "pace",
-      "name": "Pace",
-      "min": 0.25,
-      "max": 4,
-      "default": 1,
-      "taper": "log",
-      "description": "How fast the weather changes: low for long slow gusts, clouds and waves, high for short quick ones and thicker rain. A drop's tick and a thunder roll keep their length."
-    },
-    {
       "key": "exposure",
       "name": "Exposure",
       "min": 0,
@@ -78,6 +61,14 @@
       "max": 1,
       "default": 0.4,
       "description": "How much of the weather's own sound is heard: whistle, hush, drops, wash and thunder. It is as loud as the playing lets it be. At zero only what Exposure does is left."
+    },
+    {
+      "key": "calm",
+      "name": "Calm",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How long the lulls between gusts, clouds, showers and waves are. At zero one follows the other. Turned up, the sound is left in peace for longer."
     },
     {
       "key": "colour",
@@ -96,14 +87,6 @@
       "description": "How much the weather moves from side to side: gusts lean, drops scatter, clouds and waves cross from one side to the other. At zero it all stays in the middle."
     },
     {
-      "key": "calm",
-      "name": "Calm",
-      "min": 0,
-      "max": 1,
-      "default": 0.3,
-      "description": "How long the lulls between gusts, clouds, showers and waves are. At zero one follows the other. Turned up, the sound is left in peace for longer."
-    },
-    {
       "key": "linger",
       "name": "Linger",
       "min": 1,
@@ -120,6 +103,23 @@
       "max": 1,
       "default": 1,
       "description": "Balance between the dry signal and the sound out in the weather."
+    },
+    {
+      "key": "force",
+      "name": "Force",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How strong the weather is: the height of the gusts, the depth of the shadows, how hard it rains, the size of the waves. At zero the sound is left alone."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How fast the weather changes: low for long slow gusts, clouds and waves, high for short quick ones and thicker rain. A drop's tick and a thunder roll keep their length."
     }
   ],
   "presets": {

@@ -20,7 +20,7 @@
       "name": "Root",
       "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
       "default": 0,
-      "description": "The note the carrier is tuned to. Set it to the key of the piece and the new partials land on notes that belong with what is played."
+      "description": "The note the carrier is tuned to. Set it to the key of the piece."
     },
     {
       "key": "octave",
@@ -117,7 +117,7 @@
     }
   ],
   "presets": {
-    "Bell in key": {},
+    "Bell on the root": {},
     "Faint halo": {
       "octave": 5,
       "drift": 0.4,
@@ -174,7 +174,7 @@
       "lowCut": 20,
       "tone": 16000,
       "width": 0,
-      "mix": 0.5
+      "mix": 0.2
     },
     "Side to side": {
       "tune": 1,

@@ -7,11 +7,11 @@
 //    2  rate: 0.005..2 Hz, default 0.1
 //    3  tide: 0..1, default 0.5
 //    4  bands: 3..6, default 5
-//    5  shape: 0..1, default 0.25
-//    6  chance: 0..1, default 0.3
-//    7  focus: 0..1, default 0.25
-//    8  lowHold: 20..800 Hz, default 120
-//    9  mix: 0..1, default 1
+//    5  chance: 0..1, default 0.3
+//    6  focus: 0..1, default 0.25
+//    7  mix: 0..1, default 1
+//    8  shape: 0..1, default 0.25
+//    9  lowHold: 20..800 Hz, default 120
 
 #pragma once
 
@@ -24,17 +24,17 @@ enum Param : int {
   kRate = 2,
   kTide = 3,
   kBands = 4,
-  kShape = 5,
-  kChance = 6,
-  kFocus = 7,
-  kLowHold = 8,
-  kMix = 9,
+  kChance = 5,
+  kFocus = 6,
+  kMix = 7,
+  kShape = 8,
+  kLowHold = 9,
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.005f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 20.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 2.0f, 1.0f, 6.0f, 1.0f, 1.0f, 1.0f, 800.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.6f, 0.5f, 0.1f, 0.5f, 5.0f, 0.25f, 0.3f, 0.25f, 120.0f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.005f, 0.0f, 3.0f, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f};
+inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 2.0f, 1.0f, 6.0f, 1.0f, 1.0f, 1.0f, 1.0f, 800.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.6f, 0.5f, 0.1f, 0.5f, 5.0f, 0.3f, 0.25f, 1.0f, 0.25f, 120.0f};
 
 }  // namespace currents
 }  // namespace livemix

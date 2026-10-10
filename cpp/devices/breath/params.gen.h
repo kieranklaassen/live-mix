@@ -3,16 +3,16 @@
 // Parameter ids and ranges of Breath, shared with
 // src/dsp/devices/breath.gen.ts:
 //    0  in: 0.2..20 s, default 3
-//    1  hold: 0.02..20 s, default 0.5
-//    2  out: 0.2..20 s, default 4.5
-//    3  rest: 0.02..20 s, default 1
-//    4  depth: 0..1, default 0.4
-//    5  colour: 0..1, default 0.5
-//    6  width: 0..1, default 0.5
-//    7  air: 0..1, default 0.35
-//    8  ease: 0..1, default 0.75
-//    9  vary: 0..1, default 0.2
-//   10  mix: 0..1, default 1
+//    1  out: 0.2..20 s, default 4.5
+//    2  depth: 0..1, default 0.4
+//    3  colour: 0..1, default 0.5
+//    4  width: 0..1, default 0.5
+//    5  air: 0..1, default 0.35
+//    6  ease: 0..1, default 0.75
+//    7  mix: 0..1, default 1
+//    8  hold: 0.02..20 s, default 0.5
+//    9  rest: 0.02..20 s, default 1
+//   10  vary: 0..1, default 0.2
 
 #pragma once
 
@@ -21,22 +21,22 @@ namespace breath {
 
 enum Param : int {
   kIn = 0,
-  kHold = 1,
-  kOut = 2,
-  kRest = 3,
-  kDepth = 4,
-  kColour = 5,
-  kWidth = 6,
-  kAir = 7,
-  kEase = 8,
-  kVary = 9,
-  kMix = 10,
+  kOut = 1,
+  kDepth = 2,
+  kColour = 3,
+  kWidth = 4,
+  kAir = 5,
+  kEase = 6,
+  kMix = 7,
+  kHold = 8,
+  kRest = 9,
+  kVary = 10,
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.2f, 0.02f, 0.2f, 0.02f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {20.0f, 20.0f, 20.0f, 20.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {3.0f, 0.5f, 4.5f, 1.0f, 0.4f, 0.5f, 0.5f, 0.35f, 0.75f, 0.2f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.2f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.02f, 0.02f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {20.0f, 20.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 20.0f, 20.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {3.0f, 4.5f, 0.4f, 0.5f, 0.5f, 0.35f, 0.75f, 1.0f, 0.5f, 1.0f, 0.2f};
 
 }  // namespace breath
 }  // namespace livemix

@@ -14,8 +14,6 @@ namespace orbits {
 template <int Frames>
 class Ring {
  public:
-  static constexpr int kFrames = Frames;
-
   void clear() {
     for (int i = 0; i < Frames; ++i) buffer_[i] = 0.0f;
     head_ = 0;
