@@ -423,9 +423,9 @@
     {
       "key": "floor",
       "name": "Floor",
-      "min": -60,
+      "min": -48,
       "max": 0,
-      "default": -60,
+      "default": -48,
       "unit": "dB",
       "description": "How far the rest is turned down. Fully down it is gone; higher leaves a ghost of it under what is kept."
     },

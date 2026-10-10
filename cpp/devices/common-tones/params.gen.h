@@ -8,7 +8,7 @@
 //    3  ring: 0..1, default 0.35
 //    4  broad: 0..1, default 0.25
 //    5  memory: 0..1, default 0.3
-//    6  floor: -60..0 dB, default -60
+//    6  floor: -48..0 dB, default -48
 //    7  mix: 0..1, default 0.7
 
 #pragma once
@@ -28,9 +28,9 @@ enum Param : int {
   kNumParams = 8,
 };
 
-inline constexpr float kParamMin[kNumParams] = {50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -60.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -48.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {8000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {350.0f, 0.0f, 0.6f, 0.35f, 0.25f, 0.3f, -60.0f, 0.7f};
+inline constexpr float kParamDefault[kNumParams] = {350.0f, 0.0f, 0.6f, 0.35f, 0.25f, 0.3f, -48.0f, 0.7f};
 
 }  // namespace common_tones
 }  // namespace livemix

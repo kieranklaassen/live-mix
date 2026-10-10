@@ -76,9 +76,9 @@ export const COMMON_TONES_PARAMS = {
   floor: {
     id: 6,
     name: 'Floor',
-    min: -60,
+    min: -48,
     max: 0,
-    default: -60,
+    default: -48,
     taper: 'linear',
     unit: 'dB',
     description:

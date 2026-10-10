@@ -22,7 +22,7 @@
 // - then: the power the bin had Ago before, B. Every frame's powers are kept
 //   (the history), and the frame Ago back is read between the two frames
 //   nearest to it, so Ago moves without steps. Memory makes `then` a running
-//   average of that delayed past (a one pole, 10 s × Memory³) in place of one
+//   average of that delayed past (a one pole, 10 s × Memory²) in place of one
 //   moment. Until the device has heard Ago's worth of sound since it was
 //   switched on, it compares with the first whole frame it heard: putting it
 //   on a sounding channel does not drop the sound out for Ago. Silence it
@@ -37,13 +37,19 @@
 //
 //   a Wiener-shaped gain: whole while `now` is no more than the leeway over
 //   `then`, and from there down 2 dB for every dB. Common and Changes add up
-//   to the input. Floor is the gain of what is turned down.
-// - Ring: what gets through hangs on. The magnitude of each bin after the
-//   gain is held and falls 60 dB in 20 s × Ring³; a bin that is let go of
-//   goes on turning by the turn it was last measured to make (a rotator from
-//   two frames of the input), so a held partial stays at its own frequency
-//   and nothing buzzes at the frame rate. At Ring 0 the wet path is the gain
-//   and nothing else.
+//   to the input. Floor is the gain of what is turned down; at the bottom
+//   of its travel that is nothing.
+// - Ring: what gets through steadily hangs on. Each bin keeps the value it
+//   last had in a steady sound (after the gain), turned on every frame by
+//   the turn that sound was measured to make (a rotator from two frames of
+//   the input) and falling 60 dB in 20 s × Ring²; a steady sound as loud as
+//   what rings takes its place. The ring is heard wherever it is louder
+//   than the input with its gain. Only frames with a frame of about the same
+//   power on either side of them count as steady, so a held partial stays at
+//   its own frequency, the bins of one partial stay together, and an edge (a
+//   click, the start or the cut of a note) passes but is never rung on: rung
+//   on, it would come round again every frame length. At Ring 0 the wet path
+//   is the gain and nothing else.
 // - Mix is a straight cross-fade: the wet sound is the dry one with a gain per
 //   bin, in phase with it.
 //
@@ -89,12 +95,14 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
       Channel& channel = channel_[c];
       for (int k = 0; k < kBins; ++k) {
         channel.then[k] = 0.0f;
-        channel.held[k] = 0.0f;
-        channel.phase_re[k] = 1.0f;
-        channel.phase_im[k] = 0.0f;
+        channel.ring_re[k] = 0.0f;
+        channel.ring_im[k] = 0.0f;
         // Until measured, a bin turns by its centre frequency: k quarter turns.
         channel.turn_re[k] = kQuarterTurn[k & 3][0];
         channel.turn_im[k] = kQuarterTurn[k & 3][1];
+        channel.next_re[k] = 0.0f;
+        channel.next_im[k] = 0.0f;
+        channel.last_gain[k] = 0.0f;
         channel.last_re[k] = 0.0f;
         channel.last_im[k] = 0.0f;
       }
@@ -184,8 +192,8 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
   static constexpr uint32_t kOldEnough = 1u << 24;  // an age past any Ago; the count stops there
   // A bin's power under this is silence: an amplitude of 1e-6 where a full-scale sine reads 1024.
   static constexpr float kPowerFloor = 1.0e-12f;
-  static constexpr float kMagnitudeFloor = 1.0e-6f;
-  static constexpr float kAttackSoftening = 0.7f;
+  static constexpr float kMagnitudeFloor = 1.0e-4f;  // a ring 140 dB under a full-scale sine is over
+  static constexpr float kSteady = 0.8f;  // a bin's power from one frame to the next, either way, while its sound is steady
   static constexpr float kSideStep = 0.25f;  // Keep crosses over in four frames
   static constexpr float kQuarterTurn[4][2] = {{1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}};
 
@@ -193,9 +201,10 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
     uint16_t history[kHistory][kBins];  // every frame's powers, as codes (pack)
     uint32_t stamp[kHistory];           // the frame each row holds; a row that was slept over is stale
     float then[kBins];                  // the power each bin is compared with
-    float held[kBins];                  // what each bin holds after the gain
-    float phase_re[kBins], phase_im[kBins];  // its phase as a unit vector
-    float turn_re[kBins], turn_im[kBins];    // its phase advance per frame
+    float ring_re[kBins], ring_im[kBins];    // what each bin rings with: its last steady value, turned on and fallen
+    float turn_re[kBins], turn_im[kBins];    // the ring's phase advance per frame, a unit vector
+    float next_re[kBins], next_im[kBins];    // the advance measured last, not yet taken up (0: none)
+    float last_gain[kBins];                  // the gain the bin was given in the previous frame
     float last_re[kBins], last_im[kBins];    // the previous analysis frame
     float band_now[kBands + 1];              // this frame's power per third octave (the last is not shown)
     float band_then[kBands + 1];
@@ -215,7 +224,6 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
     float floor = 0.0f;
     float side = 0.0f;      // 0 common, 1 changes
     float decay = 0.0f;
-    float attack = 1.0f;
     bool broad = false;
   };
 
@@ -249,9 +257,8 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
         break;
       case kRing: {
         const float ring = param(id);
-        const float seconds = kMaxRingSeconds * ring * ring * ring;
+        const float seconds = kMaxRingSeconds * ring * ring;
         decay_ = seconds > 0.0f ? std::exp(-6.9077553f / (seconds * frames_per_second_)) : 0.0f;
-        attack_ = 1.0f - kAttackSoftening * ring;
         break;
       }
       case kBroad:
@@ -259,12 +266,13 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
         break;
       case kMemory: {
         const float memory = param(id);
-        const float seconds = kMaxMemorySeconds * memory * memory * memory;
+        const float seconds = kMaxMemorySeconds * memory * memory;
         alpha_ = seconds > 0.0f ? 1.0f - std::exp(-1.0f / (seconds * frames_per_second_)) : 1.0f;
         break;
       }
       case kFloor:
-        floor_ = std::pow(10.0f, 0.05f * param(id));
+        // The bottom of the knob is nothing at all.
+        floor_ = param(id) <= kParamMin[id] + 0.01f ? 0.0f : std::pow(10.0f, 0.05f * param(id));
         break;
       case kMix:
         mix_.set(param(id), primed());
@@ -320,7 +328,6 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
     plan_.floor = floor_;
     plan_.side = side_;
     plan_.decay = decay_;
-    plan_.attack = attack_;
     plan_.broad = param(common_tones::kBroad) > 0.0f;
   }
 
@@ -404,7 +411,6 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
     const float side = plan_.side;
     const float floor = plan_.floor;
     const float decay = plan_.decay;
-    const float attack = plan_.attack;
     bool alive = false;
     for (int k = 0; k < kBins; ++k) {
       const float xr = re[k];
@@ -418,68 +424,78 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
       const float common = a > limit ? limit / a : 1.0f;
       const float share = common + side * (1.0f - 2.0f * common);
       const float gain = floor + (1.0f - floor) * share;
-      const float level = std::sqrt(power);
-      const float wanted = gain * level;
+      // The ring: what this bin last held steadily, turned on by the turn it
+      // was measured to make and let fall, frame by frame.
+      float tr = channel.turn_re[k];
+      float ti = channel.turn_im[k];
+      float rr = (channel.ring_re[k] * tr - channel.ring_im[k] * ti) * decay;
+      float ri = (channel.ring_re[k] * ti + channel.ring_im[k] * tr) * decay;
 
-      // The turn since the last frame, measured only while the bin's input
-      // is holding up: the frames in which a sound is cut off have the phase
-      // of the cut, not of the sound. Kept unnormalised until needed.
+      // Only a steady sound is taken into the ring. A frame in which a sound
+      // comes or is cut off has the phase of the edge, not of the sound, and
+      // the bins beside a partial are thrown furthest: rung on, an edge
+      // comes round again every frame length, and the bins of one partial
+      // beat against each other. So the turn (a rotator from two frames of
+      // the input) and the value are taken from a frame with a frame of
+      // about the same power on either side of it: the frame a cut first
+      // touches loses too little power to be told, the one after it does not.
       const float lr = channel.last_re[k];
       const float li = channel.last_im[k];
-      float held = channel.held[k] * decay;
-      if (level > 0.1f * held && power >= 0.8f * (lr * lr + li * li)) {
-        const float tr = xr * lr + xi * li;
-        const float ti = xi * lr - xr * li;
-        if (tr * tr + ti * ti > 1.0e-24f) {
-          channel.turn_re[k] = tr;
-          channel.turn_im[k] = ti;
+      const float last_power = lr * lr + li * li;
+      const bool steady = power >= kSteady * last_power && power * kSteady <= last_power;
+      const float nr = channel.next_re[k];
+      const float ni = channel.next_im[k];
+      const float measured = nr * nr + ni * ni;
+      if (steady && measured > 1.0e-24f) {
+        // The frame before this one stood in a steady sound: where it would
+        // stand now, one turn on. As loud as what rings, it rings from here.
+        const float inverse = 1.0f / std::sqrt(measured);
+        const float sr = nr * inverse;
+        const float si = ni * inverse;
+        const float scale = channel.last_gain[k] * decay;
+        const float cr = (lr * sr - li * si) * scale;
+        const float ci = (lr * si + li * sr) * scale;
+        if (cr * cr + ci * ci >= rr * rr + ri * ri) {
+          rr = cr;
+          ri = ci;
+          channel.turn_re[k] = sr;
+          channel.turn_im[k] = si;
         }
+      }
+      if (rr * rr + ri * ri < kMagnitudeFloor * kMagnitudeFloor) {
+        rr = 0.0f;
+        ri = 0.0f;
+      }
+      channel.ring_re[k] = rr;
+      channel.ring_im[k] = ri;
+      alive = alive || rr != 0.0f || ri != 0.0f;
+      if (steady) {
+        channel.next_re[k] = xr * lr + xi * li;
+        channel.next_im[k] = xi * lr - xr * li;
+      } else {
+        channel.next_re[k] = 0.0f;
+        channel.next_im[k] = 0.0f;
       }
       channel.last_re[k] = xr;
       channel.last_im[k] = xi;
+      channel.last_gain[k] = gain;
 
-      float pr, pi;
-      if (wanted >= held) {
-        // Driven by the input: its own phase.
-        held += attack * (wanted - held);
-        if (level > 1.0e-12f) {
-          const float inverse = 1.0f / level;
-          pr = xr * inverse;
-          pi = xi * inverse;
-        } else {
-          pr = 1.0f;
-          pi = 0.0f;
-        }
+      // What is heard: the input with its gain, or the ring where that is louder.
+      const float ringing = rr * rr + ri * ri;
+      float heard = gain * gain * power;
+      if (heard >= ringing) {
+        re[k] = gain * xr;
+        im[k] = gain * xi;
       } else {
-        // Let go of: it goes on turning as it last did.
-        float tr = channel.turn_re[k];
-        float ti = channel.turn_im[k];
-        const float size = tr * tr + ti * ti;
-        if (size < 0.999f || size > 1.001f) {
-          const float inverse = 1.0f / std::sqrt(size);
-          tr *= inverse;
-          ti *= inverse;
-          channel.turn_re[k] = tr;
-          channel.turn_im[k] = ti;
-        }
-        pr = channel.phase_re[k] * tr - channel.phase_im[k] * ti;
-        pi = channel.phase_re[k] * ti + channel.phase_im[k] * tr;
-        const float keep_unit = 1.5f - 0.5f * (pr * pr + pi * pi);
-        pr *= keep_unit;
-        pi *= keep_unit;
+        re[k] = rr;
+        im[k] = ri;
+        heard = ringing;
       }
-      if (held < kMagnitudeFloor) held = 0.0f;
-      channel.held[k] = held;
-      channel.phase_re[k] = pr;
-      channel.phase_im[k] = pi;
-      alive = alive || held > 0.0f;
-      re[k] = held * pr;
-      im[k] = held * pi;
 
       const int band = band_of_[k];
       channel.band_now[band] += power;
       channel.band_then[band] += then;
-      channel.band_heard[band] += held * held;
+      channel.band_heard[band] += heard;
     }
     channel.alive = alive;
 
@@ -518,7 +534,6 @@ class CommonTones : public kit::DeviceBase<common_tones::kNumParams> {
   float leeway_ = 1.0f;
   float floor_ = 0.0f;
   float decay_ = 0.0f;
-  float attack_ = 1.0f;
   float side_ = 0.0f;
   float side_target_ = 0.0f;
   bool broad_dirty_ = true;
