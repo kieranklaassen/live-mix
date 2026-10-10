@@ -98,11 +98,7 @@
     {
       "key": "turn",
       "name": "Turn",
-      "choices": [
-        "Still",
-        "Forward",
-        "Backward"
-      ],
+      "choices": ["Still", "Forward", "Backward"],
       "default": 1,
       "description": "Whether the year turns by itself. Still holds it where it has got to, Forward runs on from spring towards summer, Backward from spring towards winter."
     },

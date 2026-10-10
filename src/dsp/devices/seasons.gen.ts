@@ -179,7 +179,7 @@ export const SEASONS_DESCRIPTOR = wasmDeviceDescriptor(SEASONS_DEVICE, {
       width: 1.6,
     },
     'Dry leaves': { year: 0.5, turn: 0, depth: 1, space: 0, motion: 0.4, grit: 1 },
-    'Backward year': { year: 0.1, turning: 30, depth: 0.85, turn: 2 },
+    'Backward year': { year: 0.35, turning: 40, depth: 0.9, space: 0.7, turn: 2 },
     'Bare branches': {
       year: 0.75,
       turn: 0,

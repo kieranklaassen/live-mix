@@ -2,12 +2,15 @@
 
 // Seasons: one dial turns the year, and the year can turn by itself.
 //
-//   in ─► tone ─► × high-band gain ─► × side-to-side gain ───────────────────────────► (+) ─► width ─► limit ─► mix ─► out
-//        (low and  (shimmer, crumble)   (sway, tumble)      │                           ▲                         ▲
-//         high shelf)                                       ├─► (+) ─► moving delay ─┬─► six early taps ─────────┤          in
-//   in ─► low pass ─► ring ─► sparks (glitter) ─────────────┘            (vibrato)   └─► eight-line network ─────┘
-//                                                                                        (decay, damping, low cut,
-//                                                                                         two lines turned in pitch)
+//   in ─► tone ─► + warmth ─► top band × shimmer × crumble ─► × side-to-side gain ──► (+) ─► width ─► ceiling ─► mix ─► out
+//        (low and                                             (sway, tumble)  │        ▲                          ▲
+//         high shelf)                                                         │        │                          in
+//   in ─► low pass ─► ring ─► sparks (glitter) ───────────────────────────────┤        │
+//                                                                             ▼        │
+//                              low cut ─► moving delay ─┬─► six early taps ────────────┤
+//                                         (wander,      └─► two allpasses ─► eight-line network ─┘
+//                                          vibrato)          (decay, damping, low cut, four lines
+//                                                             breathing, two turned in pitch)
 //
 // - The year is a place on a circle, 0..1: 0 spring, 0.25 summer, 0.5 autumn,
 //   0.75 winter. Each season has a weight cos²(2π·distance) inside a quarter
@@ -18,41 +21,50 @@
 //   are, frequencies and times in octaves), and Depth takes each from "nothing
 //   is done" to that blend. At Depth 0 the wet signal is the input to the bit.
 // - Tone: a first-order low shelf and high shelf side by side,
-//   y = x + (gl - 1)·low(x) + (gh - 1)·high(x). Spring is bright and light,
-//   summer warm and full, autumn dark with a low warmth, winter thin and glassy.
+//   y = x + (gl - 1)·low(x) + (gh - 1)·high(x). Spring is bright and clear,
+//   summer warm and full, autumn dark with a low warmth, winter thin (its
+//   body cut under 400 Hz) and glassy (only the very top lifted).
 // - Movement, all by the clock (the sample count since init, which runs on
 //   through sleep, so nothing here is restarted by the sound and the output is
-//   the same at every block size): spring shimmers (the high band's gain at
-//   5.3 Hz, out of step between the sides, and a small fast vibrato on what
-//   feeds the room), summer sways (level from side to side at 0.19 Hz and a
-//   slow wide vibrato), autumn tumbles (two slow sines that never line up).
-//   Two of the room's eight lines pass through a frequency shifter: up in
-//   spring, so a tail climbs; down in autumn, so it sinks; not at all in
-//   summer and winter.
-// - Texture. Autumn crumbles: the high band's gain dips in short smooth
+//   the same at every block size): spring shimmers (the gain of the top of
+//   the sound, above 900 Hz, at 5.3 Hz and out of step between the sides, and
+//   a small fast vibrato on what feeds the room), summer sways (level from
+//   side to side at 0.19 Hz and a slow wide vibrato), autumn tumbles (two
+//   slow sines that never line up), winter barely stirs. Two of the room's
+//   eight lines pass through a frequency shifter: up in spring, so a tail
+//   climbs; down in autumn, so it sinks; not at all in summer and winter.
+// - Texture. Autumn crumbles: the top of the sound dips in short smooth
 //   dropouts and is roughened in 2 ms cells. Winter (and the first of spring)
 //   glitters: short sparks that play the last fraction of a second of the
-//   input two, three or four times as fast, into the sound and the room. Both
-//   are worked out from the sample count alone (a hash of the slot a sample
-//   falls in), so they keep their place through silence.
+//   input two, three or four times as fast, into the sound and the room.
+//   Both are worked out from the sample count alone (a hash of the slot a
+//   sample falls in), so they keep their place through silence. Summer (and
+//   autumn a little) is warm: the body of the sound under 1.8 kHz pressed
+//   softly against its own level, which adds low odd harmonics at any level.
 // - The room: six early taps a side and a network of eight delay lines mixed
-//   by a Hadamard matrix. The lengths never change; the seasons differ in how
-//   much of each is heard, how long the network rings, and what it loses on
-//   every pass (highs in summer and autumn, lows in winter).
-// - Width: the season's own (summer wide, winter narrow) times the knob.
+//   by a Hadamard matrix, fed through two short allpasses. The lengths are
+//   fixed but for a quarter of a millisecond of slow breathing on four lines;
+//   the seasons differ in how much of each is heard, how long the network
+//   rings, and what it loses on every pass (highs in summer and autumn, lows
+//   in winter).
+// - Width: the season's own (summer wide, winter narrow) times the knob,
+//   with the knob's part held to an even loudness.
 // - Level: each season has a trim so loudness holds round the year, the
 //   network's level falls as its decay grows, the loop is held to ±4 and the
 //   wet signal to ±2 (linear and exact to ±1).
 // - Mix is a linear crossfade: the seasoned sound is coherent with the dry.
 //   Nothing is delayed, so there is no latency.
-// - The year's own turning: a phase added to the Year knob, counted in
-//   samples. Still walks that phase back to nothing at a year in four
-//   seconds, the shorter way round, so the year comes to rest where the knob
-//   says.
+// - The year's own turning is a clock counted in samples, added to where the
+//   Year knob last put the year. Setting Year places the year there (it
+//   glides the shorter way round) and it turns on from there; Still stops
+//   the clock where it is.
+// - Rest is counted in samples as well: asleep after two seconds with nothing
+//   coming in, going out or left in the room, awake on the very sample that
+//   sound returns, so neither depends on the host's block size.
 //
-// Storage: eight lines of 8,192 samples, two early lines of 8,192, two
-// vibrato lines of 2,048 and two rings of 65,536 for the sparks: about
-// 0.9 MB, sized for 96 kHz.
+// Storage: eight lines of 16,384 samples, two early lines of 8,192, two
+// vibrato lines of 2,048, four allpasses of 1,024 and two rings of 65,536 for
+// the sparks: about 1.2 MB, sized for 96 kHz.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -70,7 +82,7 @@ constexpr float kHighShelfDb[kSeasons] = {4.5f, -2.0f, -9.0f, 3.0f};
 constexpr float kHighShelfHz[kSeasons] = {2800.0f, 4500.0f, 1300.0f, 6500.0f};
 // The room: level of the early taps and of the network, and its decay to -60 dB.
 constexpr float kEarlyLevel[kSeasons] = {0.7f, 0.25f, 0.4f, 0.1f};
-constexpr float kLateLevel[kSeasons] = {1.2f, 1.5f, 1.8f, 1.6f};
+constexpr float kLateLevel[kSeasons] = {1.2f, 1.25f, 1.8f, 1.4f};
 constexpr float kDecaySeconds[kSeasons] = {0.5f, 3.2f, 0.9f, 8.0f};
 // Above the high crossover and below the low one the network rings for this
 // share of its decay time: summer and autumn lose their top, winter its body.
@@ -78,7 +90,7 @@ constexpr float kHighCrossHz[kSeasons] = {6000.0f, 3000.0f, 1600.0f, 5000.0f};
 constexpr float kHighDecay[kSeasons] = {0.6f, 0.35f, 0.25f, 0.7f};
 constexpr float kLowCrossHz[kSeasons] = {250.0f, 150.0f, 150.0f, 600.0f};
 constexpr float kLowDecay[kSeasons] = {0.5f, 1.0f, 0.8f, 0.2f};
-// Movement: shimmer (share of the high band's gain), sway and tumble (share
+// Movement: shimmer (share of the top band's gain), sway and tumble (share
 // of the level, opposite on the two sides), the vibrato each gives what feeds
 // the room (milliseconds either way), and the shift of two lines (Hz).
 constexpr float kShimmer[kSeasons] = {0.4f, 0.05f, 0.0f, 0.0f};
@@ -90,11 +102,11 @@ constexpr float kTumbleMs[kSeasons] = {0.0f, 0.2f, 1.0f, 0.0f};
 constexpr float kShiftHz[kSeasons] = {4.0f, 0.0f, -3.0f, 0.0f};
 // Texture (crumble, glitter, warmth) and width.
 constexpr float kCrumble[kSeasons] = {0.0f, 0.0f, 1.0f, 0.15f};
-constexpr float kGlitter[kSeasons] = {0.35f, 0.0f, 0.0f, 1.0f};
+constexpr float kGlitter[kSeasons] = {0.5f, 0.0f, 0.0f, 1.0f};
 constexpr float kWarmth[kSeasons] = {0.0f, 1.0f, 0.45f, 0.0f};
 constexpr float kWidth[kSeasons] = {1.0f, 1.5f, 0.9f, 0.45f};
 // What holds the loudness round the year (dB at Depth 1), found by measuring.
-constexpr float kTrimDb[kSeasons] = {0.05f, -1.55f, 0.1f, 2.75f};
+constexpr float kTrimDb[kSeasons] = {0.05f, -1.55f, 0.1f, 2.4f};
 
 constexpr float kShimmerHz = 5.3f;
 constexpr float kSwayHz = 0.19f;
@@ -425,7 +437,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   static constexpr float kTailLeast = 0.4f;
   static constexpr float kTailSpan = 6.25f;
   // What the room adds to the loudness at Space 1, taken off the trim (dB).
-  static constexpr float kSpaceTrimDb[seasons_parts::kSeasons] = {1.6f, 2.8f, 2.2f, 0.55f};
+  static constexpr float kSpaceTrimDb[seasons_parts::kSeasons] = {1.6f, 2.2f, 2.2f, 0.55f};
 
   // Crumble: a slot of 45 ms holds at most one dropout, which may run into
   // the next slot; the grain is a random level every 2 ms, joined by lines.

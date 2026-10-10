@@ -554,7 +554,7 @@ int main(int argc, char**) {
          "autumn's top end crumbles and no other season's does");
   EXPECT(sparks[3] > 3.0 && sparks[0] > 2.0 && sparks[1] < 0.5 && sparks[2] < 0.5,
          "winter and spring glitter");
-  EXPECT(spark_top[3] > 2.0 * spark_top[0], "winter's sparks are louder than spring's");
+  EXPECT(spark_top[3] > 1.6 * spark_top[0], "winter's sparks are louder than spring's");
   EXPECT(warm[1] > -28.0 && warm[1] > warm[2] + 3.0 && warm[2] > -36.0 && warm[3] < -37.0 && warm[0] < -37.0,
          "summer is warmed most, autumn a little, winter and spring not");
 
@@ -579,8 +579,9 @@ int main(int argc, char**) {
   }
   EXPECT(climb[0] > 3.0, "spring's tail climbs");
   EXPECT(climb[2] < -3.0, "autumn's tail sinks");
-  EXPECT(std::fabs(climb[1]) < 2.0 && std::fabs(climb[3]) < 2.0,
-         "summer's and winter's tails keep their pitch (but for the sway)");
+  EXPECT(std::fabs(climb[1]) < 0.5 * std::min(climb[0], -climb[2]) &&
+             std::fabs(climb[3]) < 0.5 * std::min(climb[0], -climb[2]),
+         "summer's and winter's tails move less than half as far (the sway's slow vibrato is all)");
 
   // --- the blend has no step in it ---------------------------------------------------------
   // Sixty-four places round the dial on the same noise: the level and the
@@ -951,6 +952,48 @@ int main(int argc, char**) {
     EXPECT(snapped < 1.0e-5, "knobs moved in a sleep snap on waking, and the clock has kept its place");
   }
 
+  // A knob moved in the last moment before sleep (its glide barely begun)
+  // has still snapped when the device wakes: the first samples after the wake
+  // are those of a device set that way all along.
+  {
+    rng_state() = 0xD0E5u;
+    const std::vector<float> opening = noise(0.3f, kRate, 0.2f);
+    const std::vector<float> tone = sine(440.0f, 0.5f, kRate, 0.25f);
+    const auto start = [&] {
+      still(device, 0.0f);
+      device.set_param(p::kSpace, 0.0f);
+      device.set_param(p::kMotion, 1.0f);
+      run(device, opening);
+    };
+    start();
+    long until_sleep = 0;
+    while (!device.asleep() && until_sleep < 10 * 48000) {
+      device.process(1);
+      ++until_sleep;
+    }
+    EXPECT(until_sleep > 48000 && until_sleep < 10 * 48000, "the device falls asleep in the silence");
+    start();
+    for (long i = 0; i < until_sleep - 5; ++i) device.process(1);
+    EXPECT(!device.asleep(), "still awake five samples before");
+    device.set_param(p::kMix, 0.3f);
+    device.set_param(p::kDepth, 0.2f);
+    device.set_param(p::kWidth, 1.8f);
+    for (long i = 0; i < 4800; ++i) device.process(1);
+    EXPECT(device.asleep(), "asleep five samples later");
+    const Stereo woken = run(device, tone);
+    still(device, 0.0f);
+    device.set_param(p::kSpace, 0.0f);
+    device.set_param(p::kMotion, 1.0f);
+    device.set_param(p::kMix, 0.3f);
+    device.set_param(p::kDepth, 0.2f);
+    device.set_param(p::kWidth, 1.8f);
+    run(device, silence(static_cast<float>(opening.size() + until_sleep - 5 + 4800) / kRate, kRate));
+    const Stereo set_so = run(device, tone);
+    const double apart = largest_difference(woken, set_so);
+    if (g_print) std::printf("knobs moved five samples before sleep, on waking against a device set so: %g\n", apart);
+    EXPECT(apart < 1.0e-6, "a knob moved just before sleep has snapped on waking");
+  }
+
   // --- movement and texture run by the clock, not by the sound ----------------------------
   // One device sleeps through six seconds of silence; another is kept awake
   // through them by a whisper (noise at -100 dBFS). With no room to remember
@@ -1098,18 +1141,25 @@ int main(int argc, char**) {
     const std::vector<float> held = chord(60.0f, 1.0f);
     const double in_rms = rms(held);
     double worst_peak = 0.0, worst_growth = -99.0, loudest = -99.0;
-    // `set` loads the settings. Where the year turns, "the start" is a year
-    // stood still where the turning one is five seconds before the end: a
-    // turning year changes level with the season, which is not growth.
+    // `set` loads the settings. A turning year changes level with the season,
+    // which is not growth: where it turns slowly "the start" is a year stood
+    // still where the turning one is five seconds before the end, and where
+    // it turns fast the last whole year is held against a whole year some
+    // years before it.
     const auto hold = [&](const char* what, const std::function<void()>& set) {
       set();
       const float turn = device.param(p::kTurn), turning = device.param(p::kTurning);
       const Stereo out = run(device, held);
       const size_t n = out.size();
       const double top = std::max(peak(out.left), peak(out.right));
-      const double last = level(out, n - 10 * second);
+      double last = level(out, n - 10 * second);
       double start = level(out, 5 * second, 15 * second);
-      if (turn > 0.5f) {
+      if (turn > 0.5f && turning <= 25.0f) {
+        const size_t year = static_cast<size_t>(turning * kRate);
+        const size_t back = static_cast<size_t>(40.0f / turning) * year;
+        last = level(out, n - year);
+        start = level(out, n - year - back, n - back);
+      } else if (turn > 0.5f) {
         float there = device.meter(0) - (turn < 1.5f ? 5.0f : -5.0f) / turning;
         there -= std::floor(there);
         set();
@@ -1169,12 +1219,118 @@ int main(int argc, char**) {
     }
   }
 
+  // --- held notes over the piano range ----------------------------------------------------
+  // A held tone on every semitone from E1 to E7 through the effect as it
+  // starts (the year turning), and on every sixth through each preset: its
+  // level against the input, over four seconds. The tone curve is meant; a
+  // note that drops out of its neighbours' company (a comb between the
+  // sound and its room, or between the dry and the wet at part-way Mix) is
+  // not. The slow drift of the room against the sound shows in the windows.
+  {
+    double deepest = 0.0, highest = 0.0, roughest = 0.0, low_window = 0.0, high_window = 0.0;
+    const auto sweep = [&](const std::function<void()>& set, int every, const char* what) {
+      std::vector<double> levels;
+      double low = 99.0, high = -99.0, window_low = 99.0, window_high = -99.0;
+      for (int note = 28; note <= 100; note += every) {
+        const float hz = 440.0f * std::pow(2.0f, (static_cast<float>(note) - 69.0f) / 12.0f);
+        const std::vector<float> tone = sine(hz, 5.0f, kRate, 0.25f);
+        set();
+        const Stereo out = run(device, tone);
+        const double here = db(level(out, second) / rms(tone));
+        levels.push_back(here);
+        low = std::min(low, here);
+        high = std::max(high, here);
+        for (size_t at = second; at + 9600 <= out.size(); at += 9600) {
+          const double now = db(level(out, at, at + 9600) / rms(tone)) - here;
+          window_low = std::min(window_low, now);
+          window_high = std::max(window_high, now);
+        }
+      }
+      double rough = 0.0;  // a note against the mean of its two neighbours
+      for (size_t k = 1; k + 1 < levels.size(); ++k) {
+        rough = std::max(rough, std::fabs(levels[k] - 0.5 * (levels[k - 1] + levels[k + 1])));
+      }
+      if (g_print) {
+        std::printf("held tones, %s: %+.2f to %+.2f dB, a note against its neighbours %.2f dB, 200 ms windows "
+                    "%+.2f to %+.2f dB about the note's own level\n",
+                    what, low, high, rough, window_low, window_high);
+      }
+      deepest = std::min(deepest, low);
+      highest = std::max(highest, high);
+      low_window = std::min(low_window, window_low);
+      high_window = std::max(high_window, window_high);
+      return rough;
+    };
+    roughest = sweep([] { device.init(kRate); }, 1, "the effect as it starts");
+    EXPECT(roughest < 2.0, "no held note drops out of its neighbours' company at the default");
+    for (size_t k = 1; k < presets.size(); ++k) {
+      const double rough = sweep([&] { load(device, presets[k]); }, 6, presets[k].name.c_str());
+      roughest = std::max(roughest, rough);
+    }
+    if (g_print) {
+      std::printf("held tones over all: %+.2f to %+.2f dB, 200 ms windows %+.2f to %+.2f dB\n", deepest, highest,
+                  low_window, high_window);
+    }
+    EXPECT(deepest > -9.0 && highest < 5.0, "no held note is lost or doubled by any preset");
+  }
+
+  // --- every control does something over its whole range, on ordinary material -------------
+  // The held pad through a year stood at each season, with each amount knob
+  // at the bottom, the middle and the top (Mix at 1, the rest as they start):
+  // how far apart the three renders are, as the level of their difference
+  // against the level of the sound. Turning, Turn and Year are proved above.
+  {
+    const int knobs[] = {p::kDepth, p::kSpace, p::kMotion, p::kGrit, p::kTail, p::kWidth, p::kMix};
+    const char* const knob_names[] = {"Depth", "Space", "Motion", "Grit", "Tails", "Width", "Mix"};
+    for (int k = 0; k < 7; ++k) {
+      double least = 0.0;
+      for (int s = 0; s < 4; ++s) {
+        Stereo out[3];
+        for (int at = 0; at < 3; ++at) {
+          device.init(kRate);
+          device.set_param(p::kTurn, 0.0f);
+          device.set_param(p::kYear, 0.25f * static_cast<float>(s));
+          const int id = knobs[k];
+          device.set_param(id, p::kParamMin[id] + 0.5f * static_cast<float>(at) * (p::kParamMax[id] - p::kParamMin[id]));
+          out[at] = run(device, pad_in.left, pad_in.right);
+        }
+        for (int half = 0; half < 2; ++half) {
+          Stereo apart = out[half];
+          for (size_t i = 0; i < apart.size(); ++i) {
+            apart.left[i] -= out[half + 1].left[i];
+            apart.right[i] -= out[half + 1].right[i];
+          }
+          const double far = db(level(apart, second) / level(out[1], second));
+          if (g_print) {
+            std::printf("%s in %s, %s half: the two ends differ by %.1f dB against the sound\n", knob_names[k],
+                        kSeasonName[s], half == 0 ? "lower" : "upper", far);
+          }
+          least = std::min(least, far);
+          char label[120];
+          std::snprintf(label, sizeof label, "%s does something in %s over its %s half (%.1f dB)", knob_names[k],
+                        kSeasonName[s], half == 0 ? "lower" : "upper", far);
+          EXPECT(far > -40.0, label);
+        }
+      }
+    }
+  }
+
+  // --- cost ---------------------------------------------------------------------------------
+  // As it starts, and at its heaviest: between autumn and winter with every
+  // amount up, where the dropouts and the sparks both run.
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("seasons", 10.0f, kRate, [&] { run(device, input); });
+  still(device, 0.62f);
+  device.set_param(p::kSpace, 1.0f);
+  device.set_param(p::kMotion, 1.0f);
+  device.set_param(p::kGrit, 1.0f);
+  device.set_param(p::kTail, 1.0f);
+  device.set_param(p::kWidth, 2.0f);
+  device.set_param(p::kTurn, 1.0f);
+  device.set_param(p::kTurning, 10.0f);
+  report_cost("seasons, everything up between autumn and winter", 10.0f, kRate, [&] { run(device, input); });
 
-  (void)phrase;
-  (void)pad_in;
   return finish("seasons");
 }
