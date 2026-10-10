@@ -50,6 +50,7 @@ import { SEASONS_FACES } from './seasons'
 import { SCALE_FILTER_FACES } from './scale-filter'
 import { SIFT_FACES } from './sift'
 import { SINE_SHADOW_FACES } from './sine-shadow'
+import { SIZE_FACES } from './size'
 import { SPATIAL_FACES } from './spatial'
 import { STRETCH_FACES } from './stretch'
 import { STOPS_FACES } from './stops'
@@ -131,4 +132,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WARP_FACES,
   ...STOPS_FACES,
   ...REVEAL_FACES,
+  ...SIZE_FACES,
 }

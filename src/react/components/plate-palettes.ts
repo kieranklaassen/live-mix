@@ -163,6 +163,7 @@ export const PLATE_PALETTES = {
   warp: { plate: '#f47fa8', ink: '#1c0410', accent: '#1d1da8' },
   stops: { plate: '#6a2170', ink: '#f9eef6', accent: '#ffb59e' },
   reveal: { plate: '#7c0a4e', ink: '#fdeef6', accent: '#bfeaff' },
+  size: { plate: '#e8b4a0', ink: '#2b1410', accent: '#5a1e6e' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

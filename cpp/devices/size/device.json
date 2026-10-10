@@ -1,0 +1,337 @@
+{
+  "id": "size",
+  "name": "Size",
+  "category": "pitch",
+  "description": "Makes the body of a sound smaller or larger and leaves its notes where they are, from a music box to a giant, or moves the notes and keeps the body.",
+  "class": "Size",
+  "header": "size.h",
+  "sources": [],
+  "latencySamples": 2304,
+  "meters": [
+    {
+      "key": "sizeLeft",
+      "name": "Size, left",
+      "display": true
+    },
+    {
+      "key": "sizeRight",
+      "name": "Size, right",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Level made up",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body1",
+      "name": "Body 1",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body2",
+      "name": "Body 2",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body3",
+      "name": "Body 3",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body4",
+      "name": "Body 4",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body5",
+      "name": "Body 5",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body6",
+      "name": "Body 6",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body7",
+      "name": "Body 7",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body8",
+      "name": "Body 8",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body9",
+      "name": "Body 9",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body10",
+      "name": "Body 10",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body11",
+      "name": "Body 11",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body12",
+      "name": "Body 12",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body13",
+      "name": "Body 13",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body14",
+      "name": "Body 14",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body15",
+      "name": "Body 15",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body16",
+      "name": "Body 16",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body17",
+      "name": "Body 17",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body18",
+      "name": "Body 18",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body19",
+      "name": "Body 19",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body20",
+      "name": "Body 20",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body21",
+      "name": "Body 21",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body22",
+      "name": "Body 22",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body23",
+      "name": "Body 23",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "body24",
+      "name": "Body 24",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "floor",
+      "name": "Body floor",
+      "unit": "dB",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "size",
+      "name": "Size",
+      "min": -1,
+      "max": 1,
+      "default": 0.4,
+      "description": "How large the body of the sound is. Up is a bigger, darker thing and down a smaller, brighter one. The notes stay where they are."
+    },
+    {
+      "key": "pitch",
+      "name": "Pitch",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "st",
+      "step": 1,
+      "description": "Moves the notes by semitones and keeps the body where Size has put it, so a shifted sound keeps its character."
+    },
+    {
+      "key": "fine",
+      "name": "Fine",
+      "min": -50,
+      "max": 50,
+      "default": 0,
+      "unit": "ct",
+      "description": "Tunes the notes a little sharp or flat. With some dry sound in the mix it beats against the played notes like a second player."
+    },
+    {
+      "key": "detail",
+      "name": "Detail",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How narrow a feature counts as body. Low moves only the broad shape and is kindest to chords and layers. High also moves the narrow hills that a single voice has."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Lets the size drift by itself around where Size is set, so the sound breathes between smaller and larger."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.02,
+      "max": 2,
+      "default": 0.1,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the size drifts when Wander is up. Slow is a tide, fast is a wobble."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Makes the left side a little smaller and the right a little larger, and lets them drift apart, so the sound opens out across the speakers."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Tilts the result darker or brighter without changing how loud it is. Useful after a big change of size."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as played and the resized one. Part way, a shifted pitch plays along with the played notes."
+    }
+  ],
+  "presets": {
+    "Larger": {},
+    "Smaller": {
+      "size": -0.4
+    },
+    "Giant": {
+      "size": 1,
+      "detail": 0.4,
+      "tone": 0.2
+    },
+    "Music box": {
+      "size": -1,
+      "detail": 0.6,
+      "tone": -0.15
+    },
+    "Breathing": {
+      "size": -0.15,
+      "wander": 0.7,
+      "rate": 0.12
+    },
+    "Slow tide": {
+      "size": 0,
+      "wander": 1,
+      "rate": 0.03,
+      "width": 0.4
+    },
+    "Wide open": {
+      "size": 0.15,
+      "width": 1,
+      "wander": 0.2,
+      "rate": 0.15
+    },
+    "A shade larger": {
+      "size": 0.3,
+      "mix": 0.5
+    },
+    "Octave below": {
+      "size": 0,
+      "pitch": -12
+    },
+    "Octave above": {
+      "size": 0,
+      "pitch": 12
+    },
+    "Fifth beside": {
+      "size": 0,
+      "pitch": 7,
+      "mix": 0.5
+    },
+    "Fourth under": {
+      "size": 0.2,
+      "pitch": -5,
+      "mix": 0.45
+    },
+    "Second player": {
+      "size": 0.1,
+      "fine": 7,
+      "width": 0.5,
+      "mix": 0.25
+    },
+    "Wobble": {
+      "size": 0,
+      "wander": 0.5,
+      "rate": 1.6
+    },
+    "Small and low": {
+      "size": -0.8,
+      "pitch": -12,
+      "detail": 0.7
+    },
+    "Large and high": {
+      "size": 0.8,
+      "pitch": 12,
+      "tone": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Spectral envelope shifter on kit::Stft: the smoothed outline of each frame is divided out and put back slid along the frequency axis; peak-locked bin shifting moves the notes."
+  }
+}
