@@ -1906,6 +1906,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   pulses: { ...PLATE_PALETTES.pulses, finish: 'hammered', cap: 'dot' },
   murmuration: { ...PLATE_PALETTES.murmuration, finish: 'fade', cap: 'dot' },
   weather: { ...PLATE_PALETTES.weather, finish: 'speckle', cap: 'dot' },
+  'late-vibrato': { ...PLATE_PALETTES['late-vibrato'], finish: 'linen', cap: 'pointer' },
 }
 
 /**

@@ -52,6 +52,7 @@ import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
 import { CURRENTS_FACES } from './currents'
 import { MURMURATION_FACES } from './murmuration'
+import { LATE_VIBRATO_FACES } from './late-vibrato'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -105,4 +106,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PULSES_FACES,
   ...MURMURATION_FACES,
   ...WEATHER_FACES,
+  ...LATE_VIBRATO_FACES,
 }
