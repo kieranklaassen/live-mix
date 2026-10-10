@@ -38,7 +38,7 @@ export const PRISM_PARAMS = {
     unit: '',
     choices: ['Rising', 'Falling', 'Peak', 'Valley', 'Scatter'],
     description:
-      'The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band a time of its own.',
+      'The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band its own time.',
   },
   bend: {
     id: 3,

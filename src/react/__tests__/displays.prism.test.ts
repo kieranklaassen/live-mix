@@ -253,14 +253,15 @@ describe('what a pass leaves, and when the next one comes', () => {
 describe('the picture of the Prism', () => {
   it('draws the curve through the delay of every row, at both sizes and every Shape', () => {
     for (const [width, height] of SIZES) {
-      for (const values of [
+      const curves: Record<string, number>[] = [
         {},
         { shape: 1, bend: 0.6 },
         { shape: 2, bands: 5 },
         { shape: 3 },
         { shape: 4, shuffle: 3, bands: 8, smear: 0 },
         { fan: 0 },
-      ]) {
+      ]
+      for (const values of curves) {
         const layout = prismLayout({ width, height })
         const marks = marksOf(
           drawDisplay(display, params, { values, width, height, meters: silent }),
@@ -304,12 +305,13 @@ describe('the picture of the Prism', () => {
 
   it('draws each repeat a whole number of hops on, as strong as that colour is by then', () => {
     for (const [width, height] of SIZES) {
-      for (const values of [
+      const loops: Record<string, number>[] = [
         {},
         { feedback: 0.9, tilt: -1 },
         { feedback: 0.7, tilt: 0.8, mix: 1 },
         { feedback: 1, tilt: 0, mix: 1, time: 90 },
-      ]) {
+      ]
+      for (const values of loops) {
         const layout = prismLayout({ width, height })
         const at = settings(values)
         const wet = prismWet(values.mix ?? 0.4)
