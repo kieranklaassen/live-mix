@@ -5,6 +5,7 @@
 // Keep this file free of runtime imports: the processor imports it type-only
 // so the bundled worklet stays self-contained.
 
+import { type ParamModulation, type ParamTravel } from '../core/automation/param-modulation'
 import { type LoadSlot } from '../core/load-mark'
 
 /** The flat C ABI exported by every `*.wasm` device module. */
@@ -62,6 +63,19 @@ export type DeviceMessage =
   | { type: 'zones'; fields: Float32Array }
   /** Report the first `count` meters every `intervalFrames` frames; a count of 0 stops. */
   | { type: 'meters'; count: number; intervalFrames: number }
+  /**
+   * Move a parameter on the audio thread: from here on its value is worked
+   * out at every block from the block's own time (`modulatedParamValue`),
+   * around `base`, which a later `set-param` moves. A `modulation` of null
+   * ends it and leaves the parameter at `base`.
+   */
+  | {
+      type: 'modulate'
+      paramId: number
+      travel: ParamTravel
+      base: number
+      modulation: ParamModulation | null
+    }
   /** The device is gone: stop processing, so the node can be let go and takes no more time. */
   | { type: 'dispose' }
 
@@ -72,6 +86,14 @@ export type DeviceHostMessage =
   | { type: 'meters'; values: number[] }
 
 /** `processorOptions` the host passes to `new AudioWorkletNode(...)`. */
+/** One parameter the worklet moves: its travel, the value it is set to, and what moves it. */
+export interface ParamModulationEntry {
+  paramId: number
+  travel: ParamTravel
+  base: number
+  modulation: ParamModulation
+}
+
 export interface WasmDeviceProcessorOptions {
   /** Compiled once per page; a Module transfers across threads, an Instance does not. */
   module: WebAssembly.Module
@@ -79,6 +101,8 @@ export interface WasmDeviceProcessorOptions {
   deviceId?: string
   /** Initial parameter values applied right after `device_init`. */
   params?: readonly (readonly [paramId: number, value: number])[]
+  /** The parameters moved on the audio thread from the first block on: `modulate` messages that need not arrive. */
+  modulations?: readonly ParamModulationEntry[]
   /** The mark the processor shows while it works, where the engine's load is measured (core/load.ts). */
   load?: LoadSlot
 }

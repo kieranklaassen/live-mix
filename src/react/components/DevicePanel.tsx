@@ -22,7 +22,7 @@ import { useDeviceMeter } from '../hooks/useMeter'
 import { useDevice } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { infoProps, infoText } from './info'
-import { Knob } from './Knob'
+import { Knob, knobModulation } from './Knob'
 import { paramInfo } from './param-info'
 import { DeviceToggle } from './Toggle'
 import { cx } from './tokens'
@@ -120,6 +120,11 @@ export interface DevicePanelProps {
   actions?: ReactNode
   /** A line added to the panel's info text: how it is worked where it stands (a chain says it can be moved). */
   hint?: string
+  /**
+   * A line added to one knob's info text, after what the parameter does: what
+   * else a host lets a hand do there (a menu on a right-click, what moves it).
+   */
+  knobHint?: (param: string) => string | undefined
   onRemove?: () => void
   className?: string
   style?: CSSProperties
@@ -190,6 +195,7 @@ export function DevicePanel({
   knobSize = 40,
   actions,
   hint,
+  knobHint,
   onRemove,
   className,
   style,
@@ -325,6 +331,7 @@ export function DevicePanel({
               taper={paramTaper(spec)}
               unit={spec.unit || 'ratio'}
               bipolar={isBipolar(spec)}
+              modulation={knobModulation(device, name, d.modulations[name])}
               size={knobSize}
               format={
                 labels
@@ -341,7 +348,7 @@ export function DevicePanel({
               }}
               onChangeStart={() => d.touch(name)}
               onChangeEnd={() => d.release(name)}
-              info={paramInfo(spec) ?? `A setting of ${heading}.`}
+              info={infoText(paramInfo(spec) ?? `A setting of ${heading}.`, knobHint?.(name))}
               className="lm-device__param"
               data-testid={testId ? `${testId}-${name}` : undefined}
               data-lm-param={name}

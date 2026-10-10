@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { type MockMessagePort } from '../../testing'
-import { type DeviceHostMessage, type DeviceMessage } from '../abi'
+import { type DeviceHostMessage, type DeviceMessage, type WasmDeviceProcessorOptions } from '../abi'
 import { AMBIENT_COMP_PARAMS } from '../devices/ambient-comp.gen'
 import { PLATE_REVERB_PARAMS } from '../devices/plate-reverb'
 // Registers the processor into the shimmed `registerProcessor`.
@@ -39,6 +39,7 @@ const registry = vi.hoisted(() => {
     AudioWorkletProcessor: AudioWorkletProcessorShim,
     registerProcessor: (name: string, ctor: unknown) => processors.set(name, ctor),
     sampleRate: 48000,
+    currentFrame: 0,
   })
   return processors
 })
@@ -58,11 +59,11 @@ beforeAll(async () => {
 
 function construct(
   params?: (readonly [number, number])[],
-  device: { module: WebAssembly.Module; deviceId: string } = { module, deviceId: 'plate-reverb' },
+  more: Partial<WasmDeviceProcessorOptions> = {},
 ) {
   const Processor = registry.get('live-mix-wasm-device') as ProcessorCtor
   const processor = new Processor({
-    processorOptions: { ...device, params },
+    processorOptions: { module, deviceId: 'plate-reverb', params, ...more },
   })
   const port = processor.port as unknown as {
     posted: unknown[]
@@ -244,6 +245,90 @@ describe('WasmDeviceProcessor', () => {
       processor.process(block(0.25), outputs())
       processor.process(block(0.25), outputs())
       expect(meters(port)).toEqual([])
+    })
+  })
+
+  describe('modulate', () => {
+    const MIX = PLATE_REVERB_PARAMS.mix
+    const travel = { min: MIX.min, max: MIX.max, default: MIX.default, taper: MIX.taper }
+    /** A sine of one cycle a second, a quarter of the knob's travel each way, at phase 0 at time 0. */
+    const sine = {
+      routes: [
+        {
+          source: {
+            kind: 'lfo' as const,
+            shape: 'sine' as const,
+            rateHz: 1,
+            depth: 1,
+            anchorPhase: 0,
+            anchorSec: 0,
+          },
+          depth: 0.25,
+          polarity: 'bipolar' as const,
+        },
+      ],
+    }
+    /** The plate's mix as the block at `frame` has it: full-scale in, the dry share out. */
+    function mixAt(processor: { process: ProcessorCtor['prototype']['process'] }, frame: number) {
+      Object.assign(globalThis, { currentFrame: frame })
+      const out = outputs()
+      processor.process(block(1), out)
+      Object.assign(globalThis, { currentFrame: 0 })
+      // The tail is still in the pre-delay: what comes out is dry·(1 − mix).
+      return 1 - out[0][0][0]
+    }
+
+    it('works the value out from the block’s own place on the audio clock', () => {
+      for (const [frame, mix] of [
+        [0, 0.5],
+        [12000, 0.75],
+        [24000, 0.5],
+        [36000, 0.25],
+        // Two minutes and a quarter of a second in: the same phase, on no message.
+        [48000 * 120 + 12000, 0.75],
+      ]) {
+        const { processor, port } = construct([[MIX.id, 0.5]])
+        port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: sine })
+        expect(mixAt(processor, frame)).toBeCloseTo(mix, 4)
+      }
+    })
+
+    it('takes a later set-param as the base it moves around', () => {
+      const { processor, port } = construct([[MIX.id, 0.5]])
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: sine })
+      port.receive({ type: 'set-param', paramId: MIX.id, value: 0.2 })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.45, 4)
+    })
+
+    it('leaves the parameter at its base when the modulation ends', () => {
+      const { processor, port } = construct([[MIX.id, 0.5]])
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: sine })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.75, 4)
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.3, modulation: null })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.3, 4)
+      // And a set-param is the device's again.
+      port.receive({ type: 'set-param', paramId: MIX.id, value: 0.1 })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.1, 4)
+    })
+
+    it('moves a parameter it was made with from its first block, with no message', () => {
+      const { processor, port } = construct([[MIX.id, 0.5]], {
+        modulations: [{ paramId: MIX.id, travel, base: 0.5, modulation: sine }],
+      })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.75, 4)
+      // And is told to stop like any other.
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: null })
+      expect(mixAt(processor, 12000)).toBeCloseTo(0.5, 4)
+    })
+
+    it('moves each parameter by its own routes, and replaces them when told again', () => {
+      const { processor, port } = construct([[MIX.id, 0.5]])
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: sine })
+      const deeper = { routes: [{ ...sine.routes[0], depth: 0.5 }] }
+      port.receive({ type: 'modulate', paramId: MIX.id, travel, base: 0.5, modulation: deeper })
+      const held = processor as unknown as { modulated: unknown[] }
+      expect(held.modulated).toHaveLength(1)
+      expect(mixAt(processor, 12000)).toBeCloseTo(1, 4)
     })
   })
 

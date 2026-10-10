@@ -1,10 +1,16 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { type Device, type EditorDevice } from '../../core/devices/Device'
+import { type ParamModulation } from '../../core/automation/param-modulation'
+import {
+  type Device,
+  type DeviceChangeListener,
+  type EditorDevice,
+  type ModulatedDevice,
+} from '../../core/devices/Device'
 import { DeviceChainView } from '../components/DeviceChainView'
 import { DevicePlate, plateLayout } from '../components/DevicePlate'
 import {
@@ -806,5 +812,84 @@ describe('DeviceChainView with skins', () => {
     expect(pad.strip.inserts).toEqual([delay, filter])
     // It is the same plate in its new place.
     expect(screen.getByTestId('chain-device-1')).toBe(plate)
+  })
+})
+
+describe('DevicePlate: a parameter the device moves itself', () => {
+  /** The stock filter, taking modulation the way a WASM device does. */
+  async function mover(fixture: TestEngine): Promise<ModulatedDevice> {
+    const device = await make(fixture)
+    const listeners = new Set<DeviceChangeListener>()
+    const moved = new Map<string, ParamModulation>()
+    const observed = device as Device & { onChange(listener: DeviceChangeListener): () => void }
+    const onChange = observed.onChange.bind(device)
+    return Object.assign(device, {
+      modulates: true as const,
+      onChange: (listener: DeviceChangeListener) => {
+        listeners.add(listener)
+        const stop = onChange(listener)
+        return () => {
+          listeners.delete(listener)
+          stop()
+        }
+      },
+      modulate: (name: string, modulation: ParamModulation | null) => {
+        if (modulation) moved.set(name, modulation)
+        else moved.delete(name)
+        for (const listener of listeners) listener({ type: 'modulation', name })
+      },
+      modulationOf: (name: string) => moved.get(name),
+      paramAt: (name: string) => device.getParam(name) * 2,
+    })
+  }
+  const sine: ParamModulation = {
+    routes: [
+      {
+        source: { kind: 'lfo', shape: 'sine', rateHz: 1, depth: 1, anchorPhase: 0, anchorSec: 0 },
+        depth: 0.2,
+        polarity: 'bipolar',
+      },
+    ],
+  }
+
+  it('marks the knob when the device is told to move it, and unmarks it when that ends', async () => {
+    const fixture = createTestEngine()
+    const device = await mover(fixture)
+    render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const knob = screen.getByTestId('plate-frequency')
+    const other = screen.getByTestId('plate-q')
+    expect(knob).not.toHaveClass('lm-knob--modulated')
+    act(() => device.modulate('frequency', sine))
+    expect(knob).toHaveClass('lm-knob--modulated')
+    expect(other).not.toHaveClass('lm-knob--modulated')
+    // The arc runs to where the device says the value is now, not to where the knob is set.
+    fixture.frames.flush(1000)
+    expect(knob.querySelector('.lm-knob__modulation-now')?.getAttribute('d')).toMatch(/^M /)
+    expect(within(knob).getByRole('slider')).toHaveAttribute(
+      'aria-valuenow',
+      String(device.getParam('frequency')),
+    )
+    act(() => device.modulate('frequency', null))
+    expect(knob).not.toHaveClass('lm-knob--modulated')
+  })
+
+  it('adds a host’s line to a knob’s info, after what the parameter does and before how it is worked', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        knobHint={(param) => (param === 'q' ? 'Right-click for more.' : undefined)}
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const paragraphs = (name: string): string[] =>
+      infoParagraphs(resolveInfo(screen.getByRole('slider', { name }))?.text ?? '')
+    expect(paragraphs('Q').at(-2)).toBe('Right-click for more.')
+    expect(paragraphs('Q').at(-1)).toMatch(/^Drag /)
+    expect(paragraphs('Freq')).not.toContain('Right-click for more.')
   })
 })

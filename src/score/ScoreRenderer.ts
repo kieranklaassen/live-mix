@@ -10,7 +10,11 @@
 // value) > lane (LaneWriter) > the static value in the strip or device. A
 // parameter with a lane or a route is owned by the binding; the renderer
 // never writes its static value while the binding exists, and hands the
-// parameter back at the static value when the binding goes. Live-input
+// parameter back at the static value when the binding goes. Routes onto a
+// parameter of a device that moves its own parameters (`ModulatedDevice`: a
+// WASM device) from LFOs and seeded noise alone are handed to the device,
+// which works them out on the audio thread; the static value stays the
+// device's own, as the base it moves around. Live-input
 // tracks are created from the document but their audio is the app's — it
 // attaches the stream through `renderer.liveInput(id)`. Rendering is
 // serialised: renders requested while one is in flight fold into the next.
@@ -23,7 +27,13 @@ import { LEVEL_RAMP_SECONDS } from '../core/buses/Bus'
 import { type Clip } from '../core/clips/Clip'
 import { type Device } from '../core/devices/Device'
 import { NodeDevice } from '../core/devices/native/NodeDevice'
-import { isNoteDevice, isStatefulDevice, type NoteDevice } from '../core/devices/Device'
+import {
+  isModulatedDevice,
+  isNoteDevice,
+  isStatefulDevice,
+  type ModulatedDevice,
+  type NoteDevice,
+} from '../core/devices/Device'
 import { clampParam } from '../core/params'
 import { defaultPreset, presetParams, resolvePreset } from '../core/devices/presets'
 import { type DeviceRegistry } from '../core/devices/registry'
@@ -36,6 +46,7 @@ import {
   type ModTarget,
 } from '../core/automation/ModMatrix'
 import { ExternalPhase, Lfo, Macro, Random, type ModSource } from '../core/automation/Modulator'
+import { paramModSource, type ParamModulation } from '../core/automation/param-modulation'
 import { nodeDeviceParam } from '../core/automation/node-device-param'
 import { ParamLane } from '../core/automation/ParamLane'
 import { type ScheduledParam } from '../core/automation/scheduled-param'
@@ -81,6 +92,7 @@ import {
   type ScoreTrack,
   type StripParam,
 } from './schema'
+import { createModulator } from './modulation'
 
 export type RenderedHost =
   AudioTrack | StretchTrack | LiveInputTrack | InstrumentTrack | GroupTrack | ReturnTrack
@@ -151,6 +163,15 @@ type Binding =
       lane: ParamLane | null
       routes: Map<string, ModRoute>
     }
+  | {
+      // The device moves the parameter itself, on the audio thread.
+      kind: 'device'
+      signature: string
+      device: ModulatedDevice
+      param: string
+      /** What the device was last given, as text: it is told again only when this changes. */
+      sent: string
+    }
 
 interface BindingSpec {
   target: ParamTarget
@@ -182,6 +203,8 @@ export class ScoreRenderer {
   private readonly bindings = new Map<string, Binding>()
   private renderedScore: Score | null = null
   private latest: Score | null = null
+  /** The score a pass is bringing the graph to, while it runs. */
+  private passScore: Score | null = null
   private inFlight: Promise<void> | null = null
   private scheduled = false
   // Set by `stretchTimeline` for the render that follows; 1 otherwise.
@@ -523,6 +546,7 @@ export class ScoreRenderer {
 
   private async reconcile(prev: Score, next: Score): Promise<void> {
     assertValidScore(next, { devices: this.devices })
+    this.passScore = next
     const now = (): number => this.engine.now()
 
     // 1. Transport. A stretched timeline takes its new length further down,
@@ -1012,10 +1036,12 @@ export class ScoreRenderer {
     const moving = this.deviceMap.has(spec.id)
     if (moving && !this.insertPlace(spec.id))
       throw new ScoreRenderError(`device "${spec.id}" is already rendered`)
+    const modulations = this.modulationsAtBirth(spec.id)
     const device = await this.devices.create(spec.deviceId, this.engine.context, {
       preset: spec.preset,
       params: spec.params,
       ...(spec.state === undefined ? {} : { state: spec.state }),
+      ...(modulations ? { modulations } : {}),
     })
     if (spec.bypass) device.bypass = true
     // The one it leaves comes off its strip only now that the new one is
@@ -1027,6 +1053,25 @@ export class ScoreRenderer {
     if (left) this.dropInsert(left.chain, left.devices, left.ids, left.index)
     this.deviceMap.set(spec.id, device)
     return device
+  }
+
+  /**
+   * What will move a device's parameters on the audio thread, handed to it as
+   * it is made: an offline render can be over before a message reaches its
+   * worklet. The bindings find it there and send nothing.
+   */
+  private modulationsAtBirth(deviceId: string): Record<string, ParamModulation> | null {
+    // The pass's own score: its modulators are the ones that stand now.
+    const score = this.passScore
+    if (!score) return null
+    let found: Record<string, ParamModulation> | null = null
+    for (const spec of bindingSpecs(score).values()) {
+      const { target } = spec
+      if (target.kind !== 'device' || target.device !== deviceId) continue
+      if (spec.lane || !this.timed(spec)) continue
+      ;(found ??= {})[target.param] = this.paramModulation(spec)
+    }
+    return found
   }
 
   /** The full parameter map a score device resolves to: preset (or defaults) under the explicit values. */
@@ -1281,18 +1326,81 @@ export class ScoreRenderer {
 
   /**
    * A lane alone drives a strip parameter or a `NodeDevice` parameter
-   * sample-accurately through a `LaneWriter`; anything with routes, and a
-   * lane on a device that cannot schedule its params, goes through the
-   * `ModMatrix` at control rate.
+   * sample-accurately through a `LaneWriter`. Routes alone onto a parameter
+   * of a device that moves its own, from sources that are a pure function of
+   * time, are the device's to run on the audio thread. Anything else with
+   * routes, and a lane on a device that cannot schedule its params, goes
+   * through the `ModMatrix` at control rate.
    */
-  private bindingKind(spec: BindingSpec): 'writer' | 'matrix' {
-    if (spec.routes.length > 0) return 'matrix'
+  private bindingKind(spec: BindingSpec): Binding['kind'] {
+    if (spec.routes.length > 0) return this.modulatedBy(spec) ? 'device' : 'matrix'
     if (spec.target.kind === 'strip') return 'writer'
     return this.deviceMap.get(spec.target.device) instanceof NodeDevice ? 'writer' : 'matrix'
   }
 
+  /** The device that runs this binding's routes itself, when it can run all of them. */
+  private modulatedBy(spec: BindingSpec): ModulatedDevice | null {
+    if (spec.lane || spec.target.kind !== 'device') return null
+    const device = this.deviceMap.get(spec.target.device)
+    if (!device || !isModulatedDevice(device)) return null
+    if (!Object.hasOwn(device.params, spec.target.param)) return null
+    return this.timed(spec) ? device : null
+  }
+
+  /** Whether routes move the parameter, every one from a source that is a function of time alone. */
+  private timed(spec: BindingSpec): boolean {
+    return (
+      spec.routes.length > 0 &&
+      spec.routes.every((route) => {
+        const source = this.modulators.get(route.source)
+        return source !== undefined && paramModSource(source) !== null
+      })
+    )
+  }
+
+  /** A binding's routes as the numbers a device works them out from. */
+  private paramModulation(spec: BindingSpec): ParamModulation {
+    return {
+      routes: spec.routes.map((route) => {
+        const source = paramModSource(this.modulator(route.source))
+        if (!source) throw new ScoreRenderError(`modulator "${route.source}" is not timed`)
+        return { source, depth: route.depth, polarity: route.polarity }
+      }),
+    }
+  }
+
+  /** Give a device its parameter's base and what moves it, when either changed. */
+  private sendModulation(
+    binding: Extract<Binding, { kind: 'device' }>,
+    spec: BindingSpec,
+    score: Score,
+  ): void {
+    const { device, param } = binding
+    const base = this.staticValueFor(spec.target, score)
+    if (device.getParam(param) !== base) device.setParam(param, base)
+    const modulation = this.paramModulation(spec)
+    const sent = JSON.stringify(modulation)
+    if (sent === binding.sent) return
+    binding.sent = sent
+    device.modulate(param, modulation)
+  }
+
   private buildBinding(spec: BindingSpec, score: Score): Binding {
     const signature = this.signatureFor(spec)
+    const modulated = this.modulatedBy(spec)
+    if (modulated && spec.target.kind === 'device') {
+      const present = modulated.modulationOf(spec.target.param)
+      const binding: Binding = {
+        kind: 'device',
+        signature,
+        device: modulated,
+        param: spec.target.param,
+        // What the device was made with is not sent again.
+        sent: present ? JSON.stringify(present) : '',
+      }
+      this.sendModulation(binding, spec, score)
+      return binding
+    }
     const [min, max] = this.rangeFor(spec.target, score)
     const lane = spec.lane ? this.laneFor(spec.lane, min, max) : null
     if (this.bindingKind(spec) === 'writer') {
@@ -1345,6 +1453,10 @@ export class ScoreRenderer {
   }
 
   private updateBinding(binding: Binding, spec: BindingSpec, score: Score): void {
+    if (binding.kind === 'device') {
+      this.sendModulation(binding, spec, score)
+      return
+    }
     if (spec.lane) {
       const lane = binding.lane
       if (lane && !sameBreakpoints(lane, spec.lane)) lane.replace(spec.lane.breakpoints)
@@ -1375,6 +1487,10 @@ export class ScoreRenderer {
         return
       case 'matrix':
         this.engine.modulation.detach(binding.target)
+        return
+      case 'device':
+        // The device is left at its base, which is the document's static value.
+        binding.device.modulate(binding.param, null)
         return
       default: {
         const exhaustive: never = binding
@@ -1619,35 +1735,6 @@ function sameClips(a: readonly Clip[], b: readonly Clip[]): boolean {
       clip.spaceDb === other.spaceDb
     )
   })
-}
-
-function createModulator(spec: ScoreModulator): ModSource {
-  switch (spec.kind) {
-    case 'lfo':
-      // Anchored at audio-clock zero: the phase is a pure function of context
-      // time, so a re-render lands on the same phase as the original.
-      return new Lfo({
-        rateHz: spec.rateHz,
-        shape: spec.shape,
-        depth: spec.depth,
-        phase: spec.phase,
-        startSec: 0,
-      })
-    case 'random':
-      return new Random({ rateHz: spec.rateHz, seed: spec.seed, smooth: spec.smooth })
-    case 'macro':
-      return new Macro(spec.value)
-    case 'external-phase':
-      return new ExternalPhase({
-        phaseOffset: spec.phaseOffset,
-        depth: spec.depth,
-        shape: spec.shape,
-      })
-    default: {
-      const exhaustive: never = spec
-      return exhaustive
-    }
-  }
 }
 
 function updateModulator(

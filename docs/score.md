@@ -338,6 +338,19 @@ through the matrix at control rate. Modulation ranges for strip parameters
 are `STRIP_PARAM_RANGES` (level 0..2, pan −1..1, inputGain 0..2). LFOs are
 anchored at audio-clock zero so a re-render lands on the same phase.
 
+Routes alone (no lane) onto a parameter of a device that moves its own
+(`isModulatedDevice`: a WASM device on the stock processor), from `lfo` and
+`random` modulators only, are not given to the matrix: the renderer hands
+the device their numbers (`device.modulate`) and the worklet works the value
+out on the audio thread, so it is smooth live and present in an offline
+render ([automation.md](./concepts/automation.md#a-device-that-moves-its-own-parameters)).
+One `macro` or `external-phase` route on the parameter, or a lane under it,
+and the whole parameter is the matrix's again. The document is the same
+either way, and a build from before this plays the same routes through the
+matrix. A host that builds devices by hand for a render of its own asks
+`scoreDeviceModulations(score, deviceId)` for what to make each one with
+(`registry.create(id, context, { params, modulations })`).
+
 ### What stays live
 
 - **Live input**: `kind: 'live'` tracks are created with their strip,
