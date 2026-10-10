@@ -3,6 +3,7 @@
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
 import { ACOUSTIC_GUITAR_DESCRIPTOR, ACOUSTIC_GUITAR_DEVICE } from './acoustic-guitar.gen'
+import { AFTERGLOW_DESCRIPTOR, AFTERGLOW_DEVICE } from './afterglow.gen'
 import { AMBIENT_COMP_DESCRIPTOR, AMBIENT_COMP_DEVICE } from './ambient-comp.gen'
 import { AMBIENT_EQ_DESCRIPTOR, AMBIENT_EQ_DEVICE } from './ambient-eq.gen'
 import { AMBIENT_LIMITER_DESCRIPTOR, AMBIENT_LIMITER_DEVICE } from './ambient-limiter.gen'
@@ -99,6 +100,7 @@ import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
 import { ZONE_SAMPLER_DESCRIPTOR, ZONE_SAMPLER_DEVICE } from './zone-sampler.gen'
 
 export * from './acoustic-guitar.gen'
+export * from './afterglow.gen'
 export * from './ambient-comp.gen'
 export * from './ambient-eq.gen'
 export * from './ambient-limiter.gen'
@@ -197,6 +199,7 @@ export * from './zone-sampler.gen'
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   ACOUSTIC_GUITAR_DESCRIPTOR,
+  AFTERGLOW_DESCRIPTOR,
   AMBIENT_COMP_DESCRIPTOR,
   AMBIENT_EQ_DESCRIPTOR,
   AMBIENT_LIMITER_DESCRIPTOR,
@@ -296,6 +299,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   ACOUSTIC_GUITAR_DEVICE,
+  AFTERGLOW_DEVICE,
   AMBIENT_COMP_DEVICE,
   AMBIENT_EQ_DEVICE,
   AMBIENT_LIMITER_DEVICE,
@@ -395,6 +399,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
   { id: 'acoustic-guitar', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'afterglow', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ambient-comp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'ambient-eq', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   {

@@ -3,6 +3,7 @@
 
 import { type FactoryPreset } from '../types'
 import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
+import { AFTERGLOW_PRESETS } from './afterglow'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
 import { BOWED_STRING_PRESETS } from './bowed-string'
@@ -100,4 +101,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...PREPARED_PIANO_PRESETS,
   ...GRAFT_PRESETS,
   ...WIND_HARP_PRESETS,
+  ...AFTERGLOW_PRESETS,
 ]

@@ -2237,5 +2237,24 @@
     "Soft pluck": {"wind":0.4,"gust":0.25,"lull":0,"strings":1,"glint":0.6,"ring":1.2,"hum":0,"air":0,"touch":0.7,"release":1.2,"width":0.7,"volume":-10.5},
     "Overtone ladder": {"wind":0.5,"gust":1,"lull":0,"strings":1,"glint":1,"ring":0.8,"hum":0.15,"air":0.04,"touch":0.1,"release":2.5,"width":0.7,"volume":-7},
     "Storm front": {"wind":0.7,"gust":1,"lull":0.6,"strings":4,"glint":0.8,"ring":4,"hum":0.2,"air":0.5,"touch":0.25,"release":2.5,"width":1,"volume":-8}
+  },
+  "afterglow": {
+    "(default)": {"source":0,"strike":0.8,"decay":4,"glow":0.65,"bloom":1.5,"fade":5,"tone":0.5,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-9},
+    "Felt afterglow": {"source":0,"strike":0.8,"decay":4,"glow":0.65,"bloom":1.5,"fade":5,"tone":0.5,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-9},
+    "Bell halo": {"source":1,"strike":0.7,"decay":7,"glow":0.6,"bloom":2.5,"fade":8,"tone":0.55,"halo":0.6,"evolve":0.4,"drift":0.25,"width":0.6,"volume":-9},
+    "Glass breath": {"source":3,"strike":0.35,"decay":3,"glow":0.8,"bloom":3,"fade":7,"tone":0.5,"halo":0.1,"evolve":0.5,"drift":0.2,"width":0.6,"volume":-11},
+    "Pluck and haze": {"source":2,"strike":0.85,"decay":2.5,"glow":0.5,"bloom":1,"fade":4,"tone":0.6,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-6},
+    "Only the glow": {"source":0,"strike":0,"decay":4,"glow":0.9,"bloom":2,"fade":6,"tone":0.5,"halo":0.2,"evolve":0.6,"drift":0.3,"width":0.6,"volume":-15},
+    "Only the strike": {"source":0,"strike":0.8,"decay":5,"glow":0,"bloom":1.5,"fade":5,"tone":0.5,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-7},
+    "Slow bloom": {"source":0,"strike":0.6,"decay":4,"glow":0.8,"bloom":8,"fade":12,"tone":0.45,"halo":0.2,"evolve":0.6,"drift":0.3,"width":0.6,"volume":-11.5},
+    "Long fade": {"source":0,"strike":0.7,"decay":6,"glow":0.6,"bloom":1,"fade":25,"tone":0.5,"halo":0.2,"evolve":0.4,"drift":0.2,"width":0.6,"volume":-11},
+    "Dark felt": {"source":0,"strike":0.9,"decay":2,"glow":0.7,"bloom":2.5,"fade":7,"tone":0.15,"halo":0,"evolve":0.4,"drift":0.15,"width":0.4,"volume":-10},
+    "Bright chimes": {"source":1,"strike":0.9,"decay":2.5,"glow":0.5,"bloom":0.6,"fade":3,"tone":0.8,"halo":0.4,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-6},
+    "Shimmer keys": {"source":0,"strike":0.8,"decay":4,"glow":0.7,"bloom":1,"fade":5,"tone":0.65,"halo":0.9,"evolve":0.4,"drift":0.5,"width":0.6,"volume":-13},
+    "Still glass": {"source":3,"strike":0.6,"decay":4,"glow":0.7,"bloom":1.5,"fade":5,"tone":0.5,"halo":0,"evolve":0,"drift":0,"width":0.3,"volume":-9},
+    "Restless light": {"source":0,"strike":0.4,"decay":4,"glow":0.85,"bloom":2.5,"fade":9,"tone":0.5,"halo":0.4,"evolve":1,"drift":0.75,"width":1,"volume":-13},
+    "Harp into air": {"source":2,"strike":0.9,"decay":4,"glow":0.7,"bloom":4,"fade":10,"tone":0.4,"halo":0.3,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-11},
+    "Quick swell": {"source":0,"strike":0.3,"decay":1.5,"glow":0.9,"bloom":0.4,"fade":1.5,"tone":0.6,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-15.5},
+    "Low tide bell": {"source":1,"strike":0.6,"decay":12,"glow":0.7,"bloom":5,"fade":14,"tone":0.25,"halo":0,"evolve":0.7,"drift":0.4,"width":0.6,"volume":-9}
   }
 }
