@@ -145,6 +145,7 @@ export const PLATE_PALETTES = {
   'overtone-singer': { plate: '#6c9a3f', ink: '#10200a', accent: '#fff8dc' },
   breath: { plate: '#d9c2cf', ink: '#2c1626', accent: '#7a2f5e' },
   currents: { plate: '#1b7491', ink: '#f0fafb', accent: '#ffe9c4' },
+  ring: { plate: '#6f5a1e', ink: '#fbf1d8', accent: '#8fe8cf' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -1901,6 +1901,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   },
   breath: { ...PLATE_PALETTES.breath, finish: 'fade', cap: 'dot' },
   currents: { ...PLATE_PALETTES.currents, finish: 'brushed', cap: 'disc' },
+  ring: { ...PLATE_PALETTES.ring, finish: 'hammered', cap: 'dot' },
 }
 
 /**
