@@ -4,6 +4,14 @@
 // that go with Depth, where the body rings, how far and how fast the surface
 // bends a tone, the bubbles an attack sends up, the sides closing in, the
 // squeeze, the light near the surface, and that Depth 0 is the input.
+//
+// The second check added what a player would have met first: that a flight of
+// bubbles stays under its note and no bubble starts like a beep, that soft
+// notes and notes over a held pad are heard as attacks while a fade-in is
+// not, that part-way Mix neither combs nor cuts a hole at the corner, that
+// the squeeze adds nothing to a low note, that no thrown knob bends the pitch
+// further than the surface itself does, and that a note after a long silence
+// is the same sound at every block size.
 
 #include "../devices/underwater/underwater.h"
 #include "support/test_kit.h"
@@ -30,9 +38,13 @@ static const double kBendCents = 45.0;
 static const double kMostBubbles = 12.0;
 static const double kSmallHz = 2400.0;
 static const double kLargeHz = 420.0;
+static const double kBubbleCycles = 12.0;
+static const double kChirp = 0.3;
 
 static double corner_hz(double depth) { return kTopHz * std::pow(kDeepHz / kTopHz, depth); }
 static double body_hz(double depth) { return kBodyTopHz * std::pow(kBodyDeepHz / kBodyTopHz, depth); }
+// The pitch a bubble that starts at `hz` has climbed to, `seconds` into its chirp.
+static double climbed(double hz, double seconds) { return hz * (1.0 + kChirp * hz * seconds / kBubbleCycles); }
 
 // Only the water's filter: nothing that moves, rings, squeezes or bubbles.
 static void plain(Underwater& d, float rate = kRate) {
@@ -156,6 +168,83 @@ static bool burst(const std::vector<float>& x, size_t* first, size_t* last) {
     }
   }
   return *first < *last;
+}
+
+// A plucked string: partials at 1/n, the upper ones dying sooner, rising over 1 ms.
+static void add_string(std::vector<float>& into, double at_seconds, double hz, double gain, double decay = 0.6) {
+  const size_t start = static_cast<size_t>(at_seconds * kRate);
+  const int partials = std::min(24, static_cast<int>(0.4 * kRate / hz));
+  for (size_t i = start; i < into.size(); ++i) {
+    const double t = static_cast<double>(i - start) / kRate;
+    if (t > 6.0 * decay) break;
+    const double rise = t < 0.001 ? 0.5 - 0.5 * std::cos(kPi * t / 0.001) : 1.0;
+    double sum = 0.0;
+    for (int n = 1; n <= partials; ++n) {
+      sum += std::sin(2.0 * kPi * hz * n * t + 0.7 * n) / n * std::exp(-t * (1.0 + 0.35 * (n - 1)) / decay);
+    }
+    into[i] += static_cast<float>(gain * 0.6 * rise * sum);
+  }
+}
+
+// A held pad note: two dull saws six cents either side of the pitch (a dozen
+// partials rolled off over 1.2 kHz), rising over `attack` seconds and held.
+static void add_pad(std::vector<float>& into, double hz, double gain, double attack) {
+  const int partials = std::min(14, static_cast<int>(0.4 * kRate / hz));
+  const double apart[2] = {std::pow(2.0, -6.0 / 1200.0), std::pow(2.0, 6.0 / 1200.0)};
+  for (size_t i = 0; i < into.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    const double rise = t < attack ? 0.5 - 0.5 * std::cos(kPi * t / attack) : 1.0;
+    double sum = 0.0;
+    for (int n = 1; n <= partials; ++n) {
+      const double roll = 1.0 / std::sqrt(1.0 + std::pow(hz * n / 1200.0, 4.0));
+      sum += roll / n * (std::sin(2.0 * kPi * hz * n * apart[0] * t + 0.3 * n) + std::sin(2.0 * kPi * hz * n * apart[1] * t + 1.1 * n));
+    }
+    into[i] += static_cast<float>(gain * 0.35 * rise * sum);
+  }
+}
+
+// How many bubbles `d` sends up through `sound`, read every 64 samples; with
+// `marks` (sample positions, rising), also how many it had sent by each.
+static int bubbles_sent(Underwater& d, const std::vector<float>& sound, const std::vector<size_t>& marks = {},
+                        std::vector<int>* by_mark = nullptr) {
+  size_t next = 0;
+  if (by_mark) by_mark->clear();
+  for (size_t done = 0; done < sound.size(); done += 64) {
+    while (by_mark && next < marks.size() && marks[next] <= done) {
+      by_mark->push_back(static_cast<int>(d.meter(2)));
+      ++next;
+    }
+    const int frames = static_cast<int>(std::min<size_t>(64, sound.size() - done));
+    for (int i = 0; i < frames; ++i) {
+      d.in_left()[i] = sound[done + i];
+      d.in_right()[i] = sound[done + i];
+    }
+    d.process(frames);
+  }
+  return static_cast<int>(d.meter(2));
+}
+
+// How many of the notes starting at `starts` (seconds) sent a bubble up before the next one started.
+static int notes_heard(Underwater& d, const std::vector<float>& sound, const std::vector<double>& starts, int* before_first) {
+  std::vector<size_t> marks;
+  for (double start : starts) marks.push_back(static_cast<size_t>(start * kRate));
+  std::vector<int> by_mark;
+  const int total = bubbles_sent(d, sound, marks, &by_mark);
+  by_mark.push_back(total);
+  int heard = 0;
+  for (size_t n = 0; n + 1 < by_mark.size(); ++n) heard += by_mark[n + 1] > by_mark[n] ? 1 : 0;
+  if (before_first) *before_first = by_mark.empty() ? 0 : by_mark[0];
+  return heard;
+}
+
+// The most a tone of `hz` is bent either way over [from, to), in cents, in windows of 4 ms.
+static double most_bend(const std::vector<float>& x, double hz, size_t from, size_t to) {
+  double most = 0.0;
+  for (size_t at = from; at + 192 <= to; at += 96) {
+    const double measured = crossing_hz(x, at, at + 192, kRate);
+    if (measured > 0.0) most = std::max(most, std::fabs(1200.0 * std::log2(measured / hz)));
+  }
+  return most;
 }
 
 // --- what it is --------------------------------------------------------------------------
@@ -400,7 +489,10 @@ static void test_bubbles() {
     EXPECT(late > early * 1.25 && late < early * 1.7, "the pitch climbs inside the chirp");
     // From the centre for its size: up to 0.8 octaves later in the flight, 0.35 either way.
     EXPECT(early > centre * 0.75 && early < centre * 2.5, "Bubble Size sets the pitch");
-    EXPECT(std::fabs(device.meter(3) - early) < 0.12 * early, "the pitch reported is the pitch the chirp starts at");
+    // `early` is read over the first three tenths of the chirp, half a cycle in: the pitch has climbed by then.
+    const double said = device.meter(3);
+    const double middle = 0.5 / said + 0.15 * static_cast<double>(span) / kRate;
+    EXPECT(std::fabs(climbed(said, middle) - early) < 0.05 * early, "the pitch reported is the pitch the chirp starts at");
     // No chirp anywhere else: past the first one's dying away there is nothing.
     EXPECT(peak(air, last + 3 * span) < 0.02 * peak(air), "one bubble, one chirp");
   }
@@ -514,6 +606,342 @@ static void test_bubbles() {
     std::printf("underwater flight: %d early bubbles, %d late, the late ones %.2f octaves higher\n", early_count,
                 late_count, climb);
     EXPECT(early_count > 20 && late_count > 20 && climb > 0.2 && climb < 0.8, "the later bubbles of a flight are higher");
+  }
+}
+
+static void test_bubbles_under_the_note() {
+  // A flight stays under the note that sent it, however deep the note is and
+  // however hard the water squeezes: the bubbles are sized by what the attack
+  // added to the sound in the water, and the squeeze holds them with the note.
+  double worst = -200.0;
+  float worst_depth = 0.0f;
+  std::printf("underwater flight against its note (peak, dB):");
+  for (float depth : {0.35f, 0.7f, 0.92f, 1.0f}) {
+    for (double hz : {220.0, 880.0}) {
+      for (float pressure : {0.35f, 1.0f}) {
+        std::vector<float> note(static_cast<size_t>(3.0f * kRate), 0.0f);
+        add_string(note, 0.2, hz, 0.5);
+        Stereo with[2];
+        for (int bubbles = 0; bubbles < 2; ++bubbles) {
+          device.init(kRate);
+          device.set_param(p::kWaver, 0.0f);
+          device.set_param(p::kSurface, 0.0f);
+          device.set_param(p::kDepth, depth);
+          device.set_param(p::kPressure, pressure);
+          device.set_param(p::kBubbles, bubbles ? 1.0f : 0.0f);
+          with[bubbles] = run(device, note);
+        }
+        const std::vector<float> air = minus(with[1].left, with[0].left);
+        EXPECT(peak(air) > 0.0, "the note sends a flight");
+        const double against = db(peak(air) / peak(with[0].left));
+        std::printf(" %.1f", against);
+        if (against > worst) {
+          worst = against;
+          worst_depth = depth;
+        }
+      }
+    }
+  }
+  std::printf("; the worst %.1f dB at Depth %.2f\n", worst, worst_depth);
+  EXPECT(worst < -3.0, "a flight of bubbles stays under the note that sent it at any Depth");
+
+  // A bubble is soft-edged and short: it swells in over cycles of its own
+  // pitch, not at once, and is gone in a few dozen of them.
+  const std::vector<float> note = pluck(330.0f, 2.5f, 0.5f, 0.12f, 0.2f);
+  for (int large = 0; large < 2; ++large) {
+    Stereo with[2];
+    for (int bubbles = 0; bubbles < 2; ++bubbles) {
+      plain(device);
+      device.set_param(p::kDepth, 0.6f);
+      device.set_param(p::kBubbleSize, static_cast<float>(large));
+      device.set_param(p::kBubbles, bubbles ? 0.05f : 0.0f);
+      with[bubbles] = run(device, note);
+    }
+    const std::vector<float> air = minus(with[1].left, with[0].left);
+    const double top = peak(air);
+    size_t tenth = 0, most = 0, last = 0;
+    for (size_t i = 0; i < air.size(); ++i) {
+      const double size = std::fabs(air[i]);
+      if (size > 0.1 * top && tenth == 0) tenth = i;
+      if (size > 0.9 * top && most == 0) most = i;
+      if (size > 0.1 * top) last = i;
+    }
+    const double hz = device.meter(3);
+    const double rise = static_cast<double>(most - tenth) / kRate * hz;
+    const double length = static_cast<double>(last - tenth) / kRate * hz;
+    std::printf("underwater one %s bubble at %.0f Hz: a tenth to nine tenths of its peak in %.1f cycles, over a tenth for %.0f\n",
+                large ? "large" : "small", hz, rise, length);
+    EXPECT(top > 0.0 && rise > 1.5, "a bubble swells in over cycles of its pitch: no hard edge");
+    EXPECT(length < 60.0, "a bubble is a few dozen cycles long, not a held beep");
+  }
+}
+
+static void test_attacks() {
+  // One bubble an attack, so the count of bubbles is the count of attacks heard.
+  auto listening = [&]() {
+    device.init(kRate);
+    device.set_param(p::kDepth, 0.5f);
+    device.set_param(p::kBubbles, 0.05f);
+    device.set_param(p::kBubbleSize, 0.0f);
+  };
+  const double pitches[] = {220.0, 329.6, 440.0, 277.2, 659.3, 880.0, 164.8, 1318.5, 392.0, 523.3};
+  const double gains[] = {0.5, 0.3, 0.45, 0.2, 0.4, 0.3, 0.5, 0.25, 0.35, 0.3};
+
+  // Soft playing on its own: every note of a phrase, the softest 20 dB under the loudest.
+  {
+    std::vector<float> phrase(static_cast<size_t>(10.0f * kRate), 0.0f);
+    const double soft[] = {0.5, 0.1, 0.3, 0.05, 0.2, 0.08, 0.4, 0.06, 0.1, 0.25};
+    std::vector<double> starts;
+    for (int n = 0; n < 10; ++n) {
+      starts.push_back(0.3 + 0.9 * n);
+      add_string(phrase, starts[n], pitches[n], soft[n]);
+    }
+    listening();
+    const int heard = notes_heard(device, phrase, starts, nullptr);
+    std::printf("underwater attacks: %d of 10 notes of a phrase played loud and soft\n", heard);
+    EXPECT(heard >= 9, "soft notes among loud ones each send their bubbles");
+  }
+
+  // The same kind of phrase over a held pad twice as loud as it is: the pad
+  // alone sends nothing, most of the notes over it do.
+  {
+    std::vector<float> pad(static_cast<size_t>(13.0f * kRate), 0.0f);
+    for (double hz : {110.0, 164.8, 220.0, 277.2, 329.6}) add_pad(pad, hz, 0.3, 2.0);
+    std::vector<float> phrase(pad.size(), 0.0f);
+    std::vector<double> starts;
+    for (int n = 0; n < 10; ++n) {
+      starts.push_back(4.0 + 0.8 * n);
+      add_string(phrase, starts[n], pitches[n], gains[n]);
+    }
+    const double scale = 0.5 * peak(pad) / peak(phrase);
+    std::vector<float> both(pad.size());
+    for (size_t i = 0; i < pad.size(); ++i) both[i] = pad[i] + static_cast<float>(scale) * phrase[i];
+    listening();
+    int before = -1;
+    const int heard = notes_heard(device, both, starts, &before);
+    listening();
+    const int alone = bubbles_sent(device, pad);
+    std::printf("underwater attacks: %d of 10 notes over a held pad 6 dB louder than they are (%d before the first, %d from the pad alone)\n",
+                heard, before, alone);
+    EXPECT(alone == 0 && before == 0, "a held pad sends no bubbles");
+    EXPECT(heard >= 5, "notes played over a held pad send their bubbles");
+  }
+
+  // Nothing new played, nothing sent: a bright tone fading in, a tremolo, steady noise.
+  {
+    std::vector<float> fade(static_cast<size_t>(8.0f * kRate));
+    std::vector<float> tremolo(fade.size());
+    for (size_t i = 0; i < fade.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      double bright = 0.0, dull = 0.0;
+      for (int n = 1; n <= 10; ++n) bright += 0.3 / n * std::sin(2.0 * kPi * 440.0 * n * t);
+      for (int n = 1; n <= 6; ++n) dull += 0.25 / n * std::sin(2.0 * kPi * 220.0 * n * t);
+      const double in = std::min(1.0, t / 2.0);
+      fade[i] = static_cast<float>(in * bright);
+      tremolo[i] = static_cast<float>(in * (0.6 + 0.4 * std::sin(2.0 * kPi * 6.0 * t)) * dull);
+    }
+    listening();
+    const int from_fade = bubbles_sent(device, fade);
+    listening();
+    const int from_tremolo = bubbles_sent(device, tremolo);
+    rng_state() = 0xF0A3u;
+    std::vector<float> hiss(static_cast<size_t>(20.0f * kRate)), rumble(hiss.size());
+    double low = 0.0;
+    for (size_t i = 0; i < hiss.size(); ++i) {
+      const double in = std::min(1.0, static_cast<double>(i) / kRate / 2.0);
+      const float w = white();
+      low += 0.02 * (w - low);
+      hiss[i] = static_cast<float>(0.2 * in) * w;
+      rumble[i] = static_cast<float>(3.0 * in * low);
+    }
+    listening();
+    const int from_hiss = bubbles_sent(device, hiss);
+    listening();
+    const int from_rumble = bubbles_sent(device, rumble);
+    std::printf("underwater attacks with nothing new played: a bright tone fading in %d, a tremolo %d, hiss %d, rumble %d\n",
+                from_fade, from_tremolo, from_hiss, from_rumble);
+    EXPECT(from_fade == 0, "a bright tone fading in sends no bubbles");
+    EXPECT(from_tremolo == 0, "a tremolo sends no bubbles");
+    EXPECT(from_hiss == 0 && from_rumble == 0, "steady noise sends no bubbles");
+  }
+}
+
+static void test_part_way_mix() {
+  // What Mix calls dry rides the same surface as the wet sound, so part-way
+  // Mix is two sounds in step: a held tone keeps its level (no comb sweeping
+  // through it), and is bent half as far as at full Mix.
+  const double hz = 440.0;
+  std::printf("underwater a held tone at part-way Mix, full Waver: its level moves by");
+  for (float mix : {0.25f, 0.5f, 0.75f}) {
+    plain(device);
+    device.set_param(p::kDepth, 0.3f);
+    device.set_param(p::kWaver, 1.0f);
+    device.set_param(p::kRate, 1.0f);
+    device.set_param(p::kMix, mix);
+    const Stereo out = run(device, sine(static_cast<float>(hz), 8.0f, kRate, 0.25f));
+    // The level in windows of 50 ms (22 cycles: a bent tone's own level does not move).
+    double low = 1.0e9, high = 0.0;
+    for (size_t at = 48000; at + 2400 <= out.size(); at += 1200) {
+      const double level = rms(out.left, at, at + 2400);
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::printf(" %.2f dB at Mix %.2f,", db(high / low), mix);
+    EXPECT(db(high / low) < 0.5, "part-way Mix with Waver up does not comb");
+    if (mix == 0.5f) {
+      const double most = peak(bend_cents(out.left, hz, 48000, out.left.size(), 480, kRate));
+      std::printf(" bent %.1f cents (said %.1f),", most, 0.5 * kBendCents);
+      EXPECT_NEAR(most, 0.5 * kBendCents, 0.06 * kBendCents, "at half Mix the surface bends the whole sound half as far");
+    }
+  }
+  std::printf("\n");
+  // Nor is there a hole at the corner. A blend of a sound with its own
+  // fourth-order low-pass has one, where the two are half a turn apart (17 dB
+  // deep at half Mix, a null at 0.57). Mix makes the water shallower instead:
+  // part way, the response is the low-pass where Depth times Mix puts it, and
+  // it only falls.
+  {
+    std::printf("underwater part-way Mix at Depth 0.65:");
+    for (float mix : {0.25f, 0.5f, 0.57f, 0.75f}) {
+      const double corner = corner_hz(0.65 * mix);
+      double before = 0.0, rises = 0.0, at_corner = 0.0;
+      for (int step = -12; step <= 12; ++step) {
+        const double hz = corner * std::pow(2.0, step / 6.0);
+        if (hz > 20000.0) break;
+        plain(device);
+        device.set_param(p::kDepth, 0.65f);
+        device.set_param(p::kMix, mix);
+        const Stereo out = run(device, sine(static_cast<float>(hz), 0.6f, kRate, 0.25f));
+        const double level = db(tone_level(out.left, hz, kRate, 9600) / 0.25);
+        if (step > -12) rises = std::max(rises, level - before);
+        if (step == 0) at_corner = level;
+        before = level;
+      }
+      std::printf(" Mix %.2f corner %.0f Hz %.2f dB, rises %.2f dB at the most;", mix, corner, at_corner, rises);
+      EXPECT(rises < 0.05, "part-way Mix leaves no hole in the response: it only falls");
+      EXPECT_NEAR(at_corner, -3.01, 0.3, "part-way Mix puts the corner where Depth times Mix says");
+    }
+    std::printf("\n");
+  }
+  // Mix thrown to 0 under a sound: the swing comes down within the bend, and
+  // from then on the output is the input, sample for sample.
+  rng_state() = 0x3170u;
+  const std::vector<float> hiss = noise(4.0f, kRate, 0.2f);
+  device.init(kRate);
+  device.set_param(p::kWaver, 1.0f);
+  const Stereo out = run_events(device, hiss, hiss, {{48000, p::kMix, 0.0f}});
+  size_t last = 0;
+  for (size_t i = 48000; i < hiss.size(); ++i) {
+    if (out.left[i] != hiss[i] || out.right[i] != hiss[i]) last = i;
+  }
+  std::printf("underwater Mix thrown to 0 at full Waver: the output is the input from %.2f s after\n",
+              (static_cast<double>(last) - 48000.0) / kRate);
+  EXPECT(last > 48000 && last < 48000 + 72000, "Mix thrown to 0 is the input once the swing has come down");
+}
+
+static void test_squeeze_low_notes() {
+  // The squeeze holds its gain still through a low note's cycle: it turns the
+  // note down and does not bend its wave.
+  std::printf("underwater squeeze at full Pressure and Depth: harmonics added to a low note");
+  for (double hz : {55.0, 82.0, 110.0}) {
+    plain(device);
+    device.set_param(p::kDepth, 1.0f);
+    device.set_param(p::kPressure, 1.0f);
+    const Stereo out = run(device, sine(static_cast<float>(hz), 3.0f, kRate, 0.5f));
+    double added = 0.0;
+    for (int n = 2; n <= 12; ++n) {
+      const double level = tone_level(out.left, hz * n, kRate, 48000);
+      added += level * level;
+    }
+    const double share = std::sqrt(added) / tone_level(out.left, hz, kRate, 48000);
+    std::printf(" %.3f %% at %.0f Hz,", 100.0 * share, hz);
+    EXPECT(share < 0.001, "the squeeze does not distort a low note");
+  }
+  std::printf("\n");
+  // A loud chord of five low notes, whole numbers of Hz over exactly two
+  // seconds, so each partial can be taken out of the output exactly: what is
+  // left more than 8 Hz from any of them is tones the squeeze made.
+  const double chord[] = {55.0, 82.0, 110.0, 139.0, 165.0};
+  std::vector<float> in(static_cast<size_t>(4.0f * kRate), 0.0f);
+  for (double hz : chord) {
+    for (size_t i = 0; i < in.size(); ++i) in[i] += static_cast<float>(0.2 * std::sin(2.0 * kPi * hz * i / kRate + hz));
+  }
+  plain(device);
+  device.set_param(p::kDepth, 1.0f);
+  device.set_param(p::kPressure, 1.0f);
+  const Stereo out = run(device, in);
+  const size_t span = 96000;
+  std::vector<double> rest(span);
+  double total = 0.0;
+  for (size_t i = 0; i < span; ++i) {
+    rest[i] = out.left[96000 + i];
+    total += rest[i] * rest[i];
+  }
+  // Every half Hz from 10 Hz to 3 kHz is a whole number of cycles in the span.
+  double made = 0.0;
+  for (int bin = 20; bin <= 6000; ++bin) {
+    const double at = 0.5 * bin;
+    bool near = false;
+    for (double hz : chord) near = near || std::fabs(at - hz) <= 8.0;
+    if (near) continue;
+    const double w = 2.0 * kPi * at / kRate;
+    const double coeff = 2.0 * std::cos(w);
+    double s1 = 0.0, s2 = 0.0;
+    for (size_t i = 0; i < span; ++i) {
+      const double s0 = rest[i] + coeff * s1 - s2;
+      s2 = s1;
+      s1 = s0;
+    }
+    const double re = s1 - s2 * std::cos(w), im = s2 * std::sin(w);
+    made += 2.0 * (re * re + im * im) / static_cast<double>(span);
+  }
+  std::printf("underwater squeeze on a loud chord of five low notes (peak %.2f): tones it makes of its own %.2f %% of the output\n",
+              peak(in), 100.0 * std::sqrt(made / total));
+  EXPECT(std::sqrt(made / total) < 0.018, "the squeeze adds little of its own to a low chord");
+}
+
+static void test_thrown_knobs_bend() {
+  // A knob that moves the delay is thrown under a 1 kHz tone, at three places
+  // on the surface: the pitch stays within the bend of a full Waver (and the
+  // tenth more the right side's lateness may add). Through the surface, and
+  // with Mix, the filter coming in over 5 ms turns the tone's phase too.
+  struct Throw {
+    const char* name;
+    int param;
+    float from, to;
+    float waver, rate, depth;
+    double most;  // cents
+  };
+  const double bend = 1.15 * kBendCents;
+  const Throw throws[] = {
+      {"Waver up at the slowest Swell", p::kWaver, 0.0f, 1.0f, 0.0f, 0.05f, 0.3f, bend},
+      {"Waver down at the slowest Swell", p::kWaver, 1.0f, 0.0f, 1.0f, 0.05f, 0.3f, bend},
+      {"Waver up at the fastest Swell", p::kWaver, 0.0f, 1.0f, 0.0f, 3.0f, 0.3f, bend},
+      {"Swell from slowest to fastest", p::kRate, 0.05f, 3.0f, 1.0f, 0.05f, 0.3f, bend},
+      {"Swell from fastest to slowest", p::kRate, 3.0f, 0.05f, 1.0f, 3.0f, 0.3f, bend},
+      {"Width closed at the fastest Swell", p::kWidth, 1.0f, 0.0f, 1.0f, 3.0f, 0.3f, bend},
+      {"Depth into the water", p::kDepth, 0.0f, 0.3f, 1.0f, 0.05f, 0.0f, kBendCents + 27.0},
+      {"Depth out of the water", p::kDepth, 0.3f, 0.0f, 1.0f, 0.05f, 0.3f, kBendCents + 27.0},
+      {"Mix up", p::kMix, 0.0f, 1.0f, 1.0f, 0.05f, 0.3f, kBendCents + 27.0},
+      {"Mix down", p::kMix, 1.0f, 0.0f, 1.0f, 0.05f, 0.3f, kBendCents + 27.0},
+  };
+  const std::vector<float> tone = sine(1000.0f, 9.0f, kRate, 0.25f);
+  for (const Throw& t : throws) {
+    double most = 0.0;
+    for (size_t cut : {size_t{96000}, size_t{117600}, size_t{139200}}) {
+      plain(device);
+      device.set_param(p::kWaver, t.waver);
+      device.set_param(p::kRate, t.rate);
+      device.set_param(p::kDepth, t.depth);
+      device.set_param(t.param, t.from);
+      const Stereo out = run_events(device, tone, tone, {{cut, t.param, t.to}});
+      most = std::max(most, most_bend(out.left, 1000.0, cut - 480, tone.size()));
+      most = std::max(most, most_bend(out.right, 1000.0, cut - 480, tone.size()));
+    }
+    std::printf("underwater %s under a tone: bent %.1f cents at the most (allowed %.1f)\n", t.name, most, t.most);
+    char label[96];
+    std::snprintf(label, sizeof label, "%s thrown does not swoop past the effect's own bend", t.name);
+    EXPECT(most < t.most, label);
   }
 }
 
@@ -693,20 +1121,21 @@ static void test_clicks() {
   const Throw throws[] = {
       {"Depth down", p::kDepth, 0.2f, 0.95f, 1.1},
       {"Depth up", p::kDepth, 0.95f, 0.2f, 1.1},
-      // Through the surface the waver's delay comes and goes: the pitch swoops for a moment.
-      {"Depth out of the water", p::kDepth, 0.6f, 0.0f, 1.25},
-      {"Depth into the water", p::kDepth, 0.0f, 0.6f, 1.25},
+      // Through the surface the waver's delay comes and goes, at the pace the
+      // device allows itself (test_thrown_knobs_bend holds it to that).
+      {"Depth out of the water", p::kDepth, 0.6f, 0.0f, 1.1},
+      {"Depth into the water", p::kDepth, 0.0f, 0.6f, 1.1},
       {"Mix", p::kMix, 1.0f, 0.0f, 1.1},
       {"Mix up", p::kMix, 0.0f, 1.0f, 1.1},
       {"Body", p::kResonance, 0.0f, 1.0f, 1.1},
       {"Surface", p::kSurface, 0.0f, 1.0f, 1.1},
       {"Pressure", p::kPressure, 0.0f, 1.0f, 1.1},
       {"Width", p::kWidth, 1.0f, 0.0f, 1.1},
-      // These move the delay: the pitch swoops for a moment, as a tape does.
-      {"Waver", p::kWaver, 0.0f, 1.0f, 1.25},
-      {"Waver down", p::kWaver, 1.0f, 0.0f, 1.25},
-      {"Swell", p::kRate, 0.05f, 3.0f, 1.25},
-      {"Swell down", p::kRate, 3.0f, 0.05f, 1.25},
+      // These move the delay, no faster than the surface's own bend.
+      {"Waver", p::kWaver, 0.0f, 1.0f, 1.1},
+      {"Waver down", p::kWaver, 1.0f, 0.0f, 1.1},
+      {"Swell", p::kRate, 0.05f, 3.0f, 1.1},
+      {"Swell down", p::kRate, 3.0f, 0.05f, 1.1},
   };
   const size_t at = 48000;
   for (const Throw& t : throws) {
@@ -840,6 +1269,85 @@ static void test_sleep() {
               worst, worst_gap);
   EXPECT(worst < 1.0e-6, "the output is the same at every block size across a silence");
 
+  // The knobs that glide, thrown late in a long silence, where one block size
+  // has the device asleep (nothing glides) and another still awake (it does):
+  // the next note is the same either way, because sound arriving after 3.5 s
+  // of silence starts afresh with every knob where it was last put.
+  {
+    double late_worst = 0.0;
+    float late_gap = 0.0f, late_at = 0.0f;
+    const float cases[][2] = {{3.6f, 3.2f}, {3.6f, 3.45f}, {4.3f, 3.45f}, {4.3f, 3.9f}, {5.0f, 3.45f}, {9.0f, 3.2f}};
+    for (const auto& c : cases) {
+      std::vector<float> left, right;
+      const size_t second = phrase(c[0], &left, &right);
+      const size_t when = second - static_cast<size_t>((c[0] - c[1]) * kRate);
+      const std::vector<Event> events = {{when, p::kWaver, 1.0f}, {when, p::kRate, 0.07f}, {when, p::kDepth, 0.8f},
+                                         {when, p::kWidth, 0.9f}, {when, p::kMix, 0.6f},   {when, p::kPressure, 1.0f}};
+      Stereo reference;
+      for (int block : {128, 1, 2048, 0}) {
+        device.init(kRate);
+        device.set_param(p::kBubbles, 0.0f);
+        Stereo out = run_events(device, left, right, events, block);
+        if (block == 128) {
+          reference = out;
+          continue;
+        }
+        const double apart = worst_difference(out, reference);
+        if (apart > late_worst) {
+          late_worst = apart;
+          late_gap = c[0];
+          late_at = c[1];
+        }
+      }
+    }
+    std::printf("underwater knobs thrown late in a long silence, blocks of 1, 2048 and ragged against 128: worst %.2e (silence %.1f s, thrown %.2f s into it)\n",
+                late_worst, late_gap, late_at);
+    EXPECT(late_worst < 1.0e-6, "knobs thrown late in a long silence give the same next note at every block size");
+  }
+
+  // What starting afresh is for: a loud note leaves the attack detector's
+  // ceilings falling for seconds, the device falls asleep with them wherever
+  // they then are (the block that sees the fourth second of silence end), and
+  // a soft note that swells in after it must find the same mark to jump over
+  // at every block size, or its flight starts a sample apart.
+  {
+    double soft_worst = 0.0;
+    for (int step : {0, 5, 6, 11, 13, 15}) {
+      for (double rise : {0.002, 0.02}) {
+        const double gap = 4.6 + 0.0937 * step;
+        const size_t second = static_cast<size_t>((0.5 + gap) * kRate);
+        std::vector<float> in(second + static_cast<size_t>(1.5f * kRate), 0.0f);
+        for (size_t i = 2400; i < 24000; ++i) {
+          const double t = static_cast<double>(i) / kRate;
+          double sum = 0.0;
+          for (int n = 1; n <= 20; ++n) sum += 0.5 / n * std::sin(2.0 * kPi * 220.0 * n * t);
+          in[i] = static_cast<float>(sum);
+        }
+        for (size_t i = second; i < in.size(); ++i) {
+          const double t = static_cast<double>(i - second) / kRate;
+          double sum = 0.0;
+          for (int n = 1; n <= 8; ++n) sum += 0.012 / n * std::sin(2.0 * kPi * 330.0 * n * t + 0.5 * n);
+          in[i] = static_cast<float>(std::min(1.0, t / rise) * std::exp(-t / 0.4) * sum);
+        }
+        Stereo reference;
+        for (int block : {128, 1, 2048, 0}) {
+          device.init(kRate);
+          device.set_param(p::kBubbles, 1.0f);
+          Stereo out = run_events(device, in, in, {}, block);
+          if (block == 128) {
+            EXPECT(peak(out.left, second - 4800, second) == 0.0, "asleep before the soft note");
+            reference = out;
+            continue;
+          }
+          soft_worst = std::max(soft_worst, worst_difference(out, reference));
+        }
+      }
+    }
+    std::printf("underwater a soft note after a loud one and a long silence, blocks of 1, 2048 and ragged against 128: worst %.2e\n",
+                soft_worst);
+    EXPECT(soft_worst < 1.0e-6, "a soft note after a long silence sends the same flight at every block size");
+  }
+
   // A knob moved while the device sleeps is there when the next note starts:
   // the note is the note of a device that had the knobs there all along.
   {
@@ -958,7 +1466,9 @@ static void test_other_rates() {
     const double early = found ? crossing_hz(air, first, first + (last - first) * 3 / 10, rate) : 0.0;
     std::printf("underwater at %.0f Hz: bend %.1f cents, one small bubble at %.0f Hz (said %.0f) for %.0f ms\n", rate,
                 most, early, device.meter(3), found ? 1000.0 * (last - first) / rate : 0.0);
-    EXPECT(found && std::fabs(device.meter(3) - early) < 0.12 * early, "a bubble's pitch does not move with the sample rate");
+    const double middle = found ? 0.5 / device.meter(3) + 0.15 * static_cast<double>(last - first) / rate : 0.0;
+    EXPECT(found && std::fabs(climbed(device.meter(3), middle) - early) < 0.05 * early,
+           "a bubble's pitch does not move with the sample rate");
   }
 }
 
@@ -978,8 +1488,13 @@ int main() {
   test_body();
   test_waver();
   test_bubbles();
+  test_bubbles_under_the_note();
+  test_attacks();
+  test_part_way_mix();
   test_closing_in();
   test_pressure();
+  test_squeeze_low_notes();
+  test_thrown_knobs_bend();
   test_light();
   test_clicks();
   test_bad_input();

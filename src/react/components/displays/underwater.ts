@@ -2,7 +2,12 @@
 // is the surface, moving as the device's own swell and ripple move (it
 // reports where each is in its cycle); the lens hanging under it is the sound
 // at its Depth, in water that is darker the further down it is, as the highs
-// go. Bubbles rise from the sound when the device says it has sent one up.
+// go: the plate is the dark of deep water and its ink is light, so the water
+// is washed with ink most at the surface and least at the bottom. Bubbles
+// rise from the sound when the device says it has sent one up.
+// The ring to the right of the sound is Waver: it runs across, up the dashed
+// slope that is how high the surface gets for each Waver, and stands at the
+// height the surface reaches now.
 //
 // Everything on it is the device's arithmetic (`underwater.h`): the constants
 // below are copied from there, and `displays.underwater.test.ts` holds the
@@ -56,6 +61,9 @@ const MOST_BUBBLES = 12
 const SMALL_HZ = 2400
 const LARGE_HZ = 420
 const FLIGHT_RISE_OCTAVES = 0.8
+/** A flight's spread in time: the time constant of a small one and of a large one; no bubble comes later than three of them. */
+const FLIGHT_SMALL_SEC = 0.07
+const FLIGHT_LARGE_SEC = 0.27
 /** The count of bubbles wraps here. */
 const COUNT_WRAP = 65536
 
@@ -65,9 +73,13 @@ export function underwaterImmersion(depth: number): number {
   return t * t * (3 - 2 * t)
 }
 
-/** The corner of the water's low-pass at a Depth, Hz (`derive`). */
-export const underwaterCorner = (depth: number): number =>
-  TOP_HZ * Math.pow(DEEP_HZ / TOP_HZ, depth)
+/**
+ * The corner of the water's low-pass at a Depth, Hz (`sink`). The water heard
+ * is as deep as Mix lets it be: the device puts the corner where Depth times
+ * Mix says.
+ */
+export const underwaterCorner = (depth: number, mix = 1): number =>
+  TOP_HZ * Math.pow(DEEP_HZ / TOP_HZ, depth * mix)
 
 /** The Depth at which the corner is at `hz`. */
 export const underwaterDepthOfCorner = (hz: number): number =>
@@ -83,12 +95,14 @@ export const underwaterSurface = (swell: number, ripple: number): number =>
 /**
  * How far the surface bends the pitch at the most, in cents either way
  * (`set_swing`): 45 at full Waver, less under 0.14 Hz, where the delay's swing
- * stops at 35 ms, and none out of the water.
+ * stops at 35 ms, none out of the water, and as much of it as Mix lets the
+ * water be heard (the dry sound rides the same surface, so the whole sound is
+ * bent this far).
  */
-export function underwaterBendCents(waver: number, rate: number, depth: number): number {
+export function underwaterBendCents(waver: number, rate: number, depth: number, mix = 1): number {
   const steepest = 2 * Math.PI * rate * (SWELL_SHARE + RIPPLE_SHARE * RIPPLE_RATIO)
   const swing = Math.min(MAX_SWING_SEC, BEND / steepest)
-  return 1200 * Math.log2(1 + waver * underwaterImmersion(depth) * swing * steepest)
+  return 1200 * Math.log2(1 + waver * underwaterImmersion(depth) * mix * swing * steepest)
 }
 
 /** What is left of the side signal at a Depth: all of it at full Width. */
@@ -123,21 +137,28 @@ export function underwaterFlight(bubbles: number, size: number): { late: number;
   })
 }
 
+/** How long a flight takes to come up at a Bubble Size, seconds: three of its time constants (`send_up`). */
+export const underwaterFlightSeconds = (size: number): number =>
+  3 * lerp(FLIGHT_SMALL_SEC, FLIGHT_LARGE_SEC, size)
+
 // --- The picture ------------------------------------------------------------
 
 /** Under this nothing of the water is heard. */
 const QUIET = 1e-4
 /** What a handle's ring takes about its middle when it is lit. */
 const RING_ROOM = 5.25
+/** How far the body's four rings stand out from the sound's side. */
+const BODY_RINGS_ROOM = 12
 /** How much time the surface spans across the display, seconds: a wave is as long as its swell is slow. */
 export const UNDERWATER_SPAN_SEC = 5
 /** Where the sound hangs across the display. */
 const SOUND_AT = 0.42
-/** How long a bubble is seen rising, seconds. */
-const RISE_SEC = 1.1
 /** The pitches between which a bubble's size is read: the highest is the smallest. */
 const TINY_HZ = 4200
 const BIG_HZ = 420
+/** How much of the ink the water is washed with at the surface, and where Depth 1 hangs. */
+const WATER_LIT = 0.34
+const WATER_DEEP = 0.04
 /** How many rays of light, and how many squeeze marks a full squeeze is. */
 const RAYS = 5
 const RAY_LEAN = 0.4
@@ -155,8 +176,9 @@ export interface UnderwaterLayout {
   ry: number
   /** Pixels a second of the surface is drawn over. */
   perSec: number
-  /** Where the Waver point stands across. */
-  waverX: number
+  /** Where the Waver ring stands across with no Waver and with all of it: clear of the sound and its rings, to the edge. */
+  waverFrom: number
+  waverTo: number
   /** What a bubble's radius is multiplied by on a taller display. */
   unit: number
 }
@@ -165,17 +187,20 @@ export function underwaterLayout(view: Pick<DisplayView, 'width' | 'height'>): U
   const box: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 }
   const swell = clamp(view.height * 0.17, 7, 16)
   const ry = clamp(view.height * 0.085, 3.5, 8)
+  const soundX = box.x + box.w * SOUND_AT
+  const rx = clamp(box.w * 0.09, 10, 22)
   return {
     box,
     // The ring at the top of the swell is whole on the display.
     surfaceY: RING_ROOM + swell,
     swell,
     deepY: box.y + box.h - ry - 1,
-    soundX: box.x + box.w * SOUND_AT,
-    rx: clamp(box.w * 0.09, 10, 22),
+    soundX,
+    rx,
     ry,
     perSec: box.w / UNDERWATER_SPAN_SEC,
-    waverX: box.x + 8,
+    waverFrom: soundX + rx + BODY_RINGS_ROOM + RING_ROOM,
+    waverTo: box.x + box.w - 8,
     unit: clamp(view.height / 48, 1, 1.6),
   }
 }
@@ -187,8 +212,8 @@ const mixOf = (view: Pick<DisplayView, 'value'>): number => clamp(view.value('mi
 const heardOf = (view: Pick<DisplayView, 'value'>): number =>
   mixOf(view) * underwaterImmersion(view.value('depth'))
 
-/** How far the Waver point travels for the whole of Waver: with the surface while it is heard, never less than half. */
-const waverTravel = (view: Pick<DisplayView, 'value'>): number => Math.max(0.5, heardOf(view))
+/** How far up the Waver ring goes for the whole of Waver, as a share of the swell: with the surface while it is heard, never less than half. */
+const waverRise = (view: Pick<DisplayView, 'value'>): number => Math.max(0.5, heardOf(view))
 
 /** Where a Depth hangs. */
 export const underwaterDepthY = (layout: UnderwaterLayout, depth: number): number =>
@@ -223,10 +248,12 @@ function underwaterHandles(view: DisplayView): DisplayHandle[] {
   const waverSpec = view.spec('waver')
   const depth = view.value('depth')
   const waver = view.value('waver')
-  const travel = layout.swell * waverTravel(view)
   const range = layout.deepY - layout.surfaceY
   const depthY = underwaterDepthY(layout, depth)
-  const waverY = layout.surfaceY - waver * travel
+  // The ring runs across for Waver, and stands as high as the surface gets.
+  const across = layout.waverTo - layout.waverFrom
+  const waverX = layout.waverFrom + waver * across
+  const waverY = layout.surfaceY - waver * layout.swell * waverRise(view)
   return [
     {
       key: 'depth',
@@ -247,13 +274,13 @@ function underwaterHandles(view: DisplayView): DisplayHandle[] {
     {
       key: 'waver',
       name: 'Waver',
-      x: layout.waverX,
+      x: waverX,
       y: waverY,
-      drag: (_x, y) => ({
+      drag: (x) => ({
         waver:
-          Math.abs(y - waverY) < 1e-6
+          Math.abs(x - waverX) < 1e-6
             ? waver
-            : clamp((layout.surfaceY - y) / travel, waverSpec?.min ?? 0, waverSpec?.max ?? 1),
+            : clamp((x - layout.waverFrom) / across, waverSpec?.min ?? 0, waverSpec?.max ?? 1),
       }),
       wheel: (steps) => ({
         waver: clamp(waver + steps * 0.02, waverSpec?.min ?? 0, waverSpec?.max ?? 1),
@@ -265,6 +292,8 @@ function underwaterHandles(view: DisplayView): DisplayHandle[] {
 
 interface Rising {
   born: number
+  /** How long it takes to the surface, seconds: as long as its flight takes to come up. */
+  span: number
   hz: number
   /** Which bubble it is, for where it rises. */
   serial: number
@@ -318,7 +347,7 @@ const underwater = plateDisplay<UnderwaterState>({
     'mix',
   ],
   live: { meters: true, signal: true },
-  info: 'The water from the side. The line is the surface as it moves the sound, the lens is the sound at its Depth, narrower as its sides close in, in water that darkens as the highs go. Bubbles rise when an attack sends them up. Drag the lens for Depth and the ring on the surface for Waver.',
+  info: 'The water from the side. The line is the surface as it moves the sound, the lens is the sound at its Depth, narrower as its sides close in, in water that darkens as the highs go. Bubbles rise when an attack sends them up. Drag the lens down for Depth and the ring across for Waver.',
   init: () => ({
     swell: null,
     ripple: null,
@@ -351,9 +380,15 @@ const underwater = plateDisplay<UnderwaterState>({
         const more = (((count - state.count) % COUNT_WRAP) + COUNT_WRAP) % COUNT_WRAP
         // More than two flights in one reading is a count that started again.
         if (more >= 1 && more <= 2 * MOST_BUBBLES && heard > QUIET) {
+          const span = underwaterFlightSeconds(frame.value('bubbleSize'))
           for (let i = 0; i < more; i++) {
             state.serial += 1
-            state.rising.push({ born: frame.now, hz: frame.meter('pitch'), serial: state.serial })
+            state.rising.push({
+              born: frame.now,
+              span,
+              hz: frame.meter('pitch'),
+              serial: state.serial,
+            })
           }
           if (state.rising.length > 48) state.rising.splice(0, state.rising.length - 48)
         }
@@ -371,15 +406,18 @@ const underwater = plateDisplay<UnderwaterState>({
       state.glow = 0
       state.glints.fill(0)
     }
-    while (state.rising.length > 0 && frame.now - state.rising[0].born > RISE_SEC)
-      state.rising.shift()
+    // The ones that have reached the surface are gone (in place: nothing is made anew each frame).
+    let kept = 0
+    for (const bubble of state.rising)
+      if (frame.now - bubble.born <= bubble.span) state.rising[kept++] = bubble
+    state.rising.length = kept
 
     const swell = state.swell?.phase ?? 0
     const ripple = state.ripple?.phase ?? 0
     const height = layout.swell * frame.value('waver') * heard
     const surface = (x: number): number => surfaceAt(layout, x, swell, ripple, rate, height)
 
-    // The surface, and under it the water: darker by the octaves of top it has taken at each level.
+    // The surface, and under it the water: lit at the surface and darker the further down, as the top goes.
     const columns = Math.max(2, Math.ceil(box.w))
     if (state.line.length !== columns + 1)
       state.line = Array.from({ length: columns + 1 }, (): [number, number] => [0, 0])
@@ -402,25 +440,29 @@ const underwater = plateDisplay<UnderwaterState>({
       ctx.fillStyle = colours.ink
       for (let row = first; row < foot; row += 2) {
         const under = clamp((row + 1 - surfaceY) / (layout.deepY - surfaceY), 0, 1)
-        ctx.globalAlpha = (0.04 + 0.3 * under) * mix
+        ctx.globalAlpha = (WATER_DEEP + (WATER_LIT - WATER_DEEP) * (1 - under)) * mix
         ctx.fillRect(box.x, row, box.w, Math.min(2, foot - row))
       }
       ctx.restore()
       ctx.globalAlpha = 1
     }
 
-    // How high the surface swings at this Waver: the mark the ring stands on.
+    // How high the surface swings for each Waver: the slope the ring runs up.
     const [depthPoint, waverPoint] = underwaterHandles(frame)
-    rule(ctx, box.x, waverPoint.y, box.x + box.w, waverPoint.y, {
-      colour: colours.ink,
-      alpha: INK.grid,
-      dash: [2, 3],
-    })
+    rule(
+      ctx,
+      layout.waverFrom,
+      surfaceY,
+      layout.waverTo,
+      surfaceY - layout.swell * waverRise(frame),
+      { colour: colours.ink, alpha: INK.grid, dash: [2, 3] },
+    )
 
     // Light on the water: rays that reach as deep as the water passes what flickers.
     const light = frame.value('surface') * heard
     if (light > QUIET) {
-      const reach = underwaterDepthY(layout, UNDERWATER_LIGHT_DEPTH)
+      // Part way in the mix the water is shallower, and the light reaches further down the Depths.
+      const reach = underwaterDepthY(layout, Math.min(1, UNDERWATER_LIGHT_DEPTH / mix))
       // They lean, and the last of them still ends on the display.
       const lean = RAY_LEAN * (reach - surfaceY + layout.swell)
       for (let r = 0; r < RAYS; r++) {
@@ -474,7 +516,8 @@ const underwater = plateDisplay<UnderwaterState>({
       ctx.globalAlpha = 1
     }
 
-    // Bubbles: one flight as the settings would send it, and in the second colour the ones on their way now.
+    // Bubbles: one flight as the settings would send it, the later the higher, and in the second colour the
+    // ones the device has sent, each on its way up for as long as a flight takes to come.
     const top = y - ry - 1
     const column = Math.max(0, top - surfaceY - 1)
     if (heard > QUIET) {
@@ -497,9 +540,7 @@ const underwater = plateDisplay<UnderwaterState>({
       })
       ctx.globalAlpha = 1
       for (const bubble of state.rising) {
-        const age = clamp((frame.now - bubble.born) / RISE_SEC, 0, 1)
-        // Quick off the sound and slower as it nears the surface.
-        const up = 1 - (1 - age) * (1 - age)
+        const up = clamp((frame.now - bubble.born) / bubble.span, 0, 1)
         const sway = (scatter(bubble.serial) - 0.5) * 2
         dot(
           ctx,
@@ -507,7 +548,7 @@ const underwater = plateDisplay<UnderwaterState>({
           top - up * column,
           underwaterBubbleRadius(bubble.hz, layout.unit),
           colours.accent,
-          { alpha: clamp((1 - age) * 3, 0, 1) * 0.9 },
+          { alpha: clamp((1 - up) * 3, 0, 1) * 0.9 },
         )
       }
     }
@@ -536,19 +577,21 @@ const underwater = plateDisplay<UnderwaterState>({
       const right = soundX + rx + 60 < box.x + box.w
       label(
         frame,
-        hzText(underwaterCorner(depth)),
+        hzText(underwaterCorner(depth, mix)),
         right ? soundX + rx + 8 : soundX - rx - 8,
         clamp(crisp(y) + 3, box.y + 8, foot - 1),
         right ? 'left' : 'right',
       )
     }
     if (frame.hot === 'waver') {
-      const cents = underwaterBendCents(frame.value('waver'), rate, depth)
+      const cents = underwaterBendCents(frame.value('waver'), rate, depth, mix)
+      const right = waverPoint.x + 44 < box.x + box.w
       label(
         frame,
         `${Math.round(cents)} ct`,
-        waverPoint.x + 9,
+        right ? waverPoint.x + 9 : waverPoint.x - 9,
         clamp(waverPoint.y + 3, 9, foot - 1),
+        right ? 'left' : 'right',
       )
     }
   },

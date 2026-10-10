@@ -9,6 +9,7 @@ import { UNDERWATER_METERS, UNDERWATER_PARAMS } from '../../dsp/devices/underwat
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { INK, PLAIN_COLOURS, hzText } from '../components/display-kit'
 import { type DisplayHandle, type DisplayView } from '../components/plate-display'
+import { PLATE_PALETTES } from '../components/plate-palettes'
 import {
   UNDERWATER_FACES,
   UNDERWATER_LIGHT_DEPTH,
@@ -20,6 +21,7 @@ import {
   underwaterDepthOfCorner,
   underwaterDepthY,
   underwaterFlight,
+  underwaterFlightSeconds,
   underwaterHeld,
   underwaterHumpDb,
   underwaterImmersion,
@@ -69,6 +71,9 @@ const SMALL_HZ = 2400
 const LARGE_HZ = 420
 const FLIGHT_RISE_OCTAVES = 0.8
 const STRAY_OCTAVES = 0.35
+/** `kFlightSmallSeconds`, `kFlightLargeSeconds`: a flight's time constant; none of it comes later than three. */
+const FLIGHT_SMALL_SEC = 0.07
+const FLIGHT_LARGE_SEC = 0.27
 
 const display = UNDERWATER_FACES.underwater.display
 const { plate, ink, accent } = PLAIN_COLOURS
@@ -451,6 +456,26 @@ describe('Depth: the sound at its depth, in water that takes the highs', () => {
     expect(high).toBeLessThan(1 - 0.5 * underwaterImmersion(depth) + 0.2)
   })
 
+  it('makes the water as shallow as Mix: the corner is where Depth times Mix puts it', async () => {
+    // Part way, the dry sound is not blended back over the muffled one (the two would cancel at the
+    // corner): the low-pass stands at the corner of a shallower Depth, and the response only falls.
+    for (const [depth, mix] of [
+      [1, 0.5],
+      [0.8, 0.75],
+      [0.65, 0.5],
+    ]) {
+      const hz = underwaterCorner(depth * mix)
+      expect(decibels(await passes({ ...PLAIN, depth, mix }, hz))).toBeCloseTo(-3.01, 0)
+      let before = 1
+      for (const octaves of [-2, -1, -0.5, 0, 0.5, 1, 2]) {
+        const now = await passes({ ...PLAIN, depth, mix }, hz * Math.pow(2, octaves))
+        expect(now).toBeLessThan(before + 0.005)
+        before = now
+      }
+    }
+    expect(await passes({ ...PLAIN, depth: 1, mix: 0 }, 8000)).toBeCloseTo(1, 6)
+  })
+
   it('hangs the sound at its Depth, and the handle is the sound', () => {
     for (const size of SIZES) {
       const [width, height] = size
@@ -500,7 +525,7 @@ describe('Depth: the sound at its depth, in water that takes the highs', () => {
       const rows = waterRows(marksOf(draw({}, {}, { width, height })))
       expect(rows.length).toBeGreaterThan(height / 4)
       let last = 0
-      let lastAlpha = 0
+      let lastAlpha = 1
       for (const row of rows) {
         const [x, y, w, h] = row.rect ?? [0, 0, 0, 0]
         expect(x).toBe(4)
@@ -509,18 +534,33 @@ describe('Depth: the sound at its depth, in water that takes the highs', () => {
         expect(Number.isInteger(y)).toBe(true)
         if (last > 0) expect(y).toBe(last)
         last = y + h
-        // Darker by how far down: from 0.04 at the surface to 0.34 where Depth 1 hangs.
+        // Darker by how far down: the plate's light ink is laid 0.34 thick at the surface and 0.04 where
+        // Depth 1 hangs, on a plate that is the dark of deep water.
         const under = Math.min(
           1,
           Math.max(0, (y + 1 - layout.surfaceY) / (layout.deepY - layout.surfaceY)),
         )
-        expect(row.alpha).toBeCloseTo(0.04 + 0.3 * under, 9)
-        expect(row.alpha).toBeGreaterThanOrEqual(lastAlpha)
+        expect(row.alpha).toBeCloseTo(0.04 + 0.3 * (1 - under), 9)
+        expect(row.alpha).toBeLessThanOrEqual(lastAlpha)
         lastAlpha = row.alpha
       }
       expect(last).toBe(height - 4)
-      expect(lastAlpha).toBeCloseTo(0.34, 9)
+      expect(lastAlpha).toBeCloseTo(0.04, 9)
     }
+    // The wash darkens downward only on a plate darker than its ink: the skin is one.
+    const light = (hex: string): number => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const c = parseInt(hex.slice(i, i + 2), 16) / 255
+        return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4
+      })
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b
+    }
+    const skin = PLATE_PALETTES.underwater
+    expect(light(skin.ink)).toBeGreaterThan(light(skin.plate))
+    // And each of its two colours can be read on the plate: the ink at 7 to 1 or more, the second colour at 4.5.
+    const against = (hex: string): number => (light(hex) + 0.05) / (light(skin.plate) + 0.05)
+    expect(against(skin.ink)).toBeGreaterThanOrEqual(7)
+    expect(against(skin.accent)).toBeGreaterThanOrEqual(4.5)
     // Half the water in the mix is water half as dark; none is none, and no water is drawn.
     const whole = waterRows(marksOf(draw({ mix: 1 })))
     const half = waterRows(marksOf(draw({ mix: 0.5 })))
@@ -539,6 +579,12 @@ describe('Depth: the sound at its depth, in water that takes the highs', () => {
       expect(patchUnder(drawn, words, plate)).not.toBeNull()
     }
     expect(draw().words()).toEqual([])
+    // Part way in the mix the corner is the one the device has then: where Depth times Mix puts it.
+    expect(underwaterCorner(1, 0.5)).toBeCloseTo(underwaterCorner(0.5), 9)
+    expect(underwaterCorner(0.7, 0)).toBe(TOP_HZ)
+    expect(draw({ depth: 1, mix: 0.5 }, {}, { hot: 'depth' }).words()).toEqual([
+      hzText(underwaterCorner(0.5)),
+    ])
     // On the upright plate too, and with the sound hard against the right there is still room for it.
     const drawn = draw({ depth: 1 }, {}, { hot: 'depth', width: 204, height: 100 })
     expect(drawn.words()).toEqual(['300 Hz'])
@@ -911,28 +957,50 @@ describe('Waver: the surface that moves the sound', () => {
     }
     const flat = render(await device({ ...PLAIN, depth: 0.5, waver: 0, rate: 1 }), tone)
     expect(Math.abs(sharpestCents(flat.left, 1000, SR))).toBeLessThan(0.05)
+
+    // Part way in the mix the dry sound rides the same surface: the whole sound is bent, as far as Mix says.
+    expect(underwaterBendCents(1, 1, 0.5, 0)).toBe(0)
+    expect(underwaterBendCents(1, 1, 0.5, 0.5)).toBeCloseTo(1200 * Math.log2(1 + BEND / 2), 9)
+    expect(underwaterBendCents(1, 1, 0.5, 1)).toBe(underwaterBendCents(1, 1, 0.5))
+    for (const mix of [0.5, 0.25]) {
+      const out = render(await device({ ...PLAIN, depth: 0.5, waver: 1, rate: 1, mix }), tone)
+      const cents = sharpestCents(out.left, 1000, SR)
+      expect(Math.abs(cents - underwaterBendCents(1, 1, 0.5, mix))).toBeLessThan(1.5)
+    }
   })
 
-  it('puts the ring at the height the surface reaches, and a drag there sets it', () => {
+  it('runs the ring across for Waver, up the slope of how high the surface gets', () => {
     for (const size of SIZES) {
       const [width, height] = size
       const layout = underwaterLayout({ width, height })
+      const across = layout.waverTo - layout.waverFrom
+      // Room to set it by hand: sixty pixels or more for the whole of Waver, not the 8 the swell is tall on a strip.
+      expect(across).toBeGreaterThanOrEqual(60)
+      // Clear of the sound and of the rings its body draws round it, and whole at the edge.
+      expect(layout.waverFrom - 5).toBeGreaterThanOrEqual(layout.soundX + layout.rx + 12)
+      expect(layout.waverTo + 5).toBeLessThanOrEqual(width - 4)
       for (const waver of [0, 0.35, 0.8, 1]) {
         const handle = handleOf('waver', { waver }, size)
-        expect(handle.x).toBeCloseTo(layout.waverX, 9)
+        expect(handle.x).toBeCloseTo(layout.waverFrom + waver * across, 9)
         // Heard in full, the ring is at the crest: the highest this surface gets.
         expect(handle.y).toBeCloseTo(layout.surfaceY - waver * layout.swell, 9)
         const marks = marksOf(draw({ waver }, { swell: 0.25, ripple: 0.25 }, { width, height }))
         const crest = Math.min(...surfaceLine(marks).points.map(([, y]) => y))
         expect(crest).toBeGreaterThanOrEqual(handle.y - 1e-9)
-        // The dashed mark it stands on runs across the display at that height.
-        const mark = marks.find(
+        // The dashed slope it runs up: from the surface at rest to the top of the swell, and the ring is on it.
+        const slope = marks.find(
           (m) => m.kind === 'stroke' && m.points.length === 2 && m.dash.length === 2,
         )
-        expect(mark?.points[0][0]).toBe(4)
-        expect(mark?.points[1][0]).toBe(width - 4)
-        expect(Math.abs((mark?.points[0][1] ?? 0) - handle.y)).toBeLessThanOrEqual(0.5)
-        expect(mark?.alpha).toBe(INK.grid)
+        expect(slope?.points[0][0]).toBeCloseTo(layout.waverFrom, 9)
+        expect(slope?.points[0][1]).toBeCloseTo(layout.surfaceY, 9)
+        expect(slope?.points[1][0]).toBeCloseTo(layout.waverTo, 9)
+        expect(slope?.points[1][1]).toBeCloseTo(layout.surfaceY - layout.swell, 9)
+        expect(slope?.alpha).toBe(INK.grid)
+        const [[x0, y0], [x1, y1]] = slope?.points ?? [
+          [0, 0],
+          [1, 1],
+        ]
+        expect(handle.y).toBeCloseTo(y0 + ((handle.x - x0) / (x1 - x0)) * (y1 - y0), 9)
       }
       for (const settings of [
         {},
@@ -945,16 +1013,23 @@ describe('Waver: the surface that moves the sound', () => {
           for (const to of [0, 0.2, 0.5, 0.93, 1]) {
             const there = handleOf('waver', { ...settings, waver: to }, size)
             expect(held.drag(there.x, there.y).waver).toBeCloseTo(to, 9)
-            expect(held.drag(there.x + 30, there.y).waver).toBeCloseTo(to, 9)
+            // Only across counts: the hand may stray up or down.
+            expect(held.drag(there.x, there.y + 30).waver).toBeCloseTo(to, 9)
+            expect(held.drag(there.x, there.y - 30).waver).toBeCloseTo(to, 9)
           }
           expect(held.drag(held.x, held.y).waver).toBe(from)
-          expect(held.drag(held.x, layout.surfaceY - 60).waver).toBe(1)
-          expect(held.drag(held.x, layout.surfaceY + 60).waver).toBe(0)
+          expect(held.drag(width + 60, held.y).waver).toBe(1)
+          expect(held.drag(-60, held.y).waver).toBe(0)
+          expect(held.drag(layout.soundX, held.y).waver).toBe(0)
         }
       }
-      // Where the waver is not heard the ring still has room to move: half the swell.
+      // A pixel of the hand is a small step of Waver: under two hundredths.
+      const middle = handleOf('waver', { waver: 0.5 }, size)
+      expect(Math.abs(middle.drag(middle.x + 1, middle.y).waver - 0.5)).toBeLessThan(0.02)
+      // Where the waver is not heard the ring still climbs: half the swell.
       const unheard = handleOf('waver', { waver: 1, mix: 0 }, size)
       expect(unheard.y).toBeCloseTo(layout.surfaceY - layout.swell / 2, 9)
+      expect(unheard.x).toBeCloseTo(layout.waverTo, 9)
     }
     const handle = handleOf('waver', { waver: 0.5 })
     expect(handle.wheel?.(1).waver).toBeCloseTo(0.52, 9)
@@ -963,25 +1038,36 @@ describe('Waver: the surface that moves the sound', () => {
     expect(handle.reset?.().waver).toBe(UNDERWATER_PARAMS.waver.default)
   })
 
-  it('says the bend in cents while Waver is in hand, on a patch', () => {
+  it('says the bend in cents while Waver is in hand, on a patch that stays on the display', () => {
     for (const values of [
       { waver: 1, rate: 1 },
       { waver: 0.35, rate: 0.3 },
       { waver: 1, rate: 0.05 },
       { waver: 1, depth: 0 },
+      { waver: 1, rate: 1, mix: 0.5 },
+      { waver: 0, rate: 1 },
     ] as Values[]) {
-      const drawn = draw(values, {}, { hot: 'waver' })
-      const cents = underwaterBendCents(
-        values.waver,
-        values.rate ?? UNDERWATER_PARAMS.rate.default,
-        values.depth ?? UNDERWATER_PARAMS.depth.default,
-      )
-      const words = `${Math.round(cents)} ct`
-      expect(drawn.words()).toEqual([words])
-      expect(patchUnder(drawn, words, plate)).not.toBeNull()
+      for (const size of SIZES) {
+        const [width, height] = size
+        const drawn = draw(values, {}, { hot: 'waver', width, height })
+        const cents = underwaterBendCents(
+          values.waver,
+          values.rate ?? UNDERWATER_PARAMS.rate.default,
+          values.depth ?? UNDERWATER_PARAMS.depth.default,
+          values.mix ?? UNDERWATER_PARAMS.mix.default,
+        )
+        const words = `${Math.round(cents)} ct`
+        expect(drawn.words()).toEqual([words])
+        const patch = patchUnder(drawn, words, plate)
+        expect(patch).not.toBeNull()
+        expect(patch?.x ?? -1).toBeGreaterThanOrEqual(0)
+        expect((patch?.x ?? 0) + (patch?.w ?? width + 1)).toBeLessThanOrEqual(width)
+      }
     }
     expect(draw({ waver: 1, rate: 1 }, {}, { hot: 'waver' }).words()).toEqual(['45 ct'])
     expect(draw({ waver: 1, depth: 0 }, {}, { hot: 'waver' }).words()).toEqual(['0 ct'])
+    // Half in the mix, the whole sound is bent half as far: the dry sound rides the same surface.
+    expect(draw({ waver: 1, rate: 1, mix: 0.5 }, {}, { hot: 'waver' }).words()).toEqual(['23 ct'])
   })
 })
 
@@ -1037,8 +1123,20 @@ describe('Surface: light on the water', () => {
       for (const ray of lit({ surface: 1 }, -1)) expect(ray.alpha).toBeCloseTo(0, 9)
       for (const ray of lit({ surface: 1 }, 0)) expect(ray.alpha).toBeCloseTo(0.5, 9)
       for (const ray of lit({ surface: 0.3 }, 1)) expect(ray.alpha).toBeCloseTo(0.3, 9)
-      // Heard only as far as the sound is under and in the mix.
-      for (const ray of lit({ surface: 1, mix: 0.5 }, 1)) expect(ray.alpha).toBeCloseTo(0.5, 9)
+      // Heard only as far as the sound is under and in the mix; and with the water half as deep in the
+      // mix, the light reaches twice as far down the Depths (here to the bottom).
+      for (const ray of lit({ surface: 1, mix: 0.5 }, 1)) {
+        expect(ray.alpha).toBeCloseTo(0.5, 9)
+        expect(ray.points[1][1]).toBeCloseTo(
+          underwaterDepthY(layout, Math.min(1, UNDERWATER_LIGHT_DEPTH / 0.5)),
+          9,
+        )
+      }
+      for (const ray of lit({ surface: 1, mix: 0.8 }, 1))
+        expect(ray.points[1][1]).toBeCloseTo(
+          underwaterDepthY(layout, UNDERWATER_LIGHT_DEPTH / 0.8),
+          9,
+        )
       for (const ray of lit({ surface: 1, depth: 0.05 }, 1)) expect(ray.alpha).toBeCloseTo(0.5, 9)
       expect(lit({ surface: 0 }, 1)).toHaveLength(0)
       expect(lit({ surface: 1, mix: 0 }, 1)).toHaveLength(0)
@@ -1202,24 +1300,36 @@ describe('Bubbles', () => {
     expect(risingBubbles(run([40, 2], 420).marks)).toHaveLength(0)
     expect(risingBubbles(run([2, 30], 420).marks)).toHaveLength(0)
 
-    // They rise: a third of a second on each is nearer the surface, and after their rise they are gone.
-    const { state } = run([7, 10], 420)
-    const later = (seconds: number): Mark[] =>
-      risingBubbles(
-        marksOf(
-          drawDisplay(display, UNDERWATER_PARAMS, {
-            meters: readings({ bubbles: 10, pitch: 420 }),
-            signal: testSignal(0.5, 0),
-            state,
-            now: 10 + 1 / 30 + seconds,
-            dt: 1 / 30,
-          }),
-        ),
-      )
-    const risen = later(0.35)
-    expect(risen).toHaveLength(3)
-    risen.forEach((bubble, i) => expect(bubble.arcs[0].y).toBeLessThan(three[i].arcs[0].y))
-    expect(later(1.2)).toHaveLength(0)
+    // They rise for as long as a flight takes to come up at this Bubble Size (three of the device's time
+    // constants), at one speed: so far up the water for so much of that time, and then they are gone.
+    expect(underwaterFlightSeconds(0)).toBeCloseTo(3 * FLIGHT_SMALL_SEC, 9)
+    expect(underwaterFlightSeconds(1)).toBeCloseTo(3 * FLIGHT_LARGE_SEC, 9)
+    for (const bubbleSize of [0, 0.45, 1]) {
+      const span = underwaterFlightSeconds(bubbleSize)
+      const { state, marks } = run([7, 10], 420, { bubbleSize })
+      const born = lens(marks).ellipses[0]
+      const foot = born.y - born.ry - 1
+      const column = foot - layout.surfaceY - 1
+      const later = (seconds: number): Mark[] =>
+        risingBubbles(
+          marksOf(
+            drawDisplay(display, UNDERWATER_PARAMS, {
+              values: { bubbleSize },
+              meters: readings({ bubbles: 10, pitch: 420 }),
+              signal: testSignal(0.5, 0),
+              state,
+              now: 10 + 1 / 30 + seconds,
+              dt: 1 / 30,
+            }),
+          ),
+        )
+      for (const share of [0.25, 0.5, 0.9]) {
+        const risen = later(share * span)
+        expect(risen).toHaveLength(3)
+        for (const bubble of risen) expect(bubble.arcs[0].y).toBeCloseTo(foot - share * column, 6)
+      }
+      expect(later(span + 0.01)).toHaveLength(0)
+    }
 
     // With none of the water in the mix none are drawn, the count is still read, and none arrive late.
     const dry = run([7, 10, 12], 420, { mix: 0 })
@@ -1282,7 +1392,9 @@ describe('Bubbles', () => {
       seen = reading(host, 'bubbles')
     }
     expect(seen).toBe(underwaterCount(0.5))
-    // All of the flight is on the display at once at some moment: the rise outlasts the flight.
-    expect(most).toBe(underwaterCount(0.5))
+    // A bubble is on its way for as long as the flight takes to come: the first are up when the last start,
+    // so some of the flight is on the display at once and seldom all of it.
+    expect(most).toBeGreaterThanOrEqual(2)
+    expect(most).toBeLessThanOrEqual(underwaterCount(0.5))
   })
 })
