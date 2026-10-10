@@ -791,6 +791,167 @@ int main() {
     EXPECT(low > -2.0 && high < 2.0, "the default: over time a held tone keeps its level at every pitch");
   }
 
+  // Other sample rates: the times are times, not frames. Time 4 s is the whole ring at 96 kHz and still comes
+  // back at 4 s; the curve's places are in hertz.
+  {
+    for (float rate : {44100.0f, 96000.0f}) {
+      auto delay_at = [&](double hz, float time, float fan) {
+        device.init(rate);
+        device.set_param(p::kFeedback, 0.0f);
+        device.set_param(p::kWidth, 0.0f);
+        device.set_param(p::kSmear, 0.0f);
+        device.set_param(p::kDrift, 0.0f);
+        device.set_param(p::kMix, 1.0f);
+        device.set_param(p::kTime, time);
+        device.set_param(p::kFan, fan);
+        const size_t length = static_cast<size_t>(0.1f * rate);
+        const size_t total = static_cast<size_t>((time * 0.001f + 0.6f) * rate);
+        std::vector<float> in(total, 0.0f);
+        for (size_t i = 0; i < length; ++i) {
+          const double window = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(length));
+          in[2400 + i] = 0.5f * static_cast<float>(window * std::sin(2.0 * kPi * hz * static_cast<double>(i) / rate));
+        }
+        const Stereo out = run(device, in);
+        return (centre(out.left, 0, total) - centre(in, 0, total) - kLatency) * 1000.0 / rate;
+      };
+      Curve curve;
+      curve.time_ms = 800.0;
+      EXPECT_NEAR(delay_at(1000.0, 4000.0f, 0.0f), 4000.0, 0.5, "Time 4 s comes back at 4 s at 44.1 and 96 kHz");
+      EXPECT_NEAR(delay_at(545.0, 800.0f, 1.0f), delay_ms(545.0, curve), 1.0, "the curve is the same curve at 44.1 and 96 kHz");
+      EXPECT_NEAR(delay_at(3182.0, 800.0f, 1.0f), delay_ms(3182.0, curve), 1.0, "the curve is the same curve at 44.1 and 96 kHz");
+    }
+  }
+
+  // No part of a knob is dead: on a phrase (a chord struck twice and a noise burst), each control at its
+  // minimum, its middle and its maximum gives three renders that differ, each from the others, by more than
+  // -30 dB of the render. Tilt is tried with Feedback up and Shuffle in Scatter, where they act.
+  {
+    const size_t total = static_cast<size_t>(3.0 * kRate);
+    std::vector<float> phrase(total, 0.0f);
+    rng_state() = 21;
+    for (size_t i = 0; i < 9600; ++i) phrase[60000 + i] = 0.2f * white();
+    for (size_t at : {2400u, 36000u}) {
+      for (double hz : {130.8, 196.0, 329.6, 784.0, 2093.0}) {
+        for (size_t i = 0; i < 19200; ++i) {
+          const double t = static_cast<double>(i) / kRate;
+          phrase[at + i] += 0.12f * static_cast<float>(std::exp(-6.0 * t) * std::sin(2.0 * kPi * hz * t));
+        }
+      }
+    }
+    double least = 1.0e9;
+    int least_id = -1;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      Stereo renders[3];
+      for (int at = 0; at < 3; ++at) {
+        device.init(kRate);
+        if (id == p::kTilt) device.set_param(p::kFeedback, 0.8f);
+        if (id == p::kShuffle) device.set_param(p::kShape, static_cast<float>(kScatter));
+        float value = p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * 0.5f * at;
+        if (id == p::kTime) value = at == 0 ? 20.0f : (at == 1 ? 283.0f : 4000.0f);
+        if (id == p::kShape || id == p::kBands || id == p::kShuffle) value = std::floor(value + 0.5f);
+        device.set_param(id, value);
+        renders[at] = run(device, phrase);
+      }
+      for (int a = 0; a < 3; ++a) {
+        for (int b = a + 1; b < 3; ++b) {
+          double difference = 0.0, size = 0.0;
+          for (size_t i = 0; i < total; ++i) {
+            const double dl = static_cast<double>(renders[a].left[i]) - renders[b].left[i];
+            const double dr = static_cast<double>(renders[a].right[i]) - renders[b].right[i];
+            difference += dl * dl + dr * dr;
+            size += static_cast<double>(renders[a].left[i]) * renders[a].left[i] +
+                    static_cast<double>(renders[a].right[i]) * renders[a].right[i];
+          }
+          const double apart = 10.0 * std::log10(difference / size);
+          if (apart < least) {
+            least = apart;
+            least_id = id;
+          }
+          if (apart < -30.0) {
+            std::printf("FAIL: param %d: settings %d and %d differ by only %.1f dB\n", id, a, b, apart);
+            ++failures();
+          }
+        }
+      }
+    }
+    std::printf("every control, three settings on a phrase: the two nearest renders differ by %.1f dB (param %d)\n", least, least_id);
+  }
+
+  // The presets, as device.json has them (copied: a preset lists what it changes from the defaults). Each one:
+  // a full-scale held chord for 30 s comes back at no more than twice its amplitude and does not grow; and held
+  // tones across the keyboard keep their level over time.
+  {
+    struct Setting {
+      int id;
+      float value;
+    };
+    struct Preset {
+      const char* name;
+      std::vector<Setting> settings;
+    };
+    const std::vector<Preset> presets = {
+    {"Low to high", {}},
+    {"High to low", {{p::kShape, 1.0f}, {p::kTime, 700.0f}, {p::kFeedback, 0.35f}, {p::kBands, 10.0f}}},
+    {"Slow unfolding", {{p::kTime, 2400.0f}, {p::kBands, 24.0f}, {p::kSmear, 0.6f}, {p::kFeedback, 0.5f}, {p::kMix, 0.45f}}},
+    {"One plain echo", {{p::kFan, 0.0f}, {p::kTime, 380.0f}, {p::kFeedback, 0.45f}, {p::kWidth, 0.3f}, {p::kMix, 0.35f}}},
+    {"Short chirp", {{p::kTime, 90.0f}, {p::kBands, 48.0f}, {p::kSmear, 1.0f}, {p::kFeedback, 0.25f}, {p::kTilt, 0.0f}, {p::kMix, 0.5f}}},
+    {"Scattered notes", {{p::kShape, 4.0f}, {p::kBands, 8.0f}, {p::kSmear, 0.0f}, {p::kTime, 1200.0f}, {p::kFeedback, 0.5f}, {p::kShuffle, 3.0f}, {p::kMix, 0.45f}}},
+    {"Partial cloud", {{p::kShape, 4.0f}, {p::kBands, 48.0f}, {p::kSmear, 1.0f}, {p::kTime, 2000.0f}, {p::kFeedback, 0.7f}, {p::kShuffle, 7.0f}, {p::kWidth, 1.0f}, {p::kMix, 0.6f}}},
+    {"Middle first", {{p::kShape, 3.0f}, {p::kTime, 800.0f}, {p::kFeedback, 0.35f}, {p::kSmear, 0.5f}}},
+    {"Edges first", {{p::kShape, 2.0f}, {p::kTime, 900.0f}, {p::kBend, 0.4f}, {p::kFeedback, 0.3f}}},
+    {"Faint trail", {{p::kTime, 300.0f}, {p::kFan, 0.6f}, {p::kFeedback, 0.2f}, {p::kMix, 0.15f}}},
+    {"Endless fan", {{p::kTime, 1500.0f}, {p::kBands, 16.0f}, {p::kFeedback, 0.92f}, {p::kTilt, -0.4f}, {p::kMix, 0.5f}}},
+    {"Four colours", {{p::kBands, 4.0f}, {p::kSmear, 0.0f}, {p::kTime, 1000.0f}, {p::kFeedback, 0.45f}, {p::kTilt, 0.0f}}},
+    {"Darkening", {{p::kTime, 500.0f}, {p::kFeedback, 0.75f}, {p::kTilt, -1.0f}, {p::kBands, 6.0f}}},
+    {"Thinning out", {{p::kShape, 1.0f}, {p::kTime, 650.0f}, {p::kFeedback, 0.75f}, {p::kTilt, 0.8f}}},
+    {"Ringing glass", {{p::kTime, 24.0f}, {p::kBands, 9.0f}, {p::kSmear, 0.0f}, {p::kFeedback, 0.9f}, {p::kTilt, -0.3f}, {p::kDrift, 0.2f}, {p::kMix, 0.45f}}},
+    {"Colours alone", {{p::kTime, 700.0f}, {p::kFeedback, 0.5f}, {p::kWidth, 0.8f}, {p::kMix, 1.0f}}},
+    };
+    EXPECT(presets.size() == 16, "sixteen presets");
+    std::vector<float> chord(static_cast<size_t>(30.0f * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      chord[i] = 0.25f * static_cast<float>(std::sin(2.0 * kPi * 110.0 * t) + std::sin(2.0 * kPi * 277.18 * t + 1.0) +
+                                            std::sin(2.0 * kPi * 659.25 * t + 2.0) + std::sin(2.0 * kPi * 1975.5 * t + 3.0));
+    }
+    const double chord_peak = peak(chord), chord_rms = rms(chord);
+    const size_t second = static_cast<size_t>(kRate);
+    double worst_peak = 0.0, lowest = 99.0, highest = -99.0;
+    for (const Preset& preset : presets) {
+      device.init(kRate);
+      for (const Setting& setting : preset.settings) device.set_param(setting.id, setting.value);
+      const Stereo out = run(device, chord);
+      const double top = std::max(peak(out.left), peak(out.right)) / chord_peak;
+      const double early = std::max(rms(out.left, 5 * second, 17 * second), rms(out.right, 5 * second, 17 * second));
+      const double late = std::max(rms(out.left, 17 * second, 30 * second), rms(out.right, 17 * second, 30 * second));
+      const double chord_db = db(std::sqrt((rms(out.left, 5 * second, 30 * second) * rms(out.left, 5 * second, 30 * second) +
+                                            rms(out.right, 5 * second, 30 * second) * rms(out.right, 5 * second, 30 * second)) / 2.0) / chord_rms);
+      double low = 99.0, high = -99.0;
+      for (double hz : {82.4, 146.8, 261.6, 440.0, 784.0, 1396.9, 2637.0}) {
+        device.init(kRate);
+        for (const Setting& setting : preset.settings) device.set_param(setting.id, setting.value);
+        const Stereo tone = run(device, sine(hz, 24.0f, kRate, 0.25f));
+        const double l = rms(tone.left, 4 * second, 24 * second), r = rms(tone.right, 4 * second, 24 * second);
+        const double level = db(std::sqrt((l * l + r * r) / 2.0) / (0.25 / std::sqrt(2.0)));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      std::printf("preset %-16s held chord: peak %.2f times the input's, level %+.1f dB, later/earlier %.3f; held tones %+.1f to %+.1f dB\n",
+                  preset.name, top, chord_db, late / early, low, high);
+      worst_peak = std::max(worst_peak, top);
+      lowest = std::min(lowest, low);
+      highest = std::max(highest, high);
+      // Two stretches of 12 s are one or two of Drift's cycles each, so their levels differ by a little: 1.15.
+      if (top > 2.1 || late > 1.15 * early) {
+        std::printf("FAIL: preset %s: a held chord peaks at %.2f times the input's or grows (%.3f)\n", preset.name, top, late / early);
+        ++failures();
+      }
+    }
+    std::printf("presets: held chord peaks at most %.2f times the input's; held tones %+.1f to %+.1f dB over 20 s\n", worst_peak,
+                lowest, highest);
+    EXPECT(lowest > -4.0 && highest < 4.0, "every preset: a held tone keeps its level over time at every pitch tried");
+  }
+
   // Cost: the average, and the worst block (one with a frame in it), at the defaults and at the dearest setting:
   // every bin its own time, the longest Time (the whole ring in use), Feedback 1, on noise (a peak every few bins).
   {
