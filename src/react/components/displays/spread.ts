@@ -220,11 +220,13 @@ export function spreadWidths(
 ): void {
   const { re, im, measured, power } = state
   const size = re.length
-  const from = Math.max(0, Math.min(left.length, right.length) - size)
+  // The newest `size` samples; a shorter window is followed by silence.
+  const have = Math.min(left.length, right.length)
+  const from = Math.max(0, have - size)
   for (let i = 0; i < size; i++) {
     const hann = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / size)
-    const l = left[from + i] ?? 0
-    const r = right[from + i] ?? 0
+    const l = from + i < have ? left[from + i] : 0
+    const r = from + i < have ? right[from + i] : 0
     re[i] = hann * 0.5 * (l + r)
     im[i] = hann * 0.5 * (l - r)
   }
@@ -392,7 +394,7 @@ function listen(frame: DisplayFrame<SpreadState>): boolean {
   return true
 }
 
-/** The corners words can stand in, as [left end, baseline, alignment]. */
+/** The corners words can stand in. */
 type Corner = 'head left' | 'head right' | 'foot left' | 'foot right'
 
 /** Put words in the first of `corners` that has no point under it and is not `taken`; says which it took. */

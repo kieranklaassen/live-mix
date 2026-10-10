@@ -26,7 +26,7 @@ export const SPREAD_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Width of the middle of the sound, between the two crossovers. Halfway leaves it as it came in; down narrows it and up widens it.',
+      'Width of the middle of the sound, between the two splits. Halfway leaves it as it came in; down narrows it and up widens it.',
   },
   high: {
     id: 2,
@@ -77,11 +77,11 @@ export const SPREAD_PARAMS = {
     name: 'Make',
     min: 0,
     max: 1,
-    default: 0.6,
+    default: 0.7,
     taper: 'linear',
     unit: '',
     description:
-      'Makes width where there is none, by scattering the middle of the sound to the sides. It follows the curve, so a mono sound opens only where the curve is up.',
+      'Makes width where a sound has none, by scattering its middle to the sides. It acts only where a region is set wider than it came, so a mono sound opens there too.',
   },
   smear: {
     id: 7,
@@ -139,6 +139,31 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
     'Width by frequency: the bass held in the middle, the top opened wide, on a curve with points to drag, and it can make width where a sound has none.',
   presets: {
     'Firm and airy': {},
+    'Wide top': { high: 2, highHz: 2200, make: 1, smear: 0.5 },
+    'Air only': { high: 2, highHz: 7000, slope: 1, make: 1, smear: 0.2 },
+    'Open middle': { mid: 1.8, high: 1.2, make: 0.9 },
+    'Wide pad': {
+      low: 0.5,
+      mid: 1.6,
+      high: 2,
+      lowHz: 120,
+      slope: 0.2,
+      make: 0.9,
+      smear: 0.8,
+      safe: 0.4,
+      output: -1.5,
+    },
+    'Hazy edges': { mid: 1.3, high: 2, highHz: 1500, slope: 0, make: 1, smear: 1 },
+    'Tight shimmer': { high: 2, highHz: 5000, slope: 1, make: 0.8, smear: 0 },
+    'Wide ends': { low: 2, mid: 0.6, high: 2, lowHz: 150, make: 0.8 },
+    'Wide bass': { low: 2, high: 1, lowHz: 300, make: 1, smear: 0.7, safe: 0.3 },
+    'Nearly dry': { high: 1.3, make: 0.4 },
+    'Everything wide': { low: 2, mid: 2, high: 2, make: 1, safe: 0, output: -3 },
+    'Wide but safe': { low: 1.5, mid: 2, high: 2, make: 1, safe: 1 },
+    'Soft tilt': { mid: 1.4, high: 2, lowHz: 100, highHz: 2000, slope: 0, make: 0.7 },
+    'Narrow top': { low: 1, mid: 1.6, high: 0, highHz: 4000, make: 0.8 },
+    'Centre focus': { mid: 0.3, high: 1.6, lowHz: 250, make: 0.6 },
+    'All in the middle': { low: 0, mid: 0, high: 0, make: 0 },
   },
 })
 

@@ -430,6 +430,12 @@ function sound(tones: readonly [number, number, number][]): DisplaySignal {
   return { input: null, output: left, spectrum: null, binHz: RATE / 2048, left, right: side(2) }
 }
 
+/** The two sides of a sound as the display is handed them. */
+function wavesOf(signal: DisplaySignal): [Float32Array, Float32Array] {
+  if (!signal.left || !signal.right) throw new Error('a sound without its two sides')
+  return [signal.left.wave, signal.right.wave]
+}
+
 /** The band a frequency falls in. */
 const bandOf = (hz: number): number => {
   for (let n = 0; n < SPREAD_BANDS; n++) {
@@ -468,7 +474,7 @@ describe('the spread display: the sound', () => {
   it('measures the sides against the middle in each band: (L - R) over (L + R)', () => {
     const state = scratch()
     const heard = sound(tones)
-    spreadWidths(heard.left!.wave, heard.right!.wave, RATE, state)
+    spreadWidths(...wavesOf(heard), RATE, state)
     expect(state.measured[bandOf(200)]).toBeLessThan(0.01)
     expect(state.measured[bandOf(1000)]).toBeCloseTo((0.3 - 0.1) / (0.3 + 0.1), 2)
     expect(state.measured[bandOf(5000)]).toBeCloseTo(1, 2)
@@ -496,7 +502,7 @@ describe('the spread display: the sound', () => {
       }
       const state = scratch()
       const heard = sound(tones)
-      spreadWidths(heard.left!.wave, heard.right!.wave, RATE, state)
+      spreadWidths(...wavesOf(heard), RATE, state)
       expect(bar(1000)).toBeCloseTo(spreadY(state.measured[bandOf(1000)], box), 4)
       expect(bar(1000)).toBeCloseTo(spreadY(0.5, box), 0)
       expect(bar(5000)).toBeCloseTo(spreadY(1, box), 0)

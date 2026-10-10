@@ -632,6 +632,86 @@ int main() {
     EXPECT(worst < 0.1, "the curve follows the formula at 44.1 and 96 kHz");
   }
 
+  // 16. Every preset: a full-scale chord held for a minute peaks no more than
+  // 6.5 dB over the input and does not grow; held tones over the piano's range
+  // never come out with less power than went in, and the mono sum is the
+  // input times the preset's own Output.
+  {
+    struct Preset {
+      const char* name;
+      float values[p::kNumParams];
+    };
+    const Preset presets[] = {
+    // presets: begin (the sixteen of device.json, every control filled in; tmp/preset-table.py writes them)
+      {"Firm and airy", {0.0f, 1.0f, 1.7f, 180.0f, 3200.0f, 0.5f, 0.7f, 0.4f, 0.5f, 0.0f}},
+      {"Wide top", {0.0f, 1.0f, 2.0f, 180.0f, 2200.0f, 0.5f, 1.0f, 0.5f, 0.5f, 0.0f}},
+      {"Air only", {0.0f, 1.0f, 2.0f, 180.0f, 7000.0f, 1.0f, 1.0f, 0.2f, 0.5f, 0.0f}},
+      {"Open middle", {0.0f, 1.8f, 1.2f, 180.0f, 3200.0f, 0.5f, 0.9f, 0.4f, 0.5f, 0.0f}},
+      {"Wide pad", {0.5f, 1.6f, 2.0f, 120.0f, 3200.0f, 0.2f, 0.9f, 0.8f, 0.4f, -1.5f}},
+      {"Hazy edges", {0.0f, 1.3f, 2.0f, 180.0f, 1500.0f, 0.0f, 1.0f, 1.0f, 0.5f, 0.0f}},
+      {"Tight shimmer", {0.0f, 1.0f, 2.0f, 180.0f, 5000.0f, 1.0f, 0.8f, 0.0f, 0.5f, 0.0f}},
+      {"Wide ends", {2.0f, 0.6f, 2.0f, 150.0f, 3200.0f, 0.5f, 0.8f, 0.4f, 0.5f, 0.0f}},
+      {"Wide bass", {2.0f, 1.0f, 1.0f, 300.0f, 3200.0f, 0.5f, 1.0f, 0.7f, 0.3f, 0.0f}},
+      {"Nearly dry", {0.0f, 1.0f, 1.3f, 180.0f, 3200.0f, 0.5f, 0.4f, 0.4f, 0.5f, 0.0f}},
+      {"Everything wide", {2.0f, 2.0f, 2.0f, 180.0f, 3200.0f, 0.5f, 1.0f, 0.4f, 0.0f, -3.0f}},
+      {"Wide but safe", {1.5f, 2.0f, 2.0f, 180.0f, 3200.0f, 0.5f, 1.0f, 0.4f, 1.0f, 0.0f}},
+      {"Soft tilt", {0.0f, 1.4f, 2.0f, 100.0f, 2000.0f, 0.0f, 0.7f, 0.4f, 0.5f, 0.0f}},
+      {"Narrow top", {1.0f, 1.6f, 0.0f, 180.0f, 4000.0f, 0.5f, 0.8f, 0.4f, 0.5f, 0.0f}},
+      {"Centre focus", {0.0f, 0.3f, 1.6f, 250.0f, 3200.0f, 0.5f, 0.6f, 0.4f, 0.5f, 0.0f}},
+      {"All in the middle", {0.0f, 0.0f, 0.0f, 180.0f, 3200.0f, 0.5f, 0.0f, 0.4f, 0.5f, 0.0f}},
+    // presets: end
+    };
+    const float seconds = 60.0f;
+    std::vector<float> chord = sine(130.81f, seconds, kRate, 0.34f);
+    const std::vector<float> e = sine(329.63f, seconds, kRate, 0.33f);
+    const std::vector<float> g = sine(1567.98f, seconds, kRate, 0.33f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += e[i] + g[i];
+    int count = 0;
+    double highest = 0.0, lowest_total = 100.0, worst_sum = 0.0;
+    for (const Preset& preset : presets) {
+      ++count;
+      auto load = [&] {
+        device.init(kRate);
+        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      };
+      const double trim = std::pow(10.0, preset.values[p::kOutput] / 20.0);
+      load();
+      Stereo out = run(device, chord);
+      const size_t n = out.size(), five = static_cast<size_t>(5.0f * kRate);
+      const double early = std::max(peak(out.left, five, 2 * five), peak(out.right, five, 2 * five));
+      const double late = std::max(peak(out.left, n - five, n), peak(out.right, n - five, n));
+      const double top = std::max(peak(out.left), peak(out.right));
+      highest = std::max(highest, top);
+      if (!(finite(out.left) && finite(out.right) && top < 2.12 && late < early * 1.01)) {
+        std::printf("FAIL: preset %s, held chord: peak %.3f, last five seconds %.3f against %.3f\n",
+                    preset.name, top, late, early);
+        ++failures();
+      }
+      double total = 100.0, sum = 0.0;
+      for (int key = 0; key < 88; key += 4) {
+        const float hz = 27.5f * std::pow(2.0f, static_cast<float>(key) / 12.0f);
+        const std::vector<float> tone = sine(hz, 0.5f, kRate, 0.5f);
+        load();
+        Stereo heard = run(device, tone);
+        const size_t from = 12000;
+        const double in = rms(tone, from) * trim;
+        const double l = rms(heard.left, from), r = rms(heard.right, from);
+        total = std::min(total, db(std::sqrt(0.5 * (l * l + r * r)) / in));
+        sum = std::max(sum, std::fabs(db(rms(middle(heard), from) / in)));
+      }
+      lowest_total = std::min(lowest_total, total);
+      worst_sum = std::max(worst_sum, sum);
+      if (!(total > -0.01 && sum < 0.001)) {
+        std::printf("FAIL: preset %s, held tones: both sides together %.3f dB at worst, mono sum off by %.4f dB\n",
+                    preset.name, total, sum);
+        ++failures();
+      }
+    }
+    std::printf("%d presets: held chord peaks %.2f dB over the input at most; held tones never under %.3f dB, mono sum off by %.4f dB at most\n",
+                count, db(highest), lowest_total, worst_sum);
+    EXPECT(count == 16, "all sixteen presets are held to the level rules");
+  }
+
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);

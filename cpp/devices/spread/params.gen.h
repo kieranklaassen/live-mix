@@ -8,7 +8,7 @@
 //    3  lowHz: 40..800 Hz, default 180
 //    4  highHz: 1000..12000 Hz, default 3200
 //    5  slope: 0..1, default 0.5
-//    6  make: 0..1, default 0.6
+//    6  make: 0..1, default 0.7
 //    7  smear: 0..1, default 0.4
 //    8  safe: 0..1, default 0.5
 //    9  output: -12..6 dB, default 0
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 40.0f, 1000.0f, 0.0f, 0.0f, 0.0f, 0.0f, -12.0f};
 inline constexpr float kParamMax[kNumParams] = {2.0f, 2.0f, 2.0f, 800.0f, 12000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 1.0f, 1.7f, 180.0f, 3200.0f, 0.5f, 0.6f, 0.4f, 0.5f, 0.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 1.0f, 1.7f, 180.0f, 3200.0f, 0.5f, 0.7f, 0.4f, 0.5f, 0.0f};
 
 }  // namespace spread
 }  // namespace livemix
