@@ -1255,8 +1255,72 @@ int main() {
     }
     std::printf("the bench's sound: the chord's notes are 3 dB down or more in %d of %d quarter seconds, the plucks in %d of %d\n", off, windows,
                 lost, plucked);
-    EXPECT(off <= 8, "the bench's chord keeps its notes under the thump and the plucks");
+    EXPECT(off <= 4, "the bench's chord keeps its notes under the thump and the plucks");
     EXPECT(lost <= 1, "and the plucked notes keep their start and their tail");
+  }
+
+  // 25. Follow's rules of order, each on a sound that needs it (take the rule out and the check
+  // fails): a note keeps its pivot through a click when every place is taken, and through a burst
+  // that covers its partial; what sounded before a note came is not that note's overtone, and stays
+  // so for as long as it sounds; and a beating partial is weighed until it has been through a swell.
+  {
+    // A low note with six sines over it that are nobody's harmonics: seven pivots. A soft note
+    // struck on the low note's third harmonic takes the eighth (it is softer than a sawtooth's
+    // harmonic there, and is a note because it was struck). Then a click at 90 Hz, louder than all.
+    std::vector<float> in(static_cast<size_t>(5.0f * kRate));
+    const double others[6] = {495.0, 605.0, 715.0, 825.0, 935.0, 1045.0};
+    add_note(in, 110.0, 0.2, 10, 2.0, 0.31, 0.0, 0.0, 0.05);
+    for (int k = 0; k < 6; ++k) add_note(in, others[k], 0.08, 1, 1.0, 0.43 + 0.17 * k, 0.0, 0.0, 0.05);
+    add_note(in, 330.0, 0.05, 1, 1.0, 0.52, 1.0, 0.0, 0.01);
+    add_note(in, 90.0, 0.6, 1, 1.0, 0.11, 2.5, 0.0, 0.001, 0.015);
+    device.init(kRate);
+    Stereo out = run(device, in);
+    EXPECT(in_tune(in, out, 330.0, 1.5, 2.4, "a note struck on a held note's harmonic"), "a soft note struck on a held note's harmonic stays");
+    EXPECT(in_tune(in, out, 330.0, 3.2, 4.6, "the same note after a click, every place taken"),
+           "and keeps its place through a click when all eight are taken");
+
+    // The same note with only the low one under it, and a burst right beside it (360 Hz, 20 dB over
+    // it) under which its partial is no peak of the spectrum for four frames.
+    std::fill(in.begin(), in.end(), 0.0f);
+    add_note(in, 110.0, 0.2, 10, 2.0, 0.31, 0.0, 0.0, 0.05);
+    add_note(in, 330.0, 0.05, 1, 1.0, 0.52, 1.0, 0.0, 0.01);
+    add_note(in, 360.0, 0.5, 1, 1.0, 0.11, 2.5, 0.0, 0.001, 0.015);
+    device.init(kRate);
+    out = run(device, in);
+    EXPECT(in_tune(in, out, 330.0, 3.2, 4.6, "a struck note after a burst that covered it"), "a note covered for a moment keeps its pivot");
+
+    // A soft tone, 24 dB under a pad note that is no relation of it (so it has no pivot: it stays as
+    // nobody's overtone), and then a note struck a twelfth under it, whose third harmonic there is
+    // the stronger of the two. The tone was there first: it stays, then and two seconds on.
+    in.assign(static_cast<size_t>(5.5f * kRate), 0.0f);
+    add_note(in, 146.83, 0.3, 10, 1.0, 0.19, 0.0, 0.0, 0.05);
+    add_note(in, 659.25, 0.019, 3, 1.5, 0.83, 0.5, 0.0, 0.05);
+    add_note(in, 220.0, 0.15, 10, 1.5, 0.37, 2.5, 0.0, 0.005);
+    device.init(kRate);
+    out = run(device, in);
+    EXPECT(in_tune(in, out, 659.25, 1.2, 2.4, "a soft tone under a pad"), "a soft tone that is nobody's overtone stays");
+    EXPECT(in_tune(in, out, 659.25, 2.6, 3.6, "the soft tone as a note arrives a twelfth under it"),
+           "what sounded before a note came is not that note's overtone");
+    EXPECT(in_tune(in, out, 659.25, 4.0, 5.3, "the soft tone two seconds on"), "and it stays so while it sounds");
+
+    // Two sawtooths 6 cents either side of 110 Hz: every harmonic beats, and at the top of a swell
+    // each looks too strong for an overtone. Weighed for a quarter of a second only, five of the
+    // seven kept a pivot for good and were not moved at all.
+    in.assign(static_cast<size_t>(6.5f * kRate), 0.0f);
+    const double upper = 110.0 * std::pow(2.0, 6.0 / 1200.0);
+    add_note(in, 110.0 * std::pow(2.0, -6.0 / 1200.0), 0.1, 16, 1.0, 0.0, 0.2, 5.8, 0.2);
+    add_note(in, upper, 0.1, 16, 1.0, 0.0563, 0.2, 5.8, 0.2);
+    device.init(kRate);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kWidth, 0.0f);
+    out = run(device, in);
+    const size_t a = static_cast<size_t>(1.0f * kRate), b = static_cast<size_t>(5.8f * kRate);
+    double most = -200.0;
+    for (int h = 2; h <= 8; ++h) {
+      most = std::max(most, db(tone_level(out.left, upper * h, kRate, a + kLate, b + kLate) / tone_level(in, upper * h, kRate, a, b)));
+    }
+    std::printf("two sawtooths 6 cents either side of 110 Hz: of harmonics 2 to 8 at the most %+.1f dB is left in place\n", most);
+    EXPECT(most < -6.0, "the harmonics of a beating pad are moved, every one");
   }
 
   // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,
