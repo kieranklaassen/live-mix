@@ -387,15 +387,16 @@ int main() {
            "vary 1: the flashes are anything from nothing to the whole lift");
     EXPECT_NEAR(mean(varied), 1.0, 0.25, "vary 1: and half of it on the whole");
 
-    // Apart: the right side's wave runs Apart/2 of a cycle off the left's.
+    // Apart: the right side's wave runs Apart/3 of a cycle off the left's (kWaveApart: a half would
+    // leave nothing of the ripple in a mono sum, which the second check's section measures).
     const std::vector<float> left = wave_env({});
     for (float apart : {0.0f, 0.5f, 1.0f}) {
       const std::vector<float> right = wave_env({{p::kApart, apart}}, true);
       const double off = turn(phase_at(right, slow, kEnvRate) - phase_at(left, slow, kEnvRate));
       const double together = alike(left, right);
       std::printf("apart %.1f on a wave: the right side is %.3f of a cycle off, correlation %+.3f\n", apart, off, together);
-      EXPECT_NEAR(std::fabs(off), 0.5 * apart, 0.01, "Apart moves the right side's wave off the left's");
-      EXPECT_NEAR(together, std::cos(kPi * apart), 0.03, "and their envelopes part");
+      EXPECT_NEAR(std::fabs(off), Glimmer::kWaveApart * apart, 0.01, "Apart moves the right side's wave off the left's");
+      EXPECT_NEAR(together, std::cos(2.0 * kPi * Glimmer::kWaveApart * apart), 0.03, "and their envelopes part");
     }
   }
   // On Scatter every band's right side is off by its own amount: over the six partials the two
@@ -798,10 +799,10 @@ int main() {
   }
 
   // --- What the frames do to an attack (printed, and held) ------------------------------------------
-  // A gain per bin is a filter as long as the frame: a click through the device keeps most of its
-  // energy in its own sample and spreads the rest over the frame about it, ahead of it as well as
-  // behind, the more the finer the bands. How much lands ahead of the click is printed; nothing
-  // lies further off than one frame.
+  // A gain per bin is a filter as long as the frame: a click through the flicker alone kept most of
+  // its energy in its own sample and spread the rest over the frame about it, ahead of it as well as
+  // behind, the more the finer the bands (−20.7 dB of it ahead as the device started, −16 dB at
+  // Grain 1). Attacks now pass round the flicker, so a click comes out with next to none of that.
   {
     std::vector<float> click(48000, 0.0f);
     click[20000] = 1.0f;
@@ -820,8 +821,309 @@ int main() {
       std::printf("a click at grain %.1f: %.1f dB of its energy lands more than 1 ms ahead of it, %.1f dB behind; "
                   "beyond a frame either way %.3g\n",
                   grain, 10.0 * std::log10(before / all + 1e-12), 10.0 * std::log10(after / all + 1e-12), beyond);
-      EXPECT(before / all < 0.05, "a click keeps its energy at its own time, but for a twentieth ahead at the most");
+      EXPECT(before / all < 1.0e-4, "a click keeps its energy at its own time: under −40 dB of it ahead");
       EXPECT(beyond == 0.0, "and none of it lies further off than a frame");
+    }
+  }
+
+  // ================================================================================================
+  // The second check. Each of these failed on the device as it was first built.
+  // ================================================================================================
+
+  // --- Attacks pass round the flicker ---------------------------------------------------------------
+  // Twenty-four plucked notes 1.5 s apart (so the clock stands differently at each), short enough that
+  // none rings into the next. Ahead of each: the largest sample in the 45 ms before it is heard against
+  // the attack's own peak, and the energy there against that of the 45 ms after. As first built a note
+  // came out with a fifth of its peak ahead of itself (−15.2 dB as the device started, −6.1 dB on a deep
+  // fast wave) and −28.9 dB of the energy; the attack's own peak was down by up to 3.7 dB.
+  const auto pluck_at = [](std::vector<float>& into, double start_s, double hz, double gain, double decay_s) {
+    const size_t from = static_cast<size_t>(start_s * kRate);
+    for (size_t i = from; i < into.size(); ++i) {
+      const double t = static_cast<double>(i - from) / kRate;
+      if (t > 8.0 * decay_s) break;
+      double v = 0.0;
+      for (int h = 1; h <= 12; ++h) v += std::sin(2.0 * kPi * hz * h * t) * std::exp(-t * h / decay_s) / h;
+      into[i] += static_cast<float>(gain * std::min(1.0, t / 0.0003) * v);
+    }
+  };
+  {
+    const int notes = 24;
+    std::vector<float> phrase(static_cast<size_t>((notes * 1.5 + 2.0) * kRate), 0.0f);
+    const double pitches[] = {220.0, 329.63, 523.25, 146.83, 880.0, 261.63};
+    for (int i = 0; i < notes; ++i) pluck_at(phrase, 0.5 + 1.5 * i, pitches[i % 6], 0.35, 0.15);
+    struct Case {
+      const char* what;
+      std::vector<Setting> settings;
+    };
+    const Case cases[] = {
+        {"as it starts", {}},
+        {"finest, full depth, sudden", {{p::kGrain, 1.0f}, {p::kDepth, 1.0f}, {p::kSoft, 0.0f}}},
+        {"a deep fast wave", {{p::kDepth, 0.9f}, {p::kRate, 8.0f}, {p::kGrain, 0.6f}, {p::kPattern, kUpward}, {p::kLean, 0.0f}, {p::kSoft, 0.1f}, {p::kVary, 0.0f}}},
+    };
+    const size_t window = static_cast<size_t>(0.045 * kRate), guard = 48, five = 240;
+    for (const Case& c : cases) {
+      device.init(kRate);
+      for (const Setting& setting : c.settings) device.set_param(setting.id, setting.value);
+      const Stereo out = run(device, phrase);
+      double ahead = 0.0, after = 0.0, worst = 0.0, kept = 0.0, dry_peaks = 0.0;
+      for (int i = 0; i < notes; ++i) {
+        const size_t on = static_cast<size_t>((0.5 + 1.5 * i) * kRate) + static_cast<size_t>(kLatency);
+        const double dry_peak = peak(phrase, on - kLatency, on - kLatency + five);
+        for (size_t k = on - window; k < on - guard; ++k) ahead += static_cast<double>(out.left[k]) * out.left[k];
+        for (size_t k = on; k < on + window; ++k) after += static_cast<double>(out.left[k]) * out.left[k];
+        worst = std::max(worst, peak(out.left, on - window, on - guard) / dry_peak);
+        kept += peak(out.left, on, on + five);
+        dry_peaks += dry_peak;
+      }
+      std::printf("plucked notes, %s: ahead of the attack %.1f dB of its peak and %.1f dB of its energy; the attack's peak %+.2f dB\n",
+                  c.what, db(worst), 10.0 * std::log10(ahead / after + 1e-30), db(kept / dry_peaks));
+      EXPECT(db(worst) < -40.0, "nothing over −40 dB of a plucked note's peak comes out ahead of it");
+      EXPECT(10.0 * std::log10(ahead / after + 1e-30) < -50.0, "and under −50 dB of its energy");
+      EXPECT_NEAR(db(kept / dry_peaks), 0.0, 0.1, "the attack itself keeps its peak");
+    }
+  }
+  // The pass opens for attacks alone. Meter 1 (how far the output has turned to the dry sound) read
+  // every 32 samples from one second in: never open on a held chord, a chord of beating pairs, noise,
+  // a tone under a fast tremolo or a low sine; open once for each of eighteen plucks, over a chord too,
+  // and for a twentieth of the time at the most. With the notes eight a second, under a third of it.
+  {
+    const auto opened = [&](const std::vector<float>& x, double* share) {
+      device.init(kRate);
+      size_t open = 0, total = 0;
+      int times = 0;
+      bool was = false;
+      for (size_t done = 0; done + 32 <= x.size(); done += 32) {
+        for (int i = 0; i < 32; ++i) device.in_left()[i] = device.in_right()[i] = x[done + i];
+        device.process(32);
+        if (done < 48000) continue;
+        const bool is = device.meter(1) > 0.0f;
+        open += is ? 1 : 0;
+        ++total;
+        if (is && !was) ++times;
+        was = is;
+      }
+      *share = static_cast<double>(open) / static_cast<double>(total);
+      return times;
+    };
+    const size_t n = 20 * 48000;
+    std::vector<float> held(n, 0.0f), beating(n, 0.0f), hiss(n), wobble(n), low(n), plucks(n, 0.0f), fast(n, 0.0f);
+    rng_state() = 777u;
+    for (size_t i = 0; i < n; ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      for (double hz : {110.0, 164.81, 220.0, 277.18, 329.63, 415.3}) {
+        for (int h = 1; h <= 10; ++h) held[i] += static_cast<float>(0.12 * std::sin(2.0 * kPi * hz * h * t + h * h) / std::pow(h, 1.5));
+        beating[i] += static_cast<float>(0.1 * (std::sin(2.0 * kPi * hz * t) + std::sin(2.0 * kPi * hz * 1.004 * t)));
+      }
+      hiss[i] = 0.3f * white();
+      wobble[i] = static_cast<float>(0.4 * std::sin(2.0 * kPi * 440.0 * t) * (0.5 - 0.5 * std::cos(2.0 * kPi * 8.0 * t)));
+      low[i] = static_cast<float>(0.5 * std::sin(2.0 * kPi * 27.5 * t));
+    }
+    std::vector<float> over = held;
+    for (int i = 0; i < 18; ++i) {
+      pluck_at(plucks, 1.5 + i, 220.0 * (1 + i % 3), 0.3, 0.3);
+      pluck_at(over, 1.5 + i, 440.0 * (1 + i % 3), 0.3, 0.3);
+    }
+    for (int i = 0; i < 148; ++i) pluck_at(fast, 1.5 + 0.125 * i, 220.0 * (1 + i % 4), 0.25, 0.2);
+    double share = 0.0;
+    for (const std::vector<float>* x : {&held, &beating, &hiss, &wobble, &low}) {
+      EXPECT(opened(*x, &share) == 0, "held sound, noise, a tremolo and a low note never open the attack pass");
+    }
+    const int alone = opened(plucks, &share);
+    const double alone_share = share;
+    const int on_chord = opened(over, &share);
+    std::printf("the attack pass: %d of 18 plucks open it (%.1f %% of the time), %d of 18 over a held chord (%.1f %%)", alone,
+                100.0 * alone_share, on_chord, 100.0 * share);
+    EXPECT(alone == 18 && on_chord == 18, "every pluck opens the pass, over a held chord too");
+    EXPECT(alone_share < 0.05 && share < 0.05, "and for under a twentieth of the time at a note a second");
+    opened(fast, &share);
+    std::printf("; notes eight a second: open %.1f %% of the time\n", 100.0 * share);
+    EXPECT(share < 0.33, "with notes eight a second the flicker still has two thirds of the time");
+  }
+
+  // --- Summed to mono, a wave keeps its ripple ------------------------------------------------------
+  // The flicker itself is out − dry (a gain turns no phase). Its power in (L+R)/2 against its power in
+  // one side, on a held comb through the Upward wave. With the sides half a cycle apart at Apart 1 (as
+  // first built) each side's flicker was the other's opposite and the sum had lost it: −13.4 dB here.
+  // A third of a cycle keeps a quarter of the power (−6 dB); Scatter keeps more.
+  {
+    for (int pattern : {kUpward, kScatter}) {
+      set(kRate, {{p::kPattern, static_cast<float>(pattern)}, {p::kApart, 1.0f}, {p::kSoft, 1.0f}, {p::kLean, 0.0f}, {p::kGrain, 0.5f}});
+      const Stereo out = run(device, steady);
+      double one = 0.0, mono = 0.0;
+      for (size_t i = 48000; i < out.left.size(); ++i) {
+        const double dry = steady[i - kLatency];
+        one += (out.left[i] - dry) * (out.left[i] - dry);
+        mono += (0.5 * (out.left[i] + out.right[i]) - dry) * (0.5 * (out.left[i] + out.right[i]) - dry);
+      }
+      std::printf("apart 1, %s: the flicker left in a mono sum is %.1f dB of one side's\n", pattern == kUpward ? "a wave" : "scatter",
+                  10.0 * std::log10(mono / one));
+      EXPECT(10.0 * std::log10(mono / one) > -7.5, "summed to mono with the sides fully apart, the flicker is still there");
+    }
+  }
+
+  // --- A partial between two bands keeps its level too ------------------------------------------------
+  // Five partials on bands' centres against five half way between two bands (Grain 0.5, full Depth,
+  // Soft 1, where the lift is not capped), over 58 s. As first built the ones between sat 0.8 dB under
+  // on Scatter and 0.4 dB on a wave: the join of two gains that move apart has less power than either.
+  {
+    std::vector<double> on, between;
+    for (int j = 5; j <= 21; j += 4) {
+      on.push_back(half.centre(j));
+      between.push_back(half.centre(j + 0.5));
+    }
+    const std::vector<float> on_comb = comb(on, 60.0f, 0.1f), between_comb = comb(between, 60.0f, 0.1f);
+    for (int pattern : {kScatter, kUpward, kOutward}) {
+      double level[2];
+      for (int which = 0; which < 2; ++which) {
+        const std::vector<float>& x = which == 0 ? on_comb : between_comb;
+        set(kRate, {{p::kDepth, 1.0f}, {p::kRate, 2.0f}, {p::kGrain, 0.5f}, {p::kPattern, static_cast<float>(pattern)},
+                    {p::kLean, 0.0f},  {p::kSoft, 1.0f}, {p::kVary, 0.0f},  {p::kApart, 0.0f}});
+        const Stereo out = run(device, x);
+        level[which] = db(rms(out.left, 48000, 59 * 48000) / rms(x, 48000, 59 * 48000));
+      }
+      std::printf("pattern %d, full depth: partials on bands' centres %+.2f dB of the input, half way between two bands %+.2f dB\n",
+                  pattern, level[0], level[1]);
+      EXPECT_NEAR(level[0], 0.0, 0.3, "a partial on a band's centre keeps its level");
+      EXPECT_NEAR(level[1], 0.0, 0.4, "and so does one half way between two bands");
+    }
+  }
+
+  // --- Grain is read between the frames ---------------------------------------------------------------
+  // Laying the bands out again is a logarithm per bin. It is done 128 samples before the left side's
+  // frame, in a block that holds neither side's transforms. So a Grain moved 64 samples before a frame
+  // is not in that frame: the output is the untouched run's, bit for bit, until the next frame is heard
+  // (512 + 256 samples after the first), and differs from there.
+  {
+    const size_t frame_at = 100 * 512;
+    double same = 0.0, changed = 0.0;
+    Stereo runs[2];
+    for (int moved = 0; moved < 2; ++moved) {
+      set(kRate, {{p::kGrain, 0.3f}});
+      const Stereo head = run(device, std::vector<float>(steady.begin(), steady.begin() + static_cast<long>(frame_at - 64)));
+      if (moved) device.set_param(p::kGrain, 0.9f);
+      const Stereo tail = run(device, std::vector<float>(steady.begin() + static_cast<long>(frame_at - 64),
+                                                         steady.begin() + static_cast<long>(frame_at + 48000)));
+      runs[moved] = concat(head, tail);
+    }
+    for (size_t i = 0; i < runs[0].left.size(); ++i) {
+      const double d = std::max(std::fabs(runs[0].left[i] - runs[1].left[i]), std::fabs(runs[0].right[i] - runs[1].right[i]));
+      if (i < frame_at + 512 + 256) same = std::max(same, d);
+      else changed = std::max(changed, d);
+    }
+    EXPECT(same == 0.0, "Grain moved 64 samples before a frame is not laid out in that frame's block");
+    EXPECT(changed > 1.0e-3, "and is there from the next");
+  }
+
+  // --- As it starts, a held note moves calmly ------------------------------------------------------------
+  // A held 220 Hz sine as the device starts: its level over 50 ms, every 10 ms, for 36 s. How far that
+  // travels in a second is how restless one note is. At the first default (2.2 Hz, Soft 0.6) it was
+  // 23.3 dB a second; a chord's loudness second by second was as steady either way (1.2 LU).
+  {
+    std::vector<float> note(40 * 48000);
+    for (size_t i = 0; i < note.size(); ++i) note[i] = 0.3f * static_cast<float>(std::sin(2.0 * kPi * 220.0 * static_cast<double>(i) / kRate));
+    device.init(kRate);
+    const Stereo out = run(device, note);
+    double travel = 0.0, last = 0.0, low = 99.0, high = -99.0;
+    int count = 0;
+    for (size_t at = 2 * 48000; at + 2400 <= 38 * 48000; at += 480, ++count) {
+      const double level = db(rms(out.left, at, at + 2400) / rms(note, at, at + 2400));
+      if (count > 0) travel += std::fabs(level - last);
+      last = level;
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::printf("as it starts, a held 220 Hz note: level from %+.2f to %+.2f dB, %.1f dB of travel a second\n", low, high, travel / 36.0);
+    EXPECT(travel / 36.0 < 14.0, "as it starts, one held note's level travels under 14 dB a second");
+    EXPECT(high - low > 3.0, "and still moves by 3 dB and more");
+  }
+
+  // --- The top of Rate ------------------------------------------------------------------------------
+  // A frame lasts 43 ms and a gain is read once a frame, so the fastest flickers are rounded off. One
+  // partial on a band's centre, Upward (every band at Rate), Depth 0.8, Soft 1: how far it dips at
+  // 1 Hz and at 12 Hz. Rate's description says "a little shallower at the very top"; this is how little.
+  {
+    const std::vector<double> one = {partials[2]};
+    const std::vector<float> tone = comb(one, 12.0f, 0.25f);
+    double dip[2];
+    int n = 0;
+    for (float rate : {1.0f, 12.0f}) {
+      set(kRate, {{p::kDepth, 0.8f}, {p::kRate, rate}, {p::kGrain, 0.5f}, {p::kPattern, kUpward},
+                  {p::kLean, 0.0f},  {p::kSoft, 1.0f}, {p::kVary, 0.0f},  {p::kApart, 0.0f}});
+      const Stereo out = run(device, tone);
+      // Two boxes of 120 samples (5 ms): short against a cycle of 12 Hz, long against the partial's own.
+      const std::vector<float> env = from(partial(out.left, partials[2], 120, 16), 2 * 3000);
+      dip[n++] = 1.0 - lowest(env) / highest(env);
+    }
+    std::printf("the top of Rate: a partial dips by %.3f of its crest at 1 Hz and %.3f at 12 Hz (0.8 asked): %.0f %% is left\n", dip[0],
+                dip[1], 100.0 * dip[1] / dip[0]);
+    EXPECT_NEAR(dip[0], 0.8, 0.02, "at 1 Hz a partial dips by Depth");
+    EXPECT(dip[1] > 0.8 * dip[0] && dip[1] < 0.97 * dip[0], "at 12 Hz it is a little shallower, by under a fifth");
+  }
+
+  // --- Mix part way is less Depth -------------------------------------------------------------------
+  // Why Mix is the ninth control and not among the eight an upright plate shows. With L the lift, the
+  // gain at Mix μ is 1 − μ + μ·L·(1 − d) + μ·L·d·m: a floor and a swing, as Depth alone gives. Depth
+  // 0.8 at Mix 0.5 is Depth 0.481 at Mix 1 but for one level, 0.2 dB (Lean 0; with Lean it is nearly so).
+  {
+    const float mixed_depth = 0.8f, mix = 0.5f;
+    const double lift = 1.0 / std::sqrt((1.0 - mixed_depth) * (1.0 - mixed_depth) + mixed_depth * (1.0 - mixed_depth) + 0.375 * mixed_depth * mixed_depth);
+    const double floor_part = 1.0 - mix + mix * lift * (1.0 - mixed_depth), swing = mix * lift * mixed_depth;
+    const double same_depth = swing / (floor_part + swing);
+    const double same_lift = 1.0 / std::sqrt((1.0 - same_depth) * (1.0 - same_depth) + same_depth * (1.0 - same_depth) + 0.375 * same_depth * same_depth);
+    const double scale = floor_part / (same_lift * (1.0 - same_depth));
+    Stereo outs[2];
+    for (int which = 0; which < 2; ++which) {
+      set(kRate, {{p::kDepth, which == 0 ? mixed_depth : static_cast<float>(same_depth)}, {p::kMix, which == 0 ? mix : 1.0f},
+                  {p::kRate, 2.0f}, {p::kGrain, 0.5f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.0f}});
+      outs[which] = run(device, steady);
+    }
+    double apart_power = 0.0, power = 0.0;
+    for (size_t i = 48000; i < outs[0].left.size(); ++i) {
+      const double d = outs[0].left[i] - scale * outs[1].left[i];
+      apart_power += d * d;
+      power += static_cast<double>(outs[0].left[i]) * outs[0].left[i];
+    }
+    std::printf("depth 0.8 at mix 0.5 against depth %.3f at mix 1 (%+.2f dB): they differ by %.1f dB of the sound\n", same_depth,
+                db(scale), 10.0 * std::log10(apart_power / power));
+    EXPECT(10.0 * std::log10(apart_power / power) < -40.0, "Mix part way is the flicker of less Depth");
+    EXPECT(db(scale) > -0.5 && db(scale) <= 0.0, "at under half a dB less level");
+  }
+
+  // --- Block sizes, with attacks in the sound and Grain moved awake and asleep ------------------------
+  // Plucks (which open the attack pass), four seconds of silence (the device sleeps), plucks again;
+  // Grain moved in the sound, in the silence, and 100 samples after the sound returns. The attack
+  // detector and the moment Grain is read both count samples: every block size gives the same floats,
+  // and a mono input comes out as two identical sides (the pass is one for both).
+  {
+    std::vector<float> x(10 * 48000, 0.0f);
+    for (int i = 0; i < 5; ++i) pluck_at(x, 0.1 + 0.37 * i, 220.0 * (1 + i % 3), 0.3, 0.2);
+    for (int i = 0; i < 5; ++i) pluck_at(x, 7.0 + 0.29 * i, 330.0 * (1 + i % 2), 0.3, 0.2);
+    const size_t cuts[] = {0, 30000 + 77, 5 * 48000 + 1, 7 * 48000 + 4800 + 100, x.size()};
+    const float grains[] = {0.7f, 0.2f, 0.95f, 0.4f};
+    Stereo reference;
+    for (int block : {128, 1, 37, 2048}) {
+      device.init(kRate);
+      device.set_param(p::kApart, 0.0f);
+      Stereo out;
+      for (int part = 0; part < 4; ++part) {
+        device.set_param(p::kGrain, grains[part]);
+        const Stereo piece = run(device, std::vector<float>(x.begin() + static_cast<long>(cuts[part]), x.begin() + static_cast<long>(cuts[part + 1])), block);
+        out = part == 0 ? piece : concat(out, piece);
+      }
+      if (block == 128) {
+        reference = out;
+        double sides = 0.0;
+        for (size_t i = 0; i < out.left.size(); ++i) sides = std::max(sides, static_cast<double>(std::fabs(out.left[i] - out.right[i])));
+        EXPECT(sides == 0.0, "with attacks passing, a mono input at Apart 0 is still two identical sides");
+        EXPECT(peak(out.left, 7 * 48000) > 0.1, "the sound comes back after the sleep");
+        continue;
+      }
+      double worst = 0.0;
+      for (size_t i = 0; i < out.left.size(); ++i)
+        worst = std::max({worst, static_cast<double>(std::fabs(out.left[i] - reference.left[i])),
+                          static_cast<double>(std::fabs(out.right[i] - reference.right[i]))});
+      std::printf("plucks, a sleep and Grain moved: blocks of %d differ from blocks of 128 by %.3g\n", block, worst);
+      EXPECT(worst == 0.0, "attacks and a moved Grain come out the same at every block size, across a sleep");
     }
   }
 

@@ -22,11 +22,11 @@ export const GLIMMER_PARAMS = {
     name: 'Rate',
     min: 0.03,
     max: 12,
-    default: 2.2,
+    default: 1,
     taper: 'log',
     unit: 'Hz',
     description:
-      'How fast the bands flicker. Slow is drifting weather inside the sound; fast is a shimmer on its surface.',
+      'How fast the bands flicker. Slow is drifting weather inside the sound; fast is a shimmer on its surface, a little shallower at the very top than Depth asks.',
   },
   grain: {
     id: 2,
@@ -67,7 +67,7 @@ export const GLIMMER_PARAMS = {
     name: 'Soft',
     min: 0,
     max: 1,
-    default: 0.6,
+    default: 0.75,
     taper: 'linear',
     unit: '',
     description:
@@ -82,7 +82,7 @@ export const GLIMMER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How unlike one flash is to the next. At zero a band flashes as brightly every time; higher lets some flashes come dim or stay away.',
+      'How unlike one flash is to the next. At zero a band flashes as brightly every time; higher lets some come dim or stay away, and deep sudden glints then lose some level.',
   },
   apart: {
     id: 7,
@@ -93,7 +93,7 @@ export const GLIMMER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How differently the two sides flicker. At zero both sides move as one; higher spreads the flicker across the stereo field.',
+      'How differently the two sides flicker. At zero both sides move as one; higher spreads the flicker across the stereo field, and summed to mono it comes out softer.',
   },
   mix: {
     id: 8,
@@ -103,7 +103,8 @@ export const GLIMMER_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the untouched sound and the flickering one.',
+    description:
+      'Balance between the untouched sound and the flickering one. Part way it is much the same as less Depth.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -111,6 +112,7 @@ export type GlimmerParamName = keyof typeof GLIMMER_PARAMS
 
 export const GLIMMER_METERS = {
   clock: { id: 0, name: 'Flicker clock', unit: '', display: true },
+  pass: { id: 1, name: 'Attack pass', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const GLIMMER_DEVICE = defineWasmDevice({
@@ -126,7 +128,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
   name: 'Glimmer',
   category: 'modulation',
   description:
-    'Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go.',
+    'Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks pass untouched.',
   presets: {
     'Light on water': {},
     'Faint sheen': {
@@ -226,7 +228,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
 
 export type Glimmer = WasmDevice<typeof GLIMMER_PARAMS>
 
-/** Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go. */
+/** Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks pass untouched. */
 export function createGlimmer(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof GLIMMER_PARAMS> = {},

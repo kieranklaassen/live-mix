@@ -3,11 +3,11 @@
 // Parameter ids and ranges of Glimmer, shared with
 // src/dsp/devices/glimmer.gen.ts:
 //    0  depth: 0..1, default 0.65
-//    1  rate: 0.03..12 Hz, default 2.2
+//    1  rate: 0.03..12 Hz, default 1
 //    2  grain: 0..1, default 0.7
 //    3  pattern: 0 Scatter, 1 Upward, 2 Downward, 3 Outward, default 0
 //    4  lean: -1..1, default 0.3
-//    5  soft: 0..1, default 0.6
+//    5  soft: 0..1, default 0.75
 //    6  vary: 0..1, default 0.35
 //    7  apart: 0..1, default 0.5
 //    8  mix: 0..1, default 1
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.03f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 12.0f, 1.0f, 3.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.65f, 2.2f, 0.7f, 0.0f, 0.3f, 0.6f, 0.35f, 0.5f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.65f, 1.0f, 0.7f, 0.0f, 0.3f, 0.75f, 0.35f, 0.5f, 1.0f};
 
 }  // namespace glimmer
 }  // namespace livemix

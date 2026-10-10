@@ -2,7 +2,7 @@
   "id": "glimmer",
   "name": "Glimmer",
   "category": "modulation",
-  "description": "Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go.",
+  "description": "Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks pass untouched.",
   "class": "Glimmer",
   "header": "glimmer.h",
   "sources": [],
@@ -10,6 +10,11 @@
     {
       "key": "clock",
       "name": "Flicker clock",
+      "display": true
+    },
+    {
+      "key": "pass",
+      "name": "Attack pass",
       "display": true
     }
   ],
@@ -28,10 +33,10 @@
       "name": "Rate",
       "min": 0.03,
       "max": 12,
-      "default": 2.2,
+      "default": 1,
       "taper": "log",
       "unit": "Hz",
-      "description": "How fast the bands flicker. Slow is drifting weather inside the sound; fast is a shimmer on its surface."
+      "description": "How fast the bands flicker. Slow is drifting weather inside the sound; fast is a shimmer on its surface, a little shallower at the very top than Depth asks."
     },
     {
       "key": "grain",
@@ -61,7 +66,7 @@
       "name": "Soft",
       "min": 0,
       "max": 1,
-      "default": 0.6,
+      "default": 0.75,
       "description": "How gently each band comes and goes. High is a smooth swell and fall; low is a short sudden glint with dark around it."
     },
     {
@@ -70,7 +75,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "How unlike one flash is to the next. At zero a band flashes as brightly every time; higher lets some flashes come dim or stay away."
+      "description": "How unlike one flash is to the next. At zero a band flashes as brightly every time; higher lets some come dim or stay away, and deep sudden glints then lose some level."
     },
     {
       "key": "apart",
@@ -78,7 +83,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How differently the two sides flicker. At zero both sides move as one; higher spreads the flicker across the stereo field."
+      "description": "How differently the two sides flicker. At zero both sides move as one; higher spreads the flicker across the stereo field, and summed to mono it comes out softer."
     },
     {
       "key": "mix",
@@ -86,7 +91,7 @@
       "min": 0,
       "max": 1,
       "default": 1,
-      "description": "Balance between the untouched sound and the flickering one."
+      "description": "Balance between the untouched sound and the flickering one. Part way it is much the same as less Depth."
     }
   ],
   "presets": {
