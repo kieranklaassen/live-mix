@@ -163,7 +163,18 @@
     "Bare": {"felt":0,"hardness":0.6,"detune":0.5,"stiffness":1,"thump":0.3,"action":0.4,"pedalNoise":0.4,"grit":0,"resonance":0.5,"damper":0.5,"reverbMix":0.15,"reverbSize":0.2,"width":0.5,"outputDb":0,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
     "Intimate": {"felt":0.9,"hardness":0.25,"detune":0.5,"stiffness":1,"thump":0.6,"action":0.4,"pedalNoise":0.4,"grit":0.3,"resonance":0.5,"damper":0.5,"reverbMix":0.35,"reverbSize":0.25,"width":0.5,"outputDb":0,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
     "Hall": {"felt":0.5,"hardness":0.35,"detune":0.5,"stiffness":1,"thump":0.5,"action":0.4,"pedalNoise":0.4,"grit":0.12,"resonance":0.5,"damper":0.5,"reverbMix":0.45,"reverbSize":0.9,"width":0.7,"outputDb":0,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
-    "Lean": {"felt":0.65,"hardness":0.35,"detune":0.5,"stiffness":1,"thump":0.5,"action":0.4,"pedalNoise":0.4,"grit":0.12,"resonance":0,"damper":0.5,"reverbMix":0.15,"reverbSize":0.3,"width":0.5,"outputDb":0,"sustain":0,"sostenuto":0,"soft":0,"polyphony":12}
+    "Lean": {"felt":0.65,"hardness":0.35,"detune":0.5,"stiffness":1,"thump":0.5,"action":0.4,"pedalNoise":0.4,"grit":0.12,"resonance":0,"damper":0.5,"reverbMix":0.15,"reverbSize":0.3,"width":0.5,"outputDb":0,"sustain":0,"sostenuto":0,"soft":0,"polyphony":12},
+    "Pedal down": {"felt":0.7,"hardness":0.3,"detune":0.5,"stiffness":1,"thump":0.5,"action":0.4,"pedalNoise":0.6,"grit":0.12,"resonance":0.8,"damper":0.5,"reverbMix":0.2,"reverbSize":0.3,"width":0.5,"outputDb":-4,"sustain":1,"sostenuto":0,"soft":0,"polyphony":20},
+    "Half pedal": {"felt":0.5,"hardness":0.4,"detune":0.5,"stiffness":1,"thump":0.5,"action":0.4,"pedalNoise":0.4,"grit":0.12,"resonance":0.7,"damper":0.15,"reverbMix":0.12,"reverbSize":0.3,"width":0.3,"outputDb":-6,"sustain":0.42,"sostenuto":0,"soft":0,"polyphony":32},
+    "Still strings": {"felt":0.35,"hardness":0.45,"detune":0,"stiffness":0,"thump":0.25,"action":0.15,"pedalNoise":0.4,"grit":0,"resonance":0.7,"damper":0.3,"reverbMix":0.1,"reverbSize":0.5,"width":1,"outputDb":-6,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Glass upright": {"felt":0,"hardness":1,"detune":0.15,"stiffness":2,"thump":0.15,"action":0.2,"pedalNoise":0.4,"grit":0,"resonance":0.5,"damper":0.5,"reverbMix":0.4,"reverbSize":0.7,"width":0.65,"outputDb":1,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Old upright": {"felt":0.3,"hardness":0.55,"detune":1,"stiffness":1.5,"thump":0.8,"action":0.9,"pedalNoise":0.4,"grit":0.45,"resonance":0.5,"damper":0.5,"reverbMix":0.1,"reverbSize":0.15,"width":0.3,"outputDb":-4,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Driven grand": {"felt":0.2,"hardness":0.7,"detune":0.8,"stiffness":1,"thump":0.8,"action":0.4,"pedalNoise":0.4,"grit":1,"resonance":0.5,"damper":0.3,"reverbMix":0.3,"reverbSize":0.45,"width":0.35,"outputDb":-1.5,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Worn mono": {"felt":0.75,"hardness":0.45,"detune":0.65,"stiffness":1,"thump":0.65,"action":0.4,"pedalNoise":0.4,"grit":0.85,"resonance":0.5,"damper":0.5,"reverbMix":0.08,"reverbSize":0.3,"width":0,"outputDb":-4,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Close and creaky": {"felt":1,"hardness":0.2,"detune":0.5,"stiffness":1,"thump":1,"action":1,"pedalNoise":1,"grit":0.5,"resonance":0.5,"damper":0.7,"reverbMix":0,"reverbSize":0.3,"width":0.75,"outputDb":-2,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Soft thud": {"felt":1,"hardness":0,"detune":0.5,"stiffness":1,"thump":1,"action":0,"pedalNoise":0.4,"grit":0,"resonance":0.3,"damper":0.5,"reverbMix":0.3,"reverbSize":0.6,"width":0.5,"outputDb":-3,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Next room": {"felt":0.8,"hardness":0.3,"detune":0.5,"stiffness":1,"thump":0.7,"action":0.4,"pedalNoise":0.4,"grit":0,"resonance":0.5,"damper":0.5,"reverbMix":0.9,"reverbSize":0.55,"width":0.15,"outputDb":-1.5,"sustain":0,"sostenuto":0,"soft":0,"polyphony":32},
+    "Blurred wash": {"felt":1,"hardness":0,"detune":0.7,"stiffness":1,"thump":0.1,"action":0,"pedalNoise":0.4,"grit":0.12,"resonance":1,"damper":0.5,"reverbMix":0.65,"reverbSize":1,"width":0.8,"outputDb":-1,"sustain":1,"sostenuto":0,"soft":1,"polyphony":16}
   },
   "acoustic-guitar": {
     "(default)": {"type":0,"body":0.75,"position":0.18,"nail":0.5,"sustain":5,"release":1.5,"tone":0.6,"shimmer":0.3,"strum":15,"volume":-9},
@@ -172,7 +183,17 @@
     "Twelve string": {"type":2,"body":0.75,"position":0.14,"nail":0.75,"sustain":6,"release":1.5,"tone":0.65,"shimmer":0.6,"strum":30,"volume":-9},
     "Let ring": {"type":0,"body":0.8,"position":0.18,"nail":0.4,"sustain":10,"release":8,"tone":0.6,"shimmer":0.4,"strum":15,"volume":-9},
     "Muted pattern": {"type":0,"body":0.6,"position":0.09,"nail":0.6,"sustain":0.8,"release":0.08,"tone":0.5,"shimmer":0.3,"strum":0,"volume":-9},
-    "Soft thumb": {"type":0,"body":1,"position":0.36,"nail":0,"sustain":4,"release":1.2,"tone":0.45,"shimmer":0.3,"strum":45,"volume":-9}
+    "Soft thumb": {"type":0,"body":1,"position":0.36,"nail":0,"sustain":4,"release":1.2,"tone":0.45,"shimmer":0.3,"strum":45,"volume":-9},
+    "Bare string": {"type":0,"body":0.05,"position":0.12,"nail":0.6,"sustain":7,"release":3,"tone":0.75,"shimmer":0.2,"strum":8,"volume":-11},
+    "Bridge harp": {"type":0,"body":0.45,"position":0.06,"nail":0.9,"sustain":8,"release":5,"tone":0.85,"shimmer":0.45,"strum":35,"volume":-9},
+    "Lazy strum": {"type":0,"body":0.9,"position":0.26,"nail":0.3,"sustain":7,"release":3,"tone":0.75,"shimmer":0.5,"strum":120,"volume":-9},
+    "Nylon bridge": {"type":1,"body":0.55,"position":0.07,"nail":0.85,"sustain":3,"release":0.6,"tone":0.8,"shimmer":0.15,"strum":10,"volume":-4},
+    "Twelve drift": {"type":2,"body":0.65,"position":0.3,"nail":0.25,"sustain":11,"release":9,"tone":0.5,"shimmer":1.4,"strum":70,"volume":-9},
+    "Dark wood": {"type":0,"body":1,"position":0.4,"nail":0.15,"sustain":9,"release":6,"tone":0.1,"shimmer":0.15,"strum":25,"volume":-9},
+    "Glass pick": {"type":0,"body":0.3,"position":0.1,"nail":1,"sustain":12,"release":10,"tone":1,"shimmer":0.9,"strum":5,"volume":-10.5},
+    "Nylon lullaby": {"type":1,"body":0.7,"position":0.22,"nail":0.35,"sustain":12,"release":10,"tone":0.7,"shimmer":0.1,"strum":60,"volume":-9},
+    "Nylon pizzicato": {"type":1,"body":0.95,"position":0.15,"nail":0.7,"sustain":0.65,"release":0.15,"tone":0.7,"shimmer":0,"strum":0,"volume":-0.5},
+    "Twelve chime": {"type":2,"body":0.5,"position":0.08,"nail":1,"sustain":5.5,"release":1.2,"tone":0.9,"shimmer":0.15,"strum":0,"volume":-9}
   },
   "ambient-comp": {
     "(default)": {"threshold":-24,"ratio":2,"attack":300,"release":2,"knee":12,"tails":0,"scLowCut":90,"makeup":0,"mix":1},
@@ -295,7 +316,15 @@
     "Slow shore": {"type":2,"density":0.3,"movement":0.9,"tone":0.5,"resonance":0,"size":0.4,"attack":4,"release":8,"width":1,"volume":-9},
     "Hearth": {"type":3,"density":0.45,"movement":0.6,"tone":0.45,"resonance":0.1,"size":0.1,"attack":2,"release":4,"width":0.8,"volume":-9},
     "Old record": {"type":4,"density":0.4,"movement":0.5,"tone":0.5,"resonance":0,"size":0,"attack":0.3,"release":0.5,"width":0.7,"volume":-9},
-    "Mains hum": {"type":5,"density":0.4,"movement":0.4,"tone":0.35,"resonance":0.2,"size":0.2,"attack":1,"release":2,"width":0.6,"volume":-9}
+    "Mains hum": {"type":5,"density":0.4,"movement":0.4,"tone":0.35,"resonance":0.2,"size":0.2,"attack":1,"release":2,"width":0.6,"volume":-9},
+    "Rain on tin": {"type":1,"density":0.7,"movement":0.5,"tone":0.3,"resonance":0.9,"size":0.2,"attack":1.5,"release":6,"width":1,"volume":-3},
+    "Breakers": {"type":2,"density":1,"movement":1,"tone":0.75,"resonance":0,"size":0.05,"attack":0.5,"release":6,"width":1,"volume":-13},
+    "Sea in a shell": {"type":2,"density":0.6,"movement":0.2,"tone":0.3,"resonance":0.6,"size":0.55,"attack":3,"release":7,"width":0.5,"volume":-15},
+    "Glowing coals": {"type":3,"density":0.05,"movement":0.2,"tone":0.2,"resonance":0,"size":0.5,"attack":4,"release":9,"width":1,"volume":-9},
+    "Bonfire": {"type":3,"density":0.92,"movement":1,"tone":0.8,"resonance":0,"size":0,"attack":1,"release":3,"width":1,"volume":-10},
+    "Dusty crackle": {"type":4,"density":0.85,"movement":0.15,"tone":0.8,"resonance":0,"size":0,"attack":0.8,"release":1.5,"width":1,"volume":-6},
+    "Pure tone": {"type":5,"density":0,"movement":0.5,"tone":0.7,"resonance":1,"size":0,"attack":3,"release":9,"width":1,"volume":-19},
+    "Hollow drone": {"type":5,"density":0.8,"movement":0.7,"tone":0.8,"resonance":0,"size":0.1,"attack":4,"release":8,"width":1,"volume":-19.5}
   },
   "aurora": {
     "(default)": {"brilliance":1100,"lowCut":40,"resonance":0.25,"contour":0.6,"attack":0.4,"swell":0.7,"release":3,"detune":8,"ring":0,"volume":-9},
@@ -304,7 +333,17 @@
     "Wide strings": {"brilliance":5000,"lowCut":250,"resonance":0.1,"contour":0.1,"attack":1,"swell":0.3,"release":4,"detune":14,"ring":0,"volume":-9},
     "Night choir": {"brilliance":1500,"lowCut":400,"resonance":0.6,"contour":0.2,"attack":2,"swell":0.5,"release":5,"detune":10,"ring":0,"volume":-9},
     "Metal dawn": {"brilliance":1800,"lowCut":40,"resonance":0.25,"contour":0.4,"attack":0.2,"swell":0.5,"release":6,"detune":8,"ring":0.55,"volume":-9},
-    "Slow bloom": {"brilliance":700,"lowCut":40,"resonance":0.3,"contour":0.8,"attack":3,"swell":1,"release":8,"detune":10,"ring":0,"volume":-9}
+    "Slow bloom": {"brilliance":700,"lowCut":40,"resonance":0.3,"contour":0.8,"attack":3,"swell":1,"release":8,"detune":10,"ring":0,"volume":-9},
+    "Short brass": {"brilliance":900,"lowCut":40,"resonance":0.3,"contour":1,"attack":0.03,"swell":0,"release":0.6,"detune":5,"ring":0,"volume":-10},
+    "Still pipes": {"brilliance":1400,"lowCut":80,"resonance":0.1,"contour":0,"attack":0.08,"swell":0,"release":1.5,"detune":0,"ring":0,"volume":-12.5},
+    "Loose reeds": {"brilliance":2000,"lowCut":350,"resonance":0.3,"contour":0.1,"attack":0.3,"swell":0.15,"release":1.5,"detune":26,"ring":0,"volume":-8},
+    "Muted trumpet": {"brilliance":3000,"lowCut":1300,"resonance":0.85,"contour":0.5,"attack":0.15,"swell":0.3,"release":1.2,"detune":3,"ring":0,"volume":-8},
+    "Silver strings": {"brilliance":9000,"lowCut":900,"resonance":0.2,"contour":0,"attack":1.5,"swell":0.6,"release":6,"detune":18,"ring":0,"volume":-1.5},
+    "Slow phasing": {"brilliance":6000,"lowCut":40,"resonance":0,"contour":0,"attack":2.5,"swell":0.4,"release":9,"detune":1.5,"ring":0,"volume":-9},
+    "Chime strings": {"brilliance":4500,"lowCut":350,"resonance":0.4,"contour":0,"attack":0.005,"swell":0,"release":8,"detune":2,"ring":1,"volume":-9},
+    "Melting metal": {"brilliance":2200,"lowCut":300,"resonance":0.4,"contour":0.5,"attack":2.5,"swell":0.8,"release":9,"detune":12,"ring":0.9,"volume":-4.5},
+    "Opening vowel": {"brilliance":400,"lowCut":200,"resonance":0.75,"contour":1,"attack":2,"swell":1,"release":6,"detune":7,"ring":0,"volume":-12},
+    "Deep swell": {"brilliance":320,"lowCut":20,"resonance":0.05,"contour":0,"attack":5,"swell":0.5,"release":12,"detune":12,"ring":0,"volume":-2.5}
   },
   "auto-filter": {
     "(default)": {"type":0,"slope":0,"cutoffHz":1000,"resonance":0.7071,"driveDb":0,"envAmount":0,"envAttackMs":10,"envReleaseMs":200,"lfoAmount":0,"lfoRateHz":1,"lfoShape":0,"mix":1},
@@ -366,7 +405,17 @@
     "Octave feedback": {"mode":1,"attack":2.5,"release":5,"brightness":0.7,"decay":10,"position":0.3,"pressure":0.9,"body":0.3,"vibrato":0.3,"vibratoRate":5.5,"detune":10,"volume":-9},
     "Felt guitar": {"mode":0,"attack":0.005,"release":1.2,"brightness":0.35,"decay":5,"position":0.22,"pressure":0.4,"body":0.6,"vibrato":0,"vibratoRate":5,"detune":4,"volume":-9},
     "Volume swell": {"mode":0,"attack":0.9,"release":4,"brightness":0.6,"decay":14,"position":0.12,"pressure":0.4,"body":0.35,"vibrato":0.1,"vibratoRate":5,"detune":8,"volume":-9},
-    "Ebow swell": {"mode":1,"attack":1.2,"release":2,"brightness":0.5,"decay":6,"position":0.14,"pressure":0.4,"body":0.4,"vibrato":0.15,"vibratoRate":5,"detune":6,"volume":-9}
+    "Ebow swell": {"mode":1,"attack":1.2,"release":2,"brightness":0.5,"decay":6,"position":0.14,"pressure":0.4,"body":0.4,"vibrato":0.15,"vibratoRate":5,"detune":6,"volume":-9},
+    "Wire harp": {"mode":0,"attack":0.005,"release":8,"brightness":0.8,"decay":14,"position":0.09,"pressure":0.4,"body":0.3,"vibrato":0,"vibratoRate":5,"detune":3,"volume":-8},
+    "Damped pluck": {"mode":0,"attack":0.005,"release":0.3,"brightness":0.05,"decay":1.2,"position":0.45,"pressure":0.4,"body":1,"vibrato":0,"vibratoRate":5,"detune":0,"volume":1},
+    "Beating strings": {"mode":0,"attack":0.005,"release":12,"brightness":0.55,"decay":20,"position":0.3,"pressure":0.4,"body":0.5,"vibrato":0,"vibratoRate":5,"detune":25,"volume":-6},
+    "Still tone": {"mode":1,"attack":4,"release":8,"brightness":0,"decay":15,"position":0.5,"pressure":0,"body":0,"vibrato":0,"vibratoRate":5,"detune":0,"volume":-12.5},
+    "Quick sustain": {"mode":1,"attack":0.05,"release":0.3,"brightness":0.8,"decay":3,"position":0.2,"pressure":0.5,"body":0.7,"vibrato":0.4,"vibratoRate":6,"detune":6,"volume":-10},
+    "Slow beating swell": {"mode":1,"attack":6,"release":15,"brightness":0.3,"decay":30,"position":0.25,"pressure":0.6,"body":0.6,"vibrato":0,"vibratoRate":5,"detune":18,"volume":-6.5},
+    "Twelfth glow": {"mode":1,"attack":2,"release":3,"brightness":1,"decay":8,"position":0.45,"pressure":0.2,"body":0.1,"vibrato":0.05,"vibratoRate":3,"detune":12,"volume":-12.5},
+    "Raspy bow": {"mode":2,"attack":0.4,"release":2.5,"brightness":0.85,"decay":6,"position":0.04,"pressure":1,"body":0.5,"vibrato":0.2,"vibratoRate":6.5,"detune":2,"volume":-10},
+    "Soft flautando": {"mode":2,"attack":1.5,"release":3,"brightness":0.2,"decay":6,"position":0.4,"pressure":0,"body":0.15,"vibrato":0.05,"vibratoRate":4,"detune":3,"volume":-9},
+    "Detuned section": {"mode":2,"attack":2,"release":4,"brightness":0.55,"decay":9,"position":0.18,"pressure":0.35,"body":1,"vibrato":0.6,"vibratoRate":3,"detune":25,"volume":-7.5}
   },
   "cascade": {
     "(default)": {"pattern":0,"time":400,"repeats":5,"decay":0.4,"high":0.6,"low":0,"interval":0,"shape":0.5,"reverse":0,"spread":0.6,"tone":9000,"mix":0.5},
@@ -395,7 +444,16 @@
     "Warm section": {"players":6,"attack":0.6,"release":1.2,"bow":0.5,"air":0.2,"vibrato":14,"mute":0,"scatter":0.45,"width":0.7,"volume":-9},
     "Slow dark bows": {"players":5,"attack":1.5,"release":2.5,"bow":0.25,"air":0.3,"vibrato":3,"mute":0.2,"scatter":0.7,"width":0.7,"volume":-9},
     "Still halo": {"players":3,"attack":1.8,"release":4,"bow":0,"air":0.4,"vibrato":0,"mute":0,"scatter":0.1,"width":0.7,"volume":-9},
-    "Close solo": {"players":1,"attack":0.15,"release":0.5,"bow":0.5,"air":0.2,"vibrato":12,"mute":0,"scatter":0.3,"width":0,"volume":-9}
+    "Close solo": {"players":1,"attack":0.15,"release":0.5,"bow":0.5,"air":0.2,"vibrato":12,"mute":0,"scatter":0.3,"width":0,"volume":-9},
+    "Glass bridge": {"players":3,"attack":1,"release":3.5,"bow":1,"air":0.15,"vibrato":0,"mute":0,"scatter":0.2,"width":0.7,"volume":-9},
+    "Quiet duet": {"players":2,"attack":0.2,"release":0.6,"bow":0.08,"air":0.4,"vibrato":8,"mute":0.6,"scatter":0.25,"width":1,"volume":-11.5},
+    "Ragged unison": {"players":6,"attack":0.9,"release":2,"bow":0.3,"air":0.3,"vibrato":2,"mute":0.45,"scatter":1,"width":1,"volume":-9},
+    "Short bows": {"players":4,"attack":0.05,"release":0.2,"bow":0.75,"air":0.1,"vibrato":0,"mute":0,"scatter":0.15,"width":0.7,"volume":-9},
+    "Six slow bows": {"players":6,"attack":4,"release":8,"bow":0.3,"air":0.5,"vibrato":4,"mute":0.5,"scatter":0.5,"width":0.9,"volume":-7},
+    "Thin veil": {"players":5,"attack":2,"release":5,"bow":0.85,"air":0.05,"vibrato":0,"mute":1,"scatter":0.25,"width":0.7,"volume":-8},
+    "Wide vibrato": {"players":3,"attack":0.45,"release":1.6,"bow":0.15,"air":0.1,"vibrato":28,"mute":0.3,"scatter":0.5,"width":0.4,"volume":-9},
+    "Wandering solo": {"players":1,"attack":1.2,"release":3,"bow":0.2,"air":0.5,"vibrato":0,"mute":0.35,"scatter":1,"width":0.3,"volume":-9},
+    "Viol consort": {"players":4,"attack":0.3,"release":0.9,"bow":0.68,"air":0,"vibrato":0,"mute":0.8,"scatter":0,"width":0.3,"volume":-8}
   },
   "choir": {
     "(default)": {"vowel":0.04,"voice":1.16,"motion":0.35,"breath":0.3,"ensemble":0.65,"vibrato":10,"vibratoRate":5.2,"attack":0.9,"release":2.8,"tone":6500,"width":0.8,"volume":-10},
@@ -405,7 +463,16 @@
     "Breath": {"vowel":0.1,"voice":1.2,"motion":0.6,"breath":1,"ensemble":1,"vibrato":0,"vibratoRate":5,"attack":2.5,"release":5,"tone":9000,"width":1,"volume":-10},
     "Slow vowels": {"vowel":0.3,"voice":1.06,"motion":1,"breath":0.3,"ensemble":0.9,"vibrato":6,"vibratoRate":4.8,"attack":3,"release":7,"tone":5000,"width":0.9,"volume":-10},
     "Glass ee": {"vowel":0.5,"voice":1.26,"motion":0.25,"breath":0.1,"ensemble":1,"vibrato":0,"vibratoRate":5,"attack":2,"release":5,"tone":10000,"width":1,"volume":-10},
-    "Soloist": {"vowel":0,"voice":1.18,"motion":0.15,"breath":0.15,"ensemble":0,"vibrato":32,"vibratoRate":5.6,"attack":0.12,"release":0.6,"tone":7000,"width":0.5,"volume":-10}
+    "Soloist": {"vowel":0,"voice":1.18,"motion":0.15,"breath":0.15,"ensemble":0,"vibrato":32,"vibratoRate":5.6,"attack":0.12,"release":0.6,"tone":7000,"width":0.5,"volume":-10},
+    "Humming": {"vowel":0.9,"voice":1,"motion":0.1,"breath":0.05,"ensemble":0.8,"vibrato":4,"vibratoRate":5.2,"attack":1.2,"release":3.2,"tone":700,"width":0.8,"volume":-9},
+    "Altos eh": {"vowel":0.25,"voice":1.2,"motion":0.2,"breath":0.3,"ensemble":0.75,"vibrato":14,"vibratoRate":5.6,"attack":0.6,"release":1.8,"tone":7500,"width":0.8,"volume":-10},
+    "Basses ah": {"vowel":0,"voice":0.8,"motion":0.15,"breath":0.2,"ensemble":0.5,"vibrato":8,"vibratoRate":4.6,"attack":0.4,"release":1.3,"tone":4200,"width":0.5,"volume":-10},
+    "Tenors oh": {"vowel":0.75,"voice":1,"motion":0.2,"breath":0.15,"ensemble":0.9,"vibrato":18,"vibratoRate":5,"attack":0.3,"release":1,"tone":5600,"width":0.8,"volume":-10},
+    "Slow waver": {"vowel":0.6,"voice":1.1,"motion":0.5,"breath":0.2,"ensemble":0.35,"vibrato":40,"vibratoRate":3,"attack":1,"release":3.6,"tone":6000,"width":0.6,"volume":-10},
+    "Distant choir": {"vowel":0.7,"voice":1.1,"motion":0.6,"breath":0.5,"ensemble":1,"vibrato":3,"vibratoRate":4.4,"attack":4,"release":15,"tone":2000,"width":1,"volume":-10},
+    "Short ah": {"vowel":0.06,"voice":1.1,"motion":0,"breath":0.45,"ensemble":0.6,"vibrato":0,"vibratoRate":5.2,"attack":0.01,"release":0.2,"tone":9000,"width":0.6,"volume":-10},
+    "Breathy ee": {"vowel":0.45,"voice":1.3,"motion":0.25,"breath":0.75,"ensemble":0.3,"vibrato":0,"vibratoRate":5.2,"attack":0.8,"release":2.4,"tone":12000,"width":0.3,"volume":-11.5},
+    "Drifting trebles": {"vowel":0.55,"voice":1.4,"motion":1,"breath":0.35,"ensemble":0.85,"vibrato":8,"vibratoRate":6.2,"attack":0.7,"release":4.2,"tone":11000,"width":1,"volume":-10}
   },
   "chord-harp": {
     "(default)": {"strum":40,"direction":0,"span":2,"sustain":3,"tone":0.5,"pad":0.3,"spread":0.6,"volume":-9},
@@ -414,7 +481,17 @@
     "Single chimes": {"strum":0,"direction":0,"span":2,"sustain":4,"tone":0.6,"pad":0,"spread":0.5,"volume":-13},
     "Pad and sparkle": {"strum":25,"direction":3,"span":2,"sustain":2,"tone":0.6,"pad":0.7,"spread":0.9,"volume":-12},
     "Toy harp": {"strum":12,"direction":1,"span":1,"sustain":1.2,"tone":0.8,"pad":0,"spread":0.7,"volume":-2},
-    "Brushed chord": {"strum":4,"direction":0,"span":1,"sustain":5,"tone":0.25,"pad":0.3,"spread":0.5,"volume":-11}
+    "Brushed chord": {"strum":4,"direction":0,"span":1,"sustain":5,"tone":0.25,"pad":0.3,"spread":0.5,"volume":-11},
+    "Falling harp": {"strum":60,"direction":1,"span":3,"sustain":4,"tone":0.45,"pad":0.1,"spread":0.75,"volume":-7.5},
+    "One octave ripple": {"strum":120,"direction":2,"span":0,"sustain":1.5,"tone":0.7,"pad":0,"spread":1,"volume":-1},
+    "Soft organ chord": {"strum":0,"direction":0,"span":2,"sustain":0.25,"tone":0.15,"pad":1,"spread":0.2,"volume":-17.5},
+    "Scattered glints": {"strum":150,"direction":3,"span":3,"sustain":1,"tone":0.9,"pad":0,"spread":1,"volume":-0.5},
+    "Muffled slow strum": {"strum":110,"direction":0,"span":1,"sustain":8,"tone":0,"pad":0.4,"spread":0.3,"volume":-10},
+    "Long glass chimes": {"strum":0,"direction":0,"span":2,"sustain":8,"tone":1,"pad":0,"spread":1,"volume":-10.5},
+    "String rain": {"strum":30,"direction":3,"span":3,"sustain":0.35,"tone":1,"pad":0,"spread":1,"volume":1},
+    "Slow falling pad": {"strum":150,"direction":1,"span":0,"sustain":6,"tone":0.2,"pad":0.5,"spread":1,"volume":-12},
+    "Dark long wash": {"strum":20,"direction":2,"span":1,"sustain":8,"tone":0.2,"pad":0,"spread":1,"volume":-5},
+    "Small music box": {"strum":0,"direction":0,"span":2,"sustain":0.8,"tone":0.85,"pad":0,"spread":0.2,"volume":-3}
   },
   "chorus": {
     "(default)": {"voices":1,"rate":0.8,"depth":50,"delayMs":12,"spread":70,"feedback":0,"hpHz":20,"mix":0.5},
@@ -459,7 +536,15 @@
     "Hollow section": {"bore":0.1,"blow":0.55,"breath":0.25,"attack":0.25,"release":0.6,"vibrato":0,"growl":0,"volume":-6},
     "Duduk": {"bore":0.3,"blow":0.4,"breath":0.55,"attack":0.2,"release":0.5,"vibrato":0.55,"growl":0,"volume":-6},
     "Bright soprano": {"bore":1,"blow":0.7,"breath":0.25,"attack":0.05,"release":0.3,"vibrato":0.2,"growl":0,"volume":-6},
-    "Growling tenor": {"bore":1,"blow":0.7,"breath":0.5,"attack":0.06,"release":0.25,"vibrato":0.25,"growl":0.6,"volume":-6}
+    "Growling tenor": {"bore":1,"blow":0.7,"breath":0.5,"attack":0.06,"release":0.25,"vibrato":0.25,"growl":0.6,"volume":-6},
+    "Reed hum": {"bore":0,"blow":0.02,"breath":0.1,"attack":0.4,"release":1.5,"vibrato":0,"growl":0,"volume":-6},
+    "Reed whisper": {"bore":0,"blow":0.05,"breath":1,"attack":0.6,"release":2,"vibrato":0,"growl":0,"volume":-6},
+    "Open clarinet": {"bore":0,"blow":0.95,"breath":0.15,"attack":0.04,"release":0.2,"vibrato":0.35,"growl":0,"volume":-5},
+    "Tenor swell": {"bore":1,"blow":0.85,"breath":0.3,"attack":3.5,"release":5,"vibrato":0.4,"growl":0,"volume":-3},
+    "Ballad alto": {"bore":0.7,"blow":0.5,"breath":0.6,"attack":0.12,"release":0.9,"vibrato":0.8,"growl":0,"volume":-6},
+    "Flutter tongue": {"bore":0,"blow":0.45,"breath":0.6,"attack":0.3,"release":1.2,"vibrato":0,"growl":1,"volume":-2.5},
+    "Wide vibrato reed": {"bore":0.45,"blow":0.3,"breath":0.2,"attack":0.5,"release":2,"vibrato":1,"growl":0,"volume":-6},
+    "Slow fade reed": {"bore":0.15,"blow":0.7,"breath":0.3,"attack":0.08,"release":5,"vibrato":0,"growl":0,"volume":-6}
   },
   "drone": {
     "(default)": {"shape":2,"partials":0.6,"wave":0.2,"movement":0.5,"rate":0.08,"sub":0.3,"air":0.15,"cutoff":2400,"attack":3,"release":6,"width":0.7,"hold":0,"volume":-10},
@@ -469,7 +554,16 @@
     "Minor dusk": {"shape":5,"partials":0.7,"wave":0.35,"movement":0.6,"rate":0.04,"sub":0.5,"air":0.2,"cutoff":900,"attack":8,"release":14,"width":0.8,"hold":0,"volume":-10},
     "Deep octaves": {"shape":1,"partials":0.45,"wave":0.5,"movement":0.8,"rate":0.03,"sub":0.8,"air":0,"cutoff":600,"attack":6,"release":12,"width":0.6,"hold":0,"volume":-10},
     "Fog cluster": {"shape":6,"partials":0.85,"wave":0,"movement":1,"rate":0.12,"sub":0,"air":0.5,"cutoff":1600,"attack":10,"release":20,"width":1,"hold":0,"volume":-10},
-    "Latched unison": {"shape":0,"partials":1,"wave":0.3,"movement":0.9,"rate":0.15,"sub":0.4,"air":0.1,"cutoff":1800,"attack":4,"release":9,"width":1,"hold":1,"volume":-10}
+    "Latched unison": {"shape":0,"partials":1,"wave":0.3,"movement":0.9,"rate":0.15,"sub":0.4,"air":0.1,"cutoff":1800,"attack":4,"release":9,"width":1,"hold":1,"volume":-10},
+    "Still organ": {"shape":3,"partials":1,"wave":0,"movement":0.08,"rate":0.5,"sub":0.5,"air":0.05,"cutoff":7000,"attack":0.25,"release":1.2,"width":0.4,"hold":0,"volume":-11},
+    "Tuned wind": {"shape":0,"partials":0,"wave":0,"movement":0.9,"rate":0.35,"sub":0,"air":1,"cutoff":9000,"attack":2,"release":7,"width":1,"hold":0,"volume":-14},
+    "Low hum": {"shape":1,"partials":0.15,"wave":0,"movement":0.25,"rate":0.02,"sub":1,"air":0,"cutoff":180,"attack":4,"release":10,"width":0.2,"hold":0,"volume":-12.5},
+    "Saw swarm": {"shape":0,"partials":1,"wave":1,"movement":1,"rate":0.7,"sub":0,"air":0,"cutoff":4500,"attack":1.2,"release":4,"width":1,"hold":0,"volume":-10.5},
+    "Octave shimmer": {"shape":1,"partials":1,"wave":0.1,"movement":0.7,"rate":1.4,"sub":0,"air":0.25,"cutoff":14000,"attack":2,"release":8,"width":0.9,"hold":0,"volume":-10.5},
+    "Minor glass": {"shape":5,"partials":1,"wave":0,"movement":0.3,"rate":0.3,"sub":0,"air":0.1,"cutoff":10000,"attack":0.6,"release":5,"width":0.85,"hold":0,"volume":-9.5},
+    "Standing wave": {"shape":3,"partials":0.45,"wave":0.55,"movement":0,"rate":0.08,"sub":0.6,"air":0,"cutoff":1100,"attack":5,"release":9,"width":0,"hold":0,"volume":-11},
+    "Suspended second": {"shape":6,"partials":0.29,"wave":0.15,"movement":0.6,"rate":0.06,"sub":0.4,"air":0.2,"cutoff":3500,"attack":4,"release":10,"width":0.8,"hold":0,"volume":-11},
+    "Held major": {"shape":4,"partials":0.9,"wave":0.6,"movement":0.55,"rate":0.1,"sub":0.45,"air":0.08,"cutoff":1300,"attack":7,"release":16,"width":0.6,"hold":1,"volume":-10.5}
   },
   "dusk": {
     "(default)": {"wave":4,"sub":0.35,"lowCut":0,"cutoff":2500,"resonance":0.15,"envelope":0.25,"attack":0.6,"release":2.5,"chorus":1,"volume":-9},
@@ -478,7 +572,17 @@
     "Sub floor": {"wave":1,"sub":1,"lowCut":0,"cutoff":1200,"resonance":0.25,"envelope":0.1,"attack":0.3,"release":3,"chorus":1,"volume":-9},
     "Singing filter": {"wave":0,"sub":0,"lowCut":3,"cutoff":1046.5,"resonance":1,"envelope":0,"attack":0.8,"release":5,"chorus":1,"volume":-9},
     "Slow bloom": {"wave":2,"sub":0.5,"lowCut":0,"cutoff":300,"resonance":0.3,"envelope":0.8,"attack":3,"release":8,"chorus":2,"volume":-9},
-    "Shimmer organ": {"wave":1,"sub":0.6,"lowCut":0,"cutoff":1800,"resonance":0.15,"envelope":0,"attack":0.02,"release":0.8,"chorus":3,"volume":-9}
+    "Shimmer organ": {"wave":1,"sub":0.6,"lowCut":0,"cutoff":1800,"resonance":0.15,"envelope":0,"attack":0.02,"release":0.8,"chorus":3,"volume":-9},
+    "Dimming strings": {"wave":4,"sub":0.2,"lowCut":1,"cutoff":6000,"resonance":0.15,"envelope":-0.6,"attack":2.5,"release":6,"chorus":2,"volume":-3.5},
+    "Soft clarinets": {"wave":1,"sub":0,"lowCut":1,"cutoff":650,"resonance":0.1,"envelope":0.15,"attack":1.2,"release":3.5,"chorus":1,"volume":-8.5},
+    "Thin shimmer": {"wave":0,"sub":0,"lowCut":2,"cutoff":8000,"resonance":0.05,"envelope":0.1,"attack":1,"release":5,"chorus":3,"volume":-4.5},
+    "Thin voices": {"wave":3,"sub":0,"lowCut":2,"cutoff":1500,"resonance":0.6,"envelope":-0.2,"attack":1.8,"release":5,"chorus":3,"volume":-6.5},
+    "Long pulse swell": {"wave":3,"sub":0.5,"lowCut":0,"cutoff":900,"resonance":0.35,"envelope":0.3,"attack":6,"release":12,"chorus":1,"volume":-7},
+    "Overtone climb": {"wave":0,"sub":0,"lowCut":3,"cutoff":220,"resonance":0.8,"envelope":0.65,"attack":4,"release":7,"chorus":1,"volume":-1.5},
+    "Octave below": {"wave":2,"sub":1,"lowCut":0,"cutoff":131,"resonance":0.45,"envelope":0,"attack":2,"release":7,"chorus":2,"volume":-7.5},
+    "Warm keys": {"wave":2,"sub":0.15,"lowCut":0,"cutoff":450,"resonance":0.2,"envelope":0.55,"attack":0.004,"release":1.4,"chorus":2,"volume":-4},
+    "Round sine": {"wave":0,"sub":0,"lowCut":0,"cutoff":261.63,"resonance":1,"envelope":0,"attack":0.03,"release":2,"chorus":1,"volume":-12.5},
+    "Stopped pipe": {"wave":1,"sub":0,"lowCut":1,"cutoff":785,"resonance":0.8,"envelope":0,"attack":0.12,"release":1.2,"chorus":0,"volume":-10.5}
   },
   "echo-memory": {
     "(default)": {"time":500,"feedback":0.35,"echo":0.7,"memory":0.6,"reach":20,"wander":0.5,"size":3,"vary":0.3,"buildUp":0,"tone":6000,"spread":0.6,"mix":0.4},
@@ -592,7 +696,16 @@
     "Breath pad": {"type":1,"breath":0.95,"blow":0.15,"chiff":0,"attack":1.5,"release":2.8,"vibrato":0.2,"scoop":0,"volume":-14},
     "Low flute drone": {"type":1,"breath":0.5,"blow":0.25,"chiff":0.2,"attack":0.7,"release":4,"vibrato":0.3,"scoop":10,"volume":-9},
     "Canyon flute": {"type":4,"breath":0.3,"blow":0.4,"chiff":0.6,"attack":0.03,"release":0.8,"vibrato":0.4,"scoop":40,"volume":-9},
-    "Soft wind lead": {"type":0,"breath":0.5,"blow":0.25,"chiff":0,"attack":0.12,"release":0.9,"vibrato":0.5,"scoop":30,"volume":-9}
+    "Soft wind lead": {"type":0,"breath":0.5,"blow":0.25,"chiff":0,"attack":0.12,"release":0.9,"vibrato":0.5,"scoop":30,"volume":-9},
+    "Soft recorder": {"type":4,"breath":0.05,"blow":0.06,"chiff":0.2,"attack":0.14,"release":0.18,"vibrato":0,"scoop":4,"volume":-9},
+    "Hollow pipes pad": {"type":3,"breath":0.7,"blow":0.3,"chiff":0.1,"attack":1.1,"release":3.2,"vibrato":0.2,"scoop":0,"volume":-9},
+    "Bamboo vibrato": {"type":2,"breath":0.3,"blow":0.3,"chiff":0.25,"attack":0.45,"release":2.2,"vibrato":0.95,"scoop":55,"volume":-9},
+    "Bent from below": {"type":2,"breath":0.85,"blow":0.8,"chiff":1,"attack":0.06,"release":1.2,"vibrato":0.12,"scoop":200,"volume":-11},
+    "Hard blown flute": {"type":0,"breath":0.18,"blow":1,"chiff":0.85,"attack":0.012,"release":0.25,"vibrato":0.7,"scoop":8,"volume":-9},
+    "Whisper pipes": {"type":3,"breath":1,"blow":0.08,"chiff":0.35,"attack":0.3,"release":1.6,"vibrato":0,"scoop":0,"volume":-9},
+    "Alto flute": {"type":1,"breath":0.45,"blow":0.85,"chiff":0.7,"attack":0.09,"release":1.1,"vibrato":0.7,"scoop":22,"volume":-10},
+    "Slow wood swell": {"type":4,"breath":0.6,"blow":0.6,"chiff":0,"attack":3,"release":8,"vibrato":0.12,"scoop":0,"volume":-9},
+    "Straight tone": {"type":0,"breath":0.12,"blow":0.65,"chiff":0.15,"attack":0.35,"release":1.6,"vibrato":0,"scoop":0,"volume":-9}
   },
   "fm-glass": {
     "(default)": {"algorithm":0,"ratio":6,"brightness":0.45,"decay":2.5,"attack":0.003,"release":3,"sustain":0,"detune":5,"feedback":0.1,"velocity":0.6,"spread":0.6,"volume":-9},
@@ -602,7 +715,16 @@
     "Ice chimes": {"algorithm":1,"ratio":4,"brightness":0.5,"decay":1.4,"attack":0.002,"release":4,"sustain":0,"detune":8,"feedback":0,"velocity":0.7,"spread":0.7,"volume":-9},
     "Temple bowl": {"algorithm":0,"ratio":2,"brightness":0.42,"decay":9,"attack":0.02,"release":8,"sustain":0,"detune":4,"feedback":0,"velocity":0.5,"spread":0.5,"volume":-9},
     "Tine keys": {"algorithm":2,"ratio":1,"brightness":0.36,"decay":1.6,"attack":0.002,"release":0.5,"sustain":0,"detune":4,"feedback":0.3,"velocity":0.9,"spread":0.5,"volume":-9},
-    "Slow glass": {"algorithm":1,"ratio":5,"brightness":0.3,"decay":12,"attack":2.5,"release":8,"sustain":0.8,"detune":12,"feedback":0.15,"velocity":0.3,"spread":1,"volume":-9}
+    "Slow glass": {"algorithm":1,"ratio":5,"brightness":0.3,"decay":12,"attack":2.5,"release":8,"sustain":0.8,"detune":12,"feedback":0.15,"velocity":0.3,"spread":1,"volume":-9},
+    "Toy keys": {"algorithm":2,"ratio":10,"brightness":0.3,"decay":0.6,"attack":0.002,"release":0.8,"sustain":0,"detune":2,"feedback":0.2,"velocity":0.8,"spread":0.3,"volume":-11},
+    "Glass organ": {"algorithm":3,"ratio":8,"brightness":0.3,"decay":6,"attack":0.05,"release":0.6,"sustain":0.9,"detune":6,"feedback":0,"velocity":0.2,"spread":0.5,"volume":-13.5},
+    "Dark gong": {"algorithm":0,"ratio":0,"brightness":0.6,"decay":7,"attack":0.01,"release":10,"sustain":0,"detune":14,"feedback":0.4,"velocity":0.7,"spread":0.9,"volume":-10},
+    "Bowed metal": {"algorithm":3,"ratio":2,"brightness":0.35,"decay":10,"attack":0.35,"release":6,"sustain":0.8,"detune":10,"feedback":0.25,"velocity":0.3,"spread":0.9,"volume":-11.5},
+    "Chime bars": {"algorithm":2,"ratio":4,"brightness":0.4,"decay":3.5,"attack":0.002,"release":5,"sustain":0,"detune":2,"feedback":0,"velocity":0.7,"spread":0.7,"volume":-13.5},
+    "Glass ping": {"algorithm":1,"ratio":10,"brightness":0.55,"decay":0.3,"attack":0.002,"release":0.6,"sustain":0,"detune":1,"feedback":0,"velocity":0.75,"spread":0.2,"volume":-7.5},
+    "Warm glass pad": {"algorithm":3,"ratio":1,"brightness":0.3,"decay":5,"attack":0.3,"release":5,"sustain":0.9,"detune":24,"feedback":0.6,"velocity":0.3,"spread":1,"volume":-10.5},
+    "Sine chimes": {"algorithm":0,"ratio":11,"brightness":0.08,"decay":5,"attack":0.004,"release":12,"sustain":0,"detune":12,"feedback":0,"velocity":0.5,"spread":1,"volume":-11},
+    "Rubbed glass": {"algorithm":1,"ratio":3,"brightness":0.35,"decay":6,"attack":0.35,"release":4,"sustain":0.85,"detune":7,"feedback":0.3,"velocity":0.3,"spread":0.8,"volume":-12}
   },
   "freq-shifter": {
     "(default)": {"shift":0,"fine":0.4,"mode":0,"feedback":0.5,"delay":45,"lfoRate":0.08,"lfoDepth":0.08,"tone":4500,"width":0.6,"mix":0.5},
@@ -693,7 +815,17 @@
     "Slow stretch": {"position":0,"scan":0.12,"size":140,"density":4,"spray":0.03,"detune":0,"octaves":0,"shape":0,"reverse":0,"attack":0.05,"release":0.8,"spread":0.2,"tone":14000,"volume":-9},
     "Shimmer": {"position":0.5,"scan":0.05,"size":360,"density":10,"spray":0.3,"detune":9,"octaves":0.55,"shape":0,"reverse":0.3,"attack":1.5,"release":5,"spread":1,"tone":12000,"volume":-9},
     "Backwards wash": {"position":0.6,"scan":-0.3,"size":900,"density":8,"spray":0.35,"detune":5,"octaves":0.1,"shape":0,"reverse":1,"attack":2.5,"release":6,"spread":0.9,"tone":6000,"volume":-9},
-    "Stutter": {"position":0.3,"scan":0.5,"size":45,"density":1.5,"spray":0,"detune":0,"octaves":0,"shape":0.8,"reverse":0,"attack":0.005,"release":0.2,"spread":0.4,"tone":16000,"volume":-9}
+    "Stutter": {"position":0.3,"scan":0.5,"size":45,"density":1.5,"spray":0,"detune":0,"octaves":0,"shape":0.8,"reverse":0,"attack":0.005,"release":0.2,"spread":0.4,"tone":16000,"volume":-9},
+    "Octave halo": {"position":0.35,"scan":0.02,"size":500,"density":12,"spray":0.15,"detune":12,"octaves":1,"shape":0,"reverse":0.4,"attack":1.5,"release":4,"spread":0.85,"tone":11000,"volume":-11},
+    "Deep fog": {"position":0.7,"scan":0.04,"size":1200,"density":12,"spray":0.5,"detune":20,"octaves":0.2,"shape":0,"reverse":0.5,"attack":4,"release":10,"spread":1,"tone":500,"volume":-5.5},
+    "Smeared cloud": {"position":0.5,"scan":0.3,"size":200,"density":16,"spray":1,"detune":100,"octaves":0.3,"shape":0,"reverse":0.5,"attack":0.8,"release":3,"spread":0.9,"tone":5000,"volume":-8.5},
+    "Scattered drops": {"position":0.4,"scan":0.2,"size":60,"density":1,"spray":0.8,"detune":10,"octaves":0.5,"shape":0.15,"reverse":0,"attack":0.01,"release":1.5,"spread":1,"tone":13000,"volume":-13},
+    "Fast rewind": {"position":0.9,"scan":-2,"size":180,"density":5,"spray":0.05,"detune":2,"octaves":0,"shape":0,"reverse":1,"attack":0.3,"release":1.2,"spread":0.5,"tone":10000,"volume":-11.5},
+    "Broken pulse": {"position":0.55,"scan":0.25,"size":350,"density":1.5,"spray":0.1,"detune":4,"octaves":0,"shape":1,"reverse":0,"attack":0.02,"release":0.6,"spread":0.6,"tone":8000,"volume":-12},
+    "Dark freeze": {"position":0.92,"scan":0,"size":90,"density":16,"spray":0,"detune":0,"octaves":0,"shape":0,"reverse":0,"attack":2,"release":6,"spread":0.3,"tone":2500,"volume":-7.5},
+    "Play through": {"position":0,"scan":1,"size":2000,"density":2,"spray":0,"detune":0,"octaves":0,"shape":0,"reverse":0,"attack":0.1,"release":1,"spread":0.25,"tone":18000,"volume":-11},
+    "Flutter": {"position":0.3,"scan":0.15,"size":70,"density":1.3,"spray":0.15,"detune":15,"octaves":0.04,"shape":0,"reverse":0.5,"attack":0.3,"release":2.5,"spread":1,"tone":7500,"volume":-13.5},
+    "Slow grain swell": {"position":0.25,"scan":-0.05,"size":1500,"density":10,"spray":0.6,"detune":8,"octaves":0.15,"shape":0,"reverse":0.5,"attack":5,"release":12,"spread":0.8,"tone":3000,"volume":-9.5}
   },
   "guitar": {
     "(default)": {"pickup":0.85,"position":0.14,"hardness":0.55,"sustain":9,"tone":3600,"swell":0,"strum":18,"shimmer":0.3,"warmth":0.3,"volume":-6},
@@ -702,7 +834,17 @@
     "Slow strum": {"pickup":0.95,"position":0.18,"hardness":0.3,"sustain":14,"tone":2800,"swell":0,"strum":60,"shimmer":0.3,"warmth":0.55,"volume":-6},
     "Dark baritone": {"pickup":0.15,"position":0.08,"hardness":0.85,"sustain":12,"tone":2000,"swell":0,"strum":30,"shimmer":0.2,"warmth":0.45,"volume":-6},
     "Muted pattern": {"pickup":0.1,"position":0.07,"hardness":0.5,"sustain":1.2,"tone":3800,"swell":0,"strum":0,"shimmer":0.1,"warmth":0.8,"volume":-2},
-    "Twelve string": {"pickup":0.6,"position":0.11,"hardness":0.65,"sustain":12,"tone":4800,"swell":0,"strum":32,"shimmer":1.3,"warmth":0.2,"volume":-6}
+    "Twelve string": {"pickup":0.6,"position":0.11,"hardness":0.65,"sustain":12,"tone":4800,"swell":0,"strum":32,"shimmer":1.3,"warmth":0.2,"volume":-6},
+    "Bridge twang": {"pickup":0,"position":0.06,"hardness":0.9,"sustain":6,"tone":5500,"swell":0,"strum":10,"shimmer":0.15,"warmth":0.15,"volume":-4.5},
+    "Slow warm swell": {"pickup":0.9,"position":0.2,"hardness":0.5,"sustain":30,"tone":2400,"swell":2,"strum":0,"shimmer":0.6,"warmth":0.9,"volume":6},
+    "Thumb and neck": {"pickup":1,"position":0.3,"hardness":0.05,"sustain":5,"tone":1700,"swell":0,"strum":25,"shimmer":0.1,"warmth":0.35,"volume":-3.5},
+    "Warm breakup": {"pickup":0.8,"position":0.18,"hardness":0.6,"sustain":5,"tone":2200,"swell":0,"strum":12,"shimmer":0.25,"warmth":1,"volume":-9},
+    "Harp roll": {"pickup":0.5,"position":0.35,"hardness":0.7,"sustain":20,"tone":5500,"swell":0,"strum":80,"shimmer":0.8,"warmth":0.05,"volume":-6},
+    "Hidden pick": {"pickup":0.7,"position":0.1,"hardness":0.6,"sustain":25,"tone":4500,"swell":0.25,"strum":40,"shimmer":1.5,"warmth":0.15,"volume":-1},
+    "Dark stops": {"pickup":1,"position":0.22,"hardness":0.2,"sustain":1.6,"tone":1600,"swell":0,"strum":0,"shimmer":0,"warmth":0.6,"volume":-1},
+    "Clean bell": {"pickup":0.95,"position":0.05,"hardness":1,"sustain":16,"tone":4200,"swell":0,"strum":4,"shimmer":0.5,"warmth":0.1,"volume":-3},
+    "Thick growl": {"pickup":0.2,"position":0.16,"hardness":0.5,"sustain":30,"tone":1500,"swell":0,"strum":45,"shimmer":1,"warmth":0.7,"volume":-11.5},
+    "Dry rolled chord": {"pickup":0.65,"position":0.3,"hardness":0.8,"sustain":2.5,"tone":4600,"swell":0,"strum":70,"shimmer":0.5,"warmth":0.1,"volume":-1.5}
   },
   "half-speed": {
     "(default)": {"power":0,"length":1000,"speed":2,"fade":0.15,"smooth":0.5,"jitter":0.1,"lowCut":20,"highCut":20000,"spread":0.8,"mix":1},
@@ -734,7 +876,17 @@
     "Halo": {"type":0,"decay":7,"touch":0.2,"position":0.5,"shimmer":0.85,"cavity":0.3,"sympathy":1,"damp":0,"volume":-6},
     "Tongue drum": {"type":1,"decay":7,"touch":0.15,"position":0.2,"shimmer":0.25,"cavity":0.6,"sympathy":0.5,"damp":0,"volume":-6},
     "Rain taps": {"type":0,"decay":1.2,"touch":0.55,"position":0.85,"shimmer":0.4,"cavity":0.35,"sympathy":0.3,"damp":0.8,"volume":-6},
-    "Knuckles": {"type":0,"decay":2.8,"touch":0.9,"position":0.6,"shimmer":0.5,"cavity":0.6,"sympathy":0.5,"damp":0,"volume":-6}
+    "Knuckles": {"type":0,"decay":2.8,"touch":0.9,"position":0.6,"shimmer":0.5,"cavity":0.6,"sympathy":0.5,"damp":0,"volume":-6},
+    "Bright tongue": {"type":1,"decay":4.5,"touch":0.75,"position":0.9,"shimmer":0,"cavity":0.2,"sympathy":0.3,"damp":0,"volume":-4},
+    "Slit drum": {"type":1,"decay":0.8,"touch":0.5,"position":0.35,"shimmer":0.1,"cavity":1,"sympathy":0.2,"damp":0,"volume":-2.5},
+    "Pure tongue": {"type":1,"decay":10,"touch":0,"position":0,"shimmer":0,"cavity":0,"sympathy":1,"damp":0,"volume":-7},
+    "Tank drum": {"type":1,"decay":6,"touch":0.35,"position":0.6,"shimmer":0.5,"cavity":0.9,"sympathy":0.8,"damp":0.3,"volume":-6},
+    "Edge overtones": {"type":0,"decay":5,"touch":0.5,"position":1,"shimmer":0.6,"cavity":0.2,"sympathy":0.7,"damp":0,"volume":-7.5},
+    "Centre tone": {"type":0,"decay":5,"touch":0.1,"position":0,"shimmer":0.1,"cavity":0.15,"sympathy":0.8,"damp":0,"volume":-6},
+    "Palm mute": {"type":0,"decay":2,"touch":0.15,"position":0.2,"shimmer":0.2,"cavity":0.8,"sympathy":0.2,"damp":1,"volume":-4},
+    "Slow shimmer": {"type":0,"decay":10,"touch":0.25,"position":0.75,"shimmer":1,"cavity":0.1,"sympathy":0.7,"damp":0,"volume":-6.5},
+    "Bright bloom": {"type":0,"decay":5,"touch":1,"position":0.3,"shimmer":0.2,"cavity":0,"sympathy":0.2,"damp":0,"volume":-7},
+    "Clean steel": {"type":0,"decay":2,"touch":0.45,"position":0.35,"shimmer":0,"cavity":0,"sympathy":0,"damp":0,"volume":-3.5}
   },
   "harp": {
     "(default)": {"strings":0,"pluck":0.36,"touch":0.4,"decay":1,"damp":0,"halo":0.5,"sweep":0,"bend":0,"body":0.6,"volume":-6},
@@ -746,7 +898,14 @@
     "Koto": {"strings":1,"pluck":0.08,"touch":0.75,"decay":1,"damp":0,"halo":0.4,"sweep":0,"bend":0,"body":0.7,"volume":-6},
     "Rising koto": {"strings":1,"pluck":0.1,"touch":0.6,"decay":1.3,"damp":0,"halo":0.5,"sweep":0,"bend":100,"body":0.7,"volume":-6},
     "Guzheng cascade": {"strings":2,"pluck":0.1,"touch":0.7,"decay":1,"damp":0,"halo":0.7,"sweep":1,"bend":0,"body":0.55,"volume":-6},
-    "Soft silk": {"strings":1,"pluck":0.2,"touch":0.1,"decay":1.6,"damp":0,"halo":0.7,"sweep":0,"bend":50,"body":0.8,"volume":-6}
+    "Soft silk": {"strings":1,"pluck":0.2,"touch":0.1,"decay":1.6,"damp":0,"halo":0.7,"sweep":0,"bend":50,"body":0.8,"volume":-6},
+    "Guzheng": {"strings":2,"pluck":0.12,"touch":0.65,"decay":1.2,"damp":0,"halo":0.45,"sweep":0,"bend":0,"body":0.6,"volume":-3},
+    "Dark hollow harp": {"strings":0,"pluck":0.5,"touch":0,"decay":1.5,"damp":0,"halo":0.3,"sweep":0,"bend":0,"body":1,"volume":-10},
+    "Short dry pluck": {"strings":0,"pluck":0.15,"touch":0.75,"decay":0.25,"damp":1,"halo":0,"sweep":0,"bend":0,"body":0.25,"volume":-3},
+    "Steel shimmer": {"strings":2,"pluck":0.04,"touch":1,"decay":4,"damp":0,"halo":1,"sweep":0,"bend":0,"body":0,"volume":-4.5},
+    "Whole tone press": {"strings":1,"pluck":0.3,"touch":0.3,"decay":3,"damp":0,"halo":0.6,"sweep":0,"bend":200,"body":0.45,"volume":-6.5},
+    "Slow rolled chord": {"strings":0,"pluck":0.42,"touch":0.25,"decay":2,"damp":0,"halo":0.9,"sweep":1.5,"bend":0,"body":0.75,"volume":-11},
+    "Rings while held": {"strings":0,"pluck":0.3,"touch":0.3,"decay":3.5,"damp":0.7,"halo":0.65,"sweep":0,"bend":0,"body":0.45,"volume":-11.5}
   },
   "horns": {
     "(default)": {"type":0,"blow":0.6,"breath":0.12,"section":0.6,"attack":2.5,"release":4,"vibrato":0,"harmony":0,"volume":-6},
@@ -755,7 +914,17 @@
     "Flugel breath": {"type":1,"blow":0.35,"breath":0.5,"section":0,"attack":0.25,"release":1.5,"vibrato":0.3,"harmony":0,"volume":-6},
     "Low brass choir": {"type":4,"blow":0.4,"breath":0.08,"section":1,"attack":4,"release":6,"vibrato":0,"harmony":0,"volume":-6},
     "Muted distance": {"type":3,"blow":0.5,"breath":0.25,"section":0,"attack":0.08,"release":0.9,"vibrato":0.15,"harmony":0,"volume":-6},
-    "Brass band": {"type":2,"blow":0.68,"breath":0.05,"section":1,"attack":0.6,"release":2,"vibrato":0,"harmony":0,"volume":-6}
+    "Brass band": {"type":2,"blow":0.68,"breath":0.05,"section":1,"attack":0.6,"release":2,"vibrato":0,"harmony":0,"volume":-6},
+    "Solo horn": {"type":0,"blow":0.4,"breath":0.25,"section":0,"attack":0.2,"release":1.2,"vibrato":0.1,"harmony":0,"volume":-6},
+    "Parallel fourths": {"type":0,"blow":0.5,"breath":0.1,"section":0.4,"attack":0.8,"release":2.5,"vibrato":0,"harmony":-0.7,"volume":-7.5},
+    "Muted brass swell": {"type":3,"blow":0.3,"breath":0.1,"section":1,"attack":1.5,"release":3,"vibrato":0,"harmony":0,"volume":-6},
+    "Flugel choir": {"type":1,"blow":0.5,"breath":0.15,"section":1,"attack":1.2,"release":3.5,"vibrato":0,"harmony":0,"volume":-6},
+    "Soft tuba": {"type":4,"blow":0.15,"breath":0.35,"section":0,"attack":0.4,"release":2,"vibrato":0,"harmony":0,"volume":-6},
+    "Horn of air": {"type":0,"blow":0.05,"breath":1,"section":0,"attack":1,"release":3,"vibrato":0,"harmony":0,"volume":-9},
+    "Glacial horns": {"type":0,"blow":0.85,"breath":0.18,"section":0.9,"attack":6,"release":8,"vibrato":0.15,"harmony":0,"volume":-4.5},
+    "Ballad trumpet": {"type":2,"blow":0.4,"breath":0.3,"section":0,"attack":0.1,"release":1,"vibrato":0.8,"harmony":0,"volume":-6},
+    "Open fifths pad": {"type":1,"blow":0.3,"breath":0.2,"section":1,"attack":2,"release":5,"vibrato":0,"harmony":1,"volume":-6},
+    "Trombone": {"type":4,"blow":0.85,"breath":0.05,"section":0,"attack":0.04,"release":0.5,"vibrato":0.3,"harmony":0,"volume":-6}
   },
   "ladder-bass": {
     "(default)": {"wave":0,"beat":6,"sub":0.3,"cutoff":500,"emphasis":0.3,"contour":0.6,"decay":0.6,"drive":0.3,"glide":0.08,"volume":-9},
@@ -764,7 +933,17 @@
     "Soft sub": {"wave":1,"beat":3,"sub":1,"cutoff":120,"emphasis":0,"contour":0,"decay":10,"drive":0,"glide":0.1,"volume":-9},
     "Singing lead": {"wave":0.3,"beat":5,"sub":0.2,"cutoff":1500,"emphasis":0.45,"contour":0.3,"decay":10,"drive":0.25,"glide":0.12,"volume":-3},
     "Slow opener": {"wave":0,"beat":7,"sub":0.4,"cutoff":150,"emphasis":0.6,"contour":0.8,"decay":6,"drive":0.3,"glide":0.08,"volume":-9},
-    "Rubber pluck": {"wave":0.6,"beat":4,"sub":0.2,"cutoff":220,"emphasis":0.55,"contour":0.75,"decay":0.9,"drive":0.5,"glide":0.08,"volume":-6}
+    "Rubber pluck": {"wave":0.6,"beat":4,"sub":0.2,"cutoff":220,"emphasis":0.55,"contour":0.75,"decay":0.9,"drive":0.5,"glide":0.08,"volume":-6},
+    "Felt bass": {"wave":0,"beat":2,"sub":0.6,"cutoff":200,"emphasis":0,"contour":0.25,"decay":2.2,"drive":0,"glide":0.05,"volume":-11},
+    "Slow pluck": {"wave":0,"beat":3,"sub":0,"cutoff":300,"emphasis":0,"contour":0.7,"decay":3,"drive":0.1,"glide":0.02,"volume":-13.5},
+    "Hollow fall": {"wave":1,"beat":4,"sub":0.25,"cutoff":200,"emphasis":0.1,"contour":0.5,"decay":8,"drive":0.4,"glide":0.05,"volume":-17.5},
+    "Low reed": {"wave":1,"beat":0,"sub":0,"cutoff":600,"emphasis":0.05,"contour":0.1,"decay":10,"drive":0,"glide":0.04,"volume":-16},
+    "Pure pedal": {"wave":1,"beat":0,"sub":0,"cutoff":100,"emphasis":0.6,"contour":0,"decay":10,"drive":0.1,"glide":0.25,"volume":-14.5},
+    "Slow breathing": {"wave":0,"beat":1.5,"sub":0,"cutoff":1200,"emphasis":0.1,"contour":0,"decay":10,"drive":0.2,"glide":0.4,"volume":-15.5},
+    "Thick unison": {"wave":0,"beat":25,"sub":0.2,"cutoff":800,"emphasis":0.15,"contour":0.2,"decay":10,"drive":0.15,"glide":0.2,"volume":-12.5},
+    "Warm growl": {"wave":0,"beat":14,"sub":0.9,"cutoff":700,"emphasis":0.35,"contour":0.4,"decay":10,"drive":1,"glide":0.12,"volume":-16},
+    "Whistling drone": {"wave":0.15,"beat":12,"sub":0.1,"cutoff":680,"emphasis":1,"contour":0,"decay":10,"drive":0.1,"glide":0.3,"volume":-7},
+    "Gliding lead": {"wave":0.85,"beat":8,"sub":0,"cutoff":2500,"emphasis":0.25,"contour":0.2,"decay":10,"drive":0.15,"glide":0.8,"volume":-11}
   },
   "lattice": {
     "(default)": {"root":0,"scale":0,"center":62,"snap":0,"glide":15,"window":24,"deglitch":1,"mix":50,"output":0,"v1Role":2,"v1Degrees":0,"v1Level":-6,"v1Pan":-40,"v1Delay":0,"v1Feedback":0,"v2Role":1,"v2Degrees":2,"v2Level":-6,"v2Pan":40,"v2Delay":0,"v2Feedback":0,"v3Role":5,"v3Degrees":0,"v3Level":-6,"v3Pan":-15,"v3Delay":0,"v3Feedback":0,"v4Role":0,"v4Degrees":0,"v4Level":-6,"v4Pan":15,"v4Delay":0,"v4Feedback":0,"customPeriod":1200,"customOn1":1,"customCents1":0,"customOn2":0,"customCents2":100,"customOn3":1,"customCents3":200,"customOn4":0,"customCents4":300,"customOn5":1,"customCents5":400,"customOn6":1,"customCents6":500,"customOn7":0,"customCents7":600,"customOn8":1,"customCents8":700,"customOn9":0,"customCents9":800,"customOn10":1,"customCents10":900,"customOn11":0,"customCents11":1000,"customOn12":1,"customCents12":1100,"feedbackPath":0},
@@ -817,7 +996,15 @@
     "Rolled vibes": {"instrument":1,"mallet":0.15,"decay":1,"resonator":1,"motor":0.35,"motorRate":2.2,"roll":9,"damper":0.3,"width":0.7,"volume":-12},
     "Glockenspiel": {"instrument":3,"mallet":0.85,"decay":1,"resonator":0,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.3,"volume":-9},
     "Celesta": {"instrument":4,"mallet":0.3,"decay":1,"resonator":0.8,"motor":0,"motorRate":4.5,"roll":0,"damper":0.7,"width":0.4,"volume":-9},
-    "Dry xylophone": {"instrument":2,"mallet":0.8,"decay":0.6,"resonator":0.4,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.4,"volume":-9}
+    "Dry xylophone": {"instrument":2,"mallet":0.8,"decay":0.6,"resonator":0.4,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.4,"volume":-9},
+    "Warm xylophone": {"instrument":2,"mallet":0.1,"decay":4,"resonator":1,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.3,"volume":-9},
+    "Xylophone roll": {"instrument":2,"mallet":0.3,"decay":2,"resonator":0.9,"motor":0,"motorRate":4.5,"roll":14,"damper":0.5,"width":0.8,"volume":-9},
+    "Resonator bells": {"instrument":3,"mallet":0.45,"decay":2,"resonator":1,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.6,"volume":-12.5},
+    "Glockenspiel roll": {"instrument":3,"mallet":0.3,"decay":0.7,"resonator":0.5,"motor":0,"motorRate":4.5,"roll":16,"damper":0.6,"width":0.9,"volume":-9},
+    "Open celesta": {"instrument":4,"mallet":0.1,"decay":3,"resonator":1,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.8,"volume":-14.5},
+    "Tremolo celesta": {"instrument":4,"mallet":0.6,"decay":1,"resonator":1,"motor":0.9,"motorRate":10,"roll":0,"damper":0.5,"width":0.3,"volume":-10.5},
+    "Slow pulse vibes": {"instrument":1,"mallet":0.2,"decay":3,"resonator":1,"motor":1,"motorRate":1.1,"roll":0,"damper":0,"width":0.8,"volume":-12},
+    "Humming marimba": {"instrument":0,"mallet":0,"decay":4,"resonator":1,"motor":0,"motorRate":4.5,"roll":0,"damper":0,"width":0.2,"volume":-12.5}
   },
   "micro-looper": {
     "(default)": {"state":2,"length":2,"speed":4,"clock":0,"smear":0.2,"fade":0.8,"drift":0.15,"tone":9000,"spread":0.5,"mix":0.25},
@@ -858,7 +1045,15 @@
     "Music box": {"material":3,"decay":3,"damping":0.3,"hardness":0.85,"position":0.1,"detune":0.4,"stretch":1,"sustain":0,"brightness":0.6,"release":0.2,"spread":0.5,"volume":-9},
     "Kalimba": {"material":4,"decay":2.5,"damping":0.75,"hardness":0.6,"position":0.1,"detune":0.5,"stretch":1,"sustain":0,"brightness":0.5,"release":0.4,"spread":0.3,"volume":-9},
     "Glass harp": {"material":5,"decay":9,"damping":0.3,"hardness":0.15,"position":0.15,"detune":1.5,"stretch":1,"sustain":0.9,"brightness":0.4,"release":0.3,"spread":0.7,"volume":-9},
-    "Gong": {"material":6,"decay":30,"damping":0.5,"hardness":0.3,"position":0.35,"detune":2,"stretch":1,"sustain":0,"brightness":0.5,"release":0,"spread":1,"volume":-9}
+    "Gong": {"material":6,"decay":30,"damping":0.5,"hardness":0.3,"position":0.35,"detune":2,"stretch":1,"sustain":0,"brightness":0.5,"release":0,"spread":1,"volume":-9},
+    "Tapped glass": {"material":5,"decay":5,"damping":0.2,"hardness":0.75,"position":0.05,"detune":0.4,"stretch":1,"sustain":0,"brightness":0.7,"release":0.1,"spread":0.4,"volume":-14},
+    "Shivering glass": {"material":5,"decay":10,"damping":0.1,"hardness":0.5,"position":0.15,"detune":7,"stretch":1,"sustain":0,"brightness":0.6,"release":0,"spread":1,"volume":-10.5},
+    "Distant bell": {"material":0,"decay":35,"damping":0.7,"hardness":0.15,"position":0.5,"detune":1.2,"stretch":1,"sustain":0,"brightness":0.1,"release":0,"spread":0.9,"volume":-7},
+    "Bowed bell": {"material":0,"decay":16,"damping":0.3,"hardness":0.1,"position":0.15,"detune":0.5,"stretch":1,"sustain":1,"brightness":0.35,"release":0.1,"spread":0.7,"volume":-9},
+    "Dark bowl": {"material":1,"decay":40,"damping":0.6,"hardness":0.05,"position":0.6,"detune":0.25,"stretch":1,"sustain":0,"brightness":0.2,"release":0,"spread":1,"volume":-10.5},
+    "Rubbed gong": {"material":6,"decay":25,"damping":0.35,"hardness":0.1,"position":0.2,"detune":1.2,"stretch":0.8,"sustain":1,"brightness":0.4,"release":0.05,"spread":0.9,"volume":-9.5},
+    "Wood bars": {"material":3,"decay":1.2,"damping":1,"hardness":0.5,"position":0.5,"detune":0,"stretch":1,"sustain":0,"brightness":0.45,"release":0.5,"spread":0.2,"volume":-2},
+    "Wind chimes": {"material":3,"decay":8,"damping":0.05,"hardness":0.9,"position":0.02,"detune":0.2,"stretch":1,"sustain":0,"brightness":0.8,"release":0,"spread":0.9,"volume":-14.5}
   },
   "noise-floor": {
     "(default)": {"type":0,"level":-42,"follow":0,"response":0.4,"tone":0,"movement":0.3,"width":0.8,"hold":12},
@@ -913,7 +1108,16 @@
     "Full organ": {"sub":0.8,"octave":0.8,"twelfth":0.5,"fifteenth":0.6,"reed":0.55,"celeste":0.15,"breath":0.1,"bellows":0.1,"tremulant":0,"attack":0.05,"release":0.8,"tone":7000,"volume":-10},
     "Pump organ": {"sub":0.15,"octave":0.3,"twelfth":0.2,"fifteenth":0,"reed":0.75,"celeste":0.2,"breath":0.45,"bellows":0.85,"tremulant":0,"attack":0.2,"release":0.5,"tone":2400,"volume":-10},
     "Tremulant flute": {"sub":0,"octave":0.2,"twelfth":0,"fifteenth":0,"reed":0.05,"celeste":0,"breath":0.35,"bellows":0.15,"tremulant":0.6,"attack":0.1,"release":0.5,"tone":4500,"volume":-10},
-    "Distant pipes": {"sub":0.6,"octave":0.5,"twelfth":0.25,"fifteenth":0.3,"reed":0.2,"celeste":0.5,"breath":0.15,"bellows":0.25,"tremulant":0,"attack":3,"release":7,"tone":1200,"volume":-10}
+    "Distant pipes": {"sub":0.6,"octave":0.5,"twelfth":0.25,"fifteenth":0.3,"reed":0.2,"celeste":0.5,"breath":0.15,"bellows":0.25,"tremulant":0,"attack":3,"release":7,"tone":1200,"volume":-10},
+    "Hollow quint": {"sub":0,"octave":0,"twelfth":0.9,"fifteenth":0,"reed":0,"celeste":0,"breath":0.25,"bellows":0.15,"tremulant":0,"attack":0.2,"release":1,"tone":2400,"volume":-10},
+    "Beating flutes": {"sub":0,"octave":0,"twelfth":0,"fifteenth":0,"reed":0,"celeste":1,"breath":0.15,"bellows":0.05,"tremulant":0,"attack":0.5,"release":2,"tone":3600,"volume":-10},
+    "Vox humana": {"sub":0,"octave":0,"twelfth":0,"fifteenth":0,"reed":0.8,"celeste":0,"breath":0.3,"bellows":0.1,"tremulant":1,"attack":0.15,"release":0.9,"tone":1500,"volume":-9},
+    "Accordion": {"sub":0,"octave":0.25,"twelfth":0,"fifteenth":0,"reed":0.9,"celeste":0.85,"breath":0.1,"bellows":0.9,"tremulant":0,"attack":0.04,"release":0.12,"tone":6500,"volume":-11},
+    "Shruti box": {"sub":0.4,"octave":0,"twelfth":0,"fifteenth":0,"reed":0.6,"celeste":0.15,"breath":0.5,"bellows":1,"tremulant":0,"attack":1.2,"release":2.5,"tone":2000,"volume":-10},
+    "Deep pedal": {"sub":1,"octave":0,"twelfth":0,"fifteenth":0,"reed":0.12,"celeste":0.2,"breath":0.1,"bellows":0.4,"tremulant":0,"attack":0.6,"release":3,"tone":700,"volume":-10},
+    "Windy flute": {"sub":0,"octave":0,"twelfth":0,"fifteenth":0,"reed":0,"celeste":0,"breath":1,"bellows":0.6,"tremulant":0,"attack":0.8,"release":2,"tone":3000,"volume":-10},
+    "Through the wall": {"sub":0.6,"octave":0.6,"twelfth":0.3,"fifteenth":0.3,"reed":0.6,"celeste":0.2,"breath":0.4,"bellows":0.2,"tremulant":0,"attack":0.3,"release":1.5,"tone":380,"volume":-8},
+    "Slow bright bloom": {"sub":0.2,"octave":0.6,"twelfth":0.6,"fifteenth":0.7,"reed":0.35,"celeste":0.4,"breath":0.1,"bellows":0.45,"tremulant":0,"attack":6,"release":10,"tone":5500,"volume":-10}
   },
   "outdoors": {
     "(default)": {"type":5,"density":0.5,"distance":0.4,"movement":0.5,"tone":0.5,"attack":2,"release":4,"width":1,"volume":-9},
@@ -928,7 +1132,11 @@
     "Far storm": {"type":4,"density":0.5,"distance":0.8,"movement":0.6,"tone":0.4,"attack":0.5,"release":8,"width":1,"volume":-9},
     "Storm overhead": {"type":4,"density":0.9,"distance":0.05,"movement":0.8,"tone":0.55,"attack":0.01,"release":6,"width":1,"volume":-13},
     "Porch chimes": {"type":5,"density":0.4,"distance":0.15,"movement":0.4,"tone":0.5,"attack":0.01,"release":6,"width":1,"volume":-9},
-    "Chimes in a breeze": {"type":5,"density":0.7,"distance":0.4,"movement":1,"tone":0.6,"attack":0.01,"release":8,"width":1,"volume":-9}
+    "Chimes in a breeze": {"type":5,"density":0.7,"distance":0.4,"movement":1,"tone":0.6,"attack":0.01,"release":8,"width":1,"volume":-9},
+    "Far woodland": {"type":0,"density":0.85,"distance":0.9,"movement":0.3,"tone":0.3,"attack":4,"release":8,"width":1,"volume":-1},
+    "Lone cricket": {"type":1,"density":0,"distance":0.08,"movement":0.1,"tone":0.25,"attack":0.3,"release":2,"width":1,"volume":-5.5},
+    "Trickle": {"type":3,"density":0.12,"distance":0.05,"movement":0.85,"tone":0.8,"attack":1,"release":3,"width":1,"volume":-3},
+    "Chime cloud": {"type":5,"density":1,"distance":0.8,"movement":0,"tone":0.1,"attack":3,"release":14,"width":1,"volume":-9}
   },
   "pad-follower": {
     "(default)": {"rise":0.6,"fall":4,"sensitivity":0.5,"octaves":0.3,"brightness":3500,"ensemble":0.6,"movement":0.3,"lowCut":120,"width":1,"mix":0.45},
@@ -984,7 +1192,17 @@
     "Long slides": {"swell":0.6,"sustain":20,"glide":500,"range":12,"vibrato":6,"rate":4.5,"pick":0.4,"tone":2800,"volume":-9},
     "Lap slide": {"swell":0,"sustain":8,"glide":220,"range":12,"vibrato":10,"rate":5.5,"pick":0.8,"tone":4500,"volume":-9},
     "Singing lead": {"swell":0.9,"sustain":25,"glide":150,"range":5,"vibrato":25,"rate":4.2,"pick":0.5,"tone":3000,"volume":-9},
-    "Picked bell": {"swell":0,"sustain":6,"glide":90,"range":2,"vibrato":4,"rate":5,"pick":1,"tone":5500,"volume":-9}
+    "Picked bell": {"swell":0,"sustain":6,"glide":90,"range":2,"vibrato":4,"rate":5,"pick":1,"tone":5500,"volume":-9},
+    "Short twang": {"swell":0,"sustain":2.5,"glide":60,"range":0,"vibrato":0,"rate":5,"pick":0.9,"tone":6000,"volume":-7.5},
+    "Round thumb": {"swell":0,"sustain":10,"glide":250,"range":3,"vibrato":5,"rate":4.6,"pick":0,"tone":1700,"volume":-10.5},
+    "Long swell": {"swell":2,"sustain":40,"glide":400,"range":4,"vibrato":14,"rate":3.5,"pick":0.6,"tone":4200,"volume":-6},
+    "Dark swell": {"swell":0.8,"sustain":20,"glide":300,"range":5,"vibrato":12,"rate":3.8,"pick":0.1,"tone":1500,"volume":-9},
+    "Short bloom": {"swell":0.25,"sustain":2,"glide":100,"range":0,"vibrato":0,"rate":5,"pick":0.6,"tone":3600,"volume":-1},
+    "Dying slide": {"swell":0,"sustain":4,"glide":800,"range":12,"vibrato":0,"rate":5,"pick":0.5,"tone":3000,"volume":-7},
+    "Fading swell": {"swell":0.6,"sustain":5,"glide":200,"range":3,"vibrato":3,"rate":4,"pick":1,"tone":6000,"volume":-3},
+    "Soft bends": {"swell":0.2,"sustain":6,"glide":500,"range":7,"vibrato":4,"rate":5,"pick":0.2,"tone":2200,"volume":-8},
+    "Wide shake": {"swell":0.2,"sustain":25,"glide":120,"range":1,"vibrato":40,"rate":6.5,"pick":0.85,"tone":5000,"volume":-12},
+    "Swelling slide": {"swell":1.5,"sustain":6,"glide":600,"range":12,"vibrato":6,"rate":5,"pick":0.5,"tone":3300,"volume":2}
   },
   "phaser": {
     "(default)": {"stages":1,"centerHz":800,"spread":30,"feedback":40,"rate":0.3,"depth":60,"shape":0,"stereo":90,"mix":0.5},
@@ -1130,7 +1348,17 @@
     "One shot": {"start":0,"end":1,"loop":0,"crossfade":0,"reverse":0,"tune":0,"fine":0,"attack":0.001,"release":0.3,"tone":14000,"wobble":0,"velocity":1,"volume":-9},
     "Backwards": {"start":0,"end":1,"loop":0,"crossfade":0,"reverse":1,"tune":0,"fine":0,"attack":0.01,"release":1.2,"tone":9000,"wobble":0.15,"velocity":0.7,"volume":-9},
     "There and back": {"start":0.3,"end":0.7,"loop":2,"crossfade":50,"reverse":0,"tune":-12,"fine":0,"attack":1.6,"release":4.5,"tone":3000,"wobble":0.3,"velocity":0.2,"volume":-9},
-    "Worn tape": {"start":0.15,"end":0.85,"loop":1,"crossfade":120,"reverse":0,"tune":0,"fine":-14,"attack":0.12,"release":1.5,"tone":3200,"wobble":0.9,"velocity":0.5,"volume":-9}
+    "Worn tape": {"start":0.15,"end":0.85,"loop":1,"crossfade":120,"reverse":0,"tune":0,"fine":-14,"attack":0.12,"release":1.5,"tone":3200,"wobble":0.9,"velocity":0.5,"volume":-9},
+    "Attack only": {"start":0,"end":0.1,"loop":0,"crossfade":0,"reverse":0,"tune":0,"fine":0,"attack":0.001,"release":0.2,"tone":16000,"wobble":0,"velocity":0.9,"volume":-4},
+    "Fluttering start": {"start":0,"end":0.05,"loop":2,"crossfade":50,"reverse":0,"tune":0,"fine":0,"attack":0.02,"release":0.9,"tone":10000,"wobble":0.05,"velocity":0.7,"volume":-7},
+    "Frozen slice": {"start":0.5,"end":0.52,"loop":1,"crossfade":30,"reverse":0,"tune":0,"fine":0,"attack":1.2,"release":5,"tone":5000,"wobble":0.35,"velocity":0.3,"volume":-9},
+    "Breathing loop": {"start":0.8,"end":1,"loop":2,"crossfade":50,"reverse":0,"tune":0,"fine":0,"attack":0.3,"release":2.5,"tone":7000,"wobble":0.25,"velocity":0.4,"volume":-8},
+    "Rising swells": {"start":0.85,"end":1,"loop":1,"crossfade":40,"reverse":1,"tune":0,"fine":0,"attack":0.01,"release":1.2,"tone":12000,"wobble":0.1,"velocity":0.5,"volume":-3},
+    "Backward drift": {"start":0.15,"end":0.85,"loop":1,"crossfade":400,"reverse":1,"tune":-5,"fine":0,"attack":0.9,"release":3.5,"tone":5000,"wobble":0.7,"velocity":0.4,"volume":-9},
+    "High glass": {"start":0.15,"end":0.85,"loop":1,"crossfade":150,"reverse":0,"tune":12,"fine":0,"attack":0.15,"release":2.5,"tone":16000,"wobble":0.1,"velocity":0.5,"volume":-9},
+    "Low fifth pad": {"start":0.2,"end":0.8,"loop":2,"crossfade":50,"reverse":0,"tune":-7,"fine":0,"attack":0.4,"release":2,"tone":3500,"wobble":0.45,"velocity":0.4,"volume":-9},
+    "Far away swell": {"start":0.15,"end":0.85,"loop":1,"crossfade":250,"reverse":0,"tune":0,"fine":0,"attack":2,"release":6,"tone":400,"wobble":0.4,"velocity":0.2,"volume":-6},
+    "Deep slow drone": {"start":0.05,"end":0.95,"loop":2,"crossfade":50,"reverse":0,"tune":-24,"fine":0,"attack":3,"release":9,"tone":1200,"wobble":0.6,"velocity":0,"volume":-8}
   },
   "saturator": {
     "(default)": {"curve":0,"driveDb":6,"bias":0,"toneDb":0,"outputDb":0,"mix":1,"dcBlock":1,"oversample":2,"adaa":0},
@@ -1293,7 +1521,18 @@
     "Glass": {"attack":1.2,"release":4,"low":0,"high":1,"tone":7000,"ensemble":0.7,"speed":1.3,"drift":0.2,"width":0.8,"volume":-9},
     "Cellos": {"attack":0.9,"release":2.5,"low":1,"high":0,"tone":1200,"ensemble":0.6,"speed":0.8,"drift":0.4,"width":0.8,"volume":-9},
     "Dry saws": {"attack":0.02,"release":0.4,"low":0.3,"high":0.3,"tone":6000,"ensemble":0,"speed":1,"drift":0.1,"width":0,"volume":-9},
-    "Solina": {"attack":0.6,"release":1.8,"low":0.4,"high":0.35,"tone":3200,"ensemble":0.8,"speed":1,"drift":0.3,"width":0.8,"volume":-9}
+    "Solina": {"attack":0.6,"release":1.8,"low":0.4,"high":0.35,"tone":3200,"ensemble":0.8,"speed":1,"drift":0.3,"width":0.8,"volume":-9},
+    "Low fog": {"attack":2.5,"release":5,"low":0.9,"high":0,"tone":450,"ensemble":1,"speed":0.4,"drift":0.6,"width":0.8,"volume":-8},
+    "Bright shimmer": {"attack":0.3,"release":1.4,"low":0,"high":0.9,"tone":12000,"ensemble":1,"speed":2,"drift":0.1,"width":0.8,"volume":-11},
+    "Plain organ": {"attack":0.005,"release":0.08,"low":1,"high":0.7,"tone":2400,"ensemble":0,"speed":1,"drift":0,"width":0.8,"volume":-14},
+    "Slow wide ensemble": {"attack":1.6,"release":3.2,"low":0.5,"high":0.5,"tone":2400,"ensemble":1,"speed":0.25,"drift":0.8,"width":1,"volume":-9},
+    "Hollow strings": {"attack":0.4,"release":2.2,"low":0.15,"high":0.6,"tone":4500,"ensemble":0.45,"speed":0.5,"drift":0.2,"width":0.5,"volume":-9},
+    "Violas": {"attack":0.25,"release":0.9,"low":0,"high":0,"tone":1600,"ensemble":0.7,"speed":0.9,"drift":0.3,"width":0.3,"volume":-5},
+    "Three octaves": {"attack":0.12,"release":1.2,"low":1,"high":1,"tone":5200,"ensemble":1,"speed":1.2,"drift":0.5,"width":1,"volume":-13},
+    "Long cello swell": {"attack":5,"release":12,"low":1,"high":0.15,"tone":900,"ensemble":0.9,"speed":0.5,"drift":0.7,"width":0.8,"volume":-7},
+    "Detuned strings": {"attack":0.8,"release":2.8,"low":0.3,"high":0.6,"tone":2000,"ensemble":1,"speed":2,"drift":1,"width":0.45,"volume":-9},
+    "Muted violins": {"attack":1,"release":2,"low":0,"high":1,"tone":1300,"ensemble":0.85,"speed":0.6,"drift":0.45,"width":0.6,"volume":-9},
+    "Bowed bass": {"attack":0.1,"release":0.7,"low":1,"high":0,"tone":380,"ensemble":0.3,"speed":0.5,"drift":0.15,"width":0,"volume":-7}
   },
   "sustainer": {
     "(default)": {"mode":0,"hold":0,"sensitivity":0.5,"attack":0.25,"decay":8,"glide":0.4,"motion":0.35,"ensemble":0.2,"tone":0,"lowCut":60,"mix":0.5},
@@ -1391,7 +1630,17 @@
     "Ma tuning": {"tuning":1,"jawari":0.45,"speed":6,"decay":15,"detune":2,"body":0.4,"spread":0.5,"volume":-8},
     "Closed jawari": {"tuning":0,"jawari":0.25,"speed":4,"decay":7,"detune":1,"body":0.55,"spread":0.5,"volume":-8},
     "Monochord": {"tuning":0,"jawari":0,"speed":8,"decay":30,"detune":4,"body":0.6,"spread":0.7,"volume":-8},
-    "Evening Ni": {"tuning":2,"jawari":0.7,"speed":7,"decay":20,"detune":3,"body":0.4,"spread":0.5,"volume":-8}
+    "Evening Ni": {"tuning":2,"jawari":0.7,"speed":7,"decay":20,"detune":3,"body":0.4,"spread":0.5,"volume":-8},
+    "Fast buzzing round": {"tuning":0,"jawari":1,"speed":2,"decay":5,"detune":1.5,"body":0.2,"spread":1,"volume":-7},
+    "Low Ma gourd": {"tuning":1,"jawari":0.15,"speed":9,"decay":25,"detune":5,"body":1,"spread":0.3,"volume":-8},
+    "Bright Ni shimmer": {"tuning":2,"jawari":1,"speed":3,"decay":9,"detune":0,"body":0.1,"spread":1,"volume":-8},
+    "Plain plucked four": {"tuning":0,"jawari":0,"speed":3,"decay":5,"detune":0,"body":0,"spread":1,"volume":-7},
+    "Slow wide beating": {"tuning":0,"jawari":0.5,"speed":12,"decay":30,"detune":8,"body":0.5,"spread":1,"volume":-8},
+    "Mono gourd drone": {"tuning":0,"jawari":0.9,"speed":7,"decay":18,"detune":0.5,"body":0.8,"spread":0,"volume":-8},
+    "Ma full bloom": {"tuning":1,"jawari":0.95,"speed":4,"decay":10,"detune":3.5,"body":0.15,"spread":0.9,"volume":-8},
+    "Dark slow Ni": {"tuning":2,"jawari":0.2,"speed":11,"decay":28,"detune":6,"body":0.75,"spread":0.25,"volume":-8},
+    "Quick dry round": {"tuning":0,"jawari":0.5,"speed":2.5,"decay":3,"detune":2,"body":0.3,"spread":0.35,"volume":-5.5},
+    "Bare string buzz": {"tuning":0,"jawari":1,"speed":6,"decay":30,"detune":6,"body":0,"spread":0.6,"volume":-9}
   },
   "tape": {
     "(default)": {"drive":0.3,"wow":0.25,"flutter":0.2,"speed":1,"age":0.2,"hiss":0.25,"bump":0.5,"tone":0.5,"output":0,"mix":1},
@@ -1468,7 +1717,13 @@
     "Tape choir": {"tape":5,"age":0.2,"hiss":0.2,"tone":0,"speed":0,"length":9,"attack":0.15,"release":0.9,"players":0.6,"vibrato":0.45,"spread":1,"volume":-9},
     "Worn choir": {"tape":5,"age":0.85,"hiss":0.5,"tone":-0.35,"speed":0,"length":8,"attack":0.3,"release":1.4,"players":0.8,"vibrato":0.6,"spread":0.7,"volume":-9},
     "Cello bed": {"tape":1,"age":0.4,"hiss":0.2,"tone":0.2,"speed":1,"length":9,"attack":0.6,"release":2.5,"players":0.8,"vibrato":0.4,"spread":0.85,"volume":-9},
-    "Lost reel": {"tape":2,"age":1,"hiss":0.7,"tone":-0.3,"speed":1,"length":6,"attack":0.05,"release":0.8,"players":0.6,"vibrato":0.5,"spread":0.7,"volume":-9}
+    "Lost reel": {"tape":2,"age":1,"hiss":0.7,"tone":-0.3,"speed":1,"length":6,"attack":0.05,"release":0.8,"players":0.6,"vibrato":0.5,"spread":0.7,"volume":-9},
+    "Cello section": {"tape":1,"age":0.15,"hiss":0.1,"tone":-0.25,"speed":0,"length":9,"attack":0.2,"release":1.3,"players":0.7,"vibrato":0.7,"spread":0.85,"volume":-9},
+    "Slowed choir": {"tape":5,"age":0.55,"hiss":0.4,"tone":0.5,"speed":1,"length":9,"attack":1.2,"release":4,"players":1,"vibrato":0.2,"spread":1,"volume":-9},
+    "Still flutes": {"tape":2,"age":0,"hiss":0,"tone":0.6,"speed":0,"length":9,"attack":0.2,"release":1.2,"players":0,"vibrato":0,"spread":0.5,"volume":-9},
+    "Strings run out": {"tape":0,"age":0.7,"hiss":0.6,"tone":-0.5,"speed":0,"length":3,"attack":0.005,"release":0.25,"players":0.3,"vibrato":0.3,"spread":0,"volume":-9},
+    "Low reeds": {"tape":4,"age":0.3,"hiss":0.15,"tone":0.7,"speed":1,"length":9,"attack":0.5,"release":3,"players":0.9,"vibrato":0.1,"spread":0.5,"volume":-10.5},
+    "Sunken strings": {"tape":0,"age":0.6,"hiss":0.8,"tone":-1,"speed":1,"length":9,"attack":2.5,"release":6,"players":1,"vibrato":1,"spread":0.95,"volume":-7}
   },
   "thesis": {
     "(default)": {"center":62,"resonance":40,"width":50,"attack":0.5,"release":2,"mode":1,"breatheRate":0.3,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":0,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":0,"root":0},
@@ -1480,7 +1735,14 @@
     "Fixed Full Stack": {"center":62,"resonance":60,"width":70,"attack":0.4,"release":2.5,"mode":0,"breatheRate":0.3,"strum":20,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":1,"mirrorMiddleEnabled":1,"centerEnabled":1,"scale":0,"root":0},
     "Pentatonic Breath": {"center":62,"resonance":50,"width":50,"attack":0.2,"release":1.5,"mode":1,"breatheRate":0.6,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":0,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":9,"root":0},
     "Dark Phrygian": {"center":50,"resonance":25,"width":30,"attack":1,"release":6,"mode":2,"breatheRate":0.12,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":0,"mirrorMiddleEnabled":1,"centerEnabled":0,"scale":5,"root":4},
-    "Sparse Mirror": {"center":62,"resonance":70,"width":40,"attack":0.4,"release":2.5,"mode":1,"breatheRate":0.2,"strum":0,"mirrorEnabled":1,"octaflipEnabled":0,"middleEnabled":0,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":0,"root":0}
+    "Sparse Mirror": {"center":62,"resonance":70,"width":40,"attack":0.4,"release":2.5,"mode":1,"breatheRate":0.2,"strum":0,"mirrorEnabled":1,"octaflipEnabled":0,"middleEnabled":0,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":0,"root":0},
+    "Whole tone haze": {"center":60,"resonance":26,"width":100,"attack":2.5,"release":7,"mode":1,"breatheRate":0.45,"strum":0,"mirrorEnabled":0,"octaflipEnabled":0,"middleEnabled":1,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":11,"root":0},
+    "Blues strum": {"center":52,"resonance":50,"width":85,"attack":0.01,"release":0.7,"mode":0,"breatheRate":0.3,"strum":60,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":1,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":10,"root":9},
+    "Locrian shadow": {"center":48,"resonance":15,"width":72,"attack":3,"release":9,"mode":1,"breatheRate":0.1,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":0,"mirrorMiddleEnabled":1,"centerEnabled":0,"scale":8,"root":0},
+    "Mixolydian glow": {"center":67,"resonance":50,"width":94,"attack":0.8,"release":4,"mode":1,"breatheRate":1.2,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":1,"mirrorMiddleEnabled":0,"centerEnabled":1,"scale":7,"root":7},
+    "Chromatic whistle": {"center":62,"resonance":50,"width":100,"attack":0.15,"release":1.5,"mode":0,"breatheRate":0.3,"strum":0,"mirrorEnabled":0,"octaflipEnabled":0,"middleEnabled":0,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":12,"root":0},
+    "Harmonic minor tide": {"center":65,"resonance":50,"width":60,"attack":1.8,"release":5,"mode":1,"breatheRate":0.14,"strum":0,"mirrorEnabled":1,"octaflipEnabled":0,"middleEnabled":0,"mirrorMiddleEnabled":1,"centerEnabled":0,"scale":2,"root":7},
+    "Melodic minor lift": {"center":55,"resonance":50,"width":85,"attack":4,"release":6,"mode":3,"breatheRate":0.3,"strum":0,"mirrorEnabled":1,"octaflipEnabled":1,"middleEnabled":1,"mirrorMiddleEnabled":0,"centerEnabled":0,"scale":3,"root":2}
   },
   "tine-piano": {
     "(default)": {"bell":0.45,"bark":0.35,"decay":1,"release":0.25,"hardness":0.7,"tremolo":0.3,"tremoloRate":3.2,"pan":1,"tone":0.55,"drive":0.15,"volume":-9},
@@ -1490,7 +1752,16 @@
     "Dark felt": {"bell":0.1,"bark":0.2,"decay":1.5,"release":0.5,"hardness":0.4,"tremolo":0,"tremoloRate":3.2,"pan":1,"tone":0.25,"drive":0.1,"volume":-9},
     "Slow pan": {"bell":0.5,"bark":0.3,"decay":1.6,"release":0.8,"hardness":0.7,"tremolo":0.75,"tremoloRate":0.45,"pan":1,"tone":0.5,"drive":0.15,"volume":-9},
     "Tremolo": {"bell":0.35,"bark":0.5,"decay":1,"release":0.25,"hardness":0.7,"tremolo":0.6,"tremoloRate":5.8,"pan":0,"tone":0.6,"drive":0.25,"volume":-9},
-    "Long sustain": {"bell":0.6,"bark":0.25,"decay":3,"release":1.5,"hardness":0.6,"tremolo":0.2,"tremoloRate":1.1,"pan":1,"tone":0.45,"drive":0.1,"volume":-9}
+    "Long sustain": {"bell":0.6,"bark":0.25,"decay":3,"release":1.5,"hardness":0.6,"tremolo":0.2,"tremoloRate":1.1,"pan":1,"tone":0.45,"drive":0.1,"volume":-9},
+    "Glass bells": {"bell":1,"bark":0,"decay":0.5,"release":1.2,"hardness":1,"tremolo":0,"tremoloRate":3.2,"pan":1,"tone":1,"drive":0,"volume":-8},
+    "Short tines": {"bell":0.25,"bark":0.6,"decay":0.25,"release":0.03,"hardness":0.5,"tremolo":0,"tremoloRate":3.2,"pan":1,"tone":0.45,"drive":0.15,"volume":-5},
+    "Dampers off": {"bell":0.7,"bark":0.2,"decay":4,"release":3,"hardness":0.5,"tremolo":0,"tremoloRate":3.2,"pan":1,"tone":0.7,"drive":0.1,"volume":-12},
+    "Underwater keys": {"bell":0,"bark":0.1,"decay":4,"release":3,"hardness":0.3,"tremolo":0.4,"tremoloRate":0.2,"pan":0.5,"tone":0.12,"drive":0.3,"volume":-10},
+    "Glacial pan": {"bell":0.2,"bark":0.45,"decay":2,"release":2,"hardness":0.7,"tremolo":1,"tremoloRate":0.12,"pan":1,"tone":0.7,"drive":0.15,"volume":-9},
+    "Deep throb": {"bell":0.15,"bark":0.3,"decay":2.5,"release":0.6,"hardness":0.7,"tremolo":1,"tremoloRate":1.6,"pan":0,"tone":0.35,"drive":0.15,"volume":-12},
+    "Fast shimmer": {"bell":0.9,"bark":0.1,"decay":0.6,"release":0.12,"hardness":0.7,"tremolo":0.9,"tremoloRate":9,"pan":1,"tone":0.9,"drive":0.05,"volume":-7},
+    "Reedy flutter": {"bell":0,"bark":1,"decay":4,"release":0.08,"hardness":0,"tremolo":0.5,"tremoloRate":6.5,"pan":0.6,"tone":0.8,"drive":0,"volume":-11},
+    "Warm overdrive": {"bell":0.2,"bark":0.7,"decay":1.4,"release":0.25,"hardness":0.9,"tremolo":0.1,"tremoloRate":3.2,"pan":1,"tone":0.4,"drive":0.85,"volume":-2}
   },
   "tremolo": {
     "(default)": {"mode":0,"rate":4.5,"depth":0.55,"shape":0,"phase":0,"crossover":700,"drift":0.15,"smooth":0.2,"mix":1},
@@ -1598,7 +1869,17 @@
     "Reed organ": {"table":2,"position":0.15,"motion":0.2,"rate":0.3,"detune":6,"sub":0.4,"cutoff":2400,"resonance":0.1,"attack":0.15,"release":1.2,"spread":0.5,"volume":-9},
     "Hollow drift": {"table":3,"position":0.4,"motion":0.7,"rate":0.07,"detune":12,"sub":0.3,"cutoff":1800,"resonance":0.3,"attack":3,"release":6,"spread":0.8,"volume":-9},
     "Spectral cloud": {"table":4,"position":0.5,"motion":1,"rate":0.03,"detune":18,"sub":0.2,"cutoff":9000,"resonance":0,"attack":5,"release":10,"spread":1,"volume":-9},
-    "Still sine": {"table":0,"position":0,"motion":0,"rate":0.11,"detune":4,"sub":0.5,"cutoff":1200,"resonance":0,"attack":2,"release":4,"spread":0.4,"volume":-9}
+    "Still sine": {"table":0,"position":0,"motion":0,"rate":0.11,"detune":4,"sub":0.5,"cutoff":1200,"resonance":0,"attack":2,"release":4,"spread":0.4,"volume":-9},
+    "Glass bell keys": {"table":0,"position":1,"motion":0.3,"rate":0.2,"detune":5,"sub":0,"cutoff":12000,"resonance":0,"attack":0.01,"release":6,"spread":0.6,"volume":-10.5},
+    "Beating sines": {"table":0,"position":0,"motion":0,"rate":0.11,"detune":22,"sub":0,"cutoff":20000,"resonance":0,"attack":0.5,"release":6,"spread":0.1,"volume":-11.5},
+    "Humming choir": {"table":1,"position":1,"motion":0,"rate":0.11,"detune":12,"sub":0.3,"cutoff":2500,"resonance":0.05,"attack":1.8,"release":5,"spread":0.6,"volume":-11},
+    "Vowel flutter": {"table":1,"position":0.2,"motion":0.25,"rate":7,"detune":10,"sub":0.15,"cutoff":5000,"resonance":0.1,"attack":0.6,"release":3,"spread":0.85,"volume":-9},
+    "Thick saws": {"table":2,"position":1,"motion":0.15,"rate":0.2,"detune":40,"sub":0.15,"cutoff":5000,"resonance":0.05,"attack":0.8,"release":4,"spread":1,"volume":-8},
+    "Low bed": {"table":2,"position":0,"motion":0,"rate":0.11,"detune":6,"sub":1,"cutoff":300,"resonance":0,"attack":4,"release":10,"spread":0.2,"volume":-14.5},
+    "Narrow pulse": {"table":3,"position":0.95,"motion":0.15,"rate":0.4,"detune":3,"sub":0,"cutoff":7000,"resonance":0.2,"attack":0.02,"release":0.8,"spread":0.3,"volume":-9},
+    "Long hollow wash": {"table":3,"position":0.5,"motion":1,"rate":0.02,"detune":16,"sub":0.35,"cutoff":3000,"resonance":0.2,"attack":8,"release":25,"spread":0.9,"volume":-5},
+    "Ringing overtones": {"table":4,"position":0.35,"motion":0.9,"rate":0.25,"detune":6,"sub":0.1,"cutoff":1400,"resonance":0.85,"attack":2,"release":7,"spread":0.9,"volume":-3.5},
+    "Frozen spectrum": {"table":4,"position":0.85,"motion":0,"rate":0.11,"detune":4,"sub":0,"cutoff":20000,"resonance":0,"attack":0.4,"release":8,"spread":1,"volume":-9.5}
   },
   "west-coast": {
     "(default)": {"fold":0.35,"symmetry":0.1,"fm":0.15,"ratio":3,"timbreEnv":0.4,"attack":0.001,"decay":1.4,"sustain":0,"colour":0.6,"chance":0.15,"drift":0.2,"volume":-9},
@@ -1610,7 +1891,14 @@
     "Rain on wood": {"fold":0.5,"symmetry":0.3,"fm":0.2,"ratio":4,"timbreEnv":0.6,"attack":0.001,"decay":0.12,"sustain":0,"colour":0.7,"chance":1,"drift":0.2,"volume":-7},
     "Deep pulse": {"fold":0.25,"symmetry":0.5,"fm":0.1,"ratio":0,"timbreEnv":0.2,"attack":0.01,"decay":1,"sustain":0.6,"colour":0.2,"chance":0.05,"drift":0.3,"volume":-9},
     "Bright harp": {"fold":0.55,"symmetry":0.2,"fm":0.1,"ratio":3,"timbreEnv":0.7,"attack":0.001,"decay":3,"sustain":0,"colour":0.9,"chance":0.2,"drift":0.2,"volume":-9},
-    "Slow bloom": {"fold":0.3,"symmetry":0.3,"fm":0.2,"ratio":1,"timbreEnv":1,"attack":2,"decay":3.5,"sustain":0.8,"colour":0.8,"chance":0.15,"drift":0.5,"volume":-10}
+    "Slow bloom": {"fold":0.3,"symmetry":0.3,"fm":0.2,"ratio":1,"timbreEnv":1,"attack":2,"decay":3.5,"sustain":0.8,"colour":0.8,"chance":0.15,"drift":0.5,"volume":-10},
+    "Sine swell": {"fold":0,"symmetry":0,"fm":0,"ratio":3,"timbreEnv":0,"attack":1.2,"decay":5,"sustain":1,"colour":0.45,"chance":0,"drift":0.45,"volume":-14.5},
+    "Folded reeds": {"fold":0.6,"symmetry":1,"fm":0,"ratio":3,"timbreEnv":0.1,"attack":0.06,"decay":0.5,"sustain":1,"colour":0.5,"chance":0.05,"drift":0.3,"volume":-18.5},
+    "Small chimes": {"fold":0.05,"symmetry":0,"fm":0.5,"ratio":6,"timbreEnv":0.15,"attack":0.001,"decay":2.4,"sustain":0,"colour":1,"chance":0.25,"drift":0.1,"volume":-11},
+    "Thumb piano": {"fold":0.2,"symmetry":0.6,"fm":0.35,"ratio":4,"timbreEnv":0.7,"attack":0.001,"decay":0.7,"sustain":0,"colour":0.5,"chance":0.2,"drift":0.05,"volume":-7},
+    "Long gong": {"fold":0.3,"symmetry":0.25,"fm":0.85,"ratio":5,"timbreEnv":0.5,"attack":0.001,"decay":8,"sustain":0,"colour":0.3,"chance":0.1,"drift":0.6,"volume":-9},
+    "Hollow pipes": {"fold":0.1,"symmetry":0,"fm":0.3,"ratio":2,"timbreEnv":0.2,"attack":0.5,"decay":2.5,"sustain":0.75,"colour":0.55,"chance":0.1,"drift":0.4,"volume":-14.5},
+    "Round bass": {"fold":0.45,"symmetry":0.2,"fm":0.25,"ratio":0,"timbreEnv":0.9,"attack":0.001,"decay":2.2,"sustain":0,"colour":0.05,"chance":0.05,"drift":0.1,"volume":-8}
   },
   "zither": {
     "(default)": {"exciter":0,"chord":0,"strum":120,"direction":0,"roll":0,"decay":6,"release":3,"brightness":0.55,"position":0.2,"courses":0.3,"sympathy":0.3,"body":1,"volume":-12},
@@ -1623,7 +1911,13 @@
     "Koto pluck": {"exciter":1,"chord":0,"strum":120,"direction":0,"roll":0,"decay":3,"release":1.2,"brightness":0.65,"position":0.11,"courses":0,"sympathy":0.15,"body":3,"volume":-7},
     "Twelve-string haze": {"exciter":1,"chord":1,"strum":40,"direction":0,"roll":0,"decay":12,"release":8,"brightness":0.6,"position":0.2,"courses":0.85,"sympathy":0.5,"body":1,"volume":-8},
     "Single felt string": {"exciter":2,"chord":0,"strum":120,"direction":0,"roll":0,"decay":5,"release":2,"brightness":0.4,"position":0.35,"courses":0,"sympathy":0.25,"body":0,"volume":-11},
-    "Slow sus arpeggio": {"exciter":0,"chord":5,"strum":360,"direction":2,"roll":3,"decay":10,"release":20,"brightness":0.5,"position":0.25,"courses":0.2,"sympathy":0.45,"body":0,"volume":-12}
+    "Slow sus arpeggio": {"exciter":0,"chord":5,"strum":360,"direction":2,"roll":3,"decay":10,"release":20,"brightness":0.5,"position":0.25,"courses":0.2,"sympathy":0.45,"body":0,"volume":-12},
+    "Minor tremolo": {"exciter":2,"chord":4,"strum":300,"direction":1,"roll":6,"decay":10,"release":8,"brightness":0.35,"position":0.3,"courses":0.5,"sympathy":0.6,"body":2,"volume":-14.5},
+    "Slow falling sus": {"exciter":0,"chord":5,"strum":600,"direction":1,"roll":0,"decay":14,"release":20,"brightness":0.3,"position":0.45,"courses":0.1,"sympathy":0.8,"body":0,"volume":-16.5},
+    "Nasal sus strum": {"exciter":1,"chord":6,"strum":220,"direction":2,"roll":0,"decay":4,"release":1,"brightness":0.8,"position":0.08,"courses":0,"sympathy":0.1,"body":3,"volume":-7},
+    "Felt and halo": {"exciter":2,"chord":1,"strum":0,"direction":0,"roll":0,"decay":16,"release":12,"brightness":0.05,"position":0.5,"courses":0.15,"sympathy":1,"body":0,"volume":-15.5},
+    "Quick dulcimer roll": {"exciter":2,"chord":0,"strum":120,"direction":0,"roll":16,"decay":2,"release":0.6,"brightness":0.75,"position":0.1,"courses":0.6,"sympathy":0.4,"body":2,"volume":-14.5},
+    "Minor glass haze": {"exciter":1,"chord":4,"strum":20,"direction":0,"roll":0,"decay":20,"release":20,"brightness":1,"position":0.5,"courses":1,"sympathy":0.9,"body":1,"volume":-11}
   },
   "plate-reverb": {
     "(default)": {"mix":0.35,"decay":0.7,"damping":0.3,"predelayMs":20},
@@ -1685,7 +1979,17 @@
     "Slow swell": {"tune":0,"fine":0,"attack":0.9,"release":3.5,"tone":6000,"velocity":0.3,"volume":-9},
     "Short and bright": {"tune":0,"fine":0,"attack":0.001,"release":0.12,"tone":18000,"velocity":0.9,"volume":-9},
     "Octave down": {"tune":-12,"fine":0,"attack":0.02,"release":0.9,"tone":5000,"velocity":0.6,"volume":-9},
-    "Even touch": {"tune":0,"fine":0,"attack":0.003,"release":0.6,"tone":10000,"velocity":0,"volume":-9}
+    "Even touch": {"tune":0,"fine":0,"attack":0.003,"release":0.6,"tone":10000,"velocity":0,"volume":-9},
+    "Let it ring": {"tune":0,"fine":0,"attack":0.003,"release":8,"tone":9000,"velocity":0.6,"volume":-10},
+    "Muffled keys": {"tune":0,"fine":0,"attack":0.008,"release":0.7,"tone":600,"velocity":0.8,"volume":-8},
+    "Fifth up": {"tune":7,"fine":0,"attack":0.01,"release":0.7,"tone":12000,"velocity":0.8,"volume":-9},
+    "Baritone": {"tune":-5,"fine":0,"attack":0.05,"release":1.5,"tone":3500,"velocity":0.5,"volume":-9},
+    "Octave up glass": {"tune":12,"fine":0,"attack":0.002,"release":2.5,"tone":18000,"velocity":0.5,"volume":-10},
+    "High whisper": {"tune":12,"fine":0,"attack":0.6,"release":4,"tone":5000,"velocity":0.2,"volume":-10},
+    "Quarter speed": {"tune":-24,"fine":0,"attack":0.3,"release":5,"tone":3000,"velocity":0.4,"volume":-10},
+    "Low swell": {"tune":-7,"fine":0,"attack":1.5,"release":6,"tone":2000,"velocity":0.2,"volume":-9},
+    "Long fades": {"tune":0,"fine":0,"attack":3.5,"release":9,"tone":2500,"velocity":0.1,"volume":-6},
+    "Sub drone": {"tune":-24,"fine":0,"attack":2.5,"release":10,"tone":700,"velocity":0,"volume":-9}
   },
   "drum-kit": {
     "(default)": {"kit":0,"tune":0,"length":1,"punch":0.35,"snap":0.3,"tone":0.5,"drive":0,"variation":0.2,"width":0.4,"volume":0},
