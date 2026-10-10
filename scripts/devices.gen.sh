@@ -106,6 +106,8 @@ build_generated_devices() {
     cpp/devices/noise-floor/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device octaves \
     cpp/devices/octaves/device_api.gen.cpp
+  MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device orbits \
+    cpp/devices/orbits/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device organ \
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device outdoors \
@@ -293,6 +295,8 @@ test_generated_devices() {
     cpp/test/noise_floor_test.cpp
   native_test octaves_test \
     cpp/test/octaves_test.cpp
+  native_test orbits_test \
+    cpp/test/orbits_test.cpp
   native_test organ_test \
     cpp/test/organ_test.cpp
   native_test outdoors_test \

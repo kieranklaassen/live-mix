@@ -2142,5 +2142,24 @@
     "Endless descent": {"first":420,"bounce":0.9,"skips":5,"loss":1,"sink":0.2,"drop":50,"throw":0.6,"ripple":0.4,"again":0.85,"mix":0.4},
     "Rain on the lake": {"first":60,"bounce":1.12,"skips":16,"loss":0.8,"sink":0.1,"drop":0,"throw":1,"ripple":0.25,"again":0,"mix":0.35},
     "Slow crossing": {"first":1400,"bounce":0.7,"skips":8,"loss":2,"sink":0.3,"drop":0,"throw":1,"ripple":0.6,"again":0.4,"mix":0.4}
+  },
+  "orbits": {
+    "(default)": {"loops":3,"length":2,"offset":0.5,"feedback":0.88,"wear":0.25,"drift":0.2,"spread":0.7,"hold":0,"mix":0.4},
+    "Slow phasing": {"loops":3,"length":2,"offset":0.5,"feedback":0.88,"wear":0.25,"drift":0.2,"spread":0.7,"hold":0,"mix":0.4},
+    "Two voices": {"loops":2,"length":1.5,"offset":0.2,"feedback":0.9,"wear":0.1,"drift":0.1,"spread":1,"hold":0,"mix":0.45},
+    "Out of step": {"loops":3,"length":2,"offset":1.5,"feedback":0.8,"wear":0.25,"drift":0.2,"spread":0.7,"hold":0,"mix":0.4},
+    "Wide weave": {"loops":4,"length":1.1,"offset":6,"feedback":0.78,"wear":0.35,"drift":0.35,"spread":1,"hold":0,"mix":0.55},
+    "Five moons": {"loops":5,"length":2.6,"offset":17,"feedback":0.75,"wear":0.3,"drift":0.3,"spread":1,"hold":0,"mix":0.45},
+    "Long horizon": {"loops":4,"length":6.5,"offset":23,"feedback":0.9,"wear":0.35,"drift":0.4,"spread":0.8,"hold":0,"mix":0.5},
+    "Short canon": {"loops":3,"length":0.75,"offset":25,"feedback":0.6,"wear":0.2,"drift":0.1,"spread":1,"hold":0,"mix":0.4},
+    "Glass cluster": {"loops":5,"length":0.25,"offset":0.6,"feedback":0.55,"wear":0.05,"drift":0.5,"spread":1,"hold":0,"mix":0.35},
+    "Faint trace": {"loops":3,"length":1.6,"offset":2.5,"feedback":0.7,"wear":0.3,"drift":0.2,"spread":0.8,"hold":0,"mix":0.12},
+    "Worn layers": {"loops":3,"length":1.8,"offset":3,"feedback":0.92,"wear":0.9,"drift":0.3,"spread":0.6,"hold":0,"mix":0.5},
+    "Loops alone": {"loops":4,"length":1.2,"offset":9,"feedback":0.7,"wear":0.2,"drift":0.2,"spread":0.9,"hold":0,"mix":1},
+    "Never fades": {"loops":3,"length":3,"offset":8,"feedback":1,"wear":0,"drift":0.25,"spread":0.8,"hold":0,"mix":0.35},
+    "Pulse pair": {"loops":2,"length":0.4,"offset":0.1,"feedback":0.9,"wear":0.15,"drift":0,"spread":1,"hold":0,"mix":0.35},
+    "Middle pile": {"loops":5,"length":1,"offset":4,"feedback":0.82,"wear":0.5,"drift":0.2,"spread":0,"hold":0,"mix":0.45},
+    "Floating pair": {"loops":2,"length":2.4,"offset":0.3,"feedback":0.88,"wear":0.2,"drift":1,"spread":1,"hold":0,"mix":0.5},
+    "Dark tide": {"loops":5,"length":3.4,"offset":1,"feedback":0.95,"wear":0.7,"drift":0.6,"spread":0.9,"hold":0,"mix":0.55}
   }
 }

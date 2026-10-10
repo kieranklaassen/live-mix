@@ -52,6 +52,7 @@ import { MICRO_LOOPER_DESCRIPTOR, MICRO_LOOPER_DEVICE } from './micro-looper.gen
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { NOISE_FLOOR_DESCRIPTOR, NOISE_FLOOR_DEVICE } from './noise-floor.gen'
 import { OCTAVES_DESCRIPTOR, OCTAVES_DEVICE } from './octaves.gen'
+import { ORBITS_DESCRIPTOR, ORBITS_DEVICE } from './orbits.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { OUTDOORS_DESCRIPTOR, OUTDOORS_DEVICE } from './outdoors.gen'
 import { PAD_FOLLOWER_DESCRIPTOR, PAD_FOLLOWER_DEVICE } from './pad-follower.gen'
@@ -143,6 +144,7 @@ export * from './micro-looper.gen'
 export * from './modal-bells.gen'
 export * from './noise-floor.gen'
 export * from './octaves.gen'
+export * from './orbits.gen'
 export * from './organ.gen'
 export * from './outdoors.gen'
 export * from './pad-follower.gen'
@@ -236,6 +238,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   MODAL_BELLS_DESCRIPTOR,
   NOISE_FLOOR_DESCRIPTOR,
   OCTAVES_DESCRIPTOR,
+  ORBITS_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   OUTDOORS_DESCRIPTOR,
   PAD_FOLLOWER_DESCRIPTOR,
@@ -330,6 +333,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   MODAL_BELLS_DEVICE,
   NOISE_FLOOR_DEVICE,
   OCTAVES_DEVICE,
+  ORBITS_DEVICE,
   ORGAN_DEVICE,
   OUTDOORS_DEVICE,
   PAD_FOLLOWER_DEVICE,
@@ -431,6 +435,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'modal-bells', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'noise-floor', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'octaves', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
+  { id: 'orbits', instrument: false, samples: false, zones: false, meters: 15, memoryMb: 32 },
   { id: 'organ', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'outdoors', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'pad-follower', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
