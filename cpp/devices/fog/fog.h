@@ -35,13 +35,22 @@
 //   delays and spreads it again, so it grows longer and its onset rounder.
 //   A layer that is not heard does not run; it starts empty when it is
 //   called for, and the heard tap crossfades to it while it fills.
-// - Width is how far the right side's lengths lie from the left's (up to a
-//   tenth, kSkew), and how far its drift goes its own way. At 0 the two
-//   sides are the same chain and a mono sound stays mono. The sides part
-//   above a frequency that falls as the lengths part, so the knob runs over
-//   the lengths on a curve (`spread`): the highs first, the bass last, about
-//   two octaves to a quarter of the knob. Summed to mono, two sides that
-//   differ cancel at some pitches; that is what Width costs.
+// - Width turns the two sides apart by an angle. Both sides are the same
+//   chain, lengths and drift, and each side's cloud then goes through a
+//   short ladder of first-order allpasses; Width moves the right side's
+//   ladder up in frequency and the left side's down, which leaves the right
+//   leading the left by one angle at every pitch: none at 0 (the sides are
+//   the same sample for sample and a mono sound stays in the middle), 65
+//   degrees at 1 (kWideTurn). So the side signal rises steadily with the
+//   knob, alike for every note, to 3.9 dB under the middle for a sound that
+//   came in mono, and the two sides summed to mono lose the same 1.5 dB of
+//   every note at the top and cancel none. (Sides that are two different
+//   chains, as this was first built, are out of phase by any angle at all
+//   from one note to the next: their sum cancelled some held notes
+//   outright, and at some settings the sides were louder than the middle.)
+//   The ladder starts 2.4 cycles per Size up, so under about 100 Hz at the
+//   default Size the angle is a little less, and it holds the lows back by
+//   a few thousandths of a second (a quarter of a cycle of the note).
 // - Drift sweeps every length on a slow sine of its own, a quarter of a
 //   millisecond at most. Lengths are read through a first-order allpass
 //   interpolator, which is flat at every frequency, so the stage is still an
@@ -53,10 +62,10 @@
 //   than that wavers in level. The drift is therefore the slower the longer
 //   the cloud (kDriftPace): as built, a 4 kHz note keeps within 1.5 dB of
 //   its level in every twentieth of a second with Drift full up, at any Size.
-// - Size and Width move the lengths, which bends the pitch of what is in the
-//   chain for a moment, as a tape delay's time does. While a length moves by
-//   more than a sample per control period it is read by straight
-//   interpolation instead, which has no state to upset.
+// - Size moves the lengths, which bends the pitch of what is in the chain
+//   for a moment, as a tape delay's time does. While a length moves by more
+//   than a sample per control period it is read by straight interpolation
+//   instead, which has no state to upset.
 // - Soften is a gain that follows the attack of the input: the top of the
 //   level (its peak, kept up through the dips between the beats of a held
 //   chord) against a slower copy of it. While the top has just jumped, the
@@ -73,8 +82,8 @@
 // - The device sleeps and wakes to the sample on its own clock, never on
 //   the host's blocks (see `process`).
 // - Storage: 22 stages a side on slices of one pool, sized for the longest
-//   Size at 96 kHz with the right side's skew and the drift: 313,344 floats,
-//   1.25 MB. Above 96 kHz the longest Sizes are held to what fits.
+//   Size at 96 kHz with the drift: 311,296 floats, 1.25 MB. Above 96 kHz the
+//   longest Sizes are held to what fits.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -102,12 +111,6 @@ constexpr float kRatio[kStageCount] = {
     0.1132f, 0.1040f, 0.0956f, 0.0879f, 0.0807f, 0.0742f,
 };
 
-// How far the right side's length lies from the left's at Width 1.
-constexpr float kSkew[kStageCount] = {
-    0.0871f, -0.0642f, 0.1012f,  -0.0783f, 0.0554f, -0.0925f, 0.0696f,  -0.1067f,
-    0.0837f, -0.0608f, 0.0979f,  -0.0750f, 0.0521f, -0.0891f, 0.0662f,  -0.1033f,
-    0.0804f, -0.0575f, 0.0946f,  -0.0716f, 0.1087f, -0.0858f,
-};
 
 constexpr int next_power_of_two(int n) {
   int p = 1;
@@ -115,12 +118,10 @@ constexpr int next_power_of_two(int n) {
   return p;
 }
 
-// Samples a stage's line needs: its longest length at 96 kHz with the skew
-// and the drift, and the two samples the interpolator reads past it.
+// Samples a stage's line needs: its longest length at 96 kHz with the
+// drift, and the two samples the interpolator reads past it.
 constexpr int capacity(int stage) {
-  const float skew = kSkew[stage] < 0.0f ? -kSkew[stage] : kSkew[stage];
-  const float longest =
-      kRatio[stage] * (1.0f + skew) * kMaxSizeSeconds * kPoolRate + kDriftSeconds * kPoolRate;
+  const float longest = kRatio[stage] * kMaxSizeSeconds * kPoolRate + kDriftSeconds * kPoolRate;
   return next_power_of_two(static_cast<int>(longest) + 8);
 }
 
@@ -138,6 +139,27 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr float kShortGain = 0.62f;
   static constexpr float kLongGainLow = 0.45f;
   static constexpr float kLongGainHigh = 0.60f;
+  // The Width law. Each side's cloud goes through a ladder of kWidePoles
+  // first-order allpasses whose turning points lie kWideStep apart in
+  // frequency, the lowest kWideLow cycles per Size (16 Hz at the default
+  // Size: like every length, the ladder is a share of Size). The phase of
+  // such a ladder falls evenly with the logarithm of the frequency, so the
+  // same ladder moved up in frequency leads the one moved down by one angle
+  // at every pitch. Width moves the right side's up and the left side's down
+  // until they are kWideTurn apart (65 degrees) at Width 1, within 2 degrees
+  // from a spacing over the lowest point up. Each side is still an allpass.
+  // For a sound that came in mono, at every pitch alike: the side signal
+  // stands tan^2(angle / 2) against the middle (3.9 dB under it at Width 1),
+  // and the two sides summed keep cos(angle / 2) of the note (1.5 dB lost).
+  static constexpr int kWidePoles = 7;
+  static constexpr float kWideStep = 8.0f;
+  static constexpr float kWideLow = 2.4f;
+  static constexpr float kWideTurn = 1.1344640f;
+  // No turning point lies higher than this, as the tangent of half its
+  // angle round the unit circle (a point far past the top of the band would
+  // ring at half the sample rate for as long as it lies past it: at 64, for
+  // 32 samples). The ladders are 65 degrees apart up to 14 kHz at 44.1 kHz.
+  static constexpr float kWideTop = 64.0f;
   // The time a meter reads when no attack is on its way through the cloud.
   static constexpr float kRestAge = 60.0f;
 
@@ -158,10 +180,12 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         stage.mask = capacity(s) - 1;
         stage.limit = static_cast<float>(capacity(s) - 4);
         offset += capacity(s);
-        // 0.05 to 0.25 Hz, no two alike: the golden ratio spreads them.
-        const float spread = 0.6180340f * static_cast<float>(s + 1) + (c == 0 ? 0.0f : 0.4142136f);
-        stage.rate = 0.05f + 0.2f * (spread - std::floor(spread));
+        // 0.05 to 0.25 Hz, no two alike: the golden ratio spreads them. Both
+        // sides of a stage move as one.
+        const float turns = 0.6180340f * static_cast<float>(s + 1);
+        stage.rate = 0.05f + 0.2f * (turns - std::floor(turns));
       }
+      ladder_[c] = Ladder();
       damp_[c].reset();
       low_cut_[c].reset();
     }
@@ -187,7 +211,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     rest_age_ = static_cast<long>(kRestAge * sr);
 
     // The longest silent gap is the wait for a cloud of three layers at the
-    // longest Size: the sum of every length, with the skew.
+    // longest Size: the sum of every length.
     float longest = 0.0f;
     for (int s = 0; s < kStages; ++s) longest += kRatio[s];
     hold_ = static_cast<long>((1.15f * longest * kMaxSizeSeconds + 0.3f) * sr);
@@ -275,7 +299,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr int kStages = fog_layout::kStageCount;
   static constexpr int kPoolSize = fog_layout::pool_size();
   static constexpr int kPeriod = 32;
-  // How fast a length follows Size and Width.
+  // How fast a length follows Size, and the sides part with Width.
   static constexpr float kGlideSeconds = 0.2f;
   // Drift moves a stage by this share of its length at most.
   static constexpr float kDriftShare = 0.2f;
@@ -319,7 +343,6 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr float kOnsetRatio = 2.0f;
   static constexpr float kRearmRatio = 1.2f;
   static constexpr float kOnsetFloor = 0.001f;
-  static constexpr float kWidthCurve = 5.0f;
   // Density glides over this long at least, and this many Sizes.
   static constexpr float kDensitySeconds = 0.02f;
   static constexpr float kDensitySizes = 1.0f;
@@ -433,17 +456,48 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     }
   };
 
-  // How far the right side's lengths lie from the left's, of kSkew, for a
-  // setting of Width. The two sides part above a frequency that falls as the
-  // lengths part (at Size 150 they are apart over 2.4 kHz at 0.01 of kSkew,
-  // over 600 Hz at 0.1 and over 150 Hz at 1), so a knob that ran evenly over
-  // the lengths did all its work in its first twentieth. This runs evenly
-  // over the frequency: every quarter of the knob is about two octaves.
-  static float spread(float width) {
-    if (width <= 0.0f) return 0.0f;
-    if (width >= 1.0f) return 1.0f;
-    return (std::exp(kWidthCurve * width) - 1.0f) / (std::exp(kWidthCurve) - 1.0f);
-  }
+  // One side of the Width ladder: first-order allpasses in a row, each
+  // (c + z^-1) / (1 + c z^-1), whose coefficients ramp across a control
+  // period when Width or Size moves.
+  struct Ladder {
+    float c[kWidePoles] = {};
+    float target[kWidePoles] = {};
+    float step[kWidePoles] = {};
+    float state[kWidePoles] = {};
+
+    void aim(int k, float wanted, bool snap, float per_sample) {
+      target[k] = wanted;
+      if (snap) {
+        c[k] = wanted;
+        step[k] = 0.0f;
+      } else {
+        step[k] = (wanted - c[k]) * per_sample;
+      }
+    }
+
+    void settle() {
+      for (int k = 0; k < kWidePoles; ++k) {
+        c[k] = target[k];
+        step[k] = 0.0f;
+      }
+    }
+
+    void process(float* x, int frames) {
+      for (int k = 0; k < kWidePoles; ++k) {
+        float coefficient = c[k];
+        float held = state[k];
+        const float by = step[k];
+        for (int j = 0; j < frames; ++j) {
+          coefficient += by;
+          const float out = coefficient * x[j] + held;
+          held = x[j] - coefficient * out;
+          x[j] = out;
+        }
+        c[k] = coefficient;
+        state[k] = flush_denormal(held);
+      }
+    }
+  };
 
   // What may come in: a sample that is not a number is silence, and nothing
   // is larger than kInputBound. One such sample would otherwise go down
@@ -472,9 +526,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     using namespace fog;
     kit::Rng phases;
     phases.seed(0x7F4A7C15u);
-    for (int c = 0; c < 2; ++c) {
-      for (int s = 0; s < kStages; ++s) stage_[c][s].phase = phases.uniform();
-    }
+    for (int s = 0; s < kStages; ++s) stage_[0][s].phase = phases.uniform();
     width_.snap(width_.target);
     density_.snap(density_.target);
     drift_.snap(drift_.target);
@@ -549,19 +601,18 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
           s < kShort ? kShortGain * kit::clamp(density * 5.0f - static_cast<float>(s), 0.0f, 1.0f)
                      : long_gain;
       const float gain = (s & 1) ? -magnitude : magnitude;
-      float left_sine = 0.0f;
+      // The two sides are one chain: the same lengths, at rest on a whole
+      // sample, and the same drift (the left's sine moves both).
+      Stage& first = stage_[0][s];
+      first.phase += first.rate * pace * turn;
+      if (first.phase >= 1.0f) first.phase -= 1.0f;
+      const float sine = kit::SineTable::lookup(first.phase);
       for (int c = 0; c < 2; ++c) {
         Stage& stage = stage_[c][s];
         const bool jump = snap || stage.fresh;
         stage.fresh = false;
-        // The left side rests on a whole sample. The right lies off it by
-        // its skew, to a fraction of a sample, so that the bottom of Width
-        // moves the sides apart evenly (rounded to whole samples, nothing
-        // moved until one stage jumped by a sample, and then the highs
-        // parted at once).
-        const float whole = std::floor(kRatio[s] * size + 0.5f);
-        const float share = c == 0 ? whole : whole + kRatio[s] * size * width * kSkew[s];
-        const double target = kit::clamp(share, kShortest, std::floor(stage.limit));
+        const double target = kit::clamp(std::floor(kRatio[s] * size + 0.5f), kShortest,
+                                         std::floor(stage.limit));
         if (jump) {
           stage.rest = target;
         } else {
@@ -570,15 +621,6 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         }
         const float rest = static_cast<float>(stage.rest);
         const float reach = kit::min(sweep, kDriftShare * rest);
-        stage.phase += stage.rate * pace * turn;
-        if (stage.phase >= 1.0f) stage.phase -= 1.0f;
-        // The right side's drift is the left's at Width 0 and its own at 1.
-        float sine = kit::SineTable::lookup(stage.phase);
-        if (c == 0) {
-          left_sine = sine;
-        } else {
-          sine = kit::lerp(left_sine, sine, width);
-        }
         stage.aim(kit::clamp(rest + drift * reach * sine, kShortest, stage.limit), jump, kPeriod);
         if (jump) {
           stage.gain = gain;
@@ -587,6 +629,37 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
           stage.gain_step = (gain - stage.gain) * step;
         }
       }
+    }
+
+    // Width: where each side's ladder stands. It follows Size as the
+    // lengths do, and both sides are the same ladder at Width 0.
+    const float size_seconds = param(kSize) * 0.001f;
+    if (snap) {
+      ladder_size_ = size_seconds;
+    } else {
+      ladder_size_ += (size_seconds - ladder_size_) * glide_;
+      const float left = size_seconds - ladder_size_;
+      if (left < 1.0e-6f && left > -1.0e-6f) ladder_size_ = size_seconds;
+    }
+    if (snap || width != ladder_width_ || ladder_size_ != ladder_at_) {
+      ladder_width_ = width;
+      ladder_at_ = ladder_size_;
+      // Moved apart by this ratio each way, the two ladders are
+      // width * kWideTurn apart in phase.
+      const float apart = std::pow(kWideStep, kWideTurn * width / (2.0f * kit::kPi));
+      float omega = kit::kPi * kWideLow / (ladder_size_ * sr);
+      for (int k = 0; k < kWidePoles; ++k) {
+        const float low = kit::min(omega / apart, kWideTop);
+        const float high = kit::min(omega * apart, kWideTop);
+        ladder_[0].aim(k, (low - 1.0f) / (low + 1.0f), snap, step);
+        ladder_[1].aim(k, (high - 1.0f) / (high + 1.0f), snap, step);
+        omega *= kWideStep;
+      }
+      ladder_moving_ = true;
+    } else if (ladder_moving_) {
+      ladder_[0].settle();
+      ladder_[1].settle();
+      ladder_moving_ = false;
     }
 
     open_.next();
@@ -699,6 +772,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         for (int k = 0; k < kLong; ++k, ++s) stage_[c][s].process(line, count);
         for (int j = 0; j < count; ++j) wet[c][j] += tap_gain[l][j] * line[j];
       }
+      ladder_[c].process(wet[c], count);
     }
 
     const float open = open_.value;
@@ -734,7 +808,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         break;
       }
       case kWidth:
-        width_.set_target(spread(value));
+        width_.set_target(value);
         break;
       case kDensity:
         density_.set_target(value);
@@ -768,6 +842,11 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
 
   float pool_[kPoolSize];
   Stage stage_[2][kStages];
+  Ladder ladder_[2];
+  float ladder_size_ = 0.15f;
+  float ladder_at_ = 0.0f;
+  float ladder_width_ = -1.0f;
+  bool ladder_moving_ = false;
   kit::Svf damp_[2];
   kit::Svf low_cut_[2];
   kit::Smoother width_, density_, drift_, damp_hz_, open_, low_cut_hz_;

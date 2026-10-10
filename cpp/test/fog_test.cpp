@@ -411,8 +411,11 @@ int main() {
            "more layers: the cloud starts later against its length (a rounder onset)");
   }
 
-  // Density: at 0 the cloud is a spray of separate echoes (one sample holds
-  // a twentieth of the energy, a few hundred stand out), at 1 it is a wash.
+  // Density: at 0 the cloud is a spray of separate echoes (one of them, a
+  // quarter of a millisecond, holds a twentieth of the energy, and two
+  // thirds of the cloud's quarter milliseconds hold nothing to speak of), at
+  // 1 it is a wash. An echo is not one sample: the Width ladder turns each
+  // click over a few samples.
   {
     double largest[2];
     int standing[2];
@@ -423,77 +426,198 @@ int main() {
       device.set_param(p::kDensity, density);
       Stereo out = run(device, impulse(1.5f, kRate));
       const double top = peak(out.left);
-      largest[which] = top * top / energy(out.left);
+      const size_t echo = at(0.00025);
+      double running = 0.0;
+      largest[which] = 0.0;
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        running += static_cast<double>(out.left[i]) * out.left[i];
+        if (i >= echo) running -= static_cast<double>(out.left[i - echo]) * out.left[i - echo];
+        largest[which] = std::max(largest[which], running);
+      }
+      largest[which] /= energy(out.left);
+      // How many quarters of a millisecond hold something within 26 dB of
+      // the loudest sample.
       standing[which] = 0;
-      for (float v : out.left) {
-        if (std::fabs(v) > 0.05 * top) ++standing[which];
+      for (size_t start = 0; start + echo <= out.left.size(); start += echo) {
+        if (peak(out.left, start, start + echo) > 0.05 * top) ++standing[which];
       }
       ++which;
     }
-    EXPECT(largest[0] > 0.04 && largest[1] < 0.004,
-           "Density 0: one echo holds a twentieth of the energy; at 1 no echo holds a 250th");
-    EXPECT(standing[1] > 8 * standing[0] && standing[1] > 4000,
-           "Density 1: thousands of echoes within 26 dB of the loudest, ten times those at 0");
-  }
-
-  // Width takes the two sides apart. At 0 they are the same sample for
-  // sample; at 1 unrelated; low down the highs part first and the lows stay
-  // together. Each side keeps the level of the sound either way.
-  {
-    const auto sides = [&](float width) {
-      plain(device);
-      device.set_param(p::kWidth, width);
-      device.set_param(p::kDrift, 0.5f);
-      rng_state() = 0x51DEu;
-      return run(device, noise(3.0f, kRate, 0.3f));
-    };
-    const auto band = [](const std::vector<float>& x, double hz, bool above) {
-      std::vector<float> out(x.size());
-      const double a = std::exp(-2.0 * kPi * hz / kRate);
-      double low1 = 0.0, low2 = 0.0;
-      for (size_t i = 0; i < x.size(); ++i) {
-        low1 = x[i] + (low1 - x[i]) * a;
-        low2 = low1 + (low2 - low1) * a;
-        out[i] = static_cast<float>(above ? x[i] - 2.0 * low1 + low2 : low2);
-      }
-      return out;
-    };
-    Stereo mono = sides(0.0f);
-    EXPECT(mono.left == mono.right, "Width 0: the two sides are the same, drift and all");
-    Stereo wide = sides(1.0f);
-    const double apart = correlation(wide.left, wide.right, at(1.0), at(3.0));
-    EXPECT(std::fabs(apart) < 0.12, "Width 1: the sides are unrelated");
-    EXPECT_NEAR(rms(wide.right, at(1.0), at(3.0)) / rms(wide.left, at(1.0), at(3.0)), 1.0, 0.02,
-                "Width 1: both sides as loud as each other");
-    // The knob runs evenly over how far down the two sides part: at 0.3 the
-    // highs are apart and the lows together, and at 0.6 the lows under 150 Hz
-    // still are. (It used to run evenly over the lengths, which parted
-    // everything over 600 Hz by 0.1 and left the rest of the knob to the bass:
-    // at 0.6 the lows were at 0.6 already.)
-    Stereo narrow = sides(0.3f);
-    const double lows = correlation(band(narrow.left, 150.0, false), band(narrow.right, 150.0, false),
-                                    at(1.0), at(3.0));
-    const double highs = correlation(band(narrow.left, 5000.0, true), band(narrow.right, 5000.0, true),
-                                     at(1.0), at(3.0));
     char label[160];
     std::snprintf(label, sizeof label,
-                  "Width 0.3: the lows stay together (%.2f) while the highs have parted (%.2f)", lows,
-                  highs);
-    EXPECT(lows > 0.9 && std::fabs(highs) < 0.3, label);
-    Stereo wider = sides(0.6f);
-    const double bass = correlation(band(wider.left, 150.0, false), band(wider.right, 150.0, false),
-                                    at(1.0), at(3.0));
-    const double rest = correlation(band(wider.left, 2400.0, true), band(wider.right, 2400.0, true),
-                                    at(1.0), at(3.0));
+                  "Density 0: one echo holds a twentieth of the energy (%.3f); at 1 no quarter of a "
+                  "millisecond holds a 100th (%.4f)",
+                  largest[0], largest[1]);
+    EXPECT(largest[0] > 0.04 && largest[1] < 0.01, label);
     std::snprintf(label, sizeof label,
-                  "Width 0.6: the lows under 150 Hz are still together (%.2f), all over 2.4 kHz apart (%.2f)",
-                  bass, rest);
-    EXPECT(bass > 0.85 && std::fabs(rest) < 0.15, label);
-    Stereo slight = sides(0.1f);
-    const double begun = correlation(band(slight.left, 5000.0, true), band(slight.right, 5000.0, true),
-                                     at(1.0), at(3.0));
-    std::snprintf(label, sizeof label, "Width 0.1: the highs have begun to part and no more (%.2f)", begun);
-    EXPECT(begun > 0.1 && begun < 0.9, label);
+                  "Density 1: %d quarters of a millisecond hold something within 26 dB of the loudest, "
+                  "%d at Density 0",
+                  standing[1], standing[0]);
+    EXPECT(standing[1] > 2.5 * standing[0] && standing[1] > 1500, label);
+  }
+
+  // Width turns the two sides apart by one angle at every pitch: none at 0,
+  // where they are the same sample for sample, 65 degrees at 1. So for a
+  // sound that came in mono the side signal stands tan^2(angle / 2) against
+  // the middle: it rises with every step of the knob, by the same law at
+  // every Size and number of layers and on any sound, and at the top it is
+  // still 3.9 dB under the middle. (As first built the sides were two
+  // chains of different lengths. Side against middle then went up and down
+  // along the knob, differently for every sound and Size, and past the
+  // middle: +3.3 dB on a held chord at Size 600.)
+  {
+    const auto side_mid = [](const Stereo& out, size_t from) {
+      double middle = 0.0, side = 0.0;
+      for (size_t i = from; i < out.left.size(); ++i) {
+        const double m = 0.5 * (static_cast<double>(out.left[i]) + out.right[i]);
+        const double s = 0.5 * (static_cast<double>(out.left[i]) - out.right[i]);
+        middle += m * m;
+        side += s * s;
+      }
+      return 10.0 * std::log10(std::max(1.0e-30, side) / std::max(1.0e-30, middle));
+    };
+    rng_state() = 0x51DEu;
+    const std::vector<float> hiss = noise(2.0f, kRate, 0.3f);
+    // A chord held in the middle: three notes and their first overtones.
+    std::vector<float> chord(at(2.5), 0.0f);
+    for (double hz : {110.0, 138.59, 164.81, 220.0, 277.18, 329.63, 440.0, 554.37}) {
+      for (size_t i = 0; i < chord.size(); ++i) {
+        chord[i] += static_cast<float>(0.06 * std::sin(2.0 * kPi * hz * static_cast<double>(i) / kRate));
+      }
+    }
+    struct Case {
+      float size;
+      int layers;
+      const std::vector<float>* sound;
+      const char* name;
+    };
+    for (const Case& c : {Case{25.0f, 1, &hiss, "noise"}, Case{150.0f, 2, &hiss, "noise"},
+                          Case{600.0f, 3, &hiss, "noise"}, Case{150.0f, 1, &chord, "a held chord"},
+                          Case{600.0f, 2, &chord, "a held chord"}}) {
+      double last = -1000.0, smallest_step = 1000.0, highest = -1000.0, off_law = 0.0;
+      for (int step = 0; step <= 20; ++step) {
+        const float width = 0.05f * static_cast<float>(step);
+        device.init(kRate);
+        device.set_param(p::kSize, c.size);
+        device.set_param(p::kLayers, static_cast<float>(c.layers));
+        device.set_param(p::kSoften, 0.0f);
+        device.set_param(p::kWidth, width);
+        Stereo out = run(device, *c.sound);
+        if (step == 0) {
+          EXPECT(out.left == out.right, "Width 0: the two sides are the same, drift and all");
+          continue;
+        }
+        const double level = side_mid(out, at(1.0));
+        const double angle = 0.5 * width * 65.0 * kPi / 180.0;
+        off_law = std::max(off_law, std::fabs(level - 20.0 * std::log10(std::tan(angle))));
+        if (step > 1) smallest_step = std::min(smallest_step, level - last);
+        highest = std::max(highest, level);
+        last = level;
+      }
+      char label[200];
+      std::snprintf(label, sizeof label,
+                    "%s, Size %.0f, %d layers: side against middle rises with every twentieth of Width "
+                    "(by %.2f dB at the least) and ends %.2f dB under the middle",
+                    c.name, c.size, c.layers, smallest_step, -last);
+      EXPECT(smallest_step > 0.3 && highest == last && last < -3.0 && last > -5.0, label);
+      std::snprintf(label, sizeof label,
+                    "%s, Size %.0f, %d layers: it is tan^2 of half the angle all the way, within %.2f dB",
+                    c.name, c.size, c.layers, off_law);
+      EXPECT(off_law < 1.0, label);
+    }
+
+    // The angle itself, on held notes: the same at every pitch, and each
+    // side as loud as the other.
+    for (float width : {0.5f, 1.0f}) {
+      double least = 1000.0, most = -1000.0, uneven = 0.0;
+      for (float hz : {110.0f, 311.0f, 880.0f, 2489.0f, 7040.0f, 14080.0f}) {
+        plain(device);
+        device.set_param(p::kWidth, width);
+        Stereo out = run(device, sine(hz, 1.5f, kRate, 0.5f));
+        double turned = tone_phase(out.right, hz, kRate, at(0.7), at(1.5)) -
+                        tone_phase(out.left, hz, kRate, at(0.7), at(1.5));
+        while (turned > kPi) turned -= 2.0 * kPi;
+        while (turned < -kPi) turned += 2.0 * kPi;
+        least = std::min(least, turned * 180.0 / kPi);
+        most = std::max(most, turned * 180.0 / kPi);
+        uneven = std::max(uneven, std::fabs(db(rms(out.right, at(0.7), at(1.5)) /
+                                               rms(out.left, at(0.7), at(1.5)))));
+      }
+      char label[200];
+      std::snprintf(label, sizeof label,
+                    "Width %.1f: from 110 Hz to 14 kHz the right side leads the left by %.1f to %.1f "
+                    "degrees, and the sides are level within %.3f dB",
+                    width, least, most, uneven);
+      EXPECT(least > 65.0 * width - 3.0 && most < 65.0 * width + 3.0 && uneven < 0.02, label);
+    }
+
+    // Width moves nothing in time: a click is the same cloud on both sides
+    // at Width 1 as at 0, to a quarter of a millisecond at each tenth of its
+    // energy (so the curve the plate draws holds at any Width).
+    {
+      double moved = 0.0;
+      Stereo cloud[2];
+      for (int wide = 0; wide < 2; ++wide) {
+        plain(device);
+        device.set_param(p::kWidth, wide ? 1.0f : 0.0f);
+        cloud[wide] = run(device, impulse(1.0f, kRate));
+      }
+      for (int tenth = 1; tenth <= 9; ++tenth) {
+        const double share = 0.1 * tenth;
+        const double still = time_to(cloud[0].left, share);
+        moved = std::max(moved, std::fabs(time_to(cloud[1].left, share) - still));
+        moved = std::max(moved, std::fabs(time_to(cloud[1].right, share) - still));
+      }
+      char label[160];
+      std::snprintf(label, sizeof label,
+                    "Width 1: every tenth of a click's energy is out when it is at Width 0, on both sides "
+                    "(%.3f ms apart at most)",
+                    moved * 1000.0);
+      EXPECT(moved < 0.00025, label);
+    }
+
+    // Folded to mono, Width cancels no note. The two sides summed are the
+    // Width 0 sound less cos of half the angle, the same for every note: a
+    // held note on every third key of a piano, through the default settings
+    // and through the longest cloud, loses 1.5 dB at Width 1 in its worst
+    // quarter second, and under 2 dB whatever the note. (With two different
+    // chains for sides, 52 of the 88 keys lost more than 3 dB at the default
+    // in some quarter second, and 31 of them more than 10.)
+    for (int longest = 0; longest < 2; ++longest) {
+      const float seconds = longest ? 6.0f : 3.0f;
+      const size_t from = at(longest ? 3.5 : 1.0), window = at(0.25);
+      double worst = 0.0, mildest = -100.0;
+      for (int key = 0; key < 88; key += 3) {
+        const float hz = 27.5f * std::pow(2.0f, static_cast<float>(key) / 12.0f);
+        const std::vector<float> note = sine(hz, seconds, kRate, 0.25f);
+        std::vector<float> folded[2];
+        for (int wide = 0; wide < 2; ++wide) {
+          device.init(kRate);
+          if (longest) {
+            device.set_param(p::kSize, 600.0f);
+            device.set_param(p::kDensity, 1.0f);
+            device.set_param(p::kLayers, 3.0f);
+          }
+          device.set_param(p::kWidth, wide ? 1.0f : 0.0f);
+          Stereo out = run(device, note);
+          folded[wide].resize(out.left.size());
+          for (size_t i = 0; i < out.left.size(); ++i) folded[wide][i] = 0.5f * (out.left[i] + out.right[i]);
+        }
+        double lowest = 100.0;
+        for (size_t start = from; start + window <= folded[0].size(); start += window / 2) {
+          lowest = std::min(lowest, db(rms(folded[1], start, start + window) /
+                                       rms(folded[0], start, start + window)));
+        }
+        worst = std::min(worst, lowest);
+        mildest = std::max(mildest, lowest);
+      }
+      char label[200];
+      std::snprintf(label, sizeof label,
+                    "%s, Width 1 summed to mono: a held note loses %.2f dB in its worst quarter second "
+                    "on the worst key, %.2f on the best",
+                    longest ? "Size 600, three layers" : "the default settings", -worst, -mildest);
+      EXPECT(worst > -2.0 && mildest < -0.3, label);
+    }
   }
 
   // Drift moves the cloud without bending pitch: a held tone strays a few

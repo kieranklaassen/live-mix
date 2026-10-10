@@ -93,7 +93,7 @@ export const FOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far down the cloud differs between the two sides: highs first, bass last. At zero a mono sound stays in the middle. Summed to mono, wide settings thin some notes.',
+      'How far the cloud spreads to the sides. At zero a mono sound stays in the middle. Summed to mono, every note comes through alike at any setting.',
   },
   mix: {
     id: 8,
@@ -142,7 +142,7 @@ export const FOG_DESCRIPTOR = wasmDeviceDescriptor(FOG_DEVICE, {
     'Dark bank': { size: 300, layers: 2, damp: 0.85 },
     'Bright haze': { size: 120, damp: 0, lowCut: 400, mix: 0.2 },
     'Upper glow': { size: 350, layers: 2, damp: 0.1, lowCut: 800, mix: 0.2 },
-    'Behind glass': { size: 180, damp: 0.6, lowCut: 300, mix: 0.8 },
+    'Behind glass': { size: 180, damp: 0.6, lowCut: 300 },
     'Wide drone': { size: 450, layers: 2, drift: 1, damp: 0.35, soften: 0.5 },
     'Mono smear': { size: 200, drift: 0, width: 0, soften: 0.1 },
     'Pad softener': { size: 60, density: 1, soften: 1, damp: 0.2 },
