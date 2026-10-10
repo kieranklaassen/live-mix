@@ -196,6 +196,9 @@ function KnobCapShape({
 /** On a device plate the plate's own accent; the theme's elsewhere. */
 const MOD_INK = `var(--lm-plate-accent, ${tokenRef('accent', '#E63946')})`
 
+/** How much of that ink the standing arc of the swing takes: faint beside the moving one, and still read on a plate whose accent is dark. */
+const MOD_SWING_OPACITY = 0.45
+
 /** Frames a second the moving arc is drawn at. */
 const MOD_FPS = 60
 
@@ -254,7 +257,7 @@ function KnobModulationMarks({
           d={knobArcPath(c, c, radius, low, high)}
           fill="none"
           stroke={MOD_INK}
-          strokeOpacity={0.3}
+          strokeOpacity={MOD_SWING_OPACITY}
           strokeWidth={width}
           strokeLinecap="butt"
         />

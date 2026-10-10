@@ -1390,6 +1390,12 @@ describe('Knob: a value that moves on its own', () => {
     expect(container.querySelector('.lm-knob__modulation-dot')).not.toBeNull()
     // The swing, the arc that moves and nothing else: three marks.
     expect(container.querySelectorAll('.lm-knob__modulation > *')).toHaveLength(3)
+    // The swing is fainter than the arc that moves, which is in full ink.
+    expect(container.querySelector('.lm-knob__modulation > path')).toHaveAttribute(
+      'stroke-opacity',
+      '0.45',
+    )
+    expect(arcOf(container)).not.toHaveAttribute('stroke-opacity')
     expect(slider()).toHaveAttribute('aria-valuenow', '0.5')
     for (const mark of container.querySelectorAll('.lm-knob__modulation [stroke]')) {
       expect(mark.getAttribute('stroke')).toMatch(/^var\(--lm-/)
