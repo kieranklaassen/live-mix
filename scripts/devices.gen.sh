@@ -56,6 +56,8 @@ build_generated_devices() {
     cpp/devices/flanger/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flute \
     cpp/devices/flute/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-bass \
+    cpp/devices/fm-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
     cpp/devices/fm-glass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device freq-shifter \
@@ -233,6 +235,8 @@ test_generated_devices() {
     cpp/test/flanger_test.cpp
   native_test flute_test \
     cpp/test/flute_test.cpp
+  native_test fm_bass_test \
+    cpp/test/fm_bass_test.cpp
   native_test fm_glass_test \
     cpp/test/fm_glass_test.cpp
   native_test freq_shifter_test \

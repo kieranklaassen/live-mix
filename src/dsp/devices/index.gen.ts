@@ -27,6 +27,7 @@ import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
+import { FM_BASS_DESCRIPTOR, FM_BASS_DEVICE } from './fm-bass.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
@@ -113,6 +114,7 @@ export * from './ember.gen'
 export * from './expanse.gen'
 export * from './flanger.gen'
 export * from './flute.gen'
+export * from './fm-bass.gen'
 export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
 export * from './glitch.gen'
@@ -201,6 +203,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   EXPANSE_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
+  FM_BASS_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
@@ -290,6 +293,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   EXPANSE_DEVICE,
   FLANGER_DEVICE,
   FLUTE_DEVICE,
+  FM_BASS_DEVICE,
   FM_GLASS_DEVICE,
   FREQ_SHIFTER_DEVICE,
   GLITCH_DEVICE,
@@ -386,6 +390,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'expanse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'fm-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
