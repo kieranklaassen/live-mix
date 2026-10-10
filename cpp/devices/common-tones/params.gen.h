@@ -5,11 +5,12 @@
 //    0  ago: 50..8000 ms, default 350
 //    1  keep: 0 Common, 1 Changes, default 0
 //    2  strict: 0..1, default 0.6
-//    3  ring: 0..1, default 0.35
+//    3  ring: 0..1, default 0.45
 //    4  broad: 0..1, default 0.25
 //    5  memory: 0..1, default 0.3
-//    6  floor: -48..0 dB, default -48
-//    7  mix: 0..1, default 0.7
+//    6  floor: -36..0 dB, default -36
+//    7  makeup: 0..1, default 0.75
+//    8  mix: 0..1, default 0.7
 
 #pragma once
 
@@ -24,13 +25,14 @@ enum Param : int {
   kBroad = 4,
   kMemory = 5,
   kFloor = 6,
-  kMix = 7,
-  kNumParams = 8,
+  kMakeup = 7,
+  kMix = 8,
+  kNumParams = 9,
 };
 
-inline constexpr float kParamMin[kNumParams] = {50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -48.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {8000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {350.0f, 0.0f, 0.6f, 0.35f, 0.25f, 0.3f, -48.0f, 0.7f};
+inline constexpr float kParamMin[kNumParams] = {50.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -36.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {8000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 0.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {350.0f, 0.0f, 0.6f, 0.45f, 0.25f, 0.3f, -36.0f, 0.75f, 0.7f};
 
 }  // namespace common_tones
 }  // namespace livemix

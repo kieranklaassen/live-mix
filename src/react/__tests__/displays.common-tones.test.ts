@@ -127,12 +127,14 @@ describe('Common Tones: the device', () => {
 
   it('takes the bottom of Floor for nothing at all', () => {
     // apply(kFloor): param <= min + 0.01 ? 0 : 10^(param / 20).
-    expect(tonesFloorGain(-48)).toBe(0)
-    expect(tonesFloorGain(-47.995)).toBe(0)
-    expect(tonesFloorGain(-40)).toBeCloseTo(0.01, 6)
+    expect(descriptor.params.floor.min).toBe(-36)
+    expect(tonesFloorGain(-36)).toBe(0)
+    expect(tonesFloorGain(-35.995)).toBe(0)
+    expect(tonesFloorGain(-20)).toBeCloseTo(0.1, 6)
     expect(tonesFloorGain(-6)).toBeCloseTo(0.5012, 4)
     expect(tonesFloorGain(0)).toBe(1)
-    expect(tonesFloorGain(-48, descriptor.params.floor.min)).toBe(0)
+    expect(tonesFloorGain(-36, descriptor.params.floor.min)).toBe(0)
+    expect(tonesFloorGain(-35, descriptor.params.floor.min)).toBeCloseTo(0.01778, 5)
   })
 
   it('lets a bin through whole inside the leeway and 2 dB down for every dB past it', () => {
@@ -247,6 +249,14 @@ describe('Common Tones: the picture', () => {
     expect(through(1)?.y).toBeCloseTo(yOf(db(0.5)), 1)
     expect(through(0.5)?.y).toBeCloseTo(yOf(db(0.25)), 1)
     expect(through(0.1)?.y).toBeCloseTo(yOf(db(0.05)), 1)
+    // What is let through has the make-up in it (frame(): heard × lift), so it can stand over the
+    // sound that came in: it is drawn where the device says, not held under the column.
+    const lifted = bandOf(running({ now13: 0.2, then13: 0.2, heard13: 0.4 }, { mix: 1 }), 12)
+    expect(lifted.find((rect) => rect.colour === ACCENT)?.y).toBeCloseTo(yOf(db(0.4)), 1)
+    expect(lifted.find((rect) => rect.colour === INK && rect.alpha < 0.3)?.y).toBeCloseTo(
+      yOf(db(0.2)),
+      1,
+    )
     // With none of it in the mix the sound that came in is still drawn, and nothing the device does.
     const dry = bandOf(running(readings, { mix: 0 }), 12)
     expect(dry).toHaveLength(1)

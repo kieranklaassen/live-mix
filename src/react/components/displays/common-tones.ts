@@ -2,8 +2,9 @@
 // third octave by third octave, with what the device lets through filled in.
 //
 // The device reports three levels for each of 24 third octaves from 62.5 Hz:
-// now, then (the past it compares with) and let through (the wet sound), each
-// as the amplitude of a sine that would read the same. Now is a pale column,
+// now, then (the past it compares with) and let through (the wet sound, with
+// the make-up it was given), each as the amplitude of a sine that would read
+// the same. Now is a pale column,
 // then a mark across it with the leeway Strict gives standing over the mark
 // as a shade, and what is let through fills the column as far as Mix lets it
 // be heard. Along the top, how far back then is. While no sound has come it
@@ -63,7 +64,7 @@ export const tonesLeewayDb = (strict: number): number =>
   TONES_MAX_LEEWAY_DB * (1 - clamp(strict, 0, 1))
 
 /** `apply(kFloor)`: the gain of what is turned down; the bottom of the knob is nothing at all. */
-export const tonesFloorGain = (floorDb: number, minDb = -48): number =>
+export const tonesFloorGain = (floorDb: number, minDb = -36): number =>
   floorDb <= minDb + 0.01 ? 0 : dbToGain(floorDb)
 
 /**
@@ -219,7 +220,7 @@ const commonTones = plateDisplay<TonesState>({
     const foot = box.y + box.h
     const strict = clamp(frame.value('strict'), 0, 1)
     const changes = frame.value('keep') >= 0.5
-    const floorGain = tonesFloorGain(frame.value('floor'), frame.spec('floor')?.min ?? -48)
+    const floorGain = tonesFloorGain(frame.value('floor'), frame.spec('floor')?.min ?? -36)
     // Mix is a straight cross-fade: the wet sound is heard at Mix times its level.
     const wet = frame.spec('mix') ? clamp(frame.value('mix'), 0, 1) : 1
     const heard = wet > QUIET

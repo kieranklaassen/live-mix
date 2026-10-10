@@ -20,7 +20,7 @@ static const float kRate = 48000.0f;
 static const size_t kLatency = CommonTones::kLatency;
 static const double kHopSeconds = 1024.0 / 48000.0;
 
-// The comparison alone: one moment, single bins, no ring, nothing left of the rest, wet only.
+// The comparison alone: one moment, the narrowest regions, no ring, nothing left of the rest, no make-up, wet only.
 static void clean(CommonTones& d, float rate = kRate) {
   d.init(rate);
   d.set_param(p::kAgo, 400.0f);
@@ -29,7 +29,8 @@ static void clean(CommonTones& d, float rate = kRate) {
   d.set_param(p::kRing, 0.0f);
   d.set_param(p::kBroad, 0.0f);
   d.set_param(p::kMemory, 0.0f);
-  d.set_param(p::kFloor, -48.0f);
+  d.set_param(p::kFloor, p::kParamMin[p::kFloor]);
+  d.set_param(p::kMakeup, 0.0f);
   d.set_param(p::kMix, 1.0f);
 }
 
@@ -96,24 +97,52 @@ struct Setting {
 };
 // PRESETS BEGIN
 static const Setting kPresets[] = {
-    {"Common tones", {350.0f, 0.0f, 0.6f, 0.35f, 0.25f, 0.3f, -48.0f, 0.7f}},
-    {"Only what stays", {450.0f, 0.0f, 1.0f, 0.3f, 0.1f, 0.0f, -48.0f, 1.0f}},
-    {"Only what moves", {250.0f, 1.0f, 0.6f, 0.0f, 0.3f, 0.0f, -48.0f, 1.0f}},
-    {"Long hold", {900.0f, 0.0f, 0.6f, 0.7f, 0.25f, 0.4f, -48.0f, 0.6f}},
-    {"Drone finder", {4000.0f, 0.0f, 0.8f, 0.6f, 0.15f, 0.6f, -16.0f, 0.7f}},
-    {"Attacks forward", {120.0f, 1.0f, 0.9f, 0.0f, 0.2f, 0.0f, -14.0f, 0.9f}},
-    {"Slow ear", {200.0f, 0.0f, 0.7f, 0.3f, 0.25f, 0.8f, -48.0f, 0.7f}},
-    {"Hanging notes", {300.0f, 0.0f, 0.5f, 0.75f, 0.25f, 0.3f, -48.0f, 0.6f}},
-    {"Loose match", {700.0f, 0.0f, 0.0f, 0.45f, 1.0f, 0.3f, -48.0f, 0.85f}},
-    {"New notes ring", {300.0f, 1.0f, 0.7f, 0.7f, 0.25f, 0.0f, -48.0f, 0.8f}},
-    {"Light touch", {250.0f, 0.0f, 0.5f, 0.2f, 0.25f, 0.3f, -10.0f, 0.6f}},
-    {"New notes up", {500.0f, 1.0f, 0.6f, 0.1f, 0.25f, 0.2f, -9.0f, 1.0f}},
-    {"Fresh only", {1000.0f, 1.0f, 0.6f, 0.2f, 0.25f, 0.7f, -48.0f, 0.9f}},
-    {"A bar ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -48.0f, 0.55f}},
-    {"Wide vibrato", {180.0f, 0.0f, 0.9f, 0.3f, 0.75f, 0.1f, -48.0f, 1.0f}},
-    {"Frozen ground", {800.0f, 0.0f, 0.7f, 1.0f, 0.25f, 0.5f, -48.0f, 0.55f}},
+    {"Common tones", {350.0f, 0.0f, 0.6f, 0.45f, 0.25f, 0.3f, -36.0f, 0.75f, 0.7f}},
+    {"Only what stays", {450.0f, 0.0f, 1.0f, 0.3f, 0.1f, 0.0f, -36.0f, 0.75f, 1.0f}},
+    {"Only what moves", {250.0f, 1.0f, 0.6f, 0.0f, 0.3f, 0.0f, -36.0f, 0.75f, 1.0f}},
+    {"Long hold", {900.0f, 0.0f, 0.6f, 0.7f, 0.25f, 0.4f, -12.0f, 0.75f, 0.6f}},
+    {"Drone finder", {4000.0f, 0.0f, 0.7f, 0.6f, 0.15f, 0.6f, -14.0f, 0.75f, 0.65f}},
+    {"Attacks forward", {120.0f, 1.0f, 0.65f, 0.0f, 0.2f, 0.0f, -6.0f, 0.75f, 0.8f}},
+    {"Slow ear", {200.0f, 0.0f, 0.7f, 0.3f, 0.25f, 0.8f, -36.0f, 0.75f, 0.7f}},
+    {"Hanging notes", {300.0f, 0.0f, 0.5f, 0.75f, 0.25f, 0.3f, -36.0f, 0.75f, 0.6f}},
+    {"Loose match", {700.0f, 0.0f, 0.0f, 0.45f, 1.0f, 0.3f, -36.0f, 0.75f, 0.85f}},
+    {"New notes ring", {300.0f, 1.0f, 0.6f, 0.7f, 0.25f, 0.0f, -36.0f, 0.75f, 0.8f}},
+    {"Light touch", {250.0f, 0.0f, 0.5f, 0.2f, 0.25f, 0.3f, -10.0f, 0.75f, 0.6f}},
+    {"New notes up", {500.0f, 1.0f, 0.6f, 0.1f, 0.25f, 0.2f, -9.0f, 0.75f, 1.0f}},
+    {"Fresh only", {1000.0f, 1.0f, 0.6f, 0.2f, 0.25f, 0.7f, -36.0f, 0.75f, 0.8f}},
+    {"A bar ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -36.0f, 0.75f, 0.5f}},
+    {"Wide vibrato", {180.0f, 0.0f, 0.9f, 0.3f, 0.75f, 0.1f, -36.0f, 0.75f, 1.0f}},
+    {"Frozen ground", {800.0f, 0.0f, 0.7f, 1.0f, 0.25f, 0.5f, -12.0f, 0.75f, 0.55f}},
 };
 // PRESETS END
+
+// A played phrase, 12 s: damped notes of six partials, some sharing partials,
+// some short and some held, over a faint hiss.
+static std::vector<float> played_phrase() {
+  struct Note {
+    double at, hz, gain, held;
+  };
+  const Note notes[] = {{0.0, 220.0, 0.25, 0.5},   {0.6, 329.63, 0.25, 0.5}, {1.2, 523.25, 0.25, 1.0}, {2.4, 440.0, 0.25, 1.4},
+                        {2.4, 174.61, 0.25, 1.4},  {4.0, 659.26, 0.15, 0.3}, {4.4, 587.33, 0.15, 0.3}, {4.8, 523.25, 0.2, 1.0},
+                        {6.0, 220.0, 0.25, 0.5},   {6.6, 329.63, 0.25, 0.5}, {7.2, 493.88, 0.25, 1.0}, {8.4, 392.0, 0.25, 1.4},
+                        {8.4, 196.0, 0.25, 1.4},   {10.0, 220.0, 0.25, 1.5}};
+  std::vector<float> phrase(at(12.0), 0.0f);
+  for (const Note& n : notes) {
+    const size_t start = at(n.at);
+    for (size_t i = start; i < phrase.size(); ++i) {
+      const double t = static_cast<double>(i - start) / kRate;
+      const double damp = t > n.held ? std::exp(-(t - n.held) / 0.05) : 1.0;
+      if (damp < 1.0e-5) break;
+      const double env = std::min(1.0, t / 0.004) * std::exp(-t / 0.9) * damp;
+      double s = 0.0;
+      for (int h = 1; h <= 6; ++h) s += std::sin(2.0 * kPi * n.hz * h * t) / h * std::exp(-t * 0.6 * (h - 1));
+      phrase[i] += static_cast<float>(n.gain * env * s);
+    }
+  }
+  rng_state() = 4242;
+  for (float& v : phrase) v += 0.0005f * white();
+  return phrase;
+}
 
 static void set_all(CommonTones& d, const float* value) {
   d.init(kRate);
@@ -205,11 +234,11 @@ int main() {
 
     // Floor is the gain of what is turned down, over its whole range.
     double last = -1000.0;
-    for (float floor : {-48.0f, -47.0f, -36.0f, -24.0f, -12.0f, 0.0f}) {
+    for (float floor : {-36.0f, -35.0f, -27.0f, -18.0f, -9.0f, 0.0f}) {
       clean(device);
       device.set_param(p::kFloor, floor);
       Stereo out = run(device, moving);
-      if (floor == -48.0f) {
+      if (floor == -36.0f) {
         EXPECT(early(out, 3) < -100.0, "Floor at the bottom: what is turned down is gone");
       } else {
         EXPECT_NEAR(early(out, 3), floor, 0.5, "Floor: what is turned down comes out that many dB down");
@@ -322,11 +351,18 @@ int main() {
                 common[0], common[1], common[2], common[3], common[4]);
     std::printf("common-tones: steady noise through Changes:                             %.1f %.1f %.1f %.1f %.1f dB\n",
                 changes[0], changes[1], changes[2], changes[3], changes[4]);
-    EXPECT(common[0] > -0.1 && common[4] < -3.0 && common[4] > -7.0, "Strict changes how much of noise gets through");
+    EXPECT(common[0] > -0.1 && common[4] < -1.5 && common[4] > -5.0, "Strict changes how much of noise gets through");
     for (int i = 1; i < 5; ++i) {
       EXPECT(common[i] <= common[i - 1] + 0.01, "Common: more Strict, less noise");
-      EXPECT(changes[i] > changes[i - 1] + 5.0, "Changes: more Strict, more of the noise counts as new");
+      EXPECT(changes[i] >= changes[i - 1], "Changes: more Strict, more of the noise counts as new");
     }
+    EXPECT(changes[4] > changes[3] + 10.0 && changes[3] > changes[2] + 10.0, "Changes: the top of Strict takes a noise's own wandering for new");
+    // Steady noise is not new: with the leeway the default has, or more, Changes
+    // lets none of it through (the builder's version, which compared single
+    // bins of single frames, let a scatter of blips through 23 dB down), and
+    // Common lets all of it through.
+    EXPECT(changes[2] < -50.0 && changes[1] < -100.0, "Changes: steady noise leaves no residue while there is leeway");
+    EXPECT(common[2] > -0.05, "Common: steady noise passes whole while there is leeway");
   }
 
   // Ring: what got through hangs on, for 20 s × Ring², at its own frequency
@@ -431,8 +467,8 @@ int main() {
                 "              a line that steps a whole tone %.2f %.2f %.2f %.2f %.2f dB\n",
                 wavering[0], wavering[1], wavering[2], wavering[3], wavering[4], stepping[0], stepping[1], stepping[2],
                 stepping[3], stepping[4]);
-    EXPECT(wavering[0] < -6.0 && wavering[1] > wavering[0] + 1.0 && wavering[2] > wavering[1] + 3.0 && wavering[2] > -0.5,
-           "Broad: single bins lose a wavering tone, regions keep it");
+    EXPECT(wavering[0] < -5.0 && wavering[1] > wavering[0] + 0.5 && wavering[2] > wavering[1] + 3.0 && wavering[2] > -0.5,
+           "Broad: the narrowest regions lose a wavering tone, wider ones keep it");
     EXPECT(stepping[2] < -4.0 && stepping[3] > stepping[2] + 1.0 && stepping[4] > stepping[3] + 1.0 && stepping[4] > -1.5,
            "Broad at the top: a line that moves by a tone is one sound");
     for (int i = 1; i < 5; ++i) {
@@ -575,8 +611,32 @@ int main() {
     }
     std::printf("common-tones: block sizes 1, 37, 128, 2048 across a sleep: worst difference %.3g; slept against awake: %.3g\n",
                 worst, awake_worst);
-    EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+    // To the bit: sleep begins and ends on a sample, whatever the block (it began on a block, and
+    // the sizes differed by 1.2e-7 where the past had fallen in one step or in many).
+    EXPECT(worst == 0.0, "bit for bit the same at block sizes 1, 37, 128 and 2048 across a sleep");
     EXPECT(awake_worst < 1.0e-5, "the past falls through a sleep as it does awake");
+  }
+
+  // And it does sleep: 8.27 s after the output has gone quiet (0.18 s after
+  // the input does), not before, and not while anything at all comes in.
+  {
+    rng_state() = 99;
+    const std::vector<float> phrase = add(noise(0.4f, kRate, 0.3f), sine(700.0f, 0.4f, kRate, 0.3f));
+    for (int block : {128, 2048, 37}) {
+      device.init(kRate);
+      device.set_param(p::kRing, 0.0f);
+      EXPECT(device.asleep(), "asleep until something comes in");
+      run(device, phrase, block);
+      EXPECT(!device.asleep(), "awake while it sounds");
+      run(device, silence(8.3f, kRate), block);
+      EXPECT(!device.asleep(), "still awake 8.3 s on: the past Ago can reach is not yet all silence");
+      run(device, silence(0.3f, kRate), block);
+      EXPECT(device.asleep(), "asleep 8.6 s after the sound");
+      std::vector<float> faint = silence(1.0f, kRate);
+      faint[100] = 1.0e-20f;
+      run(device, faint, block);
+      EXPECT(!device.asleep(), "anything at all in the input wakes it");
+    }
   }
 
   // A knob moved while the device sleeps is there when it wakes: no glide.
@@ -705,30 +765,9 @@ int main() {
   // From the default (wet only), each control is stepped in quarters of its
   // travel; "moved" is the difference from the step before, re the phrase.
   {
-    struct Note {
-      double at, hz, gain, held;
-    };
-    const Note notes[] = {{0.0, 220.0, 0.25, 0.5},   {0.6, 329.63, 0.25, 0.5}, {1.2, 523.25, 0.25, 1.0}, {2.4, 440.0, 0.25, 1.4},
-                          {2.4, 174.61, 0.25, 1.4},  {4.0, 659.26, 0.15, 0.3}, {4.4, 587.33, 0.15, 0.3}, {4.8, 523.25, 0.2, 1.0},
-                          {6.0, 220.0, 0.25, 0.5},   {6.6, 329.63, 0.25, 0.5}, {7.2, 493.88, 0.25, 1.0}, {8.4, 392.0, 0.25, 1.4},
-                          {8.4, 196.0, 0.25, 1.4},   {10.0, 220.0, 0.25, 1.5}};
-    std::vector<float> phrase(at(12.0), 0.0f);
-    for (const Note& n : notes) {
-      const size_t start = at(n.at);
-      for (size_t i = start; i < phrase.size(); ++i) {
-        const double t = static_cast<double>(i - start) / kRate;
-        const double damp = t > n.held ? std::exp(-(t - n.held) / 0.05) : 1.0;
-        if (damp < 1.0e-5) break;
-        const double env = std::min(1.0, t / 0.004) * std::exp(-t / 0.9) * damp;
-        double s = 0.0;
-        for (int h = 1; h <= 6; ++h) s += std::sin(2.0 * kPi * n.hz * h * t) / h * std::exp(-t * 0.6 * (h - 1));
-        phrase[i] += static_cast<float>(n.gain * env * s);
-      }
-    }
-    rng_state() = 4242;
-    for (float& v : phrase) v += 0.0005f * white();
+    const std::vector<float> phrase = played_phrase();
     const double reference = rms(phrase);
-    const char* names[] = {"ago", "keep", "strict", "ring", "broad", "memory", "floor", "mix"};
+    const char* names[] = {"ago", "keep", "strict", "ring", "broad", "memory", "floor", "makeup", "mix"};
     for (int keep = 0; keep < 2; ++keep) {
       for (int id = 0; id < p::kNumParams; ++id) {
         if (id == p::kKeep) continue;
@@ -756,7 +795,7 @@ int main() {
           before = out;
         }
         std::printf(" dB\n");
-        EXPECT(least > -45.0, "every quarter of every control's travel changes a played phrase");
+        EXPECT(least > -35.0, "every quarter of every control's travel changes a played phrase");
       }
     }
     // Keep itself: the two sides are different sounds, and together they are the phrase.
@@ -768,6 +807,200 @@ int main() {
     std::printf("common-tones: on a phrase, wet only: Common %.1f dB, Changes %.1f dB re the phrase\n",
                 db(rms(common.left) / reference), db(rms(changes.left) / reference));
     EXPECT(rms(common.left) > 0.3 * reference && rms(changes.left) > 0.3 * reference, "a played phrase has both in it");
+  }
+
+  // The make-up. The gate takes level away from playing and none from a held
+  // sound, so what is kept is turned up by a share of what it is short of the
+  // dry sound over the last seconds: slowly (a decibel a second up at most),
+  // never past the dry sound at its loudest, and not at all on a held sound.
+  {
+    const std::vector<float> phrase = played_phrase();
+    std::vector<float> looped;
+    for (int n = 0; n < 4; ++n) looped = join(looped, phrase);
+    const size_t from = at(24.0), to = at(48.0);
+    const double dry_level = rms(looped, from, to), dry_peak = peak(looped);
+    std::vector<float> lift;
+    auto follow = [&](int) { lift.push_back(device.lift_db()); };
+
+    device.init(kRate);
+    device.set_param(p::kMakeup, 0.0f);
+    Stereo bare = run_moving(device, looped, follow);
+    bool none = true;
+    for (float v : lift) none = none && v == 0.0f;
+    EXPECT(none, "Make up at nothing: no gain at all");
+    const double bare_db = db(rms(bare.left, from, to) / dry_level);
+
+    lift.clear();
+    device.init(kRate);
+    Stereo made = run_moving(device, looped, follow);
+    const double made_db = db(rms(made.left, from, to) / dry_level);
+    float low = 100.0f, high = 0.0f, rise = 0.0f;
+    for (size_t b = 0; b < lift.size(); ++b) {
+      if (b >= from / 128) low = std::min(low, lift[b]), high = std::max(high, lift[b]);
+      if (b >= 375) rise = std::max(rise, lift[b] - lift[b - 375]);
+    }
+    std::printf("common-tones: a phrase played over and over at the default: %.2f dB re the dry without the make-up, %.2f dB with it;"
+                " the gain %.2f to %.2f dB, rising %.2f dB a second at most; peak %.2f dB re the dry's\n",
+                bare_db, made_db, low, high, rise, db(std::max(peak(made.left), peak(made.right)) / dry_peak));
+    EXPECT(bare_db < -2.0, "the gate takes level away from a played phrase");
+    EXPECT(made_db > bare_db + 1.0 && made_db > -2.0 && made_db < 0.5, "the make-up brings a played phrase back to within 2 dB of the dry");
+    EXPECT(high - low < 1.0, "once it has settled the gain rides the phrase by less than a decibel");
+    EXPECT(rise < 1.02f, "the gain never rises faster than a decibel a second");
+    EXPECT(std::max(peak(made.left), peak(made.right)) < dry_peak * 1.06, "what is made up never peaks over the dry sound's own peaks");
+
+    // The more Make up, the more level, over the whole of its travel.
+    double last = bare_db;
+    for (float amount : {0.25f, 0.5f, 0.75f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMakeup, amount);
+      Stereo out = run(device, looped);
+      const double level = db(rms(out.left, from, to) / dry_level);
+      EXPECT(level > last + 0.2, "Make up: every part of its travel is heard");
+      last = level;
+    }
+
+    // A held sound passes whole and earns none, but the gain is slow: after
+    // playing, a held chord as loud as the phrase keeps what the playing had
+    // earned and loses it over the next seconds. It is never out by more than
+    // that, and never louder than the dry sound has been.
+    lift.clear();
+    const std::vector<float> held = chord({220.0f, 277.18f, 329.63f, 440.0f}, 10.0f, static_cast<float>(dry_peak) / 4.0f);
+    const std::vector<float> then_held = join(join(phrase, phrase), held);
+    device.init(kRate);
+    device.set_param(p::kMakeup, 1.0f);
+    Stereo out = run_moving(device, then_held, follow);
+    const float before = lift[at(23.9) / 128];
+    const double chord_peak = peak(out.left, at(24.0) + kLatency, out.size()) / peak(held);
+    float most_made = 0.0f;
+    for (float v : lift) most_made = std::max(most_made, v);
+    std::printf("common-tones: playing, then a held chord: the gain %.2f dB before it, %.2f dB a second in, %.2f dB three seconds in,"
+                " %.2f dB at its end; the chord peaks %.2f dB re its own\n",
+                before, lift[at(25.0) / 128], lift[at(27.0) / 128], lift.back(), db(chord_peak));
+    EXPECT(before > 2.0f, "playing brings the make-up up");
+    EXPECT(most_made <= 6.0f, "the make-up is never more than 6 dB");
+    EXPECT(db(chord_peak) < before && db(chord_peak) < 2.0, "a held chord after playing is out by less than the make-up the playing earned");
+    EXPECT(lift[at(27.0) / 128] < 0.5f * before && lift.back() < 0.3f, "and the make-up falls away under it: half in three seconds, gone in ten");
+
+    // A quiet held chord after loud playing has its say as soon: each frame is
+    // weighed against how loud the playing has lately been, not against the
+    // loudest thing in the window.
+    lift.clear();
+    const std::vector<float> quiet = chord({220.0f, 277.18f, 329.63f, 440.0f}, 10.0f, static_cast<float>(dry_peak) / 16.0f);
+    device.init(kRate);
+    device.set_param(p::kMakeup, 1.0f);
+    run_moving(device, join(join(phrase, phrase), quiet), follow);
+    std::printf("common-tones: playing, then a held chord 12 dB quieter: the gain %.2f dB before it, %.2f dB six seconds in, %.2f dB at its end\n",
+                lift[at(23.9) / 128], lift[at(30.0) / 128], lift.back());
+    EXPECT(lift[at(30.0) / 128] < 0.5f * lift[at(23.9) / 128], "a quiet held chord after loud playing brings the make-up down as a loud one does");
+
+    // A burst of nonsense, 40 dB over full scale for half a second, weighs no
+    // more than any other half second: the make-up stays where it would have been.
+    {
+      std::vector<float> spoiled = looped;
+      for (size_t i = at(13.0); i < at(13.5); ++i) spoiled[i] = (i / 50) & 1 ? 100.0f : -100.0f;
+      std::vector<float> lifts[2];
+      for (int run_of = 0; run_of < 2; ++run_of) {
+        lift.clear();
+        device.init(kRate);
+        device.set_param(p::kRing, 0.0f);
+        run_moving(device, run_of ? spoiled : looped, follow);
+        lifts[run_of] = lift;
+      }
+      float apart = 0.0f, at_once = 0.0f;
+      for (size_t b = at(13.0) / 128; b < lifts[0].size(); ++b) {
+        const float d = std::fabs(lifts[1][b] - lifts[0][b]);
+        (b < at(33.5) / 128 ? at_once : apart) = std::max(b < at(33.5) / 128 ? at_once : apart, d);
+      }
+      std::printf("common-tones: half a second of nonsense in a phrase played over and over: the make-up is %.2f dB from its place at most in the"
+                  " twenty seconds after, %.2f dB from there on\n", at_once, apart);
+      EXPECT(at_once < 0.5f && apart < 0.1f, "a burst of nonsense does not put the make-up out of place");
+    }
+
+    // Whatever lets the whole sound through at once finds the make-up taken
+    // down at once, not at its own pace: Floor thrown to the top, wet only and
+    // with no ring, a fifth of a second before the phrase's loudest moment.
+    // Without the ceiling that moment would come out over the dry by all the
+    // make-up the playing had earned, less what two tenths of a second take off.
+    {
+      const std::vector<float> thrice = join(join(phrase, phrase), phrase);
+      device.init(kRate);
+      device.set_param(p::kMakeup, 1.0f);
+      device.set_param(p::kRing, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      float had = 0.0f;
+      Stereo thrown = run_moving(device, thrice, [&](int block) {
+        if (block != static_cast<int>(at(26.2) / 128)) return;
+        had = device.lift_db();
+        device.set_param(p::kFloor, 0.0f);
+      });
+      const double over = db(peak(thrown.left, at(26.5) + kLatency, at(27.0) + kLatency) / peak(thrice, at(26.5), at(27.0)));
+      std::printf("common-tones: Floor thrown to the top with %.2f dB of make-up up, 0.2 s before the loudest notes: a tenth of a second into"
+                  " them the wet sound peaks %.2f dB over the dry\n", had, over);
+      EXPECT(had > 2.0f && over < 1.5, "the make-up is taken down at once when the whole sound is let through");
+    }
+
+    // A held chord from the start never has any.
+    lift.clear();
+    device.init(kRate);
+    device.set_param(p::kMakeup, 1.0f);
+    out = run_moving(device, join(silence(0.5f, kRate), held), follow);
+    float most = 0.0f;
+    for (float v : lift) most = std::max(most, v);
+    EXPECT(most < 0.6f && lift.back() < 0.05f, "a held chord gets no make-up to speak of");
+    EXPECT_NEAR(db(rms(out.left, at(6.0), at(10.0)) / rms(held, at(5.0), at(9.0))), 0.0, 0.05, "and comes out at its own level");
+
+    // It keeps its place through a silence, asleep or not, and at any block size.
+    for (int block : {128, 2048, 1}) {
+      device.init(kRate);
+      device.set_param(p::kRing, 0.0f);
+      run(device, join(phrase, silence(1.0f, kRate)), block);
+      const float had = device.lift_db();
+      run(device, silence(10.0f, kRate), block);
+      EXPECT(device.asleep() && had > 1.0f && device.lift_db() == had, "the make-up keeps its place through silence and sleep");
+    }
+  }
+
+  // The presets' level. The comparison takes level away from playing: that is
+  // the effect. With the make-up every preset brings a phrase played over and
+  // over out within 4 dB of the dry sound and no more than 1 dB over it (the
+  // furthest under is the one that lets through only what it has not heard
+  // lately, which a phrase played over and over has little of), and the
+  // presets that keep what is common pass slow chords, each sharing two notes
+  // with the last, within 1.5 dB.
+  {
+    const std::vector<float> phrase = played_phrase();
+    std::vector<float> looped;
+    for (int n = 0; n < 4; ++n) looped = join(looped, phrase);
+    const std::vector<float> slow = join(join(chord({261.63f, 329.63f, 392.0f}, 6.0f, 0.1f), chord({220.0f, 261.63f, 329.63f}, 6.0f, 0.1f)),
+                                         chord({174.61f, 220.0f, 261.63f}, 6.0f, 0.1f));
+    const double played_level = rms(looped, at(24.0), at(48.0));
+    const double slow_level = rms(slow, at(1.0), at(18.0) - kLatency);
+    double lowest = 0.0, highest = -100.0, lowest_slow = 0.0, highest_slow = -100.0;
+    for (const Setting& preset : kPresets) {
+      set_all(device, preset.value);
+      Stereo out = run(device, looped);
+      const double level = db(rms(out.left, at(24.0), at(48.0)) / played_level);
+      lowest = std::min(lowest, level);
+      highest = std::max(highest, level);
+      double held = 0.0;
+      if (preset.value[p::kKeep] < 0.5f) {
+        set_all(device, preset.value);
+        out = run(device, slow);
+        held = db(rms(out.left, at(1.0) + kLatency, at(18.0)) / slow_level);
+        lowest_slow = std::min(lowest_slow, held);
+        highest_slow = std::max(highest_slow, held);
+      }
+      std::printf("common-tones: %-16s a phrase over and over %5.2f dB re the dry; slow chords %5.2f dB\n", preset.name, level, held);
+    }
+    // A noise's own wandering starts to pass as change above Strict 0.65
+    // (see the noise through Changes above): no preset that keeps the changes
+    // is set stricter than that.
+    bool calm = true;
+    for (const Setting& preset : kPresets)
+      if (preset.value[p::kKeep] >= 0.5f && preset.value[p::kStrict] > 0.65f) calm = false;
+    EXPECT(calm, "no preset that keeps the changes is strict enough to let a steady noise flutter through");
+    EXPECT(lowest > -4.0 && highest < 1.0, "every preset brings a phrase played over and over out within 4 dB of the dry and no more than 1 dB over it");
+    EXPECT(lowest_slow > -1.5 && highest_slow < 0.75, "the presets that keep what is common pass slow chords within 1.5 dB");
   }
 
   // Level. A full-scale held chord for a minute, through every preset and

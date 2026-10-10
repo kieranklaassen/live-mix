@@ -401,7 +401,7 @@
       "name": "Ring",
       "min": 0,
       "max": 1,
-      "default": 0.35,
+      "default": 0.45,
       "description": "How long what gets through hangs on after it stops. At nothing it ends with the sound; high leaves a long tail."
     },
     {
@@ -423,11 +423,19 @@
     {
       "key": "floor",
       "name": "Floor",
-      "min": -48,
+      "min": -36,
       "max": 0,
-      "default": -48,
+      "default": -36,
       "unit": "dB",
       "description": "How far the rest is turned down. Fully down it is gone; higher leaves a ghost of it under what is kept."
+    },
+    {
+      "key": "makeup",
+      "name": "Make up",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How much of the level the comparison takes away is made up, by turning what is kept up slowly, never past the dry sound at its loudest. At nothing it is left as it falls."
     },
     {
       "key": "mix",
@@ -461,26 +469,27 @@
       "ago": 900,
       "ring": 0.7,
       "memory": 0.4,
-      "mix": 0.6
+      "mix": 0.6,
+      "floor": -12
     },
     "Drone finder": {
       "ago": 4000,
-      "strict": 0.8,
+      "strict": 0.7,
       "ring": 0.6,
       "broad": 0.15,
       "memory": 0.6,
-      "floor": -16,
-      "mix": 0.7
+      "floor": -14,
+      "mix": 0.65
     },
     "Attacks forward": {
       "keep": 1,
       "ago": 120,
-      "strict": 0.9,
+      "strict": 0.65,
       "ring": 0,
       "broad": 0.2,
       "memory": 0,
-      "floor": -14,
-      "mix": 0.9
+      "floor": -6,
+      "mix": 0.8
     },
     "Slow ear": {
       "ago": 200,
@@ -505,7 +514,7 @@
     "New notes ring": {
       "keep": 1,
       "ago": 300,
-      "strict": 0.7,
+      "strict": 0.6,
       "ring": 0.7,
       "memory": 0,
       "mix": 0.8
@@ -531,7 +540,7 @@
       "strict": 0.6,
       "ring": 0.2,
       "memory": 0.7,
-      "mix": 0.9
+      "mix": 0.8
     },
     "A bar ago": {
       "ago": 2000,
@@ -539,7 +548,7 @@
       "ring": 0.4,
       "broad": 0.4,
       "memory": 0.35,
-      "mix": 0.55
+      "mix": 0.5
     },
     "Wide vibrato": {
       "ago": 180,
@@ -554,7 +563,8 @@
       "strict": 0.7,
       "ring": 1,
       "memory": 0.5,
-      "mix": 0.55
+      "mix": 0.55,
+      "floor": -12
     }
   },
   "origin": {
