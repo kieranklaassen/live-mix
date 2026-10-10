@@ -2,6 +2,7 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { ACID_BASS_DESCRIPTOR, ACID_BASS_DEVICE } from './acid-bass.gen'
 import { ACOUSTIC_GUITAR_DESCRIPTOR, ACOUSTIC_GUITAR_DEVICE } from './acoustic-guitar.gen'
 import { AMBIENT_COMP_DESCRIPTOR, AMBIENT_COMP_DEVICE } from './ambient-comp.gen'
 import { AMBIENT_EQ_DESCRIPTOR, AMBIENT_EQ_DEVICE } from './ambient-eq.gen'
@@ -64,6 +65,7 @@ import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
+import { SUB_BASS_DESCRIPTOR, SUB_BASS_DEVICE } from './sub-bass.gen'
 import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
 import { SWARM_REVERB_DESCRIPTOR, SWARM_REVERB_DEVICE } from './swarm-reverb.gen'
 import { SWELL_DESCRIPTOR, SWELL_DEVICE } from './swell.gen'
@@ -85,6 +87,7 @@ import { WEST_COAST_DESCRIPTOR, WEST_COAST_DEVICE } from './west-coast.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
 import { ZONE_SAMPLER_DESCRIPTOR, ZONE_SAMPLER_DEVICE } from './zone-sampler.gen'
 
+export * from './acid-bass.gen'
 export * from './acoustic-guitar.gen'
 export * from './ambient-comp.gen'
 export * from './ambient-eq.gen'
@@ -147,6 +150,7 @@ export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
 export * from './stereo-detune.gen'
 export * from './string-machine.gen'
+export * from './sub-bass.gen'
 export * from './sustainer.gen'
 export * from './swarm-reverb.gen'
 export * from './swell.gen'
@@ -170,6 +174,7 @@ export * from './zone-sampler.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  ACID_BASS_DESCRIPTOR,
   ACOUSTIC_GUITAR_DESCRIPTOR,
   AMBIENT_COMP_DESCRIPTOR,
   AMBIENT_EQ_DESCRIPTOR,
@@ -232,6 +237,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPRING_REVERB_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
+  SUB_BASS_DESCRIPTOR,
   SUSTAINER_DESCRIPTOR,
   SWARM_REVERB_DESCRIPTOR,
   SWELL_DESCRIPTOR,
@@ -256,6 +262,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  ACID_BASS_DEVICE,
   ACOUSTIC_GUITAR_DEVICE,
   AMBIENT_COMP_DEVICE,
   AMBIENT_EQ_DEVICE,
@@ -318,6 +325,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPRING_REVERB_DEVICE,
   STEREO_DETUNE_DEVICE,
   STRING_MACHINE_DEVICE,
+  SUB_BASS_DEVICE,
   SUSTAINER_DEVICE,
   SWARM_REVERB_DEVICE,
   SWELL_DEVICE,
@@ -342,6 +350,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'acid-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'acoustic-guitar', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ambient-comp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'ambient-eq', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
@@ -411,6 +420,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'sub-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'swarm-reverb', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'swell', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },

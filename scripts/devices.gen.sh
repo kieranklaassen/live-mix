@@ -4,6 +4,8 @@
 # (native_test).
 
 build_generated_devices() {
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device acid-bass \
+    cpp/devices/acid-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device acoustic-guitar \
     cpp/devices/acoustic-guitar/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ambient-comp \
@@ -130,6 +132,8 @@ build_generated_devices() {
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
     cpp/devices/string-machine/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device sub-bass \
+    cpp/devices/sub-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sustainer \
     cpp/devices/sustainer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device swarm-reverb \
@@ -175,6 +179,8 @@ build_generated_devices() {
 }
 
 test_generated_devices() {
+  native_test acid_bass_test \
+    cpp/test/acid_bass_test.cpp
   native_test acoustic_guitar_test \
     cpp/test/acoustic_guitar_test.cpp
   native_test ambient_comp_test \
@@ -301,6 +307,8 @@ test_generated_devices() {
     cpp/test/stereo_detune_test.cpp
   native_test string_machine_test \
     cpp/test/string_machine_test.cpp
+  native_test sub_bass_test \
+    cpp/test/sub_bass_test.cpp
   native_test sustainer_test \
     cpp/test/sustainer_test.cpp
   native_test swarm_reverb_test \
