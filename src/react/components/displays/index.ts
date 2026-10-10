@@ -11,6 +11,7 @@ import { MODULATION_FACES } from './modulation'
 import { PITCH_FACES } from './pitch'
 import { REVERB_FACES } from './reverb'
 import { SPATIAL_FACES } from './spatial'
+import { STRETCH_FACES } from './stretch'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { WEAR_FACES } from './wear'
@@ -28,4 +29,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  ...STRETCH_FACES,
 }
