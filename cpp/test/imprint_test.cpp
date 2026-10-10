@@ -723,6 +723,71 @@ int main() {
     }
   }
 
+  // 14b. The sixteen presets (their values copied from device.json, every
+  // control in the manifest's order). A full-scale chord held for a minute
+  // through each: never 6 dB over full scale, never growing, within 3 dB of
+  // the input's level. And held tones over the piano's range at Mix 0.5: none
+  // is lost.
+  {
+    struct Preset {
+      const char* name;
+      float values[p::kNumParams];
+    };
+    const Preset presets[] = {
+      {"Open vowel", {1.0f, 1.0f, 1.0f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
+      {"Round vowel", {1.0f, 2.0f, 1.2f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
+      {"Thin vowel", {1.0f, 3.0f, 1.5f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
+      {"Hollow tube", {1.0f, 4.0f, 1.2f, 0.0f, 0.25f, 0.3f, 2.0f, 1.0f}},
+      {"Bright bell", {1.0f, 5.0f, 1.5f, 0.0f, 0.25f, 0.15f, 2.0f, 1.0f}},
+      {"Dark box", {1.0f, 6.0f, 1.0f, 0.0f, 0.6f, 0.5f, 2.0f, 1.0f}},
+      {"Deeper colour", {1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 2.0f, 1.0f}},
+      {"Evened out", {1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.6f, 3.0f, 1.0f}},
+      {"Small body", {1.0f, 1.0f, 1.3f, 12.0f, 0.35f, 0.5f, 2.0f, 1.0f}},
+      {"Large body", {1.0f, 2.0f, 1.3f, -9.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
+      {"Inside out", {1.0f, 1.0f, -2.0f, 0.0f, 0.0f, 0.5f, 2.0f, 1.0f}},
+      {"All vowel", {1.0f, 3.0f, 1.0f, 0.0f, 1.0f, 0.5f, 2.0f, 1.0f}},
+      {"Thin glass", {1.0f, 5.0f, 2.0f, 7.0f, 0.25f, 0.0f, 2.0f, 1.0f}},
+      {"Faint vowel", {1.0f, 2.0f, 0.8f, 0.0f, 0.0f, 0.5f, 2.0f, 0.7f}},
+      {"Distant pipe", {1.0f, 4.0f, 1.0f, -5.0f, 0.7f, 0.4f, 2.0f, 1.0f}},
+      {"Remembered notes", {1.0f, 0.0f, 1.5f, 0.0f, 0.0f, 0.0f, 8.0f, 1.0f}},
+    };
+    const std::vector<float> held = chord(60.0f, kRate, 1.0f, {110.0, 164.81, 277.18, 415.3});
+    const double in_rms = rms(held);
+    double worst_peak = 0.0, worst_growth = 0.0, low = 1.0e9, high = -1.0e9, worst_tone = 0.0;
+    for (const Preset& preset : presets) {
+      device.init(kRate);
+      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      const Stereo out = run(device, held);
+      const size_t n = out.size();
+      const double level = db(rms(out.left, 96000, n) / in_rms);
+      const double growth = peak(out.left, n - 480000, n) / peak(out.left, 48000, 528000);
+      worst_peak = std::max(worst_peak, peak(out.left));
+      worst_growth = std::max(worst_growth, growth);
+      low = std::min(low, level);
+      high = std::max(high, level);
+      double tone_worst = 0.0;
+      for (double note = 27.5; note < 4200.0; note *= std::pow(2.0, 7.0 / 12.0)) {
+        device.init(kRate);
+        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+        device.set_param(p::kMix, 0.5f);
+        const std::vector<float> tone = sine(static_cast<float>(note), 1.5f, kRate, 0.5f);
+        const Stereo toned = run(device, tone);
+        tone_worst = std::min(tone_worst, db(tone_level(toned.left, note, kRate, 36000, 72000) / 0.5));
+      }
+      worst_tone = std::min(worst_tone, tone_worst);
+      if (level < -3.0 || level > 3.0 || peak(out.left) > 2.0 || tone_worst < -3.0) {
+        std::printf("  %s: level %+.2f dB, peak %.2f, weakest tone %.2f dB\n", preset.name, level, peak(out.left), tone_worst);
+      }
+    }
+    std::printf("presets: a full-scale chord peaks at %.2f at worst, grows by %.3f, level %+.2f to %+.2f dB; the weakest "
+                "held tone at Mix 0.5 is %.2f dB\n",
+                worst_peak, worst_growth, low, high, worst_tone);
+    EXPECT(worst_peak < 2.0, "no preset puts a full-scale chord 6 dB over full scale");
+    EXPECT(worst_growth < 1.05, "no preset grows");
+    EXPECT(low > -3.0 && high < 3.0, "every preset holds a chord's level within 3 dB");
+    EXPECT(worst_tone > -3.0, "no preset loses a held tone at Mix 0.5");
+  }
+
   // 15. No clicks. Three steady tones run through; halfway a control is
   // moved as a bare step (the two choices each way, Amount from one end to
   // the other, Shift by two octaves, Replace and Smooth across their range).
