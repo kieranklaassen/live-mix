@@ -8,6 +8,7 @@
 //   ?theme=paper                     any of the kit's themes
 //   ?open=1                          plates opened to every control
 //   ?still=1                         no sound: what a plate shows at rest
+//   ?upright=1                       plates standing upright, as pedals
 //   ?chain=1                         in one `DeviceChainView` on a strip, as an app draws them
 //   ?preset=<name>                   each device on its preset of that name, where it has one
 //
@@ -42,6 +43,7 @@ const theme = query.get('theme') ?? 'graphite'
 const open = query.get('open') === '1'
 const still = query.get('still') === '1'
 const chain = query.get('chain') === '1'
+const upright = query.get('upright') === '1'
 const preset = query.get('preset')
 
 function benchRegistry(): DeviceRegistry {
@@ -248,6 +250,7 @@ function Plates() {
           <DeviceChainView
             strip={bench.strip}
             skin={deviceSkin}
+            upright={upright}
             showAdd={false}
             data-testid="chain"
           />
@@ -263,6 +266,7 @@ function Plates() {
                       skin={skin}
                       registry={bench.registry}
                       source={feed}
+                      upright={upright}
                       defaultOpen={open}
                       // A stand-in for an app's preset cell, so the tools stand where they do in an app.
                       presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
