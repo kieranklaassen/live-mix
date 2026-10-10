@@ -1,0 +1,120 @@
+{
+  "id": "prism",
+  "name": "Prism",
+  "category": "delay",
+  "description": "Splits the sound into colours and delays each by a different time, so a chord unfolds from low to high like light through glass and every repeat fans out further.",
+  "class": "Prism",
+  "header": "prism.h",
+  "sources": [],
+  "meters": [
+    { "key": "flow1", "name": "Level entering 60 to 120 Hz", "display": true },
+    { "key": "flow2", "name": "Level entering 120 to 240 Hz", "display": true },
+    { "key": "flow3", "name": "Level entering 240 to 480 Hz", "display": true },
+    { "key": "flow4", "name": "Level entering 480 to 960 Hz", "display": true },
+    { "key": "flow5", "name": "Level entering 960 Hz to 1.9 kHz", "display": true },
+    { "key": "flow6", "name": "Level entering 1.9 to 3.8 kHz", "display": true },
+    { "key": "flow7", "name": "Level entering 3.8 to 7.7 kHz", "display": true }
+  ],
+  "latencySamples": 2304,
+  "memoryMb": 16,
+  "params": [
+    {
+      "key": "time",
+      "name": "Time",
+      "min": 20,
+      "max": 4000,
+      "default": 600,
+      "taper": "log",
+      "unit": "ms",
+      "description": "The longest wait: when the last colour of the sound comes back. Every other colour comes back sooner, by as much as Fan says."
+    },
+    {
+      "key": "fan",
+      "name": "Fan",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes eight times sooner than the last."
+    },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": ["Rising", "Falling", "Peak", "Valley", "Scatter"],
+      "default": 0,
+      "description": "The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band a time of its own."
+    },
+    {
+      "key": "bend",
+      "name": "Bend",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind."
+    },
+    {
+      "key": "bands",
+      "name": "Bands",
+      "min": 2,
+      "max": 48,
+      "default": 12,
+      "step": 1,
+      "description": "How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together."
+    },
+    {
+      "key": "smear",
+      "name": "Smear",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Melts the steps between bands into a glide, so each band's arrival is spread out instead of landing all at once."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much of each colour is sent round again, each at its own time, so the repeats fan out further on every pass. At the top they circle for a very long time."
+    },
+    {
+      "key": "tilt",
+      "name": "Tilt",
+      "min": -1,
+      "max": 1,
+      "default": -0.25,
+      "description": "What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone."
+    },
+    {
+      "key": "shuffle",
+      "name": "Shuffle",
+      "min": 1,
+      "max": 16,
+      "default": 1,
+      "step": 1,
+      "description": "Deals the bands another set of times when Shape is Scatter. Each number is one fixed pattern."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Lays the colours across the stereo field in the order they arrive, first to the left and last to the right. The low end stays in the middle."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the delayed colours."
+    }
+  ],
+  "presets": {
+    "Low to high": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A spectral delay on kit::Stft: every band of the spectrum is read from a history of past frames at its own delay."
+  }
+}
