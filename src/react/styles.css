@@ -2427,6 +2427,14 @@
   grid-auto-columns: var(--lm-plate-tool, 16px);
 }
 
+.lm-plate--upright:hover .lm-plate__tools--above,
+.lm-plate--upright:focus-within .lm-plate__tools--above,
+.lm-plate--upright.lm-plate--open .lm-plate__tools--above,
+.lm-plate--upright.lm-plate--held .lm-plate__tools--above,
+.lm-plate--upright[data-lm-refocus] .lm-plate__tools--above {
+  display: grid;
+}
+
 /* The kit's own list of presets has four cells of that row, so the name it
    shows can be read. */
 .lm-plate--upright .lm-plate__tools--above .lm-device__presets {
