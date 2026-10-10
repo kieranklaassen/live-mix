@@ -162,6 +162,68 @@
       "halo": 0.7,
       "bend": 50,
       "body": 0.8
+    },
+    "Guzheng": {
+      "strings": 2,
+      "pluck": 0.12,
+      "touch": 0.65,
+      "decay": 1.2,
+      "halo": 0.45,
+      "volume": -3
+    },
+    "Dark hollow harp": {
+      "pluck": 0.5,
+      "touch": 0,
+      "decay": 1.5,
+      "halo": 0.3,
+      "body": 1,
+      "volume": -10
+    },
+    "Short dry pluck": {
+      "pluck": 0.15,
+      "touch": 0.75,
+      "decay": 0.25,
+      "damp": 1,
+      "halo": 0,
+      "body": 0.25,
+      "volume": -3
+    },
+    "Steel shimmer": {
+      "strings": 2,
+      "pluck": 0.04,
+      "touch": 1,
+      "decay": 4,
+      "halo": 1,
+      "body": 0,
+      "volume": -4.5
+    },
+    "Whole tone press": {
+      "strings": 1,
+      "pluck": 0.3,
+      "touch": 0.3,
+      "decay": 3,
+      "halo": 0.6,
+      "bend": 200,
+      "body": 0.45,
+      "volume": -6.5
+    },
+    "Slow rolled chord": {
+      "pluck": 0.42,
+      "touch": 0.25,
+      "decay": 2,
+      "halo": 0.9,
+      "sweep": 1.5,
+      "body": 0.75,
+      "volume": -11
+    },
+    "Rings while held": {
+      "pluck": 0.3,
+      "touch": 0.3,
+      "decay": 3.5,
+      "damp": 0.7,
+      "halo": 0.65,
+      "body": 0.45,
+      "volume": -11.5
     }
   },
   "origin": {

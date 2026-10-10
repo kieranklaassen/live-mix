@@ -377,6 +377,65 @@ listen:
   8.6 LU under. The presets with "alone" or "only" in the name are all wet,
   for a send.
 
+## Instrument presets
+
+Every instrument comes with sixteen presets of its own (Ember has seventeen),
+561 over the 35 instruments: the list a player steps through where the
+instrument stands, apart from the bank's sounds, which are an instrument with
+effects after it. Until this list was filled most instruments had six.
+
+Each is played alone, with no effect after it and not normalised, on the
+phrase most of the instrument's bank sounds are auditioned with, and measured
+(`src/dsp/__tests__/instrument-presets.test.ts`, in `pnpm test`; the limits
+are `INSTRUMENT_PRESET_LIMITS` in `instrument-preset-support.ts`). A preset
+passes when it
+
+- puts out numbers, is heard (the loudest 400 ms over -50 dBFS), peaks under
+  -3 dBFS and leaves no offset;
+- has its loudest 400 ms within 6 dB of the middle preset of its instrument,
+  so stepping through the list does not send a hand to the fader;
+- is 1 dB or more from every sibling on the print the bank's sounds are told
+  apart by (`soundPrint`, `printDistance`);
+- has a name of 20 characters at most, as it stands beside the instrument's.
+
+Thirty-nine presets that shipped before the limits sit outside one of them and
+stay as they shipped, listed with what each is outside of in `AS_SHIPPED`: a
+shipped preset never changes what it loads. No preset written since is let
+off. The level is measured against the middle of the list, so a preset added
+to a list can carry a shipped one across the line.
+
+`INSTRUMENT_REPORT=1 INSTRUMENT_PRESETS=harp pnpm vitest run src/dsp/__tests__/instrument-presets.test.ts`
+prints, for one instrument, what each preset measured, its nearest sibling and
+how far apart they are, and writes the same to `tmp/instrument-presets/`.
+
+What the measure does not hear, so what a preset's name rests on is the DSP as
+it was read: the phrase's notes are short and overlap, so a glide, a slow
+vibrato, a roll and an attack of seconds are under-measured; the print mostly
+follows level over time, less so timbre; and nobody has listened to them.
+
+What reading the instruments for these presets turned up, none of it changed
+here:
+
+- `ladder-bass`: Wave mixes a saw and a square of opposite polarity, so near
+  0.42 every odd harmonic cancels and the note is a saw an octave up, about
+  11 dB quieter; the shipped "Singing lead" (0.3) and "Rubber pluck" (0.6) sit
+  in it. At Beat 0 the two oscillators are never brought back in step, so a
+  preset with no beat can come up thin after one with a beat.
+- `thesis`: it has no volume, and a low Resonance is far louder (every band
+  shares one noise source); Rate does nothing in Gravity.
+- `tine-piano`: Drive has no make-up, so a loud note gets quieter as it rises.
+- `bowed-string`: Position is barely heard under the bow; only Pluck hears it.
+- `handpan`: in the tongue drum Shimmer moves only the weak octave.
+- `modal-bells`: Release does nothing while it is longer than Decay.
+- `flute`: Chiff does next to nothing at attacks over a tenth of a second.
+- `organ`: Breath at full is about 19 dB under one held key.
+- `felt-piano`: the pedal's noise sounds only when Sustain crosses halfway.
+- `sampler`: Crossfade is ignored unless Loop is Forward.
+- `zone-sampler`: its three built-in tones have nothing above about 2.6 kHz.
+- `wavetable`: Spread widens nothing while Detune and Motion are both 0.
+- `drone`: Shape does nothing at Partials 0. `west-coast`: Colour does
+  nothing on a pure sine.
+
 ## ambient-limiter: auto gain
 
 With `autoGain` above 0 the limiter turns a quiet mix up by itself, by at most
