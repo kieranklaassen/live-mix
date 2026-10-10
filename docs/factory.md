@@ -206,6 +206,70 @@ under two cents, to a whole number of cycles per loop at render time
 takes without leaving the key, which notes those are and what the chord is
 then called.
 
+## Sounds that keep time
+
+A sound with a beat to it (a drum loop, a pulse, a bass line) has a `bpm`:
+the tempo it is written at, 120 in everything the bank ships. It is a loop of
+whole bars in four (2, 4 or 8 s at 120), its first stroke on a downbeat,
+every stroke on a grid, and it is played at any other tempo by moving the
+notes: nothing is stretched.
+
+```ts
+import { renderFactorySound, soundAtTempo } from '@kieranklaassen/live-mix/dsp'
+
+const audio = await renderFactorySound(sound, { bpm: 96, transpose: by })
+soundAtTempo(sound, 96).durationSec // 5 for a loop of 4 s at 120: as many beats long
+```
+
+`soundAtTempo` gives the recipe as it is played at a tempo: every note as
+many beats in and as many beats long, the sound as many beats long, and
+`bpm` the tempo it is now at. A drum rings as long as it did, so only what
+lies between the hits changes. An echo's `time` and an LFO's rate in the
+patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, `tremolo` and
+`auto-filter`), so a dotted-eighth echo is one at every tempo; a value the
+control cannot reach is halved or doubled until it can, which is still on
+the beat. A loop's crossfade is never made longer than it is written. The
+tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to 480). A sound
+with no `bpm` is the same sound at every tempo and comes back as the same
+object, so a host can ask every sound for the piece's tempo and key its
+store by `bpm` only where the sound has one.
+
+A host that follows a tempo (ambient-live: its own, or an Ableton Link
+session's) renders such a sound again when the tempo has settled and swaps
+it under what plays it; what it painted with the sound is as many beats
+long as before.
+
+`sounds/rhythm.ts` is what these are written with: `row(key, 'X...x...', {
+per, hold, swing, lateSec })` lays one voice out in steps (`X` loud, `x`,
+`o`, `-` soft, `.` a rest; sixteen steps to the bar unless `per` says
+otherwise, so a row `per: 12` is triplets and `per: 5` goes against the
+four), and `bars(count, rows, { passes, crossfadeSec })` makes the rows a
+loop of that many bars and sets `bpm`. A row shorter than the loop repeats
+to fill it and has to fill it exactly.
+
+A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
+stroke by at most `VARIATION_LIMITS.beatTimingSec` (20 ms) instead of the
+`timingSec` a free phrase is given.
+
+### Kits
+
+Two instruments have things for keys instead of pitches: `drum-kit` and
+`glitch-kit` (`KIT_INSTRUMENTS`, `isKitInstrument`). Each of the twelve keys
+of an octave is one drum (every C the kick, every D the snare) or one fault
+(a click, a pop, a cut of noise), the octave it is played in tunes it, and a
+hit is a one-shot that note-off does not end (`cpp/kit/keymap.h`). `KIT` and
+`FAULT` in `rhythm.ts` name the keys.
+
+A sound played on a kit is marked `kit` by `sound()`, and
+`transposeFactorySound` leaves its notes where they are (the kick stays the
+kick in every key) and moves the kit's `tune` instead, so the drums are
+tuned to the key of the piece. A variant of one never moves a chord or
+detunes, and a host that snaps played notes to a scale has to leave a kit's
+alone: seven of its twelve drums would be out of reach.
+
+Presets of the kits are in the category `drum`, whose preview (`drum` in
+`phrases.ts`) plays every one of the twelve keys over three bars at 120.
+
 ## New sounds from a seed
 
 ```ts

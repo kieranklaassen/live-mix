@@ -1,0 +1,124 @@
+{
+  "id": "drum-kit",
+  "name": "Drum Kit",
+  "category": "instrument",
+  "description": "Synthesized drum kit for quiet music: twelve soft drums, one on each key of the octave, made from sines, noise and filters, with the octave of the key tuning the drum.",
+  "class": "DrumKit",
+  "header": "drum_kit.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "kit",
+      "name": "Kit",
+      "choices": ["Soft", "Deep", "Tight", "Paper"],
+      "default": 0,
+      "description": "The character of the whole kit: soft and round, deep and long, tight and bright, or dry like paper and card. Heard from the next hit."
+    },
+    {
+      "key": "tune",
+      "name": "Tune",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "st",
+      "description": "Tunes every drum up or down, the same way the octave of the key played does. Heard from the next hit."
+    },
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long every drum rings, from short dry taps to long tails. Heard from the next hit."
+    },
+    {
+      "key": "punch",
+      "name": "Punch",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How far and how fast the kick and toms fall in pitch as they start, and how hard their first moments are. Heard from the next hit."
+    },
+    {
+      "key": "snap",
+      "name": "Snap",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The click on the kick, the noise on the snare and the bite at the front of the hats. At zero every drum starts soft. Heard from the next hit."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Dull to bright: a low-pass over the tonal drums and the upper edge of the noise drums."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Soft saturation over the whole kit with its level made good, so more of it is thicker and not louder."
+    },
+    {
+      "key": "variation",
+      "name": "Variation",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How much each hit differs from the last in level, tone, length and noise. At zero every hit of a drum is the same. Heard from the next hit."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far the hats, shaker, clap, rim, tick and toms sit from the centre. At zero the kit is mono. The kick and sub stay in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -24,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "Output level of the kit. A soft clip after it rounds off the peaks when many drums land together."
+    }
+  ],
+  "presets": {
+    "Felt kit": { "kit": 0, "length": 1, "punch": 0.35, "snap": 0.3, "tone": 0.5 },
+    "Deep and slow": { "kit": 1, "length": 1.5, "punch": 0.2, "snap": 0.15, "tone": 0.4 },
+    "Small and tight": { "kit": 2, "length": 0.7, "punch": 0.5, "snap": 0.55, "tone": 0.6 },
+    "Paper kit": { "kit": 3, "snap": 0.4, "width": 0.5 },
+    "Brushed": { "length": 1.3, "punch": 0.15, "snap": 0.05, "tone": 0.35, "variation": 0.4 },
+    "Dark room": { "kit": 1, "tune": -3, "length": 2.2, "tone": 0.15, "drive": 0.3, "width": 0.7 },
+    "Bright ticks": {
+      "kit": 2,
+      "tune": 5,
+      "length": 0.45,
+      "snap": 0.8,
+      "tone": 0.85,
+      "width": 0.8
+    },
+    "Long toms": { "tune": -2, "length": 2.6, "punch": 0.6, "tone": 0.55 },
+    "Dusty": { "kit": 3, "length": 0.8, "tone": 0.3, "drive": 0.6, "variation": 0.5 },
+    "Low and far": {
+      "kit": 1,
+      "tune": -7,
+      "punch": 0.1,
+      "snap": 0,
+      "tone": 0.25,
+      "width": 1,
+      "volume": -6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Every drum is synthesized the way analogue drum voices usually are (a swept sine, filtered noise, a bank of detuned pulses for the hats); nothing is sampled and no circuit is modelled."
+  }
+}

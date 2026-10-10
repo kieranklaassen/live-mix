@@ -387,7 +387,8 @@ describe.skipIf(!mode)('factory bench', () => {
         if (longestName(sound).length > 24) problems.push('NAME')
         if (Number(cost.replace('% rt', '')) > 12) problems.push('SLOW')
         const black = blackKeyShare(audio)
-        if (sound.kind !== 'texture' && black > OFF_KEY_SHARE) problems.push('OFFKEY')
+        // A kit is drums and noise: it has no key to be off.
+        if (sound.kind !== 'texture' && !sound.kit && black > OFF_KEY_SHARE) problems.push('OFFKEY')
         let ending: string
         if (sound.loopCrossfadeSec) {
           // The folded start against the same stretch rendered straight: a loop that swells or dips at its seam.
@@ -488,7 +489,12 @@ describe.skipIf(!mode)('factory bench', () => {
           if (Math.abs(measured.lufs - lufs) > 2) problems.push('LEVEL')
           if (distance < 0.02) problems.push('SAME')
           const blackNow = blackKeyShare(variant)
-          if (sound.kind !== 'texture' && blackNow > OFF_KEY_SHARE && blackNow > black + 0.05) {
+          if (
+            sound.kind !== 'texture' &&
+            !sound.kit &&
+            blackNow > OFF_KEY_SHARE &&
+            blackNow > black + 0.05
+          ) {
             problems.push('OFFKEY')
           }
           let ending: string

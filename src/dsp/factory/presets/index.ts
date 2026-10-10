@@ -11,11 +11,13 @@ import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
 import { DRONE_PRESETS } from './drone'
+import { DRUM_KIT_PRESETS } from './drum-kit'
 import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
+import { GLITCH_KIT_PRESETS } from './glitch-kit'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
 import { GUITAR_PRESETS } from './guitar'
 import { HANDPAN_PRESETS } from './handpan'
@@ -74,4 +76,6 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZITHER_PRESETS,
   ...OUTDOORS_PRESETS,
   ...ZONE_SAMPLER_PRESETS,
+  ...DRUM_KIT_PRESETS,
+  ...GLITCH_KIT_PRESETS,
 ]
