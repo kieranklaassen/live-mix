@@ -626,16 +626,18 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
       v[k] = (out - high_loss_[k] * top - low_loss_[k] * bottom) * gain_[k];
     }
     // Two lines are turned in pitch on every pass, a quarter turn apart.
+    // kit::Hilbert's quadrature output leads its in-phase one, so the sign
+    // here is upward for a positive step. A quarter turn on, the cosine is
+    // the sine turned over and the sine is the cosine.
     shift_phase_ += r[kShiftStep];
     shift_phase_ -= std::floor(shift_phase_);
-    for (int k = 0; k < 2; ++k) {
-      float in_phase, quadrature;
-      hilbert_[k].process(v[k], &in_phase, &quadrature);
-      const float turn = shift_phase_ + 0.25f * static_cast<float>(k);
-      // kit::Hilbert's quadrature output leads its in-phase one, so this
-      // sign is upward for a positive step.
-      v[k] = in_phase * kit::SineTable::cos_lookup(turn) + quadrature * kit::SineTable::lookup(turn);
-    }
+    const float turned_cos = kit::SineTable::cos_lookup(shift_phase_);
+    const float turned_sin = kit::SineTable::lookup(shift_phase_);
+    float in_phase, quadrature;
+    hilbert_[0].process(v[0], &in_phase, &quadrature);
+    v[0] = in_phase * turned_cos + quadrature * turned_sin;
+    hilbert_[1].process(v[1], &in_phase, &quadrature);
+    v[1] = quadrature * turned_cos - in_phase * turned_sin;
     kit::hadamard<kLines>(v);
     for (int k = 0; k < kLines; ++k) {
       const float fed_line = v[k] + kFeedGain * kInSign[k] * fed_room[k & 1];
@@ -902,6 +904,9 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   // The high band's gain under the crumble at sample `n`: 1 with none.
   float crumble(int c, int64_t n, float amount) {
     using namespace seasons_parts;
+    // Nothing to work out where the year has none of it: the slots are
+    // found again from the clock alone when it has.
+    if (amount <= 0.0f) return 1.0f;
     Texture& t = texture_[c];
     if (n < t.drop_from || n >= t.drop_from + drop_slot_length_) {
       const int64_t slot = n / drop_slot_length_;
@@ -924,7 +929,6 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
       t.rough[0] = unit(hash(static_cast<uint32_t>(cell), seed));
       t.rough[1] = unit(hash(static_cast<uint32_t>(cell + 1), seed));
     }
-    if (amount <= 0.0f) return 1.0f;
     float gain = 1.0f;
     for (const Drop& drop : t.drop) {
       if (!drop.on) continue;
@@ -942,6 +946,8 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   float sparks(int c, int64_t n, float amount) {
     using namespace seasons_parts;
     Texture& t = texture_[c];
+    t.spark_level = 0.0f;
+    if (amount <= 0.0f) return 0.0f;  // as with the crumble
     if (n < t.spark_from || n >= t.spark_from + spark_slot_length_) {
       const int64_t slot = n / spark_slot_length_;
       t.spark_from = slot * spark_slot_length_;
@@ -958,8 +964,6 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
         spark.gain = 0.5f + 0.5f * unit(hash(h, 4u));
       }
     }
-    t.spark_level = 0.0f;
-    if (amount <= 0.0f) return 0.0f;
     float sum = 0.0f;
     for (const Spark& spark : t.spark) {
       const int64_t into = n - spark.start;
