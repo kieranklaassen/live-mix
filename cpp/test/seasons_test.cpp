@@ -322,6 +322,41 @@ static std::vector<Preset> load_presets() {
   return presets;
 }
 
+// The largest second difference of a signal: a step of size c from one
+// sample to the next shows as c, a smooth tone as far less than its largest
+// step, so it sees a click that hides under a tone's own slope.
+static double sharpest(const std::vector<float>& x) {
+  double worst = 0.0;
+  for (size_t i = 2; i < x.size(); ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  }
+  return worst;
+}
+
+// The sharpest corner (largest second difference) in the second after
+// `change`, on a tone of 220 Hz and 1.1 kHz that has been sounding for two
+// seconds under `before`. With a `change` that does nothing it is the
+// setting's own.
+template <typename Before, typename Change>
+static double step_after(Before before, Change change) {
+  static std::vector<float> first, then;
+  if (first.empty()) {
+    const size_t split = static_cast<size_t>(2.0f * kRate), all = static_cast<size_t>(3.0f * kRate);
+    std::vector<float> tone(all);
+    for (size_t i = 0; i < all; ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      tone[i] = static_cast<float>(0.25 * std::sin(2.0 * kPi * 220.0 * t) + 0.1 * std::sin(2.0 * kPi * 1100.0 * t));
+    }
+    first.assign(tone.begin(), tone.begin() + split);
+    then.assign(tone.begin() + split, tone.end());
+  }
+  before();
+  run(device, first);
+  change();
+  const Stereo out = run(device, then);
+  return std::max(sharpest(out.left), sharpest(out.right));
+}
+
 static void load(Seasons& d, const Preset& preset) {
   d.init(kRate);
   for (const auto& value : preset.values) d.set_param(value.first, value.second);
@@ -545,6 +580,375 @@ int main(int argc, char**) {
   EXPECT(climb[2] < -3.0, "autumn's tail sinks");
   EXPECT(std::fabs(climb[1]) < 2.0 && std::fabs(climb[3]) < 2.0,
          "summer's and winter's tails keep their pitch (but for the sway)");
+
+  // --- the blend has no step in it ---------------------------------------------------------
+  // Sixty-four places round the dial on the same noise: the level and the
+  // centroid of neighbours, and of the last place against the first.
+  {
+    const int places = 64;
+    std::vector<double> loud(places), colour(places);
+    const Stereo material = wide_pink(3.0f, 0.1f);
+    for (int k = 0; k < places; ++k) {
+      still(device, static_cast<float>(k) / places);
+      const Stereo out = run(device, material.left, material.right);
+      loud[k] = db(level(out, second));
+      colour[k] = centroid(out.left, second);
+    }
+    double level_step = 0.0, colour_step = 0.0;
+    for (int k = 0; k < places; ++k) {
+      const int next = (k + 1) % places;
+      level_step = std::max(level_step, std::fabs(loud[next] - loud[k]));
+      colour_step = std::max(colour_step, std::fabs(std::log2(colour[next] / colour[k])));
+    }
+    if (g_print) {
+      std::printf("round the dial in 64 places: largest step %.2f dB in level, %.2f octaves in centroid\n",
+                  level_step, colour_step);
+    }
+    EXPECT(level_step < 0.6, "no step in level between neighbours anywhere round the dial");
+    EXPECT(colour_step < 0.45, "no step in colour between neighbours anywhere round the dial");
+    // Across the join at 1 to 0, and where the colour moves fastest (autumn
+    // into winter), in steps of a thousandth of the dial: a real step would
+    // not shrink with the spacing.
+    double fine_level = 0.0, fine_colour = 0.0;
+    for (float around : {0.0f, 0.625f}) {
+      double last_loud = 0.0, last_colour = 0.0;
+      for (int k = -3; k <= 3; ++k) {
+        float year = around + static_cast<float>(k) / 1024.0f;
+        if (year < 0.0f) year += 1.0f;
+        still(device, year);
+        const Stereo out = run(device, material.left, material.right);
+        const double here = db(level(out, second)), tint = centroid(out.left, second);
+        if (k > -3) {
+          fine_level = std::max(fine_level, std::fabs(here - last_loud));
+          fine_colour = std::max(fine_colour, std::fabs(std::log2(tint / last_colour)));
+        }
+        last_loud = here;
+        last_colour = tint;
+      }
+    }
+    if (g_print) {
+      std::printf("in steps of 1/1024 across the join and through autumn into winter: %.3f dB, %.3f octaves\n",
+                  fine_level, fine_colour);
+    }
+    EXPECT(fine_level < 0.05 && fine_colour < 0.04, "the blend is continuous across the join at 1 to 0");
+  }
+
+  // --- loudness holds round the year ------------------------------------------------------
+  // Sixteen places, on a played phrase and on a held pad (LU against the
+  // input). Noise is printed too: a tilt cannot hold the loudness of every
+  // spectrum, and noise is where the tilt weighs most.
+  {
+    Stereo phrase_in;
+    phrase_in.left = phrase;
+    phrase_in.right = phrase;
+    const double phrase_lufs = loudness(phrase_in), pad_lufs = loudness(pad_in, second),
+                 noise_lufs = loudness(noise_in, second);
+    double keys_low = 99, keys_high = -99, pad_low = 99, pad_high = -99, noise_low = 99, noise_high = -99;
+    for (int k = 0; k < 16; ++k) {
+      const float year = static_cast<float>(k) / 16.0f;
+      still(device, year);
+      const double on_keys = loudness(run(device, phrase)) - phrase_lufs;
+      still(device, year);
+      const double on_pad = loudness(run(device, pad_in.left, pad_in.right), second) - pad_lufs;
+      still(device, year);
+      const double on_noise = loudness(run(device, noise_in.left, noise_in.right), second) - noise_lufs;
+      keys_low = std::min(keys_low, on_keys);
+      keys_high = std::max(keys_high, on_keys);
+      pad_low = std::min(pad_low, on_pad);
+      pad_high = std::max(pad_high, on_pad);
+      noise_low = std::min(noise_low, on_noise);
+      noise_high = std::max(noise_high, on_noise);
+    }
+    if (g_print) {
+      std::printf("round the year at Depth 1: keys %+.2f to %+.2f LU, pad %+.2f to %+.2f LU, noise %+.2f to "
+                  "%+.2f LU\n",
+                  keys_low, keys_high, pad_low, pad_high, noise_low, noise_high);
+    }
+    EXPECT(keys_low > -1.5 && keys_high < 1.5, "a played phrase keeps its loudness round the year");
+    EXPECT(pad_low > -1.5 && pad_high < 1.5, "a held pad keeps its loudness round the year");
+    EXPECT(noise_low > -4.5 && noise_high < 3.5, "noise stays within the tilt's reach");
+  }
+
+  // --- the year turns by the clock --------------------------------------------------------
+  {
+    // Forward at ten seconds a year: after 2.5 s the year reads a quarter on.
+    const auto year_after = [&](float turn, float turning, float from, float seconds) {
+      device.init(kRate);
+      device.set_param(p::kTurn, turn);
+      device.set_param(p::kTurning, turning);
+      device.set_param(p::kYear, from);
+      run(device, std::vector<float>(static_cast<size_t>(seconds * kRate), 0.01f));
+      return static_cast<double>(device.meter(0));
+    };
+    const double forward = year_after(1.0f, 10.0f, 0.1f, 2.5f);
+    const double backward = year_after(2.0f, 10.0f, 0.1f, 2.5f);
+    const double stood = year_after(0.0f, 10.0f, 0.1f, 2.5f);
+    const double slow = year_after(1.0f, 1800.0f, 0.1f, 18.0f);
+    if (g_print) {
+      std::printf("the year after 2.5 s from 0.1: forward %.4f, backward %.4f, still %.4f; 18 s at half an "
+                  "hour a year %.4f\n",
+                  forward, backward, stood, slow);
+    }
+    EXPECT_NEAR(forward, 0.35, 1.0e-3, "Forward at 10 s a year: a quarter of a year in 2.5 s");
+    EXPECT_NEAR(backward, 0.85, 1.0e-3, "Backward goes the other way, through the join");
+    EXPECT_NEAR(stood, 0.1, 1.0e-6, "Still holds the year");
+    EXPECT_NEAR(slow, 0.11, 1.0e-4, "Turning at its longest: a hundredth of a year in 18 s");
+
+    // The sound follows: turning from spring at ten seconds a year, the
+    // colour at each quarter is that season's own (against a year stood there).
+    device.init(kRate);
+    device.set_param(p::kTurning, 10.0f);
+    device.set_param(p::kDepth, 1.0f);
+    const Stereo long_noise = wide_pink(10.5f, 0.1f);
+    const Stereo turned = run(device, long_noise.left, long_noise.right);
+    for (int s = 1; s < 4; ++s) {
+      const size_t at = static_cast<size_t>(2.5f * static_cast<float>(s) * kRate);
+      const double heard = centroid(turned.left, at - 12000, at + 12000);
+      still(device, 0.25f * static_cast<float>(s));
+      const Stereo there = run(device, long_noise.left, long_noise.right);
+      const double expected = centroid(there.left, at - 12000, at + 12000);
+      if (g_print) std::printf("turning, at %s: centroid %.0f Hz, standing there %.0f Hz\n", kSeasonName[s], heard, expected);
+      EXPECT(std::fabs(std::log2(heard / expected)) < 0.2, "a turning year passes through each season's colour");
+    }
+
+    // Through silence and sleep the year goes on as a clock would, and reads
+    // the same whatever the block size.
+    double read[3];
+    const int blocks[3] = {1, 128, 2048};
+    for (int b = 0; b < 3; ++b) {
+      device.init(kRate);
+      device.set_param(p::kTurning, 40.0f);
+      rng_state() = 0x99u;
+      run(device, noise(0.5f, kRate, 0.2f), blocks[b]);
+      const Stereo quiet = run(device, silence(19.5f, kRate), blocks[b]);
+      EXPECT(peak(quiet.left, quiet.size() - second) == 0.0, "asleep in the silence");
+      read[b] = device.meter(0);
+    }
+    if (g_print) std::printf("after 20 s, 19.5 of them silent, at 40 s a year: %.5f %.5f %.5f\n", read[0], read[1], read[2]);
+    EXPECT_NEAR(read[1], 0.5, 1.0e-3, "the year turns on through silence and sleep");
+    EXPECT(read[0] == read[1] && read[1] == read[2], "and stands in the same place at every block size");
+
+    // The Year knob places the year, and a turning year carries on from there.
+    device.init(kRate);
+    device.set_param(p::kTurning, 10.0f);
+    run(device, std::vector<float>(static_cast<size_t>(3.0f * kRate), 0.01f));  // now at 0.3
+    device.set_param(p::kYear, 0.75f);
+    run(device, std::vector<float>(static_cast<size_t>(1.0f * kRate), 0.01f));
+    EXPECT_NEAR(device.meter(0), 0.85, 2.0e-3, "the Year knob places a turning year, which carries on from there");
+    // Still stops it where it has got to; it does not go back to the knob.
+    device.set_param(p::kTurn, 0.0f);
+    const float stopped = device.meter(0);
+    run(device, std::vector<float>(static_cast<size_t>(2.0f * kRate), 0.01f));
+    EXPECT_NEAR(device.meter(0), stopped, 1.0e-6, "Still holds the year where it has got to");
+    // A new Turning time carries on from where the year is.
+    device.set_param(p::kTurn, 1.0f);
+    device.set_param(p::kTurning, 20.0f);
+    run(device, std::vector<float>(static_cast<size_t>(2.0f * kRate), 0.01f));
+    EXPECT_NEAR(device.meter(0), stopped + 0.1f, 2.0e-3, "a new Turning time carries on from where the year is");
+  }
+
+  // --- nothing clicks ---------------------------------------------------------------------
+  // Each control jumped while a tone sounds, against the larger of what the
+  // two settings do by themselves (a run with no event in it).
+  {
+    struct Jump {
+      const char* name;
+      int id;
+      float from, to;
+      float year;
+    };
+    const Jump jumps[] = {
+        {"Year from spring to autumn", p::kYear, 0.0f, 0.5f, 0.0f},
+        {"Year across the join", p::kYear, 0.95f, 0.05f, 0.95f},
+        {"Year from summer to winter", p::kYear, 0.25f, 0.75f, 0.25f},
+        {"Depth to nothing", p::kDepth, 1.0f, 0.0f, 0.25f},
+        {"Space to nothing", p::kSpace, 1.0f, 0.0f, 0.75f},
+        {"Space full up", p::kSpace, 0.0f, 1.0f, 0.25f},
+        {"Motion to nothing", p::kMotion, 1.0f, 0.0f, 0.0f},
+        {"Grit to nothing in autumn", p::kGrit, 1.0f, 0.0f, 0.5f},
+        {"Grit full up in summer", p::kGrit, 0.0f, 1.0f, 0.25f},
+        {"Tails to nothing", p::kTail, 1.0f, 0.0f, 0.75f},
+        {"Width to mono", p::kWidth, 2.0f, 0.0f, 0.25f},
+        {"Mix to dry", p::kMix, 1.0f, 0.0f, 0.5f},
+        {"Mix to wet", p::kMix, 0.0f, 1.0f, 0.5f},
+    };
+    for (const Jump& jump : jumps) {
+      const auto at = [&](float value) {
+        return [&jump, value] {
+          still(device, jump.year);
+          device.set_param(p::kSpace, 1.0f);
+          device.set_param(p::kMotion, 1.0f);
+          device.set_param(p::kGrit, jump.id == p::kGrit ? 1.0f : 0.0f);
+          device.set_param(jump.id, value);
+        };
+      };
+      const double own = std::max(step_after(at(jump.from), [] {}), step_after(at(jump.to), [] {}));
+      const double moved = step_after(at(jump.from), [&] { device.set_param(jump.id, jump.to); });
+      if (g_print) std::printf("%s: sharpest corner %.5f, the settings' own %.5f\n", jump.name, moved, own);
+      char label[120];
+      std::snprintf(label, sizeof label, "%s does not click (corner %.5f against %.5f)", jump.name, moved, own);
+      EXPECT(moved < 1.5 * own + 0.001, label);
+    }
+    // Turn switched through its three choices, and Turning from its slowest
+    // to its fastest, while the year is turning under the tone.
+    const auto turning = [](float turn, float seconds) {
+      return [turn, seconds] {
+        device.init(kRate);
+        device.set_param(p::kYear, 0.4f);
+        device.set_param(p::kDepth, 1.0f);
+        device.set_param(p::kSpace, 1.0f);
+        device.set_param(p::kGrit, 0.0f);
+        device.set_param(p::kTurn, turn);
+        device.set_param(p::kTurning, seconds);
+      };
+    };
+    const double own = std::max(step_after(turning(1.0f, 10.0f), [] {}), step_after(turning(0.0f, 10.0f), [] {}));
+    for (int from = 0; from < 3; ++from) {
+      for (int to = 0; to < 3; ++to) {
+        if (from == to) continue;
+        const double moved = step_after(turning(static_cast<float>(from), 10.0f),
+                                        [&] { device.set_param(p::kTurn, static_cast<float>(to)); });
+        if (g_print) std::printf("Turn %d to %d: sharpest corner %.5f, the settings' own %.5f\n", from, to, moved, own);
+        EXPECT(moved < 1.5 * own + 0.001, "a change of Turn does not click");
+      }
+    }
+    const double sped = step_after(turning(1.0f, 1800.0f), [&] { device.set_param(p::kTurning, 10.0f); });
+    EXPECT(sped < 1.5 * own + 0.001, "a change of Turning does not click");
+
+    // The Year knob goes the shorter way round: from just before the join to
+    // just after it the year never passes through autumn.
+    still(device, 0.95f);
+    run(device, std::vector<float>(4800, 0.01f));
+    device.set_param(p::kYear, 0.05f);
+    bool short_way = true;
+    for (int k = 0; k < 40; ++k) {
+      run(device, std::vector<float>(240, 0.01f));
+      const float now = device.meter(0);
+      if (now > 0.06f && now < 0.94f) short_way = false;
+    }
+    EXPECT(short_way, "Year crosses the join the shorter way");
+    run(device, std::vector<float>(24000, 0.01f));
+    EXPECT_NEAR(device.meter(0), 0.05, 1.0e-4, "and lands where the knob says");
+  }
+
+  // --- bad input is survivable -----------------------------------------------------------
+  // A tenth of a second of each kind of bad sample in the middle of a tone, in
+  // winter with the room full up (the longest memory there is). Afterwards
+  // the output is finite, comes back to what a clean run gives, and the
+  // device still falls silent.
+  {
+    const float bad[] = {std::nanf(""), INFINITY, -INFINITY, 1.0e30f, -1.0e30f, 1.0e-42f};
+    const char* const names[] = {"not a number", "infinity", "minus infinity", "1e30", "minus 1e30", "denormals"};
+    const std::vector<float> tone = sine(330.0f, 6.0f, kRate, 0.25f);
+    const auto winter = [&] {
+      still(device, 0.75f);
+      device.set_param(p::kSpace, 1.0f);
+      device.set_param(p::kGrit, 1.0f);
+    };
+    winter();
+    const Stereo clean = run(device, tone);
+    for (int k = 0; k < 6; ++k) {
+      std::vector<float> spoiled = tone;
+      for (size_t i = second; i < second + 4800; ++i) spoiled[i] = bad[k];
+      winter();
+      const Stereo out = run(device, spoiled);
+      const Stereo rest = render(device, 40.0f, kRate);
+      const bool is_finite = finite(out.left) && finite(out.right) && finite(rest.left) && finite(rest.right);
+      // From two seconds after the bad stretch the sound is the clean run's
+      // again, but for what the long tail still remembers of the burst.
+      const double after = db(level(out, 4 * second, 6 * second) / level(clean, 4 * second, 6 * second));
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double left_over = std::max(peak(rest.left, rest.size() - second), peak(rest.right, rest.size() - second));
+      if (g_print) std::printf("%s: peak %.2f, level 3 s later %+.2f dB against a clean run, then silence %g\n", names[k], top, after, left_over);
+      char label[120];
+      std::snprintf(label, sizeof label, "survives %s and recovers", names[k]);
+      EXPECT(is_finite && top <= 2.0 && std::fabs(after) < 1.5 && left_over == 0.0, label);
+    }
+  }
+
+  // --- the same at every block size, asleep or awake ---------------------------------------
+  // A phrase, a silence long enough to sleep, knobs moved in the silence, and
+  // sound again from the middle of a block: blocks of 1, 32, 128, 512 and 2048
+  // and a ragged pattern must agree, and the knobs must have snapped.
+  {
+    rng_state() = 0xA11CEu;
+    std::vector<float> material = noise(0.6f, kRate, 0.3f);
+    material.resize(static_cast<size_t>(6.2f * kRate) + 777, 0.0f);  // asleep about 4 s in
+    const size_t woken = material.size();
+    const std::vector<float> more = sine(523.25f, 1.0f, kRate, 0.3f);
+    material.insert(material.end(), more.begin(), more.end());
+    const size_t moved_at = static_cast<size_t>(5.5f * kRate);
+    const auto play = [&](const int* sizes, int count) {
+      device.init(kRate);
+      device.set_param(p::kTurning, 10.0f);
+      device.set_param(p::kDepth, 1.0f);
+      device.set_param(p::kSpace, 0.8f);
+      device.set_param(p::kMotion, 1.0f);
+      device.set_param(p::kGrit, 1.0f);
+      Stereo out;
+      out.left.resize(material.size());
+      out.right.resize(material.size());
+      size_t done = 0;
+      int which = 0;
+      bool moved = false;
+      while (done < material.size()) {
+        if (!moved && done >= moved_at) {
+          // In the silence: every glide there is gets something to do.
+          device.set_param(p::kYear, 0.6f);
+          device.set_param(p::kDepth, 0.5f);
+          device.set_param(p::kSpace, 0.3f);
+          device.set_param(p::kWidth, 1.7f);
+          device.set_param(p::kMix, 0.6f);
+          moved = true;
+        }
+        size_t frames = static_cast<size_t>(sizes[which++ % count]);
+        frames = std::min(frames, material.size() - done);
+        if (!moved) frames = std::min(frames, moved_at - done);  // the knobs move at the same sample
+        for (size_t i = 0; i < frames; ++i) {
+          device.in_left()[i] = material[done + i];
+          device.in_right()[i] = material[done + i];
+        }
+        device.process(static_cast<int>(frames));
+        for (size_t i = 0; i < frames; ++i) {
+          out.left[done + i] = device.out_left()[i];
+          out.right[done + i] = device.out_right()[i];
+        }
+        done += frames;
+      }
+      return out;
+    };
+    const int one[] = {1}, small[] = {32}, usual[] = {128}, big[] = {512}, biggest[] = {2048};
+    const int ragged[] = {1, 7, 64, 128, 33, 512, 2048, 5};
+    const Stereo reference = play(usual, 1);
+    EXPECT(peak(reference.left, woken - 4800, woken) == 0.0, "asleep before the sound returns");
+    EXPECT(rms(reference.left, woken, woken + second) > 0.01, "awake again when it does");
+    const double differ = std::max({largest_difference(reference, play(one, 1)), largest_difference(reference, play(small, 1)),
+                                    largest_difference(reference, play(big, 1)), largest_difference(reference, play(biggest, 1)),
+                                    largest_difference(reference, play(ragged, 8))});
+    if (g_print) std::printf("blocks of 1, 32, 512, 2048 and ragged against 128, across a sleep: differ by %g\n", differ);
+    EXPECT(differ < 1.0e-6, "the output is the same at every block size, across a sleep and a wake inside a block");
+
+    // Knobs moved while asleep have snapped: the first 20 ms after the wake
+    // are what a device set that way from the start gives at that moment of
+    // the clock (same year, same movement, same texture), with no glide.
+    device.init(kRate);
+    device.set_param(p::kTurning, 10.0f);
+    device.set_param(p::kMotion, 1.0f);
+    device.set_param(p::kGrit, 1.0f);
+    device.set_param(p::kDepth, 0.5f);
+    device.set_param(p::kSpace, 0.3f);
+    device.set_param(p::kWidth, 1.7f);
+    device.set_param(p::kMix, 0.6f);
+    run(device, silence(static_cast<float>(moved_at) / kRate, kRate));
+    device.set_param(p::kYear, 0.6f);  // placed at the same moment of the clock
+    Stereo fresh = run(device, std::vector<float>(material.begin() + moved_at, material.end()));
+    double snapped = 0.0;
+    for (size_t i = woken; i < woken + 960; ++i) {
+      snapped = std::max(snapped, std::fabs(static_cast<double>(reference.left[i]) - fresh.left[i - moved_at]));
+    }
+    if (g_print) std::printf("woken with knobs moved in the silence, against a device set so from the start: %g\n", snapped);
+    EXPECT(snapped < 1.0e-5, "knobs moved in a sleep snap on waking, and the clock has kept its place");
+  }
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
