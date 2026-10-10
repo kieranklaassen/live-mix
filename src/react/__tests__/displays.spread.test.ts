@@ -10,13 +10,17 @@ import { SPREAD_METERS, SPREAD_PARAMS } from '../../dsp/devices/spread.gen'
 import { PLAIN_COLOURS, hzOfX, xOfHz } from '../components/display-kit'
 import {
   SPREAD_BANDS,
+  SPREAD_BAR_ALPHA,
   SPREAD_FACES,
+  SPREAD_FAINTEST,
+  SPREAD_FAINT_DB,
   SPREAD_STAGE_OCTAVES,
   SPREAD_TOP_OF_RANGE,
   spreadBand,
   spreadBox,
   spreadGain,
   spreadMade,
+  spreadStrength,
   spreadWidthOfY,
   spreadWidths,
   spreadY,
@@ -514,6 +518,33 @@ describe('the spread display: the sound', () => {
       expect(bars.length).toBeGreaterThanOrEqual(4)
       expect(bars.length).toBeLessThanOrEqual(12)
     }
+  })
+
+  it('draws a quiet band faintly: each bar by its level against the loudest band', () => {
+    // 1 for the loudest band, a straight line in dB down to the faintest 40 dB under it, and no fainter.
+    expect(spreadStrength(0.5, 0.5)).toBe(1)
+    expect(spreadStrength(0.5 / 100, 0.5)).toBeCloseTo(1 - (1 - SPREAD_FAINTEST) / 2, 9)
+    expect(spreadStrength(0.5 * Math.pow(10, -SPREAD_FAINT_DB / 10), 0.5)).toBeCloseTo(SPREAD_FAINTEST, 9)
+    expect(spreadStrength(1e-9, 0.5)).toBe(SPREAD_FAINTEST)
+    expect(spreadStrength(0, 0.5)).toBe(0)
+    // A loud tone in the middle beside a tone 30 dB under it and all on one side.
+    const quiet = 0.3 * Math.pow(10, -30 / 20)
+    const heard = sound([
+      [200, 0.3, 0.3],
+      [5000, quiet, 0],
+    ])
+    const state = scratch()
+    spreadWidths(...wavesOf(heard), RATE, state)
+    const box = spreadBox(displaySize(display))
+    const bars = fills(draw({ signal: heard }), PLAIN_COLOURS.accent)
+    const alphaAt = (hz: number): number =>
+      bars.find(({ box: [x] }) => Math.abs(x - (xOfHz(spreadBand(bandOf(hz))[0], box) + 0.5)) < 1e-6)
+        ?.alpha ?? NaN
+    expect(alphaAt(200)).toBeCloseTo(SPREAD_BAR_ALPHA, 6)
+    const strength = spreadStrength(state.power[bandOf(5000)], state.power[bandOf(200)])
+    expect(alphaAt(5000)).toBeCloseTo(SPREAD_BAR_ALPHA * strength, 6)
+    // Half the power of the loud tone's two sides, 30 dB down: 33 dB under.
+    expect(strength).toBeCloseTo(1 - ((1 - SPREAD_FAINTEST) * 33) / SPREAD_FAINT_DB, 1)
   })
 
   it('draws no bars in silence, switched off, or without the two sides', () => {

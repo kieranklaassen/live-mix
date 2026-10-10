@@ -144,6 +144,17 @@ export const SPREAD_BANDS = 26
 const BAND_FIRST_HZ = 40
 /** Under this power (a tone of -70 dBFS) a band holds nothing to measure. */
 const BAND_FLOOR = 1e-7
+/** A band this far under the loudest one, in dB, is drawn at its faintest. */
+export const SPREAD_FAINT_DB = 40
+/** How strongly the faintest band that sounds is drawn, against 1 for the loudest. */
+export const SPREAD_FAINTEST = 0.25
+
+/** How strongly a band is drawn: 1 for the loudest band, falling by the dB to `SPREAD_FAINTEST`. */
+export function spreadStrength(power: number, loudest: number): number {
+  if (!(power > 0) || !(loudest > 0)) return 0
+  const under = -10 * Math.log10(Math.min(1, power / loudest))
+  return Math.max(SPREAD_FAINTEST, 1 - (1 - SPREAD_FAINTEST) * (under / SPREAD_FAINT_DB))
+}
 
 /** The edges of band `n`, in Hz. */
 export function spreadBand(n: number): [number, number] {
@@ -156,7 +167,7 @@ interface SpreadState {
   /** Work space for the transform: the middle in the real part, the sides in the imaginary. */
   re: Float32Array
   im: Float32Array
-  /** Each band's width as drawn, and how much of a sound there is in it (0 to 1). */
+  /** Each band's width as drawn, and how strongly: its level against the loudest band (0 to 1). */
   width: Float32Array
   lit: Float32Array
   /** What was measured on the last frame, before it is smoothed. */
@@ -266,6 +277,9 @@ export const SPREAD_FOOT_WIDTH = -0.2
 /** The bars come up at once and sink slowly, as a meter does. */
 const BAR_RISE_SEC = 0.06
 const BAR_FALL_SEC = 0.5
+/** The accent of the loudest band's bar; a quieter band's is this times its strength. */
+export const SPREAD_BAR_ALPHA = 0.7
+const BAR_ALPHA = SPREAD_BAR_ALPHA
 /** Safe holding by less than this is not drawn. */
 const HELD_LEAST_DB = -0.1
 
@@ -376,12 +390,16 @@ function listen(frame: DisplayFrame<SpreadState>): boolean {
     return false
   }
   spreadWidths(left.wave, right.wave, frame.sampleRate, state)
+  let loudest = 0
+  for (let n = 0; n < SPREAD_BANDS; n++) loudest = Math.max(loudest, state.power[n])
   for (let n = 0; n < SPREAD_BANDS; n++) {
     const sounding = state.power[n] > BAND_FLOOR
+    // A quiet band is drawn faintly, so a little hiss far out does not pass for a wide sound.
+    const strength = sounding ? spreadStrength(state.power[n], loudest) : 0
     const target = clamp(state.measured[n], 0, SPREAD_TOP_WIDTH)
     if (dt <= 0) {
       // A still draw, or the first frame: the bars stand where the sound is.
-      state.lit[n] = sounding ? 1 : 0
+      state.lit[n] = strength
       if (sounding) state.width[n] = target
       continue
     }
@@ -389,7 +407,7 @@ function listen(frame: DisplayFrame<SpreadState>): boolean {
     if (sounding)
       state.width[n] =
         state.lit[n] > 0 ? follow(state.width[n], target, dt, BAR_RISE_SEC, BAR_FALL_SEC) : target
-    state.lit[n] = follow(state.lit[n], sounding ? 1 : 0, dt, BAR_RISE_SEC, BAR_FALL_SEC)
+    state.lit[n] = follow(state.lit[n], strength, dt, BAR_RISE_SEC, BAR_FALL_SEC)
   }
   return true
 }
@@ -440,7 +458,8 @@ const spread = plateDisplay<SpreadState>({
   columns: 1,
   params: ['low', 'mid', 'high', 'lowHz', 'highHz', 'slope', 'make'],
   live: { meters: true, stereo: true },
-  info: 'Frequency runs across and width up. The line is the width each part of the sound is given; the bars are how wide the sound coming out is there, its sides against its middle. Drag a point up or down for a region, across for a split, and turn the wheel on a split for the slope. Dashed: what Make adds.',
+  info:
+    'Frequency runs across, width up. The line is the width each part of the sound is given; the bars are how wide what comes out is there, sides against middle, fainter where it is quiet. Drag a point up or down for a region, across for a split; the wheel there sets the slope. Dashed: what Make adds.',
   init: () => ({
     re: new Float32Array(2048),
     im: new Float32Array(2048),
@@ -479,7 +498,7 @@ const spread = plateDisplay<SpreadState>({
             ctx,
             { x: x + 0.5, y, w: xOfHz(highHz, box) - x - 1, h: zero - y },
             colours.accent,
-            0.6 * state.lit[n],
+            BAR_ALPHA * state.lit[n],
           )
         }
       // The curve, in the ink: what is set. Filled to the line where nothing is changed.
