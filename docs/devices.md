@@ -276,6 +276,18 @@ None of these twenty-five has been listened to. Each was built by one worker and
 | `zone-sampler`    | Nobody has listened to it; not loaded with an instrument another tool made; the previews play three built-in tones, so its bank presets are untried on real instruments                                                                               | A loop's crossfade on a real recording; keys between two zones; a steal at 48 voices           |
 | `outdoors`        | Birds are whistled syllables and frogs a formant buzz, so both may read as synthetic                                                                                                                                                                  | Birds, the frog buzz, the near crack of thunder                                                |
 
+### The invented instruments: what measurement says is weak
+
+Instruments of ideas that no one instrument has: each was built by one worker
+and checked by a second who had not seen it written, and none has been heard.
+
+| Device         | Weak or unproven                                                                                                                                                                                                                          | Listen first                                                                                                           |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `flock`        | One held note breathes as its voices beat (2.5 to 4 dB under its median a tenth of the time at the default); "Falling in" on a low note dips 16 dB for up to 1.2 s; Birds, Gather, From and Octaves act from the next key press           | "Evening flock" on a chord and its release; Stray turned to 0 under a held chord; "Hollow pair" held; "Falling in" low |
+| `magnet-piano` | Harmonic 8 is 5 to 46 cents sharp of the keyboard, as a stiff string's is; the hammer's contact leaves corners near -60 dBFS under each strike; Hammer and Bright both at 1 cost 2.6 % with eight notes                                   | A held "Glass swell" note; "Soft hammer" trilled; "High whistle"; "Slow tide"                                          |
+| `overtone`     | Over a minor chord the walk puts a major third (harmonics 5 and 10) on every note; from C6 up the whistle gives way and a key is a plain tone; "Open vowels" is a moving vowel more than a whistle                                        | A minor chord at the default; "Reed drone" on a chord; C6 up                                                           |
+| `staircase`    | In Chord with a full chord 7 of 32 steps still read downward and the register circles over two thirds of an octave; one key with Chorus in Chord pumps 4 to 6 dB; steps at Slide 0 are corners (1 % of peak); Span 2 folds across octaves | "Chord stairs" on a full chord; "Sliding chord" on one key; a quick arpeggio at Slide 0                                |
+
 ## Effect presets
 
 Every effect comes with presets of its own: sixteen each, fewer for the eight

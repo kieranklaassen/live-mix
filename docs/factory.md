@@ -143,7 +143,7 @@ import {
 
 |             | Count | Groups                                                                                                                                        |
 | ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
+| **Presets** | 780   | Twenty for each of the thirty-nine stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
 | **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
 | **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
 
@@ -576,7 +576,8 @@ thirty-four instruments and gives the rest to the instruments its idea turns
 on, so whatever instrument is loaded, every pack has something for it.
 
 An instrument that comes after the packs shipped is not asked of them
-(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`): a
+(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`,
+`flock`, `magnet-piano`, `overtone` and `staircase`): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
 the bank.
