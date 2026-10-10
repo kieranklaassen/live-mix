@@ -96,20 +96,23 @@
       "length": 1,
       "punch": 0.35,
       "snap": 0.3,
-      "tone": 0.5
+      "tone": 0.5,
+      "volume": -2
     },
     "Deep and slow": {
       "kit": 1,
       "length": 1.3,
       "punch": 0.2,
-      "snap": 0.2
+      "snap": 0.2,
+      "volume": -4
     },
     "Small and tight": {
       "kit": 2,
       "length": 0.7,
       "punch": 0.5,
       "snap": 0.55,
-      "tone": 0.6
+      "tone": 0.6,
+      "volume": -0.5
     },
     "Paper kit": {
       "kit": 3,
@@ -124,7 +127,8 @@
       "snap": 0,
       "tone": 0.2,
       "variation": 0.5,
-      "width": 0.6
+      "width": 0.6,
+      "volume": -3
     },
     "Dark room": {
       "kit": 1,
@@ -133,7 +137,8 @@
       "snap": 0.1,
       "tone": 0.1,
       "drive": 0.45,
-      "width": 0.7
+      "width": 0.7,
+      "volume": -6
     },
     "Bright ticks": {
       "kit": 2,
@@ -141,13 +146,15 @@
       "length": 0.45,
       "snap": 0.8,
       "tone": 0.85,
-      "width": 0.8
+      "width": 0.8,
+      "volume": 1.5
     },
     "Long toms": {
       "tune": -2,
       "length": 2.6,
       "punch": 0.6,
-      "tone": 0.55
+      "tone": 0.55,
+      "volume": -5
     },
     "Dusty": {
       "kit": 3,
@@ -156,7 +163,8 @@
       "snap": 0.15,
       "tone": 0.2,
       "drive": 0.75,
-      "variation": 0.6
+      "variation": 0.6,
+      "volume": -2.5
     },
     "Low and far": {
       "kit": 1,
@@ -165,7 +173,68 @@
       "snap": 0,
       "tone": 0.25,
       "width": 1,
-      "volume": -6
+      "volume": -5.5
+    },
+    "Airy and long": {
+      "kit": 0,
+      "tune": 2,
+      "length": 3,
+      "punch": 0.2,
+      "snap": 0.5,
+      "tone": 0.9,
+      "width": 0.9,
+      "volume": -5.5
+    },
+    "Toy box": {
+      "kit": 3,
+      "tune": 10,
+      "length": 0.9,
+      "punch": 0.7,
+      "snap": 0.6,
+      "tone": 0.7,
+      "width": 0.3,
+      "volume": 1.5
+    },
+    "Pushed hard": {
+      "kit": 2,
+      "tune": -2,
+      "length": 1,
+      "punch": 0.8,
+      "snap": 0.7,
+      "tone": 0.6,
+      "drive": 1,
+      "volume": -2
+    },
+    "Muffled": {
+      "kit": 0,
+      "tune": -1,
+      "length": 0.7,
+      "punch": 0.25,
+      "snap": 0,
+      "tone": 0,
+      "variation": 0.1,
+      "width": 0.1,
+      "volume": -1
+    },
+    "Paper thuds": {
+      "kit": 3,
+      "tune": -9,
+      "length": 2.5,
+      "punch": 0.9,
+      "snap": 0.2,
+      "tone": 0.4,
+      "width": 0.6,
+      "volume": -3.5
+    },
+    "Heavy steps": {
+      "kit": 1,
+      "tune": -12,
+      "length": 3.5,
+      "punch": 0.6,
+      "snap": 0.3,
+      "tone": 0.5,
+      "drive": 0.3,
+      "volume": -8
     }
   },
   "origin": {
