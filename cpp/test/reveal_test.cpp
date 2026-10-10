@@ -674,6 +674,45 @@ int main() {
     }
   }
 
+  // --- Nor does it come up when the pause is long --------------------------------------------
+  // Floor is counted from the loudest band of late, and twenty seconds into
+  // a pause that is the bed itself. A bed of noise, or of noise with hum and
+  // rumble, has no part far enough under the rest to be lifted much: its
+  // level and its bright end (the second difference, which the hiss rules)
+  // stay where they were, at the default and with everything up.
+  {
+    const std::vector<float> notes = phrase(kRate, 0.3, 34.0f);
+    const std::vector<float> beds[] = {hiss(34.0f, kRate, -50.0, 7), room_tone(34.0f, kRate, -45.0, 11)};
+    auto bright = [](const std::vector<float>& x, size_t from, size_t to) {
+      double sum = 0.0;
+      for (size_t i = from; i < to; ++i) {
+        const double d = static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2];
+        sum += d * d;
+      }
+      return std::sqrt(sum / static_cast<double>(to - from));
+    };
+    const std::vector<Setting> long_cases[] = {
+        {}, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}}};
+    double worst_whole = 0.0, worst_bright = 0.0;
+    for (const std::vector<Setting>& settings : long_cases) {
+      for (const std::vector<float>& bed : beds) {
+        const std::vector<float> in = add(notes, bed);
+        set_up(device, settings);
+        const Stereo out = run(device, in);
+        const size_t from = 28 * 48000, to = 33 * 48000;
+        const double whole = db(rms(out.left, from + kLate, to + kLate) / rms(in, from, to));
+        const double top = db(bright(out.left, from + kLate, to + kLate) / bright(in, from, to));
+        if (std::fabs(whole) > std::fabs(worst_whole)) worst_whole = whole;
+        if (std::fabs(top) > std::fabs(worst_bright)) worst_bright = top;
+      }
+    }
+    std::printf("twenty seconds into a pause, hiss and room tone, default and everything up: the bed's level "
+                "%+.2f dB at worst, its bright end %+.2f dB\n",
+                worst_whole, worst_bright);
+    EXPECT(std::fabs(worst_whole) < 0.5, "a bed alone for twenty seconds stays at its level");
+    EXPECT(std::fabs(worst_bright) < 1.0, "and its hiss is not brought up");
+  }
+
   // --- Latency, the dry path and Mix -----------------------------------------------------
   {
     rng_state() = 77;
@@ -1058,6 +1097,34 @@ int main() {
       EXPECT(before < (setting == 0 ? 1.5 : 3.0), "the bed does not swell ahead of an attack");
       EXPECT(std::fabs(first) < 1.5 && crest < 2.5, "and the attack comes out within a decibel and a half of what went in");
     }
+  }
+
+  // --- The level does not sag after an attack ------------------------------------------------
+  // A struck note over a held chord, everything up: the note takes the lift
+  // away from the bands it fills, and the level hold has to let go with it.
+  // A quarter of a second after the attack the whole comes out at the level
+  // it went in at, not a decibel or two under it.
+  {
+    std::vector<float> pad = held_chord(kRate, 6.0f, 0.1f, 0.0005f, 41);
+    std::vector<float> struck(pad.size(), 0.0f);
+    strike(struck, kRate, 392.0, 3.0, 1.5, 0.5);
+    struck.resize(pad.size());
+    const std::vector<float> in = add(pad, struck);
+    double worst_after = 0.0;
+    for (int setting = 0; setting < 2; ++setting) {
+      set_up(device, setting == 0 ? std::vector<Setting>{}
+                                  : std::vector<Setting>{{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}});
+      const Stereo out = run(device, in);
+      for (double from : {0.05, 0.15, 0.25, 0.4}) {
+        const size_t a0 = static_cast<size_t>((3.0 + from) * 48000), a1 = a0 + 4800;
+        const double after = db(rms(out.left, a0 + kLate, a1 + kLate) / rms(in, a0, a1));
+        if (std::fabs(after) > std::fabs(worst_after)) worst_after = after;
+      }
+    }
+    std::printf("a struck note over a held chord, default and everything up: the level %+.2f dB at worst in the "
+                "half second after the attack\n",
+                worst_after);
+    EXPECT(std::fabs(worst_after) < 0.75, "the level does not sag after an attack over a held sound");
   }
 
   // --- A full-scale held chord for a minute, at every end of every control -------------------
