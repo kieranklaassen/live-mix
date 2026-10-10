@@ -9,7 +9,7 @@
 // A kit's notes stay where they are when the key of a piece moves and its `tune` moves instead, so
 // `tune` is set for the drums of each loop that have a pitch (the kick and sub, the toms, the tones
 // under the snare): they sit on white keys as written. What does that differs by kit, since a kit
-// retunes its drums: Soft 5, 0 or -2, Deep 3 or 1, Tight 3, -2 or -4, Paper 1 or -1. It stays between
+// retunes its drums: Soft 5, 0 or -2, Deep 5, 3 or 1, Tight 3, -2 or -4, Paper 1 or -1. It stays between
 // -7 and 6, so that no key of a piece turns it round by an octave.
 
 import { type PatchDevice } from '../../../core/devices/patch'
@@ -59,7 +59,7 @@ const ALONE: readonly FactorySound[] = [
     name: 'Slow sub pulse',
     kind: 'beat',
     description:
-      'A deep sub drum that swells in with no click, once every four beats, and rings most of the way to the next.',
+      'A deep sub drum that swells in with no click, once every four beats, and fades slowly towards the next.',
     instrument: kit({ kit: DEEP, tune: 5, length: 2.8, tone: 0.4, variation: 0.1 }),
     effects: [],
     ...bars(4, [row(KIT.sub, 'X... .... .... ....')]),
@@ -220,10 +220,10 @@ const SPARSE: readonly FactorySound[] = [
   sound({
     id: 'drums-card-rim-hats',
     number: 312,
-    name: 'Rim and ghost hats',
+    name: 'Ghost hat beat',
     kind: 'beat',
     description:
-      'A short kick like card, a rim knock off the beat and hats ghosted in sixteenth notes, all dry.',
+      'A short kick like card, a rim knock now off the beat and now on it, and hats ghosted in sixteenth notes, all dry.',
     instrument: kit({ kit: PAPER, tune: 1, length: 1, punch: 0.4, snap: 0.4, tone: 0.5 }),
     effects: [],
     ...bars(2, [
@@ -277,7 +277,7 @@ const SPARSE: readonly FactorySound[] = [
   sound({
     id: 'drums-rim-beat-tom-fill',
     number: 316,
-    name: 'Rim beat and tom fill',
+    name: 'Tom fill beat',
     kind: 'beat',
     description:
       'A slow beat of kick, rim on three and offbeat hats that ends every fourth time on two soft toms.',
@@ -306,7 +306,7 @@ const SPARSE: readonly FactorySound[] = [
   sound({
     id: 'drums-quiet-four',
     number: 317,
-    name: 'Quiet four on the floor',
+    name: 'Quiet dance beat',
     kind: 'beat',
     description:
       'A tight kick on every beat and an open hat on every offbeat that the next beat shuts, with one kick left out.',
@@ -386,10 +386,14 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Seven-step rim',
     kind: 'beat',
     description:
-      'A dry rim figure seven sixteenth notes long that turns against a short kick on one and three.',
+      'A dry rim figure seven sixteenth notes long, turning against a short kick on one and three and a hat on two and four.',
     instrument: kit({ kit: PAPER, tune: 1, length: 1.1, punch: 0.35, snap: 0.45, tone: 0.55 }),
     effects: [room(0.1)],
-    ...bars(4, [row(KIT.kick, 'x... .... o... ....'), row(KIT.rim, `${'x..o.x.'.repeat(9)}.`)]),
+    ...bars(4, [
+      row(KIT.kick, 'x... .... o... ....'),
+      row(KIT.hat, '.... o... .... o...'),
+      row(KIT.rim, `${'x..o.x.'.repeat(9)}.`),
+    ]),
   }),
   sound({
     id: 'drums-five-against-four',
@@ -397,12 +401,12 @@ const AGAINST: readonly FactorySound[] = [
     name: 'Five against four',
     kind: 'beat',
     description:
-      'Five even woodblock ticks in the time of four beats, over a dry kick on one and three and a brush on two and four.',
+      'Five even woodblock ticks in the time of four beats, over a dry kick on one and a brush on three.',
     instrument: kit({ kit: PAPER, tune: -1, length: 1.2, punch: 0.3, snap: 0.35, tone: 0.55 }),
     effects: [room(0.1)],
     ...bars(2, [
-      row(KIT.kick, 'X... .... x... ....'),
-      row(KIT.brush, '.... o... .... o...'),
+      row(KIT.kick, 'X... .... .... ....'),
+      row(KIT.brush, '.... .... o... ....'),
       row(KIT.tick, 'Xoxoo', { per: 5 }),
     ]),
   }),
@@ -439,7 +443,7 @@ const ECHOED: readonly FactorySound[] = [
   sound({
     id: 'drums-tick-tape-echo',
     number: 325,
-    name: 'Tick on tape echo',
+    name: 'Tape echo tick',
     kind: 'beat',
     description:
       'A bright tick struck once off the beat and a tape echo that repeats it on every offbeat after, each one duller.',
@@ -467,7 +471,7 @@ const ECHOED: readonly FactorySound[] = [
   sound({
     id: 'drums-clap-hall',
     number: 326,
-    name: 'Clap in a long hall',
+    name: 'Long hall clap',
     kind: 'beat',
     description:
       'One soft clap every four beats, a little harder every other time, into a very long dark hall.',
@@ -540,11 +544,11 @@ const FAR: readonly FactorySound[] = [
   sound({
     id: 'drums-far-kit',
     number: 329,
-    name: 'Kit in a far hall',
+    name: 'Far hall kit',
     kind: 'beat',
     description:
       'A slow beat of kick, snare on three and a shaker on the offbeats, a long way off in a very large dark space.',
-    instrument: kit({ kit: DEEP, tune: 1, length: 1.2, punch: 0.3, snap: 0.55, tone: 0.45 }),
+    instrument: kit({ kit: TIGHT, tune: -4, length: 1.2, punch: 0.3, snap: 0.4, tone: 0.45 }),
     effects: [
       {
         deviceId: 'expanse',
@@ -572,7 +576,7 @@ const FAR: readonly FactorySound[] = [
   sound({
     id: 'drums-paper-tape',
     number: 330,
-    name: 'Paper kit on tape',
+    name: 'Worn paper kit',
     kind: 'beat',
     description:
       'A dry kit of paper and card playing a plain beat through a worn cassette, dull and a little crushed.',
@@ -639,8 +643,9 @@ const FAR: readonly FactorySound[] = [
       },
     ],
     ...bars(4, [
+      // An octave above the sub: at one pitch the two beat against each other as the kick falls.
       row(
-        KIT.kick,
+        KIT.kick + 12,
         'X... .... .... .... .... .... .... .... x... .... .... x... .... .... .... ....',
       ),
       row(KIT.sub, 'x... .... .... ....'),
