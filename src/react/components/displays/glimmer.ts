@@ -1,9 +1,11 @@
-// Glimmer's display: the spectrum as a water line. From 20 Hz at the left to
-// 20 kHz at the right, the line stands at each band's gain now, between the
-// two faint lines every band moves between (its dip and its crest), and the
-// second colour lights the bands that are flashing where there is sound to
-// light. Along the top is a ruler of Rate with a lamp on it that flashes as
-// one band does.
+// Glimmer's display: lights on water. From 20 Hz at the left to 20 kHz at the
+// right, every band stands as tall as its gain now: the left side above the
+// water line, the right side below it as the left's reflection, so Apart is
+// read as how far the reflection differs. The water (the ink) is the part of
+// a band's gain that stays while its light is out; the second colour is what
+// its light adds now. A faint line marks the crests, a dashed one the sound
+// untouched. At the right end is a ruler of Rate, with a lamp in its ring
+// that flashes once a cycle.
 //
 // Nothing here is an impression: the device keeps no state per band, so its
 // gains are a law of its clock and its knobs, and the display works the same
@@ -261,7 +263,7 @@ const DEPTH_INSET = 7
 
 type Spot = [number, number]
 
-interface GlimmerLayout {
+export interface GlimmerLayout {
   /** The picture: the spectrum across, the left side above `water` and the right below. */
   field: Box
   /** The water line, and how tall the tallest crest stands above it and hangs below. */
@@ -274,7 +276,7 @@ interface GlimmerLayout {
   rulerTop: number
 }
 
-function layoutOf(view: Pick<DisplayView, 'width' | 'height'>): GlimmerLayout {
+export function glimmerLayout(view: Pick<DisplayView, 'width' | 'height'>): GlimmerLayout {
   const field: Box = {
     x: 4,
     y: FIELD_TOP,
@@ -346,7 +348,7 @@ const rateAt = (hz: number, low: number, high: number): number =>
   clamp(Math.log(Math.max(hz, low) / low) / Math.log(high / low), 0, 1)
 
 function glimmerHandles(view: DisplayView): DisplayHandle[] {
-  const { field, water, up, rulerX, rulerFoot, rulerTop } = layoutOf(view)
+  const { field, water, up, rulerX, rulerFoot, rulerTop } = glimmerLayout(view)
   const { depth, lean, soft, vary } = settingsOf(view)
   const travel = depthTravel(view)
   const rate = view.spec('rate')
@@ -467,7 +469,7 @@ export const glimmerHeardClock = (theta: number, rate: number, sampleRate: numbe
 function glimmerDraw(frame: DisplayFrame<GlimmerState>): void {
   const { ctx, colours, state } = frame
   ground(frame)
-  const { field, water, up, down, rulerX, rulerFoot, rulerTop } = layoutOf(frame)
+  const { field, water, up, down, rulerX, rulerFoot, rulerTop } = glimmerLayout(frame)
   const settings = settingsOf(frame)
   const mix = clamp(frame.value('mix'), 0, 1)
   const rate = frame.value('rate')
