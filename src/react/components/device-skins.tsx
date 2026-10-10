@@ -1913,6 +1913,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'scale-filter': { ...PLATE_PALETTES['scale-filter'], finish: 'gloss', cap: 'dot' },
   sift: { ...PLATE_PALETTES.sift, finish: 'speckle', cap: 'pointer' },
   imprint: { ...PLATE_PALETTES.imprint, finish: 'linen', cap: 'disc' },
+  'common-tones': { ...PLATE_PALETTES['common-tones'], finish: 'linen', cap: 'dot' },
 }
 
 /**

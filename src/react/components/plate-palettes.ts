@@ -157,6 +157,7 @@ export const PLATE_PALETTES = {
   'scale-filter': { plate: '#31c4b0', ink: '#06231f', accent: '#7a1150' },
   sift: { plate: '#aaa838', ink: '#12140a', accent: '#3a1a8a' },
   imprint: { plate: '#5a3a8c', ink: '#f6f1e4', accent: '#ffa6c9' },
+  'common-tones': { plate: '#8a2c16', ink: '#fdf0e2', accent: '#d8f07a' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

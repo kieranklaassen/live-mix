@@ -1,0 +1,574 @@
+{
+  "id": "common-tones",
+  "name": "Common Tones",
+  "category": "texture",
+  "description": "Compares the sound with what was playing a moment ago and lets through only what the two share, so held tones hang on and changes vanish.",
+  "class": "CommonTones",
+  "header": "common_tones.h",
+  "sources": [],
+  "memoryMb": 8,
+  "latencySamples": 4608,
+  "meters": [
+    {
+      "key": "now1",
+      "name": "Level now, band 1",
+      "display": true
+    },
+    {
+      "key": "now2",
+      "name": "Level now, band 2",
+      "display": true
+    },
+    {
+      "key": "now3",
+      "name": "Level now, band 3",
+      "display": true
+    },
+    {
+      "key": "now4",
+      "name": "Level now, band 4",
+      "display": true
+    },
+    {
+      "key": "now5",
+      "name": "Level now, band 5",
+      "display": true
+    },
+    {
+      "key": "now6",
+      "name": "Level now, band 6",
+      "display": true
+    },
+    {
+      "key": "now7",
+      "name": "Level now, band 7",
+      "display": true
+    },
+    {
+      "key": "now8",
+      "name": "Level now, band 8",
+      "display": true
+    },
+    {
+      "key": "now9",
+      "name": "Level now, band 9",
+      "display": true
+    },
+    {
+      "key": "now10",
+      "name": "Level now, band 10",
+      "display": true
+    },
+    {
+      "key": "now11",
+      "name": "Level now, band 11",
+      "display": true
+    },
+    {
+      "key": "now12",
+      "name": "Level now, band 12",
+      "display": true
+    },
+    {
+      "key": "now13",
+      "name": "Level now, band 13",
+      "display": true
+    },
+    {
+      "key": "now14",
+      "name": "Level now, band 14",
+      "display": true
+    },
+    {
+      "key": "now15",
+      "name": "Level now, band 15",
+      "display": true
+    },
+    {
+      "key": "now16",
+      "name": "Level now, band 16",
+      "display": true
+    },
+    {
+      "key": "now17",
+      "name": "Level now, band 17",
+      "display": true
+    },
+    {
+      "key": "now18",
+      "name": "Level now, band 18",
+      "display": true
+    },
+    {
+      "key": "now19",
+      "name": "Level now, band 19",
+      "display": true
+    },
+    {
+      "key": "now20",
+      "name": "Level now, band 20",
+      "display": true
+    },
+    {
+      "key": "now21",
+      "name": "Level now, band 21",
+      "display": true
+    },
+    {
+      "key": "now22",
+      "name": "Level now, band 22",
+      "display": true
+    },
+    {
+      "key": "now23",
+      "name": "Level now, band 23",
+      "display": true
+    },
+    {
+      "key": "now24",
+      "name": "Level now, band 24",
+      "display": true
+    },
+    {
+      "key": "then1",
+      "name": "Level then, band 1",
+      "display": true
+    },
+    {
+      "key": "then2",
+      "name": "Level then, band 2",
+      "display": true
+    },
+    {
+      "key": "then3",
+      "name": "Level then, band 3",
+      "display": true
+    },
+    {
+      "key": "then4",
+      "name": "Level then, band 4",
+      "display": true
+    },
+    {
+      "key": "then5",
+      "name": "Level then, band 5",
+      "display": true
+    },
+    {
+      "key": "then6",
+      "name": "Level then, band 6",
+      "display": true
+    },
+    {
+      "key": "then7",
+      "name": "Level then, band 7",
+      "display": true
+    },
+    {
+      "key": "then8",
+      "name": "Level then, band 8",
+      "display": true
+    },
+    {
+      "key": "then9",
+      "name": "Level then, band 9",
+      "display": true
+    },
+    {
+      "key": "then10",
+      "name": "Level then, band 10",
+      "display": true
+    },
+    {
+      "key": "then11",
+      "name": "Level then, band 11",
+      "display": true
+    },
+    {
+      "key": "then12",
+      "name": "Level then, band 12",
+      "display": true
+    },
+    {
+      "key": "then13",
+      "name": "Level then, band 13",
+      "display": true
+    },
+    {
+      "key": "then14",
+      "name": "Level then, band 14",
+      "display": true
+    },
+    {
+      "key": "then15",
+      "name": "Level then, band 15",
+      "display": true
+    },
+    {
+      "key": "then16",
+      "name": "Level then, band 16",
+      "display": true
+    },
+    {
+      "key": "then17",
+      "name": "Level then, band 17",
+      "display": true
+    },
+    {
+      "key": "then18",
+      "name": "Level then, band 18",
+      "display": true
+    },
+    {
+      "key": "then19",
+      "name": "Level then, band 19",
+      "display": true
+    },
+    {
+      "key": "then20",
+      "name": "Level then, band 20",
+      "display": true
+    },
+    {
+      "key": "then21",
+      "name": "Level then, band 21",
+      "display": true
+    },
+    {
+      "key": "then22",
+      "name": "Level then, band 22",
+      "display": true
+    },
+    {
+      "key": "then23",
+      "name": "Level then, band 23",
+      "display": true
+    },
+    {
+      "key": "then24",
+      "name": "Level then, band 24",
+      "display": true
+    },
+    {
+      "key": "heard1",
+      "name": "Level let through, band 1",
+      "display": true
+    },
+    {
+      "key": "heard2",
+      "name": "Level let through, band 2",
+      "display": true
+    },
+    {
+      "key": "heard3",
+      "name": "Level let through, band 3",
+      "display": true
+    },
+    {
+      "key": "heard4",
+      "name": "Level let through, band 4",
+      "display": true
+    },
+    {
+      "key": "heard5",
+      "name": "Level let through, band 5",
+      "display": true
+    },
+    {
+      "key": "heard6",
+      "name": "Level let through, band 6",
+      "display": true
+    },
+    {
+      "key": "heard7",
+      "name": "Level let through, band 7",
+      "display": true
+    },
+    {
+      "key": "heard8",
+      "name": "Level let through, band 8",
+      "display": true
+    },
+    {
+      "key": "heard9",
+      "name": "Level let through, band 9",
+      "display": true
+    },
+    {
+      "key": "heard10",
+      "name": "Level let through, band 10",
+      "display": true
+    },
+    {
+      "key": "heard11",
+      "name": "Level let through, band 11",
+      "display": true
+    },
+    {
+      "key": "heard12",
+      "name": "Level let through, band 12",
+      "display": true
+    },
+    {
+      "key": "heard13",
+      "name": "Level let through, band 13",
+      "display": true
+    },
+    {
+      "key": "heard14",
+      "name": "Level let through, band 14",
+      "display": true
+    },
+    {
+      "key": "heard15",
+      "name": "Level let through, band 15",
+      "display": true
+    },
+    {
+      "key": "heard16",
+      "name": "Level let through, band 16",
+      "display": true
+    },
+    {
+      "key": "heard17",
+      "name": "Level let through, band 17",
+      "display": true
+    },
+    {
+      "key": "heard18",
+      "name": "Level let through, band 18",
+      "display": true
+    },
+    {
+      "key": "heard19",
+      "name": "Level let through, band 19",
+      "display": true
+    },
+    {
+      "key": "heard20",
+      "name": "Level let through, band 20",
+      "display": true
+    },
+    {
+      "key": "heard21",
+      "name": "Level let through, band 21",
+      "display": true
+    },
+    {
+      "key": "heard22",
+      "name": "Level let through, band 22",
+      "display": true
+    },
+    {
+      "key": "heard23",
+      "name": "Level let through, band 23",
+      "display": true
+    },
+    {
+      "key": "heard24",
+      "name": "Level let through, band 24",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "ago",
+      "name": "Ago",
+      "min": 50,
+      "max": 8000,
+      "default": 350,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How far back the sound is compared with itself. Short takes the attack off each note; long keeps only what has been sounding for a while."
+    },
+    {
+      "key": "keep",
+      "name": "Keep",
+      "choices": ["Common", "Changes"],
+      "default": 0,
+      "description": "Common lets through what the sound shares with its past, so held tones stay. Changes lets through what is new, so held tones go."
+    },
+    {
+      "key": "strict",
+      "name": "Strict",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How alike now and then must be at a frequency to count as shared. Low counts anything that was there at all; high needs it to have been as loud."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "How long what gets through hangs on after it stops. At nothing it ends with the sound; high leaves a long tail."
+    },
+    {
+      "key": "broad",
+      "name": "Broad",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Compares wider regions of the spectrum, so a note that bends or wavers still counts as the same. At nothing every fine partial is judged alone."
+    },
+    {
+      "key": "memory",
+      "name": "Memory",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Compares with an average of the past and not one moment. Higher remembers longer, so shared tones fade in slowly and stay counted through a pause."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": -36,
+      "max": 0,
+      "default": -36,
+      "unit": "dB",
+      "description": "How far the rest is turned down. Fully down it is gone; higher leaves a ghost of it under what is kept."
+    },
+    {
+      "key": "makeup",
+      "name": "Make up",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How much of the level the comparison takes away is made up, by turning what is kept up slowly, never past the dry sound at its loudest. At nothing it is left as it falls."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "Balance between the dry signal and what the comparison lets through."
+    }
+  ],
+  "presets": {
+    "Common tones": {},
+    "Only what stays": {
+      "ago": 450,
+      "strict": 1,
+      "ring": 0.3,
+      "broad": 0.1,
+      "memory": 0,
+      "mix": 1
+    },
+    "Only what moves": {
+      "keep": 1,
+      "ago": 250,
+      "strict": 0.6,
+      "ring": 0,
+      "broad": 0.3,
+      "memory": 0,
+      "mix": 1
+    },
+    "Long hold": {
+      "ago": 900,
+      "ring": 0.7,
+      "memory": 0.4,
+      "mix": 0.6,
+      "floor": -12
+    },
+    "Drone finder": {
+      "ago": 4000,
+      "strict": 0.7,
+      "ring": 0.6,
+      "broad": 0.15,
+      "memory": 0.6,
+      "floor": -14,
+      "mix": 0.65
+    },
+    "Attacks forward": {
+      "keep": 1,
+      "ago": 120,
+      "strict": 0.65,
+      "ring": 0,
+      "broad": 0.2,
+      "memory": 0,
+      "floor": -6,
+      "mix": 0.8
+    },
+    "Slow ear": {
+      "ago": 200,
+      "strict": 0.7,
+      "ring": 0.3,
+      "memory": 0.8,
+      "mix": 0.7
+    },
+    "Hanging notes": {
+      "ago": 300,
+      "strict": 0.5,
+      "ring": 0.75,
+      "mix": 0.6
+    },
+    "Loose match": {
+      "ago": 700,
+      "strict": 0,
+      "ring": 0.45,
+      "broad": 1,
+      "mix": 0.85
+    },
+    "New notes ring": {
+      "keep": 1,
+      "ago": 300,
+      "strict": 0.6,
+      "ring": 0.7,
+      "memory": 0,
+      "mix": 0.8
+    },
+    "Light touch": {
+      "ago": 250,
+      "strict": 0.5,
+      "ring": 0.2,
+      "floor": -10,
+      "mix": 0.6
+    },
+    "New notes up": {
+      "keep": 1,
+      "ago": 500,
+      "ring": 0.1,
+      "memory": 0.2,
+      "floor": -9,
+      "mix": 1
+    },
+    "Fresh only": {
+      "keep": 1,
+      "ago": 1000,
+      "strict": 0.6,
+      "ring": 0.2,
+      "memory": 0.7,
+      "mix": 0.8
+    },
+    "A bar ago": {
+      "ago": 2000,
+      "strict": 0.4,
+      "ring": 0.4,
+      "broad": 0.4,
+      "memory": 0.35,
+      "mix": 0.5
+    },
+    "Wide vibrato": {
+      "ago": 180,
+      "strict": 0.9,
+      "ring": 0.3,
+      "broad": 0.75,
+      "memory": 0.1,
+      "mix": 1
+    },
+    "Frozen ground": {
+      "ago": 800,
+      "strict": 0.7,
+      "ring": 1,
+      "memory": 0.5,
+      "mix": 0.55,
+      "floor": -12
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A spectral gate whose threshold is the sound itself a moment ago: cross-synthesis of a sound with its own past, on kit::Stft."
+  }
+}
