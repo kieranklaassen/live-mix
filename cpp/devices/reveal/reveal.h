@@ -85,11 +85,13 @@
 //
 // Ceiling. The level is held, the crests are not: many quiet partials
 // lifted make a denser wave. So the lifted sound is bent under a ceiling
-// that follows the input: up to 3.5 dB over the loudest sample that came in
+// that follows the input: up to 4.5 dB over the loudest sample that came in
 // of late (falling 3 dB a second) it passes as it is, and above that it
-// bends towards 5.5 dB over it, which it never reaches. It is a curve, not a
+// bends towards 5.9 dB over it, which it never reaches. It is a curve, not a
 // gain that moves, so it cannot pump; at the default it is never reached on
-// a full-scale chord.
+// a full-scale chord. What it costs is where one bright held note with all
+// its partials in step is levelled right out: that wave's crests would stand
+// 8 dB over the input's, and bending them takes up to 0.8 dB off its level.
 //
 // Listen plays only what is added: every bin by its gain less one, at full
 // whatever Mix says.
@@ -134,8 +136,8 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
   static constexpr float kTopMostDb = 6.0f;      // no band counts for louder than this
   static constexpr float kLowestFloorDb = -96.0f;  // nothing under this is lifted, whatever Floor says
   // The ceiling over the lifted sound, as gains on the loudest sample of late.
-  static constexpr float kCeilingKnee = 1.4962357f;  // +3.5 dB: under this it passes as it is
-  static constexpr float kCeilingTop = 1.8836491f;   // +5.5 dB: what it bends towards
+  static constexpr float kCeilingKnee = 1.6788040f;  // +4.5 dB: under this it passes as it is
+  static constexpr float kCeilingTop = 1.9724227f;   // +5.9 dB: what it bends towards
   static constexpr float kCeilingFallDbPerSecond = 3.0f;
   static_assert(kReadings * kBandsPerReading == kMaxBands, "whole readings");
 

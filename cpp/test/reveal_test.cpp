@@ -1087,7 +1087,7 @@ int main() {
       const double early = db(rms(out.left, 10 * 48000, 20 * 48000));
       const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
       const double level = late - came - trim_db;
-      if (top > 5.5 || late - early > 0.2 || std::fabs(level) > 1.0) {
+      if (top > 6.0 || late - early > 0.2 || std::fabs(level) > 1.0) {
         std::printf("a minute of full scale, %s: peak %+.2f dB, grows %+.2f dB, level %+.2f dB\n", what, top,
                     late - early, level);
       }
@@ -1117,7 +1117,7 @@ int main() {
                 "%+.3f dB, level furthest from the input %+.2f dB\n",
                 worst_peak, worst_growth, worst_level);
     EXPECT(sound, "a minute of full scale stays finite");
-    EXPECT(worst_peak < 5.5, "and never peaks more than 5.5 dB over what came in");
+    EXPECT(worst_peak < 6.0, "and never peaks more than 6 dB over what came in");
     EXPECT(worst_growth < 0.2, "and never grows");
     EXPECT(std::fabs(worst_level) < 1.0, "and comes out within 1 dB of the level it went in at");
 
@@ -1129,6 +1129,36 @@ int main() {
                 db(rms(added.left, 5 * 48000, 10 * 48000)) - came);
     EXPECT(peak(added.left) < 2.0 && db(rms(added.left, 5 * 48000, 10 * 48000)) < came + 1.0,
            "what Listen plays is no louder than the sound");
+  }
+
+  // --- One bright held note, its partials in step, levelled right out ------------------------
+  // The hardest sound there is for the crests: twenty-four partials that all
+  // cross zero together. Levelled out they make a train of spikes that would
+  // stand 8 dB over the input's own crests. The ceiling holds them under
+  // 6 dB, and what that costs the level is kept under a decibel.
+  {
+    std::vector<float> note(4 * 48000, 0.0f);
+    for (int k = 1; k <= 24; ++k) {
+      const double gain = 0.25 * std::pow(static_cast<double>(k), -1.6);
+      const double step = 2.0 * kPi * 220.0 * k / kRate;
+      for (size_t i = 0; i < note.size(); ++i) note[i] += static_cast<float>(gain * std::sin(step * i + k));
+    }
+    const double in_peak = peak(note);
+    const double in_level = db(rms(note, 48000, 3 * 48000));
+    double worst_note_peak = -100.0, worst_note_level = 0.0;
+    for (const Preset& preset : presets()) {
+      set_up(device, preset.settings);
+      const Stereo out = run(device, note);
+      const double top = db(peak(out.left) / in_peak);
+      const double level = db(rms(out.left, 48000 + kLate, 3 * 48000 + kLate)) - in_level;
+      if (top > worst_note_peak) worst_note_peak = top;
+      if (std::fabs(level) > std::fabs(worst_note_level)) worst_note_level = level;
+    }
+    std::printf("one bright held note, sixteen presets: worst peak %+.2f dB over the note's own, level furthest "
+                "from the input %+.2f dB\n",
+                worst_note_peak, worst_note_level);
+    EXPECT(worst_note_peak < 6.0, "one bright note levelled out peaks no more than 6 dB over its own crests");
+    EXPECT(std::fabs(worst_note_level) < 1.0, "and comes out within 1 dB of the level it went in at");
   }
 
   // --- Every preset: a minute of the full-scale chord, a phrase, a swell, and Mix part-way ----
@@ -1212,7 +1242,7 @@ int main() {
                 "a phrase and a swell: worst peak %+.2f dB over the input's, level furthest %+.2f dB; Mix 0.5 on held "
                 "tones: %.3f dB from the plain crossfade at worst, deepest dip %.3f dB\n",
                 worst_peak, worst_growth, worst_level, worst_crest, worst_played, worst_mix, worst_dip);
-    // The level is held and the crests are bent under the ceiling, 5.5 dB
+    // The level is held and the crests are bent under the ceiling, 5.9 dB
     // over the loudest sample that came in.
     EXPECT(worst_peak < 6.0, "no preset peaks more than 6 dB over a full-scale chord");
     EXPECT(worst_crest < 20.0 * std::log10(Reveal::kCeilingTop), "nor more than the ceiling over a phrase or a swell");
