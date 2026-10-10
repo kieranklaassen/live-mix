@@ -1356,6 +1356,22 @@ describe('Bubbles', () => {
     expect(risingBubbles(more)).toHaveLength(1)
     // Out of the water the device sends none that are heard, and none are drawn.
     expect(risingBubbles(run([7, 10], 420, { depth: 0 }).marks)).toHaveLength(0)
+
+    // Just under the surface there is no water over the sound: its bubbles stay at the surface, none in
+    // the air over it, and they are as faint as the little of them the device lets be heard.
+    for (const depth of [0.02, 0.05, 0.1]) {
+      const shallow = run([7, 10], 420, { depth, bubbles: 1 }).marks
+      const risen = risingBubbles(shallow)
+      expect(risen).toHaveLength(3)
+      for (const bubble of risen) {
+        expect(bubble.arcs[0].y).toBeGreaterThanOrEqual(layout.surfaceY)
+        expect(bubble.alpha).toBeCloseTo(0.9 * Math.min(1, 2 * underwaterImmersion(depth)), 9)
+      }
+      const rings = flightRings(shallow)
+      expect(rings.length).toBeGreaterThan(0)
+      for (const ringMark of rings)
+        expect(ringMark.arcs[0].y).toBeGreaterThanOrEqual(layout.surfaceY)
+    }
   })
 
   it('follows the compiled device: a struck note sends its flight up the display', async () => {

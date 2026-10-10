@@ -518,8 +518,9 @@ const underwater = plateDisplay<UnderwaterState>({
 
     // Bubbles: one flight as the settings would send it, the later the higher, and in the second colour the
     // ones the device has sent, each on its way up for as long as a flight takes to come.
-    const top = y - ry - 1
-    const column = Math.max(0, top - surfaceY - 1)
+    // Just under the surface there is no water over the sound to rise through: they stay at the surface, not in the air.
+    const top = Math.max(y - ry - 1, surfaceY + 1)
+    const column = top - surfaceY - 1
     if (heard > QUIET) {
       const flight = underwaterFlight(frame.value('bubbles'), frame.value('bubbleSize'))
       flight.forEach((bubble, i) => {
@@ -548,7 +549,7 @@ const underwater = plateDisplay<UnderwaterState>({
           top - up * column,
           underwaterBubbleRadius(bubble.hz, layout.unit),
           colours.accent,
-          { alpha: clamp((1 - up) * 3, 0, 1) * 0.9 },
+          { alpha: clamp((1 - up) * 3, 0, 1) * 0.9 * clamp(heard * 2, 0, 1) },
         )
       }
     }
