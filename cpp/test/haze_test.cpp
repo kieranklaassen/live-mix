@@ -493,6 +493,25 @@ int main() {
     EXPECT(tonal[2] < 0.45, "the tail at the top of Feed is not one tone");
   }
 
+  // At a longer Decay the return is not held under kFeedMost, and the top of
+  // Feed is the share kFeedShare of what the wall loses: the tail is two to
+  // three times as long, not ten (a share of 0.95 would be twenty).
+  {
+    double times[2];
+    for (int k = 0; k < 2; ++k) {
+      plain(device);
+      device.set_param(p::kDecay, 6.0f);
+      device.set_param(p::kFeed, k == 0 ? 0.0f : 1.0f);
+      rng_state() = 0xFEEDu;
+      std::vector<float> burst = soft_noise(0.5f, 0.3f);
+      burst.resize(static_cast<size_t>(kRate * 60.0f), 0.0f);
+      Stereo out = run(device, burst);
+      times[k] = rt60(out.left, kRate, 1.0, 0.25, -110.0);
+    }
+    std::printf("haze: RT60 at Decay 6 s with Feed 0 and 1: %.2f, %.2f s\n", times[0], times[1]);
+    EXPECT(times[1] > times[0] * 1.6 && times[1] < times[0] * 3.4, "the top of Feed at a long Decay is two to three times the tail");
+  }
+
   // The top of Feed at every corner of the other controls: Tone, Haze,
   // Octave, Blur and Size each at both ends, Decay at 2 s. After a burst the
   // wall falls 60 dB in a time that ends (Tone's tilt once added 6 dB inside

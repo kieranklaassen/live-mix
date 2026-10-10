@@ -303,7 +303,7 @@ interface HazeBoxes {
 /** The two boxes, from the size the display is given: the curve near square at the left, the wall in the rest. */
 export function hazeBoxes(view: Pick<DisplayView, 'width' | 'height'>): HazeBoxes {
   const box: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 }
-  const wide = Math.round(clamp(box.w * 0.3, 44, Math.max(44, box.h * 1.6)))
+  const wide = Math.round(clamp(Math.max(box.w * 0.3, box.h * 0.8), 44, Math.max(44, box.h * 1.6)))
   return {
     curve: { x: box.x, y: box.y, w: wide, h: box.h },
     tail: { x: box.x + wide + 7, y: box.y, w: box.w - wide - 7, h: box.h },
