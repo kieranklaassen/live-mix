@@ -116,7 +116,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   static constexpr int kDisplayPoints = (kPoints - 1) / kDisplayStep + 1;  // 55
   static constexpr int kPerReading = 4;
   static constexpr int kReadings = 14;
-  static constexpr int kLevels = 64;  // whole dB from -32 to +31
+  static constexpr int kLevels = 64;  // whole dB from -31 to +31; a digit of 0 is never sent, so a reading of 0 is none
   static_assert(kReadings * kPerReading >= kDisplayPoints, "every point needs a place in a reading");
 
   static constexpr int kBuiltIn = 6;
@@ -281,7 +281,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   // The readings named by "meters" in device.json, all for the display.
   // 0 to 13: the captured colour (after Smooth, its trend taken off, before
   // Shift and Amount) at every fourth grid point, each the mean of the four
-  // grid steps around it, in whole dB from -32 to +31 as one digit of a number
+  // grid steps around it, in whole dB from -31 to +31 as one digit of a number
   // in base 64, four points to a reading and the lowest point in the lowest
   // digit (64^4 is 2^24: a float holds it exactly). 14: how much of the
   // Learn time has been heard since Capture was switched on, 0 (nothing
@@ -530,7 +530,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
           for (int o = -2; o <= 2; ++o) {
             db += (o == -2 || o == 2 ? 0.125f : 0.25f) * captured_colour_[kit::clamp_int(g + o, 0, kPoints - 1)];
           }
-          level = kit::clamp_int(static_cast<int>(std::floor(db + 0.5f)) + kLevels / 2, 0, kLevels - 1);
+          level = kit::clamp_int(static_cast<int>(std::floor(db + 0.5f)) + kLevels / 2, 1, kLevels - 1);
         }
         packed = packed * kLevels + level;
       }
