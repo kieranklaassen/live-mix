@@ -2427,6 +2427,14 @@
   grid-auto-columns: var(--lm-plate-tool, 16px);
 }
 
+/* The kit's own list of presets has four cells of that row, so the name it
+   shows can be read. */
+.lm-plate--upright .lm-plate__tools--above .lm-device__presets {
+  grid-column: span 4;
+  width: 100%;
+  max-width: none;
+}
+
 .lm-plate--upright .lm-plate__presets {
   position: absolute;
   right: 8px;

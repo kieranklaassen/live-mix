@@ -145,6 +145,10 @@ export interface PlateLayout {
  * than one with a window (a face of four knobs shares that room); past twelve knobs they
  * take two rows and the strip stands beside them at the plate's full working
  * height. A window stands at the left and the knobs take two rows beside it.
+ *
+ * Upright, the plate is 220 by 300 whatever it shows: a display or a picture
+ * across the top and the knobs in two rows under it, or four rows of knobs
+ * from the top with neither. Opened past its face it widens by columns.
  */
 export function plateLayout(
   knobs: number,
@@ -158,29 +162,37 @@ export function plateLayout(
     const topped = display !== undefined || pictured
     const rows = topped ? UPRIGHT_ROWS : UPRIGHT_PLAIN_ROWS
     const across = Math.ceil(knobs / rows)
-    // Few knobs stand two abreast, more three and four; past the face the plate widens by columns.
-    const columns = topped ? Math.max(2, across) : Math.max(UPRIGHT_FACE_PER_ROW, across)
-    const room = UPRIGHT_PLATE_WIDTH - 2 * UPRIGHT_SIDE
-    const column =
-      columns <= UPRIGHT_FACE_PER_ROW ? Math.floor(room / columns) : Math.floor(room / UPRIGHT_FACE_PER_ROW)
+    // A lone knob stands in the middle; few stand two abreast, more three and four. Past the face the plate widens by columns.
+    const columns = topped
+      ? Math.max(knobs === 1 ? 1 : 2, across)
+      : Math.max(UPRIGHT_FACE_PER_ROW, across)
+    const face = Math.floor((UPRIGHT_PLATE_WIDTH - 2 * UPRIGHT_SIDE) / UPRIGHT_FACE_PER_ROW)
     const width =
       columns <= UPRIGHT_FACE_PER_ROW
         ? UPRIGHT_PLATE_WIDTH
-        : cells(2 * UPRIGHT_SIDE + columns * column) + (UPRIGHT_PLATE_WIDTH % CELL)
+        : cells(2 * UPRIGHT_SIDE + columns * face) + (UPRIGHT_PLATE_WIDTH % CELL)
+    // A face shares the plate's width; past it a knob keeps the column of four abreast, and the rows stand in the middle.
+    const column =
+      columns <= UPRIGHT_FACE_PER_ROW ? Math.floor((width - 2 * UPRIGHT_SIDE) / columns) : face
     return {
       rows,
       columns,
       column,
       width,
-      knobsLeft: UPRIGHT_SIDE,
+      knobsLeft: Math.floor((width - columns * column) / 2),
       display: display
-        ? { left: UPRIGHT_SIDE, top: UPRIGHT_SIDE, width: width - 2 * UPRIGHT_SIDE, height: DISPLAY_WINDOW_HEIGHT }
+        ? {
+            left: UPRIGHT_SIDE,
+            top: UPRIGHT_SIDE,
+            width: width - 2 * UPRIGHT_SIDE,
+            height: DISPLAY_WINDOW_HEIGHT,
+          }
         : null,
       upright: {
         height: UPRIGHT_PLATE_HEIGHT,
         knobsTop: topped ? UPRIGHT_KNOBS_TOP : UPRIGHT_SIDE,
         row: topped ? UPRIGHT_ROW : UPRIGHT_PLAIN_ROW,
-        knob: topped && columns === 2 ? UPRIGHT_LARGE_KNOB : KNOB_SIZE,
+        knob: topped && columns <= 2 ? UPRIGHT_LARGE_KNOB : KNOB_SIZE,
       },
     }
   }
@@ -374,7 +386,9 @@ export function DevicePlate({
         : FACE_PER_ROW * 2
   const chosen = skin.face?.filter((name) => all.includes(name)) ?? all
   // An upright face holds more than a skin chose for a flat one: its own first, then the rest in their order.
-  const face = (upright ? [...chosen, ...all.filter((name) => !chosen.includes(name))] : chosen).slice(0, onFace)
+  const face = (
+    upright ? [...chosen, ...all.filter((name) => !chosen.includes(name))] : chosen
+  ).slice(0, onFace)
   const rest = all.filter((name) => !face.includes(name))
   const names = open ? [...face, ...rest] : face
   const layout = plateLayout(names.length, picture !== undefined, display, upright)
