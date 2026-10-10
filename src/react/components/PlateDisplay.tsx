@@ -295,7 +295,15 @@ export class DisplayRunner {
   /** In silence: sound again sets it running. */
   listen(): void {
     if (this.disposed || !settled.has(this)) return
-    if (this.taps?.listen(QUIET, LISTEN_BACK_SEC)) this.sync(true)
+    if (this.sounding() || this.taps?.listen(QUIET, LISTEN_BACK_SEC)) this.sync(true)
+  }
+
+  /** Whether a display that reads notes has notes to draw: they run it on, however quiet. */
+  private sounding(): boolean {
+    const { display, device } = this.inputs()
+    return (
+      display.live?.notes === true && isNoteWatchDevice(device) && device.playedNotes().length > 0
+    )
   }
 
   /** Whether what it draws from is other than at the last call: the settings, the size, the device, the power. */
@@ -395,9 +403,11 @@ export class DisplayRunner {
     const signal = this.taps && reads ? this.taps.read() : null
     this.draw(nowMs, dt, signal, true)
     // Without taps nothing says there is silence, and it runs on.
-    const heard = signal
-      ? signal.output.peak > QUIET || (signal.input?.peak ?? 0) > QUIET
-      : (this.taps?.heard(QUIET) ?? true)
+    const heard =
+      this.sounding() ||
+      (signal
+        ? signal.output.peak > QUIET || (signal.input?.peak ?? 0) > QUIET
+        : (this.taps?.heard(QUIET) ?? true))
     this.quietSec = heard ? 0 : this.quietSec + dt
     if (this.quietSec >= (live.settle ?? SETTLE_SEC)) this.settle()
   }
