@@ -1068,7 +1068,11 @@ describe('the points of the Pulses display', () => {
     // and at less, where the make-up is at its most and where it is not. The
     // ring stands on what is heard between pulses, so the Floor found is the
     // one that leaves that much once it is made up, at the Length the hand is at.
-    for (const base of [{}, { fill: 8, edge: 0.6 }, { steps: 2, fill: 2, apart: 0, drift: 0 }]) {
+    for (const base of [
+      {},
+      { fill: 8, edge: 0.6 },
+      { steps: 2, fill: 2, apart: 0, drift: 0 },
+    ] as Values[]) {
       for (const mix of [1, 0.75, 0.3, 0]) {
         const reach = Math.max(0.5, mix)
         const top = levelY(1)
