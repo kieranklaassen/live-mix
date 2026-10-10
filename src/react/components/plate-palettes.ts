@@ -118,7 +118,7 @@ export const PLATE_PALETTES = {
   flock: { plate: '#f58cc4', ink: '#3a0a26', accent: '#1f48d0' },
   'magnet-piano': { plate: '#10124f', ink: '#eceeff', accent: '#ff8a5c' },
   overtone: { plate: '#6e0f1c', ink: '#fdeee6', accent: '#ffc94d' },
-  staircase: { plate: '#6a2bd0', ink: '#f3ecff', accent: '#ffd24d' },
+  staircase: { plate: '#bc00b4', ink: '#fff0fd', accent: '#ffd24d' },
   shortwave: { plate: '#123a14', ink: '#e6f6e0', accent: '#ffb347' },
   ice: { plate: '#7ff0e0', ink: '#052a2a', accent: '#cc1144' },
   rewind: { plate: '#4a0d66', ink: '#f6e9ff', accent: '#7ef0d0' },
