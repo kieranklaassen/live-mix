@@ -151,6 +151,7 @@ export const PLATE_PALETTES = {
   murmuration: { plate: '#84779f', ink: '#15112a', accent: '#fff4c7' },
   weather: { plate: '#3b4a6b', ink: '#eef2fb', accent: '#ffe45c' },
   'late-vibrato': { plate: '#a565a6', ink: '#1f0b22', accent: '#fff2c0' },
+  seasons: { plate: '#c6e68a', ink: '#18280c', accent: '#8f1838' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

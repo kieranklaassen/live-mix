@@ -42,6 +42,7 @@ import { PULSES_FACES } from './pulses'
 import { REVERB_FACES } from './reverb'
 import { SKIPPING_STONE_FACES } from './skipping-stone'
 import { RING_FACES } from './ring'
+import { SEASONS_FACES } from './seasons'
 import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
@@ -107,4 +108,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...MURMURATION_FACES,
   ...WEATHER_FACES,
   ...LATE_VIBRATO_FACES,
+  ...SEASONS_FACES,
 }
