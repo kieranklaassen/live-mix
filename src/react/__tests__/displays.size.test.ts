@@ -20,6 +20,7 @@ import {
   SIZE_MOST_GAIN_DB,
   SIZE_MOST_OCTAVES,
   SIZE_OCTAVES,
+  SIZE_SPECTRUM_DB,
   SIZE_TILT_DB_PER_OCTAVE,
   SIZE_TILT_MOST_DB,
   SIZE_TILT_PIVOT_HZ,
@@ -132,10 +133,14 @@ function dotsOf(drawn: RecordingContext, colour: string): [number, number, numbe
   return dots
 }
 
+/** Where the picture puts a level of the outline: the device's dB on the spectrum's scale. */
 const yOf = (db: number): number =>
   Math.min(
     plot.y + plot.h,
-    Math.max(plot.y, plot.y + ((SIZE_TOP_DB - db) / (SIZE_TOP_DB - SIZE_FOOT_DB)) * plot.h),
+    Math.max(
+      plot.y,
+      plot.y + ((SIZE_TOP_DB - (db + SIZE_SPECTRUM_DB)) / (SIZE_TOP_DB - SIZE_FOOT_DB)) * plot.h,
+    ),
   )
 const hzAt = (x: number): number =>
   SIZE_MIN_HZ * Math.pow(SIZE_MAX_HZ / SIZE_MIN_HZ, (x - plot.x) / plot.w)
@@ -161,6 +166,8 @@ describe('Size', () => {
     // kBodyPoints, kBodyFirstHz, kBodyStepOctaves, kMeterFloorDb, and the readings the manifest names.
     expect([SIZE_BODY_POINTS, SIZE_BODY_FIRST_HZ, SIZE_BODY_STEP_OCTAVES]).toEqual([24, 40, 0.375])
     expect(SIZE_METER_FLOOR_DB).toBe(-120)
+    // meter() reads a full-scale sine's bin (kFullScale) as 0 dB; the analyser behind reads it as 0.42 / 2.
+    expect(SIZE_SPECTRUM_DB).toBeCloseTo(-13.556, 3)
     expect(Object.keys(descriptor.meters ?? {})).toEqual([
       'sizeLeft',
       'sizeRight',
@@ -378,7 +385,11 @@ describe('Size', () => {
   })
 
   it('is a still picture of the settings when there is no sound', () => {
-    for (const values of [{}, { size: -1, pitch: 5, wander: 1, width: 1, tone: -1 }]) {
+    const settings: Record<string, number>[] = [
+      {},
+      { size: -1, pitch: 5, wander: 1, width: 1, tone: -1 },
+    ]
+    for (const values of settings) {
       const one = drawDisplay(display, params, { meters, values, now: 10 })
       const other = drawDisplay(display, params, { meters, values, now: 73.4 })
       expect(other.print()).toBe(one.print())

@@ -32,7 +32,6 @@ import {
   xOfHz,
   yOfDb,
   type Box,
-  type Point,
 } from '../display-kit'
 import {
   plateDisplay,
@@ -64,9 +63,17 @@ export const SIZE_METER_FLOOR_DB = -120
 export const SIZE_MIN_HZ = 80
 export const SIZE_MAX_HZ = 7240
 export const SIZE_MIDDLE_HZ = Math.sqrt(SIZE_MIN_HZ * SIZE_MAX_HZ)
-/** Its level scale. */
-export const SIZE_TOP_DB = -6
-export const SIZE_FOOT_DB = -84
+/** Its level scale, which is the spectrum's own. */
+export const SIZE_TOP_DB = -18
+export const SIZE_FOOT_DB = -90
+/**
+ * Where the outline's 0 dB lies on that scale. The device reads a full-scale
+ * sine as 0 dB in its own bin; the spectrum behind is the analyser's, whose
+ * window (Blackman, 0.42 at its middle) and scaling read the same sine as
+ * 20 log10(0.42 / 2). The outline is drawn that much lower, so it lies on the
+ * partials it was taken from.
+ */
+export const SIZE_SPECTRUM_DB = 20 * Math.log10(0.21)
 /** The height of the row each point slides in, above and below the picture. */
 const SIZE_ROW = 10
 /** Under this nothing of the resized sound is heard, as for the plate that draws the display. */
@@ -222,19 +229,23 @@ interface SizeState {
   /** The outline's readings, in dB. */
   body: Float32Array
   /** The outlines' points, written again on every frame. */
-  stands: Point[]
-  left: Point[]
-  right: Point[]
+  stands: Spot[]
+  left: Spot[]
+  right: Spot[]
 }
+
+/** A point that is written again on every frame. */
+type Spot = [number, number]
 
 /** `count` points to write into. */
-function points(kept: Point[], count: number): Point[] {
+function points(kept: Spot[], count: number): Spot[] {
   if (kept.length === count) return kept
-  return Array.from({ length: count }, (): [number, number] => [0, 0])
+  return Array.from({ length: count }, (): Spot => [0, 0])
 }
 
+/** Where a level of the outline, in the device's dB, stands in the picture. */
 const sizeY = (db: number, plot: Box): number =>
-  clamp(yOfDb(db, plot, SIZE_TOP_DB, SIZE_FOOT_DB), plot.y, plot.y + plot.h)
+  clamp(yOfDb(db + SIZE_SPECTRUM_DB, plot, SIZE_TOP_DB, SIZE_FOOT_DB), plot.y, plot.y + plot.h)
 
 /** A number of semitones as it is said: "+7 st", "−5 st", "+0.12 st". */
 function semitoneText(semitones: number): string {

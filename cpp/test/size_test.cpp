@@ -1,7 +1,8 @@
 // Native harness for Size (cpp/devices/size): the conformance pass, then what makes it what it is. A harmonic
 // tone with a known body (a hill at 1 kHz) keeps its partials to the cent while the hill moves by Size's ratio;
-// Pitch moves the partials and the hill stays; the level holds; nothing bursts when Size is swept; the dry path
-// is a latency late and in step.
+// Pitch moves the partials and the hill stays; the level holds at every preset and at the ends of every knob;
+// nothing bursts when a knob is moved; the drift runs by the clock through sleep, the same at any block size;
+// bad samples are got over; the dry path is a latency late and in step.
 
 #include "../devices/size/size.h"
 #include "support/test_kit.h"
@@ -399,6 +400,7 @@ static void test_moves_without_clicks() {
     int id;
     float low, middle, high;
     bool jumps;  // a jump from end to end twice a second; else a glide there and back in a second
+    float mix = 1.0f;
   };
   const Sweep sweeps[] = {
       {"size swept", p::kSize, -1.0f, 0.0f, 1.0f, false}, {"size jumping", p::kSize, -1.0f, 0.0f, 1.0f, true},
@@ -406,16 +408,19 @@ static void test_moves_without_clicks() {
       {"detail jumping", p::kDetail, 0.0f, 0.5f, 1.0f, true}, {"wander jumping", p::kWander, 0.0f, 0.5f, 1.0f, true},
       {"width jumping", p::kWidth, 0.0f, 0.5f, 1.0f, true}, {"tone swept", p::kTone, -1.0f, 0.0f, 1.0f, false},
       {"mix swept", p::kMix, 0.0f, 0.5f, 1.0f, false}, {"mix jumping", p::kMix, 0.0f, 0.5f, 1.0f, true},
+      // Part way, the mix changes its law as the notes leave where they were played.
+      {"pitch jumping at mix 0.5", p::kPitch, -12.0f, 0.0f, 12.0f, true, 0.5f},
+      {"fine swept at mix 0.5", p::kFine, -50.0f, 0.0f, 50.0f, false, 0.5f},
   };
   for (const Sweep& sweep : sweeps) {
     double quiet_step = 0.0, quiet_peak = 0.0;
     for (float held : {sweep.low, sweep.middle, sweep.high}) {
-      fresh({{sweep.id, held}});
+      fresh({{p::kMix, sweep.mix}, {sweep.id, held}});
       const Stereo out = run(device, in);
       quiet_step = std::max(quiet_step, max_step(out.left, 48000));
       quiet_peak = std::max(quiet_peak, peak(out.left, 48000));
     }
-    fresh({{sweep.id, sweep.low}});
+    fresh({{p::kMix, sweep.mix}, {sweep.id, sweep.low}});
     const Stereo out = run_moving(in, [&](double t) {
       if (t < 1.0 || t > 3.0) return;
       const double turn = (t - 1.0) - std::floor(t - 1.0);
@@ -507,7 +512,7 @@ static void test_block_sizes_across_a_silence() {
   EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
 }
 
-// The presets of device.json, copied here by tmp script when they change: keep the two in step.
+// The presets of device.json, copied here: keep the two in step.
 struct Preset {
   const char* name;
   std::vector<Knob> knobs;
