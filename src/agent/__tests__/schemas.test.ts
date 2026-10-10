@@ -169,6 +169,11 @@ describe('operation tool schemas', () => {
       expect(Object.keys(schema.$defs ?? {}).length).toBeLessThanOrEqual(12)
     }
     expect(operationSchema('strip.set').$defs).toBeUndefined()
+    // A slot's clip takes turns as a clip on a track does, under the one definition.
+    expect(operationSchema('slot.add').$defs?.SlotClip?.properties?.turns).toEqual({
+      $ref: '#/$defs/ClipTurns',
+    })
+    expect(operationSchema('slot.add').$defs?.ClipTurns).toBeDefined()
     expect(Object.keys(operationSchema('track.add').$defs ?? {}).sort()).toEqual([
       'Clip',
       'ClipTurns',

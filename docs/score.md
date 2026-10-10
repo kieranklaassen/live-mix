@@ -85,8 +85,9 @@ round: `sourceIds[floor(pass / every) % sourceIds.length]`, counted on the
 same passes, so pass 14 plays the same source every time, in a bounce as on
 a device. Every source it names is one of the score's, `source.remove`
 refuses while a clip's turns still name it, and `clip.update` takes
-`turns: null` to play the clip's own `sourceId` again. Audio tracks only: a
-stretch or element track plays `sourceId`. A clip with `reversed: true`
+`turns: null` to play the clip's own `sourceId` again. A slot's clip keeps
+its turns the same way, and a launch puts them on the clip it places. Audio
+tracks only: a stretch or element track plays `sourceId`. A clip with `reversed: true`
 plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that

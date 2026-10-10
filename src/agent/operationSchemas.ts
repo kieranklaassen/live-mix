@@ -531,6 +531,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
         min: 0,
         max: 1,
       }),
+      turns: ref('ClipTurns'),
       pan: number("The clip's own place, −1 left … 1 right, ahead of the track's pan.", {
         min: -1,
         max: 1,

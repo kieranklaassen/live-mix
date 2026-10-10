@@ -556,8 +556,9 @@ function assertSlotCell(score: Score, op: Operation, slot: ScoreSlot): void {
 }
 
 function assertSlotSettings(score: Score, op: Operation, slot: ScoreSlot): void {
-  if (slot.clip !== null && !score.sources.some((source) => source.id === slot.clip?.sourceId)) {
-    fail(op, `no source "${slot.clip.sourceId}"`)
+  // Every source the slot's clip names, its own and its turns', is one the score has.
+  for (const id of slot.clip === null ? [] : clipSourceIds(slot.clip)) {
+    if (!score.sources.some((source) => source.id === id)) fail(op, `no source "${id}"`)
   }
   if (slot.quantize !== undefined && !isLaunchQuantize(slot.quantize)) {
     fail(op, 'quantize must be none, bar, beat, a positive bar count or { seconds > 0 }')
@@ -1061,7 +1062,7 @@ function applyOne(score: Score, op: Operation): Score {
         }
       }
       for (const slot of score.slots) {
-        if (slot.clip?.sourceId === op.id)
+        if (slot.clip !== null && clipSourceIds(slot.clip).includes(op.id))
           fail(op, `source "${op.id}" is used by slot "${slot.id}"`)
       }
       for (const track of score.elementTracks) {
