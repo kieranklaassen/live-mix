@@ -134,6 +134,14 @@ describe('the tempo of a sound', () => {
     expect(paramsOf(patch.effects[0]).modRate).toBeCloseTo(0.5 * (90 / 120), 9)
   })
 
+  it('turns an ensemble as many times in a bar, on the instrument too', () => {
+    const patch = patchAtTempo(
+      { instrument: { deviceId: 'string-machine', params: { speed: 0.8333 } }, effects: [] },
+      tempoRatio(120, 150),
+    )
+    expect(paramsOf(patch.instrument).speed).toBeCloseTo(0.8333 * (150 / 120), 9)
+  })
+
   it('leaves the devices that keep no time as they are', () => {
     const patch = { effects: [{ deviceId: 'plate-reverb', params: { mix: 0.3 } }] }
     expect(patchAtTempo(patch, 1.5).effects[0]).toBe(patch.effects[0])

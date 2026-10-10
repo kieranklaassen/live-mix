@@ -333,6 +333,8 @@ export async function renderFactorySound(
     skipSec: inKey.skipSec,
     loopCrossfadeSec: inKey.loopCrossfadeSec,
     loopFold: inKey.loopFold,
+    // A sound that keeps time is laid beside others that do: what its devices delay it by is taken out.
+    alignLatency: inKey.bpm !== undefined,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
     normalizePeakDb: FACTORY_PEAK_DB,
   })

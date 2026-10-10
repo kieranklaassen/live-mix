@@ -45,6 +45,8 @@ const TIMED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'time' | 'ra
   'grain-delay': { time: 'time' },
   tremolo: { rate: 'rate' },
   'auto-filter': { lfoRateHz: 'rate' },
+  // Not in hertz: it turns the ensemble's two sweeps (0.6 and 6 Hz at 1) faster or slower, which is a rate all the same.
+  'string-machine': { speed: 'rate' },
 }
 
 function deviceAtTempo(device: PatchDevice, ratio: number): PatchDevice {

@@ -81,7 +81,7 @@ export const VARIATION_LIMITS = {
   /** Touch: how early or late a note may be, seconds; never more than a third of the way to the next one. */
   timingSec: 0.12,
   /** Touch: the same for a sound that keeps time, where more than this is a note off the beat. */
-  beatTimingSec: 0.02,
+  beatTimingSec: 0.01,
   /** Touch: how much harder or softer a note may be played against the others, dB. */
   gainDb: 3,
   /** Touch: how far off pitch a note may be, cents. Not for a sound tuned to whole cycles. */

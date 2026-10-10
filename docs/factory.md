@@ -248,7 +248,7 @@ loop of that many bars and sets `bpm`. A row shorter than the loop repeats
 to fill it and has to fill it exactly.
 
 A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
-stroke by at most `VARIATION_LIMITS.beatTimingSec` (20 ms) instead of the
+stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
 `timingSec` a free phrase is given.
 
 ### Kits
