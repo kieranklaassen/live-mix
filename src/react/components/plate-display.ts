@@ -189,7 +189,11 @@ export interface PlateDisplay<S = unknown> {
     spectrum?: boolean
     /** Reads the output's two sides apart too (`frame.signal.left` and `right`). */
     stereo?: boolean
-    /** Reads the notes an instrument was sent (`frame.notes`). */
+    /**
+     * Reads the notes an instrument was sent (`frame.notes`). While the device
+     * remembers one the display runs on, however quiet the sound is, and a
+     * note sets a display that stands still running before any sound comes.
+     */
     notes?: boolean
     /** Frames per second: 30 unless something small moves fast enough to need 60. */
     fps?: 30 | 60
