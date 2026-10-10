@@ -12,12 +12,14 @@ import { INK, PLAIN_COLOURS } from '../components/display-kit'
 import {
   CURRENTS,
   CURRENTS_FACES,
+  CYCLE_TOP,
   currentsGain,
   currentsHeard,
   currentsLaneY,
   currentsLayout,
   currentsPhases,
   currentsRatio,
+  currentsReach,
   currentsSeed,
   currentsStart,
   currentsTrim,
@@ -43,15 +45,16 @@ const kBreak = 0.42
 const kWander = 0.6
 const kSkew = 0.2
 const kLeastTurn = 0.06
+const kTrimDepth = 0.6
 const kLevelStart = 0.35
 const kLevelStep = 0.618034
 const kSideStart = 0.25
 const kSideStep = 0.381966
 const kLevelSeed = 0x51c0ffee
 const kSideSeed = 0x0dd5ea51
-/** `centre_hz` in the header: the bands stand evenly in pitch from Low Hold up to `kTopHz`. */
+/** `centre_hz` in the header: the bands stand evenly in pitch, the lowest half a step over Low Hold, the highest at `kTopHz`. */
 const centreHz = (lowHold: number, count: number, band: number): number =>
-  lowHold * Math.pow(Math.max(kTopHz / lowHold, 2), (band + 1) / count)
+  lowHold * Math.pow(Math.max(kTopHz / lowHold, 2), (band + 0.5) / (count - 0.5))
 
 type Values = Readonly<Record<string, number>>
 const SPECS: Readonly<Record<string, ParamSpec>> = CURRENTS_PARAMS
@@ -189,6 +192,7 @@ describe("the Currents display's numbers", () => {
       wander: kWander,
       skew: kSkew,
       leastTurn: kLeastTurn,
+      trimDepth: kTrimDepth,
       levelStart: kLevelStart,
       levelStep: kLevelStep,
       sideStart: kSideStart,
@@ -247,17 +251,24 @@ describe("the Currents display's numbers", () => {
 
   it('give the gain the header gives: untouched at the crest of a still band, the power of a cycle kept', () => {
     expect(currentsTrim(0)).toBe(1)
-    expect(currentsTrim(1)).toBeCloseTo(1 / Math.sqrt(0.25 + 0.125), 9)
+    // Past kTrimDepth the crest goes no higher: at full Depth it is the one at Depth 0.6.
+    expect(CURRENTS.trimDepth).toBe(kTrimDepth)
+    expect(currentsTrim(kTrimDepth)).toBeCloseTo(1 / Math.sqrt(0.7 * 0.7 + 0.125 * 0.36), 9)
+    expect(currentsTrim(1)).toBe(currentsTrim(kTrimDepth))
+    expect(currentsTrim(0.8)).toBe(currentsTrim(kTrimDepth))
     expect(currentsGain(1, -1)).toBe(0)
     expect(currentsGain(0.6, 1)).toBeCloseTo(currentsTrim(0.6), 9)
     expect(currentsGain(0.6, -1)).toBeCloseTo(currentsTrim(0.6) * 0.4, 9)
-    // Over one plain cycle the mean of the gain squared is 1 at any Depth.
+    // Over one plain cycle the mean of the gain squared is 1 up to kTrimDepth, and under 1 past it.
     for (const depth of [0.3, 0.6, 1]) {
       let power = 0
       for (let n = 0; n < 1000; n++)
         power += currentsGain(depth, currentsWave(n / 1000, 0.5, 0, 1)) ** 2 / 1000
-      expect(power).toBeCloseTo(1, 3)
+      if (depth <= kTrimDepth) expect(power).toBeCloseTo(1, 3)
+      else expect(power).toBeCloseTo(currentsTrim(kTrimDepth) ** 2 * 0.375, 3)
     }
+    // The top of the large cycle stands over the highest crest there is.
+    expect(CYCLE_TOP).toBeGreaterThan(currentsTrim(1))
     // A centred sound: both sides alike with the side wave at rest, all on one side with it at its end.
     expect(currentsHeard(0.6, 1, 1, 1, 0).left).toBeCloseTo(currentsTrim(0.6), 9)
     expect(currentsHeard(0.6, 1, 1, 1, 0).right).toBeCloseTo(currentsTrim(0.6), 9)
@@ -387,7 +398,7 @@ describe('the Currents display against the compiled device', () => {
 })
 
 describe('the Currents display', () => {
-  // On a plate at rest (184 by 48 in this harness): the cycle 40 wide from (4, 6), the streams from x 50.
+  // On a plate at rest (184 by 48 in this harness): the cycle 55 wide from (4, 6), the streams from x 65.
   it('lays itself out from the size it is given', () => {
     for (const [width, height] of [
       [224, 48],
@@ -397,18 +408,18 @@ describe('the Currents display', () => {
     ]) {
       const lay = currentsLayout(view({ width, height, values: { bands: 6 } }))
       expect(lay.cycle.x).toBe(4)
-      expect(lay.cycle.w).toBeGreaterThanOrEqual(40)
-      expect(lay.cycle.w).toBeLessThanOrEqual(60)
+      expect(lay.cycle.w).toBeGreaterThanOrEqual(48)
+      expect(lay.cycle.w).toBeLessThanOrEqual(72)
       expect(lay.cycle.y + lay.cycle.h).toBe(height - 6)
       expect(lay.lanes.x).toBeGreaterThan(lay.cycle.x + lay.cycle.w)
       expect(lay.lanes.x + lay.lanes.w).toBe(width - 4)
-      expect(lay.lanes.y + lay.lanes.h).toBe(height - 4)
-      expect(lay.laneHeight * 6).toBeCloseTo(height - 8, 9)
+      expect(lay.lanes.y + lay.lanes.h).toBe(height - 3)
+      expect(lay.laneHeight * 6).toBeCloseTo(height - 6, 9)
       // Now stands seven tenths of the way across the streams.
       expect(lay.nowX).toBeCloseTo(lay.lanes.x + 0.7 * lay.lanes.w, 9)
       // The lowest band at the foot.
-      expect(currentsLaneY(lay, 0)).toBeCloseTo(height - 4 - lay.laneHeight / 2, 9)
-      expect(currentsLaneY(lay, 5)).toBeCloseTo(4 + lay.laneHeight / 2, 9)
+      expect(currentsLaneY(lay, 0)).toBeCloseTo(height - 3 - lay.laneHeight / 2, 9)
+      expect(currentsLaneY(lay, 5)).toBeCloseTo(3 + lay.laneHeight / 2, 9)
     }
   })
 
@@ -543,8 +554,8 @@ describe('the Currents display', () => {
         const [cycle] = curves(drawn)
         const depth = at.value('depth')
         const mix = at.value('mix')
-        // A gain of 0 at the foot of the cycle's box, 1.75 at its top; a phase from 5 px in to 5 px in.
-        const yOf = (gain: number) => lay.cycle.y + lay.cycle.h * (1 - gain / 1.75)
+        // A gain of 0 at the foot of the cycle's box, CYCLE_TOP at its top; a phase from 5 px in to 5 px in.
+        const yOf = (gain: number) => lay.cycle.y + lay.cycle.h * (1 - gain / CYCLE_TOP)
         const xOf = (phase: number) => lay.cycle.x + 5 + phase * (lay.cycle.w - 10)
         const heard = (m: number) => 1 + mix * (currentsGain(depth, m) - 1)
         expect(cycle[0].x).toBeCloseTo(xOf(0), 9)
@@ -580,18 +591,29 @@ describe('the Currents display', () => {
     const at = view({ values })
     const lay = currentsLayout(at)
     const drawn = drawDisplay(display, CURRENTS_PARAMS, { values, meters: SOMEWHERE })
-    const yOf = (gain: number) => lay.cycle.y + lay.cycle.h * (1 - gain / 1.75)
+    const yOf = (gain: number) => lay.cycle.y + lay.cycle.h * (1 - gain / CYCLE_TOP)
+    const xOf = (phase: number) => lay.cycle.x + 5 + phase * (lay.cycle.w - 10)
     const [shade] = fills(drawn).filter(
       (fill) => fill.alpha === INK.fill && fill.colour === PLAIN_COLOURS.ink,
     )
-    // From the plain cycle to the smallest a cycle gets: its trough kWander higher, its crest kWander lower.
+    // The shade is where a cycle can go: at every place across it, from the highest any cycle
+    // gets there to the lowest (`currentsReach`), through the gain the device gives.
+    const half = shade.points.length / 2
+    const upper = shade.points.slice(0, half)
+    const lower = shade.points.slice(half).reverse()
+    expect(upper[0].x).toBeCloseTo(xOf(0), 9)
+    expect(upper[half - 1].x).toBeCloseTo(xOf(1), 9)
+    for (let n = 0; n < half; n++) {
+      const phase = (upper[n].x - xOf(0)) / (lay.cycle.w - 10)
+      const [low, high] = currentsReach(phase, currentsTurn(0.5), 1)
+      expect(lower[n].x).toBeCloseTo(upper[n].x, 9)
+      expect(upper[n].y).toBeCloseTo(yOf(currentsGain(0.8, high)), 6)
+      expect(lower[n].y).toBeCloseTo(yOf(currentsGain(0.8, low)), 6)
+    }
+    // It reaches from the deepest trough to the highest crest.
     const ys = shade.points.map((point) => point.y)
     expect(Math.max(...ys)).toBeCloseTo(yOf(currentsGain(0.8, -1)), 6)
-    expect(Math.min(...ys)).toBeLessThan(yOf(currentsGain(0.8, 1)) + 0.5)
-    const inner = shade.points.slice(shade.points.length / 2).map((point) => point.y)
-    expect(Math.max(...inner)).toBeCloseTo(yOf(currentsGain(0.8, -(1 - kWander))), 6)
-    expect(Math.min(...inner)).toBeLessThan(yOf(currentsGain(0.8, 1 - kWander)) + 0.5)
-    expect(Math.min(...inner)).toBeGreaterThan(yOf(currentsGain(0.8, 1 - kWander)) - 1e-6)
+    expect(Math.min(...ys)).toBeCloseTo(yOf(currentsGain(0.8, 1)), 6)
     // The dot: the lowest band's place in its cycle and the gain its own wave gives there.
     const [mark] = dots(drawn).filter((dot) => dot.r === 2.5)
     expect(mark.x).toBeCloseTo(lay.cycle.x + 5 + 0.35 * (lay.cycle.w - 10), 6)
@@ -623,12 +645,12 @@ describe('the Currents display', () => {
     })
     // The cycle lies level where the sound is untouched.
     const [cycle] = curves(drawn)
-    const unity = lay.cycle.y + lay.cycle.h * (1 - 1 / 1.75)
+    const unity = lay.cycle.y + lay.cycle.h * (1 - 1 / CYCLE_TOP)
     for (const point of cycle) expect(point.y).toBeCloseTo(unity, 9)
     // The rings still stand where the settings are: Depth as far down as half a Mix shows it.
     const depthRing = ringOf('depth', { values })
     expect(depthRing.y).toBeCloseTo(
-      lay.cycle.y + lay.cycle.h * (1 - (1 + 0.5 * (currentsGain(0.9, -1) - 1)) / 1.75),
+      lay.cycle.y + lay.cycle.h * (1 - (1 + 0.5 * (currentsGain(0.9, -1) - 1)) / CYCLE_TOP),
       9,
     )
     expect(ringOf('depth', { values: { ...values, depth: 0.2 } }).y).toBeLessThan(depthRing.y - 2)
@@ -759,6 +781,139 @@ describe("the Currents display's rings", () => {
       expect(ring.drag(lay.lanes.x - 20, ring.y, {}).rate).toBeCloseTo(0.005, 9)
       expect(ring.drag(lay.nowX + 20, ring.y, {}).rate).toBeCloseTo(2, 9)
       expect(ring.reset?.()).toEqual({ rate: 0.1 })
+    }
+  })
+})
+
+describe('the Currents display, second check', () => {
+  it('shades every place a cycle can go: no wave of any band ever leaves the reach, and the reach is tight', () => {
+    for (const chance of [0, 0.3, 1]) {
+      for (const shape of [0, 0.25, 1]) {
+        const turn = currentsTurn(shape)
+        const most = new Array<number>(101).fill(-Infinity)
+        const least = new Array<number>(101).fill(Infinity)
+        for (const band of [0, 3, 5]) {
+          for (const side of [false, true]) {
+            const seed = currentsSeed(band, side)
+            for (let cycle = 0; cycle < kPhaseWrap; cycle += 1) {
+              for (let n = 0; n <= 100; n += 4) {
+                const at = Math.min(n / 100, 0.999999)
+                const m = currentsWave(cycle + at, turn, chance, seed)
+                const [low, high] = currentsReach(at, turn, chance)
+                if (m < low - 1e-9 || m > high + 1e-9)
+                  throw new Error(
+                    `Chance ${chance}, Shape ${shape}: cycle ${cycle} at ${at} is ${m}, outside ${low}..${high}`,
+                  )
+                most[n] = Math.max(most[n], m)
+                least[n] = Math.min(least[n], m)
+              }
+            }
+          }
+        }
+        // Tight: over all those cycles the waves come near both edges of it.
+        for (let n = 0; n <= 100; n += 4) {
+          const [low, high] = currentsReach(Math.min(n / 100, 0.999999), turn, chance)
+          expect(high - most[n], `Chance ${chance}, Shape ${shape}, at ${n}: top`).toBeLessThan(
+            0.25,
+          )
+          expect(least[n] - low, `Chance ${chance}, Shape ${shape}, at ${n}: foot`).toBeLessThan(
+            0.25,
+          )
+        }
+      }
+    }
+    // Without Chance the reach is the plain wave itself.
+    for (let n = 0; n < 50; n++) {
+      const [low, high] = currentsReach(n / 50, currentsTurn(0.25), 0)
+      expect(low).toBeCloseTo(currentsWave(n / 50, currentsTurn(0.25), 0, 1), 9)
+      expect(high).toBeCloseTo(low, 9)
+    }
+  })
+
+  it('keeps the dot of the lowest band inside the shade, whatever cycle it is in', () => {
+    // As first drawn the shade ran from the plain cycle to the smallest one, and a cycle whose
+    // crest came early or late carried the dot out of it.
+    const values = { chance: 1, depth: 0.8, shape: 0.5 }
+    let outside = 0
+    for (let n = 0; n < 400; n++) {
+      const level1 = 1 + n * 0.3137
+      const drawn = drawDisplay(display, CURRENTS_PARAMS, {
+        values,
+        meters: { ...SOMEWHERE, level1 },
+      })
+      const [shade] = fills(drawn).filter(
+        (fill) => fill.alpha === INK.fill && fill.colour === PLAIN_COLOURS.ink,
+      )
+      const [mark] = dots(drawn).filter((dot) => dot.r === 2.5)
+      const half = shade.points.length / 2
+      const upper = shade.points.slice(0, half)
+      const lower = shade.points.slice(half).reverse()
+      // The shade's two edges at the dot, between the two points either side of it.
+      let at = upper.findIndex((point) => point.x >= mark.x)
+      if (at <= 0) at = 1
+      const t = (mark.x - upper[at - 1].x) / (upper[at].x - upper[at - 1].x)
+      const top = upper[at - 1].y + t * (upper[at].y - upper[at - 1].y)
+      const foot = lower[at - 1].y + t * (lower[at].y - lower[at - 1].y)
+      // (y grows downwards; half a pixel for the straight runs between points)
+      if (mark.y < top - 0.5 || mark.y > foot + 0.5) outside += 1
+    }
+    expect(outside).toBe(0)
+  })
+
+  it('writes the time of a cycle in the corner of the large cycle, where it covers no stream', () => {
+    for (const [width, height] of [
+      [224, 48],
+      [204, 100],
+      [184, 48],
+    ]) {
+      for (const values of [{}, { rate: 0.005 }, { rate: 2, bands: 6 }] as Values[]) {
+        const options = { width, height, values, meters: SOMEWHERE }
+        const lay = currentsLayout(view(options))
+        const drawn = drawDisplay(display, CURRENTS_PARAMS, options)
+        const written = drawn.calls.filter((call) => call.name === 'fillText')
+        expect(written).toHaveLength(1)
+        const [words, x, y] = written[0].args as [string, number, number]
+        // The harness measures a letter as 5 px wide, and `label` stands the words on a patch 2 px wider each side.
+        const right = x + words.length * 5 + 2
+        expect(x - 2).toBeGreaterThanOrEqual(lay.cycle.x)
+        expect(right).toBeLessThanOrEqual(lay.cycle.x + lay.cycle.w)
+        expect(right).toBeLessThan(lay.lanes.x)
+        expect(y - 8).toBeGreaterThanOrEqual(0)
+        // Written before the wave and the dot are drawn, so that neither is ever covered by its patch.
+        const order = drawn.calls.map((call) => call.name)
+        let points = 0
+        const wave = order.findIndex((name) => {
+          if (name === 'beginPath') points = 0
+          else if (name === 'lineTo') points += 1
+          return name === 'stroke' && points > 2
+        })
+        expect(wave).toBeGreaterThan(0)
+        expect(order.indexOf('fillText')).toBeLessThan(wave)
+        expect(order.indexOf('fillText')).toBeLessThan(order.indexOf('arc'))
+        // Clear of the Depth ring where it stands highest, at Depth 0 on the untouched line.
+        const ring = ringOf('depth', { ...options, values: { ...values, depth: 0 } })
+        expect(ring.y - 3.5).toBeGreaterThan(y)
+      }
+    }
+  })
+
+  it('gives the Shape ring room to travel and the streams the height there is', () => {
+    for (const [width, height] of [
+      [224, 48],
+      [204, 100],
+    ]) {
+      const lay = currentsLayout(view({ width, height }))
+      const from = ringOf('shape', { width, height, values: { shape: 0 } }).x
+      const to = ringOf('shape', { width, height, values: { shape: 1 } }).x
+      // As first laid out the ring travelled 16 px at 224 wide and under 15 at 204.
+      expect(to - from).toBeGreaterThanOrEqual(21)
+      expect(lay.lanes.y + lay.lanes.h).toBeLessThanOrEqual(height - 3)
+      expect(lay.lanes.h / 6).toBeGreaterThanOrEqual(height === 48 ? 7 : 15)
+      // The Depth ring travels from the untouched line down to silence: 24 px at the least.
+      const still = ringOf('depth', { width, height, values: { depth: 0 } }).y
+      const full = ringOf('depth', { width, height, values: { depth: 1 } }).y
+      expect(full - still).toBeGreaterThanOrEqual(23.9)
+      expect(full).toBeLessThanOrEqual(height - 4)
     }
   })
 })

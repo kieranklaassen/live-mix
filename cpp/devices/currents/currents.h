@@ -16,15 +16,21 @@
 //   at the centre. Nothing is split and summed again: with Depth 0 and Sway 0
 //   every term is exactly nought and the output is the input, bit for bit,
 //   at any Mix. There is no latency and nothing to align.
-// - The centres stand in equal ratios from one step above Low Hold up to
-//   6.4 kHz, and at Focus 0.25 each band meets the next at its half-power
-//   points, so together they cover the range evenly. Focus narrows or widens
-//   every band by up to a factor of 2.8 either way. Below Low Hold only the
-//   lowest band's skirt reaches, 6 dB less for every octave.
-// - Level: g = c · (1 − Depth·(1 − m)/2) for a wave m in −1..1. c is set so
-//   that the power averaged over a cycle is the input's: c² = 1 / ((1 −
-//   Depth/2)² + Depth²/8). At Depth 1 a band falls to silence and crests
-//   4.3 dB over where it was.
+// - The centres stand in equal ratios, the lowest half a step above Low
+//   Hold and the highest at 6.4 kHz, and at Focus 0.25 each band meets the
+//   next at its half-power points, so together they cover the range evenly
+//   and Low Hold is where the lowest band is half way in: a tone there moves
+//   half as far (in power) as one at the band's centre. Below it only that
+//   band's skirt reaches, 6 dB less for every octave. Focus widens every
+//   band by up to a factor of 1.4 (Focus 0) or narrows it by up to 2.8
+//   (Focus 1).
+// - Level: g = c · (1 − Depth·(1 − m)/2) for a wave m in −1..1. Up to Depth
+//   0.6 c is set so that the power averaged over a cycle is the input's:
+//   c² = 1 / ((1 − Depth/2)² + Depth²/8), a crest 2.7 dB over where the band
+//   was at Depth 0.6. Past that c stays where it is: the trough goes on down
+//   to silence and the crest no higher, so a band at full Depth is 1.5 dB
+//   quieter over a cycle and a dense sound whose bands all crest together is
+//   never lifted further than it is at Depth 0.6.
 // - Side: the band's part that both sides share is placed with an equal
 //   power law at Sway·s, s a second wave; what the sides do not share stays
 //   where it was. So a centred sound moves bodily, a wide one keeps its
@@ -73,6 +79,9 @@ class Currents : public kit::DeviceBase<currents::kNumParams> {
   // What Chance 1 does to a cycle: troughs and crests by this much, the crest's place by this much.
   static constexpr float kWander = 0.6f;
   static constexpr float kSkew = 0.2f;
+  // The Depth up to which a band's power over a cycle is kept at the input's;
+  // past it the crest stays as high as it is here (see level_trim).
+  static constexpr float kTrimDepth = 0.6f;
   // The least share of a cycle a rise or a fall is given.
   static constexpr float kLeastTurn = 0.06f;
   // Focus at which the bands meet at their half-power points, and the octaves of width it covers.
@@ -130,10 +139,12 @@ class Currents : public kit::DeviceBase<currents::kNumParams> {
     return from + (to - from) * (0.5f - 0.5f * kit::SineTable::cos_lookup(0.5f * t));
   }
 
-  // What keeps the power of a band, averaged over a cycle, at the input's.
+  // What keeps the power of a band, averaged over a cycle, at the input's,
+  // up to kTrimDepth; past it the crest is held where it stands there.
   static float level_trim(float depth) {
-    const float rest = 1.0f - 0.5f * depth;
-    return 1.0f / std::sqrt(rest * rest + 0.125f * depth * depth);
+    const float d = kit::min(depth, kTrimDepth);
+    const float rest = 1.0f - 0.5f * d;
+    return 1.0f / std::sqrt(rest * rest + 0.125f * d * d);
   }
 
   // A band's gain for a level wave at `m`.
@@ -141,14 +152,16 @@ class Currents : public kit::DeviceBase<currents::kNumParams> {
     return level_trim(depth) * (1.0f - 0.5f * depth * (1.0f - m));
   }
 
-  // The centre of band `band` of `count` above `low_hold`, the ratio between
-  // two centres, and the Q at which neighbours meet at their half-power points.
+  // The ratio between two centres, the centre of band `band` of `count`
+  // above `low_hold` (the lowest half a step above it, so that its lower
+  // half-power point is Low Hold itself at the even width; the highest at
+  // `top`), and the Q at which neighbours meet at their half-power points.
   static float step_ratio(float low_hold, int count, float top) {
-    return std::pow(kit::max(top / low_hold, 2.0f), 1.0f / static_cast<float>(count));
+    return std::pow(kit::max(top / low_hold, 2.0f), 1.0f / (static_cast<float>(count) - 0.5f));
   }
   static float centre_hz(float low_hold, int count, int band, float top) {
     const int slot = band < count ? band : count - 1;
-    return low_hold * std::pow(step_ratio(low_hold, count, top), static_cast<float>(slot + 1));
+    return low_hold * std::pow(step_ratio(low_hold, count, top), static_cast<float>(slot) + 0.5f);
   }
   static float even_q(float ratio) {
     const float root = std::sqrt(ratio);

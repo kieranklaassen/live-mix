@@ -50,6 +50,8 @@ export const CURRENTS = {
   skew: 0.2,
   /** kLeastTurn: the least share of a cycle a rise or a fall is given. */
   leastTurn: 0.06,
+  /** kTrimDepth: the Depth past which a band's crest goes no higher. */
+  trimDepth: 0.6,
   /** kLevelStart, kLevelStep, kSideStart, kSideStep: where the waves stand when the device starts. */
   levelStart: 0.35,
   levelStep: 0.618034,
@@ -119,10 +121,42 @@ export function currentsWave(phase: number, turn: number, chance: number, seed: 
 /** The share of a cycle the rise takes at a Shape (`kTurn + kBreak · Shape`). */
 export const currentsTurn = (shape: number): number => CURRENTS.turn + CURRENTS.break * shape
 
-/** `Currents::level_trim`: what keeps a band's power over a cycle at the input's. */
+/**
+ * `Currents::level_trim`: what keeps a band's power over a cycle at the
+ * input's, up to `kTrimDepth`; past it the crest stays where it stands there.
+ */
 export function currentsTrim(depth: number): number {
-  const rest = 1 - 0.5 * depth
-  return 1 / Math.sqrt(rest * rest + 0.125 * depth * depth)
+  const d = Math.min(depth, CURRENTS.trimDepth)
+  const rest = 1 - 0.5 * d
+  return 1 / Math.sqrt(rest * rest + 0.125 * d * d)
+}
+
+/**
+ * Where a wave can be at `at` of a cycle (0..1), over every cycle there is:
+ * the lowest and the highest of `Currents::wave` for any trough, crest and
+ * place of the crest that Chance allows. Without Chance both are the plain
+ * wave. The crest may stand anywhere from `turn − kSkew·Chance` to `turn +
+ * kSkew·Chance` of the cycle, a trough as high as `−1 + kWander·Chance` and
+ * a crest as low as `1 − kWander·Chance`.
+ */
+export function currentsReach(at: number, turn: number, chance: number): [number, number] {
+  const ease = (t: number): number => 0.5 - 0.5 * Math.cos(Math.PI * clamp(t, 0, 1))
+  const reach = chance * CURRENTS.wander
+  const early = clamp(turn - chance * CURRENTS.skew, CURRENTS.leastTurn, 1 - CURRENTS.leastTurn)
+  const late = clamp(turn + chance * CURRENTS.skew, CURRENTS.leastTurn, 1 - CURRENTS.leastTurn)
+  const troughMost = -1 + reach
+  const crestLeast = 1 - reach
+  // The highest: the highest trough and a full crest, reached as early as may be and left as late.
+  let high: number
+  if (at < early) high = troughMost + (1 - troughMost) * ease(at / early)
+  else if (at <= late) high = 1
+  else high = 1 + (troughMost - 1) * ease((at - late) / (1 - late))
+  // The lowest: from a full trough to the lowest crest, rising as late as may be or fallen as early.
+  let low = Infinity
+  if (at < late) low = Math.min(low, -1 + (crestLeast + 1) * ease(at / late))
+  if (at >= early)
+    low = Math.min(low, crestLeast - (1 + crestLeast) * ease((at - early) / (1 - early)))
+  return [low, high]
 }
 
 /** `Currents::level_gain`: a band's gain for a level wave at `m`. */
@@ -167,8 +201,8 @@ const NOW_AT = 0.7
  */
 const CYCLE_SLOW = 0.9
 const CYCLE_FAST = 0.3
-/** The gain the top of the large cycle stands for: a little over the highest crest there is, at Depth 1. */
-const CYCLE_TOP = 1.75
+/** The gain the top of the large cycle stands for: a little over the highest crest there is (`currentsTrim` past `kTrimDepth`). */
+export const CYCLE_TOP = 1.5
 /** The gain a stream's edge reaches its lane's edge at: a crest at Depth 1 gone all the way to one side. */
 const LANE_TOP = currentsTrim(1) * Math.SQRT2
 
@@ -192,9 +226,10 @@ const bandsOf = (view: DisplayView): number =>
 const cycleShare = (at: number): number => CYCLE_SLOW + (CYCLE_FAST - CYCLE_SLOW) * clamp(at, 0, 1)
 
 export function currentsLayout(view: DisplayView): CurrentsLayout {
-  const wide = clamp(Math.round(view.width * 0.22), 40, 60)
+  // The large cycle is given room enough for the Shape ring to travel: 0.42 of its width.
+  const wide = clamp(Math.round(view.width * 0.3), 48, 72)
   const cycle: Box = { x: 4, y: 6, w: wide, h: view.height - 12 }
-  const lanes: Box = { x: 4 + wide + 6, y: 4, w: view.width - 14 - wide, h: view.height - 8 }
+  const lanes: Box = { x: 4 + wide + 6, y: 3, w: view.width - 14 - wide, h: view.height - 6 }
   const bands = bandsOf(view)
   const past = lanes.w * NOW_AT
   return {
@@ -352,7 +387,7 @@ const currents = plateDisplay({
   place: 'strip',
   params: ['depth', 'sway', 'rate', 'tide', 'bands', 'shape', 'chance', 'mix'],
   live: { meters: true },
-  info: 'Each band is a stream running to the left, the lowest at the foot. Its upper edge is its level on the left, its lower edge its level on the right, and the bar is now. The wave beside them is one cycle of a band: its rings set Depth and Shape. The ring on the lowest stream sets Rate.',
+  info: 'Each band is a stream running to the left, the lowest at the foot: its upper edge is its level on the left, its lower edge its level on the right, and the bar is now. The wave is one cycle of a band, shaded where Chance can take it. Rings set Depth, Shape and, on the lowest stream, Rate.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)
@@ -376,21 +411,28 @@ const currents = plateDisplay({
       colour: colours.ink,
       alpha: INK.grid,
     })
-    const reach = chance * CURRENTS.wander
     const plain: Point[] = []
-    const least: Point[] = []
+    const highest: Point[] = []
+    const lowest: Point[] = []
     const steps = Math.max(8, Math.round(lay.cycle.w - 10))
     for (let n = 0; n <= steps; n++) {
       const phase = n / steps
       const t = phase < turn ? phase / turn : (phase - turn) / (1 - turn)
       const ease = 0.5 - 0.5 * Math.cos(Math.PI * t)
-      // The plain cycle, and the smallest a cycle gets with Chance: its trough higher and its crest lower.
+      // The plain cycle, and how far from it Chance can take any one cycle: up and down, early and late.
       const m = phase < turn ? -1 + 2 * ease : 1 - 2 * ease
+      const [low, high] = currentsReach(phase, turn, chance)
       const x = cycleX(lay, phase)
       plain.push([x, cycleY(lay, heardGain(depth, mix, m))])
-      least.push([x, cycleY(lay, heardGain(depth, mix, m * (1 - reach)))])
+      highest.push([x, cycleY(lay, heardGain(depth, mix, high))])
+      lowest.push([x, cycleY(lay, heardGain(depth, mix, low))])
     }
-    if (reach > 0) fillBetween(ctx, plain, least, colours.ink, INK.fill)
+    if (chance > 0) fillBetween(ctx, highest, lowest, colours.ink, INK.fill)
+    // How long one cycle of the lowest band takes: in the corner of the large
+    // cycle that a rising wave leaves free, over the Depth ring's highest
+    // place, where it covers no stream. Under the wave and its dot, which an
+    // early crest carries through that corner.
+    label(frame, cycleText(1 / frame.value('rate')), lay.cycle.x + 2, lay.cycle.y + 6)
     trace(ctx, plain, { colour: colours.ink, width: 1.5 })
     // Where the lowest band is in its cycle, and how high: its own cycle, which Chance has moved.
     const phases = currentsPhases(frame)
@@ -473,8 +515,6 @@ const currents = plateDisplay({
         )
       }
     })
-    label(frame, cycleText(1 / frame.value('rate')), right - 1, lay.lanes.y + 8, 'right')
-
     handle(frame, rateRing.x, rateRing.y, { hot: frame.hot === rateRing.key })
     handle(frame, shapeRing.x, shapeRing.y, { hot: frame.hot === shapeRing.key })
     handle(frame, depthRing.x, depthRing.y, { hot: frame.hot === depthRing.key })

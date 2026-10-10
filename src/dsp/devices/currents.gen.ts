@@ -15,7 +15,7 @@ export const CURRENTS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How far each band's level rises and falls. At zero the levels hold still, at full each band fades right out at the bottom of its cycle.",
+      "How far each band's level rises and falls. At zero the levels hold still. At full each band fades right out at the bottom of its cycle and the whole is a little quieter.",
   },
   sway: {
     id: 1,
@@ -48,7 +48,7 @@ export const CURRENTS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How different the bands' speeds are. At zero all bands cycle at one speed and the pattern repeats. Turned up, the high bands ripple faster and it never comes round again.",
+      "How different the bands' speeds are. At zero all bands cycle at one speed, each a step behind the last. Turned up, the high bands ripple faster and never fall in step.",
   },
   bands: {
     id: 4,
@@ -93,7 +93,7 @@ export const CURRENTS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How narrow each band is. Low is broad washes that overlap. High leaves room between the bands, so single notes ring in and out.',
+      'How narrow each band is. Low is broad washes that overlap. High narrows each band to a few notes, so notes near a band ring in and out and those between hold still.',
   },
   lowHold: {
     id: 8,
@@ -104,7 +104,7 @@ export const CURRENTS_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Where the moving bands begin. Sound below this stays steady and in the middle, which keeps the bass solid.',
+      'Where the moving bands begin. Sound here moves about half as far as the bands above, and an octave lower it holds almost still, which keeps the bass solid.',
   },
   mix: {
     id: 9,
@@ -164,27 +164,19 @@ export const CURRENTS_DESCRIPTOR = wasmDeviceDescriptor(CURRENTS_DEVICE, {
     },
     'Gentle drift': { depth: 0.3, sway: 0.3, rate: 0.06, tide: 0.4, bands: 4, chance: 0.4 },
     'Wide tide': { depth: 0.5, sway: 1, rate: 0.08, tide: 0.7, bands: 6 },
-    'Breaking waves': {
-      depth: 0.9,
-      sway: 0.4,
-      rate: 0.25,
-      tide: 0.3,
-      bands: 4,
-      shape: 1,
-      chance: 0.2,
-    },
-    Ripples: { depth: 0.5, sway: 0.3, rate: 1.2, tide: 0.8, bands: 6, focus: 0.6 },
+    'Breaking waves': { depth: 0.8, sway: 0.4, rate: 0.25, tide: 0.3, shape: 1, chance: 0.2 },
+    Ripples: { depth: 0.7, sway: 0.4, rate: 1.2, tide: 0.8, bands: 6, focus: 0.35 },
     'Shimmer on top': { depth: 0.8, sway: 0.7, rate: 0.6, bands: 6, lowHold: 800 },
-    'Deep swell': { depth: 1, sway: 0.2, rate: 0.07, tide: 0.2, bands: 3, focus: 0 },
+    'Deep swell': { depth: 0.8, sway: 0.2, rate: 0.07, tide: 0.2, bands: 3, focus: 0 },
     'Glass notes': { depth: 1, sway: 0.5, rate: 0.3, tide: 1, bands: 6, chance: 0.6, focus: 1 },
     'Side to side': { depth: 0, sway: 1, rate: 0.3, tide: 0.6 },
     Breathing: { depth: 0.8, sway: 0, rate: 0.15, shape: 0.4 },
     'Nearly still': { depth: 0.5, sway: 0.4, mix: 0.35 },
-    Glacier: { depth: 0.9, sway: 0.8, rate: 0.01, tide: 0.3, chance: 0.5 },
-    Flutter: { depth: 1, sway: 0.6, rate: 2, tide: 1, bands: 6, shape: 0.8, chance: 0.2 },
+    Glacier: { depth: 0.75, sway: 0.8, rate: 0.01, tide: 0.3, chance: 0.5 },
+    Flutter: { depth: 0.55, sway: 0.6, rate: 2, tide: 1, bands: 6, shape: 0.3, chance: 0.2 },
     'One slow wheel': { depth: 0.7, sway: 0.6, rate: 0.2, tide: 0, chance: 0 },
     Restless: { depth: 0.8, sway: 0.8, rate: 0.5, tide: 0.6, shape: 0.5, chance: 1 },
-    Undertow: { depth: 0.9, sway: 0.3, rate: 0.12, bands: 4, shape: 0.7, lowHold: 20 },
+    Undertow: { depth: 0.7, sway: 0.3, rate: 0.12, shape: 0.7, lowHold: 20 },
   },
 })
 

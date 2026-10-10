@@ -6,6 +6,8 @@
 // the waves run on through a silence, and that the output is the same at
 // every block size across one.
 
+#include <cstdlib>
+
 #include "../devices/currents/currents.h"
 #include "support/test_kit.h"
 
@@ -284,8 +286,8 @@ int main() {
   }
 
   // Depth: a band falls to c·(1 − Depth) and crests at c, where c keeps the
-  // power over a cycle at the input's. The middle band of three, whose
-  // neighbours are two octaves off.
+  // power over a cycle at the input's up to Depth 0.6 and stays there past
+  // it. The middle band of three, whose neighbours are two octaves off.
   {
     const float at = centre(3, 1);
     for (float depth : {0.3f, 0.6f, 1.0f}) {
@@ -302,10 +304,23 @@ int main() {
       const double power = rms(out.left, 48000, 480000) / (0.5 / std::sqrt(2.0));
       std::snprintf(label, sizeof label, "Depth %.1f: the power over whole cycles is the input's (%.2f dB)",
                     depth, db(power));
-      EXPECT(std::fabs(db(power)) < 0.35, label);
+      if (depth <= Currents::kTrimDepth) EXPECT(std::fabs(db(power)) < 0.35, label);
       EXPECT(out.left == out.right, "with no Sway both sides are moved alike");
+      if (depth > Currents::kTrimDepth) {
+        // Past Depth 0.6 the crest goes no higher and the band grows quieter as its trough deepens.
+        std::snprintf(label, sizeof label,
+                      "Depth %.1f: the crest is the one at Depth 0.6 (%.3f against %.3f)", depth,
+                      highest(level, 200) / 0.5, Currents::level_trim(Currents::kTrimDepth));
+        EXPECT_NEAR(highest(level, 200) / 0.5, Currents::level_trim(Currents::kTrimDepth), 0.04, label);
+        std::snprintf(label, sizeof label,
+                      "Depth %.1f: the power over whole cycles is 1.5 dB under the input's (%.2f dB)", depth,
+                      db(power));
+        EXPECT_NEAR(db(power), -1.54, 0.35, label);
+      }
     }
-    EXPECT_NEAR(db(Currents::level_trim(1.0f)), 4.26, 0.02, "at full Depth a crest is 4.3 dB up");
+    EXPECT_NEAR(db(Currents::level_trim(0.6f)), 2.72, 0.02, "at Depth 0.6 a crest is 2.7 dB up");
+    EXPECT(Currents::level_trim(1.0f) == Currents::level_trim(Currents::kTrimDepth),
+           "at full Depth a crest is no higher than at Depth 0.6");
   }
 
   // Sway: a centred tone in a band travels between the sides at 0.618 of the
@@ -383,10 +398,13 @@ int main() {
     const double overall = db(std::sqrt(0.5 * (l * l + r * r)) / rms(in));
     char label[160];
     std::snprintf(label, sizeof label,
-                  "loudness holds: every second within 1.5 dB of the input (%.2f to %.2f dB)", low, high);
-    EXPECT(low > -1.5 && high < 1.5, label);
-    std::snprintf(label, sizeof label, "loudness holds: the whole is the input's level (%.2f dB)", overall);
-    EXPECT(std::fabs(overall) < 0.75, label);
+                  "full Depth at 2 Hz: every second between the input's level and 3 dB under (%.2f to %.2f dB)",
+                  low, high);
+    EXPECT(low > -3.0 && high < 0.0, label);
+    std::snprintf(label, sizeof label,
+                  "at full Depth the whole is a decibel or two under the input, as each band is (%.2f dB)",
+                  overall);
+    EXPECT(overall > -2.5 && overall < -0.75, label);
     const double crest = std::max(peak(out.left), peak(out.right)) / peak(in);
     std::snprintf(label, sizeof label, "full Depth and Sway: no peak more than 6 dB over the input's (%.2f dB)",
                   db(crest));
@@ -479,7 +497,7 @@ int main() {
       low = std::min(low, peak(out.left, i, i + 48));
       high = std::max(high, peak(out.left, i, i + 48));
     }
-    EXPECT(low < 0.1 * high && high > 0.75, "the band swings fully at its fastest");
+    EXPECT(low < 0.1 * high && high > 0.62, "the band swings fully at its fastest");
     char label[128];
     std::snprintf(label, sizeof label, "the gains run smoothly between workings (images at %.1f dB)", worst);
     EXPECT(worst < -85.0, label);
@@ -776,6 +794,106 @@ int main() {
       level.push_back(static_cast<float>(tone_level(out.left, at, 96000.0, i, i + 4096)));
     EXPECT_NEAR(dominant_frequency(centred(level), 200.0, 1.2, 5.0), std::sqrt(6.2831853), 0.03,
                 "at 96 kHz the middle band of three turns at Rate · √(2π)");
+  }
+
+  // ---- Added by the second check ------------------------------------------
+
+  // Low Hold is where the lowest band is half way in, at the even width: the
+  // band's lower half-power point, with the highest band's centre at the top.
+  // (As first built the lowest centre stood a whole step above Low Hold, and
+  // the notes of the octave above it hardly moved.)
+  {
+    for (int bands : {3, 5, 6}) {
+      for (float low : {20.0f, 120.0f, 800.0f}) {
+        const float ratio = Currents::step_ratio(low, bands, kTop);
+        char label[128];
+        std::snprintf(label, sizeof label, "%d bands, Low Hold %.0f: the lowest band's half-power point is Low Hold",
+                      bands, low);
+        EXPECT_NEAR(Currents::centre_hz(low, bands, 0, kTop) / std::sqrt(ratio), low, 1.0e-3f * low, label);
+        std::snprintf(label, sizeof label, "%d bands, Low Hold %.0f: the highest band is centred at the top",
+                      bands, low);
+        EXPECT_NEAR(Currents::centre_hz(low, bands, bands - 1, kTop), kTop, 1.0e-3f * kTop, label);
+      }
+    }
+    // Measured: a tone's level over 20 cycles of the lowest band, Depth 1, no Sway, every cycle alike.
+    auto range = [&](float hz, float depth, double* low_db) {
+      device.init(kRate);
+      device.set_param(p::kRate, 1.0f);
+      device.set_param(p::kDepth, depth);
+      device.set_param(p::kSway, 0.0f);
+      device.set_param(p::kChance, 0.0f);
+      const Stereo out = run(device, sine(hz, 20.0f, kRate, 0.5f));
+      const std::vector<float> level = level_of(out.left, hz);
+      if (low_db) *low_db = db(lowest(level, 200) / 0.5);
+      return db(highest(level, 200) / lowest(level, 200));
+    };
+    double at_hold = 0.0;
+    range(120.0f, 1.0f, &at_hold);
+    char label[160];
+    std::snprintf(label, sizeof label,
+                  "a tone at Low Hold falls to half its power when the lowest band is silent (%.2f dB)", at_hold);
+    EXPECT(at_hold < -2.4 && at_hold > -3.8, label);
+    const double octave_below = range(60.0f, 1.0f, nullptr);
+    std::snprintf(label, sizeof label, "an octave under Low Hold a tone all but holds still (%.2f dB of swing)",
+                  octave_below);
+    EXPECT(octave_below < 1.5, label);
+    const double third_above = range(160.0f, 0.6f, nullptr);
+    const double well_above = range(1000.0f, 0.6f, nullptr);
+    std::snprintf(label, sizeof label,
+                  "as it starts, a note a fourth over Low Hold moves like any other (%.1f dB at 160 Hz, %.1f dB at 1 kHz)",
+                  third_above, well_above);
+    EXPECT(third_above > 5.0 && third_above > 0.6 * well_above, label);
+    if (std::getenv("CURRENTS_VERBOSE"))
+      std::printf("Low Hold: %.2f dB at it, %.2f dB of swing an octave under; %s\n", at_hold, octave_below, label);
+  }
+
+  // A dense sound is not lifted far over its input, however the bands fall
+  // together: twenty tones a quarter of an octave apart, the level of the
+  // whole in windows of 50 ms. First at full Depth with every cycle alike and
+  // six bands at 2 to 12.6 Hz, 480 cycles of the lowest band (four minutes),
+  // in which the bands crest together many times. (With a crest of 4.3 dB at
+  // full Depth, as first built, the whole rose further.) Then as the device
+  // starts, sped up to fit: 80 minutes of it at the Rate it starts at, in
+  // which all five bands are once down together and once up together.
+  {
+    std::vector<float> at;
+    for (int k = 0; k < 20; ++k) at.push_back(200.0f * std::pow(2.0f, static_cast<float>(k) / 4.0f));
+    const float seconds = 240.0f;
+    const std::vector<float> dense = tones(at, seconds, 0.04f);
+    auto whole = [&](const Stereo& out, double* low, double* high) {
+      const size_t window = 2400;
+      *low = 1.0e9;
+      *high = -1.0e9;
+      for (size_t i = 48000; i + window <= dense.size(); i += window / 2) {
+        const double l = rms(out.left, i, i + window), r = rms(out.right, i, i + window);
+        const double level = db(std::sqrt(0.5 * (l * l + r * r)) / rms(dense, i, i + window));
+        *low = std::min(*low, level);
+        *high = std::max(*high, level);
+      }
+    };
+    double low = 0.0, high = 0.0;
+    device.init(kRate);
+    device.set_param(p::kDepth, 1.0f);
+    device.set_param(p::kSway, 0.0f);
+    device.set_param(p::kRate, 2.0f);
+    device.set_param(p::kTide, 1.0f);
+    device.set_param(p::kBands, 6.0f);
+    device.set_param(p::kChance, 0.0f);
+    whole(run(device, dense), &low, &high);
+    char label[160];
+    std::snprintf(label, sizeof label,
+                  "full Depth, six bands: a dense sound is never more than 3 dB over its input (%.2f to %.2f dB)",
+                  low, high);
+    EXPECT(high < 3.0, label);
+    if (std::getenv("CURRENTS_VERBOSE")) std::printf("%s\n", label);
+    device.init(kRate);
+    device.set_param(p::kRate, 2.0f);
+    whole(run(device, dense), &low, &high);
+    std::snprintf(label, sizeof label,
+                  "as it starts: a dense sound stays within 5.5 dB under and 3.2 dB over its input (%.2f to %.2f dB)",
+                  low, high);
+    EXPECT(low > -5.5 && high < 3.2, label);
+    if (std::getenv("CURRENTS_VERBOSE")) std::printf("%s\n", label);
   }
 
   device.init(kRate);
