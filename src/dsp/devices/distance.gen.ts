@@ -135,9 +135,9 @@ export const DISTANCE_DESCRIPTOR = wasmDeviceDescriptor(DISTANCE_DEVICE, {
       rate: 0.06,
       level: 0.75,
     },
-    'Close mic': { distance: 0.12, room: 0.3, air: 0.3, wander: 0, level: 0.3 },
+    'Close mic': { distance: 0.12, room: 0.3, air: 0.3, wander: 0, level: 0.6 },
     'Across the room': { distance: 0.5, room: 0.35, wander: 0, decay: 0.8, level: 0.8 },
-    'Next door': { distance: 0.7, room: 0.1, air: 1, wander: 0, decay: 0.5, level: 0.7, width: 1 },
+    'Next door': { distance: 0.7, room: 0.1, air: 1, wander: 0, decay: 0.5, level: 0.8, width: 1 },
     'Back of the hall': {
       distance: 0.75,
       room: 0.8,
@@ -148,7 +148,15 @@ export const DISTANCE_DESCRIPTOR = wasmDeviceDescriptor(DISTANCE_DEVICE, {
       width: 0.8,
     },
     'Far shore': { distance: 1, room: 1, air: 0.7, wander: 0.15, rate: 0.03, decay: 5, level: 1 },
-    'Slow tide': { distance: 0.45, room: 0.6, wander: 0.8, rate: 0.03, decay: 2, level: 0.8 },
+    'Slow tide': {
+      distance: 0.45,
+      room: 0.6,
+      wander: 0.8,
+      rate: 0.03,
+      decay: 2,
+      level: 0.9,
+      width: 0.8,
+    },
     'Passing by': {
       distance: 0.4,
       room: 0.3,
@@ -158,8 +166,8 @@ export const DISTANCE_DESCRIPTOR = wasmDeviceDescriptor(DISTANCE_DEVICE, {
       decay: 0.6,
       level: 0.8,
     },
-    Restless: { distance: 0.5, room: 0.2, wander: 1, rate: 1, decay: 0.4, level: 1, width: 1 },
-    Breathing: { distance: 0.35, wander: 0.6, rate: 0.15, doppler: 0, level: 0.5 },
+    Restless: { distance: 0.5, room: 0.2, wander: 1, rate: 1, decay: 0.4, level: 0.9, width: 1 },
+    Breathing: { distance: 0.35, wander: 0.6, rate: 0.15, doppler: 0, level: 0.8 },
     'Through fog': {
       distance: 0.85,
       room: 0.6,
@@ -178,6 +186,7 @@ export const DISTANCE_DESCRIPTOR = wasmDeviceDescriptor(DISTANCE_DEVICE, {
       rate: 0.05,
       decay: 0.25,
       width: 0.3,
+      level: 0.9,
     },
     'Wide and near': { distance: 0.2, room: 0.7, wander: 0.1, decay: 1.8, width: 0 },
     'Dark and narrow': {
