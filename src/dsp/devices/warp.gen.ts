@@ -22,11 +22,11 @@ export const WARP_PARAMS = {
     name: 'Pivot',
     min: 20,
     max: 2000,
-    default: 20,
+    default: 220,
     taper: 'log',
     unit: 'Hz',
     description:
-      'The pitch that does not move. With Follow on, every note at or above it gets a pivot of its own, and only what lies under the lowest note is warped around this one.',
+      'The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used.',
   },
   follow: {
     id: 2,
@@ -38,7 +38,7 @@ export const WARP_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      "On puts a pivot on every note being played, at or above the Pivot setting, so melodies and chords keep their pitches while each note's overtones move.",
+      'On puts a pivot on every note played, so melodies and chords keep their pitches and only overtones move. A note softer than the overtone it lies on moves with it.',
   },
   lean: {
     id: 3,
@@ -103,7 +103,7 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Balance between the dry signal and the warped one. Part way, partials near the pivot beat slowly against their dry selves.',
+      'Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -153,16 +153,16 @@ export const WARP_DESCRIPTOR = wasmDeviceDescriptor(WARP_DEVICE, {
     'Glass bar': { stretch: 0.6, drift: 0, tone: 0.2, width: 0.1 },
     'Tight hum': { stretch: -1, tone: 0.3 },
     'Slow breath': { stretch: 0.2, drift: 1, width: 0.5 },
-    'Sunken gong': { stretch: 0.45, pivot: 220, follow: 0, shift: -12, tone: -0.5 },
-    'Thin halo': { stretch: 0.06, drift: 0.4, width: 1, mix: 0.35 },
+    'Sunken gong': { stretch: 0.45, follow: 0, shift: -12, tone: -0.5 },
+    'Thin glow': { stretch: 0.06, drift: 0.4, width: 1, mix: 0.35 },
     'Wide drone': { stretch: -0.25, pivot: 110, follow: 0, drift: 0.6, width: 1, mix: 0.85 },
     'Close cluster': { stretch: 0.7, lean: -1, mix: 0.9 },
     'Beating cluster': { stretch: -0.6, pivot: 330, follow: 0, drift: 0.3, width: 0.6 },
-    'Tin toy': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.6, mix: 0.9 },
+    'Toy bells': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.6, mix: 0.9 },
     'Fifth shadow': { stretch: 0, shift: 7, width: 0.5, mix: 0.4 },
-    'Octave under': { stretch: 0, shift: -12, tone: -0.3, mix: 0.5 },
+    'Bell below': { stretch: 0.3, shift: -12, drift: 0, tone: -0.3, mix: 0.5 },
     'Dark bowl': { stretch: -0.35, drift: 0.25, tone: -0.8 },
-    'Bright spray': { stretch: 0.5, lean: 1, tone: 0.8, width: 0.8, mix: 0.6 },
+    'Bright spray': { stretch: 0.5, lean: 1, tone: 0.5, width: 0.8, mix: 0.6 },
   },
 })
 

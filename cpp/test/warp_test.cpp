@@ -62,16 +62,16 @@ static const std::vector<Preset>& presets() {
     {"Glass bar", {{p::kStretch, 0.6f}, {p::kDrift, 0.0f}, {p::kTone, 0.2f}, {p::kWidth, 0.1f}}},
     {"Tight hum", {{p::kStretch, -1.0f}, {p::kTone, 0.3f}}},
     {"Slow breath", {{p::kStretch, 0.2f}, {p::kDrift, 1.0f}, {p::kWidth, 0.5f}}},
-    {"Sunken gong", {{p::kStretch, 0.45f}, {p::kPivot, 220.0f}, {p::kFollow, 0.0f}, {p::kShift, -12.0f}, {p::kTone, -0.5f}}},
-    {"Thin halo", {{p::kStretch, 0.06f}, {p::kDrift, 0.4f}, {p::kWidth, 1.0f}, {p::kMix, 0.35f}}},
+    {"Sunken gong", {{p::kStretch, 0.45f}, {p::kFollow, 0.0f}, {p::kShift, -12.0f}, {p::kTone, -0.5f}}},
+    {"Thin glow", {{p::kStretch, 0.06f}, {p::kDrift, 0.4f}, {p::kWidth, 1.0f}, {p::kMix, 0.35f}}},
     {"Wide drone", {{p::kStretch, -0.25f}, {p::kPivot, 110.0f}, {p::kFollow, 0.0f}, {p::kDrift, 0.6f}, {p::kWidth, 1.0f}, {p::kMix, 0.85f}}},
     {"Close cluster", {{p::kStretch, 0.7f}, {p::kLean, -1.0f}, {p::kMix, 0.9f}}},
     {"Beating cluster", {{p::kStretch, -0.6f}, {p::kPivot, 330.0f}, {p::kFollow, 0.0f}, {p::kDrift, 0.3f}, {p::kWidth, 0.6f}}},
-    {"Tin toy", {{p::kStretch, 0.9f}, {p::kPivot, 300.0f}, {p::kFollow, 0.0f}, {p::kShift, 7.0f}, {p::kTone, -0.6f}, {p::kMix, 0.9f}}},
+    {"Toy bells", {{p::kStretch, 0.9f}, {p::kPivot, 300.0f}, {p::kFollow, 0.0f}, {p::kShift, 7.0f}, {p::kTone, -0.6f}, {p::kMix, 0.9f}}},
     {"Fifth shadow", {{p::kStretch, 0.0f}, {p::kShift, 7.0f}, {p::kWidth, 0.5f}, {p::kMix, 0.4f}}},
-    {"Octave under", {{p::kStretch, 0.0f}, {p::kShift, -12.0f}, {p::kTone, -0.3f}, {p::kMix, 0.5f}}},
+    {"Bell below", {{p::kStretch, 0.3f}, {p::kShift, -12.0f}, {p::kDrift, 0.0f}, {p::kTone, -0.3f}, {p::kMix, 0.5f}}},
     {"Dark bowl", {{p::kStretch, -0.35f}, {p::kDrift, 0.25f}, {p::kTone, -0.8f}}},
-    {"Bright spray", {{p::kStretch, 0.5f}, {p::kLean, 1.0f}, {p::kTone, 0.8f}, {p::kWidth, 0.8f}, {p::kMix, 0.6f}}},
+    {"Bright spray", {{p::kStretch, 0.5f}, {p::kLean, 1.0f}, {p::kTone, 0.5f}, {p::kWidth, 0.8f}, {p::kMix, 0.6f}}},
   };
   return all;
 }
@@ -141,6 +141,69 @@ static double off_by(const std::vector<float>& out, const std::vector<float>& in
     worst = std::max(worst, std::fabs(static_cast<double>(out[i + kLate]) - static_cast<double>(gain * in[i])));
   }
   return worst;
+}
+
+// A played note for the second check's material: `count` harmonics of `hz` at gain / n^rolloff, each
+// starting at its own phase (from `seed`, so two notes' shared partials neither add nor cancel by
+// design), from `start` seconds for `length` seconds (0: to the end; then a 30 ms release), with a
+// straight attack. `ring` over 0 makes it a struck note that dies away, the high harmonics sooner.
+static void add_note(std::vector<float>& x, double hz, double gain, int count, double rolloff, double seed, double start = 0.0,
+                     double length = 0.0, double attack = 0.01, double ring = 0.0) {
+  const size_t from = static_cast<size_t>(start * kRate);
+  for (int n = 1; n <= count; ++n) {
+    const double turn = seed * (n * 0.6180339887 + 0.37) * 7.13;
+    const double phase = 2.0 * kPi * (turn - std::floor(turn));
+    const double level = gain / std::pow(static_cast<double>(n), rolloff);
+    for (size_t i = from; i < x.size(); ++i) {
+      const double t = static_cast<double>(i - from) / kRate;
+      if (length > 0.0 && t > length + 0.03) break;
+      double env = attack > 0.0 ? std::min(1.0, t / attack) : 1.0;
+      if (length > 0.0 && t > length) env *= 1.0 - (t - length) / 0.03;
+      if (ring > 0.0) env *= std::exp(-t * std::sqrt(static_cast<double>(n)) / ring);
+      x[i] += static_cast<float>(level * env * std::sin(2.0 * kPi * hz * n * t + phase));
+    }
+  }
+}
+
+// How a partial of the input comes out: the strongest thing within `span` cents of it in the wet
+// sound, in cents and in dB against the same search in the dry one, over [from, to) of the input.
+struct Kept {
+  double cents, db;
+};
+static Kept kept(const std::vector<float>& in, const std::vector<float>& out, double hz, size_t from, size_t to, double span = 80.0) {
+  const double dry = partial_near(in, hz, span, from, to);
+  const double wet = partial_near(out, hz, span, from + kLate, to + kLate);
+  return {cents(wet, dry), db(tone_level(out, wet, kRate, from + kLate, to + kLate) / tone_level(in, dry, kRate, from, to))};
+}
+
+// One note of `in` through the device as it stands, on both sides: is its fundamental where and what
+// it was (8 cents, `level` dB)? Prints what it found when it is not.
+static bool in_tune(const std::vector<float>& in, const Stereo& out, double hz, double from, double to, const char* what,
+                    double level = 3.0) {
+  const size_t a = static_cast<size_t>(from * kRate), b = static_cast<size_t>(to * kRate);
+  const Kept left = kept(in, out.left, hz, a, b), right = kept(in, out.right, hz, a, b);
+  const bool good = std::fabs(left.cents) < 8.0 && std::fabs(right.cents) < 8.0 && std::fabs(left.db) < level && std::fabs(right.db) < level;
+  if (!good) {
+    std::printf("  %s, %.2f Hz: left %+.1f cents %+.1f dB, right %+.1f cents %+.1f dB\n", what, hz, left.cents, left.db, right.cents, right.db);
+  }
+  return good;
+}
+
+// A sound through the device in blocks of 64, with Mix thrown to `to` at sample `at`.
+static Stereo thrown(Warp& d, const std::vector<float>& in, size_t at, float to) {
+  Stereo out;
+  out.left.resize(in.size());
+  out.right.resize(in.size());
+  for (size_t done = 0; done + 64 <= in.size(); done += 64) {
+    if (done == at) d.set_param(p::kMix, to);
+    for (int i = 0; i < 64; ++i) d.in_left()[i] = d.in_right()[i] = in[done + i];
+    d.process(64);
+    for (int i = 0; i < 64; ++i) {
+      out.left[done + i] = d.out_left()[i];
+      out.right[done + i] = d.out_right()[i];
+    }
+  }
+  return out;
 }
 
 int main() {
@@ -420,8 +483,8 @@ int main() {
     EXPECT_NEAR(cents(fb, fa), 0.0, 0.5, "and the partial is where it would have been");
   }
 
-  // 10. Follow: every note being played, at or above the Pivot setting, gets a pivot of its own, so a
-  // line and a chord keep their pitches and each note's overtones are stretched from it.
+  // 10. Follow: every note being played gets a pivot of its own, so a line and a chord keep their
+  // pitches and each note's overtones are stretched from it. The Pivot knob is not used.
   {
     const double e = std::pow(2.0, 0.5);
     auto at = [&](const std::vector<float>& x, double want, size_t from, size_t to, double span = 60.0) {
@@ -449,9 +512,11 @@ int main() {
     EXPECT_NEAR(at(out.left, 100.0 * std::pow(1.96, e), a0, a1), 0.0, 1.0, "Follow off: the note is stretched from the knob");
     EXPECT(tone_level(out.left, 196.0, kRate, a0, a1) < 0.003, "Follow off: nothing is left at the note's own pitch");
     EXPECT_NEAR(device.meter(1), 100.0, 0.01, "Follow off: the pivot reported is the knob");
-    // The Pivot knob is the lowest a pivot may be: over the first note's fundamental, its octave is taken.
-    out = with(line, 1.0f, 250.0f);
-    EXPECT_NEAR(at(out.left, 392.0, a0, a1, 100.0), 0.0, 1.0, "Follow: the lowest partial over the knob stays");
+    // With Follow on the Pivot knob does nothing: the same samples wherever it stands.
+    {
+      const Stereo low = with(line, 1.0f, 20.0f), high = with(line, 1.0f, 2000.0f);
+      EXPECT(low.left == high.left && low.right == high.right, "Follow: the Pivot knob is not used");
+    }
 
     // A chord: both notes stay, each with its own stretched overtones (a partial the two share goes with
     // the note it is the lower harmonic of).
@@ -776,9 +841,9 @@ int main() {
           device.set_param(p::kMix, mix);
         }
         device.set_param(p::kTone, 0.0f);
-        // Where the tone lands: with Follow on it is its own pivot (under the knob, and with Follow
-        // off, it is warped around the knob), then Shift.
-        const bool own = device.param(p::kFollow) >= 0.5f && hz >= device.param(p::kPivot);
+        // Where the tone lands: with Follow on it is its own pivot (with Follow off it is warped
+        // around the knob), then Shift.
+        const bool own = device.param(p::kFollow) >= 0.5f;
         const double landed = (own ? hz : warped(hz, device.param(p::kPivot), device.param(p::kStretch), device.param(p::kLean))) *
                               std::pow(2.0, device.param(p::kShift) / 12.0);
         if (landed > 18000.0 || landed < 16.0) {
@@ -807,10 +872,8 @@ int main() {
 
   // 18. No dead part of a knob: on a played phrase (struck notes that ring over one another), every
   // control changes the sound between each fifth of its range and the next, by 3 % of the signal at the
-  // least. Pivot is tried with Follow off, where it is the one pivot: with Follow on it is the floor
-  // under which a note gets no pivot of its own (check 10), and a floor under every note played does
-  // nothing by its nature, which is said here rather than hidden: the least step is printed for both.
-  // And at 96 kHz the partials land where they do at 48.
+  // least. Pivot is tried with Follow off, where it is the one pivot: with Follow on it is not used
+  // at all (check 10), which its description says. And at 96 kHz the partials land where they do at 48.
   {
     std::vector<float> phrase(3 * 48000, 0.0f);
     const double starts[4] = {0.0, 0.5, 1.0, 1.7};
@@ -870,6 +933,266 @@ int main() {
       std::printf("at %.0f Hz the six partials of a stretched tone are within %.3f cents of pivot x n^e\n", rate, worst);
       EXPECT(worst < 1.0, "at 44.1 and 96 kHz the partials land where they do at 48");
     }
+  }
+
+  // 19. Follow on what a player gives it, at the defaults. Notes on one another's harmonics (octaves,
+  // twelfths, doubled chords) struck together, soft notes under loud ones, a melody on the harmonics of
+  // a held chord, a pad of two oscillators a note. Every fundamental has to come out where it went in
+  // (8 cents, 3 dB, both sides): a note that leaves its pitch is the one thing a default may not do.
+  // What is known not to hold is in the header: a note softer than the overtone it lies on. And a note
+  // as loud as the notes under it, on their harmonics and against their phase, reads as less than it
+  // is and is shared with them: it keeps its pitch and loses up to 5 dB (the last chord here).
+  {
+    int off = 0, counted = 0;
+    auto chord = [&](const char* what, const std::vector<double>& notes, double upper, double rolloff, double level = 3.0) {
+      std::vector<float> in(static_cast<size_t>(3.0f * kRate), 0.0f);
+      for (size_t k = 0; k < notes.size(); ++k) {
+        add_note(in, notes[k], 0.12 * (k == 0 ? 1.0 : upper), 10, rolloff, 0.31 + 0.17 * static_cast<double>(k), 0.2, 2.4);
+      }
+      device.init(kRate);
+      const Stereo out = run(device, in);
+      for (const double hz : notes) {
+        ++counted;
+        if (!in_tune(in, out, hz, 0.5, 2.6, what, level)) ++off;
+      }
+    };
+    chord("C2 and C3, the upper 6 dB softer", {65.406, 130.813}, 0.5, 1.5);
+    chord("C2 and G3, the upper 6 dB softer", {65.406, 195.998}, 0.5, 1.5);
+    chord("C3 C4 E4 G4, the upper three 6 dB softer", {130.813, 261.626, 329.628, 391.995}, 0.5, 1.5);
+    chord("D3 A3 D4 F#4 A4, the upper four 6 dB softer", {146.832, 220.0, 293.665, 369.994, 440.0}, 0.5, 1.5);
+    chord("C2 C3 as sawtooths, the upper 6 dB softer", {65.406, 130.813}, 0.5, 1.0);
+    chord("D3 A3 D4 F#4 A4, all as loud", {146.832, 220.0, 293.665, 369.994, 440.0}, 1.0, 1.5, 6.0);
+    EXPECT(off == 0, "Follow: every note of a doubled chord struck together keeps its pitch and level");
+    std::printf("Follow, doubled chords struck together: %d of %d fundamentals off\n", off, counted);
+
+    // A soft note that is nobody's overtone, 24 dB under a held one: under it and over it.
+    off = 0;
+    {
+      std::vector<float> in(static_cast<size_t>(4.0f * kRate), 0.0f);
+      add_note(in, 440.0, 0.3, 8, 1.0, 0.0, 0.2, 3.4);
+      add_note(in, 82.407, 0.3 * std::pow(10.0, -24.0 / 20.0), 6, 1.5, 0.0, 1.2, 2.2, 0.02);
+      device.init(kRate);
+      Stereo out = run(device, in);
+      if (!in_tune(in, out, 82.407, 1.5, 3.4, "a low note 24 dB under a held A4")) ++off;
+      in.assign(in.size(), 0.0f);
+      add_note(in, 110.0, 0.3, 10, 1.0, 0.0, 0.2, 3.4);
+      add_note(in, 369.994, 0.3 * std::pow(10.0, -24.0 / 20.0), 6, 1.5, 0.0, 1.2, 2.2, 0.02);
+      device.init(kRate);
+      out = run(device, in);
+      if (!in_tune(in, out, 369.994, 1.5, 3.4, "a note 24 dB under a held A2, between its harmonics")) ++off;
+    }
+    EXPECT(off == 0, "Follow: a note 24 dB under a held one, on no harmonic of it, keeps its pitch");
+
+    // A melody struck on the second harmonics of a held chord's notes (E4 and G4 over C3 E3 G3).
+    off = 0;
+    {
+      std::vector<float> in(static_cast<size_t>(3.2f * kRate), 0.0f);
+      const double pad[3] = {130.813, 164.814, 195.998};
+      for (int k = 0; k < 3; ++k) add_note(in, pad[k], 0.12, 10, 1.0, 0.41 + 0.13 * k, 0.2, 2.9, 0.05);
+      add_note(in, 391.995, 0.12, 6, 1.5, 0.77, 1.0, 0.55);
+      add_note(in, 329.628, 0.12, 6, 1.5, 0.84, 1.6, 0.55);
+      add_note(in, 523.251, 0.12, 6, 1.5, 0.91, 2.2, 0.55);
+      device.init(kRate);
+      const Stereo out = run(device, in);
+      if (!in_tune(in, out, 391.995, 1.15, 1.55, "G4 struck over a held C3 E3 G3")) ++off;
+      if (!in_tune(in, out, 329.628, 1.75, 2.15, "E4 struck over a held C3 E3 G3")) ++off;
+      if (!in_tune(in, out, 523.251, 2.35, 2.75, "C5 struck over a held C3 E3 G3")) ++off;
+    }
+    EXPECT(off == 0, "Follow: a melody struck on the harmonics of a held chord keeps its pitches");
+
+    // A pad: two oscillators a note, 9 cents either side, so every partial beats. Each oscillator's
+    // fundamental is told from its twin over five seconds and has to be within 3 dB of what went in.
+    off = 0;
+    {
+      std::vector<float> in(static_cast<size_t>(7.0f * kRate), 0.0f);
+      const double notes[4] = {130.813, 261.626, 329.628, 391.995};
+      std::vector<double> each;
+      for (int k = 0; k < 4; ++k) {
+        for (int side = -1; side <= 1; side += 2) {
+          each.push_back(notes[k] * std::pow(2.0, side * 9.0 / 1200.0));
+          add_note(in, each.back(), 0.07, 12, 1.5, 0.23 + 0.11 * static_cast<double>(each.size() - 1), 0.2, 6.4, 0.3);
+        }
+      }
+      device.init(kRate);
+      const Stereo out = run(device, in);
+      const size_t a = 60000, b = 300000;
+      for (const double hz : each) {
+        const double dry = tone_level(in, hz, kRate, a, b);
+        const double left = db(tone_level(out.left, hz, kRate, a + kLate, b + kLate) / dry);
+        const double right = db(tone_level(out.right, hz, kRate, a + kLate, b + kLate) / dry);
+        if (std::fabs(left) > 3.0 || std::fabs(right) > 3.0) {
+          ++off;
+          std::printf("  a pad's oscillator at %.2f Hz: left %+.1f dB, right %+.1f dB\n", hz, left, right);
+        }
+      }
+    }
+    EXPECT(off == 0, "Follow: a pad of two detuned oscillators a note keeps every fundamental");
+  }
+
+  // 20. Mix thrown while a note is held. The rest of the wet sound is turned down by Mix frame by
+  // frame, and a frame is heard a latency later, four at a time: the gains at the output follow the
+  // frames in flight, so the note neither drops out nor jumps while they change over. The level in
+  // 10 ms steps over the half second after the throw, against the half second before it.
+  {
+    std::vector<float> note(static_cast<size_t>(4.0f * kRate), 0.0f);
+    add_note(note, 220.0, 0.3, 8, 1.5, 0.0);
+    const size_t at = 96000;
+    double deepest = 0.0, highest = 0.0;
+    for (int plain = 0; plain < 2; ++plain) {
+      const float throws[4][2] = {{0.0f, 1.0f}, {0.5f, 1.0f}, {1.0f, 0.5f}, {1.0f, 0.0f}};
+      for (const auto& t : throws) {
+        device.init(kRate);
+        if (plain) {
+          device.set_param(p::kStretch, 0.0f);
+          device.set_param(p::kDrift, 0.0f);
+          device.set_param(p::kWidth, 0.0f);
+        }
+        device.set_param(p::kMix, t[0]);
+        const Stereo out = thrown(device, note, at, t[1]);
+        const double before = rms(out.left, at - 24000, at);
+        for (size_t w = at; w + 480 <= at + 24000; w += 240) {
+          const double level = db(rms(out.left, w, w + 480) / before);
+          deepest = std::min(deepest, level);
+          highest = std::max(highest, level);
+        }
+      }
+    }
+    std::printf("Mix thrown on a held note: the level stays within %+.2f to %+.2f dB of what it was\n", deepest, highest);
+    EXPECT(deepest > -1.5, "Mix thrown on a held note: no drop-out while the frames change over");
+    EXPECT(highest < 1.5, "Mix thrown on a held note: no jump while the frames change over");
+  }
+
+  // 21. Attacks. A region cut out of a frame the note only half fills and set down elsewhere comes out
+  // over the whole frame, ahead of the note. A partial that has only just risen (to twice what its
+  // bins held in the frames before) passes as it came for those frames, so the attack is the dry one's
+  // and what moves fades in behind it: the 10 ms before a struck note against its first 20 ms, and how
+  // soon the moved partial is in its place.
+  {
+    auto ahead = [&](const std::vector<float>& in, double onset) {
+      const Stereo out = run(device, in);
+      const size_t at = static_cast<size_t>(onset * kRate) + kLate;
+      return db(rms(out.left, at - 480, at) / rms(out.left, at, at + 960));
+    };
+    std::vector<float> struck(static_cast<size_t>(1.5f * kRate), 0.0f);
+    for (const double hz : {130.813, 164.814, 195.998, 261.626}) add_note(struck, hz, 0.2, 10, 1.0, 0.0, 0.5, 0.0, 0.002, 0.9);
+    still(device);
+    const double chord = ahead(struck, 0.5);
+    std::vector<float> low(static_cast<size_t>(1.5f * kRate), 0.0f);
+    add_note(low, 55.0, 0.4, 12, 1.0, 0.0, 0.5, 0.0, 0.001, 0.8);
+    still(device);
+    const double bass = ahead(low, 0.5);
+    std::vector<float> one(static_cast<size_t>(1.5f * kRate), 0.0f);
+    add_note(one, 220.0, 0.4, 12, 1.0, 0.0, 0.5, 0.0, 0.001, 0.8);
+    device.init(kRate);
+    device.set_param(p::kStretch, 1.0f);
+    const double full = ahead(one, 0.5);
+    std::printf("the 10 ms before an attack against its first 20 ms: a struck chord %.1f dB, a struck 55 Hz note %.1f dB (one pivot at 220 Hz), a struck note at Stretch 1 %.1f dB\n",
+                chord, bass, full);
+    EXPECT(chord < -40.0, "a struck chord has nothing 40 dB under itself ahead of it");
+    EXPECT(bass < -40.0, "nor a struck bass note under the pivot");
+    EXPECT(full < -40.0, "nor a struck note at Stretch 1 with Follow on");
+
+    // A note of two partials at Stretch 1: the upper one goes from 440 to 880 Hz, and is there 60 ms on.
+    std::vector<float> two(static_cast<size_t>(2.0f * kRate), 0.0f);
+    add_note(two, 220.0, 0.3, 2, 1.0, 0.0, 0.5, 0.0, 0.001);
+    device.init(kRate);
+    device.set_param(p::kStretch, 1.0f);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kWidth, 0.0f);
+    const Stereo out = run(device, two);
+    const size_t at = 24000 + kLate + 60 * 48;
+    const double moved = db(tone_level(out.left, 880.0, kRate, at - 480, at + 480) / 0.15);
+    const double left_behind = db(tone_level(out.left, 440.0, kRate, at - 480, at + 480) / 0.15);
+    std::printf("60 ms after the attack the moved partial is at %+.1f dB of its level, and %.1f dB is left where it was\n", moved, left_behind);
+    EXPECT_NEAR(moved, 0.0, 1.5, "60 ms after an attack the moved partial is in its place");
+    EXPECT(left_behind < -20.0, "and no longer where it was");
+  }
+
+  // 22. The signs of the frame. A region moved by d bins is written with the signs of a frame centred
+  // on its middle ((-1)^d). A move that stands still does not show them (a sign that never changes is
+  // only a phase), which is why dropping them failed one check of the first eighteen; a move that
+  // changes does: each time it crosses from one whole bin to the next the new frame comes out against
+  // the one before, and the two cancel where they overlap (8 dB down, measured with the signs taken
+  // out). So: a sine moved by one bin to five, and by halves between, stays a sine at its level; and
+  // under a Shift that rises slowly through five bins the level does not dip.
+  {
+    const double bin = kRate / Warp::Stft::kFrame;
+    const std::vector<float> tone = sine(1000.0f, 2.0f, kRate, 0.5f);
+    double worst_level = 0.0, worst_rest = -200.0;
+    for (const double bins : {1.0, 1.5, 2.0, 3.0, 3.5, 4.0, 5.0}) {
+      still(device);
+      device.set_param(p::kStretch, 0.0f);
+      device.set_param(p::kShift, static_cast<float>(12.0 * std::log2(1.0 + bins * bin / 1000.0)));
+      const Stereo out = run(device, tone);
+      const double hz = 1000.0 * std::pow(2.0, static_cast<double>(device.param(p::kShift)) / 12.0);
+      const double level = db(tone_level(out.left, hz, kRate, 36000, 84000) / 0.5);
+      const double rest = db(residual(out.left, hz, 36000, 84000) / (0.5 / std::sqrt(2.0)));
+      if (std::fabs(level) > std::fabs(worst_level)) worst_level = level;
+      worst_rest = std::max(worst_rest, rest);
+    }
+    std::printf("a sine moved by 1 to 5 bins: level %+.2f dB at the worst, everything else %.1f dB under it\n", worst_level, worst_rest);
+    EXPECT(std::fabs(worst_level) < 0.5, "a sine moved by whole and half bins keeps its level");
+    EXPECT(worst_rest < -30.0, "and stays a sine");
+
+    still(device);
+    device.set_param(p::kStretch, 0.0f);
+    const std::vector<float> held = sine(1000.0f, 5.0f, kRate, 0.5f);
+    std::vector<float> wet(held.size(), 0.0f);
+    for (size_t done = 0; done + 64 <= held.size(); done += 64) {
+      const double along = std::min(1.0, std::max(0.0, (static_cast<double>(done) / kRate - 0.5) / 4.0));
+      device.set_param(p::kShift, static_cast<float>(1.0 * along));
+      for (int i = 0; i < 64; ++i) device.in_left()[i] = device.in_right()[i] = held[done + i];
+      device.process(64);
+      for (int i = 0; i < 64; ++i) wet[done + i] = device.out_left()[i];
+    }
+    double least = 0.0, most = 0.0;
+    for (size_t w = 36000; w + 960 <= wet.size(); w += 480) {
+      const double level = db(rms(wet, w, w + 960) / (0.5 / std::sqrt(2.0)));
+      least = std::min(least, level);
+      most = std::max(most, level);
+    }
+    std::printf("a sine under a Shift rising a semitone in four seconds (five bins): level %+.2f to %+.2f dB\n", least, most);
+    EXPECT(least > -1.0 && most < 1.0, "a sine under a slowly rising Shift keeps its level through every bin it crosses");
+  }
+
+  // 23. Every preset on single held notes. The level of a high note (the builder's brightest preset
+  // put a C6 5.5 dB up) and how deep the whole sound beats on a held note at a part-way Mix, in 50 ms
+  // steps over four seconds (a wet octave under a dry note swung the sound by 4 dB when the two were
+  // one partial, a few cents apart).
+  {
+    double loudest = -100.0, deepest = 0.0;
+    const char* loud_at = "";
+    const char* deep_at = "";
+    for (const Preset& preset : presets()) {
+      for (const double hz : {110.0, 220.0, 440.0, 1046.5}) {
+        std::vector<float> note(static_cast<size_t>(6.0f * kRate), 0.0f);
+        add_note(note, hz, 0.3, 8, 1.2, 0.0, 0.0, 0.0, 0.02);
+        load(device, preset);
+        const Stereo out = run(device, note);
+        const double dry = rms(note, 96000);
+        const double l = rms(out.left, 96000), r = rms(out.right, 96000);
+        const double level = db(std::sqrt(0.5 * (l * l + r * r)) / dry);
+        if (level > loudest) {
+          loudest = level;
+          loud_at = preset.name;
+        }
+        double least = 100.0, most = -100.0;
+        for (size_t w = 96000; w + 2400 <= out.size(); w += 2400) {
+          const double a = rms(out.left, w, w + 2400), b = rms(out.right, w, w + 2400);
+          const double v = db(std::sqrt(0.5 * (a * a + b * b)) / dry);
+          least = std::min(least, v);
+          most = std::max(most, v);
+        }
+        if (hz < 1000.0 && most - least > deepest) {
+          deepest = most - least;
+          deep_at = preset.name;
+        }
+      }
+    }
+    std::printf("presets on single held notes: the loudest is %+.2f dB of the note (%s); the deepest swing is %.2f dB (%s)\n", loudest, loud_at,
+                deepest, deep_at);
+    EXPECT(loudest < 4.5, "no preset puts a single note more than 4.5 dB up");
+    EXPECT(deepest < 3.0, "no preset swings a held note's whole sound by 3 dB");
   }
 
   // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,

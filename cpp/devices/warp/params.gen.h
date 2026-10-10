@@ -3,7 +3,7 @@
 // Parameter ids and ranges of Warp, shared with
 // src/dsp/devices/warp.gen.ts:
 //    0  stretch: -1..1, default 0.3
-//    1  pivot: 20..2000 Hz, default 20
+//    1  pivot: 20..2000 Hz, default 220
 //    2  follow: 0 Off, 1 On, default 1
 //    3  lean: -1..1, default 0
 //    4  shift: -12..12 st, default 0
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {-1.0f, 20.0f, 0.0f, -1.0f, -12.0f, 0.0f, -1.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 2000.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.3f, 20.0f, 1.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0.25f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.3f, 220.0f, 1.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0.25f, 1.0f};
 
 }  // namespace warp
 }  // namespace livemix

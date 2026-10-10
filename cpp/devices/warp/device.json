@@ -136,17 +136,17 @@
       "name": "Pivot",
       "min": 20,
       "max": 2000,
-      "default": 20,
+      "default": 220,
       "taper": "log",
       "unit": "Hz",
-      "description": "The pitch that does not move. With Follow on, every note at or above it gets a pivot of its own, and only what lies under the lowest note is warped around this one."
+      "description": "The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used."
     },
     {
       "key": "follow",
       "name": "Follow",
       "choices": ["Off", "On"],
       "default": 1,
-      "description": "On puts a pivot on every note being played, at or above the Pivot setting, so melodies and chords keep their pitches while each note's overtones move."
+      "description": "On puts a pivot on every note played, so melodies and chords keep their pitches and only overtones move. A note softer than the overtone it lies on moves with it."
     },
     {
       "key": "lean",
@@ -195,7 +195,7 @@
       "min": 0,
       "max": 1,
       "default": 1,
-      "description": "Balance between the dry signal and the warped one. Part way, partials near the pivot beat slowly against their dry selves."
+      "description": "Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves."
     }
   ],
   "presets": {
@@ -229,12 +229,11 @@
     },
     "Sunken gong": {
       "stretch": 0.45,
-      "pivot": 220,
       "follow": 0,
       "shift": -12,
       "tone": -0.5
     },
-    "Thin halo": {
+    "Thin glow": {
       "stretch": 0.06,
       "drift": 0.4,
       "width": 1,
@@ -260,7 +259,7 @@
       "drift": 0.3,
       "width": 0.6
     },
-    "Tin toy": {
+    "Toy bells": {
       "stretch": 0.9,
       "pivot": 300,
       "follow": 0,
@@ -274,9 +273,10 @@
       "width": 0.5,
       "mix": 0.4
     },
-    "Octave under": {
-      "stretch": 0,
+    "Bell below": {
+      "stretch": 0.3,
       "shift": -12,
+      "drift": 0,
       "tone": -0.3,
       "mix": 0.5
     },
@@ -288,7 +288,7 @@
     "Bright spray": {
       "stretch": 0.5,
       "lean": 1,
-      "tone": 0.8,
+      "tone": 0.5,
       "width": 0.8,
       "mix": 0.6
     }

@@ -44,7 +44,16 @@
 //    again, whatever was played before. Mix is an equal-power crossfade, and
 //    a region at rest is turned down by (1 - cos) / sin of Mix's angle, so
 //    that with its dry self it adds up to what came in: a partial that does
-//    not move keeps its level at every Mix.
+//    not move keeps its level at every Mix. That turning down is in the
+//    frames, which are heard a latency later and four at a time, so the gains
+//    of the mix are made from the Mix of the four frames in flight by their
+//    weights (process() below): a partial at rest adds up to what came in at
+//    every sample of a thrown Mix too, and Mix moves over a frame's length.
+// 4. An attack passes as it came. A partial whose power is more than twice
+//    what its bins held in the last third of a second has just been struck,
+//    and its region is left where it is for that frame: cut from a frame the
+//    note only partly fills and moved, it would ring before the attack. The
+//    partial is in its new place 20 to 40 ms after the attack.
 //
 // - Lean says where the stretch bites. With o the octaves from the pivot
 //   and r = (o/2)² / (1 + (o/2)²), which runs from 0 at the pivot to 1 far
@@ -62,10 +71,16 @@
 //   at every block size. Up to ±0.12 of the stretch's range.
 // - Width moves the two sides' stretches apart, left down and right up, by
 //   up to 0.04 each. At 0 a mono input stays mono, bit for bit.
-// - Follow puts a pivot on every note being played, at or above the Pivot
-//   setting (track() below, up to eight, each channel from its own spectrum):
-//   each note keeps its pitch and its overtones are warped from it. What
-//   lies under the lowest note is warped around the knob.
+// - Follow puts a pivot on every note being played (track() below, up to
+//   eight, each channel from its own spectrum): each note keeps its pitch and
+//   its overtones are warped from it. With Follow on a partial moves only as
+//   the overtone of a note. A partial that is nobody's overtone stays where
+//   it is (a soft note, a noise, what lies under the lowest note), and the
+//   Pivot knob is not used. A partial on a harmonic of a note may be that
+//   note's overtone or another note's fundamental, an octave or a twelfth
+//   over it: it is weighed against a sawtooth's harmonic there, and what is
+//   too strong for an overtone stays, in part or whole (kNoteRatio). What
+//   cannot be told is a note softer than the overtone it lies on.
 // - Tone is a gain per bin on the wet signal, over 500 Hz only: up to 6 dB
 //   an octave of cut (turned down) or of boost (turned up, never more than
 //   12 dB). What lies under 500 Hz is left as it is, so a darker tone is
@@ -76,8 +91,8 @@
 // below nought is dropped. The wet signal passes a clip that is linear up to
 // ±1 and never passes ±2.
 //
-// Storage: two Stft<4096, 1024> (176 KB each) and nine arrays of 2049 floats
-// per channel or shared (74 KB): 0.43 MB in all.
+// Storage: two Stft<4096, 1024> (176 KB each), five arrays of 2049 floats per
+// channel and five shared, and a frame's weights (136 KB): 0.49 MB in all.
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"
@@ -155,9 +170,14 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     for (int i = 0; i < 3; ++i) {
       drift_step_[i] = static_cast<uint32_t>(turns_per_frame * kDriftRate[i] * 4294967296.0);
     }
-    mix_.set_time(kSmoothingSeconds, sr);
-    mix_.snap(param(kMix));
-    mix_seen_ = -1.0f;
+    // Hann² frames a hop apart, over their sum: the weight each frame has in the output, n samples
+    // after its first.
+    for (int n = 0; n < Stft::kFrame; ++n) {
+      const double w = 0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / Stft::kFrame);
+      fade_[n] = static_cast<float>(w * w / (0.375 * Stft::kOverlap));
+    }
+    clock_ = 0;
+    snap_mix();
     // What is in flight when the input stops: a latency and a frame.
     idle_.reset(sr, static_cast<float>(Stft::kLatency + Stft::kFrame + Stft::kHop) / sr);
   }
@@ -166,26 +186,28 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     using namespace warp;
     if (!store_param(id, value)) return;
     // (asleep, a knob snaps: nothing is sounding for it to glide under)
-    if (id == kMix) mix_.set(param(id), primed() && !idle_.asleep());
+    if (id == kMix && (!primed() || idle_.asleep())) snap_mix();
     if (id == kTone) tone_dirty_ = true;
   }
 
   // The readings named by "meters" in device.json, for the display:
   // 0, the stretch in use now, Drift's wander included and Width's left and
   // right offsets not (asleep, where the knob stands);
-  // 1, the pivot in use now in hertz: the knob's, or with Follow on the
-  // partial the pivot has gone to (of the louder side);
+  // 1, the pivot in use now in hertz: with Follow off the knob's, with Follow
+  // on the lowest note's (of the louder side), and 0 while there is no note;
   // 2 to 19, the six strongest partials of the newest frame of the louder
   // side, strongest first: where each came in and where it was sent, in
-  // hertz, and its level (1 is a full-scale sine). Asleep, and for a mark
-  // with no partial, the level is 0.
+  // hertz (of a partial that is shared, where the greater share went), and
+  // its level (1 is a full-scale sine). Asleep, and for a mark with no
+  // partial, the level is 0.
   float meter(int index) const {
     using namespace warp;
     const bool asleep = idle_.asleep();
     if (index == 0) return asleep ? param(kStretch) : stretch_now_;
     const Channel& channel = channel_[channel_[1].mark_level[0] > channel_[0].mark_level[0] ? 1 : 0];
     if (index == 1) {
-      return asleep ? param(kPivot) : Stft::bin_to_hz(channel.pivot_bin, sample_rate());
+      if (asleep) return param(kFollow) >= 0.5f ? 0.0f : param(kPivot);
+      return Stft::bin_to_hz(channel.pivot_bin, sample_rate());
     }
     const int mark = (index - 2) / 3;
     if (index < 2 || mark >= kMarks || asleep) return 0.0f;
@@ -200,7 +222,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       silence_output(frames);
       stft_[0].skip(frames);  // the frame clock, and the drift read from it, run on through the sleep
       stft_[1].skip(frames);
-      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
+      clock_ += static_cast<uint32_t>(frames);
+      snap_mix();  // a knob moved while asleep does not glide in
       for (int c = 0; c < 2; ++c) {
         for (int m = 0; m < kMarks; ++m) channel_[c].mark_level[m] = 0.0f;
       }
@@ -209,19 +232,24 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
-      const float mix = mix_.next();
-      if (mix != mix_seen_) {
-        mix_seen_ = mix;
-        kit::equal_power(mix, &dry_gain_, &wet_gain_);
-      }
-      float out[2];
+      float wet[2];
       for (int c = 0; c < 2; ++c) {
-        const float wet = stft_[c].process(in[c], [this, c](float* re, float* im) { frame(c, re, im); });
-        // Linear up to ±1, never past ±2.
-        out[c] = stft_[c].dry() * dry_gain_ + 2.0f * kit::soft_clip(0.5f * wet) * wet_gain_;
+        wet[c] = stft_[c].process(in[c], [this, c](float* re, float* im) { frame(c, re, im); });
       }
-      out_left_[i] = out[0];
-      out_right_[i] = out[1];
+      // Mix. Each frame was made for the Mix there was when it was taken (a partial at rest is
+      // turned down for it, see frame()), and four frames overlap in what is heard: the tangent
+      // of half Mix's angle now is theirs by their weights, so a partial at rest adds up with its
+      // dry self to what came in at every sample of a throw, and Mix moves as the frames do.
+      if (!mix_steady_) {
+        const uint32_t q = (clock_ - Stft::kMaxStagger) & (Stft::kHop - 1);  // samples into the newest frame
+        float t = 0.0f;
+        for (int j = 0; j < Stft::kOverlap; ++j) t += mix_tan_[j] * fade_[q + static_cast<uint32_t>(j) * Stft::kHop];
+        mix_gains(t);
+      }
+      ++clock_;
+      // Linear up to ±1, never past ±2.
+      out_left_[i] = stft_[0].dry() * dry_gain_ + 2.0f * kit::soft_clip(0.5f * wet[0]) * wet_gain_;
+      out_right_[i] = stft_[1].dry() * dry_gain_ + 2.0f * kit::soft_clip(0.5f * wet[1]) * wet_gain_;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -284,6 +312,26 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     float pivot_bin;                       // the pivot in use, in bins (Follow: the lowest)
     float mark_in[kMarks], mark_out[kMarks], mark_level[kMarks];  // for meter() only
   };
+
+  // The tangent of half Mix's angle: what a partial at rest is turned down by in the wet signal
+  // ((1 - cos) / sin), and what the gains of the mix are made from.
+  float mix_tangent() const {
+    const float mix = param(warp::kMix);
+    return mix >= 1.0f ? 1.0f : std::tan(0.5f * kit::kHalfPi * mix);
+  }
+  // cos and sin of the angle whose half has the tangent t.
+  void mix_gains(float t) {
+    const float scale = 1.0f / (1.0f + t * t);
+    dry_gain_ = (1.0f - t * t) * scale;
+    wet_gain_ = 2.0f * t * scale;
+  }
+  // Mix as the knob stands, with nothing in flight.
+  void snap_mix() {
+    rest_gain_ = mix_tangent();
+    for (float& tangent : mix_tan_) tangent = rest_gain_;
+    mix_steady_ = true;
+    mix_gains(rest_gain_);
+  }
 
   // The slow wander Drift adds, about ±1, at frame `n`: three sines whose phases are the frame's
   // number times a step, in whole numbers that wrap with the turn.
@@ -474,10 +522,17 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     // What a region at rest is turned down by. Mix is an equal-power crossfade, which is right for
     // partials that have moved (they add to the dry ones as power) and 3 dB too much at the centre
     // for one that has not (it adds to its dry self as amplitude). With (1 - cos) / sin on those,
-    // dry × cos + wet × sin is the partial as it came in, at every Mix.
-    float dry_gain, wet_gain;
-    kit::equal_power(param(kMix), &dry_gain, &wet_gain);
-    rest_gain_ = wet_gain > 1.0e-4f ? (1.0f - dry_gain) / wet_gain : 0.0f;
+    // dry × cos + wet × sin is the partial as it came in, at every Mix. Read when the left side's
+    // frame comes, for both sides; the right side's frame is the moment the frame begins to be
+    // heard, and there its Mix joins the four in flight.
+    if (c == 0) {
+      rest_gain_ = mix_tangent();
+    } else {
+      for (int j = Stft::kOverlap - 1; j > 0; --j) mix_tan_[j] = mix_tan_[j - 1];
+      mix_tan_[0] = rest_gain_;
+      mix_steady_ = mix_tan_[1] == mix_tan_[0] && mix_tan_[2] == mix_tan_[0] && mix_tan_[3] == mix_tan_[0];
+      if (mix_steady_) mix_gains(mix_tan_[0]);
+    }
 
     // 1. Power, and the peaks: a bin over its two neighbours on either side.
     for (int k = 0; k < kBins; ++k) power_[k] = re[k] * re[k] + im[k] * im[k];
@@ -492,7 +547,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         const float li = channel.last_im[k];
         // Freshly struck: its power is more than twice what its bins have held of late (a note
         // coming into the frame grows thirty times, then three, then levels off).
-        const float before = kit::max(channel.held[k], kit::max(channel.held[k - 1], channel.held[k + 1]));
+        float before = channel.held[k];
+        for (int j = k - 2; j <= k + 2; ++j) before = kit::max(before, channel.held[j]);
         peak_before_[peaks_] = before;
         peak_fresh_[peaks_] = p > kFreshRise * before;
         if (lr * lr + li * li > 1.0e-4f * p) {
@@ -580,6 +636,13 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
           stays = kit::clamp((rho - kOvertoneRatio) * (1.0f / (kNoteRatio - kOvertoneRatio)), 0.0f, 1.0f);
         }
       }
+      // An attack passes as it came. A partial that has just been struck lies in a frame the note
+      // only partly fills, and a region cut from such a frame and moved rings before the attack
+      // (the frame is 85 ms long): -6 to -30 dB in the 10 ms before it, measured. Left where it
+      // is, it adds up with its neighbours to the attack itself, and the partial goes to its new
+      // place over the two frames that follow: about 20 ms after the attack it is half there, by
+      // 40 ms wholly, and what rings before the attack is 50 dB under it or less.
+      if (peak_fresh_[i] != 0) stays = 1.0f;
       // Lean's weight: r runs from 0 at the pivot to 1 far from it (a half at kLeanOctaves).
       const float x = octaves * (1.0f / kLeanOctaves);
       const float r = x * x / (1.0f + x * x);
@@ -598,7 +661,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       if (stays > 0.0f) {
         move_region(re, im, low, high, k, place * (home - 1.0f), place * home, std::sqrt(stays), channel.stay_turn);
         if (stays > 0.5f) lands = place * home;
-      } else if (follow) {
+      } else {
         for (int j = low; j < high; ++j) channel.stay_turn[j] = 0.0f;
       }
 
@@ -690,9 +753,11 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   uint8_t peak_fresh_[kMaxPeaks];  // whether it has just been struck
   int peaks_ = 0;
   uint32_t drift_step_[3] = {0, 0, 0};
-  kit::Smoother mix_;
   kit::IdleGate idle_;
-  float mix_seen_ = -1.0f;
+  float fade_[Stft::kFrame];         // a frame's weight in the output, sample by sample
+  float mix_tan_[Stft::kOverlap] = {1.0f, 1.0f, 1.0f, 1.0f};  // tan of half Mix's angle, the four frames in flight
+  bool mix_steady_ = true;           // all four the same: the gains stand
+  uint32_t clock_ = 0;               // samples since init, slept ones too (the Stft's own count)
   float dry_gain_ = 1.0f;
   float wet_gain_ = 0.0f;
   float at_rest_ = 0.0f;      // kAtRestHz in bins
