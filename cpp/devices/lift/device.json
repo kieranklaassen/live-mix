@@ -56,7 +56,7 @@
       "name": "Fall",
       "min": 1,
       "max": 500,
-      "default": 5,
+      "default": 3,
       "taper": "log",
       "unit": "ms",
       "description": "How quickly the lift gets out of the way of a new loud sound. Short leaves every attack untouched; long lets the lift linger into the note."

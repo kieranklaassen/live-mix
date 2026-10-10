@@ -19,20 +19,28 @@
 // - Level. Stereo linked: one detector hears the mean power of the two
 //   channels, so the image never moves and a sound on one side or in opposite
 //   phase reads as it should. A level is the higher of two readings: the RMS
-//   (two 20 ms one-poles in cascade on the power; a 40 Hz tone ripples it by
-//   0.04 dB) and the peak power less 3 dB (instant up, 20 ms down). On a
-//   steady tone both read the same, the RMS; on an attack the peak reading is
-//   there at once, which is what lets the lift get out of the way in time.
-//   Dense or noisy sound reads by its crests, some dB over its RMS.
-// - Split. The sound is cut in three with two first-order low passes (250 Hz
-//   and 2.5 kHz) and their remainders, so the three parts add up to the input
-//   exactly and equal gains on all three are one gain on the whole: no phase
-//   is turned and nothing rings. Each part has a level of its own. The lift of
-//   a part is (1 - Split) of what the whole sound's level asks for plus Split
-//   of what its own level asks for. With Split at 0 this is a plain wide-band
-//   upward compressor. Further up a quiet top is lifted under a loud bottom;
-//   a loud tone's skirt in the next part is then under the Threshold too and
-//   is lifted with it, which can raise that tone by a dB or so.
+//   (two 12 ms one-poles in cascade on the power) and the peak power less
+//   9 dB (instant up, 20 ms down). Whatever is steady reads its RMS: a tone's
+//   peak reading is 6 dB under it, a chord's and noise's about level with it.
+//   On an attack the RMS is tens of ms late and the peak reading is there at
+//   once, 6 dB short for a tone: a new sound 6 dB or more over the Threshold
+//   is read as over it within one control tick, which is what lets the lift
+//   get out of its way in time. One nearer the Threshold keeps up to
+//   Amount x 6 dB of lift for the 20 ms the RMS takes to arrive.
+// - Split. The sound is cut in three with two first-order low passes of the
+//   input, at 250 Hz and 2.5 kHz: the lows are the first, the middle is the
+//   second less the first, the highs are the input less the second. The three
+//   add up to the input exactly and equal gains on all three are one gain on
+//   the whole: no phase is turned and nothing rings. Each part has a level of
+//   its own. The lift of a part is (1 - Split) of what the whole sound's
+//   level asks for plus Split of what its own level asks for. With Split at 0
+//   this is a plain wide-band upward compressor. Further up a quiet top is
+//   lifted under a loud bottom. A loud tone's skirt in the other parts is
+//   then under the Threshold too and is lifted with it; every skirt is a
+//   quarter turn from the tone, so this can only add to it, never cancel:
+//   by under 0.1 dB at the defaults, and by up to 2.6 dB for a low tone
+//   6 dB over the Threshold with Split, Amount and Limit all the way up (the
+//   harness measures both).
 // - Focus scales the lift (in dB) of each part: to the right the lows get
 //   (1 - Focus) of it and the middle (1 - Focus / 2), to the left the highs
 //   and the middle likewise.
@@ -40,9 +48,10 @@
 //   the curve asks for more, Fall when it asks for less. Both are the time to
 //   cover all but a hundredth of the way (4.6 time constants).
 // - Lookahead. The sound is delayed by kLatency samples (6 ms at 48 kHz) and
-//   the levels are read ahead of it, so at the default Fall (5 ms) the lift
-//   is gone before an attack arrives. It is a sample count: at 96 kHz the
-//   lookahead is 3 ms and a tenth of the lift is still there when it lands.
+//   the levels are read ahead of it, so at the default Fall (3 ms) the lift
+//   is gone before an attack arrives: a tick to see it, a tick to ramp, and
+//   the fall. It is a sample count: at 96 kHz the lookahead is 3 ms and a
+//   fiftieth of the lift (in dB) is still there when the attack lands.
 // - Hear "Lift only" plays the lifted sound less the input: what was added.
 // - Wet and dry are the same sound at different gains, so Mix is a linear
 //   crossfade against the input delayed by the same kLatency samples. At Mix
@@ -70,7 +79,9 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   static constexpr float kLowHz = 250.0f;
   static constexpr float kHighHz = 2500.0f;
   static constexpr float kLetGoDb = 12.0f;
-  static constexpr float kRmsSeconds = 0.02f;
+  static constexpr float kRmsSeconds = 0.012f;
+  // The peak power counts for an eighth: 9 dB under, 6 dB under a tone's RMS.
+  static constexpr float kPeakShare = 0.125f;
   static constexpr float kPeakFallSeconds = 0.02f;
   // Rise and Fall are times to cover 99 %: ln(100) time constants.
   static constexpr float kTimeConstants = 4.605170f;
@@ -168,9 +179,9 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
       float part[2][kParts];
       for (int c = 0; c < 2; ++c) {
         part[c][0] = split_low_[c].lowpass(in[c]);
-        const float above = in[c] - part[c][0];
-        part[c][1] = split_mid_[c].lowpass(above);
-        part[c][2] = above - part[c][1];
+        const float under = split_mid_[c].lowpass(in[c]);
+        part[c][1] = under - part[c][0];
+        part[c][2] = in[c] - under;
       }
       for (int b = 0; b < kParts; ++b) {
         detectors_[b].hear(0.5f * (part[0][b] * part[0][b] + part[1][b] * part[1][b]), peak_fall_);
@@ -229,9 +240,9 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
       mean[1].lowpass(mean[0].lowpass(power));
       peak = power > peak ? power : flush_denormal(power + (peak - power) * peak_fall);
     }
-    // In dB: the RMS, or the peak less 3 dB where that is higher.
+    // In dB: the RMS, or the peak less 9 dB where that is higher.
     float level() const {
-      const float power = mean[1].state > 0.5f * peak ? mean[1].state : 0.5f * peak;
+      const float power = mean[1].state > kPeakShare * peak ? mean[1].state : kPeakShare * peak;
       return power > kFloorPower ? 10.0f * std::log10(power) : kRestDb;
     }
   };
