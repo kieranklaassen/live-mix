@@ -30,7 +30,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Low warmth' },
-      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.08 } },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber' },
     ],
   },
   {
@@ -68,7 +68,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Blooming FM swell',
     category: 'bass',
     description:
-      'A warm held tone with its strike taken off, so each note played apart swells in over a quarter second, in a small room.',
+      'A warm held tone with its strike taken off, so each note played apart swells in over a quarter second, in a room.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Soft sine',
@@ -126,7 +126,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Slow sliding FM hum',
     category: 'bass',
     description:
-      'A far-off humming drone that takes a second to slide between held keys and five to fade, with a dark reverb swelling above the bass.',
+      'A humming drone that takes a second to slide between held keys and five to fade, with a dark reverb swelling above the bass.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Slow slide drone',
@@ -255,7 +255,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'FM thump down the hall',
     category: 'bass',
     description:
-      'A soft short thump heard from the far end of a hall: the note stays dry in the middle and the room answers above it.',
+      'A soft short thump in a long dark hall: the note stays dry in the middle and the room answers above it.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Short thump',
@@ -394,7 +394,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
       preset: 'Low growl',
       params: {
         ratio: 1,
-        depth: 0.5,
+        depth: 0.47,
         bite: 0.8,
         body: 0.6,
         feedback: 0.8,
@@ -444,7 +444,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Held FM undertone hum',
     category: 'drone',
     description:
-      'A held hum that sounds an octave under its key, with a soft rasp that takes seconds to settle, turned slowly by a phaser in a dark hall.',
+      'A very deep held hum an octave under its key, with a soft rasp, its weight moved slowly between the two octaves by a phaser, in a hall.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Held hum',
@@ -522,7 +522,7 @@ export const FM_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Undertone FM lead',
     category: 'keys',
     description:
-      'A reedy solo voice that sounds an octave under its keys and slides between overlapping ones, doubled by a detuned copy, in a room.',
+      'A reedy solo voice an octave under its keys, very deep on low ones, that slides between overlapping keys, with a detuned copy, in a room.',
     instrument: {
       deviceId: 'fm-bass',
       preset: 'Deep weight',
