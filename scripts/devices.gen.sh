@@ -42,6 +42,8 @@ build_generated_devices() {
     cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device droplets \
+    cpp/devices/droplets/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drum-kit \
     cpp/devices/drum-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
@@ -231,6 +233,8 @@ test_generated_devices() {
     cpp/test/clarinet_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
+  native_test droplets_test \
+    cpp/test/droplets_test.cpp
   native_test drum_kit_test \
     cpp/test/drum_kit_test.cpp
   native_test dusk_test \

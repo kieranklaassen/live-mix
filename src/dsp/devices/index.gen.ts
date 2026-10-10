@@ -20,6 +20,7 @@ import { CHORD_HARP_DESCRIPTOR, CHORD_HARP_DEVICE } from './chord-harp.gen'
 import { CHORUS_DESCRIPTOR, CHORUS_DEVICE } from './chorus.gen'
 import { CLARINET_DESCRIPTOR, CLARINET_DEVICE } from './clarinet.gen'
 import { DRONE_DESCRIPTOR, DRONE_DEVICE } from './drone.gen'
+import { DROPLETS_DESCRIPTOR, DROPLETS_DEVICE } from './droplets.gen'
 import { DRUM_KIT_DESCRIPTOR, DRUM_KIT_DEVICE } from './drum-kit.gen'
 import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
 import { ECHO_MEMORY_DESCRIPTOR, ECHO_MEMORY_DEVICE } from './echo-memory.gen'
@@ -112,6 +113,7 @@ export * from './chord-harp.gen'
 export * from './chorus.gen'
 export * from './clarinet.gen'
 export * from './drone.gen'
+export * from './droplets.gen'
 export * from './drum-kit.gen'
 export * from './dusk.gen'
 export * from './echo-memory.gen'
@@ -206,6 +208,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   CHORUS_DESCRIPTOR,
   CLARINET_DESCRIPTOR,
   DRONE_DESCRIPTOR,
+  DROPLETS_DESCRIPTOR,
   DRUM_KIT_DESCRIPTOR,
   DUSK_DESCRIPTOR,
   ECHO_MEMORY_DESCRIPTOR,
@@ -301,6 +304,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   CHORUS_DEVICE,
   CLARINET_DEVICE,
   DRONE_DEVICE,
+  DROPLETS_DEVICE,
   DRUM_KIT_DEVICE,
   DUSK_DEVICE,
   ECHO_MEMORY_DEVICE,
@@ -403,6 +407,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'chorus', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'clarinet', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'drone', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'droplets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'drum-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'dusk', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'echo-memory', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 20 },

@@ -11,6 +11,7 @@ import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
 import { DRONE_PRESETS } from './drone'
+import { DROPLETS_PRESETS } from './droplets'
 import { DRUM_KIT_PRESETS } from './drum-kit'
 import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
@@ -92,4 +93,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...SHORTWAVE_PRESETS,
   ...ICE_PRESETS,
   ...REWIND_PRESETS,
+  ...DROPLETS_PRESETS,
 ]
