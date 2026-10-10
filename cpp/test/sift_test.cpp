@@ -5,9 +5,10 @@
 // its own part and to no other. Every bound below stands beside the figure
 // that was measured when it was set (48 kHz unless it says otherwise).
 
+#include "../devices/sift/sift.h"
+
 #include <algorithm>
 
-#include "../devices/sift/sift.h"
 #include "support/test_kit.h"
 
 using namespace testkit;
@@ -21,15 +22,15 @@ static const size_t kLatency = Sift::kLatency;
 static char label[240];
 
 // A check whose label carries what was measured: asserted, and printed.
-#define SAY(condition)              \
-  do {                              \
-    EXPECT(condition, label);       \
-    std::printf("  %s\n", label);   \
+#define SAY(condition)            \
+  do {                            \
+    EXPECT(condition, label);     \
+    std::printf("  %s\n", label); \
   } while (0)
 // The bottom of a level's range, where its part is silent.
 static const float kOff = p::kParamMin[p::kTones];
-static const char* const kNames[p::kNumParams] = {"tones", "attacks", "air", "sharpness", "edge",
-                                                  "hold",  "soften",  "late", "scatter",  "mix"};
+static const char* const kNames[p::kNumParams] = {"tones", "attacks", "air",  "sharpness", "edge",
+                                                  "hold",  "soften",  "late", "scatter",   "mix"};
 
 // --- settings ------------------------------------------------------------------------------
 
@@ -73,7 +74,8 @@ static std::vector<float> then(std::vector<float> a, const std::vector<float>& b
 // A click of one sample every `every` seconds, the first at a quarter second.
 static std::vector<float> clicks(float seconds, float every, float gain, float rate = kRate) {
   std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
-  for (size_t at = static_cast<size_t>(0.25f * rate); at < out.size(); at += static_cast<size_t>(every * rate)) {
+  for (size_t at = static_cast<size_t>(0.25f * rate); at < out.size();
+       at += static_cast<size_t>(every * rate)) {
     out[at] = gain;
   }
   return out;
@@ -85,7 +87,8 @@ static std::vector<float> burst(float hz, float seconds, float fade, float gain,
   std::vector<float> out = sine(hz, seconds, rate, gain);
   const size_t n = static_cast<size_t>(fade * rate);
   for (size_t i = 0; i < n && i < out.size(); ++i) {
-    const float w = static_cast<float>(0.5 - 0.5 * std::cos(kPi * static_cast<double>(i) / static_cast<double>(n)));
+    const float w =
+        static_cast<float>(0.5 - 0.5 * std::cos(kPi * static_cast<double>(i) / static_cast<double>(n)));
     out[i] *= w;
     out[out.size() - 1 - i] *= w;
   }
@@ -116,7 +119,8 @@ static std::vector<float> struck(float hz, float seconds, float decay_seconds, i
 static std::vector<float> phrase() {
   rng_state() = 0x51f7u;
   std::vector<float> out;
-  for (float hz : {220.0f, 329.63f, 261.63f, 392.0f}) out = then(out, struck(hz, 0.5f, 0.6f, 12, 0.3f, 0.25f));
+  for (float hz : {220.0f, 329.63f, 261.63f, 392.0f})
+    out = then(out, struck(hz, 0.5f, 0.6f, 12, 0.3f, 0.25f));
   return add(out, noise(2.0f, kRate, 0.01f));
 }
 
@@ -194,16 +198,17 @@ static void check_medians() {
     std::copy(v, v + 9, sorted);
     std::sort(sorted, sorted + 9);
     if (Sift::median9(v[0], v[1], v[2], v[3], v[4], v[5], v[6], v[7], v[8]) != sorted[4]) ++wrong;
-    if (Sift::magnitude_of(Sift::median9(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5], bits[6], bits[7],
-                                         bits[8])) != sorted[4]) {
+    if (Sift::magnitude_of(Sift::median9(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5], bits[6],
+                                         bits[7], bits[8])) != sorted[4]) {
       ++wrong;
     }
-    if (Sift::magnitude_of(Sift::third9(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5], bits[6], bits[7],
-                                        bits[8])) != sorted[2]) {
+    if (Sift::magnitude_of(Sift::third9(bits[0], bits[1], bits[2], bits[3], bits[4], bits[5], bits[6],
+                                        bits[7], bits[8])) != sorted[2]) {
       ++wrong;
     }
   }
-  std::snprintf(label, sizeof label, "the medians agree with a sort for every pattern and on the bits (%d wrong)", wrong);
+  std::snprintf(label, sizeof label,
+                "the medians agree with a sort for every pattern and on the bits (%d wrong)", wrong);
   EXPECT(wrong == 0, label);
   EXPECT(Sift::level_gain(0.0f) == 1.0f, "a level of 0 dB is a gain of exactly 1");
   EXPECT(Sift::level_gain(kOff) == 0.0f && kOff == -30.0f, "a level at the bottom of its range is silence");
@@ -244,10 +249,12 @@ static void check_sum() {
       device.set_param(p::kSharpness, which == 0 ? 0.0f : which == 1 ? 0.5f : 1.0f);
       device.set_param(p::kEdge, which == 0 ? 0.0f : which == 1 ? 1.0f : 0.5f);
       out = run(device, left, right);
-      const double worst = std::max(worst_difference(out.left, left, kLatency), worst_difference(out.right, right, kLatency));
-      std::snprintf(label, sizeof label,
-                    "the three parts at unity add back up to the input at %.0f Hz, case %d (worst difference %.2g)",
-                    rate, which, worst);
+      const double worst =
+          std::max(worst_difference(out.left, left, kLatency), worst_difference(out.right, right, kLatency));
+      std::snprintf(
+          label, sizeof label,
+          "the three parts at unity add back up to the input at %.0f Hz, case %d (worst difference %.2g)",
+          rate, which, worst);
       SAY(worst < 2.0e-6);
     }
   }
@@ -279,8 +286,8 @@ static void check_parts() {
   std::printf("  parts alone, in dB of what went in (sine, clicks, noise | the sine inside all three):\n");
   const char* names[3] = {"tones", "attacks", "air"};
   for (int part = 0; part < 3; ++part) {
-    std::printf("    %-8s %7.1f %7.1f %7.1f | %7.1f\n", names[part], kept[part][0], kept[part][1], kept[part][2],
-                mixed_sine[part]);
+    std::printf("    %-8s %7.1f %7.1f %7.1f | %7.1f\n", names[part], kept[part][0], kept[part][1],
+                kept[part][2], mixed_sine[part]);
   }
   // Measured: tones -0.0, -240, -16.0 | attacks -109.6, -0.0, -16.6 | air -99, -240, -2.2.
   EXPECT(kept[0][0] > -0.2, "the tones keep a sine whole");
@@ -313,19 +320,24 @@ static void check_sharpness() {
     device.set_param(p::kSharpness, 0.25f * step);
     in_air[step] = kept_db(run(device, hiss).left, hiss, from, to);
   }
-  std::printf("  noise by Sharpness 0, 0.25, 0.5, 0.75, 1: in the tones %.1f %.1f %.1f %.1f %.1f dB, in the air %.1f %.1f %.1f %.1f %.1f dB\n",
-              in_tones[0], in_tones[1], in_tones[2], in_tones[3], in_tones[4], in_air[0], in_air[1], in_air[2],
-              in_air[3], in_air[4]);
+  std::printf(
+      "  noise by Sharpness 0, 0.25, 0.5, 0.75, 1: in the tones %.1f %.1f %.1f %.1f %.1f dB, in the air %.1f "
+      "%.1f %.1f %.1f %.1f dB\n",
+      in_tones[0], in_tones[1], in_tones[2], in_tones[3], in_tones[4], in_air[0], in_air[1], in_air[2],
+      in_air[3], in_air[4]);
   // Measured: tones -11.6 ... -16.0 ... -17.8; air -7.0 ... -2.2 ... -0.9.
   for (int step = 1; step < 5; ++step) {
-    std::snprintf(label, sizeof label, "Sharpness %.2f leaves less noise in the tones than %.2f (%.2f against %.2f dB)",
+    std::snprintf(label, sizeof label,
+                  "Sharpness %.2f leaves less noise in the tones than %.2f (%.2f against %.2f dB)",
                   0.25f * step, 0.25f * (step - 1), in_tones[step], in_tones[step - 1]);
     EXPECT(in_tones[step] < in_tones[step - 1] - 0.2, label);
-    std::snprintf(label, sizeof label, "Sharpness %.2f gives the air more of the noise than %.2f (%.2f against %.2f dB)",
+    std::snprintf(label, sizeof label,
+                  "Sharpness %.2f gives the air more of the noise than %.2f (%.2f against %.2f dB)",
                   0.25f * step, 0.25f * (step - 1), in_air[step], in_air[step - 1]);
     EXPECT(in_air[step] > in_air[step - 1] + 0.2, label);
   }
-  EXPECT(in_tones[0] - in_tones[4] > 5.0, "Sharpness moves the noise in the tones by 5 dB or more over its range");
+  EXPECT(in_tones[0] - in_tones[4] > 5.0,
+         "Sharpness moves the noise in the tones by 5 dB or more over its range");
   EXPECT(in_air[4] - in_air[0] > 5.0, "Sharpness moves the noise in the air by 5 dB or more over its range");
 }
 
@@ -336,7 +348,8 @@ static void check_edge() {
   const std::vector<float> note = padded(then(silence(0.5f, kRate), burst(440.0f, 1.0f, 0.01f, 0.4f)), 0.5f);
   const size_t start = static_cast<size_t>(0.5f * kRate);
   const size_t first = start + static_cast<size_t>(0.03f * kRate);  // the note's first 30 ms
-  const size_t body_from = start + static_cast<size_t>(0.3f * kRate), body_to = start + static_cast<size_t>(0.8f * kRate);
+  const size_t body_from = start + static_cast<size_t>(0.3f * kRate),
+               body_to = start + static_cast<size_t>(0.8f * kRate);
   double attack_first[3], tone_first[3], tone_body[3];
   for (int step = 0; step < 3; ++step) {
     only(1);
@@ -348,15 +361,18 @@ static void check_edge() {
     tone_first[step] = kept_db(out.left, note, start, first);
     tone_body[step] = kept_db(out.left, note, body_from, body_to);
   }
-  std::printf("  a note's first 30 ms by Edge 0, 0.5, 1: in the attacks %.1f %.1f %.1f dB, in the tones %.1f %.1f %.1f dB; its body in the tones %.2f %.2f %.2f dB\n",
-              attack_first[0], attack_first[1], attack_first[2], tone_first[0], tone_first[1], tone_first[2],
-              tone_body[0], tone_body[1], tone_body[2]);
+  std::printf(
+      "  a note's first 30 ms by Edge 0, 0.5, 1: in the attacks %.1f %.1f %.1f dB, in the tones %.1f %.1f "
+      "%.1f dB; its body in the tones %.2f %.2f %.2f dB\n",
+      attack_first[0], attack_first[1], attack_first[2], tone_first[0], tone_first[1], tone_first[2],
+      tone_body[0], tone_body[1], tone_body[2]);
   EXPECT(attack_first[2] > attack_first[1] + 2.0 && attack_first[1] > attack_first[0] + 2.0,
          "Edge moves the start of a note into the attacks, more the further it is turned");
   EXPECT(attack_first[2] > -6.0, "at Edge 1 the attacks hold most of a note's first 30 ms");
   EXPECT(attack_first[0] < -12.0, "at Edge 0 the attacks hold little of a note that begins without a click");
   EXPECT(tone_first[2] < tone_first[0] - 3.0, "at Edge 1 the tones begin without the note's start");
-  EXPECT(std::fabs(tone_body[2]) < 0.1 && std::fabs(tone_body[0]) < 0.1, "Edge leaves the body of a note in the tones");
+  EXPECT(std::fabs(tone_body[2]) < 0.1 && std::fabs(tone_body[0]) < 0.1,
+         "Edge leaves the body of a note in the tones");
 }
 
 // --- Hold ------------------------------------------------------------------------------------
@@ -375,17 +391,21 @@ static void check_hold() {
     const double expected = Sift::hold_seconds(hold);
     const size_t from = static_cast<size_t>((from_seconds + 0.1) * kRate);
     const double pitch = dominant_frequency(out.left, kRate, 400.0, 480.0, from, from + 24000);
-    std::printf("  Hold %.1f: 60 dB down in %.2f s (to be %.2f s), ringing at %.2f Hz\n", hold, measured, expected, pitch);
-    std::snprintf(label, sizeof label, "Hold %.1f rings 60 dB down in %.2f s (measured %.2f s)", hold, expected, measured);
+    std::printf("  Hold %.1f: 60 dB down in %.2f s (to be %.2f s), ringing at %.2f Hz\n", hold, measured,
+                expected, pitch);
+    std::snprintf(label, sizeof label, "Hold %.1f rings 60 dB down in %.2f s (measured %.2f s)", hold,
+                  expected, measured);
     EXPECT(std::fabs(measured / expected - 1.0) < 0.1, label);
-    std::snprintf(label, sizeof label, "a held tone stays at its pitch at Hold %.1f (%.2f Hz for 440)", hold, pitch);
+    std::snprintf(label, sizeof label, "a held tone stays at its pitch at Hold %.1f (%.2f Hz for 440)", hold,
+                  pitch);
     EXPECT(std::fabs(pitch - 440.0) < 0.5, label);
   }
   // Without Hold nothing is left once the last frame has played out.
   only(0);
   Stereo bare = run(device, note);
   const size_t gone = cut + kLatency + static_cast<size_t>(Sift::Stft::kFrame) + 512;
-  std::snprintf(label, sizeof label, "without Hold a tone ends with the playing (peak after it %.2g)", peak(bare.left, gone));
+  std::snprintf(label, sizeof label, "without Hold a tone ends with the playing (peak after it %.2g)",
+                peak(bare.left, gone));
   EXPECT(peak(bare.left, gone) == 0.0, label);
   // While the note is played Hold changes nothing: the tones are driven.
   only(0);
@@ -396,18 +416,23 @@ static void check_hold() {
     worst = std::max(worst, std::fabs(static_cast<double>(rung.left[i]) - bare.left[i]));
   }
   // Measured 0.0022 of 0.4: what the note's start left in the bins beside it rings on under it.
-  std::snprintf(label, sizeof label, "Hold at the top changes a tone that is being played by under 1 %% of it (worst difference %.2g of 0.4)", worst);
+  std::snprintf(label, sizeof label,
+                "Hold at the top changes a tone that is being played by under 1 %% of it (worst difference "
+                "%.2g of 0.4)",
+                worst);
   EXPECT(worst < 0.004, label);
   // The attacks and the air of a mixture are the same bit for bit with Hold up or down.
   rng_state() = 5;
-  const std::vector<float> all = add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
+  const std::vector<float> all =
+      add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
   for (int part = 1; part < 3; ++part) {
     only(part);
     const Stereo down = run(device, all);
     only(part);
     device.set_param(p::kHold, 1.0f);
     const Stereo up = run(device, all);
-    EXPECT(down.left == up.left && down.right == up.right, part == 1 ? "Hold does not touch the attacks" : "Hold does not touch the air");
+    EXPECT(down.left == up.left && down.right == up.right,
+           part == 1 ? "Hold does not touch the attacks" : "Hold does not touch the air");
   }
 }
 
@@ -449,29 +474,36 @@ static void check_soften() {
     top[step] = db(peak(out.left) / 0.8);
     EXPECT(out.left == out.right, "a mono attack stays mono when softened");
   }
-  std::printf("  a click by Soften 0, 0.4, 0.7, 1: energy %.1f %.1f %.1f %.1f dB, 90 %% of it within %.1f %.1f %.1f %.1f ms, peak %.1f %.1f %.1f %.1f dB\n",
-              level[0], level[1], level[2], level[3], 1000.0 * length[0], 1000.0 * length[1], 1000.0 * length[2],
-              1000.0 * length[3], top[0], top[1], top[2], top[3]);
+  std::printf(
+      "  a click by Soften 0, 0.4, 0.7, 1: energy %.1f %.1f %.1f %.1f dB, 90 %% of it within %.1f %.1f %.1f "
+      "%.1f ms, peak %.1f %.1f %.1f %.1f dB\n",
+      level[0], level[1], level[2], level[3], 1000.0 * length[0], 1000.0 * length[1], 1000.0 * length[2],
+      1000.0 * length[3], top[0], top[1], top[2], top[3]);
   EXPECT(std::fabs(level[0]) < 0.1 && length[0] < 0.001, "without Soften a click comes through as it is");
   for (int step = 1; step < 4; ++step) {
-    std::snprintf(label, sizeof label, "Soften %.1f keeps a click's energy (%.1f dB)", settings[step], level[step]);
+    std::snprintf(label, sizeof label, "Soften %.1f keeps a click's energy (%.1f dB)", settings[step],
+                  level[step]);
     EXPECT(std::fabs(level[step]) < 2.0, label);
-    std::snprintf(label, sizeof label, "Soften %.1f spreads a click further in time than %.1f (%.1f ms against %.1f ms)",
+    std::snprintf(label, sizeof label,
+                  "Soften %.1f spreads a click further in time than %.1f (%.1f ms against %.1f ms)",
                   settings[step], settings[step - 1], 1000.0 * length[step], 1000.0 * length[step - 1]);
     EXPECT(length[step] > length[step - 1] * 1.3 + 0.005, label);
-    EXPECT(top[step] < top[step - 1] - 1.0, "Soften takes a click's peak down, more the further it is turned");
+    EXPECT(top[step] < top[step - 1] - 1.0,
+           "Soften takes a click's peak down, more the further it is turned");
   }
   EXPECT(length[3] > 0.15, "Soften at the top spreads a click over 150 ms or more");
   // The tones and the air of a mixture are the same bit for bit with Soften up or down.
   rng_state() = 5;
-  const std::vector<float> all = add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
+  const std::vector<float> all =
+      add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
   for (int part = 0; part < 3; part += 2) {
     only(part);
     const Stereo down = run(device, all);
     only(part);
     device.set_param(p::kSoften, 1.0f);
     const Stereo up = run(device, all);
-    EXPECT(down.left == up.left && down.right == up.right, part == 0 ? "Soften does not touch the tones" : "Soften does not touch the air");
+    EXPECT(down.left == up.left && down.right == up.right,
+           part == 0 ? "Soften does not touch the tones" : "Soften does not touch the air");
   }
 }
 
@@ -494,21 +526,24 @@ static void check_late() {
       device.set_param(p::kLate, late);
       const Stereo out = run(device, click);
       const size_t expected = 9000 + kLatency + static_cast<size_t>(late * 0.001f * rate + 0.5f);
-      std::snprintf(label, sizeof label, "Late %.0f ms at %.0f Hz puts a click at sample %d (found at %d, peak %.3f)", late,
-                    rate, static_cast<int>(expected), static_cast<int>(peak_at(out.left)), peak(out.left));
+      std::snprintf(label, sizeof label,
+                    "Late %.0f ms at %.0f Hz puts a click at sample %d (found at %d, peak %.3f)", late, rate,
+                    static_cast<int>(expected), static_cast<int>(peak_at(out.left)), peak(out.left));
       EXPECT(peak_at(out.left) == expected && peak_at(out.right) == expected && peak(out.left) > 0.79, label);
     }
   }
   // The tones and the air do not move.
   rng_state() = 5;
-  const std::vector<float> all = add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
+  const std::vector<float> all =
+      add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
   for (int part = 0; part < 3; part += 2) {
     only(part);
     const Stereo down = run(device, all);
     only(part);
     device.set_param(p::kLate, 300.0f);
     const Stereo up = run(device, all);
-    EXPECT(down.left == up.left && down.right == up.right, part == 0 ? "Late does not move the tones" : "Late does not move the air");
+    EXPECT(down.left == up.left && down.right == up.right,
+           part == 0 ? "Late does not move the tones" : "Late does not move the air");
   }
 }
 
@@ -524,32 +559,39 @@ static void check_scatter() {
     device.set_param(p::kScatter, 0.25f * step);
     const Stereo out = run(device, hiss);
     agree[step] = correlation(out.left, out.right, from, to);
-    level[step] = db(std::sqrt(0.5 * (energy(out.left, from, to) + energy(out.right, from, to)) / energy(hiss, from, to)));
+    level[step] = db(
+        std::sqrt(0.5 * (energy(out.left, from, to) + energy(out.right, from, to)) / energy(hiss, from, to)));
   }
-  std::printf("  the air's two sides by Scatter 0, 0.25, 0.5, 0.75, 1: agree by %.3f %.3f %.3f %.3f %.3f, level %.2f %.2f %.2f %.2f %.2f dB\n",
-              agree[0], agree[1], agree[2], agree[3], agree[4], level[0], level[1], level[2], level[3], level[4]);
+  std::printf(
+      "  the air's two sides by Scatter 0, 0.25, 0.5, 0.75, 1: agree by %.3f %.3f %.3f %.3f %.3f, level %.2f "
+      "%.2f %.2f %.2f %.2f dB\n",
+      agree[0], agree[1], agree[2], agree[3], agree[4], level[0], level[1], level[2], level[3], level[4]);
   EXPECT(agree[0] > 0.98, "without Scatter the air of a mono sound stays in the middle");
   for (int step = 1; step < 5; ++step) {
-    std::snprintf(label, sizeof label, "Scatter %.2f makes the two sides agree less than %.2f (%.3f against %.3f)",
-                  0.25f * step, 0.25f * (step - 1), agree[step], agree[step - 1]);
+    std::snprintf(label, sizeof label,
+                  "Scatter %.2f makes the two sides agree less than %.2f (%.3f against %.3f)", 0.25f * step,
+                  0.25f * (step - 1), agree[step], agree[step - 1]);
     EXPECT(agree[step] < agree[step - 1] - 0.05, label);
-    std::snprintf(label, sizeof label, "Scatter %.2f keeps the air's level (%.2f dB against %.2f dB without)", 0.25f * step,
-                  level[step], level[0]);
+    std::snprintf(label, sizeof label, "Scatter %.2f keeps the air's level (%.2f dB against %.2f dB without)",
+                  0.25f * step, level[step], level[0]);
     EXPECT(std::fabs(level[step] - level[0]) < 1.0, label);
   }
   EXPECT(std::fabs(agree[4]) < 0.15, "Scatter at the top leaves the air's two sides unrelated");
   // The tones and the attacks stay where they were.
   rng_state() = 5;
-  const std::vector<float> all = add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
+  const std::vector<float> all =
+      add(add(sine(440.0f, 2.0f, kRate, 0.25f), clicks(2.0f, 0.5f, 0.8f)), noise(2.0f, kRate, 0.05f));
   for (int part = 0; part < 2; ++part) {
     only(part);
     const Stereo down = run(device, all);
     only(part);
     device.set_param(p::kScatter, 1.0f);
     const Stereo up = run(device, all);
-    EXPECT(down.left == up.left && down.right == up.right, part == 0 ? "Scatter does not touch the tones" : "Scatter does not touch the attacks");
+    EXPECT(down.left == up.left && down.right == up.right,
+           part == 0 ? "Scatter does not touch the tones" : "Scatter does not touch the attacks");
     const double middle = correlation(up.left, up.right, 24000, 72000);
-    std::snprintf(label, sizeof label, "part %d of a mono sound stays in the middle (the sides agree by %.4f)", part, middle);
+    std::snprintf(label, sizeof label,
+                  "part %d of a mono sound stays in the middle (the sides agree by %.4f)", part, middle);
     EXPECT(middle > 0.99, label);
   }
 }
@@ -578,12 +620,14 @@ static void check_bad_input() {
     device.set_param(p::kHold, 0.6f);
     render(device, 12.5f, kRate);  // so that the frames fall on the same samples
     const Stereo clean = run(device, good);
-    const double off = std::max(difference_db(clean.left, after.left), difference_db(clean.right, after.right));
+    const double off =
+        std::max(difference_db(clean.left, after.left), difference_db(clean.right, after.right));
     std::snprintf(label, sizeof label,
-                  "NaN, infinity and 1e30 in: finite out (peak %.2f), and the same as a fresh device afterwards (%.0f dB apart) at Mix %.1f",
+                  "NaN, infinity and 1e30 in: finite out (peak %.2f), and the same as a fresh device "
+                  "afterwards (%.0f dB apart) at Mix %.1f",
                   std::max(peak(during.left), peak(during.right)), off, mix);
     SAY(finite(during.left) && finite(during.right) && peak(during.left) < 2.01 && finite(after.left) &&
-               finite(after.right) && off < -100.0);
+        finite(after.right) && off < -100.0);
   }
 }
 
@@ -599,9 +643,11 @@ static Stereo across_sleep(int block, float hold) {
   Stereo out = run(device, notes, block);
   out = concat(out, run(device, silence(hold > 0.0f ? 5.0f : 1.5f, kRate), block));
   const double resting = std::max(peak(out.left, out.size() - 4800), peak(out.right, out.size() - 4800));
-  std::snprintf(label, sizeof label, "block %d, Hold %.1f: exact silence before the knobs move (peak %.2g)", block, hold, resting);
+  std::snprintf(label, sizeof label, "block %d, Hold %.1f: exact silence before the knobs move (peak %.2g)",
+                block, hold, resting);
   EXPECT(resting == 0.0, label);
-  EXPECT(device.meter(0) == 0.0f && device.meter(1) == 0.0f && device.meter(2) == 0.0f, "asleep, the meters read nothing");
+  EXPECT(device.meter(0) == 0.0f && device.meter(1) == 0.0f && device.meter(2) == 0.0f,
+         "asleep, the meters read nothing");
   device.set_param(p::kMix, 0.6f);
   device.set_param(p::kLate, 140.0f);
   device.set_param(p::kAttacks, 3.0f);
@@ -619,8 +665,10 @@ static void check_blocks() {
         worst = std::max(worst, std::fabs(static_cast<double>(other.left[i]) - reference.left[i]));
         worst = std::max(worst, std::fabs(static_cast<double>(other.right[i]) - reference.right[i]));
       }
-      std::snprintf(label, sizeof label, "blocks of %d give what blocks of 128 give across a sleep, Hold %.1f (worst difference %.2g)",
-                    block, hold, worst);
+      std::snprintf(
+          label, sizeof label,
+          "blocks of %d give what blocks of 128 give across a sleep, Hold %.1f (worst difference %.2g)",
+          block, hold, worst);
       SAY(worst < 1.0e-5);
     }
     // Knobs moved while asleep snap: the second phrase is what a device that
@@ -638,7 +686,9 @@ static void check_blocks() {
     for (size_t i = 0; i < set_before.size(); ++i) {
       worst = std::max(worst, std::fabs(static_cast<double>(set_before.left[i]) - reference.left[gap + i]));
     }
-    std::snprintf(label, sizeof label, "knobs moved while asleep snap, they do not glide, Hold %.1f (worst difference %.2g)", hold, worst);
+    std::snprintf(label, sizeof label,
+                  "knobs moved while asleep snap, they do not glide, Hold %.1f (worst difference %.2g)", hold,
+                  worst);
     SAY(worst < 1.0e-5);
   }
 }
@@ -650,24 +700,29 @@ static void check_default() {
   // and softened, and the note rings on a little after it is let go.
   rng_state() = 7;
   std::vector<float> note = struck(220.0f, 1.0f, 1.2f, 16, 0.3f, 0.3f);
-  for (size_t i = note.size() - 480; i < note.size(); ++i) note[i] *= static_cast<float>(note.size() - i) / 480.0f;
+  for (size_t i = note.size() - 480; i < note.size(); ++i)
+    note[i] *= static_cast<float>(note.size() - i) / 480.0f;
   note = padded(note, 4.0f);
   fresh();
   const Stereo out = run(device, note);
   const double hammer = kept_db(out.left, note, 0, 960);
   const double body = kept_db(out.left, note, 9600, 43200);
-  const double ring = db(rms(out.left, 48000 + kLatency + 4800, 48000 + kLatency + 14400) / rms(note, 38400, 48000));
+  const double ring =
+      db(rms(out.left, 48000 + kLatency + 4800, 48000 + kLatency + 14400) / rms(note, 38400, 48000));
   std::vector<float> late(note.begin(), note.end());
   std::rotate(late.rbegin(), late.rbegin() + kLatency, late.rend());
   const double changed = difference_db(late, out.left);
-  std::printf("  the default on a struck note: its first 20 ms %.1f dB, its body %.2f dB, 100 to 300 ms after it is let go %.1f dB of its last 200 ms; the output differs from the input by %.1f dB of it\n",
-              hammer, body, ring, changed);
+  std::printf(
+      "  the default on a struck note: its first 20 ms %.1f dB, its body %.2f dB, 100 to 300 ms after it is "
+      "let go %.1f dB of its last 200 ms; the output differs from the input by %.1f dB of it\n",
+      hammer, body, ring, changed);
   EXPECT(hammer < -5.0, "the default takes the strike of a note down by 5 dB or more");
   EXPECT(std::fabs(body) < 1.0, "the default leaves the body of a note at its level");
   EXPECT(ring > -20.0, "the default lets a note ring on after it is let go");
   EXPECT(changed > -15.0, "the default is plain on a struck note");
   // On a held chord it neither drops nor lifts the sound.
-  const std::vector<float> chord = add(add(sine(220.0f, 3.0f, kRate, 0.2f), sine(277.18f, 3.0f, kRate, 0.2f)), sine(329.63f, 3.0f, kRate, 0.2f));
+  const std::vector<float> chord = add(add(sine(220.0f, 3.0f, kRate, 0.2f), sine(277.18f, 3.0f, kRate, 0.2f)),
+                                       sine(329.63f, 3.0f, kRate, 0.2f));
   fresh();
   const Stereo held = run(device, chord);
   const double level = kept_db(held.left, chord, 48000, 120000);
@@ -704,7 +759,9 @@ static void check_controls() {
   const std::vector<float> left = padded(phrase(), 1.0f);
   rng_state() = 0x99u;
   const std::vector<float> right = add(left, noise(3.0f, kRate, 0.01f));
-  std::printf("  what a third of each control's range does to the phrase, in dB of the output (low, middle, high third; as it starts | where its part is heard):\n");
+  std::printf(
+      "  what a third of each control's range does to the phrase, in dB of the output (low, middle, high "
+      "third; as it starts | where its part is heard):\n");
   for (int id = 0; id < p::kNumParams; ++id) {
     double moved[2][3];
     for (int where = 0; where < 2; ++where) {
@@ -715,18 +772,21 @@ static void check_controls() {
         } else {
           context(id);
         }
-        device.set_param(id, p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * static_cast<float>(step) / 3.0f);
+        device.set_param(
+            id, p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * static_cast<float>(step) / 3.0f);
         at[step] = run(device, left, right);
       }
       for (int step = 0; step < 3; ++step) {
-        moved[where][step] = std::max(difference_db(at[step + 1].left, at[step].left), difference_db(at[step + 1].right, at[step].right));
+        moved[where][step] = std::max(difference_db(at[step + 1].left, at[step].left),
+                                      difference_db(at[step + 1].right, at[step].right));
       }
     }
-    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", kNames[id], moved[0][0], moved[0][1], moved[0][2],
-                moved[1][0], moved[1][1], moved[1][2]);
+    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", kNames[id], moved[0][0], moved[0][1],
+                moved[0][2], moved[1][0], moved[1][1], moved[1][2]);
     for (int step = 0; step < 3; ++step) {
-      std::snprintf(label, sizeof label, "control %s does something in third %d of its range (%.1f dB of the output)",
-                    kNames[id], step + 1, moved[1][step]);
+      std::snprintf(label, sizeof label,
+                    "control %s does something in third %d of its range (%.1f dB of the output)", kNames[id],
+                    step + 1, moved[1][step]);
       EXPECT(moved[1][step] > -24.0, label);
     }
   }
@@ -762,8 +822,10 @@ static void check_clicks() {
     if (n == 18) device.set_param(p::kTones, 0.0f);
     if (n == 23) device.set_param(p::kHold, 1.0f);
   });
-  std::snprintf(label, sizeof label, "throwing the Tones level about makes no click (largest step %.4f, %.4f with the tone left alone)",
-                worst_step(thrown), worst_step(still));
+  std::snprintf(
+      label, sizeof label,
+      "throwing the Tones level about makes no click (largest step %.4f, %.4f with the tone left alone)",
+      worst_step(thrown), worst_step(still));
   // At +6 dB the tone is twice as large and so are its steps.
   SAY(worst_step(thrown) < 2.3 * worst_step(still));
 
@@ -775,8 +837,9 @@ static void check_clicks() {
     if (n == 13) device.set_param(p::kMix, 1.0f);
     if (n == 18) device.set_param(p::kMix, 0.4f);
   });
-  std::snprintf(label, sizeof label, "throwing Mix about makes no click (largest step %.4f, %.4f for the dry tone)", worst_step(mixed),
-                worst_step(still));
+  std::snprintf(label, sizeof label,
+                "throwing Mix about makes no click (largest step %.4f, %.4f for the dry tone)",
+                worst_step(mixed), worst_step(still));
   SAY(worst_step(mixed) < 1.2 * worst_step(still));
 
   // Late moved while an attack is sounding: the attacks alone, on notes that
@@ -786,14 +849,17 @@ static void check_clicks() {
   only(1);
   const Stereo in_place = run(device, notes);
   only(1);
-  // The first note's attack sounds from kLatency on: 0.09 s. Move at 0.1 s, in the middle of it, and again in later ones.
+  // The first note's attack sounds from kLatency on: 0.09 s. Move at 0.1 s, in the middle
+  // of it, and again in later ones.
   const Stereo moved = run_moving(notes, [](int n) {
     if (n == 1) device.set_param(p::kLate, 150.0f);
     if (n == 6) device.set_param(p::kLate, 0.0f);
     if (n == 11) device.set_param(p::kLate, 300.0f);
     if (n == 16) device.set_param(p::kLate, 20.0f);
   });
-  std::snprintf(label, sizeof label, "moving Late while an attack sounds makes no click (largest step %.4f, %.4f with Late left alone; peak %.2f)",
+  std::snprintf(label, sizeof label,
+                "moving Late while an attack sounds makes no click (largest step %.4f, %.4f with Late left "
+                "alone; peak %.2f)",
                 worst_step(moved), worst_step(in_place), peak(in_place.left));
   SAY(peak(in_place.left) > 0.1 && worst_step(moved) < 1.2 * worst_step(in_place));
 }
@@ -821,7 +887,9 @@ static void check_rest() {
   });
   for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, p::kParamDefault[id]);
   double rest = seconds_to_rest(8.0f);
-  std::snprintf(label, sizeof label, "at rest %.2f s after the playing stops, every control having been moved (as it starts)", rest);
+  std::snprintf(label, sizeof label,
+                "at rest %.2f s after the playing stops, every control having been moved (as it starts)",
+                rest);
   SAY(rest < 6.0 && device.meter(0) == 0.0f && device.meter(1) == 0.0f && device.meter(2) == 0.0f);
   // The longest it can ring: Hold, Soften and Late at the top.
   fresh();
@@ -830,7 +898,8 @@ static void check_rest() {
   device.set_param(p::kLate, 300.0f);
   run(device, notes);
   rest = seconds_to_rest(45.0f);
-  std::snprintf(label, sizeof label, "at rest %.1f s after the playing stops with Hold, Soften and Late at the top", rest);
+  std::snprintf(label, sizeof label,
+                "at rest %.1f s after the playing stops with Hold, Soften and Late at the top", rest);
   SAY(rest < 40.0 && device.meter(0) == 0.0f);
   // A glide in flight when the sound stops does not keep it awake: Mix and Late moved at the last moment.
   fresh();
@@ -839,7 +908,8 @@ static void check_rest() {
   device.set_param(p::kMix, 0.37f);
   device.set_param(p::kLate, 211.0f);
   rest = seconds_to_rest(3.0f);
-  std::snprintf(label, sizeof label, "at rest %.2f s after the playing stops with Mix and Late moved at the last moment", rest);
+  std::snprintf(label, sizeof label,
+                "at rest %.2f s after the playing stops with Mix and Late moved at the last moment", rest);
   SAY(rest < 1.0);
 }
 
@@ -850,8 +920,10 @@ static void check_meters() {
   only(0);
   levels(0.0f, 0.0f, 0.0f);
   run(device, sine(1000.0f, 1.0f, kRate, 0.25f));
-  std::snprintf(label, sizeof label, "a sine of 0.25 reads tones %.4f, attacks %.5f, air %.5f", device.meter(0), device.meter(1), device.meter(2));
-  SAY(std::fabs(device.meter(0) / 0.17678 - 1.0) < 0.02 && device.meter(1) < 0.001f && device.meter(2) < 0.001f);
+  std::snprintf(label, sizeof label, "a sine of 0.25 reads tones %.4f, attacks %.5f, air %.5f",
+                device.meter(0), device.meter(1), device.meter(2));
+  SAY(std::fabs(device.meter(0) / 0.17678 - 1.0) < 0.02 && device.meter(1) < 0.001f &&
+      device.meter(2) < 0.001f);
   const float reading = device.meter(0);
   // The readings are taken before the levels and before Mix.
   only(0);
@@ -864,7 +936,8 @@ static void check_meters() {
   only(0);
   rng_state() = 3;
   run(device, noise(1.0f, kRate, 0.2f));
-  std::snprintf(label, sizeof label, "noise of RMS 0.115 reads tones %.4f, attacks %.4f, air %.4f", device.meter(0), device.meter(1), device.meter(2));
+  std::snprintf(label, sizeof label, "noise of RMS 0.115 reads tones %.4f, attacks %.4f, air %.4f",
+                device.meter(0), device.meter(1), device.meter(2));
   SAY(device.meter(2) > 0.07f && device.meter(2) < 0.14f && device.meter(2) > 2.0f * device.meter(0) &&
       device.meter(2) > 2.0f * device.meter(1));
   // A click flashes on the attacks' meter and on no other; reading changes nothing.
@@ -884,15 +957,18 @@ static void check_meters() {
     for (int m = 0; m < 3; ++m) highest[m] = std::max(highest[m], device.meter(m));
     if (device.meter(1) > 0.01f) ++blocks_lit;
   }
-  std::snprintf(label, sizeof label, "a click of 0.8 flashes %.4f on the attacks' meter for %d blocks (tones %.5f, air %.5f)", highest[1],
-                blocks_lit, highest[0], highest[2]);
+  std::snprintf(label, sizeof label,
+                "a click of 0.8 flashes %.4f on the attacks' meter for %d blocks (tones %.5f, air %.5f)",
+                highest[1], blocks_lit, highest[0], highest[2]);
   SAY(highest[1] > 0.02f && highest[0] < 0.001f && highest[2] < 0.001f && blocks_lit >= 12);
-  EXPECT(metered.left == unread.left && read.left == unread.left, "reading the meters changes nothing that sounds");
+  EXPECT(metered.left == unread.left && read.left == unread.left,
+         "reading the meters changes nothing that sounds");
   // Hold shows on the tones' meter: the reading stays up after the playing stops.
   only(0);
   device.set_param(p::kHold, 0.6f);
   run(device, padded(sine(440.0f, 1.0f, kRate, 0.25f), 1.0f));
-  std::snprintf(label, sizeof label, "a held tone still reads %.4f a second after it is let go at Hold 0.6", device.meter(0));
+  std::snprintf(label, sizeof label, "a held tone still reads %.4f a second after it is let go at Hold 0.6",
+                device.meter(0));
   SAY(device.meter(0) > 0.03f && device.meter(0) < 0.17f);
 }
 
@@ -905,12 +981,22 @@ static void check_sides() {
   const std::vector<float> right = sine(440.0f, 2.0f, kRate, 0.25f);
   only(1);
   Stereo out = run(device, left, right);
-  std::snprintf(label, sizeof label, "the attacks of the left stay on the left (right %.1f dB of the left)", db(rms(out.right, 24000) / rms(out.left, 24000)));
+  std::snprintf(label, sizeof label, "the attacks of the left stay on the left (right %.1f dB of the left)",
+                db(rms(out.right, 24000) / rms(out.left, 24000)));
   SAY(rms(out.left, 24000) > 0.001 && rms(out.right, 24000) < 1.0e-4 * rms(out.left, 24000));
   only(0);
   out = run(device, left, right);
-  std::snprintf(label, sizeof label, "the tones of the right stay on the right (left %.1f dB of the right)", db(rms(out.left, 24000) / rms(out.right, 24000)));
+  std::snprintf(label, sizeof label, "the tones of the right stay on the right (left %.1f dB of the right)",
+                db(rms(out.left, 24000) / rms(out.right, 24000)));
   SAY(rms(out.right, 24000) > 0.1 && rms(out.left, 24000) < 1.0e-4 * rms(out.right, 24000));
+  // A mono sound stays mono, bit for bit, while Scatter is down: the two sides do the same
+  // work on the same frames.
+  fresh();
+  device.set_param(p::kScatter, 0.0f);
+  device.set_param(p::kLate, 60.0f);
+  const Stereo mono = run(device, padded(phrase(), 1.0f));
+  EXPECT(mono.left == mono.right && rms(mono.left) > 0.01,
+         "a mono sound stays mono, bit for bit, while Scatter is down");
   // The wet never sums the two sides: a sound in opposite phase on the two is still all there.
   const std::vector<float> notes = phrase();
   std::vector<float> turned = notes;
@@ -920,7 +1006,8 @@ static void check_sides() {
   fresh();
   const Stereo opposite = run(device, notes, turned);
   const double level = db(rms(opposite.right) / rms(same.right));
-  std::snprintf(label, sizeof label, "a sound in opposite phase on the two sides keeps its level (%.2f dB)", level);
+  std::snprintf(label, sizeof label, "a sound in opposite phase on the two sides keeps its level (%.2f dB)",
+                level);
   SAY(std::fabs(level) < 0.2);
 }
 
@@ -999,7 +1086,9 @@ static void check_level() {
     worst_growth = std::max(worst_growth, m.late - m.early);
     loudest = std::max(loudest, m.late);
     quietest = std::min(quietest, m.late);
-    std::snprintf(label, sizeof label, "a full-scale chord held for a minute, %s: peak %.3f, RMS %.3f early and %.3f at the end (the chord: 1.000, 0.408)",
+    std::snprintf(label, sizeof label,
+                  "a full-scale chord held for a minute, %s: peak %.3f, RMS %.3f early and %.3f at the end "
+                  "(the chord: 1.000, 0.408)",
                   what, m.peak, m.early, m.late);
     // No more than 6 dB over the input, and no growth.
     EXPECT(m.peak <= 2.0 && m.late <= m.early * 1.01 + 1.0e-3, label);
@@ -1028,8 +1117,10 @@ static void check_level() {
     std::snprintf(what, sizeof what, "preset %s", kPresets[n].name);
     measure(what);
   }
-  std::printf("  a full-scale chord held for a minute at 38 settings: highest peak %.3f, RMS at the end from %.3f to %.3f (the chord: 0.408), largest rise in RMS from early to the end %.5f\n",
-              worst_peak, quietest, loudest, worst_growth);
+  std::printf(
+      "  a full-scale chord held for a minute at 38 settings: highest peak %.3f, RMS at the end from %.3f to "
+      "%.3f (the chord: 0.408), largest rise in RMS from early to the end %.5f\n",
+      worst_peak, quietest, loudest, worst_growth);
 }
 
 // --- part-way Mix ------------------------------------------------------------------------------
@@ -1068,13 +1159,18 @@ static void check_mix() {
       highest = std::max(highest, level);
     }
     worst = std::min(worst, lowest);
-    std::snprintf(label, sizeof label, "Mix at half, %s: a held tone reads from %.2f dB (at %.1f Hz) to %.2f dB of itself over the piano's range",
+    std::snprintf(label, sizeof label,
+                  "Mix at half, %s: a held tone reads from %.2f dB (at %.1f Hz) to %.2f dB of itself over "
+                  "the piano's range",
                   n < 0 ? "as it starts" : kPresets[n].name, lowest, lowest_hz, highest);
     // -6 dB is the dry half alone; under -7 dB the wet would be taking some of it away.
     EXPECT(lowest > -7.0 && highest < 3.6, label);
     if (n < 0) std::printf("  %s\n", label);
   }
-  std::printf("  Mix at half through the default and all sixteen presets: the lowest a held tone reads is %.2f dB (the dry half alone is -6.02)\n", worst);
+  std::printf(
+      "  Mix at half through the default and all sixteen presets: the lowest a held tone reads is %.2f dB "
+      "(the dry half alone is -6.02)\n",
+      worst);
 }
 
 // --- cost ------------------------------------------------------------------------------------
@@ -1098,15 +1194,18 @@ static void report_blocks(const char* what) {
     }
     const auto start = std::chrono::steady_clock::now();
     device.process(kBlock);
-    micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+    micros.push_back(
+        std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
   }
   double sum = 0.0;
   for (double v : micros) sum += v;
   std::sort(micros.begin(), micros.end());
   const double average = sum / static_cast<double>(micros.size());
-  std::printf("sift %s cost: %.1f us per 128-frame stereo block on average, %.2f%% of real time at 48 kHz (native); by block: median %.1f, 95th of 100 %.1f, 99th %.1f us of the 2667 a block lasts\n",
-              what, average, 100.0 * average / (128.0e6 / kRate), micros[micros.size() / 2],
-              micros[micros.size() * 95 / 100], micros[micros.size() * 99 / 100]);
+  std::printf(
+      "sift %s cost: %.1f us per 128-frame stereo block on average, %.2f%% of real time at 48 kHz (native); "
+      "by block: median %.1f, 95th of 100 %.1f, 99th %.1f us of the 2667 a block lasts\n",
+      what, average, 100.0 * average / (128.0e6 / kRate), micros[micros.size() / 2],
+      micros[micros.size() * 95 / 100], micros[micros.size() * 99 / 100]);
 }
 
 static void check_cost() {

@@ -4,7 +4,7 @@
 // its air, with a level and a blur for each part.
 //
 //   in ─► Stft ─► keep 9 frames ─► split the middle one ─┬─ tones ─► hold ────► × Tones ─┐
-//    │    2048/512                 (4 frames ago)        ├─ air ───► scatter ─► × Air ───┴─► resynthesis ──────────┐
+//    │    2048/512                 (4 frames ago), Edge  ├─ air ───► scatter ─► × Air ───┴─► resynthesis ──────────┐
 //    │                                                   └─ attacks ► soften ─► × Attacks ─► resynthesis ─► late ─┴─► limit ─► wet
 //    └─► delay 4352 ───────────────────────────────────────────────────────────────────────────────────────────────► dry
 //
@@ -24,18 +24,31 @@
 //   air     = 1 - tones - attacks: what is neither by a margin of 6 dB.
 //   Sharpness is the slope, 1.5 to 12: low shares a doubtful bin between the
 //   parts, high gives each its own. The three always add up to one, so with
-//   the three levels at unity and no blur the output is the input (to 2e-6).
-//
-// Each channel is split on its own, by the same arithmetic: a mono input
-// stays mono while Scatter is down, and one side's click is not taken out of
-// the other side's tone.
-//
+//   the three levels at unity and no blur the output is the input (measured
+//   to 1.8e-7).
 // - Edge: the first moment of a tone goes with the attacks. A bin's tone is
 //   new by how far it stands over what the bin held before (the second
 //   largest of the four frames before): that share of it, times Edge, is
 //   moved from the tones to the attacks. At Edge 0 an attack is only what is
-//   everywhere in frequency for a moment; at 1 it is also the first 30 ms or
-//   so of every note, and the tones begin without their start.
+//   everywhere in frequency for a moment; at 1 it is also the start of every
+//   note (measured on a note that begins without a click: the attacks hold
+//   its first 30 ms at -2 dB, at -54 dB with Edge down).
+//
+// Measured at Sharpness 0.5, each part alone: the tones keep a sine whole
+// and steady noise at -16 dB, and no clicks; the attacks keep clicks whole,
+// noise at -17 dB and nothing of a held sine; the air keeps noise at -2 dB
+// and nothing of the other two. Sharpness takes the noise in the tones from
+// -12 to -18 dB. What the split cannot tell: partials closer than about
+// 70 Hz (a low or dense chord) are not resolved by a frame of 43 ms and read
+// partly as air.
+//
+// Each channel is split on its own, by the same arithmetic on the same
+// frames: a mono input stays mono while Scatter is down, and one side's
+// click is not taken out of the other side's tone.
+//
+// The levels are decibels, taken down to nothing at the bottom of their
+// range (-30 dB) and exactly 1 at 0 dB. The blurs:
+//
 // - Hold: a tone bin the input lets go of rings on at the level it had,
 //   falling 60 dB in 12 s × Hold^1.5, and goes on turning by the turn it was
 //   last measured to make, so a held partial stays at its pitch.
@@ -46,13 +59,15 @@
 // - Late: the attacks are resynthesised apart and delayed in time, 0 to
 //   300 ms; a change crossfades between the old delay and the new in 20 ms.
 // - Scatter: the air's phase is turned by a fresh random angle each frame,
-//   up to a quarter turn one way on the left and the other way on the right,
-//   so the two sides agree by sinc(Scatter).
+//   one way on the left and the other way on the right, within
+//   0.75 × √Scatter half turns: the two sides of the air agree by about
+//   1 - Scatter (measured 1.00, 0.75, 0.48, 0.22, 0.03 at each quarter).
 //
 // Latency: the Stft's 2304 samples and the four frames the split looks
-// ahead, 2048: 4352 samples ("latencySamples"). The dry path is delayed by
-// as much, so Mix (a linear crossfade) does not comb and at Mix 0 the output
-// is the input 4352 samples late, bit for bit.
+// ahead, 2048: 4352 samples ("latencySamples"), at any sample rate. The dry
+// path is delayed by as much, so Mix (a linear crossfade) does not comb and
+// at Mix 0 the output is the input 4352 samples late, bit for bit. The wet
+// is limited softly to ±2: linear up to full scale, never past 6 dB over it.
 //
 // Storage, per channel: two Stfts (88 KB each), eight frames of spectrum
 // (66 KB) and nine of magnitudes (37 KB), seven floats a bin of state (29 KB),
@@ -63,7 +78,9 @@
 // values, without a branch, a sort or any state: 19 exchanges for the middle
 // of nine along time, and the 25 of a full sort along frequency, of which the
 // compiler keeps the ones the third smallest depends on. They run on the
-// bits of the magnitudes (see bits_of), about 20 ns a bin each in WASM.
+// bits of the magnitudes (see bits_of), about 20 ns a bin each in WASM. The
+// work comes a frame at a time: of four blocks of 128, one holds the left
+// side's frame and one the right's.
 // At 96 kHz the frame is half as long in time and the bins twice as wide; the
 // split is the same in frames and bins.
 
@@ -307,7 +324,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   }
 
  private:
-  static constexpr int kKeep = 8;  // frames of spectrum kept: the one split, the one before it, and the look ahead
+  // Frames of spectrum kept: the one split, the one before it, and the look ahead.
+  static constexpr int kKeep = 8;
   static constexpr int kReach = 8;  // bins either side the median along frequency reads, at every second one
   static constexpr int kParts = 3;  // tones, attacks, air
   static constexpr int kMeterFrames = 4;
@@ -341,21 +359,21 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     Stft strikes;  // the attacks resynthesised, fed silence
     kit::DelayLine<kLateSize> late;
     kit::DelayLine<kDrySize> dry;
-    float re[kKeep][kBins];          // the newest frames' spectra
+    float re[kKeep][kBins];  // the newest frames' spectra
     float im[kKeep][kBins];
-    int32_t magnitude[kSpan][kBins];  // and the magnitudes of the newest nine, as bits_of() gives them
-    float held[kBins];               // Hold: what each tone bin holds
+    int32_t magnitude[kSpan][kBins];         // and the magnitudes of the newest nine, as bits_of() gives them
+    float held[kBins];                       // Hold: what each tone bin holds
     float phase_re[kBins], phase_im[kBins];  // its phase as a unit vector
     float turn_re[kBins], turn_im[kBins];    // its phase advance per frame
-    float rise[kBins], puff[kBins];  // Soften: the attack power after one smoother and after two
-    int row;                         // where the next frame's magnitudes go
-    int slot;                        // where the next frame's spectrum goes
-    int silent;                      // frames of silence in a row, up to kSpan + 1
-    bool ringing;                    // any tone bin held
-    bool puffing;                    // any attack bin still fading
-    bool alive;                      // anything kept that is not zero
-    float power[kParts][kMeterFrames];  // each part's power in the newest frames, for meter()
-    float level[kParts];             // the highest of them
+    float rise[kBins], puff[kBins];          // Soften: the attack power after one smoother and after two
+    int row;                                 // where the next frame's magnitudes go
+    int slot;                                // where the next frame's spectrum goes
+    int silent;                              // frames of silence in a row, up to kSpan + 1
+    bool ringing;                            // any tone bin held
+    bool puffing;                            // any attack bin still fading
+    bool alive;                              // anything kept that is not zero
+    float power[kParts][kMeterFrames];       // each part's power in the newest frames, for meter()
+    float level[kParts];                     // the highest of them
     int meter_at;
   };
 
@@ -390,7 +408,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
         mask_dirty_ = true;
         break;
       case kLate:
-        late_target_ = kit::clamp_int(static_cast<int>(param(id) * 0.001f * sample_rate() + 0.5f), 0, kLateSize - 8);
+        late_target_ =
+            kit::clamp_int(static_cast<int>(param(id) * 0.001f * sample_rate() + 0.5f), 0, kLateSize - 8);
         break;
       case kMix:
         mix_.set(param(id), primed());
@@ -481,8 +500,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   // The shares of the frame split: tone_[k] and strike_[k]; the air is the rest.
   void split(const int32_t* const* rows, const int32_t* level) {
     for (int k = 0; k < kBins; ++k) {
-      steady_[k] = magnitude_of(median9(rows[0][k], rows[1][k], rows[2][k], rows[3][k], rows[4][k], rows[5][k],
-                                        rows[6][k], rows[7][k], rows[8][k]));
+      steady_[k] = magnitude_of(median9(rows[0][k], rows[1][k], rows[2][k], rows[3][k], rows[4][k],
+                                        rows[5][k], rows[6][k], rows[7][k], rows[8][k]));
     }
     // The spectrum of a real signal mirrors itself about 0 Hz and about the
     // top bin, and so does what the median reads past either end.
@@ -493,7 +512,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     }
     for (int k = 0; k < kBins; ++k) {
       const int32_t* w = padded_ + k;
-      sudden_[k] = kAcrossBias * magnitude_of(third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]));
+      sudden_[k] =
+          kAcrossBias * magnitude_of(third9(w[0], w[2], w[4], w[6], w[8], w[10], w[12], w[14], w[16]));
     }
     for (int k = 0; k < kBins; ++k) {
       const float sum = steady_[k] + sudden_[k];
@@ -519,7 +539,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     if (edge > 0.0f) {
       for (int k = 0; k < kBins; ++k) {
         const float now = magnitude_of(level[k]);
-        const float before = magnitude_of(second4(rows[kLook + 1][k], rows[kLook + 2][k], rows[kLook + 3][k], rows[kLook + 4][k]));
+        const float before = magnitude_of(
+            second4(rows[kLook + 1][k], rows[kLook + 2][k], rows[kLook + 3][k], rows[kLook + 4][k]));
         if (before >= kEdgeNone * now) continue;
         const float moved = tone_[k] * edge * newness(before / now);
         tone_[k] -= moved;
@@ -679,7 +700,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
     }
     // Two smoothers of 0.1 s × Soften² each on the bin's power: the sum of it
     // over time is what it was, so the attack keeps its energy.
-    const float pole = 1.0f - std::exp(-static_cast<float>(Stft::kHop) / (kMaxSoftenSeconds * soften * soften * sample_rate()));
+    const float pole = 1.0f - std::exp(-static_cast<float>(Stft::kHop) /
+                                       (kMaxSoftenSeconds * soften * soften * sample_rate()));
     // The same angles for both sides: a mono attack stays in the middle.
     kit::Rng rng;
     rng.seed(0x7F4A7C15u ^ (number * 2246822519u));
@@ -713,7 +735,8 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
         ur = xr[k] * inverse;
         ui = xi[k] * inverse;
       }
-      const int index = static_cast<int>(rng.bipolar() * spread * half_turn + static_cast<float>(kAngles)) & (kAngles - 1);
+      const int index =
+          static_cast<int>(rng.bipolar() * spread * half_turn + static_cast<float>(kAngles)) & (kAngles - 1);
       const float qr = angle_cos_[index];
       const float qi = angle_sin_[index];
       const float scaled = gain * out * spread_gain_[static_cast<int>(spread * kSpreadSteps + 0.5f)];
