@@ -5,8 +5,8 @@
 //
 //   in ─► air (2 poles) ─┬─► line L, R ─► read at the travel time ─► narrow (mid/side) ─► × direct ──────┐
 //                        │                                                                               │
-//                        ├─► line L, R ─► read a wall's lag later ─► low cut ─► 4 allpasses a side ──────┤
-//                        │                 ─► the diffuse room: one allpass loop a side                  ▼
+//                        ├─► line L, R ─► read a wall's lag later ─► low cut ─► narrow ─► 4 allpasses ───┤
+//                        │                 a side ─► the diffuse room: one allpass loop a side           ▼
 //                        └─► line M ────► 8 reads: the first reflections, each panned and scaled ──────► out
 //
 // - The place of the source is a number p from 0 (close) to 1 (far), and its
@@ -30,7 +30,10 @@
 // - Width: a source one metre to each side of its middle is seen under
 //   atan(1 / d), and the sides are turned down by that against what they are
 //   at 1 m. Width is how much of the distance the angles take: they follow
-//   d^Width, so 0 never narrows and 1 narrows as geometry has it.
+//   d^Width, so 0 never narrows and 1 narrows as geometry has it. What is
+//   sent to the diffuse room is narrowed the same, so a source off to one
+//   side comes to the middle whole, with its room; the first reflections are
+//   of the middle of the input to begin with.
 // - The room: listener and source stand on one line down a room W wide
 //   (4 m to 40 m with Room), 7 % of W off its middle. Eight image sources
 //   (floor, ceiling, each side wall, two of second order, the far left wall
@@ -270,14 +273,19 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
         room_right += tap * tap_right_[k].next();
       }
 
-      // The diffuse room, from when the first side wall answers. It is sent
-      // each side as it came in, not narrowed: a room is all round the
-      // listener however far off the source is, and so each side of it is
-      // as loud as that side of the input whatever the two have in common.
+      // The diffuse room, from when the first side wall answers. What goes
+      // to it is as narrow as the direct sound is: a source off to one side
+      // comes to the middle with its room, and the room is still wide, since
+      // its two sides are two different loops.
       send_lag_.value += send_lag_.step;
-      const float send[2] = {
-          send_cut_[0].highpass(read_linear(travel_[0], delay + send_lag_.value)),
-          send_cut_[1].highpass(read_linear(travel_[1], delay + send_lag_.value))};
+      const float heard_left =
+          send_cut_[0].highpass(read_linear(travel_[0], delay + send_lag_.value));
+      const float heard_right =
+          send_cut_[1].highpass(read_linear(travel_[1], delay + send_lag_.value));
+      const float feed_same = feed_same_.next();
+      const float feed_cross = feed_cross_.next();
+      const float send[2] = {feed_same * heard_left + feed_cross * heard_right,
+                             feed_same * heard_right + feed_cross * heard_left};
       const float round = loop_gain_.next();
       const float tilt = loop_tilt_.next();
       const float late = late_.next();
@@ -721,6 +729,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     same_.land();
     cross_.land();
     late_.land();
+    feed_same_.land();
+    feed_cross_.land();
     loop_gain_.land();
     loop_tilt_.land();
     for (int k = 0; k < kTaps; ++k) {
@@ -745,6 +755,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     same_.value += same_.step * samples;
     cross_.value += cross_.step * samples;
     late_.value += late_.step * samples;
+    feed_same_.value += feed_same_.step * samples;
+    feed_cross_.value += feed_cross_.step * samples;
     loop_gain_.value += loop_gain_.step * samples;
     loop_tilt_.value += loop_tilt_.step * samples;
     for (int k = 0; k < kTaps; ++k) {
@@ -851,6 +863,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     const float side = side_gain(place, width_.value);
     same_.aim(0.5f * (1.0f + side) * direct * lift);
     cross_.aim(0.5f * (1.0f - side) * direct * lift);
+    feed_same_.aim(0.5f * (1.0f + side));
+    feed_cross_.aim(0.5f * (1.0f - side));
     late_.aim(kSendMakeup * late * lift);
     for (int k = 0; k < kTaps; ++k) {
       tap_left_[k].aim(gains[k][0] * lift);
@@ -877,7 +891,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   Glide centre_, half_, doppler_, room_;
   kit::Smoother air_, width_, level_, decay_;
   Ramp air_keep_, same_, cross_, late_;
-  Ramp loop_gain_, loop_tilt_;
+  Ramp feed_same_, feed_cross_, loop_gain_, loop_tilt_;
   Ramp tap_left_[kTaps], tap_right_[kTaps];
   Reach delay_, send_lag_;
   Reach tap_lag_[kTaps];

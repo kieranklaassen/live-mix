@@ -268,20 +268,48 @@ int main() {
         last = heard;
       }
     }
-    // Two sides with nothing in common lose what the narrowing takes of
-    // their difference and no more: never louder than the model, and within
-    // 2.5 dB of it.
+    // Two sides with nothing in common: with Width 0 they are held as a
+    // source in the middle is; narrowed, they lose what the narrowing takes
+    // of their difference (up to 3 dB when all of it goes) and no more.
     Stereo wide = audible(pink(8.0f, 0.1f));
     const double wide_in = 0.5 * (rms(wide.left, from) + rms(wide.right, from));
-    for (float place : {0.4f, 1.0f}) {
-      still(device, place);
-      device.set_param(p::kLevel, 1.0f);
-      Stereo out = run(device, wide.left, wide.right);
-      const double kept = db(0.5 * (rms(out.left, from) + rms(out.right, from)) / wide_in);
-      char label[140];
-      std::snprintf(label, sizeof label, "Level 1 holds two unlike sides within 2.5 dB at Distance %.1f (%.1f dB)", place, kept);
-      EXPECT(kept < 0.5 && kept > -2.5, label);
+    for (float width : {0.0f, 0.5f}) {
+      for (float place : {0.4f, 1.0f}) {
+        still(device, place);
+        device.set_param(p::kLevel, 1.0f);
+        device.set_param(p::kWidth, width);
+        Stereo out = run(device, wide.left, wide.right);
+        const double kept = db(0.5 * (rms(out.left, from) + rms(out.right, from)) / wide_in);
+        char label[160];
+        std::snprintf(label, sizeof label, "Level 1 holds two unlike sides at Distance %.1f, Width %.1f (%.1f dB)", place, width, kept);
+        if (width == 0.0f) {
+          EXPECT_NEAR(kept, 0.0, 1.5, label);
+        } else {
+          EXPECT(kept < 0.5 && kept > -3.6, label);
+        }
+      }
     }
+  }
+
+  // A source off to one side comes to the middle with its room: far away
+  // with Width 1 a sound on the left alone is as loud on the right; with
+  // Width 0 it stays where it was, and its room with it.
+  {
+    Stereo in = audible(pink(6.0f, 0.1f));
+    const std::vector<float> nothing = silence(6.0f, kRate);
+    const size_t from = static_cast<size_t>(3.0f * kRate);
+    still(device, 1.0f);
+    device.set_param(p::kWidth, 1.0f);
+    Stereo narrowed = run(device, in.left, nothing);
+    EXPECT_NEAR(db(rms(narrowed.right, from) / rms(narrowed.left, from)), 0.0, 1.0,
+                "far away with Width 1 a sound on the left is in the middle");
+    EXPECT(correlation(narrowed.left, narrowed.right, from) < 0.5,
+           "and the room round it is wide: its two sides are not the same");
+    still(device, 1.0f);
+    device.set_param(p::kWidth, 0.0f);
+    Stereo kept = run(device, in.left, nothing);
+    EXPECT(db(rms(kept.right, from) / rms(kept.left, from)) < -10.0,
+           "with Width 0 it stays on the left, and its room with it");
   }
 
   // The air: the direct sound alone (the first milliseconds of an impulse,

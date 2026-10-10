@@ -509,14 +509,17 @@ describe('what the display draws is what the compiled device does', () => {
     ]) {
       const set = { room, air: 0, level: 0.5, width }
       const scene = sceneOf(place, set, RATE)
-      // The diffuse room answers from the right wall's reflection on, each side of it to its own
-      // side of the input; the reflections are of the middle. So the same sample on both sides and
-      // then one on the left with its opposite on the right give the reflections alone: the left
-      // of the first less the left of the second, the right of the first and of the second.
+      // The diffuse room answers from the right wall's reflection on. Each side of it is sent its
+      // own side of the input and, narrowed, some of the other: the whole of a sample that is the
+      // same on both sides, and the display's `side` of one that is opposite on the two. The
+      // reflections are of the middle, so the opposite sample has none. Taking the answer to the
+      // opposite sample, over `side`, from the answer to the same sample leaves the reflections
+      // alone (the right side of the opposite sample is its left turned over).
       const same = await answer({ ...still, distance: place, ...set }, 8192)
       const opposite = await answer({ ...still, distance: place, ...set }, 8192, 1, -1)
-      const leftAt = (n: number): number => same.left[n] - opposite.left[n]
-      const rightAt = (n: number): number => same.right[n] + opposite.right[n]
+      expect(scene.side).toBeGreaterThan(0.2)
+      const leftAt = (n: number): number => same.left[n] - opposite.left[n] / scene.side
+      const rightAt = (n: number): number => same.right[n] + opposite.right[n] / scene.side
       const when = arrival(place)
       // Floor, ceiling, left wall, right wall, right wall and floor.
       for (const k of [0, 1, 2, 3, 5]) {
@@ -539,33 +542,39 @@ describe('what the display draws is what the compiled device does', () => {
 
   it('the haze: the diffuse room is as loud as the display has it, in every room, at every Level', async () => {
     // A tone on the left with its opposite on the right has no middle, so there are no
-    // reflections in it; far away with Width 1 next to nothing of it is left in the direct sound
-    // (the sides are closed to atan(1/d)); what comes out is the diffuse room. The room is an
-    // allpass, so once the tone is held it comes out as loud as the room's gain: the display's
-    // level, the make-up for the low cut, and what the cut leaves at the tone.
+    // reflections in it, and with Width 0 all of it goes on: the direct sound, which is the tone
+    // as late as its way and as loud as the dot, and the diffuse room. The room is an allpass, so
+    // once the tone is held the room comes out as loud as its gain: the display's level, the
+    // make-up for the low cut, and what the cut leaves at the tone.
     const hz = 500
     const cut = hz / Math.hypot(hz, K.kSendCutHz)
-    for (const place of [0.8, 1]) {
+    const tone = (n: number): number => (n < 0 ? 0 : 0.25 * Math.sin((2 * Math.PI * hz * n) / RATE))
+    for (const place of [0.4, 0.8, 1]) {
       for (const room of [0, 0.5, 1]) {
         for (const level of [0, 0.5, 1]) {
-          const set = { room, air: 0, level, width: 1 }
+          const set = { room, air: 0, level, width: 0 }
           const scene = sceneOf(place, set, RATE)
+          expect(scene.side).toBe(1)
           const h = await loadWasmDevice('distance')
           const settings: Settings = { ...still, distance: place, decay: 0.3, ...set }
           for (const [name, value] of Object.entries(settings)) h.set(P[name as keyof typeof P], value)
+          const when = arrival(place)
           let power = 0
           let counted = 0
           for (let block = 0; block < 900; block++) {
             const left = new Float32Array(128)
             const right = new Float32Array(128)
             for (let n = 0; n < 128; n++) {
-              left[n] = 0.25 * Math.sin((2 * Math.PI * hz * (block * 128 + n)) / RATE)
+              left[n] = tone(block * 128 + n)
               right[n] = -left[n]
             }
             h.processBlock(left, right)
             if (block < 600) continue
             const out = h.view(h.device.device_out_left(), 128)
-            for (let n = 0; n < 128; n++) power += out[n] * out[n]
+            for (let n = 0; n < 128; n++) {
+              const rest = out[n] - scene.direct * tone(block * 128 + n - when)
+              power += rest * rest
+            }
             counted += 128
           }
           const heard = Math.sqrt(power / counted) / (0.25 * Math.SQRT1_2)
