@@ -439,7 +439,123 @@
     }
   ],
   "presets": {
-    "Common tones": {}
+    "Common tones": {},
+    "Only what stays": {
+      "ago": 450,
+      "strict": 1,
+      "ring": 0.3,
+      "broad": 0.1,
+      "memory": 0,
+      "mix": 1
+    },
+    "Only what moves": {
+      "keep": 1,
+      "ago": 250,
+      "strict": 0.6,
+      "ring": 0,
+      "broad": 0.3,
+      "memory": 0,
+      "mix": 1
+    },
+    "Long hold": {
+      "ago": 900,
+      "ring": 0.7,
+      "memory": 0.4,
+      "mix": 0.6
+    },
+    "Drone finder": {
+      "ago": 4000,
+      "strict": 0.8,
+      "ring": 0.6,
+      "broad": 0.15,
+      "memory": 0.6,
+      "floor": -16,
+      "mix": 0.7
+    },
+    "Attacks forward": {
+      "keep": 1,
+      "ago": 120,
+      "strict": 0.9,
+      "ring": 0,
+      "broad": 0.2,
+      "memory": 0,
+      "floor": -14,
+      "mix": 0.9
+    },
+    "Slow ear": {
+      "ago": 200,
+      "strict": 0.7,
+      "ring": 0.3,
+      "memory": 0.8,
+      "mix": 0.7
+    },
+    "Hanging notes": {
+      "ago": 300,
+      "strict": 0.5,
+      "ring": 0.75,
+      "mix": 0.6
+    },
+    "Loose match": {
+      "ago": 700,
+      "strict": 0,
+      "ring": 0.45,
+      "broad": 1,
+      "mix": 0.85
+    },
+    "New notes ring": {
+      "keep": 1,
+      "ago": 300,
+      "strict": 0.7,
+      "ring": 0.7,
+      "memory": 0,
+      "mix": 0.8
+    },
+    "Light touch": {
+      "ago": 250,
+      "strict": 0.5,
+      "ring": 0.2,
+      "floor": -10,
+      "mix": 0.6
+    },
+    "New notes up": {
+      "keep": 1,
+      "ago": 500,
+      "ring": 0.1,
+      "memory": 0.2,
+      "floor": -9,
+      "mix": 1
+    },
+    "Fresh only": {
+      "keep": 1,
+      "ago": 1000,
+      "strict": 0.6,
+      "ring": 0.2,
+      "memory": 0.7,
+      "mix": 0.9
+    },
+    "A bar ago": {
+      "ago": 2000,
+      "strict": 0.4,
+      "ring": 0.4,
+      "broad": 0.4,
+      "memory": 0.35,
+      "mix": 0.55
+    },
+    "Wide vibrato": {
+      "ago": 180,
+      "strict": 0.9,
+      "ring": 0.3,
+      "broad": 0.75,
+      "memory": 0.1,
+      "mix": 1
+    },
+    "Frozen ground": {
+      "ago": 800,
+      "strict": 0.7,
+      "ring": 1,
+      "memory": 0.5,
+      "mix": 0.55
+    }
   },
   "origin": {
     "kind": "new",

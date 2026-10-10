@@ -4,6 +4,9 @@
 // past: what is shared passes, what is new goes, Ago sets the time, and the
 // other controls each do what they say over their whole range.
 
+#include <chrono>
+#include <ctime>
+
 #include "../devices/common-tones/common_tones.h"
 #include "support/test_kit.h"
 
@@ -83,6 +86,38 @@ static Stereo run_moving(CommonTones& d, const std::vector<float>& input, Move m
     }
   }
   return out;
+}
+
+// The presets of device.json, for the level and part-way Mix checks (copied
+// by tmp/presets-to-test.mjs; values in id order).
+struct Setting {
+  const char* name;
+  float value[p::kNumParams];
+};
+// PRESETS BEGIN
+static const Setting kPresets[] = {
+    {"Common tones", {350.0f, 0.0f, 0.6f, 0.35f, 0.25f, 0.3f, -48.0f, 0.7f}},
+    {"Only what stays", {450.0f, 0.0f, 1.0f, 0.3f, 0.1f, 0.0f, -48.0f, 1.0f}},
+    {"Only what moves", {250.0f, 1.0f, 0.6f, 0.0f, 0.3f, 0.0f, -48.0f, 1.0f}},
+    {"Long hold", {900.0f, 0.0f, 0.6f, 0.7f, 0.25f, 0.4f, -48.0f, 0.6f}},
+    {"Drone finder", {4000.0f, 0.0f, 0.8f, 0.6f, 0.15f, 0.6f, -16.0f, 0.7f}},
+    {"Attacks forward", {120.0f, 1.0f, 0.9f, 0.0f, 0.2f, 0.0f, -14.0f, 0.9f}},
+    {"Slow ear", {200.0f, 0.0f, 0.7f, 0.3f, 0.25f, 0.8f, -48.0f, 0.7f}},
+    {"Hanging notes", {300.0f, 0.0f, 0.5f, 0.75f, 0.25f, 0.3f, -48.0f, 0.6f}},
+    {"Loose match", {700.0f, 0.0f, 0.0f, 0.45f, 1.0f, 0.3f, -48.0f, 0.85f}},
+    {"New notes ring", {300.0f, 1.0f, 0.7f, 0.7f, 0.25f, 0.0f, -48.0f, 0.8f}},
+    {"Light touch", {250.0f, 0.0f, 0.5f, 0.2f, 0.25f, 0.3f, -10.0f, 0.6f}},
+    {"New notes up", {500.0f, 1.0f, 0.6f, 0.1f, 0.25f, 0.2f, -9.0f, 1.0f}},
+    {"Fresh only", {1000.0f, 1.0f, 0.6f, 0.2f, 0.25f, 0.7f, -48.0f, 0.9f}},
+    {"A bar ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -48.0f, 0.55f}},
+    {"Wide vibrato", {180.0f, 0.0f, 0.9f, 0.3f, 0.75f, 0.1f, -48.0f, 1.0f}},
+    {"Frozen ground", {800.0f, 0.0f, 0.7f, 1.0f, 0.25f, 0.5f, -48.0f, 0.55f}},
+};
+// PRESETS END
+
+static void set_all(CommonTones& d, const float* value) {
+  d.init(kRate);
+  for (int id = 0; id < p::kNumParams; ++id) d.set_param(id, value[id]);
 }
 
 int main() {
@@ -622,31 +657,209 @@ int main() {
     EXPECT(device.meter(-1) == 0.0f && device.meter(CommonTones::kMeters) == 0.0f, "meter: an index outside the list reads 0");
   }
 
-  // Cost: the average, and the worst single block (the one with a frame in it).
+  // Every control does something over its whole range on a played phrase:
+  // damped notes of six partials, some sharing partials, over a faint hiss.
+  // From the default (wet only), each control is stepped in quarters of its
+  // travel; "moved" is the difference from the step before, re the phrase.
   {
-    device.init(kRate);
-    device.set_param(p::kBroad, 1.0f);
-    device.set_param(p::kRing, 0.6f);
-    device.set_param(p::kMemory, 0.5f);
-    rng_state() = 0xBEEFu;
-    std::vector<float> input = noise(10.0f, kRate, 0.25f);
-    report_cost("common-tones", 10.0f, kRate, [&] { run(device, input); });
-    device.init(kRate);
-    device.set_param(p::kBroad, 1.0f);
-    device.set_param(p::kRing, 0.6f);
-    device.set_param(p::kMemory, 0.5f);
-    std::vector<double> micros;
-    for (size_t done = 0; done + 128 <= input.size(); done += 128) {
-      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
-      const auto start = std::chrono::steady_clock::now();
-      device.process(128);
-      micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+    struct Note {
+      double at, hz, gain, held;
+    };
+    const Note notes[] = {{0.0, 220.0, 0.25, 0.5},   {0.6, 329.63, 0.25, 0.5}, {1.2, 523.25, 0.25, 1.0}, {2.4, 440.0, 0.25, 1.4},
+                          {2.4, 174.61, 0.25, 1.4},  {4.0, 659.26, 0.15, 0.3}, {4.4, 587.33, 0.15, 0.3}, {4.8, 523.25, 0.2, 1.0},
+                          {6.0, 220.0, 0.25, 0.5},   {6.6, 329.63, 0.25, 0.5}, {7.2, 493.88, 0.25, 1.0}, {8.4, 392.0, 0.25, 1.4},
+                          {8.4, 196.0, 0.25, 1.4},   {10.0, 220.0, 0.25, 1.5}};
+    std::vector<float> phrase(at(12.0), 0.0f);
+    for (const Note& n : notes) {
+      const size_t start = at(n.at);
+      for (size_t i = start; i < phrase.size(); ++i) {
+        const double t = static_cast<double>(i - start) / kRate;
+        const double damp = t > n.held ? std::exp(-(t - n.held) / 0.05) : 1.0;
+        if (damp < 1.0e-5) break;
+        const double env = std::min(1.0, t / 0.004) * std::exp(-t / 0.9) * damp;
+        double s = 0.0;
+        for (int h = 1; h <= 6; ++h) s += std::sin(2.0 * kPi * n.hz * h * t) / h * std::exp(-t * 0.6 * (h - 1));
+        phrase[i] += static_cast<float>(n.gain * env * s);
+      }
     }
-    std::sort(micros.begin(), micros.end());
-    // A quarter of the blocks hold a frame, so the 95th percentile is one of
-    // them without the scheduler noise the maximum picks up.
-    std::printf("common-tones worst block: %.0f us at the 95th percentile, %.0f us median, of %.0f us per block\n",
-                micros[micros.size() * 95 / 100], micros[micros.size() / 2], 128.0e6 / kRate);
+    rng_state() = 4242;
+    for (float& v : phrase) v += 0.0005f * white();
+    const double reference = rms(phrase);
+    const char* names[] = {"ago", "keep", "strict", "ring", "broad", "memory", "floor", "mix"};
+    for (int keep = 0; keep < 2; ++keep) {
+      for (int id = 0; id < p::kNumParams; ++id) {
+        if (id == p::kKeep) continue;
+        std::printf("common-tones: on a phrase, %s, %-6s:", keep ? "Changes" : "Common", names[id]);
+        Stereo before;
+        double least = 0.0;
+        for (int step = 0; step <= 4; ++step) {
+          device.init(kRate);
+          device.set_param(p::kKeep, static_cast<float>(keep));
+          if (id != p::kMix) device.set_param(p::kMix, 1.0f);
+          const float lo = p::kParamMin[id], hi = p::kParamMax[id];
+          const float value = id == p::kAgo ? lo * std::pow(hi / lo, step / 4.0f) : lo + (hi - lo) * step / 4.0f;
+          device.set_param(id, value);
+          Stereo out = run(device, phrase);
+          if (step > 0) {
+            double sum = 0.0;
+            for (size_t i = 0; i < out.size(); ++i) {
+              const double d = static_cast<double>(out.left[i]) - before.left[i];
+              sum += d * d;
+            }
+            const double moved = db(std::sqrt(sum / static_cast<double>(out.size())) / reference);
+            least = std::min(least, moved);
+            std::printf(" %6.1f", moved);
+          }
+          before = out;
+        }
+        std::printf(" dB\n");
+        EXPECT(least > -45.0, "every quarter of every control's travel changes a played phrase");
+      }
+    }
+    // Keep itself: the two sides are different sounds, and together they are the phrase.
+    clean(device);
+    Stereo common = run(device, phrase);
+    clean(device);
+    device.set_param(p::kKeep, 1.0f);
+    Stereo changes = run(device, phrase);
+    std::printf("common-tones: on a phrase, wet only: Common %.1f dB, Changes %.1f dB re the phrase\n",
+                db(rms(common.left) / reference), db(rms(changes.left) / reference));
+    EXPECT(rms(common.left) > 0.3 * reference && rms(changes.left) > 0.3 * reference, "a played phrase has both in it");
+  }
+
+  // Level. A full-scale held chord for a minute, through every preset and
+  // through the default with each control at each end: the output never
+  // peaks more than 6 dB over the input and its last ten seconds are no
+  // louder than its second ten. Full-scale noise, which no setting takes for
+  // steady, is bounded the same way.
+  {
+    const std::vector<float> loud = chord({220.0f, 277.18f, 329.63f}, 60.0f, 1.0f / 3.0f);
+    rng_state() = 31;
+    const std::vector<float> hiss = noise(20.0f, kRate, 1.0f);
+    double worst_peak = 0.0, worst_growth = 0.0, worst_noise = 0.0;
+    auto measure = [&]() {
+      Stereo out = run(device, loud);
+      worst_peak = std::max(worst_peak, std::max(peak(out.left), peak(out.right)));
+      const double early = rms(out.left, at(10.0), at(20.0)), last = rms(out.left, at(50.0), at(60.0));
+      if (early > 1.0e-6) worst_growth = std::max(worst_growth, last / early);
+    };
+    for (const Setting& preset : kPresets) {
+      set_all(device, preset.value);
+      measure();
+      set_all(device, preset.value);
+      Stereo out = run(device, hiss);
+      worst_noise = std::max(worst_noise, std::max(peak(out.left), peak(out.right)));
+    }
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (int end = 0; end < 2; ++end) {
+        device.init(kRate);
+        device.set_param(id, end ? p::kParamMax[id] : p::kParamMin[id]);
+        measure();
+        device.init(kRate);
+        device.set_param(id, end ? p::kParamMax[id] : p::kParamMin[id]);
+        Stereo out = run(device, hiss);
+        worst_noise = std::max(worst_noise, std::max(peak(out.left), peak(out.right)));
+      }
+    }
+    // Everything that can add: the longest ring, the widest regions, wet only, either side.
+    for (float keep : {0.0f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kKeep, keep);
+      device.set_param(p::kRing, 1.0f);
+      device.set_param(p::kBroad, 1.0f);
+      device.set_param(p::kStrict, 0.0f);
+      device.set_param(p::kFloor, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      measure();
+      Stereo out = run(device, hiss);
+      worst_noise = std::max(worst_noise, std::max(peak(out.left), peak(out.right)));
+      EXPECT(rms(out.left, at(10.0), at(20.0)) < 1.5 * rms(hiss), "noise through the longest ring is no louder than 3.5 dB over the input");
+    }
+    std::printf("common-tones: a full-scale chord for a minute, %d settings: worst peak %.3f (%.2f dB), last ten seconds %.4f of the second ten;"
+                " full-scale noise: worst peak %.3f\n",
+                static_cast<int>(sizeof(kPresets) / sizeof(kPresets[0])) + 2 * p::kNumParams + 2, worst_peak, db(worst_peak),
+                worst_growth, worst_noise);
+    EXPECT(worst_peak < 1.2, "a full-scale held chord never comes out more than 1.6 dB over full scale");
+    EXPECT(worst_growth < 1.001, "and never grows");
+    EXPECT(worst_noise <= 2.0, "full-scale noise stays under the wet guard's ceiling");
+  }
+
+  // Part-way Mix. The wet is the dry's own bins turned down, never turned in
+  // phase, and the dry in the mix is as late as the wet: held tones over the
+  // piano range, at part-way Mix through the default and every preset, come
+  // out between the input's level and (1 - Mix) of it, and whole through the
+  // default, which keeps what is held.
+  {
+    double worst_default = 0.0, worst_dip = 0.0, worst_over = 0.0;
+    for (int semitone = 0; semitone <= 87; semitone += 7) {
+      const float hz = 27.5f * std::pow(2.0f, semitone / 12.0f);
+      const std::vector<float> tone = sine(hz, 2.0f, kRate, 0.5f);
+      const double in = rms(tone, at(1.5), at(2.0));
+      for (float mix : {0.25f, 0.5f, 0.75f}) {
+        device.init(kRate);
+        device.set_param(p::kMix, mix);
+        Stereo out = run(device, tone);
+        worst_default = std::max(worst_default, std::fabs(db(rms(out.left, at(1.5), at(2.0)) / in)));
+        for (const Setting& preset : kPresets) {
+          if (mix != 0.5f) continue;
+          set_all(device, preset.value);
+          device.set_param(p::kMix, mix);
+          out = run(device, tone);
+          const double level = rms(out.left, at(1.5), at(2.0)) / in;
+          worst_dip = std::min(worst_dip, db(level / (1.0 - mix)));
+          worst_over = std::max(worst_over, db(level));
+        }
+      }
+    }
+    std::printf("common-tones: held tones A0 to C8 at part-way Mix: default within %.3f dB of the input; presets at Mix 0.5: "
+                "%.3f dB under the dry's share at worst, %.3f dB over the input at most\n",
+                worst_default, worst_dip, worst_over);
+    EXPECT(worst_default < 0.1, "part-way Mix leaves a held tone whole at the default, anywhere on the piano");
+    EXPECT(worst_dip > -0.1 && worst_over < 0.1, "and no preset cancels the dry at part-way Mix");
+  }
+
+  // Cost: the average, and the worst single block (the one with a frame in
+  // it), at the default and at the worst setting: the widest regions, the
+  // longest look back (the far end of the history is cold memory), noise in
+  // every bin. Wall clock for the loop's own print, and processor time over
+  // 60 s of blocks, which a loaded machine does not stretch.
+  {
+    rng_state() = 0xBEEFu;
+    const std::vector<float> input = noise(10.0f, kRate, 0.25f);
+    auto worst = [&]() {
+      device.init(kRate);
+      device.set_param(p::kAgo, 8000.0f);
+      device.set_param(p::kBroad, 1.0f);
+      device.set_param(p::kRing, 1.0f);
+      device.set_param(p::kMemory, 1.0f);
+    };
+    worst();
+    report_cost("common-tones", 10.0f, kRate, [&] { run(device, input); });
+    for (int setting = 0; setting < 2; ++setting) {
+      if (setting) {
+        worst();
+      } else {
+        device.init(kRate);
+      }
+      std::vector<double> micros;
+      const std::clock_t began = std::clock();
+      for (int pass = 0; pass < 6; ++pass) {
+        for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+          for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+          const auto start = std::chrono::steady_clock::now();
+          device.process(128);
+          micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+        }
+      }
+      const double cpu = static_cast<double>(std::clock() - began) / CLOCKS_PER_SEC;
+      std::sort(micros.begin(), micros.end());
+      // A quarter of the blocks hold a frame (each side's in its own block), so
+      // the 95th percentile is one of them without the scheduler's noise.
+      std::printf("common-tones %s: %.2f %% of real time in processor time over 60 s; worst block %.0f us at the 95th percentile,"
+                  " %.0f us median, of %.0f us per block\n",
+                  setting ? "at the worst setting" : "at the default", 100.0 * cpu / 60.0, micros[micros.size() * 95 / 100],
+                  micros[micros.size() / 2], 128.0e6 / kRate);
+    }
   }
 
   return finish("common-tones");
