@@ -2522,5 +2522,24 @@
     "Endless descent": {"first":420,"bounce":0.9,"skips":5,"loss":1,"sink":0.2,"drop":50,"throw":0.6,"ripple":0.4,"again":0.85,"mix":0.4},
     "Rain on the lake": {"first":60,"bounce":1.12,"skips":16,"loss":0.8,"sink":0.1,"drop":0,"throw":1,"ripple":0.25,"again":0,"mix":0.35},
     "Slow crossing": {"first":1400,"bounce":0.7,"skips":8,"loss":2,"sink":0.3,"drop":0,"throw":1,"ripple":0.6,"again":0.4,"mix":0.4}
+  },
+  "canon": {
+    "(default)": {"followers":3,"gap":1.5,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":8000,"round":0,"mix":0.5},
+    "Round of three": {"followers":3,"gap":1.5,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":8000,"round":0,"mix":0.5},
+    "Crab canon": {"followers":2,"gap":1.2,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":3,"fade":0,"spread":0.5,"tone":8000,"round":0,"mix":0.5},
+    "Mirror answer": {"followers":1,"gap":0.6,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":1,"fade":0.25,"spread":0.5,"tone":8000,"round":0,"mix":0.5},
+    "Faint answer": {"followers":1,"gap":0.9,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":5000,"round":0,"mix":0.2},
+    "Slow procession": {"followers":4,"gap":1.9,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.2,"spread":0.7,"tone":4500,"round":0,"mix":0.5},
+    "Endless round": {"followers":2,"gap":1,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":3500,"round":0.85,"mix":0.4},
+    "Long memory": {"followers":2,"gap":3,"interval1":0,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":5000,"round":0.7,"mix":0.4},
+    "Octave shadow": {"followers":1,"gap":0.4,"interval1":-12,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":8000,"round":0,"mix":0.4},
+    "Octaves apart": {"followers":2,"gap":0.75,"interval1":12,"interval2":-12,"interval3":0,"interval4":0,"crab":0,"fade":0,"spread":1,"tone":8000,"round":0,"mix":0.5},
+    "Wide choir": {"followers":4,"gap":0.12,"interval1":0,"interval2":12,"interval3":0,"interval4":-12,"crab":0,"fade":0,"spread":1,"tone":8000,"round":0,"mix":0.5},
+    "Canon at the fifth": {"followers":3,"gap":1.5,"interval1":0,"interval2":7,"interval3":-12,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":8000,"round":0,"mix":0.5},
+    "Triad from one line": {"followers":3,"gap":0.25,"interval1":4,"interval2":7,"interval3":12,"interval4":0,"crab":0,"fade":0.4,"spread":0.8,"tone":8000,"round":0,"mix":0.45},
+    "Rising stair": {"followers":1,"gap":0.4,"interval1":2,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":6000,"round":0.8,"mix":0.45},
+    "Sinking stair": {"followers":1,"gap":0.55,"interval1":-2,"interval2":0,"interval3":0,"interval4":0,"crab":0,"fade":0.25,"spread":0.5,"tone":4000,"round":0.85,"mix":0.45},
+    "Dark canon": {"followers":3,"gap":1,"interval1":0,"interval2":-5,"interval3":-12,"interval4":0,"crab":0,"fade":0.1,"spread":0.5,"tone":900,"round":0.5,"mix":0.6},
+    "Backwards choir": {"followers":4,"gap":0.8,"interval1":-12,"interval2":0,"interval3":7,"interval4":12,"crab":2,"fade":0.25,"spread":1,"tone":8000,"round":0.4,"mix":0.55}
   }
 }

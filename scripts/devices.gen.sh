@@ -32,6 +32,8 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
+  MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
+    cpp/devices/canon/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device cascade \
     cpp/devices/cascade/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device chamber-strings \
@@ -259,6 +261,8 @@ test_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   native_test bowed_string_test \
     cpp/test/bowed_string_test.cpp
+  native_test canon_test \
+    cpp/test/canon_test.cpp
   native_test cascade_test \
     cpp/test/cascade_test.cpp
   native_test chamber_strings_test \

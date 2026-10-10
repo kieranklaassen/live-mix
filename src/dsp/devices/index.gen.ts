@@ -15,6 +15,7 @@ import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
+import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
 import { CHAMBER_STRINGS_DESCRIPTOR, CHAMBER_STRINGS_DEVICE } from './chamber-strings.gen'
 import { CHOIR_DESCRIPTOR, CHOIR_DEVICE } from './choir.gen'
@@ -126,6 +127,7 @@ export * from './aurora.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
+export * from './canon.gen'
 export * from './cascade.gen'
 export * from './chamber-strings.gen'
 export * from './choir.gen'
@@ -239,6 +241,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
+  CANON_DESCRIPTOR,
   CASCADE_DESCRIPTOR,
   CHAMBER_STRINGS_DESCRIPTOR,
   CHOIR_DESCRIPTOR,
@@ -353,6 +356,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
+  CANON_DEVICE,
   CASCADE_DEVICE,
   CHAMBER_STRINGS_DEVICE,
   CHOIR_DEVICE,
@@ -474,6 +478,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'auto-filter', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'canon', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 32 },
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'chamber-strings', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'choir', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
