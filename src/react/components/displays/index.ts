@@ -6,6 +6,17 @@ import { DELAY_FACES } from './delay'
 import { DRIVE_FACES } from './drive'
 import { DYNAMICS_FACES } from './dynamics'
 import { EQ_FACES } from './eq'
+import { STRING_INSTRUMENT_FACES } from './instrument-strings'
+import { AIR_INSTRUMENT_FACES } from './instrument-air'
+import { BARS_INSTRUMENT_FACES } from './instrument-bars'
+import { BOWED_INSTRUMENT_FACES } from './instrument-bowed'
+import { GUITAR_INSTRUMENT_FACES } from './instrument-guitars'
+import { KEYS_INSTRUMENT_FACES } from './instrument-keys'
+import { KIT_INSTRUMENT_FACES } from './instrument-kits'
+import { SAMPLE_INSTRUMENT_FACES } from './instrument-samples'
+import { SUBTRACTIVE_INSTRUMENT_FACES } from './instrument-subtractive'
+import { WAVE_INSTRUMENT_FACES } from './instrument-waves'
+import { WIND_INSTRUMENT_FACES } from './instrument-winds'
 import { LOOPS_FACES } from './loops'
 import { MODULATION_FACES } from './modulation'
 import { PITCH_FACES } from './pitch'
@@ -28,4 +39,16 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  // The instruments.
+  ...STRING_INSTRUMENT_FACES,
+  ...GUITAR_INSTRUMENT_FACES,
+  ...BOWED_INSTRUMENT_FACES,
+  ...KEYS_INSTRUMENT_FACES,
+  ...BARS_INSTRUMENT_FACES,
+  ...WIND_INSTRUMENT_FACES,
+  ...SUBTRACTIVE_INSTRUMENT_FACES,
+  ...WAVE_INSTRUMENT_FACES,
+  ...AIR_INSTRUMENT_FACES,
+  ...SAMPLE_INSTRUMENT_FACES,
+  ...KIT_INSTRUMENT_FACES,
 }

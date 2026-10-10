@@ -290,6 +290,62 @@ describe('when a display is drawn', () => {
     expect(fixture.frames.size).toBe(0)
   })
 
+  it('running, hands a display that asks for them the notes its device was sent, and no other display any', async () => {
+    const fixture = createTestEngine()
+    // A filter that remembers notes, as an instrument of the engine does.
+    const played = [
+      { id: 60, frequency: 261.63, gain: 0.8, onMs: 400, offMs: 900 },
+      { id: 64, frequency: 329.63, gain: 0.5, onMs: 1200, offMs: null },
+    ]
+    const device = Object.assign(await make(fixture), {
+      noteOn: vi.fn(),
+      noteOff: vi.fn(),
+      allNotesOff: vi.fn(),
+      playedNotes: vi.fn(() => played),
+      loadedSampleSeconds: vi.fn((): number | null => 2.5),
+    })
+    vi.spyOn(performance, 'now').mockReturnValue(1500)
+    const draw = vi.fn()
+    const view = render(
+      <DevicePlate
+        device={device}
+        skin={{ ...BASE, display: live(draw, { signal: true, notes: true }) }}
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    act(() => fixture.frames.flush(1000))
+    const frame = draw.mock.calls.at(-1)?.[0] as DisplayFrame
+    // Oldest first, in seconds before now: one let go 0.6 s ago, one still held.
+    expect(frame.notes).toHaveLength(2)
+    expect(frame.notes[0]).toMatchObject({ id: 60, frequency: 261.63, gain: 0.8 })
+    expect(frame.notes[0].age).toBeCloseTo(1.1)
+    expect(frame.notes[0].released).toBeCloseTo(0.6)
+    expect(frame.notes[1]).toMatchObject({ id: 64, released: null })
+    expect(frame.notes[1].age).toBeCloseTo(0.3)
+    // And how long the sound it was handed is, which a device that was handed none does not say.
+    expect(frame.sampleSeconds).toBe(2.5)
+    // Switched off it is drawn at rest, and nothing is played at rest.
+    act(() => {
+      device.bypass = true
+    })
+    expect((draw.mock.calls.at(-1)?.[0] as DisplayFrame).notes).toEqual([])
+    view.unmount()
+
+    // A display that did not ask is never given them, and the device is not asked.
+    device.bypass = false
+    device.playedNotes.mockClear()
+    const plain = vi.fn()
+    render(<DevicePlate device={device} skin={{ ...BASE, display: live(plain) }} />, {
+      wrapper: fixture.wrapper,
+    })
+    act(() => fixture.frames.flush(2000))
+    expect((plain.mock.calls.at(-1)?.[0] as DisplayFrame).notes).toEqual([])
+    expect(device.playedNotes).not.toHaveBeenCalled()
+    device.loadedSampleSeconds.mockReturnValue(null)
+    act(() => fixture.frames.flush(2040))
+    expect((plain.mock.calls.at(-1)?.[0] as DisplayFrame).sampleSeconds).toBeNull()
+  })
+
   it('at 30 frames a second unless it asks for 60', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -402,6 +458,87 @@ describe('when a display is drawn', () => {
       expect(read.mock.calls.at(-1)?.[0].length).toBe(2048)
       frames(1.5)
       expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('runs on in silence while its device remembers a note, and a note wakes it before any sound', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] })
+    try {
+      const fixture = createTestEngine()
+      // A filter that remembers notes, as an instrument of the engine does: held ones, and for a while the ones let go.
+      let played: {
+        id: number
+        frequency: number
+        gain: number
+        onMs: number
+        offMs: number | null
+      }[] = []
+      const device = Object.assign(await make(fixture), {
+        noteOn: vi.fn(),
+        noteOff: vi.fn(),
+        allNotesOff: vi.fn(),
+        playedNotes: vi.fn(() => played),
+      })
+      const draw = vi.fn()
+      const analysers = fixture.ctx.analysers.length
+      const view = render(
+        <DevicePlate
+          device={device}
+          skin={{ ...BASE, display: live(draw, { notes: true, settle: 2 }) }}
+        />,
+        { wrapper: fixture.wrapper },
+      )
+      const [tap] = fixture.ctx.analysers.slice(analysers)
+      tap.level = 0
+      let now = 1000
+      const frames = (seconds: number): void => {
+        for (let n = 0; n < seconds * 10; n++) act(() => fixture.frames.flush((now += 100)))
+      }
+      const notes = (): number => (draw.mock.calls.at(-1)?.[0] as DisplayFrame).notes.length
+
+      // A key held with nothing coming out (the volume down, a slow attack): its light is still to be drawn.
+      played = [{ id: 60, frequency: 261.63, gain: 0.8, onMs: 0, offMs: null }]
+      frames(5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      expect(notes()).toBe(1)
+
+      // Let go, it has a ring to show for as long as the device remembers the note, however quiet.
+      played = [{ ...played[0], offMs: 10 }]
+      frames(5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+
+      // Forgotten, the instrument is drawn at rest, and only then does it stand still.
+      played = []
+      frames(1.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      expect(notes()).toBe(0)
+      frames(1)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+      expect(fixture.frames.size).toBe(0)
+
+      // A note sets it running again, though no sound has come of it yet.
+      played = [{ id: 64, frequency: 329.63, gain: 0.5, onMs: 0, offMs: null }]
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect([runningDisplays(), settledDisplays()]).toEqual([1, 0])
+      frames(0.2)
+      expect(notes()).toBe(1)
+
+      // A display that reads no notes is not kept running by them.
+      view.unmount()
+      const plain = render(
+        <DevicePlate device={device} skin={{ ...BASE, display: live(vi.fn(), { settle: 2 }) }} />,
+        { wrapper: fixture.wrapper },
+      )
+      for (const analyser of fixture.ctx.analysers) analyser.level = 0
+      frames(2.5)
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 1])
+      plain.unmount()
+      expect([runningDisplays(), settledDisplays()]).toEqual([0, 0])
+      expect(vi.getTimerCount()).toBe(0)
     } finally {
       vi.useRealTimers()
     }
