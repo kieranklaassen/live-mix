@@ -34,6 +34,7 @@
 // meets itself.
 
 import { DEFAULT_PHRASE_GAIN, type LoopFold, type Phrase, type PhraseNote } from '../patch-render'
+import { firstNoteInWords } from './words'
 
 /** The kinds of difference between a variant and its sound. A new kind is a new name here. */
 export const VARIATION_KINDS = ['chords', 'speed', 'pattern', 'touch'] as const
@@ -55,8 +56,9 @@ export interface SoundVariation extends Partial<Record<VariationKind, number>> {
    * down, 3 a fourth up, 0 the chord it is written on). Given, the seed and
    * the amount of `chords` no longer choose the chord, at any amount; they
    * still choose what else the kind does (a note an octave away). A chord
-   * the sound cannot stand on (`chordMoves` lists the ones it can) leaves it
-   * where it is written. Absent, the chord is drawn as it always was.
+   * the sound cannot stand on leaves it where it is written. `chordMoves`
+   * lists the chords to offer, and each of them can be stood on. Absent, the
+   * chord is drawn as it always was.
    */
   chord?: number
 }
@@ -131,6 +133,8 @@ export interface VariedPlaying {
   bpm?: number
   /** A sound played on a kit: its keys are drums, so no chord of the key and no note an octave away. */
   kit?: boolean
+  /** A sound's name with each note it mentions in braces ("Slow root and fifth {C}"): the first is the chord it is written on. */
+  words?: { name: string }
 }
 
 /** What a variant does to its sound, for whoever wants to say so. Every count is of one pass. */
@@ -226,21 +230,51 @@ function nearestSteps(steps: number): number {
   return mod(Math.round(steps) + 3, 7) - 3
 }
 
+/** The white key a note is on, 0 for C to 6 for B; a black key goes with the white key under it. */
+function whiteKeyOf(note: number): number {
+  const pitchClass = mod(Math.round(note), 12)
+  return WHITE_KEYS.indexOf(pitchClass - (WHITE_KEYS.includes(pitchClass) ? 0 : 1))
+}
+
+/** The white key a sound's name says its chord is on ("Thumb dub line {A}m" is on A). Null where the name has no note in it. */
+function namedDegree(sound: VariedPlaying): number | null {
+  const name = sound.words?.name
+  const named = typeof name === 'string' ? firstNoteInWords(name) : null
+  return named === null ? null : whiteKeyOf(named)
+}
+
+/** Whether the chord `steps` along the white keys from the one on `degree` is the one on B. */
+function onB(degree: number, steps: number): boolean {
+  return mod(degree + steps, 7) === 6
+}
+
 /**
  * How far a sound's written notes move to stand on the chord `steps` away:
  * that many steps along the white keys, or the same chord an octave the
  * other way where the near one leaves the range. Null where neither fits,
- * and for the chord on B, the one white key with no fifth above it. Asked of
- * the notes as written, so the answer is the same for every seed.
+ * and for the chord on B, the one white key with no fifth above it. A sound
+ * is on B where its lowest note is: every sound could always be put on any
+ * other chord, and still can. A sound whose name says its chord, and that
+ * plays that note over a lower one (a bass line in A minor that dips to the
+ * G under its A), can be put where only the lower note comes to B as well:
+ * C, with the B under it. Not a sound that never plays the note it is named
+ * by: there the instrument sounds it (a tanpura's first string, a fourth
+ * under the key), and a key on B would sound a string out of the key. Asked
+ * of the notes as written, so the answer is the same for every seed.
  */
-function namedChordSteps(written: readonly PhraseNote[], steps: number): number | null {
+function namedChordSteps(sound: VariedPlaying, steps: number): number | null {
   const near = nearestSteps(steps)
   if (near === 0) return 0
+  const written = sound.phrase.notes
+  const named = namedDegree(sound)
+  // The chord by name, where the sound plays the note it is named by: what may stand over a lowest note on B.
+  const root =
+    named !== null && written.some((note) => whiteKeyOf(note.note) === named) ? named : null
   for (const by of [near, near > 0 ? near - 7 : near + 7]) {
     const moved = written.map((note) => alongWhiteKeys(note.note, by))
     const low = Math.min(...moved)
     if (
-      mod(Math.round(low), 12) !== 11 &&
+      (mod(Math.round(low), 12) !== 11 || (root !== null && !onB(root, by))) &&
       low >= LOWEST_NOTE &&
       Math.max(...moved) <= HIGHEST_NOTE
     ) {
@@ -251,30 +285,33 @@ function namedChordSteps(written: readonly PhraseNote[], steps: number): number 
 }
 
 /**
- * The white key a sound stands on, 0 for C to 6 for B: its lowest written
- * note, a black key counted with the white key under it. A host names the
- * chord a sound is on by it, in whatever key the sound is played. Null for
- * a sound with no notes, for one made of another sound's audio (`source`),
- * whose notes say how far that audio is moved, and for one played on a kit,
- * whose notes say which drum.
+ * The white key a sound stands on, 0 for C to 6 for B: the note its name
+ * says its chord is on (the first it has in braces: "Warm pad {D}m9" is on
+ * D), or, where its name has none, its lowest written note. A black key is
+ * counted with the white key under it. A host names the chord a sound is on
+ * by it, in whatever key the sound is played. Null for a sound with no
+ * notes, for one made of another sound's audio (`source`), whose notes say
+ * how far that audio is moved, and for one played on a kit, whose notes say
+ * which drum.
  */
 export function soundDegree(sound: VariedPlaying): number | null {
   if (sound.source !== undefined || sound.kit || sound.phrase.notes.length === 0) return null
-  const low = Math.round(Math.min(...sound.phrase.notes.map((note) => note.note)))
-  const pitchClass = mod(low, 12)
-  return WHITE_KEYS.indexOf(pitchClass - (WHITE_KEYS.includes(pitchClass) ? 0 : 1))
+  return namedDegree(sound) ?? whiteKeyOf(Math.min(...sound.phrase.notes.map((note) => note.note)))
 }
 
 /**
  * The chords a sound can be put on by name (`SoundVariation.chord`), as
  * steps from the one it is written on, nearest first: every chord of the
  * key but its own, the one on B, and any that would take it out of range.
- * None for a sound that has no chord of its own to move.
+ * For a sound whose name says its chord, the one on B is the one that
+ * `soundDegree` would name B, whatever its lowest note. None for a sound
+ * that has no chord of its own to move.
  */
 export function chordMoves(sound: VariedPlaying): number[] {
   if (soundDegree(sound) === null) return []
+  const named = namedDegree(sound)
   return NAMED_CHORD_STEPS.filter(
-    (steps) => namedChordSteps(sound.phrase.notes, steps) !== null,
+    (steps) => namedChordSteps(sound, steps) !== null && !(named !== null && onB(named, steps)),
   ).sort((a, b) => Math.abs(a) - Math.abs(b) || a - b)
 }
 
@@ -315,7 +352,7 @@ function vary<T extends VariedPlaying>(
     Number.isFinite(variation.chord) &&
     sound.source === undefined &&
     !sound.kit
-      ? namedChordSteps(sound.phrase.notes, variation.chord)
+      ? namedChordSteps(sound, variation.chord)
       : undefined
   if (
     !variation ||
