@@ -405,4 +405,45 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'fdn-reverb', preset: 'Open valley', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'slow-melt',
+    name: 'Slow melt',
+    category: 'pitch',
+    description:
+      'A tail behind each note that sags in pitch, darkens and blurs the longer it rings, like wax running; Sag sets how fast, or lifts it.',
+    effects: [{ deviceId: 'melt', preset: 'Slow melt', params: { hold: 7 } }],
+  },
+  {
+    id: 'sparks-evaporating',
+    name: 'Sparks evaporating',
+    category: 'pitch',
+    description:
+      'Bright sparks above the playing, and a tail that lifts in pitch and thins as it ages, so everything drifts upward; Sag sets how fast.',
+    effects: [
+      { deviceId: 'glints', preset: 'First light', params: { density: 8 } },
+      { deviceId: 'melt', preset: 'Evaporate' },
+    ],
+  },
+  {
+    id: 'drooping-strings',
+    name: 'Drooping strings',
+    category: 'pitch',
+    description:
+      'A string section swells in behind each chord, then sags in pitch in fits and starts as it fades; turn Drip down for a steady slide.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'String pad' },
+      { deviceId: 'melt', preset: 'Wobbly wax' },
+    ],
+  },
+  {
+    id: 'octave-round-in-fog',
+    name: 'Octave round in fog',
+    category: 'pitch',
+    description:
+      'Each line is repeated an octave up and then an octave down, and every attack is blurred into a slow swell; Gap sets the wait.',
+    effects: [
+      { deviceId: 'canon', preset: 'Octaves apart' },
+      { deviceId: 'fog', preset: 'Slow rise', params: { width: 0.5 } },
+    ],
+  },
 ]

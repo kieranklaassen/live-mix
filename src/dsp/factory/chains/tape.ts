@@ -523,4 +523,15 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ether-reverb', preset: 'Dark hall', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'copy-of-a-copy',
+    name: 'Copy of a copy',
+    category: 'tape',
+    description:
+      'The sound goes to cassette and a loop records it again through a room on every pass, each copy duller and hissier; Keep sets how many.',
+    effects: [
+      { deviceId: 'tape', preset: 'Cassette four-track', params: { output: -1.5 } },
+      { deviceId: 'generations', preset: 'Worn copies' },
+    ],
+  },
 ]
