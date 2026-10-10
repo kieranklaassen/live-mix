@@ -172,10 +172,16 @@ const QUIET = 1e-6
 /** A lift as the one figure the device is watched by: "+6.2", and "0.0" when there is none. */
 const liftText = (db: number): string => (db > 0.05 ? `+${db.toFixed(1)}` : '0.0')
 
-/** The level the Amount point stands at: half way between the floor and the threshold, clear of the threshold's own point. */
+/**
+ * The level the Amount point stands at: half way between the floor and the
+ * threshold, or further down where Limit cannot hold the curve there (a
+ * Limit's width under the threshold), whichever gives the hand more travel;
+ * and clear of the floor's point and of the threshold's.
+ */
 function amountLevel(lift: Lift): number {
   const foot = Math.min(lift.floor, lift.threshold)
-  return Math.min((foot + lift.threshold) / 2, lift.threshold - 8)
+  const free = Math.max(foot + 8, lift.threshold - lift.limit)
+  return Math.min((foot + lift.threshold) / 2, free, lift.threshold - 8)
 }
 
 function liftHandles(view: DisplayView): DisplayHandle[] {

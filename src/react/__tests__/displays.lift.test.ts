@@ -289,16 +289,29 @@ describe("the points of Lift's display", () => {
     const threshold = handleOf('threshold', plain)
     expect(threshold.x).toBeCloseTo(xOfLevel(-24), 5)
     expect(threshold.y).toBeCloseTo(yOfLevel(-24), 5)
-    // Half way between the floor and the threshold half of 21 dB is on.
+    // A Limit's width under the threshold, where no Amount is held down: half of 30 dB is on.
     const amount = handleOf('amount', plain)
-    expect(amount.x).toBeCloseTo(xOfLevel(-45), 5)
-    expect(amount.y).toBeCloseTo(yOfLevel(-45 + 10.5), 5)
+    expect(amount.x).toBeCloseTo(xOfLevel(-54), 5)
+    expect(amount.y).toBeCloseTo(yOfLevel(-54 + 15), 5)
+    // Never nearer the floor's point than 8 dB, where the two would lie on each other.
+    expect(handleOf('amount', { ...plain, floor: -50 }).x).toBeCloseTo(xOfLevel(-42), 5)
+    // With less Limit than half the way to the floor it stands half way: half of 21 dB.
+    const half = handleOf('amount', { ...plain, limit: 18 })
+    expect(half.x).toBeCloseTo(xOfLevel(-45), 5)
+    expect(half.y).toBeCloseTo(yOfLevel(-45 + 10.5), 5)
     const floor = handleOf('floor', plain)
     expect(floor.x).toBeCloseTo(xOfLevel(-66), 5)
     expect(floor.y).toBeCloseTo(yOfLevel(-66 + 21), 5)
     // The curve that is drawn passes through both.
     const out = curveOf(draw({ values: plain }))
-    expect(levelOfY(amount.y)).toBeCloseTo(out(-45), 1)
+    expect(levelOfY(amount.y)).toBeCloseTo(out(-54), 1)
+    // As the device starts, the hand has 20 pixels between no lift and all of it.
+    const start = handleOf('amount')
+    const level = (params.floor.default + params.threshold.default) / 2
+    expect(start.x).toBeCloseTo(xOfLevel(level), 5)
+    expect(yOfLevel(level) - yOfLevel(params.threshold.default)).toBeGreaterThanOrEqual(20)
+    expect(start.drag(start.x, yOfLevel(level)).amount).toBeCloseTo(0, 6)
+    expect(start.drag(start.x, yOfLevel(params.threshold.default)).amount).toBeCloseTo(1, 6)
   })
 
   it('set the threshold along the diagonal', () => {
@@ -326,14 +339,16 @@ describe("the points of Lift's display", () => {
     for (const more of [{}, { mix: 0.5 }, { hear: 1 }, { hear: 1, mix: 0.7 }, { limit: 14 }]) {
       const values = { ...plain, ...more }
       const point = handleOf('amount', values)
+      const level = 'limit' in more ? -45 : -54
+      expect(point.x).toBeCloseTo(xOfLevel(level), 5)
       expect(point.drag(point.x, point.y).amount).toBeCloseTo(0.5, 9)
       for (const to of [-43, -38, -33]) {
         const { amount } = point.drag(point.x, yOfLevel(to), {})
         const out = curveOf(draw({ values: { ...values, amount } }))
-        expect(out(-45), `to ${to} dB with ${JSON.stringify(more)}`).toBeCloseTo(to, 1)
+        expect(out(level), `to ${to} dB with ${JSON.stringify(more)}`).toBeCloseTo(to, 1)
       }
     }
-    const point = handleOf('amount', plain)
+    const point = handleOf('amount', { ...plain, limit: 18 })
     // 15 of the 21 dB between the point's level and the threshold.
     expect(point.drag(point.x, yOfLevel(-30)).amount).toBeCloseTo(15 / 21, 6)
     expect(point.drag(point.x, yOfLevel(-45)).amount).toBe(0)
