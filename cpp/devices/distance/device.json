@@ -84,7 +84,7 @@
       "name": "Level",
       "min": 0,
       "max": 1,
-      "default": 0.5,
+      "default": 0.75,
       "description": "How much of the loudness lost to distance is given back. Zero lets a far sound be quiet, the top keeps it as loud as it was close by."
     },
     {
@@ -103,7 +103,7 @@
       "air": 0.5,
       "wander": 0.25,
       "rate": 0.06,
-      "level": 0.5
+      "level": 0.75
     },
     "Close mic": {
       "distance": 0.12,
@@ -117,7 +117,7 @@
       "room": 0.35,
       "wander": 0,
       "decay": 0.8,
-      "level": 0.6
+      "level": 0.8
     },
     "Next door": {
       "distance": 0.7,
@@ -152,7 +152,7 @@
       "wander": 0.8,
       "rate": 0.03,
       "decay": 2,
-      "level": 0.6
+      "level": 0.8
     },
     "Passing by": {
       "distance": 0.4,
@@ -177,7 +177,7 @@
       "wander": 0.6,
       "rate": 0.15,
       "doppler": 0,
-      "level": 0.2
+      "level": 0.5
     },
     "Through fog": {
       "distance": 0.85,
@@ -194,7 +194,7 @@
       "air": 0.2,
       "wander": 0,
       "decay": 3.5,
-      "level": 0.7
+      "level": 0.9
     },
     "Open air": {
       "distance": 0.6,

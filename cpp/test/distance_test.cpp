@@ -268,6 +268,31 @@ int main() {
         last = heard;
       }
     }
+    // As it is first put in (every control where it starts, the walk held
+    // still): a few steps back and 2 to 5 dB under what came in, and from
+    // there quieter with every fifth of the way out.
+    // (With the fall and Level starting at 0.5 it came in 8.6 dB under,
+    // and a played phrase 6.8 LU under.)
+    {
+      double last = 1.0;
+      for (int step = 2; step <= 5; ++step) {
+        const float place = 0.2f * static_cast<float>(step);
+        still(device, place);
+        Stereo out = run(device, in.left, in.right);
+        const double heard = 0.5 * (rms(out.left, from) + rms(out.right, from)) / level_in;
+        char label[140];
+        if (step == 2) {
+          EXPECT_NEAR(place, p::kParamDefault[p::kDistance], 1e-6, "Distance starts two fifths out");
+          std::snprintf(label, sizeof label, "as first put in it is 2 to 5 dB under the input (%.1f dB)", db(heard));
+          EXPECT(db(heard) < -2.0 && db(heard) > -5.0, label);
+        } else {
+          std::snprintf(label, sizeof label, "as first put in: at least 0.5 dB quieter at Distance %.1f than at %.1f (%.1f dB)",
+                        place, place - 0.2f, db(heard));
+          EXPECT(db(heard) < db(last) - 0.5, label);
+        }
+        last = heard;
+      }
+    }
     // Two sides with nothing in common: with Width 0 they are held as a
     // source in the middle is; narrowed, they lose what the narrowing takes
     // of their difference (up to 3 dB when all of it goes) and no more.

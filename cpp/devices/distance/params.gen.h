@@ -9,7 +9,7 @@
 //    4  rate: 0.01..1 Hz, default 0.06
 //    5  doppler: 0..1, default 1
 //    6  decay: 0.2..8 s, default 1.2
-//    7  level: 0..1, default 0.5
+//    7  level: 0..1, default 0.75
 //    8  width: 0..1, default 0.5
 
 #pragma once
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.01f, 0.0f, 0.2f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 8.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.4f, 0.5f, 0.5f, 0.25f, 0.06f, 1.0f, 1.2f, 0.5f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {0.4f, 0.5f, 0.5f, 0.25f, 0.06f, 1.0f, 1.2f, 0.75f, 0.5f};
 
 }  // namespace distance
 }  // namespace livemix
