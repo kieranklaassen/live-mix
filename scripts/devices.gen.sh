@@ -132,6 +132,8 @@ build_generated_devices() {
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device staircase \
+    cpp/devices/staircase/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
@@ -309,6 +311,8 @@ test_generated_devices() {
     cpp/test/spectral_blur_test.cpp
   native_test spring_reverb_test \
     cpp/test/spring_reverb_test.cpp
+  native_test staircase_test \
+    cpp/test/staircase_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
   native_test string_machine_test \

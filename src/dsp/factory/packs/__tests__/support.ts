@@ -49,6 +49,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'flock',
   'magnet-piano',
   'overtone',
+  'staircase',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

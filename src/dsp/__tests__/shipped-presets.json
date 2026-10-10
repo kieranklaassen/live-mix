@@ -2047,5 +2047,24 @@
     "Wide chord": {"voice":0,"overtone":8,"focus":0.6,"wander":0.3,"pace":0.25,"breath":0.2,"growl":0.12,"vibrato":0.4,"attack":0.7,"release":3.5,"width":1,"volume":-9},
     "Lip buzz": {"voice":1,"overtone":3,"focus":0.3,"wander":0,"pace":0.6,"breath":0.3,"growl":1,"vibrato":0,"attack":0.03,"release":0.5,"width":0.6,"volume":-9},
     "Glass harmonic": {"voice":2,"overtone":16,"focus":1,"wander":0,"pace":0.6,"breath":0.05,"growl":0,"vibrato":0.3,"attack":1.2,"release":5,"width":0.6,"volume":-9}
+  },
+  "staircase": {
+    "(default)": {"motion":2,"speed":0.45,"centre":440,"span":7,"shape":0.25,"slide":0.35,"chorus":0.3,"attack":0.25,"release":1.8,"width":0.7,"volume":-9},
+    "Chord stairs": {"motion":2,"speed":0.45,"centre":440,"span":7,"shape":0.25,"slide":0.35,"chorus":0.3,"attack":0.25,"release":1.8,"width":0.7,"volume":-9},
+    "Slow ascent": {"motion":0,"speed":0.3,"centre":440,"span":5,"shape":0.25,"slide":0.35,"chorus":0.3,"attack":1.2,"release":4,"width":0.7,"volume":-9},
+    "Slow descent": {"motion":0,"speed":-0.3,"centre":330,"span":5,"shape":0.15,"slide":0.35,"chorus":0.3,"attack":1.2,"release":4,"width":0.7,"volume":-9},
+    "Still organ": {"motion":0,"speed":0,"centre":440,"span":6,"shape":0.3,"slide":0.35,"chorus":0.15,"attack":0.04,"release":0.5,"width":0.7,"volume":-8.5},
+    "Semitone climb": {"motion":1,"speed":0.5,"centre":440,"span":5,"shape":0.2,"slide":0.3,"chorus":0.3,"attack":0.25,"release":1.8,"width":0.7,"volume":-9},
+    "Falling steps": {"motion":1,"speed":-0.42,"centre":620,"span":4,"shape":0.1,"slide":0.1,"chorus":0.3,"attack":0.25,"release":1.8,"width":0.7,"volume":-9},
+    "Chord descent": {"motion":2,"speed":-0.4,"centre":330,"span":7,"shape":0.25,"slide":0.6,"chorus":0.3,"attack":0.8,"release":3,"width":0.7,"volume":-9},
+    "Quick arpeggio": {"motion":2,"speed":0.85,"centre":700,"span":4,"shape":0.1,"slide":0,"chorus":0.15,"attack":0.01,"release":0.8,"width":0.7,"volume":-9},
+    "Glass spiral": {"motion":0,"speed":0.24,"centre":1600,"span":3,"shape":0,"slide":0.35,"chorus":0.5,"attack":2,"release":5,"width":1,"volume":-9},
+    "Low tide": {"motion":0,"speed":-0.18,"centre":120,"span":4,"shape":0.4,"slide":0.35,"chorus":0.4,"attack":3,"release":6,"width":0.7,"volume":-9},
+    "Reed stairs": {"motion":2,"speed":0.38,"centre":300,"span":4,"shape":0.85,"slide":0.2,"chorus":0.2,"attack":0.08,"release":0.9,"width":0.7,"volume":-9},
+    "Wide drift": {"motion":0,"speed":0.14,"centre":440,"span":8,"shape":0.1,"slide":0.35,"chorus":0.8,"attack":4,"release":8,"width":1,"volume":-9},
+    "Narrow beam": {"motion":2,"speed":0.5,"centre":600,"span":4,"shape":0,"slide":0.15,"chorus":0.1,"attack":0.05,"release":1.8,"width":0.7,"volume":-9},
+    "Siren rise": {"motion":0,"speed":1,"centre":520,"span":4,"shape":0.5,"slide":0.35,"chorus":0.1,"attack":0.4,"release":1.8,"width":0.7,"volume":-9},
+    "Sliding chord": {"motion":2,"speed":0.28,"centre":440,"span":6,"shape":0.1,"slide":1,"chorus":0.5,"attack":1.5,"release":4,"width":0.7,"volume":-9},
+    "Hollow pad": {"motion":2,"speed":0,"centre":440,"span":6,"shape":0.05,"slide":0.35,"chorus":0.6,"attack":1.8,"release":5,"width":0.7,"volume":-9}
   }
 }

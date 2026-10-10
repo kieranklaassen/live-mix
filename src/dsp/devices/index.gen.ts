@@ -65,6 +65,7 @@ import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
+import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
 import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
@@ -151,6 +152,7 @@ export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
 export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
+export * from './staircase.gen'
 export * from './stereo-detune.gen'
 export * from './string-machine.gen'
 export * from './sustainer.gen'
@@ -239,6 +241,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SHIMMER_DESCRIPTOR,
   SPECTRAL_BLUR_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
+  STAIRCASE_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
   SUSTAINER_DESCRIPTOR,
@@ -328,6 +331,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SHIMMER_DEVICE,
   SPECTRAL_BLUR_DEVICE,
   SPRING_REVERB_DEVICE,
+  STAIRCASE_DEVICE,
   STEREO_DETUNE_DEVICE,
   STRING_MACHINE_DEVICE,
   SUSTAINER_DEVICE,
@@ -424,6 +428,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'shimmer', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'spectral-blur', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
