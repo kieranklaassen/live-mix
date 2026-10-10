@@ -547,6 +547,115 @@ describe('a variant of a sound', () => {
         }
       })
 
+      it('takes the chord a sound is on from its name, where the name says one', () => {
+        // A line in A minor with the E under its A: E, A and C.
+        const bare = looped(8, 3, 2, [52, 57, 60])
+        const titled = (name: string): typeof bare & { words: { name: string } } => ({
+          ...bare,
+          words: { name },
+        })
+        const line = titled('Fifth under {A}m')
+        expect(soundDegree(bare)).toBe(2)
+        expect(soundDegree(line)).toBe(5)
+        // The first note of several, and a black key with the white key under it.
+        expect(soundDegree(titled('{G} over {C}'))).toBe(4)
+        expect(soundDegree(titled('Dark pad {B♭}'))).toBe(5)
+        expect(soundDegree(titled('Bright pad {C♯}'))).toBe(0)
+        // A name with no note in it says nothing: the lowest note does.
+        expect(soundDegree(titled('Low line'))).toBe(2)
+        expect(chordMoves(titled('Low line'))).toEqual(chordMoves(bare))
+        // By its lowest note the chord left out is the one a fourth down (B under E).
+        expect(chordMoves(bare)).toEqual([-1, 1, -2, 2, 3])
+        // By its name it is the one a step up: B, where A minor was.
+        expect(chordMoves(line)).toEqual([-1, -2, 2, -3, 3])
+        // A fourth down is E minor with its fifth under it, and the line can stand there.
+        expect(varySound(bare, { seed: 1, chord: -3 })).toBe(bare)
+        expect(describeVariant(line, { seed: 1, chord: -3 }).chordSteps).toBe(-3)
+        expect(lowest(varySound(line, { seed: 1, chord: -3 }).phrase.notes)).toBe(47)
+        // A sound named by its lowest note is still never put on B, said by name or not.
+        const onA = { ...looped(8, 3, 2, [57, 60, 64]), words: { name: 'Held {A}m' } }
+        expect(chordMoves(onA)).toEqual([-1, -2, 2, -3, 3])
+        expect(varySound(onA, { seed: 1, chord: 1 })).toBe(onA)
+        expect(describeVariant(onA, { seed: 1, chord: 1 }).chordSteps).toBe(0)
+        // Nor is one that never plays the note it is named by: the instrument sounds that note
+        // (a string a fourth under the key), and with the key on B the string would leave the key.
+        const string = { ...looped(8, 3, 2, [55]), words: { name: 'One string {D}' } }
+        expect(soundDegree(string)).toBe(1)
+        expect(varySound(string, { seed: 1, chord: 2 })).toBe(string)
+        // A third down is the chord its name makes B, a third up the one its key makes B.
+        expect(chordMoves(string)).toEqual([-1, 1, -3, 3])
+        // The chord on B is not offered, and a piece that was saved on it plays the notes it did.
+        expect(describeVariant(line, { seed: 1, chord: 1 }).chordSteps).toBe(1)
+        expect(varySound(line, { seed: 1, chord: 1 }).phrase.notes).toEqual(
+          varySound(bare, { seed: 1, chord: 1 }).phrase.notes,
+        )
+        // A kit and a sound made of another one have no chord, whatever their names say.
+        expect(soundDegree({ ...line, kit: true })).toBeNull()
+        expect(soundDegree({ ...line, source: 'some-other-sound' })).toBeNull()
+      })
+
+      it('names every sound of the bank and the packs by its title, and moves each as its notes alone would', async () => {
+        const byId = (id: string): FactorySound => {
+          const found = FACTORY_SOUNDS.find((sound) => sound.id === id)
+          if (!found) throw new Error(`no sound ${id} in the bank`)
+          return found
+        }
+        let titled = 0
+        const renamed: number[] = []
+        for (const sound of [...FACTORY_SOUNDS, ...(await loadFactoryPackSounds())]) {
+          const degree = soundDegree(sound)
+          if (degree === null) continue
+          const bare = { ...sound, words: undefined }
+          const [, letter, accidental] = /\{([A-G])([♯♭]?)\}/.exec(sound.words?.name ?? '') ?? []
+          if (letter === undefined) {
+            expect(degree).toBe(soundDegree(bare))
+            expect(chordMoves(sound)).toEqual(chordMoves(bare))
+          } else if (!accidental) {
+            titled += 1
+            if (degree !== soundDegree(bare)) renamed.push(sound.number)
+            expect('CDEFGAB'[degree], sound.id).toBe(letter)
+          }
+          const plays = new Set(chordMoves(sound))
+          for (const steps of [-3, -2, -1, 1, 2, 3]) {
+            const variation = { seed: 1, chord: steps }
+            const onB = (degree + steps + 7) % 7 === 6
+            // Every chord the notes alone could be put on: the same notes, title or none.
+            if (describeVariant(bare, variation).chordSteps !== 0) {
+              expect(varySound(sound, variation).phrase.notes, sound.id).toEqual(
+                varySound(bare, variation).phrase.notes,
+              )
+              // And it is offered, unless it is the chord on B.
+              expect(plays.has(steps), `${sound.id} ${steps}`).toBe(!onB)
+            }
+            // What is offered can be stood on, and is never the chord on B.
+            if (plays.has(steps)) {
+              expect(describeVariant(sound, variation).chordSteps, sound.id).not.toBe(0)
+              expect(onB, sound.id).toBe(false)
+            }
+            // The chord on B is one a sound is never moved onto unless its notes alone could be.
+            if (onB && describeVariant(bare, variation).chordSteps === 0) {
+              expect(varySound(sound, variation), sound.id).toBe(sound)
+            }
+          }
+        }
+        expect(titled).toBeGreaterThan(2000)
+        // A bass line that dips under its root, a round whose lowest voice is not its root.
+        expect(renamed.filter((number) => number < 1000).length).toBeGreaterThan(20)
+        expect(renamed.filter((number) => number >= 1000).length).toBeGreaterThan(100)
+        // "Thumb dub line Am" dips to the G under its A, and can now stand on C, with the B under it.
+        const thumb = byId('thumb-dub-line-am')
+        expect(lowest(thumb.phrase.notes) % 12).toBe(7)
+        expect(soundDegree(thumb)).toBe(5)
+        expect(chordMoves(thumb)).toEqual([-1, -2, 2, -3, 3])
+        expect(lowest(varySound(thumb, { seed: 1, chord: 2 }).phrase.notes) % 12).toBe(11)
+        // "Tanpura pluck D" plays one key, G, and its first string sounds the D: named by the D,
+        // and never put where its key is B.
+        const tanpura = byId('tanpura-pluck-d')
+        expect(soundDegree(tanpura)).toBe(1)
+        expect(chordMoves(tanpura)).toEqual([-1, 1, -3, 3])
+        expect(varySound(tanpura, { seed: 1, chord: 2 })).toBe(tanpura)
+      })
+
       it('leaves every variant drawn without one as it was', () => {
         for (const sound of FACTORY_SOUNDS.slice(0, 12)) {
           for (const seed of SEEDS) {
