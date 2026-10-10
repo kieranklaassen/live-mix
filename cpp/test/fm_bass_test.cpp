@@ -163,6 +163,24 @@ static double brightness(const std::vector<float>& x, double f0, size_t from, si
   return total > 0.0 ? above / total : 0.0;
 }
 
+// The component at the key against everything else in the note (the other
+// half-harmonics up to 30 times the key, the sub among them) over
+// [from, to) seconds, in dB.
+static double fundamental_against_rest(const std::vector<float>& x, double f0, double from, double to,
+                                       double rate = kRate) {
+  double fundamental = 0.0, rest = 0.0;
+  for (int half = 1; half <= 60; ++half) {
+    const double level = level_at(x, 0.5 * half * f0, rate, static_cast<size_t>(from * rate + 0.5),
+                                  static_cast<size_t>(to * rate + 0.5));
+    if (half == 2) {
+      fundamental = level;
+    } else {
+      rest += level * level;
+    }
+  }
+  return db(fundamental / std::max(std::sqrt(rest), 1.0e-12));
+}
+
 // Third difference: a band-limited tone leaves almost nothing in it, a
 // discontinuity about its own size.
 static double kink(const std::vector<float>& x, size_t from = 0, size_t to = SIZE_MAX) {
@@ -1523,7 +1541,8 @@ static void check_fold_back_and_dc() {
 }
 
 // Levels: a key at gain 0.7 between -24 and -10 dBFS at the default Volume,
-// nothing the knobs can do at that Volume reaches the soft clip's knee, and
+// nothing the knobs can do at that Volume reaches the soft clip's knee up to
+// C4 (from B flat 4 up the loudest patch passes it by half a decibel), and
 // the clip bounds the output when Volume is pushed.
 static void check_levels() {
   char text[200] = "";
@@ -1547,7 +1566,8 @@ static void check_levels() {
                 peak(pile.left));
   EXPECT(peak(pile.left) < 0.5 && peak(pile.left) > 0.05, label);
 
-  // The loudest the knobs can make it at the default Volume.
+  // Everything full at the default Volume. (Feedback full brings the index
+  // cap down on the higher keys; the loudest patch is the next check.)
   double loudest = 0.0;
   for (int ratio = 0; ratio < 7; ++ratio) {
     for (double hz : {kA0, kA1, kA2, kA3, kC5}) {
@@ -1565,6 +1585,35 @@ static void check_levels() {
                 "Depth, Feedback and Sub full at full gain, every ratio, A0 to C5: peak %.3f, under the knee at 0.5",
                 loudest);
   EXPECT(loudest < 0.5, label);
+
+  // The loudest the knobs can make it: no Feedback, so that the cap stays
+  // open, Depth near full, Sub full. A wide bend cut off at the top of the
+  // band is no longer a wave of constant height: up to C4 the peak stays
+  // under the knee, from B flat 4 up it passes it a little.
+  double loudest_bass = 0.0, loudest_above = 0.0;
+  for (int ratio = 0; ratio < 7; ++ratio) {
+    for (float depth : {0.8f, 0.9f, 0.95f, 1.0f}) {
+      for (int note = 24; note <= 96; note += 3) {  // C1 to C7
+        plain(device);
+        device.set_param(p::kRatio, static_cast<float>(ratio));
+        device.set_param(p::kDepth, depth);
+        device.set_param(p::kSub, 1.0f);
+        device.note_on(1, 440.0f * std::pow(2.0f, static_cast<float>(note - 69) / 12.0f), 1.0f);
+        const double level = peak(render(device, 0.3f, kRate).left);
+        if (note <= 60) {
+          loudest_bass = std::max(loudest_bass, level);
+        } else {
+          loudest_above = std::max(loudest_above, level);
+        }
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "no Feedback, Depth 0.8 to 1, Sub full at full gain, every ratio: peak %.3f up to C4, under the knee at "
+                "0.5; %.3f above it, less than a decibel over the knee",
+                loudest_bass, loudest_above);
+  std::printf("%s\n", label);
+  EXPECT(loudest_bass < 0.5 && loudest_above < 0.56, label);
 
   // Volume is decibels, and at the top the clip holds the peak under 1.
   plain(device);
@@ -1743,6 +1792,31 @@ static void check_presets() {
       Stereo out = render(device, static_cast<float>(seconds), kRate);
       const double found = peak_frequency(out.left, kRate, 0.7 * hz, 1.45 * hz, at(0.5), out.size());
       off = std::max(off, std::fabs(cents(found, hz)));
+    }
+
+    // A preset whose brightness falls slowly stays for a while where it is
+    // struck, so it must not be struck where the bend takes the fundamental
+    // away (with Ratio 1 an index of 1.84, where J0 = J2: Depth 0.5 on a hard
+    // key). The fundamental against the rest of the note over the first
+    // tenth of a second, on the harder keys.
+    float bite = p::kParamDefault[p::kBite];
+    for (const auto& value : preset.values) {
+      if (value.first == p::kBite) bite = value.second;
+    }
+    if (bite >= 1.0f) {
+      double weakest = 1.0e9;
+      for (float gain : {0.7f, 0.8f, 0.9f, 1.0f}) {
+        load(device, preset);
+        device.note_on(1, static_cast<float>(kA3), gain);
+        Stereo struck = render(device, 0.2f, kRate);
+        weakest = std::min(weakest, fundamental_against_rest(struck.left, kA3, 0.01, 0.11));
+      }
+      std::snprintf(label, sizeof label,
+                    "preset \"%s\" (Bite %.1f s) struck at gain 0.7 to 1: over its first tenth of a second the "
+                    "fundamental is at its weakest %.1f dB against the rest of the note",
+                    name, bite, weakest);
+      std::printf("%s\n", label);
+      EXPECT(weakest > -15.0, label);
     }
 
     // How it behaves under a held A1: how much of it lies above 250 Hz (the

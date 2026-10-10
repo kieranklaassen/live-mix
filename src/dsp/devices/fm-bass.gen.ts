@@ -189,7 +189,7 @@ export const FM_BASS_DESCRIPTOR = wasmDeviceDescriptor(FM_BASS_DEVICE, {
     },
     'Slow dark fall': {
       ratio: 1,
-      depth: 0.5,
+      depth: 0.45,
       bite: 4,
       body: 0.1,
       sub: 0.3,

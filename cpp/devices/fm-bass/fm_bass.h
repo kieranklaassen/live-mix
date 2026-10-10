@@ -369,8 +369,12 @@ class FmBass : public kit::DeviceBase<fm_bass::kNumParams> {
   static constexpr float kTurn = 4294967296.0f;     // cycles to steps of a 32-bit phase
   static constexpr double kKaiserBeta = 7.857;      // a stopband of 80 dB
   static constexpr float kSubGain = 1.0f;           // Sub 1 is as loud as the carrier
-  // One key at gain 0.7 peaks near -15 dBFS at the default Volume, and the
-  // loudest patch stays under the soft clip's knee there.
+  // One key at gain 0.7 peaks near -15 dBFS at the default Volume. Up to C4
+  // nothing the knobs can do there passes 0.48, under the soft clip's knee
+  // (at 44.1 kHz and up). Higher keys can pass it: the loudest patch (Ratio
+  // 7, Depth near full, Sub full, no Feedback, a hard key from B flat 4 up)
+  // peaks at 0.54, because a wide bend cut off at the top of the band is no
+  // longer a wave of constant height.
   static constexpr float kOutGain = 0.6f;
   static constexpr float kStrikeSeconds = 0.002f;
   static constexpr float kRatioFadeSeconds = 0.005f;

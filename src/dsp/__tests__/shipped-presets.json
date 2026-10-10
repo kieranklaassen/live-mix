@@ -1706,25 +1706,6 @@
     "Muted thump": {"wave":0,"cutoff":65,"resonance":0.1,"envMod":0.6,"decay":0.08,"accent":0.5,"slide":0.03,"sustain":0.5,"drive":0,"volume":-6},
     "Quiet pulse": {"wave":1,"cutoff":180,"resonance":0.3,"envMod":0.3,"decay":1.5,"accent":0.15,"slide":0.12,"sustain":2.5,"drive":0,"volume":-6}
   },
-  "fm-bass": {
-    "(default)": {"ratio":1,"depth":0.65,"bite":0.25,"body":0.25,"feedback":0,"sub":0.25,"decay":1.4,"release":0.15,"glide":0.06,"volume":-9},
-    "Round knock": {"ratio":1,"depth":0.65,"bite":0.25,"body":0.25,"feedback":0,"sub":0.25,"decay":1.4,"release":0.15,"glide":0.06,"volume":-9},
-    "Wooden knock": {"ratio":3,"depth":0.6,"bite":0.05,"body":0.04,"feedback":0,"sub":0.15,"decay":0.7,"release":0.12,"glide":0.06,"volume":-7},
-    "Rubber bass": {"ratio":2,"depth":0.5,"bite":0.3,"body":0.7,"feedback":0.2,"sub":0.3,"decay":0.9,"release":0.08,"glide":0.1,"volume":-9},
-    "Low growl": {"ratio":1,"depth":0.62,"bite":0.8,"body":0.6,"feedback":0.8,"sub":0.35,"decay":20,"release":0.25,"glide":0.08,"volume":-9},
-    "Sub click": {"ratio":4,"depth":0.75,"bite":0.03,"body":0,"feedback":0,"sub":0.7,"decay":1.5,"release":0.3,"glide":0.06,"volume":-10.5},
-    "Slow dark fall": {"ratio":1,"depth":0.5,"bite":4,"body":0.1,"feedback":0,"sub":0.3,"decay":14,"release":3,"glide":0.25,"volume":-9.5},
-    "Glass pluck": {"ratio":6,"depth":0.45,"bite":0.3,"body":0.03,"feedback":0,"sub":0.2,"decay":1.8,"release":0.7,"glide":0.06,"volume":-9},
-    "Held hum": {"ratio":0,"depth":0.5,"bite":2.5,"body":0.75,"feedback":0.5,"sub":0.2,"decay":20,"release":2.5,"glide":0.4,"volume":-11.5},
-    "Soft sine": {"ratio":1,"depth":0.12,"bite":0.5,"body":1,"feedback":0,"sub":0.15,"decay":20,"release":0.6,"glide":0.12,"volume":-10.5},
-    "Short thump": {"ratio":1,"depth":0.7,"bite":0.03,"body":0,"feedback":0,"sub":0.2,"decay":0.45,"release":0.1,"glide":0,"volume":-6},
-    "Hollow pulse": {"ratio":2,"depth":0.55,"bite":1.2,"body":0.5,"feedback":0,"sub":0.2,"decay":3,"release":0.4,"glide":0.06,"volume":-9},
-    "Buzz bass": {"ratio":1,"depth":0.5,"bite":0.2,"body":0.9,"feedback":1,"sub":0.2,"decay":2,"release":0.06,"glide":0.04,"volume":-7},
-    "Deep weight": {"ratio":0,"depth":0.4,"bite":0.25,"body":0.6,"feedback":0,"sub":1,"decay":6,"release":0.5,"glide":0.15,"volume":-12.5},
-    "Low bell": {"ratio":5,"depth":0.4,"bite":1.5,"body":0.1,"feedback":0,"sub":0.35,"decay":6,"release":2,"glide":0.06,"volume":-10},
-    "Slow slide drone": {"ratio":1,"depth":0.4,"bite":4,"body":0.7,"feedback":0.6,"sub":0.5,"decay":20,"release":5,"glide":1,"volume":-10.5},
-    "Long tail knock": {"ratio":3,"depth":0.45,"bite":0.1,"body":0.05,"feedback":0,"sub":0.45,"decay":8,"release":2.5,"glide":0.06,"volume":-10}
-  },
   "sub-bass": {
     "(default)": {"shape":0.15,"harmonics":0.2,"drop":7,"fall":40,"attack":0.004,"decay":20,"release":0.4,"drive":0.15,"glide":0.06,"volume":-9},
     "Soft sub": {"shape":0.15,"harmonics":0.2,"drop":7,"fall":40,"attack":0.004,"decay":20,"release":0.4,"drive":0.15,"glide":0.06,"volume":-9},
@@ -1762,5 +1743,24 @@
     "Growling fretless": {"type":1,"touch":0.6,"position":0.13,"tone":0.75,"mute":0,"sustain":5,"release":0.2,"growl":1,"resonance":0.8,"volume":-8},
     "Slapped upright": {"type":2,"touch":0.7,"position":0.12,"tone":0.7,"mute":0,"sustain":6,"release":0.2,"growl":1,"resonance":0.85,"volume":-3},
     "Dark soft upright": {"type":2,"touch":0,"position":0.45,"tone":0.15,"mute":0.2,"sustain":10,"release":1,"growl":0,"resonance":0.9,"volume":-4.5}
+  },
+  "fm-bass": {
+    "(default)": {"ratio":1,"depth":0.65,"bite":0.25,"body":0.25,"feedback":0,"sub":0.25,"decay":1.4,"release":0.15,"glide":0.06,"volume":-9},
+    "Round knock": {"ratio":1,"depth":0.65,"bite":0.25,"body":0.25,"feedback":0,"sub":0.25,"decay":1.4,"release":0.15,"glide":0.06,"volume":-9},
+    "Wooden knock": {"ratio":3,"depth":0.6,"bite":0.05,"body":0.04,"feedback":0,"sub":0.15,"decay":0.7,"release":0.12,"glide":0.06,"volume":-7},
+    "Rubber bass": {"ratio":2,"depth":0.5,"bite":0.3,"body":0.7,"feedback":0.2,"sub":0.3,"decay":0.9,"release":0.08,"glide":0.1,"volume":-9},
+    "Low growl": {"ratio":1,"depth":0.62,"bite":0.8,"body":0.6,"feedback":0.8,"sub":0.35,"decay":20,"release":0.25,"glide":0.08,"volume":-9},
+    "Sub click": {"ratio":4,"depth":0.75,"bite":0.03,"body":0,"feedback":0,"sub":0.7,"decay":1.5,"release":0.3,"glide":0.06,"volume":-10.5},
+    "Slow dark fall": {"ratio":1,"depth":0.45,"bite":4,"body":0.1,"feedback":0,"sub":0.3,"decay":14,"release":3,"glide":0.25,"volume":-9.5},
+    "Glass pluck": {"ratio":6,"depth":0.45,"bite":0.3,"body":0.03,"feedback":0,"sub":0.2,"decay":1.8,"release":0.7,"glide":0.06,"volume":-9},
+    "Held hum": {"ratio":0,"depth":0.5,"bite":2.5,"body":0.75,"feedback":0.5,"sub":0.2,"decay":20,"release":2.5,"glide":0.4,"volume":-11.5},
+    "Soft sine": {"ratio":1,"depth":0.12,"bite":0.5,"body":1,"feedback":0,"sub":0.15,"decay":20,"release":0.6,"glide":0.12,"volume":-10.5},
+    "Short thump": {"ratio":1,"depth":0.7,"bite":0.03,"body":0,"feedback":0,"sub":0.2,"decay":0.45,"release":0.1,"glide":0,"volume":-6},
+    "Hollow pulse": {"ratio":2,"depth":0.55,"bite":1.2,"body":0.5,"feedback":0,"sub":0.2,"decay":3,"release":0.4,"glide":0.06,"volume":-9},
+    "Buzz bass": {"ratio":1,"depth":0.5,"bite":0.2,"body":0.9,"feedback":1,"sub":0.2,"decay":2,"release":0.06,"glide":0.04,"volume":-7},
+    "Deep weight": {"ratio":0,"depth":0.4,"bite":0.25,"body":0.6,"feedback":0,"sub":1,"decay":6,"release":0.5,"glide":0.15,"volume":-12.5},
+    "Low bell": {"ratio":5,"depth":0.4,"bite":1.5,"body":0.1,"feedback":0,"sub":0.35,"decay":6,"release":2,"glide":0.06,"volume":-10},
+    "Slow slide drone": {"ratio":1,"depth":0.4,"bite":4,"body":0.7,"feedback":0.6,"sub":0.5,"decay":20,"release":5,"glide":1,"volume":-10.5},
+    "Long tail knock": {"ratio":3,"depth":0.45,"bite":0.1,"body":0.05,"feedback":0,"sub":0.45,"decay":8,"release":2.5,"glide":0.06,"volume":-10}
   }
 }
