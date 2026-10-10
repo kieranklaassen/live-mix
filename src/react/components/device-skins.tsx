@@ -1871,6 +1871,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'glitch-kit': { ...PLATE_PALETTES['glitch-kit'], finish: 'speckle', cap: 'pointer' },
   fog: { ...PLATE_PALETTES.fog, finish: 'fade', cap: 'dot' },
   constellation: { ...PLATE_PALETTES.constellation, finish: 'fade', cap: 'dot' },
+  'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'speckle', cap: 'disc' },
 }
 
 /**

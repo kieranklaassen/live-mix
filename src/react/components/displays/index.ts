@@ -25,6 +25,7 @@ import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
 import { PITCH_FACES } from './pitch'
 import { REVERB_FACES } from './reverb'
+import { SKIPPING_STONE_FACES } from './skipping-stone'
 import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
@@ -61,4 +62,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...KIT_INSTRUMENT_FACES,
   ...FOG_FACES,
   ...CONSTELLATION_FACES,
+  ...SKIPPING_STONE_FACES,
 }

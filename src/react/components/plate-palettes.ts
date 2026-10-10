@@ -120,6 +120,7 @@ export const PLATE_PALETTES = {
   'glitch-kit': { plate: '#f2d31b', ink: '#15130a', accent: '#c2185b' },
   fog: { plate: '#869e9c', ink: '#0f1d1c', accent: '#7a1f12' },
   constellation: { plate: '#0b1026', ink: '#e9ecfb', accent: '#ffcf70' },
+  'skipping-stone': { plate: '#3d5560', ink: '#edf4f2', accent: '#ffcf87' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
