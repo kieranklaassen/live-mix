@@ -4,7 +4,11 @@
 // measurement of the sound: the gusts' sudden rise and slow fall, the rain's
 // drops per second, the surf's period, how far a cloud dims the top end, and
 // that the weather is exactly nothing at Force 0, at Exposure 0 with Voice 0
-// and at Mix 0.
+// and at Mix 0. The second check added: the ceiling of the sum, the weather's
+// own sound following how loud the playing is (and a noise floor not bringing
+// it on), thunder under the gusts, the rain's ducks bounded, the dulling the
+// same at 48 and 96 kHz, and the clock kept through a quiet sound with exact
+// zeros in it.
 
 #include "../devices/weather/weather.h"
 #include "support/test_kit.h"
@@ -18,7 +22,7 @@ static Weather device;
 
 static const float kRate = 48000.0f;
 
-enum Meter : int { kLevel = 0, kGain, kDropCount, kGate, kRollCount };
+enum Meter : int { kLevel = 0, kGain, kDropCount, kGate, kRollCount, kTop };
 
 static const char* kKindNames[Weather::kKinds] = {"Wind", "Clouds", "Rain", "Surf", "Storm"};
 
@@ -135,24 +139,92 @@ static double top_mean(std::vector<double> values, double share) {
 }
 
 // One of the device's two shade stages at `hz` for a shelf of depth `k`, as a
-// gain: kit::OnePole is y = x + (y - x) a with a = exp(-2 pi corner / rate),
-// and a stage is x - k (x - lowpass(x)).
+// gain: a stage is x - k (x - lowpass(x)), and the low-pass is
+// weather_models::Pole, (b0 + b1 / z) / (1 - p / z).
 static double shade_stage(double k, double hz, double corner, double rate) {
-  const double a = std::exp(-2.0 * kPi * corner / rate);
+  wm::Pole pole;
+  pole.set(static_cast<float>(corner), static_cast<float>(rate), Weather::kShadeTop);
   const double w = 2.0 * kPi * hz / rate;
-  const double den_re = 1.0 - a * std::cos(w), den_im = a * std::sin(w);
+  const double num_re = pole.b0 + pole.b1 * std::cos(w), num_im = -pole.b1 * std::sin(w);
+  const double den_re = 1.0 - pole.p * std::cos(w), den_im = pole.p * std::sin(w);
   const double den = den_re * den_re + den_im * den_im;
-  const double lp_re = (1.0 - a) * den_re / den, lp_im = -(1.0 - a) * den_im / den;
+  const double lp_re = (num_re * den_re + num_im * den_im) / den;
+  const double lp_im = (num_im * den_re - num_re * den_im) / den;
+  const double re = (1.0 - k) + k * lp_re, im = k * lp_im;
+  return std::sqrt(re * re + im * im);
+}
+
+// The same stage as the analogue shelf it stands for, which no sample rate is in.
+static double shade_stage_analogue(double k, double hz, double corner) {
+  const double x = hz / corner;
+  const double lp_re = 1.0 / (1.0 + x * x), lp_im = -x / (1.0 + x * x);
   const double re = (1.0 - k) + k * lp_re, im = k * lp_im;
   return std::sqrt(re * re + im * im);
 }
 
 // What a cover of `cover` does to a tone at `hz` under one layer at Force 1
 // and Exposure 1, in dB (a negative number): the level and the two shelves.
-static double covered_db(int layer, double cover, double hz, double colour) {
+static double covered_db(int layer, double cover, double hz, double colour, double rate = kRate) {
   const double corner = Weather::kShadeLowHz * std::pow(Weather::kShadeHighHz / Weather::kShadeLowHz, colour);
   const double k = 1.0 - std::pow(10.0, -Weather::kShadeDb[layer] * cover / 40.0);
-  return -Weather::kDipDb[layer] * cover + 2.0 * db(shade_stage(k, hz, corner, kRate));
+  return -Weather::kDipDb[layer] * cover + 2.0 * db(shade_stage(k, hz, corner, rate));
+}
+
+// The weather's own sound and nothing else: the same run with Voice as it is
+// set less the run with Voice at 0 (the sound under the weather is the same
+// in both). `setup` inits the device and sets everything, Voice included.
+template <typename Setup>
+static Stereo own_sound(Setup setup, const std::vector<float>& input, float rate = kRate) {
+  (void)rate;
+  setup();
+  Stereo with = run(device, input);
+  setup();
+  device.set_param(p::kVoice, 0.0f);
+  Stereo without = run(device, input);
+  for (size_t i = 0; i < with.left.size(); ++i) {
+    with.left[i] -= without.left[i];
+    with.right[i] -= without.right[i];
+  }
+  return with;
+}
+
+// The loudest window of `window` samples, as an RMS.
+static double loudest(const std::vector<float>& x, size_t window, size_t from = 0) {
+  double most = 0.0;
+  for (size_t at = from; at + window <= x.size(); at += window / 2) most = std::max(most, rms(x, at, at + window));
+  return most;
+}
+
+// What is under `hz` of `x`, through four one-pole filters in a row.
+static std::vector<float> below(const std::vector<float>& x, double hz, double rate) {
+  const double a = std::exp(-2.0 * kPi * hz / rate);
+  double low[4] = {0.0, 0.0, 0.0, 0.0};
+  std::vector<float> out(x.size());
+  for (size_t i = 0; i < x.size(); ++i) {
+    double value = x[i];
+    for (double& state : low) {
+      state = value + (state - value) * a;
+      value = state;
+    }
+    out[i] = static_cast<float>(value);
+  }
+  return out;
+}
+
+// A held chord of six notes with their overtones, its peak at `peak_at`.
+static std::vector<float> chord(float seconds, float rate, float peak_at) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
+  const double notes[6] = {110.0, 164.81, 220.0, 277.18, 329.63, 440.0};
+  for (int n = 0; n < 6; ++n) {
+    for (int h = 1; h <= 12; ++h) {
+      const double hz = notes[n] * h;
+      const double w = 2.0 * kPi * hz / rate, amp = 1.0 / std::pow(h, 1.3), phase = 0.37 * n + 0.11 * h;
+      for (size_t i = 0; i < out.size(); ++i) out[i] += static_cast<float>(amp * std::sin(w * i + phase));
+    }
+  }
+  const double most = peak(out);
+  for (float& v : out) v = static_cast<float>(v * peak_at / most);
+  return out;
 }
 
 // The same input run through with and without one change made at `at`
@@ -189,7 +261,7 @@ int main(int argc, char**) {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 12.0f;  // Linger starts at 10 s, and the fade takes 0.8
+  spec.tail_seconds = 12.0f;  // Linger starts at 10 s, and the fall after it takes 1.3
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
@@ -426,11 +498,14 @@ int main(int argc, char**) {
     MEASURED(fast > 1.7 * half && fast < 2.3 * half, label);
     MEASURED(none == 0.0, "Rain: Force 0 drops nothing");
 
-    // Heard: bright ticks over next to no input, counted by their onsets.
-    device.init(kRate);
-    set({{p::kKind, static_cast<float>(Weather::kRain)}, {p::kForce, 0.2f}, {p::kVoice, 1.0f}, {p::kColour, 1.0f},
-         {p::kSway, 0.0f}, {p::kCalm, 0.0f}});
-    Stereo out = run(device, sine(100.0f, 60.0f, kRate, 0.0005f));
+    // Heard: bright ticks, counted by their onsets in the weather's own sound.
+    Stereo out = own_sound(
+        [&] {
+          device.init(kRate);
+          set({{p::kKind, static_cast<float>(Weather::kRain)}, {p::kForce, 0.2f}, {p::kVoice, 1.0f},
+               {p::kColour, 1.0f}, {p::kSway, 0.0f}, {p::kCalm, 0.0f}});
+        },
+        sine(100.0f, 60.0f, kRate, 0.25f));
     const double counted = device.meter(kDropCount);
     int heard = 0;
     {
@@ -565,7 +640,7 @@ int main(int argc, char**) {
   {
     device.init(kRate);
     set({{p::kKind, static_cast<float>(Weather::kStorm)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.5f}});
-    const std::vector<float> input = sine(1000.0f, 180.0f, kRate, 0.001f);
+    const std::vector<float> input = sine(1000.0f, 180.0f, kRate, 0.25f);
     std::vector<double> drops, gust;
     Stereo out;
     out.left.resize(input.size());
@@ -600,15 +675,32 @@ int main(int argc, char**) {
     const double rolls = device.meter(kRollCount);
     std::snprintf(label, sizeof label, "Storm: thunder rolls now and then (%.0f in three minutes)", rolls);
     MEASURED(rolls >= 5.0 && rolls <= 30.0, label);
-    // Thunder is low: far more of the storm is under 150 Hz than of wind and rain apart.
-    const double low_storm = steep_share(out.left, 150.0, kRate, false);
-    device.init(kRate);
-    set({{p::kKind, static_cast<float>(Weather::kWind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.5f}});
-    Stereo wind = run(device, input);
+    // Thunder is low: far more of the storm's own sound is under 150 Hz than of the wind's.
+    const auto own_of = [&](int kind) {
+      return own_sound(
+          [&] {
+            device.init(kRate);
+            set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.5f}});
+          },
+          input);
+    };
+    const Stereo storm = own_of(Weather::kStorm);
+    const Stereo wind = own_of(Weather::kWind);
+    const double low_storm = steep_share(storm.left, 150.0, kRate, false);
     const double low_wind = steep_share(wind.left, 150.0, kRate, false);
     std::snprintf(label, sizeof label, "Storm: thunder is its low end (%.3f of it under 150 Hz, %.4f of the wind)",
                   low_storm, low_wind);
-    MEASURED(low_storm > 0.03 && low_storm > 8.0 * low_wind, label);
+    MEASURED(low_storm > 0.02 && low_storm > 8.0 * low_wind, label);
+    // And thunder is not the loudest thing in the room: its loudest 0.4 s
+    // (what is under 150 Hz of the storm) stays 2 dB or more under the
+    // loudest 0.4 s of the gusts of the same weather.
+    const size_t window = static_cast<size_t>(0.4f * kRate);
+    const double roll = loudest(below(storm.left, 150.0, kRate), window, 48000);
+    const double gusts = loudest(wind.left, window, 48000);
+    std::snprintf(label, sizeof label,
+                  "Storm: thunder stays under the gusts (its loudest 0.4 s %.1f dB, the wind's %.1f dB)", db(roll),
+                  db(gusts));
+    MEASURED(roll > 0.01 && db(roll) < db(gusts) - 2.0, label);
   }
 
   // Colour: dark weather to bright, in every weather's own sound.
@@ -616,10 +708,13 @@ int main(int argc, char**) {
     for (int kind = 0; kind < Weather::kKinds; ++kind) {
       double bright[2] = {0.0, 0.0};
       for (int which = 0; which < 2; ++which) {
-        device.init(kRate);
-        set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.0f},
-             {p::kColour, which == 0 ? 0.0f : 1.0f}});
-        Stereo out = run(device, sine(50.0f, 60.0f, kRate, 0.0005f));
+        Stereo out = own_sound(
+            [&] {
+              device.init(kRate);
+              set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.0f},
+                   {p::kColour, which == 0 ? 0.0f : 1.0f}});
+            },
+            sine(50.0f, 60.0f, kRate, 0.25f));
         bright[which] = energy_above(out.left, 1500.0, kRate);
       }
       std::snprintf(label, sizeof label, "%s: Colour brightens the weather (%.3f of it above 1.5 kHz, then %.3f)",
@@ -662,10 +757,13 @@ int main(int argc, char**) {
                     kKindNames[kind], apart);
       MEASURED(apart > 2.0, label);
 
-      device.init(kRate);
-      set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kSway, 1.0f},
-           {p::kCalm, 0.0f}});
-      Stereo wide = run(device, sine(50.0f, 30.0f, kRate, 0.0005f));
+      Stereo wide = own_sound(
+          [&] {
+            device.init(kRate);
+            set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kSway, 1.0f},
+                 {p::kCalm, 0.0f}});
+          },
+          sine(50.0f, 30.0f, kRate, 0.25f));
       const double alike = correlation(wide.left, wide.right);
       std::snprintf(label, sizeof label, "%s: Sway 1 spreads the weather's own sound (correlation %.2f)",
                     kKindNames[kind], alike);
@@ -686,7 +784,7 @@ int main(int argc, char**) {
     std::snprintf(label, sizeof label, "Linger: the rain goes on for 2 s (rms %.4f), fades (%.4f) and stops", during,
                   fading);
     MEASURED(during > 0.01 && fading < 0.5 * during && fading > 0.0, label);
-    MEASURED(peak(after.left, 3 * s, 5 * s) == 0.0 && peak(after.right, 3 * s, 5 * s) == 0.0,
+    MEASURED(peak(after.left, 7 * s / 2, 5 * s) == 0.0 && peak(after.right, 7 * s / 2, 5 * s) == 0.0,
            "Linger: exact silence once the fade is over");
     MEASURED(device.meter(kGate) == 0.0f && device.meter(kLevel) == 0.0f && device.meter(kGain) == 1.0f,
            "asleep, the readings are at rest");
@@ -812,7 +910,7 @@ int main(int argc, char**) {
       const std::vector<float> head(input.begin(), input.begin() + move_at);
       const std::vector<float> rest(input.begin() + move_at, input.end());
       Stereo out = run(device, head, block);
-      MEASURED(peak(out.left, 3 * s, move_at) == 0.0, "asleep after the note, its Linger and the fade");
+      MEASURED(peak(out.left, 7 * s / 2, move_at) == 0.0, "asleep after the note, its Linger and the fade");
       set({{p::kKind, static_cast<float>(Weather::kSurf)}, {p::kForce, 0.9f}, {p::kExposure, 0.2f}});
       out = concat(out, run(device, rest, block));
       if (block == 128) {
@@ -845,10 +943,13 @@ int main(int argc, char**) {
       double loud[2] = {0.0, 0.0};
       for (int which = 0; which < 2; ++which) {
         const float rate = which == 0 ? 48000.0f : 96000.0f;
-        device.init(rate);
-        set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.0f},
-             {p::kSway, 0.0f}});
-        Stereo out = run(device, sine(50.0f, 120.0f, rate, 0.0005f));
+        Stereo out = own_sound(
+            [&] {
+              device.init(rate);
+              set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kVoice, 1.0f}, {p::kCalm, 0.0f},
+                   {p::kSway, 0.0f}});
+            },
+            sine(50.0f, 120.0f, rate, 0.25f), rate);
         loud[which] = db(rms(out.left));
       }
       std::snprintf(label, sizeof label, "%s: as loud at 96 kHz as at 48 kHz (%.1f dB against %.1f)",
@@ -878,6 +979,292 @@ int main(int argc, char**) {
     const double gain = db(rms(out.left) / rms(loud));
     std::snprintf(label, sizeof label, "at its defaults the sound comes out %.1f dB from how it came in", gain);
     MEASURED(gain < 0.5 && gain > -4.0, label);
+  }
+
+  // --- Second check -------------------------------------------------------------------
+
+  // The ceiling: a full-scale held chord with Voice at 1 and everything up
+  // never comes out over full scale, in any weather. (Before, the weather's
+  // own sound was soft-clipped by itself and added: up to +3.6 dB.)
+  {
+    const std::vector<float> hot = chord(30.0f, kRate, 1.0f);
+    for (int kind = 0; kind < Weather::kKinds; ++kind) {
+      device.init(kRate);
+      set({{p::kKind, static_cast<float>(kind)}, {p::kForce, 1.0f}, {p::kPace, 4.0f}, {p::kExposure, 0.0f},
+           {p::kVoice, 1.0f}, {p::kColour, 1.0f}, {p::kCalm, 0.0f}});
+      Stereo out = run(device, hot);
+      const double most = std::max(peak(out.left), peak(out.right));
+      std::snprintf(label, sizeof label, "%s: a full-scale chord with Voice at 1 peaks at %.3f, not over full scale",
+                    kKindNames[kind], most);
+      MEASURED(most <= 1.0 + 1.0e-6, label);
+      // And the weather is still there under it, not switched off by the ceiling.
+      double added = 0.0;
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        added += (static_cast<double>(out.left[i]) - hot[i]) * (static_cast<double>(out.left[i]) - hot[i]);
+      }
+      added = std::sqrt(added / static_cast<double>(out.left.size()));
+      std::snprintf(label, sizeof label, "%s: under the ceiling the weather's own sound is still there (rms %.4f)",
+                    kKindNames[kind], added);
+      MEASURED(added > 0.003, label);
+    }
+    // At a level a mix holds, the ceiling does nothing: the weather's own
+    // sound over a tone at -12 dBFS is what it is over one at -18 dBFS.
+    double loud[2] = {0.0, 0.0};
+    for (int which = 0; which < 2; ++which) {
+      Stereo own = own_sound(
+          [&] {
+            device.init(kRate);
+            set({{p::kKind, static_cast<float>(Weather::kWind)}, {p::kForce, 1.0f}, {p::kVoice, 0.6f},
+                 {p::kCalm, 0.0f}});
+          },
+          sine(220.0f, 20.0f, kRate, which == 0 ? 0.178f : 0.355f));
+      loud[which] = db(rms(own.left, 48000));
+    }
+    std::snprintf(label, sizeof label,
+                  "the ceiling leaves the weather alone at ordinary levels (%.2f dB over a tone, %.2f dB over one twice as loud)",
+                  loud[0], loud[1]);
+    MEASURED(std::fabs(loud[0] - loud[1]) < 0.3, label);
+  }
+
+  // The weather's own sound follows how loud the playing is. With Exposure 0
+  // the sound is untouched, so the output less the input is the weather.
+  {
+    const auto weather_over = [&](const std::vector<float>& input, float linger) {
+      device.init(kRate);
+      set({{p::kKind, static_cast<float>(Weather::kWind)}, {p::kForce, 1.0f}, {p::kExposure, 0.0f},
+           {p::kVoice, 0.7f}, {p::kCalm, 0.0f}, {p::kLinger, linger}});
+      Stereo out = run(device, input);
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        out.left[i] -= input[i];
+        out.right[i] -= input[i];
+      }
+      return out;
+    };
+    // A noise floor at -66 dBFS brings no weather on at all, however long it
+    // lasts. (Before, anything over -74 dBFS held all of it on for ever.)
+    rng_state() = 0xF100Du;
+    const std::vector<float> floor_noise = noise(20.0f, kRate, 0.0005f * std::sqrt(3.0f));
+    Stereo over_floor = weather_over(floor_noise, 2.0f);
+    std::snprintf(label, sizeof label, "a noise floor at -66 dBFS brings on no weather (its own sound peaks at %g)",
+                  std::max(peak(over_floor.left), peak(over_floor.right)));
+    MEASURED(peak(over_floor.left) == 0.0 && peak(over_floor.right) == 0.0, label);
+
+    // After a note the floor does not hold the weather on: it lingers and is gone.
+    std::vector<float> note_then_floor = sine(220.0f, 1.0f, kRate, 0.25f);
+    note_then_floor.insert(note_then_floor.end(), floor_noise.begin(), floor_noise.end());
+    Stereo after_note = weather_over(note_then_floor, 2.0f);
+    const size_t s = static_cast<size_t>(kRate);
+    std::snprintf(label, sizeof label,
+                  "after a note a noise floor does not hold the weather on (rms %.4f in its Linger, peak %g from 5 s on)",
+                  rms(after_note.left, s + s / 2, 3 * s), peak(after_note.left, 5 * s));
+    MEASURED(rms(after_note.left, s + s / 2, 3 * s) > 0.005 && peak(after_note.left, 5 * s) == 0.0 &&
+                 device.meter(kGate) == 0.0f,
+             label);
+
+    // Under a quiet sound the weather is quieter in proportion: 20 dB less
+    // playing, 20 dB less weather; and at -18 dBFS and above all of it.
+    double level[3] = {0.0, 0.0, 0.0};
+    const float amps[3] = {0.0126f, 0.126f, 0.25f};  // -38, -18 and -12 dBFS rms (a tone at -12 leaves the ceiling room)
+    for (int which = 0; which < 3; ++which) {
+      Stereo own = weather_over(sine(220.0f, 40.0f, kRate, amps[which] * std::sqrt(2.0f)), 2.0f);
+      level[which] = db(rms(own.left, 48000));
+    }
+    std::snprintf(label, sizeof label,
+                  "the weather follows the playing: %.1f dB under a sound at -38 dBFS, %.1f dB at -18, %.1f dB at -12",
+                  level[0], level[1], level[2]);
+    MEASURED(level[1] - level[0] > 18.5 && level[1] - level[0] < 21.5 && std::fabs(level[2] - level[1]) < 0.5, label);
+
+    // And it comes down with the playing: a sound that drops by 30 dB and
+    // stays there has the weather at its old level for Linger and then at
+    // the new one.
+    std::vector<float> two_levels = sine(220.0f, 12.0f, kRate, 0.25f);
+    for (size_t i = 3 * s; i < two_levels.size(); ++i) two_levels[i] *= 0.0316f;
+    Stereo stepped = weather_over(two_levels, 2.0f);
+    const double held = db(rms(stepped.left, 3 * s + s / 4, 5 * s - s / 4));
+    const double fallen = db(rms(stepped.left, 7 * s, 12 * s));
+    const double before = db(rms(stepped.left, s, 3 * s));
+    std::snprintf(label, sizeof label,
+                  "Linger holds the weather where the playing was (%.1f dB, then %.1f dB for 2 s) and lets it down to "
+                  "where it is (%.1f dB)",
+                  before, held, fallen);
+    MEASURED(std::fabs(held - before) < 5.0 && fallen < before - 22.0 && fallen > before - 40.0, label);
+  }
+
+  // At its defaults the weather sits under the music, loud or quiet: its
+  // loudest 0.4 s is 10 dB or more under a held chord at -18 dBFS and under
+  // one at -40 dBFS, in every weather. (Before: 5 dB over the quiet one.)
+  {
+    for (int kind = 0; kind < Weather::kKinds; ++kind) {
+      double under[2] = {0.0, 0.0};
+      for (int which = 0; which < 2; ++which) {
+        std::vector<float> pad = chord(60.0f, kRate, 1.0f);
+        const double target = which == 0 ? 0.126 : 0.01;
+        const double scale = target / rms(pad);
+        for (float& v : pad) v = static_cast<float>(v * scale);
+        Stereo own = own_sound(
+            [&] {
+              device.init(kRate);
+              device.set_param(p::kKind, static_cast<float>(kind));
+            },
+            pad);
+        under[which] = db(loudest(own.left, 19200, 48000) / target);
+      }
+      std::snprintf(label, sizeof label,
+                    "%s at its defaults sits under the music (loudest 0.4 s %.1f dB re a pad at -18 dBFS, %.1f dB re one at -40)",
+                    kKindNames[kind], under[0], under[1]);
+      MEASURED(under[0] < -10.0 && under[1] < -10.0 && under[0] > -40.0, label);
+    }
+  }
+
+  // Rain taps, it does not turn the sound down: at the fastest rain the level
+  // of a held tone is 3.5 dB down on average at the most, and still moves
+  // with the drops. (Before: 8.9 dB down, 99 % of the time under -3 dB.)
+  {
+    bare(Weather::kRain);
+    device.set_param(p::kPace, 4.0f);
+    Stereo out = run(device, sine(1000.0f, 30.0f, kRate, 0.5f));
+    const std::vector<double> level = envelope_db(out.left, 240, 0.5 / std::sqrt(2.0));  // 5 ms
+    double mean = 0.0, spread = 0.0, deepest = 0.0;
+    for (size_t i = 200; i < level.size(); ++i) mean += level[i] / static_cast<double>(level.size() - 200);
+    for (size_t i = 200; i < level.size(); ++i) {
+      spread += (level[i] - mean) * (level[i] - mean) / static_cast<double>(level.size() - 200);
+      deepest = std::min(deepest, level[i]);
+    }
+    spread = std::sqrt(spread);
+    const double fell = device.meter(kDropCount) / 30.0;
+    std::snprintf(label, sizeof label,
+                  "Rain: at %.0f drops a second the level is %.1f dB down on average, moving by %.1f dB, deepest %.1f dB",
+                  fell, -mean, spread, -deepest);
+    MEASURED(fell > 60.0 && mean > -3.5 && mean < -1.0 && spread > 0.5 && deepest > -8.5, label);
+    // A drop's share of its duck is what the model says, and the mean of all the ducks stays under kDuckMean.
+    const double piled = 96.0 * wm::Rain::kDuckSeconds * wm::Rain::kMeanSize;
+    MEASURED(piled * wm::Rain::duck_share(96.0f) < wm::Rain::kDuckMean && wm::Rain::duck_share(1.0f) > 0.99f,
+             "Rain: the ducks together stay under kDuckMean, and a sparse rain keeps all of each");
+  }
+
+  // The dulling is the same filter at 48 and at 96 kHz, and what the knobs
+  // say it is: under the same shadow 10 kHz sinks as far at both rates, and
+  // as far as the analogue shelves would take it. (Before: 1.6 dB apart, and
+  // 23 dB of the 26 at 48 kHz.)
+  {
+    double deepest[2] = {0.0, 0.0}, cover_at[2] = {0.0, 0.0};
+    for (int which = 0; which < 2; ++which) {
+      const float rate = which == 0 ? 48000.0f : 96000.0f;
+      device.init(rate);
+      set({{p::kKind, static_cast<float>(Weather::kClouds)}, {p::kForce, 1.0f}, {p::kExposure, 1.0f},
+           {p::kVoice, 0.0f}, {p::kSway, 0.0f}, {p::kCalm, 0.0f}, {p::kPace, 2.0f}});
+      const float seconds = 60.0f;
+      std::vector<float> two = sine(300.0f, seconds, rate, 0.25f);
+      const std::vector<float> high = sine(10000.0f, seconds, rate, 0.25f);
+      for (size_t i = 0; i < two.size(); ++i) two[i] += high[i];
+      Stereo out = run(device, two);
+      const size_t window = static_cast<size_t>(0.1f * rate);
+      for (size_t at = 0; at + window <= out.left.size(); at += window) {
+        const double high_db = db(tone_level(out.left, 10000.0, rate, at, at + window) / 0.25);
+        if (high_db < deepest[which]) {
+          deepest[which] = high_db;
+          cover_at[which] = -db(tone_level(out.left, 300.0, rate, at, at + window) / 0.25);
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "Clouds: the deepest shadow takes 10 kHz down %.2f dB at 48 kHz and %.2f dB at 96 kHz", -deepest[0],
+                  -deepest[1]);
+    MEASURED(std::fabs(deepest[0] - deepest[1]) < 0.6 && deepest[0] < -20.0, label);
+    // Against the analogue shelves, at every Colour and both rates, a whole shadow at 4, 8 and 12 kHz.
+    double worst = 0.0;
+    for (double colour : {0.0, 0.25, 0.5, 0.75, 1.0}) {
+      const double corner = Weather::kShadeLowHz * std::pow(Weather::kShadeHighHz / Weather::kShadeLowHz, colour);
+      const double k = 1.0 - std::pow(10.0, -Weather::kShadeDb[Weather::kShadows] / 40.0);
+      for (double hz : {1000.0, 4000.0, 8000.0, 12000.0}) {
+        for (double rate : {44100.0, 48000.0, 96000.0}) {
+          worst = std::max(worst, std::fabs(2.0 * db(shade_stage(k, hz, corner, rate)) -
+                                            2.0 * db(shade_stage_analogue(k, hz, corner))));
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "the two shelves are the analogue ones at 44.1, 48 and 96 kHz (off by %.2f dB at the most up to 12 kHz)",
+                  worst);
+    MEASURED(worst < 1.3, label);
+    (void)cover_at;
+  }
+
+  // The reading of the top end is what the top end loses: the level reading
+  // and it, through the two shelves as they stand at 10 kHz, are where a
+  // 10 kHz tone is found, shadow after shadow. (The display draws its band of
+  // dulling from this reading; before there was none and the band showed the
+  // level alone, 6 dB of a cloud that takes 32 dB from the top.)
+  {
+    device.init(kRate);
+    set({{p::kKind, static_cast<float>(Weather::kClouds)}, {p::kForce, 1.0f}, {p::kExposure, 1.0f},
+         {p::kVoice, 0.0f}, {p::kSway, 0.0f}, {p::kCalm, 0.0f}, {p::kPace, 2.0f}, {p::kColour, 0.5f}});
+    const double corner = Weather::kShadeLowHz * std::sqrt(Weather::kShadeHighHz / Weather::kShadeLowHz);
+    const std::vector<float> input = sine(10000.0f, 30.0f, kRate, 0.25f);
+    const int blocks = 18;  // 48 ms
+    std::vector<float> got(static_cast<size_t>(blocks) * 128);
+    double worst = 0.0, deepest = 0.0, read_before = 0.0;
+    for (size_t done = 0; done + got.size() <= input.size(); done += got.size()) {
+      for (int b = 0; b < blocks; ++b) {
+        for (int i = 0; i < 128; ++i) {
+          device.in_left()[i] = device.in_right()[i] = input[done + static_cast<size_t>(b) * 128 + i];
+        }
+        device.process(128);
+        for (int i = 0; i < 128; ++i) got[static_cast<size_t>(b) * 128 + i] = device.out_left()[i];
+      }
+      const double k = 1.0 - std::sqrt(static_cast<double>(device.meter(kTop)));
+      const double read =
+          db(static_cast<double>(device.meter(kGain))) + 2.0 * db(shade_stage(k, 10000.0, corner, kRate));
+      const double heard = db(tone_level(got, 10000.0, kRate) / 0.25);
+      // The tone over the stretch lies between the readings at its two ends.
+      if (done > 0) {
+        const double low = std::min(read, read_before) - 0.5, high = std::max(read, read_before) + 0.5;
+        worst = std::max(worst, std::max(low - heard, heard - high));
+      }
+      read_before = read;
+      deepest = std::min(deepest, db(static_cast<double>(device.meter(kTop))));
+    }
+    std::snprintf(label, sizeof label,
+                  "Clouds: the top-end reading is where 10 kHz is found (off by %.2f dB at the most; the reading goes to %.1f dB)",
+                  worst, deepest);
+    MEASURED(worst < 0.25 && deepest < -20.0 && deepest >= -26.01, label);
+    device.init(kRate);
+    MEASURED(device.meter(kTop) == 1.0f, "the top-end reading is 1 at rest");
+  }
+
+  // The weather runs by the clock through a sound so quiet that many of its
+  // samples are exact zeros: as many drops fall as under a steady one.
+  // (Before, every zero sample was taken for a silence and the weather ran
+  // up to seven times too fast.)
+  {
+    double drops[2] = {0.0, 0.0};
+    for (int which = 0; which < 2; ++which) {
+      device.init(kRate);
+      set({{p::kKind, static_cast<float>(Weather::kRain)}, {p::kForce, 1.0f}});
+      std::vector<float> faint(10 * 48000);
+      for (size_t i = 0; i < faint.size(); ++i) faint[i] = which == 0 || (i & 1) ? 3.0e-5f : 0.0f;
+      run(device, faint);
+      drops[which] = device.meter(kDropCount);
+    }
+    std::snprintf(label, sizeof label,
+                  "a faint sound with every other sample zero keeps the weather's clock (%.0f drops against %.0f)",
+                  drops[1], drops[0]);
+    MEASURED(drops[0] > 50.0 && drops[1] == drops[0], label);
+  }
+
+  // Two inits give the same weather although the first run left its own
+  // sound on (the Voice smoother is reset), and the readings start at rest.
+  {
+    const std::vector<float> tone = sine(220.0f, 2.0f, kRate, 0.25f);
+    device.init(kRate);
+    set({{p::kKind, static_cast<float>(Weather::kStorm)}, {p::kVoice, 1.0f}});
+    Stereo first = run(device, tone);
+    device.init(kRate);
+    MEASURED(device.meter(kGate) == 0.0f && device.meter(kLevel) == 0.0f && device.meter(kGain) == 1.0f,
+             "after init the readings are at rest");
+    set({{p::kKind, static_cast<float>(Weather::kStorm)}, {p::kVoice, 1.0f}});
+    Stereo second = run(device, tone);
+    MEASURED(first.left == second.left && first.right == second.right, "an init while the weather sounds starts it again the same");
   }
 
   device.init(kRate);

@@ -16,6 +16,7 @@ import {
   DIP_DB,
   DIP_FULL_DB,
   RAIN,
+  SHADE_DB,
   SURF,
   THUNDER,
   WEATHER_FACES,
@@ -24,6 +25,7 @@ import {
   cloudShape,
   heardDipDb,
   rainCover,
+  rainDuckShare,
   rainFloor,
   rainRate,
   sampleWeather,
@@ -58,6 +60,7 @@ interface Readings {
   /** A reading for every block of 128 frames. */
   level: Float32Array
   gain: Float32Array
+  top: Float32Array
   /** The counts when the run ended. */
   drops: number
   rolls: number
@@ -79,6 +82,7 @@ async function weatherRun(
   const blocks = Math.round(seconds / BLOCK_SEC)
   const level = new Float32Array(blocks)
   const gain = new Float32Array(blocks)
+  const top = new Float32Array(blocks)
   const block = new Float32Array(BLOCK)
   for (let n = 0; n < blocks; n++) {
     for (let i = 0; i < BLOCK; i++)
@@ -86,8 +90,9 @@ async function weatherRun(
     device.processBlock(block)
     level[n] = meter(device, 0)
     gain[n] = meter(device, 1)
+    top[n] = meter(device, 5)
   }
-  return { level, gain, drops: meter(device, 2), rolls: meter(device, 4) }
+  return { level, gain, top, drops: meter(device, 2), rolls: meter(device, 4) }
 }
 
 /** Ten minutes of each Kind's own time (Pace 4), at one Calm: run once and read by more than one test. */
@@ -200,8 +205,10 @@ interface Picture {
   /** The line of the weather, and the fill under it when Voice is up. */
   weather: [number, number][][]
   fills: Drawn[]
-  /** The line under the band that hangs from the top. */
+  /** The line under the band that hangs from the top: what the level loses. */
   band: [number, number][][]
+  /** The line under the lighter band: what the top end loses. */
+  far: [number, number][][]
   /** The upper line: the most the weather reaches. */
   ceiling: Drawn | undefined
   ticks: Drawn[]
@@ -223,6 +230,7 @@ function pictureOf(drawn: RecordingContext, width = 184, height = 48): Picture {
       (path) => path.how === 'fill' && long(path) && path.points[0][1] === lay.foot,
     ),
     band: lines.filter((path) => path.width === 1).map((path) => path.points),
+    far: lines.filter((path) => path.width === 0.75).map((path) => path.points),
     ceiling: all.find(
       (path) =>
         path.how === 'stroke' &&
@@ -253,7 +261,7 @@ function live(
   options: FrameOptions = {},
 ): RecordingContext {
   return runDisplay(display, params, seconds, { values, ...options }, (time) => ({
-    meters: { level: 0, gain: 1, drops: 0, gate: 1, rolls: 0, ...each(time) },
+    meters: { level: 0, gain: 1, drops: 0, gate: 1, rolls: 0, top: 1, ...each(time) },
   }))
 }
 
@@ -377,6 +385,62 @@ describe('the shapes the Weather display draws from, against the device', { time
     expect(rainRate(1, 1, 1)).toBe(RAIN.rate)
   })
 
+  it('takes from the top end what the display says a gust, a shadow and a wave take', async () => {
+    const force = 0.8
+    const exposure = 0.7
+    for (const kind of ['wind', 'clouds', 'surf'] as const) {
+      const run = await weatherRun(
+        { kind: kindOf(kind), force, exposure, calm: 0, sway: 0, pace: kind === 'wind' ? 1 : 2 },
+        12,
+      )
+      let worst = 0
+      let deepest = 0
+      for (let n = 8; n < run.level.length; n++) {
+        // The reading is Force times the cover; the shelves' depth is Force times Exposure times kShadeDb times the cover.
+        const model = exposure * SHADE_DB[kind] * run.level[n]
+        const shade = -20 * Math.log10(run.top[n])
+        worst = Math.max(worst, Math.abs(shade - model))
+        deepest = Math.max(deepest, shade)
+      }
+      expect(worst, `${kind}: the top end against the level`).toBeLessThan(
+        kind === 'wind' ? 0.9 : 0.3,
+      )
+      expect(deepest, `${kind}: there was something to compare`).toBeGreaterThan(4)
+    }
+    // Asleep the reading is 1: nothing is taken.
+    const device = await loadWasmDevice('weather', RATE)
+    expect(meter(device, 5)).toBe(1)
+  })
+
+  it('ducks no further under a thick rain than the display says: a drop keeps less of its duck', async () => {
+    // `Rain::duck_share`: all of it for a sparse rain, and the ducks together never over kDuckMean.
+    expect(rainDuckShare(0)).toBe(1)
+    expect(rainDuckShare(1)).toBeGreaterThan(0.99)
+    const meanSize = RAIN.sizeMin + (1 - RAIN.sizeMin) / 3
+    for (const rate of [24, 96, 400, 5000]) {
+      const piled = rate * RAIN.duckSeconds * meanSize * rainDuckShare(rate)
+      expect(piled).toBeLessThan(RAIN.duckMean)
+      expect(rainCover(rate)).toBeCloseTo(1 - Math.exp(-piled), 9)
+      expect(rainCover(rate)).toBeLessThan(1 - Math.exp(-RAIN.duckMean))
+    }
+    // The thickest rain there is: Force 1 at Pace 4, with no lull.
+    const run = await weatherRun(
+      { kind: kindOf('rain'), force: 1, pace: 4, exposure: 1, calm: 0 },
+      30,
+    )
+    let cover = 0
+    let model = 0
+    for (let n = 0; n < run.level.length; n++) {
+      model += rainCover(rainRate(1, 4, run.level[n]))
+      cover += (-20 * Math.log10(run.gain[n])) / DIP_DB.rain
+    }
+    const ratio = cover / model
+    expect(ratio, 'the mean duck against the display').toBeGreaterThan(0.75)
+    expect(ratio).toBeLessThan(1.1)
+    // And the level is under 3 dB down on average, where each drop's whole duck would have it near 9.
+    expect((cover / run.level.length) * DIP_DB.rain).toBeLessThan(3)
+  })
+
   it('has waves, shadows and thunder as often as the dashes say', async () => {
     const { pace, seconds, calm } = LONG
     // Surf: one wave and one lull to a period.
@@ -475,7 +539,7 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
       expect(lay.foot).toBe(height - 6)
       expect(lay.laneTop).toBe(6)
       expect(lay.sky).toBe(height - 12)
-      expect(lay.shade).toBe(Math.round((height - 8) * 0.3))
+      expect(lay.shade).toBe(Math.round((height - 8) * 0.4))
       // The ring is whole on the display wherever Force and Pace put it: 4.5 px and half its line.
       expect(lay.laneTop).toBeGreaterThanOrEqual(5.25)
       expect(height - lay.foot).toBeGreaterThanOrEqual(5.25)
@@ -721,6 +785,63 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
     ).toBe(0)
   })
 
+  it('hangs a lighter band as far as the top end is taken down, further than the level', () => {
+    const still = (values: Record<string, number>): Picture =>
+      pictureOf(
+        drawDisplay(display, params, { values: { kind: kindOf('clouds'), calm: 0, ...values } }),
+      )
+    const deepest = (lines: [number, number][][]): number =>
+      lines.length === 0 ? 0 : Math.max(...lines[0].map(([, y]) => y)) - LAY.top
+    // At rest: a whole shadow takes kDipDb from the level and kShadeDb more from the top.
+    expect(still({ exposure: 0 }).far.length).toBe(0)
+    expect(still({ mix: 0 }).far.length).toBe(0)
+    const full = still({ force: 1, exposure: 1 })
+    const whole = DIP_DB.clouds + SHADE_DB.clouds
+    expect(whole).toBe(DIP_FULL_DB)
+    expect(deepest(full.far)).toBeCloseTo((whole / DIP_DB.clouds) * deepest(full.band), 3)
+    expect(deepest(full.far)).toBeGreaterThan(
+      CLOUDS.depthMin * (1 - CLOUDS.thin) * LAY.shade - 0.01,
+    )
+    expect(deepest(full.far)).toBeLessThanOrEqual(LAY.shade + 1e-6)
+    expect(deepest(still({ force: 1, exposure: 0.5 }).far)).toBeCloseTo(deepest(full.far) / 2, 3)
+    // Column for column it is the level's band, as much deeper as the shelves are.
+    for (let c = 0; c < full.far[0].length; c += 7) {
+      expect(full.far[0][c][1] - LAY.top).toBeCloseTo(
+        (whole / DIP_DB.clouds) * (full.band[0][c][1] - LAY.top),
+        3,
+      )
+    }
+    // In a storm the wind's shelves; in rain the drops', a third of their duck again.
+    for (const [kind, ratio] of [
+      ['wind', (DIP_DB.wind + SHADE_DB.wind) / DIP_DB.wind],
+      ['surf', (DIP_DB.surf + SHADE_DB.surf) / DIP_DB.surf],
+      ['rain', (DIP_DB.rain + SHADE_DB.rain) / DIP_DB.rain],
+    ] as const) {
+      const drawn = still({ kind: kindOf(kind), force: 1, exposure: 1 })
+      expect(deepest(drawn.far), kind).toBeCloseTo(ratio * deepest(drawn.band), 3)
+    }
+    // Running: the reading `top` under the reading `gain`, as it is heard at that Mix.
+    for (const [gain, top, mix] of [
+      [0.7, 0.2, 1],
+      [0.9, 0.5, 1],
+      [0.7, 0.2, 0.5],
+      [0.5, 0.01, 1],
+    ]) {
+      const drawn = pictureOf(live({ force: 1, mix }, 3, () => ({ level: 0.5, gain, top })))
+      const heard = heardDipDb(-20 * Math.log10(gain * top), mix)
+      const hangs = (Math.min(heard, DIP_FULL_DB) / DIP_FULL_DB) * LAY.shade
+      expect(drawn.far[0].at(-1)?.[1]).toBeCloseTo(LAY.top + hangs, 4)
+      expect(drawn.far[0].at(-1)?.[1]).toBeGreaterThan(drawn.band[0].at(-1)?.[1] ?? Infinity)
+    }
+    // Where the top end loses no more than the level there is one band, and a reading not yet there takes nothing.
+    expect(
+      pictureOf(live({ force: 1 }, 3, () => ({ level: 0.5, gain: 0.6, top: 1 }))).far.length,
+    ).toBe(0)
+    expect(
+      pictureOf(live({ force: 1 }, 3, () => ({ level: 0.5, gain: 0.6, top: 0 }))).far.length,
+    ).toBe(0)
+  })
+
   it("follows the device's readings while it runs: the weather, the level under it and now", () => {
     for (const [level, gain, mix] of [
       [0.4, 0.7, 1],
@@ -860,6 +981,8 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
     /** The last few readings, newest first: a column of the picture takes in two or three of them. */
     const levels: number[] = []
     const gains: number[] = []
+    const highs: number[] = []
+    let dulled = 0
     let last: RecordingContext | null = null
     let highest = 0
     let sample = 0
@@ -878,6 +1001,7 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
         drops: meter(device, 2),
         gate: meter(device, 3),
         rolls: meter(device, 4),
+        top: meter(device, 5),
       }
       // The first frame that runs takes the counts as they stand; from then on each reading adds its own.
       if (n > 1) {
@@ -889,6 +1013,7 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
       if (n > 0) {
         levels.unshift(meters.level)
         gains.unshift(meters.gain)
+        highs.unshift(meters.gain * meters.top)
       }
       last = drawDisplay(display, params, {
         values,
@@ -921,9 +1046,21 @@ describe('what the Weather display draws', { timeout: SLOW }, () => {
             ),
             `frame ${n}`,
           ).toBeLessThan(1e-3)
+          // And the lighter band where the device has the top end: its level's gain times `top`.
+          if (drawn.far.length > 0) {
+            const far = drawn.far.at(-1)?.at(-1)?.[1] ?? NaN
+            expect(
+              Math.min(
+                ...[1, 2, 3, 4].map((k) => Math.abs(far - hangs(Math.min(...highs.slice(0, k))))),
+              ),
+              `frame ${n}`,
+            ).toBeLessThan(1e-3)
+            dulled += 1
+          }
         }
       }
     }
+    expect(dulled).toBeGreaterThan(20)
     expect(highest).toBeGreaterThan(0.4)
     if (!last) throw new Error('nothing was drawn')
     const end = pictureOf(last)

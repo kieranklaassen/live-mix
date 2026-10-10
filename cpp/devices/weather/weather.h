@@ -4,9 +4,9 @@
 //
 //                 ┌─► two high shelves (shade) ─► × sheen ─► × level ─┐
 //   in ───────────┤                                                   (+)─► wet ─┐
-//    │            └─► is anything playing? ─► linger, then fade ─┐     ▲         │
-//    │                                                           ▼     │         ▼
-//    │   weather (Kind, Force, Pace, Calm, Sway) ─► its own sound × ───┘   Mix (linear)
+//    │            └─► how loud is the playing? ─► linger, then fall ─┐ ▲         │
+//    │                                                               ▼ │         ▼
+//    │   weather (Kind, Force, Pace, Calm, Sway) ─► its own sound × ─► ceiling  Mix (linear)
 //    │        │                                                                  │
 //    │        └─► cover, each side ─► shade, sheen and level above               ▼
 //    └───────────────────────────────────────────────────────────────────────► out
@@ -29,17 +29,25 @@
 //   resonance that rises and sharpens with the gust), a dark hush under a
 //   cloud, the drops (short rising sines) over a far hiss of rain, the wave's
 //   roar opening into a wash that thins as it draws back, a low roll of
-//   thunder. It is scaled by Voice squared and by Force, runs only while
-//   something is playing (an input above -74 dBFS) and for Linger after, then
-//   fades over 0.8 s and the device is silent. Every noise is white with the
-//   same power per hertz at every sample rate, through filters set in hertz.
+//   thunder. It is scaled by Voice squared and by Force, and by how loud the
+//   playing is: all of it for a sound at -18 dBFS RMS or above, less in
+//   proportion for a quieter one, nothing at -60 dBFS and below, so the
+//   weather stays under a quiet passage as it does under a loud one and a
+//   noise floor does not bring it on. It holds where the playing last was for
+//   Linger after the sound falls away, then falls to where the playing is now
+//   (to nothing in about a second, if it has stopped) and the device is
+//   silent. Every noise is white with the same power per hertz at every
+//   sample rate, through filters set in hertz.
+// - The sum has a ceiling: where the sound and the weather's own sound
+//   together would pass full scale, the weather gives way (a gain on it
+//   alone, at once and back in 50 ms), so the weather never clips a hot input.
 // - Sway: gusts lean to a side and flutter apart, drops scatter, a shadow
 //   reaches one side before the other, a wave breaks on one side and washes
 //   across to the other. At 0 the two sides are the same.
 // - Kind cross-fades: each weather is a layer with a weight that moves to its
 //   place over 0.3 s, so Wind into Storm keeps its wind and lets the rain in.
 // - Nothing moves while the device has nothing to do: with no input and the
-//   weather faded out, the models, the clock and every filter stand still,
+//   weather fallen silent, the models, the clock and every filter stand still,
 //   sample for sample, so a render is the same at every block size, also
 //   across a silence. On the first sample after it, every smoothed value
 //   starts where its control stands.
@@ -73,10 +81,17 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   static constexpr float kShadeHighHz = 5000.0f;
   static constexpr float kSheenHz = 1200.0f;
   static constexpr float kSheenMost = 2.0f;   // the sheen's noise is held to this many times its RMS
+  // The corner's zero: how much of the analogue shelf's low-pass is left at
+  // half the sample rate (weather_models::Pole). With 0.6 the two shelves are
+  // within 1.3 dB of the analogue ones and within 0.8 dB of each other at
+  // 44.1, 48 and 96 kHz, up to 16 kHz and at every Colour.
+  static constexpr float kShadeTop = 0.6f;
   // The weather's own sound. A layer measures an RMS of about its kLoud at
-  // full cover; Voice squared times kVoiceGain scales the sum.
+  // full cover; Voice squared times kVoiceGain scales the sum. Thunder is no
+  // louder than a gust: at 1.6 its rolls were the loudest half-seconds of a
+  // storm by 2 dB and 7 dB over a pad at Voice 1.
   static constexpr float kVoiceGain = 0.2f;
-  static constexpr float kLoud[kLayers] = {1.0f, 0.6f, 1.0f, 2.5f, 1.6f};
+  static constexpr float kLoud[kLayers] = {1.0f, 0.6f, 1.0f, 2.5f, 1.0f};
   // Wind: the resonance's pitch at Colour 0 and 1 in a lull, how far a gust
   // raises it, and its sharpness in a lull and in a full gust.
   static constexpr float kWhistleLowHz = 350.0f;
@@ -105,12 +120,24 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   // Thunder: its two poles at Colour 0 and 1.
   static constexpr float kThunderLowHz = 70.0f;
   static constexpr float kThunderHighHz = 160.0f;
-  // Below -74 dBFS nothing is playing.
-  static constexpr float kQuiet = 2.0e-4f;
+  // How loud the playing is: the root of the mean square of the louder side
+  // over kPlayingSeconds. At kFullRms (-18 dBFS) and above the weather's own
+  // sound is whole, at kFloorRms (-60 dBFS) and below there is none, and
+  // between the two it is in proportion. What was heard holds for Linger
+  // after the playing has fallen under kNear of it (6 dB), then falls to
+  // where the playing is now.
+  static constexpr float kPlayingSeconds = 0.03f;
+  static constexpr float kFullRms = 0.126f;
+  static constexpr float kFloorRms = 0.001f;
+  static constexpr float kNear = 0.5f;
+  static constexpr float kHeardRiseSeconds = 0.04f;
+  static constexpr float kHeardFallSeconds = 0.25f;
+  // The ceiling of the sum, and how fast the weather comes back under it.
+  static constexpr float kCeiling = 1.0f;
+  static constexpr float kCeilingSeconds = 0.05f;
   static constexpr float kInputLimit = 8.0f;  // +18 dBFS
-  static constexpr float kGateRiseSeconds = 0.04f;
-  static constexpr float kGateFallSeconds = 0.8f;
-  static constexpr long kNever = 1L << 30;
+  // So long without a sample of input, and with the weather silent, is a silence.
+  static constexpr float kRestSeconds = 0.02f;
 
   void init(float sample_rate) {
     using namespace weather;
@@ -132,12 +159,13 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       }
       sheen_lp_[c].reset();
       sheen_lp_[c].set_cutoff(kSheenHz, sr);
+      thin_[c].reset();
+      thin_[c].set(kThinFromHz, sr);
       whistle_[c].reset();
       hiss_hp_[c].reset();
       hiss_lp_[c].reset();
       hiss_lp_[c].set(kHissTopHz, 0.7f, sr);
       roar_[c].reset();
-      thin_[c].reset();
       gain_[c].set_time(kSmoothingSeconds, sr);
       gain_[c].snap(1.0f);
       dim_[c].set_time(kSmoothingSeconds, sr);
@@ -151,14 +179,19 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
     }
     mix_.set_time(kSmoothingSeconds, sr);
     voice_.set_time(kSmoothingSeconds, sr);
+    voice_.snap(0.0f);
     kind_ = kit::clamp_int(static_cast<int>(param(kKind) + 0.5f), 0, kKinds - 1);
     for (int l = 0; l < kLayers; ++l) weight_[l] = kLayerOf[kind_][l];
     sheets_ = kind_ == kStorm ? 1.0f : 0.0f;
     fade_step_ = static_cast<float>(kControlPeriod) / (kKindFadeSeconds * sr);
-    gate_ = 0.0f;
-    gate_rise_ = 1.0f / (kGateRiseSeconds * sr);
-    gate_fall_ = 1.0f / (kGateFallSeconds * sr);
-    quiet_ = kNever;
+    const float control_seconds = static_cast<float>(kControlPeriod) / sr;
+    power_share_ = weather_models::approach(1.0f / sr, kPlayingSeconds);
+    heard_rise_ = weather_models::approach(control_seconds, kHeardRiseSeconds);
+    heard_fall_ = std::exp(-control_seconds / kHeardFallSeconds);
+    ceiling_keep_ = std::exp(-1.0f / (kCeilingSeconds * sr));
+    forget();
+    rest_samples_ = static_cast<long>(kRestSeconds * sr);
+    silent_ = rest_samples_ + 1;
     linger_samples_ = static_cast<long>(param(kLinger) * sr);
     calm_seen_ = colour_seen_ = sway_seen_ = -1.0f;
     side_same_ = 1.0f;
@@ -182,9 +215,13 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   // 1, the gain it has the sound's level at now, the two sides averaged
   //    (1 at rest, before Mix);
   // 2, how many drops have fallen so far (it wraps at 2^20);
-  // 3, how much of the weather's own sound is on, 0..1: 1 while something
-  //    plays and through Linger, falling in the fade, 0 asleep;
-  // 4, how many rolls of thunder there have been (it wraps at 2^20).
+  // 3, how much of the weather's own sound is on, 0..1, before Voice: 1 for
+  //    playing at -18 dBFS RMS or above and through Linger, less for quieter
+  //    playing, falling after Linger, 0 asleep;
+  // 4, how many rolls of thunder there have been (it wraps at 2^20);
+  // 5, the gain it has the sound's top end at now, over and above the level
+  //    (the two shelves' full depth, the mean of the two sides in dB; 1 at
+  //    rest).
   float meter(int index) const {
     switch (index) {
       case 0:
@@ -194,9 +231,13 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       case 2:
         return static_cast<float>(rain_.count);
       case 3:
-        return gate_ * gate_ * (3.0f - 2.0f * gate_);
+        return on_;
       case 4:
         return static_cast<float>(thunder_.count);
+      case 5: {
+        // A side's two shelves leave (1 - dim) squared of the top.
+        return running_ ? (1.0f - dim_[0].value) * (1.0f - dim_[1].value) : 1.0f;
+      }
       default:
         return 0.0f;
     }
@@ -204,9 +245,9 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
 
   void process(int frames) {
     frames = begin_block(frames);
-    // Awake while there is input and until the weather has faded behind it.
-    if (!idle_.wake(input_present(frames) || gate_ > 0.0f)) {
-      running_ = false;
+    // Awake while there is input and until the weather has fallen silent
+    // behind it: when to stop is decided below, sample by sample.
+    if (!idle_.wake(input_present(frames) || running_)) {
       silence_output(frames);
       return;
     }
@@ -219,11 +260,18 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
         if (!(in[c] == in[c])) in[c] = 0.0f;
         in[c] = kit::clamp(in[c], -kInputLimit, kInputLimit);
       }
-      // With nothing coming in and the weather faded out, nothing moves: the
-      // same samples stand still whatever the host's block size.
-      if (gate_ <= 0.0f && in[0] == 0.0f && in[1] == 0.0f) {
+      // With nothing coming in for kRestSeconds and the weather fallen
+      // silent, nothing moves: the same samples stand still whatever the
+      // host's block size. (One sample of exact zero in a quiet sound is not
+      // a silence: the filters have to run through it.)
+      if (in[0] != 0.0f || in[1] != 0.0f) {
+        silent_ = 0;
+      } else if (silent_ <= rest_samples_) {
+        ++silent_;
+      }
+      if (silent_ > rest_samples_ && !sounding_on()) {
         running_ = false;
-        quiet_ = kNever;
+        forget();
         out_left_[i] = 0.0f;
         out_right_[i] = 0.0f;
         continue;
@@ -237,21 +285,16 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       }
       const float left = in[0] < 0.0f ? -in[0] : in[0];
       const float right = in[1] < 0.0f ? -in[1] : in[1];
-      if ((left > right ? left : right) > kQuiet) {
-        quiet_ = 0;
-      } else if (quiet_ < kNever) {
-        ++quiet_;
-      }
+      const float louder = left > right ? left : right;
+      power_ = flush_denormal(power_ + (louder * louder - power_) * power_share_);
       if (clock_.tick()) control();
       if (snap_) snap();
-      gate_ = quiet_ < linger_samples_ ? kit::min(1.0f, gate_ + gate_rise_)
-                                       : kit::max(0.0f, gate_ - gate_fall_);
 
       const float white = source_[0].next();
       const float other = source_[1].next();
       const float noise[2] = {white, white * side_same_ + other * side_other_};
 
-      const float voice = glide(voice_) * gate_ * gate_ * (3.0f - 2.0f * gate_);
+      const float voice = glide(voice_);
       // The drops ring on whether or not they are heard, so none is left over.
       float drops[2] = {0.0f, 0.0f};
       if (weight_[kDrops] > 0.0f) {
@@ -259,6 +302,7 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       }
 
       float out[2];
+      float own[2] = {0.0f, 0.0f};
       for (int c = 0; c < 2; ++c) {
         // What the weather does to the sound: its top end, its roughness, its level.
         const float dim = glide(dim_[c]);
@@ -285,10 +329,26 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
           if (sounding(kRolls, c)) {
             v += glide(amp_[kRolls][c]) * roll_norm_ * roll_[c][1].lowpass(roll_[c][0].lowpass(n));
           }
-          y += kit::soft_clip(v * voice);
+          own[c] = kit::soft_clip(v * voice);
         }
         out[c] = y;
       }
+      // The ceiling: the sound has the room it needs, and the weather's own
+      // sound what is left of it. Both are followed at once on the way up
+      // and let go over kCeilingSeconds, one gain for the two sides.
+      const float sound = kit::max(magnitude(out[0]), magnitude(out[1]));
+      const float added = kit::max(magnitude(own[0]), magnitude(own[1]));
+      under_ = kit::min(kit::max(sound, flush_denormal(under_ * ceiling_keep_)), kCeiling);
+      over_ = kit::max(added, flush_denormal(over_ * ceiling_keep_));
+      const float room = kCeiling - under_;
+      if (over_ > room) {
+        // A hair under what the room allows, so rounding never puts the sum over.
+        const float give = room > 0.0f ? 0.9999f * room / over_ : 0.0f;
+        own[0] *= give;
+        own[1] *= give;
+      }
+      out[0] += own[0];
+      out[1] += own[1];
       const float mix = glide(mix_);
       out_left_[i] = in[0] + mix * (out[0] - in[0]);
       out_right_[i] = in[1] + mix * (out[1] - in[1]);
@@ -322,6 +382,20 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   bool sounding(int layer, int c) const {
     return amp_[layer][c].value != 0.0f || amp_[layer][c].target != 0.0f;
   }
+  static float magnitude(float x) { return x < 0.0f ? -x : x; }
+
+  // Whether the weather's own sound is on or still dying away.
+  bool sounding_on() const { return on_ > 0.0f || voice_.value != 0.0f; }
+
+  // Asleep, nothing of the playing is remembered.
+  void forget() {
+    power_ = 0.0f;
+    heard_ = 0.0f;
+    held_ = 0;
+    on_ = 0.0f;
+    under_ = 0.0f;
+    over_ = 0.0f;
+  }
 
   // Every smoothed value starts where it is headed: before the first block
   // and after a silence nothing glides in from where it was left.
@@ -353,6 +427,31 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
     const float dt = real * pace;
     linger_samples_ = static_cast<long>(param(kLinger) * sr);
 
+    // How loud the playing is, and so how much of the weather's own sound
+    // there is: it rises with the playing, holds for Linger once the playing
+    // has fallen well under it, then falls until it meets the playing again.
+    const float now = kit::min(std::sqrt(power_), kFullRms);
+    if (now > heard_) {
+      heard_ += (now - heard_) * heard_rise_;
+      held_ = 0;
+    } else if (held_ > linger_samples_) {
+      heard_ *= heard_fall_;
+      if (heard_ <= now) {
+        heard_ = now;
+        held_ = 0;
+      } else if (heard_ < 0.01f * kFloorRms) {
+        heard_ = 0.0f;
+        held_ = 0;
+      }
+    } else if (now >= kNear * heard_) {
+      held_ = 0;
+    } else {
+      held_ += kControlPeriod;
+    }
+    on_ = heard_ > kFloorRms ? (heard_ - kFloorRms) * (1.0f / (kFullRms - kFloorRms)) : 0.0f;
+    const float voice = param(kVoice);
+    voice_.set_target(kVoiceGain * voice * voice * on_);
+
     if (calm != calm_seen_) {
       calm_seen_ = calm;
       lull_[kGusts] = wm::Wind::gap(calm);
@@ -383,7 +482,7 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       surf_up_ = std::exp2(kSurfOctaves * colour);
       for (int c = 0; c < 2; ++c) {
         for (int s = 0; s < 2; ++s) {
-          shade_[c][s].set_cutoff(shade_hz, sr);
+          shade_[c][s].set(shade_hz, sr, kShadeTop);
           hush_[c][s].set_cutoff(hush_hz, sr);
           roll_[c][s].set_cutoff(roll_hz, sr);
         }
@@ -475,8 +574,8 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       if (at > broken) thin_hz *= std::pow(kThinToHz / kThinFromHz, (at - broken) / (1.0f - broken));
       roar_[0].set(open_hz * surf_up_, 0.7f, sr);
       copy_tuning(roar_[0], &roar_[1]);
-      thin_[0].set_cutoff(thin_hz * surf_up_, sr);
-      thin_[1].a = thin_[0].a;
+      thin_[0].set(thin_hz * surf_up_, sr);
+      thin_[1].tune_as(thin_[0]);
       for (int c = 0; c < 2; ++c) amp_[kWaves][c].set_target(loud(kWaves) * surf_.cover[c]);
     } else {
       rest(kWaves);
@@ -523,9 +622,6 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
       case kKind:
         kind_ = kit::clamp_int(static_cast<int>(value + 0.5f), 0, kKinds - 1);
         break;
-      case kVoice:
-        voice_.set(kVoiceGain * value * value, primed());
-        break;
       case kMix:
         mix_.set(value, primed());
         break;
@@ -540,8 +636,9 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   weather_models::Rain rain_;
   weather_models::Surf surf_;
   weather_models::Thunder thunder_;
-  kit::OnePole shade_[2][2], hush_[2][2], roll_[2][2];
-  kit::OnePole sheen_lp_[2], thin_[2];
+  weather_models::Pole shade_[2][2], thin_[2];
+  kit::OnePole hush_[2][2], roll_[2][2];
+  kit::OnePole sheen_lp_[2];
   kit::Svf whistle_[2], hiss_hp_[2], hiss_lp_[2], roar_[2];
   kit::Smoother gain_[2], dim_[2], sheen_[2];
   kit::Smoother amp_[kLayers][2];
@@ -554,15 +651,21 @@ class Weather : public kit::DeviceBase<weather::kNumParams> {
   float fade_step_ = 0.0f;
   float rain_floor_ = 0.0f;
   float drops_level_ = 0.0f;
-  float gate_ = 0.0f;
-  float gate_rise_ = 0.0f, gate_fall_ = 0.0f;
+  // The playing: its mean square, how loud it was at its last, how long it
+  // has been well under that, and how much of the weather's own sound is on.
+  float power_ = 0.0f, power_share_ = 0.0f;
+  float heard_ = 0.0f, heard_rise_ = 0.0f, heard_fall_ = 0.0f;
+  float on_ = 0.0f;
+  long held_ = 0;
+  // The ceiling: the size of the sound and of the weather's own, just now.
+  float under_ = 0.0f, over_ = 0.0f, ceiling_keep_ = 0.0f;
   float calm_seen_ = -1.0f, colour_seen_ = -1.0f, sway_seen_ = -1.0f;
   float side_same_ = 1.0f, side_other_ = 0.0f;
   float whistle_hz_ = 800.0f, surf_up_ = 1.0f;
   float whistle_norm_ = 0.0f, hush_norm_ = 0.0f, roll_norm_ = 0.0f, hiss_norm_ = 0.0f;
   float level_now_ = 0.0f;
-  long quiet_ = kNever;
   long linger_samples_ = 1;
+  long rest_samples_ = 1, silent_ = 2;
   int kind_ = 0;
   bool running_ = false;
   bool snap_ = true;

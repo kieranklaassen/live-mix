@@ -1,8 +1,9 @@
 // The display of Weather: the weather itself over the last seconds, running
 // to the left with now at its right end. From the foot rises how strong the
 // weather is (the gust, the shadow, how thick the rain falls, the wave), as
-// the device reports it; from the top hangs what that takes from the sound's
-// level. Drops are ticks and a roll of thunder is a bolt, each where it fell.
+// the device reports it; from the top hangs what that takes from the sound:
+// from its level and, further down and lighter, from its top end. Drops are
+// ticks and a roll of thunder is a bolt, each where it fell.
 // While the device sleeps the display shows a sample of the weather the
 // knobs ask for, made here by the same rules the device makes its own by
 // (`weather_models.h`): the same swells, shadows and waves from another
@@ -24,8 +25,8 @@ export type WeatherKind = (typeof WEATHER_KINDS)[number]
 export type WeatherPart = 'wind' | 'clouds' | 'rain' | 'surf' | 'thunder'
 
 // The numbers below are those of `cpp/devices/weather/weather_models.h` (the
-// structs Wind, Clouds, Rain, Surf and Thunder) and of `weather.h` (kDipDb),
-// under the names they have there. Times are in seconds of the weather's own
+// structs Wind, Clouds, Rain, Surf and Thunder) and of `weather.h` (kDipDb,
+// kShadeDb), under the names they have there. Times are in seconds of the weather's own
 // time, which Pace runs faster or slower than the clock.
 
 /** Wind: kRise, kFall, kHoldMin, kHoldSpan, kSizeMin, kGapMin, kGapMax and the first wait of `Wind::init`. */
@@ -54,7 +55,7 @@ export const CLOUDS = {
   firstWait: 0.15,
 } as const
 
-/** Rain: kRate, kRise, kFall, kHoldMin, kHoldSpan, kShowerMin, kGapMin, kGapMax, kFloor, kSheetFloor, kSizeMin, kDuckSeconds and the first wait of `Rain::init`. */
+/** Rain: kRate, kRise, kFall, kHoldMin, kHoldSpan, kShowerMin, kGapMin, kGapMax, kFloor, kSheetFloor, kSizeMin, kDuckSeconds, kDuckMean and the first wait of `Rain::init`. */
 export const RAIN = {
   rate: 24,
   rise: 1.2,
@@ -68,6 +69,7 @@ export const RAIN = {
   sheetFloor: 0.2,
   sizeMin: 0.35,
   duckSeconds: 0.035,
+  duckMean: 0.25,
   firstWait: 0.1,
 } as const
 
@@ -89,6 +91,9 @@ export const THUNDER = { gapMin: 6, gapMax: 30, decay: 1.6, firstWait: 0.35 } as
 
 /** `kDipDb`: how far a whole gust, shadow, drop or wave takes the level down at Force 1 and Exposure 1, in dB. */
 export const DIP_DB = { wind: 10, clouds: 6, rain: 12, surf: 14 } as const
+
+/** `kShadeDb`: how much further the same cover takes the top end down, in dB: the full depth of the two shelves. */
+export const SHADE_DB = { wind: 14, clouds: 26, rain: 4, surf: 18 } as const
 
 /** `kLongestLull` and `kLullMean`: a lull is never more than three means, and the division brings the mean back to 1. */
 const LONGEST_LULL = 3
@@ -179,12 +184,23 @@ export const rainRate = (force: number, pace: number, density: number): number =
 const DROP_SIZE = RAIN.sizeMin + (1 - RAIN.sizeMin) / 3
 
 /**
+ * `Rain::duck_share`: how much of its duck a drop keeps when so many fall in a
+ * second. The thicker the rain the less, so the ducks together never pass
+ * kDuckMean on average.
+ */
+export function rainDuckShare(dropsPerSecond: number): number {
+  const piled = (dropsPerSecond * RAIN.duckSeconds * DROP_SIZE) / RAIN.duckMean
+  return 1 / Math.sqrt(1 + piled * piled)
+}
+
+/**
  * How far the drops have the level down on average, as a share of a whole
- * duck: each adds its size to a duck that dies in kDuckSeconds, and the cover
- * is one less the exponential of that (`Rain::step`).
+ * duck: each adds its size, less as `rainDuckShare` says, to a duck that dies
+ * in kDuckSeconds, and the cover is one less the exponential of that
+ * (`Rain::step`).
  */
 export const rainCover = (dropsPerSecond: number): number =>
-  1 - Math.exp(-dropsPerSecond * RAIN.duckSeconds * DROP_SIZE)
+  1 - Math.exp(-dropsPerSecond * RAIN.duckSeconds * DROP_SIZE * rainDuckShare(dropsPerSecond))
 
 /**
  * What is heard of a dip of `dipDb` at a Mix, in dB down: the device mixes the
@@ -226,6 +242,8 @@ export interface WeatherSample {
   level: Float32Array
   /** How far it has the level down at Force 1 and Exposure 1, in dB, the drops' own ducks apart. */
   dip: Float32Array
+  /** How much further it has the top end down, in dB, the drops' own apart. */
+  shade: Float32Array
   /** How thick the rain falls, 0..1; 0 where it does not rain. */
   density: Float32Array
   /** The steps at which thunder rolls. */
@@ -253,6 +271,7 @@ export function sampleWeather(
       : {
           level: new Float32Array(steps),
           dip: new Float32Array(steps),
+          shade: new Float32Array(steps),
           density: new Float32Array(steps),
           rolls: [],
         }
@@ -286,6 +305,7 @@ export function sampleWeather(
   for (let n = 0; n < steps; n++) {
     let level = 0
     let dip = 0
+    let shade = 0
     let density = 0
     if (windy || kind === 'rain') {
       if (hold > 0) hold -= dt
@@ -303,11 +323,13 @@ export function sampleWeather(
       if (kind === 'wind') {
         level = swollen
         dip = DIP_DB.wind * swollen
+        shade = SHADE_DB.wind * swollen
       } else if (kind === 'storm') {
         // The rain comes in sheets on the gusts, and the reading is the thicker of the two.
         density = RAIN.sheetFloor + (1 - RAIN.sheetFloor) * swollen
         level = density
         dip = DIP_DB.wind * swollen
+        shade = SHADE_DB.wind * swollen
         roll -= dt / thunder
         if (roll <= 0) {
           roll = lullOf(thunderChance)
@@ -340,6 +362,7 @@ export function sampleWeather(
             (0.5 + 0.25 * (Math.sin(2 * Math.PI * phase[0]) + Math.sin(2 * Math.PI * phase[1])))
         level = depth * thin * cloudShape(along, length)
         dip = DIP_DB.clouds * level
+        shade = SHADE_DB.clouds * level
         if (along >= length) length = 0
       }
     } else {
@@ -362,11 +385,13 @@ export function sampleWeather(
         along += dt
         level = depth * surfShape(Math.min(1, along / length))
         dip = DIP_DB.surf * level
+        shade = SHADE_DB.surf * level
         if (along >= length) length = 0
       }
     }
     sample.level[n] = level
     sample.dip[n] = dip
+    sample.shade[n] = shade
     sample.density[n] = density
   }
   return sample
@@ -386,8 +411,8 @@ const SAMPLE_IN_VIEW = 4096
 const SAMPLE_STEPS = 6144
 /** The fastest Pace: the span at that Pace is what `SAMPLE_IN_VIEW` steps cover. */
 const PACE_MOST = 4
-/** A dip this deep fills the upper band, in dB. */
-export const DIP_FULL_DB = 16
+/** A loss this deep fills the upper band, in dB: what a whole cloud or wave takes from the top end at Force 1 and Exposure 1. */
+export const DIP_FULL_DB = 32
 /** How many falls of drops and rolls of thunder are remembered. */
 const MARKS = 512
 const ROLLS = 32
@@ -401,7 +426,7 @@ const COUNT_WRAP = 1 << 20
 export interface WeatherLayout {
   /** The line the upper band hangs from: where the sound is untouched. */
   top: number
-  /** How far down the upper band goes for a dip of `DIP_FULL_DB`. */
+  /** How far down the upper band goes for a loss of `DIP_FULL_DB`. */
   shade: number
   /** The highest the weather rises, at Force 1, and the line it stands on. */
   laneTop: number
@@ -426,7 +451,7 @@ export function weatherLayout(view: Pick<DisplayView, 'width' | 'height'>): Weat
   const h = view.height - 8
   // The band hangs over the top of the weather's own room: the two meet only
   // where a strong weather is let far into the sound.
-  const shade = Math.round(h * 0.3)
+  const shade = Math.round(h * 0.4)
   // The ring is whole on the display when it stands on the foot or at the top.
   const foot = y + h - 2
   const laneTop = y + 2
@@ -464,9 +489,10 @@ export function weatherDash(
 }
 
 interface WeatherState {
-  /** The device's `level` and `gain` readings as they came. */
+  /** The device's `level` and `gain` readings as they came, and the gain of the top end: `gain` times `top`. */
   level: History
   gain: History
+  high: History
   /** When drops fell and how many at once, and when thunder rolled: rings, written at the head. */
   dropAt: Float64Array
   dropMany: Uint8Array
@@ -484,9 +510,10 @@ interface WeatherState {
   sample: WeatherSample
   made: string
   sampleNow: number
-  /** The two lines of one picture, a height for each column. */
+  /** The lines of one picture, a height for each column: the weather, the level's loss and the top end's. */
   up: Float32Array
   down: Float32Array
+  far: Float32Array
 }
 
 /** One ring for Force, by height, and Pace, across: on the line the weather reaches at its most. */
@@ -528,7 +555,11 @@ function counted(now: number, before: number): number {
   return more < COUNT_WRAP / 2 ? Math.floor(more) : 0
 }
 
-/** The two lines of a picture: the band from the top and the weather from the foot, filled as Voice says. */
+/** The ink of the band of the top end's loss, against the level's `INK.fill`, and the width of its edge. */
+const FAR_FILL = 0.1
+const FAR_EDGE = 0.75
+
+/** The lines of a picture: the two bands from the top and the weather from the foot, filled as Voice says. */
 function paint(
   frame: DisplayFrame<WeatherState>,
   lay: WeatherLayout,
@@ -537,10 +568,31 @@ function paint(
   fill: number,
 ): void {
   const { ctx, colours, state } = frame
-  const { up, down } = state
+  const { up, down, far } = state
   const step = lay.wide / columns
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
+  // What the top end loses, the lighter band: it hangs at least as far as the
+  // level's, and is drawn where it hangs further.
+  let further = 0
+  for (let c = 0; c <= columns; c++) if (far[c] - down[c] > further) further = far[c] - down[c]
+  if (further > 0.25) {
+    ctx.beginPath()
+    ctx.moveTo(lay.left, lay.top)
+    for (let c = 0; c <= columns; c++) ctx.lineTo(lay.left + c * step, far[c])
+    ctx.lineTo(lay.now, lay.top)
+    ctx.closePath()
+    ctx.globalAlpha = FAR_FILL * alpha
+    ctx.fillStyle = colours.ink
+    ctx.fill()
+    ctx.beginPath()
+    ctx.moveTo(lay.left, far[0])
+    for (let c = 1; c <= columns; c++) ctx.lineTo(lay.left + c * step, far[c])
+    ctx.globalAlpha = INK.rule * alpha
+    ctx.strokeStyle = colours.ink
+    ctx.lineWidth = FAR_EDGE
+    ctx.stroke()
+  }
   let deepest = lay.top
   for (let c = 0; c <= columns; c++) if (down[c] > deepest) deepest = down[c]
   if (deepest > lay.top + 0.25) {
@@ -598,10 +650,11 @@ const weather = plateDisplay<WeatherState>({
   params: ['kind', 'force', 'pace', 'calm', 'exposure', 'voice', 'mix'],
   // The longest span is 32 seconds: it runs on until what it shows has gone by.
   live: { meters: true, fps: 30, settle: 36 },
-  info: 'The weather over the last seconds, now at the right. The shape that rises is the gust, shadow, shower or wave, filled as Voice is turned up; the band above is what it takes from the level. A dash of the upper line is one of them long and a gap one lull. The ring sets Force and Pace.',
+  info: 'The weather over the last seconds, now at the right. The rising shape is the gust, shadow, shower or wave, filled as Voice goes up. The band above is what it takes: darker from the level, lighter from the highs. A dash of the upper line is one event, a gap one lull. The ring sets Force and Pace.',
   init: () => ({
     level: new History(KEPT_SEC, KEPT_SLOTS, 0, 'max'),
     gain: new History(KEPT_SEC, KEPT_SLOTS, 1, 'min'),
+    high: new History(KEPT_SEC, KEPT_SLOTS, 1, 'min'),
     dropAt: new Float64Array(MARKS).fill(-Infinity),
     dropMany: new Uint8Array(MARKS),
     dropHead: 0,
@@ -615,6 +668,7 @@ const weather = plateDisplay<WeatherState>({
     sample: {
       level: new Float32Array(SAMPLE_STEPS),
       dip: new Float32Array(SAMPLE_STEPS),
+      shade: new Float32Array(SAMPLE_STEPS),
       density: new Float32Array(SAMPLE_STEPS),
       rolls: [],
     },
@@ -622,6 +676,7 @@ const weather = plateDisplay<WeatherState>({
     sampleNow: SAMPLE_STEPS - 1,
     up: new Float32Array(MOST_COLUMNS + 1),
     down: new Float32Array(MOST_COLUMNS + 1),
+    far: new Float32Array(MOST_COLUMNS + 1),
   }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -644,7 +699,11 @@ const weather = plateDisplay<WeatherState>({
       const gain = frame.meter('gain')
       state.level.push(frame.now, level)
       // Until the first reading arrives the gain reads 0, which is no gain the device ever has.
-      state.gain.push(frame.now, gain > 0 ? Math.min(gain, 1) : 1)
+      const held = gain > 0 ? Math.min(gain, 1) : 1
+      state.gain.push(frame.now, held)
+      // The top end has the level's gain and its own under it (`top`: the two shelves' full depth).
+      const top = frame.hasMeter('top') ? frame.meter('top') : 1
+      state.high.push(frame.now, gain > 0 && top > 0 ? held * Math.min(top, 1) : held)
       if (frame.meter('gate') > 0 || level > 0) {
         state.live = true
         state.lastOn = frame.now
@@ -714,29 +773,36 @@ const weather = plateDisplay<WeatherState>({
         const centre = state.sampleNow - (columns - c) * per
         let level: number
         let dip: number
+        let shade: number
         if (per <= 1) {
           const at = clamp(centre, 0, SAMPLE_STEPS - 1)
           const below = Math.floor(at)
           const above = Math.min(SAMPLE_STEPS - 1, below + 1)
           level = lerp(sample.level[below], sample.level[above], at - below)
           dip = lerp(sample.dip[below], sample.dip[above], at - below)
+          shade = lerp(sample.shade[below], sample.shade[above], at - below)
         } else {
           // The highest of the steps a column takes in, so a short gust keeps its height.
           const first = clamp(Math.ceil(centre - per / 2), 0, SAMPLE_STEPS - 1)
           const last = clamp(Math.floor(centre + per / 2), first, SAMPLE_STEPS - 1)
           level = 0
           dip = 0
+          shade = 0
           for (let n = first; n <= last; n++) {
             if (sample.level[n] > level) level = sample.level[n]
             if (sample.dip[n] > dip) dip = sample.dip[n]
+            if (sample.shade[n] > shade) shade = sample.shade[n]
           }
         }
         if (raining) {
           const density = sample.density[clamp(Math.round(centre), 0, SAMPLE_STEPS - 1)]
-          dip += DIP_DB.rain * rainCover(rainRate(force, pace, density))
+          const cover = rainCover(rainRate(force, pace, density))
+          dip += DIP_DB.rain * cover
+          shade += SHADE_DB.rain * cover
         }
         state.up[c] = lay.foot - force * level * mix * lay.sky
         state.down[c] = shadeOf(reach * dip)
+        state.far[c] = shadeOf(reach * (dip + shade))
       }
       paint(frame, lay, columns, rest, fill)
       if (raining && tickAlpha > 0) {
@@ -787,14 +853,18 @@ const weather = plateDisplay<WeatherState>({
         const last = clamp(Math.ceil(from + per) - 1, first, KEPT_SLOTS - 1)
         let most = 0
         let least = 1
+        let dullest = 1
         for (let slot = first; slot <= last; slot++) {
           const level = state.level.at(slot)
           if (level > most) most = level
           const gain = state.gain.at(slot)
           if (gain < least) least = gain
+          const high = state.high.at(slot)
+          if (high < dullest) dullest = high
         }
         state.up[c] = lay.foot - most * mix * lay.sky
         state.down[c] = shadeOf(least > 1e-6 ? -20 * Math.log10(least) : 120)
+        state.far[c] = shadeOf(dullest > 1e-6 ? -20 * Math.log10(dullest) : 120)
       }
       paint(frame, lay, columns, shown, fill)
       if (tickAlpha > 0) {

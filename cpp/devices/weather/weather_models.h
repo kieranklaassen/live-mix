@@ -78,6 +78,42 @@ inline void lean(float pan, float* left, float* right) {
   *right = 1.0f - kFarSide * kit::max(0.0f, -pan);
 }
 
+// A first-order low-pass that is the same filter at 44.1, 48 and 96 kHz as
+// nearly as one pole and one zero can be: the pole of the bilinear filter and
+// a zero that leaves `top` of the analogue filter's response at half the
+// sample rate (0 leaves none, the plain bilinear filter). kit::OnePole has a
+// pole only, so what it takes off a top end (the input less the low-pass)
+// stops short by sample rate: 23 dB of a 26 dB shelf at 48 kHz, 24 at 96.
+struct Pole {
+  float x1 = 0.0f, y1 = 0.0f;
+  float b0 = 1.0f, b1 = 0.0f, p = 0.0f;
+
+  void reset() { x1 = y1 = 0.0f; }
+  void set(float hz, float sample_rate, float top = 0.0f) {
+    const float f = kit::clamp(hz, 1.0f, 0.45f * sample_rate);
+    const float g = kit::tan_prewarp(kit::kPi * f / sample_rate);
+    p = (1.0f - g) / (1.0f + g);
+    float at_top = 0.0f;
+    if (top > 0.0f) {
+      const float ratio = 0.5f * sample_rate / f;
+      at_top = top / std::sqrt(1.0f + ratio * ratio);
+    }
+    b0 = 0.5f * ((1.0f - p) + at_top * (1.0f + p));
+    b1 = 0.5f * ((1.0f - p) - at_top * (1.0f + p));
+  }
+  void tune_as(const Pole& other) {
+    b0 = other.b0;
+    b1 = other.b1;
+    p = other.p;
+  }
+  float lowpass(float x) {
+    y1 = flush_denormal(b0 * x + b1 * x1 + p * y1);
+    x1 = x;
+    return y1;
+  }
+  float highpass(float x) { return x - lowpass(x); }
+};
+
 // A swell: something that comes up quickly, holds and sinks back slowly, at
 // random moments. Gusts of wind and showers of rain are both this. An event
 // has a size and a hold; the level runs at the size with one time constant
@@ -324,7 +360,8 @@ struct Drop {
 // shower allows. Showers swell and thin (a Swell in model time, over a floor
 // that Calm takes away); in a storm the rain comes in sheets with the gusts
 // instead. Each drop ducks the sound a little on the side it falls and sounds
-// its own note.
+// its own note. The thicker it falls the smaller each duck (duck_share), so
+// the ducks together are bounded.
 struct Rain {
   static constexpr int kDrops = 6;
   static constexpr float kRate = 24.0f;        // drops a second at Force 1, Pace 1 in the thick of a shower
@@ -340,6 +377,11 @@ struct Rain {
   static constexpr float kSizeMin = 0.35f;
   static constexpr float kDuckSeconds = 0.035f;  // real time
   static constexpr float kDuckMost = 3.0f;
+  // The ducks of all the drops together stay under this on average however
+  // thick it rains (as a cover of 1 - exp(-0.25), a fifth of the layer's
+  // depth): a thick rain taps on the sound and does not turn it down.
+  static constexpr float kDuckMean = 0.25f;
+  static constexpr float kMeanSize = kSizeMin + (1.0f - kSizeMin) / 3.0f;
   static constexpr float kLowHz = 450.0f;      // the lowest drop at Colour 0 and at Colour 1
   static constexpr float kHighHz = 4200.0f;
   static constexpr float kOctaves = 1.3f;      // how far above that drops are scattered
@@ -361,6 +403,13 @@ struct Rain {
 
   static float gap(float calm) { return kGapMin * std::pow(kGapMax / kGapMin, calm); }
   static float floor(float calm) { return kFloor * (1.0f - calm) * (1.0f - calm); }
+  // How much of its duck a drop keeps when `rate` of them fall in a second:
+  // all of it while they stand apart, less as they pile up, so that the mean
+  // of the ducks together never passes kDuckMean.
+  static float duck_share(float rate) {
+    const float piled = rate * kDuckSeconds * kMeanSize * (1.0f / kDuckMean);
+    return 1.0f / std::sqrt(1.0f + piled * piled);
+  }
 
   void init(uint32_t stream) {
     shower.hold_min = kHoldMin;
@@ -399,13 +448,15 @@ struct Rain {
 
     duck[0] *= duck_keep;
     duck[1] *= duck_keep;
-    wait -= kRate * force * pace * density * real;
+    const float rate = kRate * force * pace * density;
+    const float share = duck_share(rate);
+    wait -= rate * real;
     for (int n = 0; wait <= 0.0f; ++n) {
       if (n == kMostPerStep) {
         wait = poisson(rng);
         break;
       }
-      strike(force, sway, colour, sample_rate);
+      strike(force, sway, colour, share, sample_rate);
       wait += poisson(rng);
     }
     for (int c = 0; c < 2; ++c) {
@@ -414,7 +465,7 @@ struct Rain {
     }
   }
 
-  void strike(float force, float sway, float colour, float sample_rate) {
+  void strike(float force, float sway, float colour, float share, float sample_rate) {
     const float u = rng.uniform();
     const float size = kSizeMin + (1.0f - kSizeMin) * u * u;
     const float pan = rng.bipolar() * sway;
@@ -433,8 +484,8 @@ struct Rain {
     // gone from the other. The duck falls where the drop does.
     drop.gain[0] = kit::min(1.0f, 1.0f - pan);
     drop.gain[1] = kit::min(1.0f, 1.0f + pan);
-    duck[0] += size * drop.gain[0];
-    duck[1] += size * drop.gain[1];
+    duck[0] += share * size * drop.gain[0];
+    duck[1] += share * size * drop.gain[1];
     count = (count + 1) & 0xFFFFF;
   }
   float level() const { return density; }

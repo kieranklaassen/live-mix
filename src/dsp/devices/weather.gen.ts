@@ -38,7 +38,7 @@ export const WEATHER_PARAMS = {
     taper: 'log',
     unit: '',
     description:
-      'How fast the weather changes. Low settings give long slow gusts, clouds and waves. High settings make them short and quick, and the rain falls faster.',
+      "How fast the weather changes: low for long slow gusts, clouds and waves, high for short quick ones and thicker rain. A drop's tick and a thunder roll keep their length.",
   },
   exposure: {
     id: 3,
@@ -49,7 +49,7 @@ export const WEATHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the weather moves the sound itself: its level sinks and its highs dull under each gust, shadow, drop or wave. At zero the sound is untouched.',
+      'How much the weather moves the sound itself: level sinks and highs dull under each gust, shadow, drop or wave, and wind and surf roughen it. At zero it is untouched.',
   },
   voice: {
     id: 4,
@@ -60,7 +60,7 @@ export const WEATHER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How much of the weather's own sound is heard: the whistle of the wind, the drops, the wash of the surf, the thunder. At zero the weather makes no sound.",
+      "How much of the weather's own sound is heard: whistle, hush, drops, wash and thunder. It is as loud as the playing lets it be. At zero only what Exposure does is left.",
   },
   colour: {
     id: 5,
@@ -104,7 +104,7 @@ export const WEATHER_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the weather carries on after the sound stops, before it fades away and the device goes silent.',
+      "How long the weather's own sound stays as it was after the playing falls away or stops, before it sinks to where the playing is now and, in silence, fades out.",
   },
   mix: {
     id: 9,
@@ -126,6 +126,7 @@ export const WEATHER_METERS = {
   drops: { id: 2, name: 'Drops so far', unit: '', display: true },
   gate: { id: 3, name: 'Weather on', unit: '', display: true },
   rolls: { id: 4, name: 'Thunder so far', unit: '', display: true },
+  top: { id: 5, name: 'Highs under it', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const WEATHER_DEVICE = defineWasmDevice({
@@ -154,21 +155,21 @@ export const WEATHER_DESCRIPTOR = wasmDeviceDescriptor(WEATHER_DEVICE, {
       linger: 10,
       mix: 1,
     },
-    Gale: { kind: 0, force: 1, pace: 1.6, exposure: 0.85, voice: 0.65, colour: 0.45, calm: 0 },
+    Gale: { kind: 0, force: 1, pace: 1.6, exposure: 0.65, voice: 0.5, colour: 0.45, calm: 0 },
     'Whistling gap': {
       kind: 0,
       force: 0.8,
       exposure: 0.25,
-      voice: 0.9,
+      voice: 0.75,
       colour: 0.95,
       sway: 0.8,
       calm: 0.15,
     },
-    'Dry gusts': { kind: 0, force: 1, pace: 2.2, exposure: 1, voice: 0, calm: 0.1 },
+    'Dry gusts': { kind: 0, force: 1, pace: 2.2, exposure: 0.8, voice: 0, calm: 0.3 },
     'Passing clouds': { kind: 1, force: 0.8, pace: 1.5, exposure: 0.9, voice: 0.25, sway: 0.9 },
     Overcast: { kind: 1, force: 1, pace: 0.5, exposure: 1, voice: 0.5, colour: 0.15, calm: 0 },
     'Light rain': { kind: 2, force: 0.4, exposure: 0.5, voice: 0.5, colour: 0.7 },
-    Downpour: { kind: 2, force: 1, pace: 2.5, exposure: 0.9, voice: 0.7, colour: 0.55, calm: 0 },
+    Downpour: { kind: 2, force: 1, pace: 2.5, exposure: 0.9, voice: 0.6, colour: 0.55, calm: 0 },
     'Slow drips': {
       kind: 2,
       force: 0.45,
