@@ -78,12 +78,12 @@
     {
       "key": "fall",
       "name": "Fall",
-      "min": 1,
-      "max": 500,
-      "default": 3,
+      "min": 5,
+      "max": 2000,
+      "default": 20,
       "taper": "log",
       "unit": "ms",
-      "description": "How quickly the lift gets out of the way of a new loud sound. Short leaves every attack untouched; long lets the lift linger into the note."
+      "description": "How quickly the lift comes back down when quiet sound swells. Short follows every move; long keeps the shape of quiet playing. Loud sound is never lifted."
     },
     {
       "key": "split",
@@ -152,9 +152,10 @@
       "limit": 24
     },
     "Slow tide": {
-      "threshold": -19,
-      "amount": 1,
+      "threshold": -18,
+      "amount": 0.8,
       "rise": 8,
+      "fall": 1500,
       "limit": 24
     },
     "Air on top": {
@@ -196,14 +197,6 @@
       "rise": 0.05,
       "split": 0,
       "limit": 30
-    },
-    "Soft landing": {
-      "threshold": -26,
-      "amount": 1,
-      "rise": 0.1,
-      "fall": 500,
-      "split": 0,
-      "limit": 24
     },
     "Slightly closer": {
       "threshold": -19,
@@ -248,17 +241,26 @@
       "mix": 0.6
     },
     "Afterimage": {
-      "threshold": -20,
-      "amount": 1,
-      "rise": 1.5,
+      "threshold": -16,
+      "amount": 0.6,
+      "rise": 0.6,
       "fall": 500,
       "split": 0,
       "limit": 24,
       "hear": 1
+    },
+    "Inside out": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.15,
+      "split": 0.3,
+      "limit": 30,
+      "hear": 1,
+      "mix": 0.7
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. An upward compressor for sustained sound: stereo-linked RMS and peak detection on the whole sound and on three gently split bands, a floor under which it lets go, a short lookahead so attacks are never lifted; not a model of any unit."
+    "note": "Written for live-mix on cpp/kit. An upward compressor for sustained sound: stereo-linked RMS and peak detection on the whole sound and on three gently split bands, a floor under which it lets go, a short lookahead so attacks are never lifted, and a lift that can go to the sides alone; not a model of any unit."
   }
 }

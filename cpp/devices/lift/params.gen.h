@@ -6,7 +6,7 @@
 //    1  amount: 0..1, default 0.65
 //    2  floor: -90..-40 dB, default -66
 //    3  rise: 0.05..20 s, default 0.8
-//    4  fall: 1..500 ms, default 3
+//    4  fall: 5..2000 ms, default 20
 //    5  split: 0..1, default 0.5
 //    6  focus: -1..1, default 0
 //    7  sides: 0..1, default 0
@@ -34,9 +34,9 @@ enum Param : int {
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {-60.0f, 0.0f, -90.0f, 0.05f, 1.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {-12.0f, 1.0f, -40.0f, 20.0f, 500.0f, 1.0f, 1.0f, 1.0f, 30.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {-24.0f, 0.65f, -66.0f, 0.8f, 3.0f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {-60.0f, 0.0f, -90.0f, 0.05f, 5.0f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {-12.0f, 1.0f, -40.0f, 20.0f, 2000.0f, 1.0f, 1.0f, 1.0f, 30.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {-24.0f, 0.65f, -66.0f, 0.8f, 20.0f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f};
 
 }  // namespace lift
 }  // namespace livemix

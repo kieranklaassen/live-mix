@@ -23,7 +23,7 @@ static void plain(Lift& d, float rate = kRate) {
   d.set_param(p::kAmount, 0.5f);
   d.set_param(p::kFloor, -70.0f);
   d.set_param(p::kRise, 0.05f);
-  d.set_param(p::kFall, 3.0f);
+  d.set_param(p::kFall, 5.0f);
   d.set_param(p::kSplit, 0.0f);
   d.set_param(p::kFocus, 0.0f);
   d.set_param(p::kLimit, 30.0f);
@@ -200,7 +200,7 @@ static void check_times() {
     EXPECT(std::fabs(half - 11.25) < 0.5 && whole > 12.2 && whole < 12.6, label);
   }
   // A loud tone after a quiet one: whatever Fall says, the lift is gone in 3 ms.
-  for (float fall : {3.0f, 500.0f}) {
+  for (float fall : {5.0f, 2000.0f}) {
     plain(device);
     device.set_param(p::kFall, fall);
     const std::vector<float> quiet = tone(440.0f, -55.0f, 1.0f);
@@ -234,14 +234,25 @@ static void check_attack_untouched() {
   EXPECT(db(1.0 + over / peak(in)) < 0.02, "a loud note after a quiet passage is not overshot");
   EXPECT(peak(out.left, onset, onset + 480) <= peak(dry, onset, onset + 480) * 1.002,
          "its first 10 ms peak no higher than the input's");
+  // A note only 8 dB over the threshold: the RMS alone would be 9 ms late for
+  // it, the peak reading sees it at once.
+  plain(device);
+  device.set_param(p::kAmount, 1.0f);
+  device.set_param(p::kRise, 0.2f);
+  const std::vector<float> near_in = join(quiet, tone(660.0f, -22.0f, 0.5f));
+  Stereo near_out = run(device, near_in);
+  const double near_over = worst_difference(near_out.left, late(near_in), onset);
+  std::printf("lift: a note 8 dB over the threshold after a lifted passage: %.3f dB of its peak\n",
+              db(1.0 + near_over / peak(near_in)));
+  EXPECT(db(1.0 + near_over / peak(near_in)) < 0.05, "a note 8 dB over the threshold is not overshot either");
   // The same with the longest Fall: the ceiling takes the lift out of a loud note's way.
   plain(device);
   device.set_param(p::kAmount, 1.0f);
   device.set_param(p::kRise, 0.2f);
-  device.set_param(p::kFall, 500.0f);
+  device.set_param(p::kFall, 2000.0f);
   Stereo slow = run(device, in);
   const double slow_over = worst_difference(slow.left, dry, onset);
-  EXPECT(db(1.0 + slow_over / peak(in)) < 0.02, "Fall 500 ms: a loud note is still not overshot");
+  EXPECT(db(1.0 + slow_over / peak(in)) < 0.02, "Fall 2 s: a loud note is still not overshot");
 }
 
 // What Fall is for: under the threshold, how fast the lift comes back down
@@ -256,7 +267,7 @@ static void check_fall_and_ceiling() {
   plain(device);
   device.set_param(p::kFall, 500.0f);
   Traced lingering = trace(device, swell);
-  EXPECT_NEAR(fast.at(1.1), 5.0, 0.1, "Fall 3 ms: 100 ms after a swell the lift is on the curve");
+  EXPECT_NEAR(fast.at(1.1), 5.0, 0.1, "Fall 5 ms: 100 ms after a swell the lift is on the curve");
   // 100 ms of 500: e^(-4.6 / 5) = 0.4 of the 5 dB still to go.
   EXPECT_NEAR(lingering.at(1.1), 5.0 + 5.0 * std::exp(-4.605 * 0.2), 0.4,
               "Fall 500 ms: 100 ms after a swell 2 dB of the old lift are still there");
@@ -286,7 +297,7 @@ static void check_fall_and_ceiling() {
     plain(device);
     device.set_param(p::kAmount, 1.0f);
     device.set_param(p::kThreshold, p::kParamMax[p::kThreshold]);
-    device.set_param(p::kFall, 500.0f);
+    device.set_param(p::kFall, 2000.0f);
     device.set_param(p::kSplit, 1.0f);
     const std::vector<float> hit = join(tone(440.0f, -60.0f, 1.0f), sine(hz, 0.5f, kRate, 1.0f));
     Stereo out = run(device, hit);
@@ -787,6 +798,170 @@ static void check_default_on_a_pad() {
   }
 }
 
+// Ordinary material: slow notes that ring and die away, a little different
+// on the two sides, with a soft top. Eight seconds, peaking near -10 dB; the
+// last two are the last note dying away, from -60 dB down.
+static Stereo phrase() {
+  Stereo out;
+  const size_t length = static_cast<size_t>(8.0f * kRate);
+  out.left.assign(length, 0.0f);
+  out.right.assign(length, 0.0f);
+  const float notes[6] = {220.0f, 277.18f, 329.63f, 164.81f, 246.94f, 196.0f};
+  for (int n = 0; n < 6; ++n) {
+    const size_t start = static_cast<size_t>(n * 0.9f * kRate);
+    for (int h = 1; h <= 12; ++h) {
+      const double step = 2.0 * kPi * notes[n] * h / kRate;
+      const double size = 0.22 / (h * h), decay = 2.5 + 0.9 * h;  // per second
+      for (size_t i = start; i < length; ++i) {
+        const double t = static_cast<double>(i - start) / kRate;
+        const double v = size * std::exp(-decay * t) * std::sin(step * (i - start));
+        out.left[i] += static_cast<float>(v * (h % 2 ? 1.0 : 0.6));
+        out.right[i] += static_cast<float>(v * (h % 2 ? 0.6 : 1.0));
+      }
+    }
+  }
+  return out;
+}
+
+// How far two renders are apart, in dB under the first one's level.
+static double apart_db(const Stereo& a, const Stereo& b, size_t from = 0) {
+  double difference = 0.0, level = 0.0;
+  for (size_t i = from; i < a.size(); ++i) {
+    const double dl = static_cast<double>(a.left[i]) - b.left[i], dr = static_cast<double>(a.right[i]) - b.right[i];
+    difference += dl * dl + dr * dr;
+    level += static_cast<double>(a.left[i]) * a.left[i] + static_cast<double>(a.right[i]) * a.right[i];
+  }
+  return 10.0 * std::log10(std::max(difference, 1.0e-30) / std::max(level, 1.0e-30));
+}
+
+// No dead part of a knob: on ordinary material every control, moved from its
+// lowest setting to its middle and from there to its highest with the rest
+// at their defaults, changes what comes out.
+static void check_controls_alive() {
+  char label[200];
+  const Stereo in = phrase();
+  for (int id = 0; id < p::kNumParams; ++id) {
+    Stereo out[3];
+    for (int at = 0; at < 3; ++at) {
+      device.init(kRate);
+      const float low = p::kParamMin[id], high = p::kParamMax[id];
+      // Rise and Fall are laid out by ratio, the rest by difference.
+      const bool by_ratio = id == p::kRise || id == p::kFall;
+      const float middle = by_ratio ? std::sqrt(low * high) : 0.5f * (low + high);
+      device.set_param(id, at == 0 ? low : at == 1 ? middle : high);
+      out[at] = run(device, in.left, in.right);
+    }
+    // Floor works on the quietest sound there is: it is read where that is, in the last two seconds.
+    const size_t from = id == p::kFloor ? static_cast<size_t>(6.0f * kRate) : 0;
+    const double lower = apart_db(out[1], out[0], from), upper = apart_db(out[1], out[2], from);
+    std::snprintf(label, sizeof label, "control %d on a played phrase: its lower half moves the output by %.1f dB, its upper half by %.1f dB",
+                  id, lower, upper);
+    std::printf("lift: %s\n", label);
+    // Hear has two settings: its middle is one of them.
+    EXPECT(id == p::kHear ? std::max(lower, upper) > -40.0 : (lower > -40.0 && upper > -40.0), label);
+  }
+}
+
+// The sixteen presets as device.json has them, every control filled in
+// (copied from the manifest; the first is the effect as it starts).
+struct Preset {
+  const char* name;
+  float values[p::kNumParams];
+};
+// --- presets begin ---
+// threshold, amount, floor, rise, fall, split, focus, sides, limit, hear, mix
+static const Preset kPresets[] = {
+    {"Quiet end up", {-24.0f, 0.65f, -66.0f, 0.8f, 20.0f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Just the ends", {-30.0f, 1.0f, -66.0f, 0.15f, 20.0f, 0.0f, 0.0f, 0.0f, 30.0f, 0.0f, 1.0f}},
+    {"Long tails", {-21.0f, 0.85f, -78.0f, 0.4f, 20.0f, 0.2f, 0.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
+    {"Slow tide", {-18.0f, 0.8f, -66.0f, 8.0f, 1500.0f, 0.5f, 0.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
+    {"Air on top", {-26.0f, 0.9f, -66.0f, 0.4f, 20.0f, 1.0f, 1.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
+    {"Warm floor", {-20.0f, 0.8f, -66.0f, 1.5f, 20.0f, 1.0f, -1.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
+    {"Opens outward", {-20.0f, 1.0f, -66.0f, 0.4f, 20.0f, 0.3f, 0.0f, 1.0f, 30.0f, 0.0f, 1.0f}},
+    {"Half open", {-20.0f, 1.0f, -66.0f, 0.2f, 20.0f, 0.0f, 0.0f, 0.6f, 30.0f, 0.0f, 1.0f}},
+    {"Fill every gap", {-24.0f, 1.0f, -60.0f, 0.05f, 20.0f, 0.0f, 0.0f, 0.0f, 30.0f, 0.0f, 1.0f}},
+    {"Slightly closer", {-19.0f, 1.0f, -66.0f, 0.3f, 20.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f, 1.0f}},
+    {"Steady shine", {-14.0f, 0.6f, -66.0f, 0.3f, 20.0f, 1.0f, 1.0f, 0.0f, 12.0f, 0.0f, 1.0f}},
+    {"Only the tails", {-20.0f, 1.0f, -66.0f, 0.3f, 20.0f, 0.0f, 0.0f, 0.0f, 30.0f, 1.0f, 1.0f}},
+    {"Ghost of the top", {-24.0f, 1.0f, -66.0f, 0.2f, 20.0f, 1.0f, 1.0f, 0.0f, 30.0f, 1.0f, 1.0f}},
+    {"Low breath", {-22.0f, 1.0f, -66.0f, 0.2f, 20.0f, 0.6f, -1.0f, 0.0f, 30.0f, 1.0f, 0.6f}},
+    {"Afterimage", {-16.0f, 0.6f, -66.0f, 0.6f, 500.0f, 0.0f, 0.0f, 0.0f, 24.0f, 1.0f, 1.0f}},
+    {"Inside out", {-18.0f, 1.0f, -66.0f, 0.15f, 20.0f, 0.3f, 0.0f, 0.0f, 30.0f, 1.0f, 0.7f}},
+};
+// --- presets end ---
+
+static void load(Lift& d, const Preset& preset) {
+  d.init(kRate);
+  for (int id = 0; id < p::kNumParams; ++id) d.set_param(id, preset.values[id]);
+}
+
+// Level. A full-scale held chord for a minute, through every preset and with
+// every control at each end: it never comes out more than 6 dB over the
+// input and never grows. And held tones over the piano's range through every
+// preset that plays the whole sound: none is lost.
+static void check_levels() {
+  char label[200];
+  const float seconds = 60.0f;
+  std::vector<float> chord = sine(220.0f, seconds, kRate, 1.0f / 3.0f);
+  {
+    const std::vector<float> third = sine(277.18f, seconds, kRate, 1.0f / 3.0f), fifth = sine(329.63f, seconds, kRate, 1.0f / 3.0f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += third[i] + fifth[i];
+  }
+  const double in_peak = peak(chord);
+  const size_t ten = static_cast<size_t>(10.0f * kRate);
+  double worst = 0.0;
+  auto hold = [&](const char* what) {
+    Stereo out = run(device, chord);
+    const double early = std::max(peak(out.left, 0, ten), peak(out.right, 0, ten));
+    const double late_on = std::max(peak(out.left, chord.size() - ten), peak(out.right, chord.size() - ten));
+    worst = std::max(worst, std::max(early, late_on) / in_peak);
+    std::snprintf(label, sizeof label, "a full-scale chord for a minute, %s: peak %.3f early, %.3f late (in %.3f)",
+                  what, early, late_on, in_peak);
+    EXPECT(finite(out.left) && std::max(early, late_on) < 2.0 * in_peak && late_on <= early * 1.01, label);
+  };
+  for (const Preset& preset : kPresets) {
+    load(device, preset);
+    hold(preset.name);
+  }
+  for (int id = 0; id < p::kNumParams; ++id) {
+    for (int end = 0; end < 2; ++end) {
+      device.init(kRate);
+      device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
+      std::snprintf(label, sizeof label, "control %d at its %s", id, end == 0 ? "lowest" : "highest");
+      hold(label);
+    }
+  }
+  // The hardest there is: the highest threshold, all of the lift, every part on its own.
+  device.init(kRate);
+  device.set_param(p::kThreshold, p::kParamMax[p::kThreshold]);
+  device.set_param(p::kAmount, 1.0f);
+  device.set_param(p::kSplit, 1.0f);
+  device.set_param(p::kLimit, 30.0f);
+  device.set_param(p::kRise, 0.05f);
+  hold("the hardest setting");
+  std::printf("lift: a full-scale held chord, every preset and every control's ends: at most %.2f dB over the input\n", db(worst));
+
+  double worst_dip = 0.0;
+  const char* worst_name = "";
+  for (const Preset& preset : kPresets) {
+    if (preset.values[p::kHear] > 0.5f) continue;  // Lift only takes the loud sound away: that is what it is for
+    for (float midi = 21.0f; midi <= 108.0f; midi += 3.0f) {
+      const float hz = 440.0f * std::pow(2.0f, (midi - 69.0f) / 12.0f);
+      for (float level : {-12.0f, -40.0f}) {
+        load(device, preset);
+        const double gain = settled_gain(device, hz, level, 1.0f);
+        if (gain < worst_dip) {
+          worst_dip = gain;
+          worst_name = preset.name;
+        }
+      }
+    }
+  }
+  std::printf("lift: held tones A0 to C8 through every preset that plays the whole sound: worst dip %.3f dB (%s)\n",
+              worst_dip, worst_name);
+  EXPECT(worst_dip > -0.05, "no preset loses a held tone anywhere on the keyboard");
+}
+
 // --- main ---
 int main() {
   Conformance spec;
@@ -817,6 +992,8 @@ int main() {
   check_rates();
   check_sides();
   check_default_on_a_pad();
+  check_controls_alive();
+  check_levels();
   // --- calls ---
 
   device.init(kRate);
