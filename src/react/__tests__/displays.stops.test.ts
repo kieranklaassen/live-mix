@@ -40,7 +40,7 @@ function rankDb(hz: number, tone: number, swell: number): number {
   const octavesOver = Math.max(0, Math.log2(hz / 400))
   const dark = Math.max(0, 1 - 2 * tone) * 12 * octavesOver
   const bright = Math.min(6, Math.max(-8, Math.max(0, 2 * tone - 1) * 4 * Math.log2(hz / 1500)))
-  const shut = (1 - swell) * (24 + 6 * octavesOver)
+  const shut = (1 - swell) * (14 + 4 * octavesOver)
   return bright - dark - shut
 }
 const gain = (db: number): number => 10 ** (db / 20)
@@ -156,9 +156,11 @@ describe('the formulas of the stops display', () => {
     expect(stopsToneDb(12000, 1, 1)).toBeCloseTo(6, 9)
     expect(stopsToneDb(100, 1, 1)).toBeCloseTo(-8, 9)
     expect(stopsToneDb(3000, 0.75, 1)).toBeCloseTo(2, 9)
-    // The shutters half shut: 12 dB off everything and 3 dB an octave above 400 Hz.
-    expect(20 * Math.log10(stopsPassed(1600, 0.5, 0.5, 48000))).toBeCloseTo(-18, 6)
-    expect(20 * Math.log10(stopsPassed(300, 0.5, 0, 48000))).toBeCloseTo(-24, 6)
+    // The shutters half shut: 7 dB off everything and 2 dB an octave above 400 Hz.
+    expect(20 * Math.log10(stopsPassed(1600, 0.5, 0.5, 48000))).toBeCloseTo(-11, 6)
+    // Shut: 14 dB (kShutterDb), and 4 dB an octave more above 400 Hz (kShutterSlopeDb).
+    expect(20 * Math.log10(stopsPassed(300, 0.5, 0, 48000))).toBeCloseTo(-14, 6)
+    expect(20 * Math.log10(stopsPassed(3200, 0.5, 0, 48000))).toBeCloseTo(-26, 6)
     for (const hz of [60, 441.3, 1318.5, 3000, 9000])
       for (const tone of [0, 0.3, 0.5, 0.8, 1])
         for (const swell of [0, 0.45, 1])
@@ -333,6 +335,23 @@ describe('the handles of the stops display', () => {
         for (let i = 1; i < handles.length; i++)
           expect(handles[i].x - handles[i - 1].x).toBeGreaterThan(18)
       }
+  })
+})
+
+describe('the twelve controls of stops on an upright plate', () => {
+  it('are all in reach: eight knobs, and a drawbar on the display for each of the other four', () => {
+    // `DevicePlate`: an upright face holds eight, the skin's four first and
+    // then the rest in the manifest's order.
+    const all = Object.keys(params)
+    const chosen = STOPS_FACES.stops.face ?? []
+    const knobs = [...chosen, ...all.filter((name) => !chosen.includes(name))].slice(0, 8)
+    expect(knobs).toEqual(['sub', 'octave', 'speak', 'mix', 'tone', 'swell', 'chiff', 'detune'])
+    const handles = (
+      display.handles?.(viewOf(display, params, { width: 204, height: 100 })) ?? []
+    ).map((handle) => handle.key)
+    const left = all.filter((name) => !knobs.includes(name))
+    expect(left).toEqual(['unison', 'fifth', 'twelfth', 'fifteenth'])
+    for (const name of left) expect(handles).toContain(name)
   })
 })
 

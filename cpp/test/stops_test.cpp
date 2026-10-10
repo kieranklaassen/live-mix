@@ -25,7 +25,7 @@ static void bare(Stops& d, float rate = kRate) {
   d.init(rate);
   for (int s = 0; s < Stops::kRanks; ++s) d.set_param(kRankParam[s], 0.0f);
   d.set_param(p::kUnison, 0.0f);
-  d.set_param(p::kSpeak, 10.0f);
+  d.set_param(p::kSpeak, p::kParamMin[p::kSpeak]);
   d.set_param(p::kChiff, 0.0f);
   d.set_param(p::kTone, 0.5f);
   d.set_param(p::kSwell, 1.0f);
@@ -94,6 +94,56 @@ static std::vector<float> held_chord(float seconds) {
         3.0);
   }
   return out;
+}
+
+// The loudest stretch of 5 ms (as an RMS) in x[from, to).
+static double loudest_5ms(const std::vector<float>& x, size_t from, size_t to) {
+  double top = 0.0;
+  for (size_t at = from; at + 240 <= to && at + 240 <= x.size(); at += 240) top = std::max(top, rms(x, at, at + 240));
+  return top;
+}
+
+// A struck note added into x at `at`: `partials` harmonics of hz (1/h), up in
+// 1 ms, each falling with `decay` seconds over the square root of its number,
+// cut off after `seconds` over 10 ms.
+static void strike(std::vector<float>& x, size_t at, double hz, double seconds, double decay, int partials = 6) {
+  const size_t n = static_cast<size_t>(seconds * kRate);
+  for (size_t i = 0; i < n && at + i < x.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    const double left = static_cast<double>(n - i) / kRate;
+    double v = 0.0;
+    for (int h = 1; h <= partials; ++h) {
+      v += std::sin(2.0 * kPi * hz * h * t) * std::exp(-t / (decay / std::sqrt(static_cast<double>(h)))) / h;
+    }
+    x[at + i] += static_cast<float>(0.4 * std::min(1.0, t / 0.001) * std::min(1.0, left / 0.01) * v);
+  }
+}
+
+// The ranks alone as the defaults draw them, with Speak at its shortest.
+static void default_ranks(Stops& d) {
+  bare(d);
+  d.set_param(p::kSub, 0.55f);
+  d.set_param(p::kOctave, 0.7f);
+  d.set_param(p::kTwelfth, 0.3f);
+  d.set_param(p::kFifteenth, 0.2f);
+}
+
+// How long the octave of a 440 Hz sine that starts from silence takes to
+// reach 90 % of its level at this Speak, in ms, read in steps of 1 ms.
+static double rise_ms(float speak) {
+  const size_t start = 24000;
+  std::vector<float> in = silence(0.5f, kRate);
+  const std::vector<float> tone = sine(440.0f, 3.0f, kRate, 0.5f);
+  in.insert(in.end(), tone.begin(), tone.end());
+  bare(device);
+  device.set_param(p::kOctave, 1.0f);
+  device.set_param(p::kSpeak, speak);
+  const Stereo out = run(device, in);
+  const double full = rms(out.left, out.left.size() - 24000, out.left.size());
+  for (size_t at = start + Stops::kLatency; at + 240 < out.left.size(); at += 48) {
+    if (rms(out.left, at, at + 240) >= 0.9 * full) return 1000.0 * static_cast<double>(at + 120 - start - Stops::kLatency) / kRate;
+  }
+  return -1.0;
 }
 
 int main() {
@@ -217,7 +267,7 @@ int main() {
     std::vector<float> in = silence(0.5f, kRate);
     const std::vector<float> tone = sine(440.0f, 6.0f, kRate, 0.5f);
     in.insert(in.end(), tone.begin(), tone.end());
-    const float speaks[4] = {10.0f, 100.0f, 400.0f, 1600.0f};
+    const float speaks[4] = {40.0f, 100.0f, 400.0f, 1600.0f};
     double reached[4];
     for (int which = 0; which < 4; ++which) {
       bare(device);
@@ -235,7 +285,7 @@ int main() {
       }
       EXPECT_NEAR(db(full / (0.5 * 0.7071)), 0.0, 0.2, "the rank comes up to its source's level whatever Speak is");
     }
-    std::printf("Speak 10, 100, 400, 1600 ms: the octave reaches 90 %% after %.0f, %.0f, %.0f, %.0f ms\n", reached[0],
+    std::printf("Speak 40, 100, 400, 1600 ms: the octave reaches 90 %% after %.0f, %.0f, %.0f, %.0f ms\n", reached[0],
                 reached[1], reached[2], reached[3]);
     EXPECT(reached[0] >= 0.0 && reached[0] < 60.0, "Speak at its shortest: the rank is there within 60 ms of the note");
     EXPECT_NEAR(reached[1], 100.0, 40.0, "Speak 100 ms: 90 % after about 100 ms");
@@ -261,13 +311,13 @@ int main() {
   // stops.h (the constants are copied from there).
   {
     // tone_db(): kPivotHz 400, kDarkSlopeDb 12, kBrightHz 1500, kBrightSlopeDb 4, kBrightCutDb 8,
-    // kBrightLiftDb 6, kShutterSlopeDb 6.
+    // kBrightLiftDb 6, kShutterSlopeDb 4.
     auto tone_db = [](double hz, double tone, double swell) {
       const double dark = tone < 0.5 ? 1.0 - 2.0 * tone : 0.0;
       const double bright = tone > 0.5 ? 2.0 * tone - 1.0 : 0.0;
       const double above = hz > 400.0 ? std::log2(hz / 400.0) : 0.0;
       const double tilt = std::max(-8.0, std::min(6.0, 4.0 * bright * std::log2(hz / 1500.0)));
-      return tilt - (12.0 * dark + 6.0 * (1.0 - swell)) * above;
+      return tilt - (12.0 * dark + 4.0 * (1.0 - swell)) * above;
     };
     double worst = 0.0;
     for (float hz : {196.0f, 1318.5f, 3000.0f}) {
@@ -281,19 +331,19 @@ int main() {
         device.set_param(p::kSwell, swell);
         const Stereo out = run(device, in);
         const double got = db(tone_level(out.left, 2.0 * hz, kRate, 36000, 72000) / 0.1);
-        const double want = tone_db(2.0 * hz, tone, swell) - 24.0 * (1.0 - swell);  // kShutterDb 24
+        const double want = tone_db(2.0 * hz, tone, swell) - 14.0 * (1.0 - swell);  // kShutterDb 14
         worst = std::max(worst, std::fabs(got - want));
       }
     }
     std::printf("Tone and Swell on the octave of 196, 1318.5 and 3000 Hz: within %.2f dB of the formula\n", worst);
-    EXPECT(worst < 0.15, "Tone and Swell shape the ranks as tone_db() and the shutters' 24 dB say");
+    EXPECT(worst < 0.15, "Tone and Swell shape the ranks as tone_db() and the shutters' 14 dB say");
 
     bare(device);
     device.set_param(p::kOctave, 1.0f);
     device.set_param(p::kSwell, 0.0f);
     const Stereo shut = run(device, sine(150.0f, 1.5f, kRate, 0.5f));
-    EXPECT_NEAR(db(tone_level(shut.left, 300.0, kRate, 36000, 72000) / 0.5), -24.0, 0.1,
-                "Swell at 0: the shutters take 24 dB (and no more below 400 Hz)");
+    EXPECT_NEAR(db(tone_level(shut.left, 300.0, kRate, 36000, 72000) / 0.5), -14.0, 0.1,
+                "Swell at 0: the shutters take 14 dB (and no more below 400 Hz)");
 
     // Detune: kDetuneCents 14 times each rank's kDetuneShare.
     double off = 0.0;
@@ -696,24 +746,24 @@ int main() {
       const char* name;
       float values[p::kNumParams];
     };
-    // sub, unison, fifth, octave, twelfth, fifteenth, speak, chiff, tone, swell, detune, mix
+    // speak, tone, swell, chiff, detune, sub, unison, fifth, octave, twelfth, fifteenth, mix
     static const Preset kPresets[] = {
-        {"Principal chorus", {0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 120.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.8f}},
-        {"Pedal under", {0.85f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, 0.1f, 0.25f, 1.0f, 0.2f, 0.75f}},
-        {"Octave above", {0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f, 60.0f, 0.15f, 0.45f, 1.0f, 0.15f, 0.6f}},
-        {"Open fifths", {0.3f, 1.0f, 0.75f, 0.0f, 0.0f, 0.0f, 150.0f, 0.25f, 0.35f, 1.0f, 0.2f, 0.6f}},
-        {"Full organ", {0.8f, 1.0f, 0.35f, 0.9f, 0.6f, 0.6f, 60.0f, 0.3f, 0.55f, 1.0f, 0.2f, 0.9f}},
-        {"Flute stops", {0.3f, 1.0f, 0.0f, 0.65f, 0.0f, 0.0f, 90.0f, 0.7f, 0.1f, 1.0f, 0.1f, 0.7f}},
-        {"Slow bloom", {0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.4f, 1800.0f, 0.0f, 0.35f, 1.0f, 0.2f, 0.8f}},
-        {"Only the pipes", {0.6f, 0.0f, 0.0f, 0.8f, 0.4f, 0.3f, 80.0f, 0.25f, 0.4f, 1.0f, 0.2f, 1.0f}},
-        {"Glass on top", {0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.9f, 300.0f, 0.0f, 0.8f, 1.0f, 0.35f, 0.55f}},
-        {"Nearly dry", {0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 0.0f, 250.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.3f}},
-        {"Old pipes", {0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.0f, 100.0f, 0.5f, 0.4f, 1.0f, 1.0f, 0.7f}},
-        {"Breath first", {0.5f, 1.0f, 0.0f, 0.7f, 0.0f, 0.0f, 900.0f, 1.0f, 0.3f, 1.0f, 0.2f, 0.8f}},
-        {"Shutters closed", {0.8f, 1.0f, 0.3f, 0.9f, 0.7f, 0.6f, 200.0f, 0.25f, 0.4f, 0.45f, 0.2f, 1.0f}},
-        {"Sub and silver", {0.9f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f, 150.0f, 0.25f, 0.6f, 1.0f, 0.2f, 0.7f}},
-        {"Hollow fifths", {0.0f, 0.5f, 0.9f, 0.0f, 0.8f, 0.0f, 400.0f, 0.25f, 0.4f, 1.0f, 0.4f, 0.75f}},
-        {"Drone to organ", {0.8f, 0.75f, 0.5f, 0.7f, 0.5f, 0.3f, 3000.0f, 0.0f, 0.3f, 1.0f, 0.7f, 1.0f}},
+        {"Principal chorus", {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f}},
+        {"Pedal under", {200.0f, 0.25f, 1.0f, 0.1f, 0.2f, 0.85f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f}},
+        {"Octave above", {60.0f, 0.45f, 1.0f, 0.15f, 0.15f, 0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f, 0.6f}},
+        {"Open fifths", {150.0f, 0.35f, 1.0f, 0.25f, 0.2f, 0.3f, 1.0f, 0.75f, 0.0f, 0.0f, 0.0f, 0.6f}},
+        {"Full organ", {60.0f, 0.55f, 1.0f, 0.3f, 0.2f, 0.8f, 1.0f, 0.35f, 0.9f, 0.6f, 0.6f, 0.9f}},
+        {"Flute stops", {90.0f, 0.1f, 1.0f, 0.7f, 0.1f, 0.3f, 1.0f, 0.0f, 0.65f, 0.0f, 0.0f, 0.7f}},
+        {"Slow bloom", {1800.0f, 0.35f, 1.0f, 0.0f, 0.2f, 0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.4f, 0.8f}},
+        {"Only the pipes", {80.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.6f, 0.0f, 0.0f, 0.8f, 0.4f, 0.3f, 1.0f}},
+        {"Glass on top", {300.0f, 0.8f, 1.0f, 0.0f, 0.35f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.9f, 0.55f}},
+        {"Nearly dry", {250.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.3f}},
+        {"Old pipes", {100.0f, 0.4f, 1.0f, 0.5f, 1.0f, 0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.0f, 0.7f}},
+        {"Breath first", {900.0f, 0.3f, 1.0f, 1.0f, 0.2f, 0.5f, 1.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f}},
+        {"Shutters closed", {200.0f, 0.4f, 0.3f, 0.25f, 0.2f, 0.8f, 1.0f, 0.3f, 0.9f, 0.7f, 0.6f, 1.0f}},
+        {"Sub and silver", {150.0f, 0.6f, 1.0f, 0.25f, 0.2f, 0.9f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f, 0.7f}},
+        {"Hollow fifths", {400.0f, 0.4f, 1.0f, 0.25f, 0.4f, 0.0f, 0.5f, 0.9f, 0.0f, 0.8f, 0.0f, 0.75f}},
+        {"Drone to organ", {3000.0f, 0.3f, 1.0f, 0.0f, 0.7f, 0.8f, 0.75f, 0.5f, 0.7f, 0.5f, 0.3f, 1.0f}},
     };
     const std::vector<float> chord = held_chord(60.0f);
     double worst = 0.0, softest = 100.0, loudest = -100.0;
@@ -866,6 +916,217 @@ int main() {
     std::printf("one stop against five: on a chord %.2f and %.2f %% of real time (%.2f times), on noise %.2f and %.2f %% "
                 "(%.2f times)\n",
                 10.0 * one, 10.0 * five, five / one, 10.0 * one_hiss, 10.0 * five_hiss, five_hiss / one_hiss);
+  }
+
+  // 19. Nothing sounds before the note. A frame is 85 ms long and its ranks
+  // are written over the whole of it, so without the door of stops.h the
+  // ranks of a struck note are there up to 60 ms before it (5 to 8 dB under
+  // their loudest in the last 5 ms). With it: nothing before a note that
+  // starts from silence, next to nothing before the notes of a line with
+  // gaps, and nothing taken from sound that runs.
+  {
+    const size_t onset = 48000 + 333;
+    std::vector<float> struck(3 * 48000, 0.0f);
+    strike(struck, onset, 330.0, 0.5, 0.06);
+    default_ranks(device);
+    const Stereo out = run(device, struck);
+    const double top = loudest_5ms(out.left, 0, out.left.size());
+    const size_t at = onset + Stops::kLatency;
+    const double before = loudest_5ms(out.left, at - 3840, at);
+    const double first = rms(out.left, at, at + 240);
+    char label[200];
+    std::snprintf(label, sizeof label, "a struck note from silence: the ranks before it are %.1f dB under their loudest",
+                  -db(before / top));
+    EXPECT(db(before / top) < -60.0, label);
+    std::snprintf(label, sizeof label, "and they start with it: %.1f dB under their loudest in its first 5 ms", -db(first / top));
+    EXPECT(db(first / top) > -12.0, label);
+
+    // A line of struck notes a quarter of a second long with 200 ms between them.
+    std::vector<float> line(4 * 48000, 0.0f);
+    std::vector<size_t> starts;
+    for (int i = 0; i < 6; ++i) {
+      starts.push_back(24000 + static_cast<size_t>(i) * 21600 + static_cast<size_t>(i) * 77);
+      strike(line, starts.back(), 220.0 * (1.0 + 0.25 * (i % 3)), 0.25, 0.15, 10);
+    }
+    default_ranks(device);
+    const Stereo played = run(device, line);
+    const double line_top = loudest_5ms(played.left, 0, played.left.size());
+    double worst = 0.0;
+    for (size_t n = 1; n < starts.size(); ++n) {
+      worst = std::max(worst, loudest_5ms(played.left, starts[n] + Stops::kLatency - 2880, starts[n] + Stops::kLatency));
+    }
+    std::snprintf(label, sizeof label, "notes 200 ms apart: the ranks before each are %.1f dB under their loudest",
+                  -db(worst / line_top));
+    EXPECT(db(worst / line_top) < -40.0, label);
+
+    // Sound that runs is left alone: the door stands wide through two notes
+    // beating against each other (the dry sound falls to nothing at each
+    // beat), through a low E whose every cycle is 24 ms long, and through a
+    // note that swells in from nothing. (The lowest A with every rank drawn
+    // moves it 0.3 dB for a hundredth of the time.)
+    float least = 1.0f;
+    const auto least_door = [&](const std::vector<float>& x, size_t from) {
+      size_t done = 0;
+      while (done < x.size()) {
+        const int frames = static_cast<int>(std::min(static_cast<size_t>(64), x.size() - done));
+        for (int i = 0; i < frames; ++i) device.in_left()[i] = device.in_right()[i] = x[done + static_cast<size_t>(i)];
+        device.process(frames);
+        done += static_cast<size_t>(frames);
+        if (done > from) least = std::min(least, std::min(device.door(0), device.door(1)));
+      }
+    };
+    for (double apart : {1.0, 3.0, 8.0, 30.0}) {
+      std::vector<float> pair(4 * 48000);
+      for (size_t i = 0; i < pair.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        pair[i] = static_cast<float>(0.2 * (std::sin(2.0 * kPi * 440.0 * t) + std::sin(2.0 * kPi * (440.0 + apart) * t)));
+      }
+      bare(device);
+      for (int stop = 0; stop < 5; ++stop) device.set_param(kRankParam[stop], 1.0f);
+      least_door(pair, 96000);
+    }
+    {
+      std::vector<float> low(4 * 48000), swell(4 * 48000);
+      for (size_t i = 0; i < low.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate, grow = std::min(1.0, t / 3.0);
+        low[i] = static_cast<float>(0.4 * std::sin(2.0 * kPi * 41.2 * t));
+        swell[i] = static_cast<float>(0.4 * grow * grow * std::sin(2.0 * kPi * 330.0 * t));
+      }
+      bare(device);
+      for (int stop = 0; stop < 5; ++stop) device.set_param(kRankParam[stop], 1.0f);
+      least_door(low, 96000);
+      bare(device);
+      for (int stop = 0; stop < 5; ++stop) device.set_param(kRankParam[stop], 1.0f);
+      least_door(swell, 24000);
+    }
+    std::snprintf(label, sizeof label, "beating notes, a low note and a swell: the door stays wide (%.4f at its least)",
+                  static_cast<double>(least));
+    EXPECT(least > 0.999f, label);
+    std::printf("the door: a struck note's ranks %.0f dB under their loudest before it, %.1f dB in its first 5 ms; "
+                "notes 200 ms apart %.0f dB; wide through sound that runs (%.4f at its least)\n",
+                -db(before / top), -db(first / top), -db(worst / line_top), static_cast<double>(least));
+  }
+
+  // 20. The dearest block is bounded. A frame's work falls in one block, and
+  // the ranks are what it is spent on, so only the kMaxPartials strongest
+  // partials of a channel are copied. Three notes are three partials; noise
+  // (560 peaks a frame) and a dense cluster are kMaxPartials; and what the
+  // rest would have added to dense tonal sound is a fraction of a dB.
+  {
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    run(device, held_chord(1.0f));
+    EXPECT(device.partials(0) == 3 && device.partials(1) == 3, "three held notes are three partials a channel");
+    rng_state() = 0xC0FFEEu;
+    const std::vector<float> hiss = noise(2.0f, kRate, 0.25f);
+    bare(device);
+    for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
+    run(device, hiss);
+    char label[200];
+    std::snprintf(label, sizeof label, "noise: the %d strongest peaks of a frame are copied, no more (%d, %d)",
+                  Stops::kMaxPartials, device.partials(0), device.partials(1));
+    EXPECT(device.partials(0) == Stops::kMaxPartials && device.partials(1) == Stops::kMaxPartials, label);
+
+    // Two hundred sines on every eighth bin from 187.5 Hz up, falling as the
+    // square root of their number, through the sub alone (its copies stand
+    // four bins apart): the 128 strongest are copied at their level, and the
+    // 72 left out are 0.34 dB of the whole.
+    const int count = 200;
+    std::vector<float> dense(3 * 48000, 0.0f);
+    double all = 0.0, kept = 0.0;
+    for (int n = 0; n < count; ++n) {
+      const double hz = (16.0 + 8.0 * n) * kRate / Stops::Stft::kFrame;
+      const double amp = 0.05 / std::sqrt(n + 1.0);
+      all += 0.5 * amp * amp;
+      if (n < Stops::kMaxPartials) kept += 0.5 * amp * amp;
+      for (size_t i = 0; i < dense.size(); ++i) {
+        dense[i] += static_cast<float>(amp * std::sin(2.0 * kPi * hz * static_cast<double>(i) / kRate + 0.37 * n * n));
+      }
+    }
+    bare(device);
+    device.set_param(p::kSub, 1.0f);
+    const Stereo out = run(device, dense);
+    const double got = rms(out.left, 48000, 2 * 48000);
+    std::snprintf(label, sizeof label, "200 partials: the ranks are the strongest %d's (%+.2f dB of them), %+.2f dB of all 200",
+                  Stops::kMaxPartials, db(got / std::sqrt(kept)), db(got / std::sqrt(all)));
+    EXPECT(device.partials(0) == Stops::kMaxPartials, "200 partials in: 128 are copied");
+    EXPECT(std::fabs(db(got / std::sqrt(kept))) < 0.2 && db(got / std::sqrt(all)) > -0.6, label);
+    std::printf("the cap: 3 partials for three notes, %d on noise; of 200 falling partials the ranks are %+.2f dB of all\n",
+                device.partials(0), db(got / std::sqrt(all)));
+
+    // And the time itself: a block with a frame in it at the worst setting
+    // (every rank and full Chiff on noise) against one at the defaults on a
+    // chord, each the tenth percentile of such blocks (the cost with nothing
+    // else in the way), the best of three runs. It was 2.5 to 2.6 times before the
+    // cap; the transforms are over half of what is left.
+    const std::vector<float> chord = held_chord(4.0f);
+    const std::vector<float> long_hiss = noise(4.0f, kRate, 0.25f);
+    auto frame_block = [&](bool worst_setting, const std::vector<float>& input) {
+      double best = 1.0e9;
+      for (int turn = 0; turn < 3; ++turn) {
+        device.init(kRate);
+        if (worst_setting) {
+          for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
+          device.set_param(p::kChiff, 1.0f);
+          device.set_param(p::kMix, 1.0f);
+        }
+        std::vector<double> micros;
+        for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+          for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+          const auto start = std::chrono::steady_clock::now();
+          device.process(128);
+          micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+        }
+        std::sort(micros.begin(), micros.end());
+        // One block in four holds a frame: the tenth percentile of those.
+        best = std::min(best, micros[micros.size() * 3 / 4 + micros.size() / 40]);
+      }
+      return best;
+    };
+    const double plain = frame_block(false, chord), dearest = frame_block(true, long_hiss);
+    std::snprintf(label, sizeof label, "the dearest block costs under 2.25 times a plain one (%.1f against %.1f us, %.2f times)",
+                  dearest, plain, dearest / plain);
+    EXPECT(dearest < 2.25 * plain, label);
+    std::printf("a block with a frame, with nothing in the way: %.1f us at the defaults on a chord, %.1f us at the worst "
+                "(%.2f times; %.2f %% and %.2f %% of its 2667 us)\n",
+                plain, dearest, dearest / plain, 100.0 * plain / 2666.7, 100.0 * dearest / 2666.7);
+  }
+
+  // 21. No dead stretch of a knob. Swell shut still lets an organ through
+  // (at 24 dB and 6 dB an octave the lower half of the knob moved a played
+  // phrase by 0.02 dB), and Speak starts where the frames can follow it
+  // (from 10 to 25 ms the rise was 24 ms whatever the knob said).
+  {
+    std::vector<float> note(3 * 48000, 0.0f);
+    for (size_t i = 0; i < note.size(); ++i) {
+      double v = 0.0;
+      for (int h = 1; h <= 6; ++h) v += std::sin(2.0 * kPi * 220.0 * h * static_cast<double>(i) / kRate + 0.7 * h) / h;
+      note[i] = static_cast<float>(0.2 * v);
+    }
+    double level[3];
+    const float swells[3] = {0.0f, 0.5f, 1.0f};
+    for (int which = 0; which < 3; ++which) {
+      default_ranks(device);
+      device.set_param(p::kSwell, swells[which]);
+      const Stereo out = run(device, note);
+      level[which] = rms(out.left, 48000, 2 * 48000);
+    }
+    char label[200];
+    std::snprintf(label, sizeof label, "Swell shut and half shut: the ranks %.1f and %.1f dB under open", -db(level[0] / level[2]),
+                  -db(level[1] / level[2]));
+    EXPECT(db(level[0] / level[2]) > -22.0 && db(level[0] / level[2]) < -12.0, label);
+    EXPECT(db(level[1] / level[0]) > 5.0, "the lower half of Swell is heard: half shut is over 5 dB more than shut");
+
+    const float least = p::kParamMin[p::kSpeak];
+    // The first tenth of the knob's travel (it is a log knob).
+    const float tenth = least * std::pow(p::kParamMax[p::kSpeak] / least, 0.1f);
+    const double at_least = rise_ms(least), at_tenth = rise_ms(tenth), at_fifth = rise_ms(tenth * tenth / least);
+    std::snprintf(label, sizeof label, "Speak at %.0f, %.0f and %.0f ms: the octave is there after %.0f, %.0f and %.0f ms", least,
+                  tenth, tenth * tenth / least, at_least, at_tenth, at_fifth);
+    EXPECT(at_least > 0.0 && at_tenth > at_least + 4.0 && at_fifth > at_tenth + 6.0, label);
+    EXPECT(at_least < 1.2 * least, "Speak at its shortest is what the frames give: the rise is no longer than the knob says");
+    std::printf("Swell shut %.1f dB under open, half shut %.1f; Speak %.0f, %.0f, %.0f ms: 90 %% after %.0f, %.0f, %.0f ms\n",
+                -db(level[0] / level[2]), -db(level[1] / level[2]), least, tenth, tenth * tenth / least, at_least, at_tenth, at_fifth);
   }
 
   return finish("stops");

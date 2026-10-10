@@ -16,10 +16,12 @@
 // from the octave under middle C up stand apart). In each frame:
 //
 // - Peaks. Every local maximum of the spectrum within 72 dB of the frame's
-//   strongest is a partial. Its true frequency comes from how far its phase
-//   turned since the last frame (Stft::advance_to_bin); where the last frame
-//   held nothing there, from the two bins beside it. Its amplitude is the
-//   bin's, divided by the Hann lobe at that distance from the bin's centre.
+//   strongest is a peak, and the kMaxPartials (128) strongest of them are the
+//   partials: a frame's work all lands in one block, and this is what bounds
+//   it. A partial's true frequency comes from how far its phase turned since
+//   the last frame (Stft::advance_to_bin); where the last frame held nothing
+//   there, from the two bins beside it. Its amplitude is the bin's, divided
+//   by the Hann lobe at that distance from the bin's centre.
 // - Ranks. For each drawn rank the partial is written again at its frequency
 //   times the rank's ratio: the spectrum of a Hann-windowed sine at exactly
 //   that frequency (ten bins of the window's transform, from a table). Its
@@ -35,17 +37,24 @@
 //   left's turn: the rank then keeps the phase its source has between the
 //   channels, and a sound in the middle stays in the middle. Mono in is mono
 //   out, bit for bit.
-// - Speak. Each bin follows the level in a band of ±4 % round it (so a
-//   vibrato stays inside), rising to 90 % in Speak and falling in 150 ms.
-//   A rank sounds at the share of the level that follower has reached: it
-//   swells in after each new note and stops with it.
+// - Speak. A follower listens to the level in a band of ±4 % round its bin
+//   (so a vibrato stays inside), rising to 90 % in Speak and falling in
+//   150 ms. A rank sounds at the share of the level that follower has
+//   reached: it swells in after each new note and stops with it. Where the
+//   bands are wide the followers stand every second to every sixteenth bin
+//   (a cell), and a partial reads the nearest.
+// - The door. A frame is 85 ms long, so the frames that hold a note's start
+//   would sound its ranks before the note. In the time domain the ranks are
+//   held to four times the level of the dry sound beside them (or to what
+//   they were let through at a moment ago): nothing sounds before a note
+//   that starts from silence, and the ranks start with it (see Door).
 // - Chiff. A second follower rises in 100 ms. What it has not yet reached is
 //   sounded as noise in the band round each rank's pitch (the same power
 //   spread over ±4 %, fresh random phase each frame): breath first, then tone.
 // - Tone and Swell shape what the ranks put out. Tone under the middle rolls
 //   them off above 400 Hz; over the middle it tilts them about 1.5 kHz,
 //   thinner below (8 dB at most) and brighter above (6 dB at most). Swell is
-//   a box's shutters: shut, the ranks are 24 dB down and rolled off 6 dB an
+//   a box's shutters: shut, the ranks are 14 dB down and rolled off 4 dB an
 //   octave above 400 Hz, and every part of the way there is as much in dB.
 //   Detune puts each rank a few cents off, each its own way, the same in
 //   both channels.
@@ -60,10 +69,15 @@
 // the output is the input 4608 samples late, bit for bit.
 //
 // Latency: kit::Stft's, 4096 + 512 samples (96 ms at 48 kHz), the dry side
-// delayed to match. Storage: two Stft channels (176 KB each) and 250 KB of
-// per-bin state and tables; no delay line of its own. At 96 kHz the bins are
+// delayed to match. Storage: two Stft channels (176 KB each) and 280 KB of
+// per-bin state and tables; no delay line of its own. Cost: a block with a
+// frame in it is the two transforms (about 38 us in WASM) and the frame's
+// work, 15 us on a chord and at most about 50 on noise or a dense cluster
+// with every rank drawn and Chiff full (see the harness, group 20). At 96 kHz the bins are
 // twice as wide and the frames twice as often; everything in Hz or seconds is
 // worked out from the sample rate in init.
+
+#include <cstring>
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"
@@ -81,6 +95,13 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // Detune at 1 puts a rank this many cents off, times its own share.
   static constexpr float kDetuneCents = 14.0f;
   static constexpr float kDetuneShare[kRanks] = {-0.55f, 0.8f, 1.0f, -0.75f, 0.6f};
+  // The most partials of one channel that are given ranks in one frame: the
+  // strongest. A frame's work all falls in one block, and the ranks are what
+  // it is spent on (ten bins a rank a partial), so this is what bounds the
+  // dearest block. Eight notes of fifteen partials fit; of a dense bright
+  // cluster or of noise (where every third bin is a peak, 560 of them) the
+  // strongest 128 are copied and the weakest are left out.
+  static constexpr int kMaxPartials = 128;
 
   void init(float sample_rate) {
     using namespace stops;
@@ -102,18 +123,26 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       for (int s = 0; s < kRanks; ++s) channel.level[s] = 0.0f;
       channel.input_level = 0.0f;
       channel.note = 0.0f;
+      channel.partials = 0;
       channel.alive = false;
     }
     for (int k = 0; k < Stft::kBins; ++k) {
       breath_[k] = 0.0f;
       lead_place_[k] = -1.0f;
     }
+    leads_ = 0;
     lead_frame_ = 0xFFFFFFFFu;
     mix_.set_time(kSmoothingSeconds, sr);
     unison_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
     unison_.snap(param(kUnison));
     silent_ = kSilentSamples;
+    rest_doors();
+    door_hold_ = static_cast<int>(kDoorHoldSeconds * sr);
+    door_fall_ = std::exp(-1.0f / (kDoorFallSeconds * sr));
+    door_move_ = 1.0f - std::exp(-1.0f / (kDoorMoveSeconds * sr));
+    door_keep_rise_ = 1.0f - std::exp(-1.0f / (kDoorKeepRiseSeconds * sr));
+    door_keep_fall_ = 1.0f - std::exp(-1.0f / (kDoorKeepFallSeconds * sr));
     tone_seen_ = -1.0f;
     swell_seen_ = -1.0f;
     snapshot(0);
@@ -149,6 +178,11 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     return kit::max(channel_[0].level[rank], channel_[1].level[rank]);
   }
 
+  // For the harness: how many partials channel c's newest frame gave ranks to.
+  int partials(int c) const { return channel_[c & 1].partials; }
+  // And how far channel c's door stands open, 1 being wide.
+  float door(int c) const { return door_[c & 1].open; }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames) || channel_[0].alive || channel_[1].alive)) {
@@ -156,6 +190,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       stft_[0].skip(frames);  // the frame clock runs on through the sleep
       stft_[1].skip(frames);
       if (silent_ < kSilentSamples) silent_ += frames;
+      if (silent_ >= kSilentSamples) rest_doors();
       return;
     }
     for (int i = 0; i < frames; ++i) {
@@ -165,18 +200,28 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       const float dry_gain = 1.0f - mix * (1.0f - unison_.next());
       float out[2];
       for (int c = 0; c < 2; ++c) {
-        const float ranks = stft_[c].process(in[c], [this, c](float* re, float* im) { frame(c, re, im); });
-        out[c] = stft_[c].dry() * dry_gain + kCeiling * kit::soft_clip(ranks * (1.0f / kCeiling)) * mix;
+        float ranks = stft_[c].process(in[c], [this, c](float* re, float* im) { frame(c, re, im); });
+        const float dry = stft_[c].dry();
+        ranks *= door_[c].next(dry, ranks, *this);
+        out[c] = dry * dry_gain + kCeiling * kit::soft_clip(ranks * (1.0f / kCeiling)) * mix;
       }
       out_left_[i] = out[0];
       out_right_[i] = out[1];
       const bool silent = in[0] == 0.0f && in[1] == 0.0f && out[0] == 0.0f && out[1] == 0.0f;
       silent_ = silent ? (silent_ < kSilentSamples ? silent_ + 1 : silent_) : 0;
+      // Nothing in flight any more: the doors are as they start, whatever
+      // the block size let them reach before the device slept.
+      if (silent_ >= kSilentSamples) rest_doors();
     }
     idle_.settle(output_peak(frames), frames);
   }
 
  private:
+  void rest_doors() {
+    door_[0].rest();
+    door_[1].rest();
+  }
+
   static constexpr int kBins = Stft::kBins;
   // The Hann lobe as it is written: this many bins either side of a target,
   // at this many places between two bins.
@@ -184,6 +229,10 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   static constexpr int kLobeSteps = 256;
   static constexpr int kFirstBin = 2;  // the lowest bin a partial is looked for in
   static constexpr int kMaxPeaks = kBins / 2 + 1;
+  // Peaks are sorted by power into steps of half an octave of power (1.5 dB)
+  // under the frame's strongest, to find the kMaxPartials strongest.
+  static constexpr int kLevels = 64;
+  static constexpr int kLevelShift = 22;  // a float's exponent and the first bit under it
   // A partial counts within 72 dB of the frame's strongest bin and above
   // -100 dBFS (a sine of amplitude 1e-5 reads 1e-5 x Stft::kFullScale).
   static constexpr float kRelativePower = 6.3e-8f;
@@ -203,8 +252,12 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   static constexpr float kBrightSlopeDb = 4.0f;  // per octave about kBrightHz, Tone at 1
   static constexpr float kBrightCutDb = 8.0f;    // the most it takes below
   static constexpr float kBrightLiftDb = 6.0f;   // the most it adds above
-  static constexpr float kShutterSlopeDb = 6.0f;  // per octave above the pivot, Swell at 0
-  static constexpr float kShutterDb = 24.0f;      // and the level it takes from all of it, Swell at 0
+  // The shutters: per octave above the pivot and from all of it, Swell at 0.
+  // Shut, the ranks are still an organ behind a door (18 dB down at 880 Hz),
+  // so the whole of the knob is heard: at 24 dB and 6 dB an octave its lower
+  // half moved the output by 0.02 dB on a played phrase.
+  static constexpr float kShutterSlopeDb = 4.0f;
+  static constexpr float kShutterDb = 14.0f;
   // Ranks fade out between 16 and 20 kHz (or these shares of the Nyquist
   // frequency, if that is lower), and below hearing between 18 and 28 Hz.
   static constexpr float kTopFadeFromHz = 16000.0f;
@@ -217,11 +270,83 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // and a steady sine at 4 times it (a quarter hop): the square root of 6.
   static constexpr float kBreathGain = 2.4494897f;
   static constexpr float kCeiling = 1.0f;
+  // A rank that has breathed in all but this share of its level breathes no
+  // more: 60 dB under it. (The follower only ever nears its level, and a
+  // frame's pass over every bin for a breath nobody hears is not free.)
+  static constexpr float kBreathLeast = 1.0e-3f;
+  // The door on the ranks (see Door): they may be this many times as loud as
+  // the sound they copy and no more, the sound's level held for kDoorHold
+  // seconds and let go in kDoorFall, and the door moves in kDoorMove; what
+  // they were let through at is followed up in kDoorKeepRise and down in
+  // kDoorKeepFall.
+  static constexpr float kDoorOver = 4.0f;
+  static constexpr float kDoorHoldSeconds = 0.02f;
+  static constexpr float kDoorFallSeconds = 0.01f;
+  static constexpr float kDoorMoveSeconds = 0.001f;
+  static constexpr float kDoorKeepRiseSeconds = 0.05f;
+  static constexpr float kDoorKeepFallSeconds = 0.02f;
+  static constexpr float kDoorFloor = 1.0e-9f;
   // After this much silence in and out nothing is left in flight: a latency and a frame.
   static constexpr int kSilentSamples = Stft::kLatency + Stft::kFrame;
   static constexpr int kAngles = 1024;  // unit vectors round the circle, for the breath
   // Two channels hold the same partial when they find it within this many bins.
   static constexpr float kSamePlace = 0.03f;
+
+  // A frame is 85 ms long and a rank is written over the whole of it, so the
+  // frames that hold the start of a note sound their ranks before the note:
+  // up to 60 ms before, 8 dB under the rank's level just before the note
+  // with Speak short. The door shuts that out. It follows the level of the
+  // dry sound (in time with the ranks) and of the ranks, and lets the ranks
+  // be kDoorOver times the dry sound's level at most, or as loud as they
+  // have been let through of late: nothing before a note that starts from
+  // silence, and nothing changed while a note sounds (the ranks together are
+  // held to their source's power, so they never come near four times its
+  // level then; and where two notes beat and the dry sound falls away for a
+  // moment, the ranks go on as they were). What has been let through is
+  // followed slowly up and quickly down, so what the door holds back cannot
+  // let itself in. Levels are held over 20 ms, the lowest note's half period,
+  // so the door does not move with the waveform.
+  struct Door {
+    float heard = 0.0f;  // the dry sound's level
+    float made = 0.0f;   // the ranks' level
+    float kept = 0.0f;   // the level the ranks have been let through at
+    float open = 1.0f;   // the gain on the ranks
+    int heard_hold = 0;
+    int made_hold = 0;
+    void rest() {
+      heard = 0.0f;
+      made = 0.0f;
+      kept = 0.0f;
+      open = 1.0f;
+      heard_hold = 0;
+      made_hold = 0;
+    }
+    static void follow(float in, float* level, int* hold, int hold_samples, float fall) {
+      if (in >= *level) {
+        *level = in;
+        *hold = hold_samples;
+      } else if (*hold > 0) {
+        --*hold;
+      } else {
+        *level *= fall;
+        if (*level < kDoorFloor) *level = 0.0f;
+      }
+    }
+    float next(float dry, float ranks, const Stops& device) {
+      follow(dry < 0.0f ? -dry : dry, &heard, &heard_hold, device.door_hold_, device.door_fall_);
+      follow(ranks < 0.0f ? -ranks : ranks, &made, &made_hold, device.door_hold_, device.door_fall_);
+      const float over = kDoorOver * heard;
+      const float allowed = over > kept ? over : kept;
+      const float target = made > allowed ? allowed / made : 1.0f;
+      open += (target - open) * device.door_move_;
+      if (target == 0.0f && open < 1.0e-6f) open = 0.0f;
+      if (target == 1.0f && open > 1.0f - 1.0e-6f) open = 1.0f;
+      const float passed = made * open;
+      kept += (passed - kept) * (passed > kept ? device.door_keep_rise_ : device.door_keep_fall_);
+      if (kept < kDoorFloor) kept = 0.0f;
+      return open;
+    }
+  };
 
   struct Channel {
     float spoken[kBins];         // the speak follower: the level each bin's band has come up to
@@ -232,8 +357,16 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     float level[kRanks];         // for meter()
     float input_level;
     float note;                  // the strongest partial found, Hz, for meter()
+    int partials;                // how many partials the newest frame held
     bool alive;                  // any follower above the floor
   };
+
+  // A float's bits: for positive floats, in the order of the floats.
+  static uint32_t float_bits(float x) {
+    uint32_t bits;
+    std::memcpy(&bits, &x, sizeof bits);
+    return bits;
+  }
 
   // The Hann window's transform at d bins from a sine, as a share of its
   // value at the sine itself: sinc(d) / (1 - d²). 1 at 0, 1/2 at ±1, 0 at ±2,
@@ -272,6 +405,22 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       const int reach = kit::clamp_int(static_cast<int>(kBandShare * static_cast<float>(k) + 0.5f), 2, kBins);
       band_from_[k] = static_cast<uint16_t>(kit::clamp_int(k - reach, 0, kBins));
       band_to_[k] = static_cast<uint16_t>(kit::clamp_int(k + reach + 1, 0, kBins));
+      // The cell this bin reads its followers from: itself while its band
+      // is narrow, then the nearest of every second, fourth, eighth and
+      // sixteenth bin, always less than a quarter of the band's reach away.
+      const int step = reach < 8 ? 1 : (reach < 16 ? 2 : (reach < 32 ? 4 : (reach < 64 ? 8 : 16)));
+      cell_[k] = static_cast<uint16_t>(kit::clamp_int((k + step / 2) & ~(step - 1), 0, kBins - 1));
+    }
+    // The cells in order, each with the bins that read it.
+    cells_ = 0;
+    for (int k = 0; k < kBins; ++k) {
+      if (cells_ == 0 || cell_bin_[cells_ - 1] != cell_[k]) {
+        cell_bin_[cells_] = cell_[k];
+        cell_from_[cells_] = static_cast<uint16_t>(k);
+        ++cells_;
+      }
+      cell_to_[cells_ - 1] = static_cast<uint16_t>(k + 1);
+      cell_index_[k] = static_cast<uint16_t>(cells_ - 1);
     }
     const float frame_seconds = static_cast<float>(Stft::kHop) / sr;
     release_ = std::exp(-frame_seconds / kReleaseSeconds);
@@ -360,8 +509,9 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // left out, and the lobe comes from the table (the target rounded to 1/256
   // bin for the shape; the phase keeps the true frequency).
   void add_partial(float* re, float* im, float target, float ur, float ui, float turn, float amp) const {
-    const float qr = amp * kit::SineTable::cos_lookup(turn);
-    const float qi = amp * kit::SineTable::lookup(turn);
+    float qr;
+    float qi;
+    kit::from_polar(amp, kit::kTwoPi * turn, &qr, &qi);
     float pr = ur * qr - ui * qi;
     float pi = ur * qi + ui * qr;
     if (target >= static_cast<float>(2 * kLobeHalf)) {
@@ -416,7 +566,8 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     // The followers: each bin's band level, come up to in Speak (and in the
     // chiff's own time), let go of in kReleaseSeconds.
     bool alive = false;
-    for (int k = 0; k < kBins; ++k) {
+    for (int i = 0; i < cells_; ++i) {
+      const int k = cell_bin_[i];
       const float band = std::sqrt(static_cast<float>(sum_[band_to_[k]] - sum_[band_from_[k]]));
       band_[k] = band;
       float spoken = channel.spoken[k];
@@ -434,16 +585,49 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     // The partials: where, at what true frequency (in bins), how tall a lobe.
     const float threshold = kit::max(kFloorPower, strongest * kRelativePower);
     if (c == 0) {
-      for (int k = 0; k < kBins; ++k) lead_place_[k] = -1.0f;
+      for (int i = 0; i < leads_; ++i) lead_place_[lead_bin_[i]] = -1.0f;
+      leads_ = 0;
       lead_frame_ = number;
+    }
+    // Every local maximum over the threshold is a candidate; each is put on
+    // a step by its power under the strongest bin (kLevels steps of 1.5 dB).
+    int found = 0;
+    uint16_t steps[kLevels] = {};
+    const uint32_t top_step = float_bits(strongest) >> kLevelShift;
+    for (int k = kFirstBin; k < kBins - 1; ++k) {
+      const float power = power_[k];
+      if (!(power > threshold && power > power_[k - 1] && power >= power_[k + 1])) continue;
+      const uint32_t under = top_step - (float_bits(power) >> kLevelShift);
+      const int step = under < static_cast<uint32_t>(kLevels) ? static_cast<int>(under) : kLevels - 1;
+      found_bin_[found] = static_cast<uint16_t>(k);
+      found_step_[found] = static_cast<uint8_t>(step);
+      ++steps[step];
+      ++found;
+      ++k;  // the next bin is lower or level: not a peak
+    }
+    // The kMaxPartials strongest: whole steps from the top while they fit,
+    // then the lowest in pitch of the next step until the number is reached.
+    int cut = kLevels;
+    int room = 0;
+    if (found > kMaxPartials) {
+      int taken = 0;
+      cut = 0;
+      while (taken + steps[cut] <= kMaxPartials) taken += steps[cut++];
+      room = kMaxPartials - taken;
     }
     int peaks = 0;
     float heard = 0.0f;
     float tallest = 0.0f;
     float tallest_place = 0.0f;
-    for (int k = kFirstBin; k < kBins - 1; ++k) {
+    for (int f = 0; f < found; ++f) {
+      const int step = found_step_[f];
+      if (step > cut) continue;
+      if (step == cut) {
+        if (room == 0) continue;
+        --room;
+      }
+      const int k = found_bin_[f];
       const float power = power_[k];
-      if (!(power > threshold && power > power_[k - 1] && power >= power_[k + 1])) continue;
       // Read through a narrower window: X[k] - (X[k-1] + X[k+1]) / 2 is the
       // bin of the same frame under Hann squared, whose side lobes fall
       // twice as fast, so the other notes of a chord disturb the phase and
@@ -483,15 +667,18 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       peak_size_[peaks] = size / lobe;
       peak_re_[peaks] = zr * unit;
       peak_im_[peaks] = zi * unit;
-      if (c == 0) lead_place_[k] = place;
+      if (c == 0) {
+        lead_place_[k] = place;
+        lead_bin_[leads_++] = static_cast<uint16_t>(k);
+      }
       heard += peak_size_[peaks] * peak_size_[peaks];
       if (peak_size_[peaks] > tallest) {
         tallest = peak_size_[peaks];
         tallest_place = place;
       }
       ++peaks;
-      ++k;  // the next bin is lower or level: not a peak
     }
+    channel.partials = peaks;
     channel.input_level = std::sqrt(heard) * (1.0f / Stft::kFullScale);
     channel.note = peaks > 0 ? Stft::bin_to_hz(tallest_place, sample_rate()) : 0.0f;
 
@@ -504,15 +691,17 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     }
 
     float sounding[kRanks] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-    bool breath = false;
+    int breath_low = kBins;  // the bins that are given breath, from and to
+    int breath_high = -1;
     const float top = static_cast<float>(kBins - 2 - kLobeHalf);
     int from = 0;
     for (int i = 0; i < peaks; ++i) {
       const int k = peak_bin_[i];
       const int to = i + 1 < peaks ? (k + peak_bin_[i + 1] + 1) / 2 : kBins;
-      const float band = band_[k];
-      const float spoken = kit::min(1.0f, channel.spoken[k] / band);
-      const float unbreathed = 1.0f - kit::min(1.0f, channel.breathed[k] / band);
+      const int cell = cell_[k];
+      const float band = band_[cell];
+      const float spoken = kit::min(1.0f, channel.spoken[cell] / band);
+      const float unbreathed = 1.0f - kit::min(1.0f, channel.breathed[cell] / band);
       // The right channel's partial takes the left's turn where the left has
       // the same partial in this frame (see the note on stereo at the top).
       int lead = -1;
@@ -544,42 +733,55 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
         const float amp = full * spoken;
         add_partial(re, im, target, peak_re_[i], peak_im_[i], turn, amp);
         sounding[s] += amp * amp;
-        if (chiff_ > 0.0f && unbreathed > 0.0f) {
+        if (chiff_ > 0.0f && unbreathed > kBreathLeast) {
           const float air = full * unbreathed;
           breath_[landing] += air * air;
-          breath = true;
+          if (landing < breath_low) breath_low = landing;
+          if (landing > breath_high) breath_high = landing;
         }
       }
       from = to;
     }
     for (int s = 0; s < kRanks; ++s) channel.level[s] = std::sqrt(sounding[s]) * (1.0f / Stft::kFullScale);
-    if (breath) add_breath(re, im, number);
+    if (breath_high >= 0) add_breath(re, im, number, breath_low, breath_high);
   }
 
   // The chiff: the power the ranks have not yet breathed in, spread evenly
-  // over each bin's band and given a fresh phase. The angles are the same for
-  // both channels (mono in stays mono) and for this frame whatever was slept
-  // through.
-  void add_breath(float* re, float* im, uint32_t number) {
+  // over each bin's band and given a fresh phase. `low` to `high` are the
+  // bins that were given any; only the bins whose band reaches them are
+  // visited, a cell at a time (one level for the bins of a cell). The angles
+  // are a hash of the bin and the frame: the same for both channels (mono in
+  // stays mono) and for this frame whatever was slept through.
+  void add_breath(float* re, float* im, uint32_t number, int low, int high) {
+    const int first = kit::clamp_int(static_cast<int>(0.96f * static_cast<float>(low)) - 3, 1, kBins - 2);
+    const int last = kit::clamp_int(static_cast<int>(1.05f * static_cast<float>(high)) + 4, 1, kBins - 2);
+    const int from = band_from_[first];
+    const int to = band_to_[last];
     double running = 0.0;
-    sum_[0] = 0.0;
-    for (int k = 0; k < kBins; ++k) {
+    sum_[from] = 0.0;
+    for (int k = from; k < to; ++k) {
       running += breath_[k];
       sum_[k + 1] = running;
       breath_[k] = 0.0f;
     }
-    kit::Rng rng;
-    rng.seed(0x9E3779B9u ^ (number * 2654435761u));
-    for (int warm = 0; warm < 4; ++warm) rng.next_u32();
-    for (int k = 1; k < kBins - 1; ++k) {
-      const uint32_t angle = rng.next_u32() >> 22;  // 0..kAngles-1
-      const int band_from = band_from_[k];
-      const int band_to = band_to_[k];
+    const uint32_t frame_hash = number * 2654435761u;
+    for (int i = cell_index_[first]; i <= cell_index_[last]; ++i) {
+      const int cell = cell_bin_[i];
+      const int band_from = kit::clamp_int(band_from_[cell], from, to);
+      const int band_to = kit::clamp_int(band_to_[cell], from, to);
       const float power = static_cast<float>(sum_[band_to] - sum_[band_from]);
       if (!(power > 0.0f)) continue;
-      const float size = chiff_ * std::sqrt(power / static_cast<float>(band_to - band_from));
-      re[k] += size * unit_re_[angle];
-      im[k] += size * unit_im_[angle];
+      const float size = chiff_ * std::sqrt(power / static_cast<float>(band_to_[cell] - band_from_[cell]));
+      const int stop = cell_to_[i] < kBins - 1 ? cell_to_[i] : kBins - 1;
+      for (int k = cell_from_[i] > 1 ? cell_from_[i] : 1; k < stop; ++k) {
+        uint32_t hash = (static_cast<uint32_t>(k) * 0x9E3779B9u) ^ frame_hash;
+        hash ^= hash >> 15;
+        hash *= 0x2C1B3C6Du;
+        hash ^= hash >> 12;
+        const uint32_t angle = hash >> 22;  // 0..kAngles-1
+        re[k] += size * unit_re_[angle];
+        im[k] += size * unit_im_[angle];
+      }
     }
   }
 
@@ -592,6 +794,14 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   float unit_im_[kAngles] = {};
   uint16_t band_from_[kBins] = {};
   uint16_t band_to_[kBins] = {};
+  // The followers are kept in cells (see build_tables): the cell of each
+  // bin, and each cell's own bin and the bins that read it.
+  uint16_t cell_[kBins] = {};
+  uint16_t cell_index_[kBins] = {};
+  uint16_t cell_bin_[kBins] = {};
+  uint16_t cell_from_[kBins] = {};
+  uint16_t cell_to_[kBins] = {};
+  int cells_ = 0;
   float release_ = 0.0f;
   float chiff_rise_ = 1.0f;
   float low_from_ = 0.0f;
@@ -610,15 +820,25 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   float band_[kBins] = {};
   double sum_[kBins + 1] = {};
   float breath_[kBins] = {};
-  uint16_t peak_bin_[kMaxPeaks] = {};
-  float peak_place_[kMaxPeaks] = {};
-  float peak_size_[kMaxPeaks] = {};
-  float peak_re_[kMaxPeaks] = {};  // the partial's phase at the middle of the frame, a unit vector
-  float peak_im_[kMaxPeaks] = {};
+  uint16_t found_bin_[kMaxPeaks] = {};  // every peak over the threshold
+  uint8_t found_step_[kMaxPeaks] = {};
+  uint16_t peak_bin_[kMaxPartials] = {};  // the strongest of them: the partials
+  float peak_place_[kMaxPartials] = {};
+  float peak_size_[kMaxPartials] = {};
+  float peak_re_[kMaxPartials] = {};  // the partial's phase at the middle of the frame, a unit vector
+  float peak_im_[kMaxPartials] = {};
   // Where the left channel found its partials in frame lead_frame_ (-1: none in this bin).
   float lead_place_[kBins] = {};
+  uint16_t lead_bin_[kMaxPartials] = {};  // the bins that hold one
+  int leads_ = 0;
   uint32_t lead_frame_ = 0;
   kit::Smoother mix_, unison_;
+  Door door_[2];
+  int door_hold_ = 0;
+  float door_fall_ = 0.0f;
+  float door_move_ = 1.0f;
+  float door_keep_rise_ = 1.0f;
+  float door_keep_fall_ = 1.0f;
   kit::IdleGate idle_;
   // Samples in a row with nothing in and nothing out, counted up to kSilentSamples.
   int silent_ = 0;

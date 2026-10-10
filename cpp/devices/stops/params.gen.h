@@ -2,17 +2,17 @@
 //
 // Parameter ids and ranges of Stops, shared with
 // src/dsp/devices/stops.gen.ts:
-//    0  sub: 0..1, default 0.55
-//    1  unison: 0..1, default 1
-//    2  fifth: 0..1, default 0
-//    3  octave: 0..1, default 0.7
-//    4  twelfth: 0..1, default 0.3
-//    5  fifteenth: 0..1, default 0.2
-//    6  speak: 10..3000 ms, default 120
-//    7  chiff: 0..1, default 0.25
-//    8  tone: 0..1, default 0.4
-//    9  swell: 0..1, default 1
-//   10  detune: 0..1, default 0.2
+//    0  speak: 40..3000 ms, default 120
+//    1  tone: 0..1, default 0.4
+//    2  swell: 0..1, default 1
+//    3  chiff: 0..1, default 0.25
+//    4  detune: 0..1, default 0.2
+//    5  sub: 0..1, default 0.55
+//    6  unison: 0..1, default 1
+//    7  fifth: 0..1, default 0
+//    8  octave: 0..1, default 0.7
+//    9  twelfth: 0..1, default 0.3
+//   10  fifteenth: 0..1, default 0.2
 //   11  mix: 0..1, default 0.8
 
 #pragma once
@@ -21,24 +21,24 @@ namespace livemix {
 namespace stops {
 
 enum Param : int {
-  kSub = 0,
-  kUnison = 1,
-  kFifth = 2,
-  kOctave = 3,
-  kTwelfth = 4,
-  kFifteenth = 5,
-  kSpeak = 6,
-  kChiff = 7,
-  kTone = 8,
-  kSwell = 9,
-  kDetune = 10,
+  kSpeak = 0,
+  kTone = 1,
+  kSwell = 2,
+  kChiff = 3,
+  kDetune = 4,
+  kSub = 5,
+  kUnison = 6,
+  kFifth = 7,
+  kOctave = 8,
+  kTwelfth = 9,
+  kFifteenth = 10,
   kMix = 11,
   kNumParams = 12,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 10.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 3000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 120.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.8f};
+inline constexpr float kParamMin[kNumParams] = {40.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {3000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f};
 
 }  // namespace stops
 }  // namespace livemix

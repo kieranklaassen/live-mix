@@ -60,8 +60,8 @@ const BRIGHT_HZ = 1500
 const BRIGHT_SLOPE_DB = 4
 const BRIGHT_CUT_DB = 8
 const BRIGHT_LIFT_DB = 6
-const SHUTTER_SLOPE_DB = 6
-const SHUTTER_DB = 24
+const SHUTTER_SLOPE_DB = 4
+const SHUTTER_DB = 14
 // The ranks fade out to nothing at the top of hearing (`kTopFadeFromHz` to
 // `kTopFadeToHz`, or these shares of the Nyquist frequency when that is
 // lower) and at the bottom (`kLowFadeFromHz` to `kLowFadeToHz`).
