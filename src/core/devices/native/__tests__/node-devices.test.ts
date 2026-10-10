@@ -243,6 +243,13 @@ describe('Compressor', () => {
 })
 
 describe('Utility', () => {
+  it('pans two channels whatever it is fed, so one channel plays as loud as two', () => {
+    const ctx = createMockContext()
+    createUtility(asAudioContext(ctx))
+    expect(ctx.panners[0].channelCount).toBe(2)
+    expect(ctx.panners[0].channelCountMode).toBe('explicit')
+  })
+
   it('chains polarity → stereo/mono crossfade → pan → trim', () => {
     const ctx = createMockContext({ currentTime: 3 })
     const utility = createUtility(asAudioContext(ctx), { params: { gainDb: -6, width: 0.25 } })

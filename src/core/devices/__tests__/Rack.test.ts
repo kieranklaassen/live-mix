@@ -191,6 +191,13 @@ describe('Rack graph', () => {
 })
 
 describe('Chain level, pan and mute', () => {
+  it('pans two channels whatever it is fed, so one channel plays as loud as two', () => {
+    const { mock, rack } = make()
+    rack.addChain()
+    expect(mock.panners[0].channelCount).toBe(2)
+    expect(mock.panners[0].channelCountMode).toBe('explicit')
+  })
+
   it('sets initial values outright and ramps changes over 5 ms with hold-now + linear ramp', () => {
     const { mock, rack } = make({ currentTime: 3 })
     const chain = rack.addChain({ gain: 0.8, pan: -0.25, mute: true })

@@ -13,6 +13,7 @@ import * as testing from '../testing/index'
 import * as wam from '../wam/index'
 
 const coreSymbols = [
+  'createPan',
   'createEngine',
   'Engine',
   'Bus',
