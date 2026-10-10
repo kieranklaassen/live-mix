@@ -67,7 +67,7 @@ export const GLITCH_KIT_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'glitch-kit',
       preset: 'Hard cuts',
-      params: { length: 0.8, volume: 3.5 },
+      params: { length: 0.8, volume: 3 },
     },
     effects: [{ deviceId: 'plate-reverb', preset: 'Bright plate', params: { mix: 0.3 } }],
     preview: 'drum',
@@ -78,7 +78,7 @@ export const GLITCH_KIT_PRESETS: readonly FactoryPreset[] = [
     category: 'drum',
     description:
       'The kit heard from the far end of a long dark hall, more echo of the room than hit.',
-    instrument: { deviceId: 'glitch-kit', params: { edge: 0.2, volume: 2.5 } },
+    instrument: { deviceId: 'glitch-kit', params: { edge: 0.2, volume: 2 } },
     effects: [{ deviceId: 'hall-reverb', preset: 'Far away', params: { mix: 0.7 } }],
     preview: 'drum',
   },

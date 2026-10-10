@@ -23,7 +23,7 @@
       "max": 4,
       "default": 1,
       "taper": "log",
-      "description": "How long every sound lasts, from clipped ticks to longer bursts. The spacing of the repeats stays where Density puts it. Heard from the next hit."
+      "description": "How long every sound lasts, from clipped ticks to longer bursts, while the spacing of the repeats stays where Density puts it. Heard from the next hit."
     },
     {
       "key": "tone",
@@ -71,7 +71,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How far the hits are thrown to the left and right. At zero the kit is mono; the low pop stays in the centre at any setting. Heard from the next hit."
+      "description": "How far the hits are thrown to the left and right, from mono at zero; the low pop stays in the centre at any setting. Heard from the next hit."
     },
     {
       "key": "volume",

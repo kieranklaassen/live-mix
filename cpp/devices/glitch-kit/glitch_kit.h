@@ -27,6 +27,13 @@
 // - Tune, Length, Edge, Density, Scatter and Spread are read when a hit
 //   starts. Crush, Tone and Volume act on the whole kit; Tone and Volume are
 //   smoothed, and Crush, which is steps by nature, moves at once.
+// - A click peaks the same however long it is and wherever it is tuned: a dry
+//   run of its pulse when it is struck says what it needs to peak like the
+//   click at its own pitch and Length 1, under the Tone filter as it stands.
+// - Crush holds samples at a clock that falls from 48 kHz to 6 kHz across the
+//   knob and rounds them to steps that grow to a sixty-fourth of full scale.
+//   A pulse that falls between two ticks while the crusher is at rest is
+//   taken at the next tick, so a hit that is struck always sounds.
 // - Every random choice (Scatter, the noises, the crackle's pattern) comes
 //   from generators seeded in init(), and a hit that finds the kit silent
 //   restarts the crusher's clock: the same notes give the same samples.
@@ -76,6 +83,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       tone_filter_[c].reset();
       crush_held_[c] = 0.0f;
+      crush_seen_[c] = 0.0f;
     }
     crush_phase_ = 1.0f;
     tone_.set_time(kSmoothingSeconds, sr);
@@ -176,6 +184,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     const float sr = sample_rate();
     // Crush is steps already: a move takes hold at once, with nothing to smooth.
     const float crush = param(glitch_kit::kCrush);
+    if (crush != crush_set_) set_crush(crush, sr);
     for (int i = 0; i < frames; ++i) {
       float left = ghost_[0];
       float right = ghost_[1];
@@ -191,12 +200,15 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
 
       // Crush: a slower clock and coarser steps, the same clock for both sides.
       if (crush > 0.0f) {
-        if (crush != crush_set_) set_crush(crush, sr);
+        if (std::fabs(left) > std::fabs(crush_seen_[0])) crush_seen_[0] = left;
+        if (std::fabs(right) > std::fabs(crush_seen_[1])) crush_seen_[1] = right;
         crush_phase_ += crush_increment_;
         if (crush_phase_ >= 1.0f) {
           crush_phase_ -= 1.0f;
-          crush_held_[0] = crush_step_ * std::floor(left * crush_inverse_ + 0.5f);
-          crush_held_[1] = crush_step_ * std::floor(right * crush_inverse_ + 0.5f);
+          crush_held_[0] = take(left, crush_held_[0], crush_seen_[0]);
+          crush_held_[1] = take(right, crush_held_[1], crush_seen_[1]);
+          crush_seen_[0] = 0.0f;
+          crush_seen_[1] = 0.0f;
         }
         left = crush_held_[0] * crush_makeup_;
         right = crush_held_[1] * crush_makeup_;
@@ -276,12 +288,13 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
   static constexpr float kPipHz = 1318.51f;       // E6
   static constexpr float kBuzzHz = 97.999f;       // G2
   static constexpr float kBuzzBandHz = 1400.0f;
+  static constexpr float kBuzzQ = 1.5f;
   static constexpr float kBuzzPulseSeconds = 0.00025f;
   static constexpr float kZapFromHz = 6000.0f, kZapToHz = 300.0f;
   static constexpr float kChirpFromHz = 880.0f, kChirpToHz = 3520.0f;
   static constexpr float kChirpIndex = 0.15f;     // cycles of phase
   static constexpr float kGrainHz = 2093.0f;      // C7
-  static constexpr float kClickGrainGain = 1.5f;  // as loud as the pip grain
+  static constexpr float kClickGrainGain = 1.5f;  // peaks with the pip grain
   static constexpr float kBitClockHz = 7902.13f;  // four times B6
   static constexpr float kStaticHz = 3000.0f;
   static constexpr float kCutHz = 7000.0f;
@@ -314,25 +327,46 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
   void restart() {
     land();
     crush_phase_ = 1.0f;  // the first sample is taken
-    crush_held_[0] = 0.0f;
-    crush_held_[1] = 0.0f;
+    for (int c = 0; c < 2; ++c) {
+      crush_held_[c] = 0.0f;
+      crush_seen_[c] = 0.0f;
+    }
   }
+
+  // Crush holds samples at this rate: from 48 kHz down to 6 kHz, falling from
+  // the first of the knob.
+  static float crush_clock(float crush) { return 48000.0f * std::exp2(-3.0f * crush); }
+
+  // What a tick of the crusher's clock takes: this sample, rounded to a step.
+  // A pulse that fell between two ticks is not lost: when the output is at
+  // rest and this sample would leave it there, the tick takes the largest
+  // sample since the last one instead, so a hit that is struck always sounds.
+  float take(float now, float held, float seen) const {
+    const float taken = crush_step_ * std::floor(now * crush_inverse_ + 0.5f);
+    if (taken != 0.0f || held != 0.0f) return taken;
+    return crush_step_ * std::floor(seen * crush_inverse_ + 0.5f);
+  }
+
+  static float tone_hz_at(float tone) { return 1500.0f * std::pow(12.0f, tone); }  // 1.5 kHz to 18 kHz
 
   void set_tone(float tone, float sr) {
     tone_set_ = tone;
-    const float hz = 1500.0f * std::pow(12.0f, tone);  // 1.5 kHz to 18 kHz
+    const float hz = tone_hz_at(tone);
     tone_filter_[0].set(hz, kit::kSqrtHalf, sr);
     tone_filter_[1].set(hz, kit::kSqrtHalf, sr);
   }
 
-  // From clean to 5 bits at 6 kHz. The bits are counted over the kit's own
-  // working range of half of full scale: a step is a thirty-second of it.
+  // From clean to steps of a sixty-fourth of full scale at 6 kHz: 6 bits over
+  // the kit's own working range of half of full scale. Half a step is then
+  // under the softest hit any voice makes, at any Length and Scatter.
   void set_crush(float crush, float sr) {
     crush_set_ = crush;
-    crush_step_ = std::exp2(-(16.0f - 11.0f * crush));
+    crush_step_ = std::exp2(-(16.0f - 10.0f * crush));
     crush_inverse_ = 1.0f / crush_step_;
-    crush_increment_ = kit::min(1.0f, 96000.0f * std::exp2(-4.0f * crush) / sr);
+    crush_increment_ = kit::min(1.0f, crush_clock(crush) / sr);
     crush_makeup_ = 1.0f + kCrushMakeup * crush * crush;
+    crush_seen_[0] = 0.0f;
+    crush_seen_[1] = 0.0f;
   }
   // Held samples lose a little to the tone filter; this keeps the kit level.
   static constexpr float kCrushMakeup = 0.06f;
@@ -353,27 +387,88 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     return rise(pos < left ? pos : left, fade);
   }
 
-  // The click's band and the pulse that rings it, at `ratio` of its tuning.
-  // The band's ring time is `ring` seconds whatever the tuning. The pulse
-  // shortens as the band rises, so it holds the same share of a cycle and the
-  // click is as strong at every tuning; its length in seconds, and so what it
-  // puts into the band, is the same at every sample rate.
+  // The click's band at `ratio` of its tuning, the sharpness that makes it
+  // ring for `ring` seconds whatever the tuning, and the pulse that rings it.
+  // The pulse shortens as the band rises, so it holds the same share of a
+  // cycle; its length in seconds, and so what it puts into the band, is the
+  // same at every sample rate.
+  float band_hz(float ratio) const {
+    return kit::clamp(kClickHz * ratio, 200.0f, kit::min(12000.0f, 0.4f * sample_rate()));
+  }
+  static float band_q(float ring, float hz) {
+    return kit::clamp(ring * kit::kTwoPi * hz / (2.0f * kSixtyDb), 0.6f, 80.0f);
+  }
+  float pulse_samples(float hz) const { return kit::max(kPulseSeconds * (kClickHz / hz) * sample_rate(), 2.5f); }
+
   void prepare_band(Hit& hit, float ratio, float ring, float edge) {
-    const float sr = sample_rate();
-    const float hz = kit::clamp(kClickHz * ratio, 200.0f, kit::min(12000.0f, 0.4f * sr));
-    const float q = kit::clamp(ring * kit::kTwoPi * hz / (2.0f * kSixtyDb), 0.6f, 80.0f);
+    const float hz = band_hz(ratio);
     hit.band.reset();
-    hit.band.set(hz, q, sr);
+    hit.band.set(hz, band_q(ring, hz), sample_rate());
     hit.hard = edge;
-    hit.pulse_length = kit::max(kPulseSeconds * (kClickHz / hz) * sr, 2.5f);
+    hit.pulse_length = pulse_samples(hz);
     hit.pulse_pos = hit.pulse_length;  // none in flight
     hit.pulse_gain = 0.0f;
   }
 
   // Edge 0 is a raised cosine, Edge 1 a rectangle of the same area.
-  static float pulse_shape(const Hit& hit, float at) {
-    const float round = 0.5f - 0.5f * kit::SineTable::cos_lookup(at / hit.pulse_length);
-    return kit::lerp(round, 0.5f, hit.hard);
+  static float pulse_shape(float at, float length, float hard) {
+    const float round = 0.5f - 0.5f * kit::SineTable::cos_lookup(at / length);
+    return kit::lerp(round, 0.5f, hard);
+  }
+
+  // A dry run of one click: the peak its pulse leaves the band at through
+  // the hit's own low-pass (`dull`), and what the Tone filter leaves of it.
+  void dry_click(float hz, float q, float hard, float dull, float tone_hz, float* before, float* after) const {
+    const float sr = sample_rate();
+    kit::Svf band, tone;
+    kit::OnePole hardness;
+    band.set(hz, q, sr);
+    tone.set(tone_hz, kit::kSqrtHalf, sr);
+    hardness.set_cutoff(dull, sr);
+    const float length = pulse_samples(hz);
+    // The pulse, a cycle and a half of the band, and the filters' own delay.
+    const int n = static_cast<int>(length + 1.5f * sr / hz + 0.0005f * sr) + 2;
+    float at = 0.5f, b = 0.0f, a = 0.0f;
+    for (int i = 0; i < n; ++i) {
+      band.process(at < length ? pulse_shape(at, length, hard) : 0.0f);
+      at += 1.0f;
+      const float y = hardness.lowpass(band.band);
+      const float z = tone.lowpass(y);
+      b = kit::max(b, y < 0.0f ? -y : y);
+      a = kit::max(a, z < 0.0f ? -z : z);
+    }
+    *before = b;
+    *after = a;
+  }
+
+  // The gain that makes a click, tuned to `ratio` and ringing for `ring`
+  // seconds, peak like the click at its own pitch that rings for `ring_at_one`
+  // (Length 1), at the same velocity and Edge. With `through_tone`, what the
+  // Tone filter takes from a click tuned above it is made up too, by up to
+  // 12 dB, so the click's peak holds under the filter; a low click is never
+  // turned down for it. The crusher folds a click above half its clock back
+  // under the filter by itself, so that part goes as Crush brings the clock
+  // down to the click's band.
+  float click_level(float ratio, float struck, float ring, float ring_at_one, float hard, float gain,
+                    bool through_tone) const {
+    const float dull = 1800.0f * std::pow(10.0f, gain);
+    const float tone_hz = tone_hz_at(tone_.target);
+    const float hz = band_hz(ratio * struck), home = band_hz(struck);
+    float before = 0.0f, after = 0.0f, home_before = 0.0f, home_after = 0.0f;
+    dry_click(hz, band_q(ring, hz), hard, dull * kit::max(1.0f, ratio), tone_hz, &before, &after);
+    dry_click(home, band_q(ring_at_one, home), hard, dull, tone_hz, &home_before, &home_after);
+    if (!(before > 0.0f) || !(after > 0.0f) || !(home_before > 0.0f)) return 1.0f;
+    float level = home_before / before;
+    if (through_tone) {
+      float lost = kit::clamp((home_after / home_before) / (after / before), 1.0f, 4.0f);
+      const float crush = param(glitch_kit::kCrush);
+      if (crush > 0.0f) {
+        const float folded = kit::clamp(std::log2(2.0f * hz / crush_clock(crush)), 0.0f, 1.0f);
+        lost = std::pow(lost, 1.0f - folded);
+      }
+      level *= lost;
+    }
+    return kit::clamp(level, 0.25f, 8.0f);
   }
 
   static void strike_band(Hit& hit, float gain) {
@@ -384,7 +479,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
   static float ring_band(Hit& hit) {
     float x = 0.0f;
     if (hit.pulse_pos < hit.pulse_length) {
-      x = hit.pulse_gain * pulse_shape(hit, hit.pulse_pos);
+      x = hit.pulse_gain * pulse_shape(hit.pulse_pos, hit.pulse_length, hit.hard);
       hit.pulse_pos += 1.0f;
     }
     hit.band.process(x);
@@ -415,12 +510,14 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     const float ring = kClickRing * duration;
     const int ring_samples = samples(ring);
     // A harder hit rings the click's band a little higher: a soft one is lower and rounder.
-    const float struck = ratio * std::exp2((strike.gain - 0.7f) * 0.5f);
+    const float harder = std::exp2((strike.gain - 0.7f) * 0.5f);
+    const float struck = ratio * harder;
 
     switch (strike.voice) {
       case kClick:
       case kDouble: {
         prepare_band(hit, struck, ring, strike.edge);
+        hit.amp *= click_level(ratio, harder, ring, kClickRing, strike.edge, strike.gain, true);
         const int clicks = strike.voice == kClick ? 1 : (strike.density < 0.5f ? 2 : 3);
         hit.events_left = clicks;
         hit.period = samples(kit::lerp(0.030f, 0.012f, strike.density));
@@ -431,6 +528,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
       }
       case kCrackle: {
         prepare_band(hit, struck, ring, strike.edge);
+        hit.amp *= click_level(ratio, harder, ring, kClickRing, strike.edge, strike.gain, true);
         hit.events_left = 1;
         hit.span = samples(0.25f * duration);
         // 10 to 160 pulses a burst length at its start, so about 4 to 55 in all.
@@ -470,9 +568,25 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
         const float ideal = kBuzzPulseSeconds * (kBuzzHz / hz) * sr;
         hit.pulse_length = kit::max(ideal, 3.0f);
         hit.pulse_scale = ideal / hit.pulse_length;
-        hit.band.set(kit::min(kBuzzBandHz * ratio, kit::min(10000.0f, 0.4f * sr)), 1.5f, sr);
-        hit.length = samples(0.090f * duration);
-        hit.fade = round;
+        const float band = kit::min(kBuzzBandHz * ratio, kit::min(10000.0f, 0.4f * sr));
+        hit.band.set(band, kBuzzQ, sr);
+        // The buzz is whole pulses, the first one too: each rises from nothing
+        // by itself and rings out, so a low Edge has nothing to round. A high
+        // Edge switches it: the buzz opens partway up the first pulse's ring
+        // and stops partway down the last one's, at Edge 1 on the crest of
+        // each. As many pulses as crest inside the voice's length are played;
+        // when that is one, it is left to ring out, or nothing would be left.
+        const int crest = buzz_crest(hit, band);
+        const float open = strike.edge * strike.edge;
+        const int skipped = static_cast<int>(static_cast<float>(crest) * open + 0.5f);
+        const float period = 1.0f / hit.increment;
+        const int room = samples(0.090f * duration) - 1 - crest;
+        const int pulses = room > 0 ? 1 + static_cast<int>(static_cast<float>(room) / period) : 1;
+        const float ring_out = kSixtyDb * 2.0f * kBuzzQ / (kit::kTwoPi * band) * sr;  // 60 dB down
+        const float kept = pulses > 1 ? 1.0f - open : 1.0f;
+        hit.length = static_cast<int>(static_cast<float>(pulses - 1) * period + 0.5f) + crest - skipped +
+                     static_cast<int>(ring_out * kept + 0.5f) + 1;
+        for (int i = 0; i < skipped; ++i) buzz(hit);
         break;
       }
       case kZap:
@@ -499,8 +613,12 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
         hit.increment = kit::min(kGrainHz * ratio, top) / sr;
         const int last = (hit.events_left - 1) * hit.period;
         if (hit.grain_click) {
-          const float grain_ring = kit::min(ring, 0.5f * static_cast<float>(hit.period) / sr);
+          const float longest = 0.5f * static_cast<float>(hit.period) / sr;
+          const float grain_ring = kit::min(ring, longest);
           prepare_band(hit, struck, grain_ring, strike.edge);
+          // The pip grain goes under the Tone filter as it is, so this one does too.
+          hit.amp *= click_level(ratio, harder, grain_ring, kit::min(kClickRing, longest), strike.edge, strike.gain,
+                                 false);
           hit.event_gain = kClickGrainGain;
           hit.length = last + static_cast<int>(hit.pulse_length) + samples(grain_ring) * 3 / 2 + 2;
         } else {
@@ -519,6 +637,36 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
         break;
     }
     if (hit.fade > hit.length / 2) hit.fade = hit.length / 2;
+  }
+
+  // One sample of the buzz: its pulse train through its band.
+  static float buzz(Hit& hit) {
+    float x = 0.0f;
+    const float since = hit.phase / hit.increment;  // samples into this period
+    if (since < hit.pulse_length) {
+      x = hit.pulse_scale * (0.5f - 0.5f * kit::SineTable::cos_lookup(since / hit.pulse_length));
+    }
+    hit.phase += hit.increment;
+    if (hit.phase >= 1.0f) hit.phase -= 1.0f;
+    return hit.band.bandpass(x);
+  }
+
+  // How many samples after a pulse of the buzz begins its ring is at its crest.
+  int buzz_crest(const Hit& hit, float band) const {
+    Hit dry = hit;
+    dry.phase = 0.0f;
+    dry.band.reset();
+    const int n = static_cast<int>(hit.pulse_length + sample_rate() / band) + 2;
+    int crest = 0;
+    float top = 0.0f;
+    for (int i = 0; i < n && i < static_cast<int>(1.0f / hit.increment); ++i) {
+      const float y = buzz(dry);
+      if ((y < 0.0f ? -y : y) > top) {
+        top = y < 0.0f ? -y : y;
+        crest = i;
+      }
+    }
+    return crest;
   }
 
   // The static's next step: mostly small, now and then large.
@@ -587,16 +735,9 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
         x *= hit.envelope * window(hit.pos, hit.length, hit.fade);
         break;
       }
-      case kBuzz: {
-        const float since = hit.phase / hit.increment;  // samples into this period
-        if (since < hit.pulse_length) {
-          x = hit.pulse_scale * (0.5f - 0.5f * kit::SineTable::cos_lookup(since / hit.pulse_length));
-        }
-        hit.phase += hit.increment;
-        if (hit.phase >= 1.0f) hit.phase -= 1.0f;
-        x = hit.band.bandpass(x) * window(hit.pos, hit.length, hit.fade);
+      case kBuzz:
+        x = buzz(hit);
         break;
-      }
       case kZap:
         x = kit::SineTable::lookup(hit.phase) * window(hit.pos, hit.length, hit.fade);
         hit.phase += hit.increment;
@@ -690,6 +831,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
   float crush_step_ = 1.0f, crush_inverse_ = 1.0f, crush_increment_ = 1.0f, crush_makeup_ = 1.0f;
   float crush_phase_ = 1.0f;
   float crush_held_[2] = {0.0f, 0.0f};
+  float crush_seen_[2] = {0.0f, 0.0f};  // the largest sample since the clock's last tick
   kit::IdleGate idle_;
 };
 

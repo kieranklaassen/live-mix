@@ -25,7 +25,7 @@ export const GLITCH_KIT_PARAMS = {
     taper: 'log',
     unit: '',
     description:
-      'How long every sound lasts, from clipped ticks to longer bursts. The spacing of the repeats stays where Density puts it. Heard from the next hit.',
+      'How long every sound lasts, from clipped ticks to longer bursts, while the spacing of the repeats stays where Density puts it. Heard from the next hit.',
   },
   tone: {
     id: 2,
@@ -91,7 +91,7 @@ export const GLITCH_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the hits are thrown to the left and right. At zero the kit is mono; the low pop stays in the centre at any setting. Heard from the next hit.',
+      'How far the hits are thrown to the left and right, from mono at zero; the low pop stays in the centre at any setting. Heard from the next hit.',
   },
   volume: {
     id: 8,

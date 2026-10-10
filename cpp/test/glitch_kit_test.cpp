@@ -233,6 +233,23 @@ static Stereo play(GlitchKit& d, const std::vector<Event>& events, size_t total,
   return out;
 }
 
+// The same notes with nothing kept: only the kit's own work, in microseconds.
+static double spin(GlitchKit& d, const std::vector<Event>& events, size_t total) {
+  const auto start = std::chrono::steady_clock::now();
+  size_t done = 0, next = 0;
+  while (done < total) {
+    while (next < events.size() && events[next].at <= done) {
+      d.note_on(static_cast<int>(next), key_hz(events[next].key, events[next].octave), events[next].gain);
+      ++next;
+    }
+    size_t frames = std::min<size_t>(128, total - done);
+    if (next < events.size()) frames = std::min(frames, events[next].at - done);
+    d.process(static_cast<int>(frames));
+    done += frames;
+  }
+  return std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
+}
+
 // Sixteen hits in two seconds across the voices: a busy bar.
 static std::vector<Event> busy_bar(float rate, float gain, int bars = 1) {
   static const int keys[16] = {kD, kC, kE, kC, kF, kCs, kG, kC, kD, kFs, kA, kC, kGs, kDs, kAs, kB};
@@ -515,6 +532,15 @@ static void test_voices() {
     EXPECT_NEAR(kRate / lag, 98.0, 1.0, "the buzz is a pulse train at 98 Hz");
     EXPECT(how_well > 0.8, "and it is periodic");
     EXPECT(sounding_ms(x) > 75.0 && sounding_ms(x) < 100.0, "about 90 ms long");
+    // It begins with its first pulse, whole, wherever Edge is.
+    for (float edge : {0.0f, 0.35f, 0.7f, 1.0f}) {
+      std::vector<float> y = hit(kG, [edge](GlitchKit& d) { d.set_param(p::kEdge, edge); });
+      const double first = peak(y, 0, 245), second = peak(y, 368, 735);
+      NOTE("buzz at Edge %.2f: first pulse %+.2f dB against the second\n", edge, db(first / second));
+      char label[96];
+      std::snprintf(label, sizeof label, "the buzz starts with its first pulse at Edge %.2f", edge);
+      EXPECT(std::fabs(db(first / second)) < 2.0, label);
+    }
     const double band = energy_above(x, 500.0, kRate, 0, sounding(x));
     EXPECT(band > 0.6, "band-passed: little of it is under 500 Hz");
     // Three octaves up its pulse is down to three samples, and it keeps the
@@ -662,6 +688,23 @@ static void test_controls() {
     EXPECT_NEAR(long_grain / grain, 2.0, 0.3, "and its grain is twice as long at Length 2");
   }
 
+  // The click peaks the same however long it is and wherever it is played,
+  // and the crackle, which is the same pulse, with it.
+  for (int key : {kC, kDs}) {
+    double lowest = 1.0e9, highest = -1.0e9;
+    for (float length : {0.25f, 0.5f, 1.0f, 2.0f, 4.0f}) {
+      for (int octave = -2; octave <= 2; ++octave) {
+        const double level = db(peak(hit(key, with(p::kLength, length), 0.3f, 0.7f, octave)));
+        lowest = std::min(lowest, level);
+        highest = std::max(highest, level);
+      }
+    }
+    NOTE("%s peak across Length 0.25 to 4 and octaves -2 to +2: %.2f to %.2f dBFS\n", kNames[key], lowest, highest);
+    char label[112];
+    std::snprintf(label, sizeof label, "the %s peaks within 3 dB at every Length and in five octaves", kNames[key]);
+    EXPECT(highest - lowest < 3.0, label);
+  }
+
   // Tone is a low-pass over everything.
   {
     double share[3];
@@ -703,7 +746,7 @@ static void test_controls() {
     EXPECT(rms(round, 0, 48) < 0.15 * rms(round, 480, 1920) && rms(round, 120, 168) > 0.5 * rms(round, 480, 1920),
            "the cut's ends are rounded over 3 ms at Edge 0");
 
-    for (int key : {kE, kD, kC, kGs, kB}) {
+    for (int key : {kE, kD, kC, kGs, kB, kFs, kAs}) {
       std::vector<float> soft = hit(key, edged(0.0f));
       std::vector<float> sharp = hit(key, edged(1.0f));
       // The click's band rises steeply by itself: only its first sample tells.
@@ -719,6 +762,60 @@ static void test_controls() {
     EXPECT(step_at(sharp, 1920 - 4, 10) > 3.0 * step_at(soft, 1920 - 4, 10), "and the pip stops on one at Edge 1");
     std::vector<float> usual = hit(kE);
     EXPECT(step_at(usual, 0, 4) < 0.03 * peak(usual), "the default Edge still rounds the pip's start");
+
+    // The stutter's later grains are rounded or switched like its first.
+    {
+      std::vector<float> soft_grains = hit(kAs, edged(0.0f)), sharp_grains = hit(kAs, edged(1.0f));
+      const size_t second = 1382;  // 28.8 ms
+      NOTE("stutter's second grain, first step over peak: Edge 0 %.4f, Edge 1 %.3f\n",
+           step_at(soft_grains, second, 4) / peak(soft_grains), step_at(sharp_grains, second, 4) / peak(sharp_grains));
+      EXPECT(step_at(soft_grains, second, 4) < 0.02 * peak(soft_grains) &&
+                 step_at(sharp_grains, second, 4) > 0.05 * peak(sharp_grains),
+             "every grain of the stutter starts round at Edge 0 and on a step at Edge 1");
+    }
+    // The static dies away by itself, so its end is silent either way; its start is what Edge moves.
+    // The buzz is whole pulses that rise from nothing by themselves: Edge 0
+    // lets the first one rise and the last one ring out, Edge 1 opens on the
+    // crest of the first and stops on the crest of the last.
+    {
+      std::vector<float> whole = hit(kG, edged(0.0f)), switched = hit(kG, edged(1.0f));
+      const size_t n = sounding(whole), m = sounding(switched);
+      const double whole_start = std::fabs(whole[0]) / peak(whole), whole_end = step_at(whole, n - 4, 8) / peak(whole);
+      const double on = std::fabs(switched[0]) / peak(switched);
+      double off = 0.0;
+      for (size_t i = m > 24 ? m - 24 : 1; i < m + 2 && i < switched.size(); ++i) {
+        off = std::max(off, std::fabs(static_cast<double>(switched[i]) - switched[i - 1]) / peak(switched));
+      }
+      NOTE("buzz: Edge 0 first sample %.4f of peak, last step %.4f, %.2f ms; Edge 1 first sample %.3f, last step %.3f, "
+           "%.2f ms; largest step anywhere %.3f against %.3f\n",
+           whole_start, whole_end, sounding_ms(whole), on, off, sounding_ms(switched), max_step(whole) / peak(whole),
+           max_step(switched) / peak(switched));
+      EXPECT(whole_start < 0.02 && whole_end < 0.01, "the buzz rises from nothing and rings out at Edge 0");
+      EXPECT(on > 0.3 && off > 0.3, "and is switched on and off on a crest at Edge 1");
+      EXPECT(max_step(switched) / peak(switched) > 1.5 * max_step(whole) / peak(whole),
+             "which is a larger step than any inside the buzz");
+      double last = -1.0;
+      bool rising = true;
+      for (float edge : {0.0f, 0.5f, 0.7f, 0.85f, 1.0f}) {
+        std::vector<float> y = hit(kG, edged(edge));
+        const double first = std::fabs(y[0]) / peak(y);
+        if (first < last) rising = false;
+        last = first;
+      }
+      EXPECT(rising, "the higher Edge is, the further up its first pulse the buzz opens");
+      std::vector<float> usual_buzz = hit(kG, [](GlitchKit& d) { d.set_param(p::kTone, 1.0f); });
+      EXPECT(std::fabs(usual_buzz[0]) < 0.05 * peak(usual_buzz), "and at the default Edge it still rises from next to nothing");
+      // With room for one pulse only there is no later crest to stop on: it rings out.
+      std::vector<float> lone = hit(kG, [](GlitchKit& d) {
+        d.set_param(p::kEdge, 1.0f);
+        d.set_param(p::kTone, 1.0f);
+        d.set_param(p::kLength, 0.25f);
+      }, 1.0f, 0.7f, -2);
+      NOTE("buzz of one pulse at Edge 1: %.2f ms, first sample %.3f of peak\n", sounding_ms(lone),
+           std::fabs(lone[0]) / peak(lone));
+      EXPECT(sounding_ms(lone) > 3.0 && std::fabs(lone[0]) > 0.3 * peak(lone),
+             "a buzz of one pulse opens on its crest at Edge 1 and still rings out");
+    }
   }
 
   // Density: how many events, and how close.
@@ -777,11 +874,22 @@ static void test_controls() {
     EXPECT(b > a && b < c, "and Crush 0.5 lies between");
     const double level = db(rms(full, 0, 1920) / rms(clean, 0, 1920));
     NOTE("pip level at Crush 1: %+.2f dB\n", level);
-    EXPECT(std::fabs(level) < 2.0, "Crush 1 keeps the pip's level within 2 dB");
+    EXPECT(std::fabs(level) < 0.3, "Crush 1 keeps the pip's level within 0.3 dB");
+    // The knob works from its first step: nothing of it is dead.
+    {
+      const float settings[5] = {0.02f, 0.05f, 0.1f, 0.25f, 0.5f};
+      double changed[5];
+      for (int i = 0; i < 5; ++i) changed[i] = db(apart(clean, hit(kE, with(p::kCrush, settings[i]))));
+      NOTE("pip, what Crush changes of it: %.1f dB at 0.02, %.1f at 0.05, %.1f at 0.1, %.1f at 0.25, %.1f at 0.5\n",
+           changed[0], changed[1], changed[2], changed[3], changed[4]);
+      EXPECT(changed[1] > -40.0, "Crush 0.05 already changes a pip by more than a hundredth of itself");
+      EXPECT(changed[0] < changed[1] && changed[1] < changed[2] && changed[2] < changed[3] && changed[3] < changed[4],
+             "and every step up the knob changes it more");
+    }
     // The image of a 1318.5 Hz tone held at 6 kHz.
     EXPECT(tone_level(full, 6000.0 - 1318.51, kRate, 0, 1920) > 0.1 * tone_level(full, 1318.51, kRate, 0, 1920),
            "Crush 1 holds samples at about 6 kHz");
-    // About 5 bits: a soft pop is a staircase of a few levels.
+    // About 6 bits: a soft pop is a staircase of a few levels.
     {
       auto crushed = [](float crush) {
         return [crush](GlitchKit& d) {
@@ -805,9 +913,9 @@ static void test_controls() {
         widest = std::max(widest, static_cast<double>(seen[i] - seen[i - 1]));
       }
       NOTE("softest pop at Crush 1: %zu levels, %.4f to %.4f apart\n", seen.size(), narrowest, widest);
-      EXPECT(seen.size() >= 3 && seen.size() <= 8, "Crush 1 leaves the softest pop a few levels to sit on");
-      // One step of 5 bits over the kit's half scale, with the makeup: 0.5 / 16 * 1.06.
-      EXPECT(narrowest > 0.029 && widest < 0.037, "a thirty-second of the kit's working range apart: about 5 bits");
+      EXPECT(seen.size() >= 6 && seen.size() <= 18, "Crush 1 leaves the softest pop a dozen levels to sit on");
+      // One step of 6 bits over the kit's half scale, with the makeup: 0.5 / 32 * 1.06.
+      EXPECT(narrowest > 0.0155 && widest < 0.0178, "a sixty-fourth of full scale apart: about 6 bits");
     }
     double worst = 0.0;
     for (int k = 0; k < 12; ++k) {
@@ -817,6 +925,58 @@ static void test_controls() {
       worst = std::max(worst, std::fabs(change));
     }
     EXPECT(worst < 2.5, "Crush 1 keeps every voice's level within 2.5 dB");
+
+    // A hit that is struck sounds, however soft, short and coarse: the
+    // softest and shortest hits of every voice in five octaves, in the centre
+    // and thrown, alike and scattered, round and switched, at three rates.
+    for (float crush : {0.9f, 1.0f}) {
+      int silent = 0, struck = 0;
+      for (float rate : {48000.0f, 44100.0f, 96000.0f}) {
+        for (int way = 0; way < 6; ++way) {
+          const float scatter = way == 1 || way == 3 ? 1.0f : 0.0f;
+          const float spread = way == 2 || way == 3 ? 1.0f : 0.0f;
+          const float edge = way == 4 ? 1.0f : way == 5 ? 0.0f : 0.35f;
+          {
+            for (int k = 0; k < 12; ++k) {
+              for (int octave = -2; octave <= 2; ++octave) {
+                for (float gain : {0.0f, 0.05f, 0.1f}) {
+                  device.init(rate);
+                  device.set_param(p::kCrush, crush);
+                  device.set_param(p::kLength, 0.25f);
+                  device.set_param(p::kScatter, scatter);
+                  device.set_param(p::kSpread, spread);
+                  device.set_param(p::kEdge, edge);
+                  for (int n = 0; n < (scatter > 0.0f ? 4 : 1); ++n) {
+                    device.note_on(n, key_hz(k, octave), gain);
+                    // 0.3 s is past the end of the longest of them.
+                    bool heard = false;
+                    for (int block = 0; block < static_cast<int>(0.3f * rate / 128.0f); ++block) {
+                      device.process(128);
+                      for (int i = 0; i < 128 && !heard; ++i) {
+                        heard = device.out_left()[i] != 0.0f || device.out_right()[i] != 0.0f;
+                      }
+                    }
+                    ++struck;
+                    if (!heard) {
+                      ++silent;
+                      if (silent <= 8) {
+                        std::printf("  silent at Crush %.1f, %.0f Hz: the %s, octave %+d, velocity %.2f, Scatter %.0f, "
+                                    "Spread %.0f, Edge %.2f\n",
+                                    crush, rate, kNames[k], octave, gain, scatter, spread, edge);
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      NOTE("Crush %.1f: %d of %d soft short hits silent\n", crush, silent, struck);
+      char label[96];
+      std::snprintf(label, sizeof label, "no soft, short hit is silent at Crush %.1f", crush);
+      EXPECT(silent == 0 && struck == 6480, label);
+    }
   }
 
   // Volume.
@@ -853,6 +1013,34 @@ static void test_velocity() {
     std::snprintf(label, sizeof label, "and a soft %s is duller", kNames[key]);
     EXPECT(soft_share < 0.75 * hard_share, label);
   }
+}
+
+// A velocity that is not a number, or out of range, is still a hit.
+static void test_bad_notes() {
+  auto one = [](GlitchKit& d, float gain) {
+    plain(d);
+    d.note_on(1, key_hz(kE), gain);
+    return render(d, 0.25f, kRate).left;
+  };
+  std::vector<float> bad = one(device, std::nanf(""));
+  EXPECT(finite(bad) && peak(bad) > 0.01, "a hit with a velocity that is not a number sounds, and is finite");
+  EXPECT(bad == one(other, 0.5f), "at half velocity");
+  // The kit is whole after it: the next hit is the usual one.
+  device.note_on(2, key_hz(kE), 0.7f);
+  std::vector<float> next = render(device, 0.25f, kRate).left;
+  EXPECT(finite(next) && next == one(other, 0.7f), "and the hit after it is the hit it always was");
+  EXPECT(one(device, 5.0f) == one(other, 1.0f), "a velocity above 1 is 1");
+  EXPECT(one(device, -3.0f) == one(other, 0.0f), "and one below 0 is 0");
+  NOTE("pip at velocity NaN %.4f, 5 %.4f, -3 %.4f\n", peak(bad), peak(one(device, 5.0f)), peak(one(device, -3.0f)));
+
+  // init() leaves nothing behind: not even what a taken hit was running out with.
+  plain(device);
+  device.set_param(p::kTone, 1.0f);
+  Stereo taken = play(device, {{0, kE, 0, 1.0f}, {300, kE, 0, 1.0f}, {365, kE, 0, 1.0f}}, 366, 128);
+  device.init(kRate);
+  Stereo after = render(device, 0.1f, kRate);
+  EXPECT(peak(taken.left) > 0.01 && peak(after.left) == 0.0 && peak(after.right) == 0.0,
+         "init() in the middle of three strikes leaves silence");
 }
 
 // Scatter: 0 repeats exactly, 1 differs from hit to hit.
@@ -942,6 +1130,27 @@ static void test_scatter() {
   }
   EXPECT(widest < 6.0, "Scatter 1 keeps every voice's hits within about 6 dB of each other");
 
+  // The level itself is scattered, by up to 2 dB each way: the pop, whose
+  // peak neither its pitch nor its length moves much.
+  {
+    double span[2];
+    for (int which = 0; which < 2; ++which) {
+      plain(device);
+      device.set_param(p::kScatter, which == 0 ? 1.0f : 0.5f);
+      double quietest = 1.0e9, loudest = 0.0;
+      for (int n = 0; n < 60; ++n) {
+        device.note_on(n, key_hz(kD), 0.7f);
+        const double level = peak(render(device, 0.25f, kRate).left);
+        quietest = std::min(quietest, level);
+        loudest = std::max(loudest, level);
+      }
+      span[which] = db(loudest / quietest);
+    }
+    NOTE("pop over 60 hits: peaks %.2f dB apart at Scatter 1, %.2f dB at 0.5\n", span[0], span[1]);
+    EXPECT(span[0] > 3.0 && span[0] < 4.6, "Scatter 1 moves a hit's level by up to 2 dB each way");
+    EXPECT(span[1] > 1.4 && span[1] < 0.7 * span[0], "and Scatter 0.5 by half of that");
+  }
+
   // The stutter's grain is chosen per hit: a pip or a click.
   {
     plain(device);
@@ -956,6 +1165,46 @@ static void test_scatter() {
     }
     NOTE("stutter at the default Scatter: %d pip grains, %d click grains of 24\n", pips, clicks);
     EXPECT(pips >= 5 && clicks >= 5, "the stutter's grain is a pip or a click, chosen per hit");
+  }
+  // Whichever it is, the stutter peaks about the same: at every Length, low and high.
+  {
+    struct Case {
+      float length;
+      int octave;
+    };
+    double worst = 0.0;
+    for (const Case& c : {Case{1.0f, 0}, Case{0.25f, 0}, Case{4.0f, 0}, Case{1.0f, -2}, Case{1.0f, 1}}) {
+      plain(device);
+      device.set_param(p::kScatter, 0.25f);
+      device.set_param(p::kLength, c.length);
+      // How many samples of its first 10 ms a grain fills at its peak, and that peak.
+      std::vector<std::pair<double, double>> grains;
+      for (int n = 0; n < 60; ++n) {
+        device.note_on(n, key_hz(kAs, c.octave), 0.7f);
+        std::vector<float> x = render(device, 0.6f, kRate).left;
+        double energy = 0.0;
+        for (size_t i = 0; i < 480; ++i) energy += static_cast<double>(x[i]) * x[i];
+        const double top = peak(x, 0, 480);
+        grains.push_back({energy / (top * top), top});
+      }
+      // A held sine fills far more than a ring: the two kinds part at the widest gap.
+      std::sort(grains.begin(), grains.end());
+      size_t part = 1;
+      for (size_t i = 1; i < grains.size(); ++i) {
+        if (grains[i].first / grains[i - 1].first > grains[part].first / grains[part - 1].first) part = i;
+      }
+      std::vector<double> clicks, pips;
+      for (size_t i = 0; i < grains.size(); ++i) (i < part ? clicks : pips).push_back(grains[i].second);
+      std::sort(pips.begin(), pips.end());
+      std::sort(clicks.begin(), clicks.end());
+      const bool both = pips.size() >= 15 && clicks.size() >= 15 && grains[part].first > 1.3 * grains[part - 1].first;
+      const double gap = both ? db(clicks[clicks.size() / 2] / pips[pips.size() / 2]) : 99.0;
+      NOTE("stutter at Length %.2f, octave %+d: %zu pip grains filling %.0f samples or more, %zu click grains filling "
+           "%.0f or fewer, the click grain %+.2f dB in peak\n",
+           c.length, c.octave, pips.size(), grains[part].first, clicks.size(), grains[part - 1].first, gap);
+      worst = std::max(worst, std::fabs(gap));
+    }
+    EXPECT(worst < 3.0, "the stutter's click grain peaks within 3 dB of its pip grain");
   }
 
   // The same notes after another init are the same samples, whatever Scatter is.
@@ -1223,6 +1472,32 @@ static void test_levels() {
   Stereo pile = render(device, 0.5f, kRate);
   NOTE("all twelve keys at once at 6 dB: peak %.3f\n", peak(pile.left));
   EXPECT(peak(pile.left) <= 1.0 && peak(pile.left) > 0.8, "a pile of hits is rounded off under full scale");
+
+  // The clip is a knee, not a ceiling: the pile turned up past full scale is
+  // the quiet pile, scaled and bent along the knee's own curve.
+  {
+    auto piled = [](float volume) {
+      plain(device);
+      device.set_param(p::kVolume, volume);
+      for (int k = 0; k < 12; ++k) device.note_on(k, key_hz(k), 1.0f);
+      return render(device, 0.1f, kRate).left;
+    };
+    std::vector<float> quiet = piled(-12.0f), hot = piled(6.0f);
+    const double up = std::pow(10.0, 18.0 / 20.0);
+    double asked = 0.0, off = 0.0;
+    int bent = 0;
+    for (size_t i = 0; i < quiet.size(); ++i) {
+      const float linear = static_cast<float>(quiet[i] * up);
+      asked = std::max(asked, std::fabs(static_cast<double>(linear)));
+      off = std::max(off, std::fabs(static_cast<double>(livemix::kit::soft_clip(linear)) - hot[i]));
+      if (std::fabs(linear) > 0.6f) ++bent;
+    }
+    NOTE("twelve keys at 6 dB: ask for %.3f, peak at %.3f, %d samples past the knee, %.1e from its curve\n", asked,
+         peak(hot), bent, off);
+    EXPECT(asked > 1.2 && bent > 20, "twelve keys at full velocity and Volume 6 dB ask for more than full scale");
+    EXPECT(off < 1.0e-4 && peak(hot) <= 1.0,
+           "and the soft clip bends them under it along its knee instead of cutting them flat");
+  }
 }
 
 // --- other sample rates ---------------------------------------------------------------------
@@ -1231,6 +1506,7 @@ static void test_rates() {
   struct Reading {
     double length_ms[12], level_db[12];
     double pip_hz, click_hz, pop_ms, buzz_ms, bit_ms, zap_end, chirp_start, cut_rms, cut_bright, static_steps;
+    double crush_image, crush_change, round_early, round_late, steal_half, steal_late, ghost_fall, ghost_start;
   };
   auto read = [](float rate) {
     Reading r;
@@ -1257,9 +1533,70 @@ static void test_rates() {
     r.cut_rms = db(rms(cut, 5 * ms, 45 * ms));
     r.cut_bright = energy_above(cut, 2000.0, rate, 0, 50 * ms);
     r.static_steps = crossings(hit(kFs, 1.0f, 0.7f, 0, rate), 0, 100 * ms) / 0.1;
+
+    // Crush's clock is a rate in Hz: the image of the pip it leaves, and how
+    // much a little of it changes the pip.
+    auto crushed = [](float crush) {
+      return [crush](GlitchKit& d) {
+        d.set_param(p::kCrush, crush);
+        d.set_param(p::kTone, 1.0f);
+      };
+    };
+    r.crush_image = dominant_frequency(hit(kE, crushed(1.0f), 1.0f, 0.7f, 0, rate), rate, 3800.0, 5600.0, 0, 40 * ms);
+    r.crush_change = db(apart(hit(kE, crushed(0.0f), 1.0f, 0.7f, 0, rate), hit(kE, crushed(0.5f), 1.0f, 0.7f, 0, rate)));
+
+    // Edge 0 rounds an end over 3 ms, whatever the rate: a period of the pip
+    // early in the rise and one late in it, against the pip in full.
+    std::vector<float> round = hit(kE, [](GlitchKit& d) {
+      d.set_param(p::kEdge, 0.0f);
+      d.set_param(p::kTone, 1.0f);
+    }, 1.0f, 0.7f, 0, rate);
+    auto at = [rate](double milliseconds) { return static_cast<size_t>(milliseconds * 0.001 * rate + 0.5); };
+    r.round_early = rms(round, at(0.4), at(1.158)) / rms(round, at(10.0), at(20.0));
+    r.round_late = rms(round, at(1.9), at(2.658)) / rms(round, at(10.0), at(20.0));
+
+    // A key struck again fades the older hit over 4 ms, and a third strike
+    // leaves what it takes to run out over 2 ms: in seconds, not in samples.
+    auto strikes = [rate, at](const std::vector<double>& when) {
+      plain(device, rate);
+      device.set_param(p::kTone, 1.0f);
+      device.set_param(p::kEdge, 0.0f);
+      std::vector<Event> events;
+      for (double ms_in : when) events.push_back({at(ms_in), kE, 0, 0.7f});
+      return play(device, events, at(60.0), 128).left;
+    };
+    {
+      std::vector<float> once = strikes({0.0}), twice = strikes({0.0, 10.0});
+      const size_t again = at(10.0);
+      std::vector<float> rest(twice.size(), 0.0f);
+      for (size_t i = again; i < twice.size(); ++i) rest[i] = twice[i] - once[i - again];
+      r.steal_half = rms(rest, again + at(1.5), again + at(2.5)) / rms(once, again + at(1.5), again + at(2.5));
+      r.steal_late = peak(rest, again + at(5.0)) / peak(once);
+    }
+    {
+      // The third strike takes the first hit two thirds of the way through its
+      // fade. With the first hit left out the other two are the same samples,
+      // so the difference is what the taken hit runs out with.
+      std::vector<float> thrice = strikes({0.0, 6.25, 7.604}), pair = strikes({6.25, 7.604});
+      const size_t third = at(7.604);
+      std::vector<float> left(thrice.size(), 0.0f);
+      for (size_t i = third; i < thrice.size(); ++i) left[i] = thrice[i] - pair[i];
+      r.ghost_start = rms(left, third + at(0.05), third + at(0.15)) / peak(pair);
+      r.ghost_fall = rms(left, third + at(0.55), third + at(0.65)) / rms(left, third + at(0.05), third + at(0.15));
+    }
     return r;
   };
   const Reading base = read(48000.0f);
+  NOTE("48 kHz: Crush 1 leaves the pip's image at %.0f Hz, Crush 0.5 changes it %.1f dB; Edge 0 has the pip at %.3f "
+       "after 0.8 ms and %.3f after 2.3 ms; struck again, the older hit is at %.2f after 2 ms and %.1e after 5 ms; "
+       "taken, it is left at %.3f and falls to %.3f of that in 0.5 ms\n",
+       base.crush_image, base.crush_change, base.round_early, base.round_late, base.steal_half, base.steal_late,
+       base.ghost_start, base.ghost_fall);
+  EXPECT_NEAR(base.crush_image, 6000.0 - 1318.51, 40.0, "Crush 1 holds samples at 6 kHz: the pip's image is at 4681 Hz");
+  EXPECT(base.round_early < 0.3 && base.round_late > 0.6, "Edge 0 rounds the pip's start over 3 ms");
+  // e^(-0.5 / 0.3): a time constant of 0.3 ms, which is 60 dB in about 2 ms.
+  EXPECT(base.ghost_start > 0.05 && base.ghost_fall > 0.13 && base.ghost_fall < 0.26,
+         "what a taken hit leaves runs out over about 2 ms");
   for (float rate : {44100.0f, 96000.0f}) {
     const Reading r = read(rate);
     double length = 0.0, level = 0.0;
@@ -1287,6 +1624,25 @@ static void test_rates() {
     EXPECT(std::fabs(r.cut_rms - base.cut_rms) < 1.0 && std::fabs(r.cut_bright - base.cut_bright) < 0.1, label);
     std::snprintf(label, sizeof label, "the static's grain is the same at %.0f Hz", rate);
     EXPECT(std::fabs(r.static_steps / base.static_steps - 1.0) < 0.15, label);
+
+    NOTE("%.0f Hz: Crush image %.0f Hz, Crush 0.5 changes the pip %.1f dB; Edge 0 pip at %.3f and %.3f; struck "
+         "again %.2f after 2 ms, %.1e after 5 ms; taken, left at %.3f and falls to %.3f\n",
+         rate, r.crush_image, r.crush_change, r.round_early, r.round_late, r.steal_half, r.steal_late, r.ghost_start,
+         r.ghost_fall);
+    std::snprintf(label, sizeof label, "Crush's clock is the same rate in Hz at %.0f Hz", rate);
+    EXPECT(std::fabs(r.crush_image / base.crush_image - 1.0) < 0.01 && std::fabs(r.crush_change - base.crush_change) < 2.0,
+           label);
+    std::snprintf(label, sizeof label, "Edge 0 rounds an end over the same 3 ms at %.0f Hz", rate);
+    EXPECT(std::fabs(r.round_early / base.round_early - 1.0) < 0.15 && std::fabs(r.round_late / base.round_late - 1.0) < 0.1,
+           label);
+    std::snprintf(label, sizeof label, "a key struck again fades the older hit over the same 4 ms at %.0f Hz", rate);
+    EXPECT(r.steal_half > 0.3 && r.steal_half < 0.7 && std::fabs(r.steal_half - base.steal_half) < 0.05 &&
+               r.steal_late < 1.0e-4,
+           label);
+    std::snprintf(label, sizeof label, "and a taken hit runs out over the same 2 ms at %.0f Hz", rate);
+    EXPECT(r.ghost_start > 0.05 && r.ghost_fall > 0.13 && r.ghost_fall < 0.26 &&
+               std::fabs(r.ghost_fall / base.ghost_fall - 1.0) < 0.2,
+           label);
   }
 }
 
@@ -1403,6 +1759,7 @@ int main() {
   test_voices();
   test_controls();
   test_velocity();
+  test_bad_notes();
   test_scatter();
   test_spread();
   test_retrigger();
@@ -1421,6 +1778,23 @@ int main() {
     render(device, 4.0f, kRate);
     Stereo after = render(device, 0.5f, kRate);
     EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, "the longest hits have ended after 4 s");
+  }
+
+  // Asleep, the kit costs next to nothing: ten seconds of silence after a
+  // bar against ten seconds of bars. Each is the fastest of seven runs, so a
+  // busy machine does not fail it.
+  {
+    const std::vector<Event> bar = busy_bar(kRate, 0.8f, 5);
+    double busy = 1.0e30, asleep = 1.0e30;
+    for (int run = 0; run < 7; ++run) {
+      device.init(kRate);
+      busy = std::min(busy, spin(device, bar, 480000));
+      spin(device, {}, 24000);  // the last hit ends and the kit falls asleep
+      asleep = std::min(asleep, spin(device, {}, 480000));
+    }
+    std::printf("glitch-kit asleep: %.3f us per 128-frame block against %.2f us busy, %.0f times less\n",
+                asleep / 3750.0, busy / 3750.0, busy / asleep);
+    EXPECT(busy > 8.0 * asleep, "silence after the last hit costs less than an eighth of a busy bar");
   }
 
   // Cost of a busy bar, looped for 10 s.
