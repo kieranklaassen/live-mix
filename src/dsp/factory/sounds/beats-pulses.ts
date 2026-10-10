@@ -184,7 +184,7 @@ const FIGURES: readonly FactorySound[] = [
   sound({
     id: 'pulse-harp-three-four-a',
     number: 378,
-    name: 'Harp three on four {A}',
+    name: 'Harp cross rhythm {A}',
     kind: 'beat',
     description:
       'A harp keeps four low notes going on {A} and its fifth while three slower ones fall across them from above.',
@@ -203,7 +203,7 @@ const FIGURES: readonly FactorySound[] = [
   sound({
     id: 'pulse-vibes-five-four-d',
     number: 379,
-    name: 'Vibes five on four {D}',
+    name: 'Vibes quintuplets {D}',
     kind: 'beat',
     description:
       'A vibraphone marks four beats on {D} while five even notes climb and turn above them in the same time.',
