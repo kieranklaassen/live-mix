@@ -1,0 +1,283 @@
+{
+  "id": "overtone",
+  "name": "Overtone",
+  "category": "instrument",
+  "description": "Overtone drone voice: a low or middle note is held while its mouth picks single harmonics out of its own tone, so a whistled melody floats over the drone and walks by itself.",
+  "class": "Overtone",
+  "header": "overtone.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "voice",
+      "name": "Voice",
+      "choices": ["Throat", "Pipe", "Reed"],
+      "default": 0,
+      "description": "What makes the drone. Throat is a pressed nasal voice, Pipe a long wooden tube with hollow odd harmonics, Reed a lean bright buzz in a hollow mouth."
+    },
+    {
+      "key": "overtone",
+      "name": "Overtone",
+      "min": 3,
+      "max": 16,
+      "default": 8,
+      "description": "Which harmonic of the note the mouth whistles, gliding from one to the next. Harmonics 7, 11, 13 and 14 fall between the keys. High notes reach only the low ones."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How sharply the chosen harmonic stands out of the drone. Low is a broad open vowel, high is a clear whistle above a quieter drone."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far the whistle walks from its harmonic by itself. It rests only on harmonics close to a key: octaves, fifths, thirds and a second over the note. At zero it stays."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.1,
+      "max": 8,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often the wandering whistle takes a step. All held notes step together, so a chord moves as one."
+    },
+    {
+      "key": "breath",
+      "name": "Breath",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How much air is in the tone. The air passes through the same mouth, so it hisses in the drone and whistles at the chosen harmonic."
+    },
+    {
+      "key": "growl",
+      "name": "Growl",
+      "min": 0,
+      "max": 1,
+      "default": 0.12,
+      "description": "Roughness under the note: an unsteady rattle an octave below that fills the gaps between the harmonics, like a deep throat or buzzing lips."
+    },
+    {
+      "key": "vibrato",
+      "name": "Vibrato",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Depth of the waver in pitch. It comes in a moment after a note starts and the whistle moves with it."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 0.005,
+      "max": 6,
+      "default": 0.12,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to swell in. Short speaks at once like a plucked reed, long rises like a slow breath."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to fade out after the key is let go."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the whistles drift left and right of their drones and how far apart the notes of a chord stand. At zero everything is in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Throat song": {
+      "voice": 0,
+      "overtone": 8,
+      "focus": 0.75,
+      "wander": 0.5,
+      "pace": 0.6,
+      "breath": 0.2,
+      "growl": 0.12,
+      "vibrato": 0.15,
+      "attack": 0.12,
+      "release": 1.2
+    },
+    "Still whistle": {
+      "overtone": 12,
+      "focus": 1,
+      "wander": 0,
+      "breath": 0.08,
+      "growl": 0,
+      "vibrato": 0.1,
+      "attack": 0.5,
+      "release": 2.5
+    },
+    "Low growl": {
+      "overtone": 6,
+      "focus": 0.6,
+      "wander": 0.35,
+      "pace": 0.3,
+      "breath": 0.1,
+      "growl": 0.8,
+      "volume": -10.5
+    },
+    "Drone pipe": {
+      "voice": 1,
+      "overtone": 5,
+      "focus": 0.45,
+      "wander": 0.3,
+      "pace": 0.25,
+      "growl": 0.35,
+      "attack": 0.3,
+      "volume": -8
+    },
+    "Jaw harp": {
+      "voice": 2,
+      "focus": 0.9,
+      "wander": 0.7,
+      "pace": 4,
+      "breath": 0,
+      "growl": 0,
+      "vibrato": 0,
+      "attack": 0.005,
+      "release": 0.3
+    },
+    "Slow chant": {
+      "wander": 0.65,
+      "pace": 0.15,
+      "vibrato": 0.25,
+      "attack": 1.5,
+      "release": 4
+    },
+    "Breath pipe": {
+      "voice": 1,
+      "overtone": 9,
+      "focus": 0.55,
+      "wander": 0.35,
+      "pace": 0.4,
+      "breath": 0.8,
+      "growl": 0.1,
+      "attack": 0.5,
+      "release": 2
+    },
+    "High whistle": {
+      "voice": 1,
+      "overtone": 16,
+      "focus": 1,
+      "wander": 0.5,
+      "pace": 1,
+      "breath": 0.1,
+      "growl": 0,
+      "release": 2
+    },
+    "Open vowels": {
+      "overtone": 6,
+      "focus": 0.2,
+      "wander": 1,
+      "pace": 0.3,
+      "breath": 0.3,
+      "attack": 0.4,
+      "release": 2
+    },
+    "Reed drone": {
+      "voice": 2,
+      "overtone": 9,
+      "focus": 0.6,
+      "wander": 0.3,
+      "pace": 0.35,
+      "growl": 0.25,
+      "attack": 0.4,
+      "release": 2.5,
+      "volume": -10
+    },
+    "Quick steps": {
+      "overtone": 10,
+      "focus": 0.9,
+      "wander": 1,
+      "pace": 3,
+      "growl": 0,
+      "vibrato": 0.05,
+      "attack": 0.03,
+      "release": 0.6,
+      "width": 0.9
+    },
+    "Deep chant": {
+      "overtone": 4,
+      "focus": 0.5,
+      "wander": 0.35,
+      "pace": 0.2,
+      "growl": 0.5,
+      "vibrato": 0.2,
+      "attack": 0.8,
+      "release": 3,
+      "volume": -10.5
+    },
+    "Air whistle": {
+      "overtone": 10,
+      "focus": 1,
+      "wander": 0.4,
+      "pace": 0.5,
+      "breath": 1,
+      "growl": 0,
+      "attack": 0.6,
+      "release": 2.5,
+      "volume": -10.5
+    },
+    "Wide chord": {
+      "focus": 0.6,
+      "wander": 0.3,
+      "pace": 0.25,
+      "vibrato": 0.4,
+      "attack": 0.7,
+      "release": 3.5,
+      "width": 1
+    },
+    "Lip buzz": {
+      "voice": 1,
+      "overtone": 3,
+      "focus": 0.3,
+      "wander": 0,
+      "breath": 0.3,
+      "growl": 1,
+      "vibrato": 0,
+      "attack": 0.03,
+      "release": 0.5
+    },
+    "Glass harmonic": {
+      "voice": 2,
+      "overtone": 16,
+      "focus": 1,
+      "wander": 0,
+      "breath": 0.05,
+      "growl": 0,
+      "vibrato": 0.3,
+      "attack": 1.2,
+      "release": 5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A band-limited pulse train is coloured by one of three fixed bodies and passed, in parallel, through two sharp resonators in series that sit on one harmonic of the note, the way overtone singing, a long drone pipe and a mouth harp all let a resonant mouth pick partials out of a steady buzz. The source, the bodies and the mouth are simple filters and the wandering is a seeded walk; it is not a model of any one instrument, singer or product."
+  }
+}

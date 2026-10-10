@@ -100,6 +100,8 @@ build_generated_devices() {
     cpp/devices/organ/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device outdoors \
     cpp/devices/outdoors/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device overtone \
+    cpp/devices/overtone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pad-follower \
     cpp/devices/pad-follower/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device patina \
@@ -275,6 +277,8 @@ test_generated_devices() {
     cpp/test/organ_test.cpp
   native_test outdoors_test \
     cpp/test/outdoors_test.cpp
+  native_test overtone_test \
+    cpp/test/overtone_test.cpp
   native_test pad_follower_test \
     cpp/test/pad_follower_test.cpp
   native_test patina_test \

@@ -49,6 +49,7 @@ import { NOISE_FLOOR_DESCRIPTOR, NOISE_FLOOR_DEVICE } from './noise-floor.gen'
 import { OCTAVES_DESCRIPTOR, OCTAVES_DEVICE } from './octaves.gen'
 import { ORGAN_DESCRIPTOR, ORGAN_DEVICE } from './organ.gen'
 import { OUTDOORS_DESCRIPTOR, OUTDOORS_DEVICE } from './outdoors.gen'
+import { OVERTONE_DESCRIPTOR, OVERTONE_DEVICE } from './overtone.gen'
 import { PAD_FOLLOWER_DESCRIPTOR, PAD_FOLLOWER_DEVICE } from './pad-follower.gen'
 import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
 import { PEDAL_STEEL_DESCRIPTOR, PEDAL_STEEL_DEVICE } from './pedal-steel.gen'
@@ -134,6 +135,7 @@ export * from './noise-floor.gen'
 export * from './octaves.gen'
 export * from './organ.gen'
 export * from './outdoors.gen'
+export * from './overtone.gen'
 export * from './pad-follower.gen'
 export * from './patina.gen'
 export * from './pedal-steel.gen'
@@ -221,6 +223,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   OCTAVES_DESCRIPTOR,
   ORGAN_DESCRIPTOR,
   OUTDOORS_DESCRIPTOR,
+  OVERTONE_DESCRIPTOR,
   PAD_FOLLOWER_DESCRIPTOR,
   PATINA_DESCRIPTOR,
   PEDAL_STEEL_DESCRIPTOR,
@@ -309,6 +312,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   OCTAVES_DEVICE,
   ORGAN_DEVICE,
   OUTDOORS_DEVICE,
+  OVERTONE_DEVICE,
   PAD_FOLLOWER_DEVICE,
   PATINA_DEVICE,
   PEDAL_STEEL_DEVICE,
@@ -404,6 +408,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'octaves', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'organ', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'outdoors', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'overtone', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'pad-follower', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'patina', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'pedal-steel', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

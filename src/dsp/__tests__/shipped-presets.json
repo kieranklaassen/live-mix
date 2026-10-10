@@ -2028,5 +2028,24 @@
     "Low magnets": {"bloom":2.5,"harmonic":1,"bright":0.9,"hammer":0,"shimmer":0.5,"sweep":0,"sweepRate":0.12,"sympathy":0.3,"damper":4,"body":0.8,"width":0.6,"volume":-6},
     "Ripple": {"bloom":0.2,"harmonic":3.5,"bright":0.15,"hammer":0,"shimmer":0.25,"sweep":1,"sweepRate":1.2,"sympathy":0.3,"damper":2,"body":0.4,"width":0.6,"volume":-6},
     "Still sine": {"bloom":0.5,"harmonic":1,"bright":0,"hammer":0,"shimmer":0,"sweep":0,"sweepRate":0.12,"sympathy":0,"damper":1.5,"body":0,"width":0,"volume":-8.5}
+  },
+  "overtone": {
+    "(default)": {"voice":0,"overtone":8,"focus":0.75,"wander":0.5,"pace":0.6,"breath":0.2,"growl":0.12,"vibrato":0.15,"attack":0.12,"release":1.2,"width":0.6,"volume":-9},
+    "Throat song": {"voice":0,"overtone":8,"focus":0.75,"wander":0.5,"pace":0.6,"breath":0.2,"growl":0.12,"vibrato":0.15,"attack":0.12,"release":1.2,"width":0.6,"volume":-9},
+    "Still whistle": {"voice":0,"overtone":12,"focus":1,"wander":0,"pace":0.6,"breath":0.08,"growl":0,"vibrato":0.1,"attack":0.5,"release":2.5,"width":0.6,"volume":-9},
+    "Low growl": {"voice":0,"overtone":6,"focus":0.6,"wander":0.35,"pace":0.3,"breath":0.1,"growl":0.8,"vibrato":0.15,"attack":0.12,"release":1.2,"width":0.6,"volume":-10.5},
+    "Drone pipe": {"voice":1,"overtone":5,"focus":0.45,"wander":0.3,"pace":0.25,"breath":0.2,"growl":0.35,"vibrato":0.15,"attack":0.3,"release":1.2,"width":0.6,"volume":-8},
+    "Jaw harp": {"voice":2,"overtone":8,"focus":0.9,"wander":0.7,"pace":4,"breath":0,"growl":0,"vibrato":0,"attack":0.005,"release":0.3,"width":0.6,"volume":-9},
+    "Slow chant": {"voice":0,"overtone":8,"focus":0.75,"wander":0.65,"pace":0.15,"breath":0.2,"growl":0.12,"vibrato":0.25,"attack":1.5,"release":4,"width":0.6,"volume":-9},
+    "Breath pipe": {"voice":1,"overtone":9,"focus":0.55,"wander":0.35,"pace":0.4,"breath":0.8,"growl":0.1,"vibrato":0.15,"attack":0.5,"release":2,"width":0.6,"volume":-9},
+    "High whistle": {"voice":1,"overtone":16,"focus":1,"wander":0.5,"pace":1,"breath":0.1,"growl":0,"vibrato":0.15,"attack":0.12,"release":2,"width":0.6,"volume":-9},
+    "Open vowels": {"voice":0,"overtone":6,"focus":0.2,"wander":1,"pace":0.3,"breath":0.3,"growl":0.12,"vibrato":0.15,"attack":0.4,"release":2,"width":0.6,"volume":-9},
+    "Reed drone": {"voice":2,"overtone":9,"focus":0.6,"wander":0.3,"pace":0.35,"breath":0.2,"growl":0.25,"vibrato":0.15,"attack":0.4,"release":2.5,"width":0.6,"volume":-10},
+    "Quick steps": {"voice":0,"overtone":10,"focus":0.9,"wander":1,"pace":3,"breath":0.2,"growl":0,"vibrato":0.05,"attack":0.03,"release":0.6,"width":0.9,"volume":-9},
+    "Deep chant": {"voice":0,"overtone":4,"focus":0.5,"wander":0.35,"pace":0.2,"breath":0.2,"growl":0.5,"vibrato":0.2,"attack":0.8,"release":3,"width":0.6,"volume":-10.5},
+    "Air whistle": {"voice":0,"overtone":10,"focus":1,"wander":0.4,"pace":0.5,"breath":1,"growl":0,"vibrato":0.15,"attack":0.6,"release":2.5,"width":0.6,"volume":-10.5},
+    "Wide chord": {"voice":0,"overtone":8,"focus":0.6,"wander":0.3,"pace":0.25,"breath":0.2,"growl":0.12,"vibrato":0.4,"attack":0.7,"release":3.5,"width":1,"volume":-9},
+    "Lip buzz": {"voice":1,"overtone":3,"focus":0.3,"wander":0,"pace":0.6,"breath":0.3,"growl":1,"vibrato":0,"attack":0.03,"release":0.5,"width":0.6,"volume":-9},
+    "Glass harmonic": {"voice":2,"overtone":16,"focus":1,"wander":0,"pace":0.6,"breath":0.05,"growl":0,"vibrato":0.3,"attack":1.2,"release":5,"width":0.6,"volume":-9}
   }
 }

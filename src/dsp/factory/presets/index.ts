@@ -28,6 +28,7 @@ import { MALLETS_PRESETS } from './mallets'
 import { MODAL_BELLS_PRESETS } from './modal-bells'
 import { ORGAN_PRESETS } from './organ'
 import { OUTDOORS_PRESETS } from './outdoors'
+import { OVERTONE_PRESETS } from './overtone'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
 import { STRING_MACHINE_PRESETS } from './string-machine'
@@ -78,4 +79,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZONE_SAMPLER_PRESETS,
   ...FLOCK_PRESETS,
   ...MAGNET_PIANO_PRESETS,
+  ...OVERTONE_PRESETS,
 ]
