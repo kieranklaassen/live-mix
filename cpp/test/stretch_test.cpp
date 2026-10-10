@@ -72,6 +72,67 @@ static Range watch(Stretch& d, const std::vector<float>& input, int meter, doubl
   return range;
 }
 
+// The largest second difference of `x` between two places: a click reads as
+// its own size there, a low note as almost nothing.
+static double max_bend(const std::vector<float>& x, size_t from, size_t to) {
+  double worst = 0.0;
+  for (size_t n = std::max<size_t>(from, 2); n < std::min(to, x.size()); ++n) {
+    worst = std::max(worst, static_cast<double>(std::fabs(x[n] - 2.0f * x[n - 1] + x[n - 2])));
+  }
+  return worst;
+}
+
+// The lowest and the highest level (dB) of `x` over windows of 20 ms, between two places.
+static Range levels(const std::vector<float>& x, size_t from, size_t to) {
+  Range range;
+  for (size_t at = from; at + 960 <= std::min(to, x.size()); at += 480) {
+    const double level = db(rms(x, at, at + 960));
+    range.low = std::min(range.low, level);
+    range.high = std::max(range.high, level);
+  }
+  return range;
+}
+
+// Runs `input` in blocks, keeps the left output, and marks every sample that
+// sounds while the reader runs up to the present (the speed meter above 1,
+// and the two and a half windows its frames take to play out).
+static std::vector<float> run_marked(Stretch& d, const std::vector<float>& input, int frame, std::vector<char>* running,
+                                     int* runs) {
+  std::vector<float> out(input.size(), 0.0f);
+  running->assign(input.size(), 0);
+  *runs = 0;
+  bool was = false;
+  long hold = 0;
+  for (size_t done = 0; done + 64 <= input.size(); done += 64) {
+    for (int i = 0; i < 64; ++i) d.in_left()[i] = d.in_right()[i] = input[done + i];
+    d.process(64);
+    for (int i = 0; i < 64; ++i) out[done + i] = d.out_left()[i];
+    const bool fast = d.meter(2) > 1.0f;
+    if (fast && !was) ++*runs;
+    was = fast;
+    if (fast) hold = 2 * frame + frame / 2;
+    for (int i = 0; i < 64; ++i) (*running)[done + i] = hold > 0 ? 1 : 0;
+    if (hold > 0) hold -= 64;
+  }
+  return out;
+}
+
+// A played phrase: five notes with sharp attacks, and a rest.
+static std::vector<float> phrase(float seconds) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  const float notes[5] = {220.0f, 329.63f, 277.18f, 440.0f, 246.94f};
+  for (size_t i = 0; i < out.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    const double beat = std::fmod(t, 0.55);
+    const int which = static_cast<int>(t / 0.55) % 6;
+    if (which < 5) {
+      const double env = std::min(1.0, beat / 0.002) * std::exp(-beat * 6.0);
+      out[i] = static_cast<float>(0.6 * env * (std::sin(2.0 * kPi * notes[which] * beat) + 0.4 * std::sin(4.0 * kPi * notes[which] * beat)));
+    }
+  }
+  return out;
+}
+
 // PRESETS-BEGIN
 // The presets of device.json, in its order: the controls each one sets (-1 ends the list).
 struct Preset {
@@ -415,9 +476,10 @@ int main() {
     EXPECT(std::fabs(level) < 0.5, "Width leaves the two sides equally loud");
   }
 
-  // Tone is a shelf at 1 kHz on the cloud that only takes away: at -1 the
-  // highs are 12 dB down and the lows stay, at 1 the lows are 12 dB down
-  // and the highs stay, and the middle is flat.
+  // Tone splits the cloud at 1 kHz (one pole) and only takes away: at -1 the
+  // highs go down (10 dB at 5 kHz, on the way to 12) and the lows stay, at 1
+  // the lows go down (10 dB at 200 Hz) and the highs stay, and the middle is
+  // flat.
   {
     std::vector<float> two = sine(200.0f, 6.0f, kRate, 0.15f);
     const std::vector<float> high = sine(5000.0f, 6.0f, kRate, 0.15f);
@@ -437,9 +499,30 @@ int main() {
     char label[200];
     std::snprintf(label, sizeof label, "Tone at -1, 0 and 1: 5 kHz comes out at %+.1f, %+.1f and %+.1f dB, 200 Hz at %+.1f, %+.1f and %+.1f dB",
                   high_db[0], high_db[1], high_db[2], low_db[0], low_db[1], low_db[2]);
-    EXPECT(std::fabs(high_db[0] - high_db[1] + 12.0) < 1.5 && std::fabs(high_db[2] - high_db[1]) < 1.5 &&
-               std::fabs(low_db[0] - low_db[1]) < 1.5 && std::fabs(low_db[2] - low_db[1] + 12.0) < 1.5 &&
+    EXPECT(std::fabs(high_db[0] - high_db[1] + 10.0) < 1.0 && std::fabs(high_db[2] - high_db[1]) < 1.0 &&
+               std::fabs(low_db[0] - low_db[1]) < 1.0 && std::fabs(low_db[2] - low_db[1] + 10.0) < 1.0 &&
                std::fabs(high_db[1]) < 2.0 && std::fabs(low_db[1]) < 2.0,
+           label);
+    // The far ends: all of the 12 dB, and no more.
+    std::vector<float> ends = sine(40.0f, 6.0f, kRate, 0.15f);
+    const std::vector<float> top = sine(14000.0f, 6.0f, kRate, 0.15f);
+    for (size_t n = 0; n < ends.size(); ++n) ends[n] += top[n];
+    double low_end[2], high_end[2];
+    i = 0;
+    for (float tone : {-1.0f, 1.0f}) {
+      wet(device);
+      device.set_param(p::kDiffuse, 0.0f);
+      device.set_param(p::kWindow, 3.0f);
+      device.set_param(p::kTone, tone);
+      Stereo out = run(device, ends);
+      low_end[i] = db(tone_level(out.left, 40.0, kRate, 3 * 48000, 5 * 48000) / 0.15);
+      high_end[i] = db(tone_level(out.left, 14000.0, kRate, 3 * 48000, 5 * 48000) / 0.15);
+      ++i;
+    }
+    std::snprintf(label, sizeof label, "Tone at its ends takes 12 dB and no more: 14 kHz %+.1f dB at -1, 40 Hz %+.1f dB at 1",
+                  high_end[0] - high_end[1], low_end[1] - low_end[0]);
+    EXPECT(high_end[0] - high_end[1] < -11.0 && high_end[0] - high_end[1] > -12.5 && low_end[1] - low_end[0] < -11.0 &&
+               low_end[1] - low_end[0] > -12.5,
            label);
   }
 
@@ -470,11 +553,11 @@ int main() {
   // Part-way Mix. The cloud is late and scattered, not a copy of the dry
   // note in step with it. At the defaults (all scattered) held tones over
   // the piano's range keep their level second by second: what moves it is
-  // only the cloud's own shimmer. With Diffuse at 0 the cloud is the
-  // pure note itself, and against the same note in the dry signal it adds
-  // and cancels by turns as the two wander apart (a slow breathing, by
-  // kWalk): over half a minute the level is the input's, and no note stays
-  // cancelled.
+  // only the cloud's own shimmer. With Diffuse lower the cloud holds the
+  // pure note itself; left alone it would add to the same note in the dry
+  // signal and then cancel it for seconds (a second of -28 dB was measured).
+  // Kept a quarter turn from the played note the two add as power, and the
+  // level stays.
   {
     double worst = 0.0, best = -100.0, worst_hz = 0.0;
     for (int k = 0; k < 30; ++k) {
@@ -494,24 +577,50 @@ int main() {
     char label[200];
     std::snprintf(label, sizeof label, "Mix 0.5 at the defaults: held tones from 27.5 Hz to 4.2 kHz stay between %+.2f dB (at %.1f Hz) and %+.2f dB of the input, second by second",
                   worst, worst_hz, best);
-    EXPECT(worst > -4.0 && best < 3.0, label);
-    for (float hz : {27.5f, 440.0f, 1760.0f, 4186.0f}) {
-      device.init(kRate);
-      device.set_param(p::kDiffuse, 0.0f);
-      const std::vector<float> tone = sine(hz, 40.0f, kRate, 0.5f);
-      Stereo out = run(device, tone);
-      const double level = db(rms(out.left, 2 * 48000, out.left.size()) / rms(tone));
-      int low_seconds = 0, longest = 0, run_of_low = 0;
-      for (size_t second = 2; second < 40; ++second) {
-        const bool low = rms(out.left, second * 48000, (second + 1) * 48000) < 0.5 * rms(tone);
-        low_seconds += low ? 1 : 0;
-        run_of_low = low ? run_of_low + 1 : 0;
-        longest = std::max(longest, run_of_low);
+    EXPECT(worst > -3.0 && best < 3.0, label);
+    const float diffuses[3] = {0.0f, 0.25f, 0.5f};
+    const double bounds[3] = {0.5, 1.5, 3.0};
+    for (int d = 0; d < 3; ++d) {
+      for (int window : {0, 2, 3}) {
+        double low = 0.0, high = -100.0, low_hz = 0.0;
+        for (float hz : {27.5f, 110.0f, 440.0f, 1760.0f, 4186.0f}) {
+          // A note under the window's third bin has less than three of its
+          // cycles in it: no one partial to read there.
+          if (hz * kFrames[window] / kRate < 3.0f) continue;
+          device.init(kRate);
+          device.set_param(p::kDiffuse, diffuses[d]);
+          device.set_param(p::kWindow, static_cast<float>(window));
+          const std::vector<float> tone = sine(hz, 24.0f, kRate, 0.5f);
+          Stereo out = run(device, tone);
+          for (size_t second = 3; second < 24; ++second) {
+            const double level = db(rms(out.left, second * 48000, (second + 1) * 48000) / rms(tone));
+            if (level < low) {
+              low = level;
+              low_hz = hz;
+            }
+            high = std::max(high, level);
+          }
+        }
+        std::snprintf(label, sizeof label, "Mix 0.5, Diffuse %.2f, window %d: held tones stay between %+.2f dB (at %.1f Hz) and %+.2f dB of the input, second by second",
+                      diffuses[d], window, low, low_hz, high);
+        EXPECT(low > -bounds[d] && high < bounds[d], label);
       }
-      std::snprintf(label, sizeof label, "Mix 0.5, Diffuse 0: a held %.1f Hz is %+.2f dB of the input over 38 s; %d of its seconds are 6 dB down or more, %d in a row at most",
-                    hz, level, low_seconds, longest);
-      EXPECT(level > -2.0 && level < 2.5 && low_seconds <= 19, label);
     }
+    // The same on both sides of a wide cloud, and with the note on one side only.
+    device.init(kRate);
+    device.set_param(p::kDiffuse, 0.0f);
+    device.set_param(p::kWidth, 1.0f);
+    const std::vector<float> tone = sine(440.0f, 20.0f, kRate, 0.5f);
+    Stereo wide = run(device, tone, silence(20.0f, kRate));
+    double low = 0.0, high = -100.0;
+    for (size_t second = 3; second < 20; ++second) {
+      const double level = db(rms(wide.left, second * 48000, (second + 1) * 48000) / rms(tone));
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::snprintf(label, sizeof label, "Mix 0.5, Diffuse 0, a note on the left only: it stays between %+.2f and %+.2f dB, and the right is silent (%g)",
+                  low, high, peak(wide.right));
+    EXPECT(low > -0.5 && high < 0.5 && peak(wide.right) == 0.0, label);
   }
 
   // Bad input: samples that are not numbers, infinite or absurd do not get
@@ -709,6 +818,215 @@ int main() {
     Stereo thawed = run(device, note);
     std::snprintf(label, sizeof label, "Freeze on and off while sounding: steps %.4f and %.4f against %.4f unmoved", max_step(frozen.left), max_step(thawed.left), plain);
     EXPECT(max_step(frozen.left) < plain * 1.3 && max_step(thawed.left) < plain * 1.3, label);
+  }
+
+  // The run back to the present. A held note is the same note everywhere in
+  // the memory, so with Diffuse at 0 it goes through a catch-up unbroken,
+  // the short jump and the long run alike: each partial's phase is carried
+  // on from frame to frame through it. (With every phase thrown and the
+  // level raised for it, as a run used to be made, the note fell by 20 dB
+  // and rose by 6 for as long as the run lasted.)
+  {
+    const std::vector<float> note = sine(440.0f, 12.0f, kRate, 0.5f);
+    const double level_in = db(0.5 / std::sqrt(2.0));
+    for (int window : {0, 2, 3}) {
+      for (float catch_up : {0.05f, 1.5f}) {
+        wet(device);
+        device.set_param(p::kWindow, static_cast<float>(window));
+        device.set_param(p::kStretch, 4.0f);
+        device.set_param(p::kMemory, 2.0f);
+        device.set_param(p::kCatchUp, catch_up);
+        device.set_param(p::kDiffuse, 0.0f);
+        std::vector<char> running;
+        int runs = 0;
+        const std::vector<float> out = run_marked(device, note, kFrames[window], &running, &runs);
+        Range range = levels(out, 48000, out.size());
+        const double bend = max_bend(out, 48000, out.size());
+        char label[200];
+        std::snprintf(label, sizeof label, "a held note goes through the catch-up unbroken: window %d, Catch Up %.2f s, %d runs, level %+.2f to %+.2f dB of the note, bend %.5f",
+                      window, catch_up, runs, range.low - level_in, range.high - level_in, bend);
+        // A 440 Hz sine of 0.5 bends by 0.5 (2 pi 440 / 48000)^2 = 0.00166 a sample.
+        EXPECT(runs >= 3 && range.low - level_in > -1.0 && range.high - level_in < 1.0 && bend < 0.0025, label);
+      }
+    }
+    // Played material, all scattered and pure: nothing in the cloud while it
+    // runs up bends more sharply than the playing itself does anywhere, and
+    // the run is no louder than the reading.
+    const std::vector<float> played = phrase(20.0f);
+    const double own = max_bend(played, 0, played.size());
+    for (float diffuse : {1.0f, 0.0f}) {
+      for (float catch_up : {0.05f, 1.5f}) {
+        wet(device);
+        device.set_param(p::kStretch, 4.0f);
+        device.set_param(p::kMemory, 2.0f);
+        device.set_param(p::kCatchUp, catch_up);
+        device.set_param(p::kDiffuse, diffuse);
+        std::vector<char> running;
+        int runs = 0;
+        const std::vector<float> out = run_marked(device, played, kFrames[2], &running, &runs);
+        double bend_running = 0.0, bend_reading = 0.0, power_running = 0.0, power_reading = 0.0;
+        size_t count_running = 0, count_reading = 0;
+        for (size_t n = 48000; n < out.size(); ++n) {
+          const double bend = std::fabs(out[n] - 2.0f * out[n - 1] + out[n - 2]);
+          if (running[n]) {
+            bend_running = std::max(bend_running, bend);
+            power_running += static_cast<double>(out[n]) * out[n];
+            ++count_running;
+          } else {
+            bend_reading = std::max(bend_reading, bend);
+            power_reading += static_cast<double>(out[n]) * out[n];
+            ++count_reading;
+          }
+        }
+        const double louder = 10.0 * std::log10((power_running / std::max<size_t>(count_running, 1)) /
+                                                (power_reading / std::max<size_t>(count_reading, 1)));
+        char label[220];
+        std::snprintf(label, sizeof label, "a played phrase, Diffuse %.0f, Catch Up %.2f s: %d runs, the cloud bends by %.3f running up and %.3f reading (the playing's own %.3f), and is %+.2f dB running up",
+                      diffuse, catch_up, runs, bend_running, bend_reading, own, louder);
+        EXPECT(runs >= 3 && bend_running < own && std::fabs(louder) < 3.0, label);
+      }
+    }
+  }
+
+  // Freeze thrown in the middle of a run: the moment is held at once, at
+  // the note's pitch and level, from the frame that was last read (nothing
+  // is read twice to find the partials' frequencies).
+  {
+    for (int window : {0, 2, 3}) {
+      wet(device);
+      device.set_param(p::kWindow, static_cast<float>(window));
+      device.set_param(p::kStretch, 4.0f);
+      device.set_param(p::kMemory, 2.0f);
+      device.set_param(p::kCatchUp, 4.0f);
+      device.set_param(p::kDiffuse, 0.0f);
+      const std::vector<float> note = sine(440.0f, 8.0f, kRate, 0.5f);
+      size_t done = 0;
+      for (; done + 128 <= note.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = note[done + i];
+        device.process(128);
+        if (done > 3 * 48000 && device.meter(2) > 1.0f) break;
+      }
+      const bool caught = device.meter(2) > 1.0f;
+      run(device, sine(440.0f, 0.3f, kRate, 0.5f));
+      device.set_param(p::kFreeze, 1.0f);
+      Stereo held = render(device, 12.0f, kRate);
+      const size_t n = held.left.size();
+      const double hz = dominant_frequency(held.left, kRate, 400.0, 480.0, n - 8 * 48000, n);
+      Range range = levels(held.left, 48000, n);
+      char label[200];
+      std::snprintf(label, sizeof label, "Freeze in a run: window %d, held at %.3f Hz (%+.2f ct), level %+.2f to %+.2f dB of the note", window, hz,
+                    cents(hz, 440.0), range.low - db(0.35355), range.high - db(0.35355));
+      EXPECT(caught && std::fabs(cents(hz, 440.0)) < 3.0 && range.low - db(0.35355) > -1.0 && range.high - db(0.35355) < 1.0, label);
+    }
+  }
+
+  // A change of Window while a chord sounds: the size that is left fades
+  // under the new one, so the cloud neither drops out (to a longer window it
+  // used to be silent for up to 170 ms) nor jumps.
+  {
+    const std::vector<float> held = chord(8.0f);
+    const size_t at = 128 * 1126;  // 3 s in, on no frame's clock
+    const std::vector<float> first(held.begin(), held.begin() + at), rest(held.begin() + at, held.end());
+    for (int from = 0; from < 4; ++from) {
+      for (int to = 0; to < 4; ++to) {
+        if (from == to) continue;
+        wet(device);
+        device.set_param(p::kDiffuse, 0.0f);
+        device.set_param(p::kWindow, static_cast<float>(from));
+        Stereo before = run(device, first);
+        device.set_param(p::kWindow, static_cast<float>(to));
+        Stereo after = run(device, rest);
+        const double was = db(rms(before.left, at - 48000, at));
+        Range range = levels(after.left, 0, 96000);
+        // The shortest window cannot part this chord's notes and its level
+        // wanders by itself: the change may do what that window does anyway
+        // two seconds later and a decibel more, or 4 dB, whichever is wider.
+        Range settled = levels(after.left, 96000, 192000);
+        char label[200];
+        std::snprintf(label, sizeof label, "Window %d to %d while a chord sounds: the cloud stays between %+.2f and %+.2f dB of what it was", from, to,
+                      range.low - was, range.high - was);
+        EXPECT(range.low - was > std::min(-4.0, settled.low - was - 1.0) && range.high - was < std::max(4.0, settled.high - was + 1.0), label);
+      }
+    }
+    // And a second change thrown while the first is still fading waits its turn.
+    wet(device);
+    device.set_param(p::kDiffuse, 0.0f);
+    device.set_param(p::kWindow, 0.0f);
+    Stereo before = run(device, first);
+    device.set_param(p::kWindow, 3.0f);
+    Stereo one = run(device, std::vector<float>(rest.begin(), rest.begin() + 4800));
+    device.set_param(p::kWindow, 1.0f);
+    Stereo two = run(device, std::vector<float>(rest.begin() + 4800, rest.end()));
+    const double was = db(rms(before.left, at - 48000, at));
+    Range range = levels(concat(one, two).left, 0, 144000);
+    char label[200];
+    std::snprintf(label, sizeof label, "two Window changes 100 ms apart: the cloud stays between %+.2f and %+.2f dB of what it was", range.low - was,
+                  range.high - was);
+    EXPECT(range.low - was > -4.0 && range.high - was < 4.0, label);
+  }
+
+  // Freeze let go while a chord sounds. The recording starts again in the
+  // middle of the sound, and that cut is faded: the cloud's first frames,
+  // which read across it, bend no more than the chord's own cloud does
+  // (unfaded, the cut came out as a click of 0.23).
+  {
+    const std::vector<float> held = chord(3.0f);
+    for (float diffuse : {0.0f, 1.0f}) {
+      wet(device);
+      device.set_param(p::kDiffuse, diffuse);
+      run(device, held);
+      const double plain = max_bend(run(device, held).left, 0, held.size());
+      // Frozen before anything was played, so the first thing recorded is the cut itself.
+      wet(device);
+      device.set_param(p::kDiffuse, diffuse);
+      device.set_param(p::kFreeze, 1.0f);
+      run(device, held);
+      device.set_param(p::kFreeze, 0.0f);
+      Stereo thawed = run(device, held);
+      // And frozen in the middle of the playing, let go, and read on across the cut.
+      wet(device);
+      device.set_param(p::kDiffuse, diffuse);
+      device.set_param(p::kWindow, 0.0f);
+      device.set_param(p::kStretch, 2.0f);
+      run(device, std::vector<float>(held.begin(), held.begin() + 30000));
+      device.set_param(p::kFreeze, 1.0f);
+      Stereo frozen = run(device, std::vector<float>(held.begin(), held.begin() + 20011));
+      device.set_param(p::kFreeze, 0.0f);
+      Stereo across = concat(frozen, run(device, held));
+      char label[200];
+      std::snprintf(label, sizeof label, "Freeze let go while sounding, Diffuse %.0f: the cloud bends by %.5f from a standing start and %.5f across the cut, %.5f unmoved",
+                    diffuse, max_bend(thawed.left, 0, held.size()), max_bend(across.left, 20011 - 4800, across.left.size()), plain);
+      EXPECT(max_bend(thawed.left, 0, held.size()) < 1.5 * plain && max_bend(across.left, 20011 - 4800, across.left.size()) < 1.5 * plain &&
+                 rms(thawed.left, 48000, 96000) > 0.1,
+             label);
+    }
+  }
+
+  // Tone thrown from end to end while a chord sounds: its two gains glide,
+  // nothing in the filter is switched, and the cloud bends no more than at
+  // either end (a shelf whose coefficients were moved bent by ten times that).
+  {
+    const std::vector<float> held = chord(3.0f);
+    double steady[2], thrown[2];
+    for (int way = 0; way < 2; ++way) {
+      const float from = way == 0 ? -1.0f : 1.0f;
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kWidth, 0.0f);
+      device.set_param(p::kDiffuse, 0.0f);
+      device.set_param(p::kTone, from);
+      run(device, held);
+      Stereo before = run(device, held);
+      steady[way] = max_bend(before.left, 0, held.size());
+      device.set_param(p::kTone, -from);
+      // Read across the throw itself: a gain that stepped there would show between the two runs.
+      thrown[way] = max_bend(concat(before, run(device, held)).left, held.size() - 4800, 2 * held.size());
+    }
+    char label[200];
+    std::snprintf(label, sizeof label, "Tone thrown end to end while sounding: the cloud bends by %.5f and %.5f, %.5f and %.5f at the ends", thrown[0],
+                  thrown[1], steady[0], steady[1]);
+    const double most = std::max(steady[0], steady[1]);
+    EXPECT(thrown[0] < 1.3 * most && thrown[1] < 1.3 * most, label);
   }
 
   // At 96 kHz the frames are half as long in time and the pitch holds.
