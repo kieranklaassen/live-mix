@@ -70,6 +70,8 @@ build_generated_devices() {
     cpp/devices/fog/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device freq-shifter \
     cpp/devices/freq-shifter/device_api.gen.cpp
+  MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device generations \
+    cpp/devices/generations/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glints \
     cpp/devices/glints/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device glitch \
@@ -267,6 +269,8 @@ test_generated_devices() {
     cpp/test/fog_test.cpp
   native_test freq_shifter_test \
     cpp/test/freq_shifter_test.cpp
+  native_test generations_test \
+    cpp/test/generations_test.cpp
   native_test glints_test \
     cpp/test/glints_test.cpp
   native_test glitch_test \

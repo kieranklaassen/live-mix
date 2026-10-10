@@ -34,6 +34,7 @@ import { FM_BASS_DESCRIPTOR, FM_BASS_DEVICE } from './fm-bass.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FOG_DESCRIPTOR, FOG_DEVICE } from './fog.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
+import { GENERATIONS_DESCRIPTOR, GENERATIONS_DEVICE } from './generations.gen'
 import { GLINTS_DESCRIPTOR, GLINTS_DEVICE } from './glints.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
 import { GLITCH_KIT_DESCRIPTOR, GLITCH_KIT_DEVICE } from './glitch-kit.gen'
@@ -130,6 +131,7 @@ export * from './fm-bass.gen'
 export * from './fm-glass.gen'
 export * from './fog.gen'
 export * from './freq-shifter.gen'
+export * from './generations.gen'
 export * from './glints.gen'
 export * from './glitch.gen'
 export * from './glitch-kit.gen'
@@ -228,6 +230,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   FM_GLASS_DESCRIPTOR,
   FOG_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
+  GENERATIONS_DESCRIPTOR,
   GLINTS_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
   GLITCH_KIT_DESCRIPTOR,
@@ -327,6 +330,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   FM_GLASS_DEVICE,
   FOG_DEVICE,
   FREQ_SHIFTER_DEVICE,
+  GENERATIONS_DEVICE,
   GLINTS_DEVICE,
   GLITCH_DEVICE,
   GLITCH_KIT_DEVICE,
@@ -433,6 +437,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fog', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
+  { id: 'generations', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 32 },
   { id: 'glints', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
   { id: 'glitch-kit', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

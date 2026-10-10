@@ -2237,5 +2237,24 @@
     "Endless descent": {"first":420,"bounce":0.9,"skips":5,"loss":1,"sink":0.2,"drop":50,"throw":0.6,"ripple":0.4,"again":0.85,"mix":0.4},
     "Rain on the lake": {"first":60,"bounce":1.12,"skips":16,"loss":0.8,"sink":0.1,"drop":0,"throw":1,"ripple":0.25,"again":0,"mix":0.35},
     "Slow crossing": {"first":1400,"bounce":0.7,"skips":8,"loss":2,"sink":0.3,"drop":0,"throw":1,"ripple":0.6,"again":0.4,"mix":0.4}
+  },
+  "generations": {
+    "(default)": {"length":1.6,"room":0.5,"resonance":0.35,"keep":0.8,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Into the room": {"length":1.6,"room":0.5,"resonance":0.35,"keep":0.8,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Slow dissolve": {"length":3.2,"room":0.5,"resonance":0.2,"keep":0.9,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Room tone hangs": {"length":1.2,"room":0.5,"resonance":0.6,"keep":1,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.45},
+    "Quick to tones": {"length":0.5,"room":0.5,"resonance":0.85,"keep":0.92,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Large dark room": {"length":2.2,"room":0.95,"resonance":0.35,"keep":0.88,"damping":0.75,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Small bright room": {"length":0.9,"room":0.05,"resonance":0.5,"keep":0.8,"damping":0,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Faint afterimage": {"length":2.4,"room":0.5,"resonance":0.25,"keep":0.7,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.2},
+    "Breath on tones": {"length":0.8,"room":0.5,"resonance":0.7,"keep":0.9,"damping":0.3,"hiss":1,"width":0.5,"listen":0,"mix":0.5},
+    "One shared room": {"length":1.1,"room":0.5,"resonance":0.45,"keep":0.8,"damping":0.3,"hiss":0.15,"width":0,"listen":0,"mix":0.5},
+    "Drifting apart": {"length":0.7,"room":0.5,"resonance":0.55,"keep":0.93,"damping":0.3,"hiss":0.15,"width":1,"listen":0,"mix":0.5},
+    "Single return": {"length":0.6,"room":0.5,"resonance":0.8,"keep":0,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.4},
+    "Clean copies": {"length":1,"room":0.5,"resonance":0,"keep":0.75,"damping":0,"hiss":0,"width":0.5,"listen":0,"mix":0.5},
+    "Worn copies": {"length":1.4,"room":0.5,"resonance":0.1,"keep":0.85,"damping":0.9,"hiss":0.6,"width":0.5,"listen":0,"mix":0.5},
+    "Half a second": {"length":0.5,"room":0.5,"resonance":0.3,"keep":0.6,"damping":0.3,"hiss":0.15,"width":0.5,"listen":0,"mix":0.35},
+    "Long patience": {"length":5.5,"room":0.5,"resonance":0.5,"keep":0.95,"damping":0.2,"hiss":0.15,"width":0.5,"listen":0,"mix":0.5},
+    "Tones alone": {"length":0.9,"room":0.5,"resonance":1,"keep":0.88,"damping":0.3,"hiss":0.3,"width":0.5,"listen":0,"mix":1}
   }
 }
