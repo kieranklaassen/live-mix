@@ -9,7 +9,7 @@
 //          ▲          ├─► follower 2 ─► shift ─► place ─┤               │
 //          │          ├─► follower 3 ─► shift ─► place ─┼─► tone ─► limit ─► wet ─┴─► out
 //          │          └─► follower 4 ─► shift ─► place ─┘
-//          └─ limit ◄─ × Round ◄─ 30 Hz low cut ◄─ tone ◄─ the last follower, before placing
+//          └─ limit ◄─ hold ◄─ × Round ◄─ 30 Hz low cut ◄─ tone ◄─ the last follower, before placing
 //
 // - The line is one stereo float ring of 37.5 s at 96 kHz (28.9 MB of the
 //   device's 29.7, under the 32 it is given; line.h):
@@ -58,8 +58,14 @@
 // - Round writes the last follower back into the line (after one more Tone
 //   pole and a low cut), so the canon comes round again one gap later, with
 //   the last follower's interval and crab applied once more per lap. The
-//   loop gain is Round, under one, and what returns is limited (exactly
-//   linear up to full scale, never past twice that).
+//   loop gain is Round, under one, and a held sound would still pile up lap
+//   on lap (16 dB at Round 0.85 where it is in step with the lap), so the
+//   return passes a level hold: the line never carries more than 2 dB over
+//   the loudest that was played, and a round that is dying away or no louder
+//   than the playing passes it exactly (see steady). What returns is also
+//   limited (exactly linear up to full scale, never past twice that), and
+//   the followers together never pass 1.73, so with the dry beside them at
+//   any Mix a full-scale input comes out at most 6 dB over itself.
 // - Rest: once nothing above -140 dBFS has been written for as long as the
 //   furthest reader reaches, the device sleeps from the next sample of exact
 //   silence on, and it wakes with a blank line on the first sample that is
@@ -101,6 +107,10 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       f.lead = 0;
     }
     round_.set_time(kSmoothingSeconds, sr);
+    level_coeff_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kHoldSeconds * sr));
+    rise_coeff_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kHoldRiseSeconds * sr));
+    fall_coeff_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kHoldFallSeconds * sr));
+    free_coeff_ = 1.0f - std::exp(-static_cast<float>(kControlPeriod) / (kHoldFreeSeconds * sr));
     mix_.set_time(kSmoothingSeconds, sr);
     tone_.set_time(kSmoothingSeconds, sr / kControlPeriod);
     meter_window_ = static_cast<int>(kMeterSeconds * sr);
@@ -229,12 +239,21 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
         wet[1] = tone_pole_[k][1].lowpass(right + wet[1]);
       }
 
-      // The round: the last follower goes back into the line.
+      // The round: the last follower goes back into the line, held in level
+      // (see steady): `hold_` is exactly one while the line carries no more
+      // than a couple of dB over what was played.
       const float round = round_.next();
+      float sent[2];
+      for (int c = 0; c < 2; ++c) {
+        sent[c] = round * rumble_[c].highpass(back_pole_[c].lowpass(back[c]));
+      }
+      played_sum_ += in[0] * in[0] + in[1] * in[1];
+      sent_sum_ += sent[0] * sent[0] + sent[1] * sent[1];
+      both_sum_ += in[0] * sent[0] + in[1] * sent[1];
+      hold_ += hold_step_;
       float write[2];
       for (int c = 0; c < 2; ++c) {
-        const float returned = rumble_[c].highpass(back_pole_[c].lowpass(back[c]));
-        write[c] = flush_denormal(in[c] + limit(round * returned));
+        write[c] = flush_denormal(in[c] + limit(hold_ * sent[c]));
       }
       line_.write(write[0], write[1]);
       const float written = kit::max(write[0] < 0.0f ? -write[0] : write[0],
@@ -262,8 +281,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
           wet_gain_ = kit::SineTable::lookup(0.25f * mix);
         }
       }
-      out_left_[i] = in[0] * dry_gain_ + limit(wet[0]) * wet_gain_;
-      out_right_[i] = in[1] * dry_gain_ + limit(wet[1]) * wet_gain_;
+      out_left_[i] = in[0] * dry_gain_ + ceiling(wet[0]) * wet_gain_;
+      out_right_[i] = in[1] * dry_gain_ + ceiling(wet[1]) * wet_gain_;
 
       ++chunk_;
       ++run_;
@@ -275,6 +294,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   }
 
   bool asleep() const { return asleep_; }
+  // What the level hold lets through of the round now, 0..1 (harness).
+  float hold() const { return hold_; }
   // How alike the two heads of follower `k` were at their last splice (harness).
   float splice_match(int k) const { return followers_[k].shifter.match(); }
 
@@ -310,6 +331,20 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   static constexpr float kSlipGain = 0.1f;    // and better than at the reader's own place by this
   static constexpr float kJoinQuiet = 1.0e-7f;  // the old reader's stretch under about -85 dBFS
   static constexpr float kSqrtTwo = 1.41421356f;
+  static constexpr float kWetRoom = 0.7320508f;  // the square root of three, less one (see ceiling)
+  // The level hold of the round (see steady): the line may carry this much
+  // more power than what was played (2 dB), and the times it works in.
+  static constexpr float kHoldOver = 1.5848932f;
+  static constexpr float kHoldSeconds = 0.1f;
+  static constexpr float kHoldFallSeconds = 0.01f;
+  static constexpr float kHoldRiseSeconds = 8.0f;
+  static constexpr float kHoldFreeSeconds = 0.05f;
+  static constexpr float kHoldGone = 16.0f;  // the playing has stopped: 12 dB under its loudest
+  static constexpr float kHoldNear = 1.06f;  // within half a dB of the hold: still needed
+  static constexpr float kHoldInStep = 2.0f;
+  static constexpr float kHoldStopLeast = 0.1f;
+  static constexpr float kHoldStopMost = 0.5f;
+  static constexpr float kHoldFloor = 1.0e-13f;
   // For a display (see meter): the length of one of the two stretches a level
   // is the highest sample of, and where the clock goes round.
   static constexpr float kMeterSeconds = 0.02f;
@@ -358,8 +393,19 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     return 0.0f;
   }
 
-  // Exactly linear up to ±1, never past ±2.
+  // Exactly linear up to ±1, never past ±2: what returns to the line.
   static float limit(float x) { return 2.0f * kit::soft_clip(0.5f * x); }
+
+  // The followers together: exactly linear up to ±1, never past ±1.73. With
+  // the dry beside it at any Mix that is at most twice full scale (0.5 and
+  // 0.87 of the two at the worst Mix, two thirds), so whatever is set, a
+  // full-scale input comes out no more than 6 dB over itself.
+  static float ceiling(float x) {
+    const float size = x < 0.0f ? -x : x;
+    if (size <= 1.0f) return x;
+    const float held = 1.0f + kWetRoom * kit::fast_tanh((size - 1.0f) * (1.0f / kWetRoom));
+    return x < 0.0f ? -held : held;
+  }
 
   // What follower `k` reads from the line now. Its reader is held to where
   // the settings put it: when they part, a new reader starts there and the
@@ -595,6 +641,13 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       rumble_[c].set_cutoff(kRumbleHz, sample_rate());
     }
     round_.snap(round_.target);
+    played_sum_ = sent_sum_ = both_sum_ = 0.0f;
+    played_ = sent_ = both_ = heard_ = present_ = 0.0f;
+    hold_ = hold_next_ = 1.0f;
+    hold_step_ = 0.0f;
+    fall_round_ = -1.0f;
+    fall_lap_ = 0;
+    unneeded_ = 0;
     mix_.snap(mix_.target);
     tone_.snap(tone_.target);
     tone_seen_ = -1.0f;
@@ -627,6 +680,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     rest_ = static_cast<long>(furthest) + 2 * (cross_samples_ + kVoices * stagger_) + slip_most_;
     reach_ = rest_ + canon_dsp::Shifter::kSize + static_cast<long>(0.05f * sr);
 
+    steady();
+
     // Tone: one pole per follower; at the top of its range the pole is gone.
     const float tone = tone_.next();
     if (tone != tone_seen_) {
@@ -640,6 +695,77 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       back_pole_[0].a = pole;
       back_pole_[1].a = pole;
     }
+  }
+
+  // The level hold of the round, once a control period. A sound held while
+  // it comes round adds to itself lap after lap: at Round 0.85 a note in step
+  // with the lap would stand 16 dB over what is played, and anything steady
+  // 5.6. So the line is held to 2 dB over what was played: when the played
+  // sound and what returns would together carry more power than that, the
+  // return is turned down by just as much as brings them back to it. The
+  // three powers (played, returning, the two together) are taken over a tenth
+  // of a second. "What was played" is the loudest the input has been, let
+  // fall half as fast as the round itself dies away (by Round's share of its
+  // power every lap): a round that is dying away, or one no louder than the
+  // playing, never reaches it, and the hold then passes it exactly. All of
+  // it is counted in samples from where the device woke, so the host's
+  // blocks change nothing.
+  void steady() {
+    present_ = flush_denormal(present_ + (played_sum_ - present_) * present_coeff_);
+    played_ = flush_denormal(played_ + (played_sum_ - played_) * level_coeff_);
+    sent_ = flush_denormal(sent_ + (sent_sum_ - sent_) * level_coeff_);
+    both_ = flush_denormal(both_ + (both_sum_ - both_) * level_coeff_);
+    played_sum_ = sent_sum_ = both_sum_ = 0.0f;
+
+    const float round = round_.target;
+    const int lap = count_ * gap_;
+    if (round != fall_round_ || lap != fall_lap_) {
+      fall_round_ = round;
+      fall_lap_ = lap;
+      heard_fall_ = round > 0.0f
+                        ? std::exp(std::log(round) * static_cast<float>(kControlPeriod) / static_cast<float>(lap))
+                        : 0.0f;
+      // The playing has stopped once it has stayed 12 dB under its loudest
+      // for about a lap (a tenth to half a second): a one-pole falls that
+      // far in 2.76 of its time.
+      const float sr = sample_rate();
+      const float stop = kit::clamp(static_cast<float>(lap), kHoldStopLeast * sr, kHoldStopMost * sr);
+      present_coeff_ = 1.0f - std::exp(-2.76f * static_cast<float>(kControlPeriod) / stop);
+    }
+    heard_ = kit::max(played_, flush_denormal(heard_ * heard_fall_));
+
+    float goal = 1.0f;
+    const float most = kHoldOver * heard_;
+    // What returns in step with the playing counts twice: that is what piles
+    // up, and at the output it meets the dry once more.
+    const float cross = both_ > 0.0f ? kHoldInStep * both_ : both_;
+    if (sent_ > kHoldFloor && played_ + 2.0f * cross + sent_ > most) {
+      // played + 2 g cross + g g sent = most, for g.
+      const float root = cross * cross + sent_ * (most - played_);
+      goal = kit::clamp((std::sqrt(root > 0.0f ? root : 0.0f) - cross) / sent_, 0.0f, 1.0f);
+    }
+    // Down at once. Up again at once when the playing has stopped; while it
+    // goes on, only after a whole lap and a quarter has gone by without the
+    // hold being needed (what needed it comes round again a lap later), and
+    // then slowly: so neither the playing's own rise and fall nor the turn
+    // of the round moves the hold about.
+    const bool going = present_ * kHoldGone > heard_;
+    hold_ = hold_next_;
+    if (goal < hold_next_) {
+      hold_next_ += (goal - hold_next_) * fall_coeff_;
+      unneeded_ = 0;
+    } else if (!going) {
+      hold_next_ += (goal - hold_next_) * free_coeff_;
+    } else {
+      if (goal < hold_next_ * kHoldNear) {
+        unneeded_ = 0;
+      } else if (unneeded_ < kLongEnough) {
+        unneeded_ += kControlPeriod;
+      }
+      if (unneeded_ > lap + lap / 4) hold_next_ += (goal - hold_next_) * rise_coeff_;
+    }
+    if (goal == 1.0f && hold_next_ > 0.9999f) hold_next_ = 1.0f;
+    hold_step_ = (hold_next_ - hold_) * (1.0f / kControlPeriod);
   }
 
   // How loud each follower is and where it sits: Followers, Fade and Spread.
@@ -746,6 +872,16 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   long rest_ = 0;          // how long a rest lasts: as far back as any reader reads
   int slip_most_ = 480;    // the furthest a crab's new reader stands back (see align)
   int stagger_ = 80;       // samples between one follower's join and the next one's
+  // The level hold (see steady): this control period's power of what is
+  // played, of what returns and of the two together; those taken slowly; the
+  // loudest the playing has been, falling; and the hold itself.
+  float played_sum_ = 0.0f, sent_sum_ = 0.0f, both_sum_ = 0.0f;
+  float played_ = 0.0f, sent_ = 0.0f, both_ = 0.0f, heard_ = 0.0f, present_ = 0.0f;
+  float hold_ = 1.0f, hold_next_ = 1.0f, hold_step_ = 0.0f;
+  float level_coeff_ = 0.0f, rise_coeff_ = 0.0f, fall_coeff_ = 0.0f, free_coeff_ = 0.0f;
+  float heard_fall_ = 0.0f, present_coeff_ = 1.0f, fall_round_ = -1.0f;
+  int fall_lap_ = 0;
+  long unneeded_ = 0;  // samples since the hold was last needed where it stands
   float open_tone_ = 0.0f;
   float tone_seen_ = -1.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
