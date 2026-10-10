@@ -6,6 +6,7 @@
 // level that holds. Run it with any argument to print every figure.
 
 #include <complex>
+#include <functional>
 #include <string>
 
 #include "../devices/seasons/seasons.h"
@@ -1082,6 +1083,89 @@ int main(int argc, char**) {
       char label[100];
       std::snprintf(label, sizeof label, "at rest after param %d was moved", id);
       EXPECT(device.asleep() && peak(rest.left, rest.size() - 4800) == 0.0 && peak(rest.right, rest.size() - 4800) == 0.0, label);
+    }
+  }
+
+  // --- level: held sound never piles up ---------------------------------------------------
+  // A full-scale chord held for a minute through every preset, and at each
+  // end of every control with the room, the movement and the texture full
+  // up: the output never passes its ceiling of 6 dB over full scale, and the
+  // last ten seconds are no louder than the ten after the first five.
+  const std::vector<Preset> presets = load_presets();
+  EXPECT(presets.size() == 16, "the manifest has sixteen presets");
+  EXPECT(!presets.empty() && presets[0].values.empty(), "the first preset is the effect as it starts");
+  {
+    const std::vector<float> held = chord(60.0f, 1.0f);
+    const double in_rms = rms(held);
+    double worst_peak = 0.0, worst_growth = -99.0, loudest = -99.0;
+    // `set` loads the settings. Where the year turns, "the start" is a year
+    // stood still where the turning one is five seconds before the end: a
+    // turning year changes level with the season, which is not growth.
+    const auto hold = [&](const char* what, const std::function<void()>& set) {
+      set();
+      const float turn = device.param(p::kTurn), turning = device.param(p::kTurning);
+      const Stereo out = run(device, held);
+      const size_t n = out.size();
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double last = level(out, n - 10 * second);
+      double start = level(out, 5 * second, 15 * second);
+      if (turn > 0.5f) {
+        float there = device.meter(0) - (turn < 1.5f ? 5.0f : -5.0f) / turning;
+        there -= std::floor(there);
+        set();
+        device.set_param(p::kTurn, 0.0f);
+        device.set_param(p::kYear, there);
+        const Stereo stood = run(device, std::vector<float>(held.begin(), held.begin() + 15 * second));
+        start = level(stood, 5 * second, 15 * second);
+      }
+      const double growth = db(last / start), over = db(last / in_rms);
+      worst_peak = std::max(worst_peak, top);
+      worst_growth = std::max(worst_growth, growth);
+      loudest = std::max(loudest, over);
+      if (g_print) {
+        std::printf("held chord, %s: peak %.3f, last ten seconds %+.2f dB against the input, %+.2f dB against "
+                    "the start\n",
+                    what, top, over, growth);
+      }
+      char label[160];
+      std::snprintf(label, sizeof label, "a held full-scale chord stays under the ceiling and does not grow: %s", what);
+      EXPECT(finite(out.left) && finite(out.right) && top <= 2.0 && growth < 1.0, label);
+    };
+    for (const Preset& preset : presets) {
+      hold(preset.name.c_str(), [&] { load(device, preset); });
+    }
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (int end = 0; end < 2; ++end) {
+        char what[60];
+        std::snprintf(what, sizeof what, "param %d at its %s, the rest up, turning", id, end == 0 ? "least" : "most");
+        hold(what, [&] {
+          still(device, 0.3f);
+          device.set_param(p::kSpace, 1.0f);
+          device.set_param(p::kMotion, 1.0f);
+          device.set_param(p::kGrit, 1.0f);
+          device.set_param(p::kTail, 1.0f);
+          device.set_param(p::kTurn, 1.0f);
+          device.set_param(p::kTurning, 30.0f);
+          device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
+        });
+      }
+    }
+    if (g_print) std::printf("held chord over all: peak %.3f (input %.3f), loudest %+.2f dB, most growth %+.2f dB\n", worst_peak, peak(held), loudest, worst_growth);
+  }
+
+  // Every preset on the played phrase sits within 3 LU of the phrase itself.
+  {
+    Stereo phrase_in;
+    phrase_in.left = phrase;
+    phrase_in.right = phrase;
+    const double dry = loudness(phrase_in);
+    for (const Preset& preset : presets) {
+      load(device, preset);
+      const double wet = loudness(run(device, phrase)) - dry;
+      if (g_print) std::printf("%-16s %+.2f LU on the phrase\n", preset.name.c_str(), wet);
+      char label[120];
+      std::snprintf(label, sizeof label, "preset \"%s\" is within 3 LU of the dry phrase (%+.2f)", preset.name.c_str(), wet);
+      EXPECT(std::fabs(wet) < 3.0, label);
     }
   }
 

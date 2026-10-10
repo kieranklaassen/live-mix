@@ -15,7 +15,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Where in the year the sound is. It starts in spring and goes round through summer, autumn and winter back to spring, blending from each to the next.',
+      'Where in the year the sound is: spring, then summer, autumn and winter, and round to spring again, blending from each to the next. A turning year carries on from here.',
   },
   turning: {
     id: 1,
@@ -26,7 +26,7 @@ export const SEASONS_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long one year takes when the year turns by itself. Short is a restless cycle of colours, long is a change nobody notices happening.',
+      'How long one year takes when it turns by itself. Short is a restless cycle of colours, long is a change nobody notices happening.',
   },
   depth: {
     id: 2,
@@ -59,7 +59,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the season moves: a fast shimmer and a rising tail in spring, a slow sway from side to side in summer, a tumbling and sinking in autumn. Winter stands still.',
+      'How much the season moves: a fast shimmer and a rising tail in spring, a slow sway from side to side in summer, a tumbling and sinking in autumn. Winter barely stirs.',
   },
   grit: {
     id: 5,
@@ -70,7 +70,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How much of the season's texture is heard: the top end breaking up in autumn, sparse glassy sparks an octave or more above the sound in winter and early spring.",
+      "How much of the season's texture is heard: glassy sparks above the sound in winter and early spring, a warm pressing in summer, the top end breaking up in autumn.",
   },
   tail: {
     id: 6,
@@ -81,7 +81,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "Stretches or shortens every season's room. The middle is each season's own length, the top makes winter ring for most of a minute.",
+      "Stretches or shortens every season's room. The middle is each season's own length. At the top a winter tail rings on long after the note.",
   },
   width: {
     id: 7,
@@ -104,7 +104,7 @@ export const SEASONS_PARAMS = {
     unit: '',
     choices: ['Still', 'Forward', 'Backward'],
     description:
-      'Whether the year turns by itself. Still holds it where Year says, Forward runs from spring to summer, Backward from spring to winter.',
+      'Whether the year turns by itself. Still holds it where it has got to, Forward runs on from spring towards summer, Backward from spring towards winter.',
   },
   mix: {
     id: 9,
@@ -141,51 +141,56 @@ export const SEASONS_DESCRIPTOR = wasmDeviceDescriptor(SEASONS_DEVICE, {
   description:
     'One dial turns the year: a bright quick spring, a warm wide summer, a dark crumbling autumn and a thin frozen winter, with every blend between, and the year can turn by itself.',
   presets: {
-    'First of spring': {
-      year: 0,
-      turning: 120,
-      depth: 0.75,
-      space: 0.6,
-      motion: 0.6,
-      grit: 0.5,
-      tail: 0.5,
-      width: 1,
-      turn: 1,
-      mix: 1,
-    },
+    'Spring, turning': {},
     'High summer': { year: 0.25, turn: 0, depth: 0.85, space: 0.7, motion: 0.7 },
-    'Leaf fall': { year: 0.5, turn: 0, depth: 0.9, grit: 0.8, motion: 0.8, space: 0.5 },
-    'Deep winter': { year: 0.75, turn: 0, depth: 0.9, space: 0.8, tail: 0.65, grit: 0.6 },
-    'Slow year': { year: 0.1, turning: 600, depth: 0.6, space: 0.5 },
+    'Leaf fall': { year: 0.5, turn: 0, depth: 0.9, space: 0.5, motion: 0.8, grit: 0.8 },
+    'Deep winter': { year: 0.75, turn: 0, depth: 0.9, space: 0.8, grit: 0.6, tail: 0.65 },
+    'Slow year': { year: 0.42, turning: 600, depth: 0.65, space: 0.5 },
     'Quick year': { year: 0.2, turning: 12, depth: 1, space: 0.7, motion: 0.8, grit: 0.7 },
-    Thaw: { year: 0.875, turn: 0, depth: 0.85, grit: 0.9, space: 0.7, motion: 0.5 },
-    'Late summer': { year: 0.375, turn: 0, depth: 0.8, space: 0.65, motion: 0.9, grit: 0.6 },
-    'First frost': { year: 0.625, turn: 0, depth: 0.85, space: 0.7, tail: 0.6, grit: 0.7 },
+    Thaw: { year: 0.875, turn: 0, depth: 0.85, space: 0.7, motion: 0.5, grit: 0.9 },
+    'Long evening': {
+      year: 0.33,
+      turn: 0,
+      depth: 0.8,
+      space: 0.9,
+      motion: 0.4,
+      grit: 0.6,
+      tail: 0.9,
+    },
+    'First frost': { year: 0.625, turn: 0, depth: 0.85, space: 0.7, grit: 0.7, tail: 0.6 },
     'Touch of sun': { year: 0.22, turn: 0, depth: 0.3, space: 0.35, motion: 0.5, grit: 0.2 },
     'Frozen lake': {
       year: 0.75,
       turn: 0,
       depth: 1,
       space: 1,
-      tail: 1,
       motion: 0,
       grit: 0.3,
+      tail: 1,
       mix: 0.8,
     },
-    'Wide midsummer': { year: 0.25, turn: 0, depth: 1, space: 0.9, motion: 1, width: 2, tail: 0.7 },
-    'Dry leaves': { year: 0.5, turn: 0, depth: 1, space: 0, grit: 1, motion: 0.4 },
-    'Backward year': { year: 0.6, turn: 2, turning: 30, depth: 0.85, space: 0.6 },
+    'Wide midsummer': {
+      year: 0.25,
+      turn: 0,
+      depth: 1,
+      space: 0.9,
+      motion: 1,
+      tail: 0.7,
+      width: 1.6,
+    },
+    'Dry leaves': { year: 0.5, turn: 0, depth: 1, space: 0, motion: 0.4, grit: 1 },
+    'Backward year': { year: 0.1, turning: 30, depth: 0.85, turn: 2 },
     'Bare branches': {
       year: 0.75,
       turn: 0,
       depth: 1,
       space: 0.2,
-      grit: 0,
       motion: 0,
+      grit: 0,
       tail: 0.2,
       width: 0.6,
     },
-    'Spring rain': { year: 0.97, turn: 0, depth: 1, grit: 1, motion: 1, space: 0.8, tail: 0.3 },
+    'Spring showers': { year: 0.97, turn: 0, depth: 1, space: 0.8, motion: 1, grit: 1, tail: 0.3 },
   },
 })
 

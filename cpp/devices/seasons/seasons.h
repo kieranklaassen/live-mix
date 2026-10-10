@@ -94,7 +94,7 @@ constexpr float kGlitter[kSeasons] = {0.35f, 0.0f, 0.0f, 1.0f};
 constexpr float kWarmth[kSeasons] = {0.0f, 1.0f, 0.45f, 0.0f};
 constexpr float kWidth[kSeasons] = {1.0f, 1.5f, 0.9f, 0.45f};
 // What holds the loudness round the year (dB at Depth 1), found by measuring.
-constexpr float kTrimDb[kSeasons] = {0.05f, -1.55f, 0.5f, 2.75f};
+constexpr float kTrimDb[kSeasons] = {0.05f, -1.55f, 0.1f, 2.75f};
 
 constexpr float kShimmerHz = 5.3f;
 constexpr float kSwayHz = 0.19f;
@@ -600,7 +600,11 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
         0.6f * clock_sine(n, kTumbleHz) + 0.4f * clock_sine(n, kTumbleHz * kTumbleRatio, 0.31f);
     const float shimmer = motion * blend(kShimmer, w);
     const float side = motion * (blend(kSway, w) * sway + blend(kTumble, w) * tumble);
-    const float trim = kit::db_to_gain(depth * blend(kTrimDb, w) - space * blend(kSpaceTrimDb, w));
+    // The Width knob keeps the loudness of a sound a quarter of whose power
+    // is at the sides: exactly one at Width 1.
+    const float widened = 1.0f / std::sqrt(0.75f + 0.25f * knob_[kKWidth] * knob_[kKWidth]);
+    const float trim =
+        widened * kit::db_to_gain(depth * blend(kTrimDb, w) - space * blend(kSpaceTrimDb, w));
     const float ms = 0.001f * sr;
     const float vib_shimmer = motion * blend(kShimmerMs, w) * ms;
     const float vib_slow = motion * (blend(kSwayMs, w) * sway + blend(kTumbleMs, w) * tumble) * ms;
