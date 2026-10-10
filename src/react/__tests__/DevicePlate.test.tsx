@@ -95,7 +95,14 @@ describe('device skins', () => {
    * was still being drawn. Each is named here until then. A name that is no stock instrument, and
    * one that has its display by now, fails the test below, so the list empties itself.
    */
-  const PLATES_TO_COME: readonly string[] = []
+  const PLATES_TO_COME: readonly string[] = [
+    'afterglow',
+    'feedback',
+    'graft',
+    'magnet-piano',
+    'prepared-piano',
+    'wind-harp',
+  ]
 
   it('has a plate of its own for every stock instrument, with a display that knows what is played', () => {
     for (const id of PLATES_TO_COME) {
