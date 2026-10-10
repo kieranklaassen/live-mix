@@ -38,6 +38,11 @@ export interface SampleRetainerOptions {
   graceSec?: number
   /** Register with this scheduler on construction. */
   scheduler?: Scheduler
+  /**
+   * Whether the track plays a clip's `turns`. Default true; false holds
+   * `clip.sourceId` on every pass (a `StretchTrack` ignores turns).
+   */
+  turns?: boolean
 }
 
 export const DEFAULT_RETAIN_GRACE_SECONDS = 1
@@ -58,6 +63,7 @@ export class SampleRetainer implements Schedulable {
   private readonly track: RetainedTrack
   private readonly now: () => number
   private readonly graceSec: number
+  private readonly turns: boolean
   private readonly holdMap = new Map<string, Hold>()
   private unregister: (() => void) | null = null
   // The clock of the scheduler it is on: what a pass is counted on for a track with no clock of its own.
@@ -68,6 +74,7 @@ export class SampleRetainer implements Schedulable {
     this.track = options.track
     this.now = options.now
     this.graceSec = options.graceSec ?? DEFAULT_RETAIN_GRACE_SECONDS
+    this.turns = options.turns ?? true
     if (options.scheduler) this.attach(options.scheduler)
   }
 
@@ -93,7 +100,9 @@ export class SampleRetainer implements Schedulable {
     const key = scheduleKey(start)
     // A clip that takes turns is held by the source this start plays (`Clip.turns`).
     const base = this.track.timebase ?? this.transport
-    const sourceId = clipSourceOnPass(clip, base ? base.passOf(start.iteration) : 0)
+    const sourceId = this.turns
+      ? clipSourceOnPass(clip, base ? base.passOf(start.iteration) : 0)
+      : clip.sourceId
     this.holdMap.get(key)?.release()
     this.holdMap.set(key, {
       sourceId,

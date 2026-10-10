@@ -1029,6 +1029,7 @@ function applyOne(score: Score, op: Operation): Score {
       for (const clip of op.clips) {
         if (ids.has(clip.id)) fail(op, `clip "${clip.id}" is there twice`)
         ids.add(clip.id)
+        requireClipSources(score, op, clip)
       }
       const clips = sortClips(op.clips.map((clip) => checkedClip(op, clip)))
       return {
@@ -1066,7 +1067,7 @@ function applyOne(score: Score, op: Operation): Score {
           fail(op, `source "${op.id}" is used by slot "${slot.id}"`)
       }
       for (const track of score.elementTracks) {
-        if (track.clips.some((clip) => clip.sourceId === op.id)) {
+        if (track.clips.some((clip) => clipSourceIds(clip).includes(op.id))) {
           fail(op, `source "${op.id}" is used by a clip on element track "${track.id}"`)
         }
       }
