@@ -618,7 +618,7 @@ int main() {
   // 11. Level. A full-scale chord held for a minute, at the defaults and with
   // every control at each end (and every shape): what comes out never peaks
   // 6 dB over what went in, is no stronger at the end than at the start, and
-  // its level stays within 3 dB of the input's.
+  // its level stays within 1 dB of the input's (measured: a hundredth).
   {
     const std::vector<float> held = chord(60.0f, kRate, 1.0f, {110.0, 164.81, 277.18, 415.3});
     const double in_rms = rms(held);
@@ -656,7 +656,7 @@ int main() {
                 worst_peak, worst_growth, low, high);
     EXPECT(worst_peak < 2.0, "a full-scale held chord never comes out 6 dB over full scale");
     EXPECT(worst_growth < 1.05, "and never grows");
-    EXPECT(low > -3.0 && high < 3.0, "the level of a held chord stays within 3 dB of the input at every setting");
+    EXPECT(low > -1.0 && high < 1.0, "the level of a held chord stays within 1 dB of the input at every setting");
   }
 
   // 12. Part-way Mix. Held tones over the piano's range through the default
@@ -725,7 +725,7 @@ int main() {
 
   // 14b. The sixteen presets (their values copied from device.json, every
   // control in the manifest's order). A full-scale chord held for a minute
-  // through each: never 6 dB over full scale, never growing, within 3 dB of
+  // through each: never 6 dB over full scale, never growing, within 1 dB of
   // the input's level. And held tones over the piano's range at Mix 0.5: none
   // is lost.
   {
@@ -784,7 +784,7 @@ int main() {
                 worst_peak, worst_growth, low, high, worst_tone);
     EXPECT(worst_peak < 2.0, "no preset puts a full-scale chord 6 dB over full scale");
     EXPECT(worst_growth < 1.05, "no preset grows");
-    EXPECT(low > -3.0 && high < 3.0, "every preset holds a chord's level within 3 dB");
+    EXPECT(low > -1.0 && high < 1.0, "every preset holds a chord's level within 1 dB");
     EXPECT(worst_tone > -3.0, "no preset loses a held tone at Mix 0.5");
   }
 

@@ -394,7 +394,7 @@ const imprint = plateDisplay<ImprintState>({
     freqGrid(frame, box)
     dbGrid(frame, box, IMPRINT_MOST_DB, -IMPRINT_MOST_DB, 10)
     clipped(ctx, box, () => {
-      spectrum(frame, box, { topDb: 0, bottomDb: SPECTRUM_FOOT_DB, alpha: 0.5 })
+      spectrum(frame, box, { topDb: 0, bottomDb: SPECTRUM_FOOT_DB, alpha: 0.35 })
     })
 
     // The curve as a tone meets it, from the left edge (20 Hz) to the top of

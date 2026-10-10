@@ -596,11 +596,13 @@ describe('the compiled device', () => {
   ]
 
   it('presses a built-in colour on tones as the curve is drawn', async () => {
-    for (const values of [
+    const settings: Record<string, number>[] = [
       { shape: 1, replace: 0 },
       { shape: 2, replace: 0, amount: -1.5, shift: 7, smooth: 0.7 },
+      // Narrow bells brought down to where a bin is a wide step in pitch: the frame rounds them off, and so does the curve.
       { shape: 6, replace: 0, amount: 2, shift: -12, smooth: 0.35 },
-    ]) {
+    ]
+    for (const values of settings) {
       const measured = gains(await deviceAt(values), TONES)
       const curve = heardCurve(draw({ values }))
       const drawn = TONES.map((hz) => dbAt(curve, hz))
