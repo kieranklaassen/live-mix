@@ -892,6 +892,29 @@ int main() {
     EXPECT(db(quietest / mean) > -6.0, label);
     std::snprintf(label, sizeof label, "and with the loudness held they are as loud as they went in (%.1f dB)", db(mean));
     EXPECT_NEAR(db(mean), 0.0, 1.5, label);
+    // The octave under them is carried too: the room's feed is cut low at
+    // 40 Hz, under the lowest note of a bass.
+    // (As first built the cut stood at 110 Hz, so far away, where the room
+    // is nearly all there is, the octave from 55 Hz came out 4.4 dB down
+    // and its quietest note 7.7 dB down; now 0.9 and 2.2.)
+    double low_total = 0.0, low_quietest = 1.0e9;
+    for (int note = 0; note < 12; ++note) {
+      const float hz = 55.0f * std::pow(2.0f, static_cast<float>(note) / 12.0f);
+      still(device, 1.0f);
+      device.set_param(p::kDecay, 3.5f);
+      device.set_param(p::kLevel, 1.0f);
+      device.set_param(p::kAir, 0.0f);
+      Stereo out = run(device, sine(hz, 3.5f, kRate, 0.25f));
+      const size_t from = static_cast<size_t>(3.0f * kRate);
+      const double level = 0.5 * (rms(out.left, from) + rms(out.right, from)) / (0.25 * std::sqrt(0.5));
+      low_total += level * level;
+      low_quietest = std::min(low_quietest, level);
+    }
+    const double low_mean = std::sqrt(low_total / 12.0);
+    std::snprintf(label, sizeof label, "the octave from 55 Hz is within 3 dB of the notes above it (%.1f dB)", db(low_mean / mean));
+    EXPECT(db(low_mean / mean) > -3.0, label);
+    std::snprintf(label, sizeof label, "and none of its notes falls more than 6 dB under them (%.1f dB)", db(low_quietest / mean));
+    EXPECT(db(low_quietest / mean) > -6.0, label);
   }
 
   // Bounded at the worst: a full-scale tone held in a small room that rings
