@@ -18,7 +18,7 @@
 // where a twelfth of an octave is narrower than a bin (under about 400 Hz at
 // 48 kHz) and a twelfth of an octave above, 85 bands at 48 kHz, 88 at most.
 // The frame is 2048 at every sample rate, so at 96 kHz the single bins reach
-// up to 800 Hz and there are 72 bands.
+// up to 800 Hz and there are 74 bands.
 //
 // Compare, once per frame, when the left channel's frame comes (the right
 // channel's power is that of its frame before, a hop earlier; both channels
