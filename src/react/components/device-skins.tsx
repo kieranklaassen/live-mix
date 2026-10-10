@@ -1866,6 +1866,10 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'grain-synth': { ...PLATE_PALETTES['grain-synth'], finish: 'speckle', cap: 'dot' },
   'drum-kit': { ...PLATE_PALETTES['drum-kit'], finish: 'grain', cap: 'disc' },
   'glitch-kit': { ...PLATE_PALETTES['glitch-kit'], finish: 'speckle', cap: 'pointer' },
+  'sub-bass': { ...PLATE_PALETTES['sub-bass'], finish: 'gloss', cap: 'skirt' },
+  'fm-bass': { ...PLATE_PALETTES['fm-bass'], finish: 'brushed', cap: 'dot' },
+  'acid-bass': { ...PLATE_PALETTES['acid-bass'], finish: 'matte', cap: 'pointer' },
+  'string-bass': { ...PLATE_PALETTES['string-bass'], finish: 'grain', cap: 'disc' },
 }
 
 /**
