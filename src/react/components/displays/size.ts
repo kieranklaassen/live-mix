@@ -123,7 +123,8 @@ export function sizeTiltDb(hz: number, tone: number): number {
  * the level the device makes up. The upper end is the whole 18 dB only where
  * the sound stands 18 dB or more over the outline's floor (`floorDb`), and
  * nothing at the floor: the outline is the level of a partial, so it is
- * what stands in a bin that holds one.
+ * what stands in a bin that holds one. A level made up over 0 dB is held
+ * back the same way.
  */
 export function sizeMovedDb(
   body: ArrayLike<number>,
@@ -137,11 +138,13 @@ export function sizeMovedDb(
   const stands = sizeBodyDb(body, hz / Math.pow(2, semitones / 12))
   const wants = sizeBodyDb(body, hz * Math.pow(2, octaves))
   const room = clamp((stands - floorDb) / (SIZE_FLOOR_SPAN_DB - SIZE_LIFT_SPAN_DB), 0, 1)
+  // The level made up is a lift too when it is over 0 dB: 1 + (level - 1) × room, as amplitudes.
+  const level = levelDb > 0 ? 20 * Math.log10(1 + (Math.pow(10, levelDb / 20) - 1) * room) : levelDb
   return (
     stands +
     clamp(wants - stands, SIZE_LEAST_GAIN_DB, SIZE_MOST_GAIN_DB * room) +
     sizeTiltDb(hz, tone) +
-    levelDb
+    level
   )
 }
 

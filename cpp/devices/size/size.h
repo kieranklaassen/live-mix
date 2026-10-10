@@ -52,7 +52,11 @@
 //   the gain then divides by the outline as it was carried along (read at
 //   f / pitch): Size 0 puts the body back where it stood.
 // - Tone is a tilt about 1 kHz. Level makes the frame as strong as it came
-//   in, so nothing here changes how loud the sound is, only its shape.
+//   in, so nothing here changes how loud the sound is, only its shape. Where
+//   that is a lift it is held back as the 18 dB are: whole only where the
+//   sound stands within 42 dB of the outline's top, nothing at the floor. A
+//   single partial moved under a body that is not there is cut and made up
+//   again, and the hiss beside it would be made up with it, by up to 24 dB.
 // - Wander drifts the size by the sample clock (two sines, Rate and 0.618 of
 //   it), through silence and sleep. Width sets the left side smaller and the
 //   right larger and turns the right side's drift a quarter cycle on.
@@ -62,7 +66,7 @@
 // are. Each channel is worked on alone: nothing is summed to mono.
 //
 // Storage: two kit::Stft<2048, 512> (88 KB each), five arrays of 1025 floats
-// per channel and nine shared ones, about 260 KB in all, and the kit's block
+// per channel and ten shared ones, about 264 KB in all, and the kit's block
 // buffers. No heap. Latency 2304 samples.
 
 #include <cstring>
@@ -138,7 +142,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   // beats between the partials of a chord are in it, and a gain read straight
   // from it jumps with them (10 dB for 50 ms on a held note when a louder
   // one starts beside it). From silence the first frame's gain is taken as
-  // it is.
+  // it is, and so is the first after Pitch or Fine has moved the notes.
   static constexpr float kGainSeconds = 0.06f;
   static constexpr float kTiltDbPerOctave = 4.5f;
   static constexpr float kTiltMostDb = 18.0f;
@@ -180,6 +184,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
       floor_[c] = kNothing;
       level_[c] = 1.0f;
       eased_[c] = false;
+      carried_[c] = 1.0f;
       apart_[c] = Stft::hz_to_bin(kMostApartHz, sr);
       alive_[c] = false;
       turned_[c] = false;
@@ -515,8 +520,12 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     now_[kBins - 1] = kit::max(log_[kBins - 2], log_[kBins - 1]);
     for (int k = 1; k < kBins - 1; ++k) now_[k] = kit::max(log_[k], kit::max(log_[k - 1], log_[k + 1]));
     float* lift = lift_[c];
-    const float step = eased_[c] ? gain_step_ : 1.0f;
+    // Eased from the last frame's, unless there is none or the notes have
+    // been moved since: the bins then hold other partials than the gains
+    // were worked out for.
+    const float step = eased_[c] && carried == carried_[c] ? gain_step_ : 1.0f;
     eased_[c] = true;
+    carried_[c] = carried;
     float made = 0.0f;
     for (int k = 0; k < kBins; ++k) {
       const float at = static_cast<float>(k);
@@ -524,6 +533,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
       const float wants = kit::max(read(body, at * wanted), floor);
       const float own = kit::max(now_[k], kit::max(now_[k >= 2 ? k - 2 : 0], now_[k + 2 < kBins ? k + 2 : kBins - 1]));
       const float room = kit::clamp((own - floor) * (1.0f / (kFloorSpan - kLiftSpan)), 0.0f, 1.0f);
+      room_[k] = room;
       lift[k] += (kit::clamp(0.5f * (wants - stands), kLeastLift, kMostLift * room) - lift[k]) * step;
       const float gain = fast_exp2(lift[k]) * tilt_[k];
       re[k] *= gain;
@@ -534,7 +544,15 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     // As strong as it came in.
     const float level = kit::clamp(std::sqrt(total / (made + kTiny)), 1.0f / kMostLevel, kMostLevel);
     level_[c] = level;
-    if (level != 1.0f) {
+    if (level > 1.0f) {
+      // A lift, and so only as far as each bin has room for one.
+      const float more = level - 1.0f;
+      for (int k = 0; k < kBins; ++k) {
+        const float gain = 1.0f + more * room_[k];
+        re[k] *= gain;
+        im[k] *= gain;
+      }
+    } else if (level < 1.0f) {
       for (int k = 0; k < kBins; ++k) {
         re[k] *= level;
         im[k] *= level;
@@ -617,6 +635,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   float body_[2][kBins] = {};     // the outline, as log2 of power
   float lift_[2][kBins] = {};     // the gain of each bin, eased, as log2 of amplitude
   bool eased_[2] = {false, false};  // lift_ holds the last frame's gain
+  float carried_[2] = {1.0f, 1.0f};  // where the notes' move had carried the body in that frame
   float last_re_[2][kBins] = {};  // the frame before, as it came in
   float last_im_[2][kBins] = {};
   float turn_[2][kBins] = {};  // the angle each bin's piece was last turned by, in cycles
@@ -628,6 +647,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   // Shared by the two channels, whose frames never run at once.
   float power_[kBins] = {};
   float now_[kBins] = {};
+  float room_[kBins] = {};    // how much of a lift each bin may be given, 0 to 1
   float moved_re_[kBins] = {};
   float moved_im_[kBins] = {};
   int16_t peaks_[kMostPeaks] = {};

@@ -250,6 +250,15 @@ describe('Size', () => {
     expect(sizeMovedDb(step, 500, 1, 0, 0, 0, -65)).toBeCloseTo(-65, 6)
     expect(sizeMovedDb(step, 500, 1, 0, 0, 0, -83)).toBeCloseTo(-65 + 18, 6)
     expect(sizeMovedDb(step, 1400, -1, 0, 0, 0, -70)).toBeCloseTo(-10 - 24, 6)
+    // The level made up is held back the same way while it is a lift: 12 dB at 5/18 of the room is
+    // 1 + (3.981 - 1) × 5/18 as an amplitude; a level under 0 dB is taken off whole.
+    expect(sizeMovedDb(step, 300, 0, 0, 0, 12, -70)).toBeCloseTo(
+      -65 + 20 * Math.log10(1 + (Math.pow(10, 12 / 20) - 1) * (5 / 18)),
+      6,
+    )
+    expect(sizeMovedDb(step, 300, 0, 0, 0, 12, -65)).toBeCloseTo(-65, 6)
+    expect(sizeMovedDb(step, 2000, 0, 0, 0, 12, -70)).toBeCloseTo(-10 + 12, 6)
+    expect(sizeMovedDb(step, 300, 0, 0, 0, -6, -70)).toBeCloseTo(-65 - 6, 6)
     // The picture takes the floor the device reports: with it 5 dB under the low side the solid outline
     // stands 5 dB over the dashed one there, not 18.
     const low = (hz: number): number => (hz < 1000 ? -65 : -10)
@@ -302,9 +311,7 @@ describe('Size', () => {
     expect(apart).toBeGreaterThan(2)
     // With the notes moved the played ones are heard beside them: where the moved body's hill has gone the
     // played body still stands, 3 dB down.
-    const [, both] = outlinesOf(
-      draw({ meters: live, values: { size: 0.6, pitch: 7, mix: 0.5 } }),
-    )
+    const [, both] = outlinesOf(draw({ meters: live, values: { size: 0.6, pitch: 7, mix: 0.5 } }))
     for (const [x, y] of both.points) {
       const dry = sizeBodyDb(body, hzAt(x))
       const wet = sizeMovedDb(body, hzAt(x), 0.6, 7, 0, 0, -90)

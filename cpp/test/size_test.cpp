@@ -562,6 +562,36 @@ static void test_hiss_is_left_where_it_is() {
   }
 }
 
+// A single partial has no body to move: where the moved body is not, it is cut, and the level is made up
+// again, so it comes out as it went in. The hiss beside it used to be made up with it: 21 to 24 dB under a
+// 3.7 kHz sine made smaller. The make-up is now held back where a bin holds nothing that stands near the
+// outline's top, as the lift is.
+static void test_hiss_beside_a_single_partial() {
+  for (float hz : {1000.0f, 3729.0f}) {
+    std::vector<float> in = sine(hz, 3.0f, kRate, 0.25f);
+    rng_state() = 99;
+    const std::vector<float> hiss = noise(3.0f, kRate, 3.0e-4f);
+    for (size_t i = 0; i < in.size(); ++i) in[i] += hiss[i];
+    const size_t from = 60000;
+    const double low = band_level(in, 200.0, 600.0, from), high = band_level(in, 5000.0, 9000.0, from);
+    for (float size : {-1.0f, 1.0f}) {
+      fresh({{p::kSize, size}});
+      const Stereo out = run(device, in);
+      const double tone = db(tone_level(out.left, hz, kRate, from + kLate, from + kLate + 48000) /
+                             tone_level(in, hz, kRate, from, from + 48000));
+      const double below = db(band_level(out.left, 200.0, 600.0, from + kLate) / low);
+      const double above = db(band_level(out.left, 5000.0, 9000.0, from + kLate) / high);
+      std::printf("a lone %.0f Hz sine over hiss, size %+.0f: the sine %+.2f dB, the hiss %+.1f dB from 200 to 600 Hz and %+.1f dB "
+                  "from 5 to 9 kHz\n", hz, size, tone, below, above);
+      char label[120];
+      std::snprintf(label, sizeof label, "a lone %.0f Hz sine, size %+.0f: it comes out as it went in, within 0.5 dB", hz, size);
+      EXPECT(std::fabs(tone) < 0.5, label);
+      std::snprintf(label, sizeof label, "a lone %.0f Hz sine, size %+.0f: the hiss beside it is raised less than 6 dB", hz, size);
+      EXPECT(below < 6.0 && above < 6.0, label);
+    }
+  }
+}
+
 // A quiet note is held and a louder one starts over it. The held note's partial is given a new gain, since the
 // body is now the two together, and it must come to it without flying past: with a fine outline it used to
 // overshoot by 8 dB within 60 ms. The gains are eased over 60 ms now.
@@ -1123,6 +1153,7 @@ int main() {
   test_width();
   test_detail();
   test_hiss_is_left_where_it_is();
+  test_hiss_beside_a_single_partial();
   test_a_held_note_when_another_starts();
   test_before_a_hard_start();
   test_moves_without_clicks();
