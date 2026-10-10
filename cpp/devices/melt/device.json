@@ -73,7 +73,7 @@
       "min": 0,
       "max": 1,
       "default": 0.2,
-      "description": "Makes the slide uneven. The tail falls in fits, stalling and then running on, instead of in one straight line."
+      "description": "Makes the slide uneven. The tail falls in fits, stalling and then running on, not in one straight line. It moves the slide Sag sets, so with Sag at zero it does nothing."
     },
     {
       "key": "width",

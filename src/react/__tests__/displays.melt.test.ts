@@ -41,6 +41,7 @@ import {
   MELT_TURN_CENTS,
   MELT_UNHEARD,
   meltAgeAt,
+  meltAllpassSmearSec,
   meltBand,
   meltCents,
   meltCentsAt,
@@ -52,6 +53,7 @@ import {
   meltReach,
   meltShown,
   meltSmearSec,
+  meltWaySmearSec,
   meltX,
   meltY,
 } from '../components/displays/melt'
@@ -276,40 +278,138 @@ describe("melt's formulas, by hand", () => {
     expect(meltPassSec(0.5)).toBeCloseTo(0.0577 * Math.sqrt(0.45 * 4.5) * 1.2 + 0.0106, 9)
   })
 
-  it('spreads a click by what one allpass does to it, pass after pass', () => {
-    // An allpass of length M and gain g, as the kit's: v = x + g v[M], y = v[M] - g v.
-    // The spread of its response about its mean delay, by its energy.
+  /**
+   * A click through allpasses one after another, each as the kit's
+   * (v = x + g v[M], y = v[M] - g v): its energy, the mean delay of that
+   * energy and its spread about the mean, in samples.
+   */
+  const through = (lengths: number[], gain: number) => {
+    const lines = lengths.map((length) => new Float64Array(length))
+    const at = lengths.map(() => 0)
+    let energy = 0
+    let first = 0
+    let second = 0
+    for (let n = 0; n < 16000; n++) {
+      let x = n === 0 ? 1 : 0
+      lengths.forEach((length, k) => {
+        const delayed = lines[k][at[k]]
+        const v = x + gain * delayed
+        lines[k][at[k]] = v
+        at[k] = (at[k] + 1) % length
+        x = delayed - gain * v
+      })
+      energy += x * x
+      first += x * x * n
+      second += x * x * n * n
+    }
+    return {
+      energy,
+      centre: first / energy,
+      spread: Math.sqrt(second / energy - (first / energy) ** 2),
+    }
+  }
+
+  it('spreads a click by what one allpass does to it', () => {
     const length = 16
     for (const gain of [0.2, 0.385, 0.7]) {
-      const line = new Float64Array(length)
-      let at = 0
-      let energy = 0
-      let first = 0
-      let second = 0
-      for (let n = 0; n < length * 400; n++) {
-        const delayed = line[at]
-        const v = (n === 0 ? 1 : 0) + gain * delayed
-        line[at] = v
-        at = (at + 1) % length
-        const y = delayed - gain * v
-        energy += y * y
-        first += y * y * n
-        second += y * y * n * n
-      }
-      const spread = Math.sqrt(second / energy - (first / energy) ** 2)
-      expect(energy).toBeCloseTo(1, 9)
-      expect(first / energy).toBeCloseTo(length, 6)
-      expect(spread).toBeCloseTo(length * gain * Math.sqrt(2 / (1 - gain * gain)), 6)
+      const once = through([length], gain)
+      expect(once.energy).toBeCloseTo(1, 9)
+      expect(once.centre).toBeCloseTo(length, 6)
+      expect(once.spread).toBeCloseTo(length * gain * Math.sqrt(2 / (1 - gain * gain)), 6)
     }
-    // The display's: the mean allpass at Blur's gain, by the root of the passes made.
+    // The display's: each line's own allpass at Blur's gain.
     const gain = 0.7 * 0.55
-    const once = 0.0106 * gain * Math.sqrt(2 / (1 - gain * gain))
-    expect(meltSmearSec(meltPassSec(0.35), 0.35, 0.55)).toBeCloseTo(once, 9)
-    expect(meltSmearSec(4 * meltPassSec(0.35), 0.35, 0.55)).toBeCloseTo(2 * once, 9)
+    MELT_ALLPASS_SEC.forEach((sec, line) => {
+      expect(meltAllpassSmearSec(line, 0.55)).toBeCloseTo(
+        sec * gain * Math.sqrt(2 / (1 - gain * gain)),
+        12,
+      )
+      expect(meltAllpassSmearSec(line, 0)).toBe(0)
+    })
+  })
+
+  it('adds the passes through one allpass as they are, and different allpasses as squares', () => {
+    // The same allpass twice and three times over: twice and three times the
+    // spread, not the root of two and of three. Two of different lengths:
+    // the root of their squares.
+    for (const gain of [0.385, 0.7]) {
+      const one = (length: number) => length * gain * Math.sqrt(2 / (1 - gain * gain))
+      expect(through([16, 16], gain).spread).toBeCloseTo(2 * one(16), 4)
+      expect(through([16, 16, 16], gain).spread).toBeCloseTo(3 * one(16), 4)
+      expect(through([16, 23], gain).spread).toBeCloseTo(Math.hypot(one(16), one(23)), 3)
+      expect(through([16, 23, 16], gain).spread).toBeCloseTo(Math.hypot(2 * one(16), one(23)), 3)
+    }
+    // The display's, for a way through the lines.
+    const [a, b, c, d] = MELT_ALLPASS_SEC.map((_, line) => meltAllpassSmearSec(line, 0.55))
+    expect(meltWaySmearSec([1, 0, 0, 0], 0.55)).toBeCloseTo(a, 12)
+    expect(meltWaySmearSec([2, 0, 0, 0], 0.55)).toBeCloseTo(2 * a, 12)
+    expect(meltWaySmearSec([0, 0, 0, 3], 0.55)).toBeCloseTo(3 * d, 12)
+    expect(meltWaySmearSec([1, 1, 0, 0], 0.55)).toBeCloseTo(Math.hypot(a, b), 12)
+    expect(meltWaySmearSec([2, 1, 3, 0], 0.55)).toBeCloseTo(Math.hypot(2 * a, b, 3 * c), 12)
+    expect(meltWaySmearSec([4, 4, 4, 4], 0)).toBe(0)
+  })
+
+  it('smears a sound of an age by the ways it can have taken through the lines', () => {
+    // After one trip it is one line's spread (the root of the four's mean
+    // square); after many it grows with the trips, half the lines' spread a
+    // trip, since a sound passes each line a quarter of the times.
+    const gain = 0.7 * 0.55
+    const square = MELT_ALLPASS_SEC.reduce((sum, sec) => sum + sec * sec, 0) / 4
+    const once = Math.sqrt(square) * gain * Math.sqrt(2 / (1 - gain * gain))
+    const pass = meltPassSec(0.35)
+    expect(meltSmearSec(pass, 0.35, 0.55)).toBeCloseTo(once, 12)
+    expect(meltSmearSec(4 * pass, 0.35, 0.55)).toBeCloseTo(once * Math.sqrt(7), 12)
+    expect(meltSmearSec(100 * pass, 0.35, 0.55) / (50 * once)).toBeCloseTo(1, 1)
     expect(meltSmearSec(5, 0.35, 0)).toBe(0)
     expect(meltSmearSec(0, 0.35, 1)).toBe(0)
     // More passes in the same time at a small Size, so more smear.
     expect(meltSmearSec(3, 0, 0.5)).toBeGreaterThan(meltSmearSec(3, 1, 0.5))
+
+    // Every way a sound can have taken to be `rung` old, give or take a
+    // tenth: so many times through each line (its length with the head half
+    // way and its allpass), in any order, each order as likely as another.
+    // The mean square of their smears is the display's, squared.
+    const factorials = [1]
+    for (let n = 1; n < 400; n++) factorials.push(factorials[n - 1] + Math.log(n))
+    for (const { size, blur, rung } of [
+      { size: 1, blur: 0.55, rung: 2 },
+      { size: 1, blur: 1, rung: 8 },
+      { size: 0.35, blur: 0.55, rung: 1 },
+      { size: 0.35, blur: 1, rung: 4 },
+      { size: 0, blur: 0.3, rung: 1.5 },
+    ]) {
+      const scale = MELT_MIN_SCALE * Math.pow(MELT_MAX_SCALE / MELT_MIN_SCALE, size)
+      const trip = MELT_LINE_SEC.map(
+        (sec, line) => sec * scale * (1 + MELT_TRAVEL_SHARE / 2) + MELT_ALLPASS_SEC[line],
+      )
+      const most = Math.ceil((1.1 * rung) / trip[0])
+      let weight = 0
+      let squares = 0
+      for (let a = 0; a <= most; a++) {
+        for (let b = 0; a * trip[0] + b * trip[1] <= 1.1 * rung; b++) {
+          for (let c = 0; a * trip[0] + b * trip[1] + c * trip[2] <= 1.1 * rung; c++) {
+            const sofar = a * trip[0] + b * trip[1] + c * trip[2]
+            const from = Math.max(0, Math.ceil((0.9 * rung - sofar) / trip[3]))
+            for (let d = from; sofar + d * trip[3] <= 1.1 * rung; d++) {
+              const trips = a + b + c + d
+              if (trips === 0) continue
+              // So many orders, each a quarter as likely per trip.
+              const orders = Math.exp(
+                factorials[trips] -
+                  factorials[a] -
+                  factorials[b] -
+                  factorials[c] -
+                  factorials[d] -
+                  trips * Math.log(4),
+              )
+              weight += orders
+              squares += orders * meltWaySmearSec([a, b, c, d], blur) ** 2
+            }
+          }
+        }
+      }
+      expect(meltSmearSec(rung, size, blur) / Math.sqrt(squares / weight)).toBeCloseTo(1, 1)
+    }
   })
 
   it('lets Drip move the rate by its two drifts together, between none and twice', () => {
@@ -378,8 +478,12 @@ describe("melt's scales", () => {
     expect(meltBand(plot, MELT_SMEAR_FULL_SEC / 2)).toBeCloseTo((plot.h * MELT_BAND_SHARE) / 2, 9)
     expect(meltBand(plot, MELT_SMEAR_FULL_SEC)).toBeCloseTo(plot.h * MELT_BAND_SHARE, 9)
     expect(meltBand(plot, 1)).toBeCloseTo(plot.h * MELT_BAND_SHARE, 9)
-    // Blur full and Hold at its default reach about the widest the band gets.
-    expect(meltSmearSec(5, 0.35, 1)).toBeGreaterThan(MELT_SMEAR_FULL_SEC * 0.8)
+    // Blur full reaches the widest the band gets about half way through
+    // Hold's default, and Blur's own default most of the way by its end.
+    expect(meltSmearSec(2.5, 0.35, 1)).toBeGreaterThan(MELT_SMEAR_FULL_SEC * 0.9)
+    expect(meltSmearSec(2.5, 0.35, 1)).toBeLessThan(MELT_SMEAR_FULL_SEC * 1.1)
+    expect(meltSmearSec(5, 0.35, 0.55)).toBeGreaterThan(MELT_SMEAR_FULL_SEC * 0.7)
+    expect(meltSmearSec(5, 0.35, 0.55)).toBeLessThan(MELT_SMEAR_FULL_SEC)
   })
 
   it('lights a sound by its level over 54 dB', () => {
@@ -1127,6 +1231,98 @@ describe('the compiled device does what the picture says', () => {
     const highsRising = (await fall(30, 0, 6000)) - (await fall(30, dim, 6000))
     expect(Math.abs(lowsRising - said)).toBeLessThan(0.3 * said)
     expect(Math.abs(highsRising)).toBeLessThan(1.5)
+  }, 120000)
+
+  it('a click comes out smeared as the band is drawn: once through a line by its allpass, twice through it twice as far', async () => {
+    // Size 1 and Sag 0: the first echoes of a click stand apart and the heads
+    // stand still where they start. A click on one input goes into two of
+    // the four lines, and what comes out on that side has been through one
+    // of those two last: the echo that took line `line` so many times comes
+    // a known time after the click, and with Blur its energy lies at whole
+    // allpass lengths of that line before and after that time.
+    const starts = headerList('kStartShare')
+    const taps = MELT_ALLPASS_SEC.map((sec) => Math.round(sec * RATE))
+    const trip = MELT_LINE_SEC.map(
+      (sec, line) =>
+        sec * RATE * MELT_MAX_SCALE * (1 + MELT_TRAVEL_SHARE * starts[line]) + taps[line],
+    )
+    const total = Math.round(1.3 * RATE)
+    const click = async (blur: number, side: number) => {
+      const loaded = await device({
+        sag: 0,
+        hold: 20,
+        solid: 0,
+        size: 1,
+        dim: 0,
+        drip: 0,
+        mix: 1,
+        blur,
+      })
+      const out = new Float32Array(total)
+      const sound = new Float32Array(128)
+      const none = new Float32Array(128)
+      for (let done = 0; done < total; done += 128) {
+        const frames = Math.min(128, total - done)
+        sound[0] = done === 0 ? 0.5 : 0
+        const into = sound.subarray(0, frames)
+        const other = none.subarray(0, frames)
+        loaded.processBlock(side === 0 ? into : other, side === 0 ? other : into)
+        const pointer =
+          side === 0 ? loaded.device.device_out_left() : loaded.device.device_out_right()
+        out.set(loaded.view(pointer, frames), done)
+      }
+      return out
+    }
+    const energyAt = (wave: Float32Array, at: number): number => {
+      let sum = 0
+      for (let i = Math.max(0, at - 4); i <= Math.min(wave.length - 1, at + 4); i++)
+        sum += wave[i] ** 2
+      return sum
+    }
+    const ways = [
+      { line: 0, times: 1 },
+      { line: 1, times: 1 },
+      { line: 2, times: 1 },
+      { line: 0, times: 2 },
+      { line: 1, times: 2 },
+      { line: 0, times: 3 },
+    ]
+    for (const blur of [0.55, 1]) {
+      const still = [await click(0, 0), await click(0, 1)]
+      const blurred = [await click(blur, 0), await click(blur, 1)]
+      for (const { line, times } of ways) {
+        const side = line & 1
+        // Where the echo stands with no Blur: the strongest sample near the reckoned time.
+        const reckoned = Math.round(times * trip[line])
+        let arrival = reckoned
+        for (let i = reckoned - 8; i <= reckoned + 8; i++) {
+          if (Math.abs(still[side][i]) > Math.abs(still[side][arrival])) arrival = i
+        }
+        expect(Math.abs(still[side][arrival])).toBeGreaterThan(1e-4)
+        let energy = 0
+        let first = 0
+        let second = 0
+        for (let tap = 0; tap <= (blur > 0.7 ? 26 : 12); tap++) {
+          const offset = (tap - times) * taps[line]
+          const here = energyAt(blurred[side], arrival + offset)
+          energy += here
+          first += here * offset
+          second += here * offset * offset
+        }
+        const centre = first / energy
+        const spread = Math.sqrt(second / energy - centre * centre) / RATE
+        const passes = [0, 0, 0, 0]
+        passes[line] = times
+        // The mean stays where the echo was, and the spread is the display's.
+        expect(Math.abs(centre) / RATE).toBeLessThan(0.001)
+        expect(spread / meltWaySmearSec(passes, blur)).toBeGreaterThan(0.95)
+        expect(spread / meltWaySmearSec(passes, blur)).toBeLessThan(1.05)
+        // Not the root of the passes: twice through is not 1.41 times once.
+        if (times > 1) {
+          expect(spread).toBeGreaterThan(1.2 * Math.sqrt(times) * meltAllpassSmearSec(line, blur))
+        }
+      }
+    }
   }, 120000)
 
   it('the reading is how far the rate is off Sag: nothing without Drip, within its reach with it, and at rest asleep', async () => {

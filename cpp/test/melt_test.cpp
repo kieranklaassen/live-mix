@@ -147,6 +147,35 @@ static double filled(const std::vector<float>& x, size_t from, size_t to) {
   return all ? static_cast<double>(count) / static_cast<double>(all) : 0.0;
 }
 
+// The largest second difference: a break in a smooth wave stands out here
+// far more than in the step from one sample to the next.
+static double max_bend(const std::vector<float>& x, size_t from = 0, size_t to = SIZE_MAX) {
+  to = std::min(to, x.size());
+  double worst = 0.0;
+  for (size_t i = from + 2; i < to; ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  }
+  return worst;
+}
+
+// Noise with its top taken off (a one-pole low-pass near 1.7 kHz), so that
+// what the interpolated reads take off the very top is not in it.
+static std::vector<float> soft_noise(float seconds, float gain, uint32_t seed) {
+  rng_state() = seed;
+  std::vector<float> x = noise(seconds, kRate, gain);
+  double low = 0.0;
+  for (float& v : x) {
+    low += 0.2 * (v - low);
+    v = static_cast<float>(low);
+  }
+  return x;
+}
+
+static double level_db(const Stereo& s, size_t from, size_t to) {
+  const double l = rms(s.left, from, to), r = rms(s.right, from, to);
+  return db(std::sqrt(0.5 * (l * l + r * r)));
+}
+
 static double worst_difference(const Stereo& a, const Stereo& b) {
   double worst = 0.0;
   for (size_t i = 0; i < a.size() && i < b.size(); ++i) {
@@ -588,6 +617,207 @@ int main() {
     EXPECT(device.meter(0) == 0.0f, "asleep, the wander meter rests at 0");
     Stereo woken = run(device, impulse(1.0f, kRate, 0.5f));
     EXPECT(peak(woken.left, 6000, 24000) > 0.003, "wakes on new input");
+  }
+
+
+  // ---- What the second check found, each as a check that failed before ----
+
+  // Hold and Size are not volume knobs: steady sound comes out of the tail
+  // as loud as it went in at every Hold and Size. (As built the tail ran
+  // from 42 dB under to 9 dB over.)
+  {
+    double low = 1.0e9, high = -1.0e9;
+    for (float hold : {0.4f, 2.5f, 20.0f}) {
+      for (float size : {0.0f, 0.35f, 1.0f}) {
+        plain(device);
+        device.set_param(p::kSag, -30.0f);
+        device.set_param(p::kHold, hold);
+        device.set_param(p::kSize, size);
+        std::vector<float> in = soft_noise(9.0f, 0.3f, 0xA11CEu);
+        Stereo out = run(device, in);
+        const double gain = level_db(out, 6 * 48000, 9 * 48000) - db(rms(in, 6 * 48000, 9 * 48000));
+        low = std::min(low, gain);
+        high = std::max(high, gain);
+      }
+    }
+    std::printf("  steady noise through the tail alone, Hold 0.4..20 x Size 0..1: %+.2f..%+.2f dB\n", low, high);
+    EXPECT(low > -1.5 && high < 1.5, "the tail is as loud as what went in at every Hold and Size");
+  }
+
+  // The same sound on both inputs comes out as loud on the left as on the
+  // right (as built the tail leant left, by 3 dB at a short Hold and a
+  // large Size), and Width does not turn the tail up or down.
+  {
+    plain(device);
+    device.set_param(p::kSag, -30.0f);
+    device.set_param(p::kHold, 0.4f);
+    device.set_param(p::kSize, 1.0f);
+    std::vector<float> in = soft_noise(8.0f, 0.3f, 0xB0B0u);
+    Stereo out = run(device, in);
+    const double lean = db(rms(out.left, 96000, in.size())) - db(rms(out.right, 96000, in.size()));
+    std::printf("  one sound on both inputs, Hold 0.4 Size 1: left %+.2f dB against right\n", lean);
+    EXPECT(std::fabs(lean) < 1.0, "the tail does not lean to one side");
+
+    double level[2];
+    int k = 0;
+    for (float width : {0.0f, 1.0f}) {
+      plain(device);
+      device.set_param(p::kSag, -30.0f);
+      device.set_param(p::kWidth, width);
+      Stereo wide = run(device, in);
+      level[k++] = level_db(wide, 96000, in.size());
+    }
+    std::printf("  Width 0 against Width 1: %+.2f dB\n", level[0] - level[1]);
+    EXPECT(std::fabs(level[0] - level[1]) < 1.0, "Width does not change how loud the tail is");
+  }
+
+  // A head that has used up its travel hands over without a click: each
+  // head brings its own level into the fade. (As built the line's level
+  // stepped with the head: 4 to 13 times the wave's own steepest step.)
+  {
+    struct Case {
+      float sag, hold, size;
+    };
+    for (const Case& c : {Case{-100.0f, 0.4f, 0.0f}, Case{100.0f, 0.4f, 0.0f}, Case{100.0f, 2.5f, 1.0f}}) {
+      plain(device);
+      device.set_param(p::kSag, c.sag);
+      device.set_param(p::kHold, c.hold);
+      device.set_param(p::kSize, c.size);
+      device.set_param(p::kBlur, 0.0f);
+      Stereo out = run(device, sine(220.0f, 20.0f, kRate, 0.5f));
+      // A tone of this height and size bends by (2 pi f / rate)^2 of its
+      // peak from sample to sample to sample, and no more.
+      const double own = std::pow(2.0 * kPi * 220.0 * 1.06 / kRate, 2.0);
+      const double bend = std::max(max_bend(out.left, 48000), max_bend(out.right, 48000)) /
+                          std::max(peak(out.left, 48000), peak(out.right, 48000));
+      std::printf("  Sag %+.0f Hold %.1f Size %.0f, 20 s of a tone: largest bend %.1f times the tone's own\n", c.sag, c.hold, c.size, bend / own);
+      EXPECT(bend < 6.0 * own, "the handover from one head to the next does not click");
+    }
+  }
+
+  // With Sag at 0 a held note that falls on one of the network's own
+  // pitches does not pile up over its neighbours. (As built the loudest of
+  // these notes came out 10 dB over their mean and 7 dB over the note.)
+  {
+    double sum = 0.0, loudest = -1.0e9;
+    int count = 0;
+    for (int note = 45; note < 69; ++note) {
+      device.init(kRate);
+      device.set_param(p::kSag, 0.0f);
+      device.set_param(p::kHold, 4.0f);
+      device.set_param(p::kSolid, 40.0f);
+      device.set_param(p::kBlur, 0.8f);
+      device.set_param(p::kDim, 0.2f);
+      device.set_param(p::kDrip, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      const float hz = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
+      std::vector<float> tone = sine(hz, 6.0f, kRate, 0.5f);
+      Stereo out = run(device, tone);
+      const double gain = level_db(out, 3 * 48000, 6 * 48000) - db(rms(tone, 3 * 48000, 6 * 48000));
+      sum += std::pow(10.0, gain / 10.0);
+      loudest = std::max(loudest, gain);
+      ++count;
+    }
+    const double mean_db = 10.0 * std::log10(sum / count);
+    std::printf("  Sag 0, two octaves of held notes through the tail alone: mean %+.2f dB, loudest %+.2f dB\n", mean_db, loudest);
+    EXPECT(loudest < 1.6, "a held note on one of the network's pitches is held to the level of what went in");
+    EXPECT(loudest - mean_db < 4.5, "no held note stands far out of its neighbours");
+  }
+
+  // A steady offset on the input does not gather in the tail. (As built
+  // 0.02 of it came out as 0.55 at the longest Hold.)
+  {
+    plain(device);
+    device.set_param(p::kHold, 20.0f);
+    std::vector<float> in = sine(220.0f, 14.0f, kRate, 0.3f);
+    for (float& v : in) v += 0.02f;
+    Stereo out = run(device, in);
+    const double offset = std::max(std::fabs(mean(out.left, 8 * 48000, 14 * 48000)), std::fabs(mean(out.right, 8 * 48000, 14 * 48000)));
+    std::printf("  0.02 of offset into Hold 20: %.5f comes out\n", offset);
+    EXPECT(offset < 0.004, "a steady offset does not pile up in the tail");
+  }
+
+  // Hold and Solid moved while a tone sounds: no steps on the control clock,
+  // no burst of sped-up sound. (As built a move of Hold bent the wave 5
+  // times as sharply as the tone itself and a move of Solid 14 to 26 times.)
+  {
+    struct Move {
+      int id;
+      float from, to;
+      const char* name;
+    };
+    for (const Move& move : {Move{p::kHold, 0.4f, 20.0f, "Hold"}, Move{p::kSolid, 0.0f, 1000.0f, "Solid"}, Move{p::kSolid, 1000.0f, 0.0f, "Solid back"}}) {
+      double bend[3], top[3];
+      for (int which = 0; which < 3; ++which) {
+        device.init(kRate);
+        device.set_param(move.id, which == 1 ? move.to : move.from);
+        run(device, sine(220.0f, 2.5f, kRate, 0.5f));
+        if (which == 2) device.set_param(move.id, move.to);
+        Stereo out = run(device, sine(220.0f, 1.5f, kRate, 0.5f));
+        bend[which] = std::max(max_bend(out.left), max_bend(out.right));
+        top[which] = std::max(peak(out.left), peak(out.right));
+      }
+      const double reference = std::max(bend[0], bend[1]);
+      std::printf("  %s moved: largest bend %.5f (unmoved %.5f)\n", move.name, bend[2], reference);
+      char label[96];
+      std::snprintf(label, sizeof label, "moving %s while sounding leaves the wave smooth", move.name);
+      // (The glide starts with a change of slope, which is a bend of a few
+      // times the tone's own and no step.)
+      EXPECT(bend[2] < 4.0 * reference, label);
+      EXPECT(top[2] < 1.5 * std::max(top[0], top[1]), "and makes nothing louder than it was");
+    }
+  }
+
+  // Hold turned from the longest to the shortest while a loud chord sounds:
+  // the level follows what the lines hold, so the sound that piled up for
+  // 20 s is not turned up at once; and whatever the knobs do, the tail is
+  // bounded.
+  {
+    double top[2];
+    for (int which = 0; which < 2; ++which) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kHold, 20.0f);
+      run(device, sine(220.0f, 6.0f, kRate, 0.9f), sine(277.0f, 6.0f, kRate, 0.9f));
+      if (which == 1) device.set_param(p::kHold, 0.4f);
+      Stereo out = run(device, sine(220.0f, 1.0f, kRate, 0.9f), sine(277.0f, 1.0f, kRate, 0.9f));
+      top[which] = std::max(peak(out.left), peak(out.right));
+    }
+    std::printf("  Hold 20 to 0.4 under a loud tone: peak %.2f (unmoved %.2f)\n", top[1], top[0]);
+    EXPECT(top[1] < 1.4 * top[0] + 0.1, "shortening Hold does not turn up what has piled up");
+
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    rng_state() = 0x1002u;
+    double worst = 0.0;
+    bool all_finite = true;
+    for (int step = 0; step < 60; ++step) {
+      for (int id = 0; id < p::kNumParams; ++id) {
+        if (id == p::kMix) continue;
+        const float u = 0.5f * (white() + 1.0f);
+        const float place = white() > 0.0f ? (u > 0.5f ? 1.0f : 0.0f) : u;
+        device.set_param(id, p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * place);
+      }
+      Stereo out = run(device, sine(110.0f, 0.3f, kRate, 1.0f), sine(165.0f, 0.3f, kRate, 1.0f));
+      worst = std::max(worst, std::max(peak(out.left), peak(out.right)));
+      all_finite = all_finite && finite(out.left) && finite(out.right);
+    }
+    std::printf("  every knob thrown about under a full-scale tone: peak %.2f\n", worst);
+    EXPECT(all_finite && worst <= 3.0 * 1.3, "the tail is bounded whatever the knobs do");
+  }
+
+  // Input too small to be sound is silence: the device sleeps, and does no
+  // work on it. (As built such input kept it awake for good, at eight times
+  // the cost.)
+  {
+    device.init(kRate);
+    device.set_param(p::kHold, 0.4f);
+    run(device, soft_noise(0.2f, 0.5f, 0x5EEDu));
+    std::vector<float> tiny(static_cast<size_t>(8.0f * kRate));
+    for (size_t i = 0; i < tiny.size(); ++i) tiny[i] = i % 2 ? 1.0e-30f : -1.0e-30f;
+    Stereo out = run(device, tiny);
+    EXPECT(peak(out.left, 7 * 48000) == 0.0 && peak(out.right, 7 * 48000) == 0.0, "input under the floor is silence: the device sleeps on it");
+    EXPECT(device.meter(0) == 0.0f, "asleep on input under the floor");
   }
 
   device.init(kRate);

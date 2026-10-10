@@ -81,7 +81,7 @@ export const MELT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Makes the slide uneven. The tail falls in fits, stalling and then running on, instead of in one straight line.',
+      'Makes the slide uneven. The tail falls in fits, stalling and then running on, not in one straight line. It moves the slide Sag sets, so with Sag at zero it does nothing.',
   },
   width: {
     id: 7,

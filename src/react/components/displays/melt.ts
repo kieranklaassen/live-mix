@@ -84,16 +84,44 @@ export function meltPassSec(size: number): number {
 }
 
 /**
+ * How far one pass through line `line` spreads a click, in seconds: the
+ * second moment of its allpass's response about its mean delay, which for a
+ * length M and a gain g is M g sqrt(2 / (1 - g squared)).
+ */
+export function meltAllpassSmearSec(line: number, blur: number): number {
+  const gain = MELT_BLUR_GAIN * clamp(blur, 0, 1)
+  return MELT_ALLPASS_SEC[line] * gain * Math.sqrt(2 / (1 - gain * gain))
+}
+
+/**
+ * How far a sound is smeared that has passed line n `passes[n]` times, in
+ * seconds. An allpass holds each pitch back by its own amount, the same on
+ * every pass, so the passes through one line add as they are (twice through
+ * it is twice the spread); different lines hold back different pitches, and
+ * their spreads add as squares.
+ */
+export function meltWaySmearSec(passes: readonly number[], blur: number): number {
+  let squares = 0
+  passes.forEach((count, line) => {
+    squares += (count * meltAllpassSmearSec(line, blur)) ** 2
+  })
+  return Math.sqrt(squares)
+}
+
+/**
  * How far the allpasses have smeared a sound after `rung` seconds, in
- * seconds. One pass through an allpass of length M and gain g spreads a
- * click by M g sqrt(2 / (1 - g squared)) about its mean delay (the second
- * moment of its response); the passes are through different lines, so the
- * spreads add as squares.
+ * seconds. By then it has made N = rung / pass trips, each through one of
+ * the four lines as the mixing falls, so it has passed each line N / 4 times
+ * give or take: the mean square of that count is N squared / 16 + 3 N / 16.
+ * The smear of the ways it can have taken, by `meltWaySmearSec`, is then
+ * the root of the lines' mean square spread times (N squared + 3 N) / 4. It
+ * is one line's spread after one trip and grows in step with age after
+ * that, not as its root.
  */
 export function meltSmearSec(rung: number, size: number, blur: number): number {
-  const gain = MELT_BLUR_GAIN * clamp(blur, 0, 1)
-  const once = mean(MELT_ALLPASS_SEC) * gain * Math.sqrt(2 / (1 - gain * gain))
-  return once * Math.sqrt(Math.max(0, rung) / meltPassSec(size))
+  const trips = Math.max(0, rung) / meltPassSec(size)
+  const square = mean(MELT_ALLPASS_SEC.map((_, line) => meltAllpassSmearSec(line, blur) ** 2))
+  return Math.sqrt((square * (trips * trips + 3 * trips)) / 4)
 }
 
 /** The furthest Drip can take the rate from what Sag says, as a share of it: the rate stays between none and twice. */
@@ -145,7 +173,7 @@ export const MELT_AGE_MARKS = [1, 5, 20] as const
 export const meltShown = (db: number): number => clamp(1 + db / 60, 0, 1)
 
 /** The smear at which the band is as wide as it gets, in seconds, and how wide that is, as a share of the plot's height each way. */
-export const MELT_SMEAR_FULL_SEC = 0.12
+export const MELT_SMEAR_FULL_SEC = 0.25
 export const MELT_BAND_SHARE = 0.24
 /** Half the band's width in pixels for a smear: by the smear, up to its widest. */
 export const meltBand = (plot: Box, smearSec: number): number =>
