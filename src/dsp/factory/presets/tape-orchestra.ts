@@ -419,7 +419,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     name: 'Tape flute bass',
     category: 'bass',
     description:
-      'Low flutes played from tape: a soft bass that is almost all fundamental, with a breath of hiss, in a small dark room.',
+      'Low flutes played from tape: a soft bass that is mostly fundamental, with a breath of hiss, in a small dark room.',
     instrument: {
       deviceId: 'tape-orchestra',
       params: {
@@ -438,7 +438,7 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'expanse', preset: 'Small dark room', params: { lowCut: 250, mix: 0.2 } },
-      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, ride: 0 } },
     ],
   },
 ]

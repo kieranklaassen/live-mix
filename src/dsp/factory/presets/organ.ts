@@ -496,7 +496,7 @@ export const ORGAN_PRESETS: readonly FactoryPreset[] = [
     name: 'Reed organ pedal',
     category: 'bass',
     description:
-      'Reed organ pedal notes, a reedy rank with a quieter octave under it, through a slowly turning mono cabinet in a chamber.',
+      'Reed organ pedal notes, a mildly reedy rank with quieter octaves under and over it, through a slowly turning mono cabinet in a chamber.',
     instrument: {
       deviceId: 'organ',
       params: {

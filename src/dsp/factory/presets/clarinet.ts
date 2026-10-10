@@ -345,7 +345,7 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
         params: { hornDepth: 0, drumDepth: 0, drive: 0 },
       },
       { deviceId: 'shaped-reverb', preset: 'Short halo', params: { lowCut: 250 } },
-      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, ride: 0 } },
     ],
   },
 ]

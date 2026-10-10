@@ -507,9 +507,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: 0,
       },
     },
-    effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 6, release: 0.2, ride: 0 } },
-    ],
+    effects: [{ deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 6, ride: 0 } }],
   },
   {
     id: 'soft-ladder-sub',
@@ -539,7 +537,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Slow ladder filter rise',
     category: 'bass',
     description:
-      'A held saw bass under a second low-pass that opens over eight seconds and closes over the next eight, round after round.',
+      'A held saw bass under a second low-pass that opens over eight seconds and closes over the next eight on its own clock, not with the notes.',
     instrument: {
       deviceId: 'ladder-bass',
       params: {
@@ -694,7 +692,7 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Resonant ladder pluck',
     category: 'bass',
     description:
-      'A square pluck through a resonant filter that closes in under a second, held at the strike by a limiter, in a small box.',
+      'A square pluck with a faint sub through a resonant filter that closes in under a second, in a small box.',
     instrument: {
       deviceId: 'ladder-bass',
       params: {
@@ -707,12 +705,9 @@ export const LADDER_BASS_PRESETS: readonly FactoryPreset[] = [
         decay: 0.9,
         drive: 0.4,
         glide: 0,
-        volume: -2,
+        volume: 0,
       },
     },
-    effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 2, release: 0.2, ride: 0 } },
-      { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 250, mix: 0.2 } },
-    ],
+    effects: [{ deviceId: 'expanse', preset: 'Small box', params: { lowCut: 250, mix: 0.2 } }],
   },
 ]

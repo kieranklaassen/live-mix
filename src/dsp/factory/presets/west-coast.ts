@@ -472,7 +472,6 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
         fold: 0.3,
         symmetry: 0.2,
         fm: 0,
-        ratio: 1,
         timbreEnv: 0.5,
         attack: 0.001,
         decay: 1.3,
@@ -485,7 +484,7 @@ export const WEST_COAST_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 250, mix: 0.2 } },
-      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, ride: 0 } },
     ],
   },
 ]

@@ -459,7 +459,7 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
     name: 'One string arco bass',
     category: 'bass',
     description:
-      'One bowed low string with a full wooden body that takes a moment to speak, set in the centre, with a little room.',
+      'One bowed low string with a wooden body that takes a moment to speak, set in the centre, with a little room.',
     instrument: {
       deviceId: 'bowed-string',
       params: {
@@ -468,10 +468,10 @@ export const BOWED_STRING_PRESETS: readonly FactoryPreset[] = [
         release: 0.5,
         brightness: 0.4,
         pressure: 0.5,
-        body: 0.8,
+        body: 0.4,
         vibrato: 0.05,
         detune: 0,
-        volume: -7,
+        volume: -6.5,
       },
     },
     effects: [

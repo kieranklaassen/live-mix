@@ -330,7 +330,7 @@ export const HORNS_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'horns',
       params: {
         type: 4,
-        blow: 0.5,
+        blow: 0.35,
         breath: 0.1,
         section: 0,
         attack: 0.05,
