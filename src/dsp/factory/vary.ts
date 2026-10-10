@@ -20,6 +20,12 @@
 // along them, and so a variant is made of the sound as written and
 // transposed afterwards.
 //
+// A sound that keeps time (one with a `bpm`) stays on its beat: its hand is
+// a few hundredths of a second loose at most, and its speed is half or double
+// time. A sound played on a kit (./kits.ts) has drums for keys, so no chord
+// of the key and no tuning by the hand: its pattern and its touch vary, and
+// no drum of it is a note it stands on, so any stroke but the first may rest.
+//
 // A variant is decided by a seed and the amounts and by nothing else: the
 // same ones always give the same recipe, so a host that keeps them has kept
 // the variant. Everything is drawn from a note's own place in the phrase,
@@ -75,6 +81,8 @@ export const VARIATION_LIMITS = {
   thin: 0.4,
   /** Touch: how early or late a note may be, seconds; never more than a third of the way to the next one. */
   timingSec: 0.12,
+  /** Touch: the same for a sound that keeps time, where more than this is a note off the beat. */
+  beatTimingSec: 0.01,
   /** Touch: how much harder or softer a note may be played against the others, dB. */
   gainDb: 3,
   /** Touch: how far off pitch a note may be, cents. Not for a sound tuned to whole cycles. */
@@ -119,6 +127,10 @@ export interface VariedPlaying {
   tuning?: 'whole-cycles'
   /** A sound made of another one plays that one's audio: its notes are how far the audio is moved, so no chord of the key. */
   source?: string
+  /** The tempo a sound that keeps time is written at: its notes stay near where they are written. */
+  bpm?: number
+  /** A sound played on a kit: its keys are drums, so no chord of the key and no note an octave away. */
+  kit?: boolean
 }
 
 /** What a variant does to its sound, for whoever wants to say so. Every count is of one pass. */
@@ -242,11 +254,12 @@ function namedChordSteps(written: readonly PhraseNote[], steps: number): number 
  * The white key a sound stands on, 0 for C to 6 for B: its lowest written
  * note, a black key counted with the white key under it. A host names the
  * chord a sound is on by it, in whatever key the sound is played. Null for
- * a sound with no notes, and for one made of another sound's audio
- * (`source`), whose notes say how far that audio is moved.
+ * a sound with no notes, for one made of another sound's audio (`source`),
+ * whose notes say how far that audio is moved, and for one played on a kit,
+ * whose notes say which drum.
  */
 export function soundDegree(sound: VariedPlaying): number | null {
-  if (sound.source !== undefined || sound.phrase.notes.length === 0) return null
+  if (sound.source !== undefined || sound.kit || sound.phrase.notes.length === 0) return null
   const low = Math.round(Math.min(...sound.phrase.notes.map((note) => note.note)))
   const pitchClass = mod(low, 12)
   return WHITE_KEYS.indexOf(pitchClass - (WHITE_KEYS.includes(pitchClass) ? 0 : 1))
@@ -298,7 +311,10 @@ function vary<T extends VariedPlaying>(
   const amount = variationAmounts(variation)
   // A chord asked for by name, on a sound that has one to move: how far its notes go, or null where it cannot stand there.
   const named =
-    variation?.chord !== undefined && Number.isFinite(variation.chord) && sound.source === undefined
+    variation?.chord !== undefined &&
+    Number.isFinite(variation.chord) &&
+    sound.source === undefined &&
+    !sound.kit
       ? namedChordSteps(sound.phrase.notes, variation.chord)
       : undefined
   if (
@@ -355,7 +371,8 @@ function vary<T extends VariedPlaying>(
       pitch: cents(note.note),
       turn: 0,
     }))
-  const lowest = Math.min(...hits.map((hit) => hit.pitch))
+  // The note the sound stands on. A kit has none: its lowest key is one drum among the others.
+  const lowest = sound.kit ? null : Math.min(...hits.map((hit) => hit.pitch))
   const pitches = (): number[] => [...new Set(hits.map((hit) => hit.pitch))].sort((a, b) => a - b)
   /** One chord and nothing else: held through a loop, or struck once. */
   const chord = held || momentsOf(hits).length === 1
@@ -465,7 +482,7 @@ function vary<T extends VariedPlaying>(
       changes.chordSteps = named
     }
   }
-  if (amount.chords > 0 && sound.source === undefined) {
+  if (amount.chords > 0 && sound.source === undefined && !sound.kit) {
     // The sound on another chord of the key: every note the same number of
     // steps along the white keys. Never one that stands on B, the one white
     // key with no fifth above it.
@@ -541,7 +558,9 @@ function vary<T extends VariedPlaying>(
         const after = index < moments.length - 1 ? moments[index + 1][0].at - sec : around
         const room = Math.min(before, after)
         if (!(room > TOGETHER_SEC)) return 0
-        const reach = Math.min(amount.touch * VARIATION_LIMITS.timingSec, room / 3)
+        const loose =
+          sound.bpm === undefined ? VARIATION_LIMITS.timingSec : VARIATION_LIMITS.beatTimingSec
+        const reach = Math.min(amount.touch * loose, room / 3)
         const to = sec + swing(seed, TIMING, struck[0].from, struck[0].turn) * reach
         // Never ahead of the attack; inside its pass where there are passes; and
         // in a sound that ends, the notes it ends on are never later, so it
@@ -559,7 +578,7 @@ function vary<T extends VariedPlaying>(
       })
     }
     for (const hit of hits) {
-      if (sound.tuning !== 'whole-cycles') {
+      if (sound.tuning !== 'whole-cycles' && !sound.kit) {
         const off = swing(seed, TUNING, hit.from, hit.pitch, hit.turn)
         hit.note += (amount.touch * VARIATION_LIMITS.cents * off) / 100
       }

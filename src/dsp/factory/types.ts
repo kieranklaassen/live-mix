@@ -8,10 +8,20 @@ import { type LoopFold, type Phrase } from '../patch-render'
 
 /** The groups a preset browser lists instrument presets under. */
 export type FactoryPresetCategory =
-  'pad' | 'keys' | 'bell' | 'string' | 'plucked' | 'wind' | 'voice' | 'organ' | 'drone' | 'texture'
+  | 'pad'
+  | 'keys'
+  | 'bell'
+  | 'string'
+  | 'plucked'
+  | 'wind'
+  | 'voice'
+  | 'organ'
+  | 'drone'
+  | 'texture'
+  | 'drum'
 
 /** The phrases a preset can be auditioned with (./phrases.ts). */
-export type FactoryPhraseName = 'chord' | 'keys' | 'bells' | 'line' | 'low' | 'hold'
+export type FactoryPhraseName = 'chord' | 'keys' | 'bells' | 'line' | 'low' | 'hold' | 'drum'
 
 /** An instrument with its settings and the effects after it. */
 export interface FactoryPreset extends Patch {
@@ -100,6 +110,21 @@ export interface FactorySound {
    * (see ./parts.ts), in whatever key that is.
    */
   tuning?: 'whole-cycles'
+  /**
+   * For a sound that keeps time (a drum loop, a pulse, a bass line): the
+   * tempo it is written at, in beats per minute. `renderFactorySound` with a
+   * `bpm` of its own plays it at that tempo instead: the same notes closer
+   * together or further apart, never the audio stretched (see ./tempo.ts).
+   * Absent for a sound with no beat to it, which is the same at every tempo.
+   */
+  bpm?: number
+  /**
+   * True for a sound played on a kit (./kits.ts), whose keys are things and
+   * not pitches: every C the same drum. In another key its notes stay where
+   * they are and the kit's own tuning moves, and a variant never moves it to
+   * another chord. Set by `sound()` from the instrument, never by hand.
+   */
+  kit?: true
   /**
    * The name and description with each note they mention in braces
    * ("Low drone {D}"): what `transposeFactorySound` writes them from in

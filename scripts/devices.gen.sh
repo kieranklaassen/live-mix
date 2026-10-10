@@ -42,6 +42,8 @@ build_generated_devices() {
     cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drum-kit \
+    cpp/devices/drum-kit/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device dusk \
     cpp/devices/dusk/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device echo-memory \
@@ -60,6 +62,8 @@ build_generated_devices() {
     cpp/devices/freq-shifter/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device glitch \
     cpp/devices/glitch/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device glitch-kit \
+    cpp/devices/glitch-kit/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-cloud \
     cpp/devices/grain-cloud/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device grain-delay \
@@ -213,6 +217,8 @@ test_generated_devices() {
     cpp/test/clarinet_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
+  native_test drum_kit_test \
+    cpp/test/drum_kit_test.cpp
   native_test dusk_test \
     cpp/test/dusk_test.cpp
   native_test echo_memory_test \
@@ -231,6 +237,8 @@ test_generated_devices() {
     cpp/test/freq_shifter_test.cpp
   native_test glitch_test \
     cpp/test/glitch_test.cpp
+  native_test glitch_kit_test \
+    cpp/test/glitch_kit_test.cpp
   native_test grain_cloud_test \
     cpp/test/grain_cloud_test.cpp
   native_test grain_delay_test \

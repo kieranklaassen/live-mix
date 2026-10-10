@@ -3,6 +3,9 @@
 // number, not its place here, is what saved work knows it by.
 
 import { type FactorySound } from '../types'
+import { DRUM_LOOPS } from './beats-drums'
+import { GLITCH_LOOPS } from './beats-glitch'
+import { PULSES } from './beats-pulses'
 import { DRONES_HELD } from './drones-held'
 import { DRONES_SYNTH } from './drones-synth'
 import { FIRST_SOUNDS } from './first'
@@ -23,4 +26,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   ...ONESHOTS,
   ...PHRASES,
   ...MADE,
+  ...DRUM_LOOPS,
+  ...GLITCH_LOOPS,
+  ...PULSES,
 ]
