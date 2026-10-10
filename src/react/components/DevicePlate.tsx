@@ -43,7 +43,7 @@ import {
   type PlatePicture,
 } from './device-skins'
 import { infoProps, infoText } from './info'
-import { Knob } from './Knob'
+import { Knob, knobModulation } from './Knob'
 import { paramInfo } from './param-info'
 import {
   DISPLAY_STRIP_HEIGHT,
@@ -285,6 +285,11 @@ export interface DevicePlateProps {
   /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
   hint?: string
   /**
+   * A line added to one knob's info text, after what the parameter does: what
+   * else a host lets a hand do there (a menu on a right-click, what moves it).
+   */
+  knobHint?: (param: string) => string | undefined
+  /**
    * The node that feeds the device, so a display can show the level going in
    * beside the level coming out. A chain gives it; left out, a display shows
    * only what comes out.
@@ -361,6 +366,7 @@ export function DevicePlate({
   onOpenChange,
   actions,
   hint,
+  knobHint,
   source = null,
   onRemove,
   className,
@@ -558,6 +564,7 @@ export function DevicePlate({
               taper={paramTaper(spec)}
               unit={spec.unit || 'ratio'}
               bipolar={isBipolar(spec)}
+              modulation={knobModulation(device, name, d.modulations[name])}
               size={layout.upright?.knob ?? KNOB_SIZE}
               cap={skin.cap}
               format={
@@ -575,7 +582,7 @@ export function DevicePlate({
               }}
               onChangeStart={() => d.touch(name)}
               onChangeEnd={() => d.release(name)}
-              info={paramInfo(spec) ?? `A setting of ${heading}.`}
+              info={infoText(paramInfo(spec) ?? `A setting of ${heading}.`, knobHint?.(name))}
               className={cx(
                 'lm-plate__knob',
                 longestWord(label) > roomy && 'lm-plate__knob--tight',
