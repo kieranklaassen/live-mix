@@ -217,9 +217,9 @@ export const prismY = (place: number, plot: Box): number =>
 export const prismPlaceAt = (y: number, plot: Box): number =>
   (1 - (y - plot.y) / plot.h) * (1 + 2 * PRISM_PAD) - PRISM_PAD
 
-/** The middle of a row of the picture, top row first. */
-export const prismRowY = (row: number, layout: PrismLayout): number =>
-  layout.plot.y + ((row + 0.5) / layout.rows) * layout.plot.h
+/** The middle of a row of the picture, top row first; with `per`, of one of so many slices to a row. */
+export const prismRowY = (row: number, layout: PrismLayout, per = 1): number =>
+  layout.plot.y + ((row + 0.5) / (layout.rows * per)) * layout.plot.h
 
 /** Which of the seven readings a place belongs to: `zone_` in `Prism::init`, the ends taking what lies beyond. */
 export const prismZone = (place: number): number =>
@@ -404,6 +404,8 @@ function prismHandles(view: DisplayView): DisplayHandle[] {
             )
           : settings.bend,
       }),
+      // The curve gives Bend little room across, so the wheel sets it finely.
+      wheel: (steps) => ({ bend: clamp(settings.bend + 0.05 * steps, bendMin, bendMax) }),
       reset: () => ({ bend: view.spec('bend')?.default ?? 0 }),
     },
   ]
@@ -411,7 +413,10 @@ function prismHandles(view: DisplayView): DisplayHandle[] {
 
 // --- What is drawn ----------------------------------------------------------
 
-/** The curve as the picture has it: a wait and a loss for each row, top row first. */
+/**
+ * The curve as the picture has it: a wait and a loss for each row, top row
+ * first, or for each of several slices to a row.
+ */
 export interface PrismCurve {
   /** Seconds each row waits. */
   delay: Float32Array
@@ -427,15 +432,17 @@ export function prismCurve(
   settings: PrismSettings,
   layout: PrismLayout,
   sampleRate: number,
+  per = 1,
 ): PrismCurve {
-  const { plot, rows } = layout
+  const { plot } = layout
+  const rows = layout.rows * per
   const deal = prismDeal(settings.bands, settings.shuffle)
   const delay = new Float32Array(rows)
   const again = new Float32Array(rows)
   const loop = new Float32Array(rows)
   const zone = new Uint8Array(rows)
   for (let row = 0; row < rows; row++) {
-    const place = prismPlaceAt(prismRowY(row, layout), plot)
+    const place = prismPlaceAt(prismRowY(row, layout, per), plot)
     delay[row] = prismDelaySec(place, settings, deal)
     again[row] = prismAgainSec(delay[row], sampleRate)
     loop[row] = prismLoopGain(prismHz(place), settings.feedback, settings.tilt)
@@ -443,6 +450,13 @@ export function prismCurve(
   }
   return { delay, again, loop, zone }
 }
+
+/**
+ * The lines are worked out at so many slices to a row of the picture: with
+ * forty eight scattered bands a band is little more than a row high, and a
+ * line through the rows' middles alone would miss where each one reaches.
+ */
+export const PRISM_LINE_PER = 4
 
 /** Repeats are drawn as far as this many waits. */
 export const PRISM_PASSES = 8
@@ -461,7 +475,7 @@ export const PRISM_FLOW_FLOOR_DB = -60
 export const PRISM_FLOW_SPAN_DB = 50
 /** Sound on its way is drawn in so many shades, the strongest so strong in the ink. */
 export const PRISM_SHADES = 8
-export const PRISM_TRANSIT_ALPHA = 0.4
+export const PRISM_TRANSIT_ALPHA = 0.32
 
 /** The shade, 0 to `PRISM_SHADES`, of a sound of that strength (1 is a full-scale sine). */
 export const prismShade = (strength: number): number =>
@@ -508,7 +522,9 @@ const timeWords = (seconds: number): string =>
  * so Tilt is seen to wear one end of it away.
  */
 function linesOf(curve: PrismCurve, layout: PrismLayout, wet: number): PrismLine[] {
-  const { plot, rows } = layout
+  const { plot } = layout
+  const rows = curve.delay.length
+  const per = rows / layout.rows
   const lines: PrismLine[] = []
   for (let pass = PRISM_PASSES; pass >= 2; pass--) {
     let run: Point[] = []
@@ -517,7 +533,7 @@ function linesOf(curve: PrismCurve, layout: PrismLayout, wet: number): PrismLine
       const alpha = prismRepeatAlpha(wet * Math.pow(curve.loop[row], pass - 1))
       const point: Point = [
         prismX(curve.delay[row] + (pass - 1) * curve.again[row], plot),
-        prismRowY(row, layout),
+        prismRowY(row, layout, per),
       ]
       if (alpha !== runAlpha) {
         if (runAlpha > 0) {
@@ -534,7 +550,7 @@ function linesOf(curve: PrismCurve, layout: PrismLayout, wet: number): PrismLine
   }
   const main: Point[] = []
   for (let row = 0; row < rows; row++)
-    main.push([prismX(curve.delay[row], plot), prismRowY(row, layout)])
+    main.push([prismX(curve.delay[row], plot), prismRowY(row, layout, per)])
   lines.push({ points: main, alpha: INK.trace, width: 1.5 })
   return lines
 }
@@ -631,6 +647,8 @@ const SCALE_SEC: readonly (readonly [number, string])[] = [
   [0.1, '100 ms'],
   [1, '1 s'],
 ]
+/** The room the words of a frequency take at the left of the plot. */
+const LABEL_ROOM = 34
 const SCALE_HZ: readonly (readonly [number, string])[] = [
   [100, '100 Hz'],
   [1000, '1 kHz'],
@@ -682,7 +700,11 @@ const display = plateDisplay<PrismState>({
     ]
     if (!state.curve || made.some((value, i) => value !== state.made[i])) {
       state.curve = prismCurve(settings, layout, frame.sampleRate)
-      state.lines = linesOf(state.curve, layout, wet)
+      state.lines = linesOf(
+        prismCurve(settings, layout, frame.sampleRate, PRISM_LINE_PER),
+        layout,
+        wet,
+      )
       state.made = made
     }
 
@@ -731,9 +753,18 @@ const display = plateDisplay<PrismState>({
     })
 
     // The words stand on patches: sound runs under them.
-    for (const [hz, words] of SCALE_HZ) if (words) label(frame, words, plot.x + 2, lineOf(hz) - 2)
-
     const handles = prismHandles(frame)
+    // At the left, unless the curve begins there: then at the right, where it has not come yet.
+    const right = handles[1].x < plot.x + LABEL_ROOM
+    for (const [hz, words] of SCALE_HZ)
+      if (words)
+        label(
+          frame,
+          words,
+          right ? plot.x + plot.w - 2 : plot.x + 2,
+          lineOf(hz) - 2,
+          right ? 'right' : 'left',
+        )
     for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
 
     // The point in hand, in words, along the top at the end away from it.
