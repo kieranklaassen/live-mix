@@ -150,6 +150,16 @@ function Studio({ engine }: { engine: Engine }) {
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
+A knob with `modulation` stays where it is set and shows a value that moves
+on its own: a dot at its foot, a faint arc for how far the value swings and a
+strong arc from where the knob is set to where the value is now, written on
+frames with no render. `DevicePlate` and `DevicePanel` pass it for every
+parameter the device moves itself (`useDevice(device).modulations`, through
+`knobModulation(device, name, modulation)`), so an LFO a score routes onto a
+WASM device's knob shows with nothing more from the host. `knobHint` on a
+plate, a panel or `DeviceChainView` adds a host's line to a knob's info text
+(what a right-click there does, what moves the value).
+
 ### Grounds and depth
 
 A theme is its literal tokens (`LM_TOKENS`). The stylesheet derives a second

@@ -6,6 +6,11 @@
 // names to ids and ranges.
 
 import {
+  modulatedParamValue,
+  type ParamModulation,
+  type ParamTravel,
+} from '../core/automation/param-modulation'
+import {
   type DeviceChange,
   type DeviceChangeListener,
   type DeviceMeterSpec,
@@ -72,17 +77,42 @@ export type WorkletNodeFactory = (
 export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends AssetOverrides {
   /** Initial parameter values by name; anything omitted uses the spec default. */
   params?: Partial<Record<keyof P & string, number>>
+  /**
+   * What moves parameters on the audio thread from the first block on, by
+   * name: as `modulate` after creation, but with no message to wait for, so
+   * it is there in an offline render that starts at once. A name the device
+   * lacks is ignored, and so is all of it on a processor of the app's own.
+   */
+  modulations?: Readonly<Record<string, ParamModulation>>
   createNode?: WorkletNodeFactory
 }
 
 const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
   new AudioWorkletNode(context, name, options)
 
+/** What of a parameter's spec its travel is worked out from, and no more: it crosses to the audio thread. */
+function paramTravel(spec: ParamSpec): ParamTravel {
+  return {
+    min: spec.min,
+    max: spec.max,
+    default: spec.default,
+    taper: spec.taper,
+    ...(spec.step === undefined ? {} : { step: spec.step }),
+    ...(spec.choices === undefined ? {} : { choices: spec.choices }),
+  }
+}
+
 const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
 
 export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, ParamSpec>>
   implements NoteDevice, ObservableDevice, MeteredDevice
 {
+  /**
+   * Whether the device moves its parameters on the audio thread
+   * (`ModulatedDevice`): true on the library's own processor. An app-local
+   * processor is not sent the message, so its device says false.
+   */
+  readonly modulates: boolean
   readonly id: string
   readonly params: Readonly<P>
   readonly meters: Readonly<Record<string, DeviceMeterSpec>>
@@ -92,6 +122,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   /** What a multi-sample instrument holds; undefined for every other device. */
   readonly zones: ZoneCapacity | undefined
   private readonly values = new Map<string, number>()
+  private readonly modulations: Map<string, ParamModulation>
   private readonly changes = new Emitter<DeviceChange>()
   private readonly meterIntervalFrames: number
   private meterValues: readonly number[] = []
@@ -99,16 +130,21 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   private bypassed = false
   private disposed = false
   private readonly load: LoadClaim
+  private readonly context: BaseAudioContext
 
   private constructor(
     definition: WasmDeviceDefinition<P>,
     node: AudioWorkletNode,
     initial: Map<string, number>,
-    sampleRate: number,
+    moved: Map<string, ParamModulation>,
+    context: BaseAudioContext,
     load: LoadClaim,
   ) {
+    const sampleRate = context.sampleRate
     this.id = definition.id
     this.load = load
+    this.context = context
+    this.modulates = definition.processor === undefined
     this.params = definition.params
     this.meters = definition.meters ?? NO_METERS
     this.zones = definition.zones
@@ -126,6 +162,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     // delay compensation sees the device whichever field it reads.
     this.latencySec = definition.latencySec ?? this.latencySamples / sampleRate
     this.values = initial
+    this.modulations = moved
   }
 
   /**
@@ -153,12 +190,30 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     void wasmMemoryBytes(module).then((bytes) => {
       load.memoryBytes = bytes
     })
+    const moved = new Map<string, ParamModulation>()
+    if (definition.processor === undefined) {
+      for (const [name, modulation] of Object.entries(options.modulations ?? {})) {
+        if (Object.hasOwn(definition.params, name) && modulation.routes.length > 0) {
+          moved.set(name, modulation)
+        }
+      }
+    }
     const processorOptions: WasmDeviceProcessorOptions = {
       module,
       deviceId: definition.id,
       params: Object.entries(definition.params).map(
         ([name, spec]) => [spec.id, initial.get(name) ?? spec.default] as const,
       ),
+      ...(moved.size > 0
+        ? {
+            modulations: [...moved].map(([name, modulation]) => ({
+              paramId: definition.params[name].id,
+              travel: paramTravel(definition.params[name]),
+              base: initial.get(name) ?? definition.params[name].default,
+              modulation,
+            })),
+          }
+        : {}),
       ...(load.slot ? { load: load.slot } : {}),
     }
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
@@ -177,7 +232,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
       load.release()
       throw error
     }
-    return new WasmDevice(definition, node, initial, context.sampleRate, load)
+    return new WasmDevice(definition, node, initial, moved, context, load)
   }
 
   get input(): AudioNode {
@@ -201,6 +256,45 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     const spec = this.params[name]
     if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
     return this.values.get(name) ?? spec.default
+  }
+
+  /**
+   * Move a parameter on the audio thread, around the value it is set to;
+   * null leaves it there. Only on the library's own processor (`modulates`).
+   */
+  modulate(name: keyof P & string, modulation: ParamModulation | null): void {
+    const spec = this.params[name]
+    if (!spec) throw new Error(`live-mix: ${this.id} has no parameter "${name}"`)
+    if (!this.modulates) {
+      throw new Error(`live-mix: ${this.id} runs a processor of its own and takes no modulation`)
+    }
+    const moves = modulation !== null && modulation.routes.length > 0
+    if (!moves && !this.modulations.has(name)) return
+    if (moves) this.modulations.set(name, modulation)
+    else this.modulations.delete(name)
+    this.post({
+      type: 'modulate',
+      paramId: spec.id,
+      travel: paramTravel(spec),
+      base: this.getParam(name),
+      modulation: moves ? modulation : null,
+    })
+    this.changes.emit({ type: 'modulation', name })
+  }
+
+  /** What moves a parameter on the audio thread now; undefined for one that stands still. */
+  modulationOf(name: keyof P & string): ParamModulation | undefined {
+    return this.modulations.get(name)
+  }
+
+  /**
+   * The parameter's value at `timeSec` on the context's clock (now, left
+   * out): where the audio thread has it, worked out from the same numbers.
+   */
+  paramAt(name: keyof P & string, timeSec: number = this.context.currentTime): number {
+    const base = this.getParam(name)
+    const modulation = this.modulations.get(name)
+    return modulation ? modulatedParamValue(this.params[name], base, modulation, timeSec) : base
   }
 
   get bypass(): boolean {
