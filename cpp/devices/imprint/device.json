@@ -1,0 +1,108 @@
+{
+  "id": "imprint",
+  "name": "Imprint",
+  "category": "eq",
+  "description": "Learns the tone colour of what it hears, holds it when Capture is switched off, and presses that colour on everything played after.",
+  "class": "Imprint",
+  "header": "imprint.h",
+  "sources": [],
+  "latencySamples": 2304,
+  "meters": [
+    { "key": "shape1", "name": "Captured colour, points 1 to 4", "display": true },
+    { "key": "shape2", "name": "Captured colour, points 5 to 8", "display": true },
+    { "key": "shape3", "name": "Captured colour, points 9 to 12", "display": true },
+    { "key": "shape4", "name": "Captured colour, points 13 to 16", "display": true },
+    { "key": "shape5", "name": "Captured colour, points 17 to 20", "display": true },
+    { "key": "shape6", "name": "Captured colour, points 21 to 24", "display": true },
+    { "key": "shape7", "name": "Captured colour, points 25 to 28", "display": true },
+    { "key": "shape8", "name": "Captured colour, points 29 to 32", "display": true },
+    { "key": "shape9", "name": "Captured colour, points 33 to 36", "display": true },
+    { "key": "shape10", "name": "Captured colour, points 37 to 40", "display": true },
+    { "key": "shape11", "name": "Captured colour, points 41 to 44", "display": true },
+    { "key": "shape12", "name": "Captured colour, points 45 to 48", "display": true },
+    { "key": "shape13", "name": "Captured colour, points 49 to 52", "display": true },
+    { "key": "shape14", "name": "Captured colour, points 53 to 55", "display": true },
+    { "key": "tilt", "name": "Captured tilt", "display": true },
+    { "key": "heard", "name": "Share of the Learn time heard", "display": true }
+  ],
+  "params": [
+    {
+      "key": "capture",
+      "name": "Capture",
+      "choices": ["Off", "On"],
+      "default": 1,
+      "description": "On, the effect listens and learns the colour of what it hears, starting afresh each time. Off, the colour it has learned is held."
+    },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "choices": [
+        "Captured",
+        "Open vowel",
+        "Round vowel",
+        "Thin vowel",
+        "Hollow tube",
+        "Bright bell",
+        "Dark box"
+      ],
+      "default": 0,
+      "description": "Which colour is pressed on the sound. Captured is the one learned with Capture. The others are built in and always there."
+    },
+    {
+      "key": "amount",
+      "name": "Amount",
+      "min": -2,
+      "max": 2,
+      "default": 1,
+      "description": "How hard the colour is pressed on. The middle leaves the sound alone. To the right the colour is exaggerated, to the left it is turned inside out."
+    },
+    {
+      "key": "shift",
+      "name": "Shift",
+      "min": -24,
+      "max": 24,
+      "default": 0,
+      "unit": "st",
+      "description": "Slides the colour up or down the spectrum without changing the notes. Up makes the stamped body smaller and brighter, down larger and darker."
+    },
+    {
+      "key": "replace",
+      "name": "Replace",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "At zero the colour is laid over the sound's own. Turned up, the sound's own colour is flattened first, so different sounds come out with the same colour."
+    },
+    {
+      "key": "smooth",
+      "name": "Smooth",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How fine the colour is. Low keeps every bump, down to single partials of what was captured. High keeps only the broad colour."
+    },
+    {
+      "key": "learn",
+      "name": "Learn",
+      "min": 0.1,
+      "max": 20,
+      "default": 2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a moment Capture remembers. Short takes the colour of the last instant. Long averages everything heard while it listens."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched sound and the stamped one."
+    }
+  ],
+  "presets": {},
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit and kit::Stft. A spectral envelope follower and a gain per bin, in the family of cross synthesis by envelope transfer; not a model of any product."
+  }
+}
