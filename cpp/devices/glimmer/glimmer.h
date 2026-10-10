@@ -143,6 +143,7 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
     earlier_base_ = 0.0;
     earlier_from_ = 0;
     clock_meter_ = 0.0f;
+    asleep_ = false;
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
     // Nothing is held: once the input stops, a latency and a frame play out.
@@ -180,9 +181,13 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
       stft_[0].skip(frames);  // the frame clock and the flicker's run on through the sleep
       stft_[1].skip(frames);
       now_ += static_cast<uint64_t>(frames);
-      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
+      asleep_ = true;
       clock_meter_ = static_cast<float>(clock_at(now_));
       return;
+    }
+    if (asleep_) {
+      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
+      asleep_ = false;
     }
     for (int i = 0; i < frames; ++i) {
       float in[2];
@@ -386,6 +391,7 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
   double earlier_base_ = 0.0;
   uint64_t earlier_from_ = 0;
   float clock_meter_ = 0.0f;
+  bool asleep_ = false;  // the block before this one was slept through
   kit::Smoother mix_;
   kit::IdleGate idle_;
 };

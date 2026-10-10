@@ -8,6 +8,8 @@
 #include "../devices/glimmer/glimmer.h"
 #include "support/test_kit.h"
 
+#include <limits>
+
 using namespace testkit;
 using livemix::Glimmer;
 namespace p = livemix::glimmer;
@@ -301,6 +303,254 @@ int main() {
     EXPECT_NEAR(right_high, 0.8 * high_place, 0.03, "lean right: the highs flicker");
     EXPECT_NEAR(left_low, 0.8 * (1.0 - low_place), 0.03, "lean left: the lows flicker");
     EXPECT_NEAR(left_high, 0.8 * (1.0 - high_place), 0.03, "lean left: the highs keep still");
+  }
+
+  // --- Soft, Vary, Apart ---------------------------------------------------------------------------
+  // On Upward at 0.9375 Hz a cycle is 200 values of the envelope exactly.
+  const float slow = 0.9375f;
+  const size_t cycle = 200;
+  const auto wave_env = [&](std::initializer_list<Setting> more, bool right = false) {
+    set(kRate, {{p::kDepth, 1.0f}, {p::kRate, slow},  {p::kGrain, 0.5f}, {p::kPattern, kUpward},
+                {p::kLean, 0.0f},  {p::kSoft, 1.0f},  {p::kVary, 0.0f},  {p::kApart, 0.0f}});
+    for (const Setting& s : more) device.set_param(s.id, s.value);
+    const Stereo out = run(device, steady);
+    return from(partial(right ? out.right : out.left, partials[3], kWindow, kHop), kSettled);
+  };
+  {
+    // Soft: the share of a cycle a band spends above half its crest is a + b: half at Soft 1,
+    // a fifth at Soft 0.
+    for (float soft : {1.0f, 0.5f, 0.0f}) {
+      const std::vector<float> env = wave_env({{p::kSoft, soft}});
+      const double half_way = 0.5 * highest(env);
+      size_t lit = 0;
+      const size_t whole = (env.size() / cycle) * cycle;
+      for (size_t i = 0; i < whole; ++i) lit += env[i] > half_way ? 1 : 0;
+      const double share = static_cast<double>(lit) / static_cast<double>(whole);
+      const double law = 0.06 * (1.0 - soft) + 0.14 + 0.36 * soft;
+      std::printf("soft %.1f: a band is above half its crest for %.3f of a cycle (law %.3f)\n", soft, share, law);
+      EXPECT_NEAR(share, law, 0.02, "Soft sets how long a flash lasts");
+    }
+    // Vary: the height of each flash. The crest of every cycle, taken from trough to trough.
+    const auto crests = [&](const std::vector<float>& env) {
+      size_t start = 0;
+      for (size_t i = 1; i < cycle; ++i)
+        if (env[i] < env[start]) start = i;
+      std::vector<float> heights;
+      for (size_t at = start; at + cycle <= env.size(); at += cycle)
+        heights.push_back(static_cast<float>(peak(env, at, at + cycle)) / 0.1f);
+      return heights;
+    };
+    const std::vector<float> even = crests(wave_env({}));
+    const std::vector<float> varied = crests(wave_env({{p::kVary, 1.0f}}));
+    const std::vector<float> some = crests(wave_env({{p::kVary, 0.4f}}));
+    std::printf("vary 0: %zu flashes from %.3f to %.3f; vary 0.4: %.3f to %.3f; vary 1: %.3f to %.3f, mean %.3f\n",
+                even.size(), lowest(even), highest(even), lowest(some), highest(some), lowest(varied), highest(varied),
+                mean(varied));
+    EXPECT(highest(even) - lowest(even) < 0.01, "vary 0: every flash is as bright as the last");
+    // At Vary 0.4 a flash is 0.6 to 1 of the lift, which stops at 2 there as at Vary 1.
+    const double lift_some = std::min(2.0, 1.0 / std::sqrt(0.375 * (1.0 - 0.4 + 0.16 / 3.0)));
+    EXPECT(lowest(some) > 0.58 * lift_some && highest(some) < 1.01 * lift_some && highest(some) - lowest(some) > 0.4,
+           "vary 0.4: the flashes are 0.6 to 1 of the tallest");
+    EXPECT(lowest(varied) < 0.25 && highest(varied) > 1.7 && highest(varied) < 2.02,
+           "vary 1: the flashes are anything from nothing to the whole lift");
+    EXPECT_NEAR(mean(varied), 1.0, 0.25, "vary 1: and half of it on the whole");
+
+    // Apart: the right side's wave runs Apart/2 of a cycle off the left's.
+    const std::vector<float> left = wave_env({});
+    for (float apart : {0.0f, 0.5f, 1.0f}) {
+      const std::vector<float> right = wave_env({{p::kApart, apart}}, true);
+      const double off = turn(phase_at(right, slow, kEnvRate) - phase_at(left, slow, kEnvRate));
+      const double together = alike(left, right);
+      std::printf("apart %.1f on a wave: the right side is %.3f of a cycle off, correlation %+.3f\n", apart, off, together);
+      EXPECT_NEAR(std::fabs(off), 0.5 * apart, 0.01, "Apart moves the right side's wave off the left's");
+      EXPECT_NEAR(together, std::cos(kPi * apart), 0.03, "and their envelopes part");
+    }
+  }
+  // On Scatter every band's right side is off by its own amount: over the six partials the two
+  // sides' envelopes agree less and less.
+  {
+    double apart_mean[3] = {0.0, 0.0, 0.0};
+    int at = 0;
+    for (float apart : {0.0f, 0.5f, 1.0f}) {
+      set(kRate, {{p::kDepth, 0.8f}, {p::kRate, 2.0f}, {p::kGrain, 0.5f}, {p::kLean, 0.0f},
+                  {p::kSoft, 1.0f},  {p::kVary, 0.0f}, {p::kApart, apart}});
+      const Stereo out = run(device, steady);
+      for (double hz : partials)
+        apart_mean[at] += alike(from(partial(out.left, hz, kWindow, kHop), kSettled),
+                                from(partial(out.right, hz, kWindow, kHop), kSettled)) / static_cast<double>(partials.size());
+      ++at;
+    }
+    std::printf("apart on scatter: mean correlation of the sides' envelopes %.3f, %.3f, %.3f at 0, 0.5, 1\n",
+                apart_mean[0], apart_mean[1], apart_mean[2]);
+    EXPECT(apart_mean[0] > 0.9999, "apart 0: the sides flicker as one");
+    EXPECT(apart_mean[1] < 0.9 && apart_mean[2] < apart_mean[1] - 0.2, "apart: the sides' flicker parts");
+  }
+
+  // --- Grain and Rate ------------------------------------------------------------------------------
+  // Two partials 110 Hz apart about 1 kHz. At Grain 0 a band is 720 Hz wide there and level over
+  // its middle half: both lie in it and move as one. At Grain 1 a band is 59 Hz wide and they are
+  // two bands apart: each moves on its own.
+  {
+    const double centre = Bands(0.0f).centre(3);  // 1010 Hz
+    const std::vector<double> pair = {centre - 55.0, centre + 55.0};
+    const std::vector<float> two = comb(pair, 30.0f, 0.2f);
+    double together[2];
+    int at = 0;
+    for (float grain : {0.0f, 1.0f}) {
+      set(kRate, {{p::kDepth, 0.8f}, {p::kRate, 1.0f}, {p::kGrain, grain}, {p::kLean, 0.0f},
+                  {p::kSoft, 1.0f},  {p::kVary, 0.0f}, {p::kApart, 0.0f}});
+      const Stereo out = run(device, two);
+      const size_t settled = static_cast<size_t>((kLatency + 3 * kFrame) / kHop);
+      together[at++] = alike(from(partial(out.left, pair[0], 2048, kHop), settled),
+                             from(partial(out.left, pair[1], 2048, kHop), settled));
+    }
+    std::printf("two partials 110 Hz apart: correlation of their levels %.3f at grain 0, %.3f at grain 1\n", together[0],
+                together[1]);
+    EXPECT(together[0] > 0.98, "grain 0: neighbouring partials flicker as one region");
+    EXPECT(std::fabs(together[1]) < 0.3, "grain 1: neighbouring partials flicker on their own");
+  }
+  // Rate over its range, on a wave (every band at Rate itself). The frames are 43 ms long and
+  // overlap, which rounds a fast flicker off: the dip that is left at 10 Hz is printed and held.
+  {
+    for (float rate : {0.2f, 2.0f, 10.0f}) {
+      set(kRate, {{p::kDepth, 0.8f}, {p::kRate, rate}, {p::kGrain, 0.5f}, {p::kPattern, kUpward},
+                  {p::kLean, 0.0f},  {p::kSoft, 1.0f}, {p::kVary, 0.0f},  {p::kApart, 0.0f}});
+      const Stereo out = run(device, steady);
+      // A shorter box for the fast one: 512 samples, nulls every 93.75 Hz.
+      const int window = rate > 5.0f ? 512 : kWindow;
+      const std::vector<float> env = from(partial(out.left, partials[3], window, 64), 4 * kSettled);
+      const double hz = dominant_frequency(centred(env), kRate / 64.0, rate * 0.5, rate * 2.0);
+      const double dip = 1.0 - lowest(env) / highest(env);
+      std::printf("rate %.1f Hz: the partial moves at %.3f Hz and dips by %.3f of its crest\n", rate, hz, dip);
+      EXPECT_NEAR(hz, rate, 0.03 * rate, "the flicker runs at Rate");
+      EXPECT(dip > (rate > 5.0f ? 0.7 : 0.77), "and keeps its depth");
+    }
+  }
+
+  // --- The clock ---------------------------------------------------------------------------------
+  // It runs by the sample count and never starts again from the sound: a comb that stops for four
+  // seconds (the device sleeps after a tenth of one) comes back to the very gains a comb that never
+  // stopped has by then.
+  {
+    const std::vector<float> whole = comb(partials, 8.0f, 0.1f);
+    std::vector<float> gapped = whole;
+    for (size_t i = 2 * 48000; i < 6 * 48000; ++i) gapped[i] = 0.0f;
+    set(kRate, {});
+    const Stereo straight = run(device, whole);
+    set(kRate, {});
+    const Stereo across = run(device, gapped);
+    double worst = 0.0;
+    for (size_t i = 6 * 48000 + kLatency + kFrame; i < whole.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(across.left[i]) - straight.left[i]));
+      worst = std::max(worst, std::fabs(static_cast<double>(across.right[i]) - straight.right[i]));
+    }
+    std::printf("after 4 s of silence: worst difference from the comb that never stopped %.3g\n", worst);
+    EXPECT(peak(across.left, 3 * 48000, 5 * 48000) == 0.0, "the device is silent in the gap");
+    EXPECT(worst < 1.0e-6, "the flicker keeps its place through silence and sleep");
+
+    // And a change of Rate carries the phase on: no jump in a partial's level.
+    set(kRate, {{p::kPattern, kUpward}, {p::kSoft, 1.0f}, {p::kVary, 0.0f}, {p::kRate, 0.5f}, {p::kGrain, 0.5f}});
+    const Stereo before = run(device, std::vector<float>(whole.begin(), whole.begin() + 4 * 48000));
+    device.set_param(p::kRate, 4.0f);
+    const Stereo after = run(device, std::vector<float>(whole.begin() + 4 * 48000, whole.end()));
+    const Stereo both = concat(before, after);
+    const std::vector<float> env = partial(both.left, partials[3], kWindow, 64);
+    double jump = 0.0;
+    for (size_t i = (3 * 48000) / 64; i + 1 < env.size(); ++i)
+      jump = std::max(jump, std::fabs(static_cast<double>(env[i + 1]) - env[i]));
+    // At 4 Hz and Depth 0.65 a level of 0.1 moves by 0.0011 a step at its fastest.
+    std::printf("rate 0.5 to 4 Hz: the largest step of a partial's level %.4f\n", jump);
+    EXPECT(jump < 0.003, "a change of Rate carries the phase on");
+  }
+
+  // --- Block sizes, across a sleep ---------------------------------------------------------------
+  // A burst, a silence, a burst, at block sizes 128, 1, 2048 and 37. The silence is stepped across
+  // the moment the device falls asleep (0.19 s after the burst: a latency and a frame to play out,
+  // then a hold of a tenth of a second), and in every second run Rate, Depth, Pattern and Mix are
+  // moved in the middle of it.
+  {
+    double worst = 0.0;
+    int step = 0;
+    for (float gap = 0.05f; gap < 0.5f; gap += 0.0137f, ++step) {
+      rng_state() = 99;
+      std::vector<float> phrase = noise(0.2f, kRate, 0.5f);
+      const size_t change = phrase.size() + static_cast<size_t>(0.5f * gap * kRate);
+      const std::vector<float> quiet = silence(gap, kRate);
+      const std::vector<float> again = noise(0.3f, kRate, 0.5f);
+      phrase.insert(phrase.end(), quiet.begin(), quiet.end());
+      phrase.insert(phrase.end(), again.begin(), again.end());
+      const std::vector<float> head(phrase.begin(), phrase.begin() + static_cast<long>(change));
+      const std::vector<float> rest(phrase.begin() + static_cast<long>(change), phrase.end());
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        set(kRate, {});
+        Stereo render = run(device, head, block);
+        if (step % 2 == 1) {
+          device.set_param(p::kRate, 7.0f);
+          device.set_param(p::kDepth, 1.0f);
+          device.set_param(p::kPattern, kOutward);
+          device.set_param(p::kMix, 0.6f);
+        }
+        render = concat(render, run(device, rest, block));
+        if (block == 128) {
+          reference = render;
+          continue;
+        }
+        for (size_t i = 0; i < render.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(render.left[i]) - reference.left[i]));
+          worst = std::max(worst, std::fabs(static_cast<double>(render.right[i]) - reference.right[i]));
+        }
+      }
+    }
+    std::printf("block sizes across a silence, %d gaps: worst difference %.3g\n", step, worst);
+    EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep, knobs moved in it or not");
+  }
+  // Knobs moved while asleep snap: Mix set to 0 in a silence gives the dry sound from the first
+  // sample after it, with no glide from the wet.
+  {
+    rng_state() = 31;
+    const std::vector<float> burst = noise(0.3f, kRate, 0.5f);
+    set(kRate, {});
+    run(device, burst);
+    render(device, 1.0f, kRate);
+    device.set_param(p::kMix, 0.0f);
+    const Stereo woken = run(device, burst);
+    bool same = true;
+    for (size_t i = 0; i + kLatency < burst.size(); ++i) same = same && woken.left[i + kLatency] == burst[i];
+    EXPECT(same, "mix moved while asleep snaps on wake");
+  }
+
+  // --- Bad input ---------------------------------------------------------------------------------
+  // A NaN, an infinity and 1e30 in the input: finite out, and a latency and a frame later the very
+  // sound there would have been without them.
+  {
+    rng_state() = 77;
+    const std::vector<float> good = noise(1.5f, kRate, 0.5f);
+    std::vector<float> bad = good;
+    bad[20000] = std::nanf("");
+    bad[20001] = std::numeric_limits<float>::infinity();
+    bad[20002] = -1.0e30f;
+    bad[20003] = 1.0e30f;
+    set(kRate, {});
+    const Stereo good_out = run(device, good);
+    set(kRate, {});
+    const Stereo bad_out = run(device, bad);
+    const size_t clear = 20004 + kLatency + kFrame;
+    double off = 0.0;
+    for (size_t i = clear; i < good.size(); ++i) {
+      off = std::max(off, std::fabs(static_cast<double>(bad_out.left[i]) - good_out.left[i]));
+      off = std::max(off, std::fabs(static_cast<double>(bad_out.right[i]) - good_out.right[i]));
+    }
+    EXPECT(finite(bad_out.left) && finite(bad_out.right), "NaN, infinity and 1e30 in: finite out");
+    EXPECT(peak(bad_out.left) < 4.0, "and bounded");
+    EXPECT(off < 1.0e-6, "and the same as if they had never come, a latency and a frame later");
+    EXPECT(rms(bad_out.left, clear, good.size()) > 0.1, "and the sound is back");
+    // A stretch of nothing but bad samples, then silence: the device still comes to rest.
+    set(kRate, {});
+    run(device, std::vector<float>(4800, std::nanf("")));
+    render(device, 0.5f, kRate);
+    const Stereo after = render(device, 0.25f, kRate);
+    EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, "exact silence after bad input");
   }
 
   device.init(kRate);
