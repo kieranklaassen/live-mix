@@ -246,6 +246,76 @@ describe('apply', () => {
     expect(validateScore(parseScore(serializeScore(added)))).toEqual([])
   })
 
+  it('a clip takes turns: each names a source the score has, null takes them off, and it inverts', () => {
+    const turns = { sourceIds: ['a', 'b'], every: 2 }
+    const added = apply(base, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { turns }),
+    })
+    expect(audio(added, 'kick').clips[1]).toMatchObject({ id: 'z', sourceId: 'a', turns })
+    expect(validateScore(parseScore(serializeScore(added)))).toEqual([])
+    const update = (patch: ClipPatch): Operation => ({
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch,
+    })
+    // A turn of one pass is written without its length, as a chance of 1 is not written.
+    const each = applyWithInverse(added, update({ turns: { sourceIds: ['b', 'a'], every: 1 } }))
+    expect(audio(each.score, 'kick').clips[1].turns).toEqual({ sourceIds: ['b', 'a'] })
+    expect(each.inverse).toEqual(update({ turns }))
+    const none = applyWithInverse(added, update({ turns: null }))
+    expect('turns' in audio(none.score, 'kick').clips[1]).toBe(false)
+    expect(none.inverse).toEqual(update({ turns }))
+    const back = applyWithInverse(none.score, update({ turns }))
+    expect(back.inverse).toEqual(update({ turns: null }))
+    expect(canon(back.score)).toEqual(canon(added))
+    // A patch that does not name them leaves them.
+    expect(audio(apply(added, update({ gainDb: -3 })), 'kick').clips[1].turns).toEqual(turns)
+
+    expect(() => apply(added, update({ turns: { sourceIds: ['a', 'zz'] } }))).toThrow(
+      /no source "zz"/,
+    )
+    expect(() => apply(added, update({ turns: { sourceIds: [] } }))).toThrow(/turns/)
+    expect(() => apply(added, update({ turns: { sourceIds: ['a'], every: 0 } }))).toThrow(/every/)
+    expect(() => apply(added, update({ turns: { sourceIds: ['a'], every: 1.5 } }))).toThrow(/every/)
+    expect(() =>
+      apply(base, {
+        type: 'clip.add',
+        track: 'kick',
+        clip: clip('y', 'a', 2, { turns: { sourceIds: ['zz'] } }),
+      }),
+    ).toThrow(/no source "zz"/)
+    expect(() =>
+      apply(base, {
+        type: 'clip.replaceFrom',
+        track: 'kick',
+        fromSec: 20,
+        clips: [clip('y', 'a', 21, { turns: { sourceIds: ['zz'] } })],
+      }),
+    ).toThrow(/no source "zz"/)
+  })
+
+  it('a source a clip plays on some turn stays in the score', () => {
+    const withSource = apply(base, { type: 'source.add', source: { id: 'c', durationSec: 4 } })
+    const added = apply(withSource, {
+      type: 'clip.add',
+      track: 'kick',
+      clip: clip('z', 'a', 2, { turns: { sourceIds: ['a', 'c'] } }),
+    })
+    expect(() => apply(added, { type: 'source.remove', id: 'c' })).toThrow(/used by a clip/)
+    const freed = apply(added, {
+      type: 'clip.update',
+      track: 'kick',
+      id: 'z',
+      patch: { turns: null },
+    })
+    expect(apply(freed, { type: 'source.remove', id: 'c' }).sources.map((s) => s.id)).not.toContain(
+      'c',
+    )
+  })
+
   it('a clip is taken only as the score can hold it, however it comes: added, moved, trimmed, updated, replaced or set', () => {
     const update = (patch: ClipPatch): Operation => ({
       type: 'clip.update',

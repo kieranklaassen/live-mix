@@ -9,6 +9,7 @@ import {
   type MockGainNode,
 } from '../../testing'
 import { Lfo, Macro } from '../../core/automation/Modulator'
+import { type Clip } from '../../core/clips/Clip'
 import { type StretchNode, type StretchNodeFactory } from '../../core/sources/StretchSource'
 import {
   type Device,
@@ -177,6 +178,34 @@ describe('ScoreRenderer: first render', () => {
         .clips.all()
         .find((clip) => clip.id === first.id)?.chance,
     ).toBe(0.5)
+    engine.dispose()
+  })
+
+  it('gives a clip its turns, and takes them off again', async () => {
+    const score = demoScore()
+    const { engine, renderer } = await rig(score)
+    const track = score.tracks.find((candidate) => candidate.kind === 'audio')
+    if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+    const [first] = track.clips
+    const withTurns = (turns: Clip['turns']) => ({
+      ...score,
+      tracks: score.tracks.map((candidate) =>
+        candidate === track
+          ? { ...track, clips: [{ ...first, turns }, ...track.clips.slice(1)] }
+          : candidate,
+      ),
+    })
+    const live = () =>
+      renderer
+        .audioTrack(track.id)
+        .clips.all()
+        .find((clip) => clip.id === first.id)
+    await renderer.render(withTurns({ sourceIds: ['a', 'b'], every: 2 }))
+    expect(live()?.turns).toEqual({ sourceIds: ['a', 'b'], every: 2 })
+    await renderer.render(withTurns({ sourceIds: ['b', 'a'], every: 2 }))
+    expect(live()?.turns).toEqual({ sourceIds: ['b', 'a'], every: 2 })
+    await renderer.render(score)
+    expect(live()?.turns).toBeUndefined()
     engine.dispose()
   })
 
