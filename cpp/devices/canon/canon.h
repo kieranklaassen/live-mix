@@ -60,9 +60,10 @@
 //   the last follower's interval and crab applied once more per lap. The
 //   loop gain is Round, under one, and a held sound would still pile up lap
 //   on lap (16 dB at Round 0.85 where it is in step with the lap), so the
-//   return passes a level hold: the line never carries more than 2 dB over
-//   the loudest that was played, and a round that is dying away or no louder
-//   than the playing passes it exactly (see steady). What returns is also
+//   return passes a level hold: while something is played the line carries
+//   no more than 2 dB over the loudest that was played, and a round that is
+//   dying away or no louder than the playing passes it exactly (see steady);
+//   once the playing stops the hold lets go. What returns is also
 //   limited (exactly linear up to full scale, never past twice that), and
 //   the followers together never pass 1.73, so with the dry beside them at
 //   any Mix a full-scale input comes out at most 6 dB over itself.
@@ -251,24 +252,34 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
       const float loud = left_power > right_power ? left_power : right_power;
       if (loud > loud_) loud_ = loud;
       if (loud > wake_) {
-        // The playing is back after a rest, and the hold with it: at once
-        // where what returns was next to nothing a sample ago (the move then
-        // leaves no step in the line), so that a beat in step with the lap
-        // meets its own return already held.
+        // The playing is back after a rest, and the hold with it.
         wake_ = kNever;
         going_ = true;
         want_ = need_;
-        const float move = hold_ - need_;
-        if (move > 0.0f && move * move * sent_before_ <= soft_) hold_ = need_;
       }
       played_sum_ += left_power + right_power;
       sent_sum_ += sent[0] * sent[0] + sent[1] * sent[1];
       both_sum_ += in[0] * sent[0] + in[1] * sent[1];
       if (hold_ != want_) {
+        // The hold goes where it is wanted: up in 50 ms; down in 5 ms, and
+        // faster wherever that moves the line by no more than a two
+        // hundredth of the playing per sample, which is at once where what
+        // returns was next to nothing a sample ago. So a beat in step with
+        // the lap meets its own return already held, and a held sound that
+        // is coming round is turned down without a step.
         const float off = want_ - hold_;
-        hold_ = off < kHoldThere && off > -kHoldThere ? want_ : hold_ + off * (off < 0.0f ? down_coeff_ : up_coeff_);
+        if (off > 0.0f) {
+          hold_ = off < kHoldThere ? want_ : hold_ + off * up_coeff_;
+        } else {
+          const float size = -off;
+          float step = size * down_coeff_;
+          if (step * sent_before_ < soft_) step = size * sent_before_ <= soft_ ? size : soft_ / sent_before_;
+          hold_ = size - step < kHoldThere ? want_ : hold_ - step;
+        }
       }
-      sent_before_ = kit::max(sent[0] * sent[0], sent[1] * sent[1]);
+      const float sent_left = sent[0] < 0.0f ? -sent[0] : sent[0];
+      const float sent_right = sent[1] < 0.0f ? -sent[1] : sent[1];
+      sent_before_ = sent_left > sent_right ? sent_left : sent_right;
       float write[2];
       for (int c = 0; c < 2; ++c) {
         write[c] = flush_denormal(in[c] + limit(hold_ * sent[c]));
@@ -353,16 +364,16 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   // The level hold of the round (see steady): the line may carry this much
   // more power than what was played (2 dB), and the times it works in.
   static constexpr float kHoldOver = 1.5848932f;
-  static constexpr float kHoldSeconds = 0.1f;
-  static constexpr float kHoldFallSeconds = 0.0003f;
-  static constexpr float kHoldRiseSeconds = 8.0f;
-  static constexpr float kHoldFreeSeconds = 0.05f;
+  static constexpr float kHoldSeconds = 0.1f;        // the powers are taken over this
+  static constexpr float kHoldFallSeconds = 0.005f;  // the hold comes down in this, or faster (see process)
+  static constexpr float kHoldRiseSeconds = 8.0f;    // what it has to be lets up in this while the playing goes on
+  static constexpr float kHoldFreeSeconds = 0.05f;   // the hold lets go in this once the playing has stopped
   static constexpr float kHoldGone = 256.0f;  // the playing has stopped: 24 dB under its loudest
   static constexpr float kHoldBack = 4.0f;    // and is back: 18 dB under it
   static constexpr float kHoldRestLaps = 2.0f;  // in a rest what the hold has to be is forgotten in this many laps
-  static constexpr float kHoldSoft = 0.02f;   // a step this far under the playing may be left in the line
+  static constexpr float kHoldSoft = 0.005f;  // of the playing: as far as the hold may move the line in a sample
   static constexpr float kHoldThere = 5.0e-4f;  // as near as the hold is taken to be there
-  static constexpr float kNever = 3.0e38f;
+  static constexpr float kNever = 3.0e38f;  // no squared sample is over this
   static constexpr float kHoldNear = 1.06f;  // within half a dB of the hold: still needed
   static constexpr float kHoldInStep = 2.0f;
   // The loudest that was played falls by Round to this power every lap, in
@@ -735,9 +746,14 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   // of a second. "What was played" is the loudest the input has been, let
   // fall three quarters as fast as the round itself dies away: a round that
   // is dying away, or one no louder than the playing, never reaches it, and
-  // the hold then passes it exactly; and after loud playing the hold is back
-  // at the level of soft playing soon after the loud round has sunk under
-  // it. All of it is counted in samples from where the device woke, so the
+  // the hold then passes it exactly.
+  //
+  // The hold is only there while something is played. Once the playing
+  // stops it lets go, so the round dies away at its own rate from where the
+  // line stood; what it had to be is remembered (for a lap and a quarter,
+  // then fading over two laps more), and it is back there with the next note
+  // (see process), so a beat in step with the lap does not pile up either.
+  // All of it is counted in samples from where the device woke, so the
   // host's blocks change nothing.
   void steady() {
     played_ = flush_denormal(played_ + (played_sum_ - played_) * level_coeff_);
@@ -767,10 +783,11 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
     loud_ = 0.0f;
     // (A control period of a steady tone sums to as many times the square of
     // its highest sample as the period has samples: two sides, half each.)
-    // (And it counts as back again 6 dB higher than that.)
+    // It counts as back 6 dB higher than that, so that a note dying away
+    // through the one mark is not back and gone again with every swing.
     going_ = peak_ * (kHoldGone * kControlPeriod) > (going_ ? heard_ : kHoldBack * heard_);
     wake_ = going_ ? kNever : heard_ * (kHoldBack / (kHoldGone * kControlPeriod));
-    soft_ = heard_ * (kHoldSoft * kHoldSoft / kControlPeriod);
+    soft_ = kHoldSoft * std::sqrt(heard_ * (1.0f / kControlPeriod));
 
     // What the line can take of the return now.
     float goal = 1.0f;
@@ -786,10 +803,11 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
 
     // What the hold has to be while the playing goes on: down to the goal at
     // once, and up again only after a lap and a quarter has gone by without
-    // its being needed (what needed it comes round again a lap later, and a
-    // beat in step with the lap would otherwise find it let go every time),
-    // then slowly (8 s), so that neither the playing's own rise and fall nor
-    // the turn of the round moves it about.
+    // its being needed (what needed it comes round again a lap later), then
+    // slowly: in 8 s while the playing goes on, so that neither its own rise
+    // and fall nor the turn of the round moves the hold about, and in two
+    // laps through a rest, so that a beat that falls on every second or
+    // third lap still finds it.
     if (goal < need_) {
       need_ = goal;
       unneeded_ = 0;
@@ -922,8 +940,8 @@ class Canon : public kit::DeviceBase<canon::kNumParams> {
   float loud_ = 0.0f, peak_ = 0.0f;  // the highest squared sample played: this period, and held
   bool going_ = false;               // the playing goes on
   float wake_ = 0.0f;                // a squared sample over this: the playing is back
-  float soft_ = 0.0f;                // (the hold's move squared) times what returns, squared, under this: no step
-  float sent_before_ = 0.0f;         // what returned a sample ago, squared
+  float soft_ = 0.0f;                // as far as the hold may move the line in a sample
+  float sent_before_ = 0.0f;         // the size of what returned a sample ago
   float need_ = 1.0f;                // the hold while the playing goes on
   float want_ = 1.0f, hold_ = 1.0f;  // where the hold is going, and the hold
   float level_coeff_ = 0.0f, rise_coeff_ = 0.0f, rest_coeff_ = 1.0f;  // by the control period

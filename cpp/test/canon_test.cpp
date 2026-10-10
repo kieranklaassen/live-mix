@@ -747,6 +747,74 @@ int main() {
     }
     EXPECT(!touched, "a steady round no louder than the playing passes the hold exactly");
 
+    // The playing comes back. A note struck in step with the lap with
+    // silence between (one follower half a second behind, Round at its
+    // highest), every lap and every second lap: the hold lets go in each
+    // rest and is back with each strike, which meets its own return already
+    // held. Without it the line holds all the limit lets through.
+    for (int every = 1; every <= 2; ++every) {
+      plain(device);
+      device.set_param(p::kFollowers, 1.0f);
+      device.set_param(p::kGap, 0.5f);
+      device.set_param(p::kRound, 0.95f);
+      std::vector<float> strikes = silence(24.0f, kRate);
+      for (size_t from = 0; from < strikes.size(); from += static_cast<size_t>(every) * second / 2) {
+        for (size_t i = 0; i < second / 5; ++i) {
+          const double t = static_cast<double>(i) / kRate;
+          strikes[from + i] = static_cast<float>(0.5 * std::exp(-50.0 * t) * std::cos(2.0 * kPi * 1000.0 * t));
+        }
+      }
+      float line = 0.0f, least = 1.0f, between = 0.0f;
+      for (size_t at = 0; at < strikes.size(); at += 480) {
+        run(device, std::vector<float>(strikes.begin() + at, strikes.begin() + at + 480));
+        if (at < 12 * second) continue;
+        line = std::max(line, device.meter(1));
+        least = std::min(least, device.hold());
+        if ((at + 480) % (static_cast<size_t>(every) * second / 2) == 0) between = std::max(between, device.hold());
+      }
+      std::printf("canon a note struck every %s, silence between: the line holds %.2f for 0.50 struck (the hold "
+                  "%.2f on a strike, %.2f before the next)\n",
+                  every == 1 ? "lap" : "second lap", line, least, between);
+      EXPECT(line < 0.8f, "a beat in step with the lap does not pile up in the line");
+      EXPECT(least < 0.5f && between > 0.99f, "the hold lets go in each rest and is back with each strike");
+    }
+
+    // And where a held sound is coming round as the playing comes back, the
+    // hold is back in a few thousandths of a second without a step: a low
+    // tone held, a rest, then a note that begins at full height.
+    {
+      plain(device);
+      device.set_param(p::kFollowers, 1.0f);
+      device.set_param(p::kGap, 1.0f);
+      device.set_param(p::kRound, 0.9f);
+      device.set_param(p::kMix, 1.0f);
+      std::vector<float> in = sine(100.0f, 12.0f, kRate, 1.0f);
+      const size_t back = in.size() + 6 * second / 10;
+      in.resize(back, 0.0f);
+      const std::vector<float> note = sine(440.0f, 2.0f, kRate, 0.3f);
+      in.insert(in.end(), note.begin(), note.end());
+      Stereo out;
+      float before = 0.0f, rested = 0.0f, after = 1.0f;
+      size_t took = 0;
+      for (size_t at = 0; at < in.size(); at += 16) {
+        const Stereo more = run(device, std::vector<float>(in.begin() + at, in.begin() + at + 16));
+        out.left.insert(out.left.end(), more.left.begin(), more.left.end());
+        if (at + 16 == 12 * second) before = device.hold();
+        if (at + 16 == back) rested = device.hold();
+        if (at + 16 == back + second / 10) after = device.hold();
+        if (at >= back && took == 0 && device.hold() < before * 1.05f) took = at + 16 - back;
+      }
+      // The follower plays the line a second later.
+      const double held = max_step(out.left, 11 * second, 12 * second);
+      const double moved = max_step(out.left, back + second - 480, back + second + 4800);
+      std::printf("canon the hold back over a held tone: %.3f held, %.3f after the rest, %.3f a tenth of a second "
+                  "into the new note, there in %.1f ms; largest step x%.2f the held tone's own\n",
+                  before, rested, after, 1000.0 * static_cast<double>(took) / kRate, moved / held);
+      EXPECT(before < 0.5f && rested > 0.99f && after < before * 1.05f, "the hold is let go in a rest and comes back");
+      EXPECT(took > 0 && took < 480, "it is back within a hundredth of a second");
+      EXPECT(moved < 2.5 * held, "and leaves no step in a held sound that is coming round");
+    }
+
     // The hold is counted in samples: at work, it is the same at every block size.
     const std::vector<float> short_chord(chord.begin(), chord.begin() + 6 * second);
     Stereo by_size[3];
