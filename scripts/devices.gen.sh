@@ -32,6 +32,8 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device breath \
+    cpp/devices/breath/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
     cpp/devices/canon/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device cascade \
@@ -48,6 +50,8 @@ build_generated_devices() {
     cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
     cpp/devices/constellation/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device currents \
+    cpp/devices/currents/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device distance \
     cpp/devices/distance/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
@@ -112,6 +116,8 @@ build_generated_devices() {
     cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
+    cpp/devices/late-vibrato/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device low-bitrate \
@@ -126,6 +132,8 @@ build_generated_devices() {
     cpp/devices/micro-looper/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
     cpp/devices/modal-bells/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device murmuration \
+    cpp/devices/murmuration/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device noise-floor \
     cpp/devices/noise-floor/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device octaves \
@@ -138,6 +146,8 @@ build_generated_devices() {
     cpp/devices/outdoors/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device overtone \
     cpp/devices/overtone/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device overtone-singer \
+    cpp/devices/overtone-singer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pad-follower \
     cpp/devices/pad-follower/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device patina \
@@ -150,6 +160,8 @@ build_generated_devices() {
     cpp/devices/pitch-shifter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device prepared-piano \
     cpp/devices/prepared-piano/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pulses \
+    cpp/devices/pulses/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device radio \
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
@@ -158,12 +170,16 @@ build_generated_devices() {
     cpp/devices/reverse-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device rewind \
     cpp/devices/rewind/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device ring \
+    cpp/devices/ring/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device rotary \
     cpp/devices/rotary/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit" build_device sampler \
     cpp/devices/sampler/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device saturator \
     cpp/devices/saturator/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device seasons \
+    cpp/devices/seasons/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device shaped-reverb \
     cpp/devices/shaped-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device shimmer \
@@ -214,6 +230,8 @@ build_generated_devices() {
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
+    cpp/devices/underwater/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
     cpp/devices/vintage-digital/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device vinyl \
@@ -222,6 +240,8 @@ build_generated_devices() {
     cpp/devices/vowel-reverb/device_api.gen.cpp
   MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
     cpp/devices/wavetable/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device weather \
+    cpp/devices/weather/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device west-coast \
     cpp/devices/west-coast/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wind-harp \
@@ -261,6 +281,8 @@ test_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   native_test bowed_string_test \
     cpp/test/bowed_string_test.cpp
+  native_test breath_test \
+    cpp/test/breath_test.cpp
   native_test canon_test \
     cpp/test/canon_test.cpp
   native_test cascade_test \
@@ -277,6 +299,8 @@ test_generated_devices() {
     cpp/test/clarinet_test.cpp
   native_test constellation_test \
     cpp/test/constellation_test.cpp
+  native_test currents_test \
+    cpp/test/currents_test.cpp
   native_test distance_test \
     cpp/test/distance_test.cpp
   native_test drone_test \
@@ -341,6 +365,8 @@ test_generated_devices() {
     cpp/test/ice_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
+  native_test late_vibrato_test \
+    cpp/test/late_vibrato_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
   native_test low_bitrate_test \
@@ -355,6 +381,8 @@ test_generated_devices() {
     cpp/test/micro_looper_test.cpp
   native_test modal_bells_test \
     cpp/test/modal_bells_test.cpp
+  native_test murmuration_test \
+    cpp/test/murmuration_test.cpp
   native_test noise_floor_test \
     cpp/test/noise_floor_test.cpp
   native_test octaves_test \
@@ -367,6 +395,8 @@ test_generated_devices() {
     cpp/test/outdoors_test.cpp
   native_test overtone_test \
     cpp/test/overtone_test.cpp
+  native_test overtone_singer_test \
+    cpp/test/overtone_singer_test.cpp
   native_test pad_follower_test \
     cpp/test/pad_follower_test.cpp
   native_test patina_test \
@@ -379,6 +409,8 @@ test_generated_devices() {
     cpp/test/pitch_shifter_test.cpp
   native_test prepared_piano_test \
     cpp/test/prepared_piano_test.cpp
+  native_test pulses_test \
+    cpp/test/pulses_test.cpp
   native_test radio_test \
     cpp/test/radio_test.cpp
   native_test re_amp_test \
@@ -387,12 +419,16 @@ test_generated_devices() {
     cpp/test/reverse_delay_test.cpp
   native_test rewind_test \
     cpp/test/rewind_test.cpp
+  native_test ring_test \
+    cpp/test/ring_test.cpp
   native_test rotary_test \
     cpp/test/rotary_test.cpp
   native_test sampler_test \
     cpp/test/sampler_test.cpp
   native_test saturator_test \
     cpp/test/saturator_test.cpp
+  native_test seasons_test \
+    cpp/test/seasons_test.cpp
   native_test shaped_reverb_test \
     cpp/test/shaped_reverb_test.cpp
   native_test shimmer_test \
@@ -443,6 +479,8 @@ test_generated_devices() {
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
     cpp/test/tremolo_test.cpp
+  native_test underwater_test \
+    cpp/test/underwater_test.cpp
   native_test vintage_digital_test \
     cpp/test/vintage_digital_test.cpp
   native_test vinyl_test \
@@ -451,6 +489,8 @@ test_generated_devices() {
     cpp/test/vowel_reverb_test.cpp
   native_test wavetable_test \
     cpp/test/wavetable_test.cpp
+  native_test weather_test \
+    cpp/test/weather_test.cpp
   native_test west_coast_test \
     cpp/test/west_coast_test.cpp
   native_test wind_harp_test \
