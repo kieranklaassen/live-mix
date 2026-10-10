@@ -185,6 +185,53 @@ int main() {
            "Partials 1: only the stronger sine, nothing else above -80 dB");
   }
 
+  // A followed partial keeps its sine against one that is only a little stronger (kKeep): two sines whose
+  // levels cross twice a second, 1 dB either way, and Partials 1 stays on the one it took. One that is clearly
+  // stronger takes the sine over.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, 1.0f);
+    device.set_param(p::kAttack, 20.0f);
+    device.set_param(p::kRelease, 0.1f);
+    std::vector<float> in(at(6.0));
+    for (size_t i = 0; i < in.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double sway = 1.0 + 0.12 * std::sin(2.0 * kPi * 1.0 * t);
+      in[i] = static_cast<float>(0.3 * std::sin(2.0 * kPi * 440.0 * t) + 0.3 * sway * std::sin(2.0 * kPi * 660.0 * t));
+    }
+    const Stereo out = run(device, in);
+    int low = 0, high = 0, other = 0;
+    for (double t = 1.5; t < 5.0; t += 0.25) {
+      const std::vector<Tone> held = tones_in(out.left, at(t), kRate, 3.0e-3);
+      for (const Tone& tone : held) {
+        if (std::fabs(cents(tone.hz, 440.0)) < 5.0) ++low;
+        else if (std::fabs(cents(tone.hz, 660.0)) < 5.0) ++high;
+        else ++other;
+      }
+    }
+    std::printf("two sines crossing by 1 dB, Partials 1: the sine was on 440 Hz %d times, on 660 Hz %d times\n", low,
+                high);
+    EXPECT(other == 0 && low + high == 14 && (low == 0 || high == 0),
+           "a followed partial keeps its sine against one a little stronger");
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, 1.0f);
+    device.set_param(p::kRelease, 0.4f);
+    std::vector<float> late = tones({440.0}, {0.2}, 6.0f);
+    for (size_t i = at(2.0); i < late.size(); ++i) {
+      late[i] += static_cast<float>(0.4 * std::sin(2.0 * kPi * 660.0 * static_cast<double>(i) / kRate));
+    }
+    const Stereo moved = run(device, late);
+    const std::vector<Tone> first = tones_in(moved.left, at(1.0), kRate, 1.0e-3);
+    const std::vector<Tone> then = tones_in(moved.left, at(5.0), kRate, 1.0e-3);
+    EXPECT(first.size() == 1 && std::fabs(cents(first[0].hz, 440.0)) < 1.0, "Partials 1: the only sine is followed");
+    EXPECT(then.size() == 1 && std::fabs(cents(then[0].hz, 660.0)) < 1.0,
+           "a partial twice as strong comes in: the sine goes to it and the first one's is let go");
+  }
+
   // A tone of 20 harmonics comes out with exactly Partials of them: the strongest.
   for (int count : {1, 5, 12, 24}) {
     device.init(kRate);
@@ -341,14 +388,14 @@ int main() {
     const std::vector<float> hiss = noise(6.0f, kRate, 0.25f);
     double shadow[3];
     int which = 0;
-    for (float steady : {0.0f, 0.15f, 0.3f}) {
+    for (float steady : {0.0f, 0.1f, 0.2f}) {
       device.init(kRate);
       device.set_param(p::kMix, 1.0f);
       device.set_param(p::kSteady, steady);
       const Stereo out = run(device, hiss);
       shadow[which++] = db(both(out, at(2.0)) / rms(hiss));
     }
-    std::printf("noise in, shadow against it: Steady 0 %.1f dB, 0.15 %.1f dB, 0.3 %.1f dB\n", shadow[0], shadow[1],
+    std::printf("noise in, shadow against it: Steady 0 %.1f dB, 0.1 %.1f dB, 0.2 %.1f dB\n", shadow[0], shadow[1],
                 shadow[2]);
     EXPECT(shadow[0] > -20.0, "Steady 0: noise casts a shadow of flickering sines");
     EXPECT(shadow[1] < shadow[0] - 4.0 && shadow[1] > shadow[2] + 4.0, "Steady thins it by degrees");

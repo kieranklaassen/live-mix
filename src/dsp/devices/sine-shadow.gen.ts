@@ -68,7 +68,7 @@ export const SINE_SHADOW_PARAMS = {
     name: 'Steady',
     min: 0,
     max: 1,
-    default: 0.3,
+    default: 0.2,
     taper: 'linear',
     unit: '',
     description:

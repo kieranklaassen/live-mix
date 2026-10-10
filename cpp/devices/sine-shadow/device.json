@@ -325,7 +325,7 @@
       "name": "Steady",
       "min": 0,
       "max": 1,
-      "default": 0.3,
+      "default": 0.2,
       "description": "How long a partial has to last before it gets a sine. Low settings catch every flicker and noise, high ones keep only held tones."
     },
     {

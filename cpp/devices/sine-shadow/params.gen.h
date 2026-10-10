@@ -7,7 +7,7 @@
 //    2  attack: 20..8000 ms, default 350
 //    3  release: 0.1..30 s, default 3
 //    4  snap: 0..1, default 0
-//    5  steady: 0..1, default 0.3
+//    5  steady: 0..1, default 0.2
 //    6  glide: 5..2000 ms, default 40
 //    7  spread: 0..1, default 0.4
 //    8  tone: 0..1, default 0.5
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {1.0f, -12.0f, 20.0f, 0.1f, 0.0f, 0.0f, 5.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {24.0f, 24.0f, 8000.0f, 30.0f, 1.0f, 1.0f, 2000.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {8.0f, 0.0f, 350.0f, 3.0f, 0.0f, 0.3f, 40.0f, 0.4f, 0.5f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {8.0f, 0.0f, 350.0f, 3.0f, 0.0f, 0.2f, 40.0f, 0.4f, 0.5f, 0.5f};
 
 }  // namespace sine_shadow
 }  // namespace livemix

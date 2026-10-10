@@ -15,9 +15,11 @@
 //   and a partial is a peak of their summed power: a sound that is out of
 //   phase between the sides casts the same shadow as one that is not.
 // - A peak is a partial when it was there in the frame before (its frequency
-//   is the turn its phase made between the two, Stft::advance_to_bin), is not
-//   a side lobe of a stronger one (the Hann window's own skirt, with a margin)
-//   and has lasted as long as Steady asks. The Partials strongest are
+//   is the turn its phase made between the two, Stft::advance_to_bin) and has
+//   held its pitch and level for as long as Steady asks: that, and not a
+//   mask, is what keeps noise and the splash of an attack out (a steady sine
+//   has no side-lobe peaks on the bins: its skirt only falls). The Partials
+//   strongest are
 //   followed; one that is followed keeps its place until another is twice as
 //   strong, so two partials of about one level do not trade places every
 //   frame.
@@ -58,28 +60,19 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   static constexpr float kCeiling = 2.0f;
   // A partial keeps its place among the followed until another is this many
   // times as strong.
-  static constexpr float kKeep = 2.0f;
+  static constexpr float kKeep = 1.4f;
   // A peak belongs to the sine that follows it when it is within this share
   // of its frequency (about half a semitone), or this many bins if that is
   // more.
   static constexpr float kCatchRatio = 0.03f;
   static constexpr float kCatchBins = 0.6f;
-  // What Steady counts as a frame in which a partial held: its pitch within
-  // kHeldBins of the frame before and its level within kHeldStep (4 dB); or,
-  // for a partial with vibrato, its pitch within kSwayBins and kSwayRatio of
-  // its frequency (a wide vibrato moves 1.7 % in a frame) and its level
-  // within kSwayStep (0.7 dB). Measured on white noise, a peak moves more
-  // than 0.8 bins from one frame to the next six times in ten and holds its
-  // level to 0.5 dB two times in ten; a held note does neither.
-  static constexpr float kHeldBins = 0.25f;
-  static constexpr float kHeldStep = 1.585f;
-  static constexpr float kSwayBins = 0.3f;
-  static constexpr float kSwayRatio = 0.018f;
-  static constexpr float kSwayStep = 1.084f;
+  // What Steady counts as a frame in which a partial held, and what a new
+  // sine needs to be born: the turns of its bins agree to kSure (every bin
+  // a sine reaches turns by the sine's own advance; on white noise the
+  // turns of a peak's bins agree that far once in twenty frames, on a held
+  // note nearly always, on a note with vibrato in most).
+  static constexpr float kSure = 0.6f;
   static constexpr int kSpare = 4;
-  // A peak whose phase turns at a pitch further than this from its own bin
-  // is a side lobe, or nothing: a moving partial's turn can be a bin off.
-  static constexpr float kOffBins = 1.5f;
   // The longest Steady asks a partial to last, in seconds (at 1; it goes
   // with the square of the control).
   static constexpr float kSteadySeconds = 1.5f;
@@ -123,11 +116,13 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     large_stft_[0].init();
     large_stft_[1].init(Large::kMaxStagger);
     lo_ = kit::clamp_int(static_cast<int>(std::ceil(kLowestHz / bin_hz_)), 2, bins_ - 3);
-    hi_ = kit::clamp_int(static_cast<int>(kit::min(kHighestHz, 0.45f * sr) / bin_hz_), lo_, bins_ - 3);
+    hi_ = kit::clamp_int(static_cast<int>(kit::min(kHighestHz, 0.45f * sr) / bin_hz_), lo_, bins_ - kMostReach - 3);
     for (int k = 0; k < kMaxBins; ++k) {
       now_re_[k] = now_im_[k] = 0.0f;
       for (int c = 0; c < 2; ++c) last_re_[c][k] = last_im_[c][k] = 0.0f;
       power_[k] = 0.0f;
+      gathered_[k] = 0.0f;
+      reach_[k] = kit::clamp_int(static_cast<int>(kReach * static_cast<float>(k)), 0, kMostReach);
       weight_[k] = 1.0f;
       log2_hz_[k] = k > 0 ? std::log2(static_cast<float>(k) * bin_hz_) : 0.0f;
     }
@@ -235,9 +230,12 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   static constexpr float kAbsoluteFloor = 6.0e-5f;  // of a full-scale sine
   // A peak counts once the frame before held at least a quarter of it there.
   static constexpr float kEstablished = 0.0625f;  // of power
-  // The side lobes of a stronger partial are taken for it up to this margin
-  // over the Hann window's own skirt, 1 / (π d (d² - 1)) at d bins.
-  static constexpr float kSkirtMargin = 4.0f;
+  // A partial's reach: the bins either side of its peak that are gathered
+  // into it, this share of the bin's number (12 cents either way, rounded
+  // down: none below 1 kHz, where two notes of a chord can be three bins
+  // apart) and never more than kMostReach.
+  static constexpr float kReach = 0.012f;
+  static constexpr int kMostReach = 12;
 
   enum State { kFree = 0, kFollowing, kLingering, kFading };
 
@@ -266,11 +264,13 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
 
   struct Peak {
     int k = 0;
+    int reach = 1;  // bins either side of k that are taken as this partial
     int voice = -1;
     bool chosen = false;
     float power = 0.0f;
     float bin = 0.0f;
     float left = 0.0f, right = 0.0f, level = 0.0f, score = 0.0f;
+    float sure = 0.0f;  // how far the turns of its bins agree, 0 to 1
   };
 
   static float guarded(float x) { return (x > -64.0f && x < 64.0f) ? x : 0.0f; }
@@ -379,20 +379,30 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     need_ = static_cast<int>(kSteadySeconds * param(kSteady) * param(kSteady) * sample_rate() /
                              static_cast<float>(hop_) + 0.5f);
 
-    // The power of both channels together, and its peaks, strongest first.
+    // The power of both channels together, bin by bin, and gathered over
+    // each bin's reach: a partial that moves within the frame (vibrato) is
+    // smeared over a share of its frequency, so the higher the bin the wider
+    // the stretch that is taken as one partial. The peaks of that, strongest
+    // first.
+    const int from = lo_ - kMostReach - 1 > 0 ? lo_ - kMostReach - 1 : 0;
+    const int to = hi_ + kMostReach + 1 < bins_ - 1 ? hi_ + kMostReach + 1 : bins_ - 1;
+    for (int k = from; k <= to; ++k) {
+      power_[k] = re0[k] * re0[k] + im0[k] * im0[k] + re[k] * re[k] + im[k] * im[k];
+    }
     float top = 0.0f;
     for (int k = lo_ - 1; k <= hi_ + 1; ++k) {
-      const float p = re0[k] * re0[k] + im0[k] * im0[k] + re[k] * re[k] + im[k] * im[k];
-      power_[k] = p;
-      if (p > top) top = p;
+      float sum = power_[k];
+      for (int j = 1; j <= reach_[k]; ++j) sum += power_[k - j] + power_[k + j];
+      gathered_[k] = sum;
+      if (sum > top) top = sum;
     }
     int found = 0;
     const float least = 2.0f * (kAbsoluteFloor * full_scale_) * (kAbsoluteFloor * full_scale_);
     if (top > least) {
       const float floor = kit::max(least, top * kRelativeFloor);
       for (int k = lo_; k <= hi_; ++k) {
-        const float p = power_[k];
-        if (!(p > floor && p > power_[k - 1] && p >= power_[k + 1])) continue;
+        const float p = gathered_[k];
+        if (!(p > floor && p > gathered_[k - 1] && p >= gathered_[k + 1])) continue;
         if (found == kMaxPeaks && p <= rough_power_[found - 1]) continue;
         int at = found < kMaxPeaks ? found++ : kMaxPeaks - 1;
         for (; at > 0 && rough_power_[at - 1] < p; --at) {
@@ -404,62 +414,73 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
       }
     }
 
-    // Which peaks are partials: there in the frame before, turning at their
-    // own bin's pitch, and clear of the skirt of anything stronger.
+    // Which peaks are partials, and what each measures over its stretch of
+    // bins (its own and one either side at least: a Hann-windowed sine
+    // leaves 1.5 times a bin's full-scale power over its whole lobe wherever
+    // it lies between two bins, and 98 % of that or more in three).
     int count = 0;
+    const float* r0 = last_re_[0];
+    const float* i0 = last_im_[0];
+    const float* r1 = last_re_[1];
+    const float* i1 = last_im_[1];
     for (int n = 0; n < found; ++n) {
       const int k = rough_bin_[n];
-      const float p = rough_power_[n];
-      const float* r1 = last_re_[1];
-      const float* i1 = last_im_[1];
-      const float* r0 = last_re_[0];
-      const float* i0 = last_im_[0];
-      const float before = r0[k] * r0[k] + i0[k] * i0[k] + r1[k] * r1[k] + i1[k] * i1[k];
-      if (before < p * kEstablished) continue;
-      // The turn since the frame before, both channels together: each
-      // channel's own phase drops out of it, so the sides need not agree.
-      const float turn_re = re0[k] * r0[k] + im0[k] * i0[k] + re[k] * r1[k] + im[k] * i1[k];
-      const float turn_im = im0[k] * r0[k] - re0[k] * i0[k] + im[k] * r1[k] - re[k] * i1[k];
-      const float bin = Small::advance_to_bin(k, kit::fast_atan2(turn_im, turn_re));
-      const float off = bin - static_cast<float>(k);
-      if (off > kOffBins || off < -kOffBins) continue;
-      bool skirt = false;
-      for (int m = 0; m < count && !skirt; ++m) {
-        const float d = std::fabs(bin - peaks_[m].bin);
-        if (d < 1.5f) {
-          skirt = true;  // one lobe, two bumps
-        } else if (d < 32.0f) {
-          const float lobe = kSkirtMargin / (kit::kPi * d * (d * d - 1.0f));
-          skirt = p < peaks_[m].power * lobe * lobe;
-        }
+      const int reach = reach_[k] > 1 ? reach_[k] : 1;
+      // A stretch that runs into a stronger partial's is that partial again.
+      bool again = false;
+      for (int m = 0; m < count && !again; ++m) {
+        const int apart = k > peaks_[m].k ? k - peaks_[m].k : peaks_[m].k - k;
+        again = apart < reach + peaks_[m].reach;
       }
-      if (skirt) continue;
-      // The level: the power of the peak's bin and the two beside it. A
-      // Hann-windowed sine leaves 1.5 times its own bin's full-scale power
-      // over its whole lobe wherever it lies between two bins, and 98 % of
-      // that or more in these three; a partial that moves within the frame
-      // spreads wider and reads a little low, never high.
+      if (again) continue;
+      float left = 0.0f, right = 0.0f, before = 0.0f, centre = 0.0f;
+      float turn_re = 0.0f, turn_im = 0.0f, turn_size = 0.0f;
+      for (int j = k - reach; j <= k + reach; ++j) {
+        const float pl = re0[j] * re0[j] + im0[j] * im0[j];
+        const float pr = re[j] * re[j] + im[j] * im[j];
+        const float bl = r0[j] * r0[j] + i0[j] * i0[j];
+        const float br = r1[j] * r1[j] + i1[j] * i1[j];
+        left += pl;
+        right += pr;
+        before += bl + br;
+        centre += static_cast<float>(j - k) * (pl + pr);
+        // The turn since the frame before. Every bin a partial reaches
+        // turns by the partial's own advance, whatever the bin, and each
+        // channel's own phase drops out of it: the turns of the stretch and
+        // of both channels add up to one.
+        turn_re += re0[j] * r0[j] + im0[j] * i0[j] + re[j] * r1[j] + im[j] * i1[j];
+        turn_im += im0[j] * r0[j] - re0[j] * i0[j] + im[j] * r1[j] - re[j] * i1[j];
+        turn_size += std::sqrt(pl * bl) + std::sqrt(pr * br);
+      }
+      const float both = left + right;
+      // There in the frame before: its frequency is that turn.
+      if (!(both > 0.0f) || before < both * kEstablished) continue;
+      // The pitch: the stretch's centre of power says which bins, the turn
+      // says where between them (Stft::advance_to_bin, from a place between
+      // two bins: a quarter turn per bin at a quarter hop).
+      const float middle = static_cast<float>(k) + centre / both;
+      const float within = middle - 4.0f * std::floor(0.25f * middle);  // four bins are a whole turn
+      const float bin =
+          middle + kit::princarg(kit::fast_atan2(turn_im, turn_re) - kit::kHalfPi * within) * (2.0f / kit::kPi);
       const float scale = 1.0f / (1.5f * full_scale_ * full_scale_);
-      const float left = (re0[k - 1] * re0[k - 1] + im0[k - 1] * im0[k - 1] + re0[k] * re0[k] + im0[k] * im0[k] +
-                          re0[k + 1] * re0[k + 1] + im0[k + 1] * im0[k + 1]) * scale;
-      const float right = (re[k - 1] * re[k - 1] + im[k - 1] * im[k - 1] + re[k] * re[k] + im[k] * im[k] +
-                           re[k + 1] * re[k + 1] + im[k + 1] * im[k + 1]) * scale;
       Peak& peak = peaks_[count++];
       peak.k = k;
-      peak.power = p;
+      peak.reach = reach;
+      peak.power = rough_power_[n];
       peak.bin = bin;
-      peak.left = std::sqrt(left);
-      peak.right = std::sqrt(right);
-      peak.level = std::sqrt(0.5f * (left + right));
+      peak.sure = turn_size > 0.0f ? std::sqrt(turn_re * turn_re + turn_im * turn_im) / turn_size : 0.0f;
+      peak.left = std::sqrt(left * scale);
+      peak.right = std::sqrt(right * scale);
+      peak.level = std::sqrt(0.5f * both * scale);
       peak.voice = -1;
       peak.chosen = false;
     }
 
-    last_count_ = count;
     // Each partial goes to the sine nearest in pitch that follows or
     // lingers; what it scores is its level as Tone weighs it, doubled while
     // it is being followed already.
     for (int n = 0; n < active_count_; ++n) claimed_[active_[n]] = -1;
+    int standing = 0;
     for (int m = 0; m < count; ++m) {
       Peak& peak = peaks_[m];
       float nearest = kit::max(kCatchBins, kCatchRatio * peak.bin);
@@ -479,12 +500,16 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         kept = voices_[peak.voice].state == kFollowing;
       }
       peak.score = peak.level * weight_[peak.k] * (kept ? kKeep : 1.0f);
-      int at = m;
+      // A partial nothing follows yet stands for choosing once its bins
+      // agree about its pitch: the first frame of a new sound has peaks
+      // whose turns say nothing, and a sine born there would start wrong.
+      if (peak.voice < 0 && peak.sure <= kSure) continue;
+      int at = standing++;
       for (; at > 0 && peaks_[order_[at - 1]].score < peak.score; --at) order_[at] = order_[at - 1];
       order_[at] = m;
     }
     const int wanted = kit::clamp_int(static_cast<int>(param(kPartials) + 0.5f), 1, kShown);
-    const int chosen = count < wanted ? count : wanted;
+    const int chosen = standing < wanted ? standing : wanted;
     for (int r = 0; r < chosen; ++r) peaks_[order_[r]].chosen = true;
 
     // A followed sine whose partial is gone, or is no longer among the
@@ -526,16 +551,11 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
       } else if (v.state == kLingering) {
         v.state = kFollowing;  // with the count it let go with: no second wait if it had none
       } else {
-        // A frame counts for a partial when it held since the one before,
-        // and counts two against it when it did not: noise makes peaks that
-        // last, but not ones that hold. The count stops kSpare frames past
-        // what Steady asks, so a sine that sounds rides out a bad frame.
-        const float moved = std::fabs(peak.bin - v.bin);
-        const float up = peak.level > v.level ? peak.level : v.level;
-        const float down = peak.level > v.level ? v.level : peak.level;
-        const bool held = (moved <= kHeldBins && up <= kHeldStep * down) ||
-                          (moved <= kSwayBins + kSwayRatio * v.bin && up <= kSwayStep * down);
-        v.age = held ? v.age + 1 : v.age - 2;
+        // A frame counts for a partial when its bins agree about its pitch
+        // and against it when they do not: noise makes peaks that last, but
+        // not ones that turn as one. The count stops kSpare frames past what
+        // Steady asks, so a sine that sounds rides out a few bad frames.
+        v.age = peak.sure > kSure ? v.age + 1 : v.age - 1;
         if (v.age > need_ + kSpare) v.age = need_ + kSpare;
         if (v.age < 0) v.age = 0;
       }
@@ -694,6 +714,8 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   float now_re_[kMaxBins] = {}, now_im_[kMaxBins] = {};          // the left channel's frame, kept for the right's
   float last_re_[2][kMaxBins] = {}, last_im_[2][kMaxBins] = {};  // the frame before, both channels
   float power_[kMaxBins] = {};
+  float gathered_[kMaxBins] = {};  // the power within each bin's reach
+  int reach_[kMaxBins] = {};
   float weight_[kMaxBins] = {};   // what Tone makes of a partial in each bin
   float log2_hz_[kMaxBins] = {};  // each bin's pitch, for that table
   float weight_tone_ = -1.0f;     // the Tone the table was made for
@@ -709,9 +731,6 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
   int born_[kPool] = {};
   int active_count_ = 0;
   int need_ = 0;  // frames a partial must last (Steady)
- public:
-  int last_count_ = 0;
- private:
 
   int shown_[kShown] = {};
   float shown_size_[kShown] = {};
