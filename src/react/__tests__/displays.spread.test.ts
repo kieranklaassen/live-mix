@@ -199,7 +199,8 @@ describe('the spread display: the curve', () => {
         }
     // Every region at 1 changes nothing, and a region's own width is what its middle gets.
     const flat = { ...START, low: 1, mid: 1, high: 1 }
-    for (const hz of [30, 180, 1000, 3200, 15000]) expect(spreadGain(hz, flat, RATE)).toBeCloseTo(1, 9)
+    for (const hz of [30, 180, 1000, 3200, 15000])
+      expect(spreadGain(hz, flat, RATE)).toBeCloseTo(1, 9)
     const sharp = { low: 0.4, mid: 1.3, high: 2, lowHz: 200, highHz: 4000, slope: 1 }
     expect(spreadGain(25, sharp, RATE)).toBeCloseTo(0.4, 2)
     // Between the splits the two stages leave a ripple of a hundredth or so, which the device has too.
@@ -277,7 +278,8 @@ describe('the spread display: the curve', () => {
       expect(spreadY(2, box)).toBeGreaterThan(box.y)
       expect(spreadY(0, box)).toBeLessThan(box.y + box.h)
       expect(spreadY(1, box)).toBeCloseTo((spreadY(0, box) + spreadY(2, box)) / 2, 9)
-      for (const value of [0, 0.37, 1, 2]) expect(spreadWidthOfY(spreadY(value, box), box)).toBeCloseTo(value, 9)
+      for (const value of [0, 0.37, 1, 2])
+        expect(spreadWidthOfY(spreadY(value, box), box)).toBeCloseTo(value, 9)
       // The three lines of the scale are drawn there, the one at 1 the strongest.
       const rules = strokes(draw({ width, height })).filter(
         (stroke) => stroke.points.length === 2 && stroke.points[0][1] === stroke.points[1][1],
@@ -327,7 +329,11 @@ describe('the spread display: the points', () => {
     for (const size of SIZES) {
       const box = spreadBox({ width: size[0], height: size[1] })
       const values = { low: 0.4, mid: 1.3, high: 1.9, lowHz: 250, highHz: 5000 }
-      const middles = { low: Math.sqrt(20 * 250), mid: Math.sqrt(250 * 5000), high: Math.sqrt(5000 * 20000) }
+      const middles = {
+        low: Math.sqrt(20 * 250),
+        mid: Math.sqrt(250 * 5000),
+        high: Math.sqrt(5000 * 20000),
+      }
       for (const key of ['low', 'mid', 'high'] as const) {
         const point = handleOf(key, values, size)
         expect(point.x).toBeCloseTo(xOfHz(middles[key], box), 9)
@@ -335,7 +341,9 @@ describe('the spread display: the points', () => {
         // A drag is solved for the width whose height is under the hand; across does nothing.
         for (const want of [0, 0.25, 1, 1.62, 2]) {
           expect(point.drag(3, spreadY(want, box))[key]).toBeCloseTo(want, 9)
-          expect(point.drag(box.x + box.w, spreadY(want, box))).toEqual(point.drag(0, spreadY(want, box)))
+          expect(point.drag(box.x + box.w, spreadY(want, box))).toEqual(
+            point.drag(0, spreadY(want, box)),
+          )
         }
         expect(Object.keys(point.drag(10, 10))).toEqual([key])
         // Past the ends of the scale it stops at the end of the range.
@@ -398,8 +406,13 @@ describe('the spread display: the points', () => {
     expect(said('lowHz')).toBe('Low split  180 Hz')
     expect(said('highHz', { highHz: 12000 })).toBe('High split  12 kHz')
     // The words in hand keep clear of every point.
+    const settings: Record<string, number>[] = [
+      {},
+      { low: 2, mid: 2, high: 2 },
+      { low: 0, mid: 0, high: 0 },
+    ]
     for (const hot of ['low', 'lowHz', 'mid', 'highHz', 'high'])
-      for (const values of [{}, { low: 2, mid: 2, high: 2 }, { low: 0, mid: 0, high: 0 }]) {
+      for (const values of settings) {
         const picture = draw({ values, hot })
         const patch = patchUnder(picture, picture.words()[0], PLAIN_COLOURS.plate)
         if (!patch) throw new Error('no patch')
@@ -425,7 +438,8 @@ function sound(tones: readonly [number, number, number][]): DisplaySignal {
     let peak = 0
     let sum = 0
     for (let i = 0; i < wave.length; i++) {
-      for (const tone of tones) wave[i] += tone[which] * Math.sin((2 * Math.PI * tone[0] * i) / RATE)
+      for (const tone of tones)
+        wave[i] += tone[which] * Math.sin((2 * Math.PI * tone[0] * i) / RATE)
       peak = Math.max(peak, Math.abs(wave[i]))
       sum += wave[i] * wave[i]
     }
@@ -486,7 +500,7 @@ describe('the spread display: the sound', () => {
     expect(state.measured[bandOf(9000)]).toBeGreaterThan(50)
     // A band's power is that of the tone in it, middle and sides together.
     expect(state.power[bandOf(200)]).toBeCloseTo(0.2 * 0.2, 2)
-    expect(state.power[bandOf(1000)]).toBeCloseTo((0.2 * 0.2 + 0.1 * 0.1), 2)
+    expect(state.power[bandOf(1000)]).toBeCloseTo(0.2 * 0.2 + 0.1 * 0.1, 2)
     expect(state.power[bandOf(400)]).toBeLessThan(1e-7)
   })
 
@@ -524,7 +538,10 @@ describe('the spread display: the sound', () => {
     // 1 for the loudest band, a straight line in dB down to the faintest 40 dB under it, and no fainter.
     expect(spreadStrength(0.5, 0.5)).toBe(1)
     expect(spreadStrength(0.5 / 100, 0.5)).toBeCloseTo(1 - (1 - SPREAD_FAINTEST) / 2, 9)
-    expect(spreadStrength(0.5 * Math.pow(10, -SPREAD_FAINT_DB / 10), 0.5)).toBeCloseTo(SPREAD_FAINTEST, 9)
+    expect(spreadStrength(0.5 * Math.pow(10, -SPREAD_FAINT_DB / 10), 0.5)).toBeCloseTo(
+      SPREAD_FAINTEST,
+      9,
+    )
     expect(spreadStrength(1e-9, 0.5)).toBe(SPREAD_FAINTEST)
     expect(spreadStrength(0, 0.5)).toBe(0)
     // A loud tone in the middle beside a tone 30 dB under it and all on one side.
@@ -538,8 +555,9 @@ describe('the spread display: the sound', () => {
     const box = spreadBox(displaySize(display))
     const bars = fills(draw({ signal: heard }), PLAIN_COLOURS.accent)
     const alphaAt = (hz: number): number =>
-      bars.find(({ box: [x] }) => Math.abs(x - (xOfHz(spreadBand(bandOf(hz))[0], box) + 0.5)) < 1e-6)
-        ?.alpha ?? NaN
+      bars.find(
+        ({ box: [x] }) => Math.abs(x - (xOfHz(spreadBand(bandOf(hz))[0], box) + 0.5)) < 1e-6,
+      )?.alpha ?? NaN
     expect(alphaAt(200)).toBeCloseTo(SPREAD_BAR_ALPHA, 6)
     const strength = spreadStrength(state.power[bandOf(5000)], state.power[bandOf(200)])
     expect(alphaAt(5000)).toBeCloseTo(SPREAD_BAR_ALPHA * strength, 6)
@@ -566,7 +584,11 @@ describe('the spread display: the sound', () => {
     const narrow = sound([[5000, 0.2, 0.2]])
     // Half a second on one side alone, then the same tone in the middle for the rest of the run.
     const after = (seconds: number): number =>
-      top(runDisplay(display, params, seconds, {}, (time) => ({ signal: time < 0.49 ? wide : narrow })))
+      top(
+        runDisplay(display, params, seconds, {}, (time) => ({
+          signal: time < 0.49 ? wide : narrow,
+        })),
+      )
     expect(after(0.5)).toBeCloseTo(spreadY(1, box), 0)
     // A tenth of a second after the sound turns mono the bar is still most of the way up.
     const soon = after(0.6)
@@ -581,9 +603,9 @@ describe('the spread display: the sound', () => {
     for (const [width, height] of SIZES) {
       const box = spreadBox({ width, height })
       const heldLines = (held: number, options: FrameOptions = {}): Stroke[] =>
-        strokes(
-          draw({ meters: { held }, signal: sound(tones), width, height, ...options }),
-        ).filter((stroke) => stroke.colour === PLAIN_COLOURS.accent && stroke.points.length > 10)
+        strokes(draw({ meters: { held }, signal: sound(tones), width, height, ...options })).filter(
+          (stroke) => stroke.colour === PLAIN_COLOURS.accent && stroke.points.length > 10,
+        )
       expect(heldLines(0)).toEqual([])
       expect(heldLines(-0.05)).toEqual([])
       for (const held of [-3, -12]) {

@@ -458,8 +458,7 @@ const spread = plateDisplay<SpreadState>({
   columns: 1,
   params: ['low', 'mid', 'high', 'lowHz', 'highHz', 'slope', 'make'],
   live: { meters: true, stereo: true },
-  info:
-    'Frequency runs across, width up. The line is the width each part of the sound is given; the bars are how wide what comes out is there, sides against middle, fainter where it is quiet. Drag a point up or down for a region, across for a split; the wheel there sets the slope. Dashed: what Make adds.',
+  info: 'Frequency runs across, width up. The line is the width each part of the sound is given; the bars are how wide what comes out is there, sides against middle, fainter where it is quiet. Drag a point up or down for a region, across for a split; the wheel there sets the slope. Dashed: what Make adds.',
   init: () => ({
     re: new Float32Array(2048),
     im: new Float32Array(2048),
