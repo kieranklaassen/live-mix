@@ -10,7 +10,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'string-bass',
       preset: 'Let it ring',
-      params: { tone: 0.5, release: 1.5, volume: -6.5 },
+      params: { tone: 0.5, volume: -6.5 },
     },
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { drive: 0.7, hiss: 0 } },
@@ -22,20 +22,13 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Deep fretless bloom',
     category: 'bass',
     description:
-      'A fretless stroked softly by the neck: every note opens after the pluck and rings long, the ring held up by a compressor, a reverb above.',
+      'A fretless stroked softly by the neck: every note opens after the pluck and rings long, a reverb swelling in behind it above the bass.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Quiet deep fretless',
-      params: { tone: 0.5, growl: 0.9, volume: 3 },
+      params: { tone: 0.5, growl: 0.9, volume: -1.5 },
     },
-    effects: [
-      {
-        deviceId: 'ambient-comp',
-        preset: 'Keys',
-        params: { threshold: -28, ratio: 3, attack: 60, release: 1, tails: 1, scLowCut: 40 },
-      },
-      { deviceId: 'shaped-reverb', preset: 'Bloom', params: { lowCut: 250, mix: 0.25 } },
-    ],
+    effects: [{ deviceId: 'shaped-reverb', preset: 'Bloom', params: { lowCut: 250, mix: 0.25 } }],
   },
   {
     id: 'far-dark-upright',
@@ -46,10 +39,10 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'string-bass',
       preset: 'Dark soft upright',
-      params: { mute: 0.05, sustain: 14, release: 1.5, volume: -2.3 },
+      params: { mute: 0.05, sustain: 14, volume: 1.4 },
     },
     effects: [
-      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 2, lowCut: 90, mix: 0.4 } },
+      { deviceId: 'expanse', preset: 'Narrow tunnel', params: { decay: 2, lowCut: 90, mix: 0.75 } },
     ],
   },
   {
@@ -72,11 +65,11 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Long ringing upright',
     category: 'bass',
     description:
-      'An upright set to ring as long as it will, its wooden body full up, while four strings that tune themselves to the line hum on behind.',
+      'An upright set to ring as long as it will, its wooden body well up, while four strings that tune themselves to the line hum on behind.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Long wooden ring',
-      params: { position: 0.32, tone: 0.55, sustain: 20, release: 2, volume: -6.2 },
+      params: { position: 0.32, sustain: 20, release: 2, volume: -6.2 },
     },
     effects: [
       {
@@ -124,7 +117,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'string-bass',
       preset: 'Warm fingers',
-      params: { position: 0.26, tone: 0.5, resonance: 0.3, volume: -4 },
+      params: { position: 0.26, tone: 0.5, volume: -4 },
     },
     effects: [
       {
@@ -135,7 +128,6 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
           ratio: 6,
           attack: 30,
           release: 0.3,
-          knee: 6,
           scLowCut: 40,
           makeup: 7,
         },
@@ -152,7 +144,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'string-bass',
       preset: 'Near the bridge',
-      params: { mute: 0, resonance: 0.85, volume: 2.5 },
+      params: { mute: 0, volume: 2.5 },
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Console' },
@@ -199,7 +191,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Slapped upright slapback',
     category: 'bass',
     description:
-      'An upright pulled hard so the string rattles on the board, pushed into hot tape, with a short gated slap of room behind every note, in mono.',
+      'An upright pulled hard near the bridge, each note gone in a second, pushed into hot tape, with a gated slap of room behind it, in mono.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Slapped upright',
@@ -207,7 +199,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Hot glue', params: { output: -0.5 } },
-      { deviceId: 'shaped-reverb', preset: 'Mono slap', params: { lowCut: 120, mix: 0.4 } },
+      { deviceId: 'shaped-reverb', preset: 'Mono slap' },
     ],
   },
   {
@@ -234,7 +226,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Bright pick, combo amp',
     category: 'bass',
     description:
-      'A pick near the bridge with the tone wide open and the pickup peak up, through a driven combo amplifier miked close and straight on.',
+      'A pick near the bridge with the tone open and the pickup peak up, through a driven combo amplifier miked close and straight on.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Bright pick',
@@ -262,7 +254,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Rattling pick, driven',
     category: 'bass',
     description:
-      'A hard pick on strings that rattle against the frets, the pickup peak full up, bitten by a pentode with the top held to six kilohertz.',
+      'A hard pick on strings that rattle against the frets, the pickup peak well up, bitten by a pentode with the top held to six kilohertz.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Pick with a rattle',
@@ -279,7 +271,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     instrument: {
       deviceId: 'string-bass',
       preset: 'Muted pick',
-      params: { touch: 0.7, mute: 0.5, volume: 3 },
+      params: { mute: 0.5, volume: 3 },
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Triode glow', params: { output: 2 } },
@@ -300,9 +292,7 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
         position: 0.08,
         tone: 1,
         mute: 1,
-        sustain: 0.5,
         release: 0.03,
-        growl: 0,
         resonance: 0.7,
         volume: 6,
       },
@@ -320,11 +310,11 @@ export const STRING_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Fretless tenor in a hall',
     category: 'plucked',
     description:
-      'A fretless played high on the neck as a melody: each note swells open after the pluck and sings on, in a hall.',
+      'A fretless played high on the neck as a melody: soft plucks with the sustain full up, each note singing on for seconds, in a hall.',
     instrument: {
       deviceId: 'string-bass',
       preset: 'Singing fretless',
-      params: { position: 0.25, sustain: 10, release: 1.5, growl: 0.9, volume: -2 },
+      params: { position: 0.25, sustain: 20, release: 1.5, volume: -4 },
     },
     effects: [{ deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } }],
   },
