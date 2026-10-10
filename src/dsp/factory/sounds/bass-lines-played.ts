@@ -7,8 +7,9 @@
 // whatever the device preset it names is set to later.
 //
 // The hands: a note is on the string a player would take it on (E, A, D or G: 28, 33, 38, 43), an open
-// string rings on under the next note only when that note is on another string, and no more than two
-// strings sound at once. A dead note is a soft key let go after a twentieth of a second.
+// string rings on under the next note only when that note is on another string and not a step away from
+// it, and no more than two strings sound at once. A dead note is a soft key let go after a twentieth of a
+// second.
 //
 // A plucked note is a tall peak over little body, so each line goes through something that rounds the
 // peak off (the tape curve of `soften`, a driven circuit, an amplifier): none of them is more than a
@@ -220,7 +221,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
     name: 'Syncopated fingers {F}',
     kind: 'beat',
     description:
-      'A dark, short-lived fingered electric bass that lands on {F} and then between the beats, with one dead note; it comes round.',
+      'A dark, short-lived fingered electric bass that lands on {F} and then between the beats, with a dead note; it comes round.',
     instrument: bass('Dark flat strings', {
       type: ELECTRIC,
       touch: 0.2,
@@ -314,7 +315,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       [4, 2.4, 48, 0.7],
       [6.5, 1.4, 47, 0.55],
       [8, 2.4, 45, 0.8],
-      [10.5, 2, 43, 0.55],
+      [10.5, 1.4, 43, 0.55],
       [12, 2.4, 41, 0.7],
       [14.5, 1.3, 40, 0.6],
     ]),
@@ -407,10 +408,10 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
         [4.5, 0.45, 35, 0.6],
         [5, 0.45, 38, 0.65],
         [5.5, 0.45, 40, 0.6],
-        [6, 0.7, 43, 0.8],
+        [6, 0.45, 43, 0.8],
         [6.5, 0.45, 41, 0.6],
         [7, 0.45, 38, 0.65],
-        [7.5, 0.7, 33, 0.6],
+        [7.5, 0.45, 33, 0.6],
       ],
       { crossfadeSec: 0.2 },
     ),
@@ -472,7 +473,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       position: 0.32,
       tone: 0.4,
       mute: 0,
-      sustain: 4,
+      sustain: 8,
       release: 0.2,
       growl: 0.1,
       resonance: 0.5,
