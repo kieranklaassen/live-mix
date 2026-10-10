@@ -1320,6 +1320,37 @@ As reported:
     five still put out over −30 dBFS half a minute on (loops and holds that
     are meant to go on), two are over 3.5 LU quiet on the piano, one of
     those five among them, and one passes +3 dBFS fed at −1.
+- Found while the bass was added (four instruments, 91 presets, 68 sounds),
+  and worked round in the presets and sounds, not fixed:
+  - Reverbs under a bass: `hall-reverb` "Far away" at a mix of 0.6 puts a
+    lone 110 Hz tone 9 to 13 dB to the right; `re-amp` "Down the hall" leaves
+    the side only 3.8 dB under the mid below 150 Hz; `spring-reverb` at a mix
+    of 0.3 and a decay of 1.6 s took 18.6 dB out of one bass note and left
+    its neighbours alone. A bass preset keeps its reverb narrow, short, or
+    above a low cut.
+  - Level: `saturator`'s presets, `ambient-comp` and `tamer` do nothing at
+    the level a bass instrument leaves at; `analog-drive`'s auto gain gives
+    2.5 dB less out for 6 dB less in, so it is no leveller; `ambient-limiter`
+    Release does nothing at Ride 0.
+  - Time: `tape` is 8.7 ms late and `patina` 5.7, which a bass line that
+    keeps time shows against the grid, so neither is on one.
+  - `ladder-bass`: its oscillators never restart, so each round of a loop
+    meets the last at another phase and the fold of a ladder line moves from
+    key to key (−6.1 dB five semitones down on one line, −2.1 dB six up on
+    another); its filter envelope cannot open slowly, only close; a filter
+    closing fast reads 16 cents flat on A1 while it closes.
+  - `string-bass`: the small differences between its plucks are never
+    reseeded, so two rounds of a loop differ by a residue of −19 to −24 dB
+    (a note moves by up to 1.4 dB); Upright's thump has no pitch and reads as
+    11 to 22 % of notes off the key.
+  - `analyzeSound` on bass lines: three, three and two eighths on the grid
+    read as 82 bpm at a confidence of 0.53, and a sub alone under 40 Hz has
+    no pitch it can hear (as above).
+  - The bench's "nearest" figure compares presets of different categories on
+    different phrases (a bass on the bass phrase, a pad on the chord), so it
+    says nothing between a bass and anything else; among basses of different
+    instruments the nearest pairs are 1.1 dB apart, which the rule (one
+    instrument at a time) allows.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,
