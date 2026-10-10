@@ -4,10 +4,10 @@
 // src/dsp/devices/canon.gen.ts:
 //    0  followers: 1..4, default 3
 //    1  gap: 0.1..7.5 s, default 1.5
-//    2  interval1: -12..12, default 0
-//    3  interval2: -12..12, default 0
-//    4  interval3: -12..12, default 0
-//    5  interval4: -12..12, default 0
+//    2  interval1: -12..12 st, default 0
+//    3  interval2: -12..12 st, default 0
+//    4  interval3: -12..12 st, default 0
+//    5  interval4: -12..12 st, default 0
 //    6  crab: 0 Off, 1 Last, 2 Every other, 3 All, default 0
 //    7  fade: 0..1, default 0.25
 //    8  spread: 0..1, default 0.5

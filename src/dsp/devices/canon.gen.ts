@@ -36,7 +36,7 @@ export const CANON_PARAMS = {
     max: 12,
     default: 0,
     taper: 'linear',
-    unit: '',
+    unit: 'st',
     step: 1,
     description:
       'Transposes the first follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
@@ -48,7 +48,7 @@ export const CANON_PARAMS = {
     max: 12,
     default: 0,
     taper: 'linear',
-    unit: '',
+    unit: 'st',
     step: 1,
     description:
       'Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
@@ -60,7 +60,7 @@ export const CANON_PARAMS = {
     max: 12,
     default: 0,
     taper: 'linear',
-    unit: '',
+    unit: 'st',
     step: 1,
     description:
       'Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',
@@ -72,7 +72,7 @@ export const CANON_PARAMS = {
     max: 12,
     default: 0,
     taper: 'linear',
-    unit: '',
+    unit: 'st',
     step: 1,
     description:
       'Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played.',

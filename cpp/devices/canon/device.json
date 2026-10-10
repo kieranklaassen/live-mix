@@ -72,6 +72,7 @@
       "max": 12,
       "default": 0,
       "step": 1,
+      "unit": "st",
       "description": "Transposes the first follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
@@ -81,6 +82,7 @@
       "max": 12,
       "default": 0,
       "step": 1,
+      "unit": "st",
       "description": "Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
@@ -90,6 +92,7 @@
       "max": 12,
       "default": 0,
       "step": 1,
+      "unit": "st",
       "description": "Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
@@ -99,6 +102,7 @@
       "max": 12,
       "default": 0,
       "step": 1,
+      "unit": "st",
       "description": "Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
     },
     {
