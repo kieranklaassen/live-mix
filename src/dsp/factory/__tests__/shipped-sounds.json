@@ -498,5 +498,85 @@
     "id": "vibraphone-chord-em7",
     "durationSec": 8,
     "loops": false
+  },
+  "253": {
+    "id": "fingered-ostinato-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "254": {
+    "id": "picked-eighths-dm",
+    "durationSec": 4,
+    "loops": true
+  },
+  "255": {
+    "id": "muted-thud-line-e",
+    "durationSec": 4,
+    "loops": true
+  },
+  "256": {
+    "id": "slow-root-and-fifth-c",
+    "durationSec": 16,
+    "loops": true
+  },
+  "257": {
+    "id": "syncopated-fingers-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "258": {
+    "id": "thumb-dub-line-am",
+    "durationSec": 8,
+    "loops": true
+  },
+  "259": {
+    "id": "fretless-slow-line-dm",
+    "durationSec": 16,
+    "loops": true
+  },
+  "260": {
+    "id": "fretless-bloom-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "261": {
+    "id": "fretless-sigh-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "262": {
+    "id": "fretless-soft-walk-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "263": {
+    "id": "walking-upright-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "264": {
+    "id": "upright-in-two-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "265": {
+    "id": "upright-ostinato-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "266": {
+    "id": "upright-pedal-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "267": {
+    "id": "sparse-upright-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "268": {
+    "id": "pizzicato-pattern-c",
+    "durationSec": 4,
+    "loops": true
   }
 }

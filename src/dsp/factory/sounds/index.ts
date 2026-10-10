@@ -1,8 +1,9 @@
 // Every factory sound, in the order a list shows them: the first
-// thirty-four, then each family that was added to them. A sound's catalogue
-// number, not its place here, is what saved work knows it by.
+// thirty-four, then each family that was added to them, the bass last. A
+// sound's catalogue number, not its place here, is what saved work knows it by.
 
 import { type FactorySound } from '../types'
+import { BASS_LINES_PLAYED } from './bass-lines-played'
 import { DRONES_HELD } from './drones-held'
 import { DRONES_SYNTH } from './drones-synth'
 import { FIRST_SOUNDS } from './first'
@@ -23,4 +24,5 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   ...ONESHOTS,
   ...PHRASES,
   ...MADE,
+  ...BASS_LINES_PLAYED,
 ]
