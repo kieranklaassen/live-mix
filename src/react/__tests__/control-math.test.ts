@@ -357,6 +357,7 @@ describe('the stock devices', () => {
       'cascade.repeats',
       'chamber-strings.players',
       'ember.unisonVoices',
+      'flock.birds',
     ])
   })
 
