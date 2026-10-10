@@ -1027,13 +1027,13 @@ describe('the picture of Distance', () => {
           const layout = layoutOf({ width, height })
           // The patch `label` lays under the words above the line.
           let fill = ''
-          let laid: number[] | null = null
+          let laid: number[] = []
           for (const call of drawn.calls) {
             if (call.name === 'set fillStyle') fill = String(call.args[0])
             else if (call.name === 'fillRect' && fill === ground) laid = call.args as number[]
             else if (call.name === 'fillText' && (call.args[2] as number) < 20) break
           }
-          expect(laid).not.toBeNull()
+          expect(laid).toHaveLength(4)
           // The reflections are drawn inside the picture and outside that patch.
           const cut = drawn.calls.findIndex(
             (call) => call.name === 'clip' && call.args[0] === 'evenodd',
@@ -1048,11 +1048,7 @@ describe('the picture of Distance', () => {
           ])
           expect(drawn.calls[cut - 1].name).toBe('rect')
           expect(drawn.calls[cut - 1].args).toEqual(laid)
-          const patch = wordsPatch(
-            layout,
-            (laid as number[])[0] < width / 2 ? 'left' : 'right',
-            (laid as number[])[2],
-          )
+          const patch = wordsPatch(layout, laid[0] < width / 2 ? 'left' : 'right', laid[2])
           expect([patch.x, patch.y, patch.w, patch.h]).toEqual(laid)
           // Every reflection is drawn after the cut and before it is lifted, and nothing else is.
           const lifted = drawn.calls.findIndex((call, n) => n > cut && call.name === 'restore')

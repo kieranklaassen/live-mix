@@ -1828,7 +1828,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   },
   phaser: { ...PLATE_PALETTES.phaser, finish: 'fade', cap: 'skirt' },
   tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
-  falling: { ...PLATE_PALETTES.falling, finish: 'fade', cap: 'dot' },
+  falling: { ...PLATE_PALETTES.falling, finish: 'fade', cap: 'skirt' },
   glints: { ...PLATE_PALETTES.glints, finish: 'gloss', cap: 'dot' },
   melt: { ...PLATE_PALETTES.melt, finish: 'gloss', cap: 'skirt' },
   // The instruments: a plate as an effect has one, and a display of what is played (`PLATE_FACES`).
@@ -1872,7 +1872,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   fog: { ...PLATE_PALETTES.fog, finish: 'fade', cap: 'disc' },
   constellation: { ...PLATE_PALETTES.constellation, finish: 'fade', cap: 'dot' },
   'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'brushed', cap: 'disc' },
-  orbits: { ...PLATE_PALETTES.orbits, finish: 'matte', cap: 'dot' },
+  orbits: { ...PLATE_PALETTES.orbits, finish: 'matte', cap: 'disc' },
   'sub-bass': { ...PLATE_PALETTES['sub-bass'], finish: 'gloss', cap: 'skirt' },
   'fm-bass': { ...PLATE_PALETTES['fm-bass'], finish: 'brushed', cap: 'dot' },
   'acid-bass': { ...PLATE_PALETTES['acid-bass'], finish: 'matte', cap: 'pointer' },
