@@ -769,3 +769,28 @@ describe('what happens now, in the second colour', () => {
     expect(left?.alpha).toBeLessThan(0.3)
   })
 })
+
+// Found by the second check. The dry sound and the cloud are the same sound,
+// one of them through a chain of allpasses, so at every pitch they add or
+// cancel by where the cloud's phase lies: a held note comes out anywhere
+// between the sum of the two gains and their difference. Six presets left Mix
+// near the middle, where the difference is small or nothing (Pad softener at
+// 0.5 lost a note altogether; the device measured 71 dB down).
+describe("where Fog's presets leave Mix", () => {
+  it('none leaves it where the dry sound and the cloud can take a held note out', () => {
+    const manifest = JSON.parse(readFileSync('cpp/devices/fog/device.json', 'utf8')) as {
+      params: { key: string; default: number }[]
+      presets: Record<string, Record<string, number>>
+    }
+    const usual = manifest.params.find((param) => param.key === 'mix')?.default ?? 1
+    expect(Object.keys(manifest.presets)).toHaveLength(16)
+    for (const [name, values] of Object.entries(manifest.presets)) {
+      const { dry, wet } = fogGains(values.mix ?? usual)
+      const least = 20 * Math.log10(Math.abs(wet - dry))
+      expect(least, `${name}: the most a held note can lose`).toBeGreaterThan(-4)
+    }
+    // The same law says what the middle of the knob does.
+    const middle = fogGains(0.5)
+    expect(Math.abs(middle.wet - middle.dry)).toBeLessThan(1e-9)
+  })
+})

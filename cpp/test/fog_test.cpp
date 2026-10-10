@@ -465,16 +465,35 @@ int main() {
     EXPECT(std::fabs(apart) < 0.12, "Width 1: the sides are unrelated");
     EXPECT_NEAR(rms(wide.right, at(1.0), at(3.0)) / rms(wide.left, at(1.0), at(3.0)), 1.0, 0.02,
                 "Width 1: both sides as loud as each other");
-    Stereo narrow = sides(0.06f);
+    // The knob runs evenly over how far down the two sides part: at 0.3 the
+    // highs are apart and the lows together, and at 0.6 the lows under 150 Hz
+    // still are. (It used to run evenly over the lengths, which parted
+    // everything over 600 Hz by 0.1 and left the rest of the knob to the bass:
+    // at 0.6 the lows were at 0.6 already.)
+    Stereo narrow = sides(0.3f);
     const double lows = correlation(band(narrow.left, 150.0, false), band(narrow.right, 150.0, false),
                                     at(1.0), at(3.0));
     const double highs = correlation(band(narrow.left, 5000.0, true), band(narrow.right, 5000.0, true),
                                      at(1.0), at(3.0));
-    char label[140];
+    char label[160];
     std::snprintf(label, sizeof label,
-                  "Width 0.06: the lows stay together (%.2f) while the highs have parted (%.2f)", lows,
+                  "Width 0.3: the lows stay together (%.2f) while the highs have parted (%.2f)", lows,
                   highs);
-    EXPECT(lows > 0.8 && std::fabs(highs) < 0.3, label);
+    EXPECT(lows > 0.9 && std::fabs(highs) < 0.3, label);
+    Stereo wider = sides(0.6f);
+    const double bass = correlation(band(wider.left, 150.0, false), band(wider.right, 150.0, false),
+                                    at(1.0), at(3.0));
+    const double rest = correlation(band(wider.left, 2400.0, true), band(wider.right, 2400.0, true),
+                                    at(1.0), at(3.0));
+    std::snprintf(label, sizeof label,
+                  "Width 0.6: the lows under 150 Hz are still together (%.2f), all over 2.4 kHz apart (%.2f)",
+                  bass, rest);
+    EXPECT(bass > 0.85 && std::fabs(rest) < 0.15, label);
+    Stereo slight = sides(0.1f);
+    const double begun = correlation(band(slight.left, 5000.0, true), band(slight.right, 5000.0, true),
+                                     at(1.0), at(3.0));
+    std::snprintf(label, sizeof label, "Width 0.1: the highs have begun to part and no more (%.2f)", begun);
+    EXPECT(begun > 0.1 && begun < 0.9, label);
   }
 
   // Drift moves the cloud without bending pitch: a held tone strays a few
@@ -774,6 +793,256 @@ int main() {
     EXPECT(device.meter(0) == before, "reading a meter changes nothing");
     render(device, 4.0f, kRate);
     EXPECT(device.meter(0) == Fog::kRestAge && device.meter(2) == 0.0f, "asleep the meters are at rest");
+  }
+
+  // --- Found by the second check -------------------------------------------
+
+  // A held note keeps its level from moment to moment while the drift runs,
+  // at the longest Size with three layers too. A length that moves bends the
+  // pitch of what passes it, and the stages after it ring for about a Size:
+  // with every length moving as fast at Size 600 as at Size 25, a 4 kHz note
+  // went between 21 dB under its level and 7 over within a second (the level
+  // over a second and a half, at Size 150, hid it). Read in windows of 50 ms.
+  {
+    const auto wavers = [&](float size, int layers, float hz, double* low, double* high) {
+      device.init(kRate);
+      device.set_param(p::kSize, size);
+      device.set_param(p::kLayers, static_cast<float>(layers));
+      device.set_param(p::kDrift, 1.0f);
+      device.set_param(p::kSoften, 0.0f);
+      device.set_param(p::kDamp, 0.0f);
+      Stereo out = run(device, sine(hz, 24.0f, kRate, 0.25f));
+      const double full = 0.25 / std::sqrt(2.0);
+      for (size_t from = at(4.0); from + 2400 <= out.size(); from += 2400) {
+        for (const std::vector<float>* side : {&out.left, &out.right}) {
+          const double level = db(rms(*side, from, from + 2400) / full);
+          *low = std::min(*low, level);
+          *high = std::max(*high, level);
+        }
+      }
+    };
+    double low = 100.0, high = -100.0;
+    wavers(600.0f, 3, 4186.0f, &low, &high);
+    wavers(600.0f, 1, 4186.0f, &low, &high);
+    wavers(150.0f, 3, 4186.0f, &low, &high);
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "Drift 1: a held 4186 Hz note stays at its level in every 50 ms, Size 150 and 600, one "
+                  "layer and three (%.2f to %+.2f dB)",
+                  low, high);
+    EXPECT(low > -2.0 && high < 2.0, label);
+    low = 100.0;
+    high = -100.0;
+    wavers(600.0f, 3, 1046.5f, &low, &high);
+    std::snprintf(label, sizeof label, "and a 1046 Hz note at Size 600 with three layers (%.2f to %+.2f dB)", low,
+                  high);
+    EXPECT(low > -0.6 && high < 0.6, label);
+  }
+
+  // The drift adds no crackle. A steady tone obeys y[n+1] + y[n-1] =
+  // 2 cos(w) y[n] whatever its level and phase, and a tone whose pitch
+  // drifts by a few cents nearly so; what is left over is a break in the
+  // wave. The interpolator's whole part stepped where its fraction was a
+  // half, which shifts a 10 kHz tone's phase by a third of a radian at once:
+  // breaks of three quarters of the tone's own height, a hundred a second.
+  {
+    const float hz = 10000.0f;
+    device.init(kRate);
+    device.set_param(p::kDrift, 1.0f);
+    device.set_param(p::kSoften, 0.0f);
+    device.set_param(p::kDamp, 0.0f);
+    Stereo out = run(device, sine(hz, 12.0f, kRate, 0.5f));
+    const double turn = 2.0 * std::cos(2.0 * kPi * hz / kRate);
+    double worst = 0.0, sum = 0.0;
+    size_t count = 0;
+    for (const std::vector<float>* side : {&out.left, &out.right}) {
+      for (size_t i = at(2.0); i + 1 < side->size(); ++i) {
+        const double left_over = (*side)[i + 1] + (*side)[i - 1] - turn * (*side)[i];
+        worst = std::max(worst, std::fabs(left_over));
+        sum += left_over * left_over;
+        ++count;
+      }
+    }
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "Drift 1: a 10 kHz tone of 0.5 comes out unbroken (largest break %.4f, %.1f dB under the "
+                  "tone on average)",
+                  worst, -db(std::sqrt(sum / static_cast<double>(count)) / (0.5 / std::sqrt(2.0))));
+    EXPECT(worst < 0.05 && std::sqrt(sum / static_cast<double>(count)) < 0.5 / std::sqrt(2.0) * 0.003, label);
+  }
+
+  // Soften leaves a held chord alone. Three notes at the bottom of a piano
+  // beat against each other tens of times a second, and each return from a
+  // beat's low is a rise like an attack's: measured against the level of the
+  // moment, Soften took up to 36 % of the gain off a held triad, 27 times a
+  // second. It measures against the top of the sound now.
+  {
+    std::vector<float> chord(at(4.0), 0.0f);
+    const double notes[3] = {65.41, 82.41, 98.0};
+    for (size_t i = 0; i < chord.size(); ++i) {
+      double sum = 0.0;
+      for (int k = 0; k < 3; ++k) sum += 0.2 * std::sin(2.0 * kPi * notes[k] * i / kRate + 1.3 * k);
+      chord[i] = static_cast<float>(sum * std::min(1.0, i / (0.5 * kRate)));
+    }
+    double most = 0.0;
+    for (float soften : {1.0f, p::kParamDefault[p::kSoften]}) {
+      device.init(kRate);
+      device.set_param(p::kSoften, soften);
+      float taken = 0.0f;
+      for (size_t done = 0; done < chord.size(); done += 8) {
+        for (int i = 0; i < 8; ++i) {
+          device.in_left()[i] = chord[done + i];
+          device.in_right()[i] = chord[done + i];
+        }
+        device.process(8);
+        if (done >= at(1.5)) taken = std::max(taken, device.meter(2));
+      }
+      if (soften == 1.0f) most = taken;
+      char label[160];
+      std::snprintf(label, sizeof label,
+                    "Soften %.1f: a held low triad keeps its gain (at most %.3f taken off between its beats)",
+                    soften, taken);
+      EXPECT(taken < 0.12f * soften + 0.001f, label);
+    }
+    (void)most;
+  }
+
+  // The host's block size is never heard, wherever in a block a sound
+  // starts and however long the silence before it was. The gate used to look
+  // at whole blocks: the device went to sleep and woke at a block's edge, and
+  // the control clock and the drift started from there, so the same notes
+  // after a rest came out up to a quarter of full scale apart at another
+  // block size. Six bursts, each after a rest that ends in the middle of a
+  // block, the rests on both sides of the time the device takes to doze off.
+  {
+    rng_state() = 0x5EEDu;
+    const std::vector<float> burst = noise(0.3f, kRate, 0.3f);
+    std::vector<float> input(4807, 0.0f);
+    for (int rest : {57613, 76801, 79207, 81611, 86419, 240007}) {
+      input.insert(input.end(), burst.begin(), burst.end());
+      input.insert(input.end(), static_cast<size_t>(rest), 0.0f);
+    }
+    const auto session = [&](const std::vector<int>& blocks) {
+      device.init(kRate);
+      device.set_param(p::kDrift, 1.0f);
+      device.set_param(p::kLayers, 2.0f);
+      device.set_param(p::kMix, 0.8f);
+      Stereo out;
+      out.left.resize(input.size());
+      out.right.resize(input.size());
+      size_t done = 0;
+      for (size_t turn = 0; done < input.size(); ++turn) {
+        const int frames =
+            static_cast<int>(std::min<size_t>(blocks[turn % blocks.size()], input.size() - done));
+        for (int i = 0; i < frames; ++i) {
+          device.in_left()[i] = input[done + i];
+          device.in_right()[i] = input[done + i];
+        }
+        device.process(frames);
+        for (int i = 0; i < frames; ++i) {
+          out.left[done + i] = device.out_left()[i];
+          out.right[done + i] = device.out_right()[i];
+        }
+        done += frames;
+      }
+      return out;
+    };
+    const Stereo usual = session({128});
+    double worst = 0.0;
+    const std::vector<std::vector<int>> others = {{1}, {32}, {512}, {2048}, {7, 128, 1, 2048, 33, 512, 64}};
+    for (const std::vector<int>& blocks : others) {
+      const Stereo other = session(blocks);
+      for (size_t i = 0; i < usual.size(); ++i) {
+        worst = std::max(worst, std::fabs(static_cast<double>(other.left[i]) - usual.left[i]));
+        worst = std::max(worst, std::fabs(static_cast<double>(other.right[i]) - usual.right[i]));
+      }
+    }
+    char label[200];
+    std::snprintf(label, sizeof label,
+                  "sounds that start in the middle of a block after a rest: the same at blocks of 1, 32, 128, "
+                  "512, 2048 and mixed (off by %g)",
+                  worst);
+    EXPECT(worst < 1.0e-6, label);
+    EXPECT(peak(usual.left, input.size() - at(0.5), input.size()) == 0.0 &&
+               peak(usual.right, input.size() - at(0.5), input.size()) == 0.0,
+           "and after the longest rest the output is exact zero");
+  }
+
+  // The cloud never goes out past four times full scale, whatever is done
+  // to the knobs. A stage at one of its resonances holds a note at 2.5 times
+  // its level, and a length that jumps lets that out at once: a full-scale
+  // square wave came out at 4.5 while Size was thrown about, with nothing in
+  // the way. And a sample that is infinite is silence, as one that is not a
+  // number is: it used to go down the chain as a click 16 times full scale.
+  {
+    std::vector<float> square(at(12.0));
+    for (size_t i = 0; i < square.size(); ++i) square[i] = (i / 436) % 2 == 0 ? 1.0f : -1.0f;  // 55 Hz
+    device.init(kRate);
+    device.set_param(p::kLayers, 3.0f);
+    device.set_param(p::kDensity, 1.0f);
+    device.set_param(p::kSoften, 0.0f);
+    device.set_param(p::kDamp, 0.0f);
+    livemix::kit::Rng dice;
+    dice.seed(0xD1CEu);
+    float top = 0.0f;
+    bool finite = true;
+    for (size_t done = 0; done < square.size(); done += 128) {
+      if (done % 9600 == 0) {
+        device.set_param(p::kSize, 10.0f * std::pow(60.0f, dice.uniform()));
+        device.set_param(p::kDensity, dice.uniform() < 0.5f ? 0.0f : 1.0f);
+      }
+      const int frames = static_cast<int>(std::min<size_t>(128, square.size() - done));
+      for (int i = 0; i < frames; ++i) {
+        device.in_left()[i] = square[done + i];
+        device.in_right()[i] = square[done + i];
+      }
+      device.process(frames);
+      for (int i = 0; i < frames; ++i) {
+        const float l = device.out_left()[i], r = device.out_right()[i];
+        if (!(l - l == 0.0f) || !(r - r == 0.0f)) finite = false;
+        top = std::max(top, std::max(std::fabs(l), std::fabs(r)));
+      }
+    }
+    char label[160];
+    std::snprintf(label, sizeof label,
+                  "a full-scale square wave with Size and Density thrown about every 0.2 s: peak %.2f", top);
+    EXPECT(finite && top <= 4.0f, label);
+
+    // Density thrown from one end to the other under a note: a coefficient
+    // that drops within 20 ms let out what the long stages had stored, 1.8
+    // times the note's level for a tenth of a second (2.4 times at Size 600
+    // with three layers). It glides over a Size now, as long as the stages
+    // take to empty, and the most is 1.5.
+    {
+      const std::vector<float> note = sine(110.0f, 4.0f, kRate, 0.5f);
+      double most = 0.0;
+      for (float to : {0.0f, 1.0f}) {
+        device.init(kRate);
+        device.set_param(p::kSoften, 0.0f);
+        device.set_param(p::kDensity, 1.0f - to);
+        Stereo held = run(device, std::vector<float>(note.begin(), note.begin() + at(2.0)));
+        device.set_param(p::kDensity, to);
+        Stereo moved = run(device, std::vector<float>(note.begin() + at(2.0), note.end()));
+        most = std::max(most, std::max(peak(moved.left), peak(moved.right)) / peak(held.left, at(1.0), at(2.0)));
+      }
+      std::snprintf(label, sizeof label,
+                    "Density thrown across its range under a 110 Hz note: the peak is %.2f times the note's",
+                    most);
+      EXPECT(most < 1.6, label);
+    }
+
+    std::vector<float> tone = sine(220.0f, 2.0f, kRate, 0.25f);
+    device.init(kRate);
+    const double clean = peak(run(device, tone).left, at(1.0), at(2.0));
+    tone[at(1.0)] = std::numeric_limits<float>::infinity();
+    tone[at(1.0) + 7] = -std::numeric_limits<float>::infinity();
+    device.init(kRate);
+    const Stereo out = run(device, tone);
+    std::snprintf(label, sizeof label,
+                  "two infinite samples in a note are two samples of silence (peak %.3f after them, %.3f without)",
+                  peak(out.left, at(1.0), at(2.0)), clean);
+    EXPECT(peak(out.left, at(1.0), at(2.0)) < clean + 0.3 && peak(out.right, at(1.0), at(2.0)) < clean + 0.3,
+           label);
   }
 
 

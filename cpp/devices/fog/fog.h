@@ -37,21 +37,41 @@
 //   called for, and the heard tap crossfades to it while it fills.
 // - Width is how far the right side's lengths lie from the left's (up to a
 //   tenth, kSkew), and how far its drift goes its own way. At 0 the two
-//   sides are the same chain and a mono sound stays mono.
+//   sides are the same chain and a mono sound stays mono. The sides part
+//   above a frequency that falls as the lengths part, so the knob runs over
+//   the lengths on a curve (`spread`): the highs first, the bass last, about
+//   two octaves to a quarter of the knob. Summed to mono, two sides that
+//   differ cancel at some pitches; that is what Width costs.
 // - Drift sweeps every length on a slow sine of its own, a quarter of a
 //   millisecond at most. Lengths are read through a first-order allpass
 //   interpolator, which is flat at every frequency, so the stage is still an
 //   allpass while it moves (an interpolating read would lose treble on every
 //   trip round every stage). At rest on a whole sample the read is exact.
+//   A chain whose lengths move is not flat for all that: a moving length
+//   bends the pitch of what passes it, and the stages after it ring for
+//   about a Size, so a note whose pitch moves across their resonances faster
+//   than that wavers in level. The drift is therefore the slower the longer
+//   the cloud (kDriftPace): as built, a 4 kHz note keeps within 1.5 dB of
+//   its level in every twentieth of a second with Drift full up, at any Size.
 // - Size and Width move the lengths, which bends the pitch of what is in the
 //   chain for a moment, as a tape delay's time does. While a length moves by
 //   more than a sample per control period it is read by straight
 //   interpolation instead, which has no state to upset.
-// - Soften is a gain that follows the attack of the input: a held peak of
-//   the level against a slower copy of it. While the level has just jumped,
-//   the gain is the slower copy over the jump, so the note fades in from
-//   where the sound was before it. It works on what feeds the cloud, and on
-//   the dry sound as far as Mix brings the cloud up (so Mix 0 is the input).
+// - Soften is a gain that follows the attack of the input: the top of the
+//   level (its peak, kept up through the dips between the beats of a held
+//   chord) against a slower copy of it. While the top has just jumped, the
+//   gain is the slower copy over the jump, so the note fades in from where
+//   the sound was before it. It works on what feeds the cloud, and on the
+//   dry sound as far as Mix brings the cloud up (so Mix 0 is the input).
+// - Mix is equal power. Dry sound and an allpassed copy of it add at some
+//   pitches and cancel at others, wholly where the two are as loud as each
+//   other: within a fifth of either end of Mix a held note loses 3.9 dB at
+//   the most, at the middle it can vanish. No mixing law avoids that.
+// - What goes out is bounded: the cloud bends over at twice full scale and
+//   never passes four times (`ceiling`), since a length or a coefficient
+//   that jumps lets out at once what a stage had stored.
+// - The device sleeps and wakes to the sample on its own clock, never on
+//   the host's blocks (see `process`).
 // - Storage: 22 stages a side on slices of one pool, sized for the longest
 //   Size at 96 kHz with the right side's skew and the drift: 313,344 floats,
 //   1.25 MB. Above 96 kHz the longest Sizes are held to what fits.
@@ -149,7 +169,8 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     const float control_rate = sr / kPeriod;
     glide_ = 1.0f - kit::time_to_coeff(kGlideSeconds, control_rate);
     width_.set_time(kGlideSeconds, control_rate);
-    density_.set_time(0.02f, control_rate);
+    density_.set_time(kDensitySeconds, control_rate);
+    density_size_ = -1.0f;
     drift_.set_time(0.05f, control_rate);
     damp_hz_.set_time(0.03f, control_rate);
     open_.set_time(0.03f, control_rate);
@@ -160,6 +181,8 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
 
     hold_samples_ = static_cast<int>(kHoldSeconds * sr);
     release_ = kit::time_to_coeff(kReleaseSeconds, sr);
+    beat_samples_ = static_cast<int>(kBeatSeconds * sr);
+    fall_ = kit::time_to_coeff(kFallSeconds, sr);
     onset_ = kit::time_to_coeff(kOnsetSeconds, sr);
     rest_age_ = static_cast<long>(kRestAge * sr);
 
@@ -167,7 +190,9 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     // longest Size: the sum of every length, with the skew.
     float longest = 0.0f;
     for (int s = 0; s < kStages; ++s) longest += kRatio[s];
-    idle_.reset(sr, 1.15f * longest * kMaxSizeSeconds + 0.3f);
+    hold_ = static_cast<long>((1.15f * longest * kMaxSizeSeconds + 0.3f) * sr);
+    quiet_ = hold_;
+    dormant_ = true;
 
     for (int l = 0; l < kTaps; ++l) {
       weight_[l] = 0.0f;
@@ -189,7 +214,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   // way, and asleep); 1, how loud that attack was (a peak, 1 is full scale);
   // 2, the share of the gain Soften has taken off the sound now (0 is none).
   float meter(int index) const {
-    const bool asleep = idle_.asleep();
+    const bool asleep = dormant_;
     switch (index) {
       case 0:
         return asleep ? kRestAge : static_cast<float>(age_) / sample_rate();
@@ -202,27 +227,45 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     }
   }
 
+  // The device sleeps and wakes on its own clock, to the sample, so that the
+  // host's block size is never heard: it dozes off at the first turn of the
+  // control clock after kFloor has not been passed for hold_ samples, writes
+  // exact zeros while no sound comes in, and at the first sample that is not
+  // silence starts again from the settings of now (what moved during the
+  // sleep snaps, the drift and the control clock start over). A gate that
+  // looked at whole blocks would start the clock at the top of the block the
+  // sound came in, and the same notes would come out differently at another
+  // block size.
   void process(int frames) {
     frames = begin_block(frames);
-    const bool was_asleep = idle_.asleep();
-    if (!idle_.wake(input_present(frames))) {
-      silence_output(frames);
-      return;
-    }
-    // Everything that glides or runs freely starts again from the settings
-    // of now: what moved during the sleep snaps, and the drift restarts the
-    // same way whatever the block size was when the device dozed off.
-    if (was_asleep) restart();
     int done = 0;
     while (done < frames) {
-      if (clock_ == 0) control();
+      if (dormant_) {
+        int next = done;
+        while (next < frames && in_left_[next] == 0.0f && in_right_[next] == 0.0f) ++next;
+        for (int i = done; i < next; ++i) {
+          out_left_[i] = 0.0f;
+          out_right_[i] = 0.0f;
+        }
+        done = next;
+        if (done == frames) break;
+        dormant_ = false;
+        quiet_ = 0;
+        restart();
+      }
+      if (clock_ == 0) {
+        if (quiet_ >= hold_) {
+          dormant_ = true;
+          continue;
+        }
+        control();
+      }
       const int count = kit::clamp_int(frames - done, 1, kPeriod - clock_);
       render(done, count);
       clock_ += count;
       if (clock_ >= kPeriod) clock_ = 0;
       done += count;
     }
-    idle_.settle(output_peak(frames), frames);
   }
 
  private:
@@ -236,6 +279,12 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr float kGlideSeconds = 0.2f;
   // Drift moves a stage by this share of its length at most.
   static constexpr float kDriftShare = 0.2f;
+  // The fastest a length moves with Drift full up, in seconds a second (the
+  // quickest sine, 0.25 Hz, at its steepest), and the most that speed times
+  // the Size may be, in seconds: what keeps a held note at 4 kHz within
+  // about 1.5 dB of its level through three layers.
+  static constexpr float kDriftFastest = 6.2831853f * 0.25f * fog_layout::kDriftSeconds;
+  static constexpr float kDriftPace = 1.0e-5f;
   // The shortest a stage may be: the interpolator reads two samples back.
   static constexpr float kShortest = 2.0f;
   // Damp runs the high cut from here down to kDampLowHz; under kDampOpen it
@@ -252,6 +301,17 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr float kSlack = 1.15f;
   static constexpr float kSoftenFast = 0.006f;
   static constexpr float kSoftenSlow = 0.05f;
+  // What Soften measures a rise against is the top of the sound, not the
+  // level of the moment: a level that has come back up by kBeatRise from its
+  // low, to kBeatShare of the top or more, keeps the top where it was for
+  // kBeatSeconds, and then the top falls to the level with kFallSeconds.
+  // Two held notes a fifth apart at the bottom of a piano beat 27 times a
+  // second and the level between them drops by half; without this every
+  // one of those returns was softened, 14 dB of ripple on a held low chord.
+  static constexpr float kBeatRise = 1.05f;
+  static constexpr float kBeatShare = 0.3f;
+  static constexpr float kBeatSeconds = 0.15f;
+  static constexpr float kFallSeconds = 0.02f;
   // For the meters: an attack is a level twice what a 20 ms follower has
   // reached, over -60 dBFS, and the next one counts once that follower is
   // within a fifth of the level again.
@@ -259,13 +319,22 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   static constexpr float kOnsetRatio = 2.0f;
   static constexpr float kRearmRatio = 1.2f;
   static constexpr float kOnsetFloor = 0.001f;
+  static constexpr float kWidthCurve = 5.0f;
+  // Density glides over this long at least, and this many Sizes.
+  static constexpr float kDensitySeconds = 0.02f;
+  static constexpr float kDensitySizes = 1.0f;
   static constexpr float kInputBound = 16.0f;
+  static constexpr float kCeilingKnee = 2.0f;
+  static constexpr float kCeiling = 4.0f;
+  // Under this the output counts as silence (-140 dBFS).
+  static constexpr float kFloor = 1.0e-7f;
 
   // A Schroeder allpass whose length can move. At rest, or moving by a
   // sample a period or less, the length is read through a first-order
   // allpass interpolator whose coefficient ramps across the period; moving
   // faster, by straight interpolation between two samples.
   struct Stage {
+    static constexpr float kLeast = 0.02f;
     float* data = nullptr;
     int mask = 0;
     int write = 0;
@@ -302,8 +371,14 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
       const float distance = wanted - from;
       if (distance <= 1.0f && distance >= -1.0f) {
         fast = false;
-        // The part past `whole` stays in [0.5, 2.5) over the period.
-        whole = static_cast<int>((from < wanted ? from : wanted) - 0.5f);
+        // The part past `whole` stays in [kLeast, kLeast + 2) over the
+        // period. A first-order allpass set for a delay of d samples gives a
+        // high note a little more or less than d, so when `whole` steps and
+        // d with it the note's phase steps: at 10 kHz by a third of a radian
+        // where d goes between 0.5 and 1.5, by a hundredth where it goes
+        // between kLeast and one more. (The smaller kLeast, the nearer the
+        // interpolator's pole lies to -1: at 0.02 it rings for 3 ms.)
+        whole = static_cast<int>((from < wanted ? from : wanted) - kLeast);
         const float d0 = from - static_cast<float>(whole);
         const float d1 = wanted - static_cast<float>(whole);
         eta = (1.0f - d0) / (1.0f + d0);
@@ -358,12 +433,37 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     }
   };
 
+  // How far the right side's lengths lie from the left's, of kSkew, for a
+  // setting of Width. The two sides part above a frequency that falls as the
+  // lengths part (at Size 150 they are apart over 2.4 kHz at 0.01 of kSkew,
+  // over 600 Hz at 0.1 and over 150 Hz at 1), so a knob that ran evenly over
+  // the lengths did all its work in its first twentieth. This runs evenly
+  // over the frequency: every quarter of the knob is about two octaves.
+  static float spread(float width) {
+    if (width <= 0.0f) return 0.0f;
+    if (width >= 1.0f) return 1.0f;
+    return (std::exp(kWidthCurve * width) - 1.0f) / (std::exp(kWidthCurve) - 1.0f);
+  }
+
   // What may come in: a sample that is not a number is silence, and nothing
   // is larger than kInputBound. One such sample would otherwise go down
   // every line of the chain.
   static float sane(float x) {
-    if (!(x == x)) return 0.0f;
+    if (!(x - x == 0.0f)) return 0.0f;  // not a number, or infinite
     return kit::clamp(x, -kInputBound, kInputBound);
+  }
+
+  // The cloud as it goes out: itself up to kCeilingKnee, and never past
+  // kCeiling. A length that moves fast (Size, Width) or a coefficient that
+  // drops (Density) lets out at once what a stage had stored, up to three
+  // times a full-scale note's level for a moment; this is the bound on it.
+  static float ceiling(float x) {
+    const float size = x < 0.0f ? -x : x;
+    if (size <= kCeilingKnee) return x;
+    const float over = size - kCeilingKnee;
+    const float room = kCeiling - kCeilingKnee;
+    const float bent = kCeilingKnee + room * over / (room + over);
+    return x < 0.0f ? -bent : bent;
   }
 
   // The settings as they are now, with nothing on its way: after init and
@@ -387,6 +487,9 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     for (int l = 0; l < kTaps; ++l) weight_[l] = weight_target_[l];
     fast_ = 0.0f;
     slow_ = 0.0f;
+    top_ = 0.0f;
+    low_ = 0.0f;
+    beat_left_ = 0;
     heard_ = 0.0f;
     hold_left_ = 0;
     armed_ = true;
@@ -418,12 +521,26 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
     }
     running_ = needed;
 
+    // A coefficient that drops lets out what the stage had stored (2.5 times
+    // a note's level at a resonance), so Density moves no faster than the
+    // long stages empty: over a Size.
+    if (param(kSize) != density_size_ || snap) {
+      density_size_ = param(kSize);
+      density_.set_time(kit::max(kDensitySeconds, kDensitySizes * density_size_ * 0.001f),
+                        sr / kPeriod);
+    }
     const float width = width_.next();
     const float density = density_.next();
     const float drift = drift_.next();
     const float size = param(kSize) * 0.001f * sr;
     const float turn = static_cast<float>(kPeriod) / sr;
     const float sweep = kDriftSeconds * sr;
+    // A length that moves bends the pitch of what passes, and the stages
+    // after it ring for about a Size: a note whose pitch moves across their
+    // resonances in less time than that changes level. So the longer the
+    // cloud, the slower every length drifts, and as far.
+    const float pace =
+        kit::min(1.0f, kDriftPace / (kDriftFastest * param(kSize) * 0.001f));
     const float long_gain = kit::lerp(kLongGainLow, kLongGainHigh, density);
     const float step = 1.0f / static_cast<float>(kPeriod);
 
@@ -437,16 +554,23 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         Stage& stage = stage_[c][s];
         const bool jump = snap || stage.fresh;
         stage.fresh = false;
-        const float share = c == 0 ? kRatio[s] : kRatio[s] * (1.0f + width * kSkew[s]);
-        const double target =
-            kit::clamp(std::floor(share * size + 0.5f), kShortest, std::floor(stage.limit));
+        // The left side rests on a whole sample. The right lies off it by
+        // its skew, to a fraction of a sample, so that the bottom of Width
+        // moves the sides apart evenly (rounded to whole samples, nothing
+        // moved until one stage jumped by a sample, and then the highs
+        // parted at once).
+        const float whole = std::floor(kRatio[s] * size + 0.5f);
+        const float share = c == 0 ? whole : whole + kRatio[s] * size * width * kSkew[s];
+        const double target = kit::clamp(share, kShortest, std::floor(stage.limit));
         if (jump) {
           stage.rest = target;
         } else {
           stage.rest += (target - stage.rest) * glide_;
           if (stage.rest - target < 0.01 && target - stage.rest < 0.01) stage.rest = target;
         }
-        stage.phase += stage.rate * turn;
+        const float rest = static_cast<float>(stage.rest);
+        const float reach = kit::min(sweep, kDriftShare * rest);
+        stage.phase += stage.rate * pace * turn;
         if (stage.phase >= 1.0f) stage.phase -= 1.0f;
         // The right side's drift is the left's at Width 0 and its own at 1.
         float sine = kit::SineTable::lookup(stage.phase);
@@ -455,9 +579,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         } else {
           sine = kit::lerp(left_sine, sine, width);
         }
-        const float rest = static_cast<float>(stage.rest);
-        const float depth = drift * kit::min(sweep, kDriftShare * rest);
-        stage.aim(kit::clamp(rest + depth * sine, kShortest, stage.limit), jump, kPeriod);
+        stage.aim(kit::clamp(rest + drift * reach * sine, kShortest, stage.limit), jump, kPeriod);
         if (jump) {
           stage.gain = gain;
           stage.gain_step = 0.0f;
@@ -512,13 +634,29 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
       } else {
         fast_ = flush_denormal(fast_ * release_);
       }
-      slow_ = fast_ < slow_ ? fast_ : fast_ + (slow_ - fast_) * attack_;
+      // The top of the sound: the peak, kept up through a dip that the
+      // sound comes back out of. Held notes beat against each other, and
+      // each return from a beat's low is a rise like an attack's; it counts
+      // as the same sound when the level is back up within kBeatSeconds.
+      if (fast_ < low_) low_ = fast_;
+      if (fast_ >= kBeatRise * low_ && fast_ >= kBeatShare * top_) {
+        beat_left_ = beat_samples_;
+        low_ = fast_;
+      }
+      if (fast_ >= top_) {
+        top_ = fast_;
+      } else if (beat_left_ > 0) {
+        --beat_left_;
+      } else {
+        top_ = kit::max(fast_, flush_denormal(top_ * fall_));
+      }
+      slow_ = top_ < slow_ ? top_ : top_ + (slow_ - top_) * attack_;
       heard_ = fast_ < heard_ ? fast_ : fast_ + (heard_ - fast_) * onset_;
 
       const float soften = soften_.next();
       float duck = 1.0f;
-      if (soften > 0.0f && fast_ > 1.0e-9f) {
-        const float kept = kit::min(1.0f, kSlack * slow_ / fast_);
+      if (soften > 0.0f && top_ > 1.0e-9f) {
+        const float kept = kit::min(1.0f, kSlack * slow_ / top_);
         duck = 1.0f - soften * (1.0f - kept);
       }
       duck_ = duck;
@@ -569,9 +707,11 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         const float cloud = wet[c][j];
         const float damped = damp_[c].lowpass(cloud);
         const float shaped = low_cut_[c].highpass(damped + (cloud - damped) * open);
-        (c == 0 ? out_left_ : out_right_)[offset + j] =
-            in[c][j] * dry_gain[j] + shaped * wet_gain[j];
+        const float out = in[c][j] * dry_gain[j] + ceiling(shaped) * wet_gain[j];
+        (c == 0 ? out_left_ : out_right_)[offset + j] = out;
+        if (in[c][j] != 0.0f || out > kFloor || out < -kFloor) quiet_ = -1;
       }
+      ++quiet_;
     }
   }
 
@@ -594,7 +734,7 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
         break;
       }
       case kWidth:
-        width_.set_target(value);
+        width_.set_target(spread(value));
         break;
       case kDensity:
         density_.set_target(value);
@@ -632,8 +772,12 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   kit::Svf low_cut_[2];
   kit::Smoother width_, density_, drift_, damp_hz_, open_, low_cut_hz_;
   kit::Smoother soften_, dry_, wet_;
-  kit::IdleGate idle_;
+  // Asleep, and for how many samples nothing has come in or gone out.
+  bool dormant_ = true;
+  long quiet_ = 0;
+  long hold_ = 1;
   float glide_ = 0.0f;
+  float density_size_ = -1.0f;
   float damp_set_ = 0.0f;
   float low_cut_set_ = 0.0f;
   int clock_ = 0;
@@ -649,6 +793,11 @@ class Fog : public kit::DeviceBase<fog::kNumParams> {
   // Soften.
   float fast_ = 0.0f;
   float slow_ = 0.0f;
+  float top_ = 0.0f;
+  float low_ = 0.0f;
+  float fall_ = 0.0f;
+  int beat_samples_ = 7200;
+  int beat_left_ = 0;
   float attack_ = 0.0f;
   float attack_set_ = 0.0f;
   float release_ = 0.0f;

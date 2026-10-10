@@ -15,7 +15,7 @@ export const FOG_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'How long the cloud lasts. Short only softens attacks. Long turns each note into a slow swell and anything rhythmic into weather.',
+      'How long the cloud lasts. Short only softens attacks. Long turns each note into a slow swell. Moving it bends the pitch of what is in the cloud for a moment.',
   },
   density: {
     id: 1,
@@ -49,7 +49,7 @@ export const FOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "Slowly moves the cloud's inner times so a held sound never sits on one colour. Too slow and small to hear as pitch.",
+      "Slowly moves the cloud's inner times so a held sound never stands quite still. The longer the cloud, the slower it moves. Too slow and small to hear as pitch.",
   },
   soften: {
     id: 4,
@@ -60,7 +60,7 @@ export const FOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Turns down the first moment of each note before it is blurred, so the hit itself goes. It works on the dry sound too, as far as Mix is up.',
+      'Turns down the first moment of each note before it is blurred, so the hit itself goes. It works on the dry sound too, as far as Mix is up. Fast repeats are left alone.',
   },
   damp: {
     id: 5,
@@ -81,7 +81,8 @@ export const FOG_PARAMS = {
     default: 20,
     taper: 'log',
     unit: 'Hz',
-    description: 'Takes the lows out of the cloud, so bass notes stay clear of it.',
+    description:
+      'Takes the lows out of the cloud. With some dry sound left in, bass notes stay clear of it. With Mix fully up the lows are gone from the sound.',
   },
   width: {
     id: 7,
@@ -92,7 +93,7 @@ export const FOG_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How different the cloud is on the two sides. At zero a mono sound stays in the middle. Low settings spread the highs first.',
+      'How far down the cloud differs between the two sides: highs first, bass last. At zero a mono sound stays in the middle. Summed to mono, wide settings thin some notes.',
   },
   mix: {
     id: 8,
@@ -102,7 +103,8 @@ export const FOG_PARAMS = {
     default: 1,
     taper: 'linear',
     unit: '',
-    description: 'Balance between the dry sound and the cloud. Fully up there is only cloud.',
+    description:
+      'Balance between the dry sound and the cloud. Fully up there is only cloud. Near the middle the two cancel at some pitches and a held note can thin, so keep to the ends.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -129,8 +131,8 @@ export const FOG_DESCRIPTOR = wasmDeviceDescriptor(FOG_DEVICE, {
     'Blurs every attack into a soft cloud with no tail at all: the diffusion of a reverb without the reverb.',
   presets: {
     'Soft cloud': {},
-    'Thin veil': { size: 40, density: 0.6, soften: 0, damp: 0.1, mix: 0.35 },
-    'Morning mist': { size: 90, soften: 0.2, damp: 0.15, mix: 0.6 },
+    'Thin veil': { size: 40, density: 0.6, soften: 0, damp: 0.1, mix: 0.2 },
+    'Morning mist': { size: 90, soften: 0.2, damp: 0.15, mix: 0.85 },
     'Short blur': { size: 25, density: 1, soften: 0, damp: 0 },
     'Slow rise': { size: 400, layers: 2, soften: 0.8, damp: 0.3 },
     'No attack': { size: 250, soften: 1, drift: 0.2 },
@@ -138,12 +140,12 @@ export const FOG_DESCRIPTOR = wasmDeviceDescriptor(FOG_DEVICE, {
     'Rolling in': { size: 600, density: 0.4, layers: 3, drift: 0.7 },
     'Grain spray': { size: 500, density: 0, soften: 0, damp: 0.05 },
     'Dark bank': { size: 300, layers: 2, damp: 0.85 },
-    'Bright haze': { size: 120, damp: 0, lowCut: 400, mix: 0.6 },
-    'Upper glow': { size: 350, layers: 2, damp: 0.1, lowCut: 800, mix: 0.45 },
-    'Behind glass': { size: 180, damp: 0.6, lowCut: 300, mix: 0.75 },
+    'Bright haze': { size: 120, damp: 0, lowCut: 400, mix: 0.2 },
+    'Upper glow': { size: 350, layers: 2, damp: 0.1, lowCut: 800, mix: 0.2 },
+    'Behind glass': { size: 180, damp: 0.6, lowCut: 300, mix: 0.8 },
     'Wide drone': { size: 450, layers: 2, drift: 1, damp: 0.35, soften: 0.5 },
     'Mono smear': { size: 200, drift: 0, width: 0, soften: 0.1 },
-    'Pad softener': { size: 60, density: 1, soften: 1, damp: 0.2, mix: 0.5 },
+    'Pad softener': { size: 60, density: 1, soften: 1, damp: 0.2 },
   },
 })
 
