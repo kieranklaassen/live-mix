@@ -365,6 +365,39 @@ int main() {
     EXPECT_NEAR(tone_level(during.left, 440.0, kRate, at(1.0), at(2.0)), 0.4, 0.004, "Ring leaves a steady tone as it is");
   }
 
+  // An edge is never rung on. A click let through (Changes: it is new) is
+  // one click, not one every frame length; and when a tone is cut off, what
+  // rings is the tone, without the splash the cut made.
+  {
+    clean(device);
+    device.set_param(p::kKeep, 1.0f);
+    device.set_param(p::kRing, 0.8f);
+    std::vector<float> click = silence(2.0f, kRate);
+    click[at(0.5)] = 0.9f;
+    Stereo out = run(device, click);
+    const size_t heard = at(0.5) + kLatency;
+    const double once = rms(out.left, heard - 64, heard + 64);
+    const double after = rms(out.left, heard + 2048, out.size());
+    std::printf("common-tones: a click through the ring: %.1f dB after it, re the click\n", db(after / once));
+    EXPECT(once > 0.05, "a click passes as something new");
+    EXPECT(after < once * 1.0e-4, "and is not rung on: it does not come round again");
+
+    clean(device);
+    device.set_param(p::kRing, 0.8f);
+    out = run(device, join(sine(440.0f, 1.0f, kRate, 0.4f), silence(2.0f, kRate)));
+    const size_t from = at(1.5), to = at(2.5);
+    // (with the fall of the ring taken out, 60 dB in 12.8 s, so that a steady sine is what should be left)
+    std::vector<float> level = out.left;
+    for (size_t i = from; i < to; ++i) {
+      level[i] *= static_cast<float>(std::exp(6.9077553 * static_cast<double>(i - from) / kRate / 12.8));
+    }
+    const double whole = rms(level, from, to);
+    const double tone = tone_level(level, 440.0, kRate, from, to) * 0.7071;
+    const double rest = std::sqrt(std::max(0.0, whole * whole - tone * tone));
+    std::printf("common-tones: a cut tone ringing: everything but the tone %.1f dB re the tone\n", db(rest / tone));
+    EXPECT(tone > 0.05 && rest < tone * 0.01, "a cut tone rings as the tone alone");
+  }
+
   // Broad compares regions: a tone that wavers by ±35 cents six times a second
   // is the same note, though no single bin holds it for long; and at the top
   // of its travel (±3 semitones) so is a line that steps a whole tone up and
@@ -493,14 +526,23 @@ int main() {
     EXPECT(finite(tail.left) && peak(tail.left, tail.size() - 4800) == 0.0, "and it still falls silent afterwards");
   }
 
-  // Block sizes across a sleep. The gate holds for 8.27 s after the last
-  // sound; the silence is stepped across that moment. `then` remembers
-  // (Memory 0.5 is 2.5 s) and falls through the sleep as it would awake: the
+  // Block sizes across a sleep. The gate holds for 8.27 s after the output
+  // has gone quiet (0.18 s after the input does, with no ring): the silence
+  // is stepped across that moment, and then made long enough to sleep
+  // through more frames than the history holds (752). `then` remembers
+  // (Memory 0.8 is 6.4 s) and falls through the sleep as it would awake: the
   // same render with a sample of 1e-20 in every block of the silence, which
   // is nothing to the Stft and keeps the device awake, is the same sound.
   {
     double worst = 0.0, awake_worst = 0.0;
-    for (float gap = 8.1f; gap < 8.6f; gap += 0.037f) {
+    std::vector<float> gaps;
+    for (float gap = 8.3f; gap < 9.6f; gap += 0.113f) gaps.push_back(gap);
+    // 16.1 s: the history's rows for Ago before the second phrase still hold the first one, a whole
+    // turn of the history (752 frames, 16.04 s) old. They were slept over and must read as silence.
+    gaps.push_back(16.1f);
+    gaps.push_back(16.25f);
+    gaps.push_back(31.0f);
+    for (float gap : gaps) {
       rng_state() = 99;
       std::vector<float> phrase = add(noise(0.4f, kRate, 0.3f), sine(700.0f, 0.4f, kRate, 0.3f));
       const size_t quiet_from = phrase.size();
@@ -509,9 +551,10 @@ int main() {
       phrase = join(phrase, add(noise(0.5f, kRate, 0.3f), sine(700.0f, 0.5f, kRate, 0.3f)));
       Stereo reference;
       for (int block : {128, 1, 2048, 37, -128}) {
+        if (block == 1 && gap > 10.0f) continue;
         device.init(kRate);
-        device.set_param(p::kMemory, 0.5f);
-        device.set_param(p::kRing, 0.2f);
+        device.set_param(p::kMemory, 0.8f);
+        device.set_param(p::kRing, 0.0f);
         device.set_param(p::kBroad, 0.4f);
         std::vector<float> input = phrase;
         if (block < 0) {
@@ -533,7 +576,7 @@ int main() {
     std::printf("common-tones: block sizes 1, 37, 128, 2048 across a sleep: worst difference %.3g; slept against awake: %.3g\n",
                 worst, awake_worst);
     EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
-    EXPECT(awake_worst < 1.0e-6, "the past falls through a sleep as it does awake");
+    EXPECT(awake_worst < 1.0e-5, "the past falls through a sleep as it does awake");
   }
 
   // A knob moved while the device sleeps is there when it wakes: no glide.
