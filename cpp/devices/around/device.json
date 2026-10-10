@@ -1,0 +1,94 @@
+{
+  "id": "around",
+  "name": "Around",
+  "category": "spatial",
+  "description": "Moves the middle of the sound around your head on a circle, a figure of eight, a swing or a slow wander, as two ears would hear it; best on headphones, and the sides of a stereo sound stay where they are.",
+  "class": "Around",
+  "header": "around.h",
+  "sources": [],
+  "meters": [{ "key": "phase", "name": "Place on the path", "display": true }],
+  "params": [
+    {
+      "key": "path",
+      "name": "Path",
+      "choices": ["Circle", "Figure of eight", "Pendulum", "Wander"],
+      "default": 0,
+      "description": "The way the sound travels. Circle goes all the way round, Figure of eight loops at each side through the middle, Pendulum swings across in front, Wander drifts with no pattern."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 4,
+      "default": 0.2,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the sound goes round its path. Low is a slow drift you barely notice, high is a flutter between the ears."
+    },
+    {
+      "key": "radius",
+      "name": "Radius",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "description": "How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back."
+    },
+    {
+      "key": "head",
+      "name": "Head",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of a head is in the way. The far ear hears later and duller, and sound from behind loses some top. At zero the movement is plain panning."
+    },
+    {
+      "key": "near",
+      "name": "Near",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How much closer the sound comes at the point of the path that Turn sets. Away from it the sound falls back, quieter and thinner in the bass."
+    },
+    {
+      "key": "turn",
+      "name": "Turn",
+      "min": -180,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A little room that stands still while the sound moves, so it sits outside your head. At zero there is only the moving sound."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as it came in and the moving sound. Part way, some of it stays in the middle while the rest travels."
+    }
+  ],
+  "presets": {
+    "Slow circle": {
+      "path": 0,
+      "rate": 0.2,
+      "radius": 0.85,
+      "head": 0.7,
+      "near": 0.3,
+      "turn": 0,
+      "blur": 0.25,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A moving source heard by two ears: arrival time by the sine law for a sphere, a level difference, a one-pole shadow on the far ear and a shelf and a notch from behind. No measured head data and no maker's method is used."
+  }
+}
