@@ -3,6 +3,7 @@
 // input and one output node, typed parameters, click-free bypass, a reported
 // latency for delay compensation, and a lifecycle.
 
+import { type ParamModulation } from '../automation/param-modulation'
 import { type ParamSpec } from '../params'
 
 export interface Device {
@@ -158,9 +159,39 @@ export function isMeteredDevice(device: Device): device is MeteredDevice {
   )
 }
 
-/** What a device reports after `setParam` or a bypass change (U24: UI subscriptions). */
+/**
+ * A device that moves its own parameters on the audio thread. Given what
+ * modulates a parameter (`ParamModulation`: LFOs and seeded noise, as plain
+ * numbers), it works the value out at every block from the block's own time,
+ * so the motion is on the audio clock: the same offline as live. The value the
+ * parameter is set to (`setParam`, `getParam`) stays the base it moves around.
+ * `WasmDevice` on the library's own processor is one.
+ */
+export interface ModulatedDevice extends Device {
+  /** Says the device takes modulation; one that hosts a processor of its own may not. */
+  readonly modulates: true
+  /** Start moving a parameter, change what moves it, or (null) leave it at its base. */
+  modulate(name: string, modulation: ParamModulation | null): void
+  /** What moves a parameter now; undefined for one that stands still. */
+  modulationOf(name: string): ParamModulation | undefined
+  /**
+   * The parameter's value at `timeSec` on the device's clock (its context's
+   * `currentTime`, the default): the base for one that stands still. What a
+   * knob draws to show where the parameter is.
+   */
+  paramAt(name: string, timeSec?: number): number
+}
+
+export function isModulatedDevice(device: Device): device is ModulatedDevice {
+  const candidate = device as Partial<ModulatedDevice>
+  return candidate.modulates === true && typeof candidate.modulate === 'function'
+}
+
+/** What a device reports after `setParam`, a bypass change or a change to what moves a parameter (U24: UI subscriptions). */
 export type DeviceChange =
-  { type: 'param'; name: string; value: number } | { type: 'bypass'; bypass: boolean }
+  | { type: 'param'; name: string; value: number }
+  | { type: 'bypass'; bypass: boolean }
+  | { type: 'modulation'; name: string }
 
 export type DeviceChangeListener = (change: DeviceChange) => void
 

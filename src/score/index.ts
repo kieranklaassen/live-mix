@@ -5,6 +5,7 @@
 
 export {
   MASTER_OWNER,
+  MAX_CLIP_TURNS,
   SCORE_FORMAT_VERSION,
   STRIP_PARAMS,
   STRIP_PARAM_RANGES,
@@ -128,6 +129,7 @@ export {
   type ScoreRendererOptions,
 } from './ScoreRenderer'
 export { loadScore, scoreRendererOf, unloadScore } from './loadScore'
+export { scoreDeviceModulations, scoreParamModulation } from './modulation'
 export {
   renderScore,
   renderScoreStems,

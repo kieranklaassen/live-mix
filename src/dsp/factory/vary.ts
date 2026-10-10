@@ -43,6 +43,16 @@ export interface SoundVariation extends Partial<Record<VariationKind, number>> {
    * a variant goes.
    */
   amount?: number
+  /**
+   * The chord of the key the sound is played on, said and not drawn: steps
+   * along the white keys from where it is written, −3 to 3 (−2 is a third
+   * down, 3 a fourth up, 0 the chord it is written on). Given, the seed and
+   * the amount of `chords` no longer choose the chord, at any amount; they
+   * still choose what else the kind does (a note an octave away). A chord
+   * the sound cannot stand on (`chordMoves` lists the ones it can) leaves it
+   * where it is written. Absent, the chord is drawn as it always was.
+   */
+  chord?: number
 }
 
 /** What a variant may change, each at an amount of 1 in its kind. Less in proportion below that. */
@@ -95,6 +105,9 @@ const TOGETHER_SEC = 1e-4
 const LOWEST_NOTE = 24
 const HIGHEST_NOTE = 96
 const WHITE_KEYS = [0, 2, 4, 5, 7, 9, 11]
+
+/** The chords a sound can be asked onto by name (`SoundVariation.chord`), as steps from its own. */
+const NAMED_CHORD_STEPS = [-3, -2, -1, 1, 2, 3] as const
 
 /** The part of a sound a variant reads: what a factory sound and a generated one share. */
 export interface VariedPlaying {
@@ -196,6 +209,62 @@ function alongWhiteKeys(note: number, steps: number): number {
   return whole - pitchClass + octaves * 12 + WHITE_KEYS[to - octaves * 7] + sharp + (note - whole)
 }
 
+/** Steps along the white keys brought to the nearest way there: −3 to 3. */
+function nearestSteps(steps: number): number {
+  return mod(Math.round(steps) + 3, 7) - 3
+}
+
+/**
+ * How far a sound's written notes move to stand on the chord `steps` away:
+ * that many steps along the white keys, or the same chord an octave the
+ * other way where the near one leaves the range. Null where neither fits,
+ * and for the chord on B, the one white key with no fifth above it. Asked of
+ * the notes as written, so the answer is the same for every seed.
+ */
+function namedChordSteps(written: readonly PhraseNote[], steps: number): number | null {
+  const near = nearestSteps(steps)
+  if (near === 0) return 0
+  for (const by of [near, near > 0 ? near - 7 : near + 7]) {
+    const moved = written.map((note) => alongWhiteKeys(note.note, by))
+    const low = Math.min(...moved)
+    if (
+      mod(Math.round(low), 12) !== 11 &&
+      low >= LOWEST_NOTE &&
+      Math.max(...moved) <= HIGHEST_NOTE
+    ) {
+      return by
+    }
+  }
+  return null
+}
+
+/**
+ * The white key a sound stands on, 0 for C to 6 for B: its lowest written
+ * note, a black key counted with the white key under it. A host names the
+ * chord a sound is on by it, in whatever key the sound is played. Null for
+ * a sound with no notes, and for one made of another sound's audio
+ * (`source`), whose notes say how far that audio is moved.
+ */
+export function soundDegree(sound: VariedPlaying): number | null {
+  if (sound.source !== undefined || sound.phrase.notes.length === 0) return null
+  const low = Math.round(Math.min(...sound.phrase.notes.map((note) => note.note)))
+  const pitchClass = mod(low, 12)
+  return WHITE_KEYS.indexOf(pitchClass - (WHITE_KEYS.includes(pitchClass) ? 0 : 1))
+}
+
+/**
+ * The chords a sound can be put on by name (`SoundVariation.chord`), as
+ * steps from the one it is written on, nearest first: every chord of the
+ * key but its own, the one on B, and any that would take it out of range.
+ * None for a sound that has no chord of its own to move.
+ */
+export function chordMoves(sound: VariedPlaying): number[] {
+  if (soundDegree(sound) === null) return []
+  return NAMED_CHORD_STEPS.filter(
+    (steps) => namedChordSteps(sound.phrase.notes, steps) !== null,
+  ).sort((a, b) => Math.abs(a) - Math.abs(b) || a - b)
+}
+
 /** A note of one pass as it is being varied, with what it was written as: its draws are from that. */
 interface Hit {
   at: number
@@ -227,10 +296,15 @@ function vary<T extends VariedPlaying>(
   variation?: SoundVariation,
 ): { sound: T; changes: VariantChanges } {
   const amount = variationAmounts(variation)
+  // A chord asked for by name, on a sound that has one to move: how far its notes go, or null where it cannot stand there.
+  const named =
+    variation?.chord !== undefined && Number.isFinite(variation.chord) && sound.source === undefined
+      ? namedChordSteps(sound.phrase.notes, variation.chord)
+      : undefined
   if (
     !variation ||
     sound.phrase.notes.length === 0 ||
-    !VARIATION_KINDS.some((kind) => amount[kind] > 0)
+    (!VARIATION_KINDS.some((kind) => amount[kind] > 0) && !named)
   ) {
     return { sound, changes: NO_CHANGES }
   }
@@ -384,11 +458,18 @@ function vary<T extends VariedPlaying>(
   }
 
   // --- Chords --------------------------------------------------------------------------
+  if (named !== undefined) {
+    // The chord was said: the sound is on it, whatever the seed would have drawn.
+    if (named) {
+      for (const hit of hits) hit.note = alongWhiteKeys(hit.note, named)
+      changes.chordSteps = named
+    }
+  }
   if (amount.chords > 0 && sound.source === undefined) {
     // The sound on another chord of the key: every note the same number of
     // steps along the white keys. Never one that stands on B, the one white
     // key with no fifth above it.
-    if (draw(seed, CHORD) < amount.chords * VARIATION_LIMITS.chord) {
+    if (named === undefined && draw(seed, CHORD) < amount.chords * VARIATION_LIMITS.chord) {
       const near = CHORD_STEPS.slice(0, amount.chords < 1 / 3 ? 2 : amount.chords < 2 / 3 ? 4 : 6)
       const fits = near.filter(({ steps }) => {
         const moved = hits.map((hit) => alongWhiteKeys(hit.note, steps))

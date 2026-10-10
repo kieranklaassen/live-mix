@@ -14,6 +14,7 @@ export * from './core/automation'
 export {
   isEditorDevice,
   isMeteredDevice,
+  isModulatedDevice,
   isNoteDevice,
   isObservableDevice,
   isParamTextDevice,
@@ -24,6 +25,7 @@ export {
   type DeviceMeterSpec,
   type EditorDevice,
   type MeteredDevice,
+  type ModulatedDevice,
   type NoteDevice,
   type ObservableDevice,
   type ParamTextDevice,

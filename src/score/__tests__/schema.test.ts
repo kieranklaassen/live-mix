@@ -4,6 +4,7 @@ import { devices } from '../../core/devices'
 import { NODE_DEVICES } from '../../core/devices/native'
 import { DeviceRegistry } from '../../core/devices/registry'
 import {
+  MAX_CLIP_TURNS,
   SCORE_FORMAT_VERSION,
   ScoreValidationError,
   allDevices,
@@ -233,6 +234,45 @@ describe('validateScore', () => {
     expect(paths((raw) => (raw.transport.seed = 4294967295))).toEqual([])
     expect(paths((raw) => (raw.transport.seed = 1.5))).toEqual(['transport.seed'])
     expect(paths((raw) => (raw.transport.seed = -1))).toEqual(['transport.seed'])
+  })
+
+  it('checks a clip’s turns: sources the score has, one or more, each lasting a whole number of passes', () => {
+    const paths = (turns: unknown): string[] => {
+      const raw = demoScore()
+      const track = raw.tracks.find((candidate) => candidate.kind === 'audio')
+      if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+      ;(track.clips[0] as { turns?: unknown }).turns = turns
+      return validateScore(raw).map((issue) => issue.path)
+    }
+    expect(paths({ sourceIds: ['a', 'b'] })).toEqual([])
+    expect(paths({ sourceIds: ['a', 'b', 'a'], every: 4 })).toEqual([])
+    expect(paths({ sourceIds: [] })[0]).toMatch(/clips\[0\]\.turns\.sourceIds$/)
+    expect(paths({ sourceIds: ['a', 'nowhere'] })[0]).toMatch(/turns\.sourceIds\[1\]$/)
+    expect(paths({ sourceIds: ['a', 7] })[0]).toMatch(/turns\.sourceIds\[1\]$/)
+    expect(paths({ sourceIds: ['a'], every: 0 })[0]).toMatch(/turns\.every$/)
+    expect(paths({ sourceIds: ['a'], every: 2.5 })[0]).toMatch(/turns\.every$/)
+    expect(paths({ every: 2 })[0]).toMatch(/turns\.sourceIds$/)
+    expect(paths('a')[0]).toMatch(/clips\[0\]\.turns$/)
+    expect(paths({ sourceIds: Array.from({ length: MAX_CLIP_TURNS + 1 }, () => 'a') })[0]).toMatch(
+      /turns\.sourceIds$/,
+    )
+  })
+
+  it('writes a clip’s turns as given, and their length only above one pass', () => {
+    const raw = demoScore()
+    const track = raw.tracks.find((candidate) => candidate.kind === 'audio')
+    if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+    track.clips[0].turns = { sourceIds: ['a', 'b'], every: 1 }
+    const read = parseScore(serializeScore(raw))
+    const again = read.tracks.find((candidate) => candidate.id === track.id)
+    if (again?.kind !== 'audio') throw new Error('the track is read back')
+    expect(again.clips[0].turns).toEqual({ sourceIds: ['a', 'b'] })
+    track.clips[0].turns = { sourceIds: ['a', 'b'], every: 4 }
+    const held = parseScore(serializeScore(raw)).tracks.find((c) => c.id === track.id)
+    expect(held?.kind === 'audio' && held.clips[0].turns).toEqual({
+      sourceIds: ['a', 'b'],
+      every: 4,
+    })
   })
 
   it('keeps what a device holds besides its parameters, and writes nothing for a device without', () => {

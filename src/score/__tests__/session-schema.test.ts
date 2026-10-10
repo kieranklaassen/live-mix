@@ -165,6 +165,25 @@ describe('score format 3: session grid', () => {
     ])
   })
 
+  it('a slot clip keeps the turns it takes, each naming a source the score has', () => {
+    const score = gridScore()
+    score.slots[0].clip = slotClip('a', { turns: { sourceIds: ['a', 'b'], every: 4 } })
+    score.slots[1].clip = slotClip('b', { turns: { sourceIds: ['b', 'a'], every: 1 } })
+    expect(validateScore(score)).toEqual([])
+    const parsed = parseScore(serializeScore(score))
+    expect(parsed.slots[0].clip?.turns).toEqual({ sourceIds: ['a', 'b'], every: 4 })
+    // A turn of one pass says nothing of how long it lasts.
+    expect(parsed.slots[1].clip?.turns).toEqual({ sourceIds: ['b', 'a'] })
+    const raw = JSON.parse(serializeScore(score)) as { slots: { clip: Record<string, unknown> }[] }
+    raw.slots[0].clip.turns = { sourceIds: ['a', 'nobody'], every: 0 }
+    raw.slots[1].clip.turns = { sourceIds: [] }
+    expect(validateScore(raw).map((issue) => `${issue.path}: ${issue.message}`)).toEqual([
+      expect.stringContaining('slots[0].clip.turns.every'),
+      'slots[0].clip.turns.sourceIds[1]: unknown source "nobody"',
+      'slots[1].clip.turns.sourceIds: expected one source or more',
+    ])
+  })
+
   it('reports every structural and referential problem in the grid', () => {
     const score = gridScore()
     const raw = JSON.parse(serializeScore(score)) as Record<string, unknown>

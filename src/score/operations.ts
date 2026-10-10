@@ -8,8 +8,9 @@
 // inverses are `batch` operations that put every piece back at its index, so
 // `apply(invert(op), apply(op)) ≡ score` holds for every operation.
 
-import { type Clip } from '../core/clips/Clip'
+import { type Clip, type ClipTurns } from '../core/clips/Clip'
 import { CLIP_PLACEMENT_KEYS, type ClipPlacementKey } from '../core/clips/placement'
+import { clipSourceIds } from '../core/clips/turns'
 import { isJsonObject, isJsonValue, type JsonObject, type JsonValue } from '../core/json'
 import { type ModPolarity } from '../core/automation/ModMatrix'
 import { type Breakpoint } from '../core/automation/ParamLane'
@@ -83,10 +84,10 @@ export interface ModulatorPatch {
 /**
  * Fields a `clip.update` may patch. A placement field (`pan`, `lowpassHz`,
  * `spaceDb`) set to `null` is taken off the clip, which is how an undo says
- * the clip had none.
+ * the clip had none; so are its `turns`.
  */
-export type ClipPatch = Partial<Omit<Clip, 'id' | ClipPlacementKey>> &
-  Partial<Record<ClipPlacementKey, number | null>>
+export type ClipPatch = Partial<Omit<Clip, 'id' | 'turns' | ClipPlacementKey>> &
+  Partial<Record<ClipPlacementKey, number | null>> & { turns?: ClipTurns | null }
 
 /**
  * Fields a `source.update` may patch; `null` clears an optional field (a
@@ -555,8 +556,9 @@ function assertSlotCell(score: Score, op: Operation, slot: ScoreSlot): void {
 }
 
 function assertSlotSettings(score: Score, op: Operation, slot: ScoreSlot): void {
-  if (slot.clip !== null && !score.sources.some((source) => source.id === slot.clip?.sourceId)) {
-    fail(op, `no source "${slot.clip.sourceId}"`)
+  // Every source the slot's clip names, its own and its turns', is one the score has.
+  for (const id of slot.clip === null ? [] : clipSourceIds(slot.clip)) {
+    if (!score.sources.some((source) => source.id === id)) fail(op, `no source "${id}"`)
   }
   if (slot.quantize !== undefined && !isLaunchQuantize(slot.quantize)) {
     fail(op, 'quantize must be none, bar, beat, a positive bar count or { seconds > 0 }')
@@ -748,6 +750,13 @@ function isPlacementKey(key: string): key is ClipPlacementKey {
  * start before 0, no pan past 1). `loopPair` is false for an update that
  * names one end of the loop only.
  */
+/** Every source a clip names, its own and its turns', is one the score has. */
+function requireClipSources(score: Score, op: Operation, clip: Clip): void {
+  for (const id of clipSourceIds(clip)) {
+    if (!score.sources.some((source) => source.id === id)) fail(op, `no source "${id}"`)
+  }
+}
+
 function checkedClip(op: Operation, clip: Clip, loopPair = true): Clip {
   if (clip.meta !== undefined && !isJsonObject(clip.meta)) {
     fail(op, `clip "${clip.id}" meta must be a plain JSON object`)
@@ -1045,12 +1054,15 @@ function applyOne(score: Score, op: Operation): Score {
     case 'source.remove': {
       if (!score.sources.some((source) => source.id === op.id)) fail(op, `no source "${op.id}"`)
       for (const track of score.tracks) {
-        if (track.kind === 'audio' && track.clips.some((clip) => clip.sourceId === op.id)) {
+        if (
+          track.kind === 'audio' &&
+          track.clips.some((clip) => clipSourceIds(clip).includes(op.id))
+        ) {
           fail(op, `source "${op.id}" is used by a clip on track "${track.id}"`)
         }
       }
       for (const slot of score.slots) {
-        if (slot.clip?.sourceId === op.id)
+        if (slot.clip !== null && clipSourceIds(slot.clip).includes(op.id))
           fail(op, `source "${op.id}" is used by slot "${slot.id}"`)
       }
       for (const track of score.elementTracks) {
@@ -1225,9 +1237,7 @@ function applyOne(score: Score, op: Operation): Score {
       if (track.clips.some((clip) => clip.id === op.clip.id)) {
         fail(op, `clip "${op.clip.id}" already exists on track "${track.id}"`)
       }
-      if (!score.sources.some((source) => source.id === op.clip.sourceId)) {
-        fail(op, `no source "${op.clip.sourceId}"`)
-      }
+      requireClipSources(score, op, op.clip)
       return replaceHost(score, track.id, {
         ...track,
         clips: sortClips([...track.clips, checkedClip(op, op.clip)]),
@@ -1266,8 +1276,7 @@ function applyOne(score: Score, op: Operation): Score {
         if (clip.startSec < op.fromSec) fail(op, `clip "${clip.id}" starts before ${op.fromSec}`)
         if (keptIds.has(clip.id))
           fail(op, `clip "${clip.id}" is still on the track before ${op.fromSec}`)
-        if (!score.sources.some((source) => source.id === clip.sourceId))
-          fail(op, `no source "${clip.sourceId}"`)
+        requireClipSources(score, op, clip)
         keptIds.add(clip.id)
       }
       return replaceHost(score, track.id, {
@@ -1633,11 +1642,15 @@ function patchClip(
   ) {
     fail(op, `no source "${patch.sourceId}"`)
   }
+  for (const id of patch.turns?.sourceIds ?? []) {
+    if (!score.sources.some((source) => source.id === id)) fail(op, `no source "${id}"`)
+  }
   if (patch.chance !== undefined && !(patch.chance >= 0 && patch.chance <= 1)) {
     fail(op, 'chance must be from 0 to 1')
   }
   const merged: Record<string, unknown> = { ...clip, ...patch }
   for (const key of CLIP_PLACEMENT_KEYS) if (merged[key] === null) delete merged[key]
+  if (merged.turns === null) delete merged.turns
   // A loop has to end after it starts when the patch says both ends. One end
   // alone is set against whatever the score has for the other, which another
   // writer may have moved since (a sound made again, shorter): an undo that
@@ -1904,9 +1917,11 @@ export function invert(score: Score, op: Operation): Operation {
               ? (clip.chance ?? 1)
               : key === 'meta'
                 ? (clip.meta ?? {})
-                : isPlacementKey(key)
-                  ? (clip[key] ?? null)
-                  : clip[key]
+                : key === 'turns'
+                  ? (clip.turns ?? null)
+                  : isPlacementKey(key)
+                    ? (clip[key] ?? null)
+                    : clip[key]
       }
       return { type: 'clip.update', track: op.track, id: op.id, patch: patch }
     }

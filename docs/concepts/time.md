@@ -258,6 +258,29 @@ like for any other edit. `seededUnit(seed, ...parts)` and
 (ambient-live's chord Drift), so one seed covers everything a piece leaves to
 chance.
 
+A clip can also take turns: `turns: { sourceIds, every? }` names the source
+it plays on each counted pass, round and round, `every` passes to a turn
+(absent = 1):
+
+```ts
+const clip = { id: 'pad', sourceId: 'c', turns: { sourceIds: ['c', 'f', 'g'], every: 4 } }
+clipSourceOnPass(clip, 0) // 'c', and on passes 1 to 3
+clipSourceOnPass(clip, 4) // 'f'
+clipSourceOnPass(clip, 12) // 'c' again
+```
+
+Like chance it is a function of the pass and nothing else, read when a start
+is handed over or a clip is entered partway, so `setPass(13)` plays what pass
+13 plays and a track on a loop of its own length takes turns on its own
+passes. `clip.sourceId` is what a reader that knows nothing of turns plays;
+a host usually makes it the first turn. The turns' sources are loaded and
+held like any other (`SampleRetainer` holds the one a start plays), and a
+turn whose source is not decoded yet is waited for like any clip's. A change
+to a clip's turns is taken at its next start; `rejoin` puts a sounding clip
+on them at once. A slice of the clip (`offsetSec`, `loop`, `reversed`,
+`warp`) is the same slice of whichever source plays, so the sources of one
+clip are best of one length.
+
 A render with the loop off has one pass, so a host that wants several in one
 file lays them out end to end and asks `soundsOnPass` which clips each one
 has (ambient-live's export does).
