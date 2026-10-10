@@ -24,10 +24,11 @@
 //   times the rank's ratio: the spectrum of a Hann-windowed sine at exactly
 //   that frequency (ten bins of the window's transform, from a table). Its
 //   phase is its source's, turned on each frame by the difference of the two
-//   frequencies, so a rank is a sine at the true multiple, not a bin moved,
-//   and the cost of a rank is ten bins per partial. Each bin remembers how
-//   far each rank has turned; a partial that drifts to the next bin takes
-//   that with it (a peak owns the bins up to half way to the next peak).
+//   frequencies over one hop (both read at the middle of the frame), so a
+//   rank is a sine at the true multiple, not a bin moved, and the cost of a
+//   rank is ten bins per partial. Each bin remembers how far each rank has
+//   turned; a partial that drifts to the next bin takes that with it (a peak
+//   owns the bins up to half way to the next peak).
 // - Stereo. Each channel has its own analysis and its own ranks, so a rank
 //   stands where its source stands. Where the right channel finds a partial
 //   the left has too (within 0.03 bin, in the same frame), it takes the
@@ -38,15 +39,19 @@
 //   vibrato stays inside), rising to 90 % in Speak and falling in 150 ms.
 //   A rank sounds at the share of the level that follower has reached: it
 //   swells in after each new note and stops with it.
-// - Chiff. A second follower rises in 70 ms. What it has not yet reached is
+// - Chiff. A second follower rises in 100 ms. What it has not yet reached is
 //   sounded as noise in the band round each rank's pitch (the same power
 //   spread over ±4 %, fresh random phase each frame): breath first, then tone.
-// - Tone and Swell are a slope above 400 Hz on what the ranks put out; Swell
-//   is also their level. Detune puts each rank a few cents off, each its own
-//   way, the same in both channels.
+// - Tone and Swell shape what the ranks put out. Tone under the middle rolls
+//   them off above 400 Hz; over the middle it tilts them about 1.5 kHz,
+//   thinner below (8 dB at most) and brighter above (6 dB at most). Swell is
+//   their level (its square) and a roll-off above 400 Hz as the shutters
+//   close. Detune puts each rank a few cents off, each its own way, the same
+//   in both channels.
 // - Level. A drawbar at 1 is a copy as loud as its source. Past that, the
 //   ranks together are held to the power of what they copy, and a ceiling on
-//   their sum is linear to ±0.75 and never past ±1.5.
+//   their sum is linear to ±0.5 and never past ±1: with the unison full the
+//   output can peak 6 dB over the input and no more.
 //
 // The wet side is the unison and the ranks, in time with the dry side, so Mix
 // is a linear crossfade: out = dry (1 - Mix (1 - Unison)) + Mix x ranks. With
@@ -106,6 +111,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     unison_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
     unison_.snap(param(kUnison));
+    silent_ = kSilentSamples;
     tone_seen_ = -1.0f;
     swell_seen_ = -1.0f;
     snapshot(0);
@@ -116,8 +122,12 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   void set_param(int id, float value) {
     using namespace stops;
     if (!store_param(id, value)) return;
-    if (id == kMix) mix_.set(param(id), primed());
-    if (id == kUnison) unison_.set(param(id), primed());
+    // Mix and Unison glide (5 ms) while anything sounds and snap in silence:
+    // a knob moved between two notes is in place when the next one starts.
+    // Silence is counted in samples, so it is the same at every block size.
+    const bool glide = primed() && silent_ < kSilentSamples;
+    if (id == kMix) mix_.set(param(id), glide);
+    if (id == kUnison) unison_.set(param(id), glide);
     // The rest is read once per frame: the overlap crossfades a change.
   }
 
@@ -139,8 +149,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       silence_output(frames);
       stft_[0].skip(frames);  // the frame clock runs on through the sleep
       stft_[1].skip(frames);
-      mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
-      unison_.snap(unison_.target);
+      if (silent_ < kSilentSamples) silent_ += frames;
       return;
     }
     for (int i = 0; i < frames; ++i) {
@@ -155,6 +164,8 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       }
       out_left_[i] = out[0];
       out_right_[i] = out[1];
+      const bool silent = in[0] == 0.0f && in[1] == 0.0f && out[0] == 0.0f && out[1] == 0.0f;
+      silent_ = silent ? (silent_ < kSilentSamples ? silent_ + 1 : silent_) : 0;
     }
     idle_.settle(output_peak(frames), frames);
   }
@@ -164,7 +175,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // The Hann lobe as it is written: this many bins either side of a target,
   // at this many places between two bins.
   static constexpr int kLobeHalf = 5;
-  static constexpr int kLobeSteps = 64;
+  static constexpr int kLobeSteps = 256;
   static constexpr int kFirstBin = 2;  // the lowest bin a partial is looked for in
   static constexpr int kMaxPeaks = kBins / 2 + 1;
   // A partial counts within 72 dB of the frame's strongest bin and above
@@ -174,17 +185,23 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // A follower under this holds nothing: -160 dBFS.
   static constexpr float kFollowerFloor = 1.0e-5f;
   static constexpr float kReleaseSeconds = 0.15f;
-  static constexpr float kChiffSeconds = 0.07f;
+  static constexpr float kChiffSeconds = 0.1f;
+  // Chiff at 1 breathes out this many times what the rank has not yet reached.
+  static constexpr float kChiffFull = 1.6f;
   // The band a follower listens to and a breath is spread over: this share
   // of the bin's own number either way, two bins at least.
   static constexpr float kBandShare = 0.04f;
   static constexpr float kPivotHz = 400.0f;
   static constexpr float kDarkSlopeDb = 12.0f;    // per octave above the pivot, Tone at 0
-  static constexpr float kBrightSlopeDb = 6.0f;   // Tone at 1
-  static constexpr float kShutterSlopeDb = 6.0f;  // Swell at 0
-  static constexpr float kMaxBoostDb = 12.0f;
-  // Ranks fade out between these shares of the Nyquist frequency, and below
-  // hearing between these two frequencies.
+  static constexpr float kBrightHz = 1500.0f;
+  static constexpr float kBrightSlopeDb = 4.0f;  // per octave about kBrightHz, Tone at 1
+  static constexpr float kBrightCutDb = 8.0f;    // the most it takes below
+  static constexpr float kBrightLiftDb = 6.0f;   // the most it adds above
+  static constexpr float kShutterSlopeDb = 6.0f;  // per octave above the pivot, Swell at 0
+  // Ranks fade out between 16 and 20 kHz (or these shares of the Nyquist
+  // frequency, if that is lower), and below hearing between 18 and 28 Hz.
+  static constexpr float kTopFadeFromHz = 16000.0f;
+  static constexpr float kTopFadeToHz = 20000.0f;
   static constexpr float kTopFadeFrom = 0.80f;
   static constexpr float kTopFadeTo = 0.92f;
   static constexpr float kLowFadeFromHz = 18.0f;
@@ -192,7 +209,9 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // Fresh random phase each frame comes out at 2/3 of a frame's own power
   // and a steady sine at 4 times it (a quarter hop): the square root of 6.
   static constexpr float kBreathGain = 2.4494897f;
-  static constexpr float kCeiling = 1.5f;
+  static constexpr float kCeiling = 1.0f;
+  // After this much silence in and out nothing is left in flight: a latency and a frame.
+  static constexpr int kSilentSamples = Stft::kLatency + Stft::kFrame;
   static constexpr int kAngles = 1024;  // unit vectors round the circle, for the breath
   // Two channels hold the same partial when they find it within this many bins.
   static constexpr float kSamePlace = 0.03f;
@@ -231,8 +250,11 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
         lobe_[step][j] = static_cast<float>(((offset & 1) ? -1.0 : 1.0) * hann_lobe(d));
       }
     }
+    // What the narrower reading of a bin (see frame) gives d bins from a
+    // sine, against the lobe's height: 1.5 on it, 1 a bin away.
     for (int i = 0; i <= kLobeSteps; ++i) {
-      main_lobe_[i] = static_cast<float>(hann_lobe(static_cast<double>(i) / kLobeSteps));
+      const double d = static_cast<double>(i) / kLobeSteps;
+      main_lobe_[i] = static_cast<float>(hann_lobe(d) + 0.5 * hann_lobe(d - 1.0) + 0.5 * hann_lobe(d + 1.0));
     }
     for (int i = 0; i < kAngles; ++i) {
       unit_re_[i] = kit::SineTable::cos_lookup(static_cast<float>(i) / kAngles);
@@ -276,7 +298,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     }
     // Speak is the time to 90 %: 2.3 time constants.
     rise_ = 1.0f - std::exp(-2.3025851f * static_cast<float>(Stft::kHop) / (param(kSpeak) * 0.001f * sr));
-    chiff_ = param(kChiff) * kBreathGain;
+    chiff_ = param(kChiff) * kChiffFull * kBreathGain;
     const float tone = param(kTone);
     if (tone != tone_seen_ || swell != swell_seen_) {
       tone_seen_ = tone;
@@ -285,42 +307,53 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     }
   }
 
-  // The slope of the ranks in dB per octave above the pivot: Tone's, down
-  // from the middle to dark and up from it to bright, and the shutters'.
-  static float slope_db(float tone, float swell) {
-    const float voiced = tone < 0.5f ? -kDarkSlopeDb * (1.0f - 2.0f * tone) : kBrightSlopeDb * (2.0f * tone - 1.0f);
-    return voiced - kShutterSlopeDb * (1.0f - swell);
+  // Gain in dB for a rank's partial at `hz`. Tone under the middle rolls the
+  // ranks off above kPivotHz (up to kDarkSlopeDb an octave). Over the middle
+  // it tilts them about kBrightHz (up to kBrightSlopeDb an octave): thinner
+  // below by kBrightCutDb at most, brighter above by kBrightLiftDb at most.
+  // Closing the shutters rolls them off above the pivot as well.
+  static float tone_db(float hz, float tone, float swell) {
+    const float dark = tone < 0.5f ? 1.0f - 2.0f * tone : 0.0f;
+    const float bright = tone > 0.5f ? 2.0f * tone - 1.0f : 0.0f;
+    const float above = hz > kPivotHz ? std::log2(hz / kPivotHz) : 0.0f;
+    const float tilt =
+        kit::clamp(kBrightSlopeDb * bright * std::log2(kit::max(hz, 1.0f) / kBrightHz), -kBrightCutDb, kBrightLiftDb);
+    return kit::max(-96.0f, tilt - (kDarkSlopeDb * dark + kShutterSlopeDb * (1.0f - swell)) * above);
   }
 
-  // Gain for a rank's partial by the bin it lands in: the slope, and the
-  // fade to nothing at the top of hearing (and under the Nyquist frequency).
+  // tone_db by the bin a partial lands in, with the fade to nothing at the
+  // top of hearing (and under the Nyquist frequency).
   void build_tone(float tone, float swell, float sr) {
-    const float slope = slope_db(tone, swell);
     const float nyquist = 0.5f * sr;
-    const float fade_from = kit::min(16000.0f, kTopFadeFrom * nyquist);
-    const float fade_to = kit::min(20000.0f, kTopFadeTo * nyquist);
+    const float fade_from = kit::min(kTopFadeFromHz, kTopFadeFrom * nyquist);
+    const float fade_to = kit::min(kTopFadeToHz, kTopFadeTo * nyquist);
     for (int k = 0; k < kBins; ++k) {
       const float hz = Stft::bin_to_hz(static_cast<float>(k), sr);
-      const float octaves = hz > kPivotHz ? std::log2(hz / kPivotHz) : 0.0f;
-      const float db = kit::clamp(slope * octaves, -96.0f, kMaxBoostDb);
       const float x = kit::clamp((hz - fade_from) / (fade_to - fade_from), 0.0f, 1.0f);
-      tone_[k] = std::exp(db * 0.11512925f) * (1.0f - x * x * (3.0f - 2.0f * x));
+      tone_[k] = std::exp(tone_db(hz, tone, swell) * 0.11512925f) * (1.0f - x * x * (3.0f - 2.0f * x));
     }
   }
 
   // One Hann-windowed sine of lobe height `amp` at `target` bins (not a
-  // whole number), added to the frame. Its phase at the frame's first sample
+  // whole number), added to the frame. Its phase at the middle of the frame
   // is that of the unit vector (ur, ui) turned on by `turn` (in turns). With
   // the window w[n] = 0.5 - 0.5 cos(2πn/N), the frame A w[n] cos(2π t n/N + ψ)
   // has the spectrum
   //
   //   Y[k] = (A N/4) e^(j(ψ + π t)) (-1)^k h(k - t)  +  the same mirrored at -t,
   //
-  // h being hann_lobe. Away from the bottom the mirror image is under -80 dB
-  // and is left out, the lobe comes from the table (the target rounded to
-  // 1/64 bin for the shape; the phase keeps the true frequency) and the
-  // (-1)^k and the whole part of e^(jπt) fold into the table's signs.
+  // h being hann_lobe; ψ + π t is the sine's phase at the frame's middle
+  // sample, which is the phase a bin of the analysis reads too (but for the
+  // same (-1)^k). Phases are kept there and not at the frame's start: half a
+  // frame away, a hair's error in the frequency would be a tenth of a
+  // radian. Away from the bottom the mirror image is under -80 dB and is
+  // left out, and the lobe comes from the table (the target rounded to 1/256
+  // bin for the shape; the phase keeps the true frequency).
   void add_partial(float* re, float* im, float target, float ur, float ui, float turn, float amp) const {
+    const float qr = amp * kit::SineTable::cos_lookup(turn);
+    const float qi = amp * kit::SineTable::lookup(turn);
+    float pr = ur * qr - ui * qi;
+    float pi = ur * qi + ui * qr;
     if (target >= static_cast<float>(2 * kLobeHalf)) {
       int under = static_cast<int>(target);
       int step = static_cast<int>((target - static_cast<float>(under)) * kLobeSteps + 0.5f);
@@ -328,11 +361,10 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
         step = 0;
         ++under;
       }
-      const float angle = turn + 0.5f * static_cast<float>(step) * (1.0f / kLobeSteps);
-      const float qr = amp * kit::SineTable::cos_lookup(angle);
-      const float qi = amp * kit::SineTable::lookup(angle);
-      const float pr = ur * qr - ui * qi;
-      const float pi = ur * qi + ui * qr;
+      if (under & 1) {  // the table's signs count from the bin under the target
+        pr = -pr;
+        pi = -pi;
+      }
       const float* lobe = lobe_[step];
       float* out_re = re + under - kLobeHalf + 1;
       float* out_im = im + under - kLobeHalf + 1;
@@ -343,11 +375,6 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       return;
     }
     // Near the bottom: the lobe and its mirror image, worked out as they are.
-    const float angle = turn + 0.5f * target;
-    const float qr = amp * kit::SineTable::cos_lookup(angle);
-    const float qi = amp * kit::SineTable::lookup(angle);
-    const float pr = ur * qr - ui * qi;
-    const float pi = ur * qi + ui * qr;
     const int top = static_cast<int>(target) + kLobeHalf;
     for (int k = 0; k <= top; ++k) {
       const float sign = (k & 1) ? -1.0f : 1.0f;
@@ -405,14 +432,20 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     for (int k = kFirstBin; k < kBins - 1; ++k) {
       const float power = power_[k];
       if (!(power > threshold && power > power_[k - 1] && power >= power_[k + 1])) continue;
-      const float size = std::sqrt(power);
-      const float last_re = channel.last_re[k];
-      const float last_im = channel.last_im[k];
+      // Read through a narrower window: X[k] - (X[k-1] + X[k+1]) / 2 is the
+      // bin of the same frame under Hann squared, whose side lobes fall
+      // twice as fast, so the other notes of a chord disturb the phase and
+      // the size read here 18 dB less (from six bins away) than in X[k].
+      const float zr = re[k] - 0.5f * (re[k - 1] + re[k + 1]);
+      const float zi = im[k] - 0.5f * (im[k - 1] + im[k + 1]);
+      const float lr = channel.last_re[k] - 0.5f * (channel.last_re[k - 1] + channel.last_re[k + 1]);
+      const float li = channel.last_im[k] - 0.5f * (channel.last_im[k - 1] + channel.last_im[k + 1]);
+      const float narrow = zr * zr + zi * zi;
       float place = static_cast<float>(k);
       bool measured = false;
-      if (last_re * last_re + last_im * last_im > 1.0e-3f * power) {
-        // The turn since the last frame, as the angle of X × conj(X_last).
-        const float advance = kit::fast_atan2(im[k] * last_re - re[k] * last_im, re[k] * last_re + im[k] * last_im);
+      if (lr * lr + li * li > 1.0e-3f * narrow) {
+        // The turn since the last frame, as the angle of Z × conj(Z_last).
+        const float advance = kit::fast_atan2(zi * lr - zr * li, zr * lr + zi * li);
         place = Stft::advance_to_bin(k, advance);
         measured = std::fabs(place - static_cast<float>(k)) <= 1.0f;
       }
@@ -422,24 +455,22 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
         // tall as the peak puts the sine (2r - 1) / (r + 1) of a bin that way.
         const float below = std::sqrt(power_[k - 1]);
         const float above = std::sqrt(power_[k + 1]);
-        const float r = kit::max(below, above) / size;
+        const float r = kit::max(below, above) / std::sqrt(power);
         const float off = kit::clamp((2.0f * r - 1.0f) / (r + 1.0f), 0.0f, 0.5f);
         place = static_cast<float>(k) + (above > below ? off : -off);
       }
+      const float size = std::sqrt(narrow);
       const float off = std::fabs(place - static_cast<float>(k)) * kLobeSteps;
       const int at = static_cast<int>(off);
       const float lobe = main_lobe_[at] + (main_lobe_[at + 1] - main_lobe_[at]) * (off - static_cast<float>(at));
-      // The partial's own phase at the frame's first sample, as a unit
-      // vector: the bin's, less the half turn per bin the window's transform
-      // adds between the sine and the bin (X[k] ∝ e^(j(φ + π(place - k)))).
-      const float lean = -0.5f * (place - static_cast<float>(k));
-      const float lean_re = kit::SineTable::cos_lookup(lean) / size;
-      const float lean_im = kit::SineTable::lookup(lean) / size;
+      // The partial's own phase at the middle of the frame, as a unit
+      // vector: the bin's, but for the sign that alternates from bin to bin.
+      const float unit = ((k & 1) ? -1.0f : 1.0f) / size;
       peak_bin_[peaks] = static_cast<uint16_t>(k);
       peak_place_[peaks] = place;
       peak_size_[peaks] = size / lobe;
-      peak_re_[peaks] = re[k] * lean_re - im[k] * lean_im;
-      peak_im_[peaks] = re[k] * lean_im + im[k] * lean_re;
+      peak_re_[peaks] = zr * unit;
+      peak_im_[peaks] = zi * unit;
       if (c == 0) lead_place_[k] = place;
       heard += peak_size_[peaks] * peak_size_[peaks];
       ++peaks;
@@ -565,13 +596,15 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   uint16_t peak_bin_[kMaxPeaks] = {};
   float peak_place_[kMaxPeaks] = {};
   float peak_size_[kMaxPeaks] = {};
-  float peak_re_[kMaxPeaks] = {};  // the partial's phase at the frame's start, a unit vector
+  float peak_re_[kMaxPeaks] = {};  // the partial's phase at the middle of the frame, a unit vector
   float peak_im_[kMaxPeaks] = {};
   // Where the left channel found its partials in frame lead_frame_ (-1: none in this bin).
   float lead_place_[kBins] = {};
   uint32_t lead_frame_ = 0;
   kit::Smoother mix_, unison_;
   kit::IdleGate idle_;
+  // Samples in a row with nothing in and nothing out, counted up to kSilentSamples.
+  int silent_ = 0;
 };
 
 }  // namespace livemix

@@ -7,6 +7,8 @@
 #include "../devices/stops/stops.h"
 #include "support/test_kit.h"
 
+#include <limits>
+
 using namespace testkit;
 using livemix::Stops;
 namespace p = livemix::stops;
@@ -82,6 +84,18 @@ static double residue(const std::vector<float>& x, const std::vector<double>& ke
   return std::sqrt(sum / static_cast<double>(n));
 }
 
+// Three notes whose sum peaks at full scale.
+static std::vector<float> held_chord(float seconds) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate));
+  for (size_t i = 0; i < out.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    out[i] = static_cast<float>(
+        (std::sin(2.0 * kPi * 220.0 * t) + std::sin(2.0 * kPi * 277.18 * t + 1.0) + std::sin(2.0 * kPi * 329.63 * t + 2.0)) /
+        3.0);
+  }
+  return out;
+}
+
 int main() {
   Conformance spec;
   spec.name = "stops";
@@ -122,9 +136,458 @@ int main() {
     }
   }
 
-  device.init(kRate);
-  rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("stops", 10.0f, kRate, [&] { run(device, input); });
+  // 2. A chord of three sines in, one rank drawn: three sines out, each the
+  // rank's ratio above its own note and as loud, and nothing else.
+  {
+    const double notes[3] = {261.63, 329.63, 392.0};
+    std::vector<float> chord(static_cast<size_t>(2.0f * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      double v = 0.0;
+      for (double hz : notes) v += std::sin(2.0 * kPi * hz * static_cast<double>(i) / kRate);
+      chord[i] = static_cast<float>(0.2 * v);
+    }
+    double worst_level = 0.0, worst_rest = -200.0;
+    for (int s = 0; s < Stops::kRanks; ++s) {
+      bare(device);
+      device.set_param(kRankParam[s], 1.0f);
+      const Stereo out = run(device, chord);
+      const size_t from = 48000, to = 96000;
+      std::vector<double> wanted;
+      for (double hz : notes) {
+        wanted.push_back(hz * Stops::kRatio[s]);
+        worst_level = std::max(worst_level, std::fabs(db(tone_level(out.left, wanted.back(), kRate, from, to) / 0.2)));
+      }
+      worst_rest = std::max(worst_rest, db(residue(out.left, wanted, kRate, from, to) / (0.2 * std::sqrt(1.5))));
+    }
+    std::printf("three notes, each rank in turn: levels within %.2f dB, everything else %.1f dB under the chord\n",
+                worst_level, -worst_rest);
+    EXPECT(worst_level < 0.3, "a chord of three notes gives three per rank, each as loud as its note");
+    EXPECT(worst_rest < -50.0, "and nothing else above -50 dB");
+  }
+
+  // 3. The latency and the dry side. Mix 0 is the input kLatency late, bit
+  // for bit, with everything drawn; so is every rank in with the unison full,
+  // at any Mix. The manifest says 4608.
+  {
+    EXPECT(Stops::kLatency == 4608, "latencySamples in device.json is Stft::kLatency");
+    rng_state() = 77;
+    const std::vector<float> in = noise(1.0f, kRate, 0.5f);
+    for (int which = 0; which < 3; ++which) {
+      device.init(kRate);
+      if (which == 0) {
+        for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
+        device.set_param(p::kUnison, 0.3f);
+        device.set_param(p::kMix, 0.0f);
+      } else {
+        for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 0.0f);
+        device.set_param(p::kUnison, 1.0f);
+        device.set_param(p::kMix, which == 1 ? 0.65f : 1.0f);
+      }
+      const Stereo out = run(device, in);
+      bool same = true;
+      for (size_t i = 0; i + Stops::kLatency < in.size(); ++i) {
+        same = same && out.left[i + Stops::kLatency] == in[i] && out.right[i + Stops::kLatency] == in[i];
+      }
+      EXPECT(same, which == 0 ? "Mix 0 is the input, a latency late, bit for bit"
+                              : "every rank in and the unison full is the input, a latency late, bit for bit");
+    }
+  }
+
+  // 4. Part-way Mix does not comb: held notes over the piano's range through
+  // the defaults come out with the note itself at the level it went in.
+  {
+    double worst = 0.0;
+    for (int note = 21; note <= 108; note += 3) {
+      const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+      device.init(kRate);
+      const std::vector<float> in = sine(static_cast<float>(hz), 1.5f, kRate, 0.5f);
+      const Stereo out = run(device, in);
+      worst = std::max(worst, std::fabs(db(tone_level(out.left, hz, kRate, 24000, 72000) / 0.5)));
+    }
+    std::printf("held notes A0 to C8 at the defaults: the note itself within %.3f dB of the input\n", worst);
+    EXPECT(worst < 0.1, "the note played keeps its level at the default Mix over the piano's range");
+  }
+
+  // 5. Speak is the rise of the ranks. A note starts after a silence; the
+  // octave alone is read in 5 ms steps. The time it takes from the note's
+  // start (as the dry side gives it, a latency late) to 90 % of its level
+  // follows Speak, plus what the frame itself smears.
+  {
+    const size_t start = 24000;
+    std::vector<float> in = silence(0.5f, kRate);
+    const std::vector<float> tone = sine(440.0f, 6.0f, kRate, 0.5f);
+    in.insert(in.end(), tone.begin(), tone.end());
+    const float speaks[4] = {10.0f, 100.0f, 400.0f, 1600.0f};
+    double reached[4];
+    for (int which = 0; which < 4; ++which) {
+      bare(device);
+      device.set_param(p::kOctave, 1.0f);
+      device.set_param(p::kSpeak, speaks[which]);
+      const Stereo out = run(device, in);
+      const double full = rms(out.left, out.left.size() - 24000, out.left.size());
+      reached[which] = -1.0;
+      const size_t step = 240;
+      for (size_t at = start + Stops::kLatency; at + step < out.left.size(); at += step) {
+        if (rms(out.left, at, at + step) >= 0.9 * full) {
+          reached[which] = 1000.0 * static_cast<double>(at - start - Stops::kLatency) / kRate;
+          break;
+        }
+      }
+      EXPECT_NEAR(db(full / (0.5 * 0.7071)), 0.0, 0.2, "the rank comes up to its source's level whatever Speak is");
+    }
+    std::printf("Speak 10, 100, 400, 1600 ms: the octave reaches 90 %% after %.0f, %.0f, %.0f, %.0f ms\n", reached[0],
+                reached[1], reached[2], reached[3]);
+    EXPECT(reached[0] >= 0.0 && reached[0] < 60.0, "Speak at its shortest: the rank is there within 60 ms of the note");
+    EXPECT_NEAR(reached[1], 100.0, 40.0, "Speak 100 ms: 90 % after about 100 ms");
+    EXPECT_NEAR(reached[2], 400.0, 60.0, "Speak 400 ms: 90 % after about 400 ms");
+    EXPECT_NEAR(reached[3], 1600.0, 160.0, "Speak 1600 ms: 90 % after about 1600 ms");
+
+    // And the rank stops with its note: a frame after the note's end (as the
+    // dry side gives it) nothing is left.
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    device.set_param(p::kSpeak, 400.0f);
+    std::vector<float> ended = sine(440.0f, 2.0f, kRate, 0.5f);
+    const size_t end = ended.size();
+    ended.resize(end + 48000, 0.0f);
+    const Stereo out = run(device, ended);
+    const size_t gone = end + Stops::kLatency + Stops::Stft::kFrame / 2;
+    EXPECT(peak(out.left, gone, out.left.size()) < 0.5 * 0.01, "a rank ends with its note, within half a frame");
+    EXPECT(peak(out.left, end + Stops::kLatency + Stops::Stft::kFrame, out.left.size()) == 0.0,
+           "and is exact silence a frame after it");
+  }
+
+  // 6. Tone, Swell, Detune and the drawbars' law, each against the formula in
+  // stops.h (the constants are copied from there).
+  {
+    // tone_db(): kPivotHz 400, kDarkSlopeDb 12, kBrightHz 1500, kBrightSlopeDb 4, kBrightCutDb 8,
+    // kBrightLiftDb 6, kShutterSlopeDb 6.
+    auto tone_db = [](double hz, double tone, double swell) {
+      const double dark = tone < 0.5 ? 1.0 - 2.0 * tone : 0.0;
+      const double bright = tone > 0.5 ? 2.0 * tone - 1.0 : 0.0;
+      const double above = hz > 400.0 ? std::log2(hz / 400.0) : 0.0;
+      const double tilt = std::max(-8.0, std::min(6.0, 4.0 * bright * std::log2(hz / 1500.0)));
+      return tilt - (12.0 * dark + 6.0 * (1.0 - swell)) * above;
+    };
+    double worst = 0.0;
+    for (float hz : {196.0f, 1318.5f, 3000.0f}) {
+      const std::vector<float> in = sine(hz, 1.5f, kRate, 0.1f);  // well under the ceiling
+      for (int which = 0; which < 7; ++which) {
+        const float tone = which < 5 ? 0.25f * static_cast<float>(which) : 0.5f;
+        const float swell = which == 5 ? 0.5f : (which == 6 ? 0.25f : 1.0f);
+        bare(device);
+        device.set_param(p::kOctave, 1.0f);
+        device.set_param(p::kTone, tone);
+        device.set_param(p::kSwell, swell);
+        const Stereo out = run(device, in);
+        const double got = db(tone_level(out.left, 2.0 * hz, kRate, 36000, 72000) / 0.1);
+        const double want = tone_db(2.0 * hz, tone, swell) + 40.0 * std::log10(swell);
+        worst = std::max(worst, std::fabs(got - want));
+      }
+    }
+    std::printf("Tone and Swell on the octave of 196, 1318.5 and 3000 Hz: within %.2f dB of the formula\n", worst);
+    EXPECT(worst < 0.15, "Tone and Swell shape the ranks as tone_db() and Swell squared say");
+
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    device.set_param(p::kSwell, 0.0f);
+    const Stereo shut = run(device, sine(440.0f, 1.0f, kRate, 0.5f));
+    EXPECT(peak(shut.left) == 0.0, "Swell at 0 shuts the ranks off");
+
+    // Detune: kDetuneCents 14 times each rank's kDetuneShare.
+    double off = 0.0;
+    for (float detune : {0.5f, 1.0f}) {
+      for (int s = 0; s < Stops::kRanks; ++s) {
+        bare(device);
+        device.set_param(kRankParam[s], 1.0f);
+        device.set_param(p::kDetune, detune);
+        const Stereo out = run(device, sine(441.3f, 2.0f, kRate, 0.5f));
+        const double want =
+            441.3 * Stops::kRatio[s] * std::pow(2.0, detune * 14.0 * Stops::kDetuneShare[s] / 1200.0);
+        const double got = dominant_frequency(out.left, kRate, want * 0.97, want * 1.03, 48000, 96000);
+        off = std::max(off, std::fabs(1200.0 * std::log2(got / want)));
+      }
+    }
+    std::printf("Detune at 0.5 and 1: every rank within %.2f cents of its place\n", off);
+    EXPECT(off < 0.1, "Detune puts each rank its own share of 14 cents off");
+
+    // A drawbar half out is its position to the power 1.5; two full ranks
+    // share the power of one.
+    bare(device);
+    device.set_param(p::kOctave, 0.5f);
+    Stereo out = run(device, sine(441.3f, 1.5f, kRate, 0.5f));
+    EXPECT_NEAR(db(tone_level(out.left, 882.6, kRate, 36000, 72000) / 0.5), 20.0 * std::log10(std::pow(0.5, 1.5)), 0.1,
+                "a drawbar half out is 9 dB down");
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    device.set_param(p::kSub, 1.0f);
+    out = run(device, sine(441.3f, 1.5f, kRate, 0.5f));
+    EXPECT_NEAR(db(tone_level(out.left, 882.6, kRate, 36000, 72000) / 0.5), -3.01, 0.1,
+                "two full ranks: the octave at -3 dB");
+    EXPECT_NEAR(db(tone_level(out.left, 220.65, kRate, 36000, 72000) / 0.5), -3.01, 0.1,
+                "two full ranks: the sub at -3 dB");
+  }
+
+  // 7. Chiff: breath at the start of a note, round the rank's pitch, gone
+  // once the note is held. The octave of 440 Hz with a slow Speak, so the
+  // tone itself is still small while the breath sounds.
+  {
+    const size_t start = 24000;
+    std::vector<float> in = silence(0.5f, kRate);
+    const std::vector<float> tone = sine(440.0f, 3.0f, kRate, 0.5f);
+    in.insert(in.end(), tone.begin(), tone.end());
+    const size_t onset = start + Stops::kLatency;
+    const size_t early_from = onset, early_to = onset + 4800;         // the first 100 ms
+    const size_t late_from = onset + 96000, late_to = onset + 120000;  // two seconds in
+    double breath[3], held[3], inside = 0.0, outside = 0.0;
+    const float chiffs[3] = {0.0f, 0.5f, 1.0f};
+    for (int which = 0; which < 3; ++which) {
+      bare(device);
+      device.set_param(p::kOctave, 1.0f);
+      device.set_param(p::kSpeak, 1500.0f);
+      device.set_param(p::kChiff, chiffs[which]);
+      const Stereo out = run(device, in);
+      breath[which] = residue(out.left, {880.0}, kRate, early_from, early_to);
+      held[which] = residue(out.left, {880.0}, kRate, late_from, late_to);
+      if (which == 2) {
+        // Where the breath lies: its band is ±4 % of 880 Hz (845 to 915).
+        for (double hz = 300.0; hz < 3000.0; hz += 10.0) {
+          const double level = tone_level(out.left, hz, kRate, early_from, early_to);
+          (hz > 820.0 && hz < 940.0 ? inside : outside) += level * level;
+        }
+      }
+    }
+    std::printf("Chiff 0, 0.5, 1: breath in the first 100 ms %.1f, %.1f, %.1f dB under the held rank; held, %.1f dB\n",
+                -db(breath[0] / 0.3536), -db(breath[1] / 0.3536), -db(breath[2] / 0.3536), -db(held[2] / 0.3536));
+    EXPECT(breath[2] > 3.0 * breath[0], "Chiff adds breath at the start of a note");
+    EXPECT_NEAR(db(breath[2] / breath[1]), 6.0, 2.0, "half the Chiff is half the breath");
+    EXPECT(db(breath[2] / 0.3536) > -26.0 && db(breath[2] / 0.3536) < -6.0,
+           "at full Chiff the breath is 6 to 26 dB under the rank it leads");
+    EXPECT(inside > 20.0 * outside, "the breath lies round the rank's pitch");
+    EXPECT(held[2] < 1.05 * held[0] + 1.0e-6, "and is gone once the note is held");
+  }
+
+  // 8. Level. A full-scale chord held: at the defaults for a minute, and for
+  // twenty seconds with everything drawn and at each end of every control.
+  // The peak is never more than 6 dB over the input's (the ceiling), the
+  // level stays within a few dB of the input's and nothing grows.
+  {
+    const std::vector<float> chord = held_chord(60.0f);
+    const std::vector<float> shorter(chord.begin(), chord.begin() + 20 * 48000);
+    double worst_peak = 0.0, loudest = -100.0, softest = 100.0;
+    auto hold = [&](const char* what, const std::vector<float>& in) {
+      const Stereo out = run(device, in);
+      const size_t n = out.left.size();
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double level = db(rms(out.left, 48000, n) / rms(in, 48000, n));
+      // (Its peaks wander as the detuned ranks drift past each other; its level does not.)
+      const double early = rms(out.left, 2 * 48000, n / 2), late = rms(out.left, n / 2, n);
+      worst_peak = std::max(worst_peak, top);
+      loudest = std::max(loudest, level);
+      softest = std::min(softest, level);
+      char label[200];
+      std::snprintf(label, sizeof label, "held full-scale chord, %s: peak %.2f (6 dB over the input at most), level %+.1f dB",
+                    what, top, level);
+      EXPECT(finite(out.left) && top <= 2.0 && level < 4.0, label);
+      std::snprintf(label, sizeof label, "held full-scale chord, %s: does not grow (rms %.4f then %.4f)", what, early,
+                    late);
+      EXPECT(late <= early * 1.01, label);
+      return level;
+    };
+    device.init(kRate);
+    const double at_defaults = hold("defaults", chord);
+    EXPECT(at_defaults > 0.0 && at_defaults < 3.0, "at the defaults the chord comes out 0 to 3 dB louder");
+    device.init(kRate);
+    for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kTone, 0.5f);
+    hold("every rank full, Mix full", chord);
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (int end = 0; end < 2; ++end) {
+        device.init(kRate);
+        device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
+        char what[64];
+        std::snprintf(what, sizeof what, "param %d at its %s", id, end == 0 ? "minimum" : "maximum");
+        hold(what, shorter);
+      }
+    }
+    std::printf("held full-scale chord over every setting tried: peak %.2f at most (%+.1f dB), level %+.1f to %+.1f dB\n",
+                worst_peak, db(worst_peak), softest, loudest);
+  }
+
+  // 9. Bad input: NaN, infinity and 1e30 in the middle of a note. The output
+  // stays finite, and once they have passed through (a latency and a frame)
+  // the note and its octave are what they were.
+  {
+    std::vector<float> in = sine(440.0f, 3.0f, kRate, 0.5f);
+    const std::vector<float> clean = in;
+    in[48000] = std::nanf("");
+    in[48001] = std::numeric_limits<float>::infinity();
+    in[48002] = -1.0e30f;
+    in[48003] = 1.0e30f;
+    device.init(kRate);
+    device.set_param(p::kDetune, 0.0f);
+    const Stereo good = run(device, clean);
+    device.init(kRate);
+    device.set_param(p::kDetune, 0.0f);
+    const Stereo bad = run(device, in);
+    const size_t from = 96000, to = 144000;
+    EXPECT(finite(bad.left) && finite(bad.right) && peak(bad.left) < 2.0, "NaN, infinity and 1e30 in: finite out");
+    EXPECT_NEAR(db(tone_level(bad.left, 440.0, kRate, from, to) / tone_level(good.left, 440.0, kRate, from, to)), 0.0, 0.01,
+                "after bad input the note is back at its level");
+    EXPECT_NEAR(db(tone_level(bad.left, 880.0, kRate, from, to) / tone_level(good.left, 880.0, kRate, from, to)), 0.0, 0.05,
+                "after bad input the octave is back at its level");
+    EXPECT_NEAR(db(rms(bad.left, from, to) / rms(good.left, from, to)), 0.0, 0.05, "and nothing is stuck beside them");
+    const Stereo rest = render(device, 6.0f, kRate);
+    EXPECT(peak(rest.left, rest.left.size() - 24000, rest.left.size()) == 0.0, "and it comes to rest afterwards");
+  }
+
+  // 10. Block sizes across a silence. The followers let go for up to three
+  // seconds after the sound, then the device sleeps; the silence is stepped
+  // across that moment, and a knob is moved in it. Every block size must
+  // give the same samples.
+  {
+    double worst = 0.0;
+    for (float gap = 1.8f; gap < 3.7f; gap += 0.07f) {
+      rng_state() = 99;
+      std::vector<float> phrase = noise(0.2f, kRate, 0.3f);
+      const std::vector<float> tone = sine(330.0f, 0.2f, kRate, 0.3f);
+      for (size_t i = 0; i < tone.size(); ++i) phrase[i] += tone[i];
+      const std::vector<float> quiet = silence(gap, kRate);
+      std::vector<float> again = noise(0.4f, kRate, 0.3f);
+      for (size_t i = 0; i < again.size(); ++i) again[i] += tone[i % tone.size()];
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        device.init(kRate);
+        device.set_param(p::kChiff, 1.0f);
+        Stereo out = run(device, phrase, block);
+        out = concat(out, run(device, quiet, block));
+        device.set_param(p::kMix, 1.0f);  // moved while asleep (or nearly)
+        device.set_param(p::kUnison, 0.5f);
+        device.set_param(p::kFifth, 0.8f);
+        out = concat(out, run(device, again, block));
+        if (block == 128) {
+          reference = out;
+          continue;
+        }
+        // The knobs are moved at a block's edge, which lies where the block
+        // size puts it: compare from the next sound on.
+        for (size_t i = phrase.size() + quiet.size(); i < out.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+          worst = std::max(worst, std::fabs(static_cast<double>(out.right[i]) - reference.right[i]));
+        }
+        for (size_t i = 0; i < phrase.size() + quiet.size() - 2048; ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+        }
+      }
+    }
+    std::printf("block sizes 1, 37, 128 and 2048 across a silence of 1.8 to 3.7 s: worst difference %.3g\n", worst);
+    EXPECT(worst < 1.0e-6, "the same at every block size across a sleep, with knobs moved in it");
+
+    // A knob moved while asleep snaps: after a long silence, Mix set to 0 is
+    // the dry input from the first sample of the next note (to 1e-12: the
+    // Stft takes a sample under 1e-15 as zero, and a sine passes through some).
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    run(device, sine(330.0f, 0.5f, kRate, 0.3f));
+    render(device, 6.0f, kRate);
+    device.set_param(p::kMix, 0.0f);
+    const std::vector<float> next = sine(550.0f, 0.5f, kRate, 0.3f);
+    const Stereo woken = run(device, next);
+    bool dry = true;
+    for (size_t i = 0; i + Stops::kLatency < next.size(); ++i) {
+      dry = dry && std::fabs(woken.left[i + Stops::kLatency] - next[i]) < 1.0e-12f;
+    }
+    for (size_t i = 0; i < static_cast<size_t>(Stops::kLatency); ++i) dry = dry && woken.left[i] == 0.0f;
+    EXPECT(dry, "Mix moved while asleep does not glide in on the next note");
+  }
+
+  // 11. No clicks. Each control is stepped across its range while a note
+  // sounds; the largest step from one sample to the next is held against the
+  // same note with the control at rest at either end (no event in either).
+  {
+    const std::vector<float> in = sine(220.0f, 2.0f, kRate, 0.4f);
+    double worst_ratio = 0.0;
+    int worst_id = -1;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      const float low = p::kParamMin[id], high = p::kParamMax[id];
+      for (int way = 0; way < 2; ++way) {
+        const float from = way == 0 ? low : high, to = way == 0 ? high : low;
+        double rest = 0.0;
+        for (float value : {from, to}) {
+          device.init(kRate);
+          device.set_param(p::kFifth, 0.5f);
+          device.set_param(id, value);
+          const Stereo quiet = run(device, in);
+          rest = std::max(rest, max_step(quiet.left, 24000, quiet.left.size()));
+        }
+        device.init(kRate);
+        device.set_param(p::kFifth, 0.5f);
+        device.set_param(id, from);
+        const std::vector<float> first(in.begin(), in.begin() + 48000), second(in.begin() + 48000, in.end());
+        run(device, first);
+        device.set_param(id, to);
+        const Stereo moved = run(device, second);
+        const double ratio = max_step(moved.left) / rest;
+        if (ratio > worst_ratio) {
+          worst_ratio = ratio;
+          worst_id = id;
+        }
+      }
+    }
+    std::printf("every control stepped end to end on a held note: largest step %.2f times the note's own (param %d)\n",
+                worst_ratio, worst_id);
+    EXPECT(worst_ratio < 1.25, "no control clicks when it is moved while a note sounds");
+  }
+
+  // 12. Stereo. Mono in is mono out, bit for bit; a sound on one side has its
+  // ranks on that side; a sound panned part way keeps its ranks in phase
+  // between the channels; an anti-phase pair does not vanish, each channel
+  // makes its own ranks.
+  {
+    rng_state() = 3;
+    std::vector<float> left = noise(1.5f, kRate, 0.1f);
+    const std::vector<float> tone = sine(261.63f, 1.5f, kRate, 0.3f);
+    for (size_t i = 0; i < left.size(); ++i) left[i] += tone[i];
+    const std::vector<float> nothing = silence(1.5f, kRate);
+    std::vector<float> half(left.size()), flipped(left.size());
+    for (size_t i = 0; i < left.size(); ++i) {
+      half[i] = 0.5f * left[i];
+      flipped[i] = -left[i];
+    }
+    auto ranks_only = [&] {
+      device.init(kRate);
+      device.set_param(p::kFifth, 0.6f);
+      device.set_param(p::kChiff, 1.0f);
+      device.set_param(p::kUnison, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+    };
+    ranks_only();
+    const Stereo mono = run(device, left, left);
+    EXPECT(mono.left == mono.right, "mono in, mono out, bit for bit");
+    ranks_only();
+    const Stereo one = run(device, left, nothing);
+    EXPECT(peak(one.right) == 0.0 && rms(one.left) > 0.05, "a sound on the left has its ranks on the left only");
+    EXPECT(one.left == mono.left, "and they are what they were in mono: the channels do not lean on each other");
+    ranks_only();
+    const Stereo panned = run(device, left, half);
+    const size_t from = 24000, to = left.size();
+    EXPECT(correlation(panned.left, panned.right, from, to) > 0.995, "a sound panned part way: its ranks in phase");
+    EXPECT_NEAR(db(rms(panned.right, from, to) / rms(panned.left, from, to)), -6.02, 0.3, "and panned as it is");
+    ranks_only();
+    const Stereo against = run(device, left, flipped);
+    EXPECT_NEAR(db(rms(against.right, from, to) / rms(mono.right, from, to)), 0.0, 0.3,
+                "an anti-phase pair: each side has its ranks at their level");
+    EXPECT(correlation(against.left, against.right, from, to) < -0.99, "and they stay anti-phase, as their sources are");
+    // Two notes, one a side: each side gets the octave of its own.
+    ranks_only();
+    device.set_param(p::kFifth, 0.0f);
+    device.set_param(p::kSub, 0.0f);
+    const Stereo two = run(device, sine(440.0f, 1.5f, kRate, 0.3f), sine(554.37f, 1.5f, kRate, 0.3f));
+    EXPECT(tone_level(two.left, 880.0, kRate, from, to) > 50.0 * tone_level(two.left, 1108.74, kRate, from, to) &&
+               tone_level(two.right, 1108.74, kRate, from, to) > 50.0 * tone_level(two.right, 880.0, kRate, from, to),
+           "two notes, one a side: each side sounds the octave of its own note");
+  }
+
   return finish("stops");
 }
