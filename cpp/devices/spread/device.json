@@ -1,0 +1,104 @@
+{
+  "id": "spread",
+  "name": "Spread",
+  "category": "spatial",
+  "description": "Width by frequency: the bass held in the middle, the top opened wide, on a curve with points to drag, and it can make width where a sound has none.",
+  "class": "Spread",
+  "header": "spread.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 0,
+      "max": 2,
+      "default": 0,
+      "description": "Width of the bottom of the sound. All the way down the bass sits in the middle and stays firm; halfway is as it came in; up is wider."
+    },
+    {
+      "key": "mid",
+      "name": "Mid",
+      "min": 0,
+      "max": 2,
+      "default": 1,
+      "description": "Width of the middle of the sound, between the two crossovers. Halfway leaves it as it came in; down narrows it and up widens it."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 0,
+      "max": 2,
+      "default": 1.7,
+      "description": "Width of the top of the sound. Up spreads the air and shimmer out to the sides; halfway is as it came in; all the way down the top is in the middle."
+    },
+    {
+      "key": "lowHz",
+      "name": "Low split",
+      "min": 40,
+      "max": 800,
+      "default": 180,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the bottom ends and the middle begins. Raise it to hold more of the body of the sound to the width set by Low."
+    },
+    {
+      "key": "highHz",
+      "name": "High split",
+      "min": 1000,
+      "max": 12000,
+      "default": 3200,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the middle ends and the top begins. Lower it to give more of the sound the width set by High."
+    },
+    {
+      "key": "slope",
+      "name": "Slope",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How one region passes into the next. Down the widths blend into each other over a broad stretch; up each region keeps to itself."
+    },
+    {
+      "key": "make",
+      "name": "Make",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Makes width where there is none, by scattering the middle of the sound to the sides. It follows the curve, so a mono sound opens only where the curve is up."
+    },
+    {
+      "key": "smear",
+      "name": "Smear",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How far in time the made width is scattered. Down it stays tight against each note; up it hangs a soft haze at the edges."
+    },
+    {
+      "key": "safe",
+      "name": "Safe",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Holds the sides under the middle so the sound keeps its body on one speaker. Up holds harder; all the way down nothing is held. It never narrows what came in."
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -12,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "The level going out, to make up for what a wider or narrower picture adds or takes."
+    }
+  ],
+  "meters": [{ "key": "held", "name": "Sides held by Safe", "unit": "dB", "display": true }],
+  "presets": {
+    "Firm and airy": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Mid and side; the side passes two stages of a three region split that sums to its input, the made width is an allpass scatter of the middle."
+  }
+}
