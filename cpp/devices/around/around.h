@@ -32,7 +32,8 @@
 // - Behind (y < 0) both ears lose top above kRearHz and gain a notch at
 //   kNotchHz, as the outer ear does, times Head.
 // - Near. Away from the near point (the direction Turn sets) the source is
-//   quieter by up to kNearDb and thinner under kThinHz.
+//   quieter by up to kNearDb and thinner under kThinHz. The room goes down
+//   with it.
 // - Blur. Eight echoes of the plain middle between 7 and 38 ms, four to each
 //   ear, band-limited to kThinHz..kRoomHz, that do not move with the source:
 //   a small room around the head.
@@ -239,7 +240,10 @@ class Around : public kit::DeviceBase<around::kNumParams> {
       const float high = source - low;
       ear_line_.write(low);
 
-      const float blur = blur_.next() * kRoomGain;
+      // The room is as loud against the source wherever the source is: left
+      // at its own level it would meet a far source as an equal and could
+      // cancel a held note.
+      const float blur = blur_.next() * kRoomGain * ramp(room_);
       float wet[2];
       for (int e = 0; e < 2; ++e) {
         const float ear = (read_ear(ramp(delay_[e])) + high * (1.0f - ramp(shade_[e]))) * ramp(gain_[e]);
@@ -384,6 +388,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
       delay_[e].to(itd * far_delay(across), snap_);
       shade_[e].to(head * kShade * across, snap_);
     }
+    room_.to(near_gain, snap_);
     rear_.to(head * kit::max(0.0f, -y), snap_);
     thin_.to(nearness * away * kThin, snap_);
     snap_ = false;
@@ -431,7 +436,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   kit::Smoother radius_, head_, near_;  // on the control clock
   kit::Smoother weight_[kNumPaths];     // on the control clock
   kit::Smoother blur_, mix_;            // per sample
-  Ramp gain_[2], delay_[2], shade_[2], rear_, thin_;
+  Ramp gain_[2], delay_[2], shade_[2], rear_, thin_, room_;
   int room_delay_[2][kRoomTaps] = {};
   double phase_ = 0.0;      // turns, 0..kPathTurns
   double increment_ = 0.0;  // turns per sample

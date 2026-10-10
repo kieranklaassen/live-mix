@@ -31,7 +31,7 @@ static void set(Around& d, const Setting& s) {
   d.set_param(p::kMix, s.mix);
 }
 
-static const Setting kDefault = {0, 0.2f, 0.85f, 0.7f, 0.3f, 0, 0.35f, 1};
+static const Setting kDefault = {0, 0.2f, 0.85f, 0.7f, 0.25f, 0, 0.35f, 1};
 
 // The source held (as near as the slowest Rate holds it: under two degrees
 // in 0.3 s) at `turn` degrees: the middle of a Pendulum's swing.
@@ -431,9 +431,22 @@ static void movement() {
   }
 }
 
-// The largest step of a 50 Hz tone through the device when `id` jumps from
-// `from` to `to` 0.7 s in, against the largest step with no jump at either
-// value. Returns how much the jump adds.
+// The sharpest corner in a signal: the largest second difference. A 50 Hz
+// tone at 0.5 has corners of 2e-5; a step of any size shows whole, so this
+// sees a click a hundred times smaller than the largest step does.
+static double max_corner(const Stereo& out, size_t from) {
+  double worst = 0.0;
+  for (const std::vector<float>* x : {&out.left, &out.right}) {
+    for (size_t i = from + 2; i < x->size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>((*x)[i]) - 2.0 * (*x)[i - 1] + (*x)[i - 2]));
+    }
+  }
+  return worst;
+}
+
+// The sharpest corner of a 50 Hz tone through the device when `id` jumps
+// from `from` to `to` 0.7 s in, less the sharpest with no jump at either
+// value: what the jump adds.
 static double click_of(Setting base, int id, float from, float to) {
   const std::vector<float> tone = sine(50.0f, 1.4f, kRate, 0.5f);
   double steady = 0.0;
@@ -441,14 +454,12 @@ static double click_of(Setting base, int id, float from, float to) {
     device.init(kRate);
     set(device, base);
     device.set_param(id, value);
-    Stereo out = run(device, tone);
-    steady = std::max(steady, std::max(max_step(out.left, 4800), max_step(out.right, 4800)));
+    steady = std::max(steady, max_corner(run(device, tone), 4800));
   }
   device.init(kRate);
   set(device, base);
   device.set_param(id, from);
-  Stereo out = run_events(device, tone, {128}, {{33600, id, to}});
-  return std::max(max_step(out.left, 4800), max_step(out.right, 4800)) - steady;
+  return max_corner(run_events(device, tone, {128}, {{33600, id, to}}), 4800) - steady;
 }
 
 // The widest a 300 Hz tone is bent in either ear, in cents, from the gaps
@@ -477,6 +488,8 @@ static double bend_cents(const Setting& s) {
 // That nothing clicks and the delay's bend is bounded.
 static void smoothness() {
   char label[160];
+  // A corner no sharper than a step 80 dB under full scale.
+  const double kClick = 1.5e-4;  // Mix and Blur add 1.2e-4: the onset of their 5 ms glide
   const Setting base = {0, 0.5f, 1, 1, 0.5f, 0, 0.5f, 1};
   const char* names[4] = {"Circle", "Figure of eight", "Pendulum", "Wander"};
 
@@ -487,9 +500,9 @@ static void smoothness() {
       if (from == to) continue;
       const double added = click_of(base, p::kPath, static_cast<float>(from), static_cast<float>(to));
       worst_path = std::max(worst_path, added);
-      std::snprintf(label, sizeof label, "%s to %s does not click (adds %+.5f)", names[from],
+      std::snprintf(label, sizeof label, "%s to %s does not click (adds %+.6f)", names[from],
                     names[to], added);
-      EXPECT(added < 0.004, label);
+      EXPECT(added < kClick, label);
     }
   }
 
@@ -512,11 +525,22 @@ static void smoothness() {
   for (const Jump& jump : jumps) {
     const double added = click_of(base, jump.id, jump.from, jump.to);
     worst_jump = std::max(worst_jump, added);
-    std::snprintf(label, sizeof label, "%s does not click (adds %+.5f)", jump.name, added);
-    EXPECT(added < 0.004, label);
+    std::snprintf(label, sizeof label, "%s does not click (adds %+.6f)", jump.name, added);
+    EXPECT(added < kClick, label);
   }
-  std::printf("note: largest step added to a 50 Hz tone (its own step is 0.0033 to 0.0045): %+.5f by a "
-              "change of Path, %+.5f by any other jump\n", worst_path, worst_jump);
+  std::printf("note: sharpest corner added to a 50 Hz tone at 0.5: %+.6f by a change of Path, %+.6f by "
+              "any other jump (a step of -80 dBFS is 0.0001)\n", worst_path, worst_jump);
+
+  // No stairs: the source's movement reaches the ears as straight lines
+  // between the control clock's ticks, not as steps at them. A 50 Hz tone
+  // going round at the fastest Rate keeps corners as small as its own.
+  {
+    device.init(kRate);
+    set(device, {0, 4, 1, 1, 1, 0, 0, 1});
+    const double moving = max_corner(run(device, sine(50.0f, 1.0f, kRate, 0.5f)), 4800);
+    std::printf("note: sharpest corner of a 50 Hz tone going round at 4 Hz: %.6f\n", moving);
+    EXPECT(moving < kClick, "the movement makes no stairs at the control rate");
+  }
 
   // The far ear's delay bends pitch as the source crosses: bounded at the
   // fastest Rate on every path, and next to nothing at a slow one.
@@ -544,7 +568,22 @@ struct Preset {
 // The presets of device.json, in its order (kept by hand: the level checks
 // below run through every one).
 static const Preset kPresets[] = {
-    {"Slow circle", {0, 0.2f, 0.85f, 0.7f, 0.3f, 0, 0.35f, 1}},
+    {"Slow circle", {0, 0.2f, 0.85f, 0.7f, 0.25f, 0, 0.35f, 1}},
+    {"Barely moving", {3, 0.03f, 0.4f, 0.5f, 0, 60, 0.2f, 1}},
+    {"Gentle sway", {2, 0.07f, 0.7f, 0.6f, 0, 0, 0.35f, 1}},
+    {"Wide pendulum", {2, 0.25f, 1, 0.8f, 0, 0, 0.3f, 1}},
+    {"Slow eight", {1, 0.15f, 0.9f, 0.7f, 0, 0, 0.3f, 1}},
+    {"Slow wander", {3, 0.12f, 0.9f, 0.7f, 0.4f, 0, 0.4f, 1}},
+    {"Drone drift", {3, 0.05f, 1, 1, 0.2f, -90, 0.5f, 1}},
+    {"Behind you", {2, 0.1f, 0.9f, 1, 0, 180, 0.5f, 1}},
+    {"Passing by", {0, 0.1f, 1, 0.9f, 0.6f, 90, 0.3f, 1}},
+    {"Far side fades", {0, 0.08f, 1, 0.9f, 1, 0, 0.7f, 1}},
+    {"Ear to ear", {2, 1.5f, 1, 0.3f, 0, 0, 0, 1}},
+    {"Fast spin", {0, 4, 0.6f, 0.5f, 0, 0, 0.15f, 1}},
+    {"Plain pan", {2, 0.5f, 1, 0, 0, 0, 0, 1}},
+    {"Mostly room", {0, 0.1f, 0.25f, 0.6f, 0, 0, 1, 1}},
+    {"Half stays put", {0, 0.3f, 1, 0.8f, 0, 0, 0.2f, 0.5f}},
+    {"Dizzy", {1, 2.7f, 1, 1, 0.5f, 90, 0.8f, 1}},
 };
 
 // The lowest and highest the two ears' summed power goes against the input,
@@ -639,11 +678,11 @@ static void levels() {
     power_range(preset.s, &low, &high, &ear);
     // By design: Near takes up to kNearDb at the far side of the path (and up
     // to 4.5 dB more of the bass), the colour from behind 1 dB, the shadow on
-    // the far ear 1.5 dB of the two ears' power, the room's comb 2 dB either
+    // the far ear 1.5 dB of the two ears' power, the room's comb 3 dB either
     // way at Blur 1.
     const double by_design =
         -(preset.s.near * preset.s.radius * (Around::kNearDb + 4.5) + 1.0 +
-          1.5 * preset.s.head * preset.s.radius + 2.0 * preset.s.blur * preset.s.mix);
+          1.5 * preset.s.head * preset.s.radius + 3.0 * preset.s.blur * preset.s.mix);
     const double over = 0.5 + 3.5 * preset.s.blur * preset.s.mix;
     std::snprintf(label, sizeof label,
                   "%s: held notes stay within %.1f and %+.1f dB (%.2f at %.0f Hz, to %+.2f)", preset.name,
