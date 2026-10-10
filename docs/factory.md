@@ -259,7 +259,10 @@ laid side by side land together.
 
 A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
 stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
-`timingSec` a free phrase is given.
+`timingSec` a free phrase is given. A sound on a kit has no chord and no
+note it stands on: pattern may rest any of its strokes but the first of a
+pass, its lowest drum too (in a pitched phrase the lowest note always
+sounds), and two neighbouring drums may change places.
 
 ### Kits
 

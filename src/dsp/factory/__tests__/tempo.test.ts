@@ -12,6 +12,7 @@ import {
   FACTORY_TEMPO_RANGE,
   KIT_INSTRUMENTS,
   VARIATION_LIMITS,
+  describeVariant,
   isKitInstrument,
   patchAtTempo,
   soundAtTempo,
@@ -185,6 +186,58 @@ describe('a sound on a kit', () => {
       for (const note of variant.phrase.notes)
         expect(written.has(note.note), `seed ${seed}`).toBe(true)
     }
+  })
+})
+
+describe('a variant of a sound on a kit', () => {
+  /** One drum and nothing else, eight to the bar: every stroke is its lowest key. */
+  const HATS: FactorySound = sound({
+    id: 'test-hats',
+    number: 9003,
+    name: 'Test hats',
+    kind: 'beat',
+    description: 'Eight hats to the bar on a drum kit, for the tests of the pattern.',
+    instrument: { deviceId: 'drum-kit' },
+    effects: [],
+    ...bars(1, [row(KIT.hat, 'x.o. x.o. x.o. x.o.')]),
+  })
+  const inAPass = (each: FactorySound): number[] =>
+    each.phrase.notes.filter((note) => note.atSec < BAR_SEC - 1e-9).map((note) => note.atSec)
+
+  it('rests strokes of its one drum, which is no note the sound stands on, and keeps the first', () => {
+    const written = inAPass(HATS)
+    expect(written).toHaveLength(8)
+    const counts = new Set<number>()
+    for (let seed = 1; seed <= 40; seed += 1) {
+      const variant = varySound(HATS, { seed, pattern: 0.5 })
+      const kept = inAPass(variant)
+      counts.add(kept.length)
+      // The first stroke sounds, and what sounds is where it was written.
+      expect(kept[0], `seed ${seed}`).toBe(written[0])
+      for (const at of kept) expect(written, `seed ${seed}`).toContain(at)
+      // Every pass rests the same strokes: the loop still comes round.
+      expect(variant.phrase.notes.length % kept.length).toBe(0)
+    }
+    // Two of its eight moments rest at this amount: a fifth of them, as of any phrase.
+    expect([...counts]).toEqual([6])
+    // The same pattern on an instrument with notes stands on its one note, and rests none.
+    const pitched = { ...HATS, kit: undefined }
+    expect(inAPass(varySound(pitched, { seed: 3, pattern: 0.5 }))).toHaveLength(8)
+  })
+
+  it('lets a kick rest too, and two drums change places', () => {
+    let rested = 0
+    let swapped = 0
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const variant = varySound(BEAT, { seed, pattern: 1 })
+      const kicks = variant.phrase.notes.filter(
+        (note) => note.note === KIT.kick && note.atSec < BAR_SEC - 1e-9,
+      )
+      if (kicks.length < 4) rested += 1
+      swapped += describeVariant(BEAT, { seed, pattern: 1 }).swaps
+    }
+    expect(rested).toBeGreaterThan(0)
+    expect(swapped).toBeGreaterThan(0)
   })
 })
 
