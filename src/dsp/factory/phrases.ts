@@ -32,6 +32,19 @@ export const FACTORY_PHRASES: Readonly<Record<FactoryPhraseName, Phrase>> = {
       { atSec: 3, durSec: 2.5, note: 60, gain: 0.6 },
     ],
   },
+  // A bass line two octaves under the keys: a note and its echo, a step up to
+  // the fifth, a note that reaches into the next one (a bass that slides,
+  // slides there) and a long low note to end on.
+  bass: {
+    notes: [
+      { atSec: 0, durSec: 0.9, note: 38 },
+      { atSec: 1, durSec: 0.4, note: 38, gain: 0.6 },
+      { atSec: 1.5, durSec: 0.9, note: 45, gain: 0.7 },
+      { atSec: 2.5, durSec: 0.6, note: 43, gain: 0.7 },
+      { atSec: 3, durSec: 1.3, note: 36 },
+      { atSec: 4.5, durSec: 1.5, note: 33 },
+    ],
+  },
   // Four struck notes left to ring.
   bells: {
     notes: [
@@ -65,6 +78,7 @@ export const FACTORY_PHRASES: Readonly<Record<FactoryPhraseName, Phrase>> = {
 const CATEGORY_PHRASE: Readonly<Record<FactoryPresetCategory, FactoryPhraseName>> = {
   pad: 'chord',
   keys: 'keys',
+  bass: 'bass',
   bell: 'bells',
   string: 'chord',
   plucked: 'keys',

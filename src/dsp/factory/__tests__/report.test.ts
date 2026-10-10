@@ -2,7 +2,7 @@
 //
 //   FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts
 //     every stock WASM device with its parameters and presets
-//   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] pnpm vitest run …
+//   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] [FACTORY_CATEGORY=<group>] pnpm vitest run …
 //     each preset's preview as it leaves the patch (not normalised), measured
 //   FACTORY_REPORT=sounds [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] pnpm vitest run …
 //     each factory sound as rendered, measured and classified, with how it starts, ends and
@@ -261,7 +261,10 @@ describe.skipIf(!mode)('factory bench', () => {
     'presets',
     async () => {
       const chosen = FACTORY_PRESETS.filter(
-        (p) => p.id.includes(only) && (!onlyDevice || p.instrument.deviceId === onlyDevice),
+        (p) =>
+          p.id.includes(only) &&
+          (!onlyDevice || p.instrument.deviceId === onlyDevice) &&
+          (!onlyCategory || p.category === onlyCategory),
       )
       const prints = new Map<string, SoundPrint>()
       const render = (preset: FactoryPreset) =>
