@@ -13,6 +13,7 @@ import {
   IMPRINT_MID_HZ,
   IMPRINT_MOST_DB,
   IMPRINT_POINT_DB,
+  IMPRINT_STAND_IN,
   imprintBins,
   imprintBuiltIn,
   imprintCaptured,
@@ -52,8 +53,9 @@ const point = (values: Record<string, number> = {}, width = size.width): Display
 
 // --- From cpp/devices/imprint/imprint.h --------------------------------------
 // kPerOctave, kPoints, kLowHz, kMidOctave, kSmoothLow, kSmoothSpan, kMaxGainDb,
-// and kBuiltInShapes (each bell: Hz, dB, width in octaves; the slope is the
-// shape's trend, which only Replace brings and the display does not draw).
+// kStandIn, and kBuiltInShapes (each bell: Hz, dB, width in octaves; the slope
+// is the shape's trend, which only Replace brings: what Replace adds depends
+// on the sound itself, and the display draws it from the device's readings).
 const PER_OCTAVE = 24
 const POINTS = 217
 const LOW_HZ = 40
@@ -134,13 +136,23 @@ function colourOf(shape: number, smooth: number): number[] {
   return smoothed(raw, Math.max(0, 0.5 * (octaves * PER_OCTAVE - 1)))
 }
 
-/** `compose` with Replace at nothing, at a frequency: straight in dB between two grid points, the ends held. */
-function curveDb(colour: readonly number[], amount: number, shift: number, hz: number): number {
+/**
+ * `compose` at a frequency: straight in dB between two grid points, the ends
+ * held. `added` is what Replace adds on the grid, before the 30 dB stop; left
+ * out, Replace is at nothing.
+ */
+function curveDb(
+  colour: readonly number[],
+  amount: number,
+  shift: number,
+  hz: number,
+  added?: readonly number[],
+): number {
   const on = (g: number): number => {
     const at = Math.min(POINTS - 1, Math.max(0, g - shift * (PER_OCTAVE / 12)))
     const index = Math.min(POINTS - 2, Math.floor(at))
     const db = amount * (colour[index] + (at - index) * (colour[index + 1] - colour[index]))
-    return Math.min(MAX_GAIN_DB, Math.max(-MAX_GAIN_DB, db))
+    return Math.min(MAX_GAIN_DB, Math.max(-MAX_GAIN_DB, db + (added ? added[g] : 0)))
   }
   const g = Math.min(POINTS - 1, Math.max(0, PER_OCTAVE * Math.log2(hz / LOW_HZ)))
   const below = Math.min(POINTS - 2, Math.floor(g))
@@ -158,20 +170,25 @@ function hannSpectrum(away: number): number {
   return Math.sin(Math.PI * away) / (Math.PI * away) / (1 - away * away)
 }
 
-/** What a tone at `hz` comes out by under the curve, in dB, with Mix. */
+/**
+ * What a tone at `hz` comes out by under the curve, in dB, with Mix: `hold`
+ * is the level hold's gain in dB, one gain for the whole of the wet sound.
+ */
 function heardDb(
   colour: readonly number[],
   amount: number,
   shift: number,
   hz: number,
   mix = 1,
+  added?: readonly number[],
+  hold = 0,
 ): number {
   const at = (hz * FRAME) / RATE
   let gain = 0
   for (let k = Math.floor(at) - 9; k <= Math.floor(at) + 10; k++) {
     const bin = Math.min(FRAME / 2, Math.abs(k))
-    const db = curveDb(colour, amount, shift, (bin * RATE) / FRAME)
-    gain += (hannSpectrum(k - at) ** 2 / 1.5) * Math.pow(10, db / 20)
+    const db = curveDb(colour, amount, shift, (bin * RATE) / FRAME, added)
+    gain += (hannSpectrum(k - at) ** 2 / 1.5) * Math.pow(10, (db + hold) / 20)
   }
   // Dry and wet in step: 1 - mix of the sound as it came, mix of it under the gains.
   return 20 * Math.log10(1 - mix + mix * gain)
@@ -416,7 +433,11 @@ describe('the point', () => {
 // --- The device's readings ---------------------------------------------------
 
 /** The fourteen readings for a colour given at the 55 places, as `refresh_captured` packs them. */
-function readingsOf(colour: (place: number) => number, heard = 0): Record<string, number> {
+function readingsOf(
+  colour: (place: number) => number,
+  heard = 0,
+  name = 'shape',
+): Record<string, number> {
   const meters: Record<string, number> = { heard }
   for (let r = 0; r < 14; r++) {
     let packed = 0
@@ -425,7 +446,7 @@ function readingsOf(colour: (place: number) => number, heard = 0): Record<string
       const db = place < 55 ? colour(place) : 0
       packed = packed * 64 + Math.min(63, Math.max(1, Math.floor(db + 0.5) + 32))
     }
-    meters[`shape${r + 1}`] = packed
+    meters[`${name}${r + 1}`] = packed
   }
   return meters
 }
@@ -469,9 +490,81 @@ describe('what the device reports', () => {
       near(dbAt(plain, placeHz(place)), heardDb(colour, 1, 0, placeHz(place)), `place ${place}`)
     const set = heardCurve(draw({ values: { shape: 0, amount: -1.5, shift: 5 }, meters }))
     for (const hz of PROBES) near(dbAt(set, hz), heardDb(colour, -1.5, 5, hz), `${hz} Hz`)
-    // With nothing reported there is no colour: the line where nothing is changed.
-    const none = heardCurve(draw({ values: { shape: 0, amount: 2 } }))
-    for (const hz of PROBES) expect(dbAt(none, hz)).toBeCloseTo(0, 6)
+  })
+
+  it('draws the open vowel, and says so, while Shape is Captured and nothing has been', () => {
+    // The device presses the open vowel on the sound then (kStandIn): that is what is drawn.
+    expect(IMPRINT_STAND_IN).toBe(1)
+    const colour = colourOf(IMPRINT_STAND_IN, 0.5)
+    for (const capture of [0, 1]) {
+      const none = draw({ values: { shape: 0, amount: 1.5, shift: -3, capture } })
+      const curve = heardCurve(none)
+      for (const hz of PROBES) near(dbAt(curve, hz), heardDb(colour, 1.5, -3, hz), `${hz} Hz`)
+      expect(none.words()).toEqual(['Nothing captured'])
+      expect(patchUnder(none, 'Nothing captured', PLAIN_COLOURS.plate)).not.toBeNull()
+    }
+    // Readings left over from before count for nothing while the device says it has heard nothing.
+    const stale = heardCurve(draw({ values: { shape: 0 }, meters: readingsOf(() => 9, 0) }))
+    for (const hz of PROBES) near(dbAt(stale, hz), heardDb(colour, 1, 0, hz), `${hz} Hz`)
+    // The first of the Learn time heard, the capture is the colour, whatever it reads.
+    const begun = heardCurve(draw({ values: { shape: 0 }, meters: readingsOf(() => 0, 0.01) }))
+    for (const hz of PROBES) expect(dbAt(begun, hz)).toBeCloseTo(0, 6)
+  })
+
+  it('adds what Replace is reported to add, before the 30 dB stop, to any shape', () => {
+    const tilt = (place: number): number => Math.round(12 - place / 2)
+    const added = spread(Array.from({ length: 55 }, (_, place) => tilt(place)))
+    const meters = { ...readingsOf(hump, 1), ...readingsOf(tilt, 1, 'added') }
+    const built = colourOf(4, 0.5)
+    const onBuilt = heardCurve(draw({ values: { shape: 4, amount: 1.2, shift: 4 }, meters }))
+    for (const hz of PROBES)
+      near(dbAt(onBuilt, hz), heardDb(built, 1.2, 4, hz, 1, added), `built in, ${hz} Hz`)
+    // What is added does not move with Shift or turn over with Amount: it is the sound's own.
+    const under = heardCurve(draw({ values: { shape: 4, amount: 0 }, meters }))
+    for (const hz of PROBES) near(dbAt(under, hz), heardDb(built, 0, 0, hz, 1, added), `${hz} Hz`)
+    const captured = spread(Array.from({ length: 55 }, (_, place) => hump(place)))
+    const onCaptured = heardCurve(draw({ values: { shape: 0, amount: -1 }, meters }))
+    for (const hz of PROBES)
+      near(dbAt(onCaptured, hz), heardDb(captured, -1, 0, hz, 1, added), `captured, ${hz} Hz`)
+    // Colour and what is added together past 30 dB stop there, as the device's curve does.
+    const steep = { ...readingsOf(() => 25, 1), ...readingsOf(() => 20, 1, 'added') }
+    const top = heardCurve(draw({ values: { shape: 0 }, meters: steep }))
+    for (const hz of [200, 1000, 5000]) expect(dbAt(top, hz)).toBeCloseTo(MAX_GAIN_DB, 4)
+  })
+
+  it('moves the whole curve by the gain the level hold reports, under Mix', () => {
+    const colour = colourOf(1, 0.5)
+    for (const hold of [-9.5, 0, 4.25]) {
+      for (const mix of [1, 0.4]) {
+        const drawn = draw({ values: { mix }, meters: { hold } })
+        const curve = heardCurve(drawn)
+        for (const hz of PROBES)
+          near(
+            dbAt(curve, hz),
+            heardDb(colour, 1, 0, hz, mix, undefined, hold),
+            `hold ${hold}, Mix ${mix}, ${hz} Hz`,
+          )
+        // The colour as it is set, dotted behind, is the wet sound alone: it has the hold too.
+        if (mix < 1) {
+          const [set] = lines(drawn, 1, true)
+          for (const hz of PROBES)
+            near(dbAt(set.points, hz), heardDb(colour, 1, 0, hz, 1, undefined, hold), `${hz} Hz`)
+        }
+      }
+    }
+    // The hold eases over a few frames like the other readings.
+    const after = (seconds: number): number =>
+      dbAt(
+        heardCurve(
+          runDisplay(display, params, 0.5 + seconds, { signal: testSignal() }, (time) => ({
+            meters: { hold: time < 0.5 ? 0 : -8 },
+          })),
+        ),
+        60,
+      )
+    expect(after(0.1)).toBeLessThan(-1)
+    expect(after(0.1)).toBeGreaterThan(-7.5)
+    expect(after(1)).toBeCloseTo(-8, 1)
   })
 
   it('comes to a new reading over a few frames while it runs, and is there in a second', () => {
@@ -520,6 +613,8 @@ describe('what the device reports', () => {
     expect(bars(off)).toEqual([])
     expect(off.words()).toEqual(['Held'])
     expect(patchUnder(off, 'Held', PLAIN_COLOURS.plate)).not.toBeNull()
+    // Capture off with nothing learned: nothing is held, and a built-in shape needs no word.
+    expect(draw({ values: { capture: 0 } }).words()).toEqual([])
   })
 })
 
@@ -547,16 +642,18 @@ describe('the compiled device', () => {
   /**
    * What the device does to each of a set of tones played together, in dB,
    * once it has settled: four seconds to settle, two measured. Each tone is a
-   * whole number of Hz, so over two seconds none leaks into another.
+   * whole number of Hz, so over two seconds none leaks into another. With
+   * `tilt` the tones fall off by so many times 6 dB an octave from the lowest.
    */
-  function gains(device: Device, tones: readonly number[]): number[] {
+  function gains(device: Device, tones: readonly number[], tilt = 0): number[] {
     const sums = tones.map(() => ({ inSin: 0, inCos: 0, outSin: 0, outCos: 0 }))
     const block = new Float32Array(BLOCK)
     for (let done = 0; done < RATE * 6; done += BLOCK) {
       block.fill(0)
       for (const hz of tones) {
         const step = (2 * Math.PI * hz) / RATE
-        for (let i = 0; i < BLOCK; i++) block[i] += 0.02 * Math.sin(step * (done + i))
+        const size = 0.02 * Math.pow(hz / tones[0], -tilt)
+        for (let i = 0; i < BLOCK; i++) block[i] += size * Math.sin(step * (done + i))
       }
       device.processBlock(block)
       if (done < RATE * 4) continue
@@ -580,15 +677,20 @@ describe('the compiled device', () => {
   }
 
   /**
-   * How far the device's gains stand from the drawn curve, in dB, at worst.
-   * The device holds the level of the whole sound where it was, one gain for
-   * all of it that the display does not draw: the two are laid over each
-   * other by their means.
+   * How far the device's gains stand from the drawn curve, in dB, at worst:
+   * as they are, nothing laid over anything. The level hold's one gain for
+   * the whole sound is in the picture, from the device's own reading of it.
    */
-  function apart(measured: readonly number[], drawn: readonly number[]): number {
-    const mean = (list: readonly number[]): number => list.reduce((a, b) => a + b, 0) / list.length
-    const offset = mean(measured) - mean(drawn)
-    return Math.max(...measured.map((db, t) => Math.abs(db - offset - drawn[t])))
+  const apart = (measured: readonly number[], drawn: readonly number[]): number =>
+    Math.max(...measured.map((db, t) => Math.abs(db - drawn[t])))
+
+  /** Every reading the device gives, by name, as the bench hands them to the display. */
+  function readings(device: Device): Record<string, number> {
+    const meters: Record<string, number> = {}
+    Object.keys(stock.get('imprint')?.meters ?? {}).forEach(
+      (name, index) => (meters[name] = device.device.device_meter?.(index) ?? Number.NaN),
+    )
+    return meters
   }
 
   const TONES = [
@@ -602,12 +704,44 @@ describe('the compiled device', () => {
       // Narrow bells brought down to where a bin is a wide step in pitch: the frame rounds them off, and so does the curve.
       { shape: 6, replace: 0, amount: 2, shift: -12, smooth: 0.35 },
     ]
+    const holds: number[] = []
     for (const values of settings) {
-      const measured = gains(await deviceAt(values), TONES)
-      const curve = heardCurve(draw({ values }))
+      const device = await deviceAt(values)
+      const measured = gains(device, TONES)
+      const meters = readings(device)
+      holds.push(meters.hold)
+      const curve = heardCurve(draw({ values, meters }))
       const drawn = TONES.map((hz) => dbAt(curve, hz))
       expect(Math.max(...drawn) - Math.min(...drawn), 'a curve worth the name').toBeGreaterThan(8)
-      expect(apart(measured, drawn), JSON.stringify(values)).toBeLessThan(0.3)
+      expect(apart(measured, drawn), JSON.stringify(values)).toBeLessThan(0.2)
+    }
+    // The level is held where it came in: the hold's gain is far from nothing, and it is drawn.
+    expect(Math.max(...holds.map(Math.abs)), 'a hold worth drawing').toBeGreaterThan(2)
+  })
+
+  it('draws what Replace adds as the device does it', async () => {
+    const settings: Record<string, number>[] = [
+      { shape: 1, replace: 1 },
+      { shape: 3, replace: 0.6, amount: -1, shift: 5 },
+      { shape: 6, replace: 1, amount: -0.5 },
+    ]
+    for (const values of settings) {
+      // Tones that fall off by 6 dB an octave: a shape of its own for Replace to flatten.
+      const device = await deviceAt(values)
+      const measured = gains(device, TONES, 1)
+      const meters = readings(device)
+      const drawn = TONES.map((hz) => dbAt(heardCurve(draw({ values, meters })), hz))
+      // Without what Replace adds the picture would be far out: it is a good part of what is done.
+      const { hold } = meters
+      const bare = TONES.map((hz) => dbAt(heardCurve(draw({ values, meters: { hold } })), hz))
+      expect(apart(measured, bare), 'what Replace adds is worth drawing').toBeGreaterThan(3)
+      // What is added comes in whole dB at every sixth of an octave, each the mean around its
+      // place: a lone tone stands in a dip of its own making that the readings round off, so it
+      // comes out a dB or so under the line (on noise the two agree within half a dB: the harness).
+      expect(apart(measured, drawn), JSON.stringify(values)).toBeLessThan(2.5)
+      const mean = (list: readonly number[]): number =>
+        list.reduce((a, b) => a + b, 0) / list.length
+      expect(Math.abs(mean(measured) - mean(drawn)), 'on the whole').toBeLessThan(1.5)
     }
   })
 
@@ -632,28 +766,44 @@ describe('the compiled device', () => {
       device.processBlock(block)
     }
     device.set(params.capture, 0)
-    const meters: Record<string, number> = {}
-    Object.keys(stock.get('imprint')?.meters ?? {}).forEach(
-      (name, index) => (meters[name] = device.device.device_meter?.(index) ?? Number.NaN),
-    )
-    expect(Object.keys(meters)).toEqual([
+    expect(Object.keys(readings(device))).toEqual([
       ...Array.from({ length: 14 }, (_, r) => `shape${r + 1}`),
       'heard',
+      ...Array.from({ length: 14 }, (_, r) => `added${r + 1}`),
+      'hold',
     ])
+    const captured = readings(device)
     // Learn is two seconds and four were heard.
-    expect(meters.heard).toBe(1)
+    expect(captured.heard).toBe(1)
     const values = { shape: 0, replace: 0, capture: 0 }
-    const curve = heardCurve(draw({ values, meters }))
     // The rise and the dip are where they were put.
-    expect(dbAt(curve, 1200)).toBeGreaterThan(dbAt(curve, 500) + 6)
-    expect(dbAt(curve, 4000)).toBeLessThan(dbAt(curve, 2500) - 6)
+    const learned = heardCurve(draw({ values, meters: captured }))
+    expect(dbAt(learned, 1200)).toBeGreaterThan(dbAt(learned, 500) + 6)
+    expect(dbAt(learned, 4000)).toBeLessThan(dbAt(learned, 2500) - 6)
     const measured = gains(device, TONES)
-    // The readings are whole dB at every sixth of an octave, and reach the display a frame behind the sound.
+    // With the tones playing, the hold is the tones' own: the readings are taken again.
+    const meters = readings(device)
+    const curve = heardCurve(draw({ values, meters }))
+    // The readings are whole dB at every sixth of an octave.
     expect(
       apart(
         measured,
         TONES.map((hz) => dbAt(curve, hz)),
       ),
     ).toBeLessThan(1)
+  })
+
+  it('with nothing captured presses the open vowel on, as the display draws it', async () => {
+    const values = { shape: 0, replace: 0, capture: 0 }
+    const device = await deviceAt(values)
+    const measured = gains(device, TONES)
+    const meters = readings(device)
+    expect(meters.heard).toBe(0)
+    const drawn = draw({ values, meters })
+    expect(drawn.words()).toEqual(['Nothing captured'])
+    const curve = heardCurve(drawn)
+    const said = TONES.map((hz) => dbAt(curve, hz))
+    expect(Math.max(...said) - Math.min(...said)).toBeGreaterThan(8)
+    expect(apart(measured, said)).toBeLessThan(0.2)
   })
 })

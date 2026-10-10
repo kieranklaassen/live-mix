@@ -16,7 +16,7 @@ export const IMPRINT_PARAMS = {
     unit: '',
     choices: ['Off', 'On'],
     description:
-      'On, the effect listens and learns the colour of what it hears, starting afresh each time. Off, the colour it has learned is held.',
+      'On, the effect listens and learns the colour of what it hears, starting afresh each time. Off, what it learned is held. A capture is not saved with a piece.',
   },
   shape: {
     id: 1,
@@ -36,7 +36,7 @@ export const IMPRINT_PARAMS = {
       'Dark box',
     ],
     description:
-      'Which colour is pressed on the sound. Captured is the one learned with Capture. The others are built in and always there.',
+      'Which colour is pressed on the sound. Captured is the one learned with Capture, or the open vowel while nothing has been learned. The others are built in.',
   },
   amount: {
     id: 2,
@@ -47,7 +47,7 @@ export const IMPRINT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How hard the colour is pressed on. The middle leaves the sound alone. To the right the colour is exaggerated, to the left it is turned inside out.',
+      "How hard the colour is pressed on. The middle leaves the sound alone. Further right presses harder, past the colour's own strength. To the left it is turned inside out.",
   },
   shift: {
     id: 3,
@@ -123,6 +123,21 @@ export const IMPRINT_METERS = {
   shape13: { id: 12, name: 'Captured colour, points 49 to 52', unit: '', display: true },
   shape14: { id: 13, name: 'Captured colour, points 53 to 55', unit: '', display: true },
   heard: { id: 14, name: 'Share of the Learn time heard', unit: '', display: true },
+  added1: { id: 15, name: 'What Replace adds, points 1 to 4', unit: '', display: true },
+  added2: { id: 16, name: 'What Replace adds, points 5 to 8', unit: '', display: true },
+  added3: { id: 17, name: 'What Replace adds, points 9 to 12', unit: '', display: true },
+  added4: { id: 18, name: 'What Replace adds, points 13 to 16', unit: '', display: true },
+  added5: { id: 19, name: 'What Replace adds, points 17 to 20', unit: '', display: true },
+  added6: { id: 20, name: 'What Replace adds, points 21 to 24', unit: '', display: true },
+  added7: { id: 21, name: 'What Replace adds, points 25 to 28', unit: '', display: true },
+  added8: { id: 22, name: 'What Replace adds, points 29 to 32', unit: '', display: true },
+  added9: { id: 23, name: 'What Replace adds, points 33 to 36', unit: '', display: true },
+  added10: { id: 24, name: 'What Replace adds, points 37 to 40', unit: '', display: true },
+  added11: { id: 25, name: 'What Replace adds, points 41 to 44', unit: '', display: true },
+  added12: { id: 26, name: 'What Replace adds, points 45 to 48', unit: '', display: true },
+  added13: { id: 27, name: 'What Replace adds, points 49 to 52', unit: '', display: true },
+  added14: { id: 28, name: 'What Replace adds, points 53 to 55', unit: '', display: true },
+  hold: { id: 29, name: 'Level hold gain', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const IMPRINT_DEVICE = defineWasmDevice({

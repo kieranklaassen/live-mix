@@ -1,9 +1,9 @@
-// The Imprint's display: the colour it presses on the sound, in dB over
-// frequency, as Amount, Shift and Smooth have it, as the frame's bins let a
-// tone meet it and as Mix lets it be heard,
-// over the spectrum of what comes out. A built-in colour is worked out here
-// from the same bells the device adds up; a captured one is the device's own
-// reading of what it has learned.
+// The Imprint's display: what it does to each frequency, in dB. The colour
+// as Amount, Shift and Smooth have it, what Replace adds to it, the frame's
+// bins as a tone meets them, the level hold's gain and Mix, over the spectrum
+// of what comes out. A built-in colour is worked out here from the same
+// bells the device adds up; a captured one, what Replace adds and the hold's
+// gain depend on what was played and are the device's own readings.
 
 import {
   INK,
@@ -99,6 +99,10 @@ export const IMPRINT_SHAPES: readonly (readonly Bell[])[] = [
 export const IMPRINT_STEP = 4
 export const IMPRINT_READ_POINTS = 55
 const READINGS: readonly string[] = Array.from({ length: 14 }, (_, r) => `shape${r + 1}`)
+/** What Replace adds to the curve comes the same way (`kAddedReading`). */
+const ADDED: readonly string[] = Array.from({ length: 14 }, (_, r) => `added${r + 1}`)
+/** The built-in shape that stands in while nothing has been captured (`kStandIn`, counted as Shape counts). */
+export const IMPRINT_STAND_IN = 1
 const PER_READING = 4
 const LEVELS = 64
 
@@ -151,14 +155,16 @@ export function imprintBuiltIn(shape: number, smooth: number): Float32Array {
 /**
  * The captured colour at the 55 places the device reads it for this display,
  * in whole dB, out of its fourteen readings. A reading of nothing (none has
- * come yet) is no colour: the device never sends a digit of 0.
+ * come yet) is no colour: the device never sends a digit of 0. With `names`
+ * the fourteen readings of another curve sent the same way.
  */
 export function imprintCaptured(
   reading: (name: string) => number,
   into: Float32Array,
+  names: readonly string[] = READINGS,
 ): Float32Array {
-  for (let r = 0; r < READINGS.length; r++) {
-    let packed = Math.round(reading(READINGS[r]))
+  for (let r = 0; r < names.length; r++) {
+    let packed = Math.round(reading(names[r]))
     if (!(packed > 0)) packed = 0
     for (let i = 0; i < PER_READING; i++) {
       const place = r * PER_READING + i
@@ -182,15 +188,17 @@ export function imprintSpread(read: Float32Array, into: Float32Array): Float32Ar
 }
 
 /**
- * The curve on the grid in dB (`compose` with Replace at nothing): Amount
- * times the colour, read `shift` semitones lower so that the colour stands
- * that much higher, the ends held, and never more than 30 dB either way.
+ * The curve on the grid in dB (`compose`): Amount times the colour, read
+ * `shift` semitones lower so that the colour stands that much higher, the
+ * ends held, plus what Replace adds there (`added`, on the grid; left out,
+ * nothing), and never more than 30 dB either way.
  */
 export function imprintCurve(
   colour: Float32Array,
   amount: number,
   shift: number,
   into: Float32Array,
+  added?: Float32Array,
 ): Float32Array {
   const last = colour.length - 1
   const moved = shift * (IMPRINT_PER_OCTAVE / 12)
@@ -198,7 +206,7 @@ export function imprintCurve(
     const at = clamp(g - moved, 0, last)
     const index = Math.min(Math.floor(at), last - 1)
     const db = amount * (colour[index] + (at - index) * (colour[index + 1] - colour[index]))
-    into[g] = clamp(db, -IMPRINT_MOST_DB, IMPRINT_MOST_DB)
+    into[g] = clamp(db + (added ? added[g] : 0), -IMPRINT_MOST_DB, IMPRINT_MOST_DB)
   }
   return into
 }
@@ -308,6 +316,13 @@ interface ImprintState {
   /** The captured colour as the device last reported it, and as it is drawn: the whole dB eased. */
   read: Float32Array
   eased: Float32Array
+  /** What Replace adds, alike, and on the grid; and the level hold's gain in dB as it is drawn. */
+  addedRead: Float32Array
+  addedEased: Float32Array
+  added: Float32Array
+  hold: number
+  /** Whether a frame has been drawn: the first takes the readings as they stand. */
+  drawn: boolean
   /** The colour on the grid, and the built-in one it was last worked out for. */
   colour: Float32Array
   built: string
@@ -354,10 +369,15 @@ const imprint = plateDisplay<ImprintState>({
   columns: 2,
   params: ['shape', 'amount', 'shift', 'smooth', 'mix', 'capture'],
   live: { meters: true, spectrum: true },
-  info: 'The colour pressed on the sound, in dB over frequency, as Mix lets it be heard, over the spectrum of what comes out. Drag the point up for more, down to turn the colour inside out, sideways for Shift, and turn the wheel on it for Smooth. The bar at the foot fills as it learns.',
+  info: 'What the effect does to each frequency, in dB: the colour, what Replace adds, the level hold and Mix, over the spectrum of what comes out. Drag the point up for more, down to turn the colour inside out, sideways for Shift, and turn the wheel on it for Smooth. The bar at the foot fills as it learns.',
   init: () => ({
     read: new Float32Array(IMPRINT_READ_POINTS),
     eased: new Float32Array(IMPRINT_READ_POINTS),
+    addedRead: new Float32Array(IMPRINT_READ_POINTS),
+    addedEased: new Float32Array(IMPRINT_READ_POINTS),
+    added: new Float32Array(IMPRINT_POINTS),
+    hold: 0,
+    drawn: false,
     colour: new Float32Array(IMPRINT_POINTS),
     built: '',
     curve: new Float32Array(IMPRINT_POINTS),
@@ -371,13 +391,17 @@ const imprint = plateDisplay<ImprintState>({
     const foot = box.y + box.h
 
     // The colour: the device's reading of what it has captured, or the bells of the shape named.
-    const shape = Math.round(frame.value('shape'))
+    // Captured with nothing captured yet is the built-in shape that stands in for it.
+    const empty = !(frame.meter('heard') > 0)
+    const named = Math.round(frame.value('shape'))
+    const shape = named < 1 && empty ? IMPRINT_STAND_IN : named
+    const eases = frame.dt > 0 && state.drawn
     if (shape < 1) {
       imprintCaptured((name) => frame.meter(name), state.read)
       for (let place = 0; place < state.eased.length; place++) {
         // Still, or just come to this shape, the reading is drawn as it stands.
         state.eased[place] =
-          frame.dt > 0 && state.built === 'captured'
+          eases && state.built === 'captured'
             ? follow(state.eased[place], state.read[place], frame.dt, 0.12, 0.12)
             : state.read[place]
       }
@@ -388,8 +412,27 @@ const imprint = plateDisplay<ImprintState>({
       if (built !== state.built) state.colour.set(imprintBuiltIn(shape, frame.value('smooth')))
       state.built = built
     }
+    // What Replace adds to the curve and the level hold's gain depend on the sound itself: the
+    // device's readings, eased like the captured colour (whole dB, a frame at a time).
+    imprintCaptured((name) => frame.meter(name), state.addedRead, ADDED)
+    for (let place = 0; place < state.addedEased.length; place++) {
+      state.addedEased[place] = eases
+        ? follow(state.addedEased[place], state.addedRead[place], frame.dt, 0.12, 0.12)
+        : state.addedRead[place]
+    }
+    imprintSpread(state.addedEased, state.added)
+    const held = frame.meter('hold')
+    state.hold = eases ? follow(state.hold, held, frame.dt, 0.12, 0.12) : held
+    state.drawn = true
+    const hold = Math.pow(10, state.hold / 20)
     const mix = clamp(frame.value('mix'), 0, 1)
-    imprintCurve(state.colour, frame.value('amount'), frame.value('shift'), state.curve)
+    imprintCurve(
+      state.colour,
+      frame.value('amount'),
+      frame.value('shift'),
+      state.curve,
+      state.added,
+    )
 
     freqGrid(frame, box)
     dbGrid(frame, box, IMPRINT_MOST_DB, -IMPRINT_MOST_DB, 10)
@@ -404,7 +447,7 @@ const imprint = plateDisplay<ImprintState>({
     const heard: Point[] = []
     for (let n = 0; n <= TRACE_POINTS; n++) {
       const hz = FREQ_MIN * Math.pow(2, n / TRACE_PER_OCTAVE)
-      const gain = imprintResponse(state.bins, hz, frame.sampleRate)
+      const gain = hold * imprintResponse(state.bins, hz, frame.sampleRate)
       const x = xOf(hz, box)
       set.push([x, yOf(imprintHeard(gain, 1), box)])
       heard.push([x, yOf(imprintHeard(gain, mix), box)])
@@ -436,7 +479,10 @@ const imprint = plateDisplay<ImprintState>({
     if (hot) {
       label(frame, `Amount ${signed(frame.value('amount'), 2)}`, box.x + 2, line)
       label(frame, `${signed(frame.value('shift'), 1)} st`, box.x + box.w - 2, line, 'right')
-    } else if (!listening) {
+    } else if (named < 1 && empty) {
+      // Shape is Captured and there is no capture: the stand-in is what is drawn and pressed on.
+      label(frame, 'Nothing captured', box.x + box.w - 2, line, 'right')
+    } else if (!listening && !empty) {
       // Capture off: what was learned is held as it stands.
       label(frame, 'Held', box.x + box.w - 2, line, 'right')
     }

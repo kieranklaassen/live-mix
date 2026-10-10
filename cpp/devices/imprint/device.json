@@ -82,6 +82,81 @@
       "key": "heard",
       "name": "Share of the Learn time heard",
       "display": true
+    },
+    {
+      "key": "added1",
+      "name": "What Replace adds, points 1 to 4",
+      "display": true
+    },
+    {
+      "key": "added2",
+      "name": "What Replace adds, points 5 to 8",
+      "display": true
+    },
+    {
+      "key": "added3",
+      "name": "What Replace adds, points 9 to 12",
+      "display": true
+    },
+    {
+      "key": "added4",
+      "name": "What Replace adds, points 13 to 16",
+      "display": true
+    },
+    {
+      "key": "added5",
+      "name": "What Replace adds, points 17 to 20",
+      "display": true
+    },
+    {
+      "key": "added6",
+      "name": "What Replace adds, points 21 to 24",
+      "display": true
+    },
+    {
+      "key": "added7",
+      "name": "What Replace adds, points 25 to 28",
+      "display": true
+    },
+    {
+      "key": "added8",
+      "name": "What Replace adds, points 29 to 32",
+      "display": true
+    },
+    {
+      "key": "added9",
+      "name": "What Replace adds, points 33 to 36",
+      "display": true
+    },
+    {
+      "key": "added10",
+      "name": "What Replace adds, points 37 to 40",
+      "display": true
+    },
+    {
+      "key": "added11",
+      "name": "What Replace adds, points 41 to 44",
+      "display": true
+    },
+    {
+      "key": "added12",
+      "name": "What Replace adds, points 45 to 48",
+      "display": true
+    },
+    {
+      "key": "added13",
+      "name": "What Replace adds, points 49 to 52",
+      "display": true
+    },
+    {
+      "key": "added14",
+      "name": "What Replace adds, points 53 to 55",
+      "display": true
+    },
+    {
+      "key": "hold",
+      "name": "Level hold gain",
+      "display": true
     }
   ],
   "params": [
@@ -90,7 +165,7 @@
       "name": "Capture",
       "choices": ["Off", "On"],
       "default": 1,
-      "description": "On, the effect listens and learns the colour of what it hears, starting afresh each time. Off, the colour it has learned is held."
+      "description": "On, the effect listens and learns the colour of what it hears, starting afresh each time. Off, what it learned is held. A capture is not saved with a piece."
     },
     {
       "key": "shape",
@@ -105,7 +180,7 @@
         "Dark box"
       ],
       "default": 1,
-      "description": "Which colour is pressed on the sound. Captured is the one learned with Capture. The others are built in and always there."
+      "description": "Which colour is pressed on the sound. Captured is the one learned with Capture, or the open vowel while nothing has been learned. The others are built in."
     },
     {
       "key": "amount",
@@ -113,7 +188,7 @@
       "min": -2,
       "max": 2,
       "default": 1,
-      "description": "How hard the colour is pressed on. The middle leaves the sound alone. To the right the colour is exaggerated, to the left it is turned inside out."
+      "description": "How hard the colour is pressed on. The middle leaves the sound alone. Further right presses harder, past the colour's own strength. To the left it is turned inside out."
     },
     {
       "key": "shift",

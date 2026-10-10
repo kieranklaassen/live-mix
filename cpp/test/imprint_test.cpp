@@ -3,6 +3,7 @@
 // abuse; the rest asserts what makes it an imprint: what is captured is what
 // is stamped, and the stamp does what each control says.
 
+#include <cstdlib>
 #include <limits>
 
 #include "../devices/imprint/imprint.h"
@@ -84,19 +85,6 @@ static double band_db(const std::vector<double>& power, double hz, double rate, 
   return 10.0 * std::log10(std::max(sum / (high - low + 1), 1.0e-30));
 }
 
-// The frequency of the strongest 1/24 octave band between two frequencies.
-static double peak_hz(const std::vector<double>& power, double from_hz, double to_hz, double rate) {
-  double best = from_hz, best_db = -1.0e9;
-  for (double hz = from_hz; hz <= to_hz; hz *= std::pow(2.0, 1.0 / 96.0)) {
-    const double level = band_db(power, hz, rate, 1.0 / 24.0);
-    if (level > best_db) {
-      best_db = level;
-      best = hz;
-    }
-  }
-  return best;
-}
-
 // Third-octave centres from 100 Hz to 10 kHz: where a shape is compared.
 static std::vector<double> thirds() {
   std::vector<double> out;
@@ -122,6 +110,33 @@ static double worst_difference(const std::vector<double>& a, const std::vector<d
   double worst = 0.0;
   for (size_t i = 0; i < a.size() && i < b.size(); ++i) worst = std::max(worst, std::fabs(a[i] - b[i]));
   return worst;
+}
+
+// How loud `x` is over [from, to), in dB: its samples through the loudness
+// weighting of ITU-R BS.1770 at 48 kHz (a 4 dB shelf above 1.7 kHz and a
+// high-pass at 38 Hz; the standard's own coefficients), then the RMS. The
+// device holds this, not the bare RMS: a colour that moves a sound's weight
+// upward leaves it as loud and a little weaker.
+static double loudness_db(const std::vector<float>& x, size_t from = 0, size_t to = SIZE_MAX) {
+  to = std::min(to, x.size());
+  const double b1[3] = {1.53512485958697, -2.69169618940638, 1.19839281085285};
+  const double a1[2] = {-1.69065929318241, 0.73248077421585};
+  const double b2[3] = {1.0, -2.0, 1.0};
+  const double a2[2] = {-1.99004745483398, 0.99007225036621};
+  double z1 = 0.0, z2 = 0.0, w1 = 0.0, w2 = 0.0, sum = 0.0;
+  // The filters start a tenth of a second early, so that they have settled.
+  const size_t start = from > 4800 ? from - 4800 : 0;
+  for (size_t i = start; i < to; ++i) {
+    const double in = x[i];
+    const double shelved = b1[0] * in + z1;
+    z1 = b1[1] * in - a1[0] * shelved + z2;
+    z2 = b1[2] * in - a1[1] * shelved;
+    const double out = b2[0] * shelved + w1;
+    w1 = b2[1] * shelved - a2[0] * out + w2;
+    w2 = b2[2] * shelved - a2[1] * out;
+    if (i >= from) sum += out * out;
+  }
+  return to > from ? 10.0 * std::log10(std::max(sum / static_cast<double>(to - from), 1.0e-24)) : -240.0;
 }
 
 // --- sounds -------------------------------------------------------------------------------
@@ -618,11 +633,13 @@ int main() {
   // 11. Level. A full-scale chord held for a minute, at the defaults and with
   // every control at each end (and every shape): what comes out never peaks
   // 6 dB over what went in, is no stronger at the end than at the start, and
-  // its level stays within 1 dB of the input's (measured: a hundredth).
+  // is as loud as what went in within 1 dB (loudness_db; the bare RMS, which
+  // the hold does not aim at, within 4 dB).
   {
     const std::vector<float> held = chord(60.0f, kRate, 1.0f, {110.0, 164.81, 277.18, 415.3});
     const double in_rms = rms(held);
-    double worst_peak = 0.0, worst_growth = 0.0, low = 1.0e9, high = -1.0e9;
+    const double in_loud = loudness_db(held, 96000 - kLatency, held.size() - kLatency);
+    double worst_peak = 0.0, worst_growth = 0.0, low = 1.0e9, high = -1.0e9, low_rms = 1.0e9, high_rms = -1.0e9;
     auto measure = [&](int id, float value) {
       device.init(kRate);
       if (id >= 0) device.set_param(id, value);
@@ -630,11 +647,14 @@ int main() {
       const size_t n = out.size();
       worst_peak = std::max(worst_peak, peak(out.left));
       worst_growth = std::max(worst_growth, peak(out.left, n - 480000, n) / peak(out.left, 48000, 528000));
-      const double level = db(rms(out.left, 96000, n) / in_rms);
+      const double bare = db(rms(out.left, 96000, n) / in_rms);
+      const double level = loudness_db(out.left, 96000, n) - in_loud;
       low = std::min(low, level);
       high = std::max(high, level);
-      if (level < -3.0 || level > 3.0 || peak(out.left) > 2.0) {
-        std::printf("  param %d at %g: level %+.2f dB, peak %.2f\n", id, value, level, peak(out.left));
+      low_rms = std::min(low_rms, bare);
+      high_rms = std::max(high_rms, bare);
+      if (level < -1.0 || level > 1.0 || peak(out.left) > 2.0) {
+        std::printf("  param %d at %g: loudness %+.2f dB, RMS %+.2f dB, peak %.2f\n", id, value, level, bare, peak(out.left));
       }
     };
     measure(-1, 0.0f);
@@ -652,11 +672,13 @@ int main() {
     device.set_param(p::kSmooth, 0.0f);
     const Stereo hard = run(device, held);
     worst_peak = std::max(worst_peak, peak(hard.left));
-    std::printf("level: a full-scale chord for a minute peaks at %.2f at worst, grows by %.3f, level %+.2f to %+.2f dB\n",
-                worst_peak, worst_growth, low, high);
+    std::printf("level: a full-scale chord for a minute peaks at %.2f at worst, grows by %.3f, loudness %+.2f to %+.2f dB, "
+                "RMS %+.2f to %+.2f dB\n",
+                worst_peak, worst_growth, low, high, low_rms, high_rms);
     EXPECT(worst_peak < 2.0, "a full-scale held chord never comes out 6 dB over full scale");
     EXPECT(worst_growth < 1.05, "and never grows");
-    EXPECT(low > -1.0 && high < 1.0, "the level of a held chord stays within 1 dB of the input at every setting");
+    EXPECT(low > -1.0 && high < 1.0, "a held chord stays as loud as it went in within 1 dB at every setting");
+    EXPECT(low_rms > -4.0 && high_rms < 4.0, "and its RMS within 4 dB");
   }
 
   // 12. Part-way Mix. Held tones over the piano's range through the default
@@ -725,15 +747,14 @@ int main() {
 
   // 14b. The sixteen presets (their values copied from device.json, every
   // control in the manifest's order). A full-scale chord held for a minute
-  // through each: never 6 dB over full scale, never growing, within 1 dB of
-  // the input's level. And held tones over the piano's range at Mix 0.5: none
-  // is lost.
-  {
-    struct Preset {
-      const char* name;
-      float values[p::kNumParams];
-    };
-    const Preset presets[] = {
+  // through each: never 6 dB over full scale, never growing, as loud as it
+  // went in within 1 dB. And held tones over the piano's range at Mix 0.5:
+  // none is lost.
+  struct Preset {
+    const char* name;
+    float values[p::kNumParams];
+  };
+  static const Preset presets[] = {
       {"Open vowel", {1.0f, 1.0f, 1.0f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
       {"Round vowel", {1.0f, 2.0f, 1.2f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
       {"Thin vowel", {1.0f, 3.0f, 1.5f, 0.0f, 0.25f, 0.5f, 2.0f, 1.0f}},
@@ -750,16 +771,17 @@ int main() {
       {"Faint vowel", {1.0f, 2.0f, 0.8f, 0.0f, 0.0f, 0.5f, 2.0f, 0.7f}},
       {"Distant pipe", {1.0f, 4.0f, 1.0f, -5.0f, 0.7f, 0.4f, 2.0f, 1.0f}},
       {"Remembered notes", {1.0f, 0.0f, 1.5f, 0.0f, 0.0f, 0.0f, 8.0f, 1.0f}},
-    };
+  };
+  {
     const std::vector<float> held = chord(60.0f, kRate, 1.0f, {110.0, 164.81, 277.18, 415.3});
-    const double in_rms = rms(held);
+    const double in_loud = loudness_db(held, 96000 - kLatency, held.size() - kLatency);
     double worst_peak = 0.0, worst_growth = 0.0, low = 1.0e9, high = -1.0e9, worst_tone = 0.0;
     for (const Preset& preset : presets) {
       device.init(kRate);
       for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
       const Stereo out = run(device, held);
       const size_t n = out.size();
-      const double level = db(rms(out.left, 96000, n) / in_rms);
+      const double level = loudness_db(out.left, 96000, n) - in_loud;
       const double growth = peak(out.left, n - 480000, n) / peak(out.left, 48000, 528000);
       worst_peak = std::max(worst_peak, peak(out.left));
       worst_growth = std::max(worst_growth, growth);
@@ -775,16 +797,16 @@ int main() {
         tone_worst = std::min(tone_worst, db(tone_level(toned.left, note, kRate, 36000, 72000) / 0.5));
       }
       worst_tone = std::min(worst_tone, tone_worst);
-      if (level < -3.0 || level > 3.0 || peak(out.left) > 2.0 || tone_worst < -3.0) {
-        std::printf("  %s: level %+.2f dB, peak %.2f, weakest tone %.2f dB\n", preset.name, level, peak(out.left), tone_worst);
+      if (level < -1.0 || level > 1.0 || peak(out.left) > 2.0 || tone_worst < -3.0) {
+        std::printf("  %s: loudness %+.2f dB, peak %.2f, weakest tone %.2f dB\n", preset.name, level, peak(out.left), tone_worst);
       }
     }
-    std::printf("presets: a full-scale chord peaks at %.2f at worst, grows by %.3f, level %+.2f to %+.2f dB; the weakest "
+    std::printf("presets: a full-scale chord peaks at %.2f at worst, grows by %.3f, loudness %+.2f to %+.2f dB; the weakest "
                 "held tone at Mix 0.5 is %.2f dB\n",
                 worst_peak, worst_growth, low, high, worst_tone);
     EXPECT(worst_peak < 2.0, "no preset puts a full-scale chord 6 dB over full scale");
     EXPECT(worst_growth < 1.05, "no preset grows");
-    EXPECT(low > -1.0 && high < 1.0, "every preset holds a chord's level within 1 dB");
+    EXPECT(low > -1.0 && high < 1.0, "every preset leaves a chord as loud as it went in within 1 dB");
     EXPECT(worst_tone > -3.0, "no preset loses a held tone at Mix 0.5");
   }
 
@@ -999,6 +1021,317 @@ int main() {
     }
     std::printf("shapes: the two nearest differ by %.1f dB in some third octave\n", nearest);
     EXPECT(nearest > 3.0, "the seven shapes are seven colours on a played phrase");
+  }
+
+  // --- The second check ---------------------------------------------------------------------
+  //
+  // Steady notes with eight partials each, one after another with no gap:
+  // `count` of them, a new one every `every` seconds, the pitches far apart
+  // (on and off the bells of the built-in shapes); peak `gain`.
+  auto steady_notes = [](float every, int count, float gain) {
+    const double pitches[] = {146.83, 739.99, 220.0, 1108.7, 329.63, 185.0, 880.0, 277.18, 587.33, 110.0};
+    std::vector<float> out(static_cast<size_t>((every * count + 0.1f) * kRate), 0.0f);
+    for (int note = 0; note < count; ++note) {
+      const size_t start = static_cast<size_t>(every * note * kRate);
+      const size_t length = static_cast<size_t>(every * kRate);
+      for (size_t i = 0; i < length && start + i < out.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        const double fade = std::min(1.0, std::min(t / 0.03, (every - t) / 0.03));
+        double sample = 0.0;
+        for (int n = 1; n <= 8; ++n) sample += std::sin(2.0 * kPi * pitches[note % 10] * n * t + 0.9 * n) / std::pow(n, 1.5);
+        out[start + i] += static_cast<float>(fade * sample);
+      }
+    }
+    const double top = peak(out);
+    for (float& v : out) v = static_cast<float>(v * gain / top);
+    return out;
+  };
+  auto load = [](const Preset& preset) {
+    device.init(kRate);
+    for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+  };
+
+  // 22. No pumping. The level hold works from the frame in hand, and a frame
+  // that is a new sound takes its gain there at once, so a note is as loud as
+  // it came from its first frame on, whatever was played before it. (a) At
+  // the defaults a note on a bell of the open vowel, then one off it, held:
+  // in twentieths of a second from 50 ms after it began, the second note is
+  // never more than 3 dB from its input, and from a second on within 1 dB of
+  // it and of itself. (The first version weighed the curve against the last
+  // 0.6 s and trimmed over another 0.6 s: the second note began 11 dB down
+  // and swelled for a second and a half.) (b) Steady notes that change every
+  // half second through every preset: no twentieth of a second is more than
+  // 6 dB from its input in RMS (it was 25). (c) The other side of the same
+  // coin: a held chord whose partials beat (three sawtooth voices to a note,
+  // 7 cents apart) through every preset. A hold that follows each frame, or
+  // that catches up whenever it is 3 dB out, turns everything off a bell up
+  // and down with the beat of what is on it (by 8 dB under the round vowel);
+  // the gain in use stays within 4 dB over the five and a half seconds.
+  {
+    std::vector<float> two = steady_notes(2.0f, 2, 0.5f);  // 146.83 Hz, then 739.99 Hz: swap them
+    std::vector<float> swapped(two.size(), 0.0f);
+    const size_t half = static_cast<size_t>(2.0f * kRate);
+    for (size_t i = 0; i < half; ++i) {
+      swapped[i] = two[half + i];
+      swapped[half + i] = two[i];
+    }
+    device.init(kRate);
+    const Stereo out = run(device, swapped);
+    double low = 1.0e9, high = -1.0e9, settled_low = 1.0e9, settled_high = -1.0e9;
+    for (size_t at = half + 2400; at + 2400 <= half + 72000; at += 2400) {
+      const double level = db(rms(out.left, at + kLatency, at + kLatency + 2400) / rms(swapped, at, at + 2400));
+      low = std::min(low, level);
+      high = std::max(high, level);
+      if (at >= half + 48000) {
+        settled_low = std::min(settled_low, level);
+        settled_high = std::max(settled_high, level);
+      }
+    }
+    std::printf("a note held after another (defaults): %+.2f to %+.2f dB of its input from 50 ms on, %+.2f to %+.2f dB from "
+                "a second on\n", low, high, settled_low, settled_high);
+    EXPECT(low > -3.0 && high < 3.0, "a held note is as loud as it came from its start, whatever came before");
+    EXPECT(settled_low > -1.0 && settled_high < 1.0, "and a second on it neither swells nor dips");
+
+    const std::vector<float> run_of_notes = steady_notes(0.5f, 12, 0.5f);
+    double worst_low = 0.0, worst_high = 0.0;
+    for (const Preset& preset : presets) {
+      load(preset);
+      const Stereo played = run(device, run_of_notes);
+      for (size_t at = 48000; at + 2400 <= 6 * 48000; at += 2400) {
+        const double level =
+            db(rms(played.left, at + kLatency, at + kLatency + 2400) / rms(run_of_notes, at, at + 2400));
+        if (level < -6.0 || level > 6.0) std::printf("  %s at %.2f s: %+.1f dB\n", preset.name, at / kRate, level);
+        worst_low = std::min(worst_low, level);
+        worst_high = std::max(worst_high, level);
+      }
+    }
+    std::printf("notes that change every half second, all presets: %+.2f to %+.2f dB of the input in any 50 ms\n",
+                worst_low, worst_high);
+    EXPECT(worst_low > -6.0 && worst_high < 6.0, "each of a run of notes comes out as strong as it went in");
+
+    std::initializer_list<double> voices = {130.81 * 0.99596, 130.81, 130.81 * 1.00405, 196.0 * 0.99596, 196.0, 196.0 * 1.00405,
+                                            311.13 * 0.99596, 311.13, 311.13 * 1.00405, 392.0 * 0.99596, 392.0, 392.0 * 1.00405};
+    const std::vector<float> beating = chord(8.0f, kRate, 0.5f, voices);
+    double most = 0.0;
+    const char* where = "";
+    for (const Preset& preset : presets) {
+      load(preset);
+      double hold_low = 1.0e9, hold_high = -1.0e9;
+      for (size_t done = 0; done + Imprint::Stft::kHop <= beating.size(); done += Imprint::Stft::kHop) {
+        run(device, std::vector<float>(beating.begin() + done, beating.begin() + done + Imprint::Stft::kHop));
+        if (done < 96000 || done >= 360000) continue;
+        hold_low = std::min(hold_low, static_cast<double>(device.meter(Imprint::kHoldReading)));
+        hold_high = std::max(hold_high, static_cast<double>(device.meter(Imprint::kHoldReading)));
+      }
+      if (hold_high - hold_low > most) {
+        most = hold_high - hold_low;
+        where = preset.name;
+      }
+    }
+    std::printf("a held chord that beats, all presets: the hold's gain moves by %.2f dB at most (%s)\n", most, where);
+    EXPECT(most < 4.0, "the hold does not follow the beating of a chorused chord");
+  }
+
+  // 23. Peaks. With the level held, a colour that evens a buzzing sound's
+  // partials out raises its peaks (the first version let them 11.9 dB over
+  // the input's). The peak hold keeps what comes out within 6 dB of the
+  // loudest input sample: a played phrase, a run of notes and one low
+  // sawtooth, through every preset and with Amount at both ends on every
+  // shape, Replace at 0 and at 1.
+  {
+    std::vector<float> saw(static_cast<size_t>(3.0f * kRate), 0.0f);
+    for (size_t i = 0; i < saw.size(); ++i) {
+      double sample = 0.0;
+      for (int n = 1; n <= 30; ++n) sample += std::sin(2.0 * kPi * 110.0 * n * static_cast<double>(i) / kRate + 0.9 * n) / n;
+      saw[i] = static_cast<float>(0.3 * sample);
+    }
+    const std::vector<float> sounds[] = {phrase(kRate, 0.5f), steady_notes(0.5f, 8, 0.5f), saw};
+    std::vector<Preset> settings(presets, presets + 16);
+    for (int shape = 0; shape <= Imprint::kBuiltIn; ++shape) {
+      for (float amount : {-2.0f, 2.0f}) {
+        for (float replace : {0.0f, 1.0f}) {
+          settings.push_back({"an end of Amount", {1.0f, static_cast<float>(shape), amount, 0.0f, replace, 0.5f, 2.0f, 1.0f}});
+        }
+      }
+    }
+    double worst = 0.0;
+    for (const Preset& setting : settings) {
+      for (const std::vector<float>& sound : sounds) {
+        load(setting);
+        const Stereo out = run(device, sound);
+        const double over = std::max(peak(out.left), peak(out.right)) / peak(sound);
+        if (over > 2.0) {
+          std::printf("  %s (shape %.0f, Amount %+.0f, Replace %.0f): peak %+.1f dB over the input's\n", setting.name,
+                      setting.values[1], setting.values[2], setting.values[4], db(over));
+        }
+        worst = std::max(worst, over);
+      }
+    }
+    std::printf("peaks: at most %+.2f dB over the input's own, 16 presets and 28 ends, three sounds\n", db(worst));
+    EXPECT(worst <= 2.0001, "what comes out never peaks more than 6 dB over the loudest input sample");
+  }
+
+  // 24. An empty capture. A capture is not saved with a piece, so a piece
+  // saved with Shape at Captured and Capture off loads with nothing captured.
+  // The first version then passed the sound unchanged, every knob dead, until
+  // the player captured something. Now the open vowel stands in: the same
+  // samples as Shape at Open vowel, and the reading "heard" says 0 so that
+  // the display can say so. Capture switched on, the capture takes over.
+  {
+    const std::vector<float> pad = chord(4.0f, kRate, 0.5f, {130.81, 196.0, 311.13, 392.0});
+    device.init(kRate);
+    device.set_param(p::kCapture, 0.0f);
+    device.set_param(p::kShape, 0.0f);
+    const Stereo empty = run(device, pad);
+    const float heard = device.meter(Imprint::kHeardReading);
+    device.init(kRate);
+    device.set_param(p::kCapture, 0.0f);
+    device.set_param(p::kShape, 1.0f);
+    const Stereo vowel = run(device, pad);
+    std::vector<float> late(empty.left.begin() + kLatency, empty.left.end());
+    const double change = worst_difference(shape_of(late, 48000), shape_of(pad, 48000));
+    std::printf("an empty capture: the colour moves by %.1f dB (the open vowel stands in), heard %.2f\n", change, heard);
+    EXPECT(change > 4.0, "Captured with nothing captured still presses a colour on the sound");
+    EXPECT(empty.left == vowel.left && empty.right == vowel.right, "and it is the open vowel, sample for sample");
+    EXPECT(heard == 0.0f, "the reading says that nothing has been captured");
+    // Switched on, it learns the pad and presses that on instead.
+    device.init(kRate);
+    device.set_param(p::kCapture, 0.0f);
+    device.set_param(p::kShape, 0.0f);
+    run(device, pad);
+    device.set_param(p::kCapture, 1.0f);
+    const Stereo learned = run(device, pad);
+    double apart = 0.0;
+    for (size_t i = 96000; i < pad.size(); ++i) apart = std::max(apart, std::fabs(static_cast<double>(learned.left[i]) - vowel.left[i]));
+    EXPECT(device.meter(Imprint::kHeardReading) == 1.0f && apart > 0.01, "Capture switched on, what it learns takes the stand-in's place");
+  }
+
+  // 25. Samples past full scale are not sound and teach nothing. kit::Stft
+  // drops what is not a number or is at ±64 and beyond, but a burst at ±60
+  // passes: in the first version 64 such samples outweighed everything
+  // Capture had learned (the captured colour still read up to 10 dB wrong
+  // eight seconds later, and with Learn at 20 s for minutes). Now the colour
+  // captured with the burst is the colour captured without it: a frame over
+  // full scale teaches nothing, nor does one that only touches the burst
+  // with its edge (a square at 8 times full scale left the colour 6 to 8 dB
+  // off while only the frames' power was looked at).
+  {
+    const std::vector<float> pad = chord(10.0f, kRate, 0.25f, {130.81, 196.0, 311.13, 392.0});
+    int worst = 0;
+    for (float learn : {2.0f, 20.0f}) {
+      for (int length : {64, 4800, -4800}) {
+        std::vector<float> burst = pad;
+        const float size = length > 0 ? 60.0f : 8.0f;
+        for (int i = 0; i < std::abs(length); ++i) burst[96000 + i] = (i / 37) % 2 ? size : -size;
+        int colour[2][Imprint::kDisplayPoints];
+        for (int pass = 0; pass < 2; ++pass) {
+          device.init(kRate);
+          device.set_param(p::kShape, 0.0f);
+          device.set_param(p::kLearn, learn);
+          const Stereo out = run(device, pass ? burst : pad);
+          EXPECT(finite(out.left) && finite(out.right), "a burst past full scale: finite out");
+          for (int point = 0; point < Imprint::kDisplayPoints; ++point) colour[pass][point] = captured_point(device, point);
+        }
+        for (int point = 0; point < Imprint::kDisplayPoints; ++point) {
+          worst = std::max(worst, std::abs(colour[1][point] - colour[0][point]));
+        }
+      }
+    }
+    std::printf("a burst at 60 and at 8 times full scale while capturing: the captured colour is %d dB off at worst\n", worst);
+    EXPECT(worst <= 1, "samples past full scale do not get into what is captured");
+  }
+
+  // 26. What the display is told. (a) The hold reading is the gain the level
+  // hold gave: of six steady tones, three on bells of the open vowel, the one
+  // far below every bell (150 Hz, where the curve is 0 dB) comes out changed
+  // by just that. (b) With Replace at 0 nothing is added; with Replace at 1
+  // and white noise in, what Replace is reported to add and the hold together
+  // are what was done to the noise in every third octave the bells do not
+  // reach (built_in_db says where they are), within 1.5 dB. (The bells
+  // themselves, through the frame's bins, are held to the display's own
+  // curve in src/react/__tests__/displays.imprint.test.ts.)
+  {
+    const std::vector<double> hz = {150.0, 300.0, 730.0, 1090.0, 2440.0, 5000.0};
+    const std::vector<float> tones = many_tones(hz, 4.0f, kRate, 0.2f);
+    device.init(kRate);
+    device.set_param(p::kReplace, 0.0f);
+    const Stereo out = run(device, tones);
+    const std::vector<double> before = tone_levels(tones, 48000, hz, kRate);
+    const std::vector<double> after = tone_levels(out.left, 48000 + kLatency, hz, kRate);
+    const double lowest = after[0] - before[0];
+    const double hold = device.meter(Imprint::kHoldReading);
+    std::printf("readings: the hold says %+.2f dB, a 150 Hz tone under no bell came out %+.2f dB\n", hold, lowest);
+    EXPECT(hold < -1.0, "the hold turns down what the bells turn up");
+    EXPECT_NEAR(lowest, hold, 0.3, "the hold reading is the gain a tone under no bell meets");
+    bool none = true;
+    for (int r = 0; r < Imprint::kReadings; ++r) {
+      long packed = std::lround(device.meter(Imprint::kAddedReading + r));
+      for (int j = 0; j < Imprint::kPerReading; ++j, packed /= Imprint::kLevels) none = none && packed % Imprint::kLevels == Imprint::kLevels / 2;
+    }
+    EXPECT(none, "with Replace at 0 nothing is reported as added");
+
+    rng_state() = 91;
+    const std::vector<float> white_noise = noise(6.0f, kRate, 0.25f);
+    device.init(kRate);
+    device.set_param(p::kReplace, 1.0f);
+    // The sound's own shape moves with the noise from frame to frame, and
+    // what Replace adds with it: the readings are taken every hop from the
+    // third second on and averaged, as the spectra are.
+    Stereo flat;
+    std::vector<double> added_mean(Imprint::kDisplayPoints, 0.0);
+    double hold_mean = 0.0;
+    int taken = 0;
+    for (size_t done = 0; done + Imprint::Stft::kHop <= white_noise.size(); done += Imprint::Stft::kHop) {
+      const std::vector<float> hop(white_noise.begin() + done, white_noise.begin() + done + Imprint::Stft::kHop);
+      flat = concat(flat, run(device, hop));
+      if (done < 96000) continue;
+      for (int place = 0; place < Imprint::kDisplayPoints; ++place) {
+        long packed = std::lround(device.meter(Imprint::kAddedReading + place / Imprint::kPerReading));
+        for (int j = 0; j < place % Imprint::kPerReading; ++j) packed /= Imprint::kLevels;
+        added_mean[place] += static_cast<double>(packed % Imprint::kLevels - Imprint::kLevels / 2);
+      }
+      hold_mean += device.meter(Imprint::kHoldReading);
+      ++taken;
+    }
+    for (double& value : added_mean) value /= taken;
+    hold_mean /= taken;
+    const std::vector<double> in_power = spectrum(white_noise, 96000, flat.left.size() - kLatency);
+    const std::vector<double> out_power = spectrum(flat.left, 96000 + kLatency, flat.left.size());
+    // What Replace is reported to add at one of the 55 places, in dB.
+    auto added = [&](int place) { return added_mean[std::min(place, Imprint::kDisplayPoints - 1)]; };
+    double worst = 0.0;
+    int compared = 0;
+    for (double centre : thirds()) {
+      // The curve as reported, over the third octave: the mean of its grid points as powers.
+      double sum = 0.0;
+      int count = 0;
+      for (int g = 0; g < Imprint::kPoints; ++g) {
+        const double at = Imprint::kLowHz * std::pow(2.0, static_cast<double>(g) / Imprint::kPerOctave);
+        if (at < centre * std::pow(2.0, -1.0 / 6.0) || at >= centre * std::pow(2.0, 1.0 / 6.0)) continue;
+        const int place = g / Imprint::kDisplayStep;
+        const double part = static_cast<double>(g % Imprint::kDisplayStep) / Imprint::kDisplayStep;
+        const double db_here = added(place) + part * (added(place + 1) - added(place));
+        sum += std::pow(10.0, std::min(30.0, std::max(-30.0, db_here)) / 10.0);
+        ++count;
+      }
+      // Not where a bell reaches within a third of an octave (Smooth spreads it by a fifth).
+      for (int g = 0; g < Imprint::kPoints; ++g) {
+        const double at = Imprint::kLowHz * std::pow(2.0, static_cast<double>(g) / Imprint::kPerOctave);
+        const bool near = at > centre * std::pow(2.0, -0.5) && at < centre * std::pow(2.0, 0.5);
+        if (near && Imprint::built_in_db(0, static_cast<float>(g) / Imprint::kPerOctave) > 0.05f) count = 0;
+      }
+      if (count <= 0) continue;
+      ++compared;
+      const double said = 10.0 * std::log10(sum / count) + hold_mean;
+      const double done = band_db(out_power, centre, kRate) - band_db(in_power, centre, kRate);
+      if (std::getenv("IMPRINT_VERBOSE")) std::printf("  %7.0f Hz: said %+.2f dB, done %+.2f dB\n", centre, said, done);
+      worst = std::max(worst, std::fabs(done - said));
+    }
+    const double tilt = added(38) - added(8);  // the places nearest 3.2 kHz and 100 Hz
+    std::printf("readings: Replace 1 on white noise, what is reported is what was done within %.2f dB in %d third octaves; "
+                "it adds %+.0f dB from 100 Hz to 3.2 kHz\n", worst, compared, tilt);
+    EXPECT(compared >= 8 && worst < 1.5, "what Replace adds and the hold, as reported, are what is done to the sound");
+    EXPECT(tilt < -8.0, "Replace on white noise adds the open vowel's downward slope");
   }
 
   // Cost: the average at the defaults and at the most there is to do (Capture
