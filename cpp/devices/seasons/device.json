@@ -1,0 +1,254 @@
+{
+  "id": "seasons",
+  "name": "Seasons",
+  "category": "texture",
+  "description": "One dial turns the year: a bright quick spring, a warm wide summer, a dark crumbling autumn and a thin frozen winter, with every blend between, and the year can turn by itself.",
+  "class": "Seasons",
+  "header": "seasons.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "year",
+      "name": "Year now",
+      "display": true
+    },
+    {
+      "key": "crumble",
+      "name": "Crumble gain",
+      "display": true
+    },
+    {
+      "key": "glitter",
+      "name": "Glitter level",
+      "display": true
+    },
+    {
+      "key": "sway",
+      "name": "Sway",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "year",
+      "name": "Year",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Where in the year the sound is. It starts in spring and goes round through summer, autumn and winter back to spring, blending from each to the next."
+    },
+    {
+      "key": "turning",
+      "name": "Turning",
+      "min": 10,
+      "max": 1800,
+      "default": 120,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long one year takes when the year turns by itself. Short is a restless cycle of colours, long is a change nobody notices happening."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.75,
+      "description": "How far into the season the sound goes. All the way down is the sound as it came in, all the way up is the season at its strongest."
+    },
+    {
+      "key": "space",
+      "name": "Space",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much of the season's room is heard: quick bright reflections in spring, a long soft haze in summer, a short dull room in autumn, a long thin tail in winter."
+    },
+    {
+      "key": "motion",
+      "name": "Motion",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much the season moves: a fast shimmer and a rising tail in spring, a slow sway from side to side in summer, a tumbling and sinking in autumn. Winter stands still."
+    },
+    {
+      "key": "grit",
+      "name": "Grit",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the season's texture is heard: the top end breaking up in autumn, sparse glassy sparks an octave or more above the sound in winter and early spring."
+    },
+    {
+      "key": "tail",
+      "name": "Tails",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Stretches or shortens every season's room. The middle is each season's own length, the top makes winter ring for most of a minute."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 2,
+      "default": 1,
+      "description": "Stereo width of the seasoned sound, on top of what the season does itself: summer is wide and winter narrow. All the way down is mono."
+    },
+    {
+      "key": "turn",
+      "name": "Turn",
+      "choices": ["Still", "Forward", "Backward"],
+      "default": 1,
+      "description": "Whether the year turns by itself. Still holds it where Year says, Forward runs from spring to summer, Backward from spring to winter."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as it came in and the seasoned sound."
+    }
+  ],
+  "presets": {
+    "First of spring": {
+      "year": 0,
+      "turning": 120,
+      "depth": 0.75,
+      "space": 0.6,
+      "motion": 0.6,
+      "grit": 0.5,
+      "tail": 0.5,
+      "width": 1,
+      "turn": 1,
+      "mix": 1
+    },
+    "High summer": {
+      "year": 0.25,
+      "turn": 0,
+      "depth": 0.85,
+      "space": 0.7,
+      "motion": 0.7
+    },
+    "Leaf fall": {
+      "year": 0.5,
+      "turn": 0,
+      "depth": 0.9,
+      "grit": 0.8,
+      "motion": 0.8,
+      "space": 0.5
+    },
+    "Deep winter": {
+      "year": 0.75,
+      "turn": 0,
+      "depth": 0.9,
+      "space": 0.8,
+      "tail": 0.65,
+      "grit": 0.6
+    },
+    "Slow year": {
+      "year": 0.1,
+      "turning": 600,
+      "depth": 0.6,
+      "space": 0.5
+    },
+    "Quick year": {
+      "year": 0.2,
+      "turning": 12,
+      "depth": 1,
+      "space": 0.7,
+      "motion": 0.8,
+      "grit": 0.7
+    },
+    "Thaw": {
+      "year": 0.875,
+      "turn": 0,
+      "depth": 0.85,
+      "grit": 0.9,
+      "space": 0.7,
+      "motion": 0.5
+    },
+    "Late summer": {
+      "year": 0.375,
+      "turn": 0,
+      "depth": 0.8,
+      "space": 0.65,
+      "motion": 0.9,
+      "grit": 0.6
+    },
+    "First frost": {
+      "year": 0.625,
+      "turn": 0,
+      "depth": 0.85,
+      "space": 0.7,
+      "tail": 0.6,
+      "grit": 0.7
+    },
+    "Touch of sun": {
+      "year": 0.22,
+      "turn": 0,
+      "depth": 0.3,
+      "space": 0.35,
+      "motion": 0.5,
+      "grit": 0.2
+    },
+    "Frozen lake": {
+      "year": 0.75,
+      "turn": 0,
+      "depth": 1,
+      "space": 1,
+      "tail": 1,
+      "motion": 0,
+      "grit": 0.3,
+      "mix": 0.8
+    },
+    "Wide midsummer": {
+      "year": 0.25,
+      "turn": 0,
+      "depth": 1,
+      "space": 0.9,
+      "motion": 1,
+      "width": 2,
+      "tail": 0.7
+    },
+    "Dry leaves": {
+      "year": 0.5,
+      "turn": 0,
+      "depth": 1,
+      "space": 0,
+      "grit": 1,
+      "motion": 0.4
+    },
+    "Backward year": {
+      "year": 0.6,
+      "turn": 2,
+      "turning": 30,
+      "depth": 0.85,
+      "space": 0.6
+    },
+    "Bare branches": {
+      "year": 0.75,
+      "turn": 0,
+      "depth": 1,
+      "space": 0.2,
+      "grit": 0,
+      "motion": 0,
+      "tail": 0.2,
+      "width": 0.6
+    },
+    "Spring rain": {
+      "year": 0.97,
+      "turn": 0,
+      "depth": 1,
+      "grit": 1,
+      "motion": 1,
+      "space": 0.8,
+      "tail": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. One year dial blends four characters, each made of a tone pair, a small room, a movement and a texture."
+  }
+}
