@@ -500,7 +500,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     category: 'pitch',
     description:
       "A ring modulator tuned to the key's note splits every partial in two, so plain notes ring like bells that stay in key; Mix sets how much.",
-    effects: [{ deviceId: 'ring', preset: 'Bell in key', params: { lowCut: 400 } }],
+    effects: [{ deviceId: 'ring', preset: 'Bell on the root', params: { lowCut: 400 } }],
   },
   {
     id: 'bell-under-water',

@@ -579,7 +579,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     description:
       'The sound passes from a bright spring through a warm wide summer and a dark autumn to a thin winter, once in ninety seconds; Year picks one.',
     effects: [
-      { deviceId: 'seasons', preset: 'Spring, turning', params: { turning: 90, space: 0.7 } },
+      { deviceId: 'seasons', preset: 'Spring turning', params: { turning: 90, space: 0.7 } },
     ],
   },
   {
