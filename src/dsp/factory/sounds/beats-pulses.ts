@@ -32,9 +32,20 @@ const held = (notes: readonly number[], count: number): Row[] =>
  * A tremolo that cuts what is held into strokes, `rate` to the second at 120: a square wave that is
  * open for the first half of each turn, so a stroke starts where a row would put it.
  */
-const chop = (rate: number, depth = 1): PatchDevice => ({
+const chop = (rate: number, depth = 1, smooth = 0.05): PatchDevice => ({
   deviceId: 'tremolo',
-  params: { mode: 0, rate, depth, shape: 2, phase: 0, drift: 0, smooth: 0.05, mix: 1 },
+  params: { mode: 0, rate, depth, shape: 2, phase: 0, drift: 0, smooth, mix: 1 },
+})
+
+/**
+ * `bars` for an instrument that does not play the same wave twice (an organ, a blown pipe, a string
+ * machine, a synthesizer whose oscillators run on): one pass folded over the next is then two
+ * unrelated stretches, and the linear fold of `cycled`, right for the same wave again, dips by 1 to
+ * 3 dB while it lasts. These are folded at equal power.
+ */
+const loose = (...written: Parameters<typeof bars>): ReturnType<typeof bars> => ({
+  ...bars(...written),
+  loopFold: 'power',
 })
 
 /** A low-pass filter moved by an LFO that goes round with the beat (`lfoRateHz` at 120). */
@@ -50,7 +61,7 @@ const PLAIN: readonly FactorySound[] = [
     name: 'Marimba eighths {E}',
     kind: 'beat',
     description:
-      'One marimba bar on {E} in steady eighth notes, the beats struck a little harder, in a small room.',
+      'A marimba repeats one {E} in steady eighth notes, the beats struck a little harder, in a small room.',
     instrument: {
       deviceId: 'mallets',
       preset: 'Soft marimba',
@@ -72,9 +83,9 @@ const PLAIN: readonly FactorySound[] = [
       params: { release: 0.08, breath: 0.25 },
     },
     effects: [room(0.18)],
-    ...bars(4, [
+    ...loose(4, [
       row(53, 'o.o.o.o. o.x.x.x. x.x.X.X. X.X.X.x. x.x.x.x. x.o.o.o. o.o.o.o. o.o.o.o.', {
-        hold: 1.2,
+        hold: 1,
       }),
     ]),
   }),
@@ -248,7 +259,7 @@ const FIGURES: readonly FactorySound[] = [
     name: 'Koto triplets {E}',
     kind: 'beat',
     description:
-      'A koto picks six notes of a dark scale on {E} in triplets with two of them left out, so the figure turns.',
+      'A koto picks a five-note scale on {E} in triplets with gaps: six notes go round against nine strokes.',
     instrument: {
       deviceId: 'zither',
       preset: 'Koto pluck',
@@ -282,6 +293,7 @@ const ECHOES: readonly FactorySound[] = [
           time: 375,
           feedback: 0.5,
           modDepth: 0.15,
+          modRate: 0.5,
           tone: 2200,
           age: 0.2,
           spread: 0.6,
@@ -311,7 +323,7 @@ const ECHOES: readonly FactorySound[] = [
         deviceId: 'tape-echo',
         params: {
           time: 375,
-          feedback: 0.45,
+          feedback: 0.55,
           heads: 0,
           wow: 0.1,
           flutter: 0.05,
@@ -348,7 +360,7 @@ const ECHOES: readonly FactorySound[] = [
       },
       room(0.25),
     ],
-    ...bars(1, chord([52, 59, 64, 67], '.... ..x. .... ....', { hold: 1.5 }), { passes: 2 }),
+    ...loose(1, chord([52, 59, 64, 67], '.... ..x. .... ....', { hold: 1.5 }), { passes: 2 }),
   }),
   sound({
     id: 'pulse-glass-ricochet-fmaj7',
@@ -356,21 +368,28 @@ const ECHOES: readonly FactorySound[] = [
     name: 'Glass ricochet {F}maj7',
     kind: 'beat',
     description:
-      'A glassy chord on {F} major seventh struck once, then a quick echo in dotted sixteenth notes that skips away.',
+      'A glassy chord on {F} major seventh and a softer answer, each with a quick echo in sixteenth notes that skips away.',
     instrument: {
       deviceId: 'fm-glass',
       preset: 'Tine keys',
-      params: { decay: 1.2, release: 0.4, detune: 3 },
+      params: { decay: 0.5, release: 0.05, detune: 3 },
     },
     effects: [
       {
         deviceId: 'echo-memory',
         preset: 'Plain echo',
-        params: { time: 187.5, feedback: 0.6, mix: 0.4 },
+        params: { time: 125, feedback: 0.7, mix: 0.4 },
       },
       room(0.25),
     ],
-    ...bars(1, chord([65, 69, 72, 76], 'x... .... .... ....', { hold: 1 }), { passes: 2 }),
+    ...bars(
+      1,
+      [
+        ...chord([65, 69, 72, 76], 'X... .... .... ....'),
+        ...chord([69, 72, 76], '.... .... x... ....'),
+      ],
+      { passes: 2 },
+    ),
   }),
   sound({
     id: 'pulse-pluck-echo-csus2',
@@ -389,8 +408,9 @@ const ECHOES: readonly FactorySound[] = [
         deviceId: 'analog-delay',
         params: {
           time: 333.333,
-          feedback: 0.5,
+          feedback: 0.65,
           modDepth: 0.1,
+          modRate: 0.5,
           tone: 3000,
           age: 0.1,
           spread: 0.7,
@@ -409,7 +429,7 @@ const ECHOES: readonly FactorySound[] = [
     name: 'Guitar echo {G}',
     kind: 'beat',
     description:
-      'A clean electric guitar chord on {G}, struck twice, with a tape echo in eighth notes that dulls as it fades.',
+      'A clean electric guitar chord on {G}, then with its sixth, each into a tape echo in eighth notes that dulls as it fades.',
     instrument: {
       deviceId: 'guitar',
       preset: 'Glass neck',
@@ -420,7 +440,7 @@ const ECHOES: readonly FactorySound[] = [
         deviceId: 'tape-echo',
         params: {
           time: 250,
-          feedback: 0.65,
+          feedback: 0.75,
           heads: 0,
           wow: 0.1,
           flutter: 0.05,
@@ -432,9 +452,14 @@ const ECHOES: readonly FactorySound[] = [
       },
       room(0.25),
     ],
-    ...bars(2, chord([55, 62, 67, 71], 'x... .... .... .... x... .... ..o. ....', { hold: 1 }), {
-      passes: 2,
-    }),
+    ...bars(
+      2,
+      [
+        ...chord([55, 62, 67, 71], 'x... .... .... .... .... .... .... ....', { hold: 1 }),
+        ...chord([55, 64, 67, 71], '.... .... .... .... x... .... .... ....', { hold: 1 }),
+      ],
+      { passes: 2 },
+    ),
   }),
 ]
 
@@ -454,7 +479,7 @@ const MOVING: readonly FactorySound[] = [
       params: { attack: 0.01, release: 0.3, drift: 0 },
     },
     effects: [chop(4), room(0.2)],
-    ...bars(2, held([50, 57, 65, 72, 76], 2)),
+    ...loose(2, held([50, 57, 65, 72, 76], 2)),
   }),
   sound({
     id: 'pulse-filter-beats-f',
@@ -472,7 +497,7 @@ const MOVING: readonly FactorySound[] = [
       sweep({ cutoffHz: 350, resonance: 2, lfoAmount: 75, lfoRateHz: 2, lfoShape: 3 }),
       room(0.2),
     ],
-    ...bars(2, held([53, 60, 65, 69], 2)),
+    ...loose(2, held([53, 60, 65, 69], 2)),
   }),
   sound({
     id: 'pulse-opening-organ-g',
@@ -490,7 +515,9 @@ const MOVING: readonly FactorySound[] = [
       sweep({ cutoffHz: 600, resonance: 1.5, lfoAmount: 60, lfoRateHz: 0.5, lfoShape: 2 }),
       room(0.2),
     ],
-    ...bars(1, chord([55, 62, 67, 69], 'x.x.x.x. x.x.x.x.', { hold: 1 })),
+    // The filter is all but shut where the loop starts, so the fold is of low partials only: 60 ms of them,
+    // where 30 ms holds too few turns of the wave to keep its level.
+    ...loose(1, chord([55, 62, 67, 69], 'x.x.x.x. x.x.x.x.', { hold: 1 }), { crossfadeSec: 0.06 }),
   }),
   sound({
     id: 'pulse-walking-accent-a',
@@ -502,10 +529,10 @@ const MOVING: readonly FactorySound[] = [
     instrument: {
       deviceId: 'mallets',
       preset: 'Still vibes',
-      params: { mallet: 0.5, decay: 0.8, damper: 0.7, width: 0.3 },
+      params: { mallet: 0.6, decay: 0.5, damper: 0.9, width: 0.3 },
     },
     effects: [room(0.18)],
-    ...bars(4, [row(69, 'XooXooXo oXooXooX ooXooXoo XooXooXo', { per: 8, hold: 0.6 })]),
+    ...bars(4, [row(69, 'XooXooXo oXooXooX ooXooXoo XooXooXo', { per: 8, hold: 0.5 })]),
   }),
   sound({
     id: 'pulse-gated-saws-em',
@@ -514,17 +541,21 @@ const MOVING: readonly FactorySound[] = [
     kind: 'beat',
     description:
       'Detuned sawtooth waves hold {E} minor seventh, gated into sixteenth notes while a filter slowly opens and closes.',
+    // Struck again every two beats, sixteen notes to a pass, each let go in the gap before the next. The
+    // synthesizer's sixteen voices take turns and each starts its saws somewhere else, so a pass of four
+    // notes is followed by one from other voices, near opposite in phase, and no fold of the two holds
+    // its level. Sixteen notes bring every pass back to the same voices.
     instrument: {
       deviceId: 'ember',
       preset: 'Super Saw',
-      params: { unisonVoices: 3, cutoff: 4000, ampAttack: 0.005, ampRelease: 0.3 },
+      params: { unisonVoices: 3, cutoff: 4000, ampAttack: 0.005, ampRelease: 0.02 },
     },
     effects: [
-      chop(8, 0.9),
+      chop(8, 0.9, 0.02),
       sweep({ cutoffHz: 900, resonance: 1.2, lfoAmount: 50, lfoRateHz: 0.25, lfoShape: 0 }),
       room(0.2),
     ],
-    ...bars(2, held([52, 59, 62, 67], 2)),
+    ...loose(2, chord([52, 59, 62, 67], 'x....... x....... x....... x.......', { hold: 7.5 })),
   }),
   sound({
     id: 'pulse-chopped-flutes-c',
@@ -539,7 +570,7 @@ const MOVING: readonly FactorySound[] = [
       params: { attack: 0.01, release: 0.3, vibrato: 0 },
     },
     effects: [chop(6, 0.9), room(0.2)],
-    ...bars(2, held([60, 64, 67, 69], 2)),
+    ...loose(2, held([60, 64, 67, 69], 2)),
   }),
 ]
 

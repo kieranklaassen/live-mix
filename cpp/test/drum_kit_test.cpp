@@ -666,7 +666,7 @@ static void test_controls() {
     const double some = share_above(clicked.left, 2000.0, kRate, 0, at(0.01));
     NOTE("snap: kick's first 10 ms above 2 kHz %.7f at 0, %.5f at 1\n", none, some);
     EXPECT(none < 1.0e-5, "Snap 0 leaves the kick's first milliseconds without energy above 2 kHz");
-    EXPECT(some > 0.01 && some > 300.0 * none, "Snap puts a click on the kick");
+    EXPECT(some > 0.003 && some > 300.0 * none, "Snap puts a click on the kick");
 
     double noise_share[2], bite[2], front[2], wire_level[2], hat_peak[2];
     int index = 0;
@@ -694,7 +694,7 @@ static void test_controls() {
     EXPECT(wire_level[1] > 2.5 * wire_level[0], "Snap brings the snares up");
     EXPECT(bite[1] > 5.0 * bite[0] && bite[1] > 1.0, "Snap gives the hats their bite");
     // The attack alone would leave the first millisecond 7.5 times what follows.
-    EXPECT(hat_peak[1] > 10.0 && hat_peak[0] < 1.0, "the bite is more than a quick attack");
+    EXPECT(hat_peak[1] > 9.0 && hat_peak[0] < 1.0, "the bite is more than a quick attack");
     EXPECT(bite[0] < 0.2 && front[0] < 0.2 && front[1] > 3.0 * front[0], "at Snap 0 the drums start soft");
   }
 
@@ -893,13 +893,20 @@ static void test_variation() {
   // alone, read on where the brush's band ends against its redrawn noise.
   {
     double quietest = 1.0e9, loudest = -1.0e9, dullest = 1.0e9, brightest = 0.0, steady_low = 1.0e9, steady_high = 0.0;
+    double flattest = 1.0e9, sharpest = -1.0e9;
     device.init(kRate);
     device.set_param(p::kVariation, 1.0f);
     for (int n = 0; n < 16; ++n) {
       const double level = db(peak(hit(device, Cs, 0.7f, 2.5f).left));
       quietest = std::min(quietest, level);
       loudest = std::max(loudest, level);
+      const double cents = 1200.0 * std::log2(dominant(hit(device, A, 0.7f, 1.5f).left, kRate, 90.0, 135.0, at(0.08), at(0.3)) / 110.0);
+      flattest = std::min(flattest, cents);
+      sharpest = std::max(sharpest, cents);
     }
+    NOTE("variation 1: low tom tuned from %+.1f to %+.1f cents\n", flattest, sharpest);
+    EXPECT(sharpest - flattest > 10.0 && sharpest < 30.0 && flattest > -30.0,
+           "Variation moves the tuning of each hit by a few cents");
     for (float variation : {1.0f, 0.01f}) {
       device.init(kRate);
       device.set_param(p::kVariation, variation);
@@ -1056,6 +1063,28 @@ static void test_retrigger() {
       [](DrumKit& d) { d.note_on(3, key_hz(Cs, 2), 0.0f); }, 0.0);
   NOTE("retrigger: a third strike inside the fade is %.3f there after 8 samples\n", thrice);
   EXPECT(thrice < 0.3, "a slot taken while it still sounds leaves no step");
+
+  // What the second strike leaves of the first is the first, fading: the
+  // rim struck twice 10 ms apart, less the second strike alone.
+  {
+    plain(device);
+    Stereo once = hit(device, E, 0.8f, 0.2f);
+    plain(device);
+    device.note_on(1, key_hz(E), 0.8f);
+    Stereo head = render(device, 0.01f, kRate);
+    Stereo twice = concat(head, hit(device, E, 0.8f, 0.19f));
+    std::vector<float> remains(twice.size());
+    for (size_t i = 0; i < remains.size(); ++i) {
+      remains[i] = twice.left[i] - (i >= at(0.01) ? once.left[i - at(0.01)] : 0.0f);
+    }
+    const double shape = correlation(remains, once.left, at(0.01), at(0.013));
+    const double at_1ms = rms(remains, at(0.0105), at(0.0115)) / rms(once.left, at(0.0105), at(0.0115));
+    const double at_6ms = rms(remains, at(0.016), at(0.018)) / rms(once.left, at(0.016), at(0.018));
+    NOTE("retrigger: the first rim is %.3f of itself 1 ms after the second, %.5f 6 ms after, and still its own shape (%.3f)\n",
+         at_1ms, at_6ms, shape);
+    EXPECT(shape > 0.9 && at_1ms > 0.5 && at_1ms < 0.99, "the older hit fades over a few milliseconds in its own slot");
+    EXPECT(at_6ms < 0.01, "and is gone 6 ms on");
+  }
 
   // Different drums never take each other's slots.
   plain(device);

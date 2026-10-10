@@ -23,7 +23,7 @@
 //   still sounds takes the key's other slot and the older hit fades in 4 ms;
 //   keys never take slots from each other. A third strike inside that fade
 //   takes the slot that has faded further, and what was left of it runs out
-//   as a 1 ms slope instead of a step.
+//   over about 2 ms instead of stopping.
 // - Tune, Length, Edge, Density, Scatter and Spread are read when a hit
 //   starts. Crush, Tone and Volume act on the whole kit; Tone and Volume are
 //   smoothed, and Crush, which is steps by nature, moves at once.
@@ -239,7 +239,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     float kill = 1.0f, kill_step = 0.0f;  // the fade of a hit struck again
     float last = 0.0f;                    // what it put out last
     kit::OnePole hardness;                // velocity: a soft hit is duller
-    kit::OnePole lows;
+    kit::OnePole lows;                    // takes the bit's offset out
     // sines and clocks
     float phase = 0.0f, increment = 0.0f, sweep = 1.0f, base_increment = 0.0f;
     float mod_phase = 0.0f, mod_increment = 0.0f;
@@ -260,7 +260,7 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
   };
 
   static constexpr float kStealSeconds = 0.004f;
-  static constexpr float kGhostSeconds = 0.0003f;  // 60 dB in about 2 ms
+  static constexpr float kGhostSeconds = 0.0003f;    // 60 dB in about 2 ms
   static constexpr float kRoundSeconds = 0.003f;     // the rounding of an end with Edge at 0
   static constexpr float kOctaveShortening = 0.75f;  // an octave up is a quarter shorter
   static constexpr float kPitchScatter = 3.0f;       // semitones at Scatter 1
@@ -325,7 +325,8 @@ class GlitchKit : public kit::DeviceBase<glitch_kit::kNumParams> {
     tone_filter_[1].set(hz, kit::kSqrtHalf, sr);
   }
 
-  // From clean to 5 bits (of the kit's own half-scale) at 6 kHz.
+  // From clean to 5 bits at 6 kHz. The bits are counted over the kit's own
+  // working range of half of full scale: a step is a thirty-second of it.
   void set_crush(float crush, float sr) {
     crush_set_ = crush;
     crush_step_ = std::exp2(-(16.0f - 11.0f * crush));

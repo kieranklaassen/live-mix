@@ -517,6 +517,21 @@ static void test_voices() {
     EXPECT(sounding_ms(x) > 75.0 && sounding_ms(x) < 100.0, "about 90 ms long");
     const double band = energy_above(x, 500.0, kRate, 0, sounding(x));
     EXPECT(band > 0.6, "band-passed: little of it is under 500 Hz");
+    // Three octaves up its pulse is down to three samples, and it keeps the
+    // area it had: no stronger there, and not lost.
+    auto strength = [](int octave, float tune) {
+      std::vector<float> y = hit(kG, [tune](GlitchKit& d) {
+        d.set_param(p::kTone, 1.0f);
+        d.set_param(p::kTune, tune);
+      }, 1.0f, 0.7f, octave);
+      double energy = 0.0;
+      for (float v : y) energy += static_cast<double>(v) * v;
+      return std::sqrt(energy / std::pow(0.75, octave + tune / 12.0));
+    };
+    const double top = db(strength(2, 12.0f) / strength(0, 0.0f));
+    NOTE("buzz: %+.1f dB an octave up, %+.1f dB three octaves up\n", db(strength(1, 0.0f) / strength(0, 0.0f)), top);
+    EXPECT(std::fabs(db(strength(1, 0.0f) / strength(0, 0.0f))) < 1.0, "the buzz is as strong an octave up");
+    EXPECT(top < 1.0 && top > -5.0, "and no stronger three octaves up");
   }
   {  // zap
     std::vector<float> x = hit(kGs, [](GlitchKit& d) { d.set_param(p::kTone, 1.0f); });
@@ -576,6 +591,22 @@ static void test_voices() {
     EXPECT_NEAR(clock, 4.0 * 1975.53, 80.0, "the bit's 93-step loop is clocked at four times 1975.5 Hz");
     EXPECT(how_well > 0.8, "and repeats: it has a pitch");
     EXPECT(rms(x, 0, n) > 0.6 * peak(x), "the bit is a two-level wave");
+    // Its clock does not fall on whole samples; each step is shared between
+    // the two samples it falls between, which keeps the loop's partials clean.
+    std::vector<float> held = hit(kB, [](GlitchKit& d) {
+      d.set_param(p::kTone, 1.0f);
+      d.set_param(p::kLength, 4.0f);
+    });
+    const double loop_hz = 4.0 * 1975.53 / 93.0;
+    double on = 0.0, off = 0.0;
+    for (int k = 4; k < 60; ++k) {
+      const double partial = tone_level(held, k * loop_hz, kRate, 0, 14400);
+      const double between = tone_level(held, (k + 0.5) * loop_hz, kRate, 0, 14400);
+      on += partial * partial;
+      off += between * between;
+    }
+    NOTE("bit: what lies between the loop's partials is %.1f dB under them\n", 10.0 * std::log10(on / off));
+    EXPECT(on > 1.0e6 * off, "the bit's steps do not rattle against the sample rate: 60 dB clean");
   }
 }
 

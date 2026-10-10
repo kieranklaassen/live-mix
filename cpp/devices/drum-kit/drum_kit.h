@@ -29,6 +29,9 @@
 // - Tone is one low-pass per slot, retuned on the control clock from the
 //   smoothed knob: the top of a tonal drum, the upper edge of a noise drum.
 // - Width moves each drum's place; at 0 both channels are the same sample.
+//   The kick, sub, snare and brush have no place of their own: the centre.
+// - Drive blends towards a saturator that gives back the level of one firm
+//   kick unchanged, so quieter material comes up under the same peaks.
 // - Variation draws level, tone, length, pitch and the noise itself from one
 //   seeded generator at each hit. At 0 nothing is drawn into the sound and a
 //   drum repeats sample for sample.
@@ -74,7 +77,6 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
     for (int d = 0; d < kNumDrums; ++d) {
       for (int s = 0; s < kSlotsPerDrum; ++s) slots_[d][s] = Slot();
     }
-    for (int d = 0; d < kNumDrums; ++d) newest_[d] = 0;
     active_ = 0;
     chance_.seed(0x51F7A3C9u);
     tone_.set_time(kSmoothingSeconds, sr);
@@ -181,7 +183,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         // Deep: longer, lower, rounder
         {0.84f, 0.84f, 0.84f, 1.60f, 1.35f, 1.80f, 0.80f, 0.55f, 1.50f, 0.75f, 0.66f, 0.60f, 1.20f, 1.20f},
         // Tight: short, clicking, bright
-        {1.12f, 1.12f, 1.15f, 0.60f, 0.60f, 0.60f, 1.20f, 1.80f, 0.50f, 1.12f, 1.50f, 0.60f, 0.85f, 0.75f},
+        {1.12f, 1.12f, 1.15f, 0.60f, 0.60f, 0.60f, 1.20f, 1.40f, 0.50f, 1.12f, 1.50f, 0.60f, 0.85f, 0.75f},
         // Paper: no low end, narrow low bands, tones damped
         {1.90f, 1.25f, 0.80f, 0.42f, 0.42f, 0.70f, 0.50f, 1.30f, 0.80f, 0.62f, 0.50f, 1.40f, 0.70f, 1.25f},
     };
@@ -314,19 +316,10 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
     const float sr = sample_rate();
     Slot* pair = slots_[drum];
 
-    // A free slot, else the one already fading, else the older one.
+    // A free slot, else the one already fading. Two sounding slots are
+    // never both unfaded: the second hit fades the first.
     int take = 0;
-    if (!pair[0].active) {
-      take = 0;
-    } else if (!pair[1].active) {
-      take = 1;
-    } else if (pair[0].fade_step > 0.0f) {
-      take = 0;
-    } else if (pair[1].fade_step > 0.0f) {
-      take = 1;
-    } else {
-      take = newest_[drum] == 0 ? 1 : 0;
-    }
+    if (pair[0].active && (!pair[1].active || pair[1].fade_step > 0.0f)) take = 1;
     Slot& other = pair[1 - take];
     if (other.active) begin_fade(other, kStealSeconds);
     if (drum == kClosedHat || drum == kShaker) {
@@ -342,7 +335,6 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
     slot.active = true;
     slot.carry = carry;
     slot.carry_coeff = t60_coeff(kCarrySeconds);
-    newest_[drum] = take;
 
     // What this hit draws. The generator moves the same way whatever
     // Variation is, so a sequence of notes always gives the same audio.
@@ -384,7 +376,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         slot.attack = 0.0f;
         slot.attack_step = ramp_step((0.004f - 0.0034f * punch) * c.attack);
         if (snap > 0.0f) {
-          noise(slot, 2.7f * snap * c.click * hardness, 0.006f, 0.0002f);
+          noise(slot, 1.2f * snap * c.click * hardness, 0.006f, 0.0002f);
           slot.shaping = kBandPass;
           slot.shape.set(3000.0f * half, 0.8f, sr);
         }
@@ -410,7 +402,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         fall(slot, 0.18f * c.sweep_depth * hardness, 0.012f * c.sweep_time);
         slot.attack = 0.0f;
         slot.attack_step = ramp_step(0.0015f * c.attack);
-        noise(slot, kit::lerp(0.25f, 1.0f, snap), 0.25f * noisy,
+        noise(slot, kit::lerp(0.25f, 0.8f, snap), 0.25f * noisy,
               kit::lerp(0.006f, 0.0005f, snap) * c.attack);
         slot.shaping = kHighPass;
         slot.shape.set(1500.0f * c.band * ratio, 0.7f, sr);
@@ -449,7 +441,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         noise(slot, 0.35f, (open ? 0.40f : 0.045f) * noisy,
               kit::lerp(0.003f, 0.0002f, snap) * c.attack);
         metal(slot, ratio * c.pitch, 1.0f);
-        slot.bite = 1.2f * snap * hardness;
+        slot.bite = 0.8f * snap * hardness;
         slot.bite_coeff = t60_coeff(0.005f);
         slot.shaping = kHighPass;
         slot.shape.set(kit::min(7000.0f * c.band * half, 13000.0f), 0.7f, sr);
@@ -501,7 +493,7 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
         slot.attack = 0.0f;
         slot.attack_step = ramp_step((0.003f - 0.0024f * punch) * c.attack);
         // The skin: a little noise a few harmonics up.
-        noise(slot, 0.25f * (0.5f + snap) * c.click * hardness, 0.05f * tonal, 0.001f);
+        noise(slot, 0.18f * (0.5f + 0.7f * snap) * c.click * hardness, 0.05f * tonal, 0.001f);
         slot.shaping = kBandPass;
         slot.shape.set(hz * 6.0f, 0.7f, sr);
         slot.cut_base = 1400.0f * ratio * bright * c.edge;
@@ -666,7 +658,6 @@ class DrumKit : public kit::DeviceBase<drum_kit::kNumParams> {
   }
 
   Slot slots_[kNumDrums][kSlotsPerDrum];
-  int newest_[kNumDrums] = {};
   int active_ = 0;
   kit::Rng chance_;
   kit::Smoother tone_, drive_, width_, volume_;
