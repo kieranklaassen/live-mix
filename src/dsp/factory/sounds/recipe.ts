@@ -5,11 +5,12 @@
 // `sound({...})` and nothing else.
 
 import { type PatchDevice } from '../../../core/devices/patch'
+import { isKitInstrument } from '../kits'
 import { transposeWords } from '../words'
 import { type FactorySound } from '../types'
 
 /** A factory sound with its patch written out: the patch takes the sound's id, name and description. */
-export interface Recipe extends Omit<FactorySound, 'patch'> {
+export interface Recipe extends Omit<FactorySound, 'patch' | 'kit'> {
   instrument: PatchDevice
   effects: readonly PatchDevice[]
 }
@@ -24,6 +25,7 @@ export function sound(recipe: Recipe): FactorySound {
     name,
     description,
     ...(names ? { words: { name: recipe.name, description: recipe.description } } : {}),
+    ...(isKitInstrument(instrument.deviceId) ? { kit: true as const } : {}),
     patch: { id: recipe.id, name, category: recipe.kind, description, instrument, effects },
   }
 }

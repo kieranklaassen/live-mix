@@ -46,6 +46,8 @@ export const PACK_LIMITS = {
  */
 export const AFTER_THE_PACKS: readonly string[] = [
   'zone-sampler',
+  'drum-kit',
+  'glitch-kit',
   'sub-bass',
   'fm-bass',
   'acid-bass',

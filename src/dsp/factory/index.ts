@@ -18,6 +18,7 @@ import {
 } from './phrases'
 import { FACTORY_PRESETS } from './presets'
 import { FACTORY_SOUNDS } from './sounds'
+import { factoryTempo, patchAtTempo, phraseAtTempo, tempoRatio } from './tempo'
 import { type FactoryChain, type FactoryPreset, type FactorySound } from './types'
 import { varySound, type SoundVariation } from './vary'
 
@@ -68,6 +69,8 @@ export {
   type GeneratedKind,
   type GeneratedSound,
 } from './generate'
+export { KIT_INSTRUMENTS, isKitInstrument } from './kits'
+export { FACTORY_TEMPO_RANGE, factoryTempo, patchAtTempo, phraseAtTempo, tempoRatio } from './tempo'
 export {
   VARIATION_KINDS,
   VARIATION_LIMITS,
@@ -104,6 +107,7 @@ export const FACTORY_PRESET_CATEGORIES: readonly PatchCategory[] = [
   { id: 'organ', label: 'Organs' },
   { id: 'drone', label: 'Drones' },
   { id: 'texture', label: 'Textures' },
+  { id: 'drum', label: 'Drums' },
 ]
 
 /** Effect chain groups in browser order. */
@@ -149,6 +153,12 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
    * white-key modes).
    */
   transpose?: number
+  /**
+   * The tempo to play the sound at, beats per minute, for a sound that keeps
+   * time (one with a `bpm` of its own; see `soundAtTempo`). Absent, the tempo
+   * it is written at. Nothing to a sound with no beat to it.
+   */
+  bpm?: number
   /**
    * Which variant of the sound to render (`varySound`): the same recipe
    * played differently, decided by a seed and an amount for each kind of
@@ -232,7 +242,8 @@ export async function renderChainPreview(
  * to a pitch, and its name and description ("Low drone D" is "Low drone F"
  * three up). Its id and number stay, so it is the same sound to whatever
  * refers to it. A sound made from another one keeps its own notes, since the
- * sound it plays is the one that moves.
+ * sound it plays is the one that moves; so does a sound played on a kit, whose
+ * keys are drums: the kit's tuning is what moves.
  */
 export function transposeFactorySound(sound: FactorySound, semitones: number): FactorySound {
   if (semitones === 0) return sound
@@ -246,23 +257,55 @@ export function transposeFactorySound(sound: FactorySound, semitones: number): F
     name,
     description,
     ...(patch ? { patch: { ...transposePatch(patch, semitones), name, description } } : {}),
-    phrase: sound.source === undefined ? transposePhrase(sound.phrase, semitones) : sound.phrase,
+    phrase:
+      sound.source === undefined && !sound.kit
+        ? transposePhrase(sound.phrase, semitones)
+        : sound.phrase,
+  }
+}
+
+/**
+ * A sound that keeps time, played at `bpm`: every note as many beats in and
+ * as many beats long as it is written, the sound as many beats long, and any
+ * echo or LFO in its patch still on the beat. Its `bpm` is then the tempo it
+ * is played at. The audio is not stretched: a hit rings as long as it did,
+ * and only what lies between the hits changes. A loop's crossfade is never
+ * made longer than it is written, so a slow loop does not blur at its seam.
+ * A sound with no `bpm` of its own comes back as it is, the same object, as
+ * does any sound asked for at the tempo it is written at.
+ */
+export function soundAtTempo(sound: FactorySound, bpm: number | undefined): FactorySound {
+  const ratio = tempoRatio(sound.bpm, bpm)
+  if (ratio === 1 || sound.bpm === undefined || bpm === undefined) return sound
+  const patch = typeof sound.patch === 'string' ? factoryPreset(sound.patch) : sound.patch
+  return {
+    ...sound,
+    bpm: factoryTempo(bpm),
+    ...(patch ? { patch: patchAtTempo(patch, ratio) } : {}),
+    phrase: phraseAtTempo(sound.phrase, ratio),
+    durationSec: sound.durationSec * ratio,
+    ...(sound.skipSec === undefined ? {} : { skipSec: sound.skipSec * ratio }),
+    ...(sound.loopCrossfadeSec === undefined
+      ? {}
+      : { loopCrossfadeSec: sound.loopCrossfadeSec * Math.min(1, ratio) }),
   }
 }
 
 /**
  * Render a factory sound: its phrase on its patch, looped without a seam
  * when the recipe asks for it, in the bank's own key or `transpose`
- * semitones from it. A sound made from another one (a granular cloud of the
- * piano) renders that one first, in the same key.
+ * semitones from it, and for a sound that keeps time at the tempo it is
+ * written at or at `bpm`. A sound made from another one (a granular cloud of
+ * the piano) renders that one first, in the same key.
  */
 export async function renderFactorySound(
   sound: FactorySound,
   options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const { transpose = 0, vary, ...render } = options
-  // Varied as it is written, on the white keys, and moved into the key afterwards.
-  const inKey = transposeFactorySound(varySound(sound, vary), transpose)
+  const { transpose = 0, vary, bpm, ...render } = options
+  // Varied as it is written, on the white keys and at its own tempo, and
+  // moved into the key and to the tempo afterwards.
+  const inKey = soundAtTempo(transposeFactorySound(varySound(sound, vary), transpose), bpm)
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
@@ -291,6 +334,8 @@ export async function renderFactorySound(
     skipSec: inKey.skipSec,
     loopCrossfadeSec: inKey.loopCrossfadeSec,
     loopFold: inKey.loopFold,
+    // A sound that keeps time is laid beside others that do: what its devices delay it by is taken out.
+    alignLatency: inKey.bpm !== undefined,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
     normalizePeakDb: FACTORY_PEAK_DB,
   })
