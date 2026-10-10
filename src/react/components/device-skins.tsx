@@ -1899,6 +1899,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
     cap: 'dot',
     name: 'Singer',
   },
+  breath: { ...PLATE_PALETTES.breath, finish: 'fade', cap: 'dot' },
 }
 
 /**

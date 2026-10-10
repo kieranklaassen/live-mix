@@ -45,6 +45,7 @@ import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
+import { BREATH_FACES } from './breath'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -91,4 +92,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...BODY_INSTRUMENT_FACES,
   ...CANON_FACES,
   ...OVERTONE_SINGER_FACES,
+  ...BREATH_FACES,
 }
