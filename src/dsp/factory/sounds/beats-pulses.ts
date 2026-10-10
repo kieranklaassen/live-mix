@@ -48,6 +48,13 @@ const loose = (...written: Parameters<typeof bars>): ReturnType<typeof bars> => 
   loopFold: 'power',
 })
 
+/**
+ * The string machine's ensemble sweeps at 0.6 and 6 Hz at a `speed` of 1, which no loop here is a
+ * whole number of: at this speed they are 0.5 and 5 Hz, whole turns in 2, 4 and 8 s (and the speed
+ * follows the tempo).
+ */
+const ENSEMBLE_SPEED = 0.5 / 0.6
+
 /** A low-pass filter moved by an LFO that goes round with the beat (`lfoRateHz` at 120). */
 const sweep = (params: Readonly<Record<string, number>>): PatchDevice => ({
   deviceId: 'auto-filter',
@@ -117,7 +124,9 @@ const PLAIN: readonly FactorySound[] = [
       params: { decay: 1.2, detune: 0, spread: 0.2 },
     },
     effects: [room(0.1)],
-    ...bars(1, [row(74, 'Xoxo xoxo Xoxo xoxo')]),
+    // A short fold: at a tempo where the loop is not a whole number of the bells' blocks, a pass sits a few
+    // samples from the next, and 30 ms of the two together dips.
+    ...bars(1, [row(74, 'Xoxo xoxo Xoxo xoxo')], { crossfadeSec: 0.01 }),
   }),
   sound({
     id: 'pulse-tongue-drum-g',
@@ -187,8 +196,9 @@ const FIGURES: readonly FactorySound[] = [
     name: 'Harp cross rhythm {A}',
     kind: 'beat',
     description:
-      'A harp keeps four low notes going on {A} and its fifth while three slower ones fall across them from above.',
+      'A harp keeps four firm low notes going on {A} and its fifth while three soft, slower ones fall across them from above.',
     // The zither's harp: its pluck is on the stroke, where the harp instrument's comes 10 ms after it.
+    // The three are ghosts (16 dB under the four): any louder and the two pulses together read as no beat.
     instrument: {
       deviceId: 'zither',
       preset: 'Concert harp',
@@ -196,8 +206,8 @@ const FIGURES: readonly FactorySound[] = [
     },
     effects: [room(0.2)],
     ...bars(4, [
-      row([57, 64], 'x...', { hold: 3 }),
-      row([76, 72, 69, 74], 'X..', { per: 3, hold: 0.6 }),
+      row([57, 64], 'X...', { hold: 3 }),
+      row([76, 72, 69, 74], '-', { per: 3, hold: 0.6 }),
     ]),
   }),
   sound({
@@ -284,7 +294,15 @@ const ECHOES: readonly FactorySound[] = [
     instrument: {
       deviceId: 'string-machine',
       preset: 'Dry saws',
-      params: { attack: 0.005, release: 0.12, tone: 1500, ensemble: 0.5, drift: 0, width: 0.6 },
+      params: {
+        attack: 0.005,
+        release: 0.12,
+        tone: 1500,
+        ensemble: 0.5,
+        speed: ENSEMBLE_SPEED,
+        drift: 0,
+        width: 0.6,
+      },
     },
     effects: [
       {
@@ -296,13 +314,13 @@ const ECHOES: readonly FactorySound[] = [
           modRate: 0.5,
           tone: 2200,
           age: 0.2,
-          spread: 0.6,
+          spread: 0,
           mix: 0.4,
         },
       },
       room(0.3),
     ],
-    ...bars(2, chord([57, 60, 64, 67], '..x. .... .... .... .... x... .... ....', { hold: 1.2 }), {
+    ...loose(2, chord([57, 60, 64, 67], '..x. .... .... .... .x.. .... .... ....', { hold: 1.2 }), {
       passes: 2,
     }),
   }),
@@ -325,8 +343,8 @@ const ECHOES: readonly FactorySound[] = [
           time: 375,
           feedback: 0.55,
           heads: 0,
-          wow: 0.1,
-          flutter: 0.05,
+          wow: 0,
+          flutter: 0,
           drive: 0.3,
           highCut: 4500,
           spread: 0.4,
@@ -360,7 +378,10 @@ const ECHOES: readonly FactorySound[] = [
       },
       room(0.25),
     ],
-    ...loose(1, chord([52, 59, 64, 67], '.... ..x. .... ....', { hold: 1.5 }), { passes: 2 }),
+    ...loose(1, chord([52, 59, 64, 67], '.... ..x. .... ....', { hold: 1.5 }), {
+      passes: 2,
+      crossfadeSec: 0.06,
+    }),
   }),
   sound({
     id: 'pulse-glass-ricochet-fmaj7',
@@ -409,18 +430,20 @@ const ECHOES: readonly FactorySound[] = [
         params: {
           time: 333.333,
           feedback: 0.65,
-          modDepth: 0.1,
-          modRate: 0.5,
+          modDepth: 0,
           tone: 3000,
           age: 0.1,
-          spread: 0.7,
+          spread: 0,
           mix: 0.4,
         },
       },
       room(0.25),
     ],
-    ...bars(2, chord([48, 60, 62, 67], 'x... .... .... .... x... .... o... ....', { hold: 1 }), {
+    // The synthesizer's oscillators run on, so a pass is not the wave of the one before: folded at equal
+    // power, and over 60 ms, which at no tempo from 60 to 200 dips or swells by 1.5 dB (30 ms does at two).
+    ...loose(2, chord([48, 60, 62, 67], 'x... .... .... .... x... .... o... ....', { hold: 1 }), {
       passes: 2,
+      crossfadeSec: 0.06,
     }),
   }),
   sound({
@@ -442,8 +465,8 @@ const ECHOES: readonly FactorySound[] = [
           time: 250,
           feedback: 0.75,
           heads: 0,
-          wow: 0.1,
-          flutter: 0.05,
+          wow: 0,
+          flutter: 0,
           drive: 0.2,
           highCut: 4000,
           spread: 0.5,
@@ -476,10 +499,12 @@ const MOVING: readonly FactorySound[] = [
     instrument: {
       deviceId: 'string-machine',
       preset: 'Ensemble strings',
-      params: { attack: 0.01, release: 0.3, drift: 0 },
+      params: { attack: 0.01, release: 0.3, speed: ENSEMBLE_SPEED, drift: 0 },
     },
     effects: [chop(4), room(0.2)],
-    ...loose(2, held([50, 57, 65, 72, 76], 2)),
+    // With the ensemble coming round, two passes are part alike: neither fold is right for that, and a
+    // short one at equal power is the nearest (within 1.2 dB from 60 to 200).
+    ...loose(2, held([50, 57, 65, 72, 76], 2), { crossfadeSec: 0.015 }),
   }),
   sound({
     id: 'pulse-filter-beats-f',
@@ -542,13 +567,21 @@ const MOVING: readonly FactorySound[] = [
     description:
       'Detuned sawtooth waves hold {E} minor seventh, gated into sixteenth notes while a filter slowly opens and closes.',
     // Struck again every two beats, sixteen notes to a pass, each let go in the gap before the next. The
-    // synthesizer's sixteen voices take turns and each starts its saws somewhere else, so a pass of four
-    // notes is followed by one from other voices, near opposite in phase, and no fold of the two holds
-    // its level. Sixteen notes bring every pass back to the same voices.
+    // synthesizer's sixteen voices take turns and each starts its saws somewhere else: a pass of four
+    // notes was followed by one from other voices, near opposite in phase, which no fold holds level.
+    // Sixteen notes give every pass the same voices; their oscillators run on from note to note, so
+    // two passes are still unrelated waves and are folded at equal power. Two saws to a voice, 10 cents
+    // apart: of the unison and detune settings tried, the one whose fold stays within 1.5 dB from 60 to 200.
     instrument: {
       deviceId: 'ember',
       preset: 'Super Saw',
-      params: { unisonVoices: 3, cutoff: 4000, ampAttack: 0.005, ampRelease: 0.02 },
+      params: {
+        unisonVoices: 2,
+        unisonDetune: 10,
+        cutoff: 4000,
+        ampAttack: 0.005,
+        ampRelease: 0.02,
+      },
     },
     effects: [
       chop(8, 0.9, 0.02),
