@@ -126,8 +126,27 @@ export class Lfo extends PhaseModulator {
 
   /** Phase in cycles, wrapped to [0, 1). */
   phaseAt(timeSec: number): number {
-    return fract(this.anchorPhase + (timeSec - this.anchorSec) * this.rate)
+    return lfoPhaseAt(this.anchorPhase, this.anchorSec, this.rate, timeSec)
   }
+
+  /**
+   * Where the phase was last pinned: `phase` cycles at `atSec`. With the
+   * rate it is all of the LFO's motion, so another thread given the three
+   * numbers (`lfoPhaseAt`) is at the same phase at the same moment.
+   */
+  get anchor(): { phase: number; atSec: number } {
+    return { phase: this.anchorPhase, atSec: this.anchorSec }
+  }
+}
+
+/** The phase (cycles, wrapped to [0, 1)) of an LFO pinned at `anchorPhase` at `anchorSec`. */
+export function lfoPhaseAt(
+  anchorPhase: number,
+  anchorSec: number,
+  rateHz: number,
+  timeSec: number,
+): number {
+  return fract(anchorPhase + (timeSec - anchorSec) * rateHz)
 }
 
 export interface ExternalPhaseOptions extends PhaseModulatorOptions {
@@ -269,13 +288,23 @@ export class Random implements ModSource {
   }
 
   valueAtTime(timeSec: number): number {
-    const position = timeSec * this.rateHz
-    const index = Math.floor(position)
-    const current = this.valueOfStep(index)
-    if (!this.smooth) return current
-    const next = this.valueOfStep(index + 1)
-    return current + (next - current) * (position - index)
+    return randomValueAt(this.rateHz, this.seed, this.smooth, timeSec)
   }
+}
+
+/** `Random`'s law without the object: the 0..1 value of a seeded sample-and-hold at `timeSec`. */
+export function randomValueAt(
+  rateHz: number,
+  seed: number,
+  smooth: boolean,
+  timeSec: number,
+): number {
+  const position = timeSec * rateHz
+  const index = Math.floor(position)
+  const current = hashToUnit(seed >>> 0, index)
+  if (!smooth) return current
+  const next = hashToUnit(seed >>> 0, index + 1)
+  return current + (next - current) * (position - index)
 }
 
 /** A hand-set 0..1 control that many routes can share. */

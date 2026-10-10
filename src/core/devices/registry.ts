@@ -5,6 +5,7 @@
 // open: consumers call `register` with their own descriptors, and a factory
 // may load its code lazily since `create` is always awaited.
 
+import { type ParamModulation } from '../automation/param-modulation'
 import { type ParamSpec } from '../params'
 import { type Device, type DeviceMeterSpec } from './Device'
 import {
@@ -61,6 +62,13 @@ export interface DeviceCreateOptions {
    * on top of it. A factory whose device keeps no such state ignores it.
    */
   state?: string
+  /**
+   * What moves parameters on the audio thread from the device's first block
+   * on, by name (`ModulatedDevice.modulate`, without the message: an offline
+   * render may be over before a message arrives). A factory whose device does
+   * not move its own parameters ignores it, and so is a name the device lacks.
+   */
+  modulations?: Readonly<Record<string, ParamModulation>>
 }
 
 export type DeviceFactory = (

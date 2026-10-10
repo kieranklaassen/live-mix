@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
-import { isMeteredDevice } from '../../core/devices/Device'
+import { isMeteredDevice, isModulatedDevice } from '../../core/devices/Device'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import {
@@ -90,6 +90,153 @@ describe('WasmDevice', () => {
     ])
     expect(device.getParam('predelayMs')).toBe(250)
     expect(() => device.setParam('nope' as 'mix', 1)).toThrow(/no parameter/)
+  })
+
+  describe('modulation', () => {
+    const sine = {
+      routes: [
+        {
+          source: {
+            kind: 'lfo' as const,
+            shape: 'sine' as const,
+            rateHz: 1,
+            depth: 1,
+            anchorPhase: 0,
+            anchorSec: 0,
+          },
+          depth: 0.25,
+          polarity: 'bipolar' as const,
+        },
+      ],
+    }
+
+    it('hands the audio thread a parameter’s travel, base and routes, and says it changed', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      expect(isModulatedDevice(device)).toBe(true)
+      const changes: unknown[] = []
+      device.onChange((change) => changes.push(change))
+      device.modulate('mix', sine)
+      const posted = ctx.workletNodes[0].port.posted.calls.map((call) => call[0])
+      expect(posted).toEqual([
+        {
+          type: 'modulate',
+          paramId: 0,
+          travel: { min: 0, max: 1, default: PLATE_REVERB_PARAMS.mix.default, taper: 'linear' },
+          base: 0.5,
+          modulation: sine,
+        },
+      ])
+      expect(changes).toEqual([{ type: 'modulation', name: 'mix' }])
+      expect(device.modulationOf('mix')).toBe(sine)
+      expect(device.modulationOf('decay')).toBeUndefined()
+    })
+
+    it('keeps the set value as the base and says where the parameter is at a moment', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      device.modulate('mix', sine)
+      expect(device.getParam('mix')).toBe(0.5)
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.75, 12)
+      expect(device.paramAt('mix', 0.75)).toBeCloseTo(0.25, 12)
+      // Left out, the moment is the context's now.
+      ctx.currentTime = 0.25
+      expect(device.paramAt('mix')).toBeCloseTo(0.75, 12)
+      // A parameter nothing moves is where it is set.
+      expect(device.paramAt('decay', 3)).toBe(device.getParam('decay'))
+      device.setParam('mix', 0.6)
+      expect(device.getParam('mix')).toBe(0.6)
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.85, 12)
+    })
+
+    it('ends a modulation once, and does nothing for a parameter that stood still', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      device.modulate('decay', null)
+      device.modulate('decay', { routes: [] })
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+      device.modulate('mix', sine)
+      device.modulate('mix', null)
+      device.modulate('mix', null)
+      const posted = ctx.workletNodes[0].port.posted.calls.map((call) => call[0])
+      expect(posted).toHaveLength(2)
+      expect(posted[1]).toMatchObject({ type: 'modulate', paramId: 0, base: 0.5, modulation: null })
+      expect(device.modulationOf('mix')).toBeUndefined()
+      expect(device.paramAt('mix', 0.25)).toBe(0.5)
+      expect(() => device.modulate('nope' as 'mix', sine)).toThrow(/no parameter/)
+    })
+
+    it('is made with what moves it, in the processor’s options: no message to wait for', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.4 },
+        modulations: { mix: sine, nope: sine, decay: { routes: [] } },
+      })
+      const options = ctx.workletNodes[0].options as {
+        processorOptions: WasmDeviceProcessorOptions
+      }
+      // The names it has, with something to move them: the rest is left out.
+      expect(options.processorOptions.modulations).toEqual([
+        {
+          paramId: 0,
+          travel: { min: 0, max: 1, default: PLATE_REVERB_PARAMS.mix.default, taper: 'linear' },
+          base: 0.4,
+          modulation: sine,
+        },
+      ])
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+      expect(device.modulationOf('mix')).toBe(sine)
+      expect(device.modulationOf('decay')).toBeUndefined()
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.65, 12)
+      // And it ends as any other does.
+      device.modulate('mix', null)
+      expect(ctx.workletNodes[0].port.posted.calls[0][0]).toMatchObject({
+        type: 'modulate',
+        base: 0.4,
+        modulation: null,
+      })
+    })
+
+    it('a device on a processor of its own takes none', async () => {
+      const ctx = createMockContext()
+      const own = defineWasmDevice({
+        id: 'own',
+        wasm: () => plateModule,
+        params: PLATE_REVERB_PARAMS,
+        processor: { name: 'app-processor', url: () => 'app-processor.js' },
+      })
+      const device = await WasmDevice.create(asAudioContext(ctx), own, {
+        createNode: mockNodeFactory,
+        modulations: { mix: sine },
+      })
+      const options = ctx.workletNodes[0].options as {
+        processorOptions: WasmDeviceProcessorOptions
+      }
+      expect(options.processorOptions.modulations).toBeUndefined()
+      expect(device.modulationOf('mix')).toBeUndefined()
+      expect(device.modulates).toBe(false)
+      expect(isModulatedDevice(device)).toBe(false)
+      expect(() => device.modulate('mix', sine)).toThrow(/takes no modulation/)
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+    })
   })
 
   it('toggles bypass over the port exactly once per change', async () => {
