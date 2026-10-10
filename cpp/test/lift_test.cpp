@@ -4,6 +4,9 @@
 // the curve, the times, the lookahead, the split, and that it never lifts
 // silence or anything loud.
 
+#include <chrono>
+#include <ctime>
+
 #include "../devices/lift/lift.h"
 #include "support/test_kit.h"
 
@@ -962,6 +965,77 @@ static void check_levels() {
   EXPECT(worst_dip > -0.05, "no preset loses a held tone anywhere on the keyboard");
 }
 
+// The cost in CPU time, which a busy machine stretches less than the wall
+// clock: thirty seconds in 128-frame blocks of noise that swells through the
+// lifted region, different on the two sides, so every detector and every gain
+// is at work. The quickest of three passes, and how long its slowest blocks took.
+void cpu_cost(const char* label, void (*set)(Lift&)) {
+  const float seconds = 30.0f;
+  rng_state() = 0xC0FFEEu;
+  std::vector<float> left = noise(seconds, kRate, 1.0f);
+  std::vector<float> right = noise(seconds, kRate, 1.0f);
+  for (size_t i = 0; i < left.size(); ++i) {
+    const float swell = livemix::kit::db_to_gain(-40.0f + 22.0f * std::sin(6.2831853f * 0.4f * static_cast<float>(i) / kRate));
+    left[i] *= swell;
+    right[i] *= swell;
+  }
+  double best = 1.0e30;
+  double slowest = 0.0;
+  double nearly = 0.0;
+  std::vector<double> each;
+  for (int pass = 0; pass < 3; ++pass) {
+    Lift device;
+    device.init(kRate);
+    set(device);
+    each.clear();
+    const std::clock_t start = std::clock();
+    for (size_t done = 0; done + kBlock <= left.size(); done += kBlock) {
+      for (int i = 0; i < kBlock; ++i) {
+        device.in_left()[i] = left[done + i];
+        device.in_right()[i] = right[done + i];
+      }
+      const auto before = std::chrono::steady_clock::now();
+      device.process(kBlock);
+      const double took =
+          std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - before).count();
+      each.push_back(took);
+    }
+    const double micros = 1.0e6 * static_cast<double>(std::clock() - start) / CLOCKS_PER_SEC;
+    std::sort(each.begin(), each.end());
+    // The one slowest block on a shared machine is the scheduler's; all but one in a thousand are the device's.
+    const double most = each[each.size() - 1 - each.size() / 1000];
+    if (micros < best) best = micros;
+    if (pass == 0 || most < nearly) {
+      nearly = most;
+      slowest = each.back();
+    }
+  }
+  const double blocks = seconds * kRate / kBlock;
+  std::printf("lift cost in CPU time, %s: %.1f us per 128-frame block, %.2f%% of real time; "
+              "999 blocks in 1000 under %.1f us, the slowest %.1f us (wall clock, shared machine)\n",
+              label, best / blocks, 100.0 * best / (seconds * 1.0e6), nearly, slowest);
+  EXPECT(100.0 * best / (seconds * 1.0e6) < 5.0, "a block costs under 5% of real time natively");
+}
+
+void set_defaults(Lift&) {}
+
+// Every part judged apart, all of the lift to the sides, the lift alone, half
+// mixed, the quickest times: the most there is to do, which is no more than at
+// rest, because nothing in the device is switched by a setting.
+void set_most(Lift& device) {
+  device.set_param(p::kThreshold, -12.0f);
+  device.set_param(p::kAmount, 1.0f);
+  device.set_param(p::kFloor, -90.0f);
+  device.set_param(p::kRise, 0.05f);
+  device.set_param(p::kFall, 5.0f);
+  device.set_param(p::kSplit, 1.0f);
+  device.set_param(p::kFocus, 0.5f);
+  device.set_param(p::kSides, 1.0f);
+  device.set_param(p::kLimit, 30.0f);
+  device.set_param(p::kHear, 1.0f);
+  device.set_param(p::kMix, 0.5f);
+}
+
 // --- main ---
 int main() {
   Conformance spec;
@@ -1000,6 +1074,8 @@ int main() {
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.05f);
   report_cost("lift", 10.0f, kRate, [&] { run(device, input); });
+  cpu_cost("defaults", set_defaults);
+  cpu_cost("the most to do", set_most);
 
   return finish("lift");
 }
