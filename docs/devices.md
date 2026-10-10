@@ -102,6 +102,7 @@ hold 8 notes).
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
 | `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B  | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `drum-kit`        | Drum Kit           | live-mix            | instrument | 10     | 29,156 B  | 17.9 µs, 0.67 %       | 0.7 µs, 0.03 %             | 0                 | 4           |
 | `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B  | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `echo-memory`     | Echo Memory        | live-mix            | delay      | 12     | 25,341 B  | 27.2 µs, 1.02 %       | 16.4 µs, 0.61 %            | 0                 | 20          |
 | `ember`           | Ember              | kkfonie Tatami      | instrument | 43     | 37,239 B  | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
@@ -111,6 +112,7 @@ hold 8 notes).
 | `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,809 B  | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
 | `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B  | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
 | `glitch`          | Glitch             | live-mix            | texture    | 12     | 21,163 B  | 10.3 µs, 0.38 %       | 5.3 µs, 0.20 %             | 0                 | 10          |
+| `glitch-kit`      | Glitch Kit         | live-mix            | instrument | 9      | 30,863 B  | 2.6 µs, 0.10 %        | 0.6 µs, 0.02 %             | 0                 | 4           |
 | `grain-cloud`     | Cloud              | live-mix            | texture    | 12     | 15,870 B  | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
 | `grain-delay`     | Grain Delay        | live-mix            | delay      | 11     | 17,855 B  | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
 | `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,018 B  | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
@@ -202,6 +204,11 @@ What the table does not show:
   natively). Sustain analyses once per caught note: up to three blocks of a
   catch cost 6 to 9 % of their time, the rest under 1 %. Low Bitrate (4,096
   samples), Vintage Digital (129) and the two drives (39) report latency.
+- **The two kits** (Drum Kit, Glitch Kit) play one-shots, so the wasm figure,
+  eight notes held for ten seconds, is of hits that have died and a device
+  asleep. Read the native one: a busy bar on every key, played round. Before
+  the Drum Kit's noise envelope was flushed its tail ran on subnormals and the
+  same bar cost 1.8 %.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
   delay and sample buffers: 20 to 24 MB for the long loops and the sampler,
   64 MB for the zone sampler's pool of sounds ([zone-sampler.md](./zone-sampler.md)).
@@ -275,6 +282,25 @@ None of these twenty-five has been listened to. Each was built by one worker and
 | `zither`          | No stiffness, so partials are exactly harmonic; the finger and body detail is subtle; ten loud keys reach the limiter on three presets                                                                                                                | A strummed chord on the chord zither presets                                                   |
 | `zone-sampler`    | Nobody has listened to it; not loaded with an instrument another tool made; the previews play three built-in tones, so its bank presets are untried on real instruments                                                                               | A loop's crossfade on a real recording; keys between two zones; a steal at 48 voices           |
 | `outdoors`        | Birds are whistled syllables and frogs a formant buzz, so both may read as synthetic                                                                                                                                                                  | Birds, the frog buzz, the near crack of thunder                                                |
+
+### The two kits: what measurement says is weak
+
+Neither kit has been listened to. Each was built by one worker and checked by
+a second, who rebuilt it, played every key at five octaves and three sample
+rates, swept every control and broke the code on purpose to see the harness
+catch it (63 changes to the Drum Kit, 43 caught at first and all that change
+the output caught now). What that left open:
+
+| Device       | Weak or unproven                                                                                                                                                                                                                                                                                 | Listen first                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `drum-kit`   | Every drum is a model, none a recording, and whether a kick reads as a kick is unheard; short or dark also means quieter for the hats and shaker (Length 0.25: shaker 11 dB down); Drive is louder (1 to 5 dB at 1); a drum struck at two octaves at once is one drum, the second cuts the first | The four kits on one bar; "Muffled"; the hats with Tone turned down; a kick an octave down |
+| `glitch-kit` | A click's level is set as it is struck, so Tone moved under a ringing crackle does not re-level it; under Crush 1 a click's level wanders 6 dB with its octave; in a stutter the click grain is 10 dB under the pip grain in energy at equal peak; Crush does nothing below 0.04 at 44.1 kHz     | Clicks up and down the octaves; "Low bitrate kit"; the stutter with Scatter up             |
+
+A drum is one drum whatever octave its key is in: struck at two octaves at
+once, the second strike cuts the first in 4 ms. Closed hat and shaker choke
+the open hat in the order notes arrive, so an open hat then a closed one in
+the same block leaves only the closed one. The keys of both kits are in
+`rhythm.ts` (`KIT`, `FAULT`) and in [factory.md](./factory.md#kits).
 
 ## Effect presets
 
@@ -435,6 +461,36 @@ here:
 - `wavetable`: Spread widens nothing while Detune and Motion are both 0.
 - `drone`: Shape does nothing at Partials 0. `west-coast`: Colour does
   nothing on a pure sine.
+
+What reading them once more for their displays turned up, none of it changed
+either:
+
+- `bowed-string`: with Release at or over Decay, a string let go in Sustain or
+  Bow keeps the loss it had while driven, because `shape()` is not run again
+  (`bowed_string.h`, the two release paths): at 880 Hz with Decay 6 it rings
+  2.9 s, not 6.
+- `handpan`: `Handpan::start` draws a note's size and its sign in one product,
+  so which is drawn first is the compiler's choice. gcc and clang draw the
+  size first; the WASM build's order was not checked.
+- `modal-bells`: `ModalBells::gains` tilts Brightness by a mode's ratio before
+  Stretch, so Stretch moves a mode without moving how bright it is.
+- `tine-piano`: the header says the right side's tremolo is behind the left;
+  the code puts it ahead. The sound is as the code has it.
+- `harp`: Sweep rolls only the keys that arrive in one block of 128 frames
+  (`Harp::schedule`), so a chord from a clip is rolled and the same chord
+  played by hand, its keys a few milliseconds apart, never is.
+- `ember`: at Unison 8 with Unison Detune 0 the copies start an eighth of a
+  cycle apart and stay there, so they cancel: the fundamental comes out about
+  18 dB down (measured).
+- `thesis`: Resonance above 50 changes nothing (the output is the same to the
+  bit), Gravity only puts bands a fifth up, and Root C stops at B6. Its
+  `StereoWidener::AllpassFilter::process` stores its input, not its output, so
+  it is a feed-forward comb and not an allpass: past Width 75 a band's level
+  swings with its pitch and its side (880 Hz at Width 80 comes out 15 dB down
+  on the left and 1.5 dB down on the right).
+- `drum-kit`: `drum_kit.h` says a hit's hardness is 1 at the reference gain
+  of 0.7; `0.5 + 0.7 * gain` gives 0.99 there. The comment is off, not the
+  sound.
 
 ## ambient-limiter: auto gain
 

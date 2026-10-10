@@ -1,10 +1,15 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
-import { isMeteredDevice, isModulatedDevice } from '../../core/devices/Device'
+import {
+  isMeteredDevice,
+  isModulatedDevice,
+  isNoteWatchDevice,
+  isSampleWatchDevice,
+} from '../../core/devices/Device'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import {
@@ -23,6 +28,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   clearWasmModuleCache()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
@@ -466,6 +475,47 @@ describe('WasmDevice notes and custom processors', () => {
     ])
   })
 
+  it('remembers the notes it was sent, the held ones and the ones let go a while, for a display', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
+      wasm: plateModule,
+      createNode: mockNodeFactory,
+    })
+    expect(isNoteWatchDevice(device)).toBe(true)
+    expect(device.playedNotes()).toEqual([])
+    device.noteOn(60, 261.63, 0.8)
+    clock.mockReturnValue(1500)
+    device.noteOn(64, 329.63)
+    clock.mockReturnValue(2000)
+    device.noteOff(60)
+    expect(device.playedNotes()).toEqual([
+      { id: 60, frequency: 261.63, gain: 0.8, onMs: 1000, offMs: 2000 },
+      { id: 64, frequency: 329.63, gain: 0.5, onMs: 1500, offMs: null },
+    ])
+    // A key struck again while it is held is a new note, and the one before it is let go.
+    clock.mockReturnValue(2500)
+    device.noteOn(64, 329.63, 0.3)
+    expect(device.playedNotes().map((note) => [note.id, note.onMs, note.offMs])).toEqual([
+      [60, 1000, 2000],
+      [64, 1500, 2500],
+      [64, 2500, null],
+    ])
+    // A note let go is kept a minute, long enough for the longest tail to ring out; a held one is kept.
+    clock.mockReturnValue(2000 + 60_001)
+    expect(device.playedNotes().map((note) => [note.id, note.onMs])).toEqual([
+      [64, 1500],
+      [64, 2500],
+    ])
+    clock.mockReturnValue(120_000)
+    expect(device.playedNotes().map((note) => note.onMs)).toEqual([2500])
+    // No more than a hundred and twenty-eight are remembered: the oldest goes first.
+    for (let key = 0; key < 140; key++) device.noteOn(100 + key, 440)
+    expect(device.playedNotes()).toHaveLength(128)
+    expect(device.playedNotes()[0].id).toBe(112)
+    expect(device.playedNotes().at(-1)?.id).toBe(239)
+  })
+
   it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
     const ctx = createMockContext()
     const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
@@ -474,8 +524,14 @@ describe('WasmDevice notes and custom processors', () => {
     })
     const left = Float32Array.of(0.1, 0.2, 0.3)
     const right = Float32Array.of(-0.1, -0.2, -0.3)
+    // Until it is handed a sound it says nothing of one, and an empty one is not a sound.
+    expect(isSampleWatchDevice(device)).toBe(true)
+    expect(device.loadedSampleSeconds()).toBeNull()
     device.loadSample([], 48000)
+    expect(device.loadedSampleSeconds()).toBeNull()
     device.loadSample([left, right, Float32Array.of(9)], 44100)
+    // Three frames at 44.1 kHz, said after the copies were handed over.
+    expect(device.loadedSampleSeconds()).toBeCloseTo(3 / 44100, 9)
     const calls = ctx.workletNodes[0].port.posted.calls
     const samples = calls.filter((call) => (call[0] as { type: string }).type === 'sample')
     expect(samples).toHaveLength(1)

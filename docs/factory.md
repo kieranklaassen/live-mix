@@ -141,11 +141,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                                        |
-| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
-| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
-| **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
+|             | Count | Groups                                                                                                                                                                                                                 |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 740   | Twenty for each of the thirty-seven stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                              |
+| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                             |
+| **Sounds**  | 176   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; and 76 loops that keep time: drums (32), glitches (20), pitched pulses (24) |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -205,6 +205,83 @@ under two cents, to a whole number of cycles per loop at render time
 `chordTones` and `chordName` say which colours (seventh, ninth, sus2, …) it
 takes without leaving the key, which notes those are and what the chord is
 then called.
+
+## Sounds that keep time
+
+A sound with a beat to it (a drum loop, a pulse, a bass line) has a `bpm`:
+the tempo it is written at, 120 in everything the bank ships. It is a loop of
+whole bars in four (2, 4 or 8 s at 120), its first stroke on a downbeat,
+every stroke on a grid, and it is played at any other tempo by moving the
+notes: nothing is stretched.
+
+```ts
+import { renderFactorySound, soundAtTempo } from '@kieranklaassen/live-mix/dsp'
+
+const audio = await renderFactorySound(sound, { bpm: 96, transpose: by })
+soundAtTempo(sound, 96).durationSec // 5 for a loop of 4 s at 120: as many beats long
+```
+
+`soundAtTempo` gives the recipe as it is played at a tempo: every note as
+many beats in and as many beats long, the sound as many beats long, and
+`bpm` the tempo it is now at. A drum rings as long as it did, so only what
+lies between the hits changes. An echo's `time` and an LFO's rate in the
+patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, the analog
+delay's wobble, `tremolo`, `auto-filter` and the string machine's ensemble
+speed), so a dotted-eighth echo is one at every tempo; a value the
+control cannot reach is halved or doubled until it can, which is still on
+the beat. A loop's crossfade is never made longer than it is written. The
+tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to 480). A sound
+with no `bpm` is the same sound at every tempo and comes back as the same
+object, so a host can ask every sound for the piece's tempo and key its
+store by `bpm` only where the sound has one.
+
+A host that follows a tempo (ambient-live: its own, or an Ableton Link
+session's) renders such a sound again when the tempo has settled and swaps
+it under what plays it; what it painted with the sound is as many beats
+long as before.
+
+`sounds/rhythm.ts` is what these are written with: `row(key, 'X...x...', {
+per, hold, swing, lateSec })` lays one voice out in steps (`X` loud, `x`,
+`o`, `-` soft, `.` a rest; sixteen steps to the bar unless `per` says
+otherwise, so a row `per: 12` is triplets and `per: 5` goes against the
+four), and `bars(count, rows, { passes, crossfadeSec })` makes the rows a
+loop of that many bars and sets `bpm`. A row shorter than the loop repeats
+to fill it and has to fill it exactly.
+
+The bank's sounds that keep time are held to this by `time.test.ts`: whole
+bars at 120, the same strokes in every round, kept from a bar line; the same
+strokes on the same beats at 60, 90, 150 and 200; and rendered at 96 as many
+beats long to the frame, at the bank's level, and still round on itself. A
+sound added with a `bpm` is held to it by being there. `renderFactorySound`
+takes the latency such a sound's devices report out of its start
+(`alignLatency` in `renderPatch`: a tape is 415 frames late), so two loops
+laid side by side land together.
+
+A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
+stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
+`timingSec` a free phrase is given. A sound on a kit has no chord and no
+note it stands on: pattern may rest any of its strokes but the first of a
+pass, its lowest drum too (in a pitched phrase the lowest note always
+sounds), and two neighbouring drums may change places.
+
+### Kits
+
+Two instruments have things for keys instead of pitches: `drum-kit` and
+`glitch-kit` (`KIT_INSTRUMENTS`, `isKitInstrument`). Each of the twelve keys
+of an octave is one drum (every C the kick, every D the snare) or one fault
+(a click, a pop, a cut of noise), the octave it is played in tunes it, and a
+hit is a one-shot that note-off does not end (`cpp/kit/keymap.h`). `KIT` and
+`FAULT` in `rhythm.ts` name the keys.
+
+A sound played on a kit is marked `kit` by `sound()`, and
+`transposeFactorySound` leaves its notes where they are (the kick stays the
+kick in every key) and moves the kit's `tune` instead, so the drums are
+tuned to the key of the piece. A variant of one never moves a chord or
+detunes, and a host that snaps played notes to a scale has to leave a kit's
+alone: seven of its twelve drums would be out of reach.
+
+Presets of the kits are in the category `drum`, whose preview (`drum` in
+`phrases.ts`) plays every one of the twelve keys over three bars at 120.
 
 ## New sounds from a seed
 
@@ -514,17 +591,20 @@ and the last column the render cost.
 The sounds are in `src/dsp/factory/sounds/`, a file per family, put together
 in order in `index.ts`:
 
-| File               | Numbers    | What                                                                |
-| ------------------ | ---------- | ------------------------------------------------------------------- |
-| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                |
-| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                 |
-| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                  |
-| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                        |
-| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                  |
-| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                 |
-| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out            |
-| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round           |
-| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device |
+| File               | Numbers    | What                                                                                               |
+| ------------------ | ---------- | -------------------------------------------------------------------------------------------------- |
+| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                                               |
+| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                                                |
+| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                                                 |
+| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                                                       |
+| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                                                 |
+| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                                                |
+| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out                                           |
+| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round                                          |
+| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device                                |
+| `beats-drums.ts`   | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
+| `beats-glitch.ts`  | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
+| `beats-pulses.ts`  | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
 
 `recipe.ts` has what a recipe is written with:
 

@@ -2443,6 +2443,14 @@
   max-width: none;
 }
 
+/* A spread plate (`spread`), upright with a display or a picture: an
+   instrument, every knob on the plate. The display keeps a pedal's window at
+   the top left; the first knobs stand in the two rows beside it and the rest
+   in the two rows under it, each put in its cell by the plate. */
+.lm-plate--upright.lm-plate--spread.lm-plate--pictured .lm-plate__knobs {
+  grid-template-rows: var(--lm-plate-row-heights, 50px 52px 56px 56px);
+}
+
 .lm-plate--upright .lm-plate__presets {
   position: absolute;
   right: 8px;

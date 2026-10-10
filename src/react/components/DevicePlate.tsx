@@ -114,6 +114,98 @@ const UPRIGHT_PLAIN_ROW = 50
 const UPRIGHT_LARGE_KNOB = 36
 const UPRIGHT_KNOBS_TOP = 110
 
+/**
+ * A spread plate (`spread`): an instrument, whose knobs are all played and so
+ * all stand on the plate at once. Upright, the display keeps the window an
+ * effect's has, at the top left, and the knobs fill the rest in columns as
+ * wide as a pedal's: two rows beside the display, then two rows under it
+ * across the whole plate. With C columns that is 4C - 8 knobs, so up to eight
+ * knobs is exactly a pedal and more make the plate wider by whole cells.
+ *
+ * A skin whose knobs fall into sections (an oscillator, a filter, an envelope)
+ * keeps each section together: a block two rows high, its knobs across the
+ * top row and then the bottom, with one empty column between two blocks.
+ */
+const SPREAD_DISPLAY_COLUMNS = 4
+/** A plate this many columns wide or wider may have a display twice as wide, where its skin asks for one. */
+const SPREAD_WIDE_FROM = 9
+/** The two rows beside the display share its height; the two under it are the kit's upright rows. */
+const SPREAD_BESIDE_ROWS = 2
+const SPREAD_BESIDE_ROW = 50
+const SPREAD_UNDER_ROWS = 2
+/** Beyond this many columns no plate is tried: 200 knobs in one section. */
+const SPREAD_COLUMNS_MOST = 100
+
+/** What a spread plate is told beyond that it is one. */
+export interface PlateSpread {
+  /** How many knobs each section has, in the order of the knobs; left out, the knobs are one run. */
+  sections?: readonly number[]
+  /** The skin asks for a display twice as wide; it gets one on a plate wide enough. */
+  wide?: boolean
+}
+
+type SpreadCell = { row: number; column: number }
+
+/**
+ * Where the knobs of a spread plate go when the display takes `shown` columns:
+ * the fewest columns that hold them, and each knob's cell. Sections fill the
+ * room beside the display first and go under it from the first that does not
+ * fit there.
+ */
+function spreadCells(
+  knobs: number,
+  sections: readonly number[] | undefined,
+  shown: number,
+): { columns: number; cells: SpreadCell[] } {
+  if (!sections || sections.length === 0) {
+    // One run: two rows of all but the display's columns, two rows of all.
+    const columns = Math.max(
+      shown,
+      Math.ceil((knobs + SPREAD_BESIDE_ROWS * shown) / (SPREAD_BESIDE_ROWS + SPREAD_UNDER_ROWS)),
+    )
+    const beside = columns - shown
+    const first = SPREAD_BESIDE_ROWS * beside
+    const cells: SpreadCell[] = []
+    for (let index = 0; index < knobs; index++) {
+      cells.push(
+        index < first
+          ? { row: 1 + Math.floor(index / beside), column: shown + 1 + (index % beside) }
+          : {
+              row: SPREAD_BESIDE_ROWS + 1 + Math.floor((index - first) / columns),
+              column: 1 + ((index - first) % columns),
+            },
+      )
+    }
+    return { columns, cells }
+  }
+  for (let columns = shown; columns <= SPREAD_COLUMNS_MOST; columns++) {
+    const cells: SpreadCell[] = []
+    // Where the next block starts, and whether the blocks have gone under the display.
+    let under = false
+    let at = shown + 1
+    let fits = true
+    for (const size of sections) {
+      if (size <= 0) continue
+      const wide = Math.ceil(size / 2)
+      if (!under && at + wide - 1 > columns) {
+        under = true
+        at = 1
+      }
+      if (at + wide - 1 > columns) {
+        fits = false
+        break
+      }
+      const top = under ? SPREAD_BESIDE_ROWS + 1 : 1
+      for (let knob = 0; knob < size; knob++) {
+        cells.push({ row: top + Math.floor(knob / wide), column: at + (knob % wide) })
+      }
+      at += wide + 1
+    }
+    if (fits) return { columns, cells }
+  }
+  return spreadCells(knobs, undefined, shown)
+}
+
 /** Left of a display, and between a display and the knobs beside it. */
 const DISPLAY_LEFT = 8
 const DISPLAY_GAP = 4
@@ -133,6 +225,17 @@ export interface PlateLayout {
   display: { left: number; top: number; width: number; height: number } | null
   /** Set on an upright plate alone: its height, where its knobs start, a row's height and a knob's size, in px. */
   upright?: { height: number; knobsTop: number; row: number; knob: number }
+  /**
+   * Set on an upright spread plate with a display or a picture: how many of
+   * its columns the display takes, the heights of its rows from the top in
+   * px, and where a knob goes by its place in the order (row and column,
+   * from 1).
+   */
+  spread?: {
+    shown: number
+    rowHeights: readonly number[]
+    cell(index: number): { row: number; column: number }
+  }
 }
 
 /**
@@ -155,8 +258,60 @@ export function plateLayout(
   pictured: boolean,
   display?: Pick<PlateDisplay, 'place' | 'columns'>,
   upright = false,
+  spread: boolean | PlateSpread = false,
 ): PlateLayout {
   const cells = (px: number): number => Math.ceil(px / CELL) * CELL
+  if (upright && spread && (display !== undefined || pictured)) {
+    const shape: PlateSpread = spread === true ? {} : spread
+    let shown = SPREAD_DISPLAY_COLUMNS
+    let placed = spreadCells(knobs, shape.sections, shown)
+    // A display twice as wide is for a plate that is wide already; the knobs are laid again around it.
+    if (shape.wide && display !== undefined && placed.columns >= SPREAD_WIDE_FROM) {
+      shown = 2 * SPREAD_DISPLAY_COLUMNS
+      placed = spreadCells(knobs, shape.sections, shown)
+    }
+    const { columns } = placed
+    const pedal = Math.floor((UPRIGHT_PLATE_WIDTH - 2 * UPRIGHT_SIDE) / UPRIGHT_FACE_PER_ROW)
+    const width =
+      columns === SPREAD_DISPLAY_COLUMNS
+        ? UPRIGHT_PLATE_WIDTH
+        : cells(2 * UPRIGHT_SIDE + columns * pedal)
+    // The cells the width was rounded up by are shared among the columns.
+    const column = Math.floor((width - 2 * UPRIGHT_SIDE) / columns)
+    return {
+      rows: SPREAD_BESIDE_ROWS + SPREAD_UNDER_ROWS,
+      columns,
+      column,
+      width,
+      knobsLeft: UPRIGHT_SIDE,
+      display: display
+        ? {
+            left: UPRIGHT_SIDE,
+            top: UPRIGHT_SIDE,
+            // A pedal's display, or two of them side by side: never one stretched to the columns.
+            width: (shown / SPREAD_DISPLAY_COLUMNS) * (UPRIGHT_PLATE_WIDTH - 2 * UPRIGHT_SIDE),
+            height: DISPLAY_WINDOW_HEIGHT,
+          }
+        : null,
+      upright: {
+        height: UPRIGHT_PLATE_HEIGHT,
+        knobsTop: UPRIGHT_SIDE,
+        row: UPRIGHT_ROW,
+        knob: KNOB_SIZE,
+      },
+      spread: {
+        shown,
+        // The second row is as high as it takes for the third to start where a pedal's knobs do.
+        rowHeights: [
+          SPREAD_BESIDE_ROW,
+          UPRIGHT_KNOBS_TOP - UPRIGHT_SIDE - SPREAD_BESIDE_ROW,
+          UPRIGHT_ROW,
+          UPRIGHT_ROW,
+        ],
+        cell: (index) => placed.cells[index] ?? { row: 1, column: 1 },
+      },
+    }
+  }
   if (upright) {
     // A display or a picture has the top; without either the knobs start there and take four rows.
     const topped = display !== undefined || pictured
@@ -253,6 +408,28 @@ export function plateLayout(
   return { rows, columns, column, width, knobsLeft: KNOBS_LEFT, display: null }
 }
 
+/**
+ * A skin's sections as the device has them: the knobs it lacks left out, an
+ * empty section dropped, and the knobs no section names gathered in a last
+ * one. Null for a skin without sections.
+ */
+export function plateSections(
+  sections: DeviceSkin['sections'],
+  params: readonly string[],
+): string[][] | null {
+  if (!sections || sections.length === 0) return null
+  const seen = new Set<string>()
+  const kept: string[][] = []
+  for (const section of sections) {
+    const names = section.filter((name) => params.includes(name) && !seen.has(name))
+    for (const name of names) seen.add(name)
+    if (names.length > 0) kept.push(names)
+  }
+  const others = params.filter((name) => !seen.has(name))
+  if (others.length > 0) kept.push(others)
+  return kept
+}
+
 export interface DevicePlateProps {
   device: Device
   skin: DeviceSkin
@@ -277,6 +454,14 @@ export interface DevicePlateProps {
    * lies flat, 140 px high.
    */
   upright?: boolean
+  /**
+   * Lays every knob on the plate at once, with no cell to open the rest: for
+   * an instrument, whose knobs are all played. Upright, the first knobs stand
+   * in two rows beside the display and the rest in two rows under it, and the
+   * plate is as wide as they need (`plateLayout`); lying flat it is the plate
+   * opened, and stays so.
+   */
+  spread?: boolean
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -362,6 +547,7 @@ export function DevicePlate({
   showPresets,
   presetPicker,
   upright = false,
+  spread = false,
   defaultOpen = false,
   onOpenChange,
   actions,
@@ -375,7 +561,9 @@ export function DevicePlate({
 }: DevicePlateProps) {
   const d = useDevice(device, registry ? { registry } : {})
   const [presetName, setPresetName] = useState('')
-  const [open, setOpen] = useState(defaultOpen)
+  const [opened, setOpen] = useState(defaultOpen)
+  // A spread plate is open and stays so.
+  const open = spread || opened
   const held = usePlateInHand()
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
@@ -396,8 +584,24 @@ export function DevicePlate({
     upright ? [...chosen, ...all.filter((name) => !chosen.includes(name))] : chosen
   ).slice(0, onFace)
   const rest = all.filter((name) => !face.includes(name))
-  const names = open ? [...face, ...rest] : face
-  const layout = plateLayout(names.length, picture !== undefined, display, upright)
+  // Spread and upright, a skin's sections set the order, each kept together, and a knob in none of
+  // them stands in a last one with the others like it. Without sections the knobs keep the skin's
+  // order first and then their own: the face is no smaller set.
+  const sections = spread && upright ? plateSections(skin.sections, all) : null
+  const names = sections
+    ? sections.flat()
+    : spread
+      ? [...chosen, ...all.filter((name) => !chosen.includes(name))]
+      : open
+        ? [...face, ...rest]
+        : face
+  const layout = plateLayout(
+    names.length,
+    picture !== undefined,
+    display,
+    upright,
+    spread && { sections: sections?.map((section) => section.length), wide: skin.wide },
+  )
   const ownText = isParamTextDevice(device) ? device : null
   const editor = isEditorDevice(device) ? device : null
   const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)
@@ -416,8 +620,8 @@ export function DevicePlate({
   const roomy = roomyLetters(layout.column)
 
   const toggleOpen = (): void => {
-    setOpen(!open)
-    onOpenChange?.(!open)
+    setOpen(!opened)
+    onOpenChange?.(!opened)
   }
 
   // A picker that draws nothing (null) keeps the kit's list away and asks for no room.
@@ -483,6 +687,7 @@ export function DevicePlate({
         // No picture and no display: two rows of knobs, and the column at the right is the plate's own.
         !pictured && !display && 'lm-plate--plain',
         upright && 'lm-plate--upright',
+        spread && 'lm-plate--spread',
         editor && 'lm-plate--editor',
         className,
       )}
@@ -500,6 +705,13 @@ export function DevicePlate({
                 '--lm-plate-knobs-top': `${layout.upright.knobsTop}px`,
                 '--lm-plate-row': `${layout.upright.row}px`,
                 height: layout.upright.height,
+              }
+            : {}),
+          ...(layout.spread
+            ? {
+                '--lm-plate-row-heights': layout.spread.rowHeights
+                  .map((height) => `${height}px`)
+                  .join(' '),
               }
             : {}),
           width: layout.width,
@@ -545,8 +757,9 @@ export function DevicePlate({
         />
       ) : null}
       <div className="lm-plate__knobs">
-        {names.map((name) => {
+        {names.map((name, index) => {
           const spec = d.params[name]
+          const cell = layout.spread?.cell(index)
           const labels = choiceLabels?.[name] ?? (spec.choices?.length ? spec.choices : undefined)
           const choice = labels !== undefined || isChoiceParam(spec)
           const label = skin.labels?.[name] ?? (spec.name || name)
@@ -587,13 +800,12 @@ export function DevicePlate({
                 'lm-plate__knob',
                 longestWord(label) > roomy && 'lm-plate__knob--tight',
               )}
-              style={
-                longestWord(label) > roomy && squeeze(label, layout.column) < 1
-                  ? ({
-                      '--lm-plate-squeeze': squeeze(label, layout.column).toFixed(3),
-                    } as CSSProperties)
-                  : undefined
-              }
+              style={{
+                ...(cell ? { gridRow: cell.row, gridColumn: cell.column } : {}),
+                ...(longestWord(label) > roomy && squeeze(label, layout.column) < 1
+                  ? { '--lm-plate-squeeze': squeeze(label, layout.column).toFixed(3) }
+                  : {}),
+              }}
               data-testid={testId ? `${testId}-${name}` : undefined}
               data-lm-param={name}
             />
@@ -618,7 +830,7 @@ export function DevicePlate({
           Edit
         </button>
       ) : null}
-      {rest.length > 0 ? (
+      {rest.length > 0 && !spread ? (
         <button
           type="button"
           className={cx('lm-plate__more', editor && 'lm-plate__more--second')}

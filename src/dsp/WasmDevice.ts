@@ -15,8 +15,10 @@ import {
   type DeviceChangeListener,
   type DeviceMeterSpec,
   type MeteredDevice,
-  type NoteDevice,
+  type NoteWatchDevice,
   type ObservableDevice,
+  type PlayedNote,
+  type SampleWatchDevice,
 } from '../core/devices/Device'
 import { Emitter } from '../core/events'
 import { LoadProbe, wasmMemoryBytes, type LoadClaim } from '../core/load'
@@ -104,8 +106,18 @@ function paramTravel(spec: ParamSpec): ParamTravel {
 
 const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
 
+/**
+ * How long a note that was let go is remembered, in ms, and how many notes at
+ * the most. A minute: the longest tails the stock instruments have (a bell's
+ * Decay and a steel's Sustain at 40 s, a pad's Release at 30) are over by then.
+ */
+const PLAYED_KEPT_MS = 60_000
+const PLAYED_MOST = 128
+
+const clockMs = (): number => (typeof performance === 'object' ? performance.now() : Date.now())
+
 export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, ParamSpec>>
-  implements NoteDevice, ObservableDevice, MeteredDevice
+  implements NoteWatchDevice, SampleWatchDevice, ObservableDevice, MeteredDevice
 {
   /**
    * Whether the device moves its parameters on the audio thread
@@ -127,6 +139,10 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   private readonly meterIntervalFrames: number
   private meterValues: readonly number[] = []
   private meterWatchers = 0
+  /** The notes it was sent, oldest first (`playedNotes`). */
+  private readonly played: PlayedNote[] = []
+  /** How long the sound it was last handed is (`loadedSampleSeconds`). */
+  private sampleSeconds: number | null = null
   private bypassed = false
   private disposed = false
   private readonly load: LoadClaim
@@ -355,10 +371,42 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
   /** Note events for instrument modules (`device_note_on/off`); effects ignore them. */
   noteOn(noteId: number, frequency: number, gain = 0.5): void {
     this.post({ type: 'note-on', noteId, frequency, gain })
+    this.remember(noteId, frequency, gain)
   }
 
   noteOff(noteId: number): void {
     this.post({ type: 'note-off', noteId })
+    const nowMs = clockMs()
+    for (const note of this.played)
+      if (note.id === noteId && note.offMs === null) note.offMs = nowMs
+  }
+
+  /**
+   * The notes this device was sent: the held ones, and the ones let go in the
+   * last `PLAYED_KEPT_MS`, oldest first. For a display of what an instrument
+   * plays (`NoteWatchDevice`); nothing of it reaches the sound.
+   */
+  playedNotes(): readonly PlayedNote[] {
+    this.forget(clockMs())
+    return this.played
+  }
+
+  private remember(id: number, frequency: number, gain: number): void {
+    const nowMs = clockMs()
+    // A key struck again while it is held is a new note, and the old one is let go.
+    for (const note of this.played) if (note.id === id && note.offMs === null) note.offMs = nowMs
+    this.forget(nowMs)
+    if (this.played.length >= PLAYED_MOST) this.played.shift()
+    this.played.push({ id, frequency, gain, onMs: nowMs, offMs: null })
+  }
+
+  private forget(nowMs: number): void {
+    const played = this.played
+    let kept = 0
+    for (const note of played) {
+      if (note.offMs === null || nowMs - note.offMs <= PLAYED_KEPT_MS) played[kept++] = note
+    }
+    played.length = kept
   }
 
   /**
@@ -371,10 +419,22 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     if (channels.length === 0) return
     const copies = channels.slice(0, 2).map((channel) => channel.slice())
     if (this.disposed) return
+    // Read before the copies are handed over: a transferred buffer has no length left.
+    this.sampleSeconds = sampleRate > 0 ? copies[0].length / sampleRate : null
     this.node.port.postMessage(
       { type: 'sample', channels: copies, sampleRate } satisfies DeviceMessage,
       copies.map((copy) => copy.buffer),
     )
+  }
+
+  /**
+   * How long the sound this device was last handed is, in seconds; null until
+   * it is handed one, while a sample device plays the sound it is built with,
+   * and again once it is handed an instrument of zones.
+   * For a display of where in the sound a note is read (`SampleWatchDevice`).
+   */
+  loadedSampleSeconds(): number | null {
+    return this.sampleSeconds
   }
 
   /**
@@ -403,6 +463,8 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     }
     const { plan, load } = prepareZoneLoad(map, samples, this.zones, options)
     if (!load || this.disposed) return plan
+    // An instrument of zones is many sounds: the length of the one before it is no longer true.
+    this.sampleSeconds = null
     this.post({ type: 'zones-begin' })
     for (const sample of load.samples) {
       this.node.port.postMessage(

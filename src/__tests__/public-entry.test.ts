@@ -484,6 +484,11 @@ const dspSymbols = [
   'chordName',
   'generateSound',
   'renderGeneratedSound',
+  // The sounds that keep time at any tempo, and the instruments whose keys are drums (ambient-live's tempo and its keyboard)
+  'FACTORY_TEMPO_RANGE',
+  'soundAtTempo',
+  'KIT_INSTRUMENTS',
+  'isKitInstrument',
   'validatePatch',
   'patchDeviceParams',
   'patchDevices',

@@ -498,5 +498,385 @@
     "id": "vibraphone-chord-em7",
     "durationSec": 8,
     "loops": false
+  },
+  "301": {
+    "id": "drums-kick-beats",
+    "durationSec": 2,
+    "loops": true
+  },
+  "302": {
+    "id": "drums-sub-swell",
+    "durationSec": 8,
+    "loops": true
+  },
+  "303": {
+    "id": "drums-hat-eighths",
+    "durationSec": 2,
+    "loops": true
+  },
+  "304": {
+    "id": "drums-shaker-sixteenths",
+    "durationSec": 2,
+    "loops": true
+  },
+  "305": {
+    "id": "drums-rim-knock",
+    "durationSec": 4,
+    "loops": true
+  },
+  "306": {
+    "id": "drums-tick-dotted",
+    "durationSec": 2,
+    "loops": true
+  },
+  "307": {
+    "id": "drums-brush-strokes",
+    "durationSec": 4,
+    "loops": true
+  },
+  "308": {
+    "id": "drums-two-toms",
+    "durationSec": 4,
+    "loops": true
+  },
+  "309": {
+    "id": "drums-half-time-snare",
+    "durationSec": 4,
+    "loops": true
+  },
+  "310": {
+    "id": "drums-heartbeat",
+    "durationSec": 4,
+    "loops": true
+  },
+  "311": {
+    "id": "drums-kick-brush",
+    "durationSec": 4,
+    "loops": true
+  },
+  "312": {
+    "id": "drums-card-rim-hats",
+    "durationSec": 4,
+    "loops": true
+  },
+  "313": {
+    "id": "drums-sub-shaker",
+    "durationSec": 2,
+    "loops": true
+  },
+  "314": {
+    "id": "drums-lazy-shuffle",
+    "durationSec": 4,
+    "loops": true
+  },
+  "315": {
+    "id": "drums-three-hits",
+    "durationSec": 2,
+    "loops": true
+  },
+  "316": {
+    "id": "drums-rim-beat-tom-fill",
+    "durationSec": 8,
+    "loops": true
+  },
+  "317": {
+    "id": "drums-quiet-four",
+    "durationSec": 8,
+    "loops": true
+  },
+  "318": {
+    "id": "drums-broken-two-step",
+    "durationSec": 4,
+    "loops": true
+  },
+  "319": {
+    "id": "drums-hats-in-threes",
+    "durationSec": 2,
+    "loops": true
+  },
+  "320": {
+    "id": "drums-five-step-tick",
+    "durationSec": 8,
+    "loops": true
+  },
+  "321": {
+    "id": "drums-triplet-toms",
+    "durationSec": 2,
+    "loops": true
+  },
+  "322": {
+    "id": "drums-seven-step-rim",
+    "durationSec": 8,
+    "loops": true
+  },
+  "323": {
+    "id": "drums-five-against-four",
+    "durationSec": 4,
+    "loops": true
+  },
+  "324": {
+    "id": "drums-rim-echo",
+    "durationSec": 2,
+    "loops": true
+  },
+  "325": {
+    "id": "drums-tick-tape-echo",
+    "durationSec": 2,
+    "loops": true
+  },
+  "326": {
+    "id": "drums-clap-hall",
+    "durationSec": 8,
+    "loops": true
+  },
+  "327": {
+    "id": "drums-hat-echo",
+    "durationSec": 2,
+    "loops": true
+  },
+  "328": {
+    "id": "drums-snare-triplet-echo",
+    "durationSec": 2,
+    "loops": true
+  },
+  "329": {
+    "id": "drums-far-kit",
+    "durationSec": 4,
+    "loops": true
+  },
+  "330": {
+    "id": "drums-paper-tape",
+    "durationSec": 4,
+    "loops": true
+  },
+  "331": {
+    "id": "drums-deep-slow",
+    "durationSec": 8,
+    "loops": true
+  },
+  "332": {
+    "id": "drums-opening-filter",
+    "durationSec": 2,
+    "loops": true
+  },
+  "341": {
+    "id": "glitch-click-eighths",
+    "durationSec": 8,
+    "loops": true
+  },
+  "342": {
+    "id": "glitch-pop-beats",
+    "durationSec": 4,
+    "loops": true
+  },
+  "343": {
+    "id": "glitch-lone-pip",
+    "durationSec": 8,
+    "loops": true
+  },
+  "344": {
+    "id": "glitch-crackle-bed",
+    "durationSec": 4,
+    "loops": true
+  },
+  "345": {
+    "id": "glitch-static-offbeats",
+    "durationSec": 8,
+    "loops": true
+  },
+  "346": {
+    "id": "glitch-slow-stutter",
+    "durationSec": 8,
+    "loops": true
+  },
+  "347": {
+    "id": "glitch-pop-and-clicks",
+    "durationSec": 4,
+    "loops": true
+  },
+  "348": {
+    "id": "glitch-cuts-answer",
+    "durationSec": 4,
+    "loops": true
+  },
+  "349": {
+    "id": "glitch-wide-faults",
+    "durationSec": 8,
+    "loops": true
+  },
+  "350": {
+    "id": "glitch-small-high",
+    "durationSec": 4,
+    "loops": true
+  },
+  "351": {
+    "id": "glitch-zap-turn",
+    "durationSec": 8,
+    "loops": true
+  },
+  "352": {
+    "id": "glitch-three-three-two",
+    "durationSec": 4,
+    "loops": true
+  },
+  "353": {
+    "id": "glitch-nearly-empty",
+    "durationSec": 4,
+    "loops": true
+  },
+  "354": {
+    "id": "glitch-clicks-in-threes",
+    "durationSec": 4,
+    "loops": true
+  },
+  "355": {
+    "id": "glitch-five-on-four",
+    "durationSec": 4,
+    "loops": true
+  },
+  "356": {
+    "id": "glitch-seven-steps",
+    "durationSec": 8,
+    "loops": true
+  },
+  "357": {
+    "id": "glitch-triplet-ticks",
+    "durationSec": 4,
+    "loops": true
+  },
+  "358": {
+    "id": "glitch-pip-dotted-echo",
+    "durationSec": 4,
+    "loops": true
+  },
+  "359": {
+    "id": "glitch-scattered-clicks",
+    "durationSec": 4,
+    "loops": true
+  },
+  "360": {
+    "id": "glitch-cut-dark-plate",
+    "durationSec": 8,
+    "loops": true
+  },
+  "371": {
+    "id": "pulse-marimba-eighths-e",
+    "durationSec": 4,
+    "loops": true
+  },
+  "372": {
+    "id": "pulse-pipe-breaths-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "373": {
+    "id": "pulse-tine-offbeats-a",
+    "durationSec": 2,
+    "loops": true
+  },
+  "374": {
+    "id": "pulse-kalimba-sixteenths-d",
+    "durationSec": 2,
+    "loops": true
+  },
+  "375": {
+    "id": "pulse-tongue-drum-g",
+    "durationSec": 4,
+    "loops": true
+  },
+  "376": {
+    "id": "pulse-muted-guitar-c",
+    "durationSec": 2,
+    "loops": true
+  },
+  "377": {
+    "id": "pulse-felt-canon-am",
+    "durationSec": 2,
+    "loops": true
+  },
+  "378": {
+    "id": "pulse-harp-three-four-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "379": {
+    "id": "pulse-vibes-five-four-d",
+    "durationSec": 4,
+    "loops": true
+  },
+  "380": {
+    "id": "pulse-nylon-broken-chord-am",
+    "durationSec": 4,
+    "loops": true
+  },
+  "381": {
+    "id": "pulse-wooden-cell-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "382": {
+    "id": "pulse-koto-triplets-e",
+    "durationSec": 4,
+    "loops": true
+  },
+  "383": {
+    "id": "pulse-dub-chord-am",
+    "durationSec": 4,
+    "loops": true
+  },
+  "384": {
+    "id": "pulse-tine-echo-dm7",
+    "durationSec": 4,
+    "loops": true
+  },
+  "385": {
+    "id": "pulse-organ-stab-em",
+    "durationSec": 2,
+    "loops": true
+  },
+  "386": {
+    "id": "pulse-glass-ricochet-fmaj7",
+    "durationSec": 2,
+    "loops": true
+  },
+  "387": {
+    "id": "pulse-pluck-echo-csus2",
+    "durationSec": 4,
+    "loops": true
+  },
+  "388": {
+    "id": "pulse-guitar-echo-g",
+    "durationSec": 4,
+    "loops": true
+  },
+  "389": {
+    "id": "pulse-chopped-strings-dm",
+    "durationSec": 4,
+    "loops": true
+  },
+  "390": {
+    "id": "pulse-filter-beats-f",
+    "durationSec": 4,
+    "loops": true
+  },
+  "391": {
+    "id": "pulse-opening-organ-g",
+    "durationSec": 2,
+    "loops": true
+  },
+  "392": {
+    "id": "pulse-walking-accent-a",
+    "durationSec": 8,
+    "loops": true
+  },
+  "393": {
+    "id": "pulse-gated-saws-em",
+    "durationSec": 4,
+    "loops": true
+  },
+  "394": {
+    "id": "pulse-chopped-flutes-c",
+    "durationSec": 4,
+    "loops": true
   }
 }

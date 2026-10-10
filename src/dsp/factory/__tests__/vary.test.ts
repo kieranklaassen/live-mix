@@ -536,6 +536,12 @@ describe('a variant of a sound', () => {
         const grains = { ...held, source: 'some-other-sound' }
         expect(soundDegree(grains)).toBeNull()
         expect(chordMoves(grains)).toEqual([])
+        // A sound on a kit plays drums: no chord to name, and none to be put on.
+        const drums = { ...held, kit: true }
+        expect(soundDegree(drums)).toBeNull()
+        expect(chordMoves(drums)).toEqual([])
+        expect(varySound(drums, { seed: 9, chord: 2 })).toBe(drums)
+        expect(describeVariant(drums, { seed: 9, chords: 1, chord: 2 }).chordSteps).toBe(0)
         for (const steps of chordMoves(onD)) {
           expect(describeVariant(onD, { seed: 9, chord: steps }).chordSteps).not.toBe(0)
         }

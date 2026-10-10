@@ -11,6 +11,10 @@
 //   ?upright=1                       plates standing upright, as pedals
 //   ?chain=1                         in one `DeviceChainView` on a strip, as an app draws them
 //   ?preset=<name>                   each device on its preset of that name, where it has one
+//   ?instruments=1                   the instruments in the effects' place, each played a phrase
+//                                    that comes round, on a spread plate (every knob at once)
+//   ?then=shimmer,tape-echo          with `instruments`: these effects after each instrument,
+//                                    as the pedals of its chain
 //
 // `window.plates` is there for a script: `ready`, `devices` by id, `context`, `registry`.
 
@@ -23,6 +27,7 @@ import {
   DeviceRegistry,
   createEngine,
   devices as stockDevices,
+  isNoteDevice,
   type Device,
   type ChannelStrip,
   type DeviceCreateOptions,
@@ -45,6 +50,8 @@ const still = query.get('still') === '1'
 const chain = query.get('chain') === '1'
 const upright = query.get('upright') === '1'
 const preset = query.get('preset')
+const instruments = query.get('instruments') === '1'
+const then = query.get('then')?.split(',').filter(Boolean) ?? []
 
 function benchRegistry(): DeviceRegistry {
   const registry = new DeviceRegistry(stockDevices.list())
@@ -136,10 +143,46 @@ function benchSound(context: BaseAudioContext): AudioBuffer {
   return buffer
 }
 
+/**
+ * What an instrument is played on the bench: a slow broken chord, a held
+ * chord under it and one low note, six seconds that come round. Struck and
+ * held, low and high, soft and hard, so strings ring, pads swell and a
+ * display has something of each to show.
+ */
+const BENCH_PHRASE: readonly { at: number; hold: number; note: number; gain: number }[] = [
+  { at: 0, hold: 2.6, note: 50, gain: 0.8 },
+  { at: 0.5, hold: 1.6, note: 57, gain: 0.7 },
+  { at: 1, hold: 1.6, note: 65, gain: 0.55 },
+  { at: 1.5, hold: 1.6, note: 69, gain: 0.6 },
+  { at: 2, hold: 1.8, note: 72, gain: 0.8 },
+  { at: 3, hold: 2.4, note: 62, gain: 0.7 },
+  { at: 3, hold: 2.4, note: 69, gain: 0.5 },
+  { at: 3, hold: 2.4, note: 76, gain: 0.45 },
+  { at: 4.5, hold: 0.9, note: 81, gain: 0.5 },
+]
+const BENCH_PHRASE_SEC = 6
+
+/** Plays the phrase on an instrument, round and round, from now on. */
+function playPhrase(device: Device): void {
+  if (!isNoteDevice(device)) return
+  let round = 0
+  const play = (): void => {
+    const base = round * 100
+    for (const [index, { at, hold, note, gain }] of BENCH_PHRASE.entries()) {
+      const id = base + index
+      setTimeout(() => device.noteOn(id, 440 * 2 ** ((note - 69) / 12), gain), at * 1000)
+      setTimeout(() => device.noteOff(id), (at + hold) * 1000)
+    }
+    round += 1
+  }
+  play()
+  setInterval(play, BENCH_PHRASE_SEC * 1000)
+}
+
 interface Bench {
   engine: Engine
   registry: DeviceRegistry
-  entries: { device: Device; feed: AudioNode; name: string }[]
+  entries: { device: Device; feed: AudioNode | null; name: string; then: Device[] }[]
   strip: ChannelStrip | null
 }
 
@@ -149,7 +192,10 @@ async function makeBench(): Promise<Bench> {
   const engine = createEngine({ context, devices: registry })
   const wanted = registry
     .list()
-    .filter((descriptor) => descriptor.category !== 'instrument' && !descriptor.unavailable)
+    .filter(
+      (descriptor) =>
+        (descriptor.category === 'instrument') === instruments && !descriptor.unavailable,
+    )
     .filter((descriptor) => (only ? only.includes(descriptor.id) : true))
     .filter((descriptor) => (category ? descriptor.category === category : true))
   if (only) wanted.sort((a, b) => only.indexOf(a.id) - only.indexOf(b.id))
@@ -166,7 +212,27 @@ async function makeBench(): Promise<Bench> {
 
   const entries: Bench['entries'] = []
   let strip: Bench['strip'] = null
-  if (chain) {
+  if (instruments) {
+    for (const descriptor of wanted) {
+      const device = await registry.create(
+        descriptor.id,
+        context,
+        preset && descriptor.presets?.[preset] ? { preset } : {},
+      )
+      // The pedals of its chain: the instrument's sound goes through them in turn.
+      const after: Device[] = []
+      let from: AudioNode = device.output
+      for (const id of then) {
+        const effect = await registry.create(id, context, {})
+        from.connect(effect.input)
+        from = effect.output
+        after.push(effect)
+      }
+      from.connect(silent)
+      if (!still) playPhrase(device)
+      entries.push({ device, feed: null, name: descriptor.name, then: after })
+    }
+  } else if (chain) {
     const track = engine.addAudioTrack('Bench')
     strip = track.strip
     source.connect(strip.input)
@@ -178,7 +244,7 @@ async function makeBench(): Promise<Bench> {
       )
       strip.addInsert(device)
       keyed(device, key)
-      entries.push({ device, feed: strip.input, name: descriptor.name })
+      entries.push({ device, feed: strip.input, name: descriptor.name, then: [] })
     }
   } else {
     for (const descriptor of wanted) {
@@ -192,7 +258,7 @@ async function makeBench(): Promise<Bench> {
       feed.connect(device.input)
       device.output.connect(silent)
       keyed(device, key)
-      entries.push({ device, feed, name: descriptor.name })
+      entries.push({ device, feed, name: descriptor.name, then: [] })
     }
   }
   if (!still) {
@@ -256,11 +322,39 @@ function Plates() {
           />
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-            {bench.entries.map(({ device, feed, name }) => {
+            {bench.entries.map(({ device, feed, name, then: after }) => {
               const skin = deviceSkin(device)
               return (
                 <figure key={device.id} style={{ margin: 0 }} data-plate={device.id}>
-                  {skin ? (
+                  {skin && instruments ? (
+                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                      <DevicePlate
+                        device={device}
+                        skin={skin}
+                        registry={bench.registry}
+                        upright={upright}
+                        spread
+                        showBypass={false}
+                        presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                        data-testid={`plate-${device.id}`}
+                      />
+                      {after.map((effect, index) => {
+                        const effectSkin = deviceSkin(effect)
+                        return effectSkin ? (
+                          <DevicePlate
+                            key={effect.id}
+                            device={effect}
+                            skin={effectSkin}
+                            registry={bench.registry}
+                            source={index === 0 ? device.output : after[index - 1].output}
+                            upright={upright}
+                            presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                            onRemove={() => {}}
+                          />
+                        ) : null
+                      })}
+                    </div>
+                  ) : skin ? (
                     <DevicePlate
                       device={device}
                       skin={skin}
