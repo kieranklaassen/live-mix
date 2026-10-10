@@ -53,6 +53,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'overtone',
   'staircase',
   'shortwave',
+  'ice',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

@@ -24,6 +24,7 @@ import { GUITAR_PRESETS } from './guitar'
 import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
+import { ICE_PRESETS } from './ice'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MALLETS_PRESETS } from './mallets'
@@ -88,4 +89,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...OVERTONE_PRESETS,
   ...STAIRCASE_PRESETS,
   ...SHORTWAVE_PRESETS,
+  ...ICE_PRESETS,
 ]

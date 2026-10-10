@@ -40,6 +40,7 @@ import { HALF_SPEED_DESCRIPTOR, HALF_SPEED_DEVICE } from './half-speed.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
 import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
+import { ICE_DESCRIPTOR, ICE_DEVICE } from './ice.gen'
 import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { LOW_BITRATE_DESCRIPTOR, LOW_BITRATE_DEVICE } from './low-bitrate.gen'
@@ -130,6 +131,7 @@ export * from './half-speed.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
 export * from './horns.gen'
+export * from './ice.gen'
 export * from './ladder-bass.gen'
 export * from './lattice.gen'
 export * from './low-bitrate.gen'
@@ -222,6 +224,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
   HORNS_DESCRIPTOR,
+  ICE_DESCRIPTOR,
   LADDER_BASS_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
   LOW_BITRATE_DESCRIPTOR,
@@ -315,6 +318,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   HANDPAN_DEVICE,
   HARP_DEVICE,
   HORNS_DEVICE,
+  ICE_DEVICE,
   LADDER_BASS_DEVICE,
   LATTICE_DEVICE,
   LOW_BITRATE_DEVICE,
@@ -415,6 +419,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'handpan', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'horns', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'ice', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ladder-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'low-bitrate', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },

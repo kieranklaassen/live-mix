@@ -82,6 +82,8 @@ build_generated_devices() {
     cpp/devices/harp/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device horns \
     cpp/devices/horns/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ice \
+    cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
@@ -267,6 +269,8 @@ test_generated_devices() {
     cpp/test/harp_test.cpp
   native_test horns_test \
     cpp/test/horns_test.cpp
+  native_test ice_test \
+    cpp/test/ice_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
   native_test lattice_test \

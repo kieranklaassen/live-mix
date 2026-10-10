@@ -2123,5 +2123,24 @@
     "Lost station": {"signal":0,"tuneIn":0.7,"drift":1,"rate":2,"shift":1,"fading":1,"beat":0,"static":0.5,"band":0.25,"attack":0.6,"release":3,"volume":-10},
     "Storm static": {"signal":0,"tuneIn":0.3,"drift":0.25,"rate":2,"shift":1,"fading":0.7,"beat":0,"static":0.85,"band":0.45,"attack":0.3,"release":2.5,"volume":-10},
     "Telephone line": {"signal":0,"tuneIn":0.1,"drift":0.1,"rate":2,"shift":1,"fading":0.25,"beat":0,"static":0.3,"band":1,"attack":0.1,"release":1.5,"volume":-3.5}
+  },
+  "ice": {
+    "(default)": {"distance":0.45,"bright":0.6,"ring":5,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.4,"cracks":0.4,"roam":0.5,"width":0.8,"volume":-6},
+    "Frozen lake": {"distance":0.45,"bright":0.6,"ring":5,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.4,"cracks":0.4,"roam":0.5,"width":0.8,"volume":-6},
+    "Near ping": {"distance":0,"bright":0.6,"ring":5,"thick":0.5,"crack":0.5,"stretch":0.3,"shore":0.15,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Far crack": {"distance":1,"bright":0.8,"ring":5,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.7,"cracks":0.2,"roam":0.5,"width":0.8,"volume":-6},
+    "Thin ice": {"distance":0.45,"bright":0.85,"ring":3,"thick":0,"crack":0.6,"stretch":0.5,"shore":0.4,"cracks":0.4,"roam":0.5,"width":0.8,"volume":-6},
+    "Thick ice": {"distance":0.45,"bright":0.35,"ring":8,"thick":1,"crack":0.2,"stretch":0.3,"shore":0.4,"cracks":0.4,"roam":0.5,"width":0.8,"volume":-6},
+    "Lake at night": {"distance":0.7,"bright":0.6,"ring":8,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.8,"cracks":0.7,"roam":1,"width":0.8,"volume":-6},
+    "Ice bells": {"distance":0.15,"bright":0.6,"ring":9,"thick":0.5,"crack":0.15,"stretch":0,"shore":0.2,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Brittle snap": {"distance":0.05,"bright":0.6,"ring":1.5,"thick":0.2,"crack":1,"stretch":0.3,"shore":0,"cracks":0,"roam":0.5,"width":0.8,"volume":-2.5},
+    "Far shores": {"distance":0.6,"bright":0.6,"ring":5,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":1,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Slow thaw": {"distance":0.8,"bright":0.3,"ring":20,"thick":0.8,"crack":0,"stretch":0.3,"shore":0.4,"cracks":0.25,"roam":0.8,"width":0.8,"volume":-6},
+    "Zing": {"distance":0.9,"bright":1,"ring":1.5,"thick":0.1,"crack":0.35,"stretch":0.7,"shore":0.5,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Deep floe": {"distance":0.3,"bright":0.1,"ring":14,"thick":1,"crack":0.35,"stretch":0.1,"shore":0.4,"cracks":0.3,"roam":0.4,"width":0.8,"volume":-6},
+    "Plate tones": {"distance":0.1,"bright":0.6,"ring":6,"thick":0.4,"crack":0.35,"stretch":1,"shore":0.1,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Restless ice": {"distance":0.45,"bright":0.6,"ring":1.2,"thick":0.5,"crack":0.35,"stretch":0.3,"shore":0.3,"cracks":1,"roam":1,"width":0.8,"volume":-6},
+    "Clear ping": {"distance":0.25,"bright":0.6,"ring":4,"thick":0.5,"crack":0,"stretch":0,"shore":0,"cracks":0,"roam":0.5,"width":0.8,"volume":-6},
+    "Distant field": {"distance":1,"bright":0.45,"ring":3,"thick":0.5,"crack":0,"stretch":0.3,"shore":1,"cracks":0.5,"roam":0.6,"width":1,"volume":-6}
   }
 }
