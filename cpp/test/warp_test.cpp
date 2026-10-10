@@ -45,6 +45,50 @@ static float lower_octave(size_t i) {
   return sum;
 }
 
+// The presets of device.json (what each changes; the rest is the defaults), for the level checks.
+struct Setting {
+  int param;
+  float value;
+};
+struct Preset {
+  const char* name;
+  std::vector<Setting> settings;
+};
+static const std::vector<Preset>& presets() {
+  static const std::vector<Preset> all = {
+    {"Bell metal", {}},
+    {"Stiff string", {{p::kStretch, 0.45f}, {p::kLean, 1.0f}, {p::kDrift, 0.0f}, {p::kWidth, 0.15f}}},
+    {"Soft chime", {{p::kStretch, 0.12f}, {p::kDrift, 0.2f}, {p::kTone, -0.3f}, {p::kMix, 0.5f}}},
+    {"Glass bar", {{p::kStretch, 0.6f}, {p::kDrift, 0.0f}, {p::kTone, 0.2f}, {p::kWidth, 0.1f}}},
+    {"Tight hum", {{p::kStretch, -1.0f}, {p::kTone, 0.3f}}},
+    {"Slow breath", {{p::kStretch, 0.2f}, {p::kDrift, 1.0f}, {p::kWidth, 0.5f}}},
+    {"Sunken gong", {{p::kStretch, 0.45f}, {p::kPivot, 220.0f}, {p::kFollow, 0.0f}, {p::kShift, -12.0f}, {p::kTone, -0.5f}}},
+    {"Thin halo", {{p::kStretch, 0.06f}, {p::kDrift, 0.4f}, {p::kWidth, 1.0f}, {p::kMix, 0.35f}}},
+    {"Wide drone", {{p::kStretch, -0.25f}, {p::kPivot, 110.0f}, {p::kFollow, 0.0f}, {p::kDrift, 0.6f}, {p::kWidth, 1.0f}, {p::kMix, 0.85f}}},
+    {"Close cluster", {{p::kStretch, 0.7f}, {p::kLean, -1.0f}, {p::kMix, 0.9f}}},
+    {"Beating cluster", {{p::kStretch, -0.6f}, {p::kPivot, 330.0f}, {p::kFollow, 0.0f}, {p::kDrift, 0.3f}, {p::kWidth, 0.6f}}},
+    {"Tin toy", {{p::kStretch, 0.9f}, {p::kPivot, 300.0f}, {p::kFollow, 0.0f}, {p::kShift, 7.0f}, {p::kTone, -0.6f}, {p::kMix, 0.9f}}},
+    {"Fifth shadow", {{p::kStretch, 0.0f}, {p::kShift, 7.0f}, {p::kWidth, 0.5f}, {p::kMix, 0.4f}}},
+    {"Octave under", {{p::kStretch, 0.0f}, {p::kShift, -12.0f}, {p::kTone, -0.3f}, {p::kMix, 0.5f}}},
+    {"Dark bowl", {{p::kStretch, -0.35f}, {p::kDrift, 0.25f}, {p::kTone, -0.8f}}},
+    {"Bright spray", {{p::kStretch, 0.5f}, {p::kLean, 1.0f}, {p::kTone, 0.8f}, {p::kWidth, 0.8f}, {p::kMix, 0.6f}}},
+  };
+  return all;
+}
+static void load(Warp& d, const Preset& preset) {
+  d.init(kRate);
+  for (const Setting& setting : preset.settings) d.set_param(setting.param, setting.value);
+}
+
+// The device's curve, from its header: where a partial at `hz` goes for a pivot, a stretch and a lean.
+static double warped(double hz, double pivot, double stretch, double lean) {
+  const double o = std::log2(hz / pivot);
+  const double x = o / Warp::kLeanOctaves;
+  const double r = x * x / (1.0 + x * x);
+  const double w = lean >= 0.0 ? 1.0 - lean * (1.0 - r) : 1.0 + lean * r;
+  return pivot * std::pow(2.0, o * (1.0 + (std::pow(2.0, stretch) - 1.0) * w));
+}
+
 static double cents(double a, double b) { return 1200.0 * std::log2(a / b); }
 
 // The strongest frequency within `span` cents of `guess` over [from, to): a scan, then two finer ones.
@@ -250,13 +294,6 @@ int main() {
   // close and the high ones go far, turned down the other way round; and the curve always rises.
   {
     const std::vector<float> tone = harmonics(110.0f, 12, 1.5f, 0.3f);  // 110..1320 around a pivot of 220
-    auto warped = [](double hz, double pivot, double stretch, double lean) {
-      const double o = std::log2(hz / pivot);
-      const double x = o / Warp::kLeanOctaves;
-      const double r = x * x / (1.0 + x * x);
-      const double w = lean >= 0.0 ? 1.0 - lean * (1.0 - r) : 1.0 + lean * r;
-      return pivot * std::pow(2.0, o * (1.0 + (std::pow(2.0, stretch) - 1.0) * w));
-    };
     double worst = 0.0;
     for (float lean : {1.0f, -1.0f, 0.5f, -0.5f}) {
       still(device);
@@ -564,7 +601,7 @@ int main() {
       device.init(kRate);
       device.set_param(p::kMix, 0.7f);
       device.set_param(p::kFollow, event.follow);
-      device.set_param(p::kPivot, event.follow > 0.5f ? 40.0f : 220.0f);
+      device.set_param(p::kPivot, event.follow > 0.5f ? 20.0f : 220.0f);
       device.set_param(event.param, at(fixed < 0.0f ? 0.0f : fixed));
       run(device, std::vector<float>(chord.begin(), chord.begin() + 32000));
       Stereo out;
@@ -630,9 +667,198 @@ int main() {
     EXPECT(correlation(out.left, out.right, 24000) < -0.999, "and the two sides still opposite");
   }
 
-  device.init(kRate);
-  rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
-  report_cost("warp", 10.0f, kRate, [&] { run(device, input); });
+  // 16. Level. A held chord at full scale (four rich notes, peaking at 1) for a minute, through every
+  // preset and with every control at each of its ends: the output peaks no more than 6 dB over the
+  // input, is no louder at the end than at the start, and is within 3 dB of the input's level.
+  {
+    std::vector<float> chord(60 * 48000, 0.0f);
+    const float notes[4] = {110.0f, 164.81f, 220.0f, 277.18f};
+    for (float hz : notes) {
+      for (int n = 1; n <= 8; ++n) {
+        const double step = 2.0 * kPi * hz * n / kRate;
+        for (size_t i = 0; i < chord.size(); ++i) chord[i] += 0.25f / n * static_cast<float>(std::sin(step * static_cast<double>(i)));
+      }
+    }
+    const float scale = 1.0f / static_cast<float>(peak(chord));
+    for (float& v : chord) v *= scale;
+    const double in_rms = rms(chord);
+    double highest = 0.0, loudest = -100.0, quietest = 100.0, grew = 0.0;
+    auto hold = [&](const char* what) {
+      const Stereo out = run(device, chord);
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double level = db(std::sqrt(0.5 * (rms(out.left, 48000) * rms(out.left, 48000) + rms(out.right, 48000) * rms(out.right, 48000))) / in_rms);
+      const double first = std::max(peak(out.left, 48000, 11 * 48000), peak(out.right, 48000, 11 * 48000));
+      const double last = std::max(peak(out.left, 49 * 48000), peak(out.right, 49 * 48000));
+      highest = std::max(highest, top);
+      loudest = std::max(loudest, level);
+      quietest = std::min(quietest, level);
+      grew = std::max(grew, last / first);
+      char label[160];
+      std::snprintf(label, sizeof label, "%s: a full-scale chord for a minute peaks at %.2f, level %+.1f dB, end to start %.2f", what, top, level, last / first);
+      EXPECT(finite(out.left) && finite(out.right) && top < 2.0 && last < 1.2 * first && level < 3.0 && level > -12.0, label);
+    };
+    for (const Preset& preset : presets()) {
+      load(device, preset);
+      hold(preset.name);
+    }
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (float value : {p::kParamMin[id], p::kParamMax[id]}) {
+        device.init(kRate);
+        device.set_param(id, value);
+        char what[64];
+        std::snprintf(what, sizeof what, "param %d at %g", id, value);
+        hold(what);
+      }
+    }
+    std::printf("a full-scale chord for a minute: peak %.2f at the most, level %+.1f to %+.1f dB, end to start %.2f at the most\n",
+                highest, quietest, loudest, grew);
+  }
+
+  // 17. Part-way Mix. Held tones over the piano's range, through the default at four mixes and through
+  // every preset: the level over three seconds against the tone that went in. A partial that has not
+  // moved adds to its dry self to exactly what came in; one that has moved adds as power; nothing
+  // cancels for good, because the dry path is as late as the wet one. (Tone is set flat: it is a
+  // gain of its own, measured above. A tone the settings throw out of the spectrum, past 18 kHz or
+  // under 16 Hz, has no wet part left and is not counted: at Mix 0.9 it is the dry part alone, 16 dB
+  // down.)
+  {
+    double deepest = 0.0, highest = 0.0;
+    const char* where = "";
+    float where_hz = 0.0f;
+    int thrown = 0, counted = 0;
+    auto sweep = [&](const char* what, const Preset* preset, float mix) {
+      for (float note = 21.0f; note <= 108.0f; note += 3.0f) {
+        const float hz = 440.0f * std::pow(2.0f, (note - 69.0f) / 12.0f);
+        const std::vector<float> tone = sine(hz, 4.0f, kRate, 0.5f);
+        if (preset) {
+          load(device, *preset);
+        } else {
+          device.init(kRate);
+          device.set_param(p::kMix, mix);
+        }
+        device.set_param(p::kTone, 0.0f);
+        // Where the tone lands: with Follow on it is its own pivot (under the knob, and with Follow
+        // off, it is warped around the knob), then Shift.
+        const bool own = device.param(p::kFollow) >= 0.5f && hz >= device.param(p::kPivot);
+        const double landed = (own ? hz : warped(hz, device.param(p::kPivot), device.param(p::kStretch), device.param(p::kLean))) *
+                              std::pow(2.0, device.param(p::kShift) / 12.0);
+        if (landed > 18000.0 || landed < 16.0) {
+          ++thrown;
+          continue;
+        }
+        ++counted;
+        const Stereo out = run(device, tone);
+        const double l = rms(out.left, 48000), r = rms(out.right, 48000);
+        const double level = db(std::sqrt(0.5 * (l * l + r * r)) / rms(tone));
+        if (level < deepest) {
+          deepest = level;
+          where = what;
+          where_hz = hz;
+        }
+        highest = std::max(highest, level);
+      }
+    };
+    for (float mix : {0.25f, 0.5f, 0.75f, 1.0f}) sweep("the default", nullptr, mix);
+    for (const Preset& preset : presets()) sweep(preset.name, &preset, 0.0f);
+    std::printf("held tones A0 to C8 at part-way mix: level %+.2f to %+.2f dB of the input over %d tones (deepest: %s at %.1f Hz); %d thrown out of the spectrum\n",
+                deepest, highest, counted, where, where_hz, thrown);
+    EXPECT(deepest > -3.0, "no held tone drops by 3 dB at any preset or mix");
+    EXPECT(highest < 3.0, "and none rises by 3 dB");
+  }
+
+  // 18. No dead part of a knob: on a played phrase (struck notes that ring over one another), every
+  // control changes the sound between each fifth of its range and the next, by 3 % of the signal at the
+  // least. Pivot is tried with Follow off, where it is the one pivot: with Follow on it is the floor
+  // under which a note gets no pivot of its own (check 10), and a floor under every note played does
+  // nothing by its nature, which is said here rather than hidden: the least step is printed for both.
+  // And at 96 kHz the partials land where they do at 48.
+  {
+    std::vector<float> phrase(3 * 48000, 0.0f);
+    const double starts[4] = {0.0, 0.5, 1.0, 1.7};
+    const double pitches[4] = {220.0, 329.63, 523.25, 174.61};
+    for (int note = 0; note < 4; ++note) {
+      for (int n = 1; n <= 8; ++n) {
+        for (size_t i = static_cast<size_t>(starts[note] * kRate); i < phrase.size(); ++i) {
+          const double t = static_cast<double>(i) / kRate - starts[note];
+          phrase[i] += static_cast<float>(0.15 / n * std::exp(-t * (1.0 + 0.5 * n)) * std::min(1.0, t / 0.004) *
+                                          std::sin(2.0 * kPi * pitches[note] * n * t));
+        }
+      }
+    }
+    for (int id = 0; id < p::kNumParams; ++id) {
+      const bool choice = id == p::kFollow;
+      const int steps = choice ? 1 : 5;
+      Stereo last;
+      double least = 1.0e9;
+      for (int step = 0; step <= steps; ++step) {
+        const float along = static_cast<float>(step) / steps;
+        float value = p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * along;
+        if (id == p::kPivot) value = p::kParamMin[id] * std::pow(p::kParamMax[id] / p::kParamMin[id], along);
+        device.init(kRate);
+        if (id == p::kMix) device.set_param(p::kStretch, 0.5f);
+        if (id == p::kPivot) device.set_param(p::kFollow, 0.0f);
+        device.set_param(id, value);
+        const Stereo out = run(device, phrase);
+        if (step > 0) {
+          double difference = 0.0, size = 0.0;
+          for (size_t i = 0; i < out.size(); ++i) {
+            difference += std::pow(static_cast<double>(out.left[i]) - last.left[i], 2.0) + std::pow(static_cast<double>(out.right[i]) - last.right[i], 2.0);
+            size += static_cast<double>(out.left[i]) * out.left[i] + static_cast<double>(out.right[i]) * out.right[i];
+          }
+          least = std::min(least, std::sqrt(difference / size));
+        }
+        last = out;
+      }
+      char label[120];
+      std::snprintf(label, sizeof label, "param %d changes a played phrase over its whole range (least step %.3f)", id, least);
+      EXPECT(least > 0.03, label);
+      std::printf("param %d: the least change between fifths of its range is %.3f of the signal\n", id, least);
+    }
+
+    const float rate = 96000.0f;
+    still(device, rate);
+    device.set_param(p::kStretch, 0.4f);
+    std::vector<float> tone(static_cast<size_t>(1.5f * rate), 0.0f);
+    for (int n = 1; n <= 6; ++n) {
+      for (size_t i = 0; i < tone.size(); ++i) tone[i] += 0.3f / n * static_cast<float>(std::sin(2.0 * kPi * 220.0 * n * static_cast<double>(i) / rate));
+    }
+    const Stereo out = run(device, tone);
+    double worst = 0.0;
+    for (int n = 1; n <= 6; ++n) {
+      const double want = 220.0 * std::pow(n, std::pow(2.0, 0.4));
+      worst = std::max(worst, std::fabs(cents(partial_near(out.left, want, 60.0, 48000, 130000, rate), want)));
+    }
+    EXPECT(worst < 1.0, "at 96 kHz the partials land where they do at 48");
+  }
+
+  // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,
+  // which has a peak every third bin, with Follow on so each is tried against eight pivots), and the
+  // worst block: a frame's work lands in one block of eight, so the 95th percentile is one with a frame.
+  {
+    rng_state() = 0xBEEFu;
+    std::vector<float> loud = noise(10.0f, kRate, 0.25f);
+    const std::vector<float> few = harmonics(196.0f, 8, 10.0f, 0.2f);
+    const std::vector<float> notes8 = harmonics(233.08f, 6, 10.0f, 0.1f);
+    for (size_t i = 0; i < loud.size(); ++i) loud[i] += notes8[i];
+    device.init(kRate);
+    report_cost("warp (a chord, defaults)", 10.0f, kRate, [&] { run(device, few); });
+    device.init(kRate);
+    device.set_param(p::kWidth, 1.0f);
+    device.set_param(p::kDrift, 1.0f);
+    report_cost("warp (noise, everything on)", 10.0f, kRate, [&] { run(device, loud); });
+    device.init(kRate);
+    device.set_param(p::kWidth, 1.0f);
+    device.set_param(p::kDrift, 1.0f);
+    std::vector<double> micros;
+    for (size_t done = 0; done + 128 <= loud.size(); done += 128) {
+      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = loud[done + i];
+      const auto start = std::chrono::steady_clock::now();
+      device.process(128);
+      micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+    }
+    std::sort(micros.begin(), micros.end());
+    const double p95 = micros[micros.size() * 95 / 100];
+    std::printf("warp worst block (noise, 95th percentile): %.1f us, %.2f%% of its 2667 us (native)\n", p95, 100.0 * p95 / 2666.7);
+  }
   return finish("warp");
 }

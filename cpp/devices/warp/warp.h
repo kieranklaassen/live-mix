@@ -64,7 +64,8 @@
 //   up to 0.04 each. At 0 a mono input stays mono, bit for bit.
 // - Follow puts a pivot on every note being played, at or above the Pivot
 //   setting (track() below, up to eight, each channel from its own spectrum):
-//   each note keeps its pitch and its overtones are warped from it.
+//   each note keeps its pitch and its overtones are warped from it. What
+//   lies under the lowest note is warped around the knob.
 // - Tone is a gain per bin on the wet signal, over 500 Hz only: up to 6 dB
 //   an octave of cut (turned down) or of boost (turned up, never more than
 //   12 dB). What lies under 500 Hz is left as it is, so a darker tone is
@@ -296,10 +297,10 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   // With every place taken, a stronger newcomer takes the weakest pivot's.
   void track(Channel& channel, float floor_bin) const {
     const float lowest = floor_bin * (1.0f - kSameNote);
+    // The strongest partial of all, under the knob too: the skirts of a loud note under it are not
+    // notes.
     float strongest = 0.0f;
-    for (int i = 0; i < peaks_; ++i) {
-      if (peak_true_[i] >= lowest) strongest = kit::max(strongest, power_[peak_bin_[i]]);
-    }
+    for (int i = 0; i < peaks_; ++i) strongest = kit::max(strongest, power_[peak_bin_[i]]);
     for (int j = 0; j < kPivots; ++j) {
       const float pivot = channel.pivots[j];
       if (!(pivot > 0.0f)) continue;
@@ -363,14 +364,14 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   // The pivot (its place in channel.pivots) a partial at `place` bins is warped around, with
   // Follow on: the pivot it is a harmonic of (within half a semitone; of several, the one it is
   // the lowest harmonic of), which `harmonic` then numbers; failing that the nearest pivot under
-  // it, or the lowest of all, with `harmonic` 0. -1 when there is no pivot.
+  // it, with `harmonic` 0. -1 when it lies under every pivot, or there is none: such a partial
+  // is warped around the knob.
   static int pivot_for(const Channel& channel, float place, int* harmonic) {
-    int fits = -1, under = -1, bottom = -1;
+    int fits = -1, under = -1;
     int number = 1 << 30;
     for (int j = 0; j < kPivots; ++j) {
       const float pivot = channel.pivots[j];
       if (!(pivot > 0.0f)) continue;
-      if (bottom < 0 || pivot < channel.pivots[bottom]) bottom = j;
       const float ratio = place / pivot;
       if (ratio < 1.0f - kSameNote) continue;
       if (under < 0 || pivot > channel.pivots[under]) under = j;
@@ -381,7 +382,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       }
     }
     *harmonic = fits >= 0 ? number : 0;
-    return fits >= 0 ? fits : (under >= 0 ? under : bottom);
+    return fits >= 0 ? fits : under;
   }
 
   // One frame of channel c: kBins bins, changed in place. Parameters are read here, once per
@@ -456,10 +457,16 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     } else {
       for (float& pivot : channel.pivots) pivot = 0.0f;
     }
+    // (for the display: the lowest pivot there is)
+    channel.pivot_bin = knob_bin;
+    bool following = false;
+    for (const float pivot : channel.pivots) {
+      if (pivot > 0.0f && (!following || pivot < channel.pivot_bin)) {
+        channel.pivot_bin = pivot;
+        following = true;
+      }
+    }
     int harmonic = 0;
-    const int bottom = follow ? pivot_for(channel, 0.0f, &harmonic) : -1;
-    const bool following = bottom >= 0;
-    channel.pivot_bin = following ? channel.pivots[bottom] : knob_bin;
     const float log2_knob = std::log2(knob_bin);
     for (float& power : channel.note_power) power = 0.0f;
 
@@ -481,7 +488,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       float octaves = std::log2(place) - log2_knob;
       if (following) {
         const int owner = pivot_for(channel, place, &harmonic);
-        octaves = std::log2(place / channel.pivots[owner]);
+        if (owner >= 0) octaves = std::log2(place / channel.pivots[owner]);
         if (harmonic > 0) channel.note_power[owner] = kit::max(channel.note_power[owner], power_[k]);
       }
       // Lean's weight: r runs from 0 at the pivot to 1 far from it (a half at kLeanOctaves).

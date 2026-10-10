@@ -22,11 +22,11 @@ export const WARP_PARAMS = {
     name: 'Pivot',
     min: 20,
     max: 2000,
-    default: 40,
+    default: 20,
     taper: 'log',
     unit: 'Hz',
     description:
-      'The pitch that does not move. Everything else is stretched away from it or squeezed toward it. With Follow on, the lowest note that gets a pivot of its own.',
+      'The pitch that does not move. With Follow on, every note at or above it gets a pivot of its own, and only what lies under the lowest note is warped around this one.',
   },
   follow: {
     id: 2,
