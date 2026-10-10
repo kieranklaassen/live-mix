@@ -88,6 +88,8 @@ build_generated_devices() {
     cpp/devices/low-bitrate/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device mallets \
     cpp/devices/mallets/device_api.gen.cpp
+  MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device melt \
+    cpp/devices/melt/device_api.gen.cpp
   MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device micro-looper \
     cpp/devices/micro-looper/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device modal-bells \
@@ -263,6 +265,8 @@ test_generated_devices() {
     cpp/test/low_bitrate_test.cpp
   native_test mallets_test \
     cpp/test/mallets_test.cpp
+  native_test melt_test \
+    cpp/test/melt_test.cpp
   native_test micro_looper_test \
     cpp/test/micro_looper_test.cpp
   native_test modal_bells_test \

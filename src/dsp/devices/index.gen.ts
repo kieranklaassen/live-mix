@@ -43,6 +43,7 @@ import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
 import { LOW_BITRATE_DESCRIPTOR, LOW_BITRATE_DEVICE } from './low-bitrate.gen'
 import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
+import { MELT_DESCRIPTOR, MELT_DEVICE } from './melt.gen'
 import { MICRO_LOOPER_DESCRIPTOR, MICRO_LOOPER_DEVICE } from './micro-looper.gen'
 import { MODAL_BELLS_DESCRIPTOR, MODAL_BELLS_DEVICE } from './modal-bells.gen'
 import { NOISE_FLOOR_DESCRIPTOR, NOISE_FLOOR_DEVICE } from './noise-floor.gen'
@@ -128,6 +129,7 @@ export * from './ladder-bass.gen'
 export * from './lattice.gen'
 export * from './low-bitrate.gen'
 export * from './mallets.gen'
+export * from './melt.gen'
 export * from './micro-looper.gen'
 export * from './modal-bells.gen'
 export * from './noise-floor.gen'
@@ -215,6 +217,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   LATTICE_DESCRIPTOR,
   LOW_BITRATE_DESCRIPTOR,
   MALLETS_DESCRIPTOR,
+  MELT_DESCRIPTOR,
   MICRO_LOOPER_DESCRIPTOR,
   MODAL_BELLS_DESCRIPTOR,
   NOISE_FLOOR_DESCRIPTOR,
@@ -303,6 +306,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   LATTICE_DEVICE,
   LOW_BITRATE_DEVICE,
   MALLETS_DEVICE,
+  MELT_DEVICE,
   MICRO_LOOPER_DEVICE,
   MODAL_BELLS_DEVICE,
   NOISE_FLOOR_DEVICE,
@@ -398,6 +402,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'lattice', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'low-bitrate', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'mallets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'melt', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 8 },
   { id: 'micro-looper', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
   { id: 'modal-bells', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'noise-floor', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },

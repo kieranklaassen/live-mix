@@ -2028,5 +2028,24 @@
     "Late answers": {"density":4,"pitch":3,"size":100,"scatter":2000,"follow":0.2,"sparkle":0.5,"spread":0.8,"trail":0.4,"trailTime":180,"mix":0.28},
     "Overtone chimes": {"density":3,"pitch":4,"size":250,"scatter":350,"follow":0.6,"sparkle":0.3,"spread":0.8,"trail":0.6,"trailTime":300,"mix":0.3},
     "Thrown by touch": {"density":30,"pitch":3,"size":40,"scatter":100,"follow":1,"sparkle":0.5,"spread":0.8,"trail":0.3,"trailTime":180,"mix":0.28}
+  },
+  "melt": {
+    "(default)": {"sag":-30,"hold":5,"solid":120,"size":0.35,"blur":0.55,"dim":0.4,"drip":0.2,"width":1,"mix":0.4},
+    "Slow melt": {"sag":-30,"hold":5,"solid":120,"size":0.35,"blur":0.55,"dim":0.4,"drip":0.2,"width":1,"mix":0.4},
+    "Soft sag": {"sag":-8,"hold":2.5,"solid":60,"size":0.35,"blur":0.7,"dim":0.3,"drip":0.1,"width":1,"mix":0.25},
+    "Candle wax": {"sag":-18,"hold":9,"solid":300,"size":0.35,"blur":0.8,"dim":0.55,"drip":0.35,"width":1,"mix":0.45},
+    "Evaporate": {"sag":35,"hold":5,"solid":100,"size":0.35,"blur":0.6,"dim":0.5,"drip":0.15,"width":1,"mix":0.4},
+    "Into thin air": {"sag":70,"hold":8,"solid":250,"size":0.5,"blur":0.85,"dim":0.75,"drip":0.2,"width":1,"mix":0.5},
+    "Still halo": {"sag":0,"hold":4,"solid":40,"size":0.35,"blur":0.8,"dim":0.2,"drip":0,"width":1,"mix":0.35},
+    "Drip by drip": {"sag":-60,"hold":7,"solid":0,"size":0.9,"blur":0.15,"dim":0.3,"drip":0.3,"width":1,"mix":0.45},
+    "Rising drops": {"sag":50,"hold":6,"solid":0,"size":0.8,"blur":0.2,"dim":0.4,"drip":0.1,"width":1,"mix":0.4},
+    "Deep pool": {"sag":-6,"hold":20,"solid":400,"size":0.6,"blur":1,"dim":0.3,"drip":0.5,"width":1,"mix":0.5},
+    "Barely there": {"sag":-20,"hold":3,"solid":80,"size":0.35,"blur":0.6,"dim":0.4,"drip":0.2,"width":1,"mix":0.12},
+    "Sudden slump": {"sag":-100,"hold":2.5,"solid":0,"size":0.2,"blur":0.5,"dim":0.6,"drip":0,"width":1,"mix":0.5},
+    "Wobbly wax": {"sag":-45,"hold":6,"solid":60,"size":0.35,"blur":0.6,"dim":0.35,"drip":1,"width":1,"mix":0.45},
+    "Clean start": {"sag":-40,"hold":6,"solid":700,"size":0.35,"blur":0.65,"dim":0.5,"drip":0.2,"width":1,"mix":0.45},
+    "Dark puddle": {"sag":-25,"hold":8,"solid":150,"size":0.5,"blur":0.9,"dim":1,"drip":0.2,"width":0.6,"mix":0.5},
+    "Narrow thread": {"sag":15,"hold":3,"solid":20,"size":0,"blur":0.3,"dim":0.2,"drip":0,"width":0,"mix":0.35},
+    "Tail alone": {"sag":-30,"hold":6,"solid":0,"size":0.35,"blur":0.7,"dim":0.4,"drip":0.2,"width":1,"mix":1}
   }
 }
