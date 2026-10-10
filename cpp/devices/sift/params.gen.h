@@ -2,9 +2,9 @@
 //
 // Parameter ids and ranges of Sift, shared with
 // src/dsp/devices/sift.gen.ts:
-//    0  tones: -40..6 dB, default 0
-//    1  attacks: -40..6 dB, default -12
-//    2  air: -40..6 dB, default 3
+//    0  tones: -30..6 dB, default 0
+//    1  attacks: -30..6 dB, default -12
+//    2  air: -30..6 dB, default 3
 //    3  sharpness: 0..1, default 0.5
 //    4  edge: 0..1, default 1
 //    5  hold: 0..1, default 0.2
@@ -32,7 +32,7 @@ enum Param : int {
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {-40.0f, -40.0f, -40.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {-30.0f, -30.0f, -30.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {6.0f, 6.0f, 6.0f, 1.0f, 1.0f, 1.0f, 1.0f, 300.0f, 1.0f, 1.0f};
 inline constexpr float kParamDefault[kNumParams] = {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.2f, 0.4f, 0.0f, 0.6f, 1.0f};
 

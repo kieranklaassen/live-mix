@@ -28,7 +28,7 @@
     {
       "key": "tones",
       "name": "Tones",
-      "min": -40,
+      "min": -30,
       "max": 6,
       "default": 0,
       "unit": "dB",
@@ -37,7 +37,7 @@
     {
       "key": "attacks",
       "name": "Attacks",
-      "min": -40,
+      "min": -30,
       "max": 6,
       "default": -12,
       "unit": "dB",
@@ -46,7 +46,7 @@
     {
       "key": "air",
       "name": "Air",
-      "min": -40,
+      "min": -30,
       "max": 6,
       "default": 3,
       "unit": "dB",
@@ -113,25 +113,25 @@
   "presets": {
     "Soft hammers": {},
     "Tones only": {
-      "attacks": -40,
-      "air": -40,
+      "attacks": -30,
+      "air": -30,
       "sharpness": 0.7,
       "hold": 0,
       "soften": 0,
       "scatter": 0
     },
     "Only the strikes": {
-      "tones": -40,
+      "tones": -30,
       "attacks": 5,
-      "air": -40,
+      "air": -30,
       "soften": 0,
       "hold": 0,
       "scatter": 0
     },
     "Soft puffs": {
-      "tones": -40,
+      "tones": -30,
       "attacks": 6,
-      "air": -40,
+      "air": -30,
       "soften": 1,
       "hold": 0
     },
@@ -161,12 +161,12 @@
     "Pedal down": {
       "attacks": 0,
       "soften": 0,
-      "hold": 0.5,
+      "hold": 0.6,
       "air": 0,
       "scatter": 0.2
     },
     "Long wash": {
-      "attacks": -24,
+      "attacks": -20,
       "soften": 0.8,
       "hold": 0.85,
       "air": 0,
@@ -184,21 +184,21 @@
     },
     "Hard split": {
       "sharpness": 1,
-      "attacks": -40,
+      "attacks": -30,
       "air": 6,
       "scatter": 1,
       "hold": 0.12
     },
     "Breath and tone": {
-      "tones": -5,
-      "attacks": -30,
+      "tones": -3,
+      "attacks": -24,
       "air": 6,
       "scatter": 0.8,
       "sharpness": 0.2,
       "hold": 0.3
     },
     "Felt and air": {
-      "attacks": -20,
+      "attacks": -17,
       "soften": 0.9,
       "air": 6,
       "scatter": 1,
@@ -209,17 +209,17 @@
       "hold": 0.3
     },
     "Bowed entries": {
-      "attacks": -40,
-      "hold": 0.45,
+      "attacks": -30,
+      "hold": 0.3,
       "air": 0,
       "scatter": 0.5,
       "sharpness": 0.6
     },
     "Ghost puffs": {
-      "mix": 0.5,
-      "tones": -40,
+      "mix": 0.4,
+      "tones": -30,
       "attacks": 6,
-      "air": -40,
+      "air": -30,
       "soften": 0.7,
       "late": 150,
       "hold": 0

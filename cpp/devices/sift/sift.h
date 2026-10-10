@@ -86,9 +86,10 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   static constexpr int kLatency = Stft::kLatency + kLookSamples;  // 4352: "latencySamples"
 
   // The gain a level in dB gives its part: decibels, taken down to nothing at
-  // the bottom of the range (-40 dB) and exactly 1 at 0 dB.
+  // the bottom of the range (-30 dB) and exactly 1 at 0 dB.
   static float level_gain(float db) {
-    return (kit::db_to_gain(db) - kFloorGain) * (1.0f / (1.0f - kFloorGain));
+    const float floor = kit::db_to_gain(sift::kParamMin[sift::kTones]);
+    return kit::max(0.0f, (kit::db_to_gain(db) - floor) / (1.0f - floor));
   }
 
   // A magnitude as the whole number its bits spell, and back. Magnitudes are
@@ -315,8 +316,6 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   static constexpr int kSpreadSteps = 64;
   static constexpr int kLateSize = 32768;  // 300 ms at 96 kHz is 28800
   static constexpr int kDrySize = 4096;
-  // The bottom of a level's range, where its part is silent: -40 dB.
-  static constexpr float kFloorGain = 0.01f;
   // A part has a bin when it is this many times the other (6 dB), and the
   // slope of that step runs from kSoftSlope to kSoftSlope × kSlopeRange.
   static constexpr float kMargin = 2.0f;
@@ -326,6 +325,9 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   // under what the middle of nine along time reads it (measured: 3.26 dB).
   static constexpr float kAcrossBias = 1.455f;
   static constexpr float kMaxSoftenSeconds = 0.1f;
+  // The furthest Scatter turns the air's phase, in half turns either way:
+  // from here on the two sides have nothing left in common (measured 0.03).
+  static constexpr float kScatterReach = 0.75f;
   static constexpr float kLateFadeSeconds = 0.02f;
   // A bin under this holds nothing: -174 dBFS (a full-scale sine reads 512).
   static constexpr float kFloor = 1.0e-6f;
@@ -629,13 +631,15 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
       return power;
     }
     // The same angles for both sides and for this frame whatever was slept
-    // through; the left turns one way by them and the right the other, up to
-    // a quarter turn each.
+    // through; the left turns one way by them and the right the other, by up
+    // to `reach` half turns each: the square root of Scatter, so that the
+    // two sides agree by about 1 - Scatter (see the header).
     kit::Rng rng;
     rng.seed(0x9E3779B9u ^ (number * 2654435761u));
     for (int warm = 0; warm < 4; ++warm) rng.next_u32();
-    const float steps = (c == 0 ? 0.25f : -0.25f) * scatter * kAngles;
-    const float gain = gain_[2] * spread_gain_[static_cast<int>(0.5f * scatter * kSpreadSteps + 0.5f)];
+    const float reach = kScatterReach * std::sqrt(scatter);
+    const float steps = (c == 0 ? 0.5f : -0.5f) * reach * kAngles;
+    const float gain = gain_[2] * spread_gain_[static_cast<int>(reach * kSpreadSteps + 0.5f)];
     for (int k = 0; k < kBins; ++k) {
       const float share = kit::max(0.0f, 1.0f - tone_[k] - strike_[k]);
       const float a = share * xr[k];
