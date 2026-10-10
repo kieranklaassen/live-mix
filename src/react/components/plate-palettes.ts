@@ -153,6 +153,7 @@ export const PLATE_PALETTES = {
   'late-vibrato': { plate: '#84068d', ink: '#fdeeff', accent: '#ffae57' },
   seasons: { plate: '#a2e77e', ink: '#10260a', accent: '#9a1030' },
   stretch: { plate: '#3c3c18', ink: '#f3f0dc', accent: '#8fd4ff' },
+  prism: { plate: '#ecd624', ink: '#1c1803', accent: '#5a1ca8' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

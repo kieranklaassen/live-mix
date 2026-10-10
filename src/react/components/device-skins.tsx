@@ -1909,6 +1909,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'late-vibrato': { ...PLATE_PALETTES['late-vibrato'], finish: 'grain', cap: 'skirt' },
   seasons: { ...PLATE_PALETTES.seasons, finish: 'gloss', cap: 'skirt' },
   stretch: { ...PLATE_PALETTES.stretch, finish: 'speckle', cap: 'disc' },
+  prism: { ...PLATE_PALETTES.prism, finish: 'gloss', cap: 'pointer' },
 }
 
 /**

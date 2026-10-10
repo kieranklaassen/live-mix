@@ -39,6 +39,7 @@ import { ORBITS_FACES } from './orbits'
 import { OVERTONE_SINGER_FACES } from './overtone-singer'
 import { PITCH_FACES } from './pitch'
 import { PULSES_FACES } from './pulses'
+import { PRISM_FACES } from './prism'
 import { REVERB_FACES } from './reverb'
 import { SKIPPING_STONE_FACES } from './skipping-stone'
 import { RING_FACES } from './ring'
@@ -111,4 +112,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...LATE_VIBRATO_FACES,
   ...SEASONS_FACES,
   ...STRETCH_FACES,
+  ...PRISM_FACES,
 }
