@@ -146,6 +146,7 @@ export const PLATE_PALETTES = {
   breath: { plate: '#d9c2cf', ink: '#2c1626', accent: '#7a2f5e' },
   currents: { plate: '#1b7491', ink: '#f0fafb', accent: '#ffe9c4' },
   ring: { plate: '#6f5a1e', ink: '#fbf1d8', accent: '#8fe8cf' },
+  underwater: { plate: '#0b358e', ink: '#e6f5f7', accent: '#8cf5d2' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

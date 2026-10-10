@@ -44,6 +44,7 @@ import { RING_FACES } from './ring'
 import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
+import { UNDERWATER_FACES } from './underwater'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
@@ -97,4 +98,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...BREATH_FACES,
   ...CURRENTS_FACES,
   ...RING_FACES,
+  ...UNDERWATER_FACES,
 }
