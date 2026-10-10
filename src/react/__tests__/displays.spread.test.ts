@@ -14,7 +14,6 @@ import {
   SPREAD_FACES,
   SPREAD_FAINTEST,
   SPREAD_FAINT_DB,
-  SPREAD_STAGE_OCTAVES,
   SPREAD_TOP_OF_RANGE,
   spreadBand,
   spreadBox,
@@ -67,8 +66,7 @@ const SETTINGS: readonly SpreadCurve[] = [
 
 // --- The header's formula, written out apart from the display -----------------
 
-/** `kSpreadOctaves` and `kTopOfRange` in `spread.h`. */
-const K_SPREAD_OCTAVES = 1
+/** `kTopOfRange` in `spread.h`. */
 const K_TOP_OF_RANGE = 0.45
 
 interface C {
@@ -85,35 +83,38 @@ const over = (a: C, b: C): C => {
 const scaled = (a: C, g: number): C => c(a.re * g, a.im * g)
 
 /**
- * `Stage::process` as a response: A and B are `kit::Svf` at Q √½, the bilinear
- * transform of s² + √2·s + 1, so a frequency is heard at tan(πf/rate) over
- * tan(πf₀/rate).
+ * `Stage::process` as a response, filter by filter. A and B are `kit::Svf` at
+ * Q one half, the bilinear transform of (s + 1)², so a frequency is heard at
+ * tan(πf/rate) over tan(πf₀/rate). B runs twice: on the low of A, where its
+ * low less its high is the plain turn of phase that keeps the bass in step,
+ * and on the high of A turned over.
  */
 function headerStage(hz: number, lowHz: number, highHz: number, g: number[], rate: number): C {
   const [l, m, h] = g
-  const parts = (corner: number): [C, C, C] => {
+  const parts = (corner: number): [C, C] => {
     const w =
       Math.tan((Math.PI * hz) / rate) /
       Math.tan((Math.PI * Math.min(corner, K_TOP_OF_RANGE * rate)) / rate)
     const s = c(0, w)
-    const d = add(times(s, s), scaled(s, Math.SQRT2), c(1))
-    return [over(c(1), d), over(scaled(s, Math.SQRT2), d), over(times(s, s), d)]
+    const d = times(add(s, c(1)), add(s, c(1)))
+    return [over(c(1), d), over(times(s, s), d)]
   }
-  const [lpA, bpA, hpA] = parts(lowHz)
-  const [lpB, bpB, hpB] = parts(highHz)
-  return add(
-    times(lpB, add(scaled(lpA, l), scaled(bpA, Math.sqrt(l * m)), scaled(hpA, m))),
-    times(hpA, add(scaled(bpB, Math.sqrt(m * h)), scaled(hpB, h))),
-    scaled(times(add(lpA, bpA), add(bpB, hpB)), Math.cbrt(l * m * h)),
-  )
+  const [lpA, hpA] = parts(lowHz)
+  const [lpB, hpB] = parts(highHz)
+  const below = times(lpA, add(lpB, scaled(hpB, -1)))
+  const turned = scaled(hpA, -1)
+  return add(scaled(below, l), scaled(times(turned, lpB), m), scaled(times(turned, hpB), -h))
 }
 
 function headerGain(hz: number, set: SpreadCurve, rate: number): number {
-  const apart = Math.pow(2, K_SPREAD_OCTAVES * (1 - set.slope))
-  const g = [Math.sqrt(set.low), Math.sqrt(set.mid), Math.sqrt(set.high)]
+  // `share` in `spread.h`: stage two gives a region 1 + slope·(√width - 1), stage one the rest.
+  const second = [set.low, set.mid, set.high].map((width) => 1 + set.slope * (Math.sqrt(width) - 1))
+  const first = [set.low, set.mid, set.high].map((width, j) =>
+    second[j] > 0 ? width / second[j] : 0,
+  )
   const both = times(
-    headerStage(hz, set.lowHz / apart, set.highHz / apart, g, rate),
-    headerStage(hz, set.lowHz * apart, set.highHz * apart, g, rate),
+    headerStage(hz, set.lowHz, set.highHz, first, rate),
+    headerStage(hz, set.lowHz, set.highHz, second, rate),
   )
   return Math.hypot(both.re, both.im)
 }
@@ -186,7 +187,6 @@ const curveOf = (drawn: RecordingContext): Stroke => {
 
 describe('the spread display: the curve', () => {
   it('copies the constants of the header', () => {
-    expect(SPREAD_STAGE_OCTAVES).toBe(K_SPREAD_OCTAVES)
     expect(SPREAD_TOP_OF_RANGE).toBe(K_TOP_OF_RANGE)
   })
 
@@ -202,10 +202,15 @@ describe('the spread display: the curve', () => {
     for (const hz of [30, 180, 1000, 3200, 15000])
       expect(spreadGain(hz, flat, RATE)).toBeCloseTo(1, 9)
     const sharp = { low: 0.4, mid: 1.3, high: 2, lowHz: 200, highHz: 4000, slope: 1 }
-    expect(spreadGain(25, sharp, RATE)).toBeCloseTo(0.4, 2)
-    // Between the splits the two stages leave a ripple of a hundredth or so, which the device has too.
+    // The splits are gentle, so a region is only all of itself well away from them.
+    expect(spreadGain(25, sharp, RATE)).toBeCloseTo(0.4, 1)
     expect(spreadGain(900, sharp, RATE)).toBeCloseTo(1.3, 1)
-    expect(spreadGain(19000, sharp, RATE)).toBeCloseTo(2, 2)
+    expect(spreadGain(19000, sharp, RATE)).toBeCloseTo(2, 1)
+    // Slope shows where a region is at nothing: an octave under the split of a bass at 0 the
+    // sides are a fifth of what they were with Slope down, and a fifth of that with it up.
+    const bass = { low: 0, mid: 1, high: 1, lowHz: 400, highHz: 4000 }
+    expect(spreadGain(200, { ...bass, slope: 0 }, RATE)).toBeCloseTo(0.2, 2)
+    expect(spreadGain(200, { ...bass, slope: 1 }, RATE)).toBeCloseTo(0.04, 2)
   })
 
   it('is what the compiled device does to a tone on the sides', async () => {
@@ -304,8 +309,9 @@ describe('the spread display: the curve', () => {
       for (const hz of [30, 180, 700, 3200, 9000, 16000])
         expect(spreadMade(hz, set, RATE)).toBeCloseTo(headerGain(hz, excess(set), RATE), 9)
     // A region at 2 gets made sides as loud as the middle; one at 1 or under gets none.
-    expect(spreadMade(19000, { ...START, high: 2, slope: 1 }, RATE)).toBeCloseTo(1, 2)
-    expect(spreadMade(500, { ...START, high: 2, slope: 1 }, RATE)).toBeLessThan(0.01)
+    const top = { ...START, mid: 1, high: 2, slope: 1 }
+    expect(spreadMade(19000, top, RATE)).toBeCloseTo(1, 2)
+    expect(spreadMade(500, top, RATE)).toBeLessThan(0.01)
     for (const [width, height] of SIZES) {
       const box = spreadBox({ width, height })
       const dashed = (values: Record<string, number>): Stroke[] =>
@@ -319,6 +325,57 @@ describe('the spread display: the curve', () => {
         expect(line.colour).toBe(PLAIN_COLOURS.ink)
         for (const [x, y] of line.points)
           expect(y).toBeCloseTo(spreadY(make * spreadMade(hzOfX(x, box), START, RATE), box), 6)
+      }
+    }
+  })
+
+  it('draws the dashed line where the compiled device puts the sides of a mono tone', async () => {
+    const harness = await loadWasmDevice('spread')
+    const block = 128
+    const wide: readonly SpreadCurve[] = [
+      START,
+      { low: 2, mid: 0.5, high: 2, lowHz: 300, highHz: 2000, slope: 1 },
+      { low: 1.5, mid: 2, high: 1, lowHz: 120, highHz: 6000, slope: 0 },
+    ]
+    for (const set of wide) {
+      for (const make of [0.5, 1]) {
+        for (const hz of [60, 180, 700, 3200, 9000]) {
+          harness.device.device_init(RATE, harness.maxBlock)
+          for (const name of ['low', 'mid', 'high', 'lowHz', 'highHz', 'slope'] as const)
+            harness.set(P[name], set[name])
+          harness.set(P.make, make)
+          harness.set(P.safe, 0)
+          // The same tone on both sides for 0.6 s; the last 0.2 s is measured, middle and sides.
+          const total = 0.6 * RATE
+          const from = total - 9600
+          const sum = { midRe: 0, midIm: 0, sideRe: 0, sideIm: 0 }
+          const tone = new Float32Array(block)
+          for (let done = 0; done < total; done += block) {
+            for (let i = 0; i < block; i++)
+              tone[i] = 0.5 * Math.sin((2 * Math.PI * hz * (done + i)) / RATE)
+            harness.processBlock(tone, tone)
+            const outLeft = harness.view(harness.device.device_out_left(), block)
+            const outRight = harness.view(harness.device.device_out_right(), block)
+            for (let i = 0; i < block; i++) {
+              const n = done + i - from
+              if (n < 0) continue
+              const hann = 0.5 - 0.5 * Math.cos((2 * Math.PI * n) / 9600)
+              const turn = (2 * Math.PI * hz * (done + i)) / RATE
+              const mid = 0.5 * (outLeft[i] + outRight[i])
+              const side = 0.5 * (outLeft[i] - outRight[i])
+              sum.midRe += hann * mid * Math.cos(turn)
+              sum.midIm += hann * mid * Math.sin(turn)
+              sum.sideRe += hann * side * Math.cos(turn)
+              sum.sideIm += hann * side * Math.sin(turn)
+            }
+          }
+          const measured = Math.hypot(sum.sideRe, sum.sideIm) / Math.hypot(sum.midRe, sum.midIm)
+          const said = make * spreadMade(hz, set, RATE)
+          expect(
+            Math.abs(measured - said),
+            `${JSON.stringify(set)}, Make ${make}, ${hz} Hz`,
+          ).toBeLessThan(0.01 * Math.max(said, 0.05))
+        }
       }
     }
   })
@@ -403,7 +460,7 @@ describe('the spread display: the points', () => {
     expect(said('low')).toBe('Low  mono')
     expect(said('mid', { mid: 1.25 })).toBe('Mid  ×1.25')
     expect(said('high', { high: 2 })).toBe('High  ×2.00')
-    expect(said('lowHz')).toBe('Low split  180 Hz')
+    expect(said('lowHz')).toBe('Low split  120 Hz')
     expect(said('highHz', { highHz: 12000 })).toBe('High split  12 kHz')
     // The words in hand keep clear of every point.
     const settings: Record<string, number>[] = [
@@ -590,11 +647,37 @@ describe('the spread display: the sound', () => {
         })),
       )
     expect(after(0.5)).toBeCloseTo(spreadY(1, box), 0)
-    // A tenth of a second after the sound turns mono the bar is still most of the way up.
+    // A tenth of a second after the sound turns mono the bar is on its way down: the middle is
+    // twice what it was at once, and the sides it held have hardly sunk.
     const soon = after(0.6)
-    expect(soon).toBeGreaterThan(spreadY(1, box) + 1)
-    expect(soon).toBeLessThan(spreadY(0.5, box))
+    expect(soon).toBeGreaterThan(spreadY(0.55, box))
+    expect(soon).toBeLessThan(spreadY(0.3, box))
     expect(after(4.5)).toBeCloseTo(spreadY(0, box) - 1.5, 1)
+  })
+
+  it('brings a bar down at once when a loud sound in the middle follows a faint wide one', () => {
+    const box = spreadBox(displaySize(display))
+    const top = (drawn: RecordingContext): number =>
+      fills(drawn, PLAIN_COLOURS.accent).find(
+        ({ box: [x] }) => Math.abs(x - (xOfHz(spreadBand(bandOf(5000))[0], box) + 0.5)) < 1e-6,
+      )?.box[1] ?? NaN
+    // A hiss of a note far out on the two sides under a chord, then a loud note in the middle there.
+    const hiss = sound([
+      [200, 0.2, 0.2],
+      [5000, 0.002, -0.002],
+    ])
+    const note = sound([
+      [200, 0.2, 0.2],
+      [5000, 0.2, 0.2],
+    ])
+    const after = (seconds: number): number =>
+      top(
+        runDisplay(display, params, seconds, {}, (time) => ({ signal: time < 0.49 ? hiss : note })),
+      )
+    // The hiss alone is all sides: its bar stands at the top of the scale.
+    expect(after(0.4)).toBeCloseTo(box.y, 0)
+    // A tenth of a second into the note the bar is at the foot, where the note is.
+    expect(after(0.6)).toBeGreaterThan(spreadY(0.05, box))
   })
 
   it('draws the curve as Safe holds it, from the reading the device reports', () => {

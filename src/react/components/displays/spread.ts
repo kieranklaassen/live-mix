@@ -1,7 +1,8 @@
 // The display of Spread (`cpp/devices/spread/spread.h`): width by frequency.
 // Frequency runs across and width upward. The line is the gain the device
 // gives the sides at each frequency, worked out from the same three region
-// split the sound goes through; the bars behind it are how wide the sound
+// split the sound goes through (two stages, each a split whose parts are in
+// phase, so the gain is a plain number); the bars behind it are how wide the sound
 // coming out is in each band, the sides against the middle, taken from the
 // two sides the plate hears. Three points set the regions' widths and two set
 // the splits.
@@ -35,8 +36,6 @@ import {
 
 // --- The curve, as `spread.h` makes it ----------------------------------------
 
-/** `kSpreadOctaves`: how far each stage stands from the split at Slope 0. */
-export const SPREAD_STAGE_OCTAVES = 1
 /** `kTopOfRange`: no stage is tuned above this share of the sample rate. */
 export const SPREAD_TOP_OF_RANGE = 0.45
 
@@ -50,28 +49,21 @@ export interface SpreadCurve {
   slope: number
 }
 
-type Complex = readonly [number, number]
-
-const mul = (a: Complex, b: Complex): Complex => [
-  a[0] * b[0] - a[1] * b[1],
-  a[0] * b[1] + a[1] * b[0],
-]
-
-/** The low, band (times k) and high outputs of a Butterworth state variable filter at `corner`, heard at `hz`. */
-function split(hz: number, corner: number, sampleRate: number): [Complex, Complex, Complex] {
+/**
+ * The share of the sound a split at `corner` gives the part below it, heard at
+ * `hz`: 1 / (1 + w²), with w the frequency over the corner through the tangent
+ * (the filters are bilinear). The part above gets the rest, and the two are in
+ * phase, so a share is a plain number.
+ */
+function below(hz: number, corner: number, sampleRate: number): number {
   const tuned = Math.min(corner, SPREAD_TOP_OF_RANGE * sampleRate)
-  // The filter is the bilinear transform of its analogue: frequencies are warped by the tangent.
   const w =
     Math.tan((Math.PI * Math.min(hz, 0.499 * sampleRate)) / sampleRate) /
     Math.tan((Math.PI * tuned) / sampleRate)
-  const re = 1 - w * w
-  const im = Math.SQRT2 * w
-  const inverse = 1 / (re * re + im * im)
-  const lp: Complex = [re * inverse, -im * inverse]
-  return [lp, mul([0, im], lp), [-w * w * lp[0], -w * w * lp[1]]]
+  return 1 / (1 + w * w)
 }
 
-/** One stage of the curve: `Stage::process`, with l, m and h the square roots of the widths. */
+/** One stage of the curve: `Stage::process`, with l, m and h this stage's share of the widths. */
 function stage(
   hz: number,
   lowHz: number,
@@ -80,32 +72,30 @@ function stage(
   m: number,
   h: number,
   sampleRate: number,
-): Complex {
-  const [lpA, bpA, hpA] = split(hz, lowHz, sampleRate)
-  const [lpB, bpB, hpB] = split(hz, highHz, sampleRate)
-  const lm = Math.sqrt(l * m)
-  const mh = Math.sqrt(m * h)
-  const rest = Math.cbrt(l * m * h)
-  const shelf: Complex = [
-    l * lpA[0] + lm * bpA[0] + m * hpA[0],
-    l * lpA[1] + lm * bpA[1] + m * hpA[1],
-  ]
-  const low = mul(lpB, shelf)
-  const high = mul(hpA, [mh * bpB[0] + h * hpB[0], mh * bpB[1] + h * hpB[1]])
-  const left = mul([lpA[0] + bpA[0], lpA[1] + bpA[1]], [bpB[0] + hpB[0], bpB[1] + hpB[1]])
-  return [low[0] + high[0] + rest * left[0], low[1] + high[1] + rest * left[1]]
+): number {
+  const a = below(hz, lowHz, sampleRate)
+  const b = below(hz, highHz, sampleRate)
+  return l * a + (1 - a) * (m * b + h * (1 - b))
+}
+
+/**
+ * A region's width shared between the two stages, as `share` in `spread.h`:
+ * stage two gives 1 + slope·(√width - 1) and stage one what is left of the width.
+ */
+function shared(width: number, slope: number): [number, number] {
+  const second = 1 + slope * (Math.sqrt(Math.max(0, width)) - 1)
+  return [second > 0 ? Math.max(0, width) / second : 0, second]
 }
 
 /** The gain the device gives the sides at `hz`: 0 is mono there, 1 as it came, 2 twice as wide. */
 export function spreadGain(hz: number, set: SpreadCurve, sampleRate: number): number {
-  const apart = Math.pow(2, SPREAD_STAGE_OCTAVES * (1 - set.slope))
-  const l = Math.sqrt(Math.max(0, set.low))
-  const m = Math.sqrt(Math.max(0, set.mid))
-  const h = Math.sqrt(Math.max(0, set.high))
-  const one = stage(hz, set.lowHz / apart, set.highHz / apart, l, m, h, sampleRate)
-  const two = stage(hz, set.lowHz * apart, set.highHz * apart, l, m, h, sampleRate)
-  const both = mul(one, two)
-  return Math.hypot(both[0], both[1])
+  const l = shared(set.low, set.slope)
+  const m = shared(set.mid, set.slope)
+  const h = shared(set.high, set.slope)
+  return (
+    stage(hz, set.lowHz, set.highHz, l[0], m[0], h[0], sampleRate) *
+    stage(hz, set.lowHz, set.highHz, l[1], m[1], h[1], sampleRate)
+  )
 }
 
 /**
@@ -170,6 +160,9 @@ interface SpreadState {
   /** Each band's width as drawn, and how strongly: its level against the loudest band (0 to 1). */
   width: Float32Array
   lit: Float32Array
+  /** The power of each band's middle and of its sides as the bars hold them: up at once, down slowly. */
+  middle: Float32Array
+  sides: Float32Array
   /** What was measured on the last frame, before it is smoothed. */
   measured: Float32Array
   power: Float32Array
@@ -274,9 +267,15 @@ export function spreadWidths(
 /** The width scale runs a little past 0 and 2, so a point at the end of its travel is whole. */
 export const SPREAD_TOP_WIDTH = 2.2
 export const SPREAD_FOOT_WIDTH = -0.2
-/** The bars come up at once and sink slowly, as a meter does. */
+/**
+ * The bars hold the middle and the sides of each band as two meters do, up at
+ * once and down slowly, and stand at the one against the other. So a loud note
+ * in the middle brings a bar down at once, however wide the hiss it stood on.
+ */
 const BAR_RISE_SEC = 0.06
 const BAR_FALL_SEC = 0.5
+/** Under this held power a band's bar stays where it stood. */
+const HELD_FLOOR = 1e-12
 /** The accent of the loudest band's bar; a quieter band's is this times its strength. */
 export const SPREAD_BAR_ALPHA = 0.7
 const BAR_ALPHA = SPREAD_BAR_ALPHA
@@ -396,18 +395,26 @@ function listen(frame: DisplayFrame<SpreadState>): boolean {
     const sounding = state.power[n] > BAND_FLOOR
     // A quiet band is drawn faintly, so a little hiss far out does not pass for a wide sound.
     const strength = sounding ? spreadStrength(state.power[n], loudest) : 0
-    const target = clamp(state.measured[n], 0, SPREAD_TOP_WIDTH)
-    if (dt <= 0) {
-      // A still draw, or the first frame: the bars stand where the sound is.
-      state.lit[n] = strength
-      if (sounding) state.width[n] = target
-      continue
+    if (sounding) {
+      // The band's power in its two parts, from their ratio and their sum.
+      const ratio = state.measured[n]
+      const middle = Number.isFinite(ratio) ? state.power[n] / (1 + ratio * ratio) : 0
+      const sides = state.power[n] - middle
+      // A still draw, the first frame and a band that was dark start at what is measured.
+      const fresh = dt <= 0 || !(state.lit[n] > 0)
+      state.middle[n] = fresh
+        ? middle
+        : follow(state.middle[n], middle, dt, BAR_RISE_SEC, BAR_FALL_SEC)
+      state.sides[n] = fresh ? sides : follow(state.sides[n], sides, dt, BAR_RISE_SEC, BAR_FALL_SEC)
+      if (state.middle[n] + state.sides[n] > HELD_FLOOR)
+        state.width[n] = clamp(
+          Math.sqrt(state.sides[n] / Math.max(state.middle[n], 1e-30)),
+          0,
+          SPREAD_TOP_WIDTH,
+        )
     }
-    // A band that was dark starts at what it measures; one that is lit moves to it.
-    if (sounding)
-      state.width[n] =
-        state.lit[n] > 0 ? follow(state.width[n], target, dt, BAR_RISE_SEC, BAR_FALL_SEC) : target
-    state.lit[n] = follow(state.lit[n], strength, dt, BAR_RISE_SEC, BAR_FALL_SEC)
+    state.lit[n] =
+      dt <= 0 ? strength : follow(state.lit[n], strength, dt, BAR_RISE_SEC, BAR_FALL_SEC)
   }
   return true
 }
@@ -458,12 +465,14 @@ const spread = plateDisplay<SpreadState>({
   columns: 1,
   params: ['low', 'mid', 'high', 'lowHz', 'highHz', 'slope', 'make'],
   live: { meters: true, stereo: true },
-  info: 'Frequency runs across, width up. The line is the width each part of the sound is given; the bars are how wide what comes out is there, sides against middle, fainter where it is quiet. Drag a point up or down for a region, across for a split; the wheel there sets the slope. Dashed: what Make adds.',
+  info: 'Frequency runs across, width up. The line is the width each part of the sound is given; bars are how wide what comes out is, sides against middle, fainter where quiet. Drag a point up or down for a region, across for a split; the wheel there sets Slope. Dashed: what Make adds. Thin: Safe holding.',
   init: () => ({
     re: new Float32Array(2048),
     im: new Float32Array(2048),
     width: new Float32Array(SPREAD_BANDS),
     lit: new Float32Array(SPREAD_BANDS),
+    middle: new Float32Array(SPREAD_BANDS),
+    sides: new Float32Array(SPREAD_BANDS),
     measured: new Float32Array(SPREAD_BANDS),
     power: new Float32Array(SPREAD_BANDS),
   }),
