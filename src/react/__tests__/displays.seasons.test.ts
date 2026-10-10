@@ -551,7 +551,8 @@ describe('the tone of Seasons', () => {
         }
       }
       // With no Depth or no Mix it lies on the level of none.
-      for (const values of [{ depth: 0 }, { mix: 0 }]) {
+      const none: Record<string, number>[] = [{ depth: 0 }, { mix: 0 }]
+      for (const values of none) {
         const [flat] = tonesOf(draw({ ...size, values }), ink)
         for (const [, y] of flat) expect(y).toBeCloseTo(tone.y + tone.h / 2, 9)
       }
@@ -627,6 +628,57 @@ describe('the room of Seasons', () => {
       }
       expect(ring(1e8, 0) / ring(1e8, 0.5)).toBeCloseTo(0.4, 3)
       expect(ring(1e8, 1) / ring(1e8, 0.5)).toBeCloseTo(2.5, 3)
+    }
+  })
+
+  it('is one trip round the header’s eight lines, each run sample by sample on a sine', () => {
+    // kLineMs, kHighCrossHz, kLowCrossHz, kTailLeast and kTailSpan, with the decays above.
+    const kLineMs = [41.3, 49.7, 59.9, 71.3, 83.9, 97.7, 113.3, 131.9]
+    const kDecaySeconds = [0.5, 3.2, 0.9, 8]
+    const kHighCrossHz = [6000, 3000, 1600, 5000]
+    const kHighDecay = [0.6, 0.35, 0.25, 0.7]
+    const kLowCrossHz = [250, 150, 150, 600]
+    const kLowDecay = [0.5, 1, 0.8, 0.2]
+    const throughLines = (hz: number, year: number, tail: number): number => {
+      const w = [0, 1, 2, 3].map((k) => weight(k, year))
+      const blend = (table: number[]): number => table.reduce((sum, v, k) => sum + v * w[k], 0)
+      const blendLog = (table: number[]): number =>
+        Math.exp(table.reduce((sum, v, k) => sum + Math.log(v) * w[k], 0))
+      const decay = blendLog(kDecaySeconds) * 0.4 * 6.25 ** tail
+      const dampA = Math.exp((-2 * Math.PI * blendLog(kHighCrossHz)) / RATE)
+      const cutA = Math.exp((-2 * Math.PI * blendLog(kLowCrossHz)) / RATE)
+      // kit::rt60_gain
+      const kept = (seconds: number, rt60: number): number => 10 ** ((-3 * seconds) / rt60)
+      let lost = 0
+      let time = 0
+      for (const ms of kLineMs) {
+        const seconds = ms / 1000
+        const gain = kept(seconds, decay)
+        const highLoss = 1 - kept(seconds, decay * blend(kHighDecay)) / gain
+        const lowLoss = 1 - kept(seconds, decay * blend(kLowDecay)) / gain
+        let damp = 0
+        let cut = 0
+        let peak = 0
+        const total = Math.round(RATE * 0.3)
+        for (let n = 0; n < total; n++) {
+          const out = Math.sin((2 * Math.PI * hz * n) / RATE)
+          damp = out + (damp - out) * dampA
+          cut = out + (cut - out) * cutA
+          const v = (out - highLoss * (out - damp) - lowLoss * cut) * gain
+          if (n > total / 2) peak = Math.max(peak, Math.abs(v))
+        }
+        lost += Math.log10(peak)
+        time += seconds
+      }
+      return (-3 * time) / lost
+    }
+    for (const year of [0.125, 0.3, 0.375, 0.625, 0.8, 0.875]) {
+      for (const hz of [97, 311, 1013, 3301, 9007]) {
+        for (const tail of [0, 0.5, 1]) {
+          const ratio = seasonsRingSec(hz, year, tail, RATE) / throughLines(hz, year, tail)
+          expect(ratio, `the ring at ${hz} Hz, year ${year}, Tails ${tail}`).toBeCloseTo(1, 3)
+        }
+      }
     }
   })
 
@@ -859,11 +911,16 @@ describe('the ring of Seasons', () => {
   })
 
   it('leaves both where they are when it is taken and not moved, and goes home on a double press', () => {
-    for (const values of [{}, { year: 1, depth: 0.2 }, { year: 0.5, depth: 1 }]) {
+    const settings: Record<string, number>[] = [
+      {},
+      { year: 1, depth: 0.2 },
+      { year: 0.5, depth: 1 },
+    ]
+    for (const values of settings) {
       const point = ring(values)
       const set = point.drag(point.x, point.y)
-      expect(set.year).toBe((values as Record<string, number>).year ?? 0.125)
-      expect(set.depth).toBe((values as Record<string, number>).depth ?? 0.75)
+      expect(set.year).toBe(values.year ?? 0.125)
+      expect(set.depth).toBe(values.depth ?? 0.75)
       // Moved up and down only, the year stays; moved across only, the Depth stays.
       expect(point.drag(point.x, point.y - 4).year).toBe(set.year)
       expect(point.drag(point.x + 9, point.y).depth).toBe(set.depth)
