@@ -167,6 +167,12 @@
       "name": "Body 24",
       "unit": "dB",
       "display": true
+    },
+    {
+      "key": "floor",
+      "name": "Body floor",
+      "unit": "dB",
+      "display": true
     }
   ],
   "params": [
@@ -203,7 +209,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How fine an outline is taken as the body. Low moves only the broad shape and is smoothest. High follows every partial, so more of the character moves and it gets rougher."
+      "description": "How narrow a feature counts as body. Low moves only the broad shape and is kindest to chords and layers. High also moves the narrow hills that a single voice has."
     },
     {
       "key": "wander",
@@ -304,9 +310,9 @@
     },
     "Second player": {
       "size": 0.1,
-      "fine": 9,
-      "width": 0.3,
-      "mix": 0.5
+      "fine": 7,
+      "width": 0.5,
+      "mix": 0.25
     },
     "Wobble": {
       "size": 0,

@@ -4,12 +4,15 @@
 // Behind is the spectrum of what comes out: the notes, each partial an
 // upright mark. Over it lie two outlines of the body. The dashed one is the
 // body as the sound comes in, which the device reports at twenty-four
-// frequencies. The solid one is the body as it goes out, worked out here the
+// frequencies. The solid one is the body as it is heard, worked out here the
 // way `size.h` works out its gain: the outline read where Size has slid it
-// to, no more than 18 dB above and 24 dB below the one that stands there,
-// with the Tone tilt and the level the device makes up. Two points slide the
-// two things the effect keeps apart: the upper one the body, the lower one
-// the notes, both along the picture's own frequency scale.
+// to, no more than 18 dB above and 24 dB below the one that stands there
+// (and the 18 only where the sound stands well clear of the outline's
+// floor), with the Tone tilt and the level the device makes up, and then
+// with the dry sound Mix lets through put to it as the device puts it. Two
+// points slide the two things the effect keeps apart: the upper one the
+// body, the lower one the notes, both along the picture's own frequency
+// scale.
 //
 // While nothing sounds the outlines are a worked example, a body with two
 // hills, moved by the same sum.
@@ -48,6 +51,9 @@ export const SIZE_MOST_OCTAVES = 1.5
 /** `size.h`: the gain a bin may be given (`kMostLift`, `kLeastLift`), in dB. */
 export const SIZE_MOST_GAIN_DB = 18
 export const SIZE_LEAST_GAIN_DB = -24
+/** `size.h`: the outline's floor lies so far under its highest point (`kFloorSpan`), and a bin is lifted in full only where the sound stands within so much of that point (`kLiftSpan`), in dB. */
+export const SIZE_FLOOR_SPAN_DB = 60
+export const SIZE_LIFT_SPAN_DB = 42
 /** `size.h`: Tone at 1 tilts by so many dB an octave about the pivot, by no more than the last. */
 export const SIZE_TILT_DB_PER_OCTAVE = 4.5
 export const SIZE_TILT_MOST_DB = 18
@@ -114,7 +120,10 @@ export function sizeTiltDb(hz: number, tone: number): number {
  * the outline of `hz / ratio`; wanted is the outline of a body `octaves`
  * larger, which has at `hz` what the body had at `hz × 2^octaves`. The gain
  * is the one less the other, kept between its two ends, then the tilt and
- * the level the device makes up.
+ * the level the device makes up. The upper end is the whole 18 dB only where
+ * the sound stands 18 dB or more over the outline's floor (`floorDb`), and
+ * nothing at the floor: the outline is the level of a partial, so it is
+ * what stands in a bin that holds one.
  */
 export function sizeMovedDb(
   body: ArrayLike<number>,
@@ -123,15 +132,46 @@ export function sizeMovedDb(
   semitones: number,
   tone: number,
   levelDb: number,
+  floorDb = -Infinity,
 ): number {
   const stands = sizeBodyDb(body, hz / Math.pow(2, semitones / 12))
   const wants = sizeBodyDb(body, hz * Math.pow(2, octaves))
+  const room = clamp((stands - floorDb) / (SIZE_FLOOR_SPAN_DB - SIZE_LIFT_SPAN_DB), 0, 1)
   return (
     stands +
-    clamp(wants - stands, SIZE_LEAST_GAIN_DB, SIZE_MOST_GAIN_DB) +
+    clamp(wants - stands, SIZE_LEAST_GAIN_DB, SIZE_MOST_GAIN_DB * room) +
     sizeTiltDb(hz, tone) +
     levelDb
   )
+}
+
+/**
+ * The body that is heard once Mix has put the dry sound to the resized one,
+ * in dB: `apply()` for Mix. With the notes where they were played the resized
+ * sound is the dry one given a gain, so the two add as they are: a straight
+ * fade of the amplitudes. With the notes moved they are two sounds, faded at
+ * equal power, and their bodies add in power.
+ */
+export function sizeHeardDb(dryDb: number, wetDb: number, mix: number, moved: boolean): number {
+  const share = clamp(mix, 0, 1)
+  if (share >= 1) return wetDb
+  if (share <= 0) return dryDb
+  if (!moved) return dryDb + 20 * Math.log10(1 - share + share * Math.pow(10, (wetDb - dryDb) / 20))
+  const angle = (share * Math.PI) / 2
+  return (
+    10 *
+    Math.log10(
+      Math.pow(Math.cos(angle), 2) * Math.pow(10, dryDb / 10) +
+        Math.pow(Math.sin(angle), 2) * Math.pow(10, wetDb / 10),
+    )
+  )
+}
+
+/** The floor of a body's readings: so far under the highest of them, as `outline()` sets it under the highest point. */
+export function sizeFloorDb(body: ArrayLike<number>): number {
+  let most = -Infinity
+  for (let point = 0; point < SIZE_BODY_POINTS; point++) most = Math.max(most, body[point])
+  return most - SIZE_FLOOR_SPAN_DB
 }
 
 /** The size of one side (0 left, 1 right) with no drift, in octaves: `size_of()`. */
@@ -159,6 +199,7 @@ export function sizeExampleDb(hz: number): number {
 const SIZE_EXAMPLE = Float32Array.from({ length: SIZE_BODY_POINTS }, (_, point) =>
   sizeExampleDb(sizeBodyHz(point)),
 )
+const SIZE_EXAMPLE_FLOOR_DB = sizeFloorDb(SIZE_EXAMPLE)
 
 interface SizeLayout {
   /** The spectrum and the outlines. */
@@ -260,7 +301,7 @@ const size = plateDisplay<SizeState>({
   columns: 2,
   params: ['size', 'pitch', 'fine', 'wander', 'width', 'tone', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'The spectrum of what comes out, and over it the body of the sound: dashed as it comes in, solid where Size has slid it to. The upper point slides the body down the scale for a larger thing and up for a smaller one. The lower point moves the notes.',
+  info: 'The spectrum of what comes out, and over it the body of the sound: dashed as it comes in, solid as it is heard, where Size has slid it to. The upper point slides the body down the scale for a larger thing and up for a smaller one. The lower point moves the notes.',
   init: () => ({
     body: new Float32Array(SIZE_BODY_POINTS).fill(SIZE_METER_FLOOR_DB),
     stands: [],
@@ -276,7 +317,10 @@ const size = plateDisplay<SizeState>({
     const wander = clamp(frame.value('wander'), 0, 1)
     const semitones = frame.value('pitch') + frame.value('fine') / 100
     const tone = frame.value('tone')
-    const heard = frame.value('mix') > QUIET
+    const mix = clamp(frame.value('mix'), 0, 1)
+    const heard = mix > QUIET
+    // `notes_moved()`.
+    const moved = frame.value('pitch') !== 0 || frame.value('fine') !== 0
     const live = frame.powered && frame.dt > 0 && frame.hasMeter('sizeLeft')
 
     // The device is read whether or not its work is heard.
@@ -296,6 +340,11 @@ const size = plateDisplay<SizeState>({
         ]
       : [sizeSideOctaves(knob, width, 0), sizeSideOctaves(knob, width, 1)]
     const level = sounding ? clamp(frame.meter('level'), -24, 24) : 0
+    const floor = !sounding
+      ? SIZE_EXAMPLE_FLOOR_DB
+      : frame.hasMeter('floor')
+        ? frame.meter('floor')
+        : sizeFloorDb(body)
 
     freqGrid(frame, plot, SIZE_MIN_HZ, SIZE_MAX_HZ)
 
@@ -307,12 +356,15 @@ const size = plateDisplay<SizeState>({
     for (let n = 0; n < count; n++) {
       const x = plot.x + Math.min(plot.w, n * 2)
       const hz = hzOfX(x, plot, SIZE_MIN_HZ, SIZE_MAX_HZ)
+      const dry = sizeBodyDb(body, hz)
       state.stands[n][0] = x
-      state.stands[n][1] = sizeY(sizeBodyDb(body, hz), plot)
+      state.stands[n][1] = sizeY(dry, plot)
+      const left = sizeMovedDb(body, hz, sides[0], semitones, tone, level, floor)
+      const right = sizeMovedDb(body, hz, sides[1], semitones, tone, level, floor)
       state.left[n][0] = x
-      state.left[n][1] = sizeY(sizeMovedDb(body, hz, sides[0], semitones, tone, level), plot)
+      state.left[n][1] = sizeY(sizeHeardDb(dry, left, mix, moved), plot)
       state.right[n][0] = x
-      state.right[n][1] = sizeY(sizeMovedDb(body, hz, sides[1], semitones, tone, level), plot)
+      state.right[n][1] = sizeY(sizeHeardDb(dry, right, mix, moved), plot)
     }
     const apart = Math.abs(sides[0] - sides[1]) > 0.01
     clipped(ctx, plot, () => {
@@ -324,7 +376,7 @@ const size = plateDisplay<SizeState>({
         maxHz: SIZE_MAX_HZ,
         alpha: INK.fill * 1.5,
       })
-      // The body as it comes in, and as it goes out: in the second colour while it is the sound's own.
+      // The body as it comes in, and as it is heard: in the second colour while it is the sound's own.
       trace(ctx, state.stands, { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] })
       if (heard) {
         const colour = sounding ? colours.accent : colours.ink

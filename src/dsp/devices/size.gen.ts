@@ -49,7 +49,7 @@ export const SIZE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How fine an outline is taken as the body. Low moves only the broad shape and is smoothest. High follows every partial, so more of the character moves and it gets rougher.',
+      'How narrow a feature counts as body. Low moves only the broad shape and is kindest to chords and layers. High also moves the narrow hills that a single voice has.',
   },
   wander: {
     id: 4,
@@ -137,6 +137,7 @@ export const SIZE_METERS = {
   body22: { id: 24, name: 'Body 22', unit: 'dB', display: true },
   body23: { id: 25, name: 'Body 23', unit: 'dB', display: true },
   body24: { id: 26, name: 'Body 24', unit: 'dB', display: true },
+  floor: { id: 27, name: 'Body floor', unit: 'dB', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const SIZE_DEVICE = defineWasmDevice({
@@ -166,7 +167,7 @@ export const SIZE_DESCRIPTOR = wasmDeviceDescriptor(SIZE_DEVICE, {
     'Octave above': { size: 0, pitch: 12 },
     'Fifth beside': { size: 0, pitch: 7, mix: 0.5 },
     'Fourth under': { size: 0.2, pitch: -5, mix: 0.45 },
-    'Second player': { size: 0.1, fine: 9, width: 0.3, mix: 0.5 },
+    'Second player': { size: 0.1, fine: 7, width: 0.5, mix: 0.25 },
     Wobble: { size: 0, wander: 0.5, rate: 1.6 },
     'Small and low': { size: -0.8, pitch: -12, detail: 0.7 },
     'Large and high': { size: 0.8, pitch: 12, tone: 0.3 },

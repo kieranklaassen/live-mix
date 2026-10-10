@@ -16,23 +16,34 @@
 // outline of the spectrum the partials are heard through). Each frame:
 //
 // - The body is an outline laid over the frame's power in dB. From every
-//   bin a slope falls away to both sides, 6 dB in a width w; the outline
-//   rests on the bins no slope covers (the partials that stand out) and
-//   runs straight from each of them to the next, then it is rounded a
-//   little and eased over time. w is so many times the distance between
-//   the partials, which is counted in every frame (the peaks within 40 dB
-//   of the loudest), plus a share of the frequency. Detail sets how many:
-//   twice the distance broad, a quarter of it fine. Broad, a partial has to
-//   stand within 3 dB of the line from its neighbours to be part of the
-//   body, so only the large shape is moved; fine, a partial 24 dB under its
-//   neighbour still is, and the outline follows every partial's own level.
+//   bin a slope falls away to both sides; the outline rests on the bins no
+//   slope covers (the partials that stand out) and runs straight from each
+//   of them to the next, then it is rounded a little and eased over time.
+//   How steep the slopes are is what Detail sets, in dB an octave: 18 broad,
+//   36 in the middle, 72 fine. A hill of the body whose sides are no
+//   steeper than that is followed, on a low note and a high one alike; a
+//   partial that stands further under its neighbour than that is the
+//   note's own business and is left out of the body. The middle is where
+//   a quiet note under a loud one is still bridged (its partials are not
+//   taken for a valley of the body), and the narrow hills of a single
+//   voice want the upper half. Two things bound the
+//   slopes whatever Detail says: they never fall faster than 24 dB from one
+//   partial to the next (the distance between the partials is counted in
+//   every frame, from the peaks within 40 dB of the loudest), so the gaps
+//   between the partials of a high note stay bridged, and never faster than
+//   6 dB in two bins, which is how a single partial's own lobe falls.
 //   It is kept in dB (as log2 of power), so a hill 24 dB high is as plain
 //   in it as a small one.
 // - Size reads that outline at another place: a body `size` octaves larger
 //   has at f what the body had at f × 2^size. The gain at each bin is the
 //   moved outline less the outline that stands there, kept between -24 and
-//   +18 dB. It is real and positive, so no phase is touched
-//   and every partial stays at its frequency, to the cent.
+//   +18 dB, and the +18 only where the sound in the bin (or within three
+//   bins of it) stands within 42 dB of the outline's top: lower down the
+//   most a bin is lifted falls away, to nothing 60 dB under the top, so
+//   the hiss under a sound is not raised to carry a body moved over it.
+//   It is real and positive, so no phase is touched
+//   and every partial stays at its frequency, to the cent. The gain is
+//   eased over 60 ms, so that it does not jump with the outline.
 // - Pitch and Fine move the notes: the spectrum is cut at the valleys between
 //   its peaks, each peak's piece is moved by a whole number of bins and all
 //   its bins are turned by one angle, the one the peak's own frequency (read
@@ -50,8 +61,8 @@
 // is then the dry one filtered, in phase with it) and equal power when they
 // are. Each channel is worked on alone: nothing is summed to mono.
 //
-// Storage: two kit::Stft<2048, 512> (88 KB each), four arrays of 1025 floats
-// per channel and nine shared ones, about 250 KB in all, and the kit's block
+// Storage: two kit::Stft<2048, 512> (88 KB each), five arrays of 1025 floats
+// per channel and nine shared ones, about 260 KB in all, and the kit's block
 // buffers. No heap. Latency 2304 samples.
 
 #include <cstring>
@@ -81,12 +92,17 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   static constexpr float kWanderSecond = 0.35f;
   // How far Width turns the right side's drift on, in cycles.
   static constexpr float kWidthTurn = 0.25f;
-  // The outline's width w at Detail 0 and at Detail 1: so many times the
-  // distance between the partials, and so large a share of the frequency.
-  static constexpr float kBroadWidths = 2.0f;
-  static constexpr float kFineWidths = 0.25f;
-  static constexpr float kBroadShare = 0.04f;
-  static constexpr float kFineShare = 0.01f;
+  // How steeply the outline may fall, an octave: at Detail 0 (18 dB, as log2
+  // of power; under that little of a body is left to move), and how many
+  // times that at Detail 1 (72 dB, which the side of a voice's formant is).
+  // Half way it is 36 dB.
+  static constexpr float kBroadPerOctave = 5.9794706f;
+  static constexpr float kFinePerBroad = 4.0f;
+  // Whatever Detail says, the slopes fall 6 dB in no less than this share of
+  // the distance between the partials (24 dB from one partial to the next),
+  // and in no less than this many bins.
+  static constexpr float kLeastWidths = 0.25f;
+  static constexpr float kLeastBins = 2.0f;
   // The rounding's width: so much of the distance between the partials and
   // so large a share of the frequency.
   static constexpr float kRoundWidths = 0.25f;
@@ -109,6 +125,21 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   // The outline is not followed further down than this under its highest
   // point: 60 dB, in log2 of power.
   static constexpr float kFloorSpan = 19.931569f;
+  // A bin is lifted in full only where the sound itself, the bin or one of
+  // the three on either side of it (a partial's lobe), stands within this of
+  // the outline's highest point: 42 dB. From there down to the floor the
+  // most it may be lifted falls to nothing. What lies that low is hiss as
+  // often as it is sound, and where a sound has no partials for the moved
+  // body to rest on, the hiss alone would be raised 18 dB to carry it.
+  static constexpr float kLiftSpan = 13.952098f;
+  static constexpr int kLobeBins = 3;
+  // The gain of each bin is eased over time, in dB, this long. The outline
+  // follows the sound frame by frame: the splash of a note starting and the
+  // beats between the partials of a chord are in it, and a gain read straight
+  // from it jumps with them (10 dB for 50 ms on a held note when a louder
+  // one starts beside it). From silence the first frame's gain is taken as
+  // it is.
+  static constexpr float kGainSeconds = 0.06f;
   static constexpr float kTiltDbPerOctave = 4.5f;
   static constexpr float kTiltMostDb = 18.0f;
   static constexpr float kTiltPivotHz = 1000.0f;
@@ -141,17 +172,20 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       for (int k = 0; k < kBins; ++k) {
         body_[c][k] = kNothing;
+        lift_[c][k] = 0.0f;
         last_re_[c][k] = 0.0f;
         last_im_[c][k] = 0.0f;
         turn_[c][k] = 0.0f;
       }
       floor_[c] = kNothing;
       level_[c] = 1.0f;
+      eased_[c] = false;
       apart_[c] = Stft::hz_to_bin(kMostApartHz, sr);
       alive_[c] = false;
       turned_[c] = false;
     }
     body_step_ = 1.0f - std::exp(-static_cast<float>(Stft::kHop) / (kBodySeconds * sr));
+    gain_step_ = 1.0f - std::exp(-static_cast<float>(Stft::kHop) / (kGainSeconds * sr));
     wander_phase_[0] = 0u;
     wander_phase_[1] = 0u;
     dry_.set_time(kSmoothingSeconds, sr);
@@ -172,16 +206,20 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   // 2, what the level is made up by, in dB (both sides' mean; 0 at rest);
   // 3 on, the outline the gain is worked out from (both sides' mean, no
   // lower than its floor) at kBodyPoints frequencies from kBodyFirstHz, in
-  // dB against a full-scale sine's own bin. Each is read from what the last
-  // frame left.
+  // dB against a full-scale sine's own bin; and last, that floor itself
+  // (both sides' mean, in the same dB), which the lift is measured from.
+  // Each is read from what the last frame left.
   float meter(int index) const {
     if (index == 0 || index == 1) return size_of(index, wander_phase_[0], wander_phase_[1]);
     if (index == 2) return idle_.asleep() ? 0.0f : 10.0f * std::log10(level_[0] * level_[1]);
     const int point = index - 3;
-    if (point < 0 || point >= kBodyPoints || idle_.asleep()) return kMeterFloorDb;
-    const float hz = kBodyFirstHz * std::exp2(kBodyStepOctaves * static_cast<float>(point));
-    const float at = Stft::hz_to_bin(hz, sample_rate());
-    const float both = 0.5f * (kit::max(read(body_[0], at), floor_[0]) + kit::max(read(body_[1], at), floor_[1]));
+    if (point < 0 || point > kBodyPoints || idle_.asleep()) return kMeterFloorDb;
+    float both = 0.5f * (floor_[0] + floor_[1]);
+    if (point < kBodyPoints) {
+      const float hz = kBodyFirstHz * std::exp2(kBodyStepOctaves * static_cast<float>(point));
+      const float at = Stft::hz_to_bin(hz, sample_rate());
+      both = 0.5f * (kit::max(read(body_[0], at), floor_[0]) + kit::max(read(body_[1], at), floor_[1]));
+    }
     // log2 of power into dB, against a full-scale sine's bin.
     const float db = 3.0103f * (both - 2.0f * std::log2(Stft::kFullScale));
     return db > kMeterFloorDb ? db : kMeterFloorDb;
@@ -345,7 +383,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     }
     // How far apart the partials lie: the peaks near the loudest are counted
     // between the lowest and the highest of them. One partial alone says
-    // nothing of it, and is given the broadest outline.
+    // nothing of it, and is taken to stand as far from the next as can be.
     {
       const float span = top - kPartialSpan;
       int count = 0, first = 0, last = 0;
@@ -367,15 +405,15 @@ class Size : public kit::DeviceBase<size::kNumParams> {
       }
       // Per bin: how far the slopes fall from one bin to the next, and the
       // rounding's pole, (w - 1) / (w + 1), which is exp(-2 / w) near enough
-      // for the price of a division.
-      const float detail = param(kDetail);
-      const float widths = kBroadWidths * std::pow(kFineWidths / kBroadWidths, detail);
-      const float share = kBroadShare * std::pow(kFineShare / kBroadShare, detail);
-      const float base = kit::max(apart_[c] * widths, 2.0f);
+      // for the price of a division. A fall of so much an octave is, at bin
+      // k, kFallPerWidth in k × kFallPerWidth × ln 2 / (that much) bins.
+      const float per_octave = kBroadPerOctave * std::pow(kFinePerBroad, param(kDetail));
+      const float octave_width = kFallPerWidth * 0.69314718f / per_octave;
+      const float least = kit::max(apart_[c] * kLeastWidths, kLeastBins);
       const float round = kit::max(apart_[c] * kRoundWidths, 1.0f);
       for (int k = 0; k < kBins; ++k) {
         const float at = static_cast<float>(k);
-        slope_[k] = kFallPerWidth / (base + share * at);
+        slope_[k] = kFallPerWidth / kit::max(octave_width * at, least);
         const float wide = round + kRoundShare * at;
         smooth_[k] = (wide - 1.0f) / (wide + 1.0f);
       }
@@ -435,6 +473,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     if (!(total > kQuiet)) {
       keep(c, re, im);
       level_[c] = 1.0f;
+      eased_[c] = false;  // the next sound's first gain is its own
       return;
     }
 
@@ -448,6 +487,9 @@ class Size : public kit::DeviceBase<size::kNumParams> {
       for (int k = 0; k < kBins; ++k) {
         re[k] = moved_re_[k];
         im[k] = moved_im_[k];
+        // What stands in each bin now, for the lift below.
+        const float power = re[k] * re[k] + im[k] * im[k];
+        log_[k] = power > kLeastPower ? fast_log2(power) : kNothing;
       }
       turned_[c] = true;
     } else {
@@ -467,12 +509,23 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     const float wanted = std::exp2(
         size_of(c, wander_phase_[0] - behind * wander_step_[0], wander_phase_[1] - behind * wander_step_[1]));
     const float floor = floor_[c];
+    // The loudest of each bin and its two neighbours; the loudest of three
+    // of those, two bins apart, is the loudest within kLobeBins.
+    now_[0] = kit::max(log_[0], log_[1]);
+    now_[kBins - 1] = kit::max(log_[kBins - 2], log_[kBins - 1]);
+    for (int k = 1; k < kBins - 1; ++k) now_[k] = kit::max(log_[k], kit::max(log_[k - 1], log_[k + 1]));
+    float* lift = lift_[c];
+    const float step = eased_[c] ? gain_step_ : 1.0f;
+    eased_[c] = true;
     float made = 0.0f;
     for (int k = 0; k < kBins; ++k) {
       const float at = static_cast<float>(k);
       const float stands = kit::max(moved ? read(body, at * carried) : body[k], floor);
       const float wants = kit::max(read(body, at * wanted), floor);
-      const float gain = fast_exp2(kit::clamp(0.5f * (wants - stands), kLeastLift, kMostLift)) * tilt_[k];
+      const float own = kit::max(now_[k], kit::max(now_[k >= 2 ? k - 2 : 0], now_[k + 2 < kBins ? k + 2 : kBins - 1]));
+      const float room = kit::clamp((own - floor) * (1.0f / (kFloorSpan - kLiftSpan)), 0.0f, 1.0f);
+      lift[k] += (kit::clamp(0.5f * (wants - stands), kLeastLift, kMostLift * room) - lift[k]) * step;
+      const float gain = fast_exp2(lift[k]) * tilt_[k];
       re[k] *= gain;
       im[k] *= gain;
       made += re[k] * re[k] + im[k] * im[k];
@@ -562,6 +615,8 @@ class Size : public kit::DeviceBase<size::kNumParams> {
 
   Stft stft_[2];
   float body_[2][kBins] = {};     // the outline, as log2 of power
+  float lift_[2][kBins] = {};     // the gain of each bin, eased, as log2 of amplitude
+  bool eased_[2] = {false, false};  // lift_ holds the last frame's gain
   float last_re_[2][kBins] = {};  // the frame before, as it came in
   float last_im_[2][kBins] = {};
   float turn_[2][kBins] = {};  // the angle each bin's piece was last turned by, in cycles
@@ -582,6 +637,7 @@ class Size : public kit::DeviceBase<size::kNumParams> {
   float tilt_[kBins] = {};    // Tone, as a gain per bin
   float octave_[kBins] = {};  // octaves from the pivot
   float body_step_ = 0.0f;
+  float gain_step_ = 1.0f;
   bool tilt_dirty_ = true;
   uint32_t wander_phase_[2] = {0u, 0u};  // whole cycle = 2^32, so it is the same counted in any blocks
   uint32_t wander_step_[2] = {0u, 0u};

@@ -11,8 +11,10 @@ import {
   SIZE_BODY_POINTS,
   SIZE_BODY_STEP_OCTAVES,
   SIZE_FACES,
+  SIZE_FLOOR_SPAN_DB,
   SIZE_FOOT_DB,
   SIZE_LEAST_GAIN_DB,
+  SIZE_LIFT_SPAN_DB,
   SIZE_MAX_HZ,
   SIZE_METER_FLOOR_DB,
   SIZE_MIDDLE_HZ,
@@ -30,6 +32,8 @@ import {
   sizeBodyDb,
   sizeBodyHz,
   sizeExampleDb,
+  sizeFloorDb,
+  sizeHeardDb,
   sizeLayout,
   sizeMovedDb,
   sizeOctavesAt,
@@ -70,15 +74,18 @@ function handleOf(key: string, values: Record<string, number> = {}): DisplayHand
   return found
 }
 
-/** Readings of a body: `db(hz)` at the frequencies the device reports, and the rest as given. */
+/** Readings of a body: `db(hz)` at the frequencies the device reports, its floor 60 dB under the highest of them, and the rest as given. */
 function readings(
   db: (hz: number) => number,
   rest: Record<string, number> = {},
 ): Record<string, number> {
   const body: Record<string, number> = {}
-  for (let point = 0; point < SIZE_BODY_POINTS; point++)
+  let most = -Infinity
+  for (let point = 0; point < SIZE_BODY_POINTS; point++) {
     body[`body${point + 1}`] = db(sizeBodyHz(point))
-  return { ...meters, ...body, ...rest }
+    most = Math.max(most, db(sizeBodyHz(point)))
+  }
+  return { ...meters, ...body, floor: most - 60, ...rest }
 }
 
 /** A body that falls 6 dB an octave from -20 dB at 80 Hz. */
@@ -159,6 +166,9 @@ describe('Size', () => {
     // kMostLift and kLeastLift are log2 of an amplitude: 2.9897353 and -3.9863137, times 6.0206 dB.
     expect(SIZE_MOST_GAIN_DB).toBeCloseTo(2.9897353 * 6.0206, 3)
     expect(SIZE_LEAST_GAIN_DB).toBeCloseTo(-3.9863137 * 6.0206, 3)
+    // kFloorSpan and kLiftSpan are log2 of a power: 19.931569 and 13.952098, times 3.0103 dB.
+    expect(SIZE_FLOOR_SPAN_DB).toBeCloseTo(19.931569 * 3.0103, 3)
+    expect(SIZE_LIFT_SPAN_DB).toBeCloseTo(13.952098 * 3.0103, 3)
     // kTiltDbPerOctave, kTiltMostDb, kTiltPivotHz.
     expect([SIZE_TILT_DB_PER_OCTAVE, SIZE_TILT_MOST_DB, SIZE_TILT_PIVOT_HZ]).toEqual([
       4.5, 18, 1000,
@@ -173,6 +183,7 @@ describe('Size', () => {
       'sizeRight',
       'level',
       ...Array.from({ length: 24 }, (_, point) => `body${point + 1}`),
+      'floor',
     ])
     // The ranges the sums below lean on.
     expect([params.size.min, params.size.max]).toEqual([-1, 1])
@@ -225,6 +236,81 @@ describe('Size', () => {
     )
     expect(sizeMovedDb(step, 700, 1, 0, 0, 0)).toBeCloseTo(-70 + 18, 6)
     expect(sizeMovedDb(step, 1400, -1, 0, 0, 0)).toBeCloseTo(-30 - 24, 6)
+  })
+
+  it('lifts in full only where the sound stands clear of the floor, as frame() does', () => {
+    // A step of 55 dB: its low side stands 5 dB over the floor, which is 60 dB under the high side.
+    const step = Float32Array.from({ length: 24 }, (_, point) =>
+      sizeBodyHz(point) < 1000 ? -65 : -10,
+    )
+    expect(sizeFloorDb(step)).toBe(-70)
+    // 18 dB of span between the floor and where the lift is whole: 5 dB over the floor is 5/18 of the 18 dB.
+    expect(sizeMovedDb(step, 500, 1, 0, 0, 0, -70)).toBeCloseTo(-65 + 5, 6)
+    // At the floor nothing is lifted, 18 dB over it everything is, and a cut is never held back.
+    expect(sizeMovedDb(step, 500, 1, 0, 0, 0, -65)).toBeCloseTo(-65, 6)
+    expect(sizeMovedDb(step, 500, 1, 0, 0, 0, -83)).toBeCloseTo(-65 + 18, 6)
+    expect(sizeMovedDb(step, 1400, -1, 0, 0, 0, -70)).toBeCloseTo(-10 - 24, 6)
+    // The picture takes the floor the device reports: with it 5 dB under the low side the solid outline
+    // stands 5 dB over the dashed one there, not 18.
+    const low = (hz: number): number => (hz < 1000 ? -65 : -10)
+    const [, moved] = outlinesOf(draw({ meters: readings(low, { sizeLeft: 1, sizeRight: 1 }) }))
+    for (const [x, y] of moved.points)
+      expect(y).toBeCloseTo(yOf(sizeMovedDb(step, hzAt(x), 1, 0, 0, 0, -70)), 4)
+    const lifted = moved.points.find(([x]) => hzAt(x) > 520 && hzAt(x) < 580)
+    expect(lifted?.[1]).toBeCloseTo(yOf(-60), 4)
+    expect(yOf(-60)).toBeLessThan(yOf(-65) - 2)
+  })
+
+  it('adds the dry sound as apply() does for Mix: amplitudes with the notes unmoved, powers with them moved', () => {
+    expect(sizeHeardDb(-40, -28, 1, false)).toBe(-28)
+    expect(sizeHeardDb(-40, -28, 0, true)).toBe(-40)
+    // Unmoved, the resized sound is the dry one with a gain: half of each of 1 and 2 is 1.5 times.
+    expect(sizeHeardDb(-40, -40 + 20 * Math.log10(2), 0.5, false)).toBeCloseTo(
+      -40 + 20 * Math.log10(1.5),
+      6,
+    )
+    expect(sizeHeardDb(-40, -64, 0.25, false)).toBeCloseTo(
+      -40 + 20 * Math.log10(0.75 + 0.25 * Math.pow(10, -24 / 20)),
+      6,
+    )
+    // Moved, equal power: two bodies as high as each other are as high together, at any Mix.
+    expect(sizeHeardDb(-40, -40, 0.5, true)).toBeCloseTo(-40, 6)
+    expect(sizeHeardDb(-40, -40, 0.2, true)).toBeCloseTo(-40, 6)
+    // kit::equal_power: cos and sin of a quarter turn times Mix.
+    expect(sizeHeardDb(-40, -200, 0.25, true)).toBeCloseTo(
+      -40 + 20 * Math.log10(Math.cos(Math.PI / 8)),
+      4,
+    )
+    expect(sizeHeardDb(-200, -40, 0.25, true)).toBeCloseTo(
+      -40 + 20 * Math.log10(Math.sin(Math.PI / 8)),
+      4,
+    )
+  })
+
+  it('draws the solid outline as it is heard part way up Mix, not the resized sound alone', () => {
+    const body = Float32Array.from({ length: 24 }, (_, point) => hill(sizeBodyHz(point)))
+    const live = readings(hill, { sizeLeft: 0.6, sizeRight: 0.6 })
+    const [stands, half] = outlinesOf(draw({ meters: live, values: { size: 0.6, mix: 0.5 } }))
+    let apart = 0
+    for (const [x, y] of half.points) {
+      const dry = sizeBodyDb(body, hzAt(x))
+      const wet = sizeMovedDb(body, hzAt(x), 0.6, 0, 0, 0, -90)
+      expect(y).toBeCloseTo(yOf(sizeHeardDb(dry, wet, 0.5, false)), 4)
+      apart = Math.max(apart, Math.abs(y - yOf(wet)))
+    }
+    // It is not the resized body: somewhere the two lie more than 2 pixels apart.
+    expect(apart).toBeGreaterThan(2)
+    // With the notes moved the played ones are heard beside them: where the moved body's hill has gone the
+    // played body still stands, 3 dB down.
+    const [, both] = outlinesOf(
+      draw({ meters: live, values: { size: 0.6, pitch: 7, mix: 0.5 } }),
+    )
+    for (const [x, y] of both.points) {
+      const dry = sizeBodyDb(body, hzAt(x))
+      const wet = sizeMovedDb(body, hzAt(x), 0.6, 7, 0, 0, -90)
+      expect(y).toBeCloseTo(yOf(sizeHeardDb(dry, wet, 0.5, true)), 4)
+    }
+    expect(stands.dashed).toBe(true)
   })
 
   it('sets the two sides apart as size_of() does: a quarter octave each at Width 1', () => {
