@@ -1900,6 +1900,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
     name: 'Singer',
   },
   breath: { ...PLATE_PALETTES.breath, finish: 'fade', cap: 'dot' },
+  currents: { ...PLATE_PALETTES.currents, finish: 'brushed', cap: 'disc' },
 }
 
 /**

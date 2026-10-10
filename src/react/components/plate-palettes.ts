@@ -144,6 +144,7 @@ export const PLATE_PALETTES = {
   canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
   'overtone-singer': { plate: '#6c9a3f', ink: '#10200a', accent: '#fff8dc' },
   breath: { plate: '#d9c2cf', ink: '#2c1626', accent: '#7a2f5e' },
+  currents: { plate: '#1b7491', ink: '#f0fafb', accent: '#ffe9c4' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

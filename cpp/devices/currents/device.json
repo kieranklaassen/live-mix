@@ -1,0 +1,286 @@
+{
+  "id": "currents",
+  "name": "Currents",
+  "category": "modulation",
+  "description": "Splits the sound into bands and lets each swell, fade and drift from side to side on its own slow cycle, so a still pad moves like water.",
+  "class": "Currents",
+  "header": "currents.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "level1",
+      "name": "Band 1 level cycle",
+      "display": true
+    },
+    {
+      "key": "level2",
+      "name": "Band 2 level cycle",
+      "display": true
+    },
+    {
+      "key": "level3",
+      "name": "Band 3 level cycle",
+      "display": true
+    },
+    {
+      "key": "level4",
+      "name": "Band 4 level cycle",
+      "display": true
+    },
+    {
+      "key": "level5",
+      "name": "Band 5 level cycle",
+      "display": true
+    },
+    {
+      "key": "level6",
+      "name": "Band 6 level cycle",
+      "display": true
+    },
+    {
+      "key": "side1",
+      "name": "Band 1 side cycle",
+      "display": true
+    },
+    {
+      "key": "side2",
+      "name": "Band 2 side cycle",
+      "display": true
+    },
+    {
+      "key": "side3",
+      "name": "Band 3 side cycle",
+      "display": true
+    },
+    {
+      "key": "side4",
+      "name": "Band 4 side cycle",
+      "display": true
+    },
+    {
+      "key": "side5",
+      "name": "Band 5 side cycle",
+      "display": true
+    },
+    {
+      "key": "side6",
+      "name": "Band 6 side cycle",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far each band's level rises and falls. At zero the levels hold still. At full each band fades right out at the bottom of its cycle and the whole is a little quieter."
+    },
+    {
+      "key": "sway",
+      "name": "Sway",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far each band drifts between left and right. At zero every band stays where it was."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.005,
+      "max": 2,
+      "default": 0.1,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The speed of the lowest band's cycle. The higher bands run faster by the amount Tide sets."
+    },
+    {
+      "key": "tide",
+      "name": "Tide",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How different the bands' speeds are. At zero all bands cycle at one speed, each a step behind the last. Turned up, the high bands ripple faster and never fall in step."
+    },
+    {
+      "key": "bands",
+      "name": "Bands",
+      "min": 3,
+      "max": 6,
+      "default": 5,
+      "step": 1,
+      "description": "How many bands the sound is split into above Low Hold. Few bands move in broad strokes, more give a finer ripple."
+    },
+    {
+      "key": "shape",
+      "name": "Shape",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The curve of each swell. Low is an even rise and fall. High rises slowly and drops away fast, like a wave that breaks."
+    },
+    {
+      "key": "chance",
+      "name": "Chance",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How much each cycle differs from the last. Turned up, swells crest at different heights and moments, so the movement never settles into a pattern."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How narrow each band is. Low is broad washes that overlap. High narrows each band to a few notes, so notes near a band ring in and out and those between hold still."
+    },
+    {
+      "key": "lowHold",
+      "name": "Low Hold",
+      "min": 20,
+      "max": 800,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the moving bands begin. Sound here moves less than the bands above, and an octave lower it hardly moves, keeping the bass solid. Low Focus reaches further down."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched sound and the moving bands. Lower settings make the movement shallower."
+    }
+  ],
+  "presets": {
+    "Slow water": {
+      "depth": 0.6,
+      "sway": 0.5,
+      "rate": 0.1,
+      "tide": 0.5,
+      "bands": 5,
+      "shape": 0.25,
+      "chance": 0.3,
+      "focus": 0.25,
+      "lowHold": 120,
+      "mix": 1
+    },
+    "Gentle drift": {
+      "depth": 0.3,
+      "sway": 0.3,
+      "rate": 0.06,
+      "tide": 0.4,
+      "bands": 4,
+      "chance": 0.4
+    },
+    "Wide tide": {
+      "depth": 0.5,
+      "sway": 1,
+      "rate": 0.08,
+      "tide": 0.7,
+      "bands": 6
+    },
+    "Breaking waves": {
+      "depth": 0.8,
+      "sway": 0.4,
+      "rate": 0.25,
+      "tide": 0.3,
+      "shape": 1,
+      "chance": 0.2
+    },
+    "Ripples": {
+      "depth": 0.7,
+      "sway": 0.4,
+      "rate": 1.2,
+      "tide": 0.8,
+      "bands": 6,
+      "focus": 0.35
+    },
+    "Shimmer on top": {
+      "depth": 0.8,
+      "sway": 0.7,
+      "rate": 0.6,
+      "bands": 6,
+      "lowHold": 800
+    },
+    "Deep swell": {
+      "depth": 0.7,
+      "sway": 0.2,
+      "rate": 0.07,
+      "tide": 0.2,
+      "bands": 3,
+      "focus": 0
+    },
+    "Glass notes": {
+      "depth": 1,
+      "sway": 0.5,
+      "rate": 0.3,
+      "tide": 1,
+      "bands": 6,
+      "chance": 0.6,
+      "focus": 1
+    },
+    "Side to side": {
+      "depth": 0,
+      "sway": 1,
+      "rate": 0.3,
+      "tide": 0.6
+    },
+    "Breathing": {
+      "depth": 0.8,
+      "sway": 0,
+      "rate": 0.15,
+      "shape": 0.4
+    },
+    "Nearly still": {
+      "depth": 0.5,
+      "sway": 0.4,
+      "mix": 0.35
+    },
+    "Glacier": {
+      "depth": 0.75,
+      "sway": 0.8,
+      "rate": 0.01,
+      "tide": 0.3,
+      "chance": 0.5
+    },
+    "Flutter": {
+      "depth": 0.55,
+      "sway": 0.6,
+      "rate": 2,
+      "tide": 1,
+      "bands": 6,
+      "shape": 0.3,
+      "chance": 0.2
+    },
+    "One slow wheel": {
+      "depth": 0.7,
+      "sway": 0.6,
+      "rate": 0.2,
+      "tide": 0,
+      "chance": 0
+    },
+    "Restless": {
+      "depth": 0.8,
+      "sway": 0.8,
+      "rate": 0.5,
+      "tide": 0.6,
+      "shape": 0.5,
+      "chance": 1
+    },
+    "Undertow": {
+      "depth": 0.7,
+      "sway": 0.3,
+      "rate": 0.12,
+      "shape": 0.7,
+      "lowHold": 20
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit."
+  }
+}
