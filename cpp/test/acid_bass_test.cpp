@@ -3,12 +3,15 @@
 // other sample rates; the rest measures what makes it this instrument and not
 // the ladder bass beside it: one oscillator through a three-pole filter whose
 // resonance keeps the bass, separate loudness and filter envelopes, accents
-// that add up, and keys that slide without striking when they overlap.
+// that add up, and keys that slide when they overlap: a tied key is heard
+// (the loudness comes back) but strikes neither the filter nor an accent.
 //
 // Nobody has listened to this instrument: every claim below is a number.
 
 #include "../devices/acid-bass/acid_bass.h"
 
+#include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <functional>
@@ -234,22 +237,22 @@ struct Preset {
 };
 
 static const Preset kPresets[] = {
-    {"Acid line", {0.0f, 280.0f, 0.7f, 0.55f, 0.35f, 0.6f, 0.12f, 3.0f, 0.25f, -9.0f}},
-    {"Hollow square line", {1.0f, 340.0f, 0.6f, 0.5f, 0.45f, 0.5f, 0.1f, 3.0f, 0.15f, -6.0f}},
-    {"Rubber slides", {0.0f, 160.0f, 0.78f, 0.42f, 0.7f, 0.5f, 0.5f, 8.0f, 0.2f, -10.0f}},
-    {"Resonant scream", {0.0f, 600.0f, 0.95f, 0.75f, 0.5f, 1.0f, 0.08f, 3.0f, 0.8f, -7.0f}},
-    {"Soft dark line", {0.0f, 110.0f, 0.15f, 0.2f, 0.8f, 0.25f, 0.15f, 5.0f, 0.0f, -7.0f}},
-    {"Slow closing tone", {0.0f, 80.0f, 0.45f, 0.7f, 10.0f, 0.3f, 0.3f, 20.0f, 0.1f, -9.0f}},
-    {"Short pluck", {0.0f, 220.0f, 0.5f, 0.7f, 0.12f, 0.6f, 0.05f, 0.3f, 0.1f, -7.0f}},
-    {"Held sub tone", {1.0f, 90.0f, 0.25f, 0.08f, 2.0f, 0.2f, 0.2f, 20.0f, 0.15f, -5.5f}},
-    {"Dub weight", {1.0f, 130.0f, 0.3f, 0.3f, 0.5f, 0.4f, 0.18f, 6.0f, 0.35f, -5.0f}},
-    {"Driven growl", {0.0f, 170.0f, 0.4f, 0.4f, 0.9f, 0.6f, 0.1f, 4.0f, 0.9f, -6.0f}},
-    {"Wet squelch", {0.0f, 150.0f, 0.88f, 0.85f, 0.2f, 0.9f, 0.07f, 2.0f, 0.1f, -10.0f}},
-    {"Long glide drone", {0.0f, 240.0f, 0.35f, 0.15f, 4.0f, 0.2f, 1.0f, 20.0f, 0.2f, -9.0f}},
-    {"Deep slow sweep", {1.0f, 60.0f, 0.6f, 0.55f, 6.0f, 0.3f, 0.4f, 15.0f, 0.05f, -7.0f}},
-    {"Bright open saw", {0.0f, 2200.0f, 0.2f, 0.3f, 0.6f, 0.5f, 0.06f, 4.0f, 0.3f, -8.0f}},
-    {"Muted thump", {0.0f, 65.0f, 0.1f, 0.6f, 0.08f, 0.5f, 0.03f, 0.5f, 0.0f, -6.0f}},
-    {"Quiet pulse", {1.0f, 180.0f, 0.3f, 0.3f, 1.5f, 0.15f, 0.12f, 2.5f, 0.0f, -6.0f}},
+    {"Acid line", {0.0f, 280.0f, 0.7f, 0.55f, 0.35f, 0.6f, 0.12f, 3.0f, 0.134f, -9.0f}},
+    {"Hollow square line", {1.0f, 700.0f, 0.3f, 0.35f, 0.7f, 0.5f, 0.1f, 5.0f, 0.078f, -6.0f}},
+    {"Rubber slides", {0.0f, 160.0f, 0.78f, 0.42f, 0.45f, 0.5f, 0.5f, 5.0f, 0.106f, -10.0f}},
+    {"Resonant scream", {0.0f, 600.0f, 0.95f, 0.75f, 0.5f, 1.0f, 0.08f, 3.0f, 0.553f, -7.0f}},
+    {"Soft dark line", {0.0f, 110.0f, 0.15f, 0.2f, 0.8f, 0.25f, 0.15f, 4.0f, 0.0f, -7.0f}},
+    {"Slow closing tone", {0.0f, 80.0f, 0.45f, 0.7f, 10.0f, 0.3f, 0.3f, 20.0f, 0.051f, -9.0f}},
+    {"Short pluck", {0.0f, 220.0f, 0.5f, 0.7f, 0.12f, 0.6f, 0.05f, 0.8f, 0.368f, -5.0f}},
+    {"Held sub tone", {1.0f, 90.0f, 0.25f, 0.08f, 2.0f, 0.2f, 0.2f, 20.0f, 0.0f, -6.5f}},
+    {"Dub weight", {1.0f, 75.0f, 0.55f, 0.25f, 0.2f, 0.4f, 0.18f, 2.0f, 0.293f, -6.0f}},
+    {"Driven growl", {0.0f, 120.0f, 0.55f, 0.4f, 0.9f, 0.6f, 0.1f, 4.0f, 0.684f, -6.0f}},
+    {"Wet squelch", {0.0f, 150.0f, 0.88f, 0.85f, 0.2f, 0.9f, 0.07f, 2.0f, 0.051f, -10.0f}},
+    {"Long glide drone", {0.0f, 400.0f, 0.5f, 0.05f, 4.0f, 0.2f, 1.0f, 20.0f, 0.106f, -9.0f}},
+    {"Deep slow sweep", {1.0f, 50.0f, 0.6f, 0.6f, 6.0f, 0.3f, 0.4f, 15.0f, 0.025f, -7.0f}},
+    {"Bright open saw", {0.0f, 2200.0f, 0.2f, 0.3f, 0.6f, 0.5f, 0.06f, 4.0f, 0.163f, -8.0f}},
+    {"Muted thump", {0.0f, 65.0f, 0.1f, 0.6f, 0.08f, 0.5f, 0.03f, 1.0f, 0.0f, -4.5f}},
+    {"Quiet pulse", {1.0f, 220.0f, 0.3f, 0.15f, 0.3f, 0.15f, 0.12f, 1.2f, 0.0f, -3.5f}},
 };
 static const int kNumPresets = static_cast<int>(sizeof kPresets / sizeof kPresets[0]);
 static const char* const kParamKeys[p::kNumParams] = {"wave",   "cutoff", "resonance", "envMod", "decay",
@@ -740,47 +743,194 @@ static void test_keys() {
                   half, end);
     EXPECT(std::fabs(half - 120.0) < 70.0 && std::fabs(end) < 20.0, label);
   }
+  // And the slide arrives, however slow, on any key and at any sample rate:
+  // four Slide times on, the pitch is the key's. (With the pitch kept in
+  // single precision the last steps of a slow slide round to nothing and it
+  // stays short of the key for good: 3 cents under C4 and 6 above at 48 kHz
+  // with a 1 s Slide, four times that at 192 kHz.)
+  for (float rate : {48000.0f, 192000.0f}) {
+    for (double hz : {kA1, kC5}) {
+      steady(device, rate);
+      device.set_param(p::kSlide, 1.0f);
+      device.note_on(1, static_cast<float>(hz * 1.5), 0.7f);
+      render(device, 0.1f, rate);
+      device.note_on(2, static_cast<float>(hz), 0.7f);
+      render(device, 4.0f, rate);
+      Stereo out = render(device, static_cast<float>(std::max(0.25, 60.0 / hz)), rate);
+      const double off = cents(peak_frequency(out.left, rate, hz * 0.985, hz * 1.015, 0, out.size()), hz);
+      std::snprintf(label, sizeof label, "4 s after a 1 s slide down a fifth to %.1f Hz at %.0f Hz: %.2f cents off the key (0.5)", hz,
+                    rate, off);
+      EXPECT(std::fabs(off) < 0.5, label);
+    }
+  }
 
-  // The slide strikes nothing. With a 1 s Sustain the note is 30 dB down
-  // after half a second; a key pressed over it then carries on down the same
-  // fall, within 1 dB of a note left alone. The same key played apart is a
-  // new note at full level. (The filter is open, so the level of the
-  // sawtooth does not depend on the key.)
-  auto fading = [](AcidBass& d) {
+  // A tied key is heard. With a 1 s Sustain the note is 30 dB down after
+  // half a second; a key pressed over it then brings the loudness back to
+  // full and its fall starts again: 30 ms on it is within 1 dB of a struck
+  // note 30 ms after its strike, and it stays there. Its pitch arrives as any
+  // slide's does. (The filter is open, so the level of the sawtooth does not
+  // depend on the key; the volume is down so that the soft clip's knee is far
+  // above and the loudness can be read off the output.)
+  auto fading = [](AcidBass& d, double hz) {
     steady(d);
     d.set_param(p::kSustain, 1.0f);
     d.set_param(p::kSlide, 0.05f);
-    d.note_on(1, static_cast<float>(kC3), 0.7f);
+    d.set_param(p::kVolume, -12.0f);
+    d.note_on(1, static_cast<float>(hz), 0.7f);
   };
-  fading(device);
-  Stereo alone = render(device, 1.0f, kRate);
-  fading(device);
+  fading(device, kC3);
   Stereo before = render(device, 0.5f, kRate);
   device.note_on(2, static_cast<float>(kC4), 0.7f);
   Stereo over = render(device, 0.5f, kRate);
-  fading(device);
+  fading(device, kC3);
   render(device, 0.5f, kRate);
   device.note_off(1);
   device.note_on(2, static_cast<float>(kC4), 0.7f);
   Stereo apart = render(device, 0.5f, kRate);
-  const double struck = level_at(before.left, 0.03);
-  const double slid = db(level_at(over.left, 0.1) / struck);
-  const double left_alone = db(level_at(alone.left, 0.6) / struck);
-  const double restruck = db(level_at(apart.left, 0.03) / struck);
-  std::printf("a key over a held one: %.1f dB under the strike 0.1 s on (a note left alone: %.1f); played apart: "
-              "%.1f dB\n",
-              slid, left_alone, restruck);
-  EXPECT(std::fabs(slid - left_alone) < 1.0 && slid < -30.0, "a key over a held one does not strike the loudness envelope");
+  fading(device, kC4);
+  Stereo struck_c4 = render(device, 0.5f, kRate);
+  const double faded = db(level_at(before.left, 0.49) / level_at(before.left, 0.03));
+  const double tied = db(level_at(over.left, 0.03) / level_at(struck_c4.left, 0.03));
+  const double tied_later = db(level_at(over.left, 0.3) / level_at(struck_c4.left, 0.3));
+  const double restruck = db(level_at(apart.left, 0.03) / level_at(struck_c4.left, 0.03));
+  std::printf("a key tied over a note that has fallen %.1f dB: %+.2f dB of a struck note 30 ms on and %+.2f dB 0.3 s on; "
+              "played apart: %+.2f dB\n",
+              faded, tied, tied_later, restruck);
+  EXPECT(faded < -27.0, "(the held note had fallen 27 dB or more before the tie)");
+  std::snprintf(label, sizeof label, "30 ms after a tie the level is %+.2f dB of a struck note's 30 ms after its strike (1)",
+                tied);
+  EXPECT(std::fabs(tied) < 1.0, label);
+  std::snprintf(label, sizeof label, "and it falls from full again: %+.2f dB of the struck note's 0.3 s on (1)", tied_later);
+  EXPECT(std::fabs(tied_later) < 1.0, label);
   EXPECT(std::fabs(restruck) < 1.0, "the same key played apart strikes at full level");
-  double lo = 1.0e9, hi = 0.0;
-  for (double t = 0.005; t < 0.1; t += 0.005) {
-    const double ratio = level_at(over.left, t, 0.01) / level_at(alone.left, 0.5 + t, 0.01);
-    lo = std::min(lo, ratio);
-    hi = std::max(hi, ratio);
+  const double half_way = -cents(pitch_at(over.left, 0.025, 120.0, 280.0, 0.02), kC4);
+  const double arrived = cents(pitch_at(over.left, 0.2, 200.0, 300.0, 0.1), kC4);
+  std::snprintf(label, sizeof label, "the tied key's pitch: %.0f cents to go at half the Slide time (120), %.2f off 0.2 s on",
+                half_way, arrived);
+  EXPECT(std::fabs(half_way - 120.0) < 70.0 && std::fabs(arrived) < 3.0, label);
+
+  // The rise is the tie's own: 8 ms from wherever the fall has got to, not
+  // the 2 ms of a strike, and never a step. A key of the same pitch and gain
+  // tied over the fading note changes nothing but the loudness, so the two
+  // renders divide to the loudness envelope itself, here in windows of a
+  // quarter of a millisecond. (The note left alone is 30 dB down and falls
+  // 60 dB a second.)
+  fading(device, kC3);
+  render(device, 0.5f, kRate);
+  device.note_on(2, static_cast<float>(kC3), 0.7f);
+  Stereo same = render(device, 0.1f, kRate);
+  fading(other, kC3);
+  render(other, 0.5f, kRate);
+  Stereo left_alone = render(other, 0.1f, kRate);
+  auto loudness = [&](int window) {  // of full, in the 12 samples from window / 4 ms after the tie
+    const size_t from = static_cast<size_t>(window) * 12;
+    const double seconds = 0.5 - 0.002 + (static_cast<double>(from) + 6.0) / kRate;
+    return rms(same.left, from, from + 12) / rms(left_alone.left, from, from + 12) * std::pow(10.0, -3.0 * seconds);
+  };
+  double steepest = 0.0;
+  bool falls_back = false;
+  for (int window = 1; window < 40; ++window) {
+    steepest = std::max(steepest, loudness(window) - loudness(window - 1));
+    if (window <= 28 && loudness(window) < loudness(window - 1) - 0.002) falls_back = true;
   }
-  std::snprintf(label, sizeof label, "through the slide the level stays within %.2f..%.2f dB of the note left alone",
-                db(lo), db(hi));
-  EXPECT(db(lo) > -1.5 && db(hi) < 1.5, label);
+  std::printf("a tie's rise from 30 dB down: %.2f of full after 1 ms, %.2f after 3 ms, %.2f after 5 ms, %.2f after 10 ms; "
+              "at most %.3f of full in a quarter of a millisecond\n",
+              loudness(4), loudness(12), loudness(20), loudness(40), steepest);
+  std::snprintf(label, sizeof label,
+                "a tie rises over 8 ms: %.2f of full after 1 ms (0.27), %.2f after 3 ms (0.59), %.2f after 5 ms (0.81), "
+                "%.2f after 10 ms (0.98)",
+                loudness(4), loudness(12), loudness(20), loudness(40));
+  EXPECT(loudness(4) > 0.18 && loudness(4) < 0.34 && loudness(12) > 0.5 && loudness(12) < 0.66 && loudness(20) > 0.72 &&
+             loudness(20) < 0.9 && loudness(40) > 0.94 && loudness(40) < 1.02,
+         label);
+  std::snprintf(label, sizeof label, "and smoothly: at most %.3f of full from one quarter of a millisecond to the next (0.08)",
+                steepest);
+  EXPECT(steepest < 0.08 && !falls_back, label);
+
+  // Letting the tied key go again slides back to the key under it and
+  // strikes nothing, the loudness included (no key was pressed): 0.1 s later
+  // the level is where the tied note's fall had it.
+  fading(device, kC3);
+  render(device, 0.5f, kRate);
+  device.note_on(2, static_cast<float>(kC4), 0.7f);
+  render(device, 0.2f, kRate);
+  device.note_off(2);
+  Stereo back_down = render(device, 0.2f, kRate);
+  const double back_level = db(level_at(back_down.left, 0.1, 0.04) / level_at(over.left, 0.3, 0.04));
+  const double back_pitch = cents(pitch_at(back_down.left, 0.15, 100.0, 200.0, 0.08), kC3);
+  std::snprintf(label, sizeof label,
+                "the tied key let go: 0.1 s on the level is %+.2f dB of the tied note's own fall (1), %.1f cents off the "
+                "key under it",
+                back_level, back_pitch);
+  EXPECT(std::fabs(back_level) < 1.0 && std::fabs(back_pitch) < 3.0, label);
+
+  // A tie strikes the loudness and nothing else. Over a note that holds, a
+  // key of the same pitch and gain therefore changes nothing at all: the
+  // filter envelope (here half way down its fall), the accent store and the
+  // oscillator are where they were, sample for sample.
+  auto ringing = [](AcidBass& d) {
+    steady(d);
+    d.set_param(p::kCutoff, 200.0f);
+    d.set_param(p::kResonance, 0.5f);
+    d.set_param(p::kEnvMod, 0.6f);
+    d.set_param(p::kDecay, 0.4f);
+    d.set_param(p::kAccent, 1.0f);
+    d.set_param(p::kVolume, -9.0f);
+    d.note_on(1, static_cast<float>(kA1), 0.7f);
+    render(d, 0.15f, kRate);
+  };
+  ringing(device);
+  device.note_on(2, static_cast<float>(kA1), 0.7f);
+  Stereo tied_same = render(device, 0.4f, kRate);
+  ringing(other);
+  Stereo untouched = render(other, 0.4f, kRate);
+  EXPECT(tied_same.left == untouched.left && peak(untouched.left) > 0.05,
+         "the same key tied over a holding note changes nothing: filter envelope, accent and oscillator carry on");
+  // A hard key tied over it is louder, as a harder key is, but it is no
+  // accent: the harmonics stand where they do on the note left alone, while
+  // the same key struck apart moves them by several dB (an accent's filter
+  // opens further and closes faster).
+  ringing(device);
+  device.note_on(2, static_cast<float>(kA1), 1.0f);
+  Stereo tied_hard = render(device, 0.4f, kRate);
+  ringing(device);
+  device.note_off(1);
+  device.note_on(2, static_cast<float>(kA1), 1.0f);
+  Stereo struck_hard = render(device, 0.4f, kRate);
+  double tie_moves = 0.0, strike_moves = 0.0;
+  for (int n = 3; n <= 8; ++n) {
+    const double alone = filter_gain_db(untouched.left, kA1, n, at(0.02), at(0.12));
+    tie_moves = std::max(tie_moves, std::fabs(filter_gain_db(tied_hard.left, kA1, n, at(0.02), at(0.12)) - alone));
+    strike_moves = std::max(strike_moves, std::fabs(filter_gain_db(struck_hard.left, kA1, n, at(0.02), at(0.12)) - alone));
+  }
+  const double tie_louder = db(rms(tied_hard.left, at(0.02), at(0.12)) / rms(untouched.left, at(0.02), at(0.12)));
+  std::snprintf(label, sizeof label,
+                "a hard key tied over a held one: %+.1f dB, harmonics 3 to 8 within %.2f dB of the note left alone (0.2); "
+                "struck apart they move by up to %.1f dB (3 or more)",
+                tie_louder, tie_moves, strike_moves);
+  EXPECT(tie_louder > 3.0 && tie_moves < 0.2 && strike_moves > 3.0, label);
+  std::printf("%s\n", label);
+  // Nor does it charge the accent store: the next note from rest is the note
+  // it would have been with no tie, sample for sample; after a hard key
+  // struck apart it is not.
+  auto hit_after = [&](int what) {
+    ringing(device);
+    if (what == 1) device.note_on(2, static_cast<float>(kA1), 1.0f);
+    if (what == 2) {
+      device.note_off(1);
+      device.note_on(2, static_cast<float>(kA1), 1.0f);
+    }
+    render(device, 0.15f, kRate);
+    device.note_off(1);
+    device.note_off(2);
+    Stereo rest = render(device, 0.07f, kRate);
+    EXPECT(peak(rest.left, at(0.06)) == 0.0, "(the note has ended before the next strike)");
+    device.note_on(3, static_cast<float>(kA1), 0.7f);
+    return render(device, 0.1f, kRate);
+  };
+  Stereo after_nothing = hit_after(0), after_tie = hit_after(1), after_accent = hit_after(2);
+  EXPECT(after_tie.left == after_nothing.left, "a hard tied key charges no accent: the next note is as if it had not been");
+  EXPECT(!(after_accent.left == after_nothing.left), "(a hard key struck apart does: the next note differs)");
 
   // Nor does the filter open again: 40 ms after a key pressed over a held
   // one the tone is as dark as the held note had become; played apart it is
@@ -996,9 +1146,71 @@ static void test_drive() {
               "0.25, 0.5, 0.75 and 1\n",
               buzz[0], buzz[1], buzz[2], buzz[3], buzz[4]);
   EXPECT(buzz[0] < -35.0, "Drive 0 is clean: a nearly pure tone stays one");
-  EXPECT(buzz[1] > buzz[0] + 5.0 && buzz[2] > buzz[1] + 4.0 && buzz[3] > buzz[2] + 1.5 && buzz[4] > buzz[3] &&
+  EXPECT(buzz[1] > buzz[0] + 15.0 && buzz[2] > buzz[1] + 5.0 && buzz[3] > buzz[2] + 0.5 && buzz[4] > buzz[3] &&
              buzz[4] > -18.0,
          "Drive adds harmonics, more with every quarter of its travel");
+
+  // The lower half of the travel is heard, on sounds as they are played and
+  // not only on a pure tone. (The gain in dB follows d(2 - d). Straight in
+  // d, half way stayed under the curve's knee: the three figures below were
+  // x1.09, 3.2 dB and x1.05.) Drive is before the loudness envelope, so a
+  // fading note serves.
+  auto half_against_none = [](const std::function<void(AcidBass&)>& patch, double hz, float seconds,
+                              const std::function<double(const std::vector<float>&)>& measure, double* none,
+                              double* half) {
+    for (float drive : {0.0f, 0.5f}) {
+      patch(device);
+      device.set_param(p::kDrive, drive);
+      device.note_on(1, static_cast<float>(hz), 0.7f);
+      Stereo out = render(device, seconds, kRate);
+      (drive == 0.0f ? *none : *half) = measure(out.left);
+    }
+  };
+  double none = 0.0, half = 0.0;
+  // The default patch on A1 once its filter has closed: brightness.
+  half_against_none([](AcidBass& d) { d.init(kRate); }, kA1, 2.2f,
+                    [](const std::vector<float>& x) { return centroid(x, kA1, at(1.2), at(2.2)); }, &none, &half);
+  std::snprintf(label, sizeof label, "Drive at half on the default patch, filter closed: brightness %.0f Hz against %.0f Hz clean (x%.2f, 1.25 or more)",
+                half, none, half / none);
+  EXPECT(half > 1.25 * none, label);
+  std::printf("drive: %s\n", label);
+  // A dark held square on A2 (the filter under the note): harmonics 2 to 8
+  // against the fundamental.
+  half_against_none(
+      [](AcidBass& d) {
+        steady(d);
+        d.set_param(p::kWave, 1.0f);
+        d.set_param(p::kCutoff, 90.0f);
+        d.set_param(p::kResonance, 0.25f);
+        d.set_param(p::kEnvMod, 0.08f);
+        d.set_param(p::kDecay, 2.0f);
+      },
+      kA2, 2.0f,
+      [](const std::vector<float>& x) {
+        double sum = 0.0;
+        for (int n = 2; n <= 8; ++n) {
+          const double level = tone_level(x, n * kA2, kRate, at(1.0), at(2.0));
+          sum += level * level;
+        }
+        return db(std::sqrt(sum) / tone_level(x, kA2, kRate, at(1.0), at(2.0)));
+      },
+      &none, &half);
+  std::snprintf(label, sizeof label, "Drive at half on a dark held square: harmonics 2 to 8 at %.1f dB against %.1f dB clean (8 dB or more up)",
+                half, none);
+  EXPECT(half > none + 8.0, label);
+  std::printf("drive: %s\n", label);
+  // An open, bright sawtooth: brightness again.
+  half_against_none(
+      [](AcidBass& d) {
+        steady(d);
+        d.set_param(p::kCutoff, 2200.0f);
+        d.set_param(p::kResonance, 0.2f);
+      },
+      kA1, 1.5f, [](const std::vector<float>& x) { return centroid(x, kA1, at(0.5), at(1.5)); }, &none, &half);
+  std::snprintf(label, sizeof label, "Drive at half on an open sawtooth: brightness %.0f Hz against %.0f Hz clean (x%.2f, 1.12 or more)",
+                half, none, half / none);
+  EXPECT(half > 1.12 * none, label);
+  std::printf("drive: %s\n", label);
 
   // It comes after the filter and before the loudness envelope: the fall of
   // a driven note is still 60 dB in the Sustain time.
@@ -1212,6 +1424,7 @@ static void test_clicks() {
     const char* name;
     std::function<void(AcidBass&)> setup;
     std::function<void(AcidBass&)> event;
+    float lead = 0.25f;  // seconds of the setup before the event
   };
   const Event events[] = {
       {"a strike from silence", silent, [](AcidBass& d) { d.note_on(1, static_cast<float>(kA2), 0.7f); }},
@@ -1227,6 +1440,24 @@ static void test_clicks() {
        }},
       {"a key over the held one (a slide)", held, [](AcidBass& d) { d.note_on(2, static_cast<float>(kC4), 0.7f); }},
       {"a louder key over the held one", held, [](AcidBass& d) { d.note_on(2, static_cast<float>(kC3), 1.0f); }},
+      // The same pitch, so that the level is all that changes: a slide's own
+      // growing difference would hide a level that jumps.
+      {"a louder key of the same pitch over the held one", held,
+       [](AcidBass& d) { d.note_on(2, static_cast<float>(kA2), 1.0f); }},
+      // A tie brings the loudness back: over a note 25 dB down and one 55 dB
+      // down, to another pitch, to the same one, and hard.
+      {"a key tied over a fading note", fading, [](AcidBass& d) { d.note_on(2, static_cast<float>(kC4), 0.7f); }},
+      {"the same pitch tied over a fading note", fading, [](AcidBass& d) { d.note_on(2, static_cast<float>(kA2), 0.7f); }},
+      {"a hard key tied over a fading note", fading, [](AcidBass& d) { d.note_on(2, static_cast<float>(kC3), 1.0f); }},
+      {"a key tied over a note nearly gone", fading, [](AcidBass& d) { d.note_on(2, static_cast<float>(kC4), 0.7f); },
+       0.55f},
+      {"the same pitch tied over a note nearly gone", fading,
+       [](AcidBass& d) { d.note_on(2, static_cast<float>(kA2), 0.7f); }, 0.55f},
+      {"a tied key let go again (back to the key under it)", fading,
+       [](AcidBass& d) {
+         d.note_on(2, static_cast<float>(kC4), 0.7f);
+         d.note_off(2);
+       }},
       {"Cutoff thrown up", held, [](AcidBass& d) { d.set_param(p::kCutoff, 5000.0f); }},
       {"Cutoff thrown down", held, [](AcidBass& d) { d.set_param(p::kCutoff, 40.0f); }},
       {"Resonance thrown up", held, [](AcidBass& d) { d.set_param(p::kResonance, 1.0f); }},
@@ -1243,7 +1474,7 @@ static void test_clicks() {
   double worst = 0.0;
   const char* worst_name = "";
   for (const Event& event : events) {
-    const double sudden = suddenness(event.setup, event.event);
+    const double sudden = suddenness(event.setup, event.event, event.lead);
     if (sudden > worst) {
       worst = sudden;
       worst_name = event.name;
@@ -1391,7 +1622,45 @@ static void test_levels() {
 
   // Other sample rates: the same times and the same filter.
   double lift_at_48[2] = {0.0, 0.0};
+  double second_accent_at_48 = 0.0, closed_at_48 = 0.0;
   for (float rate : {48000.0f, 44100.0f, 96000.0f}) {
+    // The accent store charges and drains in seconds, not in samples: how
+    // much brighter a second accent is 0.15 s after the first.
+    double bright[2];
+    accent_patch(device, 1.0f, 0.3f, rate);
+    for (int n = 0; n < 2; ++n) {
+      device.note_on(n, static_cast<float>(kA1), 1.0f);
+      Stereo note = render(device, 0.08f, rate);
+      device.note_off(n);
+      render(device, 0.07f, rate);
+      double weighted = 0.0, total = 0.0;
+      for (int h = 1; h * kA1 < 12000.0; ++h) {
+        const double level = tone_level(note.left, h * kA1, rate, at(0.02, rate), at(0.08, rate));
+        weighted += h * kA1 * level;
+        total += level;
+      }
+      bright[n] = weighted / total;
+    }
+    const double second_accent = std::log2(bright[1] / bright[0]);
+    // The filter's Decay is seconds too: a 0.3 s Decay over three octaves,
+    // read as where the harmonics 4 to 12 of A1 stand against the
+    // fundamental 0.3 s after the strike (a Decay a tenth too long leaves
+    // them half a dB higher; they have come down 10 dB since the strike).
+    steady(device, rate);
+    device.set_param(p::kCutoff, 150.0f);
+    device.set_param(p::kEnvMod, 0.6f);
+    device.set_param(p::kDecay, 0.3f);
+    device.note_on(1, static_cast<float>(kA1), 0.7f);
+    Stereo closes = render(device, 0.5f, rate);
+    auto upper = [&](double from, double to) {
+      double sum = 0.0;
+      for (int h = 4; h <= 12; ++h) {
+        const double level = tone_level(closes.left, h * kA1, rate, at(from, rate), at(to, rate));
+        sum += level * level;
+      }
+      return db(std::sqrt(sum) / tone_level(closes.left, kA1, rate, at(from, rate), at(to, rate)));
+    };
+    const double closed = upper(0.26, 0.34), closing = upper(0.03, 0.07) - closed;
     steady(device, rate);
     device.set_param(p::kCutoff, 440.0f);
     device.set_param(p::kResonance, 0.75f);
@@ -1403,8 +1672,54 @@ static void test_levels() {
     if (rate == kRate) {
       lift_at_48[0] = lift(16);
       lift_at_48[1] = lift(64);
+      second_accent_at_48 = second_accent;
+      closed_at_48 = closed;
       continue;
     }
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz a second accent 0.15 s after the first is %.3f octaves brighter (%.3f at 48 kHz, within 0.04)",
+                  rate, second_accent, second_accent_at_48);
+    EXPECT(std::fabs(second_accent - second_accent_at_48) < 0.04 && second_accent > 0.3, label);
+    if (std::getenv("ACID_VERBOSE")) std::printf("  %s\n", label);
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz, 0.3 s into a 0.3 s Decay harmonics 4 to 12 stand at %.2f dB (%.2f at 48 kHz, within 0.4), "
+                  "%.1f dB under where they started",
+                  rate, closed, closed_at_48, closing);
+    EXPECT(std::fabs(closed - closed_at_48) < 0.4 && closing > 8.0, label);
+    if (std::getenv("ACID_VERBOSE")) std::printf("  %s\n", label);
+
+    // The release: 40 dB down 16 ms after the key, exact silence by 60 ms.
+    steady(device, rate);
+    device.note_on(1, static_cast<float>(kC5), 0.7f);
+    Stereo on = render(device, 0.1f, rate);
+    device.note_off(1);
+    Stereo off = render(device, 0.2f, rate);
+    const double at_16 = db(rms(off.left, at(0.014, rate), at(0.018, rate)) / rms(on.left, at(0.09, rate), at(0.1, rate)));
+    std::snprintf(label, sizeof label, "at %.0f Hz the release is %.1f dB down after 16 ms (34 to 46) and silence by 60 ms", rate,
+                  at_16);
+    EXPECT(at_16 < -34.0 && at_16 > -46.0 && peak(off.left, at(0.06, rate)) == 0.0, label);
+    if (std::getenv("ACID_VERBOSE")) std::printf("  %s\n", label);
+
+    // A tie's rise: 8 ms. The same pitch tied over a note 30 dB down against
+    // the note left alone, as in the keys group.
+    Stereo tie[2];
+    for (int which = 0; which < 2; ++which) {
+      steady(device, rate);
+      device.set_param(p::kSustain, 1.0f);
+      device.set_param(p::kVolume, -12.0f);
+      device.note_on(1, static_cast<float>(kC3), 0.7f);
+      render(device, 0.5f, rate);
+      if (which == 0) device.note_on(2, static_cast<float>(kC3), 0.7f);
+      tie[which] = render(device, 0.05f, rate);
+    }
+    auto risen = [&](double seconds) {  // of full, in the quarter of a millisecond from `seconds` after the tie
+      const size_t from = at(seconds, rate), to = at(seconds + 0.00025, rate);
+      return rms(tie[0].left, from, to) / rms(tie[1].left, from, to) * std::pow(10.0, -3.0 * (0.498 + seconds + 0.000125));
+    };
+    std::snprintf(label, sizeof label, "at %.0f Hz a tie has risen to %.2f of full after 3 ms (0.58) and %.2f after 10 ms (0.98)",
+                  rate, risen(0.003), risen(0.010));
+    EXPECT(risen(0.003) > 0.5 && risen(0.003) < 0.66 && risen(0.010) > 0.94 && risen(0.010) < 1.02, label);
+    if (std::getenv("ACID_VERBOSE")) std::printf("  %s\n", label);
     std::snprintf(label, sizeof label,
                   "at %.0f Hz: Resonance 0.75 lifts the harmonic on Cutoff %.2f dB over the fundamental and two octaves "
                   "up the filter is %.2f dB down (%.2f and %.2f at 48 kHz)",
@@ -1430,26 +1745,6 @@ static void test_levels() {
     const double left = -cents(peak_frequency(slide.left, rate, 120.0, 280.0, at(0.085, rate), at(0.115, rate)), kC4);
     std::snprintf(label, sizeof label, "at %.0f Hz an octave slide of 0.2 s has %.0f cents to go at half time (120)", rate, left);
     EXPECT(std::fabs(left - 120.0) < 40.0, label);
-
-    // The accent store charges and drains in seconds, not in samples.
-    double bright[2];
-    accent_patch(device, 1.0f, 0.3f, rate);
-    for (int n = 0; n < 2; ++n) {
-      device.note_on(n, static_cast<float>(kA1), 1.0f);
-      Stereo note = render(device, 0.08f, rate);
-      device.note_off(n);
-      render(device, 0.07f, rate);
-      double weighted = 0.0, total = 0.0;
-      for (int h = 1; h * kA1 < 12000.0; ++h) {
-        const double level = tone_level(note.left, h * kA1, rate, at(0.02, rate), at(0.08, rate));
-        weighted += h * kA1 * level;
-        total += level;
-      }
-      bright[n] = weighted / total;
-    }
-    std::snprintf(label, sizeof label, "at %.0f Hz a second accent 0.15 s after the first is %.2f octaves brighter (0.3 to 0.8)",
-                  rate, std::log2(bright[1] / bright[0]));
-    EXPECT(std::log2(bright[1] / bright[0]) > 0.3 && std::log2(bright[1] / bright[0]) < 0.8, label);
   }
 }
 
@@ -1492,6 +1787,84 @@ static Stereo phrase(AcidBass& d) {
   return concat(out, render(d, 0.2f, kRate));
 }
 
+// Eight seconds of a bass line between A1 and A2 at gains of 0.6 to 1: keys
+// played apart, three of them tied into the next (slides), and accents.
+static Stereo bass_line(AcidBass& d) {
+  struct Step {
+    float hz, gain;
+    bool tied;
+  };
+  static const Step steps[16] = {
+      {55.0f, 0.6f, false},    {55.0f, 0.8f, false},    {82.4069f, 0.7f, true},   {110.0f, 1.0f, false},
+      {97.9989f, 0.6f, false}, {82.4069f, 0.9f, false}, {65.4064f, 0.7f, false},  {55.0f, 1.0f, true},
+      {73.4162f, 0.8f, false}, {82.4069f, 0.6f, false}, {110.0f, 0.9f, false},    {97.9989f, 1.0f, false},
+      {82.4069f, 0.7f, true},  {65.4064f, 0.6f, false}, {61.7354f, 0.8f, false},  {55.0f, 1.0f, false},
+  };
+  Stereo out;
+  bool carried = false;
+  for (int n = 0; n < 16; ++n) {
+    d.note_on(n, steps[n].hz, steps[n].gain);
+    if (carried) {
+      // The key before this one is let go a little after this one is down.
+      out = concat(out, render(d, 0.15f, kRate));
+      d.note_off(n - 1);
+      out = concat(out, render(d, 0.25f, kRate));
+    } else {
+      out = concat(out, render(d, 0.4f, kRate));
+    }
+    carried = steps[n].tied;
+    if (!carried) d.note_off(n);
+    out = concat(out, render(d, 0.1f, kRate));
+  }
+  return out;
+}
+
+// What a render sounds like, as numbers: the level in nine octave bands
+// (20 Hz to 15 kHz) in each 43 ms of it, in dB against the whole render's
+// level and no lower than 60 dB under it. Two renders are compared by the
+// mean difference over all bands and moments, so neither a different volume
+// nor a waveform turned over counts, and a different tone, sweep or length
+// does.
+static const int kBands = 9;
+static std::vector<float> sound_picture(const std::vector<float>& x) {
+  static livemix::kit::Fft<2048> fft;
+  static bool ready = false;
+  if (!ready) {
+    fft.init();
+    ready = true;
+  }
+  const int n = 2048;
+  const double whole = rms(x);
+  std::vector<float> picture;
+  float re[2048], im[2048];
+  for (size_t from = 0; from + n <= x.size(); from += n) {
+    for (int i = 0; i < n; ++i) {
+      re[i] = static_cast<float>((0.5 - 0.5 * std::cos(2.0 * kPi * i / n)) * x[from + i]);
+      im[i] = 0.0f;
+    }
+    fft.forward(re, im);
+    double band[kBands] = {};
+    for (int i = 1; i < n / 2; ++i) {
+      const double f = i * kRate / n;
+      const int which = static_cast<int>(std::floor(std::log2(f / 20.0) / 1.0666667));  // 20 Hz .. 15.5 kHz in nine
+      if (which < 0 || which >= kBands) continue;
+      band[which] += static_cast<double>(re[i]) * re[i] + static_cast<double>(im[i]) * im[i];
+    }
+    for (int b = 0; b < kBands; ++b) {
+      // A Hann window passes 3/8 of the power; the spectrum is two-sided.
+      const double level = std::sqrt(2.0 * band[b] / (0.375 * n * n));
+      picture.push_back(static_cast<float>(std::max(-60.0, db(level / whole))));
+    }
+  }
+  return picture;
+}
+
+static double pictures_apart(const std::vector<float>& a, const std::vector<float>& b) {
+  double sum = 0.0;
+  for (size_t i = 0; i < a.size(); ++i) sum += std::fabs(a[i] - b[i]);
+  return sum / static_cast<double>(a.size());
+}
+
 static void test_presets() {
   EXPECT(kNumPresets == 16, "sixteen presets");
   // The table above is the manifest's: checked when the harness runs where
@@ -1530,8 +1903,22 @@ static void test_presets() {
   int quiet_kind = 0;
   for (const Preset& preset : kPresets) {
     const size_t length = std::strlen(preset.name);
-    std::snprintf(label, sizeof label, "preset name \"%s\": at most 24 characters, not ending in a digit", preset.name);
-    EXPECT(length > 0 && length <= 24 && !(preset.name[length - 1] >= '0' && preset.name[length - 1] <= '9'), label);
+    std::snprintf(label, sizeof label,
+                  "preset name \"%s\": at most 20 characters, no space at either end, not ending in a digit, and no "
+                  "other preset has it in any case",
+                  preset.name);
+    int same_name = 0;
+    for (const Preset& another : kPresets) {
+      bool same = std::strlen(another.name) == length;
+      for (size_t c = 0; same && c < length; ++c) {
+        same = std::tolower(static_cast<unsigned char>(another.name[c])) ==
+               std::tolower(static_cast<unsigned char>(preset.name[c]));
+      }
+      same_name += same ? 1 : 0;
+    }
+    EXPECT(length > 0 && length <= 20 && preset.name[0] != ' ' && preset.name[length - 1] != ' ' &&
+               !(preset.name[length - 1] >= '0' && preset.name[length - 1] <= '9') && same_name == 1,
+           label);
 
     load(device, preset);
     Stereo out = phrase(device);
@@ -1612,6 +1999,74 @@ static void test_presets() {
                   kPresets[low_rms_at].name, high_rms, kPresets[high_rms_at].name, middle_rms, allowed);
     EXPECT(low > -allowed && high < allowed && low_rms > -allowed && high_rms < allowed, label);
     std::printf("presets: %s\n", label);
+  }
+
+  // Each preset alone on the bass line: its loudest 400 ms against the middle
+  // preset's, its peak, its DC, and how far its sound is from every other's.
+  {
+    double loudest[kNumPresets];
+    std::vector<std::vector<float>> pictures;
+    for (int i = 0; i < kNumPresets; ++i) {
+      load(device, kPresets[i]);
+      const Stereo out = bass_line(device);
+      double most = 0.0;
+      for (size_t from = 0; from + at(0.4) <= out.size(); from += at(0.05)) {
+        most = std::max(most, static_cast<double>(rms(out.left, from, from + at(0.4))));
+      }
+      loudest[i] = db(most);
+      const double top = db(peak(out.left));
+      double mean = 0.0;
+      for (float v : out.left) mean += v;
+      mean = std::fabs(mean / static_cast<double>(out.size()));
+      std::snprintf(label, sizeof label,
+                    "preset \"%s\" on the bass line: loudest 400 ms %.1f dBFS (over -50), peak %.1f dBFS (under -4), DC %.5f "
+                    "(under 0.002)",
+                    kPresets[i].name, loudest[i], top, mean);
+      EXPECT(loudest[i] > -50.0 && top < -4.0 && mean < 0.002, label);
+      if (std::getenv("ACID_VERBOSE")) std::printf("  %s\n", label);
+      pictures.push_back(sound_picture(out.left));
+      if (std::getenv("ACID_VERBOSE")) {
+        // The picture averaged over time: the nine bands, low to high.
+        std::printf("  bands %-20s", kPresets[i].name);
+        for (int band = 0; band < kBands; ++band) {
+          double sum = 0.0;
+          for (size_t at_frame = band; at_frame < pictures.back().size(); at_frame += kBands) sum += pictures.back()[at_frame];
+          std::printf(" %5.1f", sum * kBands / static_cast<double>(pictures.back().size()));
+        }
+        std::printf("\n");
+      }
+    }
+    std::vector<double> sorted(loudest, loudest + kNumPresets);
+    std::sort(sorted.begin(), sorted.end());
+    const double middle = 0.5 * (sorted[kNumPresets / 2 - 1] + sorted[kNumPresets / 2]);
+    int low_at = 0, high_at = 0;
+    for (int i = 0; i < kNumPresets; ++i) {
+      if (loudest[i] < loudest[low_at]) low_at = i;
+      if (loudest[i] > loudest[high_at]) high_at = i;
+    }
+    std::snprintf(label, sizeof label,
+                  "on the bass line the presets' loudest 400 ms is %+.1f (\"%s\") to %+.1f dB (\"%s\") from the middle "
+                  "one's (%.1f dBFS); within 4",
+                  loudest[low_at] - middle, kPresets[low_at].name, loudest[high_at] - middle, kPresets[high_at].name, middle);
+    EXPECT(loudest[low_at] - middle > -4.0 && loudest[high_at] - middle < 4.0, label);
+    std::printf("presets: %s\n", label);
+
+    struct Pair {
+      double apart;
+      int a, b;
+    };
+    std::vector<Pair> pairs;
+    for (int a = 0; a < kNumPresets; ++a) {
+      for (int b = a + 1; b < kNumPresets; ++b) pairs.push_back({pictures_apart(pictures[a], pictures[b]), a, b});
+    }
+    std::sort(pairs.begin(), pairs.end(), [](const Pair& x, const Pair& y) { return x.apart < y.apart; });
+    for (int i = 0; i < 4; ++i) {
+      std::printf("presets: %s pair in sound: \"%s\" and \"%s\", %.2f dB apart over bands and moments\n",
+                  i == 0 ? "the closest" : "the next", kPresets[pairs[i].a].name, kPresets[pairs[i].b].name, pairs[i].apart);
+    }
+    std::snprintf(label, sizeof label, "no two presets sound alike on the bass line: the closest are %.2f dB apart (2.5 or more)",
+                  pairs[0].apart);
+    EXPECT(pairs[0].apart > 2.5, label);
   }
 
   // No two render alike: the difference between any two phrases, each

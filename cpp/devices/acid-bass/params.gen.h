@@ -10,7 +10,7 @@
 //    5  accent: 0..1, default 0.6
 //    6  slide: 0.01..1 s, default 0.12
 //    7  sustain: 0.1..20 s, default 3
-//    8  drive: 0..1, default 0.25
+//    8  drive: 0..1, default 0.134
 //    9  volume: -48..6 dB, default -9
 
 #pragma once
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 40.0f, 0.0f, 0.0f, 0.05f, 0.0f, 0.01f, 0.1f, 0.0f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 5000.0f, 1.0f, 1.0f, 10.0f, 1.0f, 1.0f, 20.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 280.0f, 0.7f, 0.55f, 0.35f, 0.6f, 0.12f, 3.0f, 0.25f, -9.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 280.0f, 0.7f, 0.55f, 0.35f, 0.6f, 0.12f, 3.0f, 0.134f, -9.0f};
 
 }  // namespace acid_bass
 }  // namespace livemix

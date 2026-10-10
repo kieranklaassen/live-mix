@@ -8,9 +8,12 @@
 //
 // - One voice. Held keys sit on a stack and the newest plays. A key struck
 //   with none held strikes both envelopes and starts on pitch. A key pressed
-//   while another is held slides to the new pitch and strikes nothing: the
-//   envelopes carry on from where they are. Letting the top key go slides
-//   back to the one under it. (A key over a held note that has faded to
+//   while another is held (a tie) slides to the new pitch and is heard: the
+//   loudness rises from wherever it has fallen to back to full over 8 ms and
+//   falls again from there. That is all a tie strikes: the filter envelope
+//   and the accent store carry on from where they are, and the oscillator
+//   runs on. Letting the top key go slides back to the one under it and
+//   strikes nothing at all. (A key over a held note that has faded to
 //   complete silence has nothing to slide from, and strikes.)
 // - The slide is an exponential approach in pitch, as a capacitor charges:
 //   it has covered 99 % of the interval after the Slide time.
@@ -25,10 +28,11 @@
 //   the stages are tuned down as Resonance rises and the peak stays on
 //   Cutoff. Part of what the loop takes from the passband is given back
 //   after the filter, so resonance does not thin the bass.
-// - Two envelopes. Loudness: a 2 ms strike, a fall that is 60 dB down after
-//   Sustain while a key is held (at the top it holds), and its own short
-//   release once no key is held. Filter: a 2 ms strike, then a fall that has
-//   come nine tenths of the way back after Decay, key held or not.
+// - Two envelopes. Loudness: a 2 ms strike (8 ms back to full for a tie), a
+//   fall that is 60 dB down after Sustain while a key is held (at the top it
+//   holds), and its own short release once no key is held. Filter: a 2 ms
+//   strike, then a fall that has come nine tenths of the way back after
+//   Decay, key held or not.
 // - A note struck harder than a gain of 0.7 is accented, by an amount that
 //   grows to gain 1 and with Accent: louder, its filter envelope reaches an
 //   octave further and falls fast whatever Decay says, and that envelope
@@ -37,11 +41,13 @@
 //   it part full and open further each time.
 // - Drive is a saturator after the filter and before the loudness envelope,
 //   so a note keeps its tone as it fades and the envelope times stay what
-//   they say. Its curve bends into a square root instead of a hard limit:
-//   how much a limiter takes depends on the patch (a closed filter leaves a
-//   sine, an open one a spike), and no one make-up gain holds the level for
-//   both; under this curve the level stays within 2 dB over the patches the
-//   harness tries.
+//   they say. Its gain in dB follows the control as d(2 - d): the part of
+//   that gain which stays under the curve's knee is passed early, and the
+//   lower half of the travel is heard. The curve bends into a square root
+//   instead of a hard limit: how much a limiter takes depends on the patch
+//   (a closed filter leaves a sine, an open one a spike), and no one make-up
+//   gain holds the level for both; under this curve the level stays within
+//   2 dB over the patches the harness tries.
 // - Struck from silence, everything that could remember the last note is put
 //   back (oscillator phase, filter, envelopes, smoothers): every hit from
 //   rest is the same hit, sample for sample. Only the accent store carries
@@ -75,12 +81,13 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
     pitch_ = kRestPitch;
     slide_target_ = kRestPitch;
     sliding_ = false;
-    frequency_ = std::exp2(pitch_);
+    frequency_ = std::exp2(kRestPitch);
     amp_level_ = 0.0f;
     filter_level_ = 0.0f;
     store_ = 0.0f;
     accent_ = 0.0f;
     striking_ = false;
+    rising_ = false;
     filter_striking_ = false;
     hold_ = false;
     last_sustain_ = -1.0f;
@@ -90,6 +97,8 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
     last_drive_ = -1.0f;
     strike_rate_ =
         1.0f - std::exp(std::log((kStrikeTarget - 1.0f) / kStrikeTarget) / kit::max(1.0f, kStrikeSeconds * sr));
+    tie_rate_ =
+        1.0f - std::exp(std::log((kStrikeTarget - 1.0f) / kStrikeTarget) / kit::max(1.0f, kTieSeconds * sr));
     release_coeff_ = std::exp(-1.0f / (kReleaseTau * sr));
     charge_rate_ = 1.0f - std::exp(-1.0f / (kStoreChargeTau * sr));
     drain_coeff_ = std::exp(-1.0f / (kStoreDrainTau * sr));
@@ -126,9 +135,11 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
 
     const bool silent = amp_level_ == 0.0f;
     if (overlapping && !silent) {
-      // A key over a sounding one: slide, and leave both envelopes alone.
+      // A key over a sounding one: slide. The filter envelope and the accent
+      // are left alone; the loudness comes back to full and falls again.
       slide_to(key.pitch);
       level_.set_target(key.level);
+      rising_ = !striking_;
       return;
     }
     if (silent) {
@@ -140,10 +151,11 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
     pitch_ = key.pitch;
     slide_target_ = key.pitch;
     sliding_ = false;
-    frequency_ = std::exp2(pitch_);
+    frequency_ = std::exp2(key.pitch);
     accent_ = key.accent;
     set_filter_decay();
     striking_ = true;
+    rising_ = false;
     filter_striking_ = true;
   }
 
@@ -162,7 +174,7 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
       pitch_ = key.pitch;
       slide_target_ = key.pitch;
       sliding_ = false;
-      frequency_ = std::exp2(pitch_);
+      frequency_ = std::exp2(key.pitch);
       level_.snap(key.level);
     }
   }
@@ -187,13 +199,19 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
       if (clock_.tick()) control();
 
       if (sliding_) {
-        pitch_ += slide_rate_ * (slide_target_ - pitch_);
-        const float left = slide_target_ - pitch_;
+        // In double: a float pitch moves in steps of half a millionth of an
+        // octave, and the last steps of a slow slide are smaller than that,
+        // so it would stop short of the key and stay there (3 cents at
+        // 48 kHz with a 1 s Slide, 12 at 192 kHz).
+        pitch_ += static_cast<double>(slide_rate_) * (slide_target_ - pitch_);
+        const double left = slide_target_ - pitch_;
         if (left > -kArrived && left < kArrived) {
           pitch_ = slide_target_;
           sliding_ = false;
+          frequency_ = std::exp2(slide_target_);  // as a strike on that key
+        } else {
+          frequency_ = static_cast<float>(std::exp2(pitch_));
         }
-        frequency_ = std::exp2(pitch_);
       }
       const float amp = advance_amp_envelope();
       const float opening = advance_filter_envelope();
@@ -342,6 +360,7 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
   static constexpr float kStoreEmpty = 1.0e-3f;
   static constexpr float kStrikeSeconds = 0.002f;
   static constexpr float kStrikeTarget = 1.3f;
+  static constexpr float kTieSeconds = 0.008f;     // a tied key's rise back to full, from silence
   static constexpr float kReleaseTau = 0.0035f;    // 40 dB down after 16 ms
   static constexpr float kHoldFromSeconds = 19.9f;
   static constexpr float kSixtyDb = 6.907755279f;
@@ -422,7 +441,16 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
       return amp_level_;
     }
     if (held_ == 0) {
+      rising_ = false;
       amp_level_ *= release_coeff_;
+    } else if (rising_) {
+      // A tie: back to full from wherever the fall has got to, at its own
+      // slower rate, then the fall starts again.
+      amp_level_ += tie_rate_ * (kStrikeTarget - amp_level_);
+      if (amp_level_ >= 1.0f) {
+        amp_level_ = 1.0f;
+        rising_ = false;
+      }
     } else if (!hold_) {
       amp_level_ *= sustain_coeff_;
     }
@@ -483,7 +511,10 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
   // matched while it moves.
   void set_drive(float drive) {
     last_drive_ = drive;
-    drive_pre_ = kDriveFloor * std::exp(drive * kMaxDriveDb * 0.1151292546f);  // dB to gain
+    // The gain in dB follows d(2 - d): straight in d, the first half of the
+    // travel stayed under the curve's knee and did nothing to be heard.
+    const float travel = drive * (2.0f - drive);
+    drive_pre_ = kDriveFloor * std::exp(travel * kMaxDriveDb * 0.1151292546f);  // dB to gain
     drive_post_ = kOutGain * made_up(drive_pre_) / (made_up(kDriveFloor) * drive_pre_);
   }
 
@@ -543,7 +574,7 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
   int held_ = 0;
   int factor_ = 4;
   float inner_rate_ = 192000.0f;
-  float pitch_ = kRestPitch;
+  double pitch_ = kRestPitch;  // log2 of the frequency; double so that a slide arrives
   float slide_target_ = kRestPitch;
   float frequency_ = 55.0f;
   float slide_rate_ = 1.0f;
@@ -551,7 +582,7 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
   float filter_level_ = 0.0f;
   float store_ = 0.0f;
   float accent_ = 0.0f;
-  float strike_rate_ = 0.0f;
+  float strike_rate_ = 0.0f, tie_rate_ = 0.0f;
   float sustain_coeff_ = 0.0f, release_coeff_ = 0.0f, filter_coeff_ = 0.0f;
   float charge_rate_ = 0.0f, drain_coeff_ = 0.0f;
   float feedback_ = 0.0f, stage_ratio_ = kOpenRatio, passband_ = 1.0f;
@@ -560,6 +591,7 @@ class AcidBass : public kit::DeviceBase<acid_bass::kNumParams> {
   float last_drive_ = -1.0f;
   bool sliding_ = false;
   bool striking_ = false;
+  bool rising_ = false;  // a tied key is bringing the loudness back to full
   bool filter_striking_ = false;
   bool hold_ = false;
 };

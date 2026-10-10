@@ -66,7 +66,7 @@
       "default": 0.12,
       "taper": "log",
       "unit": "s",
-      "description": "How long the pitch takes to bend to a key pressed while another is still held. Such a note is not struck again; keys played apart start on pitch."
+      "description": "How long the pitch takes to bend to a key pressed while another is still held. Such a note comes back to full loudness but does not open the filter again; keys played apart start on pitch."
     },
     {
       "key": "sustain",
@@ -76,15 +76,15 @@
       "default": 3,
       "taper": "log",
       "unit": "s",
-      "description": "How long a held note takes to fade away. Short makes plucks whatever the key does; at the very top a note holds until the key is let go."
+      "description": "How long a held note takes to fade away. Short makes plucks whatever the key does; at the very top a note holds until the key is let go. A key tied over a fading note starts the fade again."
     },
     {
       "key": "drive",
       "name": "Drive",
       "min": 0,
       "max": 1,
-      "default": 0.25,
-      "description": "Distortion after the filter: clean at the bottom, then warmer and thicker, with a buzzing edge at the top. It does not get much louder."
+      "default": 0.134,
+      "description": "Distortion after the filter. Clean at the bottom and only a little thicker over the first quarter; by half way dark sounds have grown a buzzing edge and bright ones are squashed and a little brighter. Further up adds more of the same, less and less. The level stays about the same."
     },
     {
       "key": "volume",
@@ -106,29 +106,29 @@
       "accent": 0.6,
       "slide": 0.12,
       "sustain": 3,
-      "drive": 0.25
+      "drive": 0.134
     },
     "Hollow square line": {
       "wave": 1,
-      "cutoff": 340,
-      "resonance": 0.6,
-      "envMod": 0.5,
-      "decay": 0.45,
+      "cutoff": 700,
+      "resonance": 0.3,
+      "envMod": 0.35,
+      "decay": 0.7,
       "accent": 0.5,
       "slide": 0.1,
-      "sustain": 3,
-      "drive": 0.15,
+      "sustain": 5,
+      "drive": 0.078,
       "volume": -6
     },
     "Rubber slides": {
       "cutoff": 160,
       "resonance": 0.78,
       "envMod": 0.42,
-      "decay": 0.7,
+      "decay": 0.45,
       "accent": 0.5,
       "slide": 0.5,
-      "sustain": 8,
-      "drive": 0.2,
+      "sustain": 5,
+      "drive": 0.106,
       "volume": -10
     },
     "Resonant scream": {
@@ -139,7 +139,7 @@
       "accent": 1,
       "slide": 0.08,
       "sustain": 3,
-      "drive": 0.8,
+      "drive": 0.553,
       "volume": -7
     },
     "Soft dark line": {
@@ -149,7 +149,7 @@
       "decay": 0.8,
       "accent": 0.25,
       "slide": 0.15,
-      "sustain": 5,
+      "sustain": 4,
       "drive": 0,
       "volume": -7
     },
@@ -161,7 +161,7 @@
       "accent": 0.3,
       "slide": 0.3,
       "sustain": 20,
-      "drive": 0.1
+      "drive": 0.051
     },
     "Short pluck": {
       "cutoff": 220,
@@ -170,9 +170,9 @@
       "decay": 0.12,
       "accent": 0.6,
       "slide": 0.05,
-      "sustain": 0.3,
-      "drive": 0.1,
-      "volume": -7
+      "sustain": 0.8,
+      "drive": 0.368,
+      "volume": -5
     },
     "Held sub tone": {
       "wave": 1,
@@ -183,30 +183,30 @@
       "accent": 0.2,
       "slide": 0.2,
       "sustain": 20,
-      "drive": 0.15,
-      "volume": -5.5
+      "drive": 0,
+      "volume": -6.5
     },
     "Dub weight": {
       "wave": 1,
-      "cutoff": 130,
-      "resonance": 0.3,
-      "envMod": 0.3,
-      "decay": 0.5,
+      "cutoff": 75,
+      "resonance": 0.55,
+      "envMod": 0.25,
+      "decay": 0.2,
       "accent": 0.4,
       "slide": 0.18,
-      "sustain": 6,
-      "drive": 0.35,
-      "volume": -5
+      "sustain": 2,
+      "drive": 0.293,
+      "volume": -6
     },
     "Driven growl": {
-      "cutoff": 170,
-      "resonance": 0.4,
+      "cutoff": 120,
+      "resonance": 0.55,
       "envMod": 0.4,
       "decay": 0.9,
       "accent": 0.6,
       "slide": 0.1,
       "sustain": 4,
-      "drive": 0.9,
+      "drive": 0.684,
       "volume": -6
     },
     "Wet squelch": {
@@ -217,29 +217,29 @@
       "accent": 0.9,
       "slide": 0.07,
       "sustain": 2,
-      "drive": 0.1,
+      "drive": 0.051,
       "volume": -10
     },
     "Long glide drone": {
-      "cutoff": 240,
-      "resonance": 0.35,
-      "envMod": 0.15,
+      "cutoff": 400,
+      "resonance": 0.5,
+      "envMod": 0.05,
       "decay": 4,
       "accent": 0.2,
       "slide": 1,
       "sustain": 20,
-      "drive": 0.2
+      "drive": 0.106
     },
     "Deep slow sweep": {
       "wave": 1,
-      "cutoff": 60,
+      "cutoff": 50,
       "resonance": 0.6,
-      "envMod": 0.55,
+      "envMod": 0.6,
       "decay": 6,
       "accent": 0.3,
       "slide": 0.4,
       "sustain": 15,
-      "drive": 0.05,
+      "drive": 0.025,
       "volume": -7
     },
     "Bright open saw": {
@@ -250,7 +250,7 @@
       "accent": 0.5,
       "slide": 0.06,
       "sustain": 4,
-      "drive": 0.3,
+      "drive": 0.163,
       "volume": -8
     },
     "Muted thump": {
@@ -260,25 +260,25 @@
       "decay": 0.08,
       "accent": 0.5,
       "slide": 0.03,
-      "sustain": 0.5,
+      "sustain": 1,
       "drive": 0,
-      "volume": -6
+      "volume": -4.5
     },
     "Quiet pulse": {
       "wave": 1,
-      "cutoff": 180,
+      "cutoff": 220,
       "resonance": 0.3,
-      "envMod": 0.3,
-      "decay": 1.5,
+      "envMod": 0.15,
+      "decay": 0.3,
       "accent": 0.15,
       "slide": 0.12,
-      "sustain": 2.5,
+      "sustain": 1.2,
       "drive": 0,
-      "volume": -6
+      "volume": -3.5
     }
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit; no circuit, schematic, recording or sample was used. It is built from general knowledge of how one-voice bass line synthesizers of this kind are made: one oscillator switched between a sawtooth and a square, a low-pass of three poles with resonance, separate loudness and filter envelopes, accented steps and slides between tied notes. Choices of this device, not measurements of an original: the three poles are equal trapezoidal stages in one loop (a real filter of this kind has unequal stages), tuned down as resonance rises so the peak stays on Cutoff; 60 % of the passband level the loop takes is given back; five octaves of envelope sweep; an accent adds up to 6 dB with velocity, opens the filter one octave further on the strike, shortens the filter's fall towards 0.2 s and charges a store (150 ms in, 350 ms out) worth up to four octaves; the slide covers 99 % of the interval in its time; a 2 ms strike and a 3.5 ms release time constant; Drive is a saturator after the filter and before the loudness envelope, following a square-root law above its knee rather than a hard limit so that its level can be made up for any patch, with up to 36 dB of gain; four times oversampling; a 2 Hz DC blocker; no keyboard tracking of the filter. A key pressed over a held one slides and does not strike the envelopes, except when the held note has faded to complete silence. Tuned by measurement only: nobody has listened to it."
+    "note": "Written for live-mix on cpp/kit; no circuit, schematic, recording or sample was used. It is built from general knowledge of how one-voice bass line synthesizers of this kind are made: one oscillator switched between a sawtooth and a square, a low-pass of three poles with resonance, separate loudness and filter envelopes, accented steps and slides between tied notes. Choices of this device, not measurements of an original: the three poles are equal trapezoidal stages in one loop (a real filter of this kind has unequal stages), tuned down as resonance rises so the peak stays on Cutoff; 60 % of the passband level the loop takes is given back; five octaves of envelope sweep; an accent adds up to 6 dB with velocity, opens the filter one octave further on the strike, shortens the filter's fall towards 0.2 s and charges a store (150 ms in, 350 ms out) worth up to four octaves; the slide covers 99 % of the interval in its time; a 2 ms strike, an 8 ms rise back to full loudness for a tied key and a 3.5 ms release time constant; Drive is a saturator after the filter and before the loudness envelope, following a square-root law above its knee rather than a hard limit so that its level can be made up for any patch, with up to 36 dB of gain that follows the control as d(2 - d), so that the lower half of its travel is heard; four times oversampling; a 2 Hz DC blocker; no keyboard tracking of the filter. A key pressed over a held one slides, brings the loudness back to full and starts its fall again, but does not strike the filter envelope or charge an accent; when the held note has faded to complete silence it strikes as a fresh note does. Tuned by measurement only: nobody has listened to it."
   }
 }
