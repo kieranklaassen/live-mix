@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { type Patch } from '../../core/devices/patch'
 import { NODE_DEVICES } from '../../core/devices/native'
 import { type PlanarAudio } from '../../core/render/encode'
+import { TAPE_DEVICE } from '../devices/tape.gen'
 import {
   type RenderPatchOptions,
   canRenderPatch,
@@ -152,6 +153,36 @@ describe('renderPatch', () => {
     const whole = await render(patch, { durationSec: 3, phrase })
     const late = await render(patch, { durationSec: 1, skipSec: 2, phrase })
     expect(late.channels[0]).toEqual(whole.channels[0].slice(2 * RATE))
+  })
+
+  it('takes what the devices are late by out of the start, when asked to', async () => {
+    const phrase = { notes: [{ atSec: 0.25, durSec: 0.2, note: 69 }] }
+    // A tape is 415 frames late at this rate, and says so; a bell is not late at all.
+    const taped: Patch = { ...BELL, effects: [{ deviceId: 'tape' }] }
+    const late = TAPE_DEVICE.latencySamples?.(RATE) ?? 0
+    expect(late).toBe(415)
+    const whole = await render(taped, { durationSec: 2, phrase })
+    const aligned = await render(taped, { durationSec: 1, phrase, alignLatency: true })
+    expect(aligned.channels[0]).toHaveLength(RATE)
+    expect(aligned.channels[0]).toEqual(whole.channels[0].slice(late, late + RATE))
+    // With a skip too: both are left out, the latency first.
+    const skipped = await render(taped, {
+      durationSec: 1,
+      skipSec: 0.5,
+      phrase,
+      alignLatency: true,
+    })
+    expect(skipped.channels[0]).toEqual(
+      whole.channels[0].slice(late + RATE / 2, late + RATE / 2 + RATE),
+    )
+    // Not asked, the render is what the devices put out; and a chain that is not late is the same either way.
+    expect((await render(taped, { durationSec: 1, phrase })).channels[0]).toEqual(
+      whole.channels[0].slice(0, RATE),
+    )
+    const plain = await render(BELL, { durationSec: 1, phrase })
+    expect(
+      (await render(BELL, { durationSec: 1, phrase, alignLatency: true })).channels[0],
+    ).toEqual(plain.channels[0])
   })
 
   it('folds the overhang onto the start so the sound loops without a step', async () => {
