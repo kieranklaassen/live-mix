@@ -79,8 +79,15 @@
 //   Pivot knob is not used. A partial on a harmonic of a note may be that
 //   note's overtone or another note's fundamental, an octave or a twelfth
 //   over it: it is weighed against a sawtooth's harmonic there, and what is
-//   too strong for an overtone stays, in part or whole (kNoteRatio). What
-//   cannot be told is a note softer than the overtone it lies on.
+//   too strong for an overtone stays, in part or whole (kNoteRatio). The
+//   order things come in tells the rest: a note struck on a held note's
+//   harmonic is a note while it stands over what was there, and what sounded
+//   before a note came is not that note's overtone, however loud the note. A
+//   note that has had a pivot keeps it through anything louder and gives it
+//   up only when it has itself fallen away. What cannot be told is a note
+//   that starts with a louder one, on its harmonic and softer than the
+//   overtone there, and a soft note within a region (47 Hz) of a louder
+//   partial, which goes where that partial goes.
 // - Tone is a gain per bin on the wet signal, over 500 Hz only: up to 6 dB
 //   an octave of cut (turned down) or of boost (turned up, never more than
 //   12 dB). What lies under 500 Hz is left as it is, so a darker tone is
@@ -91,8 +98,8 @@
 // below nought is dropped. The wet signal passes a clip that is linear up to
 // ±1 and never passes ±2.
 //
-// Storage: two Stft<4096, 1024> (176 KB each), five arrays of 2049 floats per
-// channel and five shared, and a frame's weights (136 KB): 0.49 MB in all.
+// Storage: two Stft<4096, 1024> (176 KB each), seven arrays of 2049 floats per
+// channel, five shared, the peaks and a frame's weights (219 KB): 0.57 MB.
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"
@@ -149,7 +156,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         channel.turn[k] = 0.0f;
         channel.stay_turn[k] = 0.0f;
       }
-      for (int k = 0; k < kBins; ++k) channel.held[k] = 0.0f;
+      for (int k = 0; k < kBins; ++k) channel.held[k] = channel.slow[k] = channel.mean[k] = 0.0f;
       for (int j = 0; j < kPivots; ++j) clear_pivot(channel, j);
       channel.pivot_bin = Stft::hz_to_bin(param(kPivot), sr);
       for (int m = 0; m < kMarks; ++m) {
@@ -163,6 +170,9 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     at_rest_ = Stft::hz_to_bin(kAtRestHz, sr);
     young_frames_ = static_cast<int>(kYoungSeconds * sr / Stft::kHop + 0.5f);
     struck_frames_ = static_cast<int>(kHeldSeconds * sr / Stft::kHop + 0.5f);
+    fallen_frames_ = static_cast<int>(kFallenSeconds * sr / Stft::kHop + 0.5f);
+    settled_frames_ = static_cast<int>(kPivotHeldSeconds * sr / Stft::kHop + 0.5f);
+    mean_step_ = 1.0f - std::exp(-static_cast<float>(Stft::kHop) / (sr * kSteadySeconds));
     held_decay_ = std::exp(-static_cast<float>(Stft::kHop) / (sr * kHeldSeconds));
     pivot_decay_ = std::exp(-static_cast<float>(Stft::kHop) / (sr * kPivotHeldSeconds));
     // The drift's three phases per frame, as fractions of 2^32 of a turn.
@@ -294,20 +304,39 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   // partial has fallen back to within kStruckOver (in power) of what was there before.
   static constexpr float kPivotHeldSeconds = 1.5f;
   static constexpr float kStruckOver = 1.4f;
+  // What was there first is nobody's overtone. A note keeps its pivot through a louder sound that
+  // comes and goes: it is found while its partial is within 12 dB of what it held, however far
+  // under the loudest, and looked for during kHeldSeconds when it is covered. Once it has been a
+  // pivot for kYoungSeconds it is given up on a harmonic only when it has itself fallen, 6 dB
+  // under what it held for kFallenSeconds, and is then no more than an overtone by its level: a
+  // pivot that grows louder under it takes nothing from it. And a steady partial (within 1 dB of
+  // what its bins held, which have averaged 70 % of it over kSteadySeconds: it has sounded for
+  // half a second) on a harmonic of a note that is only now arriving was there before that note:
+  // it gets a pivot from 36 dB under the loudest, and stays.
+  static constexpr float kKeptPower = 0.0625f;
+  static constexpr float kFallenPower = 0.25f;
+  static constexpr float kFallenSeconds = 1.0f;
+  static constexpr float kSteadyRise = 1.26f;
+  static constexpr float kSteadyShare = 0.7f;
+  static constexpr float kSteadySeconds = 0.4f;
+  static constexpr float kHeldRise = 1.26f;
 
   struct Channel {
     float last_re[kBins], last_im[kBins];  // the previous analysis frame
     float turn[kBins];                     // each input bin's added angle, in turns, [-0.5, 0.5)
     float stay_turn[kBins];                // Follow: the same for the share of a partial that stays
     float held[kBins];                     // each bin's power, held: its recent most
+    float slow[kBins];                     // the same held as long as a pivot's level is
+    float mean[kBins];                     // each bin's power, averaged over kSteadySeconds
     float pivots[kPivots];                 // Follow: each note's partial in bins, 0 for a free place
     float pivot_power[kPivots];            // the power of its partial in the newest frame (0: not found)
     float pivot_held[kPivots];             // the same, held over kPivotHeldSeconds
-    float note_power[kPivots];             // the strongest partial that went with it
     float struck_over[kPivots];            // struck on a harmonic: the power that was there before; else 0
-    int age[kPivots];                      // the frames it has been one, up to young_frames_
-    int quiet[kPivots];                    // struck: the frames since it stood over what was there
+    int age[kPivots];                      // the frames it has been one, up to settled_frames_
+    int quiet[kPivots];                    // the frames since it stood over what was there (struck), or has been fallen
+    int gone[kPivots];                     // the frames its partial has not been found
     bool on_harmonic[kPivots];             // taken on a harmonic of another pivot
+    bool first[kPivots];                   // and it was there before that one came
     bool fresh[kPivots];                   // its partial was freshly struck in the newest frame
     float pivot_bin;                       // the pivot in use, in bins (Follow: the lowest)
     float mark_in[kMarks], mark_out[kMarks], mark_level[kMarks];  // for meter() only
@@ -359,11 +388,12 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     channel.pivots[j] = 0.0f;
     channel.pivot_power[j] = 0.0f;
     channel.pivot_held[j] = 0.0f;
-    channel.note_power[j] = 0.0f;
     channel.struck_over[j] = 0.0f;
     channel.age[j] = 0;
     channel.quiet[j] = 0;
+    channel.gone[j] = 0;
     channel.on_harmonic[j] = false;
+    channel.first[j] = false;
     channel.fresh[j] = false;
   }
 
@@ -394,26 +424,36 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       channel.fresh[j] = false;
       for (int i = 0; i < peaks_; ++i) {
         const float off = std::fabs(peak_true_[i] - pivot);
-        if (off <= distance && peak_power_[i] >= strongest * kReleasePower) {
+        if (off <= distance && peak_power_[i] >= channel.pivot_held[j] * kReleasePower &&
+            (peak_power_[i] >= strongest * kReleasePower || peak_power_[i] >= channel.pivot_held[j] * kKeptPower)) {
           distance = off;
           nearest = peak_true_[i];
           channel.pivot_power[j] = peak_power_[i];
           channel.fresh[j] = peak_fresh_[i] != 0;
         }
       }
-      channel.pivot_held[j] = kit::max(channel.pivot_power[j], channel.pivot_held[j] * pivot_decay_);
+      // What it holds: its most over kPivotHeldSeconds. Once it has lasted, that rises by a decibel
+      // a frame at the most: a thump that passes through its partial is not its level.
+      const bool lasted = channel.age[j] >= young_frames_;
+      const float rise = lasted ? kit::min(channel.pivot_power[j], channel.pivot_held[j] * kHeldRise) : channel.pivot_power[j];
+      channel.pivot_held[j] = kit::max(rise, channel.pivot_held[j] * pivot_decay_);
       if (nearest > 0.0f) {
         channel.pivots[j] = nearest;
-      } else if (channel.note_power[j] < strongest * kReleasePower) {
+        channel.gone[j] = 0;
+      } else if (lasted && ++channel.gone[j] <= struck_frames_) {
+        // (covered by something louder, or between two frames: it is looked for a while longer)
+      } else {
         clear_pivot(channel, j);  // the note has gone: the place is free
       }
     }
     for (int j = 0; j < kPivots; ++j) {
       const float pivot = channel.pivots[j];
       if (!(pivot > 0.0f)) continue;
-      const bool young = channel.age[j] < young_frames_;
-      if (young) ++channel.age[j];
-      if (!young && !channel.on_harmonic[j]) continue;
+      // (it is weighed by its level until it has held for as long as a level is held: a partial
+      // that beats shows what it is only once it and its note have each been through a swell)
+      const bool unsettled = channel.age[j] < settled_frames_;
+      if (unsettled) ++channel.age[j];
+      if (!unsettled && !channel.on_harmonic[j]) continue;
       channel.pivots[j] = 0.0f;  // out of the way while it is weighed against the others
       int harmonic = 0;
       const int owner = pivot_for(channel, pivot, &harmonic);
@@ -428,54 +468,68 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         channel.struck_over[j] = 0.0f;
         continue;
       }
+      if (!channel.on_harmonic[j]) channel.quiet[j] = 0;
       channel.on_harmonic[j] = true;
       const float n2 = static_cast<float>(harmonic) * static_cast<float>(harmonic);
-      if (channel.pivot_held[j] * n2 >= kNoteRatioOff * kNoteRatioOff * channel.pivot_held[owner]) {
-        if (channel.pivot_held[j] * n2 >= kNoteRatio * kNoteRatio * channel.pivot_held[owner]) channel.struck_over[j] = 0.0f;
-        continue;
-      }
-      // Too weak for a note by its level: it stays only as a struck one, while it stands over
-      // what was there before it.
+      const float line = kNoteRatioOff * kNoteRatioOff * channel.pivot_held[owner];
+      const bool note = channel.pivot_held[j] * n2 >= line;
       if (channel.struck_over[j] > 0.0f) {
+        // Struck on a held note's harmonic: a note while it stands over what was there before it,
+        // and after that only if it is one by its level.
         channel.quiet[j] = channel.pivot_power[j] > kStruckOver * channel.struck_over[j] ? 0 : channel.quiet[j] + 1;
-        if (channel.quiet[j] <= struck_frames_) continue;
+        if (channel.quiet[j] <= struck_frames_ || note) continue;
+      } else if (unsettled) {
+        if (note || channel.first[j]) continue;
+      } else {
+        // It has lasted: it goes only when it has fallen, and what it holds is an overtone's worth.
+        channel.quiet[j] = channel.pivot_power[j] < kFallenPower * channel.pivot_held[j] ? channel.quiet[j] + 1 : 0;
+        if (channel.quiet[j] <= fallen_frames_ || note) continue;
       }
       clear_pivot(channel, j);
     }
     for (int i = 0; i < peaks_; ++i) {
       const float place = peak_true_[i];
       const float power = peak_power_[i];
-      if (power < strongest * kAcquirePower) continue;
+      if (power < strongest * kReleasePower) continue;
       int harmonic = 0;
       const int owner = pivot_for(channel, place, &harmonic);
       const bool overtone = owner >= 0 && harmonic >= 2;
       if (owner >= 0 && harmonic == 1) continue;  // it has its pivot
       float over = 0.0f;
+      bool first = false;  // it was there before the note whose harmonic it lies on
       if (overtone) {
         const float n2 = static_cast<float>(harmonic) * static_cast<float>(harmonic);
-        if (power * n2 < kNoteRatio * kNoteRatio * channel.pivot_held[owner]) {
+        if (peak_steady_[i] != 0 && channel.fresh[owner] && channel.age[owner] < young_frames_) {
+          first = true;
+        } else if (peak_slow_[i] * n2 < kNoteRatio * kNoteRatio * channel.pivot_held[owner]) {
           const bool struck = peak_fresh_[i] != 0 && !channel.fresh[owner] && channel.age[owner] >= young_frames_;
           if (!struck) continue;
           over = kit::max(peak_before_[i], kPeakFloor);
         }
       }
-      int free = -1, weakest = 0;
+      if (!first && power < strongest * kAcquirePower) continue;
+      // A free place, or the place of the weakest that gives way: one that is new or whose partial
+      // has gone gives way to any stronger partial, one that has lasted only to a partial that has
+      // lasted too (a click is strong everywhere for a frame, and takes no note's pivot).
+      int free = -1, weakest = -1;
       for (int j = 0; j < kPivots; ++j) {
         if (!(channel.pivots[j] > 0.0f)) {
           free = j;
           break;
         }
-        if (channel.pivot_held[j] < channel.pivot_held[weakest]) weakest = j;
+        const bool gives = channel.age[j] < young_frames_ || channel.gone[j] > 0 || peak_fresh_[i] == 0;
+        if (gives && (weakest < 0 || channel.pivot_held[j] < channel.pivot_held[weakest])) weakest = j;
       }
-      if (free < 0 && power > channel.pivot_held[weakest]) free = weakest;
+      if (free < 0 && weakest >= 0 && power > channel.pivot_held[weakest]) free = weakest;
       if (free >= 0) {
         clear_pivot(channel, free);
         channel.pivots[free] = place;
         channel.pivot_power[free] = power;
         channel.pivot_held[free] = power;
-        channel.note_power[free] = power;
         channel.on_harmonic[free] = overtone;
         channel.struck_over[free] = over;
+        channel.fresh[free] = peak_fresh_[i] != 0;
+        channel.first[free] = first;
       }
     }
   }
@@ -551,6 +605,9 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         for (int j = k - 2; j <= k + 2; ++j) before = kit::max(before, channel.held[j]);
         peak_before_[peaks_] = before;
         peak_fresh_[peaks_] = p > kFreshRise * before;
+        // Steady: no stronger than its bins held, and they have averaged most of it for a while.
+        const float mean = kit::max(channel.mean[k], kit::max(channel.mean[k - 1], channel.mean[k + 1]));
+        peak_steady_[peaks_] = p <= kSteadyRise * before && mean >= kSteadyShare * p;
         if (lr * lr + li * li > 1.0e-4f * p) {
           const float advance = kit::fast_atan2(im[k] * lr - re[k] * li, re[k] * lr + im[k] * li);
           place = kit::clamp(Stft::advance_to_bin(k, advance), place - 1.0f, place + 1.0f);
@@ -561,6 +618,9 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         const float off = place - static_cast<float>(k);
         const float lobe = 1.0f - off * off * (0.645f - 0.16f * off * off);
         peak_power_[peaks_] = p / (lobe * lobe);
+        float slow = peak_power_[peaks_];
+        for (int j = k - 2; j <= k + 2; ++j) slow = kit::max(slow, channel.slow[j]);
+        peak_slow_[peaks_] = slow;
         peak_bin_[peaks_] = static_cast<int16_t>(k);
         peak_true_[peaks_] = place;
         ++peaks_;
@@ -580,6 +640,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         channel.turn[k] = 0.0f;
         channel.stay_turn[k] = 0.0f;
         channel.held[k] = 0.0f;
+        channel.slow[k] = 0.0f;
+        channel.mean[k] = 0.0f;
       }
       for (int j = 0; j < kPivots; ++j) clear_pivot(channel, j);
     }
@@ -593,7 +655,12 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       for (int j = 0; j < kPivots; ++j) clear_pivot(channel, j);
     }
     if (peaks_ > 0) {
-      for (int k = 0; k < kBins; ++k) channel.held[k] = kit::max(power_[k], channel.held[k] * held_decay_);
+      for (int k = 0; k < kBins; ++k) {
+        channel.held[k] = kit::max(power_[k], channel.held[k] * held_decay_);
+        channel.slow[k] = kit::max(power_[k], channel.slow[k] * pivot_decay_);
+        channel.mean[k] += (power_[k] - channel.mean[k]) * mean_step_;
+      }
+      for (int i = 0; i < peaks_; ++i) channel.slow[peak_bin_[i]] = kit::max(channel.slow[peak_bin_[i]], peak_power_[i]);
     }
     // (for the display: the lowest pivot there is; with Follow on and no note yet, none)
     channel.pivot_bin = follow ? 0.0f : knob_bin;
@@ -601,7 +668,6 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       if (pivot > 0.0f && (!(channel.pivot_bin > 0.0f) || pivot < channel.pivot_bin)) channel.pivot_bin = pivot;
     }
     const float log2_knob = std::log2(knob_bin);
-    for (float& power : channel.note_power) power = 0.0f;
 
     // 2. Each peak's region, moved whole.
     int marks = 0;
@@ -628,12 +694,13 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         int harmonic = 0;
         const int owner = pivot_for(channel, place, &harmonic);
         octaves = 0.0f;
-        if (owner >= 0 && harmonic > 0) channel.note_power[owner] = kit::max(channel.note_power[owner], peak_power_[i]);
         if (owner >= 0 && harmonic >= 2) {
           octaves = std::log2(place / channel.pivots[owner]);
           const float held = channel.pivot_held[owner];
-          const float rho = held > 0.0f ? static_cast<float>(harmonic) * std::sqrt(peak_power_[i] / held) : kNoteRatio;
+          const float rho = held > 0.0f ? static_cast<float>(harmonic) * std::sqrt(peak_slow_[i] / held) : kNoteRatio;
           stays = kit::clamp((rho - kOvertoneRatio) * (1.0f / (kNoteRatio - kOvertoneRatio)), 0.0f, 1.0f);
+          // A steady partial under a note that is only now arriving was there before it.
+          if (peak_steady_[i] != 0 && channel.fresh[owner] && channel.age[owner] < young_frames_) stays = 1.0f;
         }
       }
       // An attack passes as it came. A partial that has just been struck lies in a frame the note
@@ -751,6 +818,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   float peak_power_[kMaxPeaks];    // its power, made up for lying between two bins
   float peak_before_[kMaxPeaks];   // what its bins held before this frame
   uint8_t peak_fresh_[kMaxPeaks];  // whether it has just been struck
+  uint8_t peak_steady_[kMaxPeaks]; // whether it is what its bins held already
+  float peak_slow_[kMaxPeaks];     // its power as held over kPivotHeldSeconds, this frame's with it
   int peaks_ = 0;
   uint32_t drift_step_[3] = {0, 0, 0};
   kit::IdleGate idle_;
@@ -763,6 +832,9 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   float at_rest_ = 0.0f;      // kAtRestHz in bins
   int young_frames_ = 12;     // kYoungSeconds in frames
   int struck_frames_ = 14;    // kHeldSeconds in frames
+  int fallen_frames_ = 47;    // kFallenSeconds in frames
+  int settled_frames_ = 70;   // kPivotHeldSeconds in frames
+  float mean_step_ = 0.05f;   // the share of a frame in a bin's average
   float held_decay_ = 0.93f;  // what a bin's held power falls to in a frame
   float pivot_decay_ = 0.99f; // and a pivot's
   float rest_gain_ = 1.0f;    // this frame's gain for a region at rest

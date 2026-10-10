@@ -530,8 +530,10 @@ int main() {
     EXPECT_NEAR(db(tone_level(out.left, 196.0, kRate, c0, c1) / 0.2), 0.0, 0.3, "Follow, a chord: the lower note at its level");
     EXPECT_NEAR(db(tone_level(out.left, 293.66, kRate, c0, c1) / 0.2), 0.0, 0.3, "Follow, a chord: the upper note at its level");
     EXPECT_NEAR(at(out.left, 196.0 * std::pow(2.0, e), c0, c1), 0.0, 1.0, "Follow, a chord: the lower note's octave is stretched from it");
-    // (588 Hz of the lower note and 587.3 Hz of the upper one are a single peak, so this one is a blend)
-    EXPECT_NEAR(at(out.left, 293.66 * std::pow(2.0, e), c0, c1), 0.0, 3.0, "Follow, a chord: the upper note's octave from the upper note");
+    // (588 Hz of the lower note and 587.3 Hz of the upper one are a single peak: together 1.67 times
+    // what the upper note's octave would be in a sawtooth, too strong for one overtone. It stays.)
+    EXPECT_NEAR(at(out.left, 587.66, c0, c1), 0.0, 5.0, "Follow, a chord: a partial two notes share, too strong for an overtone, stays");
+    EXPECT_NEAR(at(out.left, 293.66 * std::pow(4.0, e), c0, c1), 0.0, 1.0, "Follow, a chord: the upper note's fourth partial is stretched from it");
     EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: the pivot reported is the lowest note");
 
     // A pivot stays with a note that fades under its own overtones (to 30 dB under them).
@@ -1193,6 +1195,68 @@ int main() {
                 deepest, deep_at);
     EXPECT(loudest < 4.5, "no preset puts a single note more than 4.5 dB up");
     EXPECT(deepest < 3.0, "no preset swings a held note's whole sound by 3 dB");
+  }
+
+  // 24. What was there first is nobody's overtone. The sound of the plate bench (playground/src/
+  // plates.tsx), which is what is heard first: five sines held as a chord that swells, a plucked sine
+  // every half second, a thump every two seconds that sweeps from 108 to 48 Hz at ten times the
+  // chord's level, and a breath of noise. The chord's notes lie on harmonics of one another and of the
+  // thump as it passes; with a pivot only on what is loud, and every pivot given up to whatever is
+  // louder, the chord's notes left their pitch in 249 of 590 quarter seconds and 40 of 120 plucks lost
+  // their start or their tail. At the defaults every note has to stay where it is, but for the first
+  // second (where everything starts at once, and nothing was there first).
+  {
+    const double chord[5] = {110.0, 164.81, 220.0, 277.18, 329.63};
+    const double plucks[8] = {659.25, 880.0, 987.77, 739.99, 1318.5, 880.0, 554.37, 659.25};
+    std::vector<float> left(static_cast<size_t>(16.0f * kRate)), right(left.size());
+    uint32_t seed = 12345;
+    double hiss = 0.0;
+    for (size_t i = 0; i < left.size(); ++i) {
+      const double t = std::fmod(static_cast<double>(i) / kRate, 8.0);
+      const double swell = 0.5 - 0.5 * std::cos((t / 8.0) * kPi * 4.0);
+      double pad = 0.0;
+      for (int k = 0; k < 5; ++k) pad += std::sin(2.0 * kPi * chord[k] * t + k) * (0.6 + 0.4 * std::sin(t * (0.3 + k * 0.11)));
+      pad *= 0.05 * (0.25 + 0.75 * swell);
+      const int step = static_cast<int>(std::floor(t * 2.0));
+      const double since = t * 2.0 - step;
+      const double pluck = 0.16 * std::exp(-since * 5.0) * std::sin(2.0 * kPi * plucks[step % 8] * t);
+      const double beat = std::fmod(t, 2.0);
+      const double thump = 0.5 * std::exp(-beat * 9.0) * std::sin(2.0 * kPi * (48.0 + 60.0 * std::exp(-beat * 30.0)) * t);
+      seed = seed * 1664525u + 1013904223u;
+      hiss += (static_cast<double>(seed) / 2147483648.0 - 1.0 - hiss) * 0.4;
+      const double air = hiss * 0.03 * (1.0 - swell);
+      left[i] = static_cast<float>(pad + pluck * (step % 2 ? 0.4 : 1.0) + thump + air);
+      right[i] = static_cast<float>(pad + pluck * (step % 2 ? 1.0 : 0.4) + thump - air);
+    }
+    device.init(kRate);
+    const Stereo out = run(device, left, right);
+    int off = 0, windows = 0;
+    for (int k = 0; k < 5; ++k) {
+      for (size_t a = 48000; a + 12000 + kLate <= left.size(); a += 12000) {
+        for (int side = 0; side < 2; ++side) {
+          const double dry = tone_level(side ? right : left, chord[k], kRate, a, a + 12000);
+          const double wet = tone_level(side ? out.right : out.left, chord[k], kRate, a + kLate, a + 12000 + kLate);
+          ++windows;
+          if (db(wet / dry) < -3.0) ++off;
+        }
+      }
+    }
+    int lost = 0, plucked = 0;
+    for (int step = 2; step < 31; ++step) {
+      for (int part = 0; part < 2; ++part) {
+        const size_t a = static_cast<size_t>((step * 0.5 + (part ? 0.2 : 0.03)) * kRate), b = a + (part ? 12000 : 8160);
+        for (int side = 0; side < 2; ++side) {
+          const double dry = tone_level(side ? right : left, plucks[step % 8], kRate, a, b);
+          const double wet = tone_level(side ? out.right : out.left, plucks[step % 8], kRate, a + kLate, b + kLate);
+          ++plucked;
+          if (db(wet / dry) < -3.0) ++lost;
+        }
+      }
+    }
+    std::printf("the bench's sound: the chord's notes are 3 dB down or more in %d of %d quarter seconds, the plucks in %d of %d\n", off, windows,
+                lost, plucked);
+    EXPECT(off <= 8, "the bench's chord keeps its notes under the thump and the plucks");
+    EXPECT(lost <= 1, "and the plucked notes keep their start and their tail");
   }
 
   // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,
