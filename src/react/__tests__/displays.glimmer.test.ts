@@ -604,8 +604,9 @@ describe("the picture on Glimmer's plate", () => {
   })
 
   it('draws only what Mix and Depth let be heard: level water and no light at nothing', () => {
+    const nothing: Readonly<Record<string, number>>[] = [{ mix: 0 }, { depth: 0 }]
     for (const size of SHAPES)
-      for (const values of [{ mix: 0 }, { depth: 0 }]) {
+      for (const values of nothing) {
         const drawn = drawDisplay(display, params, { values, ...size, meters: { clock: 5.5 } })
         const { field } = glimmerLayout(size)
         for (const { column } of columnsOf(drawn, size)) {
@@ -728,13 +729,14 @@ describe("the handles on Glimmer's display", () => {
   })
 
   it('sets the Depth whose dip is under the hand, and stands on the water where the bands keep all of Depth', () => {
+    const settings: Readonly<Record<string, number>>[] = [
+      {},
+      { soft: 0, vary: 0 },
+      { soft: 1, vary: 1, lean: -0.5 },
+      { mix: 0.8, lean: 1 },
+    ]
     for (const size of SHAPES)
-      for (const values of [
-        {},
-        { soft: 0, vary: 0 },
-        { soft: 1, vary: 1, lean: -0.5 },
-        { mix: 0.8, lean: 1 },
-      ]) {
+      for (const values of settings) {
         const { field, water, up } = glimmerLayout(size)
         const soft = valueOf(values, 'soft')
         const vary = valueOf(values, 'vary')

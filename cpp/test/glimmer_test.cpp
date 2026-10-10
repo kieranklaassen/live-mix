@@ -139,7 +139,7 @@ static const std::vector<Preset> kPresets = {
     {"Wide twinkle", {{p::kDepth, 0.8f}, {p::kRate, 3.0f}, {p::kGrain, 0.75f}, {p::kLean, 0.1f}, {p::kSoft, 0.4f}, {p::kVary, 0.6f}, {p::kApart, 1.0f}}},
     {"Moving as one", {{p::kDepth, 0.7f}, {p::kRate, 1.5f}, {p::kGrain, 0.5f}, {p::kLean, 0.0f}, {p::kSoft, 0.7f}, {p::kVary, 0.2f}, {p::kApart, 0.0f}}},
     {"Broad swells", {{p::kDepth, 0.9f}, {p::kRate, 0.25f}, {p::kGrain, 0.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.5f}}},
-    {"Half light", {{p::kDepth, 0.8f}, {p::kRate, 0.8f}, {p::kGrain, 0.6f}, {p::kSoft, 0.8f}, {p::kMix, 0.5f}}},
+    {"Half shade", {{p::kDepth, 0.8f}, {p::kRate, 0.8f}, {p::kGrain, 0.6f}, {p::kSoft, 0.8f}, {p::kMix, 0.5f}}},
     {"Strobe rising", {{p::kDepth, 0.9f}, {p::kRate, 8.0f}, {p::kGrain, 0.6f}, {p::kPattern, 1.0f}, {p::kLean, 0.0f}, {p::kSoft, 0.1f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
     {"Long tide", {{p::kDepth, 0.9f}, {p::kRate, 0.05f}, {p::kGrain, 0.2f}, {p::kPattern, 3.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
 };

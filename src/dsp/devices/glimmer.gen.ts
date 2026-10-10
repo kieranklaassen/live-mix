@@ -200,7 +200,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
     'Wide twinkle': { depth: 0.8, rate: 3, grain: 0.75, lean: 0.1, soft: 0.4, vary: 0.6, apart: 1 },
     'Moving as one': { depth: 0.7, rate: 1.5, grain: 0.5, lean: 0, soft: 0.7, vary: 0.2, apart: 0 },
     'Broad swells': { depth: 0.9, rate: 0.25, grain: 0, lean: 0, soft: 1, vary: 0.3, apart: 0.5 },
-    'Half light': { depth: 0.8, rate: 0.8, grain: 0.6, soft: 0.8, mix: 0.5 },
+    'Half shade': { depth: 0.8, rate: 0.8, grain: 0.6, soft: 0.8, mix: 0.5 },
     'Strobe rising': {
       depth: 0.9,
       rate: 8,

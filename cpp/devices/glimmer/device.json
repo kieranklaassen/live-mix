@@ -202,7 +202,7 @@
       "vary": 0.3,
       "apart": 0.5
     },
-    "Half light": {
+    "Half shade": {
       "depth": 0.8,
       "rate": 0.8,
       "grain": 0.6,
