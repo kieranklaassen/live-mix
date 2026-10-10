@@ -1872,6 +1872,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   fog: { ...PLATE_PALETTES.fog, finish: 'fade', cap: 'dot' },
   constellation: { ...PLATE_PALETTES.constellation, finish: 'fade', cap: 'dot' },
   'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'speckle', cap: 'disc' },
+  orbits: { ...PLATE_PALETTES.orbits, finish: 'speckle', cap: 'dot' },
 }
 
 /**
