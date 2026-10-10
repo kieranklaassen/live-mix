@@ -27,10 +27,22 @@ export const AROUND_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'How many times a second the sound goes round its path. Low is a slow drift you barely notice, high is a flutter between the ears.',
+      "How many times a second the sound goes round its path. Low is a slow drift you barely notice. High is a flutter between the ears, where the head's shadow thins out.",
+  },
+  direction: {
+    id: 2,
+    name: 'Direction',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    choices: ['Clockwise', 'Anticlockwise'],
+    description:
+      'Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is.',
   },
   radius: {
-    id: 2,
+    id: 3,
     name: 'Radius',
     min: 0,
     max: 1,
@@ -41,7 +53,7 @@ export const AROUND_PARAMS = {
       'How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back.',
   },
   head: {
-    id: 3,
+    id: 4,
     name: 'Head',
     min: 0,
     max: 1,
@@ -49,10 +61,10 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of a head is in the way. The far ear hears later and duller, and sound from behind loses some top. At zero the movement is plain panning.',
+      'How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is a little duller than the front. At zero it is plain panning.',
   },
   near: {
-    id: 4,
+    id: 5,
     name: 'Near',
     min: 0,
     max: 1,
@@ -60,10 +72,10 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much closer the sound comes at the point of the path that Turn sets. Away from it the sound falls back, quieter and thinner in the bass.',
+      'How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass.',
   },
   turn: {
-    id: 5,
+    id: 6,
     name: 'Turn',
     min: -180,
     max: 180,
@@ -74,7 +86,7 @@ export const AROUND_PARAMS = {
       'Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is.',
   },
   blur: {
-    id: 6,
+    id: 7,
     name: 'Blur',
     min: 0,
     max: 1,
@@ -82,10 +94,10 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'A little room that stands still while the sound moves, so it sits outside your head. At zero there is only the moving sound.',
+      'A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound.',
   },
   mix: {
-    id: 7,
+    id: 8,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -93,7 +105,7 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Balance between the sound as it came in and the moving sound. Part way, some of it stays in the middle while the rest travels.',
+      'Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -115,11 +127,12 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
   name: 'Around',
   category: 'spatial',
   description:
-    'Moves the middle of the sound around your head on a circle, a figure of eight, a swing or a slow wander, as two ears would hear it; best on headphones, and the sides of a stereo sound stay where they are.',
+    'Moves the sound round your head on a circle, a figure of eight, a swing or a slow wander, by what two ears go by: the near ear louder, brighter and first with the bass, the back a little duller; best on headphones.',
   presets: {
     'Slow circle': {
       path: 0,
       rate: 0.2,
+      direction: 0,
       radius: 0.85,
       head: 0.7,
       near: 0.25,
@@ -133,8 +146,17 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
     'Slow eight': { path: 1, rate: 0.15, radius: 0.9, near: 0, blur: 0.3 },
     'Slow wander': { path: 3, rate: 0.12, radius: 0.9, near: 0.4, blur: 0.4 },
     'Drone drift': { path: 3, rate: 0.05, radius: 1, head: 1, near: 0.2, turn: -90, blur: 0.5 },
-    'Behind you': { path: 2, rate: 0.1, radius: 0.9, head: 1, near: 0, turn: 180, blur: 0.5 },
-    'Passing by': { path: 0, rate: 0.1, radius: 1, head: 0.9, near: 0.6, turn: 90, blur: 0.3 },
+    'Dark swing': { path: 2, rate: 0.1, radius: 0.9, head: 1, near: 0, turn: 180, blur: 0.5 },
+    'Passing by': {
+      path: 0,
+      rate: 0.1,
+      radius: 1,
+      head: 0.9,
+      near: 0.6,
+      turn: 90,
+      blur: 0.3,
+      direction: 1,
+    },
     'Far side fades': { path: 0, rate: 0.08, radius: 1, head: 0.9, near: 1, blur: 0.7 },
     'Ear to ear': { path: 2, rate: 1.5, radius: 1, head: 0.3, near: 0, blur: 0 },
     'Fast spin': { path: 0, rate: 4, radius: 0.6, head: 0.5, near: 0, blur: 0.15 },
@@ -147,7 +169,7 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
 
 export type Around = WasmDevice<typeof AROUND_PARAMS>
 
-/** Moves the middle of the sound around your head on a circle, a figure of eight, a swing or a slow wander, as two ears would hear it; best on headphones, and the sides of a stereo sound stay where they are. */
+/** Moves the sound round your head on a circle, a figure of eight, a swing or a slow wander, by what two ears go by: the near ear louder, brighter and first with the bass, the back a little duller; best on headphones. */
 export function createAround(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof AROUND_PARAMS> = {},

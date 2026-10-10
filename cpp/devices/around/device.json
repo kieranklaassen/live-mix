@@ -2,7 +2,7 @@
   "id": "around",
   "name": "Around",
   "category": "spatial",
-  "description": "Moves the middle of the sound around your head on a circle, a figure of eight, a swing or a slow wander, as two ears would hear it; best on headphones, and the sides of a stereo sound stay where they are.",
+  "description": "Moves the sound round your head on a circle, a figure of eight, a swing or a slow wander, by what two ears go by: the near ear louder, brighter and first with the bass, the back a little duller; best on headphones.",
   "class": "Around",
   "header": "around.h",
   "sources": [],
@@ -29,7 +29,14 @@
       "default": 0.2,
       "taper": "log",
       "unit": "Hz",
-      "description": "How many times a second the sound goes round its path. Low is a slow drift you barely notice, high is a flutter between the ears."
+      "description": "How many times a second the sound goes round its path. Low is a slow drift you barely notice. High is a flutter between the ears, where the head's shadow thins out."
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Clockwise", "Anticlockwise"],
+      "default": 0,
+      "description": "Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is."
     },
     {
       "key": "radius",
@@ -45,7 +52,7 @@
       "min": 0,
       "max": 1,
       "default": 0.7,
-      "description": "How much of a head is in the way. The far ear hears later and duller, and sound from behind loses some top. At zero the movement is plain panning."
+      "description": "How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is duller than the front. Zero is plain panning."
     },
     {
       "key": "near",
@@ -53,7 +60,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "How much closer the sound comes at the point of the path that Turn sets. Away from it the sound falls back, quieter and thinner in the bass."
+      "description": "How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass."
     },
     {
       "key": "turn",
@@ -70,7 +77,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "A little room that stands still while the sound moves, so it sits outside your head. At zero there is only the moving sound."
+      "description": "A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound."
     },
     {
       "key": "mix",
@@ -78,13 +85,14 @@
       "min": 0,
       "max": 1,
       "default": 1,
-      "description": "Balance between the sound as it came in and the moving sound. Part way, some of it stays in the middle while the rest travels."
+      "description": "Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels."
     }
   ],
   "presets": {
     "Slow circle": {
       "path": 0,
       "rate": 0.2,
+      "direction": 0,
       "radius": 0.85,
       "head": 0.7,
       "near": 0.25,
@@ -139,7 +147,7 @@
       "turn": -90,
       "blur": 0.5
     },
-    "Behind you": {
+    "Dark swing": {
       "path": 2,
       "rate": 0.1,
       "radius": 0.9,
@@ -155,7 +163,8 @@
       "head": 0.9,
       "near": 0.6,
       "turn": 90,
-      "blur": 0.3
+      "blur": 0.3,
+      "direction": 1
     },
     "Far side fades": {
       "path": 0,
@@ -218,6 +227,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A moving source heard by two ears: arrival time by the sine law for a sphere, a level difference, a one-pole shadow on the far ear and a shelf and a notch from behind. No measured head data and no maker's method is used."
+    "note": "Written for live-mix on cpp/kit. A moving source heard by two ears: a level difference, a one-pole shadow on the far ear whose own lag makes its bass late, the same band lifted in the near ear so the two sum flat, and a little top and a narrow band given in front and taken behind. No measured head data and no maker's method is used."
   }
 }
