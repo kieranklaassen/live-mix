@@ -8,6 +8,7 @@ import { DYNAMICS_FACES } from './dynamics'
 import { EQ_FACES } from './eq'
 import { LOOPS_FACES } from './loops'
 import { MODULATION_FACES } from './modulation'
+import { OVERTONE_SINGER_FACES } from './overtone-singer'
 import { PITCH_FACES } from './pitch'
 import { REVERB_FACES } from './reverb'
 import { SPATIAL_FACES } from './spatial'
@@ -28,4 +29,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  ...OVERTONE_SINGER_FACES,
 }
