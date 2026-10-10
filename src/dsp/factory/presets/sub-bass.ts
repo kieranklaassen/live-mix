@@ -6,7 +6,7 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Pure sine sub floor',
     category: 'bass',
     description:
-      'A plain sine with nothing added, held while the key is down and let go over a second, its bottom lifted by a clean tape head bump.',
+      'A deep sub that small speakers will not play: a plain sine held with the key and let go over a second, lifted by a clean tape head bump.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Pure sine',
@@ -14,7 +14,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0,
         harmonics: 0,
         drop: 0,
-        fall: 40,
         attack: 0.03,
         decay: 20,
         release: 1,
@@ -38,7 +37,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.2,
         harmonics: 0.3,
         drop: 0,
-        fall: 40,
         attack: 0.7,
         decay: 20,
         release: 4,
@@ -54,7 +52,7 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Slow pulsing sub',
     category: 'bass',
     description:
-      'A soft sub that hangs for two seconds after each key while a tremolo turns it down by 10 dB and up again twice a second.',
+      'A soft deep sub that hangs for two seconds after each key while a tremolo turns it down by 10 dB and up again twice a second.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Soft sub',
@@ -62,7 +60,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.15,
         harmonics: 0.25,
         drop: 0,
-        fall: 40,
         attack: 0.12,
         decay: 20,
         release: 2.5,
@@ -122,7 +119,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.3,
         harmonics: 0.35,
         drop: 0,
-        fall: 40,
         attack: 0.03,
         decay: 20,
         release: 1.2,
@@ -138,7 +134,7 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Soft sub pulse',
     category: 'bass',
     description:
-      'A soft pulse with a rounded start that dies away in a second and a half, with an octave over it for a small box to answer.',
+      'A soft deep sub pulse with a rounded start that dies away in a second and a half, with an octave over it for a small box to answer.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Soft pulse',
@@ -146,7 +142,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.1,
         harmonics: 0.4,
         drop: 0,
-        fall: 40,
         attack: 0.08,
         decay: 1.6,
         release: 0.9,
@@ -164,7 +159,7 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Knocked soft sub',
     category: 'bass',
     description:
-      'The plain soft sub: a fifth of fall at the start of each note for a soft knock, then a held round tone on warm tape.',
+      'A deep soft sub: a fifth of fall at the start of each note for a soft knock, then a held round tone pushed into warm tape.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Soft sub',
@@ -181,7 +176,13 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: -17.5,
       },
     },
-    effects: [{ deviceId: 'saturator', preset: 'Soft tape warmth' }],
+    effects: [
+      {
+        deviceId: 'saturator',
+        preset: 'Soft tape warmth',
+        params: { driveDb: 24, outputDb: -19.5 },
+      },
+    ],
   },
   {
     id: 'gliding-sub-line',
@@ -196,7 +197,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0,
         harmonics: 0.65,
         drop: 0,
-        fall: 40,
         attack: 0.08,
         decay: 20,
         release: 1.5,
@@ -220,7 +220,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.35,
         harmonics: 1,
         drop: 0,
-        fall: 40,
         attack: 0.015,
         decay: 20,
         release: 0.12,
@@ -244,7 +243,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.8,
         harmonics: 0.9,
         drop: 0,
-        fall: 40,
         attack: 0.03,
         decay: 20,
         release: 0.5,
@@ -253,7 +251,13 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: -20.5,
       },
     },
-    effects: [{ deviceId: 'saturator', preset: 'Tube preamp' }],
+    effects: [
+      {
+        deviceId: 'saturator',
+        preset: 'Tube preamp',
+        params: { driveDb: 18, bias: -0.6, outputDb: -7.3 },
+      },
+    ],
   },
   {
     id: 'hollow-square-sub',
@@ -268,7 +272,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 1,
         harmonics: 0,
         drop: 0,
-        fall: 40,
         attack: 0.01,
         decay: 20,
         release: 0.2,
@@ -338,7 +341,7 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Dub weight sub',
     category: 'bass',
     description:
-      'A rounded, driven sub that knocks a minor third above each note and sinks while held, weighted by a tape preamp with its low bump up.',
+      'A rounded, driven deep sub that knocks a minor third above each note and sinks while held, weighted by a tape preamp with its low bump up.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Dub weight',
@@ -370,7 +373,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.3,
         harmonics: 0.5,
         drop: 0,
-        fall: 40,
         attack: 0.006,
         decay: 0.9,
         release: 0.2,
@@ -427,16 +429,14 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         volume: 0,
       },
     },
-    effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 4, release: 0.2, ride: 0 } },
-    ],
+    effects: [{ deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 4, ride: 0 } }],
   },
   {
     id: 'far-off-sub-drone',
     name: 'Far-off sub drone',
     category: 'drone',
     description:
-      'A far-off drone: a low tone with a few overtones that swells over three seconds and fades over eight, in a long low hall with no top.',
+      'A far-off drone, one low tone at a time with a few overtones: it swells over three seconds and fades over eight in a long hall with no top.',
     instrument: {
       deviceId: 'sub-bass',
       preset: 'Dark drone',
@@ -444,7 +444,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.3,
         harmonics: 0.4,
         drop: 0,
-        fall: 40,
         attack: 3,
         decay: 20,
         release: 8,
@@ -474,7 +473,6 @@ export const SUB_BASS_PRESETS: readonly FactoryPreset[] = [
         shape: 0.1,
         harmonics: 0.5,
         drop: 0,
-        fall: 40,
         attack: 0.02,
         decay: 20,
         release: 0.5,
