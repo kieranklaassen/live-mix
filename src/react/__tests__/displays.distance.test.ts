@@ -948,6 +948,7 @@ describe('the picture of Distance', () => {
     for (const [width, height] of [
       [224, 48],
       [184, 48],
+      [204, 100],
     ]) {
       for (const distance of [0, 0.2, 0.4, 0.5, 0.55, 0.7, 1]) {
         for (const wander of [0, 0.25, 0.6, 1]) {
@@ -972,6 +973,11 @@ describe('the picture of Distance', () => {
                   const dy = Math.max(patch.y - mark.y, 0, mark.y - (patch.y + patch.h))
                   const said = `${width}: Distance ${distance}, Wander ${wander}, at ${place}`
                   expect(Math.hypot(dx, dy), said).toBeGreaterThanOrEqual(mark.r)
+                }
+                // Nor does the bar of its width run up through them.
+                for (const bar of marks.bars) {
+                  if (bar.top >= patch.y + patch.h) continue
+                  expect(bar.x < patch.x || bar.x > patch.x + patch.w).toBe(true)
                 }
               }
             }
@@ -1005,13 +1011,6 @@ describe('the picture of Distance', () => {
     expect(sides[0]).toBe('right')
     expect(sides[32]).toBe('left')
     expect(sides.filter((side, n) => n > 0 && side !== sides[n - 1])).toHaveLength(1)
-    // On a tall window the sound does not reach up to them: they stay where the source is set away from.
-    for (const place of [0, 0.5, 1]) {
-      const values = { distance: 0.4, wander: 1 }
-      expect(corner(draw({ width: 204, height: 100, values, ...at(place, 1.05) }), 204)).toBe(
-        'right',
-      )
-    }
   })
 
   it('stands at Distance while the device says nothing, and while it is switched off', () => {

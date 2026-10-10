@@ -303,9 +303,8 @@ export const WORDS_WIDEST = '00 m +000 ct'
  * one its walk does not come under. A walk that keeps clear of both leaves
  * them where the source is set away from; one that comes under both has them
  * step to the corner the source is farther from now. `wide` is their patch's
- * width, `x` where the source is now; the sound is taken as large as its
- * haze can be. Where the sound does not reach up to them (a tall window)
- * they stay where the source is set away from.
+ * width, `place` where the source is now; the sound is taken as large as
+ * its haze can be, which is wider than the bar of its width.
  */
 export function wordsCorner(
   layout: Layout,
@@ -315,7 +314,6 @@ export function wordsCorner(
 ): 'left' | 'right' {
   const home = set.distance > 0.5 ? 'left' : 'right'
   const reach = ROOM_HAZE * layout.full
-  if (layout.axisY - reach >= layout.box.y + 10) return home
   const walk = walkOf(set.distance, set.wander)
   const leftEnd = layout.earX + 6 + wide
   const rightStart = layout.box.x + layout.box.w + 1 - wide
