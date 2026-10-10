@@ -131,6 +131,99 @@
       "pad": 0.3,
       "spread": 0.5,
       "volume": -11
+    },
+    "Falling harp": {
+      "strum": 60,
+      "direction": 1,
+      "span": 3,
+      "sustain": 4,
+      "tone": 0.45,
+      "pad": 0.1,
+      "spread": 0.75,
+      "volume": -7.5
+    },
+    "One octave ripple": {
+      "strum": 120,
+      "direction": 2,
+      "span": 0,
+      "sustain": 1.5,
+      "tone": 0.7,
+      "pad": 0,
+      "spread": 1,
+      "volume": -1
+    },
+    "Soft organ chord": {
+      "strum": 0,
+      "sustain": 0.25,
+      "tone": 0.15,
+      "pad": 1,
+      "spread": 0.2,
+      "volume": -17.5
+    },
+    "Scattered glints": {
+      "strum": 150,
+      "direction": 3,
+      "span": 3,
+      "sustain": 1,
+      "tone": 0.9,
+      "pad": 0,
+      "spread": 1,
+      "volume": -0.5
+    },
+    "Muffled slow strum": {
+      "strum": 110,
+      "span": 1,
+      "sustain": 8,
+      "tone": 0,
+      "pad": 0.4,
+      "spread": 0.3,
+      "volume": -10
+    },
+    "Long glass chimes": {
+      "strum": 0,
+      "sustain": 8,
+      "tone": 1,
+      "pad": 0,
+      "spread": 1,
+      "volume": -10.5
+    },
+    "String rain": {
+      "strum": 30,
+      "direction": 3,
+      "span": 3,
+      "sustain": 0.35,
+      "tone": 1,
+      "pad": 0,
+      "spread": 1,
+      "volume": 1
+    },
+    "Slow falling pad": {
+      "strum": 150,
+      "direction": 1,
+      "span": 0,
+      "sustain": 6,
+      "tone": 0.2,
+      "pad": 0.5,
+      "spread": 1,
+      "volume": -12
+    },
+    "Dark long wash": {
+      "strum": 20,
+      "direction": 2,
+      "span": 1,
+      "sustain": 8,
+      "tone": 0.2,
+      "pad": 0,
+      "spread": 1,
+      "volume": -5
+    },
+    "Small music box": {
+      "strum": 0,
+      "sustain": 0.8,
+      "tone": 0.85,
+      "pad": 0,
+      "spread": 0.2,
+      "volume": -3
     }
   },
   "origin": {

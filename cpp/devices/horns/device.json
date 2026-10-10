@@ -144,6 +144,91 @@
       "release": 2,
       "vibrato": 0,
       "harmony": 0
+    },
+    "Solo horn": {
+      "blow": 0.4,
+      "breath": 0.25,
+      "section": 0,
+      "attack": 0.2,
+      "release": 1.2,
+      "vibrato": 0.1
+    },
+    "Parallel fourths": {
+      "blow": 0.5,
+      "breath": 0.1,
+      "section": 0.4,
+      "attack": 0.8,
+      "release": 2.5,
+      "harmony": -0.7,
+      "volume": -7.5
+    },
+    "Muted brass swell": {
+      "type": 3,
+      "blow": 0.3,
+      "breath": 0.1,
+      "section": 1,
+      "attack": 1.5,
+      "release": 3
+    },
+    "Flugel choir": {
+      "type": 1,
+      "blow": 0.5,
+      "breath": 0.15,
+      "section": 1,
+      "attack": 1.2,
+      "release": 3.5
+    },
+    "Soft tuba": {
+      "type": 4,
+      "blow": 0.15,
+      "breath": 0.35,
+      "section": 0,
+      "attack": 0.4,
+      "release": 2
+    },
+    "Horn of air": {
+      "blow": 0.05,
+      "breath": 1,
+      "section": 0,
+      "attack": 1,
+      "release": 3,
+      "volume": -9
+    },
+    "Glacial horns": {
+      "blow": 0.85,
+      "breath": 0.18,
+      "section": 0.9,
+      "attack": 6,
+      "release": 8,
+      "vibrato": 0.15,
+      "volume": -4.5
+    },
+    "Ballad trumpet": {
+      "type": 2,
+      "blow": 0.4,
+      "breath": 0.3,
+      "section": 0,
+      "attack": 0.1,
+      "release": 1,
+      "vibrato": 0.8
+    },
+    "Open fifths pad": {
+      "type": 1,
+      "blow": 0.3,
+      "breath": 0.2,
+      "section": 1,
+      "attack": 2,
+      "release": 5,
+      "harmony": 1
+    },
+    "Trombone": {
+      "type": 4,
+      "blow": 0.85,
+      "breath": 0.05,
+      "section": 0,
+      "attack": 0.04,
+      "release": 0.5,
+      "vibrato": 0.3
     }
   },
   "origin": {

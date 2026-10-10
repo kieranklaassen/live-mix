@@ -73,7 +73,7 @@ export {
   type ParamControlHandlers,
   type ParamControlOptions,
 } from './useParamControl'
-export { Knob, type KnobCap, type KnobProps } from './Knob'
+export { Knob, knobModulation, type KnobCap, type KnobModulation, type KnobProps } from './Knob'
 export { Fader, type FaderLook, type FaderOrientation, type FaderProps } from './Fader'
 export {
   DEVICE_POWER_INFO,

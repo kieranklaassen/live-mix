@@ -129,6 +129,7 @@ export {
   type ScoreRendererOptions,
 } from './ScoreRenderer'
 export { loadScore, scoreRendererOf, unloadScore } from './loadScore'
+export { scoreDeviceModulations, scoreParamModulation } from './modulation'
 export {
   renderScore,
   renderScoreStems,

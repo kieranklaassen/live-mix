@@ -173,6 +173,105 @@
       "tremoloRate": 1.1,
       "tone": 0.45,
       "drive": 0.1
+    },
+    "Glass bells": {
+      "bell": 1,
+      "bark": 0,
+      "decay": 0.5,
+      "release": 1.2,
+      "hardness": 1,
+      "tremolo": 0,
+      "tone": 1,
+      "drive": 0,
+      "volume": -8
+    },
+    "Short tines": {
+      "bell": 0.25,
+      "bark": 0.6,
+      "decay": 0.25,
+      "release": 0.03,
+      "hardness": 0.5,
+      "tremolo": 0,
+      "tone": 0.45,
+      "volume": -5
+    },
+    "Dampers off": {
+      "bell": 0.7,
+      "bark": 0.2,
+      "decay": 4,
+      "release": 3,
+      "hardness": 0.5,
+      "tremolo": 0,
+      "tone": 0.7,
+      "drive": 0.1,
+      "volume": -12
+    },
+    "Underwater keys": {
+      "bell": 0,
+      "bark": 0.1,
+      "decay": 4,
+      "release": 3,
+      "hardness": 0.3,
+      "tremolo": 0.4,
+      "tremoloRate": 0.2,
+      "pan": 0.5,
+      "tone": 0.12,
+      "drive": 0.3,
+      "volume": -10
+    },
+    "Glacial pan": {
+      "bell": 0.2,
+      "bark": 0.45,
+      "decay": 2,
+      "release": 2,
+      "tremolo": 1,
+      "tremoloRate": 0.12,
+      "tone": 0.7
+    },
+    "Deep throb": {
+      "bell": 0.15,
+      "bark": 0.3,
+      "decay": 2.5,
+      "release": 0.6,
+      "tremolo": 1,
+      "tremoloRate": 1.6,
+      "pan": 0,
+      "tone": 0.35,
+      "volume": -12
+    },
+    "Fast shimmer": {
+      "bell": 0.9,
+      "bark": 0.1,
+      "decay": 0.6,
+      "release": 0.12,
+      "tremolo": 0.9,
+      "tremoloRate": 9,
+      "tone": 0.9,
+      "drive": 0.05,
+      "volume": -7
+    },
+    "Reedy flutter": {
+      "bell": 0,
+      "bark": 1,
+      "decay": 4,
+      "release": 0.08,
+      "hardness": 0,
+      "tremolo": 0.5,
+      "tremoloRate": 6.5,
+      "pan": 0.6,
+      "tone": 0.8,
+      "drive": 0,
+      "volume": -11
+    },
+    "Warm overdrive": {
+      "bell": 0.2,
+      "bark": 0.7,
+      "decay": 1.4,
+      "hardness": 0.9,
+      "tremolo": 0.1,
+      "tone": 0.4,
+      "drive": 0.85,
+      "volume": -2
     }
   },
   "origin": {

@@ -145,6 +145,128 @@
       "ensemble": 0,
       "drift": 0.1,
       "width": 0
+    },
+    "Low fog": {
+      "attack": 2.5,
+      "release": 5,
+      "low": 0.9,
+      "high": 0,
+      "tone": 450,
+      "ensemble": 1,
+      "speed": 0.4,
+      "drift": 0.6,
+      "volume": -8
+    },
+    "Bright shimmer": {
+      "attack": 0.3,
+      "release": 1.4,
+      "low": 0,
+      "high": 0.9,
+      "tone": 12000,
+      "ensemble": 1,
+      "speed": 2,
+      "drift": 0.1,
+      "volume": -11
+    },
+    "Plain organ": {
+      "attack": 0.005,
+      "release": 0.08,
+      "low": 1,
+      "high": 0.7,
+      "tone": 2400,
+      "ensemble": 0,
+      "drift": 0,
+      "volume": -14
+    },
+    "Slow wide ensemble": {
+      "attack": 1.6,
+      "release": 3.2,
+      "low": 0.5,
+      "high": 0.5,
+      "tone": 2400,
+      "ensemble": 1,
+      "speed": 0.25,
+      "drift": 0.8,
+      "width": 1
+    },
+    "Hollow strings": {
+      "attack": 0.4,
+      "release": 2.2,
+      "low": 0.15,
+      "high": 0.6,
+      "tone": 4500,
+      "ensemble": 0.45,
+      "speed": 0.5,
+      "drift": 0.2,
+      "width": 0.5
+    },
+    "Violas": {
+      "attack": 0.25,
+      "release": 0.9,
+      "low": 0,
+      "high": 0,
+      "tone": 1600,
+      "ensemble": 0.7,
+      "speed": 0.9,
+      "width": 0.3,
+      "volume": -5
+    },
+    "Three octaves": {
+      "attack": 0.12,
+      "release": 1.2,
+      "low": 1,
+      "high": 1,
+      "tone": 5200,
+      "ensemble": 1,
+      "speed": 1.2,
+      "drift": 0.5,
+      "width": 1,
+      "volume": -13
+    },
+    "Long cello swell": {
+      "attack": 5,
+      "release": 12,
+      "low": 1,
+      "high": 0.15,
+      "tone": 900,
+      "ensemble": 0.9,
+      "speed": 0.5,
+      "drift": 0.7,
+      "volume": -7
+    },
+    "Detuned strings": {
+      "attack": 0.8,
+      "release": 2.8,
+      "low": 0.3,
+      "high": 0.6,
+      "tone": 2000,
+      "ensemble": 1,
+      "speed": 2,
+      "drift": 1,
+      "width": 0.45
+    },
+    "Muted violins": {
+      "attack": 1,
+      "release": 2,
+      "low": 0,
+      "high": 1,
+      "tone": 1300,
+      "ensemble": 0.85,
+      "speed": 0.6,
+      "drift": 0.45,
+      "width": 0.6
+    },
+    "Bowed bass": {
+      "attack": 0.1,
+      "release": 0.7,
+      "low": 1,
+      "high": 0,
+      "tone": 380,
+      "ensemble": 0.3,
+      "speed": 0.5,
+      "drift": 0.15,
+      "width": 0,
+      "volume": -7
     }
   },
   "formerPresets": { "Solina": "Ensemble strings" },
