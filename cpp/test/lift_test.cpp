@@ -437,7 +437,7 @@ static void check_split() {
   std::printf("lift: a tone 6 dB over the threshold, Split and Amount at 1: %.3f to %.3f dB; -12 dB at the defaults: %.3f to %.3f dB\n",
               least, most, least_default, most_default);
   EXPECT(least > -0.02 && most < 3.0, "a loud tone gains under 3 dB from its skirts at the hardest setting");
-  EXPECT(least_default > -0.01 && most_default < 0.1, "and under 0.1 dB at the defaults");
+  EXPECT(least_default > -0.01 && most_default < 0.15, "and under 0.15 dB at the defaults, 12 dB over the threshold");
 }
 
 // Focus aims the lift: right at the highs, left at the lows.

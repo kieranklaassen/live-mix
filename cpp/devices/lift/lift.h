@@ -4,10 +4,12 @@
 // seconds of a tail, the breath between notes, the room) is carried up towards
 // a line; what is louder than the line is left exactly as it is.
 //
-//   in ─┬─► split ─► lows, middle, highs ─► delay (kLatency) ─► × gain per part ─┐
-//       │      │                                                    ▲           (+)─► Hear ─► Mix ─► out
-//       │      └─► level of each part ─┐                            │            │
-//       └─► level of the whole ────────┴─► curve ─► Focus ─► rise / fall         └── in, kLatency late
+//   in ─┬─► middle and sides ─► split in three ─► delay (kLatency) ─► × gain per part ─┐
+//       │                           │                                     ▲           (+)─► Hear ─► Mix ─► out
+//       │                           └─► level of each part ─┐             │            │
+//       └─► level of the whole ─────────────────────────────┴─► curve ─► Focus, Sides ─► rise / fall
+//                                                                                      │
+//       in, kLatency late ─────────────────────────────────────────────────────────────┘
 //
 // - The curve, in dB, for a level L, Threshold T, Floor F and Amount a:
 //     L >= T            lift = 0                      (unity, to the sample)
@@ -38,12 +40,18 @@
 //   lifted under a loud bottom. A loud tone's skirt in the other parts is
 //   then under the Threshold too and is lifted with it; every skirt is a
 //   quarter turn from the tone, so this can only add to it, never cancel:
-//   by under 0.1 dB at the defaults, and by up to 2.6 dB for a low tone
-//   6 dB over the Threshold with Split, Amount and Limit all the way up (the
-//   harness measures both).
+//   by 0.1 dB at the defaults for a tone 12 dB over the Threshold, and by
+//   up to 2.6 dB for a low tone 6 dB over it with Split, Amount and Limit all
+//   the way up (the harness measures both).
 // - Focus scales the lift (in dB) of each part: to the right the lows get
 //   (1 - Focus) of it and the middle (1 - Focus / 2), to the left the highs
 //   and the middle likewise.
+// - Sides. The lift is worked on the middle (left plus right) and the sides
+//   (left less right) apart. The sides always take the whole lift; the
+//   middle takes (1 - Sides) of it, in dB. At 0 both get the same gain and
+//   the image stays where it is; at 1 only the sides rise, so a tail opens
+//   outward as it is lifted and a sound with nothing at the sides is left
+//   alone.
 // - Rise and Fall move each part's lift, in dB, with one pole each: Rise when
 //   the curve asks for more, Fall when it asks for less. Both are the time to
 //   cover all but a hundredth of the way (4.6 time constants).
@@ -63,8 +71,8 @@
 // - After half a second of exact silence going in the device rests: lifts go
 //   back to 0 dB, the detectors and the delay are cleared (nothing is
 //   sounding, so nothing can click). The half second is counted in samples.
-// - Storage: six delay lines of 512 samples (the input and two of its parts,
-//   per channel), 12 KB.
+// - Storage: six delay lines of 512 samples (left, right, and the lows and
+//   the middle band of the middle and of the sides), 12 KB.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -124,6 +132,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     limit_.set_time(kControlSmoothingSeconds, tick_rate_);
     split_.set_time(kControlSmoothingSeconds, tick_rate_);
     focus_.set_time(kControlSmoothingSeconds, tick_rate_);
+    sides_.set_time(kControlSmoothingSeconds, tick_rate_);
     whole_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     rest_samples_ = static_cast<int>(kRestSeconds * sr);
@@ -139,8 +148,8 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   // The readings named by "meters" in device.json: 0, the most lift on any
   // part now, in dB (0 at rest); 1 to 3, the lift on the lows, the middle and
   // the highs; 4, the level of the whole sound as the detector reads it, in
-  // dB (kRestDb at rest). The lift is what the gain stage is given, before
-  // Hear and Mix.
+  // dB (kRestDb at rest). The lift is what the sides are given (the middle
+  // gets 1 - Sides of it), before Hear and Mix.
   float meter(int index) const {
     if (index == 0) {
       const double most = lift_[0] > lift_[1] ? lift_[0] : lift_[1];
@@ -175,42 +184,46 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
         resting_ = false;
       }
 
-      // The three parts of each channel: they add up to the input.
+      // The middle and the sides, and the three parts of each: they add up to it.
+      const float both[2] = {0.5f * (in[0] + in[1]), 0.5f * (in[0] - in[1])};
       float part[2][kParts];
       for (int c = 0; c < 2; ++c) {
-        part[c][0] = split_low_[c].lowpass(in[c]);
-        const float under = split_mid_[c].lowpass(in[c]);
+        part[c][0] = split_low_[c].lowpass(both[c]);
+        const float under = split_mid_[c].lowpass(both[c]);
         part[c][1] = under - part[c][0];
-        part[c][2] = in[c] - under;
+        part[c][2] = both[c] - under;
       }
+      // The mean power of left and right is the middle's plus the sides'.
       for (int b = 0; b < kParts; ++b) {
-        detectors_[b].hear(0.5f * (part[0][b] * part[0][b] + part[1][b] * part[1][b]), peak_fall_);
+        detectors_[b].hear(part[0][b] * part[0][b] + part[1][b] * part[1][b], peak_fall_);
       }
-      detectors_[kParts].hear(0.5f * (in[0] * in[0] + in[1] * in[1]), peak_fall_);
+      detectors_[kParts].hear(both[0] * both[0] + both[1] * both[1], peak_fall_);
 
       if (clock_.tick()) step_gains();
-      for (int b = 0; b < kParts; ++b) gain_[b] += gain_step_[b];
-
-      // Hear: 1 keeps the input in the lifted sound, 0 leaves what was added.
-      const float whole = whole_.next();
-      const float mix = mix_.next();
-      const float out_gain = gain_[2];
-      const float low_gain = gain_[0] - gain_[2];
-      const float mid_gain = gain_[1] - gain_[2];
-      float out[2];
       for (int c = 0; c < 2; ++c) {
-        const float dry = line_[c][0].read(kLatency);
-        const float low = line_[c][1].read(kLatency);
-        const float mid = line_[c][2].read(kLatency);
-        line_[c][0].write(in[c]);
-        line_[c][1].write(part[c][0]);
-        line_[c][2].write(part[c][1]);
-        const float lifted = out_gain * dry + low_gain * low + mid_gain * mid;
-        const float wet = lifted - (1.0f - whole) * dry;
-        out[c] = dry + mix * (wet - dry);
+        for (int b = 0; b < kParts; ++b) gain_[c][b] += gain_step_[c][b];
       }
-      out_left_[i] = out[0];
-      out_right_[i] = out[1];
+
+      const float dry[2] = {dry_[0].read(kLatency), dry_[1].read(kLatency)};
+      dry_[0].write(in[0]);
+      dry_[1].write(in[1]);
+      const float late[2] = {0.5f * (dry[0] + dry[1]), 0.5f * (dry[0] - dry[1])};
+      // What the lift adds to the middle and to the sides: nothing at all
+      // while every gain is one.
+      float added[2];
+      for (int c = 0; c < 2; ++c) {
+        const float low = low_[c].read(kLatency);
+        const float mid = mid_[c].read(kLatency);
+        low_[c].write(part[c][0]);
+        mid_[c].write(part[c][1]);
+        added[c] = (gain_[c][2] - 1.0f) * late[c] + (gain_[c][0] - gain_[c][2]) * low +
+                   (gain_[c][1] - gain_[c][2]) * mid;
+      }
+      // Hear: 1 keeps the input in the lifted sound, 0 leaves what was added.
+      const float less = whole_.next() - 1.0f;
+      const float mix = mix_.next();
+      out_left_[i] = dry[0] + mix * (less * dry[0] + added[0] + added[1]);
+      out_right_[i] = dry[1] + mix * (less * dry[1] + added[0] - added[1]);
     }
     idle_.settle(output_peak(frames), frames);
     // Only when the input was under the gate's floor without being zero.
@@ -256,6 +269,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     const float limit = limit_.next();
     const float split = split_.next();
     const float focus = focus_.next();
+    const float middle = 1.0f - sides_.next();
     level_seen_ = detectors_[kParts].level();
     const float together = curve(level_seen_, threshold, amount, floor, limit);
     for (int b = 0; b < kParts; ++b) {
@@ -264,10 +278,16 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
       const double coeff = target < lift_[b] ? fall_coeff_ : rise_coeff_;
       lift_[b] = target + (lift_[b] - target) * coeff;
       if (lift_[b] < 1.0e-9) lift_[b] = 0.0;
-      // Land on the last tick's value exactly, then ramp to this one.
-      gain_[b] = gain_target_[b];
-      gain_target_[b] = lift_[b] > 0.0 ? kit::db_to_gain(static_cast<float>(lift_[b])) : 1.0f;
-      gain_step_[b] = (gain_target_[b] - gain_[b]) * (1.0f / static_cast<float>(kControlPeriod));
+      // The sides take the whole lift, the middle what Sides leaves it.
+      const float lift = static_cast<float>(lift_[b]);
+      const float to[2] = {lift * middle > 0.0f ? kit::db_to_gain(lift * middle) : 1.0f,
+                           lift > 0.0f ? kit::db_to_gain(lift) : 1.0f};
+      for (int c = 0; c < 2; ++c) {
+        // Land on the last tick's value exactly, then ramp to this one.
+        gain_[c][b] = gain_target_[c][b];
+        gain_target_[c][b] = to[c];
+        gain_step_[c][b] = (to[c] - gain_[c][b]) * (1.0f / static_cast<float>(kControlPeriod));
+      }
     }
   }
 
@@ -276,15 +296,17 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       split_low_[c].reset();
       split_mid_[c].reset();
-      for (int line = 0; line < kParts; ++line) line_[c][line].clear();
+      dry_[c].clear();
+      low_[c].clear();
+      mid_[c].clear();
+      for (int b = 0; b < kParts; ++b) {
+        gain_[c][b] = 1.0f;
+        gain_target_[c][b] = 1.0f;
+        gain_step_[c][b] = 0.0f;
+      }
     }
     for (Detector& detector : detectors_) detector.reset();
-    for (int b = 0; b < kParts; ++b) {
-      lift_[b] = 0.0;
-      gain_[b] = 1.0f;
-      gain_target_[b] = 1.0f;
-      gain_step_[b] = 0.0f;
-    }
+    for (int b = 0; b < kParts; ++b) lift_[b] = 0.0;
     level_seen_ = kRestDb;
     clock_.reset(kControlPeriod);
     threshold_.snap(threshold_.target);
@@ -293,6 +315,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     limit_.snap(limit_.target);
     split_.snap(split_.target);
     focus_.snap(focus_.target);
+    sides_.snap(sides_.target);
     whole_.snap(whole_.target);
     mix_.snap(mix_.target);
     silent_ = 0;
@@ -331,6 +354,9 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
       case kFocus:
         focus_.set(value, glide);
         break;
+      case kSides:
+        sides_.set(value, glide);
+        break;
       case kLimit:
         limit_.set(value, glide);
         break;
@@ -345,10 +371,11 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     }
   }
 
-  kit::DelayLine<kLineSize> line_[2][kParts];  // per channel: the input, its lows, its middle
-  kit::OnePole split_low_[2], split_mid_[2];
-  Detector detectors_[kParts + 1];  // lows, middle, highs, the whole
-  kit::Smoother threshold_, amount_, floor_, limit_, split_, focus_;  // read once a tick
+  kit::DelayLine<kLineSize> dry_[2];             // left and right
+  kit::DelayLine<kLineSize> low_[2], mid_[2];    // of the middle [0] and of the sides [1]
+  kit::OnePole split_low_[2], split_mid_[2];     // likewise
+  Detector detectors_[kParts + 1];  // lows, middle band, highs, the whole
+  kit::Smoother threshold_, amount_, floor_, limit_, split_, focus_, sides_;  // read once a tick
   kit::Smoother whole_, mix_;
   kit::ControlClock clock_;
   kit::IdleGate idle_;
@@ -359,9 +386,10 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   // dB, 0 or above. Doubles: at the slowest Rise one tick moves a lift by
   // less than a float can add to 20 dB, and it would stop short.
   double lift_[kParts] = {0.0, 0.0, 0.0};
-  float gain_[kParts] = {1.0f, 1.0f, 1.0f};
-  float gain_target_[kParts] = {1.0f, 1.0f, 1.0f};
-  float gain_step_[kParts] = {0.0f, 0.0f, 0.0f};
+  // The gain of each part of the middle [0] and of the sides [1].
+  float gain_[2][kParts] = {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}};
+  float gain_target_[2][kParts] = {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}};
+  float gain_step_[2][kParts] = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
   float level_seen_ = kRestDb;  // for meter() only
   int rest_samples_ = 24000;
   int silent_ = 0;  // input samples of exact zero in a row

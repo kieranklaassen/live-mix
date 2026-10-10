@@ -11,7 +11,7 @@ export const LIFT_PARAMS = {
     name: 'Threshold',
     min: -60,
     max: -6,
-    default: -27,
+    default: -24,
     taper: 'linear',
     unit: 'dB',
     description:
@@ -22,7 +22,7 @@ export const LIFT_PARAMS = {
     name: 'Amount',
     min: 0,
     max: 1,
-    default: 0.6,
+    default: 0.65,
     taper: 'linear',
     unit: '',
     description:
@@ -44,7 +44,7 @@ export const LIFT_PARAMS = {
     name: 'Rise',
     min: 0.05,
     max: 20,
-    default: 1.2,
+    default: 0.8,
     taper: 'log',
     unit: 's',
     description:
@@ -55,7 +55,7 @@ export const LIFT_PARAMS = {
     name: 'Fall',
     min: 1,
     max: 500,
-    default: 5,
+    default: 3,
     taper: 'log',
     unit: 'ms',
     description:
@@ -83,8 +83,19 @@ export const LIFT_PARAMS = {
     description:
       'Which part of the spectrum is lifted most. Left lifts the lows and leaves the highs, right lifts the air and leaves the lows, the middle is even.',
   },
-  limit: {
+  sides: {
     id: 7,
+    name: 'Sides',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward.',
+  },
+  limit: {
+    id: 8,
     name: 'Limit',
     min: 0,
     max: 30,
@@ -95,7 +106,7 @@ export const LIFT_PARAMS = {
       'The most gain the lift may ever add. Lower it to keep the very quietest sound from being pulled far up; at nothing there is no lift.',
   },
   hear: {
-    id: 8,
+    id: 9,
     name: 'Hear',
     min: 0,
     max: 1,
@@ -107,7 +118,7 @@ export const LIFT_PARAMS = {
       'All is the sound with its quiet end lifted. Lift only plays just what was added, the tails and breaths alone, for a send or a layer.',
   },
   mix: {
-    id: 9,
+    id: 10,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -144,7 +155,39 @@ export const LIFT_DESCRIPTOR = wasmDeviceDescriptor(LIFT_DEVICE, {
   description:
     'Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is loud stays exactly as it is.',
   presets: {
-    Lift: {},
+    'Quiet end up': {},
+    'Long tails': { threshold: -20, amount: 0.9, floor: -78, rise: 0.4, limit: 24, split: 0.2 },
+    'Breath between': { threshold: -28, amount: 0.6, rise: 0.08, split: 0.1, limit: 12 },
+    'Air on top': { threshold: -30, amount: 0.8, split: 1, focus: 1, rise: 0.4, limit: 24 },
+    'Warm floor': { threshold: -22, amount: 0.8, split: 1, focus: -1, rise: 1, limit: 18 },
+    'Held level': { threshold: -30, amount: 1, floor: -72, rise: 0.15, limit: 30, split: 0 },
+    'Barely there': { threshold: -32, amount: 0.4, limit: 9, rise: 1.5, split: 0.6 },
+    'Only the tails': { threshold: -24, amount: 1, rise: 0.3, limit: 30, split: 0, hear: 1 },
+    'Ghost of the top': {
+      threshold: -24,
+      amount: 1,
+      split: 1,
+      focus: 1,
+      rise: 0.2,
+      limit: 30,
+      hear: 1,
+    },
+    'Slow tide': { threshold: -18, amount: 1, rise: 8, limit: 24 },
+    'Room up': { threshold: -40, amount: 1, floor: -88, rise: 1, limit: 30, split: 0 },
+    'Dense pad': { threshold: -18, amount: 0.5, split: 1, rise: 0.5, limit: 12 },
+    'Drone bloom': { threshold: -16, amount: 0.6, split: 1, focus: 0.5, rise: 3, limit: 15 },
+    'Soft landing': { threshold: -24, amount: 0.9, rise: 0.2, fall: 300, limit: 20, split: 0.2 },
+    'Half and half': { threshold: -20, amount: 1, rise: 0.5, limit: 24, mix: 0.5 },
+    'Low breath': {
+      threshold: -22,
+      amount: 1,
+      split: 0.6,
+      focus: -1,
+      rise: 0.2,
+      limit: 30,
+      hear: 1,
+      mix: 0.6,
+    },
   },
 })
 
