@@ -1396,6 +1396,48 @@ describe('Knob: a value that moves on its own', () => {
     }
   })
 
+  it.each([24, 30, 36, 44, 64])('keeps its marks inside a knob of %i px', (size) => {
+    const { wrapper, frames, modulation, move } = rig()
+    const { container } = render(
+      <Knob
+        label="Mix"
+        value={0.5}
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        size={size}
+        modulation={modulation}
+      />,
+      { wrapper },
+    )
+    move(0.75)
+    frames.flush(1000)
+    const marks = container.querySelector('.lm-knob__modulation')
+    if (!marks) throw new Error('no marks')
+    const dot = marks.querySelector('.lm-knob__modulation-dot')
+    const r = Number(dot?.getAttribute('r'))
+    expect(Number(dot?.getAttribute('cy')) + r).toBeLessThanOrEqual(size)
+    expect(Number(dot?.getAttribute('cx'))).toBe(size / 2)
+    // A dot that can be seen, and a line that is not a hair: at least a pixel and a half wide.
+    expect(r).toBeGreaterThanOrEqual(1.25)
+    const arcs = [...marks.querySelectorAll('path')]
+    expect(arcs).toHaveLength(2)
+    for (const arc of arcs) {
+      const width = Number(arc.getAttribute('stroke-width'))
+      expect(width).toBeGreaterThanOrEqual(1.5)
+      // Every point of the arc, with half its line, lies in the knob's own box.
+      const numbers = (arc.getAttribute('d') ?? '').match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+      const [x0, y0, radius, , , , , x1, y1] = numbers
+      expect(radius + width / 2).toBeLessThanOrEqual(size / 2)
+      for (const point of [x0, y0, x1, y1]) {
+        expect(point).toBeGreaterThanOrEqual(0)
+        expect(point).toBeLessThanOrEqual(size)
+      }
+    }
+    // The arc that moves is on the same ring as the swing, from the knob's place to the value.
+    expect(arcOf(container)?.getAttribute('d')).toMatch(/^M /)
+  })
+
   it('moves the arc on frames from where it is set to where the value is, with no render', () => {
     const { wrapper, frames, modulation, move } = rig()
     let renders = 0

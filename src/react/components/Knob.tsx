@@ -245,6 +245,8 @@ function KnobModulationMarks({
 
   const low = clamp01(normalized - modulation.reach.below)
   const high = clamp01(normalized + modulation.reach.above)
+  // The dot sits on the ring's foot, and whole inside the knob's own box at any size.
+  const dot = Math.max(1.25, size / 24)
   return (
     <g className="lm-knob__modulation">
       {high - low < 0.002 ? null : (
@@ -268,8 +270,8 @@ function KnobModulationMarks({
       <circle
         className="lm-knob__modulation-dot"
         cx={c}
-        cy={c + radius}
-        r={Math.max(1.25, size / 24)}
+        cy={Math.min(c + radius, size - dot)}
+        r={dot}
         fill={MOD_INK}
       />
     </g>

@@ -262,6 +262,22 @@ add or replace skins. A plate is 140 px high and
 `plateLayout(knobs, pictured, display?)` gives its width and where its display
 stands.
 
+`upright` stands a plate up, as a pedal stands on a board: 220 px wide and 300
+high, on `DevicePlate` and, for every plate of a chain, on `DeviceChainView`.
+The display or the picture lies across the top (a display is 204 by 100), and
+the knobs are under it in two rows: eight on the face where the device has
+that many, the ones its skin chose first, and up to four stand two abreast at
+36 px. Under the knobs are the `+n` cell at the left and the tools at the
+right, then a row of the plate's whole width for a host's `presetPicker`, then
+the foot with the name tag and the lamp. A plate with no display and no picture
+has four rows of four knobs from the top. Opened, the plate widens by columns
+and the display stretches with it; the height stays. Use it where the chain
+has the height: a device shows twice the knobs and a larger display, and a
+preset's name has a row to itself. Left out, a plate lies flat as before.
+`plateLayout(knobs, pictured, display?, upright?)` answers for both, and for
+an upright plate adds `upright`: its height, where its knobs start, a row's
+height and a knob's size.
+
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
 `HOSTED_PLATES` by the plug-in's id, with a finish and a knob cap, so the same

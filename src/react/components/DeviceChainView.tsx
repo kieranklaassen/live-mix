@@ -232,6 +232,8 @@ export interface DeviceChainViewProps {
    * Left out, every device is a panel.
    */
   skin?: (device: Device) => DeviceSkin | null | undefined
+  /** Stands every plate upright, as pedals on a board (`DevicePlate`'s `upright`); a panel stays as it is. */
+  upright?: boolean
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -252,6 +254,7 @@ export function DeviceChainView({
   knobHint,
   dropAt,
   skin,
+  upright = false,
   className,
   style,
   'data-testid': testId,
@@ -549,6 +552,7 @@ export function DeviceChainView({
                   showBypass={panelProps?.showBypass}
                   showPresets={panelProps?.showPresets}
                   presetPicker={picker}
+                  upright={upright}
                   onRemove={() => remove(device, index)}
                   actions={actions}
                   hint={PLATE_REORDER_HINT}

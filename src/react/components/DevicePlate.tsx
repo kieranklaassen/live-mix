@@ -94,6 +94,26 @@ const squeeze = (words: string, column: number): number =>
 /** Opened, a pictured plate with more knobs than this lays them in two rows beside the picture. */
 const ONE_ROW_MOST = 12
 
+/**
+ * An upright plate, as a pedal stands on a board: eleven cells wide and
+ * fifteen high. The display is across the top, the knobs under it in two
+ * rows, then the row of tools, the presets, and the name on the foot beside
+ * the lamp.
+ */
+export const UPRIGHT_PLATE_WIDTH = 220
+export const UPRIGHT_PLATE_HEIGHT = 300
+const UPRIGHT_SIDE = 8
+/** Two rows of knobs on a face with a display; four on a plain one. */
+const UPRIGHT_ROWS = 2
+const UPRIGHT_PLAIN_ROWS = 4
+const UPRIGHT_FACE_PER_ROW = 4
+/** A row of knobs under a display, and the closer rows of a plain plate. */
+const UPRIGHT_ROW = 56
+const UPRIGHT_PLAIN_ROW = 50
+/** Up to four knobs stand two abreast and are larger, as on a pedal with few controls. */
+const UPRIGHT_LARGE_KNOB = 36
+const UPRIGHT_KNOBS_TOP = 110
+
 /** Left of a display, and between a display and the knobs beside it. */
 const DISPLAY_LEFT = 8
 const DISPLAY_GAP = 4
@@ -111,6 +131,8 @@ export interface PlateLayout {
   knobsLeft: number
   /** Where the display stands and how large it is, in px; null for a plate without one. */
   display: { left: number; top: number; width: number; height: number } | null
+  /** Set on an upright plate alone: its height, where its knobs start, a row's height and a knob's size, in px. */
+  upright?: { height: number; knobsTop: number; row: number; knob: number }
 }
 
 /**
@@ -123,13 +145,57 @@ export interface PlateLayout {
  * than one with a window (a face of four knobs shares that room); past twelve knobs they
  * take two rows and the strip stands beside them at the plate's full working
  * height. A window stands at the left and the knobs take two rows beside it.
+ *
+ * Upright, the plate is 220 by 300 whatever it shows: a display or a picture
+ * across the top and the knobs in two rows under it, or four rows of knobs
+ * from the top with neither. Opened past its face it widens by columns.
  */
 export function plateLayout(
   knobs: number,
   pictured: boolean,
   display?: Pick<PlateDisplay, 'place' | 'columns'>,
+  upright = false,
 ): PlateLayout {
   const cells = (px: number): number => Math.ceil(px / CELL) * CELL
+  if (upright) {
+    // A display or a picture has the top; without either the knobs start there and take four rows.
+    const topped = display !== undefined || pictured
+    const rows = topped ? UPRIGHT_ROWS : UPRIGHT_PLAIN_ROWS
+    const across = Math.ceil(knobs / rows)
+    // A lone knob stands in the middle; few stand two abreast, more three and four. Past the face the plate widens by columns.
+    const columns = topped
+      ? Math.max(knobs === 1 ? 1 : 2, across)
+      : Math.max(UPRIGHT_FACE_PER_ROW, across)
+    const face = Math.floor((UPRIGHT_PLATE_WIDTH - 2 * UPRIGHT_SIDE) / UPRIGHT_FACE_PER_ROW)
+    const width =
+      columns <= UPRIGHT_FACE_PER_ROW
+        ? UPRIGHT_PLATE_WIDTH
+        : cells(2 * UPRIGHT_SIDE + columns * face) + (UPRIGHT_PLATE_WIDTH % CELL)
+    // A face shares the plate's width; past it a knob keeps the column of four abreast, and the rows stand in the middle.
+    const column =
+      columns <= UPRIGHT_FACE_PER_ROW ? Math.floor((width - 2 * UPRIGHT_SIDE) / columns) : face
+    return {
+      rows,
+      columns,
+      column,
+      width,
+      knobsLeft: Math.floor((width - columns * column) / 2),
+      display: display
+        ? {
+            left: UPRIGHT_SIDE,
+            top: UPRIGHT_SIDE,
+            width: width - 2 * UPRIGHT_SIDE,
+            height: DISPLAY_WINDOW_HEIGHT,
+          }
+        : null,
+      upright: {
+        height: UPRIGHT_PLATE_HEIGHT,
+        knobsTop: topped ? UPRIGHT_KNOBS_TOP : UPRIGHT_SIDE,
+        row: topped ? UPRIGHT_ROW : UPRIGHT_PLAIN_ROW,
+        knob: topped && columns <= 2 ? UPRIGHT_LARGE_KNOB : KNOB_SIZE,
+      },
+    }
+  }
   if (display?.place === 'window') {
     const face = display.columns ?? 2
     const window = displayWindowWidth(face)
@@ -205,6 +271,12 @@ export interface DevicePlateProps {
    * tools; given one, the kit's list is left out.
    */
   presetPicker?: ReactNode
+  /**
+   * Stands the plate upright, as a pedal on a board: the display across the
+   * top, two rows of knobs under it, the name on the foot. Default: the plate
+   * lies flat, 140 px high.
+   */
+  upright?: boolean
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
   onOpenChange?: (open: boolean) => void
@@ -289,6 +361,7 @@ export function DevicePlate({
   showBypass = true,
   showPresets,
   presetPicker,
+  upright = false,
   defaultOpen = false,
   onOpenChange,
   actions,
@@ -310,16 +383,21 @@ export function DevicePlate({
   // A display takes the picture's place: a skin with both shows the display.
   const picture = display ? undefined : skin.picture
   const pictured = picture !== undefined || display !== undefined
-  const onFace =
-    display?.place === 'window'
+  const onFace = upright
+    ? UPRIGHT_FACE_PER_ROW * (pictured ? UPRIGHT_ROWS : UPRIGHT_PLAIN_ROWS)
+    : display?.place === 'window'
       ? (display.columns ?? 2) * 2
       : pictured
         ? FACE_PER_ROW
         : FACE_PER_ROW * 2
-  const face = (skin.face?.filter((name) => all.includes(name)) ?? all).slice(0, onFace)
+  const chosen = skin.face?.filter((name) => all.includes(name)) ?? all
+  // An upright face holds more than a skin chose for a flat one: its own first, then the rest in their order.
+  const face = (
+    upright ? [...chosen, ...all.filter((name) => !chosen.includes(name))] : chosen
+  ).slice(0, onFace)
   const rest = all.filter((name) => !face.includes(name))
   const names = open ? [...face, ...rest] : face
-  const layout = plateLayout(names.length, picture !== undefined, display)
+  const layout = plateLayout(names.length, picture !== undefined, display, upright)
   const ownText = isParamTextDevice(device) ? device : null
   const editor = isEditorDevice(device) ? device : null
   const presetsShown = presetPicker === undefined && (showPresets ?? d.presets.length > 0)
@@ -351,7 +429,7 @@ export function DevicePlate({
   )
   // Beside a picker the foot has no room for them: they stand in a row of their own just above it.
   const tools = (
-    <div className={cx('lm-plate__tools', picker && 'lm-plate__tools--above')}>
+    <div className={cx('lm-plate__tools', (picker || upright) && 'lm-plate__tools--above')}>
       {presetsShown ? (
         <select
           className="lm-device__presets"
@@ -404,6 +482,7 @@ export function DevicePlate({
         display && `lm-plate--${display.place}`,
         // No picture and no display: two rows of knobs, and the column at the right is the plate's own.
         !pictured && !display && 'lm-plate--plain',
+        upright && 'lm-plate--upright',
         editor && 'lm-plate--editor',
         className,
       )}
@@ -416,6 +495,13 @@ export function DevicePlate({
           '--lm-plate-columns': layout.columns,
           '--lm-plate-column': `${layout.column}px`,
           '--lm-plate-knobs-left': `${layout.knobsLeft}px`,
+          ...(layout.upright
+            ? {
+                '--lm-plate-knobs-top': `${layout.upright.knobsTop}px`,
+                '--lm-plate-row': `${layout.upright.row}px`,
+                height: layout.upright.height,
+              }
+            : {}),
           width: layout.width,
           ...style,
         } as CSSProperties
@@ -479,7 +565,7 @@ export function DevicePlate({
               unit={spec.unit || 'ratio'}
               bipolar={isBipolar(spec)}
               modulation={knobModulation(device, name, d.modulations[name])}
-              size={KNOB_SIZE}
+              size={layout.upright?.knob ?? KNOB_SIZE}
               cap={skin.cap}
               format={
                 labels
@@ -554,7 +640,8 @@ export function DevicePlate({
           {open ? '−' : `+${rest.length}`}
         </button>
       ) : null}
-      {picker ? tools : null}
+      {picker || upright ? tools : null}
+      {picker && upright ? <div className="lm-plate__presets">{presetPicker}</div> : null}
       <div className={cx('lm-plate__foot', picker && 'lm-plate__foot--picker')}>
         {name}
         {/* A display shows the device's readings itself, so the foot does not print them again. */}
@@ -571,8 +658,8 @@ export function DevicePlate({
               />
             ))
           : null}
-        {picker ? <div className="lm-plate__presets">{presetPicker}</div> : null}
-        {picker ? null : tools}
+        {picker && !upright ? <div className="lm-plate__presets">{presetPicker}</div> : null}
+        {picker || upright ? null : tools}
         {showBypass ? (
           <DeviceToggle
             pressed={powered}
