@@ -8,23 +8,30 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { MURMURATION_PARAMS } from '../../dsp/devices/murmuration.gen'
+import { MURMURATION_DESCRIPTOR, MURMURATION_PARAMS } from '../../dsp/devices/murmuration.gen'
 import { loadWasmDevice, type WasmDeviceHarness } from '../../dsp/__tests__/wasm-device-harness'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
   FLOCK,
   MURMURATION_FACES,
   birdDelaySec,
+  birdGains,
   birdLoudness,
   birdPan,
   delayText,
   edgeShare,
   flightRate,
+  flockCeiling,
   flockChance,
   flockFlight,
+  flockLens,
+  flockMiddle,
   flockPlace,
   flockSize,
   followFlight,
+  lensText,
+  lensedPlace,
+  mostGain,
   rangeOfShare,
   skyOf,
   skyPlace,
@@ -82,20 +89,27 @@ function dotsOf(drawn: RecordingContext): Dot[] {
 const birdsOf = (drawn: RecordingContext): Dot[] =>
   dotsOf(drawn).filter((dot) => dot.colour === PLAIN_COLOURS.accent)
 
-/** Where the display should have a bird, from the copy of flock.h. */
+/**
+ * Where the display should have a bird, from the copy of flock.h: its place,
+ * drawn `flockLens` times as far from the flock's middle as it is. `turns` is
+ * the Turns the flight is flown with, where that is not the control.
+ */
 function expectedDot(
   bird: number,
   tau: number,
   values: Values,
   width: number,
   height: number,
+  turns = valueOf(values, 'turns'),
 ): { x: number; y: number; u: number } {
   const sky = skyOf({ width, height })
   const range = valueOf(values, 'range')
   const edge = edgeShare(range, PARAMS.range.min, PARAMS.range.max)
-  const flight = flockFlight(tau, valueOf(values, 'together'), valueOf(values, 'turns'))
+  const together = valueOf(values, 'together')
+  const flight = flockFlight(tau, together, turns)
   const place = flockPlace(bird, tau, flight)
-  const [x, y] = skyPoint(sky, edge, place.u, place.v * valueOf(values, 'spread'))
+  const drawn = lensedPlace(place, flight, flockLens(together))
+  const [x, y] = skyPoint(sky, edge, drawn.u, drawn.v * valueOf(values, 'spread'))
   return { x, y, u: place.u }
 }
 
@@ -106,12 +120,13 @@ function expectFlockAt(
   width: number,
   height: number,
   what: string,
+  turns = valueOf(values, 'turns'),
 ): void {
   const birds = birdsOf(drawn)
   const count = Math.round(valueOf(values, 'birds'))
   expect(birds.length, `${what}: one dot a bird`).toBe(count)
   for (let bird = 0; bird < count; bird++) {
-    const said = expectedDot(bird, tau, values, width, height)
+    const said = expectedDot(bird, tau, values, width, height, turns)
     const near = birds.filter(
       (dot) => Math.abs(dot.x - said.x) < 0.01 && Math.abs(dot.y - said.y) < 0.01,
     )
@@ -126,10 +141,10 @@ function set(device: WasmDeviceHarness, values: Values): void {
     device.set(PARAMS[name as keyof typeof PARAMS], value)
 }
 
-function meter(device: WasmDeviceHarness): number {
+function meter(device: WasmDeviceHarness, index = 0): number {
   const read = device.device.device_meter
   if (!read) throw new Error('the device reports no readings')
-  return read(0)
+  return read(index)
 }
 
 /** Both sides of the device over `frames` of an input given sample by sample, in blocks of 128. */
@@ -269,6 +284,7 @@ describe('murmuration: the flight is flock.h', () => {
 describe('murmuration: the display against the compiled device', () => {
   it('draws each bird where the device returns it: as far out as it is late, on the side it is heard', async () => {
     // Eight birds scattered over sixty metres, hardly moving: eight returns that stand apart.
+    // Ground fully down, so the birds carry all of the impulse.
     const values = {
       birds: 8,
       range: 60,
@@ -278,6 +294,7 @@ describe('murmuration: the display against the compiled device', () => {
       air: 0,
       lift: 0,
       spread: 0.7,
+      ground: PARAMS.ground.min,
       mix: 1,
     }
     const device = await loadWasmDevice('murmuration', RATE)
@@ -381,6 +398,7 @@ describe('murmuration: the display against the compiled device', () => {
       air: 1,
       lift: 0,
       spread: 0,
+      ground: PARAMS.ground.min,
       mix: 1,
     }
     const device = await loadWasmDevice('murmuration', RATE)
@@ -398,8 +416,15 @@ describe('murmuration: the display against the compiled device', () => {
       for (let n = frames - 240; n < frames; n++) peak = Math.max(peak, Math.abs(left[n]))
       const tau = meter(device)
       const place = flockPlace(0, tau, flockFlight(tau, values.together, values.turns))
-      // Straight ahead a bird is the voice's own level on each side, times its loudness.
-      const said = 0.25 * birdLoudness(place.u, values.air)
+      // Straight ahead a bird is the voice's own level on each side, times its loudness
+      // under the ceiling: a flock of one is held to 3 dB over the voice.
+      const [gain] = birdGains([place.u], values.air)
+      expect(gain).toBeCloseTo(
+        birdLoudness(place.u, values.air) * flockCeiling(birdLoudness(place.u, values.air) ** 2),
+        9,
+      )
+      expect(gain).toBeLessThan(Math.sqrt(FLOCK.ceilingPower))
+      const said = 0.25 * gain
       expect(Math.abs(peak / said - 1), `at ${seconds} s: ${peak} against ${said}`).toBeLessThan(
         0.05,
       )
@@ -407,11 +432,8 @@ describe('murmuration: the display against the compiled device', () => {
       const dots = birdsOf(drawDisplay(display, PARAMS, { values, meters: { flight: tau } }))
       expect(dots.length).toBe(1)
       strengths.push(dots[0].alpha)
-      // The dot's strength is that loudness against the nearest bird's, from 0.45 up.
-      expect(dots[0].alpha).toBeCloseTo(
-        0.45 + 0.55 * (birdLoudness(place.u, values.air) / birdLoudness(0, values.air)),
-        6,
-      )
+      // The dot's strength is that gain against the most one bird can have, from 0.45 up.
+      expect(dots[0].alpha).toBeCloseTo(0.45 + 0.55 * (gain / mostGain(1, values.air)), 6)
     }
     expect(Math.max(...levels) / Math.min(...levels), 'the bird came and went').toBeGreaterThan(1.3)
     // Louder is stronger, in the same order.
@@ -455,7 +477,10 @@ describe('murmuration: the picture', () => {
     const narrow = skyOf({ width: 128, height: 100 })
     expect([narrow.rx, narrow.ry]).toEqual([56, 84])
     const wide = skyOf({ width: 204, height: 100 })
-    expect([wide.rx, wide.ry]).toEqual([84, 84])
+    expect([wide.rx, wide.ry]).toEqual([94, 84])
+    // On a low display it is wider than deep, up to three times.
+    const low = skyOf({ width: 224, height: 48 })
+    expect([low.rx, low.ry]).toEqual([96, 32])
     // The far edge at the most Range is the rim; at the least it is still over half of it.
     expect(edgeShare(60, 1, 60)).toBeCloseTo(1, 9)
     expect(edgeShare(1, 1, 60)).toBeCloseTo(0.55, 9)
@@ -528,7 +553,7 @@ describe('murmuration: the picture', () => {
       [1, '2.9 ms'],
     ] as const) {
       const drawn = drawDisplay(display, PARAMS, { values: { range }, meters: { flight: 3 } })
-      expect(drawn.words()).toEqual([words])
+      expect(drawn.words()).toEqual([words, 'flock ×2.3'])
     }
 
     // The row of marks: eight slots from this one on, a tall mark a whole wheel (1 + 6 of it).
@@ -719,5 +744,241 @@ describe('murmuration: the points to drag', () => {
     expect(MURMURATION_FACES.murmuration.face).toEqual(['birds', 'speed', 'turns', 'mix'])
     expect(display.place).toBe('window')
     expect(display.live?.meters).toBe(true)
+  })
+})
+
+// Each of these fails on the display and the presets as they were first built.
+describe('murmuration: what the second check found', () => {
+  /** How far apart the two farthest bird dots of a drawing are, in pixels. */
+  const across = (dots: readonly Dot[]): number => {
+    let most = 0
+    for (const a of dots) for (const b of dots) most = Math.max(most, Math.hypot(a.x - b.x, a.y - b.y))
+    return most
+  }
+  const TAUS = [0, 20, 37.5, 100, 500.2, 903]
+
+  it('draws a flock that holds together larger than life, around its true middle, and says by how much', () => {
+    // The factor comes from Together alone: none for a scattered flock, more the tighter it is held.
+    expect(flockLens(0)).toBe(1)
+    expect(flockLens(0.6)).toBeCloseTo(Math.pow(flockSize(0.6), -0.7), 9)
+    expect(flockLens(1)).toBeCloseTo(Math.pow(FLOCK.leastSize, -0.7), 9)
+    expect(lensText(flockLens(0.6))).toBe('flock ×2.3')
+    for (let together = 0.05; together <= 1; together += 0.05) {
+      const looser = together - 0.05
+      expect(flockLens(together)).toBeGreaterThanOrEqual(flockLens(looser))
+      // A tighter flock is still drawn smaller: Together shows.
+      expect(flockLens(together) * flockSize(together)).toBeLessThan(
+        flockLens(looser) * flockSize(looser),
+      )
+    }
+
+    // A dot is the lens times as far from the flock's middle as its bird, in the range and to the side.
+    const flight = flockFlight(40, 0.6, 0.3)
+    const middle = flockMiddle(flight)
+    const place = flockPlace(3, 40, flight)
+    const drawn = lensedPlace(place, flight, 1.7)
+    expect(drawn.u - middle.u).toBeCloseTo(1.7 * (place.u - middle.u), 9)
+    expect(drawn.v - middle.v).toBeCloseTo(1.7 * (place.v - middle.v), 9)
+    expect(lensedPlace(place, flight, 1)).toEqual({ u: place.u, v: place.v })
+
+    // On the narrow plate the birds of the flock at the defaults were under 10 pixels apart
+    // at most and those of one held as tight as it goes under 4: eight dots of 3 to 6
+    // pixels, one on another.
+    const [width, height] = SHAPES[0]
+    const sizeOf = (values: Values): number => {
+      let sum = 0
+      for (const tau of TAUS)
+        sum += across(
+          birdsOf(drawDisplay(display, PARAMS, { values, meters: { flight: tau }, width, height })),
+        )
+      return sum / TAUS.length
+    }
+    const real = (values: Values): number => {
+      const sky = skyOf({ width, height })
+      const edge = edgeShare(valueOf(values, 'range'), PARAMS.range.min, PARAMS.range.max)
+      let sum = 0
+      for (const tau of TAUS) {
+        const now = flockFlight(tau, valueOf(values, 'together'), valueOf(values, 'turns'))
+        const dots: Dot[] = []
+        for (let bird = 0; bird < valueOf(values, 'birds'); bird++) {
+          const at = flockPlace(bird, tau, now)
+          const [x, y] = skyPoint(sky, edge, at.u, at.v * valueOf(values, 'spread'))
+          dots.push({ x, y, radius: 0, colour: '', alpha: 1 })
+        }
+        sum += across(dots)
+      }
+      return sum / TAUS.length
+    }
+    expect(real({}), 'the flock at the defaults, as it is').toBeLessThan(10)
+    expect(sizeOf({}), 'the flock at the defaults, as drawn').toBeGreaterThan(18)
+    expect(real({ together: 1, turns: 0 }), 'a tight flock, as it is').toBeLessThan(4)
+    expect(sizeOf({ together: 1, turns: 0 }), 'a tight flock, as drawn').toBeGreaterThan(14)
+    expect(sizeOf({ together: 0, birds: 16 })).toBeCloseTo(real({ together: 0, birds: 16 }), 6)
+
+    // It is written on the display, and not where nothing is drawn larger.
+    const words = (values: Values): string[] =>
+      drawDisplay(display, PARAMS, { values, meters: { flight: 3 } }).words()
+    expect(words({})).toEqual(['29 ms', 'flock ×2.3'])
+    expect(words({ together: 1 })).toEqual(['29 ms', 'flock ×5.9'])
+    expect(words({ together: 0 })).toEqual(['29 ms'])
+    // And the sky the flock really fills is filled in under them: one more thing filled.
+    const filled = (values: Values): number =>
+      drawDisplay(display, PARAMS, { values, meters: { flight: 3 } }).calls.filter(
+        (call) => call.name === 'fill',
+      ).length
+    expect(filled({ together: 0.01 })).toBe(filled({ together: 0 }) + 1)
+  })
+
+  it('reads on a low display and on the upright plate: the sky takes the width, the words and marks are there', () => {
+    for (const [width, height] of [
+      [224, 48],
+      [204, 100],
+    ] as const) {
+      const sky = skyOf({ width, height })
+      expect(2 * sky.rx, `${width} by ${height}: the sky takes most of the width`).toBeGreaterThan(
+        0.85 * width,
+      )
+      for (const values of [{}, { birds: 16, together: 0, spread: 1, range: 60 }] as Values[]) {
+        for (const tau of TAUS) {
+          const drawn = drawDisplay(display, PARAMS, {
+            values,
+            meters: { flight: tau },
+            width,
+            height,
+          })
+          const what = `${width} by ${height}, ${JSON.stringify(values)}, at ${tau}`
+          expect(drawn.words()[0], what).toBe(delayText(valueOf(values, 'range') / 343))
+          expect(
+            drawn.calls.filter((call) => call.name === 'fillRect' && call.args[2] === 2).length,
+            `${what}: the wheels to come`,
+          ).toBe(8)
+          expectFlockAt(drawn, tau, values, width, height, what)
+          for (const dot of dotsOf(drawn)) {
+            expect(dot.x - dot.radius, `${what}: inside on the left`).toBeGreaterThanOrEqual(0)
+            expect(dot.x + dot.radius, `${what}: inside on the right`).toBeLessThanOrEqual(width)
+            expect(dot.y - dot.radius, `${what}: inside at the top`).toBeGreaterThanOrEqual(0)
+            expect(dot.y + dot.radius, `${what}: inside at the foot`).toBeLessThanOrEqual(height)
+          }
+        }
+      }
+    }
+    // At 224 by 48 the birds of the flock at the defaults were 5 pixels apart at most.
+    let sum = 0
+    for (const tau of TAUS)
+      sum += across(
+        birdsOf(
+          drawDisplay(display, PARAMS, { meters: { flight: tau }, width: 224, height: 48 }),
+        ),
+      )
+    expect(sum / TAUS.length).toBeGreaterThan(20)
+  })
+})
+
+describe('murmuration: the Turns that is flown, and how far a preset bends', () => {
+  const [width, height] = SHAPES[0]
+  // Slot 1 is a whole wheel at Turns 1 and at 0.3, and none at 0; twelve seconds is its middle.
+  const tau = 12
+
+  it('flies the flock with the Turns the device reports, which follows the control slowly', async () => {
+    const device = await loadWasmDevice('murmuration', RATE)
+    let seed = 7
+    const hiss = (): number => {
+      seed = (seed * 1664525 + 1013904223) >>> 0
+      return 0.2 * (seed / 2147483648 - 1)
+    }
+    render(device, 188 * 128, hiss)
+    expect(meter(device, 1), 'the control as it was set').toBeCloseTo(PARAMS.turns.default, 6)
+    set(device, { turns: 1 })
+    render(device, 2 * RATE, hiss)
+    // kTurnsSlew of a turn per second of flight, at Speed 1 over ten metres one second a second.
+    const flown = PARAMS.turns.default + FLOCK.turnsSlew * 2 * flightRate(1, 10)
+    expect(meter(device, 1), 'two seconds after Turns went to 1').toBeCloseTo(flown, 3)
+    // At rest it is the control: that is what sound will wake to.
+    render(device, RATE, () => 0)
+    set(device, { turns: 0 })
+    expect(meter(device, 1), 'at rest').toBe(0)
+
+    // The display draws the flight of the reading, not of the knob.
+    const values = { turns: 1 }
+    const reported = drawDisplay(display, PARAMS, {
+      values,
+      meters: { flight: tau, turns: 0 },
+      width,
+      height,
+    })
+    expectFlockAt(reported, tau, values, width, height, 'the reading', 0)
+    expect(flockFlight(tau, 0.6, 0).wheel).toBe(0)
+    expect(flockFlight(tau, 0.6, 1).wheel).toBeCloseTo(1, 6)
+    // With no such reading, or switched off, it is the knob.
+    const plain = drawDisplay(display, PARAMS, { values, meters: { flight: tau }, width, height })
+    expectFlockAt(plain, tau, values, width, height, 'no reading')
+    const off = drawDisplay(display, PARAMS, {
+      values,
+      meters: { flight: tau, turns: 0 },
+      width,
+      height,
+      powered: false,
+    })
+    expectFlockAt(off, tau, values, width, height, 'switched off')
+  })
+
+  it('marks a wheel to come with the Turns it will be flown with', () => {
+    const marks = (turns: number, flownTurns: number, at: number): number[] =>
+      drawDisplay(display, PARAMS, { values: { turns }, meters: { flight: at, turns: flownTurns } })
+        .calls.filter((call) => call.name === 'fillRect' && call.args[2] === 2)
+        .map((call) => Number(call.args[3]))
+    const slot = 40
+    const at = slot * FLOCK.slotSeconds + 1
+    const said = (turns: number, flownTurns: number): number[] =>
+      Array.from({ length: 8 }, (_, ahead) => {
+        const until = ahead === 0 ? 0 : (slot + ahead + 0.5) * FLOCK.slotSeconds - at
+        const reach = FLOCK.turnsSlew * until
+        const then = flownTurns + Math.min(reach, Math.max(-reach, turns - flownTurns))
+        return 1 + Math.round(6 * wheelAmount(slot + ahead, then))
+      })
+    // The knob has just gone from 0 to 1: this slot is still calm, the ones to come fill in.
+    expect(marks(1, 0, at)).toEqual(said(1, 0))
+    expect(marks(1, 0, at)[0]).toBe(1)
+    expect(marks(1, 0, at)[7]).toBe(7)
+    expect(marks(0, 1, at)).toEqual(said(0, 1))
+    // Arrived, it is the knob's own.
+    expect(marks(0.4, 0.4, at)).toEqual(
+      Array.from({ length: 8 }, (_, ahead) => 1 + Math.round(6 * wheelAmount(slot + ahead, 0.4))),
+    )
+  })
+
+  it('no preset bends the pitch by half a semitone unless its name says so', () => {
+    const presets: Readonly<Record<string, Values>> = MURMURATION_DESCRIPTOR.presets ?? {}
+    expect(Object.keys(presets).length).toBe(16)
+    const step = 0.02
+    const h = 1e-3
+    const bends: Record<string, number> = {}
+    for (const [name, preset] of Object.entries(presets)) {
+      const range = valueOf(preset, 'range')
+      const together = valueOf(preset, 'together')
+      const turns = valueOf(preset, 'turns')
+      const birds = Math.round(valueOf(preset, 'birds'))
+      // The fastest any bird of the preset comes or goes over the whole flight, in depth a second of flight.
+      let fastest = 0
+      for (let at = 0; at < FLOCK.period; at += step) {
+        const before = flockFlight(at - h, together, turns)
+        const after = flockFlight(at + h, together, turns)
+        for (let bird = 0; bird < birds; bird++) {
+          const moved = flockPlace(bird, at + h, after).u - flockPlace(bird, at - h, before).u
+          fastest = Math.max(fastest, Math.abs(moved) / (2 * h))
+        }
+      }
+      expect(fastest, `${name}: within the bound flock.h states`).toBeLessThanOrEqual(
+        FLOCK.maxDepthRate,
+      )
+      // Its speed towards the listener over the speed of sound is the bend.
+      const speed = range * (1 - FLOCK.nearShare) * fastest * flightRate(valueOf(preset, 'speed'), range)
+      bends[name] = 1200 * Math.log2(1 + speed / FLOCK.soundSpeed)
+    }
+    for (const [name, cents] of Object.entries(bends)) {
+      if (name === 'Seasick') expect(cents, name).toBeGreaterThan(100)
+      else expect(cents, `${name} bends by ${cents.toFixed(1)} cents`).toBeLessThan(50)
+    }
+    expect(bends['Evening flock'], 'the defaults').toBeLessThan(20)
   })
 })

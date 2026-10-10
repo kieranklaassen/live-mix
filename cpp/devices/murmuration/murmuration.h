@@ -118,9 +118,10 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
   // The readings named by "meters" in device.json, for the display. 0: the
   // flight time of the last sample put out, in seconds, wrapped at
   // flock::kPeriod; every bird's place is flock::place at this time. 1: the
-  // Turns the flight is flown with, which follows the control slowly.
+  // Turns the flight is flown with, which follows the control slowly; at
+  // rest it is the control itself, which is what sound will wake to.
   float meter(int index) const {
-    if (index == 1) return now_.turns;
+    if (index == 1) return silent_ >= rest_samples_ ? param(murmuration::kTurns) : now_.turns;
     if (index != 0) return 0.0f;
     // A whole control period done leaves the clock at nought again.
     const int done = phase_ == 0 ? kControlPeriod : phase_;

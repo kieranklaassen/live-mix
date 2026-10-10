@@ -7,10 +7,20 @@
 // delay of a bird at that edge.
 //
 // Where a bird is comes from `cpp/devices/murmuration/flock.h`, copied here
-// formula for formula, and the one thing only the device knows, how long the
-// flock has been flying, from its `flight` reading. Nothing is an impression:
-// a dot is a bird's own delay and side, its size how near it is, its strength
-// how loud Air leaves it, and its trail the last half second of its flight.
+// formula for formula, and the two things only the device knows, how long the
+// flock has been flying and the Turns it is flown with (which follows the
+// control slowly), from its `flight` and `turns` readings. Nothing is an
+// impression: a dot is a bird's own delay and side, its size how near it is,
+// its strength how loud Air and the flock's ceiling leave it, and its trail
+// the last half second of its flight.
+//
+// One thing is drawn larger than life, and says so. A flock that holds
+// together is a few pixels across, and its birds cannot be told apart: so
+// the birds are drawn further from the flock's middle than they are, by a
+// factor that depends on Together alone (`flockLens`) and is written on the
+// display ("flock ×2.3"). The middle of the flock is where it is, and the
+// dashed patch, filled in darker, is the sky the flock really fills. A
+// scattered flock (Together 0) is drawn as it is.
 
 import { INK, clamp, dot, ground, handle, label, lerp, rule } from '../display-kit'
 import {
@@ -59,6 +69,10 @@ export const FLOCK = {
   maxRadialSpeed: 171.5,
   /** kLevelRatio: a bird this many times the nearest distance away is as loud as the voice. */
   levelRatio: 4,
+  /** kCeilingPower: the flock as a whole is held to this many times the voice's power. */
+  ceilingPower: 2,
+  /** kTurnsSlew: the most the flown Turns changes per second of flight. */
+  turnsSlew: 0.03,
 } as const
 
 const TWO_PI = Math.PI * 2
@@ -196,6 +210,32 @@ export function birdLoudness(u: number, air: number): number {
   return Math.pow((1 + (1 / FLOCK.nearShare - 1) * u) / FLOCK.levelRatio, -air)
 }
 
+/** `ceiling`: what every bird is scaled by so the flock stays under kCeilingPower; `power` is the birds' mean square loudness. */
+export function flockCeiling(power: number): number {
+  const over = power / FLOCK.ceilingPower
+  return Math.pow(1 + over * over * over * over, -1 / 8)
+}
+
+/**
+ * The gain the device gives each of `count` birds at depths `depths`, before
+ * the 1 / sqrt(count) that keeps the flock's level: its loudness by Air under
+ * the ceiling on the whole flock (`voices_at` in murmuration.h).
+ */
+export function birdGains(depths: readonly number[], air: number): number[] {
+  const loud = depths.map((u) => birdLoudness(u, air))
+  const power = loud.reduce((sum, value) => sum + value * value, 0) / Math.max(1, loud.length)
+  const held = flockCeiling(power)
+  return loud.map((value) => value * held)
+}
+
+/** The most `birdGains` can give one of `count` birds: it at the nearest place and the others at the farthest. */
+export function mostGain(count: number, air: number): number {
+  const near = birdLoudness(0, air)
+  const far = birdLoudness(1, air)
+  const others = Math.max(1, count) - 1
+  return near * flockCeiling((near * near + others * far * far) / (others + 1))
+}
+
 // --- The sky ----------------------------------------------------------------
 
 /** Where the far edge stands at the least Range, as a share of the sky's radius; at the most it is the rim. */
@@ -214,11 +254,18 @@ const SLACK_SEC = 0.25
 
 /** How much taller than it is wide the sky may be drawn, where the display is narrow: depth is what is heard as time. */
 const DEEPEST = 1.5
+/** How much wider than it is deep each half of the sky may be drawn, where the display is low. */
+const WIDEST = 3
+/** How much of a flock's smallness the drawing makes up for: `flockLens` is its size to minus this power. */
+const LENS_POWER = 0.7
+/** The most the flock is drawn larger than life. */
+const LENS_MOST = 6
 
 /**
  * The sky as it lies on the display: the listener, and how far the far edge
  * reaches at the most Range, to the sides and straight ahead. Where the
- * display is narrower than it is high the sky is drawn deeper than wide.
+ * display is narrower than it is high the sky is drawn deeper than wide, and
+ * where it is low, wider than deep.
  */
 export interface Sky {
   cx: number
@@ -230,9 +277,47 @@ export interface Sky {
 export function skyOf(view: Pick<DisplayView, 'width' | 'height'>): Sky {
   const cy = view.height - 8
   const high = Math.max(8, cy - 8)
-  const rx = Math.max(8, Math.min(view.width / 2 - 8, high))
+  const rx = Math.max(8, Math.min(view.width / 2 - 8, WIDEST * high))
   return { cx: view.width / 2, cy, rx, ry: Math.min(high, DEEPEST * rx) }
 }
+
+/**
+ * How many times further from the flock's middle the birds are drawn than
+ * they are: 1 for a flock that fills the range, more the tighter Together
+ * holds it, so that a flock a tenth the size is still drawn half the size.
+ * It depends on the control alone: a wheel that bunches the flock up is seen
+ * to bunch it.
+ */
+export function flockLens(together: number): number {
+  return clamp(Math.pow(flockSize(together), -LENS_POWER), 1, LENS_MOST)
+}
+
+/** The middle of the flock in the range: where `flockPlace` puts a bird that is at the formation's own middle. */
+export function flockMiddle(flight: FlockFlight): { u: number; v: number } {
+  return { u: flight.u * (1 - flight.size) + 0.5 * flight.size, v: flight.v * (1 - flight.size) }
+}
+
+/** How far past the ends of the range a bird may be drawn, as a share of it, so that it stays on the display. */
+const LENS_OVER = 0.05
+
+/**
+ * A bird's place as it is drawn: `lens` times as far from the flock's middle
+ * as it is. Near an end of the range that can reach a little past it.
+ */
+export function lensedPlace(
+  place: FlockPlace,
+  flight: FlockFlight,
+  lens: number,
+): { u: number; v: number } {
+  const middle = flockMiddle(flight)
+  return {
+    u: clamp(middle.u + lens * (place.u - middle.u), -LENS_OVER, 1 + LENS_OVER),
+    v: middle.v + lens * (place.v - middle.v),
+  }
+}
+
+/** The lens as it is written on the display: "flock ×2.3". */
+export const lensText = (lens: number): string => `flock ×${lens.toFixed(1)}`
 
 /** How far out the far edge is drawn, as a share of the sky: equal steps for equal ratios of Range. */
 export function edgeShare(range: number, least: number, most: number): number {
@@ -389,7 +474,7 @@ const murmuration = plateDisplay<MurmurationState>({
   columns: 2,
   params: ['birds', 'range', 'speed', 'together', 'turns', 'air', 'spread', 'mix'],
   live: { meters: true },
-  info: 'The flock from above: you are the dot at the foot, each bird a copy of the sound, as far out as it is late, bigger when near, fainter where Air quietens it. The figure is the delay at the far edge, the marks the wheels to come. The ring on the edge sets Range and Spread, the other Together.',
+  info: 'The flock from above: you are the dot at the foot, each bird a copy of the sound, as far out as it is late. A tight flock is drawn larger than life, by the factor shown. The figure is the delay at the far edge, the marks the wheels to come. One ring sets Range and Spread, the other Together.',
   init: () => ({ tau: null, reading: 0, stood: 0 }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -399,9 +484,12 @@ const murmuration = plateDisplay<MurmurationState>({
     const range = frame.value('range')
     const spread = frame.value('spread')
     const together = frame.value('together')
-    const turns = frame.value('turns')
+    // The Turns the device is flying with: its reading while it runs, the control where there is none.
+    const asked = frame.value('turns')
+    const turns = frame.powered && frame.hasMeter('turns') ? clamp(frame.meter('turns'), 0, 1) : asked
     const air = frame.value('air')
     const birds = clamp(Math.round(frame.value('birds')), 1, FLOCK.birds)
+    const lens = flockLens(together)
     const rate = flightRate(frame.value('speed'), range)
     const heard = heardOf(frame.value('mix'))
     const edge = edgeShare(range, least, most)
@@ -435,7 +523,9 @@ const murmuration = plateDisplay<MurmurationState>({
       alpha: INK.grid,
     })
 
-    // The flock now, and where it holds together: the patch of sky it fills.
+    // The flock now, and where it holds together: the patch of sky it fills, as it is.
+    // Where the birds are drawn further apart than they are, the patch is filled in, so
+    // the birds outside it are seen against the sky the flock really takes.
     const flight = flockFlight(tau, together, turns)
     const lowU = flight.u * (1 - flight.size)
     const midV = flight.v * (1 - flight.size)
@@ -447,6 +537,11 @@ const murmuration = plateDisplay<MurmurationState>({
     ctx.ellipse(sky.cx, sky.cy, sky.rx * outer, sky.ry * outer, 0, lowTurn, highTurn)
     ctx.ellipse(sky.cx, sky.cy, sky.rx * inner, sky.ry * inner, 0, highTurn, lowTurn, true)
     ctx.closePath()
+    if (lens > 1) {
+      ctx.globalAlpha = INK.ground
+      ctx.fillStyle = colours.ink
+      ctx.fill()
+    }
     ctx.globalAlpha = INK.back
     ctx.strokeStyle = colours.ink
     ctx.lineWidth = 1
@@ -468,7 +563,11 @@ const murmuration = plateDisplay<MurmurationState>({
     ctx.beginPath()
     for (let bird = 0; bird < birds; bird++) {
       for (let back = TRAIL_STEPS; back >= 0; back--) {
-        const place = flockPlace(bird, tau - back * step, flights[back])
+        const place = lensedPlace(
+          flockPlace(bird, tau - back * step, flights[back]),
+          flights[back],
+          lens,
+        )
         const [x, y] = skyPoint(sky, edge, place.u, place.v * spread)
         if (back === TRAIL_STEPS) ctx.moveTo(x, y)
         else ctx.lineTo(x, y)
@@ -476,14 +575,22 @@ const murmuration = plateDisplay<MurmurationState>({
     }
     ctx.stroke()
     ctx.globalAlpha = 1
-    // The farthest first, so a near bird lies over a far one.
-    const loudest = birdLoudness(0, air)
+    // The farthest first, so a near bird lies over a far one. A bird is as strong as the
+    // device plays it: its loudness by Air under the flock's ceiling, against the most that can be.
+    const places: FlockPlace[] = []
+    for (let bird = 0; bird < birds; bird++) places.push(flockPlace(bird, tau, flight))
+    const gains = birdGains(
+      places.map((place) => place.u),
+      air,
+    )
+    const fullest = mostGain(birds, air)
     for (let pass = 0; pass < 2; pass++) {
       for (let bird = 0; bird < birds; bird++) {
-        const place = flockPlace(bird, tau, flight)
+        const place = places[bird]
         if (place.u > 0.5 !== (pass === 0)) continue
-        const [x, y] = skyPoint(sky, edge, place.u, place.v * spread)
-        const strength = lerp(0.45, 1, birdLoudness(place.u, air) / loudest)
+        const drawn = lensedPlace(place, flight, lens)
+        const [x, y] = skyPoint(sky, edge, drawn.u, drawn.v * spread)
+        const strength = lerp(0.45, 1, clamp(gains[bird] / fullest, 0, 1))
         const size = lerp(3, 1.3, place.u)
         if (heard > 0.02) {
           dot(ctx, x, y, size, colours.accent, { alpha: strength * lerp(0.5, 1, heard) })
@@ -498,12 +605,17 @@ const murmuration = plateDisplay<MurmurationState>({
     dot(ctx, sky.cx, sky.cy, 2, colours.ink)
 
     if (sky.rx >= 40) {
-      // The delay at the far edge, and the wheels to come: this slot first, a tall mark a whole wheel.
+      // The delay at the far edge, how much larger than life the flock is drawn, and the
+      // wheels to come: this slot first, a tall mark a whole wheel. The flight follows the
+      // control at kTurnsSlew, so a slot to come is marked with the Turns it will be flown with.
       label(frame, delayText(range / FLOCK.soundSpeed), 5, 12)
+      if (lens > 1) label(frame, lensText(lens), 5, 23)
       const slot = Math.floor(tau / FLOCK.slotSeconds)
       const right = frame.width - 5
       for (let ahead = 0; ahead < WHEELS_AHEAD; ahead++) {
-        const amount = wheelAmount(slot + ahead, turns)
+        const until = ahead === 0 ? 0 : (slot + ahead + 0.5) * FLOCK.slotSeconds - tau
+        const reach = FLOCK.turnsSlew * until
+        const amount = wheelAmount(slot + ahead, turns + clamp(asked - turns, -reach, reach))
         const x = right - (WHEELS_AHEAD - 1 - ahead) * 3 - 1
         const tall = 1 + Math.round(6 * amount)
         const now = ahead === 0 && flight.wheel > 0 && heard > 0.02

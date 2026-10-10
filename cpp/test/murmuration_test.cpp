@@ -1231,6 +1231,7 @@ static void test_steps() {
   EXPECT_NEAR(device.meter(1), flown, 0.002, "Turns is followed at kTurnsSlew per second of flight");
   render(device, 1.0f, kRate);
   device.set_param(p::kTurns, 0.0f);
+  EXPECT_NEAR(device.meter(1), 0.0, 1.0e-6, "at rest the second meter reads the control");
   run(device, noise(0.01f, kRate, 0.3f));
   EXPECT_NEAR(device.meter(1), 0.0, 1.0e-6, "a Turns set at rest is there when sound returns");
 }
