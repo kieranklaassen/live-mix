@@ -55,12 +55,12 @@
 //   came from adds to a held note or takes from it, by pitch and (since the
 //   room drifts) by the moment: measured, a held sine went from -6 to +3 dB
 //   at the defaults and from -16 to +12 dB in the long seasons. So while the
-//   direct sound is there the room is held to a share of its level (a fifth
-//   at the defaults, three tenths with Space and Depth full up), which
-//   bounds what it can add or take; when the sound stops the room is let
-//   through whole within a few hundredths of a second, so a tail is as loud
-//   and as long as it was. Both levels are read as the highest sample in the
-//   last 16 ms, on the sample clock.
+//   direct sound is there the room is held to a share of its level (a sixth
+//   at the defaults, a quarter with Space and Depth full up), which bounds
+//   what it can add or take (about 2 dB either way at the most); when the
+//   sound stops the room is let through whole within a few hundredths of a
+//   second, so a tail is as loud and as long as it was. Both levels are read
+//   as the highest sample in the last 16 ms, on the sample clock.
 // - When Space or Depth is at nothing the room is not heard, so it is not
 //   run: it is emptied once and costs nothing, and the device rests as soon
 //   as the direct sound has gone.
@@ -124,7 +124,7 @@ constexpr float kGlitter[kSeasons] = {0.8f, 0.0f, 0.0f, 1.0f};
 constexpr float kWarmth[kSeasons] = {0.0f, 1.0f, 0.45f, 0.0f};
 constexpr float kWidth[kSeasons] = {1.0f, 1.5f, 0.9f, 0.45f};
 // What holds the loudness round the year (dB at Depth 1), found by measuring.
-constexpr float kTrimDb[kSeasons] = {-1.35f, -2.8f, 1.45f, 3.6f};
+constexpr float kTrimDb[kSeasons] = {-1.2f, -2.8f, 1.45f, 3.25f};
 
 constexpr float kShimmerHz = 5.3f;
 constexpr float kSwayHz = 0.19f;
@@ -232,6 +232,8 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     stand_fresh();
     room_on_ = false;
     room_wanted_ = false;
+    opening_ = 1.0f;
+    opening_step_ = 1.0f / (kOpeningSeconds * sr);
     count_ = 0;
     turn_from_ = 0;
     turn_base_ = 0.0;
@@ -439,12 +441,13 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   // The room stands back while the sound holds: it is held to this share of
   // the direct sound's level (times the square root of Space and Depth), and
   // let through whole where it stands over `kRoomTakeOver` times the sound.
-  static constexpr float kRoomShare = 0.3f;
+  static constexpr float kRoomShare = 0.25f;
   static constexpr float kRoomTakeOver = 2.5f;
   static constexpr float kRoomWindowSeconds = 0.016f;
   static constexpr float kRoomFallSeconds = 0.008f;
   static constexpr float kRoomRiseSeconds = 0.03f;
   static constexpr int kMaxTops = 64;
+  static constexpr float kOpeningSeconds = 0.02f;
   // Tails: every season's decay times 0.4 at the bottom, 1 in the middle, 2.5 at the top.
   static constexpr float kTailLeast = 0.4f;
   static constexpr float kTailSpan = 6.25f;
@@ -590,9 +593,13 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   float run_room(const float* r, const float* feed, float* room) {
     float early[2], fed_room[2];
     float travelling = 0.0f;
+    // A room that has just been opened is let fill over a fiftieth of a
+    // second: the sound it meets is in mid-wave, and would go in as a step.
+    const float opening = opening_;
+    if (opening_ < 1.0f) opening_ = kit::min(1.0f, opening_ + opening_step_);
     for (int c = 0; c < 2; ++c) {
       const float moved = vib_[c].read_hermite(r[kVibLeft + c]);
-      vib_[c].write(feed_cut_[c].highpass(feed[c]));
+      vib_[c].write(feed_cut_[c].highpass(opening * feed[c]));
       float sum = 0.0f;
       for (int k = 0; k < kEarlyTaps; ++k) sum += kTapGain[k] * early_[c].read(tap_[c][k]);
       early[c] = sum;
@@ -845,6 +852,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     }
     room_wanted_ = room_heard(next_);
     room_on_ = heard_now || room_wanted_;
+    opening_ = 1.0f;
     stand_fresh();
     shift_phase_ = 0.0f;
     for (Texture& texture : texture_) texture = Texture();
@@ -864,6 +872,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     // The room is run while any of it is heard, now or over the next ramp.
     const bool wanted = room_heard(next_);
     if (wanted) {
+      if (!room_on_) opening_ = 0.0f;
       room_on_ = true;
     } else if (!room_wanted_ && room_on_) {
       room_on_ = false;
@@ -1002,6 +1011,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   float room_share_ = 0.0f;
   // Whether the room is run: when any of it is heard now or a moment on.
   bool room_on_ = false, room_wanted_ = false;
+  float opening_ = 1.0f, opening_step_ = 0.0f;  // what feeds a room just opened, 0..1
 
   // The clock: samples since init, asleep or not, and the year's own turning.
   int64_t count_ = 0;

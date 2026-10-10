@@ -238,6 +238,32 @@ static Stereo pad(float seconds, float gain) {
   return out;
 }
 
+// A low held chord (C3 to B4, harmonics falling as 1/k²), the two sides
+// differing: nearly all of it lies under winter's body cut, where a trim
+// found on keys alone lets it sink.
+static Stereo low_pad(float seconds, float gain) {
+  Stereo out;
+  const size_t n = static_cast<size_t>(seconds * kRate);
+  out.left.assign(n, 0.0f);
+  out.right.assign(n, 0.0f);
+  const double notes[5] = {130.81, 196.0, 261.63, 329.63, 493.88};
+  for (size_t i = 0; i < n; ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    double left = 0.0, right = 0.0;
+    for (int k = 0; k < 5; ++k) {
+      for (int h = 1; h <= 5; ++h) {
+        const double turn = 2.0 * kPi * notes[k] * h * t;
+        left += std::sin(turn + 0.3 * k) / (h * h);
+        right += std::sin(turn + 0.9 * k + 0.4) / (h * h);
+      }
+    }
+    const double envelope = std::min(1.0, t / 0.3) * gain * 0.2;
+    out.left[i] = static_cast<float>(envelope * left);
+    out.right[i] = static_cast<float>(envelope * right);
+  }
+  return out;
+}
+
 // Four held sines (A2, E3, A3, C#4) peaking near `gain`.
 static std::vector<float> chord(float seconds, float gain) {
   const float hz[4] = {110.0f, 164.81f, 220.0f, 277.18f};
@@ -488,7 +514,7 @@ int main(int argc, char**) {
 
   // Movement and texture, each with its own knob full up and the other at
   // nothing, the room out of the way.
-  double shimmer[4], sway[4], tumble[4], stir[4], dips[4], sparks[4], spark_top[4], warm[4];
+  double shimmer[4], sway[4], tumble[4], stir[4], dips[4], drops[4], sparks[4], spark_top[4], warm[4];
   for (int s = 0; s < 4; ++s) {
     const float year = 0.25f * static_cast<float>(s);
     const auto with = [&](float motion, float grit) {
@@ -528,6 +554,25 @@ int main(int argc, char**) {
       under = now;
     }
     dips[s] = count / 7.0;
+    // The dropouts by themselves: the same level in 10 ms windows, which the
+    // grain's 2 ms cells average out of, falling under half of where it
+    // mostly stands and coming back over three quarters of it. Each is
+    // meant to be heard on its own.
+    const std::vector<float> coarse = windows(broken.left, second, 480);
+    sorted = coarse;
+    std::sort(sorted.begin(), sorted.end());
+    const float standing = sorted[sorted.size() * 9 / 10];
+    count = 0;
+    under = false;
+    for (float v : coarse) {
+      if (!under && v < 0.5f * standing) {
+        ++count;
+        under = true;
+      } else if (under && v > 0.75f * standing) {
+        under = false;
+      }
+    }
+    drops[s] = count / 7.0;
     // Glitter: bursts of the octave, the twelfth and the double octave over a
     // 500 Hz tone, in 20 ms windows.
     with(0.0f, 1.0f);
@@ -550,10 +595,10 @@ int main(int argc, char**) {
     const Stereo pressed = run(device, sine(220.0f, 3.0f, kRate, 0.25f));
     warm[s] = db(tone_level(pressed.left, 660.0, kRate, second) / tone_level(pressed.left, 220.0, kRate, second));
     if (g_print) {
-      std::printf("%s: shimmer %.3f, sway %.3f, tumble %.3f, stir %.3f; %.1f dips a second, %.1f sparks a "
-                  "second (loudest %.3f), third harmonic %.1f dB\n",
-                  kSeasonName[s], shimmer[s], sway[s], tumble[s], stir[s], dips[s], sparks[s], spark_top[s],
-                  warm[s]);
+      std::printf("%s: shimmer %.3f, sway %.3f, tumble %.3f, stir %.3f; %.1f dips a second (%.1f of them "
+                  "dropouts), %.1f sparks a second (loudest %.3f), third harmonic %.1f dB\n",
+                  kSeasonName[s], shimmer[s], sway[s], tumble[s], stir[s], dips[s], drops[s], sparks[s],
+                  spark_top[s], warm[s]);
     }
   }
   EXPECT(shimmer[0] > 0.25 && shimmer[1] < 0.08 && shimmer[2] < 0.01 && shimmer[3] < 0.01,
@@ -568,7 +613,10 @@ int main(int argc, char**) {
          "autumn's top end crumbles and no other season's does");
   EXPECT(sparks[3] > 3.0 && sparks[0] > 2.0 && sparks[1] < 0.5 && sparks[2] < 0.5,
          "winter and spring glitter");
-  EXPECT(spark_top[3] > 1.6 * spark_top[0], "winter's sparks are louder than spring's");
+  EXPECT(drops[2] > 3.0 && drops[2] < 7.0 && drops[0] == 0.0 && drops[1] == 0.0 && drops[3] == 0.0,
+         "autumn's dropouts are a few a second, each on its own, over the grain");
+  EXPECT(spark_top[3] > 1.1 * spark_top[0] && spark_top[0] > 0.5 * spark_top[3],
+         "winter's sparks are the louder, and spring's are at least half of them");
   EXPECT(warm[1] > -28.0 && warm[1] > warm[2] + 3.0 && warm[2] > -36.0 && warm[3] < -37.0 && warm[0] < -37.0,
          "summer is warmed most, autumn a little, winter and spring not");
 
@@ -650,10 +698,15 @@ int main(int argc, char**) {
   }
 
   // --- loudness holds round the year ------------------------------------------------------
-  // Sixteen places, on a played phrase and on a held pad (LU against the
-  // input). Noise is printed too: a tilt cannot hold the loudness of every
-  // spectrum, and noise is where the tilt weighs most.
+  // Sixteen places, on a played phrase, a held pad, a low held chord and
+  // pink noise (LU against the input). A tilt cannot hold the loudness of
+  // every spectrum: the trims are set so that each of these stays within the
+  // same reach, and none is let go to keep another (trimmed on the keys
+  // alone, the low chord sank 3.7 LU in winter and the noise 4.0 in autumn).
   {
+    const Stereo low_in = low_pad(6.0f, 0.3f);
+    const double low_lufs = loudness(low_in, second);
+    double low_low = 99, low_high = -99;
     Stereo phrase_in;
     phrase_in.left = phrase;
     phrase_in.right = phrase;
@@ -674,15 +727,20 @@ int main(int argc, char**) {
       pad_high = std::max(pad_high, on_pad);
       noise_low = std::min(noise_low, on_noise);
       noise_high = std::max(noise_high, on_noise);
+      still(device, year);
+      const double on_low = loudness(run(device, low_in.left, low_in.right), second) - low_lufs;
+      low_low = std::min(low_low, on_low);
+      low_high = std::max(low_high, on_low);
     }
     if (g_print) {
-      std::printf("round the year at Depth 1: keys %+.2f to %+.2f LU, pad %+.2f to %+.2f LU, noise %+.2f to "
-                  "%+.2f LU\n",
-                  keys_low, keys_high, pad_low, pad_high, noise_low, noise_high);
+      std::printf("round the year at Depth 1: keys %+.2f to %+.2f LU, pad %+.2f to %+.2f LU, low chord %+.2f to "
+                  "%+.2f LU, noise %+.2f to %+.2f LU\n",
+                  keys_low, keys_high, pad_low, pad_high, low_low, low_high, noise_low, noise_high);
     }
-    EXPECT(keys_low > -1.5 && keys_high < 1.5, "a played phrase keeps its loudness round the year");
-    EXPECT(pad_low > -1.5 && pad_high < 1.5, "a held pad keeps its loudness round the year");
-    EXPECT(noise_low > -4.5 && noise_high < 3.5, "noise stays within the tilt's reach");
+    EXPECT(keys_low > -2.2 && keys_high < 2.5, "a played phrase keeps its loudness round the year");
+    EXPECT(pad_low > -2.2 && pad_high < 2.2, "a held pad keeps its loudness round the year");
+    EXPECT(low_low > -2.9 && low_high < 2.5, "a low held chord is not let sink in winter");
+    EXPECT(noise_low > -2.9 && noise_high < 2.9, "pink noise is not let sink in autumn");
   }
 
   // --- the year turns by the clock --------------------------------------------------------
@@ -761,6 +819,22 @@ int main(int argc, char**) {
     device.set_param(p::kTurning, 20.0f);
     run(device, std::vector<float>(static_cast<size_t>(2.0f * kRate), 0.01f));
     EXPECT_NEAR(device.meter(0), stopped + 0.1f, 2.0e-3, "a new Turning time carries on from where the year is");
+    // The reading stays inside the dial: a year an instant short of its end
+    // (0.99999999, whose nearest float is 1) reads as the start, the same day.
+    device.init(kRate);
+    device.set_param(p::kTurning, 20.0f);
+    const std::vector<float> four_seconds(static_cast<size_t>(4.0f * kRate), 0.01f);
+    run(device, four_seconds);
+    device.set_param(p::kYear, 0.7f);
+    run(device, four_seconds);
+    device.set_param(p::kTurning, 40.0f);
+    bool inside = true;
+    for (int block = 0; block < 1500; ++block) {  // through the join, block by block
+      run(device, std::vector<float>(128, 0.01f));
+      const float read = device.meter(0);
+      inside = inside && read >= 0.0f && read < 1.0f;
+    }
+    EXPECT(inside, "the year's reading never leaves 0 to 1 as it passes the join");
   }
 
   // --- nothing clicks ---------------------------------------------------------------------
@@ -780,6 +854,9 @@ int main(int argc, char**) {
         {"Depth to nothing", p::kDepth, 1.0f, 0.0f, 0.25f},
         {"Space to nothing", p::kSpace, 1.0f, 0.0f, 0.75f},
         {"Space full up", p::kSpace, 0.0f, 1.0f, 0.25f},
+        {"Space from nothing in autumn", p::kSpace, 0.0f, 1.0f, 0.5f},
+        {"Depth from nothing in autumn", p::kDepth, 0.0f, 1.0f, 0.5f},
+        {"Depth from nothing in winter", p::kDepth, 0.0f, 1.0f, 0.75f},
         {"Motion to nothing", p::kMotion, 1.0f, 0.0f, 0.0f},
         {"Grit to nothing in autumn", p::kGrit, 1.0f, 0.0f, 0.5f},
         {"Grit full up in summer", p::kGrit, 0.0f, 1.0f, 0.25f},
@@ -1143,6 +1220,78 @@ int main(int argc, char**) {
     }
   }
 
+  // --- a room that is not heard is not run -------------------------------------------------
+  // With Space at nothing (or Depth) the room cannot be heard, so it is not
+  // kept ringing: the device rests two seconds after the sound, whatever the
+  // season's tail, and when Space comes back the room starts empty.
+  {
+    rng_state() = 0x91u;
+    const std::vector<float> burst = noise(1.0f, kRate, 0.3f);
+    for (int which = 0; which < 2; ++which) {
+      still(device, 0.75f);  // winter, the longest room
+      device.set_param(p::kTail, 1.0f);
+      device.set_param(which == 0 ? p::kSpace : p::kDepth, 0.0f);
+      run(device, burst);
+      const Stereo rest = render(device, 2.5f, kRate);
+      EXPECT(device.asleep() && peak(rest.left, rest.size() - 4800) == 0.0,
+             which == 0 ? "with Space at nothing the device rests as soon as the sound has gone"
+                        : "with Depth at nothing the device rests as soon as the sound has gone");
+    }
+    // Space back up after the sound has gone: nothing of the burst is left
+    // to hear (Grit at nothing, or the sparks would still be playing it).
+    still(device, 0.75f);
+    device.set_param(p::kTail, 1.0f);
+    device.set_param(p::kGrit, 0.0f);
+    device.set_param(p::kSpace, 0.0f);
+    run(device, burst);
+    run(device, std::vector<float>(480, 0.0f));
+    device.set_param(p::kSpace, 1.0f);
+    const Stereo opened = render(device, 1.0f, kRate);
+    EXPECT(std::max(peak(opened.left), peak(opened.right)) < 1.0e-6,
+           "a room that was not heard starts empty when Space comes back");
+  }
+
+  // --- the room stands back while the sound holds, and comes back whole ----------------------
+  // A chord held through summer and through winter at Space 1 (A5, C#6, E6:
+  // above winter's body cut, where its room is long), then stopped dead.
+  // While it holds, the room is at most a quarter of it, so the chord's
+  // level is its own; a fifth of a second after it stops the room is there
+  // whole (within 12 dB under the chord), and it rings on at its own length
+  // (two seconds later summer's 3 s room is some 35 dB further down,
+  // winter's long one some 15).
+  {
+    for (int s : {1, 3}) {
+      still(device, 0.25f * static_cast<float>(s));
+      device.set_param(p::kSpace, 1.0f);
+      std::vector<float> held(4 * second, 0.0f);
+      for (float hz : {880.0f, 1108.73f, 1318.51f}) {
+        const std::vector<float> one = sine(hz, 4.0f, kRate, 0.15f);
+        for (size_t i = 0; i < held.size(); ++i) held[i] += one[i];
+      }
+      for (size_t i = held.size() - 144; i < held.size(); ++i) {
+        held[i] *= static_cast<float>(held.size() - i) / 144.0f;
+      }
+      const Stereo during = run(device, held);
+      const Stereo after = render(device, 3.0f, kRate);
+      still(device, 0.25f * static_cast<float>(s));
+      device.set_param(p::kSpace, 0.0f);
+      const Stereo bare = run(device, held);
+      const double held_level = level(bare, 2 * second);
+      const double with_room = db(level(during, 2 * second) / held_level);
+      const double tail_soon = db(level(after, 7200, 12000) / held_level);
+      const double tail_later = db(level(after, 2 * second, 2 * second + 4800) / held_level);
+      if (g_print) {
+        std::printf("%s, a chord held and stopped: with the room %+.2f dB against without; the room 0.2 s after "
+                    "it stops %.1f dB under the chord, 2 s after %.1f dB\n",
+                    kSeasonName[s], with_room, tail_soon, tail_later);
+      }
+      EXPECT(std::fabs(with_room) < 1.0, "the room does not move the level of a held chord");
+      EXPECT(tail_soon > -12.0 && tail_soon < -1.0, "the room is there whole a fifth of a second after the chord stops");
+      EXPECT(tail_later > tail_soon - (s == 1 ? 45.0 : 24.0) && tail_later < tail_soon - (s == 1 ? 20.0 : 6.0),
+             "and rings on at the season's own length");
+    }
+  }
+
   // --- level: held sound never piles up ---------------------------------------------------
   // A full-scale chord held for a minute through every preset, and at each
   // end of every control with the room, the movement and the texture full
@@ -1152,8 +1301,12 @@ int main(int argc, char**) {
   EXPECT(presets.size() == 16, "the manifest has sixteen presets");
   EXPECT(!presets.empty() && presets[0].values.empty(), "the first preset is the effect as it starts");
   {
-    const std::vector<float> held = chord(60.0f, 1.0f);
-    const double in_rms = rms(held);
+    // A minute where a quick year needs whole years to compare; half a
+    // minute elsewhere, which is one and a half times the longest ring
+    // there is (winter with Tails full up, 20 s) and two of the hold's own.
+    const std::vector<float> minute = chord(60.0f, 1.0f);
+    const std::vector<float> half_minute(minute.begin(), minute.begin() + 30 * second);
+    const double in_rms = rms(minute);
     double worst_peak = 0.0, worst_growth = -99.0, loudest = -99.0;
     // `set` loads the settings. A turning year changes level with the season,
     // which is not growth: where it turns slowly "the start" is a year stood
@@ -1163,6 +1316,7 @@ int main(int argc, char**) {
     const auto hold = [&](const char* what, const std::function<void()>& set) {
       set();
       const float turn = device.param(p::kTurn), turning = device.param(p::kTurning);
+      const std::vector<float>& held = (turn > 0.5f && turning <= 25.0f) ? minute : half_minute;
       const Stereo out = run(device, held);
       const size_t n = out.size();
       const double top = std::max(peak(out.left), peak(out.right));
@@ -1214,7 +1368,7 @@ int main(int argc, char**) {
         });
       }
     }
-    if (g_print) std::printf("held chord over all: peak %.3f (input %.3f), loudest %+.2f dB, most growth %+.2f dB\n", worst_peak, peak(held), loudest, worst_growth);
+    if (g_print) std::printf("held chord over all: peak %.3f (input %.3f), loudest %+.2f dB, most growth %+.2f dB\n", worst_peak, peak(minute), loudest, worst_growth);
   }
 
   // Every preset on the played phrase sits within 3 LU of the phrase itself.
@@ -1235,13 +1389,17 @@ int main(int argc, char**) {
 
   // --- held notes over the piano range ----------------------------------------------------
   // A held tone on every semitone from E1 to E7 through the effect as it
-  // starts (the year turning), and on every sixth through each preset: its
-  // level against the input, over four seconds. The tone curve is meant; a
-  // note that drops out of its neighbours' company (a comb between the
-  // sound and its room, or between the dry and the wet at part-way Mix) is
-  // not. The slow drift of the room against the sound shows in the windows.
+  // starts, and on every sixth through each preset (the year stood still
+  // where the preset starts, so that the year's own change of tone is not
+  // counted): its level over four seconds, and in 200 ms windows about that.
+  // The tone curve is meant. A note that drops out of its neighbours'
+  // company (a comb between the sound and its room) is not, nor one that
+  // swells and fades as the room drifts against it: the room stands back
+  // while the sound holds, and that is what holds these. (Before it did, the
+  // windows ran from -4.6 to +3.2 dB as the effect starts and to -10.4 dB in
+  // the long seasons.)
   {
-    double deepest = 0.0, highest = 0.0, roughest = 0.0, low_window = 0.0, high_window = 0.0;
+    double low_window = 0.0, high_window = 0.0;
     const auto sweep = [&](const std::function<void()>& set, int every, const char* what) {
       std::vector<double> levels;
       double low = 99.0, high = -99.0, window_low = 99.0, window_high = -99.0;
@@ -1249,6 +1407,7 @@ int main(int argc, char**) {
         const float hz = 440.0f * std::pow(2.0f, (static_cast<float>(note) - 69.0f) / 12.0f);
         const std::vector<float> tone = sine(hz, 5.0f, kRate, 0.25f);
         set();
+        device.set_param(p::kTurn, 0.0f);
         const Stereo out = run(device, tone);
         const double here = db(level(out, second) / rms(tone));
         levels.push_back(here);
@@ -1269,23 +1428,18 @@ int main(int argc, char**) {
                     "%+.2f to %+.2f dB about the note's own level\n",
                     what, low, high, rough, window_low, window_high);
       }
-      deepest = std::min(deepest, low);
-      highest = std::max(highest, high);
       low_window = std::min(low_window, window_low);
       high_window = std::max(high_window, window_high);
       return rough;
     };
-    roughest = sweep([] { device.init(kRate); }, 1, "the effect as it starts");
-    EXPECT(roughest < 2.0, "no held note drops out of its neighbours' company at the default");
+    const double roughest = sweep([] { device.init(kRate); }, 1, "the effect as it starts");
+    EXPECT(roughest < 1.5, "no held note drops out of its neighbours' company at the default");
+    EXPECT(low_window > -2.0 && high_window < 1.8, "a held note does not swell or fade by more than 2 dB at the default");
     for (size_t k = 1; k < presets.size(); ++k) {
-      const double rough = sweep([&] { load(device, presets[k]); }, 6, presets[k].name.c_str());
-      roughest = std::max(roughest, rough);
+      sweep([&] { load(device, presets[k]); }, 6, presets[k].name.c_str());
     }
-    if (g_print) {
-      std::printf("held tones over all: %+.2f to %+.2f dB, 200 ms windows %+.2f to %+.2f dB\n", deepest, highest,
-                  low_window, high_window);
-    }
-    EXPECT(deepest > -9.0 && highest < 5.0, "no held note is lost or doubled by any preset");
+    if (g_print) std::printf("held tones over all: 200 ms windows %+.2f to %+.2f dB\n", low_window, high_window);
+    EXPECT(low_window > -3.0 && high_window < 2.5, "a held note does not swell or fade by more than 3 dB in any preset");
   }
 
   // --- every control does something over its whole range, on ordinary material -------------
@@ -1323,7 +1477,9 @@ int main(int argc, char**) {
           char label[120];
           std::snprintf(label, sizeof label, "%s does something in %s over its %s half (%.1f dB)", knob_names[k],
                         kSeasonName[s], half == 0 ? "lower" : "upper", far);
-          EXPECT(far > -40.0, label);
+          // -32 dB is the least that counts as doing something: Grit in
+          // spring stood at -33.9 before its sparks were brought up.
+          EXPECT(far > -32.0, label);
         }
       }
     }
