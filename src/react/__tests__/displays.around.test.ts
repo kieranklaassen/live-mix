@@ -630,7 +630,7 @@ describe('what the display of Around draws of the two ears', () => {
 })
 
 describe('the two points of the display of Around', () => {
-  const handlesAt = (values: Values, width = 128): DisplayHandle[] =>
+  const handlesAt = (values: Values, width = 128): readonly DisplayHandle[] =>
     around.handles?.(viewOf(around, AROUND_PARAMS, { values, width })) ?? []
 
   it('stands Radius on the path a quarter turn on, and Turn on the rim at the near point', () => {

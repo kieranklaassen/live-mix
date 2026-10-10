@@ -16,7 +16,7 @@ export const AROUND_PARAMS = {
     unit: '',
     choices: ['Circle', 'Figure of eight', 'Pendulum', 'Wander'],
     description:
-      'The way the sound travels. Circle goes all the way round, Figure of eight loops at each side through the middle, Pendulum swings across in front, Wander drifts with no pattern.',
+      'How the sound travels. Circle goes all the way round, Figure of eight loops at each side through the middle, Pendulum swings in front, Wander drifts on a long slow walk.',
   },
   rate: {
     id: 1,
