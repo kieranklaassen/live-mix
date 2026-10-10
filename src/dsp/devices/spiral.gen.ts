@@ -15,7 +15,7 @@ export const SPIRAL_PARAMS = {
     taper: 'linear',
     unit: 'oct/min',
     description:
-      'How fast the tail glides in pitch, in octaves a minute. Above the centre it climbs, below it sinks, and at the centre it holds still.',
+      'How fast the tail glides in pitch. Above the centre it climbs, below it sinks, and at the centre it comes to rest in tune with what is played.',
   },
   decay: {
     id: 1,
@@ -48,7 +48,7 @@ export const SPIRAL_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'How many octaves are stacked in the tail. Two is a narrow band around the played pitch, six reaches from deep below it to far above.',
+      'How many octaves are stacked in the tail. Two stays near the played pitch and lets each hand over to the next octave be heard, six reaches far below and above.',
   },
   spread: {
     id: 4,
@@ -130,7 +130,7 @@ export const SPIRAL_DESCRIPTOR = wasmDeviceDescriptor(SPIRAL_DEVICE, {
     'Slow ascent': {},
     'Slow descent': { climb: -3, decay: 9, tone: 4500 },
     'Held still': { climb: 0, decay: 6, voices: 3, spread: 1, blur: 0.6, mix: 0.35 },
-    'Vertigo hall': {
+    'Rising hall': {
       climb: 1.5,
       decay: 20,
       size: 0.9,

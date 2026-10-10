@@ -3,11 +3,11 @@
 // Spiral: a reverb whose tail climbs (or sinks) for as long as it rings and
 // never arrives. The endless staircase, made from whatever is played.
 //
-//   in ─► 4 allpasses ─┬─────────── early ───────────┐
-//                      ▼                              ▼
-//                     (+)─► 8 delay lines ─► mixes ──(+)──► six gliding voices
-//                      ▲                   │              an octave apart, each
-//                      └ damping ◄ decay ◄─┘              with its own two mixes
+//   in ─► 4 allpasses ─┬────────── early, turned over ──────────┐
+//                      ▼                                        ▼
+//                     (+)─► 8 delay lines ─► mix ─► decay ─┬──(+)──► six gliding
+//                      ▲                         damping   │         voices, an
+//                      └───────────────────────────────────┘         octave apart
 //
 //   voices ─► bell of level over pitch ─► 5 allpasses (Blur) ─► low-pass (Tone)
 //          ─► low cut ─► width ─► level hold ─► wet
@@ -18,15 +18,23 @@
 //   up to 13 dB within four seconds, measured with a wander of one part in a
 //   hundred), and here the level of each partial is what the bell is made
 //   of. What moves is the voices.
-// - What a voice is given is the early sound (the input after the four
-//   allpasses, at a fixed level) and the tank's share. The early sound is
-//   flat over pitch, so a held tone is in the tail at every pitch, whatever
-//   the tank's modes do there; the tank's share is scaled by (1 - g²)^0.3
-//   for a loop gain g, between leaving a long tail as loud as a short one
-//   (a held sound would pile up) and taking all of what the loop stores
-//   back (a single note would leave next to nothing), and it is evened:
-//   see `control`. Each voice and side reads its own mix of the eight
-//   lines.
+// - What the voices are given, all six the same, is the early sound (the
+//   input after the four allpasses, at a fixed level, turned over) and the
+//   tank heard where it is fed: each side's sound goes into four lines in
+//   one sense or the other, and what comes back round to those four, in the
+//   same senses, is what that side hears. The pair is an allpass's (the
+//   input reflected, the loop let through), and it is there for held tones.
+//   A tank that rings for long has modes far apart beside their width, and a
+//   tone between two of them is all but absent at any one tap, or cancels
+//   the early sound there: one note of the keyboard 20 dB under its
+//   neighbour. Heard where it is fed, a loop that loses nothing gives back
+//   the sound turned over plus a part a quarter turn from it, at every
+//   pitch, so the two sides together never hold less of a tone than the
+//   early sound and the tank's share added. A tone that sits on a mode
+//   holds more, and that is turned down: see `control`. The tank's share is
+//   scaled by (1 - g²)^0.3 for a loop gain g, between leaving a long tail as
+//   loud as a short one (a held sound would pile up) and taking all of what
+//   the loop stores back (a single note would leave next to nothing).
 // - The glide is one clock: a position P in octaves that moves at Climb
 //   octaves a minute and turns over every six. Voice v stands at
 //   u = (P + v) mod 6 and plays the tail at 2^(u - 3) times its pitch: six
@@ -112,7 +120,7 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     keep_ = 0.0f;
     take_ = 0.0f;
     unkept_ = 1.0f;
-    blur_.set_time(kBlurSeconds_, sr);
+    blur_.set_time(kBlurMoveSeconds, sr);
     size_.set_time(0.15f, sr);
     // Stepped on the control clock.
     decay_.set_time(0.02f, sr / kControlPeriod);
@@ -304,12 +312,14 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   static constexpr float kMaxScale = 1.5f;
   static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f, 611.0f, 447.0f},
                                                            {241.0f, 181.0f, 631.0f, 463.0f}};
-  // The blur's allpasses, 66 ms in all on the left and a little longer on
-  // the right; Blur 1 is this gain.
+  // The blur's allpasses at Blur 1, 66 ms in all on the left and a little
+  // longer on the right; their gain, at every Blur; and how long Blur takes
+  // to get where it is put (their lengths glide, so a throw bends the pitch
+  // of what is in them a little and does not click).
   static constexpr float kBlurSeconds[kBlurStages] = {0.0053f, 0.0079f, 0.0117f, 0.0173f, 0.0239f};
   static constexpr float kBlurSkew = 1.07f;
   static constexpr float kBlurGain = 0.7f;
-  static constexpr float kBlurSeconds_ = 0.4f;
+  static constexpr float kBlurMoveSeconds = 0.4f;
   // One pass of a voice's head at ratios up to 2 (80 ms: no pass travels
   // more than that), and the range its start is searched over (16 ms: a full
   // cycle down to 62 Hz). The longest delay a head can reach is the start
@@ -394,7 +404,7 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
     }
     if (glide_step_ < 0) {
       const uint64_t back = static_cast<uint64_t>(-glide_step_) * static_cast<uint64_t>(count);
-      return at >= back ? at - back : at + kTurn - back;
+      return at >= back ? at - back : kTurn - (back - at);
     }
     const uint64_t over = at & (kOctave - 1);
     if (over == 0) return at;
@@ -488,15 +498,14 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
       level_.set_target(level);
       level_.next();
     }
-    // Evening the tank. A tank that rings for long has sharp modes: a pure
-    // held tone that sits on one rings it up many times louder than a tone
-    // beside it does, however the taps are chosen. The power a sound with
-    // no pitch of its own would have stored is known (what was fed, kept as
-    // the tank keeps it: `expected_`); when the tank holds more than
-    // kEvenOver times that, its share in the voices is turned down to it.
-    // Nothing is ever turned up, and once the input stops both fall at the
-    // tank's own rate, so the turn stays where it was and the tail's length
-    // is the tank's.
+    // Evening the tank. A pure held tone that sits on a mode rings the tank
+    // up many times louder than a tone beside it does. The power a sound
+    // with no pitch of its own would have brought to the doors is known
+    // (what was fed, kept as the tank keeps it: `expected_`); when the doors
+    // hear more than kEvenOver times that, the tank's share in the voices is
+    // turned down to it. Nothing is ever turned up, and once the input stops
+    // both fall at the tank's own rate, so the turn stays where it was and
+    // the tail's length is the tank's.
     keep_ = std::exp(-13.8155f / (decay * sr));
     take_ = (1.0f - keep_) * (kLines / 2) / kit::max(1.0f - mean, 1.0e-5f);
     const float allowed = kEvenOver * expected_;
@@ -596,9 +605,9 @@ class Spiral : public kit::DeviceBase<spiral::kNumParams> {
   kit::OnePole low_cut_[2];
 
   kit::Smoother dry_, wet_, width_, size_;
-  kit::LinearRamp blur_;  // by even steps: the allpasses' lines never move faster than 66 ms in kBlurSeconds_
+  kit::LinearRamp blur_;  // by even steps: the allpasses' lines never move faster than 66 ms in kBlurMoveSeconds
   kit::Smoother decay_, level_, tank_, tone_;
-  float heard_ = 0.0f;     // the power of the tank's eight outputs
+  float heard_ = 0.0f;     // the power the tank brings to its two doors
   float expected_ = 0.0f;  // what a sound with no pitch would have stored
   float heard_coeff_ = 0.0f;
   float keep_ = 0.0f;

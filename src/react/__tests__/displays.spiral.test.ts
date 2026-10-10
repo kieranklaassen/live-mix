@@ -9,12 +9,15 @@ import { describe, expect, it } from 'vitest'
 
 import { PLAIN_COLOURS } from '../components/display-kit'
 import {
+  SPIRAL_CATCH,
+  SPIRAL_CENTRE,
   SPIRAL_CLIMB_AT,
   SPIRAL_FACES,
   SPIRAL_SPAN,
   SPIRAL_STACK,
   climbText,
   spiralBell,
+  spiralClock,
   spiralCount,
   spiralFall,
   spiralHeard,
@@ -154,8 +157,9 @@ describe('Spiral: the bell and the voices', () => {
 
 describe('Spiral: the staircase', () => {
   it('moves every voice at Climb octaves a minute: up, down, and not at all', () => {
+    // (At Climb 0 the clock rests on a whole octave: glide 1 here. Off one it goes home first.)
     for (const climb of [3, 12, -6, 0]) {
-      const at = settings({ climb, glide: 1.2, voices: 6 })
+      const at = settings({ climb, glide: climb === 0 ? 1 : 1.2, voices: 6 })
       for (const seconds of [1, 5, 20]) {
         for (let v = 0; v < STACK; v++) {
           const moved = spiralHeard(at, v, seconds).octaves - spiralHeard(at, v, 0).octaves
@@ -164,6 +168,37 @@ describe('Spiral: the staircase', () => {
           expect(Math.abs(wrapped)).toBeLessThan(1e-9)
         }
       }
+    }
+  })
+
+  // From spiral.h: kCentre = 0.05 and kHomeRate = 12. `moved()` with Climb
+  // nearer its centre than 0.05: a clock half an octave or more past a whole
+  // one goes on to the next, a clock less than half past goes back, at
+  // 12 octaves a minute (a fifth of an octave a second), and stops there.
+  it('takes the clock home to the nearest whole octave when Climb is at its centre (by hand)', () => {
+    expect(SPIRAL_CENTRE).toBe(0.05)
+    // 0.365 octaves past: back at 0.2 a second, so 0.165 after one second, home after 1.825 s.
+    expect(spiralClock(2.365, 0, 1)).toBeCloseTo(2.165, 9)
+    expect(spiralClock(2.365, 0, 1.825)).toBeCloseTo(2, 9)
+    expect(spiralClock(2.365, 0, 20)).toBe(2)
+    // 0.6 past: on to the next, 0.8 after one second, home after two.
+    expect(spiralClock(4.6, 0.04, 1)).toBeCloseTo(4.8, 9)
+    expect(spiralClock(4.6, -0.04, 2)).toBeCloseTo(5, 9)
+    expect(spiralClock(4.6, 0, 9)).toBe(5)
+    // Just half: on. At rest on a whole octave it stays, also at the top of the clock.
+    expect(spiralClock(1.5, 0, 0.5)).toBeCloseTo(1.6, 9)
+    expect(spiralClock(3, 0, 7)).toBe(3)
+    expect(spiralClock(5.9, 0, 7)).toBe(6)
+    // At the edge of the centre and outside it the clock runs at Climb.
+    expect(spiralClock(2.365, 0.05, 60)).toBeCloseTo(2.415, 9)
+    expect(spiralClock(2.365, -0.05, 60)).toBeCloseTo(2.315, 9)
+    expect(spiralClock(2.365, 3, 20)).toBeCloseTo(3.365, 9)
+    // And the streaks follow it: a voice of a still tail ends on a whole octave and stays.
+    const at = settings({ climb: 0, glide: 2.365, voices: 6, spread: 1 })
+    for (let v = 0; v < STACK; v++) {
+      const octaves = spiralHeard(at, v, 6).octaves
+      expect(Math.abs(octaves - Math.round(octaves))).toBeLessThan(1e-9)
+      expect(spiralHeard(at, v, 20).octaves).toBe(octaves)
     }
   })
 
@@ -343,6 +378,16 @@ describe('Spiral: the handles', () => {
         expect(point.drag(point.x + 9, y).climb).toBeCloseTo(climb, 9)
         // One drag is one value: the point for that value stands under the hand.
         expect(handleOf('climb', { climb }, size).y).toBeCloseTo(y, 9)
+      }
+      // It catches at the centre: a hand within a quarter of an octave a minute of it sets 0.
+      expect(SPIRAL_CATCH).toBe(0.25)
+      for (const near of [-0.24, -0.1, 0.03, 0.24]) {
+        const point = handleOf('climb', { climb: 3 }, size)
+        expect(point.drag(point.x, spiralY(layout, near / 5)).climb).toBe(0)
+      }
+      for (const far of [-0.26, 0.26]) {
+        const point = handleOf('climb', { climb: 3 }, size)
+        expect(point.drag(point.x, spiralY(layout, far / 5)).climb).toBeCloseTo(far, 9)
       }
       // Past the ends of the knob the hand is held to them.
       expect(handleOf('climb', {}, size).drag(0, -500).climb).toBe(12)

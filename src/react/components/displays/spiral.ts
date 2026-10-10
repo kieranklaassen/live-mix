@@ -44,6 +44,26 @@ export const SPIRAL_SPAN = 24
 export const SPIRAL_CLIMB_AT = 12
 /** A streak is as thin as nothing when it is this far down: the 60 dB that Decay counts. */
 const FOOT_DB = -60
+/** `kCentre`: a Climb nearer its centre than this is the centre, where the clock goes home and rests. */
+export const SPIRAL_CENTRE = 0.05
+/** `kHomeRate`: the octaves a minute the clock goes home at. */
+const HOME_RATE = 12
+/** The Climb point catches at the centre: a hand this near it (octaves a minute) sets the centre. */
+export const SPIRAL_CATCH = 0.25
+
+/**
+ * Where the glide clock stands `seconds` on from `glide` (`moved()` of the
+ * device): on at Climb octaves a minute, or, with Climb at its centre, to the
+ * nearest whole octave at twelve octaves a minute, where it rests.
+ */
+export function spiralClock(glide: number, climb: number, seconds: number): number {
+  if (!(climb > -SPIRAL_CENTRE && climb < SPIRAL_CENTRE)) return glide + (climb / 60) * seconds
+  const whole = Math.floor(glide)
+  const over = glide - whole
+  if (over === 0) return glide
+  const reach = (HOME_RATE / 60) * seconds
+  return over >= 0.5 ? Math.min(glide + reach, whole + 1) : Math.max(glide - reach, whole)
+}
 
 /** The bell of `control()`: the level of a voice at the share `x` of the octaves that sound, before it is scaled. */
 export function spiralBell(x: number, spread: number): number {
@@ -155,12 +175,13 @@ const settingsOf = (view: DisplayView, glide: number): SpiralSettings => ({
 
 /**
  * How loud voice `v` of a sound played now is `seconds` later, as it is
- * heard: the clock has moved on by Climb, the bell is read where the voice
- * has got to, the tail has fallen with Decay and Mix lets so much out.
+ * heard: the clock has moved on by Climb (or gone home, at its centre), the
+ * bell is read where the voice has got to, the tail has fallen with Decay
+ * and Mix lets so much out.
  */
 export function spiralHeard(settings: SpiralSettings, v: number, seconds: number): SpiralVoice {
   const stack = spiralVoices(
-    settings.glide + (settings.climb / 60) * seconds,
+    spiralClock(settings.glide, settings.climb, seconds),
     settings.voices,
     settings.spread,
   )
@@ -222,14 +243,17 @@ function spiralHandles(view: DisplayView): DisplayHandle[] {
       name: 'Climb',
       x: spiralX(layout, SPIRAL_CLIMB_AT),
       y: spiralY(layout, climb * CLIMB_RISE),
-      // The slope of the line through the point: so many octaves in twelve seconds.
-      drag: (_x, y) => ({
-        climb: clamp(
-          (SPIRAL_STACK / 2 - (y - stair.y) / layout.octave) / CLIMB_RISE,
-          climbSpec?.min ?? -12,
-          climbSpec?.max ?? 12,
-        ),
-      }),
+      // The slope of the line through the point: so many octaves in twelve
+      // seconds. It catches at the centre, where the tail comes to rest.
+      drag: (_x, y) => {
+        const slope = (SPIRAL_STACK / 2 - (y - stair.y) / layout.octave) / CLIMB_RISE
+        return {
+          climb:
+            Math.abs(slope) < SPIRAL_CATCH
+              ? 0
+              : clamp(slope, climbSpec?.min ?? -12, climbSpec?.max ?? 12),
+        }
+      },
       reset: () => ({ climb: climbSpec?.default ?? climb }),
     },
     {
@@ -266,7 +290,7 @@ const spiral = plateDisplay({
   columns: 2,
   params: ['climb', 'decay', 'voices', 'spread', 'mix'],
   live: { meters: true, signal: true },
-  info: 'Pitch runs upward and time to the right. Each streak is one voice of the tail gliding at Climb, as thick as it is loud, under the bell of level drawn at the left; the dots are the voices now. Drag the point on the dashed line for Climb and the one at the foot for Decay.',
+  info: 'Pitch runs upward and time to the right. Each streak is one voice of the tail gliding at Climb, as thick as it is loud, under the bell of level drawn at the left; the dots are the voices now. Drag the point on the dashed line for Climb, which catches at its centre, and the one at the foot for Decay.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)
