@@ -3,8 +3,8 @@
 // Parameter ids and ranges of Reveal, shared with
 // src/dsp/devices/reveal.gen.ts:
 //    0  amount: 0..1, default 0.5
-//    1  range: 0..30 dB, default 15
-//    2  floor: -96..-36 dB, default -66
+//    1  range: 0..30 dB, default 12
+//    2  floor: -72..-24 dB, default -48
 //    3  rise: 20..4000 ms, default 300
 //    4  focus: -1..1, default 0
 //    5  detail: 0..1, default 0.6
@@ -30,9 +30,9 @@ enum Param : int {
   kNumParams = 9,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, -96.0f, 20.0f, -1.0f, 0.0f, -12.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {1.0f, 30.0f, -36.0f, 4000.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.5f, 15.0f, -66.0f, 300.0f, 0.0f, 0.6f, 0.0f, 1.0f, 0.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, -72.0f, 20.0f, -1.0f, 0.0f, -12.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {1.0f, 30.0f, -24.0f, 4000.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.5f, 12.0f, -48.0f, 300.0f, 0.0f, 0.6f, 0.0f, 1.0f, 0.0f};
 
 }  // namespace reveal
 }  // namespace livemix

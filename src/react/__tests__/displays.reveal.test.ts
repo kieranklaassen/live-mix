@@ -21,6 +21,7 @@ import {
   revealAfterDb,
   revealBands,
   revealExampleDb,
+  revealFloorDb,
   revealFocus,
   revealHeard,
   revealOver,
@@ -65,19 +66,22 @@ const READINGS = 22
 const STEPS = 64
 const LIFT_STEP_DB = 0.5
 const LEVEL_STEP_DB = 1.5
-const LEVEL_FOOT_DB = -94.5
+const LEVEL_FOOT_DB = -91.5
 
 /**
  * The device's readings for bands at given lifts and levels (dB), packed as
  * the end of `compare` packs them: four bands to a reading, six bits each,
- * the lowest band in the lowest bits; `lift` is the largest lift and `hold`
- * the level hold. A band not named has no lift and nothing in it.
+ * the lowest band in the lowest bits, the levels counted down from the
+ * loudest band of late; `lift` is the largest lift, `hold` the level hold and
+ * `loudest` that loudest band's own level. A band not named has no lift and
+ * nothing in it.
  */
 function readings(
   bands: Record<number, { lift?: number; level: number }>,
   hold = 0,
+  loudest = -12,
 ): Record<string, number> {
-  const meters: Record<string, number> = { lift: 0, hold }
+  const meters: Record<string, number> = { lift: 0, hold, loudest }
   for (let r = 0; r < READINGS; r++) {
     let lifts = 0
     let levels = 0
@@ -205,7 +209,7 @@ describe("Reveal's bands and readings", () => {
     const lifts = new Float32Array(REVEAL_MAX_BANDS)
     const levels = new Float32Array(REVEAL_MAX_BANDS)
     const meters = readings({
-      0: { lift: 0.5, level: -93 },
+      0: { lift: 0.5, level: -90 },
       3: { lift: 30, level: -30 },
       4: { level: 0 },
       41: { lift: 12.5, level: -61.5 },
@@ -214,7 +218,7 @@ describe("Reveal's bands and readings", () => {
     revealReadings((name) => meters[name], lifts, levels)
     expect([lifts[0], lifts[3], lifts[4], lifts[41], lifts[87]]).toEqual([0.5, 30, 0, 12.5, 31.5])
     expect([levels[0], levels[3], levels[4], levels[41], levels[87]]).toEqual([
-      -93, -30, 0, -61.5, -45,
+      -90, -30, 0, -61.5, -45,
     ])
     // A band with nothing in it stands under the foot of the scale.
     expect(levels[1]).toBe(REVEAL_SILENT_DB)
@@ -232,7 +236,7 @@ const KNEE_DB = 6
 const FOCUS_FROM_HZ = 60
 const FOCUS_TO_HZ = 12000
 
-/** Where the device's formula puts a partial at -60 dB that lies 30 dB under the loud around it, in dB. */
+/** Where the device's formula puts a partial 42 dB under the loudest band that lies 30 dB under the loud around it, in dB. */
 function exampleDb(values: Record<string, number>, hz: number): number {
   const at = (name: string): number => values[name] ?? params[name].default
   const place = Math.min(
@@ -240,13 +244,13 @@ function exampleDb(values: Record<string, number>, hz: number): number {
     Math.max(0, Math.log2(hz / FOCUS_FROM_HZ) / Math.log2(FOCUS_TO_HZ / FOCUS_FROM_HZ)),
   )
   const weight = at('focus') >= 0 ? 1 - at('focus') * (1 - place) : 1 + at('focus') * place
-  const over = Math.min(1, Math.max(0, (-60 - at('floor')) / KNEE_DB))
+  const over = Math.min(1, Math.max(0, (-42 - at('floor')) / KNEE_DB))
   const lift = Math.min(at('amount') * 30, at('range')) * weight * over
   const listen = at('listen') >= 0.5 ? 1 : 0
   const dry = (1 - at('mix')) * (1 - listen)
   const wet = (at('mix') + listen * (1 - at('mix'))) * 10 ** (at('output') / 20)
   const gain = Math.abs(dry + wet * (10 ** (lift / 20) - listen))
-  return gain > 1e-6 ? -60 + 20 * Math.log10(gain) : -180
+  return gain > 1e-6 ? -42 + 20 * Math.log10(gain) : -180
 }
 
 describe("Reveal's formula", () => {
@@ -299,7 +303,7 @@ describe("Reveal's formula", () => {
   })
 
   it('draws one quiet partial where the formula brings it out, across the spectrum', () => {
-    expect(REVEAL_EXAMPLE_DB).toBe(-60)
+    expect(REVEAL_EXAMPLE_DB).toBe(-42)
     expect(REVEAL_EXAMPLE_UNDER_DB).toBe(30)
     const settings: Record<string, number>[] = [
       {},
@@ -310,9 +314,10 @@ describe("Reveal's formula", () => {
       { focus: 1, amount: 1, range: 24 },
       { focus: -1 },
       { focus: -0.4, amount: 0.8, range: 20 },
-      { floor: -63 },
-      { floor: -57 },
-      { floor: -36 },
+      { floor: -45 },
+      { floor: -39 },
+      { floor: -24 },
+      { floor: -72 },
       { mix: 0.5 },
       { mix: 0 },
       { output: -6 },
@@ -333,19 +338,21 @@ describe("Reveal's formula", () => {
         )
       }
     }
-    // By hand: half of 30 dB at the defaults, the cap at Range, nothing under Floor, half way through the knee.
-    for (const [, y] of dotted(draw())) expect(y).toBeCloseTo(level(-45), 9)
+    // By hand: half of 30 dB capped at Range's 12 at the defaults, the cap at Range, nothing under Floor, half way through the knee.
+    for (const [, y] of dotted(draw())) expect(y).toBeCloseTo(level(-30), 9)
+    for (const [, y] of dotted(draw({ values: { range: 30 } })))
+      expect(y).toBeCloseTo(level(-27), 9)
     for (const [, y] of dotted(draw({ values: { amount: 1, range: 12 } })))
-      expect(y).toBeCloseTo(level(-48), 9)
-    for (const [, y] of dotted(draw({ values: { floor: -50 } })))
-      expect(y).toBeCloseTo(level(-60), 9)
-    for (const [, y] of dotted(draw({ values: { floor: -63 } })))
-      expect(y).toBeCloseTo(level(-52.5), 9)
-    for (const [, y] of dotted(draw({ values: { mix: 0 } }))) expect(y).toBeCloseTo(level(-60), 9)
+      expect(y).toBeCloseTo(level(-30), 9)
+    for (const [, y] of dotted(draw({ values: { floor: -36 } })))
+      expect(y).toBeCloseTo(level(-42), 9)
+    for (const [, y] of dotted(draw({ values: { floor: -45 } })))
+      expect(y).toBeCloseTo(level(-36), 9)
+    for (const [, y] of dotted(draw({ values: { mix: 0 } }))) expect(y).toBeCloseTo(level(-42), 9)
     // Focus to the right: nothing at 60 Hz and under, all of it from 12 kHz.
     const tilted = dotted(draw({ values: { focus: 1 } }))
-    expect(tilted[0][1]).toBeCloseTo(level(-60), 9)
-    expect(tilted[tilted.length - 1][1]).toBeCloseTo(level(-45), 9)
+    expect(tilted[0][1]).toBeCloseTo(level(-42), 9)
+    expect(tilted[tilted.length - 1][1]).toBeCloseTo(level(-30), 9)
     for (let i = 1; i < tilted.length; i++)
       expect(tilted[i][1]).toBeLessThanOrEqual(tilted[i - 1][1])
   })
@@ -357,49 +364,49 @@ describe("Reveal's points", () => {
     expect(points.map((point) => point.key)).toEqual(['range', 'amount', 'floor'])
     expect(points.map((point) => point.name)).toEqual(['Range', 'Amount', 'Floor'])
     const [range, amount, floor] = points
-    // Range and Amount on the scale of the example: -60 dB and what each allows over it.
-    expect([range.x, range.y]).toEqual([box.x + 0.2 * box.w, level(-60 + 15)])
-    expect([amount.x, amount.y]).toEqual([box.x + 0.5 * box.w, level(-60 + 0.5 * 30)])
-    // Floor at the end of its line, at its level.
-    expect([floor.x, floor.y]).toEqual([box.x + box.w - 8, level(-66)])
+    // Range and Amount on the scale of the example: 42 dB under the loudest band, and what each allows over it.
+    expect([range.x, range.y]).toEqual([box.x + 0.2 * box.w, level(-42 + 12)])
+    expect([amount.x, amount.y]).toEqual([box.x + 0.5 * box.w, level(-42 + 0.5 * 30)])
+    // Floor at the end of its line, that far under the loudest band.
+    expect([floor.x, floor.y]).toEqual([box.x + box.w - 8, level(-48)])
 
     // Up and down sets each; across sets nothing.
-    expect(Object.keys(amount.drag(3, level(-37.5)))).toEqual(['amount'])
-    expect(amount.drag(3, level(-37.5)).amount).toBeCloseTo(0.75, 9)
-    expect(amount.drag(160, level(-54)).amount).toBeCloseTo(0.2, 9)
+    expect(Object.keys(amount.drag(3, level(-19.5)))).toEqual(['amount'])
+    expect(amount.drag(3, level(-19.5)).amount).toBeCloseTo(0.75, 9)
+    expect(amount.drag(160, level(-36)).amount).toBeCloseTo(0.2, 9)
     expect(amount.drag(amount.x, amount.y).amount).toBeCloseTo(0.5, 9)
     expect(amount.drag(amount.x, -40)).toEqual({ amount: 1 })
     expect(amount.drag(amount.x, 400)).toEqual({ amount: 0 })
     expect(amount.reset?.()).toEqual({ amount: 0.5 })
 
-    expect(Object.keys(range.drag(90, level(-40)))).toEqual(['range'])
-    expect(range.drag(90, level(-40)).range).toBeCloseTo(20, 9)
-    expect(range.drag(range.x, range.y).range).toBeCloseTo(15, 9)
+    expect(Object.keys(range.drag(90, level(-22)))).toEqual(['range'])
+    expect(range.drag(90, level(-22)).range).toBeCloseTo(20, 9)
+    expect(range.drag(range.x, range.y).range).toBeCloseTo(12, 9)
     expect(range.drag(range.x, -40)).toEqual({ range: 30 })
     expect(range.drag(range.x, 400)).toEqual({ range: 0 })
-    expect(range.reset?.()).toEqual({ range: 15 })
+    expect(range.reset?.()).toEqual({ range: 12 })
 
-    expect(Object.keys(floor.drag(2, level(-80)))).toEqual(['floor'])
-    expect(floor.drag(2, level(-80)).floor).toBeCloseTo(-80, 9)
-    expect(floor.drag(floor.x, floor.y).floor).toBeCloseTo(-66, 9)
-    expect(floor.drag(floor.x, -40)).toEqual({ floor: -36 })
-    expect(floor.drag(floor.x, 400)).toEqual({ floor: -96 })
-    expect(floor.reset?.()).toEqual({ floor: -66 })
+    expect(Object.keys(floor.drag(2, level(-60)))).toEqual(['floor'])
+    expect(floor.drag(2, level(-60)).floor).toBeCloseTo(-60, 9)
+    expect(floor.drag(floor.x, floor.y).floor).toBeCloseTo(-48, 9)
+    expect(floor.drag(floor.x, -40)).toEqual({ floor: -24 })
+    expect(floor.drag(floor.x, 400)).toEqual({ floor: -72 })
+    expect(floor.reset?.()).toEqual({ floor: -48 })
     for (const point of points) expect(point.wheel).toBeUndefined()
   })
 
   it('follows its setting, and one drag is one value', () => {
     for (const amount of [0, 0.25, 0.6, 1]) {
       const point = handle('amount', { amount })
-      expect(point.y).toBeCloseTo(level(-60 + 30 * amount), 9)
+      expect(point.y).toBeCloseTo(level(-42 + 30 * amount), 9)
       expect(point.drag(point.x, point.y).amount).toBeCloseTo(amount, 9)
     }
     for (const range of [0, 6, 22.5, 30]) {
       const point = handle('range', { range })
-      expect(point.y).toBeCloseTo(level(-60 + range), 9)
+      expect(point.y).toBeCloseTo(level(-42 + range), 9)
       expect(point.drag(point.x, point.y).range).toBeCloseTo(range, 9)
     }
-    for (const floor of [-96, -80, -36]) {
+    for (const floor of [-72, -60, -24]) {
       const point = handle('floor', { floor })
       expect(point.y).toBeCloseTo(level(floor), 9)
       expect(point.drag(point.x, point.y).floor).toBeCloseTo(floor, 9)
@@ -416,8 +423,8 @@ describe("Reveal's points", () => {
     const foot = box.y + box.h
     expect(handle('amount', { amount: 1 }).y - 5).toBeGreaterThan(head)
     expect(handle('range', { range: 30 }).y - 5).toBeGreaterThan(head)
-    expect(handle('floor', { floor: -36 }).y - 5).toBeGreaterThan(head)
-    expect(handle('floor', { floor: -96 }).y + 5).toBeLessThan(foot)
+    expect(handle('floor', { floor: -24 }).y - 5).toBeGreaterThan(head)
+    expect(handle('floor', { floor: -72 }).y + 5).toBeLessThan(foot)
     expect(handle('floor').x + 5).toBeLessThan(box.x + box.w)
     const presets = stock.get('reveal')?.presets ?? {}
     expect(Object.keys(presets).length).toBe(16)
@@ -447,14 +454,14 @@ describe("Reveal's points", () => {
             Math.abs(line.points[1][1] - line.points[0][1]) < box.h - 1,
         )
         .map((line) => [line.points[0][0], line.points[0][1], line.points[1][1]])
-    // At the defaults both points are on the line.
+    // At the defaults both points are on the line, or within a point's own width of it.
     expect(ties({})).toEqual([])
     // Range above what Amount asks for: its point stands over the line, tied down to it.
     const range = handle('range', { range: 30 })
-    expect(ties({ range: 30 })).toEqual([[Math.floor(range.x) + 0.5, range.y, level(-45)]])
+    expect(ties({ range: 30 })).toEqual([[Math.floor(range.x) + 0.5, range.y, level(-27)]])
     // Amount asking for more than Range allows: its point over the line.
     const amount = handle('amount', { amount: 1 })
-    expect(ties({ amount: 1 })).toEqual([[Math.floor(amount.x) + 0.5, amount.y, level(-45)]])
+    expect(ties({ amount: 1 })).toEqual([[Math.floor(amount.x) + 0.5, amount.y, level(-30)]])
     // Mix down brings the line under both.
     expect(ties({ mix: 0 }).length).toBe(2)
   })
@@ -472,10 +479,10 @@ describe("Reveal's points", () => {
       number,
       ['Amount  33 %', box.x + 2, head],
     ])
-    expect(said({ hot: 'range' })).toEqual([number, ['Range  +15.0 dB', box.x + 2, head]])
-    expect(said({ hot: 'floor', values: { floor: -72.5 } })).toEqual([
+    expect(said({ hot: 'range' })).toEqual([number, ['Range  +12.0 dB', box.x + 2, head]])
+    expect(said({ hot: 'floor', values: { floor: -60.5 } })).toEqual([
       number,
-      ['Floor  −72.5 dB', box.x + 2, head],
+      ['Floor  −60.5 dB', box.x + 2, head],
     ])
     expect(said({ values: { listen: 1 } })).toEqual([number, ['Listen', box.x + 2, head]])
     // Every word stands on a patch of the plate: the sound runs under them.
@@ -593,7 +600,7 @@ describe("Reveal's display while it runs", () => {
   })
 
   it('lays the plate back over what is under Floor, up to a line with the point at its end', () => {
-    for (const floor of [-96, -66, -40]) {
+    for (const floor of [-72, -48, -30]) {
       const drawn = draw({ values: { floor } })
       const veil = rects(drawn).filter(
         (rect) => rect.colour === PLAIN_COLOURS.plate && rect.w === box.w && rect.alpha < 0.6,
@@ -611,6 +618,39 @@ describe("Reveal's display while it runs", () => {
       expect(across.map((line) => line.points[0][1])).toContain(Math.floor(level(floor)) + 0.5)
       expect(handle('floor', { floor }).y).toBeCloseTo(level(floor), 9)
     }
+  })
+
+  it('lays it higher where the device will not lift so quiet a sound whatever Floor says', () => {
+    // floor_db in compare: Floor under the loudest band of late, but never under -96 dB.
+    expect(revealFloorDb(view(), -12)).toBe(-48)
+    expect(revealFloorDb(view({ floor: -72 }), -12)).toBe(-72)
+    expect(revealFloorDb(view({ floor: -72 }), -40)).toBe(-56)
+    expect(revealFloorDb(view({ floor: -30 }), -40)).toBe(-30)
+    // The loudest band 40 dB under full scale and Floor at -72: the plate lies back from -56, the line stays at Floor.
+    const drawn = draw({
+      values: { floor: -72 },
+      meters: readings(sound, 0, -40),
+      signal: testSignal(),
+    })
+    const veil = rects(drawn).filter(
+      (rect) => rect.colour === PLAIN_COLOURS.plate && rect.w === box.w && rect.alpha < 0.6,
+    )
+    expect(veil.length).toBe(1)
+    expect(veil[0].y).toBeCloseTo(level(-56), 9)
+    expect(veil[0].y + veil[0].h).toBeCloseTo(box.y + box.h, 9)
+    const across = lines(drawn).filter(
+      (line) =>
+        line.points.length === 2 &&
+        line.points[0][0] === box.x &&
+        line.points[1][0] === box.x + box.w &&
+        line.alpha > 0.4,
+    )
+    expect(across.map((line) => line.points[0][1])).toContain(Math.floor(level(-72)) + 0.5)
+    // While it does not run there is no loudest band: the plate lies back from Floor.
+    const still = rects(draw({ values: { floor: -72 }, meters: readings(sound, 0, -40) })).filter(
+      (rect) => rect.colour === PLAIN_COLOURS.plate && rect.w === box.w && rect.alpha < 0.6,
+    )
+    expect(still[0].y).toBeCloseTo(level(-72), 9)
   })
 })
 
@@ -670,7 +710,8 @@ describe('the compiled Reveal against its display', () => {
 
   it('declares the readings the display asks for', () => {
     expect(meterNames.slice(0, 2)).toEqual(['lift', 'hold'])
-    expect(meterNames.length).toBe(2 + 2 * READINGS)
+    expect(meterNames.length).toBe(2 + 2 * READINGS + 1)
+    expect(meterNames[2 + 2 * READINGS]).toBe('loudest')
     for (let r = 0; r < READINGS; r++) {
       expect(meterNames[2 + r]).toBe(`lift${r + 1}`)
       expect(meterNames[2 + READINGS + r]).toBe(`level${r + 1}`)
@@ -686,11 +727,14 @@ describe('the compiled Reveal against its display', () => {
       const { meters, loud, quiet } = await revealed(values)
       const drawn = draw({ values, meters, signal: testSignal() })
       const line = going(drawn)
-      // The levels: a sine on both sides 12 dB under full scale reads -12, the other 40 dB under it, to the 1.5 dB step.
-      expect(line[2 * bandOf(1000)][1]).toBeGreaterThan(level(-12 + 0.8))
-      expect(line[2 * bandOf(1000)][1]).toBeLessThan(level(-12 - 0.8))
-      expect(line[2 * bandOf(5000)][1]).toBeGreaterThan(level(-52 + 0.8))
-      expect(line[2 * bandOf(5000)][1]).toBeLessThan(level(-52 - 0.8))
+      // The levels: the loudest band of late is the sine 12 dB under full scale, which stands at the top
+      // of the scale's count, and the other 40 dB under it, to the 1.5 dB step.
+      expect(meters.loudest).toBeGreaterThan(-12.04 - 0.3)
+      expect(meters.loudest).toBeLessThan(-12.04 + 0.3)
+      expect(line[2 * bandOf(1000)][1]).toBeGreaterThan(level(0.8))
+      expect(line[2 * bandOf(1000)][1]).toBeLessThan(level(-0.8))
+      expect(line[2 * bandOf(5000)][1]).toBeGreaterThan(level(-40 + 0.8))
+      expect(line[2 * bandOf(5000)][1]).toBeLessThan(level(-40 - 0.8))
       // One band is lifted, the quiet sine's, and as far as the sine came out louder.
       const filled = lifted(drawn)
       expect(filled.length, JSON.stringify(values)).toBe(1)
@@ -713,7 +757,7 @@ describe('the compiled Reveal against its display', () => {
     const values: Record<string, number> = {
       amount: 1,
       range: 30,
-      floor: -90,
+      floor: -72,
       rise: 50,
       detail: 0.3,
     }

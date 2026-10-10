@@ -2,7 +2,10 @@
 // device hears it, and what comes out as a filled shape on the same scale,
 // so the valleys between the peaks are seen filling in. Both come from the
 // device's own readings (`cpp/devices/reveal/reveal.h`); the dotted line is
-// its formula for one quiet partial, with the points that set it.
+// its formula for one quiet partial, with the points that set it. The scale
+// is the device's own: dB under the loudest band of late, which is what its
+// Floor is counted down from, so a quiet sound fills the picture as a loud
+// one does and Floor's line stands where the knob says.
 
 import {
   INK,
@@ -33,9 +36,12 @@ import {
   type PlateFace,
 } from '../plate-display'
 
-/** The scale: full scale a line of words' room under the head, and Floor's lowest setting whole above the foot. */
-export const REVEAL_TOP_DB = 6
-export const REVEAL_FOOT_DB = -102
+/**
+ * The scale, in dB against the loudest band of late: that band a line of
+ * words' room under the head, and Floor's lowest setting whole above the foot.
+ */
+export const REVEAL_TOP_DB = 12
+export const REVEAL_FOOT_DB = -96
 
 // --- The device's bands (`lay_out_bands` in reveal.h) ------------------------
 
@@ -96,7 +102,9 @@ const REVEAL_READINGS = 22
 const REVEAL_STEPS = 64
 export const REVEAL_LIFT_STEP_DB = 0.5
 export const REVEAL_LEVEL_STEP_DB = 1.5
-export const REVEAL_LEVEL_FOOT_DB = -94.5
+export const REVEAL_LEVEL_FOOT_DB = -91.5
+/** `kLowestFloorDb`: under this level, against a full-scale sine, nothing is lifted whatever Floor says. */
+export const REVEAL_LOWEST_FLOOR_DB = -96
 /** What a band that is not sounding is drawn at: under the foot of the scale. */
 export const REVEAL_SILENT_DB = REVEAL_FOOT_DB - 6
 
@@ -121,8 +129,8 @@ function unpack(packed: number, each: (index: number, steps: number) => void): v
 }
 
 /**
- * Every band's lift (dB, 0 or more) and level (dB under a full-scale sine on
- * both sides, `REVEAL_SILENT_DB` for a band with nothing in it), out of the
+ * Every band's lift (dB, 0 or more) and level (dB against the loudest band
+ * of late, `REVEAL_SILENT_DB` for a band with nothing in it), out of the
  * device's forty-four readings.
  */
 export function revealReadings(
@@ -181,8 +189,8 @@ export function revealHeard(view: DisplayView, liftDb: number, holdDb: number): 
 
 // --- The example: one quiet partial -----------------------------------------
 
-/** The dotted line is a partial at this level, this far under the loud sound around it. */
-export const REVEAL_EXAMPLE_DB = -60
+/** The dotted line is a partial at this level under the loudest band, this far under the loud sound around it. */
+export const REVEAL_EXAMPLE_DB = -42
 export const REVEAL_EXAMPLE_UNDER_DB = 30
 
 /** The lift the device gives that partial at a frequency, in dB: Amount of how far under it is, no more than Range, as Focus and Floor leave it. */
@@ -229,7 +237,7 @@ function revealHandles(view: DisplayView): DisplayHandle[] {
   const box = curveBox(view)
   const [amountMin, amountMax] = rangeOf(view, 'amount', [0, 1])
   const [rangeMin, rangeMax] = rangeOf(view, 'range', [0, 30])
-  const [floorMin, floorMax] = rangeOf(view, 'floor', [-96, -36])
+  const [floorMin, floorMax] = rangeOf(view, 'floor', [-72, -24])
   return [
     {
       key: 'range',
@@ -240,7 +248,7 @@ function revealHandles(view: DisplayView): DisplayHandle[] {
       drag: (_x, y) => ({
         range: clamp(levelAt(y, box) - REVEAL_EXAMPLE_DB, rangeMin, rangeMax),
       }),
-      reset: () => ({ range: startOf(view, 'range', 15) }),
+      reset: () => ({ range: startOf(view, 'range', 12) }),
     },
     {
       key: 'amount',
@@ -263,10 +271,19 @@ function revealHandles(view: DisplayView): DisplayHandle[] {
       x: floorX(box),
       y: levelY(view.value('floor'), box),
       drag: (_x, y) => ({ floor: clamp(levelAt(y, box), floorMin, floorMax) }),
-      reset: () => ({ floor: startOf(view, 'floor', -66) }),
+      reset: () => ({ floor: startOf(view, 'floor', -48) }),
     },
   ]
 }
+
+/**
+ * Where the device's floor stands on the display's scale, in dB under the
+ * loudest band of late, when that band is at `loudestDb` against a full-scale
+ * sine: Floor as it is set, or the lowest floor there is where that lies
+ * higher (`floor_db` in `compare`).
+ */
+export const revealFloorDb = (view: DisplayView, loudestDb: number): number =>
+  Math.max(view.value('floor'), REVEAL_LOWEST_FLOOR_DB - loudestDb)
 
 /** How much of the plate lies over the display under Floor, where nothing is lifted. */
 const REVEAL_VEIL = 0.45
@@ -300,7 +317,7 @@ const reveal = plateDisplay<RevealState>({
   columns: 1,
   params: ['amount', 'range', 'floor', 'focus', 'output', 'mix', 'listen'],
   live: { meters: true, signal: true },
-  info: 'The thin line is the sound going in, band by band, and the shape what comes out: the second colour is what is lifted, the number the most of it. The dotted line is one partial 30 dB under the loud around it. Drag its points for Range and Amount, and the point on the level line for Floor.',
+  info: 'The thin line is the sound going in, band by band, under its loudest of late. The shape is what comes out, its second colour the lift, the number the most of it. The dotted line is one partial 30 dB under the loud around it. Drag its points for Range and Amount, the one on the level line for Floor.',
   init: () => ({
     readLifts: new Float32Array(REVEAL_MAX_BANDS),
     readLevels: new Float32Array(REVEAL_MAX_BANDS).fill(REVEAL_SILENT_DB),
@@ -384,10 +401,16 @@ const reveal = plateDisplay<RevealState>({
       }
     })
 
-    // Under Floor nothing is lifted: the plate is laid back over it, up to a line.
+    // Under Floor nothing is lifted: the plate is laid back over it, up to a
+    // line. Where the device's lowest floor lies higher than the knob says
+    // (a sound so quiet that Floor would reach under -96 dB), up to there.
     const handles = revealHandles(frame)
     const [range, amount, floor] = handles
-    fillRect(ctx, { x: box.x, y: floor.y, w: box.w, h: foot - floor.y }, colours.plate, REVEAL_VEIL)
+    const veil = Math.min(
+      floor.y,
+      levelY(revealFloorDb(frame, running ? frame.meter('loudest') : 0), box),
+    )
+    fillRect(ctx, { x: box.x, y: veil, w: box.w, h: foot - veil }, colours.plate, REVEAL_VEIL)
     rule(ctx, box.x, floor.y, box.x + box.w, floor.y, { colour: colours.ink, alpha: INK.back })
 
     // One quiet partial as the settings have it come out, across the

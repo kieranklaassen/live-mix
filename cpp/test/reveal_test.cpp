@@ -2,8 +2,12 @@
 // stability, silence when idle, block-size independence and parameter abuse;
 // the rest asserts what makes it an upward compressor of the spectrum: what
 // is quiet under something loud comes up by Amount of its deficit, never by
-// more than Range, never from under Floor, over the time Rise says, with the
-// overall level held and the dry path in step.
+// more than Range, never from under Floor (counted down from the loudest
+// sound of late), over the time Rise says, with the overall level held, the
+// crests under a ceiling and the dry path in step. And what it must not do:
+// lift anything towards a sound that has stopped, hold a bed of noise up
+// through a pause, or behave otherwise at another level, block size or
+// sample rate.
 
 #include "../devices/reveal/reveal.h"
 #include "support/test_kit.h"
@@ -21,6 +25,7 @@ static const size_t kLate = Reveal::kLatency;
 
 // The constants the device's comment states, for the sums below.
 static const double kAroundDbPerOctave = 3.0;
+static const float kLowest = -72.0f;  // Floor all the way down
 
 static std::vector<float> add(const std::vector<float>& a, const std::vector<float>& b) {
   std::vector<float> out(std::max(a.size(), b.size()), 0.0f);
@@ -32,8 +37,8 @@ static std::vector<float> add(const std::vector<float>& a, const std::vector<flo
 // What the device does to the tone at `hz`, in dB, over [from, to) of the
 // input (the output read a latency later).
 static double change_db(const std::vector<float>& in, const std::vector<float>& out, double hz, size_t from,
-                        size_t to) {
-  return db(tone_level(out, hz, kRate, from + kLate, to + kLate) / tone_level(in, hz, kRate, from, to));
+                        size_t to, float rate = kRate) {
+  return db(tone_level(out, hz, rate, from + kLate, to + kLate) / tone_level(in, hz, rate, from, to));
 }
 
 struct Setting {
@@ -41,21 +46,21 @@ struct Setting {
   float value;
 };
 
-static void set_up(Reveal& d, std::initializer_list<Setting> settings, float rate = kRate) {
+static void set_up(Reveal& d, const std::vector<Setting>& settings, float rate = kRate) {
   d.init(rate);
   for (const Setting& s : settings) d.set_param(s.id, s.value);
 }
 
 // A loud sine and a quiet one `below_db` under it, `seconds` long.
 static std::vector<float> two_tones(double loud_hz, double quiet_hz, double below_db, float seconds,
-                                    float loud = 0.5f) {
-  return add(sine(static_cast<float>(loud_hz), seconds, kRate, loud),
-             sine(static_cast<float>(quiet_hz), seconds, kRate,
+                                    float loud = 0.5f, float rate = kRate) {
+  return add(sine(static_cast<float>(loud_hz), seconds, rate, loud),
+             sine(static_cast<float>(quiet_hz), seconds, rate,
                   loud * static_cast<float>(std::pow(10.0, -below_db / 20.0))));
 }
 
-// The largest lift among the bands, read back out of the display's readings
-// as the display reads them.
+// A band's lift and level, read back out of the display's readings as the
+// display reads them. The level is counted down from the loudest band of late.
 static double packed_lift(const Reveal& d, int band) {
   long packed = std::lround(d.meter(2 + band / Reveal::kBandsPerReading));
   for (int i = 0; i < band % Reveal::kBandsPerReading; ++i) packed /= Reveal::kSteps;
@@ -74,6 +79,261 @@ static int band_of(const Reveal& d, double hz) {
   return best;
 }
 
+// --- Material for what a musician plays ------------------------------------------------------
+
+// One struck, ringing note: partials a little sharp of whole, the upper ones
+// weaker and dying sooner, 2 ms of attack, damped over 80 ms when it ends.
+static void strike(std::vector<float>& x, float rate, double hz, double at, double seconds, double amp) {
+  const size_t start = static_cast<size_t>(at * rate), n = static_cast<size_t>((seconds + 0.1) * rate);
+  if (x.size() < start + n) x.resize(start + n, 0.0f);
+  for (int k = 1; k <= 60; ++k) {
+    const double f = hz * k * std::sqrt(1.0 + 0.0004 * k * k);
+    if (f > 0.42 * rate) break;
+    const double a = amp * std::pow(k, -1.2);
+    const double tau = 2.2 / (1.0 + 0.45 * (k - 1)) * std::sqrt(220.0 / hz);
+    for (size_t i = 0; i < n; ++i) {
+      const double t = i / static_cast<double>(rate);
+      double env = std::exp(-t / tau);
+      if (t < 0.002) env *= 0.5 - 0.5 * std::cos(kPi * t / 0.002);
+      if (t > seconds) env *= std::max(0.0, 1.0 - (t - seconds) / 0.08);
+      x[start + i] += static_cast<float>(a * env * std::sin(2.0 * kPi * f * t + k));
+    }
+  }
+}
+
+// Six such notes with gaps between them, the last damped at 7.58 s, in
+// `seconds` of signal: what follows is the pause.
+static std::vector<float> phrase(float rate, double amp, float seconds) {
+  std::vector<float> x(static_cast<size_t>(seconds * rate), 0.0f);
+  strike(x, rate, 220.00, 0.5, 0.8, amp);
+  strike(x, rate, 261.63, 1.6, 0.6, amp);
+  strike(x, rate, 329.63, 2.5, 0.9, amp);
+  strike(x, rate, 110.00, 4.0, 1.2, amp);
+  strike(x, rate, 164.81, 6.0, 0.7, amp);
+  strike(x, rate, 392.00, 7.0, 0.5, amp);
+  x.resize(static_cast<size_t>(seconds * rate));
+  return x;
+}
+
+// White noise of the given rms in dBFS (the kit's noise is uniform: its rms is 0.577 of its peak).
+static std::vector<float> hiss(float seconds, float rate, double dbfs, uint32_t seed) {
+  rng_state() = seed;
+  return noise(seconds, rate, static_cast<float>(std::pow(10.0, dbfs / 20.0) / 0.57735));
+}
+
+// A room: noise falling towards the top, a rumble, mains hum at 50, 100 and
+// 150 Hz, wandering slowly; its rms `dbfs`.
+static std::vector<float> room_tone(float seconds, float rate, double dbfs, uint32_t seed) {
+  rng_state() = seed;
+  std::vector<float> x(static_cast<size_t>(seconds * rate));
+  double b0 = 0.0, b1 = 0.0, b2 = 0.0, low = 0.0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    const double w = white();
+    b0 = 0.99765 * b0 + w * 0.0990460;
+    b1 = 0.96300 * b1 + w * 0.2965164;
+    b2 = 0.57000 * b2 + w * 1.0526913;
+    low += (w - low) * (2.0 * kPi * 60.0 / rate);
+    const double t = i / static_cast<double>(rate);
+    const double hum = 0.5 * std::sin(2.0 * kPi * 50.0 * t) + 0.25 * std::sin(2.0 * kPi * 100.0 * t + 1.0) +
+                       0.12 * std::sin(2.0 * kPi * 150.0 * t + 2.0);
+    const double wander = 1.0 + 0.2 * std::sin(2.0 * kPi * 0.13 * t) + 0.1 * std::sin(2.0 * kPi * 0.31 * t + 1.0);
+    x[i] = static_cast<float>(((b0 + b1 + b2 + w * 0.1848) * 0.25 + 6.0 * low + 0.35 * hum) * wander);
+  }
+  const float gain = static_cast<float>(std::pow(10.0, dbfs / 20.0) / rms(x));
+  for (float& v : x) v *= gain;
+  return x;
+}
+
+// A bed's own gain under a phrase. The device is not linear, so the bed is
+// told from the notes by rendering twice, with the bed added and with it
+// taken away: half the difference of the two is what became of the bed.
+struct Bed {
+  std::vector<float> through;  // the bed as it came out
+  std::vector<float> came;     // the bed as it went in, a latency late
+  float rate = kRate;
+  // Its gain in dB over [from, to) seconds.
+  double gain(double from, double to) const {
+    const size_t a = static_cast<size_t>(from * rate), b = static_cast<size_t>(to * rate);
+    return db(rms(through, a, b) / rms(came, a, b));
+  }
+};
+static Bed bed_under(Reveal& d, const std::vector<Setting>& settings, const std::vector<float>& notes,
+                     const std::vector<float>& bed, float rate = kRate) {
+  std::vector<float> with = notes, without = notes;
+  for (size_t i = 0; i < bed.size() && i < notes.size(); ++i) {
+    with[i] += bed[i];
+    without[i] -= bed[i];
+  }
+  set_up(d, settings, rate);
+  const Stereo a = run(d, with);
+  set_up(d, settings, rate);
+  const Stereo b = run(d, without);
+  Bed out;
+  out.rate = rate;
+  out.through.resize(notes.size());
+  out.came.assign(notes.size(), 0.0f);
+  for (size_t i = 0; i < notes.size(); ++i) out.through[i] = 0.5f * (a.left[i] - b.left[i]);
+  for (size_t i = kLate; i < notes.size() && i - kLate < bed.size(); ++i) out.came[i] = bed[i - kLate];
+  return out;
+}
+
+// A held chord: notes with partials falling off, and a bed of noise under it.
+static std::vector<float> held_chord(float rate, float seconds, float amp, float bed_gain, uint32_t seed) {
+  std::vector<float> chord(static_cast<size_t>(seconds * rate), 0.0f);
+  for (double note : {110.0, 164.81, 220.0, 277.18}) {
+    for (int h = 1; h <= 12; ++h) {
+      const std::vector<float> partial = sine(static_cast<float>(note * h), seconds, rate, amp / (h * h));
+      for (size_t i = 0; i < chord.size(); ++i) chord[i] += partial[i];
+    }
+  }
+  rng_state() = seed;
+  return add(chord, noise(seconds, rate, bed_gain));
+}
+
+// The presets, as "presets" in device.json has them.
+struct Preset {
+  const char* name;
+  std::vector<Setting> settings;
+};
+static const std::vector<Preset>& presets() {
+  static const std::vector<Preset> table = {
+      {"Reveal", {}},
+      {"Gentle opening", {{p::kAmount, 0.4f}, {p::kRange, 10.0f}, {p::kRise, 700.0f}, {p::kFocus, 0.3f}, {p::kDetail, 0.15f}}},
+      {"Air", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFloor, -58.0f}, {p::kFocus, 1.0f}, {p::kDetail, 0.5f}}},
+      {"Warm body", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFocus, -1.0f}, {p::kDetail, 0.3f}}},
+      {"Slow bloom", {{p::kAmount, 0.8f}, {p::kRange, 24.0f}, {p::kRise, 2000.0f}}},
+      {"Cling", {{p::kAmount, 0.6f}, {p::kRange, 15.0f}, {p::kRise, 20.0f}, {p::kDetail, 0.9f}}},
+      {"Overtones", {{p::kAmount, 0.75f}, {p::kRange, 24.0f}, {p::kFloor, -54.0f}, {p::kRise, 200.0f}, {p::kDetail, 1.0f}}},
+      {"Broad lift", {{p::kAmount, 0.7f}, {p::kRange, 12.0f}, {p::kDetail, 0.0f}}},
+      {"Room forward", {{p::kAmount, 0.7f}, {p::kRange, 24.0f}, {p::kFloor, -66.0f}, {p::kRise, 800.0f}, {p::kDetail, 0.7f}}},
+      {"Even glow", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -60.0f}, {p::kRise, 400.0f}, {p::kDetail, 0.5f}}},
+      {"Everything level", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -72.0f}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}}},
+      {"Touch", {{p::kAmount, 0.3f}, {p::kRange, 5.0f}, {p::kRise, 60.0f}, {p::kDetail, 1.0f}}},
+      {"Breath", {{p::kAmount, 0.6f}, {p::kRange, 20.0f}, {p::kFloor, -60.0f}, {p::kRise, 80.0f}, {p::kFocus, 0.5f}, {p::kDetail, 0.9f}}},
+      {"Half lit", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -64.0f}, {p::kMix, 0.5f}}},
+      {"Glass top", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 60.0f}, {p::kFocus, 1.0f}, {p::kDetail, 1.0f}}},
+      {"Slow and deep", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -66.0f}, {p::kRise, 4000.0f}, {p::kDetail, 0.3f}}},
+  };
+  return table;
+}
+
+// --- What it does at one sample rate ---------------------------------------------------------
+// The whole behaviour in short, for the rates the frame is not sized for:
+// the frame is 2048 samples at every rate, so everything stated in time or
+// in frequency has to be worked out from the rate.
+static void behaves_at(float rate) {
+  const size_t second = static_cast<size_t>(rate);
+  std::printf("---- at %.0f Hz: %d ms of latency ----\n", rate, static_cast<int>(1000.0f * kLate / rate + 0.5f));
+
+  // Amount, Range and Floor on a loud sine and a quiet one four octaves over it.
+  {
+    const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 4.0f, 0.5f, rate);
+    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 100.0f}}, rate);
+    const Stereo out = run(device, in);
+    const double quiet = change_db(in, out.left, 3520.0, 2 * second, 3 * second, rate);
+    const double loud = change_db(in, out.left, 220.0, 2 * second, 3 * second, rate);
+    const std::vector<float> deep = two_tones(220.0, 3520.0, 60.0, 4.0f, 0.5f, rate);
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 6.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f}, {p::kRise, 100.0f}}, rate);
+    const Stereo capped = run(device, deep);
+    const double at_range = change_db(deep, capped.left, 3520.0, 2 * second, 3 * second, rate);
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -48.0f}, {p::kDetail, 1.0f}, {p::kRise, 100.0f}}, rate);
+    const Stereo under = run(device, deep);
+    const double under_floor = change_db(deep, under.left, 3520.0, 2 * second, 3 * second, rate);
+    std::printf("  amount 0.5: quiet %+.2f dB, loud %+.2f dB; range 6: %+.2f dB; 60 dB down under a Floor of -48: %+.2f dB\n",
+                quiet, loud, at_range, under_floor);
+    EXPECT_NEAR(quiet, 14.0, 0.6, "at every rate the quiet sine is lifted by Amount of its deficit");
+    EXPECT(std::fabs(loud) < 0.5, "and the loud one stays");
+    EXPECT_NEAR(at_range, 6.0, 0.3, "at every rate Range is the most");
+    EXPECT(std::fabs(under_floor) < 0.05, "at every rate nothing under Floor is lifted");
+  }
+  // Rise.
+  {
+    const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 4.0f, 0.5f, rate);
+    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 400.0f}}, rate);
+    const Stereo out = run(device, in);
+    const double full = change_db(in, out.left, 3520.0, 3 * second, 4 * second - second / 10, rate);
+    double reached = -1.0;
+    const size_t window = second / 20, hop = second / 200;
+    for (size_t at = 0; at + window < 3 * second; at += hop) {
+      if (change_db(in, out.left, 3520.0, at, at + window, rate) >= 0.632 * full) {
+        reached = (at + window / 2) / static_cast<double>(rate);
+        break;
+      }
+    }
+    std::printf("  rise 400 ms: 63 %% of %.2f dB after %.0f ms\n", full, reached * 1000.0);
+    EXPECT_NEAR(reached * 1000.0, 400.0, 90.0, "at every rate Rise is the time the lift takes");
+  }
+  // The dry path, and the level of a held chord with everything up.
+  {
+    rng_state() = 77;
+    const std::vector<float> in = noise(1.0f, rate, 0.5f);
+    set_up(device, {{p::kMix, 0.0f}, {p::kAmount, 1.0f}}, rate);
+    const Stereo dry = run(device, in);
+    bool same = true;
+    for (size_t i = 0; i + kLate < in.size(); ++i) same = same && dry.left[i + kLate] == in[i];
+    EXPECT(same, "at every rate mix 0 is the input 2304 samples late, bit for bit");
+    const std::vector<float> chord = held_chord(rate, 8.0f, 0.12f, 0.002f, 777);
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f}}, rate);
+    const Stereo out = run(device, chord);
+    double low = 1.0e9, high = -1.0e9;
+    for (size_t at = 4 * second; at + second / 10 <= 7 * second; at += second / 10) {
+      const double level = db(rms(out.left, at + kLate, at + kLate + second / 10) / rms(chord, at, at + second / 10));
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    std::printf("  held chord, everything up: out against in %+.2f to %+.2f dB, lift %.1f dB, peak %+.2f dB over the input's\n",
+                low, high, device.meter(0), db(peak(out.left) / peak(chord)));
+    EXPECT(low > -0.5 && high < 0.5, "at every rate the level of a held chord is held");
+    EXPECT(peak(out.left) < Reveal::kCeilingTop * peak(chord), "and its crests stay under the ceiling");
+  }
+  // A phrase over hiss: the bed in the pause, and the rest after it.
+  {
+    const std::vector<float> notes = phrase(rate, 0.3, 10.0f);
+    const Bed bed = bed_under(device, {}, notes, hiss(10.0f, rate, -50.0, 7), rate);
+    std::printf("  hiss at -50 dBFS under a phrase: %+.2f dB 0.1 to 0.3 s into the pause, %+.2f dB after 0.5 s\n",
+                bed.gain(7.7, 7.9), bed.gain(8.1, 8.6));
+    EXPECT(bed.gain(7.7, 7.9) < 2.0 && bed.gain(8.1, 8.6) < 0.5, "at every rate the bed is not held up in the pause");
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 4000.0f}}, rate);
+    run(device, notes);
+    render(device, 1.5f, rate);
+    const Stereo after = render(device, 0.25f, rate);
+    EXPECT(device.asleep() && peak(after.left) == 0.0, "at every rate it is asleep 1.5 s after the sound");
+  }
+  // The same at every block size, across a silence it falls asleep in, with a knob moved in the silence.
+  {
+    double worst = 0.0;
+    bool slept = false, woke = false;
+    for (float gap : {0.3f, 0.65f, 0.75f, 0.8f, 0.85f, 0.9f, 1.6f}) {
+      rng_state() = 99;
+      std::vector<float> head = add(noise(0.3f, rate, 0.05f), sine(330.0f, 0.3f, rate, 0.4f));
+      const std::vector<float> quiet = silence(gap, rate);
+      head.insert(head.end(), quiet.begin(), quiet.end());
+      const std::vector<float> again = add(noise(0.4f, rate, 0.05f), sine(495.0f, 0.4f, rate, 0.4f));
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 20.0f}, {p::kMix, 0.8f}}, rate);
+        std::vector<float> first(head.begin(), head.end() - 3);
+        std::vector<float> rest(head.end() - 3, head.end());
+        rest.insert(rest.end(), again.begin(), again.end());
+        const Stereo a = run(device, first, block);
+        if (block == 128) (device.asleep() ? slept : woke) = true;
+        device.set_param(p::kOutput, 9.0f);  // three samples before the sound returns
+        const Stereo render = concat(a, run(device, rest, block));
+        if (block == 128) {
+          reference = render;
+          continue;
+        }
+        for (size_t i = 0; i < render.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(render.left[i]) - reference.left[i]));
+        }
+      }
+    }
+    std::printf("  block sizes 1, 37, 128, 2048 across a silence, Output moved in it: worst difference %.3g\n", worst);
+    EXPECT(slept && woke, "the silences reach from before it sleeps to after");
+    EXPECT(worst < 1.0e-6, "at every rate the same at every block size across a sleep");
+  }
+}
+
 int main() {
   Conformance spec;
   spec.name = "reveal";
@@ -81,7 +341,7 @@ int main() {
   spec.mins = p::kParamMin;
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
-  spec.tail_seconds = 14.0f;
+  spec.tail_seconds = 3.0f;
   spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
@@ -122,7 +382,10 @@ int main() {
       EXPECT_NEAR(device.meter(0), expected, 0.5, "the lift meter reads the lift");
       const int band = band_of(device, 3520.0);
       EXPECT_NEAR(packed_lift(device, band), device.lift_db(band), 0.26, "the display's reading is the band's lift");
-      EXPECT_NEAR(packed_level(device, band_of(device, 220.0)), db(0.5), 2.6, "and its level the band's level");
+      // The levels the display reads are counted down from the loudest band of late.
+      EXPECT_NEAR(device.meter(Reveal::kTopMeter), db(0.5), 0.3, "the loudest band of late is the loud sine");
+      EXPECT_NEAR(packed_level(device, band_of(device, 220.0)), 0.0, 0.76, "which reads at the top");
+      EXPECT_NEAR(packed_level(device, band), -40.0, 0.76, "and the quiet sine 40 dB under it");
     }
   }
 
@@ -133,7 +396,7 @@ int main() {
     for (int n = 0; n < 60; ++n) {
       const double hz = 55.0 * std::pow(2.0, n / 7.3);  // 55 Hz to 14.9 kHz, on no grid
       const std::vector<float> in = sine(static_cast<float>(hz), 1.5f, kRate, 0.9f);
-      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 1.0f},
+      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f},
                       {p::kRise, 20.0f}});
       const Stereo out = run(device, in);
       most = std::max(most, static_cast<double>(device.meter(0)));
@@ -148,7 +411,7 @@ int main() {
   {
     const std::vector<float> in = two_tones(220.0, 3520.0, 60.0, 4.0f);
     for (float range : {0.0f, 6.0f, 12.0f, 30.0f}) {
-      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, range}, {p::kFloor, -96.0f}, {p::kDetail, 1.0f},
+      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, range}, {p::kFloor, kLowest}, {p::kDetail, 1.0f},
                       {p::kRise, 100.0f}});
       const Stereo out = run(device, in);
       const double quiet = change_db(in, out.left, 3520.0, 2 * 48000, 3 * 48000);
@@ -158,38 +421,67 @@ int main() {
     }
   }
 
-  // --- Under Floor nothing is lifted -----------------------------------------------------
+  // --- Floor is counted down from the loudest sound of late ------------------------------
   {
-    // The quiet sine stands at -66 dBFS: over a floor of -80, under one of -55.
+    // The quiet sine stands 60 dB under the loud one: over a Floor of -72, under one of -50.
     const std::vector<float> in = two_tones(220.0, 3520.0, 60.0, 4.0f);
     double lifted[2];
     int n = 0;
-    for (float floor : {-80.0f, -55.0f}) {
+    for (float floor : {-72.0f, -50.0f}) {
       set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, floor}, {p::kDetail, 1.0f},
                       {p::kRise, 100.0f}});
       const Stereo out = run(device, in);
       lifted[n++] = change_db(in, out.left, 3520.0, 2 * 48000, 3 * 48000);
+      EXPECT_NEAR(device.floor_db(), db(0.5) + floor, 0.3, "Floor stands that far under the loud sine");
     }
-    std::printf("a sine at -66 dBFS: lifted %+.2f dB over a floor of -80, %+.2f dB under one of -55\n", lifted[0],
-                lifted[1]);
+    std::printf("a sine 60 dB under the loud one: lifted %+.2f dB over a Floor of -72, %+.2f dB under one of -50\n",
+                lifted[0], lifted[1]);
     EXPECT(lifted[0] > 20.0, "over Floor it is lifted");
     EXPECT(std::fabs(lifted[1]) < 0.05, "under Floor it is left where it is");
 
     // The fade over the 6 dB above Floor: half way up it, half the lift.
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 12.0f}, {p::kFloor, -69.0f}, {p::kDetail, 1.0f},
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 12.0f}, {p::kFloor, -63.0f}, {p::kDetail, 1.0f},
                     {p::kRise, 100.0f}});
     const Stereo knee = run(device, in);
     const double half = change_db(in, knee.left, 3520.0, 2 * 48000, 3 * 48000);
     std::printf("3 dB over Floor: lifted %+.2f dB of 12\n", half);
     EXPECT_NEAR(half, 6.0, 1.0, "3 dB over Floor it gets half the lift");
 
+    // The same sound 30 dB quieter is treated the same: Floor goes down with it.
+    double at_level[2];
+    n = 0;
+    for (float loud : {0.5f, 0.5f * 0.031623f}) {
+      const std::vector<float> tones = two_tones(220.0, 3520.0, 40.0, 4.0f, loud);
+      set_up(device, {{p::kDetail, 1.0f}, {p::kRise, 100.0f}});
+      const Stereo out = run(device, tones);
+      at_level[n++] = change_db(tones, out.left, 3520.0, 2 * 48000, 3 * 48000);
+    }
+    std::printf("the default on a sine 40 dB under a loud one: %+.2f dB; the same 30 dB quieter: %+.2f dB\n",
+                at_level[0], at_level[1]);
+    EXPECT(at_level[0] > 10.0, "the default lifts it");
+    EXPECT_NEAR(at_level[1], at_level[0], 0.2, "and lifts it the same when everything is 30 dB quieter");
+
+    // Floor keeps its place through the gaps of a phrase: 2 s after the loud
+    // sine stops (a fainter one goes on) it is where it was, and 24 s later
+    // it has come down to what sounds.
+    std::vector<float> stops = sine(880.0f, 26.0f, kRate, 0.005f);
+    const std::vector<float> first = sine(220.0f, 2.0f, kRate, 0.5f);
+    for (size_t i = 0; i < first.size(); ++i) stops[i] += first[i];
+    set_up(device, {});
+    run(device, std::vector<float>(stops.begin(), stops.begin() + 4 * 48000));
+    const double held = device.top_db();
+    run(device, std::vector<float>(stops.begin() + 4 * 48000, stops.end()), 2048);
+    std::printf("the loudest of late: %.1f dB 2 s after the loud sine stopped, %.1f dB 24 s after\n", held, device.top_db());
+    EXPECT_NEAR(held, db(0.5), 0.3, "the loudest of late is held through a gap");
+    EXPECT_NEAR(device.top_db(), db(0.005), 3.5, "and comes down to what sounds once the loud sound is long gone");
+
     // Noise at -90 dBFS stays there, at every setting that could raise it.
     rng_state() = 4242;
-    const std::vector<float> hiss = noise(3.0f, kRate, 5.4772e-5f);  // uniform: rms is 0.577 of the peak
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 1.0f},
+    const std::vector<float> faint = noise(3.0f, kRate, 5.4772e-5f);  // uniform: rms is 0.577 of the peak
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f},
                     {p::kRise, 20.0f}});
-    const Stereo out = run(device, hiss);
-    const double in_db = db(rms(hiss, 48000, 96000));
+    const Stereo out = run(device, faint);
+    const double in_db = db(rms(faint, 48000, 96000));
     const double out_db = db(rms(out.left, 48000 + kLate, 96000 + kLate));
     std::printf("noise at %.1f dBFS comes out at %.1f dBFS, lift meter %.2f\n", in_db, out_db, device.meter(0));
     EXPECT(std::fabs(in_db + 90.0) < 0.2, "the noise is at -90 dBFS");
@@ -227,9 +519,9 @@ int main() {
   // the lift held there has to be gone before it is thrown forward.
   {
     std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 6.0f);
-    const std::vector<float> strike = sine(3520.0f, 2.0f, kRate, 0.4f);
+    const std::vector<float> strike_in = sine(3520.0f, 2.0f, kRate, 0.4f);
     const size_t at = 4 * 48000;
-    for (size_t i = 0; i < strike.size(); ++i) in[at + i] += strike[i];
+    for (size_t i = 0; i < strike_in.size(); ++i) in[at + i] += strike_in[i];
     set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 600.0f}});
     const Stereo out = run(device, in);
     const double before = change_db(in, out.left, 3520.0, at - 4800, at);
@@ -246,21 +538,11 @@ int main() {
   // --- No pumping on a held chord, and the level is held -------------------------------------
   {
     // Four notes with partials falling 12 dB an octave, and a bed of noise 50 dB down.
-    std::vector<float> chord(10 * 48000, 0.0f);
-    for (double note : {110.0, 164.81, 220.0, 277.18}) {
-      for (int h = 1; h <= 12; ++h) {
-        const float gain = 0.12f / static_cast<float>(h * h);
-        const std::vector<float> partial = sine(static_cast<float>(note * h), 10.0f, kRate, gain);
-        for (size_t i = 0; i < chord.size(); ++i) chord[i] += partial[i];
-      }
-    }
-    rng_state() = 777;
-    const std::vector<float> bed = noise(10.0f, kRate, 0.002f);
-    const std::vector<float> in = add(chord, bed);
+    const std::vector<float> in = held_chord(kRate, 10.0f, 0.12f, 0.002f, 777);
     for (int setting = 0; setting < 3; ++setting) {
       if (setting == 0) set_up(device, {});
-      if (setting == 1) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 1.0f}});
-      if (setting == 2) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kDetail, 0.0f}, {p::kRise, 20.0f}});
+      if (setting == 1) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f}});
+      if (setting == 2) set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 0.0f}, {p::kRise, 20.0f}});
       const Stereo out = run(device, in);
       const size_t window = 4800;
       double low = 1.0e9, high = -1.0e9, in_low = 1.0e9, in_high = -1.0e9;
@@ -282,25 +564,114 @@ int main() {
     }
   }
 
-  // --- What was loud is remembered: the quiet left behind stays lifted, then lets go --------
-  // The loud sine stops; the quiet one goes on. At Rise 300 ms the memory
-  // falls 10 dB a second, so the lift (half the deficit) falls 5 dB a second.
+  // --- Nothing is lifted towards a sound that has stopped ------------------------------------
+  // The loud sine stops; the quiet one goes on alone. Alone there is nothing
+  // over it, so nothing is asked: the lift it holds falls back (10 dB a second
+  // at Rise 300 ms) while the level hold takes it down at the same pace, and
+  // at no moment does it stand higher than it did while the loud one sounded.
   {
     std::vector<float> in = sine(3520.0f, 8.0f, kRate, 0.005f);
     const std::vector<float> loud = sine(220.0f, 3.0f, kRate, 0.5f);
     for (size_t i = 0; i < loud.size(); ++i) in[i] += loud[i] * std::min(1.0f, (loud.size() - i) / 480.0f);
-    set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 300.0f}});
-    const Stereo out = run(device, in);
-    const double with = change_db(in, out.left, 3520.0, 2 * 48000, 3 * 48000 - 4800);
-    const double soon = change_db(in, out.left, 3520.0, 3 * 48000 + 9600, 3 * 48000 + 14400);
-    const double after = change_db(in, out.left, 3520.0, 4 * 48000 + 9600, 4 * 48000 + 14400);
-    const double gone = change_db(in, out.left, 3520.0, 7 * 48000, 7 * 48000 + 24000);
-    std::printf("the loud sine stops: the quiet one stands %+.2f dB with it, %+.2f dB 0.25 s after, %+.2f dB "
-                "1.25 s after, %+.2f dB at the end\n",
-                with, soon, after, gone);
-    EXPECT(soon > with - 2.5, "the quiet that is left stays lifted when the loud stops");
-    EXPECT_NEAR(soon - after, 5.0, 1.0, "and lets go as the memory of the loud fades, 5 dB a second here");
-    EXPECT(std::fabs(gone) < 0.1, "until it stands at its own level");
+    for (float rise : {300.0f, 4000.0f}) {
+      set_up(device, {{p::kAmount, 0.5f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, rise}});
+      const Stereo out = run(device, in);
+      const double with = change_db(in, out.left, 3520.0, 3 * 48000 - 2880, 3 * 48000 - 480);
+      double highest = -100.0;
+      for (size_t at = 3 * 48000; at + 4800 <= 7 * 48000; at += 2400) {
+        highest = std::max(highest, change_db(in, out.left, 3520.0, at, at + 4800));
+      }
+      const double soon = change_db(in, out.left, 3520.0, 3 * 48000 + 9600, 3 * 48000 + 14400);
+      const double after = change_db(in, out.left, 3520.0, 4 * 48000 + 9600, 4 * 48000 + 14400);
+      const double gone = change_db(in, out.left, 3520.0, 7 * 48000, 7 * 48000 + 24000);
+      std::printf("rise %.0f ms, the loud sine stops: the quiet one stands %+.2f dB with it, %+.2f dB at the most "
+                  "after, %+.2f dB 0.25 s after, %+.2f dB 1.25 s after, %+.2f dB at the end\n",
+                  rise, with, highest, soon, after, gone);
+      EXPECT(with > 5.0, "the quiet sine stood lifted while the loud one sounded");
+      EXPECT(highest < with + 0.5, "once the loud sound has stopped the quiet one never rises");
+      EXPECT(std::fabs(gone) < 0.1, "and it comes back to its own level");
+      if (rise == 300.0f) {
+        EXPECT(soon < with - 3.0 && soon > 0.5, "it glides down, 20 dB a second here, and does not drop");
+        EXPECT(std::fabs(after) < 0.3, "and is at its own level within a second and a quarter");
+      } else {
+        EXPECT(after < with - 3.0, "also at the longest Rise");
+      }
+    }
+  }
+
+  // --- What follows a louder sound is not lifted towards it -----------------------------------
+  // A loud note stops; 0.3 s later a quiet sound begins, 40 dB under it. It
+  // is lifted no more than it would be alone, and its own loudest part not at all.
+  {
+    std::vector<float> alone(6 * 48000, 0.0f);
+    const std::vector<float> body = sine(880.0f, 3.5f, kRate, 0.005f);
+    const std::vector<float> faint = sine(3520.0f, 3.5f, kRate, 0.0005f);
+    const size_t begins = static_cast<size_t>(2.3 * 48000);
+    for (size_t i = 0; i < body.size(); ++i) alone[begins + i] = body[i] + faint[i];
+    std::vector<float> after_loud = alone;
+    const std::vector<float> loud = sine(220.0f, 2.0f, kRate, 0.5f);
+    for (size_t i = 0; i < loud.size(); ++i) after_loud[i] += loud[i] * std::min(1.0f, (loud.size() - i) / 480.0f);
+    double worst_body = 0.0, worst_more = -100.0, lifted_alone = 0.0;
+    for (int setting = 0; setting < 2; ++setting) {
+      const std::vector<Setting> settings = setting == 0 ? std::vector<Setting>{{p::kDetail, 1.0f}}
+                                                         : std::vector<Setting>{{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}};
+      set_up(device, settings);
+      const Stereo by_itself = run(device, alone);
+      set_up(device, settings);
+      const Stereo followed = run(device, after_loud);
+      for (size_t at = begins + 9600; at + 9600 <= begins + 3 * 48000; at += 9600) {
+        const double own = change_db(alone, by_itself.left, 3520.0, at, at + 9600);
+        const double then = change_db(after_loud, followed.left, 3520.0, at, at + 9600);
+        worst_more = std::max(worst_more, then - own);
+        worst_body = std::max(worst_body, std::fabs(change_db(after_loud, followed.left, 880.0, at, at + 9600)));
+        lifted_alone = std::max(lifted_alone, own);
+      }
+    }
+    std::printf("a quiet sound 0.3 s after a loud one: its loudest part moves %.2f dB at the most, its faint part is "
+                "lifted %+.2f dB more than alone at the most (alone: %+.2f dB)\n",
+                worst_body, worst_more, lifted_alone);
+    EXPECT(lifted_alone > 5.0, "alone, its faint part is lifted");
+    EXPECT(worst_body < 0.3, "after a loud sound the loudest part of what follows stays where it is");
+    EXPECT(worst_more < 0.3, "and nothing in it is lifted more than it would be alone");
+  }
+
+  // --- A bed of noise is not held up through the pauses ---------------------------------------
+  // A phrase of six struck notes over hiss at -60, -50 and -40 dBFS and over
+  // a room tone; the last note is damped at 7.58 s. The bed's own gain, in the
+  // gap between two notes (3.55 to 3.95 s) and in the pause after.
+  {
+    const std::vector<float> notes = phrase(kRate, 0.3, 11.0f);
+    struct Under {
+      const char* name;
+      std::vector<float> bed;
+    };
+    const Under beds[] = {{"hiss -60", hiss(11.0f, kRate, -60.0, 7)},
+                          {"hiss -50", hiss(11.0f, kRate, -50.0, 7)},
+                          {"hiss -40", hiss(11.0f, kRate, -40.0, 7)},
+                          {"room -45", room_tone(11.0f, kRate, -45.0, 11)}};
+    struct Case {
+      const char* name;
+      std::vector<Setting> settings;
+      double soon, later;  // the most the bed may stand up 0.1 to 0.3 s into the pause, and from 0.5 s
+    };
+    const Case cases[] = {
+        {"default", {}, 1.0, 0.3},
+        {"Rise 4 s", {{p::kRise, 4000.0f}}, 1.0, 0.3},
+        {"Slow bloom", {{p::kAmount, 0.8f}, {p::kRange, 24.0f}, {p::kRise, 2000.0f}}, 2.0, 0.3},
+    };
+    for (const Case& c : cases) {
+      for (const Under& under : beds) {
+        const Bed bed = bed_under(device, c.settings, notes, under.bed);
+        const double gap = bed.gain(3.55, 3.95), soon = bed.gain(7.7, 7.9), later = bed.gain(8.1, 8.6),
+                     last = bed.gain(9.6, 10.6);
+        std::printf("%-10s over %s: the bed %+.2f dB in a gap, %+.2f dB 0.1 to 0.3 s into the pause, %+.2f dB "
+                    "from 0.5 s, %+.2f dB from 2 s\n",
+                    c.name, under.name, gap, soon, later, last);
+        EXPECT(gap < c.soon && soon < c.soon, "the bed is not held up when the notes stop");
+        EXPECT(later < c.later && last < 0.3, "and stands at its own level half a second into the pause");
+        EXPECT(later > -0.3 && last > -0.3, "without being turned down either");
+      }
+    }
   }
 
   // --- Latency, the dry path and Mix -----------------------------------------------------
@@ -340,23 +711,34 @@ int main() {
     EXPECT(least_wet > 8.0, "every one of those tones is lifted at Mix 1");
     EXPECT(worst_dip > -0.1, "part-way Mix never takes a held tone down");
     EXPECT(worst_off < 0.3, "and is the plain crossfade of two signals in phase");
+
+    // The level is held with Mix part-way too: a great deal lifted, half of
+    // it mixed in, and the chord comes out at the level it went in at.
+    const std::vector<float> chord = held_chord(kRate, 8.0f, 0.12f, 0.002f, 777);
+    double furthest = 0.0;
+    for (float mix : {0.25f, 0.5f, 0.75f, 1.0f}) {
+      set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kDetail, 1.0f}, {p::kMix, mix}});
+      const Stereo out = run(device, chord);
+      const double level = db(rms(out.left, 4 * 48000 + kLate, 7 * 48000 + kLate) / rms(chord, 4 * 48000, 7 * 48000));
+      std::printf("mix %.2f, everything up, a held chord: %+.3f dB against the input, hold %.2f dB\n", mix, level,
+                  device.meter(1));
+      if (std::fabs(level) > std::fabs(furthest)) furthest = level;
+    }
+    EXPECT(std::fabs(furthest) < 0.2, "the level is held at every Mix");
   }
 
   // --- Left and right take the same gains --------------------------------------------------
   {
     const std::vector<float> in = two_tones(220.0, 3520.0, 40.0, 3.0f);
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 50.0f}});
+    const std::vector<Setting> up = {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kDetail, 1.0f}, {p::kRise, 50.0f}};
+    set_up(device, up);
     const Stereo mono = run(device, in);
     EXPECT(mono.left == mono.right, "mono in, mono out, bit for bit");
 
     // Opposite phase: the same lift, the same level, still opposite.
     std::vector<float> flipped(in.size());
     for (size_t i = 0; i < in.size(); ++i) flipped[i] = -in[i];
-    device.init(kRate);
-    device.set_param(p::kAmount, 1.0f);
-    device.set_param(p::kRange, 30.0f);
-    device.set_param(p::kDetail, 1.0f);
-    device.set_param(p::kRise, 50.0f);
+    set_up(device, up);
     const Stereo anti = run(device, in, flipped);
     bool opposite = true;
     for (size_t i = 0; i < in.size(); ++i) opposite = opposite && anti.left[i] == -anti.right[i];
@@ -366,16 +748,19 @@ int main() {
     // level it has on the left: the balance of the quiet one is kept.
     std::vector<float> left = two_tones(220.0, 3520.0, 40.0, 3.0f);
     std::vector<float> right = sine(3520.0f, 3.0f, kRate, 0.0025f);
-    device.init(kRate);
-    device.set_param(p::kAmount, 1.0f);
-    device.set_param(p::kRange, 30.0f);
-    device.set_param(p::kDetail, 1.0f);
-    device.set_param(p::kRise, 50.0f);
+    set_up(device, up);
     const Stereo wide = run(device, left, right);
     const double on_left = change_db(left, wide.left, 3520.0, 96000, 120000);
     const double on_right = change_db(right, wide.right, 3520.0, 96000, 120000);
     std::printf("stereo: the quiet sine is lifted %+.2f dB on the left and %+.2f dB on the right\n", on_left, on_right);
     EXPECT(on_left > 15.0 && std::fabs(on_left - on_right) < 0.05, "both sides take the same lift: the image stays");
+
+    // One side only: the silent side stays silent, the other is as it would be on both.
+    set_up(device, up);
+    const Stereo one = run(device, in, silence(3.0f, kRate));
+    EXPECT(peak(one.right) == 0.0, "a silent side stays silent");
+    EXPECT_NEAR(change_db(in, one.left, 3520.0, 96000, 120000), change_db(in, mono.left, 3520.0, 96000, 120000), 0.1,
+                "and the side that sounds is lifted as it would be on both");
   }
 
   // --- Detail: single partials, or regions ---------------------------------------------------
@@ -472,7 +857,8 @@ int main() {
     };
     const Move moves[] = {
         {"amount", p::kAmount, 0.0f, 1.0f},  {"amount back", p::kAmount, 1.0f, 0.0f},
-        {"range", p::kRange, 30.0f, 0.0f},   {"floor", p::kFloor, -96.0f, -36.0f},
+        {"range", p::kRange, 30.0f, 0.0f},   {"floor", p::kFloor, -72.0f, -24.0f},
+        {"floor back", p::kFloor, -24.0f, -72.0f}, {"rise", p::kRise, 20.0f, 4000.0f},
         {"focus", p::kFocus, -1.0f, 1.0f},   {"detail", p::kDetail, 0.0f, 1.0f},
         {"output", p::kOutput, -12.0f, 12.0f}, {"mix", p::kMix, 0.0f, 1.0f},
         {"mix back", p::kMix, 1.0f, 0.0f},   {"listen on", p::kListen, 0.0f, 1.0f},
@@ -483,7 +869,7 @@ int main() {
       std::vector<float> kept[3];
       const size_t at = 2 * 48000 + 37;
       for (int which = 0; which < 3; ++which) {
-        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -90.0f}, {p::kRise, 50.0f},
+        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -66.0f}, {p::kRise, 50.0f},
                         {p::kMix, 0.5f}});
         device.set_param(move.id, which == 1 ? move.to : move.from);
         std::vector<float> head(in.begin(), in.begin() + at), rest(in.begin() + at, in.end());
@@ -505,7 +891,7 @@ int main() {
       const double jump = max_step(changed, at - 2, at + 48000);
       const double texture = max_step(apart, at - 2, at + 48000);
       EXPECT(peak(changed, 0, at) == 0.0, "the two renders are the same until the knob moves");
-      EXPECT(peak(changed, at, at + 48000) > 0.003, "and the move is heard");
+      if (move.id != p::kRise) EXPECT(peak(changed, at, at + 48000) > 0.003, "and the move is heard");
       EXPECT(jump < 1.25 * texture + 0.003, "what a moved knob changes comes in without a jump");
       const double reference = std::max(steps[0], steps[1]);
       std::printf("click, %-11s: largest step %.4f moved, %.4f and %.4f unmoved; of the change %.4f, of what "
@@ -537,32 +923,63 @@ int main() {
     EXPECT(finite(bad_out.left) && finite(bad_out.right), "NaN, infinity and 1e30 in: finite out");
     EXPECT(off < 1.0e-3, "and the device is itself again a fifth of a second later");
     EXPECT(rms(bad_out.left, 60000, 90000) > 0.1, "not stuck silent");
+
+    // A burst 36 dB over full scale, just under what the frames take as
+    // nothing: it remembers no level, so a second later the sound is no
+    // louder than it would have been. (Floor, counted from the loudest of
+    // late, stands higher for a while: less is lifted, never more.)
+    rng_state() = 99;
+    const std::vector<float> longer = add(noise(16.0f, kRate, 0.05f), sine(330.0f, 16.0f, kRate, 0.4f));
+    std::vector<float> burst = longer;
+    for (int i = 0; i < 3000; ++i) burst[48000 + i] = (i & 1) ? -63.9f : 63.9f;
+    for (int setting = 0; setting < 2; ++setting) {
+      const std::vector<Setting> settings = setting == 0 ? std::vector<Setting>{}
+                                                         : std::vector<Setting>{{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}};
+      set_up(device, settings);
+      const Stereo clean = run(device, longer);
+      set_up(device, settings);
+      const Stereo burst_out = run(device, burst);
+      const size_t back = 48000 + 3000 + kLate + 2048;
+      const double louder = db(rms(burst_out.left, back + 4800, back + 48000) / rms(clean.left, back + 4800, back + 48000));
+      const double next = db(rms(burst_out.left, back + 48000, back + 96000) / rms(clean.left, back + 48000, back + 96000));
+      double off_late = 0.0;
+      for (size_t i = back + 14 * 48000 + 14400; i < longer.size(); ++i) {
+        off_late = std::max(off_late, std::fabs(static_cast<double>(burst_out.left[i]) - clean.left[i]));
+      }
+      std::printf("a burst of +36 dBFS, setting %d: 0.1 to 1 s after it the output is %+.2f dB against what it would "
+                  "have been, %+.2f dB in the second after, and 14.3 s after within %.2g\n",
+                  setting, louder, next, off_late);
+      EXPECT(finite(burst_out.left), "a burst far over full scale: finite out");
+      EXPECT(louder < 0.5 && next < 0.2, "what follows a burst is no louder than it would have been");
+      EXPECT(off_late < 2.0e-3, "and once the loudest of late has come down again the device is itself");
+    }
   }
 
   // --- The same at every block size, across a sleep ------------------------------------------
-  // At Rise 20 ms it holds nothing 1.3 s after the sound and sleeps 0.1 s
-  // later: the silence is stepped across that moment.
+  // It holds nothing 1.2 s after the sound and sleeps 0.1 s later: the
+  // silence is stepped across that moment, and a knob is moved in it three
+  // samples before the sound returns.
   {
     double worst = 0.0;
-    bool slept = false, woke = false;
-    for (float gap = 1.0f; gap < 1.8f; gap += 0.0137f) {
+    int slept = 0, woke = 0;
+    for (float gap = 0.9f; gap < 1.7f; gap += 0.0137f) {
       rng_state() = 99;
-      std::vector<float> phrase = add(noise(0.3f, kRate, 0.05f), sine(330.0f, 0.3f, kRate, 0.4f));
+      std::vector<float> head = add(noise(0.3f, kRate, 0.05f), sine(330.0f, 0.3f, kRate, 0.4f));
       const std::vector<float> quiet = silence(gap, kRate);
+      head.insert(head.end(), quiet.begin(), quiet.end());
+      std::vector<float> rest(head.end() - 3, head.end());
+      head.resize(head.size() - 3);
       const std::vector<float> again = add(noise(0.4f, kRate, 0.05f), sine(495.0f, 0.4f, kRate, 0.4f));
-      phrase.insert(phrase.end(), quiet.begin(), quiet.end());
-      const size_t resumes = phrase.size();
-      phrase.insert(phrase.end(), again.begin(), again.end());
+      rest.insert(rest.end(), again.begin(), again.end());
       Stereo reference;
+      const int moved = static_cast<int>(gap * 1000.0f) % 3;  // Output, Mix or nothing
       for (int block : {128, 1, 2048, 37}) {
-        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 20.0f}, {p::kFloor, -90.0f}});
-        if (block == 128) {
-          std::vector<float> head(phrase.begin(), phrase.begin() + resumes);
-          run(device, head, block);
-          if (device.asleep()) slept = true; else woke = true;
-          set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 20.0f}, {p::kFloor, -90.0f}});
-        }
-        const Stereo render = run(device, phrase, block);
+        set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 20.0f}, {p::kFloor, kLowest}, {p::kMix, 0.8f}});
+        const Stereo a = run(device, head, block);
+        if (block == 128) ++(device.asleep() ? slept : woke);
+        if (moved == 0) device.set_param(p::kOutput, 9.0f);
+        if (moved == 1) device.set_param(p::kMix, 0.3f);
+        const Stereo render = concat(a, run(device, rest, block));
         if (block == 128) {
           reference = render;
           continue;
@@ -573,14 +990,16 @@ int main() {
         }
       }
     }
-    std::printf("block sizes 1, 37, 128 and 2048 across a silence: worst difference %.3g\n", worst);
-    EXPECT(slept && woke, "the silences reach from before it sleeps to after");
+    std::printf("block sizes 1, 37, 128 and 2048 across a silence with a knob moved in it: worst difference %.3g "
+                "(%d silences it slept in, %d it did not)\n",
+                worst, slept, woke);
+    EXPECT(slept > 5 && woke > 5, "the silences reach from before it sleeps to after");
     EXPECT(worst < 1.0e-6, "the same at every block size across a sleep");
   }
 
   // --- It comes to rest after every control move ---------------------------------------------
   // Sound, a knob thrown from one end to the other while it sounds, then
-  // silence: 40 s later (the slowest Rise remembers for 35) it holds nothing.
+  // silence: a second and a half later it holds nothing and has stopped working.
   {
     rng_state() = 5;
     const std::vector<float> sound = add(noise(1.0f, kRate, 0.05f), sine(330.0f, 1.0f, kRate, 0.5f));
@@ -592,44 +1011,83 @@ int main() {
         run(device, sound);
         device.set_param(id, way == 0 ? p::kParamMax[id] : p::kParamMin[id]);
         run(device, sound);
-        render(device, 40.0f, kRate, 2048);
+        render(device, 1.5f, kRate, 2048);
         const Stereo after = render(device, 0.25f, kRate);
         const bool rests = device.asleep() && peak(after.left) == 0.0 && peak(after.right) == 0.0 &&
                            device.meter(0) == 0.0f && device.meter(1) == 0.0f && device.meter(2) == 0.0f &&
-                           device.meter(2 + Reveal::kReadings) == 0.0f;
+                           device.meter(2 + Reveal::kReadings) == 0.0f && device.meter(Reveal::kTopMeter) == 0.0f;
         if (!rests) std::printf("param %d, way %d: does not come to rest\n", id, way);
         all = all && rests;
       }
     }
-    EXPECT(all, "after any knob is thrown across its range it comes to rest: asleep, silent, every reading at rest");
+    EXPECT(all, "1.5 s after the sound, whatever knob was thrown across its range: asleep, silent, every reading at rest");
+  }
+
+  // --- The frame before a sharp attack ---------------------------------------------------------
+  // A frame is 43 ms long and the one that first holds an attack begins before
+  // it. A pluck over hiss at -50 dBFS: in the 45 ms before the pluck the bed
+  // may not come up towards it by more than a decibel or two, and the first
+  // 5 ms of the pluck come out near the level they went in at (the top of an
+  // attack is quiet beside its body, so a little of it is lifted).
+  {
+    const size_t at = 3 * 48000;
+    std::vector<float> pluck(static_cast<size_t>(4.5 * 48000), 0.0f);
+    for (int k = 1; k <= 40; ++k) {
+      const double a = 0.5 / k * std::fabs(std::sin(kPi * k * 0.23)) * 1.5, tau = 0.6 / (1.0 + 0.3 * (k - 1));
+      for (size_t i = 0; at + i < pluck.size(); ++i) {
+        const double t = i / 48000.0;
+        pluck[at + i] += static_cast<float>(a * std::exp(-t / tau) * std::min(1.0, t / 0.0003) * std::sin(2.0 * kPi * 196.0 * k * t));
+      }
+    }
+    const std::vector<float> bed = hiss(4.5f, kRate, -50.0, 7);
+    const std::vector<float> with = add(bed, pluck);
+    for (int setting = 0; setting < 2; ++setting) {
+      const std::vector<Setting> settings = setting == 0 ? std::vector<Setting>{}
+                                                         : std::vector<Setting>{{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}};
+      set_up(device, settings);
+      const Stereo a = run(device, with);
+      set_up(device, settings);
+      const Stereo b = run(device, bed);
+      const size_t on = at + kLate, ahead = on - 2160, until = on - 48;
+      const double before = db(rms(a.left, ahead, until) / rms(b.left, ahead, until));
+      const double first = db(rms(a.left, on, on + 240) / rms(with, at, at + 240));
+      const double crest = db(peak(a.left, on, on + 240) / peak(with, at, at + 240));
+      std::printf("a pluck over hiss, setting %d: the bed %+.2f dB in the 45 ms before it; its first 5 ms %+.2f dB "
+                  "(peak %+.2f dB) against the input\n",
+                  setting, before, first, crest);
+      EXPECT(before < (setting == 0 ? 1.5 : 3.0), "the bed does not swell ahead of an attack");
+      EXPECT(std::fabs(first) < 1.5 && crest < 2.5, "and the attack comes out within a decibel and a half of what went in");
+    }
   }
 
   // --- A full-scale held chord for a minute, at every end of every control -------------------
   // Three notes with their partials and a bed of noise 46 dB under them,
   // peaking at full scale. It never grows, never peaks more than 6 dB over
   // what came in, and (Output apart) comes out at the level it went in at.
+  std::vector<float> minute_chord(60 * 48000, 0.0f);
   {
-    std::vector<float> chord(60 * 48000, 0.0f);
     for (double note : {110.0, 164.81, 277.18}) {
       for (int h = 1; h <= 14; ++h) {
         const float gain = 1.0f / static_cast<float>(h * std::sqrt(static_cast<double>(h)));
         const double step = 2.0 * kPi * note * h / kRate;
-        for (size_t i = 0; i < chord.size(); ++i) chord[i] += gain * static_cast<float>(std::sin(step * i + h));
+        for (size_t i = 0; i < minute_chord.size(); ++i) minute_chord[i] += gain * static_cast<float>(std::sin(step * i + h));
       }
     }
     rng_state() = 31;
-    for (float& v : chord) v += 0.02f * white();
-    const float scale = 1.0f / static_cast<float>(peak(chord));
-    for (float& v : chord) v *= scale;
-    const double came = db(rms(chord, 10 * 48000, 20 * 48000));
+    for (float& v : minute_chord) v += 0.02f * white();
+    const float scale = 1.0f / static_cast<float>(peak(minute_chord));
+    for (float& v : minute_chord) v *= scale;
+  }
+  const double came = db(rms(minute_chord, 10 * 48000, 20 * 48000));
+  {
     double worst_peak = 0.0, worst_growth = -100.0, worst_level = 0.0;
     auto minute = [&](const char* what, double trim_db) {
-      const Stereo out = run(device, chord, 2048);
+      const Stereo out = run(device, minute_chord, 2048);
       const double top = db(std::max(peak(out.left), peak(out.right))) - trim_db;
       const double early = db(rms(out.left, 10 * 48000, 20 * 48000));
       const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
       const double level = late - came - trim_db;
-      if (top > 6.0 || late - early > 0.2 || std::fabs(level) > 1.0) {
+      if (top > 5.5 || late - early > 0.2 || std::fabs(level) > 1.0) {
         std::printf("a minute of full scale, %s: peak %+.2f dB, grows %+.2f dB, level %+.2f dB\n", what, top,
                     late - early, level);
       }
@@ -651,21 +1109,21 @@ int main() {
       }
     }
     // Everything that lifts, all the way up.
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 20.0f}, {p::kDetail, 1.0f}});
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 20.0f}, {p::kDetail, 1.0f}});
     sound = minute("everything up, Detail 1", 0.0) && sound;
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 4000.0f}, {p::kDetail, 0.0f}});
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kRise, 4000.0f}, {p::kDetail, 0.0f}});
     sound = minute("everything up, Detail 0, slowest", 0.0) && sound;
     std::printf("a minute of a full-scale chord, 18 settings: worst peak %+.2f dB over full scale, worst growth "
                 "%+.3f dB, level furthest from the input %+.2f dB\n",
                 worst_peak, worst_growth, worst_level);
     EXPECT(sound, "a minute of full scale stays finite");
-    EXPECT(worst_peak < 6.0, "and never peaks more than 6 dB over what came in");
+    EXPECT(worst_peak < 5.5, "and never peaks more than 5.5 dB over what came in");
     EXPECT(worst_growth < 0.2, "and never grows");
     EXPECT(std::fabs(worst_level) < 1.0, "and comes out within 1 dB of the level it went in at");
 
     // Listen plays only what is added, which is never more than the sound itself.
-    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kListen, 1.0f}});
-    std::vector<float> ten(chord.begin(), chord.begin() + 10 * 48000);
+    set_up(device, {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, kLowest}, {p::kListen, 1.0f}});
+    std::vector<float> ten(minute_chord.begin(), minute_chord.begin() + 10 * 48000);
     const Stereo added = run(device, ten);
     std::printf("listen, everything up: peak %+.2f dB, level %+.2f dB against the input\n", db(peak(added.left)),
                 db(rms(added.left, 5 * 48000, 10 * 48000)) - came);
@@ -673,62 +1131,64 @@ int main() {
            "what Listen plays is no louder than the sound");
   }
 
-  // --- Every preset: a minute of the full-scale chord, and Mix part-way ----------------------
+  // --- Every preset: a minute of the full-scale chord, a phrase, a swell, and Mix part-way ----
   // The table is "presets" in device.json. Each preset holds the chord's
-  // level, never grows and never peaks 6 dB over it; and with Mix part-way
-  // a held tone is the plain crossfade of its dry and its wet level.
+  // level, never grows and never peaks 6 dB over what came in, on any of
+  // three kinds of sound; with Mix part-way a held tone is the plain
+  // crossfade of its dry and its wet level; and it rests when the sound has gone.
   {
-    struct Preset {
-      const char* name;
-      std::vector<Setting> settings;
-    };
-    const std::vector<Preset> presets = {
-      {"Reveal", {}},
-      {"Gentle opening", {{p::kAmount, 0.4f}, {p::kRange, 10.0f}, {p::kRise, 700.0f}, {p::kFocus, 0.3f}, {p::kDetail, 0.15f}}},
-      {"Air", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFloor, -78.0f}, {p::kFocus, 1.0f}, {p::kDetail, 0.5f}}},
-      {"Warm body", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFocus, -1.0f}, {p::kDetail, 0.3f}}},
-      {"Slow bloom", {{p::kAmount, 0.8f}, {p::kRange, 24.0f}, {p::kRise, 2000.0f}}},
-      {"Cling", {{p::kAmount, 0.6f}, {p::kRange, 15.0f}, {p::kRise, 20.0f}, {p::kDetail, 0.9f}}},
-      {"Overtones", {{p::kAmount, 0.75f}, {p::kRange, 24.0f}, {p::kFloor, -75.0f}, {p::kRise, 200.0f}, {p::kDetail, 1.0f}}},
-      {"Broad lift", {{p::kAmount, 0.7f}, {p::kRange, 12.0f}, {p::kDetail, 0.0f}}},
-      {"Room forward", {{p::kAmount, 0.7f}, {p::kRange, 24.0f}, {p::kFloor, -96.0f}, {p::kRise, 800.0f}, {p::kDetail, 0.7f}}},
-      {"Even glow", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -80.0f}, {p::kRise, 400.0f}, {p::kDetail, 0.5f}}},
-      {"Everything level", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}}},
-      {"Touch", {{p::kAmount, 0.3f}, {p::kRange, 5.0f}, {p::kRise, 60.0f}, {p::kDetail, 1.0f}}},
-      {"Breath", {{p::kAmount, 0.6f}, {p::kRange, 20.0f}, {p::kFloor, -90.0f}, {p::kRise, 80.0f}, {p::kFocus, 0.5f}, {p::kDetail, 0.9f}}},
-      {"Half lit", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -84.0f}, {p::kMix, 0.5f}}},
-      {"Glass top", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 60.0f}, {p::kFocus, 1.0f}, {p::kDetail, 1.0f}}},
-      {"Tail comes up", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 4000.0f}, {p::kDetail, 0.3f}}},
-    };
-    EXPECT(presets.size() == 16, "sixteen presets");
-    std::vector<float> chord(60 * 48000, 0.0f);
-    for (double note : {110.0, 164.81, 277.18}) {
-      for (int h = 1; h <= 14; ++h) {
-        const float gain = 1.0f / static_cast<float>(h * std::sqrt(static_cast<double>(h)));
-        const double step = 2.0 * kPi * note * h / kRate;
-        for (size_t i = 0; i < chord.size(); ++i) chord[i] += gain * static_cast<float>(std::sin(step * i + h));
+    EXPECT(presets().size() == 16, "sixteen presets");
+    // A phrase over a faint bed, and a bright dense swell: twelve notes a
+    // little apart, every partial up to the top, in and out again.
+    std::vector<float> played = phrase(kRate, 0.45, 9.0f);
+    const std::vector<float> faint = hiss(9.0f, kRate, -62.0, 2);
+    for (size_t i = 0; i < played.size(); ++i) played[i] += faint[i];
+    std::vector<float> swell(6 * 48000, 0.0f);
+    for (int n = 0; n < 12; ++n) {
+      const double hz = 98.0 * std::pow(2.0, (n * 3.1) / 12.0);
+      for (int k = 1; k * hz < 0.4 * kRate && k <= 80; ++k) {
+        const double step = 2.0 * kPi * hz * k / kRate, a = 0.08 / k;
+        for (size_t i = 0; i < swell.size(); ++i) swell[i] += static_cast<float>(a * std::sin(step * i + 2.1 * n + 0.9 * k));
       }
     }
-    rng_state() = 31;
-    for (float& v : chord) v += 0.02f * white();
-    const float scale = 1.0f / static_cast<float>(peak(chord));
-    for (float& v : chord) v *= scale;
-    const double came = db(rms(chord, 10 * 48000, 20 * 48000));
+    for (size_t i = 0; i < swell.size(); ++i) {
+      const double e = std::sin(kPi * i / static_cast<double>(swell.size()));
+      swell[i] *= static_cast<float>(e * e);
+    }
+    const float swell_scale = 1.0f / static_cast<float>(peak(swell));
+    for (float& v : swell) v *= swell_scale;
+
     double worst_peak = -100.0, worst_growth = -100.0, worst_level = 0.0, worst_mix = 0.0, worst_dip = 0.0;
-    for (const Preset& preset : presets) {
-      device.init(kRate);
-      for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
-      const Stereo out = run(device, chord, 2048);
+    double worst_crest = -100.0, worst_played = 0.0;
+    bool all_rest = true;
+    for (const Preset& preset : presets()) {
+      set_up(device, preset.settings);
+      const Stereo out = run(device, minute_chord, 2048);
       const double top = db(std::max(peak(out.left), peak(out.right)));
       const double early = db(rms(out.left, 10 * 48000, 20 * 48000));
       const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
-      std::printf("preset %-17s a minute of full scale: peak %+.2f dB, level %+.2f dB, grows %+.3f dB, lift %.1f dB, "
-                  "hold %.1f dB\n",
-                  preset.name, top, late - came, late - early, device.meter(0), device.meter(1));
       EXPECT(finite(out.left) && finite(out.right), "a preset stays finite on a minute of full scale");
       worst_peak = std::max(worst_peak, top);
       worst_growth = std::max(worst_growth, late - early);
       if (std::fabs(late - came) > std::fabs(worst_level)) worst_level = late - came;
+      const float lift = device.meter(0), hold = device.meter(1);
+
+      // The phrase and the swell: the crests against the input's, the level, and the rest after.
+      set_up(device, preset.settings);
+      const Stereo phrase_out = run(device, played);
+      const double phrase_crest = db(peak(phrase_out.left) / peak(played));
+      const double phrase_level = db(rms(phrase_out.left, kLate, played.size()) / rms(played, 0, played.size() - kLate));
+      render(device, 1.5f, kRate);
+      const Stereo after = render(device, 0.25f, kRate);
+      all_rest = all_rest && device.asleep() && peak(after.left) == 0.0;
+      set_up(device, preset.settings);
+      const Stereo swell_out = run(device, swell);
+      const double swell_crest = db(peak(swell_out.left) / peak(swell));
+      worst_crest = std::max(worst_crest, std::max(phrase_crest, swell_crest));
+      if (std::fabs(phrase_level) > std::fabs(worst_played)) worst_played = phrase_level;
+      std::printf("preset %-17s a minute of full scale: peak %+.2f dB, level %+.2f dB, grows %+.3f dB, lift %.1f dB, "
+                  "hold %.1f dB; a phrase: peak %+.2f dB, level %+.2f dB; a swell: peak %+.2f dB\n",
+                  preset.name, top, late - came, late - early, lift, hold, phrase_crest, phrase_level, swell_crest);
 
       // A quiet held tone under a loud one, over the piano: wet, then half way.
       for (int key = 15; key < 88; key += 8) {
@@ -738,8 +1198,7 @@ int main() {
         double lifts[2];
         int n = 0;
         for (float mix : {1.0f, 0.5f}) {
-          device.init(kRate);
-          for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+          set_up(device, preset.settings);
           device.set_param(p::kMix, mix);
           device.set_param(p::kRise, 50.0f);
           const Stereo mixed = run(device, tones);
@@ -750,16 +1209,24 @@ int main() {
       }
     }
     std::printf("sixteen presets: worst peak %+.2f dB, worst growth %+.3f dB, level furthest from the input %+.2f dB; "
-                "Mix 0.5 on held tones: %.3f dB from the plain crossfade at worst, deepest dip %.3f dB\n",
-                worst_peak, worst_growth, worst_level, worst_mix, worst_dip);
-    // The level is held, the peaks are not: lifting many quiet partials makes
-    // a denser wave, and the densest preset peaks 6.1 dB over this chord.
-    EXPECT(worst_peak < 7.0, "no preset peaks more than 7 dB over a full-scale chord");
+                "a phrase and a swell: worst peak %+.2f dB over the input's, level furthest %+.2f dB; Mix 0.5 on held "
+                "tones: %.3f dB from the plain crossfade at worst, deepest dip %.3f dB\n",
+                worst_peak, worst_growth, worst_level, worst_crest, worst_played, worst_mix, worst_dip);
+    // The level is held and the crests are bent under the ceiling, 5.5 dB
+    // over the loudest sample that came in.
+    EXPECT(worst_peak < 6.0, "no preset peaks more than 6 dB over a full-scale chord");
+    EXPECT(worst_crest < 20.0 * std::log10(Reveal::kCeilingTop), "nor more than the ceiling over a phrase or a swell");
     EXPECT(worst_growth < 0.2, "no preset grows");
     EXPECT(std::fabs(worst_level) < 1.0, "every preset holds the level within 1 dB");
-    EXPECT(worst_mix < 0.3, "at every preset part-way Mix is the plain crossfade");
+    EXPECT(std::fabs(worst_played) < 1.5, "also of a played phrase");
+    // (But for the level hold, which has less to hold with half of it mixed in: 0.27 dB at the most.)
+    EXPECT(worst_mix < 0.4, "at every preset part-way Mix is the plain crossfade");
     EXPECT(worst_dip > -0.5, "and no held tone dips by half a dB");
+    EXPECT(all_rest, "every preset is asleep and silent 1.5 s after the phrase");
   }
+
+  // --- The same behaviour at the other sample rates ------------------------------------------
+  for (float rate : {44100.0f, 88200.0f, 96000.0f}) behaves_at(rate);
 
   // --- Cost: the average, and the block a frame lands in -------------------------------------
   {
@@ -778,41 +1245,36 @@ int main() {
         if (setting == 1) {
           device.set_param(p::kAmount, 1.0f);
           device.set_param(p::kRange, 30.0f);
-          device.set_param(p::kFloor, -96.0f);
+          device.set_param(p::kFloor, kLowest);
           device.set_param(p::kDetail, 0.0f);
           device.set_param(p::kRise, 20.0f);
         }
       };
       prepare();
       report_cost(label, 10.0f, kRate, [&] { run(device, busy); });
-      // Block by block: stretches of 256 blocks, the fastest stretch for the
-      // average (the machine is shared), and the 99th percentile for the
-      // block that holds a frame's work.
-      prepare();
-      std::vector<double> micros;
-      double best_stretch = 1.0e18, stretch = 0.0;
-      int in_stretch = 0;
-      for (size_t done = 0; done + 128 <= busy.size(); done += 128) {
-        for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = busy[done + i];
-        const auto start = std::chrono::steady_clock::now();
-        device.process(128);
-        const double took =
-            std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
-        micros.push_back(took);
-        stretch += took;
-        if (++in_stretch == 256) {
-          best_stretch = std::min(best_stretch, stretch / 256.0);
-          stretch = 0.0;
-          in_stretch = 0;
+      // Block by block, five passes: every block's fastest pass (the machine
+      // is shared), then the mean of those and the slowest of them, which is
+      // the block a frame's work lands in.
+      std::vector<double> micros(busy.size() / 128, 1.0e18);
+      for (int pass = 0; pass < 5; ++pass) {
+        prepare();
+        for (size_t block = 0; block < micros.size(); ++block) {
+          for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = busy[block * 128 + i];
+          const auto start = std::chrono::steady_clock::now();
+          device.process(128);
+          const double took =
+              std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
+          micros[block] = std::min(micros[block], took);
         }
       }
-      std::sort(micros.begin(), micros.end());
-      const double median_frame = micros[micros.size() * 3 / 4];  // half the blocks hold a frame
-      const double p99 = micros[micros.size() * 99 / 100];
-      std::printf("%s: fastest stretch %.1f us a block (%.2f%%), a block with a frame %.1f us (%.2f%%), 99th "
-                  "percentile %.1f us (%.2f%%) (native)\n",
-                  label, best_stretch, 100.0 * best_stretch / 2666.7, median_frame, 100.0 * median_frame / 2666.7,
-                  p99, 100.0 * p99 / 2666.7);
+      double sum = 0.0, slowest = 0.0;
+      for (double took : micros) {
+        sum += took;
+        slowest = std::max(slowest, took);
+      }
+      std::printf("%s: %.1f us a block on average (%.2f%%), the slowest block %.1f us (%.2f%%) (native, fastest of "
+                  "five passes for each block)\n",
+                  label, sum / micros.size(), 100.0 * sum / micros.size() / 2666.7, slowest, 100.0 * slowest / 2666.7);
     }
   }
 

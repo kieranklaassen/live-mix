@@ -20,18 +20,18 @@
       "name": "Range",
       "min": 0,
       "max": 30,
-      "default": 15,
+      "default": 12,
       "unit": "dB",
-      "description": "The most any frequency may be lifted. Low keeps the lift a gentle opening; high lets faint overtones and the room come right up."
+      "description": "The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up."
     },
     {
       "key": "floor",
       "name": "Floor",
-      "min": -96,
-      "max": -36,
-      "default": -66,
+      "min": -72,
+      "max": -24,
+      "default": -48,
       "unit": "dB",
-      "description": "Anything quieter than this is left where it is, so hiss and hum stay down. Lower it to reach fainter detail; raise it to lift only what is clearly there."
+      "description": "How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail."
     },
     {
       "key": "rise",
@@ -41,7 +41,7 @@
       "default": 300,
       "taper": "log",
       "unit": "ms",
-      "description": "How long the lift takes to come up, and how long what was loud is remembered once it stops. Short clings to every moment; long lets a note bloom as it fades."
+      "description": "How long the lift takes to come up, and how slowly it lets go when it is no longer called for. Short follows every moment; long moves like a slow hand on a fader."
     },
     {
       "key": "focus",
@@ -315,6 +315,12 @@
       "key": "level22",
       "name": "Level, bands 85 to 88",
       "display": true
+    },
+    {
+      "key": "loudest",
+      "name": "Loudest of late",
+      "unit": "dB",
+      "display": true
     }
   ],
   "latencySamples": 2304,
@@ -330,7 +336,7 @@
     "Air": {
       "amount": 0.9,
       "range": 24,
-      "floor": -78,
+      "floor": -58,
       "focus": 1,
       "detail": 0.5
     },
@@ -354,7 +360,7 @@
     "Overtones": {
       "amount": 0.75,
       "range": 24,
-      "floor": -75,
+      "floor": -54,
       "rise": 200,
       "detail": 1
     },
@@ -366,21 +372,21 @@
     "Room forward": {
       "amount": 0.7,
       "range": 24,
-      "floor": -96,
+      "floor": -66,
       "rise": 800,
       "detail": 0.7
     },
     "Even glow": {
       "amount": 1,
       "range": 30,
-      "floor": -80,
+      "floor": -60,
       "rise": 400,
       "detail": 0.5
     },
     "Everything level": {
       "amount": 1,
       "range": 30,
-      "floor": -96,
+      "floor": -72,
       "rise": 150,
       "detail": 1
     },
@@ -393,7 +399,7 @@
     "Breath": {
       "amount": 0.6,
       "range": 20,
-      "floor": -90,
+      "floor": -60,
       "rise": 80,
       "focus": 0.5,
       "detail": 0.9
@@ -401,7 +407,7 @@
     "Half lit": {
       "amount": 1,
       "range": 30,
-      "floor": -84,
+      "floor": -64,
       "mix": 0.5
     },
     "Glass top": {
@@ -411,10 +417,10 @@
       "focus": 1,
       "detail": 1
     },
-    "Tail comes up": {
+    "Slow and deep": {
       "amount": 1,
       "range": 30,
-      "floor": -96,
+      "floor": -66,
       "rise": 4000,
       "detail": 0.3
     }

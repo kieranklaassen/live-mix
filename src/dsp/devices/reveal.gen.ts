@@ -22,22 +22,22 @@ export const REVEAL_PARAMS = {
     name: 'Range',
     min: 0,
     max: 30,
-    default: 15,
+    default: 12,
     taper: 'linear',
     unit: 'dB',
     description:
-      'The most any frequency may be lifted. Low keeps the lift a gentle opening; high lets faint overtones and the room come right up.',
+      'The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up.',
   },
   floor: {
     id: 2,
     name: 'Floor',
-    min: -96,
-    max: -36,
-    default: -66,
+    min: -72,
+    max: -24,
+    default: -48,
     taper: 'linear',
     unit: 'dB',
     description:
-      'Anything quieter than this is left where it is, so hiss and hum stay down. Lower it to reach fainter detail; raise it to lift only what is clearly there.',
+      'How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail.',
   },
   rise: {
     id: 3,
@@ -48,7 +48,7 @@ export const REVEAL_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'How long the lift takes to come up, and how long what was loud is remembered once it stops. Short clings to every moment; long lets a note bloom as it fades.',
+      'How long the lift takes to come up, and how slowly it lets go when it is no longer called for. Short follows every moment; long moves like a slow hand on a fader.',
   },
   focus: {
     id: 4,
@@ -157,6 +157,7 @@ export const REVEAL_METERS = {
   level20: { id: 43, name: 'Level, bands 77 to 80', unit: '', display: true },
   level21: { id: 44, name: 'Level, bands 81 to 84', unit: '', display: true },
   level22: { id: 45, name: 'Level, bands 85 to 88', unit: '', display: true },
+  loudest: { id: 46, name: 'Loudest of late', unit: 'dB', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const REVEAL_DEVICE = defineWasmDevice({
@@ -176,20 +177,20 @@ export const REVEAL_DESCRIPTOR = wasmDeviceDescriptor(REVEAL_DEVICE, {
   presets: {
     Reveal: {},
     'Gentle opening': { amount: 0.4, range: 10, rise: 700, focus: 0.3, detail: 0.15 },
-    Air: { amount: 0.9, range: 24, floor: -78, focus: 1, detail: 0.5 },
+    Air: { amount: 0.9, range: 24, floor: -58, focus: 1, detail: 0.5 },
     'Warm body': { amount: 0.9, range: 24, focus: -1, detail: 0.3 },
     'Slow bloom': { amount: 0.8, range: 24, rise: 2000 },
     Cling: { amount: 0.6, range: 15, rise: 20, detail: 0.9 },
-    Overtones: { amount: 0.75, range: 24, floor: -75, rise: 200, detail: 1 },
+    Overtones: { amount: 0.75, range: 24, floor: -54, rise: 200, detail: 1 },
     'Broad lift': { amount: 0.7, range: 12, detail: 0 },
-    'Room forward': { amount: 0.7, range: 24, floor: -96, rise: 800, detail: 0.7 },
-    'Even glow': { amount: 1, range: 30, floor: -80, rise: 400, detail: 0.5 },
-    'Everything level': { amount: 1, range: 30, floor: -96, rise: 150, detail: 1 },
+    'Room forward': { amount: 0.7, range: 24, floor: -66, rise: 800, detail: 0.7 },
+    'Even glow': { amount: 1, range: 30, floor: -60, rise: 400, detail: 0.5 },
+    'Everything level': { amount: 1, range: 30, floor: -72, rise: 150, detail: 1 },
     Touch: { amount: 0.3, range: 5, rise: 60, detail: 1 },
-    Breath: { amount: 0.6, range: 20, floor: -90, rise: 80, focus: 0.5, detail: 0.9 },
-    'Half lit': { amount: 1, range: 30, floor: -84, mix: 0.5 },
+    Breath: { amount: 0.6, range: 20, floor: -60, rise: 80, focus: 0.5, detail: 0.9 },
+    'Half lit': { amount: 1, range: 30, floor: -64, mix: 0.5 },
     'Glass top': { amount: 1, range: 30, rise: 60, focus: 1, detail: 1 },
-    'Tail comes up': { amount: 1, range: 30, floor: -96, rise: 4000, detail: 0.3 },
+    'Slow and deep': { amount: 1, range: 30, floor: -66, rise: 4000, detail: 0.3 },
   },
 })
 
