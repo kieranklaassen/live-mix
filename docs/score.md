@@ -66,7 +66,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, chance?, pan?, lowpassHz?, spaceDb?, meta?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, chance?, turns?, pan?, lowpassHz?, spaceDb?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -79,7 +79,14 @@ them.
 A clip with `muted: true` keeps its place in the document and is never
 started; muting one that is sounding stops it. A clip with a `chance` below 1
 sounds on that share of the loop's passes, the same ones every time for one
-`transport.seed` ([time](./concepts/time.md)). A clip with `reversed: true`
+`transport.seed` ([time](./concepts/time.md)). A clip with `turns`
+(`{ sourceIds, every? }`) plays another source each time its start comes
+round: `sourceIds[floor(pass / every) % sourceIds.length]`, counted on the
+same passes, so pass 14 plays the same source every time, in a bounce as on
+a device. Every source it names is one of the score's, `source.remove`
+refuses while a clip's turns still name it, and `clip.update` takes
+`turns: null` to play the clip's own `sourceId` again. Audio tracks only: a
+stretch or element track plays `sourceId`. A clip with `reversed: true`
 plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that

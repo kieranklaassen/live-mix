@@ -171,6 +171,7 @@ describe('operation tool schemas', () => {
     expect(operationSchema('strip.set').$defs).toBeUndefined()
     expect(Object.keys(operationSchema('track.add').$defs ?? {}).sort()).toEqual([
       'Clip',
+      'ClipTurns',
       'Destination',
       'Device',
       'Meta',

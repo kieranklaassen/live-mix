@@ -182,6 +182,7 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       spaceDb: number(
         "Send into the track's space (a long dark room), in dB against the clip's own level.",
       ),
+      turns: ref('ClipTurns'),
       meta: ref('Meta'),
     },
     required: [
@@ -222,8 +223,33 @@ export const OPERATION_DEFS: Record<string, JsonSchema> = {
       pan: nullableNumber('−1 left … 1 right; null takes it off the clip.', -1, 1),
       lowpassHz: nullableNumber('Low-pass cutoff in Hz; null takes it off the clip.', 20),
       spaceDb: nullableNumber("Send into the track's space in dB; null takes it off the clip."),
+      turns: {
+        anyOf: [ref('ClipTurns'), { type: 'null' }],
+        description: 'Other sources the clip plays in turn; null takes them off the clip.',
+      },
       meta: ref('Meta'),
     },
+    additionalProperties: false,
+  },
+  ClipTurns: {
+    type: 'object',
+    description:
+      'Other audio a clip plays in turn, by counted pass: turn n lasts `every` passes and plays `sourceIds[n]`, and after the last the first comes again. Audio tracks only.',
+    properties: {
+      sourceIds: {
+        type: 'array',
+        description: 'The source of each turn, in order.',
+        items: id('Source id.'),
+        minItems: 1,
+        maxItems: 64,
+      },
+      every: {
+        type: 'integer',
+        description: 'How many counted passes a turn lasts. Default 1.',
+        minimum: 1,
+      },
+    },
+    required: ['sourceIds'],
     additionalProperties: false,
   },
   Meta: {

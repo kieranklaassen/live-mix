@@ -10,6 +10,7 @@
 // alongside it.
 
 import { type Clip } from '../clips/Clip'
+import { clipSourceOnPass } from '../clips/turns'
 import { type ClipWindow } from '../clips/window'
 import { scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { type Timebase } from '../transport/Cycle'
@@ -59,6 +60,8 @@ export class SampleRetainer implements Schedulable {
   private readonly graceSec: number
   private readonly holdMap = new Map<string, Hold>()
   private unregister: (() => void) | null = null
+  // The clock of the scheduler it is on: what a pass is counted on for a track with no clock of its own.
+  private transport: Timebase | null = null
 
   constructor(options: SampleRetainerOptions) {
     this.samples = options.samples
@@ -88,12 +91,15 @@ export class SampleRetainer implements Schedulable {
     const clip = this.track.clips.get(start.clipId)
     if (!clip) return true
     const key = scheduleKey(start)
+    // A clip that takes turns is held by the source this start plays (`Clip.turns`).
+    const base = this.track.timebase ?? this.transport
+    const sourceId = clipSourceOnPass(clip, base ? base.passOf(start.iteration) : 0)
     this.holdMap.get(key)?.release()
     this.holdMap.set(key, {
-      sourceId: clip.sourceId,
+      sourceId,
       startsAt: when,
       endsAt: when + clip.durationSec + this.graceSec,
-      release: this.samples.retain(clip.sourceId),
+      release: this.samples.retain(sourceId),
     })
     return true
   }
@@ -125,6 +131,7 @@ export class SampleRetainer implements Schedulable {
   /** Register with a scheduler (idempotent). */
   attach(scheduler: Scheduler): void {
     this.detach()
+    this.transport = scheduler.transport
     this.unregister = scheduler.register(this)
   }
 
@@ -132,6 +139,7 @@ export class SampleRetainer implements Schedulable {
     if (!this.unregister) return
     this.unregister()
     this.unregister = null
+    this.transport = null
   }
 
   /** Schedule keys currently holding a sample. */
