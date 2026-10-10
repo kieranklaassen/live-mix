@@ -11,7 +11,7 @@ import { type Clip } from '../clips/Clip'
 import { type LaunchQuantize } from './launch'
 import { type ScoreFollowAction } from './followActions'
 
-/** A clip as a slot holds it: what to play, not where. */
+/** A clip as a slot holds it: what to play, not where. Its `turns` go onto the clip a launch places, as its `chance` does. */
 export type SlotClip = Omit<Clip, 'id' | 'startSec'>
 
 /**
@@ -97,6 +97,10 @@ export function slotClipOf(clip: Clip): SlotClip {
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
   if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
+  if (clip.turns !== undefined) {
+    out.turns = { sourceIds: [...clip.turns.sourceIds] }
+    if (clip.turns.every !== undefined && clip.turns.every !== 1) out.turns.every = clip.turns.every
+  }
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb

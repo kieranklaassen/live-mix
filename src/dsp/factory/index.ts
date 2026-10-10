@@ -71,7 +71,9 @@ export {
 export {
   VARIATION_KINDS,
   VARIATION_LIMITS,
+  chordMoves,
   describeVariant,
+  soundDegree,
   variationAmounts,
   varySound,
   type SoundVariation,
