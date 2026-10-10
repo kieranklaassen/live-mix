@@ -399,9 +399,9 @@ class Melt : public kit::DeviceBase<melt::kNumParams> {
     // What went into the lines and what the tail was since the last tick,
     // as power, each smoothed alike; and the power the lines held a tick
     // ago by the reckoning below.
-    fed_[0] += weigh_ * (fed_sum_[0] * (1.0f / kControlPeriod) - fed_[0]);
-    fed_[1] += weigh_ * (fed_sum_[1] * (1.0f / kControlPeriod) - fed_[1]);
-    heard_ += weigh_ * (heard_sum_ * (1.0f / kControlPeriod) - heard_);
+    fed_[0] = flush_denormal(fed_[0] + weigh_ * (fed_sum_[0] * (1.0f / kControlPeriod) - fed_[0]));
+    fed_[1] = flush_denormal(fed_[1] + weigh_ * (fed_sum_[1] * (1.0f / kControlPeriod) - fed_[1]));
+    heard_ = flush_denormal(heard_ + weigh_ * (heard_sum_ * (1.0f / kControlPeriod) - heard_));
     fed_sum_[0] = fed_sum_[1] = heard_sum_ = 0.0f;
     fed_past_[0][past_at_] = fed_[0];
     fed_past_[1][past_at_] = fed_[1];

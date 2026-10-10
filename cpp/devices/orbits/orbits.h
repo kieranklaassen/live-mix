@@ -244,7 +244,7 @@ class Orbits : public kit::DeviceBase<orbits::kNumParams> {
         const float remembered = flush_denormal(o.loudest * forget_);
         o.loudest = o.played > remembered ? o.played : remembered;
         float share = 1.0f;
-        if (o.played > kNegligible * o.stays) {
+        if (o.stays > 0.0f && o.played > kNegligible * o.stays) {
           const float may = kit::max(kHoldOver * o.loudest, o.stays - kTakeOut * o.played);
           if (o.stays + 2.0f * o.both + o.played > may) {
             // stays p^2 + 2 both p + played = may, for the share p of the kept pass.
