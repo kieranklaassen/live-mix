@@ -721,7 +721,7 @@ int main(int argc, char**) {
       rng_state() = 0x99u;
       run(device, noise(0.5f, kRate, 0.2f), blocks[b]);
       const Stereo quiet = run(device, silence(19.5f, kRate), blocks[b]);
-      EXPECT(peak(quiet.left, quiet.size() - second) == 0.0, "asleep in the silence");
+      EXPECT(peak(quiet.left, quiet.size() - second) == 0.0 && device.asleep(), "asleep in the silence");
       read[b] = device.meter(0);
     }
     if (g_print) std::printf("after 20 s, 19.5 of them silent, at 40 s a year: %.5f %.5f %.5f\n", read[0], read[1], read[2]);
@@ -920,7 +920,7 @@ int main(int argc, char**) {
     const int one[] = {1}, small[] = {32}, usual[] = {128}, big[] = {512}, biggest[] = {2048};
     const int ragged[] = {1, 7, 64, 128, 33, 512, 2048, 5};
     const Stereo reference = play(usual, 1);
-    EXPECT(peak(reference.left, woken - 4800, woken) == 0.0, "asleep before the sound returns");
+    EXPECT(peak(reference.left, woken - 4800, woken) == 0.0, "silent (asleep) before the sound returns");
     EXPECT(rms(reference.left, woken, woken + second) > 0.01, "awake again when it does");
     const double differ = std::max({largest_difference(reference, play(one, 1)), largest_difference(reference, play(small, 1)),
                                     largest_difference(reference, play(big, 1)), largest_difference(reference, play(biggest, 1)),
@@ -948,6 +948,141 @@ int main(int argc, char**) {
     }
     if (g_print) std::printf("woken with knobs moved in the silence, against a device set so from the start: %g\n", snapped);
     EXPECT(snapped < 1.0e-5, "knobs moved in a sleep snap on waking, and the clock has kept its place");
+  }
+
+  // --- movement and texture run by the clock, not by the sound ----------------------------
+  // One device sleeps through six seconds of silence; another is kept awake
+  // through them by a whisper (noise at -100 dBFS). With no room to remember
+  // anything, what they then do to the same tone is the same: the shimmer,
+  // the sway, the dropouts and the sparks stand where the clock put them.
+  {
+    const std::vector<float> tone = sine(1500.0f, 2.0f, kRate, 0.25f);
+    for (float year : {0.0f, 0.125f, 0.5f}) {
+      Stereo heard[2];
+      for (int awake = 0; awake < 2; ++awake) {
+        still(device, year);
+        device.set_param(p::kSpace, 0.0f);
+        device.set_param(p::kMotion, 1.0f);
+        device.set_param(p::kGrit, 1.0f);
+        run(device, tone);
+        rng_state() = 0x5EEDu;
+        run(device, awake ? noise(6.0f, kRate, 1.0e-5f) : silence(6.0f, kRate));
+        EXPECT(device.asleep() == !awake, "one sleeps in the gap, the other is kept awake");
+        heard[awake] = run(device, tone);
+      }
+      // Past the first 0.35 s, which the sparks fill from what came before
+      // (silence for one, the whisper for the other).
+      double differ = 0.0;
+      for (size_t i = 16800; i < heard[0].size(); ++i) {
+        differ = std::max(differ, std::fabs(static_cast<double>(heard[0].left[i]) - heard[1].left[i]));
+        differ = std::max(differ, std::fabs(static_cast<double>(heard[0].right[i]) - heard[1].right[i]));
+      }
+      if (g_print) std::printf("year %.2f: slept against kept awake, differ by %g\n", year, differ);
+      EXPECT(differ < 2.0e-4, "movement and texture keep their place through a sleep, as a clock would");
+    }
+  }
+
+  // --- other sample rates: the same effect -------------------------------------------------
+  {
+    for (float rate : {44100.0f, 96000.0f}) {
+      const size_t rate_second = static_cast<size_t>(rate);
+      // Winter's tail is as long.
+      still(device, 0.75f, rate);
+      rng_state() = 0x55u;
+      std::vector<float> burst = noise(0.3f, rate, 0.5f);
+      burst.resize(static_cast<size_t>(rate * 14.0f), 0.0f);
+      const double ring = rt60(run(device, burst).left, rate, 0.45, 0.05, -80.0);
+      // Spring shimmers at 5.3 Hz.
+      still(device, 0.0f, rate);
+      device.set_param(p::kSpace, 0.0f);
+      device.set_param(p::kMotion, 1.0f);
+      device.set_param(p::kGrit, 0.0f);
+      const Stereo top = run(device, sine(6000.0f, 6.0f, rate, 0.25f));
+      const std::vector<float> top_level = windows(top.left, rate_second, rate_second / 100);
+      const double tremble = tone_level(top_level, 5.3, 100.0) / mean(top_level);
+      // Autumn's dropouts come as often.
+      still(device, 0.5f, rate);
+      device.set_param(p::kSpace, 0.0f);
+      device.set_param(p::kMotion, 0.0f);
+      device.set_param(p::kGrit, 1.0f);
+      const Stereo broken = run(device, sine(6000.0f, 8.0f, rate, 0.25f));
+      const std::vector<float> fine = windows(broken.left, rate_second, rate_second / 500);
+      std::vector<float> sorted = fine;
+      std::sort(sorted.begin(), sorted.end());
+      int count = 0;
+      bool under = false;
+      for (float v : fine) {
+        const bool now = v < 0.7f * sorted[sorted.size() * 9 / 10];
+        if (now && !under) ++count;
+        under = now;
+      }
+      // The year takes as many seconds.
+      device.init(rate);
+      device.set_param(p::kTurning, 10.0f);
+      run(device, std::vector<float>(static_cast<size_t>(2.5f * rate), 0.01f));
+      const double year = device.meter(0);
+      if (g_print) {
+        std::printf("at %.0f Hz: winter rings %.2f s (%.2f at 48 kHz), spring shimmers %.3f (%.3f), autumn "
+                    "%.1f dips a second (%.1f), the year after 2.5 s %.4f\n",
+                    rate, ring, decay[3], tremble, shimmer[0], count / 7.0, dips[2], year);
+      }
+      EXPECT(std::fabs(ring / decay[3] - 1.0) < 0.12, "winter's tail is as long at another sample rate");
+      EXPECT(std::fabs(tremble / shimmer[0] - 1.0) < 0.15, "spring shimmers as much and as fast at another sample rate");
+      EXPECT(std::fabs(count / 7.0 / dips[2] - 1.0) < 0.2, "autumn crumbles as often at another sample rate");
+      EXPECT_NEAR(year, 0.25, 1.0e-3, "the year takes as many seconds at another sample rate");
+    }
+  }
+
+  // --- left and right stay left and right --------------------------------------------------
+  // Nothing in the wet path sums the two sides: a signal that is all side
+  // (left the inverse of right) comes through spring as loud as one that is
+  // all middle. Winter narrows, which takes 7 dB off the side; Width at
+  // nothing is mono, and only there does it vanish.
+  {
+    const std::vector<float> one = pink(4.0f, 0.1f);
+    std::vector<float> inverse(one.size());
+    for (size_t i = 0; i < one.size(); ++i) inverse[i] = -one[i];
+    still(device, 0.0f);
+    const double middle = level(run(device, one), second);
+    still(device, 0.0f);
+    const double side = level(run(device, one, inverse), second);
+    still(device, 0.75f);
+    const double narrow = level(run(device, one, inverse), second);
+    still(device, 0.0f);
+    device.set_param(p::kWidth, 0.0f);
+    const Stereo summed = run(device, one, inverse);
+    const double mono = level(summed, second);
+    if (g_print) {
+      std::printf("all side against all middle: spring %+.2f dB, winter %+.2f dB, Width 0 %+.1f dB\n",
+                  db(side / middle), db(narrow / middle), db(mono / middle));
+    }
+    EXPECT(std::fabs(db(side / middle)) < 1.0, "a signal that is all side keeps its level in spring");
+    EXPECT(db(narrow / middle) < -4.0 && db(narrow / middle) > -10.0, "winter narrows: the side loses about 7 dB");
+    double apart = 0.0;
+    for (size_t i = 0; i < summed.size(); ++i) {
+      apart = std::max(apart, std::fabs(static_cast<double>(summed.left[i]) - summed.right[i]));
+    }
+    EXPECT(apart < 1.0e-6 && db(mono / middle) < -9.0,
+           "Width at nothing is mono: the sides are the same samples, and little is left of an all-side signal");
+  }
+
+  // --- it comes to rest after every control move -------------------------------------------
+  // Each control moved while a phrase sounds, then silence: exact silence
+  // within six seconds (spring's room, the hold of two seconds, and room to
+  // spare), so no glide is left running.
+  {
+    for (int id = 0; id < p::kNumParams; ++id) {
+      still(device, 0.0f);
+      rng_state() = 0x77u;
+      run(device, noise(0.3f, kRate, 0.2f));
+      device.set_param(id, id == p::kYear ? 0.1f : 0.37f * p::kParamMin[id] + 0.63f * p::kParamMax[id]);
+      run(device, noise(0.05f, kRate, 0.2f));
+      device.set_param(id, id == p::kYear ? 0.05f : p::kParamDefault[id]);
+      const Stereo rest = render(device, 6.0f, kRate);
+      char label[100];
+      std::snprintf(label, sizeof label, "at rest after param %d was moved", id);
+      EXPECT(device.asleep() && peak(rest.left, rest.size() - 4800) == 0.0 && peak(rest.right, rest.size() - 4800) == 0.0, label);
+    }
   }
 
   device.init(kRate);

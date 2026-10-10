@@ -238,6 +238,9 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     return 0.0f;
   }
 
+  // At rest: nothing coming in, going out or left in the room.
+  bool asleep() const { return asleep_; }
+
   void process(int frames) {
     using namespace seasons;
     frames = begin_block(frames);
