@@ -519,7 +519,7 @@ static const std::vector<Preset>& presets() {
       {"Smaller", {{p::kSize, -0.4f}}},
       {"Giant", {{p::kSize, 1.0f}, {p::kDetail, 0.4f}, {p::kTone, 0.2f}}},
       {"Music box", {{p::kSize, -1.0f}, {p::kDetail, 0.6f}, {p::kTone, -0.15f}}},
-      {"Breathing", {{p::kSize, 0.1f}, {p::kWander, 0.6f}, {p::kRate, 0.08f}}},
+      {"Breathing", {{p::kSize, -0.15f}, {p::kWander, 0.7f}, {p::kRate, 0.12f}}},
       {"Slow tide", {{p::kSize, 0.0f}, {p::kWander, 1.0f}, {p::kRate, 0.03f}, {p::kWidth, 0.4f}}},
       {"Wide open", {{p::kSize, 0.15f}, {p::kWidth, 1.0f}, {p::kWander, 0.2f}, {p::kRate, 0.15f}}},
       {"A shade larger", {{p::kSize, 0.3f}, {p::kMix, 0.5f}}},

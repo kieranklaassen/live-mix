@@ -264,9 +264,9 @@
       "tone": -0.15
     },
     "Breathing": {
-      "size": 0.1,
-      "wander": 0.6,
-      "rate": 0.08
+      "size": -0.15,
+      "wander": 0.7,
+      "rate": 0.12
     },
     "Slow tide": {
       "size": 0,

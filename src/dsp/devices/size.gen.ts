@@ -158,7 +158,7 @@ export const SIZE_DESCRIPTOR = wasmDeviceDescriptor(SIZE_DEVICE, {
     Smaller: { size: -0.4 },
     Giant: { size: 1, detail: 0.4, tone: 0.2 },
     'Music box': { size: -1, detail: 0.6, tone: -0.15 },
-    Breathing: { size: 0.1, wander: 0.6, rate: 0.08 },
+    Breathing: { size: -0.15, wander: 0.7, rate: 0.12 },
     'Slow tide': { size: 0, wander: 1, rate: 0.03, width: 0.4 },
     'Wide open': { size: 0.15, width: 1, wander: 0.2, rate: 0.15 },
     'A shade larger': { size: 0.3, mix: 0.5 },

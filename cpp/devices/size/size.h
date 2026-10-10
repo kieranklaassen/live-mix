@@ -51,7 +51,8 @@
 // are. Each channel is worked on alone: nothing is summed to mono.
 //
 // Storage: two kit::Stft<2048, 512> (88 KB each), four arrays of 1025 floats
-// per channel and nine shared ones, about 230 KB in all. Latency 2304 samples.
+// per channel and nine shared ones, about 250 KB in all, and the kit's block
+// buffers. No heap. Latency 2304 samples.
 
 #include <cstring>
 
