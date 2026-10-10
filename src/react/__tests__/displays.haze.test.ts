@@ -562,6 +562,12 @@ function linesOf(drawn: RecordingContext): {
   return { strokes, circles }
 }
 
+/** What a search found, or the test stops here saying what it did not find. */
+function found<T>(value: T | undefined, what: string): T {
+  if (value === undefined) throw new Error(`${what} is not drawn`)
+  return value
+}
+
 /** The height of a traced line at `x`, between its two points either side. */
 function heightAt(points: readonly (readonly [number, number])[], x: number): number {
   for (let n = 1; n < points.length; n++) {
@@ -595,22 +601,25 @@ describe("what Haze's display draws", () => {
 
   it('draws the curve itself and the fall to where it ends', () => {
     for (const [width, height] of sizes) {
-      for (const values of [
+      const settings: Record<string, number>[] = [
         {},
         { haze: 1, octave: 1, decay: 2, feed: 1 },
         { haze: 0, decay: 30, blur: 1 },
-      ]) {
+      ]
+      for (const values of settings) {
         const view = viewOf(display, params, { values, width, height })
         const { curve, tail } = hazeBoxes(view)
         const { strokes } = linesOf(drawDisplay(display, params, { values, width, height }))
         const ink = strokes.filter((stroke) => stroke.colour === PLAIN_COLOURS.ink)
         // The curve: a point for every pixel across its box, each on the device's curve.
-        const bent = ink.find((stroke) => stroke.points.length === curve.w + 1)
-        expect(bent, 'the curve is drawn').toBeDefined()
+        const bent = found(
+          ink.find((stroke) => stroke.points.length === curve.w + 1),
+          'the curve',
+        )
         for (const q of [-1, -0.5, 0, 0.5, 1]) {
           const [x, y] = hazeCurveAt(curve, q, view.value('haze'), view.value('octave'))
           // Between two pixels the drawn curve is straight: half a pixel of a steep stretch.
-          expect(Math.abs(heightAt(bent!.points, x) - y), `the curve at ${q}`).toBeLessThan(0.6)
+          expect(Math.abs(heightAt(bent.points, x) - y), `the curve at ${q}`).toBeLessThan(0.6)
         }
         // The fall: from the wall's own level at the stop to 60 dB under it at the seconds it takes.
         const seconds = hazeSeconds(
@@ -682,22 +691,26 @@ function handlesAt(
 describe("the handles of Haze's display", () => {
   it('stand on the curve for Haze and on the end of the fall for Decay', () => {
     for (const [width, height] of sizes) {
-      for (const values of [
+      const settings: Record<string, number>[] = [
         {},
         { haze: 0 },
         { haze: 1, octave: 1 },
         { decay: 0.5 },
         { decay: 30, feed: 1 },
-      ]) {
+      ]
+      for (const values of settings) {
         const view = viewOf(display, params, { values, width, height })
         const { curve, tail } = hazeBoxes(view)
         const { haze, decay } = handlesAt(values, width, height)
         // On the curve: the level the point stands at is read back from where it stands.
-        const bent = linesOf(drawDisplay(display, params, { values, width, height })).strokes.find(
-          (stroke) => stroke.colour === PLAIN_COLOURS.ink && stroke.points.length === curve.w + 1,
+        const bent = found(
+          linesOf(drawDisplay(display, params, { values, width, height })).strokes.find(
+            (stroke) => stroke.colour === PLAIN_COLOURS.ink && stroke.points.length === curve.w + 1,
+          ),
+          'the curve',
         )
         expect(
-          Math.abs(heightAt(bent!.points, haze.x) - haze.y),
+          Math.abs(heightAt(bent.points, haze.x) - haze.y),
           'the Haze point is on the curve',
         ).toBeLessThan(0.6)
         const seconds = hazeSeconds(
@@ -749,14 +762,14 @@ describe("the handles of Haze's display", () => {
     for (const [width, height] of sizes) {
       const { tail } = hazeBoxes({ width, height })
       const foot = tail.y + tail.h
-      for (const rest of [
+      const others: Record<string, number>[] = [
         {},
         { feed: 1, blur: 1 },
         { feed: 0, blur: 0, size: 0 },
         { feed: 0.6, tone: 0 },
-      ]) {
-        const at = (name: string): number =>
-          (rest as Record<string, number>)[name] ?? params[name].default
+      ]
+      for (const rest of others) {
+        const at = (name: string): number => rest[name] ?? params[name].default
         const fallOfDecay = (decay: number): number =>
           hazeSeconds(decay, at('size'), at('feed'), at('blur'), at('tone'))
         for (const seconds of [3, 5, 8, 11]) {
@@ -851,11 +864,13 @@ describe("the live marks of Haze's display", () => {
       }
       // And the wall is lit from its level now, falling as the wall falls.
       const [x0, y0] = hazeTailAt(tail, 0, gainToDb(wall))
-      const wedge = lit.strokes.find(
-        (stroke) => stroke.points.length === 2 && Math.abs(stroke.points[0][0] - x0) < 0.01,
+      const wedge = found(
+        lit.strokes.find(
+          (stroke) => stroke.points.length === 2 && Math.abs(stroke.points[0][0] - x0) < 0.01,
+        ),
+        'the lit fall',
       )
-      expect(wedge, 'the lit fall').toBeDefined()
-      expect(wedge!.points[0][1]).toBeCloseTo(y0, 6)
+      expect(wedge.points[0][1]).toBeCloseTo(y0, 6)
     }
   })
 
@@ -881,13 +896,16 @@ describe("the live marks of Haze's display", () => {
         meters: { push: 0.5, wall: 0.25 },
       }),
     )
-    const wedge = lit.strokes.find((stroke) => stroke.points.length === 2 && stroke.width === 1.5)
+    const wedge = found(
+      lit.strokes.find((stroke) => stroke.points.length === 2 && stroke.width === 1.5),
+      'the lit fall',
+    )
     const level = gainToDb(0.25) + wet
-    expect(wedge!.points[0]).toEqual(hazeTailAt(tail, 0, level))
+    expect(wedge.points[0]).toEqual(hazeTailAt(tail, 0, level))
     // It reaches the foot after the share of the fall that is left to it.
     const [endX, endY] = hazeTailAt(tail, (seconds * (level + 60)) / 60, -60)
-    expect(wedge!.points[1][0]).toBeCloseTo(endX, 6)
-    expect(wedge!.points[1][1]).toBeCloseTo(endY, 6)
+    expect(wedge.points[1][0]).toBeCloseTo(endX, 6)
+    expect(wedge.points[1][1]).toBeCloseTo(endY, 6)
   })
 
   it('lights nothing in silence, switched off, or with Mix at nothing', () => {
