@@ -1,0 +1,309 @@
+{
+  "id": "constellation",
+  "name": "Constellation",
+  "category": "delay",
+  "description": "Up to twelve echoes scattered like stars over one span of time, each with its own moment, side and brightness, placed by a pattern that never falls on a regular pulse.",
+  "class": "Constellation",
+  "header": "constellation.h",
+  "sources": [],
+  "memoryMb": 8,
+  "meters": [
+    {
+      "key": "span",
+      "name": "Span now",
+      "unit": "ms",
+      "display": true
+    },
+    {
+      "key": "clock",
+      "name": "Drift clock",
+      "unit": "s",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "span",
+      "name": "Span",
+      "min": 100,
+      "max": 8000,
+      "default": 2400,
+      "taper": "log",
+      "unit": "ms",
+      "description": "The length of the sky: how long after a note its last star sounds. Moving it bends the pitch of the echoes already on their way."
+    },
+    {
+      "key": "stars",
+      "name": "Stars",
+      "min": 1,
+      "max": 12,
+      "default": 7,
+      "step": 1,
+      "description": "How many echoes sound. The last star sits at the end of the span, and each one added lights another place of the pattern."
+    },
+    {
+      "key": "pattern",
+      "name": "Pattern",
+      "choices": ["Spiral", "Cluster", "Scatter", "Ladder", "Gather"],
+      "default": 0,
+      "description": "How the stars are placed. Spiral slows down, Cluster comes in groups, Scatter is irregular, Ladder steps across the sides and Gather speeds up."
+    },
+    {
+      "key": "shuffle",
+      "name": "Shuffle",
+      "min": 1,
+      "max": 16,
+      "default": 1,
+      "step": 1,
+      "description": "Another sky of the same pattern: the stars keep their kind of placement and take new moments, sides and brightness."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How much quieter and darker the later stars are than the early ones. At zero every star is as bright as the pattern made it."
+    },
+    {
+      "key": "again",
+      "name": "Again",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Feeds the end of the span back in, so the whole sky sounds again a span later, quieter and thinner each time. At the top it hangs on for minutes."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 500,
+      "max": 16000,
+      "default": 7000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The brightness of the stars. Lower settings make every echo darker, and each pass of Again darker still."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets each star's time wander slowly on its own, so the echoes shimmer a little in pitch against each other."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far the stars sit to the left and right. At zero they all sound in the centre."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry signal and the stars."
+    }
+  ],
+  "presets": {
+    "Slowing spiral": {
+      "span": 2400,
+      "stars": 7,
+      "pattern": 0,
+      "shuffle": 1,
+      "fade": 0.4,
+      "again": 0.35,
+      "tone": 7000,
+      "drift": 0.3,
+      "width": 0.8,
+      "mix": 0.4
+    },
+    "One far star": {
+      "span": 3200,
+      "stars": 1,
+      "pattern": 0,
+      "shuffle": 1,
+      "fade": 0,
+      "again": 0.3,
+      "tone": 5000,
+      "drift": 0.2,
+      "width": 0.8,
+      "mix": 0.35
+    },
+    "Scattered seven": {
+      "span": 1800,
+      "stars": 7,
+      "pattern": 2,
+      "shuffle": 3,
+      "fade": 0.3,
+      "again": 0.25,
+      "tone": 8000,
+      "drift": 0.3,
+      "width": 1,
+      "mix": 0.45
+    },
+    "Tight clusters": {
+      "span": 1400,
+      "stars": 9,
+      "pattern": 1,
+      "shuffle": 2,
+      "fade": 0.2,
+      "again": 0.3,
+      "tone": 8000,
+      "drift": 0.25,
+      "width": 0.9,
+      "mix": 0.45
+    },
+    "Bent ladder": {
+      "span": 2000,
+      "stars": 8,
+      "pattern": 3,
+      "shuffle": 1,
+      "fade": 0.5,
+      "again": 0.4,
+      "tone": 6000,
+      "drift": 0.2,
+      "width": 1,
+      "mix": 0.4
+    },
+    "Gathering in": {
+      "span": 3000,
+      "stars": 10,
+      "pattern": 4,
+      "shuffle": 1,
+      "fade": 0,
+      "again": 0.2,
+      "tone": 7000,
+      "drift": 0.3,
+      "width": 0.8,
+      "mix": 0.45
+    },
+    "Full sky": {
+      "span": 6000,
+      "stars": 12,
+      "pattern": 2,
+      "shuffle": 7,
+      "fade": 0.25,
+      "again": 0.55,
+      "tone": 7000,
+      "drift": 0.5,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Faint points": {
+      "span": 2600,
+      "stars": 5,
+      "pattern": 2,
+      "shuffle": 11,
+      "fade": 0.2,
+      "again": 0.2,
+      "tone": 12000,
+      "drift": 0.2,
+      "width": 1,
+      "mix": 0.15
+    },
+    "Dark field": {
+      "span": 4200,
+      "stars": 12,
+      "pattern": 0,
+      "shuffle": 4,
+      "fade": 0.8,
+      "again": 0.6,
+      "tone": 1200,
+      "drift": 0.4,
+      "width": 0.9,
+      "mix": 0.55
+    },
+    "Close flicker": {
+      "span": 180,
+      "stars": 12,
+      "pattern": 2,
+      "shuffle": 2,
+      "fade": 0.3,
+      "again": 0.3,
+      "tone": 9000,
+      "drift": 0.6,
+      "width": 0.9,
+      "mix": 0.5
+    },
+    "Shimmer field": {
+      "span": 900,
+      "stars": 12,
+      "pattern": 1,
+      "shuffle": 6,
+      "fade": 0.3,
+      "again": 0.6,
+      "tone": 9000,
+      "drift": 1,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Endless sky": {
+      "span": 3600,
+      "stars": 8,
+      "pattern": 0,
+      "shuffle": 9,
+      "fade": 0.5,
+      "again": 0.93,
+      "tone": 3500,
+      "drift": 0.4,
+      "width": 0.8,
+      "mix": 0.45
+    },
+    "Wide pair": {
+      "span": 700,
+      "stars": 2,
+      "pattern": 3,
+      "shuffle": 2,
+      "fade": 0,
+      "again": 0.4,
+      "tone": 7000,
+      "drift": 0.2,
+      "width": 1,
+      "mix": 0.4
+    },
+    "Centre dust": {
+      "span": 1200,
+      "stars": 12,
+      "pattern": 2,
+      "shuffle": 5,
+      "fade": 0.4,
+      "again": 0.2,
+      "tone": 6000,
+      "drift": 0.3,
+      "width": 0,
+      "mix": 0.4
+    },
+    "Bright rungs": {
+      "span": 800,
+      "stars": 12,
+      "pattern": 3,
+      "shuffle": 9,
+      "fade": 0,
+      "again": 0.5,
+      "tone": 16000,
+      "drift": 0.1,
+      "width": 0.9,
+      "mix": 0.45
+    },
+    "Strange orbit": {
+      "span": 320,
+      "stars": 6,
+      "pattern": 4,
+      "shuffle": 5,
+      "fade": 0.1,
+      "again": 0.82,
+      "tone": 4500,
+      "drift": 0.8,
+      "width": 0.7,
+      "mix": 0.45
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A multi-tap delay whose taps are placed by a pattern (a geometric run, groups, a golden sequence, bent rungs) and not by a grid."
+  }
+}
