@@ -451,4 +451,70 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3.5 } },
     ],
   },
+  {
+    id: 'into-the-room',
+    name: 'Into the room',
+    category: 'texture',
+    description:
+      "A loop records itself again through a small room on every pass, until only the room's tones are left ringing; Resonance sets how soon.",
+    effects: [{ deviceId: 'generations', preset: 'Into the room' }],
+  },
+  {
+    id: 'room-tone-pad',
+    name: 'Room tone pad',
+    category: 'texture',
+    description:
+      'A half-second loop is recorded again through a room until only its tones ring, and a blur joins the repeats into a pad; Room tunes it.',
+    effects: [
+      { deviceId: 'generations', preset: 'Quick to tones' },
+      { deviceId: 'spectral-blur', preset: 'Hanging mist', params: { blur: 0.8, mix: 0.6 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: -5 } },
+    ],
+  },
+  {
+    id: 'falling-leaves',
+    name: 'Falling leaves',
+    category: 'texture',
+    description:
+      'Small pieces of the sound drift down a fifth as they fade and are caught again to fall further; Fall sets how far, or lifts them.',
+    effects: [
+      {
+        deviceId: 'falling',
+        preset: 'Falling leaves',
+        params: { again: 0.5, scatter: 0.4, mix: 0.5 },
+      },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
+    id: 'sighing-choir',
+    name: 'Sighing choir',
+    category: 'texture',
+    description:
+      'Long pieces of each note sag in pitch as they fade, like sighs, and ring on in a hall that sings ah; Fall sets how far they sink.',
+    effects: [
+      { deviceId: 'falling', preset: 'Slow sighs' },
+      { deviceId: 'vowel-reverb', preset: 'Choir of ah', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'first-glints',
+    name: 'First glints',
+    category: 'texture',
+    description:
+      'Sparse bright sparks, short pieces of the playing an octave or two up, fall after each note with an echo of their own; Density adds more.',
+    effects: [{ deviceId: 'glints', preset: 'First light', params: { trail: 0.45, scatter: 500 } }],
+  },
+  {
+    id: 'sparks-without-notes',
+    name: 'Sparks without notes',
+    category: 'texture',
+    description:
+      'Only the sparks are kept, short pieces of each note an octave or two up, and left to hang in a cathedral; Density sets how many.',
+    effects: [
+      { deviceId: 'glints', preset: 'Only the sparks' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.5 } },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
 ]
