@@ -1893,6 +1893,12 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   afterglow: { ...PLATE_PALETTES.afterglow, finish: 'fade', cap: 'skirt' },
   feedback: { ...PLATE_PALETTES.feedback, finish: 'hammered', cap: 'pointer' },
   canon: { ...PLATE_PALETTES.canon, finish: 'grain', cap: 'pointer' },
+  'overtone-singer': {
+    ...PLATE_PALETTES['overtone-singer'],
+    finish: 'linen',
+    cap: 'dot',
+    name: 'Singer',
+  },
 }
 
 /**

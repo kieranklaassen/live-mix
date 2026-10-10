@@ -1,0 +1,246 @@
+{
+  "id": "overtone-singer",
+  "name": "Overtone Singer",
+  "category": "eq",
+  "description": "A narrow resonance that steps through the harmonics of a root note and sings a whistled melody out of a drone or a pad, the way an overtone singer does.",
+  "class": "OvertoneSinger",
+  "header": "overtone_singer.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "harmonic",
+      "name": "Harmonic now",
+      "display": true
+    },
+    {
+      "key": "harmonicRight",
+      "name": "Harmonic now, right",
+      "display": true
+    },
+    {
+      "key": "target",
+      "name": "Harmonic it moves to",
+      "display": true
+    },
+    {
+      "key": "ceiling",
+      "name": "Resonance held back",
+      "unit": "dB",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 9,
+      "description": "The note whose harmonics the resonance sings. Set it to the key or to the drone of what is playing and the melody is always in tune with it."
+    },
+    {
+      "key": "octave",
+      "name": "Octave",
+      "min": 1,
+      "max": 4,
+      "default": 2,
+      "step": 1,
+      "description": "Which octave the root sits in. Low octaves give a deep melody of close harmonics, high ones a thin bright whistle."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 2,
+      "max": 16,
+      "default": 6,
+      "step": 1,
+      "description": "The lowest harmonic the melody visits. Low numbers are wide leaps like a bugle call, higher ones lie as close as a scale."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 2,
+      "max": 16,
+      "default": 12,
+      "step": 1,
+      "description": "The highest harmonic the melody visits. Raise it for a longer scale that climbs further into the whistle."
+    },
+    {
+      "key": "pattern",
+      "name": "Pattern",
+      "choices": ["Up and down", "Up", "Down", "Wander", "Leap", "Hold"],
+      "default": 0,
+      "description": "How the resonance moves over its harmonics. Up and down climbs and returns, Wander drifts to a neighbour, Leap jumps anywhere and Hold stays where it is."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.02,
+      "max": 8,
+      "default": 1,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How often the resonance moves to another harmonic. Slow is a held tone that shifts now and then, fast is a running melody."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 5,
+      "max": 4000,
+      "default": 250,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long each move takes. Short steps cleanly from note to note, long slides through everything between as a mouth slowly changes shape."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How narrow and strong the resonance is. Low is a broad vowel colour over several harmonics, high singles out one harmonic as a clear ringing whistle."
+    },
+    {
+      "key": "drone",
+      "name": "Drone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of the sound around the resonance is kept. Fully down, only the harmonic being sung is left."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How far the right side trails the left through the melody. At zero both sides sing together, fully up the right is always one note behind."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched sound and the singing one."
+    }
+  ],
+  "presets": {
+    "Overtone melody": {},
+    "Whistle alone": {
+      "drone": 0,
+      "focus": 0.75,
+      "glide": 400
+    },
+    "Thin drone": {
+      "drone": 0.55,
+      "focus": 0.7
+    },
+    "Vowel colour": {
+      "low": 3,
+      "high": 9,
+      "focus": 0.05,
+      "pace": 0.25,
+      "glide": 2500,
+      "pattern": 3
+    },
+    "Slow wander": {
+      "pattern": 3,
+      "pace": 0.12,
+      "glide": 4000,
+      "focus": 0.5,
+      "low": 5,
+      "high": 12
+    },
+    "Two voices": {
+      "spread": 1,
+      "pace": 0.7,
+      "glide": 350,
+      "drone": 0.8
+    },
+    "Bugle call": {
+      "low": 3,
+      "high": 6,
+      "octave": 3,
+      "pattern": 4,
+      "pace": 2.5,
+      "glide": 30,
+      "focus": 0.7
+    },
+    "High whistle": {
+      "octave": 3,
+      "low": 9,
+      "high": 16,
+      "focus": 0.9,
+      "drone": 0.85,
+      "pace": 1.5,
+      "glide": 150
+    },
+    "Low chant": {
+      "octave": 1,
+      "low": 4,
+      "high": 9,
+      "pace": 0.4,
+      "glide": 900,
+      "focus": 0.45
+    },
+    "One held note": {
+      "pattern": 5,
+      "low": 8,
+      "high": 8,
+      "focus": 0.85
+    },
+    "Running scale": {
+      "pattern": 1,
+      "low": 6,
+      "high": 14,
+      "pace": 6,
+      "glide": 40,
+      "focus": 0.75,
+      "drone": 0.85
+    },
+    "Falling steps": {
+      "pattern": 2,
+      "low": 4,
+      "high": 12,
+      "pace": 2,
+      "glide": 90,
+      "drone": 0.85
+    },
+    "Bird calls": {
+      "pattern": 4,
+      "octave": 3,
+      "low": 5,
+      "high": 14,
+      "pace": 5,
+      "glide": 70,
+      "focus": 0.9,
+      "drone": 0.85
+    },
+    "Faint melody": {
+      "mix": 0.3,
+      "focus": 0.7
+    },
+    "Glass harmonics": {
+      "focus": 1,
+      "drone": 0.15,
+      "glide": 5,
+      "pace": 3,
+      "pattern": 3,
+      "octave": 3,
+      "low": 4,
+      "high": 10
+    },
+    "Wide slow drift": {
+      "spread": 0.5,
+      "pace": 0.08,
+      "glide": 4000,
+      "pattern": 3,
+      "focus": 0.35,
+      "drone": 0.9
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Two peaks in series per side on one harmonic of a root note, each the dry sound and a state-variable band-pass lifted over it, moved from harmonic to harmonic by a free-running seeded melody, with the reach of the peaks held so that the resonant part stays under a share of the input's own level."
+  }
+}

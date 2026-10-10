@@ -36,6 +36,7 @@ import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
 import { ORBITS_FACES } from './orbits'
+import { OVERTONE_SINGER_FACES } from './overtone-singer'
 import { PITCH_FACES } from './pitch'
 import { REVERB_FACES } from './reverb'
 import { SKIPPING_STONE_FACES } from './skipping-stone'
@@ -89,4 +90,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...TURN_INSTRUMENT_FACES,
   ...BODY_INSTRUMENT_FACES,
   ...CANON_FACES,
+  ...OVERTONE_SINGER_FACES,
 }

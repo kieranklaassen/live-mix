@@ -142,6 +142,7 @@ export const PLATE_PALETTES = {
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
   canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
+  'overtone-singer': { plate: '#6c9a3f', ink: '#10200a', accent: '#fff8dc' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
