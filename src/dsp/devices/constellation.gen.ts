@@ -15,7 +15,7 @@ export const CONSTELLATION_PARAMS = {
     taper: 'log',
     unit: 'ms',
     description:
-      'The length of the sky: how long after a note its last star sounds. Moving it bends the pitch of the echoes already on their way.',
+      'The length of the sky: how long after a note its last star sounds. A small move bends the pitch of the echoes on their way, a large one fades over to the new length.',
   },
   stars: {
     id: 1,
@@ -27,7 +27,7 @@ export const CONSTELLATION_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'How many echoes sound. The last star sits at the end of the span, and each one added lights another place of the pattern.',
+      'How many echoes sound. The last star sits at the end of the span and each one added lights another place of the pattern. The more stars, the fainter each one.',
   },
   pattern: {
     id: 2,
@@ -73,7 +73,7 @@ export const CONSTELLATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Feeds the end of the span back in, so the whole sky sounds again a span later, quieter and thinner each time. At the top it hangs on for minutes.',
+      'Feeds the end of the span back in, so the whole sky sounds again a span later, thinner each time. The passes share the level: more lasts longer, each pass fainter.',
   },
   tone: {
     id: 6,
@@ -95,7 +95,7 @@ export const CONSTELLATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "Lets each star's time wander slowly on its own, so the echoes shimmer a little in pitch against each other.",
+      "Lets each star's time wander slowly on its own. The echoes move a few cents apart in pitch, and a held note slowly swells and fades in them.",
   },
   width: {
     id: 8,
@@ -106,7 +106,7 @@ export const CONSTELLATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the stars sit to the left and right. At zero they all sound in the centre.',
+      'How far the stars sit to the left and right, wherever the sound came from. At zero they all sound in the centre.',
   },
   mix: {
     id: 9,
@@ -139,7 +139,7 @@ export const CONSTELLATION_DESCRIPTOR = wasmDeviceDescriptor(CONSTELLATION_DEVIC
   name: 'Constellation',
   category: 'delay',
   description:
-    'Up to twelve echoes scattered like stars over one span of time, each with its own moment, side and brightness, placed by a pattern that never falls on a regular pulse.',
+    'Up to twelve echoes scattered like stars over one span of time, each with its own moment, side and brightness, placed by a pattern that never falls on a regular pulse. The echoes are of the two sides together, and the pattern gives each its side.',
   presets: {
     'Slowing spiral': {
       span: 2400,
@@ -283,13 +283,13 @@ export const CONSTELLATION_DESCRIPTOR = wasmDeviceDescriptor(CONSTELLATION_DEVIC
       tone: 3500,
       drift: 0.4,
       width: 0.8,
-      mix: 0.45,
+      mix: 0.38,
     },
     'Wide pair': {
       span: 700,
       stars: 2,
       pattern: 3,
-      shuffle: 2,
+      shuffle: 5,
       fade: 0,
       again: 0.4,
       tone: 7000,
@@ -338,7 +338,7 @@ export const CONSTELLATION_DESCRIPTOR = wasmDeviceDescriptor(CONSTELLATION_DEVIC
 
 export type Constellation = WasmDevice<typeof CONSTELLATION_PARAMS>
 
-/** Up to twelve echoes scattered like stars over one span of time, each with its own moment, side and brightness, placed by a pattern that never falls on a regular pulse. */
+/** Up to twelve echoes scattered like stars over one span of time, each with its own moment, side and brightness, placed by a pattern that never falls on a regular pulse. The echoes are of the two sides together, and the pattern gives each its side. */
 export function createConstellation(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof CONSTELLATION_PARAMS> = {},

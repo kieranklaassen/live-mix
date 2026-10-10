@@ -5,7 +5,11 @@
 // Stars has not lit are rings. Behind the stars the sound that went in drifts
 // across as a glow, a span wide every span, and a star lights when it gets
 // there. The last star is the point to drag: across is Span, up and down is
-// Width, and the wheel lights or puts out a star.
+// Width, and the wheel lights or puts out a star. Where the picture is too
+// low for Width to be set by hand on the star's own travel (a strip: 12 px),
+// the hand goes further than the star, 24 px for the whole of Width, counted
+// from where it took the star. A pass Again makes is drawn as bright as the
+// first: what the loop's low-pass takes of it is not drawn.
 //
 // Where the stars stand is not read from the device: it is worked out here
 // by the same sums as `cpp/devices/constellation/sky.h`, to the last bit
@@ -29,6 +33,7 @@ import {
   plateDisplay,
   type DisplayFrame,
   type DisplayHandle,
+  type DisplayHold,
   type DisplayView,
   type PlateFace,
 } from '../plate-display'
@@ -47,13 +52,14 @@ const f = Math.fround
 // The constants of sky.h, as the floats they are there.
 const TWO_PI = f(2 * Math.PI)
 const ANCHOR_PAN = f(0.8)
-const ANCHOR_TURN = f(0.14758362)
 const GOLDEN_TURN = f(0.38196601)
 const GOLDEN_STEP = f(0.61803399)
 const RATIO_LEAST = f(0.58)
 const RATIO_RANGE = f(0.2)
 const WARP_LEAST = f(0.14)
 const WARP_RANGE = f(0.3)
+const TWINKLE = f(0.3)
+const SMALL_TWINKLE = f(0.15)
 const FLAM_LEAST = f(0.022)
 const FLAM_RANGE = f(0.028)
 const SCATTER_FROM = f(0.05)
@@ -64,8 +70,10 @@ const FADE_OCTAVES = 3
 /** No star's low-pass stands lower, and none higher than Tone goes. */
 const DARKEST_HZ = 150
 const BRIGHTEST_HZ = 16000
+/** Again counts for this much of itself in the share the passes take of the level (`kAgainKept`). */
+const AGAIN_KEPT = 0.97
 /** The wander: its period in seconds, its three parts, and how far it reaches. */
-export const DRIFT_PERIOD_SEC = 512
+export const DRIFT_PERIOD_SEC = 1800
 const DRIFT_TURNS = [97, 59, 163] as const
 const DRIFT_TURNS_STEP = [13, 9, 21] as const
 const DRIFT_WEIGHT = [0.5, 0.3, 0.2] as const
@@ -122,18 +130,21 @@ export function layOut(pattern: number, seed: number): Sky {
   sky.mag[0] = 1
   if (pattern === SPIRAL || pattern === GATHER) {
     const ratio = f(RATIO_LEAST + f(RATIO_RANGE * seedShare(pattern, seed)))
+    // Where the winding starts, by chance; then one twinkle a star.
+    const turn = rng.uniform()
     let gap = 1
     for (let i = 1; i < PLACES; i++) {
       gap = f(gap * ratio)
-      const wind = Math.sin(TWO_PI * f(ANCHOR_TURN + f(i * GOLDEN_TURN)))
+      const wind = Math.sin(f(TWO_PI * f(turn + f(i * GOLDEN_TURN))))
+      const twinkle = f(1 - f(TWINKLE * rng.uniform()))
       if (pattern === SPIRAL) {
         sky.time[i] = gap
-        sky.pan[i] = dir * wind
-        sky.mag[i] = 1 - 0.04 * i
+        sky.pan[i] = wind
+        sky.mag[i] = f(1 - f(f(0.04) * i)) * twinkle
       } else {
         sky.time[i] = 1 - gap
-        sky.pan[i] = dir * (ANCHOR_PAN * (1 - gap) + gap * wind)
-        sky.mag[i] = 0.56 + 0.04 * i
+        sky.pan[i] = f(f(dir * ANCHOR_PAN) * f(1 - gap)) + f(gap * f(wind))
+        sky.mag[i] = f(f(0.56) + f(f(0.04) * i)) * twinkle
       }
     }
   } else if (pattern === CLUSTER) {
@@ -159,6 +170,9 @@ export function layOut(pattern: number, seed: number): Sky {
         sky.mag[i] = 0.85 - 0.15 * member
       }
     }
+    // A twinkle by chance, drawn after every time and side.
+    for (let i = 1; i < PLACES; i++)
+      sky.mag[i] = sky.mag[i] * f(1 - f(SMALL_TWINKLE * rng.uniform()))
   } else if (pattern === SCATTER) {
     const start = rng.uniform()
     for (let i = 1; i < PLACES; i++) {
@@ -176,6 +190,8 @@ export function layOut(pattern: number, seed: number): Sky {
       share < 1
         ? f(f(1 + WARP_LEAST) + f(WARP_RANGE * share))
         : f(1 / f(f(1 + WARP_LEAST) + f(WARP_RANGE * f(share - 1))))
+    // The walk: straight across to the last star's side, or out to the other side and back.
+    const back = rng.uniform() < 0.5
     for (let i = 1; i < PLACES; i++) {
       let rung = 0
       let bit = 0.5
@@ -186,8 +202,9 @@ export function layOut(pattern: number, seed: number): Sky {
         depth += 1
       }
       sky.time[i] = Math.pow(rung, warp)
-      sky.pan[i] = dir * ANCHOR_PAN * (2 * rung - 1)
-      sky.mag[i] = 1 - 0.15 * depth
+      const walk = back ? 4 * Math.abs(rung - 0.5) - 1 : 2 * rung - 1
+      sky.pan[i] = f(dir * ANCHOR_PAN) * walk
+      sky.mag[i] = f(1 - f(f(0.15) * depth)) * f(1 - f(SMALL_TWINKLE * rng.uniform()))
     }
   }
   return sky
@@ -228,6 +245,12 @@ export function starLevels(sky: Sky, stars: number, fade: number): number[] {
   const scale = power > 0 ? 1 / Math.sqrt(power) : 0
   return levels.map((level) => level * scale)
 }
+
+/**
+ * `again_share`: what goes into the line of a sound of one with so much of it
+ * fed back. The passes share the level, so the first sky is this much fainter.
+ */
+export const againShare = (again: number): number => Math.sqrt(1 - (AGAIN_KEPT * again) ** 2)
 
 /** `drift_at`: the wander of a star at `clock` (a share of the period), about −1..1. */
 export function driftAt(star: number, clock: number): number {
@@ -278,6 +301,12 @@ const GLOW_INK = 0.3
 const DARK_INK = 0.42
 /** The one point the display has. */
 const POINT = 'last'
+/**
+ * The least a hand travels up or down for the whole of Width. On a strip the
+ * last star itself has 12 px between no width and all of it, too little to
+ * set by hand: there the hand goes this far and the star follows at its own pace.
+ */
+const WIDTH_TRAVEL = 24
 
 interface SkyState {
   /** The level going in over the last moments, for the glow and the lights. */
@@ -332,23 +361,32 @@ function lastStar(view: DisplayView): DisplayHandle {
   const x = scale.x0 + scale.across
   const y = scale.mid + side * view.value('width') * scale.reach
   const room = scale.box.w - LEAD
+  // How far the hand goes for the whole of Width: as far as the star does, or
+  // WIDTH_TRAVEL where the picture gives the star less.
+  const travel = Math.sign(side) * Math.max(Math.abs(side) * scale.reach, WIDTH_TRAVEL)
   return {
     key: POINT,
     name: 'Span and width',
     x,
     y,
     // Across is where the knob stands under its taper, so every span is in reach of the display.
-    drag: (toX, toY) => ({
-      span:
-        !span || Math.abs(toX - x) < 1e-6
-          ? view.value('span')
-          : denormalizeParam(span, ((toX - scale.x0) / room - NEAR) / (FAR - NEAR)),
-      width:
-        Math.abs(toY - y) < 1e-6
-          ? view.value('width')
-          : // Plus nought: the middle line is no width, and never a nought with a minus.
-            clamp((toY - scale.mid) / (side * scale.reach), width?.min ?? 0, width?.max ?? 1) + 0,
-    }),
+    drag: (toX, toY, hold?: DisplayHold) => {
+      // Up and down is counted from where the hand took the star and what Width was then.
+      const from = hold ?? {}
+      const fromY = (from.y ??= y)
+      const fromWidth = (from.width ??= view.value('width'))
+      return {
+        span:
+          !span || Math.abs(toX - x) < 1e-6
+            ? view.value('span')
+            : denormalizeParam(span, ((toX - scale.x0) / room - NEAR) / (FAR - NEAR)),
+        width:
+          Math.abs(toY - fromY) < 1e-6
+            ? fromWidth
+            : // Plus nought: the middle line is no width, and never a nought with a minus.
+              clamp(fromWidth + (toY - fromY) / travel, width?.min ?? 0, width?.max ?? 1) + 0,
+      }
+    },
     wheel: (steps) => ({ stars: clamp(starsOf(view) + (steps > 0 ? 1 : -1), 1, PLACES) }),
     reset: () => ({
       span: span?.default ?? view.value('span'),
@@ -389,7 +427,7 @@ const sky = plateDisplay<SkyState>({
   place: 'strip',
   params: ['span', 'stars', 'pattern', 'shuffle', 'fade', 'again', 'tone', 'drift', 'width', 'mix'],
   live: { signal: true, meters: true },
-  info: 'The sky: time runs to the right across one span and on into the passes Again makes, left is up, and a dot is as big as its star is loud. A star lights as the sound reaches it. Drag the last star across for Span and up or down for Width. The wander of Drift is drawn larger than it is.',
+  info: 'The sky: time runs right across one span and on into the passes Again makes, left is up, and a dot is as big as its star is loud. A star lights as the sound reaches it. Drag the last star across for Span, up or down for Width, and turn the wheel on it for Stars. The wander of Drift is drawn large.',
   init: () => ({ past: new History(PAST_SEC, PAST_SEC * SLOTS_PER_SEC, 0, 'max') }),
   draw(frame) {
     const { ctx, colours } = frame
@@ -414,6 +452,7 @@ const sky = plateDisplay<SkyState>({
     // Equal power: what Mix lets out of the stars.
     const wet = Math.sin((frame.value('mix') * Math.PI) / 2)
     const levels = starLevels(field, stars, fade)
+    const share = againShare(again)
     const clock = frame.meter('clock') / DRIFT_PERIOD_SEC
 
     const running = frame.powered && frame.signal !== null
@@ -489,8 +528,9 @@ const sky = plateDisplay<SkyState>({
           1,
         )
         const ink = lerp(DARK_INK, 1, bright)
-        // This pass and the ones Again makes of it, each a span later and as much lower.
-        let level = levels[k] * wet
+        // This pass and the ones Again makes of it, each a span later and as much lower;
+        // the first is lower by the share the passes take of the level.
+        let level = levels[k] * wet * share
         for (let pass = 0; pass < 24; pass++) {
           const x = x0 + (pass + time) * across + nudge
           if (x - scale.grow - DOT_LEAST > right) break
@@ -514,7 +554,7 @@ const sky = plateDisplay<SkyState>({
 
     // The last star is the point: its ring stands round its dot, where Span will have it.
     const point = lastStar(frame)
-    const own = levels[0] * wet
+    const own = levels[0] * wet * share
     const radius = own < FAINT ? 0 : DOT_LEAST + scale.grow * Math.sqrt(Math.min(1, own))
     handle(frame, point.x, point.y, {
       hot: frame.hot === POINT,
@@ -537,5 +577,5 @@ const sky = plateDisplay<SkyState>({
 })
 
 export const CONSTELLATION_FACES: Readonly<Record<string, PlateFace>> = {
-  constellation: { display: sky, face: ['pattern', 'stars', 'again', 'mix'] },
+  constellation: { display: sky, face: ['span', 'stars', 'again', 'mix'] },
 }

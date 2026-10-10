@@ -3,42 +3,63 @@
 // Constellation: up to twelve echoes of what was played, placed in one span
 // of time by a pattern and not by a grid.
 //
-//   in ─┬──────────────────────────────────────────────────────────► dry ─┐
-//       └ L+R ─(+)─► limit ─► line ─┬─► star 1 ─► low-pass ─► level, side ─┐   │
-//               ▲                   ├─► star 2 ─► low-pass ─► level, side ─(+)─► limit ─► wet ─┴─► out
-//               │                   ┆      (up to twelve)                  │
-//               │                   └─► last star (at Span) ───────────────┘
-//               └── Again ◄─ low cut ◄─ low-pass (Tone) ◄─┘
+//   in ─┬──────────────────────────────────────────────────────────────────► dry ─┐
+//       └ L, R ─► one signal ─► share ─(+)─► limit ─► line ─┬─► star 1 ─► low-pass ─► level, side ─┐   │
+//                                       ▲                   ├─► star 2 ─► low-pass ─► level, side ─(+)─► limit ─► wet ─┴─► out
+//                                       │                   ┆      (up to twelve)                  │
+//                                       │                   └─► last star (at Span) ───────────────┘
+//                                       └── Again ◄─ low cut ◄─ low-pass (Tone) ◄─┘
 //
-// - The line is mono (the two sides summed) and every star is one read of it
-//   at its own share of Span (sky.h has the patterns), through a low-pass of
-//   its own, at a level and a side of its own. The levels are scaled so that
-//   their powers add to one whatever Stars is: a held sound comes back as
-//   loud with twelve stars as with one, and each star is the fainter the more
-//   of them there are.
+// - The line is one signal for the two sides: their middle, and a quarter turn
+//   from it their difference (kit::Hilbert: the middle down one chain of
+//   all-passes, the difference down the other). A sound in the middle is the
+//   sum it always was; a sound on one side, two unrelated sides and two sides
+//   in opposite phase all go in at the mean power of the two sides, where a
+//   plain sum would lose 3 dB of a wide sound and all of an anti-phase one.
+//   (The harness holds a tone on one side to 3 dB under the same tone in the
+//   middle from 40 Hz to 12 kHz.) The all-passes turn the phase and delay
+//   next to nothing: an echo of a 2 kHz burst is centred a fifth of a
+//   millisecond late, the lowest bass a few milliseconds.
+// - Every star is one read of the line at its own share of Span (sky.h has
+//   the patterns), through a low-pass of its own, at a level and a side of
+//   its own. The levels are scaled so that their powers add to one whatever
+//   Stars is: a held sound comes back as loud with twelve stars as with one,
+//   and each star is the fainter the more of them there are.
 // - Fade makes a star quieter and darker by its time: 2^(-3 Fade time) on its
 //   level and on its low-pass corner. Tone is the corner of a star at the
 //   start of the span; a star the pattern made dim is up to an octave darker.
 // - Again records the last star's read (what was played one Span ago) back
 //   into the line through Tone's low-pass and a low cut at 90 Hz, so the
 //   whole sky sounds again one Span later, quieter by Again and thinner. The
-//   record path is limited (exactly linear up to ±1, never past ±2), which
-//   bounds the loop at Again 1.
-// - Span glides (a 120 ms lag, at most two samples a sample), so moving it
-//   bends every echo the way a tape's speed does: all the stars keep their
-//   share of it. Stars fades a star in or out. Pattern and Shuffle lay a new
-//   sky beside the old one and cross from one to the other in 60 ms.
+//   passes share the level as the stars do: what goes into the line is scaled
+//   by sqrt(1 - (0.97 Again)^2), so the passes of a held sound add to about
+//   the level of one sky with no Again (unscaled they add to 6.5 dB more at
+//   0.93 and 12 dB at the top), and one pass is the fainter the longer the
+//   sky hangs on: 0.5 dB at the default, 7.3 dB at 0.93, 12.3 dB at the top.
+//   The record path is limited (exactly linear up to ±1, never past ±2),
+//   which bounds the loop at Again 1.
+// - Span moved by up to 50 ms glides there (a 120 ms lag), so a nudge bends
+//   every echo the way a tape's speed does, by its share of the span: the
+//   read never runs slower than 0.58 of the speed or faster than 1.42. A
+//   larger move would read the line backwards or at three times the speed
+//   for seconds: it lays the sky at the new span beside the old one and
+//   crosses to it in 60 ms, as a new Pattern or Shuffle does. Stars fades a
+//   star in or out. A crossing keeps the power: the stars of the two skies
+//   are different moments of the line, so they cross on a quarter of a sine;
+//   the last star, when the span is the same, is the same read in both and
+//   crosses in a straight line.
 // - Drift moves each star's read by up to 6 ms (never more than half the
 //   star's own time) on three slow sines of its own (sky.h), so the echoes
-//   detune against each other by a few cents. Its clock counts every sample
-//   from the moment the device is made, asleep or awake, and nothing the
-//   sound does sets it back.
+//   detune against each other by a few cents (under 9 at the most) and a
+//   held note swells and fades in them over seconds. Its clock counts every
+//   sample from the moment the device is made, asleep or awake, and nothing
+//   the sound does sets it back.
 // - Rest: the device counts the samples since anything above -140 dBFS was
 //   written to the line. Once that is longer than the longest Span it is at
-//   rest, and sleeps. The first sound after a rest starts it again from a
-//   known state on that very sample (every knob where it was last put, the
-//   wander where its clock has it), so what comes out does not depend on the
-//   block size or on when the sleep began.
+//   rest, and sleeps. The first sound after a rest, on either side, starts it
+//   again from a known state on that very sample (every knob where it was
+//   last put, the wander where its clock has it), so what comes out does not
+//   depend on the block size or on when the sleep began.
 //
 // Storage: one line of 2^20 samples (4 MB): 10.9 s at 96 kHz, which holds the
 // longest Span and the wander. At 176.4 and 192 kHz the line is 5.4 s and a
@@ -59,6 +80,8 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     const float sr = this->sample_rate();
     const float control_rate = sr / static_cast<float>(kControlPeriod);
     line_.clear();
+    mid_turn_.reset();
+    side_turn_.reset();
     fade_.set_time(kSmoothingSeconds, control_rate);
     width_.set_time(kSmoothingSeconds, control_rate);
     tone_.set_time(0.02f, control_rate);
@@ -67,6 +90,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     again_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     glide_ = 1.0 - std::exp(-1.0 / (static_cast<double>(kMotorLagSeconds) * sr));
+    glide_most_ = static_cast<double>(kGlideMostSeconds) * sr;
     cross_step_ = static_cast<float>(kControlPeriod) / (kCrossSeconds * sr);
     low_cut_.set_cutoff(kLoopLowCutHz, sr);
     drift_period_ = static_cast<long long>(std::llround(static_cast<double>(kDriftPeriodSeconds) * sr));
@@ -81,7 +105,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     drift_n_ = 0;
     starts_ = 0;
     restart();
-    span_seen_ = span_;
+    span_seen_ = span_[current_];
     clock_seen_ = 0.0f;
   }
 
@@ -91,7 +115,8 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
 
   // The readings named by "meters" in device.json, for the display:
   // 0, where the span stands now, in milliseconds (Span, or on its way there
-  // while it glides; asleep, where it will stand);
+  // while it glides; the span of the sky being crossed to; asleep, where it
+  // will stand);
   // 1, the clock the wander is worked out from (sky.h): seconds since the
   // device was made, wrapping at kDriftPeriodSeconds.
   float meter(int index) const {
@@ -119,33 +144,58 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
-      // A NaN or a runaway input must not sit in the line for eight seconds.
-      float send = 0.5f * (in[0] + in[1]);
-      if (!(send > -kInputLimit && send < kInputLimit)) send = 0.0f;
-      // The first sound after a rest: start from a known state, on this sample.
-      if (blank_ >= rest_ && (send > kFloor || send < -kFloor)) restart();
+      // A NaN or a runaway sample on either side must not sit in the line for
+      // eight seconds, nor in the all-passes for good: it is taken as silence.
+      float left = in[0];
+      float right = in[1];
+      if (!(left > -kInputLimit && left < kInputLimit)) left = 0.0f;
+      if (!(right > -kInputLimit && right < kInputLimit)) right = 0.0f;
+      // The first sound after a rest, on either side (two sides in opposite
+      // phase are a sound too): start from a known state, on this sample.
+      if (blank_ >= rest_ && (left > kFloor || left < -kFloor || right > kFloor || right < -kFloor)) {
+        restart();
+        // The rest is over with this sample, whatever of it has reached the
+        // line yet (the all-passes hold the middle back by a sample).
+        blank_ = 0;
+      }
       if (clock_.tick()) control();
 
-      // Span is the distance to the last star: it glides there with a motor's
-      // lag, never faster than kMaxSlew. A double: the lag's last steps are
-      // smaller than a float of this size can hold.
-      if (span_ != span_target_) {
-        const double gap = span_target_ - span_;
-        const double step = gap * glide_;
-        span_ += step > kMaxSlew ? kMaxSlew : (step < -kMaxSlew ? -kMaxSlew : step);
-        if (std::fabs(span_target_ - span_) < 1.0e-3) span_ = span_target_;
+      // The one signal the line takes: the middle of the two sides and, a
+      // quarter turn from it, their difference.
+      float mid, side, unused;
+      mid_turn_.process(0.5f * (left + right), &mid, &unused);
+      side_turn_.process(0.5f * (left - right), &unused, &side);
+      const float send = mid + side;
+
+      // Span is the distance to the last star. A small move glides there with
+      // a motor's lag; a larger one is a new sky (control()). A double: the
+      // lag's last steps are smaller than a float of this size can hold.
+      if (!fading_ && span_[current_] != span_target_) {
+        const double gap = span_target_ - span_[current_];
+        if (gap <= glide_most_ && gap >= -glide_most_) {
+          span_[current_] += gap * glide_;
+          if (std::fabs(span_target_ - span_[current_]) < 1.0e-3) span_[current_] = span_target_;
+        }
       }
 
-      // The last star's read: it sounds in whichever sky is lit, and it is
-      // what Again records.
-      anchor_off_ += anchor_off_step_;
-      const float anchor = read_at(span_ + anchor_off_);
       float wet[2] = {0.0f, 0.0f};
+      // What Again records: the last star's read of the sky that is lit, or
+      // of the two while one crosses into the other.
+      float last = 0.0f;
+      float anchor = 0.0f;
       const int skies = fading_ ? 2 : 1;
       for (int which = 0; which < skies; ++which) {
         const int s = which == 0 ? current_ : current_ ^ 1;
+        // The last star's read. Two skies of one span share it.
+        if (which == 0 || !same_span_) {
+          anchor_off_[s] += anchor_off_step_[s];
+          anchor = read_at(span_[s] + anchor_off_[s]);
+        }
+        loop_gain_[s] += loop_gain_step_[s];
+        last += loop_gain_[s] * anchor;
         Star* stars = stars_[s];
         const float* times = sky_[s].time;
+        const double span = span_[s];
         for (int k = 0; k < kPlaces; ++k) {
           Star& star = stars[k];
           if (!star.on) continue;
@@ -154,7 +204,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
           float heard = anchor;
           if (k > 0) {
             star.off += star.off_step;
-            heard = read_at(static_cast<double>(times[k]) * span_ + star.off);
+            heard = read_at(static_cast<double>(times[k]) * span + star.off);
           }
           heard = star.tone.lowpass(heard);
           wet[0] += heard * star.left;
@@ -162,9 +212,14 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
         }
       }
 
+      // The passes share the level: the more is fed back, the less goes in.
       const float again = again_.next();
-      const float back = low_cut_.highpass(loop_tone_.lowpass(anchor));
-      const float record = flush_denormal(limit(send + again * back));
+      if (again != again_seen_) {
+        again_seen_ = again;
+        send_gain_ = again_share(again);
+      }
+      const float back = low_cut_.highpass(loop_tone_.lowpass(last));
+      const float record = flush_denormal(limit(send_gain_ * send + again * back));
       line_.write(record);
       if (record > kFloor || record < -kFloor) {
         blank_ = 0;
@@ -183,7 +238,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
 
       if (++drift_n_ >= drift_period_) drift_n_ = 0;
     }
-    span_seen_ = span_;
+    span_seen_ = span_[fading_ ? current_ ^ 1 : current_];
     clock_seen_ = static_cast<float>(static_cast<double>(drift_n_) / sample_rate());
     // Asleep once nothing comes in, the whole line has been blank for longer
     // than the longest span, and what the filters still hold has died away.
@@ -204,8 +259,10 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
   static constexpr float kFloor = kit::IdleGate::kFloor;
   static constexpr float kInputLimit = 8.0f;
   static constexpr float kMotorLagSeconds = 0.12f;
-  // Fastest the span moves, in samples a sample.
-  static constexpr double kMaxSlew = 2.0;
+  // The furthest Span glides. With the lag this is the fastest the span
+  // moves, 0.05 / 0.12 of a sample a sample: the last star is read at 0.58 to
+  // 1.42 of the speed at the worst, the others nearer to it.
+  static constexpr float kGlideMostSeconds = 0.05f;
   // The Q of every star's low-pass and of the loop's.
   static constexpr float kToneQ = 0.6f;
   static constexpr float kLoopLowCutHz = 90.0f;
@@ -258,7 +315,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     using namespace constellation;
     clock_.reset(kControlPeriod);
     ++starts_;
-    span_ = span_target_;
+    span_[current_] = span_target_;
     fade_.snap(fade_.target);
     width_.snap(width_.target);
     tone_.snap(tone_.target);
@@ -268,7 +325,9 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     for (kit::Smoother& lit : lit_) lit.snap(lit.target);
     mix_seen_ = -1.0f;
     tone_seen_ = -1.0f;
+    again_seen_ = -1.0f;
     fading_ = false;
+    same_span_ = true;
     cross_ = 0.0f;
     if (want_pattern_ != pattern_[current_] || want_seed_ != seed_[current_]) {
       lay_out(want_pattern_, want_seed_, &sky_[current_]);
@@ -278,10 +337,13 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     }
     for (int s = 0; s < 2; ++s) {
       for (int k = 0; k < kPlaces; ++k) stars_[s][k].rest();
+      anchor_off_[s] = anchor_off_to_[s] = anchor_off_step_[s] = 0.0f;
+      loop_gain_[s] = loop_gain_to_[s] = loop_gain_step_[s] = 0.0f;
     }
-    anchor_off_ = anchor_off_to_ = anchor_off_step_ = 0.0f;
     loop_tone_.reset();
     low_cut_.reset();
+    mid_turn_.reset();
+    side_turn_.reset();
     // The control tick that follows puts every gain where it belongs at once.
     settle_ = true;
   }
@@ -299,21 +361,37 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
       if (cross_ >= 1.0f) {
         // The old sky reached silence over the last period.
         for (int k = 0; k < kPlaces; ++k) stars_[current_][k].rest();
+        loop_gain_[current_] = loop_gain_to_[current_] = loop_gain_step_[current_] = 0.0f;
         current_ ^= 1;
         fading_ = false;
+        same_span_ = true;
         cross_ = 0.0f;
       } else {
         cross_ = kit::min(1.0f, cross_ + cross_step_);
       }
     }
-    if (!fading_ && (want_pattern_ != pattern_[current_] || want_seed_ != seed_[current_])) {
-      const int next = current_ ^ 1;
-      lay_out(want_pattern_, want_seed_, &sky_[next]);
-      share_fade_[next] = -1.0f;
-      pattern_[next] = want_pattern_;
-      seed_[next] = want_seed_;
-      fading_ = true;
-      cross_ = 0.0f;
+    // A sky begins to cross in on this tick: another pattern or seed, or a
+    // span further off than a glide goes.
+    bool begun = false;
+    if (!fading_) {
+      const double gap = span_target_ - span_[current_];
+      const bool far = gap > glide_most_ || gap < -glide_most_;
+      if (far || want_pattern_ != pattern_[current_] || want_seed_ != seed_[current_]) {
+        const int next = current_ ^ 1;
+        if (want_pattern_ != pattern_[next] || want_seed_ != seed_[next]) {
+          lay_out(want_pattern_, want_seed_, &sky_[next]);
+          pattern_[next] = want_pattern_;
+          seed_[next] = want_seed_;
+        }
+        share_fade_[next] = -1.0f;
+        // A far span is where the new sky stands; a near one is still glided
+        // to, by the new sky once it is in.
+        span_[next] = far ? span_target_ : span_[current_];
+        same_span_ = !far;
+        fading_ = true;
+        begun = true;
+        cross_ = 0.0f;
+      }
     }
 
     const float fade = fade_.next();
@@ -328,20 +406,40 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     float lit[kPlaces];
     for (int k = 0; k < kPlaces; ++k) lit[k] = lit_[k].next();
     const double clock = static_cast<double>(drift_n_) / static_cast<double>(drift_period_);
-    const float span = static_cast<float>(span_);
     const float reach = kDriftSeconds * sr;
 
-    // The last star's wander, which both skies share.
-    anchor_off_ = anchor_off_to_;
-    anchor_off_to_ = drift > 0.0f ? drift * kit::min(reach, kDriftShare * span) * drift_at(0, clock) : 0.0f;
-    if (settle) anchor_off_ = anchor_off_to_;
-    anchor_off_step_ = (anchor_off_to_ - anchor_off_) * period;
+    // How much of each sky sounds. Two skies are different moments of the
+    // line, so their stars cross on a quarter of a sine and the power holds;
+    // what the two share (the last star, when the span is the same) is one
+    // signal and crosses in a straight line.
+    float apart[2] = {1.0f, 0.0f};  // the sky that leads, the sky coming in
+    float same[2] = {1.0f, 0.0f};
+    if (fading_) {
+      const bool done = cross_ >= 1.0f;
+      apart[0] = done ? 0.0f : kit::SineTable::cos_lookup(0.25f * cross_);
+      apart[1] = done ? 1.0f : kit::SineTable::lookup(0.25f * cross_);
+      same[0] = 1.0f - cross_;
+      same[1] = cross_;
+    }
 
     for (int s = 0; s < 2; ++s) {
       const bool lead = s == current_;
       if (!lead && !fading_) continue;
-      const float weight = lead ? (fading_ ? 1.0f - cross_ : 1.0f) : cross_;
+      const float weight = apart[lead ? 0 : 1];
+      const float shared = same_span_ ? same[lead ? 0 : 1] : weight;
       const Sky& sky = sky_[s];
+      const float span = static_cast<float>(span_[s]);
+
+      // The last star's wander, and how much of this sky's last star the loop takes.
+      anchor_off_[s] = anchor_off_to_[s];
+      loop_gain_[s] = loop_gain_to_[s];
+      anchor_off_to_[s] = drift > 0.0f ? drift * kit::min(reach, kDriftShare * span) * drift_at(0, clock) : 0.0f;
+      loop_gain_to_[s] = shared;
+      if (settle || (begun && !lead)) anchor_off_[s] = anchor_off_to_[s];
+      if (settle) loop_gain_[s] = loop_gain_to_[s];
+      anchor_off_step_[s] = (anchor_off_to_[s] - anchor_off_[s]) * period;
+      loop_gain_step_[s] = (loop_gain_to_[s] - loop_gain_[s]) * period;
+
       // Each star's level before the whole sky is scaled to a power of one.
       float level[kPlaces];
       float power = 0.0f;
@@ -356,10 +454,10 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
         level[k] = lit[k] * sky.mag[k] * share[k];
         power += level[k] * level[k];
       }
-      const float scale = power > 0.0f ? weight / std::sqrt(power) : 0.0f;
+      const float scale = power > 0.0f ? 1.0f / std::sqrt(power) : 0.0f;
       for (int k = 0; k < kPlaces; ++k) {
         Star& star = stars_[s][k];
-        const float gain = level[k] * scale;
+        const float gain = level[k] * scale * (k == 0 ? shared : weight);
         float left = 0.0f, right = 0.0f;
         if (gain > 0.0f) {
           // Constant power across the sides, unity in the centre.
@@ -407,7 +505,7 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
     switch (id) {
       case kSpan:
         span_target_ = static_cast<double>(value) * 0.001 * sample_rate();
-        if (!primed()) span_ = span_target_;
+        if (!primed()) span_[current_] = span_target_;
         break;
       case kStars: {
         const int stars = kit::clamp_int(static_cast<int>(value + 0.5f), 1, kPlaces);
@@ -444,6 +542,8 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
   }
 
   kit::DelayLine<kLineSize> line_;
+  // The quarter turn between the middle of the two sides and their difference.
+  kit::Hilbert mid_turn_, side_turn_;
   constellation::Sky sky_[2];
   Star stars_[2][constellation::kPlaces];
   // What Fade leaves of each star of each sky, and the Fade that was for.
@@ -455,6 +555,9 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
   int want_seed_ = 1;
   int current_ = 0;
   bool fading_ = false;
+  // While one sky crosses into the other: whether the two stand on one span
+  // (another pattern or seed), and so share the last star's read.
+  bool same_span_ = true;
   float cross_ = 0.0f, cross_step_ = 0.0f;
   kit::Svf loop_tone_;
   kit::OnePole low_cut_;
@@ -465,10 +568,15 @@ class Constellation : public kit::DeviceBase<constellation::kNumParams> {
   bool settle_ = true;
   float tone_seen_ = -1.0f, tone_hz_ = 7000.0f;
   float mix_seen_ = -1.0f, dry_gain_ = 1.0f, wet_gain_ = 0.0f;
-  float anchor_off_ = 0.0f, anchor_off_to_ = 0.0f, anchor_off_step_ = 0.0f;
-  double span_ = 115200.0;  // samples to the last star (double: see process)
+  float again_seen_ = -1.0f, send_gain_ = 1.0f;
+  // The last star of each sky: its wander, and how much of its read the loop
+  // takes, each a straight line from one control tick to the next.
+  float anchor_off_[2] = {}, anchor_off_to_[2] = {}, anchor_off_step_[2] = {};
+  float loop_gain_[2] = {}, loop_gain_to_[2] = {}, loop_gain_step_[2] = {};
+  double span_[2] = {115200.0, 115200.0};  // samples to the last star of each sky (double: see process)
   double span_target_ = 115200.0;
   double glide_ = 0.0;
+  double glide_most_ = 2400.0;
   long long drift_n_ = 0;       // samples since init, wrapping at drift_period_
   int starts_ = 0;
   long long drift_period_ = 1;

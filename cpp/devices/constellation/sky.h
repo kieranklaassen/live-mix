@@ -14,19 +14,29 @@
 //
 //   Spiral   time ratio^i from the last star back: each gap is longer than
 //            the one before by the same ratio (0.58 to 0.78 by the seed), a
-//            run that slows down. Sides wind round by the golden angle.
+//            run that slows down. Sides wind round by the golden angle from
+//            a start the seed draws, and each star twinkles by chance.
 //   Cluster  three or four groups about evenly apart (each centre off the
 //            even place by up to an eighth of a step), three or four stars
-//            each, 2 to 5 % of the span apart inside a group.
+//            each, 2 to 5 % of the span apart inside a group. The head of a
+//            group is its brightest star, and each twinkles by chance.
 //   Scatter  the golden sequence (i times 0.618..., wrapped) from a seeded
 //            start, each place nudged: irregular, and never two close
 //            together. Sides and brightness by chance.
 //   Ladder   rungs at i read backwards in base two (1/2, 1/4, 3/4, 1/8 ...)
 //            bent by a power of 1.14 to 1.44 or its inverse, so the steps are
 //            even to the eye and never on a pulse. They walk from one side
-//            to the other and the coarser rungs are the brighter.
+//            to the other, or there and back (by the seed), and the coarser
+//            rungs are the brighter.
 //   Gather   Spiral the other way round: the gaps shrink by the ratio and
 //            the stars draw together on the last one.
+//
+// A seed is another sky of the same pattern in all three of time, side and
+// brightness. Scatter draws all three by chance; Cluster its times and sides,
+// and a twinkle on the brightness of a star's place in its group. Spiral,
+// Gather and Ladder keep their shape in time (one number each, spread over
+// the seeds), and draw their sides (where the winding starts, which way the
+// ladder walks) and a twinkle of brightness by chance.
 
 #include "../../kit/math.h"
 
@@ -39,8 +49,6 @@ enum Pattern : int { kSpiral = 0, kCluster, kScatter, kLadder, kGather };
 
 // Where the last star stands to the side, of a full ±1 (its sign is the seed's).
 constexpr float kAnchorPan = 0.8f;
-// asin(kAnchorPan) as a share of a turn: the turn at which the winding passes the last star.
-constexpr float kAnchorTurn = 0.14758362f;
 // The golden angle as a share of a turn (1 - 1/phi), and 1/phi.
 constexpr float kGoldenTurn = 0.38196601f;
 constexpr float kGoldenStep = 0.61803399f;
@@ -50,6 +58,11 @@ constexpr float kRatioRange = 0.2f;
 // Ladder: how far the bending power is from 1.
 constexpr float kWarpLeast = 0.14f;
 constexpr float kWarpRange = 0.3f;
+// How much dimmer than its pattern's own brightness chance makes a star, at
+// most: for Spiral and Gather, and for Ladder and Cluster (less, so that a
+// coarser rung stays brighter than a finer one and a group keeps its head).
+constexpr float kTwinkle = 0.3f;
+constexpr float kSmallTwinkle = 0.15f;
 // Cluster: the gap between two stars of a group, as a share of the span.
 constexpr float kFlamLeast = 0.022f;
 constexpr float kFlamRange = 0.028f;
@@ -66,8 +79,8 @@ struct Sky {
 
 // The seed of a pattern's random numbers (kit::Rng, xorshift32): the pattern
 // and the seed through a mixing hash, so neighbouring seeds share nothing.
-// The first number drawn is the side of the last star; Cluster and Scatter
-// draw the rest of their skies after it.
+// The first number drawn is the side of the last star; every pattern draws
+// what it leaves to chance after it.
 inline uint32_t sky_seed(int pattern, int seed) {
   uint32_t mixed = static_cast<uint32_t>(pattern + 1) * 0x9E3779B9u + static_cast<uint32_t>(seed) * 0x85EBCA6Bu;
   mixed ^= mixed >> 16;
@@ -99,12 +112,14 @@ inline void lay_out(int pattern, int seed, Sky* sky) {
   switch (pattern) {
     case kSpiral: {
       const float ratio = kRatioLeast + kRatioRange * seed_share(pattern, seed);
+      // Where the winding starts, by chance.
+      const float turn = rng.uniform();
       float time = 1.0f;
       for (int i = 1; i < kPlaces; ++i) {
         time *= ratio;
         sky->time[i] = time;
-        sky->pan[i] = dir * std::sin(kit::kTwoPi * (kAnchorTurn + static_cast<float>(i) * kGoldenTurn));
-        sky->mag[i] = 1.0f - 0.04f * static_cast<float>(i);
+        sky->pan[i] = std::sin(kit::kTwoPi * (turn + static_cast<float>(i) * kGoldenTurn));
+        sky->mag[i] = (1.0f - 0.04f * static_cast<float>(i)) * (1.0f - kTwinkle * rng.uniform());
       }
       break;
     }
@@ -132,6 +147,8 @@ inline void lay_out(int pattern, int seed, Sky* sky) {
           sky->mag[i] = 0.85f - 0.15f * static_cast<float>(member);
         }
       }
+      // A twinkle by chance, drawn after every time and side.
+      for (int i = 1; i < kPlaces; ++i) sky->mag[i] *= 1.0f - kSmallTwinkle * rng.uniform();
       break;
     }
     case kScatter: {
@@ -147,14 +164,15 @@ inline void lay_out(int pattern, int seed, Sky* sky) {
     }
     case kGather: {
       const float ratio = kRatioLeast + kRatioRange * seed_share(pattern, seed);
+      const float turn = rng.uniform();
       float gap = 1.0f;
       for (int i = 1; i < kPlaces; ++i) {
         gap *= ratio;
         sky->time[i] = 1.0f - gap;
-        const float wind = std::sin(kit::kTwoPi * (kAnchorTurn + static_cast<float>(i) * kGoldenTurn));
+        const float wind = std::sin(kit::kTwoPi * (turn + static_cast<float>(i) * kGoldenTurn));
         // From anywhere at the start to the last star's own side at the end.
-        sky->pan[i] = dir * (kAnchorPan * (1.0f - gap) + gap * wind);
-        sky->mag[i] = 0.56f + 0.04f * static_cast<float>(i);
+        sky->pan[i] = dir * kAnchorPan * (1.0f - gap) + gap * wind;
+        sky->mag[i] = (0.56f + 0.04f * static_cast<float>(i)) * (1.0f - kTwinkle * rng.uniform());
       }
       break;
     }
@@ -164,6 +182,9 @@ inline void lay_out(int pattern, int seed, Sky* sky) {
       const float share = 2.0f * seed_share(pattern, seed);
       const float warp = share < 1.0f ? 1.0f + kWarpLeast + kWarpRange * share
                                       : 1.0f / (1.0f + kWarpLeast + kWarpRange * (share - 1.0f));
+      // The walk: straight across to the last star's side, or out to the
+      // other side and back to it.
+      const bool back = rng.uniform() < 0.5f;
       for (int i = 1; i < kPlaces; ++i) {
         float rung = 0.0f;
         float bit = 0.5f;
@@ -174,8 +195,9 @@ inline void lay_out(int pattern, int seed, Sky* sky) {
           ++depth;
         }
         sky->time[i] = std::pow(rung, warp);
-        sky->pan[i] = dir * kAnchorPan * (2.0f * rung - 1.0f);
-        sky->mag[i] = 1.0f - 0.15f * static_cast<float>(depth);
+        const float walk = back ? 4.0f * std::fabs(rung - 0.5f) - 1.0f : 2.0f * rung - 1.0f;
+        sky->pan[i] = dir * kAnchorPan * walk;
+        sky->mag[i] = (1.0f - 0.15f * static_cast<float>(depth)) * (1.0f - kSmallTwinkle * rng.uniform());
       }
       break;
     }
@@ -200,14 +222,34 @@ inline float star_corner(float tone_hz, float fade_share_of_star, float mag) {
   return kit::max(kDarkestHz, tone_hz * fade_share_of_star * (0.5f + 0.5f * mag));
 }
 
+// --- Again ------------------------------------------------------------------
+//
+// What goes into the line of a sound of one, with so much of it fed back. The
+// passes of a sky are 1, Again, Again^2 ... of the first, and they share the
+// level as the stars do: scaled by this, the powers of all of them add to
+// about one, so a held sound is as loud in the echoes whatever Again is and
+// one pass is the fainter the longer the sky hangs on. Again counts for
+// kAgainKept of itself here, so the top, whose passes all but never end,
+// keeps a level (a quarter, 12.3 dB down).
+constexpr float kAgainKept = 0.97f;
+inline float again_share(float again) {
+  const float kept = kAgainKept * again;
+  return std::sqrt(1.0f - kept * kept);
+}
+
 // --- Drift ------------------------------------------------------------------
 //
 // Each star's time wanders by three sines of its own, summed to about ±1.
-// Their rates are whole numbers of turns in kDriftPeriodSeconds (0.11 to
-// 0.77 Hz), so the whole wander comes round in that time and is a function of
-// a clock that wraps there: the device counts samples, the display reads the
-// clock as a meter, and both work this out.
-constexpr int kDriftPeriodSeconds = 512;
+// Their rates are whole numbers of turns in kDriftPeriodSeconds (0.03 to
+// 0.22 Hz: the fastest part of the fastest star comes round in 4.6 s, the
+// slowest of the slowest in 30 s), so the whole wander comes round in that
+// time and is a function of a clock that wraps there: the device counts
+// samples, the display reads the clock as a meter, and both work this out.
+// The rates and the reach together are the pitch the wander bends a star by:
+// at most 8.9 cents for the fastest star with Drift at 1, 3.6 for the last
+// star (the steepest the three sines get together, times the reach). The
+// harness holds every star under 10.
+constexpr int kDriftPeriodSeconds = 1800;
 constexpr int kDriftParts = 3;
 constexpr int kDriftTurns[kDriftParts] = {97, 59, 163};
 constexpr int kDriftTurnsStep[kDriftParts] = {13, 9, 21};

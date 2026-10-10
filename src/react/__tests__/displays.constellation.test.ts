@@ -15,6 +15,7 @@ import {
   CONSTELLATION_FACES,
   DRIFT_PERIOD_SEC,
   PLACES,
+  againShare,
   driftAt,
   driftSeconds,
   fadeShare,
@@ -116,18 +117,18 @@ describe("constellation's sky", () => {
   const GOLDEN: readonly (readonly [number, number, readonly number[]])[] = [
     [
       0,
-      567.049052,
+      512.401678,
       [
-        0.749341, 0.184601, 0.96, 0.236264, -0.352969, 0.8, 0.041829, -0.811925, 0.56, 0.585409,
-        -0.184601, 0.96, 0.068754, 0.352969, 0.8, 0.002767, 0.811925, 0.56,
+        0.749341, -0.966851, 0.958515, 0.236264, 0.996547, 0.619501, 0.041829, -0.178527, 0.478726,
+        0.585409, -0.544575, 0.951159, 0.068754, 0.39016, 0.720743, 0.002767, -0.990467, 0.520446,
       ],
     ],
     [
       1,
-      735.433734,
+      701.651893,
       [
-        0.294104, -0.806443, 0.9, 0.265455, -0.607987, 0.7, 0.722944, 0.787971, 0.55, 0.265477,
-        -0.383804, 0.9, 0.235544, -0.387271, 0.7, 0.703009, 0.179602, 0.55,
+        0.294104, -0.806443, 0.873956, 0.265455, -0.607987, 0.667465, 0.722944, 0.787971, 0.470923,
+        0.265477, -0.383804, 0.872619, 0.235544, -0.387271, 0.60419, 0.703009, 0.179602, 0.517274,
       ],
     ],
     [
@@ -140,18 +141,18 @@ describe("constellation's sky", () => {
     ],
     [
       3,
-      524.990436,
+      499.253298,
       [
-        0.550059, 0, 0.85, 0.666775, -0.2, 0.55, 0.836059, -0.5, 0.4, 0.578848, 0, 0.85, 0.690242,
-        -0.2, 0.55, 0.848934, -0.5, 0.4,
+        0.550059, 0, 0.825372, 0.666775, -0.2, 0.533036, 0.836059, -0.5, 0.369353, 0.578848, 0,
+        0.803996, 0.690242, -0.2, 0.469233, 0.848934, -0.5, 0.388544,
       ],
     ],
     [
       4,
-      913.721244,
+      817.134477,
       [
-        0.267721, -0.078997, 0.6, 0.789436, -0.705871, 0.76, 0.967533, -0.800387, 1, 0.231653,
-        -0.043484, 0.6, 0.732214, -0.680291, 0.76, 0.944902, -0.800657, 1,
+        0.267721, 0.042091, 0.543261, 0.789436, -0.738468, 0.591657, 0.967533, -0.796758, 0.908001,
+        0.231653, -0.435943, 0.544487, 0.732214, -0.543852, 0.641995, 0.944902, -0.810714, 0.751839,
       ],
     ],
   ]
@@ -191,6 +192,15 @@ describe("constellation's sky", () => {
         }
       }
     }
+  })
+
+  it('has the two stars of the preset Wide pair on the two sides, all the way out', () => {
+    const preset = stockDescriptors().get('constellation')?.presets?.['Wide pair']
+    expect(preset?.stars).toBe(2)
+    expect(preset?.width).toBe(1)
+    const sky = layOut(preset?.pattern ?? 0, preset?.shuffle ?? 0)
+    expect(sky.pan[0] * sky.pan[1]).toBeLessThan(0)
+    expect(Math.abs(sky.pan[1])).toBeGreaterThan(0.5)
   })
 
   it('wanders as the device does', () => {
@@ -294,8 +304,15 @@ describe("constellation's display", () => {
           near(dots(drawn), X0 + sky.time[k] * across, MID + sky.pan[k] * width * REACH),
         ).toBeDefined()
     }
-    // Place 11 of this sky is far to the left: above the middle line.
-    expect(sky.pan[11]).toBeLessThan(-0.5)
+    // Place 1 of this sky is far to the left: above the middle line.
+    expect(sky.pan[1]).toBeLessThan(-0.5)
+    const wide = drawDisplay(display, params, {
+      ...PLATE,
+      values: { ...STILL, stars: 12, span: 2400, width: 1 },
+    })
+    expect(near(dots(wide), X0 + sky.time[1] * across, MID + sky.pan[1] * REACH)?.y).toBeLessThan(
+      MID - 7,
+    )
   })
 
   it('draws the passes Again makes a span later, each as much lower', () => {
@@ -305,17 +322,51 @@ describe("constellation's display", () => {
     const levels = starLevels(sky, 3, 0)
     const across = acrossOf(400)
     const found = dots(drawn)
+    // The passes share the level (`again_share` in sky.h): the first sky is that much lower.
+    const share = Math.sqrt(1 - (0.97 * 0.5) ** 2)
     for (let k = 0; k < 3; k++) {
       for (let pass = 0; X0 + (pass + sky.time[k]) * across < 220 - 4; pass++) {
         const dot = near(found, X0 + (pass + sky.time[k]) * across, MID + sky.pan[k] * REACH)
         expect(dot, `star ${k}, pass ${pass}`).toBeDefined()
-        expect(dot?.r).toBeCloseTo(radiusOf(levels[k] * 0.5 ** pass), 6)
+        expect(dot?.r).toBeCloseTo(radiusOf(levels[k] * share * 0.5 ** pass), 6)
       }
     }
     // With no Again there is the one sky and no more.
     const once = drawDisplay(display, params, { ...PLATE, values: { ...values, again: 0 } })
     expect(dots(once).length).toBe(3 + 1)
     expect(found.length).toBeGreaterThanOrEqual(dots(once).length + 3)
+  })
+
+  it('draws the first sky fainter the more Again there is, as the device plays it', () => {
+    // `again_share`: 1 with none, and the figures the harness prints for the device.
+    expect(againShare(0)).toBe(1)
+    expect(againShare(0.35)).toBeCloseTo(0.9406, 4)
+    expect(againShare(0.8)).toBeCloseTo(0.6307, 4)
+    expect(againShare(1)).toBeCloseTo(0.2431, 4)
+    // One star, wet only: its dot and the dot in its ring are as big as that share of one.
+    for (const again of [0, 0.6, 0.93, 1]) {
+      const drawn = drawDisplay(display, params, {
+        ...PLATE,
+        values: { ...STILL, stars: 1, span: 8000, again },
+      })
+      const side = layOut(0, 1).pan[0]
+      const first = dots(drawn).filter(
+        (dot) =>
+          Math.abs(dot.x - (X0 + acrossOf(8000))) < 0.01 &&
+          Math.abs(dot.y - (MID + side * REACH)) < 0.01,
+      )
+      expect(first.length, `again ${again}`).toBe(2)
+      for (const dot of first) expect(dot.r).toBeCloseTo(radiusOf(againShare(again)), 6)
+    }
+  })
+
+  it('has Span, Stars, Again and Mix on the face', () => {
+    expect(CONSTELLATION_FACES.constellation.face).toEqual(['span', 'stars', 'again', 'mix'])
+  })
+
+  it('says what the wheel does, in no more words than the others take', () => {
+    expect(display.info).toMatch(/wheel on it for Stars/)
+    expect(display.info.length).toBeLessThanOrEqual(302)
   })
 
   it('draws a dot as big as Mix lets its star out, and rings where Mix lets nothing out', () => {
@@ -508,13 +559,32 @@ describe("constellation's display", () => {
     expect(handle.drag(0, handle.y).span).toBe(100)
     expect(handle.drag(224, handle.y).span).toBe(8000)
     expect(handle.drag(handle.x + 10, handle.y).width).toBe(0.8)
-    // Up and down: from the middle line (no width) out to where the last star stands at full width.
-    expect(handle.drag(handle.x, MID).width).toBe(0)
-    expect(handle.drag(handle.x, MID + side * REACH).width).toBeCloseTo(1, 9)
-    expect(handle.drag(handle.x, MID + side * REACH * 0.25).width).toBeCloseTo(0.25, 9)
-    expect(handle.drag(handle.x, MID + side * 40).width).toBe(1)
-    expect(handle.drag(handle.x, MID - side * 10).width).toBe(0)
-    expect(handle.drag(handle.x, MID).span).toBe(2400)
+    // Up and down on a strip: the star itself has 12 px between no width and all of it (0.8 of
+    // the 15 px to a side), too little to set by hand, so the hand goes 24 px for the whole of
+    // Width, counted from where it took the star: towards the middle line is less.
+    const out = Math.sign(side)
+    expect(Math.abs(handle.y - MID)).toBeCloseTo(0.8 * 12, 6)
+    expect(handle.drag(handle.x, handle.y - out * 12).width).toBeCloseTo(0.3, 9)
+    expect(handle.drag(handle.x, handle.y - out * 6).width).toBeCloseTo(0.55, 9)
+    expect(handle.drag(handle.x, handle.y - out * 0.8 * 24).width).toBeCloseTo(0, 9)
+    expect(handle.drag(handle.x, handle.y - out * 40).width).toBe(0)
+    expect(handle.drag(handle.x, handle.y + out * 0.2 * 24).width).toBeCloseTo(1, 9)
+    expect(handle.drag(handle.x, handle.y + out * 40).width).toBe(1)
+    expect(handle.drag(handle.x, handle.y - out * 12).span).toBe(2400)
+    // One hand's drag is counted from its press, wherever the star has got to since.
+    const hold = {}
+    expect(handle.drag(handle.x, handle.y, hold)).toEqual({ span: 2400, width: 0.8 })
+    const [later] = handlesAt({ width: 0.3 })
+    expect(later.drag(handle.x, handle.y - out * 12, hold).width).toBeCloseTo(0.3, 9)
+    expect(later.drag(handle.x, handle.y - out * 18, hold).width).toBeCloseTo(0.05, 9)
+    expect(later.drag(handle.x, handle.y, hold).width).toBe(0.8)
+    // On a display 100 high the star's own travel is 0.8 of 41 px, enough for a hand: the star
+    // stays under it, from the middle line (no width) out to where it stands at full width.
+    const [tall] = handlesAt({}, { width: 204, height: 100 })
+    expect(tall.drag(tall.x, 50).width).toBeCloseTo(0, 9)
+    expect(tall.drag(tall.x, 50 + side * 41).width).toBeCloseTo(1, 9)
+    expect(tall.drag(tall.x, 50 + side * 41 * 0.25).width).toBeCloseTo(0.25, 9)
+    expect(tall.drag(tall.x, 50 - side * 20).width).toBe(0)
     // A sky whose last star is on the other side has its point on the other side of the line.
     const other = [...Array(16).keys()]
       .map((n) => n + 1)
@@ -522,7 +592,7 @@ describe("constellation's display", () => {
     expect(other).toBeDefined()
     const [mirrored] = handlesAt({ shuffle: other ?? 1 })
     expect(mirrored.y - MID).toBeCloseTo(-(handle.y - MID), 6)
-    expect(mirrored.drag(mirrored.x, MID - side * REACH * 0.5).width).toBeCloseTo(0.5, 9)
+    expect(mirrored.drag(mirrored.x, mirrored.y + out * 12).width).toBeCloseTo(0.3, 9)
     // The wheel lights one more star or puts one out, and stops at one and at twelve.
     expect(handle.wheel?.(1)).toEqual({ stars: 8 })
     expect(handle.wheel?.(-3)).toEqual({ stars: 6 })
