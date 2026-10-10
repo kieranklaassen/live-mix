@@ -257,7 +257,16 @@ export const LATE_VIBRATO_DESCRIPTOR = wasmDeviceDescriptor(LATE_VIBRATO_DEVICE,
       human: 0.6,
       width: 0.6,
     },
-    Trill: { wait: 400, grow: 200, depth: 100, rate: 7, quicken: 0, swell: 0, human: 0, width: 0 },
+    'Wide shake': {
+      wait: 400,
+      grow: 200,
+      depth: 100,
+      rate: 7,
+      quicken: 0,
+      swell: 0,
+      human: 0,
+      width: 0,
+    },
   },
 })
 

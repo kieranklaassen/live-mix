@@ -174,7 +174,7 @@ export const BREATH_DESCRIPTOR = wasmDeviceDescriptor(BREATH_DEVICE, {
       ease: 0.5,
       vary: 0,
     },
-    'Four seven eight': {
+    'Long held breath': {
       in: 4,
       hold: 7,
       out: 8,
