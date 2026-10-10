@@ -25,6 +25,7 @@ import {
   clamp,
   clipped,
   dbOfY,
+  dbToGain,
   fillRect,
   fillTo,
   follow,
@@ -107,7 +108,7 @@ export function generationsRoom(
 ): GenerationsRoom {
   const amount = clamp(resonance, 0, 1)
   const low = generationsRoomHz(room)
-  const direct = Math.pow(10, (-CONTRAST_DB * amount) / 20)
+  const direct = dbToGain(-CONTRAST_DB * amount)
   const k = 1 / (WIDE_Q + (NARROW_Q - WIDE_Q) * amount)
   const g = GENERATIONS_TONES.map((ratio) =>
     Math.tan((Math.PI * clamp(low * ratio, 5, sampleRate * 0.49)) / sampleRate),

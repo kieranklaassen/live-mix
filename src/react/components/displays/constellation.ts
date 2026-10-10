@@ -490,7 +490,7 @@ const sky = plateDisplay<SkyState>({
       // The middle, the note, and the end of each pass of the sky.
       rule(ctx, box.x, mid, right, mid, { colour: colours.ink, alpha: INK.grid })
       rule(ctx, x0, box.y, x0, box.y + box.h, { colour: colours.ink, alpha: INK.rule })
-      for (let pass = 1; x0 + pass * across < right; pass++) {
+      for (let pass = 1; across > 0 && x0 + pass * across < right; pass++) {
         const x = x0 + pass * across
         rule(ctx, x, box.y, x, box.y + box.h, {
           colour: colours.ink,
