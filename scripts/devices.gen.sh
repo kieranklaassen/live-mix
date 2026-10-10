@@ -44,6 +44,8 @@ build_generated_devices() {
     cpp/devices/clarinet/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
     cpp/devices/constellation/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device distance \
+    cpp/devices/distance/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drone \
     cpp/devices/drone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device drum-kit \
@@ -243,6 +245,8 @@ test_generated_devices() {
     cpp/test/clarinet_test.cpp
   native_test constellation_test \
     cpp/test/constellation_test.cpp
+  native_test distance_test \
+    cpp/test/distance_test.cpp
   native_test drone_test \
     cpp/test/drone_test.cpp
   native_test drum_kit_test \
