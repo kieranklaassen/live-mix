@@ -2,6 +2,7 @@
 // category; within a category they keep the order they have here.
 
 import { type FactoryPreset } from '../types'
+import { ACID_BASS_PRESETS } from './acid-bass'
 import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
@@ -16,6 +17,7 @@ import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FLUTE_PRESETS } from './flute'
+import { FM_BASS_PRESETS } from './fm-bass'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GLITCH_KIT_PRESETS } from './glitch-kit'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
@@ -30,7 +32,9 @@ import { ORGAN_PRESETS } from './organ'
 import { OUTDOORS_PRESETS } from './outdoors'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
+import { STRING_BASS_PRESETS } from './string-bass'
 import { STRING_MACHINE_PRESETS } from './string-machine'
+import { SUB_BASS_PRESETS } from './sub-bass'
 import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
@@ -78,4 +82,8 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZONE_SAMPLER_PRESETS,
   ...DRUM_KIT_PRESETS,
   ...GLITCH_KIT_PRESETS,
+  ...SUB_BASS_PRESETS,
+  ...FM_BASS_PRESETS,
+  ...ACID_BASS_PRESETS,
+  ...STRING_BASS_PRESETS,
 ]

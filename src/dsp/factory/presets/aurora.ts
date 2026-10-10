@@ -395,4 +395,33 @@ export const AURORA_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'fet-limiter', params: { inputGain: 14, outputGain: -7 } },
     ],
   },
+  {
+    id: 'speaking-brass-bass',
+    name: 'Speaking brass bass',
+    category: 'bass',
+    description:
+      'Brass bass notes that start dark and speak with a filter overshoot, put in the centre by a still cabinet, lightly driven.',
+    instrument: {
+      deviceId: 'aurora',
+      params: {
+        brilliance: 500,
+        lowCut: 20,
+        resonance: 0.2,
+        contour: 0.6,
+        attack: 0.03,
+        swell: 0.2,
+        release: 0.3,
+        detune: 0,
+        volume: -7.5,
+      },
+    },
+    effects: [
+      {
+        deviceId: 'rotary',
+        preset: 'Mono cabinet',
+        params: { hornDepth: 0, drumDepth: 0, drive: 0.2 },
+      },
+      { deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.1 } },
+    ],
+  },
 ]

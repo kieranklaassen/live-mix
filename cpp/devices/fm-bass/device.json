@@ -1,0 +1,272 @@
+{
+  "id": "fm-bass",
+  "name": "FM Bass",
+  "category": "instrument",
+  "description": "Two-operator FM bass: a sine whose phase is bent by a second sine, bright where it is struck and rounder as the bend falls away, from a soft thump through a hollow knock to a growl.",
+  "class": "FmBass",
+  "header": "fm_bass.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "ratio",
+      "name": "Ratio",
+      "choices": ["1/2", "1", "2", "3", "4", "5", "7"],
+      "default": 1,
+      "description": "Pitch of the bending sine against the note, which sets the overtones. 1 is full and round, 2 and 4 hollow, 3, 5 and 7 wooden to glassy, and 1/2 adds an octave below."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "How far the note is bent when it is struck, which is how bright and hard its start is. At zero the bass is a pure sine. Harder playing bends further."
+    },
+    {
+      "key": "bite",
+      "name": "Bite",
+      "min": 0.01,
+      "max": 4,
+      "default": 0.25,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the brightness of the strike takes to fall away. Short is a click or a knock on the front of the note; long is a slow darkening."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How much of the brightness stays once the strike has passed. At zero the note settles to a pure round tone; at full it stays as bright as it was struck."
+    },
+    {
+      "key": "feedback",
+      "name": "Feedback",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Feeds the bending sine back into itself, which adds an edge: a little rasp at first, a buzzing growl at the top."
+    },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Level of a pure tone one octave below the note, for weight under a thin or hollow sound."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.05,
+      "max": 20,
+      "default": 1.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held note takes to die away, from a short thump to a fall of many seconds. At the very top the note holds for as long as the key is down."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.02,
+      "max": 5,
+      "default": 0.15,
+      "taper": "log",
+      "unit": "s",
+      "description": "How quickly the note fades once the key is let go. A note never rings longer after the key than it would have while held."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 0,
+      "max": 1,
+      "default": 0.06,
+      "unit": "s",
+      "description": "Time the pitch takes to slide to a new key pressed while another is still held. Keys played apart start on pitch."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it catches peaks at high settings."
+    }
+  ],
+  "presets": {
+    "Round knock": {
+      "ratio": 1,
+      "depth": 0.65,
+      "bite": 0.25,
+      "body": 0.25,
+      "feedback": 0,
+      "sub": 0.25,
+      "decay": 1.4,
+      "release": 0.15,
+      "glide": 0.06,
+      "volume": -9
+    },
+    "Wooden knock": {
+      "ratio": 3,
+      "depth": 0.6,
+      "bite": 0.05,
+      "body": 0.04,
+      "sub": 0.15,
+      "decay": 0.7,
+      "release": 0.12,
+      "volume": -7
+    },
+    "Rubber bass": {
+      "ratio": 2,
+      "depth": 0.5,
+      "bite": 0.3,
+      "body": 0.7,
+      "feedback": 0.2,
+      "sub": 0.3,
+      "decay": 0.9,
+      "release": 0.08,
+      "glide": 0.1
+    },
+    "Low growl": {
+      "ratio": 1,
+      "depth": 0.62,
+      "bite": 0.8,
+      "body": 0.6,
+      "feedback": 0.8,
+      "sub": 0.35,
+      "decay": 20,
+      "release": 0.25,
+      "glide": 0.08
+    },
+    "Sub click": {
+      "ratio": 4,
+      "depth": 0.75,
+      "bite": 0.03,
+      "body": 0,
+      "sub": 0.7,
+      "decay": 1.5,
+      "release": 0.3,
+      "volume": -10.5
+    },
+    "Slow dark fall": {
+      "ratio": 1,
+      "depth": 0.45,
+      "bite": 4,
+      "body": 0.1,
+      "sub": 0.3,
+      "decay": 14,
+      "release": 3,
+      "glide": 0.25,
+      "volume": -9.5
+    },
+    "Glass pluck": {
+      "ratio": 6,
+      "depth": 0.45,
+      "bite": 0.3,
+      "body": 0.03,
+      "sub": 0.2,
+      "decay": 1.8,
+      "release": 0.7
+    },
+    "Held hum": {
+      "ratio": 0,
+      "depth": 0.5,
+      "bite": 2.5,
+      "body": 0.75,
+      "feedback": 0.5,
+      "sub": 0.2,
+      "decay": 20,
+      "release": 2.5,
+      "glide": 0.4,
+      "volume": -11.5
+    },
+    "Soft sine": {
+      "depth": 0.12,
+      "bite": 0.5,
+      "body": 1,
+      "sub": 0.15,
+      "decay": 20,
+      "release": 0.6,
+      "glide": 0.12,
+      "volume": -10.5
+    },
+    "Short thump": {
+      "depth": 0.7,
+      "bite": 0.03,
+      "body": 0,
+      "sub": 0.2,
+      "decay": 0.45,
+      "release": 0.1,
+      "glide": 0,
+      "volume": -6
+    },
+    "Hollow pulse": {
+      "ratio": 2,
+      "depth": 0.55,
+      "bite": 1.2,
+      "body": 0.5,
+      "sub": 0.2,
+      "decay": 3,
+      "release": 0.4
+    },
+    "Buzz bass": {
+      "depth": 0.5,
+      "bite": 0.2,
+      "body": 0.9,
+      "feedback": 1,
+      "sub": 0.2,
+      "decay": 2,
+      "release": 0.06,
+      "glide": 0.04,
+      "volume": -7
+    },
+    "Deep weight": {
+      "ratio": 0,
+      "depth": 0.4,
+      "bite": 0.25,
+      "body": 0.6,
+      "sub": 1,
+      "decay": 6,
+      "release": 0.5,
+      "glide": 0.15,
+      "volume": -12.5
+    },
+    "Low bell": {
+      "ratio": 5,
+      "depth": 0.4,
+      "bite": 1.5,
+      "body": 0.1,
+      "sub": 0.35,
+      "decay": 6,
+      "release": 2,
+      "volume": -10
+    },
+    "Slow slide drone": {
+      "depth": 0.4,
+      "bite": 4,
+      "body": 0.7,
+      "feedback": 0.6,
+      "sub": 0.5,
+      "decay": 20,
+      "release": 5,
+      "glide": 1,
+      "volume": -10.5
+    },
+    "Long tail knock": {
+      "ratio": 3,
+      "depth": 0.45,
+      "bite": 0.1,
+      "body": 0.05,
+      "sub": 0.45,
+      "decay": 8,
+      "release": 2.5,
+      "volume": -10
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Two-operator phase modulation in outline: a sine carrier at the key, a sine modulator at a whole-number ratio (or half) with feedback through the mean of its last two outputs, an index that falls from Depth to Body times Depth after each strike, and a sine an octave down. Choices of this device, not measurements of any instrument: an index of Depth squared times 8 radians, a softest key that bends 0.4 of the hardest, a bend that covers 99 % of its fall in Bite, feedback up to one radian, a 2 ms strike, Release that only shortens Decay, a 2 Hz DC blocker, four times oversampling through two decimators of its own (the last stops at half the sample rate), a sine table read by a whole-number phase, and an index cap fitted to this voice's own measured fold-back. Tuned by measurement only: nobody has listened to it."
+  }
+}
