@@ -138,12 +138,14 @@ export {
   type DisplayHandle,
   type DisplayLevel,
   type DisplayPlace,
+  type DisplayNote,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
   type PlateFace,
 } from './plate-display'
 export * as displayKit from './display-kit'
+export * as instrumentDisplayKit from './displays/instrument-parts'
 export { PLATE_FACES } from './displays'
 export {
   DEVICE_SKINS,

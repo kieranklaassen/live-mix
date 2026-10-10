@@ -290,6 +290,62 @@ describe('when a display is drawn', () => {
     expect(fixture.frames.size).toBe(0)
   })
 
+  it('running, hands a display that asks for them the notes its device was sent, and no other display any', async () => {
+    const fixture = createTestEngine()
+    // A filter that remembers notes, as an instrument of the engine does.
+    const played = [
+      { id: 60, frequency: 261.63, gain: 0.8, onMs: 400, offMs: 900 },
+      { id: 64, frequency: 329.63, gain: 0.5, onMs: 1200, offMs: null },
+    ]
+    const device = Object.assign(await make(fixture), {
+      noteOn: vi.fn(),
+      noteOff: vi.fn(),
+      allNotesOff: vi.fn(),
+      playedNotes: vi.fn(() => played),
+      loadedSampleSeconds: vi.fn((): number | null => 2.5),
+    })
+    vi.spyOn(performance, 'now').mockReturnValue(1500)
+    const draw = vi.fn()
+    const view = render(
+      <DevicePlate
+        device={device}
+        skin={{ ...BASE, display: live(draw, { signal: true, notes: true }) }}
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    act(() => fixture.frames.flush(1000))
+    const frame = draw.mock.calls.at(-1)?.[0] as DisplayFrame
+    // Oldest first, in seconds before now: one let go 0.6 s ago, one still held.
+    expect(frame.notes).toHaveLength(2)
+    expect(frame.notes[0]).toMatchObject({ id: 60, frequency: 261.63, gain: 0.8 })
+    expect(frame.notes[0].age).toBeCloseTo(1.1)
+    expect(frame.notes[0].released).toBeCloseTo(0.6)
+    expect(frame.notes[1]).toMatchObject({ id: 64, released: null })
+    expect(frame.notes[1].age).toBeCloseTo(0.3)
+    // And how long the sound it was handed is, which a device that was handed none does not say.
+    expect(frame.sampleSeconds).toBe(2.5)
+    // Switched off it is drawn at rest, and nothing is played at rest.
+    act(() => {
+      device.bypass = true
+    })
+    expect((draw.mock.calls.at(-1)?.[0] as DisplayFrame).notes).toEqual([])
+    view.unmount()
+
+    // A display that did not ask is never given them, and the device is not asked.
+    device.bypass = false
+    device.playedNotes.mockClear()
+    const plain = vi.fn()
+    render(<DevicePlate device={device} skin={{ ...BASE, display: live(plain) }} />, {
+      wrapper: fixture.wrapper,
+    })
+    act(() => fixture.frames.flush(2000))
+    expect((plain.mock.calls.at(-1)?.[0] as DisplayFrame).notes).toEqual([])
+    expect(device.playedNotes).not.toHaveBeenCalled()
+    device.loadedSampleSeconds.mockReturnValue(null)
+    act(() => fixture.frames.flush(2040))
+    expect((plain.mock.calls.at(-1)?.[0] as DisplayFrame).sampleSeconds).toBeNull()
+  })
+
   it('at 30 frames a second unless it asks for 60', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)

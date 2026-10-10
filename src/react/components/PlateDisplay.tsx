@@ -10,7 +10,12 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 
-import { type Device, isMeteredDevice } from '../../core/devices/Device'
+import {
+  type Device,
+  isMeteredDevice,
+  isNoteWatchDevice,
+  isSampleWatchDevice,
+} from '../../core/devices/Device'
 import { normalizeParam, type ParamSpec } from '../../core/params'
 import { type FrameScheduler } from '../frame'
 import { useFrameScheduler, useMaybeEngine } from '../hooks/useEngine'
@@ -23,6 +28,7 @@ import {
   type DisplayFrame,
   type DisplayHandle,
   type DisplayHold,
+  type DisplayNote,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
@@ -62,6 +68,23 @@ let slowTimer: ReturnType<typeof setInterval> | null = null
 
 function slowTick(): void {
   for (const runner of mounted) runner.look()
+}
+
+/** What a display that reads no notes is given. */
+const NO_NOTES: readonly DisplayNote[] = Object.freeze([])
+
+/** The notes a device remembers, as a display reads them at `nowMs` on `performance.now()`'s clock. */
+function displayNotes(device: Device, nowMs: number): readonly DisplayNote[] {
+  if (!isNoteWatchDevice(device)) return NO_NOTES
+  const played = device.playedNotes()
+  if (played.length === 0) return NO_NOTES
+  return played.map((note) => ({
+    id: note.id,
+    frequency: note.frequency,
+    gain: note.gain,
+    age: Math.max(0, (nowMs - note.onMs) / 1000),
+    released: note.offMs === null ? null : Math.max(0, (nowMs - note.offMs) / 1000),
+  }))
 }
 
 /** A level under this, in and out, is silence: 80 dB under full scale. */
@@ -370,7 +393,7 @@ export class DisplayRunner {
     const live = display.live ?? {}
     const reads = live.signal === true || live.spectrum === true || live.stereo === true
     const signal = this.taps && reads ? this.taps.read() : null
-    this.draw(nowMs, dt, signal)
+    this.draw(nowMs, dt, signal, true)
     // Without taps nothing says there is silence, and it runs on.
     const heard = signal
       ? signal.output.peak > QUIET || (signal.input?.peak ?? 0) > QUIET
@@ -392,7 +415,7 @@ export class DisplayRunner {
     settle(this)
   }
 
-  private draw(nowMs: number, dt: number, signal: DisplaySignal | null): void {
+  private draw(nowMs: number, dt: number, signal: DisplaySignal | null, running = false): void {
     const ctx = this.ctx
     if (!ctx) return
     const { display, device, powered, width, height } = this.inputs()
@@ -409,6 +432,12 @@ export class DisplayRunner {
       meter: (name) => (metered && name in metered.meters ? metered.meter(name) : 0),
       hasMeter: (name) => metered !== null && name in metered.meters,
       signal,
+      // Only while it runs: a still draw shows the instrument at rest.
+      notes:
+        running && display.live?.notes
+          ? displayNotes(device, typeof performance === 'object' ? performance.now() : nowMs)
+          : NO_NOTES,
+      sampleSeconds: isSampleWatchDevice(device) ? device.loadedSampleSeconds() : null,
       now: nowMs / 1000,
       dt,
       powered,
