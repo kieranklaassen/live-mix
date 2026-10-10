@@ -44,6 +44,7 @@ import { SKIPPING_STONE_FACES } from './skipping-stone'
 import { RING_FACES } from './ring'
 import { SEASONS_FACES } from './seasons'
 import { SPATIAL_FACES } from './spatial'
+import { STRETCH_FACES } from './stretch'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
@@ -109,4 +110,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WEATHER_FACES,
   ...LATE_VIBRATO_FACES,
   ...SEASONS_FACES,
+  ...STRETCH_FACES,
 }
