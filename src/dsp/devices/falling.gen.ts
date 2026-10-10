@@ -48,7 +48,7 @@ export const FALLING_PARAMS = {
     taper: 'log',
     unit: '/s',
     description:
-      'How many pieces start each second. Low leaves single falls with space between them. High overlaps them into one sinking cloud.',
+      'How many pieces start each second. Low leaves single falls with space between them. High overlaps them into one sinking cloud, never more than sixteen at once.',
   },
   scatter: {
     id: 4,

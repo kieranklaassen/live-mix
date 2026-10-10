@@ -298,6 +298,56 @@ describe("Falling's display: the scale", () => {
       expect(mark.points[0][1] - 3).toBeCloseTo(fallingY(lay, semitones, -7, 0.2), 9)
     }
   })
+
+  it('numbers every line it draws, the one at the top and the one at the foot too', () => {
+    // The line a piece ends on at the top of the knob reads as the one at its foot does.
+    const words = (values: Record<string, number>): string[] =>
+      drawDisplay(display, params, { values, meters: ASLEEP }).words()
+    expect(words({ fall: 24 })).toEqual(expect.arrayContaining(['0', '+12', '+24']))
+    expect(words({ fall: -24 })).toEqual(expect.arrayContaining(['0', '−12', '−24']))
+    // As low as a strip, the scale still says how far a line is from the level line.
+    const strip = { width: 224, height: 48 }
+    expect(drawDisplay(display, params, { meters: ASLEEP, ...strip }).words()).toEqual(['0', '−12'])
+    for (const size of [...SIZES, strip]) {
+      const lay = fallingLayout(size)
+      const foot = lay.box.y + lay.box.h
+      for (let fall = -24; fall <= 24; fall += 1) {
+        for (const vary of [0, 0.2, 1]) {
+          const marks = marksOf(
+            drawDisplay(display, params, { values: { fall, vary }, meters: ASLEEP, ...size }),
+          )
+          // The lines of the scale: level, as wide as the box, as faint as a grid.
+          const lines = marks.filter(
+            (m) =>
+              m.kind === 'stroke' &&
+              m.alpha === SHADE.grid &&
+              m.points.length === 2 &&
+              m.points[0][1] === m.points[1][1] &&
+              m.points[1][0] - m.points[0][0] === lay.box.w,
+          )
+          const numbers = marks.filter((m) => m.kind === 'words' && m.words !== '0')
+          expect(numbers.length, `fall ${fall}, vary ${vary}, ${size.height} high`).toBe(
+            lines.length,
+          )
+          for (const number of numbers) {
+            const semitones = Number(number.words?.replace('−', '-'))
+            const y = fallingY(lay, semitones, fall, vary)
+            // It has a line, it stands within a few pixels of it, and its patch is inside the box.
+            expect(lines.some((line) => Math.abs(line.points[0][1] - y) <= 0.5)).toBe(true)
+            const baseline = number.points[0][1]
+            expect(Math.abs(baseline - 3 - y)).toBeLessThanOrEqual(4)
+            expect(baseline - 8).toBeGreaterThanOrEqual(lay.box.y)
+            expect(baseline + 2).toBeLessThanOrEqual(foot)
+          }
+          // No two numbers stand on one another.
+          const rows = [...numbers.map((m) => m.points[0][1]), fallingY(lay, 0, fall, vary) + 3]
+          rows.sort((a, b) => a - b)
+          for (let i = 1; i < rows.length; i++)
+            expect(rows[i] - rows[i - 1], `fall ${fall}, vary ${vary}`).toBeGreaterThanOrEqual(10)
+        }
+      }
+    }
+  })
 })
 
 describe("Falling's display: the piece that would start now", () => {

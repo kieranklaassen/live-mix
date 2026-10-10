@@ -644,11 +644,12 @@ const falling = plateDisplay<FallingState>({
       alpha: showing ? 1 : INK.back,
     })
 
-    // The scale's numbers, in semitones from the pitch a piece is caught at.
+    // The scale's numbers, in semitones from the pitch a piece is caught at:
+    // one for every line drawn. A line at an edge has its number as near as
+    // the box lets it stand, at most four pixels off; lines are `LINE_ROOM`
+    // apart, so no two numbers meet.
     for (const semitones of [0, ...lines]) {
       const y = yOf(semitones)
-      // (the level line's stays in sight when the line is at an edge)
-      if (semitones !== 0 && (y < box.y + 6 || y > foot - 3)) continue
       const words = semitones === 0 ? '0' : `${semitones > 0 ? '+' : '−'}${Math.abs(semitones)}`
       label(frame, words, box.x + 2, clamp(y + 3, box.y + 8, foot - 2))
     }

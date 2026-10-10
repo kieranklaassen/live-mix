@@ -387,16 +387,18 @@ int main() {
       Stereo out = run(device, sine(1760.0f, 6.0f, kRate, 0.4f));
       once[fed] = band_power(out.left, 860.0, 40.0, 96000, out.size(), 2.0);
       twice[fed] = band_power(out.left, 430.0, 30.0, 96000, out.size(), 2.0);
-      // A small fall, for how long it lasts: an octave a turn is soon under hearing.
+      // A small fall, for how long it lasts: an octave a turn is soon under
+      // hearing. (Not so small that the grains stand still: those are given
+      // back less, see the room.)
       dense(device);
-      device.set_param(p::kFall, -1.0f);
+      device.set_param(p::kFall, -3.0f);
       device.set_param(p::kAgain, fed ? 0.8f : 0.0f);
       run(device, sine(1760.0f, 3.0f, kRate, 0.4f));
       Stereo tail = render(device, 4.0f, kRate);
-      late[fed] = rms(tail.left, 96000, 144000);
+      late[fed] = rms(tail.left, 72000, 120000);
     }
-    std::printf("falling: power an octave down %.2e, two octaves down %.2e without Again, %.2e with\n", once[0],
-                twice[0], twice[1]);
+    std::printf("falling: power an octave down %.2e, two octaves down %.2e without Again, %.2e with; 1.5 to 2.5 s after the sound %.2e without, %.2e with\n",
+                once[0], twice[0], twice[1], late[0], late[1]);
     EXPECT(once[0] > 1.0e-3 && once[1] > 1.0e-3, "Again: the first fall is there either way");
     EXPECT(twice[0] < 1.0e-3 * once[0], "Again 0: nothing falls twice");
     EXPECT(twice[1] > 100.0 * twice[0] && twice[1] > 0.02 * once[1], "Again: a fall falls further each time round");
@@ -583,6 +585,116 @@ int main() {
       std::printf("falling: Again 0.95, Fall %+.0f, full-scale noise: peak %.2f\n", fall, top);
       EXPECT(top <= 2.0, "Again at its most stays under the limiter's ceiling");
     }
+  }
+
+  // Again does not let the cloud run away. A held chord with Again high: the
+  // cloud stays within a few dB of what it caught and does not swing more
+  // than the cloud without Again does. (Before the level hold it came back 6
+  // to 17 dB over the chord, on the limiter, swinging by 15 dB.)
+  {
+    std::vector<float> held(static_cast<size_t>(24.0f * kRate));
+    const double notes[3] = {220.0, 277.18, 329.63};
+    for (size_t i = 0; i < held.size(); ++i) {
+      double v = 0.0;
+      for (int n = 0; n < 3; ++n) {
+        for (int h = 1; h <= 5; ++h) v += std::sin(2.0 * kPi * notes[n] * h * i / kRate + n * 1.3 + h) / (h * h);
+      }
+      held[i] = static_cast<float>(0.35 * v / 3.0);
+    }
+    const double source = rms(held);
+    for (float fall : {-7.0f, -0.6f}) {
+      double swing_alone = 0.0;
+      for (float again : {0.0f, 0.8f, 0.95f}) {
+        device.init(kRate);
+        device.set_param(p::kFall, fall);
+        device.set_param(p::kAgain, again);
+        device.set_param(p::kMix, 1.0f);
+        Stereo out = run(device, held);
+        double lowest = 1.0e9, highest = -1.0e9;
+        for (size_t at = 96000; at + 4800 <= out.size(); at += 4800) {
+          const double level = db(std::sqrt(0.5 * (std::pow(rms(out.left, at, at + 4800), 2) + std::pow(rms(out.right, at, at + 4800), 2))) / source);
+          lowest = std::min(lowest, level);
+          highest = std::max(highest, level);
+        }
+        const double whole = db(std::sqrt(0.5 * (std::pow(rms(out.left, 96000), 2) + std::pow(rms(out.right, 96000), 2))) / source);
+        std::printf("falling: held chord, Fall %+.1f, Again %.2f: cloud %+.1f dB re the chord, 100 ms windows %+.1f to %+.1f dB, peak %.2f\n",
+                    fall, again, whole, lowest, highest, std::max(peak(out.left), peak(out.right)));
+        if (again == 0.0f) {
+          swing_alone = highest - lowest;
+          continue;
+        }
+        EXPECT(whole < 5.0, "Again: a held chord's cloud stays within a few dB of the chord");
+        EXPECT(highest < 6.5, "Again: no 100 ms of a held chord's cloud is far over the chord");
+        EXPECT(highest - lowest < swing_alone + 1.5, "Again: the cloud swings no more than it does without Again");
+        EXPECT(std::max(peak(out.left), peak(out.right)) < 1.6, "Again: a held chord's cloud stays off the limiter's ceiling");
+      }
+    }
+  }
+
+  // Grains that do not bend are fixed taps of one delay: with Again at its
+  // most they must not ring on for ever. (Before the room was kept they held
+  // +3 dBFS for as long as anyone waited.) Loud noise, the densest cloud of
+  // the longest grains, Fall 0: the cloud ends, and soon.
+  {
+    for (float scatter : {0.0f, 0.5f}) {
+      device.init(kRate);
+      device.set_param(p::kFall, 0.0f);
+      device.set_param(p::kAgain, 0.95f);
+      device.set_param(p::kDensity, 40.0f);
+      device.set_param(p::kSize, 3000.0f);
+      device.set_param(p::kScatter, scatter);
+      device.set_param(p::kTone, 16000.0f);
+      device.set_param(p::kMix, 1.0f);
+      rng_state() = 0x5EEDu;
+      Stereo loud = run(device, noise(12.0f, kRate, 1.0f));
+      Stereo ringing = render(device, 30.0f, kRate);
+      const double late = std::max(peak(ringing.left, 20 * 48000), peak(ringing.right, 20 * 48000));
+      std::printf("falling: Fall 0, Again 0.95, 16 grains at once, Scatter %.1f: %.1f dB re the noise while it lasts, peak %.2e from 20 s after\n",
+                  scatter, db(rms(loud.left, 5 * 48000) / (1.0 / std::sqrt(3.0))), late);
+      EXPECT(late == 0.0, "Again at its most with grains that stand still: the cloud ends");
+      EXPECT(rms(loud.left, 5 * 48000) < 1.5 / std::sqrt(3.0), "Again at its most with grains that stand still: no louder than the noise it caught");
+    }
+  }
+
+  // The guard: a rising grain carries no more than half the sample rate, and
+  // what it cannot carry is taken out before it is recorded. Single grains
+  // two octaves up that reach their top speed at once: a 2 kHz tone comes
+  // through whole, at its own pitch early and at 8 kHz late; a 10 kHz tone
+  // would be at 40 kHz, which folds to 8 kHz, and is all but gone. (With the
+  // guard of two poles at 0.45 of the rate over the speed it was 13.7 dB
+  // under the tone.)
+  {
+    double level[2][2];
+    const float tones[2] = {2000.0f, 10000.0f};
+    for (int k = 0; k < 2; ++k) {
+      clean(device);
+      device.set_param(p::kFall, 24.0f);
+      device.set_param(p::kCurve, -1.0f);
+      Marked m = run_marked(device, sine(tones[k], 16.0f, kRate, 0.5f));
+      const size_t length = static_cast<size_t>(0.8f * kRate);
+      const double parts[2][2] = {{0.0, 0.015}, {0.7, 0.95}};
+      for (int part = 0; part < 2; ++part) {
+        double sum = 0.0, under = 0.0;
+        size_t count = 0;
+        for (size_t at : m.starts) {
+          if (at + length + 100 > m.out.size()) continue;
+          const size_t from = at + static_cast<size_t>(parts[part][0] * length);
+          const size_t to = at + static_cast<size_t>(parts[part][1] * length);
+          for (size_t i = from; i < to; ++i) {
+            const double open = Falling::window(static_cast<float>(i - at) / length, 0.5f);
+            sum += static_cast<double>(m.out.left[i]) * m.out.left[i];
+            under += 0.125 * open * open;  // a tone of 0.5 under the window
+            ++count;
+          }
+        }
+        EXPECT(count > 0, "Guard: enough single grains to judge");
+        level[k][part] = db(std::sqrt(sum / std::max(under, 1.0e-30)));
+      }
+    }
+    std::printf("falling: Fall +24, 2 kHz in: %+.1f dB at its own pitch, %+.1f dB at 8 kHz; 10 kHz in: %+.1f dB early, %+.1f dB folded to 8 kHz\n",
+                level[0][0], level[0][1], level[1][0], level[1][1]);
+    EXPECT(level[0][0] > -0.5 && level[0][1] > -1.0, "Guard: what the fastest grain can carry comes through whole");
+    EXPECT(level[1][1] < -40.0, "Guard: what would fold back is taken out before it is recorded");
   }
 
   // A NaN, an infinity or an absurd sample in the input does not stay in the

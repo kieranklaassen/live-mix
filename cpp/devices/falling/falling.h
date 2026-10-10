@@ -4,10 +4,10 @@
 // grain starts at the pitch it was caught at and glides down (or up) by Fall
 // over its own length, so a cloud of them sinks like leaves or sighs.
 //
-//   in ──┬──────────────────────────────────────────────────────────► dry ─┐
-//        └─(+)─► guard ─► ring (10.5 s) ─► grains ─► 30 Hz ─► tone ─► limit ─┬─► wet ─┴─► out
-//           ▲                                                                │
-//           └────────────────────────── Again ◄──────────────────────────────┘
+//   in ──┬───────────────────────────────────────────────────────────────► dry ─┐
+//        └─(+)─► guard ─► ring (10.5 s) ─► grains ─► 30 Hz ─► tone ─► hold ─► limit ─┬─► wet ─┴─► out
+//           ▲                                                                        │
+//           └────────────────────── Again × room ◄──────────────────────────────────┘
 //
 // - A grain's read speed is 2^(fall / 12 × bend(phase)) source samples per
 //   output sample: 1 when it starts, 2^(fall / 12) when it ends. bend() runs
@@ -40,21 +40,44 @@
 //   the power of a sum of unrelated grains at the source's, capped at 1 so
 //   sparse grains play at the source's level. More than 16 at once add CPU,
 //   not density: past that the grain rate is held back.
-// - Again writes the cloud (after the Tone filter and the limiter) back into
-//   the ring, so a grain can be made of fallen grains and falls further, and
-//   darker, each time round. The limiter (linear to ±1, never past ±2) is what
-//   bounds the loop.
-// - Guard: what is recorded is low-passed to what the fastest rising grain can
-//   carry, which keeps upward falls from aliasing.
+// - Again writes the cloud (after the Tone filter, the hold and the limiter)
+//   back into the ring, so a grain can be made of fallen grains and falls
+//   further, and darker, each time round. Three things keep that loop in
+//   hand, because grains are only unrelated on the average:
+//   - Room. Grains that read at the speed the sound was written at are fixed
+//     taps of one delay, and such taps come into step at some pitch or other:
+//     sixteen of them can give back 3.3 times what they read there, and with
+//     Again at its most the cloud then rang for ever (measured: +3 dBFS two
+//     minutes after the input had stopped). So the sum of window × gain of the grains
+//     within 6 % of that speed (each counted less the further off it is) is
+//     worked out every 16 samples, and Again is scaled down so that all of
+//     them together, in step, give back no more than 0.95. Grains that are
+//     moving in pitch are not counted: what they give back is at another
+//     pitch each time round and cannot ring.
+//   - Hold. The cloud's level (mean square over 30 ms, both sides) is held to
+//     1.5 times (+3.5 dB) the level of what was caught, at its loudest for as
+//     long as a grain can still read it and then let go at 3 dB a second.
+//     Without it a held chord at Again 0.8 came back 6 to 14 dB over itself,
+//     swinging by 15 dB, pinned on the limiter. With Again at 0 the hold does
+//     nothing (the cloud's own swell stays under it).
+//   - The limiter (linear to ±1, never past ±2) is the last bound, for a
+//     full-scale input.
+// - Guard: what is recorded is low-passed, six poles, at 18 kHz (3/8 of the
+//   sample rate, if that is lower) over the fastest speed a grain can be
+//   given now. A grain reads without oversampling, so what it would carry
+//   past half the sample rate folds back; the guard takes that away before
+//   it is recorded (a partial that would fold to 16 kHz comes back 38 dB
+//   down, one that would fold to 8 kHz 49 dB down). The price is that the
+//   caught sound is duller the further Fall rises: 4.5 kHz at Fall +24.
 // - Silence. The device follows how long nothing above -140 dBFS has been
 //   written. Once that is longer than any grain started since it last woke
 //   could reach back, the cloud is over: on that sample the grains are let go
 //   and what the ring holds is marked as never to be read again. The next
 //   sample of sound restarts everything that runs on (the random numbers, the
-//   grain counter, the smoothers and the filters) on that sample, so what
-//   follows a silence is the same whatever the block size and whether or not
-//   the device slept in between, and a knob moved in the silence is already
-//   there.
+//   grain counter, the smoothers, the filters and the levels) on that sample,
+//   so what follows a silence is the same whatever the block size and whether
+//   or not the device slept in between, and a knob moved in the silence is
+//   already there.
 //
 // Storage: the ring, 2^20 stereo frames (8 MB), 10.9 s at 96 kHz of which
 // 10.5 s are used; "memoryMb" is 10.
@@ -86,10 +109,26 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
   static constexpr float kBufferSeconds = 10.5f;
   static constexpr float kRumbleHz = 30.0f;
   static constexpr float kToneQ = 0.6f;
+  // The guard: six poles, -3 dB at this (or 3/8 of the sample rate, if that
+  // is lower) over the fastest speed a grain can be given now.
+  static constexpr float kGuardHz = 18000.0f;
+  static constexpr float kGuardOfRate = 0.375f;
+  // The level hold: the cloud's level and the caught sound's are taken over
+  // this long; the cloud is held to this much over the level it caught, which
+  // is kept for as long as a grain can still read it and then let go at this
+  // many dB a second.
+  static constexpr float kLevelSeconds = 0.03f;
+  static constexpr float kHoldOver = 1.5f;
+  static constexpr float kHoldLetGo = 3.0f;
+  // Grains that stand still: one within this of the speed it was caught at
+  // counts in full at that speed and not at all past it, and all of them at
+  // once, in step, are given back at no more than this.
+  static constexpr float kStillWithin = 0.06f;
+  static constexpr float kStillMost = 0.95f;
   // For a display (see meter): where the clock goes round, and how much of
   // the newest sound the level is taken from.
   static constexpr float kClockSeconds = 64.0f;
-  static constexpr float kLevelSeconds = 0.04f;
+  static constexpr float kMeterSeconds = 0.04f;
 
   // How far along its bend a grain is at `phase` (0..1) of its life.
   static float bend(float phase, float curve) {
@@ -133,6 +172,9 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
     again_.set_time(kSmoothingSeconds, sr);
     tone_hz_.set_time(kSmoothingSeconds, sr);
     guard_hz_.set_time(kSmoothingSeconds, sr);
+    level_coeff_ = 1.0f - kit::time_to_coeff(kLevelSeconds, sr);
+    room_coeff_ = 1.0f - kit::time_to_coeff(kSmoothingSeconds, sr);
+    let_go_ = std::pow(10.0f, -0.1f * kHoldLetGo / sr);
     idle_.reset(sr, 0.05f);
     spawned_ = 0;
     live_ = false;
@@ -162,7 +204,7 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
         return live_ ? on_clock(head_) : -1.0f;
       case 1: {
         if (!live_) return 0.0f;
-        long long count = static_cast<long long>(kLevelSeconds * sr);
+        long long count = static_cast<long long>(kMeterSeconds * sr);
         if (count > head_ - valid_from_) count = head_ - valid_from_;
         float high = 0.0f;
         for (long long back = 1; back <= count; back += 4) {
@@ -230,17 +272,45 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
         guard_seen_ = guard;
         for (int c = 0; c < 2; ++c) {
           tone_[c].set(tone, kToneQ, sample_rate());
-          guard_[c].set(guard, kit::kSqrtHalf, sample_rate());
+          for (int k = 0; k < kGuardStages; ++k) guard_[c][k].set(guard, kGuardQ[k], sample_rate());
         }
       }
 
-      const float again = again_.next();
+      // The level hold. What was caught, at its loudest for as long as a
+      // grain can still read it; then it is let go.
+      caught_level_ += (caught[0] * caught[0] + caught[1] * caught[1] - caught_level_) * level_coeff_;
+      if (caught_level_ >= held_level_) {
+        held_level_ = caught_level_;
+        held_for_ = hold_reach_;
+      } else if (held_for_ > 0) {
+        --held_for_;
+      } else {
+        held_level_ = flush_denormal(held_level_ * let_go_);
+      }
+      float shaped[2];
+      for (int c = 0; c < 2; ++c) shaped[c] = tone_[c].lowpass(rumble_[c].highpass(cloud[c]));
+      cloud_level_ = flush_denormal(cloud_level_ + (shaped[0] * shaped[0] + shaped[1] * shaped[1] - cloud_level_) * level_coeff_);
+      const float most = kHoldOver * kHoldOver * held_level_;
+      const float hold = cloud_level_ > most ? std::sqrt(most / cloud_level_) : 1.0f;
+
+      // Grains that stand still add up in step with what they read: all of
+      // them together are never given back above kStillMost.
+      if (live_ && --until_room_ <= 0) {
+        until_room_ = kGrainTick;
+        const float still = standing();
+        room_to_ = still > kStillMost ? kStillMost / still : 1.0f;
+      }
+      room_ += (room_to_ - room_) * room_coeff_;
+
+      const float again = again_.next() * room_;
       float wet[2];
       float loudest = 0.0f;
       for (int c = 0; c < 2; ++c) {
         // Linear up to ±1, never past ±2: only a pile-up of grains is held.
-        wet[c] = 2.0f * kit::soft_clip(0.5f * tone_[c].lowpass(rumble_[c].highpass(cloud[c])));
-        float written = flush_denormal(guard_[c].lowpass(caught[c] + again * wet[c]));
+        wet[c] = 2.0f * kit::soft_clip(0.5f * hold * shaped[c]);
+        float written = caught[c] + again * wet[c];
+        for (int k = 0; k < kGuardStages; ++k) written = guard_[c][k].lowpass(written);
+        written = flush_denormal(written);
         if (!(written > -kCeiling && written < kCeiling)) written = 0.0f;
         tape_[head_ & kMask][c] = written;
         loudest = kit::max(loudest, written < 0.0f ? -written : written);
@@ -269,6 +339,9 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
   static constexpr float kMargin = 16.0f;   // samples kept clear of the record head
   static constexpr float kCeiling = 8.0f;   // nothing larger is caught or kept
   static constexpr float kSqrtTwo = 1.41421356f;
+  // The guard is a Butterworth low-pass of six poles: three stages of these Q.
+  static constexpr int kGuardStages = 3;
+  static constexpr float kGuardQ[kGuardStages] = {0.51763809f, 0.70710678f, 1.93185165f};
 
   struct Grain {
     bool active = false;
@@ -307,6 +380,30 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
     return static_cast<float>(static_cast<double>((at - epoch_) % lap) / sample_rate());
   }
 
+  // Where the guard is set: what the fastest grain there can be now carries
+  // without folding back under 16 kHz.
+  float guard_corner() const {
+    const float open = kit::min(kGuardHz, kGuardOfRate * sample_rate());
+    return open / std::exp2(highest_octaves());
+  }
+
+  // How much the grains that stand still give back together, were they all in
+  // step: the larger of the two sides' sums of window times gain, each grain
+  // counted by how near it is to the speed it was caught at.
+  float standing() const {
+    float left = 0.0f;
+    float right = 0.0f;
+    for (const Grain& grain : grains_) {
+      if (!grain.active) continue;
+      const float off = grain.rate < 1.0f ? 1.0f - grain.rate : grain.rate - 1.0f;
+      if (off >= kStillWithin) continue;
+      const float counted = grain.amp * (1.0f - off * (1.0f / kStillWithin));
+      left += counted * grain.gain_left;
+      right += counted * grain.gain_right;
+    }
+    return kit::max(left, right);
+  }
+
   // The highest fall a grain can be given now, in octaves (0 when none rises).
   float highest_octaves() const {
     using namespace falling;
@@ -338,10 +435,17 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
     active_ = 0;
     for (int c = 0; c < 2; ++c) {
       tone_[c].reset();
-      guard_[c].reset();
+      for (kit::Svf& stage : guard_[c]) stage.reset();
       rumble_[c].reset();
       rumble_[c].set_cutoff(kRumbleHz, sr);
     }
+    caught_level_ = 0.0f;
+    held_level_ = 0.0f;
+    held_for_ = 0;
+    cloud_level_ = 0.0f;
+    room_ = 1.0f;
+    room_to_ = 1.0f;
+    until_room_ = 0;
     mix_.snap(mix_.target);
     again_.snap(again_.target);
     tone_hz_.snap(tone_hz_.target);
@@ -401,7 +505,7 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
         break;  // the rest is read when a grain starts
     }
     if (id == kFall || id == kVary) {
-      guard_hz_.set(0.45f * sample_rate() / std::exp2(highest_octaves()), glide);
+      guard_hz_.set(guard_corner(), glide);
     }
     // Grains may now reach further back than any started so far.
     if (id == kFall || id == kVary || id == kCurve || id == kSize || id == kScatter) {
@@ -536,7 +640,7 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
   int active_ = 0;
   kit::Rng rng_;
   kit::Svf tone_[2];
-  kit::Svf guard_[2];
+  kit::Svf guard_[2][kGuardStages];
   kit::OnePole rumble_[2];
   kit::Smoother mix_, again_, tone_hz_, guard_hz_;
   kit::IdleGate idle_;
@@ -549,6 +653,14 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
   long long epoch_ = 0;         // the head's count when the device last woke
   long long quiet_written_ = 0; // samples recorded since the last one above the floor
   long long hold_reach_ = 0;    // the furthest back a grain started since waking could read
+  // The level hold: mean squares of what is caught and of the cloud (both
+  // sides summed), the caught one at its loudest, and how long that is kept.
+  float caught_level_ = 0.0f, held_level_ = 0.0f, cloud_level_ = 0.0f;
+  long long held_for_ = 0;
+  float level_coeff_ = 0.0f, let_go_ = 1.0f;
+  // How much of Again the grains that stand still leave, and where it is going.
+  float room_ = 1.0f, room_to_ = 1.0f, room_coeff_ = 0.0f;
+  int until_room_ = 0;
   float until_next_ = 0.0f;     // samples until the next grain starts
   float interval_ = 48000.0f;
   float rate_ = 1.0f;           // grains per second after the overlap ceiling

@@ -109,7 +109,7 @@
       "default": 5,
       "taper": "log",
       "unit": "/s",
-      "description": "How many pieces start each second. Low leaves single falls with space between them. High overlaps them into one sinking cloud."
+      "description": "How many pieces start each second. Low leaves single falls with space between them. High overlaps them into one sinking cloud, never more than sixteen at once."
     },
     {
       "key": "scatter",
