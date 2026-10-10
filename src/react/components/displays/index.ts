@@ -51,6 +51,7 @@ import { SIFT_FACES } from './sift'
 import { SINE_SHADOW_FACES } from './sine-shadow'
 import { SPATIAL_FACES } from './spatial'
 import { STRETCH_FACES } from './stretch'
+import { STOPS_FACES } from './stops'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
@@ -127,4 +128,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...GLIMMER_FACES,
   ...SINE_SHADOW_FACES,
   ...WARP_FACES,
+  ...STOPS_FACES,
 }

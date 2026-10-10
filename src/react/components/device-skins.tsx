@@ -1917,6 +1917,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   glimmer: { ...PLATE_PALETTES.glimmer, finish: 'gloss', cap: 'dot' },
   'sine-shadow': { ...PLATE_PALETTES['sine-shadow'], finish: 'matte', cap: 'dot' },
   warp: { ...PLATE_PALETTES.warp, finish: 'gloss', cap: 'pointer' },
+  stops: { ...PLATE_PALETTES.stops, finish: 'fade', cap: 'disc' },
 }
 
 /**
