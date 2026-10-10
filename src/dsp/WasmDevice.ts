@@ -110,6 +110,8 @@ const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
  * How long a note that was let go is remembered, in ms, and how many notes at
  * the most. A minute: the longest tails the stock instruments have (a bell's
  * Decay and a steel's Sustain at 40 s, a pad's Release at 30) are over by then.
+ * Past the most, the oldest note that was let go is forgotten first, and a held
+ * one only when every note remembered is held.
  */
 const PLAYED_KEPT_MS = 60_000
 const PLAYED_MOST = 128
@@ -396,7 +398,12 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     // A key struck again while it is held is a new note, and the old one is let go.
     for (const note of this.played) if (note.id === id && note.offMs === null) note.offMs = nowMs
     this.forget(nowMs)
-    if (this.played.length >= PLAYED_MOST) this.played.shift()
+    if (this.played.length >= PLAYED_MOST) {
+      // The oldest note that was let go makes room: a key still held sounds, so it is kept
+      // while there is one to drop in its place.
+      const letGo = this.played.findIndex((note) => note.offMs !== null)
+      this.played.splice(Math.max(letGo, 0), 1)
+    }
     this.played.push({ id, frequency, gain, onMs: nowMs, offMs: null })
   }
 
