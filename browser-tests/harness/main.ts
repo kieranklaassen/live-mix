@@ -15,6 +15,12 @@ import { measureLevelFollow } from './level-follow'
 import { measureModulated } from './modulated-param'
 import { measurePlacements } from './placement'
 import { installWebAudioRecorder } from './record-web-audio'
+import {
+  framedNodesMade,
+  framedRenderDifference,
+  renderAndLetGo,
+  rendersKept,
+} from './render-let-go'
 import { measureRooms } from './room'
 import { measureSharedRooms } from './shared-room'
 
@@ -105,6 +111,10 @@ declare global {
       measureModulated: typeof measureModulated
       measurePlacements: typeof measurePlacements
       measureRooms: typeof measureRooms
+      framedNodesMade: typeof framedNodesMade
+      framedRenderDifference: typeof framedRenderDifference
+      renderAndLetGo: typeof renderAndLetGo
+      rendersKept: typeof rendersKept
       measureSharedRooms: typeof measureSharedRooms
       defaultSession: SessionSpec
     }
@@ -120,6 +130,10 @@ window.liveMixHarness = {
   measurePlacements,
   measureRooms,
   measureSharedRooms,
+  framedNodesMade,
+  framedRenderDifference,
+  renderAndLetGo,
+  rendersKept,
   defaultSession: DEFAULT_SESSION,
 }
 document.body.dataset.harness = 'ready'
