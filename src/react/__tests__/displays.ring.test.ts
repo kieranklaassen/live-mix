@@ -37,6 +37,9 @@ const SECOND_GAIN = 0.6
 const FIFTH = 1.49830708
 const DRIFT_CENTS = 50
 const BAND_LIMIT = 1 / 6
+// ring.h: kSlowHz, kFastHz, between which a carrier goes from a tremolo's law to a ring's.
+const SLOW_HZ = 4
+const FAST_HZ = 16
 // ring_waves.h: Waves::kLimit, Waves::kSoft, Diode::kForward, Diode::kKnee.
 const LIMITS = [1, 3, 5, 7, 11, 15, 23, 31, 47, 63, 95, 127]
 const SOFT = 0.3
@@ -539,6 +542,132 @@ describe('the ring display', () => {
   })
 })
 
+// --- A carrier too slow to be heard as a pitch ---------------------------------
+
+describe('the ring display with a slow carrier', () => {
+  // ring.h, `slow`: under 16 Hz the carrier is by degrees a gain on the sound,
+  // all of it at 4 Hz and under. Its shape is then scaled so the loudest
+  // moment of the two sides together is the dry sound's, and Mix is a
+  // straight crossfade. (The harness, test 19: the loudest moment −0.00 dB
+  // against the dry sound; a sine at Mix 0.5 takes the level down to nothing.)
+  const slowness = (hz: number): number =>
+    Math.min(1, Math.max(0, (FAST_HZ - hz) / (FAST_HZ - SLOW_HZ)))
+  /** A partial of the example and the two the carrier makes of it. */
+  const around = (picture: Picture, hz: number, carrier: number): [Upright, Upright] => [
+    at(firstPairs(picture), xOf(hz - carrier)),
+    at(firstPairs(picture), xOf(hz + carrier)),
+  ]
+  const heightOf = (mark: Upright): number => 10 ** ((-(mark.top - 6) / 29) * (48 / 20))
+
+  it('crosses Mix over to a straight crossfade, and scales a sine to a peak of one', () => {
+    expect(slowness(2.5)).toBe(1)
+    expect(slowness(16)).toBe(0)
+    expect(slowness(10)).toBeCloseTo(0.5, 12)
+    const pulse = sent({ tune: 1, frequency: 2.5, width: 0, mix: 0.5 })
+    // The dry sound at 1 − Mix: 6.02 dB down, where equal power has it 3.01 dB down.
+    dry(pulse).forEach((mark, n) => {
+      expect(mark.top).toBeCloseTo(yOf(EXAMPLE[n].level + db(0.5)), 6)
+    })
+    // √2 · √½ is a sine of peak one: each of its pair is half of it, times Mix.
+    const [under, over] = around(pulse, 220, 2.5)
+    expect(under.top).toBeCloseTo(yOf(db(0.25 * highPass(217.5, 20) * lowPass(217.5, 16000))), 6)
+    expect(over.top).toBeCloseTo(yOf(db(0.25 * highPass(222.5, 20) * lowPass(222.5, 16000))), 6)
+    // At the crest the three add up to the dry sound and no more; in the trough to nothing.
+    const left = heightOf(dry(pulse)[0])
+    expect(left + heightOf(under) + heightOf(over)).toBeCloseTo(1, 3)
+    expect(left - heightOf(under) - heightOf(over)).toBeCloseTo(0, 3)
+    // The carrier's line stands 3 dB under the top: it is √½ of the one that rings.
+    expect(carriers(pulse)[0].top).toBeCloseTo(yOf(db(Math.SQRT1_2)), 6)
+    // The ring alone: all of the pair, and nothing where the partial was.
+    const alone = sent({ tune: 1, frequency: 2.5, width: 0, mix: 1 })
+    expect(heightOf(around(alone, 220, 2.5)[0])).toBeCloseTo(0.5 * highPass(217.5, 20), 4)
+    expect(dry(alone)).toEqual([])
+  })
+
+  it('goes over by hertz between 16 and 4, and is a ring from 16 Hz up', () => {
+    // Half way, at 10 Hz: the shape half way from √2 to 1, Mix half way from equal power to straight.
+    const half = sent({ tune: 1, frequency: 10, width: 0, mix: 0.5 })
+    const shape = 1 + 0.5 * (Math.SQRT1_2 - 1)
+    const equal = Math.SQRT1_2
+    expect(dry(half)[0].top).toBeCloseTo(yOf(db(equal + 0.5 * (0.5 - equal))), 6)
+    expect(around(half, 220, 10)[1].top).toBeCloseTo(
+      yOf(
+        db(
+          Math.SQRT1_2 *
+            shape *
+            (equal + 0.5 * (0.5 - equal)) *
+            highPass(230, 20) *
+            lowPass(230, 16000),
+        ),
+      ),
+      5,
+    )
+    expect(carriers(half)[0].top).toBeCloseTo(yOf(db(shape)), 6)
+    // At 16 Hz and above nothing of it: equal power, and a carrier of root mean square one.
+    const ring = sent({ tune: 1, frequency: 16, width: 0, mix: 0.5 })
+    expect(dry(ring)[0].top).toBeCloseTo(yOf(-3.0103), 3)
+    expect(around(ring, 220, 16)[1].top).toBeCloseTo(
+      yOf(db(0.5 * highPass(236, 20) * lowPass(236, 16000))),
+      4,
+    )
+    expect(carriers(ring)[0].top).toBeCloseTo(6, 9)
+  })
+
+  it('lets the shape up again as Width turns the two sides apart', () => {
+    // A sine a quarter cycle apart on the two sides: sin² + cos² is one all the
+    // time, so it keeps its √2 (an equal-power pan). ring.h: √½ / cos(π · offset).
+    const apart = sent({ tune: 1, frequency: 2.5, width: 1, mix: 1 })
+    expect(heightOf(around(apart, 220, 2.5)[1])).toBeCloseTo(Math.SQRT1_2, 4)
+    expect(carriers(apart)[0].top).toBeCloseTo(6, 6)
+    const part = sent({ tune: 1, frequency: 2.5, width: 0.5, mix: 1 })
+    expect(heightOf(around(part, 220, 2.5)[1])).toBeCloseTo(0.5 / Math.cos(Math.PI / 8), 4)
+  })
+
+  it('scales the other shapes by their own peaks, and two carriers to a sum of one', () => {
+    // ring_waves.h, `slow_gain`: with the sides alike, one over the peak of the shape as its table has it.
+    for (const wave of [1, 2, 3]) {
+      const series = seriesOf(wave)
+      let peak = 0
+      for (let i = 0; i < 2048; i++) {
+        let sum = 0
+        for (let n = 1; n <= 127; n += 2) sum += series[n] * Math.sin((2 * Math.PI * n * i) / 2048)
+        peak = Math.max(peak, Math.abs(sum))
+      }
+      const shaped = sent({ tune: 1, frequency: 2.5, wave, width: 0, mix: 1 })
+      // The first harmonic's pair: half of it, at the scale that brings the peak to one.
+      expect(heightOf(around(shaped, 220, 2.5)[1])).toBeCloseTo(
+        (0.5 * Math.abs(series[1])) / peak,
+        4,
+      )
+    }
+    // A triangle of root mean square one peaks at √3: its scale is near 1/√3.
+    const triangle = sent({ tune: 1, frequency: 2.5, wave: 1, width: 0, mix: 1 })
+    expect(heightOf(around(triangle, 220, 2.5)[1]) / (0.5 * Math.abs(seriesOf(1)[1]))).toBeCloseTo(
+      1 / Math.sqrt(3),
+      2,
+    )
+    // Two carriers, both slow (2.5 Hz and its fifth, 3.75 Hz): 0.8 and 0.6 of a sum of 1.4.
+    const two = sent({ tune: 1, frequency: 2.5, second: 1, width: 0, mix: 1 })
+    expect(heightOf(around(two, 220, 2.5)[1])).toBeCloseTo((0.5 * FIRST_GAIN) / 1.4, 4)
+    expect(heightOf(at(secondPairs(two), onPixel(xOf(220 + 2.5 * FIFTH))))).toBeCloseTo(
+      (0.5 * SECOND_GAIN) / 1.4,
+      4,
+    )
+    // One of the two slow, at 12 Hz with its octave at 24 Hz: only the slow one's share goes over.
+    const mixed = sent({ tune: 1, frequency: 12, second: 2, width: 0, mix: 1 })
+    const share = FIRST_GAIN * FIRST_GAIN * slowness(12)
+    const sum = 1 + share * (1 / 1.4 - 1)
+    expect(heightOf(around(mixed, 220, 12)[1])).toBeCloseTo(
+      0.5 * Math.SQRT2 * FIRST_GAIN * (1 + slowness(12) * (Math.SQRT1_2 - 1)) * sum,
+      4,
+    )
+    expect(heightOf(at(secondPairs(mixed), onPixel(xOf(220 + 24))))).toBeCloseTo(
+      0.5 * Math.SQRT2 * SECOND_GAIN * sum,
+      4,
+    )
+  })
+})
+
 // --- Handles -----------------------------------------------------------------
 
 describe('the handles of the ring display', () => {
@@ -651,7 +780,7 @@ describe('the handles of the ring display', () => {
     expect(tone.drag(xOf(40), 9)).toEqual({ tone: 300 })
     expect(tone.drag(184, 9)).toEqual({ tone: 16000 })
     expect(low.drag(low.x, low.y)).toEqual({ lowCut: 200 })
-    expect(low.reset?.()).toEqual({ lowCut: 60 })
+    expect(low.reset?.()).toEqual({ lowCut: 150 })
     expect(tone.reset?.()).toEqual({ tone: 7000 })
     // Crossed, each stands low on what the other leaves.
     const crossed = handleOf('tone', { values: { ...plain, lowCut: 2000, tone: 300 } })
@@ -682,8 +811,27 @@ describe('the ring display while it runs', () => {
     expect(lean).toHaveLength(1)
     expect(lean[0].x).toBeCloseTo(158 + (20 / DRIFT_CENTS) * 18, 6)
     expect([lean[0].top, lean[0].foot]).toEqual([28, 36])
-    // The pairs are worked out from the carrier as it is set: the drift is the line's, not the picture's.
-    expect(at(firstPairs(running), xOf(C4 + 375)).top).toBeGreaterThan(0)
+    // The pairs are made by the carrier that is running, so they stand under
+    // the peaks of what comes out: 375 Hz against a carrier 20 cents sharp.
+    const pairs = firstPairs(running)
+    expect(pairs).toHaveLength(2)
+    expect(pairs[0].x).toBeCloseTo(xOf(375 - sharp), 2)
+    expect(pairs[1].x).toBeCloseTo(xOf(375 + sharp), 2)
+    // A difference near nothing moves a long way for a little drift: a partial
+    // at 281.25 Hz against a carrier 35 cents flat of C4 lies at 24.9 Hz, not
+    // at 19.6 Hz, and that is 4.1 px.
+    const flatHz = C4 * 2 ** (-35 / 1200)
+    const near = firstPairs(
+      pictureOf(
+        drawDisplay(display, params, {
+          values: { ...plain, drift: 1 },
+          meters: reading(flatHz),
+          signal: signalOf(waveOf([[12, 0.5]])),
+        }),
+      ),
+    )
+    expect(near[0].x).toBeCloseTo(xOf(281.25 - flatHz), 2)
+    expect(xOf(281.25 - flatHz) - xOf(281.25 - C4)).toBeCloseTo(4.14, 1)
     // Flat, and past the scale's end.
     const flat = (hz: number): number =>
       uprights(

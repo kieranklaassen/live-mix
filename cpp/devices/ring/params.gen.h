@@ -10,7 +10,7 @@
 //    5  wave: 0 Sine, 1 Triangle, 2 Soft square, 3 Diode, default 0
 //    6  second: 0 Off, 1 Fifth, 2 Octave, 3 Octave below, default 0
 //    7  drift: 0..1, default 0.25
-//    8  lowCut: 20..2000 Hz, default 60
+//    8  lowCut: 20..2000 Hz, default 150
 //    9  tone: 300..16000 Hz, default 7000
 //   10  width: 0..1, default 0.5
 //   11  mix: 0..1, default 0.4
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, -100.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 20.0f, 300.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {11.0f, 7.0f, 100.0f, 1.0f, 4000.0f, 3.0f, 3.0f, 1.0f, 2000.0f, 16000.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 4.0f, 0.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.25f, 60.0f, 7000.0f, 0.5f, 0.4f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 4.0f, 0.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.25f, 150.0f, 7000.0f, 0.5f, 0.4f};
 
 }  // namespace ring
 }  // namespace livemix

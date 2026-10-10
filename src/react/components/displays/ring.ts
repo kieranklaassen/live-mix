@@ -8,7 +8,8 @@
 //
 // Every number here is `cpp/devices/ring/ring.h` or `ring_waves.h` again: the
 // note's frequency, the shapes' series and where they are cut off, the gains
-// of the two carriers, the Butterworth cuts and the equal-power mix.
+// of the two carriers, the Butterworth cuts, the equal-power mix, and the
+// other law a carrier under 16 Hz goes over to (`Ring::slow`).
 
 import {
   INK,
@@ -56,6 +57,15 @@ const FORWARD = 0.3
 const KNEE = 0.12
 /** `Waves::kPoints`: the series are summed over so many points of one cycle. */
 const POINTS = 4096
+/** `Waves::kSize`: the points of one cycle a table has. */
+const TABLE = 2048
+/** `Waves::kSlowSteps`: `slow_gain` is kept at so many steps of the offset between the sides. */
+const SLOW_STEPS = 16
+/** `kSlowHz`, `kFastHz` of `ring.h`: a tremolo's law at 4 Hz and under, a ring's from 16 Hz up. */
+const SLOW_HZ = 4
+const FAST_HZ = 16
+/** Width turns the right side's carriers by up to this much of a cycle. */
+const WIDTH_TURN = 0.25
 /** The sample rate the handles are laid out at: where the cuts lie, the rate changes nothing a pixel can show. */
 const NOMINAL_RATE = 48000
 
@@ -116,6 +126,57 @@ let builtSeries: Float64Array[] | undefined
 const seriesOf = (wave: number): Float64Array =>
   (builtSeries ??= buildSeries())[clamp(Math.round(wave), 0, 3)]
 
+/** `Ring::slow`: how much of a carrier at `hz` is a tremolo, 1 at 4 Hz and under, 0 from 16 Hz up. */
+const slowness = (hz: number): number => clamp((FAST_HZ - hz) / (FAST_HZ - SLOW_HZ), 0, 1)
+
+/**
+ * The end of `Waves::build`: for each shape that is not a sine, and each of
+ * 17 offsets between the two sides from none to a quarter cycle, the scale
+ * that makes the loudest moment of the two sides together the dry sound's:
+ * √(2 / the most that W(φ)² + W(φ + offset)² gets to), over the table that
+ * holds the shape whole.
+ */
+function buildSlowGains(): Float64Array[] {
+  const all: Float64Array[] = []
+  const whole = new Float64Array(TABLE)
+  for (let shape = 1; shape <= 3; shape++) {
+    const series = seriesOf(shape)
+    whole.fill(0)
+    for (let n = 1; n < series.length; n += 2) {
+      for (let i = 0; i < TABLE; i++)
+        whole[i] += series[n] * Math.sin((2 * Math.PI * ((i * n) % TABLE)) / TABLE)
+    }
+    const gains = new Float64Array(SLOW_STEPS + 1)
+    for (let j = 0; j <= SLOW_STEPS; j++) {
+      const shift = (j * (TABLE / 4)) / SLOW_STEPS
+      let most = 0
+      for (let i = 0; i < TABLE; i++) {
+        const other = whole[(i + shift) & (TABLE - 1)]
+        most = Math.max(most, whole[i] * whole[i] + other * other)
+      }
+      gains[j] = Math.sqrt(2 / most)
+    }
+    all.push(gains)
+  }
+  return all
+}
+
+let builtSlowGains: Float64Array[] | undefined
+
+/**
+ * What a slow carrier of a shape is scaled by, the right side `offset` cycles
+ * on from the left: the sine in closed form (`ring.h`), the rest read between
+ * the 17 points (`Waves::slow_gain`).
+ */
+function slowGain(wave: number, offset: number): number {
+  const shape = clamp(Math.round(wave), 0, 3)
+  if (shape === 0) return Math.SQRT1_2 / Math.cos(Math.PI * offset)
+  const gains = (builtSlowGains ??= buildSlowGains())[shape - 1]
+  const position = clamp(offset * 4 * SLOW_STEPS, 0, SLOW_STEPS)
+  const index = clamp(Math.floor(position), 0, SLOW_STEPS - 1)
+  return gains[index] + (gains[index + 1] - gains[index]) * (position - index)
+}
+
 /**
  * How much of harmonic `n` a carrier at `hz` keeps: `Ring::choose_cut`. The
  * device reads two tables and blends them, the one whose highest harmonic
@@ -156,10 +217,24 @@ const toDb = (gain: number): number => (gain > 1e-9 ? 20 * Math.log10(gain) : -1
 /** Under this nothing of the ringing sound is heard, and nothing of it is drawn. */
 const QUIET = 1e-4
 
-/** What Mix gives the dry sound and the ringing one: `kit::equal_power`. */
-function mixGains(view: Pick<DisplayView, 'value'>): { dry: number; wet: number } {
-  const angle = clamp(view.value('mix'), 0, 1) * (Math.PI / 2)
-  return { dry: Math.cos(angle), wet: Math.sin(angle) }
+/**
+ * What Mix gives the dry sound and the ringing one. For a ring it is
+ * `kit::equal_power`. By as much as the carriers are slow (`both`: each one's
+ * slowness by the square of its gain) it goes over to a straight crossfade,
+ * and two carriers to a sum of one.
+ */
+function mixGains(
+  mix: number,
+  both: number,
+  gains: readonly [number, number],
+): { dry: number; wet: number } {
+  const set = clamp(mix, 0, 1)
+  const dry = Math.cos(set * (Math.PI / 2))
+  const wet = Math.sin(set * (Math.PI / 2))
+  return {
+    dry: dry + both * (1 - set - dry),
+    wet: (wet + both * (set - wet)) * (1 + both * (1 / (gains[0] + gains[1]) - 1)),
+  }
 }
 
 interface Carrier {
@@ -496,6 +571,7 @@ const ringDisplay = plateDisplay<RingState>({
     'drift',
     'lowCut',
     'tone',
+    'width',
     'mix',
   ],
   live: { meters: true, signal: true, spectrum: true },
@@ -522,8 +598,6 @@ const ringDisplay = plateDisplay<RingState>({
     const series = seriesOf(frame.value('wave'))
     const lowCut = frame.value('lowCut')
     const tone = frame.value('tone')
-    const { dry, wet } = mixGains(frame)
-    const mixedIn = wet > QUIET
 
     // The carrier as it is now: the device reports it with the drift on it
     // and the glide to a new note. At rest it reports the pitch that is set.
@@ -531,6 +605,22 @@ const ringDisplay = plateDisplay<RingState>({
     const running =
       frame.powered && frame.signal !== null && Number.isFinite(reading) && reading > 0
     const now = running ? reading : carrier.hz
+    /** The two carriers where they are now: the pairs are made by these, not by the setting. */
+    const carrierHz = [now, now * ratio]
+
+    // A slow carrier is a gain on the sound and not a pair of new partials:
+    // its shape is brought from a root mean square of one towards the scale
+    // that keeps the loudest moment the dry sound's (by Width, which turns
+    // the sides apart), and Mix from equal power towards a crossfade.
+    const slow = [slowness(carrierHz[0]), slowness(carrierHz[1])]
+    const tame =
+      slow[0] > 0 || slow[1] > 0
+        ? slowGain(frame.value('wave'), WIDTH_TURN * clamp(frame.value('width'), 0, 1))
+        : 1
+    const scales = [1 + slow[0] * (tame - 1), 1 + slow[1] * (tame - 1)]
+    const both = Math.min(1, gains[0] * gains[0] * slow[0] + gains[1] * gains[1] * slow[1])
+    const { dry, wet } = mixGains(frame.value('mix'), both, gains)
+    const mixedIn = wet > QUIET
 
     // The sound: its partials going in, and the level the scale hangs from.
     const input = frame.powered ? (frame.signal?.input ?? null) : null
@@ -633,10 +723,12 @@ const ringDisplay = plateDisplay<RingState>({
 
     // What the ring makes of them. A partial at f against a harmonic of a
     // carrier at c, of height a, comes out as two, at c + f and |c − f|, each
-    // at a/2 of the partial: then the two cuts and Mix. Every partial is
-    // shown against the two carriers themselves, and the loudest against the
-    // harmonics of their shape too. With nothing of it in the mix none of
-    // this is heard, and none of it is drawn.
+    // at a/2 of the partial: then the two cuts and Mix. The carrier is the
+    // one that is running, drift and glide and all, so the marks stand under
+    // the peaks of what comes out. Every partial is shown against the two
+    // carriers themselves, and the loudest against the harmonics of their
+    // shape too. With nothing of it in the mix none of this is heard, and
+    // none of it is drawn.
     if (mixedIn) {
       for (let pass = 0; pass < 3; pass++) {
         // The faintest first, so the strong marks lie on top: harmonics, the second carrier, the first.
@@ -650,10 +742,10 @@ const ringDisplay = plateDisplay<RingState>({
         for (const side of pass === 0 ? [0, 1] : [k]) {
           const gain = gains[side]
           if (gain <= 0) continue
-          const hz = carrier.hz * (side === 0 ? 1 : ratio)
+          const hz = carrierHz[side]
           for (const n of SHOWN_HARMONICS) {
             if ((pass === 0) !== n > 1) continue
-            const height = gain * series[n] * harmonicShare(n, hz, rate)
+            const height = gain * scales[side] * series[n] * harmonicShare(n, hz, rate)
             if (Math.abs(height) < QUIET) continue
             for (let p = 0; p < (n > 1 ? Math.min(1, count) : count); p++) {
               const partial = partials[p]
@@ -669,15 +761,17 @@ const ringDisplay = plateDisplay<RingState>({
 
     // The carrier, in the second colour while it is heard: a line for each
     // harmonic of its shape, as tall as the harmonic is (a sine alone reaches
-    // the top), for the second carrier too. They stand where the device says
-    // the carrier is now. With nothing of the ring in the mix they are the
-    // setting and no more, and are drawn in the ink.
+    // the top; a slow one is as much lower as its law takes it down), for
+    // the second carrier too. They stand where the device says the carrier
+    // is now. With nothing of the ring in the mix they are the setting and
+    // no more, and are drawn in the ink.
     for (const side of [1, 0]) {
       const gain = gains[side]
       if (gain <= 0) continue
-      const hz = now * (side === 0 ? 1 : ratio)
+      const hz = carrierHz[side]
       for (const n of SHOWN_HARMONICS) {
-        const height = Math.abs(gain * series[n] * harmonicShare(n, hz, rate)) / Math.SQRT2
+        const height =
+          Math.abs(gain * scales[side] * series[n] * harmonicShare(n, hz, rate)) / Math.SQRT2
         if (height < QUIET) continue
         const first = side === 0 && n === 1
         // A slow carrier lies left of the scale: its line waits at the edge, where its handle is.

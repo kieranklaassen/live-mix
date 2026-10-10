@@ -6,7 +6,10 @@
 // pair, the shapes' own harmonics and what is kept from folding, the drift's
 // size and that it runs free, the filters on the ringing sound alone, the
 // diode bridge's lean on loud notes, and what a knob, a silence or a bad
-// sample does.
+// sample does. The second check added: a slow carrier is a tremolo that is
+// never louder than the dry sound, the carrier and the drift run on through
+// a rest, a glide is even in pitch, and init() leaves nothing of the last
+// life behind.
 
 #include <functional>
 
@@ -527,6 +530,30 @@ static void test_drift() {
   }
   std::printf("   bursts with gaps: the drift is within %.3f cents of the same course\n", worst);
   EXPECT(worst < 0.25, "the drift runs free: what is played does not move it");
+
+  // And through a rest: 100 ms of sound, 0.6 s of silence (twice the hold),
+  // over and over. Read in the second half of each burst.
+  plain(device);
+  device.set_param(p::kRoot, 9.0f);
+  device.set_param(p::kOctave, 5.0f);
+  device.set_param(p::kDrift, 1.0f);
+  std::vector<float> phrases = steady(seconds, kRate, 0.5f);
+  for (size_t i = 0; i < phrases.size(); ++i) {
+    if ((i / 2400) % 14 >= 2) phrases[i] = 0.0f;
+  }
+  const Stereo rested = run(device, phrases);
+  double worst_rested = 0.0;
+  bool slept = true;
+  for (size_t w = 14; w < course.size(); ++w) {
+    const size_t at = from + w * 2400;
+    if ((at / 2400) % 14 != 1) continue;
+    slept = slept && peak(rested.left, at - 4800, at - 2400 - 1) == 0.0;
+    worst_rested = std::max(worst_rested, std::fabs(cents(crossing_frequency(rested.left, at, at + 2400, kRate), 880.0) -
+                                                    kDriftCents * course[w]));
+  }
+  std::printf("   bursts with rests of 0.3 s in between: the drift is within %.3f cents of the same course\n", worst_rested);
+  EXPECT(slept, "the device rests between the bursts");
+  EXPECT(worst_rested < 0.5, "the drift runs on through a rest");
 }
 
 // The carrier runs free too: its phase in every burst is the one a carrier
@@ -550,8 +577,9 @@ static void test_carrier_runs_free() {
   std::printf("8. a 1 kHz carrier over ten bursts: its phase stays within %.4f rad of one that never stopped\n", worst);
   EXPECT(worst < 0.01, "the carrier's phase is never reset by the sound");
 
-  // A silence longer than the hold stops the clock: the carrier is then
-  // behind one that never stopped by the time it rested, and by no more.
+  // A silence longer than the hold puts the device to rest, and the carrier
+  // runs on through it: when the sound returns it is where one that never
+  // stopped would be.
   plain(device);
   free_at(device, 1000.5f);
   const size_t on = 7200, off = 24000;  // 150 ms of sound, 500 ms of silence
@@ -562,17 +590,42 @@ static void test_carrier_runs_free() {
   }
   const Stereo rested = run(device, phrases);
   const double begin = tone_phase(rested.left, 1000.5, kRate, 2400, 4800);
-  const double rest_seconds = static_cast<double>(off) / kRate - kHoldSeconds;
   double worst_rested = 0.0;
+  bool slept = true;
   for (size_t k = 1; k < 6; ++k) {
     const size_t at = k * (on + off) + 2400;
-    double turn = tone_phase(rested.left, 1000.5, kRate, at, at + 2400) - begin +
-                  2.0 * kPi * 1000.5 * rest_seconds * static_cast<double>(k);
+    double turn = tone_phase(rested.left, 1000.5, kRate, at, at + 2400) - begin;
     turn -= 2.0 * kPi * std::round(turn / (2.0 * kPi));
     worst_rested = std::max(worst_rested, std::fabs(turn));
+    slept = slept && peak(rested.left, at - 2400 - 4800, at - 2400) == 0.0;
   }
-  std::printf("   over five rests of 0.2 s each: within %.4f rad of a carrier that stood still for exactly those\n", worst_rested);
-  EXPECT(worst_rested < 0.01, "a rest stops the carrier where it stands; it is not started again");
+  std::printf("   over five rests of 0.2 s each: within %.4f rad of a carrier that never stopped\n", worst_rested);
+  EXPECT(slept, "the device rests in each silence");
+  EXPECT(worst_rested < 0.01, "the carrier runs on through a rest: it is where one that never stopped would be");
+
+  // A slow carrier is where the house rule is heard: 0.5 Hz, a pause, and
+  // the place in its cycle when the sound returns. The carrier is out / in.
+  double worst_slow = 0.0;
+  for (double pause : {0.31, 0.5, 1.0, 1.7, 3.0}) {
+    plain(device);
+    free_at(device, 0.5f);
+    const std::vector<float> tone = sine(1000.0f, 1.0f, kRate, 0.5f);
+    std::vector<float> in = tone;
+    in.insert(in.end(), static_cast<size_t>(pause * kRate), 0.0f);
+    const size_t back = in.size();
+    in.insert(in.end(), tone.begin(), tone.end());
+    const Stereo out = run(device, in);
+    double num = 0.0, den = 0.0;
+    for (size_t i = back + 48; i < back + 528; ++i) {
+      num += static_cast<double>(out.left[i]) * in[i];
+      den += static_cast<double>(in[i]) * in[i];
+    }
+    // A slow sine swings to one (see test_slow_carrier), from the crest it starts on.
+    const double expected = std::sin(2.0 * kPi * (0.25 + 0.5 * static_cast<double>(back + 288) / kRate));
+    worst_slow = std::max(worst_slow, std::fabs(num / den - expected));
+  }
+  std::printf("   a 0.5 Hz carrier after pauses of 0.31 to 3 s: within %.4f of where one that never stopped stands\n", worst_slow);
+  EXPECT(worst_slow < 0.01, "a slow carrier keeps turning through a pause");
 }
 
 // Noise with most of its power under 3 kHz, so what it rings to stays under
@@ -1090,6 +1143,148 @@ static void test_rest_and_meter() {
   EXPECT_NEAR(device.meter(1), 0.0, 0.0, "an unknown reading is zero");
 }
 
+// A carrier under 16 Hz is a gain on the sound, and by 4 Hz the law is a
+// tremolo's: Mix a straight crossfade, the shape scaled so that the loudest
+// moment is the dry sound's.
+static void test_slow_carrier() {
+  const std::vector<float> tone = sine(1000.0f, 2.0f, kRate, 0.5f);
+  const size_t from = 9600;
+  double worst_over = -200.0, deepest = 1.0;
+  for (int wave = kSine; wave <= kDiode; ++wave) {
+    for (float mix : {0.25f, 0.5f, 0.6f, 0.75f, 1.0f}) {
+      for (float hz : {0.7f, 2.5f, 4.0f}) {
+        plain(device);
+        free_at(device, hz);
+        device.set_param(p::kWave, static_cast<float>(wave));
+        device.set_param(p::kMix, mix);
+        const Stereo out = run(device, tone);
+        worst_over = std::max(worst_over, db(peak(out.left, from) / 0.5));
+        if (wave == kSine && mix == 0.5f && hz == 2.5f) {
+          // Full depth: (1 − Mix) + Mix·sin goes down to nothing once a cycle.
+          for (size_t at = from; at + 480 <= out.size(); at += 480) deepest = std::min(deepest, peak(out.left, at, at + 480) / 0.5);
+        }
+      }
+    }
+  }
+  std::printf("19. a carrier of 0.7 to 4 Hz, every shape, Mix 0.25 to 1: the loudest moment is %+.2f dB against the dry sound; at "
+              "Mix 0.5 a sine takes the level down to %.3f of it\n",
+              worst_over, deepest);
+  EXPECT(worst_over < 0.1, "a slow carrier never lifts the sound over the dry sound's level");
+  EXPECT(worst_over > -0.5, "and its loudest moment is the dry sound's level");
+  EXPECT(deepest < 0.02, "a slow sine at Mix one half is a tremolo of full depth");
+
+  // The sides a quarter cycle apart: the two together never louder than the
+  // dry sound's two, and for a sine as loud all the time (a pan).
+  double worst_sides = -200.0, sine_low = 1.0e9, sine_high = -1.0e9;
+  for (int wave = kSine; wave <= kDiode; ++wave) {
+    for (float width : {0.5f, 1.0f}) {
+      plain(device);
+      free_at(device, 2.0f);
+      device.set_param(p::kWave, static_cast<float>(wave));
+      device.set_param(p::kWidth, width);
+      const Stereo out = run(device, tone);
+      for (size_t at = from; at + 480 <= out.size(); at += 480) {
+        const double l = rms(out.left, at, at + 480), r = rms(out.right, at, at + 480);
+        const double together = 10.0 * std::log10((l * l + r * r) / (2.0 * 0.125));
+        worst_sides = std::max(worst_sides, together);
+        if (wave == kSine && width == 1.0f) {
+          sine_low = std::min(sine_low, together);
+          sine_high = std::max(sine_high, together);
+        }
+      }
+    }
+  }
+  std::printf("    Width 0.5 and 1 at 2 Hz, every shape: the two sides together are at most %+.2f dB against the dry sound; a sine at "
+              "Width 1 stays between %+.2f and %+.2f dB\n",
+              worst_sides, sine_low, sine_high);
+  EXPECT(worst_sides < 0.1, "apart, the two sides together are never louder than the dry sound");
+  EXPECT(sine_low > -0.1 && sine_high < 0.1, "a slow sine at Width 1 is an equal-power pan");
+
+  // The hand-over, by hertz from 4 to 16: at 16 Hz and above it is the ring's
+  // own law (equal power, a root mean square of one), at 10 Hz half way.
+  const double root_half = std::sqrt(0.5);
+  struct At {
+    float hz;
+    double slow;
+  };
+  for (const At& at : {At{16.0f, 0.0}, At{40.0f, 0.0}, At{10.0f, 0.5}, At{4.0f, 1.0}}) {
+    plain(device);
+    free_at(device, at.hz);
+    device.set_param(p::kMix, 0.5f);
+    const Stereo out = run(device, tone);
+    const double dry = root_half + at.slow * (0.5 - root_half);
+    const double wet = root_half + at.slow * (0.5 - root_half);
+    const double swing = std::sqrt(2.0) * (1.0 + at.slow * (root_half - 1.0));
+    char label[120];
+    std::snprintf(label, sizeof label, "at %.0f Hz and Mix one half the loudest moment is the law's", at.hz);
+    EXPECT_NEAR(peak(out.left, 48000) / 0.5, dry + wet * swing, 0.01, label);
+  }
+
+  // Two slow carriers come to their peaks together: 0.8 and 0.6 of one, not of 1.4.
+  plain(device);
+  free_at(device, 2.0f);
+  device.set_param(p::kSecond, static_cast<float>(kOctaveUp));
+  const Stereo two = run(device, tone);
+  EXPECT(peak(two.left, from) / 0.5 < 1.01, "two slow carriers together do not lift the sound over the dry sound's level");
+}
+
+// A new pitch is glided to on a scale of pitch: an octave down takes as long
+// as an octave up, and a jump of five octaves is not a long sweep.
+static void test_glide() {
+  const auto arrives = [](float from_octave, float to_octave, double within_cents) {
+    plain(device);
+    device.set_param(p::kOctave, from_octave);
+    run(device, steady(0.5f, kRate, 0.5f));
+    device.set_param(p::kOctave, to_octave);
+    const Stereo out = run(device, steady(0.5f, kRate, 0.5f));
+    const double target = 440.0 * std::pow(2.0, (12.0 * (to_octave + 1.0) - 69.0) / 12.0);
+    double last = -1.0, late = 0.0;
+    for (size_t i = 1; i < out.size(); ++i) {
+      if ((out.left[i - 1] < 0.0f) == (out.left[i] < 0.0f)) continue;
+      const double at = static_cast<double>(i - 1) + out.left[i - 1] / (static_cast<double>(out.left[i - 1]) - out.left[i]);
+      if (last >= 0.0 && std::fabs(cents(0.5 * kRate / (at - last), target)) > within_cents) late = at;
+      last = at;
+    }
+    return 1000.0 * late / kRate;
+  };
+  const double up = arrives(4.0f, 5.0f, 50.0), down = arrives(4.0f, 3.0f, 50.0);
+  const double far = arrives(7.0f, 2.0f, 50.0), near = arrives(4.0f, 5.0f, 5.0);
+  std::printf("20. the glide: an octave up is within 50 cents after %.1f ms and an octave down after %.1f ms (within 5 cents after "
+              "%.1f ms); five octaves down after %.1f ms\n",
+              up, down, near, far);
+  EXPECT(std::fabs(up - down) < 4.0, "an octave down glides as an octave up does");
+  EXPECT(up > 40.0 && up < 80.0, "an octave is within a quarter tone in about 60 ms");
+  EXPECT(near < 125.0, "and within 5 cents in about 110 ms");
+  EXPECT(far < 110.0, "five octaves down is within a quarter tone in 100 ms");
+}
+
+// init() puts everything back: the second carrier's interval too, which
+// Second on Off does not set.
+static void test_init_forgets() {
+  std::vector<float> input = sine(220.0f, 1.0f, kRate, 0.3f);
+  const std::vector<float> upper = sine(331.0f, 1.0f, kRate, 0.2f);
+  for (size_t i = 0; i < input.size(); ++i) input[i] += upper[i];
+  const std::vector<float> first(input.begin(), input.begin() + 24000), rest(input.begin() + 24000, input.end());
+  Stereo outs[2];
+  Ring* devices[2] = {&device, &other};
+  const float lives[2] = {static_cast<float>(kFifthUp), static_cast<float>(kOctaveDown)};
+  for (int which = 0; which < 2; ++which) {
+    Ring& d = *devices[which];
+    d.init(kRate);
+    d.set_param(p::kSecond, lives[which]);
+    run(d, input);
+    d.init(kRate);
+    run(d, first);
+    d.set_param(p::kSecond, static_cast<float>(kOctaveUp));
+    outs[which] = run(d, rest);
+  }
+  const bool same = outs[0].left == outs[1].left && outs[0].right == outs[1].right;
+  std::printf("21. two devices whose last lives had Second on Fifth and on Octave below, after init(): Second switched on while "
+              "sounding gives %s\n",
+              same ? "the same samples" : "OTHER samples");
+  EXPECT(same, "init() forgets the second carrier's interval");
+}
+
 int main() {
   Conformance spec;
   spec.name = "ring";
@@ -1119,6 +1314,9 @@ int main() {
   test_knobs_in_the_rest();
   test_bad_input();
   test_rest_and_meter();
+  test_slow_carrier();
+  test_glide();
+  test_init_forgets();
 
   device.init(kRate);
   rng_state() = 0xBEEFu;

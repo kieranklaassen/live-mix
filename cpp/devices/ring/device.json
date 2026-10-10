@@ -84,7 +84,7 @@
       "name": "Low Cut",
       "min": 20,
       "max": 2000,
-      "default": 60,
+      "default": 150,
       "taper": "log",
       "unit": "Hz",
       "description": "Takes the lows out of the ringing sound, where the difference tones rumble. The dry sound is not touched."
@@ -134,14 +134,29 @@
       "width": 1,
       "mix": 0.25
     },
+    "Dark bell": {
+      "drift": 0.5,
+      "lowCut": 100,
+      "tone": 600,
+      "width": 1,
+      "mix": 0.55
+    },
+    "Fifth halo": {
+      "second": 1,
+      "drift": 0.4,
+      "lowCut": 200,
+      "tone": 3000,
+      "width": 1,
+      "mix": 0.2
+    },
     "Gong": {
-      "octave": 2,
+      "octave": 3,
       "second": 1,
       "drift": 0.3,
-      "lowCut": 30,
-      "tone": 3500,
+      "lowCut": 60,
+      "tone": 2500,
       "width": 0.3,
-      "mix": 0.7
+      "mix": 0.45
     },
     "Glass bells": {
       "octave": 6,
@@ -150,7 +165,7 @@
       "lowCut": 400,
       "tone": 12000,
       "width": 0.8,
-      "mix": 0.5
+      "mix": 0.35
     },
     "Slow pulse": {
       "tune": 1,
@@ -172,32 +187,12 @@
     },
     "Flutter": {
       "tune": 1,
-      "frequency": 13,
-      "wave": 1,
+      "frequency": 9,
       "drift": 0.5,
       "lowCut": 20,
       "tone": 9000,
       "width": 0.6,
-      "mix": 0.6
-    },
-    "Low growl": {
-      "octave": 1,
-      "wave": 2,
-      "drift": 0.2,
-      "lowCut": 40,
-      "tone": 2500,
-      "width": 0.4,
-      "mix": 0.8
-    },
-    "Tin box": {
-      "octave": 5,
-      "wave": 3,
-      "second": 2,
-      "drift": 0.1,
-      "lowCut": 500,
-      "tone": 4000,
-      "width": 0.2,
-      "mix": 0.85
+      "mix": 0.35
     },
     "Under water": {
       "octave": 3,
@@ -207,33 +202,32 @@
       "width": 1,
       "mix": 0.75
     },
-    "Sour bell": {
-      "octave": 4,
-      "fine": 35,
-      "second": 1,
-      "drift": 0.5,
-      "tone": 6000,
-      "width": 0.6,
-      "mix": 0.5
-    },
     "Wide drone": {
       "octave": 3,
-      "wave": 1,
       "second": 3,
       "drift": 0.6,
-      "lowCut": 40,
-      "tone": 5000,
+      "lowCut": 100,
+      "tone": 2000,
       "width": 1,
-      "mix": 0.6
+      "mix": 0.3
     },
     "Ring alone": {
-      "octave": 4,
       "second": 2,
       "drift": 0.25,
       "lowCut": 80,
       "tone": 8000,
       "width": 0.7,
       "mix": 1
+    },
+    "Tin box": {
+      "octave": 5,
+      "wave": 3,
+      "second": 2,
+      "drift": 0.1,
+      "lowCut": 500,
+      "tone": 4000,
+      "width": 0.2,
+      "mix": 0.7
     },
     "Metal voice": {
       "tune": 1,
@@ -246,8 +240,7 @@
       "mix": 1
     },
     "Frost": {
-      "tune": 1,
-      "frequency": 3100,
+      "octave": 7,
       "drift": 0.7,
       "lowCut": 1500,
       "tone": 14000,
