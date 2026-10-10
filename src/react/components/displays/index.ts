@@ -13,6 +13,7 @@ import { REVERB_FACES } from './reverb'
 import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
+import { UNDERWATER_FACES } from './underwater'
 import { WEAR_FACES } from './wear'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
@@ -28,4 +29,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  ...UNDERWATER_FACES,
 }
