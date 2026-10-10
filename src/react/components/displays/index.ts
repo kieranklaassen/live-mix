@@ -29,6 +29,7 @@ import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { WEAR_FACES } from './wear'
+import { CONSTELLATION_FACES } from './constellation'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -59,4 +60,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...SAMPLE_INSTRUMENT_FACES,
   ...KIT_INSTRUMENT_FACES,
   ...FOG_FACES,
+  ...CONSTELLATION_FACES,
 }
