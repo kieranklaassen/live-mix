@@ -93,7 +93,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much the sound narrows towards the middle as it moves away. Zero keeps it as wide as it came in."
+      "description": "How much the sound and the room around it narrow towards the middle as it moves away. Zero narrows nothing."
     }
   ],
   "presets": {
@@ -232,6 +232,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. Inverse distance law, travel time at the speed of sound, air absorption as a low-pass that follows distance, image sources for the first reflections and a feedback delay network (Jot and Chaigne, AES 1991) for the diffuse room. No unit or product is modelled."
+    "note": "Written for live-mix on cpp/kit. Inverse distance law, travel time at the speed of sound, air absorption as a low-pass that follows distance, image sources for the first reflections and, for the diffuse room, a nested all-pass loop on each side (all-pass reverberators after Schroeder, JAES 1962, nested as in Gardner, 1992), which is as loud at every frequency. No unit or product is modelled."
   }
 }

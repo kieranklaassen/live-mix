@@ -102,7 +102,7 @@ export const DISTANCE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the sound narrows towards the middle as it moves away. Zero keeps it as wide as it came in.',
+      'How much the sound and the room around it narrow towards the middle as it moves away. Zero narrows nothing.',
   },
 } as const satisfies Record<string, ParamSpec>
 
