@@ -16,56 +16,67 @@
 //
 // Bands. From 40 Hz to 20 kHz (or 0.45 of the sample rate): one bin wide
 // where a twelfth of an octave is narrower than a bin (under about 400 Hz at
-// 48 kHz) and a twelfth of an octave above, 83 bands at 48 kHz, 88 at most.
-// A band's level is the power in its bins, left and right together, against
-// that of a full-scale sine (1.5 × kFullScale² over the three bins a sine
-// fills): a sine of amplitude 1 inside one band reads 0 dB whatever the
-// band's width. The level jumps up at once and falls back over 60 ms, so a
-// noise does not flicker.
+// 48 kHz) and a twelfth of an octave above, 85 bands at 48 kHz, 88 at most.
+// The frame is 2048 at every sample rate, so at 96 kHz the single bins reach
+// up to 800 Hz and there are 72 bands.
 //
 // Compare, once per frame, when the left channel's frame comes (the right
 // channel's power is that of its frame before, a hop earlier; both channels
 // then take the same gains, so the image does not move and mono stays mono):
 //
-// - Skirt. A partial is three or four bins wide and its window spills
-//   further. A band is never read lower than its neighbour less 12 dB for
-//   every bin between their centres beyond the first, so what one partial
-//   spills is not taken for a quiet sound of its own and the bins of one
-//   partial are lifted together.
-// - The loud around it. Every band is held against the loudest there is,
-//   less 3 dB for every octave between the two: a tent over the peaks. The
-//   deficit is how far the band lies under that.
-// - The lift asked for is Amount times the deficit, Range at most; nothing
-//   where the band is under Floor (fading in over the 6 dB above it); and
-//   weighted by Focus, which takes the lift away towards one end of the
-//   spectrum (none at 60 Hz with Focus full up, none at 12 kHz full down).
-// - Detail. The lift is then averaged over pitch, over two octaves at
-//   Detail 0 and not at all at 1, so that low Detail lifts regions and high
-//   Detail single partials and the valleys between them. Bands under Floor
-//   still get none.
-// - Rise. The lift held moves towards that in dB: up over Rise, down six
-//   times faster (15 ms at the least), so a note that starts where a lift
-//   was is not thrown forward.
-// - Level hold. The power the frame would come out with is set against the
-//   power it came in with, and all of it is turned down by the difference:
-//   at once on the way down, over 40 ms on the way back. Reveal changes the
-//   balance inside a sound and never its level.
+// - Whose each bin is. A partial fills the bin it peaks in and the one
+//   either side, and its window spills on from there. A bin that holds less
+//   than the most another bin could have spilled into it (the Hann window's
+//   worst case with a few dB to spare) belongs to that bin, or to the bin
+//   that one belongs to. An owned bin takes its owner's gain, so a partial
+//   is lifted whole, and beyond its owner's neighbours it counts for
+//   nothing: what a loud partial spills is not a quiet sound.
+// - Level. A band's level is the power of the bins in it that are their own
+//   and of the bin either side of each, left and right together, against a
+//   full-scale sine on both channels: a sine of amplitude 1 reads 0 dB
+//   wherever it lies. It jumps up at once and falls back over 60 ms.
+// - The loud around it. What is loud is remembered when it stops, falling
+//   3 dB a second divided by Rise in seconds (10 dB a second at 300 ms;
+//   never slower than 3 nor faster than 150). Every band is held against the
+//   loudest there is or was, less 3 dB for every octave between the two: a
+//   tent over the peaks. The deficit is how far the band lies under that.
+// - The lift asked for is Amount times the deficit, Range at most, weighted
+//   by Focus, which takes the lift away towards one end of the spectrum
+//   (none at 60 Hz with Focus full up, none at 12 kHz full down).
+// - Detail. Under Detail 1 the lift asked for is the mean over the sounding
+//   bands within 12^-Detail octaves either way (an octave at 0), the nearer
+//   counting more, so that low Detail lifts regions and high Detail single
+//   partials and what lies between them.
+// - Floor. A band under Floor gets no lift, and counts for nothing in that
+//   mean; the lift fades in over the 6 dB above Floor.
+// - Rise. The lift held moves up towards what is asked over Rise, in dB,
+//   and comes down to it at once: a band that has grown loud is never
+//   thrown forward by a lift that stood there.
+// - Level hold. The frame is turned down by what the lifts add to its
+//   power, so Reveal changes the balance inside a sound and not its level.
+//   What was loud a moment ago counts as still there (the power of the
+//   loudest frame of late, falling as the memory above does), so the quiet
+//   left behind when a note stops stays lifted and comes back to its own
+//   level as that fades.
 //
-// A bin's gain is its band's, read between band centres; bins under the
-// first band and over the last pass as they are.
+// A bin's gain is its band's (its owner's band's); bins under the first
+// band and over the last pass as they are. Gains are read once per frame;
+// the overlap of the frames crossfades every change over 43 ms.
 //
-// Listen plays only what is added: every bin by its gain less one.
+// Listen plays only what is added: every bin by its gain less one, at full
+// whatever Mix says.
 //
 // meter(0) is the largest lift in force in dB. The rest are for the display:
 // 1 the level hold in dB, 2 to 23 the lift of every band and 24 to 45 its
 // level, four bands to a reading, six bits each.
 //
-// Storage: two kit::Stft<2048, 512> (88 KB each) and under 20 KB of tables
+// Storage: two kit::Stft<2048, 512> (88 KB each) and about 20 KB of tables
 // and state per bin and per band. Nothing is sized by the sample rate.
 //
 // It sleeps once nothing comes in, the frames in flight have played out and
-// every level and lift it holds is exactly at rest; the frame clock runs on
-// through the sleep (Stft::skip), so the block size cannot be heard.
+// everything it holds (levels, memories, lifts) is exactly at rest: 10 s
+// after a loud sound at Rise 300 ms, 35 s at the slowest. The frame clock
+// runs on through the sleep (Stft::skip), so the block size cannot be heard.
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"

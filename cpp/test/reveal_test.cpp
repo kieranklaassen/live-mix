@@ -97,6 +97,7 @@ int main() {
     EXPECT(rising, "band centres rise");
     for (float rate : {22050.0f, 32000.0f, 44100.0f, 88200.0f, 96000.0f, 192000.0f}) {
       device.init(rate);
+      std::printf("  at %.0f Hz: %d bands\n", rate, device.bands());
       EXPECT(device.bands() >= 40 && device.bands() <= Reveal::kMaxBands, "the bands fit at every sample rate");
       EXPECT(device.band_hz(device.bands() - 1) <= 20000.0f, "and stop at 20 kHz");
     }
@@ -670,6 +671,94 @@ int main() {
                 db(rms(added.left, 5 * 48000, 10 * 48000)) - came);
     EXPECT(peak(added.left) < 2.0 && db(rms(added.left, 5 * 48000, 10 * 48000)) < came + 1.0,
            "what Listen plays is no louder than the sound");
+  }
+
+  // --- Every preset: a minute of the full-scale chord, and Mix part-way ----------------------
+  // The table is "presets" in device.json. Each preset holds the chord's
+  // level, never grows and never peaks 6 dB over it; and with Mix part-way
+  // a held tone is the plain crossfade of its dry and its wet level.
+  {
+    struct Preset {
+      const char* name;
+      std::vector<Setting> settings;
+    };
+    const std::vector<Preset> presets = {
+      {"Reveal", {}},
+      {"Gentle opening", {{p::kAmount, 0.4f}, {p::kRange, 10.0f}, {p::kRise, 700.0f}, {p::kFocus, 0.3f}, {p::kDetail, 0.15f}}},
+      {"Air", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFloor, -78.0f}, {p::kFocus, 1.0f}, {p::kDetail, 0.5f}}},
+      {"Warm body", {{p::kAmount, 0.9f}, {p::kRange, 24.0f}, {p::kFocus, -1.0f}, {p::kDetail, 0.3f}}},
+      {"Slow bloom", {{p::kAmount, 0.8f}, {p::kRange, 24.0f}, {p::kRise, 2000.0f}}},
+      {"Cling", {{p::kAmount, 0.6f}, {p::kRange, 15.0f}, {p::kRise, 20.0f}, {p::kDetail, 0.9f}}},
+      {"Overtones", {{p::kAmount, 0.75f}, {p::kRange, 24.0f}, {p::kFloor, -75.0f}, {p::kRise, 200.0f}, {p::kDetail, 1.0f}}},
+      {"Broad lift", {{p::kAmount, 0.7f}, {p::kRange, 12.0f}, {p::kDetail, 0.0f}}},
+      {"Room forward", {{p::kAmount, 0.7f}, {p::kRange, 24.0f}, {p::kFloor, -96.0f}, {p::kRise, 800.0f}, {p::kDetail, 0.7f}}},
+      {"Even glow", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -80.0f}, {p::kRise, 400.0f}, {p::kDetail, 0.5f}}},
+      {"Everything level", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 150.0f}, {p::kDetail, 1.0f}}},
+      {"Touch", {{p::kAmount, 0.3f}, {p::kRange, 5.0f}, {p::kRise, 60.0f}, {p::kDetail, 1.0f}}},
+      {"Breath", {{p::kAmount, 0.6f}, {p::kRange, 20.0f}, {p::kFloor, -90.0f}, {p::kRise, 80.0f}, {p::kFocus, 0.5f}, {p::kDetail, 0.9f}}},
+      {"Half lit", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -84.0f}, {p::kMix, 0.5f}}},
+      {"Glass top", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kRise, 60.0f}, {p::kFocus, 1.0f}, {p::kDetail, 1.0f}}},
+      {"Tail comes up", {{p::kAmount, 1.0f}, {p::kRange, 30.0f}, {p::kFloor, -96.0f}, {p::kRise, 4000.0f}, {p::kDetail, 0.3f}}},
+    };
+    EXPECT(presets.size() == 16, "sixteen presets");
+    std::vector<float> chord(60 * 48000, 0.0f);
+    for (double note : {110.0, 164.81, 277.18}) {
+      for (int h = 1; h <= 14; ++h) {
+        const float gain = 1.0f / static_cast<float>(h * std::sqrt(static_cast<double>(h)));
+        const double step = 2.0 * kPi * note * h / kRate;
+        for (size_t i = 0; i < chord.size(); ++i) chord[i] += gain * static_cast<float>(std::sin(step * i + h));
+      }
+    }
+    rng_state() = 31;
+    for (float& v : chord) v += 0.02f * white();
+    const float scale = 1.0f / static_cast<float>(peak(chord));
+    for (float& v : chord) v *= scale;
+    const double came = db(rms(chord, 10 * 48000, 20 * 48000));
+    double worst_peak = -100.0, worst_growth = -100.0, worst_level = 0.0, worst_mix = 0.0, worst_dip = 0.0;
+    for (const Preset& preset : presets) {
+      device.init(kRate);
+      for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+      const Stereo out = run(device, chord, 2048);
+      const double top = db(std::max(peak(out.left), peak(out.right)));
+      const double early = db(rms(out.left, 10 * 48000, 20 * 48000));
+      const double late = db(rms(out.left, 50 * 48000, 60 * 48000));
+      std::printf("preset %-17s a minute of full scale: peak %+.2f dB, level %+.2f dB, grows %+.3f dB, lift %.1f dB, "
+                  "hold %.1f dB\n",
+                  preset.name, top, late - came, late - early, device.meter(0), device.meter(1));
+      EXPECT(finite(out.left) && finite(out.right), "a preset stays finite on a minute of full scale");
+      worst_peak = std::max(worst_peak, top);
+      worst_growth = std::max(worst_growth, late - early);
+      if (std::fabs(late - came) > std::fabs(worst_level)) worst_level = late - came;
+
+      // A quiet held tone under a loud one, over the piano: wet, then half way.
+      for (int key = 15; key < 88; key += 8) {
+        const double hz = 27.5 * std::pow(2.0, key / 12.0);
+        const double other = hz < 700.0 ? hz * 5.993 : hz / 5.993;
+        const std::vector<float> tones = two_tones(other, hz, 30.0, 2.5f);
+        double lifts[2];
+        int n = 0;
+        for (float mix : {1.0f, 0.5f}) {
+          device.init(kRate);
+          for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+          device.set_param(p::kMix, mix);
+          device.set_param(p::kRise, 50.0f);
+          const Stereo mixed = run(device, tones);
+          lifts[n++] = change_db(tones, mixed.left, hz, 72000, 96000);
+        }
+        worst_mix = std::max(worst_mix, std::fabs(lifts[1] - db(0.5 + 0.5 * std::pow(10.0, lifts[0] / 20.0))));
+        worst_dip = std::min(worst_dip, lifts[1]);
+      }
+    }
+    std::printf("sixteen presets: worst peak %+.2f dB, worst growth %+.3f dB, level furthest from the input %+.2f dB; "
+                "Mix 0.5 on held tones: %.3f dB from the plain crossfade at worst, deepest dip %.3f dB\n",
+                worst_peak, worst_growth, worst_level, worst_mix, worst_dip);
+    // The level is held, the peaks are not: lifting many quiet partials makes
+    // a denser wave, and the densest preset peaks 6.1 dB over this chord.
+    EXPECT(worst_peak < 7.0, "no preset peaks more than 7 dB over a full-scale chord");
+    EXPECT(worst_growth < 0.2, "no preset grows");
+    EXPECT(std::fabs(worst_level) < 1.0, "every preset holds the level within 1 dB");
+    EXPECT(worst_mix < 0.3, "at every preset part-way Mix is the plain crossfade");
+    EXPECT(worst_dip > -0.5, "and no held tone dips by half a dB");
   }
 
   // --- Cost: the average, and the block a frame lands in -------------------------------------

@@ -321,49 +321,52 @@
   "presets": {
     "Reveal": {},
     "Gentle opening": {
-      "amount": 0.3,
-      "range": 8,
-      "rise": 500,
-      "detail": 0.4
+      "amount": 0.4,
+      "range": 10,
+      "rise": 700,
+      "focus": 0.3,
+      "detail": 0.15
     },
     "Air": {
-      "amount": 0.6,
-      "range": 18,
-      "focus": 0.8,
+      "amount": 0.9,
+      "range": 24,
+      "floor": -78,
+      "focus": 1,
       "detail": 0.5
     },
     "Warm body": {
-      "amount": 0.6,
-      "range": 16,
-      "focus": -0.8,
-      "detail": 0.5
+      "amount": 0.9,
+      "range": 24,
+      "focus": -1,
+      "detail": 0.3
     },
     "Slow bloom": {
-      "amount": 0.7,
-      "range": 20,
-      "rise": 2500
+      "amount": 0.8,
+      "range": 24,
+      "rise": 2000
     },
     "Cling": {
-      "amount": 0.5,
-      "range": 12,
-      "rise": 30,
-      "detail": 0.8
+      "amount": 0.6,
+      "range": 15,
+      "rise": 20,
+      "detail": 0.9
     },
     "Overtones": {
-      "amount": 0.7,
+      "amount": 0.75,
       "range": 24,
-      "floor": -72,
+      "floor": -75,
+      "rise": 200,
       "detail": 1
     },
     "Broad lift": {
-      "amount": 0.6,
-      "range": 14,
+      "amount": 0.7,
+      "range": 12,
       "detail": 0
     },
     "Room forward": {
       "amount": 0.7,
       "range": 24,
-      "floor": -90,
+      "floor": -96,
       "rise": 800,
       "detail": 0.7
     },
@@ -382,21 +385,23 @@
       "detail": 1
     },
     "Touch": {
-      "amount": 0.25,
-      "range": 6,
-      "mix": 0.7
+      "amount": 0.3,
+      "range": 5,
+      "rise": 60,
+      "detail": 1
     },
     "Breath": {
       "amount": 0.6,
       "range": 20,
-      "floor": -84,
-      "rise": 120,
+      "floor": -90,
+      "rise": 80,
       "focus": 0.5,
       "detail": 0.9
     },
-    "Half and half": {
-      "amount": 0.8,
-      "range": 24,
+    "Half lit": {
+      "amount": 1,
+      "range": 30,
+      "floor": -84,
       "mix": 0.5
     },
     "Glass top": {
@@ -406,11 +411,12 @@
       "focus": 1,
       "detail": 1
     },
-    "Long tail riser": {
-      "amount": 0.8,
+    "Tail comes up": {
+      "amount": 1,
       "range": 30,
-      "floor": -90,
-      "rise": 4000
+      "floor": -96,
+      "rise": 4000,
+      "detail": 0.3
     }
   },
   "origin": {
