@@ -1910,6 +1910,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   seasons: { ...PLATE_PALETTES.seasons, finish: 'gloss', cap: 'skirt' },
   stretch: { ...PLATE_PALETTES.stretch, finish: 'speckle', cap: 'disc' },
   prism: { ...PLATE_PALETTES.prism, finish: 'gloss', cap: 'pointer' },
+  'scale-filter': { ...PLATE_PALETTES['scale-filter'], finish: 'gloss', cap: 'dot' },
 }
 
 /**
