@@ -143,7 +143,7 @@ import {
 
 |             | Count | Groups                                                                                                                                                                                                                 |
 | ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 920   | Twenty for each of the forty-six stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                 |
+| **Presets** | 980   | Twenty for each of the forty-nine stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                |
 | **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                                                                                             |
 | **Sounds**  | 176   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; and 76 loops that keep time: drums (32), glitches (20), pitched pulses (24) |
 
