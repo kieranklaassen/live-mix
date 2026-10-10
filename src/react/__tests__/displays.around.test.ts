@@ -29,7 +29,7 @@ import {
   type AroundPlace,
 } from '../components/displays/around'
 import { type DisplayHandle } from '../components/plate-display'
-import { drawDisplay, viewOf, type RecordingContext } from './display-harness'
+import { drawDisplay, patchUnder, viewOf, type RecordingContext } from './display-harness'
 
 const RATE = 48000
 const TWO_PI = Math.PI * 2
@@ -684,6 +684,30 @@ describe('what the display of Around draws of the two ears', () => {
         .join(' '),
     ).not.toContain('late')
     expect(draw(values, 0, WIDE).words().join(' ')).not.toContain('late')
+    // The words never lie over a line: along the top, or along the foot when the near ear climbs
+    // there (Near 1 with the near point at the side, the front's colour, all of the head).
+    for (const tall of [
+      { path: 0, radius: 1, head: 1, near: 1, turn: 90, mix: 1 },
+      { path: 0, radius: 1, head: 1, near: 1, turn: 45, mix: 1 },
+      { path: 0, radius: 1, head: 1, near: 1, turn: -135, mix: 1 },
+      values,
+    ])
+      for (let turns = 0.02; turns < 1; turns += 0.04) {
+        const drawn = draw(tall, turns, WIDE)
+        const words = drawn.words().find((word) => word.endsWith('late'))
+        if (!words) continue
+        const patch = patchUnder(drawn, words, PLAIN_COLOURS.plate)
+        if (!patch) throw new Error('the lateness stands on a patch')
+        const lines = strokes(drawn).filter(
+          (stroke) => stroke.points.length === Math.floor(plot.w / 2) + 1,
+        )
+        for (const line of lines)
+          for (const point of line.points) {
+            const under = point.x >= patch.x && point.x <= patch.x + patch.w
+            const inside = point.y > patch.y - 1 && point.y < patch.y + patch.h + 1
+            expect(under && inside, `${JSON.stringify(tall)} at ${turns}`).toBe(false)
+          }
+      }
     // At four turns a second the shadow the path's speed leaves is what is drawn, and written.
     const fast = { ...values, rate: 4 }
     const kept = aroundShadeKept('circle', 4, 1, 1)
@@ -817,6 +841,21 @@ describe('the two points of the display of Around', () => {
       const [, held] = handlesAt({ turn: degrees })
       expect(held.drag(held.x, held.y, {})).toEqual({ turn: degrees })
       expect(held.drag(boxes.cx, boxes.cy, {})).toEqual({ turn: degrees })
+    }
+    // Nor anywhere over the head: a hand that crosses it does not swing the path round (a real
+    // mouse dragged to 1.4 px past the middle took Turn from −114 to −58 degrees in one step).
+    for (const width of [128, WIDE]) {
+      const wide = aroundBoxes({ width, height: 100 })
+      const [, held] = handlesAt({ turn: -126 }, width)
+      for (const [dx, dy] of [
+        [-1.4, 0],
+        [1.4, 0.5],
+        [0, wide.skull],
+        [-wide.skull * 0.7, wide.skull * 0.7],
+      ])
+        expect(held.drag(wide.cx + dx, wide.cy + dy, {})).toEqual({ turn: -126 })
+      // Just outside it the direction is read again.
+      expect(held.drag(wide.cx + wide.skull + 2, wide.cy, {}).turn).toBeCloseTo(90, 6)
     }
     expect(handlesAt({ turn: 77 })[1].reset?.()).toEqual({ turn: 0 })
   })

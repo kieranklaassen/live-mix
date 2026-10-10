@@ -430,6 +430,54 @@ static void movement() {
     EXPECT_NEAR(device.meter(0), (16.0 + 0.14 - 0.25) / 16.0, 1.0e-6, "and back past the start, asleep too");
   }
 
+  // Wander is a fixed walk, the same on every load, that comes round after
+  // sixteen turns and is not heard as a shorter pattern: at no lag from half
+  // a turn to fifteen and a half is the walk more than three quarters like
+  // itself; it spends half its time behind and half to the right.
+  {
+    const int count = 8192;
+    std::vector<float> xs(count), ys(count);
+    double energy = 0.0, behind = 0.0, to_right = 0.0;
+    for (int i = 0; i < count; ++i) {
+      Around::path_point(Around::kWander, Around::kPathTurns * i / count, &xs[i], &ys[i]);
+      energy += xs[i] * xs[i] + ys[i] * ys[i];
+      behind += ys[i] < 0.0f ? 1.0 : 0.0;
+      to_right += xs[i] > 0.0f ? 1.0 : 0.0;
+    }
+    double most = -1.0, most_lag = 0.0;
+    for (int lag = count / 32; lag <= count - count / 32; ++lag) {
+      double like = 0.0;
+      for (int i = 0; i < count; ++i) {
+        const int j = (i + lag) % count;
+        like += xs[i] * xs[j] + ys[i] * ys[j];
+      }
+      if (like / energy > most) {
+        most = like / energy;
+        most_lag = Around::kPathTurns * lag / count;
+      }
+    }
+    std::printf("note: Wander is most like itself %.2f turns later: %.2f of the way (1 is a repeat)\n",
+                most_lag, most);
+    EXPECT(most < 0.75, "Wander has no pattern shorter than its sixteen turns");
+    EXPECT_NEAR(behind / count, 0.5, 0.03, "Wander is behind half the time");
+    EXPECT_NEAR(to_right / count, 0.5, 0.03, "and to the right half the time");
+    float x0, y0, x1, y1;
+    Around::path_point(Around::kWander, 3.21, &x0, &y0);
+    Around::path_point(Around::kWander, 3.21 + Around::kPathTurns, &x1, &y1);
+    EXPECT(std::fabs(x0 - x1) < 1.0e-4f && std::fabs(y0 - y1) < 1.0e-4f, "and repeats after sixteen");
+    // The same on every load, and never moved by the sound: two devices, one
+    // fed a loud noise and one a quiet tone, are at the same place after.
+    device.init(kRate);
+    twin.init(kRate);
+    set(device, {3, 1.7f, 1, 1, 0.5f, 0, 0.5f, 1});
+    set(twin, {3, 1.7f, 1, 1, 0.5f, 0, 0.5f, 1});
+    rng_state() = 0xF00Du;
+    run(device, noise(3.0f, kRate, 0.9f));
+    run(twin, sine(100.0f, 3.0f, kRate, 0.01f));
+    EXPECT(device.meter(0) == twin.meter(0), "the sound does not move the clock");
+    EXPECT_NEAR(device.meter(0), 1.7 * 3.0 / 16.0, 1.0e-6, "which is where Rate has it");
+  }
+
   // The clock keeps its place through silence, short and long, asleep or
   // not, and the reading for the display is that clock.
   for (float gap : {0.05f, 0.7f, 2.3f, 31.0f}) {
@@ -615,7 +663,8 @@ static void smoothness() {
       {"Turn a quarter", p::kTurn, 0, -90}, {"Blur up", p::kBlur, 0, 1},
       {"Blur down", p::kBlur, 1, 0},       {"Mix up", p::kMix, 0, 1},
       {"Mix down", p::kMix, 1, 0},         {"Rate up", p::kRate, 0.01f, 4},
-      {"Rate down", p::kRate, 4, 0.01f}};
+      {"Rate down", p::kRate, 4, 0.01f},     {"Direction over", p::kDirection, 0, 1},
+      {"Direction back", p::kDirection, 1, 0}};
   double worst_jump = -1.0;
   for (const Jump& jump : jumps) {
     const double added = click_of(base, jump.id, jump.from, jump.to);
@@ -625,6 +674,31 @@ static void smoothness() {
   }
   std::printf("note: sharpest corner added to a 50 Hz tone at 0.5: %+.6f by a change of Path, %+.6f by "
               "any other jump (a step of -80 dBFS is 0.0001)\n", worst_path, worst_jump);
+
+  // Turned back at the fastest Rate, the source slows, stops and returns:
+  // no corner where it turns (a clock that swapped its step at once left
+  // one of 4.5e-4 here).
+  {
+    const Setting fast = {2, 4, 1, 1, 1, 90, 0, 1};
+    double worst = 0.0;
+    for (int way = 0; way < 2; ++way) {
+      for (size_t at : {40000u, 40007u, 43210u}) {
+        Stereo quiet, turned;
+        for (int k = 0; k < 2; ++k) {
+          device.init(kRate);
+          set(device, fast);
+          device.set_param(p::kDirection, static_cast<float>(way));
+          const std::vector<Event> events = {{at, p::kDirection, static_cast<float>(1 - way)}};
+          (k == 0 ? quiet : turned) =
+              run_events(device, sine(50.0f, 1.4f, kRate, 0.5f), {128}, k == 0 ? std::vector<Event>{} : events);
+        }
+        worst = std::max(worst, max_corner(turned, 4800) - max_corner(quiet, 4800));
+      }
+    }
+    std::snprintf(label, sizeof label, "turning back at Rate 4 adds no corner (%+.6f)", worst);
+    std::printf("note: %s\n", label);
+    EXPECT(worst < 1.0e-4, label);
+  }
 
   // No stairs: the source's movement reaches the ears as straight lines
   // between the control clock's ticks, not as steps at them. A 50 Hz tone
@@ -798,8 +872,8 @@ static void levels() {
       for (int end = 0; end < 2; ++end) {
         Setting s = kDefault;
         s.rate = 1.0f;
-        float* fields[] = {&s.path, &s.rate, &s.direction, &s.radius, &s.head,
-                           &s.near, &s.turn,      &s.blur,   &s.mix};
+        float* fields[] = {&s.path, &s.rate, &s.radius, &s.head,     &s.near,
+                           &s.turn, &s.blur, &s.mix,    &s.direction};
         *fields[id] = end == 0 ? p::kParamMin[id] : p::kParamMax[id];
         settings.push_back({end == 0 ? "a control at its least" : "a control at its most", s});
       }
@@ -980,8 +1054,8 @@ static std::vector<float> phrase(float seconds) {
 
 static void rest() {
   char label[200];
-  const char* names[] = {"Path", "Rate",  "Direction", "Radius", "Head",
-                         "Near", "Turn", "Blur",      "Mix"};
+  const char* names[] = {"Path", "Rate", "Radius", "Head",     "Near",
+                         "Turn", "Blur", "Mix",    "Direction"};
 
   // Not a number, infinity and absurd samples: the output stays finite, and
   // 50 ms after the last of them it is what a device that got silence in

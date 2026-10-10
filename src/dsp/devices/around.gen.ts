@@ -29,20 +29,8 @@ export const AROUND_PARAMS = {
     description:
       "How many times a second the sound goes round its path. Low is a slow drift you barely notice. High is a flutter between the ears, where the head's shadow thins out.",
   },
-  direction: {
-    id: 2,
-    name: 'Direction',
-    min: 0,
-    max: 1,
-    default: 0,
-    taper: 'linear',
-    unit: '',
-    choices: ['Clockwise', 'Anticlockwise'],
-    description:
-      'Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is.',
-  },
   radius: {
-    id: 3,
+    id: 2,
     name: 'Radius',
     min: 0,
     max: 1,
@@ -53,7 +41,7 @@ export const AROUND_PARAMS = {
       'How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back.',
   },
   head: {
-    id: 4,
+    id: 3,
     name: 'Head',
     min: 0,
     max: 1,
@@ -64,7 +52,7 @@ export const AROUND_PARAMS = {
       'How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is duller than the front. Zero is plain panning.',
   },
   near: {
-    id: 5,
+    id: 4,
     name: 'Near',
     min: 0,
     max: 1,
@@ -75,7 +63,7 @@ export const AROUND_PARAMS = {
       'How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass.',
   },
   turn: {
-    id: 6,
+    id: 5,
     name: 'Turn',
     min: -180,
     max: 180,
@@ -86,7 +74,7 @@ export const AROUND_PARAMS = {
       'Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is.',
   },
   blur: {
-    id: 7,
+    id: 6,
     name: 'Blur',
     min: 0,
     max: 1,
@@ -97,7 +85,7 @@ export const AROUND_PARAMS = {
       'A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound.',
   },
   mix: {
-    id: 8,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -106,6 +94,18 @@ export const AROUND_PARAMS = {
     unit: '',
     description:
       'Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels.',
+  },
+  direction: {
+    id: 8,
+    name: 'Direction',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    choices: ['Clockwise', 'Anticlockwise'],
+    description:
+      'Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -132,13 +132,13 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
     'Slow circle': {
       path: 0,
       rate: 0.2,
-      direction: 0,
       radius: 0.85,
       head: 0.7,
       near: 0.25,
       turn: 0,
       blur: 0.35,
       mix: 1,
+      direction: 0,
     },
     'Barely moving': { path: 3, rate: 0.03, radius: 0.4, head: 0.5, near: 0, turn: 60, blur: 0.2 },
     'Gentle sway': { path: 2, rate: 0.07, radius: 0.7, head: 0.6, near: 0 },

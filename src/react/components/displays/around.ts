@@ -273,6 +273,8 @@ export const AROUND_TOP_HZ = 4000
 /** The dot's tail is where the source was this long ago, no longer than so much of a turn. */
 const TAIL_SEC = 0.5
 const TAIL_MOST = 0.6
+/** The lateness words and their patch take this much of the plot's top or foot, in px. */
+const LABEL_ROOM = 12
 /** How much of Wander's walk is drawn behind the dot, in turns. */
 const WALK_TURNS = 1.25
 
@@ -365,8 +367,10 @@ function aroundHandles(view: DisplayView): DisplayHandle[] {
       x: turnAt[0],
       y: turnAt[1],
       drag: (toX, toY) => {
-        // At the very middle there is no direction to read.
-        if (same(turnAt, toX, toY) || Math.hypot(toX - cx, toY - cy) < 1) return { turn: turnDeg }
+        // Over the head there is no direction to read: a hand crossing it
+        // would swing the path half round in a pixel or two.
+        if (same(turnAt, toX, toY) || Math.hypot(toX - cx, toY - cy) < boxes.skull + 1)
+          return { turn: turnDeg }
         const degrees = (Math.atan2(toX - cx, cy - toY) * 180) / Math.PI
         return { turn: clamp(degrees, turnSpec?.min ?? -180, turnSpec?.max ?? 180) }
       },
@@ -579,24 +583,11 @@ function drawResponse(frame: DisplayFrame<AroundState>, plot: Box, place: Around
   dbGrid(frame, plot, TOP_DB, FOOT_DB, 12)
   const db = (side: -1 | 1, hz: number): number =>
     gainToDb(aroundEar(side, place, head, near, hz, frame.sampleRate, mix, kept))
+  const right = responsePoints(plot, (hz) => db(1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ)
+  const left = responsePoints(plot, (hz) => db(-1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ)
   clipped(ctx, plot, () => {
-    trace(
-      ctx,
-      responsePoints(plot, (hz) => db(1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ),
-      {
-        colour: colours.ink,
-        width: 1.5,
-        dash: [3, 2],
-      },
-    )
-    trace(
-      ctx,
-      responsePoints(plot, (hz) => db(-1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ),
-      {
-        colour: colours.ink,
-        width: 1.5,
-      },
-    )
+    trace(ctx, right, { colour: colours.ink, width: 1.5, dash: [3, 2] })
+    trace(ctx, left, { colour: colours.ink, width: 1.5 })
   })
   // A letter at the bass end of each line, the louder ear's over its line.
   const foot = plot.y + plot.h
@@ -606,12 +597,15 @@ function drawResponse(frame: DisplayFrame<AroundState>, plot: Box, place: Around
     clamp(over ? y - 4 : y + 11, plot.y + 9, foot - 2)
   label(frame, 'L', plot.x + 3, stand(at(-1), leftOver))
   label(frame, 'R', plot.x + 3, stand(at(1), !leftOver))
-  // How late the far ear's bass is against the near ear's: over the top end,
-  // where no ear's line ever climbs.
+  // How late the far ear's bass is against the near ear's: along the top,
+  // unless a line climbs that high (the near ear with Near and the front's
+  // colour on it); then along the foot, where no line is at such a time.
   const late = aroundLateSec(place, head, near, kept)
   if (mix > 0 && late.seconds >= 0.000005) {
     const words = `${late.side < 0 ? 'L' : 'R'} ${(late.seconds * 1000).toFixed(2)} ms late`
-    label(frame, words, plot.x + plot.w - 3, plot.y + 8, 'right')
+    const highest = Math.min(...right.map((point) => point[1]), ...left.map((point) => point[1]))
+    const y = highest > plot.y + LABEL_ROOM ? plot.y + 8 : foot - 2
+    label(frame, words, plot.x + plot.w - 3, y, 'right')
   }
 }
 
@@ -620,7 +614,7 @@ const around = plateDisplay<AroundState>({
   columns: 2,
   params: ['path', 'rate', 'direction', 'radius', 'head', 'near', 'turn', 'mix'],
   live: { meters: true, fps: 60 },
-  info: 'Your head from above, nose at the top, and the sound as the dot on its path, larger where it is nearer. Beside it is what each ear gets of its own side of the sound: the bass as a bar with the top as a mark, or both ears over frequency where there is room. Drag the point on the path for Radius and the one on the rim for Turn.',
+  info: 'Your head from above, nose at the top, and the sound as the dot on its path, larger where it is nearer. Beside it is what each ear gets: the bass as a bar with the top as a mark, or both ears over frequency where there is room. Drag the point on the path for Radius and the one on the rim for Turn.',
   init: () => ({ track: null }),
   draw(frame) {
     ground(frame)

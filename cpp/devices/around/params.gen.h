@@ -4,13 +4,13 @@
 // src/dsp/devices/around.gen.ts:
 //    0  path: 0 Circle, 1 Figure of eight, 2 Pendulum, 3 Wander, default 0
 //    1  rate: 0.01..4 Hz, default 0.2
-//    2  direction: 0 Clockwise, 1 Anticlockwise, default 0
-//    3  radius: 0..1, default 0.85
-//    4  head: 0..1, default 0.7
-//    5  near: 0..1, default 0.25
-//    6  turn: -180..180 deg, default 0
-//    7  blur: 0..1, default 0.35
-//    8  mix: 0..1, default 1
+//    2  radius: 0..1, default 0.85
+//    3  head: 0..1, default 0.7
+//    4  near: 0..1, default 0.25
+//    5  turn: -180..180 deg, default 0
+//    6  blur: 0..1, default 0.35
+//    7  mix: 0..1, default 1
+//    8  direction: 0 Clockwise, 1 Anticlockwise, default 0
 
 #pragma once
 
@@ -20,19 +20,19 @@ namespace around {
 enum Param : int {
   kPath = 0,
   kRate = 1,
-  kDirection = 2,
-  kRadius = 3,
-  kHead = 4,
-  kNear = 5,
-  kTurn = 6,
-  kBlur = 7,
-  kMix = 8,
+  kRadius = 2,
+  kHead = 3,
+  kNear = 4,
+  kTurn = 5,
+  kBlur = 6,
+  kMix = 7,
+  kDirection = 8,
   kNumParams = 9,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.01f, 0.0f, 0.0f, 0.0f, 0.0f, -180.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.0f, 0.85f, 0.7f, 0.25f, 0.0f, 0.35f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.01f, 0.0f, 0.0f, 0.0f, -180.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.85f, 0.7f, 0.25f, 0.0f, 0.35f, 1.0f, 0.0f};
 
 }  // namespace around
 }  // namespace livemix
