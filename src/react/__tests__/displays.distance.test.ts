@@ -557,7 +557,8 @@ describe('what the display draws is what the compiled device does', () => {
           expect(scene.side).toBe(1)
           const h = await loadWasmDevice('distance')
           const settings: Settings = { ...still, distance: place, decay: 0.3, ...set }
-          for (const [name, value] of Object.entries(settings)) h.set(P[name as keyof typeof P], value)
+          for (const [name, value] of Object.entries(settings))
+            h.set(P[name as keyof typeof P], value)
           const when = arrival(place)
           let power = 0
           let counted = 0

@@ -15,7 +15,7 @@ export const DISTANCE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far away the sound is. Farther is quieter, darker, later and narrower, with more of the room around it. All the way down is the sound untouched.',
+      'How far away the sound is. Farther is quieter, darker, later and narrower, with more of the room around it. All the way down with Wander at zero is the sound untouched.',
   },
   room: {
     id: 1,

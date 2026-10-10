@@ -25,7 +25,7 @@
       "min": 0,
       "max": 1,
       "default": 0.4,
-      "description": "How far away the sound is. Farther is quieter, darker, later and narrower, with more of the room around it. All the way down is the sound untouched."
+      "description": "How far away the sound is. Farther is quieter, darker, later and narrower, with more of the room around it. All the way down with Wander at zero is the sound untouched."
     },
     {
       "key": "room",
