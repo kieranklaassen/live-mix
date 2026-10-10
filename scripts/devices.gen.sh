@@ -132,6 +132,8 @@ build_generated_devices() {
     cpp/devices/shaped-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device shimmer \
     cpp/devices/shimmer/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device shortwave \
+    cpp/devices/shortwave/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
     cpp/devices/spectral-blur/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
@@ -315,6 +317,8 @@ test_generated_devices() {
     cpp/test/shaped_reverb_test.cpp
   native_test shimmer_test \
     cpp/test/shimmer_test.cpp
+  native_test shortwave_test \
+    cpp/test/shortwave_test.cpp
   native_test spectral_blur_test \
     cpp/test/spectral_blur_test.cpp
   native_test spring_reverb_test \

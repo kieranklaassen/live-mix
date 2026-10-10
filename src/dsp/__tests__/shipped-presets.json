@@ -2104,5 +2104,24 @@
     "Siren rise": {"motion":0,"speed":1,"centre":520,"span":4,"shape":0.5,"slide":0.35,"chorus":0.1,"attack":0.4,"release":1.8,"width":0.7,"volume":-9},
     "Sliding chord": {"motion":2,"speed":0.28,"centre":440,"span":6,"shape":0.1,"slide":1,"chorus":0.5,"attack":1.5,"release":4,"width":0.7,"volume":-9},
     "Hollow pad": {"motion":2,"speed":0,"centre":440,"span":6,"shape":0.05,"slide":0.35,"chorus":0.6,"attack":1.8,"release":5,"width":0.7,"volume":-9}
+  },
+  "shortwave": {
+    "(default)": {"signal":0,"tuneIn":0.25,"drift":0.15,"rate":2,"shift":1,"fading":0.5,"beat":0,"static":0.3,"band":0.25,"attack":0.15,"release":1.8,"volume":-10},
+    "Far whistle": {"signal":0,"tuneIn":0.25,"drift":0.15,"rate":2,"shift":1,"fading":0.5,"beat":0,"static":0.3,"band":0.25,"attack":0.15,"release":1.8,"volume":-10},
+    "Clear carrier": {"signal":0,"tuneIn":0,"drift":0,"rate":2,"shift":1,"fading":0,"beat":0,"static":0,"band":0,"attack":0.02,"release":0.6,"volume":-10},
+    "Slow dial": {"signal":0,"tuneIn":1,"drift":0.3,"rate":2,"shift":1,"fading":0.5,"beat":0,"static":0.3,"band":0.25,"attack":0.8,"release":4,"volume":-10},
+    "Night swell": {"signal":0,"tuneIn":0.15,"drift":0.25,"rate":2,"shift":1,"fading":0.6,"beat":0,"static":0.3,"band":0.25,"attack":3,"release":6,"volume":-7.5},
+    "Beating pair": {"signal":0,"tuneIn":0.1,"drift":0.15,"rate":2,"shift":1,"fading":0.2,"beat":0.3,"static":0.1,"band":0.25,"attack":0.5,"release":3,"volume":-12.5},
+    "Fast flutter": {"signal":0,"tuneIn":0.2,"drift":0.15,"rate":2,"shift":1,"fading":0.3,"beat":0.9,"static":0.4,"band":0.6,"attack":0.02,"release":0.8,"volume":-10},
+    "Two tone call": {"signal":1,"tuneIn":0.1,"drift":0.15,"rate":2,"shift":1,"fading":0.3,"beat":0,"static":0.3,"band":0.25,"attack":0.15,"release":1.8,"volume":-10},
+    "Low answer": {"signal":1,"tuneIn":0.2,"drift":0.15,"rate":0.5,"shift":0,"fading":0.3,"beat":0,"static":0.15,"band":0.25,"attack":0.3,"release":3,"volume":-10},
+    "High chatter": {"signal":1,"tuneIn":0.3,"drift":0.15,"rate":9,"shift":2,"fading":0.6,"beat":0,"static":0.35,"band":0.6,"attack":0.15,"release":0.9,"volume":-9.5},
+    "Time pips": {"signal":2,"tuneIn":0,"drift":0.05,"rate":1,"shift":1,"fading":0.2,"beat":0,"static":0.15,"band":0.25,"attack":0.01,"release":0.4,"volume":-8.5},
+    "Quick pips": {"signal":2,"tuneIn":0.2,"drift":0.15,"rate":7,"shift":1,"fading":0.5,"beat":0,"static":0.3,"band":0.5,"attack":0.05,"release":1,"volume":-7},
+    "Far voices": {"signal":3,"tuneIn":0.2,"drift":0.15,"rate":2.5,"shift":1,"fading":0.5,"beat":0,"static":0.25,"band":0.25,"attack":0.4,"release":2.5,"volume":-8.5},
+    "Slow murmur": {"signal":3,"tuneIn":0.1,"drift":0.15,"rate":0.4,"shift":1,"fading":0.3,"beat":0.15,"static":0.1,"band":0.1,"attack":2,"release":5,"volume":-10},
+    "Lost station": {"signal":0,"tuneIn":0.7,"drift":1,"rate":2,"shift":1,"fading":1,"beat":0,"static":0.5,"band":0.25,"attack":0.6,"release":3,"volume":-10},
+    "Storm static": {"signal":0,"tuneIn":0.3,"drift":0.25,"rate":2,"shift":1,"fading":0.7,"beat":0,"static":0.85,"band":0.45,"attack":0.3,"release":2.5,"volume":-10},
+    "Telephone line": {"signal":0,"tuneIn":0.1,"drift":0.1,"rate":2,"shift":1,"fading":0.25,"beat":0,"static":0.3,"band":1,"attack":0.1,"release":1.5,"volume":-3.5}
   }
 }

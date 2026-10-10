@@ -33,6 +33,7 @@ import { OUTDOORS_PRESETS } from './outdoors'
 import { OVERTONE_PRESETS } from './overtone'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
 import { SAMPLER_PRESETS } from './sampler'
+import { SHORTWAVE_PRESETS } from './shortwave'
 import { STAIRCASE_PRESETS } from './staircase'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { TANPURA_PRESETS } from './tanpura'
@@ -86,4 +87,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...MAGNET_PIANO_PRESETS,
   ...OVERTONE_PRESETS,
   ...STAIRCASE_PRESETS,
+  ...SHORTWAVE_PRESETS,
 ]
