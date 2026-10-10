@@ -1,23 +1,26 @@
-// The display of the Scale Filter: the octave as a clock, with an opening at
-// every note the filter lets through, drawn from the device's own mask, and at
-// the side the range of notes it is open in over the spectrum of what comes
-// out.
+// The display of the Scale Filter: one octave from C to B with an opening at
+// every note the filter lets through, drawn from the device's own mask, over a
+// keyboard whose keys are lit where a note passes; and at the foot the range
+// of notes it is open in, over the spectrum of what comes out.
 
 import {
   INK,
   clamp,
   dbToGain,
-  fillBetween,
   fillRect,
+  fillTo,
   follow,
   gainToDb,
   ground,
   handle,
+  hzOfX,
   hzText,
   label,
   rule,
+  spectrum,
   text,
   trace,
+  xOfHz,
   type Box,
   type Point,
 } from '../display-kit'
@@ -38,17 +41,15 @@ export const SCALE_FILTER_SCALES: readonly number[] = [
   0b011010110101, 0b001010010101, 0b010010101001, 0b010101010101, 0b111111111111,
 ]
 
-/** The deepest Depth goes, and so the foot of the clock's scale, in dB. */
+/** The deepest Depth goes, and so the foot of the octave's scale, in dB. */
 export const SCALE_FILTER_RANGE_DB = 48
 /** The bell is kept out to three widths, and is nothing past that (`kBellSpan`). */
 const BELL_SPAN = 3
-/** The ends of the side panel's scale. */
-const STRIP_LOW_HZ = 20
-const STRIP_HIGH_HZ = 20000
-/** The spectrum at the side runs from full scale down to this. */
+/** The spectrum at the foot runs from full scale down to this. */
 const STRIP_FOOT_DB = -84
 
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
+/** The keys of an octave from C: a letter for a natural, nothing for a sharp. */
+const KEY_NAMES = ['C', '', 'D', '', 'E', 'F', '', 'G', '', 'A', '', 'B']
 
 /**
  * The semitones over Root that a Scale and a Chord choice let through, as
@@ -168,67 +169,76 @@ export function scaleFilterGap(now: ScaleFilterSettings): { middle: number; half
 
 // --- Where things stand -----------------------------------------------------
 
-/** The clock (its centre, the radius of its foot at -48 dB and of its rim at 0 dB) and the panel at its side. */
+/**
+ * The octave (twelve semitones across, 0 dB at its top and -48 dB at its
+ * foot), the keyboard under it, and the range from 20 Hz to 20 kHz: at the
+ * foot, or beside the octave where the display is too low for three rows.
+ */
 export interface ScaleFilterLayout {
-  cx: number
-  cy: number
-  foot: number
-  rim: number
+  comb: Box
+  keys: Box
   strip: Box
 }
 
-/** The pixels a handle and the mark of the root's reach need outside the rim. */
-const RIM_ROOM = 7
-/** How far outside the rim the reach of the root's opening is drawn. */
-const REACH_OUT = 2.5
-const GAP = 4
+/** The room over the octave for the mark of the root's reach and its handle. */
+const HEAD = 7
+/** How far over the octave's top the reach of the root's opening is drawn. */
+const REACH_UP = 2.5
+/** A key's height: a letter of 8 px type and a pixel over and under. */
+const KEYS_HIGH = 10
+/** Between the octave's foot and the keys: the round ends of the bars. */
+const UNDER = 2
+const GAP = 3
 
 export function scaleFilterLayout(view: Pick<DisplayView, 'width' | 'height'>): ScaleFilterLayout {
-  // The box `ground` hands back: three pixels inside the canvas.
-  const box: Box = { x: 3, y: 3, w: view.width - 6, h: view.height - 6 }
-  const stripWide = clamp(box.w - box.h - GAP, 22, box.w * 0.45)
-  const room = box.w - stripWide - GAP
-  const rim = Math.max(10, Math.min(room, box.h) / 2 - RIM_ROOM)
+  // The box `ground` hands back: three pixels inside its line.
+  const box: Box = { x: 4, y: 4, w: view.width - 8, h: view.height - 8 }
+  if (box.h < 64) {
+    // A low strip: the range stands beside the octave.
+    const beside = Math.round(box.w * 0.36)
+    const wide = box.w - beside - 2 * GAP
+    const high = Math.max(8, box.h - HEAD - UNDER - KEYS_HIGH)
+    return {
+      comb: { x: box.x, y: box.y + HEAD, w: wide, h: high },
+      keys: { x: box.x, y: box.y + HEAD + high + UNDER, w: wide, h: KEYS_HIGH },
+      strip: { x: box.x + wide + 2 * GAP, y: box.y + HEAD, w: beside, h: box.h - HEAD },
+    }
+  }
+  const foot = clamp(Math.round(box.h * 0.2), 10, 18)
+  const high = box.h - HEAD - UNDER - KEYS_HIGH - GAP - foot
   return {
-    cx: box.x + room / 2,
-    cy: box.y + box.h / 2,
-    foot: Math.round(rim * 0.32),
-    rim,
-    strip: { x: box.x + room + GAP, y: box.y + 5, w: stripWide, h: box.h - 10 },
+    comb: { x: box.x, y: box.y + HEAD, w: box.w, h: high },
+    keys: { x: box.x, y: box.y + HEAD + high + UNDER, w: box.w, h: KEYS_HIGH },
+    strip: { x: box.x, y: box.y + box.h - foot, w: box.w, h: foot },
   }
 }
 
-/** The angle of a pitch class on the clock: C at the top, a semitone every 30 degrees clockwise. */
-export function scaleFilterAngle(pitchClass: number): number {
-  return -Math.PI / 2 + (pitchClass / 12) * 2 * Math.PI
+/**
+ * A pitch class brought into the octave as it is drawn: from half a semitone
+ * under C (-0.5, the left edge) to half a semitone over B (11.5, the right).
+ */
+export function scaleFilterPlace(pitchClass: number): number {
+  return ((((pitchClass + 0.5) % 12) + 12) % 12) - 0.5
 }
 
-/** How far from the centre a gain stands: the foot at -48 dB and under, the rim at 0 dB, even in dB between. */
-export function scaleFilterRadius(gain: number, layout: ScaleFilterLayout): number {
-  const along = clamp(1 + gainToDb(gain) / SCALE_FILTER_RANGE_DB, 0, 1)
-  return layout.foot + (layout.rim - layout.foot) * along
+/** Where a place in the octave stands across it: C in the middle of the first of twelve keys. */
+export function scaleFilterX(place: number, comb: Box): number {
+  return comb.x + ((place + 0.5) / 12) * comb.w
 }
 
-function pointAt(layout: ScaleFilterLayout, pitchClass: number, radius: number): Point {
-  const angle = scaleFilterAngle(pitchClass)
-  return [layout.cx + radius * Math.cos(angle), layout.cy + radius * Math.sin(angle)]
+/** How far down the octave a gain stands: 0 dB at its top, -48 dB and under at its foot, even in dB between. */
+export function scaleFilterLevel(gain: number, comb: Box): number {
+  return comb.y + comb.h * clamp(-gainToDb(gain) / SCALE_FILTER_RANGE_DB, 0, 1)
 }
 
-/** Where a frequency stands up the side panel: 20 Hz at its foot, 20 kHz at its top, equal octaves. */
-export function scaleFilterY(hz: number, strip: Box): number {
-  const along =
-    Math.log(clamp(hz, STRIP_LOW_HZ, STRIP_HIGH_HZ) / STRIP_LOW_HZ) /
-    Math.log(STRIP_HIGH_HZ / STRIP_LOW_HZ)
-  return strip.y + strip.h * (1 - along)
-}
-
-function hzOfY(y: number, strip: Box): number {
-  const along = clamp((strip.y + strip.h - y) / strip.h, 0, 1)
-  return STRIP_LOW_HZ * Math.pow(STRIP_HIGH_HZ / STRIP_LOW_HZ, along)
-}
-
-/** How many widths from its note an opening has fallen 48 dB, to the clock's foot: exp(-2 ln2 x²) is 1/256 at 2. */
+/** How many widths from its note an opening has fallen 48 dB, to the octave's foot: exp(-2 ln2 x²) is 1/256 at 2. */
 export const SCALE_FILTER_REACH = 2
+
+/** Where the root stands, and the side of it its reach is marked and held on: the side with room for the widest. */
+function rootOf(now: ScaleFilterSettings): { at: number; side: 1 | -1 } {
+  const at = scaleFilterPlace(now.root + now.tune / 100)
+  return { at, side: at <= 5.5 ? 1 : -1 }
+}
 
 // --- Handles ----------------------------------------------------------------
 
@@ -239,31 +249,32 @@ function rangeOf(view: DisplayView, name: string, low: number, high: number): [n
 
 function handlesOf(view: DisplayView): DisplayHandle[] {
   const now = scaleFilterSettings(view)
-  const layout = scaleFilterLayout(view)
-  const { cx, cy, foot, rim, strip } = layout
+  const { comb, strip } = scaleFilterLayout(view)
+  const semitone = comb.w / 12
   const reset = (name: string) => (): Record<string, number> => ({
     [name]: view.spec(name)?.default ?? view.value(name),
   })
 
-  // Width: the end of the root's reach, two Widths clockwise of the root.
+  // Width: the end of the root's reach, two Widths from the root, over the octave's top.
   const [widthMin, widthMax] = rangeOf(view, 'width', 5, 200)
-  const rootAt = now.root + now.tune / 100
-  const [widthX, widthY] = pointAt(
-    layout,
-    rootAt + (SCALE_FILTER_REACH * now.width) / 100,
-    rim + REACH_OUT,
-  )
+  const root = rootOf(now)
+  const rootX = scaleFilterX(root.at, comb)
   const width: DisplayHandle = {
     key: 'width',
     name: 'Width',
-    x: widthX,
-    y: widthY,
-    drag: (x, y) => {
-      let turn = Math.atan2(y - cy, x - cx) - scaleFilterAngle(rootAt)
-      turn -= 2 * Math.PI * Math.round(turn / (2 * Math.PI))
-      const cents = (Math.abs(turn) / (2 * Math.PI)) * 1200
-      return { width: clamp(cents / SCALE_FILTER_REACH, widthMin, widthMax) }
-    },
+    x: clamp(
+      rootX + (root.side * semitone * SCALE_FILTER_REACH * now.width) / 100,
+      comb.x,
+      comb.x + comb.w,
+    ),
+    y: comb.y - REACH_UP,
+    drag: (x) => ({
+      width: clamp(
+        ((Math.abs(x - rootX) / semitone) * 100) / SCALE_FILTER_REACH,
+        widthMin,
+        widthMax,
+      ),
+    }),
     wheel: (steps) => ({ width: clamp(now.width * Math.pow(1.1, steps), widthMin, widthMax) }),
     reset: reset('width'),
   }
@@ -273,48 +284,40 @@ function handlesOf(view: DisplayView): DisplayHandle[] {
   const gap = scaleFilterGap(now)
   const bell = scaleFilterBell(gap.half, now.width)
   const floor = dbToGain(-now.depth)
-  const [depthX, depthY] = pointAt(
-    layout,
-    gap.middle,
-    scaleFilterRadius(floor + (1 - floor) * bell, layout),
-  )
-  const gapAngle = scaleFilterAngle(gap.middle)
   const depth: DisplayHandle = {
     key: 'depth',
     name: 'Depth',
-    x: depthX,
-    y: depthY,
-    drag: (x, y) => {
-      // How far out along the gap's own line the hand is, as the gain that stands there.
-      const out = (x - cx) * Math.cos(gapAngle) + (y - cy) * Math.sin(gapAngle)
-      const along = clamp((out - foot) / (rim - foot), 0, 1)
-      const gain = dbToGain(-SCALE_FILTER_RANGE_DB * (1 - along))
-      // The floor that puts the mask there: gain = floor + (1 - floor) * bell.
+    x: scaleFilterX(scaleFilterPlace(gap.middle), comb),
+    y: scaleFilterLevel(floor + (1 - floor) * bell, comb),
+    drag: (_x, y) => {
+      // The gain that stands at the hand's height, and the floor that puts the mask there:
+      // gain = floor + (1 - floor) * bell.
+      const gain = dbToGain(-SCALE_FILTER_RANGE_DB * clamp((y - comb.y) / comb.h, 0, 1))
       const under = (gain - bell) / (1 - bell)
       return { depth: under > 0 ? clamp(-gainToDb(under), depthMin, depthMax) : depthMax }
     },
     reset: reset('depth'),
   }
 
-  // Low and High: on their lines across the side panel.
-  const end = (name: 'low' | 'high', title: string, across: number): DisplayHandle => {
-    const [min, max] = rangeOf(view, name, STRIP_LOW_HZ, STRIP_HIGH_HZ)
+  // Low and High: on their lines across the range, High the upper of the two.
+  const end = (name: 'low' | 'high', title: string, down: number): DisplayHandle => {
+    const [min, max] = rangeOf(view, name, 20, 20000)
     return {
       key: name,
       name: title,
-      x: strip.x + strip.w * across,
-      y: scaleFilterY(now[name], strip),
-      drag: (_x, y) => ({ [name]: clamp(hzOfY(y, strip), min, max) }),
+      x: xOfHz(now[name], strip),
+      y: strip.y + strip.h * down,
+      drag: (x) => ({ [name]: clamp(hzOfX(x, strip), min, max) }),
       reset: reset(name),
     }
   }
-  return [width, depth, end('low', 'Low', 0.3), end('high', 'High', 0.7)]
+  return [width, depth, end('low', 'Low', 0.7), end('high', 'High', 0.3)]
 }
 
 // --- Drawing ----------------------------------------------------------------
 
-/** Points of a curve around the clock; a multiple of twelve, so every note lies on one. */
-const CURVE_POINTS = 480
+/** Points of a curve to a semitone; counted from the notes, so every opening's top is one of them. */
+const CURVE_POINTS = 40
 
 interface ScaleFilterState {
   /** The level the bars are read against, in the meters' steps: the loudest note of late. */
@@ -323,19 +326,22 @@ interface ScaleFilterState {
   heard: boolean
 }
 
-/** A gain all round the clock as points, starting at the root so its opening's top is one of them. */
-function around(
-  layout: ScaleFilterLayout,
+/** A gain across the octave as points, from its left edge to its right. */
+function across(
+  comb: Box,
   now: ScaleFilterSettings,
-  gain: ((pitchClass: number) => number) | number,
+  gain: (pitchClass: number) => number,
 ): Point[] {
-  const start = now.root + now.tune / 100
+  const tuned = now.tune / 100
   const points: Point[] = []
-  for (let i = 0; i <= CURVE_POINTS; i++) {
-    const pitchClass = start + (i * 12) / CURVE_POINTS
-    const radius = typeof gain === 'number' ? gain : scaleFilterRadius(gain(pitchClass), layout)
-    points.push(pointAt(layout, pitchClass, radius))
+  const put = (place: number): void => {
+    points.push([scaleFilterX(place, comb), scaleFilterLevel(gain(place), comb)])
   }
+  put(-0.5)
+  const first = Math.ceil((-0.5 - tuned) * CURVE_POINTS)
+  const last = Math.floor((11.5 - tuned) * CURVE_POINTS)
+  for (let i = first; i <= last; i++) put(tuned + i / CURVE_POINTS)
+  put(11.5)
   return points
 }
 
@@ -345,15 +351,18 @@ export function scaleFilterReading(value: number): { in: number; out: number } {
   return { in: whole % 64, out: Math.floor(whole / 64) }
 }
 
-/** The radius a note's level stands at: `level` steps (dB) at the rim, 48 under it at the foot. */
-export function scaleFilterBar(steps: number, level: number, layout: ScaleFilterLayout): number {
-  const along = clamp(1 + (steps - level) / SCALE_FILTER_RANGE_DB, 0, 1)
-  return layout.foot + (layout.rim - layout.foot) * along
+/** The height a note's level stands at: `level` steps (dB) at the octave's top, 48 under it at the foot. */
+export function scaleFilterBar(steps: number, level: number, comb: Box): number {
+  return comb.y + comb.h * clamp((level - steps) / SCALE_FILTER_RANGE_DB, 0, 1)
 }
 
-function drawBars(frame: DisplayFrame<ScaleFilterState>, layout: ScaleFilterLayout): void {
+function drawBars(
+  frame: DisplayFrame<ScaleFilterState>,
+  now: ScaleFilterSettings,
+  comb: Box,
+): void {
   const { ctx, colours, state } = frame
-  const readings = NOTE_NAMES.map((_, n) => scaleFilterReading(frame.meter(`note${n + 1}`)))
+  const readings = KEY_NAMES.map((_, n) => scaleFilterReading(frame.meter(`note${n + 1}`)))
   const loudest = Math.max(...readings.map((reading) => Math.max(reading.in, reading.out)))
   if (loudest > 0) {
     // Up at once with a louder note, down slowly, and held while nothing comes.
@@ -361,126 +370,119 @@ function drawBars(frame: DisplayFrame<ScaleFilterState>, layout: ScaleFilterLayo
     state.heard = true
   }
   if (!state.heard) return
+  const foot = comb.y + comb.h
   readings.forEach((reading, n) => {
-    const [x0, y0] = pointAt(layout, n, layout.foot)
+    // The device reads a note where Tune has put it, and so its bar stands under its opening.
+    const x = scaleFilterX(scaleFilterPlace(n + now.tune / 100), comb)
     const bar = (steps: number, colour: string, alpha: number): void => {
       if (steps <= 0) return
-      const [x, y] = pointAt(layout, n, scaleFilterBar(steps, state.level, layout))
-      rule(ctx, x0, y0, x, y, { colour, alpha, width: 3 })
+      rule(ctx, x, foot, x, scaleFilterBar(steps, state.level, comb), { colour, alpha, width: 3 })
     }
     bar(reading.in, colours.ink, INK.rule)
     bar(reading.out, colours.accent, 1)
   })
 }
 
-function drawClock(
+function drawComb(
   frame: DisplayFrame<ScaleFilterState>,
   now: ScaleFilterSettings,
-  layout: ScaleFilterLayout,
+  comb: Box,
 ): void {
   const { ctx, colours } = frame
-  const { rim, foot } = layout
-  const inner = around(layout, now, foot)
-  // The scale: the rim at 0 dB with a tick at every semitone of concert pitch, the foot at -48 dB.
-  trace(ctx, around(layout, now, rim), { colour: colours.ink, width: 1, alpha: INK.grid })
-  trace(ctx, inner, { colour: colours.ink, width: 1, alpha: INK.rule })
-  for (let n = 0; n < 12; n++) {
-    const [x1, y1] = pointAt(layout, n, rim - 1.5)
-    const [x2, y2] = pointAt(layout, n, rim + 1)
-    rule(ctx, x1, y1, x2, y2, { colour: colours.ink, alpha: INK.rule })
-  }
-  // What is heard of each pitch, and under it the notes going in and coming out.
-  const heard = around(layout, now, (pitchClass) => scaleFilterHeard(pitchClass, now))
-  fillBetween(ctx, heard, inner, colours.ink, INK.fill)
+  const right = comb.x + comb.w
+  const foot = comb.y + comb.h
+  // The scale: 0 dB along the top, -48 dB along the foot.
+  rule(ctx, comb.x, comb.y, right, comb.y, { colour: colours.ink, alpha: INK.grid })
+  rule(ctx, comb.x, foot, right, foot, { colour: colours.ink, alpha: INK.rule })
+  // What is heard of each pitch, and over it the notes going in and coming out.
+  const heard = across(comb, now, (pitchClass) => scaleFilterHeard(pitchClass, now))
+  fillTo(ctx, heard, foot, colours.ink, INK.fill)
   trace(ctx, heard, { colour: colours.ink })
   // Over the curve, so a note is seen in an opening no wider than its bar.
-  if (frame.powered) drawBars(frame, layout)
+  if (frame.powered) drawBars(frame, now, comb)
   // The device's own mask, where Mix lets less than all of it be heard.
   if (now.mix < 0.999)
     trace(
       ctx,
-      around(layout, now, (pitchClass) => scaleFilterGain(pitchClass, now)),
+      across(comb, now, (pitchClass) => scaleFilterGain(pitchClass, now)),
       { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] },
     )
   // The root, and how far its opening reaches before it is 48 dB down: two Widths either side.
-  const rootAt = now.root + now.tune / 100
-  const reach = Math.min(6, (SCALE_FILTER_REACH * now.width) / 100)
-  const arc: Point[] = []
-  for (let i = -24; i <= 24; i++)
-    arc.push(pointAt(layout, rootAt + (reach * i) / 24, rim + REACH_OUT))
-  trace(ctx, arc, { colour: colours.ink, width: 1, alpha: INK.back })
-  const [rx1, ry1] = pointAt(layout, rootAt, rim)
-  const [rx2, ry2] = pointAt(layout, rootAt, rim + 5)
-  rule(ctx, rx1, ry1, rx2, ry2, { colour: colours.accent, width: 2 })
+  const rootX = scaleFilterX(rootOf(now).at, comb)
+  const reach = (((SCALE_FILTER_REACH * now.width) / 100) * comb.w) / 12
+  rule(
+    ctx,
+    Math.max(comb.x, rootX - reach),
+    comb.y - REACH_UP,
+    Math.min(right, rootX + reach),
+    comb.y - REACH_UP,
+    { colour: colours.ink, alpha: INK.back },
+  )
+  rule(ctx, rootX, comb.y - 5, rootX, comb.y, { colour: colours.accent, width: 2 })
+}
+
+/**
+ * The keyboard: a key for each semitone from C, the naturals with their
+ * letters and the sharps half as high. A key is lit where its note is let
+ * through (the root's in the accent), and stands back where it is not.
+ */
+function drawKeys(
+  frame: DisplayFrame<ScaleFilterState>,
+  now: ScaleFilterSettings,
+  keys: Box,
+): void {
+  const { ctx, colours } = frame
+  const wide = keys.w / 12
+  KEY_NAMES.forEach((name, n) => {
+    const open = (now.notes & (1 << ((n - now.root + 12) % 12))) !== 0
+    const natural = name !== ''
+    const key: Box = {
+      x: keys.x + n * wide + 0.5,
+      y: keys.y,
+      w: wide - 1,
+      h: natural ? keys.h : Math.round(keys.h / 2),
+    }
+    if (open) fillRect(ctx, key, n === now.root ? colours.accent : colours.ink)
+    else fillRect(ctx, key, colours.ink, natural ? INK.grid : INK.rule)
+    if (natural)
+      text(frame, name, key.x + key.w / 2, keys.y + keys.h - 2, {
+        align: 'center',
+        colour: open ? colours.plate : colours.ink,
+      })
+  })
 }
 
 function drawStrip(
   frame: DisplayFrame<ScaleFilterState>,
   now: ScaleFilterSettings,
-  layout: ScaleFilterLayout,
+  strip: Box,
 ): void {
   const { ctx, colours } = frame
-  const { strip } = layout
-  const top = strip.y
-  const bottom = strip.y + strip.h
-  // What comes out, low notes at the foot and loud to the right.
-  const bins = frame.powered ? frame.signal?.spectrum : null
-  const binHz = frame.signal?.binHz ?? 0
-  if (bins && binHz > 0) {
-    const rows = Math.max(2, Math.floor(strip.h / 2))
-    const points: Point[] = []
-    for (let r = 0; r <= rows; r++) {
-      const y = bottom - (r / rows) * strip.h
-      const from = hzOfY(y + strip.h / rows / 2, strip)
-      const to = hzOfY(y - strip.h / rows / 2, strip)
-      let db = -Infinity
-      if (to - from < binHz) {
-        // Low down a bin is taller than a row: read between two bins.
-        const at = clamp((from + to) / 2 / binHz, 1, bins.length - 1)
-        const below = Math.floor(at)
-        const above = Math.min(bins.length - 1, below + 1)
-        db = bins[below] + (bins[above] - bins[below]) * (at - below)
-      } else {
-        const first = clamp(Math.ceil(from / binHz), 1, bins.length - 1)
-        const last = clamp(Math.floor(to / binHz), first, bins.length - 1)
-        for (let i = first; i <= last; i++) if (bins[i] > db) db = bins[i]
-      }
-      const along = Number.isFinite(db) ? clamp(1 - db / STRIP_FOOT_DB, 0, 1) : 0
-      points.push([strip.x + strip.w * along, y])
-    }
-    fillBetween(
-      ctx,
-      points,
-      [
-        [strip.x, bottom],
-        [strip.x, top],
-      ],
-      colours.ink,
-      INK.fill,
-    )
-    trace(ctx, points, { colour: colours.ink, width: 1, alpha: INK.back })
-  }
-  // The scale: a line up the side with a tick at 100 Hz, 1 kHz and 10 kHz.
-  rule(ctx, strip.x, top, strip.x, bottom, { colour: colours.ink, alpha: INK.rule })
+  const right = strip.x + strip.w
+  const foot = strip.y + strip.h
+  // What comes out, low notes at the left.
+  if (frame.powered) spectrum(frame, strip, { topDb: 0, bottomDb: STRIP_FOOT_DB })
+  // The scale: a line along the foot with a tick at 100 Hz, 1 kHz and 10 kHz.
+  rule(ctx, strip.x, foot, right, foot, { colour: colours.ink, alpha: INK.rule })
   for (const hz of [100, 1000, 10000]) {
-    const y = scaleFilterY(hz, strip)
-    rule(ctx, strip.x, y, strip.x + 3, y, { colour: colours.ink, alpha: INK.rule })
+    const x = xOfHz(hz, strip)
+    rule(ctx, x, foot - 3, x, foot, { colour: colours.ink, alpha: INK.rule })
   }
   // Outside Low and High the mask is shut: shaded by how much less is heard there,
   // from half a semitone outside either, where the range is half open.
   const floor = dbToGain(-now.depth)
   const shade = 0.34 * now.mix * (1 - floor)
-  const lowY = scaleFilterY(now.low * Math.pow(2, -0.5 / 12), strip)
-  const highY = scaleFilterY(now.high * Math.pow(2, 0.5 / 12), strip)
+  const lowX = xOfHz(now.low * Math.pow(2, -0.5 / 12), strip)
+  const highX = xOfHz(now.high * Math.pow(2, 0.5 / 12), strip)
   if (shade <= 0) {
     // Nothing is lost there, and nothing is shaded.
-  } else if (highY < lowY) {
-    fillRect(ctx, { x: strip.x, y: lowY, w: strip.w, h: bottom - lowY }, colours.ink, shade)
-    fillRect(ctx, { x: strip.x, y: top, w: strip.w, h: highY - top }, colours.ink, shade)
+  } else if (lowX < highX) {
+    fillRect(ctx, { x: strip.x, y: strip.y, w: lowX - strip.x, h: strip.h }, colours.ink, shade)
+    fillRect(ctx, { x: highX, y: strip.y, w: right - highX, h: strip.h }, colours.ink, shade)
   } else fillRect(ctx, strip, colours.ink, shade)
   for (const hz of [now.low, now.high]) {
-    const y = scaleFilterY(hz, strip)
-    rule(ctx, strip.x, y, strip.x + strip.w, y, { colour: colours.ink, alpha: INK.back })
+    const x = xOfHz(hz, strip)
+    rule(ctx, x, strip.y, x, foot, { colour: colours.ink, alpha: INK.back })
   }
 }
 
@@ -489,30 +491,35 @@ const display = plateDisplay<ScaleFilterState>({
   columns: 2,
   params: ['root', 'scale', 'chord', 'width', 'depth', 'low', 'high', 'tune', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'The octave as a clock, C at the top: an opening at each note let through, as wide as Width and as deep between as Depth, with bars for each note going in and coming out. At the side, Low and High over the spectrum.',
+  info: 'One octave from C to B: an opening at each note let through, as wide as Width and as deep between as Depth, with bars for each note going in and coming out. The keys under it are lit where a note passes. At the foot, Low and High over the spectrum.',
   init: () => ({ level: 0, heard: false }),
   draw(frame) {
     ground(frame)
     const now = scaleFilterSettings(frame)
-    const layout = scaleFilterLayout(frame)
-    drawStrip(frame, now, layout)
-    drawClock(frame, now, layout)
-    for (const point of handlesOf(frame))
-      handle(frame, point.x, point.y, { hot: frame.hot === point.key })
-    // In the middle: the root, or what the handle in hand is set to.
+    const { comb, keys, strip } = scaleFilterLayout(frame)
+    drawStrip(frame, now, strip)
+    drawComb(frame, now, comb)
+    drawKeys(frame, now, keys)
+    const handles = handlesOf(frame)
+    for (const point of handles) handle(frame, point.x, point.y, { hot: frame.hot === point.key })
+    // What the handle in hand is set to, in the corner of the octave away from it.
     const said: Record<string, string> = {
       width: `${Math.round(now.width)} ct`,
       depth: `${Math.round(now.depth)} dB`,
       low: hzText(now.low),
       high: hzText(now.high),
     }
-    const word = frame.hot ? said[frame.hot] : undefined
-    if (word) {
-      frame.ctx.font = `8px ${frame.fontFamily}`
-      const wide = frame.ctx.measureText(word).width
-      label(frame, word, layout.cx - wide / 2, layout.cy + 3)
-    } else
-      text(frame, NOTE_NAMES[now.root], layout.cx, layout.cy + 4, { align: 'center', size: 10 })
+    const held = handles.find((point) => point.key === frame.hot)
+    if (held && said[held.key]) {
+      const left = held.x >= comb.x + comb.w / 2
+      label(
+        frame,
+        said[held.key],
+        left ? comb.x + 3 : comb.x + comb.w - 3,
+        comb.y + 11,
+        left ? 'left' : 'right',
+      )
+    }
   },
   handles: handlesOf,
 })

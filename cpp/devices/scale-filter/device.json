@@ -179,8 +179,8 @@
     }
   ],
   "presets": {
-    "In C major": {},
-    "A minor triad": {
+    "In a major key": {},
+    "Minor triad": {
       "root": 9,
       "scale": 1,
       "chord": 1,
@@ -218,7 +218,7 @@
       "depth": 18,
       "glow": 0.3
     },
-    "Razor chord": {
+    "Hairline chord": {
       "root": 5,
       "chord": 1,
       "width": 6,

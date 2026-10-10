@@ -47,6 +47,23 @@
 //   phase of the cut, so a frame is only believed once the next one has
 //   held up too. At the bottom of the knob there is no hold and the wet
 //   signal is the input times the mask.
+//   Three things keep what rings on to the scale where the bins are coarse
+//   (the second check; cpp/test check_struck_notes_off_the_scale and
+//   check_noise_tail_is_in_the_key):
+//   · a sound that could not be placed in its first frames comes in on the
+//     bin's gain (a guess). Once it is placed, what the hold kept of the
+//     guess is weighed again by the placed gain over the guessed one, for
+//     as long as the sound is no more than 9 dB weaker than a frame ago and
+//     the guess no older than a quarter of a second;
+//   · a partial placed two frames running keeps that gain while it dies
+//     away unplaced (a let-go note smears over its bins and is no longer a
+//     partial to the measure), until the bin rises again;
+//   · the tail of a sound that was never placed (noise) is brought into the
+//     nearest opening when that lies within one bin: each bin's ringing
+//     pitch is moved no further than to the opening's edge, so the bins of
+//     one sound still ring together. Further off it rings where it lay,
+//     and so does what a placed note threw into the bins beside it as it
+//     was let go of: that is the note's own, and rings with it.
 // - Glow lifts the notes by a share of what the mask takes from pink noise
 //   (worked out from the mask, not from the sound, so a wrong note alone is
 //   not brought back up), never by more than 24 dB and never to more power
@@ -54,8 +71,9 @@
 // - Mix is a linear crossfade: the gains are real, so wet and dry are in
 //   step and nothing cancels.
 //
-// Storage: two kit::Stft<8192> (352 KB each), nine floats per bin per
-// channel for the hold (295 KB), and the tables per bin (130 KB): under 1.2 MB.
+// Storage: two kit::Stft<8192> (352 KB each), ten floats and three bytes
+// per bin per channel for the hold (353 KB), and the tables per bin
+// (170 KB): under 1.3 MB.
 //
 // Cost: a frame is two transforms of 8192 and three passes over 4097 bins,
 // once every 2048 samples per channel, the channels 1024 samples apart.
@@ -119,6 +137,9 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
       for (int k = 0; k < kBins; ++k) {
         mag_[c][k] = 0.0f;
         guessed_[c][k] = 0;
+        carried_[c][k] = -1.0f;
+        held_note_[c][k] = 255;
+        placed_[c][k] = 0;
         ref_re_[c][k] = 1.0f;
         ref_im_[c][k] = 0.0f;
         next_re_[c][k] = 0.0f;
@@ -148,6 +169,8 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
     }
     // A quarter of a second for the make-up to come back up, in frames.
     release_ = 1.0f - std::exp(-static_cast<float>(Stft::kHop) / (0.25f * sr));
+    // And as long for a guess to be taken back: 6 frames at 48 kHz, 12 at 96 kHz.
+    fresh_ = static_cast<uint8_t>(kit::clamp_int(static_cast<int>(kFreshSeconds * sr / Stft::kHop + 0.5f), 2, 250));
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
     // What is in flight when the last bin has gone: a latency and a frame.
@@ -170,8 +193,9 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
   // it), each the level of that note over every octave in the newest frames, going in and coming out (the
   // dry and the wet frame by Mix, before the wet path's ceiling), packed as two whole numbers of dB:
   // in + 64 × out, each 0 for nothing (63 dB or more under a full-scale tone) up to 63 for a full-scale
-  // tone. A partial is read under the note it is at, noise under the note its bin is at, from the bin
-  // where a bin is a semitone wide up to 16 kHz. Asleep it reads 0.
+  // tone. A partial is read under the note it is at, noise under the note its bin is at, and what rings on
+  // under the note it came in as (the skirt of a let-go note under that note), from the bin where a bin is
+  // a semitone wide up to 16 kHz. Asleep it reads 0.
   float meter(int index) const {
     if (index < 0 || index >= 12 || idle_.asleep()) return 0.0f;
     return packed_[index];
@@ -223,7 +247,37 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
   // How far the rise of a held bin is softened at the longest Ring: a pure peak hold rides the peaks of
   // anything noisy and comes out hot.
   static constexpr float kAttackSoftening = 0.6f;
+  // How long what a bin holds of a guess can still be taken back once its sound is placed: a quarter second.
+  static constexpr float kFreshSeconds = 0.25f;
+  // A placed partial takes a guess back while it still sounds: no more than 9 dB weaker than a frame ago (a
+  // struck note that dies in a third of a second still does; the tail end of a cut-off note does not).
+  static constexpr float kStillSounding = 0.125f;
+  // The tail of an unplaced sound is put on a note of the scale when the note lies within this many bins.
+  static constexpr float kSnapReach = 1.0f;
+  // A placed partial's gain and note are kept from frames in which it held up: fell by no more than 3 dB.
+  static constexpr float kHeldUp = 0.5f;
+  // How many bins either side of a partial its cut-off is taken to reach.
+  static constexpr int kSkirt = 3;
   static constexpr float kQuarterTurn[4][2] = {{1.0f, 0.0f}, {0.0f, 1.0f}, {-1.0f, 0.0f}, {0.0f, -1.0f}};
+
+  // A bin that took in a sound it could not place lies beside a placed partial that is dying away, and a
+  // stronger one: what it holds is what that partial threw out as it was cut off (a note let go of spreads
+  // over the bins around it for a frame), and it rings with the partial at the turn it was measured to
+  // make, not on the next note of the scale. `held` and `before` are what the bin itself holds, in this
+  // frame and the one before (the bins under k have had this frame's decay, those over it not yet).
+  // Gives the partial's bin, or -1 for none; of several, the strongest.
+  static int beside_partial(const float* carried, const float* mag, int k, float held, float before) {
+    int found = -1;
+    float most = 0.0f;
+    for (int j = k - kSkirt; j <= k + kSkirt; ++j) {
+      if (j == k || j < 1 || j > kBins - 2) continue;
+      if (carried[j] >= 0.0f && mag[j] > (j < k ? held : before) && mag[j] > most) {
+        most = mag[j];
+        found = j;
+      }
+    }
+    return found;
+  }
 
   static float smooth_step(float x) {
     x = kit::clamp(x, 0.0f, 1.0f);
@@ -235,7 +289,8 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
     float position = (pitch - tune_) * (1.0f / 12.0f);
     position -= std::floor(position);
     const float place = position * kTable;
-    const int index = static_cast<int>(place);
+    // (A pitch a hair under a whole octave rounds to the table's last place: not past it.)
+    const int index = kit::clamp_int(static_cast<int>(place), 0, kTable - 1);
     const float distance = distance_[index] + (distance_[index + 1] - distance_[index]) * (place - index);
     const float off = distance * per_width_;
     float bell = 0.0f;
@@ -315,6 +370,38 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
       }
       note_[k] = static_cast<uint8_t>(note);
     }
+    // Where the tail of a sound that was never placed (noise, a click, a note too short to place) rings.
+    // In the treble an opening is many bins wide and each bin in it rings where its sound lay. Lower down
+    // the opening is narrower than a bin, and a bin beside a note would ring up to two bins off it, which
+    // in the bass is more than a semitone: there the tail is brought into the opening of the nearest note
+    // let through (to within half a Width of it), where that lies within kSnapReach bins of the bin's
+    // centre. Kept per bin as the stretch to bring it into, in bins from the bin's centre.
+    const float half_open = 0.005f * param(kWidth);  // half a Width, in semitones
+    for (int k = 0; k < kBins; ++k) {
+      snap_[k] = 0;
+      if (k < 1) continue;
+      // From the bin's centre to the nearest note let through, in semitones: the distance the mask is made
+      // of, upward where it falls as the pitch rises.
+      float position = (pitch_[k] - tune_) * (1.0f / 12.0f);
+      position -= std::floor(position);
+      const float place = position * kTable;
+      const int index = kit::clamp_int(static_cast<int>(place), 0, kTable - 1);
+      const float step = distance_[index + 1] - distance_[index];
+      const float distance = distance_[index] + step * (place - static_cast<float>(index));
+      const float per_bin = 1.0f / slope_[k];
+      if ((distance - half_open) * per_bin > kSnapReach) continue;  // the opening is out of the bin's reach
+      if (distance + 2.0f * slope_[k] <= half_open) continue;        // all the bin can hold lies inside it
+      const float nearest = step < 0.0f ? distance : -distance;
+      const float note = pitch_[k] + nearest;
+      if (smooth_step(note - low_pitch_ + 1.0f) * smooth_step(high_pitch_ + 1.0f - note) < 0.5f) continue;
+      const float low = kit::max(static_cast<float>(k) * (std::exp2((nearest - half_open) * (1.0f / 12.0f)) - 1.0f), -kSnapReach);
+      const float high = kit::min(static_cast<float>(k) * (std::exp2((nearest + half_open) * (1.0f / 12.0f)) - 1.0f), kSnapReach);
+      if (low > high) continue;
+      snap_low_[k] = low;
+      snap_high_[k] = high;
+      snap_[k] = 1;
+    }
+
     const float taken = kept > 0.0 ? static_cast<float>(std::sqrt(whole / kept)) : kMaxMakeup;
     static_makeup_ = std::pow(kit::min(taken, kMaxMakeup), param(kGlow));
   }
@@ -356,6 +443,8 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
     heard_[kBins - 1] = 255;
     sure_[0] = 0;
     sure_[kBins - 1] = 0;
+    float* carried = carried_[c];
+    uint8_t* placed = placed_[c];
     double power_in = power_[0] + power_[kBins - 1];
     double power_through = static_cast<double>(gain_[0]) * gain_[0] * power_[0] +
                            static_cast<double>(gain_[kBins - 1]) * gain_[kBins - 1] * power_[kBins - 1];
@@ -381,6 +470,26 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
             int note = static_cast<int>(std::floor(pitch - tune_ + 0.5f)) % 12;
             if (note < 0) note += 12;
             heard = static_cast<uint8_t>(note);
+          }
+        }
+      }
+      // A sound that was placed and is dying away keeps the gain it was placed with: the frames a note is
+      // cut off in cannot be placed, and would come through on the gain of their bins as a whole (in the bass
+      // every bin has a note of the scale in it, so a wrong note let go of would ring on as a right one).
+      const float power_before = last_re[k] * last_re[k] + last_im[k] * last_im[k];
+      if (sure) {
+        // (Placed two frames running: noise is placed by chance now and then, and is no partial. And not
+        // from a frame in which the sound fell by more than 3 dB: a frame a note is cut off in can still
+        // be placed, a quarter tone or more from where the note was.)
+        if (placed[k] != 0 && power >= kHeldUp * power_before) carried[k] = gain;
+        placed[k] = 1;
+      } else {
+        placed[k] = 0;
+        if (carried[k] >= 0.0f) {
+          if (power <= power_before) {
+            gain = carried[k];
+          } else {
+            carried[k] = -1.0f;  // rising again and not placed: a new sound
           }
         }
       }
@@ -414,6 +523,7 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
     float* turn_im = turn_im_[c];
     float* note_in = chroma_in_[c];
     float* note_out = chroma_out_[c];
+    uint8_t* held_note = held_note_[c];
     for (int n = 0; n < 12; ++n) {
       note_in[n] = 0.0f;
       note_out[n] = 0.0f;
@@ -445,8 +555,9 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
       } else {
         const float level = std::sqrt(power);
         const float target = gain * level;
-        const float before = mag[k];
+        float before = mag[k];
         float held = before * decay_;
+        int partial = -1;  // the bin of the note whose skirt this bin holds, where it holds one
         // The bin's input is holding up: no weaker than a frame ago (to 1 dB), and not far under what the
         // bin holds. A frame in which a sound is cut off has the phase of the cut, not of the sound, so
         // what is measured on one frame is only believed when the next has held up too.
@@ -481,6 +592,31 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
           pr = (lr * tr - li * ti) * inverse;
           pi = (lr * ti + li * tr) * inverse;
         } else if (before > 0.0f) {
+          // What was never placed has no pitch of its own to keep: where a note of the scale is within the
+          // bin's reach, its tail rings on that note, and the rest at the turn it was measured to make.
+          // (Not the skirt of a note that was let go of: that rings with its note.)
+          partial = guessed[k] != 0 ? beside_partial(carried, mag, k, held, before) : -1;
+          if (partial < 0 && guessed[k] != 0 && snap_[k] != 0) {
+            // Where its sound lay, in bins from the bin's centre: its turn less the bin's own k quarter turns.
+            float ur, ui;
+            switch (k & 3) {
+              case 0: ur = tr; ui = ti; break;
+              case 1: ur = ti; ui = -tr; break;
+              case 2: ur = -tr; ui = -ti; break;
+              default: ur = -ti; ui = tr; break;
+            }
+            const float lay = kit::fast_atan2(ui, ur) * 0.63661977f;
+            const float to = kit::clamp(lay, snap_low_[k], snap_high_[k]);
+            if (to != lay) {
+              kit::from_polar(1.0f, kit::kHalfPi * to, &ur, &ui);
+              switch (k & 3) {
+                case 0: tr = ur; ti = ui; break;
+                case 1: tr = -ui; ti = ur; break;
+                case 2: tr = -ur; ti = -ui; break;
+                default: tr = ui; ti = -ur; break;
+              }
+            }
+          }
           pr = ref_re[k] * tr - ref_im[k] * ti;
           pi = ref_re[k] * ti + ref_im[k] * tr;
           const float keep = 1.5f - 0.5f * (pr * pr + pi * pi);  // back to unit length
@@ -494,25 +630,44 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
         }
         ref_re[k] = pr;
         ref_im[k] = pi;
-        // A note's first frames cannot be placed, and come in on the gain of their bins as a whole. Once
-        // it is placed and still sounding, what the bin holds of that guess is the note's own and is given
-        // up: a note off the scale does not ring on for having begun. (What the bin held as a placed
-        // partial, or holds more of than the note could have brought, rings on.)
-        const bool taken_back = sure_[k] && guessed[k] && power >= 0.8f * last_power && held <= makeup * level;
-        if (target >= held || taken_back) {
+        // A note's first frames cannot be placed, and come in on the gain of their bins as a whole, which
+        // in the bass is high for every bin. Once the note is placed and still sounding, what the bin took
+        // in on a guess in the last quarter second is weighed again with the gain the note turned out to
+        // have: a note off the scale does not ring on for having begun, whether it is held or struck and
+        // dying, and one on the scale keeps all of its ring. (What the bin held as a placed partial, or took
+        // in as a guess longer ago than that, rings on as it is.)
+        if (sure_[k] && guessed[k] > 1 && power >= kStillSounding * last_power) {
+          if (gain_[k] < bin_gain_[k]) {
+            const float share = gain_[k] / bin_gain_[k];
+            held *= share;
+            before *= share;
+          }
+          guessed[k] = 0;
+        }
+        if (target >= held) {
           // Driven by the input, with the input's own phase. A rise over what the bin held is softened;
           // under that the bin is at the input's own level, so a steady tone comes out as it went in.
-          guessed[k] = !sure_[k];
           held = target > before ? before + attack_ * (target - before) : target;
           if (held < kFloor) held = 0.0f;
+          // (A frame of silence leaves the mark as it was, as a frame slept through does.)
+          if (held > 0.0f) {
+            guessed[k] = sure_[k] ? 0 : static_cast<uint8_t>(fresh_ + 1);
+            held_note[k] = sure_[k] ? heard_[k] : 255;
+          }
           const float scale = level > 1.0e-12f ? held / level : 0.0f;
           re[k] = xr * scale;
           im[k] = xi * scale;
         } else {
           // Let go of: what the bin holds, at the phase its sound would have had.
           if (held < kFloor) held = 0.0f;
+          if (guessed[k] > 1) --guessed[k];
           re[k] = held * pr;
           im[k] = held * pi;
+          // For the display it is read under the note it came in as: its own, or the one whose skirt it is.
+          if (held > 0.0f && heard_[k] < 12) {
+            const uint8_t came = held_note[k] < 12 ? held_note[k] : (partial >= 0 ? held_note[partial] : 255);
+            if (came < 12) heard_[k] = came;
+          }
         }
         mag[k] = held;
         alive = alive || held > 0.0f;
@@ -550,7 +705,16 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
   // Per bin, per channel: what the bin holds; the phase its sound would have now and its turn per frame, as
   // unit vectors; the turn measured on the last frame, waiting to be confirmed; and the frame before.
   float mag_[2][kBins] = {};
-  uint8_t guessed_[2][kBins] = {};  // what a bin holds came in on its gain as a whole, not as a placed partial
+  // What a bin holds came in on its gain as a whole, not as a placed partial: 0 for no, and from 1 up the
+  // frames it can still be taken back for, plus one.
+  uint8_t guessed_[2][kBins] = {};
+  // The gain a bin had when its sound was last placed, kept while that sound dies away; under 0 for none.
+  float carried_[2][kBins] = {};
+  // The pitch class what a bin holds was read under when it came in as a placed partial, for the display:
+  // a bass note that rings on is read under its own name, not under those of the bins it lies in. 255
+  // where the bin holds nothing that was placed.
+  uint8_t held_note_[2][kBins] = {};
+  uint8_t placed_[2][kBins] = {};  // the bin's sound was placed in the frame before
   float ref_re_[2][kBins] = {};
   float ref_im_[2][kBins] = {};
   float next_re_[2][kBins] = {};
@@ -565,6 +729,11 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
   // Per bin, from the knobs: its gain as a whole and the pitch class it is read under (255 for none).
   float bin_gain_[kBins] = {};
   uint8_t note_[kBins] = {};
+  // Per bin, from the knobs: the stretch the tail of a sound that was never placed is brought into (the
+  // opening of the nearest note let through, in bins from the bin's centre), where one is within reach.
+  float snap_low_[kBins] = {};
+  float snap_high_[kBins] = {};
+  uint8_t snap_[kBins] = {};
   // Work space of one frame.
   float offset_[kBins] = {};
   float power_[kBins] = {};
@@ -594,6 +763,7 @@ class ScaleFilter : public kit::DeviceBase<scale_filter::kNumParams> {
   float attack_ = 1.0f;
   float static_makeup_ = 1.0f;
   float release_ = 1.0f;
+  uint8_t fresh_ = 6;  // frames a guess can be taken back for
   kit::Smoother mix_;
   kit::IdleGate idle_;
 };

@@ -378,6 +378,139 @@ static void check_onsets_off_the_scale() {
   EXPECT(std::fabs(at - 440.0) < 5.0 && level > -40.0, "a glide through a note of the scale leaves that note ringing");
 }
 
+// --- The second check's: the ring on played material, in the bass above all ---------------------------------
+
+// A struck note: `harmonics` partials falling off as 1/h, begun in 4 ms, dying by 60 dB in `t60` seconds, held
+// `length` seconds and let go of over 10 ms, from `at` seconds.
+static void strike(std::vector<float>& out, double at, double midi, double length, double t60, int harmonics, double gain) {
+  const size_t from = static_cast<size_t>(at * kRate), n = static_cast<size_t>(length * kRate);
+  for (size_t i = 0; i < n && from + i < out.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    double env = std::min(1.0, t / 0.004) * std::pow(10.0, -3.0 * t / t60) * std::min(1.0, (length - t) / 0.01);
+    double v = 0.0;
+    for (int h = 1; h <= harmonics; ++h) v += std::sin(2.0 * kPi * note_hz(midi) * h * t) / h;
+    out[from + i] += static_cast<float>(gain * env * v);
+  }
+}
+
+// C major with nothing but the ring: Width 30, Depth 30, no make-up, the whole range open.
+static void ringing(ScaleFilter& d, float ring) {
+  plain(d, kRate);
+  d.set_param(p::kRing, ring);
+}
+
+// The level of the tone at `midi` in the wet tail, `after` seconds past `end`, in dB against `reference`.
+static double tail_db(const Stereo& out, double midi, double end, double reference, double after = 0.4) {
+  const size_t from = static_cast<size_t>((end + after) * kRate) + kLatency;
+  return db(tone_level(out.left, note_hz(midi), kRate, from, from + 16384) / reference);
+}
+
+// A struck note off the scale does not ring on under the longest Ring, however fast it dies and however low
+// it lies: its first frames cannot be placed and come in on the gain of their bins, which in the bass is
+// high for every bin, and that guess is weighed again once the note is placed. (The builder's mend took a
+// guess back only from a note that held its level, so a struck one rang on at -20 to -30 dB of its first
+// level under 150 Hz, where the note on the scale beside it rings at -15.) A note on the scale keeps its
+// ring. A held note off the scale that is let go of leaves no more than its floor: the frames it is cut off
+// in keep the gain it was placed with. What is left is the limit of the bins: in a chord struck in the
+// bass a note off the scale that lies within a bin of one on it (F#2 under G2, 0.9 of a bin) cannot be told
+// from it, and rings on with it, 6 dB under it (measured, and bounded here, not mended).
+static void check_struck_notes_off_the_scale() {
+  double worst_off = -200.0, least_on = 0.0;
+  for (int midi : {25, 30, 37, 42, 46, 49, 61}) {  // C#1 to C#4: each a semitone under a note of C major
+    for (double t60 : {0.3, 1.2}) {
+      for (int harmonics : {1, 10}) {
+        std::vector<float> off(static_cast<size_t>(3.0f * kRate), 0.0f), on = off;
+        strike(off, 0.5, midi, 0.5, t60, harmonics, 0.3);
+        strike(on, 0.5, midi + 1, 0.5, t60, harmonics, 0.3);
+        ringing(device, 12.0f);
+        worst_off = std::max(worst_off, tail_db(run(device, off), midi, 1.0, 0.3));
+        if (t60 > 1.0) {
+          ringing(device, 12.0f);
+          least_on = std::min(least_on, tail_db(run(device, on), midi + 1, 1.0, 0.3));
+        }
+      }
+    }
+  }
+  std::printf("struck notes under a 12 s ring, C#1 to C#4: off the scale the tail is %.1f dB under the note at the most, on it %.1f at the least\n",
+              -worst_off, -least_on);
+  EXPECT(worst_off < -38.0, "a struck note off the scale leaves no tail over its floor, in the bass as in the treble");
+  EXPECT(least_on > -21.0, "and one on the scale keeps its ring");
+
+  double worst_let_go = -200.0;
+  for (int midi : {25, 30, 37, 42, 46}) {
+    std::vector<float> held(static_cast<size_t>(3.5f * kRate), 0.0f);
+    strike(held, 0.5, midi, 1.0, 1000.0, 1, 0.3);  // (a decay of 1000 s: held)
+    ringing(device, 12.0f);
+    worst_let_go = std::max(worst_let_go, tail_db(run(device, held), midi, 1.5, 0.3));
+  }
+  std::printf("a held bass note off the scale, let go of: its tail is %.1f dB under it at the most (the floor is 30)\n", -worst_let_go);
+  EXPECT(worst_let_go < -25.0, "a held bass note off the scale leaves only its floor when it is let go of");
+
+  std::vector<float> chord_in(static_cast<size_t>(3.0f * kRate), 0.0f);
+  for (int midi : {36, 42, 43}) strike(chord_in, 0.5, midi, 0.5, 1.2, 6, 0.2);  // C2 and G2 on the scale, F#2 off it
+  ringing(device, 12.0f);
+  const Stereo chord_out = run(device, chord_in);
+  const double c2 = tail_db(chord_out, 36, 1.0, 0.2), fs2 = tail_db(chord_out, 42, 1.0, 0.2), g2 = tail_db(chord_out, 43, 1.0, 0.2);
+  std::printf("a chord struck in the bass: C2 rings at %.1f dB, G2 at %.1f, F#2 (off the scale, a bin from G2) at %.1f\n", c2, g2, fs2);
+  EXPECT(c2 > -20.0 && g2 > -25.0, "a chord struck in the bass rings as its notes on the scale");
+  EXPECT(fs2 < g2 - 3.0 && fs2 < -24.0, "and a note off the scale within a bin of one on it rings under that one");
+}
+
+// A note ON the scale that is let go of rings as that one note. The frame it is cut off in throws sound
+// into the bins beside it, which they cannot place; where another note of the scale lies within a bin of
+// them (F3 over E3, B2 under C3) that skirt must ring with its own note and not be brought onto the next
+// one: 75 to 100 cents off, the tail is 38 dB under the note or lower. (Brought there, as every unplaced
+// tail first was in the second check, it stood at -19 to -24 dB: a second tone 12 dB under the ring.)
+static void check_let_go_rings_as_one_note() {
+  double least_ring = 0.0, worst_beside = -200.0;
+  for (int midi : {45, 48, 52, 64}) {
+    for (int fade : {24, 480}) {
+      std::vector<float> in = sine(static_cast<float>(note_hz(midi)), 1.0f, kRate, 0.5f);
+      for (int i = 0; i < fade; ++i) in[in.size() - 1 - static_cast<size_t>(i)] *= static_cast<float>(i) / static_cast<float>(fade);
+      const size_t end = in.size();
+      in.resize(end + static_cast<size_t>(1.5f * kRate), 0.0f);
+      ringing(device, 6.0f);
+      const Stereo out = run(device, in);
+      const size_t from = end + static_cast<size_t>(0.3f * kRate) + kLatency;
+      const auto level = [&](double cents) {
+        return db(tone_level(out.left, note_hz(midi) * std::pow(2.0, cents / 1200.0), kRate, from, from + 32768) / 0.5);
+      };
+      least_ring = std::min(least_ring, level(0.0));
+      for (double cents : {-100.0, -75.0, 75.0, 100.0}) worst_beside = std::max(worst_beside, level(cents));
+    }
+  }
+  std::printf("a note on the scale let go of rings at %.1f dB of its level at the least; 75 to 100 cents either side there is %.1f dB at the most\n",
+              least_ring, worst_beside);
+  EXPECT(least_ring > -10.0, "a note on the scale that is let go of rings on");
+  EXPECT(worst_beside < -38.0, "and as that one note: nothing a semitone from it");
+}
+
+// The tail of noise is in the key down to the lowest octave. Under about 130 Hz a bin is wider than the gap
+// between two notes, so while the noise runs it can only be turned down evenly there; but what rings on
+// after it is brought into the openings. (Left where each bin's sound had lain, the tail of octaves 1 and 2
+// was as strong between the notes as on them.)
+static void check_noise_tail_is_in_the_key() {
+  rng_state() = 2024;
+  std::vector<float> in = noise(6.0f, kRate, 0.25f);
+  const size_t stop = in.size();
+  in.resize(stop + static_cast<size_t>(5.0f * kRate), 0.0f);
+  ringing(device, 6.0f);
+  const Stereo out = run(device, in);
+  const size_t from = stop + kLatency + static_cast<size_t>(0.3f * kRate), length = 65536;  // 0.73 Hz apart
+  const int on[7] = {0, 2, 4, 5, 7, 9, 11}, off[5] = {1, 3, 6, 8, 10};
+  for (int octave = 1; octave <= 3; ++octave) {
+    double notes = 0.0, between = 0.0;
+    for (int s : on) notes += std::pow(band_level(out.left, note_hz(12 * (octave + 1) + s), kRate, from, length), 2.0) / 7.0;
+    for (int s : off) between += std::pow(band_level(out.left, note_hz(12 * (octave + 1) + s), kRate, from, length), 2.0) / 5.0;
+    const double apart = 10.0 * std::log10(notes / std::max(between, 1.0e-30));
+    std::printf("the tail of noise, octave %d (from %.0f Hz): the notes of the scale stand %.1f dB over what lies between them\n", octave,
+                note_hz(12 * (octave + 1)), apart);
+    // Octave 3 is printed only: there a bin is narrower than the gaps, a bin more than one bin from every
+    // opening keeps its own pitch at the floor's gain, and the figure moves 30 dB from one noise to the next.
+    if (octave <= 2) EXPECT(apart > 15.0, "the tail of noise is the notes of the scale, in the bass too");
+  }
+}
+
 // Low and High: a note under Low or over High is at the floor, one inside the range passes; Tune moves every
 // opening by so many cents.
 static void check_range_and_tune() {
@@ -546,7 +679,10 @@ static void check_bad_input() {
   // (A frame is compared with the one before it, so one more hop.)
   const size_t clear = 30004 + kLatency + ScaleFilter::Stft::kFrame + ScaleFilter::Stft::kHop;
   EXPECT(finite(bad_out.left) && finite(bad_out.right), "NaN, infinity and 1e30 in: finite out");
-  EXPECT(worst_difference(bad_out.left, good_out.left, clear) < 1.0e-6, "and the same as if they had never come, a latency and a frame later");
+  // (A partial that is dying away keeps the gain it was placed with, so what the bad frames held can leave a
+  // trace a few frames longer than the frames themselves: under -80 dB, and gone within a second.)
+  EXPECT(worst_difference(bad_out.left, good_out.left, clear) < 1.0e-3, "and as if they had never come, a latency and a frame later");
+  EXPECT(worst_difference(bad_out.left, good_out.left, clear + 48000) < 1.0e-6, "and the same to the last digit a second after that");
 
   device.init(kRate);
   device.set_param(p::kRing, 3.0f);
@@ -639,6 +775,23 @@ static void check_meters() {
   EXPECT(static_cast<int>(device.meter(0)) % 64 == 57 && static_cast<int>(device.meter(1)) % 64 <= 17 &&
              static_cast<int>(device.meter(11)) % 64 <= 17,
          "C3 reads under C, not under B and C# beside it");
+  // And while it rings on after it is let go of: a bin that rings is no longer measured, and read under
+  // the note of its own centre a ringing A2 stood under G#, A and A# at 45, 48 and 40 (the second check).
+  for (int midi : {45, 52, 57}) {
+    ringing(device, 6.0f);
+    std::vector<float> note = sine(static_cast<float>(note_hz(midi)), 1.0f, kRate, 0.5f);
+    for (size_t i = 0; i < 480; ++i) note[note.size() - 1 - i] *= static_cast<float>(i) / 480.0f;
+    note.resize(note.size() + static_cast<size_t>(0.5f * kRate), 0.0f);
+    run(device, note);
+    const int own = static_cast<int>(device.meter(midi % 12)) / 64;
+    const int under = static_cast<int>(device.meter((midi + 11) % 12)) / 64;
+    const int over = static_cast<int>(device.meter((midi + 1) % 12)) / 64;
+    char label[160];
+    std::snprintf(label, sizeof label, "half a second into its ring, note %d reads %d coming out, the notes beside it %d and %d", midi, own,
+                  under, over);
+    EXPECT(own >= 45 && under <= own - 20 && over <= own - 20, label);
+    std::printf("%s\n", label);
+  }
   plain(device, kRate);
   run(device, sine(static_cast<float>(note_hz(70)), 1.0f, kRate, 0.5f));  // A#: not in C major
   in = static_cast<int>(device.meter(10)) % 64;
@@ -746,7 +899,9 @@ static void check_mix() {
 }
 
 // A full-scale chord held for a minute, two notes of it in the key and two out: the output peaks no more
-// than 6 dB over the input, and is no louder at the end than at the start.
+// than 1 dB over the input's own peak (a chord of sines loses partials and gains none; the 6 dB of room the
+// brief allows is used only by noise and square waves through the narrowest masks, measured in the second
+// check at +5.0 dB), and is no louder at the end than at the start.
 template <typename Apply>
 static void held_chord(Apply apply, const char* what) {
   const std::vector<float> in = chord({48, 64, 66, 73}, 60.0f, kRate, 0.25f);
@@ -754,11 +909,13 @@ static void held_chord(Apply apply, const char* what) {
   apply();
   const Stereo out = run(device, in);
   const double top = std::max(peak(out.left), peak(out.right));
+  const double came_in = peak(in);
   const double early = rms(out.left, 240000, 480000), end = rms(out.left, in.size() - 240000);
-  char label[160];
-  std::snprintf(label, sizeof label, "%s: a full-scale chord held for a minute peaks at %.2f and ends %.2f dB from where it began", what, top,
-                db(end / std::max(early, 1.0e-9)));
-  EXPECT(finite(out.left) && top <= 2.0 && end <= early * 1.02 + 1.0e-6, label);
+  char label[200];
+  std::snprintf(label, sizeof label,
+                "%s: a full-scale chord held for a minute peaks at %.3f (it came in at %.3f) and ends %.2f dB from where it began", what,
+                top, came_in, db(end / std::max(early, 1.0e-9)));
+  EXPECT(finite(out.left) && top <= 1.122 * came_in && end <= early * 1.02 + 1.0e-6, label);
 }
 
 static void check_level() {
@@ -798,13 +955,13 @@ struct Preset {
   float values[p::kNumParams];
 };
 static const Preset kPresets[] = {
-    {"In C major", {0.0f, 0.0f, 0.0f, 30.0f, 0.4f, 30.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
-    {"A minor triad", {9.0f, 1.0f, 1.0f, 24.0f, 1.2f, 36.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
+    {"In a major key", {0.0f, 0.0f, 0.0f, 30.0f, 0.4f, 30.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
+    {"Minor triad", {9.0f, 1.0f, 1.0f, 24.0f, 1.2f, 36.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
     {"Open fifths", {9.0f, 0.0f, 2.0f, 18.0f, 2.2f, 40.0f, 40.0f, 12000.0f, 0.0f, 0.7f, 1.0f}},
     {"One note drone", {9.0f, 0.0f, 3.0f, 14.0f, 5.0f, 42.0f, 40.0f, 12000.0f, 0.0f, 1.0f, 1.0f}},
     {"Lean to the key", {0.0f, 0.0f, 0.0f, 70.0f, 0.05f, 9.0f, 40.0f, 12000.0f, 0.0f, 0.0f, 1.0f}},
     {"Wide and gentle", {4.0f, 8.0f, 0.0f, 120.0f, 0.2f, 18.0f, 40.0f, 12000.0f, 0.0f, 0.3f, 1.0f}},
-    {"Razor chord", {5.0f, 0.0f, 1.0f, 6.0f, 0.8f, 48.0f, 40.0f, 12000.0f, 0.0f, 1.0f, 1.0f}},
+    {"Hairline chord", {5.0f, 0.0f, 1.0f, 6.0f, 0.8f, 48.0f, 40.0f, 12000.0f, 0.0f, 1.0f, 1.0f}},
     {"Long glass", {0.0f, 7.0f, 0.0f, 12.0f, 9.0f, 40.0f, 40.0f, 12000.0f, 0.0f, 0.8f, 1.0f}},
     {"High bells", {0.0f, 7.0f, 0.0f, 16.0f, 3.0f, 42.0f, 300.0f, 12000.0f, 0.0f, 0.8f, 1.0f}},
     {"Low chord only", {9.0f, 1.0f, 0.0f, 40.0f, 0.6f, 36.0f, 40.0f, 420.0f, 0.0f, 0.5f, 1.0f}},
@@ -881,6 +1038,9 @@ int main() {
   check_chromatic_wide();
   check_ring();
   check_onsets_off_the_scale();
+  check_struck_notes_off_the_scale();
+  check_let_go_rings_as_one_note();
+  check_noise_tail_is_in_the_key();
   check_range_and_tune();
   check_glow();
   check_clicks();

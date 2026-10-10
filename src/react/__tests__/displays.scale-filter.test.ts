@@ -1,6 +1,7 @@
-// The truth of the Scale Filter's display: its clock against the device's own
-// mask, worked out here a second time from the header, its handles against the
-// parameters they set, and its bars against the readings the device sends.
+// The truth of the Scale Filter's display: its octave against the device's own
+// mask, worked out here a second time from the header, its keys against the
+// notes the device lets through, its handles against the parameters they set,
+// and its bars against the readings the device sends.
 
 import { describe, expect, it } from 'vitest'
 
@@ -11,15 +12,19 @@ import {
   SCALE_FILTER_SCALES,
   scaleFilterBar,
   scaleFilterLayout,
+  scaleFilterLevel,
   scaleFilterNotes,
+  scaleFilterPlace,
   scaleFilterRange,
   scaleFilterReading,
-  scaleFilterY,
+  scaleFilterX,
+  type ScaleFilterLayout,
 } from '../components/displays/scale-filter'
 import { type DisplayHandle } from '../components/plate-display'
 import {
   drawDisplay,
   metersOf,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   testSignal,
@@ -119,22 +124,32 @@ function strokes(drawn: RecordingContext): Stroke[] {
   return found
 }
 
+/** The window beside four knobs, and the upright plate's. */
 const SIZES: readonly [number, number][] = [
   [128, 100],
   [204, 100],
 ]
+/** A strip, should the display ever be handed one: too low for three rows. */
+const LOW: readonly [number, number] = [224, 48]
 
-/** Where a gain at a pitch class should stand on the clock of a display so large. */
-function expected(
-  pitchClass: number,
-  gain: number,
-  size: readonly [number, number],
-): [number, number] {
-  const { cx, cy, foot, rim } = scaleFilterLayout({ width: size[0], height: size[1] })
+const layoutOf = (size: readonly [number, number]): ScaleFilterLayout =>
+  scaleFilterLayout({ width: size[0], height: size[1] })
+
+/** Where a pitch class should stand across an octave so wide: twelve semitones from half a semitone under C. */
+function acrossOf(pitchClass: number, layout: ScaleFilterLayout): number {
+  const place = ((((pitchClass + 0.5) % 12) + 12) % 12) - 0.5
+  return layout.comb.x + ((place + 0.5) * layout.comb.w) / 12
+}
+
+/** The pitch class that stands at an x. */
+function pitchAt(x: number, layout: ScaleFilterLayout): number {
+  return ((x - layout.comb.x) / layout.comb.w) * 12 - 0.5
+}
+
+/** Where a gain should stand down the octave: 0 dB at its top, -48 dB at its foot. */
+function downOf(gain: number, layout: ScaleFilterLayout): number {
   const db = 20 * Math.log10(Math.max(gain, 1e-9))
-  const radius = foot + (rim - foot) * Math.min(1, Math.max(0, 1 + db / 48))
-  const angle = ((-90 + 30 * pitchClass) * Math.PI) / 180
-  return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)]
+  return layout.comb.y + layout.comb.h * Math.min(1, Math.max(0, -db / 48))
 }
 
 function curves(now: Settings, size: readonly [number, number]): { heard: Stroke; mask?: Stroke } {
@@ -143,26 +158,40 @@ function curves(now: Settings, size: readonly [number, number]): { heard: Stroke
     width: size[0],
     height: size[1],
   })
-  const round = strokes(drawn).filter((stroke) => stroke.points.length === 481)
-  const heard = round.find((stroke) => stroke.width === 1.5)
+  const long = strokes(drawn).filter((stroke) => stroke.points.length > 400)
+  const heard = long.find((stroke) => stroke.width === 1.5 && !stroke.dashed)
   if (!heard) throw new Error('no curve was drawn')
-  return { heard, mask: round.find((stroke) => stroke.dashed) }
+  return { heard, mask: long.find((stroke) => stroke.dashed) }
 }
 
-/** The worst distance in pixels between a curve drawn round the clock and a gain worked out here. */
+/** The worst distance in pixels between a curve drawn across the octave and a gain worked out here. */
 function worst(
   stroke: Stroke,
   now: Settings,
   size: readonly [number, number],
   gain: (pitchClass: number, now: Settings) => number,
 ): number {
+  const layout = layoutOf(size)
   let most = 0
-  stroke.points.forEach(([x, y], i) => {
-    const pitchClass = now.root + now.tune / 100 + (i * 12) / 480
-    const [ex, ey] = expected(pitchClass, gain(pitchClass, now), size)
-    most = Math.max(most, Math.hypot(x - ex, y - ey))
-  })
+  for (const [x, y] of stroke.points) {
+    // The pitch is read back from the x, and falls a hair to either side of the one that was drawn:
+    // where a point stands just on the bell's cut-off (three Widths out, a step of 4e-6 in the gain)
+    // either side of it is right.
+    const pitch = pitchAt(x, layout)
+    const apart = [pitch - 1e-7, pitch, pitch + 1e-7].map((at) =>
+      Math.abs(y - downOf(gain(at, now), layout)),
+    )
+    most = Math.max(most, Math.min(...apart))
+  }
   return most
+}
+
+/** The point of a curve that stands at a pitch class. */
+function pointAt(stroke: Stroke, pitchClass: number, layout: ScaleFilterLayout): [number, number] {
+  const x = acrossOf(pitchClass, layout)
+  const found = stroke.points.find((point) => Math.abs(point[0] - x) < 1e-9)
+  if (!found) throw new Error(`no point of the curve stands at ${pitchClass}`)
+  return found
 }
 
 const SETTINGS: readonly Settings[] = [
@@ -173,6 +202,62 @@ const SETTINGS: readonly Settings[] = [
   { root: 2, scale: 9, chord: 2, width: 5, depth: 12, tune: 20, mix: 0.5 },
   { root: 7, scale: 2, chord: 3, width: 60, depth: 40, tune: 0, mix: 0.25 },
 ]
+
+describe('the scale filter display: where things stand', () => {
+  it('stacks the octave, its keys and the range inside the canvas, a key at least ten pixels wide', () => {
+    for (const size of SIZES) {
+      const { comb, keys, strip } = layoutOf(size)
+      expect(comb.x).toBe(4)
+      expect(comb.x + comb.w).toBe(size[0] - 4)
+      expect(comb.w / 12).toBeGreaterThanOrEqual(10)
+      // Room over the octave for the root's reach and its handle, and no row over the next.
+      expect(comb.y).toBeGreaterThanOrEqual(4 + 7)
+      expect(comb.h).toBeGreaterThanOrEqual(48)
+      expect(keys.y).toBeGreaterThanOrEqual(comb.y + comb.h + 2)
+      expect(keys.h).toBe(10)
+      expect([keys.x, keys.w]).toEqual([comb.x, comb.w])
+      expect(strip.y).toBeGreaterThanOrEqual(keys.y + keys.h + 3)
+      expect(strip.y + strip.h).toBe(size[1] - 4)
+      expect([strip.x, strip.w]).toEqual([comb.x, comb.w])
+    }
+  })
+
+  it('at the height of a strip puts the range beside the octave, and still letters the keys', () => {
+    const { comb, keys, strip } = layoutOf(LOW)
+    expect(comb.h).toBeGreaterThanOrEqual(20)
+    expect(comb.w / 12).toBeGreaterThanOrEqual(10)
+    expect(keys.y + keys.h).toBeLessThanOrEqual(LOW[1] - 4)
+    expect(strip.x).toBeGreaterThanOrEqual(comb.x + comb.w + 6)
+    expect(strip.x + strip.w).toBe(LOW[0] - 4)
+    expect(strip.y + strip.h).toBe(LOW[1] - 4)
+    const drawn = drawDisplay(display, params, { width: LOW[0], height: LOW[1] })
+    expect(drawn.words()).toEqual(['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+    const view = viewOf(display, params, { width: LOW[0], height: LOW[1] })
+    for (const handle of display.handles?.(view) ?? []) {
+      expect(handle.x).toBeGreaterThanOrEqual(4)
+      expect(handle.x).toBeLessThanOrEqual(LOW[0] - 4)
+      expect(handle.y).toBeGreaterThanOrEqual(4)
+      expect(handle.y).toBeLessThanOrEqual(LOW[1] - 4)
+    }
+  })
+
+  it('places a pitch class in the octave it draws, and a gain down it by its dB', () => {
+    const layout = layoutOf(SIZES[0])
+    for (const pitchClass of [0, 0.3, 11, 11.49, 11.5, 12, 14.25, -0.5, -0.51, -3]) {
+      expect(scaleFilterX(scaleFilterPlace(pitchClass), layout.comb)).toBeCloseTo(
+        acrossOf(pitchClass, layout),
+        9,
+      )
+      expect(scaleFilterPlace(pitchClass)).toBeGreaterThanOrEqual(-0.5)
+      expect(scaleFilterPlace(pitchClass)).toBeLessThan(11.5)
+    }
+    // C in the middle of the first key, B in the middle of the last.
+    expect(scaleFilterX(0, layout.comb)).toBeCloseTo(4 + 5, 9)
+    expect(scaleFilterX(11, layout.comb)).toBeCloseTo(4 + 115, 9)
+    for (const gain of [1, 0.5, 0.1, Math.pow(10, -48 / 20), 0.001, 0])
+      expect(scaleFilterLevel(gain, layout.comb)).toBeCloseTo(downOf(gain, layout), 9)
+  })
+})
 
 describe('the scale filter display: the mask', () => {
   it('has the scales and chords of the device', () => {
@@ -192,41 +277,60 @@ describe('the scale filter display: the mask', () => {
   })
 
   it('draws what is heard of every pitch, by the formula of the device', () => {
-    for (const size of SIZES)
+    for (const size of [...SIZES, LOW])
       for (const now of SETTINGS) {
+        const layout = layoutOf(size)
         const { heard, mask } = curves(now, size)
         expect(worst(heard, now, size, deviceHeard), JSON.stringify(now)).toBeLessThan(1e-6)
         expect(heard.colour).toBe(PLAIN_COLOURS.ink)
+        // From one edge of the octave to the other, left to right.
+        expect(heard.points[0][0]).toBeCloseTo(layout.comb.x, 9)
+        expect(heard.points[heard.points.length - 1][0]).toBeCloseTo(
+          layout.comb.x + layout.comb.w,
+          9,
+        )
+        for (let i = 1; i < heard.points.length; i++)
+          expect(heard.points[i][0]).toBeGreaterThanOrEqual(heard.points[i - 1][0])
+        // Every opening's top is a point of it, however narrow: none is stepped over.
+        const notes = deviceNotes(now.scale, now.chord)
+        for (let s = 0; s < 12; s++)
+          if (notes & (1 << s))
+            expect(pointAt(heard, now.root + s + now.tune / 100, layout)[1]).toBeCloseTo(
+              layout.comb.y,
+              6,
+            )
         // The device's own mask stands beside it only where Mix lets less than all of it out.
         expect(mask !== undefined, `the mask alone at mix ${now.mix}`).toBe(now.mix < 1)
         if (mask) expect(worst(mask, now, size, deviceMask)).toBeLessThan(1e-6)
       }
   })
 
-  it('stands at the rim on a note let through, 3 dB in at half a Width, and Depth down between', () => {
-    const size = SIZES[0]
-    const { foot, rim, cx, cy } = scaleFilterLayout({ width: size[0], height: size[1] })
+  it('stands at the top on a note let through, 3 dB down at half a Width, and Depth down between', () => {
+    const layout = layoutOf(SIZES[0])
+    const { comb } = layout
     const now: Settings = { ...DEFAULTS, root: 9, chord: 3, width: 40, depth: 36 }
-    const { heard } = curves(now, size)
-    const radius = (i: number): number =>
-      Math.hypot(heard.points[i][0] - cx, heard.points[i][1] - cy)
-    // Forty points to a semitone: the root, 20 cents from it, and the far side of the octave.
-    expect(radius(0)).toBeCloseTo(rim, 6)
+    const { heard } = curves(now, SIZES[0])
+    // A is the tenth key of twelve, ten pixels each.
+    const [x, y] = pointAt(heard, 9, layout)
+    expect(x).toBeCloseTo(4 + 95, 9)
+    expect(y).toBeCloseTo(comb.y, 9)
     const floor = Math.pow(10, -36 / 20)
     const half = floor + (1 - floor) * Math.exp(-K_BELL * 0.25)
     expect(20 * Math.log10(half)).toBeCloseTo(-2.95, 2)
-    expect(radius(8)).toBeCloseTo(rim + ((rim - foot) * 20 * Math.log10(half)) / 48, 6)
-    expect(radius(240)).toBeCloseTo(foot + (rim - foot) * (1 - 36 / 48), 6)
-    // The top of the root's opening points at A, nine semitones round from the top: at nine o'clock.
-    expect(heard.points[0][0]).toBeCloseTo(cx - rim, 6)
-    expect(heard.points[0][1]).toBeCloseTo(cy, 6)
+    for (const cents of [-20, 20])
+      expect(pointAt(heard, 9 + cents / 100, layout)[1]).toBeCloseTo(
+        comb.y - (comb.h * 20 * Math.log10(half)) / 48,
+        6,
+      )
+    // Six semitones off, on D#, only the floor is left.
+    expect(pointAt(heard, 3, layout)[1]).toBeCloseTo(comb.y + (comb.h * 36) / 48, 6)
   })
 
   it('still reads the device when Mix is 0, and draws nothing of it as heard', () => {
     const now: Settings = { ...DEFAULTS, mix: 0 }
     const { heard, mask } = curves(now, SIZES[0])
-    const { cx, cy, rim } = scaleFilterLayout({ width: 128, height: 100 })
-    for (const [x, y] of heard.points) expect(Math.hypot(x - cx, y - cy)).toBeCloseTo(rim, 6)
+    const { comb } = layoutOf(SIZES[0])
+    for (const [, y] of heard.points) expect(y).toBeCloseTo(comb.y, 6)
     expect(mask).toBeDefined()
     if (mask) expect(worst(mask, now, SIZES[0], deviceMask)).toBeLessThan(1e-6)
   })
@@ -235,30 +339,129 @@ describe('the scale filter display: the mask', () => {
     // exp(-1.3862944 x²) at two widths is 1/256.
     expect(20 * Math.log10(Math.exp(-K_BELL * 4))).toBeCloseTo(-48.16, 1)
     for (const size of SIZES) {
-      const { cx, cy, rim } = scaleFilterLayout({ width: size[0], height: size[1] })
+      const layout = layoutOf(size)
+      const { comb } = layout
+      const marks = (now: Settings): { root?: Stroke; reach?: Stroke } => {
+        const all = strokes(
+          drawDisplay(display, params, { values: { ...now }, width: size[0], height: size[1] }),
+        )
+        return {
+          root: all.find((stroke) => stroke.colour === PLAIN_COLOURS.accent && stroke.width === 2),
+          reach: all.find(
+            ({ points }) =>
+              points.length === 2 && points[0][1] === comb.y - 2.5 && points[1][1] === comb.y - 2.5,
+          ),
+        }
+      }
       const now: Settings = { ...DEFAULTS, root: 4, width: 45, tune: 25 }
-      const drawn = drawDisplay(display, params, {
-        values: { ...now },
-        width: size[0],
-        height: size[1],
-      })
-      const all = strokes(drawn)
-      const degrees = ([x, y]: [number, number]): number =>
-        (Math.atan2(y - cy, x - cx) * 180) / Math.PI
-      const at = -90 + 30 * (now.root + now.tune / 100)
-      const mark = all.find(
-        (stroke) => stroke.colour === PLAIN_COLOURS.accent && stroke.width === 2,
-      )
-      expect(mark, 'the root is marked in the accent').toBeDefined()
-      if (mark) expect(degrees(mark.points[0])).toBeCloseTo(at, 6)
-      const reach = all.find((stroke) => stroke.points.length === 49)
+      const at = acrossOf(4.25, layout)
+      const semitone = comb.w / 12
+      const { root, reach } = marks(now)
+      expect(root, 'the root is marked in the accent').toBeDefined()
+      // Over the octave's top, where its opening stands.
+      expect(root?.points).toEqual([
+        [at, comb.y - 5],
+        [at, comb.y],
+      ])
       expect(reach, 'the reach of the root is drawn').toBeDefined()
-      if (!reach) continue
-      for (const [x, y] of reach.points)
-        expect(Math.hypot(x - cx, y - cy)).toBeCloseTo(rim + 2.5, 6)
-      // Two Widths either side: 90 cents is 27 degrees.
-      expect(degrees(reach.points[0])).toBeCloseTo(at - 27, 6)
-      expect(degrees(reach.points[48])).toBeCloseTo(at + 27, 6)
+      // Two Widths either side: 90 cents.
+      expect(reach?.points[0][0]).toBeCloseTo(at - 0.9 * semitone, 9)
+      expect(reach?.points[1][0]).toBeCloseTo(at + 0.9 * semitone, 9)
+      // On B at the widest it runs to the octave's edge and no further.
+      const wide = marks({ ...DEFAULTS, root: 11, width: 200 }).reach
+      expect(wide?.points[0][0]).toBeCloseTo(acrossOf(11, layout) - 4 * semitone, 9)
+      expect(wide?.points[1][0]).toBeCloseTo(comb.x + comb.w, 9)
+    }
+  })
+})
+
+// --- The keyboard ------------------------------------------------------------
+
+interface Key {
+  x: number
+  w: number
+  h: number
+  colour: string
+  alpha: number
+}
+
+/** The keys as they were filled, left to right, and each letter with the colour it was written in. */
+function keysOf(
+  values: Record<string, number>,
+  size: readonly [number, number],
+): { keys: Key[]; letters: [string, string, number][] } {
+  const layout = layoutOf(size)
+  const drawn = drawDisplay(display, params, { values, width: size[0], height: size[1] })
+  const keys: Key[] = []
+  const letters: [string, string, number][] = []
+  let colour = ''
+  let alpha = 1
+  for (const call of drawn.calls) {
+    const args = call.args as number[]
+    if (call.name === 'set fillStyle') colour = String(call.args[0])
+    else if (call.name === 'set globalAlpha') alpha = args[0]
+    else if (call.name === 'fillRect' && args[1] === layout.keys.y && args[2] < layout.keys.w / 6)
+      keys.push({ x: args[0], w: args[2], h: args[3], colour, alpha })
+    else if (call.name === 'fillText') letters.push([String(call.args[0]), colour, args[1]])
+  }
+  return { keys, letters }
+}
+
+describe('the scale filter display: the keys', () => {
+  const NATURAL = [true, false, true, false, true, true, false, true, false, true, false, true]
+
+  it('draws an octave of keys from C under the octave, the sharps half as high', () => {
+    for (const size of [...SIZES, LOW]) {
+      const layout = layoutOf(size)
+      const { keys } = keysOf({}, size)
+      expect(keys.length).toBe(12)
+      const wide = layout.keys.w / 12
+      keys.forEach((key, n) => {
+        // Under its own semitone of the octave above, a pixel between two keys.
+        expect(key.x + key.w / 2).toBeCloseTo(acrossOf(n, layout), 9)
+        expect(key.w).toBeCloseTo(wide - 1, 9)
+        expect(key.h).toBe(NATURAL[n] ? 10 : 5)
+      })
+    }
+  })
+
+  it('lights the keys of the notes the device lets through, the root in the accent', () => {
+    for (let scale = 0; scale < K_SCALES.length; scale++)
+      for (let chord = 0; chord < 4; chord++)
+        for (const root of [0, 1, 9, 11]) {
+          const notes = deviceNotes(scale, chord)
+          const { keys, letters } = keysOf({ root, scale, chord }, SIZES[0])
+          const lettered: string[] = []
+          keys.forEach((key, n) => {
+            const open = (notes & (1 << ((n - root + 12) % 12))) !== 0
+            const what = `scale ${scale} chord ${chord} on ${root}: key ${n}`
+            if (open) {
+              expect(key.alpha, what).toBe(1)
+              expect(key.colour, what).toBe(n === root ? PLAIN_COLOURS.accent : PLAIN_COLOURS.ink)
+            } else {
+              // A key that is shut stands back, a sharp darker than a natural.
+              expect(key.colour, what).toBe(PLAIN_COLOURS.ink)
+              expect(key.alpha, what).toBe(NATURAL[n] ? 0.16 : 0.34)
+            }
+            // A natural has its letter: in the plate's colour on a lit key, in the ink on one that is not.
+            if (NATURAL[n]) lettered.push(open ? PLAIN_COLOURS.plate : PLAIN_COLOURS.ink)
+          })
+          expect(letters.map(([letter]) => letter)).toEqual(['C', 'D', 'E', 'F', 'G', 'A', 'B'])
+          expect(letters.map(([, colour]) => colour)).toEqual(lettered)
+        }
+    // A minor pentatonic: A C D E G are lit, and of the naturals F and B are not.
+    const { keys } = keysOf({ root: 9, scale: 8 }, SIZES[0])
+    expect(keys.map((key) => key.alpha === 1)).toEqual(
+      [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((n) => [0, 2, 4, 7, 9].includes(n)),
+    )
+  })
+
+  it('writes each letter in the middle of its key', () => {
+    for (const size of SIZES) {
+      const layout = layoutOf(size)
+      const { letters } = keysOf({}, size)
+      const naturals = [0, 2, 4, 5, 7, 9, 11]
+      letters.forEach(([, , x], i) => expect(x).toBeCloseTo(acrossOf(naturals[i], layout), 9))
     }
   })
 })
@@ -279,7 +482,11 @@ function handleOf(
 describe('the scale filter display: the handles', () => {
   // Each handle, the values it is tried at, and settings around it that move where it stands.
   const cases: [string, number[], Record<string, number>[]][] = [
-    ['width', [5, 12, 30, 80, 200], [{}, { root: 7, tune: -40 }, { scale: 10, depth: 0 }]],
+    [
+      'width',
+      [5, 12, 30, 80, 200],
+      [{}, { root: 7, tune: -40 }, { root: 11, tune: 50 }, { scale: 10, depth: 0 }],
+    ],
     ['depth', [0, 6, 18, 30, 48], [{}, { root: 3, scale: 8, tune: 30 }, { scale: 10, width: 100 }]],
     ['low', [20, 40, 180, 900, 2000], [{}, { high: 300 }]],
     ['high', [200, 440, 3000, 12000, 20000], [{}, { low: 2000 }]],
@@ -288,14 +495,14 @@ describe('the scale filter display: the handles', () => {
   it.each(cases)(
     '%s: dragged to where a value stands, it sets that value',
     (key, tried, around) => {
-      for (const size of SIZES)
+      for (const size of [...SIZES, LOW])
         for (const others of around)
           for (const value of tried) {
             const there = handleOf(key, { ...others, [key]: value }, size)
-            expect(there.x).toBeGreaterThanOrEqual(0)
-            expect(there.x).toBeLessThanOrEqual(size[0])
-            expect(there.y).toBeGreaterThanOrEqual(0)
-            expect(there.y).toBeLessThanOrEqual(size[1])
+            expect(there.x).toBeGreaterThanOrEqual(4)
+            expect(there.x).toBeLessThanOrEqual(size[0] - 4)
+            expect(there.y).toBeGreaterThanOrEqual(4)
+            expect(there.y).toBeLessThanOrEqual(size[1] - 4)
             // Taken from any other setting and carried there.
             for (const from of tried) {
               const set = handleOf(key, { ...others, [key]: from }, size).drag(there.x, there.y)
@@ -311,23 +518,42 @@ describe('the scale filter display: the handles', () => {
     for (const size of SIZES) {
       const low = handleOf(key, { [key]: spec.min }, size)
       const high = handleOf(key, { [key]: spec.max }, size)
-      expect(Math.hypot(high.x - low.x, high.y - low.y), `${key} at ${size[0]}`).toBeGreaterThan(26)
+      expect(Math.hypot(high.x - low.x, high.y - low.y), `${key} at ${size[0]}`).toBeGreaterThan(36)
       expect(low.reset?.()).toEqual({ [key]: spec.default })
     }
   })
 
-  it('width: stands two Widths round from the root, where its opening alone is 48 dB down', () => {
+  it('width: stands two Widths from the root over the top, on the side with room for the widest', () => {
     for (const size of SIZES) {
-      const { cx, cy, rim } = scaleFilterLayout({ width: size[0], height: size[1] })
+      const layout = layoutOf(size)
+      const semitone = layout.comb.w / 12
+      // The root at 9.15 semitones: 120 cents under it, the left being the side with room.
       const handle = handleOf('width', { root: 9, tune: 15, width: 60 }, size)
-      expect(Math.hypot(handle.x - cx, handle.y - cy)).toBeCloseTo(rim + 2.5, 6)
-      const degrees = (Math.atan2(handle.y - cy, handle.x - cx) * 180) / Math.PI
-      // The root at 9.15 semitones, and 120 cents on: 310.5 degrees round from the top.
-      expect(degrees).toBeCloseTo(-90 + 30 * (9.15 + 1.2) - 360, 6)
-      // The other way round from the root it sets the same, and the wheel moves it a tenth.
-      const mirrored = (2 * (-90 + 30 * 9.15) - degrees) * (Math.PI / 180)
-      const other = handle.drag(cx + 20 * Math.cos(mirrored), cy + 20 * Math.sin(mirrored))
-      expect(other.width).toBeCloseTo(60, 6)
+      expect(handle.y).toBe(layout.comb.y - 2.5)
+      expect(handle.x).toBeCloseTo(acrossOf(9.15, layout) - 1.2 * semitone, 9)
+      // From D it stands over it, and from either side of the root a place sets the same.
+      const other = handleOf('width', { root: 2, width: 60 }, size)
+      expect(other.x).toBeCloseTo(acrossOf(2, layout) + 1.2 * semitone, 9)
+      expect(other.drag(acrossOf(2, layout) - 1.2 * semitone, 50).width).toBeCloseTo(60, 6)
+      expect(other.drag(acrossOf(2, layout), 0).width).toBe(params.width.min)
+      expect(other.drag(size[0] + 300, 0).width).toBe(params.width.max)
+      // The side does not change as Width does, so a drag never throws the handle across the root.
+      for (let root = 0; root < 12; root++)
+        for (const tune of [-50, 0, 50]) {
+          const sides = [5, 30, 200].map(
+            (width) =>
+              handleOf('width', { root, tune, width }, size).x >=
+              acrossOf(root + tune / 100, layout),
+          )
+          expect(new Set(sides).size, `root ${root} tune ${tune}`).toBe(1)
+          // And the widest still stands inside the octave, where its own setting lies.
+          const widest = handleOf('width', { root, tune, width: 200 }, size)
+          expect(Math.abs(widest.x - acrossOf(root + tune / 100, layout))).toBeCloseTo(
+            4 * semitone,
+            9,
+          )
+        }
+      // The wheel moves it a tenth.
       expect(handle.wheel?.(1).width).toBeCloseTo(66, 6)
       expect(handle.wheel?.(-40).width).toBe(params.width.min)
     }
@@ -335,50 +561,57 @@ describe('the scale filter display: the handles', () => {
 
   it('depth: stands on the mask of the device in the widest gap, whatever Mix is', () => {
     for (const size of SIZES) {
+      const layout = layoutOf(size)
       // A minor pentatonic on D: D F G A C, its last widest gap from A to C, the middle a
       // semitone and a half over A, and Tune ten cents on.
       const now: Settings = { ...DEFAULTS, root: 2, scale: 8, width: 70, depth: 22, tune: 10 }
       const middle = 10.5 + 0.1
-      const [ex, ey] = expected(middle, deviceMask(middle, now), size)
       for (const mix of [1, 0.4, 0]) {
         const handle = handleOf('depth', { ...now, mix }, size)
-        expect(handle.x).toBeCloseTo(ex, 6)
-        expect(handle.y).toBeCloseTo(ey, 6)
+        expect(handle.x).toBeCloseTo(acrossOf(middle, layout), 6)
+        expect(handle.y).toBeCloseTo(downOf(deviceMask(middle, now), layout), 6)
       }
       // Where the openings run into each other the mask cannot go as low: the drag is solved with that.
       const wide: Settings = { ...DEFAULTS, scale: 10, width: 150, depth: 40 }
       const handle = handleOf('depth', { ...wide }, size)
-      const [wx, wy] = expected(11.5, deviceMask(11.5, wide), size)
-      expect(handle.x).toBeCloseTo(wx, 6)
-      expect(handle.y).toBeCloseTo(wy, 6)
+      expect(handle.x).toBeCloseTo(acrossOf(11.5, layout), 6)
+      expect(handle.y).toBeCloseTo(downOf(deviceMask(11.5, wide), layout), 6)
       expect(handle.drag(handle.x, handle.y).depth).toBeCloseTo(40, 6)
-      const { cx, cy } = scaleFilterLayout({ width: size[0], height: size[1] })
-      expect(handle.drag(cx, cy).depth).toBe(params.depth.max)
+      expect(handle.drag(handle.x, size[1] + 40).depth).toBe(params.depth.max)
+      // With one note an octave the whole height is Depth's: 0 dB at the top, 48 at the foot.
+      const alone: Settings = { ...DEFAULTS, chord: 3 }
+      const { comb } = layout
+      expect(handleOf('depth', { ...alone, depth: 0 }, size).y).toBeCloseTo(comb.y, 6)
+      expect(handleOf('depth', { ...alone, depth: 24 }, size).y).toBeCloseTo(comb.y + comb.h / 2, 6)
+      expect(handleOf('depth', { ...alone, depth: 48 }, size).y).toBeCloseTo(comb.y + comb.h, 6)
     }
   })
 
-  it('low and high: stand on their lines up the side, an octave every tenth of it', () => {
-    for (const size of SIZES) {
-      const { strip } = scaleFilterLayout({ width: size[0], height: size[1] })
-      expect(strip.x + strip.w).toBeLessThanOrEqual(size[0] - 3)
-      const y = (hz: number): number => strip.y + strip.h * (1 - Math.log(hz / 20) / Math.log(1000))
+  it('low and high: stand on their lines across the range, an octave every tenth of it', () => {
+    for (const size of [...SIZES, LOW]) {
+      const { strip } = layoutOf(size)
+      const x = (hz: number): number => strip.x + (strip.w * Math.log(hz / 20)) / Math.log(1000)
       for (const hz of [20, 55, 440, 2000]) {
-        expect(handleOf('low', { low: hz }, size).y).toBeCloseTo(y(hz), 6)
-        expect(scaleFilterY(hz, strip)).toBeCloseTo(y(hz), 9)
+        const handle = handleOf('low', { low: hz }, size)
+        expect(handle.x).toBeCloseTo(x(hz), 6)
+        expect(handle.y).toBeCloseTo(strip.y + strip.h * 0.7, 9)
       }
-      expect(handleOf('high', { high: 12000 }, size).y).toBeCloseTo(y(12000), 6)
+      const high = handleOf('high', { high: 12000 }, size)
+      expect(high.x).toBeCloseTo(x(12000), 6)
+      expect(high.y).toBeCloseTo(strip.y + strip.h * 0.3, 9)
       const values = { low: 110, high: 3520 }
       const drawn = drawDisplay(display, params, { values, width: size[0], height: size[1] })
-      const level = strokes(drawn).filter(
+      const upright = strokes(drawn).filter(
         ({ points }) =>
           points.length === 2 &&
-          points[0][1] === points[1][1] &&
-          Math.abs(points[1][0] - points[0][0] - strip.w) < 1e-6,
+          points[0][0] === points[1][0] &&
+          points[0][1] === strip.y &&
+          points[1][1] === strip.y + strip.h,
       )
-      // Lines one pixel wide lie on the middle of their row of pixels.
-      expect(level.map(({ points }) => points[0][1])).toEqual([
-        Math.floor(y(110)) + 0.5,
-        Math.floor(y(3520)) + 0.5,
+      // Lines one pixel wide lie on the middle of their column of pixels.
+      expect(upright.map(({ points }) => points[0][0])).toEqual([
+        Math.floor(x(110)) + 0.5,
+        Math.floor(x(3520)) + 0.5,
       ])
     }
   })
@@ -398,72 +631,77 @@ describe('the scale filter display: the notes and the range', () => {
     expect(scaleFilterReading(Number.NaN)).toEqual({ in: 0, out: 0 })
   })
 
-  it('draws each note as two bars on the scale of the clock, a dB a step', () => {
-    for (const size of SIZES) {
-      const layout = scaleFilterLayout({ width: size[0], height: size[1] })
-      const { cx, cy, foot, rim } = layout
-      // A comes in loudest and goes out whole; C# comes in 12 dB under it and goes out 30 dB down;
-      // F is only a tail: nothing comes in, and it rings 6 dB under the loudest.
-      const meters = {
-        ...metersOf(descriptor?.meters),
-        note10: packed(58, 58),
-        note2: packed(46, 16),
-        note6: packed(0, 52),
+  it('draws each note as two bars up from the foot of the octave, a dB a step, under its opening', () => {
+    for (const size of SIZES)
+      for (const tune of [0, 30, -50]) {
+        const layout = layoutOf(size)
+        const { comb } = layout
+        const foot = comb.y + comb.h
+        // A comes in loudest and goes out whole; C# comes in 12 dB under it and goes out 30 dB down;
+        // F is only a tail: nothing comes in, and it rings 6 dB under the loudest.
+        const meters = {
+          ...metersOf(descriptor?.meters),
+          note10: packed(58, 58),
+          note2: packed(46, 16),
+          note6: packed(0, 52),
+        }
+        const drawn = drawDisplay(display, params, {
+          meters,
+          values: { tune },
+          width: size[0],
+          height: size[1],
+        })
+        const bars = strokes(drawn).filter((stroke) => stroke.width === 3)
+        // The device reads a note where Tune has put it (`note_` in `update_mask`), and so does the bar.
+        const bar = (note: number, colour: string): number | undefined => {
+          const x = acrossOf(note + tune / 100, layout)
+          const found = bars.find(
+            ({ points, colour: drawnIn }) =>
+              drawnIn === colour &&
+              Math.abs(points[0][0] - x) < 1e-9 &&
+              Math.abs(points[1][0] - x) < 1e-9 &&
+              points[0][1] === foot,
+          )
+          return found?.points[1][1]
+        }
+        const down = (db: number): number => comb.y + (comb.h * db) / 48
+        expect(bars.length).toBe(5)
+        expect(bar(9, PLAIN_COLOURS.ink)).toBeCloseTo(comb.y, 6)
+        expect(bar(9, PLAIN_COLOURS.accent)).toBeCloseTo(comb.y, 6)
+        expect(bar(1, PLAIN_COLOURS.ink)).toBeCloseTo(down(12), 6)
+        expect(bar(1, PLAIN_COLOURS.accent)).toBeCloseTo(down(42), 6)
+        expect(bar(5, PLAIN_COLOURS.ink)).toBeUndefined()
+        expect(bar(5, PLAIN_COLOURS.accent)).toBeCloseTo(down(6), 6)
+        expect(scaleFilterBar(46, 58, comb)).toBeCloseTo(down(12), 9)
+        // Switched off it shows the mask and no notes.
+        const off = drawDisplay(display, params, { meters, powered: false })
+        expect(strokes(off).filter((stroke) => stroke.width === 3)).toEqual([])
       }
-      const drawn = drawDisplay(display, params, { meters, width: size[0], height: size[1] })
-      const bars = strokes(drawn).filter((stroke) => stroke.width === 3)
-      const bar = (note: number, colour: string): number | undefined => {
-        const angle = ((-90 + 30 * note) * Math.PI) / 180
-        const found = bars.find(
-          ({ points, colour: drawnIn }) =>
-            drawnIn === colour &&
-            Math.abs(points[0][0] - (cx + foot * Math.cos(angle))) < 1e-6 &&
-            Math.abs(points[0][1] - (cy + foot * Math.sin(angle))) < 1e-6,
-        )
-        if (!found) return undefined
-        const [x, y] = found.points[1]
-        // Along the note's own line from the centre.
-        expect(Math.atan2(y - cy, x - cx)).toBeCloseTo(
-          Math.atan2(Math.sin(angle), Math.cos(angle)),
-          6,
-        )
-        return Math.hypot(x - cx, y - cy)
-      }
-      const down = (db: number): number => rim - ((rim - foot) * db) / 48
-      expect(bars.length).toBe(5)
-      expect(bar(9, PLAIN_COLOURS.ink)).toBeCloseTo(rim, 6)
-      expect(bar(9, PLAIN_COLOURS.accent)).toBeCloseTo(rim, 6)
-      expect(bar(1, PLAIN_COLOURS.ink)).toBeCloseTo(down(12), 6)
-      expect(bar(1, PLAIN_COLOURS.accent)).toBeCloseTo(down(42), 6)
-      expect(bar(5, PLAIN_COLOURS.ink)).toBeUndefined()
-      expect(bar(5, PLAIN_COLOURS.accent)).toBeCloseTo(down(6), 6)
-      expect(scaleFilterBar(46, 58, layout)).toBeCloseTo(down(12), 9)
-      // Switched off it shows the mask and no notes.
-      const off = drawDisplay(display, params, { meters, powered: false })
-      expect(strokes(off).filter((stroke) => stroke.width === 3)).toEqual([])
-    }
   })
 
   it('reads the bars against the loudest note of late: up at once, down slowly, held in silence', () => {
-    const { foot, rim, cx, cy } = scaleFilterLayout({ width: 128, height: 100 })
+    const { comb } = layoutOf(SIZES[0])
     const state = display.init?.()
     const quiet = metersOf(descriptor?.meters)
-    const longest = (meters: Record<string, number>, seconds: number): number => {
+    /** The top of the tallest bar, or nothing when none is drawn. */
+    const tallest = (meters: Record<string, number>, seconds: number): number | undefined => {
       const drawn = runDisplay(display, params, seconds, { meters, state })
-      const reach = strokes(drawn)
+      const tops = strokes(drawn)
         .filter((stroke) => stroke.width === 3)
-        .map(({ points }) => Math.hypot(points[1][0] - cx, points[1][1] - cy))
-      return reach.length ? Math.max(...reach) : 0
+        .map(({ points }) => points[1][1])
+      return tops.length ? Math.min(...tops) : undefined
     }
-    expect(longest({ ...quiet, note1: packed(40, 40) }, 0.1)).toBeCloseTo(rim, 6)
-    // A note 15 dB louder is at the rim on its first frame.
-    expect(longest({ ...quiet, note1: packed(55, 55) }, 1 / 30)).toBeCloseTo(rim, 6)
-    // Ten seconds of nothing, and a note 24 dB under still stands 24 dB in: the scale was held.
-    expect(longest(quiet, 10)).toBe(0)
-    const after = longest({ ...quiet, note1: packed(31, 31) }, 1 / 30)
-    expect(after).toBeCloseTo(rim - (rim - foot) * 0.5, 6)
+    expect(tallest({ ...quiet, note1: packed(40, 40) }, 0.1)).toBeCloseTo(comb.y, 6)
+    // A note 15 dB louder is at the top on its first frame.
+    expect(tallest({ ...quiet, note1: packed(55, 55) }, 1 / 30)).toBeCloseTo(comb.y, 6)
+    // Ten seconds of nothing, and a note 24 dB under still stands 24 dB down: the scale was held.
+    expect(tallest(quiet, 10)).toBeUndefined()
+    expect(tallest({ ...quiet, note1: packed(31, 31) }, 1 / 30)).toBeCloseTo(
+      comb.y + comb.h * 0.5,
+      6,
+    )
     // Left there, the scale comes down to it.
-    expect(longest({ ...quiet, note1: packed(31, 31) }, 30)).toBeGreaterThan(rim - 0.1)
+    expect(tallest({ ...quiet, note1: packed(31, 31) }, 30)).toBeLessThan(comb.y + 0.1)
   })
 
   it('shades what lies outside Low and High from where the range of the device is half open', () => {
@@ -477,50 +715,61 @@ describe('the scale filter display: the notes and the range', () => {
     expect(scaleFilterRange(110 * semitones(-0.25), range)).toBeCloseTo(0.75 * 0.75 * 1.5, 9)
     expect(scaleFilterRange(110 * semitones(-1), range)).toBeCloseTo(0, 9)
     expect(scaleFilterRange(3520 * semitones(1), range)).toBeCloseTo(0, 9)
-    for (const size of SIZES) {
-      const { strip } = scaleFilterLayout({ width: size[0], height: size[1] })
+    for (const size of [...SIZES, LOW]) {
+      const { strip } = layoutOf(size)
+      const x = (hz: number): number => strip.x + (strip.w * Math.log(hz / 20)) / Math.log(1000)
       const shades = (
         values: Record<string, number>,
-      ): { y: number; h: number; alpha: number }[] => {
+      ): { x: number; w: number; alpha: number }[] => {
         const drawn = drawDisplay(display, params, { values, width: size[0], height: size[1] })
-        const found: { y: number; h: number; alpha: number }[] = []
+        const found: { x: number; w: number; alpha: number }[] = []
         let alpha = 1
         for (const call of drawn.calls) {
           const args = call.args as number[]
           if (call.name === 'set globalAlpha') alpha = args[0]
-          if (call.name === 'fillRect' && args[0] === strip.x && args[2] === strip.w)
-            found.push({ y: args[1], h: args[3], alpha })
+          if (call.name === 'fillRect' && args[1] === strip.y && args[3] === strip.h)
+            found.push({ x: args[0], w: args[2], alpha })
         }
         return found
       }
       const [under, over] = shades({ low: 110, high: 3520 })
-      expect(under.y).toBeCloseTo(scaleFilterY(110 * semitones(-0.5), strip), 9)
-      expect(under.y + under.h).toBeCloseTo(strip.y + strip.h, 9)
-      expect(over.y).toBeCloseTo(strip.y, 9)
-      expect(over.y + over.h).toBeCloseTo(scaleFilterY(3520 * semitones(0.5), strip), 9)
+      expect(under.x).toBe(strip.x)
+      expect(under.x + under.w).toBeCloseTo(x(110 * semitones(-0.5)), 9)
+      expect(over.x).toBeCloseTo(x(3520 * semitones(0.5)), 9)
+      expect(over.x + over.w).toBeCloseTo(strip.x + strip.w, 9)
       // As strong as what is lost there: nothing at Depth 0 or with Mix at 0.
       expect(shades({ low: 110, high: 3520, depth: 0 })).toEqual([])
       expect(shades({ low: 110, high: 3520, mix: 0 })).toEqual([])
       expect(shades({ low: 110, high: 3520, mix: 0.5 })[0].alpha).toBeCloseTo(under.alpha / 2, 9)
       // Low over High: nothing is open, and the whole of it is shaded once.
       expect(shades({ low: 2000, high: 200 })).toEqual([
-        { y: strip.y, h: strip.h, alpha: under.alpha },
+        { x: strip.x, w: strip.w, alpha: under.alpha },
       ])
     }
   })
 
-  it('shows the spectrum of what comes out, and says the root or the value in hand', () => {
+  it('shows the spectrum of what comes out, and says the value in hand on a patch', () => {
     const meters = metersOf(descriptor?.meters)
+    const letters = ['C', 'D', 'E', 'F', 'G', 'A', 'B']
     const still = drawDisplay(display, params, { meters })
     const running = drawDisplay(display, params, { meters, signal: testSignal() })
-    expect(running.marks()).toBe(still.marks() + 2)
-    expect(still.words()).toEqual(['C'])
-    expect(drawDisplay(display, params, { values: { root: 10 } }).words()).toEqual(['A#'])
-    const said = (hot: string, values: Record<string, number> = {}): string[] =>
-      drawDisplay(display, params, { values, hot }).words()
-    expect(said('width')).toEqual(['30 ct'])
-    expect(said('depth', { depth: 41.6 })).toEqual(['42 dB'])
-    expect(said('low')).toEqual(['40 Hz'])
-    expect(said('high')).toEqual(['12 kHz'])
+    expect(running.marks()).toBe(still.marks() + 1)
+    // Switched off the spectrum is not drawn.
+    const off = drawDisplay(display, params, { meters, signal: testSignal(), powered: false })
+    expect(off.marks()).toBe(still.marks())
+    expect(still.words()).toEqual(letters)
+    const said = (hot: string, values: Record<string, number> = {}): string => {
+      const drawn = drawDisplay(display, params, { values, hot })
+      const words = drawn.words()
+      expect(words.slice(0, 7)).toEqual(letters)
+      expect(words.length).toBe(8)
+      // Over the curve and the bars, so on a patch of the plate.
+      expect(patchUnder(drawn, words[7], PLAIN_COLOURS.plate)).not.toBeNull()
+      return words[7]
+    }
+    expect(said('width')).toBe('30 ct')
+    expect(said('depth', { depth: 41.6 })).toBe('42 dB')
+    expect(said('low')).toBe('40 Hz')
+    expect(said('high')).toBe('12 kHz')
   })
 })
