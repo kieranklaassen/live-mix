@@ -5,17 +5,21 @@
 //
 //   in ─► air (2 poles) ─┬─► line L, R ─► read at the travel time ─► narrow (mid/side) ─► × direct ──────┐
 //                        │                                                                               │
-//                        ├─► line L, R ─► read a wall's lag later ─► low cut ─► 4 allpasses ─► 8-line ───┤
-//                        │                                                     FDN (the diffuse room)    ▼
+//                        ├─► line L, R ─► read a wall's lag later ─► low cut ─► 4 allpasses a side ──────┤
+//                        │                 ─► the diffuse room: one allpass loop a side                  ▼
 //                        └─► line M ────► 8 reads: the first reflections, each panned and scaled ──────► out
 //
 // - The place of the source is a number p from 0 (close) to 1 (far), and its
 //   distance is d = 32^p metres: 1 m at 0 and 32 m at 1, a doubling for every
 //   fifth of the control. Everything below is a function of d.
-// - Level: the direct sound falls as 1/d, 6 dB for each doubling. What tames
-//   it is the room: its share of the sound is 1 - 1/d, none at 1 m (the source
-//   is at the ear) and nearly all of it far away, so the sound sinks into the
-//   room instead of into silence.
+// - Level: against the room the direct sound falls as 1/d, 6 dB for each
+//   doubling. What tames it is the room: its share of the sound is 1 - 1/d,
+//   none at 1 m (the source is at the ear) and nearly all of it far away, so
+//   the sound sinks into the room instead of into silence. A room is as loud
+//   at its back as at its front, so that alone would stop getting quieter a
+//   few metres out: on top of it the whole (direct sound, reflections and
+//   room alike) falls as d^-0.35, 2 dB for each doubling, about what a hall
+//   loses towards its back. Farther is always quieter.
 // - Time: the sound arrives (d - 1) / 343 seconds late, up to 90 ms. The
 //   delay is real, so a source that moves is bent in pitch by its speed
 //   (Doppler). Doppler scales the travel time, and with it the bend.
@@ -34,10 +38,24 @@
 //   is as late as its path is longer than the direct one, as loud as 1 / path
 //   times what its walls keep, and comes from where its image stands, so as
 //   the source recedes they close up on the direct sound in time, in level
-//   and in angle. After the first side wall's lag the diffuse room begins: an
-//   eight-line feedback delay network (Hadamard matrix, four allpass
-//   diffusers a side in front, lines that grow with the room), whose level
-//   holds still while the direct sound falls. Decay is how long it rings.
+//   and in angle. After the first side wall's lag the diffuse room begins.
+// - The diffuse room is, a side, four allpass diffusers and then one allpass
+//   whose delay is itself a short delay and eight allpasses in a row (a
+//   nested allpass). It loses nothing and adds nothing: every frequency
+//   comes out as loud as it went in, so a held note is as loud at one pitch
+//   as at the next, which a network of delay lines with a gain in each (the
+//   usual late reverb, and what this device first had) is not: there a held
+//   note that falls on one of the room's modes stands 5 to 14 dB over the
+//   others. The loop is as long as sound takes to cross the room three
+//   times; Decay sets how much of the sound leaves it on each round,
+//   g = 10^(-3 · loop / Decay), so it rings for Decay. What does not go
+//   round (g² of the power: a seventh at the defaults, more when a small
+//   room is asked to ring long) comes out at once, through the diffusers,
+//   as the room's first answer. The highs go round a little less than the
+//   rest, by a gain that depends on frequency but not on phase (three taps
+//   with their middle on the loop), so they ring shorter and the whole is
+//   still exactly flat. The two sides have loops of different lengths: the
+//   same level on both, a different phase.
 //   Nothing in the room moves by itself: with Wander at 0 the whole device
 //   is a fixed filter, and a held note keeps its level.
 // - Level: 0 leaves the drop in loudness that distance makes; 1 lifts the
@@ -61,8 +79,8 @@
 //   and the output is the input, sample for sample.
 // - Storage (sized for 96 kHz): two lines of 32768 samples (travel time plus
 //   the lag of the room), one of 65536 (travel time plus the latest
-//   reflection, 331 ms), eight of 16384 for the network and eight allpasses
-//   of 2048: about 1.1 MB.
+//   reflection, 331 ms), eighteen of 8192 for the two loops and eight
+//   allpasses of 2048: about 1.2 MB.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -81,7 +99,6 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   static constexpr float kGlideSeconds = 0.15f;
   static constexpr float kMostBend = 0.45f;
   static constexpr int kTaps = 8;
-  static constexpr int kLines = 8;
   static constexpr int kPeriod = 32;
   static constexpr float kNarrowestRoom = 4.0f;
   static constexpr float kEarHeight = 1.5f;
@@ -89,6 +106,24 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   // small live room to a large hall.
   static constexpr float kRoomLevelSmall = 0.5f;
   static constexpr float kRoomLevelLarge = 0.25f;
+  // How the whole falls with distance, on top of the direct sound's 1/d
+  // against the room: d to the power of minus this.
+  static constexpr float kFall = 0.35f;
+  // The diffuse room: a loop a side, of a short delay and kInner allpasses,
+  // as long as sound takes to cross the room so many times.
+  static constexpr int kInner = 8;
+  static constexpr float kLoopCrossings = 3.0f;
+  static constexpr float kInnerGain = 0.5f;
+  // The loop is never longer than this much of Decay: a room cannot be asked
+  // to ring shorter than sound takes to go round it, so a short Decay makes
+  // a large room smaller.
+  static constexpr float kLoopOfDecay = 0.4f;
+  // What goes to the room is cut below kSendCutHz. Of pink noise that
+  // leaves 0.751 of the power (the integral of f² / (f² + cut²) over the
+  // octaves from 20 Hz to 20 kHz), and the room is made up by the root of
+  // it: its level is its level with music in it, not with a test tone.
+  static constexpr float kSendCutHz = 110.0f;
+  static constexpr float kSendMakeup = 1.1539f;
   // The walk: three sines at these multiples of Rate, weighted so.
   static constexpr float kWalkRatio[3] = {1.0f, 0.6180340f, 1.7320508f};
   static constexpr float kWalkWeight[3] = {0.5f, 0.3f, 0.2f};
@@ -103,6 +138,15 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   static constexpr float kImageKeeps[kTaps] = {0.35f, 0.7f, 0.7f, 0.7f, 0.49f, 0.245f, 0.49f, 0.343f};
   static constexpr float kCeilingBase = 2.4f;
   static constexpr float kCeilingSlope = 0.3f;
+  // The time sound takes to cross the room, as the loop counts it: this, and
+  // so much of the width over the speed of sound, so the smallest room still
+  // is a room and not a pipe (39 ms to 117 ms).
+  static constexpr float kShortestCrossing = 0.03f;
+  static constexpr float kCrossingShare = 0.75f;
+  // The room rings for Decay with this in the exponent of the round gain:
+  // the allpasses inside the loop hold the sound longer than their delays
+  // are (measured, see the harness).
+  static constexpr float kDecayTrim = 1.25f;
 
   void init(float sample_rate) {
     using namespace distance;
@@ -123,10 +167,10 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
       }
     }
     early_.clear();
-    for (int n = 0; n < kLines; ++n) {
-      line_[n].clear();
-      damp_[n].reset();
-      line_gain_[n] = 0.0f;
+    for (int c = 0; c < 2; ++c) {
+      bulk_[c].clear();
+      for (int k = 0; k < kInner; ++k) inner_[c][k].clear();
+      for (int n = 0; n < 4; ++n) loop_past_[c][n] = 0.0f;
     }
     for (int n = 0; n < 3; ++n) {
       walk_[n] = FreePhase();
@@ -180,6 +224,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
       return;
     }
     if (was_asleep) wake();
+    float ringing = 0.0f;
     for (int i = 0; i < frames; ++i) {
       if ((clock_ & (kPeriod - 1)) == 0) tick();
       ++clock_;
@@ -223,40 +268,70 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
         room_right += tap * tap_right_[k].next();
       }
 
-      // The diffuse room, from when the first side wall answers.
+      // The diffuse room, from when the first side wall answers. It is sent
+      // each side as it came in, not narrowed: a room is all round the
+      // listener however far off the source is, and so each side of it is
+      // as loud as that side of the input whatever the two have in common.
       send_lag_.value += send_lag_.step;
-      float send[2];
+      const float send[2] = {
+          send_cut_[0].highpass(read_linear(travel_[0], delay + send_lag_.value)),
+          send_cut_[1].highpass(read_linear(travel_[1], delay + send_lag_.value))};
+      const float round = loop_gain_.next();
+      const float tilt = loop_tilt_.next();
+      const float late = late_.next();
       for (int c = 0; c < 2; ++c) {
-        float x = send_cut_[c].highpass(read_linear(travel_[c], delay + send_lag_.value));
+        float x = send[c];
         for (int a = 0; a < kDiffusers; ++a) {
           x = diffuser_[c][a].process(x, diffuser_length_[c][a], kDiffusion);
         }
-        send[c] = 0.5f * x;
-      }
-      float v[kLines];
-      for (int n = 0; n < kLines; ++n) {
-        line_length_[n].value += line_length_[n].step;
-        v[n] = read_before(line_[n], line_length_[n].value);
-      }
-      const float late = late_.next();
-      room_left += late * (v[0] - v[2] + v[4] - v[6]);
-      room_right += late * (v[1] - v[3] + v[5] - v[7]);
-      for (int n = 0; n < kLines; ++n) v[n] = damp_[n].lowpass(v[n]) * line_gain_[n];
-      kit::hadamard<kLines>(v);
-      for (int n = 0; n < kLines; ++n) {
-        line_[n].write(flush_denormal(v[n] + ((n & 2) ? -send[n & 1] : send[n & 1])));
+        // The loop's delay: a short line and the allpasses in a row, fed by
+        // what went into the loop up to the sample before this one.
+        bulk_length_[c].value += bulk_length_[c].step;
+        float u = read_before(bulk_[c], bulk_length_[c].value);
+        for (int k = 0; k < kInner; ++k) {
+          inner_length_[c][k].value += inner_length_[c][k].step;
+          const float delayed = read_before(inner_[c][k], inner_length_[c][k].value);
+          const float into = flush_denormal(u + kInnerGain * delayed);
+          inner_[c][k].write(into);
+          u = delayed - kInnerGain * into;
+        }
+        // One allpass round all of it, y = (S - g F) x / (1 - g F S'), with
+        // S' the delay above and S the same two samples later. F is three
+        // taps, a, 1 - 2a, a: one sample of delay and a gain that only
+        // depends on frequency, so g F is a round gain that falls towards
+        // the top and the whole is still an allpass.
+        float* past = loop_past_[c];  // u[n-1], u[n-2], w[n-1], w[n-2]
+        const float into_loop = flush_denormal(
+            x + round * (tilt * (u + past[1]) + (1.0f - 2.0f * tilt) * past[0]));
+        bulk_[c].write(into_loop);
+        const float out = past[1] - round * (tilt * (into_loop + past[3]) +
+                                             (1.0f - 2.0f * tilt) * past[2]);
+        past[1] = past[0];
+        past[0] = u;
+        past[3] = past[2];
+        past[2] = into_loop;
+        ringing = kit::max(ringing, std::fabs(out));
+        if (c == 0) {
+          room_left += late * out;
+        } else {
+          room_right += late * out;
+        }
       }
 
-      // The room is exact up to ±1 and lands on ±2: a long Decay fed a held
-      // note on one of its modes cannot run away. The direct sound is never
-      // louder than it came in.
+      // The room is exact up to ±1 and lands on ±2: nothing that comes in
+      // hot can go out hotter than that. The direct sound is never louder
+      // than it came in.
       out_left_[i] = same * direct_left + cross * direct_right +
                      2.0f * kit::soft_clip(0.5f * room_left);
       out_right_[i] = same * direct_right + cross * direct_left +
                       2.0f * kit::soft_clip(0.5f * room_right);
     }
     bend_ = 1.0f - static_cast<float>(delay_.step);
-    idle_.settle(output_peak(frames), frames);
+    // Asleep only once the room has rung out, heard or not: close by, where
+    // the room has no share, it is still ringing, and a room put to sleep
+    // while it rang would be heard later, from wherever the block size
+    // happened to stop it.
+    idle_.settle(kit::max(output_peak(frames), ringing), frames);
   }
 
   // --- The model, as plain functions of the place: the harness and the
@@ -308,8 +383,30 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     *keeps = kImageKeeps[k];
   }
 
-  // The make-up the whole takes at Level 1: one over the root of the power
-  // of the direct sound, the reflections and the room at a place.
+  // What the whole loses to the distance, as a gain.
+  static float fall(float place) { return std::exp2(-kFall * kOctaves * place); }
+
+  // The level of the diffuse room at a place before the fall: its level and
+  // its share. The room itself is an allpass, so this is all there is to
+  // how loud it is.
+  static float late_gain(float place, float room) {
+    return room_level(room) * (1.0f - 1.0f / metres(place));
+  }
+
+  // How long the room's loop is, seconds.
+  static float loop_seconds(float room, float decay) {
+    const float crossing = kShortestCrossing + kCrossingShare * room_width(room) / kSoundSpeed;
+    return kit::min(kLoopCrossings * crossing, kLoopOfDecay * decay);
+  }
+
+  // What comes back from one round of the loop.
+  static float round_gain(float room, float decay) {
+    return std::pow(10.0f, -3.0f * kDecayTrim * loop_seconds(room, decay) / decay);
+  }
+
+  // The make-up the model takes at Level 1: one over the root of the power
+  // of the direct sound, the reflections and the room at a place. Level L
+  // gives the whole hold^L · fall^(1 - L).
   static float hold_gain(float place, float room, float air) {
     const float d = metres(place);
     const float direct = 1.0f / d;
@@ -321,7 +418,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
       const float gain = share * keeps / std::sqrt(d * d + across * across + up * up);
       early += gain * gain;
     }
-    const float late = room_level(room) * share;
+    const float late = late_gain(place, room);
     return 1.0f / std::sqrt(air_kept(air_corner(air, d)) *
                             (direct * direct + kEarlyPower * early + late * late));
   }
@@ -329,7 +426,7 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
  private:
   static constexpr int kTravelSize = 32768;
   static constexpr int kEarlySize = 65536;
-  static constexpr int kLineSize = 16384;
+  static constexpr int kLoopSize = 8192;
   static constexpr int kDiffuserSize = 2048;
   static constexpr int kDiffusers = 4;
   // The longest reads, in samples, whatever the sample rate.
@@ -337,29 +434,22 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   static constexpr float kMostSendLag = 0.5f * kTravelSize - 8.0f;
   static constexpr float kMostTapLag = kEarlySize - 0.45f * kTravelSize - 8.0f;
   static constexpr float kInputLimit = 16.0f;
-  static constexpr float kSendCutHz = 110.0f;
   static constexpr float kDiffusion = 0.6f;
   static constexpr float kDiffuserSeconds[2][kDiffusers] = {
       {0.00431f, 0.00673f, 0.01031f, 0.01511f}, {0.00487f, 0.00727f, 0.01129f, 0.01669f}};
-  // The network's lines as shares of the time sound takes to cross the room.
-  static constexpr float kLineRatio[kLines] = {0.353f, 0.431f, 0.517f, 0.593f,
-                                               0.677f, 0.769f, 0.871f, 1.0f};
-  // The longest line: this, and so much of the time sound takes to cross
-  // the room, so the smallest room still has enough modes to be a room and
-  // not a pipe (39 ms to 117 ms).
-  static constexpr float kShortestCrossing = 0.03f;
-  static constexpr float kCrossingShare = 0.75f;
-    // How long the room's highs ring against the rest of it: from Air 0 down
-  // to Air 1.
-  static constexpr float kRingOpen = 0.75f;
-  static constexpr float kRingClosed = 0.2f;
-  // The heaviest a line's absorbing pole gets: a long line that is to die in
-  // one pass is not made a rumble.
-  static constexpr float kMostDamping = 0.8f;
-  // What trims the network's steady output to the strength of its input
-  // (measured with pink noise, see the harness), and how much of the
-  // reflections' summed power a side hears.
-  static constexpr float kLatePower = 1.33f;
+  // The loop, a side: how much of it is the plain delay, and how the rest
+  // is shared among the allpasses. No two lengths are a simple ratio, and
+  // the two sides share none.
+  static constexpr float kBulkShare[2] = {0.1f, 0.115f};
+  static constexpr float kInnerRatio[2][kInner] = {
+      {1.0f, 0.871f, 0.769f, 0.677f, 0.593f, 0.517f, 0.431f, 0.353f},
+      {0.953f, 0.907f, 0.733f, 0.701f, 0.571f, 0.541f, 0.409f, 0.371f}};
+  // How much less of the highs goes round the loop than of the rest: the
+  // outer taps of the three, at 48 kHz, from Air 0 to Air 1. At 10 kHz that
+  // is 3 % and 9 % less each round.
+  static constexpr float kTiltOpen = 0.02f;
+  static constexpr float kTiltClosed = 0.0625f;
+  // How much of the reflections' summed power a side hears.
   static constexpr float kEarlyPower = 0.5f;
 
   // A value on its way to where it is aimed, in a straight line between two
@@ -394,6 +484,13 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     void aim(double to) {
       target = to;
       step = (to - value) * (1.0 / kPeriod);
+    }
+    // The same, but never faster than `most` samples a sample: it gets
+    // there over as many periods as that takes.
+    void aim_within(double to, double most) {
+      aim(to);
+      if (step > most) step = most;
+      if (step < -most) step = -most;
     }
   };
   // Two poles, one after the other: a knob that was moved arrives without a
@@ -622,6 +719,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     same_.land();
     cross_.land();
     late_.land();
+    loop_gain_.land();
+    loop_tilt_.land();
     for (int k = 0; k < kTaps; ++k) {
       tap_left_[k].land();
       tap_right_[k].land();
@@ -633,7 +732,10 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     delay_.land();
     send_lag_.land();
     for (int k = 0; k < kTaps; ++k) tap_lag_[k].land();
-    for (int n = 0; n < kLines; ++n) line_length_[n].land();
+    for (int c = 0; c < 2; ++c) {
+      bulk_length_[c].land();
+      for (int k = 0; k < kInner; ++k) inner_length_[c][k].land();
+    }
   }
 
   void advance(float samples) {
@@ -641,6 +743,8 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     same_.value += same_.step * samples;
     cross_.value += cross_.step * samples;
     late_.value += late_.step * samples;
+    loop_gain_.value += loop_gain_.step * samples;
+    loop_tilt_.value += loop_tilt_.step * samples;
     for (int k = 0; k < kTaps; ++k) {
       tap_left_[k].value += tap_left_[k].step * samples;
       tap_right_[k].value += tap_right_[k].step * samples;
@@ -648,7 +752,12 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
     }
     delay_.value += delay_.step * samples;
     send_lag_.value += send_lag_.step * samples;
-    for (int n = 0; n < kLines; ++n) line_length_[n].value += line_length_[n].step * samples;
+    for (int c = 0; c < 2; ++c) {
+      bulk_length_[c].value += bulk_length_[c].step * samples;
+      for (int k = 0; k < kInner; ++k) {
+        inner_length_[c][k].value += inner_length_[c][k].step * samples;
+      }
+    }
   }
 
   // Aim everything at what the model says for the time `at`.
@@ -702,42 +811,45 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
       if (k == 3) send_lag_.aim(tap_lag_[k].target);
     }
 
-    // The diffuse room.
-    const float level = room_level(room);
-    const float late = level * share;
-    const float crossing = (kShortestCrossing + kCrossingShare * room_width(room) / kSoundSpeed) * sr;
+    // The diffuse room: its level, how long its loop is and what comes back
+    // from a round of it.
+    const float late = late_gain(place, room);
     const float decay = decay_.value;
-    const float ring = kRingOpen * std::pow(kRingClosed / kRingOpen, air);
-    for (int n = 0; n < kLines; ++n) {
+    const float loop = loop_seconds(room, decay) * sr;
+    loop_gain_.aim(round_gain(room, decay));
+    const float per_rate = sr * (1.0f / 48000.0f);
+    loop_tilt_.aim(
+        kit::min(0.25f, (kTiltOpen + (kTiltClosed - kTiltOpen) * air) * per_rate * per_rate));
+    for (int c = 0; c < 2; ++c) {
       // Whole samples: at rest a line is read where a sample is stored, and
       // loses nothing between two of them.
-      const float length =
-          kit::clamp(std::floor(kLineRatio[n] * crossing + 0.5f), 8.0f, kLineSize - 8.0f);
-      line_gain_[n] = std::exp(-6.9077553f * length / (decay * sr));
-      line_length_[n].aim(static_cast<double>(length));
+      // A loop that is made longer or shorter (Decay turned in a large
+      // room, or Room itself) is read a quarter faster or slower at most
+      // while it changes, never backwards and never in a jump.
+      bulk_length_[c].aim_within(
+          static_cast<double>(
+              kit::clamp(std::floor(kBulkShare[c] * loop + 0.5f), 1.0f, kLoopSize - 8.0f)),
+          kLoopFastest);
+      float parts = 0.0f;
+      for (int k = 0; k < kInner; ++k) parts += kInnerRatio[c][k];
+      const float part = (1.0f - kBulkShare[c]) * loop / parts;
+      for (int k = 0; k < kInner; ++k) {
+        inner_length_[c][k].aim_within(
+            static_cast<double>(
+                kit::clamp(std::floor(kInnerRatio[c][k] * part + 0.5f), 2.0f, kLoopSize - 8.0f)),
+            kLoopFastest);
+      }
     }
-    float kept = 0.0f;
-    const float tilt = 1.0f - 1.0f / (ring * ring);
-    for (int n = 0; n < kLines; ++n) {
-      kept += line_gain_[n] * line_gain_[n];
-      // The highs ring `ring` times as long as the rest, on every line
-      // whatever its length (Jot's absorbent filter: a pole of
-      // ln(10)/4 · log10(gain) · (1 - 1/ring²)).
-      damp_[n].a = kit::clamp(0.25f * std::log(line_gain_[n]) * tilt, 0.0f, kMostDamping);
-    }
-    // The lines share the power they hold evenly (the matrix sees to it), so
-    // with noise going in each holds 1 / (1 - the mean of gain²) of what is
-    // put into it: this makes the room's steady level that of its input.
-    const float steady = kLatePower * std::sqrt(1.0f - kept * (1.0f / kLines));
 
     // Level: the whole lifted towards the loudness it came in with.
     const float hold = 1.0f / std::sqrt(air_kept(corner) *
                                         (direct * direct + kEarlyPower * early + late * late));
-    const float lift = std::pow(hold, level_.value);
+    // Level 0 has the fall whole, Level 1 none of it.
+    const float lift = std::pow(hold, level_.value) * std::pow(fall(place), 1.0f - level_.value);
     const float side = side_gain(place, width_.value);
     same_.aim(0.5f * (1.0f + side) * direct * lift);
     cross_.aim(0.5f * (1.0f - side) * direct * lift);
-    late_.aim(late * steady * lift);
+    late_.aim(kSendMakeup * late * lift);
     for (int k = 0; k < kTaps; ++k) {
       tap_left_[k].aim(gains[k][0] * lift);
       tap_right_[k].aim(gains[k][1] * lift);
@@ -747,24 +859,28 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   // The fastest the travel time may change, samples a sample: it never runs
   // backwards.
   static constexpr double kFastest = 0.9;
+  // And the fastest a line of the room's loop may change its length.
+  static constexpr double kLoopFastest = 0.25;
 
   kit::DelayLine<kTravelSize> travel_[2];
   kit::DelayLine<kEarlySize> early_;
-  kit::DelayLine<kLineSize> line_[kLines];
+  kit::DelayLine<kLoopSize> bulk_[2];
+  kit::DelayLine<kLoopSize> inner_[2][kInner];
+  float loop_past_[2][4] = {};
   kit::AllpassDelay<kDiffuserSize> diffuser_[2][kDiffusers];
   int diffuser_length_[2][kDiffusers] = {};
   kit::OnePole send_cut_[2];
-  kit::OnePole damp_[kLines];
   float air_state_[2][2] = {};
-  float line_gain_[kLines] = {};
 
   Glide centre_, half_, doppler_, room_;
   kit::Smoother air_, width_, level_, decay_;
   Ramp air_keep_, same_, cross_, late_;
+  Ramp loop_gain_, loop_tilt_;
   Ramp tap_left_[kTaps], tap_right_[kTaps];
   Reach delay_, send_lag_;
   Reach tap_lag_[kTaps];
-  Reach line_length_[kLines];
+  Reach bulk_length_[2];
+  Reach inner_length_[2][kInner];
 
   FreePhase walk_[3];
   uint64_t clock_ = 0;

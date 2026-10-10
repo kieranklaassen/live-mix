@@ -57,6 +57,8 @@ export const DISTANCE = {
   /** `kRoomLevelSmall` and `kRoomLevelLarge`. */
   roomLevelSmall: 0.5,
   roomLevelLarge: 0.25,
+  /** `kFall`: the whole falls as the distance to the power of minus this. */
+  fall: 0.35,
   /** `kEarlyPower`: how much of the reflections' summed power a side hears. */
   earlyPower: 0.5,
   /** `kImageAcross`, in room widths; `kImageUp` (0 level, 1 floor, 2 ceiling); `kImageKeeps`. */
@@ -115,6 +117,18 @@ export function sideGain(place: number, width: number): number {
 export const roomWidth = (room: number): number => DISTANCE.narrowestRoom * Math.pow(10, room)
 export const roomLevel = (room: number): number =>
   DISTANCE.roomLevelSmall * Math.pow(DISTANCE.roomLevelLarge / DISTANCE.roomLevelSmall, room)
+
+/** `fall`: what the whole loses to the distance, as a gain. */
+export const fallOf = (place: number): number =>
+  Math.pow(2, -DISTANCE.fall * DISTANCE.octaves * place)
+
+/**
+ * `late_gain`: the gain of the diffuse room at a place before the fall, which
+ * is its level and its share of the sound. The room itself is an allpass, so
+ * this is all there is to how loud it is.
+ */
+export const lateGain = (place: number, room: number): number =>
+  roomLevel(room) * (1 - 1 / metresOf(place))
 
 export interface Reflection {
   /** How long its path is, metres: where its image source stands. */
@@ -175,15 +189,15 @@ export function sceneOf(
 ): Scene {
   const metres = metresOf(place)
   const direct = 1 / metres
-  const share = 1 - direct
   const early = reflections(place, set.room, set.width)
-  const late = roomLevel(set.room) * share
+  const late = lateGain(place, set.room)
   const corner = airCorner(set.air, metres)
   let power = 0
   for (const tap of early) power += tap.gain * tap.gain
   const hold =
     1 / Math.sqrt(airKept(corner) * (direct * direct + DISTANCE.earlyPower * power + late * late))
-  const lift = Math.pow(hold, set.level)
+  // Level 0 has the fall whole, Level 1 none of it.
+  const lift = Math.pow(hold, set.level) * Math.pow(fallOf(place), 1 - set.level)
   return {
     place,
     metres,
