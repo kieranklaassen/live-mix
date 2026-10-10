@@ -7,6 +7,7 @@ import { DRIVE_FACES } from './drive'
 import { DYNAMICS_FACES } from './dynamics'
 import { EQ_FACES } from './eq'
 import { LOOPS_FACES } from './loops'
+import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
 import { PITCH_FACES } from './pitch'
 import { REVERB_FACES } from './reverb'
@@ -28,4 +29,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...PITCH_FACES,
   ...DRIVE_FACES,
   ...SPATIAL_FACES,
+  ...MELT_FACES,
 }
