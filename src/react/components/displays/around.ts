@@ -209,10 +209,7 @@ export function aroundEar(
   const low = onePole(SHADE_HZ, hz, sampleRate)
   const turn = -TWO_PI * hz * delay
   const late = times(low, [Math.cos(turn), Math.sin(turn)])
-  const ear = times(
-    [late[0] + (1 - shade) * (1 - low[0]), late[1] - (1 - shade) * low[1]],
-    source,
-  )
+  const ear = times([late[0] + (1 - shade) * (1 - low[0]), late[1] - (1 - shade) * low[1]], source)
   return Math.hypot(1 - mix + mix * level * ear[0], mix * level * ear[1])
 }
 
@@ -221,7 +218,7 @@ export function aroundEar(
 /** Under this width there is room for a bar an ear; from it, for each ear's response. */
 const WIDE = 190
 /** The level at the top and the foot of the bars and of the response, in dB. */
-const TOP_DB = 6
+const TOP_DB = 12
 const FOOT_DB = -30
 /** The response runs from here to here, in Hz. */
 const MIN_HZ = 100
@@ -460,10 +457,17 @@ function drawAbove(frame: DisplayFrame<AroundState>, boxes: AroundBoxes, turns: 
   // The two points: Turn on the rim with a mark towards the head, Radius on the path.
   const [radiusPoint, turnPoint] = aroundHandles(frame)
   const inward = (rim - 6) / rim
-  rule(ctx, turnPoint.x, turnPoint.y, cx + (turnPoint.x - cx) * inward, cy + (turnPoint.y - cy) * inward, {
-    colour: colours.ink,
-    width: 1.5,
-  })
+  rule(
+    ctx,
+    turnPoint.x,
+    turnPoint.y,
+    cx + (turnPoint.x - cx) * inward,
+    cy + (turnPoint.y - cy) * inward,
+    {
+      colour: colours.ink,
+      width: 1.5,
+    },
+  )
   handle(frame, turnPoint.x, turnPoint.y, { hot: frame.hot === turnPoint.key, radius: 3 })
   handle(frame, radiusPoint.x, radiusPoint.y, { hot: frame.hot === radiusPoint.key, radius: 3 })
 }
@@ -518,15 +522,23 @@ function drawResponse(frame: DisplayFrame<AroundState>, plot: Box, place: Around
   const db = (side: -1 | 1, hz: number): number =>
     gainToDb(aroundEar(side, place, head, near, hz, frame.sampleRate, mix))
   clipped(ctx, plot, () => {
-    trace(ctx, responsePoints(plot, (hz) => db(1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ), {
-      colour: colours.ink,
-      width: 1.5,
-      dash: [3, 2],
-    })
-    trace(ctx, responsePoints(plot, (hz) => db(-1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ), {
-      colour: colours.ink,
-      width: 1.5,
-    })
+    trace(
+      ctx,
+      responsePoints(plot, (hz) => db(1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ),
+      {
+        colour: colours.ink,
+        width: 1.5,
+        dash: [3, 2],
+      },
+    )
+    trace(
+      ctx,
+      responsePoints(plot, (hz) => db(-1, hz), TOP_DB, FOOT_DB, MIN_HZ, MAX_HZ),
+      {
+        colour: colours.ink,
+        width: 1.5,
+      },
+    )
   })
   // A letter at the bass end of each line, the louder ear's over its line.
   const foot = plot.y + plot.h
@@ -536,12 +548,13 @@ function drawResponse(frame: DisplayFrame<AroundState>, plot: Box, place: Around
     clamp(over ? y - 4 : y + 11, plot.y + 9, foot - 2)
   label(frame, 'L', plot.x + 3, stand(at(-1), leftOver))
   label(frame, 'R', plot.x + 3, stand(at(1), !leftOver))
-  // How late the far ear's bass is.
+  // How late the far ear's bass is: over the top end, where no ear is ever
+  // louder than it came in by more than the near ear's 3 dB.
   const late = [aroundLateSec(-1, place, head), aroundLateSec(1, place, head)]
   const far = late[0] >= late[1] ? 0 : 1
   if (mix > 0 && late[far] >= 0.000005) {
     const words = `${far === 0 ? 'L' : 'R'} ${(late[far] * 1000).toFixed(2)} ms late`
-    label(frame, words, plot.x + plot.w - 3, foot - 3, 'right')
+    label(frame, words, plot.x + plot.w - 3, plot.y + 8, 'right')
   }
 }
 
