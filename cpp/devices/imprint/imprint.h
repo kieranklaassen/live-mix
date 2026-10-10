@@ -134,9 +134,9 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   // is a struck bar's partials (1, 2.4, 4, 5.9, 8.9, 12.1 times 587 Hz); the
   // box is three low resonances and little above them.
   static constexpr BuiltIn kBuiltInShapes[kBuiltIn] = {
-      {-3.0f, {{730.0f, 14.0f, 0.11f}, {1090.0f, 11.0f, 0.10f}, {2440.0f, 9.0f, 0.09f}, {3400.0f, 5.0f, 0.09f}}},
-      {-5.0f, {{300.0f, 14.0f, 0.13f}, {870.0f, 9.0f, 0.10f}, {2240.0f, 4.0f, 0.09f}}},
-      {-2.0f, {{270.0f, 12.0f, 0.13f}, {2290.0f, 12.0f, 0.08f}, {3010.0f, 10.0f, 0.08f}}},
+      {-3.0f, {{730.0f, 16.0f, 0.07f}, {1090.0f, 13.0f, 0.06f}, {2440.0f, 11.0f, 0.05f}, {3400.0f, 7.0f, 0.05f}}},
+      {-5.0f, {{300.0f, 16.0f, 0.09f}, {870.0f, 11.0f, 0.06f}, {2240.0f, 6.0f, 0.05f}}},
+      {-2.0f, {{270.0f, 14.0f, 0.09f}, {2290.0f, 14.0f, 0.05f}, {3010.0f, 12.0f, 0.05f}}},
       {-3.0f,
        {{220.0f, 12.0f, 0.14f},
         {660.0f, 12.0f, 0.07f},
@@ -250,7 +250,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
         curve_dirty_ = true;
         break;
       case kMix:
-        mix_.set(param(kMix), primed());
+        mix_.set(param(kMix), primed() && !idle_.asleep());  // moved in the sleep, it snaps
         break;
       case kLearn:
         captured_dirty_ = true;  // the "heard" reading is a share of it

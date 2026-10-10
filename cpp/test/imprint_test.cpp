@@ -3,6 +3,8 @@
 // abuse; the rest asserts what makes it an imprint: what is captured is what
 // is stamped, and the stamp does what each control says.
 
+#include <limits>
+
 #include "../devices/imprint/imprint.h"
 #include "support/test_kit.h"
 
@@ -418,7 +420,8 @@ int main() {
 
   // 5. Shift moves the stamp along the spectrum by the semitones it says:
   // the round vowel's first peak (300 Hz) is found again 12 up, 7 up and 12
-  // down, each within a third of a semitone.
+  // down, each within a third of a semitone (or a quarter of a bin, 5.9 Hz,
+  // where that is more: the frame cannot say better at 150 Hz).
   {
     const std::vector<double> hz = tone_set(100.0, 4000.0);
     const std::vector<float> in = many_tones(hz, 3.5f, kRate, 0.2f);
@@ -432,7 +435,8 @@ int main() {
       const double claimed = 300.0 * std::pow(2.0, shift / 12.0);
       const double found = curve_peak(curve, hz, claimed / 1.5, claimed * 1.5);
       std::printf("shift %+.0f st: the 300 Hz peak is at %.1f Hz (%.1f claimed)\n", shift, found, claimed);
-      EXPECT(std::fabs(12.0 * std::log2(found / claimed)) < 0.34, "Shift moves a peak by the semitones it says");
+      const double allowed = std::max(claimed * (std::pow(2.0, 0.34 / 12.0) - 1.0), 0.25 * kRate / 2048.0);
+      EXPECT(std::fabs(found - claimed) < allowed, "Shift moves a peak by the semitones it says");
     }
   }
 
@@ -713,9 +717,257 @@ int main() {
     }
   }
 
-  device.init(kRate);
+  // 15. No clicks. Three steady tones run through; halfway a control is
+  // moved as a bare step (the two choices each way, Amount from one end to
+  // the other, Shift by two octaves, Replace and Smooth across their range).
+  // The largest step between two samples stays within a quarter of what the
+  // same sound makes with nothing moved.
+  {
+    std::vector<float> tones = sine(196.0f, 2.0f, kRate, 0.2f);
+    const std::vector<float> second = sine(587.33f, 2.0f, kRate, 0.2f);
+    const std::vector<float> third = sine(1318.5f, 2.0f, kRate, 0.2f);
+    for (size_t i = 0; i < tones.size(); ++i) tones[i] += second[i] + third[i];
+    struct Move {
+      int id;
+      float from, to;
+      const char* name;
+    };
+    const Move moves[] = {
+        {p::kShape, 1.0f, 5.0f, "Shape"},    {p::kShape, 4.0f, 0.0f, "Shape to Captured"},
+        {p::kCapture, 1.0f, 0.0f, "Capture off"}, {p::kCapture, 0.0f, 1.0f, "Capture on"},
+        {p::kAmount, 2.0f, -2.0f, "Amount"}, {p::kShift, -12.0f, 12.0f, "Shift"},
+        {p::kReplace, 0.0f, 1.0f, "Replace"}, {p::kSmooth, 0.0f, 1.0f, "Smooth"},
+        {p::kLearn, 20.0f, 0.1f, "Learn"},   {p::kMix, 1.0f, 0.3f, "Mix"},
+    };
+    double worst = 0.0;
+    for (const Move& move : moves) {
+      device.init(kRate);
+      device.set_param(move.id, move.to);
+      const double still = std::max(max_step(run(device, tones).left, 48000), max_step(tones));
+      device.init(kRate);
+      device.set_param(move.id, move.from);
+      std::vector<float> first_half(tones.begin(), tones.begin() + 48000);
+      std::vector<float> second_half(tones.begin() + 48000, tones.end());
+      run(device, first_half);
+      device.set_param(move.id, move.to);
+      const double moved = max_step(run(device, second_half).left);
+      if (moved > 1.25 * still) std::printf("  %s: step %.4f against %.4f\n", move.name, moved, still);
+      worst = std::max(worst, moved / still);
+    }
+    std::printf("clicks: the largest step after a control is moved is %.2f of the steady sound's\n", worst);
+    EXPECT(worst < 1.25, "no control clicks when it is moved as a bare step");
+  }
+
+  // 16. Bad input. A NaN, an infinity and 1e30 in the middle of a sound: what
+  // comes out stays finite, and three seconds later it is the sound it would
+  // have been.
+  {
+    rng_state() = 86;
+    const std::vector<float> good = pink(5.0f, kRate, 0.3f);
+    std::vector<float> bad = good;
+    bad[40000] = std::nanf("");
+    bad[40001] = std::numeric_limits<float>::infinity();
+    bad[40002] = -1.0e30f;
+    for (float shape : {1.0f, 0.0f}) {
+      device.init(kRate);
+      device.set_param(p::kShape, shape);
+      device.set_param(p::kReplace, 0.5f);
+      const Stereo clean_out = run(device, good);
+      device.init(kRate);
+      device.set_param(p::kShape, shape);
+      device.set_param(p::kReplace, 0.5f);
+      const Stereo bad_out = run(device, bad);
+      double off = 0.0;
+      for (size_t i = 4 * 48000; i < good.size(); ++i) {
+        off = std::max(off, std::fabs(static_cast<double>(bad_out.left[i]) - clean_out.left[i]));
+      }
+      std::printf("bad input (shape %.0f): three seconds on, %.2g from the sound it would have been\n", shape, off);
+      EXPECT(finite(bad_out.left) && finite(bad_out.right), "NaN, infinity and 1e30 in: finite out");
+      EXPECT(off < 2.0e-3, "and the device is itself again once good input returns");
+      EXPECT(rms(bad_out.left, 4 * 48000) > 0.05, "not stuck");
+    }
+  }
+
+  // 17. Block sizes across a sleep. A sound, a silence, a sound again, the
+  // silence stepped across the moment the device falls asleep (0.19 s after
+  // the sound: the tail and the hold): the same samples at block sizes 1, 37,
+  // 128 and 2048, with everything that listens at work (Capture on, the
+  // captured shape, Replace half up).
+  {
+    double worst = 0.0;
+    for (float gap = 0.12f; gap < 0.34f; gap += 0.013f) {
+      rng_state() = 99;
+      std::vector<float> sound = pink(0.4f, kRate, 0.4f);
+      const std::vector<float> again = pink(0.4f, kRate, 0.4f);
+      sound = join(join(sound, silence(gap, kRate)), again);
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        device.init(kRate);
+        device.set_param(p::kShape, 0.0f);
+        device.set_param(p::kReplace, 0.5f);
+        device.set_param(p::kLearn, 0.3f);
+        const Stereo render_ = run(device, sound, block);
+        if (block == 128) {
+          reference = render_;
+          continue;
+        }
+        for (size_t i = 0; i < render_.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(render_.left[i]) - reference.left[i]));
+          worst = std::max(worst, std::fabs(static_cast<double>(render_.right[i]) - reference.right[i]));
+        }
+      }
+    }
+    std::printf("block sizes across a sleep: worst difference %.3g\n", worst);
+    EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+  }
+
+  // 18. A knob moved while the device sleeps snaps: Mix turned from 0.2 to 1
+  // in the silence gives, from the first sample after it, what a device that
+  // stood at 1 all along gives.
+  {
+    rng_state() = 100;
+    const std::vector<float> before = pink(0.5f, kRate, 0.4f);
+    const std::vector<float> after = pink(0.5f, kRate, 0.4f);
+    device.init(kRate);
+    run(device, before);
+    render(device, 1.0f, kRate);
+    const Stereo stood = run(device, after);
+    device.init(kRate);
+    device.set_param(p::kMix, 0.2f);
+    run(device, before);
+    const Stereo quiet = render(device, 1.0f, kRate);
+    device.set_param(p::kMix, 1.0f);
+    const Stereo moved = run(device, after);
+    double off = 0.0;
+    for (size_t i = 0; i < after.size(); ++i) off = std::max(off, std::fabs(static_cast<double>(moved.left[i]) - stood.left[i]));
+    EXPECT(peak(quiet.left, 24000) == 0.0, "asleep within half a second of the sound");
+    EXPECT(off < 1.0e-7, "a knob moved in the sleep snaps on waking");
+  }
+
+  // 19. Rest. Every control moved to each end while a sound runs, and then
+  // silence: a second later the output is exact zeros, whichever it was.
+  {
+    rng_state() = 101;
+    const std::vector<float> sound = pink(0.6f, kRate, 0.4f);
+    bool rests = true;
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (float value : {p::kParamMin[id], p::kParamMax[id]}) {
+        device.init(kRate);
+        device.set_param(p::kShape, 0.0f);
+        run(device, sound);
+        device.set_param(id, value);
+        run(device, sound);
+        render(device, 1.0f, kRate);
+        const Stereo rest = render(device, 0.5f, kRate);
+        rests = rests && peak(rest.left) == 0.0 && peak(rest.right) == 0.0;
+      }
+    }
+    EXPECT(rests, "the device comes to rest after every control move");
+  }
+
+  // 20. No dead part of a knob, on a played phrase (plucked notes, not a
+  // test tone). Each control is set to four places across its range; between
+  // every two neighbours what comes out differs by more than 5 % of itself
+  // (-26 dB). Learn and Smooth are heard with the captured shape too, on a
+  // phrase that changes colour halfway (a bell up at 1.5 kHz, one down at
+  // 300 Hz); the rest with the default shape.
+  {
+    const std::vector<float> played = join(phrase(kRate, 0.5f), phrase(kRate, 0.5f));
+    std::vector<float> turned = phrase(kRate, 0.5f);
+    bell(turned, 1500.0, 15.0, 2.0, kRate);
+    bell(turned, 300.0, -12.0, 2.0, kRate);
+    for (float& v : turned) v *= 0.5f / static_cast<float>(peak(turned));
+    const std::vector<float> turning = join(phrase(kRate, 0.5f), turned);
+    struct Sweep {
+      int id;
+      float at[4];
+      const char* name;
+      bool captured;
+    };
+    const Sweep sweeps[] = {
+        {p::kAmount, {-2.0f, -0.67f, 0.67f, 2.0f}, "Amount", false},
+        {p::kShift, {-24.0f, -8.0f, 8.0f, 24.0f}, "Shift", false},
+        {p::kReplace, {0.0f, 0.33f, 0.67f, 1.0f}, "Replace", false},
+        {p::kSmooth, {0.0f, 0.33f, 0.67f, 1.0f}, "Smooth", false},
+        {p::kSmooth, {0.0f, 0.33f, 0.67f, 1.0f}, "Smooth (captured)", true},
+        {p::kLearn, {0.1f, 0.6f, 3.5f, 20.0f}, "Learn (captured)", true},
+        {p::kMix, {0.0f, 0.33f, 0.67f, 1.0f}, "Mix", false},
+    };
+    double least = 0.0;
+    for (const Sweep& sweep : sweeps) {
+      Stereo last;
+      for (int n = 0; n < 4; ++n) {
+        device.init(kRate);
+        if (sweep.captured) device.set_param(p::kShape, 0.0f);
+        device.set_param(sweep.id, sweep.at[n]);
+        const Stereo out = run(device, sweep.captured ? turning : played);
+        if (n > 0) {
+          std::vector<float> apart(out.size());
+          for (size_t i = 0; i < apart.size(); ++i) apart[i] = out.left[i] - last.left[i];
+          const size_t from = sweep.captured ? 8 * 48000 : 96000;  // well into the second colour
+          const double differs = db(rms(apart, from) / rms(out.left, from));
+          if (differs < -26.0) std::printf("  %s between %g and %g: %.1f dB\n", sweep.name, sweep.at[n - 1], sweep.at[n], differs);
+          if (n == 1 || differs < least) least = differs;
+        }
+        last = out;
+      }
+      std::printf("range of %s: neighbouring settings differ by %.1f dB of the sound at least\n", sweep.name, least);
+      EXPECT(least > -26.0, "every part of every knob does something to a played phrase");
+    }
+    // The seven shapes, each against every other.
+    std::vector<std::vector<double>> shapes;
+    for (int shape = 0; shape <= Imprint::kBuiltIn; ++shape) {
+      device.init(kRate);
+      device.set_param(p::kShape, static_cast<float>(shape));
+      const Stereo out = run(device, played);
+      shapes.push_back(shape_of(out.left, 96000));
+    }
+    double nearest = 1.0e9;
+    for (size_t i = 0; i < shapes.size(); ++i) {
+      for (size_t j = i + 1; j < shapes.size(); ++j) nearest = std::min(nearest, worst_difference(shapes[i], shapes[j]));
+    }
+    std::printf("shapes: the two nearest differ by %.1f dB in some third octave\n", nearest);
+    EXPECT(nearest > 3.0, "the seven shapes are seven colours on a played phrase");
+  }
+
+  // Cost: the average at the defaults and at the most there is to do (Capture
+  // on, the captured shape, Replace, the widest Smooth: every frame learns,
+  // splits and composes), and the worst block, which is one with a frame in
+  // it. Stretches of 256 blocks are timed and the fastest kept, because the
+  // machine is shared.
   rng_state() = 0xBEEFu;
-  std::vector<float> input = noise(10.0f, kRate, 0.25f);
+  const std::vector<float> input = noise(10.0f, kRate, 0.25f);
+  for (int worst_case = 0; worst_case < 2; ++worst_case) {
+    device.init(kRate);
+    if (worst_case) {
+      device.set_param(p::kShape, 0.0f);
+      device.set_param(p::kReplace, 1.0f);
+      device.set_param(p::kSmooth, 1.0f);
+    }
+    std::vector<double> micros;
+    double best = 1.0e30, stretch = 0.0;
+    int in_stretch = 0;
+    for (size_t done = 0; done + 128 <= input.size(); done += 128) {
+      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = input[done + i];
+      const auto start = std::chrono::steady_clock::now();
+      device.process(128);
+      const double took = std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count();
+      micros.push_back(took);
+      stretch += took;
+      if (++in_stretch == 256) {
+        best = std::min(best, stretch / 256.0);
+        stretch = 0.0;
+        in_stretch = 0;
+      }
+    }
+    std::sort(micros.begin(), micros.end());
+    // A quarter of the blocks hold the left frame, so the 90th percentile is one of them.
+    const double heavy = micros[micros.size() * 90 / 100];
+    std::printf("imprint %s: %.1f us per 128-frame stereo block, %.2f%% of real time at 48 kHz (native); worst block "
+                "%.1f us, %.2f%% of its 2667 us\n",
+                worst_case ? "at its worst" : "at defaults", best, 100.0 * best / 2666.7, heavy, 100.0 * heavy / 2666.7);
+  }
+  device.init(kRate);
   report_cost("imprint", 10.0f, kRate, [&] { run(device, input); });
 
   return finish("imprint");
