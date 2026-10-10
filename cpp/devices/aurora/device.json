@@ -155,6 +155,114 @@
       "swell": 1,
       "release": 8,
       "detune": 10
+    },
+    "Short brass": {
+      "brilliance": 900,
+      "resonance": 0.3,
+      "contour": 1,
+      "attack": 0.03,
+      "swell": 0,
+      "release": 0.6,
+      "detune": 5,
+      "volume": -10
+    },
+    "Still pipes": {
+      "brilliance": 1400,
+      "lowCut": 80,
+      "resonance": 0.1,
+      "contour": 0,
+      "attack": 0.08,
+      "swell": 0,
+      "release": 1.5,
+      "detune": 0,
+      "volume": -12.5
+    },
+    "Loose reeds": {
+      "brilliance": 2000,
+      "lowCut": 350,
+      "resonance": 0.3,
+      "contour": 0.1,
+      "attack": 0.3,
+      "swell": 0.15,
+      "release": 1.5,
+      "detune": 26,
+      "volume": -8
+    },
+    "Muted trumpet": {
+      "brilliance": 3000,
+      "lowCut": 1300,
+      "resonance": 0.85,
+      "contour": 0.5,
+      "attack": 0.15,
+      "swell": 0.3,
+      "release": 1.2,
+      "detune": 3,
+      "volume": -8
+    },
+    "Silver strings": {
+      "brilliance": 9000,
+      "lowCut": 900,
+      "resonance": 0.2,
+      "contour": 0,
+      "attack": 1.5,
+      "swell": 0.6,
+      "release": 6,
+      "detune": 18,
+      "volume": -1.5
+    },
+    "Slow phasing": {
+      "brilliance": 6000,
+      "resonance": 0,
+      "contour": 0,
+      "attack": 2.5,
+      "swell": 0.4,
+      "release": 9,
+      "detune": 1.5
+    },
+    "Chime strings": {
+      "brilliance": 4500,
+      "lowCut": 350,
+      "resonance": 0.4,
+      "contour": 0,
+      "attack": 0.005,
+      "swell": 0,
+      "release": 8,
+      "detune": 2,
+      "ring": 1
+    },
+    "Melting metal": {
+      "brilliance": 2200,
+      "lowCut": 300,
+      "resonance": 0.4,
+      "contour": 0.5,
+      "attack": 2.5,
+      "swell": 0.8,
+      "release": 9,
+      "detune": 12,
+      "ring": 0.9,
+      "volume": -4.5
+    },
+    "Opening vowel": {
+      "brilliance": 400,
+      "lowCut": 200,
+      "resonance": 0.75,
+      "contour": 1,
+      "attack": 2,
+      "swell": 1,
+      "release": 6,
+      "detune": 7,
+      "volume": -12
+    },
+    "Deep swell": {
+      "brilliance": 320,
+      "lowCut": 20,
+      "resonance": 0.05,
+      "contour": 0,
+      "attack": 5,
+      "swell": 0.5,
+      "release": 12,
+      "detune": 12,
+      "volume": -2.5
     }
   },
   "origin": {
