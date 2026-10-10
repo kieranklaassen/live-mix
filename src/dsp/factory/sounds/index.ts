@@ -4,6 +4,7 @@
 
 import { type FactorySound } from '../types'
 import { BASS_LINES_PLAYED } from './bass-lines-played'
+import { BASS_LINES_SYNTH } from './bass-lines-synth'
 import { BASS_NOTES } from './bass-notes'
 import { DRUM_LOOPS } from './beats-drums'
 import { GLITCH_LOOPS } from './beats-glitch'
@@ -29,6 +30,7 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   ...PHRASES,
   ...MADE,
   ...BASS_NOTES,
+  ...BASS_LINES_SYNTH,
   ...BASS_LINES_PLAYED,
   ...DRUM_LOOPS,
   ...GLITCH_LOOPS,

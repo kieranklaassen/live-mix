@@ -162,7 +162,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Quiet acid pulse',
     category: 'bass',
     description:
-      'A soft square note that fades in about a second, with ripples of reverb above 300 Hz pulsing on behind it.',
+      'A soft square note that dies away in about a second, with ripples of reverb above 300 Hz pulsing on behind it.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Quiet pulse',
@@ -205,7 +205,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'tape', preset: 'Warm thump', params: { hiss: 0 } },
-      { deviceId: 'ambient-limiter', params: { ceiling: -10, gain: 4, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -10, gain: 4, ride: 0 } },
     ],
   },
   {
@@ -213,7 +213,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Acid dub weight',
     category: 'bass',
     description:
-      'A dark resonant square that yawns shut on each note and fades, driven into a transformer, with a mono amp spring behind it.',
+      'A dark resonant square that yawns shut on each note and fades, driven into a transformer, with a short mono amp spring behind it.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Dub weight',
@@ -232,7 +232,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     },
     effects: [
       { deviceId: 'analog-drive', preset: 'Iron lows' },
-      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.3 } },
+      { deviceId: 'spring-reverb', preset: 'Dark amp spring', params: { mix: 0.15, decay: 0.5 } },
     ],
   },
   {
@@ -336,7 +336,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Driven acid growl',
     category: 'bass',
     description:
-      'A half-open saw with the instrument drive near the top, into a triode fuzz that holds every note up as it fades.',
+      'A half-open saw with the instrument drive two thirds up, into a triode fuzz that holds every note up as it fades.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Driven growl',
@@ -384,7 +384,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -12, gain: 1, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -12, gain: 1, ride: 0 } },
       { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 400, mix: 0.15 } },
     ],
   },
@@ -393,7 +393,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
     name: 'Screaming acid line',
     category: 'bass',
     description:
-      'Resonance near its limit, full accent and the instrument drive up, then a pentode: a line that whistles and tears.',
+      'Resonance near its limit, full accent and the instrument drive past half way, then a pentode: a line that whistles and tears.',
     instrument: {
       deviceId: 'acid-bass',
       preset: 'Resonant scream',
@@ -435,7 +435,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 8, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 8, ride: 0 } },
       { deviceId: 'expanse', preset: 'Small box', params: { lowCut: 400, mix: 0.25 } },
     ],
   },
@@ -519,7 +519,7 @@ export const ACID_BASS_PRESETS: readonly FactoryPreset[] = [
       },
     },
     effects: [
-      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 11, release: 0.2, ride: 0 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -9, gain: 11, ride: 0 } },
       { deviceId: 'tape-echo', preset: 'Dotted bounce', params: { time: 375, mix: 0.35 } },
     ],
   },

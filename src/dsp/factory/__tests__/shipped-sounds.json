@@ -659,6 +659,106 @@
     "durationSec": 8,
     "loops": true
   },
+  "233": {
+    "id": "slow-sub-line-am",
+    "durationSec": 16,
+    "loops": true
+  },
+  "234": {
+    "id": "dub-sub-offbeats-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "235": {
+    "id": "sub-booms-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "236": {
+    "id": "gliding-sub-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "237": {
+    "id": "sub-heartbeat-g",
+    "durationSec": 4,
+    "loops": true
+  },
+  "238": {
+    "id": "offbeat-knock-am",
+    "durationSec": 4,
+    "loops": true
+  },
+  "239": {
+    "id": "round-octaves-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "240": {
+    "id": "wooden-bass-taps-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "241": {
+    "id": "slow-dark-fm-line-dm",
+    "durationSec": 16,
+    "loops": true
+  },
+  "242": {
+    "id": "rubber-fm-line-f",
+    "durationSec": 8,
+    "loops": true
+  },
+  "243": {
+    "id": "acid-line-am",
+    "durationSec": 4,
+    "loops": true
+  },
+  "244": {
+    "id": "squelch-line-g",
+    "durationSec": 8,
+    "loops": true
+  },
+  "245": {
+    "id": "slow-acid-tide-dm",
+    "durationSec": 16,
+    "loops": true
+  },
+  "246": {
+    "id": "sliding-acid-c",
+    "durationSec": 8,
+    "loops": true
+  },
+  "247": {
+    "id": "hollow-square-line-f",
+    "durationSec": 4,
+    "loops": true
+  },
+  "248": {
+    "id": "two-note-acid-e",
+    "durationSec": 8,
+    "loops": true
+  },
+  "249": {
+    "id": "eighths-sequence-dm",
+    "durationSec": 8,
+    "loops": true
+  },
+  "250": {
+    "id": "octave-pulse-am",
+    "durationSec": 4,
+    "loops": true
+  },
+  "251": {
+    "id": "slow-opening-line-f",
+    "durationSec": 16,
+    "loops": true
+  },
+  "252": {
+    "id": "beating-pair-line-e",
+    "durationSec": 8,
+    "loops": true
+  },
   "253": {
     "id": "fingered-ostinato-g",
     "durationSec": 8,

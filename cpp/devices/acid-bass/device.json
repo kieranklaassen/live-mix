@@ -84,7 +84,7 @@
       "min": 0,
       "max": 1,
       "default": 0.134,
-      "description": "Distortion after the filter. Clean at the bottom and only a little thicker over the first quarter; by half way dark sounds have grown a buzzing edge and bright ones are squashed and a little brighter. Further up adds more of the same, less and less. The level stays about the same."
+      "description": "Distortion after the filter. Clean at the bottom and only a little thicker over the first quarter; by half way dark and middling sounds have grown a buzzing edge, and bright, resonant ones are squashed and a little duller. Further up adds more of the same, less and less. The level stays about the same."
     },
     {
       "key": "volume",

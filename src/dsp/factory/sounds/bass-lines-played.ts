@@ -18,7 +18,8 @@
 import { type PatchDevice } from '../../../core/devices/patch'
 import { hall, soften } from '../parts'
 import { type FactorySound } from '../types'
-import { cycled, sound } from './recipe'
+import { sound } from './recipe'
+import { inTime } from './rhythm'
 
 const ELECTRIC = 0
 const FRETLESS = 1
@@ -70,7 +71,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [drive('Warm glue')],
-    ...cycled(
+    ...inTime(
       8,
       [
         [0, 0.55, 31, 0.9],
@@ -123,7 +124,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
         params: { distance: 0.05, room: 0.2, noise: 0 },
       },
     ],
-    ...cycled(
+    ...inTime(
       4,
       [
         [0, 0.22, 38, 0.9],
@@ -168,7 +169,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(18)],
-    ...cycled(
+    ...inTime(
       4,
       [
         [0, 0.2, 40, 0.9],
@@ -206,7 +207,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [drive('Warm glue')],
-    ...cycled(16, [
+    ...inTime(16, [
       [0, 3.4, 36, 0.9],
       [4, 1.8, 43, 0.6],
       [6, 1.8, 31, 0.65],
@@ -235,7 +236,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -3,
     }),
     effects: [soften(15)],
-    ...cycled(
+    ...inTime(
       8,
       [
         [0, 0.3, 41, 0.9],
@@ -277,7 +278,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -5.5,
     }),
     effects: [drive('Low warmth')],
-    ...cycled(8, [
+    ...inTime(8, [
       [0, 0.4, 33, 0.9],
       [0.75, 0.2, 33, 0.6],
       [1, 0.7, 36, 0.75],
@@ -309,7 +310,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [soften(14), hall('Room', 0.12)],
-    ...cycled(16, [
+    ...inTime(16, [
       [0, 3, 38, 0.85],
       [2.5, 1.4, 45, 0.6],
       [4, 2.4, 48, 0.7],
@@ -340,7 +341,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [drive('Triode glow')],
-    ...cycled(8, [
+    ...inTime(8, [
       [0, 3.7, 40, 0.9],
       [4, 1.8, 43, 0.65],
       [6, 1.8, 41, 0.7],
@@ -366,7 +367,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [soften(10), hall('Room', 0.15)],
-    ...cycled(8, [
+    ...inTime(8, [
       [0, 1.5, 50, 0.8],
       [1.5, 1.5, 48, 0.65],
       [4, 1.5, 50, 0.65],
@@ -393,7 +394,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: -6,
     }),
     effects: [drive('First hint')],
-    ...cycled(
+    ...inTime(
       8,
       [
         [0, 0.45, 31, 0.85],
@@ -436,7 +437,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(15), hall('Room', 0.12)],
-    ...cycled(
+    ...inTime(
       8,
       [
         [0, 0.45, 38, 0.9],
@@ -480,7 +481,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [drive('Warm glue'), hall('Room', 0.1)],
-    ...cycled(16, [
+    ...inTime(16, [
       [0, 1.5, 33, 0.9],
       [1, 0.9, 40, 0.65],
       [2, 1.5, 33, 0.8],
@@ -519,7 +520,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(15)],
-    ...cycled(8, [
+    ...inTime(8, [
       [0, 0.6, 40, 0.9],
       [0.75, 0.4, 40, 0.65],
       [1.25, 0.7, 43, 0.7],
@@ -554,7 +555,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(12)],
-    ...cycled(8, [
+    ...inTime(8, [
       [0, 0.9, 31, 0.9],
       [1, 0.45, 31, 0.6],
       [1.5, 0.7, 38, 0.65],
@@ -590,7 +591,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(12), hall('Room', 0.18)],
-    ...cycled(16, [
+    ...inTime(16, [
       [0, 2.2, 41, 0.8],
       [2.6, 1.3, 48, 0.6],
       [4.05, 2.5, 47, 0.55],
@@ -620,7 +621,7 @@ export const BASS_LINES_PLAYED: readonly FactorySound[] = [
       volume: 0,
     }),
     effects: [soften(15), hall('Room', 0.1)],
-    ...cycled(
+    ...inTime(
       4,
       [
         [0, 0.2, 36, 0.9],
