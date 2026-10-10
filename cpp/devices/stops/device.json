@@ -1,0 +1,125 @@
+{
+  "id": "stops",
+  "name": "Stops",
+  "category": "pitch",
+  "description": "Organ stops for any sound: copies of what is playing an octave below, a fifth, an octave, a twelfth and two octaves above, each on its own drawbar, speaking a little after the note as pipes do.",
+  "class": "Stops",
+  "header": "stops.h",
+  "sources": [],
+  "latencySamples": 4608,
+  "meters": [
+    { "key": "sub", "name": "Sub sounding", "display": true },
+    { "key": "unison", "name": "Unison sounding", "display": true },
+    { "key": "fifth", "name": "Fifth sounding", "display": true },
+    { "key": "octave", "name": "Octave sounding", "display": true },
+    { "key": "twelfth", "name": "Twelfth sounding", "display": true },
+    { "key": "fifteenth", "name": "Fifteenth sounding", "display": true }
+  ],
+  "params": [
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "The drawbar for the rank an octave below what is playing, the sixteen foot. It puts a soft pedal note under every note."
+    },
+    {
+      "key": "unison",
+      "name": "Unison",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "The sound itself among the stops, the eight foot. Pushed in, only the added ranks are left when Mix is full."
+    },
+    {
+      "key": "fifth",
+      "name": "Fifth",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The drawbar for the rank a pure fifth above what is playing. It thickens single lines into open, hollow chords."
+    },
+    {
+      "key": "octave",
+      "name": "Octave",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "The drawbar for the rank an octave above what is playing, the four foot. It is the first stop an organ adds for clarity."
+    },
+    {
+      "key": "twelfth",
+      "name": "Twelfth",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The drawbar for the rank an octave and a fifth above. It sits on the third harmonic, so it colours a note more than it adds one."
+    },
+    {
+      "key": "fifteenth",
+      "name": "Fifteenth",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "The drawbar for the rank two octaves above, the two foot. It adds a thin silver edge on top."
+    },
+    {
+      "key": "speak",
+      "name": "Speak",
+      "min": 10,
+      "max": 3000,
+      "default": 120,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long the ranks take to come up to level after a note starts, as a pipe takes time to speak. Short follows the playing, long lets them bloom behind it."
+    },
+    {
+      "key": "chiff",
+      "name": "Chiff",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A short breath of noise at the pitch of each rank when a note starts, the sound of wind reaching a pipe before it settles."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Voices the ranks as a whole. Low settings round off their upper partials like stopped wooden pipes, high settings make them bright and stringy."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "The shutters of the box the ranks stand in. Closing them makes all the ranks softer and duller at once and leaves the sound itself alone."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Puts each rank a little out of tune, each its own way, so the ranks beat slowly against the sound and against each other as real pipes do."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.65,
+      "description": "How much of the organ is heard. At nothing the output is the input, and turning up brings in the ranks and whatever Unison takes away."
+    }
+  ],
+  "presets": {
+    "Principal chorus": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Spectral rank adder on kit::Stft<4096, 1024>: each spectral peak is measured (true frequency from its phase advance) and sounded again as a Hann lobe at each drawn rank's multiple."
+  }
+}
