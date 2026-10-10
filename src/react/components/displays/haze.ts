@@ -442,7 +442,7 @@ const haze = plateDisplay<HazeState>({
   place: 'strip',
   params: ['haze', 'octave', 'decay', 'size', 'tone', 'mix'],
   live: { meters: true },
-  info: 'Left, the curve a full-level sound is bent along at this Haze and Octave; lit, the gentler curve the sound is on now, as far as its peaks reach. Right, the wall falling over Decay, its highs under it by Tone, dashed as Mix lets it out; lit, the level the device reads since the wall last began to fall. Drag the points for Haze and Decay.',
+  info: "Left, the curve a full-level sound is bent along at this Haze and Octave; lit, the curve the sound is on now. Right, the wall's own fall over Decay, its highs under it by Tone, dashed as Mix lets it out; lit, the level the device reads as the wall falls. Drag the points for Haze and Decay.",
   init: () => ({ level: 0, wall: 0, past: [], clock: 0, top: -Infinity }),
   draw(frame) {
     ground(frame)
