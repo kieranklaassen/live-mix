@@ -8,7 +8,7 @@
 //    3  head: 0..1, default 0.7
 //    4  near: 0..1, default 0.3
 //    5  turn: -180..180 deg, default 0
-//    6  blur: 0..1, default 0.25
+//    6  blur: 0..1, default 0.35
 //    7  mix: 0..1, default 1
 
 #pragma once
@@ -30,7 +30,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.01f, 0.0f, 0.0f, 0.0f, -180.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 180.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.85f, 0.7f, 0.3f, 0.0f, 0.25f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.85f, 0.7f, 0.3f, 0.0f, 0.35f, 1.0f};
 
 }  // namespace around
 }  // namespace livemix

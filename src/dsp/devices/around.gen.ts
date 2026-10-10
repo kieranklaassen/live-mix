@@ -78,7 +78,7 @@ export const AROUND_PARAMS = {
     name: 'Blur',
     min: 0,
     max: 1,
-    default: 0.25,
+    default: 0.35,
     taper: 'linear',
     unit: '',
     description:
@@ -124,7 +124,7 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
       head: 0.7,
       near: 0.3,
       turn: 0,
-      blur: 0.25,
+      blur: 0.35,
       mix: 1,
     },
   },

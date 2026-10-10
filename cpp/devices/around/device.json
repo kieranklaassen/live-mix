@@ -63,7 +63,7 @@
       "name": "Blur",
       "min": 0,
       "max": 1,
-      "default": 0.25,
+      "default": 0.35,
       "description": "A little room that stands still while the sound moves, so it sits outside your head. At zero there is only the moving sound."
     },
     {
@@ -83,7 +83,7 @@
       "head": 0.7,
       "near": 0.3,
       "turn": 0,
-      "blur": 0.25,
+      "blur": 0.35,
       "mix": 1
     }
   },

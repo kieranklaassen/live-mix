@@ -8,27 +8,34 @@
 //                            └─► room line ─► eight fixed echoes ───────────────┼─► wet
 //         side = (L − R) / 2 ───────────────────────────────────────────────────┘
 //
-//   an ear:  delay (far ear only) ─► shadow (far ear only) ─► level
+//   an ear:  (low band, delayed for the far ear) + (high band, turned
+//            down for the far ear), times its level
 //
 // The source is a point (x, y) in a disc of radius 1 seen from above: x to the
 // right, y to the front, the head at the centre. Everything an ear hears is a
 // function of that point, so a source at the centre is the input untouched
 // and Radius is how far the cues go.
 //
-// - Time. The far ear hears later by the sine law for a sphere, kItdSeconds
-//   at the full side, times Head. Only the far ear is delayed, so a source in
-//   front is in time with the dry sound; the delay leaves zero with no slope
-//   (kItdKnee), so crossing the middle is no step in pitch.
+// - Time. The ear tells direction from arrival time in the low band and from
+//   level in the high band, so only the band under kShadeHz (one pole) is
+//   delayed: the far ear hears the bass later by the sine law for a sphere,
+//   kItdSeconds at the full side, times Head (kLineSeconds of it from the
+//   line, the rest from the shadow's own lag). Only the far ear is delayed, so
+//   a source in front is in time with the dry sound; the delay leaves zero
+//   with no slope (kItdKnee), so crossing the middle is no step in pitch.
+//   Keeping the delay out of the high band is what keeps the two ears from
+//   combing when they are folded to mono.
 // - Level. gain = (1 ± kPan·x) / sqrt(1 + kPan²·x²): the two ears keep their
 //   summed power, 12 dB apart at the full side.
-// - Shadow. The far ear loses its top through one pole at kShadeHz, by up to
-//   kShade times Head.
+// - Shadow. The far ear's high band (what is left over the same pole) is
+//   turned down by up to kShade times Head.
 // - Behind (y < 0) both ears lose top above kRearHz and gain a notch at
 //   kNotchHz, as the outer ear does, times Head.
 // - Near. Away from the near point (the direction Turn sets) the source is
 //   quieter by up to kNearDb and thinner under kThinHz.
 // - Blur. Eight echoes of the plain middle between 7 and 38 ms, four to each
-//   ear, that do not move with the source: a small room around the head.
+//   ear, band-limited to kThinHz..kRoomHz, that do not move with the source:
+//   a small room around the head.
 // - The side of a stereo input is passed as it is, so a sound that is all
 //   side (left against right) is not lost; only the middle moves.
 // - Mix is a linear crossfade: wet and dry are coherent.
@@ -54,12 +61,16 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   static constexpr float kItdKnee = 0.1f;
   static constexpr float kPan = 0.6f;
   static constexpr float kShade = 0.8f;
-  static constexpr float kShadeHz = 1500.0f;
+  static constexpr float kShadeHz = 1000.0f;
+  // Turning the far ear's high band down by kShade makes its bass late by
+  // kShade / (2π·kShadeHz), 0.127 ms, of itself (the split's own lag); the
+  // line gives the rest of kItdSeconds.
+  static constexpr float kLineSeconds = kItdSeconds - kShade / (kit::kTwoPi * kShadeHz);
   static constexpr float kRearShelf = 0.45f;
   static constexpr float kRearHz = 5000.0f;
   static constexpr float kNotchHz = 7500.0f;
   static constexpr float kNotchQ = 3.0f;
-  static constexpr float kNotchDepth = 0.6f;
+  static constexpr float kNotchDepth = 0.5f;
   static constexpr float kNearDb = 12.0f;
   static constexpr float kThin = 0.5f;
   static constexpr float kThinHz = 250.0f;
@@ -143,7 +154,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     rear_lp_.set_cutoff(kRearHz, sr);
     notch_.set(kNotchHz, kNotchQ, sr);
     room_lp_.set_cutoff(kRoomHz, sr);
-    for (kit::OnePole& filter : shade_lp_) filter.set_cutoff(kShadeHz, sr);
+    shade_lp_.set_cutoff(kShadeHz, sr);
     for (int e = 0; e < 2; ++e) {
       for (int t = 0; t < kRoomTaps; ++t) {
         room_delay_[e][t] = static_cast<int>(kRoomMs[e][t] * 0.001f * sr + 0.5f);
@@ -210,23 +221,28 @@ class Around : public kit::DeviceBase<around::kNumParams> {
 
       const float mid = 0.5f * (in[0] + in[1]);
       const float side = 0.5f * (in[0] - in[1]);
-      room_line_.write(room_lp_.lowpass(mid));
+      // The bass under kThinHz is split off once: the room does without it
+      // (so a held low note does not sit on the echoes' comb), and the
+      // source loses some of it away from the near point.
+      const float bass = thin_lp_.lowpass(mid);
+      room_line_.write(room_lp_.lowpass(mid - bass));
 
       // What both ears hear alike: thinner away from the near point, and the
       // outer ear's colour from behind.
-      float source = mid - ramp(thin_) * thin_lp_.lowpass(mid);
+      float source = mid - ramp(thin_) * bass;
       const float rear = ramp(rear_);
       source -= rear * kRearShelf * (source - rear_lp_.lowpass(source));
       source -= rear * kNotchDepth * notch_.bandpass(source);
-      ear_line_.write(source);
+      // The ears share one split: the low band goes down the line to be
+      // delayed, the high band is only turned down (the shadow).
+      const float low = shade_lp_.lowpass(source);
+      const float high = source - low;
+      ear_line_.write(low);
 
       const float blur = blur_.next() * kRoomGain;
       float wet[2];
       for (int e = 0; e < 2; ++e) {
-        float ear = read_ear(ramp(delay_[e]));
-        const float dark = shade_lp_[e].lowpass(ear);
-        ear += (dark - ear) * ramp(shade_[e]);
-        ear *= ramp(gain_[e]);
+        const float ear = (read_ear(ramp(delay_[e])) + high * (1.0f - ramp(shade_[e]))) * ramp(gain_[e]);
         float room = 0.0f;
         for (int t = 0; t < kRoomTaps; ++t) {
           room += kRoomTap[e][t] * room_line_.read(room_delay_[e][t]);
@@ -308,7 +324,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     rear_lp_.reset();
     room_lp_.reset();
     notch_.reset();
-    for (kit::OnePole& filter : shade_lp_) filter.reset();
+    shade_lp_.reset();
   }
 
   // Knobs go to where they were put at once: before the first sound and on
@@ -360,7 +376,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
 
     const float near_gain = std::exp(-nearness * away * kNearDb * 0.115129255f);
     const float level = near_gain / std::sqrt(1.0f + kPan * kPan * x * x);
-    const float itd = kit::min(kItdSeconds * sample_rate() * head, 120.0f);
+    const float itd = kit::min(kLineSeconds * sample_rate() * head, 120.0f);
     for (int e = 0; e < 2; ++e) {
       const float towards = e == 0 ? -x : x;  // 1 when the source is at this ear
       const float across = kit::max(0.0f, -towards);
@@ -410,8 +426,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
 
   kit::DelayLine<128> ear_line_;    // 0.66 ms at 96 kHz and the interpolator's margin
   kit::DelayLine<4096> room_line_;  // 37.3 ms at 96 kHz
-  kit::OnePole thin_lp_, rear_lp_, room_lp_;
-  kit::OnePole shade_lp_[2];
+  kit::OnePole thin_lp_, rear_lp_, room_lp_, shade_lp_;
   kit::Svf notch_;
   kit::Smoother radius_, head_, near_;  // on the control clock
   kit::Smoother weight_[kNumPaths];     // on the control clock
