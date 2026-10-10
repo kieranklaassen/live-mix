@@ -1,0 +1,96 @@
+{
+  "id": "haze",
+  "name": "Haze",
+  "category": "reverb",
+  "description": "A short reverb into a soft fuzz into a long reverb: notes lose their attacks, grow overtones and hang as one glowing wall.",
+  "class": "Haze",
+  "header": "haze.h",
+  "sources": [],
+  "meters": [
+    { "key": "push", "name": "Push into the fuzz", "display": true },
+    { "key": "wall", "name": "Wall level", "display": true }
+  ],
+  "params": [
+    {
+      "key": "haze",
+      "name": "Haze",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How hard the blurred sound is pushed into the fuzz. Higher grows more overtones while the loudness stays where it was."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How much the sound is smeared before the fuzz. Low keeps the attacks and their bite; high lets every note swell in and melt into the next."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 30,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the wall rings after the playing stops."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Balance between the dry signal and the wall. Fully up is the wall alone."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How big the second space is. Small is close and dense; large is open and slower to fill. Moving it bends the pitch of the tail."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Tilts the fuzz before it enters the long reverb, from dark wool at the bottom to bright glare at the top."
+    },
+    {
+      "key": "octave",
+      "name": "Octave",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Folds the wave over before the fuzz, which adds the octave above. A little gives a glow; fully up the octave takes over from the note."
+    },
+    {
+      "key": "feed",
+      "name": "Feed",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer; it always dies away in the end."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the wall only. Zero is a mono wall; full is the widest."
+    }
+  ],
+  "presets": {
+    "Glowing wall": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit: an allpass smear, a level-following waveshaper at four times the sample rate and an eight-line feedback delay network. Not a model of any pedal or plug-in."
+  }
+}
