@@ -120,6 +120,8 @@ build_generated_devices() {
     cpp/devices/phaser/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device pitch-shifter \
     cpp/devices/pitch-shifter/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device prepared-piano \
+    cpp/devices/prepared-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device radio \
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
@@ -311,6 +313,8 @@ test_generated_devices() {
     cpp/test/phaser_test.cpp
   native_test pitch_shifter_test \
     cpp/test/pitch_shifter_test.cpp
+  native_test prepared_piano_test \
+    cpp/test/prepared_piano_test.cpp
   native_test radio_test \
     cpp/test/radio_test.cpp
   native_test re_amp_test \

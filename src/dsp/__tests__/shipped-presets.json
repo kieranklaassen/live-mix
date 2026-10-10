@@ -2180,5 +2180,24 @@
     "Tin roof": {"rain":18,"material":2,"loose":1,"size":0,"spread":0.5,"ring":0.25,"soft":0.7,"splash":0.9,"bursts":0.3,"trail":2,"width":0.7,"volume":-10},
     "Long chimes": {"rain":0.8,"material":2,"loose":0.6,"size":0.9,"spread":1,"ring":3,"soft":0.4,"splash":0,"bursts":0,"trail":10,"width":0.7,"volume":-10},
     "Bubble stream": {"rain":20,"material":3,"loose":1,"size":0.15,"spread":2,"ring":0.6,"soft":0.5,"splash":0.35,"bursts":0.4,"trail":1,"width":0.7,"volume":-6.5}
+  },
+  "prepared-piano": {
+    "(default)": {"preparation":0,"amount":0.6,"position":0.2,"rattle":0.4,"hammer":0.5,"decay":1,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Small orchestra": {"preparation":0,"amount":0.6,"position":0.2,"rattle":0.4,"hammer":0.5,"decay":1,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Plain piano": {"preparation":0,"amount":0,"position":0.2,"rattle":0,"hammer":0.5,"decay":1,"detune":0.35,"thud":0.2,"tone":0.75,"width":0.6,"volume":-6},
+    "Bolt gongs": {"preparation":1,"amount":0.85,"position":0.2,"rattle":0.4,"hammer":0.4,"decay":1.6,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Light bolts": {"preparation":1,"amount":0.55,"position":0.5,"rattle":0.2,"hammer":0.6,"decay":0.8,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Rattling bolts": {"preparation":1,"amount":0.7,"position":0.2,"rattle":0.9,"hammer":0.65,"decay":1,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Rubber thunks": {"preparation":2,"amount":0.85,"position":0.2,"rattle":0.4,"hammer":0.45,"decay":1,"detune":0.35,"thud":0.5,"tone":0.65,"width":0.6,"volume":-0.5},
+    "Soft rubber": {"preparation":2,"amount":0.55,"position":0.2,"rattle":0.4,"hammer":0.3,"decay":1.5,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-4},
+    "Felt mute": {"preparation":3,"amount":1,"position":0.2,"rattle":0.4,"hammer":0.3,"decay":1,"detune":0.35,"thud":0.15,"tone":0.75,"width":0.6,"volume":-5},
+    "Felt whisper": {"preparation":3,"amount":0.6,"position":0.2,"rattle":0,"hammer":0.15,"decay":2,"detune":0.35,"thud":0.3,"tone":0.6,"width":0.6,"volume":-6},
+    "Paper buzz": {"preparation":4,"amount":0.8,"position":0.2,"rattle":0.4,"hammer":0.5,"decay":1,"detune":0.35,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Paper sizzle": {"preparation":4,"amount":1,"position":0.2,"rattle":1,"hammer":0.75,"decay":1,"detune":0.35,"thud":0.3,"tone":0.9,"width":0.6,"volume":-6},
+    "Wood blocks": {"preparation":2,"amount":0.8,"position":0.5,"rattle":0.4,"hammer":0.9,"decay":0.4,"detune":0.35,"thud":0.5,"tone":1,"width":0.6,"volume":0.7},
+    "Temple gongs": {"preparation":1,"amount":1,"position":0.33,"rattle":0.4,"hammer":0.25,"decay":3,"detune":0.6,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Tin chimes": {"preparation":1,"amount":0.5,"position":0.08,"rattle":0.4,"hammer":0.9,"decay":0.6,"detune":0.35,"thud":0.3,"tone":1,"width":0.6,"volume":-6},
+    "Loose unisons": {"preparation":0,"amount":0.45,"position":0.2,"rattle":0.4,"hammer":0.7,"decay":1,"detune":1,"thud":0.3,"tone":0.75,"width":0.6,"volume":-6},
+    "Dark orchestra": {"preparation":0,"amount":0.9,"position":0.2,"rattle":0.6,"hammer":0.35,"decay":2,"detune":0.35,"thud":0.3,"tone":0.5,"width":0.6,"volume":-6}
   }
 }

@@ -59,6 +59,7 @@ import { PATINA_DESCRIPTOR, PATINA_DEVICE } from './patina.gen'
 import { PEDAL_STEEL_DESCRIPTOR, PEDAL_STEEL_DEVICE } from './pedal-steel.gen'
 import { PHASER_DESCRIPTOR, PHASER_DEVICE } from './phaser.gen'
 import { PITCH_SHIFTER_DESCRIPTOR, PITCH_SHIFTER_DEVICE } from './pitch-shifter.gen'
+import { PREPARED_PIANO_DESCRIPTOR, PREPARED_PIANO_DEVICE } from './prepared-piano.gen'
 import { RADIO_DESCRIPTOR, RADIO_DEVICE } from './radio.gen'
 import { RE_AMP_DESCRIPTOR, RE_AMP_DEVICE } from './re-amp.gen'
 import { REVERSE_DELAY_DESCRIPTOR, REVERSE_DELAY_DEVICE } from './reverse-delay.gen'
@@ -152,6 +153,7 @@ export * from './patina.gen'
 export * from './pedal-steel.gen'
 export * from './phaser.gen'
 export * from './pitch-shifter.gen'
+export * from './prepared-piano.gen'
 export * from './radio.gen'
 export * from './re-amp.gen'
 export * from './reverse-delay.gen'
@@ -247,6 +249,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   PEDAL_STEEL_DESCRIPTOR,
   PHASER_DESCRIPTOR,
   PITCH_SHIFTER_DESCRIPTOR,
+  PREPARED_PIANO_DESCRIPTOR,
   RADIO_DESCRIPTOR,
   RE_AMP_DESCRIPTOR,
   REVERSE_DELAY_DESCRIPTOR,
@@ -343,6 +346,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   PEDAL_STEEL_DEVICE,
   PHASER_DEVICE,
   PITCH_SHIFTER_DEVICE,
+  PREPARED_PIANO_DEVICE,
   RADIO_DEVICE,
   RE_AMP_DEVICE,
   REVERSE_DELAY_DEVICE,
@@ -446,6 +450,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'pedal-steel', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'phaser', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'pitch-shifter', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
+  { id: 'prepared-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'radio', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 're-amp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'reverse-delay', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 20 },

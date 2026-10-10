@@ -34,6 +34,7 @@ import { ORGAN_PRESETS } from './organ'
 import { OUTDOORS_PRESETS } from './outdoors'
 import { OVERTONE_PRESETS } from './overtone'
 import { PEDAL_STEEL_PRESETS } from './pedal-steel'
+import { PREPARED_PIANO_PRESETS } from './prepared-piano'
 import { REWIND_PRESETS } from './rewind'
 import { SAMPLER_PRESETS } from './sampler'
 import { SHORTWAVE_PRESETS } from './shortwave'
@@ -94,4 +95,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ICE_PRESETS,
   ...REWIND_PRESETS,
   ...DROPLETS_PRESETS,
+  ...PREPARED_PIANO_PRESETS,
 ]
