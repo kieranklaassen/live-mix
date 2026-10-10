@@ -27,6 +27,7 @@ import { DUSK_DESCRIPTOR, DUSK_DEVICE } from './dusk.gen'
 import { ECHO_MEMORY_DESCRIPTOR, ECHO_MEMORY_DEVICE } from './echo-memory.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
+import { FEEDBACK_DESCRIPTOR, FEEDBACK_DEVICE } from './feedback.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLOCK_DESCRIPTOR, FLOCK_DEVICE } from './flock.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
@@ -124,6 +125,7 @@ export * from './dusk.gen'
 export * from './echo-memory.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
+export * from './feedback.gen'
 export * from './flanger.gen'
 export * from './flock.gen'
 export * from './flute.gen'
@@ -223,6 +225,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   ECHO_MEMORY_DESCRIPTOR,
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
+  FEEDBACK_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
   FLOCK_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
@@ -323,6 +326,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   ECHO_MEMORY_DEVICE,
   EMBER_DEVICE,
   EXPANSE_DEVICE,
+  FEEDBACK_DEVICE,
   FLANGER_DEVICE,
   FLOCK_DEVICE,
   FLUTE_DEVICE,
@@ -430,6 +434,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'echo-memory', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 20 },
   { id: 'ember', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
+  { id: 'feedback', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'flock', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

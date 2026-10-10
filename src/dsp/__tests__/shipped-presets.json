@@ -2256,5 +2256,24 @@
     "Harp into air": {"source":2,"strike":0.9,"decay":4,"glow":0.7,"bloom":4,"fade":10,"tone":0.4,"halo":0.3,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-11},
     "Quick swell": {"source":0,"strike":0.3,"decay":1.5,"glow":0.9,"bloom":0.4,"fade":1.5,"tone":0.6,"halo":0.2,"evolve":0.4,"drift":0.3,"width":0.6,"volume":-15.5},
     "Low tide bell": {"source":1,"strike":0.6,"decay":12,"glow":0.7,"bloom":5,"fade":14,"tone":0.25,"halo":0,"evolve":0.7,"drift":0.4,"width":0.6,"volume":-9}
+  },
+  "feedback": {
+    "(default)": {"gain":0.7,"distance":2,"bloom":0.5,"grit":0.35,"pick":0.5,"crowd":0.5,"wander":0.2,"damp":0.4,"release":1.5,"width":0.6,"volume":-9},
+    "Singing string": {"gain":0.7,"distance":2,"bloom":0.5,"grit":0.35,"pick":0.5,"crowd":0.5,"wander":0.2,"damp":0.4,"release":1.5,"width":0.6,"volume":-9},
+    "Plucked and gone": {"gain":0.3,"distance":2,"bloom":0.5,"grit":0.35,"pick":0.85,"crowd":0.5,"wander":0.2,"damp":0.3,"release":0.6,"width":0.6,"volume":-9},
+    "Slow bloom": {"gain":0.8,"distance":2,"bloom":5,"grit":0.35,"pick":0.25,"crowd":0.5,"wander":0.2,"damp":0.4,"release":3,"width":0.6,"volume":-9},
+    "Out of the hum": {"gain":0.85,"distance":1,"bloom":1.2,"grit":0.2,"pick":0,"crowd":0.5,"wander":0.2,"damp":0.4,"release":2.5,"width":0.6,"volume":-9},
+    "Howl": {"gain":1,"distance":3,"bloom":0.15,"grit":0.85,"pick":0.5,"crowd":0.5,"wander":0.2,"damp":0.2,"release":1.5,"width":0.6,"volume":-9},
+    "Torn edge": {"gain":0.8,"distance":1,"bloom":0.5,"grit":1,"pick":0.7,"crowd":0.5,"wander":0.2,"damp":0.25,"release":1.5,"width":0.6,"volume":-9},
+    "Pure twelfth": {"gain":0.7,"distance":3,"bloom":1,"grit":0,"pick":0.3,"crowd":0.5,"wander":0,"damp":0.4,"release":1.5,"width":0.6,"volume":-9},
+    "High whistle": {"gain":0.7,"distance":6,"bloom":1.5,"grit":0,"pick":0.2,"crowd":0.5,"wander":0.1,"damp":0.1,"release":1.5,"width":0.6,"volume":-9},
+    "Fighting chord": {"gain":0.9,"distance":2,"bloom":0.3,"grit":0.65,"pick":0.5,"crowd":0.85,"wander":0.2,"damp":0.25,"release":1.5,"width":0.6,"volume":-9},
+    "Drifting air": {"gain":0.7,"distance":3.5,"bloom":2,"grit":0.15,"pick":0.15,"crowd":0.6,"wander":1,"damp":0.4,"release":4,"width":0.6,"volume":-9},
+    "Dark sustain": {"gain":0.75,"distance":1,"bloom":0.5,"grit":0.1,"pick":0.6,"crowd":0.5,"wander":0,"damp":0.9,"release":1.5,"width":0.6,"volume":-9},
+    "Glass bow": {"gain":0.8,"distance":4,"bloom":2.5,"grit":0,"pick":0,"crowd":0.5,"wander":0.1,"damp":0.15,"release":3,"width":0.6,"volume":-9},
+    "Edge of hold": {"gain":0.53,"distance":1,"bloom":0.1,"grit":0.2,"pick":0.7,"crowd":0.5,"wander":0.2,"damp":0.4,"release":1.5,"width":0.6,"volume":-9},
+    "Open amp": {"gain":0.8,"distance":2,"bloom":0.5,"grit":0.55,"pick":0.5,"crowd":0,"wander":0.2,"damp":0.4,"release":1.5,"width":1,"volume":-14},
+    "Long sink": {"gain":0.75,"distance":2,"bloom":1,"grit":0.25,"pick":0.5,"crowd":0.5,"wander":0.2,"damp":0.4,"release":9,"width":0.6,"volume":-9},
+    "Reed tone": {"gain":0.7,"distance":1,"bloom":0.08,"grit":0.7,"pick":0.15,"crowd":0.3,"wander":0,"damp":0.4,"release":0.3,"width":0.6,"volume":-9}
   }
 }

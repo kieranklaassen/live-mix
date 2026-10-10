@@ -56,6 +56,8 @@ build_generated_devices() {
     cpp/devices/ember/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device expanse \
     cpp/devices/expanse/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device feedback \
+    cpp/devices/feedback/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device flanger \
     cpp/devices/flanger/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flock \
@@ -255,6 +257,8 @@ test_generated_devices() {
     cpp/test/ember_test.cpp
   native_test expanse_test \
     cpp/test/expanse_test.cpp
+  native_test feedback_test \
+    cpp/test/feedback_test.cpp
   native_test flanger_test \
     cpp/test/flanger_test.cpp
   native_test flock_test \

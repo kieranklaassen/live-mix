@@ -16,6 +16,7 @@ import { DROPLETS_PRESETS } from './droplets'
 import { DRUM_KIT_PRESETS } from './drum-kit'
 import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
+import { FEEDBACK_PRESETS } from './feedback'
 import { FELT_PIANO_PRESETS } from './felt-piano'
 import { FLOCK_PRESETS } from './flock'
 import { FLUTE_PRESETS } from './flute'
@@ -102,4 +103,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...GRAFT_PRESETS,
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
+  ...FEEDBACK_PRESETS,
 ]
