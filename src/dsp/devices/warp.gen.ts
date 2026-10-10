@@ -66,7 +66,7 @@ export const WARP_PARAMS = {
     name: 'Drift',
     min: 0,
     max: 1,
-    default: 0.15,
+    default: 0.1,
     taper: 'linear',
     unit: '',
     description:
@@ -81,7 +81,7 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Leans the warped sound darker or brighter. Stretching throws partials upward, and turning this down takes the edge off them.',
+      'Darkens or brightens the warped sound from the middle of the keyboard up. Stretching throws partials upward, and turning this down takes the edge off them.',
   },
   width: {
     id: 7,
@@ -142,6 +142,21 @@ export const WARP_DESCRIPTOR = wasmDeviceDescriptor(WARP_DEVICE, {
     'Stretches or squeezes the spacing of the partials around a pivot note that stays put, so strings turn into bells and bells into dense beating clusters.',
   presets: {
     'Bell metal': {},
+    'Soft chime': { stretch: 0.12, pivot: 440, lean: 1, drift: 0.2, tone: -0.3, mix: 0.5 },
+    'Glass bar': { stretch: 0.55, pivot: 60, follow: 1, drift: 0, width: 0.15, mix: 1 },
+    'Beating cluster': { stretch: -0.6, pivot: 330, drift: 0.3, width: 0.6, mix: 1 },
+    'Slow breath': { stretch: 0.2, drift: 1, width: 0.5, mix: 0.8 },
+    'Sunken gong': { stretch: 0.45, shift: -12, tone: -0.5, mix: 1 },
+    'Thin halo': { stretch: 0.06, drift: 0.4, width: 1, mix: 0.35 },
+    'Wide drone': { stretch: -0.25, pivot: 110, drift: 0.6, width: 1, mix: 0.85 },
+    'Top bent': { stretch: 0.7, pivot: 600, lean: 1, tone: -0.2, mix: 0.8 },
+    'Low roots': { stretch: 0.6, pivot: 500, lean: -1, mix: 0.9 },
+    'Tight hum': { stretch: -1, pivot: 60, follow: 1, tone: 0.3, mix: 1 },
+    'Tin toy': { stretch: 0.9, pivot: 300, shift: 7, tone: -0.6, mix: 0.9 },
+    'Fifth shadow': { stretch: 0, shift: 7, width: 0.5, mix: 0.4 },
+    'Octave under': { stretch: 0, shift: -12, tone: -0.3, mix: 0.5 },
+    'Dark bowl': { stretch: -0.35, pivot: 150, drift: 0.25, tone: -0.8, mix: 1 },
+    'Bright spray': { stretch: 0.5, pivot: 300, lean: 1, tone: 0.8, width: 0.8, mix: 0.6 },
   },
 })
 

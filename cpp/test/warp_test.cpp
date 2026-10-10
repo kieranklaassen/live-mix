@@ -3,6 +3,8 @@
 // the partials land.
 
 #include "../devices/warp/warp.h"
+#include <limits>
+
 #include "support/test_kit.h"
 
 using namespace testkit;
@@ -150,7 +152,8 @@ int main() {
   }
 
   // 3. Stretch in the middle with Shift at 0 is the input, a latency late; Mix 0 is the input bit for bit;
-  // and part way the dry path is in step with the wet one (no comb: the sum is the input, 3 dB up).
+  // and part way the dry path is in step with the wet one and what has not moved keeps its level (the
+  // sum is the input again: no comb, and none of the 3 dB an equal-power crossfade adds to a copy).
   {
     rng_state() = 77;
     std::vector<float> in = noise(1.0f, kRate, 0.4f);
@@ -176,7 +179,9 @@ int main() {
     device.set_param(p::kStretch, 0.0f);
     device.set_param(p::kMix, 0.5f);
     out = run(device, in);
-    EXPECT(off_by(out.left, in, 1.4142135f) < 1.0e-5, "Mix 0.5 with nothing moved: dry and wet in step, no comb");
+    const double part_way = off_by(out.left, in);
+    std::printf("Mix 0.5 with nothing moved: off the input by %.3g\n", part_way);
+    EXPECT(part_way < 2.0e-6, "Mix 0.5 with nothing moved is the input: dry and wet in step, and no 3 dB added");
   }
 
   // 4. Sines stay sines: a sine moved by any part of a bin comes out one sine at the new pitch, at its
@@ -269,22 +274,19 @@ int main() {
     EXPECT_NEAR(db(rms(out.left, 24000) / rms(out.right, 24000)), 0.0, 0.3, "and keeps them as loud as each other");
   }
 
-  // 8. Tone: a tilt about 1 kHz of kToneDbPerOctave an octave at the ends, the pivot of the tilt untouched.
+  // 8. Tone: over 500 Hz a slope of kToneDbPerOctave an octave at the ends (a boost stops at 12 dB);
+  // under 500 Hz nothing, so a darker tone is no louder.
   {
-    for (float tone : {-1.0f, 1.0f}) {
-      still(device);
-      device.set_param(p::kStretch, 0.0f);
-      device.set_param(p::kTone, tone);
-      const std::vector<float> in = sine(4000.0f, 1.0f, kRate, 0.2f);
-      Stereo out = run(device, in);
-      EXPECT_NEAR(db(tone_level(out.left, 4000.0, kRate, 24000, 44000) / 0.2), 2.0 * tone * Warp::kToneDbPerOctave, 0.3,
-                  "Tone: two octaves over 1 kHz");
-      still(device);
-      device.set_param(p::kStretch, 0.0f);
-      device.set_param(p::kTone, tone);
-      out = run(device, sine(250.0f, 1.0f, kRate, 0.2f));
-      EXPECT_NEAR(db(tone_level(out.left, 250.0, kRate, 24000, 44000) / 0.2), -2.0 * tone * Warp::kToneDbPerOctave, 0.3,
-                  "Tone: two octaves under 1 kHz");
+    for (float tone : {-1.0f, -0.5f, 1.0f}) {
+      for (float hz : {250.0f, 1000.0f, 4000.0f}) {
+        still(device);
+        device.set_param(p::kStretch, 0.0f);
+        device.set_param(p::kTone, tone);
+        const Stereo out = run(device, sine(hz, 1.0f, kRate, 0.2f));
+        const double octaves = std::max(0.0, std::log2(static_cast<double>(hz) / Warp::kTonePivotHz));
+        const double want = std::min<double>(Warp::kToneMaxBoostDb, tone * Warp::kToneDbPerOctave * octaves);
+        EXPECT_NEAR(db(tone_level(out.left, hz, kRate, 24000, 44000) / 0.2), want, 0.3, "Tone: the slope over 500 Hz");
+      }
     }
   }
 
@@ -403,6 +405,163 @@ int main() {
     EXPECT_NEAR(device.meter(1), 196.0, 0.3, "Follow: of two notes, the lower is the pivot");
     run(device, std::vector<float>(pair.begin() + 60000, pair.end()));
     EXPECT_NEAR(device.meter(1), 293.66, 0.3, "Follow: when it stops, the pivot goes to the note that is left");
+  }
+
+  // 11. Bad input: NaN, infinity and 1e30 go in as silence; the output stays finite, and a latency and
+  // two frames later the device is what it would have been (to the far skirts of what it missed).
+  {
+    const std::vector<float> good = harmonics(196.0f, 8, 2.0f, 0.25f);
+    std::vector<float> bad = good;
+    bad[30000] = std::nanf("");
+    bad[30001] = std::numeric_limits<float>::infinity();
+    bad[30002] = -1.0e30f;
+    bad[30003] = 1.0e30f;
+    device.init(kRate);
+    device.set_param(p::kDrift, 1.0f);
+    const Stereo clean = run(device, good);
+    device.init(kRate);
+    device.set_param(p::kDrift, 1.0f);
+    const Stereo hurt = run(device, bad);
+    EXPECT(finite(hurt.left) && finite(hurt.right), "NaN, infinity and 1e30 in: finite out");
+    EXPECT(peak(hurt.left) < 1.0 && peak(hurt.right) < 1.0, "and no louder than the sound");
+    const size_t over = 30004 + kLate + 2 * Warp::Stft::kFrame;
+    const double level = db(rms(hurt.left, over) / rms(clean.left, over));
+    std::printf("after bad input: level %+.3f dB against a clean run\n", level);
+    EXPECT(std::fabs(level) < 0.1, "after bad input the sound is back at its level, not stuck");
+    const double want = 196.0 * std::pow(3.0, std::pow(2.0, 0.3));
+    EXPECT_NEAR(cents(partial_near(hurt.left, want, 80.0, over, over + 30000), partial_near(clean.left, want, 80.0, over, over + 30000)),
+                0.0, 0.5, "and its partials where they would have been");
+    // Bad input alone leaves the device asleep and silent.
+    device.init(kRate);
+    std::vector<float> rubbish(48000, std::nanf(""));
+    const Stereo out = run(device, rubbish);
+    const Stereo after = render(device, 1.0f, kRate);
+    EXPECT(finite(out.left) && peak(out.left) == 0.0 && peak(after.left) == 0.0, "NaN alone is silence");
+  }
+
+  // 12. Block sizes across a silence, with everything that runs by itself running (Drift at 1, Follow
+  // on, Width up): a phrase, a silence stepped across the moment the device falls asleep (0.2 s after
+  // the sound: a latency and a frame of tail, then the hold), and a phrase again, the same to the last
+  // digit at block sizes 1, 37, 128 and 2048.
+  {
+    double worst = 0.0;
+    for (float gap = 0.05f; gap < 0.5f; gap += 0.0173f) {
+      std::vector<float> phrase = harmonics(196.0f, 6, 0.3f, 0.25f);
+      const std::vector<float> quiet = silence(gap, kRate);
+      const std::vector<float> again = harmonics(293.66f, 6, 0.3f, 0.25f);
+      phrase.insert(phrase.end(), quiet.begin(), quiet.end());
+      phrase.insert(phrase.end(), again.begin(), again.end());
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        device.init(kRate);
+        device.set_param(p::kDrift, 1.0f);
+        device.set_param(p::kFollow, 1.0f);
+        device.set_param(p::kWidth, 1.0f);
+        device.set_param(p::kPivot, 100.0f);
+        const Stereo out = run(device, phrase, block);
+        if (block == 128) {
+          reference = out;
+          continue;
+        }
+        for (size_t i = 0; i < out.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+          worst = std::max(worst, std::fabs(static_cast<double>(out.right[i]) - reference.right[i]));
+        }
+      }
+    }
+    std::printf("block sizes across a silence: worst difference %.3g\n", worst);
+    EXPECT(worst == 0.0, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+  }
+
+  // 13. No clicks: Stretch, Pivot and Shift swept while a chord sounds, Follow switched and Mix thrown
+  // from one end to the other, each against the same sound with no event in it. A move crossfades over
+  // a frame; the steepest step stays what the sound itself has.
+  {
+    std::vector<float> chord = harmonics(196.0f, 8, 2.0f, 0.2f);
+    const std::vector<float> fifth = harmonics(293.66f, 8, 2.0f, 0.15f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += fifth[i];
+    struct Event {
+      const char* name;
+      int param;
+      float from, to;
+      bool sweep;
+    };
+    const Event events[] = {
+        {"Stretch swept", p::kStretch, -0.6f, 0.8f, true}, {"Pivot swept", p::kPivot, 80.0f, 900.0f, true},
+        {"Shift swept", p::kShift, -7.0f, 7.0f, true},    {"Lean swept", p::kLean, -1.0f, 1.0f, true},
+        {"Tone swept", p::kTone, -1.0f, 1.0f, true},      {"Follow switched on", p::kFollow, 0.0f, 1.0f, false},
+        {"Follow switched off", p::kFollow, 1.0f, 0.0f, false}, {"Mix thrown", p::kMix, 1.0f, 0.0f, false},
+        {"Stretch thrown", p::kStretch, 0.8f, -0.8f, false},
+    };
+    // One render: the chord's first 0.67 s to settle, then 0.67 s in blocks of 128 with the control held
+    // at `fixed` (0 to 1 along its way) or, with `fixed` under 0, moved as the event says.
+    auto steepest = [&](const Event& event, float fixed) {
+      const auto at = [&](float along) { return event.from + (event.to - event.from) * along; };
+      device.init(kRate);
+      device.set_param(p::kMix, 0.7f);
+      device.set_param(event.param, at(fixed < 0.0f ? 0.0f : fixed));
+      run(device, std::vector<float>(chord.begin(), chord.begin() + 32000));
+      Stereo out;
+      for (int block = 0; block < 250; ++block) {
+        if (fixed < 0.0f && (event.sweep || block == 60)) device.set_param(event.param, at(event.sweep ? block / 249.0f : 1.0f));
+        const size_t from = 32000 + static_cast<size_t>(block) * 128;
+        out = concat(out, run(device, std::vector<float>(chord.begin() + from, chord.begin() + from + 128)));
+      }
+      return std::max(max_step(out.left), max_step(out.right));
+    };
+    for (const Event& event : events) {
+      // The reference has no event in it: the steepest the sound is with the control held anywhere
+      // along the way (a stretch throws partials upward, and a higher partial is a steeper wave).
+      double held = 0.0;
+      for (float along : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) held = std::max(held, steepest(event, along));
+      const double moved = steepest(event, -1.0f);
+      char label[120];
+      std::snprintf(label, sizeof label, "%s: no click (step %.4f, %.4f with no event)", event.name, moved, held);
+      EXPECT(moved < 1.25 * held + 0.005, label);
+      std::printf("%s: steepest step %.4f, %.4f held\n", event.name, moved, held);
+    }
+  }
+
+  // 14. A knob moved while the device sleeps snaps on wake: the sound after is the sound of a device
+  // that had it there all along. And after any control is thrown to its ends the device comes to rest.
+  {
+    const std::vector<float> tone = harmonics(196.0f, 6, 0.5f, 0.25f);
+    device.init(kRate);
+    run(device, tone);
+    render(device, 1.0f, kRate);
+    device.set_param(p::kMix, 0.2f);
+    device.set_param(p::kStretch, -0.5f);
+    const Stereo woken = run(device, tone);
+    device.init(kRate);
+    device.set_param(p::kMix, 0.2f);
+    device.set_param(p::kStretch, -0.5f);
+    run(device, tone);
+    render(device, 1.0f, kRate);
+    const Stereo always = run(device, tone);
+    EXPECT(woken.left == always.left && woken.right == always.right, "knobs moved in a sleep snap on wake");
+    for (int id = 0; id < p::kNumParams; ++id) {
+      device.init(kRate);
+      run(device, tone);
+      device.set_param(id, p::kParamMax[id]);
+      run(device, tone);
+      device.set_param(id, p::kParamMin[id]);
+      run(device, tone);
+      render(device, 0.5f, kRate);
+      const Stereo rest = render(device, 0.5f, kRate);
+      EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "the device comes to rest after a control is thrown");
+    }
+  }
+
+  // 15. The two sides are worked on apart: nothing is summed to mono, so a sound in opposite phase on
+  // the two sides comes out as loud as it went in, and still in opposite phase.
+  {
+    const std::vector<float> tone = harmonics(220.0f, 6, 1.5f, 0.25f);
+    std::vector<float> flipped = tone;
+    for (float& v : flipped) v = -v;
+    still(device);
+    const Stereo out = run(device, tone, flipped);
+    EXPECT_NEAR(db(rms(out.left, 24000) / rms(tone)), 0.0, 0.3, "opposite phase in: the left as loud as it came");
+    EXPECT(correlation(out.left, out.right, 24000) < -0.999, "and the two sides still opposite");
   }
 
   device.init(kRate);

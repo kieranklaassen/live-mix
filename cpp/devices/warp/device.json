@@ -8,20 +8,83 @@
   "sources": [],
   "latencySamples": 4608,
   "meters": [
-    { "key": "stretchNow", "name": "Stretch now", "display": true },
-    { "key": "pivotNow", "name": "Pivot now", "unit": "Hz", "display": true },
-    { "key": "partial1Hz", "name": "Partial 1 frequency", "unit": "Hz", "display": true },
-    { "key": "partial1Level", "name": "Partial 1 level", "display": true },
-    { "key": "partial2Hz", "name": "Partial 2 frequency", "unit": "Hz", "display": true },
-    { "key": "partial2Level", "name": "Partial 2 level", "display": true },
-    { "key": "partial3Hz", "name": "Partial 3 frequency", "unit": "Hz", "display": true },
-    { "key": "partial3Level", "name": "Partial 3 level", "display": true },
-    { "key": "partial4Hz", "name": "Partial 4 frequency", "unit": "Hz", "display": true },
-    { "key": "partial4Level", "name": "Partial 4 level", "display": true },
-    { "key": "partial5Hz", "name": "Partial 5 frequency", "unit": "Hz", "display": true },
-    { "key": "partial5Level", "name": "Partial 5 level", "display": true },
-    { "key": "partial6Hz", "name": "Partial 6 frequency", "unit": "Hz", "display": true },
-    { "key": "partial6Level", "name": "Partial 6 level", "display": true }
+    {
+      "key": "stretchNow",
+      "name": "Stretch now",
+      "display": true
+    },
+    {
+      "key": "pivotNow",
+      "name": "Pivot now",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial1Hz",
+      "name": "Partial 1 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial1Level",
+      "name": "Partial 1 level",
+      "display": true
+    },
+    {
+      "key": "partial2Hz",
+      "name": "Partial 2 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial2Level",
+      "name": "Partial 2 level",
+      "display": true
+    },
+    {
+      "key": "partial3Hz",
+      "name": "Partial 3 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial3Level",
+      "name": "Partial 3 level",
+      "display": true
+    },
+    {
+      "key": "partial4Hz",
+      "name": "Partial 4 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial4Level",
+      "name": "Partial 4 level",
+      "display": true
+    },
+    {
+      "key": "partial5Hz",
+      "name": "Partial 5 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial5Level",
+      "name": "Partial 5 level",
+      "display": true
+    },
+    {
+      "key": "partial6Hz",
+      "name": "Partial 6 frequency",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "partial6Level",
+      "name": "Partial 6 level",
+      "display": true
+    }
   ],
   "params": [
     {
@@ -71,7 +134,7 @@
       "name": "Drift",
       "min": 0,
       "max": 1,
-      "default": 0.15,
+      "default": 0.1,
       "description": "Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still."
     },
     {
@@ -80,7 +143,7 @@
       "min": -1,
       "max": 1,
       "default": 0,
-      "description": "Leans the warped sound darker or brighter. Stretching throws partials upward, and turning this down takes the edge off them."
+      "description": "Darkens or brightens the warped sound from the middle of the keyboard up. Stretching throws partials upward, and turning this down takes the edge off them."
     },
     {
       "key": "width",
@@ -100,7 +163,109 @@
     }
   ],
   "presets": {
-    "Bell metal": {}
+    "Bell metal": {},
+    "Soft chime": {
+      "stretch": 0.12,
+      "pivot": 440,
+      "lean": 1,
+      "drift": 0.2,
+      "tone": -0.3,
+      "mix": 0.5
+    },
+    "Glass bar": {
+      "stretch": 0.55,
+      "pivot": 60,
+      "follow": 1,
+      "drift": 0,
+      "width": 0.15,
+      "mix": 1
+    },
+    "Beating cluster": {
+      "stretch": -0.6,
+      "pivot": 330,
+      "drift": 0.3,
+      "width": 0.6,
+      "mix": 1
+    },
+    "Slow breath": {
+      "stretch": 0.2,
+      "drift": 1,
+      "width": 0.5,
+      "mix": 0.8
+    },
+    "Sunken gong": {
+      "stretch": 0.45,
+      "shift": -12,
+      "tone": -0.5,
+      "mix": 1
+    },
+    "Thin halo": {
+      "stretch": 0.06,
+      "drift": 0.4,
+      "width": 1,
+      "mix": 0.35
+    },
+    "Wide drone": {
+      "stretch": -0.25,
+      "pivot": 110,
+      "drift": 0.6,
+      "width": 1,
+      "mix": 0.85
+    },
+    "Top bent": {
+      "stretch": 0.7,
+      "pivot": 600,
+      "lean": 1,
+      "tone": -0.2,
+      "mix": 0.8
+    },
+    "Low roots": {
+      "stretch": 0.6,
+      "pivot": 500,
+      "lean": -1,
+      "mix": 0.9
+    },
+    "Tight hum": {
+      "stretch": -1,
+      "pivot": 60,
+      "follow": 1,
+      "tone": 0.3,
+      "mix": 1
+    },
+    "Tin toy": {
+      "stretch": 0.9,
+      "pivot": 300,
+      "shift": 7,
+      "tone": -0.6,
+      "mix": 0.9
+    },
+    "Fifth shadow": {
+      "stretch": 0,
+      "shift": 7,
+      "width": 0.5,
+      "mix": 0.4
+    },
+    "Octave under": {
+      "stretch": 0,
+      "shift": -12,
+      "tone": -0.3,
+      "mix": 0.5
+    },
+    "Dark bowl": {
+      "stretch": -0.35,
+      "pivot": 150,
+      "drift": 0.25,
+      "tone": -0.8,
+      "mix": 1
+    },
+    "Bright spray": {
+      "stretch": 0.5,
+      "pivot": 300,
+      "lean": 1,
+      "tone": 0.8,
+      "width": 0.8,
+      "mix": 0.6
+    }
   },
   "origin": {
     "kind": "new",

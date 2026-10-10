@@ -38,10 +38,13 @@
 //    kInterpolationLoss gives back.
 // 3. The angle is kept per input bin, so the partial that sits there next
 //    frame carries on from it. A region that is to move by less than a
-//    fiftieth of a bin (0.23 Hz) is at rest: it stays where it is and its
+//    quarter of a hertz is at rest: it stays where it is and its
 //    angle falls back to nought, so a partial on the pivot, and everything
 //    with Stretch in the middle and Shift at 0, lines up with the dry path
-//    again, whatever was played before.
+//    again, whatever was played before. Mix is an equal-power crossfade, and
+//    a region at rest is turned down by (1 - cos) / sin of Mix's angle, so
+//    that with its dry self it adds up to what came in: a partial that does
+//    not move keeps its level at every Mix.
 //
 // - Lean scales the stretch on one side of the pivot down to nothing: the
 //   exponent above the pivot is 2^(stretch × min(1, 1 + lean)), below it
@@ -54,8 +57,10 @@
 //   up to 0.04 each. At 0 a mono input stays mono, bit for bit.
 // - Follow moves the pivot to the lowest strong partial at or above the
 //   Pivot setting (Tracker below), each channel from its own spectrum.
-// - Tone is a gain per bin on the wet signal: a tilt about 1 kHz of up to
-//   4.5 dB an octave either way, never more than 12 dB of boost.
+// - Tone is a gain per bin on the wet signal, over 500 Hz only: up to 6 dB
+//   an octave of cut (turned down) or of boost (turned up, never more than
+//   12 dB). What lies under 500 Hz is left as it is, so a darker tone is
+//   not a louder one.
 //
 // The wet path sums nothing: left stays left and right stays right. Nothing
 // is held and nothing feeds back; what goes above half the sample rate or
@@ -87,8 +92,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   static constexpr double kDriftRate[3] = {1.0, 0.6180339887, 1.7320508076};
   static constexpr float kDriftWeight[3] = {0.5f, 0.3f, 0.2f};
   static constexpr uint32_t kDriftStart[3] = {0x1F3A5C00u, 0x8E2B9D00u, 0xC4D17A00u};
-  static constexpr float kTonePivotHz = 1000.0f;
-  static constexpr float kToneDbPerOctave = 4.5f;
+  static constexpr float kTonePivotHz = 500.0f;
+  static constexpr float kToneDbPerOctave = 6.0f;
   static constexpr float kToneMaxBoostDb = 12.0f;
   static constexpr float kToneMaxCutDb = 48.0f;
 
@@ -125,6 +130,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       }
     }
     tone_dirty_ = true;
+    rest_gain_ = 1.0f;
+    at_rest_ = Stft::hz_to_bin(kAtRestHz, sr);
     // The drift's three phases per frame, as fractions of 2^32 of a turn.
     const double turns_per_frame = static_cast<double>(kDriftHz) * Stft::kHop / sr;
     for (int i = 0; i < 3; ++i) {
@@ -140,7 +147,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   void set_param(int id, float value) {
     using namespace warp;
     if (!store_param(id, value)) return;
-    if (id == kMix) mix_.set(param(id), primed());
+    // (asleep, a knob snaps: nothing is sounding for it to glide under)
+    if (id == kMix) mix_.set(param(id), primed() && !idle_.asleep());
     if (id == kTone) tone_dirty_ = true;
   }
 
@@ -205,12 +213,12 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   static constexpr int kMaxPeaks = kBins / 3 + 2;
   // A region moved by half a bin comes out this share quieter; in between by 4 ε (1 - ε) of it.
   static constexpr float kInterpolationLoss = 0.095f;
-  // A region whose move is under this many bins (0.23 Hz at 48 kHz) is at rest: it is left where it
-  // is and its angle falls back to nought. The measure of a partial's place is good to a ten-
-  // thousandth of a bin and worse in the frames of an attack; without a rest wider than that a
-  // partial on the pivot would keep whatever angle its attack left it, and part way up Mix it
-  // would cancel against the dry one, or not, by chance.
-  static constexpr float kAtRest = 0.02f;
+  // A region whose move is under a quarter of a hertz is at rest: it is left where it is and its
+  // angle falls back to nought. The measure of a partial's place is good to a thousandth of a
+  // hertz and worse in the frames of an attack; without a rest wider than that a partial on the
+  // pivot would keep whatever angle its attack left it, and part way up Mix it would cancel
+  // against the dry one, or not, by chance.
+  static constexpr float kAtRestHz = 0.25f;
   static constexpr float kRestDecay = 0.75f;
   // Follow: a partial is strong within 18 dB of the strongest, the pivot stays with a partial until
   // it is 36 dB under, and a partial within 3 % (half a semitone) is the one it had.
@@ -237,19 +245,19 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     return sum;
   }
 
-  // Gain per bin from Tone: a tilt about kTonePivotHz.
+  // Gain per bin from Tone: a slope over kTonePivotHz, nothing under it.
   void update_tone() {
     using namespace warp;
     const float slope = param(kTone) * kToneDbPerOctave;
     for (int k = 0; k < kBins; ++k) {
       const float db = kit::clamp(slope * octave_[k], -kToneMaxCutDb, kToneMaxBoostDb);
-      tone_gain_[k] = slope == 0.0f ? 1.0f : std::exp(db * 0.11512925f);
+      tone_gain_[k] = (slope == 0.0f || octave_[k] <= 0.0f) ? 1.0f : std::exp(db * 0.11512925f);
     }
     tone_dirty_ = false;
   }
 
   // Follow: the pivot's place in bins, from this frame's peaks (peak_bin_, peak_true_, `peaks_` of
-  // them, lowest first) and the partial it was on. A frame with no peak changes nothing.
+  // them, lowest first) and the partial it was on. With no peak at or over the knob it stays.
   float track(Channel& channel, float floor_bin) const {
     const float lowest = floor_bin * (1.0f - kSameNote);
     float strongest = 0.0f;
@@ -301,6 +309,13 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     const float above = std::exp2(stretch * kit::min(1.0f, 1.0f + lean));
     const float below = std::exp2(stretch * kit::min(1.0f, 1.0f - lean));
     const float shift = param(kShift) * (1.0f / 12.0f);  // octaves
+    // What a region at rest is turned down by. Mix is an equal-power crossfade, which is right for
+    // partials that have moved (they add to the dry ones as power) and 3 dB too much at the centre
+    // for one that has not (it adds to its dry self as amplitude). With (1 - cos) / sin on those,
+    // dry × cos + wet × sin is the partial as it came in, at every Mix.
+    float dry_gain, wet_gain;
+    kit::equal_power(param(kMix), &dry_gain, &wet_gain);
+    rest_gain_ = wet_gain > 1.0e-4f ? (1.0f - dry_gain) / wet_gain : 0.0f;
 
     // 1. Power, and the peaks: a bin over its two neighbours on either side.
     for (int k = 0; k < kBins; ++k) power_[k] = re[k] * re[k] + im[k] * im[k];
@@ -326,6 +341,14 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     for (int k = 0; k < kBins; ++k) {
       channel.last_re[k] = re[k];
       channel.last_im[k] = im[k];
+    }
+
+    if (peaks_ == 0) {
+      // A frame of silence: the angles and the partial Follow was on are forgotten, so what comes
+      // after a silence starts as it would after init (a sleep is only ever entered past such a
+      // frame, so it makes no difference whether the device slept).
+      for (int k = 0; k < kBins; ++k) channel.turn[k] = 0.0f;
+      channel.tracked = 0.0f;
     }
 
     // The pivot: the knob's, or the partial Follow has gone to.
@@ -391,7 +414,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     // The angle: what the bin under the peak carried, on by a quarter of the move in turns
     // (Hop / Frame), wrapped. At rest it falls back to nought.
     float turn = channel.turn[peak];
-    if (std::fabs(move) < kAtRest) {
+    if (std::fabs(move) < at_rest_) {
       move = 0.0f;
       turn *= kRestDecay;
       if (std::fabs(turn) < 1.0e-6f) turn = 0.0f;
@@ -407,7 +430,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     const int d = static_cast<int>(whole);
     // Two neighbouring bins share the part of a bin, with the signs of a frame centred on its
     // middle, and the level that costs is given back.
-    const float gain = 1.0f / (1.0f - 4.0f * kInterpolationLoss * part * (1.0f - part));
+    const float gain = move == 0.0f ? rest_gain_ : 1.0f / (1.0f - 4.0f * kInterpolationLoss * part * (1.0f - part));
     const float sign = (d & 1) ? -gain : gain;
     const float cosine = kit::SineTable::cos_lookup(turn);
     const float sine = kit::SineTable::lookup(turn);
@@ -431,7 +454,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   Channel channel_[2];
   float power_[kBins];
   float out_re_[kBins + 1], out_im_[kBins + 1];  // the moved spectrum, summed
-  float octave_[kBins];                          // octaves from the tone pivot, per bin
+  float octave_[kBins];                          // octaves from the tone's corner, per bin
   float tone_gain_[kBins];
   float peak_true_[kMaxPeaks];  // each peak's true place in bins
   int16_t peak_bin_[kMaxPeaks];
@@ -442,6 +465,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   float mix_seen_ = -1.0f;
   float dry_gain_ = 1.0f;
   float wet_gain_ = 0.0f;
+  float at_rest_ = 0.0f;      // kAtRestHz in bins
+  float rest_gain_ = 1.0f;    // this frame's gain for a region at rest
   float stretch_now_ = 0.0f;  // for meter() only
   bool tone_dirty_ = true;
 };

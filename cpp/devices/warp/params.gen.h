@@ -7,7 +7,7 @@
 //    2  follow: 0 Off, 1 On, default 0
 //    3  lean: -1..1, default 0
 //    4  shift: -12..12 st, default 0
-//    5  drift: 0..1, default 0.15
+//    5  drift: 0..1, default 0.1
 //    6  tone: -1..1, default 0
 //    7  width: 0..1, default 0.25
 //    8  mix: 0..1, default 0.7
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {-1.0f, 30.0f, 0.0f, -1.0f, -12.0f, 0.0f, -1.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 2000.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.3f, 220.0f, 0.0f, 0.0f, 0.0f, 0.15f, 0.0f, 0.25f, 0.7f};
+inline constexpr float kParamDefault[kNumParams] = {0.3f, 220.0f, 0.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0.25f, 0.7f};
 
 }  // namespace warp
 }  // namespace livemix
