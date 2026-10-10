@@ -1,13 +1,16 @@
 // The truth of Skipping Stone's display: the landings come when the device
 // plays them, an arc is as wide as its gap and as high as its landing is loud
-// on each side, a ring is as wide as Ripple has spread it, each point sets the
-// knob whose picture lies under the hand, and what is lit is what the device
-// wrote, where it is in its flight.
+// on each side (the landings share the level of what was thrown, as the device
+// has it), a ring is as wide as Ripple has spread it, each point sets the knob
+// whose picture lies under the hand, Loss has the whole height of the picture
+// to move in, and what is lit is what the device wrote, where it is in its flight.
 
 import { describe, expect, it } from 'vitest'
 
 import { INK, PLAIN_COLOURS } from '../components/display-kit'
 import {
+  APART,
+  LOOP_CEILING,
   MAX_THROW_SEC,
   MIN_GAP_SEC,
   MOST_LANDINGS,
@@ -16,6 +19,7 @@ import {
   SKIPPING_STONE_FACES,
   heightOf,
   inkOf,
+  levelOf,
   ringOf,
   spanOf,
   throwOf,
@@ -54,6 +58,8 @@ const SINK = 0.3
 const THROW = 0.6
 const RIPPLE = 0.35
 const MIX = 0.35
+/** `SkippingStone::level(2.5, 8, 0)`, printed by the device: what the first landing of the default throw has. */
+const LEVEL = 0.940297306
 /** Mix at equal power: the gain of the skips. */
 const wetOf = (mix: number): number => Math.sin((mix * Math.PI) / 2)
 
@@ -180,11 +186,47 @@ const topOf = (steps: number): number => {
 
 describe('the throw (skipping_stone.h `landings`)', () => {
   it('copies the constants of the device', () => {
-    // skipping_stone.h: kMaxLandings 16, kMinGapSeconds 0.002f, kMaxThrowSeconds 20.0f, kSinkOctaves 0.6f.
+    // skipping_stone.h: kMaxLandings 16, kMinGapSeconds 0.002f, kMaxThrowSeconds 20.0f, kSinkOctaves 0.6f, kLoopCeiling 1.0f.
     expect(MOST_LANDINGS).toBe(16)
     expect(MIN_GAP_SEC).toBe(0.002)
     expect(MAX_THROW_SEC).toBe(20)
     expect(SINK_OCTAVES).toBe(0.6)
+    expect(LOOP_CEILING).toBe(1)
+  })
+
+  it('shares the level of what was thrown between the landings, as the device does', () => {
+    // `SkippingStone::level(loss, count, again)` as the device prints it.
+    const printed: [number, number, number, number][] = [
+      [0, 8, 0, 0.5],
+      [2.5, 8, 0, 0.940297306],
+      [12, 2, 0, 1.3716042],
+      [0, 16, 0, 0.353553385],
+      [1, 4, 0.5, 0.715934694],
+      [2.5, 8, 0.95, 0.664890587],
+      [0.8, 16, 0, 0.595910072],
+      [6, 3, 0.7, 0.880958438],
+    ]
+    for (const [loss, count, again, level] of printed)
+      expect(levelOf(loss, count, again)).toBeCloseTo(level, 6)
+    // The powers of the landings of one throw add up to that of the sound on both sides.
+    const settings: Record<string, number>[] = [
+      {},
+      { loss: 0, skips: 16 },
+      { loss: 12, skips: 2 },
+      { loss: 5, bounce: 1.3 },
+    ]
+    for (const values of settings) {
+      const { landings } = thrownOf(viewOf(display, params, { values }))
+      expect(landings.reduce((sum, landing) => sum + landing.gain ** 2, 0)).toBeCloseTo(2, 9)
+    }
+    // More landings are each lower, and so is each with less lost.
+    const first = (values: Record<string, number>): number =>
+      thrownOf(viewOf(display, params, { values })).landings[0].gain
+    expect(first({ skips: 16 })).toBeLessThan(first({ skips: 4 }))
+    expect(first({ loss: 0 })).toBeLessThan(first({ loss: 6 }))
+    // Thrown again, the throws that follow are counted in: the first is lower, by 3 dB at the most.
+    expect(first({ again: 0.5 }) / first({})).toBeCloseTo(Math.sqrt(3 / 4), 9)
+    expect(first({ again: 0.95 }) / first({})).toBeCloseTo(Math.SQRT1_2, 9)
   })
 
   it.each([0.6, 1, 1.3])('lands on the geometric series for a bounce of %s', (bounce) => {
@@ -220,8 +262,8 @@ describe('the throw (skipping_stone.h `landings`)', () => {
     expect(total).toBeCloseTo(times[SKIPS - 1], 5)
     landings.forEach((landing, k) => {
       expect(landing.at).toBeCloseTo(times[k], 5)
-      // Loss, skip by skip.
-      expect(landing.gain).toBeCloseTo(Math.pow(10, (-LOSS_DB * k) / 20), 9)
+      // The level the landings share, and Loss, skip by skip.
+      expect(landing.gain).toBeCloseTo(LEVEL * Math.pow(10, (-LOSS_DB * k) / 20), 6)
       // Ripple keeps `1 - ripple` of the power sharp at every skip.
       expect(landing.rings).toBeCloseTo(1 - Math.pow(1 - RIPPLE, k), 9)
       expect(landing.octaves).toBeCloseTo(SINK * 0.6 * k, 9)
@@ -311,14 +353,31 @@ describe('the picture', () => {
     })
   })
 
+  it('draws an arc a few pixels wide at its full height', () => {
+    // A long throw that spreads out: its first gaps are 3 to 6 px wide. A
+    // line of three pieces has no point at the top of the arc, and stood at
+    // eight ninths of the landing's height.
+    const values = { first: 60, bounce: 1.12, skips: 16 }
+    const want = expected({ values })
+    const drawn = arcs(drawDisplay(display, params, { values }))
+    expect(drawn).toHaveLength(want.length)
+    expect(drawn[2].to - drawn[2].from).toBeLessThan(6)
+    drawn.forEach((arc, i) => {
+      expect(arc.steps % 2).toBe(0)
+      expect(arc.peak).toBeCloseTo(want[i].peak, 6)
+    })
+  })
+
   it('lays the left side over the water and the right side under it', () => {
     const drawn = arcs(drawDisplay(display, params, { values: { throw: 1, loss: 0, mix: 1 } }))
-    // Thrown hard right: the first landing is all left, the last is all right.
-    expect(drawn[0].peak).toBeCloseTo(RISE, 6)
+    // Thrown hard right: the first landing is all left, the last is all right,
+    // and with nothing lost each of the eight has an eighth of the power of both sides: half, 6 dB down.
+    expect(drawn[0].peak).toBeCloseTo(heightOf(0.5) * RISE, 6)
+    expect(heightOf(0.5)).toBeCloseTo(1 - 6.0206 / RANGE_DB, 5)
     expect(drawn[0].from).toBe(HAND)
     const last = drawn[drawn.length - 1]
     expect(last.peak).toBeLessThan(0)
-    expect(-last.peak / topOf(last.steps)).toBeGreaterThan(0.95 * RISE)
+    expect(-last.peak / topOf(last.steps)).toBeCloseTo(heightOf(0.5) * RISE, 4)
     // In between the left side falls as the right side rises.
     const ups = drawn.filter((arc) => arc.peak > 0).map((arc) => arc.peak / topOf(arc.steps))
     const downs = drawn.filter((arc) => arc.peak < 0).map((arc) => -arc.peak / topOf(arc.steps))
@@ -383,10 +442,15 @@ describe('the picture', () => {
     // The next throw starts where the first ended and its first skip lands First after that.
     expect(next[0].from).toBeCloseTo(xOf(thrown.total, span), 6)
     expect(next[0].to).toBeCloseTo(xOf(thrown.total + thrown.landings[0].at, span), 6)
-    expect(next[0].peak / topOf(next[0].steps)).toBeCloseTo(heightOf(0.5 * Math.SQRT1_2) * RISE, 6)
-    // The first throw is not changed by it.
+    // `SkippingStone::level(1, 4, 0.5)`.
+    const level = 0.715934694
+    expect(next[0].peak / topOf(next[0].steps)).toBeCloseTo(
+      heightOf(0.5 * level * Math.SQRT1_2) * RISE,
+      4,
+    )
+    // The first throw is the device's first throw: lower than with no Again, by what the throws after it add.
     const first = drawn.filter((arc) => arc.width === 1.5)
-    expect(first[0].peak).toBeCloseTo(heightOf(Math.SQRT1_2) * RISE, 6)
+    expect(first[0].peak).toBeCloseTo(heightOf(level * Math.SQRT1_2) * RISE, 4)
     expect(first).toHaveLength(8)
   })
 
@@ -395,8 +459,8 @@ describe('the picture', () => {
     const full = arcs(drawDisplay(display, params, { values: { mix: 1 } }))
     expect(Math.abs(half[0].peak)).toBeLessThan(Math.abs(full[0].peak))
     expect(half[0].peak).toBeCloseTo(
-      heightOf(wetOf(0.5) * thrownOf(viewOf(display, params)).landings[0].left) * RISE,
-      6,
+      heightOf(wetOf(0.5) * LEVEL * thrownOf(viewOf(display, params)).landings[0].left) * RISE,
+      4,
     )
     const none = drawDisplay(display, params, { values: { mix: 0 } })
     expect(arcs(none)).toHaveLength(0)
@@ -423,8 +487,8 @@ describe('the picture', () => {
     expect(first.from).toBe(HAND)
     expect(first.to).toBeCloseTo(HAND + (0.32 / 2) * (204 - 6 - HAND), 4)
     expect(first.peak).toBeCloseTo(
-      heightOf(thrownOf(viewOf(display, params)).landings[0].left) * rise,
-      6,
+      heightOf(LEVEL * thrownOf(viewOf(display, params)).landings[0].left) * rise,
+      4,
     )
     for (const ring of rings(drawn)) expect(ring.x).toBeLessThan(204 - 6)
   })
@@ -448,21 +512,33 @@ describe('the points', () => {
     expect(first.y).toBe(WATER)
     expect(bounce.x).toBeCloseTo(xOf(0.32 * 1.8, 2), 4)
     expect(bounce.y).toBe(WATER)
-    // The top of the second landing's arc, on the side it is louder on: here the left, over the water.
-    const second = thrownOf(viewOf(display, params)).landings[1]
-    expect(second.left).toBeGreaterThan(second.right)
+    // Loss has a line of its own between the two, the whole height of the
+    // picture: nothing lost at the top, all 12 dB at the foot.
     expect(loss.x).toBeCloseTo((first.x + bounce.x) / 2, 9)
-    expect(loss.y).toBeCloseTo(
-      WATER - heightOf(wetOf(MIX) * Math.pow(10, -LOSS_DB / 20) * second.left) * RISE,
-      6,
-    )
+    expect(loss.y).toBeCloseTo(WATER - RISE + (LOSS_DB / 12) * 2 * RISE, 9)
+    expect(handleOf('loss', { values: { loss: 0 } }).y).toBe(WATER - RISE)
+    expect(handleOf('loss', { values: { loss: 6 } }).y).toBe(WATER)
+    expect(handleOf('loss', { values: { loss: 12 } }).y).toBe(WATER + RISE)
     const drawn = dots(drawDisplay(display, params))
     expect(drawn).toHaveLength(3)
     expect(drawn[0]).toEqual({ x: first.x, y: first.y })
     expect(drawn[1]).toEqual({ x: bounce.x, y: bounce.y })
     expect(drawn[2]).toEqual({ x: loss.x, y: loss.y })
-    // Thrown the other way the second landing is louder on the right: its point lies under the water.
-    expect(handleOf('loss', { values: { throw: -0.6 } }).y).toBeCloseTo(2 * WATER - loss.y, 6)
+    // The line is drawn from the top to the foot, where the point runs.
+    const line = marks(drawDisplay(display, params)).find(
+      (mark) =>
+        mark.kind === 'stroke' &&
+        mark.points.length === 2 &&
+        mark.points[0][0] === mark.points[1][0] &&
+        Math.abs(mark.points[0][0] - loss.x) < 0.51,
+    )
+    expect(line).toBeDefined()
+    const ends = (line?.points ?? []).map(([, y]) => y).sort((a, b) => a - b)
+    expect(ends[0]).toBeCloseTo(WATER - RISE, 0)
+    expect(ends[1]).toBeCloseTo(WATER + RISE, 0)
+    // Where the throw goes makes no difference to it.
+    expect(handleOf('loss', { values: { throw: -0.6 } }).y).toBe(loss.y)
+    expect(handleOf('loss', { values: { mix: 0 } }).y).toBe(loss.y)
   })
 
   it('sets First to the time under the hand', () => {
@@ -527,47 +603,116 @@ describe('the points', () => {
     expect(handle.drag(900, 0, {}).bounce).toBe(1.5)
   })
 
-  it('sets Loss to the height under the hand', () => {
+  it('sets Loss to the height under the hand, over the whole height of the picture', () => {
     const handle = handleOf('loss')
     expect(handle.drag(handle.x, handle.y, {})).toEqual({ loss: LOSS_DB })
-    const none = handleOf('loss', { values: { loss: 0 } }).y
-    const most = handleOf('loss', { values: { loss: 12 } }).y
-    expect(none).toBeLessThan(handle.y)
-    expect(most).toBeGreaterThan(handle.y)
-    for (const y of [none + 1, none + 3, most - 2, most]) {
+    for (const y of [WATER - RISE, WATER - RISE + 1, WATER - 7, WATER, WATER + 5, WATER + RISE]) {
       const loss = handle.drag(handle.x, y, {}).loss
-      expect(loss).toBeGreaterThanOrEqual(0)
-      expect(loss).toBeLessThanOrEqual(12)
+      expect(loss).toBeCloseTo(((y - (WATER - RISE)) / (2 * RISE)) * 12, 9)
       // Drag there, value there.
-      expect(handleOf('loss', { values: { loss } }).y).toBeCloseTo(y, 6)
+      expect(handleOf('loss', { values: { loss } }).y).toBeCloseTo(y, 9)
     }
-    // A pixel is 30 dB over the height of a side.
+    // A pixel is 12 dB over twice the height of a side: a third of a dB on a strip.
     const one = handle.drag(handle.x, handle.y + 1, {}).loss - LOSS_DB
-    expect(one).toBeCloseTo(RANGE_DB / RISE, 6)
+    expect(one).toBeCloseTo(12 / (2 * RISE), 9)
+    expect(one).toBeLessThan(0.35)
     expect(handle.drag(handle.x, -400, {}).loss).toBe(0)
     expect(handle.drag(handle.x, 900, {}).loss).toBe(12)
-    // On the right side the hand goes down for less loss.
-    const under = handleOf('loss', { values: { throw: -0.6 } })
-    expect(under.drag(under.x, under.y - 1, {}).loss - LOSS_DB).toBeCloseTo(RANGE_DB / RISE, 6)
+    // Where the hand is across makes no difference.
+    expect(handle.drag(handle.x + 60, WATER, {}).loss).toBeCloseTo(6, 9)
   })
 
-  it('takes an arc that lies under the scale from the water line, as far under as it lay', () => {
-    // With little of the skips in the mix and all the loss, the second landing is under the 30 dB drawn.
-    const values = { mix: 0.05, loss: 12 }
-    const handle = handleOf('loss', { values })
-    expect(handle.y).toBe(WATER)
-    const second = thrownOf(viewOf(display, params, { values })).landings[1]
-    const under = 20 * Math.log10(wetOf(0.05) * second.left) - 12 + RANGE_DB
-    expect(under).toBeLessThan(0)
-    const hold: DisplayHold = {}
-    expect(handle.drag(handle.x, handle.y, hold)).toEqual({ loss: 12 })
-    // A pixel up is a pixel's worth less loss, from the loss it had.
-    expect(handle.drag(handle.x, WATER - 1, hold).loss).toBeCloseTo(12 - RANGE_DB / RISE, 6)
-    expect(handle.drag(handle.x, WATER - 2, hold).loss).toBeCloseTo(12 - (2 * RANGE_DB) / RISE, 6)
-    // With nothing of the skips in the mix there is no arc to move: the hand changes nothing.
+  it('gives Loss the travel the top of an arc cannot', () => {
+    // The landings share the level, so from no Loss to all of it the top of
+    // the second landing's arc moves over four pixels of a strip, and not one
+    // way: it rises first and then falls. No hand can set 12 dB on that. (The
+    // point stood on that arc.) Its own line has 38 pixels, one way.
+    const top = (loss: number): number => {
+      const thrown = thrownOf(viewOf(display, params, { values: { loss } }))
+      return heightOf(thrown.wet * thrown.landings[1].gain * thrown.landings[1].left) * RISE
+    }
+    let least = Infinity
+    let most = -Infinity
+    for (let loss = 0; loss <= 12; loss += 0.25) {
+      least = Math.min(least, top(loss))
+      most = Math.max(most, top(loss))
+    }
+    expect(most - least).toBeLessThan(5)
+    expect(top(1)).toBeGreaterThan(top(0) + 1)
+    expect(top(12)).toBeLessThan(top(1) - 1)
+    const none = handleOf('loss', { values: { loss: 0 } }).y
+    const all = handleOf('loss', { values: { loss: 12 } }).y
+    expect(all - none).toBe(2 * RISE)
+    expect(all - none).toBeGreaterThanOrEqual(38)
+    // On the upright plate to come, 90.
+    const upright = { width: 204, height: 100 }
+    expect(
+      handleOf('loss', { ...upright, values: { loss: 12 } }).y -
+        handleOf('loss', { ...upright, values: { loss: 0 } }).y,
+    ).toBe(90)
+  })
+
+  it('can be set with nothing of the skips in the mix', () => {
+    // The knobs are set before the mix is opened. (With Mix at 0 the point lay dead on the water.)
     const flat = handleOf('loss', { values: { mix: 0 } })
-    expect(flat.drag(flat.x, 0, {})).toEqual({ loss: LOSS_DB })
-    expect(flat.drag(flat.x, 40, {})).toEqual({ loss: LOSS_DB })
+    expect(flat.drag(flat.x, WATER - RISE, {})).toEqual({ loss: 0 })
+    expect(flat.drag(flat.x, WATER + RISE, {})).toEqual({ loss: 12 })
+  })
+
+  it('keeps the two points on the water apart where the landings are a pixel or two apart', () => {
+    // A long throw that spreads out: sixteen landings over 2.6 s on the four
+    // second scale, the first 3 px from the hand and the second 3.5 px on.
+    const values = { first: 60, bounce: 1.12, skips: 16 }
+    const thrown = thrownOf(viewOf(display, params, { values }))
+    expect(spanOf(thrown.total)).toBe(4)
+    const x1 = xOf(0.06, 4)
+    const x2 = xOf(0.06 * 2.12, 4)
+    expect(x2 - x1).toBeLessThan(4)
+    const first = handleOf('first', { values })
+    const bounce = handleOf('bounce', { values })
+    const loss = handleOf('loss', { values })
+    expect(first.x).toBeCloseTo(x1, 4)
+    // The second point stands APART after the first, not on it.
+    expect(APART).toBe(8)
+    expect(bounce.x).toBeCloseTo(x1 + APART, 4)
+    expect(loss.x).toBeCloseTo(x1 + APART / 2, 4)
+    // The rings stay where the landings are.
+    const drawn = drawDisplay(display, params, { values })
+    expect(rings(drawn)[1].x).toBeCloseTo(x2, 4)
+    expect(dots(drawn)[1].x).toBeCloseTo(x1 + APART, 4)
+    // Taken and not moved, nothing changes; moved a pixel, the landing moves a pixel from where it lay.
+    const hold: DisplayHold = {}
+    expect(bounce.drag(bounce.x, bounce.y, hold)).toEqual({ bounce: 1.12 })
+    // (On this scale a pixel is 0.4 of Bounce: the wheel is for the rest.)
+    const moved = bounce.drag(bounce.x + 0.5, WATER, hold).bounce
+    expect(moved).toBeCloseTo(1.12 + ((0.5 / REACH) * 4000) / 60, 4)
+    expect(bounce.drag(bounce.x - 0.5, WATER, hold).bounce).toBeCloseTo(
+      1.12 - ((0.5 / REACH) * 4000) / 60,
+      4,
+    )
+    // And back: no jump on the way.
+    const back = handleOf('bounce', { values: { ...values, bounce: moved } })
+    expect(back.drag(bounce.x, WATER, hold).bounce).toBeCloseTo(1.12, 4)
+    // With room between the landings the point is on its landing.
+    expect(handleOf('bounce').x).toBeCloseTo(xOf(0.32 * 1.8, 2), 4)
+  })
+
+  it('moves a point finely with the wheel', () => {
+    // A notch is a hundredth of First, a hundredth of Bounce, a tenth of a dB of Loss.
+    expect(handleOf('first').wheel?.(1).first).toBeCloseTo(FIRST_MS * 1.01, 9)
+    expect(handleOf('first').wheel?.(-3).first).toBeCloseTo(FIRST_MS / 1.01 ** 3, 9)
+    expect(handleOf('bounce').wheel?.(1).bounce).toBeCloseTo(BOUNCE + 0.01, 9)
+    expect(handleOf('bounce').wheel?.(-2).bounce).toBeCloseTo(BOUNCE - 0.02, 9)
+    // Up is up: the Loss point rises, and less is lost.
+    expect(handleOf('loss').wheel?.(1).loss).toBeCloseTo(LOSS_DB - 0.1, 9)
+    expect(handleOf('loss').wheel?.(-1).loss).toBeCloseTo(LOSS_DB + 0.1, 9)
+    // It stops at the ends of each range.
+    expect(handleOf('first', { values: { first: 2000 } }).wheel?.(5).first).toBe(2000)
+    expect(handleOf('first', { values: { first: 20 } }).wheel?.(-5).first).toBe(20)
+    expect(handleOf('bounce', { values: { bounce: 1.5 } }).wheel?.(1).bounce).toBe(1.5)
+    expect(handleOf('bounce', { values: { bounce: 0.5 } }).wheel?.(-1).bounce).toBe(0.5)
+    expect(handleOf('loss', { values: { loss: 0 } }).wheel?.(4).loss).toBe(0)
+    expect(handleOf('loss', { values: { loss: 12 } }).wheel?.(-4).loss).toBe(12)
   })
 })
 

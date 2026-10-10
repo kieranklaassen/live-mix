@@ -38,7 +38,7 @@ export const SKIPPING_STONE_PARAMS = {
     unit: '',
     step: 1,
     description:
-      'How many times the stone lands. The throw ends sooner when the gaps get too short to tell apart or a landing would come too late.',
+      'How many times the stone lands. The skips share the level of the sound between them, so more skips are each softer. The throw ends early once the gaps get too short.',
   },
   loss: {
     id: 3,
@@ -49,7 +49,7 @@ export const SKIPPING_STONE_PARAMS = {
     taper: 'linear',
     unit: 'dB',
     description:
-      'How much softer each skip is than the one before. At zero every landing is as loud as the first.',
+      'How much softer each skip is than the one before. At zero every landing is as loud as the first. The whole throw stays as loud, so more Loss brings the first skips up.',
   },
   sink: {
     id: 4,
@@ -71,7 +71,7 @@ export const SKIPPING_STONE_PARAMS = {
     taper: 'linear',
     unit: 'ct',
     description:
-      'Lowers each skip in pitch a little more than the one before. Small amounts sag like a slowing record, and at the top each skip falls a whole tone.',
+      'Lowers each skip in pitch a little more than the one before, up to a whole tone a skip. Held notes beat between the skips. A sharp attack can land a touch early or late.',
   },
   throw: {
     id: 6,
@@ -82,7 +82,7 @@ export const SKIPPING_STONE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Carries the skips across the stereo field as they go. Turned right they travel left to right, turned left the other way, and in the middle they stay put.',
+      'Carries the skips across the stereo field as they go, left to right or the other way, and in the middle they stay put. The skips are made of both sides summed.',
   },
   ripple: {
     id: 7,
@@ -104,7 +104,7 @@ export const SKIPPING_STONE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Throws the stone again from where it stopped, this much softer each time. Turned up, whole throws keep coming, each duller and lower than the last.',
+      'Throws the stone again from where it stopped, at this share of the throw before. Turned up, whole throws keep coming, each duller and lower. A held sound cannot pile up.',
   },
   mix: {
     id: 9,
@@ -137,7 +137,7 @@ export const SKIPPING_STONE_DESCRIPTOR = wasmDeviceDescriptor(SKIPPING_STONE_DEV
   name: 'Skipping Stone',
   category: 'delay',
   description:
-    'Echoes that land like a stone skipping over water: closer and closer together, each softer and duller, crossing from one side to the other. Or the other way, slowing down and spreading out.',
+    'Echoes that land like a stone skipping over water: closer and closer together, each softer and duller, crossing from one side to the other. Or the other way, slowing down and spreading out. Both sides are summed into the skips.',
   presets: {
     'Skipping stone': {
       first: 320,
@@ -280,7 +280,7 @@ export const SKIPPING_STONE_DESCRIPTOR = wasmDeviceDescriptor(SKIPPING_STONE_DEV
 
 export type SkippingStone = WasmDevice<typeof SKIPPING_STONE_PARAMS>
 
-/** Echoes that land like a stone skipping over water: closer and closer together, each softer and duller, crossing from one side to the other. Or the other way, slowing down and spreading out. */
+/** Echoes that land like a stone skipping over water: closer and closer together, each softer and duller, crossing from one side to the other. Or the other way, slowing down and spreading out. Both sides are summed into the skips. */
 export function createSkippingStone(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof SKIPPING_STONE_PARAMS> = {},

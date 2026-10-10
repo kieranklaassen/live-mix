@@ -2,7 +2,8 @@
 // conformance pass covers stability, silence when idle, block-size
 // independence and parameter abuse; the rest asserts what makes it a stone
 // skipping over water: when the landings come, how loud, how dull, how low
-// and where, when the throw ends, and what Ripple and Again do to it.
+// and where, when the throw ends, what Ripple and Again do to it, and that
+// a held sound comes out of it about as loud as it went in at every setting.
 
 #include <limits>
 
@@ -18,8 +19,22 @@ static SkippingStone device;
 static const float kRate = 48000.0f;
 // A click small enough to pass the ring's limiter untouched (linear below 0.5).
 static const float kClick = 0.25f;
-// A centred landing is on both sides at this gain (equal power).
+// A centred landing is on both sides at this share of its gain (equal power).
 static const double kCentre = 0.70710678;
+
+// What the first landing of a throw has on each side when it sits in the
+// middle (skipping_stone.h, level): the landings share the power of what was
+// thrown, so it depends on how many they are and on Loss.
+static double first_of(float loss_db, int count, float again = 0.0f) {
+  return kCentre * SkippingStone::level(loss_db, count, again);
+}
+// The same, worked out here and not by the device: the sum of the landings'
+// powers is that of the sound on both sides.
+static double first_by_hand(double loss_db, int count) {
+  double power = 0.0;
+  for (int k = 0; k < count; ++k) power += std::pow(10.0, -loss_db * k / 10.0);
+  return 1.0 / std::sqrt(power);
+}
 
 // Every landing a plain tap in the middle, as loud as the first: the throw alone.
 static void bare(SkippingStone& d, float rate = kRate) {
@@ -44,12 +59,28 @@ static double two_poles(double a, double hz, double rate) {
   return (1.0 - a) * (1.0 - a) / (1.0 - 2.0 * a * std::cos(w) + a * a);
 }
 
-// The pole Sink gives the landing after `skipped` skips (skipping_stone.h, retarget).
+// The corner Sink gives the landing after `skipped` skips, and the pole of
+// each of its two low-passes (skipping_stone.h, retarget and sink_pole).
+static double sink_corner(double sink, int skipped) {
+  return SkippingStone::kOpenHz * std::pow(2.0, -sink * SkippingStone::kSinkOctaves * skipped);
+}
 static double sink_pole(double sink, int skipped, double rate) {
-  const double open = std::min<double>(SkippingStone::kOpenHz, 0.45 * rate);
-  const double corner = open * std::pow(2.0, -sink * SkippingStone::kSinkOctaves * skipped);
-  const double open_pole = std::exp(-2.0 * kPi * open / rate);
-  return std::max(0.0, (std::exp(-2.0 * kPi * corner / rate) - open_pole) / (1.0 - open_pole));
+  return SkippingStone::sink_pole(static_cast<float>(sink_corner(sink, skipped)), static_cast<float>(rate));
+}
+
+// The level of x in windows of `seconds`, half over half, between two times:
+// the lowest and the highest against the middle one, in dB.
+static void levels(const std::vector<float>& x, double from, double to, double seconds, double* lowest,
+                   double* highest) {
+  std::vector<double> found;
+  const size_t window = static_cast<size_t>(seconds * kRate);
+  for (size_t at = static_cast<size_t>(from * kRate); at + window <= static_cast<size_t>(to * kRate); at += window / 2) {
+    found.push_back(db(rms(x, at, at + window)));
+  }
+  std::sort(found.begin(), found.end());
+  const double middle = found[found.size() / 2];
+  *lowest = found.front() - middle;
+  *highest = found.back() - middle;
 }
 
 // The size of the `hz` component of x[from, to) as a sum, not an average: the
@@ -127,7 +158,7 @@ int main() {
   spec.maxs = p::kParamMax;
   spec.defaults = p::kParamDefault;
   spec.tail_seconds = 6.0f;
-  spec.max_peak = 6.0f;
+  spec.max_peak = 4.0f;
   check_effect(device, spec, kRate);
 
   // The landings follow the geometric series: landing k comes
@@ -152,7 +183,7 @@ int main() {
       // On the sample the series gives, give or take the one a rounding can move it.
       double here = 0.0;
       for (size_t i = index - 1; i <= index + 1; ++i) here = std::max(here, std::fabs((double)out.left[i]));
-      if (std::fabs(here - kClick * kCentre) < 1.0e-4) ++landed;
+      if (std::fabs(here - kClick * first_of(0.0f, 10)) < 1.0e-4) ++landed;
       out.left[index - 1] = out.left[index] = out.left[index + 1] = 0.0f;
     }
     out.left[0] = 0.0f;  // the click itself, under Mix at 1
@@ -183,7 +214,17 @@ int main() {
     std::snprintf(label, sizeof label, "Loss %.1f dB: each landing is that much under the one before (off by %g dB)",
                   loss, worst);
     EXPECT(worst < 0.01, label);
-    EXPECT_NEAR(std::fabs(out.left[4800]), kClick * kCentre, 1.0e-5, "the first landing has lost nothing");
+    EXPECT_NEAR(std::fabs(out.left[4800]), kClick * first_of(loss, 8), 1.0e-5, "the first landing has lost nothing");
+    // The level worked out by hand: the eight landings together carry the power of the click.
+    std::snprintf(label, sizeof label, "Loss %.1f dB: the first landing is 1 / sqrt(the sum of the landings' powers)", loss);
+    EXPECT_NEAR(std::fabs(out.left[4800]) / kClick, first_by_hand(loss, 8), 1.0e-4, label);
+    double power = 0.0;
+    for (int k = 0; k < 8; ++k) {
+      power += static_cast<double>(out.left[4800 * (k + 1)]) * out.left[4800 * (k + 1)] +
+               static_cast<double>(out.right[4800 * (k + 1)]) * out.right[4800 * (k + 1)];
+    }
+    std::snprintf(label, sizeof label, "Loss %.1f dB: the throw as a whole has the power of what was thrown on both sides", loss);
+    EXPECT_NEAR(power / (2.0 * kClick * kClick), 1.0, 1.0e-3, label);
   }
 
   // Sink: each landing goes through two one-poles whose corner falls
@@ -200,7 +241,7 @@ int main() {
     for (int k = 0; k < 8; ++k) {
       const size_t from = 4800 * (k + 1);
       for (double hz : {500.0, 2000.0, 8000.0}) {
-        const double measured = response(out.left, hz, from, from + 4000) / (kClick * kCentre);
+        const double measured = response(out.left, hz, from, from + 4000) / (kClick * first_of(0.0f, 8));
         const double expected = two_poles(sink_pole(sink, k, kRate), hz, kRate);
         worst = std::max(worst, std::fabs(db(measured) - db(expected)));
       }
@@ -212,7 +253,33 @@ int main() {
     bool falls = true;
     for (int k = 1; k < 8; ++k) falls = falls && bright[k] < bright[k - 1] * 0.97;
     EXPECT(falls, "Sink: each landing has less at 8 kHz than the one before");
-    EXPECT_NEAR(db(bright[0] / (kClick * kCentre)), 0.0, 0.01, "Sink leaves the first landing as bright as it was");
+    EXPECT_NEAR(db(bright[0] / (kClick * first_of(0.0f, 8))), 0.0, 0.01, "Sink leaves the first landing as bright as it was");
+  }
+  // The corner is where the header says at every sample rate: with Sink at 1
+  // the sixth landing's is three octaves under 20 kHz, 2.5 kHz, and each of
+  // its two low-passes is 3 dB down there. (The pole was taken from the
+  // corner in a way that put it 8 % too high at 48 kHz and 27 % at 96 kHz.)
+  for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+    bare(device, rate);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kBounce, 1.0f);
+    device.set_param(p::kSkips, 8.0f);
+    device.set_param(p::kSink, 1.0f);
+    Stereo out = run(device, impulse(1.0f, rate, kClick));
+    for (int k : {3, 5, 7}) {
+      const size_t from = static_cast<size_t>(0.1f * rate * static_cast<float>(k + 1) + 0.5f);
+      const double corner = sink_corner(1.0, k);
+      double re = 0.0, im = 0.0;
+      for (size_t i = from; i < from + static_cast<size_t>(0.09f * rate); ++i) {
+        const double phase = 2.0 * kPi * corner * static_cast<double>(i - from) / rate;
+        re += out.left[i] * std::cos(phase);
+        im -= out.left[i] * std::sin(phase);
+      }
+      const double down = db(std::sqrt(re * re + im * im) / (kClick * first_of(0.0f, 8)));
+      std::snprintf(label, sizeof label, "Sink at %.0f Hz: landing %d is 6 dB down at its corner, %.0f Hz (found %.2f dB)", rate,
+                    k + 1, corner, down);
+      EXPECT(std::fabs(down + 6.02) < 0.25, label);
+    }
   }
 
   // Throw: the stone crosses at a steady speed, so a landing sits where the
@@ -236,7 +303,8 @@ int main() {
       const double expected =
           thrown * (2.0 * (seconds[k] - seconds[0]) / (seconds[count - 1] - seconds[0]) - 1.0);
       worst = std::max(worst, std::fabs(place - expected));
-      EXPECT_NEAR(std::sqrt(left * left + right * right), kClick, 1.0e-5, "a landing is as loud wherever it sits");
+      EXPECT_NEAR(std::sqrt(left * left + right * right), kClick * SkippingStone::level(0.0f, 7, 0.0f), 1.0e-5,
+                  "a landing is as loud wherever it sits");
       if (place * (thrown > 0 ? 1 : -1) <= before) onward = false;
       before = place * (thrown > 0 ? 1 : -1);
     }
@@ -250,11 +318,12 @@ int main() {
     device.set_param(p::kThrow, 1.0f);
     Stereo out = run(device, impulse(2.0f, kRate, kClick));
     const size_t first = sample_of(0.32f);
-    EXPECT(std::fabs(out.left[first]) > 0.2 && out.right[first] == 0.0f, "Throw at 1: the first landing is hard left");
+    const double whole = kClick * SkippingStone::level(0.0f, 8, 0.0f);
+    EXPECT(std::fabs(out.left[first]) > 0.99 * whole && out.right[first] == 0.0f, "Throw at 1: the first landing is hard left");
     float seconds[SkippingStone::kMaxLandings];
     SkippingStone::landings(320.0f, 0.8f, 8, seconds);
     const size_t last = sample_of(seconds[7]);
-    EXPECT(std::fabs(out.right[last]) > 0.2 && std::fabs(out.left[last]) < 1.0e-7,
+    EXPECT(std::fabs(out.right[last]) > 0.99 * whole && std::fabs(out.left[last]) < 1.0e-7,
            "Throw at 1: the last landing is hard right");
   }
 
@@ -271,7 +340,7 @@ int main() {
     EXPECT(count == 4, "gaps of 20, 10, 5 and 2.5 ms are played and 1.25 ms is not");
     Stereo out = run(device, impulse(1.0f, kRate, kClick));
     const size_t last = sample_of(seconds[count - 1]);
-    EXPECT(std::fabs(out.left[last]) > 0.1, "the last landing over the floor sounds");
+    EXPECT(std::fabs(out.left[last]) > 0.08, "the last landing over the floor sounds");
     EXPECT(peak(out.left, last + 1) == 0.0, "nothing lands after the stone has sunk");
     // A steady tone through sixteen landings that never end would grow without a limit; these stop.
     bare(device);
@@ -279,7 +348,7 @@ int main() {
     device.set_param(p::kBounce, 0.5f);
     device.set_param(p::kSkips, 16.0f);
     Stereo tone = run(device, sine(1000.0f, 1.0f, kRate, 0.25f));
-    EXPECT(finite(tone.left) && peak(tone.left) <= 4.0 * 0.25 * kCentre + 1.0e-3,
+    EXPECT(finite(tone.left) && peak(tone.left) <= 4.0 * 0.25 * first_of(0.0f, 4) + 1.0e-3,
            "a tone through a throw that closes up is no louder than its four landings");
   }
   {
@@ -292,7 +361,7 @@ int main() {
     EXPECT(count == 4, "landings at 2, 5, 9.5 and 16.25 s are played and 26.4 s is not");
     Stereo out = run(device, impulse(22.0f, kRate, kClick));
     const size_t last = sample_of(16.25f);
-    EXPECT(std::fabs(out.left[last]) > 0.1, "the landing at 16.25 s sounds");
+    EXPECT(std::fabs(out.left[last]) > 0.08, "the landing at 16.25 s sounds");
     EXPECT(peak(out.left, last + 1) == 0.0, "nothing lands after it");
     Stereo rest = render(device, 1.0f, kRate);
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0 && device.meter(1) == -1.0f,
@@ -309,7 +378,8 @@ int main() {
     device.set_param(p::kSkips, 3.0f);
     device.set_param(p::kRipple, 0.5f);
     Stereo out = run(device, impulse(3.4f, kRate, kClick));
-    const double whole = kClick * kCentre * kClick * kCentre;
+    const double one = kClick * first_of(0.0f, 3);
+    const double whole = one * one;
     double sharp = 1.0;
     for (int k = 0; k < 3; ++k) {
       const size_t from = 38400 * (k + 1);
@@ -317,7 +387,7 @@ int main() {
       EXPECT_NEAR(energy(out.left, from, from + 36000) / whole, 1.0, 0.01, label);
       // On the landing's own sample: what is still sharp. The rings begin on the sample after.
       std::snprintf(label, sizeof label, "Ripple: landing %d is as sharp as its share says", k + 1);
-      EXPECT_NEAR(out.left[from], kClick * kCentre * std::sqrt(sharp), 1.0e-5, label);
+      EXPECT_NEAR(out.left[from], one * std::sqrt(sharp), 1.0e-5, label);
       std::snprintf(label, sizeof label, "Ripple: landing %d has the rest of its energy in the rings", k + 1);
       EXPECT_NEAR(energy(out.left, from + 1, from + 36000) / whole, 1.0 - sharp, 0.01, label);
       // Rings, not one more echo: half of what is in them comes later than 10 ms after the landing.
@@ -345,39 +415,159 @@ int main() {
     device.set_param(p::kThrow, 1.0f);
     device.set_param(p::kDrop, cents);
     Stereo out = run(device, sine(1000.0f, 6.0f, kRate, 0.25f));
-    const double ratio = std::pow(2.0, -cents / 1200.0);
-    const double expected = 1000.0 * ratio;
+    const double expected = 1000.0 * std::pow(2.0, -cents / 1200.0);
     const double found = dominant_frequency(out.right, kRate, 850.0, 1050.0, 48000, 5 * 48000);
-    // Two heads that cross-fade put a steady tone's lines on a grid as fine as
-    // the heads splice (the tone's own frequency plus whole splices), so the
-    // strongest line is the one nearest the pitch asked for: within half a splice.
-    const double window = std::min<double>((1.0 - ratio) * kRate / SkippingStone::kSpliceHz,
-                                           SkippingStone::kMaxWindowSeconds * kRate);
-    const double splice = (1.0 - ratio) * kRate / window;
-    std::snprintf(label, sizeof label, "Drop %.0f ct: the second landing plays at %.2f Hz (found %.2f, splice %.2f Hz)",
-                  cents, expected, found, splice);
-    EXPECT(std::fabs(found - expected) < 0.5 * splice + 0.1, label);
+    // One head, spliced in phase: the tone goes on at its own pitch through
+    // every splice, so the line is where the pitch is, not on a grid of splices.
+    std::snprintf(label, sizeof label, "Drop %.0f ct: the second landing plays at %.2f Hz (found %.2f)", cents, expected,
+                  found);
+    EXPECT(std::fabs(found - expected) < 0.15, label);
     EXPECT_NEAR(dominant_frequency(out.left, kRate, 850.0, 1050.0, 48000, 5 * 48000), 1000.0, 0.05,
                 "Drop leaves the first landing at its pitch");
-    EXPECT(rms(out.right, 48000, 5 * 48000) > 0.25 * 0.5, "the dropped landing is about as loud as it was");
+    // A held tone keeps its level through the splices. (Two heads that
+    // cross-faded all the time dipped it by 10 dB wherever they met out of phase.)
+    double lowest, highest;
+    levels(out.right, 1.0, 5.9, 0.02, &lowest, &highest);
+    std::snprintf(label, sizeof label, "Drop %.0f ct: a held tone keeps its level (20 ms windows within %+.2f and %+.2f dB)",
+                  cents, lowest, highest);
+    EXPECT(lowest > -0.5 && highest < 0.5, label);
+    const double plain = 0.25 * SkippingStone::level(0.0f, 2, 0.0f) / std::sqrt(2.0);
+    std::snprintf(label, sizeof label, "Drop %.0f ct: the dropped landing is as loud as it was (%.2f dB)", cents,
+                  db(rms(out.right, 48000, 5 * 48000) / plain));
+    EXPECT(std::fabs(db(rms(out.right, 48000, 5 * 48000) / plain)) < 0.3, label);
   }
   {
-    // A few cents move a landing by less than half its window: 5 ct is a window of 11.5 ms.
-    bare(device);
-    device.set_param(p::kFirst, 300.0f);
-    device.set_param(p::kBounce, 1.0f);
-    device.set_param(p::kSkips, 2.0f);
-    device.set_param(p::kThrow, 1.0f);
-    device.set_param(p::kDrop, 5.0f);
-    Stereo out = run(device, impulse(1.0f, kRate, kClick));
-    size_t loudest = 0;
-    for (size_t i = 0; i < out.right.size(); ++i) {
-      if (std::fabs(out.right[i]) > std::fabs(out.right[loudest])) loudest = i;
+    // A low held tone, whose period is long beside the splice: the same.
+    // (At 220 Hz the two heads met out of phase and the tone fell by 10 dB, four times a second.)
+    for (float cents : {40.0f, 100.0f, 200.0f}) {
+      bare(device);
+      device.set_param(p::kFirst, 300.0f);
+      device.set_param(p::kBounce, 1.0f);
+      device.set_param(p::kSkips, 2.0f);
+      device.set_param(p::kThrow, 1.0f);
+      device.set_param(p::kDrop, cents);
+      Stereo out = run(device, sine(220.0f, 8.0f, kRate, 0.25f));
+      double lowest, highest;
+      levels(out.right, 1.0, 7.9, 0.02, &lowest, &highest);
+      std::snprintf(label, sizeof label, "Drop %.0f ct: a held 220 Hz tone keeps its level (20 ms windows within %+.2f and %+.2f dB)",
+                    cents, lowest, highest);
+      EXPECT(lowest > -0.5 && highest < 0.5, label);
     }
-    const double window = (1.0 - std::pow(2.0, -5.0 / 1200.0)) * kRate / SkippingStone::kSpliceHz;
-    std::snprintf(label, sizeof label, "Drop 5 ct: the second landing is %ld samples from its time, window %g",
-                  static_cast<long>(loudest) - 28800, window);
-    EXPECT(std::fabs(static_cast<double>(loudest) - 28800.0) <= window / 2.0 + 2.0, label);
+  }
+  {
+    // Noise, which no place in the ring is like: the splice is the equal-power
+    // one, and the level holds there too. (It fell by 3.5 dB twice a window.)
+    for (float cents : {12.0f, 200.0f}) {
+      bare(device);
+      device.set_param(p::kFirst, 300.0f);
+      device.set_param(p::kBounce, 1.0f);
+      device.set_param(p::kSkips, 2.0f);
+      device.set_param(p::kThrow, 1.0f);
+      device.set_param(p::kDrop, cents);
+      rng_state() = 0xD120Bu;
+      Stereo out = run(device, noise(8.0f, kRate, 0.2f));
+      double lowest, highest;
+      levels(out.right, 1.0, 7.9, 0.02, &lowest, &highest);
+      std::snprintf(label, sizeof label, "Drop %.0f ct: noise keeps its level through the splices (20 ms windows %+.2f to %+.2f dB)",
+                    cents, lowest, highest);
+      EXPECT(lowest > -1.5 && highest < 1.5, label);
+    }
+  }
+  {
+    // A click comes back once, and within half a window of the landing's own
+    // time. (Through two heads it came back twice, up to 30 ms apart.) Thrown
+    // at three moments, so the head is at three places in its window.
+    for (float cents : {5.0f, 100.0f, 200.0f}) {
+      const double ratio = std::pow(2.0, -cents / 1200.0);
+      const double window = std::min<double>(
+          std::max<double>((1.0 - ratio) * kRate / SkippingStone::kSpliceHz, SkippingStone::kMinWindowSeconds * kRate),
+          SkippingStone::kMaxWindowSeconds * kRate);
+      for (size_t at : {size_t(1), size_t(17777), size_t(40001)}) {
+        bare(device);
+        device.set_param(p::kFirst, 300.0f);
+        device.set_param(p::kBounce, 1.0f);
+        device.set_param(p::kSkips, 2.0f);
+        device.set_param(p::kThrow, 1.0f);
+        device.set_param(p::kDrop, cents);
+        std::vector<float> in = silence(2.0f, kRate);
+        in[0] = 1.0e-4f;  // awake from the start, so the head has run for `at` samples
+        in[at] = kClick;
+        Stereo out = run(device, in);
+        size_t loudest = at;
+        for (size_t i = at; i < out.right.size(); ++i) {
+          if (std::fabs(out.right[i]) > std::fabs(out.right[loudest])) loudest = i;
+        }
+        // Whatever is not within four samples of the loudest: nothing of the click.
+        double elsewhere = 0.0;
+        for (size_t i = at; i < out.right.size(); ++i) {
+          if (i + 4 < loudest || i > loudest + 4) elsewhere = std::max(elsewhere, std::fabs(static_cast<double>(out.right[i])));
+        }
+        const double late = static_cast<double>(loudest) - static_cast<double>(at) - 28800.0;
+        std::snprintf(label, sizeof label,
+                      "Drop %.0f ct: a click thrown at %ld comes back once (%.3f, elsewhere %.4f), %.0f samples from its time, half window %.0f",
+                      cents, static_cast<long>(at), std::fabs(out.right[loudest]), elsewhere, late, window / 2.0);
+        EXPECT(std::fabs(out.right[loudest]) > 0.6 * kClick * SkippingStone::level(0.0f, 2, 0.0f) &&
+                   elsewhere < 0.02 * std::fabs(out.right[loudest]) && std::fabs(late) <= window / 2.0 + 2.0,
+               label);
+      }
+    }
+  }
+  {
+    // A landing five seconds back is read as cleanly as one a third of a
+    // second back: what is left of a 1 kHz tone once the best-fitting tone is
+    // taken out. (A head's place was one float, which holds a thirty-second
+    // of a sample that far back.)
+    double left_over[2] = {0.0, 0.0};
+    for (int far = 0; far < 2; ++far) {
+      bare(device);
+      device.set_param(p::kFirst, far ? 2000.0f : 150.0f);
+      device.set_param(p::kBounce, far ? 1.5f : 1.0f);
+      device.set_param(p::kSkips, 2.0f);
+      device.set_param(p::kThrow, 1.0f);
+      device.set_param(p::kDrop, 200.0f);
+      Stereo out = run(device, sine(1000.0f, 9.0f, kRate, 0.25f));
+      const double hz = 1000.0 * std::pow(2.0, -200.0 / 1200.0);
+      double best = 1.0;
+      for (size_t from = 6 * 48000; from + 1920 < out.right.size(); from += 960) {
+        // Least squares for a tone at hz and one a little off (the fit takes up what the grid misses).
+        for (double off = -0.4; off <= 0.4; off += 0.1) {
+          double cc = 0, ss = 0, cs = 0, xc = 0, xs = 0, xx = 0;
+          for (size_t i = from; i < from + 1920; ++i) {
+            const double phase = 2.0 * kPi * (hz + off) * static_cast<double>(i - from) / kRate;
+            const double c = std::cos(phase), sn = std::sin(phase), x = out.right[i];
+            cc += c * c; ss += sn * sn; cs += c * sn; xc += x * c; xs += x * sn; xx += x * x;
+          }
+          const double det = cc * ss - cs * cs;
+          const double a = (xc * ss - xs * cs) / det, b = (xs * cc - xc * cs) / det;
+          best = std::min(best, (xx - a * xc - b * xs) / xx);
+        }
+      }
+      left_over[far] = 10.0 * std::log10(best + 1.0e-20);
+    }
+    std::snprintf(label, sizeof label, "Drop: a landing 5 s back is as clean as one 0.3 s back (%.1f and %.1f dB left over)",
+                  left_over[1], left_over[0]);
+    EXPECT(left_over[1] < -75.0 && left_over[1] < left_over[0] + 6.0, label);
+  }
+  {
+    // Drop turned off sends each head home: after that the landings are the plain taps, to the sample.
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kSkips, 6.0f);
+    device.set_param(p::kDrop, 150.0f);
+    rng_state() = 0x0FFu;
+    std::vector<float> in = noise(4.0f, kRate, 0.2f);
+    std::vector<Move> off = {{48000, p::kDrop, 0.0f}};
+    Stereo moved = run_with(device, in, in, off, 128);
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kSkips, 6.0f);
+    Stereo plain = run(device, in);
+    double worst = 0.0;
+    for (size_t i = 2 * 48000; i < in.size(); ++i) {
+      worst = std::max(worst, std::fabs(static_cast<double>(moved.left[i]) - plain.left[i]));
+    }
+    std::snprintf(label, sizeof label, "Drop turned off: a second later every landing is the plain tap again (off by %g)", worst);
+    EXPECT(worst < 1.0e-6, label);
   }
 
   // Again: the last landing, before its Loss, is thrown again at that gain.
@@ -389,16 +579,95 @@ int main() {
     device.set_param(p::kLoss, 6.0f);
     device.set_param(p::kAgain, 0.5f);
     Stereo out = run(device, impulse(2.0f, kRate, kClick));
-    const double first = kClick * kCentre;
+    const double first = kClick * first_of(6.0f, 3, 0.5f);
     const double lost = std::pow(10.0, -6.0 / 20.0);
+    // What goes round the loop has lost what is under 8 Hz: of a click, a thousandth.
+    const double low = 1.0 - (1.0 - std::exp(-2.0 * kPi * SkippingStone::kLoopLowHz / kRate));
     EXPECT_NEAR(out.left[4800], first, 1.0e-5, "Again: the first throw is what it was");
     EXPECT_NEAR(out.left[14400], first * lost * lost, 1.0e-5, "Again: and so is its last landing");
-    EXPECT_NEAR(out.left[14400 + 4800], first * 0.5, 1.0e-5, "Again: the second throw starts where the first stopped");
-    EXPECT_NEAR(out.left[14400 + 9600], first * 0.5 * lost, 1.0e-5, "Again: and skips as the first did");
-    EXPECT_NEAR(out.left[2 * 14400 + 4800], first * 0.25, 1.0e-5, "Again: the third throw is as much softer again");
+    EXPECT_NEAR(out.left[14400 + 4800], first * 0.5 * low, 1.0e-5, "Again: the second throw starts where the first stopped");
+    EXPECT_NEAR(out.left[14400 + 9600], first * 0.5 * lost * low, 1.0e-5, "Again: and skips as the first did");
+    EXPECT_NEAR(out.left[2 * 14400 + 4800], first * 0.25 * low * low, 2.0e-5, "Again: the third throw is as much softer again");
+    // Sound with gaps in it is not held: at Again 0.95 too, each throw is that much softer than the one before.
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kBounce, 1.0f);
+    device.set_param(p::kSkips, 3.0f);
+    device.set_param(p::kAgain, 0.95f);
+    Stereo long_out = run(device, impulse(4.0f, kRate, kClick));
+    const double one = kClick * first_of(0.0f, 3, 0.95f);
+    double worst = 0.0;
+    for (int n = 0; n < 9; ++n) {
+      const double expected = one * std::pow(0.95 * low, n);
+      worst = std::max(worst, std::fabs(db(std::fabs(long_out.left[n * 14400 + 4800]) / expected)));
+    }
+    std::snprintf(label, sizeof label, "Again 0.95: nine throws of one click are each 0.95 of the one before (off by %g dB)", worst);
+    EXPECT(worst < 0.02, label);
   }
   {
-    // As much as it can be asked for, with a full-scale tone the landings add up on: bounded, and it dies away.
+    // The loop passes no DC back. (An offset of 0.01 came out as 0.2.)
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kBounce, 1.0f);
+    device.set_param(p::kSkips, 4.0f);
+    device.set_param(p::kAgain, 0.95f);
+    std::vector<float> offset(40 * 48000, 0.01f);
+    Stereo out = run(device, offset);
+    // The four landings of the offset itself, and nothing on top.
+    const double landings_only = 0.01 * 4.0 * first_of(0.0f, 4, 0.95f);
+    std::snprintf(label, sizeof label, "Again 0.95: an offset of 0.01 does not add up in the loop (%.4f out, %.4f from its four landings)",
+                  mean(out.left, 35 * 48000), landings_only);
+    EXPECT(mean(out.left, 35 * 48000) < landings_only * 1.05 + 1.0e-4, label);
+  }
+
+  // Level. A held sound comes out of the skips about as loud as it went in,
+  // at every setting: the landings share the power of what was thrown.
+  {
+    struct Setting {
+      const char* name;
+      float first, bounce, skips, loss, again;
+    };
+    const Setting settings[] = {
+        {"two skips, Loss 12", 100.0f, 1.0f, 2.0f, 12.0f, 0.0f},   {"eight skips, Loss 2.5", 320.0f, 0.8f, 8.0f, 2.5f, 0.0f},
+        {"sixteen skips, no Loss", 100.0f, 1.0f, 16.0f, 0.0f, 0.0f}, {"sixteen closing up, no Loss", 200.0f, 0.8f, 16.0f, 0.0f, 0.0f},
+        {"four skips, Again 0.7", 50.0f, 0.9f, 4.0f, 2.0f, 0.7f},    {"sixteen skips, no Loss, Again 0.95", 50.0f, 1.0f, 16.0f, 0.0f, 0.95f},
+    };
+    rng_state() = 0x1E7E1u;
+    std::vector<float> steady = noise(30.0f, kRate, 0.1f);
+    for (const Setting& setting : settings) {
+      bare(device);
+      device.set_param(p::kFirst, setting.first);
+      device.set_param(p::kBounce, setting.bounce);
+      device.set_param(p::kSkips, setting.skips);
+      device.set_param(p::kLoss, setting.loss);
+      device.set_param(p::kAgain, setting.again);
+      Stereo out = run(device, steady);
+      const double gain = db(rms(out.left, 22 * 48000) / rms(steady, 22 * 48000));
+      std::snprintf(label, sizeof label, "level: steady noise through %s comes out of the skips at %+.2f dB", setting.name, gain);
+      // (Sixteen skips with no Loss were 9 dB over; with Again at 0.95, 19 dB.)
+      EXPECT(std::fabs(gain) < 0.5, label);
+    }
+  }
+  {
+    // The worst there is: a quiet tone every landing of an even throw brings
+    // back in step, thrown again at 0.95 in step too. Each landing is a whole
+    // number of its periods late (100 ms and 110 Hz), so sixteen of them add
+    // up to four times one throw's level, and the loop to twenty times that.
+    // The two holds keep it within 3 dB of the tone, for good. (It came out
+    // 45 dB louder: a tone at 0.05 peaked at 8.)
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kBounce, 1.0f);
+    device.set_param(p::kSkips, 16.0f);
+    device.set_param(p::kAgain, 0.95f);
+    std::vector<float> tone = sine(110.0f, 90.0f, kRate, 0.05f);
+    Stereo out = run(device, tone);
+    const double early = db(rms(out.left, 9 * 48000, 10 * 48000) / rms(tone, 0, 48000));
+    const double late = db(rms(out.left, 89 * 48000, 90 * 48000) / rms(tone, 0, 48000));
+    std::snprintf(label, sizeof label, "level: a held tone in step with every landing and with Again 0.95 is %+.2f dB after 10 s, %+.2f dB after 90 s",
+                  early, late);
+    EXPECT(early < 3.5 && late < 3.5 && late > -1.0, label);
+    // And at full scale, with every landing in its rings as well.
     device.init(kRate);
     device.set_param(p::kFirst, 100.0f);
     device.set_param(p::kBounce, 1.0f);
@@ -409,14 +678,77 @@ int main() {
     device.set_param(p::kAgain, 0.95f);
     device.set_param(p::kMix, 1.0f);
     Stereo loud = run(device, sine(110.0f, 20.0f, kRate, 1.0f));
-    std::snprintf(label, sizeof label, "Again at its most with a full-scale tone stays bounded (peak %g)",
-                  peak(loud.left));
-    // Sixteen landings of a ring held to full scale, each sharp and in its rings at once.
-    EXPECT(finite(loud.left) && finite(loud.right) && peak(loud.left) < 32.0, label);
+    std::snprintf(label, sizeof label, "level: a full-scale tone at that setting peaks at %.2f once the holds have closed (it was 21.96)",
+                  peak(loud.left, 5 * 48000));
+    EXPECT(finite(loud.left) && finite(loud.right) && peak(loud.left, 5 * 48000) < 2.0 && peak(loud.left) < 3.0, label);
     Stereo tail = render(device, 60.0f, kRate);
-    const double early = rms(tail.left, 0, 5 * 48000), late = rms(tail.left, 55 * 48000, 60 * 48000);
-    std::snprintf(label, sizeof label, "Again at its most dies away once the sound stops (%g to %g)", early, late);
-    EXPECT(finite(tail.left) && late < early * 0.5 && late > 0.0, label);
+    const double first = rms(tail.left, 0, 5 * 48000), last = rms(tail.left, 55 * 48000, 60 * 48000);
+    std::snprintf(label, sizeof label, "Again at its most dies away once the sound stops (%g to %g)", first, last);
+    EXPECT(finite(tail.left) && last < first * 0.5 && last > 0.0, label);
+  }
+  {
+    // The ceiling is for each side, not for the two together: with the loud
+    // early landings thrown to the left, a tone in step with them piles up
+    // there. (Held by the mean of the two sides, the left came out 5 dB over.)
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kBounce, 1.0f);
+    device.set_param(p::kSkips, 16.0f);
+    device.set_param(p::kLoss, 1.0f);
+    device.set_param(p::kThrow, 1.0f);
+    std::vector<float> tone = sine(110.0f, 12.0f, kRate, 0.05f);
+    Stereo out = run(device, tone);
+    const double left = db(rms(out.left, 8 * 48000) / rms(tone, 8 * 48000));
+    const double right = db(rms(out.right, 8 * 48000) / rms(tone, 8 * 48000));
+    std::snprintf(label, sizeof label, "level: a tone in step with landings thrown across is %+.2f dB on the left, %+.2f dB on the right", left,
+                  right);
+    EXPECT(left < 3.3 && right < 3.3 && left > 2.0, label);
+    // And a side that is loud by itself is left alone: two skips, all the
+    // Loss there is, thrown hard across, puts 1.88 of the power on the left.
+    bare(device);
+    device.set_param(p::kFirst, 100.0f);
+    device.set_param(p::kSkips, 2.0f);
+    device.set_param(p::kLoss, 12.0f);
+    device.set_param(p::kThrow, 1.0f);
+    rng_state() = 0x51DEu;
+    std::vector<float> steady = noise(20.0f, kRate, 0.1f);
+    Stereo sided = run(device, steady);
+    const double loud = db(rms(sided.left, 10 * 48000) / rms(steady, 10 * 48000));
+    std::snprintf(label, sizeof label, "level: steady noise on the side of a first landing that has nearly all of the throw: %+.2f dB (2.74 with no hold)",
+                  loud);
+    EXPECT(std::fabs(loud - 2.74) < 0.15, label);
+  }
+  {
+    // A held chord through every landing count: the output at the default
+    // Mix is never more than 3 dB over the chord, and the wet alone never
+    // more than 3.5 dB over.
+    std::vector<float> pad(12 * 48000);
+    const double notes[4] = {220.0, 261.63, 329.63, 441.32};
+    for (size_t i = 0; i < pad.size(); ++i) {
+      double v = 0.0;
+      for (int n = 0; n < 4; ++n) {
+        for (int h = 1; h <= 5; ++h) v += std::sin(2.0 * kPi * notes[n] * h * static_cast<double>(i) / kRate + n) / h;
+      }
+      pad[i] = static_cast<float>(0.04 * v);
+    }
+    double most = -99.0, most_mixed = -99.0;
+    for (float skips : {2.0f, 5.0f, 9.0f, 16.0f}) {
+      for (float bounce : {0.7f, 1.0f}) {
+        for (float mix : {1.0f, 0.35f}) {
+          bare(device);
+          device.set_param(p::kFirst, 60.0f);
+          device.set_param(p::kBounce, bounce);
+          device.set_param(p::kSkips, skips);
+          device.set_param(p::kMix, mix);
+          Stereo out = run(device, pad);
+          const double gain = db(rms(out.left, 8 * 48000) / rms(pad, 8 * 48000));
+          if (mix == 1.0f) most = std::max(most, gain); else most_mixed = std::max(most_mixed, gain);
+        }
+      }
+    }
+    std::snprintf(label, sizeof label, "level: a held chord with no Loss, 2 to 16 skips: the skips alone at most %+.2f dB, at Mix 0.35 %+.2f dB",
+                  most, most_mixed);
+    EXPECT(most < 3.5 && most_mixed < 3.0, label);
   }
 
   // Mix at 0 is the input, sample for sample, whatever else is set.
@@ -449,8 +781,8 @@ int main() {
     Stereo after = run(device, good);
     std::snprintf(label, sizeof label, "after bad samples the output is numbers again (peak %g)",
                   std::max(peak(after.left), peak(after.right)));
-    // The dry part is the input; the landings hold at most sixteen clipped samples each.
-    EXPECT(finite(after.left) && finite(after.right) && peak(after.left) < 6.0 && peak(after.right) < 6.0, label);
+    // The dry part is the input; the skips are as loud as it at most.
+    EXPECT(finite(after.left) && finite(after.right) && peak(after.left) < 1.5 && peak(after.right) < 1.5, label);
     // Not stuck: it still skips, and it still comes to rest.
     Stereo tail = render(device, 3.0f, kRate);
     EXPECT(finite(tail.left) && rms(tail.left, 0, 48000) > 1.0e-3, "after bad samples the landings still sound");
@@ -459,7 +791,25 @@ int main() {
     EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "after bad samples it still comes to rest");
     bare(device);
     Stereo clean = run(device, impulse(0.5f, kRate, kClick));
-    EXPECT_NEAR(clean.left[15360], kClick * kCentre, 1.0e-5, "and a click then lands as it should");
+    EXPECT_NEAR(clean.left[15360], kClick * first_of(0.0f, 8), 1.0e-5, "and a click then lands as it should");
+  }
+  {
+    // What is not sound is left out of the ring: after half a second of
+    // infinities and 1e30 nothing of it is thrown. (It went in as half a
+    // second at full scale, and Again kept throwing that.)
+    const float inf = std::numeric_limits<float>::infinity();
+    for (float poison : {inf, -inf, 1.0e30f, 3.0e38f}) {
+      device.init(kRate);
+      device.set_param(p::kAgain, 0.7f);
+      device.set_param(p::kMix, 1.0f);
+      std::vector<float> bad(24000, poison);
+      bad[0] = 0.1f;  // awake
+      run(device, bad);
+      Stereo tail = render(device, 4.0f, kRate);
+      std::snprintf(label, sizeof label, "half a second of %g leaves nothing in the ring (the tail peaks at %g)",
+                    static_cast<double>(poison), std::max(peak(tail.left), peak(tail.right)));
+      EXPECT(finite(tail.left) && finite(tail.right) && peak(tail.left) < 0.1 && peak(tail.right) < 0.1, label);
+    }
   }
 
   // The same sound at every block size, across silences around the moment it
@@ -602,7 +952,7 @@ int main() {
     const int count = SkippingStone::landings(320.0f, 0.8f, 8, seconds);
     int landed = 0;
     for (int k = 0; k < count; ++k) {
-      if (std::fabs(std::fabs(out.left[sample_of(seconds[k], rate)]) - kClick * kCentre) < 1.0e-4) ++landed;
+      if (std::fabs(std::fabs(out.left[sample_of(seconds[k], rate)]) - kClick * first_of(0.0f, 8)) < 1.0e-4) ++landed;
     }
     std::snprintf(label, sizeof label, "at %.0f Hz the eight landings come at the same times (%d)", rate, landed);
     EXPECT(landed == 8, label);
@@ -612,7 +962,7 @@ int main() {
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);
   report_cost("skipping-stone", 10.0f, kRate, [&] { run(device, input); });
-  // The most it does: sixteen landings, each read by two Drop heads, all in the rings, thrown again.
+  // The most it does: sixteen landings, each read by a Drop head that splices, all in the rings, thrown again.
   device.init(kRate);
   device.set_param(p::kSkips, 16.0f);
   device.set_param(p::kBounce, 0.95f);

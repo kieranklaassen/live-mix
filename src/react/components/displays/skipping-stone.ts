@@ -3,11 +3,19 @@
 // right. Each arc is one skip: as wide as its gap, and as high as its landing
 // is loud, on the left side above the water line and on the right side below
 // it, so a throw that crosses the stereo field leans from one to the other.
+// The landings share the level of what was thrown, as in the device: more of
+// them, or less Loss, and each stands lower.
 // An arc is drawn fainter the duller Sink has made its landing. A ring lies
 // where each skip lands, wider the more of it Ripple has turned into rings.
 // With Again the next throw goes on from the last landing. While sound runs,
 // what the device holds is laid along the arcs in the second colour where it
 // is in its flight, and a ring lights as its landing sounds.
+//
+// Three points: the first landing (First) and the second (Bounce) on the
+// water, and Loss on an upright line between them that runs the whole height
+// of the picture, nothing lost at its top and the most at its foot. (The top
+// of an arc cannot carry Loss: with the level shared, the second landing
+// moves by a few dB over the whole of the knob.)
 
 import {
   INK,
@@ -35,11 +43,12 @@ import { Tape, deviceClock, tick, type DeviceClock } from './loops'
 
 // --- The throw, as skipping_stone.h has it -----------------------------------
 
-/** skipping_stone.h `kMaxLandings`, `kMinGapSeconds`, `kMaxThrowSeconds`, `kSinkOctaves`. */
+/** skipping_stone.h `kMaxLandings`, `kMinGapSeconds`, `kMaxThrowSeconds`, `kSinkOctaves`, `kLoopCeiling`. */
 export const MOST_LANDINGS = 16
 export const MIN_GAP_SEC = 0.002
 export const MAX_THROW_SEC = 20
 export const SINK_OCTAVES = 0.6
+export const LOOP_CEILING = 1
 
 const f32 = Math.fround
 
@@ -67,11 +76,28 @@ export function throwOf(
   return { seconds, count }
 }
 
+/**
+ * The gain of the first landing: `SkippingStone::level`. The landings of one
+ * throw share the power of the sound on both sides, and with Again the throws
+ * that follow are counted in, up to as much again.
+ */
+export function levelOf(lossDb: number, count: number, again: number): number {
+  const lost = Math.pow(10, -lossDb / 20)
+  let power = 0
+  let gain = 1
+  for (let k = 0; k < count; k++) {
+    power += gain * gain
+    gain *= lost
+  }
+  const loop = (again * again) / (1 - again * again)
+  return Math.sqrt(2 / (power * (1 + Math.min(loop, LOOP_CEILING))))
+}
+
 /** One landing as the device plays it (`retarget()` in skipping_stone.h). */
 export interface Landing {
   /** Seconds after the sound. */
   at: number
-  /** Its gain against the first landing: Loss, skip by skip. */
+  /** Its gain: the level the landings share, and Loss, skip by skip. */
   gain: number
   /** Its share of that gain on each side: where Throw has carried it, at equal power. */
   left: number
@@ -100,6 +126,7 @@ export function thrownOf(view: Pick<DisplayView, 'value'>): Thrown {
   const { seconds, count } = throwOf(view.value('first'), view.value('bounce'), skips)
   const flight = seconds[count - 1] - seconds[0]
   const lost = Math.pow(10, -view.value('loss') / 20)
+  const level = levelOf(view.value('loss'), count, view.value('again'))
   const sharp = 1 - view.value('ripple')
   const landings: Landing[] = []
   for (let k = 0; k < count; k++) {
@@ -108,7 +135,7 @@ export function thrownOf(view: Pick<DisplayView, 'value'>): Thrown {
     const angle = ((clamp(view.value('throw') * across, -1, 1) + 1) * Math.PI) / 4
     landings.push({
       at: seconds[k],
-      gain: Math.pow(lost, k),
+      gain: level * Math.pow(lost, k),
       left: Math.cos(angle),
       right: Math.sin(angle),
       rings: 1 - Math.pow(sharp, k),
@@ -119,7 +146,7 @@ export function thrownOf(view: Pick<DisplayView, 'value'>): Thrown {
     landings,
     second: landings[1] ?? {
       at: seconds[1],
-      gain: lost,
+      gain: level * lost,
       left: Math.SQRT1_2,
       right: Math.SQRT1_2,
       rings: 1 - sharp,
@@ -198,28 +225,39 @@ const secondsOf = (x: number, lay: Lay, span: number): number => ((x - lay.hand)
 /** How high a flight stands over the water at `u` of its way: a throw from the hand falls, a skip rises and falls. */
 const flightOf = (u: number, falls: boolean): number => (falls ? 1 - u * u : 4 * u * (1 - u))
 
+/** The two points on the water are drawn no nearer one another than this, so each can be seen and taken. */
+export const APART = 8
+/** What one notch of the wheel over a point is: a hundredth of First, of Bounce's range, and a tenth of a dB. */
+const FIRST_NOTCH = 1.01
+const BOUNCE_NOTCH = 0.01
+const LOSS_NOTCH = 0.1
+
 /** Where the three points stand on a scale of `span` seconds. */
 function pointsOf(
   thrown: Thrown,
   lay: Lay,
   span: number,
-): { first: Point; bounce: Point; loss: Point; up: boolean; side: number } {
-  const one = thrown.landings[0]
-  const two = thrown.second
-  const x1 = xOf(one.at, lay, span)
-  const x2 = xOf(two.at, lay, span)
-  // The second landing's arc is taken on the side it is louder on.
-  const up = two.left >= two.right
-  const side = up ? two.left : two.right
-  const tall = heightOf(thrown.wet * two.gain * side) * lay.rise
+  loss: number,
+  mostLoss: number,
+): { first: Point; bounce: Point; loss: Point; lead: number; top: number; foot: number } {
+  const x1 = xOf(thrown.landings[0].at, lay, span)
+  const x2 = xOf(thrown.second.at, lay, span)
   // A landing past the picture's edge (a point in hand keeps the scale) has its point at the edge.
   const edge = (x: number): number => clamp(x, lay.hand, lay.right)
+  const first = edge(x1)
+  // On a long throw the first two landings are a pixel or two apart: the
+  // second's point then stands a little after its landing, `lead` pixels.
+  const bounce = edge(Math.max(x2, first + APART))
+  // The line Loss runs on: nothing lost at the top of the picture, the most at its foot.
+  const top = lay.water - lay.rise
+  const foot = lay.water + lay.rise
   return {
-    first: [edge(x1), lay.water],
-    bounce: [edge(x2), lay.water],
-    loss: [edge((x1 + x2) / 2), lay.water + (up ? -tall : tall)],
-    up,
-    side,
+    first: [first, lay.water],
+    bounce: [bounce, lay.water],
+    loss: [(first + bounce) / 2, lerp(top, foot, mostLoss > 0 ? clamp(loss / mostLoss, 0, 1) : 0)],
+    lead: bounce - edge(x2),
+    top,
+    foot,
   }
 }
 
@@ -259,7 +297,8 @@ function flightPoints(
   tall: number,
   falls: boolean,
 ): Point[] {
-  const steps = clamp(Math.ceil((to - from) / 2), 2, 48)
+  // An even number of pieces, so the top of a skip is a point of the line however narrow the arc.
+  const steps = 2 * clamp(Math.ceil((to - from) / 4), 1, 24)
   const points: Point[] = []
   for (let i = 0; i <= steps; i++) {
     const u = i / steps
@@ -272,7 +311,7 @@ const skippingStone = plateDisplay<StoneState>({
   place: 'strip',
   params: ['first', 'bounce', 'skips', 'loss', 'sink', 'throw', 'ripple', 'again', 'mix'],
   live: { meters: true, settle: 12 },
-  info: 'The throw from the side, mirrored in the water: the left side above, the right below. An arc is a skip, as wide as its gap and as high as it is loud, and the sound runs along them in colour. Drag the first landing for First, the second for Bounce, the arc between for Loss.',
+  info: 'The throw from the side, mirrored in water: left above, right below. An arc is a skip, as wide as its gap and as high as it is loud, and sound runs along them in colour. Drag the first landing for First, the second for Bounce, the point on the upright line for Loss. The wheel moves a point finely.',
   init: () => ({ clock: deviceClock(), tape: new Tape(KEPT_SEC), span: null }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -412,14 +451,13 @@ const skippingStone = plateDisplay<StoneState>({
       text(frame, 'R', box.x + 1, box.y + box.h - 1, { alpha: INK.text })
     }
 
-    const points = pointsOf(thrown, lay, span)
+    const points = pointsOf(thrown, lay, span, frame.value('loss'), frame.spec('loss')?.max ?? 12)
     const hot = frame.hot
-    // The rail the Loss point runs on: from the water to where its arc stands with nothing lost.
-    const top = water + (points.up ? -1 : 1) * heightOf(wet * points.side) * rise
-    rule(ctx, points.loss[0], water, points.loss[0], top, {
-      colour: colours.ink,
-      alpha: hot === 'loss' ? INK.back : INK.grid,
-    })
+    // The line the Loss point runs on, with a mark at each end.
+    const line = { colour: colours.ink, alpha: hot === 'loss' ? INK.back : INK.rule }
+    rule(ctx, points.loss[0], points.top, points.loss[0], points.foot, line)
+    rule(ctx, points.loss[0] - 2, points.top, points.loss[0] + 2, points.top, line)
+    rule(ctx, points.loss[0] - 2, points.foot, points.loss[0] + 2, points.foot, line)
     handle(frame, points.first[0], points.first[1], { hot: hot === 'first' })
     handle(frame, points.bounce[0], points.bounce[1], { hot: hot === 'bounce' })
     handle(frame, points.loss[0], points.loss[1], { hot: hot === 'loss', radius: 3 })
@@ -439,13 +477,19 @@ const skippingStone = plateDisplay<StoneState>({
     const lay = layOf(view)
     const thrown = thrownOf(view)
     const fit = spanOf(thrown.total)
-    const points = pointsOf(thrown, lay, fit)
     const first = view.value('first')
     const bounce = view.value('bounce')
     const loss = view.value('loss')
     const firstSpec = view.spec('first')
     const bounceSpec = view.spec('bounce')
     const lossSpec = view.spec('loss')
+    const firstLeast = firstSpec?.min ?? 20
+    const firstMost = firstSpec?.max ?? 2000
+    const bounceLeast = bounceSpec?.min ?? 0.5
+    const bounceMost = bounceSpec?.max ?? 1.5
+    const lossLeast = lossSpec?.min ?? 0
+    const lossMost = lossSpec?.max ?? 12
+    const points = pointsOf(thrown, lay, fit, loss, lossMost)
     /** The scale a hand moves on: the one the point was taken on, for as long as it is held. */
     const scale = (hold?: DisplayHold): number => {
       if (!hold) return fit
@@ -461,14 +505,12 @@ const skippingStone = plateDisplay<StoneState>({
         drag: (x: number, _y: number, hold?: DisplayHold) => {
           const span = scale(hold)
           if (Math.abs(x - points.first[0]) < 1e-6) return { first }
-          return {
-            first: clamp(
-              secondsOf(x, lay, span) * 1000,
-              firstSpec?.min ?? 20,
-              firstSpec?.max ?? 2000,
-            ),
-          }
+          return { first: clamp(secondsOf(x, lay, span) * 1000, firstLeast, firstMost) }
         },
+        // A notch is a hundredth of what it is: up for later.
+        wheel: (steps: number) => ({
+          first: clamp(first * Math.pow(FIRST_NOTCH, steps), firstLeast, firstMost),
+        }),
         reset: () => ({ first: firstSpec?.default ?? first }),
       },
       {
@@ -479,15 +521,24 @@ const skippingStone = plateDisplay<StoneState>({
         // The second landing comes First x (1 + Bounce) after the sound.
         drag: (x: number, _y: number, hold?: DisplayHold) => {
           const span = scale(hold)
-          if (Math.abs(x - points.bounce[0]) < 1e-6) return { bounce }
+          // A point that stood after its landing moves the landing from where it lay.
+          const kept = hold ?? {}
+          const press = kept.lead === undefined
+          kept.lead ??= points.lead
+          // Taken and not moved, nothing changes. After that the point may stand still while its landing moves under it.
+          if (press && Math.abs(x - points.bounce[0]) < 1e-6) return { bounce }
           return {
             bounce: clamp(
-              (secondsOf(x, lay, span) * 1000 - first) / first,
-              bounceSpec?.min ?? 0.5,
-              bounceSpec?.max ?? 1.5,
+              (secondsOf(x - kept.lead, lay, span) * 1000 - first) / first,
+              bounceLeast,
+              bounceMost,
             ),
           }
         },
+        // A notch is a hundredth: up for longer gaps.
+        wheel: (steps: number) => ({
+          bounce: clamp(bounce + BOUNCE_NOTCH * steps, bounceLeast, bounceMost),
+        }),
         reset: () => ({ bounce: bounceSpec?.default ?? bounce }),
       },
       {
@@ -495,20 +546,16 @@ const skippingStone = plateDisplay<StoneState>({
         name: 'Loss',
         x: points.loss[0],
         y: points.loss[1],
-        // The top of the second landing's arc: Loss under where it stands with nothing lost.
-        drag: (_x: number, y: number, hold?: DisplayHold) => {
-          const none = gainToDb(thrown.wet * points.side)
-          // With next to nothing of the skips in the mix the arc lies on the water: no travel for a hand.
-          if (none <= -RANGE_DB + 1) return { loss }
-          // An arc under the foot of the scale waits on the water line: it is
-          // taken there and moves from where it lies, as far under as it lay.
-          const kept = hold ?? {}
-          kept.past ??= Math.min(0, none - loss + RANGE_DB)
+        // Its own line, the height of the picture: nothing lost at the top, the most at the foot.
+        drag: (_x: number, y: number) => {
           if (Math.abs(y - points.loss[1]) < 1e-6) return { loss }
-          const over = points.up ? lay.water - y : y - lay.water
-          const to = (clamp(over / lay.rise, 0, 1) - 1) * RANGE_DB + kept.past
-          return { loss: clamp(none - to, lossSpec?.min ?? 0, lossSpec?.max ?? 12) }
+          const down = clamp((y - points.top) / (points.foot - points.top), 0, 1)
+          return { loss: clamp(down * lossMost, lossLeast, lossMost) }
         },
+        // A notch is a tenth of a dB: up for less lost, as the point goes.
+        wheel: (steps: number) => ({
+          loss: clamp(loss - LOSS_NOTCH * steps, lossLeast, lossMost),
+        }),
         reset: () => ({ loss: lossSpec?.default ?? loss }),
       },
     ]
