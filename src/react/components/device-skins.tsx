@@ -1820,6 +1820,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   },
   phaser: { ...PLATE_PALETTES.phaser, finish: 'fade', cap: 'skirt' },
   tremolo: { ...PLATE_PALETTES.tremolo, finish: 'grain', cap: 'skirt' },
+  'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'speckle', cap: 'disc' },
 }
 
 /**
