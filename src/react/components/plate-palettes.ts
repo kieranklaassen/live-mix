@@ -149,6 +149,7 @@ export const PLATE_PALETTES = {
   underwater: { plate: '#0b358e', ink: '#e6f5f7', accent: '#8cf5d2' },
   pulses: { plate: '#1c7a52', ink: '#eefbf2', accent: '#ffcf8f' },
   murmuration: { plate: '#84779f', ink: '#15112a', accent: '#fff4c7' },
+  weather: { plate: '#3b4a6b', ink: '#eef2fb', accent: '#ffe45c' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

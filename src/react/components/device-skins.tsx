@@ -1905,6 +1905,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   underwater: { ...PLATE_PALETTES.underwater, finish: 'fade', cap: 'dot' },
   pulses: { ...PLATE_PALETTES.pulses, finish: 'hammered', cap: 'dot' },
   murmuration: { ...PLATE_PALETTES.murmuration, finish: 'fade', cap: 'dot' },
+  weather: { ...PLATE_PALETTES.weather, finish: 'speckle', cap: 'dot' },
 }
 
 /**
