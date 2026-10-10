@@ -1,0 +1,100 @@
+{
+  "id": "sift",
+  "name": "Sift",
+  "category": "texture",
+  "description": "Sifts a sound into its tones, its attacks and its air as it plays, with a level and a blur for each: tones that ring on, attacks made soft or late, air spread wide.",
+  "class": "Sift",
+  "header": "sift.h",
+  "sources": [],
+  "meters": [
+    { "key": "tones", "name": "Tones level", "display": true },
+    { "key": "attacks", "name": "Attacks level", "display": true },
+    { "key": "air", "name": "Air level", "display": true }
+  ],
+  "latencySamples": 4352,
+  "params": [
+    {
+      "key": "tones",
+      "name": "Tones",
+      "min": -40,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "The level of the steady pitches in the sound, the part that stays put from moment to moment. At the bottom they are gone and only attacks and air are left."
+    },
+    {
+      "key": "attacks",
+      "name": "Attacks",
+      "min": -40,
+      "max": 6,
+      "default": -12,
+      "unit": "dB",
+      "description": "The level of the sudden part of the sound: hammers, picks, consonants, clicks. At the bottom every note begins without its strike."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": -40,
+      "max": 6,
+      "default": 3,
+      "unit": "dB",
+      "description": "The level of what is neither tone nor attack: breath, hiss, bow noise, the room. At the bottom the sound is left clean and bare."
+    },
+    {
+      "key": "sharpness",
+      "name": "Sharpness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets the tones ring on after the playing has let them go, at the pitch they had. Low is a short bloom behind each note, high a wash that lasts many seconds."
+    },
+    {
+      "key": "soften",
+      "name": "Soften",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Smears each attack in time, so a click turns into a short puff with a soft start and a fading end. Its strength is kept and its edge is lost."
+    },
+    {
+      "key": "late",
+      "name": "Late",
+      "min": 0,
+      "max": 300,
+      "default": 0,
+      "unit": "ms",
+      "description": "Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone."
+    },
+    {
+      "key": "scatter",
+      "name": "Scatter",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Spreads the air between the two sides until left and right no longer agree, while tones and attacks stay where they were."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as it came in and the three parts put back together."
+    }
+  ],
+  "presets": {
+    "Soft hammers": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on kit::Stft: a running three-way split of the spectrum by a median along time (what is steady) and a median along frequency (what is sudden), with what is neither kept as a third part."
+  }
+}
