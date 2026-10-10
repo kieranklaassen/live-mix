@@ -1,0 +1,300 @@
+{
+  "id": "pulses",
+  "name": "Pulses",
+  "category": "modulation",
+  "description": "Two soft gates pulse the sound on one pattern, the second a little faster, so the two patterns drift apart and come back together.",
+  "class": "Pulses",
+  "header": "pulses.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "place",
+      "name": "Place in the pattern",
+      "display": true
+    },
+    {
+      "key": "lead",
+      "name": "Second gate's lead",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.25,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the steps go by. Slow gives long swells with long gaps; fast gives a flutter."
+    },
+    {
+      "key": "steps",
+      "name": "Steps",
+      "min": 2,
+      "max": 16,
+      "default": 8,
+      "step": 1,
+      "description": "How many steps the pattern has before it comes round again."
+    },
+    {
+      "key": "fill",
+      "name": "Fill",
+      "min": 1,
+      "max": 16,
+      "default": 5,
+      "step": 1,
+      "description": "How many of the steps sound, spread as evenly as they will go. More than Steps is all of them."
+    },
+    {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much faster the second gate runs, so its pattern slides against the first and comes back round. At zero the two stay together."
+    },
+    {
+      "key": "shift",
+      "name": "Shift",
+      "min": 0,
+      "max": 15,
+      "default": 0,
+      "step": 1,
+      "description": "Starts the second gate this many steps ahead of the first, a fixed canon between the two. Drift moves on from there."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "The shape of each pulse. Low swells in and out; high cuts in and out like a chop."
+    },
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.1,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of its step each pulse lasts. Short leaves air between the pulses; full joins one to the next."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the sound is left between pulses. At zero the gaps are silent; turned up, the pulses ride on a quiet bed."
+    },
+    {
+      "key": "shade",
+      "name": "Shade",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Dulls the sound as each pulse closes, so the pulses open bright out of a darker bed. At zero only the level moves."
+    },
+    {
+      "key": "apart",
+      "name": "Apart",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Where the two gates sit. At zero both pulse in the middle; at full the first is on the left and the second on the right."
+    },
+    {
+      "key": "accent",
+      "name": "Accent",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Turns down every step but the first, so the start of the pattern stands out and the slide between the two gates is easier to follow."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched signal and the pulsed one. Lower settings make the pulses shallower."
+    }
+  ],
+  "presets": {
+    "Slow drift": {},
+    "Soft throb": {
+      "rate": 3,
+      "steps": 2,
+      "fill": 2,
+      "drift": 0,
+      "edge": 0,
+      "length": 1,
+      "floor": 0.55,
+      "shade": 0.3,
+      "apart": 0,
+      "accent": 0
+    },
+    "Left then right": {
+      "rate": 2.5,
+      "steps": 2,
+      "fill": 1,
+      "drift": 0,
+      "shift": 1,
+      "edge": 0.2,
+      "length": 1,
+      "floor": 0.25,
+      "shade": 0.4,
+      "accent": 0
+    },
+    "Hard chop": {
+      "rate": 8,
+      "steps": 16,
+      "fill": 11,
+      "drift": 0,
+      "edge": 1,
+      "length": 0.5,
+      "floor": 0,
+      "shade": 0,
+      "apart": 0,
+      "accent": 0.4
+    },
+    "Canon of three": {
+      "rate": 6,
+      "steps": 8,
+      "fill": 3,
+      "drift": 0,
+      "shift": 3,
+      "edge": 0.6,
+      "length": 0.7,
+      "floor": 0.3,
+      "shade": 0.4,
+      "accent": 0.4
+    },
+    "Wide weave": {
+      "rate": 7,
+      "steps": 16,
+      "fill": 7,
+      "drift": 0.65,
+      "edge": 0.5,
+      "length": 0.8,
+      "floor": 0.35,
+      "shade": 0.6,
+      "accent": 0.5
+    },
+    "Bright sparks": {
+      "rate": 9,
+      "steps": 8,
+      "fill": 3,
+      "drift": 0.7,
+      "edge": 0.9,
+      "length": 0.2,
+      "floor": 0.6,
+      "shade": 1,
+      "accent": 0.2
+    },
+    "Faint ripple": {
+      "rate": 5,
+      "edge": 0.2,
+      "length": 0.6,
+      "floor": 0.4,
+      "mix": 0.3
+    },
+    "Long tide": {
+      "rate": 0.3,
+      "steps": 3,
+      "fill": 2,
+      "drift": 0.8,
+      "edge": 0,
+      "length": 1,
+      "floor": 0.35,
+      "shade": 0.7,
+      "accent": 0
+    },
+    "Loose stitches": {
+      "rate": 11,
+      "steps": 7,
+      "fill": 4,
+      "drift": 1,
+      "edge": 0.8,
+      "length": 0.5,
+      "floor": 0.35,
+      "shade": 0.8,
+      "apart": 0.7,
+      "accent": 0.6
+    },
+    "Flutter": {
+      "rate": 17,
+      "steps": 2,
+      "fill": 1,
+      "drift": 0.4,
+      "edge": 0.3,
+      "length": 0.9,
+      "floor": 0.5,
+      "shade": 0.2,
+      "accent": 0,
+      "mix": 0.7
+    },
+    "Marked fours": {
+      "rate": 6,
+      "steps": 4,
+      "fill": 4,
+      "drift": 0.3,
+      "edge": 0.7,
+      "length": 0.4,
+      "floor": 0.3,
+      "shade": 0.3,
+      "apart": 0.5,
+      "accent": 1
+    },
+    "Comes and goes": {
+      "rate": 5,
+      "steps": 2,
+      "fill": 2,
+      "drift": 0.9,
+      "edge": 0,
+      "length": 1,
+      "floor": 0.2,
+      "shade": 0.3,
+      "apart": 0,
+      "accent": 0
+    },
+    "Dark glints": {
+      "rate": 1.5,
+      "steps": 5,
+      "fill": 3,
+      "drift": 0.6,
+      "edge": 0.1,
+      "length": 0.9,
+      "floor": 0.75,
+      "shade": 1,
+      "accent": 0.2
+    },
+    "Sparse signals": {
+      "rate": 6,
+      "steps": 16,
+      "fill": 3,
+      "drift": 0.35,
+      "shift": 5,
+      "edge": 0.85,
+      "length": 0.8,
+      "floor": 0.2,
+      "shade": 0.9,
+      "accent": 0
+    },
+    "Closing in": {
+      "rate": 3,
+      "steps": 4,
+      "fill": 3,
+      "drift": 1,
+      "edge": 0.3,
+      "length": 0.75,
+      "floor": 0.15,
+      "accent": 0.6
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Two gates on one evenly spread pattern, the second a little faster, after the phasing of minimal music; no unit or plug-in is modelled."
+  }
+}
