@@ -94,6 +94,7 @@ import { VINYL_DESCRIPTOR, VINYL_DEVICE } from './vinyl.gen'
 import { VOWEL_REVERB_DESCRIPTOR, VOWEL_REVERB_DEVICE } from './vowel-reverb.gen'
 import { WAVETABLE_DESCRIPTOR, WAVETABLE_DEVICE } from './wavetable.gen'
 import { WEST_COAST_DESCRIPTOR, WEST_COAST_DEVICE } from './west-coast.gen'
+import { WIND_HARP_DESCRIPTOR, WIND_HARP_DEVICE } from './wind-harp.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
 import { ZONE_SAMPLER_DESCRIPTOR, ZONE_SAMPLER_DEVICE } from './zone-sampler.gen'
 
@@ -189,6 +190,7 @@ export * from './vinyl.gen'
 export * from './vowel-reverb.gen'
 export * from './wavetable.gen'
 export * from './west-coast.gen'
+export * from './wind-harp.gen'
 export * from './zither.gen'
 export * from './zone-sampler.gen'
 
@@ -286,6 +288,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   VOWEL_REVERB_DESCRIPTOR,
   WAVETABLE_DESCRIPTOR,
   WEST_COAST_DESCRIPTOR,
+  WIND_HARP_DESCRIPTOR,
   ZITHER_DESCRIPTOR,
   ZONE_SAMPLER_DESCRIPTOR,
 ]
@@ -384,6 +387,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   VOWEL_REVERB_DEVICE,
   WAVETABLE_DEVICE,
   WEST_COAST_DEVICE,
+  WIND_HARP_DEVICE,
   ZITHER_DEVICE,
   ZONE_SAMPLER_DEVICE,
 ]
@@ -496,6 +500,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'vowel-reverb', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'wavetable', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 5 },
   { id: 'west-coast', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'wind-harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'zither', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'zone-sampler', instrument: true, samples: true, zones: true, meters: 0, memoryMb: 64 },
 ] as const

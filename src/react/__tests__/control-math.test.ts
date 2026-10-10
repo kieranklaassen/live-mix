@@ -358,6 +358,7 @@ describe('the stock devices', () => {
       'chamber-strings.players',
       'ember.unisonVoices',
       'flock.birds',
+      'wind-harp.strings',
     ])
   })
 
