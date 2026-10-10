@@ -44,7 +44,10 @@
 //   present) there is nothing to measure against, and each partial's
 //   frequency is read from the shape of its peak instead (the two bins
 //   beside it, under a Hann window), so its phase is carried on all the
-//   same: a held note goes through a catch-up unbroken. On top of that
+//   same: a held note goes through a catch-up unbroken. A peak that stands
+//   kOnset times above what its bin held a frame before is a note beginning
+//   and starts with the phase it is read with, so each side keeps its own
+//   and an anti-phase source stays anti-phase. On top of that
 //   Diffuse turns every bin by a fresh random angle of up to ±Diffuse × 180°
 //   each frame (at 1 the phases are all random, which is the classic diffuse
 //   stretch), and the magnitudes are raised by what random phase costs.
@@ -119,6 +122,9 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
   // How far towards its own angles the right side goes at full Width when
   // fully scattered: beyond this the sides are no further apart.
   static constexpr float kWidest = 0.8f;
+  // How far above what its bin held a frame before a peak must stand to be
+  // a note beginning rather than one going on.
+  static constexpr float kOnset = 4.0f;
   // The fade either side of the cut Freeze leaves in the recording.
   static constexpr float kSpliceSeconds = 0.01f;
   // For meter(): the stretch of memory the level is read over, and where the
@@ -840,6 +846,7 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
       float size;
       kit::to_polar(re, im, &size, &angle[k]);
       if (size < kFloor) size = 0.0f;
+      before_[k] = carried ? magnitude[k] : 0.0f;
       magnitude[k] = size;
       if (size > top) top = size;
     }
@@ -877,9 +884,16 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     for (int i = 0; i < peaks; ++i) {
       const int p = peaks_[i];
       const int to = i + 1 < peaks ? (p + peaks_[i + 1] + 1) >> 1 : half + 1;
+      // A partial goes on from the frame before where there was one: a peak
+      // that stands kOnset times above what its bin held then (or where it
+      // held nothing) is a note beginning, and starts with the phase it is
+      // read with, so each side keeps its own and the two keep their
+      // relation (an anti-phase source stays anti-phase).
+      const bool goes_on = before_[p] * kOnset >= magnitude[p];
+      const float drift = wander(c, fading_ ? 0.0f : walk_, &shared, &own);
       // How far the partial lies from its peak's centre, in bins.
       float off;
-      if (follows && carried) {
+      if (follows && goes_on) {
         // How far the phase turned beyond the bin's own share over `step`
         // samples, carried over a hop.
         const float own_share = turns_to_radians * static_cast<float>((p * step) & (frame - 1));
@@ -896,8 +910,8 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
       // A hop of the partial's own frequency: a quarter turn a bin.
       const float advance = kit::kHalfPi * (static_cast<float>(p & 3) + off);
       float base = angle[p];
-      if (carried) {
-        base = kit::princarg(phase[p] + advance + wander(c, fading_ ? 0.0f : walk_, &shared, &own));
+      if (goes_on) {
+        base = kit::princarg(phase[p] + advance + drift);
       } else if (joins) {
         base = joined(c, p, off, angle[p]);
       }
@@ -1182,6 +1196,7 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
   float window_[kMaxFrame];    // Hann over the longest frame; a shorter one reads every 2nd, 4th or 8th
   float spectrum_[kMaxFrame];  // scratch: one reading, as kit::Fft::forward_real packs it
   float angle_[kMaxBins];      // scratch: the reading's phases
+  float before_[kMaxBins];     // scratch: the magnitudes of the frame before
   uint16_t peaks_[kMaxBins / 2 + 1];
   // Two sets of bins: the size in use works in kept_[set_], and the size a
   // Window change left holds its last frame in the other while it fades.

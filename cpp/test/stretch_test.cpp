@@ -1029,6 +1029,40 @@ int main() {
     EXPECT(thrown[0] < 1.3 * most && thrown[1] < 1.3 * most, label);
   }
 
+  // Anti-phase in, anti-phase out. With Width 0 the right side is the left
+  // one turned over, and stays so for a note that begins after silence and
+  // through a run up to the present. (A partial that began took its phase
+  // from its bin's last frame, where both sides held nothing and so the
+  // same: from then on the two sides came out alike, and a wide source was
+  // drawn to the middle.)
+  {
+    std::vector<float> left = sine(330.0f, 1.0f, kRate, 0.5f);
+    left.resize(72000, 0.0f);  // half a second of silence
+    const std::vector<float> second = sine(495.0f, 6.0f, kRate, 0.5f);
+    left.insert(left.end(), second.begin(), second.end());
+    std::vector<float> right = left;
+    for (float& x : right) x = -x;
+    for (float diffuse : {0.0f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kWidth, 0.0f);
+      device.set_param(p::kDiffuse, diffuse);
+      device.set_param(p::kStretch, 2.0f);
+      device.set_param(p::kWindow, 0.0f);
+      device.set_param(p::kMemory, 2.0f);
+      device.set_param(p::kCatchUp, 0.3f);
+      Stereo out = run(device, left, right);
+      double together = 0.0;
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        together = std::max(together, static_cast<double>(std::fabs(out.left[i] + out.right[i])));
+      }
+      char label[200];
+      std::snprintf(label, sizeof label, "anti-phase in, Width 0, Diffuse %.0f: the sides stay opposite after a silence and a run (left + right at most %.2e, left %.1f dB)",
+                    diffuse, together, db(rms(out.left, 5 * 48000, 7 * 48000)));
+      EXPECT(together < 1e-4 && rms(out.left, 5 * 48000, 7 * 48000) > 0.1, label);
+    }
+  }
+
   // At 96 kHz the frames are half as long in time and the pitch holds.
   {
     wet(device, 96000.0f);
