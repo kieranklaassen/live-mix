@@ -15,7 +15,7 @@ export const STRING_BASS_PARAMS = {
     unit: '',
     choices: ['Electric', 'Fretless', 'Upright'],
     description:
-      'The kind of bass. Electric rings long and is heard through a pickup; Fretless starts softer and, with Growl up, its tone opens after the pluck; Upright thumps, dies sooner and is heard through a wooden body. Applies from the next note.',
+      'The kind of bass. Electric rings long through a pickup, Fretless starts softer and can swell open, Upright thumps and dies sooner in a wooden body. From the next note.',
   },
   touch: {
     id: 1,
@@ -26,7 +26,7 @@ export const STRING_BASS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'What plucks the string, from the flesh of a finger to a pick. A finger is soft, dark and slow to speak; a pick is bright with a click at the start. Playing harder brightens every note as well.',
+      'What plucks the string. A finger is soft, dark and slow to speak; a pick is bright with a click at the start. Playing harder brightens every note as well.',
   },
   position: {
     id: 2,
@@ -92,7 +92,7 @@ export const STRING_BASS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The string against the neck. On Fretless the tone swells open after the pluck and sings; on Electric and Upright notes that are hit hard rattle for a moment, and soft ones stay clean. At zero there is none.',
+      'The string against the neck. On Fretless the tone swells open after the pluck and sings; on Electric and Upright hard notes rattle for a moment. None at zero.',
   },
   resonance: {
     id: 8,

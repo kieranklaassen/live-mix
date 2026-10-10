@@ -81,7 +81,7 @@ export const ACID_BASS_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long the pitch takes to bend to a key pressed while another is still held. Such a note comes back to full loudness but does not open the filter again; keys played apart start on pitch.',
+      'Time the pitch takes to bend to a key pressed while another is held. Such a note returns to full loudness but does not open the filter again.',
   },
   sustain: {
     id: 7,
@@ -92,7 +92,7 @@ export const ACID_BASS_PARAMS = {
     taper: 'log',
     unit: 's',
     description:
-      'How long a held note takes to fade away. Short makes plucks whatever the key does; at the very top a note holds until the key is let go. A key tied over a fading note starts the fade again.',
+      'How long a held note takes to fade. Short makes plucks; at the very top a note holds until the key is let go. A key tied over a fading note starts the fade again.',
   },
   drive: {
     id: 8,
@@ -103,7 +103,7 @@ export const ACID_BASS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Distortion after the filter. Clean at the bottom and only a little thicker over the first quarter; by half way dark and middling sounds have grown a buzzing edge, and bright, resonant ones are squashed and a little duller. Further up adds more of the same, less and less. The level stays about the same.',
+      'Distortion after the filter, at about the same level. Clean at the bottom; by half way sounds have a buzzing edge, and bright, resonant ones are squashed and duller.',
   },
   volume: {
     id: 9,

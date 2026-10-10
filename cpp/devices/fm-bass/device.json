@@ -12,7 +12,7 @@
       "name": "Ratio",
       "choices": ["1/2", "1", "2", "3", "4", "5", "7"],
       "default": 1,
-      "description": "Pitch of the bending sine against the note, which decides the overtones the bend makes. 1 is full and round, 2 and 4 are hollow, 3, 5 and 7 are wider apart, wooden to glassy, and 1/2 adds a tone an octave under the note."
+      "description": "Pitch of the bending sine against the note, which sets the overtones. 1 is full and round, 2 and 4 hollow, 3, 5 and 7 wooden to glassy, and 1/2 adds an octave below."
     },
     {
       "key": "depth",

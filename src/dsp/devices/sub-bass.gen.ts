@@ -36,7 +36,7 @@ export const SUB_BASS_PARAMS = {
     taper: 'linear',
     unit: 'st',
     description:
-      'How far above its note each strike starts before it falls onto it. A little is a soft knock at the start; a lot is a boom or a dive. A note slid to from a held one does not drop.',
+      'How far above its note each strike starts before it falls onto it. A little is a soft knock, a lot is a boom or a dive. A note slid to from a held one does not drop.',
   },
   fall: {
     id: 3,
@@ -90,7 +90,7 @@ export const SUB_BASS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Soft saturation that thickens the tone and gives it an edge without making it louder. It bites hardest on loud notes and while a note is at its loudest, and lets the tail go clean.',
+      'Soft saturation that thickens the tone and gives it an edge without making it louder. It bites hardest while a note is at its loudest and lets the tail go clean.',
   },
   glide: {
     id: 8,
