@@ -54,12 +54,18 @@
 //   alone.
 // - Rise and Fall move each part's lift, in dB, with one pole each: Rise when
 //   the curve asks for more, Fall when it asks for less. Both are the time to
-//   cover all but a hundredth of the way (4.6 time constants).
+//   cover all but a hundredth of the way (4.6 time constants). With both long
+//   the lift is a slow hand that keeps the shape of quiet playing.
+// - The ceiling. Whatever the times, a lift is never more than what would
+//   carry the level now all the way to the Threshold (the curve with Amount
+//   at 1): a lift that lingers over that is taken down to it in 3 ms
+//   (kGuardSeconds). So no setting of Fall can push a sound past the
+//   Threshold, and a new sound over it is never lifted.
 // - Lookahead. The sound is delayed by kLatency samples (6 ms at 48 kHz) and
-//   the levels are read ahead of it, so at the default Fall (3 ms) the lift
-//   is gone before an attack arrives: a tick to see it, a tick to ramp, and
-//   the fall. It is a sample count: at 96 kHz the lookahead is 3 ms and a
-//   fiftieth of the lift (in dB) is still there when the attack lands.
+//   the levels are read ahead of it, so the lift is gone before an attack
+//   arrives: a tick to see it, a tick to ramp, and 3 ms to come down. It is a
+//   sample count: at 96 kHz the lookahead is 3 ms and a fiftieth of the lift
+//   (in dB) is still there when the attack lands.
 // - Hear "Lift only" plays the lifted sound less the input: what was added.
 // - Wet and dry are the same sound at different gains, so Mix is a linear
 //   crossfade against the input delayed by the same kLatency samples. At Mix
@@ -94,6 +100,8 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   // Rise and Fall are times to cover 99 %: ln(100) time constants.
   static constexpr float kTimeConstants = 4.605170f;
   static constexpr float kRestDb = -120.0f;
+  // How fast a lift over the ceiling comes down to it: 99 % in 3 ms.
+  static constexpr float kGuardSeconds = 0.003f;
 
   // The lift in dB the curve asks for at a level, all in dB.
   static float curve(float level, float threshold, float amount, float floor, float limit) {
@@ -135,6 +143,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     sides_.set_time(kControlSmoothingSeconds, tick_rate_);
     whole_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
+    guard_coeff_ = time_coeff(kGuardSeconds);
     rest_samples_ = static_cast<int>(kRestSeconds * sr);
     idle_.reset(sr, kRestSeconds);
     rest();
@@ -272,11 +281,18 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     const float middle = 1.0f - sides_.next();
     level_seen_ = detectors_[kParts].level();
     const float together = curve(level_seen_, threshold, amount, floor, limit);
+    const float together_most = curve(level_seen_, threshold, 1.0f, floor, limit);
     for (int b = 0; b < kParts; ++b) {
-      const float apart = curve(detectors_[b].level(), threshold, amount, floor, limit);
+      const float level = detectors_[b].level();
+      const float apart = curve(level, threshold, amount, floor, limit);
+      const float apart_most = curve(level, threshold, 1.0f, floor, limit);
       const double target = weight(b, focus) * (together + split * (apart - together));
       const double coeff = target < lift_[b] ? fall_coeff_ : rise_coeff_;
       lift_[b] = target + (lift_[b] - target) * coeff;
+      // The ceiling: what would carry the sound all the way to the Threshold.
+      // A lift that lingers over it (a long Fall) is taken down to it at once.
+      const double ceiling = weight(b, focus) * (together_most + split * (apart_most - together_most));
+      if (lift_[b] > ceiling) lift_[b] = ceiling + (lift_[b] - ceiling) * guard_coeff_;
       if (lift_[b] < 1.0e-9) lift_[b] = 0.0;
       // The sides take the whole lift, the middle what Sides leaves it.
       const float lift = static_cast<float>(lift_[b]);
@@ -383,6 +399,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   float peak_fall_ = 0.0f;
   double rise_coeff_ = 0.0;
   double fall_coeff_ = 0.0;
+  double guard_coeff_ = 0.0;
   // dB, 0 or above. Doubles: at the slowest Rise one tick moves a lift by
   // less than a float can add to 20 dB, and it would stop short.
   double lift_[kParts] = {0.0, 0.0, 0.0};

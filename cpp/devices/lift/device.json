@@ -43,7 +43,7 @@
       "key": "threshold",
       "name": "Threshold",
       "min": -60,
-      "max": -6,
+      "max": -12,
       "default": -24,
       "unit": "dB",
       "description": "The line the quiet end is lifted towards. Sound louder than this is left alone; raise it and more of each tail and pause comes up."
@@ -136,122 +136,125 @@
   ],
   "presets": {
     "Quiet end up": {},
+    "Just the ends": {
+      "threshold": -30,
+      "amount": 1,
+      "rise": 0.15,
+      "split": 0,
+      "limit": 30
+    },
     "Long tails": {
-      "threshold": -20,
-      "amount": 0.9,
+      "threshold": -21,
+      "amount": 0.85,
       "floor": -78,
       "rise": 0.4,
-      "limit": 24,
-      "split": 0.2
+      "split": 0.2,
+      "limit": 24
     },
-    "Breath between": {
-      "threshold": -28,
-      "amount": 0.6,
-      "rise": 0.08,
-      "split": 0.1,
-      "limit": 12
+    "Slow tide": {
+      "threshold": -19,
+      "amount": 1,
+      "rise": 8,
+      "limit": 24
     },
     "Air on top": {
-      "threshold": -30,
-      "amount": 0.8,
+      "threshold": -26,
+      "amount": 0.9,
+      "rise": 0.4,
       "split": 1,
       "focus": 1,
-      "rise": 0.4,
       "limit": 24
     },
     "Warm floor": {
-      "threshold": -22,
+      "threshold": -20,
       "amount": 0.8,
+      "rise": 1.5,
       "split": 1,
       "focus": -1,
-      "rise": 1.0,
-      "limit": 18
+      "limit": 14
     },
-    "Held level": {
-      "threshold": -30,
+    "Opens outward": {
+      "threshold": -20,
       "amount": 1,
-      "floor": -72,
-      "rise": 0.15,
-      "limit": 30,
-      "split": 0
+      "rise": 0.4,
+      "split": 0.3,
+      "sides": 1,
+      "limit": 30
     },
-    "Barely there": {
-      "threshold": -32,
-      "amount": 0.4,
-      "limit": 9,
-      "rise": 1.5,
-      "split": 0.6
+    "Half open": {
+      "threshold": -20,
+      "amount": 1,
+      "rise": 0.2,
+      "split": 0,
+      "sides": 0.6,
+      "limit": 30
     },
-    "Only the tails": {
+    "Fill every gap": {
       "threshold": -24,
       "amount": 1,
-      "rise": 0.3,
-      "limit": 30,
+      "floor": -60,
+      "rise": 0.05,
       "split": 0,
+      "limit": 30
+    },
+    "Soft landing": {
+      "threshold": -26,
+      "amount": 1,
+      "rise": 0.1,
+      "fall": 500,
+      "split": 0,
+      "limit": 24
+    },
+    "Slightly closer": {
+      "threshold": -19,
+      "amount": 1,
+      "rise": 0.3,
+      "split": 0,
+      "limit": 4
+    },
+    "Steady shine": {
+      "threshold": -14,
+      "amount": 0.6,
+      "rise": 0.3,
+      "split": 1,
+      "focus": 1,
+      "limit": 12
+    },
+    "Only the tails": {
+      "threshold": -20,
+      "amount": 1,
+      "rise": 0.3,
+      "split": 0,
+      "limit": 30,
       "hear": 1
     },
     "Ghost of the top": {
       "threshold": -24,
       "amount": 1,
+      "rise": 0.2,
       "split": 1,
       "focus": 1,
-      "rise": 0.2,
       "limit": 30,
       "hear": 1
-    },
-    "Slow tide": {
-      "threshold": -18,
-      "amount": 1,
-      "rise": 8,
-      "limit": 24
-    },
-    "Room up": {
-      "threshold": -40,
-      "amount": 1,
-      "floor": -88,
-      "rise": 1,
-      "limit": 30,
-      "split": 0
-    },
-    "Dense pad": {
-      "threshold": -18,
-      "amount": 0.5,
-      "split": 1,
-      "rise": 0.5,
-      "limit": 12
-    },
-    "Drone bloom": {
-      "threshold": -16,
-      "amount": 0.6,
-      "split": 1,
-      "focus": 0.5,
-      "rise": 3,
-      "limit": 15
-    },
-    "Soft landing": {
-      "threshold": -24,
-      "amount": 0.9,
-      "rise": 0.2,
-      "fall": 300,
-      "limit": 20,
-      "split": 0.2
-    },
-    "Half and half": {
-      "threshold": -20,
-      "amount": 1,
-      "rise": 0.5,
-      "limit": 24,
-      "mix": 0.5
     },
     "Low breath": {
       "threshold": -22,
       "amount": 1,
+      "rise": 0.2,
       "split": 0.6,
       "focus": -1,
-      "rise": 0.2,
       "limit": 30,
       "hear": 1,
       "mix": 0.6
+    },
+    "Afterimage": {
+      "threshold": -20,
+      "amount": 1,
+      "rise": 1.5,
+      "fall": 500,
+      "split": 0,
+      "limit": 24,
+      "hear": 1
     }
   },
   "origin": {

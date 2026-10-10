@@ -130,7 +130,7 @@ static void check_curve() {
 static void check_quiet_stays_down() {
   plain(device);
   device.set_param(p::kAmount, 1.0f);
-  device.set_param(p::kThreshold, -6.0f);
+  device.set_param(p::kThreshold, -12.0f);
   device.set_param(p::kSplit, 1.0f);
   Stereo nothing = render(device, 2.0f, kRate);
   EXPECT(peak(nothing.left) == 0.0 && peak(nothing.right) == 0.0, "silence in is silence out");
@@ -185,7 +185,8 @@ static std::vector<float> join(std::vector<float> a, const std::vector<float>& b
   return a;
 }
 
-// Rise and Fall: each is the time the lift takes to cover 99 % of the way.
+// Rise is the time the lift takes to cover 99 % of the way up; a loud sound
+// takes it down in 3 ms whatever Fall says (Fall itself is checked below).
 static void check_times() {
   char label[160];
   // Rise: from rest, a quiet tone asks for 12.5 dB.
@@ -198,19 +199,18 @@ static void check_times() {
                   rise, half, whole);
     EXPECT(std::fabs(half - 11.25) < 0.5 && whole > 12.2 && whole < 12.6, label);
   }
-  // Fall: a loud tone after a quiet one. The lift is 99 % gone at Fall.
-  for (float fall : {3.0f, 100.0f}) {
+  // A loud tone after a quiet one: whatever Fall says, the lift is gone in 3 ms.
+  for (float fall : {3.0f, 500.0f}) {
     plain(device);
     device.set_param(p::kFall, fall);
     const std::vector<float> quiet = tone(440.0f, -55.0f, 1.0f);
     Traced traced = trace(device, join(quiet, tone(440.0f, -12.0f, 0.5f)));
     const double before = traced.at(0.999);
     // One tick to see the note and one to ramp.
-    const double slack = 32.0 / kRate;
-    const double half = traced.at(1.0 + slack + fall * 0.0005), gone = traced.at(1.0 + slack + fall * 0.001);
-    std::snprintf(label, sizeof label, "Fall %.0f ms: from %.2f dB, %.2f at half the time, %.3f at the time",
-                  fall, before, half, gone);
-    EXPECT(before > 12.3 && half < 0.13 * before && half > 0.03 * before && gone < 0.012 * before, label);
+    const double gone = traced.at(1.0 + 32.0 / kRate + 0.003);
+    std::snprintf(label, sizeof label, "Fall %.0f ms: a loud note takes the lift from %.2f dB to %.3f dB in 3 ms",
+                  fall, before, gone);
+    EXPECT(before > 12.3 && gone < 0.012 * before, label);
   }
 }
 
@@ -234,16 +234,66 @@ static void check_attack_untouched() {
   EXPECT(db(1.0 + over / peak(in)) < 0.02, "a loud note after a quiet passage is not overshot");
   EXPECT(peak(out.left, onset, onset + 480) <= peak(dry, onset, onset + 480) * 1.002,
          "its first 10 ms peak no higher than the input's");
-  // With a long Fall the lift lingers into the note, as the control says.
+  // The same with the longest Fall: the ceiling takes the lift out of a loud note's way.
   plain(device);
   device.set_param(p::kAmount, 1.0f);
   device.set_param(p::kRise, 0.2f);
-  device.set_param(p::kFall, 200.0f);
+  device.set_param(p::kFall, 500.0f);
   Stereo slow = run(device, in);
-  EXPECT(db(rms(slow.left, onset, onset + 960) / rms(dry, onset, onset + 960)) > 6.0,
-         "Fall 200 ms: the note's first 20 ms carry the lift");
-  EXPECT(std::fabs(db(rms(slow.left, onset + 14400, onset + 19200) / rms(dry, onset + 14400, onset + 19200))) < 0.1,
-         "and 300 ms in it is gone");
+  const double slow_over = worst_difference(slow.left, dry, onset);
+  EXPECT(db(1.0 + slow_over / peak(in)) < 0.02, "Fall 500 ms: a loud note is still not overshot");
+}
+
+// What Fall is for: under the threshold, how fast the lift comes back down
+// when quiet sound swells. And the ceiling over it: no lift may carry a
+// sound past the threshold, however long the Fall.
+static void check_fall_and_ceiling() {
+  const std::vector<float> quiet = tone(440.0f, -50.0f, 1.0f);
+  // -50 dB asks for 10 dB, -40 dB for 5 dB (Threshold -30, Amount 0.5).
+  const std::vector<float> swell = join(quiet, tone(440.0f, -40.0f, 1.0f));
+  plain(device);
+  Traced fast = trace(device, swell);
+  plain(device);
+  device.set_param(p::kFall, 500.0f);
+  Traced lingering = trace(device, swell);
+  EXPECT_NEAR(fast.at(1.1), 5.0, 0.1, "Fall 3 ms: 100 ms after a swell the lift is on the curve");
+  // 100 ms of 500: e^(-4.6 / 5) = 0.4 of the 5 dB still to go.
+  EXPECT_NEAR(lingering.at(1.1), 5.0 + 5.0 * std::exp(-4.605 * 0.2), 0.4,
+              "Fall 500 ms: 100 ms after a swell 2 dB of the old lift are still there");
+  EXPECT_NEAR(lingering.at(1.9), 5.0, 0.1, "and after the Fall it is on the curve");
+  // A swell to -33 dB: the curve asks for 1.5 dB, the ceiling is 3 dB. The
+  // lift of 10 dB may linger, but not over the ceiling.
+  plain(device);
+  device.set_param(p::kFall, 500.0f);
+  Traced capped = trace(device, join(quiet, tone(440.0f, -33.0f, 1.0f)));
+  float most = 0.0f;
+  for (size_t i = static_cast<size_t>(1.06 * kRate / 16.0); i < capped.reading.size(); ++i) {
+    most = std::max(most, capped.reading[i]);
+  }
+  std::printf("lift: Fall 500 ms, a swell to 3 dB under the threshold: the lift lingers at %.2f dB at the most\n", most);
+  EXPECT(most < 3.2f && most > 2.5f, "a lingering lift is held to the ceiling: never past the threshold");
+  // So a full-scale note after the quietest passage, at the hardest setting
+  // (the highest Threshold, the longest Fall, every part on its own), peaks
+  // hardly higher than it went in: its skirts in the other parts are lifted
+  // for the 20 ms the RMS takes to arrive, a quarter turn away from it.
+  plain(device);
+  device.set_param(p::kAmount, 1.0f);
+  device.set_param(p::kThreshold, p::kParamMax[p::kThreshold]);
+  device.set_param(p::kFall, 500.0f);
+  device.set_param(p::kSplit, 1.0f);
+  double worst = 0.0;
+  for (float hz : {55.0f, 130.81f, 523.25f, 2093.0f}) {
+    plain(device);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kThreshold, p::kParamMax[p::kThreshold]);
+    device.set_param(p::kFall, 500.0f);
+    device.set_param(p::kSplit, 1.0f);
+    const std::vector<float> hit = join(tone(440.0f, -60.0f, 1.0f), sine(hz, 0.5f, kRate, 1.0f));
+    Stereo out = run(device, hit);
+    worst = std::max(worst, peak(out.left, 48000 + kLatency));
+  }
+  std::printf("lift: full scale after a passage lifted 30 dB, hardest setting: peak %.3f\n", worst);
+  EXPECT(worst < 1.5, "a full-scale note after a lifted passage peaks under 3.5 dB over full scale");
 }
 
 // The level in dB of `x` in 10 ms steps, and the time its level first stays
@@ -528,7 +578,7 @@ static void check_clicks() {
   };
   const Move moves[] = {{"Hear", p::kHear, 0.0f, 1.0f},        {"Hear back", p::kHear, 1.0f, 0.0f},
                         {"Mix", p::kMix, 1.0f, 0.0f},          {"Amount", p::kAmount, 1.0f, 0.0f},
-                        {"Threshold", p::kThreshold, -6.0f, -60.0f}, {"Limit", p::kLimit, 30.0f, 0.0f},
+                        {"Threshold", p::kThreshold, -12.0f, -60.0f}, {"Limit", p::kLimit, 30.0f, 0.0f},
                         {"Split", p::kSplit, 0.0f, 1.0f},      {"Focus", p::kFocus, -1.0f, 1.0f},
                         {"Floor", p::kFloor, -90.0f, -40.0f}};
   for (const Move& move : moves) {
@@ -663,6 +713,80 @@ static void check_rates() {
   }
 }
 
+// Sides: at nothing the middle and the sides get one gain and the image
+// stays; fully up only the sides rise, and a sound with no sides is left alone.
+static void check_sides() {
+  // The middle at -50 dB (440 Hz on both sides) with a side part 12 dB under it (660 Hz, opposite).
+  const std::vector<float> centre = tone(440.0f, -50.0f, 1.5f), side = tone(660.0f, -62.0f, 1.5f);
+  std::vector<float> left = centre, right = centre;
+  for (size_t i = 0; i < left.size(); ++i) {
+    left[i] += side[i];
+    right[i] -= side[i];
+  }
+  const size_t from = left.size() * 3 / 4, to = left.size();
+  double centre_gain[3], side_gain[3];
+  const float sides[3] = {0.0f, 0.5f, 1.0f};
+  for (int i = 0; i < 3; ++i) {
+    plain(device);
+    device.set_param(p::kSides, sides[i]);
+    Stereo out = run(device, left, right);
+    std::vector<float> mid(out.size()), diff(out.size());
+    for (size_t n = 0; n < out.size(); ++n) {
+      mid[n] = 0.5f * (out.left[n] + out.right[n]);
+      diff[n] = 0.5f * (out.left[n] - out.right[n]);
+    }
+    centre_gain[i] = db(tone_level(mid, 440.0, kRate, from, to) / tone_level(centre, 440.0, kRate, from, to));
+    side_gain[i] = db(tone_level(diff, 660.0, kRate, from, to) / tone_level(side, 660.0, kRate, from, to));
+  }
+  std::printf("lift: Sides 0 / 0.5 / 1: the middle %.2f %.2f %.2f dB, the sides %.2f %.2f %.2f dB\n",
+              centre_gain[0], centre_gain[1], centre_gain[2], side_gain[0], side_gain[1], side_gain[2]);
+  // Together they read -49.7 dB: the curve asks for 9.86 dB.
+  EXPECT(std::fabs(centre_gain[0] - 9.86) < 0.2 && std::fabs(side_gain[0] - 9.86) < 0.2, "Sides 0: one gain for middle and sides");
+  EXPECT(std::fabs(centre_gain[1] - 4.93) < 0.2 && std::fabs(side_gain[1] - 9.86) < 0.2, "Sides 0.5: the middle gets half the lift");
+  EXPECT(std::fabs(centre_gain[2]) < 0.01 && std::fabs(side_gain[2] - 9.86) < 0.2, "Sides 1: only the sides are lifted");
+  // A sound with nothing at the sides, Sides 1: left exactly alone.
+  plain(device);
+  device.set_param(p::kSides, 1.0f);
+  Stereo mono = run(device, centre);
+  EXPECT(worst_difference(mono.left, late(centre)) == 0.0, "Sides 1 leaves a sound with no sides alone, to the sample");
+}
+
+// A held chord: harmonics of three notes falling `slope` x 6 dB an octave
+// (1 is as bright as a saw, 2 as soft as a triangle), scaled to an RMS of
+// `level_db`.
+static std::vector<float> pad(float level_db, float seconds, float slope) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  for (float root : {110.0f, 164.81f, 220.0f}) {
+    for (int h = 1; root * h < 9000.0f; ++h) {
+      const double step = 2.0 * kPi * root * h / kRate, phase = 0.7 * h * h;
+      const double size = std::pow(static_cast<double>(h), -static_cast<double>(slope));
+      for (size_t i = 0; i < out.size(); ++i) out[i] += static_cast<float>(size * std::sin(step * i + phase));
+    }
+  }
+  const float scale = static_cast<float>(std::pow(10.0, level_db / 20.0) / rms(out));
+  for (float& v : out) v *= scale;
+  return out;
+}
+
+// The default is the idea at once, on a held pad too: it is over the
+// threshold as a whole and stays where it is, while its quiet top comes up.
+static void check_default_on_a_pad() {
+  for (float slope : {2.0f, 1.0f}) {
+    const std::vector<float> in = pad(-18.0f, 4.0f, slope);
+    device.init(kRate);
+    Stereo out = run(device, in);
+    const size_t from = in.size() / 2;
+    const double whole = db(rms(out.left, from) / rms(in, from));
+    const double fundamental = db(tone_level(out.left, 110.0, kRate, from, in.size()) / tone_level(in, 110.0, kRate, from, in.size()));
+    const double top = db(tone_level(out.left, 6600.0, kRate, from, in.size()) / tone_level(in, 6600.0, kRate, from, in.size()));
+    std::printf("lift: a held %s pad at -18 dB, defaults: whole %+.2f dB, 110 Hz %+.2f dB, 6.6 kHz %+.2f dB, peak %.3f (in %.3f)\n",
+                slope > 1.5f ? "soft" : "bright", whole, fundamental, top, peak(out.left), peak(in));
+    EXPECT(std::fabs(fundamental) < 0.3 && whole < 1.0, "defaults on a held pad: the body stays where it is");
+    EXPECT(top > (slope > 1.5f ? 4.0 : 1.5), "and its quiet top comes up: 4 dB on a soft pad, 1.5 dB on a bright one");
+    EXPECT(peak(out.left) < peak(in) * 1.26, "without peaking 2 dB over the input");
+  }
+}
+
 // --- main ---
 int main() {
   Conformance spec;
@@ -679,6 +803,7 @@ int main() {
   check_quiet_stays_down();
   check_times();
   check_attack_untouched();
+  check_fall_and_ceiling();
   check_tail();
   check_steady();
   check_mix();
@@ -690,6 +815,8 @@ int main() {
   check_clicks();
   check_blocks_and_sleep();
   check_rates();
+  check_sides();
+  check_default_on_a_pad();
   // --- calls ---
 
   device.init(kRate);
