@@ -60,6 +60,8 @@ build_generated_devices() {
     cpp/devices/flute/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
     cpp/devices/fm-glass/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device fog \
+    cpp/devices/fog/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device freq-shifter \
     cpp/devices/freq-shifter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glints \
@@ -241,6 +243,8 @@ test_generated_devices() {
     cpp/test/flute_test.cpp
   native_test fm_glass_test \
     cpp/test/fm_glass_test.cpp
+  native_test fog_test \
+    cpp/test/fog_test.cpp
   native_test freq_shifter_test \
     cpp/test/freq_shifter_test.cpp
   native_test glints_test \

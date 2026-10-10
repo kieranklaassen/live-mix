@@ -29,6 +29,7 @@ import { FALLING_DESCRIPTOR, FALLING_DEVICE } from './falling.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
+import { FOG_DESCRIPTOR, FOG_DEVICE } from './fog.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
 import { GLINTS_DESCRIPTOR, GLINTS_DEVICE } from './glints.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
@@ -117,6 +118,7 @@ export * from './falling.gen'
 export * from './flanger.gen'
 export * from './flute.gen'
 export * from './fm-glass.gen'
+export * from './fog.gen'
 export * from './freq-shifter.gen'
 export * from './glints.gen'
 export * from './glitch.gen'
@@ -207,6 +209,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   FLANGER_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
+  FOG_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
   GLINTS_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
@@ -298,6 +301,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   FLANGER_DEVICE,
   FLUTE_DEVICE,
   FM_GLASS_DEVICE,
+  FOG_DEVICE,
   FREQ_SHIFTER_DEVICE,
   GLINTS_DEVICE,
   GLITCH_DEVICE,
@@ -396,6 +400,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'fog', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'glints', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
