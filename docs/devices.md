@@ -488,6 +488,9 @@ either:
   it is a feed-forward comb and not an allpass: past Width 75 a band's level
   swings with its pitch and its side (880 Hz at Width 80 comes out 15 dB down
   on the left and 1.5 dB down on the right).
+- `drum-kit`: `drum_kit.h` says a hit's hardness is 1 at the reference gain
+  of 0.7; `0.5 + 0.7 * gain` gives 0.99 there. The comment is off, not the
+  sound.
 
 ## ambient-limiter: auto gain
 
