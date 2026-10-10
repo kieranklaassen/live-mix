@@ -18,44 +18,8 @@ export const OVERTONE_SINGER_PARAMS = {
     description:
       'The note whose harmonics the resonance sings. Set it to the key or to the drone of what is playing and the melody is always in tune with it.',
   },
-  octave: {
-    id: 1,
-    name: 'Octave',
-    min: 1,
-    max: 4,
-    default: 2,
-    taper: 'linear',
-    unit: '',
-    step: 1,
-    description:
-      'Which octave the root sits in. Low octaves give a deep melody of close harmonics, high ones a thin bright whistle.',
-  },
-  low: {
-    id: 2,
-    name: 'Low',
-    min: 2,
-    max: 16,
-    default: 6,
-    taper: 'linear',
-    unit: '',
-    step: 1,
-    description:
-      'The lowest harmonic the melody visits. Low numbers are wide leaps like a bugle call, higher ones lie as close as a scale.',
-  },
-  high: {
-    id: 3,
-    name: 'High',
-    min: 2,
-    max: 16,
-    default: 12,
-    taper: 'linear',
-    unit: '',
-    step: 1,
-    description:
-      'The highest harmonic the melody visits. Raise it for a longer scale that climbs further into the whistle.',
-  },
   pattern: {
-    id: 4,
+    id: 1,
     name: 'Pattern',
     min: 0,
     max: 5,
@@ -67,7 +31,7 @@ export const OVERTONE_SINGER_PARAMS = {
       'How the resonance moves over its harmonics. Up and down climbs and returns, Wander drifts to a neighbour, Leap jumps anywhere and Hold stays where it is.',
   },
   pace: {
-    id: 5,
+    id: 2,
     name: 'Pace',
     min: 0.02,
     max: 8,
@@ -78,7 +42,7 @@ export const OVERTONE_SINGER_PARAMS = {
       'How often the resonance moves to another harmonic. Slow is a held tone that shifts now and then, fast is a running melody.',
   },
   glide: {
-    id: 6,
+    id: 3,
     name: 'Glide',
     min: 5,
     max: 4000,
@@ -88,8 +52,20 @@ export const OVERTONE_SINGER_PARAMS = {
     description:
       'How long each move takes. Short steps cleanly from note to note, long slides through everything between as a mouth slowly changes shape.',
   },
+  octave: {
+    id: 4,
+    name: 'Octave',
+    min: 1,
+    max: 4,
+    default: 2,
+    taper: 'linear',
+    unit: '',
+    step: 1,
+    description:
+      'Which octave the root sits in. Low octaves give a deep melody of close harmonics, high ones a thin bright whistle.',
+  },
   focus: {
-    id: 7,
+    id: 5,
     name: 'Focus',
     min: 0,
     max: 1,
@@ -99,19 +75,8 @@ export const OVERTONE_SINGER_PARAMS = {
     description:
       'How narrow and strong the resonance is. Low is a broad vowel colour over several harmonics, high singles out one harmonic as a clear ringing whistle.',
   },
-  drone: {
-    id: 8,
-    name: 'Drone',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of the sound around the resonance is kept. Fully down, only the harmonic being sung is left.',
-  },
   spread: {
-    id: 9,
+    id: 6,
     name: 'Spread',
     min: 0,
     max: 1,
@@ -122,7 +87,7 @@ export const OVERTONE_SINGER_PARAMS = {
       'How far the right side trails the left through the melody. At zero both sides sing together, fully up the right is always one note behind.',
   },
   mix: {
-    id: 10,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -130,6 +95,41 @@ export const OVERTONE_SINGER_PARAMS = {
     taper: 'linear',
     unit: '',
     description: 'Balance between the untouched sound and the singing one.',
+  },
+  low: {
+    id: 8,
+    name: 'Low',
+    min: 2,
+    max: 16,
+    default: 6,
+    taper: 'linear',
+    unit: '',
+    step: 1,
+    description:
+      'The lowest harmonic the melody visits. Low numbers are wide leaps like a bugle call, higher ones lie as close as a scale.',
+  },
+  high: {
+    id: 9,
+    name: 'High',
+    min: 2,
+    max: 16,
+    default: 12,
+    taper: 'linear',
+    unit: '',
+    step: 1,
+    description:
+      'The highest harmonic the melody visits. Raise it for a longer scale that climbs further into the whistle.',
+  },
+  drone: {
+    id: 10,
+    name: 'Drone',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the sound around the resonance is kept. Fully down, only the harmonic being sung is left.',
   },
 } as const satisfies Record<string, ParamSpec>
 

@@ -433,4 +433,136 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'orbits', preset: 'Out of step' },
     ],
   },
+  {
+    id: 'slow-currents',
+    name: 'Slow currents',
+    category: 'motion',
+    description:
+      'Five bands of the sound swell, fade and drift from side to side, each on its own slow cycle, like water; Rate sets how slow.',
+    effects: [{ deviceId: 'currents', preset: 'Slow water', params: { sway: 0.75, rate: 0.14 } }],
+  },
+  {
+    id: 'pad-in-the-current',
+    name: 'Pad in the current',
+    category: 'motion',
+    description:
+      'Each chord is caught and held as a string pad, and its bands rise, fall and cross from side to side like a slow tide; Depth sets how far.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'currents', preset: 'Wide tide' },
+    ],
+  },
+  {
+    id: 'bells-in-the-current',
+    name: 'Bells in the current',
+    category: 'motion',
+    description:
+      'A bell with a fifth in it rings in every note, and narrow bands of the sound surface and sink by themselves in a hall; Rate hurries them.',
+    effects: [
+      { deviceId: 'ring', preset: 'Fifth halo', params: { mix: 0.3 } },
+      { deviceId: 'currents', preset: 'Glass notes' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'slow-breath',
+    name: 'Slow breath',
+    category: 'motion',
+    description:
+      'The sound breathes in for three seconds and out for four and a half, fading, darkening and narrowing as it empties; Depth sets how far.',
+    effects: [{ deviceId: 'breath', preset: 'Calm breath', params: { width: 0.8 } }],
+  },
+  {
+    id: 'loops-breathing-apart',
+    name: 'Loops breathing apart',
+    category: 'motion',
+    description:
+      'The playing breathes in and out, and three loops of unequal length bring the breaths back out of step with each other; Depth deepens them.',
+    effects: [
+      { deviceId: 'breath', preset: 'Calm breath', params: { depth: 0.6 } },
+      { deviceId: 'orbits', preset: 'Out of step', params: { mix: 0.5 } },
+    ],
+  },
+  {
+    id: 'drifting-pulses',
+    name: 'Drifting pulses',
+    category: 'motion',
+    description:
+      'Two soft gates pulse the sound left and right on one pattern, the second a little faster, so they slide apart and meet; Rate sets the pace.',
+    effects: [{ deviceId: 'pulses', preset: 'Slow drift', params: { floor: 0.7, accent: 0.6 } }],
+  },
+  {
+    id: 'phasing-pulses',
+    name: 'Phasing pulses',
+    category: 'motion',
+    description:
+      'Held chords are pulsed by two gates in a fixed canon, and three loops of unequal length turn the pattern on itself; Rate sets the pulse.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'pulses', preset: 'Canon of three' },
+      { deviceId: 'orbits', preset: 'Slow phasing', params: { mix: 0.5 } },
+    ],
+  },
+  {
+    id: 'ripples-in-fog',
+    name: 'Ripples in fog',
+    category: 'motion',
+    description:
+      'Two drifting gates pulse the sound and a short cloud blurs each pulse into a ripple with no edge; Size makes the cloud longer.',
+    effects: [
+      { deviceId: 'pulses', preset: 'Slow drift', params: { rate: 6 } },
+      { deviceId: 'fog', preset: 'Soft cloud', params: { width: 0.6 } },
+    ],
+  },
+  {
+    id: 'vibrato-arrives-late',
+    name: 'Vibrato arrives late',
+    category: 'motion',
+    description:
+      'Each note starts straight and begins to sway in pitch after a quarter second, as a singer does; a new note stills it; Wait sets how long.',
+    effects: [{ deviceId: 'late-vibrato', preset: 'Singer', params: { width: 0.3 } }],
+  },
+  {
+    id: 'bowed-in-fog',
+    name: 'Bowed in fog',
+    category: 'motion',
+    description:
+      'Each attack is blurred away, and what is left starts straight and then wavers like a bowed string in a plate; Depth sets the sway.',
+    effects: [
+      { deviceId: 'fog', preset: 'No attack', params: { width: 0.5 } },
+      { deviceId: 'late-vibrato', preset: 'Finger vibrato', params: { depth: 30 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'evening-flock',
+    name: 'Evening flock',
+    category: 'motion',
+    description:
+      'Twelve copies of the sound fly around the listener, each with its own distance, delay and bend in pitch; Range sets how far they go.',
+    effects: [{ deviceId: 'murmuration', preset: 'Evening flock', params: { birds: 12 } }],
+  },
+  {
+    id: 'shoal-turning',
+    name: 'Shoal turning',
+    category: 'motion',
+    description:
+      'The sound sinks just under a bright surface and six copies of it drift slowly round the listener; Depth takes it deeper.',
+    effects: [
+      { deviceId: 'underwater', preset: 'Sunlit shallows' },
+      { deviceId: 'murmuration', preset: 'Slow drift', params: { speed: 0.5 } },
+    ],
+  },
+  {
+    id: 'birds-before-sunrise',
+    name: 'Birds before sunrise',
+    category: 'motion',
+    description:
+      "Quick whistles leap among the harmonics of the key's note and nine copies carry them around a bright hall; Pace sets how fast they call.",
+    effects: [
+      { deviceId: 'overtone-singer', preset: 'Bird calls', params: { drone: 0.9 } },
+      { deviceId: 'murmuration', preset: 'High and bright' },
+      { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
+    ],
+  },
 ]

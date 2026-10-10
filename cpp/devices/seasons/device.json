@@ -112,7 +112,7 @@
     }
   ],
   "presets": {
-    "Spring, turning": {},
+    "Spring turning": {},
     "High summer": {
       "year": 0.375,
       "turn": 0,

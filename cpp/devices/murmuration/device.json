@@ -30,16 +30,6 @@
       "description": "How many copies of the sound fly. One is a single moving echo, a few are a chorus, many are a crowd."
     },
     {
-      "key": "range",
-      "name": "Range",
-      "min": 1,
-      "max": 60,
-      "default": 10,
-      "taper": "log",
-      "unit": "m",
-      "description": "How far out the flock flies. A short range is a tight shimmer close by, a long one spreads the copies into late echoes that bend further in pitch."
-    },
-    {
       "key": "speed",
       "name": "Speed",
       "min": 0.05,
@@ -50,14 +40,6 @@
       "description": "How fast the flock flies. Slow drifts and barely bends the pitch, fast swoops and wavers. A flock with a long range is held to a safe speed."
     },
     {
-      "key": "together",
-      "name": "Together",
-      "min": 0,
-      "max": 1,
-      "default": 0.6,
-      "description": "How close the birds keep. Up is a tight knot that moves as one thick voice, down scatters them over the whole range as separate echoes."
-    },
-    {
       "key": "turns",
       "name": "Turns",
       "min": 0,
@@ -66,20 +48,30 @@
       "description": "How often the whole flock wheels: it rushes off, bunches up, swings round and comes back, bending the pitch as it goes. Zero is a steady drift. A change eases in."
     },
     {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place."
+    },
+    {
+      "key": "range",
+      "name": "Range",
+      "min": 1,
+      "max": 60,
+      "default": 10,
+      "taper": "log",
+      "unit": "m",
+      "description": "How far out the flock flies. A short range is a tight shimmer close by, a long one spreads the copies into late echoes that bend further in pitch."
+    },
+    {
       "key": "air",
       "name": "Air",
       "min": 0,
       "max": 1,
       "default": 0.5,
       "description": "How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones stand out and far ones fade."
-    },
-    {
-      "key": "spread",
-      "name": "Spread",
-      "min": 0,
-      "max": 1,
-      "default": 0.8,
-      "description": "How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides."
     },
     {
       "key": "lift",
@@ -100,12 +92,20 @@
       "description": "Keeps the low end on the ground. Sound below it passes straight through instead of flying, so the flock cannot thin out a bass note. Fully down lets everything fly."
     },
     {
-      "key": "mix",
-      "name": "Mix",
+      "key": "together",
+      "name": "Together",
       "min": 0,
       "max": 1,
-      "default": 0.4,
-      "description": "Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place."
+      "default": 0.6,
+      "description": "How close the birds keep. Up is a tight knot that moves as one thick voice, down scatters them over the whole range as separate echoes."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides."
     }
   ],
   "presets": {

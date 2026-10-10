@@ -62,17 +62,26 @@ export function factoryTranspose(key: FactoryKey): number {
 // --- Devices that are set to a pitch ----------------------------------------------
 
 /**
- * The parameters that name a pitch, and so move with the key: a pitch class
- * (0 to 11), or a note, which goes the octave that keeps it in the
- * parameter's range.
+ * How a parameter names a pitch: a pitch class (0 to 11); a note, which goes
+ * the octave that keeps it in the parameter's range; or a pitch class whose
+ * octave is a parameter of its own (`octave` names it), the two together one
+ * note: past B or under C the octave goes with it, as far as its range lets it.
  */
-const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'class' | 'note'>>>> = {
+type PitchedParam = 'class' | 'note' | { readonly octave: string }
+
+/** The parameters that name a pitch, and so move with the key. */
+const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedParam>>>> = {
   sympathetic: { root: 'class' },
   thesis: { root: 'class', center: 'note' },
   lattice: { root: 'class', center: 'note' },
   // A kit's keys are drums, so its notes never move (./kits.ts): its tuning does.
   'drum-kit': { tune: 'note' },
   'glitch-kit': { tune: 'note' },
+  // The note whose harmonics are sung, and the note the carrier stands on: a root and its
+  // octave. With the octave left where it was, a root that passes B would drop the whistle
+  // or the carrier an octave against the playing, and the bell would be another bell.
+  'overtone-singer': { root: { octave: 'octave' } },
+  ring: { root: { octave: 'octave' } },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
@@ -88,6 +97,16 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
     if (!spec) continue
     if (kind === 'class') {
       params[name] = mod12(current[name] + semitones)
+      continue
+    }
+    if (typeof kind === 'object') {
+      const octaves = descriptor.params[kind.octave]
+      const note = current[name] + semitones
+      params[name] = mod12(note)
+      if (!octaves) continue
+      // Out of the octaves the control has: the nearest one, so the root is still the key's.
+      const octave = current[kind.octave] + Math.floor(note / 12)
+      params[kind.octave] = Math.min(octaves.max, Math.max(octaves.min, octave))
       continue
     }
     let moved = current[name] + semitones

@@ -3,15 +3,15 @@
 // Parameter ids and ranges of Weather, shared with
 // src/dsp/devices/weather.gen.ts:
 //    0  kind: 0 Wind, 1 Clouds, 2 Rain, 3 Surf, 4 Storm, default 0
-//    1  force: 0..1, default 0.5
-//    2  pace: 0.25..4, default 1
-//    3  exposure: 0..1, default 0.6
-//    4  voice: 0..1, default 0.4
-//    5  colour: 0..1, default 0.5
-//    6  sway: 0..1, default 0.5
-//    7  calm: 0..1, default 0.3
-//    8  linger: 1..60 s, default 10
-//    9  mix: 0..1, default 1
+//    1  exposure: 0..1, default 0.6
+//    2  voice: 0..1, default 0.4
+//    3  calm: 0..1, default 0.3
+//    4  colour: 0..1, default 0.5
+//    5  sway: 0..1, default 0.5
+//    6  linger: 1..60 s, default 10
+//    7  mix: 0..1, default 1
+//    8  force: 0..1, default 0.5
+//    9  pace: 0.25..4, default 1
 
 #pragma once
 
@@ -20,21 +20,21 @@ namespace weather {
 
 enum Param : int {
   kKind = 0,
-  kForce = 1,
-  kPace = 2,
-  kExposure = 3,
-  kVoice = 4,
-  kColour = 5,
-  kSway = 6,
-  kCalm = 7,
-  kLinger = 8,
-  kMix = 9,
+  kExposure = 1,
+  kVoice = 2,
+  kCalm = 3,
+  kColour = 4,
+  kSway = 5,
+  kLinger = 6,
+  kMix = 7,
+  kForce = 8,
+  kPace = 9,
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.25f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {4.0f, 1.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 60.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.5f, 1.0f, 0.6f, 0.4f, 0.5f, 0.5f, 0.3f, 10.0f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.25f};
+inline constexpr float kParamMax[kNumParams] = {4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 60.0f, 1.0f, 1.0f, 4.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.6f, 0.4f, 0.3f, 0.5f, 0.5f, 10.0f, 1.0f, 0.5f, 1.0f};
 
 }  // namespace weather
 }  // namespace livemix

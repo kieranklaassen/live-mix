@@ -73,28 +73,12 @@
       "description": "How fast the pitch sways as it begins. Slow is a drift; fast is a nervous shake."
     },
     {
-      "key": "quicken",
-      "name": "Quicken",
-      "min": 0,
-      "max": 1,
-      "default": 0.3,
-      "description": "Speeds the sway up as it opens, the way a player presses into a long note. Zero keeps one rate throughout."
-    },
-    {
       "key": "swell",
       "name": "Swell",
       "min": 0,
       "max": 1,
       "default": 0.25,
       "description": "Lets level and brightness rise with the sway and pulse along with each cycle, so a held note opens up as it starts to move."
-    },
-    {
-      "key": "human",
-      "name": "Human",
-      "min": 0,
-      "max": 1,
-      "default": 0.3,
-      "description": "Lets the rate and the depth wander slowly, so no two cycles are quite alike. Zero is a perfectly even sway."
     },
     {
       "key": "sense",
@@ -119,6 +103,22 @@
       "max": 1,
       "default": 1,
       "description": "Balance between the straight sound and the swaying one. Part way, a held note opens into a chorus instead of a vibrato."
+    },
+    {
+      "key": "quicken",
+      "name": "Quicken",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Speeds the sway up as it opens, the way a player presses into a long note. Zero keeps one rate throughout."
+    },
+    {
+      "key": "human",
+      "name": "Human",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Lets the rate and the depth wander slowly, so no two cycles are quite alike. Zero is a perfectly even sway."
     }
   ],
   "presets": {
@@ -260,7 +260,7 @@
       "human": 0.6,
       "width": 0.6
     },
-    "Trill": {
+    "Wide shake": {
       "wait": 400,
       "grow": 200,
       "depth": 100,

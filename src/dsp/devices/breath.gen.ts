@@ -17,19 +17,8 @@ export const BREATH_PARAMS = {
     description:
       'How long the breath takes to fill. The sound rises, brightens and widens over this time.',
   },
-  hold: {
-    id: 1,
-    name: 'Hold',
-    min: 0.02,
-    max: 20,
-    default: 0.5,
-    taper: 'log',
-    unit: 's',
-    description:
-      'How long the breath stays full before it lets go. At its lowest it turns straight around.',
-  },
   out: {
-    id: 2,
+    id: 1,
     name: 'Out',
     min: 0.2,
     max: 20,
@@ -39,19 +28,8 @@ export const BREATH_PARAMS = {
     description:
       'How long the breath takes to empty. The sound sinks, darkens and narrows over this time.',
   },
-  rest: {
-    id: 3,
-    name: 'Rest',
-    min: 0.02,
-    max: 20,
-    default: 1,
-    taper: 'log',
-    unit: 's',
-    description:
-      'How long the breath stays empty before the next one begins. At its lowest it turns straight around.',
-  },
   depth: {
-    id: 4,
+    id: 2,
     name: 'Depth',
     min: 0,
     max: 1,
@@ -62,7 +40,7 @@ export const BREATH_PARAMS = {
       'How far the level falls when the breath is empty. The lower half is a gentle swell, and only the very top breathes out to silence.',
   },
   colour: {
-    id: 5,
+    id: 3,
     name: 'Colour',
     min: 0,
     max: 1,
@@ -73,7 +51,7 @@ export const BREATH_PARAMS = {
       'How much the brightness follows the breath. Higher settings close a low pass further as the breath empties, down to a dull hum at full.',
   },
   width: {
-    id: 6,
+    id: 4,
     name: 'Width',
     min: 0,
     max: 1,
@@ -84,7 +62,7 @@ export const BREATH_PARAMS = {
       'How much the stereo width follows the breath. The sound narrows to mono as it empties and opens to its own width, and a little past it, as it fills.',
   },
   air: {
-    id: 7,
+    id: 5,
     name: 'Air',
     min: 0,
     max: 1,
@@ -95,7 +73,7 @@ export const BREATH_PARAMS = {
       'Breath noise while the breath moves, rising in pitch as it fills. It is as loud as the breathing sound, so it fades with a note and silence stays silent.',
   },
   ease: {
-    id: 8,
+    id: 6,
     name: 'Ease',
     min: 0,
     max: 1,
@@ -105,8 +83,40 @@ export const BREATH_PARAMS = {
     description:
       'The curve of the way in and out. Low is a straight ramp with hard corners, high is a soft swell that slows into each turn.',
   },
-  vary: {
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between the untouched sound and the breathing one.',
+  },
+  hold: {
+    id: 8,
+    name: 'Hold',
+    min: 0.02,
+    max: 20,
+    default: 0.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the breath stays full before it lets go. At its lowest it turns straight around.',
+  },
+  rest: {
     id: 9,
+    name: 'Rest',
+    min: 0.02,
+    max: 20,
+    default: 1,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the breath stays empty before the next one begins. At its lowest it turns straight around.',
+  },
+  vary: {
+    id: 10,
     name: 'Vary',
     min: 0,
     max: 1,
@@ -115,16 +125,6 @@ export const BREATH_PARAMS = {
     unit: '',
     description:
       'How much each breath differs in length from the last, so the cycle never quite repeats. At zero every breath is the same.',
-  },
-  mix: {
-    id: 10,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
-    description: 'Balance between the untouched sound and the breathing one.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -174,7 +174,7 @@ export const BREATH_DESCRIPTOR = wasmDeviceDescriptor(BREATH_DEVICE, {
       ease: 0.5,
       vary: 0,
     },
-    'Four seven eight': {
+    'Long held breath': {
       in: 4,
       hold: 7,
       out: 8,

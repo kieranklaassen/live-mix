@@ -3,16 +3,16 @@
 // Parameter ids and ranges of Overtone Singer, shared with
 // src/dsp/devices/overtone-singer.gen.ts:
 //    0  root: 0 C, 1 C#, 2 D, 3 D#, 4 E, 5 F, 6 F#, 7 G, 8 G#, 9 A, 10 A#, 11 B, default 9
-//    1  octave: 1..4, default 2
-//    2  low: 2..16, default 6
-//    3  high: 2..16, default 12
-//    4  pattern: 0 Up and down, 1 Up, 2 Down, 3 Wander, 4 Leap, 5 Hold, default 0
-//    5  pace: 0.02..8 Hz, default 1
-//    6  glide: 5..4000 ms, default 250
-//    7  focus: 0..1, default 0.6
-//    8  drone: 0..1, default 1
-//    9  spread: 0..1, default 0
-//   10  mix: 0..1, default 1
+//    1  pattern: 0 Up and down, 1 Up, 2 Down, 3 Wander, 4 Leap, 5 Hold, default 0
+//    2  pace: 0.02..8 Hz, default 1
+//    3  glide: 5..4000 ms, default 250
+//    4  octave: 1..4, default 2
+//    5  focus: 0..1, default 0.6
+//    6  spread: 0..1, default 0
+//    7  mix: 0..1, default 1
+//    8  low: 2..16, default 6
+//    9  high: 2..16, default 12
+//   10  drone: 0..1, default 1
 
 #pragma once
 
@@ -21,22 +21,22 @@ namespace overtone_singer {
 
 enum Param : int {
   kRoot = 0,
-  kOctave = 1,
-  kLow = 2,
-  kHigh = 3,
-  kPattern = 4,
-  kPace = 5,
-  kGlide = 6,
-  kFocus = 7,
-  kDrone = 8,
-  kSpread = 9,
-  kMix = 10,
+  kPattern = 1,
+  kPace = 2,
+  kGlide = 3,
+  kOctave = 4,
+  kFocus = 5,
+  kSpread = 6,
+  kMix = 7,
+  kLow = 8,
+  kHigh = 9,
+  kDrone = 10,
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 1.0f, 2.0f, 2.0f, 0.0f, 0.02f, 5.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {11.0f, 4.0f, 16.0f, 16.0f, 5.0f, 8.0f, 4000.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {9.0f, 2.0f, 6.0f, 12.0f, 0.0f, 1.0f, 250.0f, 0.6f, 1.0f, 0.0f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.02f, 5.0f, 1.0f, 0.0f, 0.0f, 0.0f, 2.0f, 2.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {11.0f, 5.0f, 8.0f, 4000.0f, 4.0f, 1.0f, 1.0f, 1.0f, 16.0f, 16.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {9.0f, 0.0f, 1.0f, 250.0f, 2.0f, 0.6f, 0.0f, 1.0f, 6.0f, 12.0f, 1.0f};
 
 }  // namespace overtone_singer
 }  // namespace livemix

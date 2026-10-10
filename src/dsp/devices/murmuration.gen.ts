@@ -18,19 +18,8 @@ export const MURMURATION_PARAMS = {
     description:
       'How many copies of the sound fly. One is a single moving echo, a few are a chorus, many are a crowd.',
   },
-  range: {
-    id: 1,
-    name: 'Range',
-    min: 1,
-    max: 60,
-    default: 10,
-    taper: 'log',
-    unit: 'm',
-    description:
-      'How far out the flock flies. A short range is a tight shimmer close by, a long one spreads the copies into late echoes that bend further in pitch.',
-  },
   speed: {
-    id: 2,
+    id: 1,
     name: 'Speed',
     min: 0.05,
     max: 4,
@@ -40,19 +29,8 @@ export const MURMURATION_PARAMS = {
     description:
       'How fast the flock flies. Slow drifts and barely bends the pitch, fast swoops and wavers. A flock with a long range is held to a safe speed.',
   },
-  together: {
-    id: 3,
-    name: 'Together',
-    min: 0,
-    max: 1,
-    default: 0.6,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How close the birds keep. Up is a tight knot that moves as one thick voice, down scatters them over the whole range as separate echoes.',
-  },
   turns: {
-    id: 4,
+    id: 2,
     name: 'Turns',
     min: 0,
     max: 1,
@@ -61,6 +39,28 @@ export const MURMURATION_PARAMS = {
     unit: '',
     description:
       'How often the whole flock wheels: it rushes off, bunches up, swings round and comes back, bending the pitch as it goes. Zero is a steady drift. A change eases in.',
+  },
+  mix: {
+    id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place.',
+  },
+  range: {
+    id: 4,
+    name: 'Range',
+    min: 1,
+    max: 60,
+    default: 10,
+    taper: 'log',
+    unit: 'm',
+    description:
+      'How far out the flock flies. A short range is a tight shimmer close by, a long one spreads the copies into late echoes that bend further in pitch.',
   },
   air: {
     id: 5,
@@ -73,19 +73,8 @@ export const MURMURATION_PARAMS = {
     description:
       'How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones stand out and far ones fade.',
   },
-  spread: {
-    id: 6,
-    name: 'Spread',
-    min: 0,
-    max: 1,
-    default: 0.8,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides.',
-  },
   lift: {
-    id: 7,
+    id: 6,
     name: 'Lift',
     min: 0,
     max: 1,
@@ -96,7 +85,7 @@ export const MURMURATION_PARAMS = {
       'Lets the birds fly at different heights, where the low ones are duller than the high ones, so each copy has a tone of its own that keeps changing.',
   },
   ground: {
-    id: 8,
+    id: 7,
     name: 'Ground',
     min: 20,
     max: 500,
@@ -106,16 +95,27 @@ export const MURMURATION_PARAMS = {
     description:
       'Keeps the low end on the ground. Sound below it passes straight through instead of flying, so the flock cannot thin out a bass note. Fully down lets everything fly.',
   },
-  mix: {
-    id: 9,
-    name: 'Mix',
+  together: {
+    id: 8,
+    name: 'Together',
     min: 0,
     max: 1,
-    default: 0.4,
+    default: 0.6,
     taper: 'linear',
     unit: '',
     description:
-      'Balance between the dry sound and the flock. Fully wet leaves only the birds, and the low end that Ground keeps in place.',
+      'How close the birds keep. Up is a tight knot that moves as one thick voice, down scatters them over the whole range as separate echoes.',
+  },
+  spread: {
+    id: 9,
+    name: 'Spread',
+    min: 0,
+    max: 1,
+    default: 0.8,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides.',
   },
 } as const satisfies Record<string, ParamSpec>
 

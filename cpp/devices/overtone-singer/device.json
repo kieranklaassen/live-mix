@@ -38,33 +38,6 @@
       "description": "The note whose harmonics the resonance sings. Set it to the key or to the drone of what is playing and the melody is always in tune with it."
     },
     {
-      "key": "octave",
-      "name": "Octave",
-      "min": 1,
-      "max": 4,
-      "default": 2,
-      "step": 1,
-      "description": "Which octave the root sits in. Low octaves give a deep melody of close harmonics, high ones a thin bright whistle."
-    },
-    {
-      "key": "low",
-      "name": "Low",
-      "min": 2,
-      "max": 16,
-      "default": 6,
-      "step": 1,
-      "description": "The lowest harmonic the melody visits. Low numbers are wide leaps like a bugle call, higher ones lie as close as a scale."
-    },
-    {
-      "key": "high",
-      "name": "High",
-      "min": 2,
-      "max": 16,
-      "default": 12,
-      "step": 1,
-      "description": "The highest harmonic the melody visits. Raise it for a longer scale that climbs further into the whistle."
-    },
-    {
       "key": "pattern",
       "name": "Pattern",
       "choices": ["Up and down", "Up", "Down", "Wander", "Leap", "Hold"],
@@ -92,20 +65,21 @@
       "description": "How long each move takes. Short steps cleanly from note to note, long slides through everything between as a mouth slowly changes shape."
     },
     {
+      "key": "octave",
+      "name": "Octave",
+      "min": 1,
+      "max": 4,
+      "default": 2,
+      "step": 1,
+      "description": "Which octave the root sits in. Low octaves give a deep melody of close harmonics, high ones a thin bright whistle."
+    },
+    {
       "key": "focus",
       "name": "Focus",
       "min": 0,
       "max": 1,
       "default": 0.6,
       "description": "How narrow and strong the resonance is. Low is a broad vowel colour over several harmonics, high singles out one harmonic as a clear ringing whistle."
-    },
-    {
-      "key": "drone",
-      "name": "Drone",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "description": "How much of the sound around the resonance is kept. Fully down, only the harmonic being sung is left."
     },
     {
       "key": "spread",
@@ -122,6 +96,32 @@
       "max": 1,
       "default": 1,
       "description": "Balance between the untouched sound and the singing one."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 2,
+      "max": 16,
+      "default": 6,
+      "step": 1,
+      "description": "The lowest harmonic the melody visits. Low numbers are wide leaps like a bugle call, higher ones lie as close as a scale."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 2,
+      "max": 16,
+      "default": 12,
+      "step": 1,
+      "description": "The highest harmonic the melody visits. Raise it for a longer scale that climbs further into the whistle."
+    },
+    {
+      "key": "drone",
+      "name": "Drone",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of the sound around the resonance is kept. Fully down, only the harmonic being sung is left."
     }
   ],
   "presets": {

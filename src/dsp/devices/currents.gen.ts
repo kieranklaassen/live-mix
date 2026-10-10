@@ -62,19 +62,8 @@ export const CURRENTS_PARAMS = {
     description:
       'How many bands the sound is split into above Low Hold. Few bands move in broad strokes, more give a finer ripple.',
   },
-  shape: {
-    id: 5,
-    name: 'Shape',
-    min: 0,
-    max: 1,
-    default: 0.25,
-    taper: 'linear',
-    unit: '',
-    description:
-      'The curve of each swell. Low is an even rise and fall. High rises slowly and drops away fast, like a wave that breaks.',
-  },
   chance: {
-    id: 6,
+    id: 5,
     name: 'Chance',
     min: 0,
     max: 1,
@@ -85,7 +74,7 @@ export const CURRENTS_PARAMS = {
       'How much each cycle differs from the last. Turned up, swells crest at different heights and moments, so the movement never settles into a pattern.',
   },
   focus: {
-    id: 7,
+    id: 6,
     name: 'Focus',
     min: 0,
     max: 1,
@@ -95,19 +84,8 @@ export const CURRENTS_PARAMS = {
     description:
       'How narrow each band is. Low is broad washes that overlap. High narrows each band to a few notes, so notes near a band ring in and out and those between hold still.',
   },
-  lowHold: {
-    id: 8,
-    name: 'Low Hold',
-    min: 20,
-    max: 800,
-    default: 120,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'Where the moving bands begin. Sound here moves less than the bands above, and an octave lower it hardly moves, keeping the bass solid. Low Focus reaches further down.',
-  },
   mix: {
-    id: 9,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -116,6 +94,28 @@ export const CURRENTS_PARAMS = {
     unit: '',
     description:
       'Balance between the untouched sound and the moving bands. Lower settings make the movement shallower.',
+  },
+  shape: {
+    id: 8,
+    name: 'Shape',
+    min: 0,
+    max: 1,
+    default: 0.25,
+    taper: 'linear',
+    unit: '',
+    description:
+      'The curve of each swell. Low is an even rise and fall. High rises slowly and drops away fast, like a wave that breaks.',
+  },
+  lowHold: {
+    id: 9,
+    name: 'Low Hold',
+    min: 20,
+    max: 800,
+    default: 120,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Where the moving bands begin. Sound here moves less than the bands above, and an octave lower it hardly moves, keeping the bass solid. Low Focus reaches further down.',
   },
 } as const satisfies Record<string, ParamSpec>
 

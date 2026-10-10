@@ -8,6 +8,7 @@ import { patchDeviceParams, validatePatch, type PatchDevice } from '../../../cor
 import { STOCK_WASM_DEVICES } from '../../registry'
 import {
   CHORD_COLOURS,
+  FACTORY_CHAINS,
   FACTORY_MODES,
   FACTORY_SOUNDS,
   chordName,
@@ -28,6 +29,8 @@ const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
 const MODES = Object.keys(FACTORY_MODES) as FactoryMode[]
 const WHITE_KEYS = new Set(FACTORY_MODES.major)
 const mod12 = (value: number): number => ((Math.round(value) % 12) + 12) % 12
+/** The effects set to a root and an octave, which are one note between them. */
+const TUNED_BY_OCTAVE = new Set(['overtone-singer', 'ring'])
 
 function scaleOf(key: FactoryKey): Set<number> {
   return new Set(FACTORY_MODES[key.mode].map((step) => mod12(key.root + step)))
@@ -123,6 +126,62 @@ describe('factory key', () => {
     const sitar: PatchDevice = { deviceId: 'sympathetic', preset: 'Sitar drone' }
     const preset = transposePatch({ effects: [sitar] }, 3)
     expect(preset.effects[0].params).toMatchObject({ root: 5 })
+  })
+
+  it('moves a root with its octave, so the note goes the way the key went', () => {
+    const one = (device: PatchDevice, by: number): Record<string, number> | undefined =>
+      transposePatch({ effects: [device] }, by).effects[0].params
+    // The ring's carrier stands on C4 as it comes: five down is G3, not G4, and six up is F sharp 4.
+    expect(one({ deviceId: 'ring' }, -5)).toEqual({ root: 7, octave: 3 })
+    expect(one({ deviceId: 'ring' }, 6)).toEqual({ root: 6, octave: 4 })
+    expect(one({ deviceId: 'ring' }, 2)).toEqual({ root: 2, octave: 4 })
+    // A preset's own octave goes too: the gong on C3 is on B flat 2 two down.
+    expect(one({ deviceId: 'ring', preset: 'Gong' }, -2)).toMatchObject({ root: 10, octave: 2 })
+    // The singer's root is A2: three up is C3, five down E2.
+    const singer: PatchDevice = { deviceId: 'overtone-singer', preset: 'Overtone melody' }
+    expect(one(singer, 3)).toEqual({ root: 0, octave: 3 })
+    expect(one(singer, -5)).toEqual({ root: 4, octave: 2 })
+    // What the patch sets is kept, and only the pitch moves.
+    expect(one({ deviceId: 'ring', preset: 'Frost', params: { octave: 6, mix: 0.3 } }, -1)).toEqual(
+      { root: 11, octave: 5, mix: 0.3 },
+    )
+    // Past the octaves the control has, the nearest: still the key's note.
+    expect(one({ deviceId: 'ring', params: { root: 0, octave: 0 } }, -1)).toEqual({
+      root: 11,
+      octave: 0,
+    })
+    expect(one({ deviceId: 'overtone-singer', params: { root: 9, octave: 4 } }, 3)).toEqual({
+      root: 0,
+      octave: 4,
+    })
+  })
+})
+
+describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])('the chains moved by %i', (by) => {
+  it('are the same chains with every tuned effect that far from where it stood', () => {
+    const tuned = FACTORY_CHAINS.filter((chain) =>
+      chain.effects.some((effect) => TUNED_BY_OCTAVE.has(effect.deviceId)),
+    )
+    expect(tuned.length).toBeGreaterThan(0)
+    for (const chain of tuned) {
+      const moved = transposePatch(chain, by)
+      expect(validatePatch(moved, registry), chain.id).toEqual([])
+      chain.effects.forEach((effect, at) => {
+        const descriptor = registry.get(effect.deviceId)
+        if (!descriptor || !TUNED_BY_OCTAVE.has(effect.deviceId)) {
+          expect(moved.effects[at], chain.id).toBe(effect)
+          return
+        }
+        const before = patchDeviceParams(descriptor, effect)
+        const after = patchDeviceParams(descriptor, moved.effects[at])
+        const note = (params: Record<string, number>): number => params.root + 12 * params.octave
+        expect(note(after) - note(before), `${chain.id}: ${effect.deviceId}`).toBe(by)
+        // Nothing else of it moved.
+        for (const [name, value] of Object.entries(before)) {
+          if (name !== 'root' && name !== 'octave') expect(after[name], name).toBe(value)
+        }
+      })
+    }
   })
 })
 

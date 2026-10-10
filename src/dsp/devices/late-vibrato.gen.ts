@@ -49,19 +49,8 @@ export const LATE_VIBRATO_PARAMS = {
     unit: 'Hz',
     description: 'How fast the pitch sways as it begins. Slow is a drift; fast is a nervous shake.',
   },
-  quicken: {
-    id: 4,
-    name: 'Quicken',
-    min: 0,
-    max: 1,
-    default: 0.3,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Speeds the sway up as it opens, the way a player presses into a long note. Zero keeps one rate throughout.',
-  },
   swell: {
-    id: 5,
+    id: 4,
     name: 'Swell',
     min: 0,
     max: 1,
@@ -71,19 +60,8 @@ export const LATE_VIBRATO_PARAMS = {
     description:
       'Lets level and brightness rise with the sway and pulse along with each cycle, so a held note opens up as it starts to move.',
   },
-  human: {
-    id: 6,
-    name: 'Human',
-    min: 0,
-    max: 1,
-    default: 0.3,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Lets the rate and the depth wander slowly, so no two cycles are quite alike. Zero is a perfectly even sway.',
-  },
   sense: {
-    id: 7,
+    id: 5,
     name: 'Sense',
     min: 0,
     max: 1,
@@ -94,7 +72,7 @@ export const LATE_VIBRATO_PARAMS = {
       'The sway follows the newest note: each new one sends everything sounding back to straight. Low, only a note after silence counts as new; high, every touch does.',
   },
   width: {
-    id: 8,
+    id: 6,
     name: 'Width',
     min: 0,
     max: 1,
@@ -105,7 +83,7 @@ export const LATE_VIBRATO_PARAMS = {
       "Moves the right side's sway out of step with the left, so a held note spreads as it opens. Slow, deep sways are kept closer together, so the two sides still sum cleanly.",
   },
   mix: {
-    id: 9,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -114,6 +92,28 @@ export const LATE_VIBRATO_PARAMS = {
     unit: '',
     description:
       'Balance between the straight sound and the swaying one. Part way, a held note opens into a chorus instead of a vibrato.',
+  },
+  quicken: {
+    id: 8,
+    name: 'Quicken',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Speeds the sway up as it opens, the way a player presses into a long note. Zero keeps one rate throughout.',
+  },
+  human: {
+    id: 9,
+    name: 'Human',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lets the rate and the depth wander slowly, so no two cycles are quite alike. Zero is a perfectly even sway.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -257,7 +257,16 @@ export const LATE_VIBRATO_DESCRIPTOR = wasmDeviceDescriptor(LATE_VIBRATO_DEVICE,
       human: 0.6,
       width: 0.6,
     },
-    Trill: { wait: 400, grow: 200, depth: 100, rate: 7, quicken: 0, swell: 0, human: 0, width: 0 },
+    'Wide shake': {
+      wait: 400,
+      grow: 200,
+      depth: 100,
+      rate: 7,
+      quicken: 0,
+      swell: 0,
+      human: 0,
+      width: 0,
+    },
   },
 })
 
