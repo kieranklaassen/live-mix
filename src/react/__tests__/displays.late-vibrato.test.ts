@@ -12,7 +12,9 @@ import { INK, PLAIN_COLOURS } from '../components/display-kit'
 import {
   LATE_VIBRATO_CENTS_PER_HZ,
   LATE_VIBRATO_FACES,
+  lateVibratoHeight,
   lateVibratoMost,
+  lateVibratoPoints,
   lateVibratoRate,
   lateVibratoSpanSec,
   lateVibratoSway,
@@ -50,6 +52,43 @@ function setting(values: Values = {}) {
     depth: of('depth'),
     shown: Math.min(of('depth'), lateVibratoMost(rate, of('human'))),
     span: lateVibratoSpanSec(wait, grow, rate),
+  }
+}
+
+/** How high a bend of so many cents stands: the square root of its share of 100, of the pixels 100 take. */
+const rise = (reach: number, cents: number): number =>
+  Math.sign(cents) * reach * Math.sqrt(Math.abs(cents) / 100)
+
+/** The cents under a height: `rise` the other way. */
+const centsUnder = (reach: number, height: number): number =>
+  Math.sign(height) * 100 * (height / reach) ** 2
+
+/**
+ * Time across the picture: to scale within Wait, within Grow and after them,
+ * between the two points the display stands them on.
+ */
+function across(values: Values = {}, width = WIDTH) {
+  const { box, right } = layout(width)
+  const s = setting(values)
+  const points = lateVibratoPoints(s.wait, s.grow, s.rate, box.w)
+  const wait = box.x + points.wait
+  const full = box.x + points.full
+  const total = s.wait + s.grow
+  return {
+    wait,
+    full,
+    xOf: (seconds: number): number =>
+      seconds <= s.wait
+        ? box.x + (points.wait * seconds) / s.wait
+        : seconds <= total
+          ? wait + ((full - wait) * (seconds - s.wait)) / s.grow
+          : full + ((right - full) * (seconds - total)) / (s.span - total),
+    secondsAt: (x: number): number =>
+      x <= wait
+        ? (s.wait * (x - box.x)) / points.wait
+        : x <= full
+          ? s.wait + (s.grow * (x - wait)) / (full - wait)
+          : total + ((s.span - total) * (x - full)) / (right - full),
   }
 }
 
@@ -99,6 +138,19 @@ const dotOf = (drawn: RecordingContext) => circles(drawn).find((circle) => circl
 function wave(drawn: RecordingContext): { upper: Stroke; lower: Stroke } | null {
   const edges = strokes(drawn).filter((stroke) => stroke.width === 1.25 && stroke.points.length > 2)
   return edges.length === 2 ? { upper: edges[0], lower: edges[1] } : null
+}
+
+/** The height of the wave at a place: between the two points drawn either side of it. */
+function waveAt(edges: { upper: Stroke; lower: Stroke }, x: number): number {
+  const n = Math.max(
+    1,
+    edges.upper.points.findIndex((point) => point.x >= x - 1e-9),
+  )
+  const middle = (at: number): number => (edges.upper.points[at].y + edges.lower.points[at].y) / 2
+  const before = edges.upper.points[n - 1].x
+  const after = edges.upper.points[n].x
+  const along = after > before ? (x - before) / (after - before) : 1
+  return middle(n - 1) + (middle(n) - middle(n - 1)) * along
 }
 
 /** The straight stretches: lines of two points at the height of the straight pitch, thicker than a scale line or as faint as told. */
@@ -230,7 +282,8 @@ describe("Late Vibrato's display: the life of a note", () => {
         const { box, mid, reach, right } = layout(width, height)
         const s = setting(values)
         const drawn = still(values, width, height)
-        const from = box.x + (box.w * s.wait) / s.span
+        const time = across(values, width)
+        const from = time.wait
 
         // Straight, at full strength, from the left edge to the end of Wait.
         const [flat, ...rest] = straights(drawn, mid)
@@ -251,31 +304,26 @@ describe("Late Vibrato's display: the life of a note", () => {
         expect(upper.points.length).toBeGreaterThan(box.w)
         let highest = Infinity
         upper.points.forEach((point, n) => {
-          const seconds = ((point.x - box.x) / box.w) * s.span
+          const seconds = time.secondsAt(point.x)
           const turned =
             lateVibratoTurns(seconds, s.wait, s.grow, s.rate, s.quicken) -
             lateVibratoTurns(s.wait, s.wait, s.grow, s.rate, s.quicken)
-          const cents =
-            s.shown * lateVibratoSway(seconds, s.wait, s.grow) * Math.sin(turned * TWO_PI)
+          const open = rise(reach, s.shown * lateVibratoSway(seconds, s.wait, s.grow))
           // The two edges lie a quarter pixel's sway either side of the wave.
           const middle = (point.y + lower.points[n].y) / 2
-          expect(Math.abs(middle - (mid - (reach * cents) / 100))).toBeLessThan(0.12)
+          expect(Math.abs(middle - (mid - open * Math.sin(turned * TWO_PI)))).toBeLessThan(0.2)
           expect(point.y).toBeLessThanOrEqual(lower.points[n].y)
           highest = Math.min(highest, point.y)
         })
         // Its crests reach the Depth, and the point that sets it stands on them.
-        expect(highest).toBeCloseTo(mid - (reach * s.shown) / 100, 1)
-        expect(handlesOf(values, width, height).full.y).toBeCloseTo(
-          mid - (reach * s.shown) / 100,
-          9,
-        )
+        expect(highest).toBeCloseTo(mid - rise(reach, s.shown), 1)
+        expect(handlesOf(values, width, height).full.y).toBeCloseTo(mid - rise(reach, s.shown), 9)
 
         // The S itself, dashed, from the one point to the other.
         const [crest] = strokes(drawn).filter((stroke) => stroke.dashed)
         crest.points.forEach((point) => {
-          const seconds = ((point.x - box.x) / box.w) * s.span
-          const open = s.shown * lateVibratoSway(seconds, s.wait, s.grow)
-          expect(point.y).toBeCloseTo(mid - (reach * open) / 100, 9)
+          const open = s.shown * lateVibratoSway(time.secondsAt(point.x), s.wait, s.grow)
+          expect(point.y).toBeCloseTo(mid - rise(reach, open), 9)
         })
       }
     },
@@ -291,9 +339,10 @@ describe("Late Vibrato's display: the life of a note", () => {
     expect(edges).not.toBeNull()
     const upper = edges?.upper.points ?? []
     const lower = edges?.lower.points ?? []
+    const time = across(values)
     upper.forEach((point, n) => {
-      const seconds = ((point.x - box.x) / box.w) * s.span
-      const open = (reach * s.shown * lateVibratoSway(seconds, s.wait, s.grow)) / 100
+      const seconds = time.secondsAt(point.x)
+      const open = rise(reach, s.shown * lateVibratoSway(seconds, s.wait, s.grow))
       // Never past the S on either side.
       expect(point.y).toBeGreaterThan(mid - open - 1e-6)
       expect(lower[n].y).toBeLessThan(mid + open + 1e-6)
@@ -315,7 +364,18 @@ describe("Late Vibrato's display: the life of a note", () => {
       expect(most).toBeLessThan(30)
       const edges = wave(still(values))
       const highest = Math.min(...(edges?.upper.points.map((point) => point.y) ?? []))
-      expect(highest).toBeCloseTo(mid - (reach * most) / 100, 1)
+      expect(highest).toBeCloseTo(mid - rise(reach, most), 1)
+      // A faint line each side marks the most it holds, from the end of Wait on.
+      const marks = strokes(still(values)).filter(
+        (stroke) =>
+          stroke.points.length === 2 &&
+          stroke.alpha === INK.grid &&
+          Math.abs(stroke.points[0].y - mid) > 1 &&
+          stroke.points[0].y === stroke.points[1].y,
+      )
+      expect(marks.map((mark) => mark.points[0].y - mid)).toEqual(
+        [-1, 1].map((side) => Math.floor(mid + side * rise(reach, most)) + 0.5 - mid),
+      )
     }
     // From 1.9 Hz up all of it is held.
     const all = wave(still({ rate: 1.9, depth: 100, human: 0, wait: 100, grow: 100 }))
@@ -330,14 +390,13 @@ describe("Late Vibrato's display: the life of a note", () => {
     for (const human of [0, 0.5, 1]) {
       const top = shadeTop(still({ human, depth: 40 }))
       // kHumanDepth in late_vibrato.h is 0.25.
-      expect(top).toBeCloseTo(mid - (reach * 40 * (1 + 0.25 * human)) / 100, 6)
+      expect(top).toBeCloseTo(mid - rise(reach, 40 * (1 + 0.25 * human)), 6)
     }
   })
 
   it('draws each voice as strongly as Mix lets it be heard, and keeps its points at Mix 0', () => {
-    const { box, mid, right } = layout()
-    const s = setting()
-    const from = box.x + (box.w * s.wait) / s.span
+    const { mid, right } = layout()
+    const from = across().wait
     const place = (values: Values) =>
       Object.values(handlesOf(values)).map((handle) => [handle.x, handle.y])
 
@@ -385,6 +444,116 @@ describe("Late Vibrato's display: the life of a note", () => {
   })
 })
 
+describe("Late Vibrato's display: what can be read and taken", () => {
+  it('stands the sway of the default high enough to read', () => {
+    // 24 cents of the 100 there are: to scale that is 4.4 pixels each way in
+    // the strip. On the square root it is half the height.
+    expect(P.depth.default).toBe(24)
+    expect(lateVibratoHeight(100)).toBe(1)
+    expect(lateVibratoHeight(25)).toBeCloseTo(0.5, 9)
+    expect(lateVibratoHeight(6.25)).toBeCloseTo(0.25, 9)
+    expect(lateVibratoHeight(-25)).toBeCloseTo(-0.5, 9)
+    expect(lateVibratoHeight(0)).toBe(0)
+    for (const [width, height, least] of [
+      [WIDTH, HEIGHT, 8.5],
+      [204, 100, 21],
+    ]) {
+      const { mid } = layout(width, height)
+      const edges = wave(still({}, width, height))
+      const highest = Math.min(...(edges?.upper.points.map((point) => point.y) ?? []))
+      const lowest = Math.max(...(edges?.lower.points.map((point) => point.y) ?? []))
+      expect(mid - highest).toBeGreaterThan(least)
+      expect(lowest - mid).toBeGreaterThan(least)
+    }
+    // The gentlest preset there is, 7 cents, is still more than a line thick.
+    const { mid } = layout()
+    const gentle = wave(still({ depth: 7 }))
+    expect(mid - Math.min(...(gentle?.upper.points.map((point) => point.y) ?? []))).toBeGreaterThan(
+      4.5,
+    )
+  })
+
+  it('keeps the two points apart and on the picture at every setting', () => {
+    for (const [width, height] of [
+      [WIDTH, HEIGHT],
+      [204, 100],
+    ]) {
+      const { box, right, foot } = layout(width, height)
+      for (const wait of [10, 30, 100, 350, 1000, 4000]) {
+        for (const grow of [20, 100, 900, 8000]) {
+          for (const rate of [0.1, 0.3, 1, 5.2, 10]) {
+            for (const depth of [0, 24, 100]) {
+              const { wait: first, full } = handlesOf({ wait, grow, rate, depth }, width, height)
+              // A hand takes a point within 9 pixels of it: each has room of
+              // its own, and neither lies on the edge.
+              expect(first.x - box.x).toBeGreaterThanOrEqual(8)
+              expect(full.x - first.x).toBeGreaterThanOrEqual(14)
+              expect(right - full.x).toBeGreaterThanOrEqual(24)
+              expect(full.y).toBeGreaterThanOrEqual(box.y + 1.5)
+              expect(full.y).toBeLessThanOrEqual(foot)
+            }
+          }
+        }
+      }
+    }
+    // A Wait of 10 ms before a sway of 0.3 Hz: to scale, a quarter of a pixel.
+    const { box } = layout()
+    const s = setting({ wait: 10, grow: 20, rate: 0.3 })
+    expect((box.w * s.wait) / s.span).toBeLessThan(0.3)
+    expect(handlesOf({ wait: 10, grow: 20, rate: 0.3 }).wait.x - box.x).toBe(8)
+    expect(handlesOf({ wait: 10, grow: 20, rate: 0.3 }).full.x - box.x).toBe(22)
+  })
+
+  it('moves each point the way its own time goes, whatever the other is', () => {
+    const { box } = layout()
+    for (const rate of [0.1, 0.5, 5.2, 10]) {
+      for (const other of [0.02, 0.3, 2, 8]) {
+        let wait = -Infinity
+        let full = -Infinity
+        for (let n = 0; n <= 60; n++) {
+          const along = n / 60
+          const at = lateVibratoPoints(0.01 * 400 ** along, Math.min(other, 4), rate, box.w)
+          expect(at.wait).toBeGreaterThan(wait)
+          wait = at.wait
+          const to = lateVibratoPoints(Math.min(other, 4), 0.02 * 400 ** along, rate, box.w)
+          expect(to.full).toBeGreaterThan(full)
+          full = to.full
+        }
+      }
+    }
+  })
+
+  it('draws time to scale within each stretch, and the wave by it', () => {
+    // Slow and short: neither stretch has its room to scale, both are given it.
+    const values = { wait: 50, grow: 100, rate: 0.5, depth: 20, human: 0, quicken: 0 }
+    const { box, mid, reach, right } = layout()
+    const s = setting(values)
+    const time = across(values)
+    expect(time.wait - box.x).toBeGreaterThan((box.w * s.wait) / s.span + 5)
+    expect(time.secondsAt(time.wait)).toBeCloseTo(s.wait, 9)
+    expect(time.secondsAt(time.full)).toBeCloseTo(s.wait + s.grow, 9)
+    expect(time.secondsAt(right)).toBeCloseTo(s.span, 9)
+    const edges = wave(still(values))
+    expect(edges).not.toBeNull()
+    edges?.upper.points.forEach((point, n) => {
+      const seconds = time.secondsAt(point.x)
+      const turned = s.rate * (seconds - s.wait)
+      const open = rise(reach, s.shown * lateVibratoSway(seconds, s.wait, s.grow))
+      const middle = (point.y + edges.lower.points[n].y) / 2
+      expect(Math.abs(middle - (mid - open * Math.sin(turned * TWO_PI)))).toBeLessThan(0.2)
+    })
+    // The marks along the foot stand at their seconds on that scale.
+    const { foot } = layout()
+    const marks = strokes(still(values)).filter(
+      (stroke) => stroke.points.length === 2 && stroke.points[1].y === foot,
+    )
+    expect(marks.length).toBeGreaterThan(2)
+    marks.forEach((mark, n) => {
+      expect(mark.points[0].x).toBe(Math.floor(time.xOf((n + 1) * 1)) + 0.5)
+    })
+  })
+})
+
 describe("Late Vibrato's display: the two points", () => {
   it('stand on Wait, and on the end of Grow at the Depth', () => {
     for (const [width, height] of [
@@ -393,14 +562,15 @@ describe("Late Vibrato's display: the two points", () => {
       [484, 48],
     ]) {
       const { box, mid, reach } = layout(width, height)
-      const grounds: Values[] = [{}, { wait: 1200, grow: 300, depth: 70, rate: 2 }]
+      const grounds: Values[] = [{}, { wait: 1200, grow: 900, depth: 70, rate: 2 }]
       for (const values of grounds) {
         const s = setting(values)
         const { wait, full } = handlesOf(values, width, height)
+        // To scale, where that leaves each stretch its room.
         expect(wait.x).toBeCloseTo(box.x + (box.w * s.wait) / s.span, 9)
         expect(wait.y).toBe(mid)
         expect(full.x).toBeCloseTo(box.x + (box.w * (s.wait + s.grow)) / s.span, 9)
-        expect(full.y).toBeCloseTo(mid - (reach * s.depth) / 100, 9)
+        expect(full.y).toBeCloseTo(mid - rise(reach, s.depth), 9)
         // And are drawn there.
         const rings = circles(still(values, width, height))
         expect(rings).toEqual([
@@ -413,7 +583,13 @@ describe("Late Vibrato's display: the two points", () => {
 
   it('put Wait under the hand: dragged there, the point stands there', () => {
     const { box, mid } = layout()
-    const grounds: Values[] = [{}, { grow: 200, rate: 0.5 }, { grow: 6000, rate: 8 }]
+    const grounds: Values[] = [
+      {},
+      { grow: 200, rate: 0.5 },
+      { grow: 6000, rate: 8 },
+      { grow: 20, rate: 0.3 },
+      { grow: 8000, rate: 0.3 },
+    ]
     for (const ground of grounds) {
       const least = handlesOf({ ...ground, wait: P.wait.min }).wait.x
       const most = handlesOf({ ...ground, wait: P.wait.max }).wait.x
@@ -435,7 +611,12 @@ describe("Late Vibrato's display: the two points", () => {
 
   it('put Grow and Depth under the hand: dragged there, the point stands there', () => {
     const { box, mid, reach } = layout()
-    const grounds: Values[] = [{}, { wait: 100, rate: 0.5, human: 0 }, { wait: 2000, rate: 8 }]
+    const grounds: Values[] = [
+      {},
+      { wait: 100, rate: 0.5, human: 0 },
+      { wait: 2000, rate: 8 },
+      { wait: 10, rate: 0.3, human: 0 },
+    ]
     for (const ground of grounds) {
       const least = handlesOf({ ...ground, grow: P.grow.min }).full.x
       const most = handlesOf({ ...ground, grow: P.grow.max }).full.x
@@ -444,7 +625,7 @@ describe("Late Vibrato's display: the two points", () => {
       for (const part of [0.1, 0.4, 0.75]) {
         for (const cents of [0, 12, Math.min(90, held - 1)]) {
           const x = least + (most - least) * part
-          const y = mid - (reach * cents) / 100
+          const y = mid - rise(reach, cents)
           // Taken from a Depth the Rate holds all of.
           const from = { ...ground, depth: Math.min(20, held - 1) }
           const set = handlesOf(from).full.drag(x, y)
@@ -475,31 +656,36 @@ describe("Late Vibrato's display: the two points", () => {
     let values: Values = { ...ground, depth: 100 }
     const press = handlesOf(values).full
     // Drawn at the 27 cents that are held, not at the 100 that are set.
-    expect(press.y).toBeCloseTo(mid - (reach * held) / 100, 9)
+    expect(press.y).toBeCloseTo(mid - rise(reach, held), 9)
+    /** The cents under the hand so far below where the point was taken. */
+    const under = (down: number): number => centsUnder(reach, mid - press.y - down)
     // Taken and not moved, the setting stays.
     expect(press.drag(press.x, press.y, hold).depth).toBeCloseTo(100, 9)
     // Pulled down, Depth comes down from 100 by as much, and the point waits
     // until the setting is under what is held.
     values = { ...values, ...handlesOf(values).full.drag(press.x, press.y + 3, hold) }
-    expect(values.depth).toBeCloseTo(100 - (3 / reach) * 100, 6)
+    expect(values.depth).toBeCloseTo(100 - held + under(3), 6)
     expect(handlesOf(values).full.y).toBeCloseTo(press.y, 9)
     // The hand remembers how far over the setting lay, whatever is drawn
     // meanwhile, and goes under the straight line to take all of it off.
     values = { ...values, ...handlesOf(values).full.drag(press.x, mid + 2, hold) }
-    expect(values.depth).toBeCloseTo(100 - held - (2 / reach) * 100, 6)
+    expect(values.depth).toBeCloseTo(100 - held + centsUnder(reach, -2), 6)
     expect(values.depth).toBeGreaterThan(held)
     expect(handlesOf(values).full.y).toBeCloseTo(press.y, 9)
     // Under what is held, the point comes with the hand.
-    values = { ...values, ...handlesOf(values).full.drag(press.x, press.y + 15, hold) }
-    expect(values.depth).toBeCloseTo(100 - (15 / reach) * 100, 6)
+    values = { ...values, ...handlesOf(values).full.drag(press.x, press.y + 24, hold) }
+    expect(values.depth).toBeCloseTo(100 - held + under(24), 6)
     expect(values.depth).toBeLessThan(held)
-    expect(handlesOf(values).full.y).toBeCloseTo(mid - (reach * values.depth) / 100, 9)
+    expect(handlesOf(values).full.y).toBeCloseTo(mid - rise(reach, values.depth), 9)
     values = { ...values, ...handlesOf(values).full.drag(press.x, HEIGHT + 30, hold) }
     expect(values.depth).toBe(0)
     // Another hand, later, begins again from what lies over then.
     values = { ...ground, depth: 20 }
     const again = handlesOf(values).full
-    expect(again.drag(again.x, again.y - 1, {}).depth).toBeCloseTo(20 + 100 / reach, 6)
+    expect(again.drag(again.x, again.y - 1, {}).depth).toBeCloseTo(
+      centsUnder(reach, rise(reach, 20) + 1),
+      6,
+    )
   })
 })
 
@@ -507,8 +693,8 @@ describe("Late Vibrato's display: the note sounding now", () => {
   const values = { human: 0, quicken: 0.5 }
 
   it('is a dot as far along as the note is old, at the bend the device reports', () => {
-    const { box, mid, reach, right } = layout()
-    const s = setting(values)
+    const { mid, reach, right } = layout()
+    const time = across(values)
     for (const [age, depth, phase] of [
       [0.2, 0, 0.3],
       [0.8, 9, 0.25],
@@ -516,8 +702,8 @@ describe("Late Vibrato's display: the note sounding now", () => {
       [1.7, 28, 0.1],
     ]) {
       const dot = dotOf(live(values, { age, depth, phase, rate: 5.2 }))
-      expect(dot?.x).toBeCloseTo(box.x + (box.w * age) / s.span, 9)
-      expect(dot?.y).toBeCloseTo(mid - (reach * depth * Math.sin(phase * TWO_PI)) / 100, 9)
+      expect(dot?.x).toBeCloseTo(time.xOf(age), 9)
+      expect(dot?.y).toBeCloseTo(mid - rise(reach, depth) * Math.sin(phase * TWO_PI), 9)
     }
     // Older than the strip is long, it stands at the right edge.
     expect(dotOf(live(values, { age: 30, depth: 28, phase: 0.5, rate: 5.2 }))?.x).toBe(right)
@@ -556,10 +742,7 @@ describe("Late Vibrato's display: the note sounding now", () => {
       expect(dot).toBeDefined()
       expect(edges).not.toBeNull()
       if (!dot || !edges) continue
-      const n = edges.upper.points.findIndex((point) => point.x >= dot.x - 1e-9)
-      const middle = (edges.upper.points[n].y + edges.lower.points[n].y) / 2
-      // Half a pixel along is up to a pixel of height where the wave is steep.
-      expect(Math.abs(middle - dot.y)).toBeLessThan(1)
+      expect(Math.abs(waveAt(edges, dot.x) - dot.y)).toBeLessThan(0.5)
       expect(dot.x).toBeLessThanOrEqual(box.x + box.w)
     }
     // Two notes that met the cycle a quarter of it apart: the same wave, a quarter cycle along.
@@ -571,9 +754,7 @@ describe("Late Vibrato's display: the note sounding now", () => {
   })
 
   it('moves along with the note between two readings, and stands when the device does', () => {
-    const { box } = layout()
-    const s = setting(values)
-    const xOf = (age: number): number => box.x + (box.w * age) / s.span
+    const xOf = across(values).xOf
     // Readings thirty times a second, frames sixty.
     const reported = (time: number) => {
       const read = Math.floor(time * 30 + 1e-9) / 30
@@ -606,8 +787,7 @@ describe("Late Vibrato's display against the device", () => {
     const device = await loadWasmDevice('late-vibrato', RATE)
     set(device, values)
     const readings = hold(device, 1.2, 0.4)
-    const { box, mid, reach } = layout()
-    const s = setting(values)
+    const { mid, reach } = layout()
     let opening = 0
     let before = readings[0]
     let depthOut = 0
@@ -643,11 +823,10 @@ describe("Late Vibrato's display against the device", () => {
     const drawn = live(values, last)
     const dot = dotOf(drawn)
     const edges = wave(drawn)
-    expect(dot?.x).toBeCloseTo(box.x + (box.w * last.age) / s.span, 6)
-    expect(dot?.y).toBeCloseTo(mid - (reach * last.depth * Math.sin(last.phase * TWO_PI)) / 100, 6)
-    const n = edges?.upper.points.findIndex((point) => point.x >= (dot?.x ?? 0) - 1e-9) ?? -1
-    const middle = ((edges?.upper.points[n].y ?? 0) + (edges?.lower.points[n].y ?? 0)) / 2
-    expect(Math.abs(middle - (dot?.y ?? 0))).toBeLessThan(1.2)
+    expect(dot?.x).toBeCloseTo(across(values).xOf(last.age), 6)
+    expect(dot?.y).toBeCloseTo(mid - rise(reach, last.depth) * Math.sin(last.phase * TWO_PI), 6)
+    expect(edges).not.toBeNull()
+    if (edges && dot) expect(Math.abs(waveAt(edges, dot.x) - dot.y)).toBeLessThan(0.5)
   })
 
   it('goes back to the start at a new attack while the cycle runs on', async () => {
@@ -680,6 +859,6 @@ describe("Late Vibrato's display against the device", () => {
     const { mid, reach } = layout()
     const depth = readings[readings.length - 1].depth
     expect(depth).toBeCloseTo(lateVibratoMost(0.5, 0), 2)
-    expect(handlesOf(values).full.y).toBeCloseTo(mid - (reach * depth) / 100, 3)
+    expect(handlesOf(values).full.y).toBeCloseTo(mid - rise(reach, depth), 3)
   })
 })

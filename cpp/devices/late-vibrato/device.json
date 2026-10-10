@@ -2,7 +2,7 @@
   "id": "late-vibrato",
   "name": "Late Vibrato",
   "category": "modulation",
-  "description": "A vibrato that waits: held notes begin straight and start to sway the longer they last, as a singer or a bow would.",
+  "description": "A vibrato that waits: a held note begins straight and sways more the longer it lasts, and each new note sends everything sounding back to straight.",
   "class": "LateVibrato",
   "header": "late_vibrato.h",
   "sources": [],
@@ -58,7 +58,7 @@
       "name": "Depth",
       "min": 0,
       "max": 100,
-      "default": 28,
+      "default": 24,
       "unit": "ct",
       "description": "How far the pitch bends each way once the sway is fully open. Slow rates hold less of it than fast ones."
     },
@@ -102,15 +102,15 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How small an attack counts as a new note and sends the sway back to straight. Low, only a note after silence does; high, every new touch does."
+      "description": "The sway follows the newest note: each new one sends everything sounding back to straight. Low, only a note after silence counts as new; high, every touch does."
     },
     {
       "key": "width",
       "name": "Width",
       "min": 0,
       "max": 1,
-      "default": 0.2,
-      "description": "Moves the right side's sway out of step with the left, so a held note spreads across the stereo field as it opens."
+      "default": 0.6,
+      "description": "Moves the right side's sway out of step with the left, so a held note spreads as it opens. Slow, deep sways are kept closer together, so the two sides still sum cleanly."
     },
     {
       "key": "mix",
@@ -126,7 +126,7 @@
     "Singer": {
       "wait": 250,
       "grow": 600,
-      "depth": 40,
+      "depth": 38,
       "rate": 5.6,
       "quicken": 0.4,
       "swell": 0.5,
@@ -136,68 +136,90 @@
     "Slow bow": {
       "wait": 500,
       "grow": 1500,
-      "depth": 22,
-      "rate": 4.2,
+      "depth": 20,
+      "rate": 4.4,
       "quicken": 0.2,
-      "swell": 0.7,
+      "swell": 0.6,
+      "human": 0.4,
+      "width": 0.5
+    },
+    "Finger vibrato": {
+      "wait": 180,
+      "grow": 350,
+      "depth": 18,
+      "rate": 5.8,
+      "quicken": 0.3,
+      "swell": 0.15,
       "human": 0.4,
       "width": 0.3
     },
     "Barely there": {
       "wait": 600,
       "grow": 1500,
-      "depth": 8,
-      "rate": 4.5,
+      "depth": 7,
+      "rate": 4.6,
       "quicken": 0.1,
       "swell": 0.1,
-      "width": 0.1
+      "width": 0.4
     },
-    "Opens to chorus": {
-      "wait": 200,
-      "grow": 700,
-      "depth": 18,
-      "rate": 0.9,
-      "quicken": 0,
-      "swell": 0,
-      "width": 0.8,
-      "mix": 0.5
+    "Long patience": {
+      "wait": 2500,
+      "grow": 4000,
+      "depth": 22,
+      "rate": 4.8,
+      "sense": 0.3
     },
     "Wide drone": {
       "wait": 800,
       "grow": 3000,
-      "depth": 30,
+      "depth": 18,
       "rate": 3,
       "quicken": 0.2,
       "swell": 0.4,
       "sense": 0.15,
       "width": 1
     },
-    "Long patience": {
-      "wait": 2500,
-      "grow": 4000,
-      "depth": 45,
-      "rate": 5,
-      "sense": 0.3
-    },
-    "Nervous": {
-      "wait": 60,
-      "grow": 150,
-      "depth": 35,
-      "rate": 8.5,
-      "quicken": 0.8,
-      "human": 0.7,
-      "sense": 0.9,
-      "swell": 0.1
-    },
-    "Seasick": {
-      "wait": 150,
-      "grow": 2500,
-      "depth": 95,
-      "rate": 2.2,
+    "Opens to chorus": {
+      "wait": 200,
+      "grow": 800,
+      "depth": 14,
+      "rate": 0.9,
       "quicken": 0,
-      "human": 0.6,
-      "width": 0.6,
-      "swell": 0
+      "swell": 0,
+      "width": 0.8,
+      "mix": 0.5
+    },
+    "Wide shimmer": {
+      "wait": 100,
+      "grow": 400,
+      "depth": 12,
+      "rate": 6,
+      "quicken": 0.2,
+      "swell": 0.5,
+      "width": 1,
+      "mix": 0.5
+    },
+    "Slow drift": {
+      "wait": 300,
+      "grow": 4000,
+      "depth": 14,
+      "rate": 0.4,
+      "quicken": 0,
+      "swell": 0.2,
+      "human": 0.8,
+      "width": 1,
+      "mix": 0.6
+    },
+    "Tape wobble": {
+      "wait": 10,
+      "grow": 20,
+      "depth": 10,
+      "rate": 0.6,
+      "quicken": 0,
+      "swell": 0,
+      "human": 1,
+      "sense": 0,
+      "width": 0.1
     },
     "Bloom only": {
       "wait": 200,
@@ -205,57 +227,38 @@
       "depth": 0,
       "rate": 4,
       "quicken": 0,
-      "swell": 1,
+      "swell": 0.8,
       "width": 0.5
-    },
-    "Tape wobble": {
-      "wait": 10,
-      "grow": 20,
-      "depth": 12,
-      "rate": 0.6,
-      "quicken": 0,
-      "swell": 0,
-      "human": 1,
-      "sense": 0,
-      "width": 0.04
-    },
-    "Warble": {
-      "wait": 300,
-      "grow": 300,
-      "depth": 60,
-      "rate": 10,
-      "quicken": 1,
-      "swell": 0.3,
-      "human": 0.2
-    },
-    "Wide shimmer": {
-      "wait": 100,
-      "grow": 400,
-      "depth": 14,
-      "rate": 6,
-      "quicken": 0.2,
-      "swell": 0.6,
-      "width": 1,
-      "mix": 0.5
     },
     "Every touch": {
       "wait": 120,
       "grow": 300,
-      "depth": 30,
+      "depth": 20,
       "rate": 6,
       "quicken": 0.5,
-      "sense": 1
+      "sense": 1,
+      "width": 0.4
     },
-    "Deep drift": {
-      "wait": 300,
-      "grow": 4000,
-      "depth": 16,
-      "rate": 0.4,
+    "Nervous": {
+      "wait": 60,
+      "grow": 150,
+      "depth": 22,
+      "rate": 8.5,
+      "quicken": 0.8,
+      "swell": 0.1,
+      "human": 0.7,
+      "sense": 0.8,
+      "width": 0.4
+    },
+    "Seasick": {
+      "wait": 150,
+      "grow": 2500,
+      "depth": 80,
+      "rate": 2,
       "quicken": 0,
-      "human": 0.8,
-      "width": 1,
-      "mix": 0.6,
-      "swell": 0.2
+      "swell": 0,
+      "human": 0.6,
+      "width": 0.6
     },
     "Trill": {
       "wait": 400,

@@ -199,6 +199,99 @@ static std::vector<float> tone(float hz, float seconds, float gain, float rate =
   return out;
 }
 
+// --- played material --------------------------------------------------------------------
+
+// A note of a played line: when it starts, how long it is held, its pitch and
+// level, and how long its attack and its release take.
+struct Played {
+  double start, length, hz, gain, attack, release;
+};
+
+// The notes as sound: each a stack of `partials` harmonics falling off as
+// 1/h, with a straight attack and release. Notes whose releases overlap the
+// next attack make a legato line with hardly a change of level.
+static std::vector<float> play(const std::vector<Played>& notes, double seconds, int partials,
+                               double rate = kRate) {
+  std::vector<float> out(at(seconds, rate), 0.0f);
+  for (const Played& n : notes) {
+    const size_t from = at(n.start, rate);
+    const size_t to = std::min(out.size(), at(n.start + n.length + n.release, rate));
+    for (size_t i = from; i < to; ++i) {
+      const double t = static_cast<double>(i - from) / rate;
+      double env = t < n.attack ? t / n.attack : 1.0;
+      if (t > n.length) env *= std::max(0.0, 1.0 - (t - n.length) / n.release);
+      double v = 0.0;
+      for (int h = 1; h <= partials; ++h) v += std::sin(2.0 * kPi * n.hz * h * t) / h;
+      out[i] += static_cast<float>(n.gain * env * v);
+    }
+  }
+  return out;
+}
+
+// What the device makes of a sound, 16 samples at a time: the age of the
+// note it takes to be sounding and the depth of the sway (its two meters).
+struct Life {
+  std::vector<float> age, depth;
+  static constexpr double kStep = 16.0;
+};
+
+static Life live(LateVibrato& d, const std::vector<float>& left, const std::vector<float>& right) {
+  Life life;
+  for (size_t i = 0; i + 16 <= left.size(); i += 16) {
+    for (int k = 0; k < 16; ++k) {
+      d.in_left()[k] = left[i + k];
+      d.in_right()[k] = right[i + k];
+    }
+    d.process(16);
+    life.age.push_back(d.meter(0));
+    life.depth.push_back(d.meter(1));
+  }
+  return life;
+}
+
+// When the device took a new note to begin: the moments its note age fell
+// from more than `settled` seconds, in seconds.
+static std::vector<double> restarts(const Life& life, double settled = 0.1, double rate = kRate) {
+  std::vector<double> found;
+  for (size_t i = 1; i < life.age.size(); ++i) {
+    if (life.age[i] < life.age[i - 1] && life.age[i - 1] > settled) {
+      found.push_back(static_cast<double>(i) * Life::kStep / rate);
+    }
+  }
+  return found;
+}
+
+// How many of `notes` (all but the first) were taken as new within 120 ms of
+// their start, and how many restarts before `until` belong to no note.
+static void heard(const std::vector<Played>& notes, const std::vector<double>& found, double until, int* taken,
+                  int* stray) {
+  std::vector<bool> used(found.size(), false);
+  *taken = 0;
+  for (size_t k = 1; k < notes.size(); ++k) {
+    bool hit = false;
+    for (size_t r = 0; r < found.size(); ++r) {
+      if (found[r] >= notes[k].start && found[r] <= notes[k].start + notes[k].attack + 0.12) {
+        used[r] = true;
+        hit = true;
+      }
+    }
+    if (hit) ++*taken;
+    if (!hit && std::getenv("LATE_VIBRATO_TRACE")) std::printf("  not taken: the note at %.3f s\n", notes[k].start);
+  }
+  *stray = 0;
+  for (size_t r = 0; r < found.size(); ++r) {
+    if (!used[r] && found[r] < until) {
+      ++*stray;
+      if (std::getenv("LATE_VIBRATO_TRACE")) std::printf("  invented: a note at %.3f s\n", found[r]);
+    }
+  }
+}
+
+static float depth_at(const Life& life, double seconds, double rate = kRate) {
+  const size_t i = static_cast<size_t>(seconds * rate / Life::kStep);
+  return i < life.depth.size() ? life.depth[i] : 0.0f;
+}
+
 int main() {
   Conformance spec;
   spec.name = "late-vibrato";
@@ -322,8 +415,9 @@ int main() {
     EXPECT(from_delayed(late.left, rung, at(5.5), at(6.5)) > 0.05, "a note held on after them sways");
   }
 
-  // A new attack takes the sway back down, and the read is spliced back to
-  // the centre: from 60 ms after it the output is the input again.
+  // A new attack takes the sway back down, and the read point glides home:
+  // the bend is under a cent 90 ms after it at this rate, and from 200 ms
+  // after it the output is the input again.
   LateVibrato reference;
   std::vector<double> uninterrupted;
   {
@@ -333,15 +427,63 @@ int main() {
     Stereo out = run(device, in);
     std::vector<double> bend = bend_cents(out.left, 1000.0, kRate);
     const double before = swing(bend, at(2.6), at(2.95));
-    const double after = most(bend, at(3.06), at(3.38));
-    const double exact = from_delayed(out.left, in, at(3.06), at(3.38));
+    const double gliding = most(bend, at(3.0), at(3.2));
+    const double soon = most(bend, at(3.09), at(3.2));
+    const double after = most(bend, at(3.2), at(3.38));
+    const double exact = from_delayed(out.left, in, at(3.2), at(3.38));
     const double again = swing(bend, at(4.5), at(5.5));
-    std::printf("new attack: bend %.2f before, %.4f after, %.2f again; %.3g from the input\n", before,
-                after, again, exact);
+    std::printf(
+        "new attack: bend %.2f before, %.2f at the most on the way home, %.2f from 90 ms, %.4f after; "
+        "%.3g from the input; %.2f again\n",
+        before, gliding, soon, after, exact, again);
     EXPECT_NEAR(before, 30.0, 0.2, "the tone sways before the attack");
-    EXPECT(after < 0.01, "a new attack takes the bend back to nothing within 60 ms");
-    EXPECT(exact == 0.0, "after the splice the output is the input itself again");
+    EXPECT(gliding < before + 0.5, "on the way home the bend is never more than the sway was");
+    EXPECT(soon < 2.1, "a new attack takes the bend under the two cents of its landing within 90 ms");
+    EXPECT(after < 0.01, "and to nothing within 200 ms");
+    EXPECT(exact == 0.0, "once home the output is the input itself again");
     EXPECT_NEAR(again, 30.0, 0.2, "and the sway opens again after Wait and Grow");
+
+    // Under a new note a held one keeps its level and glides: a tone on the
+    // right side only, a note struck over it on the left at twelve moments of
+    // the cycle. The right side's level over 5 ms never leaves the tone's by
+    // more than 0.1 dB (a splice of two reads would cancel it for a moment),
+    // and its pitch never moves more than 5 cents in a millisecond (the sway
+    // itself moves 1, and its fall 3).
+    {
+      double dip = 0.0, jump = 0.0;
+      for (int moment = 0; moment < 12; ++moment) {
+        plain(device);
+        const double strike = 3.0 + 0.017 * moment;
+        std::vector<float> held = sine(1000.0f, 3.8f, kRate, 0.25f);
+        std::vector<float> struck = held;
+        for (size_t i = at(strike); i < struck.size(); ++i) {
+          const double u = static_cast<double>(i - at(strike)) / kRate;
+          struck[i] += static_cast<float>(0.3 * std::min(1.0, u / 0.005) * std::exp(-u * 2.0) * std::sin(2.0 * kPi * 1568.0 * u));
+        }
+        Stereo out;
+        out.left.resize(held.size());
+        out.right.resize(held.size());
+        for (size_t i = 0; i + 16 <= held.size(); i += 16) {
+          for (int k = 0; k < 16; ++k) {
+            device.in_left()[k] = struck[i + k];
+            device.in_right()[k] = held[i + k];
+          }
+          device.process(16);
+          for (int k = 0; k < 16; ++k) out.right[i + k] = device.out_right()[k];
+        }
+        const double steady = rms(out.right, at(1.0), at(1.005));
+        for (size_t i = at(strike - 0.05); i + 240 < at(strike + 0.45); i += 48) {
+          dip = std::max(dip, std::fabs(db(rms(out.right, i, i + 240) / steady)));
+        }
+        const std::vector<double> bend = bend_cents(out.right, 1000.0, kRate);
+        for (size_t i = at(strike - 0.05); i < at(strike + 0.45); ++i) {
+          jump = std::max(jump, std::fabs(bend[i] - bend[i - 48]));
+        }
+      }
+      std::printf("a note struck over a held tone: the tone's level moves %.3f dB at the most, its pitch %.2f cents in a millisecond\n", dip, jump);
+      EXPECT(dip < 0.1, "a held tone keeps its level when a new note takes the sway away");
+      EXPECT(jump < 5.0, "and its pitch glides home");
+    }
 
     // The cycle is never reset: after the attack it is where it would have
     // been without one.
@@ -377,7 +519,7 @@ int main() {
       in = scaled(in, at(3.0), in.size(), 1.585f);
       Stereo out = run(device, in);
       std::vector<double> bend = bend_cents(out.left, 1000.0, kRate);
-      const double after = swing(bend, at(3.1), at(3.35));
+      const double after = swing(bend, at(3.22), at(3.35));
       std::printf("sense %.1f: bend %.2f cents after a 4 dB rise\n", sense, after);
       if (sense > 0.5f) {
         EXPECT(after < 0.01, "at the default a 4 dB rise is a new note");
@@ -400,7 +542,7 @@ int main() {
       // beside the drone, which lies 62.5 Hz from it.
       std::vector<double> bend = bend_cents(out.left, 125.0, kRate, 2);
       const double before = swing(bend, at(2.6), at(2.95));
-      const double after = swing(bend, at(3.1), at(3.35));
+      const double after = swing(bend, at(3.25), at(3.4));
       std::printf("over a drone: +%.1f Hz, 18 dB down: bend %.2f before, %.3f after\n", hz, before, after);
       EXPECT_NEAR(before, 29.3, 0.3, "the drone sways");
       if (hz > 1000.0f) {
@@ -429,13 +571,149 @@ int main() {
     }
   }
 
-  // Width: none, the two sides are one; all of it, they bend opposite ways.
+  // Played material. A legato line, soft and hard attacks in turn, each note
+  // beginning under the end of the one before so the level hardly moves: the
+  // notes are taken as new ones (all but a soft step of a tone or less in the
+  // middle of a run of 220 ms notes, where two of the eleven pass unheard and
+  // the sway gets a third of a cent open), none is invented, the short ones
+  // never sway, every long one begins straight and opens. And the same line
+  // 30 dB down is heard the same.
+  {
+    std::vector<Played> notes;
+    const double pitches[] = {220.0, 246.9, 261.6, 293.7, 329.6, 293.7, 261.6, 349.2, 392.0, 329.6, 293.7, 440.0};
+    const double lengths[] = {1.6, 0.22, 0.22, 0.22, 0.22, 1.8, 0.25, 0.25, 0.25, 1.6, 0.22, 1.7};
+    double t = 0.3;
+    for (int k = 0; k < 12; ++k) {
+      notes.push_back({t, lengths[k], pitches[k], 0.2, k % 2 ? 0.005 : 0.06, 0.06});
+      t += lengths[k];
+    }
+    const std::vector<float> line = play(notes, t + 0.5, 8);
+    int taken[2], stray[2];
+    Life life[2];
+    float long_start = 0.0f;
+    for (int quiet = 0; quiet < 2; ++quiet) {
+      device.init(kRate);
+      device.set_param(p::kHuman, 0.0f);
+      const std::vector<float> in = quiet ? scaled(line, 0, line.size(), 0.0316f) : line;
+      life[quiet] = live(device, in, in);
+      heard(notes, restarts(life[quiet]), t, &taken[quiet], &stray[quiet]);
+      // Each long note 150 ms in: straight, however the notes before it went.
+      for (int k : {5, 9, 11}) long_start = std::max(long_start, depth_at(life[quiet], notes[k].start + 0.15));
+    }
+    // The ends of the two runs of short notes, and of the long notes.
+    const float short_most = std::max(std::max(depth_at(life[0], notes[5].start), depth_at(life[0], notes[9].start)),
+                                      depth_at(life[0], notes[11].start));
+    const float long_least = std::min(std::min(depth_at(life[0], notes[1].start), depth_at(life[0], notes[6].start)),
+                                      std::min(depth_at(life[0], notes[10].start), depth_at(life[0], t - 0.01)));
+    double apart = 0.0;
+    for (size_t i = 0; i < life[0].depth.size() && i < at(t) / 16; ++i) {
+      apart = std::max(apart, std::fabs(static_cast<double>(life[0].depth[i]) - life[1].depth[i]));
+    }
+    std::printf("legato line: %d of 11 notes taken as new, %d invented; short notes sway %.2f cents at the most, "
+                "long ones %.2f as they begin and %.2f at the least as they end; 30 dB down %d and %d, depth at "
+                "most %.2f cents apart\n",
+                taken[0], stray[0], short_most, long_start, long_least, taken[1], stray[1], apart);
+    EXPECT(taken[0] >= 9, "the notes of a legato line are new notes");
+    EXPECT(stray[0] == 0, "and none is invented");
+    EXPECT(short_most < 0.5f, "its short notes never sway");
+    EXPECT(long_start < 0.5f, "every long note begins straight");
+    EXPECT(long_least > 21.0f, "and opens");
+    EXPECT(taken[1] == taken[0] && stray[1] == 0, "the same line 30 dB down is heard the same");
+    EXPECT(apart < 1.0, "and sways the same");
+  }
+
+  // A melody over a held chord, each melody note 3 dB over a note of the
+  // chord: every melody note is a new note and takes the chord back to
+  // straight with it; while the melody moves in short notes nothing sways,
+  // and on its long note everything does.
+  {
+    std::vector<Played> chord = {{0.2, 9.0, 130.8, 0.1, 0.3, 0.5}, {0.2, 9.0, 164.8, 0.1, 0.3, 0.5}, {0.2, 9.0, 196.0, 0.1, 0.3, 0.5}};
+    std::vector<Played> melody = {{0.2, 0.0, 0.0, 0.0, 0.3, 0.1},  // the chord's own start stands first
+                                  {3.0, 0.3, 523.3, 0.14, 0.01, 0.05},  {3.3, 0.3, 587.3, 0.14, 0.03, 0.05},
+                                  {3.6, 2.0, 659.3, 0.14, 0.01, 0.05},  {5.6, 0.3, 587.3, 0.14, 0.03, 0.05},
+                                  {5.9, 2.6, 784.0, 0.14, 0.01, 0.05}};
+    std::vector<float> in = play(chord, 9.5, 4);
+    const std::vector<float> over = play(std::vector<Played>(melody.begin() + 1, melody.end()), 9.5, 6);
+    for (size_t i = 0; i < in.size(); ++i) in[i] += over[i];
+    device.init(kRate);
+    device.set_param(p::kHuman, 0.0f);
+    const Life life = live(device, in, in);
+    int taken = 0, stray = 0;
+    // From 0.6 s: until then the chord is swelling in, which is its own start.
+    std::vector<double> found;
+    for (double when : restarts(life)) {
+      if (when > 0.6) found.push_back(when);
+    }
+    heard(melody, found, 9.2, &taken, &stray);
+    std::printf("melody over a chord: %d of 5 melody notes taken as new, %d invented; depth %.2f before the melody, "
+                "%.2f as its short notes end, %.2f on its long note\n",
+                taken, stray, depth_at(life, 2.95), depth_at(life, 3.58), depth_at(life, 5.55));
+    EXPECT(taken == 5, "every note of a melody over a held chord is a new note");
+    EXPECT(stray == 0, "and the chord invents none");
+    EXPECT(depth_at(life, 2.95) > 21.0f, "the chord alone sways");
+    EXPECT(depth_at(life, 3.58) < 0.5f, "the melody's short notes take the chord back to straight");
+    EXPECT(depth_at(life, 5.55) > 21.0f, "and on its long note everything sways");
+  }
+
+  // Held sounds that move on their own are one note: two equal notes beating,
+  // five saws a few cents apart, a tremolo. And a bass note is one note, with
+  // the legato note after it another.
+  {
+    struct Held {
+      const char* name;
+      std::vector<float> sound;
+    };
+    std::vector<Held> all;
+    for (double beat : {1.5, 3.0, 6.0}) {
+      std::vector<float> two = play({{0.1, 5.5, 440.0, 0.2, 0.01, 0.1}, {0.1, 5.5, 440.0 + beat, 0.2, 0.01, 0.1}}, 6.0, 1);
+      all.push_back({beat < 2.0 ? "two notes beating at 1.5 Hz" : beat < 4.0 ? "two notes beating at 3 Hz" : "two notes beating at 6 Hz", two});
+    }
+    std::vector<Played> saws;
+    for (double cents : {-7.0, -3.0, 0.0, 3.0, 7.0}) saws.push_back({0.1, 5.5, 110.0 * std::pow(2.0, cents / 1200.0), 0.08, 0.02, 0.1});
+    all.push_back({"five saws a few cents apart", play(saws, 6.0, 10)});
+    std::vector<float> tremolo = play({{0.1, 5.5, 330.0, 0.25, 0.02, 0.1}}, 6.0, 6);
+    for (size_t i = 0; i < tremolo.size(); ++i) {
+      tremolo[i] *= static_cast<float>(0.65 + 0.35 * std::sin(2.0 * kPi * 5.0 * static_cast<double>(i) / kRate));
+    }
+    all.push_back({"a tremolo of 5 Hz", tremolo});
+    for (const Held& held : all) {
+      device.init(kRate);
+      device.set_param(p::kHuman, 0.0f);
+      const Life life = live(device, held.sound, held.sound);
+      const std::vector<double> found = restarts(life);
+      int late = 0;
+      for (double when : found) {
+        if (when > 0.4 && when < 5.5) ++late;
+      }
+      std::printf("%s: %d new notes heard in it, depth %.2f cents at the end\n", held.name, late, depth_at(life, 5.4));
+      char label[96];
+      std::snprintf(label, sizeof label, "%s is one note", held.name);
+      EXPECT(late == 0, label);
+      EXPECT(depth_at(life, 5.4) > 21.0f, "and it sways");
+    }
+    const std::vector<Played> bass = {{0.1, 3.0, 55.0, 0.3, 0.02, 0.06}, {3.1, 3.0, 65.4, 0.3, 0.02, 0.06}};
+    device.init(kRate);
+    device.set_param(p::kHuman, 0.0f);
+    const std::vector<float> low = play(bass, 6.5, 10);
+    const Life life = live(device, low, low);
+    int taken = 0, stray = 0;
+    heard(bass, restarts(life), 6.1, &taken, &stray);
+    std::printf("bass: the second note taken as new %d, %d invented, depth %.2f and %.2f cents as each ends\n", taken,
+                stray, depth_at(life, 3.05), depth_at(life, 6.05));
+    EXPECT(taken == 1 && stray == 0, "a held bass note is one note and the next is another");
+    EXPECT(depth_at(life, 3.05) > 21.0f && depth_at(life, 6.05) > 21.0f, "and both sway");
+  }
+
+  // Width: none, the two sides are one; all of it, they bend opposite ways
+  // when the swing is small enough for that to keep them within half a
+  // millisecond of each other (12 cents at 5 Hz swing 0.22 ms each way).
   {
     plain(device);
     std::vector<float> in = sine(1000.0f, 3.0f, kRate, 0.5f);
     Stereo one = run(device, in);
     EXPECT(one.left == one.right, "Width 0: both sides are the same");
     plain(device);
+    device.set_param(p::kDepth, 12.0f);
     device.set_param(p::kWidth, 1.0f);
     Stereo two = run(device, in);
     std::vector<double> left = bend_cents(two.left, 1000.0, kRate);
@@ -444,11 +722,12 @@ int main() {
     for (size_t i = at(1.5); i < at(2.9); ++i) worst = std::max(worst, std::fabs(left[i] + right[i]));
     std::printf("width 1: left and right bends sum to at most %.3f cents\n", worst);
     EXPECT(worst < 0.5, "Width 1: the right side bends the opposite way");
-    EXPECT_NEAR(swing(right, at(1.5), at(2.5)), 30.0, 0.15, "and as far");
+    EXPECT_NEAR(swing(right, at(1.5), at(2.5)), 12.0, 0.15, "and as far");
     bool same = true;
     for (size_t i = 0; i < at(began + 0.39); ++i) same = same && two.left[i] == two.right[i];
     EXPECT(same, "while the note is straight the two sides are one, whatever Width");
     plain(device);
+    device.set_param(p::kDepth, 12.0f);
     device.set_param(p::kWidth, 0.5f);
     Stereo half = run(device, in);
     std::vector<double> ahead = bend_cents(half.right, 1000.0, kRate);
@@ -457,6 +736,45 @@ int main() {
     const double lead = (a.empty() || b.empty()) ? 0.0 : std::fmod((a[0] - b[0]) / kRate * 5.0 + 4.0, 1.0);
     std::printf("width 0.5: the right side leads by %.4f of a cycle\n", lead);
     EXPECT_NEAR(lead, 0.25, 0.01, "Width 0.5: the right side leads by a quarter cycle");
+  }
+
+  // Width never puts much more than half a millisecond between the two
+  // sides, however slow and deep the sway and however suddenly it opens:
+  // summed to one, a 500 Hz tone is never more than 4 dB down (two copies
+  // 0.56 ms apart; 3 dB is half a millisecond), where two sides swaying
+  // opposite ways at 0.4 Hz would be 7 ms apart and cancel.
+  {
+    struct Case {
+      float rate, depth;
+      double seconds;
+    };
+    for (const Case& k : {Case{0.4f, 16.0f, 9.0}, Case{2.2f, 95.0f, 4.0}, Case{5.0f, 30.0f, 3.0}}) {
+      plain(device);
+      device.set_param(p::kWait, 100.0f);
+      device.set_param(p::kGrow, 200.0f);
+      device.set_param(p::kRate, k.rate);
+      device.set_param(p::kDepth, k.depth);
+      device.set_param(p::kWidth, 1.0f);
+      std::vector<float> in = sine(500.0f, static_cast<float>(k.seconds), kRate, 0.5f);
+      Stereo out = run(device, in);
+      const size_t window = at(0.02);  // ten periods
+      double least = 1.0e9, apart = 0.0;
+      for (size_t i = at(0.5); i + window < in.size(); i += window) {
+        double sum = 0.0, sides = 0.0, diff = 0.0;
+        for (size_t j = i; j < i + window; ++j) {
+          const double mono = 0.5 * (static_cast<double>(out.left[j]) + out.right[j]);
+          sum += mono * mono;
+          sides += 0.5 * (static_cast<double>(out.left[j]) * out.left[j] + static_cast<double>(out.right[j]) * out.right[j]);
+          diff += 0.25 * (static_cast<double>(out.left[j]) - out.right[j]) * (static_cast<double>(out.left[j]) - out.right[j]);
+        }
+        least = std::min(least, 10.0 * std::log10(sum / sides));
+        apart = std::max(apart, diff / sides);
+      }
+      std::printf("width 1 at %.1f Hz, %.0f cents: the two sides summed are at the least %.2f dB of their level\n",
+                  k.rate, k.depth, least);
+      EXPECT(least > -4.0, "at full Width the two sides are never more than 0.56 ms apart");
+      EXPECT(apart > 0.3, "and they do come that far apart: full Width is wide at any rate");
+    }
   }
 
   // Swell: level and brightness rise with the sway and pulse with the cycle.
@@ -515,6 +833,48 @@ int main() {
     }
     std::printf("mix 0.5: level moves %.2f dB as the two voices part\n", db(high / low));
     EXPECT(db(high / low) > 3.0, "Mix 0.5: swaying, the two voices beat as a chorus does");
+  }
+
+  // Part way up Mix a held sound keeps its level as its sway opens: where the
+  // two voices drift out of step they add to less than their two levels (3 dB
+  // less at Mix 0.5 for a sound with highs in it), and the lift makes it up.
+  {
+    std::vector<Played> notes;
+    for (double hz : {196.0, 311.1, 466.2, 740.0, 1108.7, 1760.0, 2637.0}) notes.push_back({0.1, 8.0, hz, 0.06, 0.01, 0.1});
+    const std::vector<float> in = play(notes, 8.0, 3);
+    plain(device);
+    device.set_param(p::kMix, 0.5f);
+    device.set_param(p::kDepth, 18.0f);
+    device.set_param(p::kRate, 0.9f);
+    Stereo out = run(device, in);
+    const double straight = db(rms(out.left, at(0.15), at(0.45)) / rms(in, at(0.15) - kLatency, at(0.45) - kLatency));
+    const double swaying = db(rms(out.left, at(3.0), at(7.5)) / rms(in, at(3.0) - kLatency, at(7.5) - kLatency));
+    std::printf("mix 0.5 on a held chord: %.2f dB of the input while straight, %.2f dB while it sways\n", straight, swaying);
+    EXPECT(straight == 0.0, "Mix 0.5: a straight note is at the level of the input");
+    EXPECT(swaying > -1.0 && swaying < 1.0, "Mix 0.5: a held chord keeps its level as its sway opens");
+  }
+
+  // The Depth a slow rate holds moves without a step when Rate does: Rate
+  // thrown from 5 Hz to 0.3 Hz under a sway of 100 cents takes the depth down
+  // to 16 over some milliseconds, not in one sample.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 100.0f);
+    const std::vector<float> in = sine(1000.0f, 4.0f, kRate, 0.5f);
+    Life before = live(device, std::vector<float>(in.begin(), in.begin() + at(2.5)), std::vector<float>(in.begin(), in.begin() + at(2.5)));
+    device.set_param(p::kRate, 0.3f);
+    Life after = live(device, std::vector<float>(in.begin() + at(2.5), in.end()), std::vector<float>(in.begin() + at(2.5), in.end()));
+    double step = 0.0;
+    float last = before.depth.back();
+    for (float depth : after.depth) {
+      step = std::max(step, std::fabs(static_cast<double>(depth) - last));
+      last = depth;
+    }
+    std::printf("rate thrown from 5 to 0.3 Hz: depth %.2f cents before, %.2f after, %.2f at the most in 16 samples\n",
+                before.depth.back(), after.depth.back(), step);
+    EXPECT_NEAR(before.depth.back(), 100.0, 0.01, "100 cents fit at 5 Hz");
+    EXPECT_NEAR(after.depth.back(), 16.17, 0.05, "and 16 at 0.3 Hz");
+    EXPECT(step < 6.0, "the Depth that fits moves without a step when Rate is thrown");
   }
 
   // Slow rates hold less Depth: 53.9 cents for each Hz. The read point never
@@ -759,11 +1119,11 @@ int main() {
     device.set_param(p::kWait, 4000.0f);
     Stereo cut = run(device, std::vector<float>(with.begin() + at(3.0), with.end()));
     std::vector<double> bend = bend_cents(cut.left, 125.0, kRate);
-    EXPECT(most(bend, at(0.1), at(0.9)) < 0.05, "a longer Wait than the note is old cuts the sway");
+    EXPECT(most(bend, at(0.25), at(0.9)) < 0.05, "a longer Wait than the note is old cuts the sway");
     const double step = max_step(cut.left);
     const double plain_step = max_step(steady.left);
     std::printf("cutting the sway: largest step %.5f against %.5f\n", step, plain_step);
-    EXPECT(step < plain_step * 1.3, "the fall and the splice do not click");
+    EXPECT(step < plain_step * 1.3, "the fall and the way home do not click");
   }
 
   // Bad input: samples that are not numbers, infinite or absurd do not lodge

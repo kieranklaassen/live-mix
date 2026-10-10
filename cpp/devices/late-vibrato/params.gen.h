@@ -4,13 +4,13 @@
 // src/dsp/devices/late-vibrato.gen.ts:
 //    0  wait: 10..4000 ms, default 350
 //    1  grow: 20..8000 ms, default 900
-//    2  depth: 0..100 ct, default 28
+//    2  depth: 0..100 ct, default 24
 //    3  rate: 0.3..10 Hz, default 5.2
 //    4  quicken: 0..1, default 0.3
 //    5  swell: 0..1, default 0.25
 //    6  human: 0..1, default 0.3
 //    7  sense: 0..1, default 0.6
-//    8  width: 0..1, default 0.2
+//    8  width: 0..1, default 0.6
 //    9  mix: 0..1, default 1
 
 #pragma once
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {10.0f, 20.0f, 0.0f, 0.3f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {4000.0f, 8000.0f, 100.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {350.0f, 900.0f, 28.0f, 5.2f, 0.3f, 0.25f, 0.3f, 0.6f, 0.2f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {350.0f, 900.0f, 24.0f, 5.2f, 0.3f, 0.25f, 0.3f, 0.6f, 0.6f, 1.0f};
 
 }  // namespace late_vibrato
 }  // namespace livemix

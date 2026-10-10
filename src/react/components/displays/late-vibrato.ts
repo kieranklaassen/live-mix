@@ -7,11 +7,22 @@
 // and the wave is laid so that it passes under the dot: the cycle runs freely,
 // so every note meets it somewhere else.
 //
-// Time is to scale across the whole strip, and the scale follows the settings:
-// the point where the sway is fully open stands further right the longer Wait
-// and Grow are (a quarter of the way across at the shortest, most of the way
-// at the longest), and never so far that fewer than two and a half cycles are
+// Time is to scale across the strip, and the scale follows the settings: the
+// point where the sway is fully open stands further right the longer Wait and
+// Grow are (a quarter of the way across at the shortest, most of the way at
+// the longest), and never so far that fewer than two and a half cycles are
 // left to see after it. The figure in the corner is the time at the right edge.
+// Where that scale would leave Wait or Grow less room than a hand needs (a
+// Wait of 10 ms before a sway of 0.3 Hz is a quarter of a pixel), that stretch
+// is given room of its own, more of it the longer it is, and time is to scale
+// within each of the three stretches: the two points always stand apart, on
+// the picture, and can be pulled over the whole of their range.
+//
+// Upward the scale is the square root of the bend: a sway of 24 cents stands
+// half as high as one of 100, and one of 6 a quarter, so the gentle sways
+// most settings are can be read in a strip 48 pixels high. The wave is the
+// sine it is, at that height. At a Rate too slow to hold all the Depth there
+// is, a faint line each side marks the most it holds.
 
 import {
   INK,
@@ -95,6 +106,28 @@ const PART_MOST = 0.85
 const CYCLES_AFTER = 2.5
 /** The top of the scale upward, in cents: the most Depth there is. */
 const DEPTH_TOP = 100
+/**
+ * The room Wait and Grow are given at the least, in pixels: at their shortest
+ * and at their longest, by the logarithm of their length between.
+ */
+const WAIT_ROOM: readonly [number, number] = [8, 40]
+const GROW_ROOM: readonly [number, number] = [14, 40]
+/** The room left after the fully open point, whatever Wait and Grow take, in pixels. */
+const AFTER_ROOM = 24
+
+/**
+ * How high a bend of so many cents stands, as a part of the scale (−1..1):
+ * the square root of its share of `DEPTH_TOP`.
+ */
+export function lateVibratoHeight(cents: number): number {
+  const part = Math.sqrt(Math.min(Math.abs(cents), DEPTH_TOP) / DEPTH_TOP)
+  return cents < 0 ? -part : part
+}
+
+/** The cents that stand so high: `lateVibratoHeight` the other way, and on past the ends of the scale. */
+function centsAt(part: number): number {
+  return (part < 0 ? -1 : 1) * DEPTH_TOP * part * part
+}
 
 /** How far across the fully open point stands, as a part of the width. */
 function partOf(total: number, rate: number): number {
@@ -106,18 +139,51 @@ function partOf(total: number, rate: number): number {
   return clamp(Math.min(byLength, byCycles), 0.001, PART_MOST)
 }
 
-/** The length of Wait and Grow together that puts the fully open point so far across: `partOf` the other way. */
-function totalAt(part: number, rate: number): number {
-  const byLength =
-    SHORTEST_SEC *
-    Math.pow(LONGEST_SEC / SHORTEST_SEC, (part - PART_LEAST) / (PART_MOST - PART_LEAST))
-  const byCycles = ((CYCLES_AFTER / rate) * part) / (1 - part)
-  return Math.max(byLength, byCycles)
-}
-
 /** The seconds the strip spans at a setting. */
 export function lateVibratoSpanSec(wait: number, grow: number, rate: number): number {
   return (wait + grow) / partOf(wait + grow, rate)
+}
+
+/** The least room a stretch `value` seconds long is given, between `least` and `most` seconds. */
+function roomOf(
+  value: number,
+  least: number,
+  most: number,
+  room: readonly [number, number],
+): number {
+  const along = clamp(Math.log(value / least) / Math.log(most / least), 0, 1)
+  return lerp(room[0], room[1], along)
+}
+
+/** The shortest and the longest a parameter goes, in seconds. */
+interface Reach {
+  least: number
+  most: number
+}
+
+/**
+ * Where the two points stand, in pixels from the left of the picture `width`
+ * wide: the end of Wait and the fully open point. To scale where that leaves
+ * each stretch its room. Otherwise the fully open point stands as far in as
+ * the two rooms take, and the end of Wait keeps its own room from the left and
+ * Grow's from the fully open point. Both go right as their own time grows,
+ * whatever the other is, so a pull finds one setting for every place.
+ */
+export function lateVibratoPoints(
+  wait: number,
+  grow: number,
+  rate: number,
+  width: number,
+  waits: Reach = { least: 0.01, most: 4 },
+  grows: Reach = { least: 0.02, most: 8 },
+): { wait: number; full: number } {
+  const total = wait + grow
+  const part = partOf(total, rate)
+  const waitRoom = roomOf(wait, waits.least, waits.most, WAIT_ROOM)
+  const growRoom = roomOf(grow, grows.least, grows.most, GROW_ROOM)
+  const rooms = waitRoom + growRoom
+  const full = Math.min(Math.max(width * part, rooms), Math.max(rooms, width - AFTER_ROOM))
+  return { wait: clamp((width * part * wait) / total, waitRoom, full - growRoom), full }
 }
 
 /** A setting as the picture needs it: times in seconds, the Depth the device lets through. */
@@ -128,10 +194,20 @@ interface Life {
   quicken: number
   human: number
   mix: number
-  /** Depth as set, and as much of it as the Rate holds, in cents. */
+  /** Depth as set, as much of it as the Rate holds, and the most it holds, in cents. */
   depth: number
   shown: number
+  most: number
   span: number
+  /** How short and how long Wait and Grow go, in seconds. */
+  waits: Reach
+  grows: Reach
+}
+
+/** The reach of a time parameter given in milliseconds, in seconds. */
+function reachSec(view: DisplayView, name: string, least: number, most: number): Reach {
+  const spec = view.spec(name)
+  return { least: (spec?.min ?? least) / 1000, most: (spec?.max ?? most) / 1000 }
 }
 
 function lifeOf(view: DisplayView): Life {
@@ -140,6 +216,7 @@ function lifeOf(view: DisplayView): Life {
   const rate = Math.max(0.05, view.value('rate'))
   const human = clamp(view.value('human'), 0, 1)
   const depth = clamp(view.value('depth'), 0, DEPTH_TOP)
+  const most = lateVibratoMost(rate, human)
   return {
     wait,
     grow,
@@ -148,8 +225,45 @@ function lifeOf(view: DisplayView): Life {
     human,
     mix: clamp(view.value('mix'), 0, 1),
     depth,
-    shown: Math.min(depth, lateVibratoMost(rate, human)),
+    shown: Math.min(depth, most),
+    most,
     span: lateVibratoSpanSec(wait, grow, rate),
+    waits: reachSec(view, 'wait', 10, 4000),
+    grows: reachSec(view, 'grow', 20, 8000),
+  }
+}
+
+/** Time across the picture: three stretches, each to its own scale. */
+interface Across {
+  /** The end of Wait and the fully open point, in the display's pixels. */
+  wait: number
+  full: number
+  xOf(seconds: number): number
+  secondsAt(x: number): number
+}
+
+function acrossOf(box: Box, life: Life): Across {
+  const points = lateVibratoPoints(life.wait, life.grow, life.rate, box.w, life.waits, life.grows)
+  const wait = box.x + points.wait
+  const full = box.x + points.full
+  const right = box.x + box.w
+  const total = life.wait + life.grow
+  const after = Math.max(1e-6, life.span - total)
+  return {
+    wait,
+    full,
+    xOf: (seconds) =>
+      seconds <= life.wait
+        ? box.x + (points.wait * Math.max(0, seconds)) / life.wait
+        : seconds <= total
+          ? wait + ((full - wait) * (seconds - life.wait)) / life.grow
+          : full + ((right - full) * (seconds - total)) / after,
+    secondsAt: (x) =>
+      x <= wait
+        ? (life.wait * Math.max(0, x - box.x)) / points.wait
+        : x <= full
+          ? life.wait + (life.grow * (x - wait)) / (full - wait)
+          : total + (after * (x - full)) / (right - full),
   }
 }
 
@@ -170,45 +284,50 @@ const reachOf = (box: Box): number => box.h / 2 - 1.5
 function lateVibratoHandles(view: DisplayView): DisplayHandle[] {
   const box = lifeBox(view)
   const life = lifeOf(view)
+  const across = acrossOf(box, life)
   const mid = middleOf(box)
   const reach = reachOf(box)
   const waitSpec = view.spec('wait')
   const growSpec = view.spec('grow')
   const depthSpec = view.spec('depth')
-  const across = (x: number): number => clamp((x - box.x) / box.w, 0, 1)
-  /** How far across the Wait point stands with Wait at so many seconds and Grow as it is. */
-  const waitAt = (wait: number): number =>
-    (partOf(wait + life.grow, life.rate) * wait) / (wait + life.grow)
+  const points = (wait: number, grow: number): { wait: number; full: number } =>
+    lateVibratoPoints(wait, grow, life.rate, box.w, life.waits, life.grows)
+  /**
+   * The length between `low` and `high` seconds whose point stands `to`
+   * pixels in: a longer time is a longer life, so the scale gives as a point
+   * is pulled, and the length is found that stands under the hand on its own
+   * scale.
+   */
+  const lengthAt = (place: (seconds: number) => number, to: number, reach: Reach): number => {
+    let low = reach.least
+    let high = reach.most
+    if (to <= place(low)) return low
+    if (to >= place(high)) return high
+    for (let round = 0; round < 48; round++) {
+      const between = Math.sqrt(low * high)
+      if (place(between) < to) low = between
+      else high = between
+    }
+    return Math.sqrt(low * high)
+  }
   return [
     {
       key: 'wait',
       name: 'Wait',
-      x: box.x + (box.w * life.wait) / life.span,
+      x: across.wait,
       y: mid,
-      // A longer Wait is a longer life, so the scale gives as the point is
-      // pulled: the Wait is found that stands under the hand on its own scale.
-      drag: (x) => {
-        const to = across(x)
-        let low = (waitSpec?.min ?? 10) / 1000
-        let high = (waitSpec?.max ?? 4000) / 1000
-        if (to <= waitAt(low)) return { wait: low * 1000 }
-        if (to >= waitAt(high)) return { wait: high * 1000 }
-        for (let round = 0; round < 48; round++) {
-          const between = Math.sqrt(low * high)
-          if (waitAt(between) < to) low = between
-          else high = between
-        }
-        return { wait: Math.sqrt(low * high) * 1000 }
-      },
+      drag: (x) => ({
+        wait: lengthAt((wait) => points(wait, life.grow).wait, x - box.x, life.waits) * 1000,
+      }),
       reset: () => ({ wait: waitSpec?.default ?? 350 }),
     },
     {
       key: 'full',
       name: 'Grow and Depth',
-      x: box.x + (box.w * (life.wait + life.grow)) / life.span,
-      y: mid - (reach * life.shown) / DEPTH_TOP,
+      x: across.full,
+      y: mid - reach * lateVibratoHeight(life.shown),
       drag: (x, y, hold?: DisplayHold) => {
-        const total = totalAt(Math.min(across(x), 0.98), life.rate)
+        const grow = lengthAt((length) => points(life.wait, length).full, x - box.x, life.grows)
         // A slow Rate holds less Depth than is set: the point waits at what is
         // held, and moves from where the setting lies, as far over as it lay
         // at the press.
@@ -216,13 +335,13 @@ function lateVibratoHandles(view: DisplayView): DisplayHandle[] {
         kept.past ??= life.depth - life.shown
         // Not held to the scale here: under the straight line is where the
         // hand goes to take off what lies over.
-        const cents = ((mid - y) / reach) * DEPTH_TOP
+        const cents = centsAt((mid - y) / reach)
         return {
-          grow: clamp((total - life.wait) * 1000, growSpec?.min ?? 20, growSpec?.max ?? 8000),
+          grow: clamp(grow * 1000, growSpec?.min ?? 20, growSpec?.max ?? 8000),
           depth: clamp(cents + kept.past, depthSpec?.min ?? 0, depthSpec?.max ?? DEPTH_TOP),
         }
       },
-      reset: () => ({ grow: growSpec?.default ?? 900, depth: depthSpec?.default ?? 28 }),
+      reset: () => ({ grow: growSpec?.default ?? 900, depth: depthSpec?.default ?? 24 }),
     },
   ]
 }
@@ -258,7 +377,7 @@ const lateVibrato = plateDisplay<LateVibratoState>({
   place: 'strip',
   params: ['wait', 'grow', 'depth', 'rate', 'quicken', 'human', 'mix'],
   live: { meters: true, fps: 60 },
-  info: 'One note from left to right: straight through Wait, then the sway opening over Grow to its Depth, drawn at its Rate. The shade is how far Human lets it wander; the dot is the note sounding now. Drag the first point for Wait, the second for Grow and Depth. The figure is the time at the right edge.',
+  info: 'One note, left to right: straight through Wait, then the sway opens over Grow to its Depth, at its Rate. Gentle sways are drawn taller than to scale. The shade is Human, the dot the note sounding now. Drag the first point for Wait, the second for Grow and Depth. The figure is the time at the right.',
   init: () => ({ track: null, age: 0, read: 0, stood: 0, base: null }),
   draw(frame) {
     const { ctx, colours, state } = frame
@@ -268,8 +387,10 @@ const lateVibrato = plateDisplay<LateVibratoState>({
     const reach = reachOf(box)
     const right = box.x + box.w
     const foot = box.y + box.h
-    const xOf = (seconds: number): number => box.x + (box.w * seconds) / life.span
-    const yOf = (cents: number): number => mid - (reach * cents) / DEPTH_TOP
+    const across = acrossOf(box, life)
+    const xOf = (seconds: number): number => across.xOf(seconds)
+    /** A bend of so many cents at one moment of the wave (`sine` −1..1), on the scale upward. */
+    const yOf = (cents: number, sine = 1): number => mid - reach * lateVibratoHeight(cents) * sine
     const turns = (seconds: number): number =>
       lateVibratoTurns(seconds, life.wait, life.grow, life.rate, life.quicken)
 
@@ -314,8 +435,7 @@ const lateVibrato = plateDisplay<LateVibratoState>({
     // The swaying voice from the end of Wait on: for each half pixel, the
     // highest and the lowest the wave comes within it. Far apart, the two are
     // one line, the wave; close up, they are the edges of the band it fills.
-    const from = xOf(life.wait)
-    const within = (0.25 * life.span) / box.w
+    const from = across.wait
     const upper: Point[] = []
     const lower: Point[] = []
     const over: Point[] = []
@@ -323,19 +443,19 @@ const lateVibrato = plateDisplay<LateVibratoState>({
     const crest: Point[] = []
     const wander = 1 + HUMAN_DEPTH * life.human
     for (let x = from; ; x = Math.min(right, x + 0.5)) {
-      const seconds = ((x - box.x) / box.w) * life.span
+      const seconds = across.secondsAt(x)
       const open = life.shown * lateVibratoSway(seconds, life.wait, life.grow)
-      const a = base + turns(Math.max(life.wait, seconds - within))
-      const b = base + turns(seconds + within)
+      const a = base + turns(Math.max(life.wait, across.secondsAt(x - 0.25)))
+      const b = base + turns(across.secondsAt(x + 0.25))
       const sa = Math.sin(a * TWO_PI)
       const sb = Math.sin(b * TWO_PI)
       // A crest lies a quarter of the way through a cycle, a trough three quarters.
       const high = Math.floor(b - 0.25) > Math.floor(a - 0.25) ? 1 : Math.max(sa, sb)
       const low = Math.floor(b - 0.75) > Math.floor(a - 0.75) ? -1 : Math.min(sa, sb)
-      upper.push([x, yOf(open * high)])
-      lower.push([x, yOf(open * low)])
-      over.push([x, yOf(Math.min(DEPTH_TOP, open * wander))])
-      under.push([x, yOf(-Math.min(DEPTH_TOP, open * wander))])
+      upper.push([x, yOf(open, high)])
+      lower.push([x, yOf(open, low)])
+      over.push([x, yOf(open * wander)])
+      under.push([x, yOf(open * wander, -1)])
       crest.push([x, yOf(open)])
       if (x >= right) break
     }
@@ -344,6 +464,13 @@ const lateVibrato = plateDisplay<LateVibratoState>({
     const wet = life.mix > 0 ? lerp(0.35, 1, life.mix) : 0
     const dry = life.mix < 1 ? lerp(0.35, 1, 1 - life.mix) : 0
     if (wet > 0) fillBetween(ctx, over, under, colours.ink, INK.fill * wet)
+    // The most Depth a slow Rate holds: `most_cents_`, a faint line each side.
+    if (life.most < DEPTH_TOP)
+      for (const side of [1, -1])
+        rule(ctx, from, yOf(life.most, side), right, yOf(life.most, side), {
+          colour: colours.ink,
+          alpha: INK.grid,
+        })
     // What is set, whatever is heard of it: the S the sway opens along, from
     // the one point to the other.
     trace(ctx, crest, { colour: colours.ink, width: 1, alpha: INK.rule, dash: [2, 2] })
@@ -373,19 +500,14 @@ const lateVibrato = plateDisplay<LateVibratoState>({
     label(frame, spanText(life.span), right - 1, foot - 1, 'right')
 
     handle(frame, from, mid, { hot: frame.hot === 'wait' })
-    handle(frame, xOf(life.wait + life.grow), yOf(life.shown), { hot: frame.hot === 'full' })
+    handle(frame, across.full, yOf(life.shown), { hot: frame.hot === 'full' })
 
     // The note now: as far along as it is old, at the bend the device reports.
     if (held) {
-      const bend = life.mix > 0 ? frame.meter('depth') * Math.sin(phase * TWO_PI) : 0
-      dot(
-        ctx,
-        xOf(Math.min(state.age, life.span)),
-        clamp(yOf(bend), box.y, foot),
-        2.5,
-        colours.accent,
-        { ring: colours.ink },
-      )
+      const bend = life.mix > 0 ? yOf(frame.meter('depth'), Math.sin(phase * TWO_PI)) : mid
+      dot(ctx, xOf(Math.min(state.age, life.span)), clamp(bend, box.y, foot), 2.5, colours.accent, {
+        ring: colours.ink,
+      })
     }
   },
   handles: lateVibratoHandles,
