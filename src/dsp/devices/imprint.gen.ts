@@ -23,7 +23,7 @@ export const IMPRINT_PARAMS = {
     name: 'Shape',
     min: 0,
     max: 6,
-    default: 0,
+    default: 1,
     taper: 'linear',
     unit: '',
     choices: [
@@ -122,8 +122,7 @@ export const IMPRINT_METERS = {
   shape12: { id: 11, name: 'Captured colour, points 45 to 48', unit: '', display: true },
   shape13: { id: 12, name: 'Captured colour, points 49 to 52', unit: '', display: true },
   shape14: { id: 13, name: 'Captured colour, points 53 to 55', unit: '', display: true },
-  tilt: { id: 14, name: 'Captured tilt', unit: '', display: true },
-  heard: { id: 15, name: 'Share of the Learn time heard', unit: '', display: true },
+  heard: { id: 14, name: 'Share of the Learn time heard', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const IMPRINT_DEVICE = defineWasmDevice({

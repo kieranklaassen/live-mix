@@ -3,7 +3,7 @@
 // Parameter ids and ranges of Imprint, shared with
 // src/dsp/devices/imprint.gen.ts:
 //    0  capture: 0 Off, 1 On, default 1
-//    1  shape: 0 Captured, 1 Open vowel, 2 Round vowel, 3 Thin vowel, 4 Hollow tube, 5 Bright bell, 6 Dark box, default 0
+//    1  shape: 0 Captured, 1 Open vowel, 2 Round vowel, 3 Thin vowel, 4 Hollow tube, 5 Bright bell, 6 Dark box, default 1
 //    2  amount: -2..2, default 1
 //    3  shift: -24..24 st, default 0
 //    4  replace: 0..1, default 0
@@ -30,7 +30,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, -2.0f, -24.0f, 0.0f, 0.0f, 0.1f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 6.0f, 2.0f, 24.0f, 1.0f, 1.0f, 20.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 2.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {1.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.5f, 2.0f, 1.0f};
 
 }  // namespace imprint
 }  // namespace livemix

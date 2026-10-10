@@ -22,7 +22,6 @@
     { "key": "shape12", "name": "Captured colour, points 45 to 48", "display": true },
     { "key": "shape13", "name": "Captured colour, points 49 to 52", "display": true },
     { "key": "shape14", "name": "Captured colour, points 53 to 55", "display": true },
-    { "key": "tilt", "name": "Captured tilt", "display": true },
     { "key": "heard", "name": "Share of the Learn time heard", "display": true }
   ],
   "params": [
@@ -45,7 +44,7 @@
         "Bright bell",
         "Dark box"
       ],
-      "default": 0,
+      "default": 1,
       "description": "Which colour is pressed on the sound. Captured is the one learned with Capture. The others are built in and always there."
     },
     {
