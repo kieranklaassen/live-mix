@@ -565,6 +565,45 @@ int main() {
     }
     std::printf("block sizes across a silence: worst difference %.3g\n", worst);
     EXPECT(worst == 0.0, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+
+    // The same with controls thrown in the middle of the sleep; and a second device playing
+    // something else in between leaves the first as it was (nothing is shared between two).
+    static Warp other;
+    const std::vector<float> first = harmonics(196.0f, 6, 0.4f, 0.25f);
+    std::vector<float> second = silence(1.0f, kRate);
+    const std::vector<float> then = harmonics(261.63f, 6, 0.5f, 0.25f);
+    second.insert(second.end(), then.begin(), then.end());
+    double apart = 0.0;
+    Stereo reference;
+    for (int block : {128, 1, 2048, 37, 128}) {
+      device.init(kRate);
+      device.set_param(p::kDrift, 1.0f);
+      run(device, first, block);
+      std::vector<float> rest(second.begin(), second.begin() + 24000);
+      run(device, rest, block);
+      device.set_param(p::kStretch, -0.5f);
+      device.set_param(p::kFollow, 0.0f);
+      device.set_param(p::kPivot, 300.0f);
+      device.set_param(p::kMix, 0.5f);
+      device.set_param(p::kTone, -0.7f);
+      if (!reference.left.empty()) {
+        other.init(kRate);
+        other.set_param(p::kStretch, 1.0f);
+        run(other, noise(0.3f, kRate, 0.3f), 128);
+      }
+      rest.assign(second.begin() + 24000, second.end());
+      const Stereo out = run(device, rest, block);
+      if (reference.left.empty()) {
+        reference = out;
+        continue;
+      }
+      for (size_t i = 0; i < out.size(); ++i) {
+        apart = std::max(apart, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+        apart = std::max(apart, std::fabs(static_cast<double>(out.right[i]) - reference.right[i]));
+      }
+    }
+    std::printf("controls thrown in a sleep, at four block sizes, beside a second device: worst difference %.3g\n", apart);
+    EXPECT(apart == 0.0, "controls thrown in a sleep give the same sound at every block size, beside a second device");
   }
 
   // 13. No clicks: Stretch, Pivot and Shift swept while a chord sounds, Follow switched and Mix thrown
@@ -815,20 +854,22 @@ int main() {
       std::printf("param %d: the least change between fifths of its range is %.3f of the signal\n", id, least);
     }
 
-    const float rate = 96000.0f;
-    still(device, rate);
-    device.set_param(p::kStretch, 0.4f);
-    std::vector<float> tone(static_cast<size_t>(1.5f * rate), 0.0f);
-    for (int n = 1; n <= 6; ++n) {
-      for (size_t i = 0; i < tone.size(); ++i) tone[i] += 0.3f / n * static_cast<float>(std::sin(2.0 * kPi * 220.0 * n * static_cast<double>(i) / rate));
+    for (const float rate : {44100.0f, 96000.0f}) {
+      still(device, rate);
+      device.set_param(p::kStretch, 0.4f);
+      std::vector<float> tone(static_cast<size_t>(1.5f * rate), 0.0f);
+      for (int n = 1; n <= 6; ++n) {
+        for (size_t i = 0; i < tone.size(); ++i) tone[i] += 0.3f / n * static_cast<float>(std::sin(2.0 * kPi * 220.0 * n * static_cast<double>(i) / rate));
+      }
+      const Stereo out = run(device, tone);
+      double worst = 0.0;
+      for (int n = 1; n <= 6; ++n) {
+        const double want = 220.0 * std::pow(n, std::pow(2.0, 0.4));
+        worst = std::max(worst, std::fabs(cents(partial_near(out.left, want, 60.0, static_cast<size_t>(0.5f * rate), static_cast<size_t>(1.35f * rate), rate), want)));
+      }
+      std::printf("at %.0f Hz the six partials of a stretched tone are within %.3f cents of pivot x n^e\n", rate, worst);
+      EXPECT(worst < 1.0, "at 44.1 and 96 kHz the partials land where they do at 48");
     }
-    const Stereo out = run(device, tone);
-    double worst = 0.0;
-    for (int n = 1; n <= 6; ++n) {
-      const double want = 220.0 * std::pow(n, std::pow(2.0, 0.4));
-      worst = std::max(worst, std::fabs(cents(partial_near(out.left, want, 60.0, 48000, 130000, rate), want)));
-    }
-    EXPECT(worst < 1.0, "at 96 kHz the partials land where they do at 48");
   }
 
   // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,
