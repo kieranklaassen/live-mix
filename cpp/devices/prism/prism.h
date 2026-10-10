@@ -6,19 +6,28 @@
 //
 //   in ─┬──────────────────────────────────── dry() (kLatency late) ──────┐
 //       │                                                                 ├─► out
-//       └─► Stft ─► X ─(+)─► history of frames ─► read each bin at its ─► turn, pan ─► Stft ─► wet ─┘
-//                       ▲                         own delay  (A)
-//                       └── level hold ◄─ Feedback × Tilt ◄──┘
+//       └─► Stft ─► X ─(+)─► H ─► each bin thrown forward by its ─► ring of frames to come ─► pan ─► Stft ─► wet ─┘
+//                       ▲         own delay, a partial as one             │
+//                       └──── level hold ◄─ Feedback × Tilt ◄─────────────┘ (the frame that lands now)
 //
 // kit::Stft<2048, 512>: 2048-point frames every 512 samples, so the latency
 // is 2304 samples and the dry path is the input that much late.
 //
-// - The history is a ring of whole spectra per channel, one frame per hop.
-//   Bin k is read from the frame d[k] hops back (d ≥ 1); that IS a delay of
-//   d[k] × 512 samples of the band the bin belongs to. What is left of the
-//   delay under a hop (±256 samples) is a circular shift of the frame, a turn
-//   of -2π k r / 2048 per bin, with the gain the shifted window loses
-//   (1 + cos(2π r / 2048) / 2 in place of 1.5) put back.
+// - The ring holds the frames still to come, per channel. A new frame H is
+//   not kept: each of its bins is added to the frame d hops ahead, d being
+//   that bin's delay in whole hops (d ≥ 1), and the frame that falls due is
+//   played and emptied. That IS a delay of d × 512 samples of the band the
+//   bin belongs to. What is left of the delay under a hop (±256 samples) is
+//   a circular shift of the frame, a turn of -2π k r / 2048 per bin, with
+//   the gain the shifted window loses (1 + cos(2π r / 2048) / 2 in place of
+//   1.5) put back.
+// - A partial moves as one. A partial is three or four bins wide; if its
+//   bins came back at different times a held note that lies where two bands
+//   meet would cancel itself (measured before this: 8 % of held tones more
+//   than 3 dB down, the worst 18). So every bin within two of a peak of the
+//   frame takes the peak's delay, shift and turn. A held tone then comes
+//   back whole whatever the curve; a click, which has no peaks, still
+//   spreads bin by bin.
 // - The curve. A bin's place u is 0 at 60 Hz and 1 at 7680 Hz, on octaves.
 //   Bands quantises u to N steps, Smear lets u run on between the steps
 //   again (at 1 every bin has its own time), Shape and Bend turn u into the
@@ -29,30 +38,44 @@
 //   so the last colour comes at Time and, with Fan open, the first at an
 //   eighth of it. Scatter deals the N bands the N evenly spaced times in an
 //   order shuffled by Shuffle.
-// - Neighbouring bins with different delays would leave a held tone between
-//   them out of phase with itself. Each bin is therefore turned by the phase
-//   a true dispersive delay would have there, θ[k] = Σ ω(j+½) × (D[j+1] -
-//   D[j]): at the frequency where two bands meet they agree. The share of θ
-//   that comes from whole hops is a multiple of an eighth of a turn and is
-//   applied inside the loop, so every repeat agrees as well; the rest, with
-//   the shift under a hop, is applied on the way out only (a shift that went
-//   round the loop would walk round the frame).
-// - Feedback. What is read is written back with the new frame, per bin, so
-//   each band repeats at its own time (in whole hops). Tilt is a gain per
-//   bin and pass that never exceeds 1. The level hold: the energy of a frame
-//   written may not exceed twice that of the loudest frame of input lately
-//   (which is let fall by 60 dB in 40 s); over that the fed-back share of the
-//   frame is turned down. A held full-scale chord therefore never comes back
-//   at more than twice its amplitude, and at Feedback 1 the sound circles
-//   for most of a minute and then goes.
+// - Neighbouring bins with different delays are turned by the phase a true
+//   dispersive delay would have there, θ[k] = Σ ω(j+½) × (D[j+1] - D[j]),
+//   so that at the frequency where two bands meet they agree. The share of
+//   θ that comes from whole hops is a multiple of an eighth of a turn and
+//   goes round the loop with the sound, so every repeat agrees as well; the
+//   rest, with the shift under a hop, is in what is played only (a shift
+//   that went round the loop would walk round the frame). Hence two frames
+//   per place in the ring: one to play and one to feed back.
+// - Feedback. The frame that lands is added to the new one, per bin, and
+//   thrown forward again, so each band repeats at its own time (in whole
+//   hops). Tilt is a gain per bin and pass that never exceeds 1. The level
+//   hold: the energy of a frame H may not exceed twice that of the loudest
+//   frame of input lately (which is let fall by 60 dB in 40 s); over that
+//   the fed-back share of the frame is turned down. A held full-scale chord
+//   therefore never comes back at more than twice its amplitude, and at
+//   Feedback 1 the sound circles for most of a minute and then goes.
+// - Drift. Dry and a late copy of a held tone stand in a comb: at part-way
+//   Mix some pitches would be lost for as long as they are held (measured at
+//   the default without this: -8.1 dB at one pitch, +4.9 at another, for
+//   good). So each band's phase wanders, by Drift × 4.81 rad × sin(2π f t)
+//   with f between 0.07 and 0.15 Hz, its own for each band, by the frame
+//   clock (it keeps its place through silence and sleep). At Drift 0.5 the
+//   swing is 2.405 rad, the first zero of J0: the mean of cos over a cycle is
+//   nothing, so over time a held tone and its echo add as powers at every
+//   pitch, and what was a fixed comb is a slow breathing. The turn goes
+//   round the loop with the sound. At Drift 0 the echo is an exact copy.
 // - Width pans each bin by its order of arrival, the first to the left and
 //   the last to the right, by a balance law that leaves the level of a
 //   centred sound as it was (and nothing under 120 Hz moves). The two sides
 //   are never summed.
+// - What is in the air stays there: a knob changes where new sound is
+//   thrown, not what was thrown already.
 //
-// Storage: the history is 2 channels × 768 frames × 1025 bins × 2 floats =
-// 12.6 MB, which is 4 s at 96 kHz (8 s at 48 kHz). With the two Stft blocks
-// and the tables the device needs 13 MB ("memoryMb": 16).
+// Storage: the ring is 386,560 cells of four floats per channel, 12.4 MB in
+// all. A cell is one bin of one frame, so the ring holds 377 frames of all
+// 1025 bins at 48 kHz (4 s) and, at 96 kHz, 753 frames of the 513 bins up to
+// 24 kHz (4 s again: above 24 kHz the wet path is silent there). With the
+// two Stft blocks and the tables the device needs 13 MB ("memoryMb": 16).
 
 #include "../../kit/kit.h"
 #include "../../kit/stft.h"
@@ -65,7 +88,10 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
   using Stft = kit::Stft<2048, 512>;
   static constexpr int kLatency = Stft::kLatency;  // "latencySamples": 2304
   static constexpr int kBins = Stft::kBins;
-  static constexpr int kHistory = 768;  // frames kept: 4 s at 96 kHz and a little
+  // The ring, in cells (one bin of one frame): 4 s of every bin up to 24 kHz at any rate from 44.1 kHz up.
+  static constexpr int kCells = 386560;
+  static constexpr float kStoredHz = 24000.0f;
+  static constexpr int kReach = 2;  // bins either side of a peak that go with it
   static constexpr int kZones = 7;      // the octaves of the curve's axis, for the meters
   static constexpr int kMaxBands = 48;
 
@@ -92,6 +118,10 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
   static constexpr float kHoldSeconds = 40.0f;
   // The meters fall to a tenth in this long.
   static constexpr float kMeterSeconds = 0.12f;
+  // Drift at 1: the swing of a band's phase in radians (twice the first zero of J0), and the rates of the bands.
+  static constexpr float kDriftRadians = 4.8096512f;
+  static constexpr float kDriftLowHz = 0.07f;
+  static constexpr float kDriftHighHz = 0.15f;
   // A bin under this holds nothing: -174 dBFS (a full-scale sine reads 512).
   static constexpr float kFloor = 1.0e-6f;
 
@@ -121,10 +151,12 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
   float order_at(float u, int bands, float smear, int shape, float power) const;
 
   Stft stft_[2];
-  // The history: [channel][frame][bin][re, im].
-  float history_[2][kHistory][kBins][2] = {};
-  int write_ = 0;                // the slot the next frame of channel 0 goes to
-  int quiet_[2] = {kHistory, kHistory};  // frames written in a row that were all zero
+  // The frames to come: [channel][frame × stride_ + bin][to feed back re, im, to play re, im].
+  float ring_[2][kCells][4] = {};
+  int stride_ = kBins;       // bins kept per frame: all of them, or those up to 24 kHz
+  int frames_ = 1;           // frames the ring holds: kCells / stride_
+  int now_ = 0;              // the frame that falls due next
+  int ahead_[2] = {0, 0};    // frames until the furthest thing thrown lands; 0 is an empty ring
   float loudest_[2] = {0.0f, 0.0f};      // the level hold's memory, per channel
   float hold_fall_ = 1.0f;
   float meter_fall_ = 1.0f;
@@ -145,11 +177,20 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
   float loop_[kBins] = {};      // Feedback × Tilt
   float pan_[2][kBins] = {};
   float order_[kMaxBands] = {};  // Scatter: each band's order of arrival
+  uint8_t band_[kBins] = {};     // the band a bin lies in
+  float drift_rate_[kMaxBands] = {};   // Hz, fixed
+  float drift_start_[kMaxBands] = {};  // turns, fixed
+  float drift_re_[kMaxBands] = {};     // this frame's turn of each band
+  float drift_im_[kMaxBands] = {};
   float eighth_re_[8] = {};
   float eighth_im_[8] = {};
+  float step_re_[kBins] = {};   // one bin's worth of the shift: the turn from bin k to k + 1
+  float step_im_[kBins] = {};
   // One frame's work space.
-  float read_re_[kBins] = {};
-  float read_im_[kBins] = {};
+  float size_[kBins] = {};     // |H|² per bin
+  int16_t owner_[kBins] = {};  // the bin whose delay each bin takes: its own, or the peak it belongs to
+  float play_re_[kBins] = {};  // the frame that landed
+  float play_im_[kBins] = {};
 
   bool dirty_ = true;
   kit::Smoother mix_;
@@ -167,16 +208,15 @@ inline void Prism::init(float sample_rate) {
   stft_[0].init();
   stft_[1].init(Stft::kMaxStagger);
   for (int c = 0; c < 2; ++c) {
-    for (int n = 0; n < kHistory; ++n) {
-      for (int k = 0; k < kBins; ++k) {
-        history_[c][n][k][0] = 0.0f;
-        history_[c][n][k][1] = 0.0f;
-      }
+    for (int n = 0; n < kCells; ++n) {
+      for (int part = 0; part < 4; ++part) ring_[c][n][part] = 0.0f;
     }
-    quiet_[c] = kHistory;
+    ahead_[c] = 0;
     loudest_[c] = 0.0f;
   }
-  write_ = 0;
+  stride_ = kit::clamp_int(Stft::nearest_bin(kStoredHz, sr) + 1, 2, kBins);
+  frames_ = kCells / stride_;
+  now_ = 0;
   const float frames_per_second = sr / Stft::kHop;
   hold_fall_ = std::exp(-13.8155106f / (kHoldSeconds * frames_per_second));  // energy: 60 dB
   meter_fall_ = std::exp(-2.30258509f / (kMeterSeconds * frames_per_second));
@@ -200,6 +240,16 @@ inline void Prism::init(float sample_rate) {
   eighth_re_[2] = 0.0f, eighth_im_[2] = 1.0f;
   eighth_re_[4] = -1.0f, eighth_im_[4] = 0.0f;
   eighth_re_[6] = 0.0f, eighth_im_[6] = -1.0f;
+  {
+    kit::Rng rng;
+    rng.seed(0x51ED270Bu);
+    for (int b = 0; b < kMaxBands; ++b) {
+      drift_rate_[b] = kit::lerp(kDriftLowHz, kDriftHighHz, rng.uniform());
+      drift_start_[b] = rng.uniform();
+      drift_re_[b] = 1.0f;
+      drift_im_[b] = 0.0f;
+    }
+  }
   mix_.set_time(kSmoothingSeconds, sr);
   mix_.snap(param(kMix));
   mix_seen_ = -1.0f;
@@ -219,13 +269,14 @@ inline void Prism::set_param(int id, float value) {
 
 inline void Prism::process(int frames) {
   frames = begin_block(frames);
-  const bool alive = quiet_[0] < kHistory || quiet_[1] < kHistory;
+  const bool alive = ahead_[0] > 0 || ahead_[1] > 0;
   if (!idle_.wake(input_present(frames) || alive)) {
     silence_output(frames);
     stft_[0].skip(frames);  // the frame clock runs on through the sleep
     stft_[1].skip(frames);
     mix_.snap(mix_.target);  // a knob moved while asleep does not glide in
-    // Asleep the whole history is zeros: there is nothing left to hold a level for.
+    if (dirty_) rebuild();   // and the tables are ready for the first frame after it
+    // Asleep the ring is empty: there is nothing left to hold a level for.
     loudest_[0] = loudest_[1] = 0.0f;
     for (int z = 0; z < kZones; ++z) zone_level_[z] = 0.0f;
     return;
@@ -304,13 +355,14 @@ inline void Prism::rebuild() {
   }
 
   const double least = static_cast<double>(kLeastSeconds) * sr;
-  const double most = static_cast<double>(kHistory - 2) * Stft::kHop;
+  const double most = static_cast<double>(frames_ - 2) * Stft::kHop;
   double theta = 0.0;  // turns: the share of θ from the shifts under a hop
   int eighths = 0;     // eighths of a turn: the share from whole hops
   int last_hops = 1;
   double last_shift = 0.0;
   for (int k = 0; k < kBins; ++k) {
     const float order = order_at(place_[k], bands, smear, shape, power);
+    band_[k] = static_cast<uint8_t>(static_cast<int>(place_[k] * static_cast<float>(bands - 1) + 0.5f));
     double delay = time * (1.0 - static_cast<double>(fan) * (1.0 - kFirstShare) * (1.0 - order));
     delay = delay < least ? least : (delay > most ? most : delay);
     int hops = static_cast<int>(std::floor(delay / Stft::kHop + 0.5));
@@ -333,6 +385,9 @@ inline void Prism::rebuild() {
         1.5f / (1.0f + 0.5f * kit::SineTable::cos_lookup(static_cast<float>(shift / Stft::kFrame)));
     turn_re_[k] = gain * kit::SineTable::cos_lookup(static_cast<float>(turns));
     turn_im_[k] = gain * kit::SineTable::lookup(static_cast<float>(turns));
+    const float step = static_cast<float>(-shift / Stft::kFrame);
+    step_re_[k] = kit::SineTable::cos_lookup(step);
+    step_im_[k] = kit::SineTable::lookup(step);
 
     // Tilt: what a pass loses, never a gain.
     const float hz_octave = octave_[k];
@@ -367,31 +422,32 @@ inline void Prism::frame(int c, float* re, float* im) {
   if (c == 0) {
     if (dirty_) rebuild();
     for (int z = 0; z < kZones; ++z) zone_energy_[z] = 0.0f;
+    // Drift: where each band's phase stands at this frame, by the frame's number.
+    const float swing = param(prism::kDrift) * kDriftRadians * (1.0f / kit::kTwoPi);  // turns
+    const double seconds = static_cast<double>(stft_[0].frame()) * Stft::kHop / sample_rate();
+    for (int b = 0; b < kMaxBands; ++b) {
+      double cycle = seconds * drift_rate_[b] + drift_start_[b];
+      cycle -= std::floor(cycle);
+      const float turn = swing * kit::SineTable::lookup(static_cast<float>(cycle));
+      drift_re_[b] = kit::SineTable::cos_lookup(turn);
+      drift_im_[b] = kit::SineTable::lookup(turn);
+    }
   }
-  float (*ring)[kBins][2] = history_[c];
-  const int write = write_;
+  const int stride = stride_;
+  float (*ring)[4] = ring_[c];
+  float (*due)[4] = ring + static_cast<size_t>(now_) * stride;
 
-  // What each bin's own delay brings back, and how much that and the new
-  // frame hold.
+  // What the new frame holds and what the frame that lands would add to it.
   float in_energy = 0.0f;
   float back_energy = 0.0f;
-  for (int k = 0; k < kBins; ++k) {
+  for (int k = 0; k < stride; ++k) {
     in_energy += re[k] * re[k] + im[k] * im[k];
-    int slot = write - hops_[k];
-    if (slot < 0) slot += kHistory;
-    const float* held = ring[slot][k];
-    const float er = eighth_re_[eighth_[k]];
-    const float ei = eighth_im_[eighth_[k]];
-    const float ar = held[0] * er - held[1] * ei;
-    const float ai = held[0] * ei + held[1] * er;
-    read_re_[k] = ar;
-    read_im_[k] = ai;
     const float gain = loop_[k];
-    back_energy += gain * gain * (ar * ar + ai * ai);
+    back_energy += gain * gain * (due[k][0] * due[k][0] + due[k][1] * due[k][1]);
   }
 
-  // The level hold: the frame written may hold twice the loudest input
-  // frame's energy and no more; the fed-back share gives way.
+  // The level hold: H may hold twice the loudest input frame's energy and no
+  // more; the fed-back share gives way.
   float loudest = loudest_[c] * hold_fall_;
   if (in_energy > loudest) loudest = in_energy;
   if (loudest < 1.0e-18f) loudest = 0.0f;
@@ -400,34 +456,102 @@ inline void Prism::frame(int c, float* re, float* im) {
   float scale = 1.0f;
   if (back_energy > room) scale = room > 0.0f ? std::sqrt(room / back_energy) : 0.0f;
 
-  bool any = false;
-  float (*now)[2] = ring[write];
+  // H into re and im, what lands into the output's place, and the slot emptied.
+  float* out_re = play_re_;
+  float* out_im = play_im_;
   const float* pan = pan_[c];
-  for (int k = 0; k < kBins; ++k) {
-    const float ar = read_re_[k];
-    const float ai = read_im_[k];
+  for (int k = 0; k < stride; ++k) {
     const float gain = scale * loop_[k];
-    float hr = re[k] + gain * ar;
-    float hi = im[k] + gain * ai;
-    const float energy = hr * hr + hi * hi;
+    float hr = re[k] + gain * due[k][0];
+    float hi = im[k] + gain * due[k][1];
+    float energy = hr * hr + hi * hi;
     if (energy < kFloor * kFloor) {
       hr = 0.0f;
       hi = 0.0f;
+      energy = 0.0f;
     } else {
-      any = true;
       zone_energy_[zone_[k]] += energy;
     }
-    now[k][0] = hr;
-    now[k][1] = hi;
-    const float tr = turn_re_[k] * pan[k];
-    const float ti = turn_im_[k] * pan[k];
-    re[k] = ar * tr - ai * ti;
-    im[k] = ar * ti + ai * tr;
+    out_re[k] = due[k][2] * pan[k];
+    out_im[k] = due[k][3] * pan[k];
+    due[k][0] = due[k][1] = due[k][2] = due[k][3] = 0.0f;
+    re[k] = hr;
+    im[k] = hi;
+    size_[k] = energy;
+    owner_[k] = static_cast<int16_t>(k);
   }
-  quiet_[c] = any ? 0 : (quiet_[c] < kHistory ? quiet_[c] + 1 : kHistory);
+
+  // Peaks: a bin over both neighbours takes the kReach bins either side with
+  // it, each going to the nearer peak (the larger where two are as near).
+  // Zero frequency and the top bin are real and stay their own.
+  for (int peak = 1; peak < stride - 1; ++peak) {
+    if (!(size_[peak] > size_[peak - 1] && size_[peak] >= size_[peak + 1])) continue;
+    for (int k = peak - kReach; k <= peak + kReach; ++k) {
+      if (k < 1 || k >= stride - 1 || k == peak) continue;
+      const int holder = owner_[k];
+      if (holder == k) {
+        // Its own so far; a peak keeps itself.
+        if (!(size_[k] > size_[k - 1] && size_[k] >= size_[k + 1])) owner_[k] = static_cast<int16_t>(peak);
+        continue;
+      }
+      const int far = k > holder ? k - holder : holder - k;
+      const int near = k > peak ? k - peak : peak - k;
+      if (near < far || (near == far && size_[peak] > size_[holder])) owner_[k] = static_cast<int16_t>(peak);
+    }
+  }
+
+  // Throw each bin forward by its owner's delay.
+  int furthest = 0;
+  for (int k = 0; k < stride; ++k) {
+    if (size_[k] == 0.0f) continue;
+    const int from = owner_[k];
+    const int hops = hops_[from];
+    int slot = now_ + hops;
+    if (slot >= frames_) slot -= frames_;
+    float* cell = ring[static_cast<size_t>(slot) * stride + k];
+    if (hops > furthest) furthest = hops;
+    // What goes round the loop with the sound: the share of θ from whole hops, and the drift.
+    const float qr = eighth_re_[eighth_[from]];
+    const float qi = eighth_im_[eighth_[from]];
+    const float dr = drift_re_[band_[from]];
+    const float di = drift_im_[band_[from]];
+    const float er = qr * dr - qi * di;
+    const float ei = qr * di + qi * dr;
+    const float ar = re[k] * er - im[k] * ei;
+    const float ai = re[k] * ei + im[k] * er;
+    cell[0] += ar;
+    cell[1] += ai;
+    // The rest, with the shift: the owner's turn carried to this bin.
+    float tr = turn_re_[from];
+    float ti = turn_im_[from];
+    for (int walk = from; walk < k; ++walk) {
+      const float r = tr * step_re_[from] - ti * step_im_[from];
+      ti = tr * step_im_[from] + ti * step_re_[from];
+      tr = r;
+    }
+    for (int walk = from; walk > k; --walk) {
+      const float r = tr * step_re_[from] + ti * step_im_[from];
+      ti = ti * step_re_[from] - tr * step_im_[from];
+      tr = r;
+    }
+    cell[2] += ar * tr - ai * ti;
+    cell[3] += ar * ti + ai * tr;
+  }
+  if (ahead_[c] > 0) --ahead_[c];
+  if (furthest > ahead_[c]) ahead_[c] = furthest;
+
+  // What sounds: the frame that landed.
+  for (int k = 0; k < stride; ++k) {
+    re[k] = out_re[k];
+    im[k] = out_im[k];
+  }
+  for (int k = stride; k < kBins; ++k) {
+    re[k] = 0.0f;
+    im[k] = 0.0f;
+  }
 
   if (c == 1) {
-    write_ = write + 1 < kHistory ? write + 1 : 0;
+    now_ = now_ + 1 < frames_ ? now_ + 1 : 0;
     // A sine of amplitude a on a bin holds 1.5 × (a × kFullScale)² in a frame.
     const float full = 1.0f / (2.0f * 1.5f * Stft::kFullScale * Stft::kFullScale);
     for (int z = 0; z < kZones; ++z) {

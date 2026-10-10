@@ -85,6 +85,14 @@
       "description": "What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone."
     },
     {
+      "key": "drift",
+      "name": "Drift",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Lets each colour wander slowly in phase, so a held note breathes against its echo instead of standing in a fixed comb with it. At zero the echo is an exact copy."
+    },
+    {
       "key": "shuffle",
       "name": "Shuffle",
       "min": 1,

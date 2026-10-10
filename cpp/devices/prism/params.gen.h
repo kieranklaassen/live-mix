@@ -10,9 +10,10 @@
 //    5  smear: 0..1, default 0.25
 //    6  feedback: 0..1, default 0.4
 //    7  tilt: -1..1, default -0.25
-//    8  shuffle: 1..16, default 1
-//    9  width: 0..1, default 0.6
-//   10  mix: 0..1, default 0.4
+//    8  drift: 0..1, default 0.5
+//    9  shuffle: 1..16, default 1
+//   10  width: 0..1, default 0.6
+//   11  mix: 0..1, default 0.4
 
 #pragma once
 
@@ -28,15 +29,16 @@ enum Param : int {
   kSmear = 5,
   kFeedback = 6,
   kTilt = 7,
-  kShuffle = 8,
-  kWidth = 9,
-  kMix = 10,
-  kNumParams = 11,
+  kDrift = 8,
+  kShuffle = 9,
+  kWidth = 10,
+  kMix = 11,
+  kNumParams = 12,
 };
 
-inline constexpr float kParamMin[kNumParams] = {20.0f, 0.0f, 0.0f, -1.0f, 2.0f, 0.0f, 0.0f, -1.0f, 1.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {4000.0f, 1.0f, 4.0f, 1.0f, 48.0f, 1.0f, 1.0f, 1.0f, 16.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {600.0f, 1.0f, 0.0f, 0.0f, 12.0f, 0.25f, 0.4f, -0.25f, 1.0f, 0.6f, 0.4f};
+inline constexpr float kParamMin[kNumParams] = {20.0f, 0.0f, 0.0f, -1.0f, 2.0f, 0.0f, 0.0f, -1.0f, 0.0f, 1.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {4000.0f, 1.0f, 4.0f, 1.0f, 48.0f, 1.0f, 1.0f, 1.0f, 1.0f, 16.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {600.0f, 1.0f, 0.0f, 0.0f, 12.0f, 0.25f, 0.4f, -0.25f, 0.5f, 1.0f, 0.6f, 0.4f};
 
 }  // namespace prism
 }  // namespace livemix

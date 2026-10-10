@@ -96,8 +96,19 @@ export const PRISM_PARAMS = {
     description:
       'What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone.',
   },
-  shuffle: {
+  drift: {
     id: 8,
+    name: 'Drift',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lets each colour wander slowly in phase, so a held note breathes against its echo instead of standing in a fixed comb with it. At zero the echo is an exact copy.',
+  },
+  shuffle: {
+    id: 9,
     name: 'Shuffle',
     min: 1,
     max: 16,
@@ -109,7 +120,7 @@ export const PRISM_PARAMS = {
       'Deals the bands another set of times when Shape is Scatter. Each number is one fixed pattern.',
   },
   width: {
-    id: 9,
+    id: 10,
     name: 'Width',
     min: 0,
     max: 1,
@@ -120,7 +131,7 @@ export const PRISM_PARAMS = {
       'Lays the colours across the stereo field in the order they arrive, first to the left and last to the right. The low end stays in the middle.',
   },
   mix: {
-    id: 10,
+    id: 11,
     name: 'Mix',
     min: 0,
     max: 1,
