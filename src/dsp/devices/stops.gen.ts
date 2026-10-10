@@ -149,6 +149,7 @@ export const STOPS_METERS = {
   octaveLevel: { id: 3, name: 'Octave sounding', unit: '', display: true },
   twelfthLevel: { id: 4, name: 'Twelfth sounding', unit: '', display: true },
   fifteenthLevel: { id: 5, name: 'Fifteenth sounding', unit: '', display: true },
+  note: { id: 6, name: 'Loudest partial', unit: 'Hz', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const STOPS_DEVICE = defineWasmDevice({

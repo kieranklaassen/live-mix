@@ -37,6 +37,12 @@
       "key": "fifteenthLevel",
       "name": "Fifteenth sounding",
       "display": true
+    },
+    {
+      "key": "note",
+      "name": "Loudest partial",
+      "unit": "Hz",
+      "display": true
     }
   ],
   "params": [

@@ -101,6 +101,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       }
       for (int s = 0; s < kRanks; ++s) channel.level[s] = 0.0f;
       channel.input_level = 0.0f;
+      channel.note = 0.0f;
       channel.alive = false;
     }
     for (int k = 0; k < Stft::kBins; ++k) {
@@ -136,9 +137,13 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
   // how loud each rank is sounding in the newest frame, as the amplitude of
   // one sine of the same power (1 is full scale), before the ceiling and
   // Mix; the louder channel's. Index 1 is the unison: what the ranks are
-  // copies of, the partials found in the input. All 0 in silence and asleep.
+  // copies of, the partials found in the input. Index 6 is the frequency in
+  // Hz of the strongest of those partials, the louder channel's, so the
+  // display can stand the ranks at their real pitches. All 0 in silence and
+  // asleep.
   float meter(int index) const {
     if (index == 1) return kit::max(channel_[0].input_level, channel_[1].input_level);
+    if (index == 6) return channel_[channel_[1].input_level > channel_[0].input_level ? 1 : 0].note;
     const int rank = index == 0 ? 0 : index - 1;
     if (index < 0 || rank >= kRanks) return 0.0f;
     return kit::max(channel_[0].level[rank], channel_[1].level[rank]);
@@ -226,6 +231,7 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     float phase[kRanks][kBins];  // how far each rank has turned against its source, in turns
     float level[kRanks];         // for meter()
     float input_level;
+    float note;                  // the strongest partial found, Hz, for meter()
     bool alive;                  // any follower above the floor
   };
 
@@ -433,6 +439,8 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
     }
     int peaks = 0;
     float heard = 0.0f;
+    float tallest = 0.0f;
+    float tallest_place = 0.0f;
     for (int k = kFirstBin; k < kBins - 1; ++k) {
       const float power = power_[k];
       if (!(power > threshold && power > power_[k - 1] && power >= power_[k + 1])) continue;
@@ -477,10 +485,15 @@ class Stops : public kit::DeviceBase<stops::kNumParams> {
       peak_im_[peaks] = zi * unit;
       if (c == 0) lead_place_[k] = place;
       heard += peak_size_[peaks] * peak_size_[peaks];
+      if (peak_size_[peaks] > tallest) {
+        tallest = peak_size_[peaks];
+        tallest_place = place;
+      }
       ++peaks;
       ++k;  // the next bin is lower or level: not a peak
     }
     channel.input_level = std::sqrt(heard) * (1.0f / Stft::kFullScale);
+    channel.note = peaks > 0 ? Stft::bin_to_hz(tallest_place, sample_rate()) : 0.0f;
 
     // This frame is the next one's "last"; the output starts empty.
     for (int k = 0; k < kBins; ++k) {

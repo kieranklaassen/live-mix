@@ -636,7 +636,99 @@ int main() {
     EXPECT(same, label);
   }
 
-  // 14. Cost: the average, and the worst block (one with a frame in it), at
+  // 14. The readings for the display. With one rank drawn on one sine, the
+  // unison's reading is the sine's amplitude, the rank's is the amplitude it
+  // sounds at, a rank not drawn reads nothing, and the note is the sine's
+  // frequency. A rank reads less while it is still speaking, and all read 0
+  // once the sound has gone.
+  {
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    run(device, sine(441.3f, 2.0f, kRate, 0.5f));
+    EXPECT_NEAR(db(device.meter(1) / 0.5), 0.0, 0.1, "the unison's reading is the amplitude of the sine going in");
+    EXPECT_NEAR(db(device.meter(3) / 0.5), 0.0, 0.1, "a full rank's reading is the amplitude it sounds at");
+    EXPECT(device.meter(0) == 0.0f && device.meter(2) == 0.0f && device.meter(4) == 0.0f && device.meter(5) == 0.0f,
+           "a rank that is not drawn reads nothing");
+    EXPECT_NEAR(device.meter(6), 441.3, 0.05, "the note's reading is the frequency of the sine");
+    const float note_then = device.meter(6);
+    const float unison_then = device.meter(1), octave_then = device.meter(3);
+    bare(device);
+    device.set_param(p::kOctave, 0.5f);
+    run(device, sine(441.3f, 2.0f, kRate, 0.5f));
+    EXPECT_NEAR(db(device.meter(3) / 0.5), -9.03, 0.1, "a rank drawn half way reads 9 dB less");
+    bare(device);
+    device.set_param(p::kOctave, 1.0f);
+    device.set_param(p::kSpeak, 1600.0f);
+    run(device, sine(441.3f, 0.5f, kRate, 0.5f));
+    const float early = device.meter(3);
+    run(device, sine(441.3f, 4.0f, kRate, 0.5f));
+    const float late = device.meter(3);
+    EXPECT(early > 0.2f * late && early < 0.7f * late, "a rank reads less while it is still speaking");
+    run(device, std::vector<float>(3 * 48000, 0.0f));
+    bool none = true;
+    for (int m = 0; m < 7; ++m) none = none && device.meter(m) == 0.0f;
+    EXPECT(none, "every reading is 0 once the sound has gone");
+    device.init(kRate);
+    run(device, held_chord(2.0f));
+    const float note = device.meter(6);
+    EXPECT(std::fabs(note - 220.0f) < 0.3f || std::fabs(note - 277.18f) < 0.3f || std::fabs(note - 329.63f) < 0.3f,
+           "on a chord the note's reading is one of its notes");
+    std::printf("readings: one sine of 441.3 Hz at 0.5 reads %.2f Hz, unison %.4f, octave %.4f\n", note_then,
+                unison_then, octave_then);
+  }
+
+  // 15. The presets (the table of device.json, in the order of the ids): a
+  // full-scale chord held for a minute at each stays under 6 dB over the
+  // input, within reach of its level, and does not grow.
+  {
+    struct Preset {
+      const char* name;
+      float values[p::kNumParams];
+    };
+    // sub, unison, fifth, octave, twelfth, fifteenth, speak, chiff, tone, swell, detune, mix
+    static const Preset kPresets[] = {
+        {"Principal chorus", {0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 120.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.8f}},
+        {"Pedal under", {0.85f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 200.0f, 0.1f, 0.25f, 1.0f, 0.2f, 0.75f}},
+        {"Octave above", {0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f, 60.0f, 0.15f, 0.45f, 1.0f, 0.15f, 0.6f}},
+        {"Open fifths", {0.3f, 1.0f, 0.75f, 0.0f, 0.0f, 0.0f, 150.0f, 0.25f, 0.35f, 1.0f, 0.2f, 0.6f}},
+        {"Full organ", {0.8f, 1.0f, 0.35f, 0.9f, 0.6f, 0.6f, 60.0f, 0.3f, 0.55f, 1.0f, 0.2f, 0.9f}},
+        {"Flute stops", {0.3f, 1.0f, 0.0f, 0.65f, 0.0f, 0.0f, 90.0f, 0.7f, 0.1f, 1.0f, 0.1f, 0.7f}},
+        {"Slow bloom", {0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.4f, 1800.0f, 0.0f, 0.35f, 1.0f, 0.2f, 0.8f}},
+        {"Only the pipes", {0.6f, 0.0f, 0.0f, 0.8f, 0.4f, 0.3f, 80.0f, 0.25f, 0.4f, 1.0f, 0.2f, 1.0f}},
+        {"Glass on top", {0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.9f, 300.0f, 0.0f, 0.8f, 1.0f, 0.35f, 0.55f}},
+        {"Nearly dry", {0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 0.0f, 250.0f, 0.25f, 0.4f, 1.0f, 0.2f, 0.3f}},
+        {"Old pipes", {0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.0f, 100.0f, 0.5f, 0.4f, 1.0f, 1.0f, 0.7f}},
+        {"Breath first", {0.5f, 1.0f, 0.0f, 0.7f, 0.0f, 0.0f, 900.0f, 1.0f, 0.3f, 1.0f, 0.2f, 0.8f}},
+        {"Shutters closed", {0.8f, 1.0f, 0.3f, 0.9f, 0.7f, 0.6f, 200.0f, 0.25f, 0.4f, 0.45f, 0.2f, 1.0f}},
+        {"Sub and silver", {0.9f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f, 150.0f, 0.25f, 0.6f, 1.0f, 0.2f, 0.7f}},
+        {"Hollow fifths", {0.0f, 0.5f, 0.9f, 0.0f, 0.8f, 0.0f, 400.0f, 0.25f, 0.4f, 1.0f, 0.4f, 0.75f}},
+        {"Drone to organ", {0.8f, 0.75f, 0.5f, 0.7f, 0.5f, 0.3f, 3000.0f, 0.0f, 0.3f, 1.0f, 0.7f, 1.0f}},
+    };
+    const std::vector<float> chord = held_chord(60.0f);
+    double worst = 0.0, softest = 100.0, loudest = -100.0;
+    for (const Preset& preset : kPresets) {
+      device.init(kRate);
+      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      const Stereo out = run(device, chord);
+      const size_t n = out.left.size();
+      const double top = std::max(peak(out.left), peak(out.right));
+      const double level = db(rms(out.left, 5 * 48000, n) / rms(chord, 5 * 48000, n));
+      const double early = rms(out.left, 5 * 48000, n / 2), late = rms(out.left, n / 2, n);
+      worst = std::max(worst, top);
+      softest = std::min(softest, level);
+      loudest = std::max(loudest, level);
+      char label[200];
+      std::snprintf(label, sizeof label, "preset %s, a full-scale chord for a minute: peak %.2f, level %+.1f dB",
+                    preset.name, top, level);
+      EXPECT(finite(out.left) && finite(out.right) && top <= 2.0 && level < 4.0 && level > -9.0, label);
+      std::snprintf(label, sizeof label, "preset %s does not grow (rms %.4f then %.4f)", preset.name, early, late);
+      EXPECT(late <= early * 1.01, label);
+    }
+    std::printf("sixteen presets, a full-scale chord for a minute each: peak %.2f at most, level %+.1f to %+.1f dB\n",
+                worst, softest, loudest);
+  }
+
+  // 16. Cost: the average, and the worst block (one with a frame in it), at
   // the defaults on a played chord and at the worst there is: every rank
   // full, Chiff full, on noise, where every third bin is a partial.
   {
