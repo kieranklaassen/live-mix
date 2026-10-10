@@ -3,6 +3,7 @@
 
 import { type PlateFace } from '../plate-display'
 import { DELAY_FACES } from './delay'
+import { DISTANCE_FACES } from './distance'
 import { DRIVE_FACES } from './drive'
 import { DYNAMICS_FACES } from './dynamics'
 import { EQ_FACES } from './eq'
@@ -75,4 +76,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...ACID_BASS_INSTRUMENT_FACES,
   ...STRING_BASS_INSTRUMENT_FACES,
   ...GENERATIONS_FACES,
+  ...DISTANCE_FACES,
 }

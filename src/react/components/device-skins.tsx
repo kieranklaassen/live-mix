@@ -1878,6 +1878,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'acid-bass': { ...PLATE_PALETTES['acid-bass'], finish: 'matte', cap: 'pointer' },
   'string-bass': { ...PLATE_PALETTES['string-bass'], finish: 'grain', cap: 'disc' },
   generations: { ...PLATE_PALETTES.generations, finish: 'linen', cap: 'disc' },
+  distance: { ...PLATE_PALETTES.distance, finish: 'fade', cap: 'dot' },
 }
 
 /**
