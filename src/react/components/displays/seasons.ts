@@ -41,9 +41,7 @@ const LOW_SHELF_HZ = [200, 260, 180, 400]
 const HIGH_SHELF_DB = [4.5, -2, -9, 3]
 const HIGH_SHELF_HZ = [2800, 4500, 1300, 6500]
 /** `kTrimDb`: what holds the loudness round the year. */
-const TRIM_DB = [0.05, -1.55, 0.1, 2.4]
-/** `kSpaceTrimDb`: what the sound gives up as its room comes in. */
-const SPACE_TRIM_DB = [1.6, 2.2, 2.2, 0.55]
+const TRIM_DB = [-1.2, -2.8, 1.45, 3.25]
 /** `kTopBandHz`: above this the sound shimmers and crumbles. */
 const TOP_BAND_HZ = 900
 // The room: each season's decay, and what its top and its bottom keep of it past their crossovers.
@@ -82,7 +80,6 @@ const blendLog = (table: readonly number[], w: readonly number[]): number =>
 export interface SeasonsTone {
   year: number
   depth: number
-  space: number
   width: number
   mix: number
   /** The share of the level that has gone to the left (the device's `sway` reading); 0 at rest. */
@@ -122,7 +119,7 @@ export function seasonsToneDb(hz: number, tone: SeasonsTone, sampleRate: number)
   const topRe = 1 + top * (1 - bandRe)
   const topIm = -top * bandIm
   const widened = 1 / Math.sqrt(0.75 + 0.25 * tone.width * tone.width)
-  const trimDb = tone.depth * blend(TRIM_DB, w) - tone.depth * tone.space * blend(SPACE_TRIM_DB, w)
+  const trimDb = tone.depth * blend(TRIM_DB, w)
   const gain = widened * Math.pow(10, trimDb / 20) * (1 + (tone.side ?? 0))
   const outRe = 1 - tone.mix + tone.mix * gain * (re * topRe - im * topIm)
   const outIm = tone.mix * gain * (re * topIm + im * topRe)
@@ -422,13 +419,7 @@ const seasons = plateDisplay<SeasonsState>({
     }
 
     // The tone at that place: at rest in the ink, the left side as it is now in the accent.
-    const at = {
-      year: now,
-      depth,
-      space: frame.value('space'),
-      width: frame.value('width'),
-      mix,
-    }
+    const at = { year: now, depth, width: frame.value('width'), mix }
     const zero = yOfDb(0, tone, SEASONS_TONE_DB, -SEASONS_TONE_DB)
     freqGrid(frame, tone)
     rule(ctx, tone.x, zero, tone.x + tone.w, zero, { colour: colours.ink, alpha: INK.rule })
@@ -442,7 +433,7 @@ const seasons = plateDisplay<SeasonsState>({
     const side = live ? clamp(frame.meter('sway'), -0.9, 0.9) : 0
     const top = live ? clamp(frame.meter('crumble'), 0, 1) : 1
     // The room under it: how long it rings at each pitch, as far as Space, Depth and Mix let it be heard.
-    const heard = at.space * depth * mix
+    const heard = frame.value('space') * depth * mix
     const tail = frame.value('tail')
     clipped(ctx, tone, () => {
       if (heard > 0) {

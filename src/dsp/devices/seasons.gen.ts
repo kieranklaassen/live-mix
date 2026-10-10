@@ -37,7 +37,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far into the season the sound goes. All the way down is the sound as it came in, all the way up is the season at its strongest.',
+      'How far into the season the sound goes. All the way down is the sound as it came in, with only Width still at work, and all the way up is the season at its strongest.',
   },
   space: {
     id: 3,
@@ -70,7 +70,7 @@ export const SEASONS_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      "How much of the season's texture is heard: glassy sparks above the sound in winter and early spring, a warm pressing in summer, the top end breaking up in autumn.",
+      "How much of the season's texture is heard: glassy sparks above the sound in winter and spring, a warm pressing in summer, the top end breaking up in autumn.",
   },
   tail: {
     id: 6,

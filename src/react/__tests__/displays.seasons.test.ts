@@ -165,9 +165,8 @@ const kLowShelfDb = [-2, 3, 2, -7]
 const kLowShelfHz = [200, 260, 180, 400]
 const kHighShelfDb = [4.5, -2, -9, 3]
 const kHighShelfHz = [2800, 4500, 1300, 6500]
-const kTrimDb = [0.05, -1.55, 0.1, 2.4]
-// `kSpaceTrimDb` and `kTopBandHz` in the class.
-const kSpaceTrimDb = [1.6, 2.2, 2.2, 0.55]
+const kTrimDb = [-1.2, -2.8, 1.45, 3.25]
+// `kTopBandHz` in the class.
 const kTopBandHz = 900
 
 // `kSpringAt`: spring's middle on the Year dial, whose two ends are the turn of the year.
@@ -198,9 +197,8 @@ function throughHeader(hz: number, tone: SeasonsTone): number {
   const topA = pole(kTopBandHz)
   const low = 10 ** ((tone.depth * blend(kLowShelfDb)) / 20) - 1
   const high = 10 ** ((tone.depth * blend(kHighShelfDb)) / 20) - 1
-  const space = tone.depth * tone.space
   const widened = 1 / Math.sqrt(0.75 + 0.25 * tone.width * tone.width)
-  const trim = widened * 10 ** ((tone.depth * blend(kTrimDb) - space * blend(kSpaceTrimDb)) / 20)
+  const trim = widened * 10 ** ((tone.depth * blend(kTrimDb)) / 20)
   const gain = trim * (1 + (tone.side ?? 0))
   let lowState = 0
   let highState = 0
@@ -221,7 +219,7 @@ function throughHeader(hz: number, tone: SeasonsTone): number {
   return 20 * Math.log10(peak)
 }
 
-const TONE: SeasonsTone = { year: 0, depth: 1, space: 0, width: 1, mix: 1 }
+const TONE: SeasonsTone = { year: 0, depth: 1, width: 1, mix: 1 }
 
 describe('the year of Seasons', () => {
   it('weighs the seasons as the header does: cos² of the way to each, the shorter way round', () => {
@@ -467,11 +465,11 @@ describe('the tone of Seasons', () => {
       ...places.map((year) => ({ ...TONE, year })),
       { ...TONE, year: 0.5, depth: 0.4 },
       { ...TONE, year: 0.75, mix: 0.5 },
-      { ...TONE, year: 0.25, space: 1, width: 2 },
+      { ...TONE, year: 0.25, width: 2 },
       { ...TONE, year: 0.75, width: 0 },
       // The left side as the readings carry it: swayed, and its top broken.
       { ...TONE, year: 0.5, side: 0.2, top: 0.3 },
-      { ...TONE, year: 0.6, depth: 0.8, space: 0.5, mix: 0.7, side: -0.14, top: 0 },
+      { ...TONE, year: 0.6, depth: 0.8, mix: 0.7, side: -0.14, top: 0 },
     ]
     for (const tone of tones) {
       for (const hz of pitches) {
@@ -520,6 +518,50 @@ describe('the tone of Seasons', () => {
     }
   })
 
+  it('is the level of a held note with the whole of its room in, to the room’s share of a quarter', async () => {
+    const P = SEASONS_PARAMS
+    const block = 128
+    const window = Math.round(0.2 * RATE)
+    let least = 0
+    let most = 0
+    for (const year of [0.125, 0.375, 0.625, 0.875, 0.5]) {
+      for (const hz of [97, 311, 1013, 3301]) {
+        const harness = await loadWasmDevice('seasons')
+        harness.set(P.turn, 0)
+        harness.set(P.year, year)
+        harness.set(P.depth, 1)
+        harness.set(P.space, 1)
+        harness.set(P.motion, 0)
+        harness.set(P.grit, 0)
+        const line = seasonsToneDb(hz, { ...TONE, year }, RATE)
+        const input = new Float32Array(block)
+        let sum = 0
+        let count = 0
+        for (let n = 0; n < 5 * RATE; n += block) {
+          for (let i = 0; i < block; i++) input[i] = 0.1 * Math.sin((2 * Math.PI * hz * (n + i)) / RATE)
+          harness.processBlock(input)
+          if (n < 2 * RATE) continue
+          const left = harness.view(harness.device.device_out_left(), block)
+          const right = harness.view(harness.device.device_out_right(), block)
+          for (let i = 0; i < block; i++) sum += left[i] * left[i] + right[i] * right[i]
+          count += block
+          if (count < window) continue
+          // Both sides' power against the sine's own, which is half its peak squared on each.
+          const over = 10 * Math.log10(sum / count / (0.1 * 0.1)) - line
+          least = Math.min(least, over)
+          most = Math.max(most, over)
+          // A quarter against the sound is 2.5 dB down, a quarter with it 1.9 dB up.
+          expect(over, `${hz} Hz held at year ${year}`).toBeGreaterThan(-2.7)
+          expect(over, `${hz} Hz held at year ${year}`).toBeLessThan(2.1)
+          sum = 0
+          count = 0
+        }
+      }
+    }
+    // The room is there: it moves the level, by less than it is allowed to.
+    expect(most - least).toBeGreaterThan(0.5)
+  })
+
   it('draws that tone at the year now, on a scale of 9 dB each way', () => {
     expect(SEASONS_TONE_DB).toBe(9)
     for (const size of SHAPES) {
@@ -536,7 +578,6 @@ describe('the tone of Seasons', () => {
           const at: SeasonsTone = {
             year,
             depth: values.depth ?? 0.75,
-            space: values.space ?? 0.6,
             width: values.width ?? 1,
             mix: values.mix ?? 1,
           }
@@ -561,7 +602,7 @@ describe('the tone of Seasons', () => {
 
   it('lights the left side as the device reports it: carried by the sway, its top broken by the crumble', () => {
     const { tone } = seasonsLayout(FLAT)
-    const at: SeasonsTone = { year: 0.5, depth: 0.75, space: 0.6, width: 1, mix: 1 }
+    const at: SeasonsTone = { year: 0.5, depth: 0.75, width: 1, mix: 1 }
     for (const [sway, crumble] of [
       [0.12, 1],
       [-0.12, 1],
@@ -682,7 +723,7 @@ describe('the room of Seasons', () => {
     }
   })
 
-  it('rings as long as the compiled device does, by pitch', async () => {
+  it('rings as long as the compiled device does, by pitch: the mean of twelve pitches about each place', async () => {
     const P = SEASONS_PARAMS
     /** The slope of the level after a burst at `hz`, as seconds to 60 dB down. */
     async function measured(hz: number, year: number, expected: number): Promise<number> {
@@ -733,6 +774,7 @@ describe('the room of Seasons', () => {
       })
       return -60 / (over / under / 0.02)
     }
+    const NEIGHBOURS = 12
     for (const [year, hz] of [
       [0.125, 1000],
       [0.375, 330],
@@ -744,10 +786,20 @@ describe('the room of Seasons', () => {
       [0.875, 3000],
       [0.5, 1000],
     ]) {
-      const formula = seasonsRingSec(hz, year, 0.5, RATE)
-      const got = await measured(hz, year, formula)
-      expect(got / formula, `the room at ${hz} Hz, year ${year}`).toBeGreaterThan(0.85)
-      expect(got / formula, `the room at ${hz} Hz, year ${year}`).toBeLessThan(1.15)
+      // One burst rings on the two or three lines of the room nearest its pitch, whose beating
+      // moves a single slope by a tenth either way: twelve pitches a seventy-second of an octave
+      // apart, each against the formula at its own pitch, and the mean of the twelve.
+      let sum = 0
+      for (let k = 0; k < NEIGHBOURS; k++) {
+        const near = hz * 2 ** ((k - 0.5 * (NEIGHBOURS - 1)) / 72)
+        const formula = seasonsRingSec(near, year, 0.5, RATE)
+        const got = await measured(near, year, formula)
+        expect(got / formula, `the room at ${near} Hz, year ${year}`).toBeGreaterThan(0.75)
+        expect(got / formula, `the room at ${near} Hz, year ${year}`).toBeLessThan(1.25)
+        sum += got / formula
+      }
+      expect(sum / NEIGHBOURS, `the room about ${hz} Hz, year ${year}`).toBeGreaterThan(0.93)
+      expect(sum / NEIGHBOURS, `the room about ${hz} Hz, year ${year}`).toBeLessThan(1.05)
     }
   })
 
