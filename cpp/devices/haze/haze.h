@@ -358,7 +358,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // loss at its top, which makes the tail 1 / (1 - kFeedShare) as long
   // (measured: 2.2 to 3.2 times).
   static constexpr float kLineShare = 0.25f;
-  static constexpr float kWetGain = 1.26f;
+  static constexpr float kWetGain = 1.12f;
   static constexpr float kFeedShare = 0.65f;
   static constexpr float kFeedMost = 0.9f;
   // What Feed returns is moved up in frequency on the way, by a little less
