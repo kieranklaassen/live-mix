@@ -9,11 +9,15 @@
 // the curve in use is drawn in that ink.
 //
 // Right, the wall: the level against the seconds since the playing stopped,
-// falling 60 dB in the time Decay and Feed make (`derive()` of haze.h). Under
-// it, the highs: where Tone's tilt and low-pass put 3 kHz against 250 Hz, and
-// the faster fall the wall's damping gives them. The dashed line is the same
-// fall as Mix lets it out, and the wedge in the second ink is the wall as
-// loud as it stands now, on its way down.
+// falling 60 dB in the time the device takes. Decay sets the wall's own fall
+// (`derive()` of haze.h), Feed returns a share of what it loses and Blur's
+// first reverb rings into it: those three are the header's sums with five
+// figures measured from the compiled device (HAZE_MEASURED below). Under it,
+// the highs: where Tone's tilt and low-pass put 3 kHz against 250 Hz, and the
+// faster fall the wall's damping gives them. The dashed line is the same fall
+// as Mix lets it out, and the wedge in the second ink is the wall as loud as
+// it stands now, on its way down. With Mix at nothing none of it is heard,
+// and nothing is lit.
 
 import {
   INK,
@@ -37,7 +41,6 @@ import {
 } from '../display-kit'
 import {
   plateDisplay,
-  type DisplayFrame,
   type DisplayHandle,
   type DisplayView,
   type PlateFace,
@@ -75,6 +78,30 @@ export const HAZE = {
   lineShare: 0.25,
   feedShare: 0.65,
   feedMost: 0.9,
+  /** kBlurLoop, and one trip round the first reverb (kBlurLoopDelay[0] and kBlurAllpass[0] at 48 kHz). */
+  blurLoop: 0.6,
+  blurTrip: (1109 + 337 + 521 + 811 + 1259 + 1733) / 48000,
+} as const
+
+/**
+ * What the header's figures do not say and the device was measured for: a
+ * noise held for two seconds through the compiled device, wet only, and the
+ * time from its end until the level (windows of 50 ms) is 60 dB under where
+ * it stood, over Decay, Size, Feed, Blur and Tone (213 settings, in the test
+ * beside this file). The fall below is the header's own sums with these five
+ * figures in them, and it stands within a quarter of every measurement, within
+ * a tenth of most.
+ */
+export const HAZE_MEASURED = {
+  /** The wall alone falls 60 dB in this much of Decay (its damping takes the highs sooner). */
+  wall: 0.96,
+  /** How much of the share `derive()` returns comes back as sound, at Tone 0, 0.5 and 1 (the tilt takes from one side), and what full Blur adds to it. */
+  back: [0.5, 0.66, 0.34],
+  backWithBlur: 0.37,
+  /** The seconds what is fed back spends on its way round before the wall takes from it again. */
+  trip: 0.143,
+  /** The first reverb rings this many times longer than its loop's gain alone would have it: its allpasses ring too. */
+  ring: 2.3,
 } as const
 
 /** `kit::fast_tanh` (cpp/kit/math.h). */
@@ -87,7 +114,8 @@ export function fastTanh(value: number): number {
 export const hazeDrive = (haze: number): number =>
   HAZE.driveMin * Math.pow(HAZE.driveMax / HAZE.driveMin, clamp(haze, 0, 1))
 
-const folded = (q: number): number => Math.sqrt(q * q + HAZE.foldSoft * HAZE.foldSoft) - HAZE.foldSoft
+const folded = (q: number): number =>
+  Math.sqrt(q * q + HAZE.foldSoft * HAZE.foldSoft) - HAZE.foldSoft
 
 /** One cycle of a full-level sine at the table's points, and the mean of its fold. */
 const CYCLE = Array.from({ length: HAZE.tablePoints }, (_, j) =>
@@ -101,42 +129,111 @@ export function hazeFolded(q: number, octave: number): number {
   return (1 - fold) * q + fold * HAZE.foldGain * (folded(q) - FOLD_MEAN)
 }
 
+/** A finer cycle of the same sine, for the mean that the device's DC blocker takes out. */
+const FINE = Array.from({ length: 96 }, (_, j) => Math.sin((2 * Math.PI * (j + 0.5)) / 96))
+
 /**
- * `build_table()`: the gain that puts a sine back at the RMS it had, for peaks
- * that reach `push` on the curve: push / (√2 × the curve's RMS over a cycle).
+ * What leaves the fuzz for a wave at full level, as a function worked out once
+ * for a Haze and an Octave: `q` is the wave with its level taken out (peaks at
+ * ±1) and the result is in the same units, so the straight line out = in is no
+ * change. The curve is the kit's tanh of the drive times the folded wave;
+ * `build_table()`'s hold puts a sine back at the RMS it had (the push, over
+ * √2 times the curve's RMS over a cycle of 24 points), and the DC blocker
+ * after the curve takes out the mean a folded wave leaves with.
  */
-export function hazeHold(push: number, octave: number): number {
-  const reach = Math.max(push, 1e-3)
+export function hazeBend(haze: number, octave: number): (q: number) => number {
+  const drive = hazeDrive(haze)
   let sum = 0
   let squares = 0
   for (const n of CYCLE) {
-    const s = fastTanh(reach * hazeFolded(n, octave))
+    const s = fastTanh(drive * hazeFolded(n, octave))
     sum += s
     squares += s * s
   }
-  const mean = sum / CYCLE.length
-  const rms = Math.sqrt(Math.max(squares / CYCLE.length - mean * mean, 1e-20))
-  return (reach * Math.SQRT1_2) / rms
+  const rms = Math.sqrt(Math.max(squares / CYCLE.length - (sum / CYCLE.length) ** 2, 1e-20))
+  // hold(push) / drive at a push of the drive itself: the level is the wave's own.
+  const gain = Math.SQRT1_2 / rms
+  let mean = 0
+  for (const n of FINE) mean += fastTanh(drive * hazeFolded(n, octave)) / FINE.length
+  return (q) => (fastTanh(drive * hazeFolded(q, octave)) - mean) * gain
 }
 
-/**
- * What leaves the fuzz for a wave at full level: `q` is the wave with its level
- * taken out (peaks at ±1), and the result is in the same units, so the straight
- * line out = in is no change.
- */
-export function hazeCurve(q: number, haze: number, octave: number): number {
-  const drive = hazeDrive(haze)
-  return (fastTanh(drive * hazeFolded(q, octave)) * hazeHold(drive, octave)) / drive
-}
+/** One point of that curve. */
+export const hazeCurve = (q: number, haze: number, octave: number): number =>
+  hazeBend(haze, octave)(q)
 
-/** `derive()`: the seconds the wall takes to fall 60 dB, with what Feed returns. */
-export function hazeSeconds(decay: number, size: number, feed: number): number {
+/** `derive()`: the share of the wall's loss that Feed sets out to make good. */
+export function hazeShare(decay: number, size: number, feed: number): number {
   const exponent = (-3 * HAZE.lineSeconds * lerp(HAZE.minScale, HAZE.maxScale, size)) / decay
   const gain = Math.pow(10, exponent)
   const loss = Math.max(1 - gain * gain, 1e-4)
   const back = feed * Math.min(Math.sqrt((HAZE.feedShare * loss) / HAZE.lineShare), HAZE.feedMost)
-  const share = (back * back * HAZE.lineShare) / loss
-  return decay / (1 - share)
+  return (back * back * HAZE.lineShare) / loss
+}
+
+/** The energy that leaves in 60 dB of fall, as a rate: e^(-RATE) is a millionth. */
+const RATE = Math.log(1e6)
+
+/**
+ * The seconds the wall alone takes to fall 60 dB with what Feed returns: the
+ * wall loses at its own rate, and the share that comes back does so a trip
+ * later, having lost nothing on the way (rate = own × (1 − share × e^(rate × trip))).
+ */
+export function hazeWallSeconds(
+  decay: number,
+  size: number,
+  feed: number,
+  blur: number,
+  tone: number,
+): number {
+  const [dark, even, bright] = HAZE_MEASURED.back
+  const through = tone < 0.5 ? lerp(dark, even, 2 * tone) : lerp(even, bright, 2 * tone - 1)
+  const share = hazeShare(decay, size, feed) * through * (1 + HAZE_MEASURED.backWithBlur * blur)
+  const own = RATE / (HAZE_MEASURED.wall * decay)
+  let rate = own
+  for (let round = 0; round < 60; round++) {
+    rate = 0.5 * rate + 0.5 * own * (1 - share * Math.exp(Math.min(rate * HAZE_MEASURED.trip, 3)))
+  }
+  return RATE / Math.max(rate, 1e-3)
+}
+
+/** `derive()`: the seconds the first reverb rings: its loop's gain is Blur's, held under the gain that would take Decay. */
+export function hazeBlurSeconds(decay: number, blur: number): number {
+  const loop = Math.min(HAZE.blurLoop * blur, Math.pow(10, (-3 * HAZE.blurTrip) / decay))
+  if (loop <= 1e-6) return 0
+  return (HAZE_MEASURED.ring * -3 * HAZE.blurTrip) / Math.log10(loop)
+}
+
+/**
+ * The seconds from the end of the playing until the wall is 60 dB under where
+ * it stood: the wall's fall, and before it the first reverb's for the share of
+ * the sound Blur sends through it (one fall into another: the energy left is
+ * (b e^(-at) − a e^(-bt)) / (b − a) for the rates a and b).
+ */
+export function hazeSeconds(
+  decay: number,
+  size: number,
+  feed: number,
+  blur: number,
+  tone: number,
+): number {
+  const wall = hazeWallSeconds(decay, size, feed, blur, tone)
+  const first = hazeBlurSeconds(decay, blur)
+  if (first <= 0) return wall
+  const a = RATE / wall
+  const b = Math.abs(RATE / first - a) < 1e-6 * a ? a * 1.0001 : RATE / first
+  const smeared = Math.sin((Math.PI / 2) * clamp(blur, 0, 1)) ** 2
+  const left = (t: number): number =>
+    (1 - smeared) * Math.exp(-a * t) +
+    (smeared * (b * Math.exp(-a * t) - a * Math.exp(-b * t))) / (b - a)
+  let from = 0
+  let to = 4 * (wall + first)
+  for (let step = 0; step < 50; step++) {
+    const middle = (from + to) / 2
+    if (left(middle) > 1e-6) from = middle
+    else to = middle
+  }
+  return to
 }
 
 /** The rate the wall's damping is worked out at: a handle is not told the device's. */
@@ -186,10 +283,10 @@ export const hazeWetDb = (mix: number): number =>
 // --- The picture ------------------------------------------------------------
 
 /** The wave's level across the curve's box, either way, and what comes out up and down. */
-const IN_SPAN = 1.15
-const OUT_SPAN = 1.1
+const IN_SPAN = 1.05
+const OUT_SPAN = 1.45
 /** Where the Haze point stands on the curve, as the wave's level: far out with no drive, near the middle at full. */
-const HAZE_AT_REST = 1.05
+const HAZE_AT_REST = 0.95
 const HAZE_AT_FULL = 0.1
 /** The seconds across the wall's box, and the levels at its top and foot: 10 dB over the wall's own level, for highs that Tone lifts over the body. */
 const TAIL_SPAN = 12
@@ -215,8 +312,19 @@ export function hazeBoxes(view: Pick<DisplayView, 'width' | 'height'>): HazeBoxe
 
 const xOfIn = (q: number, box: Box): number => box.x + ((q + IN_SPAN) / (2 * IN_SPAN)) * box.w
 const inOfX = (x: number, box: Box): number => ((x - box.x) / box.w) * 2 * IN_SPAN - IN_SPAN
-const yOfOut = (out: number, box: Box): number => box.y + ((OUT_SPAN - out) / (2 * OUT_SPAN)) * box.h
+const yOfOut = (out: number, box: Box): number =>
+  box.y + ((OUT_SPAN - out) / (2 * OUT_SPAN)) * box.h
 const xOfSec = (sec: number, box: Box): number => box.x + (sec / TAIL_SPAN) * box.w
+
+/** Where the curve stands in its box for the wave `q` at a Haze and Octave. */
+export function hazeCurveAt(box: Box, q: number, haze: number, octave: number): Point {
+  return [xOfIn(q, box), yOfOut(hazeCurve(q, haze, octave), box)]
+}
+
+/** Where a time since the playing stopped and a level against the wall's own stand in the wall's box. */
+export function hazeTailAt(box: Box, seconds: number, db: number): Point {
+  return [xOfSec(seconds, box), yOfDb(db, box, TOP_DB, FOOT_DB)]
+}
 
 /** Where a fall of 60 dB in `seconds` from full scale ends in the box: on its foot, or on its right edge when it is longer than the box. */
 export function hazeFallEnd(box: Box, seconds: number): Point {
@@ -234,19 +342,19 @@ export function hazeFallThrough(box: Box, x: number, y: number): number {
 /** The Decay whose wall, with this Size and Feed, takes `seconds` to fall 60 dB. */
 export function hazeDecayFor(
   seconds: number,
-  size: number,
-  feed: number,
+  rest: { size: number; feed: number; blur: number; tone: number },
   low: number,
   high: number,
 ): number {
+  const { size, feed, blur, tone } = rest
   // The fall grows with Decay: halve the range of Decay (by ratio) until it stands on the time.
   let from = low
   let to = high
-  if (hazeSeconds(from, size, feed) >= seconds) return from
-  if (hazeSeconds(to, size, feed) <= seconds) return to
+  if (hazeSeconds(from, size, feed, blur, tone) >= seconds) return from
+  if (hazeSeconds(to, size, feed, blur, tone) <= seconds) return to
   for (let step = 0; step < 40; step++) {
     const middle = Math.sqrt(from * to)
-    if (hazeSeconds(middle, size, feed) < seconds) from = middle
+    if (hazeSeconds(middle, size, feed, blur, tone) < seconds) from = middle
     else to = middle
   }
   return Math.sqrt(from * to)
@@ -269,7 +377,13 @@ function hazeHandles(view: DisplayView): DisplayHandle[] {
   const decaySpec = view.spec('decay')
   const at = lerp(HAZE_AT_REST, HAZE_AT_FULL, haze)
   const hazeX = xOfIn(at, curve)
-  const seconds = hazeSeconds(view.value('decay'), view.value('size'), view.value('feed'))
+  const rest = {
+    size: view.value('size'),
+    feed: view.value('feed'),
+    blur: view.value('blur'),
+    tone: view.value('tone'),
+  }
+  const seconds = hazeSeconds(view.value('decay'), rest.size, rest.feed, rest.blur, rest.tone)
   const [endX, endY] = hazeFallEnd(tail, seconds)
   return [
     {
@@ -298,8 +412,7 @@ function hazeHandles(view: DisplayView): DisplayHandle[] {
             ? view.value('decay')
             : hazeDecayFor(
                 hazeFallThrough(tail, toX, toY),
-                view.value('size'),
-                view.value('feed'),
+                rest,
                 decaySpec?.min ?? 0.5,
                 decaySpec?.max ?? 30,
               ),
@@ -321,7 +434,7 @@ function fallPoints(box: Box, fromDb: number, seconds: number): Point[] {
 
 const haze = plateDisplay<HazeState>({
   place: 'strip',
-  params: ['haze', 'octave', 'decay', 'size', 'feed', 'tone', 'mix'],
+  params: ['haze', 'octave', 'decay', 'size', 'feed', 'blur', 'tone', 'mix'],
   live: { meters: true },
   info: 'Left, the curve the blurred sound is bent along at this Haze and Octave, with a dot where its peaks reach now. Right, the wall falling over Decay and Feed, its highs under it by Tone, dashed as Mix lets it out and lit as loud as it stands. Drag the points for Haze and Decay.',
   init: () => ({ reach: 0, wall: 0 }),
@@ -336,7 +449,8 @@ const haze = plateDisplay<HazeState>({
     // The device's two readings: how far up the curve the peaks reach (the
     // push is the drive times the level's share of level + floor), and the
     // wall's peak as it leaves. A still draw stands on them; a running one follows.
-    const live = frame.powered && frame.hasMeter('push')
+    const wet = hazeWetDb(frame.value('mix'))
+    const live = frame.powered && frame.hasMeter('push') && wet > FOOT_DB
     const reach = live ? clamp(frame.meter('push') / hazeDrive(amount), 0, 1) : 0
     const wall = live ? Math.max(0, frame.meter('wall')) : 0
     state.reach = frame.dt > 0 ? follow(state.reach, reach, frame.dt, 0.03, 0.2) : reach
@@ -345,8 +459,14 @@ const haze = plateDisplay<HazeState>({
     // The fuzz: out against in, over the two axes and the line of no change.
     const middleX = xOfIn(0, curve)
     const middleY = yOfOut(0, curve)
-    rule(ctx, curve.x, middleY, curve.x + curve.w, middleY, { colour: colours.ink, alpha: INK.grid })
-    rule(ctx, middleX, curve.y, middleX, curve.y + curve.h, { colour: colours.ink, alpha: INK.grid })
+    rule(ctx, curve.x, middleY, curve.x + curve.w, middleY, {
+      colour: colours.ink,
+      alpha: INK.grid,
+    })
+    rule(ctx, middleX, curve.y, middleX, curve.y + curve.h, {
+      colour: colours.ink,
+      alpha: INK.grid,
+    })
     clipped(ctx, curve, () => {
       trace(
         ctx,
@@ -356,11 +476,12 @@ const haze = plateDisplay<HazeState>({
         ],
         { colour: colours.ink, width: 1, alpha: INK.rule, dash: [2, 2] },
       )
+      const bend = hazeBend(amount, octave)
       const bent: Point[] = []
       const used: Point[] = []
       for (let x = 0; x <= curve.w; x += 1) {
         const q = inOfX(curve.x + x, curve)
-        const point: Point = [curve.x + x, yOfOut(hazeCurve(q, amount, octave), curve)]
+        const point: Point = [curve.x + x, yOfOut(bend(q), curve)]
         bent.push(point)
         if (Math.abs(q) <= state.reach) used.push(point)
       }
@@ -369,16 +490,22 @@ const haze = plateDisplay<HazeState>({
         trace(ctx, used, { colour: colours.accent, width: 2.5 })
         for (const side of [-1, 1]) {
           const q = side * state.reach
-          dot(ctx, xOfIn(q, curve), yOfOut(hazeCurve(q, amount, octave), curve), 2.5, colours.accent, {
-            ring: colours.ink,
-          })
+          const [x, y] = hazeCurveAt(curve, q, amount, octave)
+          dot(ctx, x, y, 2.5, colours.accent, { ring: colours.ink })
         }
       }
     })
 
     // The wall: its fall, the highs under it, what Mix lets out, and what stands in it now.
     const foot = tail.y + tail.h
-    const seconds = hazeSeconds(frame.value('decay'), frame.value('size'), frame.value('feed'))
+    const tone = frame.value('tone')
+    const seconds = hazeSeconds(
+      frame.value('decay'),
+      frame.value('size'),
+      frame.value('feed'),
+      frame.value('blur'),
+      tone,
+    )
     dbGrid(frame, tail, TOP_DB, FOOT_DB, 20, 0)
     for (let sec = 4; sec < TAIL_SPAN; sec += 4) {
       const x = xOfSec(sec, tail)
@@ -386,14 +513,12 @@ const haze = plateDisplay<HazeState>({
     }
     rule(ctx, tail.x, foot, tail.x + tail.w, foot, { colour: colours.ink, alpha: INK.rule })
     const body = fallPoints(tail, 0, seconds)
-    const tone = frame.value('tone')
     const highDb = hazeToneDb(HAZE_HIGH_HZ, tone) - hazeToneDb(HAZE_BODY_HZ, tone)
     const highs = fallPoints(
       tail,
       highDb,
       Math.min(seconds, hazeFall(HAZE_HIGH_HZ, frame.value('decay'), frame.value('size'))),
     )
-    const wet = hazeWetDb(frame.value('mix'))
     clipped(ctx, { x: tail.x, y: tail.y - 1, w: tail.w, h: tail.h + 2 }, () => {
       fillTo(ctx, body, foot, colours.ink, INK.fill)
       if (highDb > FOOT_DB) {
@@ -418,7 +543,8 @@ const haze = plateDisplay<HazeState>({
     })
     label(frame, secondsText(seconds), tail.x + tail.w - 1, tail.y + 8, 'right')
 
-    for (const point of hazeHandles(frame)) handle(frame, point.x, point.y, { hot: hot === point.key })
+    for (const point of hazeHandles(frame))
+      handle(frame, point.x, point.y, { hot: hot === point.key })
   },
   handles: hazeHandles,
 })
