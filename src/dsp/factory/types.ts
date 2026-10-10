@@ -10,6 +10,7 @@ import { type LoopFold, type Phrase } from '../patch-render'
 export type FactoryPresetCategory =
   | 'pad'
   | 'keys'
+  | 'bass'
   | 'bell'
   | 'string'
   | 'plucked'
@@ -21,7 +22,8 @@ export type FactoryPresetCategory =
   | 'drum'
 
 /** The phrases a preset can be auditioned with (./phrases.ts). */
-export type FactoryPhraseName = 'chord' | 'keys' | 'bells' | 'line' | 'low' | 'hold' | 'drum'
+export type FactoryPhraseName =
+  'chord' | 'keys' | 'bass' | 'bells' | 'line' | 'low' | 'hold' | 'drum'
 
 /** An instrument with its settings and the effects after it. */
 export interface FactoryPreset extends Patch {

@@ -2,6 +2,7 @@
 
 import { type DeviceDescriptor } from '../../core/devices'
 import { type WasmDeviceDefinition } from '../WasmDevice'
+import { ACID_BASS_DESCRIPTOR, ACID_BASS_DEVICE } from './acid-bass.gen'
 import { ACOUSTIC_GUITAR_DESCRIPTOR, ACOUSTIC_GUITAR_DEVICE } from './acoustic-guitar.gen'
 import { AFTERGLOW_DESCRIPTOR, AFTERGLOW_DEVICE } from './afterglow.gen'
 import { AMBIENT_COMP_DESCRIPTOR, AMBIENT_COMP_DEVICE } from './ambient-comp.gen'
@@ -31,6 +32,7 @@ import { FEEDBACK_DESCRIPTOR, FEEDBACK_DEVICE } from './feedback.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
 import { FLOCK_DESCRIPTOR, FLOCK_DEVICE } from './flock.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
+import { FM_BASS_DESCRIPTOR, FM_BASS_DEVICE } from './fm-bass.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
 import { GLITCH_DESCRIPTOR, GLITCH_DEVICE } from './glitch.gen'
@@ -77,7 +79,9 @@ import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
+import { STRING_BASS_DESCRIPTOR, STRING_BASS_DEVICE } from './string-bass.gen'
 import { STRING_MACHINE_DESCRIPTOR, STRING_MACHINE_DEVICE } from './string-machine.gen'
+import { SUB_BASS_DESCRIPTOR, SUB_BASS_DEVICE } from './sub-bass.gen'
 import { SUSTAINER_DESCRIPTOR, SUSTAINER_DEVICE } from './sustainer.gen'
 import { SWARM_REVERB_DESCRIPTOR, SWARM_REVERB_DEVICE } from './swarm-reverb.gen'
 import { SWELL_DESCRIPTOR, SWELL_DEVICE } from './swell.gen'
@@ -100,6 +104,7 @@ import { WIND_HARP_DESCRIPTOR, WIND_HARP_DEVICE } from './wind-harp.gen'
 import { ZITHER_DESCRIPTOR, ZITHER_DEVICE } from './zither.gen'
 import { ZONE_SAMPLER_DESCRIPTOR, ZONE_SAMPLER_DEVICE } from './zone-sampler.gen'
 
+export * from './acid-bass.gen'
 export * from './acoustic-guitar.gen'
 export * from './afterglow.gen'
 export * from './ambient-comp.gen'
@@ -129,6 +134,7 @@ export * from './feedback.gen'
 export * from './flanger.gen'
 export * from './flock.gen'
 export * from './flute.gen'
+export * from './fm-bass.gen'
 export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
 export * from './glitch.gen'
@@ -175,7 +181,9 @@ export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
 export * from './staircase.gen'
 export * from './stereo-detune.gen'
+export * from './string-bass.gen'
 export * from './string-machine.gen'
+export * from './sub-bass.gen'
 export * from './sustainer.gen'
 export * from './swarm-reverb.gen'
 export * from './swell.gen'
@@ -200,6 +208,7 @@ export * from './zone-sampler.gen'
 
 /** Every generated WASM device, in id order; part of `STOCK_WASM_DEVICES`. */
 export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
+  ACID_BASS_DESCRIPTOR,
   ACOUSTIC_GUITAR_DESCRIPTOR,
   AFTERGLOW_DESCRIPTOR,
   AMBIENT_COMP_DESCRIPTOR,
@@ -229,6 +238,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   FLANGER_DESCRIPTOR,
   FLOCK_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
+  FM_BASS_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
   GLITCH_DESCRIPTOR,
@@ -275,7 +285,9 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPRING_REVERB_DESCRIPTOR,
   STAIRCASE_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
+  STRING_BASS_DESCRIPTOR,
   STRING_MACHINE_DESCRIPTOR,
+  SUB_BASS_DESCRIPTOR,
   SUSTAINER_DESCRIPTOR,
   SWARM_REVERB_DESCRIPTOR,
   SWELL_DESCRIPTOR,
@@ -301,6 +313,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
 
 /** Their definitions (module location and parameter table), in the same order. */
 export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
+  ACID_BASS_DEVICE,
   ACOUSTIC_GUITAR_DEVICE,
   AFTERGLOW_DEVICE,
   AMBIENT_COMP_DEVICE,
@@ -330,6 +343,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   FLANGER_DEVICE,
   FLOCK_DEVICE,
   FLUTE_DEVICE,
+  FM_BASS_DEVICE,
   FM_GLASS_DEVICE,
   FREQ_SHIFTER_DEVICE,
   GLITCH_DEVICE,
@@ -376,7 +390,9 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPRING_REVERB_DEVICE,
   STAIRCASE_DEVICE,
   STEREO_DETUNE_DEVICE,
+  STRING_BASS_DEVICE,
   STRING_MACHINE_DEVICE,
+  SUB_BASS_DEVICE,
   SUSTAINER_DEVICE,
   SWARM_REVERB_DEVICE,
   SWELL_DEVICE,
@@ -402,6 +418,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
 
 /** What the device-agnostic tests need to know about each generated artefact. */
 export const GENERATED_WASM_DEVICES = [
+  { id: 'acid-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'acoustic-guitar', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'afterglow', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'ambient-comp', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
@@ -438,6 +455,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'flock', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'fm-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'glitch', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 10 },
@@ -484,7 +502,9 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'string-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'string-machine', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'sub-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'sustainer', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'swarm-reverb', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'swell', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },

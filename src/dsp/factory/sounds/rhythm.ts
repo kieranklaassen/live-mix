@@ -173,3 +173,19 @@ export function bars(
     bpm: WRITTEN_BPM,
   }
 }
+
+/**
+ * A phrase that comes round and keeps time, written as strokes: `cycled` with
+ * the tempo it is written at. For a line too free for rows of steps (a note
+ * held across a bar line, a slide): `seconds` is whole bars at 120.
+ */
+export function inTime(
+  seconds: number,
+  strokes: readonly Stroke[],
+  options: BarsOptions = {},
+): Pick<
+  FactorySound,
+  'phrase' | 'durationSec' | 'skipSec' | 'loopCrossfadeSec' | 'loopFold' | 'bpm'
+> {
+  return { ...cycled(seconds, strokes, options), bpm: WRITTEN_BPM }
+}

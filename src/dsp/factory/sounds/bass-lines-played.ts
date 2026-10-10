@@ -1,0 +1,641 @@
+// Bass lines played by hands: an electric bass under fingers, a pick, a thumb or the heel of a hand, a
+// fretless and a plucked upright, each a few bars that come round. Numbers 253 to 268. What every sound
+// here is held to is in docs/factory.md.
+//
+// Written at 120 bpm in four: a bar is 2 s, a sixteenth 0.125 s, and every note starts on one (but in the
+// one line in free time). Every setting of the string bass is written out, so a line measures the same
+// whatever the device preset it names is set to later.
+//
+// The hands: a note is on the string a player would take it on (E, A, D or G: 28, 33, 38, 43), an open
+// string rings on under the next note only when that note is on another string and not a step away from
+// it, and no more than two strings sound at once. A dead note is a soft key let go after a twentieth of a
+// second.
+//
+// A plucked note is a tall peak over little body, so each line goes through something that rounds the
+// peak off (the tape curve of `soften`, a driven circuit, an amplifier): none of them is more than a
+// millisecond late. Tape is not used: the `tape` device plays 8.7 ms behind the bar line.
+
+import { type PatchDevice } from '../../../core/devices/patch'
+import { hall, soften } from '../parts'
+import { type FactorySound } from '../types'
+import { sound } from './recipe'
+import { inTime } from './rhythm'
+
+const ELECTRIC = 0
+const FRETLESS = 1
+const UPRIGHT = 2
+
+/** Every parameter of the string bass: a line names them all. */
+type Strings = Readonly<
+  Record<
+    | 'type'
+    | 'touch'
+    | 'position'
+    | 'tone'
+    | 'mute'
+    | 'sustain'
+    | 'release'
+    | 'growl'
+    | 'resonance'
+    | 'volume',
+    number
+  >
+>
+
+const bass = (preset: string, params: Strings): PatchDevice => ({
+  deviceId: 'string-bass',
+  preset,
+  params,
+})
+
+const drive = (preset: string): PatchDevice => ({ deviceId: 'analog-drive', preset })
+
+export const BASS_LINES_PLAYED: readonly FactorySound[] = [
+  sound({
+    id: 'fingered-ostinato-g',
+    number: 253,
+    name: 'Fingered ostinato {G}',
+    kind: 'beat',
+    description:
+      'A fingered electric bass figure on a low {G}: a dead note, then the open string a fifth above left to ring under the octave; it comes round.',
+    instrument: bass('Warm fingers', {
+      type: ELECTRIC,
+      touch: 0.3,
+      position: 0.22,
+      tone: 0.55,
+      mute: 0,
+      sustain: 5,
+      release: 0.15,
+      growl: 0.25,
+      resonance: 0.35,
+      volume: -6,
+    }),
+    effects: [drive('Warm glue')],
+    ...inTime(
+      8,
+      [
+        [0, 0.55, 31, 0.9],
+        [0.75, 0.05, 31, 0.3],
+        [1, 0.65, 38, 0.65],
+        [1.5, 0.2, 43, 0.55],
+        [1.75, 0.2, 41, 0.6],
+        [2, 0.55, 31, 0.85],
+        [2.75, 0.05, 31, 0.3],
+        [3, 0.45, 38, 0.65],
+        [3.5, 0.4, 40, 0.55],
+        [4, 0.55, 31, 0.9],
+        [4.75, 0.05, 31, 0.3],
+        [5, 0.65, 38, 0.65],
+        [5.5, 0.2, 43, 0.55],
+        [5.75, 0.2, 41, 0.6],
+        [6, 0.55, 31, 0.85],
+        [6.75, 0.05, 31, 0.3],
+        [7, 0.45, 38, 0.65],
+        [7.5, 0.2, 41, 0.55],
+        [7.75, 0.2, 38, 0.5],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+  sound({
+    id: 'picked-eighths-dm',
+    number: 254,
+    name: 'Picked eighths {D}m',
+    kind: 'beat',
+    description:
+      'Eighth notes picked on the open {D} of an electric bass through a valve amplifier, stepping aside late in the second bar; it comes round.',
+    instrument: bass('Bright pick', {
+      type: ELECTRIC,
+      touch: 0.85,
+      position: 0.13,
+      tone: 0.75,
+      mute: 0.12,
+      sustain: 5,
+      release: 0.1,
+      growl: 0.1,
+      resonance: 0.5,
+      volume: -6,
+    }),
+    // A closed cabinet with the microphone on the cone: no room to speak of, and no hiss, which would not come round.
+    effects: [
+      {
+        deviceId: 're-amp',
+        preset: 'Warm stack',
+        params: { distance: 0.05, room: 0.2, noise: 0 },
+      },
+    ],
+    ...inTime(
+      4,
+      [
+        [0, 0.22, 38, 0.9],
+        [0.25, 0.22, 38, 0.55],
+        [0.5, 0.22, 38, 0.65],
+        [0.75, 0.22, 38, 0.55],
+        [1, 0.22, 38, 0.8],
+        [1.25, 0.22, 38, 0.55],
+        [1.5, 0.22, 38, 0.65],
+        [1.75, 0.22, 38, 0.55],
+        [2, 0.22, 38, 0.9],
+        [2.25, 0.22, 38, 0.55],
+        [2.5, 0.22, 38, 0.65],
+        [2.75, 0.22, 38, 0.55],
+        [3, 0.22, 41, 0.8],
+        [3.25, 0.22, 41, 0.55],
+        [3.5, 0.22, 36, 0.7],
+        [3.75, 0.22, 36, 0.55],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+  sound({
+    id: 'muted-thud-line-e',
+    number: 255,
+    name: 'Muted thud line {E}',
+    kind: 'beat',
+    description:
+      'An electric bass with the heel of the hand on the strings: short dark thuds on {E}, three and then two to the bar; it comes round.',
+    // Half muted and let go early: muted further, a thud is so short that its pitch is spread over the keys
+    // beside it (a third of its power on the black keys at Mute 0.7, a fifth here).
+    instrument: bass('Muted thud', {
+      type: ELECTRIC,
+      touch: 0.2,
+      position: 0.35,
+      tone: 0.3,
+      mute: 0.5,
+      sustain: 5,
+      release: 0.08,
+      growl: 0,
+      resonance: 0.2,
+      volume: 0,
+    }),
+    effects: [soften(18)],
+    ...inTime(
+      4,
+      [
+        [0, 0.2, 40, 0.9],
+        [0.375, 0.15, 40, 0.6],
+        [0.75, 0.2, 40, 0.7],
+        [1, 0.15, 35, 0.6],
+        [1.5, 0.2, 38, 0.65],
+        [2, 0.2, 40, 0.9],
+        [2.375, 0.15, 40, 0.6],
+        [2.75, 0.2, 40, 0.7],
+        [3, 0.15, 41, 0.6],
+        [3.5, 0.2, 38, 0.65],
+        [3.75, 0.04, 38, 0.3],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+  sound({
+    id: 'slow-root-and-fifth-c',
+    number: 256,
+    name: 'Slow root and fifth {C}',
+    kind: 'beat',
+    description:
+      'A long low {C} on a fingered electric bass, then its fifth above on the open string and below, all left to ring; it comes round.',
+    instrument: bass('Let it ring', {
+      type: ELECTRIC,
+      touch: 0.15,
+      position: 0.3,
+      tone: 0.45,
+      mute: 0,
+      sustain: 14,
+      release: 1,
+      growl: 0.1,
+      resonance: 0.3,
+      volume: -6,
+    }),
+    effects: [drive('Warm glue')],
+    ...inTime(16, [
+      [0, 3.4, 36, 0.9],
+      [4, 1.8, 43, 0.6],
+      [6, 1.8, 31, 0.65],
+      [8, 3.4, 36, 0.85],
+      [12, 1.8, 31, 0.65],
+      [14, 1.7, 43, 0.55],
+    ]),
+  }),
+  sound({
+    id: 'syncopated-fingers-f',
+    number: 257,
+    name: 'Syncopated fingers {F}',
+    kind: 'beat',
+    description:
+      'A dark, short-lived fingered electric bass that lands on {F} and then between the beats, with a dead note; it comes round.',
+    instrument: bass('Dark flat strings', {
+      type: ELECTRIC,
+      touch: 0.2,
+      position: 0.3,
+      tone: 0.22,
+      mute: 0,
+      sustain: 1.8,
+      release: 0.15,
+      growl: 0,
+      resonance: 0.1,
+      volume: -3,
+    }),
+    effects: [soften(15)],
+    ...inTime(
+      8,
+      [
+        [0, 0.3, 41, 0.9],
+        [0.375, 0.05, 41, 0.3],
+        [0.75, 0.25, 41, 0.6],
+        [1.375, 0.45, 36, 0.65],
+        [2, 0.3, 41, 0.85],
+        [2.75, 0.25, 41, 0.6],
+        [3.375, 0.8, 33, 0.65],
+        [4, 0.3, 41, 0.9],
+        [4.375, 0.05, 41, 0.3],
+        [4.75, 0.25, 41, 0.6],
+        [5.375, 0.45, 36, 0.65],
+        [6, 0.3, 41, 0.85],
+        [6.75, 0.25, 41, 0.6],
+        [7.375, 0.2, 36, 0.6],
+        [7.75, 0.2, 40, 0.55],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+  sound({
+    id: 'thumb-dub-line-am',
+    number: 258,
+    name: 'Thumb dub line {A}m',
+    kind: 'beat',
+    description:
+      'A round dub bass line plucked with the thumb at the neck: the open {A}, a third above it, and more than a bar of rest; it comes round.',
+    instrument: bass('Thumb at the neck', {
+      type: ELECTRIC,
+      touch: 0,
+      position: 0.5,
+      tone: 0.35,
+      mute: 0,
+      sustain: 8,
+      release: 0.4,
+      growl: 0,
+      resonance: 0.15,
+      volume: -5.5,
+    }),
+    effects: [drive('Low warmth')],
+    ...inTime(8, [
+      [0, 0.4, 33, 0.9],
+      [0.75, 0.2, 33, 0.6],
+      [1, 0.7, 36, 0.75],
+      [4, 0.4, 33, 0.9],
+      [4.75, 0.2, 33, 0.6],
+      [5, 0.45, 36, 0.7],
+      [5.5, 0.45, 38, 0.65],
+      [6, 0.9, 40, 0.75],
+      [7.5, 0.35, 31, 0.6],
+    ]),
+  }),
+  sound({
+    id: 'fretless-slow-line-dm',
+    number: 259,
+    name: 'Fretless slow line {D}m',
+    kind: 'melodic',
+    description:
+      'A fretless bass sings a slow line from the open {D} up a seventh and back down the scale, each note opening after the pluck; it comes round.',
+    instrument: bass('Singing fretless', {
+      type: FRETLESS,
+      touch: 0.35,
+      position: 0.2,
+      tone: 0.6,
+      mute: 0,
+      sustain: 7,
+      release: 0.25,
+      growl: 0.75,
+      resonance: 0.5,
+      volume: -6,
+    }),
+    effects: [soften(14), hall('Room', 0.12)],
+    ...inTime(16, [
+      [0, 3, 38, 0.85],
+      [2.5, 1.4, 45, 0.6],
+      [4, 2.4, 48, 0.7],
+      [6.5, 1.4, 47, 0.55],
+      [8, 2.4, 45, 0.8],
+      [10.5, 1.4, 43, 0.55],
+      [12, 2.4, 41, 0.7],
+      [14.5, 1.3, 40, 0.6],
+    ]),
+  }),
+  sound({
+    id: 'fretless-bloom-e',
+    number: 260,
+    name: 'Fretless bloom {E}',
+    kind: 'melodic',
+    description:
+      'Three long notes on a fretless bass, {E} and two above it, plucked softly so the tone swells open afterwards; it comes round.',
+    instrument: bass('Growling fretless', {
+      type: FRETLESS,
+      touch: 0.2,
+      position: 0.16,
+      tone: 0.7,
+      mute: 0,
+      sustain: 9,
+      release: 0.4,
+      growl: 1,
+      resonance: 0.7,
+      volume: -6,
+    }),
+    effects: [drive('Triode glow')],
+    ...inTime(8, [
+      [0, 3.7, 40, 0.9],
+      [4, 1.8, 43, 0.65],
+      [6, 1.8, 41, 0.7],
+    ]),
+  }),
+  sound({
+    id: 'fretless-sigh-c',
+    number: 261,
+    name: 'Fretless sigh {C}',
+    kind: 'melodic',
+    description:
+      'Two notes on a fretless bass, a step down onto {C} and a rest, then the same again more quietly, in a small room; it comes round.',
+    instrument: bass('Singing fretless', {
+      type: FRETLESS,
+      touch: 0.25,
+      position: 0.25,
+      tone: 0.5,
+      mute: 0,
+      sustain: 8,
+      release: 0.5,
+      growl: 0.6,
+      resonance: 0.4,
+      volume: -6,
+    }),
+    effects: [soften(10), hall('Room', 0.15)],
+    ...inTime(8, [
+      [0, 1.5, 50, 0.8],
+      [1.5, 1.5, 48, 0.65],
+      [4, 1.5, 50, 0.65],
+      [5.5, 1.5, 48, 0.55],
+    ]),
+  }),
+  sound({
+    id: 'fretless-soft-walk-g',
+    number: 262,
+    name: 'Fretless soft walk {G}',
+    kind: 'beat',
+    description:
+      'A fretless bass walking in soft quarter notes up from {G} and down again, under the flesh of a finger, dark and close; it comes round.',
+    instrument: bass('Quiet deep fretless', {
+      type: FRETLESS,
+      touch: 0.05,
+      position: 0.4,
+      tone: 0.3,
+      mute: 0,
+      sustain: 6,
+      release: 0.3,
+      growl: 0.4,
+      resonance: 0.2,
+      volume: -6,
+    }),
+    effects: [drive('First hint')],
+    ...inTime(
+      8,
+      [
+        [0, 0.45, 31, 0.85],
+        [0.5, 0.45, 35, 0.6],
+        [1, 0.45, 38, 0.65],
+        [1.5, 0.45, 40, 0.6],
+        [2, 0.45, 41, 0.8],
+        [2.5, 0.45, 40, 0.6],
+        [3, 0.7, 38, 0.65],
+        [3.5, 0.45, 35, 0.6],
+        [4, 0.45, 31, 0.85],
+        [4.5, 0.45, 35, 0.6],
+        [5, 0.45, 38, 0.65],
+        [5.5, 0.45, 40, 0.6],
+        [6, 0.45, 43, 0.8],
+        [6.5, 0.45, 41, 0.6],
+        [7, 0.45, 38, 0.65],
+        [7.5, 0.45, 33, 0.6],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+  sound({
+    id: 'walking-upright-dm',
+    number: 263,
+    name: 'Walking upright {D}m',
+    kind: 'beat',
+    description:
+      'A plucked upright bass walking in quarter notes from {D} up to the seventh and back, with one dead note, in a small room; it comes round.',
+    instrument: bass('Round upright', {
+      type: UPRIGHT,
+      touch: 0.25,
+      position: 0.3,
+      tone: 0.45,
+      mute: 0,
+      sustain: 4,
+      release: 0.12,
+      growl: 0.2,
+      resonance: 0.45,
+      volume: 0,
+    }),
+    effects: [soften(15), hall('Room', 0.12)],
+    ...inTime(
+      8,
+      [
+        [0, 0.45, 38, 0.9],
+        [0.5, 0.45, 41, 0.65],
+        [1, 0.45, 45, 0.7],
+        [1.5, 0.45, 47, 0.6],
+        [2, 0.45, 48, 0.8],
+        [2.5, 0.45, 47, 0.6],
+        [3, 0.45, 45, 0.7],
+        [3.5, 0.45, 41, 0.6],
+        [4, 0.45, 38, 0.9],
+        [4.5, 0.45, 41, 0.65],
+        [5, 0.45, 45, 0.7],
+        [5.5, 0.45, 47, 0.6],
+        [6, 0.45, 48, 0.8],
+        [6.5, 0.45, 45, 0.6],
+        [7, 0.7, 43, 0.7],
+        [7.5, 0.3, 40, 0.6],
+        [7.875, 0.05, 40, 0.3],
+      ],
+      { crossfadeSec: 0.1 },
+    ),
+  }),
+  sound({
+    id: 'upright-in-two-am',
+    number: 264,
+    name: 'Upright in two {A}m',
+    kind: 'beat',
+    description:
+      'A plucked upright bass two notes to the bar: the open {A} ringing under the fifth above it, one step aside and a walk home; it comes round.',
+    instrument: bass('Round upright', {
+      type: UPRIGHT,
+      touch: 0.2,
+      position: 0.32,
+      tone: 0.4,
+      mute: 0,
+      sustain: 8,
+      release: 0.2,
+      growl: 0.1,
+      resonance: 0.5,
+      volume: 0,
+    }),
+    effects: [drive('Warm glue'), hall('Room', 0.1)],
+    ...inTime(16, [
+      [0, 1.5, 33, 0.9],
+      [1, 0.9, 40, 0.65],
+      [2, 1.5, 33, 0.8],
+      [3, 0.9, 40, 0.65],
+      [4, 1.5, 33, 0.9],
+      [5, 0.9, 40, 0.65],
+      [6, 0.95, 31, 0.8],
+      [7, 1.4, 38, 0.65],
+      [8, 1.5, 33, 0.9],
+      [9, 0.9, 40, 0.65],
+      [10, 1.5, 33, 0.8],
+      [11, 0.9, 40, 0.65],
+      [12, 1.5, 33, 0.9],
+      [13, 0.9, 40, 0.65],
+      [14, 0.9, 36, 0.75],
+      [15, 0.9, 35, 0.65],
+    ]),
+  }),
+  sound({
+    id: 'upright-ostinato-e',
+    number: 265,
+    name: 'Upright ostinato {E}',
+    kind: 'beat',
+    description:
+      'A plucked upright bass on {E}, three notes to the bar spaced three, two and three eighths, stepping down in the last bar; it comes round.',
+    instrument: bass('Round upright', {
+      type: UPRIGHT,
+      touch: 0.35,
+      position: 0.25,
+      tone: 0.5,
+      mute: 0,
+      sustain: 3,
+      release: 0.15,
+      growl: 0.3,
+      resonance: 0.4,
+      volume: 0,
+    }),
+    effects: [soften(15)],
+    ...inTime(8, [
+      [0, 0.6, 40, 0.9],
+      [0.75, 0.4, 40, 0.65],
+      [1.25, 0.7, 43, 0.7],
+      [2, 0.6, 40, 0.85],
+      [2.75, 0.4, 40, 0.65],
+      [3.25, 0.6, 41, 0.7],
+      [4, 0.6, 40, 0.9],
+      [4.75, 0.4, 40, 0.65],
+      [5.25, 0.7, 43, 0.7],
+      [6, 0.6, 40, 0.85],
+      [6.75, 0.6, 38, 0.65],
+      [7.25, 0.6, 35, 0.65],
+    ]),
+  }),
+  sound({
+    id: 'upright-pedal-g',
+    number: 266,
+    name: 'Upright pedal {G}',
+    kind: 'beat',
+    description:
+      'A dark plucked upright bass keeps to a low {G} and touches the open string a fifth above it at the end of each bar; it comes round.',
+    instrument: bass('Dark soft upright', {
+      type: UPRIGHT,
+      touch: 0.1,
+      position: 0.4,
+      tone: 0.3,
+      mute: 0.1,
+      sustain: 6,
+      release: 0.5,
+      growl: 0,
+      resonance: 0.8,
+      volume: 0,
+    }),
+    effects: [soften(12)],
+    ...inTime(8, [
+      [0, 0.9, 31, 0.9],
+      [1, 0.45, 31, 0.6],
+      [1.5, 0.7, 38, 0.65],
+      [2, 0.9, 31, 0.85],
+      [3, 0.45, 31, 0.6],
+      [3.5, 0.7, 38, 0.6],
+      [4, 0.9, 31, 0.9],
+      [5, 0.45, 31, 0.6],
+      [5.5, 0.7, 38, 0.65],
+      [6, 0.9, 31, 0.85],
+      [7, 0.45, 38, 0.65],
+      [7.5, 0.7, 38, 0.55],
+    ]),
+  }),
+  sound({
+    id: 'sparse-upright-f',
+    number: 267,
+    name: 'Sparse upright {F}',
+    kind: 'melodic',
+    description:
+      'Single plucks of an upright bass in free time around {F}, each left to ring in the wood and a small room before the next; it comes round.',
+    // Off the grid on purpose: seven plucks 1.45 to 2.85 s apart, on no pulse the analysis finds.
+    instrument: bass('Long wooden ring', {
+      type: UPRIGHT,
+      touch: 0.3,
+      position: 0.25,
+      tone: 0.5,
+      mute: 0,
+      sustain: 16,
+      release: 1.2,
+      growl: 0.3,
+      resonance: 0.9,
+      volume: 0,
+    }),
+    effects: [soften(12), hall('Room', 0.18)],
+    ...inTime(16, [
+      [0, 2.2, 41, 0.8],
+      [2.6, 1.3, 48, 0.6],
+      [4.05, 2.5, 47, 0.55],
+      [6.9, 2.2, 45, 0.65],
+      [9.35, 1.7, 41, 0.75],
+      [11.3, 2.2, 43, 0.55],
+      [13.8, 2, 40, 0.6],
+    ]),
+  }),
+  sound({
+    id: 'pizzicato-pattern-c',
+    number: 268,
+    name: 'Pizzicato pattern {C}',
+    kind: 'beat',
+    description:
+      'Short pizzicato notes on an upright bass: four running eighths from {C}, a rest and one answering note, in a small room; it comes round.',
+    instrument: bass('Round upright', {
+      type: UPRIGHT,
+      touch: 0.5,
+      position: 0.2,
+      tone: 0.55,
+      mute: 0.1,
+      sustain: 3,
+      release: 0.1,
+      growl: 0.2,
+      resonance: 0.5,
+      volume: 0,
+    }),
+    effects: [soften(15), hall('Room', 0.1)],
+    ...inTime(
+      4,
+      [
+        [0, 0.2, 36, 0.9],
+        [0.25, 0.18, 43, 0.55],
+        [0.5, 0.18, 40, 0.65],
+        [0.75, 0.2, 43, 0.55],
+        [1.5, 0.3, 43, 0.6],
+        [2, 0.2, 36, 0.9],
+        [2.25, 0.18, 43, 0.55],
+        [2.5, 0.18, 45, 0.7],
+        [2.75, 0.2, 43, 0.55],
+        [3.5, 0.3, 40, 0.6],
+      ],
+      { crossfadeSec: 0.2 },
+    ),
+  }),
+]
