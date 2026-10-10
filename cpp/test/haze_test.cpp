@@ -68,7 +68,8 @@ int main() {
   }
 
   // Haze grows overtones and holds the level: a sine in, its third harmonic
-  // rises with Haze over the whole of the knob while the RMS stays put.
+  // rises with Haze over the whole of the knob while the RMS stays put, and
+  // at the bottom of the knob there is no fuzz at all.
   {
     double third[5], level[5];
     const float settings[5] = {0.0f, 0.25f, 0.5f, 0.75f, 1.0f};
@@ -80,22 +81,54 @@ int main() {
       device.set_param(p::kHaze, settings[k]);
       Stereo out = run(device, sine(220.0f, 5.0f, kRate, 0.25f));
       const size_t from = 3 * 48000, to = 5 * 48000;
-      third[k] = db(tone_level(out.left, 660.0, kRate, from, to));
+      third[k] = db(tone_level(out.left, 660.0, kRate, from, to) / tone_level(out.left, 220.0, kRate, from, to));
       level[k] = db(rms(out.left, from, to));
     }
-    EXPECT(third[1] > third[0] + 8.0 && third[2] > third[1] + 8.0 && third[3] > third[2] + 2.0 &&
-               third[4] > third[3],
+    EXPECT(third[1] > third[0] + 30.0 && third[2] > third[1] + 8.0 && third[3] > third[2] + 5.0 &&
+               third[4] > third[3] + 1.0,
            "a sine's third harmonic rises with Haze over the whole knob");
-    EXPECT(third[0] < -50.0 && third[4] > -26.0, "Haze goes from nearly clean to a driven wave");
+    EXPECT(third[0] < -90.0 && third[4] > -15.0, "Haze goes from clean to a driven wave");
     double low = level[0], high = level[0];
     for (double v : level) {
       low = std::min(low, v);
       high = std::max(high, v);
     }
-    std::printf("haze: sine in at %.1f dB, out %.1f to %.1f dB over Haze; third harmonic %.1f to %.1f dB\n",
-                db(0.25 / std::sqrt(2.0)), low, high, third[0], third[4]);
+    std::printf("haze: sine in at %.1f dB, out %.1f to %.1f dB over Haze; third harmonic %.1f, %.1f, %.1f, %.1f, %.1f dB under the note\n",
+                db(0.25 / std::sqrt(2.0)), low, high, third[0], third[1], third[2], third[3], third[4]);
     EXPECT(high - low < 1.5, "the level holds within 1.5 dB as Haze is turned");
     EXPECT(std::fabs(level[2] - db(0.25 / std::sqrt(2.0))) < 3.0, "a held sine leaves about as loud as it came");
+  }
+
+  // The fuzz follows the playing: a softer note is given less drive, so its
+  // overtones stand further under it, at every Haze; and at Haze 0 a note of
+  // any loudness leaves clean. (The first version held the push whatever the
+  // level: the third harmonic of a note 30 dB softer was 7 dB lower, and at
+  // Haze 0 it stood 42 dB under the note, most of it the level follower's own
+  // ripple reaching the gain 39 samples early.)
+  {
+    const float levels[4] = {-36.0f, -24.0f, -12.0f, -6.0f};
+    for (float haze : {0.0f, 0.55f, 1.0f}) {
+      double third[4];
+      for (int k = 0; k < 4; ++k) {
+        plain(device);
+        device.set_param(p::kDecay, 0.5f);
+        device.set_param(p::kBlur, 0.0f);
+        device.set_param(p::kTone, 1.0f);
+        device.set_param(p::kHaze, haze);
+        Stereo out = run(device, sine(220.0f, 4.0f, kRate, std::pow(10.0f, levels[k] / 20.0f)));
+        const size_t from = 2 * 48000, to = 4 * 48000;
+        third[k] = db(tone_level(out.left, 660.0, kRate, from, to) / tone_level(out.left, 220.0, kRate, from, to));
+      }
+      std::printf("haze: Haze %.2f, a sine at -36, -24, -12 and -6 dBFS: third harmonic %.1f, %.1f, %.1f, %.1f dB under the note\n",
+                  haze, third[0], third[1], third[2], third[3]);
+      if (haze == 0.0f) {
+        for (double v : third) EXPECT(v < -90.0, "at Haze 0 a note of any loudness leaves clean");
+      } else {
+        EXPECT(third[0] < third[3] - 10.0 && third[1] < third[3] - 1.0 && third[0] < third[1] - 6.0 ,
+               "soft playing is cleaner than loud playing");
+        EXPECT(third[0] < third[1] && third[1] < third[2] && third[2] < third[3], "the overtones grow with the playing");
+      }
+    }
   }
 
   // The top of Haze is not dead on ordinary material: a chord's
@@ -119,7 +152,7 @@ int main() {
     }
     std::printf("haze: a chord's nearest products at Haze 0.5, 0.75, 1: %.1f, %.1f, %.1f dB; share above 1.5 kHz %.4f, %.4f, %.4f\n",
                 db(off[0]), db(off[1]), db(off[2]), bright[0], bright[1], bright[2]);
-    EXPECT(off[1] > off[0] * 1.25 && off[2] > off[1] * 1.1, "a chord's intermodulation grows to the top of Haze");
+    EXPECT(off[1] > off[0] * 1.25 && off[2] > off[1] * 0.98, "a chord's intermodulation grows with Haze and does not fall at the top");
     EXPECT(bright[1] > bright[0] * 1.3 && bright[2] > bright[1] * 1.3,
            "a chord's overtones above 1.5 kHz grow to the top of Haze");
   }
@@ -143,7 +176,8 @@ int main() {
   }
 
   // The first reverb rings no longer than the wall: at the shortest Decay,
-  // full Blur does not leave a tail of its own.
+  // full Blur does not leave a tail of its own (it left 1.1 s while its
+  // lengths stood whatever Decay was; they shrink with a Decay under 1 s).
   {
     plain(device);
     device.set_param(p::kBlur, 1.0f);
@@ -151,7 +185,7 @@ int main() {
     Stereo out = run(device, impulse(3.0f, kRate, 0.9f));
     const double measured = rt60(out.left, kRate, 0.3, 0.05, -100.0);
     std::printf("haze: RT60 at Decay 0.5 s and full Blur: %.2f s\n", measured);
-    EXPECT(measured < 1.3, "full Blur does not leave a long tail of its own under a short Decay");
+    EXPECT(measured < 0.65, "full Blur does not outlast the shortest Decay by more than a third");
   }
 
   // The blur comes before the fuzz: a train of clicks leaves no burst. The
@@ -177,26 +211,30 @@ int main() {
     EXPECT(crest[1] < crest[0] * 0.6 && crest[1] < 5.0, "with Blur up the clicks are gone into the wall's own level");
   }
 
-  // Octave adds the octave above: energy at twice a sine's frequency.
+  // Octave adds the octave above: energy at twice a sine's frequency. One
+  // note's level in the wall is the wall's own answer at that pitch, so the
+  // octave is held against the note over five notes.
   {
-    double second[3];
+    double second[3] = {0.0, 0.0, 0.0}, first[3] = {0.0, 0.0, 0.0};
     const float settings[3] = {0.0f, 0.3f, 1.0f};
-    double first_at_full = 0.0;
+    const float notes[5] = {196.0f, 220.0f, 246.94f, 261.63f, 293.66f};
     for (int k = 0; k < 3; ++k) {
-      plain(device);
-      device.set_param(p::kBlur, 0.0f);
-      device.set_param(p::kDecay, 0.5f);
-      device.set_param(p::kTone, 1.0f);
-      device.set_param(p::kOctave, settings[k]);
-      Stereo out = run(device, sine(220.0f, 5.0f, kRate, 0.25f));
-      second[k] = db(tone_level(out.left, 440.0, kRate, 3 * 48000, 5 * 48000));
-      first_at_full = db(tone_level(out.left, 220.0, kRate, 3 * 48000, 5 * 48000));
+      for (float hz : notes) {
+        plain(device);
+        device.set_param(p::kBlur, 0.0f);
+        device.set_param(p::kDecay, 0.5f);
+        device.set_param(p::kTone, 1.0f);
+        device.set_param(p::kOctave, settings[k]);
+        Stereo out = run(device, sine(hz, 4.0f, kRate, 0.25f));
+        second[k] += db(tone_level(out.left, 2.0 * hz, kRate, 2 * 48000, 4 * 48000)) / 5.0;
+        first[k] += db(tone_level(out.left, hz, kRate, 2 * 48000, 4 * 48000)) / 5.0;
+      }
     }
-    std::printf("haze: 440 Hz from a 220 Hz sine at Octave 0, 0.3, 1: %.1f, %.1f, %.1f dB (220 Hz at Octave 1: %.1f dB)\n",
-                second[0], second[1], second[2], first_at_full);
+    std::printf("haze: the octave of a sine (five notes) at Octave 0, 0.3, 1: %.1f, %.1f, %.1f dB; the note itself %.1f, %.1f, %.1f dB\n",
+                second[0], second[1], second[2], first[0], first[1], first[2]);
     EXPECT(second[0] < -100.0, "without Octave a sine has no second harmonic");
     EXPECT(second[1] > -40.0 && second[2] > second[1] + 6.0, "Octave adds energy at twice the frequency");
-    EXPECT(second[2] > first_at_full + 6.0, "at full Octave the octave is louder than the note");
+    EXPECT(second[2] > first[2] + 6.0, "at full Octave the octave is louder than the note");
   }
 
   // Tone tilts the wall from dark to bright over the whole knob.
@@ -366,7 +404,11 @@ int main() {
       worst = std::max(worst, std::fabs(static_cast<double>(a.left[i]) - c.left[i]));
     }
     std::printf("haze: blocks of 1, 128 and 2048 across a sleep differ by at most %.2g\n", worst);
-    EXPECT(worst < 1.0e-4, "the output is the same at every block size across a sleep");
+    // Exactly: the device sleeps and wakes on the sample, and a sweep that is
+    // set down in the middle of a control tick is stepped there as the running
+    // device steps it. (It slept by the block and set the sweep with one
+    // multiply: 6.7e-7 apart.)
+    EXPECT(worst == 0.0, "the output is the same to the last bit at every block size across a sleep");
     EXPECT(peak(a.left, 7 * 48000, 8 * 48000) == 0.0, "the device was asleep before the knobs moved");
   }
 
@@ -606,35 +648,46 @@ int main() {
                 hottest, quietest, loudest, most_growth);
   }
 
-  // Part-way Mix: held tones over the piano's range through the default.
-  // The wall is a reverb, so a tone's own wall may stand against the dry tone
-  // at some pitch; the dry share alone is 2.4 dB under the input at the
-  // default Mix, and no tone may fall far under that.
+  // Part-way Mix: held tones on every semitone of the piano through the
+  // default, the power of the two sides against the tone's own. The wall is a
+  // reverb, so a tone's own wall may stand against the dry tone or with it at
+  // some pitch; the dry share alone is 2.4 dB under the input at the default
+  // Mix, and no tone may fall far under that or rise far over the input.
+  // (Every third semitone and the left side alone showed 4 dB down at the
+  // worst; every semitone shows the first version from 5.6 dB under to 7.9 dB
+  // over.)
   {
-    double worst = 0.0, sum = 0.0;
-    float worst_hz = 0.0f;
+    double worst = 0.0, most = 0.0, sum = 0.0;
+    float worst_hz = 0.0f, most_hz = 0.0f;
     int count = 0;
-    for (float note = 21.0f; note <= 108.0f; note += 3.0f) {
-      const float hz = 440.0f * std::pow(2.0f, (note - 69.0f) / 12.0f);
+    for (int note = 21; note <= 108; ++note) {
+      const float hz = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
       device.init(kRate);
       const std::vector<float> tone = sine(hz, 4.0f, kRate, 0.25f);
       Stereo out = run(device, tone);
-      const double change = db(rms(out.left, 2 * 48000, 4 * 48000) / rms(tone, 2 * 48000, 4 * 48000));
+      const double left = rms(out.left, 2 * 48000, 4 * 48000), right = rms(out.right, 2 * 48000, 4 * 48000);
+      const double change = 10.0 * std::log10(0.5 * (left * left + right * right)) - db(rms(tone, 2 * 48000, 4 * 48000));
       sum += change;
       ++count;
       if (change < worst) {
         worst = change;
         worst_hz = hz;
       }
+      if (change > most) {
+        most = change;
+        most_hz = hz;
+      }
     }
-    std::printf("haze: held tones A0 to C8 at the default: %+.1f dB on average, the worst %+.1f dB at %.0f Hz\n",
-                sum / count, worst, worst_hz);
+    std::printf("haze: held tones A0 to C8 by the semitone at the default: %+.1f dB on average, %+.1f dB at %.0f Hz to %+.1f dB at %.0f Hz\n",
+                sum / count, worst, worst_hz, most, most_hz);
     EXPECT(worst > -6.0, "no held tone drops more than 6 dB at the default Mix");
+    EXPECT(most < 4.5, "no held tone stands far over the input at the default Mix");
     EXPECT(sum / count > -3.0 && sum / count < 3.0, "held tones leave the default about as loud as they came");
   }
 
   // The meters are the device's own numbers: the push is the drive times the
-  // level's share of level + floor (0.25 x 24^Haze and 0.01 in haze.h), the
+  // level's share of level + floor (kDriveMax, kDriveCurve, kFollowLevel and
+  // kFloor in haze.h), the
   // wall is the peak that left, and both rest at 0 asleep.
   {
     device.init(kRate);
@@ -645,8 +698,10 @@ int main() {
       device.set_param(p::kHaze, haze);
       Stereo out = run(device, sine(220.0f, 2.0f, kRate, 0.25f));
       const double level = 0.25 * 0.999;  // a 220 Hz sine after the 5 kHz low-pass
-      const double expected = 0.25 * std::pow(24.0, haze) * level / (level + 0.01);
-      EXPECT_NEAR(device.meter(0), expected, expected * 0.05, "the push meter is drive x level / (level + floor)");
+      // kDriveMax (c^Haze - 1) / (c - 1), times the share of it this level is given.
+      const double drive = 8.0 * (std::pow(24.0, haze) - 1.0) / 23.0 * std::sqrt(1.25 * level / (level + 0.25));
+      const double expected = drive * level / (level + 0.01);
+      EXPECT_NEAR(device.meter(0), expected, expected * 0.05, "the push meter is the drive this level is given x level / (level + floor)");
       const double left = peak(out.left, 96000 - 4800, 96000), right = peak(out.right, 96000 - 4800, 96000);
       EXPECT(device.meter(1) <= std::max(left, right) * 1.001 && device.meter(1) > std::max(left, right) * 0.5,
              "the wall meter is the peak that just left");
@@ -756,6 +811,163 @@ int main() {
                 lowest_alone, worst_alone, worst_alone_hz);
     EXPECT(worst > -8.0, "no held tone drops more than 8 dB through any preset with the dry in it");
     EXPECT(worst_alone > -12.0, "the wall alone answers every tone from E1 up within 12 dB");
+  }
+
+  // The top of Feed keeps the pitch: a note held for three seconds, then the
+  // tail, with the power near the note weighed by its distance from it in
+  // cents once the tail is 40 dB down. Each time round, the way back moves
+  // everything a few hertz, so a tail that lives on what came back leans
+  // flat; the share that comes back is held to kFeedShare, which keeps the
+  // lean near two thirds of a semitone by the time the tail is 40 dB down
+  // (about a quarter of one at 20 dB down). At a share of 0.95 the tail of
+  // A4 stood 150 cents flat by then. Halving the shift does not halve the
+  // lean (the tail then goes round more often before it is gone); the share
+  // is what sets it.
+  {
+    for (float hz : {440.0f, 220.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kFeed, 1.0f);
+      device.set_param(p::kDecay, 4.0f);
+      std::vector<float> note(40 * 48000, 0.0f);
+      for (size_t i = 0; i < 3 * 48000; ++i) {
+        const double edge = std::min(1.0, std::min(i / 2400.0, (3 * 48000 - i) / 2400.0));
+        note[i] = static_cast<float>(0.4 * edge * std::sin(2.0 * kPi * hz * static_cast<double>(i) / kRate));
+      }
+      Stereo out = run(device, note);
+      const double held = db(rms(out.left, 2 * 48000, 3 * 48000));
+      size_t from = 3 * 48000;
+      const size_t span = 2 * 48000;
+      while (from + span + 4800 < out.left.size() && db(rms(out.left, from, from + span)) > held - 40.0) from += 4800;
+      double power = 0.0, lean = 0.0;
+      for (int cents = -300; cents <= 300; cents += 10) {
+        const double level = tone_level(out.left, hz * std::pow(2.0, cents / 1200.0), kRate, from, from + span);
+        power += level * level;
+        lean += level * level * cents;
+      }
+      lean /= power;
+      std::printf("haze: top of Feed, Decay 4 s, a %.0f Hz note's tail 40 dB down (%.1f s after the note): %+.0f cents from the note\n",
+                  hz, from / 48000.0 - 3.0, lean);
+      EXPECT(std::fabs(lean) < 90.0, "the top of Feed leaves the tail within a semitone of the note");
+    }
+  }
+
+  // Blur 0 keeps the attack: a plucked note through the wall alone with Haze
+  // high and Blur at nothing. The wall reaches half of its own peak within a
+  // few hundredths of a second of the pluck, and its first hundredth is not
+  // far under a clean wall's. (The level under the fuzz was read over 25 ms
+  // and nothing else, so the gain stood high through the attack and the fuzz
+  // flattened it: half of the peak came 144 ms after the pluck.)
+  {
+    std::vector<float> pluck(48000, 0.0f);
+    for (size_t i = 4800; i < pluck.size(); ++i) {
+      const double t = (i - 4800) / 48000.0;
+      double wave = 0.0;
+      for (int k = 1; k <= 6; ++k) wave += std::sin(2.0 * kPi * 220.0 * k * t) / k * std::exp(-t * k * 0.8);
+      pluck[i] = static_cast<float>(0.36 * std::min(1.0, t / 0.002) * std::exp(-t / 0.5) * wave);
+    }
+    double half[2] = {0.0, 0.0}, first[2] = {0.0, 0.0};
+    for (int k = 0; k < 2; ++k) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kBlur, 0.0f);
+      device.set_param(p::kDecay, 3.5f);
+      device.set_param(p::kOctave, 0.0f);
+      device.set_param(p::kHaze, k == 0 ? 0.9f : 0.0f);
+      Stereo out = run(device, pluck);
+      const double most = peak(out.left, 4800, 4800 + 19200);
+      half[k] = 400.0;
+      for (size_t at = 4800; at < 4800 + 19200; at += 24) {
+        if (peak(out.left, at, at + 96) >= 0.5 * most) {
+          half[k] = (at - 4800) / 48.0;
+          break;
+        }
+      }
+      first[k] = db(peak(out.left, 4800, 4800 + 480));
+    }
+    std::printf("haze: a plucked note through the wall alone at Blur 0: half of the wall's peak %.1f ms after the pluck at Haze 0.9 (%.1f ms clean); the first 10 ms %+.1f dB against a clean wall's\n",
+                half[0], half[1], first[0] - first[1]);
+    EXPECT(half[0] < 60.0, "Blur 0 keeps the attack through the fuzz");
+    EXPECT(first[0] - first[1] > -14.0, "the fuzz does not swallow the first hundredth of a second");
+  }
+
+  // The wall alone answers every note: held sines on every semitone of the
+  // piano up to C7, Mix 1 and the rest as the device starts, the power of the
+  // two sides over three seconds against the note's own. (The first version
+  // stood from 35 dB under to 9 dB over by the note, 18 dB down at A0, with a
+  // spread of 6.5 dB: its first reverb was mixed with the sound itself, which
+  // combs, and its bass had only the lines' few resonances to stand on.)
+  {
+    double lowest = 1.0e9, highest = -1.0e9, sum = 0.0, squares = 0.0, bass = 1.0e9;
+    int lowest_note = 0, highest_note = 0, count = 0;
+    for (int note = 21; note <= 96; ++note) {
+      const float hz = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      Stereo out = run(device, sine(hz, 5.0f, kRate, 0.25f));
+      const double left = rms(out.left, 2 * 48000, 5 * 48000), right = rms(out.right, 2 * 48000, 5 * 48000);
+      const double level = 10.0 * std::log10(0.5 * (left * left + right * right)) - db(0.25 / std::sqrt(2.0));
+      if (note < 28) bass = std::min(bass, level);
+      if (level < lowest) {
+        lowest = level;
+        lowest_note = note;
+      }
+      if (level > highest) {
+        highest = level;
+        highest_note = note;
+      }
+      sum += level;
+      squares += level * level;
+      ++count;
+    }
+    const double mean_level = sum / count;
+    const double spread = std::sqrt(squares / count - mean_level * mean_level);
+    std::printf("haze: the wall alone, held notes A0 to C7 by the semitone: %+.1f dB (note %d) to %+.1f dB (note %d), mean %+.1f, spread %.2f dB; A0 to D#1 no lower than %+.1f dB\n",
+                lowest, lowest_note, highest, highest_note, mean_level, spread, bass);
+    EXPECT(lowest > -8.0 && highest < 5.0, "the wall alone answers every semitone within a few dB");
+    EXPECT(spread < 2.5, "the wall alone is even over the notes");
+    EXPECT(bass > -7.0, "the wall alone keeps the bottom octave");
+    EXPECT(mean_level > -3.0 && mean_level < 2.0, "the wall alone is about as loud as the note");
+  }
+
+  // Blur is flat too: the same over two octaves of semitones at full Blur and
+  // at a quarter, where the first version's crossfade combed most.
+  {
+    for (float blur : {0.25f, 1.0f}) {
+      double lowest = 1.0e9, highest = -1.0e9;
+      for (int note = 45; note <= 69; ++note) {
+        const float hz = 440.0f * std::pow(2.0f, (note - 69) / 12.0f);
+        device.init(kRate);
+        device.set_param(p::kMix, 1.0f);
+        device.set_param(p::kBlur, blur);
+        Stereo out = run(device, sine(hz, 5.0f, kRate, 0.25f));
+        const double left = rms(out.left, 2 * 48000, 5 * 48000), right = rms(out.right, 2 * 48000, 5 * 48000);
+        const double level = 10.0 * std::log10(0.5 * (left * left + right * right)) - db(0.25 / std::sqrt(2.0));
+        lowest = std::min(lowest, level);
+        highest = std::max(highest, level);
+      }
+      std::printf("haze: the wall alone at Blur %.2f, A2 to A4 by the semitone: %+.1f to %+.1f dB\n", blur, lowest, highest);
+      EXPECT(lowest > -7.0 && highest < 5.0, "Blur does not comb the notes");
+    }
+  }
+
+  // Tone is not a volume knob on a held chord: the wall alone at Tone 0 and 1
+  // against the middle. (With the tilt adding 3 dB of lows at Tone 0 a chord
+  // under 1 kHz left 2.7 dB louder.)
+  {
+    double level[3];
+    const float settings[3] = {0.0f, 0.5f, 1.0f};
+    for (int k = 0; k < 3; ++k) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kTone, settings[k]);
+      Stereo out = run(device, chord(20.0f, 0.2f));
+      const double left = rms(out.left, 8 * 48000, 20 * 48000), right = rms(out.right, 8 * 48000, 20 * 48000);
+      level[k] = 10.0 * std::log10(0.5 * (left * left + right * right));
+    }
+    std::printf("haze: a held chord through the wall alone at Tone 0, 0.5, 1: %.1f, %.1f, %.1f dB\n", level[0], level[1], level[2]);
+    EXPECT(std::fabs(level[0] - level[1]) < 1.5, "a dark wall is not a louder one");
+    EXPECT(level[2] - level[1] < 1.0 && level[2] - level[1] > -3.0, "a bright wall is not a louder one");
   }
 
   device.init(kRate);

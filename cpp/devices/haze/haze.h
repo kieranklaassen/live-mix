@@ -392,7 +392,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // Haze 0..1 is the drive a full-scale wave is given: none at 0, kDriveMax
   // at 1, and in between kDriveMax (c^Haze - 1) / (c - 1), which is nearly a
   // scale of equal ratios over the upper two thirds and runs down to nothing.
-  static constexpr float kDriveMax = 6.0f;
+  static constexpr float kDriveMax = 8.0f;
   static constexpr float kDriveCurve = 24.0f;
   // The least the curve is ever driven: a wire to the last bit of a float.
   static constexpr float kDriveLeast = 1.0e-3f;
