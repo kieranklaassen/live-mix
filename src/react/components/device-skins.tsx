@@ -57,6 +57,12 @@ export interface DeviceSkin {
   /** Whether the plate is dark, which decides the finish's light; read off a hex `plate` when left out. */
   dark?: boolean
   finish: PlateFinish
+  /**
+   * Keeps the finish off the lettering: the names under the knobs and the
+   * display stand on plain plate. For a finish whose marks are as strong as
+   * the ink, as speckle is on a pale plate.
+   */
+  clearLettering?: boolean
   cap: Exclude<KnobCap, 'arc'>
   /**
    * The knobs on the face, in order: four over a picture, eight without one.
@@ -1875,7 +1881,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   overtone: { ...PLATE_PALETTES.overtone, finish: 'fade', cap: 'disc' },
   staircase: { ...PLATE_PALETTES.staircase, finish: 'matte', cap: 'pointer' },
   shortwave: { ...PLATE_PALETTES.shortwave, finish: 'hammered', cap: 'disc' },
-  ice: { ...PLATE_PALETTES.ice, finish: 'speckle', cap: 'pointer' },
+  ice: { ...PLATE_PALETTES.ice, finish: 'speckle', clearLettering: true, cap: 'pointer' },
   rewind: { ...PLATE_PALETTES.rewind, finish: 'brushed', cap: 'skirt' },
   droplets: { ...PLATE_PALETTES.droplets, finish: 'gloss', cap: 'disc' },
   'prepared-piano': { ...PLATE_PALETTES['prepared-piano'], finish: 'linen', cap: 'skirt' },
