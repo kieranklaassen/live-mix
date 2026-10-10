@@ -89,6 +89,7 @@ native_test() {
 # The shared DSP kit (cpp/kit) and the spec devices built on it. The device
 # list is written by scripts/gen-devices.mjs from cpp/devices/*/device.json.
 native_test kit_test cpp/test/kit_test.cpp
+native_test stft_test cpp/test/stft_test.cpp
 
 source scripts/devices.gen.sh
 test_generated_devices

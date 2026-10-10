@@ -76,6 +76,9 @@ export const PLATE_PALETTES = {
   'freq-shifter': { plate: '#3a0f3f', ink: '#f8eaf8', accent: '#9ff0d0' },
   phaser: { plate: '#f29a6b', ink: '#2a0f02', accent: '#4a1a70' },
   tremolo: { plate: '#165a8f', ink: '#f2f9ff', accent: '#ffd75e' },
+  falling: { plate: '#033978', ink: '#f3efe6', accent: '#ff9aa8' },
+  glints: { plate: '#00631b', ink: '#f0fff2', accent: '#eaff70' },
+  melt: { plate: '#ffab33', ink: '#2a1204', accent: '#541070' },
   // The instruments. On their displays a note that sounds is drawn in the accent over the ink,
   // so the two are told apart as well as each is told from the plate.
   harp: { plate: '#e3bf7c', ink: '#33200c', accent: '#a3261f' },
@@ -115,10 +118,16 @@ export const PLATE_PALETTES = {
   'grain-synth': { plate: '#a8408a', ink: '#fff0f9', accent: '#ffdb4d' },
   'drum-kit': { plate: '#2a2420', ink: '#f3eadb', accent: '#ff6b4a' },
   'glitch-kit': { plate: '#f2d31b', ink: '#15130a', accent: '#c2185b' },
+  fog: { plate: '#beffdc', ink: '#0c2a22', accent: '#0a6f6a' },
+  constellation: { plate: '#000021', ink: '#e9ecfb', accent: '#ffcf70' },
+  'skipping-stone': { plate: '#3cc9d5', ink: '#04252b', accent: '#7c2400' },
+  orbits: { plate: '#3c067e', ink: '#f1ecff', accent: '#6fe6ff' },
   'sub-bass': { plate: '#4b16c4', ink: '#f3edff', accent: '#ffc94a' },
   'fm-bass': { plate: '#16d8c4', ink: '#03241f', accent: '#8a1040' },
   'acid-bass': { plate: '#b4e61a', ink: '#16210a', accent: '#b3125e' },
   'string-bass': { plate: '#99500a', ink: '#fff3e0', accent: '#ffe066' },
+  generations: { plate: '#ff818a', ink: '#2a0a10', accent: '#12306e' },
+  distance: { plate: '#abb4ff', ink: '#0d1238', accent: '#8f0b1c' },
   flock: { plate: '#f58cc4', ink: '#3a0a26', accent: '#1f48d0' },
   'magnet-piano': { plate: '#10124f', ink: '#eceeff', accent: '#ff8a5c' },
   overtone: { plate: '#6e0f1c', ink: '#fdeee6', accent: '#ffc94d' },
@@ -132,6 +141,7 @@ export const PLATE_PALETTES = {
   'wind-harp': { plate: '#f7f26a', ink: '#2a2a06', accent: '#1560a8' },
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
+  canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
