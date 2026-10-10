@@ -159,6 +159,7 @@ export const PLATE_PALETTES = {
   imprint: { plate: '#5a3a8c', ink: '#f6f1e4', accent: '#ffa6c9' },
   'common-tones': { plate: '#8a2c16', ink: '#fdf0e2', accent: '#d8f07a' },
   glimmer: { plate: '#45bdf0', ink: '#051c2b', accent: '#5a1899' },
+  'sine-shadow': { plate: '#04043e', ink: '#e9ecff', accent: '#ff7ab8' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

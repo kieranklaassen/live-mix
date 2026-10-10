@@ -1915,6 +1915,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   imprint: { ...PLATE_PALETTES.imprint, finish: 'linen', cap: 'disc' },
   'common-tones': { ...PLATE_PALETTES['common-tones'], finish: 'linen', cap: 'dot' },
   glimmer: { ...PLATE_PALETTES.glimmer, finish: 'gloss', cap: 'dot' },
+  'sine-shadow': { ...PLATE_PALETTES['sine-shadow'], finish: 'matte', cap: 'dot' },
 }
 
 /**

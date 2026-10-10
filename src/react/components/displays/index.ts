@@ -48,6 +48,7 @@ import { RING_FACES } from './ring'
 import { SEASONS_FACES } from './seasons'
 import { SCALE_FILTER_FACES } from './scale-filter'
 import { SIFT_FACES } from './sift'
+import { SINE_SHADOW_FACES } from './sine-shadow'
 import { SPATIAL_FACES } from './spatial'
 import { STRETCH_FACES } from './stretch'
 import { TAILS_FACES } from './tails'
@@ -123,4 +124,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...IMPRINT_FACES,
   ...COMMON_TONES_FACES,
   ...GLIMMER_FACES,
+  ...SINE_SHADOW_FACES,
 }

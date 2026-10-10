@@ -1,0 +1,483 @@
+{
+  "id": "sine-shadow",
+  "name": "Sine Shadow",
+  "category": "texture",
+  "description": "Finds the strongest partials of the sound and plays each as a pure sine that swells in behind it and lingers after it.",
+  "class": "SineShadow",
+  "header": "sine_shadow.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "hz1",
+      "name": "Sine 1 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level1",
+      "name": "Sine 1 level",
+      "display": true
+    },
+    {
+      "key": "hz2",
+      "name": "Sine 2 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level2",
+      "name": "Sine 2 level",
+      "display": true
+    },
+    {
+      "key": "hz3",
+      "name": "Sine 3 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level3",
+      "name": "Sine 3 level",
+      "display": true
+    },
+    {
+      "key": "hz4",
+      "name": "Sine 4 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level4",
+      "name": "Sine 4 level",
+      "display": true
+    },
+    {
+      "key": "hz5",
+      "name": "Sine 5 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level5",
+      "name": "Sine 5 level",
+      "display": true
+    },
+    {
+      "key": "hz6",
+      "name": "Sine 6 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level6",
+      "name": "Sine 6 level",
+      "display": true
+    },
+    {
+      "key": "hz7",
+      "name": "Sine 7 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level7",
+      "name": "Sine 7 level",
+      "display": true
+    },
+    {
+      "key": "hz8",
+      "name": "Sine 8 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level8",
+      "name": "Sine 8 level",
+      "display": true
+    },
+    {
+      "key": "hz9",
+      "name": "Sine 9 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level9",
+      "name": "Sine 9 level",
+      "display": true
+    },
+    {
+      "key": "hz10",
+      "name": "Sine 10 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level10",
+      "name": "Sine 10 level",
+      "display": true
+    },
+    {
+      "key": "hz11",
+      "name": "Sine 11 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level11",
+      "name": "Sine 11 level",
+      "display": true
+    },
+    {
+      "key": "hz12",
+      "name": "Sine 12 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level12",
+      "name": "Sine 12 level",
+      "display": true
+    },
+    {
+      "key": "hz13",
+      "name": "Sine 13 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level13",
+      "name": "Sine 13 level",
+      "display": true
+    },
+    {
+      "key": "hz14",
+      "name": "Sine 14 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level14",
+      "name": "Sine 14 level",
+      "display": true
+    },
+    {
+      "key": "hz15",
+      "name": "Sine 15 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level15",
+      "name": "Sine 15 level",
+      "display": true
+    },
+    {
+      "key": "hz16",
+      "name": "Sine 16 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level16",
+      "name": "Sine 16 level",
+      "display": true
+    },
+    {
+      "key": "hz17",
+      "name": "Sine 17 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level17",
+      "name": "Sine 17 level",
+      "display": true
+    },
+    {
+      "key": "hz18",
+      "name": "Sine 18 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level18",
+      "name": "Sine 18 level",
+      "display": true
+    },
+    {
+      "key": "hz19",
+      "name": "Sine 19 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level19",
+      "name": "Sine 19 level",
+      "display": true
+    },
+    {
+      "key": "hz20",
+      "name": "Sine 20 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level20",
+      "name": "Sine 20 level",
+      "display": true
+    },
+    {
+      "key": "hz21",
+      "name": "Sine 21 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level21",
+      "name": "Sine 21 level",
+      "display": true
+    },
+    {
+      "key": "hz22",
+      "name": "Sine 22 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level22",
+      "name": "Sine 22 level",
+      "display": true
+    },
+    {
+      "key": "hz23",
+      "name": "Sine 23 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level23",
+      "name": "Sine 23 level",
+      "display": true
+    },
+    {
+      "key": "hz24",
+      "name": "Sine 24 pitch",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "level24",
+      "name": "Sine 24 level",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "partials",
+      "name": "Partials",
+      "min": 1,
+      "max": 24,
+      "default": 8,
+      "step": 1,
+      "description": "How many partials are followed at once. One is a single sine on the strongest tone, a few draw the outline of a chord, many redraw the whole sound."
+    },
+    {
+      "key": "transpose",
+      "name": "Transpose",
+      "min": -12,
+      "max": 24,
+      "default": 0,
+      "unit": "st",
+      "step": 1,
+      "description": "Moves the whole shadow up or down in pitch. An octave up is a halo over the sound, an octave down a floor under it."
+    },
+    {
+      "key": "attack",
+      "name": "Attack",
+      "min": 20,
+      "max": 8000,
+      "default": 350,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How slowly each sine swells in once its partial is found. Short settings trace the playing, long ones let the shadow rise well after the note."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.1,
+      "max": 30,
+      "default": 3,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each sine lingers after its partial fades or stops. Long settings leave a slow wash of pure tones behind the playing."
+    },
+    {
+      "key": "snap",
+      "name": "Snap",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Pulls every sine toward the nearest note of the keyboard. A partial that is off its note beats against its sine while the sound is in the mix, so use it with Mix at full."
+    },
+    {
+      "key": "steady",
+      "name": "Steady",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How long a partial has to last before it gets a sine. Low settings catch every flicker and noise, high ones keep only held tones."
+    },
+    {
+      "key": "glide",
+      "name": "Glide",
+      "min": 5,
+      "max": 2000,
+      "default": 40,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How slowly a sine reaches its pitch. Long settings smooth out vibrato and let each new sine slide in from the nearest one still sounding."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Places the sines across the sides, each note at a spot of its own. At zero every sine sits where its partial is in the sound."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Which partials cast the shadow. Left of centre favours the low ones for a dark shadow, right of centre the high ones for a bright one."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Brings the shadow in under the sound. Up to halfway the sound stays whole and the sines rise beneath it. Past halfway the sound gives way until only the sines are left."
+    }
+  ],
+  "presets": {
+    "Sine shadow": {},
+    "Octave halo": {
+      "transpose": 12,
+      "partials": 6,
+      "attack": 600,
+      "release": 5,
+      "spread": 0.7,
+      "mix": 0.4
+    },
+    "Glass redraw": {
+      "partials": 16,
+      "attack": 60,
+      "release": 1.2,
+      "steady": 0.1,
+      "spread": 0.3,
+      "mix": 1
+    },
+    "One sine": {
+      "partials": 1,
+      "attack": 200,
+      "release": 4,
+      "glide": 150,
+      "mix": 0.6
+    },
+    "Chord outline": {
+      "partials": 5,
+      "snap": 1,
+      "attack": 500,
+      "release": 8,
+      "mix": 1
+    },
+    "Low shadow": {
+      "transpose": -12,
+      "partials": 4,
+      "tone": 0.15,
+      "attack": 800,
+      "release": 6,
+      "mix": 0.45
+    },
+    "Long linger": {
+      "partials": 10,
+      "attack": 1500,
+      "release": 20,
+      "spread": 0.8
+    },
+    "Nearly dry": {
+      "partials": 4,
+      "attack": 1200,
+      "release": 6,
+      "mix": 0.2
+    },
+    "Fifth above": {
+      "transpose": 7,
+      "partials": 6,
+      "attack": 300,
+      "release": 4,
+      "mix": 0.4
+    },
+    "Two octaves up": {
+      "transpose": 24,
+      "partials": 8,
+      "tone": 0.3,
+      "attack": 900,
+      "release": 7,
+      "spread": 1,
+      "mix": 0.35
+    },
+    "Wide glass": {
+      "partials": 20,
+      "tone": 0.7,
+      "attack": 150,
+      "release": 2.5,
+      "spread": 1,
+      "mix": 0.35
+    },
+    "Slow bloom": {
+      "partials": 12,
+      "attack": 5000,
+      "release": 15,
+      "mix": 0.4
+    },
+    "Sliding sines": {
+      "partials": 6,
+      "attack": 200,
+      "release": 5,
+      "steady": 0,
+      "glide": 1500,
+      "mix": 0.6
+    },
+    "Tuned drone": {
+      "partials": 6,
+      "snap": 1,
+      "attack": 1200,
+      "release": 30,
+      "steady": 0.4,
+      "tone": 0.3,
+      "mix": 1
+    },
+    "Noise to tones": {
+      "partials": 24,
+      "attack": 40,
+      "release": 0.6,
+      "steady": 0,
+      "glide": 5,
+      "mix": 0.7
+    },
+    "Shadow alone": {
+      "attack": 800,
+      "release": 6,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Additive resynthesis as a live effect: peaks of a short-time spectrum (kit::Stft, analysis only) are tracked from frame to frame and each drives one sine oscillator."
+  }
+}
