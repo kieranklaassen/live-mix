@@ -127,6 +127,21 @@ struct Preset {
 };
 static const std::vector<Preset> kPresets = {
     {"Light on water", {}},
+    {"Faint sheen", {{p::kDepth, 0.35f}, {p::kRate, 5.0f}, {p::kGrain, 0.9f}, {p::kLean, 0.6f}, {p::kSoft, 0.9f}, {p::kVary, 0.2f}, {p::kApart, 0.7f}}},
+    {"Slow weather", {{p::kDepth, 0.85f}, {p::kRate, 0.12f}, {p::kGrain, 0.25f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.5f}, {p::kApart, 0.6f}}},
+    {"Rising ripple", {{p::kDepth, 0.8f}, {p::kRate, 0.6f}, {p::kGrain, 0.55f}, {p::kPattern, 1.0f}, {p::kLean, 0.0f}, {p::kSoft, 0.8f}, {p::kVary, 0.0f}, {p::kApart, 0.2f}}},
+    {"Falling ripple", {{p::kDepth, 0.75f}, {p::kRate, 0.35f}, {p::kGrain, 0.4f}, {p::kPattern, 2.0f}, {p::kLean, 0.2f}, {p::kSoft, 0.9f}, {p::kVary, 0.1f}, {p::kApart, 0.3f}}},
+    {"Rings outward", {{p::kDepth, 0.7f}, {p::kRate, 1.1f}, {p::kGrain, 0.6f}, {p::kPattern, 3.0f}, {p::kLean, 0.0f}, {p::kSoft, 0.5f}, {p::kVary, 0.15f}, {p::kApart, 0.4f}}},
+    {"Sudden glints", {{p::kDepth, 0.9f}, {p::kRate, 1.4f}, {p::kGrain, 0.85f}, {p::kLean, 0.5f}, {p::kSoft, 0.0f}, {p::kVary, 0.7f}, {p::kApart, 0.8f}}},
+    {"Glitter on top", {{p::kDepth, 1.0f}, {p::kRate, 6.0f}, {p::kGrain, 1.0f}, {p::kLean, 1.0f}, {p::kSoft, 0.3f}, {p::kVary, 0.5f}, {p::kApart, 1.0f}}},
+    {"Stirring lows", {{p::kDepth, 0.8f}, {p::kRate, 0.4f}, {p::kGrain, 0.3f}, {p::kLean, -1.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.3f}}},
+    {"Fast shimmer", {{p::kDepth, 0.5f}, {p::kRate, 9.0f}, {p::kGrain, 0.8f}, {p::kLean, 0.2f}, {p::kSoft, 1.0f}, {p::kVary, 0.2f}, {p::kApart, 0.6f}}},
+    {"Wide twinkle", {{p::kDepth, 0.8f}, {p::kRate, 3.0f}, {p::kGrain, 0.75f}, {p::kLean, 0.1f}, {p::kSoft, 0.4f}, {p::kVary, 0.6f}, {p::kApart, 1.0f}}},
+    {"Moving as one", {{p::kDepth, 0.7f}, {p::kRate, 1.5f}, {p::kGrain, 0.5f}, {p::kLean, 0.0f}, {p::kSoft, 0.7f}, {p::kVary, 0.2f}, {p::kApart, 0.0f}}},
+    {"Broad swells", {{p::kDepth, 0.9f}, {p::kRate, 0.25f}, {p::kGrain, 0.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.5f}}},
+    {"Half light", {{p::kDepth, 0.8f}, {p::kRate, 0.8f}, {p::kGrain, 0.6f}, {p::kSoft, 0.8f}, {p::kMix, 0.5f}}},
+    {"Strobe rising", {{p::kDepth, 0.9f}, {p::kRate, 8.0f}, {p::kGrain, 0.6f}, {p::kPattern, 1.0f}, {p::kLean, 0.0f}, {p::kSoft, 0.1f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
+    {"Long tide", {{p::kDepth, 0.9f}, {p::kRate, 0.05f}, {p::kGrain, 0.2f}, {p::kPattern, 3.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
 };
 
 int main() {
