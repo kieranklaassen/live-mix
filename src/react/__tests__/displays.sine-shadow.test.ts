@@ -183,7 +183,12 @@ describe('Sine Shadow: the picture', () => {
     }
     for (const mix of [0.25, 0.5, 1]) {
       const lines = linesOf(
-        drawDisplay(display, params, { meters: sines, signal: testSignal(), values: { mix } }),
+        drawDisplay(display, params, {
+          meters: sines,
+          signal: testSignal(),
+          dt: 1 / 30,
+          values: { mix },
+        }),
       )
       const wet = Math.sin((mix * Math.PI) / 2)
       expect(lines).toHaveLength(3)
@@ -206,6 +211,7 @@ describe('Sine Shadow: the picture', () => {
       drawDisplay(display, params, {
         meters: { ...meters, hz1: 1000, level1: 1 },
         signal: testSignal(),
+        dt: 1 / 30,
         values: { mix: 1 },
       }),
     )
@@ -218,6 +224,7 @@ describe('Sine Shadow: the picture', () => {
       drawDisplay(display, params, {
         meters: { ...meters, hz1: 220, level1: 0.25, hz2: 3300, level2: 0.125 },
         signal: testSignal(),
+        dt: 1 / 30,
         values: { mix: 1 },
         width: 204,
         height: 100,
@@ -236,6 +243,7 @@ describe('Sine Shadow: the picture', () => {
     const silent = drawDisplay(display, params, {
       meters: sines,
       signal: testSignal(),
+      dt: 1 / 30,
       values: { mix: 0 },
       state,
     })
@@ -249,6 +257,7 @@ describe('Sine Shadow: the picture', () => {
       drawDisplay(display, params, {
         meters: sines,
         signal: testSignal(),
+        dt: 1 / 30,
         values: { mix: 1 },
         state,
       }),
@@ -282,11 +291,22 @@ describe('Sine Shadow: the picture', () => {
       (20 * Math.log10(shadowLean(0, 880)) * BOX.h) / SHADOW_FOOT_DB,
       4,
     )
+    // With sound running and no sine sounding (noise, with Steady up) there is nothing to draw: the example
+    // stands in only while nothing sounds at all.
+    expect(
+      linesOf(drawDisplay(display, params, { meters, signal: testSignal(), dt: 1 / 30 })),
+    ).toHaveLength(0)
+    const silence = linesOf(
+      drawDisplay(display, params, { meters, signal: testSignal(0, 0), dt: 1 / 30 }),
+    )
+    expect(silence.map((line) => line.x)).toEqual(defaults.map((line) => line.x))
+    expect(silence[0].colour).toBe(INK)
     // Switched off it is the example too, whatever the device last reported.
     const off = linesOf(
       drawDisplay(display, params, {
         meters: { ...meters, hz1: 3000, level1: 1 },
         signal: testSignal(),
+        dt: 1 / 30,
         powered: false,
       }),
     )
@@ -295,13 +315,18 @@ describe('Sine Shadow: the picture', () => {
 
   it('is a still picture of the settings when there is no sound', () => {
     const early = drawDisplay(display, params, { meters, now: 3 }).print()
-    const late = drawDisplay(display, params, { meters, now: 47.3, dt: 1 / 30 }).print()
+    const late = drawDisplay(display, params, { meters, now: 47.3 }).print()
     expect(late).toBe(early)
   })
 
   it('makes no new points from one frame to the next', () => {
     const state = display.init?.() as { tone: unknown; tops: unknown; example: unknown }
-    const options = { signal: testSignal(), meters: { ...meters, hz1: 440, level1: 0.3 }, state }
+    const options = {
+      signal: testSignal(),
+      dt: 1 / 30,
+      meters: { ...meters, hz1: 440, level1: 0.3 },
+      state,
+    }
     runDisplay(display, params, 0.2, options)
     const before = { tone: state.tone, tops: state.tops }
     runDisplay(display, params, 0.2, options)
@@ -405,6 +430,7 @@ describe('Sine Shadow: the handles', () => {
     const drawn = drawDisplay(display, params, {
       meters: { ...meters, hz1: 440, level1: 0.5 },
       signal: testSignal(),
+      dt: 1 / 30,
       values: { transpose: 7 },
       hot: 'transpose',
     })

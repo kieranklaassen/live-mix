@@ -203,11 +203,16 @@ const sineShadow = plateDisplay<ShadowState>({
     const tone = clamp(frame.value('tone'), 0, 1)
     const wet = shadowWet(frame.value('mix'))
     const heard = wet > QUIET
-    const running = frame.powered && frame.signal !== null && frame.hasMeter('level1')
+    // The device's own sines are read while it is on; the worked example stands in while it is off, and
+    // while it is on with nothing sounding in or out of it.
+    const reads = frame.powered && frame.hasMeter('level1')
+    const signal = frame.signal
+    const sounding =
+      signal !== null && (signal.output.peak > QUIET || (signal.input?.peak ?? 0) > QUIET)
 
     freqGrid(frame, box)
     rule(ctx, box.x, foot, box.x + box.w, foot, { colour: colours.ink, alpha: INK.rule })
-    if (running) spectrum(frame, box)
+    if (reads) spectrum(frame, box)
 
     // What Tone takes off, on the lines' own scale: level at the top of the picture where it leaves a partial whole.
     if (heard) {
@@ -227,20 +232,22 @@ const sineShadow = plateDisplay<ShadowState>({
       trace(ctx, state.tone, { colour: colours.ink, width: 1, alpha: INK.back })
     }
 
-    // The sines: the device's own while it runs, the worked example while it does not.
+    // The sines: the device's own, or the worked example while there are none and nothing sounds.
     let lines = 0
     const tops = state.tops
     const add = (hz: number, level: number): void => {
-      const sounding = level * wet
-      if (!(hz > 0) || !(sounding > QUIET) || lines >= SHADOW_SHOWN) return
+      const mixed = level * wet
+      if (!(hz > 0) || !(mixed > QUIET) || lines >= SHADOW_SHOWN) return
       tops[2 * lines] = xOfHz(hz, box)
-      tops[2 * lines + 1] = shadowY(sounding, box)
+      tops[2 * lines + 1] = shadowY(mixed, box)
       lines += 1
     }
-    if (running) {
+    if (reads) {
       for (let n = 0; n < SHADOW_SHOWN; n++)
         add(frame.meter(SHADOW_HZ_METERS[n]), frame.meter(SHADOW_LEVEL_METERS[n]))
-    } else {
+    }
+    const own = lines > 0
+    if (!own && !(reads && sounding)) {
       const partials = frame.value('partials')
       const transpose = frame.value('transpose')
       const of = state.exampleOf
@@ -260,20 +267,23 @@ const sineShadow = plateDisplay<ShadowState>({
     }
     if (lines > 0) {
       // The device's own sines are in the second colour: they are what is sounding now.
-      const colour = running ? colours.accent : colours.ink
+      const colour = own ? colours.accent : colours.ink
       ctx.beginPath()
       for (let n = 0; n < lines; n++) {
         ctx.moveTo(tops[2 * n], foot)
         ctx.lineTo(tops[2 * n], tops[2 * n + 1])
       }
-      ctx.globalAlpha = running ? 1 : INK.text
+      ctx.globalAlpha = own ? 1 : INK.text
       ctx.strokeStyle = colour
       ctx.lineWidth = 1.5
       ctx.lineCap = 'butt'
       ctx.setLineDash([])
       ctx.stroke()
       ctx.fillStyle = colour
-      for (let n = 0; n < lines; n++) ctx.fillRect(tops[2 * n] - 1.5, tops[2 * n + 1] - 1, 3, 2)
+      // A cap on each line that is tall enough to carry one, so its top is read over the spectrum.
+      for (let n = 0; n < lines; n++) {
+        if (foot - tops[2 * n + 1] >= 3) ctx.fillRect(tops[2 * n] - 1.5, tops[2 * n + 1] - 1, 3, 2)
+      }
       ctx.globalAlpha = 1
     }
 
