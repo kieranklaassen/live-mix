@@ -1,0 +1,253 @@
+{
+  "id": "flock",
+  "name": "Flock",
+  "category": "instrument",
+  "description": "A pad made of small gliding voices: every key calls a flock that flies in, hovers around the note and scatters when the key is let go.",
+  "class": "Flock",
+  "header": "flock.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "birds",
+      "name": "Birds",
+      "min": 1,
+      "max": 8,
+      "default": 5,
+      "step": 1,
+      "description": "How many voices each key calls. One is a single whistle; more make a cloud around the note without getting louder. A change is heard from the next key press."
+    },
+    {
+      "key": "gather",
+      "name": "Gather",
+      "min": 0.02,
+      "max": 12,
+      "default": 1.2,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the voices take to fly in and settle on the note: a quick swoop when short, a slow swell when long. A change is heard from the next key press."
+    },
+    {
+      "key": "from",
+      "name": "From",
+      "choices": ["Below", "Above", "Around"],
+      "default": 0,
+      "description": "Where the voices fly in from: under the note, over it, or from both sides at once. A change is heard from the next key press."
+    },
+    {
+      "key": "stray",
+      "name": "Stray",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How far the voices roam around the note once they are there. At zero they settle into one clean unison; higher smears the pitch into a wide cloud."
+    },
+    {
+      "key": "flutter",
+      "name": "Flutter",
+      "min": 0.05,
+      "max": 8,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the voices move about: the speed of their roaming around the note, of their drift from side to side and of their calls."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "The voice of each bird, from a pure whistle through a hollow pipe to a reedy buzz."
+    },
+    {
+      "key": "chirp",
+      "name": "Chirp",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Breaks each steady voice into its own slow train of soft calls. At zero the voices hold; higher leaves silence between the calls."
+    },
+    {
+      "key": "octaves",
+      "name": "Octaves",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How many of the voices sit an octave above or below the note instead of on it. A change is heard from the next key press."
+    },
+    {
+      "key": "leave",
+      "name": "Leave",
+      "min": 0.05,
+      "max": 15,
+      "default": 2.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the voices take to scatter after a key is let go, drifting off the note as they fade. Voices already leaving keep the time they left with."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the voices spread from left to right. At zero they all sit in the centre."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many keys stack up."
+    }
+  ],
+  "presets": {
+    "Evening flock": {},
+    "One whistle": {
+      "birds": 1,
+      "gather": 0.06,
+      "stray": 0,
+      "tone": 0,
+      "octaves": 0,
+      "leave": 0.35,
+      "width": 0,
+      "volume": -6
+    },
+    "Clean unison": {
+      "birds": 4,
+      "gather": 0.5,
+      "stray": 0,
+      "tone": 0.4,
+      "octaves": 0,
+      "leave": 1.2
+    },
+    "Wide smear": {
+      "birds": 8,
+      "gather": 3,
+      "stray": 0.8,
+      "flutter": 0.25,
+      "tone": 0.1,
+      "octaves": 0,
+      "leave": 5,
+      "width": 1
+    },
+    "Dawn calls": {
+      "birds": 6,
+      "gather": 0.4,
+      "from": 2,
+      "stray": 0.35,
+      "flutter": 1.2,
+      "tone": 0.1,
+      "chirp": 0.9,
+      "octaves": 0.6,
+      "leave": 3,
+      "volume": -7
+    },
+    "Reed choir": {
+      "gather": 0.5,
+      "from": 2,
+      "stray": 0.22,
+      "flutter": 0.35,
+      "tone": 0.9,
+      "octaves": 0.4,
+      "leave": 1.8
+    },
+    "Slow arrival": {
+      "birds": 8,
+      "gather": 8,
+      "tone": 0.2,
+      "leave": 8,
+      "width": 0.9
+    },
+    "Falling in": {
+      "birds": 6,
+      "gather": 2.5,
+      "from": 1,
+      "stray": 0.25,
+      "tone": 0.15,
+      "octaves": 0
+    },
+    "Swift blips": {
+      "birds": 3,
+      "gather": 0.035,
+      "from": 2,
+      "stray": 0.15,
+      "tone": 0.3,
+      "octaves": 0,
+      "leave": 0.12,
+      "width": 0.5
+    },
+    "Octave cloud": {
+      "birds": 8,
+      "gather": 1.5,
+      "tone": 0,
+      "octaves": 1,
+      "width": 1
+    },
+    "Nervous swarm": {
+      "birds": 7,
+      "gather": 0.3,
+      "stray": 0.55,
+      "flutter": 6,
+      "tone": 0.35,
+      "octaves": 0.2,
+      "leave": 1
+    },
+    "Low murmur": {
+      "birds": 7,
+      "gather": 4,
+      "stray": 0.45,
+      "flutter": 0.15,
+      "tone": 0.65,
+      "octaves": 0.15,
+      "leave": 6,
+      "width": 0.6
+    },
+    "Hollow pair": {
+      "birds": 2,
+      "gather": 0.15,
+      "stray": 0.2,
+      "tone": 0.6,
+      "octaves": 0,
+      "leave": 0.6,
+      "width": 1,
+      "volume": -7.5
+    },
+    "Scattering": {
+      "birds": 6,
+      "gather": 0.2,
+      "from": 2,
+      "stray": 0.4,
+      "tone": 0.2,
+      "leave": 7
+    },
+    "Sparse calls": {
+      "birds": 2,
+      "gather": 1,
+      "stray": 0.2,
+      "flutter": 0.2,
+      "tone": 0.3,
+      "chirp": 1,
+      "octaves": 0,
+      "leave": 4,
+      "width": 0.9
+    },
+    "Glass swarm": {
+      "birds": 8,
+      "gather": 0.8,
+      "from": 2,
+      "stray": 0.18,
+      "flutter": 2.5,
+      "tone": 0,
+      "octaves": 0.6,
+      "leave": 3,
+      "width": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each voice is one sine oscillator with a few odd harmonics whose pitch is steered by a fly-in curve, a damped random walk and a scatter on release, all drawn from seeded generators; nothing of real birdsong is modelled. It is not a model of any one instrument or product."
+  }
+}

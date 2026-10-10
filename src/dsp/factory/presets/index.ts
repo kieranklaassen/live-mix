@@ -14,6 +14,7 @@ import { DRONE_PRESETS } from './drone'
 import { DUSK_PRESETS } from './dusk'
 import { EMBER_PRESETS } from './ember'
 import { FELT_PIANO_PRESETS } from './felt-piano'
+import { FLOCK_PRESETS } from './flock'
 import { FLUTE_PRESETS } from './flute'
 import { FM_GLASS_PRESETS } from './fm-glass'
 import { GRAIN_SYNTH_PRESETS } from './grain-synth'
@@ -74,4 +75,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZITHER_PRESETS,
   ...OUTDOORS_PRESETS,
   ...ZONE_SAMPLER_PRESETS,
+  ...FLOCK_PRESETS,
 ]

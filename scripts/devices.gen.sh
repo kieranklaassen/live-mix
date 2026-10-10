@@ -52,6 +52,8 @@ build_generated_devices() {
     cpp/devices/expanse/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device flanger \
     cpp/devices/flanger/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flock \
+    cpp/devices/flock/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device flute \
     cpp/devices/flute/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device fm-glass \
@@ -223,6 +225,8 @@ test_generated_devices() {
     cpp/test/expanse_test.cpp
   native_test flanger_test \
     cpp/test/flanger_test.cpp
+  native_test flock_test \
+    cpp/test/flock_test.cpp
   native_test flute_test \
     cpp/test/flute_test.cpp
   native_test fm_glass_test \

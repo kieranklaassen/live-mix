@@ -25,6 +25,7 @@ import { ECHO_MEMORY_DESCRIPTOR, ECHO_MEMORY_DEVICE } from './echo-memory.gen'
 import { EMBER_DESCRIPTOR, EMBER_DEVICE } from './ember.gen'
 import { EXPANSE_DESCRIPTOR, EXPANSE_DEVICE } from './expanse.gen'
 import { FLANGER_DESCRIPTOR, FLANGER_DEVICE } from './flanger.gen'
+import { FLOCK_DESCRIPTOR, FLOCK_DEVICE } from './flock.gen'
 import { FLUTE_DESCRIPTOR, FLUTE_DEVICE } from './flute.gen'
 import { FM_GLASS_DESCRIPTOR, FM_GLASS_DEVICE } from './fm-glass.gen'
 import { FREQ_SHIFTER_DESCRIPTOR, FREQ_SHIFTER_DEVICE } from './freq-shifter.gen'
@@ -108,6 +109,7 @@ export * from './echo-memory.gen'
 export * from './ember.gen'
 export * from './expanse.gen'
 export * from './flanger.gen'
+export * from './flock.gen'
 export * from './flute.gen'
 export * from './fm-glass.gen'
 export * from './freq-shifter.gen'
@@ -193,6 +195,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   EMBER_DESCRIPTOR,
   EXPANSE_DESCRIPTOR,
   FLANGER_DESCRIPTOR,
+  FLOCK_DESCRIPTOR,
   FLUTE_DESCRIPTOR,
   FM_GLASS_DESCRIPTOR,
   FREQ_SHIFTER_DESCRIPTOR,
@@ -279,6 +282,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   EMBER_DEVICE,
   EXPANSE_DEVICE,
   FLANGER_DEVICE,
+  FLOCK_DEVICE,
   FLUTE_DEVICE,
   FM_GLASS_DEVICE,
   FREQ_SHIFTER_DEVICE,
@@ -372,6 +376,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'ember', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'expanse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
   { id: 'flanger', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'flock', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'flute', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'fm-glass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'freq-shifter', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
