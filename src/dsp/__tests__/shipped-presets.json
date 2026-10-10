@@ -2123,5 +2123,24 @@
     "Centre dust": {"span":1200,"stars":12,"pattern":2,"shuffle":5,"fade":0.4,"again":0.2,"tone":6000,"drift":0.3,"width":0,"mix":0.4},
     "Bright rungs": {"span":800,"stars":12,"pattern":3,"shuffle":9,"fade":0,"again":0.5,"tone":16000,"drift":0.1,"width":0.9,"mix":0.45},
     "Strange orbit": {"span":320,"stars":6,"pattern":4,"shuffle":5,"fade":0.1,"again":0.82,"tone":4500,"drift":0.8,"width":0.7,"mix":0.45}
+  },
+  "skipping-stone": {
+    "(default)": {"first":320,"bounce":0.8,"skips":8,"loss":2.5,"sink":0.3,"drop":0,"throw":0.6,"ripple":0.35,"again":0,"mix":0.35},
+    "Skipping stone": {"first":320,"bounce":0.8,"skips":8,"loss":2.5,"sink":0.3,"drop":0,"throw":0.6,"ripple":0.35,"again":0,"mix":0.35},
+    "Soft pebble": {"first":180,"bounce":0.85,"skips":6,"loss":4,"sink":0.5,"drop":0,"throw":0.3,"ripple":0.6,"again":0,"mix":0.2},
+    "Slowing bounces": {"first":120,"bounce":1.25,"skips":9,"loss":2,"sink":0.25,"drop":0,"throw":0.8,"ripple":0.3,"again":0,"mix":0.35},
+    "Falling steps": {"first":260,"bounce":1,"skips":8,"loss":1.5,"sink":0.1,"drop":100,"throw":0.6,"ripple":0.1,"again":0,"mix":0.4},
+    "Sinking away": {"first":400,"bounce":0.9,"skips":12,"loss":3,"sink":0.8,"drop":12,"throw":0.6,"ripple":0.5,"again":0,"mix":0.4},
+    "Ball on glass": {"first":240,"bounce":0.62,"skips":16,"loss":1,"sink":0,"drop":0,"throw":0,"ripple":0,"again":0,"mix":0.4},
+    "Wide rings": {"first":300,"bounce":0.9,"skips":10,"loss":1.5,"sink":0.2,"drop":0,"throw":1,"ripple":1,"again":0,"mix":0.45},
+    "Thrown again": {"first":350,"bounce":0.75,"skips":6,"loss":2,"sink":0.3,"drop":0,"throw":0.6,"ripple":0.35,"again":0.7,"mix":0.4},
+    "Long way out": {"first":900,"bounce":1.15,"skips":10,"loss":1.5,"sink":0.35,"drop":0,"throw":0.6,"ripple":0.5,"again":0.5,"mix":0.4},
+    "Nearly dry": {"first":280,"bounce":0.8,"skips":5,"loss":3,"sink":0.4,"drop":0,"throw":0.6,"ripple":0.5,"again":0,"mix":0.12},
+    "Even steps": {"first":250,"bounce":1,"skips":8,"loss":2,"sink":0.15,"drop":0,"throw":-0.8,"ripple":0,"again":0,"mix":0.35},
+    "Two skips": {"first":140,"bounce":1.5,"skips":2,"loss":0,"sink":0,"drop":0,"throw":1,"ripple":0,"again":0,"mix":0.4},
+    "Deep water": {"first":500,"bounce":0.85,"skips":12,"loss":2,"sink":1,"drop":0,"throw":0.6,"ripple":0.7,"again":0,"mix":0.5},
+    "Endless descent": {"first":420,"bounce":0.9,"skips":5,"loss":1,"sink":0.2,"drop":50,"throw":0.6,"ripple":0.4,"again":0.85,"mix":0.4},
+    "Rain on the lake": {"first":60,"bounce":1.12,"skips":16,"loss":0.8,"sink":0.1,"drop":0,"throw":1,"ripple":0.25,"again":0,"mix":0.35},
+    "Slow crossing": {"first":1400,"bounce":0.7,"skips":8,"loss":2,"sink":0.3,"drop":0,"throw":1,"ripple":0.6,"again":0.4,"mix":0.4}
   }
 }

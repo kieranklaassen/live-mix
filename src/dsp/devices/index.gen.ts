@@ -67,6 +67,7 @@ import { SAMPLER_DESCRIPTOR, SAMPLER_DEVICE } from './sampler.gen'
 import { SATURATOR_DESCRIPTOR, SATURATOR_DEVICE } from './saturator.gen'
 import { SHAPED_REVERB_DESCRIPTOR, SHAPED_REVERB_DEVICE } from './shaped-reverb.gen'
 import { SHIMMER_DESCRIPTOR, SHIMMER_DEVICE } from './shimmer.gen'
+import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
@@ -157,6 +158,7 @@ export * from './sampler.gen'
 export * from './saturator.gen'
 export * from './shaped-reverb.gen'
 export * from './shimmer.gen'
+export * from './skipping-stone.gen'
 export * from './spectral-blur.gen'
 export * from './spring-reverb.gen'
 export * from './stereo-detune.gen'
@@ -249,6 +251,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SATURATOR_DESCRIPTOR,
   SHAPED_REVERB_DESCRIPTOR,
   SHIMMER_DESCRIPTOR,
+  SKIPPING_STONE_DESCRIPTOR,
   SPECTRAL_BLUR_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
@@ -342,6 +345,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SATURATOR_DEVICE,
   SHAPED_REVERB_DEVICE,
   SHIMMER_DEVICE,
+  SKIPPING_STONE_DEVICE,
   SPECTRAL_BLUR_DEVICE,
   SPRING_REVERB_DEVICE,
   STEREO_DETUNE_DEVICE,
@@ -442,6 +446,14 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'saturator', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'shaped-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 6 },
   { id: 'shimmer', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  {
+    id: 'skipping-stone',
+    instrument: false,
+    samples: false,
+    zones: false,
+    meters: 2,
+    memoryMb: 12,
+  },
   { id: 'spectral-blur', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
