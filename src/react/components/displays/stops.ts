@@ -249,14 +249,17 @@ const stops = plateDisplay<StopsState>({
     const tone = frame.value('tone')
     const swell = frame.value('swell')
     const count = Math.max(2, Math.floor(box.w / 2) + 1)
-    if (state.curve.length !== count) state.curve = Array.from({ length: count }, (): Spot => [0, 0])
+    if (state.curve.length !== count)
+      state.curve = Array.from({ length: count }, (): Spot => [0, 0])
     for (let i = 0; i < count; i++) {
       const x = box.x + (i / (count - 1)) * box.w
       const hz = note * 2 ** ((x - unison) / perOctave)
       state.curve[i][0] = x
       state.curve[i][1] = yOfStopLevel(stopsPassed(hz, tone, swell, frame.sampleRate), layout)
     }
-    clipped(ctx, box, () => trace(ctx, state.curve, { colour: colours.ink, width: 1, alpha: INK.back }))
+    clipped(ctx, box, () =>
+      trace(ctx, state.curve, { colour: colours.ink, width: 1, alpha: INK.back }),
+    )
 
     const heard = stopsHeard(frame, note, frame.sampleRate)
     const mix = clamp(frame.value('mix'), 0, 1)
@@ -270,11 +273,8 @@ const stops = plateDisplay<StopsState>({
       // In the second ink, how much of the stop comes out: pale while it is
       // silent, stronger the louder it sounds now. With no sound to read (a
       // still picture, a plate that is off) it is whole.
-      const now = running
-        ? stopsLit(frame.meter(meter), param === 'unison' ? heard[i] : mix)
-        : 1
-      state.lit[i] =
-        running && frame.dt > 0 ? follow(state.lit[i], now, frame.dt, 0.02, 0.3) : now
+      const now = running ? stopsLit(frame.meter(meter), param === 'unison' ? heard[i] : mix) : 1
+      state.lit[i] = running && frame.dt > 0 ? follow(state.lit[i], now, frame.dt, 0.02, 0.3) : now
       const out = yOfStopLevel(heard[i], layout)
       fillRect(
         ctx,

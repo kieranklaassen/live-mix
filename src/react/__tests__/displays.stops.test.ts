@@ -208,7 +208,9 @@ describe('the formulas of the stops display', () => {
     for (const values of SETTINGS)
       for (const note of [110, 220, 1318.5]) {
         const want = heardBy(values, note)
-        stopsHeard(view(values), note, 48000).forEach((got, i) => expect(got).toBeCloseTo(want[i], 6))
+        stopsHeard(view(values), note, 48000).forEach((got, i) =>
+          expect(got).toBeCloseTo(want[i], 6),
+        )
       }
   })
 })
@@ -224,7 +226,8 @@ describe('the picture of the stops display', () => {
         NAMES.forEach((name, i) => {
           const position = values[name] ?? params[name].default
           const set = barOf(drawn, i, ink, width, height)
-          if (position > 0) expect(set?.y, `${name} set at ${width}`).toBeCloseTo(base - position * span, 6)
+          if (position > 0)
+            expect(set?.y, `${name} set at ${width}`).toBeCloseTo(base - position * span, 6)
           else expect(set, `${name} is not drawn`).toBeUndefined()
           const out = barOf(drawn, i, accent, width, height)
           if (heard[i] * span > 1e-9) {
@@ -258,9 +261,15 @@ describe('the picture of the stops display', () => {
         [98, { swell: 0 }],
       ] as [number, Record<string, number>][]) {
         const options: FrameOptions = { values, width, height }
-        const meters = Object.fromEntries(Object.keys(descriptor.meters ?? {}).map((key) => [key, 0]))
+        const meters = Object.fromEntries(
+          Object.keys(descriptor.meters ?? {}).map((key) => [key, 0]),
+        )
         const drawn = note
-          ? drawDisplay(display, params, { ...options, meters: { ...meters, note }, signal: testSignal() })
+          ? drawDisplay(display, params, {
+              ...options,
+              meters: { ...meters, note },
+              signal: testSignal(),
+            })
           : drawDisplay(display, params, options)
         const { base, span, unison, perOctave, ceiling } = layoutOf(width, height)
         const curve = curveOf(drawn)

@@ -580,6 +580,17 @@ int main() {
     EXPECT_NEAR(db(rms(against.right, from, to) / rms(mono.right, from, to)), 0.0, 0.3,
                 "an anti-phase pair: each side has its ranks at their level");
     EXPECT(correlation(against.left, against.right, from, to) < -0.99, "and they stay anti-phase, as their sources are");
+    // A note that reaches the right half a second after the left: the
+    // right's ranks join the left's in phase (they take the left's turn),
+    // not at whatever angle they would have started from.
+    ranks_only();
+    device.set_param(p::kChiff, 0.0f);
+    const std::vector<float> first = sine(261.63f, 2.0f, kRate, 0.3f);
+    std::vector<float> second = first;
+    for (size_t i = 0; i < 24137; ++i) second[i] = 0.0f;
+    const Stereo joined = run(device, first, second);
+    EXPECT(correlation(joined.left, joined.right, 60000, 96000) > 0.995,
+           "a note that comes to the right later: its ranks in phase with the left's");
     // Two notes, one a side: each side gets the octave of its own.
     ranks_only();
     device.set_param(p::kFifth, 0.0f);
@@ -726,9 +737,73 @@ int main() {
     }
     std::printf("sixteen presets, a full-scale chord for a minute each: peak %.2f at most, level %+.1f to %+.1f dB\n",
                 worst, softest, loudest);
+    // Part-way Mix at every preset: a held note over the piano's range comes
+    // out with the note itself at the level the mix law gives it,
+    // 1 - Mix x (1 - Unison) of what went in: nothing combs it.
+    double dip = 0.0, spill = 0.0;
+    for (const Preset& preset : kPresets) {
+      const double law = 1.0 - preset.values[p::kMix] * (1.0 - preset.values[p::kUnison]);
+      for (int note = 21; note <= 108; note += 6) {
+        const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        device.init(kRate);
+        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+        const Stereo out = run(device, sine(static_cast<float>(hz), 1.5f, kRate, 0.5f));
+        const double level = tone_level(out.left, hz, kRate, 24000, 72000) / 0.5;
+        char label[200];
+        std::snprintf(label, sizeof label, "preset %s, a held note at %.1f Hz: the note itself at %.4f of its level (%.4f)",
+                      preset.name, hz, law, level);
+        if (law > 0.0) {
+          dip = std::max(dip, std::fabs(db(level / law)));
+          EXPECT(std::fabs(db(level / law)) < 0.1, label);
+        } else {
+          // Unison out: what is left at the note's place is what the ranks spill there.
+          spill = std::max(spill, level);
+          EXPECT(level < 3.2e-3, label);
+        }
+      }
+    }
+    std::printf("sixteen presets, held notes A0 to A7: the note itself within %.3f dB of the mix law; with the unison "
+                "out, %.1f dB under the note at most\n",
+                dip, -db(spill));
   }
 
-  // 16. Cost: the average, and the worst block (one with a frame in it), at
+  // 16. Rest. After a note, with every control moved end to end in the
+  // silence that follows, the output is exactly nothing and the device is
+  // asleep: a second of that silence costs a small part of a second of sound.
+  {
+    device.init(kRate);
+    const std::vector<float> chord = held_chord(1.0f);
+    auto seconds_of = [&](const std::vector<float>& input) {
+      double best = 1.0e9;
+      std::vector<float> last;
+      for (int turn = 0; turn < 3; ++turn) {
+        const auto start = std::chrono::steady_clock::now();
+        last = run(device, input).left;
+        best = std::min(best, std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+      }
+      return std::make_pair(best, last);
+    };
+    const double sounding = seconds_of(chord).first;
+    // Half a second of silence with each control thrown to both ends and back.
+    for (int id = 0; id < p::kNumParams; ++id) {
+      device.set_param(id, p::kParamMin[id]);
+      run(device, std::vector<float>(1024, 0.0f));
+      device.set_param(id, p::kParamMax[id]);
+      run(device, std::vector<float>(1024, 0.0f));
+      device.set_param(id, p::kParamDefault[id]);
+    }
+    run(device, std::vector<float>(6 * 48000, 0.0f));
+    const auto rest = seconds_of(std::vector<float>(48000, 0.0f));
+    EXPECT(peak(rest.second) == 0.0, "at rest after every control was moved in silence: exactly nothing out");
+    char label[160];
+    std::snprintf(label, sizeof label, "and asleep: a second of it costs %.2f ms against %.2f ms of sound", rest.first * 1e3,
+                  sounding * 1e3);
+    EXPECT(rest.first < 0.25 * sounding, label);
+    std::printf("at rest after every control move: a second of silence %.2f ms, a second of sound %.2f ms\n",
+                rest.first * 1e3, sounding * 1e3);
+  }
+
+  // 17. Cost: the average, and the worst block (one with a frame in it), at
   // the defaults on a played chord and at the worst there is: every rank
   // full, Chiff full, on noise, where every third bin is a partial.
   {
@@ -763,6 +838,34 @@ int main() {
       std::printf("%s worst block: %.1f us, %.2f%% of its 2667 us (median %.1f us)\n", name, p95, 100.0 * p95 / 2666.7,
                   micros[micros.size() / 2]);
     }
+  }
+
+  // 18. One analysis for all the stops: on a played chord, five ranks drawn
+  // cost nearly what one does (the transforms are shared; a rank is ten bins
+  // per partial). On noise, where every third bin is a partial, they cost more.
+  {
+    const std::vector<float> chord = held_chord(10.0f);
+    rng_state() = 0xFACEu;
+    const std::vector<float> hiss = noise(10.0f, kRate, 0.25f);
+    auto seconds_of = [&](int ranks, const std::vector<float>& input) {
+      double best = 1.0e9;
+      for (int turn = 0; turn < 3; ++turn) {
+        bare(device);
+        for (int s = 0; s < ranks; ++s) device.set_param(kRankParam[(s + 2) % Stops::kRanks], 1.0f);
+        const auto start = std::chrono::steady_clock::now();
+        run(device, input);
+        best = std::min(best, std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
+      }
+      return best;
+    };
+    const double one = seconds_of(1, chord), five = seconds_of(5, chord);
+    const double one_hiss = seconds_of(1, hiss), five_hiss = seconds_of(5, hiss);
+    char label[160];
+    std::snprintf(label, sizeof label, "five stops cost nearly what one does on a chord (%.2f times)", five / one);
+    EXPECT(five < 1.5 * one, label);
+    std::printf("one stop against five: on a chord %.2f and %.2f %% of real time (%.2f times), on noise %.2f and %.2f %% "
+                "(%.2f times)\n",
+                10.0 * one, 10.0 * five, five / one, 10.0 * one_hiss, 10.0 * five_hiss, five_hiss / one_hiss);
   }
 
   return finish("stops");
