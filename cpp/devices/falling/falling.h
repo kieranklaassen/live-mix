@@ -278,7 +278,7 @@ class Falling : public kit::DeviceBase<falling::kNumParams> {
 
       // The level hold. What was caught, at its loudest for as long as a
       // grain can still read it; then it is let go.
-      caught_level_ += (caught[0] * caught[0] + caught[1] * caught[1] - caught_level_) * level_coeff_;
+      caught_level_ = flush_denormal(caught_level_ + (caught[0] * caught[0] + caught[1] * caught[1] - caught_level_) * level_coeff_);
       if (caught_level_ >= held_level_) {
         held_level_ = caught_level_;
         held_for_ = hold_reach_;

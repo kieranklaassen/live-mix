@@ -409,7 +409,7 @@ function fallingHandles(view: DisplayView): DisplayHandle[] {
   const wide = wideOf(layout, view.at('size'))
   const zero = fallingY(layout, 0, fall, vary)
   const end = fallingY(layout, fall, fall, vary)
-  const half = zero + (end - zero) * fallingBend(0.5, curve)
+  const half = lerp(zero, end, fallingBend(0.5, curve))
   return [
     {
       key: 'fall',

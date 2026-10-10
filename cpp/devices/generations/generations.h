@@ -669,7 +669,7 @@ class Generations : public kit::DeviceBase<generations::kNumParams> {
     const float low = room_hz(room_.value);
     const float resonance = resonance_.value;
     const float q = kWideQ + (kNarrowQ - kWideQ) * resonance;
-    direct_target_ = std::pow(10.0f, -kContrastDb * resonance * 0.05f);
+    direct_target_ = kit::db_to_gain(-kContrastDb * resonance);
     for (int c = 0; c < 2; ++c) {
       const float side = c == 0 ? -1.0f : 1.0f;
       // With no Width the two sides are one room: the second takes the first's.

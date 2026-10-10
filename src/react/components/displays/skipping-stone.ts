@@ -21,6 +21,7 @@ import {
   INK,
   clamp,
   clipped,
+  dbToGain,
   gainToDb,
   ground,
   handle,
@@ -82,7 +83,7 @@ export function throwOf(
  * that follow are counted in, up to as much again.
  */
 export function levelOf(lossDb: number, count: number, again: number): number {
-  const lost = Math.pow(10, -lossDb / 20)
+  const lost = dbToGain(-lossDb)
   let power = 0
   let gain = 1
   for (let k = 0; k < count; k++) {
@@ -125,7 +126,7 @@ export function thrownOf(view: Pick<DisplayView, 'value'>): Thrown {
   const skips = clamp(Math.round(view.value('skips')), 1, MOST_LANDINGS)
   const { seconds, count } = throwOf(view.value('first'), view.value('bounce'), skips)
   const flight = seconds[count - 1] - seconds[0]
-  const lost = Math.pow(10, -view.value('loss') / 20)
+  const lost = dbToGain(-view.value('loss'))
   const level = levelOf(view.value('loss'), count, view.value('again'))
   const sharp = 1 - view.value('ripple')
   const landings: Landing[] = []
@@ -302,7 +303,7 @@ function flightPoints(
   const points: Point[] = []
   for (let i = 0; i <= steps; i++) {
     const u = i / steps
-    points.push([from + (to - from) * u, water - tall * flightOf(u, falls)])
+    points.push([lerp(from, to, u), water - tall * flightOf(u, falls)])
   }
   return points
 }

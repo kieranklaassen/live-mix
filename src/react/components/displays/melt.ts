@@ -15,7 +15,9 @@ import {
   INK,
   clamp,
   crisp,
+  dbToGain,
   fillRect,
+  gainToDb,
   ground,
   handle,
   label,
@@ -192,7 +194,7 @@ export const MELT_DRY_SHARE = 0.16
 const LIT_TOP_DB = -6
 const LIT_RANGE_DB = 54
 export const meltLit = (level: number): number =>
-  level > 1e-6 ? clamp(1 + (20 * Math.log10(level) - LIT_TOP_DB) / LIT_RANGE_DB, 0, 1) : 0
+  clamp(1 + (gainToDb(level) - LIT_TOP_DB) / LIT_RANGE_DB, 0, 1)
 
 /** The past the display keeps: as old as the oldest sound it can show, a slot every 50 ms. */
 const PAST_SEC = MELT_AGE_MOST
@@ -427,7 +429,7 @@ const melt = plateDisplay<MeltState>({
         const back = Math.round((solid + rung) / SLOT_SEC)
         const lit =
           back < SLOTS
-            ? wet * meltLit(state.heard.at(back) * Math.pow(10, level / 20)) * Math.max(lows, highs)
+            ? wet * meltLit(state.heard.at(back) * dbToGain(level)) * Math.max(lows, highs)
             : 0
         if (lit > 0.02) {
           ribbon(ctx, from, to, MELT_LIT_HALF, MELT_LIT_HALF, colours.accent, lit, top, foot)

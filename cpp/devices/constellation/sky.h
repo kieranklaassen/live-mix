@@ -17,7 +17,7 @@
 //            run that slows down. Sides wind round by the golden angle from
 //            a start the seed draws, and each star twinkles by chance.
 //   Cluster  three or four groups about evenly apart (each centre off the
-//            even place by up to an eighth of a step), three or four stars
+//            even place by up to a quarter of a step), three or four stars
 //            each, 2 to 5 % of the span apart inside a group. The head of a
 //            group is its brightest star, and each twinkles by chance.
 //   Scatter  the golden sequence (i times 0.618..., wrapped) from a seeded

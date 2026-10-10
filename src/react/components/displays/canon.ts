@@ -19,6 +19,7 @@ import {
   INK,
   clamp,
   clipped,
+  dbToGain,
   fillRect,
   follow,
   ground,
@@ -64,7 +65,7 @@ const FADE_DB = 12
 export function followerGain(k: number, count: number, fade: number): number {
   let power = 0
   for (let n = 0; n < count; n++) power += Math.pow(10, (-FADE_DB * fade * n) / 10)
-  return k < count ? Math.pow(10, (-FADE_DB * fade * k) / 20) / Math.sqrt(power) : 0
+  return k < count ? dbToGain(-FADE_DB * fade * k) / Math.sqrt(power) : 0
 }
 
 /** How much of the followers Mix lets out: canon.h `process()`, equal power with exact ends. */

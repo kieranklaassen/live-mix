@@ -288,14 +288,6 @@ class Melt : public kit::DeviceBase<melt::kNumParams> {
   // Linear to +-1.5, landing on +-3.
   static float bound(float x) { return 3.0f * kit::soft_clip(x * (1.0f / 3.0f)); }
 
-  static void hadamard4(float* v) {
-    const float a0 = v[0] + v[1], a1 = v[0] - v[1], a2 = v[2] + v[3], a3 = v[2] - v[3];
-    v[0] = 0.5f * (a0 + a2);
-    v[1] = 0.5f * (a1 + a3);
-    v[2] = 0.5f * (a0 - a2);
-    v[3] = 0.5f * (a1 - a3);
-  }
-
   // A value set on the control clock and walked to in a straight line over
   // the samples up to the next tick, so that nothing the clock sets is heard
   // as steps.
@@ -399,9 +391,9 @@ class Melt : public kit::DeviceBase<melt::kNumParams> {
     // What went into the lines and what the tail was since the last tick,
     // as power, each smoothed alike; and the power the lines held a tick
     // ago by the reckoning below.
-    fed_[0] += weigh_ * (fed_sum_[0] * (1.0f / kControlPeriod) - fed_[0]);
-    fed_[1] += weigh_ * (fed_sum_[1] * (1.0f / kControlPeriod) - fed_[1]);
-    heard_ += weigh_ * (heard_sum_ * (1.0f / kControlPeriod) - heard_);
+    fed_[0] = flush_denormal(fed_[0] + weigh_ * (fed_sum_[0] * (1.0f / kControlPeriod) - fed_[0]));
+    fed_[1] = flush_denormal(fed_[1] + weigh_ * (fed_sum_[1] * (1.0f / kControlPeriod) - fed_[1]));
+    heard_ = flush_denormal(heard_ + weigh_ * (heard_sum_ * (1.0f / kControlPeriod) - heard_));
     fed_sum_[0] = fed_sum_[1] = heard_sum_ = 0.0f;
     fed_past_[0][past_at_] = fed_[0];
     fed_past_[1][past_at_] = fed_[1];
@@ -414,7 +406,7 @@ class Melt : public kit::DeviceBase<melt::kNumParams> {
       const float factor =
           kit::clamp(1.0f + drip * (tide + kOwnShare * wander_[n].next()), 0.0f, 2.0f);
       // The head moves away from the write point by what the pitch gives up.
-      rate_[n] = 1.0f - std::exp2(sag * age * factor * (1.0f / 1200.0f));
+      rate_[n] = 1.0f - kit::cents_to_ratio(sag * age * factor);
       const Cost cost = cost_of(age);
       float gain = cost.gain;
       dark_cut_[n][lead] = cost.dark;
@@ -639,7 +631,7 @@ class Melt : public kit::DeviceBase<melt::kNumParams> {
     const float held = hold_walk_.next();
     wet_left = bound(wet_left * held);
     wet_right = bound(wet_right * held);
-    hadamard4(u);
+    kit::hadamard<kLines>(u);
     for (int n = 0; n < kLines; ++n) {
       line_[n].write(flush_denormal(bound(u[n] + kFeedSign[n] * feed[n & 1])));
     }

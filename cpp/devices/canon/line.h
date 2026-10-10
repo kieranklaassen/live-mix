@@ -17,8 +17,6 @@ namespace canon_dsp {
 template <int Frames>
 class Line {
  public:
-  static constexpr int kFrames = Frames;
-
   void clear() {
     for (int i = 0; i < 2 * Frames; ++i) buffer_[i] = 0.0f;
     head_ = 0;
