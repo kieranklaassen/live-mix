@@ -104,7 +104,7 @@ export const CURRENTS_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Where the moving bands begin. Sound here moves about half as far as the bands above, and an octave lower it holds almost still, which keeps the bass solid.',
+      'Where the moving bands begin. Sound here moves less than the bands above, and an octave lower it hardly moves, keeping the bass solid. Low Focus reaches further down.',
   },
   mix: {
     id: 9,
