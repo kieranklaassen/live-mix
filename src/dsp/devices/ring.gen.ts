@@ -15,8 +15,7 @@ export const RING_PARAMS = {
     taper: 'linear',
     unit: '',
     choices: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'],
-    description:
-      'The note the carrier is tuned to. Set it to the key of the piece and the new partials land on notes that belong with what is played.',
+    description: 'The note the carrier is tuned to. Set it to the key of the piece.',
   },
   octave: {
     id: 1,
@@ -165,7 +164,7 @@ export const RING_DESCRIPTOR = wasmDeviceDescriptor(RING_DEVICE, {
   description:
     'A ring modulator tuned to a note of the key, with a slow drift: every partial is split into a sum and a difference, which turns plain tones into bells and gongs.',
   presets: {
-    'Bell in key': {},
+    'Bell on the root': {},
     'Faint halo': { octave: 5, drift: 0.4, tone: 5000, width: 0.8, mix: 0.12 },
     'Pad shimmer': {
       octave: 6,
@@ -195,7 +194,7 @@ export const RING_DESCRIPTOR = wasmDeviceDescriptor(RING_DEVICE, {
       lowCut: 20,
       tone: 16000,
       width: 0,
-      mix: 0.5,
+      mix: 0.2,
     },
     'Side to side': {
       tune: 1,
