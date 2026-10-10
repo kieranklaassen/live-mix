@@ -245,25 +245,49 @@ int main() {
                 "Shift comes after the stretch");
   }
 
-  // 6. Lean: turned up, what lies under the pivot stays and what lies over it moves; turned down, the
-  // other way round.
+  // 6. Lean: where the stretch bites. The device's own weight, w = 1 - lean (1 - r) or 1 + lean r with
+  // r = (o / 2)² / (1 + (o / 2)²) and o the octaves from the pivot; turned up the octave partial stays
+  // close and the high ones go far, turned down the other way round; and the curve always rises.
   {
-    const std::vector<float> tone = harmonics(110.0f, 8, 1.5f, 0.3f);  // 110..880 around a pivot of 440
-    const double e = std::pow(2.0, 0.5);
-    for (float lean : {1.0f, -1.0f, 0.5f}) {
+    const std::vector<float> tone = harmonics(110.0f, 12, 1.5f, 0.3f);  // 110..1320 around a pivot of 220
+    auto warped = [](double hz, double pivot, double stretch, double lean) {
+      const double o = std::log2(hz / pivot);
+      const double x = o / Warp::kLeanOctaves;
+      const double r = x * x / (1.0 + x * x);
+      const double w = lean >= 0.0 ? 1.0 - lean * (1.0 - r) : 1.0 + lean * r;
+      return pivot * std::pow(2.0, o * (1.0 + (std::pow(2.0, stretch) - 1.0) * w));
+    };
+    double worst = 0.0;
+    for (float lean : {1.0f, -1.0f, 0.5f, -0.5f}) {
       still(device);
       device.set_param(p::kStretch, 0.5f);
-      device.set_param(p::kPivot, 440.0f);
       device.set_param(p::kLean, lean);
       const Stereo out = run(device, tone);
-      const double e_below = std::pow(2.0, 0.5 * std::min(1.0, 1.0 - lean));
-      const double e_above = std::pow(2.0, 0.5 * std::min(1.0, 1.0 + lean));
-      const double low = 440.0 * std::pow(220.0 / 440.0, e_below);
-      const double high = 440.0 * std::pow(880.0 / 440.0, e_above);
-      EXPECT_NEAR(cents(partial_near(out.left, low, 60.0, 24000, 66000), low), 0.0, 1.0, "Lean: the partial under the pivot");
-      EXPECT_NEAR(cents(partial_near(out.left, high, 60.0, 24000, 66000), high), 0.0, 1.0, "Lean: the partial over the pivot");
+      for (int n : {1, 3, 4, 8, 12}) {
+        const double want = warped(110.0 * n, 220.0, 0.5, lean);
+        worst = std::max(worst, std::fabs(cents(partial_near(out.left, want, 60.0, 24000, 66000), want)));
+      }
     }
-    (void)e;
+    std::printf("lean: worst partial %.3f cents off its formula\n", worst);
+    EXPECT(worst < 1.0, "Lean: every partial lands where the weighted stretch puts it");
+    // What the two ends do to the octave over the pivot and to the partial two octaves and a fifth over it.
+    const double plain2 = cents(warped(440.0, 220.0, 0.5, 0.0), 440.0), plain12 = cents(warped(1320.0, 220.0, 0.5, 0.0), 1320.0);
+    EXPECT(cents(warped(440.0, 220.0, 0.5, 1.0), 440.0) < 0.25 * plain2, "Lean up: the octave partial barely moves");
+    EXPECT(cents(warped(1320.0, 220.0, 0.5, 1.0), 1320.0) > 0.6 * plain12, "Lean up: the high partial still goes far");
+    EXPECT(cents(warped(440.0, 220.0, 0.5, -1.0), 440.0) > 0.75 * plain2, "Lean down: the octave partial moves");
+    EXPECT(cents(warped(1320.0, 220.0, 0.5, -1.0), 1320.0) < 0.45 * plain12, "Lean down: the high partial stays nearer");
+    bool rising = true;
+    for (double stretch : {-1.16, 1.16}) {
+      for (double lean : {-1.0, -0.5, 0.5, 1.0}) {
+        double last = 0.0;
+        for (double hz = 5.0; hz < 24000.0; hz *= 1.01) {
+          const double now = warped(hz, 220.0, stretch, lean);
+          rising = rising && now > last;
+          last = now;
+        }
+      }
+    }
+    EXPECT(rising, "the curve rises all the way at every stretch and lean: partials never cross");
   }
 
   // 7. Width: the two sides are stretched apart, left less and right more, by kWidthDepth of the

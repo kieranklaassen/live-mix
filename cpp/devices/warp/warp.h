@@ -46,9 +46,16 @@
 //    that with its dry self it adds up to what came in: a partial that does
 //    not move keeps its level at every Mix.
 //
-// - Lean scales the stretch on one side of the pivot down to nothing: the
-//   exponent above the pivot is 2^(stretch × min(1, 1 + lean)), below it
-//   2^(stretch × min(1, 1 - lean)).
+// - Lean says where the stretch bites. With o the octaves from the pivot
+//   and r = (o/2)² / (1 + (o/2)²), which runs from 0 at the pivot to 1 far
+//   from it, the stretch is weighted by w = 1 - lean (1 - r) for lean ≥ 0
+//   (at 1 the partials near the pivot stay close to where they were and the
+//   far ones move most, as on a stiff string) and by w = 1 + lean r for
+//   lean < 0 (at -1 the near ones move and the far ones stay):
+//
+//     g(f) = pivot × 2^(o (1 + (e - 1) w) + shift / 12)
+//
+//   The curve rises all the way at every setting, so partials never cross.
 // - Drift adds a slow wander to the stretch: three sines at 0.043 Hz and
 //   two rates beside it, read from the frame's number (the Stft's sample
 //   clock), so it keeps its place through silence and sleep and is the same
@@ -89,6 +96,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   static constexpr float kDriftDepth = 0.12f;  // of stretch, at Drift 1
   static constexpr float kWidthDepth = 0.04f;  // of stretch each side, at Width 1
   static constexpr float kDriftHz = 0.043f;
+  static constexpr float kLeanOctaves = 2.0f;  // where Lean's weight is a half
   // The drift's three sines: their rates against kDriftHz, their weights, and where each starts
   // (in 2^32 of a turn).
   static constexpr double kDriftRate[3] = {1.0, 0.6180339887, 1.7320508076};
@@ -389,8 +397,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     if (c == 0) stretch_now_ = centre;
     const float stretch = centre + (c == 0 ? -1.0f : 1.0f) * param(kWidth) * kWidthDepth;
     const float lean = param(kLean);
-    const float above = std::exp2(stretch * kit::min(1.0f, 1.0f + lean));
-    const float below = std::exp2(stretch * kit::min(1.0f, 1.0f - lean));
+    const float exponent = std::exp2(stretch) - 1.0f;    // e - 1
     const float shift = param(kShift) * (1.0f / 12.0f);  // octaves
     // What a region at rest is turned down by. Mix is an equal-power crossfade, which is right for
     // partials that have moved (they add to the dry ones as power) and 3 dB too much at the centre
@@ -477,9 +484,13 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
         octaves = std::log2(place / channel.pivots[owner]);
         if (harmonic > 0) channel.note_power[owner] = kit::max(channel.note_power[owner], power_[k]);
       }
-      // g(place) = pivot × 2^(octaves × e + shift) = place × 2^(octaves × (e - 1) + shift): written
-      // the second way, a region that is not to move has a move of exactly nought.
-      const float ratio = std::exp2(octaves * ((octaves >= 0.0f ? above : below) - 1.0f) + shift);
+      // Lean's weight: r runs from 0 at the pivot to 1 far from it (a half at kLeanOctaves).
+      const float x = octaves * (1.0f / kLeanOctaves);
+      const float r = x * x / (1.0f + x * x);
+      const float weight = lean >= 0.0f ? 1.0f - lean * (1.0f - r) : 1.0f + lean * r;
+      // g(place) = pivot × 2^(octaves × (1 + (e - 1) w) + shift) = place × 2^(octaves × (e - 1) w +
+      // shift): written the second way, a region that is not to move has a move of exactly nought.
+      const float ratio = std::exp2(octaves * exponent * weight + shift);
       move_region(channel, re, im, low, high, k, place * (ratio - 1.0f), place * ratio);
 
       // The strongest few, for the display.

@@ -154,7 +154,7 @@
       "min": -1,
       "max": 1,
       "default": 0,
-      "description": "Which side of the pivot is warped. Turned up, only the partials above the pivot move; turned down, only those below it. The middle moves both."
+      "description": "Where the stretch bites. Up, overtones near the pivot stay close and the far ones move most, as on a stiff string. Down, the near ones move and the far ones stay."
     },
     {
       "key": "shift",
@@ -200,40 +200,39 @@
   ],
   "presets": {
     "Bell metal": {},
+    "Stiff string": {
+      "stretch": 0.45,
+      "lean": 1,
+      "drift": 0,
+      "width": 0.15
+    },
     "Soft chime": {
       "stretch": 0.12,
-      "pivot": 440,
-      "lean": 1,
       "drift": 0.2,
       "tone": -0.3,
       "mix": 0.5
     },
     "Glass bar": {
-      "stretch": 0.55,
-      "pivot": 60,
-      "follow": 1,
+      "stretch": 0.6,
       "drift": 0,
-      "width": 0.15,
-      "mix": 1
+      "tone": 0.2,
+      "width": 0.1
     },
-    "Beating cluster": {
-      "stretch": -0.6,
-      "pivot": 330,
-      "drift": 0.3,
-      "width": 0.6,
-      "mix": 1
+    "Tight hum": {
+      "stretch": -1,
+      "tone": 0.3
     },
     "Slow breath": {
       "stretch": 0.2,
       "drift": 1,
-      "width": 0.5,
-      "mix": 0.8
+      "width": 0.5
     },
     "Sunken gong": {
       "stretch": 0.45,
+      "pivot": 220,
+      "follow": 0,
       "shift": -12,
-      "tone": -0.5,
-      "mix": 1
+      "tone": -0.5
     },
     "Thin halo": {
       "stretch": 0.06,
@@ -244,33 +243,27 @@
     "Wide drone": {
       "stretch": -0.25,
       "pivot": 110,
+      "follow": 0,
       "drift": 0.6,
       "width": 1,
       "mix": 0.85
     },
-    "Top bent": {
+    "Close cluster": {
       "stretch": 0.7,
-      "pivot": 600,
-      "lean": 1,
-      "tone": -0.2,
-      "mix": 0.8
-    },
-    "Low roots": {
-      "stretch": 0.6,
-      "pivot": 500,
       "lean": -1,
       "mix": 0.9
     },
-    "Tight hum": {
-      "stretch": -1,
-      "pivot": 60,
-      "follow": 1,
-      "tone": 0.3,
-      "mix": 1
+    "Beating cluster": {
+      "stretch": -0.6,
+      "pivot": 330,
+      "follow": 0,
+      "drift": 0.3,
+      "width": 0.6
     },
     "Tin toy": {
       "stretch": 0.9,
       "pivot": 300,
+      "follow": 0,
       "shift": 7,
       "tone": -0.6,
       "mix": 0.9
@@ -289,14 +282,11 @@
     },
     "Dark bowl": {
       "stretch": -0.35,
-      "pivot": 150,
       "drift": 0.25,
-      "tone": -0.8,
-      "mix": 1
+      "tone": -0.8
     },
     "Bright spray": {
       "stretch": 0.5,
-      "pivot": 300,
       "lean": 1,
       "tone": 0.8,
       "width": 0.8,
