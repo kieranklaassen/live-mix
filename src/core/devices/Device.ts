@@ -63,6 +63,49 @@ export function isNoteDevice(device: Device): device is NoteDevice {
   return typeof candidate.noteOn === 'function' && typeof candidate.noteOff === 'function'
 }
 
+/** A note an instrument was sent, as something that shows its playing reads it. */
+export interface PlayedNote {
+  /** The id it was sent with: a key held twice in a row is two notes of one id. */
+  id: number
+  /** Its pitch in Hz, and how hard it was played, 0..1. */
+  frequency: number
+  gain: number
+  /** When it began and, once it was let go, when: milliseconds on `performance.now()`'s clock. */
+  onMs: number
+  offMs: number | null
+}
+
+/**
+ * An instrument that remembers the notes it was sent, the held ones and the
+ * ones let go in the last while, for a display of what it plays. What it
+ * remembers is what it was told, not what still sounds: how long a note rings
+ * on is the instrument's own business.
+ */
+export interface NoteWatchDevice extends NoteDevice {
+  playedNotes(): readonly PlayedNote[]
+}
+
+export function isNoteWatchDevice(device: Device): device is NoteWatchDevice {
+  return (
+    isNoteDevice(device) && typeof (device as Partial<NoteWatchDevice>).playedNotes === 'function'
+  )
+}
+
+/**
+ * A device that plays a sound it is handed (a sampler, a granular synth) and
+ * remembers how long the last one was, for a display that shows where in the
+ * sound a note is read. What the device kept of it is its own business: one
+ * that holds less than it was handed has dropped the end.
+ */
+export interface SampleWatchDevice extends Device {
+  /** The length of the sound it was last handed, in seconds; null until it is handed one. */
+  loadedSampleSeconds(): number | null
+}
+
+export function isSampleWatchDevice(device: Device): device is SampleWatchDevice {
+  return typeof (device as Partial<SampleWatchDevice>).loadedSampleSeconds === 'function'
+}
+
 /** A device with a window of its own, such as a hosted plug-in's editor. */
 export interface EditorDevice extends Device {
   /** Open the device's own window, or bring it to the front. */

@@ -66,6 +66,19 @@ export interface DisplaySignal {
   right: DisplayLevel | null
 }
 
+/** A note an instrument was sent, as its display reads it on one frame. */
+export interface DisplayNote {
+  /** The id it was sent with. */
+  id: number
+  /** Its pitch in Hz, and how hard it was played, 0..1. */
+  frequency: number
+  gain: number
+  /** Seconds since it began. */
+  age: number
+  /** Seconds since it was let go; null while it is held. */
+  released: number | null
+}
+
 /** What a display may read without a canvas: enough to lay out its handles. */
 export interface DisplayView {
   /** The display's size in CSS pixels; a display draws to whatever it is given. */
@@ -95,6 +108,22 @@ export interface DisplayFrame<S = unknown> extends DisplayView {
   hasMeter(name: string): boolean
   /** The sound at the device; null while the display is not running (off, out of view, no audio). */
   signal: DisplaySignal | null
+  /**
+   * The notes an instrument was sent, oldest first: the held ones, and the
+   * ones let go in the last minute. Empty unless the display asks for
+   * `notes`, on an effect, on a still draw, and on a device that does not
+   * remember them (a hosted plug-in). It is what the instrument was told to
+   * play, not what still sounds: how long a string rings is for the display
+   * to draw from the knobs and the sound coming out.
+   */
+  notes: readonly DisplayNote[]
+  /**
+   * How long the sound a sample device was last handed is, in seconds; null
+   * for a device that was handed none and plays the sound it is built with,
+   * and for one that does not say. A display that shows where in the sound a
+   * note is read needs it: the knobs give places as shares of the sound.
+   */
+  sampleSeconds: number | null
   /** Seconds on a clock that only runs forward; for motion the device does not report. */
   now: number
   /** Seconds since the frame before; 0 on the first frame and on a still draw. */
@@ -160,6 +189,12 @@ export interface PlateDisplay<S = unknown> {
     spectrum?: boolean
     /** Reads the output's two sides apart too (`frame.signal.left` and `right`). */
     stereo?: boolean
+    /**
+     * Reads the notes an instrument was sent (`frame.notes`). While the device
+     * remembers one the display runs on, however quiet the sound is, and a
+     * note sets a display that stands still running before any sound comes.
+     */
+    notes?: boolean
     /** Frames per second: 30 unless something small moves fast enough to need 60. */
     fps?: 30 | 60
     /**
@@ -183,6 +218,17 @@ export interface PlateFace {
   face?: readonly string[]
   /** Shorter words for a knob than its parameter's name; only where the name does not fit. */
   labels?: Readonly<Record<string, string>>
+  /**
+   * An instrument's knobs in sections, for the plate that shows them all
+   * (`spread`): each section stands together, with a gap to the next.
+   */
+  sections?: readonly (readonly string[])[]
+  /**
+   * Asks for a display twice as wide (408 px) on a spread plate of nine
+   * columns or more. Only for a drawing made for that width: the display is
+   * still handed 204 on a narrower plate and 128 on a flat one.
+   */
+  wide?: boolean
 }
 
 /** Keeps the type of a display's state between `init` and `draw`. */

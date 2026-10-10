@@ -1,5 +1,5 @@
 // What every plate display must do, checked for each one in `PLATE_FACES`:
-// it belongs to a stock effect, reads parameters the device has, draws at any
+// it belongs to a stock device, reads parameters the device has, draws at any
 // setting without a number the canvas cannot take, paints in the plate's own
 // colours, follows the parameters it says it reads, and its handles stand on
 // the display and set what they stand for. A display's own truth (its curve
@@ -18,6 +18,7 @@ import {
   metersOf,
   runDisplay,
   stockDescriptors,
+  testNotes,
   testSignal,
   viewOf,
   type RecordingContext,
@@ -70,9 +71,23 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
   const { display } = face
   const meters = metersOf(descriptor?.meters)
 
-  it('belongs to a stock effect and reads parameters the device has', () => {
+  // An instrument's display is handed the notes it was sent; an effect's has none to be handed.
+  const notes = display.live?.notes ? testNotes() : undefined
+
+  it('belongs to a stock device and reads parameters the device has', () => {
     expect(descriptor, `${id} is a stock device`).toBeDefined()
-    expect(descriptor?.category).not.toBe('instrument')
+    // An instrument's display is a window that reads the notes played and the sound that comes
+    // out, which is all that says a silent preset is silent; an effect's reads no notes.
+    if (descriptor?.category === 'instrument') {
+      expect(display.place, `${id} is an instrument: a window`).toBe('window')
+      expect(display.live?.notes, `${id} is an instrument: it reads the notes`).toBe(true)
+      expect(display.live?.signal, `${id} is an instrument: it reads the sound`).toBe(true)
+      expect(display.params, `${id} shows its level from the sound, not the knob`).not.toContain(
+        'volume',
+      )
+    } else {
+      expect(display.live?.notes, `${id} is an effect: no notes`).toBeUndefined()
+    }
     for (const name of display.params) expect(names, `${id} reads ${name}`).toContain(name)
     for (const name of face.face ?? []) expect(names, `${id} face ${name}`).toContain(name)
     for (const name of Object.keys(face.labels ?? {}))
@@ -116,6 +131,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
             values,
             meters: metersOf(descriptor?.meters, reading),
             signal: testSignal(),
+            notes,
           })
           expect(running.marks(), `${id} ${what} draws while it runs`).toBeGreaterThan(0)
           expectSound(id, `${what}, running`, running)
@@ -125,7 +141,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
         expectSound(
           id,
           `${what}, in silence`,
-          runDisplay(display, params, 0.2, { values, meters, signal: silent }),
+          runDisplay(display, params, 0.2, { values, meters, signal: silent, notes }),
         )
       }
     }
@@ -151,7 +167,7 @@ describe.each(Object.entries(PLATE_FACES))('the display of %s', (id, face) => {
   it('follows every parameter it says it reads', () => {
     const picture = (values: Record<string, number>): string =>
       display.live
-        ? runDisplay(display, params, 0.5, { values, meters, signal: testSignal() }).print()
+        ? runDisplay(display, params, 0.5, { values, meters, signal: testSignal(), notes }).print()
         : drawDisplay(display, params, { values, meters }).print()
     // A parameter may show only beside another (a band's width when the band
     // has gain, a gain under a shelf and not under a low pass), so it is moved
