@@ -486,7 +486,8 @@ const murmuration = plateDisplay<MurmurationState>({
     const together = frame.value('together')
     // The Turns the device is flying with: its reading while it runs, the control where there is none.
     const asked = frame.value('turns')
-    const turns = frame.powered && frame.hasMeter('turns') ? clamp(frame.meter('turns'), 0, 1) : asked
+    const turns =
+      frame.powered && frame.hasMeter('turns') ? clamp(frame.meter('turns'), 0, 1) : asked
     const air = frame.value('air')
     const birds = clamp(Math.round(frame.value('birds')), 1, FLOCK.birds)
     const lens = flockLens(together)

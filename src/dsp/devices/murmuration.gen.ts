@@ -71,7 +71,7 @@ export const MURMURATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones jump out and far ones fade.',
+      'How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones stand out and far ones fade.',
   },
   spread: {
     id: 6,
@@ -82,7 +82,7 @@ export const MURMURATION_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far round the listener the flock flies. Zero keeps every bird in the middle, full lets them cross from one side to the other.',
+      'How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides.',
   },
   lift: {
     id: 7,
@@ -196,7 +196,7 @@ export const MURMURATION_DESCRIPTOR = wasmDeviceDescriptor(MURMURATION_DEVICE, {
       mix: 1,
     },
     'Wet shimmer': { birds: 16, range: 8, speed: 2.6, together: 0.3, air: 0.1, lift: 1, mix: 1 },
-    'Mono swarm': { birds: 12, range: 12, together: 0.4, spread: 0, mix: 0.45 },
+    'Straight ahead': { birds: 12, range: 12, together: 0.4, spread: 0, mix: 0.45 },
     'Slapback flock': {
       birds: 3,
       range: 50,

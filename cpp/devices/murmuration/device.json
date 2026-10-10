@@ -71,7 +71,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones jump out and far ones fade."
+      "description": "How much distance quietens and dulls a bird. Zero keeps every bird as clear and loud as the next, full makes near ones stand out and far ones fade."
     },
     {
       "key": "spread",
@@ -79,7 +79,7 @@
       "min": 0,
       "max": 1,
       "default": 0.8,
-      "description": "How far round the listener the flock flies. Zero keeps every bird in the middle, full lets them cross from one side to the other."
+      "description": "How far round the listener the flock flies. Zero keeps every bird straight ahead, full lets them cross from one side to the other. A stereo sound keeps its own sides."
     },
     {
       "key": "lift",
@@ -202,7 +202,7 @@
       "lift": 1,
       "mix": 1
     },
-    "Mono swarm": {
+    "Straight ahead": {
       "birds": 12,
       "range": 12,
       "together": 0.4,

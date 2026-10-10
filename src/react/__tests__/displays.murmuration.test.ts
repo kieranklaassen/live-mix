@@ -752,7 +752,8 @@ describe('murmuration: what the second check found', () => {
   /** How far apart the two farthest bird dots of a drawing are, in pixels. */
   const across = (dots: readonly Dot[]): number => {
     let most = 0
-    for (const a of dots) for (const b of dots) most = Math.max(most, Math.hypot(a.x - b.x, a.y - b.y))
+    for (const a of dots)
+      for (const b of dots) most = Math.max(most, Math.hypot(a.x - b.x, a.y - b.y))
     return most
   }
   const TAUS = [0, 20, 37.5, 100, 500.2, 903]
@@ -866,9 +867,7 @@ describe('murmuration: what the second check found', () => {
     let sum = 0
     for (const tau of TAUS)
       sum += across(
-        birdsOf(
-          drawDisplay(display, PARAMS, { meters: { flight: tau }, width: 224, height: 48 }),
-        ),
+        birdsOf(drawDisplay(display, PARAMS, { meters: { flight: tau }, width: 224, height: 48 })),
       )
     expect(sum / TAUS.length).toBeGreaterThan(20)
   })
@@ -972,7 +971,8 @@ describe('murmuration: the Turns that is flown, and how far a preset bends', () 
         FLOCK.maxDepthRate,
       )
       // Its speed towards the listener over the speed of sound is the bend.
-      const speed = range * (1 - FLOCK.nearShare) * fastest * flightRate(valueOf(preset, 'speed'), range)
+      const speed =
+        range * (1 - FLOCK.nearShare) * fastest * flightRate(valueOf(preset, 'speed'), range)
       bends[name] = 1200 * Math.log2(1 + speed / FLOCK.soundSpeed)
     }
     for (const [name, cents] of Object.entries(bends)) {
