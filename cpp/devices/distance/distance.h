@@ -118,12 +118,14 @@ class Distance : public kit::DeviceBase<distance::kNumParams> {
   // to ring shorter than sound takes to go round it, so a short Decay makes
   // a large room smaller.
   static constexpr float kLoopOfDecay = 0.4f;
-  // What goes to the room is cut below kSendCutHz. Of pink noise that
-  // leaves 0.751 of the power (the integral of f² / (f² + cut²) over the
-  // octaves from 20 Hz to 20 kHz), and the room is made up by the root of
-  // it: its level is its level with music in it, not with a test tone.
-  static constexpr float kSendCutHz = 110.0f;
-  static constexpr float kSendMakeup = 1.1539f;
+  // What goes to the room is cut below kSendCutHz, so nothing that is not
+  // sound goes round in it. Of pink noise that leaves 0.8835 of the power
+  // (the integral of f² / (f² + cut²) over the octaves from 20 Hz to
+  // 20 kHz), and the room is made up by the root of it. The cut is low:
+  // far away nearly all of the sound is the room, and a far sound has its
+  // bass.
+  static constexpr float kSendCutHz = 40.0f;
+  static constexpr float kSendMakeup = 1.0639f;
   // The walk: three sines at these multiples of Rate, weighted so.
   static constexpr float kWalkRatio[3] = {1.0f, 0.6180340f, 1.7320508f};
   static constexpr float kWalkWeight[3] = {0.5f, 0.3f, 0.2f};

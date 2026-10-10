@@ -34,6 +34,27 @@ static Stereo pink(float seconds, float gain, uint32_t seed = 11) {
   return out;
 }
 
+// The same with nothing under 20 Hz in it (two poles): the model counts the
+// power of pink noise from 20 Hz to 20 kHz, and the generator's goes on down.
+static Stereo audible(Stereo in) {
+  const double w = 2.0 * kPi * 20.0 / kRate, alpha = std::sin(w) / std::sqrt(2.0);
+  const double b0 = (1.0 + std::cos(w)) / 2.0 / (1.0 + alpha), b1 = -(1.0 + std::cos(w)) / (1.0 + alpha);
+  const double a1 = -2.0 * std::cos(w) / (1.0 + alpha), a2 = (1.0 - alpha) / (1.0 + alpha);
+  for (std::vector<float>* side : {&in.left, &in.right}) {
+    double x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0;
+    for (float& sample : *side) {
+      const double x = sample;
+      const double y = b0 * x + b1 * x1 + b0 * x2 - a1 * y1 - a2 * y2;
+      x2 = x1;
+      x1 = x;
+      y2 = y1;
+      y1 = y;
+      sample = static_cast<float>(y);
+    }
+  }
+  return in;
+}
+
 // A source that stands still at `place`, with nothing of the model left out.
 static void still(Distance& d, float place, float rate = kRate) {
   d.init(rate);
@@ -166,7 +187,8 @@ int main() {
     }
   }
 
-  // The direct sound: 6 dB down and (d - 1) / 343 s later for each doubling.
+  // The direct sound: (d - 1) / 343 s later, and 1 / d as strong against
+  // the room, with the fall of the whole (d^-0.35) on top of it at Level 0.
   {
     double last_level = 2.0;
     long last_arrival = -1;
@@ -182,8 +204,11 @@ int main() {
       char label[120];
       std::snprintf(label, sizeof label, "at %g m the direct sound arrives after (d - 1) / 343 s", metres);
       EXPECT(std::labs(static_cast<long>(arrival) - expected) <= 1, label);
-      std::snprintf(label, sizeof label, "at %g m the direct sound is 1 / d as strong", metres);
-      EXPECT_NEAR(std::fabs(out.left[arrival]), 1.0 / metres, 0.01 / metres, label);
+      std::snprintf(label, sizeof label, "at %g m the direct sound is d^-1.35 as strong", metres);
+      const double expected_gain = std::pow(metres, -1.0 - Distance::kFall);
+      EXPECT_NEAR(std::fabs(out.left[arrival]), expected_gain, 0.01 * expected_gain, label);
+      EXPECT_NEAR(Distance::fall(place), std::pow(metres, -Distance::kFall), 1.0e-6,
+                  "the whole falls as d^-0.35");
       EXPECT(std::fabs(out.left[arrival]) < last_level, "the direct sound falls with Distance");
       EXPECT(static_cast<long>(arrival) > last_arrival, "the direct sound is later with Distance");
       last_level = std::fabs(out.left[arrival]);
@@ -201,43 +226,61 @@ int main() {
     device.set_param(p::kAir, 0.0f);
     device.set_param(p::kDoppler, 0.0f);
     Stereo none = run(device, impulse(0.3f, kRate, 1.0f));
-    EXPECT(std::fabs(none.left[0]) > 0.02 && peak_index(none.left, 0, 20) == 0,
+    EXPECT(std::fabs(none.left[0]) > 0.009 && peak_index(none.left, 0, 20) == 0,
            "Doppler at 0 leaves no travel time");
   }
 
-  // Loudness falls with Distance at Level 0, to what the model says the
-  // room leaves of it, and holds within 2 dB at Level 1.
+  // Loudness falls with Distance all the way out, at Level 0 and at the
+  // default Level, to what the model says is left of it; Level 1 holds it.
+  // The source is in the middle (the same on both sides), as the model has
+  // it.
+  // (As first built the room was as loud at 32 m as at 4 m and the default
+  // got no quieter past Distance 0.4: 0, -1.8, -3.4, -4.5, -5.1, -5.2 dB
+  // over the six places below, and a piano phrase was louder at the far end
+  // than half way.)
   {
-    Stereo in = pink(8.0f, 0.1f);
+    Stereo in = audible(pink(8.0f, 0.1f));
+    in.right = in.left;
     const size_t from = static_cast<size_t>(4.0f * kRate);
-    const double level_in = 0.5 * (rms(in.left, from) + rms(in.right, from));
-    double last = 1.0;
-    for (int step = 0; step <= 5; ++step) {
-      const float place = 0.2f * static_cast<float>(step);
-      still(device, place);
-      device.set_param(p::kLevel, 0.0f);
-      Stereo out = run(device, in.left, in.right);
-      const double level = 0.5 * (rms(out.left, from) + rms(out.right, from)) / level_in;
-      char label[120];
-      if (step > 0 && step < 3) {
-        std::snprintf(label, sizeof label, "Level 0: quieter at Distance %.1f than nearer (%.1f dB)",
-                      place, db(level));
-        EXPECT(level < last * 0.9, label);
+    const double level_in = rms(in.left, from);
+    const float air = p::kParamDefault[p::kAir];
+    for (float level : {0.0f, 0.5f, 1.0f}) {
+      double last = 1.0;
+      for (int step = 0; step <= 5; ++step) {
+        const float place = 0.2f * static_cast<float>(step);
+        still(device, place);
+        device.set_param(p::kLevel, level);
+        Stereo out = run(device, in.left, in.right);
+        const double heard = 0.5 * (rms(out.left, from) + rms(out.right, from)) / level_in;
+        // What the model leaves: hold^-1 with the fall, and Level gives back
+        // that share of it in dB.
+        const double left =
+            db(Distance::fall(place) / Distance::hold_gain(place, 0.5f, air)) * (1.0 - level);
+        char label[140];
+        std::snprintf(label, sizeof label, "Level %.1f at Distance %.1f is what the model leaves (%.1f dB)",
+                      level, place, db(heard));
+        EXPECT_NEAR(db(heard), left, 1.0, label);
+        if (level < 1.0f && step > 0) {
+          std::snprintf(label, sizeof label, "Level %.1f: at least 1 dB quieter at Distance %.1f than at %.1f",
+                        level, place, place - 0.2f);
+          EXPECT(db(heard) < db(last) - 1.0, label);
+        }
+        last = heard;
       }
-      // Past the room's own distance the loudness is the room's, which holds.
-      std::snprintf(label, sizeof label, "Level 0: never louder farther away (Distance %.1f)", place);
-      EXPECT(level < last * 1.03, label);
-      std::snprintf(label, sizeof label, "Level 0 at Distance %.1f is what the model leaves", place);
-      const float air = p::kParamDefault[p::kAir];
-      EXPECT_NEAR(db(level), db(1.0 / Distance::hold_gain(place, 0.5f, air)), 1.5, label);
-      last = level;
-
+    }
+    // Two sides with nothing in common lose what the narrowing takes of
+    // their difference and no more: never louder than the model, and within
+    // 2.5 dB of it.
+    Stereo wide = audible(pink(8.0f, 0.1f));
+    const double wide_in = 0.5 * (rms(wide.left, from) + rms(wide.right, from));
+    for (float place : {0.4f, 1.0f}) {
       still(device, place);
       device.set_param(p::kLevel, 1.0f);
-      Stereo held = run(device, in.left, in.right);
-      const double kept = 0.5 * (rms(held.left, from) + rms(held.right, from)) / level_in;
-      std::snprintf(label, sizeof label, "Level 1 holds the loudness at Distance %.1f", place);
-      EXPECT_NEAR(db(kept), 0.0, 2.0, label);
+      Stereo out = run(device, wide.left, wide.right);
+      const double kept = db(0.5 * (rms(out.left, from) + rms(out.right, from)) / wide_in);
+      char label[140];
+      std::snprintf(label, sizeof label, "Level 1 holds two unlike sides within 2.5 dB at Distance %.1f (%.1f dB)", place, kept);
+      EXPECT(kept < 0.5 && kept > -2.5, label);
     }
   }
 
@@ -268,7 +311,8 @@ int main() {
       char label[120];
       std::snprintf(label, sizeof label, "at %.1f m the air is 3 dB down at %.0f Hz", metres, corner);
       EXPECT_NEAR(db(std::sqrt(re * re + im * im) / std::fabs(flat)), -3.0, 0.5, label);
-      EXPECT_NEAR(std::fabs(flat), 1.0 / metres, 0.03 / metres, "the air takes nothing from the lows");
+      EXPECT_NEAR(std::fabs(flat), Distance::fall(place) / metres,
+                  0.03 * Distance::fall(place) / metres, "the air takes nothing from the lows");
 
       // And the whole sound has less above 3 kHz the farther it is.
       still(device, place);
@@ -276,7 +320,7 @@ int main() {
       Stereo in = pink(3.0f, 0.1f);
       Stereo wet = run(device, in.left, in.right);
       const double share = energy_above(wet.left, 3000.0, kRate, 48000);
-      EXPECT(share < last_share * 0.8, "the highs fall with Distance");
+      EXPECT(share < last_share * 0.9, "the highs fall with Distance");
       last_share = share;
     }
     // Air 0 is clear air: the direct sound is a single sample.
@@ -285,7 +329,7 @@ int main() {
     device.set_param(p::kLevel, 0.0f);
     Stereo clear = run(device, impulse(0.2f, kRate, 1.0f));
     const size_t arrival = static_cast<size_t>(std::lround(31.0 / Distance::kSoundSpeed * kRate));
-    EXPECT(std::fabs(clear.left[arrival + 1]) < 1.0e-6 && std::fabs(clear.left[arrival]) > 0.03,
+    EXPECT(std::fabs(clear.left[arrival + 1]) < 1.0e-6 && std::fabs(clear.left[arrival]) > 0.009,
            "Air 0 takes nothing at any distance");
   }
 
@@ -356,6 +400,10 @@ int main() {
       device.set_param(p::kAir, 0.0f);
       device.set_param(p::kLevel, 0.0f);
       device.set_param(p::kWidth, 1.0f);
+      // The diffuse room begins with this reflection; at the shortest Decay
+      // its first answer is a thirtieth of its level and stays out of the
+      // reading.
+      device.set_param(p::kDecay, 0.2f);
       Stereo out = run(device, impulse(0.5f, kRate, 1.0f));
       const double d = Distance::metres(place);
       float across, up, keeps;
@@ -369,7 +417,7 @@ int main() {
       // Read between two samples: the two share it.
       const double right = out.right[index + 0] + out.right[index + 1];
       const double left = out.left[index + 0] + out.left[index + 1];
-      const double gain = (1.0 - 1.0 / d) * keeps / path;
+      const double gain = Distance::fall(place) * (1.0 - 1.0 / d) * keeps / path;
       const double bearing = across / path;
       char label[120];
       std::snprintf(label, sizeof label, "at %.1f m the right wall answers %.1f ms after the direct sound", d, lag * 1000.0);
@@ -754,10 +802,51 @@ int main() {
     }
   }
 
-  // Bounded at the worst: a full-scale tone held on a mode of a small room
-  // that rings for eight seconds, far away, with the loudness held.
+  // A held note is as loud at one pitch as at the next. Far away nearly all
+  // of the sound is the room, and the room is an allpass: every semitone
+  // from 110 Hz to 1760 Hz, held until the room has filled, comes out within
+  // 3 dB over and 6 dB under the average of them, and the average is the
+  // level that went in (Level 1).
+  // (As first built the room was a network of eight delay lines with a gain
+  // in each, and a note that fell on one of its modes stood out: over the
+  // piano's 88 notes the loudest was 4.4 to 9.4 dB over the average and the
+  // quietest 16 to 24 dB under, at every Room and Decay; here 7.0 over.)
   {
-    double worst = 0.0;
+    std::vector<double> levels;
+    double total = 0.0;
+    for (int note = 0; note <= 48; ++note) {
+      const float hz = 110.0f * std::pow(2.0f, static_cast<float>(note) / 12.0f);
+      still(device, 1.0f);
+      device.set_param(p::kDecay, 3.5f);
+      device.set_param(p::kLevel, 1.0f);
+      device.set_param(p::kAir, 0.0f);
+      Stereo out = run(device, sine(hz, 3.5f, kRate, 0.25f));
+      const size_t from = static_cast<size_t>(3.0f * kRate);
+      const double level = 0.5 * (rms(out.left, from) + rms(out.right, from)) / (0.25 * std::sqrt(0.5));
+      levels.push_back(level);
+      total += level * level;
+    }
+    const double mean = std::sqrt(total / static_cast<double>(levels.size()));
+    double loudest = 0.0, quietest = 1.0e9;
+    for (double level : levels) {
+      loudest = std::max(loudest, level);
+      quietest = std::min(quietest, level);
+    }
+    char label[160];
+    std::snprintf(label, sizeof label, "far away no held note stands more than 3 dB over the rest (%.1f dB)", db(loudest / mean));
+    EXPECT(db(loudest / mean) < 3.0, label);
+    std::snprintf(label, sizeof label, "nor falls more than 6 dB under them (%.1f dB)", db(quietest / mean));
+    EXPECT(db(quietest / mean) > -6.0, label);
+    std::snprintf(label, sizeof label, "and with the loudness held they are as loud as they went in (%.1f dB)", db(mean));
+    EXPECT_NEAR(db(mean), 0.0, 1.5, label);
+  }
+
+  // Bounded at the worst: a full-scale tone held in a small room that rings
+  // for eight seconds, far away, with the loudness held. Once it is held it
+  // stays under 1.6, and where it starts (all at once, at full scale) under 2.
+  // (As first built it reached 2.07 to 2.14, held.)
+  {
+    double worst = 0.0, held = 0.0;
     for (float hz : {110.0f, 247.3f, 440.0f, 1000.0f, 3111.0f}) {
       still(device, 1.0f);
       device.set_param(p::kRoom, 0.0f);
@@ -767,10 +856,77 @@ int main() {
       Stereo out = run(device, sine(hz, 12.0f, kRate, 1.0f));
       EXPECT(finite(out.left) && finite(out.right), "a held full-scale tone stays finite");
       worst = std::max(worst, std::max(peak(out.left), peak(out.right)));
+      const size_t late = static_cast<size_t>(11.0f * kRate);
+      held = std::max(held, std::max(peak(out.left, late), peak(out.right, late)));
     }
     char label[120];
-    std::snprintf(label, sizeof label, "a held full-scale tone at the longest Decay stays under 2.1 (peak %.2f)", worst);
-    EXPECT(worst < 2.1, label);
+    std::snprintf(label, sizeof label, "a full-scale tone at the longest Decay, once held, stays under 1.6 (peak %.2f)", held);
+    EXPECT(held < 1.6, label);
+    std::snprintf(label, sizeof label, "and under 2 from its start (peak %.2f)", worst);
+    EXPECT(worst < 2.0, label);
+  }
+
+  // The room is not put to sleep while it rings. Close by (Distance 0) it
+  // has no share and is not heard, but it is fed: the device stays awake
+  // until it has rung out, so a source moved away later does not bring out
+  // an old ring from wherever the block size happened to stop it.
+  // (As first built the device fell asleep 0.75 s after the input, with the
+  // room at Decay 5 still ringing; moved to Distance 0.7 asleep and woken
+  // with a quiet tone, it gave a burst of 0.13 where the tone alone is
+  // 0.0008, and renders at blocks of 32 and 2048 were 0.2 apart.)
+  {
+    const std::vector<float> loud = noise(1.0f, kRate, 0.5f);
+    const std::vector<float> quiet = sine(220.0f, 1.0f, kRate, 0.01f);
+    still(other, 0.7f);
+    other.set_param(p::kDecay, 5.0f);
+    const double alone = peak(run(other, quiet).left);
+    Stereo woken[2];
+    int n = 0;
+    for (int block : {32, 2048}) {
+      still(device, 0.0f);
+      device.set_param(p::kDecay, 5.0f);
+      run(device, loud, block);
+      render(device, 4.0f, kRate, block);
+      device.set_param(p::kDistance, 0.7f);
+      render(device, 4.0f, kRate, block);
+      woken[n++] = run(device, quiet, block);
+    }
+    char label[160];
+    std::snprintf(label, sizeof label, "a room that rang unheard is not heard later (peak %.4f, the tone alone %.4f)", peak(woken[0].left), alone);
+    EXPECT(peak(woken[0].left) < 1.5 * alone, label);
+    std::snprintf(label, sizeof label, "and what is heard does not depend on the block size (apart by %.2e)", apart(woken[0], woken[1]));
+    EXPECT(apart(woken[0], woken[1]) < 1.0e-5, label);
+  }
+
+  // Decay turned from one end to the other makes the room's loop longer or
+  // shorter; its lines change length a quarter of a sample a sample at most,
+  // so there is no click in it. Under a low chord the fourth difference of
+  // the output (which the chord itself leaves at a millionth) stays under
+  // 0.0025; with the lengths let go at once it is 0.02.
+  {
+    std::vector<float> chord(static_cast<size_t>(2.0f * kRate));
+    for (size_t i = 0; i < chord.size(); ++i) {
+      double v = 0.0;
+      for (double hz : {110.0, 164.8, 220.0, 277.2, 440.0}) v += std::sin(2.0 * kPi * hz * i / kRate);
+      chord[i] = static_cast<float>(0.1 * v);
+    }
+    device.init(kRate);
+    device.set_param(p::kRoom, 1.0f);
+    device.set_param(p::kDecay, 0.2f);
+    std::vector<float> head(chord.begin(), chord.begin() + 48000);
+    std::vector<float> tail(chord.begin() + 48000, chord.end());
+    run(device, head);
+    device.set_param(p::kDecay, 8.0f);
+    Stereo out = run(device, tail);
+    double sharpest = 0.0;
+    for (size_t i = 4; i < out.size(); ++i) {
+      const double d4 = static_cast<double>(out.left[i]) - 4.0 * out.left[i - 1] +
+                        6.0 * out.left[i - 2] - 4.0 * out.left[i - 3] + out.left[i - 4];
+      sharpest = std::max(sharpest, std::fabs(d4));
+    }
+    char label[160];
+    std::snprintf(label, sizeof label, "Decay jumped from 0.2 s to 8 s leaves no click (fourth difference %.2e)", sharpest);
+    EXPECT(sharpest < 2.5e-3, label);
   }
 
   // The travel time is a time: the same at 96 kHz, where the lines are
