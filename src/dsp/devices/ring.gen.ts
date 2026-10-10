@@ -194,7 +194,7 @@ export const RING_DESCRIPTOR = wasmDeviceDescriptor(RING_DEVICE, {
       lowCut: 20,
       tone: 16000,
       width: 0,
-      mix: 0.5,
+      mix: 0.2,
     },
     'Side to side': {
       tune: 1,
