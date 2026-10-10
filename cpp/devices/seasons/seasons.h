@@ -82,18 +82,19 @@ constexpr float kLowDecay[kSeasons] = {0.5f, 1.0f, 0.8f, 0.2f};
 // of the level, opposite on the two sides), the vibrato each gives what feeds
 // the room (milliseconds either way), and the shift of two lines (Hz).
 constexpr float kShimmer[kSeasons] = {0.4f, 0.05f, 0.0f, 0.0f};
-constexpr float kSway[kSeasons] = {0.03f, 0.2f, 0.04f, 0.0f};
+constexpr float kSway[kSeasons] = {0.03f, 0.2f, 0.04f, 0.1f};
 constexpr float kTumble[kSeasons] = {0.0f, 0.02f, 0.14f, 0.0f};
 constexpr float kShimmerMs[kSeasons] = {0.1f, 0.02f, 0.0f, 0.0f};
-constexpr float kSwayMs[kSeasons] = {0.3f, 2.2f, 0.6f, 0.08f};
+constexpr float kSwayMs[kSeasons] = {0.3f, 2.2f, 0.6f, 0.3f};
 constexpr float kTumbleMs[kSeasons] = {0.0f, 0.2f, 1.0f, 0.0f};
 constexpr float kShiftHz[kSeasons] = {2.5f, 0.0f, -2.5f, 0.0f};
-// Texture and width.
-constexpr float kCrumble[kSeasons] = {0.0f, 0.1f, 1.0f, 0.15f};
+// Texture (crumble, glitter, warmth) and width.
+constexpr float kCrumble[kSeasons] = {0.0f, 0.0f, 1.0f, 0.15f};
 constexpr float kGlitter[kSeasons] = {0.35f, 0.0f, 0.0f, 1.0f};
+constexpr float kWarmth[kSeasons] = {0.0f, 1.0f, 0.45f, 0.0f};
 constexpr float kWidth[kSeasons] = {1.0f, 1.5f, 0.9f, 0.45f};
 // What holds the loudness round the year (dB at Depth 1), found by measuring.
-constexpr float kTrimDb[kSeasons] = {-0.3f, -2.4f, 0.3f, 2.2f};
+constexpr float kTrimDb[kSeasons] = {0.35f, -1.55f, 0.8f, 2.05f};
 
 constexpr float kShimmerHz = 5.3f;
 constexpr float kSwayHz = 0.19f;
@@ -162,13 +163,24 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
       low_[c].reset();
       high_[c].reset();
       ring_low_[c].reset();
-      ring_low_[c].set_cutoff(kSparkBandHz, sr);
+      ring_low_[c].set(kSparkBandHz, kit::kSqrtHalf, sr);
       feed_cut_[c].reset();
       feed_cut_[c].set(kFeedCutHz, kit::kSqrtHalf, sr);
       hilbert_[c].reset();
+      warm_low_[c].reset();
+      warm_low_[c].set_cutoff(kWarmBandHz, sr);
+      top_low_[c].reset();
+      top_low_[c].set_cutoff(kTopBandHz, sr);
+      warm_env_[c].reset();
+      warm_env_[c].set(kWarmAttackSeconds, kWarmReleaseSeconds, sr);
+      for (int k = 0; k < kDiffusers; ++k) {
+        diffuse_[c][k].clear();
+        diffuse_length_[c][k] =
+            kit::clamp_int(static_cast<int>(kDiffuseMs[c][k] * ms), 1, kDiffuseSize - 4);
+      }
       for (int i = 0; i < kRingSize; ++i) ring_[c][i] = 0.0f;
       for (int k = 0; k < kEarlyTaps; ++k) {
-        tap_[c][k] = kit::clamp_int(static_cast<int>(kTapMs[c][k] * ms), 1, kLineSize - 8);
+        tap_[c][k] = kit::clamp_int(static_cast<int>(kTapMs[c][k] * ms), 1, kEarlySize - 8);
       }
       texture_[c] = Texture();
     }
@@ -182,7 +194,6 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     knob_coeff_ = std::exp(-static_cast<float>(kControlPeriod) / (kKnobSeconds * sr));
     count_ = 0;
     turn_from_ = 0;
-    turn_left_ = -1;
     turn_base_ = 0.0;
     turn_step_ = 0.0;
     shift_phase_ = 0.0f;
@@ -190,10 +201,11 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     glitter_seen_ = 0.0f;
     sway_seen_ = 0.0f;
     mix_.set_time(kSmoothingSeconds, sr);
-    // Longer than the sparks' ring at any rate, so it is all silence by the
-    // time the device sleeps, and longer than the room's first return.
-    idle_.reset(sr, kHoldSeconds);
-    snap_ = true;
+    // Longer than the sparks' ring at any rate and than the longest line, so
+    // nothing is left in any of them by the time the device sleeps.
+    hold_ = static_cast<int64_t>(kHoldSeconds * sr);
+    quiet_ = 0;
+    asleep_ = true;
     move_knobs(true);
     mix_.snap(param(kMix));
     set_turning();
@@ -202,8 +214,9 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   void set_param(int id, float value) {
     using namespace seasons;
     if (!store_param(id, value)) return;
+    if (id == kYear) place_year();
     if (id == kTurn || id == kTurning) set_turning();
-    if (id == kMix) mix_.set(param(kMix), primed() && !idle_.asleep());
+    if (id == kMix) mix_.set(param(kMix), primed() && !asleep_);
   }
 
   // The readings named by "meters" in device.json, for the display: where
@@ -213,10 +226,12 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   // of the level that has gone to the left).
   float meter(int index) const {
     if (index == 0) {
-      const double place = static_cast<double>(param(seasons::kYear)) + turned(count_);
+      // Asleep the knob has already landed: the glide is not run in silence.
+      const double place =
+          (asleep_ ? static_cast<double>(param(seasons::kYear)) : year_) + turned(count_);
       return static_cast<float>(place - std::floor(place));
     }
-    if (idle_.asleep()) return index == 1 ? 1.0f : 0.0f;
+    if (asleep_) return index == 1 ? 1.0f : 0.0f;
     if (index == 1) return crumble_seen_;
     if (index == 2) return glitter_seen_;
     if (index == 3) return sway_seen_;
@@ -226,23 +241,32 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   void process(int frames) {
     using namespace seasons;
     frames = begin_block(frames);
-    if (!idle_.wake(input_present(frames))) {
+    if (asleep_ && !input_present(frames)) {
       silence_output(frames);
       count_ += frames;  // the clock runs on
-      snap_ = true;
       return;
     }
-    if (snap_) mix_.snap(param(kMix));
-    float crumble_now = 1.0f;
+    float crumble_now = crumble_seen_;
     for (int i = 0; i < frames; ++i) {
       float in[2];
       take_input(i, &in[0], &in[1]);
+      // Asleep and awake are decided sample by sample, so neither depends on
+      // where the host's blocks fall.
+      const bool fed = in[0] != 0.0f || in[1] != 0.0f;
       in[0] = guard(in[0]);
       in[1] = guard(in[1]);
       const int64_t n = count_;
-      if (snap_) {
+      if (asleep_) {
+        if (!fed) {
+          out_left_[i] = 0.0f;
+          out_right_[i] = 0.0f;
+          ++count_;
+          continue;
+        }
+        asleep_ = false;
+        quiet_ = 0;
+        mix_.snap(param(kMix));
         wake(n);
-        snap_ = false;
       } else if ((n & (kControlPeriod - 1)) == 0) {
         tick(n);
       }
@@ -252,34 +276,49 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
         ramp_[k].value += ramp_[k].step;
       }
 
-      // Tone, the high band's movement and texture, and the sparks.
-      float direct[2], moved[2], early[2];
+      // Tone, the high band's movement and texture, the warmth and the sparks.
+      float direct[2], moved[2], early[2], fed_room[2];
       for (int c = 0; c < 2; ++c) {
         const float x = in[c];
         ring_[c][n & kRingMask] = ring_low_[c].lowpass(x);
         const float low = low_[c].lowpass(x);
         const float high = x - high_[c].lowpass(x);
+        float toned = x + r[kLowGain] * low + r[kHighGain] * high;
+        toned += r[kWarmAmount] * warmth(c, x);
+        // The top of the sound (above 900 Hz, whatever the tone did to it)
+        // is what shimmers and what crumbles.
         const float broken = crumble(c, n, r[kCrumbleAmount]);
         if (c == 0) crumble_now = broken;
-        const float toned = x + r[kLowGain] * low + (r[kHighLeft + c] * broken - 1.0f) * high;
+        const float top = toned - top_low_[c].lowpass(toned);
+        toned += (r[kTopLeft + c] * broken - 1.0f) * top;
         const float spark = sparks(c, n, r[kGlitterAmount]);
         direct[c] = r[kGainLeft + c] * (toned + kSparkDirect * spark);
-        // What feeds the room goes through the moving delay.
+        // What feeds the room goes through the moving delay; the early taps
+        // hear it as it is, the network through two short allpasses.
         moved[c] = vib_[c].read_hermite(r[kVibLeft + c]);
         vib_[c].write(feed_cut_[c].highpass(toned + spark));
         float sum = 0.0f;
         for (int k = 0; k < kEarlyTaps; ++k) sum += kTapGain[k] * early_[c].read(tap_[c][k]);
         early[c] = sum;
         early_[c].write(moved[c]);
+        float smeared = moved[c];
+        for (int k = 0; k < kDiffusers; ++k) {
+          smeared = diffuse_[c][k].process(smeared, diffuse_length_[c][k], kDiffuseGain);
+        }
+        fed_room[c] = smeared;
       }
 
       // The network.
       float v[kLines];
       float late_left = 0.0f, late_right = 0.0f;
+      float inside = 0.0f;  // the loudest thing still travelling
       for (int k = 0; k < kLines; ++k) {
-        const float out = line_[k].read(length_[k]);
+        const bool breathes = k >= kFirstBreathing && k < kFirstBreathing + kBreathing;
+        const float out = breathes ? line_[k].read_hermite(r[kBreathe + k - kFirstBreathing])
+                                   : line_[k].read(length_[k]);
         late_left += kOutLeft[k] * out;
         late_right += kOutRight[k] * out;
+        inside = kit::max(inside, out < 0.0f ? -out : out);
         const float top = out - damp_[k].lowpass(out);
         const float bottom = cut_[k].lowpass(out);
         v[k] = (out - high_loss_[k] * top - low_loss_[k] * bottom) * gain_[k];
@@ -291,12 +330,14 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
         float in_phase, quadrature;
         hilbert_[k].process(v[k], &in_phase, &quadrature);
         const float turn = shift_phase_ + 0.25f * static_cast<float>(k);
-        v[k] = in_phase * kit::SineTable::cos_lookup(turn) - quadrature * kit::SineTable::lookup(turn);
+        // kit::Hilbert's quadrature output leads its in-phase one, so this
+        // sign is upward for a positive step.
+        v[k] = in_phase * kit::SineTable::cos_lookup(turn) + quadrature * kit::SineTable::lookup(turn);
       }
       kit::hadamard<kLines>(v);
       for (int k = 0; k < kLines; ++k) {
-        const float fed = v[k] + kFeedGain * kInSign[k] * moved[k & 1];
-        line_[k].write(flush_denormal(4.0f * kit::soft_clip(0.25f * fed)));
+        const float fed_line = v[k] + kFeedGain * kInSign[k] * fed_room[k & 1];
+        line_[k].write(flush_denormal(4.0f * kit::soft_clip(0.25f * fed_line)));
       }
 
       float wet[2] = {direct[0] + r[kEarlyGain] * early[0] + r[kLateLevelGain] * late_left,
@@ -308,23 +349,44 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
       wet[0] = 2.0f * kit::soft_clip(0.5f * wet[0]);
       wet[1] = 2.0f * kit::soft_clip(0.5f * wet[1]);
       const float mix = mix_.next();
-      out_left_[i] = in[0] * (1.0f - mix) + wet[0] * mix;
-      out_right_[i] = in[1] * (1.0f - mix) + wet[1] * mix;
+      const float left = in[0] * (1.0f - mix) + wet[0] * mix;
+      const float right = in[1] * (1.0f - mix) + wet[1] * mix;
+      out_left_[i] = left;
+      out_right_[i] = right;
       ++count_;
+
+      // Rest: nothing coming in, nothing going out and nothing left in the
+      // room or on its way there, for as long as the hold.
+      const float heard = kit::max(left < 0.0f ? -left : left, right < 0.0f ? -right : right);
+      const float waiting = kit::max(kit::max(moved[0] < 0.0f ? -moved[0] : moved[0],
+                                              moved[1] < 0.0f ? -moved[1] : moved[1]),
+                                     kit::max(early[0] < 0.0f ? -early[0] : early[0],
+                                              early[1] < 0.0f ? -early[1] : early[1]));
+      if (fed || heard > kFloor || inside > kFloor || waiting > kFloor) {
+        quiet_ = 0;
+      } else if (++quiet_ >= hold_) {
+        asleep_ = true;
+      }
     }
     crumble_seen_ = crumble_now;
     glitter_seen_ = kit::max(texture_[0].spark_level, texture_[1].spark_level);
-    idle_.settle(output_peak(frames), frames);
   }
 
  private:
-  static constexpr int kLineSize = 8192;
+  static constexpr int kLineSize = 16384;
+  static constexpr int kEarlySize = 8192;
   static constexpr int kVibratoSize = 2048;
+  static constexpr int kDiffuseSize = 1024;
+  static constexpr int kDiffusers = 2;
   static constexpr int kRingSize = 65536;
   static constexpr int kRingMask = kRingSize - 1;
 
   // Lengths in milliseconds, turned into samples in init.
-  static constexpr float kLineMs[kLines] = {23.1f, 29.3f, 34.7f, 41.9f, 48.7f, 57.1f, 66.3f, 77.9f};
+  static constexpr float kLineMs[kLines] = {41.3f, 49.7f, 59.9f, 71.3f, 83.9f, 97.7f, 113.3f, 131.9f};
+  // Two short allpasses a side smear what goes into the network, so a room
+  // of long lines is not a row of separate echoes while it is short.
+  static constexpr float kDiffuseMs[2][kDiffusers] = {{4.7f, 7.9f}, {5.3f, 8.9f}};
+  static constexpr float kDiffuseGain = 0.55f;
   static constexpr float kTapMs[2][kEarlyTaps] = {{9.1f, 14.9f, 22.3f, 31.7f, 43.3f, 57.9f},
                                                   {10.7f, 17.3f, 25.1f, 35.3f, 47.9f, 61.3f}};
   // They add to one whatever their signs, so the early level is the most the
@@ -341,6 +403,13 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   // resonances.
   static constexpr float kWanderMs = 1.5f;
   static constexpr float kWanderHz[2][2] = {{0.13f, 0.31f}, {0.17f, 0.37f}};
+  // Four of the lines breathe by a quarter of a millisecond, each at its own
+  // slow rate, so the network has no fixed resonances for a long tail to
+  // settle on: its ring stays a wash and does not thin to a few whistles.
+  static constexpr int kFirstBreathing = 2;
+  static constexpr int kBreathing = 4;
+  static constexpr float kBreatheHz[kBreathing] = {0.11f, 0.17f, 0.23f, 0.31f};
+  static constexpr float kBreatheMs = 0.25f;
   // How the two sides go into the eight lines and come out of them.
   static constexpr float kInSign[kLines] = {1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, -1.0f, -1.0f};
   static constexpr float kOutLeft[kLines] = {1.0f, 1.0f, -1.0f, -1.0f, 1.0f, -1.0f, 1.0f, -1.0f};
@@ -353,7 +422,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   static constexpr float kTailLeast = 0.4f;
   static constexpr float kTailSpan = 6.25f;
   // What the room adds to the loudness at Space 1, taken off the trim (dB).
-  static constexpr float kSpaceTrimDb[seasons_parts::kSeasons] = {0.9f, 1.0f, 0.7f, 1.0f};
+  static constexpr float kSpaceTrimDb[seasons_parts::kSeasons] = {1.6f, 2.8f, 2.2f, 0.55f};
 
   // Crumble: a slot of 45 ms holds at most one dropout, which may run into
   // the next slot; the grain is a random level every 2 ms, joined by lines.
@@ -366,28 +435,44 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   static constexpr float kSparkChance = 0.45f;
   static constexpr float kSparkGain = 0.7f;
   static constexpr float kSparkDirect = 0.5f;  // how much of a spark is heard outside the room
-  static constexpr float kSparkBandHz = 5000.0f;
+  // The sparks play a copy of the input kept under this (12 dB an octave),
+  // so four times as fast it still lies under half the sample rate.
+  static constexpr float kSparkBandHz = 3500.0f;
+  // Warmth: the body of the sound (under 1.8 kHz) pressed against its own
+  // level, so a quiet pad is warmed as much as a loud one: the body divided
+  // by its envelope goes through tanh(k·u) / k and is put back at its level,
+  // and what that changed is added to the sound.
+  static constexpr float kTopBandHz = 900.0f;
+  static constexpr float kWarmBandHz = 1800.0f;
+  static constexpr float kWarmDrive = 1.1f;
+  static constexpr float kWarmMakeup = 1.22f;
+  static constexpr float kWarmAttackSeconds = 0.002f;
+  static constexpr float kWarmReleaseSeconds = 0.15f;
+  static constexpr float kWarmFloor = 1.0e-4f;
 
   static constexpr float kKnobSeconds = 0.03f;
-  static constexpr float kStillSeconds = 4.0f;  // a whole year's walk back
   static constexpr float kGuard = 8.0f;
   static constexpr float kHoldSeconds = 2.0f;
+  static constexpr float kFloor = 1.0e-7f;  // -140 dBFS
 
   enum RampId : int {
     kLowGain = 0,  // gl - 1
-    kHighLeft,     // the high band's gain before the crumble, a side
-    kHighRight,
+    kHighGain,     // gh - 1
+    kTopLeft,      // the top's gain under the shimmer, a side (1 is still)
+    kTopRight,
     kGainLeft,  // trim and side-to-side movement
     kGainRight,
     kVibLeft,  // the moving delay, samples
     kVibRight,
     kCrumbleAmount,
     kGlitterAmount,
+    kWarmAmount,
     kEarlyGain,
     kLateLevelGain,
     kWidthMore,  // width - 1
     kShiftStep,  // cycles a sample
-    kNumRamps,
+    kBreathe,    // the first of four line lengths, samples
+    kNumRamps = kBreathe + kBreathing,
   };
 
   enum Knob : int { kKDepth = 0, kKSpace, kKMotion, kKGrit, kKTail, kKWidth, kNumKnobs };
@@ -442,38 +527,41 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     return kit::clamp(x, -kGuard, kGuard);
   }
 
-  // How far the year has turned by itself at sample `n`, in years.
+  // How far the year has turned by itself at sample `n` since the Year knob
+  // last placed it, in years.
   double turned(int64_t n) const {
-    const int64_t since = n - turn_from_;
-    if (turn_left_ >= 0 && since >= turn_left_) return 0.0;
-    return turn_base_ + static_cast<double>(since) * turn_step_;
+    return turn_base_ + static_cast<double>(n - turn_from_) * turn_step_;
   }
 
-  // Turn or Turning moved: carry on from where the year is now.
+  // Turn or Turning moved: carry on from where the year is now. Still holds
+  // it there.
   void set_turning() {
     using namespace seasons;
-    const float sr = sample_rate();
-    double place = turned(count_);
+    const double place = turned(count_);
     const int mode = kit::clamp_int(static_cast<int>(param(kTurn) + 0.5f), 0, 2);
     turn_from_ = count_;
-    turn_left_ = -1;
-    if (mode == 0) {
-      // Still: walk back to the knob the shorter way; at once when nothing sounds.
-      place -= std::floor(place + 0.5);
-      if (!primed() || idle_.asleep() || place == 0.0) {
-        turn_base_ = 0.0;
-        turn_step_ = 0.0;
-        turn_left_ = 0;
-        return;
-      }
-      const double speed = 1.0 / (static_cast<double>(kStillSeconds) * sr);
-      turn_base_ = place;
-      turn_step_ = place > 0.0 ? -speed : speed;
-      turn_left_ = static_cast<int64_t>(std::ceil((place > 0.0 ? place : -place) / speed));
-      return;
-    }
     turn_base_ = place - std::floor(place);
-    turn_step_ = (mode == 1 ? 1.0 : -1.0) / (static_cast<double>(param(kTurning)) * sr);
+    turn_step_ = mode == 0 ? 0.0
+                           : (mode == 1 ? 1.0 : -1.0) /
+                                 (static_cast<double>(param(kTurning)) * sample_rate());
+  }
+
+  // The Year knob was set: the year goes there (gliding the shorter way round
+  // from wherever it had turned to) and turns on from there.
+  void place_year() {
+    year_ += turned(count_);
+    year_ -= std::floor(year_);
+    turn_from_ = count_;
+    turn_base_ = 0.0;
+  }
+
+  // What the warmth adds to the sound of one side: the body pressed against
+  // its own level, less the body.
+  float warmth(int c, float x) {
+    const float body = warm_low_[c].lowpass(x);
+    const float level = warm_env_[c].process(body) + kWarmFloor;
+    const float pressed = level * kit::fast_tanh(kWarmDrive * body / level) * (kWarmMakeup / kWarmDrive);
+    return pressed - body;
   }
 
   // sin(2π·hz·n / rate + turn): the movement's sines, read off the clock.
@@ -516,8 +604,9 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
 
     float* r = t->ramp;
     r[kLowGain] = low - 1.0f;
-    r[kHighLeft] = high * (1.0f + shimmer * shimmer_left);
-    r[kHighRight] = high * (1.0f + shimmer * shimmer_right);
+    r[kHighGain] = high - 1.0f;
+    r[kTopLeft] = 1.0f + shimmer * shimmer_left;
+    r[kTopRight] = 1.0f + shimmer * shimmer_right;
     r[kGainLeft] = trim * (1.0f + side);
     r[kGainRight] = trim * (1.0f - side);
     float wander[2];
@@ -529,8 +618,13 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     r[kVibRight] = kVibratoBaseMs * ms + wander[1] + vib_shimmer * shimmer_right - vib_slow;
     r[kCrumbleAmount] = grit * blend(kCrumble, w);
     r[kGlitterAmount] = grit * blend(kGlitter, w);
+    r[kWarmAmount] = grit * blend(kWarmth, w);
     r[kWidthMore] = (1.0f + depth * (blend(kWidth, w) - 1.0f)) * knob_[kKWidth] - 1.0f;
     r[kShiftStep] = motion * blend(kShiftHz, w) / sr;
+    for (int k = 0; k < kBreathing; ++k) {
+      r[kBreathe + k] = static_cast<float>(length_[kFirstBreathing + k]) +
+                        kBreatheMs * ms * clock_sine(n, kBreatheHz[k], 0.17f * static_cast<float>(k));
+    }
 
     // The room.
     const float decay =
@@ -614,6 +708,7 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
     }
     shift_phase_ = 0.0f;
     for (Texture& texture : texture_) texture = Texture();
+    for (kit::Follower& follower : warm_env_) follower.reset();
   }
 
   // Every 32 samples of the clock.
@@ -699,11 +794,14 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   }
 
   kit::DelayLine<kLineSize> line_[kLines];
-  kit::DelayLine<kLineSize> early_[2];
+  kit::DelayLine<kEarlySize> early_[2];
+  kit::AllpassDelay<kDiffuseSize> diffuse_[2][kDiffusers];
+  int diffuse_length_[2][kDiffusers] = {};
   kit::DelayLine<kVibratoSize> vib_[2];
   float ring_[2][kRingSize];
-  kit::OnePole low_[2], high_[2], ring_low_[2];
-  kit::Svf feed_cut_[2];
+  kit::OnePole low_[2], high_[2], warm_low_[2], top_low_[2];
+  kit::Svf feed_cut_[2], ring_low_[2];
+  kit::Follower warm_env_[2];
   kit::OnePole damp_[kLines], cut_[kLines];
   kit::Hilbert hilbert_[2];
   int length_[kLines] = {};
@@ -725,13 +823,14 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
   // The clock: samples since init, asleep or not, and the year's own turning.
   int64_t count_ = 0;
   int64_t turn_from_ = 0;
-  int64_t turn_left_ = -1;
   double turn_base_ = 0.0;
   double turn_step_ = 0.0;
 
   kit::Smoother mix_;
-  kit::IdleGate idle_;
-  bool snap_ = true;
+  // Rest, counted in samples: asleep after `hold_` quiet ones in a row.
+  int64_t hold_ = 1;
+  int64_t quiet_ = 0;
+  bool asleep_ = true;
   // For meter() only.
   float crumble_seen_ = 1.0f;
   float glitter_seen_ = 0.0f;
