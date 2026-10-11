@@ -63,11 +63,16 @@ export function factoryTranspose(key: FactoryKey): number {
 
 /**
  * How a parameter names a pitch: a pitch class (0 to 11); a note, which goes
- * the octave that keeps it in the parameter's range; or a pitch class whose
+ * the octave that keeps it in the parameter's range; a pitch class whose
  * octave is a parameter of its own (`octave` names it), the two together one
- * note: past B or under C the octave goes with it, as far as its range lets it.
+ * note: past B or under C the octave goes with it, as far as its range lets it;
+ * or a measure that tunes a note with no note written down. A `'period'` is a
+ * time or a size the pitch falls with (the milliseconds round a loop, how big
+ * a body is): a semitone up is 2^(-1/12) of it. A `'hertz'` is a frequency: a
+ * semitone up is 2^(1/12) of it. Either goes the octave that keeps it in the
+ * parameter's range, which is still the key's note.
  */
-type PitchedParam = 'class' | 'note' | { readonly octave: string }
+type PitchedParam = 'class' | 'note' | 'period' | 'hertz' | { readonly octave: string }
 
 /** The parameters that name a pitch, and so move with the key. */
 const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedParam>>>> = {
@@ -82,6 +87,13 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // or the carrier an octave against the playing, and the bell would be another bell.
   'overtone-singer': { root: { octave: 'octave' } },
   ring: { root: { octave: 'octave' } },
+  // The key the table of bowls is tuned in. Its scale is intervals and its register a height: they stay.
+  bowls: { root: 'class' },
+  // The lowest resonance is the body's own frequency over Size, and every other one is a ratio of it.
+  vessel: { size: 'period' },
+  // The loop sings whole multiples of 1000 / Distance hertz, and Body picks which: the two move
+  // against each other, so the same overtone of the note sings in every key.
+  howl: { distance: 'period', body: 'hertz' },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
@@ -97,6 +109,16 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
     if (!spec) continue
     if (kind === 'class') {
       params[name] = mod12(current[name] + semitones)
+      continue
+    }
+    if (kind === 'period' || kind === 'hertz') {
+      let moved = current[name] * 2 ** ((kind === 'hertz' ? semitones : -semitones) / 12)
+      // Past the end of the control: an octave back, as a note is taken (a control has several).
+      if (spec.max >= 2 * spec.min) {
+        while (moved > spec.max) moved /= 2
+        while (moved < spec.min) moved *= 2
+      }
+      params[name] = Math.min(spec.max, Math.max(spec.min, moved))
       continue
     }
     if (typeof kind === 'object') {
