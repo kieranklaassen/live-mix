@@ -122,7 +122,7 @@
     },
     "Only the strikes": {
       "tones": -30,
-      "attacks": 6,
+      "attacks": 1,
       "air": -30,
       "soften": 0,
       "hold": 0,
@@ -136,8 +136,8 @@
       "hold": 0
     },
     "Strikes forward": {
-      "tones": -4,
-      "attacks": 6,
+      "tones": -2,
+      "attacks": 1,
       "air": -12,
       "soften": 0,
       "hold": 0,
@@ -145,15 +145,15 @@
     },
     "Strike just after": {
       "tones": -2,
-      "attacks": 4,
+      "attacks": -4,
       "soften": 0,
       "late": 45,
       "hold": 0,
       "scatter": 0.8
     },
     "Late echoes": {
-      "tones": -3,
-      "attacks": 6,
+      "tones": -1.5,
+      "attacks": 1,
       "soften": 0.25,
       "late": 280,
       "hold": 0.35
