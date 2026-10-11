@@ -3,6 +3,7 @@
 // (core/clips/seam.ts), and how even it is on the way. The bench prints
 // these; the tests hold every sound to the ones that are rules.
 
+import { BEAT_MIN_ONSETS } from '../../../core/analysis/sound-kind'
 import { comesRound, entersOnStep, leavesOnStep, type SoundFrames } from '../../../core/clips/seam'
 import { type PlanarAudio } from '../../../core/render/encode'
 import { fft } from '../../__tests__/render-support'
@@ -132,4 +133,30 @@ export function blackKeyShare(audio: PlanarAudio): number {
     }
   }
   return all > 0 ? black / all : 0
+}
+
+/** How far off a straight sixteenth a stroke may be written and still be on it, in seconds. */
+const ON_THE_GRID_SEC = 0.002
+
+/**
+ * True for a loop on a kit that keeps time and that the analysis cannot be
+ * asked about: one with a row that is swung or laid back, or with fewer hits
+ * in a round than the analysis wants before it says `beat`. The analysis holds
+ * the hits it hears to a straight grid and asks for four of them
+ * (core/analysis), so it reads no tempo from sixteenths swung by more than a
+ * few milliseconds, nor from one crash in four bars. Such a loop is written on
+ * a beat all the same, and `beat` is the bank's word for it.
+ */
+export function beatTheAnalysisLoses(sound: FactorySound): boolean {
+  if (!sound.kit || sound.bpm === undefined || !sound.loopCrossfadeSec) return false
+  const step = 60 / sound.bpm / 4
+  const from = sound.skipSec ?? 0
+  const round = sound.phrase.notes.filter(
+    (note) => note.atSec >= from - 1e-9 && note.atSec < from + sound.durationSec - 1e-9,
+  )
+  const offTheGrid = round.some(
+    (note) => Math.abs(note.atSec - Math.round(note.atSec / step) * step) > ON_THE_GRID_SEC,
+  )
+  const hits = new Set(round.map((note) => Math.round(note.atSec * 1000))).size
+  return offTheGrid || hits < BEAT_MIN_ONSETS
 }

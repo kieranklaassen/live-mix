@@ -92,7 +92,13 @@ import {
 import { type FactoryPreset, type FactorySound } from '../types'
 import { VARIATION_KINDS, describeVariant, type SoundVariation } from '../vary'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
-import { KIND_LOUDNESS, blackKeyShare, longestName, measureEnds } from './sound-measure'
+import {
+  KIND_LOUDNESS,
+  beatTheAnalysisLoses,
+  blackKeyShare,
+  longestName,
+  measureEnds,
+} from './sound-measure'
 import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
 
 const mode = process.env.FACTORY_REPORT
@@ -381,7 +387,9 @@ describe.skipIf(!mode)('factory bench', () => {
           : undefined
         const ends = measureEnds(audio)
         const problems: string[] = []
-        if (analysis.kind !== sound.kind) problems.push('KIND')
+        // A swung or a sparse kit loop is a beat by the bank's word (beatTheAnalysisLoses).
+        const kept = sound.kind === 'beat' && beatTheAnalysisLoses(sound)
+        if (analysis.kind !== sound.kind && !kept) problems.push('KIND')
         const [quietest, loudest] = KIND_LOUDNESS[sound.kind] ?? [-30, -10]
         if (measured.lufs < quietest) problems.push('QUIET')
         if (measured.lufs > loudest) problems.push('LOUD')
