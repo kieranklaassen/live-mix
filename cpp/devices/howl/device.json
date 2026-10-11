@@ -67,16 +67,6 @@
       "description": "How far the sound travels round the loop. It tunes a low note, and the feedback sings only on that note's overtones. Longer is lower, with the overtones closer."
     },
     {
-      "key": "body",
-      "name": "Body",
-      "min": 120,
-      "max": 2400,
-      "default": 520,
-      "taper": "log",
-      "unit": "Hz",
-      "description": "The resonance in the loop, which picks the overtone that sings. Low is dark and woody, high is bright and wiry."
-    },
-    {
       "key": "hold",
       "name": "Hold",
       "min": 0.2,
@@ -121,6 +111,14 @@
       "description": "How much the feedback gives way to a new note. At zero it sings straight through. Higher, each attack turns it down and it comes back as the note rings."
     },
     {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between your playing and the feedback."
+    },
+    {
       "key": "width",
       "name": "Width",
       "min": 0,
@@ -129,12 +127,14 @@
       "description": "How far apart the left and right loops stand. At zero both sing the same overtone. Higher, each side leans to a different one and wanders by itself."
     },
     {
-      "key": "mix",
-      "name": "Mix",
-      "min": 0,
-      "max": 1,
-      "default": 0.5,
-      "description": "Balance between your playing and the feedback."
+      "key": "body",
+      "name": "Body",
+      "min": 120,
+      "max": 2400,
+      "default": 520,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The resonance in the loop, which picks the overtone that sings. Low is dark and woody, high is bright and wiry."
     }
   ],
   "presets": {

@@ -32,26 +32,6 @@
       "description": "Width of the top of the sound. Up spreads the air and shimmer out to the sides; halfway is as it came in; all the way down the top is in the middle."
     },
     {
-      "key": "lowHz",
-      "name": "Low split",
-      "min": 40,
-      "max": 800,
-      "default": 120,
-      "taper": "log",
-      "unit": "Hz",
-      "description": "Where the bottom ends and the middle begins. Raise it to hold more of the body of the sound to the width set by Low."
-    },
-    {
-      "key": "highHz",
-      "name": "High split",
-      "min": 1000,
-      "max": 12000,
-      "default": 2000,
-      "taper": "log",
-      "unit": "Hz",
-      "description": "Where the middle ends and the top begins. Lower it to give more of the sound the width set by High."
-    },
-    {
       "key": "slope",
       "name": "Slope",
       "min": 0,
@@ -91,6 +71,26 @@
       "default": 0,
       "unit": "dB",
       "description": "The level going out, to make up for what a wider or narrower picture adds or takes."
+    },
+    {
+      "key": "lowHz",
+      "name": "Low split",
+      "min": 40,
+      "max": 800,
+      "default": 120,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the bottom ends and the middle begins. Raise it to hold more of the body of the sound to the width set by Low."
+    },
+    {
+      "key": "highHz",
+      "name": "High split",
+      "min": 1000,
+      "max": 12000,
+      "default": 2000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Where the middle ends and the top begins. Lower it to give more of the sound the width set by High."
     }
   ],
   "meters": [
@@ -218,7 +218,7 @@
       "make": 0.8,
       "output": -0.4
     },
-    "Centre focus": {
+    "Narrow body": {
       "mid": 0.3,
       "high": 2,
       "lowHz": 250,

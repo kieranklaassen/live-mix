@@ -4,15 +4,15 @@
 // src/dsp/devices/lift.gen.ts:
 //    0  threshold: -48..-12 dB, default -22
 //    1  amount: 0..1, default 0.7
-//    2  floor: -90..-40 dB, default -48
-//    3  rise: 0.05..20 s, default 0.6
-//    4  hold: 0.01..5 s, default 0.1
-//    5  split: 0..1, default 0.5
-//    6  focus: -1..1, default 0
-//    7  sides: 0..1, default 0
-//    8  limit: 0..30 dB, default 18
-//    9  hear: 0 All, 1 Lift only, default 0
-//   10  mix: 0..1, default 1
+//    2  rise: 0.05..20 s, default 0.6
+//    3  hold: 0.01..5 s, default 0.1
+//    4  split: 0..1, default 0.5
+//    5  focus: -1..1, default 0
+//    6  limit: 0..30 dB, default 18
+//    7  mix: 0..1, default 1
+//    8  floor: -90..-40 dB, default -48
+//    9  sides: 0..1, default 0
+//   10  hear: 0 All, 1 Lift only, default 0
 
 #pragma once
 
@@ -22,21 +22,21 @@ namespace lift {
 enum Param : int {
   kThreshold = 0,
   kAmount = 1,
-  kFloor = 2,
-  kRise = 3,
-  kHold = 4,
-  kSplit = 5,
-  kFocus = 6,
-  kSides = 7,
-  kLimit = 8,
-  kHear = 9,
-  kMix = 10,
+  kRise = 2,
+  kHold = 3,
+  kSplit = 4,
+  kFocus = 5,
+  kLimit = 6,
+  kMix = 7,
+  kFloor = 8,
+  kSides = 9,
+  kHear = 10,
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {-48.0f, 0.0f, -90.0f, 0.05f, 0.01f, 0.0f, -1.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {-12.0f, 1.0f, -40.0f, 20.0f, 5.0f, 1.0f, 1.0f, 1.0f, 30.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {-22.0f, 0.7f, -48.0f, 0.6f, 0.1f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {-48.0f, 0.0f, 0.05f, 0.01f, 0.0f, -1.0f, 0.0f, 0.0f, -90.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {-12.0f, 1.0f, 20.0f, 5.0f, 1.0f, 1.0f, 30.0f, 1.0f, -40.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {-22.0f, 0.7f, 0.6f, 0.1f, 0.5f, 0.0f, 18.0f, 1.0f, -48.0f, 0.0f, 0.0f};
 
 }  // namespace lift
 }  // namespace livemix

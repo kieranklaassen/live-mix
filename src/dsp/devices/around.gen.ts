@@ -62,16 +62,17 @@ export const AROUND_PARAMS = {
     description:
       'How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass.',
   },
-  turn: {
+  direction: {
     id: 5,
-    name: 'Turn',
-    min: -180,
-    max: 180,
+    name: 'Direction',
+    min: 0,
+    max: 1,
     default: 0,
     taper: 'linear',
-    unit: 'deg',
+    unit: '',
+    choices: ['Clockwise', 'Anticlockwise'],
     description:
-      'Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is.',
+      'Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is.',
   },
   blur: {
     id: 6,
@@ -95,17 +96,16 @@ export const AROUND_PARAMS = {
     description:
       'Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels.',
   },
-  direction: {
+  turn: {
     id: 8,
-    name: 'Direction',
-    min: 0,
-    max: 1,
+    name: 'Turn',
+    min: -180,
+    max: 180,
     default: 0,
     taper: 'linear',
-    unit: '',
-    choices: ['Clockwise', 'Anticlockwise'],
+    unit: 'deg',
     description:
-      'Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is.',
+      'Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is.',
   },
 } as const satisfies Record<string, ParamSpec>
 

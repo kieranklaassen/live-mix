@@ -4,14 +4,14 @@
 // src/dsp/devices/howl.gen.ts:
 //    0  gain: 0..1, default 0.85
 //    1  distance: 1..40 ms, default 7.645
-//    2  body: 120..2400 Hz, default 520
-//    3  hold: 0.2..30 s, default 6
-//    4  move: 0..1, default 0.35
-//    5  pace: 0.02..2 Hz, default 0.12
-//    6  edge: 0..1, default 0.2
-//    7  follow: 0..1, default 0.5
+//    2  hold: 0.2..30 s, default 6
+//    3  move: 0..1, default 0.35
+//    4  pace: 0.02..2 Hz, default 0.12
+//    5  edge: 0..1, default 0.2
+//    6  follow: 0..1, default 0.5
+//    7  mix: 0..1, default 0.5
 //    8  width: 0..1, default 0.5
-//    9  mix: 0..1, default 0.5
+//    9  body: 120..2400 Hz, default 520
 
 #pragma once
 
@@ -21,20 +21,20 @@ namespace howl {
 enum Param : int {
   kGain = 0,
   kDistance = 1,
-  kBody = 2,
-  kHold = 3,
-  kMove = 4,
-  kPace = 5,
-  kEdge = 6,
-  kFollow = 7,
+  kHold = 2,
+  kMove = 3,
+  kPace = 4,
+  kEdge = 5,
+  kFollow = 6,
+  kMix = 7,
   kWidth = 8,
-  kMix = 9,
+  kBody = 9,
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 1.0f, 120.0f, 0.2f, 0.0f, 0.02f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {1.0f, 40.0f, 2400.0f, 30.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.85f, 7.645f, 520.0f, 6.0f, 0.35f, 0.12f, 0.2f, 0.5f, 0.5f, 0.5f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 1.0f, 0.2f, 0.0f, 0.02f, 0.0f, 0.0f, 0.0f, 0.0f, 120.0f};
+inline constexpr float kParamMax[kNumParams] = {1.0f, 40.0f, 30.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f, 2400.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.85f, 7.645f, 6.0f, 0.35f, 0.12f, 0.2f, 0.5f, 0.5f, 0.5f, 520.0f};
 
 }  // namespace howl
 }  // namespace livemix

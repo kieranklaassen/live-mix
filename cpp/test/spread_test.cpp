@@ -3,6 +3,7 @@
 // the rest asserts what makes it width by frequency.
 
 #include <complex>
+#include <cstdlib>
 
 #include "../devices/spread/spread.h"
 #include "support/test_kit.h"
@@ -1047,8 +1048,19 @@ int main() {
       const char* name;
       float values[p::kNumParams];
     };
+    // Which control each column of the table is, by key: the table stands in
+    // this order whatever the order of the controls in device.json.
+    static const int kColumns[p::kNumParams] = {p::kLow,   p::kMid,  p::kHigh,  p::kLowHz, p::kHighHz,
+                                                p::kSlope, p::kMake, p::kSmear, p::kSafe,  p::kOutput};
+    const auto value_of = [](const Preset& preset, int id) {
+      for (int column = 0; column < p::kNumParams; ++column) {
+        if (kColumns[column] == id) return preset.values[column];
+      }
+      std::abort();
+    };
     const Preset presets[] = {
     // presets: begin (the sixteen of device.json, every control filled in; tmp/check/gen-presets.mjs writes them)
+    // low, mid, high, lowHz, highHz, slope, make, smear, safe, output
       {"Firm and airy", {0.0f, 1.25f, 1.7f, 120.0f, 2000.0f, 1.0f, 0.7f, 0.4f, 0.5f, 0.0f}},
       {"Wide top", {0.0f, 1.0f, 2.0f, 120.0f, 1600.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.0f}},
       {"Air only", {1.0f, 1.0f, 2.0f, 120.0f, 5000.0f, 1.0f, 1.0f, 0.6f, 0.5f, 0.0f}},
@@ -1063,7 +1075,7 @@ int main() {
       {"Wide but safe", {1.5f, 2.0f, 2.0f, 180.0f, 3200.0f, 1.0f, 1.0f, 0.4f, 1.0f, 0.0f}},
       {"Soft tilt", {0.5f, 1.0f, 1.5f, 300.0f, 3000.0f, 0.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
       {"Narrow top", {1.0f, 1.6f, 0.0f, 180.0f, 4000.0f, 1.0f, 0.8f, 0.4f, 0.5f, -0.4f}},
-      {"Centre focus", {0.0f, 0.3f, 2.0f, 250.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
+      {"Narrow body", {0.0f, 0.3f, 2.0f, 250.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
       {"To the middle", {0.0f, 0.0f, 0.0f, 120.0f, 2000.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
     // presets: end
     };
@@ -1078,9 +1090,11 @@ int main() {
       ++count;
       auto load = [&] {
         device.init(kRate);
-        for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+        for (int column = 0; column < p::kNumParams; ++column) {
+          device.set_param(kColumns[column], preset.values[column]);
+        }
       };
-      const double trim = std::pow(10.0, preset.values[p::kOutput] / 20.0);
+      const double trim = std::pow(10.0, value_of(preset, p::kOutput) / 20.0);
       load();
       Stereo out = run(device, chord);
       const size_t n = out.size(), five = static_cast<size_t>(5.0f * kRate);

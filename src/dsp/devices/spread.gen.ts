@@ -39,30 +39,8 @@ export const SPREAD_PARAMS = {
     description:
       'Width of the top of the sound. Up spreads the air and shimmer out to the sides; halfway is as it came in; all the way down the top is in the middle.',
   },
-  lowHz: {
-    id: 3,
-    name: 'Low split',
-    min: 40,
-    max: 800,
-    default: 120,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'Where the bottom ends and the middle begins. Raise it to hold more of the body of the sound to the width set by Low.',
-  },
-  highHz: {
-    id: 4,
-    name: 'High split',
-    min: 1000,
-    max: 12000,
-    default: 2000,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'Where the middle ends and the top begins. Lower it to give more of the sound the width set by High.',
-  },
   slope: {
-    id: 5,
+    id: 3,
     name: 'Slope',
     min: 0,
     max: 1,
@@ -73,7 +51,7 @@ export const SPREAD_PARAMS = {
       'How fast a narrowed region gives way at its split. Up it falls steeply and a bass set to the middle stays firm; down it fades gently. Between wide regions it does little.',
   },
   make: {
-    id: 6,
+    id: 4,
     name: 'Make',
     min: 0,
     max: 1,
@@ -84,7 +62,7 @@ export const SPREAD_PARAMS = {
       'Makes width where a sound has none by scattering its middle to the sides, only where a region is wider than it came. Far up, each speaker alone has dips the other fills.',
   },
   smear: {
-    id: 7,
+    id: 5,
     name: 'Smear',
     min: 0,
     max: 1,
@@ -95,7 +73,7 @@ export const SPREAD_PARAMS = {
       'How long the made width trails each note. Down it is tight against the note; up it is a short haze behind it. It does nothing where Make adds nothing.',
   },
   safe: {
-    id: 8,
+    id: 6,
     name: 'Safe',
     min: 0,
     max: 1,
@@ -106,7 +84,7 @@ export const SPREAD_PARAMS = {
       'Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; all the way down is off. It never narrows what came in.',
   },
   output: {
-    id: 9,
+    id: 7,
     name: 'Output',
     min: -12,
     max: 6,
@@ -115,6 +93,28 @@ export const SPREAD_PARAMS = {
     unit: 'dB',
     description:
       'The level going out, to make up for what a wider or narrower picture adds or takes.',
+  },
+  lowHz: {
+    id: 8,
+    name: 'Low split',
+    min: 40,
+    max: 800,
+    default: 120,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Where the bottom ends and the middle begins. Raise it to hold more of the body of the sound to the width set by Low.',
+  },
+  highHz: {
+    id: 9,
+    name: 'High split',
+    min: 1000,
+    max: 12000,
+    default: 2000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'Where the middle ends and the top begins. Lower it to give more of the sound the width set by High.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -190,7 +190,7 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
     'Wide but safe': { low: 1.5, mid: 2, high: 2, lowHz: 180, highHz: 3200, make: 1, safe: 1 },
     'Soft tilt': { low: 0.5, mid: 1, high: 1.5, lowHz: 300, highHz: 3000, slope: 0, make: 0.8 },
     'Narrow top': { low: 1, mid: 1.6, high: 0, lowHz: 180, highHz: 4000, make: 0.8, output: -0.4 },
-    'Centre focus': { mid: 0.3, high: 2, lowHz: 250, highHz: 3200, make: 0.8 },
+    'Narrow body': { mid: 0.3, high: 2, lowHz: 250, highHz: 3200, make: 0.8 },
     'To the middle': { low: 0, mid: 0, high: 0, make: 0 },
   },
 })

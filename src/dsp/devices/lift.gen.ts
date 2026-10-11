@@ -28,19 +28,8 @@ export const LIFT_PARAMS = {
     description:
       'How far quiet sound is carried up to the threshold. A little keeps the shape of a fade; fully up holds a tail level until it lets go.',
   },
-  floor: {
-    id: 2,
-    name: 'Floor',
-    min: -90,
-    max: -40,
-    default: -48,
-    taper: 'linear',
-    unit: 'dB',
-    description:
-      'Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause.',
-  },
   rise: {
-    id: 3,
+    id: 2,
     name: 'Rise',
     min: 0.05,
     max: 20,
@@ -51,7 +40,7 @@ export const LIFT_PARAMS = {
       'How slowly the lift comes in once it starts. Short brings a tail up at once; long lets it swell in as slowly as a tide.',
   },
   hold: {
-    id: 4,
+    id: 3,
     name: 'Hold',
     min: 0.01,
     max: 5,
@@ -62,7 +51,7 @@ export const LIFT_PARAMS = {
       'How long the lift waits after the sound has got louder before it comes back. Short fills the gaps between notes; long keeps it for real pauses and tails.',
   },
   split: {
-    id: 5,
+    id: 4,
     name: 'Split',
     min: 0,
     max: 1,
@@ -73,7 +62,7 @@ export const LIFT_PARAMS = {
       'How much the lows, the middle and the highs are judged apart. At nothing the sound rises as one; fully up quiet highs come up even under loud lows.',
   },
   focus: {
-    id: 6,
+    id: 5,
     name: 'Focus',
     min: -1,
     max: 1,
@@ -83,19 +72,8 @@ export const LIFT_PARAMS = {
     description:
       'Which part of the spectrum is lifted most. Left lifts the lows and leaves the highs, right lifts the air and leaves the lows, the middle is even.',
   },
-  sides: {
-    id: 7,
-    name: 'Sides',
-    min: 0,
-    max: 1,
-    default: 0,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward.',
-  },
   limit: {
-    id: 8,
+    id: 6,
     name: 'Limit',
     min: 0,
     max: 30,
@@ -105,8 +83,41 @@ export const LIFT_PARAMS = {
     description:
       'The most gain the lift may ever add. Lower it to keep the very quietest sound from being pulled far up; at nothing there is no lift.',
   },
-  hear: {
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the untouched sound and the lifted one. Part way gives a gentler lift with the same timing.',
+  },
+  floor: {
+    id: 8,
+    name: 'Floor',
+    min: -90,
+    max: -40,
+    default: -48,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause.',
+  },
+  sides: {
     id: 9,
+    name: 'Sides',
+    min: 0,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward.',
+  },
+  hear: {
+    id: 10,
     name: 'Hear',
     min: 0,
     max: 1,
@@ -116,17 +127,6 @@ export const LIFT_PARAMS = {
     choices: ['All', 'Lift only'],
     description:
       'All is the sound with its quiet end lifted. Lift only plays just what was added, the tails and breaths alone, for a send or a layer.',
-  },
-  mix: {
-    id: 10,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Balance between the untouched sound and the lifted one. Part way gives a gentler lift with the same timing.',
   },
 } as const satisfies Record<string, ParamSpec>
 

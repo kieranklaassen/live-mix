@@ -51,19 +51,8 @@ export const VESSEL_PARAMS = {
     description:
       'How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones out and more of the sound itself through.',
   },
-  position: {
-    id: 4,
-    name: 'Position',
-    min: 0,
-    max: 1,
-    default: 0.3,
-    taper: 'linear',
-    unit: '',
-    description:
-      "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere.",
-  },
   air: {
-    id: 5,
+    id: 4,
     name: 'Air',
     min: 0,
     max: 1,
@@ -74,7 +63,7 @@ export const VESSEL_PARAMS = {
       "The body's own breath: a hiss blown through the same resonances, rising and falling with what you play and silent when you stop.",
   },
   tone: {
-    id: 6,
+    id: 5,
     name: 'Tone',
     min: 0,
     max: 1,
@@ -85,7 +74,7 @@ export const VESSEL_PARAMS = {
       'Tilts what comes out of the body. Low is darker, high is brighter, and the middle leaves it as the body made it.',
   },
   width: {
-    id: 7,
+    id: 6,
     name: 'Width',
     min: 0,
     max: 1,
@@ -96,7 +85,7 @@ export const VESSEL_PARAMS = {
       'How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances. Deep ones stay in the middle.',
   },
   mix: {
-    id: 8,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -104,6 +93,17 @@ export const VESSEL_PARAMS = {
     taper: 'linear',
     unit: '',
     description: 'The balance between the sound as it was and the sound from inside the body.',
+  },
+  position: {
+    id: 8,
+    name: 'Position',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere.",
   },
 } as const satisfies Record<string, ParamSpec>
 

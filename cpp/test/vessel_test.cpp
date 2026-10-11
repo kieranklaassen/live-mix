@@ -125,6 +125,30 @@ struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of the table is, by key: the table stands in this
+// order whatever the order of the controls in device.json.
+static const int kColumns[p::kNumParams] = {p::kBody, p::kSize, p::kMaterial, p::kOpening, p::kPosition,
+                                            p::kAir,  p::kTone, p::kWidth,    p::kMix};
+static float value_of(const Preset& preset, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return preset.values[column];
+  }
+  std::abort();
+}
+static const char* name_of(int id) {
+  switch (id) {
+    case p::kBody: return "Body";
+    case p::kSize: return "Size";
+    case p::kMaterial: return "Material";
+    case p::kOpening: return "Opening";
+    case p::kPosition: return "Position";
+    case p::kAir: return "Air";
+    case p::kTone: return "Tone";
+    case p::kWidth: return "Width";
+    case p::kMix: return "Mix";
+  }
+  std::abort();
+}
 static const Preset kPresets[] = {
     {"Inside a pipe", {1, 1, 0.5f, 0.5f, 0.3f, 0.2f, 0.5f, 0.5f, 0.7f}},
     {"Blown bottle", {0, 1, 0.7f, 0.3f, 0.3f, 0.6f, 0.5f, 0.5f, 0.75f}},
@@ -146,7 +170,7 @@ static const Preset kPresets[] = {
 
 static void load(Vessel& d, float rate, const Preset& preset) {
   d.init(rate);
-  for (int id = 0; id < p::kNumParams; ++id) d.set_param(id, preset.values[id]);
+  for (int column = 0; column < p::kNumParams; ++column) d.set_param(kColumns[column], preset.values[column]);
 }
 
 static void check_resonances();
@@ -976,7 +1000,7 @@ static void check_mix_dips() {
     return worst;
   };
   for (const Preset& preset : kPresets) {
-    const float mix = preset.values[p::kMix];
+    const float mix = value_of(preset, p::kMix);
     if (mix >= 1.0f) continue;  // all wet: the dips are the body's own
     const double worst = worst_dip(&preset, 0, mix);
     const double floor = db(1.0 - mix);
@@ -1324,14 +1348,13 @@ static void check_every_third() {
     }
     return least;
   };
-  const char* const names[p::kNumParams] = {"Body", "Size", "Material", "Opening", "Position", "Air", "Tone", "Width", "Mix"};
   for (int id : {p::kMaterial, p::kOpening, p::kAir, p::kTone, p::kMix}) {
     double least = 1.0e9;
     for (int b = 0; b < vd::kNumBodies; ++b) {
       for (float size : {0.25f, 1.0f, 4.0f}) least = std::min(least, least_third(b, size, id));
     }
     std::snprintf(label, sizeof label, "%s, six bodies at three sizes: the least a third of its travel changes a phrase is %.1f dB",
-                  names[id], least);
+                  name_of(id), least);
     SHOW(least > -31.0, label);
   }
   // Width leans the resonances over 80 Hz, so it does little to a body whose
