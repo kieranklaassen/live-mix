@@ -9,6 +9,19 @@ mkdir -p "$out_dir"
 
 CXX="${CXX:-c++}"
 
+# How many of the queued harnesses run at once (see the queue below): one a
+# core, unless NATIVE_JOBS says. It is checked here, before anything is
+# compiled: xargs takes 0 to mean all of them at once, which is over a
+# hundred compilers side by side, and finds out that a value is not a number
+# only when it gets there, after the first nine harnesses have run.
+jobs="${NATIVE_JOBS:-$(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 2)}"
+case "$jobs" in
+  '' | *[!0-9]* | 0*)
+    echo "NATIVE_JOBS must be a whole number of 1 or more, not '$jobs'" >&2
+    exit 2
+    ;;
+esac
+
 "$CXX" -std=c++17 -O2 -fno-exceptions -fno-rtti -Wall -Wextra \
   cpp/test/plate_reverb_test.cpp \
   cpp/devices/plate-reverb/plate_reverb.cpp \
@@ -113,7 +126,6 @@ run_native_test() {
 export -f run_native_test
 export CXX out_dir
 
-jobs="${NATIVE_JOBS:-$(getconf _NPROCESSORS_ONLN 2> /dev/null || echo 2)}"
 xargs -P "$jobs" -L 1 bash -c 'run_native_test "$@"' native-test < "$queue"
 
 # Everything each harness said, in the order of the list; the failed ones come
