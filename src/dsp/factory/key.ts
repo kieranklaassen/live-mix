@@ -118,11 +118,16 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
       continue
     }
     if (kind === 'hertz') {
+      let hertz = current[name] * 2 ** (semitones / 12)
+      // Past the end of the control: an octave back, as a note is taken. A move too far to
+      // be a number has no octave to come back by, and stops at the end of the control.
+      if (Number.isFinite(hertz) && hertz > 0) {
+        while (hertz > spec.max) hertz /= 2
+        while (hertz < spec.min) hertz *= 2
+      }
       // To the hundredth of a hertz: half a cent at twenty hertz, a twentieth of one at two hundred.
-      let hertz = Math.round(current[name] * 2 ** (semitones / 12) * 100) / 100
-      while (hertz > spec.max) hertz /= 2
-      while (hertz < spec.min) hertz *= 2
-      params[name] = hertz
+      hertz = Math.round(hertz * 100) / 100
+      params[name] = Math.min(spec.max, Math.max(spec.min, hertz))
       continue
     }
     let moved = current[name] + semitones
@@ -133,12 +138,15 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
   return { ...device, params }
 }
 
-/** A patch with every device that is set to a pitch moved by `semitones`. */
+/**
+ * A patch with every device that is set to a pitch moved by `semitones`. A move
+ * that is not a number moves nothing.
+ */
 export function transposePatch<T extends Pick<Patch, 'instrument' | 'effects'>>(
   patch: T,
   semitones: number,
 ): T {
-  if (semitones === 0) return patch
+  if (semitones === 0 || !Number.isFinite(semitones)) return patch
   return {
     ...patch,
     ...(patch.instrument ? { instrument: transposeDevice(patch.instrument, semitones) } : {}),
