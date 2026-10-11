@@ -92,7 +92,7 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Gives the left and right sides slightly different stretches, so each partial beats slowly between the speakers. At zero a mono sound stays mono.',
+      'Stretches left and right a little differently around each note: overtones beat between the speakers, faster further up, and the note stays put. Zero keeps the image.',
   },
   pivot: {
     id: 8,
@@ -130,6 +130,7 @@ export const WARP_METERS = {
   partial6In: { id: 17, name: 'Partial 6 in', unit: 'Hz', display: true },
   partial6Out: { id: 18, name: 'Partial 6 out', unit: 'Hz', display: true },
   partial6Level: { id: 19, name: 'Partial 6 level', unit: '', display: true },
+  noteNow: { id: 20, name: 'Note now', unit: 'Hz', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const WARP_DEVICE = defineWasmDevice({
@@ -158,9 +159,9 @@ export const WARP_DESCRIPTOR = wasmDeviceDescriptor(WARP_DEVICE, {
     'Wide drone': { stretch: -0.25, pivot: 110, follow: 0, drift: 0.6, width: 1, mix: 0.85 },
     'Close cluster': { stretch: 0.7, lean: -1, mix: 0.9 },
     'Beating cluster': { stretch: -0.6, pivot: 330, follow: 0, drift: 0.3, width: 0.6 },
-    'Toy bells': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.6, mix: 0.9 },
+    'Toy bells': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.3, mix: 0.9 },
     'Fifth shadow': { stretch: 0, shift: 7, width: 0.5, mix: 0.4 },
-    'Bell below': { stretch: 0.3, shift: -12, drift: 0, tone: -0.3, mix: 0.5 },
+    'Bell below': { stretch: 0.3, shift: -12, drift: 0, tone: -0.3, mix: 0.75 },
     'Dark bowl': { stretch: -0.35, drift: 0.25, tone: -0.8 },
     'Bright spray': { stretch: 0.5, lean: 1, tone: 0.5, width: 0.8, mix: 0.6 },
   },
