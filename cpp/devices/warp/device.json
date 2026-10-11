@@ -120,6 +120,12 @@
       "key": "partial6Level",
       "name": "Partial 6 level",
       "display": true
+    },
+    {
+      "key": "noteNow",
+      "name": "Note now",
+      "unit": "Hz",
+      "display": true
     }
   ],
   "params": [
@@ -185,7 +191,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "Gives the left and right sides slightly different stretches, so each partial beats slowly between the speakers. At zero a mono sound stays mono."
+      "description": "Stretches left and right a little differently around each note: overtones beat between the speakers, faster further up, and the note stays put. Zero keeps the image."
     },
     {
       "key": "pivot",
@@ -264,7 +270,7 @@
       "pivot": 300,
       "follow": 0,
       "shift": 7,
-      "tone": -0.6,
+      "tone": -0.3,
       "mix": 0.9
     },
     "Fifth shadow": {
@@ -278,7 +284,7 @@
       "shift": -12,
       "drift": 0,
       "tone": -0.3,
-      "mix": 0.5
+      "mix": 0.75
     },
     "Dark bowl": {
       "stretch": -0.35,
