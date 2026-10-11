@@ -9,6 +9,7 @@
 #include "support/test_kit.h"
 
 #include <limits>
+#include <string>
 
 using namespace testkit;
 using livemix::Glimmer;
@@ -114,6 +115,54 @@ static double max_bend(const std::vector<float>& x, size_t start = 0) {
   return worst;
 }
 
+// A struck note as an electric piano gives it: a hammer's tick, the tone there at once at a little
+// over half its height and at its highest some 25 ms later, then dying away, the upper partials
+// first; damped when let go after `held` seconds.
+static void strike_at(std::vector<float>& into, double start_s, double hz, double gain, double held, double rate = kRate) {
+  const size_t start = static_cast<size_t>(start_s * rate);
+  for (size_t i = start; i < into.size(); ++i) {
+    const double t = static_cast<double>(i - start) / rate;
+    const double damp = t > held ? std::exp(-(t - held) / 0.05) : 1.0;
+    if (damp < 1.0e-5) break;
+    const double up = std::sin(0.5 * kPi * std::min(1.0, t / 0.025));
+    double sum = 0.3 * std::exp(-t / 0.0015) * std::sin(2.0 * kPi * 2500.0 * t);
+    for (int h = 1; h <= 4; ++h)
+      sum += (0.55 + 0.45 * up * up) * std::pow(0.45, h - 1) * std::exp(-t * (0.5 + 0.7 * (h - 1))) * std::sin(2.0 * kPi * hz * h * t);
+    into[i] += static_cast<float>(gain * damp * sum);
+  }
+}
+
+// A held note as the bank's measurements make it: three partials, each half the one below, the whole
+// at 0.1 RMS, faded in over 20 ms. `midi` 69 is 440 Hz.
+static std::vector<float> held_notes(std::initializer_list<int> midi, double seconds) {
+  std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
+  for (const int note : midi) {
+    const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+    for (int h = 1; h <= 3; ++h)
+      for (size_t i = 0; i < out.size(); ++i)
+        out[i] += static_cast<float>(std::sin(2.0 * kPi * hz * h * static_cast<double>(i) / kRate + note * 0.7 + h) / (1 << (h - 1)));
+  }
+  const double level = rms(out);
+  for (size_t i = 0; i < out.size(); ++i)
+    out[i] = static_cast<float>(out[i] * 0.1 / level * std::min(1.0, static_cast<double>(i) / (0.02 * kRate)));
+  return out;
+}
+// How far the quietest quarter second of what came out lies under the same quarter second of what
+// went in, both sides together, from one second in; in dB.
+static double deepest_dip(const std::vector<float>& in, const Stereo& out) {
+  const size_t w = static_cast<size_t>(0.25 * kRate);
+  double worst = 99.0;
+  for (size_t a = 4 * w; a + w <= in.size(); a += w) {
+    double dry = 0.0, wet = 0.0;
+    for (size_t i = a; i < a + w; ++i) {
+      dry += static_cast<double>(in[i]) * in[i];
+      wet += 0.5 * (static_cast<double>(out.left[i]) * out.left[i] + static_cast<double>(out.right[i]) * out.right[i]);
+    }
+    worst = std::min(worst, 10.0 * std::log10(std::max(wet, 1.0e-20) / dry));
+  }
+  return worst;
+}
+
 static const int kWindow = 1024;  // the envelope's two boxes: nulls every 46.9 Hz
 static const int kHop = 256;
 static const double kEnvRate = kRate / kHop;
@@ -136,10 +185,10 @@ static const std::vector<Preset> kPresets = {
     {"Glitter on top", {{p::kDepth, 1.0f}, {p::kRate, 6.0f}, {p::kGrain, 1.0f}, {p::kLean, 1.0f}, {p::kSoft, 0.3f}, {p::kVary, 0.5f}, {p::kApart, 1.0f}}},
     {"Stirring lows", {{p::kDepth, 0.8f}, {p::kRate, 0.4f}, {p::kGrain, 0.3f}, {p::kLean, -1.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.3f}}},
     {"Fast shimmer", {{p::kDepth, 0.5f}, {p::kRate, 9.0f}, {p::kGrain, 0.8f}, {p::kLean, 0.2f}, {p::kSoft, 1.0f}, {p::kVary, 0.2f}, {p::kApart, 0.6f}}},
-    {"Wide twinkle", {{p::kDepth, 0.8f}, {p::kRate, 3.0f}, {p::kGrain, 0.75f}, {p::kLean, 0.1f}, {p::kSoft, 0.4f}, {p::kVary, 0.6f}, {p::kApart, 1.0f}}},
+    {"Wide twinkle", {{p::kDepth, 0.6f}, {p::kRate, 3.0f}, {p::kGrain, 0.75f}, {p::kLean, 0.7f}, {p::kSoft, 0.4f}, {p::kVary, 0.6f}, {p::kApart, 1.0f}}},
     {"Moving as one", {{p::kDepth, 0.7f}, {p::kRate, 1.5f}, {p::kGrain, 0.5f}, {p::kLean, 0.0f}, {p::kSoft, 0.7f}, {p::kVary, 0.2f}, {p::kApart, 0.0f}}},
-    {"Broad swells", {{p::kDepth, 0.9f}, {p::kRate, 0.25f}, {p::kGrain, 0.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.5f}}},
-    {"Half shade", {{p::kDepth, 0.8f}, {p::kRate, 0.8f}, {p::kGrain, 0.6f}, {p::kSoft, 0.8f}, {p::kMix, 0.5f}}},
+    {"Broad swells", {{p::kDepth, 0.55f}, {p::kRate, 0.25f}, {p::kGrain, 0.0f}, {p::kLean, 0.4f}, {p::kSoft, 1.0f}, {p::kVary, 0.3f}, {p::kApart, 0.5f}}},
+    {"Half shade", {{p::kDepth, 0.8f}, {p::kRate, 0.8f}, {p::kGrain, 0.6f}, {p::kLean, 0.3f}, {p::kSoft, 0.8f}, {p::kMix, 0.5f}}},
     {"Strobe rising", {{p::kDepth, 0.9f}, {p::kRate, 8.0f}, {p::kGrain, 0.6f}, {p::kPattern, 1.0f}, {p::kLean, 0.0f}, {p::kSoft, 0.1f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
     {"Long tide", {{p::kDepth, 0.9f}, {p::kRate, 0.05f}, {p::kGrain, 0.2f}, {p::kPattern, 3.0f}, {p::kLean, 0.0f}, {p::kSoft, 1.0f}, {p::kVary, 0.0f}, {p::kApart, 0.5f}}},
 };
@@ -885,7 +934,8 @@ int main() {
   // The pass opens for attacks alone. Meter 1 (how far the output has turned to the dry sound) read
   // every 32 samples from one second in: never open on a held chord, a chord of beating pairs, noise,
   // a tone under a fast tremolo or a low sine; open once for each of eighteen plucks, over a chord too,
-  // and for a twentieth of the time at the most. With the notes eight a second, under a third of it.
+  // and for a twentieth of the time at the most (6 % over the chord, where the pass follows a note up
+  // to a higher sample of chord and note together). With the notes eight a second, under a third of it.
   {
     const auto opened = [&](const std::vector<float>& x, double* share) {
       device.init(kRate);
@@ -934,7 +984,7 @@ int main() {
     std::printf("the attack pass: %d of 18 plucks open it (%.1f %% of the time), %d of 18 over a held chord (%.1f %%)", alone,
                 100.0 * alone_share, on_chord, 100.0 * share);
     EXPECT(alone == 18 && on_chord == 18, "every pluck opens the pass, over a held chord too");
-    EXPECT(alone_share < 0.05 && share < 0.05, "and for under a twentieth of the time at a note a second");
+    EXPECT(alone_share < 0.05 && share < 0.06, "and for a twentieth of the time at a note a second, 6 % over a chord");
     opened(fast, &share);
     std::printf("; notes eight a second: open %.1f %% of the time\n", 100.0 * share);
     EXPECT(share < 0.33, "with notes eight a second the flicker still has two thirds of the time");
@@ -1125,6 +1175,131 @@ int main() {
       std::printf("plucks, a sleep and Grain moved: blocks of %d differ from blocks of 128 by %.3g\n", block, worst);
       EXPECT(worst == 0.0, "attacks and a moved Grain come out the same at every block size, across a sleep");
     }
+  }
+
+  // --- Third pass: a struck note keeps its highest sample ---------------------------------------------
+  // A struck note's highest sample is seldom its first. Twelve notes whose highest comes 25 to 30 ms
+  // after the hammer (later than the 21 ms the pass used to stay), each meeting the flicker at another
+  // place of the clock, through a deep sudden setting: for 4 ms either side of each note's highest
+  // sample what comes out is what went in, to the bit, at 44.1, 48 and 96 kHz (the time is the
+  // note's, so it is counted in seconds). Blocks of 1, 37 and 2048 give the same floats.
+  for (const float rate : {48000.0f, 44100.0f, 96000.0f}) {
+    std::vector<float> notes(static_cast<size_t>(14.0f * rate), 0.0f);
+    for (int i = 0; i < 12; ++i) strike_at(notes, 0.5 + 1.07 * i, 110.0 * (2 + i % 4), 0.5, 0.7, rate);
+    const std::initializer_list<Setting> deep = {{p::kDepth, 1.0f}, {p::kRate, 1.3f}, {p::kGrain, 0.3f}, {p::kLean, 0.0f},
+                                                 {p::kSoft, 0.3f},  {p::kVary, 0.0f}, {p::kApart, 0.0f}};
+    set(rate, deep);
+    const Stereo out = run(device, notes);
+    int late = 0, kept = 0;
+    double soonest = 1.0e9, latest = 0.0, worst = 0.0;
+    for (int i = 0; i < 12; ++i) {
+      const size_t onset = static_cast<size_t>((0.5 + 1.07 * i) * rate);
+      size_t top = onset;
+      for (size_t k = onset; k < onset + static_cast<size_t>(0.045 * rate); ++k)
+        if (std::fabs(notes[k]) > std::fabs(notes[top])) top = k;
+      const double after_ms = 1000.0 * static_cast<double>(top - onset) / rate;
+      soonest = std::min(soonest, after_ms);
+      latest = std::max(latest, after_ms);
+      late += after_ms > 21.5 ? 1 : 0;
+      double off = 0.0;
+      for (size_t k = top - 192; k <= top + 192; ++k)
+        off = std::max(off, static_cast<double>(std::fabs(out.left[k + kLatency] - notes[k])));
+      worst = std::max(worst, off / std::fabs(notes[top]));
+      kept += off == 0.0 ? 1 : 0;
+    }
+    std::printf("struck notes at %.0f Hz, their highest sample %.1f to %.1f ms after the hammer: %d of 12 come out untouched there "
+                "(worst %.3g of the note's top)\n",
+                rate, soonest, latest, kept, worst);
+    EXPECT(late == 12, "the struck notes reach their highest sample after the first 21 ms");
+    EXPECT(kept == 12, "a struck note's highest sample comes out as it went in, whenever it comes in the 32 ms after the hammer");
+    if (rate != kRate) continue;
+    for (const int block : {1, 37, 2048}) {
+      set(rate, deep);
+      const Stereo other = run(device, notes, block);
+      double differ = 0.0;
+      for (size_t i = 0; i < out.left.size(); ++i) differ = std::max(differ, static_cast<double>(std::fabs(out.left[i] - other.left[i])));
+      EXPECT(differ == 0.0, "struck notes come out the same at every block size");
+    }
+  }
+
+  // --- Third pass: the presets fed hot ------------------------------------------------------------------
+  // The bank's phrase as struck notes (A3, E4 and C5 0.6 s apart, A4 over F3, a softer E5), its highest
+  // sample at −1 dBFS, through every preset from cold: nothing leaves over full scale. A flash stands
+  // over the input by the lift, so this holds for the place the clock stands at when the phrase begins
+  // from cold, which is what the bank and the factory's tests measure, and not for every other place.
+  {
+    std::vector<float> phrase(8 * 48000, 0.0f);
+    strike_at(phrase, 0.0, 220.0, 1.0, 1.2);
+    strike_at(phrase, 0.6, 329.63, 1.0, 1.2);
+    strike_at(phrase, 1.2, 523.25, 1.0, 1.2);
+    strike_at(phrase, 2.4, 440.0, 1.0, 1.5);
+    strike_at(phrase, 2.4, 174.61, 1.0, 1.5);
+    strike_at(phrase, 4.0, 659.26, 0.6, 1.0);
+    const double top = peak(phrase);
+    for (float& v : phrase) v = static_cast<float>(v * 0.8912509 / top);
+    int over = 0;
+    std::printf("a struck phrase at -1 dBFS, the highest sample out:");
+    for (const Preset& preset : kPresets) {
+      device.init(kRate);
+      for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+      const Stereo out = run(device, phrase);
+      const double high = std::max(peak(out.left), peak(out.right));
+      std::printf(" %s %+.2f;", preset.name, db(high));
+      over += high > 1.0 ? 1 : 0;
+    }
+    std::printf(" dBFS\n");
+    EXPECT(over == 0, "no preset puts a struck phrase fed at -1 dBFS over full scale");
+  }
+
+  // --- Third pass: what holds its level, and what swells and fades ---------------------------------------
+  // The lift keeps each band's power over a cycle, not from moment to moment. Deep and slow (Depth 0.9,
+  // half a cycle a second), the quietest quarter second of twelve: a single held note of three
+  // partials comes and goes at any Grain (its level is its fundamental's, one partial in one band);
+  // a chord of five notes comes and goes as one through broad bands and holds within 6 dB through
+  // narrow ones. This is what the words on Grain and the device's sentence say.
+  {
+    const std::vector<float> note = held_notes({67}, 12.0);
+    const std::vector<float> chord = held_notes({45, 52, 57, 60, 64}, 12.0);
+    std::printf("deep and slow, the quietest quarter second, a note and a chord:");
+    for (const float grain : {0.0f, 0.4f, 0.7f, 1.0f}) {
+      const std::initializer_list<Setting> slow = {{p::kDepth, 0.9f}, {p::kRate, 0.5f}, {p::kGrain, grain}, {p::kLean, 0.0f},
+                                                   {p::kSoft, 1.0f},  {p::kVary, 0.3f}};
+      set(kRate, slow);
+      const double one = deepest_dip(note, run(device, note));
+      set(kRate, slow);
+      const double many = deepest_dip(chord, run(device, chord));
+      std::printf(" Grain %.1f %+.1f and %+.1f dB;", grain, one, many);
+      EXPECT(one < -6.0, "a single held note comes and goes at any Grain");
+      if (grain == 0.0f) EXPECT(many < -8.0, "through broad bands a whole chord swells and fades");
+      if (grain >= 0.7f) EXPECT(many > -6.0, "through narrow bands a chord holds within 6 dB in its quietest quarter second");
+    }
+    std::printf("\n");
+  }
+  // The presets on held notes (A2, E3, A3, C4, G4, A4, C5): only the one whose name says it comes and
+  // goes ("Long tide", a cycle of 20 s through broad bands) takes a note more than 9 dB under itself in
+  // its quietest quarter second. "Broad swells" did (13.9 dB) before its Depth came down.
+  {
+    const int notes[] = {45, 52, 57, 60, 67, 69, 72};
+    std::vector<std::vector<float>> held;
+    for (const int midi : notes) held.push_back(held_notes({midi}, 12.0));
+    int deep = 0;
+    bool tide = false;
+    std::printf("held notes, the quietest quarter second:");
+    for (const Preset& preset : kPresets) {
+      double worst = 99.0;
+      for (const std::vector<float>& note : held) {
+        device.init(kRate);
+        for (const Setting& s : preset.settings) device.set_param(s.id, s.value);
+        worst = std::min(worst, deepest_dip(note, run(device, note)));
+      }
+      std::printf(" %s %+.1f;", preset.name, worst);
+      const bool named = std::string(preset.name) == "Long tide";
+      if (named) tide = worst < -9.0;
+      deep += (worst < -9.0 && !named) ? 1 : 0;
+    }
+    std::printf(" dB\n");
+    EXPECT(deep == 0, "no preset but the tide takes a held note more than 9 dB under itself");
+    EXPECT(tide, "and the tide does: its name says so");
   }
 
   // --- Cost: the average, and the worst block (one with a frame in it) -----------------------------

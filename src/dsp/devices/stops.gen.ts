@@ -77,7 +77,7 @@ export const STOPS_PARAMS = {
     name: 'Unison',
     min: 0,
     max: 1,
-    default: 1,
+    default: 0.8,
     taper: 'linear',
     unit: '',
     description:
@@ -174,7 +174,7 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       chiff: 0.25,
       detune: 0.2,
       sub: 0.55,
-      unison: 1,
+      unison: 0.8,
       fifth: 0,
       octave: 0.7,
       twelfth: 0.3,
@@ -223,7 +223,8 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       octave: 0.9,
       twelfth: 0.6,
       fifteenth: 0.6,
-      mix: 0.9,
+      mix: 0.6,
+      unison: 0.4,
     },
     'Flute stops': {
       speak: 90,
@@ -245,6 +246,7 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       twelfth: 0.5,
       fifteenth: 0.4,
       mix: 0.8,
+      unison: 1,
     },
     'Only the pipes': {
       speak: 80,
@@ -266,7 +268,15 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       fifteenth: 0.9,
       mix: 0.55,
     },
-    'Nearly dry': { speak: 250, sub: 0, octave: 0.5, twelfth: 0, fifteenth: 0, mix: 0.3 },
+    'Nearly dry': {
+      speak: 250,
+      sub: 0,
+      octave: 0.5,
+      twelfth: 0,
+      fifteenth: 0,
+      mix: 0.3,
+      unison: 1,
+    },
     'Old pipes': {
       speak: 100,
       chiff: 0.5,
@@ -276,6 +286,7 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       twelfth: 0.5,
       fifteenth: 0,
       mix: 0.7,
+      unison: 0.75,
     },
     'Breath first': {
       speak: 900,
@@ -296,6 +307,7 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       twelfth: 0.7,
       fifteenth: 0.6,
       mix: 1,
+      unison: 1,
     },
     'Sub and silver': {
       speak: 150,
@@ -305,6 +317,7 @@ export const STOPS_DESCRIPTOR = wasmDeviceDescriptor(STOPS_DEVICE, {
       twelfth: 0,
       fifteenth: 0.7,
       mix: 0.7,
+      unison: 0.7,
     },
     'Hollow fifths': {
       speak: 400,

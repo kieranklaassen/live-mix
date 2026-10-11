@@ -142,11 +142,11 @@ export const SIFT_DESCRIPTOR = wasmDeviceDescriptor(SIFT_DEVICE, {
   presets: {
     'Soft hammers': {},
     'Tones only': { attacks: -30, air: -30, sharpness: 0.7, hold: 0, soften: 0, scatter: 0 },
-    'Only the strikes': { tones: -30, attacks: 6, air: -30, soften: 0, hold: 0, scatter: 0 },
+    'Only the strikes': { tones: -30, attacks: 1, air: -30, soften: 0, hold: 0, scatter: 0 },
     'Soft puffs': { tones: -30, attacks: 6, air: -30, soften: 1, hold: 0 },
-    'Strikes forward': { tones: -4, attacks: 6, air: -12, soften: 0, hold: 0, scatter: 0.3 },
-    'Strike just after': { tones: -2, attacks: 4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
-    'Late echoes': { tones: -3, attacks: 6, soften: 0.25, late: 280, hold: 0.35 },
+    'Strikes forward': { tones: -2, attacks: 1, air: -12, soften: 0, hold: 0, scatter: 0.3 },
+    'Strike just after': { tones: -2, attacks: -4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
+    'Late echoes': { tones: -1.5, attacks: 1, soften: 0.25, late: 280, hold: 0.35 },
     'Pedal down': { attacks: 0, soften: 0, hold: 0.6, air: 0, scatter: 0.2 },
     'Long wash': {
       attacks: -20,
