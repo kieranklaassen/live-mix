@@ -57,6 +57,23 @@ async function main() {
     silent: true,
   })
 
+  // `./motion` is built apart from the rest, after it: built with the other
+  // entries it would import the chunk they share, and it has to stay one file
+  // that imports nothing (scripts/check-pack.mjs holds it to that).
+  await tsupBuild({
+    entry: { 'motion/index': 'src/motion/index.ts' },
+    format: ['esm'],
+    target: 'es2022',
+    platform: 'neutral',
+    dts: true,
+    sourcemap: true,
+    splitting: false,
+    clean: false,
+    treeshake: true,
+    outDir: 'dist',
+    silent: true,
+  })
+
   await mkdir(join(dist, 'worklets'), { recursive: true })
   for (const [name, entry] of Object.entries(worklets)) {
     await esbuild({
