@@ -190,6 +190,10 @@ describe('a variant of a sound', () => {
       // One drum struck once has nothing a variant may move: a kit sound is not detuned, its
       // first moment is its attack, and a lone note's gain comes back to itself. It is the hit.
       if (each.kit && each.phrase.notes.length === 1) continue
+      // And one key held on a sound read in time (a crash backwards into a bar line) stays on
+      // its pitch, which is the speed it is read at: it is its own variant too.
+      if (each.source !== undefined && each.bpm !== undefined && each.phrase.notes.length === 1)
+        continue
       expect(varySound(each, full(4)).phrase).not.toEqual(varySound(each, full(5)).phrase)
       expect(varySound(each, full(4)).phrase).not.toEqual(each.phrase)
     }
@@ -259,6 +263,16 @@ describe('a variant of a sound', () => {
       const tuned = { ...held, tuning: 'whole-cycles' as const }
       for (const seed of SEEDS) {
         for (const note of varySound(tuned, only('touch', seed)).phrase.notes) {
+          expect(Number.isInteger(note.note)).toBe(true)
+        }
+      }
+    })
+
+    it('leaves a sound that keeps time and is read from another one on its notes', () => {
+      // On a sampler a key off pitch is the other sound read faster or slower: off its bar line.
+      const read = { ...held, source: 'some-other-sound', bpm: 120 }
+      for (const seed of SEEDS) {
+        for (const note of varySound(read, only('touch', seed)).phrase.notes) {
           expect(Number.isInteger(note.note)).toBe(true)
         }
       }

@@ -221,10 +221,12 @@ like everything else.
 A sound made from one part of a kit (`source`) that says `kitLevel` has no
 kit of its own to take a level from: it is brought to the peak of the part
 it is made from, in whatever key that is. The two reverse crashes are the
-crash hit read backwards in grains, and at the bank's peak their last 50 ms
-stood 10 to 14 dB over the first 50 ms of the crash hit laid where they end;
-at the crash's own peak (−14.2 dBFS at home) the rise is some 8 dB lower and
-the crash carries on from it.
+crash hit played backwards on the sampler, its own samples in reverse order
+(the two bars at half speed, an octave down), so their last moment is the
+crash's first: at the crash's own peak (−14.2 dBFS at home) the last 50 ms
+of each are within 1.5 dB of the first 50 ms of the crash hit laid where
+they end, in all twelve keys at 96, 120 and 140. At the bank's peak they
+would end 8 dB and more over it.
 
 ## The bank in another key
 
@@ -285,7 +287,13 @@ delay's wobble, `tremolo`, `auto-filter`, the string machine's ensemble
 speed and the grain synth's `scan`), so a dotted-eighth echo is one at every
 tempo; a value the control cannot reach is halved or doubled until it can,
 which is still on the beat (a scan, which runs forwards or backwards, is
-halved towards rest). A loop's crossfade is never made longer than it is
+halved towards rest). A sound can name a control of its own instrument that
+is a length of time in that sound alone (`timedParams`): the two reverse
+crashes say so of the sampler's `end`, which there is how much of the crash
+one held key reads backwards, so the key reaches the crash's first sample on
+the bar line at every tempo from 60 up (slower, a bar is longer than the
+crash and the stretch is read twice). It is not a rule of the sampler: in
+any other patch its End is a place in the recording and stays where it is. A loop's crossfade is never made longer than it is
 written. The tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to
 480). A sound with no `bpm` is the same sound at every tempo and comes back
 as the same object, so a host can ask every sound for the piece's tempo and
@@ -575,6 +583,14 @@ of a variant is as hard as the sound's hardest. So a kit sound of one stroke
 (each single hit of the Club Kit) is its own variant at every seed and
 amount: `vary.test.ts` passes it by where it asks that another seed give
 another phrase, and the bench says `SAME` on every variant of one.
+
+A sound that keeps time and is read from another one (`source` and `bpm`) is
+not detuned either: on a sampler a key off pitch is the other sound read
+faster or slower, and a crash played backwards into a bar line would stop
+short of its stick or reach it early (seven cents flat left the reverse
+crash ending on a sample of 0.01 to 0.14 of full scale, the stick not
+reached). The two reverse crashes are one held key each, so they too are
+their own variants.
 
 ## What the bank is held to
 
@@ -1562,10 +1578,16 @@ As reported:
     its last clap is only 22.6 dB down when the fade starts: the fade ends
     it.
   - A rise stops at its loudest, so the bench says `CUT` of the seven that
-    rise (471 to 475, 478, 479: the last 50 ms, fade and all, are 11 to
-    14 dB under the peak), and `OFFKEY` of the two sweeps down and the
-    falling sub (476, 477, 482): noise has no key and a slide passes every
-    one. The loudest 50 ms of a noise riser ends 18 to 115 ms before the
+    rise (471 to 475: the last 50 ms, fade and all, are 11 to 14 dB under
+    the peak; 478 and 479 end on the crash's stick with no fade), and
+    `OFFKEY` of the two sweeps down and the falling sub (476, 477, 482):
+    noise has no key and a slide passes every one. The two reverse crashes
+    are also `LATE`: a crash dies fast, so its reverse is quiet for long,
+    within 40 dB of its peak only 0.3 to 1.5 s into the one bar and 0.6 to
+    3 s into the two, by key and tempo, and at −38.8 to −35.8 LUFS they are
+    the quietest risers. Under 60 beats a minute a bar is longer than the
+    crash and the reverse is played twice, a stick on the middle of the
+    sound and one on its end. The loudest 50 ms of a noise riser ends 18 to 115 ms before the
     sound does (254 ms for the four-bar band at 96) and that of the chord
     riser (475) up to half a second before, by key; the last 50 ms are
     within 2.2 dB of it in all of them.

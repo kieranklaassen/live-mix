@@ -171,6 +171,29 @@ describe('the tempo of a sound', () => {
     expect(paramsOf(forwards.instrument).scan).toBeCloseTo(1.5, 9)
   })
 
+  it('moves a control that is a length of time in one sound alone, and leaves it in every other patch', () => {
+    const sampler = { instrument: { deviceId: 'sampler', params: { end: 0.5 } }, effects: [] }
+    // A sampler's End is a place in a recording: the tempo does not move it.
+    expect(patchAtTempo(sampler, tempoRatio(120, 96))).toEqual(sampler)
+    // Where a sound says it is how long one key reads, it is as many beats at every tempo.
+    const own = { end: 'time' } as const
+    const endAt = (bpm: number): number =>
+      paramsOf(patchAtTempo(sampler, tempoRatio(120, bpm), own).instrument).end
+    expect(endAt(96)).toBeCloseTo(0.625, 9)
+    // Past the whole recording at 50: half of that, the stretch read twice.
+    expect(endAt(50)).toBeCloseTo(0.6, 9)
+    const reverse = FACTORY_SOUNDS.find((sound) => sound.id === 'house-reverse-crash-one')
+    if (!reverse) throw new Error('no reverse crash')
+    const instrumentOf = ({ patch }: (typeof FACTORY_SOUNDS)[number]): PatchDevice => {
+      if (typeof patch === 'string' || !patch.instrument) throw new Error('no instrument')
+      return patch.instrument
+    }
+    expect(paramsOf(instrumentOf(soundAtTempo(reverse, 140))).end).toBeCloseTo(
+      paramsOf(instrumentOf(reverse)).end * (120 / 140),
+      9,
+    )
+  })
+
   it('leaves the devices that keep no time as they are', () => {
     const patch = { effects: [{ deviceId: 'plate-reverb', params: { mix: 0.3 } }] }
     expect(patchAtTempo(patch, 1.5).effects[0]).toBe(patch.effects[0])

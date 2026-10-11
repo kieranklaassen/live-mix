@@ -21,7 +21,11 @@ A third kit, and house sounds for the bank:
   beats long and still end on their bar line. Until now every sound with a
   `bpm` was a loop: a host that took `bpm` to mean one should ask
   `loopCrossfadeSec`. A variant leaves such a sound at its own speed. The
-  grain synth's `scan` follows the tempo now, as an auto filter's rate does.
+  grain synth's `scan` follows the tempo now, as an auto filter's rate does,
+  and a sound can name a control of its own instrument that is a length of
+  time or a rate in that sound alone (`FactorySound.timedParams`): the two
+  reverse crashes say so of the sampler's `end`. A sound that keeps time and is read from another one
+  (`source` and `bpm`) is not detuned by a variant.
 - `FactorySound.kitLevel`: one part of a kit (a layer, a fill, a single hit)
   is rendered at its kit's own level and not brought to the bank's peak, so a
   row of hats is as far under a kick as the kit has it and parts laid over

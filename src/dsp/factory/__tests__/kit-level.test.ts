@@ -56,6 +56,27 @@ describe('a sound at its kit level', () => {
     expect(Math.abs((await peakDb(named('house-reverse-crash-one'))) - crash)).toBeLessThan(0.1)
   }, 60000)
 
+  it('played backwards into a bar line, ends on the stick at every tempo', async () => {
+    for (const id of ['house-reverse-crash-one', 'house-reverse-crash-two']) {
+      for (const bpm of [96, 120, 140]) {
+        const { channels, sampleRate } = await renderFactorySound(named(id), { ...node, bpm })
+        const frames = channels[0].length
+        let at = 0
+        let most = 0
+        for (const channel of channels) {
+          for (let i = 0; i < frames; i += 1) {
+            if (Math.abs(channel[i]) > most) {
+              most = Math.abs(channel[i])
+              at = i
+            }
+          }
+        }
+        // The crash's largest sample is a few ms after its stick: as near the end of its reverse.
+        expect((frames - at) / sampleRate, `${id} at ${bpm}`).toBeLessThan(0.01)
+      }
+    }
+  }, 120000)
+
   it('is as loud at another tempo: the same strokes at the same level', async () => {
     const hats = named('club-sixteenth-hats')
     expect(Math.abs((await peakDb(hats, 96)) - (await peakDb(hats)))).toBeLessThan(0.5)

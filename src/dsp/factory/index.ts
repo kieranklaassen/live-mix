@@ -71,7 +71,14 @@ export {
   type GeneratedSound,
 } from './generate'
 export { KIT_INSTRUMENTS, KIT_LEVEL_DB, isKitInstrument } from './kits'
-export { FACTORY_TEMPO_RANGE, factoryTempo, patchAtTempo, phraseAtTempo, tempoRatio } from './tempo'
+export {
+  FACTORY_TEMPO_RANGE,
+  factoryTempo,
+  patchAtTempo,
+  phraseAtTempo,
+  tempoRatio,
+  type TimedParams,
+} from './tempo'
 export {
   VARIATION_KINDS,
   VARIATION_LIMITS,
@@ -282,7 +289,7 @@ export function soundAtTempo(sound: FactorySound, bpm: number | undefined): Fact
   return {
     ...sound,
     bpm: factoryTempo(bpm),
-    ...(patch ? { patch: patchAtTempo(patch, ratio) } : {}),
+    ...(patch ? { patch: patchAtTempo(patch, ratio, sound.timedParams) } : {}),
     phrase: phraseAtTempo(sound.phrase, ratio),
     durationSec: sound.durationSec * ratio,
     ...(sound.skipSec === undefined ? {} : { skipSec: sound.skipSec * ratio }),

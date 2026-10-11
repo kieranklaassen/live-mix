@@ -123,6 +123,16 @@ export interface FactorySound {
    */
   bpm?: number
   /**
+   * For a sound that keeps time: controls of its own instrument that are a length
+   * of time (`'time'`) or a rate (`'rate'`) in this sound and in no other, so they
+   * follow the tempo beside the ones that do for every sound (`TIMED_PARAMS` in
+   * ./tempo.ts). A sampler's `end`, where it is how much of the loaded sound one
+   * held key reads backwards: the key reaches the first sample on the bar line at
+   * every tempo. Not a rule of the device: in most patches a sampler's End is a
+   * place in the recording and stays where it is.
+   */
+  timedParams?: Readonly<Record<string, 'time' | 'rate'>>
+  /**
    * True for a sound played on a kit (./kits.ts), whose keys are things and
    * not pitches: every C the same drum. In another key its notes stay where
    * they are and the kit's own tuning moves, and a variant never moves it to
