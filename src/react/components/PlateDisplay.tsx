@@ -245,7 +245,7 @@ export class DisplayRunner {
     this.taps?.mend()
     const before = this.colourKey
     this.readColours()
-    const ratio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    const ratio = pixelsPerPx(this.canvas)
     if (!this.stop && (before !== this.colourKey || ratio !== this.pixelRatio)) this.sync(true)
   }
 
@@ -383,7 +383,7 @@ export class DisplayRunner {
   /** The canvas holds as many pixels as the screen shows for its size. */
   private fit(): void {
     const { width, height } = this.inputs()
-    const ratio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    const ratio = pixelsPerPx(this.canvas)
     const w = Math.max(1, Math.round(width * ratio))
     const h = Math.max(1, Math.round(height * ratio))
     if (this.canvas.width !== w) this.canvas.width = w
@@ -832,11 +832,32 @@ function wheelPixels(event: Pick<WheelEvent, 'deltaY' | 'deltaMode'>): number {
   return -event.deltaY * scale
 }
 
-/** A pointer's place in the display's own pixels. */
+/** A pointer's place in the display's own pixels: a display a host shows larger or smaller is pointed at as it is drawn. */
 function pointIn(
   element: HTMLElement,
   event: { clientX: number; clientY: number },
 ): { x: number; y: number } {
   const box = element.getBoundingClientRect()
-  return { x: event.clientX - box.left, y: event.clientY - box.top }
+  const sx = element.offsetWidth > 0 && box.width > 0 ? box.width / element.offsetWidth : 1
+  const sy = element.offsetHeight > 0 && box.height > 0 ? box.height / element.offsetHeight : 1
+  return { x: (event.clientX - box.left) / sx, y: (event.clientY - box.top) / sy }
+}
+
+/**
+ * How many times its own size an element is shown: over 1 where a host draws a plate larger (a CSS zoom on
+ * it or around it), 1 where it does not and where nothing is laid out. A browser that says the zoom itself
+ * (`currentCSSZoom`) is asked; another is measured, its box on the page against its own width, to a
+ * hundredth, since its own width is a whole number of px and its box seldom is.
+ */
+export function shownScale(element: HTMLElement): number {
+  const said = (element as { currentCSSZoom?: unknown }).currentCSSZoom
+  if (typeof said === 'number' && said > 0) return said
+  const own = element.offsetWidth
+  const shown = element.getBoundingClientRect().width
+  return own > 0 && shown > 0 ? Math.round((shown / own) * 100) / 100 : 1
+}
+
+/** The screen's pixels one of an element's own px takes: the screen's ratio times how large a host shows it. */
+export function pixelsPerPx(element: HTMLElement): number {
+  return (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) * shownScale(element)
 }
