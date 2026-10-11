@@ -172,7 +172,7 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
   static constexpr int kPassAfter = 256;       // stays dry until so long after it
   static constexpr int kPassFall = 768;        // and turns back over so long
   static constexpr float kStrikeSeconds = 0.032f;  // an attack is followed to its highest sample for so long
-  static constexpr int kStrikeMost = 64;           // and never for more segments than this
+  static constexpr int kStrikeMost = 96;           // which is this many segments at 192 kHz, and never more
   static constexpr int kLayoutAhead = 128;     // Grain is read so long before the left side's frame
 
   void init(float sample_rate) {
@@ -225,8 +225,12 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
     asleep_ = false;
     mix_.set_time(kSmoothingSeconds, sr);
     mix_.snap(param(kMix));
-    // Nothing is held: once the input stops, a latency and a frame play out.
-    idle_.reset(sr, static_cast<float>(Stft::kLatency + Stft::kFrame + Stft::kHop) / sr);
+    // Nothing is held: once the input stops, a latency and a frame play out. Over 128 kHz an
+    // attack is followed for longer than that takes, and the device stays up until that is over
+    // too: asleep, the detector holds nothing (see rest_attacks()).
+    const int played_out = Stft::kLatency + Stft::kFrame + Stft::kHop;
+    const int followed = (strike_segments_ + 3) * kSegment;
+    idle_.reset(sr, static_cast<float>(played_out > followed ? played_out : followed) / sr);
   }
 
   void set_param(int id, float value) {
@@ -330,10 +334,10 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
                     kPassAfter % kSegment == 0 && kHitLast < kHitRing && kLayoutAhead % 128 == 0,
                 "the attack pass counts in whole segments");
   // Asleep, everything the detector holds has run out: sleep begins only after more silence than
-  // its longest memory (the pass ends kLatency + kPassAfter + kPassFall after an attack).
+  // its longest memory (the pass ends kLatency + kPassAfter + kPassFall after an attack; the
+  // follow of a struck note is counted into the hold itself, in init()).
   static_assert(kLatency + kPassAfter + kPassFall + 2 * kSegment < Stft::kLatency + Stft::kFrame + Stft::kHop &&
-                    kLookSegments * kSegment <= Stft::kFrame &&
-                    (kStrikeMost + 2) * kSegment < Stft::kLatency + Stft::kFrame + Stft::kHop,
+                    kLookSegments * kSegment <= Stft::kFrame,
                 "the idle hold outlasts the attack detector");
 
   // The attack detector at rest: as after a long silence.
