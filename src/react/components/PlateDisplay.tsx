@@ -70,6 +70,15 @@ function slowTick(): void {
   for (const runner of mounted) runner.look()
 }
 
+/**
+ * Has the displays look at their colours now, and not at the next second: for
+ * whoever changed them under them (a plate that took or lost the studio
+ * look). With `within`, only the displays inside that element.
+ */
+export function lookAtPlateDisplays(within?: Element): void {
+  for (const runner of mounted) if (!within || runner.isWithin(within)) runner.look()
+}
+
 /** What a display that reads no notes is given. */
 const NO_NOTES: readonly DisplayNote[] = Object.freeze([])
 
@@ -226,6 +235,11 @@ export class DisplayRunner {
   }
 
   /** Once a second: colours a theme changed, a screen with another pixel ratio, a tap that was cut. */
+  /** Whether this display's canvas stands inside `root`. */
+  isWithin(root: Element): boolean {
+    return root.contains(this.canvas)
+  }
+
   look(): void {
     if (this.disposed || !this.ctx || !this.visible) return
     this.taps?.mend()
@@ -385,9 +399,18 @@ export class DisplayRunner {
     const ink = style.color
     const accent = style.outlineColor
     const plate = style.textDecorationColor
-    if (ink) this.colours = { ink, accent: accent || ink, plate: plate || PLAIN_COLOURS.plate }
+    // How much of its ground the display lays: the stylesheet says where it is given one.
+    const ground = parseFloat(style.getPropertyValue('--lm-display-ground'))
+    if (ink) {
+      this.colours = {
+        ink,
+        accent: accent || ink,
+        plate: plate || PLAIN_COLOURS.plate,
+        ...(Number.isFinite(ground) ? { ground } : {}),
+      }
+    }
     if (style.fontFamily) this.fontFamily = style.fontFamily
-    this.colourKey = `${ink}|${accent}|${plate}|${style.fontFamily}`
+    this.colourKey = `${ink}|${accent}|${plate}|${ground}|${style.fontFamily}`
   }
 
   private onFrame(nowMs: number): void {
