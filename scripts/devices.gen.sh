@@ -20,6 +20,8 @@ build_generated_devices() {
     cpp/devices/analog-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device analog-drive \
     cpp/devices/analog-drive/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device around \
+    cpp/devices/around/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device atmosphere \
     cpp/devices/atmosphere/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device aurora \
@@ -32,6 +34,8 @@ build_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device bowed-string \
     cpp/devices/bowed-string/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bowls \
+    cpp/devices/bowls/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device breath \
     cpp/devices/breath/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device canon \
@@ -114,8 +118,12 @@ build_generated_devices() {
     cpp/devices/handpan/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device harp \
     cpp/devices/harp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device haze \
+    cpp/devices/haze/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device horns \
     cpp/devices/horns/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device howl \
+    cpp/devices/howl/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ice \
     cpp/devices/ice/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device imprint \
@@ -126,6 +134,8 @@ build_generated_devices() {
     cpp/devices/late-vibrato/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lattice \
     cpp/devices/lattice/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device lift \
+    cpp/devices/lift/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device low-bitrate \
     cpp/devices/low-bitrate/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device magnet-piano \
@@ -208,6 +218,10 @@ build_generated_devices() {
     cpp/devices/skipping-stone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
     cpp/devices/spectral-blur/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spiral \
+    cpp/devices/spiral/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spread \
+    cpp/devices/spread/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device spring-reverb \
     cpp/devices/spring-reverb/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device staircase \
@@ -293,6 +307,8 @@ test_generated_devices() {
     cpp/test/analog_delay_test.cpp
   native_test analog_drive_test \
     cpp/test/analog_drive_test.cpp
+  native_test around_test \
+    cpp/test/around_test.cpp
   native_test atmosphere_test \
     cpp/test/atmosphere_test.cpp
   native_test aurora_test \
@@ -305,6 +321,8 @@ test_generated_devices() {
     cpp/devices/stereo-widener/StereoWidener.cpp
   native_test bowed_string_test \
     cpp/test/bowed_string_test.cpp
+  native_test bowls_test \
+    cpp/test/bowls_test.cpp
   native_test breath_test \
     cpp/test/breath_test.cpp
   native_test canon_test \
@@ -387,8 +405,12 @@ test_generated_devices() {
     cpp/test/handpan_test.cpp
   native_test harp_test \
     cpp/test/harp_test.cpp
+  native_test haze_test \
+    cpp/test/haze_test.cpp
   native_test horns_test \
     cpp/test/horns_test.cpp
+  native_test howl_test \
+    cpp/test/howl_test.cpp
   native_test ice_test \
     cpp/test/ice_test.cpp
   native_test imprint_test \
@@ -399,6 +421,8 @@ test_generated_devices() {
     cpp/test/late_vibrato_test.cpp
   native_test lattice_test \
     cpp/test/lattice_test.cpp
+  native_test lift_test \
+    cpp/test/lift_test.cpp
   native_test low_bitrate_test \
     cpp/test/low_bitrate_test.cpp
   native_test magnet_piano_test \
@@ -481,6 +505,10 @@ test_generated_devices() {
     cpp/test/skipping_stone_test.cpp
   native_test spectral_blur_test \
     cpp/test/spectral_blur_test.cpp
+  native_test spiral_test \
+    cpp/test/spiral_test.cpp
+  native_test spread_test \
+    cpp/test/spread_test.cpp
   native_test spring_reverb_test \
     cpp/test/spring_reverb_test.cpp
   native_test staircase_test \

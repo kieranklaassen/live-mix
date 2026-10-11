@@ -10,11 +10,13 @@ import { AMBIENT_EQ_DESCRIPTOR, AMBIENT_EQ_DEVICE } from './ambient-eq.gen'
 import { AMBIENT_LIMITER_DESCRIPTOR, AMBIENT_LIMITER_DEVICE } from './ambient-limiter.gen'
 import { ANALOG_DELAY_DESCRIPTOR, ANALOG_DELAY_DEVICE } from './analog-delay.gen'
 import { ANALOG_DRIVE_DESCRIPTOR, ANALOG_DRIVE_DEVICE } from './analog-drive.gen'
+import { AROUND_DESCRIPTOR, AROUND_DEVICE } from './around.gen'
 import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
 import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
+import { BOWLS_DESCRIPTOR, BOWLS_DEVICE } from './bowls.gen'
 import { BREATH_DESCRIPTOR, BREATH_DEVICE } from './breath.gen'
 import { CANON_DESCRIPTOR, CANON_DEVICE } from './canon.gen'
 import { CASCADE_DESCRIPTOR, CASCADE_DEVICE } from './cascade.gen'
@@ -56,12 +58,15 @@ import { GUITAR_DESCRIPTOR, GUITAR_DEVICE } from './guitar.gen'
 import { HALF_SPEED_DESCRIPTOR, HALF_SPEED_DEVICE } from './half-speed.gen'
 import { HANDPAN_DESCRIPTOR, HANDPAN_DEVICE } from './handpan.gen'
 import { HARP_DESCRIPTOR, HARP_DEVICE } from './harp.gen'
+import { HAZE_DESCRIPTOR, HAZE_DEVICE } from './haze.gen'
 import { HORNS_DESCRIPTOR, HORNS_DEVICE } from './horns.gen'
+import { HOWL_DESCRIPTOR, HOWL_DEVICE } from './howl.gen'
 import { ICE_DESCRIPTOR, ICE_DEVICE } from './ice.gen'
 import { IMPRINT_DESCRIPTOR, IMPRINT_DEVICE } from './imprint.gen'
 import { LADDER_BASS_DESCRIPTOR, LADDER_BASS_DEVICE } from './ladder-bass.gen'
 import { LATE_VIBRATO_DESCRIPTOR, LATE_VIBRATO_DEVICE } from './late-vibrato.gen'
 import { LATTICE_DESCRIPTOR, LATTICE_DEVICE } from './lattice.gen'
+import { LIFT_DESCRIPTOR, LIFT_DEVICE } from './lift.gen'
 import { LOW_BITRATE_DESCRIPTOR, LOW_BITRATE_DEVICE } from './low-bitrate.gen'
 import { MAGNET_PIANO_DESCRIPTOR, MAGNET_PIANO_DEVICE } from './magnet-piano.gen'
 import { MALLETS_DESCRIPTOR, MALLETS_DEVICE } from './mallets.gen'
@@ -103,6 +108,8 @@ import { SINE_SHADOW_DESCRIPTOR, SINE_SHADOW_DEVICE } from './sine-shadow.gen'
 import { SIZE_DESCRIPTOR, SIZE_DEVICE } from './size.gen'
 import { SKIPPING_STONE_DESCRIPTOR, SKIPPING_STONE_DEVICE } from './skipping-stone.gen'
 import { SPECTRAL_BLUR_DESCRIPTOR, SPECTRAL_BLUR_DEVICE } from './spectral-blur.gen'
+import { SPIRAL_DESCRIPTOR, SPIRAL_DEVICE } from './spiral.gen'
+import { SPREAD_DESCRIPTOR, SPREAD_DEVICE } from './spread.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
@@ -144,11 +151,13 @@ export * from './ambient-eq.gen'
 export * from './ambient-limiter.gen'
 export * from './analog-delay.gen'
 export * from './analog-drive.gen'
+export * from './around.gen'
 export * from './atmosphere.gen'
 export * from './aurora.gen'
 export * from './auto-filter.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
+export * from './bowls.gen'
 export * from './breath.gen'
 export * from './canon.gen'
 export * from './cascade.gen'
@@ -190,12 +199,15 @@ export * from './guitar.gen'
 export * from './half-speed.gen'
 export * from './handpan.gen'
 export * from './harp.gen'
+export * from './haze.gen'
 export * from './horns.gen'
+export * from './howl.gen'
 export * from './ice.gen'
 export * from './imprint.gen'
 export * from './ladder-bass.gen'
 export * from './late-vibrato.gen'
 export * from './lattice.gen'
+export * from './lift.gen'
 export * from './low-bitrate.gen'
 export * from './magnet-piano.gen'
 export * from './mallets.gen'
@@ -237,6 +249,8 @@ export * from './sine-shadow.gen'
 export * from './size.gen'
 export * from './skipping-stone.gen'
 export * from './spectral-blur.gen'
+export * from './spiral.gen'
+export * from './spread.gen'
 export * from './spring-reverb.gen'
 export * from './staircase.gen'
 export * from './stereo-detune.gen'
@@ -280,11 +294,13 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   AMBIENT_LIMITER_DESCRIPTOR,
   ANALOG_DELAY_DESCRIPTOR,
   ANALOG_DRIVE_DESCRIPTOR,
+  AROUND_DESCRIPTOR,
   ATMOSPHERE_DESCRIPTOR,
   AURORA_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
+  BOWLS_DESCRIPTOR,
   BREATH_DESCRIPTOR,
   CANON_DESCRIPTOR,
   CASCADE_DESCRIPTOR,
@@ -326,12 +342,15 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   HALF_SPEED_DESCRIPTOR,
   HANDPAN_DESCRIPTOR,
   HARP_DESCRIPTOR,
+  HAZE_DESCRIPTOR,
   HORNS_DESCRIPTOR,
+  HOWL_DESCRIPTOR,
   ICE_DESCRIPTOR,
   IMPRINT_DESCRIPTOR,
   LADDER_BASS_DESCRIPTOR,
   LATE_VIBRATO_DESCRIPTOR,
   LATTICE_DESCRIPTOR,
+  LIFT_DESCRIPTOR,
   LOW_BITRATE_DESCRIPTOR,
   MAGNET_PIANO_DESCRIPTOR,
   MALLETS_DESCRIPTOR,
@@ -373,6 +392,8 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SIZE_DESCRIPTOR,
   SKIPPING_STONE_DESCRIPTOR,
   SPECTRAL_BLUR_DESCRIPTOR,
+  SPIRAL_DESCRIPTOR,
+  SPREAD_DESCRIPTOR,
   SPRING_REVERB_DESCRIPTOR,
   STAIRCASE_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
@@ -417,11 +438,13 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   AMBIENT_LIMITER_DEVICE,
   ANALOG_DELAY_DEVICE,
   ANALOG_DRIVE_DEVICE,
+  AROUND_DEVICE,
   ATMOSPHERE_DEVICE,
   AURORA_DEVICE,
   AUTO_FILTER_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
+  BOWLS_DEVICE,
   BREATH_DEVICE,
   CANON_DEVICE,
   CASCADE_DEVICE,
@@ -463,12 +486,15 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   HALF_SPEED_DEVICE,
   HANDPAN_DEVICE,
   HARP_DEVICE,
+  HAZE_DEVICE,
   HORNS_DEVICE,
+  HOWL_DEVICE,
   ICE_DEVICE,
   IMPRINT_DEVICE,
   LADDER_BASS_DEVICE,
   LATE_VIBRATO_DEVICE,
   LATTICE_DEVICE,
+  LIFT_DEVICE,
   LOW_BITRATE_DEVICE,
   MAGNET_PIANO_DEVICE,
   MALLETS_DEVICE,
@@ -510,6 +536,8 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SIZE_DEVICE,
   SKIPPING_STONE_DEVICE,
   SPECTRAL_BLUR_DEVICE,
+  SPIRAL_DEVICE,
+  SPREAD_DEVICE,
   SPRING_REVERB_DEVICE,
   STAIRCASE_DEVICE,
   STEREO_DETUNE_DEVICE,
@@ -561,11 +589,13 @@ export const GENERATED_WASM_DEVICES = [
   },
   { id: 'analog-delay', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'analog-drive', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
+  { id: 'around', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'atmosphere', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'aurora', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'auto-filter', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'bowls', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'breath', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'canon', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 32 },
   { id: 'cascade', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 16 },
@@ -607,12 +637,15 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'half-speed', instrument: false, samples: false, zones: false, meters: 5, memoryMb: 8 },
   { id: 'handpan', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'harp', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'haze', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'horns', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
+  { id: 'howl', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 4 },
   { id: 'ice', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'imprint', instrument: false, samples: false, zones: false, meters: 30, memoryMb: 4 },
   { id: 'ladder-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'late-vibrato', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'lift', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'low-bitrate', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'magnet-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'mallets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
@@ -668,6 +701,8 @@ export const GENERATED_WASM_DEVICES = [
     memoryMb: 12,
   },
   { id: 'spectral-blur', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'spiral', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
+  { id: 'spread', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
