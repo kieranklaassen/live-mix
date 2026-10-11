@@ -767,6 +767,21 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(2)
   })
 
+  it('says so on the plate when a skin keeps its finish off the lettering, as the Ice plate does', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const { rerender } = render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('plate')).not.toHaveAttribute('data-lettering')
+    rerender(
+      <DevicePlate device={device} skin={{ ...SKIN, clearLettering: true }} data-testid="plate" />,
+    )
+    expect(screen.getByTestId('plate')).toHaveAttribute('data-lettering', 'clear')
+    // Speckle on Ice's pale plate is as dark as its ink, and ran through the names and the display.
+    expect(DEVICE_SKINS.ice).toMatchObject({ finish: 'speckle', clearLettering: true })
+  })
+
   it("names no value for a double-click on a knob that carries the device's own words", async () => {
     const fixture = createTestEngine()
     // A device that words one of its values itself, as a hosted plug-in does: for the value now.

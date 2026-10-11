@@ -745,6 +745,7 @@ export function DevicePlate({
       data-lm-device={device.id}
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
+      data-lettering={skin.clearLettering ? 'clear' : undefined}
       aria-label={heading}
       onPointerDownCapture={held.take}
       {...infoProps(
