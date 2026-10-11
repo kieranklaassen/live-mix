@@ -92,7 +92,7 @@ export const SPIRAL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'The stereo width of the tail, from mono in the middle to the full spread of the space.',
+      "How far apart the tail's two sides stand. At 0 they are the same; turned up they part in phase, a quarter turn at most, and the tail loses at most 3 dB summed to mono.",
   },
   mix: {
     id: 8,
@@ -137,7 +137,7 @@ export const SPIRAL_DESCRIPTOR = wasmDeviceDescriptor(SPIRAL_DEVICE, {
       voices: 5,
       spread: 0.7,
       tone: 5000,
-      blur: 0.8,
+      blur: 0.75,
       mix: 0.45,
     },
     'Siren of light': {
