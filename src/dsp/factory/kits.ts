@@ -6,7 +6,7 @@
 // the kit's own `tune` is what follows the key.
 
 /** The stock instruments that are kits, by device id. */
-export const KIT_INSTRUMENTS: readonly string[] = ['drum-kit', 'glitch-kit']
+export const KIT_INSTRUMENTS: readonly string[] = ['drum-kit', 'glitch-kit', 'club-kit']
 
 /** Whether the instrument with this device id is a kit: its keys pick a drum, not a pitch. */
 export function isKitInstrument(deviceId: string): boolean {

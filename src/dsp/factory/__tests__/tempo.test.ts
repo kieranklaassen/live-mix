@@ -180,7 +180,7 @@ describe('the tempo of a sound', () => {
 
 describe('a sound on a kit', () => {
   it('is marked as one by the instrument it is played on', () => {
-    expect(KIT_INSTRUMENTS).toEqual(['drum-kit', 'glitch-kit'])
+    expect(KIT_INSTRUMENTS).toEqual(['drum-kit', 'glitch-kit', 'club-kit'])
     for (const id of KIT_INSTRUMENTS) {
       expect(registry.get(id)?.category, id).toBe('instrument')
       expect(isKitInstrument(id)).toBe(true)

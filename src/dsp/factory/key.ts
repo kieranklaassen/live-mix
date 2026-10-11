@@ -82,6 +82,7 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // A kit's keys are drums, so its notes never move (./kits.ts): its tuning does.
   'drum-kit': { tune: 'note' },
   'glitch-kit': { tune: 'note' },
+  'club-kit': { tune: 'note' },
   // The note whose harmonics are sung, and the note the carrier stands on: a root and its
   // octave. With the octave left where it was, a root that passes B would drop the whistle
   // or the carrier an octave against the playing, and the bell would be another bell.
