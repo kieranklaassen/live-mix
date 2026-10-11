@@ -718,7 +718,12 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       'Bowls tuned to the key ring on and their fading is held up at one level for some seconds before it lets go; Ring sets how long they sing.',
     effects: [
       { deviceId: 'bowls', preset: 'Bowl table', params: { ring: 20 } },
-      { deviceId: 'lift', preset: 'Long tails', params: { threshold: -30, floor: -60, limit: 15 } },
+      {
+        deviceId: 'lift',
+        preset: 'Long tails',
+        // At once, as these bowls were tuned: the preset itself waits before it lifts.
+        params: { threshold: -30, rise: 0.3, hold: 0.05, floor: -60, limit: 15 },
+      },
     ],
   },
   {

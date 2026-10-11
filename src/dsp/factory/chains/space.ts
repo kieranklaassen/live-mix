@@ -455,7 +455,12 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       'A reverb tail that sinks in pitch is held up near the level of the playing for a second or two before it lets go; Threshold sets the line.',
     effects: [
       { deviceId: 'spiral', preset: 'Slow descent' },
-      { deviceId: 'lift', preset: 'Long tails', params: { threshold: -27, floor: -60, limit: 24 } },
+      {
+        deviceId: 'lift',
+        preset: 'Long tails',
+        // At once, as this tail was tuned: the preset itself waits before it lifts.
+        params: { threshold: -27, rise: 0.3, hold: 0.05, floor: -60, limit: 24 },
+      },
     ],
   },
 ]
