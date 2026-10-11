@@ -24,6 +24,7 @@ import {
   DeviceFrame,
   DevicePanel,
   DeviceToggle,
+  Dropdown,
   Fader,
   Glyph,
   Group,
@@ -31,6 +32,7 @@ import {
   InlineNote,
   Input,
   JobRow,
+  KeptSheet,
   Knob,
   Lane,
   LaneHead,
@@ -44,6 +46,7 @@ import {
   MenuItem,
   Meter,
   MixerView,
+  NamedChip,
   NoteBubble,
   NotePin,
   NoteSpan,
@@ -408,7 +411,16 @@ describe('kit components under SSR', () => {
           <Pill on>Keys</Pill>
         </Room>
         <ListRow name="Looper" line="Four bars" mark="REC" />
-        <SheetPart name="Keyboard" state="On" on line="Plays the instrument" />
+        <Dropdown label="Key" defaultValue="0">
+          <option value="0">C</option>
+        </Dropdown>
+        <NamedChip swatch="#7bbab8" starred>
+          Warm pad
+        </NamedChip>
+        {/* A kept sheet is in the markup while closed: hidden, with what lives in it. */}
+        <KeptSheet open={false} onClose={() => {}} title="Inputs" foot="Set up once">
+          <SheetPart name="Keyboard" state="On" on line="Plays the instrument" />
+        </KeptSheet>
       </>,
     )
     expect(block).toContain('<nav aria-label="Places" class="lm-places">')
@@ -421,6 +433,10 @@ describe('kit components under SSR', () => {
     expect(block).toContain('--lm-card-progress:0.5')
     expect(block).toContain('data-marked=""')
     expect(block).toContain('class="lm-sheet-part__state" data-on="true"')
+    expect(block).toContain('<select aria-label="Key" class="lm-dropdown">')
+    expect(block).toContain('class="lm-star lm-named-chip__star"')
+    expect(block).toContain('<div class="lm-kept-sheet-ground" role="presentation" hidden="">')
+    expect(block).toContain('class="lm-kept-sheet__foot"')
     // A group and a sheet part are named by an id that is the same on the server and the client.
     expect(block).toMatch(/aria-labelledby="([^"]+)" class="lm-group"[^>]*><span id="\1"/)
   })

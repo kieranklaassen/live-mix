@@ -1,18 +1,22 @@
 // The parts a block of a bar is laid out with: the places of a surface, the
 // head of a block that was gone into, a list of things to go into, the one
 // sentence a block says and its one main action, choices, the layout of a
-// block's body, and a card. Moved from Ambient Live, whose bottom bar is built
-// from them. Presentational: the host owns what is chosen and what a press
+// block's body, a card and a chip, and a sheet that stays mounted while it is
+// closed. Moved from Ambient Live, whose bottom bar is built from them.
+// Presentational: the host owns what is chosen and what a press
 // does. Each part passes what it is not told about to its element:
 // `infoProps`, a `data-testid`, a `title`.
 
 import {
   forwardRef,
+  useEffect,
   useId,
+  useRef,
   type ButtonHTMLAttributes,
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
+  type SelectHTMLAttributes,
 } from 'react'
 
 import { cx } from './tokens'
@@ -350,6 +354,23 @@ export function Choice<T extends string | number>({
   )
 }
 
+export type DropdownProps = {
+  /** The accessible name of the picker. */
+  label: string
+} & SelectHTMLAttributes<HTMLSelectElement>
+
+/**
+ * One of a list too long to lay side by side: the platform's own select in the frame a `Choice`
+ * has, given its options as children and told of a pick the select's own way.
+ */
+export function Dropdown({ label, children, className, ...rest }: DropdownProps) {
+  return (
+    <select {...rest} aria-label={label} className={cx('lm-dropdown', className)}>
+      {children}
+    </select>
+  )
+}
+
 export type TickProps = {
   on: boolean
   onChange: (on: boolean) => void
@@ -472,7 +493,7 @@ export function Well({ caption, children, className, ...rest }: WellProps) {
   )
 }
 
-// --- Cards -------------------------------------------------------------------
+// --- Cards and chips ---------------------------------------------------------
 
 export type CardProps = {
   picked?: boolean
@@ -510,7 +531,148 @@ export const Card = forwardRef<HTMLButtonElement, CardProps>(function Card(
   )
 })
 
-// --- A part of a sheet -------------------------------------------------------
+export type NamedChipProps = {
+  /** A CSS colour for the mark at the chip's left. */
+  swatch?: string
+  starred?: boolean
+  children: ReactNode
+} & ButtonRest
+
+/** A small named thing to press: a swatch of its colour, its name, and a star when it is a starred one. */
+export function NamedChip({
+  swatch,
+  starred = false,
+  children,
+  className,
+  ...rest
+}: NamedChipProps) {
+  return (
+    <button {...rest} type="button" className={cx('lm-named-chip', className)}>
+      {swatch !== undefined && (
+        <i className="lm-named-chip__swatch" aria-hidden="true" style={{ background: swatch }} />
+      )}
+      <span className="lm-named-chip__name">{children}</span>
+      {starred && <Star on className="lm-named-chip__star" />}
+    </button>
+  )
+}
+
+// --- KeptSheet ---------------------------------------------------------------
+
+/** What the Tab key can reach inside a sheet. */
+const TABBABLE = 'a[href], button, input, select, textarea, [tabindex]'
+
+export type KeptSheetProps = {
+  open: boolean
+  onClose: () => void
+  title: ReactNode
+  /** One line along the sheet's foot. */
+  foot?: ReactNode
+  children: ReactNode
+  /** What the Close button is given besides: `infoProps`, a `data-testid`. */
+  closeProps?: ButtonRest & DataRest
+} & DivRest
+
+/**
+ * A sheet over the page for what is set up once and then left: it stays mounted while closed
+ * (`hidden`), so what lives in it goes on working. Escape and a press beside it close it, and the
+ * Tab key stays inside it while it is open. Put it where nothing of the page stacks over it.
+ * `Sheet` is the other one: there while it is mounted, for one thing to settle.
+ */
+export function KeptSheet({
+  open,
+  onClose,
+  title,
+  foot,
+  children,
+  className,
+  closeProps,
+  ...rest
+}: KeptSheetProps) {
+  const id = useId()
+  const sheet = useRef<HTMLDivElement>(null)
+  const close = useRef<HTMLButtonElement>(null)
+  const closing = useRef(onClose)
+  useEffect(() => {
+    closing.current = onClose
+  }, [onClose])
+  // The focus goes into the sheet as it opens, and back to where it was as it closes.
+  useEffect(() => {
+    if (!open) return
+    const before = document.activeElement
+    close.current?.focus()
+    return () => {
+      if (before instanceof HTMLElement && before.isConnected) before.focus()
+    }
+  }, [open])
+  // Heard before the page hears it: Escape is the sheet's while it is open, and Tab goes round inside it.
+  useEffect(() => {
+    if (!open) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.isComposing) return
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        event.stopPropagation()
+        closing.current()
+        return
+      }
+      if (event.key !== 'Tab' || !sheet.current) return
+      const stops = [...sheet.current.querySelectorAll<HTMLElement>(TABBABLE)].filter(
+        (stop) =>
+          stop.tabIndex >= 0 &&
+          !(stop as HTMLButtonElement).disabled &&
+          stop.closest('[hidden]') === null,
+      )
+      const first = stops[0]
+      const last = stops[stops.length - 1]
+      if (!first || !last) return
+      const at = document.activeElement
+      const outside = !sheet.current.contains(at)
+      if (event.shiftKey ? outside || at === first : outside || at === last) {
+        event.preventDefault()
+        ;(event.shiftKey ? last : first).focus()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [open])
+  return (
+    <div
+      className="lm-kept-sheet-ground"
+      role="presentation"
+      hidden={!open}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose()
+      }}
+    >
+      <div
+        {...rest}
+        ref={sheet}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={id}
+        className={cx('lm-kept-sheet', className)}
+      >
+        <div className="lm-kept-sheet__head">
+          <h2 id={id} className="lm-kept-sheet__title">
+            {title}
+          </h2>
+          <button
+            {...closeProps}
+            ref={close}
+            type="button"
+            onClick={onClose}
+            className={cx('lm-kept-sheet__close', closeProps?.className)}
+          >
+            Close
+          </button>
+        </div>
+        <div className="lm-kept-sheet__body">{children}</div>
+        {foot !== undefined && <div className="lm-kept-sheet__foot">{foot}</div>}
+      </div>
+    </div>
+  )
+}
 
 export type SheetPartProps = {
   name: ReactNode

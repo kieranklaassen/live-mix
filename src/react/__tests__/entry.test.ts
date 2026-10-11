@@ -239,6 +239,9 @@ describe('entries', () => {
     'SheetPart',
     'Chevron',
     'Star',
+    'Dropdown',
+    'NamedChip',
+    'KeptSheet',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })

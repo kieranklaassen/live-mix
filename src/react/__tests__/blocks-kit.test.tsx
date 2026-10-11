@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { createRef } from 'react'
+import { createRef, useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -9,10 +9,13 @@ import {
   Card,
   Chevron,
   Choice,
+  Dropdown,
   Group,
   Hint,
+  KeptSheet,
   ListRow,
   MainAction,
+  NamedChip,
   Pill,
   Places,
   PlainAction,
@@ -310,6 +313,32 @@ describe('Choice and Tick', () => {
   })
 })
 
+describe('Dropdown', () => {
+  it("names a picker, lists its children and tells a pick the select's own way", () => {
+    const onChange = vi.fn()
+    render(
+      <Dropdown
+        label="Key"
+        value="0"
+        data-testid="key"
+        onChange={(event) => {
+          onChange(event.target.value)
+        }}
+      >
+        <option value="0">C</option>
+        <option value="2">D</option>
+      </Dropdown>,
+    )
+    const list = screen.getByRole<HTMLSelectElement>('combobox', { name: 'Key' })
+    expect(list).toBe(screen.getByTestId('key'))
+    expect(list.tagName).toBe('SELECT')
+    expect(list).toHaveClass('lm-dropdown')
+    expect([...list.options].map((option) => option.textContent)).toEqual(['C', 'D'])
+    fireEvent.change(list, { target: { value: '2' } })
+    expect(onChange).toHaveBeenCalledWith('2')
+  })
+})
+
 describe('Group and Pill', () => {
   it('names a group by its small capitals, and lights a pill that is on', () => {
     render(
@@ -443,6 +472,170 @@ describe('Card', () => {
     expect(ref.current).toBe(card)
     ref.current?.style.setProperty('--lm-card-progress', '0.5')
     expect(card.style.getPropertyValue('--lm-card-progress')).toBe('0.5')
+  })
+})
+
+describe('NamedChip', () => {
+  it('is a button with its name alone, and a press', () => {
+    const onClick = vi.fn()
+    render(
+      <NamedChip data-testid="chip" title="A warm pad" onClick={onClick}>
+        Warm pad
+      </NamedChip>,
+    )
+    const chip = screen.getByTestId('chip')
+    expect(chip).toHaveClass('lm-named-chip')
+    expect(chip).not.toHaveClass('lm-chip')
+    expect(chip).toHaveAttribute('type', 'button')
+    expect(chip).toHaveAttribute('title', 'A warm pad')
+    expect([...chip.children].map((child) => child.getAttribute('class'))).toEqual([
+      'lm-named-chip__name',
+    ])
+    expect(chip.querySelector('.lm-named-chip__name')).toHaveTextContent('Warm pad')
+    fireEvent.click(chip)
+    expect(onClick).toHaveBeenCalledTimes(1)
+  })
+
+  it('has a swatch of its colour before the name, and a lit star after it when starred', () => {
+    render(
+      <NamedChip data-testid="chip" swatch="rgb(10, 20, 30)" starred disabled>
+        Glass
+      </NamedChip>,
+    )
+    const chip = screen.getByTestId('chip')
+    expect([...chip.children].map((child) => child.getAttribute('class'))).toEqual([
+      'lm-named-chip__swatch',
+      'lm-named-chip__name',
+      'lm-star lm-named-chip__star',
+    ])
+    const swatch = chip.querySelector<HTMLElement>('i.lm-named-chip__swatch')
+    expect(swatch).toHaveAttribute('aria-hidden', 'true')
+    expect(swatch?.style.background).toBe('rgb(10, 20, 30)')
+    const star = chip.querySelector('svg.lm-named-chip__star')
+    expect(star).toHaveAttribute('data-on')
+    expect(star?.querySelector('path')).toHaveAttribute('fill', 'currentColor')
+    expect(chip).toBeDisabled()
+  })
+})
+
+describe('KeptSheet', () => {
+  function Opened({ onClose }: { onClose: () => void }) {
+    const [open, setOpen] = useState(false)
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)} data-testid="opener" />
+        <KeptSheet
+          open={open}
+          onClose={() => {
+            setOpen(false)
+            onClose()
+          }}
+          title="Inputs"
+          foot="A line"
+          data-testid="sheet"
+          closeProps={{ 'data-testid': 'close' }}
+        >
+          <SheetPart name="Keyboard" state="On" on line="What it is">
+            <button type="button" data-testid="inside" />
+          </SheetPart>
+        </KeptSheet>
+      </>
+    )
+  }
+
+  /** The ground a sheet lies on: the element that is hidden while it is closed. */
+  function ground(): HTMLElement {
+    const found = screen.getByTestId('sheet').parentElement
+    if (!found) throw new Error('the sheet has no ground')
+    return found
+  }
+
+  it('keeps what is in it mounted while closed, and takes the focus as it opens', () => {
+    render(<Opened onClose={() => {}} />)
+    const sheet = screen.getByTestId('sheet')
+    expect(ground()).toHaveClass('lm-kept-sheet-ground')
+    expect(ground()).toHaveAttribute('role', 'presentation')
+    expect(ground().hidden).toBe(true)
+    expect(screen.getByTestId('inside')).toBeInTheDocument()
+    const opener = screen.getByTestId('opener')
+    opener.focus()
+    fireEvent.click(opener)
+    expect(ground().hidden).toBe(false)
+    expect(screen.getByRole('dialog', { name: 'Inputs' })).toBe(sheet)
+    expect(sheet).toHaveClass('lm-kept-sheet')
+    expect(sheet).toHaveAttribute('aria-modal', 'true')
+    expect(within(sheet).getByRole('heading', { name: 'Inputs', level: 2 })).toHaveClass(
+      'lm-kept-sheet__title',
+    )
+    expect(sheet.querySelector('.lm-kept-sheet__body')).toContainElement(
+      screen.getByTestId('inside'),
+    )
+    expect(sheet.querySelector('.lm-kept-sheet__foot')).toHaveTextContent('A line')
+    expect(screen.getByRole('group', { name: 'Keyboard' })).toBeInTheDocument()
+    expect(screen.getByTestId('close')).toHaveClass('lm-kept-sheet__close')
+    expect(screen.getByTestId('close')).toHaveTextContent('Close')
+    expect(document.activeElement).toBe(screen.getByTestId('close'))
+    // And gives it back to where it was.
+    fireEvent.click(screen.getByTestId('close'))
+    expect(ground().hidden).toBe(true)
+    expect(document.activeElement).toBe(opener)
+  })
+
+  it('closes on Escape and on a press beside it, not on one inside, and hears no key while closed', () => {
+    const onClose = vi.fn()
+    render(<Opened onClose={onClose} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByTestId('opener'))
+    fireEvent.mouseDown(screen.getByTestId('inside'))
+    expect(onClose).not.toHaveBeenCalled()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('opener'))
+    fireEvent.mouseDown(ground())
+    expect(onClose).toHaveBeenCalledTimes(2)
+  })
+
+  it('hears Escape before the page does, so a page that takes the key for itself is not told', () => {
+    const onClose = vi.fn()
+    const page = vi.fn((event: KeyboardEvent) => event.preventDefault())
+    window.addEventListener('keydown', page)
+    render(<Opened onClose={onClose} />)
+    fireEvent.click(screen.getByTestId('opener'))
+    fireEvent.keyDown(screen.getByTestId('inside'), { key: 'Escape' })
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(page).not.toHaveBeenCalled()
+    // Closed, the key is the page's again.
+    fireEvent.keyDown(document.body, { key: 'Escape' })
+    expect(page).toHaveBeenCalledTimes(1)
+    window.removeEventListener('keydown', page)
+  })
+
+  it('keeps the Tab key inside while it is open: round from the last stop to the first, and back', () => {
+    render(<Opened onClose={() => {}} />)
+    fireEvent.click(screen.getByTestId('opener'))
+    const close = screen.getByTestId('close')
+    const inside = screen.getByTestId('inside')
+    inside.focus()
+    expect(fireEvent.keyDown(inside, { key: 'Tab' })).toBe(false)
+    expect(document.activeElement).toBe(close)
+    expect(fireEvent.keyDown(close, { key: 'Tab', shiftKey: true })).toBe(false)
+    expect(document.activeElement).toBe(inside)
+    // Between two stops of the sheet the key is the browser's.
+    expect(fireEvent.keyDown(inside, { key: 'Tab', shiftKey: true })).toBe(true)
+    // From outside it the focus comes in.
+    screen.getByTestId('opener').focus()
+    fireEvent.keyDown(document.body, { key: 'Tab' })
+    expect(document.activeElement).toBe(close)
+  })
+
+  it('leaves out the foot it is not given', () => {
+    render(
+      <KeptSheet open onClose={() => {}} title="Inputs" data-testid="sheet">
+        <span />
+      </KeptSheet>,
+    )
+    expect(screen.getByTestId('sheet').querySelector('.lm-kept-sheet__foot')).toBeNull()
   })
 })
 

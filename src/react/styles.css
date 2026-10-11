@@ -5774,20 +5774,16 @@
 /* === The block parts ========================================================
  * What a block of a bar is laid out with (`blocks.tsx`): the places of a
  * surface, a block's head, a list that goes in, what a block says and its
- * main action, choices, the layout of a block's body, cards, and a part of a
- * sheet. Moved from Ambient Live. Sizes follow the module: rows of 20 px,
- * text at `--lm-font-size`, small capitals at 10 px. The rules stand last in
- * the sheet, so they weigh what they did in the app's own stylesheet, which
- * came after this one.
+ * main action, choices, the layout of a block's body, cards and chips, and a
+ * sheet that stays mounted while closed, with its parts. Moved from Ambient
+ * Live. Sizes follow the module: rows of 20 px, text at `--lm-font-size`,
+ * small capitals at 10 px. The rules stand last in the sheet, so they weigh
+ * what they did in the app's own stylesheet, which came after this one.
  */
 
 .lm-chevron,
 .lm-star {
   flex: none;
-}
-
-.lm-star[data-on] {
-  color: var(--lm-accent);
 }
 
 /* --- Places ---------------------------------------------------------------- */
@@ -6241,6 +6237,44 @@
   cursor: default;
 }
 
+/* A picker: the frame of a choice, with a mark at its end that it opens. */
+.lm-dropdown {
+  box-sizing: border-box;
+  block-size: 20px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0 18px 0 7px;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  appearance: none;
+  background-color: var(--lm-raised);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(-45deg, transparent 50%, currentColor 50%);
+  background-position:
+    right 9px center,
+    right 5px center;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  color: var(--lm-text);
+  font: inherit;
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.lm-dropdown:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-dropdown:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .lm-tick {
   display: inline-flex;
   flex: none;
@@ -6460,7 +6494,7 @@
   pointer-events: none;
 }
 
-/* --- Cards ----------------------------------------------------------------- */
+/* --- Cards and chips ------------------------------------------------------- */
 
 .lm-card {
   position: relative;
@@ -6503,7 +6537,142 @@
   transform-origin: 0 50%;
 }
 
-/* --- A part of a sheet ------------------------------------------------------ */
+.lm-named-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  block-size: 22px;
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lm-named-chip:hover {
+  border-color: var(--lm-accent);
+}
+
+.lm-named-chip:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-named-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-named-chip__swatch {
+  flex: none;
+  inline-size: 4px;
+  block-size: 12px;
+}
+
+.lm-named-chip__name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-named-chip__star,
+.lm-star[data-on] {
+  color: var(--lm-accent);
+}
+
+/* --- Sheet ----------------------------------------------------------------- */
+
+.lm-kept-sheet-ground {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background: color-mix(in srgb, var(--lm-bg) 70%, transparent);
+}
+
+.lm-kept-sheet-ground[hidden] {
+  display: none;
+}
+
+.lm-kept-sheet {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 640px;
+  max-block-size: 100%;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: calc(var(--lm-radius) + 2px);
+  background: var(--lm-panel);
+  color: var(--lm-text);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--lm-text) 22%, transparent);
+  font-size: var(--lm-font-size);
+}
+
+.lm-kept-sheet__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-block-end: 1px solid var(--lm-border);
+}
+
+.lm-kept-sheet__title {
+  flex: 1 1 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.lm-kept-sheet__close {
+  box-sizing: border-box;
+  block-size: 22px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.lm-kept-sheet__close:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-kept-sheet__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.lm-kept-sheet__foot {
+  flex: none;
+  padding: 6px 14px;
+  border-block-start: 1px solid var(--lm-border);
+  color: var(--lm-dim);
+  font-size: 10.5px;
+  line-height: 14px;
+}
 
 .lm-sheet-part {
   display: flex;
