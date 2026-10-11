@@ -125,6 +125,7 @@ export {
   type StripHost,
   type StripShadow,
 } from './core/tracks/ChannelStrip'
+export { createPan } from './core/pan'
 export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {
   DUCK_DEPTH,

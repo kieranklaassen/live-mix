@@ -14,6 +14,7 @@ import { measureDeviceDefaults } from './device-defaults'
 import { fingerprint, type Fingerprint } from './fingerprint'
 import { measureLevelFollow } from './level-follow'
 import { measureModulated } from './modulated-param'
+import { measureChannels, measureLoudest } from './one-and-two-channels'
 import { measurePlacements } from './placement'
 import { installWebAudioRecorder } from './record-web-audio'
 import {
@@ -108,6 +109,8 @@ declare global {
       run: typeof run
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
+      measureChannels: typeof measureChannels
+      measureLoudest: typeof measureLoudest
       measureDeviceDefaults: typeof measureDeviceDefaults
       measureLevelFollow: typeof measureLevelFollow
       measureModulated: typeof measureModulated
@@ -127,6 +130,8 @@ window.liveMixHarness = {
   run,
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
+  measureChannels,
+  measureLoudest,
   measureDeviceDefaults,
   measureLevelFollow,
   measureModulated,

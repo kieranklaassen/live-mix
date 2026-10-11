@@ -234,6 +234,8 @@ export class MockStereoPannerNode extends MockAudioNode {
   readonly pan = new MockAudioParam(0)
   constructor() {
     super('stereo-panner')
+    // The real node's default: it takes as many channels as it is fed, up to two.
+    this.channelCountMode = 'clamped-max'
   }
 }
 

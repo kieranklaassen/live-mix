@@ -79,6 +79,39 @@ Breathwork Live's recorded-node-order harness stayed green when strips
 arrived. Groups are explicit and build their four nodes on creation;
 `group.input` is the summing node.
 
+**One channel and two.** A strip plays one channel as it plays two: at the
+centre a source leaves as loud as it came, both sides, whether it was recorded
+in one channel or in two. The pan stage (`createPan`: the strip's, a rack
+chain's and the utility's) is a StereoPanner told to take two channels, so one
+channel is both of them before it is panned. Left alone the node has two laws:
+one channel is panned with equal power, 3.01 dB down each side at the centre,
+and two pass at the centre as they came. What reaches the pan is not what was
+recorded (the browser's compressor gives two channels out for one in, every
+WASM device does, and a strip with no nodes has no panner), so a voice in one
+channel played 3.01 dB louder with a compressor in its chain than without it,
+and 3.01 dB quieter from the moment its fader was first touched. What that
+changed, for a source in one channel that reached a pan stage as one channel
+(nothing ahead of the pan made two of it, and nothing in two channels shared
+its strip or its group):
+
+| Pan       | Before, left / right | Now, left / right   |
+| --------- | -------------------- | ------------------- |
+| Centre    | -3.01 dB / -3.01 dB  | 0 dB / 0 dB         |
+| Half left | -0.69 dB / -8.34 dB  | +4.65 dB / -3.01 dB |
+| Hard left | 0 dB / silent        | +6.02 dB / silent   |
+
+The right-hand column is what a source in two channels, or one with a
+compressor or a WASM device ahead of the pan, always played at; a strip with
+no nodes yet plays the centre row's 0 dB as it always did, so making its nodes
+no longer moves a level. A source in one channel panned hard is 6 dB up in its
+one side, as two alike channels are: turn it down or pan it less. The rise
+is the same through a rack's chain, the utility, and a group that a strip with
+no nodes plays into, and whatever is after the pan hears it: a post-fader
+send, a meter, a group's or the master's compressor or limiter. A clip placed
+with a pan of its own (`Clip.pan`) keeps its own law, equal power with the
+centre at 0 dB. Measured in headless Chrome
+(`browser-tests/specs/one-and-two-channels.spec.ts`).
+
 **Solo-in-place.** A soloed strip is heard through its normal routing at the
 main output; every other strip is muted by a ramp on its gate unless it is
 soloed, an ancestor group is soloed, a descendant is soloed, or it is

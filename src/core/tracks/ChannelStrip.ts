@@ -10,7 +10,10 @@
 // source bookkeeping: tracks connect through `connectSource`, and the first
 // use of pan, level, mute, solo, an insert or a send materializes the four
 // nodes and re-points every registered source into them. The nodes come up at
-// unity and only then ramp, so materializing mid-playback is sample-continuous.
+// unity and only then ramp, so materializing mid-playback is sample-continuous:
+// the panner takes two channels whatever it is fed (`pan.ts`), so a source in
+// one channel leaves it at the centre as loud as it reached the destination
+// with no strip between.
 //
 // Solo is solo-in-place: soloed strips are heard through their normal routing
 // (groups, sends, returns) at the main output, and every other strip is muted
@@ -30,6 +33,7 @@
 import { LEVEL_RAMP_SECONDS, type Bus } from '../buses/Bus'
 import { type Device } from '../devices/Device'
 import { Emitter } from '../events'
+import { createPan } from '../pan'
 import { SendList } from './Send'
 
 /** Anything with a `strip`: `AudioTrack`, `LiveInputTrack`, `ReturnTrack`, `GroupTrack`. */
@@ -760,7 +764,7 @@ export class ChannelStrip {
     this.assertLive()
     const ctx = this.context()
     const inputGain = ctx.createGain()
-    const panner = ctx.createStereoPanner()
+    const panner = createPan(ctx)
     const fader = ctx.createGain()
     const gate = ctx.createGain()
     // Only an initial `level` can differ from unity here: every other value
