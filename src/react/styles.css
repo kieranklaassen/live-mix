@@ -7575,3 +7575,139 @@ button.lm-dropdown[aria-expanded='true'] {
 .lm-finger :is(.lm-plain-action, .lm-choice__option, .lm-tick) {
   justify-content: center;
 }
+
+/* --- A channel of a mixer -------------------------------------------------- */
+
+/* The held peak: a number in a sunken window, and the button that lets it go. */
+.lm-peak-readout {
+  flex: none;
+  box-sizing: border-box;
+  block-size: 18px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--lm-hairline);
+  border-radius: var(--lm-radius);
+  background: var(--lm-well);
+  box-shadow: inset 0 1px 2px var(--lm-shade-in);
+  color: var(--lm-control-value);
+  font-family: var(--lm-font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-peak-readout:hover:not(:disabled) {
+  border-color: var(--lm-muted);
+}
+
+.lm-peak-readout[data-hot] {
+  color: var(--lm-meter-hot);
+}
+
+/* Clipped: the window is lit in the hot colour, with the number in the ground's. */
+.lm-peak-readout[data-clipped] {
+  border-color: var(--lm-meter-hot);
+  background: var(--lm-meter-hot);
+  box-shadow: none;
+  color: var(--lm-bg);
+}
+
+.lm-peak-readout:focus-visible,
+.lm-channel-switch:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-peak-readout:disabled,
+.lm-channel-switch:disabled {
+  cursor: default;
+}
+
+/* A channel's number, or a letter: an outline while off, filled while on. */
+.lm-channel-switch {
+  flex: none;
+  box-sizing: border-box;
+  block-size: 22px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: transparent;
+  color: var(--lm-muted);
+  font: inherit;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-channel-switch:hover:not(:disabled) {
+  border-color: var(--lm-muted);
+  color: var(--lm-text);
+}
+
+.lm-channel-switch[data-on] {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+/* Solo is a bright gold in every theme, so its letter is dark in every theme. */
+.lm-channel-switch[data-on][data-tone='solo'] {
+  border-color: var(--lm-solo);
+  background: var(--lm-solo);
+  color: color-mix(in srgb, black 82%, var(--lm-solo));
+}
+
+.lm-channel-switch:disabled {
+  opacity: 0.5;
+}
+
+/* The marks a meter is read against: numbers down its side, a line between each two. */
+.lm-meter-scale {
+  position: relative;
+  flex: 0 0 15px;
+  color: var(--lm-muted);
+  font-family: var(--lm-font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.lm-meter-scale > span {
+  position: absolute;
+  inset-inline-start: 4px;
+  transform: translateY(-50%);
+}
+
+.lm-meter-scale > i {
+  position: absolute;
+  inset-inline-start: 0;
+  inline-size: 2px;
+  block-size: 1px;
+  background: var(--lm-dim);
+}
+
+/* In a low container the numbers thin out, so two never touch. */
+@container (max-height: 119px) {
+  .lm-meter-scale > span[data-fine='1'] {
+    display: none;
+  }
+}
+
+@container (max-height: 79px) {
+  .lm-meter-scale > span[data-fine='2'] {
+    display: none;
+  }
+}
+
+@container (max-height: 39px) {
+  .lm-meter-scale > span[data-fine] {
+    display: none;
+  }
+}
