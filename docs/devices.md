@@ -180,7 +180,7 @@ hold 8 notes).
 | `shaped-reverb`   | Shaped Reverb      | live-mix            | reverb     | 12     | 34,325 B  | 57.2 µs, 2.15 %       | 35.5 µs, 1.33 %            | 0                 | 6           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
-| `sift`            | Sift               | live-mix            | texture    | 10     | 26,964 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
+| `sift`            | Sift               | live-mix            | texture    | 10     | 27,130 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
 | `sine-shadow`     | Sine Shadow        | live-mix            | texture    | 10     | 54,991 B  | 19.0 µs, 0.71 %       | 19.5 µs, 0.73 %            | 0                 | 4           |
 | `size`            | Size               | live-mix            | pitch      | 9      | 25,628 B  | 24.8 µs, 0.93 %       | 33.6 µs, 1.26 %            | 2304              | 4           |
 | `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |
