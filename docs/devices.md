@@ -144,7 +144,7 @@ hold 8 notes).
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
 | `howl`            | Howl               | live-mix            | drive      | 10     | 27,611 B  | 33.3 µs, 1.25 %       | 34.4 µs, 1.29 %            | 0                 | 4           |
 | `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
-| `imprint`         | Imprint            | live-mix            | eq         | 8      | 28,073 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
+| `imprint`         | Imprint            | live-mix            | eq         | 8      | 28,075 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `late-vibrato`    | Late Vibrato       | live-mix            | modulation | 10     | 22,584 B  | 18.1 µs, 0.68 %       | 16.0 µs, 0.60 %            | 960               | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B  | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
@@ -169,7 +169,7 @@ hold 8 notes).
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B  | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `pitch-shifter`   | Pitch Shifter      | live-mix            | pitch      | 12     | 50,960 B  | 64.8 µs, 2.43 %       | 41.7 µs, 1.56 %            | 0                 | 6           |
 | `prepared-piano`  | Prepared Piano     | live-mix            | instrument | 11     | 31,857 B  | 12.1 µs, 0.45 %       | 29.3 µs, 1.10 %            | 0                 | 4           |
-| `prism`           | Prism              | live-mix            | delay      | 12     | 26,322 B  | 20.8 µs, 0.78 %       | 25.3 µs, 0.95 %            | 2304              | 16          |
+| `prism`           | Prism              | live-mix            | delay      | 12     | 26,410 B  | 20.8 µs, 0.78 %       | 25.3 µs, 0.95 %            | 2304              | 16          |
 | `pulses`          | Pulses             | live-mix            | modulation | 12     | 13,470 B  | 5.5 µs, 0.21 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
@@ -185,7 +185,7 @@ hold 8 notes).
 | `shaped-reverb`   | Shaped Reverb      | live-mix            | reverb     | 12     | 34,325 B  | 57.2 µs, 2.15 %       | 35.5 µs, 1.33 %            | 0                 | 6           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
-| `sift`            | Sift               | live-mix            | texture    | 10     | 26,964 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
+| `sift`            | Sift               | live-mix            | texture    | 10     | 27,130 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
 | `sine-shadow`     | Sine Shadow        | live-mix            | texture    | 10     | 54,991 B  | 19.0 µs, 0.71 %       | 19.5 µs, 0.73 %            | 0                 | 4           |
 | `size`            | Size               | live-mix            | pitch      | 9      | 25,628 B  | 24.8 µs, 0.93 %       | 33.6 µs, 1.26 %            | 2304              | 4           |
 | `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |

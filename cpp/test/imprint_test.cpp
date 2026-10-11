@@ -1476,5 +1476,64 @@ int main() {
   device.init(kRate);
   report_cost("imprint", 10.0f, kRate, [&] { run(device, input); });
 
+  // What the second reading found: a knob moved in a rest. The level hold takes its gain at
+  // once from the first frame after a knob has changed the curve, but a frame of nothing took
+  // the knob's mark away and set no gain, while a frame slept through left it: whether the
+  // knob was heeded when the sound came back lay with whether the device had worked a silent
+  // frame in between, and so with the size of the blocks. A pad (200 ms out, 200 ms in) under
+  // the open vowel, Amount turned to -2 in the rest.
+  {
+    const long stop = 2048 * 24;
+    const long back = stop + 2048 * 30;
+    const long total = 2048 * 80;
+    const long fade = 9600;
+    auto pad = [&](long n) {
+      double sum = 0.0;
+      for (double hz : {220.0, 277.18, 329.63}) {
+        for (int h = 1; h <= 12; ++h) sum += std::sin(2.0 * kPi * hz * h * static_cast<double>(n) / kRate) / h;
+      }
+      double level = 0.0;
+      if (n < stop) level = n > stop - fade ? 0.5 - 0.5 * std::cos(kPi * static_cast<double>(stop - n) / fade) : 1.0;
+      if (n >= back) level = n < back + fade ? 0.5 - 0.5 * std::cos(kPi * static_cast<double>(n - back) / fade) : 1.0;
+      return static_cast<float>(0.12 * level * sum);
+    };
+    auto render = [&](int block, long gap) {
+      device.init(kRate);
+      device.set_param(p::kCapture, 0.0f);
+      device.set_param(p::kShape, 1.0f);
+      device.set_param(p::kAmount, 1.0f);
+      device.set_param(p::kReplace, 0.0f);
+      std::vector<float> out(static_cast<size_t>(total));
+      for (long at = 0; at < total; at += block) {
+        if (at == stop + gap) device.set_param(p::kAmount, -2.0f);
+        for (int i = 0; i < block; ++i) device.in_left()[i] = device.in_right()[i] = pad(at + i);
+        device.process(block);
+        for (int i = 0; i < block; ++i) out[static_cast<size_t>(at + i)] = device.out_left()[i];
+      }
+      return out;
+    };
+    // The level of 100 ms, from 200 ms after the sound is back.
+    auto level_db = [&](const std::vector<float>& out) {
+      double sum = 0.0;
+      for (long n = back + kLatency + 9600; n < back + kLatency + 14400; ++n) sum += static_cast<double>(out[n]) * out[n];
+      return 10.0 * std::log10(sum / 4800.0 + 1.0e-30);
+    };
+    // Sample by sample the device wakes on the first sample of the sound; in blocks of 2048 it
+    // works the silent frame before it.
+    const std::vector<float> single = render(1, 12288);
+    const std::vector<float> blocks = render(2048, 12288);
+    double apart = 0.0;
+    for (long n = 0; n < total; ++n) apart = std::max(apart, static_cast<double>(std::fabs(single[n] - blocks[n])));
+    std::printf("a knob moved in a rest: blocks of 1 and of 2048 differ by %.6f at most; %.2f and %.2f dB once the sound is back\n",
+                apart, level_db(single), level_db(blocks));
+    EXPECT(apart < 1.0e-5, "a knob moved in a rest is heeded alike in blocks of 1 and of 2048");
+    // And alike however long after the sound stopped it was moved: 85 ms after, the device
+    // is still awake and works frames of nothing; 853 ms after, it sleeps.
+    const double soon = level_db(render(1, 4096));
+    const double late = level_db(render(1, 40960));
+    std::printf("moved 85 ms after the sound stopped: %.2f dB; 853 ms after: %.2f dB\n", soon, late);
+    EXPECT_NEAR(soon, late, 0.05, "a knob moved early in a rest is heeded as one moved late in it");
+  }
+
   return finish("imprint");
 }

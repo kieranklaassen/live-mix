@@ -175,6 +175,22 @@ describe('factory key', () => {
     expect(one({ deviceId: 'warp', params: { pivot: 1900 } }, 2)?.pivot).toBeCloseTo(1066.34, 2)
     expect(one({ deviceId: 'warp', params: { pivot: 21 } }, -3)?.pivot).toBeCloseTo(35.32, 2)
   })
+
+  it('comes back from a move too far to be a pitch', () => {
+    const one = (by: number): number | undefined =>
+      transposePatch({ effects: [{ deviceId: 'warp', params: { pivot: 220 } }] }, by).effects[0]
+        .params?.pivot
+    // Sixteen octaves down less a tone is under a hundredth of a hertz: still the key's note.
+    expect(one(-190)).toBeCloseTo((220 * 2 ** (2 / 12)) / 8, 2)
+    // Thousands of octaves are no number at all: the end of the knob.
+    expect(one(20000)).toBe(2000)
+    expect(one(-20000)).toBe(20)
+    // A move that is not a number moves nothing.
+    const patch = { effects: [{ deviceId: 'warp' }, { deviceId: 'thesis' }] }
+    expect(transposePatch(patch, Infinity)).toBe(patch)
+    expect(transposePatch(patch, -Infinity)).toBe(patch)
+    expect(transposePatch(patch, NaN)).toBe(patch)
+  })
 })
 
 describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])('the chains moved by %i', (by) => {
@@ -332,10 +348,20 @@ describe('a pitch held by a time, a size or a frequency', () => {
     // Past the end of a control it goes the octave that fits: still the key's note.
     const short = one({ deviceId: 'howl', params: { distance: 1.2, body: 2000 } }, 6)
     expect(short.distance).toBeCloseTo(1.2 * 2 ** (-6 / 12) * 2, 9)
-    expect(short.body).toBe(Math.round(2000 * 2 ** (6 / 12) * 100) / 100 / 2)
+    expect(short.body).toBe(Math.round(((2000 * 2 ** (6 / 12)) / 2) * 100) / 100)
     const long = one({ deviceId: 'howl', params: { distance: 36, body: 130 } }, -5)
     expect(long.distance).toBeCloseTo((36 * 2 ** (5 / 12)) / 2, 9)
-    expect(long.body).toBe((Math.round(130 * 2 ** (-5 / 12) * 100) / 100) * 2)
+    expect(long.body).toBe(Math.round(130 * 2 ** (-5 / 12) * 2 * 100) / 100)
+  })
+
+  it('comes back from a move too far to be a pitch', () => {
+    // Thousands of octaves are no number at all: a size or a time stops at the end of its control.
+    expect(one({ deviceId: 'vessel' }, 20000).size).toBe(0.25)
+    expect(one({ deviceId: 'vessel' }, -20000).size).toBe(4)
+    expect(one({ deviceId: 'howl' }, 20000)).toEqual({ distance: 1, body: 2400 })
+    expect(one({ deviceId: 'howl' }, -20000)).toEqual({ distance: 40, body: 120 })
+    // Fifteen octaves down is under a hundredth of a hertz: Body is still on the key's note.
+    expect(one({ deviceId: 'howl' }, -180).body).toBe(130)
   })
 
   it('moves the size of a body the other way from its pitch', () => {

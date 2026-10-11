@@ -422,8 +422,10 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
     if (built_dirty_) refresh_built();
     const float replace = param(kReplace) * kit::min(1.0f, std::fabs(param(kAmount)));
     if (curve_dirty_ || (replace > 0.0f && heard > kGatePower)) compose(replace);
-    hold_level(re, im, knob_moved_);
-    knob_moved_ = false;
+    // A frame of nothing sets no gain and leaves the knob's mark for the
+    // first frame of sound, as a frame slept through does: else whether a
+    // knob moved in a rest was heeded lay with the size of the blocks.
+    if (hold_level(re, im, knob_moved_)) knob_moved_ = false;
     apply(re, im);
     hop_done_ = true;
   }
@@ -770,8 +772,9 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   // -1 dBFS the first 10 ms of such a note came out at up to +2.0 dBFS, 6 dB
   // over the note itself). A
   // knob that changes the curve takes the gain to `exact` at once. A frame
-  // of nothing keeps the gain of the one before.
-  void hold_level(const float* re, const float* im, bool snap) {
+  // of nothing keeps the gain of the one before. True when the frame set
+  // the gain.
+  bool hold_level(const float* re, const float* im, bool snap) {
     float came = 0.0f;
     float leaves = 0.0f;
     low_weight(re, im, &came, &leaves);
@@ -797,7 +800,9 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
         if (catching_ > 0) --catching_;
       }
       reading_[kHoldReading] = 8.6858896f * std::log(makeup_);
+      return true;
     }
+    return false;
   }
 
   // How much of the frames in hand is new: the share of their power that

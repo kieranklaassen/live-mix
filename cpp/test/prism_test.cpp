@@ -1352,5 +1352,32 @@ int main() {
     }
   }
 
+  // What the second reading found: the sine of a phase a hair under nought was read past the
+  // kit's table (kit::SineTable::lookup takes such a phase for a whole turn: entry 4096 and
+  // the one after it, of 4097). A bin's shift turned backwards (-shift / frame) and a band's
+  // drift (Drift times a sine) both pass through nought from below.
+  {
+    // The phases that come to a whole turn, and the ones either side of them.
+    for (float hair : {-1.0e-8f, -2.0e-8f, -2.9e-8f}) {
+      EXPECT(hair - std::floor(hair) == 1.0f, "a phase a hair under nought is a whole turn once its turns are taken off");
+      EXPECT(Prism::sine(hair) == 0.0f, "the sine of a phase a hair under nought is nought");
+      EXPECT(Prism::cosine(hair - 0.25f) == 0.0f, "the cosine of a phase a hair under a quarter turn back is nought");
+    }
+    // Every other phase gives the bits the kit's lookup gives.
+    int differ = 0;
+    for (int n = -9000; n <= 9000; ++n) {
+      const float phase = static_cast<float>(n) * 0.000137f + (n % 7 == 0 ? 3.0e-7f : 0.0f);
+      if (phase - std::floor(phase) >= 1.0f) continue;
+      if (Prism::sine(phase) != livemix::kit::SineTable::lookup(phase)) ++differ;
+      const float turned = phase + 0.25f;
+      if (turned - std::floor(turned) >= 1.0f) continue;
+      if (Prism::cosine(phase) != livemix::kit::SineTable::cos_lookup(phase)) ++differ;
+    }
+    EXPECT(differ == 0, "every other phase reads the table as the kit's lookup does");
+    EXPECT_NEAR(Prism::sine(0.25f), 1.0, 1.0e-6, "the sine of a quarter turn");
+    EXPECT_NEAR(Prism::cosine(0.5f), -1.0, 1.0e-6, "the cosine of half a turn");
+    EXPECT(Prism::sine(1.0f) == 0.0f && Prism::sine(0.0f) == 0.0f, "whole turns are nought");
+  }
+
   return finish("prism");
 }
