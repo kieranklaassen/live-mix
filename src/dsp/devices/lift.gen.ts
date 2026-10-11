@@ -99,11 +99,11 @@ export const LIFT_PARAMS = {
     name: 'Floor',
     min: -90,
     max: -40,
-    default: -48,
+    default: -54,
     taper: 'linear',
     unit: 'dB',
     description:
-      'Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause.',
+      'At this level and under it nothing is lifted, so hiss, hum and silence stay down; the lift comes in over the 6 dB above. Set it just over the noise of the source.',
   },
   sides: {
     id: 9,
@@ -114,7 +114,7 @@ export const LIFT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward.',
+      'How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only the sides rise and a tail opens outward, never louder than the middle.',
   },
   hear: {
     id: 10,
@@ -139,6 +139,7 @@ export const LIFT_METERS = {
   liftHigh: { id: 3, name: 'Lift, highs', unit: 'dB', display: true },
   level: { id: 4, name: 'Level', unit: 'dB', display: true },
   out: { id: 5, name: 'Level out', unit: 'dB', display: true },
+  room: { id: 6, name: 'Room at the sides', unit: 'dB', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const LIFT_DEVICE = defineWasmDevice({
@@ -157,25 +158,25 @@ export const LIFT_DESCRIPTOR = wasmDeviceDescriptor(LIFT_DEVICE, {
     'Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is louder than the line is left alone.',
   presets: {
     'Quiet end up': {},
-    'Just the ends': { threshold: -31.5, amount: 1, rise: 0.15, split: 1, limit: 30 },
+    'Just the ends': { threshold: -31.5, amount: 1, rise: 0.15, split: 1, limit: 18 },
     'Long tails': {
-      threshold: -21,
+      threshold: -23,
       amount: 1,
-      floor: -70,
+      floor: -60,
       rise: 0.3,
       hold: 0.05,
       split: 0.2,
-      limit: 24,
+      limit: 18,
     },
-    'Slow tide': { threshold: -14, amount: 0.9, rise: 6, hold: 3, limit: 24 },
-    'Air on top': { threshold: -21, amount: 1, rise: 0.4, split: 1, focus: 1, limit: 24 },
-    'Warm floor': { threshold: -20, amount: 0.9, rise: 0.5, split: 1, focus: -1, limit: 10 },
-    'Opens outward': { threshold: -18, amount: 1, rise: 0.4, split: 0.3, sides: 1, limit: 12 },
+    'Slow tide': { threshold: -14, amount: 0.9, rise: 6, hold: 3, limit: 18 },
+    'Air on top': { threshold: -21, amount: 1, rise: 0.4, split: 1, focus: 1, limit: 14 },
+    'Warm floor': { threshold: -22, amount: 0.9, rise: 0.5, split: 1, focus: -1, limit: 10 },
+    'Opens outward': { threshold: -18, amount: 1, rise: 0.4, split: 0.3, sides: 1, limit: 18 },
     'Half open': { threshold: -18, amount: 1, rise: 0.2, split: 0, sides: 0.6, limit: 16 },
     'Fill every gap': { threshold: -25.5, amount: 1, rise: 0.05, hold: 0.01, split: 0, limit: 14 },
     'Slightly closer': { threshold: -19, amount: 1, rise: 0.3, split: 0, limit: 3 },
-    'Steady shine': { threshold: -14, amount: 0.6, rise: 0.3, split: 1, focus: 1, limit: 12 },
-    'Real pauses only': { threshold: -18, amount: 1, rise: 1, hold: 1.5, split: 0, limit: 24 },
+    'Steady shine': { threshold: -17, amount: 0.6, rise: 0.3, split: 1, focus: 1, limit: 10 },
+    'Real pauses only': { threshold: -18, amount: 1, rise: 1, hold: 1.5, split: 0, limit: 18 },
     'Only the tails': { threshold: -18, amount: 1, rise: 0.3, split: 0, limit: 24, hear: 1 },
     'Top alone': { threshold: -20, amount: 1, rise: 0.2, split: 1, focus: 1, limit: 24, hear: 1 },
     'Low breath': {

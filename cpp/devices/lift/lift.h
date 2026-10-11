@@ -13,11 +13,28 @@
 //
 // - The curve, in dB, for a level L, Threshold T, Floor F and Amount a:
 //     L >= T            lift = 0                      (unity, to the sample)
-//     F <= L < T        lift = min(Limit, a (T - L))  (carried a of the way up)
-//     L < F             lift = lift(F) (1 - (F - L) / 12), never under 0
-//   so the lift is greatest at the Floor and gone 12 dB (kLetGoDb) under it:
-//   hiss and silence stay where they are. A Floor above the Threshold leaves
-//   nothing between the two and there is no lift at all.
+//     F + 6 <= L < T    lift = min(Limit, a (T - L))  (carried a of the way up)
+//     F < L < F + 6     the same, times a smooth share that is 1 at F + 6 and 0 at F
+//     L <= F            lift = 0
+//   so the Floor is what its name says: a steady sound at or under it (hiss,
+//   hum, silence) is not lifted at all, and the lift comes in over the 6 dB
+//   (kKneeDb) above it. A Floor above the Threshold leaves nothing between
+//   the two and there is no lift at all.
+// - The Floor moves slowly. The curve is what a steady sound gets. What the
+//   Floor does to a lift that is there (the share of it the knee lets
+//   through, kept apart from how far the level asks to be carried) changes
+//   it by at most 8 dB a second (kLetDownDb), either way. A sound that has
+//   been lifted and sinks into the knee or under the Floor is let down at
+//   that rate, so the end of a tail fades out under the Floor instead of
+//   being cut at it; one that comes back up out of it is let in again as
+//   slowly. A tail that beats across the Floor is therefore not switched on
+//   and off: between windows of a fifth of a second it steps by its own beat
+//   and at most 1.6 dB more because of the Floor. Whatever lies under a
+//   lifted tail, its noise too, is up by the same lift until it is down: for
+//   up to Limit / 8 seconds after the tail has sunk under the Floor. A
+//   sound that was never lifted (hiss in a pause, a hum) is never brought up,
+//   and once a lift has been let down all the way it is forgotten: the next
+//   sound out of the pause gets its lift by Hold and Rise, like any other.
 // - Level. Stereo linked: one detector hears the mean power of the two
 //   channels, so the image never moves and a sound on one side or in opposite
 //   phase reads as it should (one side alone reads 3 dB under its own level).
@@ -56,18 +73,28 @@
 //   middle takes (1 - Sides) of it, in dB. At 0 both get the same gain and
 //   the image stays where it is; at 1 only the sides rise, so a tail opens
 //   outward as it is lifted and a sound with nothing at the sides is left
-//   alone. (A sound on one side only then grows an opposite on the other.)
+//   alone. What the sides get over the middle is bounded by the sound itself:
+//   it may carry the sides to 1.5 dB (kSideRoomDb) under the middle and no
+//   further, so the two channels do not come out more opposite than alike
+//   because of the lift. (Both are read as the levels are, 12 ms twice; the
+//   room between them is taken at its least: it shrinks at once and grows
+//   back over kSideRiseSeconds.) A sound that is
+//   already as wide as that (a wide reverb, a sound on one side only) gets
+//   no more at the sides than in the middle, whatever Sides says.
 // - Rise and Hold. Each part's lift moves, in dB, with one pole. When the
-//   curve asks for less it follows in 20 ms (kFallSeconds): that is sound
-//   swelling under the Threshold. When it asks for more the lift first waits:
+//   sound gets louder (the curve without the Floor asks for less) it follows
+//   in 20 ms (kFallSeconds): that is sound swelling under the Threshold.
+//   When the curve asks for more the lift first waits:
 //   it may only rise once Hold has passed since the sound last got louder
-//   (the curve asked for nothing, or for 0.5 dB less than there was). Then
+//   (it was over the Threshold, or asked for 0.5 dB less than there was)
+//   or was last at the Floor or under it (a pause is not yet a tail). Then
 //   it comes in over Rise, the time to cover all but a hundredth of the way.
+//   It does not rise while the Floor is taking it away.
 //   Short Hold fills the gaps between notes; long keeps the lift for real
 //   pauses and the ends of tails.
 // - The ceiling. A lift is never more than what would carry the level now,
-//   read as a new sound is read, all the way to the Threshold (the curve with
-//   Amount at 1): one that lingers over that is put down to it at once.
+//   read as a new sound is read, all the way to the Threshold (Amount at 1,
+//   the Floor left out): one that lingers over that is put down to it at once.
 // - Lookahead and the shaper. The sound is delayed by kLatency samples and
 //   the levels are read ahead of it. The gain that is applied is not the one
 //   asked for but the least asked for in the last kShape ticks, averaged over
@@ -104,7 +131,10 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   static constexpr int kParts = 3;  // lows, middle, highs
   static constexpr float kLowHz = 250.0f;
   static constexpr float kHighHz = 2500.0f;
-  static constexpr float kLetGoDb = 12.0f;
+  // The lift comes in over this many dB above the Floor; at the Floor there is none.
+  static constexpr float kKneeDb = 6.0f;
+  // A lift that the Floor no longer asks for is let down this many dB a second.
+  static constexpr float kLetDownDb = 8.0f;
   static constexpr float kRmsSeconds = 0.012f;
   // The peak power counts for an eighth: 9 dB under, 6 dB under a tone's RMS.
   static constexpr float kPeakShare = 0.125f;
@@ -127,18 +157,36 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   static constexpr float kRunSeconds = 0.05f;
   static constexpr float kJumpDb = 4.0f;
   static constexpr float kJumpMostDb = 6.0f;
+  // Sides: what the sides are given over the middle may bring them to this
+  // many dB under the middle, read over kSideSeconds, and no further.
+  static constexpr float kSideRoomDb = 1.5f;
+  static constexpr float kSideSeconds = 0.012f;
+  static constexpr float kSideRiseSeconds = 0.3f;
+  static constexpr float kSideRoomMost = 60.0f;
   // The shaper: every gain is the least of its last kShape ticks, weighted
   // by a raised cosine of the same length. (kShape + 1) ticks fit in kLatency.
   static constexpr int kShape = 17;
 
-  // The lift in dB the curve asks for at a level, all in dB.
-  static float curve(float level, float threshold, float amount, float floor, float limit) {
+  // How far a level is carried up with no Floor in the way, in dB: Amount of
+  // the way to the Threshold, at most Limit.
+  static float reach(float level, float threshold, float amount, float limit) {
     if (level >= threshold) return 0.0f;
-    const float foot = floor < threshold ? floor : threshold;
-    float lift = amount * (threshold - (level > foot ? level : foot));
-    if (lift > limit) lift = limit;
-    if (level < foot) lift *= 1.0f - (foot - level) * (1.0f / kLetGoDb);
-    return lift > 0.0f ? lift : 0.0f;
+    const float lift = amount * (threshold - level);
+    return lift > limit ? limit : (lift > 0.0f ? lift : 0.0f);
+  }
+
+  // The share of that the Floor lets through: none at the Floor or under it,
+  // all of it kKneeDb over it, a smooth step between.
+  static float open(float level, float floor) {
+    const float x = (level - floor) * (1.0f / kKneeDb);
+    if (x <= 0.0f) return 0.0f;
+    if (x >= 1.0f) return 1.0f;
+    return x * x * (3.0f - 2.0f * x);
+  }
+
+  // The lift in dB the curve asks for at a steady level, all in dB.
+  static float curve(float level, float threshold, float amount, float floor, float limit) {
+    return reach(level, threshold, amount, limit) * open(level, floor);
   }
 
   // How much of the lift each part takes at a Focus setting.
@@ -163,6 +211,9 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     }
     heard_.mean[0].set_cutoff(1.0f / (kit::kTwoPi * kRmsSeconds), sr);
     heard_.mean[1].set_cutoff(1.0f / (kit::kTwoPi * kRmsSeconds), sr);
+    for (int c = 0; c < 2; ++c) {
+      for (kit::OnePole& pole : wide_[c]) pole.set_cutoff(1.0f / (kit::kTwoPi * kSideSeconds), sr);
+    }
     peak_fall_ = kit::time_to_coeff(kPeakFallSeconds, sr);
     run_coeff_ = kit::time_to_coeff(kRunSeconds, tick_rate_);
     threshold_.set_time(kControlSmoothingSeconds, tick_rate_);
@@ -175,6 +226,8 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     whole_.set_time(kSmoothingSeconds, sr);
     mix_.set_time(kSmoothingSeconds, sr);
     fall_coeff_ = time_coeff(kFallSeconds);
+    let_down_ = static_cast<double>(kLetDownDb) / static_cast<double>(tick_rate_);
+    room_coeff_ = kit::time_to_coeff(kSideRiseSeconds, tick_rate_);
     double sum = 0.0;
     for (int j = 0; j < kShape; ++j) {
       const double w = std::sin(3.14159265358979323846 * (j + 0.5) / kShape);
@@ -196,8 +249,10 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   // part now, in dB (0 at rest); 1 to 3, the lift on the lows, the middle and
   // the highs; 4, the level of the whole sound as the detector reads it, in
   // dB (kRestDb at rest); 5, the level of what comes out, read the same way
-  // (both sides' mean power, after Hear and Mix). The lift is what the sides
-  // are given (the middle gets 1 - Sides of it), before Hear and Mix.
+  // (both sides' mean power, after Hear and Mix); 6, how many dB the sides
+  // may be given over the middle now (kSideRoomMost where there is nothing at
+  // the sides). The lift is what the sides are given where that leaves room
+  // (the middle gets 1 - Sides of it), before Hear and Mix.
   float meter(int index) const {
     if (index == 0) {
       const double most = lift_[0] > lift_[1] ? lift_[0] : lift_[1];
@@ -206,6 +261,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     if (index >= 1 && index <= kParts) return static_cast<float>(lift_[index - 1]);
     if (index == 4) return level_seen_;
     if (index == 5) return out_seen_;
+    if (index == 6) return room_seen_;
     return 0.0f;
   }
 
@@ -247,6 +303,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
         detectors_[b].hear(part[0][b] * part[0][b] + part[1][b] * part[1][b], peak_fall_);
       }
       detectors_[kParts].hear(both[0] * both[0] + both[1] * both[1], peak_fall_);
+      for (int c = 0; c < 2; ++c) wide_[c][1].lowpass(wide_[c][0].lowpass(both[c] * both[c]));
 
       if (clock_.tick()) step_gains();
       for (int c = 0; c < 2; ++c) {
@@ -340,10 +397,13 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     const float whole_power = detectors_[kParts].power();
     level_seen_ = to_db(whole_power);
     out_seen_ = to_db(heard_.power());
-    const float together = curve(level_seen_, threshold, amount, floor, limit);
+    // What the whole sound asks for: with no Floor in the way, and the share
+    // of that the Floor lets through.
+    const float together_reach = reach(level_seen_, threshold, amount, limit);
+    const float together = together_reach * open(level_seen_, floor);
     // The level the ceilings read: no lower, and higher while the sound is new.
     const float whole_fresh = level_seen_ + detectors_[kParts].fresh(run_coeff_);
-    const float together_most = curve(whole_fresh, threshold, 1.0f, floor, limit);
+    const float together_most = reach(whole_fresh, threshold, 1.0f, limit);
     float gain[kParts];
     float size[kParts];
     float asked = 0.0f;
@@ -351,22 +411,43 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     for (int b = 0; b < kParts; ++b) {
       const float power = detectors_[b].power();
       const float level = to_db(power);
-      const float apart = curve(level, threshold, amount, floor, limit);
-      const float apart_most = curve(level + detectors_[b].fresh(run_coeff_), threshold, 1.0f, floor, limit);
+      const float apart_reach = reach(level, threshold, amount, limit);
+      const float apart = apart_reach * open(level, floor);
+      const float apart_most = reach(level + detectors_[b].fresh(run_coeff_), threshold, 1.0f, limit);
+      // `loud` leaves the Floor out: it only falls when the sound gets louder.
+      // `share` is how much of it the Floor lets through at this level.
+      const double loud = weight(b, focus) * (together_reach + split * (apart_reach - together_reach));
       const double target = weight(b, focus) * (together + split * (apart - together));
+      const double share = loud > 1.0e-6 ? target / loud : 1.0;
       // Hold: the lift waits before it rises again, counted from when the
-      // sound last asked for no lift at all (it was over the Threshold, or
-      // gone) or for clearly less than there was (it got louder).
-      if (target <= 0.0 || target < lift_[b] - kHoldSlackDb) waited_[b] = 0;
-      if (target < lift_[b]) {
-        lift_[b] = target + (lift_[b] - target) * fall_coeff_;
-      } else if (waited_[b] >= hold_ticks_) {
-        lift_[b] = target + (lift_[b] - target) * rise_coeff_;
+      // curve last asked for no lift at all (the sound was over the Threshold,
+      // or at the Floor or under it: a new sound out of a pause waits too) or
+      // the sound got clearly louder under the Threshold.
+      if (target <= 0.0 || loud < up_[b] - kHoldSlackDb) waited_[b] = 0;
+      if (loud < up_[b]) {
+        up_[b] = loud + (up_[b] - loud) * fall_coeff_;
+      } else if (waited_[b] >= hold_ticks_ && share >= gate_[b]) {
+        // Never while the Floor is taking the lift away: a tail that sinks is let down.
+        up_[b] = loud + (up_[b] - loud) * rise_coeff_;
       }
       if (waited_[b] < kLongWait) ++waited_[b];
+      // The Floor's share moves slowly both ways, so that what it does to the
+      // lift is at most kLetDownDb a second: a lifted sound that sinks to the
+      // Floor is let down, one that comes back up out of it is let in again.
+      const double step = up_[b] > let_down_ ? let_down_ / up_[b] : 1.0;
+      if (share > gate_[b]) {
+        gate_[b] = gate_[b] + step < share ? gate_[b] + step : share;
+      } else {
+        gate_[b] = gate_[b] - step > share ? gate_[b] - step : share;
+      }
+      // Let down all the way, the lift is forgotten: what comes after a pause
+      // is a new sound and its lift comes in by Hold and Rise.
+      if (gate_[b] <= 0.0 && share <= 0.0) up_[b] = 0.0;
       // The ceiling: what would carry the sound all the way to the Threshold.
       const double ceiling = weight(b, focus) * (together_most + split * (apart_most - together_most));
-      if (lift_[b] > ceiling) lift_[b] = ceiling;
+      if (up_[b] * gate_[b] > ceiling) up_[b] = ceiling / gate_[b];
+      if (up_[b] < 1.0e-9) up_[b] = 0.0;
+      lift_[b] = up_[b] * gate_[b];
       if (lift_[b] < 1.0e-9) lift_[b] = 0.0;
       gain[b] = lift_[b] > 0.0 ? kit::db_to_gain(static_cast<float>(lift_[b])) : 1.0f;
       size[b] = std::sqrt(power);
@@ -384,6 +465,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
       for (int b = 0; b < kParts; ++b) {
         gain[b] = 1.0f + (gain[b] - 1.0f) * keep;
         lift_[b] = kit::gain_to_db(gain[b]);
+        if (gate_[b] > 0.0) up_[b] = lift_[b] / gate_[b];
       }
     }
     // The shaper. Whatever had to come down came down at once above; the
@@ -391,10 +473,23 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     // raised cosine, so it is down in full (kShape + 1) ticks after the tick
     // that asked, which is inside kLatency, and it never steps.
     at_ = (at_ + 1) % kShape;
+    // How far the sides may rise over the middle: to kSideRoomDb under it.
+    // Less room is taken at once, more comes back slowly.
+    const float side_power = wide_[1][1].state;
+    float room_now = kSideRoomMost;
+    if (side_power > kFloorPower) {
+      room_now = 10.0f * std::log10((wide_[0][1].state + kFloorPower) / side_power) - kSideRoomDb;
+      room_now = room_now < 0.0f ? 0.0f : (room_now > kSideRoomMost ? kSideRoomMost : room_now);
+    }
+    room_seen_ = room_now < room_seen_ ? room_now : room_now + (room_seen_ - room_now) * room_coeff_;
+    const float room_db = room_seen_;
     for (int b = 0; b < kParts; ++b) {
-      // The sides take the whole lift, the middle what Sides leaves it.
+      // The sides take the whole lift where there is room for it, the middle
+      // what Sides leaves it.
       const float lift = static_cast<float>(lift_[b]);
-      const float to[2] = {lift * middle > 0.0f ? kit::db_to_gain(lift * middle) : 1.0f, gain[b]};
+      const float shared = lift * middle;
+      const float to[2] = {shared > 0.0f ? kit::db_to_gain(shared) : 1.0f,
+                           lift - shared > room_db ? kit::db_to_gain(shared + room_db) : gain[b]};
       for (int c = 0; c < 2; ++c) {
         asked_[c][b][at_] = to[c];
         float least = to[c];
@@ -435,8 +530,14 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
     for (Detector& detector : detectors_) detector.reset();
     heard_.reset();
     out_seen_ = kRestDb;
+    for (int c = 0; c < 2; ++c) {
+      for (kit::OnePole& pole : wide_[c]) pole.reset();
+    }
+    room_seen_ = kSideRoomMost;
     for (int b = 0; b < kParts; ++b) {
       lift_[b] = 0.0;
+      up_[b] = 0.0;
+      gate_[b] = 1.0;
       waited_[b] = kLongWait;  // the silence was the wait
       for (int c = 0; c < 2; ++c) {
         for (int j = 0; j < kShape; ++j) {
@@ -515,6 +616,7 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   kit::OnePole split_low_[2], split_mid_[2];     // likewise
   Detector detectors_[kParts + 1];  // lows, middle band, highs, the whole
   Detector heard_;                  // what comes out, for meter() only
+  kit::OnePole wide_[2][2];         // the mean power of the middle [0] and of the sides [1], two poles each
   kit::Smoother threshold_, amount_, floor_, limit_, split_, focus_, sides_;  // read once a tick
   kit::Smoother whole_, mix_;
   kit::ControlClock clock_;
@@ -524,6 +626,8 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   float run_coeff_ = 0.0f;
   double rise_coeff_ = 0.0;
   double fall_coeff_ = 0.0;
+  double let_down_ = 0.0;  // dB a tick
+  float room_coeff_ = 0.0f;
   int hold_ticks_ = 0;
   // Ticks since each part's sound last got louder; it stops counting at kLongWait.
   int waited_[kParts] = {kLongWait, kLongWait, kLongWait};
@@ -536,12 +640,17 @@ class Lift : public kit::DeviceBase<lift::kNumParams> {
   // dB, 0 or above. Doubles: at the slowest Rise one tick moves a lift by
   // less than a float can add to 20 dB, and it would stop short.
   double lift_[kParts] = {0.0, 0.0, 0.0};
+  // What makes each lift: how far the level asks to be carried with no Floor
+  // in the way (dB), and the share of that the Floor lets through (0 to 1).
+  double up_[kParts] = {0.0, 0.0, 0.0};
+  double gate_[kParts] = {1.0, 1.0, 1.0};
   // The gain of each part of the middle [0] and of the sides [1].
   float gain_[2][kParts] = {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}};
   float gain_target_[2][kParts] = {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}};
   float gain_step_[2][kParts] = {{0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}};
   float level_seen_ = kRestDb;  // for meter() only
   float out_seen_ = kRestDb;    // likewise
+  float room_seen_ = kSideRoomMost;  // dB the sides may get over the middle
   int rest_samples_ = 24000;
   int silent_ = 0;  // input samples of exact zero in a row
   bool resting_ = true;

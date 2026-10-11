@@ -649,7 +649,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'ladder-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'late-vibrato', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'lattice', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
-  { id: 'lift', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'lift', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 4 },
   { id: 'low-bitrate', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'magnet-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'mallets', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

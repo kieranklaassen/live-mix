@@ -42,6 +42,12 @@
       "name": "Level out",
       "unit": "dB",
       "display": true
+    },
+    {
+      "key": "room",
+      "name": "Room at the sides",
+      "unit": "dB",
+      "display": true
     }
   ],
   "params": [
@@ -120,9 +126,9 @@
       "name": "Floor",
       "min": -90,
       "max": -40,
-      "default": -48,
+      "default": -54,
       "unit": "dB",
-      "description": "Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause."
+      "description": "At this level and under it nothing is lifted, so hiss, hum and silence stay down; the lift comes in over the 6 dB above. Set it just over the noise of the source."
     },
     {
       "key": "sides",
@@ -130,7 +136,7 @@
       "min": 0,
       "max": 1,
       "default": 0,
-      "description": "How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward."
+      "description": "How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only the sides rise and a tail opens outward, never louder than the middle."
     },
     {
       "key": "hear",
@@ -147,23 +153,23 @@
       "amount": 1,
       "rise": 0.15,
       "split": 1,
-      "limit": 30
+      "limit": 18
     },
     "Long tails": {
-      "threshold": -21,
+      "threshold": -23,
       "amount": 1,
-      "floor": -70,
+      "floor": -60,
       "rise": 0.3,
       "hold": 0.05,
       "split": 0.2,
-      "limit": 24
+      "limit": 18
     },
     "Slow tide": {
       "threshold": -14,
       "amount": 0.9,
       "rise": 6,
       "hold": 3,
-      "limit": 24
+      "limit": 18
     },
     "Air on top": {
       "threshold": -21,
@@ -171,10 +177,10 @@
       "rise": 0.4,
       "split": 1,
       "focus": 1,
-      "limit": 24
+      "limit": 14
     },
     "Warm floor": {
-      "threshold": -20,
+      "threshold": -22,
       "amount": 0.9,
       "rise": 0.5,
       "split": 1,
@@ -187,7 +193,7 @@
       "rise": 0.4,
       "split": 0.3,
       "sides": 1,
-      "limit": 12
+      "limit": 18
     },
     "Half open": {
       "threshold": -18,
@@ -213,12 +219,12 @@
       "limit": 3
     },
     "Steady shine": {
-      "threshold": -14,
+      "threshold": -17,
       "amount": 0.6,
       "rise": 0.3,
       "split": 1,
       "focus": 1,
-      "limit": 12
+      "limit": 10
     },
     "Real pauses only": {
       "threshold": -18,
@@ -226,7 +232,7 @@
       "rise": 1.0,
       "hold": 1.5,
       "split": 0,
-      "limit": 24
+      "limit": 18
     },
     "Only the tails": {
       "threshold": -18,
