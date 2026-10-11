@@ -1375,5 +1375,37 @@ int main() {
     }
   }
 
+  // --- what the second reading found ---------------------------------------------------------------------
+
+  // The loudest sample and the loudest band of late are remembered with the frame they came in, and their age
+  // is counted on a clock that comes round after 2^32 samples (24.9 hours at 48 kHz, 6.2 at 192). One a whole
+  // round old read as new: a quiet note that came back just then, after a day asleep, was measured against the
+  // loud one of the day before (the loudest band -6 dB where -66 is meant, the ceiling 0.67 where 0.0008 is)
+  // and was not lifted at all for the nine seconds it took the old one to fall. What has fallen is now
+  // forgotten. A loud note, a sleep of one round, then the same note 60 dB down, against a device that has
+  // only heard the quiet one.
+  {
+    const std::vector<float> loud = two_tones(330.0, 660.0, 6.0, 1.0f);
+    std::vector<float> quiet = two_tones(330.0, 660.0, 6.0, 0.5f);
+    for (float& x : quiet) x *= 0.001f;
+    device.init(kRate);
+    run(device, quiet);
+    const float fresh_top = device.meter(Reveal::kTopMeter), fresh_lift = device.meter(0);
+    device.init(kRate);
+    run(device, loud);
+    const uint64_t until = 4294967296ull + 2176;  // the quiet note then starts on a frame, as the fresh one does
+    for (uint64_t n = 0; n < until;) {
+      const int frames = until - n > 2048 ? 2048 : static_cast<int>(until - n);
+      device.process(frames);  // silent in: asleep, and the clock runs on
+      n += static_cast<uint64_t>(frames);
+    }
+    run(device, quiet);
+    const float top = device.meter(Reveal::kTopMeter), lift = device.meter(0);
+    std::printf("a quiet note one round of the clock after a loud one: the loudest band of late %.1f dB and the most lift"
+                " %.1f dB (%.1f and %.1f with no loud one before)\n", top, lift, fresh_top, fresh_lift);
+    EXPECT_NEAR(top, fresh_top, 0.1, "a loud note of a day ago is not the loudest of late");
+    EXPECT_NEAR(lift, fresh_lift, 0.1, "and the quiet note is lifted as it would have been without it");
+  }
+
   return finish("reveal");
 }

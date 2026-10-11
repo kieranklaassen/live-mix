@@ -217,6 +217,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
       stft_[0].skip(frames);  // the frame clock runs on through the sleep
       stft_[1].skip(frames);
       clock_ += static_cast<uint32_t>(frames);
+      forget_old();
       quiet_run_ = rest_after_;
       // A knob moved while asleep does not glide in.
       mix_.snap(mix_.target);
@@ -228,6 +229,7 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     }
     // The ceiling as the clock has it now: the same whether the samples
     // since the last frame were worked through or slept through.
+    forget_old();
     ceiling_ = ceiling_at(clock_ / Stft::kHop);
     for (int i = 0; i < frames; ++i) {
       float in[2];
@@ -376,6 +378,18 @@ class Reveal : public kit::DeviceBase<reveal::kNumParams> {
     const float fallen = static_cast<float>(since - top_hold_frames_) * top_fall_;
     return fallen < 400.0f ? top_db_ - fallen : kNoneDb;
   }
+
+  // What has fallen all the way is forgotten, once a block. The two ages
+  // above are counted on a clock that comes round (2^32 samples: a day at
+  // 48 kHz, six hours at 192), and a loudest sample or band a whole round
+  // old read as new again: a sound that came back just then, after a day's
+  // sleep, was held to the ceiling and the Floor of the day before.
+  void forget_old() {
+    const uint32_t frame = clock_ / Stft::kHop;
+    if (peak_ > 0.0f && !(ceiling_at(frame) > 0.0f)) peak_ = 0.0f;
+    if (top_db_ > kNoneDb && !(top_at(frame) > kNoneDb)) top_db_ = kNoneDb;
+  }
+
   // The bands, from the sample rate: where each begins, its centre in bins
   // and in octaves, how far Focus reaches it, and for every bin the two band
   // centres it lies between.
