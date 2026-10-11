@@ -32,9 +32,13 @@ import {
   type PlateFace,
 } from '../plate-display'
 
-/** The levels the curve spans: Floor goes down to −90 dB, and under it the lift lets go. */
+/**
+ * The levels the curve spans. Close enough that a dB is more than a pixel and
+ * the bend has room for a hand; a Floor further down than the foot stands at
+ * the picture's edge and is moved from where it lies.
+ */
 const TOP_DB = 0
-const FOOT_DB = -96
+const FOOT_DB = -78
 /** The most lift there is (Limit's top): what the bars span. */
 const BARS_DB = 30
 /** How much of the past the wide shape keeps, in seconds. */
@@ -173,16 +177,17 @@ const QUIET = 1e-6
 const liftText = (db: number): string => (db > 0.05 ? `+${db.toFixed(1)}` : '0.0')
 
 /**
- * The level the Amount point stands at: half way between the floor and the
- * threshold, or further down where Limit cannot hold the curve there (a
- * Limit's width under the threshold), whichever gives the hand more travel;
- * and clear of the floor's point and of the threshold's.
+ * The level the Amount point stands at: the floor, the corner of the curve,
+ * where the lift is greatest and the whole of Amount moves it furthest (all
+ * the way from the diagonal to the threshold's line). It stays on the picture
+ * where the floor lies under its foot, and clear of the threshold's point.
  */
 function amountLevel(lift: Lift): number {
-  const foot = Math.min(lift.floor, lift.threshold)
-  const free = Math.max(foot + 8, lift.threshold - lift.limit)
-  return Math.min((foot + lift.threshold) / 2, free, lift.threshold - 8)
+  return Math.min(Math.max(lift.floor, FOOT_DB + 10), lift.threshold - 8)
 }
+
+/** A level for a place across, also past the picture's edges: where a hand has gone to. */
+const dbPast = (x: number, box: Box): number => FOOT_DB + ((x - box.x) / box.w) * (TOP_DB - FOOT_DB)
 
 function liftHandles(view: DisplayView): DisplayHandle[] {
   const { curve } = liftBoxes(view)
@@ -210,11 +215,11 @@ function liftHandles(view: DisplayView): DisplayHandle[] {
       drag: (x: number, y: number) => ({
         threshold: clamp(
           (dbOfX(x, curve) + dbOfY(y, curve, TOP_DB, FOOT_DB)) / 2,
-          view.spec('threshold')?.min ?? -60,
+          view.spec('threshold')?.min ?? -48,
           view.spec('threshold')?.max ?? -12,
         ),
       }),
-      reset: () => ({ threshold: view.spec('threshold')?.default ?? -24 }),
+      reset: () => ({ threshold: view.spec('threshold')?.default ?? -22 }),
     },
     {
       key: 'amount',
@@ -248,22 +253,29 @@ function liftHandles(view: DisplayView): DisplayHandle[] {
         }
         return { amount: (low + high) / 2 }
       },
-      reset: () => ({ amount: view.spec('amount')?.default ?? 0.65 }),
+      reset: () => ({ amount: view.spec('amount')?.default ?? 0.7 }),
     },
     {
       key: 'floor',
       name: 'Floor',
-      // The corner where the lift is greatest: under it the curve lets go.
+      // The level under which the curve lets go: at the foot of its upright,
+      // on the scale of levels going in. A floor further down than the
+      // picture stands at its edge, and moves from where it lies: as far past
+      // the edge as it lay at the press.
       x: xOfDb(floor, curve),
-      y: yOf(out(floor), curve),
-      drag: (x: number) => ({
-        floor: clamp(
-          dbOfX(x, curve),
-          view.spec('floor')?.min ?? -90,
-          view.spec('floor')?.max ?? -40,
-        ),
-      }),
-      reset: () => ({ floor: view.spec('floor')?.default ?? -66 }),
+      y: curve.y + curve.h,
+      drag: (x: number, _y: number, hold?: DisplayHold) => {
+        const kept = hold ?? {}
+        kept.past ??= floor - clamp(floor, FOOT_DB, TOP_DB)
+        return {
+          floor: clamp(
+            dbPast(x, curve) + kept.past,
+            view.spec('floor')?.min ?? -90,
+            view.spec('floor')?.max ?? -40,
+          ),
+        }
+      },
+      reset: () => ({ floor: view.spec('floor')?.default ?? -48 }),
     },
   ]
 }
@@ -282,7 +294,7 @@ const liftDisplay = plateDisplay<LiftState>({
   columns: 2,
   params: ['threshold', 'amount', 'floor', 'split', 'focus', 'sides', 'limit', 'hear', 'mix'],
   live: { meters: true, signal: true },
-  info: 'The curve: the level going in runs across, the level coming out runs up, and the mark is the sound now. Drag its points for Threshold, Amount and Floor. The bars are the lift on lows, middle and highs, their paler part what only the sides get; a line marks the most each can get.',
+  info: 'The curve: level in runs across, level out runs up, and the mark is the sound now. Drag the point on the diagonal for Threshold, the bend for Amount, the one at the foot for Floor. The bars are the lift on lows, middle and highs, paler where only the sides get it; a line marks the most each can get.',
   init: () => ({
     level: new History(PAST_SEC, 80, FOOT_DB, 'max'),
     lifted: new History(PAST_SEC, 80, FOOT_DB, 'max'),
@@ -301,15 +313,21 @@ const liftDisplay = plateDisplay<LiftState>({
     const parts = PART_METERS.map((name) => (running ? clamp(frame.meter(name), 0, BARS_DB) : 0))
     const most = Math.max(...parts)
     const level = running ? clamp(frame.meter('level'), FOOT_DB, TOP_DB) : FOOT_DB
-    // What the device did to the sound as a whole, measured: the level that
-    // comes out against the level that goes in. The parts are lifted by
-    // different amounts, so no one reading says it. Where the plate was not
-    // told what feeds the device, it is the lift of the part lifted most.
+    // What the device did to the sound as a whole: the level it reads coming
+    // out against the level it reads going in, both the mean power of the
+    // two sides, so what Sides gives the sides alone is counted. The parts
+    // are lifted by different amounts, so no one lift reading says it. From a
+    // device that does not report what comes out, it is measured at the
+    // plate (the middle of the image alone), or where the plate was not told
+    // what feeds the device, it is the lift of the part lifted most.
+    const heard = running && frame.hasMeter('out') ? frame.meter('out') : Number.NaN
     const input = frame.signal?.input
     const done =
-      frame.signal && input && input.rms > QUIET
-        ? gainToDb(frame.signal.output.rms) - gainToDb(input.rms)
-        : leavesDb(lift, most)
+      Number.isFinite(heard) && heard > FOOT_DB && level > FOOT_DB
+        ? heard - level
+        : frame.signal && input && input.rms > QUIET
+          ? gainToDb(frame.signal.output.rms) - gainToDb(input.rms)
+          : leavesDb(lift, most)
     if (running) {
       state.level.push(frame.now, level)
       state.lifted.push(frame.now, level + Math.max(0, done))
@@ -373,12 +391,18 @@ const liftDisplay = plateDisplay<LiftState>({
       dash: [3, 2],
     })
     const points = liftHandles(frame)
-    const floorPoint = points[2]
-    rule(ctx, floorPoint.x, foot, floorPoint.x, floorPoint.y, {
-      colour: colours.ink,
-      alpha: INK.back,
-      dash: [3, 2],
-    })
+    if (floor >= FOOT_DB) {
+      const floorX = xOfDb(floor, curve)
+      const corner = yOf(
+        floor + leavesDb(lift, liftCurve(floor, threshold, amount, floor, limit)),
+        curve,
+      )
+      rule(ctx, floorX, foot, floorX, corner, {
+        colour: colours.ink,
+        alpha: INK.back,
+        dash: [3, 2],
+      })
+    }
 
     // The sound now: across, the level the device reads going in; up, the level it comes out at.
     if (running && level > FOOT_DB) {

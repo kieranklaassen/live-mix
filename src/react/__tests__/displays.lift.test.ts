@@ -5,6 +5,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { type ParamSpec } from '../../core/params'
+import { loadWasmDevice } from '../../dsp/__tests__/wasm-device-harness'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import { PLATE_FACES } from '../components/displays'
 import {
@@ -72,13 +73,13 @@ const adds = (liftDb: number, mix = 1): number => db(1 + mix * (gain(liftDb) - 1
 // --- The picture's own scales -------------------------------------------------
 
 // A window beside two columns of knobs is 128 by 100: the curve is 86 wide
-// from x = 4 and 92 high from y = 4, spanning −96 dB to 0 dB both ways; the
+// from x = 4 and 92 high from y = 4, spanning −78 dB to 0 dB both ways; the
 // bars stand in the last 30 pixels, 80 high from y = 16, and span 30 dB.
 const LEFT = 4
 const TOP = 4
 const HIGH = 92
 const WIDE = 86
-const SPAN = 96
+const SPAN = 78
 const yOfLevel = (level: number): number => TOP + (-level / SPAN) * HIGH
 const levelOfY = (y: number): number => (-(y - TOP) / HIGH) * SPAN
 const xOfLevel = (level: number, wide = WIDE): number => LEFT + ((level + SPAN) / SPAN) * wide
@@ -215,7 +216,7 @@ describe("the curve of Lift's display", () => {
 
   it('is the device’s: untouched over the threshold, carried up under it, let go under the floor', () => {
     const out = curveOf(draw({ values: plain }))
-    for (const level of [-90, -84, -72, -54, -36, -30, -12, -3]) {
+    for (const level of [-77, -75, -72, -54, -36, -30, -12, -3]) {
       const lift = curve(level, -24, 0.5, -66, 30)
       expect(out(level), `at ${level} dB`).toBeCloseTo(level + lift, 1)
     }
@@ -224,7 +225,8 @@ describe("the curve of Lift's display", () => {
     expect(out(-36)).toBeCloseTo(-30, 1)
     expect(out(-72)).toBeCloseTo(-72 + 10.5, 1)
     expect(out(-12)).toBeCloseTo(-12, 5)
-    expect(out(-84)).toBeCloseTo(-84, 5)
+    // 12 dB under the floor the lift is gone: the picture's own foot.
+    expect(out(-78)).toBeCloseTo(-78, 5)
   })
 
   it('never lifts by more than Limit', () => {
@@ -232,12 +234,12 @@ describe("the curve of Lift's display", () => {
     expect(out(-36)).toBeCloseTo(-30, 1)
     for (const level of [-44, -50, -60]) expect(out(level)).toBeCloseTo(level + 9, 1)
     const none = curveOf(draw({ values: { ...plain, limit: 0 } }))
-    for (const level of [-80, -60, -40, -20]) expect(none(level)).toBeCloseTo(level, 5)
+    for (const level of [-76, -60, -40, -20]) expect(none(level)).toBeCloseTo(level, 5)
   })
 
   it('has no lift where the floor is not under the threshold', () => {
     const out = curveOf(draw({ values: { ...plain, threshold: -50, floor: -40 } }))
-    for (const level of [-80, -60, -52, -45, -20]) expect(out(level)).toBeCloseTo(level, 5)
+    for (const level of [-76, -60, -52, -45, -20]) expect(out(level)).toBeCloseTo(level, 5)
   })
 
   it('shows what Mix lets be heard: less of the lift part way, the level going in at nothing', () => {
@@ -246,7 +248,7 @@ describe("the curve of Lift's display", () => {
     expect(half(-36)).toBeCloseTo(-36 + 3.51, 1)
     expect(half(-36)).toBeCloseTo(-36 + leaves(6, 0.5), 1)
     const dry = curveOf(draw({ values: { ...plain, mix: 0 } }))
-    for (const level of [-84, -66, -36, -12]) expect(dry(level)).toBeCloseTo(level, 5)
+    for (const level of [-76, -66, -36, -12]) expect(dry(level)).toBeCloseTo(level, 5)
   })
 
   it('on Lift only draws what was added alone: nothing over the threshold, an island under it', () => {
@@ -256,7 +258,7 @@ describe("the curve of Lift's display", () => {
     expect(out(-60)).toBeCloseTo(-60 + 16.83, 1)
     expect(out(-36)).toBeCloseTo(-36, 0)
     // Where there is no lift nothing comes out: the curve runs along the foot.
-    for (const level of [-20, -6, -90]) expect(out(level)).toBeCloseTo(-SPAN, 5)
+    for (const level of [-20, -6, -78]) expect(out(level)).toBeCloseTo(-SPAN, 5)
     // Part way down, the sound comes back under it.
     const part = curveOf(draw({ values: { ...plain, hear: 1, mix: 0.6 } }))
     expect(part(-12)).toBeCloseTo(-12 + db(0.4), 1)
@@ -283,35 +285,55 @@ describe("the curve of Lift's display", () => {
 })
 
 describe("the points of Lift's display", () => {
-  const plain = { threshold: -24, amount: 0.5, floor: -66, limit: 30, hear: 0, mix: 1 }
+  // The Amount point stands at the floor, the corner of the curve. The curve
+  // is read back a pixel at a time, so here the floor lies on a pixel: the
+  // thirteenth of the 86, −66.2 dB, 42.2 dB under the threshold.
+  const FLOOR = -SPAN + (13 * SPAN) / WIDE
+  const ROOM = -24 - FLOOR
+  const plain = { threshold: -24, amount: 0.5, floor: FLOOR, limit: 30, hear: 0, mix: 1 }
 
-  it('stand on the picture: the threshold on the diagonal, Amount and Floor on the curve', () => {
+  it('stand on the picture: the threshold on the diagonal, Amount at the corner of the curve, Floor at its foot', () => {
     const threshold = handleOf('threshold', plain)
     expect(threshold.x).toBeCloseTo(xOfLevel(-24), 5)
     expect(threshold.y).toBeCloseTo(yOfLevel(-24), 5)
-    // A Limit's width under the threshold, where no Amount is held down: half of 30 dB is on.
+    // Amount stands at the floor, where the lift is greatest: half of 42 dB is on.
     const amount = handleOf('amount', plain)
-    expect(amount.x).toBeCloseTo(xOfLevel(-54), 5)
-    expect(amount.y).toBeCloseTo(yOfLevel(-54 + 15), 5)
-    // Never nearer the floor's point than 8 dB, where the two would lie on each other.
-    expect(handleOf('amount', { ...plain, floor: -50 }).x).toBeCloseTo(xOfLevel(-42), 5)
-    // With less Limit than half the way to the floor it stands half way: half of 21 dB.
-    const half = handleOf('amount', { ...plain, limit: 18 })
-    expect(half.x).toBeCloseTo(xOfLevel(-45), 5)
-    expect(half.y).toBeCloseTo(yOfLevel(-45 + 10.5), 5)
+    expect(amount.x).toBeCloseTo(xOfLevel(FLOOR), 5)
+    expect(amount.y).toBeCloseTo(yOfLevel(FLOOR + ROOM / 2), 5)
+    // With the floor under the picture's foot it stays on the picture, 10 dB over the foot.
+    expect(handleOf('amount', { ...plain, floor: -90 }).x).toBeCloseTo(xOfLevel(-68), 5)
+    // Never nearer the threshold's point than 8 dB, where the two would lie on each other.
+    expect(handleOf('amount', { ...plain, threshold: -44, floor: -40 }).x).toBeCloseTo(
+      xOfLevel(-52),
+      5,
+    )
+    // Where Limit holds the curve down the point stands on the Limit.
+    const held = handleOf('amount', { ...plain, limit: 18 })
+    expect(held.x).toBeCloseTo(xOfLevel(FLOOR), 5)
+    expect(held.y).toBeCloseTo(yOfLevel(FLOOR + 18), 5)
+    // The floor's point is on the scale of levels going in, at the picture's foot.
     const floor = handleOf('floor', plain)
-    expect(floor.x).toBeCloseTo(xOfLevel(-66), 5)
-    expect(floor.y).toBeCloseTo(yOfLevel(-66 + 21), 5)
-    // The curve that is drawn passes through both.
+    expect(floor.x).toBeCloseTo(xOfLevel(FLOOR), 5)
+    expect(floor.y).toBeCloseTo(TOP + HIGH, 5)
+    // The curve that is drawn passes through the Amount point.
     const out = curveOf(draw({ values: plain }))
-    expect(levelOfY(amount.y)).toBeCloseTo(out(-54), 1)
-    // As the device starts, the hand has 20 pixels between no lift and all of it.
-    const start = handleOf('amount')
-    const level = (params.floor.default + params.threshold.default) / 2
+    expect(levelOfY(amount.y)).toBeCloseTo(out(FLOOR), 1)
+    // As the device starts, the hand has the whole way from the diagonal to
+    // the threshold's line: 26 dB, 30 pixels.
+    const start = handleOf('amount', { limit: 30 })
+    const level = params.floor.default
     expect(start.x).toBeCloseTo(xOfLevel(level), 5)
-    expect(yOfLevel(level) - yOfLevel(params.threshold.default)).toBeGreaterThanOrEqual(20)
+    expect(yOfLevel(level) - yOfLevel(params.threshold.default)).toBeGreaterThanOrEqual(30)
     expect(start.drag(start.x, yOfLevel(level)).amount).toBeCloseTo(0, 6)
     expect(start.drag(start.x, yOfLevel(params.threshold.default)).amount).toBeCloseTo(1, 6)
+    // And the same travel with the Limit as it starts, which holds the point lower.
+    const limited = handleOf('amount')
+    const hold: DisplayHold = {}
+    expect(limited.drag(limited.x, limited.y, hold).amount).toBeCloseTo(params.amount.default, 9)
+    const none = limited.drag(limited.x, limited.y + 40, hold).amount
+    const all = limited.drag(limited.x, limited.y - 40, hold).amount
+    expect(none).toBe(0)
+    expect(all).toBe(1)
   })
 
   it('set the threshold along the diagonal', () => {
@@ -321,38 +343,50 @@ describe("the points of Lift's display", () => {
     // Across alone or up alone is half the way.
     expect(point.drag(xOfLevel(-40), yOfLevel(-24)).threshold).toBeCloseTo(-32, 9)
     expect(point.drag(200, -50).threshold).toBe(-12)
-    expect(point.drag(-50, 200).threshold).toBe(-60)
+    expect(point.drag(-50, 200).threshold).toBe(params.threshold.min)
     expect(point.reset?.().threshold).toBe(params.threshold.default)
   })
 
   it('set the floor across', () => {
     const point = handleOf('floor', plain)
-    expect(point.drag(point.x, point.y).floor).toBeCloseTo(-66, 9)
+    expect(point.drag(point.x, point.y).floor).toBeCloseTo(FLOOR, 9)
     expect(point.drag(xOfLevel(-50), 0).floor).toBeCloseTo(-50, 9)
     expect(point.drag(xOfLevel(-50), 100).floor).toBeCloseTo(-50, 9)
     expect(point.drag(-50, 50).floor).toBe(-90)
     expect(point.drag(200, 50).floor).toBe(-40)
     expect(point.reset?.().floor).toBe(params.floor.default)
+    // A floor under the picture's foot stands at its edge, and moves from
+    // where it lies: 6 dB to the right is 6 dB up, not a jump to the edge's level.
+    const under = handleOf('floor', { ...plain, floor: -90 })
+    expect(under.x).toBeCloseTo(LEFT, 5)
+    const hold: DisplayHold = {}
+    expect(under.drag(under.x, under.y, hold).floor).toBeCloseTo(-90, 9)
+    expect(under.drag(under.x + (6 / SPAN) * WIDE, under.y, hold).floor).toBeCloseTo(-84, 9)
+    expect(under.drag(under.x + (30 / SPAN) * WIDE, under.y, hold).floor).toBeCloseTo(-60, 9)
   })
 
   it('set the Amount whose curve is under the hand, behind Mix and on Lift only too', () => {
-    for (const more of [{}, { mix: 0.5 }, { hear: 1 }, { hear: 1, mix: 0.7 }, { limit: 14 }]) {
+    // Another floor on a pixel, the thirty-first: −49.9 dB.
+    const higher = -SPAN + (31 * SPAN) / WIDE
+    for (const more of [{}, { mix: 0.5 }, { hear: 1 }, { hear: 1, mix: 0.7 }, { floor: higher }]) {
       const values = { ...plain, ...more }
       const point = handleOf('amount', values)
-      const level = 'limit' in more ? -45 : -54
+      const level = 'floor' in more ? higher : FLOOR
       expect(point.x).toBeCloseTo(xOfLevel(level), 5)
       expect(point.drag(point.x, point.y).amount).toBeCloseTo(0.5, 9)
-      for (const to of [-43, -38, -33]) {
+      // Heights every one of these can reach: half of a 30 dB lift is 24 dB.
+      for (const over of [8, 14, 20]) {
+        const to = level + over
         const { amount } = point.drag(point.x, yOfLevel(to), {})
         const out = curveOf(draw({ values: { ...values, amount } }))
         expect(out(level), `to ${to} dB with ${JSON.stringify(more)}`).toBeCloseTo(to, 1)
       }
     }
-    const point = handleOf('amount', { ...plain, limit: 18 })
-    // 15 of the 21 dB between the point's level and the threshold.
-    expect(point.drag(point.x, yOfLevel(-30)).amount).toBeCloseTo(15 / 21, 6)
-    expect(point.drag(point.x, yOfLevel(-45)).amount).toBe(0)
-    expect(point.drag(point.x, yOfLevel(-60)).amount).toBe(0)
+    const point = handleOf('amount', plain)
+    // All but 6 of the 42.2 dB between the point's level and the threshold.
+    expect(point.drag(point.x, yOfLevel(-30)).amount).toBeCloseTo((ROOM - 6) / ROOM, 6)
+    expect(point.drag(point.x, yOfLevel(FLOOR)).amount).toBe(0)
+    expect(point.drag(point.x, yOfLevel(-75)).amount).toBe(0)
     expect(point.drag(point.x, yOfLevel(-24)).amount).toBe(1)
     expect(point.drag(point.x, -50).amount).toBe(1)
     expect(point.reset?.().amount).toBe(params.amount.default)
@@ -361,14 +395,17 @@ describe("the points of Lift's display", () => {
   it('waits on the Limit where it holds the curve down, and moves from where Amount lies', () => {
     const values = { ...plain, limit: 6 }
     const point = handleOf('amount', values)
-    // 10.5 dB asked for, 6 allowed: the point stands on the 6.
-    expect(point.y).toBeCloseTo(yOfLevel(-39), 5)
+    // 21 dB asked for, 6 allowed: the point stands on the 6.
+    expect(point.y).toBeCloseTo(yOfLevel(FLOOR + 6), 5)
     const hold: DisplayHold = {}
     expect(point.drag(point.x, point.y, hold).amount).toBeCloseTo(0.5, 9)
     // Three dB down with the same hand takes 3 dB off what was asked for, and
     // the same again brings the curve itself down.
-    expect(point.drag(point.x, yOfLevel(-42), hold).amount).toBeCloseTo(7.5 / 21, 6)
-    expect(point.drag(point.x, yOfLevel(-45), hold).amount).toBeCloseTo(4.5 / 21, 6)
+    expect(point.drag(point.x, yOfLevel(FLOOR + 3), hold).amount).toBeCloseTo(
+      (ROOM / 2 - 3) / ROOM,
+      6,
+    )
+    expect(point.drag(point.x, yOfLevel(FLOOR), hold).amount).toBeCloseTo((ROOM / 2 - 6) / ROOM, 6)
     expect(point.drag(point.x, point.y, hold).amount).toBeCloseTo(0.5, 6)
   })
 
@@ -376,10 +413,10 @@ describe("the points of Lift's display", () => {
     const silent = handleOf('amount', { ...plain, mix: 0 })
     expect(silent.drag(silent.x, 10).amount).toBe(0.5)
     expect(silent.drag(silent.x, 90).amount).toBe(0.5)
-    const shut = handleOf('amount', { ...plain, threshold: -50, floor: -40 })
+    const shut = handleOf('amount', { ...plain, threshold: -48, floor: -40 })
     expect(shut.drag(shut.x, 10).amount).toBe(0.5)
     // It still stands clear of the threshold's point.
-    expect(shut.x).toBeCloseTo(xOfLevel(-58), 5)
+    expect(shut.x).toBeCloseTo(xOfLevel(-56), 5)
   })
 })
 
@@ -407,6 +444,20 @@ describe("what moves on Lift's display", () => {
     expect(dry?.y).toBeCloseTo(yOfLevel(-40), 5)
     // Not running, there is no sound to mark.
     expect(mark(draw({ values: plain }))).toBeUndefined()
+  })
+
+  it('puts the mark where the device reads the sound coming out, the sides counted', () => {
+    // The middle of the image came out as it went in (the plate's two levels
+    // are one sum of both sides); the sides were lifted, and the device reads 9 dB more.
+    const meters = { lift: 12, liftLow: 12, liftMid: 12, liftHigh: 12, level: -40, out: -31 }
+    const now = mark(draw({ values: { ...plain, sides: 1 }, meters, signal: sound(0.1, 0.1) }))
+    expect(now?.x).toBeCloseTo(xOfLevel(-40), 5)
+    expect(now?.y).toBeCloseTo(yOfLevel(-31), 5)
+    // Nothing coming out yet: it falls back on what the plate measures.
+    const early = mark(
+      draw({ values: plain, meters: { ...meters, out: -120 }, signal: sound(0.1, 0.2) }),
+    )
+    expect(early?.y).toBeCloseTo(yOfLevel(-40 + db(2)), 5)
   })
 
   it('works the mark out from the lift the device reports where it is not told what feeds it', () => {
@@ -538,4 +589,108 @@ describe("what moves on Lift's display", () => {
     const flat = drawn(runDisplay(display, params, 1, options)).shapes
     expect(flat.some((shape) => shape.op === 'fill' && shape.colour === ACCENT)).toBe(false)
   })
+})
+
+// --- The compiled device ------------------------------------------------------
+
+/**
+ * A steady tone through src/dsp/wasm/lift.wasm as set, with short times so it
+ * settles: what goes in and comes out over the last quarter second (the mean
+ * power of both sides and the sum of the two, as the plate measures it), and
+ * the device's own readings.
+ */
+async function settled(values: Record<string, number>, levelDb: number, right = 1) {
+  const wasm = await loadWasmDevice('lift')
+  for (const [key, value] of Object.entries({ rise: 0.05, hold: 0.01, ...values })) {
+    wasm.set(params[key], value)
+  }
+  // The level is the mean power of the two sides.
+  const peak = (Math.SQRT2 * gain(levelDb)) / Math.sqrt((1 + right * right) / 2)
+  const block = 128
+  const blocks = Math.round((1.5 * wasm.sampleRate) / block)
+  const from = blocks - Math.round((0.25 * wasm.sampleRate) / block)
+  const left = new Float32Array(block)
+  const other = new Float32Array(block)
+  const sums = { in: 0, out: 0, inMono: 0, outMono: 0 }
+  for (let at = 0; at < blocks; at += 1) {
+    for (let i = 0; i < block; i += 1) {
+      left[i] = peak * Math.sin((2 * Math.PI * 1000 * (at * block + i)) / wasm.sampleRate)
+      other[i] = right * left[i]
+    }
+    wasm.processBlock(left, other)
+    if (at < from) continue
+    const outLeft = wasm.view(wasm.device.device_out_left(), block)
+    const outRight = wasm.view(wasm.device.device_out_right(), block)
+    for (let i = 0; i < block; i += 1) {
+      sums.in += (left[i] * left[i] + other[i] * other[i]) / 2
+      sums.out += (outLeft[i] * outLeft[i] + outRight[i] * outRight[i]) / 2
+      sums.inMono += ((left[i] + other[i]) / 2) ** 2
+      sums.outMono += ((outLeft[i] + outRight[i]) / 2) ** 2
+    }
+  }
+  const meter = (index: number): number => wasm.device.device_meter?.(index) ?? Number.NaN
+  return {
+    out: sums.out > 0 ? 10 * Math.log10(sums.out / sums.in) + levelDb : -Infinity,
+    inMono: Math.sqrt(sums.inMono / ((blocks - from) * block)),
+    outMono: Math.sqrt(sums.outMono / ((blocks - from) * block)),
+    meters: {
+      lift: meter(0),
+      liftLow: meter(1),
+      liftMid: meter(2),
+      liftHigh: meter(3),
+      level: meter(4),
+      out: meter(5),
+    },
+  }
+}
+
+describe("Lift's display against the compiled device", () => {
+  // A floor on a pixel of the curve, as above; Split at nothing, so one gain.
+  const floor = -SPAN + (13 * SPAN) / WIDE
+  const plain = { threshold: -24, amount: 0.5, floor, limit: 30, hear: 0, mix: 1, split: 0 }
+
+  it('draws the curve the device plays: tones at six levels through seven settings', async () => {
+    const settings: Record<string, number>[] = [
+      {},
+      { limit: 9 },
+      { mix: 0.5 },
+      { hear: 1 },
+      { hear: 1, mix: 0.7 },
+      { amount: 1, threshold: -40, floor: -SPAN + (33 * SPAN) / WIDE },
+      { amount: 0.8, threshold: -12, limit: 18 },
+    ]
+    let worst = 0
+    for (const more of settings) {
+      const values = { ...plain, ...more }
+      const picture = curveOf(draw({ values }))
+      for (const level of [-72, -61, -50, -38, -29, -18]) {
+        const played = Math.max((await settled(values, level)).out, -SPAN)
+        const shown = picture(level)
+        worst = Math.max(worst, Math.abs(played - shown))
+        expect(
+          Math.abs(played - shown),
+          `${JSON.stringify(more)} at ${level} dB: the device ${played.toFixed(2)} dB, the picture ${shown.toFixed(2)} dB`,
+        ).toBeLessThan(0.4)
+      }
+    }
+    expect(worst).toBeGreaterThan(0)
+  }, 120000)
+
+  it('puts the mark where the device plays, with Sides up on a sound to one side', async () => {
+    // Left twice the right: most of it is in the middle, which Sides at 1 leaves alone.
+    const values = { ...plain, sides: 1 }
+    const run = await settled(values, -45, 0.5)
+    const mark = drawn(
+      draw({ values, meters: run.meters, signal: sound(run.inMono, run.outMono) }),
+    ).discs.find((disc) => disc.colour === ACCENT && disc.radius === 2.5)
+    expect(run.meters.lift).toBeCloseTo(10.5, 0)
+    expect(levelOfY(mark?.y ?? 0)).toBeGreaterThan(run.out - 0.3)
+    expect(levelOfY(mark?.y ?? 0)).toBeLessThan(run.out + 0.3)
+    expect(mark?.x).toBeGreaterThan(xOfLevel(-45.3))
+    expect(mark?.x).toBeLessThan(xOfLevel(-44.7))
+    // The plate's own two levels are sums of both sides and cannot see it: by
+    // them the sound came out as it went in, and it came out louder.
+    expect(db(run.outMono / run.inMono)).toBeCloseTo(0, 1)
+    expect(run.out - -45).toBeGreaterThan(1)
+  }, 60000)
 })

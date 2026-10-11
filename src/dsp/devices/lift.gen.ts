@@ -9,9 +9,9 @@ export const LIFT_PARAMS = {
   threshold: {
     id: 0,
     name: 'Threshold',
-    min: -60,
+    min: -48,
     max: -12,
-    default: -24,
+    default: -22,
     taper: 'linear',
     unit: 'dB',
     description:
@@ -22,7 +22,7 @@ export const LIFT_PARAMS = {
     name: 'Amount',
     min: 0,
     max: 1,
-    default: 0.65,
+    default: 0.7,
     taper: 'linear',
     unit: '',
     description:
@@ -33,33 +33,33 @@ export const LIFT_PARAMS = {
     name: 'Floor',
     min: -90,
     max: -40,
-    default: -66,
+    default: -48,
     taper: 'linear',
     unit: 'dB',
     description:
-      'Under this level the lift lets go again, so hiss, hum and silence stay down. Set it just over the noise of the source.',
+      'Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause.',
   },
   rise: {
     id: 3,
     name: 'Rise',
     min: 0.05,
     max: 20,
-    default: 0.8,
+    default: 0.6,
     taper: 'log',
     unit: 's',
     description:
-      'How slowly the lift comes in once the sound has gone quiet. Short fills every gap between notes; long waits for a real pause or a tail.',
+      'How slowly the lift comes in once it starts. Short brings a tail up at once; long lets it swell in as slowly as a tide.',
   },
-  fall: {
+  hold: {
     id: 4,
-    name: 'Fall',
-    min: 5,
-    max: 2000,
-    default: 20,
+    name: 'Hold',
+    min: 0.01,
+    max: 5,
+    default: 0.1,
     taper: 'log',
-    unit: 'ms',
+    unit: 's',
     description:
-      'How quickly the lift comes back down when quiet sound swells. Short follows every move; long keeps the shape of quiet playing. Loud sound is never lifted.',
+      'How long the lift waits after the sound has got louder before it comes back. Short fills the gaps between notes; long keeps it for real pauses and tails.',
   },
   split: {
     id: 5,
@@ -138,6 +138,7 @@ export const LIFT_METERS = {
   liftMid: { id: 2, name: 'Lift, middle', unit: 'dB', display: true },
   liftHigh: { id: 3, name: 'Lift, highs', unit: 'dB', display: true },
   level: { id: 4, name: 'Level', unit: 'dB', display: true },
+  out: { id: 5, name: 'Level out', unit: 'dB', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const LIFT_DEVICE = defineWasmDevice({
@@ -153,46 +154,46 @@ export const LIFT_DESCRIPTOR = wasmDeviceDescriptor(LIFT_DEVICE, {
   name: 'Lift',
   category: 'dynamics',
   description:
-    'Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is loud stays exactly as it is.',
+    'Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is louder than the line is left alone.',
   presets: {
     'Quiet end up': {},
-    'Just the ends': { threshold: -30, amount: 1, rise: 0.15, split: 0, limit: 30 },
-    'Long tails': { threshold: -21, amount: 0.85, floor: -78, rise: 0.4, split: 0.2, limit: 24 },
-    'Slow tide': { threshold: -18, amount: 0.8, rise: 8, fall: 1500, limit: 24 },
-    'Air on top': { threshold: -26, amount: 0.9, rise: 0.4, split: 1, focus: 1, limit: 24 },
-    'Warm floor': { threshold: -20, amount: 0.8, rise: 1.5, split: 1, focus: -1, limit: 14 },
-    'Opens outward': { threshold: -20, amount: 1, rise: 0.4, split: 0.3, sides: 1, limit: 30 },
-    'Half open': { threshold: -20, amount: 1, rise: 0.2, split: 0, sides: 0.6, limit: 30 },
-    'Fill every gap': { threshold: -24, amount: 1, floor: -60, rise: 0.05, split: 0, limit: 30 },
-    'Slightly closer': { threshold: -19, amount: 1, rise: 0.3, split: 0, limit: 4 },
-    'Steady shine': { threshold: -14, amount: 0.6, rise: 0.3, split: 1, focus: 1, limit: 12 },
-    'Only the tails': { threshold: -20, amount: 1, rise: 0.3, split: 0, limit: 30, hear: 1 },
-    'Ghost of the top': {
-      threshold: -24,
+    'Just the ends': { threshold: -31.5, amount: 1, rise: 0.15, split: 1, limit: 30 },
+    'Long tails': {
+      threshold: -21,
       amount: 1,
-      rise: 0.2,
-      split: 1,
-      focus: 1,
-      limit: 30,
-      hear: 1,
+      floor: -70,
+      rise: 0.3,
+      hold: 0.05,
+      split: 0.2,
+      limit: 24,
     },
+    'Slow tide': { threshold: -14, amount: 0.9, rise: 6, hold: 3, limit: 24 },
+    'Air on top': { threshold: -21, amount: 1, rise: 0.4, split: 1, focus: 1, limit: 24 },
+    'Warm floor': { threshold: -20, amount: 0.9, rise: 0.5, split: 1, focus: -1, limit: 10 },
+    'Opens outward': { threshold: -18, amount: 1, rise: 0.4, split: 0.3, sides: 1, limit: 12 },
+    'Half open': { threshold: -18, amount: 1, rise: 0.2, split: 0, sides: 0.6, limit: 16 },
+    'Fill every gap': { threshold: -25.5, amount: 1, rise: 0.05, hold: 0.01, split: 0, limit: 14 },
+    'Slightly closer': { threshold: -19, amount: 1, rise: 0.3, split: 0, limit: 3 },
+    'Steady shine': { threshold: -14, amount: 0.6, rise: 0.3, split: 1, focus: 1, limit: 12 },
+    'Real pauses only': { threshold: -18, amount: 1, rise: 1, hold: 1.5, split: 0, limit: 24 },
+    'Only the tails': { threshold: -18, amount: 1, rise: 0.3, split: 0, limit: 24, hear: 1 },
+    'Top alone': { threshold: -20, amount: 1, rise: 0.2, split: 1, focus: 1, limit: 24, hear: 1 },
     'Low breath': {
-      threshold: -22,
+      threshold: -18,
       amount: 1,
       rise: 0.2,
       split: 0.6,
       focus: -1,
-      limit: 30,
+      limit: 24,
       hear: 1,
-      mix: 0.6,
+      mix: 0.55,
     },
-    Afterimage: { threshold: -16, amount: 0.6, rise: 0.6, fall: 500, split: 0, limit: 24, hear: 1 },
-    'Inside out': {
+    'Quiet in front': {
       threshold: -18,
       amount: 1,
       rise: 0.15,
       split: 0.3,
-      limit: 30,
+      limit: 24,
       hear: 1,
       mix: 0.7,
     },
@@ -201,7 +202,7 @@ export const LIFT_DESCRIPTOR = wasmDeviceDescriptor(LIFT_DEVICE, {
 
 export type Lift = WasmDevice<typeof LIFT_PARAMS>
 
-/** Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is loud stays exactly as it is. */
+/** Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is louder than the line is left alone. */
 export function createLift(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof LIFT_PARAMS> = {},
