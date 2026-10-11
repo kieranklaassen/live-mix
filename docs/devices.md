@@ -140,7 +140,7 @@ hold 8 notes).
 | `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B  | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
 | `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
-| `imprint`         | Imprint            | live-mix            | eq         | 8      | 28,073 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
+| `imprint`         | Imprint            | live-mix            | eq         | 8      | 28,075 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `late-vibrato`    | Late Vibrato       | live-mix            | modulation | 10     | 22,584 B  | 18.1 µs, 0.68 %       | 16.0 µs, 0.60 %            | 960               | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B  | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
