@@ -604,4 +604,45 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'seasons', preset: 'Quick year' },
     ],
   },
+  {
+    id: 'inside-a-pipe',
+    name: 'Inside a pipe',
+    category: 'texture',
+    description:
+      'The sound is played inside an open pipe tuned to the key and takes on its hollow ring; Size tunes the pipe, Material how long it rings.',
+    effects: [{ deviceId: 'vessel', preset: 'Inside a pipe' }],
+  },
+  {
+    id: 'wind-sings-in-the-pipe',
+    name: 'Wind sings in the pipe',
+    category: 'texture',
+    description:
+      'Gusts of wind rise with the playing and blow down a long pipe tuned to the key, and the pipe hums with them; Voice sets how much wind.',
+    effects: [
+      { deviceId: 'weather', preset: 'Breezy day', params: { voice: 0.7, linger: 5 } },
+      { deviceId: 'vessel', preset: 'Wind in the pipe', params: { mix: 0.6 } },
+    ],
+  },
+  {
+    id: 'stones-down-a-pipe',
+    name: 'Stones down a pipe',
+    category: 'texture',
+    description:
+      'Each note skips away in quickening echoes, and note and echoes ring inside a long pipe tuned to the key; Size tunes the pipe.',
+    effects: [
+      { deviceId: 'skipping-stone', preset: 'Skipping stone', params: { mix: 0.45 } },
+      { deviceId: 'vessel', preset: 'Inside a pipe', params: { size: 2, material: 0.8, mix: 0.6 } },
+    ],
+  },
+  {
+    id: 'howl-in-a-glass-tube',
+    name: 'Howl in a glass tube',
+    category: 'texture',
+    description:
+      'Between the notes a feedback tone of the key swells up and rings in a short glass tube tuned with it; Gain sets how readily it howls.',
+    effects: [
+      { deviceId: 'howl', preset: 'In the gaps' },
+      { deviceId: 'vessel', preset: 'Glass tube' },
+    ],
+  },
 ]

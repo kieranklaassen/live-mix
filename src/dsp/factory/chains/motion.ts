@@ -565,4 +565,45 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'hall-reverb', preset: 'Airy tail', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'circling-the-listener',
+    name: 'Circling the listener',
+    category: 'motion',
+    description:
+      'The sound walks a slow circle round your head, louder and brighter at the near ear and duller behind; Rate sets how long a lap takes.',
+    effects: [{ deviceId: 'around', preset: 'Slow circle' }],
+  },
+  {
+    id: 'bass-stays-top-circles',
+    name: 'Bass stays, top circles',
+    category: 'motion',
+    description:
+      'The sound circles your head while everything under 180 Hz is held in the middle, so the floor never moves; Low split sets where.',
+    effects: [
+      { deviceId: 'around', preset: 'Slow circle' },
+      { deviceId: 'spread', preset: 'Firm bass', params: { lowHz: 180 } },
+    ],
+  },
+  {
+    id: 'cloud-going-round',
+    name: 'Cloud going round',
+    category: 'motion',
+    description:
+      'Notes swell in out of a cloud and the whole cloud walks a slow circle round your head; Rate sets how long a lap takes.',
+    effects: [
+      { deviceId: 'fog', preset: 'Slow rise' },
+      { deviceId: 'around', preset: 'Slow circle' },
+    ],
+  },
+  {
+    id: 'bowls-carried-round',
+    name: 'Bowls carried round',
+    category: 'motion',
+    description:
+      'Bowls tuned to the key sing with the notes you touch and are carried with them round your head; Ring sets how long they sing.',
+    effects: [
+      { deviceId: 'bowls', preset: 'Bowl table' },
+      { deviceId: 'around', preset: 'Slow circle' },
+    ],
+  },
 ]

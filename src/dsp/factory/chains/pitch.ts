@@ -535,4 +535,53 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'melt', preset: 'Slow melt', params: { width: 0.7 } },
     ],
   },
+  {
+    id: 'singing-bowls-in-key',
+    name: 'Singing bowls in key',
+    category: 'pitch',
+    description:
+      'Eight metal bowls tuned to the key sing with the notes you touch and ring on, each with its own slow beat; Mix sets how much bowl.',
+    effects: [{ deviceId: 'bowls', preset: 'Bowl table' }],
+  },
+  {
+    id: 'feedback-bloom',
+    name: 'Feedback bloom',
+    category: 'pitch',
+    description:
+      'Held notes bloom into a feedback tone on an overtone of the key, like an amplifier close by, and it never runs away; Gain sets how soon.',
+    effects: [{ deviceId: 'howl', preset: 'Room howl' }],
+  },
+  {
+    id: 'howl-wakes-the-bowls',
+    name: 'Howl wakes the bowls',
+    category: 'pitch',
+    description:
+      'One steady feedback tone rises out of held notes and sets a table of bowls in the same key ringing; Hold sets how long the tone hangs.',
+    effects: [
+      { deviceId: 'howl', preset: 'One pure tone' },
+      { deviceId: 'bowls', preset: 'Bowls alone', params: { mix: 0.5 } },
+    ],
+  },
+  {
+    id: 'bowls-that-linger',
+    name: 'Bowls that linger',
+    category: 'pitch',
+    description:
+      'Bowls tuned to the key ring on and their fading is held up at one level for some seconds before it lets go; Ring sets how long they sing.',
+    effects: [
+      { deviceId: 'bowls', preset: 'Bowl table', params: { ring: 20 } },
+      { deviceId: 'lift', preset: 'Long tails', params: { threshold: -30, floor: -60, limit: 15 } },
+    ],
+  },
+  {
+    id: 'feedback-into-the-wall',
+    name: 'Feedback into the wall',
+    category: 'pitch',
+    description:
+      'A feedback tone of the key swells between the notes and feeds a wall of soft fuzz and long reverb; Follow sets how much it gives way.',
+    effects: [
+      { deviceId: 'howl', preset: 'In the gaps' },
+      { deviceId: 'haze', preset: 'Glowing wall' },
+    ],
+  },
 ]
