@@ -650,7 +650,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Felt on the hammers',
     category: 'texture',
     description:
-      'The strike of each note is turned down and smeared soft while its tone rings on and its air spreads wide; Attacks brings the strike back.',
+      'A tenth of a second late, each strike is turned down and smeared soft while its tone rings on and its air spreads wide; try Attacks.',
     effects: [{ deviceId: 'sift', preset: 'Soft hammers' }],
   },
   {
@@ -658,7 +658,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Bowed not struck',
     category: 'texture',
     description:
-      'Every strike is taken off so notes begin as bare tone, vibrato arrives on the ones you hold, and a hall carries them; Hold lets tones ring.',
+      'A tenth of a second late, every strike is taken off so notes begin as bare tone, held ones gain vibrato, and a hall carries them; try Hold.',
     effects: [
       { deviceId: 'sift', preset: 'Bowed entries' },
       { deviceId: 'late-vibrato', preset: 'Slow bow' },
@@ -670,7 +670,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Held notes hang on',
     category: 'texture',
     description:
-      'Only what the sound shares with itself a moment ago gets through and rings on, so held notes hang and passing ones thin out; try Ago.',
+      'Only what the sound shares with itself a moment ago gets through and rings on, a tenth of a second late, so held notes hang; try Ago.',
     effects: [{ deviceId: 'common-tones', preset: 'Hanging notes' }],
   },
   {
@@ -678,7 +678,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Hall for held notes',
     category: 'texture',
     description:
-      'Attacks and passing notes are taken out and only tones held half a second reach a cathedral, so the hall answers what stays; try Strict.',
+      'Attacks and passing notes are taken out and only tones held half a second reach a cathedral, a tenth of a second late; try Strict.',
     effects: [
       { deviceId: 'common-tones', preset: 'Only what stays', params: { makeup: 1 } },
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
@@ -689,7 +689,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Sines for what stays',
     category: 'texture',
     description:
-      'Only held tones get through, each shadowed by a pure sine that swells in slowly and lingers twenty seconds; Release sets how long.',
+      'Only held tones get through, a tenth of a second late, each shadowed by a pure sine that swells in slowly and lingers long; try Release.',
     effects: [
       { deviceId: 'common-tones', preset: 'Only what stays', params: { makeup: 1 } },
       { deviceId: 'sine-shadow', preset: 'Long linger' },

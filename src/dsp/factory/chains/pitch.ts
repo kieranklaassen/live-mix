@@ -540,7 +540,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Strings to bells',
     category: 'pitch',
     description:
-      'The overtones of every note are pulled apart while the note itself stays put, so strings and pads ring like bells; Stretch sets how far.',
+      'A tenth of a second late, the overtones of every note are pulled apart while the note stays put, so strings ring like bells; try Stretch.',
     effects: [{ deviceId: 'warp', preset: 'Bell metal' }],
   },
   {
@@ -559,7 +559,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Sunken gong',
     category: 'pitch',
     description:
-      'Every partial is spread away from one fixed pitch and dropped an octave, so chords become a gong in a dark hall; Pivot sets what stays put.',
+      'A tenth of a second late, every partial is spread away from one fixed pitch and dropped an octave: a gong in a dark hall; try Pivot.',
     effects: [
       { deviceId: 'warp', preset: 'Sunken gong', params: { width: 0 } },
       { deviceId: 'hall-reverb', preset: 'Dark hall' },
@@ -570,7 +570,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Pipes on every note',
     category: 'pitch',
     description:
-      'Organ ranks an octave below, an octave, a twelfth and two octaves above speak just after each note; draw Fifth for hollow chords.',
+      'A tenth of a second late, organ ranks an octave below and an octave, a twelfth and two octaves above speak after each note; try Fifth.',
     effects: [{ deviceId: 'stops', preset: 'Principal chorus', params: { mix: 0.55 } }],
   },
   {
@@ -578,7 +578,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Pipes blooming late',
     category: 'pitch',
     description:
-      'Organ ranks above and below each note take two seconds to speak, so held notes open into a full organ in a cathedral; Speak sets the wait.',
+      'A tenth of a second late, organ ranks around each note take two seconds to speak, so held notes open into a cathedral organ; try Speak.',
     effects: [
       { deviceId: 'stops', preset: 'Slow bloom' },
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
@@ -589,7 +589,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Singing pipes',
     category: 'pitch',
     description:
-      'The sound takes the colour of a hollow tube, then soft flute ranks speak around it with a breath of wind, a little late; try Chiff.',
+      'A seventh of a second late, the sound takes the colour of a hollow tube and soft flute ranks speak around it with a breath; try Chiff.',
     effects: [
       { deviceId: 'imprint', preset: 'Hollow tube' },
       { deviceId: 'stops', preset: 'Flute stops', params: { mix: 0.55 } },
@@ -600,7 +600,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Silver ranks glimmering',
     category: 'pitch',
     description:
-      'Bright ranks a twelfth and two octaves above each note, their partials flickering fast, answer a little late; Fifteenth sets the top rank.',
+      'Bright ranks a twelfth and two octaves above each note, their partials flickering fast, a seventh of a second late; try Fifteenth.',
     effects: [
       { deviceId: 'stops', preset: 'Glass on top', params: { mix: 0.5 } },
       { deviceId: 'glimmer', preset: 'Glitter on top', params: { apart: 0.5 } },
@@ -641,7 +641,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Giant with a voice',
     category: 'pitch',
     description:
-      'A round vowel slid down nine semitones is pressed on the sound and its whole body made giant, the notes unmoved; Shift moves the vowel.',
+      'A tenth of a second late, a round vowel slid nine semitones down is pressed on the sound and its whole body made giant; try Shift.',
     effects: [
       { deviceId: 'imprint', preset: 'Large body' },
       { deviceId: 'size', preset: 'Giant' },

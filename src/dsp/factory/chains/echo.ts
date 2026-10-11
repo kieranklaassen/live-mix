@@ -539,7 +539,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Glittering fan',
     category: 'echo',
     description:
-      'Fine slices of the sound come back scattered over two seconds and keep turning, while every partial of the cloud flickers; try Shuffle.',
+      'Fine slices of the sound come back scattered over two seconds, keep turning and flicker, all a tenth of a second late; try Shuffle.',
     effects: [
       { deviceId: 'prism', preset: 'Partial cloud' },
       { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
@@ -550,7 +550,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Strikes come back',
     category: 'echo',
     description:
-      'Answering a little late, the strike of each note arrives a quarter second after its tone and echoes in eight colours; Late sets the wait.',
+      'Answering a seventh of a second late, the strike of each note arrives a quarter second after its tone and echoes in eight colours; try Late.',
     effects: [
       { deviceId: 'sift', preset: 'Late echoes', params: { tones: 0, attacks: 0 } },
       { deviceId: 'prism', preset: 'Scattered notes', params: { mix: 0.2 } },
@@ -572,7 +572,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Music box unfolding',
     category: 'echo',
     description:
-      'The body of the sound shrinks to a music box, notes unmoved, and each echo of it unfolds from low to high; Size sets how small it is.',
+      'A tenth of a second late, the sound shrinks to a music box, notes unmoved, and each echo of it unfolds from low to high; try Size.',
     effects: [
       { deviceId: 'size', preset: 'Music box' },
       { deviceId: 'prism', preset: 'Low to high' },
