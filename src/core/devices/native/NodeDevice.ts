@@ -6,7 +6,15 @@
 // a click-free bypass crossfade that keeps the chain running.
 //
 //   input ─┬─► graph.input … graph.output ─► wet ─┬─► output
-//          └──────────────────► dry ──────────────┘
+//          └────────► delay ──► dry ──────────────┘
+//
+// A chain that takes time (the compressor's look-ahead) reports it as latency,
+// and its dry path runs through a delay of that many samples, so the bypassed
+// device is as late as the working one and turning it off or on moves nothing
+// in time. A chain that takes none has no delay: input feeds dry directly.
+// (Chromium empties a DelayNode whose input falls from two channels to one, as
+// it does when the last stereo source into it ends: what the delay still held
+// of that sound's end, at most the latency, is not heard while bypassed.)
 //
 // Every parameter change (and the bypass) ramps over NODE_DEVICE_RAMP_SECONDS,
 // the same 5 ms the WASM host uses for its bypass crossfade, so both device
@@ -19,8 +27,20 @@ import { type DeviceChange, type DeviceChangeListener, type ObservableDevice } f
 /** Ramp length for parameter and bypass changes; equals the WASM host's `BYPASS_RAMP_SECONDS`. */
 export const NODE_DEVICE_RAMP_SECONDS = 0.005
 
+/**
+ * How an applier's converted value stands to the parameter's own: `'decibels'`
+ * when it is its logarithm (a cut's Q), so a lane's exponential leg in the
+ * parameter's units is a straight one on the AudioParam.
+ */
+export type ParamScale = 'decibels'
+
 /** Moves `param` to `value` click-free, starting now. */
-export type ParamRamp = (param: AudioParam, value: number, rampSec?: number) => void
+export type ParamRamp = (
+  param: AudioParam,
+  value: number,
+  rampSec?: number,
+  scale?: ParamScale,
+) => void
 
 /** Applies one clamped parameter value to the graph through `ramp`. */
 export type ParamApplier = (value: number, ramp: ParamRamp) => void
@@ -47,7 +67,8 @@ export interface NodeDeviceDefinition<
   latencySec?: number
   /**
    * Sample-exact latency at a given rate, when the chain knows it better than
-   * `round(latencySec · sampleRate)` (the default).
+   * `round(latencySec · sampleRate)` (the default). The device then reports
+   * those samples in seconds as its `latencySec`.
    */
   latencySamples?: (sampleRate: number) => number
   build(context: BaseAudioContext): G
@@ -105,6 +126,15 @@ export function definitionLatencySamples(
   return Math.max(0, Math.round((definition.latencySec ?? 0) * sampleRate))
 }
 
+/** A delay line of exactly `samples`, set once: a bypass crossfades beside it and never moves it. */
+function dryDelayOf(context: BaseAudioContext, samples: number): DelayNode {
+  const seconds = samples / context.sampleRate
+  // Room to spare, since a delay line cannot be shorter than what it is asked for.
+  const delay = context.createDelay(Math.max(1, seconds * 2))
+  delay.delayTime.value = seconds
+  return delay
+}
+
 export class NodeDevice<
   P extends Record<string, ParamSpec> = Record<string, ParamSpec>,
   G extends NodeDeviceGraph<P> = NodeDeviceGraph<P>,
@@ -119,6 +149,8 @@ export class NodeDevice<
   protected readonly graph: G
   private readonly dry: GainNode
   private readonly wet: GainNode
+  // The dry path's share of the reported latency; null for a chain that takes no time.
+  private readonly dryDelay: DelayNode | null
   private readonly values = new Map<string, number>()
   private readonly changes = new Emitter<DeviceChange>()
   // AudioParams outside the graph that are written along with a parameter's own (`follow`).
@@ -134,8 +166,11 @@ export class NodeDevice<
     this.context = context
     this.id = definition.id
     this.params = definition.params
-    this.latencySec = definition.latencySec ?? 0
     this.latencySamples = definitionLatencySamples(definition, context.sampleRate)
+    // A chain that counts its own samples takes exactly those at this rate, in seconds too.
+    this.latencySec = definition.latencySamples
+      ? this.latencySamples / context.sampleRate
+      : (definition.latencySec ?? 0)
 
     this.input = context.createGain()
     this.output = context.createGain()
@@ -148,7 +183,14 @@ export class NodeDevice<
     this.input.connect(this.graph.input)
     this.graph.output.connect(this.wet)
     this.wet.connect(this.output)
-    this.input.connect(this.dry)
+    // Made after the chain, so the chain's own nodes keep their places in the context's order.
+    this.dryDelay = this.latencySamples > 0 ? dryDelayOf(context, this.latencySamples) : null
+    if (this.dryDelay) {
+      this.input.connect(this.dryDelay)
+      this.dryDelay.connect(this.dry)
+    } else {
+      this.input.connect(this.dry)
+    }
     this.dry.connect(this.output)
 
     for (const [name, spec] of Object.entries(definition.params)) {
@@ -225,11 +267,11 @@ export class NodeDevice<
       return
     }
     let led = false
-    this.graph.apply[name](value, (param, converted, rampSec) => {
-      write(param, converted, rampSec)
+    this.graph.apply[name](value, (param, converted, rampSec, scale) => {
+      write(param, converted, rampSec, scale)
       if (led) return
       led = true
-      for (const follower of followers) write(follower, converted, rampSec)
+      for (const follower of followers) write(follower, converted, rampSec, scale)
     })
   }
 
@@ -260,6 +302,7 @@ export class NodeDevice<
     for (const node of [this.input, this.dry, this.wet, this.output, ...this.graph.nodes]) {
       node.disconnect()
     }
+    this.dryDelay?.disconnect()
   }
 
   /** `rampParamTo` on this device's context. */

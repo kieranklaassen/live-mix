@@ -174,11 +174,17 @@ describe('the Filter display', () => {
   const db = (values: Record<string, number>, hz: number): number =>
     dbAt(mainCurve(filter.draw({ values })), hz, filter.box, FILTER_DB, -FILTER_DB)
 
-  it('draws a low pass that stands Q dB high at its cutoff and falls 12 dB an octave', () => {
-    // Web Audio reads the Q of a low pass as dB: the gain at the cutoff is Q itself.
-    expect(db({ type: 0, frequency: 1000, q: 6 }, 1000)).toBeCloseTo(6, 1)
-    expect(db({ type: 0, frequency: 1000, q: Math.SQRT1_2 }, 1000)).toBeCloseTo(Math.SQRT1_2, 1)
-    expect(db({ type: 0, frequency: 1000, q: 6 }, 100)).toBeCloseTo(0, 0)
+  it('draws a low pass that stands as high at its cutoff as its Q says and falls 12 dB an octave', () => {
+    // Q is a plain number: the gain at the cutoff is 20·log10 of it, which is
+    // what the device gives the node, whose Q for a low pass is in dB.
+    expect(db({ type: 0, frequency: 1000, q: 2 }, 1000)).toBeCloseTo(6.02, 1)
+    expect(db({ type: 0, frequency: 1000, q: 1 }, 1000)).toBeCloseTo(0, 1)
+    // The default is a flat cut: 3 dB down at the cutoff and nowhere over the line.
+    expect(db({ type: 0, frequency: 1000, q: Math.SQRT1_2 }, 1000)).toBeCloseTo(-3.01, 1)
+    for (const hz of [50, 100, 250, 500, 700, 900]) {
+      expect(db({ type: 0, frequency: 1000, q: Math.SQRT1_2 }, hz)).toBeLessThan(0.05)
+    }
+    expect(db({ type: 0, frequency: 1000, q: 2 }, 100)).toBeCloseTo(0, 0)
     const octave =
       db({ type: 0, frequency: 500, q: 1 }, 4000) - db({ type: 0, frequency: 500, q: 1 }, 2000)
     expect(octave).toBeGreaterThan(-13.5)
@@ -186,7 +192,9 @@ describe('the Filter display', () => {
   })
 
   it('draws a high pass as the mirror of it', () => {
-    expect(db({ type: 1, frequency: 200, q: 12 }, 200)).toBeCloseTo(12, 1)
+    expect(db({ type: 1, frequency: 200, q: 4 }, 200)).toBeCloseTo(12.04, 1)
+    // A flat low cut at 80 Hz: 1.07 dB down at 110 Hz, where a Q read as dB stood 1.7 dB over.
+    expect(db({ type: 1, frequency: 80, q: Math.SQRT1_2 }, 110)).toBeCloseTo(-1.07, 1)
     expect(db({ type: 1, frequency: 2000, q: 1 }, 20000)).toBeCloseTo(0, 0)
     const octave =
       db({ type: 1, frequency: 4000, q: 1 }, 500) - db({ type: 1, frequency: 4000, q: 1 }, 1000)
@@ -294,15 +302,19 @@ describe('the Filter display', () => {
       xOfHz(hz, box),
       yOfDb(level, box, FILTER_DB, -FILTER_DB),
     ]
-    // A cut: the point rides the curve at the cutoff, Q dB high.
-    const cut = filter.handle('point', { type: 0, frequency: 1000, q: 6 })
-    expect([cut.x, cut.y]).toEqual(at(1000, 6))
+    // A cut: the point rides the curve at the cutoff, as high as Q says in dB.
+    const cut = filter.handle('point', { type: 0, frequency: 1000, q: 2 })
+    expect(cut.x).toBe(at(1000, 0)[0])
+    expect(cut.y).toBeCloseTo(at(1000, 20 * Math.log10(2))[1], 9)
+    const flat = filter.handle('point', { type: 0, frequency: 1000, q: Math.SQRT1_2 })
+    expect(flat.y).toBeCloseTo(at(1000, -3.0103)[1], 3)
     const moved = cut.drag(...at(2000, 12))
     expect(Object.keys(moved).sort()).toEqual(['frequency', 'q'])
     expect(moved.frequency).toBeCloseTo(2000, 6)
-    expect(moved.q).toBeCloseTo(12, 6)
-    // Under the 0 dB line there is no resonance left to take off.
-    expect(cut.drag(...at(2000, -10)).q).toBe(0.1)
+    expect(moved.q).toBeCloseTo(Math.pow(10, 12 / 20), 6)
+    // Under the line the corner is rounded off, down to the least Q there is.
+    expect(cut.drag(...at(2000, -10)).q).toBeCloseTo(Math.pow(10, -10 / 20), 6)
+    expect(cut.drag(...at(2000, -26)).q).toBe(0.1)
     expect(cut.wheel).toBeUndefined()
     expect(cut.reset?.()).toEqual({ frequency: 1000, q: Math.SQRT1_2 })
 

@@ -540,10 +540,12 @@ export interface Biquad {
 
 /**
  * The coefficients of a second-order filter as the Audio EQ Cookbook gives
- * them, which is what Web Audio's `BiquadFilterNode` computes: for `lowpass`
- * and `highpass` there, Q is the height of the peak in dB (pass `qIsDb`); the
- * shelves take no Q (slope 1). A device with a filter of its own that is not
- * one of these has its formula beside its display.
+ * them, which is what Web Audio's `BiquadFilterNode` computes. Q is a plain
+ * number for every type: √½ is a flat cut. The node itself takes the Q of a
+ * `lowpass` and a `highpass` in dB, 20·log10 of that number, which is how a
+ * device writes it (`cutQDb`); pass `qIsDb` to give it here as the node takes
+ * it. The shelves take no Q (slope 1). A device with a filter of its own that
+ * is not one of these has its formula beside its display.
  */
 export function biquad(
   kind: BiquadKind,

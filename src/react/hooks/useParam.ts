@@ -31,9 +31,37 @@ import { useMaybeArbiter, useMaybeEngine } from './useEngine'
 // stay exported from this module and from `./react`.
 export { denormalizeParam, normalizeParam }
 
+/**
+ * A host that keeps its own document takes a device's writes in place of the
+ * device and the arbiter. The panel still reads the device, so the host shows
+ * a change by making the device follow its document; nothing is set here
+ * behind the host's back. A control in hand is told at both ends, so a host
+ * can play the drag as it moves and keep it as one step when it is let go.
+ */
+export interface DeviceWrites {
+  /**
+   * A control is in hand: `names` are the parameters it moves. Until `release`,
+   * every `set` belongs to this one hold, also one that carries a parameter
+   * `names` left out: the wheel turned over a display's handle in hand sets a
+   * band's width inside that handle's drag.
+   */
+  touch?(names: readonly string[]): void
+  /**
+   * Parameters to set, by name: as a control in hand moves, or, with nothing
+   * in hand, one change by itself (a typed value, a reset, a preset).
+   */
+  set(params: Readonly<Record<string, number>>): void
+  /** The control is let go, or the panel left the page with it in hand. */
+  release?(names: readonly string[]): void
+  /** The lamp was pressed. */
+  setBypass(bypass: boolean): void
+}
+
 export interface UseDeviceOptions {
   /** Where to look the descriptor (presets, version) up; defaults to the provided engine's registry. */
   registry?: DeviceRegistry
+  /** Who takes the writes; left out, the device does, or the arbiter that made it. */
+  writes?: DeviceWrites
 }
 
 export interface DeviceSnapshot {
@@ -217,6 +245,44 @@ function useAttributedParams(device: Device) {
   return attributed
 }
 
+/** A host's `DeviceWrites` with what is in hand counted, so a panel that leaves lets go. */
+function useTakenWrites(device: Device, writes: DeviceWrites | undefined) {
+  // The host may hand a new object on every render: the controls call the latest one.
+  const latest = useRef(writes)
+  latest.current = writes
+  const taken = useMemo(() => {
+    const inHand = new Set<string>()
+    const own = (params: Readonly<Record<string, number>>): Record<string, number> =>
+      Object.fromEntries(
+        Object.entries(params).filter(([name]) => Object.hasOwn(device.params, name)),
+      )
+    return {
+      touch: (names: readonly string[]): void => {
+        for (const name of names) inHand.add(name)
+        latest.current?.touch?.(names)
+      },
+      set: (params: Readonly<Record<string, number>>): void => {
+        const mine = own(params)
+        if (Object.keys(mine).length > 0) latest.current?.set(mine)
+      },
+      release: (names: readonly string[]): void => {
+        for (const name of names) inHand.delete(name)
+        latest.current?.release?.(names)
+      },
+      setBypass: (bypass: boolean): void => latest.current?.setBypass(bypass),
+      /** Whatever is still in hand is let go: the device is leaving the view. */
+      letGo: (): void => {
+        if (inHand.size === 0) return
+        const names = [...inHand]
+        inHand.clear()
+        latest.current?.release?.(names)
+      },
+    }
+  }, [device])
+  useEffect(() => taken.letGo, [taken])
+  return writes ? taken : null
+}
+
 /** Parameter values, bypass and presets of one device, with ramped setters. */
 export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDeviceResult {
   const engine = useMaybeEngine()
@@ -237,10 +303,59 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
   const readMoved = useCallback(() => readModulations(device), [device])
   const modulations = useExternalSnapshot(subscribe, readMoved)
   const attributed = useAttributedParams(device)
+  const taken = useTakenWrites(device, options.writes)
 
   const controls = useMemo<DeviceControls>(() => {
     const after = (): void => {
       if (!observable) rerender()
+    }
+    const defaults = (): Record<string, number> =>
+      Object.fromEntries(Object.entries(device.params).map(([name, spec]) => [name, spec.default]))
+    const capture = (name: string): Preset => capturePreset(device, name, descriptor?.version ?? 1)
+    // A preset captured before the device was renamed is the same preset for the id of today.
+    const resolve = (preset: string | Preset): Preset =>
+      typeof preset === 'string'
+        ? factoryPreset(descriptor, device, preset)
+        : descriptor
+          ? resolvePreset(descriptor, preset)
+          : preset
+    if (taken) {
+      return {
+        setParam: (name, value) => {
+          taken.set({ [name]: value })
+          after()
+        },
+        touch: (name) => taken.touch([name]),
+        release: (name) => taken.release([name]),
+        attributed: false,
+        touchMany: taken.touch,
+        setMany: (params) => {
+          taken.set(params)
+          after()
+        },
+        releaseMany: taken.release,
+        setBypass: (enabled) => {
+          taken.setBypass(enabled)
+          after()
+        },
+        toggleBypass: () => {
+          taken.setBypass(!device.bypass)
+          after()
+        },
+        applyPreset: (preset) => {
+          const result = applyPresetThrough(device, resolve(preset), (params) => {
+            taken.set(params)
+            return true
+          })
+          after()
+          return result
+        },
+        capturePreset: capture,
+        reset: () => {
+          taken.set(defaults())
+          after()
+        },
+      }
     }
     return {
       setParam: (name, value) => {
@@ -270,31 +385,23 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
         after()
       },
       applyPreset: (preset) => {
-        // A preset captured before the device was renamed is the same preset for the id of today.
-        const resolved =
-          typeof preset === 'string'
-            ? factoryPreset(descriptor, device, preset)
-            : descriptor
-              ? resolvePreset(descriptor, preset)
-              : preset
+        const resolved = resolve(preset)
         const result = attributed.attributed
           ? applyPresetThrough(device, resolved, attributed.setMany)
           : applyPreset(device, resolved)
         after()
         return result
       },
-      capturePreset: (name) => capturePreset(device, name, descriptor?.version ?? 1),
+      capturePreset: capture,
       reset: () => {
-        const defaults = Object.fromEntries(
-          Object.entries(device.params).map(([name, spec]) => [name, spec.default]),
-        )
-        if (!attributed.setMany(defaults)) {
-          for (const [name, value] of Object.entries(defaults)) device.setParam(name, value)
+        const start = defaults()
+        if (!attributed.setMany(start)) {
+          for (const [name, value] of Object.entries(start)) device.setParam(name, value)
         }
         after()
       },
     }
-  }, [device, descriptor, observable, attributed])
+  }, [device, descriptor, observable, attributed, taken])
 
   return {
     device,

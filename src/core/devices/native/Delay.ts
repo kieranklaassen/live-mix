@@ -15,6 +15,7 @@ import {
   type NodeDeviceOptions,
   defineNodeDevice,
 } from './NodeDevice'
+import { FLAT_CUT_Q_DB } from './units'
 
 /** `maxDelayTime` of the DelayNode; the `timeSec` param cannot exceed it. */
 export const DELAY_MAX_SECONDS = 4
@@ -80,7 +81,8 @@ export const DELAY_DEVICE = defineNodeDevice({
     const delay = context.createDelay(DELAY_MAX_SECONDS)
     const damping = context.createBiquadFilter()
     damping.type = 'lowpass'
-    damping.Q.value = Math.SQRT1_2
+    // Flat under its corner: a peak there would give the loop more back than it took.
+    damping.Q.value = FLAT_CUT_Q_DB
     const feedback = context.createGain()
 
     split.connect(dry)

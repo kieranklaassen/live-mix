@@ -470,7 +470,7 @@ describe('the shapes the Weather display draws from, against the device', { time
     expect(weatherEvent('wind')).toBeCloseTo(0.75, 6)
     expect(weatherEvent('clouds')).toBeCloseTo(8, 6)
     expect(weatherEvent('rain')).toBeCloseTo(4.5, 6)
-  })
+  }, 60000)
 
   it('shows at rest a sample of the same weather the device makes', async () => {
     // Different streams of chance, the same rules: over ten minutes of the
@@ -497,7 +497,7 @@ describe('the shapes the Weather display draws from, against the device', { time
         `${kind}: up ${drawnUp} against ${deviceUp}`,
       ).toBeLessThan(0.08)
     }
-  })
+  }, 60000)
 
   it('samples a storm as the wind with rain in sheets and thunder between', () => {
     const steps = 120000

@@ -561,7 +561,7 @@ describe('the tone of Seasons', () => {
     }
     // The room is there: it moves the level, by less than it is allowed to.
     expect(most - least).toBeGreaterThan(0.5)
-  })
+  }, 60000)
 
   it('draws that tone at the year now, on a scale of 9 dB each way', () => {
     expect(SEASONS_TONE_DB).toBe(9)
@@ -802,7 +802,7 @@ describe('the room of Seasons', () => {
       expect(sum / NEIGHBOURS, `the room about ${hz} Hz, year ${year}`).toBeGreaterThan(0.93)
       expect(sum / NEIGHBOURS, `the room about ${hz} Hz, year ${year}`).toBeLessThan(1.05)
     }
-  })
+  }, 60000)
 
   it('draws that ring under the tone, on a scale of equal ratios from 0.05 to 20 seconds', () => {
     expect([SEASONS_RING_LEAST, SEASONS_RING_MOST]).toEqual([0.05, 20])

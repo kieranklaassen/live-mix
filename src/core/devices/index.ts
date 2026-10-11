@@ -115,6 +115,7 @@ export {
   type PresetTable,
   type SerializedPreset,
 } from './presets'
+export { atDefaults, currentPreset, presetIsOn, retiredPresets, stepPreset } from './preset-match'
 export {
   DEVICE_CATEGORIES,
   DeviceRegistry,

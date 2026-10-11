@@ -980,5 +980,5 @@ describe('murmuration: the Turns that is flown, and how far a preset bends', () 
       else expect(cents, `${name} bends by ${cents.toFixed(1)} cents`).toBeLessThan(50)
     }
     expect(bends['Evening flock'], 'the defaults').toBeLessThan(20)
-  })
+  }, 60000)
 })

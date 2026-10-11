@@ -4,11 +4,12 @@
 
 import { describe, expect, it } from 'vitest'
 
+import { compressorNodeMakeupDb } from '../../core/devices/native/Compressor'
 import { DuckerKernel } from '../../core/devices/native/DuckerKernel'
 import { type ParamSpec } from '../../core/params'
 import { PLAIN_COLOURS } from '../components/display-kit'
 import { PLATE_FACES } from '../components/displays'
-import { duck, nodeCurve, nodeMakeupDb, swellShape } from '../components/displays/dynamics'
+import { duck, nodeCurve, swellShape } from '../components/displays/dynamics'
 import { type DisplayHandle, type DisplaySignal } from '../components/plate-display'
 import {
   drawDisplay,
@@ -236,6 +237,8 @@ describe('the Ambient Compressor display', () => {
 
 describe('the Compressor display', () => {
   const comp = plate('compressor')
+  /** The node's own make-up behind a curve, which the device takes off again. */
+  const nodeMakeupDb = (curve: (level: number) => number): number => -0.6 * db(curve(1))
 
   it('ports the curve of the compressor node: straight to the threshold, a knee, then the ratio', () => {
     const hard = nodeCurve(-24, 0, 4)
@@ -245,6 +248,7 @@ describe('the Compressor display', () => {
     expect(db(hard(1))).toBeCloseTo(-18, 6)
     // The node's own make-up: what the curve takes off full scale (18 dB), to the power 0.6.
     expect(nodeMakeupDb(hard)).toBeCloseTo(10.8, 6)
+    expect(compressorNodeMakeupDb(-24, 0, 4)).toBeCloseTo(10.8, 6)
 
     // A knee of 30 dB over a threshold of −24 dB ends at +6 dB: it joins the
     // straight part at the threshold and the ratio's slope at its end, and never turns back.
@@ -262,8 +266,9 @@ describe('the Compressor display', () => {
   })
 
   it('agrees with the node itself', () => {
-    // Read off a DynamicsCompressorNode on a steady 1 kHz sine in a browser:
+    // Read off a bare DynamicsCompressorNode on a steady 1 kHz sine in a browser:
     // threshold, knee, ratio, the level in, the level out and the `reduction` it reported.
+    // The level out has the node's own make-up on it, which the device takes off.
     const measured = [
       [-24, 30, 12, -50, -46.34, 0],
       [-24, 30, 12, -12, -9.43, -1.1],
@@ -309,11 +314,16 @@ describe('the Compressor display', () => {
     }
   })
 
-  it('draws that curve with both make-ups on it', () => {
+  it('draws that curve with the Make-up on it and none of the node’s own', () => {
     const values = { threshold: -24, knee: 0, ratio: 4, makeupDb: 3 }
     const out = curveOf(comp.draw({ values }), 48)
-    expect(out(-40)).toBeCloseTo(-40 + 10.8 + 3, 1)
-    expect(out(-20)).toBeCloseTo(-23 + 10.8 + 3, 1)
+    expect(out(-40)).toBeCloseTo(-40 + 3, 1)
+    expect(out(-20)).toBeCloseTo(-23 + 3, 1)
+    // With no Make-up a sound under the threshold leaves as loud as it came.
+    const plain = curveOf(comp.draw({ values: { ...values, makeupDb: 0 } }), 48)
+    expect(plain(-40)).toBeCloseTo(-40, 1)
+    expect(plain(-30)).toBeCloseTo(-30, 1)
+    expect(plain(-12)).toBeCloseTo(-21, 1)
   })
 
   it('puts the mark where the node says the sound is: its reduction, not the curve’s', () => {
@@ -323,7 +333,7 @@ describe('the Compressor display', () => {
     expect(mark?.colour).toBe(ACCENT)
     // The detector reads peaks: −12 dB going in.
     expect(mark?.x).toBeCloseTo(xOfLevel(db(0.25), 48), 3)
-    expect(mark?.y).toBeCloseTo(yOfLevel(db(0.25) - 2 + 10.8), 3)
+    expect(mark?.y).toBeCloseTo(yOfLevel(db(0.25) - 2), 3)
     expect(context.words()).toContain('−2.0')
   })
 
@@ -336,15 +346,15 @@ describe('the Compressor display', () => {
     expect(tallNow(band).foot).toBeCloseTo(yOfLevel(db(0.5) - 9), 3)
   })
 
-  it('draws the level coming out with the make-up on it: louder than what went in when little is taken off', () => {
+  it('draws the level coming out with the Make-up on it: louder than what went in when little is taken off', () => {
     const values = { threshold: -24, knee: 0, ratio: 4, makeupDb: 3 }
     const context = comp.run(1, { values, meters: { reduction: -2 }, signal: sound(0.5, 0.5) })
     const { shapes } = drawn(context)
     const line = shapes.find(
       (shape) => shape.op === 'stroke' && shape.width === 1.25 && shape.colour === INK_COLOUR,
     )
-    // 2 dB off, 10.8 dB of the node's own make-up and 3 dB of the knob's.
-    expect(tallNow(line).top).toBeCloseTo(yOfLevel(db(0.5) - 2 + 10.8 + 3), 2)
+    // 2 dB off and 3 dB of Make-up; the node's own 10.8 dB is taken off again.
+    expect(tallNow(line).top).toBeCloseTo(yOfLevel(db(0.5) - 2 + 3), 2)
     // What was taken off still hangs from the level going in, and the figure is that.
     const band = shapes.find((shape) => shape.op === 'fill' && shape.colour === ACCENT)
     expect(tallNow(band).top).toBeCloseTo(yOfLevel(db(0.5)), 3)
@@ -363,16 +373,16 @@ describe('the Compressor display', () => {
   it('has a threshold point at the bend of the curve, and the wheel sets the knee with it', () => {
     const threshold = comp.handle('threshold')
     expect(threshold.x).toBeCloseTo(xOfLevel(-24, 48), 6)
-    // The bend stands on the curve: at the threshold, with the node's make-up on it.
-    expect(threshold.y).toBeCloseTo(yOfLevel(-24 + nodeMakeupDb(nodeCurve(-24, 30, 12))), 3)
+    // The bend stands on the curve: at the threshold, on the diagonal while Make-up is 0.
+    expect(threshold.y).toBeCloseTo(yOfLevel(-24), 3)
+    expect(comp.handle('threshold', { makeupDb: 6 }).y).toBeCloseTo(yOfLevel(-18), 3)
     expect(threshold.wheel?.(1)).toEqual({ knee: 32 })
     expect(threshold.wheel?.(-1)).toEqual({ knee: 28 })
     expect(comp.handle('threshold', { knee: 40 }).wheel?.(1)).toEqual({ knee: 40 })
     expect(threshold.reset?.()).toEqual({ threshold: -24, knee: 30 })
     // Taken and not moved, it stays to the last decimal.
     expect(threshold.drag(threshold.x, threshold.y).threshold).toBeCloseTo(-24, 9)
-    // Dragged to where the bend of another threshold stands, it is that threshold:
-    // the make-up under it moves as it goes, and the point stays in the hand.
+    // Dragged to where the bend of another threshold stands, it is that threshold.
     for (const wanted of [-50, -36, -12, -3]) {
       const there = comp.handle('threshold', { threshold: wanted })
       expect(threshold.drag(there.x, there.y).threshold).toBeCloseTo(wanted, 1)
@@ -386,16 +396,10 @@ describe('the Compressor display', () => {
     // It stops at the ends of the display.
     expect(threshold.drag(200, -100).threshold).toBe(0)
     expect(threshold.drag(-100, 200).threshold).toBe(-60)
-    // The node makes up for most of what a ratio takes off, so there is no
-    // point for Ratio: all of the knob moves the end of the curve 2.6 dB here.
+    // Ratio is a knob on the face: it has no point.
     expect(comp.display.handles?.(viewOf(comp.display, comp.params)).map((h) => h.key)).toEqual([
       'threshold',
     ])
-    const endOf = (ratio: number): number => {
-      const curve = nodeCurve(-24, 30, ratio)
-      return db(curve(1)) + nodeMakeupDb(curve)
-    }
-    expect(endOf(1) - endOf(20)).toBeLessThan(3)
   })
 
   it('leaves a point that stands off the display where it is when it is taken', () => {

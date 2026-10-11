@@ -2,7 +2,8 @@
 // set to, drawn from the same filters the sound goes through, over the
 // spectrum of what comes out of it.
 
-import { filterTypeAt, type FilterType } from '../../../core/devices/native/Filter'
+import { filterTypeAt, isCutFilter, type FilterType } from '../../../core/devices/native/Filter'
+import { cutQDb } from '../../../core/devices/native/units'
 import {
   FLOOR_DB,
   INK,
@@ -203,11 +204,11 @@ const PARAMETRIC_DB = 20
 /**
  * The Parametric EQ's curve: `ParametricEq.ts` puts a high-pass, four peaking
  * filters and a low-pass in series, each a Web Audio biquad. The two cuts are
- * built with `Q = √½`, which Web Audio reads as dB for a cut.
+ * flat up to their corner (a Q of √½), with no bump over it.
  */
 function parametricDb(view: DisplayView, sampleRate: number): (hz: number) => number {
   const filters = [
-    biquad('highpass', view.value('lowCut'), Math.SQRT1_2, 0, sampleRate, true),
+    biquad('highpass', view.value('lowCut'), Math.SQRT1_2, 0, sampleRate),
     ...PARAMETRIC_BANDS.map((n) =>
       biquad(
         'peaking',
@@ -217,7 +218,7 @@ function parametricDb(view: DisplayView, sampleRate: number): (hz: number) => nu
         sampleRate,
       ),
     ),
-    biquad('lowpass', view.value('highCut'), Math.SQRT1_2, 0, sampleRate, true),
+    biquad('lowpass', view.value('highCut'), Math.SQRT1_2, 0, sampleRate),
   ]
   return (hz) => filters.reduce((sum, filter) => sum + biquadDb(filter, hz, sampleRate), 0)
 }
@@ -327,26 +328,24 @@ const FILTER_NAMES: Readonly<Record<FilterType, string>> = {
   allpass: 'All pass',
 }
 
-/** The types whose Q is the height of the peak at the cutoff, in dB. */
-const isCut = (kind: FilterType): boolean => kind === 'lowpass' || kind === 'highpass'
 /** The types Gain acts on; the others take no notice of it. */
 const hasGain = (kind: FilterType): boolean =>
   kind === 'lowshelf' || kind === 'highshelf' || kind === 'peaking'
 
 /**
  * The Filter's one biquad: `Filter.ts` is a Web Audio `BiquadFilterNode` whose
- * type, frequency, Q and gain are the four parameters. For a low or a high
- * pass Web Audio reads Q as dB, so the curve stands Q dB high at the cutoff.
+ * type, frequency, Q and gain are the four parameters. Q is one number for
+ * every type; the device gives it to the node in dB for a low or a high pass,
+ * so the curve stands 20·log10(Q) dB at the cutoff: 3 dB under at √½, level
+ * at 1, 6 dB over at 2.
  */
 function filterBiquad(view: DisplayView, sampleRate: number): Biquad {
-  const kind = filterTypeAt(view.value('type'))
   return biquad(
-    kind,
+    filterTypeAt(view.value('type')),
     view.value('frequency'),
     view.value('q'),
     view.value('gain'),
     sampleRate,
-    isCut(kind),
   )
 }
 
@@ -412,22 +411,22 @@ function filterHandles(view: DisplayView): DisplayHandle[] {
       },
     ]
   }
-  const cut = isCut(kind)
+  const cut = isCutFilter(kind)
   return [
     {
       key: 'point',
       name: FILTER_NAMES[kind],
       x,
-      // A cut's point rides the curve: Q is the height of the peak there. The
-      // others are 0 dB (or nothing) at their centre whatever Q is, so their
-      // point shows Q by how high it stands.
+      // A cut's point rides the curve: Q in dB is how high it stands there.
+      // The others are 0 dB (or nothing) at their centre whatever Q is, so
+      // their point shows Q by how high it stands.
       y: cut
-        ? yOfDb(view.value('q'), box, FILTER_DB, -FILTER_DB)
+        ? yOfDb(cutQDb(clamp(view.value('q'), qMin, qMax)), box, FILTER_DB, -FILTER_DB)
         : yOfQ(view.value('q'), box, qMin, qMax),
       drag: (toX, toY) => ({
         frequency: frequency(toX),
         q: cut
-          ? clamp(dbOfY(toY, box, FILTER_DB, -FILTER_DB), qMin, qMax)
+          ? clamp(Math.pow(10, dbOfY(toY, box, FILTER_DB, -FILTER_DB) / 20), qMin, qMax)
           : qOfY(toY, box, qMin, qMax),
       }),
       reset: () => ({
@@ -478,7 +477,7 @@ const filter = plateDisplay({
         zero,
       )
       // The point off the curve is tied to it by a line at its frequency.
-      if (!isCut(kind) && kind !== 'peaking')
+      if (!isCutFilter(kind) && kind !== 'peaking')
         rule(ctx, point.x, zero, point.x, point.y, { colour: colours.ink, alpha: INK.rule })
     })
     handle(frame, point.x, point.y, { hot: frame.hot === point.key })

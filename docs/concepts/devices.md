@@ -40,9 +40,23 @@ the same maths the UI kit, the control surface and the macros use.
 ## Node devices
 
 Stock Web Audio graphs behind `NodeDevice`: every parameter change ramps the
-underlying `AudioParam` over the same 5 ms the WASM bypass crossfades. A new
-node device is a param table plus a `build(context)` returning the chain and
-one applier per param:
+underlying `AudioParam` over the same 5 ms the WASM bypass crossfades. Each is
+held to what its settings say, where the browser's node says something else:
+
+- A `BiquadFilterNode` reads the Q of a low-pass and a high-pass in decibels.
+  A cut's Q is written in decibels (`cutQDb`, `FLAT_CUT_Q_DB`): the
+  `parametric-eq`'s low and high cut and the `delay`'s damping are flat
+  (Butterworth: 3.01 dB down at the corner, never over flat), and the
+  `filter`'s `q` is one number for every shape, 0.707 a flat cut and 2 a peak
+  of 6 dB.
+- A `DynamicsCompressorNode` adds a make-up gain of its own
+  (`compressorNodeMakeupDb`, 3.66 dB at its defaults). The `compressor` takes
+  it off again, so `makeupDb` is all the gain there is: at 0 a sound under the
+  threshold leaves as loud as it came. (The node always gives two channels, so
+  a mono sound leaves it stereo.)
+
+A new node device is a param table plus a `build(context)` returning the chain
+and one applier per param:
 
 ```ts
 import { defineNodeDevice, NodeDevice } from '@kieranklaassen/live-mix'
@@ -222,8 +236,11 @@ Reported only, never delayed: **live-input tracks** (monitoring stays
 immediate; `{ liveInputs: true }` opts in — the offline renderer does), returns
 (sends are post-fader, so a return hears its sources already aligned), plain
 buses, groups, element tracks, and sends themselves. A device's latency counts
-whether or not it is bypassed, so toggling bypass never moves a delay line;
-compensation is capped at `PDC_MAX_DELAY_SECONDS` (1 s) per stage.
+whether or not it is bypassed, so toggling bypass never moves a delay line, and
+a bypassed device plays its dry signal as late as it reports (a node device, a
+WAM plug-in and a rack hold it in a delay, a WASM device in its processor), so
+the bypass never moves the sound either. Compensation is capped at
+`PDC_MAX_DELAY_SECONDS` (1 s) per stage.
 
 ```ts
 const report = engine.latencyReport() // creates no nodes

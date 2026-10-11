@@ -69,6 +69,8 @@ export interface ToggleButtonProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /** Any other `data-*` attribute goes to the button, for a host that marks what a control does. */
+  [data: `data-${string}`]: string | undefined
 }
 
 /** A small pressed/unpressed button (`aria-pressed`), toned for mute, solo, or the accent. */
@@ -83,7 +85,7 @@ export function ToggleButton({
   children,
   className,
   style,
-  'data-testid': testId,
+  ...data
 }: ToggleButtonProps) {
   return (
     <button
@@ -92,7 +94,7 @@ export function ToggleButton({
       aria-label={label}
       title={title}
       disabled={disabled}
-      data-testid={testId}
+      {...data}
       onClick={() => onPressedChange(!pressed)}
       className={cx('lm-button', `lm-button--${tone}`, pressed && 'lm-button--on', className)}
       style={style}

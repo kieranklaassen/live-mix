@@ -38,9 +38,14 @@ describe('deviceLatencySamples', () => {
   it('the node and WASM hosts report both forms consistently', () => {
     const ctx = asAudioContext(createMockContext({ sampleRate: 44100 }))
     const compressor = createCompressor(ctx)
-    expect(compressor.latencySec).toBe(0.006)
-    expect(compressor.latencySamples).toBe(265)
-    expect(deviceLatencySamples(compressor, 44100)).toBe(265)
+    // Whole samples as the browser's node counts them, floor(0.006 · 44100): not the rounded 265.
+    expect(compressor.latencySamples).toBe(264)
+    // And the seconds are those samples, so the two forms never say different things.
+    expect(compressor.latencySec).toBe(264 / 44100)
+    expect(
+      createCompressor(asAudioContext(createMockContext({ sampleRate: 48000 }))).latencySec,
+    ).toBe(0.006)
+    expect(deviceLatencySamples(compressor, 44100)).toBe(264)
     expect(createUtility(ctx).latencySamples).toBe(0)
   })
 
