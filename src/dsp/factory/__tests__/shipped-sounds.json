@@ -1539,6 +1539,26 @@
     "durationSec": 8,
     "loops": false
   },
+  "478": {
+    "id": "house-reverse-crash-one",
+    "durationSec": 2,
+    "loops": false
+  },
+  "479": {
+    "id": "house-reverse-crash-two",
+    "durationSec": 4,
+    "loops": false
+  },
+  "480": {
+    "id": "house-crash-boom",
+    "durationSec": 7,
+    "loops": false
+  },
+  "481": {
+    "id": "house-low-boom",
+    "durationSec": 3,
+    "loops": false
+  },
   "482": {
     "id": "house-falling-sub",
     "durationSec": 4,

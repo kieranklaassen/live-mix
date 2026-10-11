@@ -357,6 +357,8 @@ function vary<T extends VariedPlaying>(
   if (
     !variation ||
     sound.phrase.notes.length === 0 ||
+    // One stroke on a kit has no chord, no pattern and no speed to it: it is its own variant.
+    (sound.kit && sound.phrase.notes.length === 1) ||
     (!VARIATION_KINDS.some((kind) => amount[kind] > 0) && !named)
   ) {
     return { sound, changes: NO_CHANGES }

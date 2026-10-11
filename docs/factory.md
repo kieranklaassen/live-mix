@@ -111,9 +111,33 @@ const audio = await renderPatch(patch, {
 | `loopCrossfadeSec`        | Renders this much more and folds it over the start (equal power): the result loops seamlessly |
 | `loopFold`                | `'linear'` folds at equal amplitude: for a phrase played round again, where the two are alike |
 | `fadeInSec`, `fadeOutSec` | Linear fades at the ends                                                                      |
-| `normalizePeakDb`         | Scales the result to this peak                                                                |
+| `normalizePeakDb`         | Scales the result to this peak, taken as the fades at the ends leave it                       |
+| `gainDb`                  | A fixed gain for a result that is not brought to a peak; `normalizePeakDb` wins over it       |
 | `sliceMs`, `signal`       | Hands the thread back every 12 ms by default so a page stays responsive; aborts on the signal |
 | `describe`, `compile`     | Where device ids are looked up and how a module is compiled (Node reads the files from disk)  |
+
+The level asked for is the level of what is handed back: the peak is taken as
+the fades will leave it (`fadedPeakOf`). A sound that is loudest in its last
+moments, a rise that stops on a bar line, used to come out under its level,
+because its largest sample was one the fade then took down. No sound that
+shipped before is levelled differently: each has its peak clear of its fades.
+`gainDb` is for a result that keeps the level its devices put out, that much
+up or down and nothing else, which is how one part of a kit keeps its place
+under the kick (see [The bank](#the-bank)).
+
+A phrase played round again (`loopFold: 'linear'`, with whole passes skipped
+before the one that is kept) is placed pass by pass on the loop's own frames
+(`Round`): a note is rounded to a frame inside its pass, and every pass starts
+a whole loop of frames after the one before, so the same stroke is the same
+number of frames into every pass. At a tempo where a loop is not a whole
+number of frames (a bar at 126 is 91,428.57 of them at 48 kHz) each stroke
+used to be rounded on its own, the pass folded over the start lay one frame
+off the pass that is kept, and the fold mixed two copies of the first stroke
+a sample apart. On the Club Kit's shaker at 126 that took 1.1 dB off the
+first stroke and 3.2 dB off it between 12 and 20 kHz (4.3 dB there on its
+eighth hats, 3.7 on its ride, and much the same at 140); now the first stroke
+of each measures as it does at 120, to 0.1 dB in every band read, at 124,
+125, 126, 128 and 140. At 120, where a bar is whole frames, nothing changed.
 
 Only WASM devices render this way (`canRenderPatch`): the node devices
 (`delay`, `compressor`, `eq3`, `parametric-eq`, `filter`, `utility`,
@@ -141,11 +165,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                                                                                                                                                                                                                                                 |
-| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Presets** | 1,104 | Twenty for each of the fifty-four stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                            |
-| **Chains**  | 334   | Space (41), echo (42), tape (42), motion (47), texture (66), pitch (66), master (30); every WASM effect is in at least one                                                                                                                                                                                                                             |
-| **Sounds**  | 244   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); and 76 loops of drums (32), glitches (20) and pitched pulses (24). 111 keep time: those 76 and 35 of the bass lines |
+|             | Count | Groups                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ----------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Presets** | 1,124 | Twenty for each of the fifty-five stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| **Chains**  | 334   | Space (41), echo (42), tape (42), motion (47), texture (66), pitch (66), master (30); every WASM effect is in at least one                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| **Sounds**  | 325   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); 76 loops of drums (32), glitches (20) and pitched pulses (24); and 81 for house: on the Club Kit, grooves (12) and layers (24) that come round, fills (6) and single hits (15), then risers, sweeps and booms (12) and chord riffs and bass lines that come round (12). 174 keep time: those 76, 35 of the bass lines, and of the house sounds the grooves, layers, fills and riffs and nine of the risers and sweeps. Fifteen of those end: the fills and those nine |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -173,6 +197,34 @@ lock; see below for other keys. A sound has a catalogue `number` that never chan
 sample id for it is a billion plus the number) and a `kind` that
 `analyzeSound` must agree with, so the list can show the right icon before
 the sound has been rendered.
+
+One part of a kit is not brought to that peak. A sound that says `kitLevel`
+(a layer, a fill, a single hit: a kick alone, a row of hats, a roll of
+snares, one clap) is rendered with one fixed gain, the one that puts its
+kit's hardest kick at the bank's peak (`KIT_LEVEL_DB`, 1 dB for the Club
+Kit, the one kit that has such sounds), so each drum lies under the kick as
+far as the kit has it. With every layer at −6 dBFS a row of hats peaked as
+high as a kick: a deep kick, a snare, swung hats and congas laid over each
+other summed to +0.41 dBFS, with the hats some ten dB over their place, and
+a fill's hardest stroke stood 5 to 10 dB over the clap of the groove it was
+laid on. At the kit's level the same four layers sum to −4.9 dBFS at 96, 120
+and 126, four of the six fills meet the clap of a groove of their own
+character within about 2 dB, and a single hit stands within about half a dB
+of the same drum at the same stroke and length in a layer. These sounds peak
+from −6.1 dBFS (the firm kick on every beat) through −11.9 (the clap) down
+to −20.3 (one stroke of the shaker). So a hat alone is quieter than the
+entry above it in a list, and `sound.kitLevel` says so before anything is
+rendered. The Club Kit's layers, fills and single hits ask for it,
+forty-five sounds; its grooves, each a whole kit, are brought to the peak
+like everything else.
+
+A sound made from one part of a kit (`source`) that says `kitLevel` has no
+kit of its own to take a level from: it is brought to the peak of the part
+it is made from, in whatever key that is. The two reverse crashes are the
+crash hit read backwards in grains, and at the bank's peak their last 50 ms
+stood 10 to 14 dB over the first 50 ms of the crash hit laid where they end;
+at the crash's own peak (−14.2 dBFS at home) the rise is some 8 dB lower and
+the crash carries on from it.
 
 ## The bank in another key
 
@@ -208,13 +260,14 @@ then called.
 
 ## Sounds that keep time
 
-A sound with a beat to it (a drum loop, a pulse, a bass line) has a `bpm`:
-the tempo it is written at, 120 in everything the bank ships. It is a loop of
-whole bars in four (one to eight of them: 2 to 16 s at 120) kept from a bar
-line, every stroke on a grid counted from it (a drum loop starts on the
-downbeat; a bass line that answers on the offbeats starts with a rest; one
-upright bass line is in free time between its bar lines), and it is played
-at any other tempo by moving the notes: nothing is stretched.
+A sound with a beat to it (a drum loop, a pulse, a bass line, a fill, a rise)
+has a `bpm`: the tempo it is written at, 120 in everything the bank ships. It
+is whole bars in four (one to eight of them: 2 to 16 s at 120) kept from a bar
+line, a loop but for the few that end (below), every stroke on a grid counted
+from it (a drum loop starts on the downbeat; a bass line that answers on the
+offbeats starts with a rest; one upright bass line is in free time between
+its bar lines), and it is played at any other tempo by moving the notes:
+nothing is stretched.
 
 ```ts
 import { renderFactorySound, soundAtTempo } from '@kieranklaassen/live-mix/dsp'
@@ -228,19 +281,33 @@ many beats in and as many beats long, the sound as many beats long, and
 `bpm` the tempo it is now at. A drum rings as long as it did, so only what
 lies between the hits changes. An echo's `time` and an LFO's rate in the
 patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, the analog
-delay's wobble, `tremolo`, `auto-filter` and the string machine's ensemble
-speed), so a dotted-eighth echo is one at every tempo; a value the
-control cannot reach is halved or doubled until it can, which is still on
-the beat. A loop's crossfade is never made longer than it is written. The
-tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to 480). A sound
-with no `bpm` is the same sound at every tempo and comes back as the same
-object, so a host can ask every sound for the piece's tempo and key its
-store by `bpm` only where the sound has one.
+delay's wobble, `tremolo`, `auto-filter`, the string machine's ensemble
+speed and the grain synth's `scan`), so a dotted-eighth echo is one at every
+tempo; a value the control cannot reach is halved or doubled until it can,
+which is still on the beat (a scan, which runs forwards or backwards, is
+halved towards rest). A loop's crossfade is never made longer than it is
+written. The tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to
+480). A sound with no `bpm` is the same sound at every tempo and comes back
+as the same object, so a host can ask every sound for the piece's tempo and
+key its store by `bpm` only where the sound has one.
 
 A host that follows a tempo (ambient-live: its own, or an Ableton Link
 session's) renders such a sound again when the tempo has settled and swaps
 it under what plays it; what it painted with the sound is as many beats
 long as before.
+
+Most of what keeps time comes round. A fill or a rise keeps time and ends: a
+`bpm` and no `loopCrossfadeSec`. It is whole bars played once from a bar
+line, with no round played before it and no fold, and it stops on the bar
+line it ends at, where a loop would carry the ring of its last strokes
+round into its first. At another tempo it is as many beats long and
+still ends on its bar line, so a fill laid in the last bar before a change
+is over when the change comes, and a rise is at its top there. What a device
+of its patch does in time follows too: an auto filter that opens once in
+four bars at 120 opens once in four bars at 96, and a grain synth that reads
+a loaded sound through once in the length of a rise does so at every tempo.
+Until these, every sound with a `bpm` was a loop; a host that took `bpm` to
+mean one should ask `loopCrossfadeSec`.
 
 `sounds/rhythm.ts` is what these are written with: `row(key, 'X...x...', {
 per, hold, swing, lateSec })` lays one voice out in steps (`X` loud, `x`,
@@ -251,32 +318,51 @@ loop of that many bars and sets `bpm`. A row shorter than the loop repeats
 to fill it and has to fill it exactly. `inTime(seconds, strokes)` is the same
 for a line written as strokes (`[atSec, durSec, note, gain]`), which a bass
 line is: a note held over a bar line or reaching into the next one, where a
-bass that slides, slides, has no place in a row of steps.
+bass that slides, slides, has no place in a row of steps. `barsOnce(count,
+rows, fadeOutSec?)` and `inTimeOnce(seconds, strokes, fadeOutSec?)` are the
+two for a sound that keeps time and ends: the rows or the strokes played
+once, as long as their bars. A fill is rows; a rise is one key or a chord
+held from its first bar line to its last.
 
 The bank's sounds that keep time are held to this by `time.test.ts`: whole
 bars at 120, the same strokes in every round, kept from a bar line; the same
 strokes on the same beats at 60, 90, 150 and 200; and rendered at 96 as many
-beats long to the frame, at the bank's level, and still round on itself. A
-sound added with a `bpm` is held to it by being there. `renderFactorySound`
-takes the latency such a sound's devices report out of its start
-(`alignLatency` in `renderPatch`: a tape is 415 frames late), so two loops
-laid side by side land together.
+beats long to the frame, at its level (the bank's, or its kit's), and still
+round on itself. One that ends is held to its own form of it: whole bars at
+120 with nothing skipped before them and no fold, every stroke inside them,
+the same strokes as many beats in and as many beats long at those tempos,
+and rendered at 96 as many beats long to the frame, at its level, starting
+and stopping at rest. A sound added with a `bpm` is held to it by being
+there. `renderFactorySound` takes the latency such a sound's devices report
+out of its start (`alignLatency` in `renderPatch`: a tape is 415 frames
+late), so two loops laid side by side land together.
 
 A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
 stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
 `timingSec` a free phrase is given. A sound on a kit has no chord and no
 note it stands on: pattern may rest any of its strokes but the first of a
 pass, its lowest drum too (in a pitched phrase the lowest note always
-sounds), and two neighbouring drums may change places.
+sounds), and two neighbouring drums may change places. Speed plays a round
+at double or half time and leaves a sound that keeps time and ends at its
+own speed: at any other a fill would leave its beats.
 
 ### Kits
 
-Two instruments have things for keys instead of pitches: `drum-kit` and
-`glitch-kit` (`KIT_INSTRUMENTS`, `isKitInstrument`). Each of the twelve keys
-of an octave is one drum (every C the kick, every D the snare) or one fault
-(a click, a pop, a cut of noise), the octave it is played in tunes it, and a
-hit is a one-shot that note-off does not end (`cpp/kit/keymap.h`). `KIT` and
-`FAULT` in `rhythm.ts` name the keys.
+Three instruments have things for keys instead of pitches: `drum-kit`,
+`glitch-kit` and `club-kit` (`KIT_INSTRUMENTS`, `isKitInstrument`). Each of
+the twelve keys of an octave is one drum (every C the kick, every D the
+snare) or one fault (a click, a pop, a cut of noise), the octave it is played
+in tunes it, and a hit is a one-shot that note-off does not end
+(`cpp/kit/keymap.h`). `KIT`, `CLUB` and `FAULT` in `rhythm.ts` name the keys.
+
+The Club Kit has its kick, snare, rim, hats, shaker and clap on the keys
+where the Drum Kit has them, and a crash, a ride, a cowbell and two congas
+where the Drum Kit has its sub, brush, tick and toms (C#, D#, A#, A and B),
+so a row written for one kit's kick and hats plays on the other, and a row
+of toms does not. Everything of it with a pitch is on a white key with
+`tune` at 0, the kick on G (F in its deep character), the congas on G and D,
+the cowbell on D and A, and its `tune` follows the key as the other kits'
+does (`PITCHED_PARAMS` in `key.ts`).
 
 A sound played on a kit is marked `kit` by `sound()`, and
 `transposeFactorySound` leaves its notes where they are (the kick stays the
@@ -347,9 +433,10 @@ variant, always the same one. There are four kinds of difference
 for every kind that is not given one. At 0 in every kind, or without a
 variation, the sound itself comes back, the same object, so nothing about its
 render changes; so does a sound a kind has nothing to work on (the speed of a
-held chord). A host that keeps the seed and the amounts beside the sound's id
-has kept the variant. A new kind is a new name in `VARIATION_KINDS` and a
-stretch of `vary.ts`; what the others give for a seed does not move.
+held chord, or of a fill, which keeps time and ends). A host that keeps the
+seed and the amounts beside the sound's id has kept the variant. A new kind
+is a new name in `VARIATION_KINDS` and a stretch of `vary.ts`; what the
+others give for a seed does not move.
 
 What each kind changes, in proportion to its amount (`VARIATION_LIMITS` is
 what an amount of 1 allows):
@@ -481,18 +568,56 @@ keys moves by a point or two under the touch, but for the gong wash, grains
 of a source with no clear pitch: 10 to 41 % from one variant to the next, on
 the same held note, as its grains fall.
 
+One drum struck once does not vary at all. A sound on a kit has no chord and
+is not detuned, its one stroke is its first moment, which stays where it is,
+and the gain of a lone note comes back to itself, because the hardest note
+of a variant is as hard as the sound's hardest. So a kit sound of one stroke
+(each single hit of the Club Kit) is its own variant at every seed and
+amount: `vary.test.ts` passes it by where it asks that another seed give
+another phrase, and the bench says `SAME` on every variant of one.
+
 ## What the bank is held to
 
 `src/dsp/factory/__tests__/factory.test.ts` renders every entry with the
 committed modules and fails the build when one leaves these limits:
 
-| Entry  | Rule                                                                                                                                                                                                 |
-| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description of at most 140 characters, every device, preset and value valid                 |
-| Bank   | Twenty presets per instrument, twenty chains per group, two presets per category, every WASM effect used somewhere, no two presets and no two chains set exactly alike                               |
-| Preset | Raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, side no louder than mid, no DC offset; no two presets of one instrument within 1 dB of each other in sound            |
-| Chain  | On the dry phrase: peak at or below −5 dBFS, within 4 LU of the dry input, no DC offset, and it changes the sound                                                                                    |
-| Sound  | 2 to 32 s, peak at −6 dBFS, not near-silent, `analyzeSound` gives its `kind`, a name of at most 24 characters in every key, a loop comes round on itself, a sound that ends starts and stops at rest |
+| Entry  | Rule                                                                                                                                                                                                                                          |
+| ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All    | Kebab-case id unique across presets and chains, name of at most 24 characters and unique, a one-sentence description of at most 140 characters, every device, preset and value valid                                                          |
+| Bank   | Twenty presets per instrument, twenty chains per group, two presets per category, every WASM effect used somewhere, no two presets and no two chains set exactly alike                                                                        |
+| Preset | Raw preview peak at or below −8 dBFS, loudest 400 ms between −30 and −22 dBFS, side no louder than mid, no DC offset; no two presets of one instrument within 1 dB of each other in sound                                                     |
+| Chain  | On the dry phrase: peak at or below −5 dBFS, within 4 LU of the dry input, no DC offset, and it changes the sound                                                                                                                             |
+| Sound  | 2 to 32 s, peak at −6 dBFS or at its kit's level, not near-silent, `analyzeSound` gives its `kind` or cannot be asked, a name of at most 24 characters in every key, a loop comes round on itself, a sound that ends starts and stops at rest |
+
+One part of a kit (`kitLevel`) is held to its kit's level in place of the
+peak (`atItsLevel` in `sound-measure.ts`): never more than a dB over
+−6 dBFS, where the kit's hardest kick is, and no more than 20 dB under it,
+which is room for a ghost of a shaker. It may be as quiet as −50 LUFS, where
+every other sound is held over −40 (`quietestLufs`). `time.test.ts` and
+`vary.test.ts` ask the same level of it at another tempo and of its
+variants. `kit-level.test.ts` holds what the level is for: every sound that
+says `kitLevel` is played on a kit that has one (`KIT_LEVEL_DB`) or is made
+from a sound that is, a reverse crash peaks where its crash does, the firm
+kick on every beat peaks within half a dB of the bank's peak with the clap
+4 to 8 dB under it and the sixteenth hats 9 to 13, the hats peak the same at
+96, and a kick, a clap, sixteenth hats and offbeat open hats laid over each
+other peak between −7.5 and −3 dBFS.
+
+The analysis cannot be asked about every beat. It holds the hits it hears to
+a straight grid and wants four of them before it says `beat`, so it reads no
+tempo from swung sixteenths (it still reads one at a swing of 0.06 of a
+step, 7.5 ms at 120, and none from 0.08; the bank's swung rows are at 0.2),
+from a roll in thirty-seconds, or from one crash in four bars, and it calls
+such a sound a texture, a phrase or a one-shot. So a sound on a kit that
+keeps time, with a stroke written more than 2 ms off a straight sixteenth
+or with fewer than four hits in a round, is a beat by the bank's word
+(`beatTheAnalysisLoses`): where the analysis gives another kind for one, the
+test asks only that the bank says `beat`. Eight sounds lean on it, all on
+the Club Kit: two grooves with swung hats (403, 408), the swung hats, the
+swung shaker, the swung tops and the one crash in four bars (423, 425, 433,
+436), and the two fills that end in thirty-seconds (438, 441). `sound.kind`
+is right for them; a host that runs `analyzeSound` on the render gets the
+other answer and no tempo.
 
 How a sound starts, ends and wraps is held to the measure a host enters and
 leaves a clip by (`src/core/clips/seam.ts`): a loop `comesRound` (its last
@@ -583,7 +708,12 @@ phrases −24 to −13, beats −36 to −13: a line on a grid reads as a beat, 
 so do a few clicks with silence between them), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
 24 characters in some key), `SLOW` (over 12 % of real time), `SEAM`, `FOLD`
 (over 1.5 dB), `STEP-IN`, `CUT`, `LATE`. They are prompts and not rules:
-`FOLD` on waves that are between two swells at the wrap is the waves.
+`FOLD` on waves that are between two swells at the wrap is the waves. A beat
+the analysis cannot be asked about (`beatTheAnalysisLoses`) is printed with
+both words, `kind texture (says beat)`, and no `KIND`; a line of `keys`,
+which ends in `(WRONG)` where the kind found in that key is not the sound's,
+says the same for one in every key. One part of a kit (`kitLevel`) is
+`QUIET` under the −50 LUFS it is held to and not under the band of its kind.
 
 `peak` is the sample peak, `lufs` BS.1770 integrated loudness, `loudest` the
 RMS of the loudest 400 ms, `attack` the time to within 6 dB of the loudest
@@ -630,6 +760,20 @@ in order in `index.ts`:
 | `beats-drums.ts`       | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
 | `beats-glitch.ts`      | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
 | `beats-pulses.ts`      | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
+| `club-grooves.ts`      | 401 to 412 | Whole grooves on the Club Kit that keep time: a kick on every beat and what goes over it           |
+| `club-layers.ts`       | 413 to 436 | One part of a groove alone on the Club Kit, to stack: kicks, claps, hats, congas, tops, a crash    |
+| `club-fills.ts`        | 437 to 442 | Fills on the Club Kit, a bar or two that keep time and end on a bar line                           |
+| `club-hits.ts`         | 451 to 465 | One drum of the Club Kit struck once: the twelve drums, a deep kick, and two in a hall             |
+| `house-lifts.ts`       | 471 to 482 | Risers and sweeps that keep time and end on a bar line, and impacts for the beat after a build     |
+| `house-riffs.ts`       | 491 to 502 | Chord riffs on three progressions and bass lines for under them, four bars that come round         |
+
+The last six are the house sounds, 81 made to be laid together at one
+tempo: a groove or a stack of layers, a riff and its bass line, a fill in
+the last bar before a change, a riser into it and an impact on the beat
+after. The layers, fills and hits keep the kit's own level (`kitLevel`, see
+[The bank](#the-bank)), so they are balanced against each other as they
+come; a groove, a riff or a riser is at the bank's peak like any other
+sound.
 
 `recipe.ts` has what a recipe is written with:
 
@@ -646,7 +790,11 @@ in order in `index.ts`:
   is to loop. No stroke may start in the last crossfade of the round, and it
   costs every round it renders: `passes: 1` is three rounds for one kept.
   An instrument whose restruck note adds to what still rings of it (the
-  handpan) needs `passes: 2` before a round is like the next.
+  handpan) needs `passes: 2` before a round is like the next. The rounds
+  are laid on whole frames of the loop, a stroke as many frames into each,
+  so the fold meets like with like at a tempo where a round is not a whole
+  number of frames (see
+  [Rendering without an audio context](#rendering-without-an-audio-context)).
 - `weather(...)`, `bells(...)`: the atmosphere device and the bell
   instruments as the first thirty-four set them.
 
@@ -682,7 +830,7 @@ on, so whatever instrument is loaded, every pack has something for it.
 
 An instrument that comes after the packs shipped is not asked of them
 (`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
-two kits, the four bass instruments and the thirteen invented ones from
+three kits, the four bass instruments and the thirteen invented ones from
 `flock` on): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
@@ -1378,6 +1526,80 @@ As reported:
     says nothing between a bass and anything else; among basses of different
     instruments the nearest pairs are 1.1 dB apart, which the rule (one
     instrument at a time) allows.
+- Found while the house sounds were added (the Club Kit, its twenty presets
+  and 81 sounds), and worked round in the sounds or left as it is, not fixed:
+  - `analyzeSound` away from 120, where the bank's tests ask for a kind: the
+    rim in three, three and two (431) reads as a phrase with no tempo at 126
+    and at 140; the piano riff (491), whose stabs make a dotted eighth the
+    pulse it finds, is a beat up to 120 and a phrase at 122 to 128 in every
+    key; the clap roll fill (440), in which no two claps are a beat apart,
+    is a one-shot from 121 to 160; the organ, tine, pluck and late night
+    riffs (492, 493, 496, 498) are phrases at 60 or from 160 up; the clap
+    and the snare on two and four (416 to 418) are a beat at half the tempo
+    at 126 and 140. Each is what its name says at every tempo: what moves is
+    the reading.
+  - The first stroke of a loop is on its first sample, where the analysis
+    counts no onset: it finds fifteen hits for sixteen in the shakers and
+    three of the tops (424, 425, 432, 433, 435). The stroke is there and as
+    loud as its mark.
+  - The Club Kit plays a stroke at a level of 0.25 plus 0.75 times its gain,
+    so its softest stroke is 12 dB under its hardest and the marks `o` and
+    `-` of a row are 2 and 5 dB under an `x`. The ghost snares of two grooves (404, 410) are
+    struck softer than the marks go, at gains of 0.2 and 0.05, and lie 7 and
+    10 dB under the clap; a variant's gain stops at 0.02.
+  - Every groove peaks at −6 dBFS, and a long deep kick carries more under
+    one peak than a short bright one: the twelve grooves are 6.3 LU apart at
+    120, the three on the deep kit the loudest (−20.6 to −20.8 LUFS) and the
+    rim and shaker groove on the bright kit the quietest (−27.0), fifteen of
+    the 66 pairs more than 4 LU apart. At the kit's own level they would be 4.5 LU
+    apart, with four of them over what one part of a kit may peak at and two
+    in a room of their own, so they are whole sounds at the bank's peak.
+  - Two fills stay over a groove at the kit's level: the hat stutter (441)
+    5 to 9 dB over the hats of a groove of its own character and the kick
+    and snare fill (442) 4 to 7 dB over its clap or rim. That is the kit's
+    balance and their marks, hats at `X` where a groove has `o`. The clap
+    roll (440) starts on beat two, which the bench calls `LATE`, and at 140
+    its last clap is only 22.6 dB down when the fade starts: the fade ends
+    it.
+  - A rise stops at its loudest, so the bench says `CUT` of the seven that
+    rise (471 to 475, 478, 479: the last 50 ms, fade and all, are 11 to
+    14 dB under the peak), and `OFFKEY` of the two sweeps down and the
+    falling sub (476, 477, 482): noise has no key and a slide passes every
+    one. The loudest 50 ms of a noise riser ends 18 to 115 ms before the
+    sound does (254 ms for the four-bar band at 96) and that of the chord
+    riser (475) up to half a second before, by key; the last 50 ms are
+    within 2.2 dB of it in all of them.
+  - A single hit is mostly silence: the rim, the closed hat and the shaker
+    are 45 to 80 ms of drum in the two seconds a sound is at least. Under
+    the long kick (465) the hall has low resonances of its own that do not
+    move with the key (44 to 75 Hz, 12 to 25 dB under the kick's note): 73
+    to 92 % of the tail's power is within 50 cents of the note in every key
+    and its strongest line up to 19 cents off it.
+  - Echo and plate behind a kit: no stock echo that follows the tempo
+    filters its first repeat (`tape-echo`'s low cut is in its feedback
+    path), so a kick on every beat comes back whole once, 17.3 dB over a
+    rim's first repeat on a dotted eighth, with the low cut at 120 Hz and
+    at 800 Hz alike. The dub echo groove (409) writes its four echoes as
+    strokes of the rim, each softer; the preset "Dub echo kit" has the kick
+    in its first repeat, 9.4 dB under the hit like every other drum, and
+    26 dB further down from the second. `plate-reverb` has no low cut:
+    behind a whole kit the kick's tail is the loudest thing in it, and the
+    clap and the snare lead only above 300 Hz.
+  - The riffs: the organ, the pad and the string stabs (492, 494, 497) do
+    not play the same wave twice (oscillators that run free, an ensemble),
+    so they are folded at equal power, and laid end to end they differ from
+    the next round played straight only 30 dB or more under their loudest.
+    With two sawtooths running free at equal level a written note of the
+    dub chords (495) cancelled for a whole stab in some keys and tempos (a
+    fundamental over 20 dB down in 14 of 72 stabs), so it and the pad set
+    `oscMix` to 0.25. The string stabs have their weakest note over 12 dB
+    under in 10 of 144 bars and none gone. The tine chords (493) leave three
+    of their four roots to the bass, and the rolling bass (500) steps into
+    each next root on its last eighth, 29 of 32 notes a root or a fifth. The
+    piano riff and the pumping pad are the dearest of the 81, 10.3 and 9.2 %
+    of real time as the bench reads them (the piano 9.0 % in CPU time).
+  - The variants bench flags 41 of 48 variants of the layers at an amount of
+    1, `KIND` on most of them.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,

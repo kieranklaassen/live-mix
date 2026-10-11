@@ -130,11 +130,14 @@ export interface FactorySound {
    */
   kit?: true
   /**
-   * For one part of a kit (a layer, a single drum): played at the kit's own
+   * For one part of a kit (a layer, a fill, a single drum): played at the kit's own
    * level and not brought to the bank's peak (`KIT_LEVEL_DB` in ./kits.ts).
    * A hat is then as far under a kick as the kit has it, so a kick, a clap
    * and a row of hats laid over each other are balanced as one kit, and a
-   * hat alone is quieter than a sound of the bank is otherwise.
+   * hat alone is quieter than a sound of the bank is otherwise. On a sound
+   * made from such a part (`source`): brought to the peak of that part and
+   * not to the bank's, so a swell made from a crash ends as loud as the crash
+   * starts.
    */
   kitLevel?: true
   /**

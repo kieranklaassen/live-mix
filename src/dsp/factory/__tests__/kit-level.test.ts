@@ -23,9 +23,14 @@ const peakDb = async (sound: FactorySound, bpm?: number): Promise<number> =>
 describe('a sound at its kit level', () => {
   const kept = FACTORY_SOUNDS.filter((sound) => sound.kitLevel)
 
-  it('is one part of a kit that has a level of its own', () => {
+  it('is one part of a kit that has a level of its own, or is made from one', () => {
     expect(kept.length).toBeGreaterThan(0)
     for (const sound of kept) {
+      // A sound made from a part of a kit takes that part's peak: the part is what keeps the level.
+      if (sound.source !== undefined) {
+        expect(factorySound(sound.source)?.kitLevel, sound.id).toBe(true)
+        continue
+      }
       expect(sound.kit, sound.id).toBe(true)
       expect(typeof sound.patch, sound.id).toBe('object')
       if (typeof sound.patch === 'string') continue
@@ -43,6 +48,12 @@ describe('a sound at its kit level', () => {
     expect(kick - clap).toBeLessThan(8)
     expect(kick - hats).toBeGreaterThan(9)
     expect(kick - hats).toBeLessThan(13)
+  }, 60000)
+
+  it('made from a part of a kit, peaks where that part does', async () => {
+    const crash = await peakDb(named('club-crash-hit'))
+    expect(crash).toBeLessThan(FACTORY_PEAK_DB - 5)
+    expect(Math.abs((await peakDb(named('house-reverse-crash-one'))) - crash)).toBeLessThan(0.1)
   }, 60000)
 
   it('is as loud at another tempo: the same strokes at the same level', async () => {

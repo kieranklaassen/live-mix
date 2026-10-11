@@ -5,7 +5,7 @@
 
 import { type PatchCategory } from '../../core/devices/patch'
 import { type PlanarAudio } from '../../core/render/encode'
-import { renderPatch, type RenderPatchOptions } from '../patch-render'
+import { peakOf, renderPatch, type RenderPatchOptions } from '../patch-render'
 import { FACTORY_CHAINS } from './chains'
 import { type GeneratedSound } from './generate'
 import { transposePatch, transposePhrase, transposeWords } from './key'
@@ -292,6 +292,12 @@ export function soundAtTempo(sound: FactorySound, bpm: number | undefined): Fact
   }
 }
 
+/** The peak of audio in dBFS, and the bank's peak for silence, which has none. */
+function peakDbOf(audio: PlanarAudio): number {
+  const peak = peakOf(audio.channels)
+  return peak > 0 ? 20 * Math.log10(peak) : FACTORY_PEAK_DB
+}
+
 /**
  * Render a factory sound: its phrase on its patch, looped without a seam
  * when the recipe asks for it, in the bank's own key or `transpose`
@@ -310,8 +316,12 @@ export async function renderFactorySound(
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
-  const lift = inKey.kitLevel ? KIT_LEVEL_DB[patch.instrument?.deviceId ?? ''] : undefined
-  if (inKey.kitLevel && lift === undefined)
+  // A sound made from one part of a kit (a swell of the crash) has no kit of its own to take a
+  // level from: it is brought to the peak of the part it is made from.
+  const fromPart = Boolean(inKey.kitLevel) && sound.source !== undefined
+  const lift =
+    inKey.kitLevel && !fromPart ? KIT_LEVEL_DB[patch.instrument?.deviceId ?? ''] : undefined
+  if (inKey.kitLevel && !fromPart && lift === undefined)
     throw new Error(`live-mix: factory sound "${sound.id}" keeps the level of a kit that has none`)
   let sample = render.sample
   if (sound.source !== undefined) {
@@ -341,8 +351,11 @@ export async function renderFactorySound(
     // A sound that keeps time is laid beside others that do: what its devices delay it by is taken out.
     alignLatency: inKey.bpm !== undefined,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
-    // One part of a kit keeps the kit's balance; everything else is brought to the bank's peak.
-    ...(lift === undefined ? { normalizePeakDb: FACTORY_PEAK_DB } : { gainDb: lift }),
+    // One part of a kit keeps the kit's balance, and a sound made from one ends up as loud as
+    // that part; everything else is brought to the bank's peak.
+    ...(lift !== undefined
+      ? { gainDb: lift }
+      : { normalizePeakDb: fromPart && sample ? peakDbOf(sample) : FACTORY_PEAK_DB }),
   })
 }
 

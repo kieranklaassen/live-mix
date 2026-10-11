@@ -27,7 +27,7 @@ import { type PatchDevice } from '../../../core/devices/patch'
 import { hall } from '../parts'
 import { type FactorySound } from '../types'
 import { played, sound } from './recipe'
-import { BAR_SEC, inTimeOnce } from './rhythm'
+import { BAR_SEC, CLUB, inTimeOnce } from './rhythm'
 
 type Params = Readonly<Record<string, number>>
 
@@ -242,8 +242,157 @@ const SWEEPS_DOWN: readonly FactorySound[] = [
   }),
 ]
 
+// The crash played backwards into a bar line: the single crash (number 460, ./club-hits.ts) loaded
+// into the grain synth, whose Scan is how many seconds of the loaded sound a key travels in a
+// second, backwards when it is negative, and follows the tempo (../tempo.ts). A key that starts
+// `readSec` into the crash and scans at minus `readSec` over the length of the sound stands at the
+// start of the crash on the last sample, at any tempo.
+//
+// Each grain still plays forwards, a tenth of a second of the crash under a bell, sixteen at a
+// time, and each starts a little earlier in the crash than the one before. So this is the crash's
+// level and colour in reverse, not its samples: the end of the sound is the first 125 to 150 ms of
+// the crash at full density, and the stick's own largest sample (1.8 ms in) is not there, since a
+// grain reads it a millisecond or so after it starts, at the foot of its bell. Grains that play
+// backwards do no better: at the end they are reading from a grain's length in down to a part of
+// it, and never reach the start. Grains of 20 ms with flat tops carry the stick at a quarter of
+// its size, one grain in sixteen, and measured some 3 dB quieter under the same peak at 120.
+//
+// Only the first second of the crash is read. It is 34 dB down by then and 60 dB down a second
+// later: a sound that read two seconds came within 40 dB of its peak half a second to over a
+// second in. With one second the first 30 ms are 23 to 35 dB under the peak and the level climbs
+// 21 to 30 dB from the first tenth of the sound to the last, more in the high keys, where the
+// crash is shorter (twelve keys at 96, 120 and 140). What does not climb is the brightness: the
+// crash is one colour as it dies away.
+//
+// The grains are detuned by up to 30 cents. Without that the analysis read up to 0.48 for how
+// tonal the cloud is, where 0.5 makes it a pad; with it 0.21 to 0.31. The fade out is 5 ms, which
+// leaves the last 20 ms 11 to 15 dB under the largest sample, where the crash's first 20 ms are 14
+// under its own. The largest sample is one moment of a cloud of grains, so the loudness under it
+// moves a few dB from one tempo or key to the next: -23.4 to -19.3 LUFS over the twelve keys at
+// those tempos and 22 tempos in the home key.
+
+/** The crash struck once is this long, and this key plays it as it is. */
+const CRASH_SEC = 4
+const AS_IT_IS = 60
+
+/** The grain synth going backwards through the first `readSec` seconds of the crash in `bars` bars. */
+const backwards = (bars: number, readSec: number): PatchDevice => ({
+  deviceId: 'grain-synth',
+  params: {
+    position: readSec / CRASH_SEC,
+    scan: -readSec / (bars * BAR_SEC),
+    size: 100,
+    density: 16,
+    spray: 0,
+    detune: 30,
+    octaves: 0,
+    shape: 0,
+    reverse: 0,
+    attack: 0.005,
+    release: 0.05,
+    // The crash's own two sides, and none of the synth's low-pass.
+    spread: 0,
+    tone: 18000,
+  },
+})
+
+const REVERSE_CRASHES: readonly FactorySound[] = [
+  sound({
+    id: 'house-reverse-crash-one',
+    number: 478,
+    name: 'Reverse crash, one bar',
+    kind: 'texture',
+    description:
+      'The club crash read backwards in grains, a hiss of cymbal that swells for one bar and stops on the bar line, for a house build.',
+    source: 'club-crash-hit',
+    // As loud as the crash it is made from, so the crash laid where it ends carries on from it.
+    kitLevel: true,
+    instrument: backwards(1, 1),
+    effects: [],
+    ...inTimeOnce(BAR_SEC, [[0, BAR_SEC, AS_IT_IS, 0.8]], 0.005),
+  }),
+  sound({
+    id: 'house-reverse-crash-two',
+    number: 479,
+    name: 'Reverse crash, two bars',
+    kind: 'texture',
+    description:
+      'The club crash read backwards in grains at half the speed, a slow swell of cymbal over two bars to the bar line, for a house build.',
+    source: 'club-crash-hit',
+    // As loud as the crash it is made from, so the crash laid where it ends carries on from it.
+    kitLevel: true,
+    instrument: backwards(2, 1),
+    effects: [],
+    ...inTimeOnce(2 * BAR_SEC, [[0, 2 * BAR_SEC, AS_IT_IS, 0.8]], 0.005),
+  }),
+]
+
 // Impacts: not timed, they end when they have rung out.
+//
+// The two on the Club Kit are its deep kick with Length at three and four, so that the boom is the
+// kick's own ring, on the kick's note in every key. A hall cannot hold that note: its low
+// resonances stand where its size puts them (36.4, 40.2 and 44.2 Hz were the strongest found), and
+// a kick left to ring in one rings on at the nearest of them. With the hall's lows four seconds
+// long, 6 to 34 % of the low end of the tail was on the note and its strongest line was up to 190
+// cents off. So the hall here is a second long under its Crossover and is there for the width and
+// for the crash. From half a second to two seconds in, 78 to 96 % of what each has between 20 and
+// 300 Hz is on the note, its octave and its twelfth in all twelve keys, and the strongest line
+// after that is within 2 cents of the note.
+const DEEP = 1
+const HARD = 1
+
 const BOOMS: readonly FactorySound[] = [
+  sound({
+    id: 'house-crash-boom',
+    number: 480,
+    name: 'Crash and boom',
+    kind: 'oneshot',
+    description:
+      'The deep club kick and the crash struck together and driven hard in a hall, a low boom under a long wash of cymbal, after a house build.',
+    // Drive at the top holds the kick where it is and brings what is quieter up under it. The first
+    // second is the kick's and what follows is the crash's, 60 dB down four to five and a half
+    // seconds in. The hall is a second long under 600 Hz, well over the kick.
+    instrument: {
+      deviceId: 'club-kit',
+      params: { kit: DEEP, length: 3, drive: 1, variation: 0 },
+    },
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Hall',
+        params: { preDelay: 20, crossover: 600, lowDecay: 1, midDecay: 4, mix: 0.25 },
+      },
+    ],
+    ...played(7, [
+      [0, 0.1, CLUB.kick, HARD],
+      [0, 0.1, CLUB.crash, HARD],
+    ]),
+  }),
+  sound({
+    id: 'house-low-boom',
+    number: 481,
+    name: 'Low boom',
+    kind: 'oneshot',
+    description:
+      'The deep club kick at its longest, struck and driven hard, a low note that booms for nearly two seconds in a dark hall, after a house build.',
+    // Punch at the top is the deepest fall in pitch and the hardest start. Beside the kit's own
+    // long kick (number 465, the same drum at this Length in a hall of lows three seconds long),
+    // this one is driven, about 4 LU louder as the bank renders the two, on its note to the cent
+    // where that one's strongest line is up to 19 cents off, and in the home key 60 dB down 0.65 s
+    // sooner.
+    instrument: {
+      deviceId: 'club-kit',
+      params: { kit: DEEP, length: 4, punch: 1, drive: 1, variation: 0 },
+    },
+    effects: [
+      {
+        deviceId: 'hall-reverb',
+        preset: 'Dark hall',
+        params: { preDelay: 20, crossover: 300, lowDecay: 1, mix: 0.4 },
+      },
+    ],
+    ...played(3, [[0, 0.1, CLUB.kick, HARD]]),
+  }),
   sound({
     id: 'house-falling-sub',
     number: 482,
@@ -282,5 +431,6 @@ export const HOUSE_LIFTS: readonly FactorySound[] = [
   ...NOISE_RISERS,
   ...CHORD_RISERS,
   ...SWEEPS_DOWN,
+  ...REVERSE_CRASHES,
   ...BOOMS,
 ]
