@@ -1464,6 +1464,88 @@ int main() {
     EXPECT(off < 0.15, "the mono sum loses what the sides' ceiling says, in every quarter second");
   }
 
+  // 25. Starting is the same as waking. The phrase through "Wide but safe"
+  // from a fresh start with the preset just set, and again after a burst of
+  // noise and a second and a half of silence with no knob touched: the same
+  // samples. (A knob set before the first sound left Safe's ears quick for
+  // the first tenth of a second, as after a knob moved while sounding, and
+  // a wake did not: the two differed by 0.009 on a phrase that peaks at 0.3.)
+  {
+    const Stereo phrase = bank_phrase(3.0f);
+    load_preset(device, preset_named("Wide but safe"));
+    const Stereo fresh = run(device, phrase.left, phrase.right);
+    load_preset(device, preset_named("Wide but safe"));
+    rng_state() = 0x51EEu;
+    run(device, noise(0.5f, kRate, 0.3f));
+    run(device, silence(1.5f, kRate));
+    const Stereo woken = run(device, phrase.left, phrase.right);
+    EXPECT(fresh.left == woken.left && fresh.right == woken.right,
+           "a start with the knobs just set is the same as waking after a silence");
+  }
+
+  // 26. Safe's times are times at every sample rate: a mono chord for a
+  // second, then noise with as much sides as middle at the same level,
+  // through the device as it starts at 44.1, 48 and 96 kHz. The gain is
+  // within 1 dB of where it ends at the same moment to 15 ms; and with the
+  // two the other way round it is halfway back at the same moment to 0.1 s.
+  {
+    double arrived[3], halfway[3], depth[3];
+    int n = 0;
+    for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+      const size_t total = static_cast<size_t>(6.0f * rate), cut = static_cast<size_t>(1.0f * rate);
+      Stereo chord, hiss;
+      chord.left = sine(220.0f, 6.0f, rate, 0.1f);
+      const std::vector<float> fifth = sine(329.63f, 6.0f, rate, 0.1f);
+      for (size_t i = 0; i < total; ++i) chord.left[i] += fifth[i];
+      chord.right = chord.left;
+      rng_state() = 0x4155u;
+      hiss.left = noise(6.0f, rate, 0.17f);
+      hiss.right = noise(6.0f, rate, 0.17f);
+      for (int way = 0; way < 2; ++way) {
+        device.init(rate);
+        const Stereo& first = way == 0 ? chord : hiss;
+        const Stereo& then = way == 0 ? hiss : chord;
+        std::vector<float> held(total);
+        for (size_t i = 0; i < total; ++i) {
+          device.in_left()[0] = i < cut ? first.left[i] : then.left[i];
+          device.in_right()[0] = i < cut ? first.right[i] : then.right[i];
+          device.process(1);
+          held[i] = device.meter(0);
+        }
+        const double before = held[cut - 1], end = held[total - 1];
+        if (way == 0) {
+          depth[n] = end;
+          size_t within = cut;
+          for (size_t i = total; i-- > cut;) {
+            if (std::fabs(held[i] - end) > 1.0) {
+              within = i + 1;
+              break;
+            }
+          }
+          arrived[n] = static_cast<double>(within - cut) / rate;
+        } else {
+          size_t half = total;
+          for (size_t i = cut; i < total; ++i) {
+            if (held[i] > 0.5 * (before + end)) {
+              half = i;
+              break;
+            }
+          }
+          halfway[n] = static_cast<double>(half - cut) / rate;
+        }
+      }
+      ++n;
+    }
+    std::printf("Safe at 44.1, 48 and 96 kHz: takes hold (%.1f, %.1f, %.1f dB) within 1 dB after %.0f, %.0f, %.0f ms; halfway back after %.2f, %.2f, %.2f s\n",
+                depth[0], depth[1], depth[2], 1000.0 * arrived[0], 1000.0 * arrived[1], 1000.0 * arrived[2],
+                halfway[0], halfway[1], halfway[2]);
+    EXPECT(depth[1] < -3.0, "as it starts Safe holds noise with as much sides as middle");
+    EXPECT(std::fabs(arrived[0] - arrived[1]) < 0.015 && std::fabs(arrived[2] - arrived[1]) < 0.015,
+           "Safe takes hold in the same time at every sample rate");
+    EXPECT(std::fabs(halfway[0] - halfway[1]) < 0.1 && std::fabs(halfway[2] - halfway[1]) < 0.1,
+           "Safe lets go in the same time at every sample rate");
+  }
+
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);

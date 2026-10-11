@@ -391,7 +391,9 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       default:
         break;
     }
-    if (id != kOutput) quick_ = quick_samples_;
+    // A knob moved while sound runs is answered at once. Asleep there is nothing
+    // to answer, and the next note is held as a note after any silence is.
+    if (id != kOutput && glide) quick_ = quick_samples_;
     if (!glide) land();
   }
 
