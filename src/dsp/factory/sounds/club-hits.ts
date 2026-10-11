@@ -6,6 +6,15 @@
 // The stroke is at the very start and is the plain stroke of a row (`x`, 0.8), and each sound is as long
 // as its drum needs to ring out, two seconds at the least.
 //
+// The three kicks alone are struck at the accent (`X`, 1), as the grooves strike theirs
+// (./club-grooves.ts). The kit makes a harder stroke louder and brighter, with a deeper fall and more
+// click: at the plain stroke the firm kick is a duller kick than any groove's, up to 3 dB apart in a
+// third-octave band at the same peak, and as the kit puts them out a kick at the plain stroke is
+// 1.5 dB (deep) and 1.9 to 2.7 dB (firm) under the kick of a groove struck at the accent. At the
+// accent the firm kick is the kick of the groove that leaves Punch and Snap alone, sample for sample,
+// and the deep kick comes out of the kit within 0.1 dB of the kick of the two deep grooves that
+// strike theirs at the accent, with more click than theirs.
+//
 // A kit's notes stay where they are when the key of a piece moves and its `tune` moves instead. `tune`
 // is 0 here, where every drum with a pitch is on a white key.
 
@@ -20,6 +29,8 @@ const DEEP = 1
 
 /** The plain stroke of a row of steps: what `x` is in ./rhythm.ts. */
 const STROKE = 0.8
+/** The accent of a row of steps: what `X` is. */
+const ACCENT = 1
 
 const kit = (params: Readonly<Record<string, number>>): PatchDevice => ({
   deviceId: 'club-kit',
@@ -27,8 +38,8 @@ const kit = (params: Readonly<Record<string, number>>): PatchDevice => ({
 })
 
 /** One stroke of one drum at the very start of a sound `seconds` long. */
-const hit = (seconds: number, drum: number): ReturnType<typeof played> =>
-  played(seconds, [[0, 0.1, drum, STROKE]])
+const hit = (seconds: number, drum: number, gain = STROKE): ReturnType<typeof played> =>
+  played(seconds, [[0, 0.1, drum, gain]])
 
 export const CLUB_HITS: readonly FactorySound[] = [
   sound({
@@ -40,7 +51,7 @@ export const CLUB_HITS: readonly FactorySound[] = [
       'The firm kick of the club kit, a sine falling fast onto a low note through a waveshaper, with a click.',
     instrument: kit({ kit: FIRM }),
     effects: [],
-    ...hit(2, CLUB.kick),
+    ...hit(2, CLUB.kick, ACCENT),
   }),
   sound({
     id: 'club-deep-kick-hit',
@@ -51,7 +62,7 @@ export const CLUB_HITS: readonly FactorySound[] = [
       'The deep kick of the club kit, longer and darker, a sine falling onto a note a tone lower with little click.',
     instrument: kit({ kit: DEEP }),
     effects: [],
-    ...hit(2, CLUB.kick),
+    ...hit(2, CLUB.kick, ACCENT),
   }),
   sound({
     id: 'club-clap-hit',
@@ -217,6 +228,6 @@ export const CLUB_HITS: readonly FactorySound[] = [
         },
       },
     ],
-    ...hit(3, CLUB.kick),
+    ...hit(3, CLUB.kick, ACCENT),
   }),
 ]
