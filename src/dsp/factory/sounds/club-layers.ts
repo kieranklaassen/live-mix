@@ -2,11 +2,11 @@
 // Every one keeps time (`bpm`, ../tempo.ts) and is written in rows (./rhythm.ts).
 // What every sound here is held to is in docs/factory.md.
 //
-// A layer is one part of a house beat, a loop of one or two bars to lay over others: a kick on
-// every beat, a clap on two and four, a row of hats, and someone has a beat of their own. So each
-// is plain and is what its name says, starts on a bar line (with a rest where the part has nothing
-// on the first beat) and is dry, with no room after the kit, so that it takes the reverb of the
-// piece it is painted into.
+// A layer is one part of a house beat, a loop of one or two bars (the crash, of four) to lay over
+// others: a kick on every beat, a clap on two and four, a row of hats, and someone has a beat of
+// their own. So each is plain and is what its name says, starts on a bar line (with a rest where
+// the part has nothing on the first beat) and is dry, with no room after the kit, so that it takes
+// the reverb of the piece it is painted into.
 //
 // Seven sorts: the kicks, the clap and the snare, the hats, shakers and rides, the congas with the
 // cowbell and the rim, the tops of a beat with its kick left out, and one crash.
@@ -84,6 +84,12 @@ const SHAKEN = 'o-X- o-X- o-X- o-X-'
  * same, and `beat` is the bank's word for it (`beatTheAnalysisLoses` in the bank's tests).
  */
 const SWING = 0.2
+/**
+ * The open hat of the two tops on the sixteenths. A soft stroke: the closed hat is struck on the
+ * same step and the two are the same six pulses, so they add, and a full stroke there peaks
+ * nearly as high as the clap.
+ */
+const TOPS_OPEN = row(CLUB.open, '..o. ..o. ..o. ..o.')
 
 // The kick alone.
 const KICKS: readonly FactorySound[] = [
@@ -333,11 +339,7 @@ const TOPS: readonly FactorySound[] = [
       'House tops with no kick: a clap on two and four, closed hats in straight sixteenths, an open hat on the offbeats.',
     instrument: HATS,
     effects: [],
-    ...bars(1, [
-      row(CLUB.clap, '.... x... .... x...'),
-      row(CLUB.hat, SIXTEENTHS),
-      row(CLUB.open, '..x. ..x. ..x. ..x.'),
-    ]),
+    ...bars(1, [row(CLUB.clap, '.... x... .... x...'), row(CLUB.hat, SIXTEENTHS), TOPS_OPEN]),
   }),
   sound({
     id: 'club-tops-swung',
@@ -352,7 +354,7 @@ const TOPS: readonly FactorySound[] = [
     ...bars(1, [
       row(CLUB.clap, '.... x... .... x...'),
       row(CLUB.hat, SIXTEENTHS, { swing: SWING }),
-      row(CLUB.open, '..x. ..x. ..x. ..x.'),
+      TOPS_OPEN,
     ]),
   }),
   sound({
