@@ -3,6 +3,7 @@
 
 import { type PlateFace } from '../plate-display'
 import { CANON_FACES } from './canon'
+import { AROUND_FACES } from './around'
 import { DELAY_FACES } from './delay'
 import { DISTANCE_FACES } from './distance'
 import { DRIVE_FACES } from './drive'
@@ -137,4 +138,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...SIZE_FACES,
   ...HAZE_FACES,
   ...SPIRAL_FACES,
+  ...AROUND_FACES,
 }

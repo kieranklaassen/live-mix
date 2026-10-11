@@ -1,0 +1,232 @@
+{
+  "id": "around",
+  "name": "Around",
+  "category": "spatial",
+  "description": "Moves the sound round your head on a circle, a figure of eight, a swing or a slow wander, by what two ears go by: the near ear louder, brighter and first with the bass, the back a little duller; best on headphones.",
+  "class": "Around",
+  "header": "around.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "phase",
+      "name": "Place on the path",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "path",
+      "name": "Path",
+      "choices": ["Circle", "Figure of eight", "Pendulum", "Wander"],
+      "default": 0,
+      "description": "How the sound travels. Circle goes all the way round, Figure of eight loops at each side through the middle, Pendulum swings in front, Wander drifts on a long slow walk."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 0.01,
+      "max": 4,
+      "default": 0.2,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many times a second the sound goes round its path. Low is a slow drift you barely notice. High is a flutter between the ears, where the head's shadow thins out."
+    },
+    {
+      "key": "radius",
+      "name": "Radius",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "description": "How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back."
+    },
+    {
+      "key": "head",
+      "name": "Head",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of a head is in the way. The far ear gets the bass late and the rest quieter, and the back of the path is duller than the front. Zero is plain panning."
+    },
+    {
+      "key": "near",
+      "name": "Near",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass."
+    },
+    {
+      "key": "turn",
+      "name": "Turn",
+      "min": -180,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels."
+    },
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Clockwise", "Anticlockwise"],
+      "default": 0,
+      "description": "Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is."
+    }
+  ],
+  "presets": {
+    "Slow circle": {
+      "path": 0,
+      "rate": 0.2,
+      "radius": 0.85,
+      "head": 0.7,
+      "near": 0.25,
+      "turn": 0,
+      "blur": 0.35,
+      "mix": 1,
+      "direction": 0
+    },
+    "Barely moving": {
+      "path": 3,
+      "rate": 0.03,
+      "radius": 0.4,
+      "head": 0.5,
+      "near": 0,
+      "turn": 60,
+      "blur": 0.2
+    },
+    "Gentle sway": {
+      "path": 2,
+      "rate": 0.07,
+      "radius": 0.7,
+      "head": 0.6,
+      "near": 0
+    },
+    "Wide pendulum": {
+      "path": 2,
+      "rate": 0.25,
+      "radius": 1,
+      "head": 0.8,
+      "near": 0,
+      "blur": 0.3
+    },
+    "Slow eight": {
+      "path": 1,
+      "rate": 0.15,
+      "radius": 0.9,
+      "near": 0,
+      "blur": 0.3
+    },
+    "Slow wander": {
+      "path": 3,
+      "rate": 0.12,
+      "radius": 0.9,
+      "near": 0.4,
+      "blur": 0.4
+    },
+    "Drone drift": {
+      "path": 3,
+      "rate": 0.05,
+      "radius": 1,
+      "head": 1,
+      "near": 0.2,
+      "turn": -90,
+      "blur": 0.5
+    },
+    "Dark swing": {
+      "path": 2,
+      "rate": 0.1,
+      "radius": 0.9,
+      "head": 1,
+      "near": 0,
+      "turn": 180,
+      "blur": 0.5
+    },
+    "Passing by": {
+      "path": 0,
+      "rate": 0.1,
+      "radius": 1,
+      "head": 0.9,
+      "near": 0.6,
+      "turn": 90,
+      "blur": 0.3,
+      "direction": 1
+    },
+    "Far side fades": {
+      "path": 0,
+      "rate": 0.08,
+      "radius": 1,
+      "head": 0.9,
+      "near": 1,
+      "blur": 0.7
+    },
+    "Ear to ear": {
+      "path": 2,
+      "rate": 1.5,
+      "radius": 1,
+      "head": 0.3,
+      "near": 0,
+      "blur": 0
+    },
+    "Fast spin": {
+      "path": 0,
+      "rate": 4,
+      "radius": 0.6,
+      "head": 0.5,
+      "near": 0,
+      "blur": 0.15
+    },
+    "Plain pan": {
+      "path": 2,
+      "rate": 0.5,
+      "radius": 1,
+      "head": 0,
+      "near": 0,
+      "blur": 0
+    },
+    "Mostly room": {
+      "path": 0,
+      "rate": 0.1,
+      "radius": 0.25,
+      "head": 0.6,
+      "near": 0,
+      "blur": 1
+    },
+    "Half stays put": {
+      "path": 0,
+      "rate": 0.3,
+      "radius": 1,
+      "head": 0.8,
+      "near": 0,
+      "blur": 0.2,
+      "mix": 0.5
+    },
+    "Dizzy": {
+      "path": 1,
+      "rate": 2.7,
+      "radius": 1,
+      "head": 1,
+      "near": 0.5,
+      "turn": 90,
+      "blur": 0.8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A moving source heard by two ears: a level difference, a one-pole shadow on the far ear whose own lag makes its bass late, the same band lifted in the near ear so the two sum flat, and a little top and a narrow band given in front and taken behind. No measured head data and no maker's method is used."
+  }
+}
