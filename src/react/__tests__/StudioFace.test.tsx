@@ -13,11 +13,15 @@ import { PlateLookProvider } from '../components/StudioFace'
 import {
   STUDIO_FRAGMENT_SHADER,
   STUDIO_KNOBS_MOST,
+  STUDIO_MARK_KEY,
   contrast,
   forgetStudioRig,
   luminance,
   parseCssColour,
+  studioKnobTop,
+  studioMarkSeen,
   studioPalette,
+  studioSeen,
   type Rgb,
 } from '../components/studio-face'
 import { createTestEngine, type TestEngine } from './harness'
@@ -78,6 +82,52 @@ describe('studio colours', () => {
       if (contrast(hex(skin.ink), hex(skin.plate)) > 5.2) {
         expect(palette.paint, id).toEqual(hex(skin.plate))
       }
+    }
+  })
+
+  it("keeps a knob's indicator at 3 to 1 on the metal beside it, out of the lamp's fan and in the middle of it", () => {
+    const light = (of: readonly number[]): number =>
+      0.2126 * of[0] + 0.7152 * of[1] + 0.0722 * of[2]
+    for (const [id, skin] of plates) {
+      const palette = studioPalette(hex(skin.plate), hex(skin.ink), hex(skin.accent))
+      const [least, most] = palette.bed
+      expect(least, `${id} bed`).toBeLessThanOrEqual(most)
+      // The paint under the least and the most of the lamp's plain light a plate has.
+      const marks = STUDIO_MARK_KEY.map((key) => luminance(studioMarkSeen(palette.mark, key)))
+      // The top with none of the fan on it, all of it, and every step between; its rings a little
+      // lighter and darker; the wall of a ring cut into it facing the lamp and facing away.
+      for (let fan = 0; fan <= 1.001; fan += 0.05) {
+        for (const rings of [0.94, 1.06]) {
+          for (const wall of [0.4, 1, 1.6]) {
+            const metal = studioKnobTop(palette.knob, fan).map((v) => v * rings * wall)
+            const given = Math.max(light(metal), 0.0001)
+            // What the shader does beside the indicator: the metal's light is held inside the bed's.
+            const held = Math.min(Math.max(given, least), most) / given
+            const seen = luminance(studioSeen(metal.map((v) => v * held)))
+            for (const mark of marks) {
+              const [high, low] = mark > seen ? [mark, seen] : [seen, mark]
+              expect(
+                (high + 0.05) / (low + 0.05),
+                `${id} indicator on its top, fan ${fan.toFixed(2)}`,
+              ).toBeGreaterThanOrEqual(3)
+            }
+          }
+        }
+      }
+    }
+  })
+
+  it('holds the metal beside the indicator in the shader, by what the colours say', () => {
+    expect(STUDIO_FRAGMENT_SHADER).toContain('clamp(kl, uBed.x, uBed.y)')
+    // Out of the fan a top is left as it is: the bed does nothing a still knob would show.
+    for (const [id, skin] of plates) {
+      const palette = studioPalette(hex(skin.plate), hex(skin.ink), hex(skin.accent))
+      const rest = studioKnobTop(palette.knob, 0)
+      const given = 0.2126 * rest[0] + 0.7152 * rest[1] + 0.0722 * rest[2]
+      expect(given, `${id} top at rest, over the bed's least`).toBeGreaterThanOrEqual(
+        palette.bed[0],
+      )
+      expect(given, `${id} top at rest, under the bed's most`).toBeLessThanOrEqual(palette.bed[1])
     }
   })
 
@@ -289,6 +339,20 @@ describe('the studio look on a plate', () => {
     )
     // Every part is 30 by 30 at 40, 60 on this page: the pane is cut under the cell.
     expect(studio.sent('uPreset')).toEqual([40, 60, 30, 30])
+  })
+
+  it('leaves a plate flat that asks to be, under a provider that asks for the studio look', async () => {
+    const device = await make(fixture)
+    stubStudio()
+    render(
+      <PlateLookProvider look="studio">
+        <DevicePlate device={device} skin={SKIN} upright look="flat" data-testid="plate" />
+      </PlateLookProvider>,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).not.toHaveAttribute('data-lm-look')
+    expect(plate.querySelector('.lm-plate__studio')).toBeNull()
   })
 
   it('gives the plate back flat when the look is taken away', async () => {

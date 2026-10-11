@@ -2652,11 +2652,14 @@
 .lm-plate[data-lm-look='studio'] {
   /* The box has round corners, and what it stands on shows past them. */
   border-radius: 10px;
-  background: transparent;
-  /* The shadow it stands in, thrown down and to the right as every part's is. */
+  /* Its paint, under the photograph: the lettering never stands on nothing. */
+  background: var(--lm-studio-paint, var(--lm-plate));
+  /* The shadow it stands in, thrown down and to the right as every part's is,
+     in the theme's shade: it falls on the theme's ground, light or dark. */
   box-shadow:
-    0 1px 1px rgb(0 0 0 / 0.28),
-    2px 5px 9px -3px rgb(0 0 0 / 0.42);
+    0 1px 1px var(--lm-shade),
+    1px 2px 3px -1px var(--lm-shade),
+    2px 5px 9px -3px var(--lm-shade);
   color: var(--lm-studio-word, var(--lm-plate-ink));
 }
 

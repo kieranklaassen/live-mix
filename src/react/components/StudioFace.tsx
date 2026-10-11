@@ -258,7 +258,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
     const marked = plate.getAttribute(LOOK_MARK) === 'studio'
     if (taken && !marked) plate.setAttribute(LOOK_MARK, 'studio')
     else if (!taken && marked) plate.removeAttribute(LOOK_MARK)
-    if (tell || taken !== marked) lookAtPlateDisplays()
+    if (tell || taken !== marked) lookAtPlateDisplays(plate)
   })
 
   useEffect(() => {
@@ -303,7 +303,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
       held.current = { ...NOTHING }
       plate.removeAttribute(LOOK_MARK)
       for (const name of Object.keys(PAINTS)) plate.style.removeProperty(name)
-      lookAtPlateDisplays()
+      lookAtPlateDisplays(plate)
     }
   }, [])
 

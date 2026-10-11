@@ -96,6 +96,33 @@ const linear = (colour: Rgb): [number, number, number] => [
   Math.pow(clamp(colour[2] / 255), 2.2),
 ]
 
+/**
+ * What the photograph makes of linear light: the shader's own roll-off into
+ * white, its gamma and its slight S, as the colour that reaches the screen.
+ */
+export function studioSeen(light: readonly number[]): Rgb {
+  const seen = (v: number): number => {
+    const rolled = Math.min(v, 0.8) + 0.2 * (1 - Math.exp(-Math.max(v - 0.8, 0) / 0.2))
+    const g = Math.pow(clamp(rolled), 1 / 2.2)
+    return 255 * (g + 0.14 * (g * g * (3 - 2 * g) - g))
+  }
+  return [seen(light[0]), seen(light[1]), seen(light[2])]
+}
+
+/**
+ * The turned top of a knob, in linear light, where it shows `fan` of the lamp
+ * (0 none of it, 1 the middle of the fan): the shader's own sum.
+ */
+export const studioKnobTop = (knob: readonly number[], fan: number): [number, number, number] => [
+  knob[0] * (0.25 + 1.5 * fan) + 0.18 * fan * fan,
+  knob[1] * (0.25 + 1.5 * fan) + 0.18 * fan * fan,
+  knob[2] * (0.25 + 1.5 * fan) + 0.18 * fan * fan,
+]
+
+/** An indicator's paint as it is photographed under `key` of the lamp's plain light. */
+export const studioMarkSeen = (mark: readonly number[], key: number): Rgb =>
+  studioSeen([mark[0], mark[1], mark[2]].map((v) => v * (0.3 + 0.7 * key)))
+
 /** A colour as CSS writes it. */
 export const cssRgb = (colour: Rgb): string =>
   `rgb(${colour.map((v) => Math.round(clamp(v, 0, 255))).join(' ')})`
@@ -151,6 +178,44 @@ export function readCssColour(text: string): Rgb | null {
 const WORD_CONTRAST = 5.1
 const SCREEN_CONTRAST = 4.8
 
+/** The least an indicator's paint stands against the metal right beside it. */
+const MARK_CONTRAST = 3.2
+/**
+ * The lamp's plain light on an indicator at its least (the far corner of a
+ * wide plate) and its most (the corner under the lamp).
+ */
+export const STUDIO_MARK_KEY: readonly [number, number] = [0.65, 1.3]
+/** How much of the lamp's fan the metal is worked out under. */
+const FANS = [0, 0.25, 0.5, 0.75, 1]
+const lightOf = (light: readonly number[]): number =>
+  0.2126 * light[0] + 0.7152 * light[1] + 0.0722 * light[2]
+
+/**
+ * How much light the metal beside an indicator may give for the paint to
+ * read on it: at most (`pale` paint) or at least (dark paint), in linear
+ * light. The metal is the knob's colour under any of the lamp's fan.
+ */
+function markBed(knob: readonly number[], mark: readonly number[], pale: boolean): number {
+  const seen = luminance(studioMarkSeen(mark, STUDIO_MARK_KEY[pale ? 0 : 1]))
+  const wanted = pale ? (seen + 0.05) / MARK_CONTRAST - 0.05 : MARK_CONTRAST * (seen + 0.05) - 0.05
+  let bed = pale ? 9 : 0
+  for (const fan of FANS) {
+    const top = studioKnobTop(knob, fan)
+    const light = Math.max(lightOf(top), 0.0001)
+    // The metal at `given` light, as it is seen. It only grows with the light, so the edge is found by halving.
+    const at = (given: number): number => luminance(studioSeen(top.map((v) => (v * given) / light)))
+    let low = 0
+    let high = 4
+    for (let k = 0; k < 24; k++) {
+      const middle = (low + high) / 2
+      if (at(middle) < wanted) low = middle
+      else high = middle
+    }
+    bed = pale ? Math.min(bed, low) : Math.max(bed, high)
+  }
+  return bed
+}
+
 /** The colours one plate is photographed in, all from the skin's own three. */
 export interface StudioPalette {
   /** The paint: the plate's colour, moved only as far as its lettering needs. */
@@ -173,6 +238,12 @@ export interface StudioPalette {
   /** The knobs' metal as it mirrors the light, and the paint of their indicator, in linear light. */
   knob: readonly [number, number, number]
   mark: readonly [number, number, number]
+  /**
+   * The least and the most light the metal right beside an indicator gives,
+   * in linear light. A pale indicator is cut into a bed that stays dark where
+   * the lamp's fan crosses the top; a dark one into a bed that stays pale.
+   */
+  bed: readonly [number, number]
 }
 
 /**
@@ -228,8 +299,20 @@ export function studioPalette(plate: Rgb, ink: Rgb, accent: Rgb): StudioPalette 
   const base = linear(paint).map((v) => Math.pow(v, deep))
   const lum = Math.max(0.2126 * base[0] + 0.7152 * base[1] + 0.0722 * base[2], 0.0001)
   const knob = base.map((v) => (v * (lum * 1.25 + 0.07)) / lum + 0.02) as [number, number, number]
-  const mark: [number, number, number] =
-    luminance(plate) > 0.62 ? linear(tone(ink, -0.2)) : [1, 1, 1]
+  // The indicator's paint: white on all but the palest plates, where it is the ink, and darker
+  // until the top at rest is pale enough for it. The lamp's fan can make a top as white as the
+  // paint, so the metal beside the indicator is held where the paint reads on it.
+  let mark: [number, number, number] = [1, 1, 1]
+  let bed: readonly [number, number] = [0, markBed(knob, mark, true)]
+  if (luminance(plate) > 0.62) {
+    const rest = lightOf(studioKnobTop(knob, 0)) * 0.94
+    let dark = tone(ink, -0.2)
+    for (let k = 0; k < 8 && markBed(knob, linear(dark), false) > rest; k++) {
+      dark = mixRgb(dark, BLACK, 0.25)
+    }
+    mark = linear(dark)
+    bed = [markBed(knob, mark, false), 99]
+  }
 
   return {
     paint,
@@ -244,6 +327,7 @@ export function studioPalette(plate: Rgb, ink: Rgb, accent: Rgb): StudioPalette 
     screenMark,
     knob,
     mark,
+    bed,
   }
 }
 
@@ -266,7 +350,7 @@ uniform vec2 uRes, uSize;
 uniform float uScale;
 uniform vec3 uLight;
 uniform vec3 uPaint, uKnob, uMark, uGlass, uLamp, uKey, uInk;
-uniform vec2 uLum, uLampAt;
+uniform vec2 uLum, uLampAt, uBed;
 uniform float uCap, uKnobs, uOn;
 uniform vec4 uK[${STUDIO_KNOBS_MOST}];
 uniform vec4 uKeys[${KEYS_MOST}];
@@ -375,18 +459,20 @@ float postShadow(vec2 p, vec2 c, float R, float h) {
 // The kit's four caps as four real knobs, each worked out for a knob 30 px across (a larger one is that, scaled).
 // Each answers, for a place q from its axis and the angle it is turned to: kCov how much of the pixel it covers,
 // kZ its height there, kG the tilt of its surface (the normal's xy over its z), kTop how much of it is
-// lathe-turned top, kInk how much is the indicator's paint, kSh its own shadow on itself.
+// lathe-turned top, kInk how much is the indicator's paint, kBed how near that paint is, kSh its own shadow on itself.
 const FS_KNOB = `
-float kCov, kZ, kTop, kInk, kSh, kCut, kRough;
+float kCov, kZ, kTop, kInk, kSh, kCut, kRough, kBed;
 vec2 kG, kW;
 float sdSeg(vec2 p, vec2 a, vec2 b) {
   vec2 pa = p - a, ba = b - a;
   return length(pa - ba * clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0));
 }
-// The indicator: a line cut from a to b and filled with paint. kInk the paint, kCut the hair of shade at the cut's edge.
+// The indicator: a line cut from a to b and filled with paint. kInk the paint, kCut the hair of shade at the cut's edge,
+// kBed the bed it is cut into: all of it for a pixel round the paint, gone 3 px out.
 void indicator(vec2 q, vec2 a, vec2 b, float w, float on) {
   float sd = sdSeg(q, a, b);
   float ink = aa(w - sd) * on;
+  kBed = max(kBed, (1.0 - smoothstep(w + 1.0, w + 3.0, sd)) * on);
   kCut = max(kCut, (aa(w + 0.45 - sd) * on - ink));
   kInk = max(kInk, ink);
 }
@@ -622,6 +708,7 @@ const FS_PARTS = `
     gAA = uScale * at.z;
     kInk = 0.0;
     kCut = 0.0;
+    kBed = 0.0;
     kRough = 0.09;
     kW = vec2(0.0);
     if (uCap < 0.5) knobDisc(q, ang);
@@ -644,7 +731,10 @@ const FS_PARTS = `
       // A cut in the top (the ring, the indicator's edge) is light on the wall that faces the lamp and dark on the other.
       float wall = dot(kW, normalize(uLight.xy - p));
       vec3 top = (uKnob * (0.25 + 1.5 * fan) + 0.18 * fan * fan) * rings;
-      vec3 kcol = mix(body, top, kTop) * clamp(1.0 + 1.1 * wall, 0.4, 1.6) * (1.0 - 0.45 * kCut);
+      vec3 kcol = mix(body, top, kTop) * clamp(1.0 + 1.1 * wall, 0.4, 1.6);
+      // The bed the indicator is cut into: the metal there gives no more light, and no less, than its paint reads on.
+      float kl = max(dot(kcol, vec3(0.2126, 0.7152, 0.0722)), 0.0001);
+      kcol *= mix(1.0, clamp(kl, uBed.x, uBed.y) / kl, kBed) * (1.0 - 0.45 * kCut);
       kcol = mix(kcol, uMark * (0.3 + 0.7 * keyLight(pos, up)), kInk);
       col = mix(col, kcol, kCov);
     }
@@ -704,6 +794,7 @@ const UNIFORMS = [
   'uInk',
   'uLum',
   'uLampAt',
+  'uBed',
   'uCap',
   'uKnobs',
   'uOn',
@@ -864,6 +955,7 @@ export function drawStudioFace(
   three(u.uInk, linear(palette.word))
   gl.uniform2f(u.uLum, palette.range[0], palette.range[1])
   gl.uniform2f(u.uLampAt, scene.lamp?.x ?? NOWHERE, scene.lamp?.y ?? NOWHERE)
+  gl.uniform2f(u.uBed, palette.bed[0], palette.bed[1])
   gl.uniform1f(u.uCap, CAP_INDEX[scene.cap] ?? 0)
   gl.uniform1f(u.uKnobs, scene.knobs.length)
   gl.uniform1f(u.uOn, scene.powered ? 1 : 0)

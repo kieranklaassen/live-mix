@@ -341,8 +341,12 @@ page. It is taken again when a knob turns, the lamp goes on or off, a part
 moves or the skin's colours change, and never on frames. Its colours are made
 from the skin's three (`studioPalette`): the lettering is the ink, moved until
 it stands at 4.5 to 1 or better on the paint, and the paint gives way only
-where that is not enough; the screen is the plate's colour in shade. The
-display lays no ground of its own on the glass (`DisplayColours.ground`).
+where that is not enough; the screen is the plate's colour in shade. A knob's
+indicator is cut into a bed: the metal right beside its paint is held dark
+enough (or, under dark paint, pale enough) for the paint to stand at 3 to 1 on
+it, also where the lamp's fan crosses the top (`StudioPalette.bed`). The
+display lays no ground of its own on the glass (`DisplayColours.ground`). The
+shadow a plate stands in is the theme's (`--lm-shade`).
 A host's own preset cell in `presetPicker` gets a pane of glass under it, as
 the kit's has, when it carries `data-lm-pane`; it then writes in
 `--lm-studio-screen` on `--lm-studio-glass` and draws no ground or line of its
