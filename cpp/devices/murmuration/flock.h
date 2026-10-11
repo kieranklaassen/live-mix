@@ -96,6 +96,16 @@ inline float chance(int slot, uint32_t salt) {
          (1.0f / 16777216.0f);
 }
 
+// sin(2 pi phase) for a phase that may lie under nought (down to -1).
+// kit::SineTable::lookup brings a phase into [0, 1) by taking its floor off,
+// and for a phase between -2^-25 and nought that comes to 1 as a float: it
+// then reads the entry after the table's last. The turn added here is the
+// one the lookup adds, so every other phase gives the number it always gave,
+// and a sum of 1 is taken to 0 by the lookup's own floor.
+inline float sine(float phase) {
+  return kit::SineTable::lookup(phase < 0.0f ? phase + 1.0f : phase);
+}
+
 // sin(2 pi (cycles * tau / kPeriod + offset)).
 inline float wave(double tau, int cycles, float offset) {
   const double phase = static_cast<double>(cycles) * tau * (1.0 / kPeriod) + offset;
@@ -168,9 +178,10 @@ inline float height_phase(int bird) { return static_cast<float>(bird) * 0.445f +
 inline Place place(int bird, double tau, const Flight& f) {
   const float turn = home_turn(bird) + f.twist;
   const float radius = home_radius(bird);
-  const float own_u = radius * kit::SineTable::cos_lookup(turn) +
+  // The first bird's turn is the twist alone, which a wheel takes under nought.
+  const float own_u = radius * sine(turn + 0.25f) +
                       kWander * wave(tau, wander_cycles_u(bird), wander_phase_u(bird));
-  const float own_v = radius * kit::SineTable::lookup(turn) +
+  const float own_v = radius * sine(turn) +
                       kWander * wave(tau, wander_cycles_v(bird), wander_phase_v(bird));
   Place p;
   p.u = f.u * (1.0f - f.size) + f.size * (0.5f + 0.5f * own_u);
@@ -252,7 +263,7 @@ constexpr float kTurnsSlew = 0.03f;
 // panned by the sine of its bearing, as far off the middle as it is to the
 // side of the listener.
 inline float pan(float v, float spread) {
-  return kit::SineTable::lookup(0.25f * kit::clamp(spread * v, -1.0f, 1.0f));
+  return sine(0.25f * kit::clamp(spread * v, -1.0f, 1.0f));
 }
 
 // The corner of the one-pole that dulls a bird.
