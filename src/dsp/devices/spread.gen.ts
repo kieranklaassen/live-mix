@@ -190,7 +190,7 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
     'Wide but safe': { low: 1.5, mid: 2, high: 2, lowHz: 180, highHz: 3200, make: 1, safe: 1 },
     'Soft tilt': { low: 0.5, mid: 1, high: 1.5, lowHz: 300, highHz: 3000, slope: 0, make: 0.8 },
     'Narrow top': { low: 1, mid: 1.6, high: 0, lowHz: 180, highHz: 4000, make: 0.8, output: -0.4 },
-    'Centre focus': { mid: 0.3, high: 2, lowHz: 250, highHz: 3200, make: 0.8 },
+    'Narrow body': { mid: 0.3, high: 2, lowHz: 250, highHz: 3200, make: 0.8 },
     'To the middle': { low: 0, mid: 0, high: 0, make: 0 },
   },
 })

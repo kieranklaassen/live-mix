@@ -168,7 +168,7 @@ export const BOWLS_DESCRIPTOR = wasmDeviceDescriptor(BOWLS_DEVICE, {
       metal: 0.25,
       mix: 0.4,
     },
-    'Small bright set': {
+    'Ten bright bowls': {
       bowls: 10,
       register: 0.85,
       ring: 5,

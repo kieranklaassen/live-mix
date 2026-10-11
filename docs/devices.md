@@ -92,13 +92,13 @@ hold 8 notes).
 | `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 5      | 9,318 B   | 10.0 µs, 0.38 %       | 12.0 µs, 0.45 %            | 77                | 4           |
 | `analog-delay`    | Analog Delay       | live-mix            | delay      | 12     | 19,255 B  | 28.2 µs, 1.06 %       | 18.3 µs, 0.68 %            | 0                 | 4           |
 | `analog-drive`    | Analog Drive       | live-mix            | drive      | 10     | 33,308 B  | 79.8 µs, 2.99 %       | 31.5 µs, 1.18 %            | 39                | 4           |
-| `around`          | Around             | live-mix            | spatial    | 9      | 17,052 B  | 6.8 µs, 0.26 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
+| `around`          | Around             | live-mix            | spatial    | 9      | 17,046 B  | 6.8 µs, 0.26 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
 | `atmosphere`      | Atmosphere         | live-mix            | instrument | 10     | 33,556 B  | 44.5 µs, 1.67 %       | 34.8 µs, 1.31 %            | 0                 | 4           |
 | `aurora`          | Aurora             | live-mix            | instrument | 10     | 23,749 B  | 34.3 µs, 1.29 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B  | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B  | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
 | `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B  | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
-| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,555 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
+| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,552 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
 | `breath`          | Breath             | live-mix            | modulation | 11     | 24,103 B  | 6.2 µs, 0.23 %        | 6.4 µs, 0.24 %             | 0                 | 4           |
 | `canon`           | Canon              | live-mix            | delay      | 12     | 32,045 B  | 13.3 µs, 0.50 %       | 10.0 µs, 0.37 %            | 0                 | 32          |
 | `cascade`         | Cascade            | live-mix            | texture    | 12     | 29,332 B  | 23.3 µs, 0.87 %       | 28.6 µs, 1.07 %            | 0                 | 16          |
@@ -142,13 +142,13 @@ hold 8 notes).
 | `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B  | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
 | `haze`            | Haze               | live-mix            | reverb     | 9      | 34,510 B  | 101 µs, 3.8 %         | 56.5 µs, 2.12 %            | 0                 | 4           |
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
-| `howl`            | Howl               | live-mix            | drive      | 10     | 27,564 B  | 33.3 µs, 1.25 %       | 34.4 µs, 1.29 %            | 0                 | 4           |
+| `howl`            | Howl               | live-mix            | drive      | 10     | 27,568 B  | 33.3 µs, 1.25 %       | 34.4 µs, 1.29 %            | 0                 | 4           |
 | `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
 | `imprint`         | Imprint            | live-mix            | eq         | 8      | 27,886 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `late-vibrato`    | Late Vibrato       | live-mix            | modulation | 10     | 22,584 B  | 18.1 µs, 0.68 %       | 16.0 µs, 0.60 %            | 960               | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B  | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
-| `lift`            | Lift               | live-mix            | dynamics   | 11     | 16,212 B  | 8.2 µs, 0.31 %        | 8.3 µs, 0.31 %             | 288               | 4           |
+| `lift`            | Lift               | live-mix            | dynamics   | 11     | 16,214 B  | 8.2 µs, 0.31 %        | 8.3 µs, 0.31 %             | 288               | 4           |
 | `low-bitrate`     | Low Bitrate        | live-mix            | texture    | 10     | 32,898 B  | 11.7 µs, 0.44 %       | 12.6 µs, 0.47 %            | 4096              | 4           |
 | `magnet-piano`    | Magnet Piano       | live-mix            | instrument | 12     | 28,672 B  | 11.8 µs, 0.44 %       | 19.3 µs, 0.72 %            | 0                 | 4           |
 | `mallets`         | Mallets            | live-mix            | instrument | 10     | 27,223 B  | 27.3 µs, 1.02 %       | 2.3 µs, 0.09 %             | 0                 | 4           |
@@ -191,7 +191,7 @@ hold 8 notes).
 | `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 18,615 B  | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spiral`          | Spiral             | live-mix            | reverb     | 9      | 33,078 B  | 82.7 µs, 3.1 %        | 41.9 µs, 1.57 %            | 0                 | 4           |
-| `spread`          | Spread             | live-mix            | spatial    | 10     | 18,528 B  | 26.7 µs, 1.0 %        | 14.1 µs, 0.53 %            | 0                 | 4           |
+| `spread`          | Spread             | live-mix            | spatial    | 10     | 18,524 B  | 26.7 µs, 1.0 %        | 14.1 µs, 0.53 %            | 0                 | 4           |
 | `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B  | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
 | `staircase`       | Staircase          | live-mix            | instrument | 11     | 28,945 B  | 18.1 µs, 0.68 %       | 34.9 µs, 1.31 %            | 0                 | 4           |
 | `stereo-detune`   | Stereo Detune      | live-mix            | spatial    | 8      | 25,561 B  | 51.9 µs, 1.95 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
