@@ -535,4 +535,150 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'melt', preset: 'Slow melt', params: { width: 0.7 } },
     ],
   },
+  {
+    id: 'strings-to-bells',
+    name: 'Strings to bells',
+    category: 'pitch',
+    description:
+      'The overtones of every note are pulled apart while the note itself stays put, so strings and pads ring like bells; Stretch sets how far.',
+    effects: [{ deviceId: 'warp', preset: 'Bell metal' }],
+  },
+  {
+    id: 'pedal-down-bells',
+    name: 'Pedal down bells',
+    category: 'pitch',
+    description:
+      'Overtones are pulled apart into bell partials and ring on after you let go, as with a pedal down, a fifth of a second late; try Hold.',
+    effects: [
+      { deviceId: 'warp', preset: 'Bell metal' },
+      { deviceId: 'sift', preset: 'Pedal down' },
+    ],
+  },
+  {
+    id: 'sunken-gong',
+    name: 'Sunken gong',
+    category: 'pitch',
+    description:
+      'Every partial is spread away from one fixed pitch and dropped an octave, so chords become a gong in a dark hall; Pivot sets what stays put.',
+    effects: [
+      { deviceId: 'warp', preset: 'Sunken gong', params: { width: 0 } },
+      { deviceId: 'hall-reverb', preset: 'Dark hall' },
+    ],
+  },
+  {
+    id: 'pipes-on-every-note',
+    name: 'Pipes on every note',
+    category: 'pitch',
+    description:
+      'Organ ranks an octave below, an octave, a twelfth and two octaves above speak just after each note; draw Fifth for hollow chords.',
+    effects: [{ deviceId: 'stops', preset: 'Principal chorus', params: { mix: 0.55 } }],
+  },
+  {
+    id: 'pipes-blooming-late',
+    name: 'Pipes blooming late',
+    category: 'pitch',
+    description:
+      'Organ ranks above and below each note take two seconds to speak, so held notes open into a full organ in a cathedral; Speak sets the wait.',
+    effects: [
+      { deviceId: 'stops', preset: 'Slow bloom' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'singing-pipes',
+    name: 'Singing pipes',
+    category: 'pitch',
+    description:
+      'The sound takes the colour of a hollow tube, then soft flute ranks speak around it with a breath of wind, a little late; try Chiff.',
+    effects: [
+      { deviceId: 'imprint', preset: 'Hollow tube' },
+      { deviceId: 'stops', preset: 'Flute stops', params: { mix: 0.55 } },
+    ],
+  },
+  {
+    id: 'silver-ranks-glimmering',
+    name: 'Silver ranks glimmering',
+    category: 'pitch',
+    description:
+      'Bright ranks a twelfth and two octaves above each note, their partials flickering fast, answer a little late; Fifteenth sets the top rank.',
+    effects: [
+      { deviceId: 'stops', preset: 'Glass on top', params: { mix: 0.5 } },
+      { deviceId: 'glimmer', preset: 'Glitter on top', params: { apart: 0.5 } },
+    ],
+  },
+  {
+    id: 'pipes-cast-in-bronze',
+    name: 'Pipes cast in bronze',
+    category: 'pitch',
+    description:
+      'An organ rank an octave above each note, then every overtone pulled apart so pipes ring like bells, a fifth of a second late; try Stretch.',
+    effects: [
+      { deviceId: 'stops', preset: 'Octave above', params: { mix: 0.55 } },
+      { deviceId: 'warp', preset: 'Bell metal' },
+    ],
+  },
+  {
+    id: 'giant-body',
+    name: 'Giant body',
+    category: 'pitch',
+    description:
+      'The body of the sound is made as large and dark as it goes while its notes stay where they are; Size brings it back or shrinks it.',
+    effects: [{ deviceId: 'size', preset: 'Giant' }],
+  },
+  {
+    id: 'music-box-among-stars',
+    name: 'Music box among stars',
+    category: 'pitch',
+    description:
+      'The sound shrinks to a music box, notes unmoved, and faint echoes of it scatter across the sides like far points; Size sets how small.',
+    effects: [
+      { deviceId: 'size', preset: 'Music box' },
+      { deviceId: 'constellation', preset: 'Faint points' },
+    ],
+  },
+  {
+    id: 'giant-with-a-voice',
+    name: 'Giant with a voice',
+    category: 'pitch',
+    description:
+      'A round vowel slid down nine semitones is pressed on the sound and its whole body made giant, the notes unmoved; Shift moves the vowel.',
+    effects: [
+      { deviceId: 'imprint', preset: 'Large body' },
+      { deviceId: 'size', preset: 'Giant' },
+    ],
+  },
+  {
+    id: 'glass-tuned-to-the-key',
+    name: 'Glass tuned to the key',
+    category: 'pitch',
+    description:
+      'Five notes of the key ring on for nine seconds wherever the sound touches them, like tuned glass, a fifth of a second late; try Ring.',
+    effects: [{ deviceId: 'scale-filter', preset: 'Long glass' }],
+  },
+  {
+    id: 'wind-in-the-key',
+    name: 'Wind in the key',
+    category: 'pitch',
+    description:
+      'A whistling wind blows over the playing and only notes of the key get through, a fifth of a second late, so the wind sings; try Voice.',
+    effects: [
+      { deviceId: 'weather', preset: 'Whistling gap', params: { linger: 4 } },
+      {
+        deviceId: 'scale-filter',
+        preset: 'In a major key',
+        params: { width: 14, ring: 2, depth: 40, glow: 0.8 },
+      },
+    ],
+  },
+  {
+    id: 'slowed-into-a-chord',
+    name: 'Slowed into a chord',
+    category: 'pitch',
+    description:
+      'The playing and a cloud of it eight times slower pass a filter that keeps only one minor chord, a fifth of a second late; try Chord.',
+    effects: [
+      { deviceId: 'stretch', preset: 'Slow cloud', params: { width: 0.5 } },
+      { deviceId: 'scale-filter', preset: 'Minor triad', params: { ring: 3 } },
+    ],
+  },
 ]
