@@ -571,7 +571,9 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     category: 'pitch',
     description:
       'A tenth of a second late, organ ranks an octave below and an octave, a twelfth and two octaves above speak after each note; try Fifth.',
-    effects: [{ deviceId: 'stops', preset: 'Principal chorus', params: { mix: 0.55 } }],
+    effects: [
+      { deviceId: 'stops', preset: 'Principal chorus', params: { mix: 0.55, unison: 0.6 } },
+    ],
   },
   {
     id: 'pipes-blooming-late',
@@ -602,7 +604,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description:
       'Bright ranks a twelfth and two octaves above each note, their partials flickering fast, a seventh of a second late; try Fifteenth.',
     effects: [
-      { deviceId: 'stops', preset: 'Glass on top', params: { mix: 0.5 } },
+      { deviceId: 'stops', preset: 'Glass on top', params: { mix: 0.45, unison: 0.65 } },
       { deviceId: 'glimmer', preset: 'Glitter on top', params: { apart: 0.5 } },
     ],
   },
@@ -613,7 +615,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description:
       'An organ rank an octave above each note, then every overtone pulled apart so pipes ring like bells, a fifth of a second late; try Stretch.',
     effects: [
-      { deviceId: 'stops', preset: 'Octave above', params: { mix: 0.55 } },
+      { deviceId: 'stops', preset: 'Octave above', params: { mix: 0.5, unison: 0.6 } },
       { deviceId: 'warp', preset: 'Bell metal' },
     ],
   },
@@ -622,7 +624,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Giant body',
     category: 'pitch',
     description:
-      'The body of the sound is made as large and dark as it goes while its notes stay where they are; Size brings it back or shrinks it.',
+      'A twentieth of a second late, the body of the sound is made as large and dark as it goes while its notes stay where they are; try Size.',
     effects: [{ deviceId: 'size', preset: 'Giant' }],
   },
   {
@@ -630,7 +632,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     name: 'Music box among stars',
     category: 'pitch',
     description:
-      'The sound shrinks to a music box, notes unmoved, and faint echoes of it scatter across the sides like far points; Size sets how small.',
+      'A twentieth of a second late, the sound shrinks to a music box, notes unmoved, and faint echoes of it scatter like far points; try Size.',
     effects: [
       { deviceId: 'size', preset: 'Music box' },
       { deviceId: 'constellation', preset: 'Faint points' },

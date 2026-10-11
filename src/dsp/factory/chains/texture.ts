@@ -617,7 +617,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Cloud catching light',
     category: 'texture',
     description:
-      'A dark cloud of the playing, ten times slower, drifts behind it while its partials flicker one by one; Stretch sets how slow the cloud is.',
+      'A dark cloud of the playing, ten times slower, drifts behind it, its partials flickering, a twentieth of a second late; try Stretch.',
     effects: [
       { deviceId: 'stretch', preset: 'Dark drift', params: { width: 0.5, mix: 0.5 } },
       { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
@@ -639,7 +639,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Halo brought forward',
     category: 'texture',
     description:
-      'A faint dark cloud of the playing, fourteen times slower, hangs far behind it and what is quiet in it is lifted level; Range sets the lift.',
+      'A faint cloud of the playing, fourteen times slower, hangs behind it with its quiet parts lifted, a twentieth of a second late; try Range.',
     effects: [
       { deviceId: 'stretch', preset: 'Faint halo' },
       { deviceId: 'reveal', preset: 'Even glow' },
@@ -720,7 +720,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Overtones in sines',
     category: 'texture',
     description:
-      'Quiet overtones are lifted out of the sound, then twenty bright sines trace them across the sides; Amount sets how far they are lifted.',
+      'Quiet overtones are lifted out of the sound, then twenty bright sines trace them across the sides, a twentieth of a second late; try Amount.',
     effects: [
       { deviceId: 'reveal', preset: 'Overtones' },
       { deviceId: 'sine-shadow', preset: 'Wide glass' },
@@ -731,7 +731,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Outline catching light',
     category: 'texture',
     description:
-      'Five pure sines on the nearest notes draw the outline of the chord and flicker one by one as they linger; Partials sets how many sines.',
+      'Five pure sines on the nearest notes draw the outline of the chord and flicker as they linger, a twentieth of a second late; try Partials.',
     effects: [
       { deviceId: 'sine-shadow', preset: 'Chord outline' },
       { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
@@ -742,7 +742,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     name: 'Pressed into a vowel',
     category: 'texture',
     description:
-      'The colour of a round sung vowel is pressed on whatever plays, half in place of its own; Shift slides the vowel brighter or darker.',
+      'A twentieth of a second late, the colour of a round sung vowel is pressed on whatever plays, half in place of its own; try Shift.',
     effects: [{ deviceId: 'imprint', preset: 'Round vowel', params: { replace: 0.5 } }],
   },
 ]

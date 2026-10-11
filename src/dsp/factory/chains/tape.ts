@@ -539,7 +539,7 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
     name: 'Down a long pipe',
     category: 'tape',
     description:
-      'The sound takes the hollow colour of a wide tube and is heard through the wall from the next room; Shift sets how wide the tube is.',
+      'A twentieth of a second late, the sound takes the hollow colour of a wide tube and is heard through the wall from next door; try Shift.',
     effects: [
       { deviceId: 'imprint', preset: 'Hollow tube', params: { shift: -5 } },
       { deviceId: 'distance', preset: 'Next door' },

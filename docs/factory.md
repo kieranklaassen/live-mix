@@ -521,7 +521,7 @@ instruments, three pairs of organ presets measure under 1 dB apart on the
 organ phrase (Clarinet stop organ and Flugelhorn organ, Hollow glass organ
 and Tape flute pipes, Saw rotary organ and Rotor brass organ): the
 rule is for presets of one instrument, and these are different instruments
-under the hands. And eighteen of the twenty-five master chains sit within
+under the hands. And eighteen of the twenty-six master chains sit within
 0.3 dB of another on the dry phrase, because a master chain is meant to do
 little to a phrase that peaks at −10 dBFS: they part when they are driven.
 

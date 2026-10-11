@@ -414,7 +414,7 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     name: 'Tail comes forward',
     category: 'space',
     description:
-      'A hall whose quiet tail is lifted toward the level of the notes as they fade, so the room grows as the playing stops; Amount sets the lift.',
+      'A hall whose quiet tail is lifted as the notes fade, so the room grows as the playing stops, a twentieth of a second late; try Amount.',
     effects: [
       { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
       { deviceId: 'reveal', preset: 'Even glow' },

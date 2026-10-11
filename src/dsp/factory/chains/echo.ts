@@ -520,7 +520,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Chord through a prism',
     category: 'echo',
     description:
-      'Each echo comes back split into twelve colours, lows first and highs last, so a chord unfolds upward; Fan sets how far apart they land.',
+      'A twentieth of a second late, each echo comes back split into twelve colours, lows first and highs last, so a chord unfolds upward; try Fan.',
     effects: [{ deviceId: 'prism', preset: 'Low to high' }],
   },
   {
@@ -528,7 +528,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Colours in fog',
     category: 'echo',
     description:
-      'Echoes unfold from low to high over two seconds, each colour arriving into a thin veil of fog; Time sets how long the unfolding takes.',
+      'Echoes unfold from low to high over two seconds, each colour arriving into a thin veil of fog, a twentieth of a second late; try Time.',
     effects: [
       { deviceId: 'prism', preset: 'Slow unfolding' },
       { deviceId: 'fog', preset: 'Thin veil' },
@@ -552,7 +552,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     description:
       'Answering a seventh of a second late, the strike of each note arrives a quarter second after its tone and echoes in eight colours; try Late.',
     effects: [
-      { deviceId: 'sift', preset: 'Late echoes', params: { tones: 0, attacks: 0 } },
+      { deviceId: 'sift', preset: 'Late echoes', params: { attacks: -3 } },
       { deviceId: 'prism', preset: 'Scattered notes', params: { mix: 0.2 } },
     ],
   },
@@ -561,7 +561,7 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
     name: 'Colours melting',
     category: 'echo',
     description:
-      'Echoes fan out in sixteen colours and go round many times while the tail behind them sags in pitch like wax; Feedback sets how long.',
+      'Echoes fan out in sixteen colours and go round many times while the tail sags in pitch like wax, a twentieth of a second late; try Feedback.',
     effects: [
       { deviceId: 'prism', preset: 'Long fan', params: { feedback: 0.85 } },
       { deviceId: 'melt', preset: 'Slow melt', params: { mix: 0.3 } },

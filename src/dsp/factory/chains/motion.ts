@@ -570,7 +570,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     name: 'Light on water',
     category: 'motion',
     description:
-      'Every narrow band of the sound has its own slow tremolo, so partials catch the light and let it go while the level holds; try Rate.',
+      'A twentieth of a second late, every narrow band of the sound has its own slow tremolo, so partials catch the light and let it go; try Rate.',
     effects: [{ deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.45 } }],
   },
   {
@@ -578,10 +578,10 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     name: 'Glittering nave',
     category: 'motion',
     description:
-      'A cathedral tail whose upper partials flicker fast and differently on each side while the low end holds still; Lean moves the flicker.',
+      'A cathedral tail whose upper partials flicker fast, each side its own way, over a still low end, a twentieth of a second late; try Lean.',
     effects: [
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
-      { deviceId: 'glimmer', preset: 'Glitter on top' },
+      { deviceId: 'glimmer', preset: 'Glitter on top', params: { depth: 0.85 } },
     ],
   },
   {
@@ -589,10 +589,10 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     name: 'Sunlight from below',
     category: 'motion',
     description:
-      'Heard from just under the surface, with a ripple of brightness climbing through the partials every second or two; Rate sets how often.',
+      'Heard from just under the surface, a ripple of brightness climbing the partials every second or two, a twentieth of a second late; try Rate.',
     effects: [
       { deviceId: 'underwater', preset: 'Sunlit shallows' },
-      { deviceId: 'glimmer', preset: 'Rising ripple' },
+      { deviceId: 'glimmer', preset: 'Rising ripple', params: { lean: 0.5 } },
     ],
   },
 ]
