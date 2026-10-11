@@ -316,14 +316,15 @@ describe('a pitch held by a time, a size or a frequency', () => {
     const up = one({ deviceId: 'howl' }, 3)
     expect(Object.keys(up).sort()).toEqual(['body', 'distance'])
     expect(up.distance).toBeCloseTo(7.645 * 2 ** (-3 / 12), 9)
-    expect(up.body).toBeCloseTo(520 * 2 ** (3 / 12), 9)
+    // A frequency is written to the hundredth of a hertz, as a knob in hertz reads.
+    expect(up.body).toBe(Math.round(520 * 2 ** (3 / 12) * 100) / 100)
     // The note the loop tunes is three semitones up, and Body is as many times it as before.
     expect(12 * Math.log2(1000 / up.distance / (1000 / 7.645))).toBeCloseTo(3, 9)
-    expect(up.body * up.distance).toBeCloseTo(520 * 7.645, 9)
+    expect(up.body * up.distance).toBeCloseTo(520 * 7.645, 1)
     // A preset's own tuning moves too: the low drone on C2 is on G1 five down.
     const low = one({ deviceId: 'howl', preset: 'Low drone' }, -5)
     expect(low.distance).toBeCloseTo(15.29 * 2 ** (5 / 12), 9)
-    expect(low.body).toBeCloseTo(196 * 2 ** (-5 / 12), 9)
+    expect(low.body).toBe(Math.round(196 * 2 ** (-5 / 12) * 100) / 100)
     // What the patch sets is kept, and only the tuning moves.
     const kept = one({ deviceId: 'howl', preset: 'In the gaps', params: { mix: 0.3 } }, 2)
     expect(Object.keys(kept).sort()).toEqual(['body', 'distance', 'mix'])
@@ -331,10 +332,10 @@ describe('a pitch held by a time, a size or a frequency', () => {
     // Past the end of a control it goes the octave that fits: still the key's note.
     const short = one({ deviceId: 'howl', params: { distance: 1.2, body: 2000 } }, 6)
     expect(short.distance).toBeCloseTo(1.2 * 2 ** (-6 / 12) * 2, 9)
-    expect(short.body).toBeCloseTo((2000 * 2 ** (6 / 12)) / 2, 9)
+    expect(short.body).toBe(Math.round(2000 * 2 ** (6 / 12) * 100) / 100 / 2)
     const long = one({ deviceId: 'howl', params: { distance: 36, body: 130 } }, -5)
     expect(long.distance).toBeCloseTo((36 * 2 ** (5 / 12)) / 2, 9)
-    expect(long.body).toBeCloseTo(130 * 2 ** (-5 / 12) * 2, 9)
+    expect(long.body).toBe((Math.round(130 * 2 ** (-5 / 12) * 100) / 100) * 2)
   })
 
   it('moves the size of a body the other way from its pitch', () => {
@@ -408,9 +409,10 @@ describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])(
           const where = `${chain.id}: ${effect.deviceId}`
           if (byClass) expect(mod12(after.root - before.root), where).toBe(mod12(by))
           for (const [name, way] of Object.entries(measures)) {
-            // The key's note, in whichever octave the control has room for.
+            // The key's note, in whichever octave the control has room for. A frequency is
+            // written to the hundredth of a hertz, which is under a fifth of a cent from 50 Hz up.
             expect(offKey(before[name], after[name], way, by), `${where} ${name}`).toBeLessThan(
-              1e-9,
+              way === 1 ? 2e-3 : 1e-9,
             )
           }
           // Nothing else of it moved.
