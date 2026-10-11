@@ -731,6 +731,23 @@ static void check_late() {
       EXPECT(peak_at(out.left) == expected && peak_at(out.right) == expected && peak(out.left) > 0.79, label);
     }
   }
+  // What the second reading found: the attacks' delay held 32768 samples, 300 ms at 96 kHz,
+  // and Late stood still above 185.7 ms at 176.4 kHz and above 170.6 ms at 192 kHz.
+  for (float rate : {176400.0f, 192000.0f}) {
+    std::vector<float> click(static_cast<size_t>(1.0f * rate), 0.0f);
+    click[9000] = 0.8f;
+    for (float late : {160.0f, 200.0f, 300.0f}) {
+      only(1, rate);
+      device.set_param(p::kLate, late);
+      const Stereo out = run(device, click);
+      const size_t expected = 9000 + kLatency + static_cast<size_t>(late * 0.001f * rate + 0.5f);
+      std::snprintf(label, sizeof label,
+                    "Late %.0f ms at %.0f Hz puts a click at sample %d (found at %d, %.1f ms late, peak %.3f)", late,
+                    rate, static_cast<int>(expected), static_cast<int>(peak_at(out.left)),
+                    1000.0 * (static_cast<double>(peak_at(out.left)) - 9000 - kLatency) / rate, peak(out.left));
+      EXPECT(peak_at(out.left) == expected && peak_at(out.right) == expected && peak(out.left) > 0.79, label);
+    }
+  }
   // The tones and the air do not move.
   rng_state() = 5;
   const std::vector<float> all =

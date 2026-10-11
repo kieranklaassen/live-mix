@@ -87,8 +87,8 @@
 //
 // Storage, per channel: two Stfts (88 KB each), eight frames of spectrum
 // (66 KB) and nine of magnitudes (37 KB), seven floats a bin of state (29 KB),
-// the attacks' delay (32768 samples, 300 ms at 96 kHz) and the dry path's
-// (4096): about 0.8 MB for both.
+// the attacks' delay (65536 samples: 300 ms at 192 kHz is 57600) and the dry
+// path's (4096): about 1.1 MB for both.
 //
 // Cost: the two medians are sorting networks of minimum and maximum over nine
 // values, without a branch, a sort or any state: 19 exchanges for the middle
@@ -356,7 +356,7 @@ class Sift : public kit::DeviceBase<sift::kNumParams> {
   static constexpr int kMaskSteps = 256;
   static constexpr int kAngles = 2048;  // steps per turn of the angle table
   static constexpr int kSpreadSteps = 64;
-  static constexpr int kLateSize = 32768;  // 300 ms at 96 kHz is 28800
+  static constexpr int kLateSize = 65536;  // 300 ms at 192 kHz is 57600
   static constexpr int kDrySize = 4096;
   // A part has a bin when it is this many times the other (6 dB), and the
   // slope of that step runs from kSoftSlope to kSoftSlope × kSlopeRange.
