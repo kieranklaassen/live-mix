@@ -10,6 +10,7 @@ import { computePeaks } from '../../core/clips/peaks'
 import { createEngine, type Engine } from '../../core/Engine'
 import { asAudioContext, createMockContext } from '../../testing'
 import {
+  BarGroup,
   BlockHead,
   Card,
   ChangedMark,
@@ -17,6 +18,7 @@ import {
   ChannelStripView,
   Check,
   Choice,
+  ChoiceList,
   ContextChip,
   CutNotch,
   CutSeam,
@@ -25,13 +27,16 @@ import {
   DevicePanel,
   DeviceToggle,
   Dropdown,
+  DropdownButton,
   Fader,
+  Figure,
   Glyph,
   Group,
   InfoView,
   InlineNote,
   Input,
   JobRow,
+  Joined,
   KeptSheet,
   Knob,
   Lane,
@@ -50,6 +55,7 @@ import {
   NoteBubble,
   NotePin,
   NoteSpan,
+  Offer,
   Overview,
   PaintField,
   Panel,
@@ -58,6 +64,7 @@ import {
   PictureMark,
   Pill,
   Places,
+  PlainAction,
   Playhead,
   PresetCell,
   Progress,
@@ -67,6 +74,7 @@ import {
   Room,
   Row,
   Says,
+  SearchField,
   SectionLabel,
   Segmented,
   Select,
@@ -74,8 +82,10 @@ import {
   SheetPart,
   SoundIcon,
   StateMark,
+  Step,
   Stroke,
   Tabs,
+  Tally,
   TextButton,
   themeStyle,
   Tick,
@@ -421,6 +431,57 @@ describe('kit components under SSR', () => {
         <KeptSheet open={false} onClose={() => {}} title="Inputs" foot="Set up once">
           <SheetPart name="Keyboard" state="On" on line="Plays the instrument" />
         </KeptSheet>
+        <BarGroup name="Pass" low ruled>
+          <Joined>
+            <PlainAction aria-label="Previous pass" icon={<i />} />
+            <Figure unit="s" chars={4}>
+              32
+            </Figure>
+            <DropdownButton aria-expanded={false}>1 hour</DropdownButton>
+          </Joined>
+        </BarGroup>
+        <Group name="From" note="The sounds that ship">
+          <Choice
+            wrap
+            label="Source"
+            value="all"
+            onChange={() => {}}
+            options={[
+              {
+                value: 'all',
+                label: (
+                  <>
+                    All <Tally>12</Tally>
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Group>
+        <ChoiceList
+          label="Repeats"
+          value="hour"
+          onChange={() => {}}
+          options={[
+            { value: 'pass', name: 'Every pass', line: 'The same each time.' },
+            { value: 'hour', name: '1 hour' },
+          ]}
+        />
+        <SearchField
+          label="Search samples"
+          value="pad"
+          onChange={() => {}}
+          found={<Tally>1 of 3</Tally>}
+          onClear={() => {}}
+        />
+        <Card goes yet hue="var(--lm-accent)" level={<i />}>
+          Empty
+        </Card>
+        <Step number={1} name="Lay it down" line="Drag it there." foot="Over the bar" />
+        <NamedChip count={348} on>
+          Drone
+        </NamedChip>
+        <Offer name="Make a new sound" beside="on any chord" line="Press a kind." />
       </>,
     )
     expect(block).toContain('<nav aria-label="Places" class="lm-places">')
@@ -437,6 +498,25 @@ describe('kit components under SSR', () => {
     expect(block).toContain('class="lm-star lm-named-chip__star"')
     expect(block).toContain('<div class="lm-kept-sheet-ground" role="presentation" hidden="">')
     expect(block).toContain('class="lm-kept-sheet__foot"')
+    expect(block).toContain('class="lm-bar-group" data-low="true" data-ruled="true"')
+    expect(block).toContain('<div class="lm-joined">')
+    expect(block).toContain('class="lm-plain-action" data-alone="true"')
+    expect(block).toContain('class="lm-figure" style="--lm-figure-chars:4"')
+    expect(block).toContain('<button aria-expanded="false" type="button" class="lm-dropdown">')
+    expect(block).toContain('class="lm-group__note"')
+    expect(block).toContain('data-wrap="true"')
+    expect(block).toContain('<span class="lm-tally">12</span>')
+    expect(block).toContain('<div role="radiogroup" aria-label="Repeats" class="lm-choice-list">')
+    expect(block).toContain('role="radio" aria-checked="true" tabindex="0"')
+    expect(block).toContain('<span class="lm-search-field" data-typed="true">')
+    expect(block).toContain('aria-label="Clear the search"')
+    expect(block).toContain('data-goes="true" data-yet="true" data-level="true"')
+    expect(block).toContain('class="lm-card__hue"')
+    expect(block).toContain('class="lm-step__number"')
+    expect(block).toContain('class="lm-named-chip__count"')
+    expect(block).toMatch(
+      /aria-labelledby="([^"]+)" class="lm-offer"[^>]*>.*<span id="\1" class="lm-offer__name"/,
+    )
     // A group and a sheet part are named by an id that is the same on the server and the client.
     expect(block).toMatch(/aria-labelledby="([^"]+)" class="lm-group"[^>]*><span id="\1"/)
   })

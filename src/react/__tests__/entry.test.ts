@@ -242,6 +242,15 @@ describe('entries', () => {
     'Dropdown',
     'NamedChip',
     'KeptSheet',
+    'Step',
+    'BarGroup',
+    'Joined',
+    'Figure',
+    'DropdownButton',
+    'ChoiceList',
+    'Tally',
+    'SearchField',
+    'Offer',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })
