@@ -10,10 +10,13 @@ import { computePeaks } from '../../core/clips/peaks'
 import { createEngine, type Engine } from '../../core/Engine'
 import { asAudioContext, createMockContext } from '../../testing'
 import {
+  BlockHead,
+  Card,
   ChangedMark,
   ChannelRowView,
   ChannelStripView,
   Check,
+  Choice,
   ContextChip,
   CutNotch,
   CutSeam,
@@ -23,6 +26,7 @@ import {
   DeviceToggle,
   Fader,
   Glyph,
+  Group,
   InfoView,
   InlineNote,
   Input,
@@ -31,8 +35,10 @@ import {
   Lane,
   LaneHead,
   LinkMark,
+  ListRow,
   LiveMixProvider,
   LogRow,
+  MainAction,
   MasterStripView,
   Menu,
   MenuItem,
@@ -47,22 +53,29 @@ import {
   PanelHead,
   PickCell,
   PictureMark,
+  Pill,
+  Places,
   Playhead,
   PresetCell,
   Progress,
   PropRow,
   RangeSelection,
   ReferenceChip,
+  Room,
+  Row,
+  Says,
   SectionLabel,
   Segmented,
   Select,
   Sheet,
+  SheetPart,
   SoundIcon,
   StateMark,
   Stroke,
   Tabs,
   TextButton,
   themeStyle,
+  Tick,
   TimelineItem,
   TimelineView,
   TimeRuler,
@@ -72,6 +85,7 @@ import {
   TransportBar,
   VideoStroke,
   Waveform,
+  Well,
   WhoMark,
   graphite,
   jaxaZenDark,
@@ -353,6 +367,62 @@ describe('kit components under SSR', () => {
     expect(sheet).toContain('role="dialog"')
     expect(sheet).toContain('aria-modal="true"')
     expect(sheet).toContain('Three channels found.')
+  })
+
+  it('renders the block parts to markup with nothing but their props', () => {
+    const block = renderToString(
+      <>
+        <Places
+          items={[
+            { id: 'play', name: 'Play', note: 'Keys' },
+            { id: 'mix', name: 'Mix' },
+          ]}
+          value="play"
+          onChange={() => {}}
+          label="Places"
+        />
+        <BlockHead back={{ label: 'Tools', onClick: () => {} }} title="Looper" state="Idle" />
+        <Room>
+          <Says>Records what you play and plays it back.</Says>
+          <MainAction tone="line">Stop</MainAction>
+          <Group name="Length" beside>
+            <Choice
+              label="Length"
+              value={2}
+              onChange={() => {}}
+              options={[
+                { value: 1, label: '1 bar' },
+                { value: 2, label: '2 bars' },
+              ]}
+            />
+          </Group>
+          <Row name="Sync" hint="Starts on the bar">
+            <Tick on onChange={() => {}}>
+              To the bar
+            </Tick>
+          </Row>
+          <Well caption="The loop shows here" />
+          <Card picked active progress={0.5}>
+            Am
+          </Card>
+          <Pill on>Keys</Pill>
+        </Room>
+        <ListRow name="Looper" line="Four bars" mark="REC" />
+        <SheetPart name="Keyboard" state="On" on line="Plays the instrument" />
+      </>,
+    )
+    expect(block).toContain('<nav aria-label="Places" class="lm-places">')
+    expect(block).toContain('class="lm-block-head__back"')
+    expect(block).toContain('class="lm-room"')
+    expect(block).toContain('data-tone="line"')
+    expect(block).toContain('data-beside="true"')
+    expect(block).toContain('class="lm-block-row__hint"')
+    expect(block).toContain('class="lm-well lm-block-well"')
+    expect(block).toContain('--lm-card-progress:0.5')
+    expect(block).toContain('data-marked=""')
+    expect(block).toContain('class="lm-sheet-part__state" data-on="true"')
+    // A group and a sheet part are named by an id that is the same on the server and the client.
+    expect(block).toMatch(/aria-labelledby="([^"]+)" class="lm-group"[^>]*><span id="\1"/)
   })
 
   it('renders every engine-bound view inside a provider from the same snapshots', async () => {

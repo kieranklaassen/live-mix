@@ -923,6 +923,105 @@ element, asks for the step and applies it.
 every element with made-up content; `?theme=paper` or any other theme, and
 `?sheet=1` for the sheet.
 
+### The block parts
+
+What a block of a bar is laid out with: the places of a surface, the head of a
+block that was gone into, a list of things to go into, the one sentence a
+block says and its one main action, a few choices, and the layout of its body.
+The parts came from Ambient Live, whose bottom bar is built from them, and
+they are the kit's now so a second app lays its blocks out the same way. They
+are presentational: the host owns what is chosen and what a press does.
+Nothing here reads the engine, so all of it renders without a provider. Each
+part passes what it is not told about to its element (`infoProps`, a
+`data-testid`, a `title`), and a part that draws buttons of its own takes
+those per button as `props`.
+
+```tsx
+import {
+  BlockHead,
+  Choice,
+  Group,
+  Hint,
+  MainAction,
+  PlainAction,
+  Room,
+  Row,
+  Says,
+  Tick,
+  Well,
+} from '@kieranklaassen/live-mix/react'
+
+function LooperBlock({ looper, onBack }: { looper: Looper; onBack: () => void }) {
+  return (
+    <>
+      <BlockHead
+        back={{ label: 'Tools', onClick: onBack }}
+        title="Looper"
+        state={looper.running ? 'Recording' : 'Idle'}
+        on={looper.running}
+      />
+      <Room>
+        <Says>Records what you play and plays it back in a loop.</Says>
+        <MainAction tone={looper.running ? 'line' : 'fill'} onClick={looper.toggle}>
+          {looper.running ? 'Stop' : 'Record'}
+        </MainAction>
+        <PlainAction onClick={looper.clear}>Clear</PlainAction>
+        <Group name="Length" beside>
+          <Choice
+            label="Length"
+            value={looper.bars}
+            onChange={looper.setBars}
+            options={[
+              { value: 1, label: '1 bar' },
+              { value: 2, label: '2 bars' },
+              { value: 4, label: '4 bars' },
+            ]}
+          />
+        </Group>
+        <Row name="Start" hint="Waits for the next bar">
+          <Tick on={looper.synced} onChange={looper.setSynced}>
+            On the bar
+          </Tick>
+        </Row>
+        <Well caption="The loop shows here">{looper.running && <LoopPicture />}</Well>
+        <Hint>A second press on Record adds a layer.</Hint>
+      </Room>
+    </>
+  )
+}
+```
+
+| Part                        | What it is                                                                                                                                                                                                                                                                                                                       |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Places`                    | The places of a surface as cells that are always there, the one in view filled with the accent (`value`, or null when the surface shows none of them): a column sharing the height it is given, or a row of words with `across`. An item has a `name`, and may have a `note`, an `icon` and a `level` (a meter the caller draws) |
+| `BlockHead`, `State`        | The first row inside a block that was gone into: the way `back`, the `title`, children between, and at the right its `state` in words with a lamp that is lit while `on`. `State` is that right end by itself, for a head that is a frame's own title bar                                                                        |
+| `ListRow`                   | One row of a list of things to go into: an `icon`, a `name`, one `line` of what it is, a chevron, and a `mark` while the thing is at work, which lifts the row                                                                                                                                                                   |
+| `Says`                      | The one sentence at the top of a block: what it does, in plain words                                                                                                                                                                                                                                                             |
+| `MainAction`, `PlainAction` | The one large action of a block, `tone="fill"` before it is taken and `"line"` while it runs; `small` is as tall as a choice, for a row. A plain action is a small button beside it, never in its place                                                                                                                          |
+| `Choice`                    | One of a few, side by side in one frame, the chosen one filled. `fill` takes the width it is given and the options share it; `tall` options hold two lines. `value` is null when none is chosen                                                                                                                                  |
+| `Tick`                      | A thing that is on or off, as a box with its word. `onChange` is told the new state                                                                                                                                                                                                                                              |
+| `Pill`                      | A word in a ring that says whether a thing is there, lit when `on`. Not a control                                                                                                                                                                                                                                                |
+| `Room`                      | The body of a block. It tells the parts in it how much room there is: a main action, a card, a tall choice and a group with its name `beside` are drawn lower where the bar is low, and a card closer on a phone                                                                                                                 |
+| `Group`                     | A named group of a block: its `name` in small capitals over what belongs to it, or beside it in a low room with `beside`                                                                                                                                                                                                         |
+| `Row`, `Hint`               | One choice on one row: its `name` at the left, the control, and a `hint` of what it means. A kit `Fader` on a row is drawn as a thin track with a line for its thumb. `Hint` is a short line of help anywhere else                                                                                                               |
+| `Well`                      | The sunken room of a block where what it hears is drawn (the kit's `lm-well`); while idle its `caption` says what will show                                                                                                                                                                                                      |
+| `Card`                      | One of a few things in a row that can be picked, such as a chord of a loop. The `picked` one has the accent's frame; the `active` one shows `progress` (0 to 1) on its lower edge, or the caller sets `--lm-card-progress` through the `ref`                                                                                     |
+| `SheetPart`                 | One part of a sheet: its `name`, a `state` after it that is lit when `on`, a `line` of what it is, and under them its controls                                                                                                                                                                                                   |
+| `Chevron`, `Star`           | The two 12 px glyphs the parts draw: a chevron forward or `back`, and a star that is filled when `on`                                                                                                                                                                                                                            |
+
+`Room` is a size container named `lm-room`, and a block lays out what is its
+own by the same container:
+
+```css
+@container lm-room (max-height: 220px) {
+  .looper-picture {
+    display: none;
+  }
+}
+```
+
+The row's class is `lm-block-row`, because `lm-row` is the channel row.
+
 ## The playground
 
 `playground/` is a Vite app in this repository (not published) that mounts
