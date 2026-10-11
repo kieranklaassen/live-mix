@@ -1694,6 +1694,57 @@ int main() {
     EXPECT(late, "Mix 0: each side is its own input a latency late, to the bit");
   }
 
+  // --- what the second reading found ---------------------------------------------------------------------
+
+  // The angle a region is turned by can be a hair under nought (-2^-25 turns: a drone of sixty partials with
+  // Stretch at 0.02 and Drift at 1 gave one 2432 s in), and the kit's table then reads one entry past its
+  // end. Warp::table_sine brings the angle round first: nought there, and what the table gave everywhere else.
+  {
+    device.init(kRate);
+    const float hair = -2.9802322e-08f;  // -2^-25
+    EXPECT(Warp::table_sine(hair) == 0.0f, "the sine of a hair under nought is nought (it was the table's last entry, -2.45e-16)");
+    EXPECT(Warp::table_sine((-0.25f + hair) + 0.25f) == 0.0f, "and so is the cosine of a hair under a quarter turn back");
+    EXPECT(Warp::table_sine(1.0f) == 0.0f && Warp::table_sine(-1.0f) == 0.0f, "whole turns are nought");
+    bool same = true;
+    rng_state() = 0x51DEu;
+    for (int i = 0; i < 200000; ++i) {
+      // Angles as the plan has them: the sum of two in [-0.5, 0.5), and a quarter turn on for the cosine.
+      const float turn = (white() + white()) * 0.5f;
+      if (turn < 0.0f && turn >= hair) continue;
+      const float quarter = turn + 0.25f;
+      if (quarter < 0.0f && quarter >= hair) continue;
+      same = same && Warp::table_sine(turn) == livemix::kit::SineTable::lookup(turn) &&
+             Warp::table_sine(quarter) == livemix::kit::SineTable::cos_lookup(turn);
+    }
+    EXPECT(same, "every other angle reads what the table gave, to the bit");
+  }
+
+  // Drift runs by a clock that does not come round. It was read from the Stft's frame number, which wraps
+  // with a 32-bit count of samples (24.8 hours at 48 kHz, 6.2 at 192, slept ones too): the drift then jumped
+  // to another place in its round and the stretch with it, by 0.065 at Drift 1 in one frame, where the most it
+  // moves in a frame is 0.0004. The device sleeps to three seconds short of the wrap and a note plays through.
+  {
+    device.init(kRate);
+    device.set_param(p::kDrift, 1.0f);
+    const uint64_t until = 4294967296ull - 3 * 48000;
+    for (uint64_t n = 0; n < until;) {
+      const int frames = until - n > 2048 ? 2048 : static_cast<int>(until - n);
+      device.process(frames);  // silent in: asleep, and the clock runs on
+      n += static_cast<uint64_t>(frames);
+    }
+    const std::vector<float> note = harmonics(220.0f, 8, 6.0f, 0.1f);
+    float last = 0.0f, most = 0.0f;
+    for (size_t done = 0; done + 256 <= note.size(); done += 256) {
+      for (int i = 0; i < 256; ++i) device.in_left()[i] = device.in_right()[i] = note[done + i];
+      device.process(256);
+      const float now = device.meter(0);
+      if (done > 40 * 256) most = std::max(most, std::fabs(now - last));
+      last = now;
+    }
+    std::printf("the stretch across the wrap of a 32-bit count of samples: its largest step %.6f\n", most);
+    EXPECT(most < 0.002f, "Drift does not jump when the count of samples passes 2^32");
+  }
+
   // Cost: the average on the loads that cost least and most (a chord, which has few partials, and noise,
   // which has a peak every third bin, with Follow on so each is tried against eight pivots), and the
   // worst block: a frame's work lands in three blocks of eight (the right side heard, the plan and the
