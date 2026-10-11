@@ -69,26 +69,31 @@ static double worst_difference(const std::vector<float>& a, const std::vector<fl
 // --- checks ---
 
 // The static curve, measured with steady tones: unity over the threshold,
-// carried Amount of the way up between the floor and the threshold, capped by
-// Limit, and let go again within 12 dB under the floor.
+// carried Amount of the way up down to 6 dB over the floor, capped by Limit,
+// less and less over those 6 dB, and nothing at the floor or under it.
 static void check_curve() {
   struct Point {
     float level;
     float lift;
   };
   // Threshold -30, Amount 0.5, Floor -70, Limit 30.
-  const Point points[] = {{-6.0f, 0.0f},   {-12.0f, 0.0f},  {-20.0f, 0.0f}, {-29.0f, 0.0f},
-                          {-36.0f, 3.0f},  {-45.0f, 7.5f},  {-55.0f, 12.5f}, {-65.0f, 17.5f},
-                          {-70.0f, 20.0f}, {-76.0f, 10.0f}, {-82.0f, 0.0f},  {-90.0f, 0.0f}};
+  // In the knee: 6 dB over the floor all of it, 5 dB over it 25/27 of 17.5 dB,
+  // half way half of 18.5 dB, 1 dB over it 2/27 of 19.5 dB.
+  const Point points[] = {{-6.0f, 0.0f},      {-12.0f, 0.0f},  {-20.0f, 0.0f},   {-29.0f, 0.0f},
+                          {-36.0f, 3.0f},     {-45.0f, 7.5f},  {-55.0f, 12.5f},  {-62.0f, 16.0f},
+                          {-64.0f, 17.0f},    {-65.0f, 16.2037f}, {-67.0f, 9.25f}, {-69.0f, 1.4444f},
+                          {-70.0f, 0.0f},     {-71.0f, 0.0f},  {-76.0f, 0.0f},   {-90.0f, 0.0f}};
   char label[160];
   for (const Point& point : points) {
     plain(device);
-    const double gain = settled_gain(device, 440.0f, point.level);
-    const double tolerance = point.level >= -30.0f ? 0.1 : 0.2;
+    // Four seconds: near the knee the Floor's share comes in at 8 dB a second.
+    const double gain = settled_gain(device, 440.0f, point.level, 4.0f);
+    // In the knee the curve is steep: up to 4.6 dB of lift for a dB of level.
+    const double tolerance = point.level >= -30.0f ? 0.1 : (point.level < -64.0f && point.level > -70.0f ? 0.5 : 0.2);
     std::snprintf(label, sizeof label, "curve: a tone at %.0f dB is lifted by %.1f dB (got %.2f)",
                   point.level, point.lift, gain);
     EXPECT(std::fabs(gain - point.lift) < tolerance, label);
-    EXPECT(std::fabs(Lift::curve(point.level, -30.0f, 0.5f, -70.0f, 30.0f) - point.lift) < 1.0e-4,
+    EXPECT(std::fabs(Lift::curve(point.level, -30.0f, 0.5f, -70.0f, 30.0f) - point.lift) < 1.0e-3,
            "curve: the device's own formula gives the stated lift");
   }
   // Over the threshold the gain is one to the sample, not only to a tenth of a dB.
@@ -144,12 +149,14 @@ static void check_quiet_stays_down() {
   const size_t from = static_cast<size_t>(kRate);
   const double added = db(rms(out.left, from) / rms(hiss, from - kLatency, hiss.size() - kLatency));
   EXPECT(std::fabs(added) < 0.01, "noise at -90 dB is not lifted");
-  // The same hiss just over the floor is, so the check above is the floor's doing.
+  // Hiss 10 dB over the lowest floor is, so the check above is the floor's doing.
   plain(device);
   device.set_param(p::kAmount, 1.0f);
   device.set_param(p::kFloor, -90.0f);
-  Stereo lifted = run(device, hiss);
-  EXPECT(db(rms(lifted.left, from) / rms(hiss, from)) > 10.0, "with the floor under it the hiss is lifted");
+  std::vector<float> louder = hiss;
+  for (float& v : louder) v *= 3.1623f;
+  Stereo lifted = run(device, louder);
+  EXPECT(db(rms(lifted.left, from) / rms(louder, from)) > 10.0, "with the floor 10 dB under it the hiss is lifted");
 }
 
 // Runs `in` through the device 16 frames at a time and keeps a reading after
@@ -847,6 +854,9 @@ static void check_controls_alive() {
       // Rise and Hold are laid out by ratio, the rest by difference.
       const bool by_ratio = id == p::kRise || id == p::kHold;
       const float middle = by_ratio ? std::sqrt(low * high) : 0.5f * (low + high);
+      // Limit is a cap: its upper half is there for an Amount that asks for
+      // more than the default's 18 dB, so it is tried with Amount fully up.
+      if (id == p::kLimit) device.set_param(p::kAmount, 1.0f);
       device.set_param(id, at == 0 ? low : at == 1 ? middle : high);
       out[at] = run(device, in.left, in.right);
     }
@@ -880,22 +890,22 @@ static float value_of(const Preset& preset, int id) {
 // --- presets begin ---
 // threshold, amount, floor, rise, hold, split, focus, sides, limit, hear, mix
 static const Preset kPresets[] = {
-    {"Quiet end up", {-22.0f, 0.7f, -48.0f, 0.6f, 0.1f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
-    {"Just the ends", {-31.5f, 1.0f, -48.0f, 0.15f, 0.1f, 1.0f, 0.0f, 0.0f, 30.0f, 0.0f, 1.0f}},
-    {"Long tails", {-21.0f, 1.0f, -70.0f, 0.3f, 0.05f, 0.2f, 0.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
-    {"Slow tide", {-14.0f, 0.9f, -48.0f, 6.0f, 3.0f, 0.5f, 0.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
-    {"Air on top", {-21.0f, 1.0f, -48.0f, 0.4f, 0.1f, 1.0f, 1.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
-    {"Warm floor", {-20.0f, 0.9f, -48.0f, 0.5f, 0.1f, 1.0f, -1.0f, 0.0f, 10.0f, 0.0f, 1.0f}},
-    {"Opens outward", {-18.0f, 1.0f, -48.0f, 0.4f, 0.1f, 0.3f, 0.0f, 1.0f, 12.0f, 0.0f, 1.0f}},
-    {"Half open", {-18.0f, 1.0f, -48.0f, 0.2f, 0.1f, 0.0f, 0.0f, 0.6f, 16.0f, 0.0f, 1.0f}},
-    {"Fill every gap", {-25.5f, 1.0f, -48.0f, 0.05f, 0.01f, 0.0f, 0.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
-    {"Slightly closer", {-19.0f, 1.0f, -48.0f, 0.3f, 0.1f, 0.0f, 0.0f, 0.0f, 3.0f, 0.0f, 1.0f}},
-    {"Steady shine", {-14.0f, 0.6f, -48.0f, 0.3f, 0.1f, 1.0f, 1.0f, 0.0f, 12.0f, 0.0f, 1.0f}},
-    {"Real pauses only", {-18.0f, 1.0f, -48.0f, 1.0f, 1.5f, 0.0f, 0.0f, 0.0f, 24.0f, 0.0f, 1.0f}},
-    {"Only the tails", {-18.0f, 1.0f, -48.0f, 0.3f, 0.1f, 0.0f, 0.0f, 0.0f, 24.0f, 1.0f, 1.0f}},
-    {"Top alone", {-20.0f, 1.0f, -48.0f, 0.2f, 0.1f, 1.0f, 1.0f, 0.0f, 24.0f, 1.0f, 1.0f}},
-    {"Low breath", {-18.0f, 1.0f, -48.0f, 0.2f, 0.1f, 0.6f, -1.0f, 0.0f, 24.0f, 1.0f, 0.55f}},
-    {"Quiet in front", {-18.0f, 1.0f, -48.0f, 0.15f, 0.1f, 0.3f, 0.0f, 0.0f, 24.0f, 1.0f, 0.7f}},
+    {"Quiet end up", {-22.0f, 0.7f, -54.0f, 0.6f, 0.1f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Just the ends", {-31.5f, 1.0f, -54.0f, 0.15f, 0.1f, 1.0f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Long tails", {-23.0f, 1.0f, -60.0f, 0.3f, 0.05f, 0.2f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Slow tide", {-14.0f, 0.9f, -54.0f, 6.0f, 3.0f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Air on top", {-21.0f, 1.0f, -54.0f, 0.4f, 0.1f, 1.0f, 1.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
+    {"Warm floor", {-22.0f, 0.9f, -54.0f, 0.5f, 0.1f, 1.0f, -1.0f, 0.0f, 10.0f, 0.0f, 1.0f}},
+    {"Opens outward", {-18.0f, 1.0f, -54.0f, 0.4f, 0.1f, 0.3f, 0.0f, 1.0f, 18.0f, 0.0f, 1.0f}},
+    {"Half open", {-18.0f, 1.0f, -54.0f, 0.2f, 0.1f, 0.0f, 0.0f, 0.6f, 16.0f, 0.0f, 1.0f}},
+    {"Fill every gap", {-25.5f, 1.0f, -54.0f, 0.05f, 0.01f, 0.0f, 0.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
+    {"Slightly closer", {-19.0f, 1.0f, -54.0f, 0.3f, 0.1f, 0.0f, 0.0f, 0.0f, 3.0f, 0.0f, 1.0f}},
+    {"Steady shine", {-17.0f, 0.6f, -54.0f, 0.3f, 0.1f, 1.0f, 1.0f, 0.0f, 10.0f, 0.0f, 1.0f}},
+    {"Real pauses only", {-18.0f, 1.0f, -54.0f, 1.0f, 1.5f, 0.0f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Only the tails", {-18.0f, 1.0f, -54.0f, 0.3f, 0.1f, 0.0f, 0.0f, 0.0f, 24.0f, 1.0f, 1.0f}},
+    {"Top alone", {-20.0f, 1.0f, -54.0f, 0.2f, 0.1f, 1.0f, 1.0f, 0.0f, 24.0f, 1.0f, 1.0f}},
+    {"Low breath", {-18.0f, 1.0f, -54.0f, 0.2f, 0.1f, 0.6f, -1.0f, 0.0f, 24.0f, 1.0f, 0.55f}},
+    {"Quiet in front", {-18.0f, 1.0f, -54.0f, 0.15f, 0.1f, 0.3f, 0.0f, 0.0f, 24.0f, 1.0f, 0.7f}},
 };
 // --- presets end ---
 
@@ -1234,10 +1244,11 @@ struct Played {
   size_t from[3], to[3];
 };
 
-static Played played(float rate, double gain_db, double hiss_db) {
+static Played played(float rate, double gain_db, double hiss_db, double more_seconds = 0.0) {
   Played s;
   const double starts[] = {0.2, 3.2, 6.0}, hz[] = {220.0, 330.0, 165.0}, amp[] = {0.25, 0.2, 0.25}, t60[] = {2.0, 1.5, 2.5};
-  const size_t n = static_cast<size_t>(9.5f * rate);
+  // `more_seconds` makes the pause after the last note that much longer.
+  const size_t n = static_cast<size_t>((9.5 + more_seconds) * rate);
   s.clean.assign(n, 0.0f);
   const double gain = std::pow(10.0, gain_db / 20.0);
   for (int k = 0; k < 3; ++k) {
@@ -1264,27 +1275,41 @@ static Played played(float rate, double gain_db, double hiss_db) {
   return s;
 }
 
-// How far the hiss in the pauses of `s` comes up through the device as set, in dB.
-static double hiss_rise(Lift& d, const Played& s) {
+// How far the hiss in the pauses of `s` comes up through the device as set,
+// in dB: `after`, in the pauses that follow a tail at once (0.2 s after the
+// note is let go, for three quarters of a second), where a lift that was on
+// the tail is still being let down; `settled`, in the last two seconds of the
+// phrase, which wants a last pause of six seconds or more.
+struct HissRise {
+  double after, settled;
+};
+static HissRise hiss_rise(Lift& d, const Played& s) {
   Stereo out = run(d, s.sound);
   const std::vector<float> dry = late(s.sound);
-  double worst = -100.0;
+  HissRise rise = {-100.0, 0.0};
   for (int k = 0; k < 3; ++k) {
-    worst = std::max(worst, db(rms(out.left, s.from[k] + kLatency, s.to[k]) / rms(dry, s.from[k] + kLatency, s.to[k])));
+    const size_t end = std::min(s.to[k], s.from[k] + static_cast<size_t>(36000));
+    rise.after = std::max(rise.after, db(rms(out.left, s.from[k] + kLatency, end) / rms(dry, s.from[k] + kLatency, end)));
   }
-  return worst;
+  const size_t n = s.sound.size();
+  rise.settled = db(rms(out.left, n - 96000, n) / rms(dry, n - 96000, n));
+  return rise;
 }
 
-// As it loads, the hiss of a source at -60 dB stays where it is in every
-// pause. (As built the default raised it by 17 dB.)
+// As it loads, the hiss of a source at -60 dB stays where it is in a pause:
+// once the lift that was on the tail before it has been let down, it is not
+// up at all, and while that is let down it is up by less than Limit. (As
+// built the default raised it by 17 dB for the whole of every pause.)
 static void check_hiss_stays_down_at_the_default() {
-  char label[200];
+  char label[220];
   for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
     device.init(rate);
-    const double rise = hiss_rise(device, played(rate, 0.0, -60.0));
-    std::snprintf(label, sizeof label, "at %.0f Hz the default raises hiss at -60 dB by %.2f dB in the pauses", rate, rise);
+    const HissRise rise = hiss_rise(device, played(rate, 0.0, -60.0, 6.0));
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz the default leaves hiss at -60 dB %.2f dB up in a pause, and %.2f dB up right after a tail", rate,
+                  rise.settled, rise.after);
     std::printf("lift: %s\n", label);
-    EXPECT(rise < 1.0, label);
+    EXPECT(rise.settled < 0.5 && rise.after < p::kParamDefault[p::kLimit], label);
   }
 }
 
@@ -1377,7 +1402,10 @@ static void check_threshold_is_alive_all_the_way() {
                   "a phrase at %+.0f dB: the quietest sixth of Threshold's travel (%.0f to %.0f dB) changes the output by %.1f dB of itself",
                   gain, low, high, least);
     std::printf("lift: %s\n", label);
-    EXPECT(least > -45.0, label);
+    // With the Floor's knee now over the Floor, the lowest of Threshold's
+    // travel has less under it on loud material than it had: -48 dB of the
+    // output where it was -42 dB.
+    EXPECT(least > -50.0, label);
   }
 }
 
@@ -1404,24 +1432,284 @@ static void check_parts_are_the_input_at_every_rate() {
   }
 }
 
-// The same hiss through every preset: in the pauses it stays where it was.
-// "Long tails" is the one that reaches under it on purpose (its Floor is at
-// -70 dB): there the hiss comes up by all of its Limit, 24 dB, and the
-// hand-back says so.
+// The same hiss through every preset: in a pause it stays where it was, once
+// the lift that was on the tail before it is down, and until then it is up by
+// no more than the preset's Limit. No preset has its Floor under the hiss any
+// more ("Long tails" had it at -70 dB and held the hiss 24 dB up).
 static void check_hiss_through_every_preset() {
-  char label[200];
-  const Played s = played(kRate, 0.0, -60.0);
-  double worst = -100.0;
+  char label[220];
+  const Played s = played(kRate, 0.0, -60.0, 6.0);
+  double worst = -100.0, worst_after = -100.0;
   for (const Preset& preset : kPresets) {
     load(device, preset);
-    const double rise = hiss_rise(device, s);
-    const bool deep = value_of(preset, p::kFloor) < -60.0f;
-    if (!deep) worst = std::max(worst, rise);
-    std::snprintf(label, sizeof label, "%s raises hiss at -60 dB by %.2f dB in the pauses", preset.name, rise);
-    if (deep) std::printf("lift: %s\n", label);
-    EXPECT(deep ? rise < value_of(preset, p::kLimit) + 0.5 : rise < 1.0, label);
+    const HissRise rise = hiss_rise(device, s);
+    worst = std::max(worst, rise.settled);
+    // What plays only what was added has no hiss of its own to be held to.
+    if (value_of(preset, p::kHear) < 0.5f) worst_after = std::max(worst_after, rise.after);
+    std::snprintf(label, sizeof label, "%s leaves hiss at -60 dB %.2f dB up in a pause, %.2f dB right after a tail", preset.name,
+                  rise.settled, rise.after);
+    EXPECT(rise.settled < 0.5 && rise.after < value_of(preset, p::kLimit) + 0.5, label);
   }
-  std::printf("lift: hiss at -60 dB in the pauses, every preset with its Floor over it: at most %+.2f dB\n", worst);
+  std::printf("lift: hiss at -60 dB through every preset: at most %+.2f dB in a pause, %+.2f dB right after a tail\n", worst,
+              worst_after);
+}
+
+// --- the third pass: the Floor and the sides ---
+
+// The level of one channel over [from, to) samples, in dBFS.
+static double level_db(const std::vector<float>& x, size_t from, size_t to) { return db(rms(x, from, to)); }
+
+// A tail that beats: three pairs of partials a little apart (beats of 1.3,
+// 0.8 and 2.1 Hz, 5 to 7 dB deep together), dying away by `fall` dB a second
+// from `start_db`.
+static std::vector<float> beating_tail(float seconds, double start_db, double fall, float rate = kRate) {
+  const double hz[] = {220.0, 221.3, 330.0, 330.8, 441.0, 443.1}, amp[] = {1.0, 0.45, 0.6, 0.3, 0.35, 0.2};
+  std::vector<float> x(static_cast<size_t>(seconds * rate));
+  for (size_t i = 0; i < x.size(); ++i) {
+    const double t = static_cast<double>(i) / rate;
+    double v = 0.0;
+    for (int k = 0; k < 6; ++k) v += amp[k] * std::sin(2.0 * kPi * hz[k] * t + 0.9 * k);
+    x[i] = static_cast<float>(v * std::pow(10.0, (start_db - fall * t) / 20.0) * std::min(1.0, t / 0.02));
+  }
+  return x;
+}
+
+// The steps between neighbouring windows of a fifth of a second: the largest
+// of `out`, the largest of `dry`, and the most a step of `out` is over the
+// step of `dry` between the same two windows. Only where the dry is a sound.
+struct Steps {
+  double out = 0.0, dry = 0.0, over = 0.0;
+};
+static Steps steps_of(const std::vector<float>& out, const std::vector<float>& dry, float rate = kRate) {
+  Steps steps;
+  const size_t w = static_cast<size_t>(0.2f * rate);
+  for (size_t a = w; a + 2 * w <= out.size(); a += w) {
+    const double d0 = level_db(dry, a, a + w), d1 = level_db(dry, a + w, a + 2 * w);
+    if (d0 < -95.0 || d1 < -95.0) continue;
+    const double o = std::fabs(level_db(out, a + w, a + 2 * w) - level_db(out, a, a + w)), d = std::fabs(d1 - d0);
+    steps.out = std::max(steps.out, o);
+    steps.dry = std::max(steps.dry, d);
+    steps.over = std::max(steps.over, o - d);
+  }
+  return steps;
+}
+
+// A tail that beats across the Floor is not switched on and off. (As it was,
+// the lift fell away over 12 dB under the Floor, 2.4 to 3 dB of it for every
+// dB the tail sank, and came down in 20 ms: a bowl's ring that beat by 5 dB
+// stepped by 10 to 20 dB where it met the Floor.) Through every preset that
+// plays the whole sound, and at the hardest setting, the largest step of the
+// lifted tail between fifths of a second is no more than the largest of the
+// tail alone and 2.5 dB. At the hardest setting no single step is more than
+// 2.5 dB over the tail's own between the same two windows either; a preset
+// with a slow Rise may be (the lift coming in over Rise while the tail holds
+// still is a step of its own, and has nothing to do with the Floor).
+static void check_a_beating_tail_is_not_switched_at_the_floor() {
+  char label[240];
+  const std::vector<float> tail = beating_tail(22.0f, -34.0, 3.0);
+  const std::vector<float> dry = late(tail);
+  double worst = 0.0, worst_over = 0.0;
+  for (int k = 0; k <= static_cast<int>(sizeof kPresets / sizeof kPresets[0]); ++k) {
+    const bool hardest = k == static_cast<int>(sizeof kPresets / sizeof kPresets[0]);
+    if (hardest) {
+      // The most lift there is, the fastest times, the parts judged apart.
+      plain(device);
+      device.set_param(p::kThreshold, -30.0f);
+      device.set_param(p::kAmount, 1.0f);
+      device.set_param(p::kFloor, -62.0f);
+      device.set_param(p::kSplit, 1.0f);
+    } else {
+      if (value_of(kPresets[k], p::kHear) > 0.5f) continue;
+      load(device, kPresets[k]);
+    }
+    Stereo out = run(device, tail);
+    const Steps steps = steps_of(out.left, dry);
+    worst = std::max(worst, steps.out - steps.dry);
+    worst_over = std::max(worst_over, steps.over);
+    std::snprintf(label, sizeof label,
+                  "a beating tail through %s: its largest step is %.1f dB (alone %.1f dB), and no step is more than %.1f dB over the tail's own",
+                  hardest ? "the hardest setting" : kPresets[k].name, steps.out, steps.dry, steps.over);
+    if (hardest) std::printf("lift: %s\n", label);
+    EXPECT(steps.out < steps.dry + 2.5 && (!hardest || steps.over < 2.5), label);
+  }
+  std::printf("lift: a beating tail through every preset: the largest step at most %.1f dB over the tail's own largest, any step at most %.1f dB over its own\n",
+              worst, worst_over);
+}
+
+// Hiss that is not flat like `noise` but bell shaped, as a real source's is:
+// three uniform samples added, `level_db` RMS.
+static std::vector<float> round_hiss(float seconds, double level_db, float rate = kRate) {
+  std::vector<float> x(static_cast<size_t>(seconds * rate));
+  const float a = static_cast<float>(std::pow(10.0, level_db / 20.0));
+  for (float& v : x) v = a * (white() + white() + white());
+  return x;
+}
+
+// The Floor means what it says: a steady sound at the Floor or under it is
+// not lifted, whatever else is set. (As it was the lift was greatest AT the
+// Floor and only gone 12 dB under it: hiss 7 dB under the default's Floor
+// came up 5.3 dB and hiss 1 dB under any Floor by nearly all of Limit.)
+static void check_the_floor_means_what_it_says() {
+  char label[220];
+  double worst = -100.0;
+  for (float floor : {-45.0f, -54.0f, -70.0f}) {
+    for (float under : {1.0f, 3.0f, 7.0f, 12.0f}) {
+      for (float split : {0.0f, 1.0f}) {
+        // The hardest setting: everything carried to a line at -12 dB, at once.
+        plain(device);
+        device.set_param(p::kThreshold, -12.0f);
+        device.set_param(p::kAmount, 1.0f);
+        device.set_param(p::kFloor, floor);
+        device.set_param(p::kSplit, split);
+        rng_state() = 0x5EEDu;
+        const std::vector<float> hiss = round_hiss(5.0f, floor - under);
+        Stereo out = run(device, hiss);
+        const size_t from = static_cast<size_t>(3.0f * kRate);
+        const double rise = db(rms(out.left, from) / rms(hiss, from - kLatency, hiss.size() - kLatency));
+        worst = std::max(worst, rise);
+        std::snprintf(label, sizeof label, "Floor %.0f dB, Split %.0f: hiss %.0f dB under it comes up %.2f dB", floor, split, under, rise);
+        EXPECT(rise < 0.5, label);
+      }
+    }
+    // And over the knee it is lifted in full: 8 dB over the Floor, to the line.
+    plain(device);
+    device.set_param(p::kThreshold, -12.0f);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kFloor, floor);
+    rng_state() = 0x5EEDu;
+    const std::vector<float> hiss = round_hiss(8.0f, floor + 8.0);
+    Stereo out = run(device, hiss);
+    const size_t from = static_cast<size_t>(6.0f * kRate);
+    const double rise = db(rms(out.left, from) / rms(hiss, from - kLatency, hiss.size() - kLatency));
+    std::snprintf(label, sizeof label, "Floor %.0f dB: hiss 8 dB over it comes up %.1f dB (to the line: %.1f dB)", floor, rise,
+                  -12.0 - (floor + 8.0));
+    EXPECT(rise > std::min(30.0, -12.0 - (floor + 8.0)) - 2.5, label);
+  }
+  std::printf("lift: steady hiss 1 to 12 dB under the Floor, at the hardest setting: at most %+.2f dB\n", worst);
+}
+
+// The lift on a tone of `hz` over a fifth of a second ending at `at` seconds, in dB.
+static double lift_at(const Stereo& out, const std::vector<float>& in, float hz, double at, float rate = kRate) {
+  const size_t to = static_cast<size_t>(at * rate), from = to - static_cast<size_t>(0.2f * rate);
+  return db(tone_level(out.left, hz, rate, from, to) / tone_level(in, hz, rate, from - kLatency, to - kLatency));
+}
+
+// What the Floor does to a lift that is there, it does at 8 dB a second, both
+// ways. A tone lifted 20 dB drops under the Floor: its lift is let down at
+// that rate and not at once. Back over the Floor after a second, the lift
+// comes back at that rate and not at Rise. And once it has been let down all
+// the way the lift is forgotten: the same tone after a longer pause gets its
+// lift by Rise. The same at 96 kHz.
+static void check_a_lift_is_let_down_slowly() {
+  char label[240];
+  for (float rate : {48000.0f, 96000.0f}) {
+    // 2 s at -40 dB (20 dB under the line), 1 s at -70 dB, 2 s at -40 dB,
+    // 4 s at -70 dB, 1 s at -40 dB. The Floor is at -56 dB.
+    const double plan[][2] = {{2.0, -40.0}, {1.0, -70.0}, {2.0, -40.0}, {4.0, -70.0}, {1.0, -40.0}};
+    std::vector<float> in;
+    for (const auto& part : plan) {
+      const size_t from = in.size(), n = static_cast<size_t>(part[0] * rate);
+      const double amp = std::sqrt(2.0) * std::pow(10.0, part[1] / 20.0);
+      for (size_t i = 0; i < n; ++i) in.push_back(static_cast<float>(amp * std::sin(2.0 * kPi * 440.0 * (from + i) / rate)));
+    }
+    plain(device, rate);
+    device.set_param(p::kThreshold, -20.0f);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kFloor, -56.0f);
+    Stereo out = run(device, in);
+    // Each reading is a mean over the fifth of a second before it.
+    const double up = lift_at(out, in, 440.0f, 2.0, rate);
+    const double under = lift_at(out, in, 440.0f, 2.3, rate), later = lift_at(out, in, 440.0f, 2.8, rate);
+    const double last = lift_at(out, in, 440.0f, 3.0, rate);
+    const double back_soon = lift_at(out, in, 440.0f, 3.4, rate), back_later = lift_at(out, in, 440.0f, 3.65, rate);
+    const double back = lift_at(out, in, 440.0f, 4.9, rate);
+    const double gone = lift_at(out, in, 440.0f, 8.9, rate), anew = lift_at(out, in, 440.0f, 9.45, rate);
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz a lift of %.1f dB stands at %.1f dB once the tone is under the Floor, %.1f dB half a second later and %.1f dB at the end of the second; back over it, it is %.1f dB after 0.3 s, %.1f dB a quarter second on and %.1f dB in the end",
+                  rate, up, under, later, last, back_soon, back_later, back);
+    std::printf("lift: %s\n", label);
+    EXPECT(std::fabs(up - 20.0) < 0.3, "the tone is lifted to the line");
+    // On its way down the level asks for more for a moment (Rise is 50 ms here): never more than Limit.
+    EXPECT(under < 30.0 && under > 20.0, label);
+    EXPECT(std::fabs((under - later) - 8.0 * 0.5) < 0.4 && std::fabs((under - last) - 8.0 * 0.7) < 0.5, label);
+    EXPECT(std::fabs((back_later - back_soon) - 8.0 * 0.25) < 0.4 && back_soon < 20.0 - 2.0 && std::fabs(back - 20.0) < 0.5, label);
+    std::snprintf(label, sizeof label, "at %.0f Hz after 4 s under the Floor the lift is %.2f dB, and on the tone that follows %.1f dB within 0.45 s",
+                  rate, gone, anew);
+    std::printf("lift: %s\n", label);
+    EXPECT(std::fabs(gone) < 0.05 && anew > 18.0, label);
+  }
+}
+
+// The sides against the middle of `out` over [from, to), in dB.
+static double sides_over_middle(const Stereo& out, size_t from, size_t to) {
+  double middle = 0.0, sides = 0.0;
+  for (size_t i = from; i < to; ++i) {
+    const double m = out.left[i] + out.right[i], d = out.left[i] - out.right[i];
+    middle += m * m;
+    sides += d * d;
+  }
+  return 10.0 * std::log10(std::max(sides, 1.0e-30) / std::max(middle, 1.0e-30));
+}
+
+// Sides fully up never turns a sound inside out. What the sides get over the
+// middle stops 1.5 dB short of the middle, however much lift there is. (As it
+// was, a tail whose sides were 9 dB under its middle came out with them 15 dB
+// OVER it at Limit 24, the two channels in opposite phase, and a sound on one
+// side grew its own opposite on the other side.)
+static void check_the_sides_stay_under_the_middle() {
+  char label[240];
+  // A dying sound: 220 Hz in the middle, 331 Hz at the sides, `under` dB under it.
+  for (double under : {9.0, 3.0, 0.0, -6.0}) {
+    const size_t n = static_cast<size_t>(4.0f * kRate);
+    std::vector<float> left(n), right(n);
+    for (size_t i = 0; i < n; ++i) {
+      const double t = static_cast<double>(i) / kRate, env = std::pow(10.0, (-26.0 - 8.0 * t) / 20.0) * std::sqrt(2.0);
+      const double m = env * std::sin(2.0 * kPi * 220.0 * t), d = env * std::pow(10.0, -under / 20.0) * std::sin(2.0 * kPi * 331.0 * t);
+      left[i] = static_cast<float>(m + d);
+      right[i] = static_cast<float>(m - d);
+    }
+    plain(device);
+    device.set_param(p::kThreshold, -18.0f);
+    device.set_param(p::kAmount, 1.0f);
+    device.set_param(p::kFloor, -80.0f);
+    device.set_param(p::kSides, 1.0f);
+    Stereo out = run(device, left, right);
+    double most = -100.0, lowest = 2.0;
+    for (size_t at = static_cast<size_t>(1.0f * kRate); at + 4800 <= n; at += 4800) {
+      most = std::max(most, sides_over_middle(out, at, at + 4800));
+      lowest = std::min(lowest, correlation(out.left, out.right, at, at + 4800));
+    }
+    // Where there is room the sides do rise, to 1.5 dB under the middle; where
+    // there is none (they are as loud as the middle already, or louder) they
+    // stay as they came in.
+    const double bound = std::max(-1.5, -under);
+    std::snprintf(label, sizeof label,
+                  "sides %.0f dB under the middle, Sides 1, lifted up to 30 dB: they come out at most %+.2f dB against it (in: %+.1f dB), the channels' correlation at least %+.2f",
+                  under, most, -under, lowest);
+    std::printf("lift: %s\n", label);
+    EXPECT(most < bound + 0.3 && most > bound - 0.5, label);
+    if (under > 1.0) EXPECT(lowest > 0.1, label);
+  }
+  // A sound on the left alone: nothing appears on the right, and the reading
+  // of the room at the sides says there is none.
+  const std::vector<float> one = beating_tail(4.0f, -30.0, 6.0), none(one.size(), 0.0f);
+  plain(device);
+  device.set_param(p::kThreshold, -18.0f);
+  device.set_param(p::kAmount, 1.0f);
+  device.set_param(p::kFloor, -80.0f);
+  device.set_param(p::kSides, 1.0f);
+  Stereo out = run(device, one, none);
+  std::snprintf(label, sizeof label, "a sound on the left alone, Sides 1: the right comes out at %.1f dB of the left (peak %.2e), room %.1f dB",
+                db(rms(out.right) / rms(out.left)), peak(out.right), static_cast<double>(device.meter(6)));
+  std::printf("lift: %s\n", label);
+  EXPECT(peak(out.right) < 1.0e-6 && device.meter(6) == 0.0f, label);
+  // The same in the middle has all the room there is, and is lifted where Sides leaves the middle any.
+  plain(device);
+  device.set_param(p::kSides, 0.5f);
+  run(device, one);
+  EXPECT(device.meter(6) == Lift::kSideRoomMost && device.meter(0) > 3.0f, "a sound in the middle: room at the sides reads its most");
+  render(device, 1.0f, kRate);
+  EXPECT(device.meter(6) == Lift::kSideRoomMost, "and at rest it reads its most");
 }
 
 int main() {
@@ -1461,6 +1749,10 @@ int main() {
   check_hold_keeps_the_lift_back();
   check_hiss_stays_down_at_the_default();
   check_hiss_through_every_preset();
+  check_a_beating_tail_is_not_switched_at_the_floor();
+  check_the_floor_means_what_it_says();
+  check_a_lift_is_let_down_slowly();
+  check_the_sides_stay_under_the_middle();
   check_the_default_lifts_a_played_phrase();
   check_the_level_out_is_what_comes_out();
   check_threshold_is_alive_all_the_way();

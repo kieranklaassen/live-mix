@@ -43,17 +43,18 @@ const FOOT_DB = -78
 const BARS_DB = 30
 /** How much of the past the wide shape keeps, in seconds. */
 const PAST_SEC = 6
-/** `Lift::kLetGoDb`: so far under the floor the lift is gone again. */
-const LET_GO_DB = 12
+/** `Lift::kKneeDb`: the lift comes in over so many dB above the floor; at the floor there is none. */
+const KNEE_DB = 6
 /** The three parts the device judges apart, low to high. */
 const PARTS = [0, 1, 2] as const
 const PART_METERS = ['liftLow', 'liftMid', 'liftHigh'] as const
 
 /**
- * `Lift::curve`: the lift in dB (0 or more) the device moves towards for a
- * level in dB. Over the threshold there is none; under it the sound is carried
- * `amount` of the way up to the threshold, by `limit` at most; under the floor
- * the lift lets go over 12 dB.
+ * `Lift::curve`: the lift in dB (0 or more) a steady level in dB gets. Over
+ * the threshold there is none; under it the sound is carried `amount` of the
+ * way up to the threshold, by `limit` at most (`Lift::reach`), times the share
+ * the floor lets through (`Lift::open`): none at the floor or under it, all of
+ * it 6 dB over the floor, a smooth step between.
  */
 function liftCurve(
   level: number,
@@ -63,11 +64,22 @@ function liftCurve(
   limit: number,
 ): number {
   if (level >= threshold) return 0
-  const foot = Math.min(floor, threshold)
-  let lift = amount * (threshold - Math.max(level, foot))
-  if (lift > limit) lift = limit
-  if (level < foot) lift *= 1 - (foot - level) / LET_GO_DB
-  return Math.max(0, lift)
+  const reach = Math.max(0, Math.min(limit, amount * (threshold - level)))
+  const x = clamp((level - floor) / KNEE_DB, 0, 1)
+  return reach * x * x * (3 - 2 * x)
+}
+
+/**
+ * The most the curve lifts anywhere: at the top of the knee, or a little way
+ * into it where the threshold lies close over the floor. Looked for over the
+ * knee in steps of a quarter dB.
+ */
+function mostLift(threshold: number, amount: number, floor: number, limit: number): number {
+  let most = 0
+  for (let step = 0; step <= 4 * KNEE_DB; step += 1) {
+    most = Math.max(most, liftCurve(floor + step / 4, threshold, amount, floor, limit))
+  }
+  return most
 }
 
 /** `Lift::weight`: how much of the lift a part takes (0 lows, 1 middle, 2 highs) at a Focus of −1..1. */
@@ -177,13 +189,14 @@ const QUIET = 1e-6
 const liftText = (db: number): string => (db > 0.05 ? `+${db.toFixed(1)}` : '0.0')
 
 /**
- * The level the Amount point stands at: the floor, the corner of the curve,
- * where the lift is greatest and the whole of Amount moves it furthest (all
- * the way from the diagonal to the threshold's line). It stays on the picture
- * where the floor lies under its foot, and clear of the threshold's point.
+ * The level the Amount point stands at: the top of the floor's knee, the
+ * corner of the curve, where the lift is greatest and the whole of Amount
+ * moves it furthest (all the way from the diagonal to the threshold's line).
+ * It stays on the picture where the floor lies under its foot, and clear of
+ * the threshold's point.
  */
 function amountLevel(lift: Lift): number {
-  return Math.min(Math.max(lift.floor, FOOT_DB + 10), lift.threshold - 8)
+  return Math.min(Math.max(lift.floor + KNEE_DB, FOOT_DB + 10), lift.threshold - 8)
 }
 
 /** A level for a place across, also past the picture's edges: where a hand has gone to. */
@@ -258,7 +271,7 @@ function liftHandles(view: DisplayView): DisplayHandle[] {
     {
       key: 'floor',
       name: 'Floor',
-      // The level under which the curve lets go: at the foot of its upright,
+      // The level at which, and under which, nothing is lifted: at the foot of its upright,
       // on the scale of levels going in. A floor further down than the
       // picture stands at its edge, and moves from where it lies: as far past
       // the edge as it lay at the press.
@@ -275,7 +288,7 @@ function liftHandles(view: DisplayView): DisplayHandle[] {
           ),
         }
       },
-      reset: () => ({ floor: view.spec('floor')?.default ?? -48 }),
+      reset: () => ({ floor: view.spec('floor')?.default ?? -54 }),
     },
   ]
 }
@@ -383,7 +396,7 @@ const liftDisplay = plateDisplay<LiftState>({
       })
     }
 
-    // The threshold, the line the quiet end is lifted towards, and the floor under which it lets go.
+    // The threshold, the line the quiet end is lifted towards, and the floor, from which down nothing is lifted.
     const thresholdY = yOf(threshold, curve)
     rule(ctx, curve.x, thresholdY, (past ?? curve).x + (past ?? curve).w, thresholdY, {
       colour: colours.ink,
@@ -417,8 +430,14 @@ const liftDisplay = plateDisplay<LiftState>({
     // further apart they stand.
     const gap = 3 * clamp(lift.split, 0, 1)
     const wide = (bars.w - 2 * gap) / 3
-    const footOf = Math.min(floor, threshold)
-    const reach = footOf < threshold ? Math.min(limit, amount * (threshold - footOf)) : 0
+    const reach = mostLift(threshold, amount, floor, limit)
+    // How many dB the sides may get over the middle now (`Lift::meter` 6): the
+    // device gives them no more than brings them to 1.5 dB under the middle.
+    // A device that does not report it gives them all of it.
+    const room =
+      running && frame.hasMeter('room')
+        ? Math.max(0, frame.meter('room'))
+        : Number.POSITIVE_INFINITY
     for (const db of [10, 20]) {
       const y = barY(db, bars)
       rule(ctx, bars.x, y, bars.x + bars.w, y, { colour: colours.ink, alpha: INK.grid })
@@ -428,8 +447,9 @@ const liftDisplay = plateDisplay<LiftState>({
       const base = bars.y + bars.h
       fillRect(ctx, { x, y: bars.y, w: wide, h: bars.h }, colours.ink, INK.fill)
       // What the sides get, and in it what the middle of the image gets too.
-      const all = barY(addsDb(lift, parts[part]), bars)
-      const both = barY(addsDb(lift, parts[part] * (1 - lift.sides)), bars)
+      const shared = parts[part] * (1 - lift.sides)
+      const all = barY(addsDb(lift, Math.min(parts[part], shared + room)), bars)
+      const both = barY(addsDb(lift, shared), bars)
       fillRect(ctx, { x, y: all, w: wide, h: both - all }, colours.accent, 0.4)
       fillRect(ctx, { x, y: both, w: wide, h: base - both }, colours.accent, 0.9)
       // The most this part can be lifted as it is set.
