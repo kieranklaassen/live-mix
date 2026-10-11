@@ -16,6 +16,7 @@ import {
   ChangedMark,
   ChannelRowView,
   ChannelStripView,
+  ChannelSwitch,
   Check,
   Choice,
   ChoiceList,
@@ -50,6 +51,7 @@ import {
   Menu,
   MenuItem,
   Meter,
+  MeterScale,
   MixerView,
   NamedChip,
   NoteBubble,
@@ -60,6 +62,7 @@ import {
   PaintField,
   Panel,
   PanelHead,
+  PeakReadout,
   PickCell,
   PictureMark,
   Pill,
@@ -482,6 +485,11 @@ describe('kit components under SSR', () => {
           Drone
         </NamedChip>
         <Offer name="Make a new sound" beside="on any chord" line="Press a kind." />
+        <PeakReadout db={-3.2} onReset={() => {}} aria-label="Peak" />
+        <ChannelSwitch on pressed={false} tone="solo" onChange={() => {}} aria-label="Solo">
+          S
+        </ChannelSwitch>
+        <MeterScale />
       </>,
     )
     expect(block).toContain('<nav aria-label="Places" class="lm-places">')
@@ -517,6 +525,14 @@ describe('kit components under SSR', () => {
     expect(block).toMatch(
       /aria-labelledby="([^"]+)" class="lm-offer"[^>]*>.*<span id="\1" class="lm-offer__name"/,
     )
+    expect(block).toContain(
+      '<button aria-label="Peak" type="button" class="lm-peak-readout" data-hot="true">−3.2</button>',
+    )
+    expect(block).toContain(
+      '<button aria-label="Solo" type="button" aria-pressed="false" class="lm-channel-switch" data-on="true" data-tone="solo">S</button>',
+    )
+    expect(block).toContain('<div aria-hidden="true" class="lm-meter-scale">')
+    expect(block).toContain('<span data-fine="1" style="inset-block-start:20%">12</span>')
     // A group and a sheet part are named by an id that is the same on the server and the client.
     expect(block).toMatch(/aria-labelledby="([^"]+)" class="lm-group"[^>]*><span id="\1"/)
   })

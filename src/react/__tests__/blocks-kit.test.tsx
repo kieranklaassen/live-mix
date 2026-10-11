@@ -8,6 +8,7 @@ import {
   BarGroup,
   BlockHead,
   Card,
+  ChannelSwitch,
   Chevron,
   Choice,
   ChoiceList,
@@ -21,8 +22,10 @@ import {
   KeptSheet,
   ListRow,
   MainAction,
+  MeterScale,
   NamedChip,
   Offer,
+  PeakReadout,
   Pill,
   Places,
   PlainAction,
@@ -1203,5 +1206,134 @@ describe('Chevron and Star', () => {
     expect(off.querySelector('path')).toHaveAttribute('fill', 'none')
     expect(on).toHaveAttribute('data-on')
     expect(on.querySelector('path')).toHaveAttribute('fill', 'currentColor')
+  })
+})
+
+describe('PeakReadout, ChannelSwitch and MeterScale', () => {
+  it('writes a held peak to one place, "−∞" with nothing held, and tells a press', () => {
+    const onReset = vi.fn()
+    const { rerender } = render(
+      <PeakReadout db={-Infinity} onReset={onReset} aria-label="Peak" data-testid="peak" />,
+    )
+    const peak = screen.getByTestId('peak')
+    expect(peak.tagName).toBe('BUTTON')
+    expect(peak.textContent).toBe('−∞')
+    expect([peak.hasAttribute('data-hot'), peak.hasAttribute('data-clipped')]).toEqual([
+      false,
+      false,
+    ])
+    rerender(<PeakReadout db={-12.34} onReset={onReset} aria-label="Peak" data-testid="peak" />)
+    expect(peak.textContent).toBe('−12.3')
+    // Hot from −6, and clipped at 0: each can be put elsewhere.
+    rerender(<PeakReadout db={-6} onReset={onReset} aria-label="Peak" data-testid="peak" />)
+    expect([
+      peak.textContent,
+      peak.hasAttribute('data-hot'),
+      peak.hasAttribute('data-clipped'),
+    ]).toEqual(['−6.0', true, false])
+    rerender(<PeakReadout db={0} onReset={onReset} aria-label="Peak" data-testid="peak" />)
+    expect([
+      peak.textContent,
+      peak.hasAttribute('data-hot'),
+      peak.hasAttribute('data-clipped'),
+    ]).toEqual(['0.0', true, true])
+    rerender(
+      <PeakReadout
+        db={-20}
+        hotDb={-24}
+        clipDb={-20}
+        onReset={onReset}
+        aria-label="Peak"
+        data-testid="peak"
+      />,
+    )
+    expect([peak.hasAttribute('data-hot'), peak.hasAttribute('data-clipped')]).toEqual([true, true])
+    // Under the floor there is nothing to say.
+    rerender(<PeakReadout db={-95} onReset={onReset} aria-label="Peak" data-testid="peak" />)
+    expect(peak.textContent).toBe('−∞')
+    fireEvent.click(peak)
+    expect(onReset).toHaveBeenCalledTimes(1)
+  })
+
+  it('lights a switch that is on, tells a press what it would become, and says what it is told to a screen reader', () => {
+    const onChange = vi.fn()
+    const { rerender } = render(
+      <ChannelSwitch on onChange={onChange} aria-label="Channel 3" data-testid="switch">
+        3
+      </ChannelSwitch>,
+    )
+    const cell = screen.getByTestId('switch')
+    expect([
+      cell.textContent,
+      cell.hasAttribute('data-on'),
+      cell.getAttribute('aria-pressed'),
+    ]).toEqual(['3', true, 'true'])
+    expect(cell.hasAttribute('data-tone')).toBe(false)
+    fireEvent.click(cell)
+    expect(onChange).toHaveBeenLastCalledWith(false)
+    // Lit while the channel is heard, and pressed while it is muted: the two are told apart.
+    rerender(
+      <ChannelSwitch
+        on={false}
+        pressed
+        onChange={onChange}
+        aria-label="Mute channel 3"
+        data-testid="switch"
+      >
+        3
+      </ChannelSwitch>,
+    )
+    expect([cell.hasAttribute('data-on'), cell.getAttribute('aria-pressed')]).toEqual([
+      false,
+      'true',
+    ])
+    fireEvent.click(cell)
+    expect(onChange).toHaveBeenLastCalledWith(true)
+    rerender(
+      <ChannelSwitch on tone="solo" onChange={onChange} disabled data-testid="switch">
+        S
+      </ChannelSwitch>,
+    )
+    expect([cell.getAttribute('data-tone'), (cell as HTMLButtonElement).disabled]).toEqual([
+      'solo',
+      true,
+    ])
+  })
+
+  it("marks a meter's scale in dB under full scale, a line between each two, and says which numbers go first", () => {
+    const { rerender } = render(<MeterScale data-testid="scale" title="Scale" />)
+    const scale = screen.getByTestId('scale')
+    expect(scale.getAttribute('aria-hidden')).toBe('true')
+    expect(scale.title).toBe('Scale')
+    const marks = () => [...scale.querySelectorAll('span')]
+    expect(
+      marks().map((mark) => [
+        mark.textContent,
+        mark.style.insetBlockStart,
+        mark.getAttribute('data-fine'),
+      ]),
+    ).toEqual([
+      ['0', '0%', null],
+      ['12', '20%', '1'],
+      ['24', '40%', '3'],
+      ['36', '60%', '1'],
+      ['48', '80%', '2'],
+      ['60', '100%', null],
+    ])
+    expect([...scale.querySelectorAll('i')].map((line) => line.style.insetBlockStart)).toEqual([
+      '10%',
+      '30%',
+      '50%',
+      '70%',
+      '90%',
+    ])
+    // Other marks on another floor: a mark under the floor stands at the foot.
+    rerender(<MeterScale marks={[0, 6, 24, 60]} floorDb={-48} data-testid="scale" />)
+    expect(marks().map((mark) => [mark.textContent, mark.style.insetBlockStart])).toEqual([
+      ['0', '0%'],
+      ['6', '12.5%'],
+      ['24', '50%'],
+      ['60', '100%'],
+    ])
   })
 })
