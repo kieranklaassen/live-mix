@@ -61,7 +61,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; all the way down is off. It never narrows what came in."
+      "description": "Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; zero is off. Once settled it never narrows what came in."
     },
     {
       "key": "output",
@@ -135,7 +135,7 @@
       "make": 0.9,
       "smear": 0.8,
       "safe": 0.4,
-      "output": -1
+      "output": -1.75
     },
     "Hazy edges": {
       "mid": 1.3,
@@ -189,7 +189,7 @@
       "highHz": 3200,
       "make": 1,
       "safe": 0,
-      "output": -3
+      "output": -4
     },
     "Wide but safe": {
       "low": 1.5,

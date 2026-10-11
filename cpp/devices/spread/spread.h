@@ -64,20 +64,28 @@
 //   less each time round, so the made sides are a tail that starts with the
 //   note and falls, never a second strike after it. A settled time is a whole
 //   number of samples, so the scatter is exactly allpass; a moving one glides.
-// - Safe: three slow ears (1.5 s, on power) on the middle, on the sides as
-//   they came in (both turned as the curve turns them, so that like is held
-//   against like) and on the sides going out. The sides going out are held to
-//   the larger of the middle times a ceiling (6 dB over the middle just above
-//   Safe 0, falling 18 dB to 12 dB under it at Safe 1) and the sides as they
-//   came in: it holds what was added and never narrows the source, and it
-//   does nothing at all while no region is over 1. The ears are slow so that
-//   the gain does not move with each note, and in a silence the three fall
-//   together so it stays where it was: it does not let go between notes and
-//   catch each one again. The gain itself follows in 10 ms. For a tenth of a
-//   second after a knob is moved the ears take 10 ms, so the knobs answer at
-//   once; and for the first 10 ms after waking the gain is the mean of what
-//   was asked so far, so a note after a long silence is held from its first
-//   sample. Safe 0 holds nothing.
+// - Safe: four ears on power (30 ms): on the middle as it goes out and as
+//   the scatter spreads it (the fuller of the two counts, because Make's
+//   sides are made from the scattered middle, which starts after the note
+//   and rings on after it), on the sides as they came in (turned as the
+//   curve turns them, so that like is held against like) and on the sides
+//   going out. The sides going out are held to the larger of the middle times
+//   a ceiling (6 dB over the middle just above Safe 0, falling 18 dB to 12 dB
+//   under it at Safe 1) and the sides as they came in: it holds what was
+//   added, settles no narrower than the source, and does nothing at all
+//   while no region is over 1. The ears are short so that they hear what
+//   sounds now: a passage 30 dB louder is out of them in 0.2 s. The gain
+//   takes hold in 50 ms and lets go in 1.5 s, so it does not move with each
+//   note: it settles where the widest moment of the last seconds put it and
+//   comes back at 5.8 dB a second at most. In a silence the ears fall
+//   together and it stays where it was. (The ears once took 1.5 s both ways.
+//   Being means of power, they remembered a loud passage for a third of a
+//   second for each dB the next one was quieter, and a wide hiss after a
+//   narrow phrase came out unheld for eight seconds and then stepped down.)
+//   For a tenth of a second after a knob is moved the ears and the gain take
+//   10 ms both ways, so the knobs answer at once; and for the first 10 ms
+//   after waking the gain is the mean of what was asked so far, so a note
+//   after a long silence is held from its first sample. Safe 0 holds nothing.
 // - Widths and Slope are smoothed over 5 ms at the control rate (every 16
 //   samples) and the gains ramped per sample between ticks. The splits move
 //   in octaves over 15 ms and the filters are retuned at the ticks: the
@@ -113,6 +121,9 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     ear_coeff_ = 1.0f - kit::time_to_coeff(kEarSeconds, sr);
     ear_quick_ = 1.0f - kit::time_to_coeff(kEarQuickSeconds, sr);
     hold_coeff_ = 1.0f - kit::time_to_coeff(kHoldSeconds, sr);
+    take_coeff_ = 1.0f - kit::time_to_coeff(kTakeSeconds, sr);
+    let_go_coeff_ = 1.0f - kit::time_to_coeff(kLetGoSeconds, sr);
+    fresh_samples_ = static_cast<uint32_t>(kHoldSeconds * sr);
     quick_samples_ = static_cast<long>(kQuickSeconds * sr);
     quick_ = 0;
     idle_samples_ = static_cast<long>(kIdleSeconds * sr);
@@ -181,21 +192,45 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       const float came = in_stage_.process(stage_[0].plain, kOnes);
 
       // Safe: the sides going out against the middle and the sides coming in.
-      const float ear = quick_ > 0 ? ear_quick_ : ear_coeff_;
-      if (quick_ > 0) --quick_;
+      // The middle is heard twice, as it goes out and as the scatter spreads it
+      // (what Make is made from), and the fuller of the two counts: at the
+      // start of a note the scatter has not yet filled, at its end the scatter
+      // rings on, and either way the made sides are held against the middle
+      // they were made from.
+      const bool quick = quick_ > 0;
+      if (quick) --quick_;
+      const float ear = quick ? ear_quick_ : ear_coeff_;
       ear_mid_ = flush_denormal(ear_mid_ + ear * (turned * turned - ear_mid_));
+      ear_scatter_ = flush_denormal(ear_scatter_ + ear * (scattered * scattered - ear_scatter_));
       ear_in_ = flush_denormal(ear_in_ + ear * (came * came - ear_in_));
       ear_out_ = flush_denormal(ear_out_ + ear * (shaped * shaped - ear_out_));
       float want = 1.0f;
       if (safe_on_ && raised_) {
-        const float allowed = kit::max(ceiling_power_ * ear_mid_, ear_in_);
-        if (ear_out_ > allowed && ear_out_ > kEarFloor) want = std::sqrt(allowed / ear_out_);
+        const float allowed = kit::max(ceiling_power_ * kit::max(ear_mid_, ear_scatter_), ear_in_);
+        if (ear_out_ > allowed && ear_out_ > kEarFloor) {
+          want = kit::max(std::sqrt(allowed / ear_out_), kHoldLeast);
+        }
       }
-      // Just awake the ears have heard little, and the gain is the plain mean of
-      // what they have asked so far: the first note after a silence is held from
-      // its first sample, not let through wide and then pulled in.
-      const float fresh = 1.0f / static_cast<float>(position_);
-      hold_ += (fresh > hold_coeff_ ? fresh : hold_coeff_) * (want - hold_);
+      // The gain takes hold quickly and lets go slowly. Just awake the ears
+      // have heard little, and the gain is the plain mean of what they have
+      // asked so far: the first note after a silence is held from its first
+      // sample, not let through wide and then pulled in. Just after a knob
+      // moved it follows both ways at once. Letting go, the step is scaled by
+      // where the gain stands against where it is going, which makes it a
+      // plain one-pole on one over the gain: however deep the hold, it comes
+      // back no faster than 8.7 dB / kLetGoSeconds a second.
+      float rate;
+      if (position_ <= fresh_samples_) {
+        const float fresh = 1.0f / static_cast<float>(position_);
+        rate = fresh > hold_coeff_ ? fresh : hold_coeff_;
+      } else if (quick) {
+        rate = hold_coeff_;
+      } else if (want < hold_) {
+        rate = take_coeff_;
+      } else {
+        rate = let_go_coeff_ * hold_ / want;
+      }
+      hold_ += rate * (want - hold_);
       if (want == 1.0f && hold_ > 1.0f - kHoldLanded) hold_ = 1.0f;
 
       const float output = output_.next();
@@ -234,11 +269,14 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   static constexpr float kSafeLooseDb = 6.0f;    // the ceiling just above Safe 0: sides over the middle
   static constexpr float kSafeTightDb = -12.0f;  // and at Safe 1
   static constexpr float kSplitSeconds = 0.015f;  // the splits, in octaves
-  static constexpr float kEarSeconds = 1.5f;
+  static constexpr float kEarSeconds = 0.03f;    // Safe's ears: a cycle of the lowest notes
+  static constexpr float kTakeSeconds = 0.05f;   // Safe's gain coming down
+  static constexpr float kLetGoSeconds = 1.5f;   // and going back up
   static constexpr float kEarQuickSeconds = 0.01f;  // the ears just after a knob moved
   static constexpr float kQuickSeconds = 0.1f;      // and for how long
-  static constexpr float kHoldSeconds = 0.01f;
+  static constexpr float kHoldSeconds = 0.01f;  // the gain just awake and just after a knob moved
   static constexpr float kHoldLanded = 1.0e-5f;
+  static constexpr float kHoldLeast = 1.0e-3f;  // Safe's gain never goes under this, so it is never 0
   static constexpr float kEarFloor = 1.0e-18f;  // under it there is nothing to compare
   static constexpr float kSaneInput = 64.0f;    // +36 dBFS; beyond it is a fault upstream
   static constexpr float kIdleSeconds = 0.3f;
@@ -353,7 +391,9 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
       default:
         break;
     }
-    if (id != kOutput) quick_ = quick_samples_;
+    // A knob moved while sound runs is answered at once. Asleep there is nothing
+    // to answer, and the next note is held as a note after any silence is.
+    if (id != kOutput && glide) quick_ = quick_samples_;
     if (!glide) land();
   }
 
@@ -453,6 +493,7 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     in_stage_.reset();
     for (ScatterAllpass& allpass : scatter_) allpass.line.clear();
     ear_mid_ = 0.0f;
+    ear_scatter_ = 0.0f;
     ear_in_ = 0.0f;
     ear_out_ = 0.0f;
     hold_ = 1.0f;
@@ -485,13 +526,17 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   bool ramping_ = false;
   bool raised_ = false;  // a region is over 1: only then can Safe have anything to hold
 
-  float ear_mid_ = 0.0f;  // power of the middle, of the sides coming in, of the sides going out
-  float ear_in_ = 0.0f;
+  float ear_mid_ = 0.0f;      // power of the middle as it goes out,
+  float ear_scatter_ = 0.0f;  // of the middle as the scatter spreads it,
+  float ear_in_ = 0.0f;       // of the sides coming in and of the sides going out
   float ear_out_ = 0.0f;
   float ear_coeff_ = 0.0f;
   float hold_ = 1.0f;  // Safe's gain on the sides
   float ear_quick_ = 0.0f;
-  float hold_coeff_ = 0.0f;
+  float hold_coeff_ = 0.0f;    // the gain's step just awake and just after a knob moved,
+  float take_coeff_ = 0.0f;    // taking hold,
+  float let_go_coeff_ = 0.0f;  // and letting go
+  uint32_t fresh_samples_ = 1;  // how long after waking the gain is the mean so far
   long quick_samples_ = 1;  // how long after a knob moves the ears are quick
   long quick_ = 0;
   float ceiling_power_ = 0.0f;

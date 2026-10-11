@@ -2,10 +2,14 @@
 // stability, silence when idle, block-size independence and parameter abuse;
 // the rest asserts what makes it width by frequency.
 
+#include <algorithm>
 #include <complex>
 #include <cstdlib>
+#include <cstring>
 
 #include "../devices/spread/spread.h"
+// The dry electric piano the bank measures every chain with: its phrase is played here too.
+#include "../devices/tine-piano/tine_piano.h"
 #include "support/test_kit.h"
 
 using namespace testkit;
@@ -179,6 +183,170 @@ static std::vector<float> held_trace(Spread& d, const Stereo& in, Stereo* heard 
     }
   }
   return held;
+}
+
+// --- the bank's material ---------------------------------------------------------------------
+
+// The phrase the factory bank measures with (CHAIN_PREVIEW_PHRASE on the dry
+// electric piano of src/dsp/factory/phrases.ts), played as patch-render.ts
+// plays it: six notes, the blocks cut at each note's start and end. Its sides
+// stand 18 dB under its middle.
+static Stereo bank_phrase(float seconds) {
+  static livemix::TinePiano piano;
+  struct Note {
+    double at, dur;
+    int note;
+    float gain;
+  };
+  const Note notes[] = {{0.0, 1.2, 57, 0.8f}, {0.6, 1.2, 64, 0.8f}, {1.2, 1.2, 72, 0.8f},
+                        {2.4, 1.5, 69, 0.8f}, {2.4, 1.5, 53, 0.8f}, {4.0, 1.0, 76, 0.6f}};
+  struct Event {
+    size_t frame;
+    bool on;
+    int id;
+  };
+  std::vector<Event> events;
+  for (int id = 0; id < 6; ++id) {
+    const size_t frame = static_cast<size_t>(std::llround(notes[id].at * kRate));
+    events.push_back({frame, true, id});
+    events.push_back({frame + static_cast<size_t>(std::llround(notes[id].dur * kRate)), false, id});
+  }
+  std::stable_sort(events.begin(), events.end(),
+                   [](const Event& a, const Event& b) { return a.frame < b.frame; });
+  const size_t total = static_cast<size_t>(seconds * kRate);
+  Stereo out;
+  out.left.resize(total);
+  out.right.resize(total);
+  piano.init(kRate);
+  size_t cursor = 0, next = 0;
+  while (cursor < total) {
+    while (next < events.size() && events[next].frame <= cursor) {
+      const Event& e = events[next++];
+      if (e.on) {
+        const double hz = 440.0 * std::pow(2.0, (notes[e.id].note - 69) / 12.0);
+        piano.note_on(e.id, static_cast<float>(hz), notes[e.id].gain);
+      } else {
+        piano.note_off(e.id);
+      }
+    }
+    size_t count = std::min<size_t>(128, total - cursor);
+    if (next < events.size()) count = std::min(count, events[next].frame - cursor);
+    piano.process(static_cast<int>(count));
+    for (size_t i = 0; i < count; ++i) {
+      out.left[cursor + i] = piano.out_left()[i];
+      out.right[cursor + i] = piano.out_right()[i];
+    }
+    cursor += count;
+  }
+  return out;
+}
+
+// A steady hiss, the two sides independent (as much sides as middle), `level_db` dBFS on each.
+static Stereo wide_hiss(float seconds, double level_db) {
+  const float gain = static_cast<float>(std::sqrt(3.0) * std::pow(10.0, level_db / 20.0));
+  Stereo s;
+  s.left = noise(seconds, kRate, gain);
+  s.right = noise(seconds, kRate, gain);
+  return s;
+}
+
+// A held chord of three notes with six partials each, nearly mono: its sides
+// are the same notes with other phases, 18 dB under the middle. `level_db` dBFS.
+static Stereo narrow_chord(float seconds, double level_db) {
+  const size_t n = static_cast<size_t>(seconds * kRate);
+  std::vector<double> mid(n, 0.0), side(n, 0.0);
+  for (double f0 : {220.0, 277.18, 329.63}) {
+    for (int h = 1; h <= 6; ++h) {
+      for (size_t i = 0; i < n; ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        mid[i] += std::sin(2.0 * kPi * f0 * h * t + 0.3 * h) / h;
+        side[i] += std::sin(2.0 * kPi * f0 * h * t + 1.1 * h + f0) / h;
+      }
+    }
+  }
+  double sum = 0.0;
+  for (double v : mid) sum += v * v;
+  const double gain = std::pow(10.0, level_db / 20.0) / std::sqrt(sum / static_cast<double>(n));
+  const double under = std::pow(10.0, -18.0 / 20.0);
+  Stereo s;
+  s.left.resize(n);
+  s.right.resize(n);
+  for (size_t i = 0; i < n; ++i) {
+    s.left[i] = static_cast<float>(gain * (mid[i] + under * side[i]));
+    s.right[i] = static_cast<float>(gain * (mid[i] - under * side[i]));
+  }
+  return s;
+}
+
+// `first` until `at` seconds, then `second`, crossed over 5 ms.
+static Stereo joined(const Stereo& first, const Stereo& second, float at) {
+  const size_t cut = static_cast<size_t>(at * kRate), fade = 240;
+  Stereo s = second;
+  for (size_t i = 0; i < s.size(); ++i) {
+    const double w = i < cut ? 1.0 : i < cut + fade ? 1.0 - static_cast<double>(i - cut) / fade : 0.0;
+    s.left[i] = static_cast<float>(w * first.left[i] + (1.0 - w) * second.left[i]);
+    s.right[i] = static_cast<float>(w * first.right[i] + (1.0 - w) * second.right[i]);
+  }
+  return s;
+}
+
+// The level of both sides together between two seconds, in dBFS.
+static double level_db(const Stereo& x, double from, double to) {
+  const size_t a = static_cast<size_t>(from * kRate), b = std::min(x.size(), static_cast<size_t>(to * kRate));
+  double sum = 0.0;
+  for (size_t i = a; i < b; ++i) sum += static_cast<double>(x.left[i]) * x.left[i] + static_cast<double>(x.right[i]) * x.right[i];
+  return 10.0 * std::log10(std::max(sum / (2.0 * static_cast<double>(b - a)), 1.0e-30));
+}
+
+// --- the presets ---------------------------------------------------------------------------
+
+struct Preset {
+  const char* name;
+  float values[p::kNumParams];
+};
+// Which control each column of the table is, by key: the table stands in
+// this order whatever the order of the controls in device.json.
+static const int kColumns[p::kNumParams] = {p::kLow,   p::kMid,  p::kHigh,  p::kLowHz, p::kHighHz,
+                                            p::kSlope, p::kMake, p::kSmear, p::kSafe,  p::kOutput};
+static const Preset kPresets[] = {
+// presets: begin (the sixteen of device.json, every control filled in; keep kColumns beside them)
+// low, mid, high, lowHz, highHz, slope, make, smear, safe, output
+  {"Firm and airy", {0.0f, 1.25f, 1.7f, 120.0f, 2000.0f, 1.0f, 0.7f, 0.4f, 0.5f, 0.0f}},
+  {"Wide top", {0.0f, 1.0f, 2.0f, 120.0f, 1600.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.0f}},
+  {"Air only", {1.0f, 1.0f, 2.0f, 120.0f, 5000.0f, 1.0f, 1.0f, 0.6f, 0.5f, 0.0f}},
+  {"Open middle", {0.0f, 1.8f, 1.2f, 180.0f, 3200.0f, 1.0f, 0.9f, 0.4f, 0.5f, -0.75f}},
+  {"Wide pad", {0.5f, 1.6f, 2.0f, 120.0f, 3200.0f, 0.2f, 0.9f, 0.8f, 0.4f, -1.75f}},
+  {"Hazy edges", {0.0f, 1.3f, 2.0f, 180.0f, 1500.0f, 0.0f, 1.0f, 1.0f, 0.5f, -0.5f}},
+  {"Tight shimmer", {1.0f, 1.0f, 2.0f, 120.0f, 2800.0f, 1.0f, 1.0f, 0.0f, 0.5f, 0.0f}},
+  {"Wide ends", {2.0f, 0.6f, 2.0f, 150.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
+  {"Wide bass", {2.0f, 1.0f, 1.0f, 300.0f, 3200.0f, 1.0f, 1.0f, 0.7f, 0.3f, -0.5f}},
+  {"Firm bass", {0.0f, 1.0f, 1.0f, 400.0f, 3200.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
+  {"Everything wide", {2.0f, 2.0f, 2.0f, 180.0f, 3200.0f, 1.0f, 1.0f, 0.4f, 0.0f, -4.0f}},
+  {"Wide but safe", {1.5f, 2.0f, 2.0f, 180.0f, 3200.0f, 1.0f, 1.0f, 0.4f, 1.0f, 0.0f}},
+  {"Soft tilt", {0.5f, 1.0f, 1.5f, 300.0f, 3000.0f, 0.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
+  {"Narrow top", {1.0f, 1.6f, 0.0f, 180.0f, 4000.0f, 1.0f, 0.8f, 0.4f, 0.5f, -0.4f}},
+  {"Narrow body", {0.0f, 0.3f, 2.0f, 250.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
+  {"To the middle", {0.0f, 0.0f, 0.0f, 120.0f, 2000.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
+// presets: end
+};
+
+static float value_of(const Preset& preset, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return preset.values[column];
+  }
+  std::abort();
+}
+
+static const Preset& preset_named(const char* name) {
+  for (const Preset& preset : kPresets) {
+    if (std::strcmp(preset.name, name) == 0) return preset;
+  }
+  std::abort();
+}
+
+static void load_preset(Spread& d, const Preset& preset) {
+  d.init(kRate);
+  for (int column = 0; column < p::kNumParams; ++column) d.set_param(kColumns[column], preset.values[column]);
 }
 
 int main() {
@@ -524,8 +692,8 @@ int main() {
   // 8. Safe holds the sides under a ceiling against the middle: on a mono
   // sound with Make full and every region wide, the sides stand level with
   // the middle at Safe 0, 3 dB under it at 0.5, 7.5 at 0.75 and 12 at 1; the
-  // meter says by how much. Safe never narrows what came in: a sound that is
-  // all sides stays.
+  // meter says by how much. Once settled, Safe never narrows what came in: a
+  // sound that is all sides stays.
   {
     rng_state() = 0x5AFEu;
     const std::vector<float> mono = noise(3.0f, kRate, 0.25f);
@@ -637,7 +805,7 @@ int main() {
 
   // 9b. A knob thrown with Safe full: Safe has heard it 60 ms later. Mid from
   // 0 to 2 under a held chord, every region wide; Safe's gain is then within
-  // 1 dB of where it stands a second on. (Its ears take 1.5 s on their own.)
+  // 1 dB of where it stands a second on. (Left alone it lets go over 1.5 s.)
   {
     Stereo chord;
     chord.left = sine(220.0f, 2.0f, kRate, 0.3f);
@@ -954,11 +1122,15 @@ int main() {
   }
 
   // 17. Safe does not pump. Notes with gaps between them, each at its own
-  // place between the sides, every region wide and Safe full: while a note
-  // sounds Safe's gain stays within 5 dB over the whole phrase and never
-  // moves 1.5 dB in a tenth of a second, and on wide noise it is held from
-  // the first ms after waking. (With ears of 20 ms and a release, the gain
-  // went from nothing to 11 dB and back on every note.)
+  // place between the sides, every region wide and Safe full. The gain takes
+  // hold when the tightest note comes (the third, in the middle) and from
+  // then on stays within 4 dB while a note sounds; over the whole phrase it
+  // never comes back up by 0.6 dB in a tenth of a second (letting go is a
+  // one-pole of 1.5 s on one over the gain: 5.8 dB a second at the most) and
+  // never falls by 1 dB in 10 ms; and on wide noise it is held from the
+  // first ms after waking. (With ears of 20 ms and a release of 120 ms the
+  // gain went from nothing to 11 dB and back on every note; with ears of
+  // 1.5 s both ways it came back up by 0.96 dB in a tenth of a second.)
   {
     const size_t n = static_cast<size_t>(4.0f * kRate);
     Stereo notes;
@@ -985,14 +1157,16 @@ int main() {
     hard.safe = 1.0f;
     set(device, hard);
     const std::vector<float> held = held_trace(device, notes);
-    double low = 0.0, high = -100.0, fastest = 0.0;
-    const size_t tenth = static_cast<size_t>(0.1f * kRate);
+    double low = 0.0, high = -100.0, rise = 0.0, fall = 0.0;
+    const size_t tenth = static_cast<size_t>(0.1f * kRate), hundredth = tenth / 10;
     for (size_t i = static_cast<size_t>(0.45f * kRate); i < n; ++i) {
+      rise = std::max<double>(rise, held[i] - held[i - tenth]);
+      fall = std::max<double>(fall, held[i - hundredth] - held[i]);
+      if (i < static_cast<size_t>(1.3f * kRate)) continue;  // the third note has taken hold by then
       const double side = 0.5 * (notes.left[i] - notes.right[i]);
       if (side * side < 1.0e-6) continue;  // only while there are sides to hear
       low = std::min<double>(low, held[i]);
       high = std::max<double>(high, held[i]);
-      fastest = std::max<double>(fastest, std::fabs(held[i] - held[i - tenth]));
     }
     rng_state() = 0x9A7Eu;
     Stereo wide;
@@ -1000,11 +1174,12 @@ int main() {
     wide.right = noise(0.5f, kRate, 0.2f);
     set(device, hard);
     const std::vector<float> start = held_trace(device, wide);
-    std::printf("Safe 1 on notes with gaps: its gain runs from %.1f to %.1f dB while they sound and moves %.2f dB in a tenth of a second at most; on wide noise %.1f dB 1 ms after waking, %.1f at 100 ms\n",
-                low, high, fastest, start[48], start[4800]);
+    std::printf("Safe 1 on notes with gaps: once it has taken hold its gain runs from %.1f to %.1f dB while they sound; it comes back up %.2f dB in a tenth of a second and falls %.2f dB in 10 ms at most; on wide noise %.1f dB 1 ms after waking, %.1f at 100 ms\n",
+                low, high, rise, fall, start[48], start[4800]);
     EXPECT(low < -4.0, "Safe is at work on the phrase");
-    EXPECT(high - low < 5.0, "Safe's gain stays within 5 dB over a played phrase");
-    EXPECT(fastest < 1.5, "Safe's gain moves less than 1.5 dB in a tenth of a second: it does not pump");
+    EXPECT(high - low < 4.0, "once it has taken hold Safe's gain stays within 4 dB over a played phrase");
+    EXPECT(rise < 0.6, "Safe's gain comes back up less than 0.6 dB in a tenth of a second: it does not pump");
+    EXPECT(fall < 1.0, "Safe's gain falls less than 1 dB in 10 ms: taking hold is not a step");
     EXPECT(std::fabs(start[48] - start[4800]) < 2.0, "after a silence Safe holds from the first ms");
     // The low part of the knob is not dead: with every region wide on wide
     // noise, Safe at 0.2 already holds the sides.
@@ -1044,41 +1219,6 @@ int main() {
   // never come out with less power than went in, and the mono sum is the
   // input's level times the preset's own Output.
   {
-    struct Preset {
-      const char* name;
-      float values[p::kNumParams];
-    };
-    // Which control each column of the table is, by key: the table stands in
-    // this order whatever the order of the controls in device.json.
-    static const int kColumns[p::kNumParams] = {p::kLow,   p::kMid,  p::kHigh,  p::kLowHz, p::kHighHz,
-                                                p::kSlope, p::kMake, p::kSmear, p::kSafe,  p::kOutput};
-    const auto value_of = [](const Preset& preset, int id) {
-      for (int column = 0; column < p::kNumParams; ++column) {
-        if (kColumns[column] == id) return preset.values[column];
-      }
-      std::abort();
-    };
-    const Preset presets[] = {
-    // presets: begin (the sixteen of device.json, every control filled in; tmp/check/gen-presets.mjs writes them)
-    // low, mid, high, lowHz, highHz, slope, make, smear, safe, output
-      {"Firm and airy", {0.0f, 1.25f, 1.7f, 120.0f, 2000.0f, 1.0f, 0.7f, 0.4f, 0.5f, 0.0f}},
-      {"Wide top", {0.0f, 1.0f, 2.0f, 120.0f, 1600.0f, 1.0f, 1.0f, 0.5f, 0.5f, 0.0f}},
-      {"Air only", {1.0f, 1.0f, 2.0f, 120.0f, 5000.0f, 1.0f, 1.0f, 0.6f, 0.5f, 0.0f}},
-      {"Open middle", {0.0f, 1.8f, 1.2f, 180.0f, 3200.0f, 1.0f, 0.9f, 0.4f, 0.5f, -0.75f}},
-      {"Wide pad", {0.5f, 1.6f, 2.0f, 120.0f, 3200.0f, 0.2f, 0.9f, 0.8f, 0.4f, -1.0f}},
-      {"Hazy edges", {0.0f, 1.3f, 2.0f, 180.0f, 1500.0f, 0.0f, 1.0f, 1.0f, 0.5f, -0.5f}},
-      {"Tight shimmer", {1.0f, 1.0f, 2.0f, 120.0f, 2800.0f, 1.0f, 1.0f, 0.0f, 0.5f, 0.0f}},
-      {"Wide ends", {2.0f, 0.6f, 2.0f, 150.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
-      {"Wide bass", {2.0f, 1.0f, 1.0f, 300.0f, 3200.0f, 1.0f, 1.0f, 0.7f, 0.3f, -0.5f}},
-      {"Firm bass", {0.0f, 1.0f, 1.0f, 400.0f, 3200.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
-      {"Everything wide", {2.0f, 2.0f, 2.0f, 180.0f, 3200.0f, 1.0f, 1.0f, 0.4f, 0.0f, -3.0f}},
-      {"Wide but safe", {1.5f, 2.0f, 2.0f, 180.0f, 3200.0f, 1.0f, 1.0f, 0.4f, 1.0f, 0.0f}},
-      {"Soft tilt", {0.5f, 1.0f, 1.5f, 300.0f, 3000.0f, 0.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
-      {"Narrow top", {1.0f, 1.6f, 0.0f, 180.0f, 4000.0f, 1.0f, 0.8f, 0.4f, 0.5f, -0.4f}},
-      {"Narrow body", {0.0f, 0.3f, 2.0f, 250.0f, 3200.0f, 1.0f, 0.8f, 0.4f, 0.5f, 0.0f}},
-      {"To the middle", {0.0f, 0.0f, 0.0f, 120.0f, 2000.0f, 1.0f, 0.0f, 0.4f, 0.5f, 0.0f}},
-    // presets: end
-    };
     const float seconds = 60.0f;
     std::vector<float> chord = sine(130.81f, seconds, kRate, 0.34f);
     const std::vector<float> e = sine(329.63f, seconds, kRate, 0.33f);
@@ -1086,14 +1226,9 @@ int main() {
     for (size_t i = 0; i < chord.size(); ++i) chord[i] += e[i] + g[i];
     int count = 0;
     double highest = 0.0, lowest_total = 100.0, worst_sum = 0.0;
-    for (const Preset& preset : presets) {
+    for (const Preset& preset : kPresets) {
       ++count;
-      auto load = [&] {
-        device.init(kRate);
-        for (int column = 0; column < p::kNumParams; ++column) {
-          device.set_param(kColumns[column], preset.values[column]);
-        }
-      };
+      auto load = [&] { load_preset(device, preset); };
       const double trim = std::pow(10.0, value_of(preset, p::kOutput) / 20.0);
       load();
       Stereo out = run(device, chord);
@@ -1130,6 +1265,285 @@ int main() {
     std::printf("%d presets: held chord peaks %.2f dB over the input at most; held tones never under %.3f dB, mono sum off by %.4f dB at most\n",
                 count, db(highest), lowest_total, worst_sum);
     EXPECT(count == 16, "all sixteen presets are held to the level rules");
+  }
+
+  // 20. Safe takes hold when the sound becomes too wide, whatever came before,
+  // and lets go slowly. A nearly mono chord at -20 dBFS for three seconds,
+  // then a steady hiss with as much sides as middle, at the chord's level and
+  // 20 and 33 dB under it, through the device as it starts: Safe's gain is
+  // within 1 dB of where it ends 0.15, 0.3 and 0.4 s after the change, and
+  // from half a second after it the hiss comes out within 0.5 dB of where it
+  // settles. The other way round (the hiss, then the chord) the gain comes
+  // back up by less than 0.6 dB in any tenth of a second. Neither way does it
+  // move by 1 dB in 10 ms. (With ears that took 1.5 s both ways the hold came
+  // 1.2 s after a change at one level, 7 s after a fall of 20 dB and not
+  // within 9 s after a fall of 33 dB: a mean of power remembers the loud
+  // passage. And it let go of 4.6 dB in a twentieth of a second.)
+  {
+    const float total = 12.0f, at = 3.0f;
+    const Stereo chord = narrow_chord(total, -20.0);
+    const size_t start = static_cast<size_t>(at * kRate);
+    const double under[] = {0.0, 20.0, 33.0};
+    const double allowed[] = {0.15, 0.3, 0.4};
+    double arrived[3] = {0.0, 0.0, 0.0}, ends[3] = {0.0, 0.0, 0.0}, steepest = 0.0, slowest_rise = 0.0, late = 0.0;
+    for (int n = 0; n < 3; ++n) {
+      rng_state() = 0x4155u;
+      const Stereo hiss = wide_hiss(total, -20.0 - under[n]);
+      for (int way = 0; way < 2; ++way) {
+        device.init(kRate);
+        Stereo heard;
+        const std::vector<float> held =
+            held_trace(device, way == 0 ? joined(chord, hiss, at) : joined(hiss, chord, at), &heard);
+        const double end = held[held.size() - 1];
+        for (size_t i = start; i < held.size(); ++i) {
+          steepest = std::max<double>(steepest, std::fabs(held[i] - held[i - 480]));
+          if (way == 1) slowest_rise = std::max<double>(slowest_rise, held[i] - held[i - 4800]);
+        }
+        if (way == 1) continue;
+        ends[n] = end;
+        size_t within = start;
+        for (size_t i = held.size(); i-- > start;) {
+          if (std::fabs(held[i] - end) > 1.0) {
+            within = i + 1;
+            break;
+          }
+        }
+        arrived[n] = static_cast<double>(within - start) / kRate;
+        const double settled = level_db(heard, total - 2.0, total);
+        for (double t = at + 0.5; t + 0.25 <= total; t += 0.25) {
+          late = std::max(late, std::fabs(level_db(heard, t, t + 0.25) - settled));
+        }
+      }
+    }
+    std::printf("a narrow chord, then a wide hiss at its level, 20 and 33 dB under: Safe ends at %.1f, %.1f and %.1f dB and is within 1 dB of that %.0f, %.0f and %.0f ms after the change; from 0.5 s on the hiss stays within %.2f dB of where it settles; the gain moves %.2f dB in 10 ms at most and comes back up %.2f dB in a tenth of a second at most\n",
+                ends[0], ends[1], ends[2], 1000.0 * arrived[0], 1000.0 * arrived[1], 1000.0 * arrived[2], late,
+                steepest, slowest_rise);
+    for (int n = 0; n < 3; ++n) {
+      EXPECT(ends[n] < -3.0, "as it starts Safe holds a wide hiss, however quiet after the chord");
+      EXPECT(arrived[n] < allowed[n], "Safe takes hold within a few hundred ms, whatever came before");
+    }
+    EXPECT(late < 0.5, "half a second after the change a steady hiss comes out steady");
+    EXPECT(steepest < 1.0, "Safe's gain never moves 1 dB in 10 ms: no step");
+    EXPECT(slowest_rise < 0.6, "Safe lets go slowly: under 0.6 dB in a tenth of a second");
+  }
+
+  // 21. The bank's own measurement: six seconds of its phrase and, under it
+  // and for sixteen seconds after, a steady hiss at -55 dBFS with its two
+  // sides independent. Through "Firm and airy" and "Hazy edges" the hiss
+  // comes out at one level from the first window after the phrase. (It came
+  // out 2.9 and 4.5 dB louder until eight to ten seconds after the phrase.)
+  {
+    rng_state() = 0x99u;
+    Stereo in = wide_hiss(22.0f, -55.0);
+    const Stereo phrase = bank_phrase(6.0f);
+    for (size_t i = 0; i < phrase.size(); ++i) {
+      in.left[i] += phrase.left[i];
+      in.right[i] += phrase.right[i];
+    }
+    for (const char* name : {"Firm and airy", "Hazy edges"}) {
+      load_preset(device, preset_named(name));
+      const Stereo out = run(device, in.left, in.right);
+      const double first = level_db(out, 6.0, 8.0), settled = level_db(out, 20.0, 22.0);
+      std::printf("%s, the bank's phrase and then its hiss: %.1f dBFS from 6 to 8 s, %.1f from 20 to 22 s\n", name,
+                  first, settled);
+      EXPECT_NEAR(first, settled, 0.3, "a steady hiss after the phrase comes out steady from the start");
+    }
+  }
+
+  // 22. The ends of notes do not pull Safe down. A mono chord switched on for
+  // 300 ms and off for 300 (2 ms fades), every region wide, Make and Smear
+  // full, Safe 1: after the first second the gain stays within 0.5 dB and no
+  // deeper than half a dB under the ceiling. The made sides ring on after the
+  // middle has stopped, so an ear on the middle alone hears them as too wide
+  // at the end of every note (it sat 1.8 dB under the ceiling with the short
+  // ears before the scattered middle was heard as well).
+  {
+    const size_t n = static_cast<size_t>(4.0f * kRate);
+    Stereo bursts;
+    bursts.left.assign(n, 0.0f);
+    for (size_t i = 0; i < n; ++i) {
+      const double t = static_cast<double>(i) / kRate, in_cycle = std::fmod(t, 0.6);
+      const double env = in_cycle < 0.3 ? std::min(1.0, std::min(in_cycle, 0.3 - in_cycle) / 0.002) : 0.0;
+      double v = 0.0;
+      for (double f : {220.0, 277.18, 329.63, 880.0}) {
+        v += 0.1 * std::sin(2.0 * kPi * f * t) + 0.05 * std::sin(2.0 * kPi * 3.0 * f * t);
+      }
+      bursts.left[i] = static_cast<float>(env * v);
+    }
+    bursts.right = bursts.left;
+    Setting hard;
+    hard.low = hard.mid = hard.high = 2.0f;
+    hard.make = 1.0f;
+    hard.smear = 1.0f;
+    hard.safe = 1.0f;
+    set(device, hard);
+    const std::vector<float> held = held_trace(device, bursts);
+    double low = 0.0, high = -100.0;
+    for (size_t i = static_cast<size_t>(kRate); i < n; ++i) {
+      low = std::min<double>(low, held[i]);
+      high = std::max<double>(high, held[i]);
+    }
+    std::printf("a mono chord switched on and off, Smear 1, Safe 1: Safe's gain runs from %.2f to %.2f dB\n", low, high);
+    EXPECT(high - low < 0.5, "the ends of notes do not move Safe's gain");
+    EXPECT(low > -12.5, "the ends of notes do not pull Safe under its ceiling");
+  }
+
+  // 23. No preset passes full scale on the bank's measure: its phrase scaled
+  // to peak at -1 dBFS, six seconds and two more of nothing. Width made from
+  // a mono sound is added to one side and taken from the other, so it raises
+  // the peak (every region wide with Make full: 3.4 dB on this phrase before
+  // Output); the device does not hold peaks, and a preset's Output leaves the
+  // room. ("Everything wide" at -3 dB came out at +0.4 dBFS and "Wide pad"
+  // at -1 dB at +0.2.)
+  {
+    Stereo hot = bank_phrase(6.0f);
+    const float scale = static_cast<float>(std::pow(10.0, -1.0 / 20.0) / std::max(peak(hot.left), peak(hot.right)));
+    for (float& v : hot.left) v *= scale;
+    for (float& v : hot.right) v *= scale;
+    hot.left.resize(static_cast<size_t>(8.0f * kRate), 0.0f);
+    hot.right.resize(static_cast<size_t>(8.0f * kRate), 0.0f);
+    double highest = 0.0;
+    const char* highest_name = "";
+    for (const Preset& preset : kPresets) {
+      load_preset(device, preset);
+      const Stereo out = run(device, hot.left, hot.right);
+      const double top = std::max(peak(out.left), peak(out.right));
+      if (top > highest) {
+        highest = top;
+        highest_name = preset.name;
+      }
+      if (!(top < 1.0)) {
+        std::printf("FAIL: preset %s fed the bank's phrase at -1 dBFS peaks at %+.2f dBFS\n", preset.name, db(top));
+        ++failures();
+      }
+    }
+    std::printf("the bank's phrase at -1 dBFS through every preset: the highest peak is %.2f dBFS (%s)\n", db(highest),
+                highest_name);
+  }
+
+  // 24. "Everything wide" is what its name says, and Safe gives back what it
+  // promises. Held notes of three partials over three octaves, the same on
+  // both sides, in quarter seconds from the first second on: the mono sum
+  // stands 3.0 dB under the two sides (the sides are as loud as the middle).
+  // With Safe up the sides are held to its ceiling c under the middle (3, 7.5
+  // and 12 dB at 0.5, 0.75 and 1) and the loss is 10·log10(1 + 10^(-c/10)):
+  // 1.76, 0.71 and 0.27 dB.
+  {
+    const Preset& wide = preset_named("Everything wide");
+    const float safes[] = {0.0f, 0.5f, 0.75f, 1.0f};
+    const double ceiling_db[] = {0.0, 3.0, 7.5, 12.0};
+    double loss[4] = {0.0, 0.0, 0.0, 0.0}, off = 0.0;
+    for (int n = 0; n < 4; ++n) {
+      for (int note : {45, 52, 57, 64, 69, 76, 81}) {
+        const double f = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+        const size_t frames = static_cast<size_t>(4.0f * kRate);
+        std::vector<float> tone(frames);
+        for (size_t i = 0; i < frames; ++i) {
+          double v = 0.0;
+          for (int partial = 1; partial <= 3; ++partial) {
+            v += std::sin(2.0 * kPi * f * partial * static_cast<double>(i) / kRate + note * 0.7 + partial) /
+                 std::pow(2.0, partial - 1);
+          }
+          tone[i] = static_cast<float>(0.1 * v * std::min(1.0, static_cast<double>(i) / 960.0));
+        }
+        load_preset(device, wide);
+        device.set_param(p::kSafe, safes[n]);
+        const Stereo out = run(device, tone);
+        const std::vector<float> mono = middle(out);
+        for (size_t a = 48000; a + 12000 <= frames; a += 12000) {
+          const double both = std::sqrt(0.5 * (std::pow(rms(out.left, a, a + 12000), 2.0) +
+                                               std::pow(rms(out.right, a, a + 12000), 2.0)));
+          const double fold = db(both / rms(mono, a, a + 12000));
+          loss[n] = std::max(loss[n], fold);
+          off = std::max(off, std::fabs(fold - 10.0 * std::log10(1.0 + std::pow(10.0, -ceiling_db[n] / 10.0))));
+        }
+      }
+    }
+    std::printf("\"Everything wide\" on held notes: the mono sum is %.2f dB under the two sides at worst; with Safe 0.5, 0.75 and 1 %.2f, %.2f and %.2f dB; off what the ceiling gives by %.2f dB at most\n",
+                loss[0], loss[1], loss[2], loss[3], off);
+    EXPECT(off < 0.15, "the mono sum loses what the sides' ceiling says, in every quarter second");
+  }
+
+  // 25. Starting is the same as waking. The phrase through "Wide but safe"
+  // from a fresh start with the preset just set, and again after a burst of
+  // noise and a second and a half of silence with no knob touched: the same
+  // samples. (A knob set before the first sound left Safe's ears quick for
+  // the first tenth of a second, as after a knob moved while sounding, and
+  // a wake did not: the two differed by 0.009 on a phrase that peaks at 0.3.)
+  {
+    const Stereo phrase = bank_phrase(3.0f);
+    load_preset(device, preset_named("Wide but safe"));
+    const Stereo fresh = run(device, phrase.left, phrase.right);
+    load_preset(device, preset_named("Wide but safe"));
+    rng_state() = 0x51EEu;
+    run(device, noise(0.5f, kRate, 0.3f));
+    run(device, silence(1.5f, kRate));
+    const Stereo woken = run(device, phrase.left, phrase.right);
+    EXPECT(fresh.left == woken.left && fresh.right == woken.right,
+           "a start with the knobs just set is the same as waking after a silence");
+  }
+
+  // 26. Safe's times are times at every sample rate: a mono chord for a
+  // second, then noise with as much sides as middle at the same level,
+  // through the device as it starts at 44.1, 48 and 96 kHz. The gain is
+  // within 1 dB of where it ends at the same moment to 15 ms; and with the
+  // two the other way round it is halfway back at the same moment to 0.1 s.
+  {
+    double arrived[3], halfway[3], depth[3];
+    int n = 0;
+    for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+      const size_t total = static_cast<size_t>(6.0f * rate), cut = static_cast<size_t>(1.0f * rate);
+      Stereo chord, hiss;
+      chord.left = sine(220.0f, 6.0f, rate, 0.1f);
+      const std::vector<float> fifth = sine(329.63f, 6.0f, rate, 0.1f);
+      for (size_t i = 0; i < total; ++i) chord.left[i] += fifth[i];
+      chord.right = chord.left;
+      rng_state() = 0x4155u;
+      hiss.left = noise(6.0f, rate, 0.17f);
+      hiss.right = noise(6.0f, rate, 0.17f);
+      for (int way = 0; way < 2; ++way) {
+        device.init(rate);
+        const Stereo& first = way == 0 ? chord : hiss;
+        const Stereo& then = way == 0 ? hiss : chord;
+        std::vector<float> held(total);
+        for (size_t i = 0; i < total; ++i) {
+          device.in_left()[0] = i < cut ? first.left[i] : then.left[i];
+          device.in_right()[0] = i < cut ? first.right[i] : then.right[i];
+          device.process(1);
+          held[i] = device.meter(0);
+        }
+        const double before = held[cut - 1], end = held[total - 1];
+        if (way == 0) {
+          depth[n] = end;
+          size_t within = cut;
+          for (size_t i = total; i-- > cut;) {
+            if (std::fabs(held[i] - end) > 1.0) {
+              within = i + 1;
+              break;
+            }
+          }
+          arrived[n] = static_cast<double>(within - cut) / rate;
+        } else {
+          size_t half = total;
+          for (size_t i = cut; i < total; ++i) {
+            if (held[i] > 0.5 * (before + end)) {
+              half = i;
+              break;
+            }
+          }
+          halfway[n] = static_cast<double>(half - cut) / rate;
+        }
+      }
+      ++n;
+    }
+    std::printf("Safe at 44.1, 48 and 96 kHz: takes hold (%.1f, %.1f, %.1f dB) within 1 dB after %.0f, %.0f, %.0f ms; halfway back after %.2f, %.2f, %.2f s\n",
+                depth[0], depth[1], depth[2], 1000.0 * arrived[0], 1000.0 * arrived[1], 1000.0 * arrived[2],
+                halfway[0], halfway[1], halfway[2]);
+    EXPECT(depth[1] < -3.0, "as it starts Safe holds noise with as much sides as middle");
+    EXPECT(std::fabs(arrived[0] - arrived[1]) < 0.015 && std::fabs(arrived[2] - arrived[1]) < 0.015,
+           "Safe takes hold in the same time at every sample rate");
+    EXPECT(std::fabs(halfway[0] - halfway[1]) < 0.1 && std::fabs(halfway[2] - halfway[1]) < 0.1,
+           "Safe lets go in the same time at every sample rate");
   }
 
   device.init(kRate);
