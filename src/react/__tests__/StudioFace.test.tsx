@@ -307,6 +307,36 @@ describe('the studio look on a plate', () => {
     expect(screen.getByTestId('plate')).toHaveAttribute('data-lm-look', 'studio')
   })
 
+  it('on a plate a host shows larger, is measured in the plate’s own px and has the pixels for the size it is shown at', async () => {
+    const device = await make(fixture)
+    const studio = stubStudio()
+    // The host's zoom of 1.2: the plate's box on the page is 264 by 360, and every part of it 36 by 36 at 48, 72.
+    vi.spyOn(Element.prototype, 'getBoundingClientRect').mockImplementation(function (
+      this: Element,
+    ) {
+      const plate = this.classList.contains('lm-plate')
+      return new DOMRect(plate ? 0 : 48, plate ? 0 : 72, plate ? 264 : 36, plate ? 360 : 36)
+    })
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        upright
+        look="studio"
+        presetPicker={<span data-lm-pane="">Preset</span>}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveAttribute('data-lm-look', 'studio')
+    // Where its parts stand is what it is on a plate of its own size.
+    expect(studio.sent('uPreset')).toEqual([40, 60, 30, 30])
+    // The picture is as many pixels as the page shows it at, and not the plate's own 220 by 300 stretched.
+    const face = plate.querySelector<HTMLCanvasElement>('.lm-plate__studio')
+    expect([face?.width, face?.height]).toEqual([264, 360])
+  })
+
   it("cuts a pane of glass for a host's preset cell only where the cell says it is one", async () => {
     const device = await make(fixture)
     const studio = stubStudio()

@@ -25,7 +25,7 @@ import {
 
 import { normToKnobAngle } from './control-math'
 import { type KnobCap } from './Knob'
-import { lookAtPlateDisplays } from './PlateDisplay'
+import { lookAtPlateDisplays, pixelsPerPx, shownScale } from './PlateDisplay'
 import {
   cssRgb,
   drawStudioFace,
@@ -222,7 +222,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
       }
     }
     const { parts, palette } = now
-    const ratio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    const ratio = pixelsPerPx(plate)
     const stamp = [
       shapeOf(parts),
       cap,
@@ -251,6 +251,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
           ? { x: parts.lamp.x + parts.lamp.w / 2, y: parts.lamp.y + parts.lamp.h / 2 }
           : null,
         powered,
+        shown: shownScale(plate),
       }
       taken = drawStudioFace(canvas, scene, palette)
     }
@@ -285,11 +286,11 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
       watched?.observe(part)
       renamed?.observe(part, { subtree: true, childList: true, characterData: true })
     }
-    let ratio = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+    let ratio = pixelsPerPx(plate)
     const unlook = lookAfter(() => {
       const style = getComputedStyle(canvas)
       const colours = `${style.color}|${style.outlineColor}|${style.textDecorationColor}`
-      const next = typeof devicePixelRatio === 'number' ? devicePixelRatio : 1
+      const next = pixelsPerPx(plate)
       if (colours !== held.current.colours || next !== ratio) {
         ratio = next
         once()

@@ -19,7 +19,12 @@ import { MockAudioBuffer, type MockAnalyserNode, type MockGainNode } from '../..
 import { DeviceChainView } from '../components/DeviceChainView'
 import { printedMeters } from '../components/DevicePanel'
 import { DevicePlate } from '../components/DevicePlate'
-import { PlateDisplayLayer, settledDisplays } from '../components/PlateDisplay'
+import {
+  PlateDisplayLayer,
+  pixelsPerPx,
+  settledDisplays,
+  shownScale,
+} from '../components/PlateDisplay'
 import { DEVICE_SKINS, QUIET_SKIN, type DeviceSkin } from '../components/device-skins'
 import {
   DisplayTaps,
@@ -756,6 +761,60 @@ describe('a handle on a display', () => {
     expect(device.getParam('q')).toBe(device.params.q.default)
   })
 
+  it('is where it is drawn on a plate a host shows larger: a press and a drag are counted in the display’s own px', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    act(() => {
+      device.setParam('frequency', device.params.frequency.max / 4)
+    })
+    const display = withHandle()
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...BASE, display, face: ['type', 'gain'] }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const surface = screen.getByTestId('plate-display')
+    const view = (draw: PlateDisplay['draw']) =>
+      (draw as ReturnType<typeof vi.fn>).mock.calls.at(-1)?.[0] as DisplayFrame
+    const at = display.handles?.(view(display.draw))[0]
+    expect(at).toBeDefined()
+    if (!at) return
+    // The host's zoom: a display 200 px wide of its own stands 240 px wide on the page, 20 px in from its corner.
+    const zoom = 1.2
+    vi.spyOn(surface, 'offsetWidth', 'get').mockReturnValue(200)
+    vi.spyOn(surface, 'offsetHeight', 'get').mockReturnValue(100)
+    vi.spyOn(surface, 'getBoundingClientRect').mockReturnValue({
+      left: 20,
+      top: 10,
+      right: 20 + 200 * zoom,
+      bottom: 10 + 100 * zoom,
+      width: 200 * zoom,
+      height: 100 * zoom,
+      x: 20,
+      y: 10,
+      toJSON: () => ({}),
+    })
+    const shown = (x: number, y: number) => ({ clientX: 20 + x * zoom, clientY: 10 + y * zoom })
+
+    // Where the handle is drawn on the page, not where it would be at the display's own size.
+    fireEvent.pointerMove(surface, { pointerId: 1, ...shown(at.x, at.y) })
+    expect(surface.dataset.lmHandle).toBe('cutoff')
+    fireEvent.pointerMove(surface, { pointerId: 1, clientX: 20 + at.x, clientY: 10 + at.y + 40 })
+    expect(surface.dataset.lmHandle).toBeUndefined()
+
+    // A drag across 44 of the display's own px moves what it moves on a plate of its own size.
+    const frequency = device.getParam('frequency')
+    fireEvent.pointerDown(surface, { pointerId: 2, button: 0, ...shown(at.x, at.y) })
+    expect(surface.dataset.lmHandle).toBe('cutoff')
+    fireEvent.pointerMove(surface, { pointerId: 2, ...shown(at.x + 44, at.y) })
+    const range = device.params.frequency.max - device.params.frequency.min
+    expect(device.getParam('frequency')).toBeCloseTo(frequency + (44 / 176) * range, 0)
+    fireEvent.pointerUp(surface, { pointerId: 2 })
+  })
+
   it('takes the wheel for itself over a handle, and leaves it to the page elsewhere', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -938,6 +997,24 @@ describe('a handle on a display', () => {
     // One undo takes the whole drag back, what the wheel turned with it.
     document.undo()
     expect(document.serialize()).toBe(before)
+  })
+})
+
+describe('how large a host shows a plate', () => {
+  it('is what the browser says where it says it, what is measured where it does not, and once where nothing is laid out', () => {
+    const element = document.createElement('div')
+    // jsdom lays nothing out.
+    expect(shownScale(element)).toBe(1)
+    expect(pixelsPerPx(element)).toBe(devicePixelRatio)
+    vi.spyOn(element, 'offsetWidth', 'get').mockReturnValue(204)
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 244.8, 120))
+    expect(shownScale(element)).toBe(1.2)
+    // A box that does not divide evenly is one scale, to a hundredth.
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue(new DOMRect(0, 0, 245, 120))
+    expect(shownScale(element)).toBe(1.2)
+    expect(pixelsPerPx(element)).toBeCloseTo(devicePixelRatio * 1.2, 9)
+    Object.defineProperty(element, 'currentCSSZoom', { value: 1.5 })
+    expect(shownScale(element)).toBe(1.5)
   })
 })
 
