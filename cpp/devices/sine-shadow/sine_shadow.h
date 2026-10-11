@@ -1023,9 +1023,7 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     for (int m = 0; m < count; ++m) {
       const float bin = peaks_[m].bin;
       const int cell = static_cast<int>(bin * static_cast<float>(kSweptPerBin));
-      // A peak of the lowest bin can be measured under nought (find_peaks
-      // gives it a place down to half a bin under): it has no cell.
-      if (!(peaks_[m].sure > kSweptSure) || cell < 0 || cell >= kSweptCells) continue;
+      if (!(peaks_[m].sure > kSweptSure) || cell >= kSweptCells) continue;
       for (int b = 0; b < swept_before_count_; ++b) {
         if (std::fabs(swept_before_[b] - bin) <= kSweptStep) swept_[cell] = kSwept;
       }
