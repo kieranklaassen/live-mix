@@ -70,7 +70,7 @@
       "min": 0,
       "max": 1,
       "default": 0.08,
-      "description": "How much each hit differs from the last in level, tone, length and noise. At zero a drum repeats exactly, as a machine does. Heard from the next hit."
+      "description": "How much each hit differs from the last in level, tone, length, pitch and noise. At zero a drum repeats exactly, as a machine does. Heard from the next hit."
     },
     {
       "key": "width",

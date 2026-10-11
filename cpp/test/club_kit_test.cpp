@@ -945,7 +945,9 @@ static void test_controls() {
          bite[0], bite[1], slap[0], slap[1], crash_front[0], crash_front[1], rim_click[0], rim_click[1]);
     EXPECT(noise_share[1] > 1.5 * noise_share[0] && wire_level[1] > 3.0 * wire_level[0],
            "Snap sets the snare's noise against its tones");
-    EXPECT(bite[1] > 5.0 * bite[0] && bite[1] > 1.0, "Snap gives the hats their bite");
+    // The shorter attack alone would pass a lower mark: with the bite left
+    // where the default Snap puts it this reads 1.65, with it 2.06.
+    EXPECT(bite[1] > 5.0 * bite[0] && bite[1] > 1.85, "Snap gives the hats their bite");
     EXPECT(slap[1] > 3.0 * slap[0], "Snap gives the congas their slap");
     EXPECT(crash_front[1] > crash_front[0] + 3.0, "Snap puts the stick on the crash");
     EXPECT(rim_click[1] > 3.0 * rim_click[0], "Snap puts the click on the rim");
@@ -1304,6 +1306,26 @@ static void test_variation() {
     EXPECT(loudest - quietest < 6.0, label);
     std::snprintf(label, sizeof label, "Variation changes how long the %s rings", kNames[key]);
     EXPECT(longest > 1.1 * shortest && longest < 1.6 * shortest, label);
+    // The tone it draws, read on the snare, whose noise moves the middle of
+    // its energy most: by a fifth here, by a thirtieth with no draw of tone.
+    if (key == D) EXPECT(brightest > 1.1 * dullest, "Variation changes how bright the snare is");
+  }
+  // The level it draws, read where the other draws move the peak least: the
+  // cowbell and the ride peak over about 2.4 dB in sixteen hits, and over
+  // 0.5 and 0.8 dB with no draw of level.
+  for (int key : {As, Ds}) {
+    char label[120];
+    device.init(kRate);
+    device.set_param(p::kVariation, 1.0f);
+    double low = 1.0e9, high = -1.0e9;
+    for (int n = 0; n < 16; ++n) {
+      const double level = db(both_peak(hit(device, key, 0.7f, key == Ds ? 3.5f : 2.0f)));
+      low = std::min(low, level);
+      high = std::max(high, level);
+    }
+    NOTE("variation 1: %-10s peaks over %.2f dB in 16 hits\n", kNames[key], high - low);
+    std::snprintf(label, sizeof label, "Variation changes how loud the %s is", kNames[key]);
+    EXPECT(high - low > 1.5 && high - low < 3.5, label);
   }
   // The tuning: a few cents at the most, and under two at the default.
   for (float variation : {1.0f, 0.08f}) {
@@ -1827,7 +1849,7 @@ static void test_rates() {
                           {Fs, 0.0, 0.0, 0.0, 0.0, true},        {G, 0.0, 0.0, 0.0, 0.0, true},
                           {Gs, 0.0, 0.0, 0.0, 0.0, true},        {A, 150.0, 250.0, 0.05, 0.2, false},
                           {As, 500.0, 700.0, 0.02, 0.12, false}, {B, 240.0, 350.0, 0.05, 0.18, false}};
-  for (int kit : {0, 2}) {
+  for (int kit = 0; kit < 4; ++kit) {
     for (const Probe& v : probes) {
       const Reading home = read(kit, v.key, 48000.0f, v.lo, v.hi, v.from, v.to);
       for (float rate : {22050.0f, 44100.0f, 96000.0f, 192000.0f}) {
@@ -1847,19 +1869,29 @@ static void test_rates() {
         std::snprintf(label, sizeof label, "the %s of the %s kit rings as long at %.0f Hz", kNames[v.key], kKits[kit],
                       static_cast<double>(rate));
         EXPECT_NEAR(there.ring / home.ring, 1.0, 0.09, label);
-        // At 22.05 kHz there is nothing above 11 kHz, and the hats and the
-        // crash live from 7 to 12 kHz: there they are quieter by what that
-        // rate cannot carry, up to 3 dB, and may only be duller.
-        const bool cut = rate < 40000.0f && (v.key == Cs || v.key == F || v.key == G);
+        // What 22.05 kHz cannot carry. The hats, the crash and the Bright
+        // kit's shaker live from 5 to 15 kHz. A part of that lies above half
+        // the rate, the skirts of their filters are steeper so near it, and
+        // the band-limited pulses lose more of their top there. They are
+        // quieter and may only be duller: by up to 3.5 dB on three of the
+        // kits, and the Bright kit's hats, whose band starts at 8 kHz, by
+        // 6 to 7 dB, of which 2.6 dB is the band that lies above half the rate.
+        const bool cut = rate < 40000.0f && (v.key == Cs || v.key == F || v.key == G || (kit == 3 && v.key == Fs));
+        const double most = kit == 3 && (v.key == F || v.key == G) ? 7.5 : 3.5;
         const double level = there.level - home.level;
         std::snprintf(label, sizeof label, "the %s of the %s kit is as loud at %.0f Hz", kNames[v.key], kKits[kit],
                       static_cast<double>(rate));
         if (cut) {
-          EXPECT(level < 0.5 && level > -3.5, label);
+          EXPECT(level < 0.5 && level > -most, label);
         } else {
           // The Dusty kit's hold spreads each step over the sample it falls
           // in: at a rate this near the hold's own that takes off a decibel.
-          EXPECT_NEAR(level, 0.0, kit == 2 && rate < 40000.0f ? 1.25 : 1.0, label);
+          double room = kit == 2 && rate < 40000.0f ? 1.25 : 1.0;
+          // The Deep kit's clap repeats one draw of noise, and at 96 and
+          // 192 kHz that draw is 1.2 and 1.4 dB over the one at 48 kHz. Over
+          // many draws the clap is as loud at every rate, within 0.2 dB.
+          if (kit == 1 && v.key == Gs && rate > 50000.0f) room = 1.6;
+          EXPECT_NEAR(level, 0.0, room, label);
         }
         // The Dusty kit's grit is made at a rate in hertz: from 44.1 kHz up
         // its tops are the same sound, closer than the other kits' are.
@@ -1873,11 +1905,14 @@ static void test_rates() {
         if (v.key == D) {
           EXPECT_NEAR(there.centre, home.centre, 0.06, label);
         } else if (cut) {
-          EXPECT(there.centre < 1.03 * home.centre && there.centre > 0.84 * home.centre, label);
+          // The Bright kit's tops reach highest and lose most of their top.
+          EXPECT(there.centre < 1.03 * home.centre && there.centre > (kit == 3 ? 0.70 : 0.84) * home.centre, label);
         } else {
           // What a higher rate adds lies above the hearing range and still
-          // moves the middle of the energy a little.
-          EXPECT_NEAR(there.centre / home.centre, 1.0, 0.16, label);
+          // moves the middle of the energy a little. The Bright kit's shaker
+          // reaches 13 kHz, where the low-pass at 48 kHz falls faster than
+          // it does at 192 kHz: there its middle is a sixth higher.
+          EXPECT_NEAR(there.centre / home.centre, 1.0, kit == 3 && v.key == Fs ? 0.20 : 0.16, label);
         }
       }
     }
@@ -1964,7 +1999,9 @@ static void test_rates() {
     if (rate < 50000.0f) EXPECT(dropped > 0, "at this rate some of them do not fit");
   }
   // Every drum at the top of its reach, on every Kit, at every rate: finite
-  // and bounded, the pulses of the metal held under the rate too.
+  // and bounded. This does not show that a pulse is held under the rate, and
+  // none needs holding here: three octaves up the fastest pulse of the metal
+  // is at 5.6 kHz, under 0.3 of the lowest of these rates.
   for (float rate : {22050.0f, 44100.0f, 48000.0f, 96000.0f, 192000.0f}) {
     bool sound = true;
     double loudest = 0.0;
@@ -2415,6 +2452,29 @@ int main() {
   EXPECT(peak(longest.left, at(9.0), at(9.5)) > 0.0 && peak(asleep.left) == 0.0 && peak(asleep.right) == 0.0 &&
              device.asleep(),
          "the longest drum at the longest Length ends in exact silence");
+
+  // The longest tail the kit can make: that crash three octaves down (the
+  // lowest octave and Tune at -12) on the Bright kit, whose metal rings
+  // longest. It is 60 dB down 29 s on and its slot is let go 54 s on (52 s
+  // on the Firm kit, up to 64 s with Variation at 1): nothing tells a host
+  // this, so whoever renders a hit to a file has to allow for it.
+  plain(device, kRate, 3);
+  device.set_param(p::kLength, 4.0f);
+  device.set_param(p::kTune, -12.0f);
+  device.note_on(1, key_hz(Cs, -2), 1.0f);
+  int tail_blocks = 0, tail_states = 0;
+  while (device.sounding() > 0 && tail_blocks < 70 * 375) {
+    device.process(128);
+    tail_states += device.subnormal_states();
+    ++tail_blocks;
+  }
+  const double tail_seconds = tail_blocks * 128.0 / kRate;
+  Stereo after_tail = render(device, 0.1f, kRate);
+  NOTE("tail: the crash at Length 4 three octaves down is let go %.2f s on\n", tail_seconds);
+  EXPECT(tail_seconds > 50.0 && tail_seconds < 58.0 && tail_states == 0,
+         "the longest tail the kit can make ends within a minute, with no subnormal on the way");
+  EXPECT(peak(after_tail.left) == 0.0 && peak(after_tail.right) == 0.0 && device.asleep(),
+         "and the kit sleeps after it");
 
   // Cost: a busy bar, looped for ten seconds.
   device.init(kRate);

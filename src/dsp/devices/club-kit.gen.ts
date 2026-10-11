@@ -92,7 +92,7 @@ export const CLUB_KIT_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much each hit differs from the last in level, tone, length and noise. At zero a drum repeats exactly, as a machine does. Heard from the next hit.',
+      'How much each hit differs from the last in level, tone, length, pitch and noise. At zero a drum repeats exactly, as a machine does. Heard from the next hit.',
   },
   width: {
     id: 8,

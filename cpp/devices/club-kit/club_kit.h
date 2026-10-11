@@ -55,8 +55,9 @@
 //   pulses fold.
 //
 // The bands of the hats, cymbals and shaker move half as far as the tuning
-// (in octaves), so that an octave up is still in the hearing range;
-// everything else moves by the full interval. No drum of tones is tuned
+// (in octaves), so that an octave up is still in the hearing range, and so
+// do the band of the kick's click and the top of the kick; everything else
+// moves by the full interval. No drum of tones is tuned
 // under 24 Hz: the kick, the snare and the congas are held there, the
 // snare's upper tone and the congas' fifth keeping their interval. A sine
 // that would lie above 0.45 of the sample rate is left out, and no pulse is
@@ -817,6 +818,9 @@ class ClubKit : public kit::DeviceBase<club_kit::kNumParams> {
   // kit::BlepOsc's pulse without the checks it makes at every sample, which
   // are made once here when the drum is struck (eighteen pulses sound under
   // a busy bar). The increment is under 0.45 and the width is 0.31 or 0.5.
+  // It is that pulse to within rounding, not sample for sample: the step
+  // down is found here from the phase less the width, and there from the
+  // phase plus one less the width, which rounds a little differently.
   static float pulse_wave(float* phase, float increment, float width) {
     float at = *phase + increment;
     if (at >= 1.0f) at -= 1.0f;
