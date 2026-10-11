@@ -253,6 +253,21 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     return (index & 1) ? v.env * ceiling_gain_ : static_cast<float>(v.inc * sample_rate());
   }
 
+  // For the harness: how many of the sines' levels and side gains stand
+  // where sums go slow (under 1.2e-38 and not nought). None do: see aim().
+  int slow_numbers() const {
+    int count = 0;
+    for (int index = 0; index < kPool; ++index) {
+      const Voice& v = voices_[index];
+      if (v.state == kFree) continue;
+      const float held[3] = {v.env, v.gain_left, v.gain_right};
+      for (int i = 0; i < 3; ++i) {
+        if (held[i] != 0.0f && held[i] > -1.17549435e-38f && held[i] < 1.17549435e-38f) ++count;
+      }
+    }
+    return count;
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames) || active_count_ > 0)) {
@@ -615,6 +630,15 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     const float angle = kit::lerp(v.angle, 0.25f * kit::kPi * (1.0f + v.place), param(kSpread));
     v.left_target = 1.4142136f * std::cos(angle);
     v.right_target = 1.4142136f * std::sin(angle);
+    // A level or a side that is heading for exactly nought lands on it. Left
+    // to its one pole it would stand at 4e-45 for as long as the sine is
+    // followed (a sine that Transpose has put past the range, a sound on one
+    // side only with Spread at nought), and sums on such numbers are many
+    // times slower. Once a frame is enough: no frame is long enough to take
+    // a value from 1e-15 down to where numbers go slow.
+    if (v.env_target == 0.0f) v.env = flush_denormal(v.env);
+    if (v.left_target == 0.0f) v.gain_left = flush_denormal(v.gain_left);
+    if (v.right_target == 0.0f) v.gain_right = flush_denormal(v.gain_right);
   }
 
   // One sample of the sound into the three frames. Their transforms are
@@ -999,7 +1023,9 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
     for (int m = 0; m < count; ++m) {
       const float bin = peaks_[m].bin;
       const int cell = static_cast<int>(bin * static_cast<float>(kSweptPerBin));
-      if (!(peaks_[m].sure > kSweptSure) || cell >= kSweptCells) continue;
+      // A peak of the lowest bin can be measured under nought (find_peaks
+      // gives it a place down to half a bin under): it has no cell.
+      if (!(peaks_[m].sure > kSweptSure) || cell < 0 || cell >= kSweptCells) continue;
       for (int b = 0; b < swept_before_count_; ++b) {
         if (std::fabs(swept_before_[b] - bin) <= kSweptStep) swept_[cell] = kSwept;
       }
@@ -1295,13 +1321,19 @@ class SineShadow : public kit::DeviceBase<sine_shadow::kNumParams> {
         v = Voice();
         v.state = kFollowing;
         v.young = kYoung;
-        const float note = std::floor(69.5f + 12.0f * (std::log2(peak.bin * bin_hz_) - 8.7813597f));
+        // The place a peak is measured at can be nought or less (the lowest
+        // bin's, under a rumble): the same floor aim() gives the pitch, or
+        // the logarithm is not a number and neither is anything this sine
+        // sounds for as long as it lasts.
+        const float note = std::floor(69.5f + 12.0f * (std::log2(kit::max(peak.bin, 0.5f) * bin_hz_) - 8.7813597f));
         // Every note has a spot of its own between the sides, far from its
         // neighbours' (the golden section), and its own side of the phase.
         const float spot = note * 0.61803399f;
         const float across = 2.0f * (spot - std::floor(spot)) - 1.0f;
         v.place = across < 0.0f ? -std::sqrt(-across) : std::sqrt(across);
-        v.flip = ((static_cast<uint32_t>(note) * 2654435761u) >> 16) & 1u ? 0.5f : 0.0f;
+        // (A note under nought, which is under 8.2 Hz, has no unsigned number: it is note 0 here.)
+        const uint32_t number = note > 0.0f ? static_cast<uint32_t>(note) : 0u;
+        v.flip = ((number * 2654435761u) >> 16) & 1u ? 0.5f : 0.0f;
         v.side = peak.right > peak.left ? 1 : 0;
       } else if (v.state == kLingering) {
         v.state = kFollowing;  // with the count it let go with: no second wait if it had none
