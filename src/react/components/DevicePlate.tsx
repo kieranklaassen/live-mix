@@ -12,6 +12,10 @@
 // of knobs (`strip`), or beside two rows of them (`window`). The column at the
 // right is the plate's own either way: the cell that opens the rest at its
 // top, the chain's tools at its foot.
+//
+// A plate is flat unless it is asked to have the studio look (`look`, or a
+// `PlateLookProvider` over it) on a machine that can draw it: then a
+// photograph of the plate lies under the same parts (`StudioFace`).
 
 import {
   memo,
@@ -53,6 +57,8 @@ import {
   type PlateDisplay,
 } from './plate-display'
 import { PlateDisplayLayer } from './PlateDisplay'
+import { STUDIO_KNOBS_MOST } from './studio-face'
+import { StudioFace, useStudioLook, type PlateLook } from './StudioFace'
 import { DeviceToggle } from './Toggle'
 import { cx, type DataAttributes } from './tokens'
 
@@ -469,6 +475,12 @@ export interface DevicePlateProps {
    * opened, and stays so.
    */
   spread?: boolean
+  /**
+   * How the plate is drawn: `flat`, or `studio` as a photograph from above
+   * (where there is no WebGL it stays flat). Default: what a
+   * `PlateLookProvider` over it says, and flat without one.
+   */
+  look?: PlateLook
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
   /**
@@ -566,6 +578,7 @@ export function DevicePlate({
   presetPicker,
   upright = false,
   spread = false,
+  look,
   defaultOpen = false,
   open: openGiven,
   onOpenChange,
@@ -587,6 +600,7 @@ export function DevicePlate({
   // A spread plate is open and stays so.
   const open = spread || opened
   const held = usePlateInHand()
+  const studio = useStudioLook(look)
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
   const display = skin.display
@@ -753,6 +767,26 @@ export function DevicePlate({
         infoText(about ?? `${heading}: one of the devices of this chain.`, hint),
       )}
     >
+      {studio && names.length <= STUDIO_KNOBS_MOST ? (
+        <StudioFace
+          cap={skin.cap}
+          turns={names.map(at)}
+          powered={powered}
+          // Whatever moves a part: the plate's size, its knobs, the cells and the foot it has.
+          shape={[
+            layout.width,
+            layout.upright?.height ?? 0,
+            layout.columns,
+            layout.upright?.knob ?? KNOB_SIZE,
+            names.join(' '),
+            rest.length,
+            editor ? 1 : 0,
+            picker ? 1 : 0,
+            showBypass ? 1 : 0,
+            tag,
+          ].join('|')}
+        />
+      ) : null}
       <PlateFinishLayer
         finish={skin.finish}
         dark={skin.dark ?? isDarkPlate(skin.plate)}

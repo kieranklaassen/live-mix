@@ -313,6 +313,54 @@ knobs) and adds `spread`: how many columns the display takes, the rows'
 heights, and `cell(index)`, the row and column of each knob.
 `plateSections(skin.sections, params)` is the sections as a device has them.
 
+A plate has two looks. `flat` is the one above: the skin's three colours, its
+finish as noise, the knobs' caps as drawings. `studio` is the same plate as a
+photograph from straight above, lit by one soft lamp from the upper left: satin
+paint with a rolled edge, knobs of turned aluminium anodised in the plate's
+colour (the skin's `cap` is the kind of knob), the display and the kit's preset
+cell under glass let into the box, the `+n` and `Edit` cells as low caps, the
+lamp in a bezel on a hex nut. Ask for it over any part of the page, or for one
+plate:
+
+```tsx
+import { PlateLookProvider } from '@kieranklaassen/live-mix/react'
+
+;<PlateLookProvider look="studio">
+  <DeviceChainView strip={track} skin={deviceSkin} upright />
+</PlateLookProvider>
+
+;<DevicePlate device={device} skin={skin} look="studio" />
+```
+
+Nothing a hand or a script finds on the plate changes with the look: its size,
+every control with its test id and info text, where each knob, cell and lamp
+stands, and the display, which draws what it drew. The photograph is one
+canvas under them (`StudioFace`), drawn by one fragment shader in one WebGL
+context that every plate on the page shares, from where the parts stand on the
+page. It is taken again when a knob turns, the lamp goes on or off, a part
+moves or the skin's colours change, and never on frames. Its colours are made
+from the skin's three (`studioPalette`): the lettering is the ink, moved until
+it stands at 4.5 to 1 or better on the paint, and the paint gives way only
+where that is not enough; the screen is the plate's colour in shade. A knob's
+indicator is cut into a bed: the metal right beside its paint is held dark
+enough (or, under dark paint, pale enough) for the paint to stand at 3 to 1 on
+it, also where the lamp's fan crosses the top (`StudioPalette.bed`). The
+display lays no ground of its own on the glass (`DisplayColours.ground`). The
+shadow a plate stands in is the theme's (`--lm-shade`).
+A host's own preset cell in `presetPicker` gets a pane of glass under it, as
+the kit's has, when it carries `data-lm-pane`; it then writes in
+`--lm-studio-screen` on `--lm-studio-glass` and draws no ground or line of its
+own while the plate carries the mark below.
+
+A plate is marked `data-lm-look="studio"` once its photograph is on it, and
+the stylesheet does the rest from that mark. Where it cannot be taken (no
+WebGL, a context that was lost, more than 64 knobs, on the server and in the
+first draw after it) the plate is the flat one, with nothing of the studio
+look in its markup. Flat is the default: without a provider or `look` nothing
+changes. `usePlateLook()` reads the provider, `useStudioLook(look?)` answers
+whether a plate here is photographed, and `studioReady()` whether this machine
+can.
+
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
 `HOSTED_PLATES` by the plug-in's id, with a finish and a knob cap, so the same
@@ -922,6 +970,177 @@ element, asks for the step and applies it.
 `playground/video-kit.html` (`pnpm playground`, then `/video-kit.html`) mounts
 every element with made-up content; `?theme=paper` or any other theme, and
 `?sheet=1` for the sheet.
+
+### The block parts
+
+What a block of a bar is laid out with: the places of a surface, the head of a
+block that was gone into, a list of things to go into, the one sentence a
+block says and its one main action, a few choices, the layout of its body,
+a sheet for what is set up once and then left, and the groups of a bar that
+is one row tall.
+The parts came from Ambient Live, whose bottom bar is built from them, and
+they are the kit's now so a second app lays its blocks out the same way. They
+are presentational: the host owns what is chosen and what a press does.
+Nothing here reads the engine, so all of it renders without a provider. Each
+part passes what it is not told about to its element (`infoProps`, a
+`data-testid`, a `title`), and a part that draws buttons of its own takes
+those per button as `props`.
+
+```tsx
+import {
+  BlockHead,
+  Choice,
+  Group,
+  Hint,
+  MainAction,
+  PlainAction,
+  Room,
+  Row,
+  Says,
+  Tick,
+  Well,
+} from '@kieranklaassen/live-mix/react'
+
+function LooperBlock({ looper, onBack }: { looper: Looper; onBack: () => void }) {
+  return (
+    <>
+      <BlockHead
+        back={{ label: 'Tools', onClick: onBack }}
+        title="Looper"
+        state={looper.running ? 'Recording' : 'Idle'}
+        on={looper.running}
+      />
+      <Room>
+        <Says>Records what you play and plays it back in a loop.</Says>
+        <MainAction tone={looper.running ? 'line' : 'fill'} onClick={looper.toggle}>
+          {looper.running ? 'Stop' : 'Record'}
+        </MainAction>
+        <PlainAction onClick={looper.clear}>Clear</PlainAction>
+        <Group name="Length" beside>
+          <Choice
+            label="Length"
+            value={looper.bars}
+            onChange={looper.setBars}
+            options={[
+              { value: 1, label: '1 bar' },
+              { value: 2, label: '2 bars' },
+              { value: 4, label: '4 bars' },
+            ]}
+          />
+        </Group>
+        <Row name="Start" hint="Waits for the next bar">
+          <Tick on={looper.synced} onChange={looper.setSynced}>
+            On the bar
+          </Tick>
+        </Row>
+        <Well caption="The loop shows here">{looper.running && <LoopPicture />}</Well>
+        <Hint>A second press on Record adds a layer.</Hint>
+      </Room>
+    </>
+  )
+}
+```
+
+| Part                        | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Places`                    | The places of a surface as cells that are always there, the one in view filled with the accent (`value`, or null when the surface shows none of them): a column sharing the height it is given, or a row of words with `across`. An item has a `name`, and may have a `note`, an `icon` and a `level` (a meter the caller draws)                                                                                                                                                                                                                                                                                                                           |
+| `BlockHead`, `State`        | The first row inside a block that was gone into: the way `back`, the `title`, children between, and at the right its `state` in words with a lamp that is lit while `on`. `State` is that right end by itself, for a head that is a frame's own title bar                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `ListRow`                   | One row of a list of things to go into: an `icon`, a `name`, one `line` of what it is, a chevron, and a `mark` while the thing is at work, which lifts the row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `Says`                      | The one sentence at the top of a block: what it does, in plain words                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `MainAction`, `PlainAction` | The one large action of a block, `tone="fill"` before it is taken and `"line"` while it runs; `small` is as tall as a choice, for a row. A plain action is a small button beside it, never in its place: an `icon`, a word. With no word it is its icon alone, a cell of the module wide, and the caller names it with `aria-label`. `on` fills it while what it starts goes on, and `aria-busy` draws it in the accent while what it started is under way. Its `ref` reaches the button                                                                                                                                                                   |
+| `Choice`                    | One of a few, side by side in one frame, the chosen one filled. `fill` takes the width it is given and the options share it; `tall` options hold two lines. With `wrap` each option is as wide as its words and they go on to a second row where one row is too narrow, so no word is cut. `value` is null when none is chosen                                                                                                                                                                                                                                                                                                                             |
+| `Dropdown`                  | One of a list too long to lay side by side: the platform's own select in the frame a `Choice` has, named by `label`, given its options as children and told of a pick the select's own way (`value`, `onChange`)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `DropdownButton`            | The frame of a `Dropdown` as a button, over a list of the caller's own: it says what is picked, and a press opens the list. The caller says whether the list is open with `aria-expanded`, and the frame is lit while it is. Its `ref` reaches the button, to lay the list by it                                                                                                                                                                                                                                                                                                                                                                           |
+| `ChoiceList`                | One of a few, each on a row of a list with a sentence under its name, for a choice whose options need saying what they do. An option has a `value`, a `name` and may have a `line`; the picked one has its ring filled, and `value` is null when none is picked. It is a radio group named by `label`: the arrow keys, Home and End move among the rows without picking, a press picks, and Tab stops on the picked row. Its `ref` reaches the group                                                                                                                                                                                                       |
+| `Tick`                      | A thing that is on or off, as a box with its word. `onChange` is told the new state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `Pill`                      | A word in a ring that says whether a thing is there, lit when `on`. Not a control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `Tally`                     | How many of a thing, in the figures' face beside its name: in an option of a `Choice`, at the end of a `SearchField`. Not a control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `SearchField`               | The field a list is searched with, named by `label`: a magnifier that is lit while something is typed, the field, and at its end what the search `found` and, with `onClear`, a cross that empties it (`clearProps` are the cross's own). What it is not told about goes to the field itself: `value`, `onChange`, a `placeholder`                                                                                                                                                                                                                                                                                                                         |
+| `Room`                      | The body of a block. It tells the parts in it how much room there is: a main action, a card, a tall choice and a group with its name `beside` are drawn lower where the bar is low, and a card closer on a phone. With `finger` (the class `lm-finger`, exported as `FINGER`) the parts in it are a finger's size: a main action 40 px tall, and nothing that is pressed narrower than 40 px                                                                                                                                                                                                                                                               |
+| `Group`                     | A named group of a block: its `name` in small capitals over what belongs to it, or beside it in a low room with `beside`. A `note` is one line at the end of the name's row, what the group holds now; it goes under the name where the row is too narrow for both                                                                                                                                                                                                                                                                                                                                                                                         |
+| `BarGroup`, `Joined`        | A named group of a bar that is one row tall: its `name` in small capitals beside what belongs to it, and the plain actions, ticks, choices, dropdowns, main actions, figures and joined frames in it drawn as low as the row, 16 px, or 14 px with `low` in a bar whose row keeps its edges for a bevel. `bare` leaves the name undrawn where the bar has no room for it, and it names the group all the same; `ruled` draws a rule before the group, in a bar whose groups stand on one ground. `Joined` puts parts that are one control in one frame with a rule between them: a thing and the picker of what it works on, a count between its two steps |
+| `Row`, `Hint`               | One choice on one row: its `name` at the left, the control, and a `hint` of what it means. A kit `Fader` on a row is drawn as a thin track with a line for its thumb. `Hint` is a short line of help anywhere else                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `Figure`                    | A number in a sunken frame with what it is counted in: the caller's own `input` or a readout as its child, and its `unit` after it. `chars` is how many figures a field shows                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `Well`                      | The sunken room of a block where what it hears is drawn (the kit's `lm-well`); while idle its `caption` says what will show                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `Card`                      | One of a few things in a row that can be picked, such as a chord of a loop. The `picked` one has the accent's frame; the `active` one shows `progress` (0 to 1) on its lower edge, or the caller sets `--lm-card-progress` through the `ref`. A card that `goes` into its thing has no picked state: a press leaves the row. One for a thing that is not there `yet` has a dashed frame. `hue` is a CSS colour for a band along its upper edge, the colour the thing has elsewhere, and `level` a meter the caller draws at its edge                                                                                                                       |
+| `Step`                      | One step of a few toward a thing that is not there yet, in a dashed frame: an `icon`, its `number` among the steps, its `name`, a `line` of what to do, children between, and a `foot` that says where. Left without a number it is a frame that stands by itself. Words, not a control                                                                                                                                                                                                                                                                                                                                                                    |
+| `NamedChip`                 | A small named thing to press: a `swatch` of its colour, its name, and a star when `starred`. A `count` stands at its end, how many it holds. Told `on` or not, it is a thing that is on or off (`aria-pressed`), and it fills while on; left untold it is a plain button                                                                                                                                                                                                                                                                                                                                                                                   |
+| `Offer`                     | An offer to make something new, set apart from what stands around it by a dashed frame: a plus and its `name`, `beside` the name a choice the new thing is made with, one `line` on what a press makes, and under it the ways to take it as children                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `KeptSheet`                 | A sheet over the page for what is set up once and then left. Unlike `Sheet`, which is there while it is mounted, it is opened with `open` and stays mounted while closed, so what lives in it goes on working. Escape (heard before the page hears it) and a press beside it call `onClose`, Tab stays inside, and the focus goes to its Close button and back where it was. `foot` is one line along its foot                                                                                                                                                                                                                                             |
+| `SheetPart`                 | One part of a sheet: its `name`, a `state` after it that is lit when `on`, a `line` of what it is, and under them its controls                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `Chevron`, `Star`           | The two 12 px glyphs the parts draw: a chevron forward or `back`, and a star that is filled when `on`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+A bar that is one row tall is laid out with the same parts, a `BarGroup` for
+each group of it:
+
+```tsx
+import {
+  BarGroup,
+  Chevron,
+  Figure,
+  Joined,
+  PlainAction,
+  SearchField,
+  Tally,
+} from '@kieranklaassen/live-mix/react'
+
+function PassBar({ pass, list }: { pass: Pass; list: SampleList }) {
+  return (
+    <>
+      <BarGroup name="Pass">
+        <Joined>
+          <PlainAction aria-label="Previous pass" icon={<Chevron back />} onClick={pass.previous} />
+          <Figure>{pass.number}</Figure>
+          <PlainAction aria-label="Next pass" icon={<Chevron />} onClick={pass.next} />
+        </Joined>
+        <PlainAction on={pass.looping} onClick={pass.toggleLoop}>
+          Loop
+        </PlainAction>
+      </BarGroup>
+      <BarGroup name="Length" ruled>
+        <Figure unit="s" chars={4}>
+          <input
+            aria-label="Length in seconds"
+            value={pass.seconds}
+            onChange={(event) => pass.setSeconds(event.target.value)}
+          />
+        </Figure>
+      </BarGroup>
+      <BarGroup name="Samples" bare ruled>
+        <SearchField
+          label="Search samples"
+          placeholder={`Search ${list.total} samples`}
+          value={list.query}
+          onChange={(event) => list.search(event.target.value)}
+          found={
+            <Tally>
+              {list.found} of {list.total}
+            </Tally>
+          }
+          onClear={() => list.search('')}
+        />
+      </BarGroup>
+    </>
+  )
+}
+```
+
+`Room` is a size container named `lm-room`, and a block lays out what is its
+own by the same container:
+
+```css
+@container lm-room (max-height: 220px) {
+  .looper-picture {
+    display: none;
+  }
+}
+```
+
+The row's class is `lm-block-row`, because `lm-row` is the channel row. In
+the same way `KeptSheet`, `Dropdown` and `NamedChip` are named apart from the
+kit's `Sheet`, `PickerPanel` and `ContextChip`, whose classes are `lm-sheet`,
+`lm-picker` and `lm-chip`. A `DropdownButton` has the class of a `Dropdown`,
+`lm-dropdown`, on a button.
 
 ## The playground
 

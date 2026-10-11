@@ -60,18 +60,22 @@ export const crisp = (value: number): number => Math.floor(value) + 0.5
  */
 export function ground(frame: Paint & Pick<DisplayView, 'width' | 'height'>, pad = 3): Box {
   const { ctx, colours, width, height } = frame
-  // The plate's finish (specks, a brushing) is hushed under a display, so a thin line is not read against it.
-  ctx.globalAlpha = INK.hush
-  ctx.fillStyle = colours.plate
-  ctx.fillRect(0, 0, width, height)
-  ctx.globalAlpha = INK.ground
-  ctx.fillStyle = colours.ink
-  ctx.fillRect(0, 0, width, height)
-  ctx.globalAlpha = INK.rule
-  ctx.strokeStyle = colours.ink
-  ctx.lineWidth = 1
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-  ctx.globalAlpha = 1
+  // A display that is given its ground lays none, and keeps the room the line would have had.
+  const much = Math.min(1, Math.max(0, colours.ground ?? 1))
+  if (much > 0) {
+    // The plate's finish (specks, a brushing) is hushed under a display, so a thin line is not read against it.
+    ctx.globalAlpha = INK.hush * much
+    ctx.fillStyle = colours.plate
+    ctx.fillRect(0, 0, width, height)
+    ctx.globalAlpha = INK.ground * much
+    ctx.fillStyle = colours.ink
+    ctx.fillRect(0, 0, width, height)
+    ctx.globalAlpha = INK.rule * much
+    ctx.strokeStyle = colours.ink
+    ctx.lineWidth = 1
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+    ctx.globalAlpha = 1
+  }
   return { x: 1 + pad, y: 1 + pad, w: width - 2 - 2 * pad, h: height - 2 - 2 * pad }
 }
 
