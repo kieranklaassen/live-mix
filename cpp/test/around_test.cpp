@@ -121,6 +121,7 @@ static void smoothness();
 static void levels();
 static void headroom();
 static void rest();
+static void second_reading();
 
 int main() {
   Conformance spec;
@@ -139,6 +140,7 @@ int main() {
   levels();
   headroom();
   rest();
+  second_reading();
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
@@ -1380,5 +1382,77 @@ static void rest() {
       std::printf("note: %s\n", label);
       EXPECT(least > 0.01, label);
     }
+  }
+}
+
+// What the second reading found.
+static void second_reading() {
+  char label[240];
+
+  // The turn's sine and cosine never read past the kit's table. A phase a
+  // hair under nought (from -2^-25 up) is 1.0f once the table has taken its
+  // floor off, which is the entry after the last; Turn one float beyond -90
+  // degrees asks for exactly that cosine, and a Turn gliding through nought
+  // for that sine. The guarded reads give the first entry there, and at
+  // every other angle the bits the table gave.
+  {
+    livemix::kit::SineTable::init();
+    const float hair = -1.0e-8f;
+    const float quarter_back = std::nextafter(-0.25f, -1.0f);
+    std::printf("note: a turn of %.3g cycles: sine %.9g; a turn of %.9g cycles: cosine %.9g\n", hair,
+                Around::turn_sine(hair), quarter_back, Around::turn_cosine(quarter_back));
+    EXPECT(Around::turn_sine(hair) == 0.0f, "the sine of a turn a hair under nought is nought, from inside the table");
+    EXPECT(Around::turn_cosine(quarter_back) == 0.0f,
+           "the cosine of a turn a hair past a quarter back is nought, from inside the table");
+    int same = 0, tried = 0;
+    for (float turns : {-0.5f, -0.4999f, -0.3f, -0.25f, -0.1f, -1.0e-3f, -1.0e-6f, 0.0f, 1.0e-8f, 0.1f, 0.25f,
+                        0.37f, 0.4999f, 0.5f}) {
+      ++tried;
+      if (Around::turn_sine(turns) == livemix::kit::SineTable::lookup(turns) &&
+          Around::turn_cosine(turns) == livemix::kit::SineTable::cos_lookup(turns)) {
+        ++same;
+      }
+    }
+    EXPECT(same == tried, "every other turn has the sine and cosine the table gave, bit for bit");
+  }
+
+  // The room's eight echoes come when they are meant to at every rate. The
+  // room is what Blur adds, so it is the output at Blur 1 less the output at
+  // Blur 0, a click going in. (The line held 4096 samples, 21.3 ms at
+  // 192 kHz, and a read further back than that comes round to newer sound:
+  // at 176.4 kHz three of the eight echoes came 23.2 ms early, at 192 kHz
+  // four of them 21.3 ms early.)
+  for (float rate : {48000.0f, 96000.0f, 176400.0f, 192000.0f}) {
+    device.init(rate);
+    twin.init(rate);
+    set(device, {0, 0.01f, 0.85f, 0.7f, 0, 0, 1, 1});
+    set(twin, {0, 0.01f, 0.85f, 0.7f, 0, 0, 0, 1});
+    const Stereo with = run(device, impulse(0.06f, rate));
+    const Stereo without = run(twin, impulse(0.06f, rate));
+    double worst_ms = 0.0;
+    for (int e = 0; e < 2; ++e) {
+      const std::vector<float>& a = e == 0 ? with.left : with.right;
+      const std::vector<float>& b = e == 0 ? without.left : without.right;
+      std::vector<float> room(a.size());
+      for (size_t i = 0; i < a.size(); ++i) room[i] = std::fabs(a[i] - b[i]);
+      // The four strongest arrivals, at least 2 ms apart.
+      std::vector<double> found;
+      const size_t guard = static_cast<size_t>(0.002f * rate);
+      for (int k = 0; k < Around::kRoomTaps; ++k) {
+        const size_t at = peak_index(room);
+        found.push_back(1000.0 * static_cast<double>(at) / rate);
+        for (size_t i = at > guard ? at - guard : 0; i < std::min(room.size(), at + guard); ++i) room[i] = 0.0f;
+      }
+      std::sort(found.begin(), found.end());
+      for (int t = 0; t < Around::kRoomTaps; ++t) {
+        worst_ms = std::max(worst_ms, std::fabs(found[t] - Around::kRoomMs[e][t]));
+        EXPECT(Around::room_delay(e, t, rate) < Around::kRoomSize, "every echo is inside the room line");
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz the room's eight echoes arrive when they are meant to (furthest off %.2f ms)", rate,
+                  worst_ms);
+    std::printf("note: %s\n", label);
+    EXPECT(worst_ms < 0.1, label);
   }
 }

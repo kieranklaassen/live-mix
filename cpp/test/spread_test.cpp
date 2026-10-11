@@ -1546,6 +1546,44 @@ int main() {
            "Safe lets go in the same time at every sample rate");
   }
 
+  // 27. What the second reading found: a day of sound without a silence. The
+  // count of samples since waking was 32 bits wide and came round to nought
+  // after 2^32 of them (24.9 hours at 48 kHz, 6.2 at 192 kHz); the gain's
+  // "mean so far" divides by that count, so Safe's gain and both outputs
+  // were not numbers from that sample until the next silence. Two devices
+  // hear the same wide noise; one has its count put half a second short of
+  // 2^32 on the way. They stay the same, bit for bit, through it and after.
+  {
+    static Spread late;
+    rng_state() = 0x2B32u;
+    Stereo wide;
+    wide.left = noise(2.0f, kRate, 0.25f);
+    wide.right = noise(2.0f, kRate, 0.25f);
+    const size_t half = static_cast<size_t>(0.5f * kRate);
+    const std::vector<float> first_left(wide.left.begin(), wide.left.begin() + half);
+    const std::vector<float> first_right(wide.right.begin(), wide.right.begin() + half);
+    const std::vector<float> rest_left(wide.left.begin() + half, wide.left.end());
+    const std::vector<float> rest_right(wide.right.begin() + half, wide.right.end());
+    device.init(kRate);
+    late.init(kRate);
+    run(device, first_left, first_right);
+    run(late, first_left, first_right);
+    const uint64_t round = 1ull << 32;
+    late.add_awake_periods((round - half - late.awake_samples()) / 16);
+    const uint64_t before = late.awake_samples();
+    const Stereo plain = run(device, rest_left, rest_right);
+    const Stereo day = run(late, rest_left, rest_right);
+    std::printf("a count of samples put at 2^32 - %llu and 1.5 s more of sound: the count is then 2^32 + %lld, Safe's gain %.2f dB (%.2f dB without the day)\n",
+                static_cast<unsigned long long>(round - before),
+                static_cast<long long>(late.awake_samples()) - static_cast<long long>(round), late.meter(0),
+                device.meter(0));
+    EXPECT(before == round - half, "the count stands half a second short of 2^32");
+    EXPECT(late.awake_samples() > round, "the count goes on past 2^32");
+    EXPECT(finite(day.left) && finite(day.right), "the output is finite through the 2^32nd sample awake");
+    EXPECT(day.left == plain.left && day.right == plain.right,
+           "a day awake changes nothing: the same output, bit for bit");
+  }
+
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);

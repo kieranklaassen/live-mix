@@ -1325,6 +1325,75 @@ int main() {
     EXPECT(uneven < 0.01, "and its two outputs are as loud as each other");
   }
 
+  // What the second reading found, first: nothing that glides to nothing
+  // stands in the denormals. The fold's mean did for the rest of every tail
+  // (at 3.6e-43, once the wave was under 1e-5 and its fold exactly nothing:
+  // the last seconds of a tail cost twice the sound, more with Feed at 0),
+  // and so did the three gains of the wall's side once Width was turned to 0
+  // in the sound (a sixth more cost from then on). Read block by block
+  // through a tail and through Width going to 0 under a held chord.
+  {
+    const float least_normal = 1.17549435e-38f;
+    plain(device);
+    device.set_param(p::kOctave, 0.5f);
+    device.set_param(p::kDecay, 0.5f);
+    run(device, chord(1.0f, 0.1f));
+    float tail_least = 1.0f;
+    const std::vector<float> nothing = silence(128.0f / kRate, kRate);
+    int blocks = 0;
+    for (; blocks < 20 * 375 && !device.asleep(); ++blocks) {
+      run(device, nothing);
+      tail_least = std::min(tail_least, device.least_gliding());
+    }
+    device.init(kRate);
+    run(device, chord(1.0f, 0.1f));
+    device.set_param(p::kWidth, 0.0f);
+    float width_least = 1.0f;
+    const std::vector<float> held = chord(4.0f, 0.1f);
+    for (size_t at = 0; at + 128 <= held.size(); at += 128) {
+      run(device, std::vector<float>(held.begin() + at, held.begin() + at + 128));
+      width_least = std::min(width_least, device.least_gliding());
+    }
+    std::printf("haze: the smallest thing gliding, other than nothing: %.3g through a tail of %.2f s, %.3g with Width turned to 0 under a chord\n",
+                tail_least, blocks * 128.0 / kRate, width_least);
+    EXPECT(tail_least >= least_normal, "the fold's mean falls to nothing in a tail, not to a denormal");
+    EXPECT(width_least >= least_normal, "the side's gains land on nothing with Width at 0, not on a denormal");
+  }
+
+  // And second: the wall keeps the device awake as it stands before Mix. At
+  // Mix 0 nothing of it comes out, and the device went to sleep 0.6 s after
+  // the input stopped with the wall in full flow; the next sound woke it to
+  // carry on with that wall, however long after, and with Mix turned up
+  // meanwhile it was heard (at -38 dBFS in the first second after two
+  // minutes, Decay 6 s; a fresh device gives -110). Now it stays awake until
+  // the wall has gone, as at any other Mix, and a tick after that is a tick.
+  {
+    static Haze fresh;
+    device.init(kRate);
+    device.set_param(p::kDecay, 2.0f);
+    device.set_param(p::kMix, 0.0f);
+    run(device, chord(2.0f, 0.15f));
+    run(device, silence(1.0f, kRate));
+    const bool awake_in_the_tail = !device.asleep();
+    run(device, silence(14.0f, kRate));
+    const bool asleep_after = device.asleep();
+    device.set_param(p::kMix, 1.0f);
+    fresh.init(kRate);
+    fresh.set_param(p::kDecay, 2.0f);
+    fresh.set_param(p::kMix, 1.0f);
+    std::vector<float> tick = silence(1.0f, kRate);
+    for (int i = 0; i < 48; ++i) tick[i] = static_cast<float>(1.0e-4 * std::sin(2.0 * kPi * 1000.0 * i / kRate));
+    const Stereo woken = run(device, tick);
+    const Stereo clean = run(fresh, tick);
+    const double woken_db = db(std::max(rms(woken.left), rms(woken.right)));
+    const double clean_db = db(std::max(rms(clean.left), rms(clean.right)));
+    std::printf("haze: a chord at Mix 0, fifteen seconds of nothing, Mix to 1 and a tick at -80 dBFS: %.1f dBFS in the second after it (a device that never heard the chord: %.1f dBFS)\n",
+                woken_db, clean_db);
+    EXPECT(awake_in_the_tail, "at Mix 0 the device stays awake while its wall sounds");
+    EXPECT(asleep_after, "and sleeps once the wall has gone");
+    EXPECT_NEAR(woken_db, clean_db, 3.0, "a wall played at Mix 0 is not heard when the device wakes later");
+  }
+
   device.init(kRate);
   rng_state() = 0xBEEFu;
   std::vector<float> input = noise(10.0f, kRate, 0.25f);

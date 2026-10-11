@@ -226,6 +226,23 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     return 0.0f;
   }
 
+  // For the harness: the smallest size, other than nothing, of what glides
+  // to nothing in the fuzz and in the wall's side: the fold's two means and
+  // the side's three gains with the two means each is worked out through. It
+  // is 1 when they are all at nothing.
+  float least_gliding() const {
+    const float all[] = {fold_mean_[0],     fold_mean_[1],    top_side_.value,  top_side_.first,
+                         top_side_.second,  keep_side_.value, keep_side_.first, keep_side_.second,
+                         lean_.value,       lean_.first,      lean_.second};
+    float least = 1.0f;
+    for (float x : all) {
+      const float size = x < 0.0f ? -x : x;
+      if (size > 0.0f && size < least) least = size;
+    }
+    return least;
+  }
+  bool asleep() const { return quiet_ >= hold_; }
+
   void process(int frames) {
     frames = begin_block(frames);
     float wall_peak = 0.0f;
@@ -477,9 +494,13 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       out_right_[i] = out_right;
 
       // Asleep once nothing has come in and nothing over the floor has left
-      // for kHoldSeconds: counted by the sample.
+      // for kHoldSeconds: counted by the sample. The wall counts as it stands
+      // before Mix. (With Mix at 0 nothing of it leaves, and the device went
+      // to sleep 0.6 s after the input with the wall in full flow, to carry
+      // on with it at the next sound, minutes later, when Mix had been
+      // turned up meanwhile.)
       if (in[0] != 0.0f || in[1] != 0.0f || out_left > kQuiet || out_left < -kQuiet || out_right > kQuiet ||
-          out_right < -kQuiet) {
+          out_right < -kQuiet || l > kQuiet || r > kQuiet) {
         quiet_ = 0;
       } else if (++quiet_ >= hold_) {
         return i + 1;
@@ -629,7 +650,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // top of Feed a low tone stayed for over half a minute.
   static constexpr float kFeedShiftHz[2] = {2.3f, 3.1f};
   static constexpr float kMeterFallSeconds = 0.1f;
-  // Asleep after this long with nothing in and nothing over kQuiet out.
+  // Asleep after this long with nothing in and nothing over kQuiet out or
+  // in the wall before Mix.
   static constexpr float kHoldSeconds = 0.6f;
   static constexpr float kQuiet = 1.0e-7f;
 
@@ -705,13 +727,17 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       value = target = first = second = x;
       step = 0.0f;
     }
+    // (Flushed, all three: a gain sent to nothing, as the side's are by
+    // Width at 0, came to a stand a few denormals short of it, and every
+    // sample's sums with it were denormal arithmetic from then on.)
     void follow(float x, float k) {
-      first += k * (x - first);
-      second += k * (first - second);
+      first = flush_denormal(first + k * (x - first));
+      second = flush_denormal(second + k * (first - second));
       to(second);
     }
     void to(float x) {
       target = x;
+      value = flush_denormal(value);
       step = (x - value) * (1.0f / kControlPeriod);
     }
     float next() {
@@ -740,7 +766,10 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // near 1), part of it folded for the octave, driven into tanh.
   float curve(float q, float drive, float gain, float keep, float fold, float* mean) const {
     const float folded = std::sqrt(q * q + kFoldSoft * kFoldSoft) - kFoldSoft;
-    *mean += fold_coeff_ * (folded - *mean);
+    // (Flushed: once the wave is under about 1e-5 the fold of it is exactly
+    // nothing, and a mean on its way to nothing came to a stand at 3.6e-43,
+    // a denormal in every sum here for the rest of a tail.)
+    *mean = flush_denormal(*mean + fold_coeff_ * (folded - *mean));
     return gain * kit::fast_tanh(drive * (keep * q + fold * kFoldGain * (folded - *mean)));
   }
 

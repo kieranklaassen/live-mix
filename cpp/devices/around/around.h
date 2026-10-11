@@ -57,8 +57,8 @@
 // of its step, and a new Rate or Direction is reached over kGlideSeconds. Sleep is decided per sample (kHoldSeconds of exact silence in
 // and under the floor out), so the output is the same at any block size.
 //
-// Storage: a room line of 4096 samples (38 ms at 96 kHz), about 17 KB. No
-// latency.
+// Storage: a room line of 8192 samples (the longest echo, 37.3 ms, is 7162
+// samples at 192 kHz), about 33 KB. No latency.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -97,6 +97,10 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   static constexpr float kRoomGain = 0.4f;
   static constexpr float kRoomHz = 4000.0f;
   static constexpr int kRoomTaps = 4;
+  // The room line: the longest echo is 7162 samples at 192 kHz. (It held
+  // 4096, and the reads come round a line that is too short: at 176.4 and
+  // 192 kHz three and four of the eight echoes came 23.2 and 21.3 ms early.)
+  static constexpr int kRoomSize = 8192;
   // Echo times in milliseconds and their gains, left ear then right.
   static constexpr float kRoomMs[2][kRoomTaps] = {{7.3f, 13.1f, 21.7f, 33.1f},
                                                   {8.9f, 15.7f, 24.9f, 37.3f}};
@@ -109,6 +113,23 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   static constexpr float kPathSeconds = 0.05f;    // one path giving way to another
   static constexpr float kHoldSeconds = 0.1f;
   static constexpr float kInputCeiling = 8.0f;
+
+  // The sine and cosine of an angle in cycles, from half a turn back to
+  // three quarters on, out of the kit's table. The table brings a phase into
+  // [0, 1) by taking its floor off, which for a phase from -2^-25 up to nought
+  // leaves 1.0f: the entry after the table's last. So a phase under nought is
+  // given its whole turn here, by the sum the table would make: every other
+  // angle reads the entries it always did, and those few read the first.
+  static float turn_sine(float turns) {
+    return kit::SineTable::lookup(turns < 0.0f ? turns + 1.0f : turns);
+  }
+  static float turn_cosine(float turns) { return turn_sine(turns + 0.25f); }
+
+  // How many samples back echo `tap` of ear `ear` is read at `sample_rate`:
+  // its time, and never more than the room line holds.
+  static int room_delay(int ear, int tap, float sample_rate) {
+    return kit::clamp_int(static_cast<int>(kRoomMs[ear][tap] * 0.001f * sample_rate + 0.5f), 1, kRoomSize - 1);
+  }
 
   // Where a path has its source after `turns` turns, before Radius and Turn:
   // x to the right, y to the front, inside the unit disc.
@@ -206,7 +227,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     clear_sound();
     for (int e = 0; e < 2; ++e) {
       for (int t = 0; t < kRoomTaps; ++t) {
-        room_delay_[e][t] = static_cast<int>(kRoomMs[e][t] * 0.001f * sr + 0.5f);
+        room_delay_[e][t] = room_delay(e, t, sr);
       }
     }
     radius_.set_time(kGlideSeconds, control_rate);
@@ -429,8 +450,8 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     // way to it, the distance from the head on the opposite side.
     const float reach = std::sqrt(px * px + py * py);
     const float away = kit::max(0.0f, 0.5f * (reach - py));
-    const float turn_sin = kit::SineTable::lookup(turn_);
-    const float turn_cos = kit::SineTable::cos_lookup(turn_);
+    const float turn_sin = turn_sine(turn_);
+    const float turn_cos = turn_cosine(turn_);
     const float x = px * turn_cos + py * turn_sin;
     const float y = py * turn_cos - px * turn_sin;
 
@@ -502,7 +523,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   }
 
   Ear ear_[2];
-  kit::DelayLine<4096> room_line_;  // 37.3 ms at 96 kHz
+  kit::DelayLine<kRoomSize> room_line_;
   kit::OnePole room_lp_;
   kit::Smoother radius_, head_, near_, speed_;  // on the control clock
   kit::Smoother weight_[kNumPaths];             // on the control clock
