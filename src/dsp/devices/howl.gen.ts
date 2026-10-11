@@ -11,11 +11,11 @@ export const HOWL_PARAMS = {
     name: 'Gain',
     min: 0,
     max: 1,
-    default: 0.7,
+    default: 0.85,
     taper: 'linear',
     unit: '',
     description:
-      'How readily it feeds back. Low only rings a little after each note. Past the middle a held note tips over and sings, and the higher it is the sooner it takes over.',
+      'How readily it feeds back. Below the middle each note leaves a ring, longer the nearer the middle. Above it a held note blooms into a howl, sooner and louder the higher.',
   },
   distance: {
     id: 1,
@@ -92,7 +92,7 @@ export const HOWL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much the feedback gives way to a new note. At zero it sings straight through the playing. Higher, each attack knocks it back and it blooms again as the note rings.',
+      'How much the feedback gives way to a new note. At zero it sings straight through. Higher, each attack turns it down and it comes back as the note rings.',
   },
   width: {
     id: 8,
@@ -120,13 +120,13 @@ export const HOWL_PARAMS = {
 export type HowlParamName = keyof typeof HOWL_PARAMS
 
 export const HOWL_METERS = {
-  level: { id: 0, name: 'Loop level, left', unit: '', display: true },
+  level: { id: 0, name: 'Singing tone, left', unit: '', display: true },
   pitch: { id: 1, name: 'Singing pitch, left', unit: 'Hz', display: true },
-  levelRight: { id: 2, name: 'Loop level, right', unit: '', display: true },
+  levelRight: { id: 2, name: 'Singing tone, right', unit: '', display: true },
   pitchRight: { id: 3, name: 'Singing pitch, right', unit: 'Hz', display: true },
   centre: { id: 4, name: 'Body now, left', unit: 'Hz', display: true },
   centreRight: { id: 5, name: 'Body now, right', unit: 'Hz', display: true },
-  ducked: { id: 6, name: 'Loop gain a new note took off', unit: '', display: true },
+  ducked: { id: 6, name: 'Howl turned down by a new note', unit: '', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const HOWL_DEVICE = defineWasmDevice({
@@ -145,7 +145,7 @@ export const HOWL_DESCRIPTOR = wasmDeviceDescriptor(HOWL_DEVICE, {
   presets: {
     'Room howl': {},
     'Faint sustain': {
-      gain: 0.63,
+      gain: 0.62,
       hold: 2,
       move: 0.1,
       edge: 0,
@@ -153,9 +153,9 @@ export const HOWL_DESCRIPTOR = wasmDeviceDescriptor(HOWL_DEVICE, {
       width: 0.3,
       mix: 0.22,
     },
-    'Slow bloom': { gain: 0.64, hold: 10, move: 0.2, pace: 0.05, edge: 0.1, follow: 0.9 },
+    'Slow bloom': { gain: 0.67, hold: 10, move: 0.2, pace: 0.05, edge: 0.1, follow: 0.9 },
     'Low drone': {
-      gain: 0.75,
+      gain: 0.76,
       distance: 15.29,
       body: 196,
       hold: 20,
@@ -166,15 +166,15 @@ export const HOWL_DESCRIPTOR = wasmDeviceDescriptor(HOWL_DEVICE, {
       width: 0.4,
       mix: 0.45,
     },
-    'Bright wire': { gain: 0.72, body: 1570, hold: 5, move: 0.3, edge: 0.35, width: 0.7, mix: 0.4 },
+    'Bright wire': { gain: 0.78, body: 1570, hold: 5, move: 0.3, edge: 0.35, width: 0.7, mix: 0.4 },
     'Takes over': { gain: 1, hold: 12, edge: 0.4, follow: 0, mix: 0.7 },
-    'In the gaps': { gain: 0.8, hold: 3, follow: 1, mix: 0.55 },
-    Wandering: { gain: 0.8, hold: 10, move: 1, pace: 0.3, width: 0.8 },
-    Flicker: { gain: 0.95, move: 1, pace: 2, edge: 0.5, width: 1 },
-    'One pure tone': { gain: 0.75, hold: 15, move: 0, edge: 0, width: 0 },
-    'Reed buzz': { gain: 0.8, distance: 10.2, body: 330, hold: 5, move: 0.15, edge: 1 },
+    'In the gaps': { gain: 0.88, hold: 3, follow: 1, mix: 0.5 },
+    Wandering: { gain: 0.84, hold: 10, move: 1, pace: 0.3, width: 0.8 },
+    Flicker: { gain: 0.94, move: 1, pace: 2, edge: 0.5, width: 1 },
+    'One pure tone': { hold: 15, move: 0, edge: 0, width: 0 },
+    'Reed buzz': { gain: 0.84, distance: 10.2, body: 330, hold: 5, move: 0.15, edge: 1 },
     'High whistle': {
-      gain: 0.85,
+      gain: 0.88,
       distance: 1.911,
       body: 1050,
       hold: 4,
@@ -182,10 +182,10 @@ export const HOWL_DESCRIPTOR = wasmDeviceDescriptor(HOWL_DEVICE, {
       edge: 0,
       mix: 0.35,
     },
-    'Wide pair': { gain: 0.8, body: 440, hold: 12, move: 0.15, width: 1 },
-    'Long hang': { gain: 0.75, hold: 30, move: 0.4, pace: 0.04, follow: 0.3 },
-    'Ring, no howl': { gain: 0.5, distance: 4.545, body: 660, hold: 1, move: 0, follow: 0 },
-    'Howl alone': { gain: 0.9, hold: 15, follow: 0.2, mix: 1 },
+    'Wide pair': { gain: 0.84, body: 440, hold: 12, move: 0.15, width: 1 },
+    'Long hang': { hold: 30, move: 0.4, pace: 0.04, follow: 0.3 },
+    'Ring, no howl': { gain: 0.42, hold: 8, move: 0, follow: 0, mix: 0.4 },
+    'Howl alone': { gain: 0.88, hold: 15, follow: 0.2, mix: 1 },
   },
 })
 

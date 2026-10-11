@@ -2,7 +2,7 @@
 //
 // Parameter ids and ranges of Howl, shared with
 // src/dsp/devices/howl.gen.ts:
-//    0  gain: 0..1, default 0.7
+//    0  gain: 0..1, default 0.85
 //    1  distance: 1..40 ms, default 7.645
 //    2  body: 120..2400 Hz, default 520
 //    3  hold: 0.2..30 s, default 6
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 1.0f, 120.0f, 0.2f, 0.0f, 0.02f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 40.0f, 2400.0f, 30.0f, 1.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.7f, 7.645f, 520.0f, 6.0f, 0.35f, 0.12f, 0.2f, 0.5f, 0.5f, 0.5f};
+inline constexpr float kParamDefault[kNumParams] = {0.85f, 7.645f, 520.0f, 6.0f, 0.35f, 0.12f, 0.2f, 0.5f, 0.5f, 0.5f};
 
 }  // namespace howl
 }  // namespace livemix

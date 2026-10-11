@@ -9,7 +9,7 @@
   "meters": [
     {
       "key": "level",
-      "name": "Loop level, left",
+      "name": "Singing tone, left",
       "display": true
     },
     {
@@ -20,7 +20,7 @@
     },
     {
       "key": "levelRight",
-      "name": "Loop level, right",
+      "name": "Singing tone, right",
       "display": true
     },
     {
@@ -43,7 +43,7 @@
     },
     {
       "key": "ducked",
-      "name": "Loop gain a new note took off",
+      "name": "Howl turned down by a new note",
       "display": true
     }
   ],
@@ -53,8 +53,8 @@
       "name": "Gain",
       "min": 0,
       "max": 1,
-      "default": 0.7,
-      "description": "How readily it feeds back. Low only rings a little after each note. Past the middle a held note tips over and sings, and the higher it is the sooner it takes over."
+      "default": 0.85,
+      "description": "How readily it feeds back. Below the middle each note leaves a ring, longer the nearer the middle. Above it a held note blooms into a howl, sooner and louder the higher."
     },
     {
       "key": "distance",
@@ -118,7 +118,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much the feedback gives way to a new note. At zero it sings straight through the playing. Higher, each attack knocks it back and it blooms again as the note rings."
+      "description": "How much the feedback gives way to a new note. At zero it sings straight through. Higher, each attack turns it down and it comes back as the note rings."
     },
     {
       "key": "width",
@@ -140,7 +140,7 @@
   "presets": {
     "Room howl": {},
     "Faint sustain": {
-      "gain": 0.63,
+      "gain": 0.62,
       "hold": 2,
       "move": 0.1,
       "edge": 0,
@@ -149,7 +149,7 @@
       "mix": 0.22
     },
     "Slow bloom": {
-      "gain": 0.64,
+      "gain": 0.67,
       "hold": 10,
       "move": 0.2,
       "pace": 0.05,
@@ -157,7 +157,7 @@
       "follow": 0.9
     },
     "Low drone": {
-      "gain": 0.75,
+      "gain": 0.76,
       "distance": 15.29,
       "body": 196,
       "hold": 20,
@@ -169,7 +169,7 @@
       "mix": 0.45
     },
     "Bright wire": {
-      "gain": 0.72,
+      "gain": 0.78,
       "body": 1570,
       "hold": 5,
       "move": 0.3,
@@ -185,34 +185,33 @@
       "mix": 0.7
     },
     "In the gaps": {
-      "gain": 0.8,
+      "gain": 0.88,
       "hold": 3,
       "follow": 1,
-      "mix": 0.55
+      "mix": 0.5
     },
     "Wandering": {
-      "gain": 0.8,
+      "gain": 0.84,
       "hold": 10,
       "move": 1,
       "pace": 0.3,
       "width": 0.8
     },
     "Flicker": {
-      "gain": 0.95,
+      "gain": 0.94,
       "move": 1,
       "pace": 2,
       "edge": 0.5,
       "width": 1
     },
     "One pure tone": {
-      "gain": 0.75,
       "hold": 15,
       "move": 0,
       "edge": 0,
       "width": 0
     },
     "Reed buzz": {
-      "gain": 0.8,
+      "gain": 0.84,
       "distance": 10.2,
       "body": 330,
       "hold": 5,
@@ -220,7 +219,7 @@
       "edge": 1
     },
     "High whistle": {
-      "gain": 0.85,
+      "gain": 0.88,
       "distance": 1.911,
       "body": 1050,
       "hold": 4,
@@ -229,29 +228,27 @@
       "mix": 0.35
     },
     "Wide pair": {
-      "gain": 0.8,
+      "gain": 0.84,
       "body": 440,
       "hold": 12,
       "move": 0.15,
       "width": 1
     },
     "Long hang": {
-      "gain": 0.75,
       "hold": 30,
       "move": 0.4,
       "pace": 0.04,
       "follow": 0.3
     },
     "Ring, no howl": {
-      "gain": 0.5,
-      "distance": 4.545,
-      "body": 660,
-      "hold": 1,
+      "gain": 0.42,
+      "hold": 8,
       "move": 0,
-      "follow": 0
+      "follow": 0,
+      "mix": 0.4
     },
     "Howl alone": {
-      "gain": 0.9,
+      "gain": 0.88,
       "hold": 15,
       "follow": 0.2,
       "mix": 1
@@ -259,6 +256,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit. A delay, a resonance and a level hold in a loop, tuned so that the loop sings on the harmonics of the note the delay sets; not a model of any amplifier or pedal."
+    "note": "Written for live-mix on cpp/kit. A delay, a resonance made of taps of that delay and a level hold in a loop, tuned so that the loop sings on the harmonics of the note the delay sets; not a model of any amplifier or pedal."
   }
 }
