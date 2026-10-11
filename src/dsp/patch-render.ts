@@ -87,7 +87,7 @@ export interface RenderPatchOptions {
   /** Linear fades at the two ends, in seconds (default 0 in, 0 out). */
   fadeInSec?: number
   fadeOutSec?: number
-  /** Scale the result so its peak sits at this level, in dBFS. Silence stays silence. */
+  /** Scale the result so its peak sits at this level, in dBFS, after the fades. Silence stays silence. */
   normalizePeakDb?: number
   /** Where device ids are looked up (default: the stock WASM devices). */
   describe?: (deviceId: string) => DeviceDescriptor | undefined
@@ -246,6 +246,25 @@ export function peakOf(channels: readonly Float32Array[]): number {
   return peak
 }
 
+/** Peak of planar audio of `frames` frames once it has been faded in and out over that many frames, linear. */
+function fadedPeakOf(
+  channels: readonly Float32Array[],
+  frames: number,
+  fadeIn: number,
+  fadeOut: number,
+): number {
+  let peak = 0
+  for (const channel of channels) {
+    for (let i = 0; i < frames; i += 1) {
+      const fromEnd = frames - 1 - i
+      const gain = (i < fadeIn ? i / fadeIn : 1) * (fromEnd < fadeOut ? fromEnd / fadeOut : 1)
+      const value = Math.abs(channel[i]) * gain
+      if (value > peak) peak = value
+    }
+  }
+  return peak
+}
+
 /**
  * Play `options.phrase` on the patch's instrument through its effects (or run
  * `options.input` through an effect chain) and return stereo audio. Every
@@ -351,16 +370,18 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
       : body.slice(0, frames)
   })
 
-  let peak = peakOf(kept)
-  if (!Number.isFinite(peak))
+  if (!Number.isFinite(peakOf(kept)))
     throw new Error(`live-mix: "${patch.id}" rendered a non-finite sample`)
+  const fadeIn = Math.min(frames, Math.round((options.fadeInSec ?? 0) * sampleRate))
+  const fadeOut = Math.min(frames, Math.round((options.fadeOutSec ?? 0) * sampleRate))
+  // The level asked for is the level of what is handed back: the peak is
+  // taken as the fades will leave it, so a sound that is loudest in its last
+  // moments (a rise that stops on a bar line) still peaks where it is asked to.
+  const peak = fadedPeakOf(kept, frames, fadeIn, fadeOut)
   if (options.normalizePeakDb !== undefined && peak > 0) {
     const scale = 10 ** (options.normalizePeakDb / 20) / peak
     for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale
-    peak *= scale
   }
-  const fadeIn = Math.min(frames, Math.round((options.fadeInSec ?? 0) * sampleRate))
-  const fadeOut = Math.min(frames, Math.round((options.fadeOutSec ?? 0) * sampleRate))
   for (const channel of kept) {
     for (let i = 0; i < fadeIn; i += 1) channel[i] *= i / fadeIn
     for (let i = 0; i < fadeOut; i += 1) channel[frames - 1 - i] *= i / fadeOut

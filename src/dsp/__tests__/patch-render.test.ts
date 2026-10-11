@@ -221,6 +221,22 @@ describe('renderPatch', () => {
     expect(peakOf(silent.channels)).toBe(0)
   })
 
+  it('levels by the peak the fades leave, so a sound that is loudest as it ends is as loud as asked', async () => {
+    // Struck inside the fade: the largest sample of the render is one the fade takes down.
+    const options = {
+      durationSec: 1,
+      phrase: { notes: [{ atSec: 0.93, durSec: 0.07, note: 72 }] },
+      fadeOutSec: 0.1,
+    }
+    const plain = await render(BELL, options)
+    const levelled = await render(BELL, { ...options, normalizePeakDb: -6 })
+    expect(toDb(peakOf(levelled.channels))).toBeCloseTo(-6, 3)
+    // The same sound, only louder or softer: one gain for every sample.
+    const gain = peakOf(levelled.channels) / peakOf(plain.channels)
+    const at = plain.channels[0].findIndex((value) => Math.abs(value) > 0.01)
+    expect(levelled.channels[0][at] / plain.channels[0][at]).toBeCloseTo(gain, 4)
+  })
+
   it('hands a sample instrument the sound it plays', async () => {
     const patch: Patch = { ...BELL, instrument: { deviceId: 'sampler' } }
     const phrase = { notes: [{ atSec: 0, durSec: 0.5, note: 60 }] }
