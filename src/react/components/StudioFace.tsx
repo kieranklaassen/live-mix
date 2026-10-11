@@ -124,8 +124,9 @@ function measure(plate: HTMLElement): Parts | null {
     height,
     knobs: [...plate.querySelectorAll('.lm-plate__knob .lm-knob__control')].map(box),
     display: one(':scope > .lm-plate__display'),
-    // The kit's own preset cell is a pane of glass; whatever else a host puts there stands on the paint.
-    preset: one('.lm-plate__presets > .lm-fxp'),
+    // The kit's own preset cell is a pane of glass, and so is a host's that says it is one
+    // (`data-lm-pane`); whatever else a host puts there stands on the paint.
+    preset: one('.lm-plate__presets > :is(.lm-fxp, [data-lm-pane])'),
     keys: [...plate.querySelectorAll(':scope > .lm-plate__more')].map(box),
     lamp: one('.lm-plate__lamp'),
   }

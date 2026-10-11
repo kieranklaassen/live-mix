@@ -122,8 +122,9 @@ describe('a display on a ground it is given', () => {
 })
 
 /** A WebGL context and a 2D one that take every call and do nothing, and a page that lays plates out. */
-function stubStudio(): { drawn: () => number } {
+function stubStudio(): { drawn: () => number; sent: (name: string) => number[] | undefined } {
   let drawn = 0
+  const sent = new Map<string, number[]>()
   const anything = (answers: Record<string, unknown>): unknown =>
     new Proxy(answers, {
       get: (kept, name: string) => (name in kept ? kept[name] : (kept[name] = vi.fn(() => ({})))),
@@ -133,6 +134,11 @@ function stubStudio(): { drawn: () => number } {
     getShaderParameter: () => true,
     getProgramParameter: () => true,
     getAttribLocation: () => 0,
+    // A uniform is known here by its name, and what was last sent to it is kept.
+    getUniformLocation: (_program: unknown, name: string) => name,
+    uniform4fv: (name: string, values: ArrayLike<number>) => {
+      sent.set(name, [...Array.from(values)])
+    },
     drawArrays: () => {
       drawn++
     },
@@ -153,7 +159,7 @@ function stubStudio(): { drawn: () => number } {
   style.textContent =
     '.lm-plate__studio { color: rgb(230, 241, 238); outline-color: rgb(143, 224, 208); text-decoration-color: rgb(35, 86, 107); }'
   document.head.append(style)
-  return { drawn: () => drawn }
+  return { drawn: () => drawn, sent: (name) => sent.get(name) }
 }
 
 describe('the studio look on a plate', () => {
@@ -249,6 +255,40 @@ describe('the studio look on a plate', () => {
     })
     expect(studio.drawn()).toBe(taken + 2)
     expect(screen.getByTestId('plate')).toHaveAttribute('data-lm-look', 'studio')
+  })
+
+  it("cuts a pane of glass for a host's preset cell only where the cell says it is one", async () => {
+    const device = await make(fixture)
+    const studio = stubStudio()
+    const view = render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        upright
+        look="studio"
+        presetPicker={<span>Preset</span>}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.getByTestId('plate')).toHaveAttribute('data-lm-look', 'studio')
+    // A bare word stands on the paint: the pane is put where nothing is drawn.
+    expect(studio.sent('uPreset')?.[0]).toBeLessThan(-1000)
+    view.unmount()
+
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        upright
+        look="studio"
+        presetPicker={<span data-lm-pane="">Preset</span>}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    // Every part is 30 by 30 at 40, 60 on this page: the pane is cut under the cell.
+    expect(studio.sent('uPreset')).toEqual([40, 60, 30, 30])
   })
 
   it('gives the plate back flat when the look is taken away', async () => {

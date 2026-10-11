@@ -343,6 +343,10 @@ from the skin's three (`studioPalette`): the lettering is the ink, moved until
 it stands at 4.5 to 1 or better on the paint, and the paint gives way only
 where that is not enough; the screen is the plate's colour in shade. The
 display lays no ground of its own on the glass (`DisplayColours.ground`).
+A host's own preset cell in `presetPicker` gets a pane of glass under it, as
+the kit's has, when it carries `data-lm-pane`; it then writes in
+`--lm-studio-screen` on `--lm-studio-glass` and draws no ground or line of its
+own while the plate carries the mark below.
 
 A plate is marked `data-lm-look="studio"` once its photograph is on it, and
 the stylesheet does the rest from that mark. Where it cannot be taken (no
