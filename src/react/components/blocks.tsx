@@ -436,11 +436,9 @@ function ChoiceListInner<T extends string | number>(
   { options, value, onChange, label, className, ...rest }: ChoiceListProps<T>,
   ref: ForwardedRef<HTMLDivElement>,
 ) {
-  // The Tab key stops on the picked row, or on the first while none is.
-  const stop = Math.max(
-    0,
-    options.findIndex((option) => option.value === value),
-  )
+  // The Tab key stops on the picked row, or on the first while none is: a row that is off is passed over.
+  const on = options.filter((option) => !option.props?.disabled)
+  const stop = options.indexOf(on.find((option) => option.value === value) ?? on[0] ?? options[0])
   return (
     <div
       {...rest}
@@ -691,6 +689,9 @@ export function BarGroup({
 
 export type JoinedProps = { children: ReactNode } & DivRest
 
+/** The class of a surface worked with a finger: the parts in it take a finger's size (`Room`'s `finger`, or the class by itself). */
+export const FINGER = 'lm-finger'
+
 /**
  * Parts that are one control, in one frame with a rule between them: a thing and the picker of
  * what it works on, a count between its two steps.
@@ -703,16 +704,18 @@ export function Joined({ children, className, ...rest }: JoinedProps) {
   )
 }
 
-export type RoomProps = { children: ReactNode } & DivRest
+export type RoomProps = { finger?: boolean; children: ReactNode } & DivRest
 
 /**
  * The body of a block that tells the parts in it how much room there is: a main action, a card,
  * a tall choice and a group with its name `beside` are drawn lower where the bar is low, and a
  * card closer on a phone. A block lays out what is its own by the same container, `lm-room`.
+ * With `finger` the parts in it are a finger's size: a main action 40 px tall, and nothing that
+ * is pressed narrower than 40 px.
  */
-export function Room({ children, className, ...rest }: RoomProps) {
+export function Room({ finger = false, children, className, ...rest }: RoomProps) {
   return (
-    <div {...rest} className={cx('lm-room', className)}>
+    <div {...rest} className={cx('lm-room', finger && FINGER, className)}>
       {children}
     </div>
   )

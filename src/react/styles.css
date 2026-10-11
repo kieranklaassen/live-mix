@@ -5885,8 +5885,30 @@
   inline-size: 3px;
 }
 
-/* A low column: the word alone, on one line. */
+/* A tall column: a note too long for one line goes on to a second. */
+@container lm-places (min-height: 168px) {
+  .lm-place__note {
+    display: -webkit-box;
+    overflow-wrap: anywhere;
+    white-space: normal;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* A low column, or a narrow one: the word alone, on one line. */
 @container lm-places (max-height: 150px) {
+  .lm-place__note {
+    display: none;
+  }
+}
+
+@container lm-places (max-width: 90px) {
+  .lm-place {
+    gap: 4px;
+    padding-inline: 4px 7px;
+  }
+
   .lm-place__note {
     display: none;
   }
@@ -7363,4 +7385,23 @@ button.lm-dropdown[aria-expanded='true'] {
   .lm-card {
     padding-inline: 6px;
   }
+}
+
+/* --- Finger ------------------------------------------------------------------ */
+
+/*
+  A surface worked with a finger (a phone): its one large action is 40 px
+  tall, whatever the room, and nothing in it that is pressed is narrower than
+  40 px.
+*/
+.lm-finger .lm-main-action:not([data-small]) {
+  block-size: 40px;
+}
+
+.lm-finger :is(.lm-main-action, .lm-plain-action, .lm-choice__option, .lm-tick, .lm-dropdown) {
+  min-inline-size: 40px;
+}
+
+.lm-finger :is(.lm-plain-action, .lm-choice__option, .lm-tick) {
+  justify-content: center;
 }

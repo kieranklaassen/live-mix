@@ -248,6 +248,7 @@ describe('entries', () => {
     'Figure',
     'DropdownButton',
     'ChoiceList',
+    'FINGER',
     'Tally',
     'SearchField',
     'Offer',

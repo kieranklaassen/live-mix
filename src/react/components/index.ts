@@ -435,6 +435,7 @@ export {
   Dropdown,
   DropdownButton,
   Figure,
+  FINGER,
   Group,
   Hint,
   Joined,

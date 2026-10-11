@@ -14,6 +14,7 @@ import {
   Dropdown,
   DropdownButton,
   Figure,
+  FINGER,
   Group,
   Hint,
   Joined,
@@ -491,6 +492,23 @@ describe('DropdownButton and ChoiceList', () => {
     // The caller's own handler hears every key, before the list does.
     expect(own).toHaveBeenCalledTimes(7)
   })
+
+  it('stops the Tab key on a row that is on: the first such while the picked row is off', () => {
+    const rows = [
+      { value: 'a', name: 'Every pass', props: { disabled: true } },
+      { value: 'b', name: '1 hour' },
+      { value: 'c', name: 'Never' },
+    ]
+    const stops = () => screen.getAllByRole('radio').map((row) => row.tabIndex)
+    const { rerender } = render(
+      <ChoiceList label="Repeats" value="a" onChange={vi.fn()} options={rows} />,
+    )
+    expect(stops()).toEqual([-1, 0, -1])
+    rerender(<ChoiceList label="Repeats" value={null} onChange={vi.fn()} options={rows} />)
+    expect(stops()).toEqual([-1, 0, -1])
+    rerender(<ChoiceList label="Repeats" value="c" onChange={vi.fn()} options={rows} />)
+    expect(stops()).toEqual([-1, -1, 0])
+  })
 })
 
 describe('BarGroup, Joined and Figure', () => {
@@ -645,6 +663,19 @@ describe('Room, Row, Hint and Well', () => {
     const room = screen.getByTestId('room')
     expect(room).toHaveClass('lm-room', 'mine')
     expect(room).toContainElement(screen.getByTestId('inside'))
+  })
+
+  it("marks a surface worked with a finger, so the parts in it take a finger's size", () => {
+    const { rerender } = render(<Room data-testid="room">in it</Room>)
+    const room = screen.getByTestId('room')
+    expect(room.className).toBe('lm-room')
+    rerender(
+      <Room finger data-testid="room">
+        in it
+      </Room>,
+    )
+    expect(room).toHaveClass('lm-room', FINGER)
+    expect(FINGER).toBe('lm-finger')
   })
 
   it('puts a name, the control and a hint on one row, under a class that is not the channel row', () => {
