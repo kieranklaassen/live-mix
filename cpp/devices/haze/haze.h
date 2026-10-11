@@ -650,7 +650,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // top of Feed a low tone stayed for over half a minute.
   static constexpr float kFeedShiftHz[2] = {2.3f, 3.1f};
   static constexpr float kMeterFallSeconds = 0.1f;
-  // Asleep after this long with nothing in and nothing over kQuiet out.
+  // Asleep after this long with nothing in and nothing over kQuiet out or
+  // in the wall before Mix.
   static constexpr float kHoldSeconds = 0.6f;
   static constexpr float kQuiet = 1.0e-7f;
 
