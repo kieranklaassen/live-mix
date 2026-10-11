@@ -151,7 +151,7 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
       make: 0.9,
       smear: 0.8,
       safe: 0.4,
-      output: -1,
+      output: -1.75,
     },
     'Hazy edges': {
       mid: 1.3,
@@ -185,7 +185,7 @@ export const SPREAD_DESCRIPTOR = wasmDeviceDescriptor(SPREAD_DEVICE, {
       highHz: 3200,
       make: 1,
       safe: 0,
-      output: -3,
+      output: -4,
     },
     'Wide but safe': { low: 1.5, mid: 2, high: 2, lowHz: 180, highHz: 3200, make: 1, safe: 1 },
     'Soft tilt': { low: 0.5, mid: 1, high: 1.5, lowHz: 300, highHz: 3000, slope: 0, make: 0.8 },

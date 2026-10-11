@@ -64,20 +64,28 @@
 //   less each time round, so the made sides are a tail that starts with the
 //   note and falls, never a second strike after it. A settled time is a whole
 //   number of samples, so the scatter is exactly allpass; a moving one glides.
-// - Safe: three slow ears (1.5 s, on power) on the middle, on the sides as
-//   they came in (both turned as the curve turns them, so that like is held
-//   against like) and on the sides going out. The sides going out are held to
-//   the larger of the middle times a ceiling (6 dB over the middle just above
-//   Safe 0, falling 18 dB to 12 dB under it at Safe 1) and the sides as they
-//   came in: it holds what was added and never narrows the source, and it
-//   does nothing at all while no region is over 1. The ears are slow so that
-//   the gain does not move with each note, and in a silence the three fall
-//   together so it stays where it was: it does not let go between notes and
-//   catch each one again. The gain itself follows in 10 ms. For a tenth of a
-//   second after a knob is moved the ears take 10 ms, so the knobs answer at
-//   once; and for the first 10 ms after waking the gain is the mean of what
-//   was asked so far, so a note after a long silence is held from its first
-//   sample. Safe 0 holds nothing.
+// - Safe: four ears on power (30 ms): on the middle as it goes out and as
+//   the scatter spreads it (the fuller of the two counts, because Make's
+//   sides are made from the scattered middle, which starts after the note
+//   and rings on after it), on the sides as they came in (turned as the
+//   curve turns them, so that like is held against like) and on the sides
+//   going out. The sides going out are held to the larger of the middle times
+//   a ceiling (6 dB over the middle just above Safe 0, falling 18 dB to 12 dB
+//   under it at Safe 1) and the sides as they came in: it holds what was
+//   added, settles no narrower than the source, and does nothing at all
+//   while no region is over 1. The ears are short so that they hear what
+//   sounds now: a passage 30 dB louder is out of them in 0.2 s. The gain
+//   takes hold in 50 ms and lets go in 1.5 s, so it does not move with each
+//   note: it settles where the widest moment of the last seconds put it and
+//   comes back at 5.8 dB a second at most. In a silence the ears fall
+//   together and it stays where it was. (The ears once took 1.5 s both ways.
+//   Being means of power, they remembered a loud passage for a third of a
+//   second for each dB the next one was quieter, and a wide hiss after a
+//   narrow phrase came out unheld for eight seconds and then stepped down.)
+//   For a tenth of a second after a knob is moved the ears and the gain take
+//   10 ms both ways, so the knobs answer at once; and for the first 10 ms
+//   after waking the gain is the mean of what was asked so far, so a note
+//   after a long silence is held from its first sample. Safe 0 holds nothing.
 // - Widths and Slope are smoothed over 5 ms at the control rate (every 16
 //   samples) and the gains ramped per sample between ticks. The splits move
 //   in octaves over 15 ms and the filters are retuned at the ticks: the
