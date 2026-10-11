@@ -98,7 +98,7 @@ hold 8 notes).
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B  | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B  | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
 | `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B  | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
-| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,552 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
+| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,560 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
 | `breath`          | Breath             | live-mix            | modulation | 11     | 24,103 B  | 6.2 µs, 0.23 %        | 6.4 µs, 0.24 %             | 0                 | 4           |
 | `canon`           | Canon              | live-mix            | delay      | 12     | 32,045 B  | 13.3 µs, 0.50 %       | 10.0 µs, 0.37 %            | 0                 | 32          |
 | `cascade`         | Cascade            | live-mix            | texture    | 12     | 29,332 B  | 23.3 µs, 0.87 %       | 28.6 µs, 1.07 %            | 0                 | 16          |

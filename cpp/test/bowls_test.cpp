@@ -1236,6 +1236,56 @@ int main() {
     TOLD(peak_of(woken) > 0.01, "wakes on new input");
   }
 
+  // The second reading. Samples too small to be heard (of denormal size,
+  // 1e-39: what is left of a tail that something before has multiplied down)
+  // went through the dry path and drove every bowl, which then worked on
+  // denormals at fifteen to twenty times the cost of a sound and never came
+  // to rest. Under 1e-15 the input is nought now, to the bowls and in the dry
+  // path.
+  {
+    const auto faint = [](float seconds, float size) {
+      std::vector<float> x(static_cast<size_t>(seconds * kRate));
+      for (size_t i = 0; i < x.size(); ++i) x[i] = (i & 1) ? size : -0.03f * size;
+      return x;
+    };
+    const auto negated = [](std::vector<float> x) {
+      for (float& v : x) v = -v;
+      return x;
+    };
+    for (float mix : {0.35f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, mix);
+      const std::vector<float> in = faint(2.0f, 1.0e-39f);
+      const double out = peak_of(run(device, in, negated(in)));
+      std::snprintf(label, sizeof label, "Mix %.2f, from rest: 2 s of samples of 1e-39 come out as nought (largest %.3g)",
+                    static_cast<double>(mix), out);
+      TOLD(out == 0.0, label);
+    }
+    {
+      // After a sound the bowls ring out as they do into silence, and then nothing comes out.
+      device.init(kRate);
+      device.set_param(p::kRing, 1.0f);
+      run(device, sine(440.0f, 1.0f, kRate, 0.25f));
+      const std::vector<float> in = faint(20.0f, 1.0e-39f);
+      const Stereo out = run(device, in, negated(in));
+      const double end = peak_of(out, 15 * 48000);
+      std::snprintf(label, sizeof label, "after a note, Ring 1 s: with 1e-39 going in, the last 5 s of 20 are nought (largest %.3g)",
+                    end);
+      TOLD(end == 0.0, label);
+    }
+    {
+      // The edge: just under 1e-15 is nought, 1e-14 is a sound and passes.
+      device.init(kRate);
+      const std::vector<float> under = faint(0.5f, 0.99e-15f);
+      const double nought = peak_of(run(device, under, negated(under)));
+      device.init(kRate);
+      const std::vector<float> over = faint(0.5f, 1.0e-14f);
+      const double passed = peak_of(run(device, over, over));
+      std::snprintf(label, sizeof label, "0.99e-15 going in comes out as nought (%.3g), 1e-14 as a sound (%.3g)", nought, passed);
+      TOLD(nought == 0.0 && passed > 1.0e-15, label);
+    }
+  }
+
   // Cost: the defaults on noise, then the worst there is: twelve bowls all
   // singing on a full chord with Strike, Metal and Ring full up.
   device.init(kRate);

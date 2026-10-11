@@ -135,6 +135,7 @@ class Bowls : public kit::DeviceBase<bowls::kNumParams> {
   static constexpr float kDampSeconds = 0.012f;  // time constant under the hand
   static constexpr float kSwapSeconds = 0.12f;   // then the bowl is swapped
   static constexpr float kInputLimit = 4.0f;
+  static constexpr float kInputFloor = 1.0e-15f;
   static constexpr int kMaxChunk = 256;
 
   // The scales, as semitones above the root, and how many notes each has.
@@ -360,9 +361,12 @@ class Bowls : public kit::DeviceBase<bowls::kNumParams> {
       float l, r;
       take_input(at + n, &l, &r);
       // Not a number is silence and an absurd value is held to a bound, here
-      // and in the dry path: nothing downstream ever sees one.
-      l = l == l ? kit::clamp(l, -kInputLimit, kInputLimit) : 0.0f;
-      r = r == r ? kit::clamp(r, -kInputLimit, kInputLimit) : 0.0f;
+      // and in the dry path: nothing downstream ever sees one. What is too
+      // small to be heard (under 1e-15, -300 dB) is silence too: input of
+      // denormal size drove every bowl and kept them working on denormals,
+      // at fifteen times the cost of a sound and more.
+      l = l == l && std::fabs(l) >= kInputFloor ? kit::clamp(l, -kInputLimit, kInputLimit) : 0.0f;
+      r = r == r && std::fabs(r) >= kInputFloor ? kit::clamp(r, -kInputLimit, kInputLimit) : 0.0f;
       dry_l_[n] = l;
       dry_r_[n] = r;
       if (l != 0.0f || r != 0.0f) last_loud = n;
