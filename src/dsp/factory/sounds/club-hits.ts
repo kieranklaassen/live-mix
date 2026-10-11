@@ -41,6 +41,11 @@ const kit = (params: Readonly<Record<string, number>>): PatchDevice => ({
 const hit = (seconds: number, drum: number, gain = STROKE): ReturnType<typeof played> =>
   played(seconds, [[0, 0.1, drum, gain]])
 
+/**
+ * Every hit keeps the kit's own level (`kitLevel`): a hat hit is as far under a kick hit as the kit
+ * has it, and a hit laid beside a groove or a layer of the same kit meets the same drum there
+ * within a dB or two with nothing turned down.
+ */
 export const CLUB_HITS: readonly FactorySound[] = [
   sound({
     id: 'club-kick-hit',
@@ -230,4 +235,4 @@ export const CLUB_HITS: readonly FactorySound[] = [
     ],
     ...hit(3, CLUB.kick, ACCENT),
   }),
-]
+].map((each) => ({ ...each, kitLevel: true as const }))
