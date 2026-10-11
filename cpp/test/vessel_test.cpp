@@ -9,6 +9,7 @@
 #include "support/test_kit.h"
 
 #include <cstdlib>
+#include <cstring>
 
 using namespace testkit;
 using livemix::Vessel;
@@ -158,12 +159,12 @@ static const Preset kPresets[] = {
     {"Cistern", {2, 4, 0.85f, 0.4f, 0.3f, 0.3f, 0.5f, 0.8f, 0.65f}},
     {"Thimble", {0, 0.25f, 0.6f, 0.6f, 0.3f, 0.2f, 0.6f, 0.5f, 0.5f}},
     {"Glass tube", {1, 0.5f, 0.9f, 0.5f, 0.15f, 0.1f, 0.65f, 0.5f, 0.5f}},
-    {"Clay pot", {0, 1.6f, 0.15f, 0.2f, 0.3f, 0.1f, 0.35f, 0.5f, 0.85f}},
+    {"Clay pot", {0, 1.682f, 0.15f, 0.2f, 0.3f, 0.1f, 0.35f, 0.5f, 0.85f}},
     {"Hint of wood", {5, 0.8f, 0.3f, 1, 0.3f, 0, 0.5f, 0.5f, 0.25f}},
     {"Metal drone", {2, 2, 1, 0.5f, 0.1f, 0.25f, 0.5f, 1, 0.8f}},
     {"Whispering shell", {3, 0.6f, 0.7f, 0.1f, 0.3f, 0.8f, 0.7f, 1, 0.45f}},
-    {"Kettle", {4, 1.8f, 0.8f, 0.35f, 0.6f, 0.2f, 0.5f, 0.5f, 0.7f}},
-    {"Small tin", {4, 0.3f, 0.75f, 0.8f, 0.3f, 0.2f, 0.7f, 0.5f, 0.6f}},
+    {"Kettle", {4, 2, 0.8f, 0.35f, 0.6f, 0.2f, 0.5f, 0.5f, 0.7f}},
+    {"Small tin", {4, 0.25f, 0.75f, 0.8f, 0.3f, 0.2f, 0.7f, 0.5f, 0.6f}},
     {"Wind in the pipe", {1, 2, 0.6f, 0, 0.3f, 1, 0.5f, 0.8f, 1}},
     {"Deep well", {0, 3, 0.9f, 0.5f, 0.3f, 0.4f, 0.4f, 0.6f, 0.7f}},
 };
@@ -190,6 +191,8 @@ static void check_air_level();
 static void check_every_third();
 static void check_mono_sum();
 static void check_thrown_size();
+static void check_full_scale();
+static void check_held_start();
 
 int main() {
   livemix::kit::SineTable::init();
@@ -219,6 +222,8 @@ int main() {
   check_every_third();
   check_mono_sum();
   check_thrown_size();
+  check_full_scale();
+  check_held_start();
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
@@ -805,20 +810,23 @@ static void check_levels() {
 
   // The level hold: a note held exactly on a sharp resonance comes out no
   // more than 1.5 times as loud as it went in, loud or quiet (and the 3 % the
-  // follower sags between two peaks at this pitch).
+  // follower sags between two peaks at this pitch), and a note at full scale
+  // no louder than it went in (the top: it came out at 1.5).
   for (float gain : {1.0f, 0.05f}) {
     inside(device, kRate, 1);
     device.set_param(p::kMaterial, 1.0f);
     Stereo out = run(device, sine(vd::kBodies[1].base_hz, 6.0f, kRate, gain));
     std::snprintf(label, sizeof label, "a note of %.2f held on a resonance that rings 4 s peaks at %.3f (hold %.1f dB)",
                   gain, peak(out.left), device.meter(4));
-    SHOW(peak(out.left) < Vessel::kHoldRatio * gain * 1.06 && peak(out.left) > 0.5 * gain && device.meter(4) < -3.0f,
+    SHOW(peak(out.left) < Vessel::kHoldRatio * gain * 1.06 && peak(out.left) < 1.0005 && peak(out.left) > 0.5 * gain &&
+             device.meter(4) < -3.0f,
          label);
   }
 
   // A full-scale chord held for a minute, at every preset and with each
-  // control at each end of its travel (each Body in turn): it peaks no more
-  // than 6 dB over the input and is no louder at the end than at the start.
+  // control at each end of its travel (each Body in turn): it peaks no higher
+  // than the input does, or than the top where that is higher (it peaked up
+  // to 1.38 before the top), and is no louder at the end than at the start.
   const std::vector<float> minute = chord(60.0f, kRate, 1.0f);
   const auto hold_a_minute = [&](const char* what) {
     Stereo out = run(device, minute);
@@ -826,9 +834,11 @@ static void check_levels() {
     const double top = std::max(peak(out.left), peak(out.right));
     const double early = std::max(rms(out.left, ten / 10, ten), rms(out.right, ten / 10, ten));
     const double late = std::max(rms(out.left, n - ten, n), rms(out.right, n - ten, n));
-    std::snprintf(label, sizeof label, "%s: a held full-scale chord peaks at %.2f, %.2f dB louder in its last ten seconds",
+    std::snprintf(label, sizeof label, "%s: a held full-scale chord peaks at %.3f, %.2f dB louder in its last ten seconds",
                   what, top, db(late / early));
-    SHOW(finite(out.left) && finite(out.right) && top < 2.0 && late < early * 1.06, label);
+    SHOW(finite(out.left) && finite(out.right) && top < 1.0005 * std::max(peak(minute), static_cast<double>(Vessel::kHoldTop)) &&
+             late < early * 1.06,
+         label);
   };
   for (const Preset& preset : kPresets) {
     load(device, kRate, preset);
@@ -1059,10 +1069,11 @@ static void load_all_wet(Vessel& d, float rate, const Preset& preset) {
 // note is already at its level (as built it was 13 dB under to 8 dB over
 // after init and 18 dB under after a Body change).
 static void check_first_note() {
-  char label[220];
+  char label[260];
   const std::vector<float> line = pad_line(5.0, kRate, 0.5), held = pad_chord(5.0, kRate, 0.5);
   const double windows[3] = {0.05, 0.1, 0.25};
-  double low = 0.0, high = 0.0, wake_low = 0.0, wake_high = 0.0, wake_differs = 0.0;
+  double low[3] = {0.0, 0.0, 0.0}, high[3] = {0.0, 0.0, 0.0}, wake_differs = 0.0;
+  const char* highest[3] = {"", "", ""};
   for (const Preset& preset : kPresets) {
     for (const std::vector<float>* source : {&line, &held}) {
       load_all_wet(device, kRate, preset);
@@ -1070,26 +1081,28 @@ static void check_first_note() {
       // Asleep, then the same again: it must start as it did the first time.
       Stereo tail = render(device, 14.0f, kRate);
       Stereo again = run(device, *source);
-      for (double w : windows) {
-        const size_t to = static_cast<size_t>(w * kRate);
+      for (int w = 0; w < 3; ++w) {
+        const size_t to = static_cast<size_t>(windows[w] * kRate);
         const double a = level_against(first, *source, 0, to), b = level_against(again, *source, 0, to);
-        low = std::min(low, a);
-        high = std::max(high, a);
-        wake_low = std::min(wake_low, b);
-        wake_high = std::max(wake_high, b);
+        low[w] = std::min(low[w], a);
+        if (a > high[w]) high[w] = a, highest[w] = preset.name;
         wake_differs = std::max(wake_differs, std::fabs(a - b));
       }
       EXPECT(peak(tail.left, tail.size() - 4800) == 0.0, "the device slept between the two phrases");
     }
   }
+  // The first 50 ms are read over 25 ms like the rest, so a resonance that a
+  // chord's note sits on is up to 4 dB over before the hold has it ("Small
+  // tin", whose lowest stands on E4, under a chord with E4 in it). The first
+  // 100 and 250 ms were 4.1 and 3.7 dB over there before the hold followed a
+  // rise (kRiseFrom).
   std::snprintf(label, sizeof label,
-                "16 presets all wet: the first 50, 100 and 250 ms after init come out %.1f to %+.1f dB against the input",
-                low, high);
-  SHOW(low > -3.0 && high < 5.5, label);
-  std::snprintf(label, sizeof label,
-                "the same out of a sleep: %.1f to %+.1f dB, and within %.3f dB of the first time", wake_low, wake_high,
-                wake_differs);
-  SHOW(wake_low > -3.0 && wake_high < 5.5 && wake_differs < 0.05, label);
+                "16 presets all wet, after init, against the input: the first 50 ms %.1f to %+.1f dB (%s), 100 ms "
+                "%.1f to %+.1f dB (%s), 250 ms %.1f to %+.1f dB (%s)",
+                low[0], high[0], highest[0], low[1], high[1], highest[1], low[2], high[2], highest[2]);
+  SHOW(low[0] > -3.0 && low[1] > -3.0 && low[2] > -3.0 && high[0] < 4.5 && high[1] < 3.8 && high[2] < 2.9, label);
+  std::snprintf(label, sizeof label, "the same out of a sleep: within %.3f dB of the first time", wake_differs);
+  SHOW(wake_differs < 0.05, label);
 
   // A Body change on the beat of a note, from every body to every other, at
   // the default Material and at the sharpest.
@@ -1121,7 +1134,7 @@ static void check_first_note() {
                 "after a Body change: 50 ms %.1f to %+.1f dB, 100 ms %.1f to %+.1f dB, 250 ms %.1f to %+.1f dB",
                 change_low[0], change_high[0], change_low[1], change_high[1], change_low[2], change_high[2]);
   SHOW(change_low[0] > -9.0 && change_high[0] < 6.5 && change_low[1] > -7.0 && change_high[1] < 6.5 &&
-           change_low[2] > -4.0 && change_high[2] < 6.5,
+           change_low[2] > -4.0 && change_high[2] < 4.0,
        label);
 }
 
@@ -1516,4 +1529,271 @@ static void check_thrown_size() {
                   static_cast<double>(t.to), thrown, own, fall);
     SHOW(thrown < 1.5 * own && finite(moved.left) && finite(moved.right), label);
   }
+}
+
+// --- the third pass: full scale, and the start of a held chord --------------------------------
+
+// `x` scaled so that its largest sample is `top`.
+static std::vector<float> peaking_at(std::vector<float> x, double top) {
+  const double now = peak(x);
+  for (float& v : x) v = static_cast<float>(v * top / now);
+  return x;
+}
+
+// A preset's Size as the bank moves it with the key (src/dsp/factory/key.ts,
+// a 'period'): 2^(-1/12) of it a semitone up, the octave that keeps it in range.
+static float size_in_key(float size, int semitones) {
+  double moved = size * std::pow(2.0, -semitones / 12.0);
+  while (moved > p::kParamMax[p::kSize]) moved *= 0.5;
+  while (moved < p::kParamMin[p::kSize]) moved *= 2.0;
+  return static_cast<float>(moved);
+}
+
+// What goes in under full scale comes out under it. The hold lets the wet
+// peak stand 1.5 times over the loudest input peak, which is 3.5 dB: as the
+// second pass left it, four presets fed the bank's phrase at -1 dBFS came out
+// up to 1.1 dB over full scale, and in other keys six did. The top
+// (kHoldTop) keeps the wet peak at 0.98855 or at the input's own peak,
+// whichever is larger, and the mix of two things under a line is under it.
+static void check_full_scale() {
+  char label[240];
+  const double hot = 0.8913; // -1 dBFS
+  const std::vector<float> sources[3] = {peaking_at(phrase(6.0f, kRate, 0.3f), hot),
+                                         peaking_at(pad_line(5.0, kRate, 0.5), hot),
+                                         peaking_at(pad_chord(5.0, kRate, 0.5), hot)};
+  // Every preset in four keys, at its own Mix and all wet.
+  double preset_top = 0.0;
+  const char* preset_worst = "";
+  bool preset_finite = true;
+  for (const Preset& preset : kPresets) {
+    for (int key : {0, -5, 3, 6}) {
+      for (int wet = 0; wet < 2; ++wet) {
+        for (const std::vector<float>& source : sources) {
+          load(device, kRate, preset);
+          device.set_param(p::kSize, size_in_key(value_of(preset, p::kSize), key));
+          if (wet == 1) device.set_param(p::kMix, 1.0f);
+          const Stereo out = run(device, source);
+          const double top = std::max(peak(out.left), peak(out.right));
+          preset_finite = preset_finite && finite(out.left) && finite(out.right);
+          if (top > preset_top) preset_top = top, preset_worst = preset.name;
+        }
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "16 presets in four keys, at their Mix and all wet, fed a phrase, a line and a chord that peak at "
+                "-1 dBFS: the output peaks at %+.2f dBFS at most (%s)",
+                db(preset_top), preset_worst);
+  SHOW(preset_finite && preset_top < 1.0, label);
+
+  // Every body at three sizes and two materials with all the Air there is,
+  // open and closed, at full Width.
+  double body_top = 0.0;
+  for (int b = 0; b < vd::kNumBodies; ++b) {
+    for (float size : {0.25f, 1.0f, 4.0f}) {
+      for (float material : {0.5f, 1.0f}) {
+        for (float opening : {0.0f, 1.0f}) {
+          for (const std::vector<float>& source : sources) {
+            device.init(kRate);
+            device.set_param(p::kBody, static_cast<float>(b));
+            device.set_param(p::kSize, size);
+            device.set_param(p::kMaterial, material);
+            device.set_param(p::kOpening, opening);
+            device.set_param(p::kAir, 1.0f);
+            device.set_param(p::kWidth, 1.0f);
+            device.set_param(p::kMix, 1.0f);
+            const Stereo out = run(device, source);
+            body_top = std::max(body_top, std::max(peak(out.left), peak(out.right)));
+          }
+        }
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "72 settings all wet with Air at 1 and Width at 1, fed the same: the output peaks at %+.2f dBFS at most",
+                db(body_top));
+  SHOW(body_top < 1.0, label);
+
+  // At and over full scale the output is never over the input's own peak
+  // (the limit after the hold is linear to twice full scale, so this is the
+  // hold's doing), at three rates.
+  for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
+    double over = 0.0, hot_top = 0.0;
+    for (double level : {1.0, 1.5, 3.0}) {
+      const std::vector<float> in = peaking_at(pad_chord(3.0, rate, 0.5), level);
+      for (const Preset& preset : kPresets) {
+        load(device, rate, preset);
+        const Stereo out = run(device, in);
+        over = std::max(over, std::max(peak(out.left), peak(out.right)) / level);
+      }
+    }
+    const std::vector<float> in = peaking_at(phrase(4.0f, rate, 0.3f), hot);
+    for (const Preset& preset : kPresets) {
+      load(device, rate, preset);
+      const Stereo out = run(device, in);
+      hot_top = std::max(hot_top, std::max(peak(out.left), peak(out.right)));
+    }
+    std::snprintf(label, sizeof label,
+                  "at %.0f Hz, 16 presets: a chord that peaks at 0, +3.5 and +9.5 dBFS comes out with %.4f of its "
+                  "peak at most; a phrase at -1 dBFS peaks at %+.2f dBFS",
+                  static_cast<double>(rate), over, db(hot_top));
+    SHOW(over < 1.0005 && hot_top < 1.0, label);
+  }
+
+  // Under the knee nothing has changed: the top joins only where 1.5 times
+  // the input's peak is over it, which is from -3.6 dBFS, and what never
+  // passes that goes through a device that is the same at any level.
+  double differs = 0.0;
+  for (const Preset& preset : kPresets) {
+    load_all_wet(device, kRate, preset);
+    const Stereo loud = run(device, peaking_at(sources[0], 0.65));
+    load_all_wet(device, kRate, preset);
+    Stereo quiet = run(device, peaking_at(sources[0], 0.65 / 16.0));
+    for (size_t i = 0; i < quiet.size(); ++i) quiet.left[i] *= 16.0f, quiet.right[i] *= 16.0f;
+    differs = std::max(differs, worst_difference(loud, quiet));
+  }
+  std::snprintf(label, sizeof label,
+                "16 presets all wet: a phrase that peaks at -3.7 dBFS and the same 24 dB lower come out %.6f apart "
+                "at most, the lower one scaled up",
+                differs);
+  SHOW(differs < 2.0e-4, label);
+
+  // The top closes by keeping a peak where it is, which makes no step: from
+  // one sample to the next the output moves no further at -1 dBFS than it
+  // does under the knee, level for level. (As a third rule that joined the
+  // hold's two once the input's peak passed -3.6 dBFS, it took the hold down
+  // by 2.2 dB in one sample at that moment.)
+  double step_ratio = 0.0;
+  const char* step_worst = "";
+  for (const Preset& preset : kPresets) {
+    for (float material : {-1.0f, 0.4f, 0.625f, 0.85f}) {
+      for (const std::vector<float>& source : sources) {
+        double steps[2] = {0.0, 0.0};
+        for (int which = 0; which < 2; ++which) {
+          load(device, kRate, preset);
+          if (material >= 0.0f) device.set_param(p::kMaterial, material);
+          const Stereo out = run(device, which == 0 ? peaking_at(source, 0.65) : source);
+          steps[which] = std::max(max_step(out.left), max_step(out.right));
+        }
+        const double ratio = steps[1] / (steps[0] * hot / 0.65);
+        if (ratio > step_ratio) step_ratio = ratio, step_worst = preset.name;
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "16 presets at four Materials: the largest step at -1 dBFS is %.3f of the largest at -3.7 dBFS, "
+                "level for level (%s)",
+                step_ratio, step_worst);
+  SHOW(step_ratio < 1.02, label);
+
+  // With the top at work ("Wind in the pipe" fed at -1 dBFS): any block
+  // size, across a sleep, and two devices, sample for sample.
+  const Preset* wind = nullptr;
+  for (const Preset& preset : kPresets) {
+    if (std::strcmp(preset.name, "Wind in the pipe") == 0) wind = &preset;
+  }
+  EXPECT(wind != nullptr, "the preset \"Wind in the pipe\" is in the harness's table");
+  if (wind == nullptr) return;
+  const std::vector<float>& in = sources[0];
+  load(device, kRate, *wind);
+  const Stereo reference = run(device, in);
+  double least = 0.0;
+  {
+    // The hold's meter, read a block at a time: how far the top closes it.
+    load(device, kRate, *wind);
+    const size_t block = static_cast<size_t>(kBlock);
+    for (size_t done = 0; done + block <= in.size(); done += block) {
+      for (size_t i = 0; i < block; ++i) device.in_left()[i] = device.in_right()[i] = in[done + i];
+      device.process(kBlock);
+      least = std::min(least, static_cast<double>(device.meter(4)));
+    }
+  }
+  double blocks = 0.0;
+  for (int block : {1, 7, 2048}) {
+    load(device, kRate, *wind);
+    blocks = std::max(blocks, worst_difference(reference, run(device, in, block)));
+  }
+  load(device, kRate, *wind);
+  run(device, in, 2048);
+  const Stereo tail = render(device, 14.0f, kRate, 1);
+  const Stereo woken = run(device, in, 333);
+  load(other, kRate, *wind);
+  const Stereo second = run(other, in);
+  std::snprintf(label, sizeof label,
+                "\"Wind in the pipe\" at -1 dBFS (the hold closes to %.1f dB): blocks of 1, 7 and 2048 differ by %g, "
+                "out of a sleep in blocks of 333 by %g, a second device by %g",
+                least, blocks, worst_difference(reference, woken), worst_difference(reference, second));
+  SHOW(blocks == 0.0 && worst_difference(reference, woken) == 0.0 && worst_difference(reference, second) == 0.0 &&
+           peak(tail.left, tail.size() - 4800) == 0.0 && least < -1.0,
+       label);
+}
+
+// The bank's held tone: every note three partials (1, 1/2, 1/4), the whole at
+// -20 dBFS RMS, faded in over 20 ms.
+static std::vector<float> held_tone(const std::vector<int>& notes, double seconds, double rate) {
+  const size_t frames = static_cast<size_t>(seconds * rate);
+  std::vector<double> sum(frames, 0.0);
+  for (int note : notes) {
+    const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+    for (int partial = 1; partial <= 3; ++partial) {
+      const double w = 2.0 * kPi * hz * partial / rate, gain = 1.0 / static_cast<double>(1 << (partial - 1));
+      const double phase = note * 0.7 + partial;
+      for (size_t i = 0; i < frames; ++i) sum[i] += gain * std::sin(w * static_cast<double>(i) + phase);
+    }
+  }
+  double power = 0.0;
+  for (double v : sum) power += v * v;
+  const double scale = 0.1 / std::sqrt(power / static_cast<double>(frames));
+  const double fade = 0.02 * rate;
+  std::vector<float> out(frames);
+  for (size_t i = 0; i < frames; ++i) {
+    out[i] = static_cast<float>(sum[i] * scale * std::min(1.0, static_cast<double>(i) / fade));
+  }
+  return out;
+}
+
+// The start of a held chord. The hold keeps the wet sound's power at 1.26
+// times the input's, which is 2 dB, and it read that power as a 100 ms
+// average for as long as the quick reading was within twice of it: while a
+// resonance was filling, the average ran up to 3 dB behind and the chord came
+// out 3.8 dB over the input in its first quarter second ("Glass tube", the
+// bank's A minor), 2 dB once settled. A reading that stays over its average
+// is now followed after 25 ms (kRiseFrom), and the first quarter second
+// stands with the rest.
+static void check_held_start() {
+  char label[240];
+  const std::vector<std::vector<int>> chords = {{45, 52, 57, 60, 64}, {62, 69, 74, 77, 81}};
+  const int notes[13] = {45, 48, 52, 55, 57, 60, 64, 67, 69, 72, 76, 79, 81};
+  const size_t quarter = static_cast<size_t>(0.25 * kRate);
+  double chord_first = -100.0, chord_settled = -100.0, note_first = -100.0, note_settled = -100.0;
+  const char* chord_worst = "";
+  for (const Preset& preset : kPresets) {
+    for (int which = 0; which < 15; ++which) {
+      const std::vector<float> in =
+          held_tone(which < 2 ? chords[static_cast<size_t>(which)] : std::vector<int>{notes[which - 2]}, 3.0, kRate);
+      load_all_wet(device, kRate, preset);
+      const Stereo out = run(device, in);
+      const double first = level_against(out, in, 0, quarter);
+      double settled = -100.0;
+      for (size_t from = 4 * quarter; from + quarter <= in.size(); from += quarter) {
+        settled = std::max(settled, level_against(out, in, from, from + quarter));
+      }
+      if (which < 2) {
+        if (first > chord_first) chord_first = first, chord_worst = preset.name;
+        chord_settled = std::max(chord_settled, settled);
+      } else {
+        note_first = std::max(note_first, first);
+        note_settled = std::max(note_settled, settled);
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "16 presets all wet, the bank's two chords: the first quarter second comes out %+.1f dB against the "
+                "input at most (%s), a later one %+.1f dB",
+                chord_first, chord_worst, chord_settled);
+  SHOW(chord_first < 2.7 && chord_settled < 2.7, label);
+  std::snprintf(label, sizeof label,
+                "its thirteen notes one at a time: the first quarter second %+.1f dB at most, a later one %+.1f dB",
+                note_first, note_settled);
+  SHOW(note_first < 2.7 && note_settled < 2.7, label);
 }
