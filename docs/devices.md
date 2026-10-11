@@ -214,7 +214,7 @@ hold 8 notes).
 | `tine-piano`      | Tine               | live-mix            | instrument | 11     | 17,742 B  | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
 | `tremolo`         | Tremolo            | live-mix            | modulation | 9      | 12,884 B  | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
 | `underwater`      | Underwater         | live-mix            | texture    | 10     | 25,841 B  | 32.0 µs, 1.20 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
-| `vessel`          | Vessel             | live-mix            | texture    | 9      | 26,906 B  | 13.9 µs, 0.52 %       | 20.3 µs, 0.76 %            | 0                 | 4           |
+| `vessel`          | Vessel             | live-mix            | texture    | 9      | 26,968 B  | 13.9 µs, 0.52 %       | 20.3 µs, 0.76 %            | 0                 | 4           |
 | `vintage-digital` | Vintage Digital    | live-mix            | texture    | 8      | 28,499 B  | 71.7 µs, 2.69 %       | 15.5 µs, 0.58 %            | 129               | 4           |
 | `vinyl`           | Vinyl              | live-mix            | texture    | 10     | 37,003 B  | 38.0 µs, 1.43 %       | 26.6 µs, 1.00 %            | 0                 | 8           |
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |
