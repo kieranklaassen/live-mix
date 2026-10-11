@@ -3,6 +3,7 @@
 
 import { type PlateFace } from '../plate-display'
 import { CANON_FACES } from './canon'
+import { AROUND_FACES } from './around'
 import { DELAY_FACES } from './delay'
 import { DISTANCE_FACES } from './distance'
 import { DRIVE_FACES } from './drive'
@@ -34,6 +35,9 @@ import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
 import { IMPRINT_FACES } from './imprint'
 import { GLIMMER_FACES } from './glimmer'
+import { HAZE_FACES } from './haze'
+import { HOWL_FACES } from './howl'
+import { LIFT_FACES } from './lift'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -54,11 +58,14 @@ import { SIZE_FACES } from './size'
 import { SPATIAL_FACES } from './spatial'
 import { STRETCH_FACES } from './stretch'
 import { STOPS_FACES } from './stops'
+import { SPIRAL_FACES } from './spiral'
+import { SPREAD_FACES } from './spread'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
 import { WEATHER_FACES } from './weather'
 import { WARP_FACES } from './warp'
+import { VESSEL_FACES } from './vessel'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
@@ -66,6 +73,7 @@ import { CURRENTS_FACES } from './currents'
 import { MURMURATION_FACES } from './murmuration'
 import { LATE_VIBRATO_FACES } from './late-vibrato'
 import { COMMON_TONES_FACES } from './common-tones'
+import { BOWLS_FACES } from './bowls'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -133,4 +141,12 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...STOPS_FACES,
   ...REVEAL_FACES,
   ...SIZE_FACES,
+  ...HAZE_FACES,
+  ...SPIRAL_FACES,
+  ...AROUND_FACES,
+  ...SPREAD_FACES,
+  ...BOWLS_FACES,
+  ...HOWL_FACES,
+  ...LIFT_FACES,
+  ...VESSEL_FACES,
 }

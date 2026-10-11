@@ -144,7 +144,7 @@ import {
 |             | Count | Groups                                                                                                                                                                                                                                                                                                                                                 |
 | ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Presets** | 1,104 | Twenty for each of the fifty-four stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                            |
-| **Chains**  | 313   | Space (37), echo (42), tape (42), motion (43), texture (62), pitch (61), master (26); every WASM effect is in at least one                                                                                                                                                                                                                             |
+| **Chains**  | 334   | Space (41), echo (42), tape (42), motion (47), texture (66), pitch (66), master (30); every WASM effect is in at least one                                                                                                                                                                                                                             |
 | **Sounds**  | 244   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); and 76 loops of drums (32), glitches (20) and pitched pulses (24). 111 keep time: those 76 and 35 of the bass lines |
 
 The bank is data: importing it loads no module and touches no audio. A host
@@ -521,7 +521,7 @@ instruments, three pairs of organ presets measure under 1 dB apart on the
 organ phrase (Clarinet stop organ and Flugelhorn organ, Hollow glass organ
 and Tape flute pipes, Saw rotary organ and Rotor brass organ): the
 rule is for presets of one instrument, and these are different instruments
-under the hands. And eighteen of the twenty-six master chains sit within
+under the hands. And nineteen of the thirty master chains sit within
 0.3 dB of another on the dry phrase, because a master chain is meant to do
 little to a phrase that peaks at −10 dBFS: they part when they are driven.
 

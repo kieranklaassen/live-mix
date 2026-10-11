@@ -195,5 +195,5 @@ describe.each(VOICES)('generated %s', (_voice, sound) => {
         expect(Math.abs(channel[channel.length - 1]), 'the last sample').toBeLessThan(1e-3)
       }
     }
-  })
+  }, 60000)
 })

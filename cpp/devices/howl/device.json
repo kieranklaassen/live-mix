@@ -1,0 +1,261 @@
+{
+  "id": "howl",
+  "name": "Howl",
+  "category": "drive",
+  "description": "The sound feeds back on itself like an amplifier in the room: held notes bloom into an overtone of the note Distance tunes, and it never runs away.",
+  "class": "Howl",
+  "header": "howl.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "level",
+      "name": "Singing tone, left",
+      "display": true
+    },
+    {
+      "key": "pitch",
+      "name": "Singing pitch, left",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "levelRight",
+      "name": "Singing tone, right",
+      "display": true
+    },
+    {
+      "key": "pitchRight",
+      "name": "Singing pitch, right",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "centre",
+      "name": "Body now, left",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "centreRight",
+      "name": "Body now, right",
+      "unit": "Hz",
+      "display": true
+    },
+    {
+      "key": "ducked",
+      "name": "Howl turned down by a new note",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "gain",
+      "name": "Gain",
+      "min": 0,
+      "max": 1,
+      "default": 0.85,
+      "description": "How readily it feeds back. Below the middle each note leaves a ring, longer the nearer the middle. Above it a held note blooms into a howl, sooner and louder the higher."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 1,
+      "max": 40,
+      "default": 7.645,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How far the sound travels round the loop. It tunes a low note, and the feedback sings only on that note's overtones. Longer is lower, with the overtones closer."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0.2,
+      "max": 30,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long it sings on after the playing stops. Short lets it fall with each note, long leaves a tone hanging in the room. It always dies away in the end."
+    },
+    {
+      "key": "move",
+      "name": "Move",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How far the resonance wanders by itself, as when a player moves at the amplifier. At zero one overtone holds. Higher, the feedback climbs and falls through others."
+    },
+    {
+      "key": "pace",
+      "name": "Pace",
+      "min": 0.02,
+      "max": 2,
+      "default": 0.12,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How fast the resonance wanders when Move is up. Slow drifts from one overtone to the next over many seconds, fast flickers between them."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "How rough the singing tone is. At zero it is a pure, round tone. Higher adds a hard, reedy buzz on top of it."
+    },
+    {
+      "key": "follow",
+      "name": "Follow",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the feedback gives way to a new note. At zero it sings straight through. Higher, each attack turns it down and it comes back as the note rings."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between your playing and the feedback."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far apart the left and right loops stand. At zero both sing the same overtone. Higher, each side leans to a different one and wanders by itself."
+    },
+    {
+      "key": "body",
+      "name": "Body",
+      "min": 120,
+      "max": 2400,
+      "default": 520,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The resonance in the loop, which picks the overtone that sings. Low is dark and woody, high is bright and wiry."
+    }
+  ],
+  "presets": {
+    "Room howl": {},
+    "Faint sustain": {
+      "gain": 0.62,
+      "hold": 2,
+      "move": 0.1,
+      "edge": 0,
+      "follow": 0.3,
+      "width": 0.3,
+      "mix": 0.22
+    },
+    "Slow bloom": {
+      "gain": 0.67,
+      "hold": 10,
+      "move": 0.2,
+      "pace": 0.05,
+      "edge": 0.1,
+      "follow": 0.9
+    },
+    "Low drone": {
+      "gain": 0.76,
+      "distance": 15.29,
+      "body": 196,
+      "hold": 20,
+      "move": 0.25,
+      "pace": 0.05,
+      "edge": 0.15,
+      "follow": 0.2,
+      "width": 0.4,
+      "mix": 0.45
+    },
+    "Bright wire": {
+      "gain": 0.78,
+      "body": 1570,
+      "hold": 5,
+      "move": 0.3,
+      "edge": 0.35,
+      "width": 0.7,
+      "mix": 0.4
+    },
+    "Takes over": {
+      "gain": 1,
+      "hold": 12,
+      "edge": 0.4,
+      "follow": 0,
+      "mix": 0.7
+    },
+    "In the gaps": {
+      "gain": 0.88,
+      "hold": 3,
+      "follow": 1,
+      "mix": 0.5
+    },
+    "Wandering": {
+      "gain": 0.84,
+      "hold": 10,
+      "move": 1,
+      "pace": 0.3,
+      "width": 0.8
+    },
+    "Flicker": {
+      "gain": 0.94,
+      "move": 1,
+      "pace": 2,
+      "edge": 0.5,
+      "width": 1
+    },
+    "One pure tone": {
+      "hold": 15,
+      "move": 0,
+      "edge": 0,
+      "width": 0
+    },
+    "Reed buzz": {
+      "gain": 0.84,
+      "distance": 10.2,
+      "body": 330,
+      "hold": 5,
+      "move": 0.15,
+      "edge": 1
+    },
+    "High whistle": {
+      "gain": 0.88,
+      "distance": 1.911,
+      "body": 1050,
+      "hold": 4,
+      "move": 0.3,
+      "edge": 0,
+      "mix": 0.35
+    },
+    "Wide pair": {
+      "gain": 0.84,
+      "body": 440,
+      "hold": 12,
+      "move": 0.15,
+      "width": 1
+    },
+    "Long hang": {
+      "hold": 30,
+      "move": 0.4,
+      "pace": 0.04,
+      "follow": 0.3
+    },
+    "Ring, no howl": {
+      "gain": 0.42,
+      "hold": 8,
+      "move": 0,
+      "follow": 0,
+      "mix": 0.4
+    },
+    "Howl alone": {
+      "gain": 0.88,
+      "hold": 15,
+      "follow": 0.2,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. A delay, a resonance made of taps of that delay and a level hold in a loop, tuned so that the loop sings on the harmonics of the note the delay sets; not a model of any amplifier or pedal."
+  }
+}

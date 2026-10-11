@@ -63,13 +63,16 @@ export function factoryTranspose(key: FactoryKey): number {
 
 /**
  * How a parameter names a pitch: a pitch class (0 to 11); a note, which goes
- * the octave that keeps it in the parameter's range; a pitch in hertz, which
- * goes by the ratio of the semitones and likewise the octave that keeps it in
- * range; or a pitch class whose octave is a parameter of its own (`octave`
- * names it), the two together one note: past B or under C the octave goes
- * with it, as far as its range lets it.
+ * the octave that keeps it in the parameter's range; a pitch class whose
+ * octave is a parameter of its own (`octave` names it), the two together one
+ * note: past B or under C the octave goes with it, as far as its range lets it;
+ * or a measure that tunes a note with no note written down. A `'period'` is a
+ * time or a size the pitch falls with (the milliseconds round a loop, how big
+ * a body is): a semitone up is 2^(-1/12) of it. A `'hertz'` is a frequency: a
+ * semitone up is 2^(1/12) of it. Either goes the octave that keeps it in the
+ * parameter's range, which is still the key's note.
  */
-type PitchedParam = 'class' | 'note' | 'hertz' | { readonly octave: string }
+type PitchedParam = 'class' | 'note' | 'period' | 'hertz' | { readonly octave: string }
 
 /** The parameters that name a pitch, and so move with the key. */
 const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedParam>>>> = {
@@ -90,6 +93,13 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // from it, so a phrase and its pivot moved alike come out as the same sound, moved. With
   // Follow on each note is its own pivot and the knob is not read.
   warp: { pivot: 'hertz' },
+  // The key the table of bowls is tuned in. Its scale is intervals and its register a height: they stay.
+  bowls: { root: 'class' },
+  // The lowest resonance is the body's own frequency over Size, and every other one is a ratio of it.
+  vessel: { size: 'period' },
+  // The loop sings whole multiples of 1000 / Distance hertz, and Body picks which: the two move
+  // against each other, so the same overtone of the note sings in every key.
+  howl: { distance: 'period', body: 'hertz' },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
@@ -107,6 +117,20 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
       params[name] = mod12(current[name] + semitones)
       continue
     }
+    if (kind === 'period' || kind === 'hertz') {
+      let moved = current[name] * 2 ** ((kind === 'hertz' ? semitones : -semitones) / 12)
+      // Past the end of the control: an octave back, as a note is taken (a control has several).
+      // A move too far to be a number has no octave to come back by, and stops at the end.
+      if (spec.max >= 2 * spec.min && Number.isFinite(moved) && moved > 0) {
+        while (moved > spec.max) moved /= 2
+        while (moved < spec.min) moved *= 2
+      }
+      // A frequency to the hundredth of a hertz: half a cent at twenty hertz, a twentieth of
+      // one at two hundred.
+      if (kind === 'hertz') moved = Math.round(moved * 100) / 100
+      params[name] = Math.min(spec.max, Math.max(spec.min, moved))
+      continue
+    }
     if (typeof kind === 'object') {
       const octaves = descriptor.params[kind.octave]
       const note = current[name] + semitones
@@ -115,19 +139,6 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
       // Out of the octaves the control has: the nearest one, so the root is still the key's.
       const octave = current[kind.octave] + Math.floor(note / 12)
       params[kind.octave] = Math.min(octaves.max, Math.max(octaves.min, octave))
-      continue
-    }
-    if (kind === 'hertz') {
-      let hertz = current[name] * 2 ** (semitones / 12)
-      // Past the end of the control: an octave back, as a note is taken. A move too far to
-      // be a number has no octave to come back by, and stops at the end of the control.
-      if (Number.isFinite(hertz) && hertz > 0) {
-        while (hertz > spec.max) hertz /= 2
-        while (hertz < spec.min) hertz *= 2
-      }
-      // To the hundredth of a hertz: half a cent at twenty hertz, a twentieth of one at two hundred.
-      hertz = Math.round(hertz * 100) / 100
-      params[name] = Math.min(spec.max, Math.max(spec.min, hertz))
       continue
     }
     let moved = current[name] + semitones

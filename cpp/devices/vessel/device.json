@@ -1,0 +1,255 @@
+{
+  "id": "vessel",
+  "name": "Vessel",
+  "category": "texture",
+  "description": "Plays the sound inside a body that rings: a bottle, a pipe, a shell, a drum or a soundboard, of any size and material.",
+  "class": "Vessel",
+  "header": "vessel.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "modes1",
+      "name": "Resonances 1 to 4",
+      "display": true
+    },
+    {
+      "key": "modes2",
+      "name": "Resonances 5 to 8",
+      "display": true
+    },
+    {
+      "key": "modes3",
+      "name": "Resonances 9 to 12",
+      "display": true
+    },
+    {
+      "key": "modes4",
+      "name": "Resonances 13 to 16",
+      "display": true
+    },
+    {
+      "key": "hold",
+      "name": "Level hold",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "match",
+      "name": "Level match",
+      "unit": "dB",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "body",
+      "name": "Body",
+      "choices": ["Bottle", "Open pipe", "Stopped pipe", "Shell", "Drum", "Soundboard"],
+      "default": 1,
+      "description": "The thing the sound is put inside. A bottle has one deep note, a pipe an even ladder of them, a shell a high cluster, a drum and a soundboard uneven ones."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "unit": "x",
+      "description": "How big the body is. Larger moves every resonance down together, from a thimble to a cistern, and the pitch of what is ringing glides with it."
+    },
+    {
+      "key": "material",
+      "name": "Material",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How long the body rings once struck. Low is clay and damp wood that only colour the sound; high is glass and metal that sing on after it."
+    },
+    {
+      "key": "opening",
+      "name": "Opening",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones out and more of the sound itself through."
+    },
+    {
+      "key": "air",
+      "name": "Air",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "The body's own breath: a hiss blown through the same resonances, rising and falling with what you play and silent when you stop."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Tilts what comes out of the body. Low is darker, high is brighter, and the middle leaves it as the body made it."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances. Deep ones stay in the middle."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "The balance between the sound as it was and the sound from inside the body."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere."
+    }
+  ],
+  "presets": {
+    "Inside a pipe": {},
+    "Blown bottle": {
+      "body": 0,
+      "material": 0.7,
+      "opening": 0.3,
+      "air": 0.6,
+      "mix": 0.75
+    },
+    "Shell to the ear": {
+      "body": 3,
+      "size": 1.2,
+      "material": 0.45,
+      "opening": 0.2,
+      "air": 0.85,
+      "width": 1,
+      "mix": 0.6
+    },
+    "Wooden body": {
+      "body": 5,
+      "material": 0.45,
+      "opening": 0.7,
+      "position": 0.4,
+      "air": 0,
+      "mix": 0.6
+    },
+    "Drum head": {
+      "body": 4,
+      "material": 0.55,
+      "opening": 0.6,
+      "position": 0.25,
+      "air": 0.05,
+      "mix": 0.7
+    },
+    "Cistern": {
+      "body": 2,
+      "size": 4,
+      "material": 0.85,
+      "opening": 0.4,
+      "air": 0.3,
+      "width": 0.8,
+      "mix": 0.65
+    },
+    "Thimble": {
+      "body": 0,
+      "size": 0.25,
+      "material": 0.6,
+      "opening": 0.6,
+      "tone": 0.6,
+      "mix": 0.5
+    },
+    "Glass tube": {
+      "body": 1,
+      "size": 0.5,
+      "material": 0.9,
+      "position": 0.15,
+      "air": 0.1,
+      "tone": 0.65,
+      "mix": 0.5
+    },
+    "Clay pot": {
+      "body": 0,
+      "size": 1.682,
+      "material": 0.15,
+      "opening": 0.2,
+      "air": 0.1,
+      "tone": 0.35,
+      "mix": 0.85
+    },
+    "Hint of wood": {
+      "body": 5,
+      "size": 0.8,
+      "material": 0.3,
+      "opening": 1,
+      "air": 0,
+      "mix": 0.25
+    },
+    "Metal drone": {
+      "body": 2,
+      "size": 2,
+      "material": 1,
+      "opening": 0.5,
+      "position": 0.1,
+      "air": 0.25,
+      "width": 1,
+      "mix": 0.8
+    },
+    "Whispering shell": {
+      "body": 3,
+      "size": 0.6,
+      "material": 0.7,
+      "opening": 0.1,
+      "air": 0.8,
+      "tone": 0.7,
+      "width": 1,
+      "mix": 0.45
+    },
+    "Kettle": {
+      "body": 4,
+      "size": 2,
+      "material": 0.8,
+      "opening": 0.35,
+      "position": 0.6,
+      "mix": 0.7
+    },
+    "Small tin": {
+      "body": 4,
+      "size": 0.25,
+      "material": 0.75,
+      "opening": 0.8,
+      "tone": 0.7,
+      "mix": 0.6
+    },
+    "Wind in the pipe": {
+      "body": 1,
+      "size": 2,
+      "material": 0.6,
+      "opening": 0,
+      "air": 1,
+      "width": 0.8,
+      "mix": 1
+    },
+    "Deep well": {
+      "body": 0,
+      "size": 3,
+      "material": 0.9,
+      "opening": 0.5,
+      "air": 0.4,
+      "tone": 0.4,
+      "width": 0.6,
+      "mix": 0.7
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A bank of sixteen two-pole resonances per side beside a share of the sound itself. The pipes' series and the drum's ratios are the textbook ones; the shell, the soundboard and every strength are made by hand; see bodies.h."
+  }
+}

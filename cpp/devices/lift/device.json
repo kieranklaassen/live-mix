@@ -1,0 +1,278 @@
+{
+  "id": "lift",
+  "name": "Lift",
+  "category": "dynamics",
+  "description": "Brings up the quiet end: tails, breaths and the air between notes rise towards a line, and what is louder than the line is left alone.",
+  "class": "Lift",
+  "header": "lift.h",
+  "sources": [],
+  "latencySamples": 288,
+  "meters": [
+    {
+      "key": "lift",
+      "name": "Lift",
+      "unit": "dB"
+    },
+    {
+      "key": "liftLow",
+      "name": "Lift, lows",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "liftMid",
+      "name": "Lift, middle",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "liftHigh",
+      "name": "Lift, highs",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Level",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "out",
+      "name": "Level out",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "room",
+      "name": "Room at the sides",
+      "unit": "dB",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "threshold",
+      "name": "Threshold",
+      "min": -48,
+      "max": -12,
+      "default": -22,
+      "unit": "dB",
+      "description": "The line the quiet end is lifted towards. Sound louder than this is left alone; raise it and more of each tail and pause comes up."
+    },
+    {
+      "key": "amount",
+      "name": "Amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far quiet sound is carried up to the threshold. A little keeps the shape of a fade; fully up holds a tail level until it lets go."
+    },
+    {
+      "key": "rise",
+      "name": "Rise",
+      "min": 0.05,
+      "max": 20,
+      "default": 0.6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How slowly the lift comes in once it starts. Short brings a tail up at once; long lets it swell in as slowly as a tide."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0.01,
+      "max": 5,
+      "default": 0.1,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the lift waits after the sound has got louder before it comes back. Short fills the gaps between notes; long keeps it for real pauses and tails."
+    },
+    {
+      "key": "split",
+      "name": "Split",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the lows, the middle and the highs are judged apart. At nothing the sound rises as one; fully up quiet highs come up even under loud lows."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Which part of the spectrum is lifted most. Left lifts the lows and leaves the highs, right lifts the air and leaves the lows, the middle is even."
+    },
+    {
+      "key": "limit",
+      "name": "Limit",
+      "min": 0,
+      "max": 30,
+      "default": 18,
+      "unit": "dB",
+      "description": "The most gain the lift may ever add. Lower it to keep the very quietest sound from being pulled far up; at nothing there is no lift."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the untouched sound and the lifted one. Part way gives a gentler lift with the same timing."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": -90,
+      "max": -40,
+      "default": -54,
+      "unit": "dB",
+      "description": "At this level and under it nothing is lifted, so hiss, hum and silence stay down; the lift comes in over the 6 dB above. Set it just over the noise of the source."
+    },
+    {
+      "key": "sides",
+      "name": "Sides",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only the sides rise and a tail opens outward, never louder than the middle."
+    },
+    {
+      "key": "hear",
+      "name": "Hear",
+      "choices": ["All", "Lift only"],
+      "default": 0,
+      "description": "All is the sound with its quiet end lifted. Lift only plays just what was added, the tails and breaths alone, for a send or a layer."
+    }
+  ],
+  "presets": {
+    "Quiet end up": {},
+    "Just the ends": {
+      "threshold": -31.5,
+      "amount": 1,
+      "rise": 0.15,
+      "split": 1,
+      "limit": 18
+    },
+    "Long tails": {
+      "threshold": -19.5,
+      "amount": 1,
+      "floor": -60,
+      "rise": 1.2,
+      "hold": 0.9,
+      "split": 0.2,
+      "limit": 18
+    },
+    "Slow tide": {
+      "threshold": -14,
+      "amount": 0.9,
+      "rise": 6,
+      "hold": 3,
+      "limit": 18
+    },
+    "Air on top": {
+      "threshold": -20.5,
+      "amount": 1,
+      "rise": 0.15,
+      "split": 1,
+      "focus": 1,
+      "limit": 14
+    },
+    "Warm floor": {
+      "threshold": -16,
+      "amount": 0.9,
+      "rise": 0.5,
+      "split": 1,
+      "focus": -1,
+      "limit": 2
+    },
+    "Opens outward": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.4,
+      "split": 0.3,
+      "sides": 1,
+      "limit": 18
+    },
+    "Half open": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.2,
+      "split": 0,
+      "sides": 0.6,
+      "limit": 16
+    },
+    "Fill every gap": {
+      "threshold": -25.5,
+      "amount": 1,
+      "rise": 0.05,
+      "hold": 0.01,
+      "split": 0,
+      "limit": 14
+    },
+    "Slightly closer": {
+      "threshold": -19,
+      "amount": 1,
+      "rise": 0.3,
+      "split": 0,
+      "limit": 3
+    },
+    "Steady shine": {
+      "threshold": -17,
+      "amount": 0.6,
+      "rise": 0.3,
+      "split": 1,
+      "focus": 1,
+      "limit": 10
+    },
+    "Real pauses only": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 1.0,
+      "hold": 1.5,
+      "split": 0,
+      "limit": 18
+    },
+    "Only the tails": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.3,
+      "split": 0,
+      "limit": 24,
+      "hear": 1
+    },
+    "Top alone": {
+      "threshold": -20,
+      "amount": 1,
+      "rise": 0.2,
+      "split": 1,
+      "focus": 1,
+      "limit": 24,
+      "hear": 1
+    },
+    "Low breath": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.2,
+      "split": 0.6,
+      "focus": -1,
+      "limit": 24,
+      "hear": 1,
+      "mix": 0.55
+    },
+    "Quiet in front": {
+      "threshold": -18,
+      "amount": 1,
+      "rise": 0.15,
+      "split": 0.3,
+      "limit": 24,
+      "hear": 1,
+      "mix": 0.7
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. An upward compressor for sustained sound: stereo-linked RMS and peak detection on the whole sound and on three gently split bands, a floor under which it lets go, a short lookahead so attacks are never lifted, and a lift that can go to the sides alone; not a model of any unit."
+  }
+}
