@@ -36,14 +36,24 @@ import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
 import { ORBITS_FACES } from './orbits'
+import { OVERTONE_SINGER_FACES } from './overtone-singer'
 import { PITCH_FACES } from './pitch'
+import { PULSES_FACES } from './pulses'
 import { REVERB_FACES } from './reverb'
 import { SKIPPING_STONE_FACES } from './skipping-stone'
+import { RING_FACES } from './ring'
+import { SEASONS_FACES } from './seasons'
 import { SPATIAL_FACES } from './spatial'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
+import { UNDERWATER_FACES } from './underwater'
+import { WEATHER_FACES } from './weather'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
+import { BREATH_FACES } from './breath'
+import { CURRENTS_FACES } from './currents'
+import { MURMURATION_FACES } from './murmuration'
+import { LATE_VIBRATO_FACES } from './late-vibrato'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -89,4 +99,14 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...TURN_INSTRUMENT_FACES,
   ...BODY_INSTRUMENT_FACES,
   ...CANON_FACES,
+  ...OVERTONE_SINGER_FACES,
+  ...BREATH_FACES,
+  ...CURRENTS_FACES,
+  ...RING_FACES,
+  ...UNDERWATER_FACES,
+  ...PULSES_FACES,
+  ...MURMURATION_FACES,
+  ...WEATHER_FACES,
+  ...LATE_VIBRATO_FACES,
+  ...SEASONS_FACES,
 }

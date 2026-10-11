@@ -517,4 +517,91 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
+  {
+    id: 'wind-off-the-keys',
+    name: 'Wind off the keys',
+    category: 'texture',
+    description:
+      'Gusts of wind move the level and tone of the sound and hiss thinly with it, louder the more is played; Force sets how hard it blows.',
+    effects: [
+      {
+        deviceId: 'weather',
+        preset: 'Breezy day',
+        params: { voice: 0.8, exposure: 0.5, sway: 0.8 },
+      },
+    ],
+  },
+  {
+    id: 'rain-from-below',
+    name: 'Rain from below',
+    category: 'texture',
+    description:
+      'Rain taps on the sound and patters with it, heard from just under the surface of water that muffles and wavers; Depth goes deeper.',
+    effects: [
+      { deviceId: 'weather', preset: 'Light rain', params: { voice: 0.85, force: 0.6 } },
+      { deviceId: 'underwater', preset: 'Just under' },
+    ],
+  },
+  {
+    id: 'surf-beyond-the-dunes',
+    name: 'Surf beyond the dunes',
+    category: 'texture',
+    description:
+      'Surf washes through the sound and hisses with it, heard from the back of a large hall, darker, later and narrower; Distance brings it near.',
+    effects: [
+      { deviceId: 'weather', preset: 'Slow surf', params: { voice: 0.65 } },
+      { deviceId: 'distance', preset: 'Back of the hall', params: { level: 1 } },
+    ],
+  },
+  {
+    id: 'held-under-water',
+    name: 'Held under water',
+    category: 'texture',
+    description:
+      'The sound is taken under water: muffled, slowly wavering and closing in from the sides, with bubbles off each attack; Depth sets how deep.',
+    effects: [{ deviceId: 'underwater', preset: 'Under' }],
+  },
+  {
+    id: 'beneath-lake-ice',
+    name: 'Beneath lake ice',
+    category: 'texture',
+    description:
+      'The sound lies deep under water, dull and pressed together, below a thin frozen room that rings on for long; Year thaws it.',
+    effects: [
+      { deviceId: 'underwater', preset: 'Deep water' },
+      { deviceId: 'seasons', preset: 'Frozen lake' },
+    ],
+  },
+  {
+    id: 'a-year-turning',
+    name: 'A year turning',
+    category: 'texture',
+    description:
+      'The sound passes from a bright spring through a warm wide summer and a dark autumn to a thin winter, once in ninety seconds; Year picks one.',
+    effects: [
+      { deviceId: 'seasons', preset: 'Spring turning', params: { turning: 90, space: 0.7 } },
+    ],
+  },
+  {
+    id: 'wind-across-snow',
+    name: 'Wind across snow',
+    category: 'texture',
+    description:
+      'Wind whistles through a gap as the sound is played and both stand in a thin frozen room with a long tail; Force sets how hard it blows.',
+    effects: [
+      { deviceId: 'weather', preset: 'Whistling gap', params: { linger: 5 } },
+      { deviceId: 'seasons', preset: 'Deep winter' },
+    ],
+  },
+  {
+    id: 'loops-through-a-year',
+    name: 'Loops through a year',
+    category: 'texture',
+    description:
+      'Three loops of unequal length turn against each other while the year goes round every twelve seconds, spring to winter; Turning slows it.',
+    effects: [
+      { deviceId: 'orbits', preset: 'Slow phasing', params: { mix: 0.35 } },
+      { deviceId: 'seasons', preset: 'Quick year' },
+    ],
+  },
 ]

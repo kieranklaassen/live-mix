@@ -9,6 +9,10 @@
 // line is the piece that would start now, with a ring at its end (down or up:
 // Fall; across: Size) and one half way along (Curve).
 //
+// The scale's numbers stand in a column of their own at the left edge. A piece
+// that has travelled that far is cut off at the column: it is where it was,
+// only not drawn under the numbers.
+//
 // The pieces are the device's own: it reports each one it starts (when, how
 // far it falls, how long it is, where in the caught sound it reads) and the
 // level it is catching, and the display keeps them by the device's clock. A
@@ -71,6 +75,9 @@ const LINE_STEPS = [1, 2, 3, 6, 12, 24] as const
 const LINE_ROOM = 14
 /** Room kept clear above and below the scale, and right of the longest piece, for a ring. */
 const PAD = 5
+/** Where a number of the scale begins, from the box's left edge, and the room its patch keeps past its last figure (`label`). */
+const NUMBER_AT = 2
+const NUMBER_PATCH = 2
 /** A stroke: its points, its thickness where the window is shut and what an open window adds. */
 const POINTS = 16
 const HAIR = 0.5
@@ -205,6 +212,32 @@ export function fallingY(
   vary: number,
 ): number {
   return lay.mid - (semitones - fall * centreShare(vary)) * fallingPer(lay, fall, vary)
+}
+
+/** A number of the scale as it is written, with a real minus: "0", "+3", "−12". */
+const numberText = (semitones: number): string =>
+  semitones === 0 ? '0' : `${semitones > 0 ? '+' : '−'}${Math.abs(semitones)}`
+
+/**
+ * The inner edge of the numbers' column: the right end of the patch under the
+ * widest number the scale shows, which is the furthest it goes either way
+ * (every size shows that line when Fall is at an end of its knob). It is
+ * measured in the plate's own type, so the column is as wide as that number
+ * and no wider, and it is the same at every setting: the pieces are not cut
+ * at a different place when Fall is turned. A display too narrow to have any
+ * room left of now gives all of it to the column, and never more.
+ */
+function fallingColumn(
+  frame: Pick<DisplayFrame, 'ctx' | 'fontFamily'>,
+  layout: FallingLayout,
+): number {
+  const { ctx } = frame
+  ctx.font = `8px ${frame.fontFamily}`
+  const widest = Math.max(
+    ctx.measureText(numberText(-FALL_REACH)).width,
+    ctx.measureText(numberText(FALL_REACH)).width,
+  )
+  return Math.min(layout.now, layout.box.x + NUMBER_AT + Math.ceil(widest) + NUMBER_PATCH)
 }
 
 /** How wide a piece is drawn: its share of the room right of now follows the Size knob. */
@@ -521,6 +554,8 @@ const falling = plateDisplay<FallingState>({
     const yOf = (semitones: number): number => fallingY(layout, semitones, fall, vary)
     const zero = yOf(0)
     const foot = box.y + box.h
+    // What has sounded is drawn from here to now: left of it are the numbers.
+    const column = fallingColumn(frame, layout)
 
     // falling.h mixes by `kit::equal_power`: the pieces at the sine of Mix quarter turns.
     const wet = Math.sin((clamp(frame.value('mix'), 0, 1) * Math.PI) / 2)
@@ -577,7 +612,8 @@ const falling = plateDisplay<FallingState>({
       if (showing) {
         for (const piece of state.pieces) {
           const age = state.time - piece.born
-          if (!(age >= 0) || now + (piece.length - age) * pxPerSec < box.x) continue
+          // (one whose end has reached the numbers' column is past the picture)
+          if (!(age >= 0) || now + (piece.length - age) * pxPerSec < column) continue
           const phase = age / piece.length
           if (side === 0 && phase < 1) {
             const ago = piece.behind + fallingLag(phase, piece.fall, piece.curve, piece.length)
@@ -611,7 +647,7 @@ const falling = plateDisplay<FallingState>({
       // the average, each thrown as `spawn()` throws one, the newest a third
       // of the way through its life.
       const rate = fallingRate(frame.value('density'), sizeSec * 1000)
-      const past = (now - box.x) / pxPerSec + sizeSec
+      const past = (now - column) / pxPerSec + sizeSec
       let age = Math.min((0.3 * (0.5 + dice(0, 1))) / rate, 0.35 * sizeSec)
       for (let i = 0; i < EXAMPLES && age < past; i++) {
         stroke.x = now - age * pxPerSec
@@ -635,7 +671,8 @@ const falling = plateDisplay<FallingState>({
         age += (0.5 + dice(i + 1, 1)) / rate
       }
     }
-    clipped(ctx, { x: box.x, y: box.y, w: now - box.x, h: box.h }, () => pieces(0))
+    // What has sounded stops at the numbers' column and is not drawn under it.
+    clipped(ctx, { x: column, y: box.y, w: now - column, h: box.h }, () => pieces(0))
     clipped(ctx, { x: now, y: box.y, w: box.x + box.w - now, h: box.h }, () => pieces(1))
 
     // Now: in the second ink while pieces are coming.
@@ -647,11 +684,11 @@ const falling = plateDisplay<FallingState>({
     // The scale's numbers, in semitones from the pitch a piece is caught at:
     // one for every line drawn. A line at an edge has its number as near as
     // the box lets it stand, at most four pixels off; lines are `LINE_ROOM`
-    // apart, so no two numbers meet.
+    // apart, so no two numbers meet. They stand in their column (`fallingColumn`),
+    // on a patch that keeps the scale's own lines off the figures.
     for (const semitones of [0, ...lines]) {
       const y = yOf(semitones)
-      const words = semitones === 0 ? '0' : `${semitones > 0 ? '+' : '−'}${Math.abs(semitones)}`
-      label(frame, words, box.x + 2, clamp(y + 3, box.y + 8, foot - 2))
+      label(frame, numberText(semitones), box.x + NUMBER_AT, clamp(y + 3, box.y + 8, foot - 2))
     }
 
     for (const point of fallingHandles(frame)) {

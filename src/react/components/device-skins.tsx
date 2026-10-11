@@ -1899,6 +1899,21 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   afterglow: { ...PLATE_PALETTES.afterglow, finish: 'fade', cap: 'skirt' },
   feedback: { ...PLATE_PALETTES.feedback, finish: 'hammered', cap: 'pointer' },
   canon: { ...PLATE_PALETTES.canon, finish: 'grain', cap: 'pointer' },
+  'overtone-singer': {
+    ...PLATE_PALETTES['overtone-singer'],
+    finish: 'linen',
+    cap: 'dot',
+    name: 'Singer',
+  },
+  breath: { ...PLATE_PALETTES.breath, finish: 'matte', cap: 'dot' },
+  currents: { ...PLATE_PALETTES.currents, finish: 'brushed', cap: 'disc' },
+  ring: { ...PLATE_PALETTES.ring, finish: 'brushed', cap: 'skirt' },
+  underwater: { ...PLATE_PALETTES.underwater, finish: 'fade', cap: 'dot' },
+  pulses: { ...PLATE_PALETTES.pulses, finish: 'gloss', cap: 'disc' },
+  murmuration: { ...PLATE_PALETTES.murmuration, finish: 'fade', cap: 'dot' },
+  weather: { ...PLATE_PALETTES.weather, finish: 'fade', cap: 'pointer' },
+  'late-vibrato': { ...PLATE_PALETTES['late-vibrato'], finish: 'grain', cap: 'skirt' },
+  seasons: { ...PLATE_PALETTES.seasons, finish: 'gloss', cap: 'skirt' },
 }
 
 /**

@@ -142,6 +142,16 @@ export const PLATE_PALETTES = {
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
   canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
+  'overtone-singer': { plate: '#fcff99', ink: '#1e1f04', accent: '#c8321a' },
+  breath: { plate: '#63abf6', ink: '#06163a', accent: '#700c3a' },
+  currents: { plate: '#5ae6b4', ink: '#003544', accent: '#6a14c8' },
+  ring: { plate: '#4a4f00', ink: '#fbf6d8', accent: '#ffb3a0' },
+  underwater: { plate: '#06129f', ink: '#e8f3ff', accent: '#8cf5d2' },
+  pulses: { plate: '#a80062', ink: '#fffafd', accent: '#a9efff' },
+  murmuration: { plate: '#ffb7ff', ink: '#2a0a2e', accent: '#004a4a' },
+  weather: { plate: '#002415', ink: '#e2f7e8', accent: '#ffe45c' },
+  'late-vibrato': { plate: '#84068d', ink: '#fdeeff', accent: '#ffae57' },
+  seasons: { plate: '#a2e77e', ink: '#10260a', accent: '#9a1030' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
