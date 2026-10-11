@@ -509,6 +509,7 @@ const dspSymbols = [
   'FACTORY_TEMPO_RANGE',
   'soundAtTempo',
   'KIT_INSTRUMENTS',
+  'KIT_LEVEL_DB',
   'isKitInstrument',
   'validatePatch',
   'patchDeviceParams',

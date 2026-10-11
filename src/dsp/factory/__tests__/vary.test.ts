@@ -10,7 +10,6 @@ import { analyzeSound } from '../../../core/analysis/sound-kind'
 import { compileFromDisk, measureAudio, toDb } from '../../__tests__/render-support'
 import { DEFAULT_PHRASE_GAIN, peakOf, type PhraseNote } from '../../patch-render'
 import {
-  FACTORY_PEAK_DB,
   FACTORY_SOUNDS,
   chordMoves,
   describeVariant,
@@ -24,7 +23,7 @@ import { loadFactoryPackSounds } from '../sound-packs'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { VARIATION_KINDS, VARIATION_LIMITS, type SoundVariation } from '../vary'
-import { measureEnds } from './sound-measure'
+import { atItsLevel, measureEnds } from './sound-measure'
 
 const node = { compile: compileFromDisk, sliceMs: 0 } as const
 const SEEDS = [1, 2, 3, 77, 9999]
@@ -188,6 +187,13 @@ describe('a variant of a sound', () => {
   it('is the same for the same seed and amounts, and another for another seed', () => {
     for (const each of FACTORY_SOUNDS) {
       expect(varySound(each, full(4))).toEqual(varySound(each, full(4)))
+      // One drum struck once has nothing a variant may move: a kit sound is not detuned, its
+      // first moment is its attack, and a lone note's gain comes back to itself. It is the hit.
+      if (each.kit && each.phrase.notes.length === 1) continue
+      // And one key held on a sound read in time (a crash backwards into a bar line) stays on
+      // its pitch, which is the speed it is read at: it is its own variant too.
+      if (each.source !== undefined && each.bpm !== undefined && each.phrase.notes.length === 1)
+        continue
       expect(varySound(each, full(4)).phrase).not.toEqual(varySound(each, full(5)).phrase)
       expect(varySound(each, full(4)).phrase).not.toEqual(each.phrase)
     }
@@ -257,6 +263,16 @@ describe('a variant of a sound', () => {
       const tuned = { ...held, tuning: 'whole-cycles' as const }
       for (const seed of SEEDS) {
         for (const note of varySound(tuned, only('touch', seed)).phrase.notes) {
+          expect(Number.isInteger(note.note)).toBe(true)
+        }
+      }
+    })
+
+    it('leaves a sound that keeps time and is read from another one on its notes', () => {
+      // On a sampler a key off pitch is the other sound read faster or slower: off its bar line.
+      const read = { ...held, source: 'some-other-sound', bpm: 120 }
+      for (const seed of SEEDS) {
+        for (const note of varySound(read, only('touch', seed)).phrase.notes) {
           expect(Number.isInteger(note.note)).toBe(true)
         }
       }
@@ -831,7 +847,7 @@ describe('a variant of a sound', () => {
       const audio = await renderFactorySound(each, node)
       const variant = await renderFactorySound(each, { ...node, vary: only('touch', 2) })
       expect(variant.channels[0]).toHaveLength(audio.channels[0].length)
-      expect(toDb(peakOf(variant.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+      expect(atItsLevel(each, toDb(peakOf(variant.channels))), 'at its level').toBe(true)
       expect(Math.abs(measureAudio(variant).lufs - measureAudio(audio).lufs)).toBeLessThan(3)
       expect(analyzeSound(variant.channels, variant.sampleRate).kind).toBe(each.kind)
       const differs = variant.channels[0].some(
@@ -856,7 +872,7 @@ describe('a variant of a sound', () => {
         const variant = await renderFactorySound(each, { ...node, vary: full(seed) })
         const samples = Math.round(each.durationSec * variant.sampleRate)
         expect(variant.channels[0]).toHaveLength(samples)
-        expect(toDb(peakOf(variant.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+        expect(atItsLevel(each, toDb(peakOf(variant.channels))), 'at its level').toBe(true)
         const ends = measureEnds(variant)
         if (each.loopCrossfadeSec) {
           expect(ends.round, `seed ${seed} comes round on itself`).toBe(true)

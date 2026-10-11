@@ -5,6 +5,10 @@
 // beats and as many beats long; and rendered there it is that long to the
 // frame, at the bank's level, and still comes round on itself.
 //
+// A few keep time and end (a fill, a rise: a `bpm` and no loop): whole bars
+// played once from a bar line, every stroke inside them, as many beats long
+// at any tempo, and rendered there they start and stop at rest.
+//
 // `tempo.test.ts` holds the arithmetic on sounds made up for it; this file
 // holds the bank, so a sound added with a `bpm` is held to it by being there.
 
@@ -13,7 +17,6 @@ import { describe, expect, it } from 'vitest'
 import { compileFromDisk, toDb } from '../../__tests__/render-support'
 import { peakOf } from '../../patch-render'
 import {
-  FACTORY_PEAK_DB,
   FACTORY_SOUNDS,
   factoryPreset,
   isKitInstrument,
@@ -21,7 +24,7 @@ import {
   soundAtTempo,
 } from '..'
 import { BAR_SEC, WRITTEN_BPM } from '../sounds/rhythm'
-import { measureEnds } from './sound-measure'
+import { atItsLevel, measureEnds } from './sound-measure'
 
 const TIMED = FACTORY_SOUNDS.filter((sound) => sound.bpm !== undefined)
 const node = { compile: compileFromDisk, sliceMs: 0 } as const
@@ -59,33 +62,56 @@ describe('the sounds that keep time', () => {
   })
 })
 
+/** A sound that keeps time and comes round, told from one that keeps time and ends. */
+const comesRound = (sound: (typeof TIMED)[number]): boolean => Boolean(sound.loopCrossfadeSec)
+
 describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id, sound) => {
-  it('is whole bars at the tempo it is written at, the same strokes played round, kept from a bar line', () => {
-    expect(sound.bpm).toBe(WRITTEN_BPM)
-    const barCount = sound.durationSec / BAR_SEC
-    expect(barCount, 'bars').toBe(Math.round(barCount))
-    expect(barCount).toBeGreaterThanOrEqual(1)
-    expect(sound.loopCrossfadeSec, 'comes round').toBeGreaterThan(0)
-    expect(['beat', 'melodic']).toContain(sound.kind)
-    // What is kept starts a whole number of rounds in: on a bar line, with the rounds before it ringing into it.
-    const dropped = (sound.skipSec ?? 0) / sound.durationSec
-    expect(dropped, 'rounds dropped').toBe(Math.round(dropped))
-    expect(dropped).toBeGreaterThanOrEqual(1)
-    // Every round is the same strokes, and there is one after the kept one for the fold to take from.
-    const rounds: string[][] = []
-    for (const note of sound.phrase.notes) {
-      const round = Math.floor(note.atSec / sound.durationSec + 1e-9)
-      const within = note.atSec - round * sound.durationSec
-      expect(within, 'inside its round').toBeGreaterThanOrEqual(-1e-9)
-      expect(within).toBeLessThan(sound.durationSec)
-      ;(rounds[round] ??= []).push(
-        [within.toFixed(6), note.durSec.toFixed(6), note.note, note.gain ?? ''].join(' '),
-      )
-    }
-    expect(rounds).toHaveLength(dropped + 2)
-    expect(rounds[0].length).toBeGreaterThan(0)
-    for (const round of rounds) expect(round).toEqual(rounds[0])
-  })
+  it.runIf(!comesRound(sound))(
+    'is whole bars at the tempo it is written at, played once from a bar line',
+    () => {
+      expect(sound.bpm).toBe(WRITTEN_BPM)
+      const barCount = sound.durationSec / BAR_SEC
+      expect(barCount, 'bars').toBe(Math.round(barCount))
+      expect(barCount).toBeGreaterThanOrEqual(1)
+      // Nothing is dropped ahead of it and nothing folded: it starts on its bar line and ends on another.
+      expect(sound.skipSec ?? 0, 'kept from its first bar line').toBe(0)
+      expect(sound.loopFold, 'no fold').toBeUndefined()
+      expect(sound.phrase.notes.length).toBeGreaterThan(0)
+      for (const note of sound.phrase.notes) {
+        expect(note.atSec, 'inside its bars').toBeGreaterThanOrEqual(0)
+        expect(note.atSec).toBeLessThan(sound.durationSec)
+      }
+    },
+  )
+
+  it.runIf(comesRound(sound))(
+    'is whole bars at the tempo it is written at, the same strokes played round, kept from a bar line',
+    () => {
+      expect(sound.bpm).toBe(WRITTEN_BPM)
+      const barCount = sound.durationSec / BAR_SEC
+      expect(barCount, 'bars').toBe(Math.round(barCount))
+      expect(barCount).toBeGreaterThanOrEqual(1)
+      expect(['beat', 'melodic']).toContain(sound.kind)
+      // What is kept starts a whole number of rounds in: on a bar line, with the rounds before it ringing into it.
+      const dropped = (sound.skipSec ?? 0) / sound.durationSec
+      expect(dropped, 'rounds dropped').toBe(Math.round(dropped))
+      expect(dropped).toBeGreaterThanOrEqual(1)
+      // Every round is the same strokes, and there is one after the kept one for the fold to take from.
+      const rounds: string[][] = []
+      for (const note of sound.phrase.notes) {
+        const round = Math.floor(note.atSec / sound.durationSec + 1e-9)
+        const within = note.atSec - round * sound.durationSec
+        expect(within, 'inside its round').toBeGreaterThanOrEqual(-1e-9)
+        expect(within).toBeLessThan(sound.durationSec)
+        ;(rounds[round] ??= []).push(
+          [within.toFixed(6), note.durSec.toFixed(6), note.note, note.gain ?? ''].join(' '),
+        )
+      }
+      expect(rounds).toHaveLength(dropped + 2)
+      expect(rounds[0].length).toBeGreaterThan(0)
+      for (const round of rounds) expect(round).toEqual(rounds[0])
+    },
+  )
 
   it.each(TEMPOS)('is the same strokes on the same beats at %i', (bpm) => {
     const moved = soundAtTempo(sound, bpm)
@@ -97,6 +123,7 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
     moved.phrase.notes.forEach((note, at) => {
       const written = sound.phrase.notes[at]
       expect(note.atSec).toBeCloseTo(written.atSec * ratio, 9)
+      expect(note.durSec).toBeCloseTo(written.durSec * ratio, 9)
       expect(note.note).toBe(written.note)
     })
     // The fold is never made longer than it is written: what it folds is the ring of the drums, which stays as long.
@@ -105,15 +132,36 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
     expect(soundAtTempo(sound, WRITTEN_BPM).durationSec).toBe(sound.durationSec)
   })
 
-  it(`renders as many beats long at ${OTHER_BPM}, at the bank level, and comes round on itself`, async () => {
-    const audio = await renderFactorySound(sound, { ...node, bpm: OTHER_BPM })
-    const seconds = sound.durationSec * (WRITTEN_BPM / OTHER_BPM)
-    expect(audio.channels[0]).toHaveLength(Math.round(seconds * audio.sampleRate))
-    expect(toDb(peakOf(audio.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
-    for (const channel of audio.channels) {
-      const wrap = Math.abs(channel[0] - channel[channel.length - 1])
-      expect(wrap, 'the loop seam').toBeLessThanOrEqual(largestStep(channel))
-    }
-    expect(measureEnds(audio).round, 'comes round on itself').toBe(true)
-  }, 60000)
+  it.runIf(comesRound(sound))(
+    `renders as many beats long at ${OTHER_BPM}, at the bank level, and comes round on itself`,
+    async () => {
+      const audio = await renderFactorySound(sound, { ...node, bpm: OTHER_BPM })
+      const seconds = sound.durationSec * (WRITTEN_BPM / OTHER_BPM)
+      expect(audio.channels[0]).toHaveLength(Math.round(seconds * audio.sampleRate))
+      expect(atItsLevel(sound, toDb(peakOf(audio.channels))), 'at its level').toBe(true)
+      for (const channel of audio.channels) {
+        const wrap = Math.abs(channel[0] - channel[channel.length - 1])
+        expect(wrap, 'the loop seam').toBeLessThanOrEqual(largestStep(channel))
+      }
+      expect(measureEnds(audio).round, 'comes round on itself').toBe(true)
+    },
+    60000,
+  )
+
+  it.runIf(!comesRound(sound))(
+    `renders as many beats long at ${OTHER_BPM}, at the bank level, and starts and stops at rest`,
+    async () => {
+      const audio = await renderFactorySound(sound, { ...node, bpm: OTHER_BPM })
+      const seconds = sound.durationSec * (WRITTEN_BPM / OTHER_BPM)
+      expect(audio.channels[0]).toHaveLength(Math.round(seconds * audio.sampleRate))
+      expect(atItsLevel(sound, toDb(peakOf(audio.channels))), 'at its level').toBe(true)
+      for (const channel of audio.channels) {
+        expect(Math.abs(channel[channel.length - 1]), 'the last sample').toBeLessThan(1e-3)
+      }
+      const ends = measureEnds(audio)
+      expect(ends.stepIn, 'starts on a step').toBe(false)
+      expect(ends.stepOut, 'ends on a step').toBe(false)
+    },
+    60000,
+  )
 })

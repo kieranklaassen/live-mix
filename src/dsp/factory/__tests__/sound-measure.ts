@@ -3,11 +3,12 @@
 // (core/clips/seam.ts), and how even it is on the way. The bench prints
 // these; the tests hold every sound to the ones that are rules.
 
+import { BEAT_MIN_ONSETS } from '../../../core/analysis/sound-kind'
 import { comesRound, entersOnStep, leavesOnStep, type SoundFrames } from '../../../core/clips/seam'
 import { type PlanarAudio } from '../../../core/render/encode'
 import { fft } from '../../__tests__/render-support'
 import { peakOf } from '../../patch-render'
-import { transposeFactorySound } from '..'
+import { FACTORY_PEAK_DB, transposeFactorySound } from '..'
 import { type FactorySound } from '../types'
 
 /** Rendered audio in the shape the seam measure reads. */
@@ -80,6 +81,29 @@ export function longestName(sound: FactorySound): string {
   )
 }
 
+/**
+ * How far under the bank's peak one part of a kit may peak, in dB: a ghost
+ * of a shaker is the softest thing a kit plays, and the kit's hardest kick
+ * is at the peak (`KIT_LEVEL_DB`).
+ */
+export const KIT_LEVEL_REACH_DB = 20
+
+/**
+ * Whether a render is at the level its sound is meant to have: at the bank's
+ * peak, or for one part of a kit (`kitLevel`) where the kit has that drum,
+ * which is under the peak by no more than `KIT_LEVEL_REACH_DB` and never
+ * more than a dB over it.
+ */
+export function atItsLevel(sound: FactorySound, peakDb: number): boolean {
+  if (!sound.kitLevel) return Math.abs(peakDb - FACTORY_PEAK_DB) < 0.05
+  return peakDb <= FACTORY_PEAK_DB + 1 && peakDb >= FACTORY_PEAK_DB - KIT_LEVEL_REACH_DB
+}
+
+/** The quietest a sound may be, LUFS: one part of a kit is as much quieter as it lies under the kick. */
+export function quietestLufs(sound: FactorySound): number {
+  return sound.kitLevel ? -40 - KIT_LEVEL_REACH_DB / 2 : -40
+}
+
 /** Integrated loudness a sound of each kind sits in at the bank's peak level, LUFS. */
 export const KIND_LOUDNESS: Readonly<Record<string, readonly [quietest: number, loudest: number]>> =
   {
@@ -132,4 +156,48 @@ export function blackKeyShare(audio: PlanarAudio): number {
     }
   }
   return all > 0 ? black / all : 0
+}
+
+/**
+ * The kit sounds the analysis was measured to misread, by id: the rule below says why it does,
+ * and is true of others it reads all the same (triplets, fives, a late clap), which stay held
+ * to what the analysis finds. A sound is added here when it is measured, not when it is written.
+ */
+export const BEATS_THE_ANALYSIS_LOSES: readonly string[] = [
+  'club-swung-hat-groove',
+  'club-skipping-kick-groove',
+  'club-swung-sixteenth-hats',
+  'club-swung-shaker',
+  'club-tops-swung',
+  'club-crash-on-the-one',
+  'club-snare-build',
+  'club-hat-stutter-fill',
+]
+
+/** How far off a straight sixteenth a stroke may be written and still be on it, in seconds. */
+const ON_THE_GRID_SEC = 0.002
+
+/**
+ * True for a sound on a kit that keeps time and that the analysis cannot be
+ * asked about: one of those measured to be misread (`BEATS_THE_ANALYSIS_LOSES`)
+ * that has a row that is swung, laid back or faster than sixteenths, or fewer
+ * hits in a round than the analysis wants before it says `beat`. The analysis holds the hits it hears to a straight grid and
+ * asks for four of them (core/analysis), so it reads no tempo from sixteenths
+ * swung by more than a few milliseconds, from a roll in thirty-seconds, nor
+ * from one crash in four bars. Such a loop or fill is written on a beat all
+ * the same, and `beat` is the bank's word for it.
+ */
+export function beatTheAnalysisLoses(sound: FactorySound): boolean {
+  if (!BEATS_THE_ANALYSIS_LOSES.includes(sound.id)) return false
+  if (!sound.kit || sound.bpm === undefined) return false
+  const step = 60 / sound.bpm / 4
+  const from = sound.skipSec ?? 0
+  const round = sound.phrase.notes.filter(
+    (note) => note.atSec >= from - 1e-9 && note.atSec < from + sound.durationSec - 1e-9,
+  )
+  const offTheGrid = round.some(
+    (note) => Math.abs(note.atSec - Math.round(note.atSec / step) * step) > ON_THE_GRID_SEC,
+  )
+  const hits = new Set(round.map((note) => Math.round(note.atSec * 1000))).size
+  return offTheGrid || hits < BEAT_MIN_ONSETS
 }

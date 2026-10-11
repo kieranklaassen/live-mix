@@ -107,6 +107,7 @@ hold 8 notes).
 | `chord-harp`      | Chord Harp         | live-mix            | instrument | 8      | 28,108 B  | 90.2 µs, 3.38 %       | 15.4 µs, 0.58 %            | 0                 | 4           |
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
+| `club-kit`        | Club Kit           | live-mix            | instrument | 10     | 35,998 B  | 24.1 µs, 0.90 %       | 1.8 µs, 0.07 %             | 0                 | 4           |
 | `common-tones`    | Common Tones       | live-mix            | texture    | 9      | 22,763 B  | 18.7 µs, 0.70 %       | 28.3 µs, 1.06 %            | 4608              | 8           |
 | `constellation`   | Constellation      | live-mix            | delay      | 10     | 33,746 B  | 17.8 µs, 0.67 %       | 21.5 µs, 0.80 %            | 0                 | 8           |
 | `currents`        | Currents           | live-mix            | modulation | 10     | 20,109 B  | 14.9 µs, 0.56 %       | 9.4 µs, 0.35 %             | 0                 | 4           |
@@ -262,11 +263,14 @@ What the table does not show:
   natively). Sustain analyses once per caught note: up to three blocks of a
   catch cost 6 to 9 % of their time, the rest under 1 %. Low Bitrate (4,096
   samples), Vintage Digital (129) and the two drives (39) report latency.
-- **The two kits** (Drum Kit, Glitch Kit) play one-shots, so the wasm figure,
-  eight notes held for ten seconds, is of hits that have died and a device
-  asleep. Read the native one: a busy bar on every key, played round. Before
-  the Drum Kit's noise envelope was flushed its tail ran on subnormals and the
-  same bar cost 1.8 %.
+- **The three kits** (Drum Kit, Glitch Kit, Club Kit) play one-shots, so the
+  wasm figure, eight notes held for ten seconds, is of hits that have died and
+  a device asleep. Read the native one: a busy bar on every key, played round.
+  Before the Drum Kit's noise envelope was flushed its tail ran on subnormals
+  and the same bar cost 1.8 %. The Club Kit's bar, in CPU time, costs 0.71 to
+  0.99 % natively by character and 0.90 to 1.07 % in wasm, where the Drum
+  Kit's costs 0.68 to 0.84 % in wasm on the same notes; a block of it awake
+  with nothing sounding costs 0.85 µs, asleep 0.06 µs.
 - **The four bass instruments** (Acid Bass, FM Bass, String Bass, Sub Bass)
   are one voice each, but for String Bass, which has four strings. Only Sub
   Bass holds its default patch: the wasm figures of the other three are of
@@ -466,6 +470,12 @@ Building the twenty-one effects and four instruments of the second ambient round
 - **Sleep.** `kit::IdleGate::asleep()` with a short hold can read true after one silent 2,048-frame block at a low sample rate. A noise bed that has to outlast the gaps of slow playing (Vinyl, Radio, Noise Floor: fourteen seconds, then a fade) keeps its own timer; the gate's hold is fixed.
 - **Test kit.** `check_instrument` still has no block-size check, and Zither's output depended on the host's block size while strings were being stolen until the second worker's own render showed it.
 
+Building the Club Kit added:
+
+- **Oscillators.** `kit::BlepOsc::pulse` (`cpp/kit/osc.h`) puts out 2.0 where it should be near 0 when the phase is one step of a float under the width: 3 of 80 million samples. The Drum Kit's hats use it; the Club Kit carries a pulse of its own, which has no such sample and costs less.
+- **Denormals.** `flush_denormal` (`cpp/common/dsp_util.h`) compiles to a branch on the sign of the signal, which mispredicts on noise. On `kit::Svf` the Club Kit's busy bar costs 1.37 to 1.71 % natively, against 0.71 to 0.99 % with its own filter ticks, which give the same samples. Written with `std::fabs` in a scratch copy it brought the bar on `kit::Svf` from 1.7 % to 0.93 %, and the Drum Kit's from 1.05 % to 0.59 %.
+- **Tails.** Nothing a device reports says how long it rings, so a renderer has to know that a crash can take a minute.
+
 ### The second ambient round: what measurement says is weak
 
 None of these twenty-five has been listened to. Each was built by one worker and checked by a second, who rebuilt it, rendered every preset on played material, swept and jumped every control while sounding and fed it broken samples. What that left open, device by device, so the first listen knows where to go:
@@ -546,24 +556,33 @@ None of these forty has been listened to. Each was built by one worker and check
 | `howl`            | Long loops sing in a crowd: at Distance near 40 ms the overtones are 25 Hz apart and with Gain high many grow together, bounded and in tune but a few dB a second off the law; a fast wide wander flutters ("Flicker", Move 1 at Pace 2: the level ranges 14.3 dB over a tail and 2 of 80 quarter seconds hold one overtone), and whether that is a sound or a fault is taste; Follow answers attacks only, so soft playing without attacks is not ducked; under the middle of Gain the loop rings only what the playing puts on the overtones of Distance's note, so "Ring, no howl" and "Faint sustain" depend on the key (the feedback 12 dB under a C pad, 21 dB under a D minor one); Body under the loop's note picks nothing lower; Hold at 30 s holds what one loud moment set, 8 s to come back; "Reed buzz" tunes G2 where the other fifteen tune C                                                                                                                                               |
 | `lift`            | Noise under a lifted tail rides up with it, as under any upward compressor: with hiss at -60 dB the top is up by at most 9.5 dB at the default, 13.1 dB on "Air on top", 14.5 dB on "Long tails", 16.6 dB on "Real pauses only", and for a second or two after it, while the lift is let down at 8 dB a second (1.1 dB in the worst second at the default, 5.5 dB on "Real pauses only"); in a pause hiss at or under the Floor is not lifted (0.0 dB at -55 dB and under, on "Long tails" at -60 dB and under) but hiss over it is (8.1 dB at -50 dB at the default); Sides widens only what is narrower than its own middle; a quiet held pad is brought up (7.1 dB at -30 dB at the default, 15.7 dB on "Slow tide"); playing that stays under the line for longer than Hold is lifted to its loudest recent level; Limit over 18 dB does nothing at the default; at 96 kHz the fade before a note is half as long (1.39 ms); "Just the ends" is hardly told from the dry on a phrase without pauses     |
 
-### The two kits: what measurement says is weak
+### The three kits: what measurement says is weak
 
-Neither kit has been listened to. Each was built by one worker and checked by
+No kit has been listened to. Each was built by one worker and checked by
 a second, who rebuilt it, played every key at five octaves and three sample
 rates, swept every control and broke the code on purpose to see the harness
 catch it (63 changes to the Drum Kit, 43 caught at first and all that change
-the output caught now). What that left open:
+the output caught now). The Club Kit's second reader worked at six sample
+rates from 22.05 to 192 kHz and broke it 48 times: 44 were caught at first,
+and the three of the rest that change the output are caught now. What that
+left open:
 
-| Device       | Weak or unproven                                                                                                                                                                                                                                                                                 | Listen first                                                                               |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `drum-kit`   | Every drum is a model, none a recording, and whether a kick reads as a kick is unheard; short or dark also means quieter for the hats and shaker (Length 0.25: shaker 11 dB down); Drive is louder (1 to 5 dB at 1); a drum struck at two octaves at once is one drum, the second cuts the first | The four kits on one bar; "Muffled"; the hats with Tone turned down; a kick an octave down |
-| `glitch-kit` | A click's level is set as it is struck, so Tone moved under a ringing crackle does not re-level it; under Crush 1 a click's level wanders 6 dB with its octave; in a stutter the click grain is 10 dB under the pip grain in energy at equal peak; Crush does nothing below 0.04 at 44.1 kHz     | Clicks up and down the octaves; "Low bitrate kit"; the stutter with Scatter up             |
+| Device       | Weak or unproven                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Listen first                                                                                                                         |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `drum-kit`   | Every drum is a model, none a recording, and whether a kick reads as a kick is unheard; short or dark also means quieter for the hats and shaker (Length 0.25: shaker 11 dB down); Drive is louder (1 to 5 dB at 1); a drum struck at two octaves at once is one drum, the second cuts the first                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | The four kits on one bar; "Muffled"; the hats with Tone turned down; a kick an octave down                                           |
+| `glitch-kit` | A click's level is set as it is struck, so Tone moved under a ringing crackle does not re-level it; under Crush 1 a click's level wanders 6 dB with its octave; in a stutter the click grain is 10 dB under the pip grain in energy at equal peak; Crush does nothing below 0.04 at 44.1 kHz                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | Clicks up and down the octaves; "Low bitrate kit"; the stutter with Scatter up                                                       |
+| `club-kit`   | Every drum is a model, none a recording, and whether it reads as a house kit is unheard; at 22.05 kHz the hats lose level (2.2 dB on Firm, 6.1 on Bright, where the crash loses 2.8 and the shaker 2.2); the top of Tone does nothing to the cymbals (the crash from 0.875 up on Firm and from 0.594 on Bright, the ride from 0.938 and 0.656, Bright's hats from 0.812); the kick is the loudest drum only near the defaults (with Tone at 1 and Punch at 0, Dusty's snare is up to 3.2 dB over it and Bright's closed hat 4.2); the Deep kick is held at 24 Hz from Tune -11 down and is off key there (64 cents at -11, 164 at -12); Variation above 0.25 takes the pitched drums more than 5 cents off (18.9 at 1); the longest tail is about a minute (Bright's crash at Length 4 three octaves down is 60 dB down at 29 s and let go at 54 s, at 64 s with Variation at 1) and nothing reports its length; the Deep clap is 1.2 and 1.4 dB louder at 96 and 192 kHz on the one noise draw it repeats | The four characters on one bar; the hats and the crash with Tone up; "Glass tops"; the Deep kick an octave down; a crash at Length 4 |
 
 A drum is one drum whatever octave its key is in: struck at two octaves at
 once, the second strike cuts the first in 4 ms. Closed hat and shaker choke
 the open hat in the order notes arrive, so an open hat then a closed one in
-the same block leaves only the closed one. The keys of both kits are in
-`rhythm.ts` (`KIT`, `FAULT`) and in [factory.md](./factory.md#kits).
+the same block leaves only the closed one. The Club Kit does the first with
+two slots to a drum: one struck again while it rings takes its other slot
+and the older one fades in 4 ms, so a pile of notes is bounded at 24 slots
+(a roll every 16 samples reaches 11 dB over one stroke and no further). It
+differs in the second: only the closed hat chokes the open hat, to nothing
+in 8 ms, and the shaker plays under it. The keys of the three kits are in
+`rhythm.ts` (`KIT`, `CLUB`, `FAULT`) and in [factory.md](./factory.md#kits).
 
 ### The four bass instruments: what measurement says is weak
 
@@ -706,7 +725,7 @@ listen:
 ## Instrument presets
 
 Every instrument comes with sixteen presets of its own (Ember has seventeen),
-657 over the 41 instruments: the list a player steps through where the
+881 over the 55 instruments: the list a player steps through where the
 instrument stands, apart from the bank's sounds, which are an instrument with
 effects after it. Until this list was filled most instruments had six.
 

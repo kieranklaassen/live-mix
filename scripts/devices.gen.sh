@@ -52,6 +52,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device club-kit \
+    cpp/devices/club-kit/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
     cpp/devices/common-tones/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
@@ -341,6 +343,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
     cpp/test/clarinet_test.cpp
+  native_test club_kit_test \
+    cpp/test/club_kit_test.cpp
   native_test common_tones_test \
     cpp/test/common_tones_test.cpp
   native_test constellation_test \

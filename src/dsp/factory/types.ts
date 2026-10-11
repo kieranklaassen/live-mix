@@ -117,9 +117,21 @@ export interface FactorySound {
    * tempo it is written at, in beats per minute. `renderFactorySound` with a
    * `bpm` of its own plays it at that tempo instead: the same notes closer
    * together or further apart, never the audio stretched (see ./tempo.ts).
+   * Most such sounds come round; one without a `loopCrossfadeSec` keeps time
+   * and ends (a fill, a rise: whole bars played once from a bar line).
    * Absent for a sound with no beat to it, which is the same at every tempo.
    */
   bpm?: number
+  /**
+   * For a sound that keeps time: controls of its own instrument that are a length
+   * of time (`'time'`) or a rate (`'rate'`) in this sound and in no other, so they
+   * follow the tempo beside the ones that do for every sound (`TIMED_PARAMS` in
+   * ./tempo.ts). A sampler's `end`, where it is how much of the loaded sound one
+   * held key reads backwards: the key reaches the first sample on the bar line at
+   * every tempo at which the recording is long enough. Not a rule of the device: in most patches a sampler's End is a
+   * place in the recording and stays where it is.
+   */
+  timedParams?: Readonly<Record<string, 'time' | 'rate'>>
   /**
    * True for a sound played on a kit (./kits.ts), whose keys are things and
    * not pitches: every C the same drum. In another key its notes stay where
@@ -127,6 +139,17 @@ export interface FactorySound {
    * another chord. Set by `sound()` from the instrument, never by hand.
    */
   kit?: true
+  /**
+   * For one part of a kit (a layer, a fill, a single drum): played at the kit's own
+   * level and not brought to the bank's peak (`KIT_LEVEL_DB` in ./kits.ts).
+   * A hat is then as far under a kick as the kit has it, so a kick, a clap
+   * and a row of hats laid over each other are balanced as one kit, and a
+   * hat alone is quieter than a sound of the bank is otherwise. On a sound
+   * made from such a part (`source`): brought to the peak of that part and
+   * not to the bank's, so a swell made from a crash ends as loud as the crash
+   * starts.
+   */
+  kitLevel?: true
   /**
    * The name and description with each note they mention in braces
    * ("Low drone {D}"): what `transposeFactorySound` writes them from in

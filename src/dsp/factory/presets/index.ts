@@ -12,6 +12,7 @@ import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
 import { CLARINET_PRESETS } from './clarinet'
+import { CLUB_KIT_PRESETS } from './club-kit'
 import { DRONE_PRESETS } from './drone'
 import { DROPLETS_PRESETS } from './droplets'
 import { DRUM_KIT_PRESETS } from './drum-kit'
@@ -95,6 +96,7 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...ZONE_SAMPLER_PRESETS,
   ...DRUM_KIT_PRESETS,
   ...GLITCH_KIT_PRESETS,
+  ...CLUB_KIT_PRESETS,
   ...SUB_BASS_PRESETS,
   ...FM_BASS_PRESETS,
   ...ACID_BASS_PRESETS,

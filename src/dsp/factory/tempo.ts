@@ -49,11 +49,16 @@ const TIMED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'time' | 'ra
   'string-machine': { speed: 'rate' },
 }
 
-function deviceAtTempo(device: PatchDevice, ratio: number): PatchDevice {
+/** Which controls of a device follow the tempo, and how: a length of time or a rate. */
+export type TimedParams = Readonly<Record<string, 'time' | 'rate'>>
+
+function deviceAtTempo(device: PatchDevice, ratio: number, own?: TimedParams): PatchDevice {
   // By the id of today: a patch may name the device by one it had before.
   const descriptor = describeStockWasmDevice(device.deviceId)
-  const timed = descriptor && TIMED_PARAMS[descriptor.id]
-  if (!timed || !descriptor) return device
+  if (!descriptor) return device
+  // What follows the tempo in every sound, and what does in this one alone.
+  const timed = own ? { ...TIMED_PARAMS[descriptor.id], ...own } : TIMED_PARAMS[descriptor.id]
+  if (!timed) return device
   // What the device is set to as the patch stands: its own value, else its preset's, else the default.
   const current = patchDeviceParams(descriptor, device)
   const params: Record<string, number> = { ...device.params }
@@ -63,22 +68,35 @@ function deviceAtTempo(device: PatchDevice, ratio: number): PatchDevice {
     let moved = kind === 'time' ? current[name] * ratio : current[name] / ratio
     // Out of the control's reach: the nearest octave of it that is inside, so
     // an echo that cannot be that long is half as long and still on the beat.
-    while (moved > spec.max) moved /= 2
-    while (moved < spec.min) moved *= 2
+    if (spec.min < 0) {
+      // A rate that runs either way (a grain synth's scan, where a sound names it its own): its
+      // size is what is halved, towards rest.
+      while (moved > spec.max || moved < spec.min) moved /= 2
+    } else {
+      while (moved > spec.max) moved /= 2
+      while (moved < spec.min) moved *= 2
+    }
     params[name] = moved
   }
   return { ...device, params }
 }
 
-/** A patch with every echo time and LFO rate `ratio` times as long (see `tempoRatio`). */
+/**
+ * A patch with every echo time and LFO rate `ratio` times as long (see `tempoRatio`).
+ * `instrumentTimed` names controls of the instrument that follow the tempo in this
+ * patch beside the ones that always do (a sound's `timedParams`).
+ */
 export function patchAtTempo<T extends Pick<Patch, 'instrument' | 'effects'>>(
   patch: T,
   ratio: number,
+  instrumentTimed?: TimedParams,
 ): T {
   if (ratio === 1) return patch
   return {
     ...patch,
-    ...(patch.instrument ? { instrument: deviceAtTempo(patch.instrument, ratio) } : {}),
+    ...(patch.instrument
+      ? { instrument: deviceAtTempo(patch.instrument, ratio, instrumentTimed) }
+      : {}),
     effects: patch.effects.map((effect) => deviceAtTempo(effect, ratio)),
   }
 }

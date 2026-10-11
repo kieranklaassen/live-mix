@@ -22,9 +22,10 @@
 //
 // A sound that keeps time (one with a `bpm`) stays on its beat: its hand is
 // a few hundredths of a second loose at most, and its speed is half or double
-// time. A sound played on a kit (./kits.ts) has drums for keys, so no chord
-// of the key and no tuning by the hand: its pattern and its touch vary, and
-// no drum of it is a note it stands on, so any stroke but the first may rest.
+// time where it comes round and its own where it ends. A sound played on a
+// kit (./kits.ts) has drums for keys, so no chord of the key and no tuning by
+// the hand: its pattern and its touch vary, and no drum of it is a note it
+// stands on, so any stroke but the first may rest.
 //
 // A variant is decided by a seed and the amounts and by nothing else: the
 // same ones always give the same recipe, so a host that keeps them has kept
@@ -357,6 +358,10 @@ function vary<T extends VariedPlaying>(
   if (
     !variation ||
     sound.phrase.notes.length === 0 ||
+    // One stroke on a kit has no chord, no pattern and no speed to it: it is its own variant.
+    (sound.kit && sound.phrase.notes.length === 1) ||
+    // So is one key held on a sound read in time, whose pitch is the speed it is read at.
+    (sound.source !== undefined && sound.bpm !== undefined && sound.phrase.notes.length === 1) ||
     (!VARIATION_KINDS.some((kind) => amount[kind] > 0) && !named)
   ) {
     return { sound, changes: NO_CHANGES }
@@ -448,9 +453,10 @@ function vary<T extends VariedPlaying>(
           }
         }
       }
-    } else if (!loops) {
+    } else if (!loops && sound.bpm === undefined) {
       // A phrase that ends: faster or slower from its first note on. Slower,
       // it stops where the sound's last note was, so it dies away as the sound does.
+      // Not one that keeps time (a fill, a rise): at any other speed it would leave its beats.
       const first = Math.min(...hits.map((hit) => hit.at))
       const last = Math.max(...hits.map((hit) => hit.at))
       const release = Math.max(...hits.map((hit) => hit.at + hit.dur))
@@ -614,8 +620,11 @@ function vary<T extends VariedPlaying>(
         for (const hit of struck) hit.at += moved[index]
       })
     }
+    // A sound that keeps time and is read from another one (a crash played backwards into a bar
+    // line): a key off pitch is that sound read faster or slower, which ends early or late.
+    const readInTime = sound.source !== undefined && sound.bpm !== undefined
     for (const hit of hits) {
-      if (sound.tuning !== 'whole-cycles' && !sound.kit) {
+      if (sound.tuning !== 'whole-cycles' && !sound.kit && !readInTime) {
         const off = swing(seed, TUNING, hit.from, hit.pitch, hit.turn)
         hit.note += (amount.touch * VARIATION_LIMITS.cents * off) / 100
       }

@@ -1218,5 +1218,410 @@
     "id": "pulse-chopped-flutes-c",
     "durationSec": 4,
     "loops": true
+  },
+  "401": {
+    "id": "club-four-floor-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "402": {
+    "id": "club-deep-house-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "403": {
+    "id": "club-swung-hat-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "404": {
+    "id": "club-late-clap-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "405": {
+    "id": "club-rim-shaker-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "406": {
+    "id": "club-conga-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "407": {
+    "id": "club-ride-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "408": {
+    "id": "club-skipping-kick-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "409": {
+    "id": "club-dub-echo-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "410": {
+    "id": "club-ghost-snare-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "411": {
+    "id": "club-cowbell-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "412": {
+    "id": "club-late-night-groove",
+    "durationSec": 4,
+    "loops": true
+  },
+  "413": {
+    "id": "club-firm-kick-four",
+    "durationSec": 2,
+    "loops": true
+  },
+  "414": {
+    "id": "club-deep-kick-four",
+    "durationSec": 2,
+    "loops": true
+  },
+  "415": {
+    "id": "club-kick-pickup",
+    "durationSec": 4,
+    "loops": true
+  },
+  "416": {
+    "id": "club-clap-two-four",
+    "durationSec": 4,
+    "loops": true
+  },
+  "417": {
+    "id": "club-snare-two-four",
+    "durationSec": 4,
+    "loops": true
+  },
+  "418": {
+    "id": "club-double-clap",
+    "durationSec": 4,
+    "loops": true
+  },
+  "419": {
+    "id": "club-offbeat-open-hat",
+    "durationSec": 2,
+    "loops": true
+  },
+  "420": {
+    "id": "club-offbeat-closed-hat",
+    "durationSec": 2,
+    "loops": true
+  },
+  "421": {
+    "id": "club-eighth-hats",
+    "durationSec": 2,
+    "loops": true
+  },
+  "422": {
+    "id": "club-sixteenth-hats",
+    "durationSec": 2,
+    "loops": true
+  },
+  "423": {
+    "id": "club-swung-sixteenth-hats",
+    "durationSec": 2,
+    "loops": true
+  },
+  "424": {
+    "id": "club-straight-shaker",
+    "durationSec": 2,
+    "loops": true
+  },
+  "425": {
+    "id": "club-swung-shaker",
+    "durationSec": 2,
+    "loops": true
+  },
+  "426": {
+    "id": "club-offbeat-ride",
+    "durationSec": 2,
+    "loops": true
+  },
+  "427": {
+    "id": "club-ride-eighths",
+    "durationSec": 2,
+    "loops": true
+  },
+  "428": {
+    "id": "club-two-conga-pattern",
+    "durationSec": 4,
+    "loops": true
+  },
+  "429": {
+    "id": "club-rolling-congas",
+    "durationSec": 2,
+    "loops": true
+  },
+  "430": {
+    "id": "club-cowbell-offbeats",
+    "durationSec": 4,
+    "loops": true
+  },
+  "431": {
+    "id": "club-rim-three-three-two",
+    "durationSec": 4,
+    "loops": true
+  },
+  "432": {
+    "id": "club-tops-straight",
+    "durationSec": 2,
+    "loops": true
+  },
+  "433": {
+    "id": "club-tops-swung",
+    "durationSec": 2,
+    "loops": true
+  },
+  "434": {
+    "id": "club-tops-ride",
+    "durationSec": 2,
+    "loops": true
+  },
+  "435": {
+    "id": "club-tops-shaker",
+    "durationSec": 2,
+    "loops": true
+  },
+  "436": {
+    "id": "club-crash-on-the-one",
+    "durationSec": 8,
+    "loops": true
+  },
+  "437": {
+    "id": "club-snare-roll-fill",
+    "durationSec": 2,
+    "loops": false
+  },
+  "438": {
+    "id": "club-snare-build",
+    "durationSec": 4,
+    "loops": false
+  },
+  "439": {
+    "id": "club-conga-fill",
+    "durationSec": 2,
+    "loops": false
+  },
+  "440": {
+    "id": "club-clap-roll-fill",
+    "durationSec": 2,
+    "loops": false
+  },
+  "441": {
+    "id": "club-hat-stutter-fill",
+    "durationSec": 2,
+    "loops": false
+  },
+  "442": {
+    "id": "club-kick-snare-fill",
+    "durationSec": 2,
+    "loops": false
+  },
+  "451": {
+    "id": "club-kick-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "452": {
+    "id": "club-deep-kick-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "453": {
+    "id": "club-clap-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "454": {
+    "id": "club-snare-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "455": {
+    "id": "club-rim-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "456": {
+    "id": "club-closed-hat-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "457": {
+    "id": "club-open-hat-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "458": {
+    "id": "club-shaker-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "459": {
+    "id": "club-ride-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "460": {
+    "id": "club-crash-hit",
+    "durationSec": 4,
+    "loops": false
+  },
+  "461": {
+    "id": "club-low-conga-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "462": {
+    "id": "club-high-conga-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "463": {
+    "id": "club-cowbell-hit",
+    "durationSec": 2,
+    "loops": false
+  },
+  "464": {
+    "id": "club-hall-clap-hit",
+    "durationSec": 4,
+    "loops": false
+  },
+  "465": {
+    "id": "club-long-kick-hit",
+    "durationSec": 3,
+    "loops": false
+  },
+  "471": {
+    "id": "house-noise-riser-one",
+    "durationSec": 2,
+    "loops": false
+  },
+  "472": {
+    "id": "house-noise-riser-two",
+    "durationSec": 4,
+    "loops": false
+  },
+  "473": {
+    "id": "house-noise-riser-four",
+    "durationSec": 8,
+    "loops": false
+  },
+  "474": {
+    "id": "house-noise-riser-eight",
+    "durationSec": 16,
+    "loops": false
+  },
+  "475": {
+    "id": "house-chord-riser",
+    "durationSec": 8,
+    "loops": false
+  },
+  "476": {
+    "id": "house-sweep-down-two",
+    "durationSec": 4,
+    "loops": false
+  },
+  "477": {
+    "id": "house-sweep-down-four",
+    "durationSec": 8,
+    "loops": false
+  },
+  "478": {
+    "id": "house-reverse-crash-one",
+    "durationSec": 2,
+    "loops": false
+  },
+  "479": {
+    "id": "house-reverse-crash-two",
+    "durationSec": 4,
+    "loops": false
+  },
+  "480": {
+    "id": "house-crash-boom",
+    "durationSec": 7,
+    "loops": false
+  },
+  "481": {
+    "id": "house-low-boom",
+    "durationSec": 3,
+    "loops": false
+  },
+  "482": {
+    "id": "house-falling-sub",
+    "durationSec": 4,
+    "loops": false
+  },
+  "491": {
+    "id": "house-piano-riff",
+    "durationSec": 8,
+    "loops": true
+  },
+  "492": {
+    "id": "house-organ-riff",
+    "durationSec": 8,
+    "loops": true
+  },
+  "493": {
+    "id": "house-tine-chords",
+    "durationSec": 8,
+    "loops": true
+  },
+  "494": {
+    "id": "house-pumping-pad",
+    "durationSec": 8,
+    "loops": true
+  },
+  "495": {
+    "id": "house-dub-chords",
+    "durationSec": 8,
+    "loops": true
+  },
+  "496": {
+    "id": "house-pluck-run",
+    "durationSec": 8,
+    "loops": true
+  },
+  "497": {
+    "id": "house-string-stabs",
+    "durationSec": 8,
+    "loops": true
+  },
+  "498": {
+    "id": "house-night-tines",
+    "durationSec": 8,
+    "loops": true
+  },
+  "499": {
+    "id": "house-offbeat-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "500": {
+    "id": "house-rolling-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "501": {
+    "id": "house-two-five-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "502": {
+    "id": "house-deep-bass",
+    "durationSec": 8,
+    "loops": true
   }
 }

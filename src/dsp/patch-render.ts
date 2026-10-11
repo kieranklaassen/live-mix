@@ -87,8 +87,13 @@ export interface RenderPatchOptions {
   /** Linear fades at the two ends, in seconds (default 0 in, 0 out). */
   fadeInSec?: number
   fadeOutSec?: number
-  /** Scale the result so its peak sits at this level, in dBFS. Silence stays silence. */
+  /** Scale the result so its peak sits at this level, in dBFS, after the fades. Silence stays silence. */
   normalizePeakDb?: number
+  /**
+   * A fixed gain in dB for a result that is not brought to a peak: what the
+   * devices put out, that much up or down. `normalizePeakDb` wins over it.
+   */
+  gainDb?: number
   /** Where device ids are looked up (default: the stock WASM devices). */
   describe?: (deviceId: string) => DeviceDescriptor | undefined
   /** How a device module is compiled (default `compileWasm`, cached per URL). */
@@ -186,11 +191,26 @@ interface NoteEvent {
   gain: number
 }
 
-function phraseEvents(phrase: Phrase | undefined, sampleRate: number): NoteEvent[] {
+/** A phrase played round again: every pass `sec` long, laid on `frames` whole frames. */
+interface Round {
+  sec: number
+  frames: number
+}
+
+function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Round): NoteEvent[] {
   const events: NoteEvent[] = []
   phrase?.notes.forEach((note, id) => {
     if (!Number.isFinite(note.atSec) || !Number.isFinite(note.durSec) || note.durSec <= 0) return
-    const frame = Math.max(0, Math.round(note.atSec * sampleRate))
+    // In a phrase played round, a note is placed in its pass and the pass on whole frames, so
+    // the same stroke is the same number of frames into every pass.
+    const pass = round ? Math.max(0, Math.floor(note.atSec / round.sec + 1e-9)) : 0
+    // A stroke written half a frame into its pass is half a frame in only as near as its
+    // seconds are kept, a hair under in one pass and a hair over in the next: the tie goes
+    // up in every pass.
+    const frame = round
+      ? pass * round.frames +
+        Math.max(0, Math.floor((note.atSec - pass * round.sec) * sampleRate + 0.5 + 1e-6))
+      : Math.max(0, Math.round(note.atSec * sampleRate))
     const frequency = noteFrequency(note.note)
     const gain = note.gain ?? DEFAULT_PHRASE_GAIN
     events.push({ frame, on: true, id, frequency, gain })
@@ -246,6 +266,25 @@ export function peakOf(channels: readonly Float32Array[]): number {
   return peak
 }
 
+/** Peak of planar audio of `frames` frames once it has been faded in and out over that many frames, linear. */
+function fadedPeakOf(
+  channels: readonly Float32Array[],
+  frames: number,
+  fadeIn: number,
+  fadeOut: number,
+): number {
+  let peak = 0
+  for (const channel of channels) {
+    for (let i = 0; i < frames; i += 1) {
+      const fromEnd = frames - 1 - i
+      const gain = (i < fadeIn ? i / fadeIn : 1) * (fromEnd < fadeOut ? fromEnd / fadeOut : 1)
+      const value = Math.abs(channel[i]) * gain
+      if (value > peak) peak = value
+    }
+  }
+  return peak
+}
+
 /**
  * Play `options.phrase` on the patch's instrument through its effects (or run
  * `options.input` through an effect chain) and return stereo audio. Every
@@ -265,8 +304,20 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   }
 
   const frames = Math.round(options.durationSec * sampleRate)
-  const skip = Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
   const crossfade = Math.max(0, Math.round((options.loopCrossfadeSec ?? 0) * sampleRate))
+  // A phrase played round again with whole passes dropped before it (`'linear'`): the passes
+  // are the same strokes, and at a tempo where a pass is not a whole number of frames each
+  // stroke rounded on its own would put the pass that is folded over the start a frame off
+  // the one that is kept, and the fold would dull the first stroke. So every pass is laid on
+  // the frames of the loop.
+  const passes = (options.skipSec ?? 0) / options.durationSec
+  const round: Round | undefined =
+    options.loopFold === 'linear' && crossfade > 0 && Math.abs(passes - Math.round(passes)) < 1e-6
+      ? { sec: options.durationSec, frames }
+      : undefined
+  const skip = round
+    ? Math.max(0, Math.round(passes)) * frames
+    : Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
 
   // A bypassed instrument is a switched-off note device: silence, as it is live.
   const instrument =
@@ -290,7 +341,7 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
   options.signal?.throwIfAborted()
 
-  const events = instrument ? phraseEvents(options.phrase, sampleRate) : []
+  const events = instrument ? phraseEvents(options.phrase, sampleRate, round) : []
   // The input as long as the render: what it lacks is the silence its tail rings into.
   const padded = (channel: Float32Array | undefined): Float32Array => {
     const out = new Float32Array(total)
@@ -351,16 +402,21 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
       : body.slice(0, frames)
   })
 
-  let peak = peakOf(kept)
-  if (!Number.isFinite(peak))
+  if (!Number.isFinite(peakOf(kept)))
     throw new Error(`live-mix: "${patch.id}" rendered a non-finite sample`)
+  const fadeIn = Math.min(frames, Math.round((options.fadeInSec ?? 0) * sampleRate))
+  const fadeOut = Math.min(frames, Math.round((options.fadeOutSec ?? 0) * sampleRate))
+  // The level asked for is the level of what is handed back: the peak is
+  // taken as the fades will leave it, so a sound that is loudest in its last
+  // moments (a rise that stops on a bar line) still peaks where it is asked to.
+  const peak = fadedPeakOf(kept, frames, fadeIn, fadeOut)
   if (options.normalizePeakDb !== undefined && peak > 0) {
     const scale = 10 ** (options.normalizePeakDb / 20) / peak
     for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale
-    peak *= scale
+  } else if (options.normalizePeakDb === undefined && options.gainDb) {
+    const scale = 10 ** (options.gainDb / 20)
+    for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale
   }
-  const fadeIn = Math.min(frames, Math.round((options.fadeInSec ?? 0) * sampleRate))
-  const fadeOut = Math.min(frames, Math.round((options.fadeOutSec ?? 0) * sampleRate))
   for (const channel of kept) {
     for (let i = 0; i < fadeIn; i += 1) channel[i] *= i / fadeIn
     for (let i = 0; i < fadeOut; i += 1) channel[frames - 1 - i] *= i / fadeOut

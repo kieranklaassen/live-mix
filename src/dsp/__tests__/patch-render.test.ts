@@ -221,6 +221,114 @@ describe('renderPatch', () => {
     expect(peakOf(silent.channels)).toBe(0)
   })
 
+  it('levels by the peak the fades leave, so a sound that is loudest as it ends is as loud as asked', async () => {
+    // Struck inside the fade: the largest sample of the render is one the fade takes down.
+    const options = {
+      durationSec: 1,
+      phrase: { notes: [{ atSec: 0.93, durSec: 0.07, note: 72 }] },
+      fadeOutSec: 0.1,
+    }
+    const plain = await render(BELL, options)
+    const levelled = await render(BELL, { ...options, normalizePeakDb: -6 })
+    expect(toDb(peakOf(levelled.channels))).toBeCloseTo(-6, 3)
+    // The same sound, only louder or softer: one gain for every sample.
+    const gain = peakOf(levelled.channels) / peakOf(plain.channels)
+    const at = plain.channels[0].findIndex((value) => Math.abs(value) > 0.01)
+    expect(levelled.channels[0][at] / plain.channels[0][at]).toBeCloseTo(gain, 4)
+  })
+
+  it('lays every pass of a phrase played round on the same frames, so the fold leaves the first stroke as it is', async () => {
+    // A closed hat that repeats exactly, on the first beat of each pass; a pass is 24000.6
+    // frames, so the third pass rounded on its own would start a frame before twice the second.
+    const hat: Patch = {
+      ...BELL,
+      instrument: { deviceId: 'club-kit', params: { variation: 0 } },
+      effects: [],
+    }
+    const durationSec = 24000.6 / 48000
+    const stroke = (atSec: number) => ({ atSec, durSec: 0.1, note: 65 })
+    const round = { durationSec, skipSec: durationSec, loopFold: 'linear' as const }
+    const phrase = { notes: [0, 1, 2].map((pass) => stroke(pass * durationSec)) }
+    const straight = await render(hat, { ...round, phrase })
+    const folded = await render(hat, { ...round, phrase, loopCrossfadeSec: 0.03 })
+    const apart = (a: PlanarAudio, b: PlanarAudio): number => {
+      let most = 0
+      for (let i = 0; i < 1440; i += 1) {
+        most = Math.max(most, Math.abs(a.channels[0][i] - b.channels[0][i]))
+      }
+      return most
+    }
+    expect(peakOf(straight.channels)).toBeGreaterThan(0.05)
+    expect(apart(folded, straight)).toBeLessThan(1e-6)
+    // The measure can tell: with the last pass a frame early the fold changes the stroke.
+    const early = { notes: [stroke(0), stroke(durationSec), stroke(2 * durationSec - 1 / 48000)] }
+    const slipped = await render(hat, { ...round, phrase: early, loopCrossfadeSec: 0.03 })
+    expect(apart(slipped, straight)).toBeGreaterThan(1e-3)
+  })
+
+  it('puts a stroke half a frame into its pass on the same frame of every pass', async () => {
+    // 22711.5 frames in at 44.1 kHz, a clap 15 ms behind the second beat of a bar at 120: half a
+    // frame only as near as its seconds are kept, a hair under in one pass and over in the next.
+    const hat: Patch = {
+      ...BELL,
+      instrument: { deviceId: 'club-kit', params: { variation: 0 } },
+      effects: [],
+    }
+    const durationSec = 2
+    const stroke = (atSec: number) => ({ atSec, durSec: 0.1, note: 65 })
+    const phrase = {
+      notes: [0, 1, 2, 3].flatMap((pass) => [
+        stroke(pass * durationSec),
+        stroke(pass * durationSec + 0.515),
+      ]),
+    }
+    const round = {
+      durationSec,
+      sampleRate: 44100,
+      loopFold: 'linear' as const,
+      loopCrossfadeSec: 0.03,
+      phrase,
+    }
+    // Whichever pass is kept, the render is the same.
+    const second = await render(hat, { ...round, skipSec: durationSec })
+    const third = await render(hat, { ...round, skipSec: 2 * durationSec })
+    let most = 0
+    let peak = 0
+    for (let i = 22000; i < 26000; i += 1) {
+      most = Math.max(most, Math.abs(second.channels[0][i] - third.channels[0][i]))
+      peak = Math.max(peak, Math.abs(second.channels[0][i]))
+    }
+    expect(peak).toBeGreaterThan(0.01)
+    expect(most).toBeLessThan(1e-6)
+  })
+
+  it('keeps a skip and a stroke from before the start at the start, laid round or not', async () => {
+    const options = {
+      durationSec: 0.5,
+      loopFold: 'linear' as const,
+      loopCrossfadeSec: 0.03,
+      phrase: { notes: [{ atSec: -0.25, durSec: 0.4, note: 72 }] },
+    }
+    const early = await render(BELL, { ...options, skipSec: -0.5 })
+    expect(early.channels[0].length).toBe(24000)
+    // Held its whole length from the first frame, as a stroke written at nothing is.
+    const atStart = {
+      ...options,
+      phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] },
+    }
+    expect(early.channels[0]).toEqual((await render(BELL, atStart)).channels[0])
+  })
+
+  it('turns what the devices put out up or down by a fixed gain where no peak is asked for', async () => {
+    const options = { durationSec: 0.5, phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] } }
+    const plain = await render(BELL, options)
+    const down = await render(BELL, { ...options, gainDb: -6 })
+    expect(toDb(peakOf(down.channels)) - toDb(peakOf(plain.channels))).toBeCloseTo(-6, 3)
+    // A peak asked for wins: the gain is for a result that keeps its own level.
+    const levelled = await render(BELL, { ...options, gainDb: -6, normalizePeakDb: -3 })
+    expect(toDb(peakOf(levelled.channels))).toBeCloseTo(-3, 3)
+  })
+
   it('hands a sample instrument the sound it plays', async () => {
     const patch: Patch = { ...BELL, instrument: { deviceId: 'sampler' } }
     const phrase = { notes: [{ atSec: 0, durSec: 0.5, note: 60 }] }

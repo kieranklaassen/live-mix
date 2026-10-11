@@ -1,0 +1,228 @@
+{
+  "id": "club-kit",
+  "name": "Club Kit",
+  "category": "instrument",
+  "description": "Firm synthesized drum kit for house and dance music: twelve drums, one on each key of the octave, with a crash, a ride, congas and a cowbell among them, and the octave of the key tuning the drum.",
+  "class": "ClubKit",
+  "header": "club_kit.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "kit",
+      "name": "Kit",
+      "choices": ["Firm", "Deep", "Dusty", "Bright"],
+      "default": 0,
+      "description": "The character of the whole kit: firm and tight, deep and round with a lower kick, dusty with worn gritty tops, or bright with the tops forward. Heard from the next hit."
+    },
+    {
+      "key": "tune",
+      "name": "Tune",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "st",
+      "description": "Tunes every drum up or down, the same way the octave of the key played does. At zero every pitched drum sits on a white key. Heard from the next hit."
+    },
+    {
+      "key": "length",
+      "name": "Length",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "description": "How long every drum rings, from clipped taps to a long kick and long cymbal washes. Heard from the next hit."
+    },
+    {
+      "key": "punch",
+      "name": "Punch",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far and how fast the kick and congas fall in pitch as they start, and how hard their first moments are. Heard from the next hit."
+    },
+    {
+      "key": "snap",
+      "name": "Snap",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "The click on the kick, the noise on the snare, the slap on the congas and the bite at the front of the hats and cymbals, down to soft starts. Heard from the next hit."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Dull to bright: a filter over the top of the tonal drums and the upper edge of the noise drums and cymbals. Dull also makes the hats, shaker and cymbals quieter."
+    },
+    {
+      "key": "drive",
+      "name": "Drive",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Soft saturation over the whole kit: the kick stays about where it is and everything quieter comes up, so more of it is thicker and more even."
+    },
+    {
+      "key": "variation",
+      "name": "Variation",
+      "min": 0,
+      "max": 1,
+      "default": 0.08,
+      "description": "How much each hit differs from the last in level, tone, length, pitch and noise. At zero a drum repeats exactly, as a machine does. Heard from the next hit."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far the hats, cymbals, shaker, rim, congas and cowbell sit from the centre and how wide the crash and clap spread, down to mono. Kick and snare stay centred."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -24,
+      "max": 6,
+      "default": 0,
+      "unit": "dB",
+      "description": "Output level of the kit. A soft clip after it rounds off the peaks when many drums land together."
+    }
+  ],
+  "presets": {
+    "Four on the floor": {
+      "punch": 0.6,
+      "snap": 0.5
+    },
+    "Tight and dry": {
+      "length": 0.55,
+      "punch": 0.7,
+      "snap": 0.6,
+      "variation": 0.04,
+      "width": 0.3,
+      "volume": 2
+    },
+    "Driven floor": {
+      "length": 1.3,
+      "punch": 0.7,
+      "tone": 0.6,
+      "drive": 0.85,
+      "volume": -3.5
+    },
+    "Long and open": {
+      "length": 1.8,
+      "punch": 0.45,
+      "snap": 0.35,
+      "width": 0.7,
+      "volume": -2.5
+    },
+    "High and snappy": {
+      "tune": 7,
+      "length": 0.85,
+      "punch": 0.7,
+      "snap": 0.7,
+      "tone": 0.55,
+      "volume": 1.5
+    },
+    "Deep and round": {
+      "kit": 1,
+      "punch": 0.4,
+      "snap": 0.3,
+      "tone": 0.45,
+      "volume": -3
+    },
+    "Late night": {
+      "kit": 1,
+      "length": 1.6,
+      "punch": 0.3,
+      "snap": 0.2,
+      "tone": 0.3,
+      "width": 0.75,
+      "volume": -5
+    },
+    "Low and heavy": {
+      "kit": 1,
+      "tune": -5,
+      "length": 1.1,
+      "punch": 0.6,
+      "snap": 0.4,
+      "drive": 0.25,
+      "volume": -4.5
+    },
+    "Warm and soft": {
+      "kit": 1,
+      "length": 0.7,
+      "punch": 0.15,
+      "snap": 0.1,
+      "tone": 0.36,
+      "variation": 0.15,
+      "width": 0.25,
+      "volume": -1.5
+    },
+    "Dusty box": {
+      "kit": 2,
+      "snap": 0.5,
+      "volume": -0.5
+    },
+    "Worn tape": {
+      "kit": 2,
+      "length": 1.5,
+      "punch": 0.4,
+      "snap": 0.3,
+      "tone": 0.3,
+      "drive": 0.3,
+      "variation": 0.2,
+      "width": 0.3,
+      "volume": -3
+    },
+    "Gritty and driven": {
+      "kit": 2,
+      "length": 0.75,
+      "punch": 0.75,
+      "snap": 0.6,
+      "tone": 0.7,
+      "drive": 0.9,
+      "width": 0.6,
+      "volume": -1.5
+    },
+    "Small dusty kit": {
+      "kit": 2,
+      "tune": 5,
+      "length": 0.55,
+      "punch": 0.5,
+      "snap": 0.55,
+      "width": 0.35,
+      "volume": 3
+    },
+    "Bright and crisp": {
+      "kit": 3,
+      "snap": 0.7,
+      "tone": 0.6,
+      "volume": 1.5
+    },
+    "Peak time": {
+      "kit": 3,
+      "length": 1.3,
+      "punch": 0.85,
+      "snap": 0.6,
+      "tone": 0.65,
+      "drive": 0.5,
+      "width": 0.7,
+      "volume": -0.5
+    },
+    "Glass tops": {
+      "kit": 3,
+      "length": 0.55,
+      "punch": 0.35,
+      "snap": 0.5,
+      "tone": 0.95,
+      "width": 0.9,
+      "volume": 2.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit, beside the Drum Kit and on its plan of twelve keys and two slots a drum. Every drum is synthesized the way drum machine voices usually are (a swept sine through a waveshaper, filtered noise, banks of detuned pulses for the metal, pulse pairs through a band-pass); nothing is sampled and no circuit is modelled."
+  }
+}
