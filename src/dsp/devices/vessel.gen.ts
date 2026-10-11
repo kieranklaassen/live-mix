@@ -49,7 +49,7 @@ export const VESSEL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones and some of the sound itself through.',
+      'How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones out and more of the sound itself through.',
   },
   position: {
     id: 4,
@@ -60,7 +60,7 @@ export const VESSEL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Where in the body the sound is heard. Each resonance is strong in some places and absent in others, so moving this changes which ones speak.',
+      "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere.",
   },
   air: {
     id: 5,
@@ -93,7 +93,7 @@ export const VESSEL_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances.',
+      'How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances. Deep ones stay in the middle.',
   },
   mix: {
     id: 8,
@@ -181,7 +181,7 @@ export const VESSEL_DESCRIPTOR = wasmDeviceDescriptor(VESSEL_DEVICE, {
       size: 0.6,
       material: 0.7,
       opening: 0.1,
-      air: 1,
+      air: 0.8,
       tone: 0.7,
       width: 1,
       mix: 0.45,

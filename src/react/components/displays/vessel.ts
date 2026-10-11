@@ -163,12 +163,25 @@ const Q_MIN = 0.7
 const Q_MAX = 1500
 /** bodies.h: the listening place is kept 3 % off the near end. */
 const EDGE = 0.03
-/** bodies.h: closed, the upper modes are held in by ratio^-1.5; open, 0.6 of the sound passes straight through. */
+/** bodies.h: closed, the upper modes are held in by ratio^-1.5; 0.4 of the sound itself is heard beside the resonances closed, 0.7 open. */
 const CLOSED_TILT = 1.5
-const OPEN_DIRECT = 0.6
-/** bodies.h: the level trim, one over the root of 0.2274 times the sum of strength² / Q, at most 63. */
+const CLOSED_DIRECT = 0.4
+const OPEN_DIRECT = 0.7
+/** bodies.h: a resonance leans to one side by up to 0.9 of its strength, none of it under 80 Hz and all of it over 250 Hz. */
+const LEAN = 0.9
+const LEAN_FROM_HZ = 80
+const LEAN_FULL_HZ = 250
+/** bodies.h: the level trim; a unit resonance passes 0.2274 / Q of a sound with equal power in every octave. At most 63. */
 const SHARE = 0.2274
 const TRIM_MAX = 63
+/** bodies.h: the level match's starting value is read at 42 frequencies from 55 Hz, 8.37 to the octave, and lies between 0.355 and 4. */
+const SCAN_POINTS = 42
+const SCAN_LOW_HZ = 55
+const SCAN_PER_OCTAVE = 8.37
+const MATCH_MIN = 0.355
+const MATCH_MAX = 4
+/** vessel.h: the level hold's ceiling on a note's power, 2 dB over the input (kHoldRms). */
+const HOLD_RMS = 1.26
 /** vessel.h: Tone is a first-order shelf of up to 12 dB about 1.8 kHz. */
 const TONE_HZ = 1800
 const TONE_DB = 12
@@ -181,6 +194,8 @@ export interface VesselSetting {
   opening: number
   position: number
   tone: number
+  /** How far the resonances lean to either side: it is in the level trim and in the level match's starting value. */
+  width: number
   mix: number
 }
 
@@ -223,12 +238,16 @@ export interface VesselPeak {
   strength: number
   /** tan(pi f / rate) as the filter has it. */
   g: number
+  /** How far it leans to one side, -0.9 to 0.9 of its strength (bodies.h: mode_lean). */
+  lean: number
 }
 
 export interface VesselModel {
   peaks: VesselPeak[]
   trim: number
   direct: number
+  /** The level match's starting value (bodies.h: start_gain): the gain on the body before any sound. */
+  start: number
   /** Tone's gain above its corner, and the one-pole coefficient of its corner. */
   toneGain: number
   toneA: number
@@ -236,28 +255,90 @@ export interface VesselModel {
   sampleRate: number
 }
 
+/** bodies.h `mode_lean`: odd resonances lean left and even ones right, by where they lie. */
+export function vesselLean(k: number, hz: number, width: number): number {
+  const reach = clamp((hz - LEAN_FROM_HZ) / (LEAN_FULL_HZ - LEAN_FROM_HZ), 0, 1)
+  return (k % 2 !== 0 ? LEAN : -LEAN) * reach * clamp(width, 0, 1)
+}
+
+/** bodies.h `level_trim`: the gain on the resonances that makes them and the direct sound together pass a broadband sound at its own level. */
+export function vesselTrim(powerSum: number, stepSum: number, direct: number): number {
+  const a = Math.max(SHARE * powerSum, 1e-9)
+  const c = SHARE * stepSum
+  return Math.min(
+    (Math.sqrt(direct * direct * c * c + a * (1 - direct * direct)) - direct * c) / a,
+    TRIM_MAX,
+  )
+}
+
+/** bodies.h `start_gain`: the gain at which the mean of the readings, each held at the hold's ceiling, is 1. */
+export function vesselStartGain(heard: readonly number[]): number {
+  const top = HOLD_RMS * HOLD_RMS
+  const meanAt = (g: number): number =>
+    heard.reduce((sum, power) => sum + Math.min(g * g * power, top), 0) / heard.length
+  if (meanAt(MATCH_MAX) <= 1) return MATCH_MAX
+  if (meanAt(MATCH_MIN) >= 1) return MATCH_MIN
+  let low = MATCH_MIN
+  let high = MATCH_MAX
+  for (let step = 0; step < 14; step++) {
+    const middle = Math.sqrt(low * high)
+    if (meanAt(middle) < 1) low = middle
+    else high = middle
+  }
+  return Math.sqrt(low * high)
+}
+
 /** `Vessel::tune()` and `set_tone()`: every coefficient the body's response is made of. */
 export function vesselModel(setting: VesselSetting, sampleRate: number): VesselModel {
   const shape = vesselBody(setting.body)
   const x = vesselListenAt(shape, setting.position)
   const tilt = CLOSED_TILT * (1 - clamp(setting.opening, 0, 1))
-  let share = 0
-  const peaks = shape.modes.map((mode): VesselPeak => {
+  const opening = clamp(setting.opening, 0, 1)
+  const direct = CLOSED_DIRECT + (OPEN_DIRECT - CLOSED_DIRECT) * opening * opening
+  let powerSum = 0
+  let stepSum = 0
+  const peaks = shape.modes.map((mode, k): VesselPeak => {
     const hz = (shape.baseHz * mode.ratio) / setting.size
     const q = clamp(Q_PER_HZ_SECOND * hz * vesselModeSeconds(mode, setting.material), Q_MIN, Q_MAX)
     const strength =
       mode.gain * vesselModeShape(mode, x) * Math.pow(mode.ratio, -tilt) * inRange(hz, sampleRate)
-    share += (strength * strength) / q
+    const lean = vesselLean(k, hz, setting.width)
+    powerSum += (strength * strength * (1 + lean * lean)) / q
+    stepSum += strength / q
     const g = tanPrewarp((Math.PI * clamp(hz, 5, sampleRate * 0.49)) / sampleRate)
-    return { hz, q, strength, g }
+    return { hz, q, strength, g, lean }
   })
-  const opening = clamp(setting.opening, 0, 1)
+  const trim = vesselTrim(powerSum, stepSum, direct)
+  // The starting value of the level match: what the two sides pass at each
+  // reading, the part they share and the part that leans, whose powers add.
+  const heard: number[] = []
+  for (let i = 0; i < SCAN_POINTS; i++) {
+    const warped = tanPrewarp(
+      (Math.PI * SCAN_LOW_HZ * Math.pow(2, i / SCAN_PER_OCTAVE)) / sampleRate,
+    )
+    let re = direct
+    let im = 0
+    let leanRe = 0
+    let leanIm = 0
+    for (const peak of peaks) {
+      const w = warped / peak.g
+      const a = w / peak.q
+      const b = 1 - w * w
+      const amount = (trim * peak.strength) / (a * a + b * b)
+      re += amount * a * a
+      im += amount * a * b
+      leanRe += amount * peak.lean * a * a
+      leanIm += amount * peak.lean * a * b
+    }
+    heard.push(re * re + im * im + leanRe * leanRe + leanIm * leanIm)
+  }
   const toneGain = Math.pow(10, ((setting.tone - 0.5) * 2 * TONE_DB) / 20)
   const corner = clamp(TONE_HZ * Math.sqrt(toneGain), 0, sampleRate * 0.49)
   return {
     peaks,
-    trim: Math.min(1 / Math.sqrt(Math.max(SHARE * share, 1e-9)), TRIM_MAX),
-    direct: OPEN_DIRECT * opening * opening,
+    trim,
+    direct,
+    start: vesselStartGain(heard),
     toneGain,
     toneA: Math.exp((-2 * Math.PI * corner) / sampleRate),
     mix: clamp(setting.mix, 0, 1),
@@ -300,9 +381,11 @@ export function vesselWet(model: VesselModel, hz: number): [number, number] {
 /**
  * What comes out of the device at a frequency, in dB against what went in:
  * the dry sound's share and the body's, the body's times `riding`, the gain
- * the level match and the level hold have on it now (1 at rest).
+ * the level match and the level hold have on it now. At rest that is the
+ * level match's starting value, which the device works out from the knobs
+ * before any sound.
  */
-export function vesselOutDb(model: VesselModel, hz: number, riding = 1): number {
+export function vesselOutDb(model: VesselModel, hz: number, riding = model.start): number {
   const [re, im] = vesselWet(model, hz)
   const outRe = 1 - model.mix + model.mix * riding * re
   const outIm = model.mix * riding * im
@@ -310,10 +393,10 @@ export function vesselOutDb(model: VesselModel, hz: number, riding = 1): number 
   return power > 1e-12 ? 10 * Math.log10(power) : FLOOR_DB
 }
 
-/** The body alone, all wet, in dB. */
+/** The body alone, all wet, at the level match's starting value, in dB. */
 export function vesselBodyDb(model: VesselModel, hz: number): number {
   const [re, im] = vesselWet(model, hz)
-  const power = re * re + im * im
+  const power = model.start * model.start * (re * re + im * im)
   return power > 1e-12 ? 10 * Math.log10(power) : FLOOR_DB
 }
 
@@ -494,6 +577,7 @@ const settingOf = (view: DisplayView): VesselSetting => ({
   opening: view.value('opening'),
   position: view.value('position'),
   tone: view.spec('tone') ? view.value('tone') : 0.5,
+  width: view.spec('width') ? view.value('width') : 0.5,
   mix: view.value('mix'),
 })
 
@@ -618,7 +702,7 @@ export function vesselLevels(reading: number): [number, number, number, number] 
 }
 
 const QUIET = 1e-4
-/** vessel.h: the level match goes from 9 dB under to 12 dB over; the level hold only takes off, and the picture follows it this far down. */
+/** bodies.h: the level match goes from 9 dB under to 12 dB over; the level hold only takes off, and the picture follows it this far down. */
 const RIDING_MOST_DB = 12
 const RIDING_LEAST_DB = -40
 /** The room a word of the top line is given: "1.6 kHz" and "400 ms" at the plate's type. */
@@ -686,7 +770,7 @@ function drawBody(frame: DisplayFrame, layout: VesselLayout, setting: VesselSett
 const vessel = plateDisplay<VesselState>({
   place: 'window',
   columns: 2,
-  params: ['body', 'size', 'material', 'opening', 'position', 'tone', 'mix'],
+  params: ['body', 'size', 'material', 'opening', 'position', 'tone', 'width', 'mix'],
   live: { meters: true, signal: true, spectrum: true },
   info: 'The resonances of the body over the frequencies, each peak filling as the sound makes it ring, on the spectrum of what comes out. Drag the foot handle across for Size, the end of the wedge above for how long the body rings, and the point on the body for where the sound is heard.',
   init: () => ({
@@ -728,24 +812,34 @@ const vessel = plateDisplay<VesselState>({
     if (bodyShown(layout)) {
       drawBody(frame, layout, setting)
       const ring = ringText(vesselRingSeconds(setting.material))
-      text(frame, ring, layout.wordsX, layout.wordsY, { align: 'right' })
       const lowest = hzText(shape.baseHz / setting.size)
       const left = layout.wordsX - WORD_WIDTH
-      if (left - WORD_WIDTH >= layout.shape.x + layout.shape.w + 4)
-        text(frame, lowest, left, layout.wordsY, { align: 'right' })
+      const both = left - WORD_WIDTH >= layout.shape.x + layout.shape.w + 4
+      // Where there is room for one number it is the ring; with a hand on Size it is
+      // what Size sets, the lowest resonance.
+      const one = !both && frame.hot === 'size' ? lowest : ring
+      text(frame, one, layout.wordsX, layout.wordsY, { align: 'right' })
+      if (both) text(frame, lowest, left, layout.wordsY, { align: 'right' })
     }
 
     freqGrid(frame, curve)
     const level = yOf(0)
     rule(ctx, curve.x, level, curve.x + curve.w, level, { colour: colours.ink, alpha: INK.rule })
 
-    // The gain riding on the body now: what the level match adds and the level hold takes off.
-    // The curve is what comes out with it; at rest, and in silence, with none.
-    const riding = live
-      ? clamp(frame.meter('match') + frame.meter('hold'), RIDING_LEAST_DB, RIDING_MOST_DB)
-      : 0
-    state.riding = follow(state.riding, riding, frame.dt, 0.05, 0.2)
-    const gain = Math.abs(state.riding) > 0.05 ? Math.pow(10, state.riding / 20) : 1
+    // The gain riding on the body now: the level match (its starting value and what it has
+    // learnt) and what the level hold takes off. At rest, and in silence, it is the starting
+    // value alone, which the device has before any sound.
+    const startDb = 20 * Math.log10(model.start)
+    state.riding = live
+      ? follow(
+          state.riding,
+          clamp(frame.meter('match') + frame.meter('hold'), RIDING_LEAST_DB, RIDING_MOST_DB),
+          frame.dt,
+          0.05,
+          0.2,
+        )
+      : startDb
+    const gain = Math.pow(10, state.riding / 20)
     if (gain !== state.gain) {
       state.gain = gain
       state.out = state.hz.map((hz, n): Point => [state.x[n], yOf(vesselOutDb(model, hz, gain))])

@@ -72,7 +72,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones and some of the sound itself through."
+      "description": "How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones out and more of the sound itself through."
     },
     {
       "key": "position",
@@ -80,7 +80,7 @@
       "min": 0,
       "max": 1,
       "default": 0.3,
-      "description": "Where in the body the sound is heard. Each resonance is strong in some places and absent in others, so moving this changes which ones speak."
+      "description": "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere."
     },
     {
       "key": "air",
@@ -104,7 +104,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances."
+      "description": "How far apart the two ears are inside the body. At zero both sides hear the same; higher, each side favours different resonances. Deep ones stay in the middle."
     },
     {
       "key": "mix",
@@ -207,7 +207,7 @@
       "size": 0.6,
       "material": 0.7,
       "opening": 0.1,
-      "air": 1,
+      "air": 0.8,
       "tone": 0.7,
       "width": 1,
       "mix": 0.45
@@ -250,6 +250,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "A bank of sixteen two-pole resonances per side whose frequencies, strengths and decays are those of a small model of each body; see vessel.h."
+    "note": "A bank of sixteen two-pole resonances per side beside a share of the sound itself. The pipes' series and the drum's ratios are the textbook ones; the shell, the soundboard and every strength are made by hand; see bodies.h."
   }
 }

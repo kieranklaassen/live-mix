@@ -16,6 +16,7 @@ import {
   ringText,
   vesselBodyDb,
   vesselLayout,
+  vesselLean,
   vesselLevels,
   vesselListenAt,
   vesselModeSeconds,
@@ -24,6 +25,8 @@ import {
   vesselOutDb,
   vesselRingSeconds,
   vesselRingX,
+  vesselStartGain,
+  vesselTrim,
   type VesselSetting,
 } from '../components/displays/vessel'
 import { type DisplayHandle, type DisplayHold, type DisplayView } from '../components/plate-display'
@@ -57,6 +60,7 @@ const DEFAULTS: VesselSetting = {
   opening: 0.5,
   position: 0.3,
   tone: 0.5,
+  width: 0.5,
   mix: 0.7,
 }
 const settingOf = (values: Values = {}): VesselSetting => ({ ...DEFAULTS, ...values })
@@ -219,22 +223,66 @@ describe('the laws of the body, by the numbers of bodies.h and vessel.h', () => 
     // Its strength: the table's gain, the shape at the place, Opening's tilt ratio^-(1.5 (1 - opening)).
     const second = 0.92 * Math.abs(Math.sin(Math.PI * 2 * 0.171)) * Math.pow(2, -0.75)
     expect(model.peaks[1].strength).toBeCloseTo(second, 9)
-    // level_trim = 1 / sqrt(0.2274 * sum of strength^2 / q), at most 63.
-    const share = model.peaks.reduce(
-      (sum, peak) => sum + (peak.strength * peak.strength) / peak.q,
+    // level_trim: the gain t on the resonances at which they and the direct sound d pass a sound with equal
+    // power in every octave at its own level: t^2 A + 2 t d C + d^2 = 1, with A = 0.2274 sum s^2 (1 + lean^2) / q
+    // and C = 0.2274 sum s / q. At most 63.
+    const powerSum = model.peaks.reduce(
+      (sum, peak) => sum + (peak.strength * peak.strength * (1 + peak.lean * peak.lean)) / peak.q,
       0,
     )
-    expect(model.trim).toBeCloseTo(1 / Math.sqrt(0.2274 * share), 9)
+    const stepSum = model.peaks.reduce((sum, peak) => sum + peak.strength / peak.q, 0)
+    const { trim, direct } = model
+    expect(trim).toBeCloseTo(vesselTrim(powerSum, stepSum, direct), 12)
+    expect(
+      trim * trim * 0.2274 * powerSum + 2 * trim * direct * 0.2274 * stepSum + direct * direct,
+    ).toBeCloseTo(1, 9)
     expect(
       vesselModel(settingOf({ body: 3, size: 0.25, material: 1, opening: 0 }), RATE).trim,
     ).toBeLessThanOrEqual(63)
-    // opening_direct = 0.6 * opening^2; Tone is 12 dB each way.
-    expect(model.direct).toBeCloseTo(0.15, 12)
-    expect(vesselModel(settingOf({ opening: 1 }), RATE).direct).toBeCloseTo(0.6, 12)
-    expect(vesselModel(settingOf({ opening: 0 }), RATE).direct).toBe(0)
+    expect(vesselTrim(1e-12, 0, 0.4)).toBe(63)
+    // opening_direct = 0.4 + 0.3 * opening^2: the sound itself is under the body at every Opening.
+    expect(direct).toBeCloseTo(0.475, 12)
+    expect(vesselModel(settingOf({ opening: 1 }), RATE).direct).toBeCloseTo(0.7, 12)
+    expect(vesselModel(settingOf({ opening: 0 }), RATE).direct).toBeCloseTo(0.4, 12)
+    // Tone is 12 dB each way.
     expect(model.toneGain).toBeCloseTo(1, 12)
     expect(20 * Math.log10(vesselModel(settingOf({ tone: 1 }), RATE).toneGain)).toBeCloseTo(12, 9)
     expect(20 * Math.log10(vesselModel(settingOf({ tone: 0 }), RATE).toneGain)).toBeCloseTo(-12, 9)
+  })
+
+  it('leans each resonance to a side as mode_lean does', () => {
+    // bodies.h, mode_lean: odd ones one way and even ones the other, by 0.9 of Width; none of it
+    // under 80 Hz, all of it from 250 Hz up.
+    expect(vesselLean(1, 250, 1)).toBeCloseTo(0.9, 12)
+    expect(vesselLean(0, 250, 1)).toBeCloseTo(-0.9, 12)
+    expect(vesselLean(3, 4000, 0.5)).toBeCloseTo(0.45, 12)
+    expect(vesselLean(1, 165, 1)).toBeCloseTo(0.45, 12)
+    expect(vesselLean(1, 80, 1)).toBeCloseTo(0, 12)
+    expect(vesselLean(2, 30, 1)).toBeCloseTo(0, 12)
+    expect(vesselLean(5, 1000, 0)).toBeCloseTo(0, 12)
+    // The open pipe at its defaults: 130.81 Hz leans by (130.81 - 80) / 170 of 0.45, 261.62 Hz by all of it.
+    const model = vesselModel(DEFAULTS, RATE)
+    expect(model.peaks[0].lean).toBeCloseTo((-0.45 * (130.81 - 80)) / 170, 9)
+    expect(model.peaks[1].lean).toBeCloseTo(0.45, 9)
+  })
+
+  it('starts the level match as start_gain does', () => {
+    // bodies.h, start_gain: the gain g at which the mean over the readings of min(g^2 heard, 1.26^2) is 1,
+    // between 0.355 and 4.
+    const all = (power: number): number[] => Array.from({ length: 42 }, () => power)
+    expect(vesselStartGain(all(1))).toBeCloseTo(1, 3)
+    expect(vesselStartGain(all(4))).toBeCloseTo(0.5, 3)
+    expect(vesselStartGain(all(0.01))).toBe(4)
+    expect(vesselStartGain(all(100))).toBe(0.355)
+    // Half the readings far over the ceiling, half at a quarter: (1.26^2 + 0.25 g^2) / 2 = 1.
+    const uneven = all(16).map((power, n) => (n % 2 === 0 ? power : 0.25))
+    expect(vesselStartGain(uneven)).toBeCloseTo(Math.sqrt((2 - 1.26 * 1.26) / 0.25), 3)
+    // A body that rings hard is turned up more at rest than a dead one: the hold will keep its resonances.
+    const ringing = vesselModel(settingOf({ material: 1 }), RATE).start
+    const dead = vesselModel(settingOf({ material: 0 }), RATE).start
+    expect(ringing).toBeGreaterThan(dead)
+    expect(dead).toBeGreaterThan(0.355)
+    expect(ringing).toBeLessThanOrEqual(4)
   })
 
   it('fades a resonance out over the top of the range and under 20 Hz', () => {
@@ -266,23 +314,113 @@ async function device(values: Values, rate = RATE): Promise<WasmDeviceHarness> {
 
 const CLICK = 0.05
 
+const meterOf = (loaded: WasmDeviceHarness, index: number): number => {
+  const read = loaded.device.device_meter
+  if (!read) throw new Error('the device has no readings')
+  return read(index)
+}
+
+interface Answer {
+  /** The mean of the two sides for one unit of click, with what the level hold took off put back. */
+  answer: Float64Array
+  /** The deepest the level hold went while the device answered, in dB (0 or less). */
+  held: number
+  /** How far the hold fell in the one tick after the click, in dB: there the readings are too coarse to put it back. */
+  hurried: number
+}
+
 /**
  * The device's answer to one quiet click: the mean of its two sides (Width
  * leans each resonance to one side by as much as it takes from the other, so
  * the mean is the body the display draws), for one unit of click.
+ *
+ * The level hold is not part of the curve at rest, and it works on a click as
+ * on anything else: it closes on the click itself where Tone lifts it over the
+ * hold's ceiling, and further where the ring that follows has more power than
+ * the click had. The device says how far at every control tick (reading 4),
+ * so the answer is taken a tick at a time and the body's share divided by
+ * the hold: the reading is taken at the head of a tick, so a tick's samples
+ * lie between its own reading and the next one's, and the hold is taken to
+ * move evenly in dB between the two. On the click itself it closes all at
+ * once, so the click is the last sample of the first tick: the next reading
+ * is then the hold that sample was given.
  */
-function clickThrough(loaded: WasmDeviceHarness, seconds: number): Float64Array {
-  const total = Math.ceil((seconds * loaded.sampleRate) / 128) * 128
+function clickThrough(loaded: WasmDeviceHarness, seconds: number, mix: number): Answer {
+  const TICK = 16
+  const total = Math.ceil((seconds * loaded.sampleRate) / TICK) * TICK
   const answer = new Float64Array(total)
-  const block = new Float32Array(128)
-  for (let done = 0; done < total; done += 128) {
-    block[0] = done === 0 ? CLICK : 0
+  const block = new Float32Array(TICK)
+  const holds: number[] = []
+  for (let done = 0; done < total; done += TICK) {
+    block[TICK - 1] = done === 0 ? CLICK : 0
     loaded.processBlock(block)
+    const left = loaded.view(loaded.device.device_out_left(), TICK)
+    const right = loaded.view(loaded.device.device_out_right(), TICK)
+    for (let i = 0; i < TICK; i++) answer[done + i] = (left[i] + right[i]) / (2 * CLICK)
+    holds.push(meterOf(loaded, 4))
+  }
+  for (let tick = 0; tick < holds.length; tick++) {
+    const next = holds[Math.min(tick + 1, holds.length - 1)]
+    const from = tick === 0 ? next : holds[tick]
+    for (let i = 0; i < TICK; i++) {
+      const n = tick * TICK + i
+      const dry = n === TICK - 1 ? 1 - mix : 0
+      const hold = Math.pow(10, (from + ((next - from) * (i + 1)) / TICK) / 20)
+      answer[n] = dry + (answer[n] - dry) / hold
+    }
+  }
+  return { answer, held: Math.min(...holds), hurried: holds[1] - holds[2] }
+}
+
+/**
+ * A quiet tone held until the body has settled: what comes out at that
+ * frequency (the mean of the two sides) against what went in, in dB, with
+ * the gain the device read on the body over the measured stretch (hold and
+ * match, in dB), the hold's share of it, and the last readings of the
+ * resonances.
+ */
+function toneThrough(
+  loaded: WasmDeviceHarness,
+  hz: number,
+  seconds: number,
+): { measured: number; riding: number; held: number; levels: number[] } {
+  const rate = loaded.sampleRate
+  const level = 0.05
+  const keep = Math.round((Math.round(hz * 0.5) / hz) * rate)
+  const total = Math.ceil((seconds * rate) / 128) * 128
+  const block = new Float32Array(128)
+  let re = 0
+  let im = 0
+  let n = 0
+  let riding = 0
+  let held = 0
+  let ticks = 0
+  let levels: number[] = []
+  for (let done = 0; done + 128 <= total; done += 128) {
+    for (let i = 0; i < 128; i++)
+      block[i] = level * Math.sin((2 * Math.PI * hz * (done + i)) / rate)
+    loaded.processBlock(block)
+    if (done < total - keep - 128) continue
     const left = loaded.view(loaded.device.device_out_left(), 128)
     const right = loaded.view(loaded.device.device_out_right(), 128)
-    for (let i = 0; i < 128; i++) answer[done + i] = (left[i] + right[i]) / (2 * CLICK)
+    // The readings over the stretch that is measured: hold (4) and match (5), in dB.
+    riding += meterOf(loaded, 4) + meterOf(loaded, 5)
+    held += meterOf(loaded, 4)
+    ticks += 1
+    levels = [0, 1, 2, 3].flatMap((index) => vesselLevels(meterOf(loaded, index)))
+    for (let i = 0; i < 128 && n < keep; i++, n++) {
+      const angle = (2 * Math.PI * hz * (done + i)) / rate
+      const sample = (left[i] + right[i]) / 2
+      re += sample * Math.sin(angle)
+      im += sample * Math.cos(angle)
+    }
   }
-  return answer
+  return {
+    measured: 20 * Math.log10((2 * Math.hypot(re, im)) / n / level),
+    riding: riding / ticks,
+    held: held / ticks,
+    levels,
+  }
 }
 
 /** What an answer to a click does to a frequency, in dB. */
@@ -306,12 +444,6 @@ function askedAt(setting: VesselSetting, rate: number): number[] {
   return [...peaks, ...between, 30, 60, 3000, 9000, 15000]
 }
 
-const meterOf = (loaded: WasmDeviceHarness, index: number): number => {
-  const read = loaded.device.device_meter
-  if (!read) throw new Error('the device has no readings')
-  return read(index)
-}
-
 describe('the curve against the compiled device', () => {
   const cases: [string, Values, number][] = [
     ['the bottle', { body: 0 }, RATE],
@@ -328,16 +460,22 @@ describe('the curve against the compiled device', () => {
     ['a pipe heard at its end', { position: 0, mix: 1 }, RATE],
     ['a pipe heard in its middle', { position: 1, mix: 1 }, RATE],
     ['a shell heard deep inside, half wet', { body: 3, position: 0.8, mix: 0.5 }, RATE],
-    ['a bright bottle', { body: 0, tone: 1, mix: 1 }, RATE],
     ['a dark stopped pipe', { body: 2, tone: 0, mix: 1 }, RATE],
     ['a small shell at 96 kHz', { body: 3, size: 0.5, mix: 1 }, 96000],
     ['the default at 44.1 kHz', {}, 44100],
+    ['a drum with no lean', { body: 4, width: 0, mix: 1 }, RATE],
+    ['a soundboard leaning all the way', { body: 5, width: 1, mix: 1 }, RATE],
+    ['a ringing closed shell at 44.1 kHz', { body: 3, material: 0.9, opening: 0, mix: 1 }, 44100],
+    ['a large open bottle at 96 kHz', { body: 0, size: 3, opening: 1, mix: 0.6 }, 96000],
   ]
 
   it.each(cases)('draws what %s does to a click', async (_name, values, rate) => {
     const setting = settingOf(values)
     const model = vesselModel(setting, rate)
-    const answer = clickThrough(await device(values, rate), 2.5)
+    const { answer, held, hurried } = clickThrough(await device(values, rate), 2.5, setting.mix)
+    // The hold has little to do on a click: it is put back, and the curve is the body at rest.
+    expect(held).toBeGreaterThan(-9)
+    expect(hurried).toBeLessThan(0.1)
     const off = askedAt(setting, rate).map((hz) => {
       const drawn = vesselOutDb(model, hz)
       return { hz, drawn, measured: answerDb(answer, hz, rate) }
@@ -357,8 +495,10 @@ describe('the curve against the compiled device', () => {
   })
 
   it('draws the body alone as the device all wet', async () => {
-    const answer = clickThrough(await device({ mix: 1 }), 2.5)
+    const { answer, held } = clickThrough(await device({ mix: 1 }), 2.5, 1)
     const model = vesselModel(DEFAULTS, RATE)
+    // The hold leaves this click alone: the body alone is drawn at the level match's starting value.
+    expect(held).toBe(0)
     for (const hz of askedAt(DEFAULTS, RATE))
       expect(
         Math.abs(answerDb(answer, hz, RATE) - vesselBodyDb(model, hz)),
@@ -366,43 +506,86 @@ describe('the curve against the compiled device', () => {
       ).toBeLessThan(0.25)
   })
 
-  it('reads the gain the device rides the body with, and which resonance rings', async () => {
-    // A held tone on the pipe's lowest resonance: the level match turns the body down, the level hold too.
-    const loaded = await device({})
-    const hz = 130.81
-    const level = 0.05
-    const cycles = Math.round(hz * 0.5)
-    const keep = Math.round((cycles / hz) * RATE)
-    const total = 4 * RATE
+  it('starts the level match where the device starts it', async () => {
+    // The device works its starting gain out from the knobs before any sound; the reading (5) says it
+    // from the first block. Every body at three sizes and three materials, at three rates.
     const block = new Float32Array(128)
-    let re = 0
-    let im = 0
-    let n = 0
-    let riding = 0
-    let ticks = 0
-    let levels: number[] = []
-    for (let done = 0; done + 128 <= total; done += 128) {
-      for (let i = 0; i < 128; i++)
-        block[i] = level * Math.sin((2 * Math.PI * hz * (done + i)) / RATE)
-      loaded.processBlock(block)
-      const left = loaded.view(loaded.device.device_out_left(), 128)
-      const right = loaded.view(loaded.device.device_out_right(), 128)
-      if (done < total - keep - 128) continue
-      // The readings over the stretch that is measured: hold (4) and match (5), in dB.
-      riding += meterOf(loaded, 4) + meterOf(loaded, 5)
-      ticks += 1
-      levels = [0, 1, 2, 3].flatMap((index) => vesselLevels(meterOf(loaded, index)))
-      for (let i = 0; i < 128 && n < keep; i++, n++) {
-        const angle = (2 * Math.PI * hz * (done + i)) / RATE
-        const sample = (left[i] + right[i]) / 2
-        re += sample * Math.sin(angle)
-        im += sample * Math.cos(angle)
+    let furthest = 0
+    for (const rate of [44100, RATE, 96000]) {
+      for (let body = 0; body < VESSEL_BODIES.length; body++) {
+        for (const size of [0.25, 1, 4]) {
+          for (const material of [0, 0.5, 1]) {
+            const values = {
+              body,
+              size,
+              material,
+              opening: (body % 3) / 2,
+              position: 0.15 + 0.14 * body,
+              width: size === 1 ? 1 : 0.5,
+              mix: 1,
+            }
+            const loaded = await device(values, rate)
+            block.fill(0)
+            block[0] = CLICK
+            loaded.processBlock(block)
+            const read = meterOf(loaded, 5)
+            const meant = 20 * Math.log10(vesselModel(settingOf(values), rate).start)
+            furthest = Math.max(furthest, Math.abs(read - meant))
+            expect(
+              Math.abs(read - meant),
+              `body ${body} size ${size} material ${material} at ${rate}: device ${read}, display ${meant}`,
+            ).toBeLessThan(0.05)
+          }
+        }
       }
     }
-    const measured = 20 * Math.log10((2 * Math.hypot(re, im)) / n / level)
-    const meant = riding / ticks
-    expect(meant).toBeLessThan(-1)
+    expect(furthest).toBeLessThan(0.05)
+    // It is no small thing: over these settings it runs from under 0 dB to several dB over.
+    const starts = [0, 0.5, 1].map(
+      (material) => vesselModel(settingOf({ body: 3, material, opening: 0 }), RATE).start,
+    )
+    expect(20 * Math.log10(Math.max(...starts) / Math.min(...starts))).toBeGreaterThan(2)
+  })
+
+  const held: [string, Values, number][] = [
+    ['a bright bottle', { body: 0, tone: 1, mix: 1 }, RATE],
+    ['a bright ringing drum, half wet', { body: 4, tone: 0.9, material: 0.8, mix: 0.5 }, RATE],
+    ['a dark closed pipe at 96 kHz', { tone: 0.1, opening: 0, width: 1, mix: 0.8 }, 96000],
+    ['a small open shell at 44.1 kHz', { body: 3, size: 0.5, opening: 1, mix: 1 }, 44100],
+  ]
+
+  it.each(held)(
+    'draws what %s does to a held tone, with the gain the device reads',
+    async (_name, values, rate) => {
+      // Tone lifts a click over the hold's ceiling, and the hold then moves faster than its readings
+      // come: these are asked with held tones instead, where the gain riding on the body stands still.
+      const setting = settingOf(values)
+      const model = vesselModel(setting, rate)
+      const seconds = Math.max(2, 2.5 * vesselRingSeconds(setting.material))
+      let ridden = 0
+      for (const hz of askedAt(setting, rate).filter((at) => at > 40 && at < 16000)) {
+        const { measured, riding } = toneThrough(await device(values, rate), hz, seconds)
+        const drawn = vesselOutDb(model, hz, Math.pow(10, riding / 20))
+        expect(
+          Math.abs(measured - drawn),
+          `${hz} Hz: drawn ${drawn}, measured ${measured}`,
+        ).toBeLessThan(0.25)
+        ridden = Math.max(ridden, Math.abs(riding - 20 * Math.log10(model.start)))
+      }
+      // The gain was not the one at rest for every tone: the reading is part of what is checked.
+      expect(ridden).toBeGreaterThan(1)
+    },
+  )
+
+  it('reads the gain the device rides the body with, and which resonance rings', async () => {
+    // A held tone on the pipe's lowest resonance: the level hold turns the body down under the level match.
+    const loaded = await device({})
+    const hz = 130.81
+    const block = new Float32Array(128)
+    const { measured, riding: meant, held: holding, levels } = toneThrough(loaded, hz, 4)
     const model = vesselModel(DEFAULTS, RATE)
+    expect(holding).toBeLessThan(-1)
+    expect(meant).toBeLessThan(20 * Math.log10(model.start) - 1)
     const drawn = vesselOutDb(model, hz, Math.pow(10, meant / 20))
     expect(Math.abs(measured - drawn), `drawn ${drawn}, measured ${measured}`).toBeLessThan(0.5)
     // At rest the picture would have it far higher: the reading is what brings it down.
@@ -479,6 +662,18 @@ describe('what Vessel draws', () => {
     // Beside the knobs there is room for the ring alone, next to a long body.
     expect(words({}, FLAT)).toContain('400 ms')
     expect(words({}, FLAT)).not.toContain('131 Hz')
+    // With a hand on Size the one number is what Size sets: the lowest resonance, as it is dragged.
+    const held = (values: Values, hot: string): string[] =>
+      drawDisplay(display, params, { values, hot, ...FLAT }).words()
+    expect(held({}, 'size')).toContain('131 Hz')
+    expect(held({}, 'size')).not.toContain('400 ms')
+    expect(held({ size: 0.5 }, 'size')).toContain('262 Hz')
+    expect(held({}, 'material')).toContain('400 ms')
+    expect(held({}, 'position')).toContain('400 ms')
+    // Where both fit they both stand, whatever the hand is on.
+    expect(drawDisplay(display, params, { values: {}, hot: 'size', ...UPRIGHT }).words()).toEqual(
+      expect.arrayContaining(['131 Hz', '400 ms']),
+    )
     expect(ringText(0.04)).toBe('40 ms')
     expect(ringText(0.9949)).toBe('995 ms')
     expect(ringText(0.996)).toBe('1.0 s')
@@ -656,7 +851,8 @@ describe('what moves on Vessel', () => {
         expect(x).toBeCloseTo(xOfHz(peak.hz, curve), 6)
         expect(from).toBe(foot)
         // Full scale (63) reaches the curve at that resonance; a third of it, a third of the way up.
-        const top = yOf(vesselOutDb(model, peak.hz), size)
+        // (The readings here have the level match and hold at nought: the body at its own gain.)
+        const top = yOf(vesselOutDb(model, peak.hz, 1), size)
         expect(to).toBeCloseTo(foot + (top - foot) * (levels[k] / 63), 3)
       })
     }
@@ -696,9 +892,12 @@ describe('what moves on Vessel', () => {
     expectGain(held({ ...quiet, match: 6, hold: -2 }), Math.pow(10, 4 / 20))
     // The hold alone, hard: 15 dB under.
     expectGain(held({ ...quiet, hold: -15 }), Math.pow(10, -15 / 20))
-    // With neither, and in silence whatever the last readings were: the curve at rest.
+    // With both at nought the body is at its own gain.
     expectGain(held(quiet), 1)
-    expectGain(held({ ...quiet, match: 6, hold: -2 }, testSignal(0, 0)), 1)
+    // In silence, whatever the last readings were: the curve at rest, at the level match's starting value.
+    expect(Math.abs(20 * Math.log10(model.start))).toBeGreaterThan(0.2)
+    expectGain(held({ ...quiet, match: 6, hold: -2 }, testSignal(0, 0)), model.start)
+    expectGain(curvesOf(drawDisplay(display, params, {})).out, model.start)
     // Ridden, a peak stands where the gain puts it: lower by nearly all of 15 dB at the lowest resonance.
     const hz = model.peaks[0].hz
     expect(vesselOutDb(model, hz) - vesselOutDb(model, hz, Math.pow(10, -15 / 20))).toBeGreaterThan(

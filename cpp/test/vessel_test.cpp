@@ -137,7 +137,7 @@ static const Preset kPresets[] = {
     {"Clay pot", {0, 1.6f, 0.15f, 0.2f, 0.3f, 0.1f, 0.35f, 0.5f, 0.85f}},
     {"Hint of wood", {5, 0.8f, 0.3f, 1, 0.3f, 0, 0.5f, 0.5f, 0.25f}},
     {"Metal drone", {2, 2, 1, 0.5f, 0.1f, 0.25f, 0.5f, 1, 0.8f}},
-    {"Whispering shell", {3, 0.6f, 0.7f, 0.1f, 0.3f, 1, 0.7f, 1, 0.45f}},
+    {"Whispering shell", {3, 0.6f, 0.7f, 0.1f, 0.3f, 0.8f, 0.7f, 1, 0.45f}},
     {"Kettle", {4, 1.8f, 0.8f, 0.35f, 0.6f, 0.2f, 0.5f, 0.5f, 0.7f}},
     {"Small tin", {4, 0.3f, 0.75f, 0.8f, 0.3f, 0.2f, 0.7f, 0.5f, 0.6f}},
     {"Wind in the pipe", {1, 2, 0.6f, 0, 0.3f, 1, 0.5f, 0.8f, 1}},
@@ -158,6 +158,14 @@ static void check_clicks();
 static void check_levels();
 static void check_mix_dips();
 static void check_housekeeping();
+// The second check's own measurements (each failed on the device as first built).
+static void check_first_note();
+static void check_played_line();
+static void check_tails_and_distortion();
+static void check_air_level();
+static void check_every_third();
+static void check_mono_sum();
+static void check_thrown_size();
 
 int main() {
   livemix::kit::SineTable::init();
@@ -180,6 +188,13 @@ int main() {
   check_levels();
   check_mix_dips();
   check_housekeeping();
+  check_first_note();
+  check_played_line();
+  check_tails_and_distortion();
+  check_air_level();
+  check_every_third();
+  check_mono_sum();
+  check_thrown_size();
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
@@ -377,20 +392,25 @@ static void check_shape_controls() {
                   db(closed / open), expected);
     SHOW_NEAR(db(closed / open), expected, 1.0, label);
 
-    // Open, some of the sound itself gets through: a tone far above every
-    // resonance of a large dead bottle passes at about the direct gain.
+    // Some of the sound itself is always heard, more of it open: the first
+    // sample of an impulse into a large dead bottle (whose resonances have
+    // not answered yet) passes at the direct share times the level match.
     const auto passes = [&](float opening) {
       inside(device, kRate, 0);
       device.set_param(p::kSize, 4.0f);
       device.set_param(p::kMaterial, 0.6f);
       device.set_param(p::kOpening, opening);
-      Stereo out = run(device, impulse(0.25f, kRate, 0.5f));
-      return std::fabs(out.left[0]) / 0.5;
+      std::vector<float> click(16, 0.0f);
+      click[0] = 0.5f;
+      Stereo out = run(device, click);
+      return std::fabs(out.left[0]) / 0.5 / std::pow(10.0, device.meter(5) / 20.0);
     };
     std::snprintf(label, sizeof label, "Opening: the first sample of an impulse passes at %.3f open, %.3f closed",
                   passes(1.0f), passes(0.0f));
-    SHOW(passes(1.0f) > vd::kOpenDirect * 0.9 && passes(0.0f) < 0.1 * passes(1.0f), label);
-    SHOW_NEAR(vd::opening_direct(0.5f), 0.25 * vd::kOpenDirect, 1.0e-6, "the direct sound grows as the square of Opening");
+    SHOW(std::fabs(passes(1.0f) - vd::kOpenDirect) < 0.05 && std::fabs(passes(0.0f) - vd::kClosedDirect) < 0.05,
+         label);
+    SHOW_NEAR(vd::opening_direct(0.5f), vd::kClosedDirect + 0.25 * (vd::kOpenDirect - vd::kClosedDirect), 1.0e-6,
+              "the direct sound grows as the square of Opening");
   }
 
   // Tone tilts what comes out by up to 12 dB about 1.8 kHz, the same amount
@@ -754,10 +774,10 @@ static void check_levels() {
   std::snprintf(label, sizeof label,
                 "all wet, 54 settings: broadband noise comes out %.1f to %+.1f dB against the input", pink_low,
                 pink_high);
-  SHOW(pink_low > -2.0 && pink_high < 2.0, label);
+  SHOW(pink_low > -3.0 && pink_high < 3.0, label);
   std::snprintf(label, sizeof label, "all wet, 54 settings: a played phrase comes out %.1f to %+.1f dB against the input",
                 phrase_low, phrase_high);
-  SHOW(phrase_low > -6.0 && phrase_high < 6.0, label);
+  SHOW(phrase_low > -4.5 && phrase_high < 3.5, label);
 
   // The level hold: a note held exactly on a sharp resonance comes out no
   // more than 1.5 times as loud as it went in, loud or quiet (and the 3 % the
@@ -968,5 +988,509 @@ static void check_mix_dips() {
     const double worst = worst_dip(nullptr, b, 0.5f);
     std::snprintf(label, sizeof label, "%s at Mix 0.5: the worst a held note loses is %.1f dB", kBodyNames[b], worst);
     SHOW(worst > -6.6, label);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// The second check. Its own material: pad notes of eight partials at 1/h with
+// a 10 ms attack, as a line with gaps and as a held chord.
+
+static void pad_note(std::vector<float>& out, double rate, double start, double hz, double length, double gain,
+                     double decay) {
+  const size_t a = static_cast<size_t>(start * rate), n = static_cast<size_t>(length * rate);
+  for (size_t i = 0; i < n && a + i < out.size(); ++i) {
+    const double t = static_cast<double>(i) / rate;
+    double env = std::min(1.0, t / 0.01) * std::exp(-t * decay);
+    if ((length - t) / 0.02 < 1.0) env *= (length - t) / 0.02;
+    double sum = 0.0;
+    for (int h = 1; h <= 8 && hz * h < 0.45 * rate; ++h) sum += std::sin(2.0 * kPi * hz * h * t) / h;
+    out[a + i] += static_cast<float>(gain * env * sum);
+  }
+}
+static std::vector<float> pad_line(double seconds, double rate, double gain) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
+  const double notes[] = {146.83, 220.0, 174.61, 293.66, 261.63, 196.0, 349.23, 440.0, 233.08, 130.81};
+  int n = 0;
+  for (double t = 0.0; t < seconds; t += 0.42, ++n) pad_note(out, rate, t, notes[n % 10], 0.36, 0.55 * gain, 2.0);
+  return out;
+}
+static std::vector<float> pad_chord(double seconds, double rate, double gain) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
+  for (double ratio : {1.0, 1.4983, 2.0, 2.3784, 2.9966}) pad_note(out, rate, 0.0, 110.0 * ratio, seconds, 0.16 * gain, 0.0);
+  return out;
+}
+// Both sides' level over [from, to) against the input's there, in dB.
+static double level_against(const Stereo& out, const std::vector<float>& in, size_t from, size_t to) {
+  const double l = rms(out.left, from, to), r = rms(out.right, from, to);
+  return db(std::sqrt(0.5 * (l * l + r * r)) / std::max(rms(in, from, to), 1.0e-12));
+}
+static void load_all_wet(Vessel& d, float rate, const Preset& preset) {
+  load(d, rate, preset);
+  d.set_param(p::kMix, 1.0f);
+}
+
+// The first 50, 100 and 250 ms of a phrase and of a held chord, all wet:
+// after the effect is put on, after a sleep, and after a Body change. The
+// level match's starting value is worked out from the knobs, so the first
+// note is already at its level (as built it was 13 dB under to 8 dB over
+// after init and 18 dB under after a Body change).
+static void check_first_note() {
+  char label[220];
+  const std::vector<float> line = pad_line(5.0, kRate, 0.5), held = pad_chord(5.0, kRate, 0.5);
+  const double windows[3] = {0.05, 0.1, 0.25};
+  double low = 0.0, high = 0.0, wake_low = 0.0, wake_high = 0.0, wake_differs = 0.0;
+  for (const Preset& preset : kPresets) {
+    for (const std::vector<float>* source : {&line, &held}) {
+      load_all_wet(device, kRate, preset);
+      Stereo first = run(device, *source);
+      // Asleep, then the same again: it must start as it did the first time.
+      Stereo tail = render(device, 14.0f, kRate);
+      Stereo again = run(device, *source);
+      for (double w : windows) {
+        const size_t to = static_cast<size_t>(w * kRate);
+        const double a = level_against(first, *source, 0, to), b = level_against(again, *source, 0, to);
+        low = std::min(low, a);
+        high = std::max(high, a);
+        wake_low = std::min(wake_low, b);
+        wake_high = std::max(wake_high, b);
+        wake_differs = std::max(wake_differs, std::fabs(a - b));
+      }
+      EXPECT(peak(tail.left, tail.size() - 4800) == 0.0, "the device slept between the two phrases");
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "16 presets all wet: the first 50, 100 and 250 ms after init come out %.1f to %+.1f dB against the input",
+                low, high);
+  SHOW(low > -3.0 && high < 5.5, label);
+  std::snprintf(label, sizeof label,
+                "the same out of a sleep: %.1f to %+.1f dB, and within %.3f dB of the first time", wake_low, wake_high,
+                wake_differs);
+  SHOW(wake_low > -3.0 && wake_high < 5.5 && wake_differs < 0.05, label);
+
+  // A Body change on the beat of a note, from every body to every other, at
+  // the default Material and at the sharpest.
+  double change_low[3] = {0.0, 0.0, 0.0}, change_high[3] = {0.0, 0.0, 0.0};
+  const size_t at = static_cast<size_t>(4.2 * kRate);
+  for (float material : {0.5f, 1.0f}) {
+    for (int from = 0; from < vd::kNumBodies; ++from) {
+      for (int to = 0; to < vd::kNumBodies; ++to) {
+        if (to == from) continue;
+        for (const std::vector<float>* source : {&line, &held}) {
+          device.init(kRate);
+          device.set_param(p::kBody, static_cast<float>(from));
+          device.set_param(p::kMaterial, material);
+          device.set_param(p::kMix, 1.0f);
+          const std::vector<float> lead(source->begin(), source->begin() + at), rest(source->begin() + at, source->end());
+          run(device, lead);
+          device.set_param(p::kBody, static_cast<float>(to));
+          Stereo after = run(device, rest);
+          for (int w = 0; w < 3; ++w) {
+            const double level = level_against(after, rest, 0, static_cast<size_t>(windows[w] * kRate));
+            change_low[w] = std::min(change_low[w], level);
+            change_high[w] = std::max(change_high[w], level);
+          }
+        }
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "after a Body change: 50 ms %.1f to %+.1f dB, 100 ms %.1f to %+.1f dB, 250 ms %.1f to %+.1f dB",
+                change_low[0], change_high[0], change_low[1], change_high[1], change_low[2], change_high[2]);
+  SHOW(change_low[0] > -9.0 && change_high[0] < 6.5 && change_low[1] > -7.0 && change_high[1] < 6.5 &&
+           change_low[2] > -4.0 && change_high[2] < 6.5,
+       label);
+}
+
+// A played line: every semitone from C2 to C7 in a mixed order, twice (the
+// second pass is measured), each note's level in its half second against the
+// same note dry. A tuned body passes the notes that land on its resonances
+// more than the rest; the floor under its curve, the level match's starting
+// value and the level hold keep the loudest and the quietest note of a line
+// within 11 dB all wet and 6 dB at Mix 0.5 (as built: up to 31 dB and 9 dB).
+static double line_spread(Vessel& d, const std::vector<float>& in, double* lowest, double* highest) {
+  const int notes = 61;
+  Stereo out = run(d, in);
+  double low = 1.0e9, high = -1.0e9;
+  for (int i = 0; i < notes; ++i) {
+    const size_t a = static_cast<size_t>((notes + i) * 0.5 * kRate), b = a + static_cast<size_t>(0.5 * kRate);
+    const double level = level_against(out, in, a, b);
+    low = std::min(low, level);
+    high = std::max(high, level);
+  }
+  if (lowest) *lowest = low;
+  if (highest) *highest = high;
+  return high - low;
+}
+static void check_played_line() {
+  char label[220];
+  const int notes = 61;
+  std::vector<float> in(static_cast<size_t>(2 * notes * 0.5 * kRate), 0.0f);
+  for (int pass = 0; pass < 2; ++pass) {
+    for (int i = 0; i < notes; ++i) {
+      pad_note(in, kRate, (pass * notes + i) * 0.5, 65.406 * std::pow(2.0, ((i * 37) % notes) / 12.0), 0.4, 0.3, 1.5);
+    }
+  }
+  double worst_wet = 0.0, worst_half = 0.0, lowest = 0.0, highest = 0.0;
+  const char* worst_name = "";
+  for (const Preset& preset : kPresets) {
+    double low, high;
+    load_all_wet(device, kRate, preset);
+    const double wet = line_spread(device, in, &low, &high);
+    if (wet > worst_wet) worst_wet = wet, worst_name = preset.name;
+    lowest = std::min(lowest, low);
+    highest = std::max(highest, high);
+    load(device, kRate, preset);
+    device.set_param(p::kMix, 0.5f);
+    worst_half = std::max(worst_half, line_spread(device, in, nullptr, nullptr));
+  }
+  std::snprintf(label, sizeof label,
+                "a line over five octaves, 16 presets: loudest to quietest note %.1f dB all wet (%s; notes %.1f to %+.1f dB), %.1f dB at Mix 0.5",
+                worst_wet, worst_name, lowest, highest, worst_half);
+  SHOW(worst_wet < 11.0 && worst_half < 6.0 && lowest > -8.0 && highest < 7.0, label);
+  // Every body at the default Size, dead, half way and at the sharpest.
+  double bodies_wet = 0.0;
+  for (int b = 0; b < vd::kNumBodies; ++b) {
+    for (float material : {0.0f, 0.5f, 0.8f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kBody, static_cast<float>(b));
+      device.set_param(p::kMaterial, material);
+      device.set_param(p::kMix, 1.0f);
+      bodies_wet = std::max(bodies_wet, line_spread(device, in, nullptr, nullptr));
+    }
+  }
+  std::snprintf(label, sizeof label, "the same line, six bodies at four Materials all wet: at most %.1f dB apart",
+                bodies_wet);
+  SHOW(bodies_wet < 12.0, label);
+}
+
+// The level hold lets a tail ring for the time Material says, and never
+// turns it up: a note held on a sharp resonance and stopped falls from the
+// level it had at the body's own rate (as built the hold opened as the tail
+// fell, and a 4 s ring measured 5.2 s). And its gain stands still on held
+// notes: what is left of a full-scale chord on three resonances once its own
+// sines are taken out is under -40 dB.
+static void check_tails_and_distortion() {
+  char label[220];
+  struct Case {
+    int body;
+    int mode;
+    const char* name;
+  };
+  for (const Case& c : {Case{0, 0, "bottle"}, Case{1, 0, "open pipe"}, Case{3, 0, "shell"}, Case{4, 1, "drum"}}) {
+    inside(device, kRate, c.body);
+    device.set_param(p::kMaterial, 1.0f);
+    const double hz = vd::kBodies[c.body].base_hz * vd::kBodies[c.body].modes[c.mode].ratio;
+    const double law = vd::mode_seconds(vd::kBodies[c.body].modes[c.mode], 1.0f);
+    std::vector<float> in = sine(static_cast<float>(hz), 3.0f, kRate, 0.5f);
+    in.resize(static_cast<size_t>(6.0 * kRate), 0.0f);
+    Stereo out = run(device, in);
+    const size_t stop = static_cast<size_t>(3.0 * kRate), tenth = static_cast<size_t>(0.1 * kRate);
+    const double had = rms(out.left, stop - tenth, stop);
+    double top = 0.0;
+    for (size_t a = stop; a + tenth / 10 < out.size(); a += tenth / 10) top = std::max(top, rms(out.left, a, a + tenth / 10));
+    const double fall = db(rms(out.left, stop + 2 * tenth, stop + 3 * tenth) / rms(out.left, stop + 20 * tenth, stop + 21 * tenth));
+    const double measured = 60.0 * 1.8 / fall;
+    std::snprintf(label, sizeof label,
+                  "%s: a held note on a resonance comes out %+.1f dB, its tail rings %.2f s (law %.2f s) and is never above the note (%+.2f dB)",
+                  c.name, db(had / (0.5 / std::sqrt(2.0))), measured, law, db(top / had));
+    SHOW(std::fabs(measured / law - 1.0) < 0.08 && top < had * 1.02 && had < 0.5 / std::sqrt(2.0) * 1.3, label);
+  }
+  // Distortion: fit the input's own sines to the output and see what is left.
+  const auto left_over = [&](int body, std::initializer_list<double> tones) {
+    inside(device, kRate, body);
+    device.set_param(p::kMaterial, 1.0f);
+    const std::vector<double> hz(tones);
+    std::vector<float> in(static_cast<size_t>(8.0 * kRate));
+    for (size_t i = 0; i < in.size(); ++i) {
+      double sum = 0.0;
+      for (double f : hz) sum += std::sin(2.0 * kPi * f * static_cast<double>(i) / kRate);
+      in[i] = static_cast<float>(sum / static_cast<double>(hz.size()));
+    }
+    Stereo out = run(device, in);
+    // Least squares: the cosine and sine of every tone together.
+    const size_t from = static_cast<size_t>(5.0 * kRate), terms = 2 * hz.size();
+    std::vector<double> ata(terms * terms, 0.0), atx(terms, 0.0), row(terms);
+    const auto fill = [&](size_t i) {
+      const double t = static_cast<double>(i) / kRate;
+      for (size_t k = 0; k < hz.size(); ++k) {
+        row[2 * k] = std::cos(2.0 * kPi * hz[k] * t);
+        row[2 * k + 1] = std::sin(2.0 * kPi * hz[k] * t);
+      }
+    };
+    for (size_t i = from; i < out.size(); ++i) {
+      fill(i);
+      for (size_t a = 0; a < terms; ++a) {
+        atx[a] += row[a] * out.left[i];
+        for (size_t b = 0; b < terms; ++b) ata[a * terms + b] += row[a] * row[b];
+      }
+    }
+    for (size_t a = 0; a < terms; ++a) {
+      const double pivot = ata[a * terms + a];
+      for (size_t b = 0; b < terms; ++b) ata[a * terms + b] /= pivot;
+      atx[a] /= pivot;
+      for (size_t r = 0; r < terms; ++r) {
+        if (r == a) continue;
+        const double factor = ata[r * terms + a];
+        for (size_t b = 0; b < terms; ++b) ata[r * terms + b] -= factor * ata[a * terms + b];
+        atx[r] -= factor * atx[a];
+      }
+    }
+    double total = 0.0, left = 0.0;
+    for (size_t i = from; i < out.size(); ++i) {
+      fill(i);
+      double fit = 0.0;
+      for (size_t a = 0; a < terms; ++a) fit += atx[a] * row[a];
+      left += (out.left[i] - fit) * (out.left[i] - fit);
+      total += static_cast<double>(out.left[i]) * out.left[i];
+    }
+    return 10.0 * std::log10(std::max(left / total, 1.0e-12));
+  };
+  const double pipe = left_over(1, {130.81, 261.62, 392.43});
+  const double low = left_over(2, {65.41});
+  const double drum = left_over(4, {82.41, 131.279});
+  std::snprintf(label, sizeof label,
+                "full scale at the sharpest Material: left over beside the input's sines %.1f dB (pipe chord), %.1f dB (65 Hz note), %.1f dB (drum, two notes)",
+                pipe, low, drum);
+  SHOW(pipe < -40.0 && low < -40.0 && drum < -40.0, label);
+}
+
+// Air at its top: the noise against the wet sound of a held chord, all wet,
+// for each body. It is pink noise at a share of the input's level, so about
+// as much of it passes a large body as a small one; how loud it is against
+// the sound still depends on whether the chord rings the body (the hold
+// turns both down when it does). It rides the input: the same against a
+// chord 40 dB down. (As built it was white noise and reached 2 dB over the
+// sound in a small shell.)
+static void check_air_level() {
+  char label[220];
+  double low = 1.0e9, high = -1.0e9, rides = 0.0;
+  for (int b = 0; b < vd::kNumBodies; ++b) {
+    for (float size : {0.5f, 1.0f, 2.0f}) {
+      double ratio[2];
+      int which = 0;
+      for (double gain : {0.5, 0.005}) {
+        const std::vector<float> in = pad_chord(3.0, kRate, gain);
+        Stereo runs[2];
+        for (int air = 0; air < 2; ++air) {
+          device.init(kRate);
+          device.set_param(p::kBody, static_cast<float>(b));
+          device.set_param(p::kSize, size);
+          device.set_param(p::kMix, 1.0f);
+          device.set_param(p::kWidth, 0.0f);
+          device.set_param(p::kAir, static_cast<float>(air));
+          runs[air] = run(device, in);
+        }
+        std::vector<float> noise_only(in.size());
+        for (size_t i = 0; i < in.size(); ++i) noise_only[i] = runs[1].left[i] - runs[0].left[i];
+        const size_t from = static_cast<size_t>(kRate);
+        ratio[which++] = db(rms(noise_only, from) / rms(runs[0].left, from));
+      }
+      low = std::min(low, ratio[0]);
+      high = std::max(high, ratio[0]);
+      rides = std::max(rides, std::fabs(ratio[0] - ratio[1]));
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "Air at full, six bodies at three sizes: the noise is %.1f to %.1f dB against the wet sound of a held chord, and within %.2f dB of that 40 dB down",
+                low, high, rides);
+  SHOW(low > -27.0 && high < -3.0 && rides < 0.5, label);
+}
+
+// Every third of the controls that shape the sound, at every body and the
+// smallest, the middle and the largest Size (the first check ran at the
+// defaults only): the least a third changes a phrase against the phrase.
+static void check_every_third() {
+  char label[220];
+  const std::vector<float> played = pad_line(4.0, kRate, 0.5);
+  const auto least_third = [&](int body, float size, int id) {
+    Stereo last;
+    double least = 1.0e9;
+    for (int step = 0; step <= 3; ++step) {
+      device.init(kRate);
+      device.set_param(p::kBody, static_cast<float>(body));
+      device.set_param(p::kSize, size);
+      device.set_param(id, p::kParamMin[id] + (p::kParamMax[id] - p::kParamMin[id]) * step / 3.0f);
+      Stereo out = run(device, played);
+      if (step > 0) {
+        double difference = 0.0, level = 0.0;
+        for (size_t i = 0; i < out.size(); ++i) {
+          const double dl = out.left[i] - last.left[i], dr = out.right[i] - last.right[i];
+          difference += dl * dl + dr * dr;
+          level += static_cast<double>(out.left[i]) * out.left[i] + static_cast<double>(out.right[i]) * out.right[i];
+        }
+        least = std::min(least, db(std::sqrt(difference / level)));
+      }
+      last = out;
+    }
+    return least;
+  };
+  const char* const names[p::kNumParams] = {"Body", "Size", "Material", "Opening", "Position", "Air", "Tone", "Width", "Mix"};
+  for (int id : {p::kMaterial, p::kOpening, p::kAir, p::kTone, p::kMix}) {
+    double least = 1.0e9;
+    for (int b = 0; b < vd::kNumBodies; ++b) {
+      for (float size : {0.25f, 1.0f, 4.0f}) least = std::min(least, least_third(b, size, id));
+    }
+    std::snprintf(label, sizeof label, "%s, six bodies at three sizes: the least a third of its travel changes a phrase is %.1f dB",
+                  names[id], least);
+    SHOW(least > -31.0, label);
+  }
+  // Width leans the resonances over 80 Hz, so it does little to a body whose
+  // resonances lie under the notes played (the largest drum and soundboard);
+  // Position does nothing to a bottle's cavity note, which is the same
+  // everywhere inside it. Elsewhere both are alive.
+  double width_least = 1.0e9, width_large = 1.0e9, position_least = 1.0e9, position_bottle = 1.0e9;
+  for (int b = 0; b < vd::kNumBodies; ++b) {
+    for (float size : {0.25f, 1.0f, 4.0f}) {
+      const double w = least_third(b, size, p::kWidth), x = least_third(b, size, p::kPosition);
+      if (size == 4.0f) {
+        width_large = std::min(width_large, w);
+      } else {
+        width_least = std::min(width_least, w);
+      }
+      if (b == 0) {
+        position_bottle = std::min(position_bottle, x);
+      } else {
+        position_least = std::min(position_least, x);
+      }
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "Width: the least a third changes a phrase is %.1f dB up to Size 1 (%.1f dB at the largest size); Position %.1f dB (%.1f dB in the bottle)",
+                width_least, width_large, position_least, position_bottle);
+  SHOW(width_least > -32.0 && position_least > -30.0, label);
+}
+
+// Width in mono, and input that is on one side only or opposite on the two.
+// The two sides lean by equal and opposite amounts, so no resonance is lost
+// when they are added; a held note on a leaning resonance is only held lower
+// (the level hold reads the louder side).
+static void check_mono_sum() {
+  char label[220];
+  const std::vector<float> played = pad_line(4.0, kRate, 0.5);
+  const auto mono = [](const Stereo& s, size_t from) {
+    std::vector<float> sum(s.size());
+    for (size_t i = 0; i < s.size(); ++i) sum[i] = 0.5f * (s.left[i] + s.right[i]);
+    return rms(sum, from);
+  };
+  double phrase_worst = 0.0, note_low = 0.0, lean_least = 1.0e9;
+  for (int b = 0; b < vd::kNumBodies; ++b) {
+    for (float size : {0.25f, 1.0f}) {
+      double levels[2];
+      for (int w = 0; w < 2; ++w) {
+        inside(device, kRate, b);
+        device.set_param(p::kSize, size);
+        device.set_param(p::kWidth, static_cast<float>(w));
+        levels[w] = mono(run(device, played), 4800);
+      }
+      phrase_worst = std::max(phrase_worst, std::fabs(db(levels[1] / levels[0])));
+      // A note held on the first resonance that leans all the way.
+      const vd::Body& body = vd::kBodies[b];
+      int k = 0;
+      while (k < body.count - 1 && vd::mode_hz(body, k, size) < vd::kLeanFullHz) ++k;
+      const double hz = vd::mode_hz(body, k, size);
+      const std::vector<float> note = sine(static_cast<float>(hz), 3.0f, kRate, 0.5f);
+      double sums[2], sides[2] = {0.0, 0.0};
+      for (int w = 0; w < 2; ++w) {
+        inside(device, kRate, b);
+        device.set_param(p::kSize, size);
+        device.set_param(p::kMaterial, 0.8f);
+        device.set_param(p::kWidth, static_cast<float>(w));
+        Stereo out = run(device, note);
+        sums[w] = mono(out, 96000);
+        if (w == 1) sides[0] = rms(out.left, 96000), sides[1] = rms(out.right, 96000);
+      }
+      note_low = std::min(note_low, db(sums[1] / sums[0]));
+      lean_least = std::min(lean_least, std::fabs(db(sides[0] / sides[1])));
+    }
+  }
+  std::snprintf(label, sizeof label,
+                "full Width in mono: a phrase is within %.2f dB of Width 0; a note held on a leaning resonance is %.1f dB under it at worst, and at least %.1f dB louder on one side",
+                phrase_worst, note_low, lean_least);
+  SHOW(phrase_worst < 3.0 && note_low > -6.5 && lean_least > 9.0, label);
+
+  // One side only, and the two sides opposite, at full Width: each side has
+  // its own bank, so the silent side stays silent and nothing cancels.
+  for (int b : {1, 3}) {
+    inside(device, kRate, b);
+    device.set_param(p::kWidth, 1.0f);
+    Stereo both = run(device, played, played);
+    inside(device, kRate, b);
+    device.set_param(p::kWidth, 1.0f);
+    Stereo one = run(device, played, std::vector<float>(played.size(), 0.0f));
+    std::vector<float> flipped(played.size());
+    for (size_t i = 0; i < played.size(); ++i) flipped[i] = -played[i];
+    inside(device, kRate, b);
+    device.set_param(p::kWidth, 1.0f);
+    Stereo opposite = run(device, played, flipped);
+    std::snprintf(label, sizeof label,
+                  "%s at full Width: left only comes out %.1f dB against both sides fed (right %g); opposite sides %.2f and %.2f dB",
+                  kBodyNames[b], db(rms(one.left) / rms(both.left)), peak(one.right),
+                  db(rms(opposite.left) / rms(both.left)), db(rms(opposite.right) / rms(both.right)));
+    SHOW(std::fabs(db(rms(one.left) / rms(both.left))) < 3.0 && peak(one.right) == 0.0 &&
+             std::fabs(db(rms(opposite.left) / rms(both.left))) < 0.01 &&
+             std::fabs(db(rms(opposite.right) / rms(both.right))) < 0.01,
+         label);
+  }
+}
+
+// Size thrown from one end to the other at the sharpest Material while a
+// chord is held, all wet, at three rates. The resonances land on the chord
+// and the level hold has to close by 20 to 30 dB: it must do so smoothly.
+// (While the hold's quick power was read a 12.5 ms stretch at a time, it
+// fell 3.5 dB in one sample 25 ms after the throw: a step of 0.21 in a chord
+// whose own largest step was 0.04.) The largest step after the throw is held
+// against the largest of the same chord with Size standing at either end;
+// how far the hold's reading falls in one control tick is said beside it.
+static void check_thrown_size() {
+  struct Throw {
+    float rate;
+    int body;
+    float from, to;
+  };
+  const Throw throws[] = {{96000.0f, 0, 0.25f, 4.0f}, {44100.0f, 2, 0.25f, 4.0f}, {48000.0f, 0, 0.25f, 4.0f},
+                          {48000.0f, 1, 4.0f, 0.25f}, {96000.0f, 4, 4.0f, 0.25f}};
+  char label[200];
+  for (const Throw& t : throws) {
+    const std::vector<float> in = pad_chord(4.0, t.rate, 0.5);
+    const size_t half = (in.size() / 2 / 16) * 16 + 16;
+    const auto stand = [&](float size) {
+      device.init(t.rate);
+      device.set_param(p::kBody, static_cast<float>(t.body));
+      device.set_param(p::kMaterial, 1.0f);
+      device.set_param(p::kAir, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kSize, size);
+    };
+    double own = 0.0;
+    for (float size : {t.from, t.to}) {
+      stand(size);
+      const Stereo still = run(device, in);
+      own = std::max(own, std::max(max_step(still.left), max_step(still.right)));
+    }
+    // The throw, a control tick at a time, with the hold read after each.
+    stand(t.from);
+    Stereo moved;
+    moved.left.resize(in.size());
+    moved.right.resize(in.size());
+    double fall = 0.0, last = 0.0;
+    for (size_t done = 0; done + 16 <= in.size(); done += 16) {
+      if (done == half) device.set_param(p::kSize, t.to);
+      for (int i = 0; i < 16; ++i) device.in_left()[i] = device.in_right()[i] = in[done + static_cast<size_t>(i)];
+      device.process(16);
+      for (int i = 0; i < 16; ++i) {
+        moved.left[done + static_cast<size_t>(i)] = device.out_left()[i];
+        moved.right[done + static_cast<size_t>(i)] = device.out_right()[i];
+      }
+      const double hold = device.meter(4);
+      if (done > half) fall = std::max(fall, last - hold);
+      last = hold;
+    }
+    const double thrown = std::max(max_step(moved.left, half - 8), max_step(moved.right, half - 8));
+    std::snprintf(label, sizeof label,
+                  "%s at %.0f Hz, Size %.2f to %.2f at Material 1: largest step %.4f against %.4f standing "
+                  "(under 1.5 times); the hold falls %.2f dB a tick at most",
+                  kBodyNames[t.body], static_cast<double>(t.rate), static_cast<double>(t.from),
+                  static_cast<double>(t.to), thrown, own, fall);
+    SHOW(thrown < 1.5 * own && finite(moved.left) && finite(moved.right), label);
   }
 }

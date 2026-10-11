@@ -220,29 +220,37 @@ inline float mode_shape(const Mode& mode, float x) {
   return s < 0.0f ? -s : s;
 }
 
-// Opening: closed, the upper modes are held in (ratio^-1.5, 9 dB an octave)
-// and nothing gets through but the resonances; open, every mode is at its
-// table strength and some of the sound itself passes straight through.
+// Opening: closed, the upper modes are held in (ratio^-1.5, 9 dB an octave);
+// open, every mode is at its table strength. Some of the sound itself is
+// always heard inside the body beside its resonances, as it is in a real
+// one: 0.4 of it closed, 0.7 open. That share is the floor under the body's
+// curve: every resonance's answer has a positive real part (see vessel.h), so
+// at no frequency does the body pass less than this share, and a note that
+// falls between two sharp resonances is still heard.
 constexpr float kClosedTilt = 1.5f;
-constexpr float kOpenDirect = 0.6f;
+constexpr float kClosedDirect = 0.4f;
+constexpr float kOpenDirect = 0.7f;
 inline float opening_tilt(float opening) { return kClosedTilt * (1.0f - kit::clamp(opening, 0.0f, 1.0f)); }
 inline float opening_direct(float opening) {
   const float o = kit::clamp(opening, 0.0f, 1.0f);
-  return kOpenDirect * o * o;
+  return kClosedDirect + (kOpenDirect - kClosedDirect) * o * o;
 }
 
 // Width: each resonance leans to one side, the odd ones left and the even
-// ones right, by up to 90 % of its strength. The lowest stays in the middle
-// and the next leans 60 % as far, so the body's bass is the same in both
-// ears. The two sides always add up to the same sound.
+// ones right, by up to 90 % of its strength. How far depends on where it
+// lies, not on its number: a resonance under 80 Hz stays in the middle and
+// one over 250 Hz leans all the way, so the body's bass is the same in both
+// ears at any Size. The two sides always add up to the same sound.
 constexpr float kLean = 0.9f;
-inline float mode_lean(int k, float width) {
-  const float reach = k >= 2 ? 1.0f : (k == 1 ? 0.6f : 0.0f);
+constexpr float kLeanFromHz = 80.0f;
+constexpr float kLeanFullHz = 250.0f;
+inline float mode_lean(int k, float hz, float width) {
+  const float reach = kit::clamp((hz - kLeanFromHz) / (kLeanFullHz - kLeanFromHz), 0.0f, 1.0f);
   return ((k & 1) != 0 ? kLean : -kLean) * reach * kit::clamp(width, 0.0f, 1.0f);
 }
 // The share of a mode's strength each side hears: channel 0 is the left.
-inline float side_gain(int k, float width, int channel) {
-  const float lean = mode_lean(k, width);
+inline float side_gain(int k, float hz, float width, int channel) {
+  const float lean = mode_lean(k, hz, width);
   return channel == 0 ? 1.0f + lean : 1.0f - lean;
 }
 
@@ -254,14 +262,73 @@ inline float mode_gain(const Mode& mode, float x, float tilt, float hz, float sa
 // The level trim: the resonances pass a share of a broadband sound that
 // falls as they sharpen. For a sound with equal power in every octave from
 // 20 Hz to 20 kHz a unit resonance of sharpness Q passes (pi/2) / (Q ln 1000)
-// of the power, so the trim is one over the root of the sum of those shares,
-// and a broadband sound comes out of the body about as loud as it went in.
-// It is held under 36 dB.
+// of the power, and (its answer's real part being its power) the same share
+// in step with the sound itself. With the resonances at t times their
+// strengths s beside a share d of the sound itself, what comes out has the
+// power  t^2 A + 2 t d C + d^2,  A = kShare sum(s^2 (1 + lean^2) / Q),
+// C = kShare sum(s / Q)  (the two sides' leans are equal and opposite, so
+// they add lean^2 to the power and nothing to the part in step). The trim is
+// the t that makes this 1: a broadband sound comes out of the body and its
+// direct share together about as loud as it went in. It is held under 36 dB.
 constexpr float kShare = 0.22740f;  // (pi / 2) / ln(1000)
 constexpr float kTrimMax = 63.0f;
-inline float level_trim(float share_sum) {
-  const float trim = 1.0f / std::sqrt(kit::max(kShare * share_sum, 1.0e-9f));
+inline float level_trim(float power_sum, float step_sum, float direct) {
+  const float a = kit::max(kShare * power_sum, 1.0e-9f);
+  const float c = kShare * step_sum;
+  const float trim = (std::sqrt(direct * direct * c * c + a * (1.0f - direct * direct)) - direct * c) / a;
   return kit::min(trim, kTrimMax);
+}
+
+// The level a played line comes out at. A broadband sound comes out as loud
+// as it went in (the trim), but notes are not broadband: most fall between
+// the resonances, where only the floor and the resonances' skirts pass them,
+// and the few that land on one are held at the level hold's ceiling. So the
+// body's answer is read at 42 frequencies from 55 Hz up, 8.37 to the octave
+// (five octaves; not a whole number to the octave, so a pipe's octaves never
+// all sit on a reading at once), and the starting value of the level match
+// is the gain g at which their mean power, each held at the ceiling, is 1:
+//   mean over i of min(g^2 heard[i], ceiling^2) = 1,
+// between kMatchMin and kMatchMax. It is worked out from the knobs alone,
+// before any sound, so the first note after the effect is put on, after a
+// sleep or after a Body change already comes out at its level.
+constexpr int kScanPoints = 42;
+constexpr float kScanLowHz = 55.0f;
+constexpr float kScanPerOctave = 8.37f;
+constexpr float kMatchMin = 0.355f;
+constexpr float kMatchMax = 4.0f;
+inline float scan_hz(int i) { return kScanLowHz * std::exp2(static_cast<float>(i) / kScanPerOctave); }
+
+// One unit resonance's answer at a frequency whose (tan-warped) ratio to its
+// own is x:  H = (j x / Q) / (1 - x^2 + j x / Q).  With a = x / Q and
+// b = 1 - x^2 it is (a^2 + j a b) / (a^2 + b^2): the real part is never
+// negative.
+inline void mode_answer(float x, float inverse_q, float* real, float* imaginary) {
+  const float a = x * inverse_q;
+  const float b = 1.0f - x * x;
+  const float inverse = 1.0f / (a * a + b * b);
+  *real = a * a * inverse;
+  *imaginary = a * b * inverse;
+}
+
+inline float start_gain(const float* heard, float ceiling) {
+  const float top = ceiling * ceiling;
+  const auto mean_at = [&](float g) {
+    float sum = 0.0f;
+    for (int i = 0; i < kScanPoints; ++i) sum += kit::min(g * g * heard[i], top);
+    return sum * (1.0f / kScanPoints);
+  };
+  if (mean_at(kMatchMax) <= 1.0f) return kMatchMax;
+  if (mean_at(kMatchMin) >= 1.0f) return kMatchMin;
+  float low = kMatchMin, high = kMatchMax;
+  for (int step = 0; step < 14; ++step) {
+    const float middle = std::sqrt(low * high);
+    if (mean_at(middle) < 1.0f) {
+      low = middle;
+    } else {
+      high = middle;
+    }
+  }
+  return std::sqrt(low * high);
 }
 
 }  // namespace vessel_dsp
