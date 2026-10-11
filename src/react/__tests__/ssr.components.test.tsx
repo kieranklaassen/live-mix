@@ -10,10 +10,15 @@ import { computePeaks } from '../../core/clips/peaks'
 import { createEngine, type Engine } from '../../core/Engine'
 import { asAudioContext, createMockContext } from '../../testing'
 import {
+  BarGroup,
+  BlockHead,
+  Card,
   ChangedMark,
   ChannelRowView,
   ChannelStripView,
   Check,
+  Choice,
+  ChoiceList,
   ContextChip,
   CutNotch,
   CutSeam,
@@ -21,48 +26,69 @@ import {
   DeviceFrame,
   DevicePanel,
   DeviceToggle,
+  Dropdown,
+  DropdownButton,
   Fader,
+  Figure,
   Glyph,
+  Group,
   InfoView,
   InlineNote,
   Input,
   JobRow,
+  Joined,
+  KeptSheet,
   Knob,
   Lane,
   LaneHead,
   LinkMark,
+  ListRow,
   LiveMixProvider,
   LogRow,
+  MainAction,
   MasterStripView,
   Menu,
   MenuItem,
   Meter,
   MixerView,
+  NamedChip,
   NoteBubble,
   NotePin,
   NoteSpan,
+  Offer,
   Overview,
   PaintField,
   Panel,
   PanelHead,
   PickCell,
   PictureMark,
+  Pill,
+  Places,
+  PlainAction,
   Playhead,
   PresetCell,
   Progress,
   PropRow,
   RangeSelection,
   ReferenceChip,
+  Room,
+  Row,
+  Says,
+  SearchField,
   SectionLabel,
   Segmented,
   Select,
   Sheet,
+  SheetPart,
   SoundIcon,
   StateMark,
+  Step,
   Stroke,
   Tabs,
+  Tally,
   TextButton,
   themeStyle,
+  Tick,
   TimelineItem,
   TimelineView,
   TimeRuler,
@@ -72,6 +98,7 @@ import {
   TransportBar,
   VideoStroke,
   Waveform,
+  Well,
   WhoMark,
   graphite,
   jaxaZenDark,
@@ -353,6 +380,145 @@ describe('kit components under SSR', () => {
     expect(sheet).toContain('role="dialog"')
     expect(sheet).toContain('aria-modal="true"')
     expect(sheet).toContain('Three channels found.')
+  })
+
+  it('renders the block parts to markup with nothing but their props', () => {
+    const block = renderToString(
+      <>
+        <Places
+          items={[
+            { id: 'play', name: 'Play', note: 'Keys' },
+            { id: 'mix', name: 'Mix' },
+          ]}
+          value="play"
+          onChange={() => {}}
+          label="Places"
+        />
+        <BlockHead back={{ label: 'Tools', onClick: () => {} }} title="Looper" state="Idle" />
+        <Room>
+          <Says>Records what you play and plays it back.</Says>
+          <MainAction tone="line">Stop</MainAction>
+          <Group name="Length" beside>
+            <Choice
+              label="Length"
+              value={2}
+              onChange={() => {}}
+              options={[
+                { value: 1, label: '1 bar' },
+                { value: 2, label: '2 bars' },
+              ]}
+            />
+          </Group>
+          <Row name="Sync" hint="Starts on the bar">
+            <Tick on onChange={() => {}}>
+              To the bar
+            </Tick>
+          </Row>
+          <Well caption="The loop shows here" />
+          <Card picked active progress={0.5}>
+            Am
+          </Card>
+          <Pill on>Keys</Pill>
+        </Room>
+        <ListRow name="Looper" line="Four bars" mark="REC" />
+        <Dropdown label="Key" defaultValue="0">
+          <option value="0">C</option>
+        </Dropdown>
+        <NamedChip swatch="#7bbab8" starred>
+          Warm pad
+        </NamedChip>
+        {/* A kept sheet is in the markup while closed: hidden, with what lives in it. */}
+        <KeptSheet open={false} onClose={() => {}} title="Inputs" foot="Set up once">
+          <SheetPart name="Keyboard" state="On" on line="Plays the instrument" />
+        </KeptSheet>
+        <BarGroup name="Pass" low ruled>
+          <Joined>
+            <PlainAction aria-label="Previous pass" icon={<i />} />
+            <Figure unit="s" chars={4}>
+              32
+            </Figure>
+            <DropdownButton aria-expanded={false}>1 hour</DropdownButton>
+          </Joined>
+        </BarGroup>
+        <Group name="From" note="The sounds that ship">
+          <Choice
+            wrap
+            label="Source"
+            value="all"
+            onChange={() => {}}
+            options={[
+              {
+                value: 'all',
+                label: (
+                  <>
+                    All <Tally>12</Tally>
+                  </>
+                ),
+              },
+            ]}
+          />
+        </Group>
+        <ChoiceList
+          label="Repeats"
+          value="hour"
+          onChange={() => {}}
+          options={[
+            { value: 'pass', name: 'Every pass', line: 'The same each time.' },
+            { value: 'hour', name: '1 hour' },
+          ]}
+        />
+        <SearchField
+          label="Search samples"
+          value="pad"
+          onChange={() => {}}
+          found={<Tally>1 of 3</Tally>}
+          onClear={() => {}}
+        />
+        <Card goes yet hue="var(--lm-accent)" level={<i />}>
+          Empty
+        </Card>
+        <Step number={1} name="Lay it down" line="Drag it there." foot="Over the bar" />
+        <NamedChip count={348} on>
+          Drone
+        </NamedChip>
+        <Offer name="Make a new sound" beside="on any chord" line="Press a kind." />
+      </>,
+    )
+    expect(block).toContain('<nav aria-label="Places" class="lm-places">')
+    expect(block).toContain('class="lm-block-head__back"')
+    expect(block).toContain('class="lm-room"')
+    expect(block).toContain('data-tone="line"')
+    expect(block).toContain('data-beside="true"')
+    expect(block).toContain('class="lm-block-row__hint"')
+    expect(block).toContain('class="lm-well lm-block-well"')
+    expect(block).toContain('--lm-card-progress:0.5')
+    expect(block).toContain('data-marked=""')
+    expect(block).toContain('class="lm-sheet-part__state" data-on="true"')
+    expect(block).toContain('<select aria-label="Key" class="lm-dropdown">')
+    expect(block).toContain('class="lm-star lm-named-chip__star"')
+    expect(block).toContain('<div class="lm-kept-sheet-ground" role="presentation" hidden="">')
+    expect(block).toContain('class="lm-kept-sheet__foot"')
+    expect(block).toContain('class="lm-bar-group" data-low="true" data-ruled="true"')
+    expect(block).toContain('<div class="lm-joined">')
+    expect(block).toContain('class="lm-plain-action" data-alone="true"')
+    expect(block).toContain('class="lm-figure" style="--lm-figure-chars:4"')
+    expect(block).toContain('<button aria-expanded="false" type="button" class="lm-dropdown">')
+    expect(block).toContain('class="lm-group__note"')
+    expect(block).toContain('data-wrap="true"')
+    expect(block).toContain('<span class="lm-tally">12</span>')
+    expect(block).toContain('<div role="radiogroup" aria-label="Repeats" class="lm-choice-list">')
+    expect(block).toContain('role="radio" aria-checked="true" tabindex="0"')
+    expect(block).toContain('<span class="lm-search-field" data-typed="true">')
+    expect(block).toContain('aria-label="Clear the search"')
+    expect(block).toContain('data-goes="true" data-yet="true" data-level="true"')
+    expect(block).toContain('class="lm-card__hue"')
+    expect(block).toContain('class="lm-step__number"')
+    expect(block).toContain('class="lm-named-chip__count"')
+    expect(block).toMatch(
+      /aria-labelledby="([^"]+)" class="lm-offer"[^>]*>.*<span id="\1" class="lm-offer__name"/,
+    )
+    // A group and a sheet part are named by an id that is the same on the server and the client.
+    expect(block).toMatch(/aria-labelledby="([^"]+)" class="lm-group"[^>]*><span id="\1"/)
   })
 
   it('renders every engine-bound view inside a provider from the same snapshots', async () => {
