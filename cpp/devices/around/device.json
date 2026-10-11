@@ -37,7 +37,7 @@
       "min": 0,
       "max": 1,
       "default": 0.85,
-      "description": "How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back."
+      "description": "How far out the path lies. At zero the sound stays in the middle of your head. Further out it is wider and a little quieter, so no ear gets more of it than came in."
     },
     {
       "key": "head",
@@ -52,8 +52,8 @@
       "name": "Near",
       "min": 0,
       "max": 1,
-      "default": 0.25,
-      "description": "How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass."
+      "default": 0,
+      "description": "How much closer the sound comes at the point that Turn sets. Away from it the sound is quieter and thinner in the bass. In front or behind, that point is a little louder."
     },
     {
       "key": "direction",
@@ -68,7 +68,7 @@
       "min": 0,
       "max": 1,
       "default": 0.35,
-      "description": "A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound."
+      "description": "A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound. The echoes are added, so peaks can rise a little."
     },
     {
       "key": "mix",
@@ -94,7 +94,7 @@
       "rate": 0.2,
       "radius": 0.85,
       "head": 0.7,
-      "near": 0.25,
+      "near": 0,
       "turn": 0,
       "blur": 0.35,
       "mix": 1,
@@ -135,7 +135,7 @@
       "path": 3,
       "rate": 0.12,
       "radius": 0.9,
-      "near": 0.4,
+      "near": 0.15,
       "blur": 0.4
     },
     "Drone drift": {
@@ -220,7 +220,7 @@
       "rate": 2.7,
       "radius": 1,
       "head": 1,
-      "near": 0.5,
+      "near": 0.2,
       "turn": 90,
       "blur": 0.8
     }

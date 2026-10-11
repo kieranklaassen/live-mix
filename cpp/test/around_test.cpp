@@ -37,7 +37,7 @@ static void set(Around& d, const Setting& s) {
   d.set_param(p::kMix, s.mix);
 }
 
-static const Setting kDefault = {0, 0.2f, 0.85f, 0.7f, 0.25f, 0, 0.35f, 1};
+static const Setting kDefault = {0, 0.2f, 0.85f, 0.7f, 0, 0, 0.35f, 1};
 
 // The field of a setting a control's id stands for, and the control's name:
 // by key, so the order of the controls in device.json has no say in either.
@@ -96,11 +96,30 @@ static double balance_of(double x) {
   return 2.0 * c * x / (1.0 + c * c * x * x);
 }
 
+// The level law, written out here and not taken from the header, so that the
+// device is held to the sentence and not to itself. With the two ears' power
+// kept, the ear the source is at would be given this much of a source `x` of
+// the way to that side:
+static double side_gain(double x) {
+  const double c = Around::kPan;
+  return (1.0 + c * x) / std::sqrt(1.0 + c * c * x * x);
+}
+// so a source that counts as `radius` out is held back by one over that at
+// its furthest reach, and no ear is ever given more than came in: 2.75 dB at
+// Radius 1.
+static double held_back(double radius) { return 1.0 / side_gain(radius); }
+// Opposite the near point Near takes this many dB, and at the near point a
+// source counts as only this much of the way out (the square root of what
+// is left of 1 − 0.99), with the near point in front or behind.
+static const double kFarDb = 9.5;
+static const double kNearestOut = 0.1;
+
 static std::vector<float> phrase(float seconds);
 static void cues();
 static void movement();
 static void smoothness();
 static void levels();
+static void headroom();
 static void rest();
 
 int main() {
@@ -118,6 +137,7 @@ int main() {
   movement();
   smoothness();
   levels();
+  headroom();
   rest();
 
   device.init(kRate);
@@ -153,7 +173,9 @@ static std::complex<double> at_hz(const std::vector<float>& x, double hz, double
 static void cues() {
   // A source at the right (90°): the left ear's bass is later by kItdSeconds,
   // the lateness fading out as the pitch rises; it is 12 dB lower in the bass
-  // and 27 on top; the mirror at the left.
+  // and 25.5 on top; the right ear, the one the source is at, is given the
+  // input's own level and no more, flat but for half of what the back takes
+  // from the top; the mirror at the left.
   for (int side = 0; side < 2; ++side) {
     const float turn = side == 0 ? 90.0f : -90.0f;
     for (float rate : {44100.0f, 48000.0f, 96000.0f}) {
@@ -175,15 +197,25 @@ static void cues() {
                     db(std::abs(at_hz(near, 8000, rate))));
       }
       EXPECT_NEAR(late(40.0), Around::kItdSeconds, 0.00003, "the far ear's bass is 0.66 ms late");
-      EXPECT_NEAR(late(200.0), 0.000485, 0.00002, "and 0.49 ms late at 200 Hz");
-      EXPECT_NEAR(late(500.0), 0.000247, 0.00002, "0.25 ms at 500 Hz");
+      EXPECT_NEAR(late(200.0), 0.000469, 0.00002, "and 0.47 ms late at 200 Hz");
+      EXPECT_NEAR(late(500.0), 0.000224, 0.00002, "0.22 ms at 500 Hz");
       EXPECT(late(4000.0) < 0.00002 && late(4000.0) > 0.0, "the lateness has faded out by 4 kHz");
       EXPECT_NEAR(apart(30.0), 12.1, 0.2, "the far ear is 12 dB lower in the bass");
-      EXPECT_NEAR(apart(8000.0), 27.0, 0.5, "and 27 dB lower on top");
-      EXPECT_NEAR(db(std::abs(at_hz(near, 30.0, rate))), 2.75, 0.15,
-                  "the near ear is 2.75 dB up in the bass: the ears keep their summed power");
-      EXPECT_NEAR(db(std::abs(at_hz(near, 8000.0, rate))), 4.31, 0.15,
-                  "the near ear's top is up by what the far ear's lost");
+      EXPECT_NEAR(apart(8000.0), 25.6, 0.5, "and 25.5 dB lower on top");
+      EXPECT_NEAR(db(std::abs(at_hz(near, 30.0, rate))), 0.0, 0.01,
+                  "the ear the source is at gets the input's own level in the bass");
+      EXPECT_NEAR(db(std::abs(at_hz(near, 1000.0, rate))), 0.0, 0.05,
+                  "and over the split too: it is given nothing of what the far ear lost");
+      EXPECT_NEAR(db(std::abs(at_hz(near, 8000.0, rate))), -1.95, 0.3,
+                  "its top is down by half of what the back takes");
+      // The two ears' power together is what the level law says for Radius 1
+      // in the bass, and the far ear's shadow takes a quarter of a dB more.
+      const double whole_bass = 10.0 * std::log10(0.5 * (std::norm(at_hz(near, 30.0, rate)) +
+                                                         std::norm(at_hz(far, 30.0, rate))));
+      const double whole_mid = 10.0 * std::log10(0.5 * (std::norm(at_hz(near, 1000.0, rate)) +
+                                                        std::norm(at_hz(far, 1000.0, rate))));
+      EXPECT_NEAR(whole_bass, db(held_back(1.0)), 0.05, "the two ears together are 2.75 dB under the input");
+      EXPECT_NEAR(whole_mid, db(held_back(1.0)) - 0.26, 0.08, "and 3.0 dB under over the split");
       // No comb: going up in pitch the far ear only ever falls against the
       // near one, and the two are never far enough apart in phase to cancel.
       double before = 0.0, rise = 0.0, widest = 0.0;
@@ -219,12 +251,15 @@ static void cues() {
     EXPECT(std::fabs(std::arg(at_hz(out.right, 200) / at_hz(out.left, 200))) < 1.0e-4,
            "Head 0: neither ear is late");
     Stereo back = held(180.0f, 0.0f);
-    EXPECT_NEAR(db(std::abs(at_hz(back.left, 7500))), 0.0, 0.01, "Head 0: behind is not coloured");
+    EXPECT_NEAR(db(std::abs(at_hz(back.left, 7500))), db(std::abs(at_hz(back.left, 100))), 0.01,
+                "Head 0: behind is not coloured");
+    EXPECT_NEAR(db(std::abs(at_hz(back.left, 100))), db(held_back(1.0)), 0.01,
+                "Head 0: behind, each ear is 2.75 dB under the input, as in front");
   }
 
-  // Front and back differ by colour alone: in front both ears gain a little
-  // top over 5 kHz and a narrow band at 7.5 kHz, behind they lose the same;
-  // the bass is the same.
+  // Front and back differ by colour alone, and the colour only takes away:
+  // in front nothing, behind both ears lose top over 5 kHz and a narrow band
+  // at 7.5 kHz; the bass is the same.
   {
     Stereo front = held(0.0f, 1.0f), back = held(180.0f, 1.0f);
     auto level = [](const Stereo& s, double hz) { return db(std::abs(at_hz(s.left, hz))); };
@@ -235,18 +270,21 @@ static void cues() {
     EXPECT_NEAR(level(back, 250) - level(front, 250), 0.0, 0.05, "behind: the bass is as in front");
     EXPECT_NEAR(level(back, 7500) - level(front, 7500), -4.84, 0.4, "behind: 4.8 dB less at 7.5 kHz");
     EXPECT_NEAR(level(back, 12000) - level(front, 12000), -1.83, 0.3, "behind: the top is 1.8 dB down");
-    EXPECT(level(back, 7500) > -3.0 && level(front, 7500) < 3.0,
-           "neither is more than 3 dB from the input");
+    EXPECT_NEAR(level(front, 7500), level(front, 250), 0.01, "in front nothing is taken from the top");
+    EXPECT_NEAR(level(front, 12000), db(held_back(1.0)), 0.01,
+                "in front each ear is what the level law leaves, at every pitch");
     EXPECT(std::fabs(level(front, 7500) - db(std::abs(at_hz(front.right, 7500)))) < 1.0e-3,
            "both ears are coloured alike");
   }
 
   // Folded to mono there is no hole anywhere round the head: every 15
-  // degrees at Head 1 and Radius 1 (the most there is of every cue), the sum
-  // of the two ears from 100 Hz to 12 kHz stays within 3 dB of the input, and
-  // at the full sides, where there is no colour, it is flat.
+  // degrees at Head 1 and Radius 1 (the most there is of every cue), from
+  // 100 Hz to 12 kHz, the sum of the two ears is never more than 3 dB under
+  // the two ears' own power (what a sound all in one ear loses when folded,
+  // and no more: the ears never work against each other), and never over
+  // the input. In front it is the level law's 2.75 dB under the input, flat.
   {
-    double lowest = 0.0, highest = 0.0;
+    double lowest = 0.0, highest = -99.0, deepest = 0.0;
     for (int turn = -165; turn <= 180; turn += 15) {
       Stereo out = held(static_cast<float>(turn), 1.0f);
       std::vector<float> sum(4096);
@@ -254,19 +292,30 @@ static void cues() {
       double low = 99.0, high = -99.0;
       for (double hz = 100.0; hz <= 12000.0; hz *= 1.0293) {
         const double mono = db(std::abs(at_hz(sum, hz)));
+        const double both = 10.0 * std::log10(0.5 * (std::norm(at_hz(out.left, hz)) +
+                                                     std::norm(at_hz(out.right, hz))));
         low = std::min(low, mono);
         high = std::max(high, mono);
+        deepest = std::min(deepest, mono - both);
       }
       lowest = std::min(lowest, low);
       highest = std::max(highest, high);
+      if (turn == 0) {
+        EXPECT(high - low < 0.02, "in front the mono sum is flat");
+        EXPECT_NEAR(low, db(held_back(1.0)), 0.02, "and 2.75 dB under the input");
+      }
       if (turn == 90 || turn == -90) {
-        EXPECT(high - low < 0.05, "at the full side the mono sum is flat");
-        EXPECT_NEAR(low, -1.34, 0.05, "and 1.3 dB under the input");
+        // The ear the source is at alone would fold to 6 dB under itself;
+        // with the far ear a quarter as loud in the bass it is 4.1 dB.
+        const double bass = db(std::abs(at_hz(sum, 40.0)));
+        EXPECT_NEAR(bass, db(0.5 * (1.0 + 0.4 / 1.6)), 0.1, "at the full side the bass folds to 4.1 dB under");
       }
     }
     std::printf("note: mono sum against the input, every 15 degrees, Head 1, Radius 1, 100 Hz to "
-                "12 kHz: %+.2f to %+.2f dB\n", lowest, highest);
-    EXPECT(lowest > -3.0 && highest < 3.0, "the mono sum is within 3 dB of the input all the way round");
+                "12 kHz: %+.2f to %+.2f dB; under the two ears' own power by at most %.2f dB\n",
+                lowest, highest, -deepest);
+    EXPECT(highest < 0.001, "the mono sum is never over the input");
+    EXPECT(deepest > -3.05, "the mono sum is never more than 3 dB under the two ears' power: no hole");
   }
 
   // Radius 0 is the input whatever Head and Near say, on a stereo input;
@@ -406,7 +455,8 @@ static void movement() {
 
   // Circle and Figure of eight go across alike but not front to back: half a
   // turn in, the circle is behind the head (duller at 7.5 kHz) and the eight
-  // is passing through the middle of it (no colour at all).
+  // is passing through the middle of it (no colour at all: only what the
+  // level law holds back at Radius 1).
   {
     double at_half[2];
     for (int path = 0; path < 2; ++path) {
@@ -419,7 +469,8 @@ static void movement() {
                   "half a turn in, 7.5 kHz: Circle %.1f dB (behind), Figure of eight %.1f dB (the middle)",
                   at_half[0], at_half[1]);
     std::printf("note: %s\n", label);
-    EXPECT(at_half[0] < -2.0 && at_half[0] > -3.0 && std::fabs(at_half[1]) < 0.3, label);
+    EXPECT(at_half[0] - at_half[1] < -4.2 && at_half[0] - at_half[1] > -5.2 &&
+           std::fabs(at_half[1] - db(held_back(1.0))) < 0.3, label);
   }
 
   // Radius scales the path and Turn turns it.
@@ -764,23 +815,25 @@ static void smoothness() {
   std::printf("note: the defaults bend pitch by %.2f cents\n", at_default);
   EXPECT(at_default < 1.0, "the defaults bend pitch by under a cent");
   EXPECT(bend_cents({0, 4, 1, 0, 0, 0, 0, 1}) < 0.5, "Head 0 bends nothing");
-  // What gives way: a Circle keeps the whole shadow up to 1.7 turns a second
-  // and 0.44 of it at 4 (kShadeSpeed over its speed), as the far ear's top
-  // against its bass shows.
+  // What gives way: a Circle keeps the whole shadow up to 1.4 turns a second
+  // and 0.35 of it at 4 (kShadeSpeed over its speed), as the far ear's band
+  // over the split against its bass shows (at 2 kHz, under what the back
+  // takes).
   {
     auto shadow = [&](float rate) {
       device.init(kRate);
       set(device, {0, rate, 1, 1, 0, 90, 0, 1});
       Stereo out = run(device, impulse(0.05f, kRate));
-      return db(std::abs(at_hz(out.left, 8000.0)) / std::abs(at_hz(out.left, 30.0)));
+      return db(std::abs(at_hz(out.left, 2000.0)) / std::abs(at_hz(out.left, 30.0)));
     };
-    const double slow = shadow(0.01f), middle = shadow(1.7f), fast = shadow(4.0f);
-    std::printf("note: the far ear's top against its bass at the full side: %.1f dB at Rate 0.01, "
-                "%.1f at 1.7, %.1f at 4\n", slow, middle, fast);
-    EXPECT_NEAR(slow, -13.4, 0.3, "the whole shadow at a slow Rate");
-    EXPECT_NEAR(middle, slow, 0.3, "and still at 1.7 turns a second");
+    const double slow = shadow(0.01f), middle = shadow(1.3f), fast = shadow(4.0f);
+    std::printf("note: the far ear's band over the split against its bass at the full side: %.1f dB at "
+                "Rate 0.01, %.1f at 1.3, %.1f at 4\n", slow, middle, fast);
+    EXPECT_NEAR(slow, -12.8, 0.3, "the whole shadow at a slow Rate");
+    EXPECT_NEAR(middle, slow, 0.3, "and still at 1.3 turns a second");
     EXPECT_NEAR(fast, db(1.0 - 0.8 * Around::shade_kept(4.0f * Around::kPathSpeed[0], 1.0f)), 0.4,
-                "at 4 turns a second 0.44 of it");
+                "at 4 turns a second 0.35 of it");
+    EXPECT_NEAR(Around::shade_kept(4.0f * Around::kPathSpeed[0], 1.0f), 0.35, 0.01, "which is 0.35");
   }
 }
 
@@ -792,12 +845,12 @@ struct Preset {
 // The presets of device.json, in its order (kept by hand: the level checks
 // below run through every one).
 static const Preset kPresets[] = {
-    {"Slow circle", {0, 0.2f, 0.85f, 0.7f, 0.25f, 0, 0.35f, 1}},
+    {"Slow circle", {0, 0.2f, 0.85f, 0.7f, 0, 0, 0.35f, 1}},
     {"Barely moving", {3, 0.03f, 0.4f, 0.5f, 0, 60, 0.2f, 1}},
     {"Gentle sway", {2, 0.07f, 0.7f, 0.6f, 0, 0, 0.35f, 1}},
     {"Wide pendulum", {2, 0.25f, 1, 0.8f, 0, 0, 0.3f, 1}},
     {"Slow eight", {1, 0.15f, 0.9f, 0.7f, 0, 0, 0.3f, 1}},
-    {"Slow wander", {3, 0.12f, 0.9f, 0.7f, 0.4f, 0, 0.4f, 1}},
+    {"Slow wander", {3, 0.12f, 0.9f, 0.7f, 0.15f, 0, 0.4f, 1}},
     {"Drone drift", {3, 0.05f, 1, 1, 0.2f, -90, 0.5f, 1}},
     {"Dark swing", {2, 0.1f, 0.9f, 1, 0, 180, 0.5f, 1}},
     {"Passing by", {0, 0.1f, 1, 0.9f, 0.6f, 90, 0.3f, 1, 1}},
@@ -807,7 +860,7 @@ static const Preset kPresets[] = {
     {"Plain pan", {2, 0.5f, 1, 0, 0, 0, 0, 1}},
     {"Mostly room", {0, 0.1f, 0.25f, 0.6f, 0, 0, 1, 1}},
     {"Half stays put", {0, 0.3f, 1, 0.8f, 0, 0, 0.2f, 0.5f}},
-    {"Dizzy", {1, 2.7f, 1, 1, 0.5f, 90, 0.8f, 1}},
+    {"Dizzy", {1, 2.7f, 1, 1, 0.2f, 90, 0.8f, 1}},
 };
 
 // The lowest and highest the two ears' summed power goes against the input,
@@ -848,7 +901,9 @@ static void levels() {
   char label[200];
 
   // Part-way Mix does not cancel the sound: at the default with Mix a half,
-  // the two ears' power stays near the input for every held note and place.
+  // the two ears' power stays between the input's and what the level law,
+  // the shadow and Near leave of the moving sound, for every held note and
+  // place, and never over the input's.
   {
     Setting half = kDefault;
     half.mix = 0.5f;
@@ -857,14 +912,14 @@ static void levels() {
     std::printf("note: default at Mix 0.5, tones A0 to C8 round the path: both ears %.2f to %+.2f dB "
                 "of the input (lowest at %.0f Hz, %.2f s in), the quieter ear down to %.1f dB\n",
                 low, high, low_hz, low_seconds, ear);
-    EXPECT(low > -2.0 && high < 1.2, "Mix 0.5 keeps the level of every held note");
+    EXPECT(low > -3.0 && high < 0.01, "Mix 0.5 keeps the level of every held note");
     half.head = 1.0f;
     half.radius = 1.0f;
     half.near = 0.0f;
     power_range(half, &low, &high, &ear);
     std::printf("note: Head 1, Radius 1 at Mix 0.5: both ears %.2f to %+.2f dB, the quieter ear %.1f dB\n",
                 low, high, ear);
-    EXPECT(low > -1.0 && high < 1.0, "Mix 0.5 with all of the head keeps the level too");
+    EXPECT(low > -2.6 && high < 0.01, "Mix 0.5 with all of the head keeps the level too");
   }
 
   // Every preset over the same notes: the power never falls or rises
@@ -872,16 +927,18 @@ static void levels() {
   for (const Preset& preset : kPresets) {
     double low, high, ear;
     power_range(preset.s, &low, &high, &ear);
-    // By design: Near takes up to kNearDb less kNearUpDb at the far side of
-    // the path (and up to 4.5 dB more of the bass) and gives kNearUpDb at the
-    // near point; the near ear's lift adds up to 1.4 dB to the two ears'
-    // power over the split, the colour of front and back under 1 dB up to
-    // C8; the room's comb 3 dB either way at Blur 1.
+    // By design: the path is held back by what the level law says for its
+    // Radius (less of it at part-way Mix); Near takes up to 9.5 dB at the
+    // far side of the path (and up to 4.5 dB more of the bass); the far
+    // ear's shadow and the back's dulling take up to 1.6 dB of the two ears'
+    // power up to C8 with all of the head; the room's comb 3 dB either way
+    // at Blur 1. Nothing but the room adds: without it the two ears' power
+    // is never over the input's.
     const double reach = preset.s.near * preset.s.radius;
-    const double by_design = -(reach * (Around::kNearDb - Around::kNearUpDb + 4.5) + 1.0 +
-                               3.0 * preset.s.blur * preset.s.mix);
-    const double over = 0.5 + 3.5 * preset.s.blur * preset.s.mix +
-                        1.4 * preset.s.head * preset.s.radius + Around::kNearUpDb * reach;
+    const double held = db(1.0 - preset.s.mix * (1.0 - held_back(preset.s.radius)));
+    const double by_design = held - (reach * (kFarDb + 4.5) + 0.3 + 1.6 * preset.s.head * preset.s.radius +
+                                     3.0 * preset.s.blur * preset.s.mix);
+    const double over = 0.05 + 3.5 * preset.s.blur * preset.s.mix;
     std::snprintf(label, sizeof label,
                   "%s: held notes stay within %.1f and %+.1f dB (%.2f at %.0f Hz, to %+.2f)", preset.name,
                   by_design, over, low, low_hz, high);
@@ -890,8 +947,9 @@ static void levels() {
   }
 
   // A full-scale held chord for a minute at every preset and at both ends of
-  // every control: never more than 6 dB over the input, and no louder in
-  // the second half minute than in the first (there is no feedback).
+  // every control: never more than half a dB over the input (the room's
+  // echoes are all that adds), and no louder in the second half minute than
+  // in the first (there is no feedback).
   {
     std::vector<float> chord(static_cast<size_t>(60.0f * kRate));
     for (size_t i = 0; i < chord.size(); ++i) {
@@ -922,7 +980,7 @@ static void levels() {
       loudest = std::max(loudest, std::max(first, second));
       std::snprintf(label, sizeof label, "%s: a full-scale chord peaks %+.2f dB over itself", preset.name,
                     db(std::max(first, second) / in_peak));
-      EXPECT(finite(out.left) && finite(out.right) && std::max(first, second) < 2.0 * in_peak, label);
+      EXPECT(finite(out.left) && finite(out.right) && std::max(first, second) < 1.06 * in_peak, label);
       if (preset.s.rate >= 0.1f) {
         std::snprintf(label, sizeof label, "%s: no louder in the second half minute (%.3f then %.3f)",
                       preset.name, first, second);
@@ -933,8 +991,11 @@ static void levels() {
                 "%+.2f dB over the input\n", db(loudest / in_peak));
   }
 
-  // Near: the source is 2.5 dB up at the near point and 9.5 dB down opposite
-  // it (12 dB between them), where it is thinner in the bass too.
+  // Near: opposite the near point the source is 9.5 dB down on what the
+  // level law leaves it (12.25 dB under the input at Radius 1), and thinner
+  // in the bass too; at the near point, in front, it counts as a tenth as
+  // far out and is given back all but 0.49 dB of what the law held back:
+  // 11.8 dB between the two, and neither ear over the input.
   {
     double at_back[2], at_front[2];
     const float tones[2] = {1000.0f, 100.0f};
@@ -953,11 +1014,13 @@ static void levels() {
     }
     std::printf("note: Near 1, opposite the near point: %.2f dB at 1 kHz, %.2f dB at 100 Hz; at the near "
                 "point %+.2f dB\n", at_back[0], at_back[1], at_front[0]);
-    EXPECT_NEAR(at_back[0], Around::kNearUpDb - Around::kNearDb, 0.3,
-                "Near 1: 9.5 dB down opposite the near point");
+    EXPECT_NEAR(at_back[0], db(held_back(1.0)) - kFarDb, 0.3,
+                "Near 1: 9.5 dB down opposite the near point, 12.25 under the input");
     EXPECT_NEAR(at_back[1] - at_back[0], -4.5, 1.0, "and thinner in the bass by 4.5 dB more");
-    EXPECT_NEAR(at_front[0], Around::kNearUpDb, 0.2, "at the near point the source is 2.5 dB up");
-    EXPECT_NEAR(at_front[1], Around::kNearUpDb, 0.2, "bass too");
+    EXPECT_NEAR(at_front[0], db(held_back(kNearestOut)), 0.1,
+                "at the near point the source is given back all but 0.49 dB");
+    EXPECT_NEAR(at_front[1], db(held_back(kNearestOut)), 0.1, "bass too");
+    EXPECT(at_front[0] < 0.0 && at_front[1] < 0.0, "and is still not over the input");
   }
 
   // Blur: a room of eight echoes that stands still: between 7 and 38 ms,
@@ -1034,7 +1097,9 @@ static void levels() {
     range(1.0f, 90.0f, &ear, &low, &high);
     std::printf("note: Blur 1, source at the side: the far ear down to %.1f dB at its worst pitch, "
                 "both ears %.2f to %+.2f dB\n", ear, low, high);
-    EXPECT(low > -3.2 && high < 3.0, "Blur 1 at the side: the two ears' power within 3 dB");
+    // (3.3 dB down at the worst pitch: the room is as loud against the source
+    // as it was, and the ear the source is at is no longer lifted over it.)
+    EXPECT(low > -3.5 && high < 3.0, "Blur 1 at the side: the two ears' power within 3.5 dB");
 
     std::vector<float> chord(static_cast<size_t>(13.0f * kRate));
     for (size_t i = 0; i < chord.size(); ++i) {
@@ -1067,6 +1132,152 @@ static void levels() {
 }
 
 // A played phrase: four notes, each struck and dying, with a little breath.
+// The source `turns` of the way round its path (the clock runs through
+// silence, as it does asleep), then all but still: the two ears' responses.
+static Stereo placed(float turns, Setting s) {
+  device.init(kRate);
+  s.rate = 1.0f;
+  s.blur = 0.0f;
+  s.mix = 1.0f;
+  set(device, s);
+  run(device, silence(turns, kRate));
+  device.set_param(p::kRate, 0.01f);
+  return run(device, impulse(0.1f, kRate));
+}
+
+// What the third pass mended: the level law gave the ear the source is at
+// more than came in (2.75 dB at the full side, 4.3 with Head, 5.7 at 7.5 kHz
+// in front, 8.2 with Near), and a sound fed near full scale left over it.
+static void headroom() {
+  char label[240];
+  const double pitches[7] = {40, 150, 400, 1500, 5000, 7500, 12000};
+
+  // No ear is ever given more than came in: every path, Radius, Head, Near
+  // and Turn, twelve places of each, seven pitches.
+  {
+    double worst = -99.0;
+    Setting where = kDefault;
+    float where_turns = 0.0f;
+    double where_hz = 0.0;
+    for (int path = 0; path < Around::kNumPaths; ++path) {
+      for (float radius : {0.3f, 0.6f, 0.85f, 1.0f}) {
+        for (float head : {0.0f, 1.0f}) {
+          for (float near : {0.0f, 0.5f, 1.0f}) {
+            for (float turn : {0.0f, 60.0f, 90.0f, 180.0f}) {
+              for (int step = 0; step < 12; ++step) {
+                const float turns = static_cast<float>(step) * (path == Around::kWander ? 1.37f : 1.0f / 12.0f);
+                const Setting s = {static_cast<float>(path), 1, radius, head, near, turn, 0, 1};
+                Stereo out = placed(turns, s);
+                for (double hz : pitches) {
+                  const double side = db(std::max(std::abs(at_hz(out.left, hz)), std::abs(at_hz(out.right, hz))));
+                  if (side > worst) {
+                    worst = side;
+                    where = s;
+                    where_turns = turns;
+                    where_hz = hz;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "no ear is given more than came in: the most is %+.3f dB (path %g, Radius %g, Head %g, "
+                  "Near %g, Turn %g, %.2f turns in, %.0f Hz)", worst, where.path, where.radius, where.head,
+                  where.near, where.turn, where_turns, where_hz);
+    std::printf("note: %s\n", label);
+    EXPECT(worst < 0.01, label);
+  }
+
+  // The loudness of the whole holds as the source goes round: with Head 0
+  // the two ears' power together is the same every 15 degrees to a
+  // hundredth of a dB, at what the level law says for the Radius; with all
+  // of the head the far ear's shadow (on the way to the side) and the back's
+  // dulling (behind) take up to 0.9 dB of it up to 2 kHz, and nothing ever
+  // adds to it.
+  for (float radius : {0.25f, 0.5f, 0.75f, 0.85f, 1.0f}) {
+    const double law = db(held_back(radius));
+    double low[2] = {99.0, 99.0}, high[2] = {-99.0, -99.0}, side = -99.0;
+    for (int h = 0; h < 2; ++h) {
+      for (int turn = -180; turn < 180; turn += 15) {
+        Stereo out = held(static_cast<float>(turn), static_cast<float>(h), kRate, radius);
+        for (double hz : {100.0, 1000.0, 2000.0}) {
+          const double l = std::abs(at_hz(out.left, hz)), r = std::abs(at_hz(out.right, hz));
+          const double whole = 10.0 * std::log10(0.5 * (l * l + r * r));
+          low[h] = std::min(low[h], whole);
+          high[h] = std::max(high[h], whole);
+          side = std::max(side, db(std::max(l, r)));
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "Radius %.2f: round the lap the two ears together are %.2f to %.2f dB of the input with "
+                  "Head 0 (the law: %.2f), %.2f to %.2f with Head 1; the louder ear at most %+.2f dB",
+                  radius, low[0], high[0], law, low[1], high[1], side);
+    std::printf("note: %s\n", label);
+    EXPECT(std::fabs(low[0] - law) < 0.01 && std::fabs(high[0] - law) < 0.01, label);
+    EXPECT(low[1] > law - 1.0 && high[1] < law + 0.01, "with all of the head the lap holds within 1 dB");
+    EXPECT(side < 0.01 && side > -0.01,
+           "the louder ear reaches the input's own level at the full side and no more");
+  }
+
+  // Near gives back, towards the near point, what the level law held back,
+  // as far as the ear the source is at allows: with the near point at a
+  // side that ear is at the input's level already and gets nothing more.
+  {
+    Stereo out = held(90.0f, 0.0f, kRate, 1.0f, 1.0f);
+    EXPECT_NEAR(db(std::abs(at_hz(out.right, 1000.0))), 0.0, 0.02,
+                "Near 1 with the near point at the side: that ear gets the input's level, no more");
+    Stereo front = held(0.0f, 0.0f, kRate, 1.0f, 1.0f);
+    EXPECT_NEAR(db(std::abs(at_hz(front.right, 1000.0))), db(held_back(kNearestOut)), 0.05,
+                "Near 1 with the near point in front: both ears 0.49 dB under the input");
+  }
+
+  // The finding itself: a phrase fed with its peak at -1 dBFS through every
+  // preset, at its own Rate and again at half a turn a second so that the
+  // whole path is gone round. With Blur at 0 no side peaks higher than the
+  // input did. Blur's room is echoes added to that, and they can add to a
+  // peak: by up to 2 dB on these plucked notes at Blur 1 ("Mostly room",
+  // the one preset that passes full scale here), 0.4 dB at Blur 0.5.
+  {
+    std::vector<float> hot = phrase(8.0f);
+    const double scale = std::pow(10.0, -1.0 / 20.0) / peak(hot);
+    for (float& v : hot) v = static_cast<float>(v * scale);
+    const double in_peak = peak(hot);
+    double most_alone = -99.0, most = -99.0;
+    for (const Preset& preset : kPresets) {
+      double out_peak[2] = {0.0, 0.0};  // the moving sound alone, and with the preset's room
+      for (int room = 0; room < 2; ++room) {
+        for (int pass = 0; pass < 2; ++pass) {
+          Setting s = preset.s;
+          if (pass == 1) s.rate = 0.5f;
+          if (room == 0) s.blur = 0.0f;
+          device.init(kRate);
+          set(device, s);
+          Stereo out = run(device, hot);
+          out_peak[room] = std::max(out_peak[room], std::max(peak(out.left), peak(out.right)));
+        }
+      }
+      const double alone = db(out_peak[0] / in_peak), over = db(out_peak[1] / in_peak);
+      most_alone = std::max(most_alone, alone);
+      most = std::max(most, over);
+      std::snprintf(label, sizeof label,
+                    "%s fed at -1 dBFS: the moving sound alone peaks %+.2f dB on the input's peak, with "
+                    "its room %+.2f dB (%+.2f dBFS)", preset.name, alone, over, db(out_peak[1]));
+      std::printf("note: %s\n", label);
+      // (A hundredth of a dB is seen where the back's band is taken out: a
+      // filter that only takes away can still move a peak by that much.)
+      EXPECT(alone < 0.02, label);
+      EXPECT(over < 0.02 + 2.1 * preset.s.blur * preset.s.mix, "and its room adds no more than echoes do");
+      if (preset.s.blur * preset.s.mix < 0.9f) EXPECT(out_peak[1] < 1.0, "and it stays under full scale");
+    }
+    std::printf("note: every preset fed at -1 dBFS: the moving sound alone at most %+.2f dB on the input's "
+                "peak, with the room %+.2f dB\n", most_alone, most);
+  }
+}
+
 static std::vector<float> phrase(float seconds) {
   std::vector<float> out(static_cast<size_t>(seconds * kRate), 0.0f);
   const float notes[4] = {220.0f, 329.63f, 440.0f, 659.26f};
@@ -1130,7 +1341,10 @@ static void rest() {
   }
 
   // No dead part of a knob: on a played phrase, each third of every
-  // control's travel changes the output by more than 1 % of it.
+  // control's travel changes the output by more than 1 % of it. Path is
+  // tried with Near at a quarter: a Circle and a Figure of eight go across
+  // alike and differ front to back, which with Near at 0 (the default) is
+  // the back's duller top alone, 0.9 % of these plucked notes.
   {
     const std::vector<float> played = phrase(3.0f);
     for (int id = 0; id < p::kNumParams; ++id) {
@@ -1143,7 +1357,9 @@ static void rest() {
         float value = p::kParamMin[id] + t * (p::kParamMax[id] - p::kParamMin[id]);
         if (id == p::kRate) value = p::kParamMin[id] * std::pow(p::kParamMax[id] / p::kParamMin[id], t);
         device.init(kRate);
-        set(device, kDefault);
+        Setting base = kDefault;
+        if (id == p::kPath) base.near = 0.25f;
+        set(device, base);
         device.set_param(id, value);
         Stereo out = run(device, played);
         if (step > 0) {

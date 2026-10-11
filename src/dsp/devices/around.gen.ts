@@ -38,7 +38,7 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far out the path lies. At zero the sound stays in the middle of your head. Higher settings take it further to the sides and round the back.',
+      'How far out the path lies. At zero the sound stays in the middle of your head. Further out it is wider and a little quieter, so no ear gets more of it than came in.',
   },
   head: {
     id: 3,
@@ -56,11 +56,11 @@ export const AROUND_PARAMS = {
     name: 'Near',
     min: 0,
     max: 1,
-    default: 0.25,
+    default: 0,
     taper: 'linear',
     unit: '',
     description:
-      'How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass.',
+      'How much closer the sound comes at the point that Turn sets. Away from it the sound is quieter and thinner in the bass. In front or behind, that point is a little louder.',
   },
   direction: {
     id: 5,
@@ -83,7 +83,7 @@ export const AROUND_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound.',
+      'A little room of short echoes that stands still while the sound moves round it. At zero there is only the moving sound. The echoes are added, so peaks can rise a little.',
   },
   mix: {
     id: 7,
@@ -134,7 +134,7 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
       rate: 0.2,
       radius: 0.85,
       head: 0.7,
-      near: 0.25,
+      near: 0,
       turn: 0,
       blur: 0.35,
       mix: 1,
@@ -144,7 +144,7 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
     'Gentle sway': { path: 2, rate: 0.07, radius: 0.7, head: 0.6, near: 0 },
     'Wide pendulum': { path: 2, rate: 0.25, radius: 1, head: 0.8, near: 0, blur: 0.3 },
     'Slow eight': { path: 1, rate: 0.15, radius: 0.9, near: 0, blur: 0.3 },
-    'Slow wander': { path: 3, rate: 0.12, radius: 0.9, near: 0.4, blur: 0.4 },
+    'Slow wander': { path: 3, rate: 0.12, radius: 0.9, near: 0.15, blur: 0.4 },
     'Drone drift': { path: 3, rate: 0.05, radius: 1, head: 1, near: 0.2, turn: -90, blur: 0.5 },
     'Dark swing': { path: 2, rate: 0.1, radius: 0.9, head: 1, near: 0, turn: 180, blur: 0.5 },
     'Passing by': {
@@ -163,7 +163,7 @@ export const AROUND_DESCRIPTOR = wasmDeviceDescriptor(AROUND_DEVICE, {
     'Plain pan': { path: 2, rate: 0.5, radius: 1, head: 0, near: 0, blur: 0 },
     'Mostly room': { path: 0, rate: 0.1, radius: 0.25, head: 0.6, near: 0, blur: 1 },
     'Half stays put': { path: 0, rate: 0.3, radius: 1, head: 0.8, near: 0, blur: 0.2, mix: 0.5 },
-    Dizzy: { path: 1, rate: 2.7, radius: 1, head: 1, near: 0.5, turn: 90, blur: 0.8 },
+    Dizzy: { path: 1, rate: 2.7, radius: 1, head: 1, near: 0.2, turn: 90, blur: 0.8 },
   },
 })
 
