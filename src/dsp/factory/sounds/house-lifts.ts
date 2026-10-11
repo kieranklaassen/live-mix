@@ -19,11 +19,9 @@
 // high-pass is also the floor of the noise. It stands near where the sweep starts, so the start
 // of a rise is quieter than white noise under a low-pass would be, and the end of a sweep down.
 //
-// A rise is loudest in its last moments, where the fade is. The level of a sound is set by its
-// largest sample before the fade is applied, so a rise ends in a flat clip that only its few
-// largest samples reach, in the last third of it: the largest sample is then one of several,
-// most of them before the fade, and the sound comes out at the bank's level (measured at 96, 120
-// and 140, and the chord in every key).
+// A rise is loudest in its last moments, where the fade is. The level of a sound is set by the
+// largest sample its fades leave (../../patch-render.ts), so a rise needs nothing after its
+// filter: it is the source, the room where it has one, and the filter.
 
 import { type PatchDevice } from '../../../core/devices/patch'
 import { hall } from '../parts'
@@ -45,9 +43,11 @@ const BAND_PASS = 2
 
 /**
  * White noise and nothing else, in the middle: the pad synth with its noise full up, its one
- * oscillator a sine under 10 Hz, and its filter a 24 dB high-pass at `floorHz`.
+ * oscillator a sine under 10 Hz, and its filter a 24 dB high-pass at `floorHz`. The attack is 5 ms:
+ * a rise starts some 40 dB under its end, and with a slower attack its first sample within 40 dB
+ * of its peak (what the bench calls its lead) came 63 ms in at two tempos of 22.
  */
-const noise = (floorHz: number, attack = 0.02): PatchDevice => ({
+const noise = (floorHz: number): PatchDevice => ({
   deviceId: 'ember',
   params: {
     osc1Shape: 3,
@@ -58,7 +58,7 @@ const noise = (floorHz: number, attack = 0.02): PatchDevice => ({
     filterSlope: 1,
     cutoff: floorHz,
     velToAmp: 0,
-    ampAttack: attack,
+    ampAttack: 0.005,
     ampRelease: 0.03,
   },
 })
@@ -85,30 +85,6 @@ const sweep = (bars: number, shape: number, params: Params = {}): PatchDevice =>
 /** A small room ahead of the filter: steady noise comes out of it as steady noise, different on each side. */
 const room = (mix: number): PatchDevice => hall('Room', mix)
 
-/**
- * The flat clip a rise ends in, at the base rate, where it is the curve and nothing else. `driveDb`
- * is set by measuring, a decibel or two past where the largest sample just touches the clip: under
- * one sample in a thousand of the last tenth of the noise reaches it, so the loudness is all but
- * what it was (every decibel of drive past touching is a decibel of loudness). The chord takes
- * more of it: its largest sample is 4 dB apart from key to key, so a drive that is a decibel past
- * touching in its quietest key is 5 dB past in its loudest, where three samples in a thousand of
- * the last tenth are flat and what the clip adds is 26 dB under the chord.
- */
-const ceiling = (driveDb: number): PatchDevice => ({
-  deviceId: 'saturator',
-  params: {
-    curve: 1,
-    driveDb,
-    bias: 0,
-    toneDb: 0,
-    outputDb: 0,
-    mix: 1,
-    dcBlock: 0,
-    oversample: 0,
-    adaa: 0,
-  },
-})
-
 /** One key held for `bars` bars and stopped on the bar line, with a fade of 20 ms. */
 const held = (bars: number, notes: readonly (readonly [note: number, gain: number])[]) =>
   inTimeOnce(
@@ -127,7 +103,7 @@ const NOISE_RISERS: readonly FactorySound[] = [
     description:
       'White noise in the middle under a low pass filter that opens for one bar and stops on the bar line, for a house build.',
     instrument: noise(200),
-    effects: [sweep(1, SAW_UP), ceiling(18.4)],
+    effects: [sweep(1, SAW_UP)],
     ...held(1, [[LOW_A, 0.8]]),
   }),
   sound({
@@ -139,7 +115,7 @@ const NOISE_RISERS: readonly FactorySound[] = [
       'Noise spread wide by a small room under a gentle low pass filter that opens over two bars to the bar line, for a house build.',
     // The 12 dB slope lets more of the top through from the start than the others do.
     instrument: noise(180),
-    effects: [room(0.8), sweep(2, SAW_UP, { slope: 0, resonance: 1.2 }), ceiling(17.6)],
+    effects: [room(0.8), sweep(2, SAW_UP, { slope: 0, resonance: 1.2 })],
     ...held(2, [[LOW_A, 0.8]]),
   }),
   sound({
@@ -153,11 +129,7 @@ const NOISE_RISERS: readonly FactorySound[] = [
     // The numbers in the description are where the band is strongest in the render, in its first
     // and its last 200 ms at 96, 120 and 140, not where the filter's formula puts its centre.
     instrument: noise(400),
-    effects: [
-      room(0.5),
-      sweep(4, SAW_UP, { type: BAND_PASS, cutoffHz: 2000, resonance: 2 }),
-      ceiling(20.5),
-    ],
+    effects: [room(0.5), sweep(4, SAW_UP, { type: BAND_PASS, cutoffHz: 2000, resonance: 2 })],
     ...held(4, [[LOW_A, 0.8]]),
   }),
   sound({
@@ -170,17 +142,19 @@ const NOISE_RISERS: readonly FactorySound[] = [
     // A resonance of 3 lifts the edge by 9.5 dB. At 6 the analysis hears the edge as a pitch and
     // calls the sound a pad; at 3 it is a texture at 96, 120 and 140.
     instrument: noise(180),
-    effects: [room(0.65), sweep(8, SAW_UP, { resonance: 3 }), ceiling(11.9)],
+    effects: [room(0.65), sweep(8, SAW_UP, { resonance: 3 })],
     ...held(8, [[LOW_A, 0.8]]),
   }),
 ]
 
 // The keys of the chord that rises, low to high: A minor from the A at 55 Hz to the E four and a
 // half octaves over it, and its top the loudest. The thirds are three of the eleven and as loud as
-// the keys round them. Each note here is stronger at its fifth harmonic than at its fundamental
-// (the high-pass below), and the fifth harmonic of an A is a C sharp: with five roots and two soft
-// thirds the end of the render held 1.6 to 3.7 dB more C sharp than C in every key, which is not
-// a minor chord. As written it holds 3.5 to 6.6 dB more C than C sharp (the last 1.4 s at 120).
+// the keys round them. With one sawtooth to a note, each note was stronger at its fifth harmonic
+// than at its fundamental (the high-pass below), and the fifth harmonic of an A is a C sharp: with
+// five roots and two soft thirds the end of the render held 1.6 to 3.7 dB more C sharp than C in
+// every key, which is not a minor chord. These keys held 3.5 to 6.6 dB more C than C sharp, and
+// with three sawtooths to a note (below) they hold 11.3 to 13.9 dB more (the last 1.4 s at 120,
+// in every key).
 const A_MINOR: readonly (readonly [note: number, gain: number])[] = [
   [33, 0.45],
   [45, 0.45],
@@ -206,10 +180,18 @@ const CHORD_RISERS: readonly FactorySound[] = [
     // A sawtooth has nearly all of its level in its fundamental, so a chord of them is as loud as
     // it gets once the filter has passed its lowest notes. Here each note is thinned by a 12 dB
     // high-pass that follows its key (three times its fundamental) and the high keys are the loud
-    // ones, so the level climbs with the filter to the end, which is at 5.4 kHz. One sawtooth to
-    // a note and no unison: voices that beat are counted as hits by the analysis. The filter is the
+    // ones, so the level climbs with the filter to the end, which is at 5.4 kHz. The filter is the
     // 12 dB one and the room is low: with the steeper filter or more room the level stood still
     // for a tenth of the sound in two or three of the twelve keys.
+    //
+    // Each note is three sawtooth waves at one pitch (Unison 3 with no detune and no spread). The
+    // synth starts its copies an eighth of a cycle apart and they never drift, so nothing beats
+    // (voices that beat are counted as hits by the analysis): a note's one edge becomes three
+    // smaller ones, and by the arithmetic of those phases its third and fifth harmonics are its
+    // weakest. With one sawtooth to a note the largest sample stood far over the rest, and the
+    // chord was -22.8 to -19.1 LUFS over the twelve keys at 96, 120 and 140, under the -22 a pad
+    // is held to in two of the 36. With three it is -21.2 to -18.6, and no tenth of it climbs
+    // less than 0.7 dB (0.2 dB with one).
     instrument: {
       deviceId: 'ember',
       params: {
@@ -219,19 +201,22 @@ const CHORD_RISERS: readonly FactorySound[] = [
         filterSlope: 0,
         cutoff: 800,
         keyTrack: 1,
+        unisonVoices: 3,
+        unisonDetune: 0,
+        unisonSpread: 0,
         velToAmp: 1,
         ampAttack: 0.03,
         ampRelease: 0.03,
       },
     },
-    effects: [room(0.4), sweep(4, SAW_UP, { cutoffHz: 700, slope: 0 }), ceiling(15.8)],
+    effects: [room(0.4), sweep(4, SAW_UP, { cutoffHz: 700, slope: 0 })],
     ...held(4, A_MINOR),
   }),
 ]
 
 // Noise that starts bright on a bar line and falls: the same filter turned round. They start on
-// their loudest moment, where there is no fade, so they need no clip, and their last half second,
-// some 25 dB down by then, fades to nothing on the bar line.
+// their loudest moment, where there is no fade, and their last half second, some 25 dB down by
+// then, fades to nothing on the bar line.
 const SWEEPS_DOWN: readonly FactorySound[] = [
   sound({
     id: 'house-sweep-down-two',
@@ -240,7 +225,7 @@ const SWEEPS_DOWN: readonly FactorySound[] = [
     kind: 'oneshot',
     description:
       'Noise in a small room that starts bright on the bar line and darkens for two bars under a closing low pass filter, after a house build.',
-    instrument: noise(150, 0.005),
+    instrument: noise(150),
     effects: [room(0.8), sweep(2, SAW_DOWN)],
     ...inTimeOnce(2 * BAR_SEC, [[0, 2 * BAR_SEC, LOW_A, 0.8]], 0.5),
   }),
@@ -251,7 +236,7 @@ const SWEEPS_DOWN: readonly FactorySound[] = [
     kind: 'oneshot',
     description:
       'Noise that starts bright on the bar line and falls for four bars under a closing low pass filter with a resonant peak, after a house build.',
-    instrument: noise(150, 0.005),
+    instrument: noise(150),
     effects: [room(0.8), sweep(4, SAW_DOWN, { resonance: 3 })],
     ...inTimeOnce(4 * BAR_SEC, [[0, 4 * BAR_SEC, LOW_A, 0.8]], 0.5),
   }),
