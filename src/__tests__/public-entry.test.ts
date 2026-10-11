@@ -15,6 +15,10 @@ import * as wam from '../wam/index'
 
 const coreSymbols = [
   'createPan',
+  'createFramedOfflineContext',
+  'releaseOfflineContext',
+  'createWorkletNode',
+  'setWorkletNodeConstructor',
   'createEngine',
   'Engine',
   'Bus',

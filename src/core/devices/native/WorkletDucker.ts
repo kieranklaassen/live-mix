@@ -14,6 +14,7 @@
 
 import { Emitter } from '../../events'
 import { clampParam } from '../../params'
+import { createWorkletNode } from '../../worklet-node'
 import {
   type DeviceChange,
   type DeviceChangeListener,
@@ -46,9 +47,6 @@ export type WorkletDuckerOptions = Partial<Record<DuckerParamName, number>> & {
   reportHz?: number
   createNode?: DuckerNodeFactory
 }
-
-const defaultCreateNode: DuckerNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
 
 const PARAM_NAMES = Object.keys(DUCKER_PARAMS) as DuckerParamName[]
 
@@ -95,7 +93,7 @@ export class WorkletDucker implements ObservableDevice, MeteredDevice, Sidechain
     // As the processor reads it: it reports only at a rate above 0.
     this.meters = (options.reportHz ?? DUCKER_REPORT_HZ) > 0 ? DUCKER_METERS : NO_METERS
     try {
-      this.node = (options.createNode ?? defaultCreateNode)(ctx, DUCKER_PROCESSOR_NAME, {
+      this.node = (options.createNode ?? createWorkletNode)(ctx, DUCKER_PROCESSOR_NAME, {
         numberOfInputs: 2,
         numberOfOutputs: 1,
         channelCount: 2,

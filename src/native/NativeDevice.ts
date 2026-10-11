@@ -30,6 +30,7 @@ import { Emitter } from '../core/events'
 import { LoadProbe, type LoadClaim } from '../core/load'
 import { clampParam } from '../core/params'
 import { ensureProcessor } from '../core/worklet-loader'
+import { createWorkletNode } from '../core/worklet-node'
 import {
   BRIDGE_ACTIVE,
   BRIDGE_LATENCY,
@@ -194,9 +195,6 @@ function holdThenRampGain(
   param.setValueAtTime(held, now + holdSec)
   param.linearRampToValueAtTime(value, now + holdSec + rampSec)
 }
-
-const defaultCreateNode: NativeNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
 
 const defaultCreateWorker = (url: string): PumpWorker => new Worker(url) as unknown as PumpWorker
 
@@ -370,7 +368,7 @@ export class NativeDevice
       load.memoryBytes =
         memory.control.byteLength + memory.input.byteLength + memory.output.byteLength
       Atomics.store(new Int32Array(memory.control), BRIDGE_LATENCY, bridgeLatencyFrames)
-      const node = (options.createNode ?? defaultCreateNode)(
+      const node = (options.createNode ?? createWorkletNode)(
         context,
         NATIVE_BRIDGE_PROCESSOR_NAME,
         {
