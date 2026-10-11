@@ -24,6 +24,11 @@ const kit = (params: Readonly<Record<string, number>>): PatchDevice => ({
   params,
 })
 
+/**
+ * Every fill keeps the kit's own level (`kitLevel`), as the layers do: it is one part of a kit laid
+ * over a groove, and its snare or its clap then meets the groove's own within a few dB with
+ * nothing turned down.
+ */
 export const CLUB_FILLS: readonly FactorySound[] = [
   sound({
     id: 'club-snare-roll-fill',
@@ -104,4 +109,4 @@ export const CLUB_FILLS: readonly FactorySound[] = [
     effects: [],
     ...barsOnce(1, [row(CLUB.kick, 'o... ..o. o... ....'), row(CLUB.snare, '..o. o..o .ox. xxXX')]),
   }),
-]
+].map((fill) => ({ ...fill, kitLevel: true as const }))

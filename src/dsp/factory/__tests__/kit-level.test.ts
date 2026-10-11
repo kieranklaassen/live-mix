@@ -23,7 +23,7 @@ const peakDb = async (sound: FactorySound, bpm?: number): Promise<number> =>
 describe('a sound at its kit level', () => {
   const kept = FACTORY_SOUNDS.filter((sound) => sound.kitLevel)
 
-  it('is one part of a kit that has a level, dry, so one gain is all that is between it and the kit', () => {
+  it('is one part of a kit that has a level of its own', () => {
     expect(kept.length).toBeGreaterThan(0)
     for (const sound of kept) {
       expect(sound.kit, sound.id).toBe(true)
