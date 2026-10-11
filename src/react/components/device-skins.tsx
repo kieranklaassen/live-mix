@@ -1920,6 +1920,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   stops: { ...PLATE_PALETTES.stops, finish: 'fade', cap: 'disc' },
   reveal: { ...PLATE_PALETTES.reveal, finish: 'gloss', cap: 'disc' },
   size: { ...PLATE_PALETTES.size, finish: 'grain', cap: 'skirt' },
+  haze: { ...PLATE_PALETTES.haze, finish: 'fade', cap: 'disc' },
 }
 
 /**

@@ -34,6 +34,7 @@ import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
 import { IMPRINT_FACES } from './imprint'
 import { GLIMMER_FACES } from './glimmer'
+import { HAZE_FACES } from './haze'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -133,4 +134,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...STOPS_FACES,
   ...REVEAL_FACES,
   ...SIZE_FACES,
+  ...HAZE_FACES,
 }
