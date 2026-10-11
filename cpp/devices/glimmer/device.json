@@ -2,7 +2,7 @@
   "id": "glimmer",
   "name": "Glimmer",
   "category": "modulation",
-  "description": "Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks that stand out pass untouched.",
+  "description": "Gives every band of the spectrum its own small tremolo. Through narrow bands a rich sound holds its level while its partials catch the light; a plain note, or anything through broad bands, swells and fades. Attacks that stand out pass untouched.",
   "class": "Glimmer",
   "header": "glimmer.h",
   "sources": [],
@@ -26,7 +26,7 @@
       "min": 0,
       "max": 1,
       "default": 0.65,
-      "description": "How far each band of the spectrum dips between its flashes. Low is a faint sheen; at full every band falls to silence and comes back."
+      "description": "How far each band dips between its flashes, which stand over the input by what the dips take. Low is a faint sheen; at full every band falls to silence and comes back."
     },
     {
       "key": "rate",
@@ -44,7 +44,7 @@
       "min": 0,
       "max": 1,
       "default": 0.7,
-      "description": "How narrow the flickering bands are. Low moves broad regions of the spectrum together; high lets single partials flicker on their own."
+      "description": "How narrow the flickering bands are. High lets single partials flicker, so a full chord holds its level; low moves broad regions together, so whole chords swell and fade."
     },
     {
       "key": "pattern",
@@ -58,7 +58,7 @@
       "name": "Lean",
       "min": -1,
       "max": 1,
-      "default": 0.3,
+      "default": 0.5,
       "description": "Which part of the spectrum flickers most. To the right the lows hold steady under glittering highs; to the left the highs hold steady."
     },
     {
@@ -181,10 +181,10 @@
       "apart": 0.6
     },
     "Wide twinkle": {
-      "depth": 0.8,
+      "depth": 0.6,
       "rate": 3,
       "grain": 0.75,
-      "lean": 0.1,
+      "lean": 0.7,
       "soft": 0.4,
       "vary": 0.6,
       "apart": 1
@@ -199,10 +199,10 @@
       "apart": 0
     },
     "Broad swells": {
-      "depth": 0.9,
+      "depth": 0.55,
       "rate": 0.25,
       "grain": 0,
-      "lean": 0,
+      "lean": 0.4,
       "soft": 1,
       "vary": 0.3,
       "apart": 0.5
@@ -211,6 +211,7 @@
       "depth": 0.8,
       "rate": 0.8,
       "grain": 0.6,
+      "lean": 0.3,
       "soft": 0.8,
       "mix": 0.5
     },

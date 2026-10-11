@@ -2752,8 +2752,8 @@
     "Frozen ground": {"ago":800,"keep":0,"strict":0.7,"ring":1,"broad":0.25,"memory":0.5,"floor":-12,"makeup":0.75,"mix":0.55}
   },
   "glimmer": {
-    "(default)": {"depth":0.65,"rate":1,"grain":0.7,"pattern":0,"lean":0.3,"soft":0.75,"vary":0.35,"apart":0.5,"mix":1},
-    "Light on water": {"depth":0.65,"rate":1,"grain":0.7,"pattern":0,"lean":0.3,"soft":0.75,"vary":0.35,"apart":0.5,"mix":1},
+    "(default)": {"depth":0.65,"rate":1,"grain":0.7,"pattern":0,"lean":0.5,"soft":0.75,"vary":0.35,"apart":0.5,"mix":1},
+    "Light on water": {"depth":0.65,"rate":1,"grain":0.7,"pattern":0,"lean":0.5,"soft":0.75,"vary":0.35,"apart":0.5,"mix":1},
     "Faint sheen": {"depth":0.35,"rate":5,"grain":0.9,"pattern":0,"lean":0.6,"soft":0.9,"vary":0.2,"apart":0.7,"mix":1},
     "Slow weather": {"depth":0.85,"rate":0.12,"grain":0.25,"pattern":0,"lean":0,"soft":1,"vary":0.5,"apart":0.6,"mix":1},
     "Rising ripple": {"depth":0.8,"rate":0.6,"grain":0.55,"pattern":1,"lean":0,"soft":0.8,"vary":0,"apart":0.2,"mix":1},
@@ -2763,9 +2763,9 @@
     "Glitter on top": {"depth":1,"rate":6,"grain":1,"pattern":0,"lean":1,"soft":0.3,"vary":0.5,"apart":1,"mix":1},
     "Stirring lows": {"depth":0.8,"rate":0.4,"grain":0.3,"pattern":0,"lean":-1,"soft":1,"vary":0.3,"apart":0.3,"mix":1},
     "Fast shimmer": {"depth":0.5,"rate":9,"grain":0.8,"pattern":0,"lean":0.2,"soft":1,"vary":0.2,"apart":0.6,"mix":1},
-    "Wide twinkle": {"depth":0.8,"rate":3,"grain":0.75,"pattern":0,"lean":0.1,"soft":0.4,"vary":0.6,"apart":1,"mix":1},
+    "Wide twinkle": {"depth":0.6,"rate":3,"grain":0.75,"pattern":0,"lean":0.7,"soft":0.4,"vary":0.6,"apart":1,"mix":1},
     "Moving as one": {"depth":0.7,"rate":1.5,"grain":0.5,"pattern":0,"lean":0,"soft":0.7,"vary":0.2,"apart":0,"mix":1},
-    "Broad swells": {"depth":0.9,"rate":0.25,"grain":0,"pattern":0,"lean":0,"soft":1,"vary":0.3,"apart":0.5,"mix":1},
+    "Broad swells": {"depth":0.55,"rate":0.25,"grain":0,"pattern":0,"lean":0.4,"soft":1,"vary":0.3,"apart":0.5,"mix":1},
     "Half shade": {"depth":0.8,"rate":0.8,"grain":0.6,"pattern":0,"lean":0.3,"soft":0.8,"vary":0.35,"apart":0.5,"mix":0.5},
     "Strobe rising": {"depth":0.9,"rate":8,"grain":0.6,"pattern":1,"lean":0,"soft":0.1,"vary":0,"apart":0.5,"mix":1},
     "Long tide": {"depth":0.9,"rate":0.05,"grain":0.2,"pattern":3,"lean":0,"soft":1,"vary":0,"apart":0.5,"mix":1}

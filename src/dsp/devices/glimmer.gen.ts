@@ -15,7 +15,7 @@ export const GLIMMER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far each band of the spectrum dips between its flashes. Low is a faint sheen; at full every band falls to silence and comes back.',
+      'How far each band dips between its flashes, which stand over the input by what the dips take. Low is a faint sheen; at full every band falls to silence and comes back.',
   },
   rate: {
     id: 1,
@@ -37,7 +37,7 @@ export const GLIMMER_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How narrow the flickering bands are. Low moves broad regions of the spectrum together; high lets single partials flicker on their own.',
+      'How narrow the flickering bands are. High lets single partials flicker, so a full chord holds its level; low moves broad regions together, so whole chords swell and fade.',
   },
   pattern: {
     id: 3,
@@ -56,7 +56,7 @@ export const GLIMMER_PARAMS = {
     name: 'Lean',
     min: -1,
     max: 1,
-    default: 0.3,
+    default: 0.5,
     taper: 'linear',
     unit: '',
     description:
@@ -128,7 +128,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
   name: 'Glimmer',
   category: 'modulation',
   description:
-    'Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks that stand out pass untouched.',
+    'Gives every band of the spectrum its own small tremolo. Through narrow bands a rich sound holds its level while its partials catch the light; a plain note, or anything through broad bands, swells and fades. Attacks that stand out pass untouched.',
   presets: {
     'Light on water': {},
     'Faint sheen': {
@@ -199,10 +199,18 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
       apart: 0.3,
     },
     'Fast shimmer': { depth: 0.5, rate: 9, grain: 0.8, lean: 0.2, soft: 1, vary: 0.2, apart: 0.6 },
-    'Wide twinkle': { depth: 0.8, rate: 3, grain: 0.75, lean: 0.1, soft: 0.4, vary: 0.6, apart: 1 },
+    'Wide twinkle': { depth: 0.6, rate: 3, grain: 0.75, lean: 0.7, soft: 0.4, vary: 0.6, apart: 1 },
     'Moving as one': { depth: 0.7, rate: 1.5, grain: 0.5, lean: 0, soft: 0.7, vary: 0.2, apart: 0 },
-    'Broad swells': { depth: 0.9, rate: 0.25, grain: 0, lean: 0, soft: 1, vary: 0.3, apart: 0.5 },
-    'Half shade': { depth: 0.8, rate: 0.8, grain: 0.6, soft: 0.8, mix: 0.5 },
+    'Broad swells': {
+      depth: 0.55,
+      rate: 0.25,
+      grain: 0,
+      lean: 0.4,
+      soft: 1,
+      vary: 0.3,
+      apart: 0.5,
+    },
+    'Half shade': { depth: 0.8, rate: 0.8, grain: 0.6, lean: 0.3, soft: 0.8, mix: 0.5 },
     'Strobe rising': {
       depth: 0.9,
       rate: 8,
@@ -228,7 +236,7 @@ export const GLIMMER_DESCRIPTOR = wasmDeviceDescriptor(GLIMMER_DEVICE, {
 
 export type Glimmer = WasmDevice<typeof GLIMMER_PARAMS>
 
-/** Gives every narrow band of the spectrum its own small tremolo, so the sound holds its level while its partials catch the light and let it go, and attacks that stand out pass untouched. */
+/** Gives every band of the spectrum its own small tremolo. Through narrow bands a rich sound holds its level while its partials catch the light; a plain note, or anything through broad bands, swells and fades. Attacks that stand out pass untouched. */
 export function createGlimmer(
   context: BaseAudioContext,
   options: WasmDeviceOptions<typeof GLIMMER_PARAMS> = {},
