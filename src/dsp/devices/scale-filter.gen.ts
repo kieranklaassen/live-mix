@@ -110,7 +110,7 @@ export const SCALE_FILTER_PARAMS = {
   },
   width: {
     id: 8,
-    name: 'Width',
+    name: 'Opening',
     min: 5,
     max: 200,
     default: 30,

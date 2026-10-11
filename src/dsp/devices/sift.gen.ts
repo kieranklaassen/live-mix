@@ -113,7 +113,7 @@ export const SIFT_PARAMS = {
     taper: 'linear',
     unit: 'ms',
     description:
-      'Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone.',
+      'Makes the attacks arrive after the tones they belong to. A little is a double strike, the sound and then its own attack; a lot is an echo of the strikes alone.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -145,7 +145,7 @@ export const SIFT_DESCRIPTOR = wasmDeviceDescriptor(SIFT_DEVICE, {
     'Only the strikes': { tones: -30, attacks: 6, air: -30, soften: 0, hold: 0, scatter: 0 },
     'Soft puffs': { tones: -30, attacks: 6, air: -30, soften: 1, hold: 0 },
     'Strikes forward': { tones: -4, attacks: 6, air: -12, soften: 0, hold: 0, scatter: 0.3 },
-    Flam: { tones: -2, attacks: 4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
+    'Strike just after': { tones: -2, attacks: 4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
     'Late echoes': { tones: -3, attacks: 6, soften: 0.25, late: 280, hold: 0.35 },
     'Pedal down': { attacks: 0, soften: 0, hold: 0.6, air: 0, scatter: 0.2 },
     'Long wash': {

@@ -1273,7 +1273,7 @@ static const Preset kPresets[] = {
     {"Only the strikes", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
     {"Soft puffs", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 1.0f, 0.0f, 0.6f, 1.0f}},
     {"Strikes forward", {-4.0f, 6.0f, -12.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.0f}},
-    {"Flam", {-2.0f, 4.0f, 3.0f, 0.5f, 1.0f, 0.0f, 0.0f, 45.0f, 0.8f, 1.0f}},
+    {"Strike just after", {-2.0f, 4.0f, 3.0f, 0.5f, 1.0f, 0.0f, 0.0f, 45.0f, 0.8f, 1.0f}},
     {"Late echoes", {-3.0f, 6.0f, 3.0f, 0.5f, 1.0f, 0.35f, 0.25f, 280.0f, 0.6f, 1.0f}},
     {"Pedal down", {0.0f, 0.0f, 0.0f, 0.5f, 1.0f, 0.6f, 0.0f, 0.0f, 0.2f, 1.0f}},
     {"Long wash", {-1.5f, -20.0f, 0.0f, 0.4f, 1.0f, 0.85f, 0.64f, 0.0f, 0.8f, 1.0f}},

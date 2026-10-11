@@ -20,7 +20,7 @@ export const SINE_SHADOW_PARAMS = {
   },
   transpose: {
     id: 1,
-    name: 'Transpose',
+    name: 'Pitch',
     min: -12,
     max: 24,
     default: 0,

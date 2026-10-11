@@ -149,7 +149,7 @@
     },
     {
       "key": "width",
-      "name": "Width",
+      "name": "Opening",
       "min": 5,
       "max": 200,
       "default": 30,

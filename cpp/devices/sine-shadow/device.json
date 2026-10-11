@@ -284,7 +284,7 @@
     },
     {
       "key": "transpose",
-      "name": "Transpose",
+      "name": "Pitch",
       "min": -12,
       "max": 24,
       "default": 0,

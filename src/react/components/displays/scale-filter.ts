@@ -111,7 +111,7 @@ export function scaleFilterDistance(pitchClass: number, now: ScaleFilterSettings
   return nearest
 }
 
-/** The opening at a distance in semitones: 3 dB down at half a Width, nothing past three (`bell_`). */
+/** The opening at a distance in semitones: 3 dB down at half an Opening, nothing past three (`bell_`). */
 export function scaleFilterBell(distance: number, width: number): number {
   const off = (Math.abs(distance) * 100) / width
   return off < BELL_SPAN ? Math.exp(-2 * Math.LN2 * off * off) : 0
@@ -255,13 +255,13 @@ function handlesOf(view: DisplayView): DisplayHandle[] {
     [name]: view.spec(name)?.default ?? view.value(name),
   })
 
-  // Width: the end of the root's reach, two Widths from the root, over the octave's top.
+  // Opening: the end of the root's reach, two Openings from the root, over the octave's top.
   const [widthMin, widthMax] = rangeOf(view, 'width', 5, 200)
   const root = rootOf(now)
   const rootX = scaleFilterX(root.at, comb)
   const width: DisplayHandle = {
     key: 'width',
-    name: 'Width',
+    name: 'Opening',
     x: clamp(
       rootX + (root.side * semitone * SCALE_FILTER_REACH * now.width) / 100,
       comb.x,
@@ -407,7 +407,7 @@ function drawComb(
       across(comb, now, (pitchClass) => scaleFilterGain(pitchClass, now)),
       { colour: colours.ink, width: 1, alpha: INK.back, dash: [2, 2] },
     )
-  // The root, and how far its opening reaches before it is 48 dB down: two Widths either side.
+  // The root, and how far its opening reaches before it is 48 dB down: two Openings either side.
   const rootX = scaleFilterX(rootOf(now).at, comb)
   const reach = (((SCALE_FILTER_REACH * now.width) / 100) * comb.w) / 12
   rule(
@@ -491,7 +491,7 @@ const display = plateDisplay<ScaleFilterState>({
   columns: 2,
   params: ['root', 'scale', 'chord', 'width', 'depth', 'low', 'high', 'tune', 'mix'],
   live: { meters: true, spectrum: true },
-  info: 'One octave from C to B: an opening at each note let through, as wide as Width and as deep between as Depth, with bars for each note going in and coming out. The keys under it are lit where a note passes. At the foot, Low and High over the spectrum.',
+  info: 'One octave from C to B: an opening at each note let through, as wide as Opening and as deep between as Depth, with bars for each note going in and coming out. The keys under it are lit where a note passes. At the foot, Low and High over the spectrum.',
   init: () => ({ level: 0, heard: false }),
   draw(frame) {
     ground(frame)

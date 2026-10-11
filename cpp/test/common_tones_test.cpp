@@ -110,7 +110,7 @@ static const Setting kPresets[] = {
     {"Light touch", {250.0f, 0.0f, 0.5f, 0.2f, 0.25f, 0.3f, -10.0f, 0.75f, 0.6f}},
     {"New notes up", {500.0f, 1.0f, 0.6f, 0.1f, 0.25f, 0.2f, -9.0f, 0.75f, 1.0f}},
     {"Fresh only", {1000.0f, 1.0f, 0.6f, 0.2f, 0.25f, 0.7f, -36.0f, 0.75f, 0.8f}},
-    {"A bar ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -36.0f, 0.75f, 0.5f}},
+    {"Two seconds ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -36.0f, 0.75f, 0.5f}},
     {"Wide vibrato", {180.0f, 0.0f, 0.9f, 0.3f, 0.75f, 0.1f, -36.0f, 0.75f, 1.0f}},
     {"Frozen ground", {800.0f, 0.0f, 0.7f, 1.0f, 0.25f, 0.5f, -12.0f, 0.75f, 0.55f}},
 };
@@ -827,7 +827,7 @@ int main() {
     Stereo bare = run_moving(device, looped, follow);
     bool none = true;
     for (float v : lift) none = none && v == 0.0f;
-    EXPECT(none, "Make up at nothing: no gain at all");
+    EXPECT(none, "Make Up at nothing: no gain at all");
     const double bare_db = db(rms(bare.left, from, to) / dry_level);
 
     lift.clear();
@@ -848,14 +848,14 @@ int main() {
     EXPECT(rise < 1.02f, "the gain never rises faster than a decibel a second");
     EXPECT(std::max(peak(made.left), peak(made.right)) < dry_peak * 1.06, "what is made up never peaks over the dry sound's own peaks");
 
-    // The more Make up, the more level, over the whole of its travel.
+    // The more Make Up, the more level, over the whole of its travel.
     double last = bare_db;
     for (float amount : {0.25f, 0.5f, 0.75f, 1.0f}) {
       device.init(kRate);
       device.set_param(p::kMakeup, amount);
       Stereo out = run(device, looped);
       const double level = db(rms(out.left, from, to) / dry_level);
-      EXPECT(level > last + 0.2, "Make up: every part of its travel is heard");
+      EXPECT(level > last + 0.2, "Make Up: every part of its travel is heard");
       last = level;
     }
 

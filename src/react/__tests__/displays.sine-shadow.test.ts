@@ -130,7 +130,7 @@ describe('Sine Shadow: the device’s own numbers', () => {
     expect(shadowWet(1 / 3)).toBeCloseTo(0.5, 9)
   })
 
-  it('works its example as track() and aim() do: the strongest partials as Tone weighs them, moved by Transpose', () => {
+  it('works its example as track() and aim() do: the strongest partials as Tone weighs them, moved by Pitch', () => {
     const plain = shadowExample(3, 0, 0.5)
     expect(plain.map((line) => line.hz)).toEqual([110, 220, 330])
     expect(plain.map((line) => line.level)).toEqual([0.25, 0.125, 0.25 / 3])
@@ -299,7 +299,7 @@ describe('Sine Shadow: the picture', () => {
       expect(line.top).toBeCloseTo(yOf(example[n].level * Math.SQRT1_2), 4)
       expect(line.colour).toBe(INK)
     })
-    // Partials is the number of lines; Transpose moves every one by its semitones along the scale.
+    // Partials is the number of lines; Pitch moves every one by its semitones along the scale.
     expect(at({ partials: 1 })).toHaveLength(1)
     expect(at({ partials: 24 })).toHaveLength(24)
     const octave = BOX.w / Math.log2(1000)
@@ -397,7 +397,7 @@ describe('Sine Shadow: the handles', () => {
     expect(handle.reset?.()).toEqual({ partials: 8 })
   })
 
-  it('stands the Transpose handle on a ruler of the control’s whole range, a semitone a step', () => {
+  it('stands the Pitch handle on a ruler of the control’s whole range, a semitone a step', () => {
     const xOfSemitones = (semitones: number, width = 128): number =>
       8 + ((semitones + 12) / 36) * (width - 16)
     for (const transpose of [-12, -5, 0, 7, 12, 24]) {

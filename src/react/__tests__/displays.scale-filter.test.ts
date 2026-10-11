@@ -175,7 +175,7 @@ function worst(
   let most = 0
   for (const [x, y] of stroke.points) {
     // The pitch is read back from the x, and falls a hair to either side of the one that was drawn:
-    // where a point stands just on the bell's cut-off (three Widths out, a step of 4e-6 in the gain)
+    // where a point stands just on the bell's cut-off (three Openings out, a step of 4e-6 in the gain)
     // either side of it is right.
     const pitch = pitchAt(x, layout)
     const apart = [pitch - 1e-7, pitch, pitch + 1e-7].map((at) =>
@@ -305,7 +305,7 @@ describe('the scale filter display: the mask', () => {
       }
   })
 
-  it('stands at the top on a note let through, 3 dB down at half a Width, and Depth down between', () => {
+  it('stands at the top on a note let through, 3 dB down at half an Opening, and Depth down between', () => {
     const layout = layoutOf(SIZES[0])
     const { comb } = layout
     const now: Settings = { ...DEFAULTS, root: 9, chord: 3, width: 40, depth: 36 }
@@ -364,7 +364,7 @@ describe('the scale filter display: the mask', () => {
         [at, comb.y],
       ])
       expect(reach, 'the reach of the root is drawn').toBeDefined()
-      // Two Widths either side: 90 cents.
+      // Two Openings either side: 90 cents.
       expect(reach?.points[0][0]).toBeCloseTo(at - 0.9 * semitone, 9)
       expect(reach?.points[1][0]).toBeCloseTo(at + 0.9 * semitone, 9)
       // On B at the widest it runs to the octave's edge and no further.
@@ -523,7 +523,7 @@ describe('the scale filter display: the handles', () => {
     }
   })
 
-  it('width: stands two Widths from the root over the top, on the side with room for the widest', () => {
+  it('width: stands two Openings from the root over the top, on the side with room for the widest', () => {
     for (const size of SIZES) {
       const layout = layoutOf(size)
       const semitone = layout.comb.w / 12
@@ -537,7 +537,7 @@ describe('the scale filter display: the handles', () => {
       expect(other.drag(acrossOf(2, layout) - 1.2 * semitone, 50).width).toBeCloseTo(60, 6)
       expect(other.drag(acrossOf(2, layout), 0).width).toBe(params.width.min)
       expect(other.drag(size[0] + 300, 0).width).toBe(params.width.max)
-      // The side does not change as Width does, so a drag never throws the handle across the root.
+      // The side does not change as Opening does, so a drag never throws the handle across the root.
       for (let root = 0; root < 12; root++)
         for (const tune of [-50, 0, 50]) {
           const sides = [5, 30, 200].map(

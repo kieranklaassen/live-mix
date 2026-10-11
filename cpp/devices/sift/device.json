@@ -107,7 +107,7 @@
       "max": 300,
       "default": 0,
       "unit": "ms",
-      "description": "Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone."
+      "description": "Makes the attacks arrive after the tones they belong to. A little is a double strike, the sound and then its own attack; a lot is an echo of the strikes alone."
     }
   ],
   "presets": {
@@ -143,7 +143,7 @@
       "hold": 0,
       "scatter": 0.3
     },
-    "Flam": {
+    "Strike just after": {
       "tones": -2,
       "attacks": 4,
       "soften": 0,
