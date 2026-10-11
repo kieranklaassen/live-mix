@@ -48,6 +48,8 @@ build_generated_devices() {
     cpp/devices/chorus/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device clarinet \
     cpp/devices/clarinet/device_api.gen.cpp
+  MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device common-tones \
+    cpp/devices/common-tones/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device constellation \
     cpp/devices/constellation/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device currents \
@@ -88,6 +90,8 @@ build_generated_devices() {
     cpp/devices/freq-shifter/device_api.gen.cpp
   MEMORY_BYTES=33554432 EXTRA_EXPORTS=",_device_meter" build_device generations \
     cpp/devices/generations/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glimmer \
+    cpp/devices/glimmer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device glints \
     cpp/devices/glints/device_api.gen.cpp
   MEMORY_BYTES=10485760 EXTRA_EXPORTS=",_device_meter" build_device glitch \
@@ -114,6 +118,8 @@ build_generated_devices() {
     cpp/devices/horns/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ice \
     cpp/devices/ice/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device imprint \
+    cpp/devices/imprint/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device ladder-bass \
     cpp/devices/ladder-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device late-vibrato \
@@ -160,12 +166,16 @@ build_generated_devices() {
     cpp/devices/pitch-shifter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device prepared-piano \
     cpp/devices/prepared-piano/device_api.gen.cpp
+  MEMORY_BYTES=16777216 EXTRA_EXPORTS=",_device_meter" build_device prism \
+    cpp/devices/prism/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device pulses \
     cpp/devices/pulses/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device radio \
     cpp/devices/radio/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device re-amp \
     cpp/devices/re-amp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device reveal \
+    cpp/devices/reveal/device_api.gen.cpp
   MEMORY_BYTES=20971520 EXTRA_EXPORTS=",_device_meter" build_device reverse-delay \
     cpp/devices/reverse-delay/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device rewind \
@@ -178,6 +188,8 @@ build_generated_devices() {
     cpp/devices/sampler/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device saturator \
     cpp/devices/saturator/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device scale-filter \
+    cpp/devices/scale-filter/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device seasons \
     cpp/devices/seasons/device_api.gen.cpp
   MEMORY_BYTES=6291456 EXTRA_EXPORTS="" build_device shaped-reverb \
@@ -186,6 +198,12 @@ build_generated_devices() {
     cpp/devices/shimmer/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device shortwave \
     cpp/devices/shortwave/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sift \
+    cpp/devices/sift/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device sine-shadow \
+    cpp/devices/sine-shadow/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device size \
+    cpp/devices/size/device_api.gen.cpp
   MEMORY_BYTES=12582912 EXTRA_EXPORTS=",_device_meter" build_device skipping-stone \
     cpp/devices/skipping-stone/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device spectral-blur \
@@ -196,6 +214,10 @@ build_generated_devices() {
     cpp/devices/staircase/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stops \
+    cpp/devices/stops/device_api.gen.cpp
+  MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device stretch \
+    cpp/devices/stretch/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-bass \
     cpp/devices/string-bass/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device string-machine \
@@ -238,6 +260,8 @@ build_generated_devices() {
     cpp/devices/vinyl/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vowel-reverb \
     cpp/devices/vowel-reverb/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device warp \
+    cpp/devices/warp/device_api.gen.cpp
   MEMORY_BYTES=5242880 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wavetable \
     cpp/devices/wavetable/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device weather \
@@ -297,6 +321,8 @@ test_generated_devices() {
     cpp/test/chorus_test.cpp
   native_test clarinet_test \
     cpp/test/clarinet_test.cpp
+  native_test common_tones_test \
+    cpp/test/common_tones_test.cpp
   native_test constellation_test \
     cpp/test/constellation_test.cpp
   native_test currents_test \
@@ -337,6 +363,8 @@ test_generated_devices() {
     cpp/test/freq_shifter_test.cpp
   native_test generations_test \
     cpp/test/generations_test.cpp
+  native_test glimmer_test \
+    cpp/test/glimmer_test.cpp
   native_test glints_test \
     cpp/test/glints_test.cpp
   native_test glitch_test \
@@ -363,6 +391,8 @@ test_generated_devices() {
     cpp/test/horns_test.cpp
   native_test ice_test \
     cpp/test/ice_test.cpp
+  native_test imprint_test \
+    cpp/test/imprint_test.cpp
   native_test ladder_bass_test \
     cpp/test/ladder_bass_test.cpp
   native_test late_vibrato_test \
@@ -409,12 +439,16 @@ test_generated_devices() {
     cpp/test/pitch_shifter_test.cpp
   native_test prepared_piano_test \
     cpp/test/prepared_piano_test.cpp
+  native_test prism_test \
+    cpp/test/prism_test.cpp
   native_test pulses_test \
     cpp/test/pulses_test.cpp
   native_test radio_test \
     cpp/test/radio_test.cpp
   native_test re_amp_test \
     cpp/test/re_amp_test.cpp
+  native_test reveal_test \
+    cpp/test/reveal_test.cpp
   native_test reverse_delay_test \
     cpp/test/reverse_delay_test.cpp
   native_test rewind_test \
@@ -427,6 +461,8 @@ test_generated_devices() {
     cpp/test/sampler_test.cpp
   native_test saturator_test \
     cpp/test/saturator_test.cpp
+  native_test scale_filter_test \
+    cpp/test/scale_filter_test.cpp
   native_test seasons_test \
     cpp/test/seasons_test.cpp
   native_test shaped_reverb_test \
@@ -435,6 +471,12 @@ test_generated_devices() {
     cpp/test/shimmer_test.cpp
   native_test shortwave_test \
     cpp/test/shortwave_test.cpp
+  native_test sift_test \
+    cpp/test/sift_test.cpp
+  native_test sine_shadow_test \
+    cpp/test/sine_shadow_test.cpp
+  native_test size_test \
+    cpp/test/size_test.cpp
   native_test skipping_stone_test \
     cpp/test/skipping_stone_test.cpp
   native_test spectral_blur_test \
@@ -445,6 +487,10 @@ test_generated_devices() {
     cpp/test/staircase_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
+  native_test stops_test \
+    cpp/test/stops_test.cpp
+  native_test stretch_test \
+    cpp/test/stretch_test.cpp
   native_test string_bass_test \
     cpp/test/string_bass_test.cpp
   native_test string_machine_test \
@@ -487,6 +533,8 @@ test_generated_devices() {
     cpp/test/vinyl_test.cpp
   native_test vowel_reverb_test \
     cpp/test/vowel_reverb_test.cpp
+  native_test warp_test \
+    cpp/test/warp_test.cpp
   native_test wavetable_test \
     cpp/test/wavetable_test.cpp
   native_test weather_test \

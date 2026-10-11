@@ -63,11 +63,13 @@ export function factoryTranspose(key: FactoryKey): number {
 
 /**
  * How a parameter names a pitch: a pitch class (0 to 11); a note, which goes
- * the octave that keeps it in the parameter's range; or a pitch class whose
- * octave is a parameter of its own (`octave` names it), the two together one
- * note: past B or under C the octave goes with it, as far as its range lets it.
+ * the octave that keeps it in the parameter's range; a pitch in hertz, which
+ * goes by the ratio of the semitones and likewise the octave that keeps it in
+ * range; or a pitch class whose octave is a parameter of its own (`octave`
+ * names it), the two together one note: past B or under C the octave goes
+ * with it, as far as its range lets it.
  */
-type PitchedParam = 'class' | 'note' | { readonly octave: string }
+type PitchedParam = 'class' | 'note' | 'hertz' | { readonly octave: string }
 
 /** The parameters that name a pitch, and so move with the key. */
 const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedParam>>>> = {
@@ -82,6 +84,12 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // or the carrier an octave against the playing, and the bell would be another bell.
   'overtone-singer': { root: { octave: 'octave' } },
   ring: { root: { octave: 'octave' } },
+  // The note its scale and chord are counted from: every note it lets through moves with it.
+  'scale-filter': { root: 'class' },
+  // The pitch that stands still while Follow is off, in hertz: every partial is spread away
+  // from it, so a phrase and its pivot moved alike come out as the same sound, moved. With
+  // Follow on each note is its own pivot and the knob is not read.
+  warp: { pivot: 'hertz' },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
@@ -109,6 +117,19 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
       params[kind.octave] = Math.min(octaves.max, Math.max(octaves.min, octave))
       continue
     }
+    if (kind === 'hertz') {
+      let hertz = current[name] * 2 ** (semitones / 12)
+      // Past the end of the control: an octave back, as a note is taken. A move too far to
+      // be a number has no octave to come back by, and stops at the end of the control.
+      if (Number.isFinite(hertz) && hertz > 0) {
+        while (hertz > spec.max) hertz /= 2
+        while (hertz < spec.min) hertz *= 2
+      }
+      // To the hundredth of a hertz: half a cent at twenty hertz, a twentieth of one at two hundred.
+      hertz = Math.round(hertz * 100) / 100
+      params[name] = Math.min(spec.max, Math.max(spec.min, hertz))
+      continue
+    }
     let moved = current[name] + semitones
     while (moved > spec.max) moved -= 12
     while (moved < spec.min) moved += 12
@@ -117,12 +138,15 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
   return { ...device, params }
 }
 
-/** A patch with every device that is set to a pitch moved by `semitones`. */
+/**
+ * A patch with every device that is set to a pitch moved by `semitones`. A move
+ * that is not a number moves nothing.
+ */
 export function transposePatch<T extends Pick<Patch, 'instrument' | 'effects'>>(
   patch: T,
   semitones: number,
 ): T {
-  if (semitones === 0) return patch
+  if (semitones === 0 || !Number.isFinite(semitones)) return patch
   return {
     ...patch,
     ...(patch.instrument ? { instrument: transposeDevice(patch.instrument, semitones) } : {}),

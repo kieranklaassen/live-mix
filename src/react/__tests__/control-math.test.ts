@@ -368,10 +368,13 @@ describe('the stock devices', () => {
       'overtone-singer.high',
       'overtone-singer.low',
       'overtone-singer.octave',
+      'prism.bands',
+      'prism.shuffle',
       'pulses.fill',
       'pulses.shift',
       'pulses.steps',
       'ring.octave',
+      'sine-shadow.partials',
       'skipping-stone.skips',
       'wind-harp.strings',
     ])

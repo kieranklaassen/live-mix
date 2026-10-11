@@ -152,6 +152,18 @@ export const PLATE_PALETTES = {
   weather: { plate: '#002415', ink: '#e2f7e8', accent: '#ffe45c' },
   'late-vibrato': { plate: '#84068d', ink: '#fdeeff', accent: '#ffae57' },
   seasons: { plate: '#a2e77e', ink: '#10260a', accent: '#9a1030' },
+  stretch: { plate: '#2a2400', ink: '#f3f0dc', accent: '#8fd4ff' },
+  prism: { plate: '#f3f33f', ink: '#1c1803', accent: '#5a1ca8' },
+  'scale-filter': { plate: '#57d869', ink: '#06230c', accent: '#860a86' },
+  sift: { plate: '#aea81e', ink: '#12140a', accent: '#6a1006' },
+  imprint: { plate: '#5a3a8c', ink: '#f6f1e4', accent: '#ffa6c9' },
+  'common-tones': { plate: '#396000', ink: '#fcfeed', accent: '#d8f07a' },
+  glimmer: { plate: '#3cc9f9', ink: '#051c2b', accent: '#8a0c40' },
+  'sine-shadow': { plate: '#0c2da2', ink: '#e9ecff', accent: '#ffc24a' },
+  warp: { plate: '#f6729c', ink: '#1c0410', accent: '#161670' },
+  stops: { plate: '#8a0cb1', ink: '#fff6fc', accent: '#9ff0d0' },
+  reveal: { plate: '#33061e', ink: '#fdeef6', accent: '#ff8a70' },
+  size: { plate: '#f3b7a5', ink: '#2b1410', accent: '#0f4a50' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

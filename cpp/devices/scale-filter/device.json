@@ -1,0 +1,306 @@
+{
+  "id": "scale-filter",
+  "name": "Scale Filter",
+  "category": "eq",
+  "description": "A filter that lets through only the notes of a key and scale, in every octave, so noise, a field recording or a drum loop comes out as a chord.",
+  "class": "ScaleFilter",
+  "header": "scale_filter.h",
+  "sources": [],
+  "latencySamples": 9216,
+  "meters": [
+    {
+      "key": "note1",
+      "name": "C in and out",
+      "display": true
+    },
+    {
+      "key": "note2",
+      "name": "C# in and out",
+      "display": true
+    },
+    {
+      "key": "note3",
+      "name": "D in and out",
+      "display": true
+    },
+    {
+      "key": "note4",
+      "name": "D# in and out",
+      "display": true
+    },
+    {
+      "key": "note5",
+      "name": "E in and out",
+      "display": true
+    },
+    {
+      "key": "note6",
+      "name": "F in and out",
+      "display": true
+    },
+    {
+      "key": "note7",
+      "name": "F# in and out",
+      "display": true
+    },
+    {
+      "key": "note8",
+      "name": "G in and out",
+      "display": true
+    },
+    {
+      "key": "note9",
+      "name": "G# in and out",
+      "display": true
+    },
+    {
+      "key": "note10",
+      "name": "A in and out",
+      "display": true
+    },
+    {
+      "key": "note11",
+      "name": "A# in and out",
+      "display": true
+    },
+    {
+      "key": "note12",
+      "name": "B in and out",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "root",
+      "name": "Root",
+      "choices": ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"],
+      "default": 0,
+      "description": "The key note the scale is built on. With Scale and Chord it decides which notes are let through."
+    },
+    {
+      "key": "scale",
+      "name": "Scale",
+      "choices": [
+        "Major",
+        "Natural Minor",
+        "Harmonic Minor",
+        "Dorian",
+        "Phrygian",
+        "Lydian",
+        "Mixolydian",
+        "Major Pentatonic",
+        "Minor Pentatonic",
+        "Whole Tone",
+        "Chromatic"
+      ],
+      "default": 0,
+      "description": "The set of notes that pass, counted from Root. Chromatic lets every note of the keyboard through and takes out only what lies between them."
+    },
+    {
+      "key": "chord",
+      "name": "Chord",
+      "choices": ["Whole scale", "Triad", "Fifths", "Root only"],
+      "default": 0,
+      "description": "Thins the scale to a chord. Triad keeps its root, third and fifth, Fifths the root and fifth, and Root only one note in every octave."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.05,
+      "max": 12,
+      "default": 0.4,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long each note goes on sounding after what fed it has stopped. At the bottom the notes stop with the source."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 48,
+      "default": 30,
+      "unit": "dB",
+      "description": "How far everything between the notes is turned down. Low only leans towards the key; high leaves nothing but the notes. Zero is the sound as it came."
+    },
+    {
+      "key": "tune",
+      "name": "Tune",
+      "min": -50,
+      "max": 50,
+      "default": 0,
+      "unit": "ct",
+      "description": "Moves every note sharp or flat together, to meet a recording that is not at concert pitch. Turned slowly on noise it slides the whole chord."
+    },
+    {
+      "key": "glow",
+      "name": "Glow",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Lifts the notes to make up for what the filter took away. It never brings them above the level of the sound that came in."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Balance between the sound as it came and the filtered notes."
+    },
+    {
+      "key": "width",
+      "name": "Opening",
+      "min": 5,
+      "max": 200,
+      "default": 30,
+      "taper": "log",
+      "unit": "ct",
+      "description": "How wide the opening at each note is. Narrow turns anything into pure held tones; wide brings the source back with only the wrong notes dimmed."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 20,
+      "max": 2000,
+      "default": 40,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The lowest note that is let through. Everything under it is turned down by Depth, so raise it to keep the chord out of the bass."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 200,
+      "max": 20000,
+      "default": 12000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The highest note that is let through. Everything over it is turned down by Depth, so lower it for a darker chord."
+    }
+  ],
+  "presets": {
+    "In a major key": {},
+    "Minor triad": {
+      "root": 9,
+      "scale": 1,
+      "chord": 1,
+      "width": 24,
+      "ring": 1.2,
+      "depth": 36
+    },
+    "Open fifths": {
+      "root": 9,
+      "chord": 2,
+      "width": 18,
+      "ring": 2.2,
+      "depth": 40,
+      "glow": 0.7
+    },
+    "One note drone": {
+      "root": 9,
+      "chord": 3,
+      "width": 14,
+      "ring": 5,
+      "depth": 42,
+      "glow": 1
+    },
+    "Lean to the key": {
+      "width": 70,
+      "ring": 0.05,
+      "depth": 9,
+      "glow": 0
+    },
+    "Wide and gentle": {
+      "root": 4,
+      "scale": 8,
+      "width": 120,
+      "ring": 0.2,
+      "depth": 18,
+      "glow": 0.3
+    },
+    "Hairline chord": {
+      "root": 5,
+      "chord": 1,
+      "width": 6,
+      "ring": 0.8,
+      "depth": 48,
+      "glow": 1
+    },
+    "Long glass": {
+      "scale": 7,
+      "width": 12,
+      "ring": 9,
+      "depth": 40,
+      "glow": 0.8
+    },
+    "High bells": {
+      "scale": 7,
+      "width": 16,
+      "ring": 3,
+      "depth": 42,
+      "low": 300,
+      "glow": 0.8
+    },
+    "Low chord only": {
+      "root": 9,
+      "scale": 1,
+      "width": 40,
+      "ring": 0.6,
+      "depth": 36,
+      "high": 420
+    },
+    "Half and half": {
+      "root": 9,
+      "scale": 8,
+      "width": 20,
+      "ring": 2.5,
+      "depth": 44,
+      "glow": 0.6,
+      "mix": 0.5
+    },
+    "Whole tone haze": {
+      "scale": 9,
+      "width": 45,
+      "ring": 4,
+      "depth": 30,
+      "glow": 0.6
+    },
+    "Between the keys": {
+      "scale": 10,
+      "width": 10,
+      "ring": 0.3,
+      "depth": 9,
+      "tune": 50,
+      "glow": 1
+    },
+    "Dark triad": {
+      "root": 2,
+      "scale": 1,
+      "chord": 1,
+      "width": 30,
+      "ring": 1.5,
+      "depth": 40,
+      "high": 1500,
+      "glow": 0.7
+    },
+    "Twelve tones": {
+      "scale": 10,
+      "width": 10,
+      "ring": 0.6,
+      "depth": 40
+    },
+    "Slow harmonic minor": {
+      "root": 9,
+      "scale": 2,
+      "width": 10,
+      "ring": 12,
+      "depth": 44,
+      "glow": 0.9,
+      "mix": 0.8
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on kit::Stft<8192, 2048>: a mask of bells at the notes of a scale, a partial's measured frequency deciding its gain, and a hold per bin for the ring."
+  }
+}

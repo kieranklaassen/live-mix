@@ -1,0 +1,330 @@
+{
+  "id": "stops",
+  "name": "Stops",
+  "category": "pitch",
+  "description": "Organ stops for any sound: copies of what is playing an octave below, a fifth, an octave, a twelfth and two octaves above, each on its own drawbar, speaking a little after the note as pipes do.",
+  "class": "Stops",
+  "header": "stops.h",
+  "sources": [],
+  "latencySamples": 4608,
+  "meters": [
+    {
+      "key": "subLevel",
+      "name": "Sub sounding",
+      "display": true
+    },
+    {
+      "key": "unisonLevel",
+      "name": "Unison sounding",
+      "display": true
+    },
+    {
+      "key": "fifthLevel",
+      "name": "Fifth sounding",
+      "display": true
+    },
+    {
+      "key": "octaveLevel",
+      "name": "Octave sounding",
+      "display": true
+    },
+    {
+      "key": "twelfthLevel",
+      "name": "Twelfth sounding",
+      "display": true
+    },
+    {
+      "key": "fifteenthLevel",
+      "name": "Fifteenth sounding",
+      "display": true
+    },
+    {
+      "key": "note",
+      "name": "Loudest partial",
+      "unit": "Hz",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "speak",
+      "name": "Speak",
+      "min": 40,
+      "max": 3000,
+      "default": 120,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long the ranks take to come up to level after a note starts, as a pipe takes time to speak. Short follows the playing, long lets them bloom behind it."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Voices the ranks as a whole. Low settings round off their upper partials like stopped wooden pipes, high settings make them bright and stringy."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "The shutters of the box the ranks stand in. Closing them makes all the ranks softer and duller at once and leaves the sound itself alone."
+    },
+    {
+      "key": "chiff",
+      "name": "Chiff",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A short breath of noise at the pitch of each rank when a note starts, the sound of wind reaching a pipe before it settles."
+    },
+    {
+      "key": "detune",
+      "name": "Detune",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Puts each rank a little out of tune, each its own way, so the ranks beat slowly against the sound and against each other as real pipes do."
+    },
+    {
+      "key": "sub",
+      "name": "Sub",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "The drawbar for the rank an octave below what is playing, the sixteen foot. It puts a soft pedal note under every note."
+    },
+    {
+      "key": "unison",
+      "name": "Unison",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "The sound itself among the stops, the eight foot. Pushed in, only the added ranks are left when Mix is full."
+    },
+    {
+      "key": "fifth",
+      "name": "Fifth",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "The drawbar for the rank a pure fifth above what is playing. It thickens single lines into open, hollow chords."
+    },
+    {
+      "key": "octave",
+      "name": "Octave",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "The drawbar for the rank an octave above what is playing, the four foot. It is the first stop an organ adds for clarity."
+    },
+    {
+      "key": "twelfth",
+      "name": "Twelfth",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "The drawbar for the rank an octave and a fifth above. It sits on the third harmonic, so it colours a note more than it adds one."
+    },
+    {
+      "key": "fifteenth",
+      "name": "Fifteenth",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "The drawbar for the rank two octaves above, the two foot. It adds a thin silver edge on top."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "How much of the organ is heard. At nothing the output is the input. Turning up brings in the ranks, and lets Unison take the sound itself away."
+    }
+  ],
+  "presets": {
+    "Principal chorus": {
+      "speak": 120,
+      "tone": 0.4,
+      "swell": 1,
+      "chiff": 0.25,
+      "detune": 0.2,
+      "sub": 0.55,
+      "unison": 0.8,
+      "fifth": 0,
+      "octave": 0.7,
+      "twelfth": 0.3,
+      "fifteenth": 0.2,
+      "mix": 0.8
+    },
+    "Pedal under": {
+      "speak": 200,
+      "tone": 0.25,
+      "chiff": 0.1,
+      "sub": 0.85,
+      "fifth": 0,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.75
+    },
+    "Octave above": {
+      "speak": 60,
+      "tone": 0.45,
+      "chiff": 0.15,
+      "detune": 0.15,
+      "sub": 0,
+      "fifth": 0,
+      "octave": 0.8,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.6
+    },
+    "Open fifths": {
+      "speak": 150,
+      "tone": 0.35,
+      "sub": 0.3,
+      "fifth": 0.75,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.6
+    },
+    "Full organ": {
+      "speak": 60,
+      "tone": 0.55,
+      "chiff": 0.3,
+      "sub": 0.8,
+      "fifth": 0.35,
+      "octave": 0.9,
+      "twelfth": 0.6,
+      "fifteenth": 0.6,
+      "mix": 0.6,
+      "unison": 0.4
+    },
+    "Flute stops": {
+      "speak": 90,
+      "tone": 0.1,
+      "chiff": 0.7,
+      "detune": 0.1,
+      "sub": 0.3,
+      "octave": 0.65,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.7
+    },
+    "Slow bloom": {
+      "speak": 1800,
+      "tone": 0.35,
+      "chiff": 0,
+      "sub": 0.4,
+      "octave": 0.8,
+      "twelfth": 0.5,
+      "fifteenth": 0.4,
+      "mix": 0.8,
+      "unison": 1
+    },
+    "Only the pipes": {
+      "speak": 80,
+      "sub": 0.6,
+      "unison": 0,
+      "octave": 0.8,
+      "twelfth": 0.4,
+      "fifteenth": 0.3,
+      "mix": 1
+    },
+    "Glass on top": {
+      "speak": 300,
+      "tone": 0.8,
+      "chiff": 0,
+      "detune": 0.35,
+      "sub": 0,
+      "octave": 0,
+      "twelfth": 0.5,
+      "fifteenth": 0.9,
+      "mix": 0.55
+    },
+    "Nearly dry": {
+      "speak": 250,
+      "sub": 0,
+      "octave": 0.5,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.3,
+      "unison": 1
+    },
+    "Old pipes": {
+      "speak": 100,
+      "chiff": 0.5,
+      "detune": 1,
+      "sub": 0.4,
+      "octave": 0.8,
+      "twelfth": 0.5,
+      "fifteenth": 0,
+      "mix": 0.7,
+      "unison": 0.75
+    },
+    "Breath first": {
+      "speak": 900,
+      "tone": 0.3,
+      "chiff": 1,
+      "sub": 0.5,
+      "octave": 0.7,
+      "twelfth": 0,
+      "fifteenth": 0,
+      "mix": 0.8
+    },
+    "Shutters closed": {
+      "speak": 200,
+      "swell": 0.3,
+      "sub": 0.8,
+      "fifth": 0.3,
+      "octave": 0.9,
+      "twelfth": 0.7,
+      "fifteenth": 0.6,
+      "mix": 1,
+      "unison": 1
+    },
+    "Sub and silver": {
+      "speak": 150,
+      "tone": 0.6,
+      "sub": 0.9,
+      "octave": 0,
+      "twelfth": 0,
+      "fifteenth": 0.7,
+      "mix": 0.7,
+      "unison": 0.7
+    },
+    "Hollow fifths": {
+      "speak": 400,
+      "detune": 0.4,
+      "sub": 0,
+      "unison": 0.5,
+      "fifth": 0.9,
+      "octave": 0,
+      "twelfth": 0.8,
+      "fifteenth": 0,
+      "mix": 0.75
+    },
+    "Drone to organ": {
+      "speak": 3000,
+      "tone": 0.3,
+      "chiff": 0,
+      "detune": 0.7,
+      "sub": 0.8,
+      "unison": 0.75,
+      "fifth": 0.5,
+      "octave": 0.7,
+      "twelfth": 0.5,
+      "fifteenth": 0.3,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Spectral rank adder on kit::Stft<4096, 1024>: each spectral peak is measured (true frequency from its phase advance) and sounded again as a Hann lobe at each drawn rank's multiple."
+  }
+}

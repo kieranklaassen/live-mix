@@ -534,4 +534,26 @@ export const TAPE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'generations', preset: 'Worn copies' },
     ],
   },
+  {
+    id: 'down-a-long-pipe',
+    name: 'Down a long pipe',
+    category: 'tape',
+    description:
+      'A twentieth of a second late, the sound takes the hollow colour of a wide tube and is heard through the wall from next door; try Shift.',
+    effects: [
+      { deviceId: 'imprint', preset: 'Hollow tube', params: { shift: -5 } },
+      { deviceId: 'distance', preset: 'Next door' },
+    ],
+  },
+  {
+    id: 'dust-rings-in-the-key',
+    name: 'Dust rings in the key',
+    category: 'tape',
+    description:
+      'A dusty record plays under the sound and every tick rings as small bells on notes of the key, a fifth of a second late; try Crackle.',
+    effects: [
+      { deviceId: 'vinyl', preset: 'Dust and scratches' },
+      { deviceId: 'scale-filter', preset: 'High bells', params: { mix: 0.6 } },
+    ],
+  },
 ]

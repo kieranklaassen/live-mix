@@ -1,0 +1,1380 @@
+// Native harness for Sine Shadow (cpp/devices/sine-shadow). The conformance
+// pass covers stability, silence when idle, block-size independence and
+// parameter abuse; the rest asserts what makes it a shadow of sines: which
+// partials are followed, at what pitch and level, how they swell and linger,
+// and that sound and shadow never cancel.
+
+#include "../devices/sine-shadow/sine_shadow.h"
+#include "../kit/fft.h"
+#include "support/test_kit.h"
+
+#include <cstring>
+#include <limits>
+
+using namespace testkit;
+using livemix::SineShadow;
+namespace p = livemix::sine_shadow;
+
+static SineShadow device;
+
+static const float kRate = 48000.0f;
+
+// The device with the shadow alone, every sine in the middle, no wait.
+static void wet_only(SineShadow& d, float rate = kRate) {
+  d.init(rate);
+  d.set_param(p::kMix, 1.0f);
+  d.set_param(p::kSpread, 0.0f);
+  d.set_param(p::kSteady, 0.0f);
+}
+
+// The presets, copied from device.json (the harness cannot read it): the level and part-way Mix checks run
+// through every one.
+struct Setting {
+  int id;
+  float value;
+};
+struct Preset {
+  const char* name;
+  std::vector<Setting> settings;
+};
+static const std::vector<Preset> kPresets = {
+    {"Sine shadow", {}},
+    {"Octave halo", {{p::kTranspose, 12.0f}, {p::kPartials, 6.0f}, {p::kAttack, 600.0f}, {p::kRelease, 5.0f}, {p::kSpread, 0.7f}, {p::kMix, 0.4f}}},
+    {"Glass redraw", {{p::kPartials, 16.0f}, {p::kAttack, 60.0f}, {p::kRelease, 1.2f}, {p::kSteady, 0.1f}, {p::kSpread, 0.3f}, {p::kMix, 1.0f}}},
+    {"One sine", {{p::kPartials, 1.0f}, {p::kAttack, 200.0f}, {p::kRelease, 4.0f}, {p::kGlide, 150.0f}, {p::kMix, 0.6f}}},
+    {"Chord outline", {{p::kPartials, 5.0f}, {p::kSnap, 1.0f}, {p::kAttack, 500.0f}, {p::kRelease, 8.0f}, {p::kMix, 1.0f}}},
+    {"Low shadow", {{p::kTranspose, -12.0f}, {p::kPartials, 4.0f}, {p::kTone, 0.15f}, {p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.35f}}},
+    {"Long linger", {{p::kPartials, 10.0f}, {p::kAttack, 1500.0f}, {p::kRelease, 20.0f}, {p::kSpread, 0.8f}}},
+    {"Nearly dry", {{p::kPartials, 4.0f}, {p::kAttack, 1200.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.2f}}},
+    {"Fifth above", {{p::kTranspose, 7.0f}, {p::kPartials, 6.0f}, {p::kAttack, 300.0f}, {p::kRelease, 4.0f}, {p::kMix, 0.4f}}},
+    {"Two octaves up", {{p::kTranspose, 24.0f}, {p::kPartials, 8.0f}, {p::kTone, 0.3f}, {p::kAttack, 900.0f}, {p::kRelease, 7.0f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
+    {"Wide glass", {{p::kPartials, 20.0f}, {p::kTone, 0.7f}, {p::kAttack, 150.0f}, {p::kRelease, 2.5f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
+    {"Slow bloom", {{p::kPartials, 12.0f}, {p::kAttack, 5000.0f}, {p::kRelease, 15.0f}, {p::kMix, 0.4f}}},
+    {"Sliding sines", {{p::kPartials, 6.0f}, {p::kAttack, 300.0f}, {p::kRelease, 5.0f}, {p::kGlide, 1500.0f}, {p::kMix, 0.45f}}},
+    {"Tuned drone", {{p::kPartials, 6.0f}, {p::kSnap, 1.0f}, {p::kAttack, 700.0f}, {p::kRelease, 30.0f}, {p::kSteady, 0.4f}, {p::kTone, 0.3f}, {p::kMix, 1.0f}}},
+    {"Noise to tones", {{p::kPartials, 24.0f}, {p::kAttack, 40.0f}, {p::kRelease, 0.6f}, {p::kSteady, 0.0f}, {p::kGlide, 5.0f}, {p::kMix, 0.7f}}},
+    {"Shadow alone", {{p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 1.0f}}},
+};
+// The hammer of the played phrase's notes, against a first partial of 1.
+#ifndef HAMMER
+#define HAMMER 1.0
+#endif
+static const double kHammer = HAMMER;
+static void set_preset(SineShadow& d, const Preset& preset, float rate = kRate) {
+  d.init(rate);
+  for (const Setting& s : preset.settings) d.set_param(s.id, s.value);
+}
+
+// A sum of sines: frequencies and gains, phases from a fixed sequence.
+static std::vector<float> tones(const std::vector<double>& hz, const std::vector<double>& gain, float seconds,
+                                float rate = kRate) {
+  std::vector<float> out(static_cast<size_t>(seconds * rate), 0.0f);
+  for (size_t t = 0; t < hz.size(); ++t) {
+    const double start = 0.37 * static_cast<double>(t * t + 1);
+    for (size_t i = 0; i < out.size(); ++i) {
+      out[i] += static_cast<float>(gain[t] * std::sin(2.0 * kPi * hz[t] * static_cast<double>(i) / rate + start));
+    }
+  }
+  return out;
+}
+
+static double cents(double hz, double reference) { return 1200.0 * std::log2(hz / reference); }
+
+// Mix, as the header has it (SineShadow::mix_gains): the sound is whole up to half way and gives way past it;
+// the shadow rises on the equal-power curve all the way. A sine keeps a quarter turn from its partial, so a
+// held tone comes out as the two added as powers.
+static double dry_at(double mix) { return mix <= 0.5 ? 1.0 : std::cos((mix - 0.5) * kPi); }
+static double shadow_at(double mix) { return std::sin(0.5 * kPi * mix); }
+static double powers_at(double mix) { return std::sqrt(dry_at(mix) * dry_at(mix) + shadow_at(mix) * shadow_at(mix)); }
+
+// A harmonic tone: `count` harmonics of f0, harmonic h at gain / h^fall.
+static std::vector<float> harmonics(double f0, int count, double gain, double fall, float seconds, float rate = kRate) {
+  std::vector<double> hz, level;
+  for (int h = 1; h <= count; ++h) {
+    hz.push_back(f0 * h);
+    level.push_back(gain / std::pow(static_cast<double>(h), fall));
+  }
+  return tones(hz, level, seconds, rate);
+}
+
+// The sines in a stretch of sound: the peaks of a Hann-windowed spectrum of 32768 points from `from`, at or
+// above `floor` (1 is a full-scale sine), strongest first. The frequency is from a parabola through the log of
+// three bins (good to 0.1 cent for a steady sine), the level from their power (a Hann lobe leaves 98 % of its
+// power or more in three bins: good to 0.1 dB).
+struct Tone {
+  double hz;
+  double level;
+};
+static livemix::kit::Fft<32768> spectrum_fft;
+static float spectrum_re[32768], spectrum_im[32768];
+static std::vector<Tone> tones_in(const std::vector<float>& x, size_t from, double rate, double floor) {
+  const int n = 32768;
+  spectrum_fft.init();
+  for (int i = 0; i < n; ++i) {
+    const double w = 0.5 - 0.5 * std::cos(2.0 * kPi * i / n);
+    spectrum_re[i] = from + i < x.size() ? static_cast<float>(x[from + i] * w) : 0.0f;
+    spectrum_im[i] = 0.0f;
+  }
+  spectrum_fft.forward(spectrum_re, spectrum_im);
+  std::vector<double> size(n / 2);
+  for (int k = 0; k < n / 2; ++k) {
+    size[k] = std::sqrt(static_cast<double>(spectrum_re[k]) * spectrum_re[k] +
+                        static_cast<double>(spectrum_im[k]) * spectrum_im[k]) / (n / 4.0);
+  }
+  std::vector<Tone> out;
+  for (int k = 2; k < n / 2 - 2; ++k) {
+    if (size[k] < floor * 0.7 || size[k] <= size[k - 1] || size[k] < size[k + 1]) continue;
+    const double a = std::log(size[k - 1] + 1.0e-30), b = std::log(size[k]), c = std::log(size[k + 1] + 1.0e-30);
+    const double off = 0.5 * (a - c) / (a - 2.0 * b + c);
+    const double level = std::sqrt((size[k - 1] * size[k - 1] + size[k] * size[k] + size[k + 1] * size[k + 1]) / 1.5);
+    if (level >= floor) out.push_back({(k + off) * rate / n, level});
+  }
+  std::sort(out.begin(), out.end(), [](const Tone& p, const Tone& q) { return p.level > q.level; });
+  return out;
+}
+
+// The tone nearest `hz` among `found`, or one of level 0.
+static Tone nearest(const std::vector<Tone>& found, double hz) {
+  Tone best{0.0, 0.0};
+  for (const Tone& tone : found) {
+    if (best.level == 0.0 || std::fabs(cents(tone.hz, hz)) < std::fabs(cents(best.hz, hz))) best = tone;
+  }
+  return best;
+}
+
+// The power of both channels together over a stretch, as a level.
+static double both(const Stereo& s, size_t from = 0, size_t to = SIZE_MAX) {
+  const double l = rms(s.left, from, to), r = rms(s.right, from, to);
+  return std::sqrt(0.5 * (l * l + r * r));
+}
+
+// The largest second difference: a step in the sound of size s reads s, a sine of amplitude a at f reads
+// a (2 pi f / rate)^2. A click detector that a bright steady tone does not hide a small click from.
+static double max_bend(const std::vector<float>& x, size_t from = 0, size_t to = SIZE_MAX) {
+  to = std::min(to, x.size());
+  double worst = 0.0;
+  for (size_t i = from + 2; i < to; ++i) {
+    worst = std::max(worst, std::fabs(static_cast<double>(x[i]) - 2.0 * x[i - 1] + x[i - 2]));
+  }
+  return worst;
+}
+
+static size_t at(double seconds, float rate = kRate) { return static_cast<size_t>(seconds * rate); }
+
+// The level of a sine over time: the RMS of 10 ms stretches, as an amplitude.
+static std::vector<double> envelope(const std::vector<float>& x, float rate = kRate) {
+  const size_t step = static_cast<size_t>(0.01f * rate);
+  std::vector<double> out;
+  for (size_t from = 0; from + step <= x.size(); from += step) out.push_back(rms(x, from, from + step) * std::sqrt(2.0));
+  return out;
+}
+
+// The frequency of a lone sine cycle by cycle, from its rising zero crossings: the time of each crossing in
+// seconds and the frequency of the cycle that ends there.
+static void cycles(const std::vector<float>& x, size_t from, std::vector<double>* when, std::vector<double>* hz,
+                   float rate = kRate) {
+  double last = -1.0;
+  for (size_t i = from + 1; i < x.size(); ++i) {
+    if (!(x[i - 1] < 0.0f && x[i] >= 0.0f)) continue;
+    const double crossing = (static_cast<double>(i - 1) + x[i - 1] / (static_cast<double>(x[i - 1]) - x[i])) / rate;
+    if (last >= 0.0) {
+      when->push_back(crossing);
+      hz->push_back(1.0 / (crossing - last));
+    }
+    last = crossing;
+  }
+}
+
+int main() {
+  Conformance spec;
+  spec.name = "sine-shadow";
+  spec.num_params = p::kNumParams;
+  spec.mins = p::kParamMin;
+  spec.maxs = p::kParamMax;
+  spec.defaults = p::kParamDefault;
+  spec.tail_seconds = 14.0f;
+  spec.max_peak = 4.0f;
+  check_effect(device, spec, kRate);
+
+  // Two sines in, two sines out, at the same frequencies and levels, and nothing else: not while they hold,
+  // and not while they come in (the splash of a sudden start is many peaks that do not last).
+  const std::vector<float> pair = tones({440.0, 660.5}, {0.5, 0.25}, 4.0f);
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    const Stereo out = run(device, pair);
+    const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-3);
+    EXPECT(held.size() == 2, "two sines in: two sines out and no others above -60 dB");
+    const Tone low = nearest(held, 440.0), high = nearest(held, 660.5);
+    std::printf("two sines: %.3f Hz %.2f dB, %.3f Hz %.2f dB\n", low.hz, db(low.level), high.hz, db(high.level));
+    EXPECT(std::fabs(cents(low.hz, 440.0)) < 1.0 && std::fabs(cents(high.hz, 660.5)) < 1.0,
+           "each within a cent of its partial");
+    EXPECT_NEAR(db(low.level), db(0.5), 0.2, "the stronger sine at its partial's level");
+    EXPECT_NEAR(db(high.level), db(0.25), 0.2, "the weaker sine at its partial's level");
+    const std::vector<Tone> start = tones_in(out.left, 0, kRate, 3.0e-3);
+    EXPECT(start.size() <= 2, "nothing else above -50 dB while they come in");
+    double apart = 0.0;
+    for (size_t i = 0; i < out.size(); ++i) apart = std::max(apart, std::fabs(out.left[i] - (double)out.right[i]));
+    EXPECT(apart < 1.0e-6, "a mono sound with no Spread: the same shadow on both sides");
+  }
+
+  // Partials 1 follows the stronger of the two and leaves the other.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, 1.0f);
+    const Stereo out = run(device, pair);
+    const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-4);
+    EXPECT(held.size() == 1 && std::fabs(cents(held[0].hz, 440.0)) < 1.0,
+           "Partials 1: only the stronger sine, nothing else above -80 dB");
+  }
+
+  // A followed partial keeps its sine against one that is only a little stronger (kKeep): two sines whose
+  // levels cross twice a second, 1 dB either way, and Partials 1 stays on the one it took. One that is clearly
+  // stronger takes the sine over.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, 1.0f);
+    device.set_param(p::kAttack, 20.0f);
+    device.set_param(p::kRelease, 0.1f);
+    std::vector<float> in(at(6.0));
+    for (size_t i = 0; i < in.size(); ++i) {
+      const double t = static_cast<double>(i) / kRate;
+      const double sway = 1.0 + 0.12 * std::sin(2.0 * kPi * 1.0 * t);
+      in[i] = static_cast<float>(0.3 * std::sin(2.0 * kPi * 440.0 * t) + 0.3 * sway * std::sin(2.0 * kPi * 660.0 * t));
+    }
+    const Stereo out = run(device, in);
+    int low = 0, high = 0, other = 0;
+    for (double t = 1.5; t < 5.0; t += 0.25) {
+      const std::vector<Tone> held = tones_in(out.left, at(t), kRate, 3.0e-3);
+      for (const Tone& tone : held) {
+        if (std::fabs(cents(tone.hz, 440.0)) < 5.0) ++low;
+        else if (std::fabs(cents(tone.hz, 660.0)) < 5.0) ++high;
+        else ++other;
+      }
+    }
+    std::printf("two sines crossing by 1 dB, Partials 1: the sine was on 440 Hz %d times, on 660 Hz %d times\n", low,
+                high);
+    EXPECT(other == 0 && low + high == 14 && (low == 0 || high == 0),
+           "a followed partial keeps its sine against one a little stronger");
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, 1.0f);
+    device.set_param(p::kRelease, 0.4f);
+    std::vector<float> late = tones({440.0}, {0.2}, 6.0f);
+    for (size_t i = at(2.0); i < late.size(); ++i) {
+      late[i] += static_cast<float>(0.4 * std::sin(2.0 * kPi * 660.0 * static_cast<double>(i) / kRate));
+    }
+    const Stereo moved = run(device, late);
+    const std::vector<Tone> first = tones_in(moved.left, at(1.0), kRate, 1.0e-3);
+    const std::vector<Tone> then = tones_in(moved.left, at(5.0), kRate, 1.0e-3);
+    EXPECT(first.size() == 1 && std::fabs(cents(first[0].hz, 440.0)) < 1.0, "Partials 1: the only sine is followed");
+    EXPECT(then.size() == 1 && std::fabs(cents(then[0].hz, 660.0)) < 1.0,
+           "a partial twice as strong comes in: the sine goes to it and the first one's is let go");
+  }
+
+  // A tone of 20 harmonics comes out with exactly Partials of them: the strongest.
+  for (int count : {1, 5, 12, 24}) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kPartials, static_cast<float>(count));
+    const Stereo out = run(device, harmonics(220.0, 20, 0.3, 1.0, 4.0f));
+    const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-3);
+    const size_t expected = static_cast<size_t>(count < 20 ? count : 20);
+    bool strongest = held.size() == expected;
+    for (size_t h = 1; strongest && h <= expected; ++h) {
+      const Tone tone = nearest(held, 220.0 * h);
+      strongest = std::fabs(cents(tone.hz, 220.0 * h)) < 2.0 && std::fabs(db(tone.level) - db(0.3 / h)) < 0.3;
+    }
+    char label[96];
+    std::snprintf(label, sizeof label, "20 harmonics, Partials %d: the %zu strongest, at their levels (found %zu)",
+                  count, expected, held.size());
+    EXPECT(strongest, label);
+  }
+
+  // Pitch moves every sine by its semitones and leaves its level.
+  for (int semitones : {-12, -5, 7, 12, 24}) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kTranspose, static_cast<float>(semitones));
+    const Stereo out = run(device, tones({196.0, 311.13}, {0.4, 0.3}, 4.0f));
+    const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-3);
+    const double ratio = std::pow(2.0, semitones / 12.0);
+    const Tone low = nearest(held, 196.0 * ratio), high = nearest(held, 311.13 * ratio);
+    char label[96];
+    std::snprintf(label, sizeof label, "Pitch %d: both sines moved by it (%.2f and %.2f cents off), levels kept",
+                  semitones, cents(low.hz, 196.0 * ratio), cents(high.hz, 311.13 * ratio));
+    EXPECT(held.size() == 2 && std::fabs(cents(low.hz, 196.0 * ratio)) < 1.0 &&
+               std::fabs(cents(high.hz, 311.13 * ratio)) < 1.0 && std::fabs(db(low.level) - db(0.4)) < 0.2 &&
+               std::fabs(db(high.level) - db(0.3)) < 0.2,
+           label);
+  }
+
+  // Snap pulls a tone 40 cents sharp onto the note; half way leaves it 20 cents sharp.
+  for (float snap : {0.0f, 0.5f, 1.0f}) {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kSnap, snap);
+    const double sharp = 440.0 * std::pow(2.0, 40.0 / 1200.0);
+    const Stereo out = run(device, sine(static_cast<float>(sharp), 4.0f, kRate, 0.4f));
+    const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-3);
+    const double off = held.empty() ? 1.0e9 : cents(held[0].hz, 440.0);
+    char label[96];
+    std::snprintf(label, sizeof label, "Snap %.1f: a tone 40 cents sharp comes out %.2f cents sharp", snap, off);
+    EXPECT(held.size() == 1 && std::fabs(off - 40.0 * (1.0 - snap)) < 0.5, label);
+  }
+
+  // Snap against the dry sound. A partial within 3 cents of its note (kInTune) is left alone and stays a
+  // quarter turn from its sine: no beat, and the two add as powers (+0.97 dB at Mix 0.8, where the sound is
+  // at 0.588 and the shadow at 0.951). One further off is pulled, and then sound and sine are two tones a few
+  // cents apart, which beat: the level swings between -8.8 and +3.7 dB (0.951 - 0.588 and 0.951 + 0.588),
+  // once a period of their difference. That is why every preset that uses Snap is the shadow alone.
+  {
+    double swing[2][2];
+    int n = 0;
+    for (double sharp : {2.0, 10.0}) {
+      const std::vector<float> tone = sine(static_cast<float>(440.0 * std::pow(2.0, sharp / 1200.0)), 8.0f, kRate, 0.5f);
+      device.init(kRate);
+      device.set_param(p::kSpread, 0.0f);
+      device.set_param(p::kSnap, 1.0f);
+      device.set_param(p::kMix, 0.8f);
+      const Stereo out = run(device, tone);
+      double low = 1.0e9, high = 0.0;
+      for (size_t from = at(2.0); from + at(0.05) <= out.size(); from += at(0.05)) {
+        const double level = rms(out.left, from, from + at(0.05)) / rms(tone, from, from + at(0.05));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      swing[n][0] = db(low);
+      swing[n][1] = db(high);
+      ++n;
+    }
+    std::printf("Snap 1 at Mix 0.8, level against the input: a tone 2 cents sharp %+.2f to %+.2f dB, 10 cents sharp "
+                "%+.2f to %+.2f dB\n",
+                swing[0][0], swing[0][1], swing[1][0], swing[1][1]);
+    EXPECT(swing[0][0] > 0.67 && swing[0][1] < 1.27, "Snap leaves a partial that is on its note: no beat against the sound");
+    EXPECT(swing[1][0] > -9.3 && swing[1][1] < 4.2, "one pulled onto its note beats against the sound no deeper than Mix says");
+    EXPECT(swing[1][0] < -6.0 && swing[1][1] > 3.0, "and it does beat: the sine is on the note, the sound is not");
+  }
+
+  // Attack is the time a sine takes from nothing to nine tenths of its partial's level.
+  for (float attack : {60.0f, 400.0f, 3000.0f}) {
+    wet_only(device);
+    device.set_param(p::kAttack, attack);
+    const Stereo out = run(device, sine(440.0f, 3.0f * attack * 0.001f + 1.0f, kRate, 0.5f));
+    const std::vector<double> level = envelope(out.left);
+    size_t first = 0, nine = 0;
+    while (first < level.size() && level[first] < 0.005) ++first;
+    while (nine < level.size() && level[nine] < 0.45) ++nine;
+    const double swell = 10.0 * static_cast<double>(nine - first);
+    char label[96];
+    std::snprintf(label, sizeof label, "Attack %.0f ms: the sine swells to nine tenths in %.0f ms", attack, swell);
+    // The partial's own level is still rising for its first 60 ms, which a short attack shows.
+    EXPECT(swell > 0.85 * attack && swell < 1.15 * attack + 70.0, label);
+  }
+
+  // Release is the time a sine takes to fall 60 dB once its partial has gone.
+  for (float release : {0.4f, 3.0f, 12.0f}) {
+    wet_only(device);
+    device.set_param(p::kRelease, release);
+    run(device, sine(440.0f, 1.5f, kRate, 0.5f));
+    const Stereo tail = render(device, release + 1.0f, kRate);
+    const double fall = rt60(tail.left, kRate, 0.2, 0.05, -100.0);
+    char label[96];
+    std::snprintf(label, sizeof label, "Release %.1f s: the sine falls 60 dB in %.2f s", release, fall);
+    EXPECT(fall > 0.93 * release && fall < 1.07 * release, label);
+  }
+
+  // No clicks when partials are dropped and picked up: Partials 12 to 3 and back under a held tone, with the
+  // fastest attack and release, against the same tone with nothing moved. A sine cut off at the level of the
+  // weakest partial would bend the wave by 0.025; an envelope that starts or ends bends it by 0.0007.
+  {
+    const std::vector<float> tone = harmonics(220.0, 20, 0.3, 1.0, 1.0f);
+    Stereo moved, still;
+    for (int pass = 0; pass < 2; ++pass) {
+      wet_only(device);
+      device.set_param(p::kAttack, 20.0f);
+      device.set_param(p::kRelease, 0.1f);
+      device.set_param(p::kPartials, 12.0f);
+      run(device, tone);
+      run(device, tone);
+      Stereo& out = pass == 0 ? moved : still;
+      for (int step = 0; step < 4; ++step) {
+        if (pass == 0) device.set_param(p::kPartials, step % 2 == 0 ? 3.0f : 12.0f);
+        out = concat(out, run(device, tone));
+      }
+    }
+    const double with = max_bend(moved.left), without = max_bend(still.left);
+    std::printf("partials dropped and picked up: bend %.5f, nothing moved %.5f\n", with, without);
+    EXPECT(with < without + 0.0015, "no click when partials are dropped and picked up");
+    EXPECT(tone_level(moved.left, 880.0, kRate, at(0.5), at(1.0)) <
+               0.01 * tone_level(still.left, 880.0, kRate, at(0.5), at(1.0)),
+           "and the dropped ones did go (the check above is not of nothing)");
+  }
+
+  // Pitch moved under a held chord glides: no click at the fastest Glide or at the default, against the
+  // chord held at either setting.
+  for (float glide : {5.0f, 40.0f}) {
+    // Whole numbers of hertz and of seconds: the chord runs on unbroken from one stretch to the next.
+    const std::vector<float> chord = tones({196.0, 311.0, 466.0}, {0.3, 0.25, 0.2}, 1.0f);
+    double bend[3] = {0.0, 0.0, 0.0};
+    for (int pass = 0; pass < 3; ++pass) {
+      wet_only(device);
+      device.set_param(p::kGlide, glide);
+      if (pass == 2) device.set_param(p::kTranspose, 7.0f);
+      run(device, chord);
+      run(device, chord);
+      if (pass == 0) device.set_param(p::kTranspose, 7.0f);
+      Stereo out = run(device, chord);
+      if (pass == 0) device.set_param(p::kTranspose, 0.0f);
+      out = concat(out, run(device, chord));
+      bend[pass] = max_bend(out.left);
+    }
+    char label[112];
+    std::snprintf(label, sizeof label, "Pitch moved at Glide %.0f ms: bend %.5f, held at 0 %.5f, held at 7 %.5f",
+                  glide, bend[0], bend[1], bend[2]);
+    EXPECT(bend[0] < 1.05 * std::max(bend[1], bend[2]) + 0.0005, label);
+  }
+
+  // Mix moved under a held chord is smoothed: no step much larger than the chord's own (sound and shadow
+  // together can step 1.41 times as far; a Mix that jumped would step by a good part of 0.75).
+  {
+    const std::vector<float> chord = tones({196.0, 311.0, 466.0}, {0.3, 0.25, 0.2}, 1.0f);
+    device.init(kRate);
+    run(device, chord);
+    run(device, chord);
+    Stereo moved;
+    for (float mix : {1.0f, 0.0f, 0.5f, 1.0f, 0.0f}) {
+      device.set_param(p::kMix, mix);
+      moved = concat(moved, run(device, chord));
+    }
+    std::printf("Mix moved: largest step %.4f, the chord's own %.4f\n", max_step(moved.left), max_step(chord));
+    EXPECT(max_step(moved.left) < 1.5 * max_step(chord), "a Mix change is smoothed, no click");
+  }
+
+  // Steady: noise casts no shadow at the default and a cloud of flickering sines at zero; a held tone waits
+  // the time Steady asks for and then gets its sine.
+  {
+    rng_state() = 0x5EEDu;
+    const std::vector<float> hiss = noise(6.0f, kRate, 0.25f);
+    double shadow[3];
+    int which = 0;
+    for (float steady : {0.0f, 0.1f, 0.2f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kSteady, steady);
+      const Stereo out = run(device, hiss);
+      shadow[which++] = db(both(out, at(2.0)) / rms(hiss));
+    }
+    std::printf("noise in, shadow against it: Steady 0 %.1f dB, 0.1 %.1f dB, 0.2 %.1f dB\n", shadow[0], shadow[1],
+                shadow[2]);
+    EXPECT(shadow[0] > -20.0, "Steady 0: noise casts a shadow of flickering sines");
+    EXPECT(shadow[1] < shadow[0] - 4.0 && shadow[1] > shadow[2] + 4.0, "Steady thins it by degrees");
+    EXPECT(shadow[2] < -35.0, "Steady at its default: noise casts no shadow to speak of");
+    for (float steady : {0.5f, 1.0f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kSpread, 0.0f);
+      device.set_param(p::kSteady, steady);
+      device.set_param(p::kAttack, 20.0f);
+      const Stereo out = run(device, sine(440.0f, 3.0f, kRate, 0.5f));
+      const std::vector<double> level = envelope(out.left);
+      size_t first = 0;
+      while (first < level.size() && level[first] < 0.005) ++first;
+      const double wait = 0.01 * static_cast<double>(first), asked = 1.5 * steady * steady;
+      char label[112];
+      std::snprintf(label, sizeof label, "Steady %.1f asks a partial to last %.2f s: the sine begins %.2f s in", steady,
+                    asked, wait);
+      // The tone is a partial from its fourth frame (85 ms), and holds from the one after.
+      EXPECT(wait > asked + 0.05 && wait < asked + 0.2, label);
+      EXPECT_NEAR(db(level[level.size() - 1]), db(0.5), 0.2, "and reaches its level");
+    }
+  }
+
+  // Glide: after Pitch jumps an octave, the sine is 63 % of the way there (in hertz) one Glide later.
+  for (float glide : {20.0f, 500.0f}) {
+    wet_only(device);
+    device.set_param(p::kGlide, glide);
+    const std::vector<float> tone = sine(330.0f, 1.0f, kRate, 0.4f);
+    run(device, tone);
+    run(device, tone);
+    device.set_param(p::kTranspose, 12.0f);
+    Stereo out = run(device, tone);
+    out = concat(out, run(device, tone));
+    std::vector<double> when, hz;
+    cycles(out.left, 0, &when, &hz);
+    double reached = -1.0;
+    for (size_t i = 0; i < hz.size() && reached < 0.0; ++i) {
+      if (hz[i] >= 330.0 + 0.632 * 330.0) reached = when[i] - 0.5 / hz[i];  // the middle of that cycle
+    }
+    char label[96];
+    std::snprintf(label, sizeof label, "Glide %.0f ms: 63 %% of an octave jump after %.1f ms", glide, 1000.0 * reached);
+    EXPECT(reached > 0.001 * glide * 0.85 - 0.002 && reached < 0.001 * glide * 1.15 + 0.003, label);
+    EXPECT_NEAR(hz.back(), 660.0 - 330.0 * std::exp(-2000.0 / glide), 0.3, "and it goes on to arrive");
+  }
+
+  // Glide: a new sine starts at the pitch of the nearest one still sounding. A tone at 330 Hz, then one at
+  // 440 Hz: with a long Glide the second sine is still on its way from 330 a quarter of a second in.
+  {
+    double early[2], late = 0.0;
+    int which = 0;
+    for (float glide : {5.0f, 1500.0f}) {
+      wet_only(device);
+      device.set_param(p::kGlide, glide);
+      device.set_param(p::kAttack, 20.0f);
+      device.set_param(p::kRelease, 0.4f);
+      run(device, sine(330.0f, 1.0f, kRate, 0.4f));
+      const Stereo out = run(device, sine(440.0f, 6.0f, kRate, 0.4f));
+      early[which++] = tone_level(out.left, 440.0, kRate, at(0.25), at(0.5));
+      // By the end the first sine has gone and the second is alone: its pitch, cycle by cycle.
+      std::vector<double> when, hz;
+      cycles(out.left, at(5.9), &when, &hz);
+      late = hz.back();
+    }
+    std::printf("a new sine beside one at 330 Hz: at 440 Hz after 0.25 s, Glide 5 ms %.3f, Glide 1500 ms %.3f;"
+                " after 6 s at %.2f Hz\n", early[0], early[1], late);
+    EXPECT(early[0] > 0.3 && early[1] < 0.1 * early[0], "a long Glide: the new sine slides in from its neighbour");
+    // 110 Hz to go, and four Glides gone by.
+    EXPECT(late > 440.0 - 110.0 * std::exp(-5.7 / 1.5) - 0.3 && late < 440.0, "and goes on to its partial");
+  }
+
+  // Glide smooths vibrato out of the shadow: a tone that sways 30 cents either way, five times a second.
+  {
+    std::vector<float> sway(at(4.0));
+    double phase = 0.0;
+    for (size_t i = 0; i < sway.size(); ++i) {
+      phase += 440.0 * std::pow(2.0, 0.3 / 12.0 * std::sin(2.0 * kPi * 5.0 * static_cast<double>(i) / kRate)) / kRate;
+      sway[i] = static_cast<float>(0.4 * std::sin(2.0 * kPi * phase));
+    }
+    double depth[2];
+    int which = 0;
+    for (float glide : {5.0f, 2000.0f}) {
+      wet_only(device);
+      device.set_param(p::kGlide, glide);
+      const Stereo out = run(device, sway);
+      std::vector<double> when, hz;
+      cycles(out.left, at(3.0), &when, &hz);
+      double low = 1.0e9, high = 0.0;
+      for (double f : hz) {
+        low = std::min(low, f);
+        high = std::max(high, f);
+      }
+      depth[which++] = 0.5 * cents(high, low);
+    }
+    std::printf("a tone swaying 30 cents: the sine sways %.1f cents at Glide 5 ms, %.1f at 2 s\n", depth[0], depth[1]);
+    EXPECT(depth[0] > 20.0 && depth[0] < 36.0, "a short Glide follows the vibrato");
+    EXPECT(depth[1] < 0.1 * depth[0], "a long Glide smooths it out");
+  }
+
+  // Spread: with none a mono sound's shadow is in the middle and a one-sided sound's on its side; with all
+  // of it every sine has a place of its own, and the shadow's power is what it was.
+  {
+    const std::vector<float> chord = tones({220.0, 277.18, 329.63, 415.3}, {0.2, 0.2, 0.2, 0.2}, 4.0f);
+    const std::vector<float> none(chord.size(), 0.0f);
+    wet_only(device);
+    const Stereo middle = run(device, chord);
+    wet_only(device);
+    device.set_param(p::kSpread, 1.0f);
+    const Stereo wide = run(device, chord);
+    const size_t from = at(3.0);
+    EXPECT(correlation(middle.left, middle.right, from) > 0.9999, "no Spread: a mono sound's shadow is mono");
+    EXPECT(correlation(wide.left, wide.right, from) < 0.7, "full Spread: the two sides differ");
+    EXPECT_NEAR(db(both(wide, from) / both(middle, from)), 0.0, 0.1, "Spread moves the sines and keeps their power");
+    double widest = 0.0;
+    for (double hz : {220.0, 277.18, 329.63, 415.3}) {
+      const double l = tone_level(wide.left, hz, kRate, from), r = tone_level(wide.right, hz, kRate, from);
+      widest = std::max(widest, std::fabs(db(l / std::max(r, 1.0e-9))));
+      EXPECT_NEAR(std::sqrt(0.5 * (l * l + r * r)), 0.2, 0.01, "each sine keeps its power wherever it is put");
+    }
+    EXPECT(widest > 9.0, "full Spread: some sine is well to one side");
+    wet_only(device);
+    const Stereo sided = run(device, chord, none);
+    EXPECT(rms(sided.right, from) < 0.001 * rms(sided.left, from), "no Spread: a left-only sound's shadow is on the left");
+    EXPECT_NEAR(db(rms(sided.left, from) / rms(chord, from)), 0.0, 0.2, "at the level it has there");
+  }
+
+  // A sound that is out of phase between the sides casts the same shadow as one that is not (the spectrum is
+  // measured side by side, never from their sum).
+  {
+    const std::vector<float> chord = tones({220.0, 277.18, 329.63}, {0.25, 0.25, 0.25}, 3.0f);
+    std::vector<float> turned(chord.size());
+    for (size_t i = 0; i < chord.size(); ++i) turned[i] = -chord[i];
+    wet_only(device);
+    const Stereo plain = run(device, chord);
+    wet_only(device);
+    const Stereo across = run(device, chord, turned);
+    EXPECT_NEAR(db(both(across, at(2.0)) / both(plain, at(2.0))), 0.0, 0.05, "an anti-phase input keeps its shadow");
+  }
+
+  // Tone leans the shadow: dark takes 6 dB an octave off the partials above 300 Hz, bright off those below
+  // 2500 Hz, the centre leaves all of them, and none is ever raised. Twelve equal harmonics of 220 Hz.
+  {
+    const std::vector<float> flat = harmonics(220.0, 12, 0.06, 0.0, 4.0f);
+    double low[3], high[3];
+    int which = 0;
+    for (float tone : {0.0f, 0.5f, 1.0f}) {
+      wet_only(device);
+      device.set_param(p::kPartials, 24.0f);
+      device.set_param(p::kTone, tone);
+      const Stereo out = run(device, flat);
+      low[which] = db(tone_level(out.left, 220.0, kRate, at(3.0)) / 0.06);
+      high[which] = db(tone_level(out.left, 2640.0, kRate, at(3.0)) / 0.06);
+      ++which;
+    }
+    std::printf("Tone dark, centre, bright: the partial at 220 Hz %.1f %.1f %.1f dB, at 2640 Hz %.1f %.1f %.1f dB\n",
+                low[0], low[1], low[2], high[0], high[1], high[2]);
+    EXPECT_NEAR(low[1], 0.0, 0.2, "Tone at the centre leaves the low partial");
+    EXPECT_NEAR(high[1], 0.0, 0.2, "and the high one");
+    EXPECT_NEAR(low[0], 0.0, 0.2, "dark leaves the low partial");
+    EXPECT_NEAR(high[0], -20.0 * std::log10(2640.0 / 300.0), 0.5, "dark takes 6 dB an octave off above 300 Hz");
+    EXPECT_NEAR(high[2], 0.0, 0.2, "bright leaves the high partial");
+    EXPECT_NEAR(low[2], -20.0 * std::log10(2500.0 / 220.0), 0.5, "bright takes 6 dB an octave off below 2500 Hz");
+    // And it decides which are followed: of twelve equal partials, dark keeps the three lowest and bright the
+    // three highest.
+    for (float tone : {0.0f, 1.0f}) {
+      wet_only(device);
+      device.set_param(p::kPartials, 3.0f);
+      device.set_param(p::kTone, tone);
+      const Stereo out = run(device, flat);
+      const std::vector<Tone> held = tones_in(out.left, at(3.0), kRate, 1.0e-3);
+      bool right = held.size() == 3;
+      for (const Tone& found : held) right = right && (tone == 0.0f ? found.hz < 700.0 : found.hz > 2100.0);
+      EXPECT(right, tone == 0.0f ? "dark: the three lowest partials are followed" : "bright: the three highest");
+    }
+  }
+
+  // Mix 0 is the input, sample for sample and with no delay; Mix 1 has none of it.
+  {
+    rng_state() = 77;
+    const std::vector<float> in = noise(1.0f, kRate, 0.5f);
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    const Stereo dry = run(device, in);
+    EXPECT(dry.left == in && dry.right == in, "Mix 0 is the input, bit for bit, with no latency");
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSteady, 1.0f);
+    const Stereo wet = run(device, in);
+    EXPECT(peak(wet.left) == 0.0 && peak(wet.right) == 0.0, "Mix 1 has nothing of the input in it");
+  }
+
+  // Part-way Mix: sound and shadow add as powers, because every sine keeps a quarter turn from its partial.
+  // Held tones over the piano's range (A0 to C8, a third apart, and the same a quarter tone sharp) at three
+  // settings of Mix: what comes out is the power of the sound at Mix's gain for it and the shadow at its
+  // own (shadow_law below), with no dip and no doubling at any pitch.
+  {
+    double dip = 0.0, rise = 0.0, dip_hz = 0.0, rise_hz = 0.0;
+    for (float mix : {0.25f, 0.5f, 0.75f}) {
+      for (int note = 21; note <= 108; note += 3) {
+        for (double sharp : {0.0, 0.5}) {
+          const double hz = 440.0 * std::pow(2.0, (note + sharp - 69.0) / 12.0);
+          const std::vector<float> tone = sine(static_cast<float>(hz), 3.0f, kRate, 0.5f);
+          device.init(kRate);
+          device.set_param(p::kMix, mix);
+          const Stereo out = run(device, tone);
+          const double change = db(both(out, at(2.0)) / rms(tone, at(2.0))) - db(powers_at(mix));
+          if (change < dip) {
+            dip = change;
+            dip_hz = hz;
+          }
+          if (change > rise) {
+            rise = change;
+            rise_hz = hz;
+          }
+        }
+      }
+    }
+    std::printf("held tones A0 to C8 at Mix 0.25, 0.5, 0.75: worst dip %.2f dB (%.1f Hz), worst rise %.2f dB (%.1f Hz)\n",
+                dip, dip_hz, rise, rise_hz);
+    EXPECT(dip > -0.3, "no held tone dips against its shadow at a part-way Mix");
+    EXPECT(rise < 0.3, "and none doubles with it");
+  }
+
+  // Level. A full-scale chord held for a minute at the defaults: the peak stays within 6 dB of the input's
+  // and nothing grows.
+  const std::vector<float> full = tones({220.0, 277.18, 329.63, 415.3}, {0.25, 0.25, 0.25, 0.25}, 60.0f);
+  {
+    device.init(kRate);
+    const Stereo out = run(device, full);
+    const double in_peak = peak(full);
+    const double early = std::max(peak(out.left, at(5.0), at(15.0)), peak(out.right, at(5.0), at(15.0)));
+    const double late = std::max(peak(out.left, at(50.0)), peak(out.right, at(50.0)));
+    std::printf("a full-scale chord for a minute: input peak %.3f, output peak %.3f early and %.3f late, level %+.2f dB\n",
+                in_peak, early, late, db(both(out, at(50.0)) / rms(full, at(50.0))));
+    EXPECT(std::max(early, late) < 2.0 * in_peak, "a held full-scale chord peaks within 6 dB of the input");
+    EXPECT(late < 1.02 * early, "and does not grow over a minute");
+    EXPECT_NEAR(db(both(out, at(50.0)) / rms(full, at(50.0))), db(powers_at(0.5)), 0.3,
+                "and comes out as the sound and its shadow added as powers (+1.76 dB)");
+  }
+  // The same through every preset, and the part-way Mix sweep through every preset: held tones A0 to C8 at
+  // the preset's own Mix come out no quieter than the dry sound alone would at that Mix (a shadow that
+  // cancelled its sound would take it below) and no louder than sound and shadow added as powers, which is
+  // never more than 2 dB over what went in. Where a preset moves the
+  // sines off their partials (Pitch, Snap) the two add as powers over time; with Snap a tone that is off
+  // its note beats against its sine, so those are measured over four seconds.
+  {
+    double worst = 0.0, growth = 0.0, under = 0.0, over = 0.0, loudest = 0.0;
+    const char* worst_name = "";
+    const char* under_name = "";
+    const char* over_name = "";
+    const double in_peak = peak(full);
+    for (const Preset& preset : kPresets) {
+      set_preset(device, preset);
+      const Stereo out = run(device, full);
+      const double top = std::max(peak(out.left), peak(out.right));
+      if (top > worst) {
+        worst = top;
+        worst_name = preset.name;
+      }
+      const double mid = std::max(peak(out.left, at(20.0), at(30.0)), peak(out.right, at(20.0), at(30.0)));
+      const double last = std::max(peak(out.left, at(50.0)), peak(out.right, at(50.0)));
+      growth = std::max(growth, last / std::max(mid, in_peak));
+      const double mix = device.param(p::kMix);
+      const double dry_alone = dry_at(mix);
+      for (int note = 21; note <= 108; note += 3) {
+        for (double sharp : {0.0, 0.5}) {
+          const double hz = 440.0 * std::pow(2.0, (note + sharp - 69.0) / 12.0);
+          const std::vector<float> tone = sine(static_cast<float>(hz), 8.0f, kRate, 0.5f);
+          set_preset(device, preset);
+          const Stereo held = run(device, tone);
+          const double level = both(held, at(4.0)) / rms(tone, at(4.0));
+          if (dry_alone > 0.01 && db(level / dry_alone) < under) {
+            under = db(level / dry_alone);
+            under_name = preset.name;
+          }
+          if (db(level / powers_at(mix)) > over) {
+            over = db(level / powers_at(mix));
+            over_name = preset.name;
+          }
+          loudest = std::max(loudest, db(level));
+        }
+      }
+    }
+    std::printf("a full-scale chord for a minute at every preset: worst peak %.3f (%s), input %.3f\n", worst, worst_name,
+                in_peak);
+    std::printf("held tones A0 to C8 at every preset: at worst %.2f dB under the dry sound alone (%s), %.2f dB over "
+                "sound and shadow as powers (%s), %.2f dB over the input\n",
+                under, under_name, over, over_name, loudest);
+    EXPECT(worst < 2.0 * in_peak, "at every preset the chord peaks within 6 dB of the input");
+    EXPECT(growth < 1.05, "and does not grow");
+    EXPECT(under > -0.5, "at no preset does a held tone fall below what the dry sound alone gives");
+    EXPECT(over < 0.5, "and at none does it come out louder than sound and shadow added as powers");
+    EXPECT(loudest < 2.2, "which is never more than 2 dB over what went in");
+  }
+  // The same at each end of every control: 20 s each.
+  {
+    double worst = 0.0, growth = 0.0;
+    int worst_param = -1;
+    const std::vector<float> chord(full.begin(), full.begin() + static_cast<long>(at(20.0)));
+    const double in_peak = peak(chord);
+    for (int id = 0; id < p::kNumParams; ++id) {
+      for (int end = 0; end < 2; ++end) {
+        device.init(kRate);
+        device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
+        const Stereo out = run(device, chord);
+        const double top = std::max(peak(out.left), peak(out.right));
+        if (top > worst) {
+          worst = top;
+          worst_param = id;
+        }
+        const double mid = std::max(peak(out.left, at(8.0), at(12.0)), peak(out.right, at(8.0), at(12.0)));
+        const double last = std::max(peak(out.left, at(16.0)), peak(out.right, at(16.0)));
+        // Release at 30 s and Attack at 8 s are still on their way at 12 s: they may rise to the level, not past it.
+        growth = std::max(growth, last / std::max(mid, in_peak));
+      }
+    }
+    std::printf("a full-scale chord at each end of every control: worst peak %.3f (param %d), input %.3f\n", worst,
+                worst_param, in_peak);
+    EXPECT(worst < 2.0 * in_peak, "at each end of every control the chord peaks within 6 dB of the input");
+    EXPECT(growth < 1.5, "and never grows");
+  }
+  // A full-scale saw: its 24 strongest partials would sum to 2.4 if they all came to a head at once, as they
+  // do in the saw itself a quarter turn on. Every note keeps to its own side of the phase, so they do not.
+  for (float mix : {0.5f, 1.0f}) {
+    std::vector<float> saw(at(4.0));
+    for (size_t i = 0; i < saw.size(); ++i) {
+      const double phase = std::fmod(110.0 * static_cast<double>(i) / kRate, 1.0);
+      saw[i] = static_cast<float>(2.0 * phase - 1.0);
+    }
+    device.init(kRate);
+    device.set_param(p::kMix, mix);
+    device.set_param(p::kPartials, 24.0f);
+    device.set_param(p::kSpread, 0.0f);
+    const Stereo out = run(device, saw);
+    char label[96];
+    std::snprintf(label, sizeof label, "a full-scale saw at Mix %.1f, 24 partials: peak %.3f", mix, peak(out.left, at(2.0)));
+    EXPECT(peak(out.left, at(2.0)) < 1.5, label);
+  }
+  // Sines that linger cannot pile up without end: forty full-scale notes, each left to linger for 30 s under
+  // the next. The ceiling holds the sum of the sines' levels, and with it the shadow's peak, at kCeiling.
+  {
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kSteady, 0.0f);
+    device.set_param(p::kAttack, 20.0f);
+    device.set_param(p::kRelease, 30.0f);
+    device.set_param(p::kPartials, 24.0f);
+    Stereo out;
+    for (int note = 0; note < 40; ++note) {
+      const double hz = 110.0 * std::pow(2.0, ((note * 7) % 36) / 12.0 + 0.013 * note);
+      out = concat(out, run(device, sine(static_cast<float>(hz), 0.25f, kRate, 1.0f)));
+    }
+    const double top = std::max(peak(out.left), peak(out.right));
+    std::printf("forty full-scale notes left to linger: the shadow peaks at %.3f, level %.3f\n", top, both(out, at(8.0)));
+    EXPECT(top <= SineShadow::kCeiling * 1.0001, "the shadow's peak is held at the ceiling however many sines linger");
+    EXPECT(top > 1.2, "and the ceiling was reached (the check above is not of nothing)");
+  }
+
+  // Bad input: not-a-number, infinity and 1e30 go in as silence, on the dry side too. The output stays finite,
+  // and the device is itself again once they have left the frame.
+  {
+    std::vector<float> good = tones({220.0, 330.0}, {0.3, 0.2}, 4.0f);
+    std::vector<float> bad = good;
+    bad[at(1.0)] = std::nanf("");
+    bad[at(1.0) + 1] = std::numeric_limits<float>::infinity();
+    bad[at(1.0) + 2] = -1.0e30f;
+    bad[at(1.0) + 3] = 1.0e30f;
+    device.init(kRate);
+    const Stereo clean = run(device, good);
+    device.init(kRate);
+    const Stereo hurt = run(device, bad);
+    EXPECT(finite(hurt.left) && finite(hurt.right), "NaN, infinity and 1e30 in: finite out");
+    EXPECT(peak(hurt.left) < 1.5, "and bounded");
+    double off = 0.0;
+    for (size_t i = at(3.0); i < good.size(); ++i) off = std::max(off, std::fabs(hurt.left[i] - (double)clean.left[i]));
+    std::printf("bad input: two seconds on, the output is within %.2g of what it would have been\n", off);
+    EXPECT(off < 0.01, "and two seconds on the device is as if they had never come");
+    EXPECT_NEAR(db(both(hurt, at(3.0)) / both(clean, at(3.0))), 0.0, 0.05, "at the level it would have had");
+    device.init(kRate);
+    device.set_param(p::kMix, 0.0f);
+    const Stereo dry = run(device, bad);
+    bool same = true;
+    for (size_t i = 0; i < bad.size(); ++i) {
+      const bool hit = i >= at(1.0) && i < at(1.0) + 4;
+      same = same && dry.left[i] == (hit ? 0.0f : good[i]);
+    }
+    EXPECT(same, "Mix 0 with bad samples: silence for those four and the input for the rest");
+  }
+
+  // Block sizes across a silence. A burst, a silence stepped across the moment the device falls asleep (with
+  // the shortest Release the last sine is over 0.3 s after the sound and the device sleeps 0.17 s later),
+  // and a burst again, at block sizes 128, 1, 2048 and 37.
+  {
+    double worst = 0.0;
+    const std::vector<float> burst = tones({196.0, 311.13, 466.16}, {0.3, 0.25, 0.2}, 0.4f);
+    for (float gap = 0.2f; gap < 0.8f; gap += 0.011f) {
+      std::vector<float> phrase = burst;
+      const std::vector<float> quiet = silence(gap, kRate);
+      phrase.insert(phrase.end(), quiet.begin(), quiet.end());
+      phrase.insert(phrase.end(), burst.begin(), burst.end());
+      Stereo reference;
+      for (int block : {128, 1, 2048, 37}) {
+        device.init(kRate);
+        device.set_param(p::kRelease, 0.1f);
+        device.set_param(p::kAttack, 20.0f);
+        device.set_param(p::kSteady, 0.1f);
+        const Stereo out = run(device, phrase, block);
+        if (block == 128) {
+          reference = out;
+          continue;
+        }
+        for (size_t i = 0; i < out.size(); ++i) {
+          worst = std::max(worst, std::fabs(static_cast<double>(out.left[i]) - reference.left[i]));
+          worst = std::max(worst, std::fabs(static_cast<double>(out.right[i]) - reference.right[i]));
+        }
+      }
+    }
+    std::printf("block sizes across a silence: worst difference %.3g\n", worst);
+    EXPECT(worst < 1.0e-6, "the same at block sizes 1, 37, 128 and 2048 across a sleep");
+  }
+
+  // Sleep: exact zeros once the last sine is over, and a knob moved in its sleep snaps (it does not glide in
+  // under the first sound).
+  {
+    device.init(kRate);
+    run(device, tones({220.0, 330.0}, {0.3, 0.2}, 1.0f));
+    render(device, 14.0f, kRate);
+    const Stereo rest = render(device, 1.0f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "asleep after the tail");
+    for (int m = 0; m < 2 * SineShadow::kShown; ++m) EXPECT(device.meter(m) == 0.0f, "asleep: every meter reads 0");
+    device.set_param(p::kMix, 0.0f);
+    const std::vector<float> tone = sine(440.0f, 0.1f, kRate, 0.5f);
+    const Stereo woken = run(device, tone);
+    EXPECT(woken.left == tone, "Mix moved to 0 while asleep: the input from the first sample, no glide");
+  }
+
+  // A sine that lingers takes its partial up again when the note comes back: one sine, not a second beside
+  // it, and it finds its quarter turn again (sound and shadow add as powers within half a second).
+  {
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    run(device, sine(440.0f, 1.0f, kRate, 0.5f));
+    render(device, 0.6f, kRate);
+    std::vector<float> again(at(2.5));
+    for (size_t i = 0; i < again.size(); ++i) {
+      again[i] = static_cast<float>(0.5 * std::sin(2.0 * kPi * 440.0 * static_cast<double>(i) / kRate + 2.1));
+    }
+    const Stereo out = run(device, again);
+    EXPECT(device.meter(0) > 439.9f && device.meter(0) < 440.1f && device.meter(2) == 0.0f,
+           "the note played again: the lingering sine follows it, and no second sine is made");
+    const double change = db(both(out, at(1.5)) / rms(again, at(1.5)));
+    std::printf("a note played again under its lingering sine: out against in %+.2f dB\n", change);
+    EXPECT_NEAR(change, db(powers_at(0.5)), 0.3, "and sound and shadow add as powers again");
+  }
+
+  // The meters: the sines as they sound, loudest first, a frequency and a level each; reading them changes
+  // nothing.
+  {
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    const Stereo plain = run(device, pair);
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    Stereo read;
+    for (size_t done = 0; done < pair.size(); done += 480) {
+      const std::vector<float> piece(pair.begin() + static_cast<long>(done), pair.begin() + static_cast<long>(done + 480));
+      read = concat(read, run(device, piece));
+      for (int m = 0; m < 2 * SineShadow::kShown; ++m) device.meter(m);
+    }
+    EXPECT(read.left == plain.left && read.right == plain.right, "reading the meters does not change the sound");
+    EXPECT_NEAR(device.meter(0), 440.0, 0.05, "meter 0: the loudest sine's frequency");
+    EXPECT_NEAR(device.meter(1), 0.5, 0.005, "meter 1: its level");
+    EXPECT_NEAR(device.meter(2), 660.5, 0.05, "meter 2: the next sine's frequency");
+    EXPECT_NEAR(device.meter(3), 0.25, 0.005, "meter 3: its level");
+    EXPECT(device.meter(4) == 0.0f && device.meter(5) == 0.0f, "no third sine: its meters read 0");
+    EXPECT(device.meter(-1) == 0.0f && device.meter(2 * SineShadow::kShown) == 0.0f, "a meter there is not reads 0");
+  }
+
+  // Other sample rates: the same sines, in tune and at their levels (at 96 kHz on the longer frame).
+  for (float rate : {44100.0f, 96000.0f}) {
+    device.init(rate);
+    device.set_param(p::kMix, 1.0f);
+    device.set_param(p::kSpread, 0.0f);
+    const Stereo out = run(device, tones({440.0, 660.5}, {0.5, 0.25}, 4.0f, rate));
+    const std::vector<Tone> held = tones_in(out.left, at(3.0, rate), rate, 1.0e-3);
+    const Tone low = nearest(held, 440.0), high = nearest(held, 660.5);
+    char label[96];
+    std::snprintf(label, sizeof label, "at %.0f Hz: two sines out, in tune and at their levels (%zu found)", rate,
+                  held.size());
+    EXPECT(held.size() == 2 && std::fabs(cents(low.hz, 440.0)) < 1.0 && std::fabs(cents(high.hz, 660.5)) < 1.0 &&
+               std::fabs(db(low.level) - db(0.5)) < 0.2 && std::fabs(db(high.level) - db(0.25)) < 0.2,
+           label);
+    const Stereo tail = render(device, 14.0f, rate);
+    EXPECT(peak(tail.left, at(13.0, rate)) == 0.0, "and it comes to rest");
+  }
+
+  // The device comes to rest after any control is moved under a lingering shadow: to its top and then to its
+  // bottom, and exact zeros within a minute and a half (Release at its top is 30 s to -60 dB).
+  for (int id = 0; id < p::kNumParams; ++id) {
+    device.init(kRate);
+    run(device, tones({220.0, 330.0, 495.0}, {0.3, 0.2, 0.2}, 1.0f));
+    device.set_param(id, p::kParamMax[id]);
+    render(device, 0.3f, kRate);
+    device.set_param(id, p::kParamMin[id]);
+    render(device, 90.0f, kRate);
+    const Stereo rest = render(device, 0.5f, kRate);
+    char label[96];
+    std::snprintf(label, sizeof label, "param %d moved under a lingering shadow: the device comes to rest", id);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, label);
+  }
+
+  // ---- The second check: each of these failed on the device as it was first handed over. ----
+
+  // A note starts as it was played. Up to half way Mix leaves the sound whole, so until the first sine is
+  // found (45 ms at the least) the output is the input to the sample, and the first tenth of a second of a
+  // plucked note is as loud as it went in. (Mix was an equal-power crossfade at first: the default took 3 dB
+  // off every onset and gave it back over the attack.)
+  {
+    std::vector<float> pluck(at(2.0), 0.0f);
+    for (int h = 1; h <= 16; ++h) {
+      for (size_t i = 0; i < at(1.5); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        pluck[at(0.25) + i] += static_cast<float>(0.5 / h * std::exp(-t * 1.2 * h) * std::sin(2.0 * kPi * 220.0 * h * t));
+      }
+    }
+    for (float mix : {0.2f, 0.5f}) {
+      device.init(kRate);
+      device.set_param(p::kMix, mix);
+      const Stereo out = run(device, pluck);
+      bool same = true;
+      for (size_t i = 0; i < at(0.25 + 0.04); ++i) same = same && out.left[i] == pluck[i] && out.right[i] == pluck[i];
+      EXPECT(same, "up to half way Mix leaves the first 40 ms of a note as they were played, bit for bit");
+      EXPECT_NEAR(db(both(out, at(0.25), at(0.35)) / rms(pluck, at(0.25), at(0.35))), 0.0, 0.3,
+                  "and the first tenth of a second as loud as it went in");
+      EXPECT(peak(out.left) > 0.98 * peak(pluck), "the pluck keeps its peak");
+    }
+  }
+
+  // Pitch lands sines on the sound's own harmonics: an octave up is the second harmonic, a fifth up is
+  // two cents from the third. Each such sine takes the pitch of the partial it lands on and keeps a quarter
+  // turn from it, so the harmonic neither swells nor thins: second by second over half a minute it stays
+  // within half a decibel, at the sum of the two as powers. (Left to run free, the third harmonic under a
+  // fifth above swung between -13.6 and +3.0 dB.) Harmonics at 1/h, each with a phase of its own.
+  for (float transpose : {12.0f, 7.0f}) {
+    const std::vector<float> saw = harmonics(220.0, 30, 0.4, 1.0, 30.0f);
+    device.init(kRate);
+    device.set_param(p::kTranspose, transpose);
+    device.set_param(p::kPartials, 6.0f);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kMix, 0.4f);
+    const Stereo out = run(device, saw);
+    // The harmonics the first sines land on: 2, 4, 6 for an octave; 3 and 6 for a fifth (1.4983 and 2.9966).
+    const std::vector<int> landed = transpose == 12.0f ? std::vector<int>{2, 4, 6} : std::vector<int>{3, 6};
+    for (int h : landed) {
+      double low = 1.0e9, high = -1.0e9;
+      for (int second = 5; second < 30; ++second) {
+        const double level = db(tone_level(out.left, 220.0 * h, kRate, at(second), at(second + 1.0)) /
+                                tone_level(saw, 220.0 * h, kRate, at(second), at(second + 1.0)));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      // The sine that lands on harmonic h comes from harmonic h/2 (an octave) or 2h/3 (a fifth), which is
+      // 2 or 1.5 times as strong; the shadow is at sin(0.4 pi/2) = 0.588 and the sound whole.
+      const double from = transpose == 12.0f ? 2.0 : 1.5;
+      const double expected = db(std::sqrt(1.0 + (0.588 * from) * (0.588 * from)));
+      char label[128];
+      std::snprintf(label, sizeof label, "Pitch %+.0f: harmonic %d holds %.2f to %.2f dB over the sound's own", transpose,
+                    h, low, high);
+      EXPECT(high - low < 0.5, label);
+      EXPECT_NEAR(0.5 * (low + high), expected, 0.6, "and stands at the two added as powers");
+    }
+  }
+
+  // The ceiling leaves the sound its room. A full-scale tone under forty lingering full-scale sines at the
+  // default Mix: sound and shadow together stay within 6 dB of full scale, and nothing is clipped (the
+  // ceiling is a gain on the whole shadow that moves as slowly as the sines' levels do).
+  {
+    device.init(kRate);
+    device.set_param(p::kSpread, 0.0f);
+    device.set_param(p::kSteady, 0.0f);
+    device.set_param(p::kAttack, 20.0f);
+    device.set_param(p::kRelease, 30.0f);
+    device.set_param(p::kPartials, 24.0f);
+    Stereo out;
+    for (int note = 0; note < 40; ++note) {
+      const double hz = 110.0 * std::pow(2.0, ((note * 7) % 36) / 12.0 + 0.013 * note);
+      out = concat(out, run(device, sine(static_cast<float>(hz), 0.25f, kRate, 1.0f)));
+    }
+    const double top = std::max(peak(out.left), peak(out.right));
+    std::printf("forty full-scale notes and their lingering sines at the default Mix: peak %.3f\n", top);
+    EXPECT(top <= 2.0, "a full-scale sound and its shadow together stay within 6 dB of full scale");
+    EXPECT(top > 1.5, "and the ceiling was reached");
+  }
+
+  // Tones too close for one frame. A minor second at A3 (13 Hz apart) is one lump in the 85 ms frame whose
+  // bins disagree about its pitch, and no sine was born from it at all; a close triad in the bass lost its
+  // lowest note. The fine frame tells tones apart from 9 Hz: each has its own sine, at its own pitch and
+  // level, and nothing stands between them.
+  {
+    struct Close {
+      const char* name;
+      std::vector<double> hz;
+    };
+    const Close cases[] = {{"a minor second at A3", {220.0, 233.08}},
+                           {"A2 C3 E3", {110.0, 130.81, 164.81}},
+                           {"A1 C2 E2", {55.0, 65.41, 82.41}}};
+    for (float rate : {48000.0f, 96000.0f}) {
+      for (const Close& c : cases) {
+        const std::vector<float> in = tones(c.hz, std::vector<double>(c.hz.size(), 0.25), 6.0f, rate);
+        device.init(rate);
+        device.set_param(p::kMix, 1.0f);
+        device.set_param(p::kSpread, 0.0f);
+        const Stereo out = run(device, in);
+        const size_t from = static_cast<size_t>(3.0 * rate), to = static_cast<size_t>(5.5 * rate);
+        char label[160];
+        for (double hz : c.hz) {
+          const double level = db(tone_level(out.left, hz, rate, from, to) / 0.25);
+          std::snprintf(label, sizeof label, "%s at %.0f Hz: the tone at %.2f Hz has its own sine (%.2f dB)", c.name, rate, hz,
+                        level);
+          EXPECT(std::fabs(level) < 1.0, label);
+        }
+        const double between = 0.5 * (c.hz[0] + c.hz[1]);
+        std::snprintf(label, sizeof label, "%s at %.0f Hz: nothing stands between the two lowest", c.name, rate);
+        EXPECT(db(tone_level(out.left, between, rate, from, to) / 0.25) < -20.0, label);
+        EXPECT_NEAR(db(rms(out.left, from, to) / rms(in, from, to)), 0.0, 0.5, "and the shadow is as loud as the sound");
+      }
+    }
+  }
+
+  // A partial on the move. One tone, the shadow alone, its level in 20 ms windows: a vibrato of 30 cents at
+  // 3520 Hz and of 80 cents at 1760 Hz (6 Hz), and a glide of an octave in a second, are followed by one
+  // sine that never drops out. (Each cast no shadow at all: the 85 ms frame smears such a partial over many
+  // bins, and none of them was sure of its pitch. The quick frame follows it.) A gentler vibrato lower down,
+  // which the first version followed, still is: the side lines it draws in the fine frame do not speak.
+  // Nor does the fine frame's late picture of a tone that sways slowly (it shows where the tone dwelt a
+  // moment ago, and a sine sent back there lost its partial: 220 Hz swaying 50 cents once a second dipped
+  // 11 dB each time round), nor the steady lines a wide vibrato draws in it (80 cents at 880 Hz: 10 dB).
+  // And a tone that turns round just under where a partial's stretch of bins grows from one bin to three
+  // (988 Hz swaying 50 cents) is one sine: it was found twice there, and the two beat (-10 to +3 dB).
+  {
+    struct Moving {
+      const char* name;
+      double hz, cents, rate, glide;  // glide: octaves a second
+      double least;                   // dB against the tone
+    };
+    const Moving cases[] = {{"30 cents at 3520 Hz", 3520.0, 30.0, 6.0, 0.0, -1.5}, {"80 cents at 1760 Hz", 1760.0, 80.0, 6.0, 0.0, -2.5},
+                            {"50 cents at 1760 Hz", 1760.0, 50.0, 6.0, 0.0, -2.0}, {"30 cents at 440 Hz", 440.0, 30.0, 6.0, 0.0, -1.0},
+                            {"50 cents at 880 Hz", 880.0, 50.0, 5.0, 0.0, -1.5},   {"an octave up from 1760 Hz", 1760.0, 0.0, 0.0, 1.0, -2.5},
+                            {"an octave down from 3520 Hz", 3520.0, 0.0, 0.0, -1.0, -2.5}, {"an octave up from 220 Hz", 220.0, 0.0, 0.0, 1.0, -1.5},
+                            {"50 cents at 220 Hz, once a second", 220.0, 50.0, 1.0, 0.0, -1.0},
+                            {"80 cents at 110 Hz, once a second", 110.0, 80.0, 1.0, 0.0, -1.5},
+                            {"80 cents at 440 Hz, 3 a second", 440.0, 80.0, 3.0, 0.0, -1.5},
+                            {"80 cents at 880 Hz", 880.0, 80.0, 6.0, 0.0, -2.5},
+                            {"50 cents at 988 Hz, 4 a second", 988.0, 50.0, 4.0, 0.0, -2.0},
+                            {"65 cents at 587 Hz, 7 a second", 587.0, 65.0, 7.0, 0.0, -2.0}};
+    for (const Moving& c : cases) {
+      const double seconds = c.glide != 0.0 ? 3.0 : 5.0;  // a glide: a second held, a second gliding, a second held
+      std::vector<float> in(at(seconds));
+      double phase = 0.0;
+      for (size_t i = 0; i < in.size(); ++i) {
+        const double t = static_cast<double>(i) / kRate;
+        const double moved = c.glide != 0.0 ? c.glide * std::min(1.0, std::max(0.0, t - 1.0))
+                                            : c.cents / 1200.0 * std::sin(2.0 * kPi * c.rate * t);
+        phase += 2.0 * kPi * c.hz * std::exp2(moved) / kRate;
+        in[i] = static_cast<float>(0.5 * std::sin(phase));
+      }
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kSpread, 0.0f);
+      device.set_param(p::kAttack, 60.0f);
+      const Stereo out = run(device, in);
+      double low = 1.0e9, high = -1.0e9;
+      for (double s = 0.8; s + 0.02 <= seconds - 0.2; s += 0.01) {
+        const double level = db(rms(out.left, at(s), at(s + 0.02)) / (0.5 / std::sqrt(2.0)));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      char label[160];
+      std::snprintf(label, sizeof label, "a tone moving (%s) keeps its sine: %.1f to %+.1f dB against it", c.name, low, high);
+      EXPECT(low > c.least && high < 1.0, label);
+    }
+  }
+
+  // One tone, one sine. A partial is measured over a stretch of bins that grows with its bin, a whole bin at
+  // a time, and a peak was a stretch that held more than its neighbours' own: at the first step (one bin to
+  // three, bin 84) the wider stretch reached back to a tone two bins below and was a second peak. 962 Hz at
+  // 48 kHz and A5 at 44.1 kHz were each played by two sines at one pitch, 3 dB too loud.
+  {
+    struct Once {
+      float rate;
+      double hz;
+    };
+    for (const Once& c : {Once{48000.0f, 962.0}, Once{44100.0f, 880.0}, Once{48000.0f, 1945.0}, Once{44100.0f, 898.0}}) {
+      const std::vector<float> in = tones({c.hz}, {0.25}, 4.0f, c.rate);
+      device.init(c.rate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kSpread, 0.0f);
+      const Stereo out = run(device, in);
+      const size_t from = static_cast<size_t>(2.0 * c.rate), to = static_cast<size_t>(3.5 * c.rate);
+      int sines = 0;
+      for (int v = 0; v < 24; ++v) sines += device.meter(2 * v + 1) > 0.01f ? 1 : 0;
+      const double level = db(rms(out.left, from, to) / rms(in, from, to));
+      char label[160];
+      std::snprintf(label, sizeof label, "a tone at %.0f Hz (%.0f Hz rate) has one sine as loud as itself (%d, %+.2f dB)", c.hz,
+                    c.rate, sines, level);
+      EXPECT(sines == 1 && std::fabs(level) < 0.3, label);
+    }
+  }
+
+  // A played phrase, hot. Eight struck notes (six partials each, dying over a second or so, under a hammer
+  // of noise 6 ms long, which is the note's highest sample as it is a struck string's or tine's), a new one
+  // every 0.6 s over those still sounding, the fifth the loudest, the highest sample at -1 dBFS. Through
+  // every preset: no sample over full scale (what lingers of the notes before stands under each new strike,
+  // and a sine off its partial, by Glide or Transpose, adds to it sample for sample), and the eight seconds
+  // within 2.5 dB of the phrase itself in RMS: no name promises a louder or a quieter sound. ("Sliding
+  // sines" was +1.3 dBFS and +2.4 LU on the bank's phrase, "Low shadow" +0.05 dBFS, "Tuned drone" -3.3 LU.)
+  {
+    const double notes[8] = {146.83, 220.0, 293.66, 369.99, 440.0, 329.63, 246.94, 196.0};
+    std::vector<float> played(at(8.0), 0.0f);
+    rng_state() = 0x5eedu;
+    for (int n = 0; n < 8; ++n) {
+      const size_t start = at(0.6 * n);
+      const double strength = n == 4 ? 1.4 : 1.0;
+      for (int h = 1; h <= 6; ++h) {
+        for (size_t i = start; i < played.size(); ++i) {
+          const double t = static_cast<double>(i - start) / kRate;
+          played[i] += static_cast<float>(strength * std::sin(2.0 * kPi * notes[n] * h * t) * std::exp(-t * (1.5 + 0.5 * h)) /
+                                          (h * h));
+        }
+      }
+      for (size_t i = 0; i < at(0.006); ++i) {
+        played[start + i] += static_cast<float>(strength * kHammer * white() * std::exp(-static_cast<double>(i) / 100.0));
+      }
+    }
+    const double top = peak(played);
+    for (float& v : played) v = static_cast<float>(v * 0.8913 / top);
+    const double in_level = rms(played, 0, at(5.4));
+    double hottest = 0.0;
+    const char* hottest_name = "";
+    for (const Preset& preset : kPresets) {
+      set_preset(device, preset);
+      const Stereo out = run(device, played);
+      const double high = std::max(peak(out.left), peak(out.right));
+      const double level = db(both(out, 0, at(5.4)) / in_level);
+      if (high > hottest) {
+        hottest = high;
+        hottest_name = preset.name;
+      }
+      char label[200];
+      std::snprintf(label, sizeof label, "a played phrase fed at -1 dBFS through %s: highest sample %+.2f dBFS, level %+.2f dB",
+                    preset.name, db(high), level);
+      EXPECT(high <= 1.0 && level > -2.5 && level < 2.5, label);
+      if (!(high <= 1.0 && level > -2.5 && level < 2.5)) std::printf("  out of bounds: %s\n", label);
+    }
+    std::printf("a played phrase at -1 dBFS through every preset: the hottest is %s, %+.2f dBFS\n", hottest_name, db(hottest));
+  }
+
+  // Snap with the sound in the mix. A sine pulled onto its note is no longer at its partial's pitch, and the
+  // two beat: a chord 10 cents sharp through a Snap preset at Mix 0.8 swung between -3.2 and +1.2 dB. So
+  // the presets that use Snap play the shadow alone, where a held chord holds its level.
+  {
+    const double sharp = std::pow(2.0, 10.0 / 1200.0);
+    const std::vector<float> chord = tones({220.0 * sharp, 277.18 * sharp, 329.63 * sharp}, {0.25, 0.25, 0.25}, 9.0f);
+    int snapped = 0;
+    for (const Preset& preset : kPresets) {
+      float snap = 0.0f, mix = 0.5f;
+      for (const Setting& s : preset.settings) {
+        if (s.id == p::kSnap) snap = s.value;
+        if (s.id == p::kMix) mix = s.value;
+      }
+      if (snap == 0.0f) continue;
+      ++snapped;
+      EXPECT(mix == 1.0f, "a preset that uses Snap plays the shadow alone");
+      set_preset(device, preset);
+      const Stereo out = run(device, chord);
+      double low = 1.0e9, high = -1.0e9;
+      for (double s = 6.0; s + 0.1 <= 8.9; s += 0.05) {
+        const double level = db(both(out, at(s), at(s + 0.1)));
+        low = std::min(low, level);
+        high = std::max(high, level);
+      }
+      char label[160];
+      std::snprintf(label, sizeof label, "%s on a chord 10 cents sharp holds its level (%.2f dB between the tenths of a second)",
+                    preset.name, high - low);
+      EXPECT(high - low < 1.5, label);
+    }
+    EXPECT(snapped == 2, "two presets use Snap");
+  }
+
+  // Cost. At the defaults on a chord with a little noise in it; and at the worst setting: 24 partials of
+  // noise with no wait and the longest release, which keeps all 48 oscillators sounding and gives the frame
+  // the most peaks to sort. A frame's work lands in one block, so the worst block is reported too: of 128-frame
+  // blocks timed one by one, the 99th percentile (the fastest of three runs, to leave the scheduler out).
+  {
+    rng_state() = 0xBEEFu;
+    std::vector<float> chord = harmonics(110.0, 16, 0.2, 1.0, 10.0f);
+    const std::vector<float> hiss = noise(10.0f, kRate, 0.25f);
+    for (size_t i = 0; i < chord.size(); ++i) chord[i] += 0.02f * hiss[i];
+    device.init(kRate);
+    report_cost("sine-shadow at the defaults", 10.0f, kRate, [&] { run(device, chord); });
+    auto worst_setting = [&] {
+      device.init(kRate);
+      device.set_param(p::kPartials, 24.0f);
+      device.set_param(p::kSteady, 0.0f);
+      device.set_param(p::kAttack, 20.0f);
+      device.set_param(p::kRelease, 30.0f);
+    };
+    worst_setting();
+    report_cost("sine-shadow at its worst (48 sines)", 10.0f, kRate, [&] { run(device, hiss); });
+    double best_mean = 1.0e9, best_tail = 1.0e9;
+    for (int pass = 0; pass < 3; ++pass) {
+      worst_setting();
+      std::vector<double> micros;
+      for (size_t done = 0; done + 128 <= hiss.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = hiss[done + i];
+        const auto start = std::chrono::steady_clock::now();
+        device.process(128);
+        micros.push_back(std::chrono::duration<double, std::micro>(std::chrono::steady_clock::now() - start).count());
+      }
+      double sum = 0.0;
+      for (double m : micros) sum += m;
+      std::sort(micros.begin(), micros.end());
+      best_mean = std::min(best_mean, sum / static_cast<double>(micros.size()));
+      best_tail = std::min(best_tail, micros[micros.size() * 99 / 100]);
+    }
+    std::printf("sine-shadow at its worst, block by block: mean %.1f us (%.2f%%), 99th percentile %.1f us (%.2f%% of a"
+                " block's 2667 us) (native)\n", best_mean, 100.0 * best_mean / 2666.7, best_tail, 100.0 * best_tail / 2666.7);
+  }
+
+  // --- what the second reading found --------------------------------------------------------------------------
+
+  // A rumble about the lowest bin the device looks at. The place such a peak is measured at can come out at
+  // nought or under (here -0.08 bins, 4.0 s in), and a sine born there took the logarithm of it for its place
+  // between the sides: 1024 samples that were not numbers, at any Mix. The sound is five seconds of white noise
+  // through two poles at 30 Hz, from the state the generator was in 4 s before the one such sine in 2.5 hours.
+  {
+    uint32_t s = 2888549298u;
+    float lp1 = 0.000820252462f, lp2 = 0.00789064914f, hp = 0.00854110438f;
+    const float a = 0.00391930342f;
+    std::vector<float> rumble(at(5.0));
+    for (float& x : rumble) {
+      s ^= s << 13;
+      s ^= s >> 17;
+      s ^= s << 5;
+      const float white = static_cast<float>(s >> 8) * (1.0f / 16777216.0f) * 2.0f - 1.0f;
+      const float step1 = a * (white - lp1);
+      lp1 += step1;
+      const float step2 = a * (lp1 - lp2);
+      lp2 += step2;
+      const float step3 = 0.0005f * (lp2 - hp);
+      hp += step3;
+      x = 8.0f * (lp2 - hp);
+    }
+    device.init(kRate);
+    const Stereo out = run(device, rumble);
+    size_t bad = 0;
+    for (size_t i = 0; i < out.left.size(); ++i) {
+      if (!std::isfinite(out.left[i]) || !std::isfinite(out.right[i])) ++bad;
+    }
+    std::printf("a rumble at the lowest bin: %zu samples that are not numbers\n", bad);
+    EXPECT(bad == 0, "a peak measured under nought gives a sine a place like any other");
+  }
+
+  // A sine's level and its two side gains land. Each was a one pole with no end: a sine still following its
+  // partial with nothing to sound (Transpose has put it past the range) and a side with no share of a sine (a
+  // sound on the left only, Spread at 0) stood at 4e-45 for as long as the sound held, and every sum on them
+  // ran slow (native, 24 sines: 15 ms of work a second before, 94 to 220 after).
+  {
+    const std::vector<float> bright = harmonics(440.0, 24, 0.25, 1.0, 16.0f);
+    const std::vector<float> none(bright.size(), 0.0f);
+    auto noise_to_tones = [&] {
+      set_preset(device, kPresets[14]);
+      EXPECT(std::strcmp(kPresets[14].name, "Noise to tones") == 0, "the preset this check means");
+    };
+    auto most_slow = [&](const std::vector<float>& left, const std::vector<float>& right, size_t from) {
+      int most = 0;
+      for (size_t done = from; done + 128 <= left.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) {
+          device.in_left()[i] = left[done + i];
+          device.in_right()[i] = right[done + i];
+        }
+        device.process(128);
+        most = std::max(most, device.slow_numbers());
+      }
+      return most;
+    };
+    noise_to_tones();
+    run(device, std::vector<float>(bright.begin(), bright.begin() + at(3.0)));
+    device.set_param(p::kTranspose, 24.0f);
+    const int thrown = most_slow(bright, bright, at(3.0));
+    noise_to_tones();
+    device.set_param(p::kSpread, 0.0f);
+    run(device, std::vector<float>(bright.begin(), bright.begin() + at(3.0)));
+    const int one_side = most_slow(bright, none, at(3.0));
+    std::printf("levels and side gains left where sums go slow: %d with Transpose thrown, %d with one side silent\n",
+                thrown, one_side);
+    EXPECT(thrown == 0, "a sine with nothing to sound has a level of nought, not of 4e-45");
+    EXPECT(one_side == 0, "a side with no share of a sine has a gain of nought, not of 4e-45");
+  }
+
+  return finish("sine-shadow");
+}

@@ -32,6 +32,8 @@ import { TURN_INSTRUMENT_FACES } from './instrument-turns'
 import { VOICE_INSTRUMENT_FACES } from './instrument-voices'
 import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
+import { IMPRINT_FACES } from './imprint'
+import { GLIMMER_FACES } from './glimmer'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -39,21 +41,31 @@ import { ORBITS_FACES } from './orbits'
 import { OVERTONE_SINGER_FACES } from './overtone-singer'
 import { PITCH_FACES } from './pitch'
 import { PULSES_FACES } from './pulses'
+import { PRISM_FACES } from './prism'
+import { REVEAL_FACES } from './reveal'
 import { REVERB_FACES } from './reverb'
 import { SKIPPING_STONE_FACES } from './skipping-stone'
 import { RING_FACES } from './ring'
 import { SEASONS_FACES } from './seasons'
+import { SCALE_FILTER_FACES } from './scale-filter'
+import { SIFT_FACES } from './sift'
+import { SINE_SHADOW_FACES } from './sine-shadow'
+import { SIZE_FACES } from './size'
 import { SPATIAL_FACES } from './spatial'
+import { STRETCH_FACES } from './stretch'
+import { STOPS_FACES } from './stops'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
 import { WEATHER_FACES } from './weather'
+import { WARP_FACES } from './warp'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
 import { CURRENTS_FACES } from './currents'
 import { MURMURATION_FACES } from './murmuration'
 import { LATE_VIBRATO_FACES } from './late-vibrato'
+import { COMMON_TONES_FACES } from './common-tones'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -109,4 +121,16 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WEATHER_FACES,
   ...LATE_VIBRATO_FACES,
   ...SEASONS_FACES,
+  ...STRETCH_FACES,
+  ...PRISM_FACES,
+  ...SCALE_FILTER_FACES,
+  ...SIFT_FACES,
+  ...IMPRINT_FACES,
+  ...COMMON_TONES_FACES,
+  ...GLIMMER_FACES,
+  ...SINE_SHADOW_FACES,
+  ...WARP_FACES,
+  ...STOPS_FACES,
+  ...REVEAL_FACES,
+  ...SIZE_FACES,
 }

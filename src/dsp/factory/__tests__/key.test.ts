@@ -155,9 +155,80 @@ describe('factory key', () => {
       octave: 4,
     })
   })
+
+  it('moves a scale by its root and a pivot in hertz by the ratio of the move', () => {
+    const one = (device: PatchDevice, by: number): Record<string, number> | undefined =>
+      transposePatch({ effects: [device] }, by).effects[0].params
+    // The filter's scale is counted from its root: C major three up is E flat major.
+    expect(one({ deviceId: 'scale-filter' }, 3)).toEqual({ root: 3 })
+    // A preset's own root goes too, round the twelve: the A minor triad is on C three up, on E five down.
+    expect(one({ deviceId: 'scale-filter', preset: 'Minor triad' }, 3)).toEqual({ root: 0 })
+    expect(
+      one({ deviceId: 'scale-filter', preset: 'Minor triad', params: { ring: 3 } }, -5),
+    ).toEqual({ root: 4, ring: 3 })
+    // The warp's pivot is the A below middle C as it comes, 220 Hz: three up is C, five down E.
+    const gong: PatchDevice = { deviceId: 'warp', preset: 'Sunken gong', params: { width: 0 } }
+    expect(one(gong, 3)).toEqual({ pivot: 261.63, width: 0 })
+    expect(one(gong, -5)).toEqual({ pivot: 164.81, width: 0 })
+    expect(one({ deviceId: 'warp', preset: 'Wide drone' }, 6)).toEqual({ pivot: 155.56 })
+    // Past the range of the knob, the octave that fits: still the key's note.
+    expect(one({ deviceId: 'warp', params: { pivot: 1900 } }, 2)?.pivot).toBeCloseTo(1066.34, 2)
+    expect(one({ deviceId: 'warp', params: { pivot: 21 } }, -3)?.pivot).toBeCloseTo(35.32, 2)
+  })
+
+  it('comes back from a move too far to be a pitch', () => {
+    const one = (by: number): number | undefined =>
+      transposePatch({ effects: [{ deviceId: 'warp', params: { pivot: 220 } }] }, by).effects[0]
+        .params?.pivot
+    // Sixteen octaves down less a tone is under a hundredth of a hertz: still the key's note.
+    expect(one(-190)).toBeCloseTo((220 * 2 ** (2 / 12)) / 8, 2)
+    // Thousands of octaves are no number at all: the end of the knob.
+    expect(one(20000)).toBe(2000)
+    expect(one(-20000)).toBe(20)
+    // A move that is not a number moves nothing.
+    const patch = { effects: [{ deviceId: 'warp' }, { deviceId: 'thesis' }] }
+    expect(transposePatch(patch, Infinity)).toBe(patch)
+    expect(transposePatch(patch, -Infinity)).toBe(patch)
+    expect(transposePatch(patch, NaN)).toBe(patch)
+  })
 })
 
 describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])('the chains moved by %i', (by) => {
+  it('are the same chains with every scale filter and every pivot that far from where it stood', () => {
+    /** The effects set to one pitch in one parameter, and what the move makes of it. */
+    const tunedByOne: Record<string, [string, (before: number, after: number) => void]> = {
+      'scale-filter': ['root', (before, after) => expect(after).toBe(mod12(before + by))],
+      warp: [
+        'pivot',
+        (before, after) => {
+          // The ratio of the move, an octave either way where the knob ends: within a cent.
+          const cents = 1200 * Math.log2(after / before) - 100 * by
+          expect(Math.abs(cents - 1200 * Math.round(cents / 1200))).toBeLessThan(1)
+        },
+      ],
+    }
+    for (const id of Object.keys(tunedByOne)) {
+      const tuned = FACTORY_CHAINS.filter((chain) => chain.effects.some((e) => e.deviceId === id))
+      expect(tuned.length, id).toBeGreaterThan(0)
+      for (const chain of tuned) {
+        const moved = transposePatch(chain, by)
+        expect(validatePatch(moved, registry), chain.id).toEqual([])
+        chain.effects.forEach((effect, at) => {
+          const descriptor = registry.get(effect.deviceId)
+          const rule = tunedByOne[effect.deviceId]
+          if (!descriptor || !rule) return
+          const before = patchDeviceParams(descriptor, effect)
+          const after = patchDeviceParams(descriptor, moved.effects[at])
+          rule[1](before[rule[0]], after[rule[0]])
+          // Nothing else of it moved.
+          for (const [name, value] of Object.entries(before)) {
+            if (name !== rule[0]) expect(after[name], `${chain.id}: ${name}`).toBe(value)
+          }
+        })
+      }
+    }
+  })
+
   it('are the same chains with every tuned effect that far from where it stood', () => {
     const tuned = FACTORY_CHAINS.filter((chain) =>
       chain.effects.some((effect) => TUNED_BY_OCTAVE.has(effect.deviceId)),

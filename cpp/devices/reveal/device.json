@@ -1,0 +1,432 @@
+{
+  "id": "reveal",
+  "name": "Reveal",
+  "category": "dynamics",
+  "description": "Turns up what is quiet inside a sound, frequency by frequency, so overtones, breath and room come forward while what is already loud stays where it is.",
+  "class": "Reveal",
+  "header": "reveal.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "amount",
+      "name": "Amount",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How far what is quiet is lifted toward the loudest sound around it. Low only opens the sound a little; all the way up makes everything as loud as everything else."
+    },
+    {
+      "key": "rise",
+      "name": "Rise",
+      "min": 20,
+      "max": 4000,
+      "default": 300,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long the lift takes to come up, and how slowly it lets go when it is no longer called for. Short follows every moment; long moves like a slow hand on a fader."
+    },
+    {
+      "key": "focus",
+      "name": "Focus",
+      "min": -1,
+      "max": 1,
+      "default": 0,
+      "description": "Which part of the sound is revealed most. Down is the low end, the middle treats every frequency alike, up is the air at the top."
+    },
+    {
+      "key": "detail",
+      "name": "Detail",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How finely the lift follows the spectrum. Down lifts broad regions like a tone control; up reaches single overtones and what lies between them."
+    },
+    {
+      "key": "output",
+      "name": "Output",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "unit": "dB",
+      "description": "Trim after the lift. The overall level is already held to that of the input, so this is only for taste."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "The balance of the untouched sound and the revealed one. The untouched sound is delayed to match, so the two never cancel."
+    },
+    {
+      "key": "listen",
+      "name": "Listen",
+      "choices": ["Off", "On"],
+      "default": 0,
+      "description": "On plays only what is being added, so the settings can be tuned by ear. Turn it off again to hear the result."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": -72,
+      "max": -24,
+      "default": -48,
+      "unit": "dB",
+      "description": "How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail."
+    },
+    {
+      "key": "range",
+      "name": "Range",
+      "min": 0,
+      "max": 30,
+      "default": 12,
+      "unit": "dB",
+      "description": "The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up."
+    }
+  ],
+  "meters": [
+    {
+      "key": "lift",
+      "name": "Lift",
+      "unit": "dB"
+    },
+    {
+      "key": "hold",
+      "name": "Level hold",
+      "unit": "dB",
+      "display": true
+    },
+    {
+      "key": "lift1",
+      "name": "Lift, bands 1 to 4",
+      "display": true
+    },
+    {
+      "key": "lift2",
+      "name": "Lift, bands 5 to 8",
+      "display": true
+    },
+    {
+      "key": "lift3",
+      "name": "Lift, bands 9 to 12",
+      "display": true
+    },
+    {
+      "key": "lift4",
+      "name": "Lift, bands 13 to 16",
+      "display": true
+    },
+    {
+      "key": "lift5",
+      "name": "Lift, bands 17 to 20",
+      "display": true
+    },
+    {
+      "key": "lift6",
+      "name": "Lift, bands 21 to 24",
+      "display": true
+    },
+    {
+      "key": "lift7",
+      "name": "Lift, bands 25 to 28",
+      "display": true
+    },
+    {
+      "key": "lift8",
+      "name": "Lift, bands 29 to 32",
+      "display": true
+    },
+    {
+      "key": "lift9",
+      "name": "Lift, bands 33 to 36",
+      "display": true
+    },
+    {
+      "key": "lift10",
+      "name": "Lift, bands 37 to 40",
+      "display": true
+    },
+    {
+      "key": "lift11",
+      "name": "Lift, bands 41 to 44",
+      "display": true
+    },
+    {
+      "key": "lift12",
+      "name": "Lift, bands 45 to 48",
+      "display": true
+    },
+    {
+      "key": "lift13",
+      "name": "Lift, bands 49 to 52",
+      "display": true
+    },
+    {
+      "key": "lift14",
+      "name": "Lift, bands 53 to 56",
+      "display": true
+    },
+    {
+      "key": "lift15",
+      "name": "Lift, bands 57 to 60",
+      "display": true
+    },
+    {
+      "key": "lift16",
+      "name": "Lift, bands 61 to 64",
+      "display": true
+    },
+    {
+      "key": "lift17",
+      "name": "Lift, bands 65 to 68",
+      "display": true
+    },
+    {
+      "key": "lift18",
+      "name": "Lift, bands 69 to 72",
+      "display": true
+    },
+    {
+      "key": "lift19",
+      "name": "Lift, bands 73 to 76",
+      "display": true
+    },
+    {
+      "key": "lift20",
+      "name": "Lift, bands 77 to 80",
+      "display": true
+    },
+    {
+      "key": "lift21",
+      "name": "Lift, bands 81 to 84",
+      "display": true
+    },
+    {
+      "key": "lift22",
+      "name": "Lift, bands 85 to 88",
+      "display": true
+    },
+    {
+      "key": "level1",
+      "name": "Level, bands 1 to 4",
+      "display": true
+    },
+    {
+      "key": "level2",
+      "name": "Level, bands 5 to 8",
+      "display": true
+    },
+    {
+      "key": "level3",
+      "name": "Level, bands 9 to 12",
+      "display": true
+    },
+    {
+      "key": "level4",
+      "name": "Level, bands 13 to 16",
+      "display": true
+    },
+    {
+      "key": "level5",
+      "name": "Level, bands 17 to 20",
+      "display": true
+    },
+    {
+      "key": "level6",
+      "name": "Level, bands 21 to 24",
+      "display": true
+    },
+    {
+      "key": "level7",
+      "name": "Level, bands 25 to 28",
+      "display": true
+    },
+    {
+      "key": "level8",
+      "name": "Level, bands 29 to 32",
+      "display": true
+    },
+    {
+      "key": "level9",
+      "name": "Level, bands 33 to 36",
+      "display": true
+    },
+    {
+      "key": "level10",
+      "name": "Level, bands 37 to 40",
+      "display": true
+    },
+    {
+      "key": "level11",
+      "name": "Level, bands 41 to 44",
+      "display": true
+    },
+    {
+      "key": "level12",
+      "name": "Level, bands 45 to 48",
+      "display": true
+    },
+    {
+      "key": "level13",
+      "name": "Level, bands 49 to 52",
+      "display": true
+    },
+    {
+      "key": "level14",
+      "name": "Level, bands 53 to 56",
+      "display": true
+    },
+    {
+      "key": "level15",
+      "name": "Level, bands 57 to 60",
+      "display": true
+    },
+    {
+      "key": "level16",
+      "name": "Level, bands 61 to 64",
+      "display": true
+    },
+    {
+      "key": "level17",
+      "name": "Level, bands 65 to 68",
+      "display": true
+    },
+    {
+      "key": "level18",
+      "name": "Level, bands 69 to 72",
+      "display": true
+    },
+    {
+      "key": "level19",
+      "name": "Level, bands 73 to 76",
+      "display": true
+    },
+    {
+      "key": "level20",
+      "name": "Level, bands 77 to 80",
+      "display": true
+    },
+    {
+      "key": "level21",
+      "name": "Level, bands 81 to 84",
+      "display": true
+    },
+    {
+      "key": "level22",
+      "name": "Level, bands 85 to 88",
+      "display": true
+    },
+    {
+      "key": "loudest",
+      "name": "Loudest of late",
+      "unit": "dB",
+      "display": true
+    }
+  ],
+  "latencySamples": 2304,
+  "presets": {
+    "Reveal": {},
+    "Gentle opening": {
+      "amount": 0.4,
+      "range": 10,
+      "rise": 700,
+      "focus": 0.3,
+      "detail": 0.15
+    },
+    "Air": {
+      "amount": 0.9,
+      "range": 24,
+      "floor": -58,
+      "focus": 1,
+      "detail": 0.5
+    },
+    "Warm body": {
+      "amount": 0.9,
+      "range": 24,
+      "focus": -1,
+      "detail": 0.3
+    },
+    "Slow bloom": {
+      "amount": 0.8,
+      "range": 24,
+      "rise": 2000
+    },
+    "Cling": {
+      "amount": 0.6,
+      "range": 15,
+      "rise": 20,
+      "detail": 0.9
+    },
+    "Overtones": {
+      "amount": 0.75,
+      "range": 24,
+      "floor": -54,
+      "rise": 200,
+      "detail": 1
+    },
+    "Broad lift": {
+      "amount": 0.7,
+      "range": 12,
+      "detail": 0
+    },
+    "Room forward": {
+      "amount": 0.7,
+      "range": 24,
+      "floor": -66,
+      "rise": 800,
+      "detail": 0.7
+    },
+    "Even glow": {
+      "amount": 1,
+      "range": 30,
+      "floor": -60,
+      "rise": 400,
+      "detail": 0.5
+    },
+    "Everything level": {
+      "amount": 1,
+      "range": 30,
+      "floor": -72,
+      "rise": 150,
+      "detail": 1
+    },
+    "Touch": {
+      "amount": 0.3,
+      "range": 5,
+      "rise": 60,
+      "detail": 1
+    },
+    "Breath": {
+      "amount": 0.6,
+      "range": 20,
+      "floor": -60,
+      "rise": 80,
+      "focus": 0.5,
+      "detail": 0.9
+    },
+    "Half lit": {
+      "amount": 1,
+      "range": 30,
+      "floor": -64,
+      "mix": 0.5
+    },
+    "Glass top": {
+      "amount": 1,
+      "range": 30,
+      "rise": 60,
+      "focus": 1,
+      "detail": 1
+    },
+    "Slow and deep": {
+      "amount": 1,
+      "range": 30,
+      "floor": -66,
+      "rise": 4000,
+      "detail": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on kit::Stft. An upward compressor of the spectrum: each band's level against the loudest sound around it, the lift smoothed in time and in pitch, and the overall level held. Not a model of any product."
+  }
+}
