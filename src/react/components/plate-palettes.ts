@@ -118,6 +118,7 @@ export const PLATE_PALETTES = {
   'grain-synth': { plate: '#a8408a', ink: '#fff0f9', accent: '#ffdb4d' },
   'drum-kit': { plate: '#2a2420', ink: '#f3eadb', accent: '#ff6b4a' },
   'glitch-kit': { plate: '#f2d31b', ink: '#15130a', accent: '#c2185b' },
+  'club-kit': { plate: '#120c2a', ink: '#eeeaff', accent: '#ff3d8b' },
   fog: { plate: '#beffdc', ink: '#0c2a22', accent: '#0a6f6a' },
   constellation: { plate: '#000021', ink: '#e9ecfb', accent: '#ffcf70' },
   'skipping-stone': { plate: '#3cc9d5', ink: '#04252b', accent: '#7c2400' },

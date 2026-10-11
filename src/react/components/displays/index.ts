@@ -19,6 +19,7 @@ import { BOWED_INSTRUMENT_FACES } from './instrument-bowed'
 import { GUITAR_INSTRUMENT_FACES } from './instrument-guitars'
 import { KEYS_INSTRUMENT_FACES } from './instrument-keys'
 import { KIT_INSTRUMENT_FACES } from './instrument-kits'
+import { CLUB_KIT_INSTRUMENT_FACES } from './instrument-club-kit'
 import { SUB_BASS_INSTRUMENT_FACES } from './instrument-sub-bass'
 import { FM_BASS_INSTRUMENT_FACES } from './instrument-fm-bass'
 import { ACID_BASS_INSTRUMENT_FACES } from './instrument-acid-bass'
@@ -103,6 +104,7 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...AIR_INSTRUMENT_FACES,
   ...SAMPLE_INSTRUMENT_FACES,
   ...KIT_INSTRUMENT_FACES,
+  ...CLUB_KIT_INSTRUMENT_FACES,
   ...FOG_FACES,
   ...CONSTELLATION_FACES,
   ...SKIPPING_STONE_FACES,

@@ -1875,6 +1875,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'grain-synth': { ...PLATE_PALETTES['grain-synth'], finish: 'speckle', cap: 'dot' },
   'drum-kit': { ...PLATE_PALETTES['drum-kit'], finish: 'grain', cap: 'disc' },
   'glitch-kit': { ...PLATE_PALETTES['glitch-kit'], finish: 'speckle', cap: 'pointer' },
+  'club-kit': { ...PLATE_PALETTES['club-kit'], finish: 'gloss', cap: 'skirt' },
   fog: { ...PLATE_PALETTES.fog, finish: 'fade', cap: 'disc' },
   constellation: { ...PLATE_PALETTES.constellation, finish: 'fade', cap: 'dot' },
   'skipping-stone': { ...PLATE_PALETTES['skipping-stone'], finish: 'brushed', cap: 'disc' },
