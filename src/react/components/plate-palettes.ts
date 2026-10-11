@@ -171,7 +171,7 @@ export const PLATE_PALETTES = {
   bowls: { plate: '#8f3f35', ink: '#ffffff', accent: '#9cf0dc' },
   howl: { plate: '#fc60c8', ink: '#1a0212', accent: '#0c0ca0' },
   lift: { plate: '#d0fc6c', ink: '#142005', accent: '#6a1280' },
-  vessel: { plate: '#00f6ff', ink: '#03222b', accent: '#0a2f66' },
+  vessel: { plate: '#00f6ff', ink: '#03222b', accent: '#b02a00' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
