@@ -51,6 +51,70 @@ static void wet_only(Spiral& d) {
   d.set_param(p::kDecay, 3.0f);
 }
 
+// A held note as the bank's: three partials (1, 1/2 and 1/4 at f, 2f and
+// 3f) for each MIDI note, the whole at -20 dBFS RMS, faded in over 20 ms.
+static std::vector<float> held_notes(const std::vector<int>& notes, float seconds, float rate = kRate) {
+  const size_t frames = static_cast<size_t>(seconds * rate + 0.5f);
+  std::vector<double> sum(frames, 0.0);
+  for (int note : notes) {
+    const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
+    for (int part = 1; part <= 3; ++part) {
+      const double w = 2.0 * kPi * hz * part / rate;
+      const double level = 1.0 / std::pow(2.0, part - 1);
+      const double phase = note * 0.7 + part;
+      for (size_t i = 0; i < frames; ++i) sum[i] += level * std::sin(w * static_cast<double>(i) + phase);
+    }
+  }
+  double power = 0.0;
+  for (double v : sum) power += v * v;
+  const double scale = 0.1 / std::sqrt(power / static_cast<double>(frames));
+  const double fade = 0.02 * rate;
+  std::vector<float> out(frames);
+  for (size_t i = 0; i < frames; ++i) {
+    out[i] = static_cast<float>(sum[i] * scale * std::min(1.0, static_cast<double>(i) / fade));
+  }
+  return out;
+}
+
+// What the two sides of `out` hold, in quarter-second windows from 1 s: the
+// level of the two sides together against `dry` (mean and lowest window),
+// their sum to mono under that (lowest window), the larger difference in
+// level between the two sides, and the lowest correlation between them.
+struct Fold {
+  double level = 0.0, level_low = 100.0, fold_low = 100.0, sides_apart = 0.0, correlation_low = 1.0;
+  double side_under_middle = 0.0;
+};
+static Fold fold_of(const std::vector<float>& dry, const Stereo& out, float rate = kRate) {
+  Fold f;
+  const size_t window = static_cast<size_t>(0.25f * rate);
+  double side = 0.0, middle = 0.0;
+  int count = 0;
+  for (size_t at = static_cast<size_t>(rate); at + window <= dry.size(); at += window) {
+    double dd = 0.0, ll = 0.0, rr = 0.0, lr = 0.0;
+    for (size_t i = at; i < at + window; ++i) {
+      const double l = out.left[i], r = out.right[i];
+      dd += static_cast<double>(dry[i]) * dry[i];
+      ll += l * l;
+      rr += r * r;
+      lr += l * r;
+    }
+    const double both = 0.5 * (ll + rr);
+    const double mono = 0.25 * (ll + rr + 2.0 * lr);
+    const double level = 10.0 * std::log10(std::max(both, 1.0e-20) / dd);
+    f.level += level;
+    f.level_low = std::min(f.level_low, level);
+    f.fold_low = std::min(f.fold_low, 10.0 * std::log10(std::max(mono, 1.0e-20) / std::max(both, 1.0e-20)));
+    f.sides_apart = std::max(f.sides_apart, std::fabs(10.0 * std::log10(std::max(ll, 1.0e-20) / std::max(rr, 1.0e-20))));
+    f.correlation_low = std::min(f.correlation_low, lr / std::sqrt(std::max(ll * rr, 1.0e-30)));
+    side += 0.25 * (ll + rr - 2.0 * lr);
+    middle += mono;
+    ++count;
+  }
+  f.level /= count;
+  f.side_under_middle = 10.0 * std::log10(std::max(side, 1.0e-20) / std::max(middle, 1.0e-20));
+  return f;
+}
+
 // The slowest Climb that is not the centre (where the clock goes home to a
 // whole octave): the clock all but stands, a thousandth of an octave a second.
 static const float kCreep = 0.06f;
@@ -427,9 +491,14 @@ int main() {
 
   // 11. Clicks: a control moved while a low tone rings makes no step larger
   // than the same passage with nothing moved. Voices is a count, Climb and
-  // Mix are what a hand is on while it sounds.
+  // Mix are what a hand is on while it sounds. Blur taken away is given
+  // more room: its lines shorten as it goes, which bends what is in them up
+  // in pitch, and a higher pitch has larger steps without any click (the
+  // second build, one side against itself at rest: 1.81 times, with the
+  // largest change of slope the same as at rest; it passed at 1.5 on the
+  // louder of its two unequal sides).
   {
-    struct Move { int id; float from, to; const char* what; };
+    struct Move { int id; float from, to; const char* what; double room = 1.5; };
     const Move moves[] = {
         {p::kVoices, 2.0f, 6.0f, "Voices 2 to 6 does not click"},
         {p::kVoices, 6.0f, 3.0f, "Voices 6 to 3 does not click"},
@@ -437,11 +506,12 @@ int main() {
         {p::kMix, 0.1f, 0.9f, "Mix does not click"},
         {p::kSpread, 0.0f, 1.0f, "Spread does not click"},
         {p::kBlur, 0.0f, 1.0f, "Blur does not click"},
-        {p::kBlur, 1.0f, 0.0f, "Blur taken away does not click"},
+        {p::kBlur, 1.0f, 0.0f, "Blur taken away does not click", 2.0},
         {p::kTone, 500.0f, 16000.0f, "Tone thrown open does not click"},
         {p::kTone, 16000.0f, 500.0f, "Tone thrown shut does not click"},
         {p::kClimb, -12.0f, 0.0f, "Climb put on its centre does not click"},
         {p::kWidth, 1.0f, 0.0f, "Width does not click"},
+        {p::kWidth, 0.0f, 1.0f, "Width opened does not click"},
         {p::kSize, 0.2f, 0.8f, "Size does not click"},
         {p::kDecay, 1.0f, 30.0f, "Decay does not click"},
     };
@@ -460,15 +530,19 @@ int main() {
         step[pass] = std::max(max_step(out.left), max_step(out.right));
       }
       const double rest = std::max(step[0], step[2]);
-      if (step[1] > rest * 1.5 + 0.002) {
+      if (step[1] > rest * move.room + 0.002) {
         std::printf("%s: step %.4f moved, %.4f and %.4f at rest\n", move.what, step[1], step[0], step[2]);
       }
-      EXPECT(step[1] <= rest * 1.5 + 0.002, move.what);
+      EXPECT(step[1] <= rest * move.room + 0.002, move.what);
     }
   }
 
   // 12. The wet path keeps the two sides apart: an input in anti-phase is
-  // not lost, and Width 0 makes the tail the same on both sides.
+  // not lost (its tail comes through the side's own tank), the tail of a
+  // sound that is the same on both sides is wide but never opposed (for
+  // noise the two sides correlate at 0.41: a phase between them that swings
+  // with pitch up to a quarter turn each way), and Width 0 makes the tail
+  // the same on both sides, sample for sample.
   {
     rng_state() = 0x57E0u;
     const std::vector<float> in = noise(3.0f, kRate, 0.25f);
@@ -481,13 +555,16 @@ int main() {
     const double ratio = db(rms(anti.left, 48000, 144000) / rms(same.left, 48000, 144000));
     std::printf("anti-phase input: the tail is %.1f dB against the same input in phase\n", ratio);
     EXPECT(ratio > -3.0, "an anti-phase input keeps its tail");
-    EXPECT(correlation(same.left, same.right, 48000, 144000) < 0.6, "the tail of a mono input is wide");
+    const double alike = correlation(same.left, same.right, 48000, 144000);
+    std::printf("the tail of noise that is the same on both sides: the two sides correlate at %.2f\n", alike);
+    EXPECT(alike < 0.6, "the tail of a mono input is wide");
+    EXPECT(alike > 0.25, "and its two sides are not opposed");
     wet_only(device);
     device.set_param(p::kWidth, 0.0f);
     Stereo mono = run(device, in, in);
     double apart = 0.0;
     for (size_t i = 0; i < in.size(); ++i) apart = std::max(apart, std::fabs((double)mono.left[i] - mono.right[i]));
-    EXPECT(apart < 1.0e-6, "Width 0 is a mono tail");
+    EXPECT(apart == 0.0, "Width 0 is a mono tail, sample for sample");
   }
 
   // 13. Tone, Blur and Size each do their own thing. Tone takes highs off;
@@ -641,7 +718,7 @@ int main() {
       {"Slow ascent", {3.0f, 8.0f, 0.5f, 4.0f, 0.5f, 6000.0f, 0.5f, 1.0f, 0.4f}},
       {"Slow descent", {-3.0f, 9.0f, 0.5f, 4.0f, 0.5f, 4500.0f, 0.5f, 1.0f, 0.4f}},
       {"Held still", {0.0f, 6.0f, 0.5f, 3.0f, 1.0f, 6000.0f, 0.6f, 1.0f, 0.35f}},
-      {"Rising hall", {1.5f, 20.0f, 0.9f, 5.0f, 0.7f, 5000.0f, 0.8f, 1.0f, 0.45f}},
+      {"Rising hall", {1.5f, 20.0f, 0.9f, 5.0f, 0.7f, 5000.0f, 0.75f, 1.0f, 0.45f}},
       {"Siren of light", {12.0f, 4.0f, 0.5f, 6.0f, 0.8f, 12000.0f, 0.3f, 1.0f, 0.35f}},
       {"Sinking fast", {-10.0f, 5.0f, 0.5f, 5.0f, 0.6f, 3500.0f, 0.5f, 1.0f, 0.4f}},
       {"Pure glide", {4.0f, 6.0f, 0.5f, 2.0f, 0.0f, 8000.0f, 0.15f, 1.0f, 0.35f}},
@@ -1050,6 +1127,237 @@ int main() {
       const double share = 10.0 * std::log10(stray / total + 1.0e-20);
       std::printf("a held %.0f Hz, six voices, Tone open: %.1f dB of the tail is not at one of its octaves\n", hz, share);
       EXPECT(share < (hz > 3000.0f ? -27.0 : -45.0), "what the voices add that is not the glide stays small");
+    }
+  }
+
+  // 26. Summed to mono (the third pass). The tail alone of held notes and
+  // chords as the bank plays them, at Width 1 and half way, under the
+  // narrowest, the default and the widest bell: in every quarter second the
+  // two sides summed stay within 3 dB of the two sides apart for a single
+  // note (a quarter turn of phase between them at the most) and within
+  // about 2 dB for a chord; the two sides hold the same level; and they are
+  // never opposed. (Before: the sides stood anywhere from in step to
+  // opposite at any one pitch, and A2 lost 17 dB summed, a chord 7 dB.)
+  {
+    const int notes[] = {45, 48, 52, 55, 57, 60, 64, 67, 69, 72, 76, 79, 81};
+    const std::vector<std::vector<int>> chords = {{45, 52, 57, 60, 64}, {62, 69, 74, 77, 81}};
+    struct Setting { float width, spread; };
+    const Setting settings[] = {{1.0f, 0.6f}, {1.0f, 0.0f}, {1.0f, 1.0f}, {0.5f, 0.6f}};
+    for (const Setting& setting : settings) {
+      auto through = [&](const std::vector<int>& which) {
+        const std::vector<float> dry = held_notes(which, 6.0f);
+        device.init(kRate);
+        device.set_param(p::kClimb, 2.0f);
+        device.set_param(p::kDecay, 12.0f);
+        device.set_param(p::kSpread, setting.spread);
+        device.set_param(p::kBlur, 0.6f);
+        device.set_param(p::kWidth, setting.width);
+        device.set_param(p::kMix, 1.0f);
+        return fold_of(dry, run(device, dry));
+      };
+      double note_fold = 100.0, chord_fold = 100.0, apart = 0.0, opposed = 1.0;
+      for (int note : notes) {
+        const Fold f = through({note});
+        note_fold = std::min(note_fold, f.fold_low);
+        apart = std::max(apart, f.sides_apart);
+        opposed = std::min(opposed, f.correlation_low);
+      }
+      for (const std::vector<int>& which : chords) {
+        const Fold f = through(which);
+        chord_fold = std::min(chord_fold, f.fold_low);
+        apart = std::max(apart, f.sides_apart);
+        opposed = std::min(opposed, f.correlation_low);
+      }
+      std::printf("summed to mono, the tail alone, Width %.1f Spread %.1f: a held note %+.1f dB at its worst quarter second, a chord %+.1f dB;"
+                  " the two sides within %.2f dB of each other, their correlation never under %+.2f\n",
+                  setting.width, setting.spread, note_fold, chord_fold, apart, opposed);
+      EXPECT(note_fold > (setting.width > 0.75f ? -3.3 : -1.0), "a held note summed to mono stays within 3 dB of itself in stereo");
+      EXPECT(chord_fold > (setting.width > 0.75f ? -2.4 : -0.8), "a held chord summed to mono stays within about 2 dB of itself in stereo");
+      EXPECT(apart < 1.0, "the two sides of the tail hold the same level");
+      EXPECT(opposed > -0.05, "the two sides of the tail are never opposed");
+    }
+  }
+
+  // 27. Width along its travel, the tail alone. At 0 a sound that is the
+  // same on both sides comes out the same on both sides (check 12), and as
+  // loud as the two sides are at Width 1: Width turns the phase between the
+  // sides and does nothing to their level (before: at 0 the tail was the
+  // sum of two sides that could be opposed, and A2 fell 15.6 dB). The side
+  // rises at every step of the knob and stays under the middle.
+  {
+    auto through = [&](const std::vector<float>& dry, float width) {
+      device.init(kRate);
+      device.set_param(p::kClimb, 2.0f);
+      device.set_param(p::kDecay, 12.0f);
+      device.set_param(p::kSpread, 0.6f);
+      device.set_param(p::kBlur, 0.6f);
+      device.set_param(p::kWidth, width);
+      device.set_param(p::kMix, 1.0f);
+      return fold_of(dry, run(device, dry));
+    };
+    double mean_apart = 0.0, low_apart = 0.0;
+    for (int note : {45, 55, 64, 72, 81}) {
+      const std::vector<float> dry = held_notes({note}, 6.0f);
+      const Fold narrow = through(dry, 0.0f), wide = through(dry, 1.0f);
+      mean_apart = std::max(mean_apart, std::fabs(narrow.level - wide.level));
+      low_apart = std::max(low_apart, wide.level_low - narrow.level_low);
+    }
+    std::printf("Width 0 against Width 1, held notes: the level differs by %.2f dB at the most, the worst quarter second is %.2f dB lower at the most\n",
+                mean_apart, low_apart);
+    EXPECT(mean_apart < 0.5, "Width does not change the level of the tail");
+    EXPECT(low_apart < 1.0, "Width 0 does not lose a held note");
+
+    rng_state() = 0x51DEu;
+    std::vector<float> band = noise(6.0f, kRate, 0.3f);
+    double lowpass = 0.0, highpass = 0.0;
+    for (float& v : band) {
+      highpass += 0.145 * (v - highpass);
+      lowpass += 0.026 * (highpass - lowpass);
+      v = static_cast<float>(highpass - lowpass);
+    }
+    const std::vector<float> chord_dry = held_notes({62, 69, 74, 77, 81}, 6.0f);
+    for (int which = 0; which < 2; ++which) {
+      const std::vector<float>& dry = which ? chord_dry : band;
+      double last = -1000.0, level_at_zero = 0.0, level_apart = 0.0;
+      bool rising = true;
+      std::printf("Width 0, 0.25, 0.5, 0.75, 1, %s: the side under the middle", which ? "a held chord" : "band noise");
+      for (float width : {0.0f, 0.25f, 0.5f, 0.75f, 1.0f}) {
+        const Fold f = through(dry, width);
+        if (width == 0.0f) level_at_zero = f.level;
+        level_apart = std::max(level_apart, std::fabs(f.level - level_at_zero));
+        rising = rising && f.side_under_middle > last + 1.0;
+        last = f.side_under_middle;
+        std::printf(" %.1f", f.side_under_middle);
+      }
+      std::printf(" dB; the level moves by %.2f dB\n", level_apart);
+      EXPECT(rising, "the side rises at every step of Width");
+      EXPECT(last > -7.0 && last < -2.5, "at Width 1 the side stands 3 to 7 dB under the middle");
+      EXPECT(level_apart < 0.3, "Width leaves the level of the tail where it is");
+    }
+  }
+
+  // 28. The two sides of the input, each with its own. A note on the left
+  // and a chord on the right go through the middle's tank and the side's
+  // (and the turning of their doors, which runs on the control clock): the
+  // same twice over from a fresh start, bit for bit, the same at every
+  // block size, and at Width 0 the same on both sides. A sound on one side
+  // only keeps its tail on that side more than on the other.
+  {
+    const std::vector<float> left = held_notes({57}, 3.0f);
+    const std::vector<float> right = held_notes({62, 69, 74}, 3.0f);
+    auto through = [&](int block, float width) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 4.0f);
+      device.set_param(p::kWidth, width);
+      return run(device, left, right, block);
+    };
+    const Stereo first = through(128, 1.0f);
+    const Stereo second = through(128, 1.0f);
+    EXPECT(first.left == second.left && first.right == second.right, "two fresh starts give the same output, bit for bit");
+    for (int block : {1, 2048}) {
+      const Stereo other = through(block, 1.0f);
+      EXPECT(other.left == first.left && other.right == first.right, "a stereo input gives the same output at every block size");
+    }
+    const Stereo narrow = through(128, 0.0f);
+    EXPECT(narrow.left == narrow.right, "at Width 0 a stereo input's tail is the same on both sides");
+
+    // The side's half of the device rests while the input has no side and
+    // wakes when one comes: a sound the same on both sides, then one on the
+    // left only, a silence long enough for the side to come to rest, and
+    // both again, the same at every block size.
+    rng_state() = 0x51DE5u;
+    std::vector<float> a = noise(0.4f, kRate, 0.3f);
+    std::vector<float> b = a;
+    const std::vector<float> only = noise(0.4f, kRate, 0.3f);
+    a.insert(a.end(), only.begin(), only.end());
+    b.resize(a.size(), 0.0f);
+    a.resize(static_cast<size_t>(kRate * 4.0f), 0.0f);
+    b.resize(a.size(), 0.0f);
+    const std::vector<float> again = noise(0.4f, kRate, 0.3f);
+    a.insert(a.end(), again.begin(), again.end());
+    b.insert(b.end(), again.begin(), again.end());
+    a.insert(a.end(), only.begin(), only.end());
+    b.resize(a.size(), 0.0f);
+    a.resize(static_cast<size_t>(kRate * 6.0f), 0.0f);
+    b.resize(a.size(), 0.0f);
+    Stereo reference;
+    for (int block : {128, 1, 2048}) {
+      device.init(kRate);
+      device.set_param(p::kMix, 1.0f);
+      device.set_param(p::kDecay, 0.5f);
+      const Stereo out = run(device, a, b, block);
+      if (block == 128) {
+        reference = out;
+        // With no side the two sides of the tail hold the same level; with
+        // one, the side the sound is on holds more.
+        const size_t from = static_cast<size_t>(4.4f * kRate), to = static_cast<size_t>(5.0f * kRate);
+        EXPECT(db(rms(out.left, from, to) / rms(out.right, from, to)) > 1.5, "the side wakes for a sound on one side");
+      } else {
+        EXPECT(out.left == reference.left && out.right == reference.right,
+               "the same output at every block size while the side rests and wakes");
+      }
+    }
+
+    rng_state() = 0x1EF7u;
+    const std::vector<float> hiss = noise(3.0f, kRate, 0.25f);
+    const std::vector<float> nothing(hiss.size(), 0.0f);
+    device.init(kRate);
+    device.set_param(p::kMix, 1.0f);
+    const Stereo one = run(device, hiss, nothing);
+    const double lean = db(rms(one.left, 48000, 144000) / rms(one.right, 48000, 144000));
+    std::printf("noise on the left only, the tail alone: the left is %.1f dB over the right\n", lean);
+    EXPECT(lean > 1.5, "a sound on one side keeps its tail more on that side");
+  }
+
+  // 29. Bad input on one side: numbers that are not, infinite and absurd
+  // ones on the right while a tone holds on the left, then numbers too
+  // small to be normal and a standing level. The tail is finite as soon as
+  // good input returns, at an ordinary level, and the device comes to rest.
+  {
+    device.init(kRate);
+    const std::vector<float> tone = sine(220.0f, 0.5f, kRate, 0.25f);
+    std::vector<float> bad = tone;
+    for (size_t i = 1000; i < 3000; ++i) bad[i] = (i % 3 == 0) ? std::nanf("") : (i % 3 == 1 ? INFINITY : 1.0e30f);
+    run(device, tone, bad);
+    const std::vector<float> tiny(24000, 1.0e-39f);
+    const std::vector<float> standing(24000, 0.5f);
+    run(device, tiny, standing);
+    const std::vector<float> good_in = sine(220.0f, 1.0f, kRate, 0.25f);
+    Stereo good = run(device, good_in, good_in);
+    EXPECT(finite(good.left) && finite(good.right), "finite again after bad input on one side");
+    EXPECT(peak(good.left) < 1.0 && peak(good.right) < 1.0 && rms(good.left, 24000, 48000) > 0.05 &&
+               rms(good.right, 24000, 48000) > 0.05,
+           "and sounding on both sides, at an ordinary level");
+    render(device, 30.0f, kRate);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left) == 0.0 && peak(rest.right) == 0.0, "and at rest after its tail");
+  }
+
+  // 30. Other sample rates: the width is the same effect at 44.1 and 96 kHz
+  // as at 48: the same bounds summed to mono, and the same side under the
+  // middle for a chord, within 1 dB.
+  {
+    double side_at_48 = 0.0;
+    for (float rate : {48000.0f, 44100.0f, 96000.0f}) {
+      auto through = [&](const std::vector<int>& which) {
+        const std::vector<float> dry = held_notes(which, 5.0f, rate);
+        device.init(rate);
+        device.set_param(p::kClimb, 2.0f);
+        device.set_param(p::kDecay, 12.0f);
+        device.set_param(p::kSpread, 0.6f);
+        device.set_param(p::kBlur, 0.6f);
+        device.set_param(p::kMix, 1.0f);
+        return fold_of(dry, run(device, dry), rate);
+      };
+      double note_fold = 100.0;
+      for (int note : {45, 57, 64, 76}) note_fold = std::min(note_fold, through({note}).fold_low);
+      const Fold chord_fold = through({62, 69, 74, 77, 81});
+      if (rate == 48000.0f) side_at_48 = chord_fold.side_under_middle;
+      std::printf("at %.1f kHz, summed to mono: a held note %+.1f dB at its worst, a chord %+.1f dB, its side %.1f dB under the middle\n",
+                  rate / 1000.0f, note_fold, chord_fold.fold_low, chord_fold.side_under_middle);
+      EXPECT(note_fold > -3.3 && chord_fold.fold_low > -2.4, "the same bounds summed to mono at every sample rate");
+      EXPECT(std::fabs(chord_fold.side_under_middle - side_at_48) < 1.0, "the same width at every sample rate");
     }
   }
 

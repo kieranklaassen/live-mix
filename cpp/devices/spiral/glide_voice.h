@@ -3,10 +3,11 @@
 // One gliding voice of Spiral: a stereo delay-line pitch shifter whose ratio
 // may move every control tick.
 //
-// Each channel is a delay line, and both are read by the same three heads (one
-// delay per head, the same on both sides: half the reading and half the
-// searching of a head per side, and what stands between the two sides is the
-// tank's, untouched) a third of a pass apart
+// Each channel is a delay line (Spiral gives the two the middle and the side
+// of its tail), and both are read by the same three heads (one delay per
+// head, the same for both channels: half the reading and half the searching
+// of a head per channel, and what stands between the two is left as it
+// came) a third of a pass apart
 // under Hann bells (three bells that far apart sum to 1.5 in amplitude and to
 // 1.125 in power, both constant, hence the 2/3). A head with delay d reads
 // the line at (now - d) and its delay changes by (1 - ratio) a sample, so it
@@ -91,10 +92,11 @@ class GlideVoice {
 
   // One sample in, one sample of the voice added to *left / *right at
   // `gain`. A voice at gain 0 keeps its line and its heads moving and reads
-  // nothing.
-  void process(float in_left, float in_right, float gain, float* left, float* right) {
+  // nothing. With `both` false the second channel is silence: its line is
+  // written nothing (it keeps in step with the first) and is not read.
+  void process(float in_left, float in_right, float gain, float* left, float* right, bool both = true) {
     line_[0].write(guard_[0].lowpass(in_left));
-    line_[1].write(guard_[1].lowpass(in_right));
+    line_[1].write(both ? guard_[1].lowpass(in_right) : 0.0f);
 
     // The pass, and the bells' cosine and sine turned on with it (the three
     // bells are a third of a turn apart, so one turning pair gives all
@@ -141,12 +143,14 @@ class GlideVoice {
       const int at = now - whole;
       sum[0] += w0 * line_[0].at(at + 1) + w1 * line_[0].at(at) + w2 * line_[0].at(at - 1) +
                 w3 * line_[0].at(at - 2);
-      sum[1] += w0 * line_[1].at(at + 1) + w1 * line_[1].at(at) + w2 * line_[1].at(at - 1) +
-                w3 * line_[1].at(at - 2);
+      if (both) {
+        sum[1] += w0 * line_[1].at(at + 1) + w1 * line_[1].at(at) + w2 * line_[1].at(at - 1) +
+                  w3 * line_[1].at(at - 2);
+      }
     }
     const float scale = gain * (2.0f / 3.0f);
     *left += sum[0] * scale;
-    *right += sum[1] * scale;
+    if (both) *right += sum[1] * scale;
   }
 
  private:
