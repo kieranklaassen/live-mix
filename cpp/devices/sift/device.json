@@ -53,22 +53,6 @@
       "description": "The level of what is neither tone nor attack: breath, hiss, bow noise, the room. At the bottom the sound is left clean and bare."
     },
     {
-      "key": "sharpness",
-      "name": "Sharpness",
-      "min": 0,
-      "max": 1,
-      "default": 0.5,
-      "description": "How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own."
-    },
-    {
-      "key": "edge",
-      "name": "Edge",
-      "min": 0,
-      "max": 1,
-      "default": 1,
-      "description": "How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks."
-    },
-    {
       "key": "hold",
       "name": "Hold",
       "min": 0,
@@ -77,21 +61,20 @@
       "description": "Lets the tones ring on after the playing has let them go, at the pitch they had. Low is a short bloom behind each note, high a wash that lasts many seconds."
     },
     {
+      "key": "sharpness",
+      "name": "Sharpness",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own."
+    },
+    {
       "key": "soften",
       "name": "Soften",
       "min": 0,
       "max": 1,
       "default": 0.16,
       "description": "Smears each attack in time, so a click turns into a short puff with a soft start and a fading end. Its strength is kept and its edge is lost."
-    },
-    {
-      "key": "late",
-      "name": "Late",
-      "min": 0,
-      "max": 300,
-      "default": 0,
-      "unit": "ms",
-      "description": "Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone."
     },
     {
       "key": "scatter",
@@ -108,6 +91,23 @@
       "max": 1,
       "default": 1,
       "description": "Balance between the sound as it came in and the three parts put back together."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks."
+    },
+    {
+      "key": "late",
+      "name": "Late",
+      "min": 0,
+      "max": 300,
+      "default": 0,
+      "unit": "ms",
+      "description": "Makes the attacks arrive after the tones they belong to. A little is a double strike, the sound and then its own attack; a lot is an echo of the strikes alone."
     }
   ],
   "presets": {
@@ -143,7 +143,7 @@
       "hold": 0,
       "scatter": 0.3
     },
-    "Flam": {
+    "Strike just after": {
       "tones": -2,
       "attacks": 4,
       "soften": 0,

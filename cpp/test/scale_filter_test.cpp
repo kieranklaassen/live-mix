@@ -113,7 +113,7 @@ static void check_latency_and_dry() {
 // White noise in gives openings at the scale's notes and a floor of Depth between them: three roots, three
 // scales, three sample rates, read where a semitone is ten bins or more (the octave from C6, from C7 at
 // 96 kHz, where the bins are twice as wide).
-// Width is 50 cents here, so a note a semitone outside the scale is two widths off: the bell adds 0.4 % to
+// Opening is 50 cents here, so a note a semitone outside the scale is two widths off: the bell adds 0.4 % to
 // the floor, and at Depth 30 the gap reads -29.0 dB.
 static void check_notes_on_noise() {
   const int roots[3] = {0, 6, 9};
@@ -237,19 +237,19 @@ static double half_width_cents(ScaleFilter& d, int midi, float width, int side) 
   return 0.5 * (lo + hi);
 }
 
-// Width is the opening's width in cents between its two -3 dB points, at 196 Hz (G3) as at 1976 Hz (B6).
+// Opening is the opening's width in cents between its two -3 dB points, at 196 Hz (G3) as at 1976 Hz (B6).
 static void check_width() {
   for (float width : {10.0f, 40.0f, 150.0f}) {
     const double low = half_width_cents(device, 55, width, 1) + half_width_cents(device, 55, width, -1);
     const double high = half_width_cents(device, 95, width, 1) + half_width_cents(device, 95, width, -1);
-    std::printf("Width %.0f ct: %.2f ct at 196 Hz, %.2f ct at 1976 Hz\n", width, low, high);
-    EXPECT_NEAR(low, width, 0.04 * width, "the opening is Width cents wide at 196 Hz");
+    std::printf("Opening %.0f ct: %.2f ct at 196 Hz, %.2f ct at 1976 Hz\n", width, low, high);
+    EXPECT_NEAR(low, width, 0.04 * width, "the opening is as wide as Opening says at 196 Hz");
     EXPECT_NEAR(high, width, 0.04 * width, "and at 1976 Hz");
     EXPECT_NEAR(low, high, 0.03 * width, "the same in the bass as in the treble");
   }
 }
 
-// Chromatic with Width all the way up is nearly the input: every note open and the bells meeting 0.75 dB down.
+// Chromatic with Opening all the way up is nearly the input: every note open and the bells meeting 0.75 dB down.
 static void check_chromatic_wide() {
   // Noise with little over 20 kHz, where the range ends whatever High says: two low passes at 4 kHz.
   rng_state() = 21;
@@ -272,8 +272,8 @@ static void check_chromatic_wide() {
   std::vector<float> rest(in.size());
   for (size_t i = 0; i < in.size(); ++i) rest[i] = out.left[i] - delayed[i];
   const double apart = db(rms(rest, 48000) / rms(delayed, 48000));
-  std::printf("Chromatic, Width 200: %.2f dB against the input, what differs is %.1f dB under it\n", level, apart);
-  EXPECT(std::fabs(level) < 1.0, "Chromatic at a wide Width is the input to within 1 dB");
+  std::printf("Chromatic, Opening 200: %.2f dB against the input, what differs is %.1f dB under it\n", level, apart);
+  EXPECT(std::fabs(level) < 1.0, "Chromatic at a wide Opening is the input to within 1 dB");
   EXPECT(apart < -18.0, "and what it changes is 18 dB under the sound");
   double worst = 0.0;
   for (double midi = 40.0; midi < 100.0; midi += 6.37) {
@@ -393,7 +393,7 @@ static void strike(std::vector<float>& out, double at, double midi, double lengt
   }
 }
 
-// C major with nothing but the ring: Width 30, Depth 30, no make-up, the whole range open.
+// C major with nothing but the ring: Opening 30, Depth 30, no make-up, the whole range open.
 static void ringing(ScaleFilter& d, float ring) {
   plain(d, kRate);
   d.set_param(p::kRing, ring);
@@ -575,7 +575,7 @@ static void check_glow() {
   device.set_param(p::kGlow, 1.0f);
   const Stereo narrow = run(device, in);
   const double narrow_db = db(rms(narrow.left, 96000) / rms(in, 96000));
-  std::printf("noise through one note an octave, Width 5, Depth 48, Glow 1: %.2f dB\n", narrow_db);
+  std::printf("noise through one note an octave, Opening 5, Depth 48, Glow 1: %.2f dB\n", narrow_db);
   EXPECT(narrow_db < 0.3 && narrow_db > -8.0, "the narrowest mask with Glow up comes out near the input's level, not over it");
 
   for (float glow : {0.0f, 1.0f}) {
@@ -612,7 +612,7 @@ static void check_clicks() {
       {p::kRoot, 0.0f, 1.0f, "Root changed while sounding does not click"},
       {p::kScale, 0.0f, 8.0f, "Scale changed while sounding does not click"},
       {p::kChord, 0.0f, 3.0f, "Chord changed while sounding does not click"},
-      {p::kWidth, 30.0f, 200.0f, "Width moved while sounding does not click"},
+      {p::kWidth, 30.0f, 200.0f, "Opening moved while sounding does not click"},
       {p::kDepth, 30.0f, 0.0f, "Depth moved while sounding does not click"},
       {p::kRing, 0.4f, 0.05f, "Ring moved while sounding does not click"},
       {p::kGlow, 0.0f, 1.0f, "Glow moved while sounding does not click"},
@@ -839,8 +839,23 @@ static void check_every_control_works() {
   const std::vector<float> in = phrase(2.4f, kRate);
   double least = 0.0;
   const char* least_name = "";
-  static const char* const names[p::kNumParams] = {"Root", "Scale", "Chord", "Width", "Ring", "Depth",
-                                                    "Low",  "High",  "Tune",  "Glow",  "Mix"};
+  // A control's name by the control, not by its number: the order of "params" in device.json may change.
+  const auto name_of = [](int id) -> const char* {
+    switch (id) {
+      case p::kRoot: return "Root";
+      case p::kScale: return "Scale";
+      case p::kChord: return "Chord";
+      case p::kWidth: return "Opening";
+      case p::kRing: return "Ring";
+      case p::kDepth: return "Depth";
+      case p::kLow: return "Low";
+      case p::kHigh: return "High";
+      case p::kTune: return "Tune";
+      case p::kGlow: return "Glow";
+      case p::kMix: return "Mix";
+      default: return "?";
+    }
+  };
   for (int id = 0; id < p::kNumParams; ++id) {
     const float lo = p::kParamMin[id], hi = p::kParamMax[id];
     const bool choice = id == p::kRoot || id == p::kScale || id == p::kChord;
@@ -858,10 +873,10 @@ static void check_every_control_works() {
         const double apart = unlike_db(out, before);
         if (apart < least) {
           least = apart;
-          least_name = names[id];
+          least_name = name_of(id);
         }
         char label[96];
-        std::snprintf(label, sizeof label, "%s: step %d of %d changes the sound (%.1f dB)", names[id], step, steps, apart);
+        std::snprintf(label, sizeof label, "%s: step %d of %d changes the sound (%.1f dB)", name_of(id), step, steps, apart);
         EXPECT(apart > -36.0, label);
       }
       before = out;
@@ -949,11 +964,21 @@ static void check_level() {
 }
 
 // The sixteen presets as cpp/devices/scale-filter/device.json has them, every parameter in the order of
-// params.gen.h (root, scale, chord, width, ring, depth, low, high, tune, glow, mix).
+// kColumns (root, scale, chord, width, ring, depth, low, high, tune, glow, mix).
 struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of a row is, by name: a row does not follow the order of "params".
+static const int kColumns[p::kNumParams] = {p::kRoot, p::kScale, p::kChord, p::kWidth, p::kRing, p::kDepth,
+                                            p::kLow,  p::kHigh,  p::kTune,  p::kGlow,  p::kMix};
+// A preset's value for a control, found by the control.
+static float value_of(const Preset& preset, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return preset.values[column];
+  }
+  return 0.0f;
+}
 static const Preset kPresets[] = {
     {"In a major key", {0.0f, 0.0f, 0.0f, 30.0f, 0.4f, 30.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
     {"Minor triad", {9.0f, 1.0f, 1.0f, 24.0f, 1.2f, 36.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
@@ -979,13 +1004,13 @@ static const Preset kPresets[] = {
 static void check_presets() {
   for (const Preset& preset : kPresets) {
     auto apply = [&preset] {
-      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      for (int column = 0; column < p::kNumParams; ++column) device.set_param(kColumns[column], preset.values[column]);
     };
     held_chord(apply, preset.name);
     double lowest, highest;
     tone_range(apply, &lowest, &highest);
-    const double mix = preset.values[p::kMix];
-    const double floor = db((1.0 - mix) + mix * std::pow(10.0, -preset.values[p::kDepth] / 20.0));
+    const double mix = value_of(preset, p::kMix);
+    const double floor = db((1.0 - mix) + mix * std::pow(10.0, -value_of(preset, p::kDepth) / 20.0));
     std::printf("%s: a held tone, A0 to C8, comes out between %.2f and %.2f dB (its floor and dry share: %.2f)\n", preset.name,
                 lowest, highest, floor);
     char label[160];

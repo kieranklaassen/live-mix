@@ -4,13 +4,13 @@
 // src/dsp/devices/stretch.gen.ts:
 //    0  stretch: 2..100 x, default 8
 //    1  window: 0 Short, 1 Medium, 2 Long, 3 Very long, default 2
-//    2  memory: 1..20 s, default 8
-//    3  catchUp: 0.05..10 s, default 1.5
-//    4  diffuse: 0..1, default 1
+//    2  diffuse: 0..1, default 1
+//    3  mix: 0..1, default 0.5
+//    4  catchUp: 0.05..10 s, default 1.5
 //    5  freeze: 0 Off, 1 On, default 0
 //    6  tone: -1..1, default 0
 //    7  width: 0..1, default 1
-//    8  mix: 0..1, default 0.5
+//    8  memory: 1..20 s, default 8
 
 #pragma once
 
@@ -20,19 +20,19 @@ namespace stretch {
 enum Param : int {
   kStretch = 0,
   kWindow = 1,
-  kMemory = 2,
-  kCatchUp = 3,
-  kDiffuse = 4,
+  kDiffuse = 2,
+  kMix = 3,
+  kCatchUp = 4,
   kFreeze = 5,
   kTone = 6,
   kWidth = 7,
-  kMix = 8,
+  kMemory = 8,
   kNumParams = 9,
 };
 
-inline constexpr float kParamMin[kNumParams] = {2.0f, 0.0f, 1.0f, 0.05f, 0.0f, 0.0f, -1.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {100.0f, 3.0f, 20.0f, 10.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {8.0f, 2.0f, 8.0f, 1.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.5f};
+inline constexpr float kParamMin[kNumParams] = {2.0f, 0.0f, 0.0f, 0.0f, 0.05f, 0.0f, -1.0f, 0.0f, 1.0f};
+inline constexpr float kParamMax[kNumParams] = {100.0f, 3.0f, 1.0f, 1.0f, 10.0f, 1.0f, 1.0f, 1.0f, 20.0f};
+inline constexpr float kParamDefault[kNumParams] = {8.0f, 2.0f, 1.0f, 0.5f, 1.5f, 0.0f, 0.0f, 1.0f, 8.0f};
 
 }  // namespace stretch
 }  // namespace livemix

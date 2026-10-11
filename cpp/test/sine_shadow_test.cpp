@@ -292,7 +292,7 @@ int main() {
     EXPECT(strongest, label);
   }
 
-  // Transpose moves every sine by its semitones and leaves its level.
+  // Pitch moves every sine by its semitones and leaves its level.
   for (int semitones : {-12, -5, 7, 12, 24}) {
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
@@ -303,7 +303,7 @@ int main() {
     const double ratio = std::pow(2.0, semitones / 12.0);
     const Tone low = nearest(held, 196.0 * ratio), high = nearest(held, 311.13 * ratio);
     char label[96];
-    std::snprintf(label, sizeof label, "Transpose %d: both sines moved by it (%.2f and %.2f cents off), levels kept",
+    std::snprintf(label, sizeof label, "Pitch %d: both sines moved by it (%.2f and %.2f cents off), levels kept",
                   semitones, cents(low.hz, 196.0 * ratio), cents(high.hz, 311.13 * ratio));
     EXPECT(held.size() == 2 && std::fabs(cents(low.hz, 196.0 * ratio)) < 1.0 &&
                std::fabs(cents(high.hz, 311.13 * ratio)) < 1.0 && std::fabs(db(low.level) - db(0.4)) < 0.2 &&
@@ -414,7 +414,7 @@ int main() {
            "and the dropped ones did go (the check above is not of nothing)");
   }
 
-  // Transpose moved under a held chord glides: no click at the fastest Glide or at the default, against the
+  // Pitch moved under a held chord glides: no click at the fastest Glide or at the default, against the
   // chord held at either setting.
   for (float glide : {5.0f, 40.0f}) {
     // Whole numbers of hertz and of seconds: the chord runs on unbroken from one stretch to the next.
@@ -433,7 +433,7 @@ int main() {
       bend[pass] = max_bend(out.left);
     }
     char label[112];
-    std::snprintf(label, sizeof label, "Transpose moved at Glide %.0f ms: bend %.5f, held at 0 %.5f, held at 7 %.5f",
+    std::snprintf(label, sizeof label, "Pitch moved at Glide %.0f ms: bend %.5f, held at 0 %.5f, held at 7 %.5f",
                   glide, bend[0], bend[1], bend[2]);
     EXPECT(bend[0] < 1.05 * std::max(bend[1], bend[2]) + 0.0005, label);
   }
@@ -493,7 +493,7 @@ int main() {
     }
   }
 
-  // Glide: after Transpose jumps an octave, the sine is 63 % of the way there (in hertz) one Glide later.
+  // Glide: after Pitch jumps an octave, the sine is 63 % of the way there (in hertz) one Glide later.
   for (float glide : {20.0f, 500.0f}) {
     wet_only(device);
     device.set_param(p::kGlide, glide);
@@ -712,7 +712,7 @@ int main() {
   // the preset's own Mix come out no quieter than the dry sound alone would at that Mix (a shadow that
   // cancelled its sound would take it below) and no louder than sound and shadow added as powers, which is
   // never more than 2 dB over what went in. Where a preset moves the
-  // sines off their partials (Transpose, Snap) the two add as powers over time; with Snap a tone that is off
+  // sines off their partials (Pitch, Snap) the two add as powers over time; with Snap a tone that is off
   // its note beats against its sine, so those are measured over four seconds.
   {
     double worst = 0.0, growth = 0.0, under = 0.0, over = 0.0, loudest = 0.0;
@@ -1008,7 +1008,7 @@ int main() {
     }
   }
 
-  // Transpose lands sines on the sound's own harmonics: an octave up is the second harmonic, a fifth up is
+  // Pitch lands sines on the sound's own harmonics: an octave up is the second harmonic, a fifth up is
   // two cents from the third. Each such sine takes the pitch of the partial it lands on and keeps a quarter
   // turn from it, so the harmonic neither swells nor thins: second by second over half a minute it stays
   // within half a decibel, at the sum of the two as powers. (Left to run free, the third harmonic under a
@@ -1036,7 +1036,7 @@ int main() {
       const double from = transpose == 12.0f ? 2.0 : 1.5;
       const double expected = db(std::sqrt(1.0 + (0.588 * from) * (0.588 * from)));
       char label[128];
-      std::snprintf(label, sizeof label, "Transpose %+.0f: harmonic %d holds %.2f to %.2f dB over the sound's own", transpose,
+      std::snprintf(label, sizeof label, "Pitch %+.0f: harmonic %d holds %.2f to %.2f dB over the sound's own", transpose,
                     h, low, high);
       EXPECT(high - low < 0.5, label);
       EXPECT_NEAR(0.5 * (low + high), expected, 0.6, "and stands at the two added as powers");

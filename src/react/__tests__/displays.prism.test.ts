@@ -661,12 +661,16 @@ describe('the points of the Prism', () => {
 
   it('leaves the upright plate the knobs the picture has no point for', () => {
     // Upright, a plate shows eight knobs: the face's four, then the device's others in their
-    // order (`DevicePlate`). Bend has its point and its wheel on the picture and stands behind
-    // Tilt in the device's order, so the eighth knob is Tilt: what Feedback's repeats lose.
+    // order (`DevicePlate`). Fan and Bend have their points on the picture (Bend its wheel too)
+    // and stand behind Width in the device's order, so the second row is Bands, Smear, Tilt and
+    // Width, which has no other place, and what is behind is Fan, Bend, Drift and Shuffle.
     const face = PRISM_FACES.prism.face ?? []
     const all = Object.keys(params)
-    const upright = [...face, ...all.filter((name) => !face.includes(name))].slice(0, 8)
-    expect(upright).toEqual(['time', 'shape', 'feedback', 'mix', 'fan', 'bands', 'smear', 'tilt'])
+    const order = [...face, ...all.filter((name) => !face.includes(name))]
+    const upright = order.slice(0, 8)
+    expect(upright).toEqual(['time', 'shape', 'feedback', 'mix', 'bands', 'smear', 'tilt', 'width'])
+    expect(order.slice(8)).toEqual(['fan', 'bend', 'drift', 'shuffle'])
+    expect(handleOf('fan')).toBeDefined()
     expect(handleOf('bend').wheel).toBeDefined()
   })
 

@@ -45,7 +45,7 @@ export const SIFT_FOOT_DB = -60
 /** The room a lane keeps above and below the travel of its point, so that two lanes' points never touch. */
 const SIFT_REST = 4
 const SIFT_LANE_GAP = 2
-/** How far a hand must move sideways before the attacks' point lets go of the Late it had: a level is set without a flam by accident. */
+/** How far a hand must move sideways before the attacks' point lets go of the Late it had: a level is set without a double strike by accident. */
 export const SIFT_STICK_PX = 4
 
 /**
