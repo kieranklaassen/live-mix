@@ -243,6 +243,7 @@ A skin is five choices and a face:
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `plate`, `ink`, `accent` | The plate's colour and its two inks. They reach the plate as `--lm-plate`, `--lm-plate-ink` and `--lm-plate-accent`, and everything on it is drawn in those, so a plate keeps its colours in every theme. |
 | `finish`                 | `matte`, `grain`, `brushed`, `speckle`, `hammered`, `linen`, `fade` or `gloss`: SVG noise or a gradient over the plate, light on a dark plate and dark on a light one. No image files.                    |
+| `clearLettering`         | Keeps the finish off the lettering: the display and the names under the knobs stand on plain plate. For a finish whose marks are as strong as the ink (speckle on Ice's pale plate).                      |
 | `cap`                    | The knobs' cap: `disc`, `dot`, `skirt` or `pointer` (`Knob`'s `cap`; `arc` is the kit's own knob).                                                                                                        |
 | `face`, `labels`         | The knobs on the face and shorter words for them: four over a picture or a strip, two for each column beside a window. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.    |
 | `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
@@ -629,6 +630,157 @@ returns / live inputs / instruments as strips, so `MixerView` takes `returns`
 analyser off `strip.output` on mount, which materialises the strip's nodes —
 pass `meter={false}` where a recorded-node-order harness is watching; the
 master `Bus` keeps no commanded level, so its fader is uncontrolled.
+
+### The video kit
+
+What a timeline of picture and sound, a panel, a sheet and a note are drawn
+with, for an app that edits video on the grid themes (Cutroom is the first).
+The elements are presentational, like `Stroke`: the host gives each one px,
+fractions and words, owns the data and every gesture, and gets pointer
+handlers, `aria-*`, `data-*` and the ref on the element a person acts on.
+Nothing here reads the engine, so all of it renders without a provider.
+
+Five rules hold the elements together:
+
+- Everything sits on the module (`--lm-col` × `--lm-row`). Neighbours touch
+  and a 1 px line separates them. No shadows, no gradients.
+- Round is media, square is everything else. A clip is a stroke with round
+  ends; a layer, a zoom, a layout change and a note are square.
+- A colour means one thing. A brush is a source, the accent is a control's
+  value or its pressed state, the automation colour is automation, and
+  `--lm-note` is a note. Errors use `--lm-danger`.
+- Who did something is a shape, never a colour (`WhoMark`): a filled square is
+  a person, an outlined square is the agent inside the app, a dashed square is
+  an agent from outside.
+- One pattern tells a person something in place (`InlineNote`).
+
+Wrap the app in `className="lm-app"` beside its `data-lm-theme`: the font, one
+row to a line, border-box sizing, and a 1 px `--lm-focus` ring at 1 px offset
+on whatever has the keyboard.
+
+```tsx
+const { minorSec, majorColumns } = rulerScale(pxPerSecond)
+
+<div data-lm-theme="graphite" className="lm-app">
+  <TimeRuler pxPerSecond={pxPerSecond} width={width} role="slider" aria-label="Playhead" onPointerDown={seek}>
+    <Playhead x={playheadPx} flag />
+  </TimeRuler>
+  <LaneHead name="Display" brush={2} height={40} glyph={<Glyph kind="display" />} />
+  <PaintField columnPx={minorSec * pxPerSecond} majorColumns={majorColumns} majorRows={0}>
+    <Lane top={0} height={40} role="group" aria-label="Display track">
+      <VideoStroke
+        style={{ position: 'absolute', left: clip.start * pxPerSecond }}
+        width={(clip.end - clip.start) * pxPerSecond}
+        height={40}
+        brush={2}
+        name="Display"
+        hits={clickFractions}
+        tags={['1.5×']}
+      />
+    </Lane>
+    <Lane top={40} height={20}>
+      <TimelineItem
+        style={{ position: 'absolute', left: zoom.start * pxPerSecond }}
+        width={(zoom.end - zoom.start) * pxPerSecond}
+        shape="envelope"
+        glyph={<Glyph kind="follows" />}
+        name="2.2×"
+        rampIn={easeInPx}
+        rampOut={easeOutPx}
+      />
+    </Lane>
+    <Playhead x={playheadPx} />
+  </PaintField>
+</div>
+```
+
+**Tokens.** Every theme carries them; a host that sets every token itself adds
+these:
+
+| Token                                                         | Use                                                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `stage`                                                       | The ground behind a picture: a preview, a source view                                             |
+| `scrim`                                                       | Over the window behind a sheet                                                                    |
+| `removed`                                                     | The wash behind removed words                                                                     |
+| `record`                                                      | The record dot. The value of `danger`, with a meaning of its own                                  |
+| `note`, `note-soft`                                           | A note's tab, line and span edge, and the wash behind its words. 4.5:1 or better on `bg`/`sunken` |
+| `note-mark`, `mark-edge`                                      | A note's marks on a picture and the dark line around any mark there. One value in every theme     |
+| `bar-height`, `panel-width`, `lane-head-width`, `handle-size` | 40 px, 320 px, 160 px, 7 px                                                                       |
+| `read-size`                                                   | 13 px: text that is read (a transcript, a conversation). `.lm-read` sets it on a 20 px line       |
+
+`.lm-time-large` is the transport's time (the mono face at 13 px), `.lm-num` a
+mono readout and `.lm-lbl` a 9 px label.
+
+**Timeline.**
+
+| Component             | What it draws                                                                                                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TimeRuler`           | One row of ticks for `width` px from `start` seconds at `pxPerSecond`. It picks the ticks from the scale (`rulerScale`); labelled ticks say `format(seconds)`. Children place themselves in px                                                                              |
+| `Playhead`            | The 1 px line; `flag` adds the 9 by 11 px flag, for the one in the ruler. Leave `x` out and set `transform` on the ref to move it without a render                                                                                                                          |
+| `Lane`, `LaneHead`    | A row of the field at `top`, 20 or 40 px high, and its head: swatch in the `brush`, `glyph`, name, mute and solo (the kit's `ToggleButton`, shown when their state is given), and on a 40 px head a second row for a peak `meter` or a `note`                               |
+| `VideoStroke`         | A `Stroke` for a picture: ring and wash in the brush, `frames` as a strip of thumbnails (flat frames without them), a tick per `hits`, the tag with `name` and `tags`, an `automation` line for a speed ramp, and `selected`, `linked`, `muted`, `missing`                  |
+| `TimelineItem`        | Anything that is not media, one row tall and square. `shape="plate"`: glyph, name, readouts, a corner cut where `fadeIn` / `fadeOut` is above 0. `"envelope"`: an outline whose slopes are `rampIn` / `rampOut`. `"span"`: a line at its start and a hatch `rampIn` px wide |
+| `LinkMark`            | The bracket on the lane heads of one link group                                                                                                                                                                                                                             |
+| `RangeSelection`      | A selected range of time: an accent wash, full strength on the ruler and half through the lanes                                                                                                                                                                             |
+| `CutSeam`, `CutNotch` | Where a gap was closed: a dashed line through the lanes it joins, and its 7 by 4 px notch on the ruler                                                                                                                                                                      |
+| `TransitionMark`      | A square with a cross over a cut, never narrower than 12 px                                                                                                                                                                                                                 |
+| `Overview`            | The whole timeline in one row: cuts, notes, the playhead and a box for what the lanes show. A press or a drag calls `onScroll(start)`                                                                                                                                       |
+
+A speed is not a component: a constant speed is a `tags` entry and a ramp is
+`automation` with the label "Speed", on `Stroke` and `VideoStroke` alike.
+
+The arithmetic is exported for hosts that scroll and zoom (`timeline-math`):
+`rulerScale` (fifths of a second under a second from 100 px per second, two seconds under
+ten from 20, ten under thirty from 5, thirty under two minutes below),
+`rulerLabels`, `zoomAround` (the time under the pointer stays under it),
+`fitPxPerSecond`, `pageScroll` (the page turn while playing) and
+`clampPxPerSecond` (2 to 400, default 20). A field takes
+`columnPx={minorSec * pxPerSecond}` and `majorColumns` from `rulerScale`.
+
+**Panels and controls.**
+
+| Component                               | What it is                                                                                                                                                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Panel`, `PanelHead`                    | A column on the panel ground, and its head row: `glyph`, `title`, `actions` flush at the right                                                                                                                    |
+| `Tabs`                                  | A row of tabs on the page ground; the selected one stands on the panel ground. `selected` is null while the panel is closed. Arrow keys, Home and End move between tabs                                           |
+| `SectionLabel`, `PropRow`               | The label over a group of rows, and a property: a 120 px label and a value cell                                                                                                                                   |
+| `TextButton`                            | A button with words on it. `variant`: `default`, `primary` (the one a bar or a sheet leads to), `quiet`, `danger`. `pressed` makes it a toggle. `cell` sits flush in a bar, `icon` is one glyph, `shortcut` a key |
+| `Input`, `Select`, `Segmented`, `Check` | The fields a property row holds. Each reports the new value. `boxed` gives a field a border of its own outside a row                                                                                              |
+| `Menu`, `MenuItem`, `MenuSeparator`     | A list of one-row items with shortcuts at the right. `items`, or `MenuItem` children when an item needs attributes of its own; `checked` marks a choice. Arrow keys move, Escape calls `onClose`                  |
+| `Sheet`                                 | One thing to settle, over the window on a scrim: head, body, and a foot two rows tall. Escape calls `onClose`, Tab stays inside, and the focus goes back where it was                                             |
+| `InlineNote`                            | The inline message: a title that says what happened, a line that says what it means, at most one `action`. `tone="danger"` for what stops the person; `role` is `status` or `alert`                               |
+| `Progress`, `StateMark`, `WhoMark`      | A 6 px bar; an 8 px square that is `off`, `on`, `busy` or `failed`; an 8 px square that says who                                                                                                                  |
+| `JobRow`, `LogRow`                      | Long-running work (state, bar, percentage, note, Cancel) and a call somebody made (who, what, when, "Done" or "Refused" in the words it was refused with, the arguments, Undo)                                    |
+| `TranscriptWord`                        | A word as a button at the reading size: `rest`, `selected`, `removed`, `filler`, `now`; `pause` shows a length. A removal is a run of removed words, and a `CutSeam` on the timeline                              |
+| `Glyph`                                 | A 10 px glyph by `SoundIcon`'s rules for things that are not a kind of sound: sources, layers, the look, acts and panels (`GLYPHS` lists the kinds), or a path of your own as `d`                                 |
+
+The inline message is called `InlineNote` because a note is something else
+here: what a person or an agent says about the work.
+
+**Notes.** A note takes a colour role of its own and is always a numbered
+square tab, whose fill says who and what state: filled is a person's open
+note, the same with an arrow has been sent, outlined in the note colour is an
+agent's, outlined in grey with a tick is resolved.
+
+| Component                   | What it draws                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NoteTab`                   | The tab alone                                                                                                                                     |
+| `NotePin`, `NoteSpan`       | A note on a timeline: a button with the tab and the start of its text at `x`, an optional `line` down through the lanes, and the wash of its span |
+| `PictureMark`, `NoteBubble` | A `box`, an `arrow` or a `line` on a picture from points in output px, with the dark edge under it, and the note's words beside it                |
+| `ContextChip`               | What goes with an ask: the selection, a note or a frame, with an x that leaves it out                                                             |
+| `ReferenceChip`             | A moment, a span or an item named in an answer, as a button that goes there                                                                       |
+| `ChangedMark`               | An 11 px square on something an agent changed                                                                                                     |
+
+**The clock under a picture.** `followStep` (the core entry) is the rule by
+which a media element follows a clock it is not the master of: a video
+element under a picture that follows the audio clock. Paused, it seeks to the
+exact time and never while a seek is under way; playing, its rate is nudged
+toward the clock, and past `FOLLOW_DRIFT_SEEK` it seeks. The host reads the
+element, asks for the step and applies it.
+
+`playground/video-kit.html` (`pnpm playground`, then `/video-kit.html`) mounts
+every element with made-up content; `?theme=paper` or any other theme, and
+`?sheet=1` for the sheet.
 
 ## The playground
 
