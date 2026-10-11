@@ -604,4 +604,145 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'seasons', preset: 'Quick year' },
     ],
   },
+  {
+    id: 'slow-cloud-behind',
+    name: 'Slow cloud behind',
+    category: 'texture',
+    description:
+      'What you play is replayed eight times slower as a cloud that trails seconds behind and runs up to the present again; Stretch sets how slow.',
+    effects: [{ deviceId: 'stretch', preset: 'Slow cloud', params: { width: 0.6 } }],
+  },
+  {
+    id: 'cloud-catching-light',
+    name: 'Cloud catching light',
+    category: 'texture',
+    description:
+      'A dark cloud of the playing, ten times slower, drifts behind it while its partials flicker one by one; Stretch sets how slow the cloud is.',
+    effects: [
+      { deviceId: 'stretch', preset: 'Dark drift', params: { width: 0.5, mix: 0.5 } },
+      { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
+    ],
+  },
+  {
+    id: 'glass-pad-from-a-phrase',
+    name: 'Glass pad from a phrase',
+    category: 'texture',
+    description:
+      'A phrase played forty times slower becomes a still pad of pure tones that lasts long after you stop, in a cathedral; Diffuse blurs it.',
+    effects: [
+      { deviceId: 'stretch', preset: 'Long glass pad', params: { width: 0 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'halo-brought-forward',
+    name: 'Halo brought forward',
+    category: 'texture',
+    description:
+      'A faint dark cloud of the playing, fourteen times slower, hangs far behind it and what is quiet in it is lifted level; Range sets the lift.',
+    effects: [
+      { deviceId: 'stretch', preset: 'Faint halo' },
+      { deviceId: 'reveal', preset: 'Even glow' },
+    ],
+  },
+  {
+    id: 'felt-on-the-hammers',
+    name: 'Felt on the hammers',
+    category: 'texture',
+    description:
+      'A tenth of a second late, each strike is turned down and smeared soft while its tone rings on and its air spreads wide; try Attacks.',
+    effects: [{ deviceId: 'sift', preset: 'Soft hammers' }],
+  },
+  {
+    id: 'bowed-not-struck',
+    name: 'Bowed not struck',
+    category: 'texture',
+    description:
+      'A tenth of a second late, every strike is taken off so notes begin as bare tone, held ones gain vibrato, and a hall carries them; try Hold.',
+    effects: [
+      { deviceId: 'sift', preset: 'Bowed entries' },
+      { deviceId: 'late-vibrato', preset: 'Slow bow' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'held-notes-hang-on',
+    name: 'Held notes hang on',
+    category: 'texture',
+    description:
+      'Only what the sound shares with itself a moment ago gets through and rings on, a tenth of a second late, so held notes hang; try Ago.',
+    effects: [{ deviceId: 'common-tones', preset: 'Hanging notes' }],
+  },
+  {
+    id: 'hall-for-held-notes',
+    name: 'Hall for held notes',
+    category: 'texture',
+    description:
+      'Attacks and passing notes are taken out and only tones held half a second reach a cathedral, a tenth of a second late; try Strict.',
+    effects: [
+      { deviceId: 'common-tones', preset: 'Only what stays', params: { makeup: 1 } },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.45 } },
+    ],
+  },
+  {
+    id: 'sines-for-what-stays',
+    name: 'Sines for what stays',
+    category: 'texture',
+    description:
+      'Only held tones get through, a tenth of a second late, each shadowed by a pure sine that swells in slowly and lingers long; try Release.',
+    effects: [
+      { deviceId: 'common-tones', preset: 'Only what stays', params: { makeup: 1 } },
+      { deviceId: 'sine-shadow', preset: 'Long linger' },
+    ],
+  },
+  {
+    id: 'sines-behind-the-notes',
+    name: 'Sines behind the notes',
+    category: 'texture',
+    description:
+      'The eight strongest partials of the sound are each played as a pure sine that swells in behind it and lingers three seconds; try Partials.',
+    effects: [{ deviceId: 'sine-shadow', preset: 'Sine shadow' }],
+  },
+  {
+    id: 'sines-learn-to-sing',
+    name: 'Sines learn to sing',
+    category: 'texture',
+    description:
+      "The sound is redrawn as pure sines that swell in slowly, and each one held gains a singer's vibrato, in a hall; Attack sets the swell.",
+    effects: [
+      { deviceId: 'sine-shadow', preset: 'Shadow alone' },
+      { deviceId: 'late-vibrato', preset: 'Singer' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+    ],
+  },
+  {
+    id: 'overtones-in-sines',
+    name: 'Overtones in sines',
+    category: 'texture',
+    description:
+      'Quiet overtones are lifted out of the sound, then twenty bright sines trace them across the sides; Amount sets how far they are lifted.',
+    effects: [
+      { deviceId: 'reveal', preset: 'Overtones' },
+      { deviceId: 'sine-shadow', preset: 'Wide glass' },
+    ],
+  },
+  {
+    id: 'outline-catching-light',
+    name: 'Outline catching light',
+    category: 'texture',
+    description:
+      'Five pure sines on the nearest notes draw the outline of the chord and flicker one by one as they linger; Partials sets how many sines.',
+    effects: [
+      { deviceId: 'sine-shadow', preset: 'Chord outline' },
+      { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
+    ],
+  },
+  {
+    id: 'pressed-into-a-vowel',
+    name: 'Pressed into a vowel',
+    category: 'texture',
+    description:
+      'The colour of a round sung vowel is pressed on whatever plays, half in place of its own; Shift slides the vowel brighter or darker.',
+    effects: [{ deviceId: 'imprint', preset: 'Round vowel', params: { replace: 0.5 } }],
+  },
 ]

@@ -409,4 +409,15 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'falling', preset: 'Rising mist' },
     ],
   },
+  {
+    id: 'tail-comes-forward',
+    name: 'Tail comes forward',
+    category: 'space',
+    description:
+      'A hall whose quiet tail is lifted toward the level of the notes as they fade, so the room grows as the playing stops; Amount sets the lift.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'reveal', preset: 'Even glow' },
+    ],
+  },
 ]

@@ -515,4 +515,67 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
     ],
   },
+  {
+    id: 'chord-through-a-prism',
+    name: 'Chord through a prism',
+    category: 'echo',
+    description:
+      'Each echo comes back split into twelve colours, lows first and highs last, so a chord unfolds upward; Fan sets how far apart they land.',
+    effects: [{ deviceId: 'prism', preset: 'Low to high' }],
+  },
+  {
+    id: 'colours-in-fog',
+    name: 'Colours in fog',
+    category: 'echo',
+    description:
+      'Echoes unfold from low to high over two seconds, each colour arriving into a thin veil of fog; Time sets how long the unfolding takes.',
+    effects: [
+      { deviceId: 'prism', preset: 'Slow unfolding' },
+      { deviceId: 'fog', preset: 'Thin veil' },
+    ],
+  },
+  {
+    id: 'glittering-fan',
+    name: 'Glittering fan',
+    category: 'echo',
+    description:
+      'Fine slices of the sound come back scattered over two seconds, keep turning and flicker, all a tenth of a second late; try Shuffle.',
+    effects: [
+      { deviceId: 'prism', preset: 'Partial cloud' },
+      { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
+    ],
+  },
+  {
+    id: 'strikes-come-back',
+    name: 'Strikes come back',
+    category: 'echo',
+    description:
+      'Answering a seventh of a second late, the strike of each note arrives a quarter second after its tone and echoes in eight colours; try Late.',
+    effects: [
+      { deviceId: 'sift', preset: 'Late echoes', params: { tones: 0, attacks: 0 } },
+      { deviceId: 'prism', preset: 'Scattered notes', params: { mix: 0.2 } },
+    ],
+  },
+  {
+    id: 'colours-melting',
+    name: 'Colours melting',
+    category: 'echo',
+    description:
+      'Echoes fan out in sixteen colours and go round many times while the tail behind them sags in pitch like wax; Feedback sets how long.',
+    effects: [
+      { deviceId: 'prism', preset: 'Long fan', params: { feedback: 0.85 } },
+      { deviceId: 'melt', preset: 'Slow melt', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'music-box-unfolding',
+    name: 'Music box unfolding',
+    category: 'echo',
+    description:
+      'A tenth of a second late, the sound shrinks to a music box, notes unmoved, and each echo of it unfolds from low to high; try Size.',
+    effects: [
+      { deviceId: 'size', preset: 'Music box' },
+      { deviceId: 'prism', preset: 'Low to high' },
+    ],
+  },
 ]
