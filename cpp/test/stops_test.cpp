@@ -244,18 +244,28 @@ int main() {
   }
 
   // 4. Part-way Mix does not comb: held notes over the piano's range through
-  // the defaults come out with the note itself at the level it went in.
+  // the defaults come out with the note itself at the level the mix law gives
+  // it, 1 - Mix x (1 - Unison) of what went in (the defaults leave the ranks
+  // room: 0.84), and with the unison full at the level it went in.
   {
-    double worst = 0.0;
+    const double law = 1.0 - p::kParamDefault[p::kMix] * (1.0 - p::kParamDefault[p::kUnison]);
+    double worst = 0.0, worst_full = 0.0;
     for (int note = 21; note <= 108; note += 3) {
       const double hz = 440.0 * std::pow(2.0, (note - 69) / 12.0);
-      device.init(kRate);
       const std::vector<float> in = sine(static_cast<float>(hz), 1.5f, kRate, 0.5f);
+      device.init(kRate);
       const Stereo out = run(device, in);
-      worst = std::max(worst, std::fabs(db(tone_level(out.left, hz, kRate, 24000, 72000) / 0.5)));
+      worst = std::max(worst, std::fabs(db(tone_level(out.left, hz, kRate, 24000, 72000) / (0.5 * law))));
+      device.init(kRate);
+      device.set_param(p::kUnison, 1.0f);
+      const Stereo full = run(device, in);
+      worst_full = std::max(worst_full, std::fabs(db(tone_level(full.left, hz, kRate, 24000, 72000) / 0.5)));
     }
-    std::printf("held notes A0 to C8 at the defaults: the note itself within %.3f dB of the input\n", worst);
-    EXPECT(worst < 0.1, "the note played keeps its level at the default Mix over the piano's range");
+    std::printf("held notes A0 to C8 at the defaults: the note itself within %.3f dB of the mix law (%.2f of the "
+                "input); with the unison full, within %.3f dB of the input\n",
+                worst, law, worst_full);
+    EXPECT(worst < 0.1, "the note played comes out at the level the mix law gives it at the defaults");
+    EXPECT(worst_full < 0.1, "with the unison full the note played keeps its level over the piano's range");
   }
 
   // 5. Speak is the rise of the ranks. A note starts after a silence; the
@@ -432,7 +442,8 @@ int main() {
       const double top = std::max(peak(out.left), peak(out.right));
       const double level = db(rms(out.left, 48000, n) / rms(in, 48000, n));
       // (Its peaks wander as the detuned ranks drift past each other; its level does not.)
-      const double early = rms(out.left, 2 * 48000, n / 2), late = rms(out.left, n / 2, n);
+      // From a quarter of the way in: the longest Speak has the ranks still rising before that.
+      const double early = rms(out.left, n / 4, n / 2), late = rms(out.left, n / 2, n);
       worst_peak = std::max(worst_peak, top);
       loudest = std::max(loudest, level);
       softest = std::min(softest, level);
@@ -447,7 +458,9 @@ int main() {
     };
     device.init(kRate);
     const double at_defaults = hold("defaults", chord);
-    EXPECT(at_defaults > 0.0 && at_defaults < 3.0, "at the defaults the chord comes out 0 to 3 dB louder");
+    // The unison gives the ranks room at the defaults (0.84 of itself), so the whole stays near what went in.
+    std::printf("held full-scale chord at the defaults: %+.2f dB of what went in\n", at_defaults);
+    EXPECT(at_defaults > -1.0 && at_defaults < 1.0, "at the defaults a held chord comes out within 1 dB of what went in");
     device.init(kRate);
     for (int s = 0; s < Stops::kRanks; ++s) device.set_param(kRankParam[s], 1.0f);
     device.set_param(p::kMix, 1.0f);
@@ -748,22 +761,24 @@ int main() {
     };
     // speak, tone, swell, chiff, detune, sub, unison, fifth, octave, twelfth, fifteenth, mix
     static const Preset kPresets[] = {
-        {"Principal chorus", {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f}},
-        {"Pedal under", {200.0f, 0.25f, 1.0f, 0.1f, 0.2f, 0.85f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f}},
-        {"Octave above", {60.0f, 0.45f, 1.0f, 0.15f, 0.15f, 0.0f, 1.0f, 0.0f, 0.8f, 0.0f, 0.0f, 0.6f}},
-        {"Open fifths", {150.0f, 0.35f, 1.0f, 0.25f, 0.2f, 0.3f, 1.0f, 0.75f, 0.0f, 0.0f, 0.0f, 0.6f}},
-        {"Full organ", {60.0f, 0.55f, 1.0f, 0.3f, 0.2f, 0.8f, 1.0f, 0.35f, 0.9f, 0.6f, 0.6f, 0.9f}},
-        {"Flute stops", {90.0f, 0.1f, 1.0f, 0.7f, 0.1f, 0.3f, 1.0f, 0.0f, 0.65f, 0.0f, 0.0f, 0.7f}},
+        // PRESETS BEGIN
+        {"Principal chorus", {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 0.8f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f}},
+        {"Pedal under", {200.0f, 0.25f, 1.0f, 0.1f, 0.2f, 0.85f, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.75f}},
+        {"Octave above", {60.0f, 0.45f, 1.0f, 0.15f, 0.15f, 0.0f, 0.8f, 0.0f, 0.8f, 0.0f, 0.0f, 0.6f}},
+        {"Open fifths", {150.0f, 0.35f, 1.0f, 0.25f, 0.2f, 0.3f, 0.8f, 0.75f, 0.0f, 0.0f, 0.0f, 0.6f}},
+        {"Full organ", {60.0f, 0.55f, 1.0f, 0.3f, 0.2f, 0.8f, 0.4f, 0.35f, 0.9f, 0.6f, 0.6f, 0.6f}},
+        {"Flute stops", {90.0f, 0.1f, 1.0f, 0.7f, 0.1f, 0.3f, 0.8f, 0.0f, 0.65f, 0.0f, 0.0f, 0.7f}},
         {"Slow bloom", {1800.0f, 0.35f, 1.0f, 0.0f, 0.2f, 0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.4f, 0.8f}},
         {"Only the pipes", {80.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.6f, 0.0f, 0.0f, 0.8f, 0.4f, 0.3f, 1.0f}},
-        {"Glass on top", {300.0f, 0.8f, 1.0f, 0.0f, 0.35f, 0.0f, 1.0f, 0.0f, 0.0f, 0.5f, 0.9f, 0.55f}},
+        {"Glass on top", {300.0f, 0.8f, 1.0f, 0.0f, 0.35f, 0.0f, 0.8f, 0.0f, 0.0f, 0.5f, 0.9f, 0.55f}},
         {"Nearly dry", {250.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.0f, 1.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.3f}},
-        {"Old pipes", {100.0f, 0.4f, 1.0f, 0.5f, 1.0f, 0.4f, 1.0f, 0.0f, 0.8f, 0.5f, 0.0f, 0.7f}},
-        {"Breath first", {900.0f, 0.3f, 1.0f, 1.0f, 0.2f, 0.5f, 1.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f}},
+        {"Old pipes", {100.0f, 0.4f, 1.0f, 0.5f, 1.0f, 0.4f, 0.75f, 0.0f, 0.8f, 0.5f, 0.0f, 0.7f}},
+        {"Breath first", {900.0f, 0.3f, 1.0f, 1.0f, 0.2f, 0.5f, 0.8f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f}},
         {"Shutters closed", {200.0f, 0.4f, 0.3f, 0.25f, 0.2f, 0.8f, 1.0f, 0.3f, 0.9f, 0.7f, 0.6f, 1.0f}},
-        {"Sub and silver", {150.0f, 0.6f, 1.0f, 0.25f, 0.2f, 0.9f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f, 0.7f}},
+        {"Sub and silver", {150.0f, 0.6f, 1.0f, 0.25f, 0.2f, 0.9f, 0.7f, 0.0f, 0.0f, 0.0f, 0.7f, 0.7f}},
         {"Hollow fifths", {400.0f, 0.4f, 1.0f, 0.25f, 0.4f, 0.0f, 0.5f, 0.9f, 0.0f, 0.8f, 0.0f, 0.75f}},
         {"Drone to organ", {3000.0f, 0.3f, 1.0f, 0.0f, 0.7f, 0.8f, 0.75f, 0.5f, 0.7f, 0.5f, 0.3f, 1.0f}},
+        // PRESETS END
     };
     const std::vector<float> chord = held_chord(60.0f);
     double worst = 0.0, softest = 100.0, loudest = -100.0;
@@ -787,6 +802,52 @@ int main() {
     }
     std::printf("sixteen presets, a full-scale chord for a minute each: peak %.2f at most, level %+.1f to %+.1f dB\n",
                 worst, softest, loudest);
+    // Fed hot. The ranks are added to the sound, so a registration that keeps
+    // the unison full puts out more than it was given, in level and in its
+    // highest sample; the presets leave the ranks room instead (Unison under
+    // full). Eight struck notes and two struck chords, each alone with its
+    // highest sample 1 dB under full scale, through each preset: on average no
+    // louder than what went in by more than half a dB, no chord over full
+    // scale, and no single note more than 2 dB over what came in (the ranks
+    // of one note are its own harmonics and line up with it now and then).
+    {
+      const std::vector<std::vector<double>> sounds = {
+          {110.0},  {164.81}, {220.0}, {261.63},                {293.66},
+          {329.63}, {392.0},  {440.0}, {220.0, 261.63, 329.63}, {146.83, 220.0, 293.66, 349.23},
+      };
+      double hottest = 0.0, hottest_chord = 0.0, loudest_level = -100.0;
+      for (const Preset& preset : kPresets) {
+        double note_top = 0.0, chord_top = 0.0, level = 0.0;
+        for (const std::vector<double>& sound : sounds) {
+          std::vector<float> in(static_cast<size_t>(2.5f * kRate), 0.0f);
+          for (double hz : sound) strike(in, 0, hz, 1.5, 0.6);
+          const float scale = static_cast<float>(0.8913 / peak(in));
+          for (float& v : in) v *= scale;
+          device.init(kRate);
+          for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+          const Stereo out = run(device, in);
+          const double high = std::max(peak(out.left), peak(out.right));
+          if (sound.size() > 1) chord_top = std::max(chord_top, high);
+          else note_top = std::max(note_top, high);
+          level += db(rms(out.left, 0, out.left.size()) / rms(in, 0, in.size())) / static_cast<double>(sounds.size());
+        }
+        hottest = std::max(hottest, note_top);
+        hottest_chord = std::max(hottest_chord, chord_top);
+        loudest_level = std::max(loudest_level, level);
+        char label[220];
+        std::snprintf(label, sizeof label,
+                      "preset %s, struck notes and chords fed at -1 dBFS: level %+.1f dB of what went in, chords %+.1f "
+                      "dBFS, single notes %+.1f dBFS",
+                      preset.name, level, db(chord_top), db(note_top));
+        std::printf("%s\n", label);
+        EXPECT(level <= 0.5, label);
+        EXPECT(chord_top <= 1.0, label);
+        EXPECT(note_top <= 1.122, label);
+      }
+      std::printf("sixteen presets fed struck notes at -1 dBFS: level %+.1f dB at most, chords %+.1f dBFS, single notes "
+                  "%+.1f dBFS\n",
+                  loudest_level, db(hottest_chord), db(hottest));
+    }
     // Part-way Mix at every preset: a held note over the piano's range comes
     // out with the note itself at the level the mix law gives it,
     // 1 - Mix x (1 - Unison) of what went in: nothing combs it.

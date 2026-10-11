@@ -8,7 +8,7 @@
 //    3  chiff: 0..1, default 0.25
 //    4  detune: 0..1, default 0.2
 //    5  sub: 0..1, default 0.55
-//    6  unison: 0..1, default 1
+//    6  unison: 0..1, default 0.8
 //    7  fifth: 0..1, default 0
 //    8  octave: 0..1, default 0.7
 //    9  twelfth: 0..1, default 0.3
@@ -38,7 +38,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {40.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {3000.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 1.0f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f};
+inline constexpr float kParamDefault[kNumParams] = {120.0f, 0.4f, 1.0f, 0.25f, 0.2f, 0.55f, 0.8f, 0.0f, 0.7f, 0.3f, 0.2f, 0.8f};
 
 }  // namespace stops
 }  // namespace livemix

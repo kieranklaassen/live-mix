@@ -566,6 +566,36 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'light-on-water',
+    name: 'Light on water',
+    category: 'motion',
+    description:
+      'A twentieth of a second late, every narrow band of the sound has its own slow tremolo, so partials catch the light and let it go; try Rate.',
+    effects: [{ deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.45 } }],
+  },
+  {
+    id: 'glittering-nave',
+    name: 'Glittering nave',
+    category: 'motion',
+    description:
+      'A cathedral tail whose upper partials flicker fast, each side its own way, over a still low end, a twentieth of a second late; try Lean.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.35 } },
+      { deviceId: 'glimmer', preset: 'Glitter on top', params: { depth: 0.85 } },
+    ],
+  },
+  {
+    id: 'sunlight-from-below',
+    name: 'Sunlight from below',
+    category: 'motion',
+    description:
+      'Heard from just under the surface, a ripple of brightness climbing the partials every second or two, a twentieth of a second late; try Rate.',
+    effects: [
+      { deviceId: 'underwater', preset: 'Sunlit shallows' },
+      { deviceId: 'glimmer', preset: 'Rising ripple', params: { lean: 0.5 } },
+    ],
+  },
+  {
     id: 'circling-the-listener',
     name: 'Circling the listener',
     category: 'motion',

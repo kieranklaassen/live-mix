@@ -154,6 +154,14 @@ describe('ChannelStrip topology', () => {
     expect(ctx.gains).toHaveLength(5)
   })
 
+  it('pans two channels whatever it is fed, so one channel plays as loud as two', () => {
+    const ctx = createMockContext()
+    strip(ctx, 'a').materialize()
+    const [panner] = ctx.panners
+    expect(panner.channelCount).toBe(2)
+    expect(panner.channelCountMode).toBe('explicit')
+  })
+
   it('node accessors materialize on demand', () => {
     const ctx = createMockContext()
     const s = strip(ctx, 'a')

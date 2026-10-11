@@ -1,7 +1,8 @@
 # React: hooks, the UI kit and the playground
 
 `@kieranklaassen/live-mix/react` is the only entry that imports React
-(`react >= 18`, an optional peer). It ships two layers on top of the engine
+(`react >= 18`, an optional peer, and `react-dom >= 18` beside it, for the
+portal a picker opens in). It ships two layers on top of the engine
 (R32, KTD11): **headless hooks** that subscribe to the core's change events,
 and a **styled kit** built on them and themed through `--lm-*` CSS variables.
 Both render on the server from the same snapshots; `.` and `./dsp` never
@@ -243,6 +244,7 @@ A skin is five choices and a face:
 | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `plate`, `ink`, `accent` | The plate's colour and its two inks. They reach the plate as `--lm-plate`, `--lm-plate-ink` and `--lm-plate-accent`, and everything on it is drawn in those, so a plate keeps its colours in every theme. |
 | `finish`                 | `matte`, `grain`, `brushed`, `speckle`, `hammered`, `linen`, `fade` or `gloss`: SVG noise or a gradient over the plate, light on a dark plate and dark on a light one. No image files.                    |
+| `clearLettering`         | Keeps the finish off the lettering: the display and the names under the knobs stand on plain plate. For a finish whose marks are as strong as the ink (speckle on Ice's pale plate).                      |
 | `cap`                    | The knobs' cap: `disc`, `dot`, `skirt` or `pointer` (`Knob`'s `cap`; `arc` is the kit's own knob).                                                                                                        |
 | `face`, `labels`         | The knobs on the face and shorter words for them: four over a picture or a strip, two for each column beside a window. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.    |
 | `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
@@ -262,6 +264,13 @@ Pass your own table as the second argument, or your own function as `skin`, to
 add or replace skins. A plate is 140 px high and
 `plateLayout(knobs, pictured, display?)` gives its width and where its display
 stands.
+
+A plate keeps for itself whether the `+n` cell has opened it (`defaultOpen`,
+`onOpenChange`). A host that keeps it, so that it can be opened from somewhere
+else or is still open when the plate is drawn again, passes `open`: the plate
+then shows what it is told, and a press on the cell only asks through
+`onOpenChange`. `moreProps` puts the host's own `data-*` attributes on that
+cell.
 
 `upright` stands a plate up, as a pedal stands on a board: 220 px wide and 300
 high, on `DevicePlate` and, for every plate of a chain, on `DeviceChainView`.
@@ -303,6 +312,54 @@ spread plate is the plate opened, and stays so.
 knobs) and adds `spread`: how many columns the display takes, the rows'
 heights, and `cell(index)`, the row and column of each knob.
 `plateSections(skin.sections, params)` is the sections as a device has them.
+
+A plate has two looks. `flat` is the one above: the skin's three colours, its
+finish as noise, the knobs' caps as drawings. `studio` is the same plate as a
+photograph from straight above, lit by one soft lamp from the upper left: satin
+paint with a rolled edge, knobs of turned aluminium anodised in the plate's
+colour (the skin's `cap` is the kind of knob), the display and the kit's preset
+cell under glass let into the box, the `+n` and `Edit` cells as low caps, the
+lamp in a bezel on a hex nut. Ask for it over any part of the page, or for one
+plate:
+
+```tsx
+import { PlateLookProvider } from '@kieranklaassen/live-mix/react'
+
+;<PlateLookProvider look="studio">
+  <DeviceChainView strip={track} skin={deviceSkin} upright />
+</PlateLookProvider>
+
+;<DevicePlate device={device} skin={skin} look="studio" />
+```
+
+Nothing a hand or a script finds on the plate changes with the look: its size,
+every control with its test id and info text, where each knob, cell and lamp
+stands, and the display, which draws what it drew. The photograph is one
+canvas under them (`StudioFace`), drawn by one fragment shader in one WebGL
+context that every plate on the page shares, from where the parts stand on the
+page. It is taken again when a knob turns, the lamp goes on or off, a part
+moves or the skin's colours change, and never on frames. Its colours are made
+from the skin's three (`studioPalette`): the lettering is the ink, moved until
+it stands at 4.5 to 1 or better on the paint, and the paint gives way only
+where that is not enough; the screen is the plate's colour in shade. A knob's
+indicator is cut into a bed: the metal right beside its paint is held dark
+enough (or, under dark paint, pale enough) for the paint to stand at 3 to 1 on
+it, also where the lamp's fan crosses the top (`StudioPalette.bed`). The
+display lays no ground of its own on the glass (`DisplayColours.ground`). The
+shadow a plate stands in is the theme's (`--lm-shade`).
+A host's own preset cell in `presetPicker` gets a pane of glass under it, as
+the kit's has, when it carries `data-lm-pane`; it then writes in
+`--lm-studio-screen` on `--lm-studio-glass` and draws no ground or line of its
+own while the plate carries the mark below.
+
+A plate is marked `data-lm-look="studio"` once its photograph is on it, and
+the stylesheet does the rest from that mark. Where it cannot be taken (no
+WebGL, a context that was lost, more than 64 knobs, on the server and in the
+first draw after it) the plate is the flat one, with nothing of the studio
+look in its markup. Flat is the default: without a provider or `look` nothing
+changes. `usePlateLook()` reads the provider, `useStudioLook(look?)` answers
+whether a plate here is photographed, and `studioReady()` whether this machine
+can.
 
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
@@ -488,6 +545,139 @@ bench: every stock effect as a plate with sound running through it, by
 each spread and played a phrase over and over (`&then=shimmer,tape-echo`
 stands pedals after it, as in a chain). `node scripts/plates/shoot.mjs out.png "only=tremolo"` takes its
 picture in headless Chromium.
+Each plate there carries a `DevicePresetCell` on its foot, and the cell at the
+top of the page is a `PickCell` that finds a plate by name, so the list and the
+preset cell are looked at where the plates are.
+
+### Lists to pick from, and the preset cell
+
+A preset, an effect to add and a chain for a strip are all picked the same
+way: a cell names what is on, a press opens a list off it, and the list is
+searched and walked with the keys. The parts came from Ambient Live, where an
+effect's presets and the effect browser are drawn with them, and they are the
+kit's now so a second app draws the same thing.
+
+`PickCell` is the whole of it for a list of the app's own:
+
+```tsx
+import { PickCell, deviceItems, patchItems } from '@kieranklaassen/live-mix/react'
+
+;<PickCell
+  label="Effects"
+  items={deviceItems(engine.devices.list({ kind: 'effect' }))}
+  onPick={(item) => addEffect(item.id)}
+  verb="Add"
+  data-testid="add-effect"
+>
+  Add effect
+</PickCell>
+
+;<PickCell
+  label="Chains for a voice"
+  items={patchItems(VOICE_CHAINS)}
+  current={chainOn?.id ?? null}
+  onPick={(item) => applyChain(item.id)}
+  verb="Apply"
+>
+  {chainOn?.name ?? 'Chains'}
+</PickCell>
+```
+
+A `PickItem` is `{ id, name, detail?, more?, group? }`: `detail` is said dim
+beside the name, `more` are words the search finds it by, and items of one
+`group` stand under one head with their count (`deviceItems` heads a registry's
+devices by category, in the order `DEVICE_CATEGORIES` lists them; `patchItems`
+makes one item a `Patch`). `PickList` is the list alone, for a cell of the
+app's own: `open`, `anchorRef`, `onClose` and the same props.
+
+| What the list does  | How                                                                                                                                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opens               | Off its cell: above it, or below with `side="below"`, lined up with the cell's left edge (`align="start"`) or its right. `rail` names an element whose edge it stands on in place of the cell's. `pickerPlace` works the place out and keeps it in the window.   |
+| Starts              | With the cursor on the one that is on (`current`), marked "on now"; on the first row where nothing is.                                                                                                                                                           |
+| Searches            | Every word typed has to be in the name, the detail or `more` (`searchRows`, `matchRanges`). What it found leads, best first, with the found letters marked; the rest follow dimmed, so the list never empties. A letter typed anywhere in the panel is a search. |
+| Walks               | Up, Down, Page Up, Page Down, Home, End. Return picks the row under the cursor and closes; with Shift held it picks and stays open, to try one after another. A held Return picks once.                                                                          |
+| Closes              | Escape, a press outside, the cell again, a pick. The focus goes back to what had it. Tab stays inside while it is open.                                                                                                                                          |
+| Says what Return is | The action cell on its foot reads the verb and the row: "Apply Podcast voice", "On Clean voice" for the one that is on, "Nothing to apply" where a search found nothing.                                                                                         |
+
+`filters` is a row of the app's own under the search (chips), `rowTools` cells
+at the end of a row (a star, a play cell: a press on one is not a pick), and
+`rowProps`, `cellProps` and `actionProps` put an app's own attributes on a row,
+on the cell and on the action cell at the list's foot. Any other `data-*`
+attribute a `PickCell`, a `PresetCell` or a `DevicePresetCell` is handed goes
+to every control it draws that does the pick (the cell or the three cells, each
+row of the list, and the list's action cell), and one a `DevicePlate` is handed
+goes to the plate: a host that names what a control does, as an editor's
+`data-action` does for its agent, finds the name on whatever is pressed. The
+search field does nothing but narrow the list and carries none. `DataAttributes`
+is the type of such a set. The cell names its list while it is open
+(`aria-controls`; a `PickList` under a cell of the app's own takes the `id`). The
+panel's parts are exported for a picker with rows of another shape:
+`PickerPanel`, `PickerSearch`, `PickerGroup`, `PickerAction`, `Highlight`,
+`Keycap`, `cursorStep`, `tabStops`, `focusCell` and `useRowInView`. Their
+classes are `lm-picker*`; `lm-pick` is the wrapper of a select and stays so.
+
+`PresetCell` is the preset cell of one effect: the name of the preset it is on,
+a cell to step to the one before and one to the one after without opening
+anything, and the list the name opens. It keeps nothing about which preset is
+on. `presetLabel(presets, values, specs)` reads it off the values each time, so
+a knob turned anywhere (on the plate, by an undo, by an agent) leaves the cell
+saying what is true: the preset's name, `Default` while every parameter is
+where the device starts it, `No preset` once they fit none. The matching is
+`presetIsOn`, `currentPreset`, `atDefaults`, `stepPreset` and `retiredPresets`,
+from the root entry: a preset is on while every parameter it names is where it
+puts it and every other is where the device starts it, in single precision and
+inside the range, the way the device keeps a value.
+
+`DevicePresetCell` is that cell read off a device, and what a plate's
+`presetPicker` is for:
+
+```tsx
+import { DevicePlate, DevicePresetCell, deviceSkin } from '@kieranklaassen/live-mix/react'
+
+;<DevicePlate
+  device={device}
+  skin={deviceSkin(device)}
+  writes={writes}
+  presetPicker={
+    <DevicePresetCell
+      device={device}
+      writes={writes}
+      presets={VIDEO_PRESETS[device.id]}
+      groupOf={(preset) => (isOurs(preset) ? 'For video' : 'Compressor')}
+    />
+  }
+/>
+```
+
+`presets` are the app's own, in the kit's `Preset` format, listed before the
+device's (`ownOnly` leaves the device's out). A name stands for one preset
+alone: where one of the app's has the name of one of the device's, the app's is
+the one listed. A pick is one write of every
+parameter the device has: the ones the preset names to its values and the rest
+to where the device starts them, by value and never by name, since one of the
+app's own is no preset the device knows. On a plate's foot the cell folds with
+the room the name leaves (`lm-plate-presets`): name, chevron and both step
+cells where there is room, the name and chevron on a narrower plate (the list
+does the stepping there, as it does under a finger), the chevron alone on the
+narrowest.
+
+`writes` is for a host that keeps its own document, as a video editor's edit
+is. A `DeviceWrites` on `useDevice`, `DevicePlate`, `DevicePanel` and
+`DevicePresetCell` takes every change in place of the device:
+
+| Call                | When                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `touch(names)`      | A knob, a slider or a handle on a display is taken hold of.                                              |
+| `set(params)`       | Every value while it is held, and once for a change that is not held: a preset, a reset, a typed number. |
+| `release(names)`    | It is let go.                                                                                            |
+| `setBypass(bypass)` | The lamp is pressed.                                                                                     |
+
+The plate still reads the device, so the host's part is to put what it was
+told on the device by its own way: preview between `touch` and `release`,
+commit once at `release`, and commit a `set` that came without a `touch` as
+one step. Nothing here is in the signal path: a plate, its display and its
+preset cell read parameters and taps, and a host that never mounts one sounds
+the same.
 
 ### The info view
 
@@ -629,6 +819,328 @@ returns / live inputs / instruments as strips, so `MixerView` takes `returns`
 analyser off `strip.output` on mount, which materialises the strip's nodes —
 pass `meter={false}` where a recorded-node-order harness is watching; the
 master `Bus` keeps no commanded level, so its fader is uncontrolled.
+
+### The video kit
+
+What a timeline of picture and sound, a panel, a sheet and a note are drawn
+with, for an app that edits video on the grid themes (Cutroom is the first).
+The elements are presentational, like `Stroke`: the host gives each one px,
+fractions and words, owns the data and every gesture, and gets pointer
+handlers, `aria-*`, `data-*` and the ref on the element a person acts on.
+Nothing here reads the engine, so all of it renders without a provider.
+
+Five rules hold the elements together:
+
+- Everything sits on the module (`--lm-col` × `--lm-row`). Neighbours touch
+  and a 1 px line separates them. No shadows, no gradients.
+- Round is media, square is everything else. A clip is a stroke with round
+  ends; a layer, a zoom, a layout change and a note are square.
+- A colour means one thing. A brush is a source, the accent is a control's
+  value or its pressed state, the automation colour is automation, and
+  `--lm-note` is a note. Errors use `--lm-danger`.
+- Who did something is a shape, never a colour (`WhoMark`): a filled square is
+  a person, an outlined square is the agent inside the app, a dashed square is
+  an agent from outside.
+- One pattern tells a person something in place (`InlineNote`).
+
+Wrap the app in `className="lm-app"` beside its `data-lm-theme`: the font, one
+row to a line, border-box sizing, and a 1 px `--lm-focus` ring at 1 px offset
+on whatever has the keyboard.
+
+```tsx
+const { minorSec, majorColumns } = rulerScale(pxPerSecond)
+
+<div data-lm-theme="graphite" className="lm-app">
+  <TimeRuler pxPerSecond={pxPerSecond} width={width} role="slider" aria-label="Playhead" onPointerDown={seek}>
+    <Playhead x={playheadPx} flag />
+  </TimeRuler>
+  <LaneHead name="Display" brush={2} height={40} glyph={<Glyph kind="display" />} />
+  <PaintField columnPx={minorSec * pxPerSecond} majorColumns={majorColumns} majorRows={0}>
+    <Lane top={0} height={40} role="group" aria-label="Display track">
+      <VideoStroke
+        style={{ position: 'absolute', left: clip.start * pxPerSecond }}
+        width={(clip.end - clip.start) * pxPerSecond}
+        height={40}
+        brush={2}
+        name="Display"
+        hits={clickFractions}
+        tags={['1.5×']}
+      />
+    </Lane>
+    <Lane top={40} height={20}>
+      <TimelineItem
+        style={{ position: 'absolute', left: zoom.start * pxPerSecond }}
+        width={(zoom.end - zoom.start) * pxPerSecond}
+        shape="envelope"
+        glyph={<Glyph kind="follows" />}
+        name="2.2×"
+        rampIn={easeInPx}
+        rampOut={easeOutPx}
+      />
+    </Lane>
+    <Playhead x={playheadPx} />
+  </PaintField>
+</div>
+```
+
+**Tokens.** Every theme carries them; a host that sets every token itself adds
+these:
+
+| Token                                                         | Use                                                                                               |
+| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `stage`                                                       | The ground behind a picture: a preview, a source view                                             |
+| `scrim`                                                       | Over the window behind a sheet                                                                    |
+| `removed`                                                     | The wash behind removed words                                                                     |
+| `record`                                                      | The record dot. The value of `danger`, with a meaning of its own                                  |
+| `note`, `note-soft`                                           | A note's tab, line and span edge, and the wash behind its words. 4.5:1 or better on `bg`/`sunken` |
+| `note-mark`, `mark-edge`                                      | A note's marks on a picture and the dark line around any mark there. One value in every theme     |
+| `bar-height`, `panel-width`, `lane-head-width`, `handle-size` | 40 px, 320 px, 160 px, 7 px                                                                       |
+| `read-size`                                                   | 13 px: text that is read (a transcript, a conversation). `.lm-read` sets it on a 20 px line       |
+
+`.lm-time-large` is the transport's time (the mono face at 13 px), `.lm-num` a
+mono readout and `.lm-lbl` a 9 px label.
+
+**Timeline.**
+
+| Component             | What it draws                                                                                                                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TimeRuler`           | One row of ticks for `width` px from `start` seconds at `pxPerSecond`. It picks the ticks from the scale (`rulerScale`); labelled ticks say `format(seconds)`. Children place themselves in px                                                                              |
+| `Playhead`            | The 1 px line; `flag` adds the 9 by 11 px flag, for the one in the ruler. Leave `x` out and set `transform` on the ref to move it without a render                                                                                                                          |
+| `Lane`, `LaneHead`    | A row of the field at `top`, 20 or 40 px high, and its head: swatch in the `brush`, `glyph`, name, mute and solo (the kit's `ToggleButton`, shown when their state is given), and on a 40 px head a second row for a peak `meter` or a `note`                               |
+| `VideoStroke`         | A `Stroke` for a picture: ring and wash in the brush, `frames` as a strip of thumbnails (flat frames without them), a tick per `hits`, the tag with `name` and `tags`, an `automation` line for a speed ramp, and `selected`, `linked`, `muted`, `missing`                  |
+| `TimelineItem`        | Anything that is not media, one row tall and square. `shape="plate"`: glyph, name, readouts, a corner cut where `fadeIn` / `fadeOut` is above 0. `"envelope"`: an outline whose slopes are `rampIn` / `rampOut`. `"span"`: a line at its start and a hatch `rampIn` px wide |
+| `LinkMark`            | The bracket on the lane heads of one link group                                                                                                                                                                                                                             |
+| `RangeSelection`      | A selected range of time: an accent wash, full strength on the ruler and half through the lanes                                                                                                                                                                             |
+| `CutSeam`, `CutNotch` | Where a gap was closed: a dashed line through the lanes it joins, and its 7 by 4 px notch on the ruler                                                                                                                                                                      |
+| `TransitionMark`      | A square with a cross over a cut, never narrower than 12 px                                                                                                                                                                                                                 |
+| `Overview`            | The whole timeline in one row: cuts, notes, the playhead and a box for what the lanes show. A press or a drag calls `onScroll(start)`                                                                                                                                       |
+
+A speed is not a component: a constant speed is a `tags` entry and a ramp is
+`automation` with the label "Speed", on `Stroke` and `VideoStroke` alike.
+
+The arithmetic is exported for hosts that scroll and zoom (`timeline-math`):
+`rulerScale` (fifths of a second under a second from 100 px per second, two seconds under
+ten from 20, ten under thirty from 5, thirty under two minutes below),
+`rulerLabels`, `zoomAround` (the time under the pointer stays under it),
+`fitPxPerSecond`, `pageScroll` (the page turn while playing) and
+`clampPxPerSecond` (2 to 400, default 20). A field takes
+`columnPx={minorSec * pxPerSecond}` and `majorColumns` from `rulerScale`.
+
+**Panels and controls.**
+
+| Component                               | What it is                                                                                                                                                                                                        |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Panel`, `PanelHead`                    | A column on the panel ground, and its head row: `glyph`, `title`, `actions` flush at the right                                                                                                                    |
+| `Tabs`                                  | A row of tabs on the page ground; the selected one stands on the panel ground. `selected` is null while the panel is closed. Arrow keys, Home and End move between tabs                                           |
+| `SectionLabel`, `PropRow`               | The label over a group of rows, and a property: a 120 px label and a value cell                                                                                                                                   |
+| `TextButton`                            | A button with words on it. `variant`: `default`, `primary` (the one a bar or a sheet leads to), `quiet`, `danger`. `pressed` makes it a toggle. `cell` sits flush in a bar, `icon` is one glyph, `shortcut` a key |
+| `Input`, `Select`, `Segmented`, `Check` | The fields a property row holds. Each reports the new value. `boxed` gives a field a border of its own outside a row                                                                                              |
+| `Menu`, `MenuItem`, `MenuSeparator`     | A list of one-row items with shortcuts at the right. `items`, or `MenuItem` children when an item needs attributes of its own; `checked` marks a choice. Arrow keys move, Escape calls `onClose`                  |
+| `Sheet`                                 | One thing to settle, over the window on a scrim: head, body, and a foot two rows tall. Escape calls `onClose`, Tab stays inside, and the focus goes back where it was                                             |
+| `InlineNote`                            | The inline message: a title that says what happened, a line that says what it means, at most one `action`. `tone="danger"` for what stops the person; `role` is `status` or `alert`                               |
+| `Progress`, `StateMark`, `WhoMark`      | A 6 px bar; an 8 px square that is `off`, `on`, `busy` or `failed`; an 8 px square that says who                                                                                                                  |
+| `JobRow`, `LogRow`                      | Long-running work (state, bar, percentage, note, Cancel) and a call somebody made (who, what, when, "Done" or "Refused" in the words it was refused with, the arguments, Undo)                                    |
+| `TranscriptWord`                        | A word as a button at the reading size: `rest`, `selected`, `removed`, `filler`, `now`; `pause` shows a length. A removal is a run of removed words, and a `CutSeam` on the timeline                              |
+| `Glyph`                                 | A 10 px glyph by `SoundIcon`'s rules for things that are not a kind of sound: sources, layers, the look, acts and panels (`GLYPHS` lists the kinds), or a path of your own as `d`                                 |
+
+The inline message is called `InlineNote` because a note is something else
+here: what a person or an agent says about the work.
+
+**Notes.** A note takes a colour role of its own and is always a numbered
+square tab, whose fill says who and what state: filled is a person's open
+note, the same with an arrow has been sent, outlined in the note colour is an
+agent's, outlined in grey with a tick is resolved.
+
+| Component                   | What it draws                                                                                                                                     |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NoteTab`                   | The tab alone                                                                                                                                     |
+| `NotePin`, `NoteSpan`       | A note on a timeline: a button with the tab and the start of its text at `x`, an optional `line` down through the lanes, and the wash of its span |
+| `PictureMark`, `NoteBubble` | A `box`, an `arrow` or a `line` on a picture from points in output px, with the dark edge under it, and the note's words beside it                |
+| `ContextChip`               | What goes with an ask: the selection, a note or a frame, with an x that leaves it out                                                             |
+| `ReferenceChip`             | A moment, a span or an item named in an answer, as a button that goes there                                                                       |
+| `ChangedMark`               | An 11 px square on something an agent changed                                                                                                     |
+
+**The clock under a picture.** `followStep` (the core entry) is the rule by
+which a media element follows a clock it is not the master of: a video
+element under a picture that follows the audio clock. Paused, it seeks to the
+exact time and never while a seek is under way; playing, its rate is nudged
+toward the clock, and past `FOLLOW_DRIFT_SEEK` it seeks. The host reads the
+element, asks for the step and applies it.
+
+`playground/video-kit.html` (`pnpm playground`, then `/video-kit.html`) mounts
+every element with made-up content; `?theme=paper` or any other theme, and
+`?sheet=1` for the sheet.
+
+### The block parts
+
+What a block of a bar is laid out with: the places of a surface, the head of a
+block that was gone into, a list of things to go into, the one sentence a
+block says and its one main action, a few choices, the layout of its body,
+a sheet for what is set up once and then left, and the groups of a bar that
+is one row tall.
+The parts came from Ambient Live, whose bottom bar is built from them, and
+they are the kit's now so a second app lays its blocks out the same way. They
+are presentational: the host owns what is chosen and what a press does.
+Nothing here reads the engine, so all of it renders without a provider. Each
+part passes what it is not told about to its element (`infoProps`, a
+`data-testid`, a `title`), and a part that draws buttons of its own takes
+those per button as `props`.
+
+```tsx
+import {
+  BlockHead,
+  Choice,
+  Group,
+  Hint,
+  MainAction,
+  PlainAction,
+  Room,
+  Row,
+  Says,
+  Tick,
+  Well,
+} from '@kieranklaassen/live-mix/react'
+
+function LooperBlock({ looper, onBack }: { looper: Looper; onBack: () => void }) {
+  return (
+    <>
+      <BlockHead
+        back={{ label: 'Tools', onClick: onBack }}
+        title="Looper"
+        state={looper.running ? 'Recording' : 'Idle'}
+        on={looper.running}
+      />
+      <Room>
+        <Says>Records what you play and plays it back in a loop.</Says>
+        <MainAction tone={looper.running ? 'line' : 'fill'} onClick={looper.toggle}>
+          {looper.running ? 'Stop' : 'Record'}
+        </MainAction>
+        <PlainAction onClick={looper.clear}>Clear</PlainAction>
+        <Group name="Length" beside>
+          <Choice
+            label="Length"
+            value={looper.bars}
+            onChange={looper.setBars}
+            options={[
+              { value: 1, label: '1 bar' },
+              { value: 2, label: '2 bars' },
+              { value: 4, label: '4 bars' },
+            ]}
+          />
+        </Group>
+        <Row name="Start" hint="Waits for the next bar">
+          <Tick on={looper.synced} onChange={looper.setSynced}>
+            On the bar
+          </Tick>
+        </Row>
+        <Well caption="The loop shows here">{looper.running && <LoopPicture />}</Well>
+        <Hint>A second press on Record adds a layer.</Hint>
+      </Room>
+    </>
+  )
+}
+```
+
+| Part                        | What it is                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Places`                    | The places of a surface as cells that are always there, the one in view filled with the accent (`value`, or null when the surface shows none of them): a column sharing the height it is given, or a row of words with `across`. An item has a `name`, and may have a `note`, an `icon` and a `level` (a meter the caller draws)                                                                                                                                                                                                                                                                                                                           |
+| `BlockHead`, `State`        | The first row inside a block that was gone into: the way `back`, the `title`, children between, and at the right its `state` in words with a lamp that is lit while `on`. `State` is that right end by itself, for a head that is a frame's own title bar                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `ListRow`                   | One row of a list of things to go into: an `icon`, a `name`, one `line` of what it is, a chevron, and a `mark` while the thing is at work, which lifts the row                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `Says`                      | The one sentence at the top of a block: what it does, in plain words                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `MainAction`, `PlainAction` | The one large action of a block, `tone="fill"` before it is taken and `"line"` while it runs; `small` is as tall as a choice, for a row. A plain action is a small button beside it, never in its place: an `icon`, a word. With no word it is its icon alone, a cell of the module wide, and the caller names it with `aria-label`. `on` fills it while what it starts goes on, and `aria-busy` draws it in the accent while what it started is under way. Its `ref` reaches the button                                                                                                                                                                   |
+| `Choice`                    | One of a few, side by side in one frame, the chosen one filled. `fill` takes the width it is given and the options share it; `tall` options hold two lines. With `wrap` each option is as wide as its words and they go on to a second row where one row is too narrow, so no word is cut. `value` is null when none is chosen                                                                                                                                                                                                                                                                                                                             |
+| `Dropdown`                  | One of a list too long to lay side by side: the platform's own select in the frame a `Choice` has, named by `label`, given its options as children and told of a pick the select's own way (`value`, `onChange`)                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `DropdownButton`            | The frame of a `Dropdown` as a button, over a list of the caller's own: it says what is picked, and a press opens the list. The caller says whether the list is open with `aria-expanded`, and the frame is lit while it is. Its `ref` reaches the button, to lay the list by it                                                                                                                                                                                                                                                                                                                                                                           |
+| `ChoiceList`                | One of a few, each on a row of a list with a sentence under its name, for a choice whose options need saying what they do. An option has a `value`, a `name` and may have a `line`; the picked one has its ring filled, and `value` is null when none is picked. It is a radio group named by `label`: the arrow keys, Home and End move among the rows without picking, a press picks, and Tab stops on the picked row. Its `ref` reaches the group                                                                                                                                                                                                       |
+| `Tick`                      | A thing that is on or off, as a box with its word. `onChange` is told the new state                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `Pill`                      | A word in a ring that says whether a thing is there, lit when `on`. Not a control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| `Tally`                     | How many of a thing, in the figures' face beside its name: in an option of a `Choice`, at the end of a `SearchField`. Not a control                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| `SearchField`               | The field a list is searched with, named by `label`: a magnifier that is lit while something is typed, the field, and at its end what the search `found` and, with `onClear`, a cross that empties it (`clearProps` are the cross's own). What it is not told about goes to the field itself: `value`, `onChange`, a `placeholder`                                                                                                                                                                                                                                                                                                                         |
+| `Room`                      | The body of a block. It tells the parts in it how much room there is: a main action, a card, a tall choice and a group with its name `beside` are drawn lower where the bar is low, and a card closer on a phone. With `finger` (the class `lm-finger`, exported as `FINGER`) the parts in it are a finger's size: a main action 40 px tall, and nothing that is pressed narrower than 40 px                                                                                                                                                                                                                                                               |
+| `Group`                     | A named group of a block: its `name` in small capitals over what belongs to it, or beside it in a low room with `beside`. A `note` is one line at the end of the name's row, what the group holds now; it goes under the name where the row is too narrow for both                                                                                                                                                                                                                                                                                                                                                                                         |
+| `BarGroup`, `Joined`        | A named group of a bar that is one row tall: its `name` in small capitals beside what belongs to it, and the plain actions, ticks, choices, dropdowns, main actions, figures and joined frames in it drawn as low as the row, 16 px, or 14 px with `low` in a bar whose row keeps its edges for a bevel. `bare` leaves the name undrawn where the bar has no room for it, and it names the group all the same; `ruled` draws a rule before the group, in a bar whose groups stand on one ground. `Joined` puts parts that are one control in one frame with a rule between them: a thing and the picker of what it works on, a count between its two steps |
+| `Row`, `Hint`               | One choice on one row: its `name` at the left, the control, and a `hint` of what it means. A kit `Fader` on a row is drawn as a thin track with a line for its thumb. `Hint` is a short line of help anywhere else                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `Figure`                    | A number in a sunken frame with what it is counted in: the caller's own `input` or a readout as its child, and its `unit` after it. `chars` is how many figures a field shows                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `Well`                      | The sunken room of a block where what it hears is drawn (the kit's `lm-well`); while idle its `caption` says what will show                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `Card`                      | One of a few things in a row that can be picked, such as a chord of a loop. The `picked` one has the accent's frame; the `active` one shows `progress` (0 to 1) on its lower edge, or the caller sets `--lm-card-progress` through the `ref`. A card that `goes` into its thing has no picked state: a press leaves the row. One for a thing that is not there `yet` has a dashed frame. `hue` is a CSS colour for a band along its upper edge, the colour the thing has elsewhere, and `level` a meter the caller draws at its edge                                                                                                                       |
+| `Step`                      | One step of a few toward a thing that is not there yet, in a dashed frame: an `icon`, its `number` among the steps, its `name`, a `line` of what to do, children between, and a `foot` that says where. Left without a number it is a frame that stands by itself. Words, not a control                                                                                                                                                                                                                                                                                                                                                                    |
+| `NamedChip`                 | A small named thing to press: a `swatch` of its colour, its name, and a star when `starred`. A `count` stands at its end, how many it holds. Told `on` or not, it is a thing that is on or off (`aria-pressed`), and it fills while on; left untold it is a plain button                                                                                                                                                                                                                                                                                                                                                                                   |
+| `Offer`                     | An offer to make something new, set apart from what stands around it by a dashed frame: a plus and its `name`, `beside` the name a choice the new thing is made with, one `line` on what a press makes, and under it the ways to take it as children                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `KeptSheet`                 | A sheet over the page for what is set up once and then left. Unlike `Sheet`, which is there while it is mounted, it is opened with `open` and stays mounted while closed, so what lives in it goes on working. Escape (heard before the page hears it) and a press beside it call `onClose`, Tab stays inside, and the focus goes to its Close button and back where it was. `foot` is one line along its foot                                                                                                                                                                                                                                             |
+| `SheetPart`                 | One part of a sheet: its `name`, a `state` after it that is lit when `on`, a `line` of what it is, and under them its controls                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `Chevron`, `Star`           | The two 12 px glyphs the parts draw: a chevron forward or `back`, and a star that is filled when `on`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+A bar that is one row tall is laid out with the same parts, a `BarGroup` for
+each group of it:
+
+```tsx
+import {
+  BarGroup,
+  Chevron,
+  Figure,
+  Joined,
+  PlainAction,
+  SearchField,
+  Tally,
+} from '@kieranklaassen/live-mix/react'
+
+function PassBar({ pass, list }: { pass: Pass; list: SampleList }) {
+  return (
+    <>
+      <BarGroup name="Pass">
+        <Joined>
+          <PlainAction aria-label="Previous pass" icon={<Chevron back />} onClick={pass.previous} />
+          <Figure>{pass.number}</Figure>
+          <PlainAction aria-label="Next pass" icon={<Chevron />} onClick={pass.next} />
+        </Joined>
+        <PlainAction on={pass.looping} onClick={pass.toggleLoop}>
+          Loop
+        </PlainAction>
+      </BarGroup>
+      <BarGroup name="Length" ruled>
+        <Figure unit="s" chars={4}>
+          <input
+            aria-label="Length in seconds"
+            value={pass.seconds}
+            onChange={(event) => pass.setSeconds(event.target.value)}
+          />
+        </Figure>
+      </BarGroup>
+      <BarGroup name="Samples" bare ruled>
+        <SearchField
+          label="Search samples"
+          placeholder={`Search ${list.total} samples`}
+          value={list.query}
+          onChange={(event) => list.search(event.target.value)}
+          found={
+            <Tally>
+              {list.found} of {list.total}
+            </Tally>
+          }
+          onClear={() => list.search('')}
+        />
+      </BarGroup>
+    </>
+  )
+}
+```
+
+`Room` is a size container named `lm-room`, and a block lays out what is its
+own by the same container:
+
+```css
+@container lm-room (max-height: 220px) {
+  .looper-picture {
+    display: none;
+  }
+}
+```
+
+The row's class is `lm-block-row`, because `lm-row` is the channel row. In
+the same way `KeptSheet`, `Dropdown` and `NamedChip` are named apart from the
+kit's `Sheet`, `PickerPanel` and `ContextChip`, whose classes are `lm-sheet`,
+`lm-picker` and `lm-chip`. A `DropdownButton` has the class of a `Dropdown`,
+`lm-dropdown`, on a button.
 
 ## The playground
 

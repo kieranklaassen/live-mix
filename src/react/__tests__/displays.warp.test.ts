@@ -27,13 +27,13 @@ const { ink, accent, plate } = PLAIN_COLOURS
 
 /** `kLeanOctaves`: Lean's weight is halfway at two octaves from the pivot. */
 const LEAN_OCTAVES = 2
-/** `kWidthDepth`: the left side's Stretch is `width * 0.04` under the setting, the right's as much over. */
+/** `kWidthDepth`: the left side's Stretch is `width * 0.04` under the setting, the right's as much over, about each note. */
 const WIDTH_DEPTH = 0.04
 /** `kDriftDepth`: Drift at full takes the Stretch 0.12 either way (the device reports the result as `stretchNow`). */
 const DRIFT_DEPTH = 0.12
 
 /**
- * `Warp::frame`: a partial `o` octaves from the pivot is moved by
+ * `Warp::plan`: a partial `o` octaves from the pivot is moved by
  * `o * (e - 1) * weight + shift` octaves, `e = exp2(stretch)`, with
  * `x = o / kLeanOctaves`, `r = x * x / (1 + x * x)` and the weight
  * `1 - lean * (1 - r)` for a Lean of 0 or more, `1 + lean * r` under 0. With
@@ -54,6 +54,29 @@ function moved(
   const r = (x * x) / (1 + x * x)
   const weight = lean >= 0 ? 1 - lean * (1 - r) : 1 + lean * r
   return o * (Math.pow(2, stretch) - 1) * weight + shiftSt / 12
+}
+
+/**
+ * `Warp::plan`, Width: a side's exponent is `exp2(stretch - width * kWidthDepth)`
+ * on the left and `exp2(stretch + width * kWidthDepth)` on the right, and what
+ * that differs from the middle one, `exp2(stretch)`, works on an overtone's
+ * octaves over its own note, weighted by Lean over that distance. `side` is -1
+ * for the left and 1 for the right; at the note or under it nothing parts.
+ */
+function parted(
+  hz: number,
+  note: number,
+  stretch: number,
+  width: number,
+  side: -1 | 1,
+  lean = 0,
+): number {
+  if (hz <= note) return 0
+  const o = Math.log2(hz / note)
+  const x = o / LEAN_OCTAVES
+  const r = (x * x) / (1 + x * x)
+  const weight = lean >= 0 ? 1 - lean * (1 - r) : 1 + lean * r
+  return o * weight * (Math.pow(2, stretch + side * width * WIDTH_DEPTH) - Math.pow(2, stretch))
 }
 
 // --- The picture: 20 Hz to 20 kHz across, two octaves of move either way of the
@@ -195,13 +218,17 @@ function handleOf(key: string, options: FrameOptions = {}): DisplayHandle {
   return handle
 }
 
-/** The readings of a device that plays: six partials of a note, as loud as given. */
+/**
+ * The readings of a device that plays: six partials of a note, as loud as
+ * given, and the lowest note it has found (`noteNow`; 0 is none).
+ */
 function playing(
   pivotNow: number,
   stretchNow: number,
   partials: readonly [number, number, number][],
+  noteNow = 0,
 ): Record<string, number> {
-  const meters: Record<string, number> = { stretchNow, pivotNow }
+  const meters: Record<string, number> = { stretchNow, pivotNow, noteNow }
   for (let m = 1; m <= 6; m++) {
     const [from, to, level] = partials[m - 1] ?? [0, 0, 0]
     meters[`partial${m}In`] = from
@@ -216,9 +243,11 @@ describe('the warp display at rest', () => {
   const none = scale.yOf(0)
 
   it('reads the meters the device has, in the order the device reports them', () => {
-    // `Warp::meter`: 0 the stretch in use, 1 the pivot in use, then In, Out and Level of six partials.
+    // `Warp::meter`: 0 the stretch in use, 1 the pivot in use, then In, Out and Level of six
+    // partials, and last the lowest note being played.
     const names = ['stretchNow', 'pivotNow']
     for (let m = 1; m <= 6; m++) names.push(`partial${m}In`, `partial${m}Out`, `partial${m}Level`)
+    names.push('noteNow')
     expect(Object.keys(descriptor.meters ?? {})).toEqual(names)
     names.forEach((name, id) => expect(descriptor.meters?.[name].id).toBe(id))
     expect(WARP_FACES.warp.face).toEqual(['stretch', 'lean', 'drift', 'mix'])
@@ -248,7 +277,7 @@ describe('the warp display at rest', () => {
   })
 
   it('with Follow on draws the curve of one note at 110 Hz, whatever the Pivot knob says', () => {
-    // The device does not use the knob while Follow is on (`Warp::frame`): every note played is
+    // The device does not use the knob while Follow is on (`Warp::plan`): every note played is
     // its own pivot. The picture shows the curve of one note, A2, and what lies under it at rest.
     for (const [stretch, lean, shift] of [
       [0.3, 0, 0],
@@ -497,7 +526,7 @@ describe('the warp display while the device plays', () => {
     expect(now).toHaveLength(2)
     expectCurve(now[0], scale, 220, 0.36 - 0.5 * WIDTH_DEPTH, 0, 0, true)
     expectCurve(now[1], scale, 220, 0.36 + 0.5 * WIDTH_DEPTH, 0, 0, true)
-    // Under the note nothing is moved (`Warp::frame`: what is nobody's overtone stays).
+    // Under the note nothing is moved (`Warp::plan`: what is nobody's overtone stays).
     for (const curve of now) {
       for (const [x, y] of curve.points) if (x <= scale.xOf(220)) expect(y).toBe(none)
     }
@@ -516,6 +545,8 @@ describe('the warp display while the device plays', () => {
     const shifted = draw({ values: { shift: 7, width: 0 }, meters: note(0.3), signal })
     const moved7 = shifted.fills.filter((f) => f.colour === accent && f.arcs[0]?.[2] === 2.5)
     expect(moved7[0].arcs[0][1]).toBeCloseTo(scale.yOf(7 / 12), 9)
+    // (Width 0: the two sides are the same, and one curve is drawn for both)
+    expect(curves(shifted, accent, 1)).toHaveLength(1)
     for (const curve of curves(shifted, accent, 1)) expectCurve(curve, scale, 220, 0.3, 0, 7, true)
   })
 
@@ -530,16 +561,90 @@ describe('the warp display while the device plays', () => {
     expect(marks[0].arcs[0][1]).toBe(none)
   })
 
-  it('with Follow off draws now about the knob, both ways from it', () => {
+  it('with Follow off draws now about the knob, both ways from it, one curve for both sides', () => {
     const values = { follow: 0, pivot: 220, width: 0 }
     const picture = draw({ values, meters: playing(220, 0.42, []), signal })
     const now = curves(picture, accent, 1)
-    expect(now).toHaveLength(2)
+    expect(now).toHaveLength(1)
     for (const curve of now) expectCurve(curve, scale, 220, 0.42)
+    // Width pulls the sides apart around each note played, not around the knob (`Warp::plan`: the
+    // stretch about the knob is the middle one on both sides): with no note in play the curve
+    // about the knob is still the one curve of the reading, at any Width.
+    for (const width of [0.25, 1]) {
+      const wide = curves(
+        draw({ values: { ...values, width }, meters: playing(220, 0.42, []), signal }),
+        accent,
+        1,
+      )
+      expect(wide, `Width ${width}`).toHaveLength(1)
+      expectCurve(wide[0], scale, 220, 0.42)
+    }
     // Under the pivot the partials go down: 55 Hz, two octaves under, by 2 * (2^0.42 - 1).
     expect(moved(55, 220, 0.42)).toBeCloseTo(-2 * (Math.pow(2, 0.42) - 1), 9)
     expect(now[0].points[0][1]).toBeGreaterThan(none)
     expectCurve(curves(picture, ink, 1.5)[0], scale, 220, 0.3)
+  })
+
+  it('with Follow off and a note in play parts the two sides over that note', () => {
+    // A C3 under a pivot at 220 Hz: the curve about the knob is one for both sides up to the
+    // note, and over it the left side's overtones lie under the curve and the right's over it,
+    // by the difference of the sides' exponents times their octaves over the note.
+    const c3 = 130.81
+    for (const [width, lean] of [
+      [1, 0],
+      [0.25, 0],
+      [1, 0.7],
+      [0.6, -0.5],
+    ]) {
+      const values = { follow: 0, pivot: 220, width, lean }
+      const now = curves(draw({ values, meters: playing(220, 0.45, [], c3), signal }), accent, 1)
+      expect(now, `Width ${width}`).toHaveLength(2)
+      now.forEach((curve, at) => {
+        const side = at === 0 ? -1 : 1
+        expect(curve.points[0][0]).toBeCloseTo(scale.left, 9)
+        expect(curve.points[curve.points.length - 1][0]).toBeCloseTo(scale.right, 9)
+        for (const [x, y] of curve.points) {
+          const hz = scale.hzOfX(x)
+          const want = moved(hz, 220, 0.45, lean) + parted(hz, c3, 0.45, width, side, lean)
+          expect(y).toBeCloseTo(scale.yOf(want), 6)
+        }
+      })
+      // Up to the note the two are one curve; over it the right side is the higher (a smaller y).
+      for (let i = 0; i < now[0].points.length; i++) {
+        const [x, left] = now[0].points[i]
+        const right = now[1].points[i][1]
+        if (x <= scale.xOf(c3)) expect(right).toBe(left)
+        else expect(right).toBeLessThan(left)
+      }
+    }
+    // The rule in numbers, as the harness measures it on the sound (`warp_test.cpp`, group 26): the
+    // second partial of the note, an octave over it, lands 2^(0.45 ± 0.04) - 2^0.45 octaves off the
+    // middle at full Width, 44.8 cents under on the left and 46.1 over on the right.
+    expect(1200 * parted(2 * c3, c3, 0.45, 1, -1)).toBeCloseTo(-44.83, 1)
+    expect(1200 * parted(2 * c3, c3, 0.45, 1, 1)).toBeCloseTo(46.09, 1)
+    // The pin stays on the knob, and at Width 0 the note parts nothing: one curve.
+    const picture = draw({
+      values: { follow: 0, pivot: 220, width: 1 },
+      meters: playing(220, 0.45, [], c3),
+      signal,
+    })
+    const pin = picture.fills.filter((f) => f.colour === accent && f.arcs[0]?.[2] === 2.5)
+    expect(pin[0].arcs[0][0]).toBeCloseTo(scale.xOf(220), 9)
+    const narrow = draw({
+      values: { follow: 0, pivot: 220, width: 0 },
+      meters: playing(220, 0.45, [], c3),
+      signal,
+    })
+    expect(curves(narrow, accent, 1)).toHaveLength(1)
+    // A reading that is no pitch parts nothing either.
+    for (const reading of [0, Number.NaN, -5]) {
+      const lost = draw({
+        values: { follow: 0, pivot: 220, width: 1 },
+        meters: playing(220, 0.45, [], reading),
+        signal,
+      })
+      expect(curves(lost, accent, 1)).toHaveLength(1)
+    }
   })
 
   it('draws each partial from where it was to how far the device reports it moved', () => {
@@ -615,7 +720,7 @@ describe('the warp display while the device plays', () => {
     const bad = playing(Number.NaN, Number.NaN, [])
     expect(accents(draw({ meters: bad, signal }))).toEqual([])
     const off = draw({ values: { follow: 0, pivot: 330, width: 0 }, meters: bad, signal })
-    expect(curves(off, accent, 1)).toHaveLength(2)
+    expect(curves(off, accent, 1)).toHaveLength(1)
     for (const curve of curves(off, accent, 1)) expectCurve(curve, scale, 330, 0.3)
     expect(plate).not.toBe(accent)
   })

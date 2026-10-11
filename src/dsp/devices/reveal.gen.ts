@@ -17,30 +17,8 @@ export const REVEAL_PARAMS = {
     description:
       'How far what is quiet is lifted toward the loudest sound around it. Low only opens the sound a little; all the way up makes everything as loud as everything else.',
   },
-  range: {
-    id: 1,
-    name: 'Range',
-    min: 0,
-    max: 30,
-    default: 12,
-    taper: 'linear',
-    unit: 'dB',
-    description:
-      'The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up.',
-  },
-  floor: {
-    id: 2,
-    name: 'Floor',
-    min: -72,
-    max: -24,
-    default: -48,
-    taper: 'linear',
-    unit: 'dB',
-    description:
-      'How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail.',
-  },
   rise: {
-    id: 3,
+    id: 1,
     name: 'Rise',
     min: 20,
     max: 4000,
@@ -51,7 +29,7 @@ export const REVEAL_PARAMS = {
       'How long the lift takes to come up, and how slowly it lets go when it is no longer called for. Short follows every moment; long moves like a slow hand on a fader.',
   },
   focus: {
-    id: 4,
+    id: 2,
     name: 'Focus',
     min: -1,
     max: 1,
@@ -62,7 +40,7 @@ export const REVEAL_PARAMS = {
       'Which part of the sound is revealed most. Down is the low end, the middle treats every frequency alike, up is the air at the top.',
   },
   detail: {
-    id: 5,
+    id: 3,
     name: 'Detail',
     min: 0,
     max: 1,
@@ -73,7 +51,7 @@ export const REVEAL_PARAMS = {
       'How finely the lift follows the spectrum. Down lifts broad regions like a tone control; up reaches single overtones and what lies between them.',
   },
   output: {
-    id: 6,
+    id: 4,
     name: 'Output',
     min: -12,
     max: 12,
@@ -84,7 +62,7 @@ export const REVEAL_PARAMS = {
       'Trim after the lift. The overall level is already held to that of the input, so this is only for taste.',
   },
   mix: {
-    id: 7,
+    id: 5,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -95,7 +73,7 @@ export const REVEAL_PARAMS = {
       'The balance of the untouched sound and the revealed one. The untouched sound is delayed to match, so the two never cancel.',
   },
   listen: {
-    id: 8,
+    id: 6,
     name: 'Listen',
     min: 0,
     max: 1,
@@ -105,6 +83,28 @@ export const REVEAL_PARAMS = {
     choices: ['Off', 'On'],
     description:
       'On plays only what is being added, so the settings can be tuned by ear. Turn it off again to hear the result.',
+  },
+  floor: {
+    id: 7,
+    name: 'Floor',
+    min: -72,
+    max: -24,
+    default: -48,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail.',
+  },
+  range: {
+    id: 8,
+    name: 'Range',
+    min: 0,
+    max: 30,
+    default: 12,
+    taper: 'linear',
+    unit: 'dB',
+    description:
+      'The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up.',
   },
 } as const satisfies Record<string, ParamSpec>
 

@@ -71,11 +71,12 @@ The plugin's `audioNode` sits between two gains:
 
 ```
 input ─┬─► wam.audioNode ─► wet ─┬─► output
-       └──────────► dry ─────────┘
+       └─────► delay ─► dry ─────┘
 ```
 
 `bypass` crossfades dry/wet over 5 ms (`WAM_DEVICE_RAMP_SECONDS`, the same
-ramp as `NodeDevice`); the plugin keeps running. A plugin without audio input
+ramp as `NodeDevice`); the plugin keeps running, and the dry path is held back
+by the plugin's compensation delay, so the bypass moves nothing in time. A plugin without audio input
 (`numberOfInputs === 0` or `descriptor.hasAudioInput === false`, i.e. an
 instrument) gets no `input → node` connection.
 

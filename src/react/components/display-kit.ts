@@ -60,18 +60,22 @@ export const crisp = (value: number): number => Math.floor(value) + 0.5
  */
 export function ground(frame: Paint & Pick<DisplayView, 'width' | 'height'>, pad = 3): Box {
   const { ctx, colours, width, height } = frame
-  // The plate's finish (specks, a brushing) is hushed under a display, so a thin line is not read against it.
-  ctx.globalAlpha = INK.hush
-  ctx.fillStyle = colours.plate
-  ctx.fillRect(0, 0, width, height)
-  ctx.globalAlpha = INK.ground
-  ctx.fillStyle = colours.ink
-  ctx.fillRect(0, 0, width, height)
-  ctx.globalAlpha = INK.rule
-  ctx.strokeStyle = colours.ink
-  ctx.lineWidth = 1
-  ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
-  ctx.globalAlpha = 1
+  // A display that is given its ground lays none, and keeps the room the line would have had.
+  const much = Math.min(1, Math.max(0, colours.ground ?? 1))
+  if (much > 0) {
+    // The plate's finish (specks, a brushing) is hushed under a display, so a thin line is not read against it.
+    ctx.globalAlpha = INK.hush * much
+    ctx.fillStyle = colours.plate
+    ctx.fillRect(0, 0, width, height)
+    ctx.globalAlpha = INK.ground * much
+    ctx.fillStyle = colours.ink
+    ctx.fillRect(0, 0, width, height)
+    ctx.globalAlpha = INK.rule * much
+    ctx.strokeStyle = colours.ink
+    ctx.lineWidth = 1
+    ctx.strokeRect(0.5, 0.5, width - 1, height - 1)
+    ctx.globalAlpha = 1
+  }
   return { x: 1 + pad, y: 1 + pad, w: width - 2 - 2 * pad, h: height - 2 - 2 * pad }
 }
 
@@ -540,10 +544,12 @@ export interface Biquad {
 
 /**
  * The coefficients of a second-order filter as the Audio EQ Cookbook gives
- * them, which is what Web Audio's `BiquadFilterNode` computes: for `lowpass`
- * and `highpass` there, Q is the height of the peak in dB (pass `qIsDb`); the
- * shelves take no Q (slope 1). A device with a filter of its own that is not
- * one of these has its formula beside its display.
+ * them, which is what Web Audio's `BiquadFilterNode` computes. Q is a plain
+ * number for every type: √½ is a flat cut. The node itself takes the Q of a
+ * `lowpass` and a `highpass` in dB, 20·log10 of that number, which is how a
+ * device writes it (`cutQDb`); pass `qIsDb` to give it here as the node takes
+ * it. The shelves take no Q (slope 1). A device with a filter of its own that
+ * is not one of these has its formula beside its display.
  */
 export function biquad(
   kind: BiquadKind,

@@ -3,14 +3,14 @@
 // Parameter ids and ranges of Warp, shared with
 // src/dsp/devices/warp.gen.ts:
 //    0  stretch: -1..1, default 0.3
-//    1  pivot: 20..2000 Hz, default 220
-//    2  follow: 0 Off, 1 On, default 1
-//    3  lean: -1..1, default 0
-//    4  shift: -12..12 st, default 0
-//    5  drift: 0..1, default 0.1
+//    1  lean: -1..1, default 0
+//    2  drift: 0..1, default 0.1
+//    3  mix: 0..1, default 1
+//    4  follow: 0 Off, 1 On, default 1
+//    5  shift: -12..12 st, default 0
 //    6  tone: -1..1, default 0
 //    7  width: 0..1, default 0.25
-//    8  mix: 0..1, default 1
+//    8  pivot: 20..2000 Hz, default 220
 
 #pragma once
 
@@ -19,20 +19,20 @@ namespace warp {
 
 enum Param : int {
   kStretch = 0,
-  kPivot = 1,
-  kFollow = 2,
-  kLean = 3,
-  kShift = 4,
-  kDrift = 5,
+  kLean = 1,
+  kDrift = 2,
+  kMix = 3,
+  kFollow = 4,
+  kShift = 5,
   kTone = 6,
   kWidth = 7,
-  kMix = 8,
+  kPivot = 8,
   kNumParams = 9,
 };
 
-inline constexpr float kParamMin[kNumParams] = {-1.0f, 20.0f, 0.0f, -1.0f, -12.0f, 0.0f, -1.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {1.0f, 2000.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.3f, 220.0f, 1.0f, 0.0f, 0.0f, 0.1f, 0.0f, 0.25f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {-1.0f, -1.0f, 0.0f, 0.0f, 0.0f, -12.0f, -1.0f, 0.0f, 20.0f};
+inline constexpr float kParamMax[kNumParams] = {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 12.0f, 1.0f, 1.0f, 2000.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.3f, 0.0f, 0.1f, 1.0f, 1.0f, 0.0f, 0.0f, 0.25f, 220.0f};
 
 }  // namespace warp
 }  // namespace livemix

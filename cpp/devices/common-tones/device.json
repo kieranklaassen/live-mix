@@ -431,7 +431,7 @@
     },
     {
       "key": "makeup",
-      "name": "Make up",
+      "name": "Make Up",
       "min": 0,
       "max": 1,
       "default": 0.75,
@@ -478,7 +478,7 @@
       "ring": 0.6,
       "broad": 0.15,
       "memory": 0.6,
-      "floor": -14,
+      "floor": -7,
       "mix": 0.65
     },
     "Attacks forward": {
@@ -488,7 +488,7 @@
       "ring": 0,
       "broad": 0.2,
       "memory": 0,
-      "floor": -6,
+      "floor": -4,
       "mix": 0.8
     },
     "Slow ear": {
@@ -542,12 +542,13 @@
       "memory": 0.7,
       "mix": 0.8
     },
-    "A bar ago": {
+    "Two seconds ago": {
       "ago": 2000,
       "strict": 0.4,
       "ring": 0.4,
       "broad": 0.4,
       "memory": 0.35,
+      "floor": -10,
       "mix": 0.5
     },
     "Wide vibrato": {

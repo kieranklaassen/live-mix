@@ -290,7 +290,7 @@ describe('DeviceRegistry', () => {
     expect(registry.capturePreset(filter, 'Snap')).toEqual({
       name: 'Snap',
       deviceId: 'filter',
-      deviceVersion: 1,
+      deviceVersion: FILTER_DESCRIPTOR.version,
       params: {
         type: 0,
         frequency: FILTER_PARAMS.frequency.default,

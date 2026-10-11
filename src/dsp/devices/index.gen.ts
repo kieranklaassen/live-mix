@@ -740,7 +740,7 @@ export const GENERATED_WASM_DEVICES = [
   },
   { id: 'vinyl', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 8 },
   { id: 'vowel-reverb', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 4 },
-  { id: 'warp', instrument: false, samples: false, zones: false, meters: 20, memoryMb: 4 },
+  { id: 'warp', instrument: false, samples: false, zones: false, meters: 21, memoryMb: 4 },
   { id: 'wavetable', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 5 },
   { id: 'weather', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'west-coast', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

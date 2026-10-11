@@ -7,6 +7,7 @@
 // sends the channel for as long as this receiver lives.
 
 import { ensureProcessor } from '../core/worklet-loader'
+import { createWorkletNode } from '../core/worklet-node'
 import type { NativeHostClient } from './HostClient'
 import type { NativeLink } from './NativeLink'
 import {
@@ -136,10 +137,7 @@ export class LinkAudioReceiver {
         ? options.delayMs / 1000
         : null
     const processorOptions: LinkSourceProcessorOptions = { delaySec: fixed }
-    const node = (
-      options.createNode ??
-      ((ctx, name, nodeOptions) => new AudioWorkletNode(ctx, name, nodeOptions))
-    )(context, LINK_SOURCE_PROCESSOR_NAME, {
+    const node = (options.createNode ?? createWorkletNode)(context, LINK_SOURCE_PROCESSOR_NAME, {
       numberOfInputs: 0,
       numberOfOutputs: 1,
       outputChannelCount: [2],

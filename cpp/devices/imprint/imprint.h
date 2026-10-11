@@ -52,7 +52,13 @@
 //   of its power in bands that held little a moment ago: a new note, the
 //   first sound after a rest) takes the gain to where it belongs at once, so
 //   a note is as loud as it came from its first frame, whatever came before
-//   it, and a held chord that beats keeps its gain.
+//   it, and a held chord that beats keeps its gain. A strike over a held
+//   sound is taken the same way (the frame's newest samples stand half as
+//   high again as its older ones and it needs 3 dB less gain than the frame
+//   before): it is
+//   a small share of the frame it first shows in, but under a curve that
+//   lifts where the held sound is bare it is most of what leaves, and with
+//   the held sound's gain it left up to 6 dB louder than it came.
 // - Peak hold. A colour pressed on a buzzing sound can leave it as loud as
 //   it was and far more peaked (its partials evened out stand up together).
 //   The stamped sound is therefore held under a ceiling that follows the
@@ -126,6 +132,16 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   // bands have held lately; what a band has held rises to its power over
   // kOnsetRise seconds and falls back over kOnsetFall. See novelty().
   static constexpr float kOnsetShare = 0.4f;
+  // ... or when it begins with a strike: its newest two hops hold a sample
+  // kStrikeLead times anything in its older ones (3.5 dB over), and the gain
+  // it needs lies kStrikeFall (3 dB) under what the frame before needed and
+  // under the gain in use. Noise through a peaked colour makes the needed
+  // gain fall as fast (by 6 dB in a hop at 96 kHz), and a chorused chord by
+  // 3.6, but with a lead of 1.42 at most: of five steady sounds at three
+  // rates through every preset no frame has both. The strikes of a played
+  // phrase lead by 1.6 to 8. See hold_level() and strike_entered().
+  static constexpr float kStrikeLead = 1.5f;
+  static constexpr float kStrikeFall = 1.4125375f;
   static constexpr float kOnsetRise = 0.06f;
   static constexpr float kOnsetFall = 2.0f;
   // What the hold weighs a bin by: 1 low down, kLoudnessLift (4 dB as power)
@@ -273,6 +289,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
     captured_frames_ = 0;
     follow_frames_ = 0;
     makeup_ = 1.0f;
+    needed_ = 0.0f;
     catching_ = 0;
     knob_moved_ = false;
     const float hop_seconds = static_cast<float>(Stft::kHop) / sr;
@@ -744,7 +761,14 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   // never further off than the slack. A frame that is a new sound (see
   // novelty()) takes the gain to `exact` at once, and it stays close on
   // `exact` (over kHoldFast) for the next kHoldCatch seconds, while the
-  // frames still hold some of the sound before. A
+  // frames still hold some of the sound before. A frame that begins with a
+  // strike (strike_entered()) and whose `exact` lies more than kStrikeFall
+  // under the frame before's, and under the gain in use, is taken the same
+  // way: a strike over a held sound is too small a share of its first frame
+  // to count as new, yet under the curve it is most of what leaves, and it
+  // would leave with the held sound's gain (on a played phrase fed at
+  // -1 dBFS the first 10 ms of such a note came out at up to +2.0 dBFS, 6 dB
+  // over the note itself). A
   // knob that changes the curve takes the gain to `exact` at once. A frame
   // of nothing keeps the gain of the one before.
   void hold_level(const float* re, const float* im, bool snap) {
@@ -761,7 +785,9 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
     }
     if (came > 1.0e-18f && leaves > 1.0e-30f) {
       const float exact = kit::clamp(std::sqrt(came / leaves), 1.0f / kMostHold, kMostHold);
-      const bool fresh = novelty() > kOnsetShare;
+      const bool struck = exact * kStrikeFall < needed_ && exact < makeup_ && strike_entered();
+      needed_ = exact;
+      const bool fresh = novelty() > kOnsetShare || struck;
       if (fresh) catching_ = catch_frames_;
       if (snap || fresh) {
         makeup_ = exact;
@@ -812,6 +838,18 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
       most = kit::max(most, peaks_[(peak_at_ + kPeakHops - back) % kPeakHops]);
     }
     return most;
+  }
+
+  // Whether the frames now measured begin with a strike: the newest two of
+  // their hops hold a sample kStrikeLead times over anything in the hops
+  // before (after a rest there is nothing before: that is one too).
+  bool strike_entered() const {
+    const float newest = kit::max(hop_peak_, peaks_[(peak_at_ + kPeakHops - 1) % kPeakHops]);
+    float older = 0.0f;
+    for (int back = 2; back <= kFrameHops; ++back) {
+      older = kit::max(older, peaks_[(peak_at_ + kPeakHops - back) % kPeakHops]);
+    }
+    return newest > kStrikeLead * older;
   }
 
   // The ceiling for the sample now leaving: the loudest input sample of the
@@ -883,6 +921,7 @@ class Imprint : public kit::DeviceBase<imprint::kNumParams> {
   float grid_gain_[kPoints] = {};  // and as gains
   float gain_[kBins] = {};
   float makeup_ = 1.0f;     // the level hold's gain in use
+  float needed_ = 0.0f;     // the gain the frame before needed (`exact`)
   float hold_slow_ = 0.0f;  // how much of the way to the exact gain it goes in a frame, at rest
   float hold_fast_ = 0.0f;  // and while catching up
   float kept_[kPoints] = {};  // what each band has held lately, for novelty()

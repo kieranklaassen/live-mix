@@ -42,18 +42,23 @@ static const std::vector<Preset> kPresets = {
     {"Glass redraw", {{p::kPartials, 16.0f}, {p::kAttack, 60.0f}, {p::kRelease, 1.2f}, {p::kSteady, 0.1f}, {p::kSpread, 0.3f}, {p::kMix, 1.0f}}},
     {"One sine", {{p::kPartials, 1.0f}, {p::kAttack, 200.0f}, {p::kRelease, 4.0f}, {p::kGlide, 150.0f}, {p::kMix, 0.6f}}},
     {"Chord outline", {{p::kPartials, 5.0f}, {p::kSnap, 1.0f}, {p::kAttack, 500.0f}, {p::kRelease, 8.0f}, {p::kMix, 1.0f}}},
-    {"Low shadow", {{p::kTranspose, -12.0f}, {p::kPartials, 4.0f}, {p::kTone, 0.15f}, {p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.45f}}},
+    {"Low shadow", {{p::kTranspose, -12.0f}, {p::kPartials, 4.0f}, {p::kTone, 0.15f}, {p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.35f}}},
     {"Long linger", {{p::kPartials, 10.0f}, {p::kAttack, 1500.0f}, {p::kRelease, 20.0f}, {p::kSpread, 0.8f}}},
     {"Nearly dry", {{p::kPartials, 4.0f}, {p::kAttack, 1200.0f}, {p::kRelease, 6.0f}, {p::kMix, 0.2f}}},
     {"Fifth above", {{p::kTranspose, 7.0f}, {p::kPartials, 6.0f}, {p::kAttack, 300.0f}, {p::kRelease, 4.0f}, {p::kMix, 0.4f}}},
     {"Two octaves up", {{p::kTranspose, 24.0f}, {p::kPartials, 8.0f}, {p::kTone, 0.3f}, {p::kAttack, 900.0f}, {p::kRelease, 7.0f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
     {"Wide glass", {{p::kPartials, 20.0f}, {p::kTone, 0.7f}, {p::kAttack, 150.0f}, {p::kRelease, 2.5f}, {p::kSpread, 1.0f}, {p::kMix, 0.35f}}},
     {"Slow bloom", {{p::kPartials, 12.0f}, {p::kAttack, 5000.0f}, {p::kRelease, 15.0f}, {p::kMix, 0.4f}}},
-    {"Sliding sines", {{p::kPartials, 6.0f}, {p::kAttack, 200.0f}, {p::kRelease, 5.0f}, {p::kSteady, 0.0f}, {p::kGlide, 1500.0f}, {p::kMix, 0.6f}}},
-    {"Tuned drone", {{p::kPartials, 6.0f}, {p::kSnap, 1.0f}, {p::kAttack, 1200.0f}, {p::kRelease, 30.0f}, {p::kSteady, 0.4f}, {p::kTone, 0.3f}, {p::kMix, 1.0f}}},
+    {"Sliding sines", {{p::kPartials, 6.0f}, {p::kAttack, 300.0f}, {p::kRelease, 5.0f}, {p::kGlide, 1500.0f}, {p::kMix, 0.45f}}},
+    {"Tuned drone", {{p::kPartials, 6.0f}, {p::kSnap, 1.0f}, {p::kAttack, 700.0f}, {p::kRelease, 30.0f}, {p::kSteady, 0.4f}, {p::kTone, 0.3f}, {p::kMix, 1.0f}}},
     {"Noise to tones", {{p::kPartials, 24.0f}, {p::kAttack, 40.0f}, {p::kRelease, 0.6f}, {p::kSteady, 0.0f}, {p::kGlide, 5.0f}, {p::kMix, 0.7f}}},
     {"Shadow alone", {{p::kAttack, 800.0f}, {p::kRelease, 6.0f}, {p::kMix, 1.0f}}},
 };
+// The hammer of the played phrase's notes, against a first partial of 1.
+#ifndef HAMMER
+#define HAMMER 1.0
+#endif
+static const double kHammer = HAMMER;
 static void set_preset(SineShadow& d, const Preset& preset, float rate = kRate) {
   d.init(rate);
   for (const Setting& s : preset.settings) d.set_param(s.id, s.value);
@@ -292,7 +297,7 @@ int main() {
     EXPECT(strongest, label);
   }
 
-  // Transpose moves every sine by its semitones and leaves its level.
+  // Pitch moves every sine by its semitones and leaves its level.
   for (int semitones : {-12, -5, 7, 12, 24}) {
     device.init(kRate);
     device.set_param(p::kMix, 1.0f);
@@ -303,7 +308,7 @@ int main() {
     const double ratio = std::pow(2.0, semitones / 12.0);
     const Tone low = nearest(held, 196.0 * ratio), high = nearest(held, 311.13 * ratio);
     char label[96];
-    std::snprintf(label, sizeof label, "Transpose %d: both sines moved by it (%.2f and %.2f cents off), levels kept",
+    std::snprintf(label, sizeof label, "Pitch %d: both sines moved by it (%.2f and %.2f cents off), levels kept",
                   semitones, cents(low.hz, 196.0 * ratio), cents(high.hz, 311.13 * ratio));
     EXPECT(held.size() == 2 && std::fabs(cents(low.hz, 196.0 * ratio)) < 1.0 &&
                std::fabs(cents(high.hz, 311.13 * ratio)) < 1.0 && std::fabs(db(low.level) - db(0.4)) < 0.2 &&
@@ -414,7 +419,7 @@ int main() {
            "and the dropped ones did go (the check above is not of nothing)");
   }
 
-  // Transpose moved under a held chord glides: no click at the fastest Glide or at the default, against the
+  // Pitch moved under a held chord glides: no click at the fastest Glide or at the default, against the
   // chord held at either setting.
   for (float glide : {5.0f, 40.0f}) {
     // Whole numbers of hertz and of seconds: the chord runs on unbroken from one stretch to the next.
@@ -433,7 +438,7 @@ int main() {
       bend[pass] = max_bend(out.left);
     }
     char label[112];
-    std::snprintf(label, sizeof label, "Transpose moved at Glide %.0f ms: bend %.5f, held at 0 %.5f, held at 7 %.5f",
+    std::snprintf(label, sizeof label, "Pitch moved at Glide %.0f ms: bend %.5f, held at 0 %.5f, held at 7 %.5f",
                   glide, bend[0], bend[1], bend[2]);
     EXPECT(bend[0] < 1.05 * std::max(bend[1], bend[2]) + 0.0005, label);
   }
@@ -493,7 +498,7 @@ int main() {
     }
   }
 
-  // Glide: after Transpose jumps an octave, the sine is 63 % of the way there (in hertz) one Glide later.
+  // Glide: after Pitch jumps an octave, the sine is 63 % of the way there (in hertz) one Glide later.
   for (float glide : {20.0f, 500.0f}) {
     wet_only(device);
     device.set_param(p::kGlide, glide);
@@ -712,7 +717,7 @@ int main() {
   // the preset's own Mix come out no quieter than the dry sound alone would at that Mix (a shadow that
   // cancelled its sound would take it below) and no louder than sound and shadow added as powers, which is
   // never more than 2 dB over what went in. Where a preset moves the
-  // sines off their partials (Transpose, Snap) the two add as powers over time; with Snap a tone that is off
+  // sines off their partials (Pitch, Snap) the two add as powers over time; with Snap a tone that is off
   // its note beats against its sine, so those are measured over four seconds.
   {
     double worst = 0.0, growth = 0.0, under = 0.0, over = 0.0, loudest = 0.0;
@@ -1008,7 +1013,7 @@ int main() {
     }
   }
 
-  // Transpose lands sines on the sound's own harmonics: an octave up is the second harmonic, a fifth up is
+  // Pitch lands sines on the sound's own harmonics: an octave up is the second harmonic, a fifth up is
   // two cents from the third. Each such sine takes the pitch of the partial it lands on and keeps a quarter
   // turn from it, so the harmonic neither swells nor thins: second by second over half a minute it stays
   // within half a decibel, at the sum of the two as powers. (Left to run free, the third harmonic under a
@@ -1036,7 +1041,7 @@ int main() {
       const double from = transpose == 12.0f ? 2.0 : 1.5;
       const double expected = db(std::sqrt(1.0 + (0.588 * from) * (0.588 * from)));
       char label[128];
-      std::snprintf(label, sizeof label, "Transpose %+.0f: harmonic %d holds %.2f to %.2f dB over the sound's own", transpose,
+      std::snprintf(label, sizeof label, "Pitch %+.0f: harmonic %d holds %.2f to %.2f dB over the sound's own", transpose,
                     h, low, high);
       EXPECT(high - low < 0.5, label);
       EXPECT_NEAR(0.5 * (low + high), expected, 0.6, "and stands at the two added as powers");
@@ -1177,6 +1182,54 @@ int main() {
                     c.rate, sines, level);
       EXPECT(sines == 1 && std::fabs(level) < 0.3, label);
     }
+  }
+
+  // A played phrase, hot. Eight struck notes (six partials each, dying over a second or so, under a hammer
+  // of noise 6 ms long, which is the note's highest sample as it is a struck string's or tine's), a new one
+  // every 0.6 s over those still sounding, the fifth the loudest, the highest sample at -1 dBFS. Through
+  // every preset: no sample over full scale (what lingers of the notes before stands under each new strike,
+  // and a sine off its partial, by Glide or Transpose, adds to it sample for sample), and the eight seconds
+  // within 2.5 dB of the phrase itself in RMS: no name promises a louder or a quieter sound. ("Sliding
+  // sines" was +1.3 dBFS and +2.4 LU on the bank's phrase, "Low shadow" +0.05 dBFS, "Tuned drone" -3.3 LU.)
+  {
+    const double notes[8] = {146.83, 220.0, 293.66, 369.99, 440.0, 329.63, 246.94, 196.0};
+    std::vector<float> played(at(8.0), 0.0f);
+    rng_state() = 0x5eedu;
+    for (int n = 0; n < 8; ++n) {
+      const size_t start = at(0.6 * n);
+      const double strength = n == 4 ? 1.4 : 1.0;
+      for (int h = 1; h <= 6; ++h) {
+        for (size_t i = start; i < played.size(); ++i) {
+          const double t = static_cast<double>(i - start) / kRate;
+          played[i] += static_cast<float>(strength * std::sin(2.0 * kPi * notes[n] * h * t) * std::exp(-t * (1.5 + 0.5 * h)) /
+                                          (h * h));
+        }
+      }
+      for (size_t i = 0; i < at(0.006); ++i) {
+        played[start + i] += static_cast<float>(strength * kHammer * white() * std::exp(-static_cast<double>(i) / 100.0));
+      }
+    }
+    const double top = peak(played);
+    for (float& v : played) v = static_cast<float>(v * 0.8913 / top);
+    const double in_level = rms(played, 0, at(5.4));
+    double hottest = 0.0;
+    const char* hottest_name = "";
+    for (const Preset& preset : kPresets) {
+      set_preset(device, preset);
+      const Stereo out = run(device, played);
+      const double high = std::max(peak(out.left), peak(out.right));
+      const double level = db(both(out, 0, at(5.4)) / in_level);
+      if (high > hottest) {
+        hottest = high;
+        hottest_name = preset.name;
+      }
+      char label[200];
+      std::snprintf(label, sizeof label, "a played phrase fed at -1 dBFS through %s: highest sample %+.2f dBFS, level %+.2f dB",
+                    preset.name, db(high), level);
+      EXPECT(high <= 1.0 && level > -2.5 && level < 2.5, label);
+      if (!(high <= 1.0 && level > -2.5 && level < 2.5)) std::printf("  out of bounds: %s\n", label);
+    }
+    std::printf("a played phrase at -1 dBFS through every preset: the hottest is %s, %+.2f dBFS\n", hottest_name, db(hottest));
   }
 
   // Snap with the sound in the mix. A sine pulled onto its note is no longer at its partial's pitch, and the

@@ -61,7 +61,10 @@
 // - Level. A drawbar at 1 is a copy as loud as its source. Past that, the
 //   ranks together are held to the power of what they copy, and a ceiling on
 //   their sum is linear to ±0.5 and never past ±1: with the unison full the
-//   output can peak 6 dB over the input and no more.
+//   output can peak 6 dB over the input and no more. The ranks are added to
+//   the sound, so a registration with the unison full is louder than what
+//   went in; Unison starts at 0.8, which leaves them room (a held chord at
+//   the defaults comes out at the level it went in).
 //
 // The wet side is the unison and the ranks, in time with the dry side, so Mix
 // is a linear crossfade: out = dry (1 - Mix (1 - Unison)) + Mix x ranks. With

@@ -5,6 +5,7 @@
 // other controls each do what they say over their whole range.
 
 #include <chrono>
+#include <cstring>
 #include <ctime>
 
 #include "../devices/common-tones/common_tones.h"
@@ -101,8 +102,8 @@ static const Setting kPresets[] = {
     {"Only what stays", {450.0f, 0.0f, 1.0f, 0.3f, 0.1f, 0.0f, -36.0f, 0.75f, 1.0f}},
     {"Only what moves", {250.0f, 1.0f, 0.6f, 0.0f, 0.3f, 0.0f, -36.0f, 0.75f, 1.0f}},
     {"Long hold", {900.0f, 0.0f, 0.6f, 0.7f, 0.25f, 0.4f, -12.0f, 0.75f, 0.6f}},
-    {"Drone finder", {4000.0f, 0.0f, 0.7f, 0.6f, 0.15f, 0.6f, -14.0f, 0.75f, 0.65f}},
-    {"Attacks forward", {120.0f, 1.0f, 0.65f, 0.0f, 0.2f, 0.0f, -6.0f, 0.75f, 0.8f}},
+    {"Drone finder", {4000.0f, 0.0f, 0.7f, 0.6f, 0.15f, 0.6f, -7.0f, 0.75f, 0.65f}},
+    {"Attacks forward", {120.0f, 1.0f, 0.65f, 0.0f, 0.2f, 0.0f, -4.0f, 0.75f, 0.8f}},
     {"Slow ear", {200.0f, 0.0f, 0.7f, 0.3f, 0.25f, 0.8f, -36.0f, 0.75f, 0.7f}},
     {"Hanging notes", {300.0f, 0.0f, 0.5f, 0.75f, 0.25f, 0.3f, -36.0f, 0.75f, 0.6f}},
     {"Loose match", {700.0f, 0.0f, 0.0f, 0.45f, 1.0f, 0.3f, -36.0f, 0.75f, 0.85f}},
@@ -110,7 +111,7 @@ static const Setting kPresets[] = {
     {"Light touch", {250.0f, 0.0f, 0.5f, 0.2f, 0.25f, 0.3f, -10.0f, 0.75f, 0.6f}},
     {"New notes up", {500.0f, 1.0f, 0.6f, 0.1f, 0.25f, 0.2f, -9.0f, 0.75f, 1.0f}},
     {"Fresh only", {1000.0f, 1.0f, 0.6f, 0.2f, 0.25f, 0.7f, -36.0f, 0.75f, 0.8f}},
-    {"A bar ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -36.0f, 0.75f, 0.5f}},
+    {"Two seconds ago", {2000.0f, 0.0f, 0.4f, 0.4f, 0.4f, 0.35f, -10.0f, 0.75f, 0.5f}},
     {"Wide vibrato", {180.0f, 0.0f, 0.9f, 0.3f, 0.75f, 0.1f, -36.0f, 0.75f, 1.0f}},
     {"Frozen ground", {800.0f, 0.0f, 0.7f, 1.0f, 0.25f, 0.5f, -12.0f, 0.75f, 0.55f}},
 };
@@ -827,7 +828,7 @@ int main() {
     Stereo bare = run_moving(device, looped, follow);
     bool none = true;
     for (float v : lift) none = none && v == 0.0f;
-    EXPECT(none, "Make up at nothing: no gain at all");
+    EXPECT(none, "Make Up at nothing: no gain at all");
     const double bare_db = db(rms(bare.left, from, to) / dry_level);
 
     lift.clear();
@@ -848,14 +849,14 @@ int main() {
     EXPECT(rise < 1.02f, "the gain never rises faster than a decibel a second");
     EXPECT(std::max(peak(made.left), peak(made.right)) < dry_peak * 1.06, "what is made up never peaks over the dry sound's own peaks");
 
-    // The more Make up, the more level, over the whole of its travel.
+    // The more Make Up, the more level, over the whole of its travel.
     double last = bare_db;
     for (float amount : {0.25f, 0.5f, 0.75f, 1.0f}) {
       device.init(kRate);
       device.set_param(p::kMakeup, amount);
       Stereo out = run(device, looped);
       const double level = db(rms(out.left, from, to) / dry_level);
-      EXPECT(level > last + 0.2, "Make up: every part of its travel is heard");
+      EXPECT(level > last + 0.2, "Make Up: every part of its travel is heard");
       last = level;
     }
 
@@ -1001,6 +1002,39 @@ int main() {
     EXPECT(calm, "no preset that keeps the changes is strict enough to let a steady noise flutter through");
     EXPECT(lowest > -4.0 && highest < 1.0, "every preset brings a phrase played over and over out within 4 dB of the dry and no more than 1 dB over it");
     EXPECT(lowest_slow > -1.5 && highest_slow < 0.75, "the presets that keep what is common pass slow chords within 1.5 dB");
+  }
+
+  // What is turned down. Through this effect the level depends on what is
+  // played: a held sound passes whole and passing notes lose what the preset
+  // takes for the rest, so on a phrase of passing notes a preset is as far
+  // under the dry sound as it turns the rest down. Make up cannot mend that
+  // (it rises a decibel a second and stops at the loudest frame that came in:
+  // with that ceiling taken away the presets that keep the changes leave over
+  // full scale), so the presets must not ask for more than a phrase can
+  // spare: "Drone finder", "Two seconds ago" and "Attacks forward" were 3.5,
+  // 3.4 and 3.0 LU under the bank's phrase from cold, turning the rest down
+  // by 6.2, 6.0 and 4.3 dB at their Mix. Six seconds of nothing, then a tone
+  // held for six: to a preset that keeps what is common the tone is all
+  // change for Ago, to one that keeps the changes it is all common once Ago
+  // has passed. Through each of the three it stays within 4.2 dB of itself.
+  {
+    const std::vector<float> tone = tone_at(330.0f, 6.0, 6.0, 12.0, 0.25f);
+    for (const Setting& preset : kPresets) {
+      const bool named = std::strcmp(preset.name, "Drone finder") == 0 || std::strcmp(preset.name, "Two seconds ago") == 0 ||
+                         std::strcmp(preset.name, "Attacks forward") == 0;
+      if (!named) continue;
+      set_all(device, preset.value);
+      const Stereo out = run(device, tone);
+      const bool changes = preset.value[p::kKeep] >= 0.5f;
+      const double from = changes ? 7.0 + preset.value[p::kAgo] / 1000.0 : 6.3;
+      const double to = changes ? 11.5 : 7.0;
+      const double level = db(rms(out.left, at(from) + kLatency, at(to) + kLatency) / rms(tone, at(from), at(to)));
+      char label[160];
+      std::snprintf(label, sizeof label, "%s turns what it does not keep down by no more than 4.2 dB at its Mix (%.2f dB)", preset.name,
+                    level);
+      std::printf("common-tones: %s\n", label);
+      EXPECT(level > -4.2 && level < 0.5, label);
+    }
   }
 
   // Level. A full-scale held chord for a minute, through every preset and

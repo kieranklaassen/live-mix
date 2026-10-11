@@ -55,6 +55,11 @@ export {
 } from './core/params'
 export { ensureProcessor } from './core/worklet-loader'
 export {
+  createWorkletNode,
+  setWorkletNodeConstructor,
+  type WorkletNodeConstructor,
+} from './core/worklet-node'
+export {
   createClock,
   startFloorSec,
   startLeadSec,
@@ -120,6 +125,7 @@ export {
   type StripHost,
   type StripShadow,
 } from './core/tracks/ChannelStrip'
+export { createPan } from './core/pan'
 export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {
   DUCK_DEPTH,
@@ -176,6 +182,15 @@ export {
   type ClipSource,
   type ElementSourceOptions,
 } from './core/sources/ElementSource'
+export {
+  FOLLOW_DRIFT_SEEK,
+  FOLLOW_MAX_SEEK_LEAD,
+  FOLLOW_SEEK_TOLERANCE,
+  followStep,
+  type FollowingElement,
+  type FollowStep,
+  type FollowTarget,
+} from './core/sources/follow-step'
 export {
   ELEMENT_DRIFT_TOLERANCE_SECONDS,
   ElementTrack,
@@ -336,6 +351,7 @@ export {
   type ScheduleAheadOptions,
   type StemsOptions,
 } from './core/render/OfflineRenderer'
+export { createFramedOfflineContext, releaseOfflineContext } from './core/render/framed-context'
 export {
   RENDER_QUANTUM_FRAMES,
   canHoldRender,
@@ -384,6 +400,7 @@ export {
   FILTER_DEVICE,
   FILTER_PARAMS,
   FILTER_TYPES,
+  FLAT_CUT_Q_DB,
   NODE_DEVICES,
   NODE_DEVICE_RAMP_SECONDS,
   NodeDevice,
@@ -394,17 +411,22 @@ export {
   UTILITY_DESCRIPTOR,
   UTILITY_DEVICE,
   UTILITY_PARAMS,
+  compressorLookaheadSamples,
+  compressorNodeCurve,
+  compressorNodeMakeupDb,
   createCompressor,
   createDelay,
   createEq3,
   createFilter,
   createParametricEq,
   createUtility,
+  cutQDb,
   dbToGain,
   defineNodeDevice,
   filterTypeAt,
   filterTypeIndex,
   gainToDb,
+  isCutFilter,
   isUtility,
   utilityGain,
   utilityIsLevelOnly,
@@ -421,6 +443,7 @@ export {
   type NodeDeviceOptions,
   type ParamApplier,
   type ParamRamp,
+  type ParamScale,
   type ParametricEq,
   type ParametricEqParamName,
   type Utility,
@@ -430,16 +453,21 @@ export {
   DeviceRegistry,
   PRESET_FORMAT_VERSION,
   applyPreset,
+  atDefaults,
   capturePreset,
+  currentPreset,
   defaultPreset,
   hasPreset,
   devices,
   isPreset,
   listPresets,
   parsePreset,
+  presetIsOn,
   presetParams,
   resolvePreset,
+  retiredPresets,
   serializePreset,
+  stepPreset,
   validateDescriptor,
   CONVOLVER_REVERB_DESCRIPTOR,
   CONVOLVER_REVERB_PARAMS,

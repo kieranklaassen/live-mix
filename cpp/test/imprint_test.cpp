@@ -278,6 +278,34 @@ static std::vector<float> phrase(float rate, float gain) {
   return out;
 }
 
+// Struck notes: as phrase(), but each note begins with its partials at
+// their crests and a few milliseconds of hammer noise (a strike, not a swell),
+// and each enters while those before it still sound; peak `gain`. Note n
+// begins at 0.6 × n seconds.
+static const int kStruckNotes = 6;
+static std::vector<float> struck_phrase(float rate, float gain) {
+  const double notes[kStruckNotes] = {146.83, 293.66, 220.0, 440.0, 196.0, 369.99};
+  std::vector<float> out(static_cast<size_t>(0.6f * kStruckNotes * rate + rate), 0.0f);
+  rng_state() = 4242;
+  for (int n = 0; n < kStruckNotes; ++n) {
+    const size_t start = static_cast<size_t>(0.6 * n * rate);
+    for (int h = 1; h <= 12; ++h) {
+      for (size_t i = start; i < out.size(); ++i) {
+        const double t = static_cast<double>(i - start) / rate;
+        out[i] += static_cast<float>(std::cos(2.0 * kPi * notes[n] * h * t) * std::exp(-t * (2.5 + 0.4 * h)) /
+                                     std::pow(h, 1.2));
+      }
+    }
+    for (size_t i = start; i < start + static_cast<size_t>(0.02f * rate); ++i) {
+      const double t = static_cast<double>(i - start) / rate;
+      out[i] += static_cast<float>(1.5 * white() * std::exp(-t / 0.003));
+    }
+  }
+  const double top = peak(out);
+  for (float& v : out) v = static_cast<float>(v * gain / top);
+  return out;
+}
+
 static std::vector<float> join(std::vector<float> a, const std::vector<float>& b) {
   a.insert(a.end(), b.begin(), b.end());
   return a;
@@ -1130,6 +1158,80 @@ int main() {
     }
     std::printf("a held chord that beats, all presets: the hold's gain moves by %.2f dB at most (%s)\n", most, where);
     EXPECT(most < 4.0, "the hold does not follow the beating of a chorused chord");
+
+    // (d) A strike over a held sound. Its first frame is mostly the sound
+    // before it, so it does not count as new; but where the curve lifts what
+    // that sound lacks the strike is most of what leaves, and the gain the
+    // frame needs falls by 5 to 14 dB in one hop. The hold used to rest there,
+    // up to its 6 dB of slack over what the frame needed (a phrase fed at
+    // -1 dBFS left at +2.0 dBFS). Struck notes through every preset, a hop at
+    // a time, twice: as played, and with Replace moved by a hair before every
+    // hop, which takes the gain to what each frame needs, so that the reading
+    // of that run is the needed gain and its sound is every frame at its own
+    // gain. (1) Where the needed gain lies more than 4.5 dB under the frame
+    // before's and under the gain in use, the gain in use is the needed gain
+    // (it rested over it at 26 of 40 such frames, by up to 5.9 dB). (2) A
+    // strike with such a frame leaves within 1 dB of what it does with every
+    // frame at its own gain (it left up to 4.9 dB over), and any strike within
+    // 2.5 dB (4.8): where the needed gain falls by less than the hold asks
+    // of a strike, or over two hops, the gain still rests within its slack.
+    const std::vector<float> struck = struck_phrase(kRate, 0.8913f);
+    const size_t hop = Imprint::Stft::kHop;
+    const size_t span = static_cast<size_t>(0.03f * kRate);
+    int sharp_frames = 0, rested = 0, sharp_strikes = 0, sharp_over = 0, other_over = 0;
+    const int all_strikes = (kStruckNotes - 1) * static_cast<int>(sizeof presets / sizeof presets[0]);
+    double most_rest = 0.0, most_sharp = 0.0, most_other = 0.0;
+    for (const Preset& preset : presets) {
+      std::vector<float> played, exact_out;
+      std::vector<double> in_use, needed;
+      for (int pass = 0; pass < 2; ++pass) {
+        load(preset);
+        std::vector<float>& into = pass == 0 ? played : exact_out;
+        std::vector<double>& reading = pass == 0 ? in_use : needed;
+        for (size_t done = 0; done + hop <= struck.size(); done += hop) {
+          if (pass == 1) {
+            const float hair = (done / hop) % 2 == 0 ? 1.0e-4f : -1.0e-4f;
+            device.set_param(p::kReplace, preset.values[p::kReplace] + (preset.values[p::kReplace] > 0.5f ? -hair : hair));
+          }
+          const Stereo out = run(device, std::vector<float>(struck.begin() + done, struck.begin() + done + hop));
+          into.insert(into.end(), out.left.begin(), out.left.end());
+          reading.push_back(device.meter(Imprint::kHoldReading));
+        }
+      }
+      std::vector<bool> sharp(kStruckNotes, false);
+      for (size_t f = 1; f < needed.size(); ++f) {
+        if (needed[f] > needed[f - 1] - 4.5 || needed[f] > in_use[f - 1]) continue;
+        ++sharp_frames;
+        const double rest = in_use[f] - needed[f];
+        if (rest > 0.05) ++rested;
+        most_rest = std::max(most_rest, rest);
+        for (int n = 1; n < kStruckNotes; ++n) {
+          if (std::fabs(static_cast<double>(f) - 0.6 * n * kRate / static_cast<double>(hop)) <= 3.0) sharp[n] = true;
+        }
+      }
+      for (int n = 1; n < kStruckNotes; ++n) {
+        const size_t from = static_cast<size_t>(0.6 * n * kRate) + kLatency - hop;
+        const double over = peak(played, from, from + hop + span) / peak(exact_out, from, from + hop + span);
+        if (sharp[n]) {
+          ++sharp_strikes;
+          most_sharp = std::max(most_sharp, over);
+          if (over > 1.122) ++sharp_over;
+        } else {
+          most_other = std::max(most_other, over);
+          if (over > 1.122) ++other_over;
+        }
+      }
+    }
+    std::printf("struck notes, all presets: at %d frames the needed gain fell by more than 4.5 dB in a hop, under the gain in "
+                "use; the gain in use rested over it at %d of them, by %.2f dB at most\n",
+                sharp_frames, rested, most_rest);
+    std::printf("  the %d strikes with such a frame leave %+.2f dB at most over themselves with every frame at its own gain, "
+                "%d by more than 1 dB; of the %d others %d do, %+.2f dB at most\n",
+                sharp_strikes, db(most_sharp), sharp_over, all_strikes - sharp_strikes, other_over, db(most_other));
+    EXPECT(sharp_frames >= 10 && sharp_strikes >= 10, "the struck notes do make the needed gain fall");
+    EXPECT(rested == 0, "a frame that needs far less gain than the one before gets no more than it needs");
+    EXPECT(most_sharp < 1.122, "a strike over a held sound leaves as it does with every frame at its own gain, within 1 dB");
+    EXPECT(most_other < 1.3335, "and no strike leaves more than 2.5 dB over that");
   }
 
   // 23. Peaks. With the level held, a colour that evens a buzzing sound's

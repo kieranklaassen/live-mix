@@ -9,12 +9,17 @@
 //   ?open=1                          plates opened to every control
 //   ?still=1                         no sound: what a plate shows at rest
 //   ?upright=1                       plates standing upright, as pedals
+//   ?look=studio                     plates in the studio look, as photographs from above
 //   ?chain=1                         in one `DeviceChainView` on a strip, as an app draws them
 //   ?preset=<name>                   each device on its preset of that name, where it has one
 //   ?instruments=1                   the instruments in the effects' place, each played a phrase
 //                                    that comes round, on a spread plate (every knob at once)
 //   ?then=shimmer,tape-echo          with `instruments`: these effects after each instrument,
 //                                    as the pedals of its chain
+//
+// Each plate has the kit's preset cell on its foot (`DevicePresetCell`), and
+// the cell over the plates is a `PickCell` on the registry's effects: a pick
+// brings that plate into view.
 //
 // `window.plates` is there for a script: `ready`, `devices` by id, `context`, `registry`.
 
@@ -37,7 +42,11 @@ import { STOCK_WASM_DEVICES, type AssetOverrides } from '@kieranklaassen/live-mi
 import {
   DeviceChainView,
   DevicePlate,
+  DevicePresetCell,
   LiveMixProvider,
+  PickCell,
+  PlateLookProvider,
+  deviceItems,
   deviceSkin,
 } from '@kieranklaassen/live-mix/react'
 
@@ -49,6 +58,7 @@ const open = query.get('open') === '1'
 const still = query.get('still') === '1'
 const chain = query.get('chain') === '1'
 const upright = query.get('upright') === '1'
+const look = query.get('look') === 'studio' ? 'studio' : 'flat'
 const preset = query.get('preset')
 const instruments = query.get('instruments') === '1'
 const then = query.get('then')?.split(',').filter(Boolean) ?? []
@@ -300,97 +310,131 @@ function Plates() {
   if (!bench) return <p>Loading devices…</p>
   return (
     <LiveMixProvider engine={bench.engine}>
-      <main
-        data-lm-theme={theme}
-        className="lm-root"
-        data-testid="plates"
-        style={{
-          minHeight: '100vh',
-          padding: 20,
-          background: 'var(--lm-bar)',
-          color: 'var(--lm-text)',
-          font: '11px var(--lm-font)',
-        }}
-      >
-        {bench.strip ? (
-          <DeviceChainView
-            strip={bench.strip}
-            skin={deviceSkin}
-            upright={upright}
-            showAdd={false}
-            data-testid="chain"
-          />
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
-            {bench.entries.map(({ device, feed, name, then: after }) => {
-              const skin = deviceSkin(device)
-              return (
-                <figure key={device.id} style={{ margin: 0 }} data-plate={device.id}>
-                  {skin && instruments ? (
-                    <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+      <PlateLookProvider look={look}>
+        <main
+          data-lm-theme={theme}
+          className="lm-root"
+          data-testid="plates"
+          style={{
+            minHeight: '100vh',
+            padding: 20,
+            background: 'var(--lm-bar)',
+            color: 'var(--lm-text)',
+            font: '11px var(--lm-font)',
+          }}
+        >
+          {bench.strip ? (
+            <DeviceChainView
+              strip={bench.strip}
+              skin={deviceSkin}
+              upright={upright}
+              showAdd={false}
+              data-testid="chain"
+            />
+          ) : (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+              <div style={{ flexBasis: '100%' }}>
+                <PickCell
+                  label="Effects on the bench"
+                  items={deviceItems(
+                    bench.entries.flatMap(
+                      ({ device }) =>
+                        bench.registry.list().find((one) => one.id === device.id) ?? [],
+                    ),
+                  )}
+                  onPick={(item) =>
+                    document
+                      .querySelector(`[data-plate="${item.id}"]`)
+                      ?.scrollIntoView({ block: 'center' })
+                  }
+                  verb="Show"
+                  placeholder="Find an effect"
+                  side="below"
+                  align="start"
+                  title="Find an effect on the bench"
+                  data-testid="find-effect"
+                >
+                  Find an effect
+                </PickCell>
+              </div>
+              {bench.entries.map(({ device, feed, name, then: after }) => {
+                const skin = deviceSkin(device)
+                return (
+                  <figure key={device.id} style={{ margin: 0 }} data-plate={device.id}>
+                    {skin && instruments ? (
+                      <div style={{ display: 'flex', alignItems: 'flex-start' }}>
+                        <DevicePlate
+                          device={device}
+                          skin={skin}
+                          registry={bench.registry}
+                          upright={upright}
+                          spread
+                          showBypass={false}
+                          presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                          data-testid={`plate-${device.id}`}
+                        />
+                        {after.map((effect, index) => {
+                          const effectSkin = deviceSkin(effect)
+                          return effectSkin ? (
+                            <DevicePlate
+                              key={effect.id}
+                              device={effect}
+                              skin={effectSkin}
+                              registry={bench.registry}
+                              source={index === 0 ? device.output : after[index - 1].output}
+                              upright={upright}
+                              presetPicker={
+                                <span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>
+                              }
+                              onRemove={() => {}}
+                            />
+                          ) : null
+                        })}
+                      </div>
+                    ) : skin ? (
                       <DevicePlate
                         device={device}
                         skin={skin}
                         registry={bench.registry}
+                        source={feed}
                         upright={upright}
-                        spread
-                        showBypass={false}
-                        presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                        defaultOpen={open}
+                        // The preset cell an app puts on a plate, so the tools stand where they do in an app.
+                        presetPicker={
+                          <DevicePresetCell
+                            device={device}
+                            registry={bench.registry}
+                            data-testid={`presets-${device.id}`}
+                          />
+                        }
+                        // As many tools as an app gives a plate: earlier, later, swap, save (and remove).
+                        actions={
+                          <>
+                            {['‹', '›', '⇄', '↓'].map((mark) => (
+                              <button
+                                key={mark}
+                                type="button"
+                                className="lm-button lm-button--neutral"
+                              >
+                                {mark}
+                              </button>
+                            ))}
+                          </>
+                        }
+                        onRemove={() => {}}
                         data-testid={`plate-${device.id}`}
                       />
-                      {after.map((effect, index) => {
-                        const effectSkin = deviceSkin(effect)
-                        return effectSkin ? (
-                          <DevicePlate
-                            key={effect.id}
-                            device={effect}
-                            skin={effectSkin}
-                            registry={bench.registry}
-                            source={index === 0 ? device.output : after[index - 1].output}
-                            upright={upright}
-                            presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
-                            onRemove={() => {}}
-                          />
-                        ) : null
-                      })}
-                    </div>
-                  ) : skin ? (
-                    <DevicePlate
-                      device={device}
-                      skin={skin}
-                      registry={bench.registry}
-                      source={feed}
-                      upright={upright}
-                      defaultOpen={open}
-                      // A stand-in for an app's preset cell, so the tools stand where they do in an app.
-                      presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
-                      // As many tools as an app gives a plate: earlier, later, swap, save (and remove).
-                      actions={
-                        <>
-                          {['‹', '›', '⇄', '↓'].map((mark) => (
-                            <button
-                              key={mark}
-                              type="button"
-                              className="lm-button lm-button--neutral"
-                            >
-                              {mark}
-                            </button>
-                          ))}
-                        </>
-                      }
-                      onRemove={() => {}}
-                      data-testid={`plate-${device.id}`}
-                    />
-                  ) : null}
-                  <figcaption style={{ marginTop: 4, color: 'var(--lm-muted)', fontSize: 9 }}>
-                    {name} · {device.id}
-                  </figcaption>
-                </figure>
-              )
-            })}
-          </div>
-        )}
-      </main>
+                    ) : null}
+                    <figcaption style={{ marginTop: 4, color: 'var(--lm-muted)', fontSize: 9 }}>
+                      {name} · {device.id}
+                    </figcaption>
+                  </figure>
+                )
+              })}
+            </div>
+          )}
+        </main>
+      </PlateLookProvider>
     </LiveMixProvider>
   )
 }

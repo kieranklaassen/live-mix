@@ -23,6 +23,7 @@ import {
 import { Emitter } from '../core/events'
 import { LoadProbe, wasmMemoryBytes, type LoadClaim } from '../core/load'
 import { ensureProcessor } from '../core/worklet-loader'
+import { createWorkletNode } from '../core/worklet-node'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
   DEVICE_METER_HZ,
@@ -89,9 +90,6 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
   createNode?: WorkletNodeFactory
 }
 
-const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
-
 /** What of a parameter's spec its travel is worked out from, and no more: it crosses to the audio thread. */
 function paramTravel(spec: ParamSpec): ParamTravel {
   return {
@@ -105,6 +103,24 @@ function paramTravel(spec: ParamSpec): ParamTravel {
 }
 
 const NO_METERS: Readonly<Record<string, DeviceMeterSpec>> = Object.freeze({})
+
+/** A definition's latency in whole samples at `sampleRate`: its own count, else its rounded seconds. */
+function reportedLatencySamples(
+  definition: Pick<
+    WasmDeviceDefinition<Record<string, ParamSpec>>,
+    'latencySec' | 'latencySamples'
+  >,
+  sampleRate: number,
+): number {
+  return Math.max(
+    0,
+    Math.round(
+      definition.latencySamples
+        ? definition.latencySamples(sampleRate)
+        : (definition.latencySec ?? 0) * sampleRate,
+    ),
+  )
+}
 
 /**
  * How long a note that was let go is remembered, in ms, and how many notes at
@@ -168,14 +184,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     this.zones = definition.zones
     this.meterIntervalFrames = Math.max(1, Math.round(sampleRate / DEVICE_METER_HZ))
     this.node = node
-    this.latencySamples = Math.max(
-      0,
-      Math.round(
-        definition.latencySamples
-          ? definition.latencySamples(sampleRate)
-          : (definition.latencySec ?? 0) * sampleRate,
-      ),
-    )
+    this.latencySamples = reportedLatencySamples(definition, sampleRate)
     // A definition that only knows its sample count still reports seconds, so
     // delay compensation sees the device whichever field it reads.
     this.latencySec = definition.latencySec ?? this.latencySamples / sampleRate
@@ -208,6 +217,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     void wasmMemoryBytes(module).then((bytes) => {
       load.memoryBytes = bytes
     })
+    const latencySamples = reportedLatencySamples(definition, context.sampleRate)
     const moved = new Map<string, ParamModulation>()
     if (definition.processor === undefined) {
       for (const [name, modulation] of Object.entries(options.modulations ?? {})) {
@@ -233,11 +243,13 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
           }
         : {}),
       ...(load.slot ? { load: load.slot } : {}),
+      // The processor plays a bypassed device's dry signal this late, so the bypass moves nothing in time.
+      ...(latencySamples > 0 ? { latencySamples } : {}),
     }
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
     let node: AudioWorkletNode
     try {
-      node = (options.createNode ?? defaultCreateNode)(context, processorName, {
+      node = (options.createNode ?? createWorkletNode)(context, processorName, {
         numberOfInputs: 1,
         numberOfOutputs: 1,
         channelCount: 2,

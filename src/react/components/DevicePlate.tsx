@@ -12,6 +12,10 @@
 // of knobs (`strip`), or beside two rows of them (`window`). The column at the
 // right is the plate's own either way: the cell that opens the rest at its
 // top, the chain's tools at its foot.
+//
+// A plate is flat unless it is asked to have the studio look (`look`, or a
+// `PlateLookProvider` over it) on a machine that can draw it: then a
+// photograph of the plate lies under the same parts (`StudioFace`).
 
 import {
   memo,
@@ -31,7 +35,7 @@ import {
 } from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { normalizeParam } from '../../core/params'
-import { useDevice } from '../hooks/useParam'
+import { useDevice, type DeviceWrites } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { DeviceMeterReadout, isBipolar, printedMeters } from './DevicePanel'
 import {
@@ -53,8 +57,10 @@ import {
   type PlateDisplay,
 } from './plate-display'
 import { PlateDisplayLayer } from './PlateDisplay'
+import { STUDIO_KNOBS_MOST } from './studio-face'
+import { StudioFace, useStudioLook, type PlateLook } from './StudioFace'
 import { DeviceToggle } from './Toggle'
-import { cx } from './tokens'
+import { cx, type DataAttributes } from './tokens'
 
 /** The grid a plate sits on: a 20 px cell. */
 const CELL = 20
@@ -435,6 +441,13 @@ export interface DevicePlateProps {
   skin: DeviceSkin
   /** Where to find the descriptor (name, presets); defaults to the provided engine's registry. */
   registry?: DeviceRegistry
+  /**
+   * Who takes what the controls set. A host that keeps its own document (an
+   * edit with its own undo) gives this, hears a control taken in hand and let
+   * go, and makes the device follow; left out, the device is written, or the
+   * arbiter that made it.
+   */
+  writes?: DeviceWrites
   /** The device's full name, for its label and its info text; defaults to the descriptor's. */
   title?: string
   /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
@@ -462,9 +475,23 @@ export interface DevicePlateProps {
    * opened, and stays so.
    */
   spread?: boolean
+  /**
+   * How the plate is drawn: `flat`, or `studio` as a photograph from above
+   * (where there is no WebGL it stays flat). Default: what a
+   * `PlateLookProvider` over it says, and flat without one.
+   */
+  look?: PlateLook
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
+  /**
+   * Whether every knob shows, for a host that keeps it: given, the plate holds
+   * no state of its own, and the cell that opens the rest only asks through
+   * `onOpenChange`.
+   */
+  open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** More attributes for the cell that opens the rest: an app's own marks on it. */
+  moreProps?: DataAttributes
   /** Extra tools after the preset picker (a chain's move buttons). */
   actions?: ReactNode
   /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
@@ -484,6 +511,8 @@ export interface DevicePlateProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /** Any other `data-*` attribute goes to the plate itself, for a host that marks what a control does. */
+  [data: `data-${string}`]: string | undefined
 }
 
 const PictureLayer = memo(
@@ -541,6 +570,7 @@ export function DevicePlate({
   device,
   skin,
   registry,
+  writes,
   title,
   choiceLabels,
   showBypass = true,
@@ -548,8 +578,11 @@ export function DevicePlate({
   presetPicker,
   upright = false,
   spread = false,
+  look,
   defaultOpen = false,
+  open: openGiven,
   onOpenChange,
+  moreProps,
   actions,
   hint,
   knobHint,
@@ -558,13 +591,16 @@ export function DevicePlate({
   className,
   style,
   'data-testid': testId,
+  ...data
 }: DevicePlateProps) {
-  const d = useDevice(device, registry ? { registry } : {})
+  const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
-  const [opened, setOpen] = useState(defaultOpen)
+  const [openHere, setOpen] = useState(defaultOpen)
+  const opened = openGiven ?? openHere
   // A spread plate is open and stays so.
   const open = spread || opened
   const held = usePlateInHand()
+  const studio = useStudioLook(look)
   const finishId = useId()
   const all = (device.panelParams ?? Object.keys(d.params)).filter((name) => d.params[name])
   const display = skin.display
@@ -620,7 +656,7 @@ export function DevicePlate({
   const roomy = roomyLetters(layout.column)
 
   const toggleOpen = (): void => {
-    setOpen(!opened)
+    if (openGiven === undefined) setOpen(!opened)
     onOpenChange?.(!opened)
   }
 
@@ -718,10 +754,12 @@ export function DevicePlate({
           ...style,
         } as CSSProperties
       }
+      {...data}
       data-testid={testId}
       data-lm-device={device.id}
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
+      data-lettering={skin.clearLettering ? 'clear' : undefined}
       aria-label={heading}
       onPointerDownCapture={held.take}
       {...infoProps(
@@ -729,6 +767,26 @@ export function DevicePlate({
         infoText(about ?? `${heading}: one of the devices of this chain.`, hint),
       )}
     >
+      {studio && names.length <= STUDIO_KNOBS_MOST ? (
+        <StudioFace
+          cap={skin.cap}
+          turns={names.map(at)}
+          powered={powered}
+          // Whatever moves a part: the plate's size, its knobs, the cells and the foot it has.
+          shape={[
+            layout.width,
+            layout.upright?.height ?? 0,
+            layout.columns,
+            layout.upright?.knob ?? KNOB_SIZE,
+            names.join(' '),
+            rest.length,
+            editor ? 1 : 0,
+            picker ? 1 : 0,
+            showBypass ? 1 : 0,
+            tag,
+          ].join('|')}
+        />
+      ) : null}
       <PlateFinishLayer
         finish={skin.finish}
         dark={skin.dark ?? isDarkPlate(skin.plate)}
@@ -848,6 +906,7 @@ export function DevicePlate({
           )}
           onClick={toggleOpen}
           data-testid={testId ? `${testId}-more` : undefined}
+          {...moreProps}
         >
           {open ? '−' : `+${rest.length}`}
         </button>

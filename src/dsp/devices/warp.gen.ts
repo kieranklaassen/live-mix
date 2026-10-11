@@ -17,19 +17,41 @@ export const WARP_PARAMS = {
     description:
       'Pulls the partials apart or pushes them together around the pivot. Up, a string turns to a bell; down, they crowd into a beating cluster. The middle leaves them alone.',
   },
-  pivot: {
+  lean: {
     id: 1,
-    name: 'Pivot',
-    min: 20,
-    max: 2000,
-    default: 220,
-    taper: 'log',
-    unit: 'Hz',
+    name: 'Lean',
+    min: -1,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
     description:
-      'The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used.',
+      'Where the stretch bites. Up, overtones near the pivot stay close and the far ones move most, as on a stiff string. Down, the near ones move and the far ones stay.',
+  },
+  drift: {
+    id: 2,
+    name: 'Drift',
+    min: 0,
+    max: 1,
+    default: 0.1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still.',
+  },
+  mix: {
+    id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves.',
   },
   follow: {
-    id: 2,
+    id: 4,
     name: 'Follow',
     min: 0,
     max: 1,
@@ -40,19 +62,8 @@ export const WARP_PARAMS = {
     description:
       'On puts a pivot on every note played, so melodies and chords keep their pitches and only overtones move. A note softer than the overtone it lies on moves with it.',
   },
-  lean: {
-    id: 3,
-    name: 'Lean',
-    min: -1,
-    max: 1,
-    default: 0,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Where the stretch bites. Up, overtones near the pivot stay close and the far ones move most, as on a stiff string. Down, the near ones move and the far ones stay.',
-  },
   shift: {
-    id: 4,
+    id: 5,
     name: 'Shift',
     min: -12,
     max: 12,
@@ -60,17 +71,6 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: 'st',
     description: 'Transposes the whole warped sound after the stretch, pivot included.',
-  },
-  drift: {
-    id: 5,
-    name: 'Drift',
-    min: 0,
-    max: 1,
-    default: 0.1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still.',
   },
   tone: {
     id: 6,
@@ -92,18 +92,18 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Gives the left and right sides slightly different stretches, so each partial beats slowly between the speakers. At zero a mono sound stays mono.',
+      'Stretches left and right a little differently around each note: overtones beat between the speakers, faster further up, and the note stays put. Zero keeps the image.',
   },
-  mix: {
+  pivot: {
     id: 8,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
+    name: 'Pivot',
+    min: 20,
+    max: 2000,
+    default: 220,
+    taper: 'log',
+    unit: 'Hz',
     description:
-      'Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves.',
+      'The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -130,6 +130,7 @@ export const WARP_METERS = {
   partial6In: { id: 17, name: 'Partial 6 in', unit: 'Hz', display: true },
   partial6Out: { id: 18, name: 'Partial 6 out', unit: 'Hz', display: true },
   partial6Level: { id: 19, name: 'Partial 6 level', unit: '', display: true },
+  noteNow: { id: 20, name: 'Note now', unit: 'Hz', display: true },
 } as const satisfies Record<string, DeviceMeterSpec>
 
 export const WARP_DEVICE = defineWasmDevice({
@@ -158,9 +159,9 @@ export const WARP_DESCRIPTOR = wasmDeviceDescriptor(WARP_DEVICE, {
     'Wide drone': { stretch: -0.25, pivot: 110, follow: 0, drift: 0.6, width: 1, mix: 0.85 },
     'Close cluster': { stretch: 0.7, lean: -1, mix: 0.9 },
     'Beating cluster': { stretch: -0.6, pivot: 330, follow: 0, drift: 0.3, width: 0.6 },
-    'Toy bells': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.6, mix: 0.9 },
+    'Toy bells': { stretch: 0.9, pivot: 300, follow: 0, shift: 7, tone: -0.3, mix: 0.9 },
     'Fifth shadow': { stretch: 0, shift: 7, width: 0.5, mix: 0.4 },
-    'Bell below': { stretch: 0.3, shift: -12, drift: 0, tone: -0.3, mix: 0.5 },
+    'Bell below': { stretch: 0.3, shift: -12, drift: 0, tone: -0.3, mix: 0.75 },
     'Dark bowl': { stretch: -0.35, drift: 0.25, tone: -0.8 },
     'Bright spray': { stretch: 0.5, lean: 1, tone: 0.5, width: 0.8, mix: 0.6 },
   },

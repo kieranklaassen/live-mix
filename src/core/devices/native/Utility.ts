@@ -8,6 +8,7 @@
 // speakers; crossfading it against the untouched path narrows the image
 // click-free without a splitter/merger pair.
 
+import { createPan } from '../../pan'
 import { type ParamSpec } from '../../params'
 import { type DeviceDescriptor } from '../registry'
 import {
@@ -84,7 +85,7 @@ export const UTILITY_DEVICE = defineNodeDevice({
     mono.channelCount = 1
     mono.channelCountMode = 'explicit'
     const sum = context.createGain()
-    const pan = context.createStereoPanner()
+    const pan = createPan(context)
     const trim = context.createGain()
 
     polarity.connect(stereo)

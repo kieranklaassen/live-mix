@@ -5,7 +5,13 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { type Device } from '../../core/devices/Device'
 import { deviceParamTarget } from '../../core/automation/ModMatrix'
 import { type ParamSpec } from '../../core/params'
-import { denormalizeParam, normalizeParam, useDevice, useDeviceParam } from '../hooks/useParam'
+import {
+  denormalizeParam,
+  normalizeParam,
+  useDevice,
+  useDeviceParam,
+  type DeviceWrites,
+} from '../hooks/useParam'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -33,6 +39,10 @@ function silentDevice(): Device {
     latencySec: 0,
     dispose: () => {},
   }
+}
+
+function readDevice(device: Device): Record<string, number> {
+  return Object.fromEntries(Object.keys(device.params).map((name) => [name, device.getParam(name)]))
 }
 
 describe('useDevice', () => {
@@ -99,7 +109,7 @@ describe('useDevice', () => {
     })
 
     const captured = result.current.capturePreset('Mine')
-    expect(captured).toMatchObject({ name: 'Mine', deviceId: 'filter', deviceVersion: 1 })
+    expect(captured).toMatchObject({ name: 'Mine', deviceId: 'filter', deviceVersion: 2 })
     expect(captured.params.frequency).toBe(3000)
 
     act(() => result.current.reset())
@@ -154,6 +164,133 @@ describe('useDevice', () => {
     act(() => result.current.setParam('amount', 0.25))
     expect(result.current.values.amount).toBe(0.25)
     expect(() => result.current.applyPreset('Anything')).toThrow(/presets by name need a registry/)
+  })
+})
+
+describe('useDevice with a host that takes the writes', () => {
+  /** A host that only writes down what it was told. */
+  function host(): DeviceWrites & { told: unknown[][] } {
+    const told: unknown[][] = []
+    return {
+      told,
+      touch: (names) => told.push(['touch', [...names]]),
+      set: (params) => told.push(['set', { ...params }]),
+      release: (names) => told.push(['release', [...names]]),
+      setBypass: (bypass) => told.push(['bypass', bypass]),
+    }
+  }
+
+  it('hands every write to the host and sets nothing on the device', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    const writes = host()
+    const { result } = renderHook(() => useDevice(device, { writes }), {
+      wrapper: fixture.wrapper,
+    })
+    expect(result.current.attributed).toBe(false)
+    act(() => {
+      result.current.touch('frequency')
+      result.current.setParam('frequency', 2500)
+      result.current.setParam('frequency', 2600)
+      result.current.release('frequency')
+      result.current.setBypass(true)
+      result.current.toggleBypass()
+    })
+    expect(writes.told).toEqual([
+      ['touch', ['frequency']],
+      ['set', { frequency: 2500 }],
+      ['set', { frequency: 2600 }],
+      ['release', ['frequency']],
+      ['bypass', true],
+      // The device was not turned off, so a toggle still asks for off.
+      ['bypass', true],
+    ])
+    expect(device.getParam('frequency')).toBe(1000)
+    expect(device.bypass).toBe(false)
+    // What the host then does to the device shows, as any other writer's does.
+    act(() => device.setParam('frequency', 2600))
+    expect(result.current.values.frequency).toBe(2600)
+  })
+
+  it('hands a drag of several parameters over as one hold, without what the device lacks', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    const writes = host()
+    const { result } = renderHook(() => useDevice(device, { writes }), {
+      wrapper: fixture.wrapper,
+    })
+    act(() => {
+      result.current.touchMany(['frequency', 'gain'])
+      result.current.setMany({ frequency: 400, gain: 3, gone: 1 })
+      result.current.setMany({ gone: 1 })
+      result.current.releaseMany(['frequency', 'gain'])
+    })
+    expect(writes.told).toEqual([
+      ['touch', ['frequency', 'gain']],
+      ['set', { frequency: 400, gain: 3 }],
+      ['release', ['frequency', 'gain']],
+    ])
+  })
+
+  it('hands a preset and a reset over as one set each, with every parameter in it', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    const writes = host()
+    const { result } = renderHook(() => useDevice(device, { writes }), {
+      wrapper: fixture.wrapper,
+    })
+    let report = { applied: [] as string[], skipped: [] as string[] }
+    act(() => {
+      report = result.current.applyPreset('Low-pass gentle')
+    })
+    expect(report.applied.sort()).toEqual(['frequency', 'gain', 'q', 'type'])
+    expect(writes.told).toHaveLength(1)
+    const [kind, params] = writes.told[0] as [string, Record<string, number>]
+    expect(kind).toBe('set')
+    expect(Object.keys(params).sort()).toEqual(['frequency', 'gain', 'q', 'type'])
+    act(() => result.current.reset())
+    expect(writes.told[1]).toEqual(['set', { type: 0, frequency: 1000, q: Math.SQRT1_2, gain: 0 }])
+    expect(readDevice(device)).toEqual({ type: 0, frequency: 1000, q: Math.SQRT1_2, gain: 0 })
+  })
+
+  it('lets go of what is in hand when the panel leaves, and calls the host of the latest render', async () => {
+    const fixture = createTestEngine()
+    const device = await filter(fixture)
+    const first = host()
+    const second = host()
+    const { result, rerender, unmount } = renderHook(
+      ({ writes }: { writes: DeviceWrites }) => useDevice(device, { writes }),
+      { wrapper: fixture.wrapper, initialProps: { writes: first } },
+    )
+    const controls = result.current.setParam
+    act(() => result.current.touch('q'))
+    rerender({ writes: second })
+    // The controls are the same ones: a host that hands a new object each render costs no render.
+    expect(result.current.setParam).toBe(controls)
+    act(() => result.current.setParam('q', 2))
+    expect(second.told).toEqual([['set', { q: 2 }]])
+    unmount()
+    expect(second.told).toEqual([
+      ['set', { q: 2 }],
+      ['release', ['q']],
+    ])
+    expect(first.told).toEqual([['touch', ['q']]])
+  })
+
+  it('needs neither of the two ends: a host with no hold of its own takes the sets alone', () => {
+    const device = silentDevice()
+    const sets: unknown[] = []
+    const { result, unmount } = renderHook(() =>
+      useDevice(device, { writes: { set: (params) => sets.push(params), setBypass: () => {} } }),
+    )
+    act(() => {
+      result.current.touch('amount')
+      result.current.setParam('amount', 0.25)
+      result.current.release('amount')
+    })
+    unmount()
+    expect(sets).toEqual([{ amount: 0.25 }])
+    expect(device.getParam('amount')).toBe(0.5)
   })
 })
 

@@ -10,6 +10,7 @@ import {
   isNoteWatchDevice,
   isSampleWatchDevice,
 } from '../../core/devices/Device'
+import { setWorkletNodeConstructor } from '../../core/worklet-node'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import {
@@ -41,6 +42,27 @@ const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
   ) as unknown as AudioWorkletNode
 
 describe('WasmDevice', () => {
+  it('is made with the constructor its context was given when no factory is passed', async () => {
+    const ctx = createMockContext()
+    const made: unknown[] = []
+    class FrameWorkletNode {
+      constructor(_context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
+        made.push(name)
+        return ctx.createWorkletNode(name, options)
+      }
+    }
+    setWorkletNodeConstructor(
+      asAudioContext(ctx),
+      FrameWorkletNode as unknown as typeof AudioWorkletNode,
+    )
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
+      processorUrl: 'p',
+    })
+    expect(made).toEqual(['live-mix-wasm-device'])
+    expect(device.node).toBe(ctx.workletNodes[0])
+  })
+
   it('loads the processor once per context and builds one node per device', async () => {
     const ctx = createMockContext()
     const context = asAudioContext(ctx)
@@ -61,6 +83,34 @@ describe('WasmDevice', () => {
     const processorOptions = nodeOptions.processorOptions as WasmDeviceProcessorOptions
     expect(processorOptions.module).toBe(plateModule)
     expect(processorOptions.deviceId).toBe('plate-reverb')
+  })
+
+  it('tells the processor how long to hold the dry signal back: the latency it reports', async () => {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const options = { wasm: plateModule, processorUrl: 'p', createNode: mockNodeFactory }
+    const late = await WasmDevice.create(
+      asAudioContext(ctx),
+      { ...PLATE_REVERB_DEVICE, latencySamples: () => 77 },
+      options,
+    )
+    expect(late.latencySamples).toBe(77)
+    const of = (index: number) =>
+      (ctx.workletNodes[index].options as AudioWorkletNodeOptions)
+        .processorOptions as WasmDeviceProcessorOptions
+    expect(of(0).latencySamples).toBe(77)
+
+    // In seconds alone, it is the same count the device reports.
+    const inSeconds = await WasmDevice.create(
+      asAudioContext(ctx),
+      { ...PLATE_REVERB_DEVICE, latencySec: 0.0015 },
+      options,
+    )
+    expect(inSeconds.latencySamples).toBe(72)
+    expect(of(1).latencySamples).toBe(72)
+
+    // A device that takes no time says nothing.
+    await createPlateReverb(asAudioContext(ctx), options)
+    expect(of(2).latencySamples).toBeUndefined()
   })
 
   it('seeds processorOptions.params with defaults and clamped overrides', async () => {

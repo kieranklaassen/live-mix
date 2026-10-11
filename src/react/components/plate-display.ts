@@ -29,6 +29,12 @@ export interface DisplayColours {
   plate: string
   ink: string
   accent: string
+  /**
+   * How much of its ground a display lays, 0..1: 1 where it is left out, for
+   * a display on a plate's own finish; 0 for one that stands on a ground it
+   * is given (the glass of a plate in the studio look) and lays none itself.
+   */
+  ground?: number
 }
 
 /** The level of one side of the device over the latest window of about 40 ms. */

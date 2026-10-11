@@ -83,7 +83,11 @@
 //   L_j = min(2, 1 / √E[(1 − d_j + d_j·m)²])    over one cycle, in closed form
 //
 // L is the lift that keeps the band's power over a cycle at the input's, so
-// the sound as a whole holds its level while its bands come and go. It is
+// the sound as a whole holds its level while its bands come and go: over a
+// cycle, not from moment to moment. At its flash a band stands L over its
+// input, so a sound that lies in few bands (one held note, or anything
+// through the broad bands of low Grain) swells and fades, and its highest
+// sample can stand over the input's by as much. It is
 // never more than 2 (+6 dB): a band is never louder than twice its input,
 // and where the lift asked for is more (deep, sudden, varied all at once:
 // Depth 1, Soft 0, Vary 1 asks for 12 dB) the level falls by what is missing,
@@ -106,6 +110,14 @@
 // stand out to be one: a note whose peak is 4 dB over the level of the chord
 // it is struck into opens the pass, one 6 dB under it does not and is
 // smeared as before (to −14 dB of its own peak, 20 dB under the chord).
+//
+// A struck note's highest sample is seldom its first: an electric piano's
+// came 23 ms after its onset, 2 ms after the pass had let go, and met the
+// lifted bands there (1.1 to 1.3 dB over itself, over full scale when fed at
+// −1 dBFS). So the pass follows the note up: for 32 ms after an attack every
+// segment that holds a higher sample than any since the attack counts as an
+// attack too, and the output stays dry until 256 after the highest of them.
+// A note whose first sample is its highest passes as before.
 //
 // Everything is read once per frame, at the frame's own time on the sample
 // count: the overlap cross-fades any change over a frame, so nothing but
@@ -159,6 +171,8 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
   static constexpr int kPassRise = 256;        // over so long
   static constexpr int kPassAfter = 256;       // stays dry until so long after it
   static constexpr int kPassFall = 768;        // and turns back over so long
+  static constexpr float kStrikeSeconds = 0.032f;  // an attack is followed to its highest sample for so long
+  static constexpr int kStrikeMost = 64;           // and never for more segments than this
   static constexpr int kLayoutAhead = 128;     // Grain is read so long before the left side's frame
 
   void init(float sample_rate) {
@@ -195,6 +209,8 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
     middle_ = 0.0f;
     grain_seen_ = -1.0f;
     grain_read_ = param(kGrain);
+    const int strike = static_cast<int>(kStrikeSeconds * sr / static_cast<float>(kSegment) + 0.5f);
+    strike_segments_ = kit::clamp_int(strike, 0, kStrikeMost);
     rest_attacks();
     now_ = 0;
     table_time_ = 0;
@@ -276,6 +292,7 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
         const float edge = x - edge_last_[c];
         edge_last_[c] = x;
         edge_sum_[c] += edge * edge;
+        segment_top_ = kit::max(segment_top_, std::fabs(x));
       }
       pass_ += kit::clamp(pass_goal_ - pass_, -1.0f / kPassFall, 1.0f / kPassRise);
       passing = pass_ * pass_ * (3.0f - 2.0f * pass_);  // eased at both ends
@@ -315,7 +332,8 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
   // Asleep, everything the detector holds has run out: sleep begins only after more silence than
   // its longest memory (the pass ends kLatency + kPassAfter + kPassFall after an attack).
   static_assert(kLatency + kPassAfter + kPassFall + 2 * kSegment < Stft::kLatency + Stft::kFrame + Stft::kHop &&
-                    kLookSegments * kSegment <= Stft::kFrame,
+                    kLookSegments * kSegment <= Stft::kFrame &&
+                    (kStrikeMost + 2) * kSegment < Stft::kLatency + Stft::kFrame + Stft::kHop,
                 "the idle hold outlasts the attack detector");
 
   // The attack detector at rest: as after a long silence.
@@ -329,6 +347,9 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
     pass_ = 0.0f;
     pass_goal_ = 0.0f;
     pass_meter_ = 0.0f;
+    segment_top_ = 0.0f;
+    strike_top_ = 0.0f;
+    strike_left_ = 0;
   }
 
   // Segment q begins: the one before it is closed (an attack or not), and whether this one passes is read off.
@@ -342,7 +363,18 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
       edge_seen_[c][closed % kLookSegments] = edge_sum_[c];
       edge_sum_[c] = 0.0f;
     }
-    hit_[closed % kHitRing] = attack ? 1 : 0;
+    // The note is followed up: a higher sample than any since the attack is part of the attack.
+    bool higher = false;
+    if (attack) {
+      strike_left_ = strike_segments_;
+      strike_top_ = segment_top_;
+    } else if (strike_left_ > 0) {
+      --strike_left_;
+      higher = segment_top_ > strike_top_;
+      if (higher) strike_top_ = segment_top_;
+    }
+    segment_top_ = 0.0f;
+    hit_[closed % kHitRing] = (attack || higher) ? 1 : 0;
     bool pass = false;
     for (int k = kHitFirst; k <= kHitLast; ++k) pass = pass || hit_[(q - static_cast<uint32_t>(k)) % kHitRing] != 0;
     pass_goal_ = pass ? 1.0f : 0.0f;
@@ -578,6 +610,10 @@ class Glimmer : public kit::DeviceBase<glimmer::kNumParams> {
   uint8_t hit_[kHitRing] = {};              // which segments held an attack
   float pass_ = 0.0f;                       // how far the output has turned to the dry sound, 0..1
   float pass_goal_ = 0.0f;
+  float segment_top_ = 0.0f;                // the largest sample of the segment in hand, either side
+  float strike_top_ = 0.0f;                 // the largest since the last attack
+  int strike_left_ = 0;                     // segments left of the time an attack is followed for
+  int strike_segments_ = 0;                 // kStrikeSeconds in segments
   float pass_meter_ = 0.0f;
   uint64_t now_ = 0;          // samples since init, slept ones too
   uint64_t table_time_ = 0;   // the frame the gains are for

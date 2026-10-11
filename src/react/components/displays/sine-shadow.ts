@@ -97,7 +97,7 @@ export interface ShadowLine {
  * semitones away at that weighed level, faded at the ends of the range. Two
  * things the device does to a sine's pitch are under a pixel on this scale
  * (12 px an octave on a plate) and left out: Snap pulls it half a semitone at
- * the most, and a sine that Transpose puts within six cents of another
+ * the most, and a sine that Pitch puts within six cents of another
  * harmonic takes that harmonic's pitch.
  */
 export function shadowExample(
@@ -165,7 +165,7 @@ function shadowHandles(view: DisplayView): DisplayHandle[] {
     },
     {
       key: 'transpose',
-      name: 'Transpose',
+      name: 'Pitch',
       // On the ruler of semitones, which runs the control's whole range.
       x: ruler.x + ((semitones - low) / (high - low)) * ruler.w,
       y: ruler.y + ruler.h / 2,
@@ -353,7 +353,5 @@ export const SINE_SHADOW_FACES: Readonly<Record<string, PlateFace>> = {
   'sine-shadow': {
     display: sineShadow,
     face: ['partials', 'transpose', 'release', 'mix'],
-    // "Transpose" between "Partials" and "Release" leaves no room between the words.
-    labels: { transpose: 'Pitch' },
   },
 }

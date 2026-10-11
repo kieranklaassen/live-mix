@@ -87,6 +87,12 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, PitchedPar
   // or the carrier an octave against the playing, and the bell would be another bell.
   'overtone-singer': { root: { octave: 'octave' } },
   ring: { root: { octave: 'octave' } },
+  // The note its scale and chord are counted from: every note it lets through moves with it.
+  'scale-filter': { root: 'class' },
+  // The pitch that stands still while Follow is off, in hertz: every partial is spread away
+  // from it, so a phrase and its pivot moved alike come out as the same sound, moved. With
+  // Follow on each note is its own pivot and the knob is not read.
+  warp: { pivot: 'hertz' },
   // The key the table of bowls is tuned in. Its scale is intervals and its register a height: they stay.
   bowls: { root: 'class' },
   // The lowest resonance is the body's own frequency over Size, and every other one is a ratio of it.
@@ -113,6 +119,8 @@ function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {
     }
     if (kind === 'period' || kind === 'hertz') {
       let moved = current[name] * 2 ** ((kind === 'hertz' ? semitones : -semitones) / 12)
+      // To the hundredth of a hertz: half a cent at twenty hertz, a twentieth of one at two hundred.
+      if (kind === 'hertz') moved = Math.round(moved * 100) / 100
       // Past the end of the control: an octave back, as a note is taken (a control has several).
       if (spec.max >= 2 * spec.min) {
         while (moved > spec.max) moved /= 2

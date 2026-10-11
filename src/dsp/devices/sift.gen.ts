@@ -39,30 +39,8 @@ export const SIFT_PARAMS = {
     description:
       'The level of what is neither tone nor attack: breath, hiss, bow noise, the room. At the bottom the sound is left clean and bare.',
   },
-  sharpness: {
-    id: 3,
-    name: 'Sharpness',
-    min: 0,
-    max: 1,
-    default: 0.5,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own.',
-  },
-  edge: {
-    id: 4,
-    name: 'Edge',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks.',
-  },
   hold: {
-    id: 5,
+    id: 3,
     name: 'Hold',
     min: 0,
     max: 1,
@@ -72,8 +50,19 @@ export const SIFT_PARAMS = {
     description:
       'Lets the tones ring on after the playing has let them go, at the pitch they had. Low is a short bloom behind each note, high a wash that lasts many seconds.',
   },
+  sharpness: {
+    id: 4,
+    name: 'Sharpness',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How strictly the three parts are told apart. Low shares what is in doubt between them and stays natural. High gives each part only what is surely its own.',
+  },
   soften: {
-    id: 6,
+    id: 5,
     name: 'Soften',
     min: 0,
     max: 1,
@@ -83,19 +72,8 @@ export const SIFT_PARAMS = {
     description:
       'Smears each attack in time, so a click turns into a short puff with a soft start and a fading end. Its strength is kept and its edge is lost.',
   },
-  late: {
-    id: 7,
-    name: 'Late',
-    min: 0,
-    max: 300,
-    default: 0,
-    taper: 'linear',
-    unit: 'ms',
-    description:
-      'Makes the attacks arrive after the tones they belong to. A little is a flam between a sound and its own strike, a lot is an echo of the strikes alone.',
-  },
   scatter: {
-    id: 8,
+    id: 6,
     name: 'Scatter',
     min: 0,
     max: 1,
@@ -106,7 +84,7 @@ export const SIFT_PARAMS = {
       'Makes the air on the left and the air on the right differ until the two sides no longer agree, which spreads it wide. Tones and attacks stay where they were.',
   },
   mix: {
-    id: 9,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -114,6 +92,28 @@ export const SIFT_PARAMS = {
     taper: 'linear',
     unit: '',
     description: 'Balance between the sound as it came in and the three parts put back together.',
+  },
+  edge: {
+    id: 8,
+    name: 'Edge',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of the first moment of each note counts as an attack. Down, only the noise of the strike does. Up, the start of every note goes with the attacks.',
+  },
+  late: {
+    id: 9,
+    name: 'Late',
+    min: 0,
+    max: 300,
+    default: 0,
+    taper: 'linear',
+    unit: 'ms',
+    description:
+      'Makes the attacks arrive after the tones they belong to. A little is a double strike, the sound and then its own attack; a lot is an echo of the strikes alone.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -142,11 +142,11 @@ export const SIFT_DESCRIPTOR = wasmDeviceDescriptor(SIFT_DEVICE, {
   presets: {
     'Soft hammers': {},
     'Tones only': { attacks: -30, air: -30, sharpness: 0.7, hold: 0, soften: 0, scatter: 0 },
-    'Only the strikes': { tones: -30, attacks: 6, air: -30, soften: 0, hold: 0, scatter: 0 },
+    'Only the strikes': { tones: -30, attacks: 1, air: -30, soften: 0, hold: 0, scatter: 0 },
     'Soft puffs': { tones: -30, attacks: 6, air: -30, soften: 1, hold: 0 },
-    'Strikes forward': { tones: -4, attacks: 6, air: -12, soften: 0, hold: 0, scatter: 0.3 },
-    Flam: { tones: -2, attacks: 4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
-    'Late echoes': { tones: -3, attacks: 6, soften: 0.25, late: 280, hold: 0.35 },
+    'Strikes forward': { tones: -2, attacks: 1, air: -12, soften: 0, hold: 0, scatter: 0.3 },
+    'Strike just after': { tones: -2, attacks: -4, soften: 0, late: 45, hold: 0, scatter: 0.8 },
+    'Late echoes': { tones: -1.5, attacks: 1, soften: 0.25, late: 280, hold: 0.35 },
     'Pedal down': { attacks: 0, soften: 0, hold: 0.6, air: 0, scatter: 0.2 },
     'Long wash': {
       attacks: -20,

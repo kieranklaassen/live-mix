@@ -196,10 +196,12 @@ describe('the formulas of the stops display', () => {
     const five = stopsDrawn(view({ sub: 1, fifth: 1, octave: 1, twelfth: 1, fifteenth: 1 }))
     for (const i of [0, 2, 3, 4, 5]) expect(five[i]).toBeCloseTo(1 / Math.sqrt(5), 9)
     // At the defaults on a note of 220 Hz, worked out by hand: the sound
-    // itself whole, the sub at 0.8 x 0.55^1.5, the octave 0.33 dB under
-    // 0.8 x 0.7^1.5 (Tone at 0.4 takes 2.4 dB an octave above 400 Hz).
+    // itself at 1 - 0.8 x (1 - 0.8) (the unison leaves the ranks room), the
+    // sub at 0.8 x 0.55^1.5, the octave 0.33 dB under 0.8 x 0.7^1.5 (Tone at
+    // 0.4 takes 2.4 dB an octave above 400 Hz).
     const heard = stopsHeard(view({}), 220, 48000)
-    expect(heard[1]).toBeCloseTo(1, 9)
+    expect(heard[1]).toBeCloseTo(0.84, 9)
+    expect(stopsHeard(view({ unison: 1 }), 220, 48000)[1]).toBeCloseTo(1, 9)
     expect(heard[0]).toBeCloseTo(0.32631, 4)
     expect(heard[2]).toBe(0)
     expect(heard[3]).toBeCloseTo(0.8 * 0.7 ** 1.5 * gain(-2.4 * Math.log2(1.1)), 6)
@@ -388,7 +390,8 @@ describe('the light of the stops display', () => {
     })
     const early = runDisplay(display, params, 0.1, { meters: sound, signal }, rising)
     const late = runDisplay(display, params, 0.6, { meters: sound, signal }, rising)
-    expect(alphaOf(early, 1)).toBeCloseTo(lit(0.25), 3)
+    // At the defaults the sound itself comes out at 0.84 of its reading.
+    expect(alphaOf(early, 1)).toBeCloseTo(lit(0.25 * 0.84), 3)
     expect(alphaOf(early, 3)).toBeLessThan((alphaOf(late, 3) ?? 0) - 0.05)
     expect(alphaOf(late, 3)).toBeCloseTo(lit(0.25 * 0.8), 3)
     // The sound stops: after 0.3 s (the fall's time constant) the light is a third of the way down.

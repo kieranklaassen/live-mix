@@ -12,6 +12,7 @@
 
 import { type Bus } from '../buses/Bus'
 import { ensureProcessor } from '../worklet-loader'
+import { createWorkletNode } from '../worklet-node'
 import {
   DEFAULT_RECORDER_CHUNK_FRAMES,
   RECORDER_PROCESSOR_NAME,
@@ -81,9 +82,6 @@ export type Recording = WorkletRecording | MediaRecording
 export function defaultRecorderProcessorUrl(): string {
   return new URL('./worklets/recorder.js', import.meta.url).href
 }
-
-const defaultCreateNode: RecorderNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
 
 function sourceNode(source: RecordSource): AudioNode {
   if (typeof (source as Bus).addInsert === 'function') return (source as Bus).output
@@ -167,7 +165,7 @@ export class WorkletRecorder extends Recorder {
       channelCount,
       chunkFrames: options.chunkFrames ?? DEFAULT_RECORDER_CHUNK_FRAMES,
     }
-    const node = (options.createNode ?? defaultCreateNode)(ctx, RECORDER_PROCESSOR_NAME, {
+    const node = (options.createNode ?? createWorkletNode)(ctx, RECORDER_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 0,
       channelCount,

@@ -16,24 +16,6 @@
       "description": "How far what is quiet is lifted toward the loudest sound around it. Low only opens the sound a little; all the way up makes everything as loud as everything else."
     },
     {
-      "key": "range",
-      "name": "Range",
-      "min": 0,
-      "max": 30,
-      "default": 12,
-      "unit": "dB",
-      "description": "The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up."
-    },
-    {
-      "key": "floor",
-      "name": "Floor",
-      "min": -72,
-      "max": -24,
-      "default": -48,
-      "unit": "dB",
-      "description": "How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail."
-    },
-    {
       "key": "rise",
       "name": "Rise",
       "min": 20,
@@ -82,6 +64,24 @@
       "choices": ["Off", "On"],
       "default": 0,
       "description": "On plays only what is being added, so the settings can be tuned by ear. Turn it off again to hear the result."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": -72,
+      "max": -24,
+      "default": -48,
+      "unit": "dB",
+      "description": "How far under the loudest sound of late a sound may lie and still be lifted. Quieter than that is left alone, so hiss and hum stay down; lower it for fainter detail."
+    },
+    {
+      "key": "range",
+      "name": "Range",
+      "min": 0,
+      "max": 30,
+      "default": 12,
+      "unit": "dB",
+      "description": "The most any frequency may be lifted, which counts wherever Amount asks for more. Low keeps the lift a gentle opening; high lets faint overtones and the room come up."
     }
   ],
   "meters": [

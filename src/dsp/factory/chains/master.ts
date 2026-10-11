@@ -356,6 +356,17 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
+    id: 'quiet-detail-lifted',
+    name: 'Quiet detail lifted',
+    category: 'master',
+    description:
+      'What is quiet inside the mix is lifted a little, loud parts left alone, then a true-peak ceiling, a twentieth of a second late; try Amount.',
+    effects: [
+      { deviceId: 'reveal', preset: 'Gentle opening' },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
     id: 'firm-low-wide-air',
     name: 'Firm low, wide air',
     category: 'master',

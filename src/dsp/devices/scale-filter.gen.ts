@@ -54,19 +54,8 @@ export const SCALE_FILTER_PARAMS = {
     description:
       'Thins the scale to a chord. Triad keeps its root, third and fifth, Fifths the root and fifth, and Root only one note in every octave.',
   },
-  width: {
-    id: 3,
-    name: 'Width',
-    min: 5,
-    max: 200,
-    default: 30,
-    taper: 'log',
-    unit: 'ct',
-    description:
-      'How wide the opening at each note is. Narrow turns anything into pure held tones; wide brings the source back with only the wrong notes dimmed.',
-  },
   ring: {
-    id: 4,
+    id: 3,
     name: 'Ring',
     min: 0.05,
     max: 12,
@@ -77,7 +66,7 @@ export const SCALE_FILTER_PARAMS = {
       'How long each note goes on sounding after what fed it has stopped. At the bottom the notes stop with the source.',
   },
   depth: {
-    id: 5,
+    id: 4,
     name: 'Depth',
     min: 0,
     max: 48,
@@ -87,30 +76,8 @@ export const SCALE_FILTER_PARAMS = {
     description:
       'How far everything between the notes is turned down. Low only leans towards the key; high leaves nothing but the notes. Zero is the sound as it came.',
   },
-  low: {
-    id: 6,
-    name: 'Low',
-    min: 20,
-    max: 2000,
-    default: 40,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'The lowest note that is let through. Everything under it is turned down by Depth, so raise it to keep the chord out of the bass.',
-  },
-  high: {
-    id: 7,
-    name: 'High',
-    min: 200,
-    max: 20000,
-    default: 12000,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'The highest note that is let through. Everything over it is turned down by Depth, so lower it for a darker chord.',
-  },
   tune: {
-    id: 8,
+    id: 5,
     name: 'Tune',
     min: -50,
     max: 50,
@@ -121,7 +88,7 @@ export const SCALE_FILTER_PARAMS = {
       'Moves every note sharp or flat together, to meet a recording that is not at concert pitch. Turned slowly on noise it slides the whole chord.',
   },
   glow: {
-    id: 9,
+    id: 6,
     name: 'Glow',
     min: 0,
     max: 1,
@@ -132,7 +99,7 @@ export const SCALE_FILTER_PARAMS = {
       'Lifts the notes to make up for what the filter took away. It never brings them above the level of the sound that came in.',
   },
   mix: {
-    id: 10,
+    id: 7,
     name: 'Mix',
     min: 0,
     max: 1,
@@ -140,6 +107,39 @@ export const SCALE_FILTER_PARAMS = {
     taper: 'linear',
     unit: '',
     description: 'Balance between the sound as it came and the filtered notes.',
+  },
+  width: {
+    id: 8,
+    name: 'Opening',
+    min: 5,
+    max: 200,
+    default: 30,
+    taper: 'log',
+    unit: 'ct',
+    description:
+      'How wide the opening at each note is. Narrow turns anything into pure held tones; wide brings the source back with only the wrong notes dimmed.',
+  },
+  low: {
+    id: 9,
+    name: 'Low',
+    min: 20,
+    max: 2000,
+    default: 40,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The lowest note that is let through. Everything under it is turned down by Depth, so raise it to keep the chord out of the bass.',
+  },
+  high: {
+    id: 10,
+    name: 'High',
+    min: 200,
+    max: 20000,
+    default: 12000,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The highest note that is let through. Everything over it is turned down by Depth, so lower it for a darker chord.',
   },
 } as const satisfies Record<string, ParamSpec>
 

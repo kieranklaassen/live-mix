@@ -5,6 +5,12 @@
 // the setting; the second colour is now: the lowest note the device has put a
 // pivot on, the curves of the two sides as Drift and Width have them, and the
 // loudest partials, each a stem from the middle line to how far it is moved.
+// Width stretches the two sides apart around each note played. With Follow on
+// the curve is a note's own, so the two sides are two curves through the
+// note. With Follow off the curve is about the knob and is the same for both
+// sides up to the lowest note played; over that note its overtones part, the
+// left side under the curve and the right side over it, so the curve of now
+// forks there. With no note there is one curve.
 
 import {
   FREQ_MAX,
@@ -49,7 +55,7 @@ const signed = (value: number, digits: number): string =>
 
 /** `kLeanOctaves` of `warp.h`: Lean's weight is halfway at this many octaves from the pivot. */
 const WARP_LEAN_OCTAVES = 2
-/** `kWidthDepth`: at full Width the left side's Stretch is this much under the setting and the right's as much over. */
+/** `kWidthDepth`: at full Width the left side's Stretch is this much under the setting and the right's as much over, about each note. */
 const WARP_WIDTH_DEPTH = 0.04
 /** `kMarks`: the device reports its six loudest partials. */
 const WARP_MARKS = 6
@@ -74,7 +80,7 @@ const WARP_PIN_RADIUS = 2.5
 const WARP_MARK_RADIUS = 2
 
 /**
- * How far a partial at `hz` is moved, in octaves, as `Warp::frame` in `warp.h`
+ * How far a partial at `hz` is moved, in octaves, as `Warp::plan` in `warp.h`
  * moves it: `o` octaves from the pivot it goes to `o` times the exponent, the
  * exponent weighted by Lean (up, the far partials move most; down, the near
  * ones), and Shift is added after. With `follow` the pivot is a note: what
@@ -94,6 +100,29 @@ export function warpMove(
   const r = (x * x) / (1 + x * x)
   const weight = lean >= 0 ? 1 - lean * (1 - r) : 1 + lean * r
   return octaves * (2 ** stretch - 1) * weight + shiftSt / 12
+}
+
+/**
+ * How far Width moves an overtone at `hz` off the middle of the two sides, in
+ * octaves, as `Warp::plan` does: the side's exponent, 2^(stretch ∓ spread),
+ * less the middle one, times the overtone's octaves over its note `noteHz`,
+ * weighted by Lean over that distance. `side` is -1 for the left and 1 for the
+ * right. What lies at the note or under it is no overtone of it and is not moved.
+ */
+export function warpApart(
+  hz: number,
+  noteHz: number,
+  stretch: number,
+  lean: number,
+  spread: number,
+  side: -1 | 1,
+): number {
+  if (!(hz > noteHz) || !(spread > 0)) return 0
+  const octaves = Math.log2(hz / noteHz)
+  const x = octaves / WARP_LEAN_OCTAVES
+  const r = (x * x) / (1 + x * x)
+  const weight = lean >= 0 ? 1 - lean * (1 - r) : 1 + lean * r
+  return octaves * weight * (2 ** (stretch + side * spread) - 2 ** stretch)
 }
 
 /** Where a partial at `hz` lands: its own pitch, moved. */
@@ -194,8 +223,11 @@ const warp = plateDisplay<WarpState>({
   columns: 2,
   // Drift shows only in the curves of now, which the device reports (`stretchNow`): the shared test
   // runs a display on readings that stand still and would not see it follow, so Drift is not one of
-  // `params`. Tone changes levels, not places, and is not drawn.
-  params: ['stretch', 'pivot', 'follow', 'lean', 'shift', 'width', 'mix'],
+  // `params`. Width neither: it parts the two sides over a note the device reports (`pivotNow` with
+  // Follow on, `noteNow` with it off), and with no note in the readings there is nothing to part;
+  // it is read on every frame while the device plays. Tone changes levels, not places, and is not
+  // drawn.
+  params: ['stretch', 'pivot', 'follow', 'lean', 'shift', 'mix'],
   live: { meters: true, signal: true },
   info: 'Pitch runs across. Up is how far a partial is moved, sharp over the dashed line and flat under it. The curve is the setting; the second colour is the note played now and its loudest partials. Drag the rings for Stretch and, with Follow off, Pivot. With Follow on the curve is for a note at 110 Hz.',
   init: () => ({ curve: [], left: [], right: [] }),
@@ -224,13 +256,24 @@ const warp = plateDisplay<WarpState>({
     rule(ctx, box.x, none, right, none, { colour: colours.ink, alpha: INK.rule, dash: [2, 3] })
 
     const count = Math.max(2, Math.floor(box.w / 2) + 1)
-    const curveOf = (list: Spot[], around: number, amount: number): Spot[] => {
+    // A curve about `around`; with a note `over` and a `side`, that side's overtones of the note
+    // as Width parts them from it.
+    const curveOf = (
+      list: Spot[],
+      around: number,
+      amount: number,
+      over = 0,
+      apart = 0,
+      side: -1 | 1 = 1,
+    ): Spot[] => {
       const points = sized(list, count)
       for (let i = 0; i < count; i++) {
         const x = box.x + (i / (count - 1)) * box.w
+        const hz = hzOfX(x, box)
+        const parted = over > 0 ? warpApart(hz, over, amount, lean, apart, side) : 0
         points[i][0] = x
         points[i][1] = clamp(
-          yOfMove(warpMove(hzOfX(x, box), around, amount, lean, shift, follow), box),
+          yOfMove(warpMove(hz, around, amount, lean, shift, follow) + parted, box),
           box.y - 200,
           foot + 200,
         )
@@ -248,17 +291,35 @@ const warp = plateDisplay<WarpState>({
     const pivotNow = noted ? readPivot : pivot
     const readStretch = frame.meter('stretchNow')
     const stretchNow = Number.isFinite(readStretch) ? clamp(readStretch, -1.2, 1.2) : stretch
+    // Width's two stretches are about a note (`Warp::plan`). With Follow on that note is the pivot;
+    // with Follow off the curve is about the knob and the sides part over the lowest note played,
+    // which the device reports (`noteNow`: no pitch while there is none, and then nothing parts).
     const spread = frame.value('width') * WARP_WIDTH_DEPTH
+    const readNote = frame.meter('noteNow')
+    const noteNow = Number.isFinite(readNote) && readNote > 1 ? readNote : 0
     const whole: Box = { x: box.x - 1, y: box.y - 1, w: box.w + 2, h: box.h + 2 }
     const strong = lerp(INK.rule, 1, wet)
 
     clipped(ctx, whole, () => {
       if (running && wet > 0.02 && (noted || !follow)) {
-        // The curves of the two sides, through nought at the pivot in use, and the pivot itself.
-        state.left = curveOf(state.left, pivotNow, stretchNow - spread)
-        state.right = curveOf(state.right, pivotNow, stretchNow + spread)
-        trace(ctx, state.left, { colour: colours.accent, width: 1, alpha: wet })
-        trace(ctx, state.right, { colour: colours.accent, width: 1, alpha: wet })
+        // The curves of the two sides, through nought at the pivot in use, and the pivot itself;
+        // one curve where the two are the same.
+        if (follow) {
+          state.left = curveOf(state.left, pivotNow, stretchNow - spread)
+          trace(ctx, state.left, { colour: colours.accent, width: 1, alpha: wet })
+          if (spread > 0) {
+            state.right = curveOf(state.right, pivotNow, stretchNow + spread)
+            trace(ctx, state.right, { colour: colours.accent, width: 1, alpha: wet })
+          }
+        } else {
+          const parts = spread > 0 && noteNow > 0
+          state.left = curveOf(state.left, pivotNow, stretchNow, parts ? noteNow : 0, spread, -1)
+          trace(ctx, state.left, { colour: colours.accent, width: 1, alpha: wet })
+          if (parts) {
+            state.right = curveOf(state.right, pivotNow, stretchNow, noteNow, spread, 1)
+            trace(ctx, state.right, { colour: colours.accent, width: 1, alpha: wet })
+          }
+        }
         dot(ctx, xOfHz(pivotNow, box), yOfMove(shift / 12, box), WARP_PIN_RADIUS, colours.accent, {
           alpha: wet,
         })

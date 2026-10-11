@@ -29,8 +29,22 @@ static char label[240];
   } while (0)
 // The bottom of a level's range, where its part is silent.
 static const float kOff = p::kParamMin[p::kTones];
-static const char* const kNames[p::kNumParams] = {"tones", "attacks", "air",  "sharpness", "edge",
-                                                  "hold",  "soften",  "late", "scatter",   "mix"};
+// A control's name by the control, not by its number: the order of "params" in device.json may change.
+static const char* name_of(int id) {
+  switch (id) {
+    case p::kTones: return "tones";
+    case p::kAttacks: return "attacks";
+    case p::kAir: return "air";
+    case p::kSharpness: return "sharpness";
+    case p::kEdge: return "edge";
+    case p::kHold: return "hold";
+    case p::kSoften: return "soften";
+    case p::kLate: return "late";
+    case p::kScatter: return "scatter";
+    case p::kMix: return "mix";
+    default: return "?";
+  }
+}
 
 // --- settings ------------------------------------------------------------------------------
 
@@ -1011,11 +1025,11 @@ static void check_controls() {
                                       difference_db(at[step + 1].right, at[step].right));
       }
     }
-    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", kNames[id], moved[0][0], moved[0][1],
+    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", name_of(id), moved[0][0], moved[0][1],
                 moved[0][2], moved[1][0], moved[1][1], moved[1][2]);
     for (int step = 0; step < 3; ++step) {
       std::snprintf(label, sizeof label,
-                    "control %s does something in third %d of its range (%.1f dB of the output)", kNames[id],
+                    "control %s does something in third %d of its range (%.1f dB of the output)", name_of(id),
                     step + 1, moved[1][step]);
       EXPECT(moved[1][step] > -24.0, label);
     }
@@ -1244,20 +1258,23 @@ static void check_sides() {
 // --- level -----------------------------------------------------------------------------------
 
 // The presets as device.json has them (copied: tmp/keep/presets.py writes
-// these rows from the manifest), every control in the order of its id.
+// these rows from the manifest), every control in the order of kColumns.
 struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of a row is, by name: a row does not follow the order of "params".
+static const int kColumns[p::kNumParams] = {p::kTones, p::kAttacks, p::kAir,  p::kSharpness, p::kEdge,
+                                            p::kHold,  p::kSoften,  p::kLate, p::kScatter,   p::kMix};
 static const Preset kPresets[] = {
     // PRESETS BEGIN
     {"Soft hammers", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.16f, 0.0f, 0.6f, 1.0f}},
     {"Tones only", {0.0f, -30.0f, -30.0f, 0.7f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
-    {"Only the strikes", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
+    {"Only the strikes", {-30.0f, 1.0f, -30.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f}},
     {"Soft puffs", {-30.0f, 6.0f, -30.0f, 0.5f, 1.0f, 0.0f, 1.0f, 0.0f, 0.6f, 1.0f}},
-    {"Strikes forward", {-4.0f, 6.0f, -12.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.0f}},
-    {"Flam", {-2.0f, 4.0f, 3.0f, 0.5f, 1.0f, 0.0f, 0.0f, 45.0f, 0.8f, 1.0f}},
-    {"Late echoes", {-3.0f, 6.0f, 3.0f, 0.5f, 1.0f, 0.35f, 0.25f, 280.0f, 0.6f, 1.0f}},
+    {"Strikes forward", {-2.0f, 1.0f, -12.0f, 0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.0f}},
+    {"Strike just after", {-2.0f, -4.0f, 3.0f, 0.5f, 1.0f, 0.0f, 0.0f, 45.0f, 0.8f, 1.0f}},
+    {"Late echoes", {-1.5f, 1.0f, 3.0f, 0.5f, 1.0f, 0.35f, 0.25f, 280.0f, 0.6f, 1.0f}},
     {"Pedal down", {0.0f, 0.0f, 0.0f, 0.5f, 1.0f, 0.6f, 0.0f, 0.0f, 0.2f, 1.0f}},
     {"Long wash", {-1.5f, -20.0f, 0.0f, 0.4f, 1.0f, 0.85f, 0.64f, 0.0f, 0.8f, 1.0f}},
     {"Wide air", {-2.0f, -6.0f, 6.0f, 0.3f, 1.0f, 0.1f, 0.09f, 0.0f, 1.0f, 1.0f}},
@@ -1273,7 +1290,9 @@ static const int kPresetCount = static_cast<int>(sizeof kPresets / sizeof kPrese
 
 static void set_preset(int n) {
   fresh();
-  for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, kPresets[n].values[id]);
+  for (int column = 0; column < p::kNumParams; ++column) {
+    device.set_param(kColumns[column], kPresets[n].values[column]);
+  }
 }
 
 // A chord at full scale held for a minute through the device as it stands:
@@ -1330,7 +1349,7 @@ static void check_level() {
     for (int end = 0; end < 2; ++end) {
       fresh();
       device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
-      std::snprintf(what, sizeof what, "%s at its %s", kNames[id], end == 0 ? "lowest" : "highest");
+      std::snprintf(what, sizeof what, "%s at its %s", name_of(id), end == 0 ? "lowest" : "highest");
       measure(what);
     }
   }
@@ -1351,6 +1370,55 @@ static void check_level() {
       "  a full-scale chord held for a minute at 38 settings: highest peak %.3f, RMS at the end from %.3f to "
       "%.3f (the chord: 0.408), largest rise in RMS from early to the end %.5f\n",
       worst_peak, quietest, loudest, worst_growth);
+}
+
+// --- the presets fed hot -----------------------------------------------------------------------
+
+// One struck note left to die away, its highest sample 1 dB under full scale, then a second of nothing.
+static std::vector<float> hot_note(float hz) {
+  rng_state() = 0x7a31u;
+  std::vector<float> out = struck(hz, 1.5f, 0.6f, 12, 0.3f, 0.25f);
+  float top = 0.0f;
+  for (float v : out) top = std::max(top, std::fabs(v));
+  for (float& v : out) v *= 0.8913f / top;
+  return padded(out, 1.0f);
+}
+
+// A preset may bring the strikes forward, but not so far that a note which
+// comes in under full scale goes out over it. The strike of a note is its
+// highest sample, so Attacks lifted 4 to 6 dB over the rest puts out that many
+// dB more than came in, and a strike made late lands on the body of its own
+// note. None of the sixteen names promises that. Each note is played alone, so
+// what Hold keeps of earlier notes does not count here.
+static void check_hot() {
+  const float notes[8] = {110.0f, 164.81f, 220.0f, 261.63f, 293.66f, 329.63f, 392.0f, 440.0f};
+  double highest = 0.0;
+  const char* which = "";
+  for (int n = 0; n < kPresetCount; ++n) {
+    double peak = 0.0;
+    float at = 0.0f;
+    for (float hz : notes) {
+      const std::vector<float> in = hot_note(hz);
+      set_preset(n);
+      const Stereo out = run(device, in);
+      for (size_t i = 0; i < out.left.size(); ++i) {
+        const double v = std::max<double>(std::fabs(out.left[i]), std::fabs(out.right[i]));
+        if (v > peak) {
+          peak = v;
+          at = hz;
+        }
+      }
+    }
+    if (peak > highest) {
+      highest = peak;
+      which = kPresets[n].name;
+    }
+    std::snprintf(label, sizeof label,
+                  "eight struck notes fed at -1 dBFS through %s: highest sample %.1f dBFS (the note at %.0f Hz)",
+                  kPresets[n].name, db(peak), at);
+    SAY(peak <= 1.0);
+  }
+  std::printf("  the hottest preset on a struck note fed at -1 dBFS is %s, %.1f dBFS\n", which, db(highest));
 }
 
 // --- part-way Mix ------------------------------------------------------------------------------
@@ -1487,6 +1555,7 @@ int main() {
   check_meters();
   check_sides();
   check_level();
+  check_hot();
   check_mix();
   check_cost();
   return finish("sift");

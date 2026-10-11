@@ -1472,6 +1472,91 @@ static void test_other_rates() {
   }
 }
 
+// --- What the second reading found ------------------------------------------
+
+// How far the waver swings the delay, in milliseconds, between 15 and 45 s of
+// a 100 Hz tone just under the surface (the whole waver, hardly any of the
+// water's filter): the tone's phase against the one that went in, read once
+// a cycle, and the largest step of the pitch between two of those readings.
+struct Swing {
+  double ms;
+  double step_cents;
+};
+
+static Swing swing_of(float rate, float swell) {
+  plain(device, rate);
+  device.set_param(p::kDepth, 0.1f);
+  device.set_param(p::kWaver, 1.0f);
+  device.set_param(p::kRate, swell);
+  device.set_param(p::kWidth, 0.0f);
+  const double hz = 100.0;
+  const double w = 2.0 * kPi * hz / rate;
+  const int cycle = static_cast<int>(rate / hz + 0.5f);
+  const long total = static_cast<long>(45.0f * rate);
+  double in_phase = 0.0, quadrature = 0.0, last_phase = 0.0, wraps = 0.0;
+  double least = 1.0e9, most = -1.0e9, last_delay = 0.0, last_cents = 0.0, step = 0.0;
+  int count = 0, read = 0;
+  for (long n = 0; n < total; n += 128) {
+    for (int i = 0; i < 128; ++i) {
+      device.in_left()[i] = device.in_right()[i] = 0.5f * static_cast<float>(std::sin(w * static_cast<double>(n + i)));
+    }
+    device.process(128);
+    for (int i = 0; i < 128; ++i) {
+      const double y = device.out_left()[i];
+      in_phase += y * std::sin(w * static_cast<double>(n + i));
+      quadrature += y * std::cos(w * static_cast<double>(n + i));
+      if (++count < cycle) continue;
+      count = 0;
+      const double phase = std::atan2(quadrature, in_phase);
+      in_phase = quadrature = 0.0;
+      if (phase - last_phase > kPi) wraps -= 1.0;
+      if (phase - last_phase < -kPi) wraps += 1.0;
+      last_phase = phase;
+      const double delay = -(phase / (2.0 * kPi) + wraps) / hz * 1000.0;
+      if (n > static_cast<long>(15.0f * rate)) {
+        least = std::min(least, delay);
+        most = std::max(most, delay);
+        // The bend over one cycle of the tone: minus the slope of the delay.
+        const double cents = -(delay - last_delay) / (1000.0 / hz) * 1200.0 / std::log(2.0);
+        if (++read > 2) step = std::max(step, std::fabs(cents - last_cents));
+        last_cents = cents;
+      }
+      last_delay = delay;
+    }
+  }
+  return {most - least, step};
+}
+
+static void test_second_reading() {
+  // The right side reads the surface a little late, so the phase its sine is
+  // taken at goes under nought once a cycle. kit::SineTable::lookup takes a
+  // phase into [0, 1) by its floor, and from -2^-25 up to nought that comes
+  // to 1 as a float: the read was the table's last entry (sin 2 pi as a
+  // float, -2.4e-16) blended with the one after it, which is not the table's.
+  // It is the sine of nothing now, from the table's first.
+  const float hair = Underwater::surface_sine(-1.0e-8f);
+  std::printf("second reading: the surface's sine a hair under nought is %.3g\n", hair);
+  EXPECT(hair == 0.0f, "the surface's sine a hair under nought is read from inside the table");
+  double worst = 0.0;
+  for (float phase : {-0.069f, -0.01f, -1.0e-4f, 0.0f, 1.0e-4f, 0.25f, 0.9f}) {
+    worst = std::max(worst, std::abs(Underwater::surface_sine(phase) - std::sin(2.0 * kPi * phase)));
+  }
+  EXPECT(worst < 1.0e-6, "and it is the sine everywhere else");
+
+  // A slow swell swings the delay by twice 35 ms, which is 13,440 samples at
+  // 192 kHz. The line held 8,192: the delay ran into its end and stood there
+  // for a third of every swell (no bend at all), with a step in the pitch
+  // where it met it. The swing is the same at every rate now.
+  const Swing at48 = swing_of(48000.0f, 0.1f);
+  const Swing at192 = swing_of(192000.0f, 0.1f);
+  std::printf("second reading: a 0.1 Hz swell swings the delay %.1f ms at 48 kHz and %.1f ms at 192 kHz; "
+              "the pitch steps %.2f and %.2f cents at the most between two cycles of the tone\n",
+              at48.ms, at192.ms, at48.step_cents, at192.step_cents);
+  EXPECT(at48.ms > 64.0 && at48.ms < 70.5, "a slow swell swings the delay by nearly twice 35 ms");
+  EXPECT_NEAR(at192.ms, at48.ms, 1.0, "and by as much at 192 kHz");
+  EXPECT(at192.step_cents < 2.0, "with no step in the pitch where the line used to end");
+}
+
 int main() {
   Conformance spec;
   spec.name = "underwater";
@@ -1501,6 +1586,7 @@ int main() {
   test_sleep();
   test_levels();
   test_other_rates();
+  test_second_reading();
 
   // The cost at the defaults on noise, and at the worst: every knob up, an
   // attack every 55 ms so the pool of bubbles is full, and Depth moved every
