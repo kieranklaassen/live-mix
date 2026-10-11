@@ -191,6 +191,18 @@ class Prism : public kit::DeviceBase<prism::kNumParams> {
     return (std::floor(hz / width) + 0.5f) * width;
   }
 
+  // The sine and the cosine of a phase in turns, from the kit's table. A
+  // phase a hair under nought (from -2^-25 up) is exactly one turn once its
+  // whole turns are taken off, and the kit's lookup then reads the entry past
+  // the end of its table: here such a phase is nought, which is its sine.
+  // Every other phase gives the bits the kit's lookup gives. A bin's shift
+  // turned backwards and a band's drift pass through nought from below.
+  static float sine(float turns) {
+    turns -= std::floor(turns);
+    return kit::SineTable::lookup(turns < 1.0f ? turns : 0.0f);
+  }
+  static float cosine(float turns) { return sine(turns + 0.25f); }
+
   // For the harness and the display's test: the delay of a bin in samples,
   // as the tables hold it now.
   float delay_samples(int bin) const {
@@ -444,8 +456,8 @@ inline void Prism::rebuild() {
     turn_re_[k] = gain * kit::SineTable::cos_lookup(static_cast<float>(turns));
     turn_im_[k] = gain * kit::SineTable::lookup(static_cast<float>(turns));
     const float step = static_cast<float>(-shift / Stft::kFrame);
-    step_re_[k] = kit::SineTable::cos_lookup(step);
-    step_im_[k] = kit::SineTable::lookup(step);
+    step_re_[k] = cosine(step);
+    step_im_[k] = sine(step);
 
     // Tilt: what a pass loses, never a gain.
     const float hz_octave = octave_[k];
@@ -497,8 +509,8 @@ inline void Prism::frame(int c, float* re, float* im) {
       double cycle = seconds * drift_rate_[b] + drift_start_[b];
       cycle -= std::floor(cycle);
       const float turn = swing * kit::SineTable::lookup(static_cast<float>(cycle));
-      drift_re_[b] = kit::SineTable::cos_lookup(turn);
-      drift_im_[b] = kit::SineTable::lookup(turn);
+      drift_re_[b] = cosine(turn);
+      drift_im_[b] = sine(turn);
     }
   }
   const int stride = stride_;

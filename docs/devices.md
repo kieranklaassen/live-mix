@@ -164,7 +164,7 @@ hold 8 notes).
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B  | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `pitch-shifter`   | Pitch Shifter      | live-mix            | pitch      | 12     | 50,960 B  | 64.8 µs, 2.43 %       | 41.7 µs, 1.56 %            | 0                 | 6           |
 | `prepared-piano`  | Prepared Piano     | live-mix            | instrument | 11     | 31,857 B  | 12.1 µs, 0.45 %       | 29.3 µs, 1.10 %            | 0                 | 4           |
-| `prism`           | Prism              | live-mix            | delay      | 12     | 26,322 B  | 20.8 µs, 0.78 %       | 25.3 µs, 0.95 %            | 2304              | 16          |
+| `prism`           | Prism              | live-mix            | delay      | 12     | 26,410 B  | 20.8 µs, 0.78 %       | 25.3 µs, 0.95 %            | 2304              | 16          |
 | `pulses`          | Pulses             | live-mix            | modulation | 12     | 13,470 B  | 5.5 µs, 0.21 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
