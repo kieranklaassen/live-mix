@@ -1924,6 +1924,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   spiral: { ...PLATE_PALETTES.spiral, finish: 'fade', cap: 'pointer' },
   around: { ...PLATE_PALETTES.around, finish: 'fade', cap: 'dot' },
   spread: { ...PLATE_PALETTES.spread, finish: 'gloss', cap: 'pointer' },
+  bowls: { ...PLATE_PALETTES.bowls, finish: 'hammered', cap: 'disc' },
 }
 
 /**
