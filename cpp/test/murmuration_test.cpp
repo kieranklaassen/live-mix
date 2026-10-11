@@ -1256,6 +1256,52 @@ static void test_swell() {
   EXPECT(often < 5.0, "and is within 5 dB of itself 19 times in 20");
 }
 
+// --- What the second reading found ------------------------------------------
+
+static void test_second_reading() {
+  // A bird a hair to the left of the middle is panned by the sine of an
+  // angle a hair under nought. The kit's table takes a phase into [0, 1) by
+  // its floor, and from -2^-25 up to nought that comes to 1 as a float: the
+  // read was the table's last entry (sin 2 pi as a float, -2.4e-16) blended
+  // with the one after it, which is not the table's. Spread near nought puts
+  // every bird there, and a control turned down to nought stayed near it for
+  // ever (below). It is the sine of nothing now, from the table's first.
+  livemix::kit::SineTable::init();
+  const float hair = flock::pan(-1.0e-7f, 1.0f);
+  std::printf("second reading: a bird 1e-7 to the left is panned to %.3g\n", hair);
+  EXPECT(hair == 0.0f, "a bird a hair to the left is panned from inside the sine table");
+  double worst = 0.0;
+  for (float v : {-1.0f, -0.75f, -0.5f, -0.01f, -1.0e-4f, 0.0f, 1.0e-4f, 0.3f, 1.0f}) {
+    worst = std::max(worst, std::abs(flock::pan(v, 1.0f) - std::sin(1.5707963267948966 * v)));
+  }
+  EXPECT(worst < 1.0e-6, "and every other bird where it was: the sine of its bearing");
+
+  // Together, Air, Spread, Lift and Ground turned all the way down while the
+  // sound runs: each glides to nought by a one-pole, which never lands. They
+  // stood at 5e-44 and 2.6e-43 from half a minute on, and every sum they are
+  // in then cost several times what it costs (ten seconds of sound took 222
+  // ms against 94). Once nothing can be heard of them they are nought.
+  Settings s;
+  start(device, s);
+  rng_state() = 0x5EC0u;
+  run(device, noise(1.0f, kRate, 0.25f));
+  s.together = 0.0f;
+  s.air = 0.0f;
+  s.spread = 0.0f;
+  s.lift = 0.0f;
+  s.ground = p::kParamMin[p::kGround];
+  set(device, s);
+  run(device, noise(40.0f, kRate, 0.25f));
+  static const char* const kNames[5] = {"Together", "Air", "Spread", "Lift", "the low line's share"};
+  bool landed = true;
+  for (int which = 0; which < 5; ++which) {
+    std::printf("second reading: %s, 40 s after it was turned down in the sound: %g\n",
+                kNames[which], static_cast<double>(device.gliding(which)));
+    landed = landed && device.gliding(which) == 0.0f;
+  }
+  EXPECT(landed, "a control turned down to nought in the sound comes to nought");
+}
+
 int main() {
   Conformance spec;
   spec.name = "murmuration";
@@ -1286,6 +1332,7 @@ int main() {
   test_ceiling();
   test_steps();
   test_swell();
+  test_second_reading();
 
   // Cost: the flock as it starts, and the most it can be asked for.
   rng_state() = 0xBEEFu;

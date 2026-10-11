@@ -1188,6 +1188,39 @@ int main() {
     EXPECT(woken.left[kLatency] == 0.5f, "it wakes on new input");
   }
 
+  // What the second reading found. The read point is kept in double and
+  // split into whole samples and a fraction for the sinc read. A fraction
+  // within 2^-25 of 1 becomes 1 as a float (about once in six minutes of a
+  // sounding sway), and the read then took the row after the table's last:
+  // twelve numbers past its end, weighted by nothing, so nothing was heard
+  // of it and only a build that checks its bounds saw it. A fraction of 1 is
+  // the next whole sample, read from inside the table.
+  {
+    using livemix::late_vibrato_detail::SincRead;
+    const double delay = static_cast<double>(LateVibrato::kLatency) + 37.0 - 1.0e-9;
+    const int whole = static_cast<int>(delay);
+    const float fraction = static_cast<float>(delay - whole);
+    EXPECT(whole == LateVibrato::kLatency + 36 && fraction == 1.0f,
+           "a fraction just under 1 in double is 1 as a float");
+    EXPECT(SincRead::row_of(fraction) == SincRead::kFractions &&
+               SincRead::row_after(SincRead::row_of(fraction)) <= SincRead::kFractions,
+           "a fraction of 1 is read from inside the table");
+    EXPECT(SincRead::row_of(0.0f) == 0 && SincRead::row_after(0) == 1 &&
+               SincRead::row_of(0.5f) == SincRead::kFractions / 2 &&
+               SincRead::row_of(0.99999994f) == SincRead::kFractions - 1 &&
+               SincRead::row_after(SincRead::kFractions - 1) == SincRead::kFractions,
+           "and every fraction under 1 from the two rows it always was");
+    static livemix::kit::DelayLine<2048> line;
+    line.clear();
+    for (int n = 0; n < 2048; ++n) {
+      line.write(static_cast<float>(std::sin(2.0 * 3.14159265358979 * 1000.0 * n / kRate)));
+    }
+    const float at_one = SincRead::read(line, whole, fraction);
+    const float next = SincRead::read(line, whole + 1, 0.0f);
+    std::printf("sinc read at a fraction of 1: %.9f, the next whole sample %.9f\n", at_one, next);
+    EXPECT_NEAR(at_one, next, 1.0e-6, "a fraction of 1 reads the next whole sample");
+  }
+
   // Cost: straight (a note younger than Wait every time) and at its worst
   // (both sides swaying apart, swelling, part way up Mix).
   {

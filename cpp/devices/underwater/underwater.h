@@ -65,9 +65,9 @@
 // to the whole of the water: the two are one sound, in step at every
 // frequency, so part way nothing cancels.
 //
-// Storage: two delay lines of 8,192 samples (2 x 35 ms at 96 kHz and the
-// interpolator's margin), 64 kB; no heap. No latency is reported: the waver's
-// delay is the effect.
+// Storage: two delay lines of 16,384 samples (2 x 35 ms at 192 kHz and the
+// interpolator's margin), 128 kB; no heap. No latency is reported: the
+// waver's delay is the effect.
 //
 // The surface runs freely, also while the device sleeps: its phases are
 // counted in whole steps per sample, so they stand at the same place whatever
@@ -134,6 +134,17 @@ class Underwater : public kit::DeviceBase<underwater::kNumParams> {
 
   void set_param(int id, float value) {
     if (store_param(id, value)) apply(id);
+  }
+
+  // sin(2 pi phase) for a phase that may lie under nought (down to -1): the
+  // right side reads the surface `late` cycles back, so its phase does.
+  // kit::SineTable::lookup brings a phase into [0, 1) by taking its floor
+  // off, and for a phase from -2^-25 up to nought that comes to 1 as a float:
+  // it then reads the entry after the table's last. The turn added here is
+  // the one the lookup adds, so every other phase gives the number it always
+  // gave. Public for the harness.
+  static float surface_sine(float phase) {
+    return kit::SineTable::lookup(phase < 0.0f ? phase + 1.0f : phase);
   }
 
   // The readings named by "meters" in device.json, for the display: 0 and 1,
@@ -329,7 +340,10 @@ class Underwater : public kit::DeviceBase<underwater::kNumParams> {
   }
 
  private:
-  static constexpr int kLineSize = 8192;
+  // The delay swings up to twice kMaxSwingSeconds: 13,440 samples at 192 kHz.
+  // A line of 8,192 held it up to 96 kHz; at 176.4 and 192 kHz a slow swell
+  // ran into the line's end and the delay stood still there.
+  static constexpr int kLineSize = 16384;
   static constexpr int kVoices = 24;
   static constexpr int kFlickers = 3;
 
@@ -571,8 +585,8 @@ class Underwater : public kit::DeviceBase<underwater::kNumParams> {
 
   // The surface's height, -1..1, `late` cycles of the swell ago.
   float surface_height(float late) const {
-    return kSwellShare * kit::SineTable::lookup(turns(swell_phase_) - late) +
-           kRippleShare * kit::SineTable::lookup(turns(ripple_phase_) - late * kRippleRatio);
+    return kSwellShare * surface_sine(turns(swell_phase_) - late) +
+           kRippleShare * surface_sine(turns(ripple_phase_) - late * kRippleRatio);
   }
 
   // The flicker of the light on one side, -1..1.
