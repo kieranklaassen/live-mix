@@ -2094,6 +2094,18 @@
   -webkit-user-select: none;
 }
 
+/* A plate that keeps its finish off the lettering (a skin's `clearLettering`):
+   the display and the names under the knobs stand on plain plate, which runs
+   out softly into the finish around them. */
+.lm-plate[data-lettering='clear'] .lm-plate__display {
+  background: var(--lm-plate);
+}
+
+.lm-plate[data-lettering='clear'] .lm-knob__label {
+  background: var(--lm-plate);
+  box-shadow: 0 0 3px 3px var(--lm-plate);
+}
+
 /*
   A display with points to drag takes a finger's drag for itself where the
   finger comes down on a point, and says so as the press arrives (see
