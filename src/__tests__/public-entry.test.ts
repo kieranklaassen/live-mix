@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest'
 
 import * as core from '../index'
 import * as dsp from '../dsp/index'
+import * as motion from '../motion/index'
 import * as native from '../native/index'
 import * as testing from '../testing/index'
 import * as wam from '../wam/index'
@@ -136,6 +137,10 @@ const coreSymbols = [
   'buildLatencyReport',
   'PDC_MAX_DELAY_SECONDS',
   'rampParamTo',
+  'cutQDb',
+  'compressorNodeMakeupDb',
+  'FLAT_CUT_Q_DB',
+  'isCutFilter',
   // Score (U28)
   'SCORE_FORMAT_VERSION',
   'createScore',
@@ -298,6 +303,12 @@ const coreSymbols = [
   // Patches into a score
   'patchEffectOps',
   'scoreDeviceFromPatch',
+  // Which preset a device is on
+  'presetIsOn',
+  'currentPreset',
+  'stepPreset',
+  'atDefaults',
+  'retiredPresets',
   // Offline render holds and the device traits hosted plug-ins use (U39)
   'RENDER_QUANTUM_FRAMES',
   'canHoldRender',
@@ -586,6 +597,52 @@ const wamSymbols = [
   'WAM_DEVICE_RAMP_SECONDS',
 ] as const
 
+// Every value `./motion` exports: a host's stored motion is read with these
+// names, so none may go quietly.
+const motionSymbols = [
+  'EASING_NAMES',
+  'bezierOf',
+  'cubicBezier',
+  'curveOf',
+  'isEasing',
+  'MAX_BOUNCE',
+  'SETTLED',
+  'bounceCurve',
+  'dampingRatio',
+  'springCurve',
+  'springDuration',
+  'springValue',
+  'NEUTRAL_PROFILE',
+  'motionProfile',
+  'DEFAULT_BOUNCE',
+  'DEFAULT_STRENGTH',
+  'NO_POSE',
+  'PRESETS',
+  'PRESET_NAMES',
+  'presetDuration',
+  'presetPose',
+  'DEFAULT_KEYFRAME_EASING',
+  'KEYFRAME_PROPERTIES',
+  'keyframeAt',
+  'keyframeTimes',
+  'keyframeTrack',
+  'trackValue',
+  'valueAt',
+  'withKeyframe',
+  'withoutKeyframe',
+  'DEFAULT_FADE',
+  'layerMotionAt',
+  'motionAt',
+  'motionIssues',
+  'resolveLayerMotion',
+  'DEFAULT_SAMPLES',
+  'DEFAULT_SHUTTER',
+  'shutterTimes',
+  'steadyClock',
+  'ORIGIN',
+  'restValues',
+] as const
+
 describe('public entries', () => {
   it.each(coreSymbols)('`.` exports %s', (name) => {
     expect((core as Record<string, unknown>)[name]).toBeDefined()
@@ -601,6 +658,12 @@ describe('public entries', () => {
   })
   it.each(wamSymbols)('`./wam` exports %s', (name) => {
     expect((wam as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it.each(motionSymbols)('`./motion` exports %s', (name) => {
+    expect((motion as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it('`./motion` exports nothing that is not pinned here', () => {
+    expect(Object.keys(motion).sort()).toEqual([...motionSymbols].sort())
   })
 })
 

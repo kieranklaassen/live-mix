@@ -4,7 +4,7 @@
 // the DOM or schedule a frame.
 
 import { renderToString } from 'react-dom/server'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { computePeaks } from '../../core/clips/peaks'
 import { createEngine, type Engine } from '../../core/Engine'
@@ -45,8 +45,10 @@ import {
   PaintField,
   Panel,
   PanelHead,
+  PickCell,
   PictureMark,
   Playhead,
+  PresetCell,
   Progress,
   PropRow,
   RangeSelection,
@@ -389,6 +391,42 @@ describe('kit components under SSR', () => {
     expect(html).not.toContain('aria-label="pad level"')
     expect(pad.strip.materialized).toBe(true) // the filter insert materialised it, not the view
     engine.dispose()
+  })
+
+  it('renders the cells that open a list, closed, with no warning of an effect that cannot run', () => {
+    const said = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const html = renderToString(
+      <>
+        <PickCell
+          label="Chains for a voice"
+          items={[{ id: 'clean-voice', name: 'Clean voice' }]}
+          current="clean-voice"
+          onPick={() => {}}
+          data-testid="chains"
+        >
+          Clean voice
+        </PickCell>
+        <PresetCell
+          name="Compressor"
+          presets={[
+            { name: 'Voice, even', deviceId: 'compressor', deviceVersion: 1, params: { ratio: 3 } },
+          ]}
+          values={{ ratio: 3 }}
+          specs={{
+            ratio: { id: 0, name: 'Ratio', min: 1, max: 20, default: 4, taper: 'linear', unit: '' },
+          }}
+          onPick={() => {}}
+          data-testid="fxp"
+        />
+      </>,
+    )
+    expect(html).toContain('aria-haspopup="dialog"')
+    expect(html).toContain('aria-expanded="false"')
+    expect(html).toContain('Voice, even')
+    // The list is a dialog in the page's body, drawn only once it is open in a browser.
+    expect(html).not.toContain('role="dialog"')
+    expect(said).not.toHaveBeenCalled()
+    said.mockRestore()
   })
 
   it('renders explicit-object views without a provider', async () => {

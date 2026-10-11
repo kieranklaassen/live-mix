@@ -21,10 +21,10 @@
   },
   "compressor": {
     "(default)": {"threshold":-24,"knee":30,"ratio":12,"attack":0.003,"release":0.25,"makeupDb":0},
-    "Gentle": {"threshold":-18,"knee":12,"ratio":2,"attack":0.02,"release":0.3,"makeupDb":2},
-    "Voice": {"threshold":-20,"knee":6,"ratio":4,"attack":0.005,"release":0.15,"makeupDb":4},
-    "Glue": {"threshold":-12,"knee":10,"ratio":1.5,"attack":0.03,"release":0.4,"makeupDb":1},
-    "Limit": {"threshold":-6,"knee":0,"ratio":20,"attack":0.0005,"release":0.05,"makeupDb":0}
+    "Gentle": {"threshold":-18,"knee":12,"ratio":2,"attack":0.02,"release":0.3,"makeupDb":5.51},
+    "Voice": {"threshold":-20,"knee":6,"ratio":4,"attack":0.005,"release":0.15,"makeupDb":11.85},
+    "Glue": {"threshold":-12,"knee":10,"ratio":1.5,"attack":0.03,"release":0.4,"makeupDb":2.35},
+    "Limit": {"threshold":-6,"knee":0,"ratio":20,"attack":0.0005,"release":0.05,"makeupDb":3.42}
   },
   "delay": {
     "(default)": {"timeSec":0.35,"feedback":0.35,"damping":6000,"mix":0.3},

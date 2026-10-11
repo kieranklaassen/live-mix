@@ -1,7 +1,8 @@
 # React: hooks, the UI kit and the playground
 
 `@kieranklaassen/live-mix/react` is the only entry that imports React
-(`react >= 18`, an optional peer). It ships two layers on top of the engine
+(`react >= 18`, an optional peer, and `react-dom >= 18` beside it, for the
+portal a picker opens in). It ships two layers on top of the engine
 (R32, KTD11): **headless hooks** that subscribe to the core's change events,
 and a **styled kit** built on them and themed through `--lm-*` CSS variables.
 Both render on the server from the same snapshots; `.` and `./dsp` never
@@ -264,6 +265,13 @@ add or replace skins. A plate is 140 px high and
 `plateLayout(knobs, pictured, display?)` gives its width and where its display
 stands.
 
+A plate keeps for itself whether the `+n` cell has opened it (`defaultOpen`,
+`onOpenChange`). A host that keeps it, so that it can be opened from somewhere
+else or is still open when the plate is drawn again, passes `open`: the plate
+then shows what it is told, and a press on the cell only asks through
+`onOpenChange`. `moreProps` puts the host's own `data-*` attributes on that
+cell.
+
 `upright` stands a plate up, as a pedal stands on a board: 220 px wide and 300
 high, on `DevicePlate` and, for every plate of a chain, on `DeviceChainView`.
 The display or the picture lies across the top (a display is 204 by 100), and
@@ -489,6 +497,139 @@ bench: every stock effect as a plate with sound running through it, by
 each spread and played a phrase over and over (`&then=shimmer,tape-echo`
 stands pedals after it, as in a chain). `node scripts/plates/shoot.mjs out.png "only=tremolo"` takes its
 picture in headless Chromium.
+Each plate there carries a `DevicePresetCell` on its foot, and the cell at the
+top of the page is a `PickCell` that finds a plate by name, so the list and the
+preset cell are looked at where the plates are.
+
+### Lists to pick from, and the preset cell
+
+A preset, an effect to add and a chain for a strip are all picked the same
+way: a cell names what is on, a press opens a list off it, and the list is
+searched and walked with the keys. The parts came from Ambient Live, where an
+effect's presets and the effect browser are drawn with them, and they are the
+kit's now so a second app draws the same thing.
+
+`PickCell` is the whole of it for a list of the app's own:
+
+```tsx
+import { PickCell, deviceItems, patchItems } from '@kieranklaassen/live-mix/react'
+
+;<PickCell
+  label="Effects"
+  items={deviceItems(engine.devices.list({ kind: 'effect' }))}
+  onPick={(item) => addEffect(item.id)}
+  verb="Add"
+  data-testid="add-effect"
+>
+  Add effect
+</PickCell>
+
+;<PickCell
+  label="Chains for a voice"
+  items={patchItems(VOICE_CHAINS)}
+  current={chainOn?.id ?? null}
+  onPick={(item) => applyChain(item.id)}
+  verb="Apply"
+>
+  {chainOn?.name ?? 'Chains'}
+</PickCell>
+```
+
+A `PickItem` is `{ id, name, detail?, more?, group? }`: `detail` is said dim
+beside the name, `more` are words the search finds it by, and items of one
+`group` stand under one head with their count (`deviceItems` heads a registry's
+devices by category, in the order `DEVICE_CATEGORIES` lists them; `patchItems`
+makes one item a `Patch`). `PickList` is the list alone, for a cell of the
+app's own: `open`, `anchorRef`, `onClose` and the same props.
+
+| What the list does  | How                                                                                                                                                                                                                                                              |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Opens               | Off its cell: above it, or below with `side="below"`, lined up with the cell's left edge (`align="start"`) or its right. `rail` names an element whose edge it stands on in place of the cell's. `pickerPlace` works the place out and keeps it in the window.   |
+| Starts              | With the cursor on the one that is on (`current`), marked "on now"; on the first row where nothing is.                                                                                                                                                           |
+| Searches            | Every word typed has to be in the name, the detail or `more` (`searchRows`, `matchRanges`). What it found leads, best first, with the found letters marked; the rest follow dimmed, so the list never empties. A letter typed anywhere in the panel is a search. |
+| Walks               | Up, Down, Page Up, Page Down, Home, End. Return picks the row under the cursor and closes; with Shift held it picks and stays open, to try one after another. A held Return picks once.                                                                          |
+| Closes              | Escape, a press outside, the cell again, a pick. The focus goes back to what had it. Tab stays inside while it is open.                                                                                                                                          |
+| Says what Return is | The action cell on its foot reads the verb and the row: "Apply Podcast voice", "On Clean voice" for the one that is on, "Nothing to apply" where a search found nothing.                                                                                         |
+
+`filters` is a row of the app's own under the search (chips), `rowTools` cells
+at the end of a row (a star, a play cell: a press on one is not a pick), and
+`rowProps`, `cellProps` and `actionProps` put an app's own attributes on a row,
+on the cell and on the action cell at the list's foot. Any other `data-*`
+attribute a `PickCell`, a `PresetCell` or a `DevicePresetCell` is handed goes
+to every control it draws that does the pick (the cell or the three cells, each
+row of the list, and the list's action cell), and one a `DevicePlate` is handed
+goes to the plate: a host that names what a control does, as an editor's
+`data-action` does for its agent, finds the name on whatever is pressed. The
+search field does nothing but narrow the list and carries none. `DataAttributes`
+is the type of such a set. The cell names its list while it is open
+(`aria-controls`; a `PickList` under a cell of the app's own takes the `id`). The
+panel's parts are exported for a picker with rows of another shape:
+`PickerPanel`, `PickerSearch`, `PickerGroup`, `PickerAction`, `Highlight`,
+`Keycap`, `cursorStep`, `tabStops`, `focusCell` and `useRowInView`. Their
+classes are `lm-picker*`; `lm-pick` is the wrapper of a select and stays so.
+
+`PresetCell` is the preset cell of one effect: the name of the preset it is on,
+a cell to step to the one before and one to the one after without opening
+anything, and the list the name opens. It keeps nothing about which preset is
+on. `presetLabel(presets, values, specs)` reads it off the values each time, so
+a knob turned anywhere (on the plate, by an undo, by an agent) leaves the cell
+saying what is true: the preset's name, `Default` while every parameter is
+where the device starts it, `No preset` once they fit none. The matching is
+`presetIsOn`, `currentPreset`, `atDefaults`, `stepPreset` and `retiredPresets`,
+from the root entry: a preset is on while every parameter it names is where it
+puts it and every other is where the device starts it, in single precision and
+inside the range, the way the device keeps a value.
+
+`DevicePresetCell` is that cell read off a device, and what a plate's
+`presetPicker` is for:
+
+```tsx
+import { DevicePlate, DevicePresetCell, deviceSkin } from '@kieranklaassen/live-mix/react'
+
+;<DevicePlate
+  device={device}
+  skin={deviceSkin(device)}
+  writes={writes}
+  presetPicker={
+    <DevicePresetCell
+      device={device}
+      writes={writes}
+      presets={VIDEO_PRESETS[device.id]}
+      groupOf={(preset) => (isOurs(preset) ? 'For video' : 'Compressor')}
+    />
+  }
+/>
+```
+
+`presets` are the app's own, in the kit's `Preset` format, listed before the
+device's (`ownOnly` leaves the device's out). A name stands for one preset
+alone: where one of the app's has the name of one of the device's, the app's is
+the one listed. A pick is one write of every
+parameter the device has: the ones the preset names to its values and the rest
+to where the device starts them, by value and never by name, since one of the
+app's own is no preset the device knows. On a plate's foot the cell folds with
+the room the name leaves (`lm-plate-presets`): name, chevron and both step
+cells where there is room, the name and chevron on a narrower plate (the list
+does the stepping there, as it does under a finger), the chevron alone on the
+narrowest.
+
+`writes` is for a host that keeps its own document, as a video editor's edit
+is. A `DeviceWrites` on `useDevice`, `DevicePlate`, `DevicePanel` and
+`DevicePresetCell` takes every change in place of the device:
+
+| Call                | When                                                                                                     |
+| ------------------- | -------------------------------------------------------------------------------------------------------- |
+| `touch(names)`      | A knob, a slider or a handle on a display is taken hold of.                                              |
+| `set(params)`       | Every value while it is held, and once for a change that is not held: a preset, a reset, a typed number. |
+| `release(names)`    | It is let go.                                                                                            |
+| `setBypass(bypass)` | The lamp is pressed.                                                                                     |
+
+The plate still reads the device, so the host's part is to put what it was
+told on the device by its own way: preview between `touch` and `release`,
+commit once at `release`, and commit a `set` that came without a `touch` as
+one step. Nothing here is in the signal path: a plate, its display and its
+preset cell read parameters and taps, and a host that never mounts one sounds
+the same.
 
 ### The info view
 

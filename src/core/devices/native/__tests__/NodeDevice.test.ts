@@ -40,11 +40,18 @@ const TEST_DEVICE = defineNodeDevice({
 function build(ctx: MockAudioContext, params?: Partial<Record<'level' | 'tilt', number>>) {
   const device = new NodeDevice(asAudioContext(ctx), TEST_DEVICE, { params })
   const { input, output } = io(device)
-  const dry = gainIn(input.outputs, (g) => g.outputs.has(output))
-  const stage = gainIn(input.outputs, (g) => g !== dry)
+  // The test device reports 10 ms, so its dry path runs through a delay.
+  const [dryDelay] = ctx.delays
+  const dry = gainIn(dryDelay.outputs, (g) => g.outputs.has(output))
+  const stage = gainIn(input.outputs)
   const wet = gainIn(ctx.gains, (g) => g !== dry && g.outputs.has(output))
   const tone = ctx.filters[0]
-  return { device, input, output, stage, tone, dry, wet }
+  return { device, input, output, stage, tone, dry, dryDelay, wet }
+}
+
+/** The same chain with the latency a test names (none, when it names none). */
+function latent(latency: { latencySec?: number; latencySamples?: (sampleRate: number) => number }) {
+  return defineNodeDevice({ ...TEST_DEVICE, latencySec: undefined, ...latency })
 }
 
 describe('NodeDevice', () => {
@@ -52,9 +59,9 @@ describe('NodeDevice', () => {
     expect(NODE_DEVICE_RAMP_SECONDS).toBe(BYPASS_RAMP_SECONDS)
   })
 
-  it('wires input → chain → wet → output alongside input → dry → output', () => {
+  it('wires input → chain → wet → output alongside input → delay → dry → output', () => {
     const ctx = createMockContext()
-    const { device, input, output, stage, tone, dry, wet } = build(ctx)
+    const { device, input, output, stage, tone, dry, dryDelay, wet } = build(ctx)
 
     expect(device.id).toBe('test-device')
     expect(device.latencySec).toBe(0.01)
@@ -62,10 +69,47 @@ describe('NodeDevice', () => {
     expect(stage.outputs.has(tone)).toBe(true)
     expect(tone.outputs.has(wet)).toBe(true)
     expect(wet.outputs.has(output)).toBe(true)
-    expect(input.outputs.has(dry)).toBe(true)
+    expect(input.outputs).toEqual(new Set([stage, dryDelay]))
+    expect(dryDelay.outputs).toEqual(new Set([dry]))
     expect(dry.outputs.has(output)).toBe(true)
     expect(dry.gain.value).toBe(0)
     expect(wet.gain.value).toBe(1)
+    expect(ctx.gains).toHaveLength(5)
+    expect(ctx.delays).toHaveLength(1)
+  })
+
+  it('holds the dry path back by the latency it reports, so a bypass moves nothing in time', () => {
+    const ctx = createMockContext()
+    const { device, dryDelay } = build(ctx)
+    expect(device.latencySamples).toBe(441)
+    expect(dryDelay.delayTime.value).toBe(441 / 44100)
+    // Set once, when the device is built: a bypass only crossfades.
+    device.bypass = true
+    device.bypass = false
+    expect(dryDelay.delayTime.events).toEqual([])
+  })
+
+  it('delays the dry path by whole samples, the count it reports and not its seconds', () => {
+    const ctx = createMockContext({ sampleRate: 44100 })
+    // 6 ms is 264.6 samples; the chain says it takes 264.
+    const definition = latent({
+      latencySec: 0.006,
+      latencySamples: (sampleRate) => Math.floor(0.006 * sampleRate),
+    })
+    const device = new NodeDevice(asAudioContext(ctx), definition)
+    expect(device.latencySamples).toBe(264)
+    expect(ctx.delays).toHaveLength(1)
+    expect(ctx.delays[0].delayTime.value).toBe(264 / 44100)
+  })
+
+  it('has no delay on the dry path of a chain that takes no time', () => {
+    const ctx = createMockContext()
+    const device = new NodeDevice(asAudioContext(ctx), latent({}))
+    const { input, output } = io(device)
+    expect(device.latencySamples).toBe(0)
+    expect(ctx.delays).toHaveLength(0)
+    const dry = gainIn(input.outputs, (g) => g.outputs.has(output))
+    expect(dry.gain.value).toBe(0)
     expect(ctx.gains).toHaveLength(5)
   })
 
@@ -163,11 +207,11 @@ describe('NodeDevice', () => {
 
   it('disconnects every node on dispose, exactly once, and goes quiet afterwards', () => {
     const ctx = createMockContext()
-    const { device, input, output, stage, tone, dry, wet } = build(ctx)
+    const { device, input, output, stage, tone, dry, dryDelay, wet } = build(ctx)
 
     device.dispose()
     device.dispose()
-    const all: MockAudioNode[] = [input, output, stage, tone, dry, wet]
+    const all: MockAudioNode[] = [input, output, stage, tone, dry, dryDelay, wet]
     for (const node of all) {
       expect(node.disconnectCalls.count).toBe(1)
       expect(node.outputs.size).toBe(0)

@@ -52,7 +52,26 @@ async function main() {
     clean: true,
     treeshake: true,
     // Optional peers: consumers that import `./react` or `./wam` install them.
-    external: ['react', '@webaudiomodules/sdk', '@webaudiomodules/api'],
+    // `react-dom` is named apart from `react`: the kit's picker opens in a
+    // portal, and a peer that is not named here is bundled whole.
+    external: ['react', 'react-dom', '@webaudiomodules/sdk', '@webaudiomodules/api'],
+    outDir: 'dist',
+    silent: true,
+  })
+
+  // `./motion` is built apart from the rest, after it: built with the other
+  // entries it would import the chunk they share, and it has to stay one file
+  // that imports nothing (scripts/check-pack.mjs holds it to that).
+  await tsupBuild({
+    entry: { 'motion/index': 'src/motion/index.ts' },
+    format: ['esm'],
+    target: 'es2022',
+    platform: 'neutral',
+    dts: true,
+    sourcemap: true,
+    splitting: false,
+    clean: false,
+    treeshake: true,
     outDir: 'dist',
     silent: true,
   })

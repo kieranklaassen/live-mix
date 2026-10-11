@@ -731,6 +731,42 @@ describe('DevicePlate', () => {
     expect(screen.getAllByRole('slider')).toHaveLength(2)
   })
 
+  it('shows what a host says is open, and only asks it for the rest', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const onOpenChange = vi.fn()
+    const plate = (open: boolean) => (
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        open={open}
+        onOpenChange={onOpenChange}
+        moreProps={{ 'data-action': 'show_controls' }}
+        data-testid="plate"
+      />
+    )
+    const { rerender } = render(plate(false), { wrapper: fixture.wrapper })
+    const more = screen.getByTestId('plate-more')
+    expect(more).toHaveAttribute('data-action', 'show_controls')
+    expect(more).toHaveAttribute('aria-expanded', 'false')
+
+    // The press asks; the plate stays as the host has it until the host says otherwise.
+    fireEvent.click(more)
+    expect(onOpenChange).toHaveBeenLastCalledWith(true)
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+    expect(screen.getByTestId('plate-more')).toHaveAttribute('aria-expanded', 'false')
+
+    rerender(plate(true))
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+    expect(screen.getByTestId('plate-more')).toHaveAttribute('aria-expanded', 'true')
+    fireEvent.click(screen.getByTestId('plate-more'))
+    expect(onOpenChange).toHaveBeenLastCalledWith(false)
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+
+    rerender(plate(false))
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+  })
+
   it('says so on the plate when a skin keeps its finish off the lettering, as the Ice plate does', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -909,6 +945,41 @@ describe('DevicePlate', () => {
     expect(screen.getByTestId('plate')).toHaveAttribute('data-powered', 'false')
   })
 
+  it("hands a knob's drag and the lamp to a host that takes the writes, and sets nothing itself", async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const told: unknown[][] = []
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        writes={{
+          touch: (names) => told.push(['touch', [...names]]),
+          set: (params) => told.push(['set', Object.keys(params)]),
+          release: (names) => told.push(['release', [...names]]),
+          setBypass: (bypass) => told.push(['bypass', bypass]),
+        }}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const knob = screen.getByRole('slider', { name: 'Freq' })
+    fireEvent.pointerDown(knob, { pointerId: 1, button: 0, clientX: 0, clientY: 200 })
+    fireEvent.pointerMove(knob, { pointerId: 1, clientX: 0, clientY: 150 })
+    fireEvent.pointerMove(knob, { pointerId: 1, clientX: 0, clientY: 100 })
+    fireEvent.pointerUp(knob, { pointerId: 1 })
+    expect(told[0]).toEqual(['touch', ['frequency']])
+    expect(told.at(-1)).toEqual(['release', ['frequency']])
+    const between = told.slice(1, -1)
+    expect(between.length).toBeGreaterThan(0)
+    for (const entry of between) expect(entry).toEqual(['set', ['frequency']])
+    expect(device.getParam('frequency')).toBe(1000)
+    fireEvent.click(screen.getByRole('switch', { name: 'Filter power' }))
+    expect(told.at(-1)).toEqual(['bypass', true])
+    expect(device.bypass).toBe(false)
+    expect(screen.getByTestId('plate')).toHaveAttribute('data-powered', 'true')
+  })
+
   it('redraws the picture when a parameter it reads moves, and not otherwise', async () => {
     const fixture = createTestEngine()
     const device = await make(fixture)
@@ -1037,6 +1108,24 @@ describe('DevicePlate', () => {
     })
     expect(screen.getAllByRole('slider')).toHaveLength(4)
     expect(screen.queryByTestId('plate-more')).toBeNull()
+  })
+
+  it('carries a host’s own marks on the plate itself, and keeps its own', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={QUIET_SKIN}
+        data-action="set_effect"
+        data-lm-device="not this"
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveAttribute('data-action', 'set_effect')
+    expect(plate).toHaveAttribute('data-lm-device', device.id)
   })
 })
 

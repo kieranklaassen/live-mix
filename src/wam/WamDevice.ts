@@ -8,7 +8,11 @@
 // one-call `dispose`.
 //
 //   input ─┬─► wam.audioNode ─► wet ─┬─► output
-//          └──────────► dry ─────────┘
+//          └─────► delay ─► dry ─────┘
+//
+// The dry path is held back by the plugin's compensation delay, so a bypassed
+// plugin is as late as a working one and the bypass moves nothing in time. A
+// plugin that reports none has no delay there.
 //
 // Parameter writes go through `setParameterValues`, which SDK processors
 // interpolate over a short window, so a knob is click-free; timed changes are
@@ -172,6 +176,8 @@ export class WamDevice implements NoteDevice {
   readonly url: string | undefined
   private readonly dry: GainNode
   private readonly wet: GainNode
+  // The dry path's share of the reported latency; null for a plugin that reports none.
+  private readonly dryDelay: DelayNode | null
   private readonly rampSec: number
   private readonly values = new Map<string, number>()
   private readonly guis = new Set<Element>()
@@ -209,7 +215,16 @@ export class WamDevice implements NoteDevice {
       this.node.connect(this.wet)
     }
     this.wet.connect(this.output)
-    this.input.connect(this.dry)
+    if (this.latencySamples > 0) {
+      // Room to spare, since a delay line cannot be shorter than what it is asked for.
+      this.dryDelay = context.createDelay(Math.max(1, this.latencySec * 2))
+      this.dryDelay.delayTime.value = this.latencySec
+      this.input.connect(this.dryDelay)
+      this.dryDelay.connect(this.dry)
+    } else {
+      this.dryDelay = null
+      this.input.connect(this.dry)
+    }
     this.dry.connect(this.output)
 
     this.node.addEventListener('wam-automation', this.onAutomation)
@@ -410,6 +425,7 @@ export class WamDevice implements NoteDevice {
     this.guis.clear()
     this.notes.clear()
     for (const node of [this.input, this.dry, this.wet, this.output]) node.disconnect()
+    this.dryDelay?.disconnect()
     this.node.disconnect()
     this.node.destroy()
   }

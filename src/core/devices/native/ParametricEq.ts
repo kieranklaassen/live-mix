@@ -11,6 +11,7 @@ import {
   type ParamApplier,
   defineNodeDevice,
 } from './NodeDevice'
+import { FLAT_CUT_Q_DB } from './units'
 
 export const PARAMETRIC_EQ_BANDS = 4
 
@@ -96,9 +97,10 @@ export const PARAMETRIC_EQ_DEVICE = defineNodeDevice({
   params: PARAMETRIC_EQ_PARAMS,
   build(context): NodeDeviceGraph<typeof PARAMETRIC_EQ_PARAMS> {
     // Created in chain order so a consumer's `ctx.filters` reads left to right.
+    // Both cuts are flat up to their corner; the node reads a cut's Q in decibels.
     const lowCut = context.createBiquadFilter()
     lowCut.type = 'highpass'
-    lowCut.Q.value = Math.SQRT1_2
+    lowCut.Q.value = FLAT_CUT_Q_DB
 
     const bands: BiquadFilterNode[] = []
     let previous: AudioNode = lowCut
@@ -112,7 +114,7 @@ export const PARAMETRIC_EQ_DEVICE = defineNodeDevice({
 
     const highCut = context.createBiquadFilter()
     highCut.type = 'lowpass'
-    highCut.Q.value = Math.SQRT1_2
+    highCut.Q.value = FLAT_CUT_Q_DB
     previous.connect(highCut)
 
     const apply: Partial<Record<ParametricEqParamName, ParamApplier>> = {

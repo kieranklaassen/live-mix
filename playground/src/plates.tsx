@@ -16,6 +16,10 @@
 //   ?then=shimmer,tape-echo          with `instruments`: these effects after each instrument,
 //                                    as the pedals of its chain
 //
+// Each plate has the kit's preset cell on its foot (`DevicePresetCell`), and
+// the cell over the plates is a `PickCell` on the registry's effects: a pick
+// brings that plate into view.
+//
 // `window.plates` is there for a script: `ready`, `devices` by id, `context`, `registry`.
 
 import '@kieranklaassen/live-mix/react/styles.css'
@@ -37,7 +41,10 @@ import { STOCK_WASM_DEVICES, type AssetOverrides } from '@kieranklaassen/live-mi
 import {
   DeviceChainView,
   DevicePlate,
+  DevicePresetCell,
   LiveMixProvider,
+  PickCell,
+  deviceItems,
   deviceSkin,
 } from '@kieranklaassen/live-mix/react'
 
@@ -322,6 +329,29 @@ function Plates() {
           />
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+            <div style={{ flexBasis: '100%' }}>
+              <PickCell
+                label="Effects on the bench"
+                items={deviceItems(
+                  bench.entries.flatMap(
+                    ({ device }) => bench.registry.list().find((one) => one.id === device.id) ?? [],
+                  ),
+                )}
+                onPick={(item) =>
+                  document
+                    .querySelector(`[data-plate="${item.id}"]`)
+                    ?.scrollIntoView({ block: 'center' })
+                }
+                verb="Show"
+                placeholder="Find an effect"
+                side="below"
+                align="start"
+                title="Find an effect on the bench"
+                data-testid="find-effect"
+              >
+                Find an effect
+              </PickCell>
+            </div>
             {bench.entries.map(({ device, feed, name, then: after }) => {
               const skin = deviceSkin(device)
               return (
@@ -362,8 +392,14 @@ function Plates() {
                       source={feed}
                       upright={upright}
                       defaultOpen={open}
-                      // A stand-in for an app's preset cell, so the tools stand where they do in an app.
-                      presetPicker={<span style={{ fontSize: 9, opacity: 0.7 }}>Preset</span>}
+                      // The preset cell an app puts on a plate, so the tools stand where they do in an app.
+                      presetPicker={
+                        <DevicePresetCell
+                          device={device}
+                          registry={bench.registry}
+                          data-testid={`presets-${device.id}`}
+                        />
+                      }
                       // As many tools as an app gives a plate: earlier, later, swap, save (and remove).
                       actions={
                         <>

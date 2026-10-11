@@ -20,8 +20,9 @@ export {
   type NodeDeviceOptions,
   type ParamApplier,
   type ParamRamp,
+  type ParamScale,
 } from './NodeDevice'
-export { dbToGain, gainToDb } from './units'
+export { FLAT_CUT_Q_DB, cutQDb, dbToGain, gainToDb } from './units'
 export {
   FILTER_DESCRIPTOR,
   FILTER_DEVICE,
@@ -30,6 +31,7 @@ export {
   createFilter,
   filterTypeAt,
   filterTypeIndex,
+  isCutFilter,
   type Filter,
   type FilterParamName,
   type FilterType,
@@ -66,6 +68,9 @@ export {
   COMPRESSOR_LOOKAHEAD_SECONDS,
   COMPRESSOR_PARAMS,
   Compressor,
+  compressorLookaheadSamples,
+  compressorNodeCurve,
+  compressorNodeMakeupDb,
   createCompressor,
   type CompressorParamName,
 } from './Compressor'
