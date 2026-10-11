@@ -1110,3 +1110,126 @@ export function SheetPart({
     </div>
   )
 }
+
+/* --- A channel of a mixer ---------------------------------------------------- */
+
+/** A level in dB as a meter's number: one decimal with a real minus, "−∞" at the floor and under it. */
+function peakText(db: number, floorDb: number): string {
+  return db > floorDb ? db.toFixed(1).replace(/^-/, '−') : '−∞'
+}
+
+export type PeakReadoutProps = {
+  /** The held peak in dB; −Infinity when nothing has been read. */
+  db: number
+  onReset: () => void
+  hotDb?: number
+  clipDb?: number
+  /** At this level and under it the number reads "−∞". */
+  floorDb?: number
+} & ButtonRest
+
+/**
+ * The highest level a meter has read since it was last let go, as a number that is also the
+ * button that lets it go. It takes the hot colour from `hotDb` up, and is filled with it once the
+ * signal has reached `clipDb`: what it then says stays until a press.
+ */
+export function PeakReadout({
+  db,
+  onReset,
+  hotDb = -6,
+  clipDb = 0,
+  floorDb = -90,
+  className,
+  ...rest
+}: PeakReadoutProps) {
+  return (
+    <button
+      {...rest}
+      type="button"
+      onClick={onReset}
+      className={cx('lm-peak-readout', className)}
+      data-hot={db >= hotDb || undefined}
+      data-clipped={db >= clipDb || undefined}
+    >
+      {peakText(db, floorDb)}
+    </button>
+  )
+}
+
+export type ChannelSwitchProps = {
+  on: boolean
+  /** Told what `on` would become. */
+  onChange: (on: boolean) => void
+  pressed?: boolean
+  tone?: 'solo'
+  children: ReactNode
+} & ButtonRest
+
+/**
+ * A switch of a channel that says its own state: lit while `on`. It carries what the caller
+ * writes in it, the channel's number or a letter. `pressed` is what it tells a screen reader
+ * where that differs from being lit: a channel's number is lit while the channel is heard, and
+ * pressed while it is muted. `tone="solo"` lights it in the solo colour.
+ */
+export function ChannelSwitch({
+  on,
+  onChange,
+  pressed = on,
+  tone,
+  children,
+  className,
+  ...rest
+}: ChannelSwitchProps) {
+  return (
+    <button
+      {...rest}
+      type="button"
+      aria-pressed={pressed}
+      onClick={() => onChange(!on)}
+      className={cx('lm-channel-switch', className)}
+      data-on={on || undefined}
+      data-tone={tone}
+    >
+      {children}
+    </button>
+  )
+}
+
+const METER_MARKS = [0, 12, 24, 36, 48, 60] as const
+
+export type MeterScaleProps = {
+  /** dB under full scale, as positive numbers going down: 0 is the top. */
+  marks?: readonly number[]
+  floorDb?: number
+} & DivRest
+
+/**
+ * The scale a meter is read against: how far under full scale each mark is, in dB, top to bottom,
+ * with a line between each two. It stands beside a meter of the same height whose bars run from
+ * `floorDb` to 0. The numbers thin out as the size container it is in gets lower, so two never
+ * touch: first every second one, then the last before the foot, then all but the two ends.
+ */
+export function MeterScale({
+  marks = METER_MARKS,
+  floorDb = -60,
+  className,
+  ...rest
+}: MeterScaleProps) {
+  const at = (down: number) => `${Math.min(1, Math.max(0, down / -floorDb)) * 100}%`
+  const last = marks.length - 1
+  /** When a number steps out: 1 first, 3 last; the two ends stay. */
+  const fine = (index: number) =>
+    index === 0 || index === last ? undefined : index % 2 === 1 ? 1 : index >= last - 2 ? 2 : 3
+  return (
+    <div {...rest} aria-hidden="true" className={cx('lm-meter-scale', className)}>
+      {marks.map((down, index) => (
+        <span key={down} data-fine={fine(index)} style={{ insetBlockStart: at(down) }}>
+          {down}
+        </span>
+      ))}
+      {marks.slice(1).map((down, index) => (
+        <i key={down} style={{ insetBlockStart: at((down + marks[index]) / 2) }} />
+      ))}
+    </div>
+  )
+}

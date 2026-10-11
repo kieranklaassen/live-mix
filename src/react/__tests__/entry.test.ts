@@ -257,6 +257,9 @@ describe('entries', () => {
     'Tally',
     'SearchField',
     'Offer',
+    'PeakReadout',
+    'ChannelSwitch',
+    'MeterScale',
   ] as const)('`./react` exports %s', (name) => {
     expect((react as Record<string, unknown>)[name]).toBeDefined()
   })
