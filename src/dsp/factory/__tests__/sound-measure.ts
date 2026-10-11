@@ -139,16 +139,17 @@ export function blackKeyShare(audio: PlanarAudio): number {
 const ON_THE_GRID_SEC = 0.002
 
 /**
- * True for a loop on a kit that keeps time and that the analysis cannot be
- * asked about: one with a row that is swung or laid back, or with fewer hits
- * in a round than the analysis wants before it says `beat`. The analysis holds
- * the hits it hears to a straight grid and asks for four of them
- * (core/analysis), so it reads no tempo from sixteenths swung by more than a
- * few milliseconds, nor from one crash in four bars. Such a loop is written on
- * a beat all the same, and `beat` is the bank's word for it.
+ * True for a sound on a kit that keeps time and that the analysis cannot be
+ * asked about: one with a row that is swung, laid back or faster than
+ * sixteenths, or with fewer hits in a round than the analysis wants before it
+ * says `beat`. The analysis holds the hits it hears to a straight grid and
+ * asks for four of them (core/analysis), so it reads no tempo from sixteenths
+ * swung by more than a few milliseconds, from a roll in thirty-seconds, nor
+ * from one crash in four bars. Such a loop or fill is written on a beat all
+ * the same, and `beat` is the bank's word for it.
  */
 export function beatTheAnalysisLoses(sound: FactorySound): boolean {
-  if (!sound.kit || sound.bpm === undefined || !sound.loopCrossfadeSec) return false
+  if (!sound.kit || sound.bpm === undefined) return false
   const step = 60 / sound.bpm / 4
   const from = sound.skipSec ?? 0
   const round = sound.phrase.notes.filter(
