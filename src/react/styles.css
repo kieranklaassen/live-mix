@@ -5770,3 +5770,1007 @@
     display: none;
   }
 }
+
+/* === The block parts ========================================================
+ * What a block of a bar is laid out with (`blocks.tsx`): the places of a
+ * surface, a block's head, a list that goes in, what a block says and its
+ * main action, choices, the layout of a block's body, cards and chips, and a
+ * sheet that stays mounted while closed, with its parts. Moved from Ambient
+ * Live. Sizes follow the module: rows of 20 px, text at `--lm-font-size`,
+ * small capitals at 10 px. The rules stand last in the sheet, so they weigh
+ * what they did in the app's own stylesheet, which came after this one.
+ */
+
+.lm-chevron,
+.lm-star {
+  flex: none;
+}
+
+/* --- Places ---------------------------------------------------------------- */
+
+.lm-places {
+  display: flex;
+  flex: 0 0 112px;
+  flex-direction: column;
+  gap: 4px;
+  box-sizing: border-box;
+  min-block-size: 0;
+  padding: 4px;
+  container: lm-places / size;
+}
+
+.lm-place {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-block-size: 0;
+  margin: 0;
+  padding: 0 10px 0 6px;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-place:hover {
+  background: var(--lm-sunken);
+}
+
+.lm-place[aria-pressed='true'] {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+.lm-place:focus-visible {
+  outline: 1px solid var(--lm-text);
+  outline-offset: -3px;
+}
+
+.lm-place > svg {
+  flex: none;
+}
+
+.lm-place__words {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.lm-place__name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 14px;
+}
+
+.lm-place__note {
+  overflow: hidden;
+  color: var(--lm-muted);
+  font-size: 10px;
+  line-height: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-place[aria-pressed='true'] .lm-place__note {
+  color: inherit;
+  opacity: 0.8;
+}
+
+.lm-place__level {
+  position: absolute;
+  inset-block: 3px;
+  inset-inline-end: 3px;
+  display: flex;
+  inline-size: 3px;
+}
+
+.lm-place__level .lm-meter--vertical {
+  flex: 1 1 0;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.lm-place__level .lm-meter--vertical .lm-meter__bar {
+  inline-size: 3px;
+}
+
+/* A low column: the word alone, on one line. */
+@container lm-places (max-height: 150px) {
+  .lm-place__note {
+    display: none;
+  }
+}
+
+/* Across one row: words only, cell beside cell. */
+.lm-places[data-across] {
+  flex: 0 0 auto;
+  flex-direction: row;
+  gap: 0;
+  padding: 0;
+  container-type: normal;
+}
+
+.lm-places[data-across] > .lm-place {
+  flex: 0 0 auto;
+  gap: 4px;
+  block-size: 20px;
+  padding: 0 6px;
+  border: 0;
+  border-block-end: 1px solid var(--lm-border);
+  border-inline-end: 1px solid var(--lm-border);
+  border-radius: 0;
+  background: transparent;
+}
+
+.lm-places[data-across] > .lm-place[aria-pressed='true'] {
+  background: var(--lm-accent);
+}
+
+.lm-places[data-across] .lm-place__note,
+.lm-places[data-across] .lm-place__level {
+  display: none;
+}
+
+.lm-places[data-across] .lm-place__name {
+  font-size: var(--lm-font-size);
+  font-weight: inherit;
+}
+
+/* --- A block's head -------------------------------------------------------- */
+
+.lm-block-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  block-size: 20px;
+  padding: 0 6px 0 2px;
+  border-block-end: 1px solid var(--lm-border);
+  color: var(--lm-text);
+}
+
+.lm-block-head__back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 1px;
+  box-sizing: border-box;
+  block-size: 16px;
+  margin: 0;
+  padding: 0 6px 0 2px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-muted);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lm-block-head__back:hover {
+  color: var(--lm-text);
+}
+
+.lm-block-head__title {
+  flex: none;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.lm-block-head__rest {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  min-inline-size: 0;
+}
+
+.lm-block-head__state {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-inline-size: 0;
+  overflow: hidden;
+  color: var(--lm-dim);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-block-head__state > i {
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 6px;
+  block-size: 6px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.lm-block-head__state[data-on] {
+  color: var(--lm-accent);
+}
+
+.lm-block-head__state[data-on] > i {
+  background: currentColor;
+}
+
+/* --- A list that goes in --------------------------------------------------- */
+
+.lm-list-row {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: 20px;
+  margin: 0;
+  padding: 0 6px 0 8px;
+  border: 0;
+  border-block-end: 1px solid var(--lm-border);
+  background: transparent;
+  color: var(--lm-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lm-list-row:last-child {
+  border-block-end: 0;
+}
+
+.lm-list-row:hover,
+.lm-list-row[data-marked] {
+  background: var(--lm-raised);
+}
+
+.lm-list-row:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: -2px;
+}
+
+.lm-list-row:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-list-row__icon {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: 24px;
+  block-size: 24px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-muted);
+}
+
+.lm-list-row[data-marked] .lm-list-row__icon {
+  border-color: var(--lm-accent);
+  color: var(--lm-accent);
+}
+
+.lm-list-row__words {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-inline-size: 0;
+}
+
+.lm-list-row__name {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+}
+
+.lm-list-row__line {
+  overflow: hidden;
+  color: var(--lm-muted);
+  font-size: 10.5px;
+  line-height: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-list-row__mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  color: var(--lm-accent);
+  font-family: var(--lm-font-mono);
+  font-size: 9.5px;
+}
+
+.lm-list-row__mark > i {
+  inline-size: 6px;
+  block-size: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.lm-list-row__go {
+  color: var(--lm-dim);
+}
+
+/* --- What a block says, its main action ------------------------------------ */
+
+.lm-says {
+  margin: 0;
+  color: var(--lm-muted);
+  font-size: 11.5px;
+  line-height: 15px;
+}
+
+.lm-main-action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  block-size: 30px;
+  margin: 0;
+  padding: 0 14px 0 10px;
+  border: 1px solid var(--lm-accent);
+  border-radius: var(--lm-radius);
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-main-action[data-tone='line'] {
+  background: var(--lm-raised);
+  color: var(--lm-accent);
+}
+
+.lm-main-action[data-small] {
+  gap: 4px;
+  block-size: 18px;
+  padding: 0 8px 0 6px;
+  font-size: 10.5px;
+  font-weight: inherit;
+}
+
+.lm-main-action > svg {
+  flex: none;
+}
+
+.lm-main-action:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-main-action:disabled {
+  border-color: var(--lm-border);
+  background: transparent;
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+/* --- Choices --------------------------------------------------------------- */
+
+.lm-choice {
+  display: inline-flex;
+  flex: none;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+}
+
+/* Across the width it is given, the options sharing it. */
+.lm-choice[data-fill] {
+  display: flex;
+  flex: 1 1 0;
+  min-inline-size: 0;
+}
+
+.lm-choice[data-fill] > .lm-choice__option {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  padding: 0 2px;
+  overflow: hidden;
+}
+
+/* Options of two lines: a name over a mark. */
+.lm-choice[data-tall] > .lm-choice__option {
+  block-size: 34px;
+}
+
+.lm-choice__option {
+  box-sizing: border-box;
+  block-size: 18px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-inline-start: 1px solid var(--lm-edge);
+  border-radius: 0;
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-choice__option:first-child {
+  border-inline-start: 0;
+}
+
+.lm-choice__option[aria-pressed='true'] {
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+.lm-choice__option:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: -2px;
+}
+
+.lm-choice__option:disabled {
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+/* A picker: the frame of a choice, with a mark at its end that it opens. */
+.lm-dropdown {
+  box-sizing: border-box;
+  block-size: 20px;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0 18px 0 7px;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  appearance: none;
+  background-color: var(--lm-raised);
+  background-image:
+    linear-gradient(45deg, transparent 50%, currentColor 50%),
+    linear-gradient(-45deg, transparent 50%, currentColor 50%);
+  background-position:
+    right 9px center,
+    right 5px center;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  color: var(--lm-text);
+  font: inherit;
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
+.lm-dropdown:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-dropdown:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-tick {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  block-size: 18px;
+  margin: 0;
+  padding: 0 7px 0 4px;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-tick > i {
+  flex: none;
+  box-sizing: border-box;
+  inline-size: 8px;
+  block-size: 8px;
+  border: 1px solid var(--lm-edge);
+  border-radius: 1px;
+}
+
+.lm-tick[aria-pressed='true'] {
+  border-color: var(--lm-accent);
+}
+
+.lm-tick[aria-pressed='true'] > i {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+}
+
+.lm-tick:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-tick:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-plain-action {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  block-size: 20px;
+  margin: 0;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-plain-action > svg {
+  flex: none;
+}
+
+.lm-plain-action:hover {
+  border-color: var(--lm-text);
+}
+
+.lm-plain-action:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-plain-action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-pill {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  block-size: 18px;
+  padding: 0 7px;
+  border: 1px solid var(--lm-border);
+  border-radius: 9px;
+  color: var(--lm-dim);
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.lm-pill > i {
+  box-sizing: border-box;
+  inline-size: 5px;
+  block-size: 5px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+}
+
+.lm-pill[data-on] {
+  border-color: var(--lm-accent);
+  color: var(--lm-accent);
+}
+
+.lm-pill[data-on] > i {
+  background: currentColor;
+}
+
+/* --- Layout of a block's body ---------------------------------------------- */
+
+/* A row of a block is `lm-block-row`: `lm-row` is the kit's channel row. */
+
+.lm-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-inline-size: 0;
+}
+
+.lm-group__name,
+.lm-block-row__name {
+  color: var(--lm-dim);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  line-height: 12px;
+  text-transform: uppercase;
+}
+
+.lm-block-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-block-size: 22px;
+  min-inline-size: 0;
+}
+
+.lm-block-row__name {
+  flex: 0 0 54px;
+}
+
+.lm-block-row__hint,
+.lm-hint {
+  min-inline-size: 0;
+  color: var(--lm-dim);
+  font-size: 10.5px;
+  line-height: 13px;
+}
+
+.lm-block-row__hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* A fader on a row: a thin track with a line for its thumb, and its value at the row's end. */
+.lm-block-row > .lm-fader {
+  flex: 1 1 0;
+}
+
+.lm-block-row > .lm-fader--horizontal .lm-fader__track {
+  height: 8px;
+}
+
+.lm-block-row > .lm-fader .lm-fader__fill {
+  display: none;
+}
+
+.lm-block-row > .lm-fader--horizontal .lm-fader__thumb {
+  top: -3px;
+  bottom: -3px;
+  width: 3px;
+  border: 0;
+  transform: translateX(-1.5px);
+}
+
+.lm-block-row > .lm-fader--horizontal .lm-fader__tick {
+  top: 0;
+  bottom: 0;
+  height: auto;
+}
+
+.lm-block-row > .lm-fader--horizontal .lm-fader__value {
+  flex: none;
+  width: 32px;
+  color: var(--lm-muted);
+  font-family: var(--lm-font-mono);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-block-well {
+  position: relative;
+  box-sizing: border-box;
+  min-block-size: 0;
+  overflow: hidden;
+}
+
+.lm-block-well__caption {
+  position: absolute;
+  inset-inline: 8px;
+  inset-block-end: 5px;
+  color: var(--lm-dim);
+  font-size: 10.5px;
+  line-height: 13px;
+  pointer-events: none;
+}
+
+/* --- Cards and chips ------------------------------------------------------- */
+
+.lm-card {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 8px 10px 10px;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.lm-card[aria-pressed='true'] {
+  border-color: var(--lm-accent);
+  box-shadow: inset 0 0 0 1px var(--lm-accent);
+}
+
+.lm-card:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-card__progress {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: 3px;
+  background: var(--lm-accent);
+  transform: scaleX(var(--lm-card-progress, 0));
+  transform-origin: 0 50%;
+}
+
+.lm-named-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  block-size: 22px;
+  max-inline-size: 100%;
+  margin: 0;
+  padding: 0 8px 0 6px;
+  border: 1px solid var(--lm-edge);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.lm-named-chip:hover {
+  border-color: var(--lm-accent);
+}
+
+.lm-named-chip:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-named-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.lm-named-chip__swatch {
+  flex: none;
+  inline-size: 4px;
+  block-size: 12px;
+}
+
+.lm-named-chip__name {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-named-chip__star,
+.lm-star[data-on] {
+  color: var(--lm-accent);
+}
+
+/* --- Sheet ----------------------------------------------------------------- */
+
+.lm-kept-sheet-ground {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 16px;
+  background: color-mix(in srgb, var(--lm-bg) 70%, transparent);
+}
+
+.lm-kept-sheet-ground[hidden] {
+  display: none;
+}
+
+.lm-kept-sheet {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  inline-size: 100%;
+  max-inline-size: 640px;
+  max-block-size: 100%;
+  overflow: hidden;
+  border: 1px solid var(--lm-edge);
+  border-radius: calc(var(--lm-radius) + 2px);
+  background: var(--lm-panel);
+  color: var(--lm-text);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--lm-text) 22%, transparent);
+  font-size: var(--lm-font-size);
+}
+
+.lm-kept-sheet__head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px 8px 14px;
+  border-block-end: 1px solid var(--lm-border);
+}
+
+.lm-kept-sheet__title {
+  flex: 1 1 0;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.lm-kept-sheet__close {
+  box-sizing: border-box;
+  block-size: 22px;
+  margin: 0;
+  padding: 0 10px;
+  border: 1px solid var(--lm-border);
+  border-radius: var(--lm-radius);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.lm-kept-sheet__close:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-kept-sheet__body {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.lm-kept-sheet__foot {
+  flex: none;
+  padding: 6px 14px;
+  border-block-start: 1px solid var(--lm-border);
+  color: var(--lm-dim);
+  font-size: 10.5px;
+  line-height: 14px;
+}
+
+.lm-sheet-part {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-inline-size: 0;
+  padding: 10px 14px 12px;
+}
+
+.lm-sheet-part + .lm-sheet-part {
+  border-block-start: 1px solid var(--lm-border);
+}
+
+.lm-sheet-part__head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.lm-sheet-part__name {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+
+.lm-sheet-part__state {
+  color: var(--lm-dim);
+  font-size: 11px;
+  line-height: 18px;
+}
+
+.lm-sheet-part__state[data-on] {
+  color: var(--lm-accent);
+}
+
+.lm-sheet-part__line {
+  margin: 0;
+  color: var(--lm-muted);
+  font-size: 11px;
+  line-height: 15px;
+}
+
+/* --- Room -------------------------------------------------------------------- */
+
+/*
+  The body of a block that tells the parts in it how much room there is. A bar
+  is fifteen rows tall, nine lying flat and seven at its lowest, and a phone is
+  narrow: the parts are drawn lower and closer as the room goes. A block lays
+  out what is its own by the same container (`@container lm-room`).
+*/
+.lm-room {
+  box-sizing: border-box;
+  block-size: 100%;
+  container: lm-room / size;
+}
+
+/* Low: nine rows. */
+@container lm-room (max-height: 220px) {
+  .lm-main-action {
+    block-size: 22px;
+  }
+
+  .lm-card {
+    padding: 4px 8px 6px;
+  }
+
+  .lm-choice[data-tall] > .lm-choice__option {
+    block-size: 30px;
+  }
+
+  .lm-group[data-beside] {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+/* Lowest: seven rows. */
+@container lm-room (max-height: 140px) {
+  .lm-main-action {
+    block-size: 20px;
+  }
+
+  .lm-card {
+    padding: 0 8px 2px;
+  }
+}
+
+/* Lowest and wide: an option of two lines has the width to be one. */
+@container lm-room (max-height: 140px) and (min-width: 521px) {
+  .lm-choice[data-tall] > .lm-choice__option {
+    block-size: 20px;
+  }
+}
+
+/* Narrow: a phone. */
+@container lm-room (max-width: 520px) {
+  .lm-card {
+    padding-inline: 6px;
+  }
+}
