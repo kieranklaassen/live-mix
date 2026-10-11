@@ -76,6 +76,14 @@ export interface RenderPatchOptions {
    * equal power would swell by 3 dB.
    */
   loopFold?: LoopFold
+  /**
+   * Take the latency the devices report out of the result: that much more is
+   * rendered and dropped from the start, so a stroke sounds where its note
+   * is written and not a tape's or a look-ahead's delay after it. For a
+   * sound that has to keep time with another. Off by default: a render is
+   * what the devices put out, late or not.
+   */
+  alignLatency?: boolean
   /** Linear fades at the two ends, in seconds (default 0 in, 0 out). */
   fadeInSec?: number
   fadeOutSec?: number
@@ -117,6 +125,8 @@ class Stage {
   constructor(
     readonly device: DeviceExports,
     readonly id: string,
+    /** What the device reports of its own delay, in frames at the render's rate. */
+    readonly latency: number,
   ) {
     const memory = device.memory.buffer
     // The module's memory is fixed and its buses are static, so these views
@@ -163,7 +173,9 @@ async function createStage(
   for (const [name, value] of Object.entries(patchDeviceParams(descriptor, device))) {
     exports.device_set_param(descriptor.params[name].id, value)
   }
-  return new Stage(exports, descriptor.id)
+  const { latencySamples, latencySec } = descriptor.definition
+  const latency = latencySamples ? latencySamples(sampleRate) : (latencySec ?? 0) * sampleRate
+  return new Stage(exports, descriptor.id, Math.max(0, Math.round(latency)))
 }
 
 interface NoteEvent {
@@ -255,7 +267,6 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   const frames = Math.round(options.durationSec * sampleRate)
   const skip = Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
   const crossfade = Math.max(0, Math.round((options.loopCrossfadeSec ?? 0) * sampleRate))
-  const total = skip + frames + crossfade
 
   // A bypassed instrument is a switched-off note device: silence, as it is live.
   const instrument =
@@ -271,6 +282,11 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   if (instrument && !instrument.device.device_note_on) {
     throw new Error(`live-mix: ${instrument.id} takes no notes`)
   }
+  // What the chain is late by: rendered on top of the rest and left out of what is kept.
+  const late = options.alignLatency
+    ? [instrument, ...effects].reduce((sum, stage) => sum + (stage?.latency ?? 0), 0)
+    : 0
+  const total = late + skip + frames + crossfade
   // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
   options.signal?.throwIfAborted()
 
@@ -329,7 +345,7 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   }
 
   const kept = [left, right].map((channel) => {
-    const body = channel.subarray(skip)
+    const body = channel.subarray(late + skip)
     return crossfade > 0
       ? foldLoop(body, frames, crossfade, options.loopFold)
       : body.slice(0, frames)

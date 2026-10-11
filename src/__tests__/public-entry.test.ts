@@ -307,6 +307,12 @@ const coreSymbols = [
   'isEditorDevice',
   'isMeteredDevice',
   'isParamTextDevice',
+  // Parameters a device moves itself, on the audio thread
+  'isModulatedDevice',
+  'modulatedParamValue',
+  'paramModReach',
+  'paramModSource',
+  'paramValueAtOffset',
   // Ableton Push 2 and 3
   'ABLETON_USB_VENDOR_ID',
   'PUSH_3_BUTTONS',
@@ -484,6 +490,11 @@ const dspSymbols = [
   'chordName',
   'generateSound',
   'renderGeneratedSound',
+  // The sounds that keep time at any tempo, and the instruments whose keys are drums (ambient-live's tempo and its keyboard)
+  'FACTORY_TEMPO_RANGE',
+  'soundAtTempo',
+  'KIT_INSTRUMENTS',
+  'isKitInstrument',
   'validatePatch',
   'patchDeviceParams',
   'patchDevices',

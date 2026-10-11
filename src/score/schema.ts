@@ -15,7 +15,7 @@
 // `Score` may rely on the full shape; `serializeScore` is its inverse and is
 // stable (same score → same string) so documents diff well in git.
 
-import { type Clip } from '../core/clips/Clip'
+import { type Clip, type ClipTurns } from '../core/clips/Clip'
 import { MIN_CLIP_LOWPASS_HZ } from '../core/clips/placement'
 import { canonicalJson, isJsonObject, type JsonObject } from '../core/json'
 import { type LfoShape } from '../core/automation/Modulator'
@@ -713,7 +713,40 @@ function checkClip(raw: unknown, path: string, ctx: Context, clipIds: UniqueIds)
   if (check.string(raw.sourceId, `${path}.sourceId`) && !ctx.ids.sources.has(raw.sourceId)) {
     check.fail(`${path}.sourceId`, `unknown source "${raw.sourceId}"`)
   }
+  checkTurnSources(raw, path, ctx)
   checkClipFields(raw, path, check)
+}
+
+/** Every source a turn names is one the score has, as the clip's own is. */
+function checkTurnSources(raw: Record<string, unknown>, path: string, ctx: Context): void {
+  if (!isRecord(raw.turns) || !Array.isArray(raw.turns.sourceIds)) return
+  raw.turns.sourceIds.forEach((id, index) => {
+    if (typeof id === 'string' && id.length > 0 && !ctx.ids.sources.has(id)) {
+      ctx.check.fail(`${path}.turns.sourceIds[${index}]`, `unknown source "${id}"`)
+    }
+  })
+}
+
+/** How many turns a clip may take: far more than a piece asks for, and few enough to read. */
+export const MAX_CLIP_TURNS = 64
+
+/** A clip's `turns`: one source or more, and a whole number of passes from 1 for each. */
+function checkTurns(raw: unknown, path: string, check: Checker): void {
+  if (!check.record(raw, path)) return
+  if (check.array(raw.sourceIds, `${path}.sourceIds`)) {
+    if (raw.sourceIds.length === 0) check.fail(`${path}.sourceIds`, 'expected one source or more')
+    if (raw.sourceIds.length > MAX_CLIP_TURNS) {
+      check.fail(`${path}.sourceIds`, `expected ${MAX_CLIP_TURNS} sources at most`)
+    }
+    raw.sourceIds.forEach((id, index) => check.string(id, `${path}.sourceIds[${index}]`))
+  }
+  if (
+    raw.every !== undefined &&
+    check.number(raw.every, `${path}.every`, { min: 1 }) &&
+    !Number.isInteger(raw.every)
+  ) {
+    check.fail(`${path}.every`, 'expected a whole number')
+  }
 }
 
 /**
@@ -738,6 +771,7 @@ function checkClipFields(
   if (raw.muted !== undefined) check.boolean(raw.muted, `${path}.muted`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
   if (raw.chance !== undefined) check.number(raw.chance, `${path}.chance`, { min: 0, max: 1 })
+  if (raw.turns !== undefined) checkTurns(raw.turns, `${path}.turns`, check)
   checkPlacement(raw, path, check)
   checkMeta(raw.meta, `${path}.meta`, check)
   if (raw.loopStartSec !== undefined)
@@ -833,6 +867,8 @@ function checkSlotClip(raw: unknown, path: string, ctx: Context): void {
   if (raw.loop !== undefined) check.boolean(raw.loop, `${path}.loop`)
   if (raw.reversed !== undefined) check.boolean(raw.reversed, `${path}.reversed`)
   if (raw.chance !== undefined) check.number(raw.chance, `${path}.chance`, { min: 0, max: 1 })
+  if (raw.turns !== undefined) checkTurns(raw.turns, `${path}.turns`, check)
+  checkTurnSources(raw, path, ctx)
   checkPlacement(raw, path, check)
   checkWarp(raw, path, check)
   if (raw.warp !== undefined && check.array(raw.warp, `${path}.warp`)) {
@@ -1292,11 +1328,18 @@ function normaliseDestination(destination: ScoreDestination): ScoreDestination {
   return destination.kind === 'group' ? { kind: 'group', id: destination.id } : { kind: 'master' }
 }
 
+/** A clip's turns in a fixed order, a copy of its own; `every` only when it is not 1 (absent and 1 mean the same; anything else is kept for the validator to read). */
+function normaliseTurns(turns: ClipTurns): ClipTurns {
+  const out: ClipTurns = { sourceIds: [...turns.sourceIds] }
+  if (turns.every !== undefined && turns.every !== 1) out.every = turns.every
+  return out
+}
+
 /**
  * Clip fields in a fixed order; `loop`, `muted` and `reversed` only when true
  * (absent and `false` mean the same), `chance` only below 1 (absent and 1
- * mean the same). The placement fields are kept as given: a `pan` of 0 still
- * says the clip is placed.
+ * mean the same), `turns` with its `every` only above 1. The placement
+ * fields are kept as given: a `pan` of 0 still says the clip is placed.
  */
 export function normaliseClip(clip: Clip): Clip {
   const out: Clip = {
@@ -1319,6 +1362,7 @@ export function normaliseClip(clip: Clip): Clip {
   if (clip.muted) out.muted = true
   if (clip.reversed) out.reversed = true
   if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
+  if (clip.turns !== undefined) out.turns = normaliseTurns(clip.turns)
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb
@@ -1349,7 +1393,7 @@ export function normaliseSource(source: ScoreSource): ScoreSource {
   return out
 }
 
-/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, `chance` only below 1, warp, semitones and placement only when set. */
+/** Slot clip fields in a fixed order; `loop` and `reversed` only when true, `chance` only below 1, warp, semitones, turns and placement only when set. */
 export function normaliseSlotClip(clip: SlotClip): SlotClip {
   const out: SlotClip = {
     sourceId: clip.sourceId,
@@ -1366,6 +1410,7 @@ export function normaliseSlotClip(clip: SlotClip): SlotClip {
   if (clip.semitones !== undefined) out.semitones = clip.semitones
   if (clip.reversed) out.reversed = true
   if (clip.chance !== undefined && clip.chance < 1) out.chance = clip.chance
+  if (clip.turns !== undefined) out.turns = normaliseTurns(clip.turns)
   if (clip.pan !== undefined) out.pan = clip.pan
   if (clip.lowpassHz !== undefined) out.lowpassHz = clip.lowpassHz
   if (clip.spaceDb !== undefined) out.spaceDb = clip.spaceDb

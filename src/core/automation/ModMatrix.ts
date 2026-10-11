@@ -8,11 +8,11 @@
 import { type Device } from '../devices/Device'
 import { Emitter } from '../events'
 import { type ModSource } from './Modulator'
+import { paramValueAtOffset, type ModPolarity, type ParamTravel } from './param-modulation'
 import { type ParamLane } from './ParamLane'
 import { DEFAULT_RAMP_SECONDS, ParamRamper, type ScheduledParam } from './scheduled-param'
 
-/** `unipolar` adds 0..depth of the range; `bipolar` swings ±depth around the base. */
-export type ModPolarity = 'unipolar' | 'bipolar'
+export { type ModPolarity }
 
 /** The slice of a clock a lane base is read on; `Transport` and `Cycle` satisfy it. */
 export interface ModTimebase {
@@ -24,6 +24,13 @@ export interface ModTarget {
   readonly max: number
   /** The value with no modulation: a number, or a lane read at the timeline playhead. */
   base: number | ParamLane
+  /**
+   * How the parameter travels between `min` and `max`, when it is a knob's:
+   * the routes then move it along that travel (a log taper in octaves, a
+   * stepped parameter onto its steps) instead of straight across the range.
+   * A device parameter has one; a bare AudioParam does not.
+   */
+  travel?: ParamTravel
   /**
    * The clock a lane base is read on, read on every control-rate pass: a
    * track's own loop (`AudioTrack.timebase`), so a modulated lane on that
@@ -79,6 +86,7 @@ export function deviceParamTarget(
     min: spec.min,
     max: spec.max,
     base: options.base ?? device.getParam(name),
+    travel: spec,
     apply(value) {
       if (value === last) return
       last = value
@@ -205,6 +213,7 @@ export class ModMatrix {
     for (const route of this.routeList) {
       if (route.target === target) offset += routeOffset(route, contextTimeSec)
     }
+    if (target.travel) return paramValueAtOffset(target.travel, base, offset)
     return Math.min(target.max, Math.max(target.min, base + offset * span))
   }
 

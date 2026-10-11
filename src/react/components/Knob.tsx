@@ -3,12 +3,18 @@
 // Moved from ambient-live's `knob.tsx` (U25) with the `al-*` classes replaced
 // by `--lm-*` tokens. Controlled or uncontrolled through `useParamControl`.
 
-import { type CSSProperties } from 'react'
+import { useEffect, useRef, type CSSProperties } from 'react'
 
+import { paramModReach, type ParamModulation } from '../../core/automation/param-modulation'
+import { isModulatedDevice, type Device } from '../../core/devices/Device'
+import { frameIntervalMs, subscribeFrames } from '../frame'
+import { useFrameScheduler } from '../hooks/useEngine'
 import {
+  clamp01,
   formatControlValue,
   knobArcPath,
   hasTwoPlaces,
+  normalizeValue,
   normToKnobAngle,
   type ControlTaper,
   type ControlUnit,
@@ -24,6 +30,30 @@ import { useParamControl, type ControlAxis } from './useParamControl'
  * with a line, a solid cap with a dot, a skirted cap, and a pointer.
  */
 export type KnobCap = 'arc' | 'disc' | 'dot' | 'skirt' | 'pointer'
+
+/**
+ * Something that moves the knob's parameter on its own (an LFO): the knob
+ * stays where it is set and shows how far the value swings and where it is.
+ */
+export interface KnobModulation {
+  /** How far the value goes below and above where the knob is set, as fractions of its travel. */
+  reach: { below: number; above: number }
+  /** The parameter's value now. Read on every frame, never in a render. */
+  valueNow(): number
+}
+
+/**
+ * A knob's `modulation` for one parameter of a device that moves its own:
+ * undefined when nothing moves it, so it can be handed to the knob as it is.
+ */
+export function knobModulation(
+  device: Device,
+  name: string,
+  modulation: ParamModulation | undefined,
+): KnobModulation | undefined {
+  if (!modulation || !isModulatedDevice(device)) return undefined
+  return { reach: paramModReach(modulation), valueNow: () => device.paramAt(name) }
+}
 
 export interface KnobProps {
   label: string
@@ -67,6 +97,12 @@ export interface KnobProps {
   hideValue?: boolean
   /** Default `arc`. */
   cap?: KnobCap
+  /**
+   * What moves the value on its own. The knob draws a dot at its foot, a faint
+   * arc for the swing and a strong one from where it is set to where the
+   * value is, moved on frames without a render.
+   */
+  modulation?: KnobModulation
   /**
    * What the knob does, for the info view (`InfoView`): a sentence or two.
    * How it is worked is said after it, so leave that out.
@@ -157,6 +193,94 @@ function KnobCapShape({
   )
 }
 
+/** On a device plate the plate's own accent; the theme's elsewhere. */
+const MOD_INK = `var(--lm-plate-accent, ${tokenRef('accent', '#E63946')})`
+
+/** How much of that ink the standing arc of the swing takes: faint beside the moving one, and still read on a plate whose accent is dark. */
+const MOD_SWING_OPACITY = 0.45
+
+/** Frames a second the moving arc is drawn at. */
+const MOD_FPS = 60
+
+/**
+ * The marks of a parameter that moves on its own, outside the cap and inside
+ * the knob's square: a dot in the gap at the foot, the swing, and the arc
+ * from the set value to the value now. Only the last is drawn on frames, by
+ * writing the path itself: nothing renders while it moves.
+ */
+function KnobModulationMarks({
+  modulation,
+  size,
+  normalized,
+  toNorm,
+}: {
+  modulation: KnobModulation
+  size: number
+  normalized: number
+  toNorm: (value: number) => number
+}) {
+  const frames = useFrameScheduler()
+  const arc = useRef<SVGPathElement>(null)
+  const latest = useRef({ modulation, normalized, toNorm })
+  latest.current = { modulation, normalized, toNorm }
+  const c = size / 2
+  const radius = size * 0.455
+  const width = Math.max(1.5, size / 20)
+
+  useEffect(() => {
+    let drawn = ''
+    const draw = (): void => {
+      const path = arc.current
+      if (!path) return
+      const { modulation: moved, normalized: from, toNorm: norm } = latest.current
+      const to = norm(moved.valueNow())
+      const next =
+        Math.abs(to - from) < 0.002
+          ? ''
+          : knobArcPath(c, c, radius, Math.min(from, to), Math.max(from, to))
+      if (next === drawn) return
+      drawn = next
+      path.setAttribute('d', next)
+    }
+    draw()
+    return subscribeFrames(frames, frameIntervalMs(MOD_FPS), draw)
+  }, [frames, c, radius])
+
+  const low = clamp01(normalized - modulation.reach.below)
+  const high = clamp01(normalized + modulation.reach.above)
+  // The dot sits on the ring's foot, and whole inside the knob's own box at any size.
+  const dot = Math.max(1.25, size / 24)
+  return (
+    <g className="lm-knob__modulation">
+      {high - low < 0.002 ? null : (
+        <path
+          d={knobArcPath(c, c, radius, low, high)}
+          fill="none"
+          stroke={MOD_INK}
+          strokeOpacity={MOD_SWING_OPACITY}
+          strokeWidth={width}
+          strokeLinecap="butt"
+        />
+      )}
+      <path
+        ref={arc}
+        className="lm-knob__modulation-now"
+        fill="none"
+        stroke={MOD_INK}
+        strokeWidth={width}
+        strokeLinecap="butt"
+      />
+      <circle
+        className="lm-knob__modulation-dot"
+        cx={c}
+        cy={Math.min(c + radius, size - dot)}
+        r={dot}
+        fill={MOD_INK}
+      />
+    </g>
+  )
+}
+
 export function Knob({
   label,
   value,
@@ -181,6 +305,7 @@ export function Knob({
   hideLabel = false,
   hideValue = false,
   cap = 'arc',
+  modulation,
   info,
   onChange,
   onChangeStart,
@@ -249,6 +374,7 @@ export function Knob({
         disabled && 'lm-knob--disabled',
         interacting && 'lm-knob--active',
         cap !== 'arc' && 'lm-knob--cap',
+        modulation && 'lm-knob--modulated',
         className,
       )}
       style={style}
@@ -316,6 +442,14 @@ export function Knob({
               />
             </>
           )}
+          {modulation ? (
+            <KnobModulationMarks
+              modulation={modulation}
+              size={size}
+              normalized={normalized}
+              toNorm={(shown) => normalizeValue(shown, min, max, taper, skew)}
+            />
+          ) : null}
         </svg>
       </button>
       {hideValue ? null : <span className="lm-knob__value">{valueText}</span>}

@@ -70,6 +70,9 @@ const PITCHED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'class' | 
   sympathetic: { root: 'class' },
   thesis: { root: 'class', center: 'note' },
   lattice: { root: 'class', center: 'note' },
+  // A kit's keys are drums, so its notes never move (./kits.ts): its tuning does.
+  'drum-kit': { tune: 'note' },
+  'glitch-kit': { tune: 'note' },
 }
 
 function transposeDevice(device: PatchDevice, semitones: number): PatchDevice {

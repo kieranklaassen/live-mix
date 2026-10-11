@@ -1,0 +1,223 @@
+{
+  "id": "feedback",
+  "name": "Feedback",
+  "category": "instrument",
+  "description": "A string held in the air by its own amplifier: each note is plucked, then caught by feedback and made to sing on an overtone, and held notes fight for the amplifier.",
+  "class": "Feedback",
+  "header": "feedback.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "gain",
+      "name": "Gain",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How much of the string comes back from the amplifier. Low is a plucked string that dies, past the middle the note holds, and at the top it howls."
+    },
+    {
+      "key": "distance",
+      "name": "Distance",
+      "min": 1,
+      "max": 8,
+      "default": 2,
+      "description": "Which overtone the feedback favours, from the note itself up to its eighth harmonic, fewer on high notes. Between two, one wins unless Wander lets them take turns."
+    },
+    {
+      "key": "bloom",
+      "name": "Bloom",
+      "min": 0.02,
+      "max": 8,
+      "default": 0.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the feedback takes to open after a key is pressed. Short catches the pluck at once and long lets the note fade before it rises again."
+    },
+    {
+      "key": "grit",
+      "name": "Grit",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "How hard the amplifier is driven inside the loop. Low is a pure singing overtone and high tears it into a buzzing, reedy tone."
+    },
+    {
+      "key": "pick",
+      "name": "Pick",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Strength of the pluck that starts each note. At zero there is no pluck and the note swells out of the hum of the amplifier."
+    },
+    {
+      "key": "crowd",
+      "name": "Crowd",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much held notes share one amplifier. Low lets every note sing alone, the middle puts one in front with the others under it, and the very top gives it all to one note."
+    },
+    {
+      "key": "wander",
+      "name": "Wander",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Slow drift of the favoured overtone and of each note's hold on the amplifier, so harmonics and notes take over from one another."
+    },
+    {
+      "key": "damp",
+      "name": "Damp",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How soon the upper overtones of the string die. Low is bright and wiry and high is dark and round, with a softer pluck."
+    },
+    {
+      "key": "release",
+      "name": "Release",
+      "min": 0.05,
+      "max": 12,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a note takes to sink away after the key is released, as the feedback lets go of the string."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "Stereo spread of the strings, from one point in the middle to notes placed left and right with a little air between the sides."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many notes stack up."
+    }
+  ],
+  "presets": {
+    "Singing string": {},
+    "Plucked and gone": {
+      "gain": 0.3,
+      "pick": 0.85,
+      "damp": 0.3,
+      "release": 0.6
+    },
+    "Slow bloom": {
+      "gain": 0.8,
+      "bloom": 5,
+      "pick": 0.25,
+      "release": 3
+    },
+    "Out of the hum": {
+      "gain": 0.85,
+      "distance": 1,
+      "bloom": 1.2,
+      "grit": 0.2,
+      "pick": 0,
+      "release": 2.5
+    },
+    "Howl": {
+      "gain": 1,
+      "distance": 3,
+      "bloom": 0.15,
+      "grit": 0.85,
+      "damp": 0.2
+    },
+    "Torn edge": {
+      "gain": 0.8,
+      "distance": 1,
+      "grit": 1,
+      "pick": 0.7,
+      "damp": 0.25
+    },
+    "Pure twelfth": {
+      "distance": 3,
+      "bloom": 1,
+      "grit": 0,
+      "pick": 0.3,
+      "wander": 0
+    },
+    "High whistle": {
+      "distance": 6,
+      "bloom": 1.5,
+      "grit": 0,
+      "pick": 0.2,
+      "wander": 0.1,
+      "damp": 0.1
+    },
+    "Fighting chord": {
+      "gain": 0.9,
+      "bloom": 0.3,
+      "grit": 0.65,
+      "crowd": 0.85,
+      "damp": 0.25
+    },
+    "Drifting air": {
+      "distance": 3.5,
+      "bloom": 2,
+      "grit": 0.15,
+      "pick": 0.15,
+      "crowd": 0.6,
+      "wander": 1,
+      "release": 4
+    },
+    "Dark sustain": {
+      "gain": 0.75,
+      "distance": 1,
+      "grit": 0.1,
+      "pick": 0.6,
+      "wander": 0,
+      "damp": 0.9
+    },
+    "Glass bow": {
+      "gain": 0.8,
+      "distance": 4,
+      "bloom": 2.5,
+      "grit": 0,
+      "pick": 0,
+      "wander": 0.1,
+      "damp": 0.15,
+      "release": 3
+    },
+    "Edge of hold": {
+      "gain": 0.53,
+      "distance": 1,
+      "bloom": 0.1,
+      "grit": 0.2,
+      "pick": 0.7
+    },
+    "Open amp": {
+      "gain": 0.8,
+      "grit": 0.55,
+      "crowd": 0,
+      "width": 1,
+      "volume": -14
+    },
+    "Long sink": {
+      "gain": 0.75,
+      "bloom": 1,
+      "grit": 0.25,
+      "release": 9
+    },
+    "Reed tone": {
+      "distance": 1,
+      "bloom": 0.08,
+      "grit": 0.7,
+      "pick": 0.15,
+      "crowd": 0.3,
+      "wander": 0,
+      "release": 0.3
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each key is a string waveguide whose output is read through a zero-phase band on one overtone, a gain and a soft saturator and added back to the string; a limiter on each loop, which also reads the other held notes, sets its level. The amplifier, speaker and air are reduced to that band, gain and limiter, and it is not a model of any one instrument or product."
+  }
+}

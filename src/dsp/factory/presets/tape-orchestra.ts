@@ -414,4 +414,31 @@ export const TAPE_ORCHESTRA_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'hall-reverb', preset: 'Room', params: { mix: 0.2 } },
     ],
   },
+  {
+    id: 'tape-flute-bass',
+    name: 'Tape flute bass',
+    category: 'bass',
+    description:
+      'Low flutes played from tape: a soft bass that is mostly fundamental, with a breath of hiss, in a small dark room.',
+    instrument: {
+      deviceId: 'tape-orchestra',
+      params: {
+        tape: 2,
+        age: 0.1,
+        hiss: 0.15,
+        tone: -0.2,
+        speed: 0,
+        attack: 0.05,
+        release: 0.5,
+        players: 0,
+        vibrato: 0.2,
+        spread: 0,
+        volume: -9,
+      },
+    },
+    effects: [
+      { deviceId: 'expanse', preset: 'Small dark room', params: { lowCut: 250, mix: 0.2 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, ride: 0 } },
+    ],
+  },
 ]
