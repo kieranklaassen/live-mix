@@ -694,3 +694,16 @@ describe("Lift's display against the compiled device", () => {
     expect(run.out - -45).toBeGreaterThan(1)
   }, 60000)
 })
+
+describe("the face of Lift's plate", () => {
+  it('stands Threshold over Amount, not beside it, so the two long names do not run together', () => {
+    // Flat, the face fills two columns row by row, 48 apart; a name is drawn 5.6 a letter.
+    const face = PLATE_FACES.lift.face
+    expect(face).toEqual(['threshold', 'rise', 'amount', 'split'])
+    const between = (a: string, b: string): number => 48 - ((a.length + b.length) * 5.6) / 2
+    for (const row of [face.slice(0, 2), face.slice(2, 4)])
+      expect(between(row[0], row[1])).toBeGreaterThan(10)
+    // Side by side they stood a letter apart.
+    expect(between('threshold', 'amount')).toBeLessThan(6.5)
+  })
+})

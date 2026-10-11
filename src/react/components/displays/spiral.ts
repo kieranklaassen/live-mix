@@ -224,6 +224,37 @@ export function spiralStreaks(layout: SpiralLayout, settings: SpiralSettings): S
   return streaks
 }
 
+/**
+ * Where the glide carries each voice from now to the right edge, tail or no
+ * tail: the pitch a sound played at that moment would get from it, drawn
+ * wherever the bell lets the voice sound (over 60 dB down, as a streak is).
+ * A path ends where its voice leaves the bell or wraps, and a new one begins
+ * where it comes back in. Decay and Mix have no say in it.
+ */
+export function spiralPaths(layout: SpiralLayout, settings: SpiralSettings): Point[][] {
+  const { stair } = layout
+  const paths: Point[][] = []
+  for (let v = 0; v < SPIRAL_STACK; v++) {
+    let path: Point[] | null = null
+    let before = 0
+    for (let x = 0; x <= stair.w; x += 2) {
+      const clock = spiralClock(settings.glide, settings.climb, (x / stair.w) * SPIRAL_SPAN)
+      const voice = spiralVoices(clock, settings.voices, settings.spread)[v]
+      if (!(spiralThickness(voice.level) > 0)) {
+        path = null
+        continue
+      }
+      if (!path || Math.abs(voice.octaves - before) > SPIRAL_STACK / 2) {
+        path = []
+        paths.push(path)
+      }
+      before = voice.octaves
+      path.push([stair.x + x, spiralY(layout, voice.octaves)])
+    }
+  }
+  return paths
+}
+
 // --- The handles ------------------------------------------------------------
 
 /** Octaves the Climb point rises for each octave a minute: it stands 12 seconds along its line. */
@@ -290,7 +321,7 @@ const spiral = plateDisplay({
   columns: 2,
   params: ['climb', 'decay', 'voices', 'spread', 'mix'],
   live: { meters: true, signal: true },
-  info: 'Pitch runs upward and time to the right. Each streak is one voice of the tail gliding at Climb, as thick as it is loud, under the bell of level drawn at the left; the dots are the voices now. Drag the point on the dashed line for Climb, which catches at its centre, and the one at the foot for Decay.',
+  info: 'Pitch runs upward and time to the right. Each streak is one voice of the tail gliding at Climb, as thick as it is loud, under the bell of level drawn at the left; the fine line it lies on is where the glide carries that voice on, and the dots are the voices now. Drag the point on the dashed line for Climb, which catches at its centre, and the one at the foot for Decay.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)
@@ -339,6 +370,11 @@ const spiral = plateDisplay({
     )
     trace(ctx, curve, { colour: colours.ink, width: 1.2 })
     rule(ctx, bell.x, bell.y, bell.x, bell.y + bell.h, { colour: colours.ink, alpha: INK.rule })
+
+    // The stairs themselves: where the glide carries each voice, whether or not a tail is on it.
+    for (const path of spiralPaths(layout, settings)) {
+      if (path.length > 1) trace(ctx, path, { colour: colours.ink, width: 1, alpha: INK.back })
+    }
 
     // The staircase: what a sound played now will be, as far as Mix lets it be heard.
     for (const streak of spiralStreaks(layout, settings)) {

@@ -447,6 +447,8 @@ const liftDisplay = plateDisplay<LiftState>({
 export const LIFT_FACES: Readonly<Record<string, PlateFace>> = {
   lift: {
     display: liftDisplay,
-    face: ['threshold', 'amount', 'rise', 'split'],
+    // Threshold's long name over Amount's, not beside it: flat, the two columns
+    // are 48 apart and the two words together are wider than that.
+    face: ['threshold', 'rise', 'amount', 'split'],
   },
 }

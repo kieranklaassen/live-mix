@@ -12,6 +12,8 @@ import {
   VESSEL_BODIES,
   VESSEL_FACES,
   VESSEL_FOOT_DB,
+  VESSEL_OVER_HALF,
+  VESSEL_OVER_HIGH,
   VESSEL_TOP_DB,
   ringText,
   vesselBodyDb,
@@ -23,6 +25,7 @@ import {
   vesselModeShape,
   vesselModel,
   vesselOutDb,
+  vesselOver,
   vesselRingSeconds,
   vesselRingX,
   vesselStartGain,
@@ -127,6 +130,23 @@ function stemsOf(drawn: RecordingContext): [number, number, number][] {
         path.points[0][0] === path.points[1][0],
     )
     .map((path) => [path.points[0][0], path.points[0][1], path.points[1][1]])
+}
+
+/** The arrowheads at the top of the box: filled triangles in the ink with their point on `top`, as [x of the point, half width, height]. */
+function headsOf(drawn: RecordingContext, top: number): [number, number, number][] {
+  return pathsOf(drawn)
+    .filter(
+      (path) =>
+        path.how === 'fill' &&
+        path.colour === PLAIN_COLOURS.ink &&
+        path.points.length === 3 &&
+        path.points[1][1] === top,
+    )
+    .map((path) => [
+      path.points[1][0],
+      (path.points[2][0] - path.points[0][0]) / 2,
+      path.points[0][1] - top,
+    ])
 }
 
 const yOf = (db: number, size = FLAT, body = DEFAULTS.body): number => {
@@ -640,6 +660,59 @@ describe('what Vessel draws', () => {
           expect(y).toBeCloseTo(yOf(vesselBodyDb(model, hz), size, setting.body), 4)
         }
       } else expect(alone).toBeUndefined()
+    }
+  })
+
+  it('marks each peak the top of the box cuts with an arrowhead there, and no other', () => {
+    // The far corner: the smallest shell, ringing its longest, closed, all wet, before any sound.
+    const corner = { body: 3, size: 0.25, material: 1, opening: 0, mix: 1 }
+    const quiet = { modes1: 0, modes2: 0, modes3: 0, modes4: 0, hold: 0, match: 0 }
+    for (const size of SHAPES) {
+      const model = vesselModel(settingOf(corner), RATE)
+      const { curve } = vesselLayout(size, corner.body)
+      const over = vesselOver(model)
+      expect(over.length).toBeGreaterThan(1)
+      for (const peak of model.peaks) {
+        const cut = vesselOutDb(model, peak.hz) > VESSEL_TOP_DB && peak.hz < 20000
+        expect(over.includes(peak), `${peak.hz} Hz`).toBe(cut && peak.strength > 0)
+      }
+      const drawn = drawDisplay(display, params, { values: corner, ...size })
+      const heads = headsOf(drawn, curve.y)
+      expect(heads.length).toBe(over.length)
+      over.forEach((peak, n) => {
+        expect(heads[n][0]).toBeCloseTo(xOfHz(peak.hz, curve), 6)
+        expect(heads[n][1]).toBeCloseTo(VESSEL_OVER_HALF, 6)
+        expect(heads[n][2]).toBeCloseTo(VESSEL_OVER_HIGH, 6)
+        // The curve under the arrowhead is at the top of the box: it is the cut that is marked.
+        const at = curvesOf(drawn).out.find(([x]) => Math.abs(x - heads[n][0]) < 1e-6)
+        expect(at?.[1]).toBe(curve.y)
+      })
+      // Ridden 15 dB down by the level hold the body is at its own gain less 15 dB: marked are the peaks still over.
+      const ridden = Math.pow(10, -15 / 20)
+      const still = vesselOver(model, ridden)
+      expect(still.length).toBeLessThan(over.length)
+      const held = runDisplay(display, params, 4, {
+        values: corner,
+        meters: { ...quiet, hold: -15 },
+        signal: testSignal(),
+        ...size,
+      })
+      expect(headsOf(held, curve.y).map(([x]) => x)).toEqual(
+        still.map((peak) => xOfHz(peak.hz, curve)),
+      )
+    }
+    // At every other setting too the marks are the peaks over the top, and where every peak is
+    // inside the box (the defaults, a large dead drum) there is none.
+    for (const [name, values] of settings) {
+      const setting = settingOf(values)
+      const over = vesselOver(vesselModel(setting, RATE))
+      if (name !== 'a small ringing shell') expect(over).toEqual([])
+      for (const size of SHAPES) {
+        const { curve } = vesselLayout(size, setting.body)
+        expect(
+          headsOf(drawDisplay(display, params, { values, ...size }), curve.y).map(([x]) => x),
+        ).toEqual(over.map((peak) => xOfHz(peak.hz, curve)))
+      }
     }
   })
 

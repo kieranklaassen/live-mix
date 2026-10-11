@@ -405,6 +405,24 @@ export function vesselBodyDb(model: VesselModel, hz: number): number {
 /** The curve runs from this at the top to this at the foot, in dB against the input. */
 export const VESSEL_TOP_DB = 36
 export const VESSEL_FOOT_DB = -30
+/** A peak the top of the box cuts wears an arrowhead there, this high and this wide each side. */
+export const VESSEL_OVER_HIGH = 4
+export const VESSEL_OVER_HALF = 2.5
+
+/**
+ * The resonances in the picture whose peak stands over the top of the box as the
+ * body is ridden (a small, closed, ringing body, all wet, before any sound has
+ * taught the level match): the curve is cut there, and each wears an arrowhead.
+ */
+export function vesselOver(model: VesselModel, riding = model.start): VesselPeak[] {
+  return model.peaks.filter(
+    (peak) =>
+      peak.strength > 0 &&
+      peak.hz > 20 &&
+      peak.hz < 20000 &&
+      vesselOutDb(model, peak.hz, riding) > VESSEL_TOP_DB,
+  )
+}
 /** The spectrum behind it runs from full scale at the top down to this. */
 const SPECTRUM_FOOT_DB = -84
 /** The ring's scale is marked at these times, and its wedge is this high at its start, each side of the line. */
@@ -867,6 +885,18 @@ const vessel = plateDisplay<VesselState>({
         rule(ctx, x, foot, x, foot + (top - foot) * rings, { colour: colours.accent, width: 1.5 })
       })
     })
+    // A peak that stands over the top of the box is cut there: an arrowhead says it goes on.
+    for (const peak of vesselOver(model, gain)) {
+      const x = xOfHz(peak.hz, curve)
+      ctx.beginPath()
+      ctx.moveTo(x - VESSEL_OVER_HALF, curve.y + VESSEL_OVER_HIGH)
+      ctx.lineTo(x, curve.y)
+      ctx.lineTo(x + VESSEL_OVER_HALF, curve.y + VESSEL_OVER_HIGH)
+      ctx.closePath()
+      ctx.globalAlpha = 1
+      ctx.fillStyle = colours.ink
+      ctx.fill()
+    }
     // The frequencies, along the top of the curve: the foot is the Size handle's.
     for (const [words, hz] of [
       ['100', 100],
