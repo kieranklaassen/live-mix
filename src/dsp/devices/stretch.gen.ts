@@ -94,7 +94,7 @@ export const STRETCH_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How differently the left and right sides are scattered. At zero a centred sound stays centred; turned up the cloud spreads wide.',
+      'How far the cloud spreads to the sides. At zero it keeps the stereo image that was played; turned up its partials lean left and right and still hold in mono.',
   },
   memory: {
     id: 8,
