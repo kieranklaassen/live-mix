@@ -1161,6 +1161,75 @@ static void check_rates() {
         label);
 }
 
+// What the second reading found.
+//
+// 1. The delay line was sized for 96 kHz. At 176.4 and 192 kHz a long
+//    Distance round a low Body puts the body's far taps past its end (40 ms
+//    and two half periods of 150 Hz are 8960 samples at 192 kHz, the line
+//    held 8192): they were held at the end, the body was no longer the band
+//    pass the loop's gain is worked out for, and the loop neither grew by
+//    the law nor sang on its note. Now the same laws hold there as at 48 kHz.
+// 2. Follow's memory of a new note fell for ever under a held note and stood
+//    in the denormals from 18 s on (3.4e-42 at the meter), for as long as
+//    the note was held: every sample then paid for arithmetic on it.
+static void check_second_reading() {
+  char label[260];
+  struct Case {
+    float rate, distance, body, gain;
+  };
+  const Case cases[] = {{48000.0f, 40.0f, 150.0f, 0.65f}, {192000.0f, 40.0f, 150.0f, 0.65f},
+                        {192000.0f, 40.0f, 125.0f, 0.65f}, {176400.0f, 40.0f, 125.0f, 0.65f}};
+  for (const Case& c : cases) {
+    still(device, c.rate);
+    device.set_param(p::kGain, 0.0f);
+    device.set_param(p::kDistance, c.distance);
+    device.set_param(p::kBody, c.body);
+    device.set_param(p::kHold, 30.0f);
+    rng_state() = 4242u;
+    run(device, noise(0.5f, c.rate, 0.5f));
+    run(device, silence(0.5f, c.rate));
+    device.set_param(p::kGain, c.gain);
+    run(device, noise(0.1f, c.rate, 0.004f));
+    Stereo tail = render(device, 3.0f, c.rate);
+    const double hz = std::round(c.body * c.distance / 1000.0) * 1000.0 / c.distance;
+    const double ceiling = db(0.5 / std::sqrt(3.0) * std::sqrt(2.0)) + level_db_of(c.gain);
+    double count = 0.0, st = 0.0, sv = 0.0, stt = 0.0, stv = 0.0;
+    for (int i = 0; i < 30; ++i) {
+      const double v = db(tone_level(tail.left, hz, c.rate, at(i * 0.1, c.rate), at(i * 0.1 + 0.1, c.rate)));
+      if (v > ceiling - 2.0 * (0.6 + i * 0.1) - 8.0 || v < ceiling - 80.0) continue;
+      const double t = i * 0.1;
+      count += 1.0, st += t, sv += v, stt += t * t, stv += t * v;
+    }
+    const double slope = count >= 4.0 ? (count * stv - st * sv) / (count * stt - st * st) : 1.0e9;
+    // Held on for 4 s more, the howl stands on the overtone.
+    Stereo on = render(device, 4.0f, c.rate);
+    const double sung = crossing_hz(on.left, c.rate, at(2.0, c.rate), at(4.0, c.rate));
+    std::snprintf(label, sizeof label,
+                  "%.0f Hz, Distance %.0f ms, Body %.0f Hz, Gain %.2f: the overtone at %.0f Hz goes at %+.2f dB a second (%+.2f by the law) and the howl stands %.2f cents from it",
+                  c.rate, c.distance, c.body, c.gain, hz, slope, rate_of(c.gain), cents(sung, hz));
+    CHECK(std::fabs(slope - rate_of(c.gain)) < 0.5 + 0.05 * std::fabs(rate_of(c.gain)) && std::fabs(cents(sung, hz)) < 2.0,
+          label);
+  }
+
+  // One held note, nothing new for 30 s: what Follow remembers of a new note is nothing at all.
+  device.init(kRate);
+  std::vector<float> held(static_cast<size_t>(30.0f * kRate));
+  for (size_t i = 0; i < held.size(); ++i) {
+    const double t = static_cast<double>(i) / kRate;
+    held[i] = 0.2f * static_cast<float>((std::sin(2.0 * kPi * 196.0 * t) + std::sin(2.0 * kPi * 392.0 * t) +
+                                         std::sin(2.0 * kPi * 588.0 * t)) *
+                                        (1.0 - std::exp(-t * 200.0)));
+  }
+  run(device, held);
+  std::snprintf(label, sizeof label, "a note held for 30 s: Follow's reading is %g (exactly nothing)", device.meter(6));
+  CHECK(device.meter(6) == 0.0f, label);
+  // And a new note after it is still met.
+  std::vector<float> louder = chord({196.0f, 392.0f, 588.0f}, 0.05f, 0.6f);
+  run(device, louder);
+  std::snprintf(label, sizeof label, "and a louder one after it is met at once: Follow's reading %.3f", device.meter(6));
+  CHECK(device.meter(6) > 0.2f, label);
+}
+
 // PRESETS-BEGIN: the sixteen presets of device.json, every parameter filled in.
 static const int kPresetCount = 16;
 static const char* const kPresetNames[16] = {
@@ -1266,6 +1335,7 @@ int main() {
   check_long();
   check_default();
   check_rates();
+  check_second_reading();
   check_presets();
 
   // The loop costs the same whatever it is set to: it is one path, run while

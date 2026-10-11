@@ -63,8 +63,11 @@
 // - Width sets the two bodies a half octave apart at most and a quarter of a
 //   cycle apart in their wander.
 //
-// Storage: two delay lines of 8192 samples (the longest Distance and two
-// periods of the lowest body centre at 96 kHz), 64 KB, in the default 4 MB.
+// Storage: two delay lines of 16384 samples, 128 KB, in the default 4 MB. The
+// farthest tap stands at the loop's length and two half periods of the body's
+// centre: 40 ms and 12.5 ms at the most, 10,080 samples at 192 kHz. (At 8192
+// the far taps of a long loop round a low body were held at the line's end
+// at 176.4 and 192 kHz, and the loop sang up to 34 cents off its note.)
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -183,7 +186,7 @@ class Howl : public kit::DeviceBase<howl::kNumParams> {
   }
 
  private:
-  static constexpr int kLineSize = 8192;
+  static constexpr int kLineSize = 16384;
   static constexpr int kTick = 32;  // control rate, a power of two
   // Under this ceiling the loop is cleared; it comes back at four times it.
   static constexpr float kDead = 3.0e-6f;
@@ -410,7 +413,9 @@ class Howl : public kit::DeviceBase<howl::kNumParams> {
         const float ratio = both / (slow_ + 1.0e-20f);
         const float onset =
             kit::clamp((ratio - kOnsetRatio * kOnsetRatio) * kOnsetSlope, 0.0f, 1.0f);
-        duck_ = onset + (duck_ - onset) * (onset > duck_ ? duck_attack_ : duck_release_);
+        // Flushed: under a held note with no new one it fell for ever, and
+        // stood in the denormals from 18 s on.
+        duck_ = flush_denormal(onset + (duck_ - onset) * (onset > duck_ ? duck_attack_ : duck_release_));
         const float ducked = std::exp(-kDuckNepers * follow_.next() * duck_);
         const float edge = edge_.next();
         const float air = seed_ * rng_.bipolar();
