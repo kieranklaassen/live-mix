@@ -63,6 +63,26 @@ function echoed(
  */
 const ECHO_GAINS = [1, 0.67, 0.42, 0.23, 0.09]
 
+/**
+ * How hard a soft stroke and a ghost of the snare are struck where the marks of a row are too
+ * hard for them. The kit plays a stroke at a quarter of its level and three quarters of that by
+ * its gain, so the soft mark is only 2 dB under a clap written as a stroke and the ghost mark 5,
+ * which is no ghost beside it. These peak 7 and 10 dB under that clap, and are duller.
+ */
+const SOFT_SNARE = 0.2
+const GHOST_SNARE = 0.05
+
+/** A row of the snare with its soft marks and its ghost marks struck as softly as above. */
+function hushed(base: Row): Row {
+  const [soft, ghost] = row(base.notes, 'o-').steps
+  return {
+    ...base,
+    steps: base.steps.map((gain) =>
+      gain === soft ? SOFT_SNARE : gain === ghost ? GHOST_SNARE : gain,
+    ),
+  }
+}
+
 export const CLUB_GROOVES: readonly FactorySound[] = [
   sound({
     id: 'club-four-floor-groove',
@@ -70,7 +90,7 @@ export const CLUB_GROOVES: readonly FactorySound[] = [
     name: 'Four floor groove',
     kind: 'beat',
     description:
-      'A firm house kick on every beat, a clap on two and four and an open hat on every offbeat that a ghost closed hat shuts on the beat.',
+      'A firm house kick on every beat, a clap on two and four and a short open hat on every offbeat, with a ghost closed hat on each beat.',
     instrument: kit({ kit: FIRM, tune: 0, punch: 0.6, snap: 0.5 }),
     effects: [],
     ...bars(2, [
@@ -127,7 +147,7 @@ export const CLUB_GROOVES: readonly FactorySound[] = [
     ...bars(2, [
       row(CLUB.kick, 'X... X... X... X...'),
       row(CLUB.clap, '.... x... .... x...', { lateSec: 0.015 }),
-      row(CLUB.snare, '...- .... ...- ....'),
+      hushed(row(CLUB.snare, '...- .... ...- ....')),
       // The last offbeat of the second bar is an open hat, which rings into the turn.
       row(CLUB.hat, '..x. ..x. ..x. ..x. ..x. ..x. ..x. ....'),
       row(CLUB.open, '.... .... .... .... .... .... .... ..x.'),
@@ -231,8 +251,9 @@ export const CLUB_GROOVES: readonly FactorySound[] = [
     ...bars(2, [
       row(CLUB.kick, 'X... X... X... X...'),
       row(CLUB.clap, '.... x... .... x...'),
-      // The second bar has two strokes more, into the turn.
-      row(CLUB.snare, '.... ...- .o.. .... .... ...- .o.. ..-o'),
+      // A ghost before the third beat and a soft stroke after it. The second bar has two strokes
+      // more, into the turn.
+      hushed(row(CLUB.snare, '.... ...- .o.. .... .... ...- .o.. ..-o')),
     ]),
   }),
   sound({
