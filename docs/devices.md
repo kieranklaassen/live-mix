@@ -98,7 +98,7 @@ hold 8 notes).
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B  | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B  | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
 | `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B  | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
-| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,552 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
+| `bowls`           | Bowls              | live-mix            | reverb     | 10     | 37,560 B  | 35.7 µs, 1.34 %       | 25.9 µs, 0.97 %            | 0                 | 4           |
 | `breath`          | Breath             | live-mix            | modulation | 11     | 24,103 B  | 6.2 µs, 0.23 %        | 6.4 µs, 0.24 %             | 0                 | 4           |
 | `canon`           | Canon              | live-mix            | delay      | 12     | 32,045 B  | 13.3 µs, 0.50 %       | 10.0 µs, 0.37 %            | 0                 | 32          |
 | `cascade`         | Cascade            | live-mix            | texture    | 12     | 29,332 B  | 23.3 µs, 0.87 %       | 28.6 µs, 1.07 %            | 0                 | 16          |
@@ -142,7 +142,7 @@ hold 8 notes).
 | `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B  | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
 | `haze`            | Haze               | live-mix            | reverb     | 9      | 43,419 B  | 105 µs, 3.9 %         | 59.7 µs, 2.24 %            | 0                 | 4           |
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
-| `howl`            | Howl               | live-mix            | drive      | 10     | 27,568 B  | 33.3 µs, 1.25 %       | 34.4 µs, 1.29 %            | 0                 | 4           |
+| `howl`            | Howl               | live-mix            | drive      | 10     | 27,611 B  | 33.3 µs, 1.25 %       | 34.4 µs, 1.29 %            | 0                 | 4           |
 | `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
 | `imprint`         | Imprint            | live-mix            | eq         | 8      | 28,073 B  | 15.4 µs, 0.58 %       | 22.1 µs, 0.83 %            | 2304              | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
@@ -214,7 +214,7 @@ hold 8 notes).
 | `tine-piano`      | Tine               | live-mix            | instrument | 11     | 17,742 B  | 76.9 µs, 2.88 %       | 44.9 µs, 1.68 %            | 0                 | 4           |
 | `tremolo`         | Tremolo            | live-mix            | modulation | 9      | 12,884 B  | 7.7 µs, 0.29 %        | 8.1 µs, 0.30 %             | 0                 | 4           |
 | `underwater`      | Underwater         | live-mix            | texture    | 10     | 25,841 B  | 32.0 µs, 1.20 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
-| `vessel`          | Vessel             | live-mix            | texture    | 9      | 26,906 B  | 13.9 µs, 0.52 %       | 20.3 µs, 0.76 %            | 0                 | 4           |
+| `vessel`          | Vessel             | live-mix            | texture    | 9      | 26,968 B  | 13.9 µs, 0.52 %       | 20.3 µs, 0.76 %            | 0                 | 4           |
 | `vintage-digital` | Vintage Digital    | live-mix            | texture    | 8      | 28,499 B  | 71.7 µs, 2.69 %       | 15.5 µs, 0.58 %            | 129               | 4           |
 | `vinyl`           | Vinyl              | live-mix            | texture    | 10     | 37,003 B  | 38.0 µs, 1.43 %       | 26.6 µs, 1.00 %            | 0                 | 8           |
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |

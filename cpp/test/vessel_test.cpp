@@ -193,6 +193,7 @@ static void check_mono_sum();
 static void check_thrown_size();
 static void check_full_scale();
 static void check_held_start();
+static void check_second_reading();
 
 int main() {
   livemix::kit::SineTable::init();
@@ -224,6 +225,7 @@ int main() {
   check_thrown_size();
   check_full_scale();
   check_held_start();
+  check_second_reading();
 
   device.init(kRate);
   rng_state() = 0xBEEFu;
@@ -1796,4 +1798,54 @@ static void check_held_start() {
                 "its thirteen notes one at a time: the first quarter second %+.1f dB at most, a later one %+.1f dB",
                 note_first, note_settled);
   SHOW(note_first < 2.7 && note_settled < 2.7, label);
+}
+
+// The second reading. Samples too small to be heard (of denormal size, 1e-39:
+// what is left of a tail that something before has multiplied down) went
+// through the dry path and into the sixteen resonances, which then worked on
+// denormals at thirty times the cost of a sound. Under 1e-15 the input is
+// nought now, in the body and in the dry path.
+static void check_second_reading() {
+  char label[200];
+  const auto faint = [](float seconds, float size) {
+    std::vector<float> x(static_cast<size_t>(seconds * kRate));
+    for (size_t i = 0; i < x.size(); ++i) x[i] = (i & 1) ? size : -0.03f * size;
+    return x;
+  };
+  const auto negated = [](std::vector<float> x) {
+    for (float& v : x) v = -v;
+    return x;
+  };
+  const auto largest = [](const Stereo& s, size_t from = 0) { return std::max(peak(s.left, from), peak(s.right, from)); };
+
+  for (float mix : {0.7f, 1.0f}) {
+    device.init(kRate);
+    device.set_param(p::kMix, mix);
+    const std::vector<float> in = faint(2.0f, 1.0e-39f);
+    const double out = largest(run(device, in, negated(in)));
+    std::snprintf(label, sizeof label, "Mix %.1f, from rest: 2 s of samples of 1e-39 come out as nought (largest %.3g)",
+                  static_cast<double>(mix), out);
+    SHOW(out == 0.0, label);
+  }
+  {
+    // After a sound: the body rings out as it does into silence, and then nothing comes out.
+    device.init(kRate);
+    run(device, phrase(1.5f, kRate, 0.3f));
+    const std::vector<float> in = faint(12.0f, 1.0e-39f);
+    const Stereo out = run(device, in, negated(in));
+    const double end = largest(out, 10 * 48000);
+    std::snprintf(label, sizeof label, "after a phrase: with 1e-39 going in, the last 2 s of 12 are nought (largest %.3g)", end);
+    SHOW(end == 0.0, label);
+  }
+  {
+    // The edge: just under 1e-15 is nought, 1e-14 is a sound and passes.
+    device.init(kRate);
+    const std::vector<float> under = faint(0.5f, 0.99e-15f);
+    const double nought = largest(run(device, under, negated(under)));
+    device.init(kRate);
+    const std::vector<float> over = faint(0.5f, 1.0e-14f);
+    const double passed = largest(run(device, over, over));
+    std::snprintf(label, sizeof label, "0.99e-15 going in comes out as nought (%.3g), 1e-14 as a sound (%.3g)", nought, passed);
+    SHOW(nought == 0.0 && passed > 1.0e-15, label);
+  }
 }

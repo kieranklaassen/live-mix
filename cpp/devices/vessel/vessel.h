@@ -476,7 +476,13 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
   };
   static constexpr float kPinkScale = 0.3355f;
 
-  static float sane(float x) { return (x > -64.0f && x < 64.0f) ? x : 0.0f; }
+  // Nought too for what is too small to be heard (under 1e-15, -300 dB):
+  // input of denormal size kept the resonances working on denormals, at
+  // thirty times the cost of a sound.
+  static float sane(float x) {
+    const float size = x < 0.0f ? -x : x;
+    return (size >= 1.0e-15f && size < 64.0f) ? x : 0.0f;
+  }
   // Exactly linear up to ±2, landing on ±4.
   static float limit(float x) { return 4.0f * kit::soft_clip(0.25f * x); }
 
