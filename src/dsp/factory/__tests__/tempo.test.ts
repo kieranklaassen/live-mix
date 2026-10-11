@@ -331,9 +331,10 @@ describe('a sound that keeps time and ends', () => {
     expect(paramsOf(patch.effects[0]).lfoRateHz).toBeCloseTo(0.2, 9)
     const fill = soundAtTempo(FILL, 150)
     expect(fill.durationSec).toBeCloseTo(1.6, 9)
-    expect(fill.phrase.notes.map((note) => note.atSec / (60 / 150))).toEqual(
-      FILL.phrase.notes.map((note) => expect.closeTo(note.atSec / 0.5, 9)),
-    )
+    fill.phrase.notes.forEach((note, index) => {
+      expect(note.atSec / (60 / 150)).toBeCloseTo(FILL.phrase.notes[index].atSec / 0.5, 9)
+    })
+    expect(fill.phrase.notes).toHaveLength(FILL.phrase.notes.length)
   })
 
   it('is never played faster or slower in a variant, which would take it off its beats', () => {
