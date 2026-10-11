@@ -90,7 +90,7 @@ export const HAZE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB and the fading tail leans flat.',
+      'Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB.',
   },
   width: {
     id: 8,

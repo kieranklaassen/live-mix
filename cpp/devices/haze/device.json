@@ -83,7 +83,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB and the fading tail leans flat."
+      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB."
     },
     {
       "key": "width",

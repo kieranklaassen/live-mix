@@ -892,10 +892,10 @@ static float value_of(const Preset& preset, int id) {
 static const Preset kPresets[] = {
     {"Quiet end up", {-22.0f, 0.7f, -54.0f, 0.6f, 0.1f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
     {"Just the ends", {-31.5f, 1.0f, -54.0f, 0.15f, 0.1f, 1.0f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
-    {"Long tails", {-23.0f, 1.0f, -60.0f, 0.3f, 0.05f, 0.2f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
+    {"Long tails", {-19.5f, 1.0f, -60.0f, 1.2f, 0.9f, 0.2f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
     {"Slow tide", {-14.0f, 0.9f, -54.0f, 6.0f, 3.0f, 0.5f, 0.0f, 0.0f, 18.0f, 0.0f, 1.0f}},
-    {"Air on top", {-21.0f, 1.0f, -54.0f, 0.4f, 0.1f, 1.0f, 1.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
-    {"Warm floor", {-22.0f, 0.9f, -54.0f, 0.5f, 0.1f, 1.0f, -1.0f, 0.0f, 10.0f, 0.0f, 1.0f}},
+    {"Air on top", {-20.5f, 1.0f, -54.0f, 0.15f, 0.1f, 1.0f, 1.0f, 0.0f, 14.0f, 0.0f, 1.0f}},
+    {"Warm floor", {-16.0f, 0.9f, -54.0f, 0.5f, 0.1f, 1.0f, -1.0f, 0.0f, 2.0f, 0.0f, 1.0f}},
     {"Opens outward", {-18.0f, 1.0f, -54.0f, 0.4f, 0.1f, 0.3f, 0.0f, 1.0f, 18.0f, 0.0f, 1.0f}},
     {"Half open", {-18.0f, 1.0f, -54.0f, 0.2f, 0.1f, 0.0f, 0.0f, 0.6f, 16.0f, 0.0f, 1.0f}},
     {"Fill every gap", {-25.5f, 1.0f, -54.0f, 0.05f, 0.01f, 0.0f, 0.0f, 0.0f, 14.0f, 0.0f, 1.0f}},

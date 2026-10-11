@@ -156,11 +156,11 @@
       "limit": 18
     },
     "Long tails": {
-      "threshold": -23,
+      "threshold": -19.5,
       "amount": 1,
       "floor": -60,
-      "rise": 0.3,
-      "hold": 0.05,
+      "rise": 1.2,
+      "hold": 0.9,
       "split": 0.2,
       "limit": 18
     },
@@ -172,20 +172,20 @@
       "limit": 18
     },
     "Air on top": {
-      "threshold": -21,
+      "threshold": -20.5,
       "amount": 1,
-      "rise": 0.4,
+      "rise": 0.15,
       "split": 1,
       "focus": 1,
       "limit": 14
     },
     "Warm floor": {
-      "threshold": -22,
+      "threshold": -16,
       "amount": 0.9,
       "rise": 0.5,
       "split": 1,
       "focus": -1,
-      "limit": 10
+      "limit": 2
     },
     "Opens outward": {
       "threshold": -18,
