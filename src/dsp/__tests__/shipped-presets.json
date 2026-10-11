@@ -3111,5 +3111,24 @@
     "Small tin": {"body":4,"size":0.25,"material":0.75,"opening":0.8,"air":0.2,"tone":0.7,"width":0.5,"mix":0.6,"position":0.3},
     "Wind in the pipe": {"body":1,"size":2,"material":0.6,"opening":0,"air":1,"tone":0.5,"width":0.8,"mix":1,"position":0.3},
     "Deep well": {"body":0,"size":3,"material":0.9,"opening":0.5,"air":0.4,"tone":0.4,"width":0.6,"mix":0.7,"position":0.3}
+  },
+  "club-kit": {
+    "(default)": {"kit":0,"tune":0,"length":1,"punch":0.5,"snap":0.45,"tone":0.5,"drive":0,"variation":0.08,"width":0.5,"volume":0},
+    "Four on the floor": {"kit":0,"tune":0,"length":1,"punch":0.6,"snap":0.5,"tone":0.5,"drive":0,"variation":0.08,"width":0.5,"volume":0},
+    "Tight and dry": {"kit":0,"tune":0,"length":0.55,"punch":0.7,"snap":0.6,"tone":0.5,"drive":0,"variation":0.04,"width":0.3,"volume":2},
+    "Driven floor": {"kit":0,"tune":0,"length":1.3,"punch":0.7,"snap":0.45,"tone":0.6,"drive":0.85,"variation":0.08,"width":0.5,"volume":-3.5},
+    "Long and open": {"kit":0,"tune":0,"length":1.8,"punch":0.45,"snap":0.35,"tone":0.5,"drive":0,"variation":0.08,"width":0.7,"volume":-2.5},
+    "High and snappy": {"kit":0,"tune":7,"length":0.85,"punch":0.7,"snap":0.7,"tone":0.55,"drive":0,"variation":0.08,"width":0.5,"volume":1.5},
+    "Deep and round": {"kit":1,"tune":0,"length":1,"punch":0.4,"snap":0.3,"tone":0.45,"drive":0,"variation":0.08,"width":0.5,"volume":-3},
+    "Late night": {"kit":1,"tune":0,"length":1.6,"punch":0.3,"snap":0.2,"tone":0.3,"drive":0,"variation":0.08,"width":0.75,"volume":-5},
+    "Low and heavy": {"kit":1,"tune":-5,"length":1.1,"punch":0.6,"snap":0.4,"tone":0.5,"drive":0.25,"variation":0.08,"width":0.5,"volume":-4.5},
+    "Warm and soft": {"kit":1,"tune":0,"length":0.7,"punch":0.15,"snap":0.1,"tone":0.36,"drive":0,"variation":0.15,"width":0.25,"volume":-1.5},
+    "Dusty box": {"kit":2,"tune":0,"length":1,"punch":0.5,"snap":0.5,"tone":0.5,"drive":0,"variation":0.08,"width":0.5,"volume":-0.5},
+    "Worn tape": {"kit":2,"tune":0,"length":1.5,"punch":0.4,"snap":0.3,"tone":0.3,"drive":0.3,"variation":0.2,"width":0.3,"volume":-3},
+    "Gritty and driven": {"kit":2,"tune":0,"length":0.75,"punch":0.75,"snap":0.6,"tone":0.7,"drive":0.9,"variation":0.08,"width":0.6,"volume":-1.5},
+    "Small dusty kit": {"kit":2,"tune":5,"length":0.55,"punch":0.5,"snap":0.55,"tone":0.5,"drive":0,"variation":0.08,"width":0.35,"volume":3},
+    "Bright and crisp": {"kit":3,"tune":0,"length":1,"punch":0.5,"snap":0.7,"tone":0.6,"drive":0,"variation":0.08,"width":0.5,"volume":1.5},
+    "Peak time": {"kit":3,"tune":0,"length":1.3,"punch":0.85,"snap":0.6,"tone":0.65,"drive":0.5,"variation":0.08,"width":0.7,"volume":-0.5},
+    "Glass tops": {"kit":3,"tune":0,"length":0.55,"punch":0.35,"snap":0.5,"tone":0.95,"drive":0,"variation":0.08,"width":0.9,"volume":2.5}
   }
 }
