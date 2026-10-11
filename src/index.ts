@@ -55,6 +55,11 @@ export {
 } from './core/params'
 export { ensureProcessor } from './core/worklet-loader'
 export {
+  createWorkletNode,
+  setWorkletNodeConstructor,
+  type WorkletNodeConstructor,
+} from './core/worklet-node'
+export {
   createClock,
   startFloorSec,
   startLeadSec,
@@ -120,6 +125,7 @@ export {
   type StripHost,
   type StripShadow,
 } from './core/tracks/ChannelStrip'
+export { createPan } from './core/pan'
 export { GroupTrack, type GroupTrackOptions } from './core/tracks/GroupTrack'
 export {
   DUCK_DEPTH,
@@ -345,6 +351,7 @@ export {
   type ScheduleAheadOptions,
   type StemsOptions,
 } from './core/render/OfflineRenderer'
+export { createFramedOfflineContext, releaseOfflineContext } from './core/render/framed-context'
 export {
   RENDER_QUANTUM_FRAMES,
   canHoldRender,

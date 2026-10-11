@@ -53,15 +53,24 @@ class SincRead {
     ready() = true;
   }
 
+  // The row of the table a fraction is read from, and the row blended in
+  // after it. A fraction is in [0, 1), but one that was worked out in double
+  // and then cast to float can round up to 1 (anything from 1 - 2^-25 on
+  // does): that is the last row, whole, and no row comes after the last.
+  static int row_of(float fraction) {
+    return kit::clamp_int(static_cast<int>(fraction * kFractions), 0, kFractions);
+  }
+  static int row_after(int row) { return row < kFractions ? row + 1 : kFractions; }
+
   // `whole` + `fraction` samples back from the sample just written;
-  // whole >= kLeast, fraction in [0, 1).
+  // whole >= kLeast, fraction in [0, 1], where 1 is `whole` + 1.
   template <int Size>
   static float read(const kit::DelayLine<Size>& line, int whole, float fraction) {
     const float position = fraction * kFractions;
-    const int row = static_cast<int>(position);
+    const int row = row_of(fraction);
     const float blend = position - static_cast<float>(row);
     const float* a = data() + row * kTaps;
-    const float* b = a + kTaps;
+    const float* b = data() + row_after(row) * kTaps;
     // line.read(1) is the newest sample, so `whole` back is read(whole + 1).
     const int first = whole + 1 - (kTaps / 2 - 1);
     float sum = 0.0f;

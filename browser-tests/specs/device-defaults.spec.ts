@@ -112,13 +112,12 @@ test.describe('a device does what its settings say, in real audio', () => {
       expect(Math.abs(measured.voice.stereo)).toBeLessThan(0.2)
     })
 
-    test('leaves a mono voice on a track louder by the strip’s pan law and no more', () => {
-      // Not the device's gain: the browser's compressor gives two channels for
-      // one, and the strip's panner plays one channel 3.01 dB under two at
-      // centre. The same holds for any insert that makes a mono sound stereo.
-      // Before, the node's own make-up stood on top of it: 6.68 dB.
-      expect(measured.voice.mono).toBeGreaterThan(2.8)
-      expect(measured.voice.mono).toBeLessThan(3.2)
+    test('leaves a quiet mono voice on a track as loud as the track played it', () => {
+      // The browser's compressor gives two channels for one. The strip's pan
+      // takes two channels whatever it is fed (`createPan`), so that is no
+      // level: before it did, a voice in one channel came out 3.01 dB louder
+      // with the chain than without, and 6.68 dB with the node's own make-up.
+      expect(Math.abs(measured.voice.mono)).toBeLessThan(0.2)
     })
   })
 

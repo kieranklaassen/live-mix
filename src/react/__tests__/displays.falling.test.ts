@@ -28,6 +28,7 @@ import { type DisplayHandle, type DisplayHold } from '../components/plate-displa
 import {
   drawDisplay,
   metersOf,
+  patchUnder,
   runDisplay,
   stockDescriptors,
   viewOf,
@@ -838,5 +839,219 @@ describe("Falling's display: at rest", () => {
     const again = marksOf(drawDisplay(display, params, { meters: ASLEEP, state, dt: 1 / 30 }))
     expect(again.some((m) => m.colour === ACCENT)).toBe(false)
     expect(dots(again, INK).length).toBeGreaterThan(0)
+  })
+})
+
+/** A box that drawing is kept inside. */
+interface Clip {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+/** Every fill of a drawing with the box it was kept inside when it was painted; null for one painted in the open. */
+function fillsUnder(
+  drawn: RecordingContext,
+): { colour: string; alpha: number; clip: Clip | null; points: [number, number][] }[] {
+  const fills: ReturnType<typeof fillsUnder> = []
+  const kept: (Clip | null)[] = []
+  let clip: Clip | null = null
+  let box: Clip | null = null
+  let colour = ''
+  let alpha = 1
+  let path: [number, number][] = []
+  for (const { name, args } of drawn.calls) {
+    const n = args as number[]
+    if (name === 'save') kept.push(clip)
+    else if (name === 'restore') clip = kept.pop() ?? null
+    else if (name === 'beginPath') {
+      path = []
+      box = null
+    } else if (name === 'rect') box = { x: n[0], y: n[1], w: n[2], h: n[3] }
+    else if (name === 'clip') clip = box
+    else if (name === 'set fillStyle') colour = String(args[0])
+    else if (name === 'set globalAlpha') alpha = Number(args[0])
+    else if (name === 'moveTo' || name === 'lineTo' || name === 'arc') path.push([n[0], n[1]])
+    else if (name === 'fill') fills.push({ colour, alpha, clip, points: path })
+  }
+  return fills
+}
+
+/** The display while the device runs, as `follow` runs it, with all that was drawn. */
+function sounding(seconds: number, pieces: Told[], options: FrameOptions = {}): RecordingContext {
+  return runDisplay(display, params, seconds, options, (time) => ({
+    meters: readings(
+      5 + time,
+      0.5,
+      pieces.filter((piece) => piece.start <= 5 + time + 1e-9),
+    ),
+  }))
+}
+
+/**
+ * Where the numbers' column ends: a number begins two pixels inside the box
+ * and its patch (`label`) keeps two more past its last figure, and the widest
+ * the scale shows is the furthest it goes. The harness measures five pixels a
+ * letter.
+ */
+function columnEdge(lay: ReturnType<typeof fallingLayout>): number {
+  const widest = Math.max(...['−24', '+24'].map((words) => words.length * 5))
+  return lay.box.x + 2 + widest + 2
+}
+
+/** Every size the display is handed: flat beside its knobs, upright, on an opened plate, and as low as a strip. */
+const HANDED = [...SIZES, { width: 2 * 128 + 37, height: 100 }, { width: 224, height: 48 }] as const
+
+describe("Falling's display: the numbers' column", () => {
+  it('is as wide as the widest number the scale shows, and no number reaches out of it', () => {
+    for (const size of HANDED) {
+      const lay = fallingLayout(size)
+      const edge = columnEdge(lay)
+      // The furthest the scale goes, either way, ends on the column's edge: no wider.
+      for (const [fall, words] of [
+        [-24, '−24'],
+        [24, '+24'],
+      ] as const) {
+        const drawn = drawDisplay(display, params, { values: { fall }, meters: ASLEEP, ...size })
+        const patch = patchUnder(drawn, words, PLATE)
+        if (!patch) throw new Error(`${words} has no patch`)
+        expect(patch.x).toBe(lay.box.x)
+        expect(patch.x + patch.w).toBe(edge)
+      }
+      for (let fall = -24; fall <= 24; fall += 1) {
+        for (const vary of [0, 0.5, 1]) {
+          const drawn = drawDisplay(display, params, {
+            values: { fall, vary },
+            meters: ASLEEP,
+            ...size,
+          })
+          for (const words of drawn.words()) {
+            const patch = patchUnder(drawn, words, PLATE)
+            if (!patch) throw new Error(`${words} has no patch`)
+            expect(patch.x + patch.w, `${words} at fall ${fall}`).toBeLessThanOrEqual(edge)
+          }
+        }
+      }
+    }
+  })
+
+  it('cuts the pieces that have sounded off at the column: none is painted under the numbers', () => {
+    for (const size of HANDED) {
+      const lay = fallingLayout(size)
+      const edge = columnEdge(lay)
+      const perSec = wideOf(700, size) / 0.7
+      // Three pieces, the oldest of them begun where the numbers stand.
+      const far = (lay.now - lay.box.x - 2) / perSec
+      const seconds = 3
+      const last = 5 + lastFrame(seconds)
+      const pieces: Told[] = [far, far / 2, 0.1].map((age) => ({
+        start: last - age,
+        fall: -12,
+        length: 0.7,
+        behind: 0.05,
+      }))
+      pieces.sort((a, b) => a.start - b.start)
+      const drawn = sounding(seconds, pieces, size)
+      const accent = fillsUnder(drawn).filter((fill) => fill.colour === ACCENT)
+      // Each piece twice (what has sounded, what is to come) and its dot on now.
+      expect(accent.filter((fill) => fill.points.length > 4)).toHaveLength(6)
+      for (const fill of accent) {
+        if (!fill.clip) throw new Error('a piece was painted in the open')
+        expect(fill.clip.x).toBeGreaterThanOrEqual(edge)
+        expect(fill.clip.x + fill.clip.w).toBeLessThanOrEqual(lay.box.x + lay.box.w)
+      }
+      // What has sounded is kept between the column and now, what is to come right of now.
+      const sides = [...new Set(accent.map((fill) => fill.clip?.x))].sort(
+        (a, b) => (a ?? 0) - (b ?? 0),
+      )
+      expect(sides).toEqual([edge, lay.now])
+      const past = accent.find((fill) => fill.clip?.x === edge)?.clip
+      expect(past).toEqual({ x: edge, y: lay.box.y, w: lay.now - edge, h: lay.box.h })
+      // The oldest is where it was, begun left of the column's edge: only not drawn there.
+      const begun = accent.filter((fill) => fill.points.length > 4).map((fill) => fill.points[0][0])
+      expect(Math.min(...begun)).toBeCloseTo(lay.box.x + 2, 1)
+      expect(Math.min(...begun)).toBeLessThan(edge)
+    }
+  })
+
+  it('does not paint a piece that has travelled wholly into the column', () => {
+    const lay = fallingLayout(SIZE)
+    const edge = columnEdge(lay)
+    const perSec = wideOf(700) / 0.7
+    const seconds = 3
+    const last = 5 + lastFrame(seconds)
+    // Its end is a pixel left of the column's edge, and still well inside the box.
+    const length = 0.1
+    const piece: Told = {
+      start: last - length - (lay.now - edge + 1) / perSec,
+      fall: -12,
+      length,
+      behind: 0.05,
+    }
+    expect(lay.now - (last - piece.start - length) * perSec).toBeGreaterThan(lay.box.x + 8)
+    expect(fillsUnder(sounding(seconds, [piece])).some((fill) => fill.colour === ACCENT)).toBe(
+      false,
+    )
+    // One whose end is still a pixel right of the edge is painted, cut off there
+    // (and once more for what is to come, right of now, where none of it lies).
+    const nearer: Told = { ...piece, start: piece.start + 2 / perSec }
+    const painted = fillsUnder(sounding(seconds, [nearer])).filter((fill) => fill.colour === ACCENT)
+    expect(painted.map((fill) => fill.clip?.x)).toEqual([edge, lay.now])
+  })
+
+  it('keeps the worked example out of the column too, at rest', () => {
+    for (const size of HANDED) {
+      const lay = fallingLayout(size)
+      const edge = columnEdge(lay)
+      const drawn = drawDisplay(display, params, {
+        values: { density: 20 },
+        meters: ASLEEP,
+        ...size,
+      })
+      const example = fillsUnder(drawn).filter(
+        (fill) =>
+          fill.colour === INK &&
+          fill.points.length > 4 &&
+          (fill.alpha === SHADE.back || fill.alpha === SHADE.back / 2),
+      )
+      expect(example.length).toBeGreaterThan(8)
+      for (const fill of example) {
+        expect(fill.clip?.x).toBeGreaterThanOrEqual(edge)
+        // None lies wholly under the numbers.
+        expect(Math.max(...fill.points.map(([x]) => x))).toBeGreaterThanOrEqual(edge)
+      }
+      // The oldest of them still begins left of the edge: the example is not moved, only cut.
+      expect(Math.min(...example.map((fill) => fill.points[0][0]))).toBeLessThan(edge)
+    }
+  })
+
+  it('stands in the same place whatever the settings, and leaves the picture its room at every size', () => {
+    const piece: Told = { start: 7, fall: -12, length: 0.7, behind: 0.05 }
+    for (const size of HANDED) {
+      const lay = fallingLayout(size)
+      const edge = columnEdge(lay)
+      // What has sounded keeps a strip between the column and now, and all the room right of now is the picture's.
+      expect(lay.now - edge).toBeGreaterThanOrEqual(16)
+      expect(edge - lay.box.x).toBeLessThanOrEqual(0.55 * (lay.now - lay.box.x))
+      for (const values of [
+        {},
+        { fall: -24, size: 2500 },
+        { fall: -0.6, vary: 0.5 },
+        { fall: 12, curve: -1 },
+      ] as Record<string, number>[]) {
+        const fills = fillsUnder(sounding(2.4, [piece], { values, ...size }))
+        const cut = fills.filter((fill) => fill.colour === ACCENT).map((fill) => fill.clip?.x)
+        expect(Math.min(...cut.map((x) => x ?? -1))).toBe(edge)
+        // The piece that would start now, its fan and the two handles are right of the column.
+        const marks = marksOf(drawDisplay(display, params, { values, meters: ASLEEP, ...size }))
+        for (const [x] of modelLine(marks).points) expect(x).toBeGreaterThanOrEqual(lay.now)
+        for (const band of bands(marks, INK).filter((m) => m.alpha === SHADE.grid))
+          for (const [x] of band.points) expect(x).toBeGreaterThanOrEqual(lay.now)
+        const at = handles(values, size)
+        expect(at.fall.x).toBeGreaterThan(edge)
+        expect(at.curve.x).toBeGreaterThan(edge)
+      }
+    }
   })
 })

@@ -1485,6 +1485,61 @@ int main(int argc, char**) {
     }
   }
 
+  // --- what the second reading found --------------------------------------------------------
+  // Four of the room's lines breathe: they are read a quarter of a
+  // millisecond either side of their length. At 176.4 and 192 kHz the line
+  // of 97.7 ms is longer than its storage and was held 8 samples short of
+  // the end, so the upper half of its breathing was read past the end, where
+  // the read comes round to the sound just written: the room jumped, fifty
+  // times in seven seconds of a held tone at 192 kHz. It is held far enough
+  // inside now for the breathing. A jump is a second difference many times
+  // that of the tone itself (a 300 Hz tone's is its size times the square of
+  // its turn per sample).
+  {
+    for (float rate : {48000.0f, 192000.0f}) {
+      device.init(rate);
+      device.set_param(p::kYear, knob_at(0.75f));
+      device.set_param(p::kTurn, 0.0f);
+      device.set_param(p::kDepth, 1.0f);
+      device.set_param(p::kSpace, 1.0f);
+      device.set_param(p::kTail, 1.0f);
+      device.set_param(p::kMotion, 0.0f);
+      device.set_param(p::kGrit, 0.0f);
+      device.set_param(p::kMix, 1.0f);
+      const double turn = 2.0 * kPi * 300.0 / rate;
+      const double own = 0.3 * turn * turn;
+      const long total = static_cast<long>(8.0f * rate);
+      const long from = static_cast<long>(rate);
+      const long apart = static_cast<long>(0.01f * rate);
+      double before = 0.0, last = 0.0, worst = 0.0;
+      long last_jump = -apart;
+      int jumps = 0;
+      for (long n = 0; n < total; n += 128) {
+        for (int i = 0; i < 128; ++i) {
+          device.in_left()[i] = device.in_right()[i] =
+              0.3f * static_cast<float>(std::sin(turn * static_cast<double>(n + i)));
+        }
+        device.process(128);
+        for (int i = 0; i < 128; ++i) {
+          const double now = device.out_left()[i];
+          const double bend = std::fabs(now - 2.0 * last + before);
+          before = last;
+          last = now;
+          if (n + i < from) continue;
+          worst = std::max(worst, bend);
+          if (bend > 5.0 * own && n + i - last_jump > apart) {
+            ++jumps;
+            last_jump = n + i;
+          }
+        }
+      }
+      std::printf("second reading: winter's room on a held 300 Hz tone at %.0f Hz: %d jumps in 7 s, the sharpest "
+                  "bend %.1f times the tone's own\n",
+                  rate, jumps, worst / own);
+      EXPECT(jumps == 0, rate > 100000.0f ? "the room does not jump at 192 kHz" : "the room does not jump at 48 kHz");
+    }
+  }
+
   // --- cost ---------------------------------------------------------------------------------
   // As it starts, and at its heaviest: between autumn and winter with every
   // amount up, where the dropouts and the sparks both run.

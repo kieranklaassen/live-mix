@@ -20,6 +20,7 @@ import { type LatencyReport } from '../devices/pdc'
 import { createEngine, type Engine, type EngineOptions } from '../Engine'
 import { type AudioTrack } from '../tracks/AudioTrack'
 import { planarFromAudioBuffer, type PlanarAudio } from './encode'
+import { releaseOfflineContext } from './framed-context'
 
 export interface OfflineContextLike extends BaseAudioContext {
   startRendering(): Promise<AudioBuffer>
@@ -110,13 +111,14 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
   })
 
   let virtualNow = 0
-  const engine = createEngine({
-    ...options.engine,
-    context,
-    now: () => virtualNow,
-    ...inertTimers(),
-  })
+  let engine: Engine | undefined
   try {
+    engine = createEngine({
+      ...options.engine,
+      context,
+      now: () => virtualNow,
+      ...inertTimers(),
+    })
     await options.build(engine, { stem: 'master', sampleRate, durationSec })
     const latency =
       (options.alignLatency ?? true)
@@ -143,8 +145,10 @@ export async function renderOffline(options: RenderOptions): Promise<RenderResul
     }
   } catch (error) {
     // Only a result carries the engine out to be disposed: a render that fails
-    // lets go of its own, with every device the build had made by then.
-    disposeQuietly(engine)
+    // lets go of its own, with every device the build had made by then, and of
+    // the frame its context was made in, which nobody else can reach.
+    if (engine) disposeQuietly(engine)
+    releaseOfflineContext(context)
     throw error
   }
 }
@@ -243,8 +247,11 @@ export async function renderStems(options: StemsOptions): Promise<Record<string,
       })
     }
   } catch (error) {
-    // The stems rendered so far are handed to nobody: let their engines go.
-    for (const stem of Object.keys(results)) disposeQuietly(results[stem].engine)
+    // The stems rendered so far are handed to nobody: let their engines go, and their contexts' frames.
+    for (const stem of Object.keys(results)) {
+      disposeQuietly(results[stem].engine)
+      releaseOfflineContext(results[stem].engine.context)
+    }
     throw error
   }
   return results

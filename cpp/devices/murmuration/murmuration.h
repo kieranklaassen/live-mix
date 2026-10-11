@@ -117,6 +117,14 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // For the harness: a control on its way to where it was set, as it stands.
+  // 0 Together, 1 Air, 2 Spread, 3 Lift, 4 the share of the sound the low
+  // line is fed.
+  float gliding(int which) const {
+    const float all[5] = {now_.together, now_.air, now_.spread, now_.lift, low_on_};
+    return which >= 0 && which < 5 ? all[which] : 0.0f;
+  }
+
   // The readings named by "meters" in device.json, for the display. 0: the
   // flight time of the last sample put out, in seconds, wrapped at
   // flock::kPeriod; every bird's place is flock::place at this time. 1: the
@@ -440,16 +448,22 @@ class Murmuration : public kit::DeviceBase<murmuration::kNumParams> {
   void tick() {
     const Controls to = targets();
     const float per_tick = static_cast<float>(kControlPeriod) / sample_rate();
+    // A control that is set to nought is on its way there for ever by this
+    // law, and the last of the way is in numbers too small for a float to
+    // halve: it stood at 5e-44 from then on, and every sum it is in cost
+    // several times what it costs. Those four, and the share the low line is
+    // fed, are let down to nought once nothing can be heard of them.
     now_.range = to.range + (now_.range - to.range) * range_coeff_;
-    now_.together = to.together + (now_.together - to.together) * range_coeff_;
+    now_.together =
+        flush_denormal(to.together + (now_.together - to.together) * range_coeff_);
     now_.speed = to.speed + (now_.speed - to.speed) * glide_coeff_;
-    now_.air = to.air + (now_.air - to.air) * glide_coeff_;
-    now_.spread = to.spread + (now_.spread - to.spread) * glide_coeff_;
-    now_.lift = to.lift + (now_.lift - to.lift) * glide_coeff_;
+    now_.air = flush_denormal(to.air + (now_.air - to.air) * glide_coeff_);
+    now_.spread = flush_denormal(to.spread + (now_.spread - to.spread) * glide_coeff_);
+    now_.lift = flush_denormal(to.lift + (now_.lift - to.lift) * glide_coeff_);
     // Ground moves what the lines hold against what goes straight on, and the
     // lines take as long as a bird is late to follow: slowly, or the two add.
     now_.ground = to.ground + (now_.ground - to.ground) * range_coeff_;
-    low_on_ = low_on_of() + (low_on_ - low_on_of()) * range_coeff_;
+    low_on_ = flush_denormal(low_on_of() + (low_on_ - low_on_of()) * range_coeff_);
     const float slew = flock::kTurnsSlew * flock::flight_rate(now_.speed, now_.range) * per_tick;
     now_.turns += kit::clamp(to.turns - now_.turns, -slew, slew);
     const int count = bird_count();

@@ -8,6 +8,7 @@
 // sender lives; audio only leaves the machine while a peer listens.
 
 import { ensureProcessor } from '../core/worklet-loader'
+import { createWorkletNode } from '../core/worklet-node'
 import type { NativeHostClient } from './HostClient'
 import type { NativeLink } from './NativeLink'
 import {
@@ -117,10 +118,7 @@ export class LinkAudioSender {
 
     const channels = options.channels ?? 2
     const processorOptions: LinkTapProcessorOptions = { channels }
-    const node = (
-      options.createNode ??
-      ((ctx, name, nodeOptions) => new AudioWorkletNode(ctx, name, nodeOptions))
-    )(context, LINK_TAP_PROCESSOR_NAME, {
+    const node = (options.createNode ?? createWorkletNode)(context, LINK_TAP_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 0,
       channelCount: channels,

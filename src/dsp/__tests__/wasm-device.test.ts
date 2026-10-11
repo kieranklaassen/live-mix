@@ -10,6 +10,7 @@ import {
   isNoteWatchDevice,
   isSampleWatchDevice,
 } from '../../core/devices/Device'
+import { setWorkletNodeConstructor } from '../../core/worklet-node'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import {
@@ -41,6 +42,27 @@ const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
   ) as unknown as AudioWorkletNode
 
 describe('WasmDevice', () => {
+  it('is made with the constructor its context was given when no factory is passed', async () => {
+    const ctx = createMockContext()
+    const made: unknown[] = []
+    class FrameWorkletNode {
+      constructor(_context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
+        made.push(name)
+        return ctx.createWorkletNode(name, options)
+      }
+    }
+    setWorkletNodeConstructor(
+      asAudioContext(ctx),
+      FrameWorkletNode as unknown as typeof AudioWorkletNode,
+    )
+    const device = await createPlateReverb(asAudioContext(ctx), {
+      wasm: plateModule,
+      processorUrl: 'p',
+    })
+    expect(made).toEqual(['live-mix-wasm-device'])
+    expect(device.node).toBe(ctx.workletNodes[0])
+  })
+
   it('loads the processor once per context and builds one node per device', async () => {
     const ctx = createMockContext()
     const context = asAudioContext(ctx)

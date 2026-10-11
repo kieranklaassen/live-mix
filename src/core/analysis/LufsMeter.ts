@@ -8,6 +8,7 @@
 // assets themselves pass `processorUrl`; tests pass `createNode`.
 
 import { ensureProcessor } from '../worklet-loader'
+import { createWorkletNode } from '../worklet-node'
 import { gainToDb } from '../devices/native/units'
 import { silentReading, type MeterReading } from './loudness'
 import {
@@ -41,9 +42,6 @@ export function defaultMeterProcessorUrl(): string {
   return new URL('./worklets/meter.js', import.meta.url).href
 }
 
-const defaultCreateNode: MeterNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
-
 export class LufsMeter {
   readonly node: AudioWorkletNode
   private intervalMsValue: number
@@ -73,7 +71,7 @@ export class LufsMeter {
           : options.processorUrl.href
     await ensureProcessor(context, url)
     const processorOptions: MeterProcessorOptions = { intervalMs }
-    const node = (options.createNode ?? defaultCreateNode)(context, METER_PROCESSOR_NAME, {
+    const node = (options.createNode ?? createWorkletNode)(context, METER_PROCESSOR_NAME, {
       numberOfInputs: 1,
       numberOfOutputs: 0,
       channelCount: 2,

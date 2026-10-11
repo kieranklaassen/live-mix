@@ -82,7 +82,10 @@
 //
 // Storage: eight lines of 16,384 samples, two early lines of 8,192, two
 // vibrato lines of 2,048, four allpasses of 1,024 and two rings of 65,536 for
-// the sparks: about 1.2 MB, sized for 96 kHz.
+// the sparks: about 1.2 MB, sized for 96 kHz. At 176.4 and 192 kHz the three
+// longest lines, the latest early taps and the longer allpass of each side
+// are held to the storage, so the room is shorter and less dense there than
+// at the rates below.
 
 #include "../../kit/kit.h"
 #include "params.gen.h"
@@ -186,7 +189,14 @@ class Seasons : public kit::DeviceBase<seasons::kNumParams> {
       line_[i].clear();
       damp_[i].reset();
       cut_[i].reset();
-      length_[i] = kit::clamp_int(static_cast<int>(kLineMs[i] * ms) | 1, 8, kLineSize - 8);
+      // A line that breathes is read up to a quarter of a millisecond past
+      // its length, and that has to lie inside the line too: past the end
+      // the read comes round to the sound just written, a jump of the whole
+      // line. Up to 96 kHz no line is near its end; above it the long ones
+      // are held to what there is (see Storage).
+      const bool breathes = i >= kFirstBreathing && i < kFirstBreathing + kBreathing;
+      const int room = kLineSize - 8 - (breathes ? static_cast<int>(kBreatheMs * ms) + 1 : 0);
+      length_[i] = kit::clamp_int(static_cast<int>(kLineMs[i] * ms) | 1, 8, room);
       gain_[i] = 0.0f;
       high_loss_[i] = 0.0f;
       low_loss_[i] = 0.0f;
