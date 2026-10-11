@@ -1258,5 +1258,65 @@
     "id": "house-falling-sub",
     "durationSec": 4,
     "loops": false
+  },
+  "491": {
+    "id": "house-piano-riff",
+    "durationSec": 8,
+    "loops": true
+  },
+  "492": {
+    "id": "house-organ-riff",
+    "durationSec": 8,
+    "loops": true
+  },
+  "493": {
+    "id": "house-tine-chords",
+    "durationSec": 8,
+    "loops": true
+  },
+  "494": {
+    "id": "house-pumping-pad",
+    "durationSec": 8,
+    "loops": true
+  },
+  "495": {
+    "id": "house-dub-chords",
+    "durationSec": 8,
+    "loops": true
+  },
+  "496": {
+    "id": "house-pluck-run",
+    "durationSec": 8,
+    "loops": true
+  },
+  "497": {
+    "id": "house-string-stabs",
+    "durationSec": 8,
+    "loops": true
+  },
+  "498": {
+    "id": "house-night-tines",
+    "durationSec": 8,
+    "loops": true
+  },
+  "499": {
+    "id": "house-offbeat-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "500": {
+    "id": "house-rolling-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "501": {
+    "id": "house-two-five-bass",
+    "durationSec": 8,
+    "loops": true
+  },
+  "502": {
+    "id": "house-deep-bass",
+    "durationSec": 8,
+    "loops": true
   }
 }
