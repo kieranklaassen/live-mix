@@ -570,7 +570,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     name: 'Circling the listener',
     category: 'motion',
     description:
-      'The sound walks a slow circle round your head, louder and brighter at the near ear and duller behind; Rate sets how long a lap takes.',
+      'The sound walks a slow circle round your head, the far ear in its shadow and the back a little duller; Rate sets how long a lap takes.',
     effects: [{ deviceId: 'around', preset: 'Slow circle' }],
   },
   {
@@ -581,7 +581,7 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       'The sound circles your head while everything under 180 Hz is held in the middle, so the floor never moves; Low split sets where.',
     effects: [
       { deviceId: 'around', preset: 'Slow circle' },
-      { deviceId: 'spread', preset: 'Firm bass', params: { lowHz: 180 } },
+      { deviceId: 'spread', preset: 'Firm bass', params: { lowHz: 180, output: 2 } },
     ],
   },
   {
@@ -600,9 +600,9 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     name: 'Bowls carried round',
     category: 'motion',
     description:
-      'Bowls tuned to the key sing with the notes you touch and are carried with them round your head; Ring sets how long they sing.',
+      'Bowls tuned to the key ring with every note you play and are carried with the playing round your head; Ring sets how long they sing.',
     effects: [
-      { deviceId: 'bowls', preset: 'Bowl table' },
+      { deviceId: 'bowls', preset: 'Bowl table', params: { strike: 1 } },
       { deviceId: 'around', preset: 'Slow circle' },
     ],
   },

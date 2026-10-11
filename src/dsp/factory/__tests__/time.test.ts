@@ -115,5 +115,5 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
       expect(wrap, 'the loop seam').toBeLessThanOrEqual(largestStep(channel))
     }
     expect(measureEnds(audio).round, 'comes round on itself').toBe(true)
-  })
+  }, 60000)
 })

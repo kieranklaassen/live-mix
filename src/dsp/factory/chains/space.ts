@@ -441,10 +441,10 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
     name: 'Held sinking tail',
     category: 'space',
     description:
-      'A reverb tail that sinks in pitch is held up near the level of the playing for a few seconds before it lets go; Threshold sets the line.',
+      'A reverb tail that sinks in pitch is held up near the level of the playing for a second or two before it lets go; Threshold sets the line.',
     effects: [
       { deviceId: 'spiral', preset: 'Slow descent' },
-      { deviceId: 'lift', preset: 'Long tails', params: { threshold: -27, floor: -60 } },
+      { deviceId: 'lift', preset: 'Long tails', params: { threshold: -27, floor: -60, limit: 24 } },
     ],
   },
 ]

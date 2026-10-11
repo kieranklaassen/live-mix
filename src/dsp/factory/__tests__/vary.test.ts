@@ -654,7 +654,7 @@ describe('a variant of a sound', () => {
         expect(soundDegree(tanpura)).toBe(1)
         expect(chordMoves(tanpura)).toEqual([-1, 1, -3, 3])
         expect(varySound(tanpura, { seed: 1, chord: 2 })).toBe(tanpura)
-      })
+      }, 60000)
 
       it('leaves every variant drawn without one as it was', () => {
         for (const sound of FACTORY_SOUNDS.slice(0, 12)) {

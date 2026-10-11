@@ -368,7 +368,7 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
     name: 'Tails brought up',
     category: 'master',
     description:
-      'Tails, breaths and the air between notes rise towards a line while louder playing is left alone; Threshold sets where the line stands.',
+      'Tails and breaths rise towards a line while louder playing is left alone and the hiss under the Floor stays down; Threshold sets the line.',
     effects: [{ deviceId: 'lift', preset: 'Quiet end up' }],
   },
   {

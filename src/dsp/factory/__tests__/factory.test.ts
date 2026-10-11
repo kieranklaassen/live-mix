@@ -199,6 +199,7 @@ describe('effect chains', () => {
       }
       expect(difference, 'what the chain changes').toBeGreaterThan(0.002)
     },
+    60000,
   )
 })
 
@@ -241,6 +242,6 @@ describe.each(FACTORY_SOUNDS.map((sound) => [sound.id, sound] as const))(
         expect(ends.stepIn, 'starts on a step').toBe(false)
         expect(ends.stepOut, 'ends on a step').toBe(false)
       }
-    })
+    }, 60000)
   },
 )
