@@ -321,7 +321,7 @@ const spiral = plateDisplay({
   columns: 2,
   params: ['climb', 'decay', 'voices', 'spread', 'mix'],
   live: { meters: true, signal: true },
-  info: 'Pitch runs upward and time to the right. Each streak is one voice of the tail gliding at Climb, as thick as it is loud, under the bell of level drawn at the left; the fine line it lies on is where the glide carries that voice on, and the dots are the voices now. Drag the point on the dashed line for Climb, which catches at its centre, and the one at the foot for Decay.',
+  info: 'Pitch runs up, time to the right. Each streak is a voice of the tail, as thick as it is loud, on the fine line Climb glides it along, under the bell of level at the left; the dots are the voices now. Drag the point on the dashed line for Climb, which catches at centre, and the foot point for Decay.',
   draw(frame) {
     const { ctx, colours } = frame
     ground(frame)
