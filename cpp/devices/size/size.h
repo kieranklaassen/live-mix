@@ -205,6 +205,19 @@ class Size : public kit::DeviceBase<size::kNumParams> {
     if (store_param(id, value)) apply(id);
   }
 
+  // For the harness: how many of the eased gains stand where sums go slow
+  // (under 1.2e-38 and not nought). None do: see frame().
+  int slow_numbers() const {
+    int count = 0;
+    for (int c = 0; c < 2; ++c) {
+      for (int k = 0; k < kBins; ++k) {
+        const float held = lift_[c][k];
+        if (held != 0.0f && held > -1.17549435e-38f && held < 1.17549435e-38f) ++count;
+      }
+    }
+    return count;
+  }
+
   // The readings named by "meters" in device.json, for the display:
   // 0 and 1, the size of the left and the right side now, in octaves, with
   // the drift and Width in it (asleep too: the drift runs by the clock);
@@ -534,7 +547,12 @@ class Size : public kit::DeviceBase<size::kNumParams> {
       const float own = kit::max(now_[k], kit::max(now_[k >= 2 ? k - 2 : 0], now_[k + 2 < kBins ? k + 2 : kBins - 1]));
       const float room = kit::clamp((own - floor) * (1.0f / (kFloorSpan - kLiftSpan)), 0.0f, 1.0f);
       room_[k] = room;
-      lift[k] += (kit::clamp(0.5f * (wants - stands), kLeastLift, kMostLift * room) - lift[k]) * step;
+      // It lands: a gain easing to no lift at all (the body is wanted where
+      // it stands, or the bin has no room) would stop at 4e-45 and stay
+      // there for as long as the sound held, and every sum on such a number
+      // is many times slower. Under 1e-15 the gain is exactly 1 either way.
+      const float aim = kit::clamp(0.5f * (wants - stands), kLeastLift, kMostLift * room);
+      lift[k] = flush_denormal(lift[k] + (aim - lift[k]) * step);
       const float gain = fast_exp2(lift[k]) * tilt_[k];
       re[k] *= gain;
       im[k] *= gain;

@@ -1141,6 +1141,40 @@ static void test_cost() {
                                                         {p::kTone, 0.5f}, {p::kMix, 0.5f}});
 }
 
+// What the second reading found. The gain of each bin is eased from frame to frame, and where it eased to no lift
+// at all it had no end: on a held pad at the defaults about a thousand of the 2050 gains stood at 4e-45 from the
+// fourth second on, for as long as the sound held (all but four with Size turned to 0 in the sound), and the
+// frame's sums on them ran slow (the .wasm: 11 to 13 ms of work a second, then 34 to 57; 54 to 73 with Size at 0).
+static void test_second_reading() {
+  std::vector<float> pad(static_cast<size_t>(10.0f * kRate), 0.0f);
+  const double notes[6] = {110.0, 164.81, 220.0, 277.18, 329.63, 440.0};
+  for (size_t i = 0; i < pad.size(); ++i) {
+    double x = 0.0;
+    for (int j = 0; j < 6; ++j) {
+      for (int h = 1; h <= 8; ++h) x += 0.04 / h * std::sin(2.0 * kPi * notes[j] * h * static_cast<double>(i) / kRate + j);
+    }
+    pad[i] = static_cast<float>(x);
+  }
+  auto most_slow = [&](bool turn_down) {
+    int most = 0;
+    for (size_t done = 0; done + 128 <= pad.size(); done += 128) {
+      if (turn_down && done == static_cast<size_t>(3.0f * kRate)) device.set_param(p::kSize, 0.0f);
+      for (int i = 0; i < 128; ++i) device.in_left()[i] = device.in_right()[i] = pad[done + i];
+      device.process(128);
+      most = std::max(most, device.slow_numbers());
+    }
+    return most;
+  };
+  fresh({});
+  const int held = most_slow(false);
+  fresh({});
+  const int turned = most_slow(true);
+  std::printf("gains left where sums go slow, of %d: %d on a held pad at the defaults, %d with Size turned to 0 in it\n",
+              2 * Size::kBins, held, turned);
+  EXPECT(held == 0, "a gain that eases to no lift is nought, not 4e-45");
+  EXPECT(turned == 0, "and so with Size turned to nought in the sound");
+}
+
 int main() {
   test_conformance();
   test_latency_and_identity();
@@ -1166,6 +1200,7 @@ int main() {
   test_bad_input();
   test_comes_to_rest();
   test_other_rates();
+  test_second_reading();
   test_cost();
   return finish("size");
 }
