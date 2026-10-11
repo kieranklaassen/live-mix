@@ -169,6 +169,7 @@ export const PLATE_PALETTES = {
   around: { plate: '#56c27e', ink: '#041a0c', accent: '#7d0a52' },
   spread: { plate: '#5a08d6', ink: '#f6f1ff', accent: '#ffb09a' },
   bowls: { plate: '#4e2404', ink: '#fbf1dc', accent: '#ffb347' },
+  howl: { plate: '#ff7411', ink: '#120400', accent: '#2f0f6e' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
