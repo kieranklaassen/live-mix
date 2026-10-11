@@ -2629,6 +2629,173 @@
   background: var(--lm-plate-accent);
 }
 
+/* The studio look (`StudioFace`): the plate as a photograph from above, lit
+   from the upper left, under the same parts. A plate carries
+   `data-lm-look="studio"` once its photograph is on it, and not before: so a
+   plate that cannot be photographed (no WebGL) is the flat plate above,
+   untouched. The photograph is taken in colours made from the skin's three,
+   and hands back the ones the lettering needs (`--lm-studio-*`); each has
+   the flat plate's colour to fall back on. */
+.lm-plate__studio {
+  position: absolute;
+  inset: 0;
+  display: none;
+  width: 100%;
+  height: 100%;
+  /* Where the photograph reads the skin's three colours from, as a display does. */
+  outline: 0 solid var(--lm-plate-accent);
+  color: var(--lm-plate-ink);
+  text-decoration-color: var(--lm-plate);
+  pointer-events: none;
+}
+
+.lm-plate[data-lm-look='studio'] {
+  /* The box has round corners, and what it stands on shows past them. */
+  border-radius: 10px;
+  background: transparent;
+  /* The shadow it stands in, thrown down and to the right as every part's is. */
+  box-shadow:
+    0 1px 1px rgb(0 0 0 / 0.28),
+    2px 5px 9px -3px rgb(0 0 0 / 0.42);
+  color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+.lm-plate[data-lm-look='studio'] > .lm-plate__studio {
+  display: block;
+}
+
+/* The finish is in the photograph: the paint's own tooth. */
+.lm-plate[data-lm-look='studio'] > .lm-plate__finish {
+  display: none;
+}
+
+/* Off, the box is the same box with the colour gone out of it: its lamp is
+   dark and its screen dims. The lettering stays as strong as it was. */
+.lm-plate--off[data-lm-look='studio'] {
+  filter: none;
+  opacity: 1;
+}
+
+.lm-plate--off[data-lm-look='studio'] > .lm-plate__studio {
+  filter: saturate(0.45) brightness(0.96);
+}
+
+.lm-plate--off[data-lm-look='studio'] > .lm-plate__display {
+  opacity: 0.45;
+}
+
+/* The screen is glass let into the box. The photograph is its ground, so the
+   display lays none, and it writes in the screen's own inks. */
+.lm-plate[data-lm-look='studio'] > .lm-plate__display {
+  --lm-display-ground: 0;
+
+  outline-color: var(--lm-studio-mark, var(--lm-plate-accent));
+  background: transparent;
+  color: var(--lm-studio-screen, var(--lm-plate-ink));
+  text-decoration-color: var(--lm-studio-glass, var(--lm-plate));
+}
+
+.lm-plate[data-lm-look='studio'] > .lm-plate__picture {
+  color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+/* A knob is in the photograph, turned to where it stands; only what moves it
+   by itself (an LFO's reach) is still drawn over it. */
+.lm-plate[data-lm-look='studio'] .lm-knob__control > svg > :not(.lm-knob__modulation) {
+  display: none;
+}
+
+.lm-plate[data-lm-look='studio'] .lm-knob,
+.lm-plate[data-lm-look='studio'] .lm-knob__label,
+.lm-plate[data-lm-look='studio'] .lm-knob__value,
+.lm-plate[data-lm-look='studio'] .lm-device__meter {
+  color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+.lm-plate[data-lm-look='studio'][data-lettering='clear'] .lm-knob__label {
+  background: transparent;
+  box-shadow: none;
+}
+
+.lm-plate[data-lm-look='studio'] .lm-knob__value {
+  border-radius: 2px;
+  background: var(--lm-studio-paint, var(--lm-plate));
+}
+
+.lm-plate[data-lm-look='studio'] .lm-knob__control {
+  border-radius: 50%;
+}
+
+.lm-plate[data-lm-look='studio'] .lm-knob__control:focus-visible,
+.lm-plate[data-lm-look='studio'] .lm-button:focus-visible,
+.lm-plate[data-lm-look='studio'] .lm-toggle:focus-visible,
+.lm-plate[data-lm-look='studio'] .lm-device__presets:focus-visible,
+.lm-plate[data-lm-look='studio'] .lm-plate__more:focus-visible {
+  outline-color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+/* A cell that opens something is a low cap on the box, with its legend on it. */
+.lm-plate[data-lm-look='studio'] .lm-plate__more,
+.lm-plate[data-lm-look='studio'] .lm-plate__more:hover,
+.lm-plate[data-lm-look='studio'] .lm-plate__more[aria-expanded='true'] {
+  border-color: transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--lm-studio-legend, var(--lm-plate));
+}
+
+.lm-plate[data-lm-look='studio'] .lm-plate__more:hover {
+  background: color-mix(in srgb, var(--lm-studio-legend, var(--lm-plate)) 16%, transparent);
+}
+
+/* The name is printed on the box, with no tag under it. It keeps the room
+   its tag had, so the foot beside it is laid as on the flat plate. */
+.lm-plate[data-lm-look='studio'] .lm-plate__name {
+  padding: 0 12px 0 2px;
+  background: transparent;
+  color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+.lm-plate[data-lm-look='studio'] .lm-plate__presets {
+  color: var(--lm-studio-word, var(--lm-plate-ink));
+}
+
+/* A preset's cell is a second, small pane of glass: no line of its own. */
+.lm-plate[data-lm-look='studio'] .lm-fxp {
+  --lm-fxp-ink: var(--lm-studio-screen, var(--lm-plate-ink));
+  --lm-fxp-ground: var(--lm-studio-glass, var(--lm-plate));
+
+  border-color: transparent;
+  border-radius: 3px;
+  background: transparent;
+}
+
+/* The tools that show under a hand are low caps too, like the cell that opens the rest. */
+.lm-plate[data-lm-look='studio'] .lm-plate__tools .lm-button,
+.lm-plate[data-lm-look='studio'] .lm-plate__tools .lm-device__presets {
+  border-radius: 3px;
+  background: var(--lm-studio-key, var(--lm-plate-ink));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.22),
+    0 1px 1.5px rgb(0 0 0 / 0.45);
+  color: var(--lm-studio-legend, var(--lm-plate));
+}
+
+.lm-plate[data-lm-look='studio'] .lm-plate__tools .lm-button:hover:not(:disabled) {
+  color: var(--lm-studio-legend, var(--lm-plate));
+  filter: brightness(1.12);
+}
+
+/* The lamp is in the photograph, in its nut; the switch over it draws nothing. */
+.lm-plate[data-lm-look='studio'] .lm-plate__lamp .lm-toggle__dot {
+  border-color: transparent;
+  background: transparent;
+}
+
+.lm-plate[data-lm-look='studio'] .lm-plate__lamp.lm-toggle {
+  border-radius: 50%;
+}
+
 /* --- Timeline ------------------------------------------------------------- */
 
 .lm-timeline {

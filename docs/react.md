@@ -313,6 +313,46 @@ knobs) and adds `spread`: how many columns the display takes, the rows'
 heights, and `cell(index)`, the row and column of each knob.
 `plateSections(skin.sections, params)` is the sections as a device has them.
 
+A plate has two looks. `flat` is the one above: the skin's three colours, its
+finish as noise, the knobs' caps as drawings. `studio` is the same plate as a
+photograph from straight above, lit by one soft lamp from the upper left: satin
+paint with a rolled edge, knobs of turned aluminium anodised in the plate's
+colour (the skin's `cap` is the kind of knob), the display and the kit's preset
+cell under glass let into the box, the `+n` and `Edit` cells as low caps, the
+lamp in a bezel on a hex nut. Ask for it over any part of the page, or for one
+plate:
+
+```tsx
+import { PlateLookProvider } from '@kieranklaassen/live-mix/react'
+
+;<PlateLookProvider look="studio">
+  <DeviceChainView strip={track} skin={deviceSkin} upright />
+</PlateLookProvider>
+
+;<DevicePlate device={device} skin={skin} look="studio" />
+```
+
+Nothing a hand or a script finds on the plate changes with the look: its size,
+every control with its test id and info text, where each knob, cell and lamp
+stands, and the display, which draws what it drew. The photograph is one
+canvas under them (`StudioFace`), drawn by one fragment shader in one WebGL
+context that every plate on the page shares, from where the parts stand on the
+page. It is taken again when a knob turns, the lamp goes on or off, a part
+moves or the skin's colours change, and never on frames. Its colours are made
+from the skin's three (`studioPalette`): the lettering is the ink, moved until
+it stands at 4.5 to 1 or better on the paint, and the paint gives way only
+where that is not enough; the screen is the plate's colour in shade. The
+display lays no ground of its own on the glass (`DisplayColours.ground`).
+
+A plate is marked `data-lm-look="studio"` once its photograph is on it, and
+the stylesheet does the rest from that mark. Where it cannot be taken (no
+WebGL, a context that was lost, more than 64 knobs, on the server and in the
+first draw after it) the plate is the flat one, with nothing of the studio
+look in its markup. Flat is the default: without a provider or `look` nothing
+changes. `usePlateLook()` reads the provider, `useStudioLook(look?)` answers
+whether a plate here is photographed, and `studioReady()` whether this machine
+can.
+
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
 `HOSTED_PLATES` by the plug-in's id, with a finish and a knob cap, so the same

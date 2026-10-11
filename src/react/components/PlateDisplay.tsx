@@ -70,6 +70,14 @@ function slowTick(): void {
   for (const runner of mounted) runner.look()
 }
 
+/**
+ * Has every display look at its colours now, and not at the next second: for
+ * whoever changed them under it (a plate that took or lost the studio look).
+ */
+export function lookAtPlateDisplays(): void {
+  slowTick()
+}
+
 /** What a display that reads no notes is given. */
 const NO_NOTES: readonly DisplayNote[] = Object.freeze([])
 
@@ -385,9 +393,18 @@ export class DisplayRunner {
     const ink = style.color
     const accent = style.outlineColor
     const plate = style.textDecorationColor
-    if (ink) this.colours = { ink, accent: accent || ink, plate: plate || PLAIN_COLOURS.plate }
+    // How much of its ground the display lays: the stylesheet says where it is given one.
+    const ground = parseFloat(style.getPropertyValue('--lm-display-ground'))
+    if (ink) {
+      this.colours = {
+        ink,
+        accent: accent || ink,
+        plate: plate || PLAIN_COLOURS.plate,
+        ...(Number.isFinite(ground) ? { ground } : {}),
+      }
+    }
     if (style.fontFamily) this.fontFamily = style.fontFamily
-    this.colourKey = `${ink}|${accent}|${plate}|${style.fontFamily}`
+    this.colourKey = `${ink}|${accent}|${plate}|${ground}|${style.fontFamily}`
   }
 
   private onFrame(nowMs: number): void {

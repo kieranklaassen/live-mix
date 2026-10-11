@@ -133,6 +133,14 @@ export {
 } from './DevicePlate'
 export { DisplayRunner, PlateDisplayLayer, type PlateDisplayLayerProps } from './PlateDisplay'
 export {
+  PlateLookProvider,
+  usePlateLook,
+  useStudioLook,
+  type PlateLook,
+  type PlateLookProviderProps,
+} from './StudioFace'
+export { studioPalette, studioReady, type StudioPalette } from './studio-face'
+export {
   DISPLAY_STRIP_HEIGHT,
   DISPLAY_STRIP_WIDTH,
   DISPLAY_WINDOW_HEIGHT,
