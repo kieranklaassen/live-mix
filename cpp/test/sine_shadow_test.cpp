@@ -8,6 +8,7 @@
 #include "../kit/fft.h"
 #include "support/test_kit.h"
 
+#include <cstring>
 #include <limits>
 
 using namespace testkit;
@@ -1302,6 +1303,77 @@ int main() {
     }
     std::printf("sine-shadow at its worst, block by block: mean %.1f us (%.2f%%), 99th percentile %.1f us (%.2f%% of a"
                 " block's 2667 us) (native)\n", best_mean, 100.0 * best_mean / 2666.7, best_tail, 100.0 * best_tail / 2666.7);
+  }
+
+  // --- what the second reading found --------------------------------------------------------------------------
+
+  // A rumble about the lowest bin the device looks at. The place such a peak is measured at can come out at
+  // nought or under (here -0.08 bins, 4.0 s in), and a sine born there took the logarithm of it for its place
+  // between the sides: 1024 samples that were not numbers, at any Mix. The sound is five seconds of white noise
+  // through two poles at 30 Hz, from the state the generator was in 4 s before the one such sine in 2.5 hours.
+  {
+    uint32_t s = 2888549298u;
+    float lp1 = 0.000820252462f, lp2 = 0.00789064914f, hp = 0.00854110438f;
+    const float a = 0.00391930342f;
+    std::vector<float> rumble(at(5.0));
+    for (float& x : rumble) {
+      s ^= s << 13;
+      s ^= s >> 17;
+      s ^= s << 5;
+      const float white = static_cast<float>(s >> 8) * (1.0f / 16777216.0f) * 2.0f - 1.0f;
+      const float step1 = a * (white - lp1);
+      lp1 += step1;
+      const float step2 = a * (lp1 - lp2);
+      lp2 += step2;
+      const float step3 = 0.0005f * (lp2 - hp);
+      hp += step3;
+      x = 8.0f * (lp2 - hp);
+    }
+    device.init(kRate);
+    const Stereo out = run(device, rumble);
+    size_t bad = 0;
+    for (size_t i = 0; i < out.left.size(); ++i) {
+      if (!std::isfinite(out.left[i]) || !std::isfinite(out.right[i])) ++bad;
+    }
+    std::printf("a rumble at the lowest bin: %zu samples that are not numbers\n", bad);
+    EXPECT(bad == 0, "a peak measured under nought gives a sine a place like any other");
+  }
+
+  // A sine's level and its two side gains land. Each was a one pole with no end: a sine still following its
+  // partial with nothing to sound (Transpose has put it past the range) and a side with no share of a sine (a
+  // sound on the left only, Spread at 0) stood at 4e-45 for as long as the sound held, and every sum on them
+  // ran slow (native, 24 sines: 15 ms of work a second before, 94 to 220 after).
+  {
+    const std::vector<float> bright = harmonics(440.0, 24, 0.25, 1.0, 16.0f);
+    const std::vector<float> none(bright.size(), 0.0f);
+    auto noise_to_tones = [&] {
+      set_preset(device, kPresets[14]);
+      EXPECT(std::strcmp(kPresets[14].name, "Noise to tones") == 0, "the preset this check means");
+    };
+    auto most_slow = [&](const std::vector<float>& left, const std::vector<float>& right, size_t from) {
+      int most = 0;
+      for (size_t done = from; done + 128 <= left.size(); done += 128) {
+        for (int i = 0; i < 128; ++i) {
+          device.in_left()[i] = left[done + i];
+          device.in_right()[i] = right[done + i];
+        }
+        device.process(128);
+        most = std::max(most, device.slow_numbers());
+      }
+      return most;
+    };
+    noise_to_tones();
+    run(device, std::vector<float>(bright.begin(), bright.begin() + at(3.0)));
+    device.set_param(p::kTranspose, 24.0f);
+    const int thrown = most_slow(bright, bright, at(3.0));
+    noise_to_tones();
+    device.set_param(p::kSpread, 0.0f);
+    run(device, std::vector<float>(bright.begin(), bright.begin() + at(3.0)));
+    const int one_side = most_slow(bright, none, at(3.0));
+    std::printf("levels and side gains left where sums go slow: %d with Transpose thrown, %d with one side silent\n",
+                thrown, one_side);
+    EXPECT(thrown == 0, "a sine with nothing to sound has a level of nought, not of 4e-45");
+    EXPECT(one_side == 0, "a side with no share of a sine has a gain of nought, not of 4e-45");
   }
 
   return finish("sine-shadow");

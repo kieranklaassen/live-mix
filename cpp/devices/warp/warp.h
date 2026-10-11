@@ -271,6 +271,17 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     return Stft::bin_to_hz(what == 0 ? heard.mark_in[mark] : heard.mark_out[mark], sample_rate());
   }
 
+  // The sine of `turn` turns from the kit's table (public for the harness). The table brings a
+  // phase into [0, 1) by taking its floor off, and for a phase from -2^-25 up to nought that sum
+  // rounds to 1: the table's last entry, and the one read beside it is past the table's end. A
+  // region's angle can be just that (about one in 2e7 of those moved by under four bins), and so
+  // can a cosine's quarter turn more. The same sum is made here first, and a 1 is the nought it
+  // stands for; every other angle reads what it read.
+  static float table_sine(float turn) {
+    turn -= std::floor(turn);
+    return kit::SineTable::lookup(turn < 1.0f ? turn : 0.0f);
+  }
+
   void process(int frames) {
     frames = begin_block(frames);
     if (!idle_.wake(input_present(frames))) {
@@ -278,7 +289,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       listen_.skip(frames);   // the frame clock, and the drift read from it, run on through the sleep
       stft_[0].skip(frames);
       stft_[1].skip(frames);
-      clock_ += static_cast<uint32_t>(frames);
+      clock_ += static_cast<uint64_t>(frames);
       snap_mix();  // a knob moved while asleep does not glide in
       for (int m = 0; m < kMarks; ++m) heard_.mark_level[m] = 0.0f;
       return;
@@ -303,7 +314,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
       // of half Mix's angle now is theirs by their weights, so a partial at rest adds up with its
       // dry self to what came in at every sample of a throw, and Mix moves as the frames do.
       if (!mix_steady_) {
-        const uint32_t q = (clock_ - Stft::kMaxStagger) & (Stft::kHop - 1);  // samples into the newest frame
+        const uint32_t q = static_cast<uint32_t>(clock_ - Stft::kMaxStagger) & (Stft::kHop - 1);  // samples into the newest frame
         float t = 0.0f;
         for (int j = 0; j < Stft::kOverlap; ++j) t += mix_tan_[j] * fade_[q + static_cast<uint32_t>(j) * Stft::kHop];
         mix_gains(t);
@@ -656,7 +667,12 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
 
     // The stretch: the knob and the drift; and what Width puts each side's exponent under or over
     // the middle one.
-    const float centre = param(kStretch) + param(kDrift) * kDriftDepth * wander(stft_[0].frame());
+    // (The frame's number from the device's own count of samples: the Stft's wraps with a 32-bit
+    // count, after a day at 48 kHz and six hours at 192, and the drift then jumped to another
+    // place in its round, the stretch with it. This one is the same number until then, and after
+    // it wraps only as the three phases do.)
+    const uint32_t frame = static_cast<uint32_t>((clock_ - kPlanStagger) / Stft::kHop);
+    const float centre = param(kStretch) + param(kDrift) * kDriftDepth * wander(frame);
     stretch_now_ = centre;
     const float half = param(kWidth) * kWidthDepth;
     const float lean = param(kLean);
@@ -934,8 +950,8 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
     // middle, and the level that costs is given back.
     gain *= move == 0.0f ? rest_gain_ : 1.0f / (1.0f - 4.0f * kInterpolationLoss * part * (1.0f - part));
     const float sign = (d & 1) ? -gain : gain;
-    const float cosine = kit::SineTable::cos_lookup(turn);
-    const float sine = kit::SineTable::lookup(turn);
+    const float cosine = table_sine(turn + 0.25f);
+    const float sine = table_sine(turn);
     const float ar = cosine * sign * (1.0f - part), ai = sine * sign * (1.0f - part);
     const float br = -cosine * sign * part, bi = -sine * sign * part;
     // Bins that would land outside 0..kBins-1 are dropped (out_*[kBins] is a spare slot).
@@ -980,7 +996,7 @@ class Warp : public kit::DeviceBase<warp::kNumParams> {
   float fade_[Stft::kFrame];         // a frame's weight in the output, sample by sample
   float mix_tan_[Stft::kOverlap] = {1.0f, 1.0f, 1.0f, 1.0f};  // tan of half Mix's angle, the four frames in flight
   bool mix_steady_ = true;           // all four the same: the gains stand
-  uint32_t clock_ = 0;               // samples since init, slept ones too (the Stft's own count)
+  uint64_t clock_ = 0;               // samples since init, slept ones too (the Stft's own count, which wraps; this does not)
   float dry_gain_ = 1.0f;
   float wet_gain_ = 0.0f;
   float at_rest_ = 0.0f;      // kAtRestHz in bins
