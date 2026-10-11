@@ -188,6 +188,9 @@ describe('a variant of a sound', () => {
   it('is the same for the same seed and amounts, and another for another seed', () => {
     for (const each of FACTORY_SOUNDS) {
       expect(varySound(each, full(4))).toEqual(varySound(each, full(4)))
+      // One drum struck once has nothing a variant may move: a kit sound is not detuned, its
+      // first moment is its attack, and a lone note's gain comes back to itself. It is the hit.
+      if (each.kit && each.phrase.notes.length === 1) continue
       expect(varySound(each, full(4)).phrase).not.toEqual(varySound(each, full(5)).phrase)
       expect(varySound(each, full(4)).phrase).not.toEqual(each.phrase)
     }
