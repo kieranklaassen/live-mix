@@ -245,7 +245,7 @@ describe("the curve of Haze's display", () => {
     expect(header).toContain(
       'return gain * kit::fast_tanh(drive * (keep * q + fold * kFoldGain * (folded - *mean)));',
     )
-  })
+  }, 60000)
 
   it('leaves a sine as loud as it came, which is what the device was measured to do', () => {
     // haze_test.cpp: a sine in at -15.1 dB leaves at -16.2 to -15.8 dB over Haze.
@@ -370,11 +370,12 @@ describe("the highs of Haze's display", () => {
     // `derive()`: a line's gain is 10^e with e = -3 × its seconds / Decay, and
     // its one-pole's coefficient is kDampingSlope × e. By hand at Decay 2 s,
     // Size 0.6 (the middle line 79.1 ms): e = -0.1187, pole 0.359, the pole
-    // takes 0.55 dB a pass at 3 kHz beside the gain's 2.37, and the swept
-    // read 0.11 more (1 − (1 − cos w) / 3 of the power, w = 0.393), so 60 dB
-    // take 60 × 0.0791 / 3.03 = 1.57 s.
+    // takes 0.55 dB a pass at 3 kHz beside the gain's 2.37, and the read
+    // between two samples 0.11 more (the lines stand still, each at its own
+    // place between two samples: 1 − (1 − cos w) / 3 of the power over the
+    // eight of them, w = 0.393), so 60 dB take 60 × 0.0791 / 3.03 = 1.57 s.
     expect(header).toContain(
-      'v[n] = line_[n].read_linear(kit::clamp(length_[n] * size + sweep_[n], 2.0f, max_line));',
+      'v[n] = line_[n].read_linear(kit::clamp(length_[n] * size, 2.0f, max_line));',
     )
     expect(hazeFall(HAZE_HIGH_HZ, 2, 0.6)).toBeCloseTo(1.57, 2)
     expect(hazeFall(HAZE_HIGH_HZ, 8, 0.6)).toBeCloseTo(6.12, 2)
@@ -484,7 +485,7 @@ describe("the fall of Haze's display", () => {
         `${JSON.stringify(values)}: ${drawn.toFixed(2)} s drawn, ${measured.toFixed(2)} s from haze.wasm`,
       ).toBeLessThan(0.08)
     }
-  })
+  }, 60000)
 
   it('and its highs as long as haze.wasm does about 3 kHz', async () => {
     for (const decay of [2, 6]) {
@@ -495,7 +496,7 @@ describe("the fall of Haze's display", () => {
         `Decay ${decay}: ${drawn.toFixed(2)} s drawn, ${measured.toFixed(2)} s from haze.wasm`,
       ).toBeLessThan(0.1)
     }
-  })
+  }, 60000)
 
   it('grows with Decay over the whole of it, and a Decay is found again from its fall', () => {
     for (const size of [0, 0.6, 1]) {

@@ -83,7 +83,7 @@
       "min": 0,
       "max": 1,
       "default": 0.25,
-      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, more than twice as long at the top, where the fading tail leans flat."
+      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB and the fading tail leans flat."
     },
     {
       "key": "width",
@@ -126,6 +126,7 @@
       "haze": 0.5,
       "blur": 0.7,
       "decay": 7,
+      "mix": 0.38,
       "tone": 0.65,
       "octave": 0.7
     },
@@ -133,8 +134,8 @@
       "haze": 0.75,
       "blur": 0.9,
       "decay": 30,
-      "mix": 0.55,
-      "size": 0.9,
+      "mix": 0.45,
+      "size": 1,
       "feed": 0.7
     },
     "Small room fuzz": {
@@ -147,9 +148,10 @@
     },
     "Wall alone": {
       "haze": 0.6,
-      "blur": 0.7,
+      "blur": 0.9,
       "decay": 8,
-      "mix": 1
+      "mix": 1,
+      "width": 0.9
     },
     "Slow bloom": {
       "haze": 0.45,
@@ -158,7 +160,7 @@
       "mix": 0.6,
       "size": 0.8,
       "tone": 0.4,
-      "feed": 0.4
+      "feed": 0.25
     },
     "Feedback cloud": {
       "haze": 0.65,
@@ -188,7 +190,7 @@
       "haze": 0.25,
       "blur": 0.3,
       "decay": 12,
-      "mix": 0.3,
+      "mix": 0.2,
       "size": 0.3,
       "tone": 1,
       "octave": 1,
@@ -206,10 +208,10 @@
       "haze": 0.6,
       "blur": 1,
       "decay": 20,
-      "mix": 0.65,
+      "mix": 0.55,
       "size": 1,
       "tone": 0.3,
-      "feed": 0.5
+      "feed": 0.35
     },
     "Bite and tail": {
       "haze": 0.9,

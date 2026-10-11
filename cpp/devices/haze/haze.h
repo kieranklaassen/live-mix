@@ -6,9 +6,9 @@
 //       ▼                                                                      │
 //      (+)─► Blur: 5 allpasses ─► an allpass round a delay and 2 more          │
 //       ▲    (the first reverb; every length follows Blur)                     │
-//       │      ─► low-pass ─► FUZZ ─► Tone ─► 2 allpasses ─┬──── early ───┐    │
-//       │                                                  ▼              ▼    ▼
-//       │                 8 swept delay lines (the wall) ─► low cut ─(+)─► width ─► Mix ─► out
+//       │      ─► low-pass ─► FUZZ ─► Tone ─► 2 allpasses ─┬─── the fuzz ───┐  │
+//       │                              a quarter turn on   ▼                ▼  ▼
+//       │                  8 delay lines (the wall) ─► low cut ─► HOLD ─► TURN ─► Mix ─► out
 //       │                  ▲ damping ◄ decay gain ◄ Hadamard ┘
 //       └── Feed ◄── shift down a few Hz ◄── low cut ◄── the lines
 //
@@ -43,28 +43,59 @@
 //   25 dB apart. Under a Decay of a second the lengths shrink with Decay, so
 //   the first reverb does not outlast the second.
 // - The wall is an eight-line feedback delay network (Hadamard), its lines
-//   20 to 160 ms by Size, read with a slow free-running sweep each. Its low
-//   end is cut (the lines' own resonances are too few down there to carry a
-//   bass evenly). Beside the lines the fuzz also goes straight out ("early"):
-//   a small share always, so the wall answers at once, and half the wall's
-//   power as Mix nears its top, where there is no dry sound left to be even
-//   and full in the bass for it. The two are scaled so the wall is as loud
-//   whatever Decay, Feed and Mix are.
-// - Feed returns the lines to the front, moved down by a few Hz on the way
-//   (a single-sideband shift, 2.3 Hz on the left and 3.1 Hz on the right).
-//   Without the shift the loop howls: one resonance of the wall feeds itself
-//   and a single tone holds for good. With it, what returns never lands on
-//   the frequency it left, so the loop's gain is the average over the wall's
-//   resonances and not the highest of them. The price is that what has been
+//   20 to 160 ms by Size, and it stands still. Its lines were once swept, each
+//   at its own slow rate, to even the wall over the notes; but the tank's
+//   resonances are a couple of Hz apart and a third of a Hz wide at a long
+//   Decay, and the sweeps walked them through a held note: the wall under one
+//   note came and went by 9 dB on average and 13 at the worst, and its phase
+//   against the dry sound wandered, so that part-way up Mix a held note fell
+//   7 dB at its worst quarter second (9 folded to mono). A still tank answers
+//   each note differently instead, and for good; HOLD and TURN are what make
+//   a still tank even.
+// - HOLD (hold_wall()). What is heard of the tank is what comes back round it
+//   (the lines after the Hadamard, the decay gain and the damping, in the
+//   sense each side is fed), and beside it the fuzz itself. The tank is fed
+//   the fuzz a quarter turn on, so the two have little in common. The wall's
+//   middle is the two together at a set share of the fuzz's own power: what
+//   comes back is turned down where it is over the share, and the fuzz fills
+//   what is missing. Both gains are worked out from powers read over a
+//   hundredth of a second, with nothing going round a loop, so a held note
+//   holds: the wall alone stays within 1.2 dB of itself. The wall's side is the
+//   difference between what came back on the left and on the right, filled
+//   up to its share by the middle's quarter turn, and kept clear of the
+//   middle of the mix, so the two sides of the output are as loud as each
+//   other (a held note used to sit up to 9 dB to one side at the default,
+//   and wander).
+// - TURN (turn_wall()). The whole wall is turned in phase, by one angle at
+//   every pitch, to where it has nothing in common with the dry sound. Part
+//   way up Mix the two are the same notes; by their phase they added for one
+//   note and cancelled for the next. A quarter turn apart, the power of the
+//   mix is the sum of its parts, in stereo and folded to mono alike.
+// - What that leaves: each partial of a held note still has its own level in
+//   the wall (one angle and one gain serve all of a note's partials, and the
+//   tank answers each differently), so a note's colour differs from the next
+//   note's; it no longer moves in time.
+// - The wall's low end is cut (the lines' own resonances are too few down
+//   there to carry a bass evenly); the fuzz beside it is not, so the wall
+//   keeps its bass at every Mix.
+// - Feed returns the middle of the lines to the front, moved down by a few
+//   Hz on the way (a single-sideband shift, 2.3 Hz on the left and 3.1 Hz on
+//   the right). Without the shift the loop howls: one resonance of the wall
+//   feeds itself and a single tone holds for good. With it, what returns
+//   never lands on the frequency it left. The price is that what has been
 //   round several times is flat of where it started, so the top of Feed is
-//   set where the tail of a 440 Hz note leans a quarter of a semitone flat
-//   when it is 20 dB down and two thirds of one when it is 40 dB down, and no
-//   more: the returned share is worked out from the wall's own loss, 0.45 of
-//   it at the top, which makes the tail about twice as long (1.8 to 2.7
-//   times, measured). Only what is above the bass goes round.
-// - The sweeps and the shift run by a count of samples that goes on through
-//   silence and sleep, and the device goes to sleep and wakes on the sample,
-//   not the block, so the output is the same at every block size.
+//   set where the tail of a 440 Hz note leans about three quarters of a
+//   semitone flat when it is 40 dB down, and no more: the returned share is
+//   worked out from the wall's own loss, 0.45 of it at the top, which makes
+//   the tail half as long again to twice as long (measured: twice at a Decay
+//   of 2 s, 1.4 times at 6 s). Only what is above the bass goes round. Under
+//   a played note the return is held to the level the playing calls for
+//   (kFeedLevel), and what has come round still beats against the note a few
+//   times a second: at the top of Feed a held note moves by about 2 dB.
+// - The shift runs by a count of samples that goes on through silence and
+//   sleep, the control tick is a mask of the same count, and the device goes
+//   to sleep and wakes on the sample, not the block, so the output is the
+//   same at every block size.
 // - Nothing that a thrown control moves is stepped: the lines' gains walk to
 //   where Decay has them a sample at a time (and Decay is glided as 1 / Decay,
 //   which is what they go by), the curve's 1 / drive is taken on the very
@@ -74,9 +105,14 @@
 //
 // Storage: eight lines of 16384 samples, eighteen allpasses and two loop delays
 // of 4096 (sized for 96 kHz), the oversampling filters: about 0.9 MB.
+//
+// The two sides have the same lengths throughout the first reverb and the
+// allpasses after the fuzz: with different ones a sound in the middle left
+// the fuzz as two different sounds, and their sum came and went by the note.
 
 #include "../../kit/kit.h"
 #include "halfband.h"
+#include "quadrature.h"
 #include "params.gen.h"
 
 namespace livemix {
@@ -94,14 +130,14 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     for (int c = 0; c < 2; ++c) {
       for (int a = 0; a < kBlurStages; ++a) {
         blur_allpass_[c][a].clear();
-        blur_length_[c][a] = kit::clamp(kBlurAllpass[c][a] * scale, 1.0f, longest);
+        blur_length_[c][a] = kit::clamp(kBlurAllpass[a] * scale, 1.0f, longest);
       }
       for (int a = 0; a < kInnerStages; ++a) {
         inner_allpass_[c][a].clear();
-        inner_length_[c][a] = kit::clamp(kInnerAllpass[c][a] * scale, 1.0f, longest);
+        inner_length_[c][a] = kit::clamp(kInnerAllpass[a] * scale, 1.0f, longest);
       }
       blur_loop_[c].clear();
-      blur_loop_length_[c] = kit::clamp(kBlurLoopDelay[c] * scale, 1.0f, longest);
+      blur_loop_length_[c] = kit::clamp(kBlurLoopDelay * scale, 1.0f, longest);
       pre_filter_[c].reset();
       pre_filter_[c].set_cutoff(kPreFilterHz, sr);
       outer_[c].init();
@@ -115,12 +151,12 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       for (int a = 0; a < kInputStages; ++a) {
         input_allpass_[c][a].clear();
         input_length_[c][a] =
-            kit::clamp_int(static_cast<int>(kInputAllpass[c][a] * scale), 1, kSmallSize - 1);
+            kit::clamp_int(static_cast<int>(kInputAllpass[a] * scale), 1, kSmallSize - 1);
       }
       low_cut_[c].reset();
       low_cut_[c].set(kLowCutHz, kit::kSqrtHalf, sr);
-      early_low_[c].reset();
-      early_low_[c].set(kLowCutHz, kit::kSqrtHalf, sr);
+      pair_[c].init(sr);
+      turn_[c].init(sr);
       feed_cut_[c].reset();
       feed_cut_[c].set_cutoff(kFeedCutHz, sr);
       shifter_[c].reset();
@@ -128,8 +164,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     }
     // One trip round the first reverb's loop at full Blur: the loop's delay and
     // the two allpasses in it (an allpass delays energy by its length).
-    blur_seconds_ = kBlurLoopDelay[0] / 48000.0f;
-    for (int a = 0; a < kInnerStages; ++a) blur_seconds_ += kInnerAllpass[0][a] / 48000.0f;
+    blur_seconds_ = kBlurLoopDelay / 48000.0f;
+    for (int a = 0; a < kInnerStages; ++a) blur_seconds_ += kInnerAllpass[a] / 48000.0f;
     for (int n = 0; n < kLines; ++n) {
       line_[n].clear();
       damping_[n].reset();
@@ -137,8 +173,6 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       gain_[n] = 0.0f;
       gain_to_[n] = 0.0f;
       gain_step_[n] = 0.0f;
-      sweep_[n] = 0.0f;
-      sweep_step_[n] = 0.0f;
     }
     power_[0] = 0.0f;
     power_[1] = 0.0f;
@@ -147,12 +181,14 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     post_at_ = 0;
     level_coeff_ = 1.0f - kit::time_to_coeff(kLevelSeconds, sr);
     fold_coeff_ = 1.0f - kit::time_to_coeff(1.0f / (kit::kTwoPi * kFoldMeanHz), sr);
-    sweep_depth_ = kSweepSeconds * sr;
+    follow_ = 1.0f - kit::time_to_coeff(kFollowSeconds, sr);
+    tick_seconds_ = static_cast<float>(kControlPeriod) / sr;
+    settle_ = 1.0f - kit::time_to_coeff(kSettleSeconds, sr / kControlPeriod);
+    relax_ = 1.0f - kit::time_to_coeff(kRelaxSeconds, sr / kControlPeriod);
     shift_turn_[0] = static_cast<double>(kFeedShiftHz[0]) / sr;
     shift_turn_[1] = static_cast<double>(kFeedShiftHz[1]) / sr;
 
-    kit::Smoother* fast[] = {&drive_, &loop_, &back_gain_, &width_, &dry_,
-                             &wet_,   &width_gain_, &late_, &early_, &thin_};
+    kit::Smoother* fast[] = {&drive_, &loop_, &back_gain_, &width_, &dry_, &wet_, &late_, &make_};
     for (kit::Smoother* s : fast) s->set_time(kSmoothingSeconds, sr);
     octave_.set_time(kSmoothingSeconds, sr);
     // Size and Blur move read points: they glide slowly enough to bend, not zip.
@@ -208,7 +244,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         }
         if (i == frames) break;
         // Nothing is sounding: whatever moved while asleep applies at once,
-        // and the sweeps stand where the clock has them.
+        // and the wall is read afresh.
         settle();
         quiet_ = 0;
       }
@@ -240,8 +276,10 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       const float back_gain = glide(back_gain_);
       const float reach = glide(reach_);
       float pre[2];
+      float front[2];
       for (int c = 0; c < 2; ++c) {
         float s = safe(in[c]) + back_gain * back_[c];
+        front[c] = s;
         for (int a = 0; a < kBlurStages; ++a) {
           s = blur_allpass_[c][a].process_modulated(s, kit::max(1.0f, blur_length_[c][a] * reach),
                                                     kBlurDiffusion);
@@ -322,48 +360,111 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         fuzz[c] = input_allpass_[c][1].process(y, input_length_[c][1], kInputDiffusion);
       }
 
-      // The wall.
+      // The fuzz and its quarter turn.
+      float same[2], quarter[2];
+      pair_[0].process(fuzz[0], &same[0], &quarter[0]);
+      pair_[1].process(fuzz[1], &same[1], &quarter[1]);
+
+      // The wall: a tank that stands still, fed the quarter turn.
       const float size = glide(size_);
+      const float more = more_.next();
       float v[kLines];
       for (int n = 0; n < kLines; ++n) {
-        sweep_[n] += sweep_step_[n];
-        v[n] = line_[n].read_linear(kit::clamp(length_[n] * size + sweep_[n], 2.0f, max_line));
+        v[n] = line_[n].read_linear(kit::clamp(length_[n] * size, 2.0f, max_line));
       }
       const float lines_left = 0.5f * (v[0] - v[2] + v[4] - v[6]);
       const float lines_right = 0.5f * (v[1] - v[3] + v[5] - v[7]);
       hadamard8(v);
+      // What comes back round, heard where it goes in again and in the sense
+      // each side is fed: the tank's answer with no wait.
+      float round[2] = {0.0f, 0.0f};
       for (int n = 0; n < kLines; ++n) {
-        const float feed = 0.5f * fuzz[n & 1];
+        const float feed = 0.5f * more * quarter[n & 1];
         gain_[n] += gain_step_[n];
-        const float x = damping_[n].lowpass(v[n] * gain_[n]) + ((n & 2) ? -feed : feed);
+        const float back = damping_[n].lowpass(v[n] * gain_[n]);
+        round[n & 1] += (n & 2) ? -back : back;
         // Linear to ±2, landing on ±4: out of the way of any normal level.
-        line_[n].write(flush_denormal(4.0f * kit::soft_clip(0.25f * x)));
+        line_[n].write(flush_denormal(4.0f * kit::soft_clip(0.25f * (back + ((n & 2) ? -feed : feed)))));
       }
-      // What Feed returns next sample: the lines alone, so the share that
-      // comes back is the share control() worked out.
-      const float lines[2] = {lines_left, lines_right};
+      // The wall's middle has two parts: what comes back round, and the fuzz
+      // itself. The fuzz's middle is the sum of its sides and the quarter
+      // turn of their difference, so a sound that is out of phase between
+      // left and right has a middle too.
+      const float back_left = low_cut_[0].highpass(0.5f * round[0]);
+      const float back_right = low_cut_[1].highpass(0.5f * round[1]);
+      const float late = glide(late_);
+      const float back_mid = late * 0.5f * (back_left + back_right);
+      const float fuzz_mid = 0.5f * (same[0] + same[1]) + 0.5f * (quarter[0] - quarter[1]);
+      // Their powers and what they have in common, over kFollowSeconds twice.
+      const float dry_left = safe(in[0]);
+      const float dry_right = safe(in[1]);
+      in_power_.add(dry_left * dry_left + dry_right * dry_right, follow_);
+      front_power_.add(front[0] * front[0] + front[1] * front[1], follow_);
+      fuzz_power_.add(same[0] * same[0] + same[1] * same[1], follow_);
+      mid_fuzz_.add(fuzz_mid * fuzz_mid, follow_);
+      mid_both_.add(fuzz_mid * back_mid, follow_);
+      mid_back_.add(back_mid * back_mid, follow_);
+      // The middle, held at its share of the playing's power (hold_wall()).
+      const float make = glide(make_);
+      const float kept = keep_mid_.next();
+      const float mid = make * (top_mid_.next() * fuzz_mid + kept * back_mid);
+
+      // What Feed returns next sample: the middle of the lines, as far as it
+      // is kept (hold_wall()), and no more of it for the tank being fed more.
+      // Both sides are returned the same and shifted apart: returned a side
+      // each, the two sides of the fuzz drifted apart under a held note and
+      // the wall came and went with them (2.8 dB down at the worst where this
+      // is 1.0). The middle of two unlike sides has half their power, which
+      // the root of two puts back.
+      const float returned = keep_feed_.next() * kit::kSqrtHalf * (lines_left + lines_right);
+      const float less = 1.0f / more;
       for (int c = 0; c < 2; ++c) {
         const double turns = shift_turn_[c] * static_cast<double>(samples_);
         const float turn = static_cast<float>(turns - std::floor(turns));
-        float same, quarter;
-        shifter_[c].process(feed_cut_[c].highpass(lines[c]), &same, &quarter);
-        back_[c] = same * kit::SineTable::cos_lookup(turn) - quarter * kit::SineTable::lookup(turn);
+        float same_back, quarter_back;
+        shifter_[c].process(feed_cut_[c].highpass(returned), &same_back, &quarter_back);
+        back_[c] = less * (same_back * kit::SineTable::cos_lookup(turn) -
+                           quarter_back * kit::SineTable::lookup(turn));
       }
 
-      const float late = glide(late_);
-      const float early = glide(early_);
-      const float thin = glide(thin_);
-      const float wet_left = late * low_cut_[0].highpass(lines_left) +
-                             early * (fuzz[0] + thin * (early_low_[0].highpass(fuzz[0]) - fuzz[0]));
-      const float wet_right = late * low_cut_[1].highpass(lines_right) +
-                              early * (fuzz[1] + thin * (early_low_[1].highpass(fuzz[1]) - fuzz[1]));
-      const float gain = glide(width_gain_);
-      const float mid = 0.5f * (wet_left + wet_right) * gain;
-      const float side = 0.5f * (wet_left - wet_right) * glide(width_) * gain;
+      // The wall's side has two parts as well: the difference between what
+      // came back round on the left and on the right (the tank's own width),
+      // less whatever of it is the middle over again, and the middle's
+      // quarter turn to fill the rest of its share (hold_side()). Neither has
+      // anything in common with the middle, so the two sides of the wall are
+      // as loud as each other whatever note is held.
+      const float wide = glide(width_);
+      float mid_same, mid_quarter, across_same, across_quarter;
+      turn_[0].process(mid, &mid_same, &mid_quarter);
+      turn_[1].process(make * late * 0.5f * (back_left - back_right) * wide, &across_same, &across_quarter);
+      wall_mid_.add(mid_same * mid_same, follow_);
+      side_with_.add(mid_same * across_same, follow_);
+      side_turned_.add(mid_quarter * across_same, follow_);
+      side_back_.add(across_same * across_same, follow_);
+      // And what the dry sound's middle has in common with each of them.
+      const float dry_mid = 0.5f * (dry_left + dry_right);
+      with_same_.add(dry_mid * mid_same, follow_);
+      with_quarter_.add(dry_mid * mid_quarter, follow_);
+      across_with_same_.add(dry_mid * across_same, follow_);
+      across_with_quarter_.add(dry_mid * across_quarter, follow_);
+      const float top_side = top_side_.next();
+      const float keep_side = keep_side_.next();
+      const float lean = lean_.next();
+      const float side_same = top_side * mid_quarter + keep_side * across_same - lean * mid_same;
+      const float side_quarter = keep_side * across_quarter - top_side * mid_same - lean * mid_quarter;
+
+      // The whole wall turned by one angle, the one at which it has nothing in
+      // common with the dry sound (turn_wall()).
+      const float left_same = mid_same + side_same;
+      const float right_same = mid_same - side_same;
+      const float left_quarter = mid_quarter + side_quarter;
+      const float right_quarter = mid_quarter - side_quarter;
+      const float cosine = cosine_.next();
+      const float sine = sine_.next();
       // Exact up to ±1 and landing on ±2: the wall never leaves more than
       // 6 dB over full scale, whatever is held into it for however long.
-      const float wall_left = 2.0f * kit::soft_clip(0.5f * (mid + side));
-      const float wall_right = 2.0f * kit::soft_clip(0.5f * (mid - side));
+      const float wall_left = 2.0f * kit::soft_clip(0.5f * (cosine * left_same - sine * left_quarter));
+      const float wall_right = 2.0f * kit::soft_clip(0.5f * (cosine * right_same - sine * right_quarter));
       const float l = wall_left < 0.0f ? -wall_left : wall_left;
       const float r = wall_right < 0.0f ? -wall_right : wall_right;
       if (l > *wall_peak) *wall_peak = l;
@@ -388,7 +489,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   }
 
   static constexpr int kLines = 8;
-  static constexpr int kLineSize = 16384;  // 162 ms at 96 kHz plus the sweep
+  static constexpr int kLineSize = 16384;  // 162 ms at 96 kHz
   static constexpr int kSmallSize = 4096;  // 37.5 ms at 96 kHz
   static constexpr int kBlurStages = 5;
   static constexpr int kInnerStages = 2;
@@ -443,11 +544,13 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr float kTiltHighDb = 6.0f;
   // The first reverb at full Blur: allpass lengths in samples at 48 kHz (7 to
   // 37 ms, 97 ms in all), the two allpasses and the delay inside its loop
-  // (37 ms), the allpass coefficient, and the loop's gain at Blur 1.
-  static constexpr float kBlurAllpass[2][kBlurStages] = {{337.0f, 521.0f, 811.0f, 1259.0f, 1733.0f},
-                                                         {359.0f, 547.0f, 853.0f, 1193.0f, 1801.0f}};
-  static constexpr float kInnerAllpass[2][kInnerStages] = {{233.0f, 421.0f}, {251.0f, 443.0f}};
-  static constexpr float kBlurLoopDelay[2] = {1109.0f, 1151.0f};
+  // (37 ms), the allpass coefficient, and the loop's gain at Blur 1. The two
+  // sides have the same lengths: with different ones a sound in the middle
+  // left the fuzz as two different sounds, and their sum (the fold to mono)
+  // came and went note by note.
+  static constexpr float kBlurAllpass[kBlurStages] = {337.0f, 521.0f, 811.0f, 1259.0f, 1733.0f};
+  static constexpr float kInnerAllpass[kInnerStages] = {233.0f, 421.0f};
+  static constexpr float kBlurLoopDelay = 1109.0f;
   static constexpr float kBlurDiffusion = 0.65f;
   static constexpr float kBlurLoop = 0.6f;
   // Under this Decay the first reverb's lengths shrink in proportion.
@@ -458,7 +561,7 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
                                                  0.071938f, 0.083271f, 0.094729f, 0.108104f};
   static constexpr float kMinScale = 0.5f;
   static constexpr float kMaxScale = 1.5f;
-  static constexpr float kInputAllpass[2][kInputStages] = {{229.0f, 173.0f}, {241.0f, 181.0f}};
+  static constexpr float kInputAllpass[kInputStages] = {229.0f, 173.0f};
   static constexpr float kInputDiffusion = 0.6f;
   // The top of the band dies away in 0.4 of Decay: the pole is
   // (ln 10 / 4) (1 - 1 / 0.4²) times the log of the line's gain, and no more
@@ -468,14 +571,6 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // The lines' low cut (12 dB an octave), and the gentler one on what Feed returns.
   static constexpr float kLowCutHz = 100.0f;
   static constexpr float kFeedCutHz = 200.0f;
-  // Each line's read point sweeps ±0.9 ms at 0.23 Hz and up, 0.09 Hz apart.
-  // Deeper evens the wall over the notes (a held note's level by semitone
-  // has a spread of 1.9 dB at ±0.6 ms and 1.3 dB at ±2.4 ms) and detunes the
-  // tail (its pitch is spread 10 cents at ±0.6 ms and 50 cents at ±2.4 ms a
-  // fifth of a second after a note): this is between.
-  static constexpr float kSweepSeconds = 0.0009f;
-  static constexpr float kSweepHz = 0.23f;
-  static constexpr float kSweepStepHz = 0.09f;
   // A line holds 1/(1 - g²) of the power fed to it and a side taps a quarter
   // of what all eight hold: kLineShare. Feed returns kFeedShare of the wall's
   // loss at its top, which makes the tail 1 / (1 - kFeedShare) as long.
@@ -483,14 +578,46 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   static constexpr float kWetGain = 1.0f;
   static constexpr float kFeedShare = 0.45f;
   static constexpr float kFeedMost = 0.9f;
-  // The fuzz's own share of the wall's power, beside the lines: kEarlyLeast
-  // (as an amplitude) up to a Mix of kEarlyFrom, rising to kEarlyMost at a
-  // Mix of 1. With the dry sound in the mix a large share would comb against
-  // it (it is the same notes, turned in phase by the first reverb).
-  static constexpr float kEarlyLeast = 0.25f;
-  static constexpr float kEarlyMost = 0.70710678f;
-  static constexpr float kEarlyFrom = 0.75f;
-  static constexpr float kBassFrom = 0.85f;
+  // How the wall is held to the playing. Everything is read over
+  // kFollowSeconds, twice (two one-pole means in a row), and the gains worked
+  // out from the readings settle over kSettleSeconds, twice. Slower held a
+  // note less well: at 30 ms and 15 ms the wall alone moved 1.8 dB under a
+  // held note at the worst, at these 0.8.
+  static constexpr float kFollowSeconds = 0.01f;
+  static constexpr float kSettleSeconds = 0.01f;
+  // Under a played note Feed returns no more than what comes back round at
+  // kFeedLevel of the playing's power (as hold_wall() reads it: the average
+  // over the notes; a note on a resonance of the tank comes back several
+  // times as strong, and returned whole it went round and round: the front
+  // of the device stood 4 to 11 dB over its input and the wall 5 dB over the
+  // note). Once the playing stops it is let go over kRelaxSeconds, so the
+  // tail has all of Feed.
+  static constexpr float kFeedLevel = 0.15f;
+  static constexpr float kRelaxSeconds = 0.25f;
+  // The side's share of the playing's power at full Width, by Width squared.
+  // The middle gives up half of what the side is given: a wider wall is then
+  // a little louder in stereo and a little softer folded to mono, by about
+  // the same (0.8 dB up and 1.0 dB down at full Width), and not all one way.
+  static constexpr float kSideShare = 0.4f;
+  // The fuzz counts as playing while its power is over this share of the most
+  // it has been (that most falling at the wall's own rate): under it the wall
+  // is ringing on, and is left to.
+  static constexpr float kPlayingShare = 0.25f;
+  // The most the fuzz itself is turned up to fill a part of the wall.
+  static constexpr float kTopMost = 2.0f;
+  // The tank is fed more (up to kMoreMost times, at kMoreRate a second) while
+  // what comes back is under kBackShare of the playing's power.
+  static constexpr float kBackShare = 0.6f;
+  static constexpr float kMoreMost = 2.0f;
+  static constexpr float kMoreRate = 2.0f;
+  // The wall's turn: how fast its angle goes to where the wall and the dry
+  // sound have nothing in common, and the least the step is divided by (a
+  // share of the two powers' product, so noise does not spin it).
+  static constexpr float kTurnRate = 40.0f;
+  static constexpr float kTurnFloor = 0.02f;
+  // The least Mix's wet share counts as, where the side is held clear of the
+  // dry sound (under it there is next to no wall to lean).
+  static constexpr float kWetLeast = 0.05f;
   // What Feed returns is moved in frequency on the way, by a little less on
   // the left than on the right, so that no resonance of the wall or of the
   // first reverb can feed itself. Both sides go the same way: with one up and
@@ -530,23 +657,77 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   // float that glides over 0.15 s stalls 4e-4 short of where it is going (its
   // step falls under half a float step) and is landed there: on Size that was
   // a jump of two or three samples in every line, 1.2 s after the knob moved.
+  // It goes in two stages of half the time each, so it sets off from rest:
+  // in one, a thrown Size had every line's read point at full speed from the
+  // first sample, and the wave bent there (a corner three times the largest
+  // the note has of its own).
   struct LongGlide {
-    double value = 0.0, target = 0.0, coeff = 0.0;
-    void set_time(float seconds, float rate) { coeff = std::exp(-1.0 / (static_cast<double>(seconds) * rate)); }
-    void snap(float v) { value = target = v; }
+    double value = 0.0, lag = 0.0, target = 0.0, coeff = 0.0;
+    void set_time(float seconds, float rate) { coeff = std::exp(-2.0 / (static_cast<double>(seconds) * rate)); }
+    void snap(float v) { value = lag = target = v; }
     void set(float v, bool primed) {
       target = v;
-      if (!primed) value = v;
+      if (!primed) value = lag = v;
     }
     float next() {
       if (value != target) {
+        lag = target + (lag - target) * coeff;
+        value = lag + (value - lag) * coeff;
         const double delta = value - target;
-        value = (delta > -1.0e-10 && delta < 1.0e-10) ? target : target + delta * coeff;
+        const double behind = lag - target;
+        if (delta > -1.0e-10 && delta < 1.0e-10 && behind > -1.0e-10 && behind < 1.0e-10) value = lag = target;
       }
       return static_cast<float>(value);
     }
   };
   static float glide(LongGlide& s) { return s.next(); }
+
+  // A mean over kFollowSeconds, taken twice over (the second of the first), so
+  // a power read from it has little of the wave's own ripple left. It never
+  // quite reaches nothing, so it never lands on a denormal.
+  struct Mean {
+    float first = 0.0f, value = 0.0f;
+    void clear() { first = value = 0.0f; }
+    void add(float x, float k) {
+      first += k * (x + 1.0e-25f - first);
+      value += k * (first - value);
+    }
+  };
+
+  // A gain that goes to where the control tick has it in a straight line.
+  // follow() takes what the tick worked out through two more means first
+  // (kSettleSeconds each): the means it was worked out from still carry a
+  // little of the wave at twice the note, and a gain that moved with that
+  // would be a third harmonic on a clean note.
+  struct Ramp {
+    float value = 1.0f, target = 1.0f, step = 0.0f, first = 1.0f, second = 1.0f;
+    void snap(float x) {
+      value = target = first = second = x;
+      step = 0.0f;
+    }
+    void follow(float x, float k) {
+      first += k * (x - first);
+      second += k * (first - second);
+      to(second);
+    }
+    void to(float x) {
+      target = x;
+      step = (x - value) * (1.0f / kControlPeriod);
+    }
+    float next() {
+      value += step;
+      return value;
+    }
+  };
+
+  // The gain g, 0 to kTopMost, on a part of power `part` that brings it and a
+  // second part of power `rest` (with `both` in common) to the power `aim`:
+  // g² part + 2 g both + rest = aim, or the nearest to it.
+  static float solve(float part, float both, float rest, float aim, float alone) {
+    if (part <= 1.0e-14f) return alone;
+    const float under = both * both - part * (rest - aim);
+    return kit::clamp(((under > 0.0f ? std::sqrt(under) : 0.0f) - both) / part, 0.0f, kTopMost);
+  }
 
   // What the wet path takes of an input sample: NaN is silence, and nothing
   // beyond ±8 goes in, so a bad sample cannot lodge in a loop.
@@ -610,8 +791,126 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     table_fold_ = fold;
   }
 
+  // Holds the wall to the playing: its middle at its share of the fuzz's own
+  // power, whatever note is played, and its side at its share of the middle.
+  //
+  // A tank that stands still answers each note differently (its resonances
+  // are a couple of Hz apart and a third of a Hz wide at a long Decay): what
+  // comes back round for a held note is anything from nothing to several
+  // times the fuzz. Nothing here goes round a loop to even that. What comes
+  // back is turned down where it is over its share (a gain worked out from
+  // its power and the playing's, and left where it is once the playing
+  // stops, so a tail dies at the tank's own rate), and the fuzz itself is
+  // turned up to fill what is missing (the gain that makes the sum of the two
+  // the share, knowing their powers and what they have in common). The tank
+  // is fed the fuzz a quarter turn on, so for most notes the two have little
+  // in common and the sum of their powers is the power of their sum.
+  void hold_wall() {
+    // The playing's power: the fuzz's, less the share of it Feed brought round.
+    const float front = front_power_.value;
+    const float playing =
+        front > 1.0e-14f ? fuzz_power_.value * kit::min(1.0f, in_power_.value / front) : 0.0f;
+    held_ = kit::max(playing, held_ * fall_);
+    const bool sounding = playing > kPlayingShare * held_ && playing > 1.0e-12f;
+    const float side_share = kSideShare * width_.value * width_.value;
+    const float mid_share = 1.0f - 0.5f * side_share;
+    if (sounding) {
+      const float most = 0.5f * mid_share * held_;
+      keep_mid_.follow(mid_back_.value > most ? std::sqrt(most / mid_back_.value) : 1.0f, settle_);
+    } else {
+      keep_mid_.to(keep_mid_.target);
+    }
+    // What Feed may return of it, under a played note and after.
+    if (sounding) {
+      const float most = kFeedLevel * playing;
+      keep_feed_.follow(mid_back_.value > most ? std::sqrt(most / mid_back_.value) : 1.0f, settle_);
+    } else {
+      keep_feed_.follow(1.0f, relax_);
+    }
+    const float keep = keep_mid_.target;
+    top_mid_.follow(solve(mid_fuzz_.value, keep * mid_both_.value, keep * keep * mid_back_.value,
+                          0.5f * mid_share * playing, std::sqrt(mid_share)),
+                    settle_);
+    // The tank is fed more while too little comes back (a note between its
+    // resonances), slowly, and Feed's return is turned down by as much, so the
+    // loop round the front is the one control() worked out.
+    float more = more_.target;
+    if (sounding) more += kMoreRate * tick_seconds_ * (kBackShare - 4.0f * mid_back_.value / playing);
+    more_.to(kit::clamp(more, 1.0f, kMoreMost));
+
+    // The side, at its share of the middle's power as it now is: what came
+    // back round as a difference between the sides (the tank's own width), as
+    // far as it fits, and the middle's quarter turn to fill the rest. One side
+    // of the output is louder than the other by what its middle and its side
+    // have in common, and its middle is the dry sound and the wall's middle
+    // together: so a third part, the wall's middle itself, is taken off the
+    // side by as much as leaves the side with nothing in common with that
+    // sum. (Without it a held note sat 3 dB to one side of a played phrase:
+    // the middle's quarter turn is the dry sound over again, the middle
+    // having been turned a quarter from it.)
+    const float middle = wall_mid_.value;
+    if (middle > 1.0e-16f) {
+      const float aim = middle * side_share / mid_share;
+      const float dry = dry_.value / kit::max(wet_.value, kWetLeast);
+      // The dry sound with the middle's quarter turn and with the tank's
+      // side, as the wall now stands turned; then with the mix's middle.
+      const float turned = dry * (with_same_.value * sine_.target + with_quarter_.value * cosine_.target) / middle;
+      const float across = (dry * (across_with_same_.value * cosine_.target -
+                                   across_with_quarter_.value * sine_.target) +
+                            side_with_.value) /
+                           middle;
+      // The side is top * quarter + kept * tank - lean * middle, with
+      // lean = turned * top + kept * across. Its power as a square in top:
+      const float square = middle * (1.0f + turned * turned);
+      const float cross = turned * across * middle + side_turned_.value - turned * side_with_.value;
+      const float tank = across * across * middle - 2.0f * across * side_with_.value + side_back_.value;
+      const float least = kit::max(tank - cross * cross / square, 0.0f);
+      float kept = 1.0f;
+      float top;
+      if (least > aim) {
+        // The tank's side alone is over the share: less of it, and no more.
+        kept = std::sqrt(aim / least);
+        top = -kept * cross / square;
+      } else {
+        const float under = cross * cross - square * (tank - aim);
+        top = ((under > 0.0f ? std::sqrt(under) : 0.0f) - cross) / square;
+      }
+      top = kit::clamp(top, -kTopMost, kTopMost);
+      keep_side_.follow(kept, settle_);
+      top_side_.follow(top, settle_);
+      lean_.follow(kit::clamp(turned * top + kept * across, -kTopMost, kTopMost), settle_);
+    } else {
+      keep_side_.to(keep_side_.target);
+      lean_.to(lean_.target);
+      top_side_.to(top_side_.target);
+    }
+  }
+
+  // Turns the whole wall to the angle at which its middle and the dry
+  // sound's have nothing in common. Part-way up Mix the two are the same
+  // notes, and by their phase they added for one note and cancelled for the
+  // next: a quarter turn apart, the power of the mix is the sum of its parts,
+  // in stereo and folded to mono alike. The angle is walked there on the two
+  // means of the dry sound with the wall's middle and with its quarter turn
+  // (either of the two angles half a turn apart will do, and it settles on
+  // the nearer).
+  void turn_wall() {
+    const float same = with_same_.value;
+    const float quarter = with_quarter_.value;
+    const float meet = same * cosine_.target - quarter * sine_.target;
+    const float slope = same * sine_.target + quarter * cosine_.target;
+    const float span =
+        same * same + quarter * quarter + kTurnFloor * 0.5f * in_power_.value * wall_mid_.value + 1.0e-20f;
+    angle_ += kTurnRate * tick_seconds_ * meet * slope / span;
+    if (angle_ > kit::kPi) angle_ -= kit::kTwoPi;
+    if (angle_ < -kit::kPi) angle_ += kit::kTwoPi;
+    cosine_.to(std::cos(angle_));
+    sine_.to(std::sin(angle_));
+  }
+
   // Every 32 samples: the wall's gains from Decay and Size, the wet levels and
-  // the share Feed returns, Tone's filters, the hold table, the sweeps.
+  // the share Feed returns, Tone's filters, the hold table, and the gains and
+  // the angle that hold the wall to the playing.
   void control() {
     using namespace haze;
     derive(1.0f / decay_.next(), tone_.next());
@@ -619,7 +918,8 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     // at a time: stepped by the tick, a thrown Decay was a jump in the wall
     // each time a line came round.
     for (int n = 0; n < kLines; ++n) gain_step_[n] = (gain_to_[n] - gain_[n]) * (1.0f / kControlPeriod);
-    set_sweeps(samples_ / kControlPeriod, 0);
+    hold_wall();
+    turn_wall();
   }
 
   void derive(float decay, float tone) {
@@ -658,22 +958,14 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     tilt_low_ = tilt_low / tilt_most;
     tilt_high_ = tilt_high / tilt_most;
 
-    // The wall's two parts. A side of the lines holds kLineShare / loss of the
-    // power fed to it, and Feed makes it hold 1 / (1 - share) as much: all of
-    // that is taken back, so the lines leave as loud as the fuzz went in,
-    // whatever Decay and Feed are. The fuzz itself is the early part; the two
-    // share the wall's power, early² + late² = 1.
-    const float mix = param(kMix);
-    const float rise = kit::clamp((mix - kEarlyFrom) / (1.0f - kEarlyFrom), 0.0f, 1.0f);
-    const float early = kit::lerp(kEarlyLeast, kEarlyMost, rise * rise);
-    early_.set_target(kWetGain * tilt_most * early);
-    // The early part's bass: none while the dry sound has the bass (two copies
-    // of one low note, turned against each other, would cancel by the note),
-    // all of it at the top of Mix, where the wall stands alone.
-    const float bass = kit::clamp((mix - kBassFrom) / (1.0f - kBassFrom), 0.0f, 1.0f);
-    thin_.set_target(1.0f - bass * bass);
-    late_.set_target(kWetGain * tilt_most * std::sqrt(1.0f - early * early) *
-                     std::sqrt((1.0f - share) * loss / kLineShare));
+    // What comes back round: a side of the lines holds kLineShare / loss of
+    // the power fed to it, and Feed makes it hold 1 / (1 - share) as much. All
+    // of that is taken back, so what comes back is about as loud as the fuzz
+    // went in whatever Decay and Feed are, before hold_wall() sees to the rest.
+    late_.set_target(kWetGain * std::sqrt((1.0f - share) * loss / kLineShare));
+    make_.set_target(tilt_most);
+    // How fast the most the playing has been is let fall: as the wall dies.
+    fall_ = std::exp(-13.8155f * kControlPeriod * (1.0f - share) / (decay * sr));
 
     // The first reverb's loop: its gain is Blur's, held under the gain that
     // would take Decay to die away.
@@ -693,33 +985,13 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
     if (octave_.value != table_fold_) build_table(octave_.value);
   }
 
-  // Where each line's sweep stands `within` samples after control tick
-  // `tick`, and the step that takes it to the next: a function of the count
-  // of samples alone, so a sleep of any length leaves it where it would be.
-  // The steps within the tick are added one by one, as the running device
-  // adds them, so the sum is the same to the last bit.
-  void set_sweeps(uint64_t tick, int within) {
-    const double period = static_cast<double>(kControlPeriod) / sample_rate();
-    for (int n = 0; n < kLines; ++n) {
-      const double turn = (kSweepHz + kSweepStepHz * n) * period;
-      const double now = static_cast<double>(n) / kLines + turn * static_cast<double>(tick);
-      const double before = now - turn;
-      const float target = sweep_depth_ * kit::SineTable::lookup(static_cast<float>(now - std::floor(now)));
-      const float from =
-          sweep_depth_ * kit::SineTable::lookup(static_cast<float>(before - std::floor(before)));
-      sweep_step_[n] = (target - from) * (1.0f / kControlPeriod);
-      sweep_[n] = from;
-      for (int k = 0; k < within; ++k) sweep_[n] += sweep_step_[n];
-    }
-  }
-
   // Everything at its target now: at init, and when the device wakes.
   void settle() {
     using namespace haze;
-    kit::Smoother* all[] = {&drive_, &width_, &width_gain_, &dry_, &wet_};
+    kit::Smoother* all[] = {&drive_, &width_, &dry_, &wet_};
     for (kit::Smoother* s : all) s->snap(s->target);
-    reach_.value = reach_.target;
-    size_.value = size_.target;
+    reach_.value = reach_.lag = reach_.target;
+    size_.value = size_.lag = size_.target;
     octave_.snap(octave_.target);
     decay_.snap(1.0f / param(kDecay));
     tone_.snap(param(kTone));
@@ -729,11 +1001,27 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
       gain_step_[n] = 0.0f;
     }
     late_.snap(late_.target);
-    early_.snap(early_.target);
-    thin_.snap(thin_.target);
+    make_.snap(make_.target);
     loop_.snap(loop_.target);
     back_gain_.snap(back_gain_.target);
-    set_sweeps(samples_ / kControlPeriod, static_cast<int>(samples_ & (kControlPeriod - 1)));
+    // Nothing is sounding, so nothing has been read: the wall starts as the
+    // fuzz alone at its two shares, the tank fed as it stands, no turn.
+    Mean* means[] = {&in_power_,   &front_power_, &fuzz_power_, &mid_fuzz_,         &mid_both_,
+                     &mid_back_,   &wall_mid_,    &side_with_,  &side_turned_,      &side_back_,
+                     &with_same_,  &with_quarter_, &across_with_same_, &across_with_quarter_};
+    for (Mean* mean : means) mean->clear();
+    const float side_share = kSideShare * width_.value * width_.value;
+    top_mid_.snap(std::sqrt(1.0f - 0.5f * side_share));
+    top_side_.snap(std::sqrt(side_share / (1.0f - 0.5f * side_share)));
+    keep_mid_.snap(1.0f);
+    keep_feed_.snap(1.0f);
+    keep_side_.snap(1.0f);
+    lean_.snap(0.0f);
+    more_.snap(1.0f);
+    held_ = 0.0f;
+    angle_ = 0.0f;
+    cosine_.snap(1.0f);
+    sine_.snap(0.0f);
   }
 
   // Blur's reach: the share of their full length the first reverb's delays
@@ -776,9 +1064,6 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
         break;
       case kWidth:
         width_.set(value, primed());
-        // The two sides of the wall are unlike, so their middle alone has half
-        // their power: a narrower wall is raised to stay as loud.
-        width_gain_.set(std::sqrt(2.0f / (1.0f + value * value)), primed());
         break;
       default:
         break;  // Feed is read on the control clock
@@ -818,17 +1103,28 @@ class Haze : public kit::DeviceBase<haze::kNumParams> {
   float gain_[kLines] = {};
   float gain_to_[kLines] = {};
   float gain_step_[kLines] = {};
-  float sweep_[kLines] = {};
-  float sweep_step_[kLines] = {};
-  float sweep_depth_ = 0.0f;
   kit::Svf low_cut_[2];
-  kit::Svf early_low_[2];
+  haze_dsp::Quadrature pair_[2];  // the fuzz and its quarter turn
+  haze_dsp::Quadrature turn_[2];  // the wall and its quarter turn
   kit::OnePole feed_cut_[2];
   kit::Hilbert shifter_[2];
   double shift_turn_[2] = {};
   float back_[2] = {};
 
-  kit::Smoother drive_, loop_, back_gain_, width_, width_gain_, dry_, wet_, late_, early_, thin_;
+  // What hold_wall() and turn_wall() read, and what they set.
+  Mean in_power_, front_power_, fuzz_power_;
+  Mean mid_fuzz_, mid_both_, mid_back_, wall_mid_, side_with_, side_turned_, side_back_;
+  Mean with_same_, with_quarter_, across_with_same_, across_with_quarter_;
+  Ramp top_mid_, keep_mid_, keep_feed_, top_side_, keep_side_, lean_, more_, cosine_, sine_;
+  float follow_ = 0.0f;        // the means' coefficient
+  float settle_ = 0.0f;        // the gains' own, a control tick at a time
+  float relax_ = 0.0f;         // and the slower one Feed's return is let go by
+  float tick_seconds_ = 0.0f;  // one control tick
+  float fall_ = 1.0f;          // what held_ keeps of itself a tick
+  float held_ = 0.0f;          // the most the playing's power has been, falling as the wall does
+  float angle_ = 0.0f;         // the wall's turn
+
+  kit::Smoother drive_, loop_, back_gain_, width_, dry_, wet_, late_, make_;
   LongGlide reach_, size_;
   kit::LinearRamp octave_;
   // Stepped on the control clock. decay_ holds 1 / Decay: the lines' gains

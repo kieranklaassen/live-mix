@@ -185,10 +185,11 @@ const TAIL_RATE = 48000
 /**
  * `derive()` and `render()`: the seconds a frequency takes to fall 60 dB in
  * the wall with nothing fed back: per pass, the middle line's gain, the
- * one-pole that damps it, and what reading a swept line between two samples
- * takes (`read_linear` at a length that moves: (1 − f) + f z⁻¹ with f anywhere
- * from 0 to 1, which is 1 − (1 − cos w) / 3 of the power on average; nothing
- * to speak of at 250 Hz, a tenth of a dB a pass at 3 kHz).
+ * one-pole that damps it, and what reading a line between two samples takes
+ * (`read_linear` at a length that Size sets and that seldom falls on a whole
+ * sample: (1 − f) + f z⁻¹, and the eight lines' f are spread from 0 to 1,
+ * which is 1 − (1 − cos w) / 3 of the power on average; nothing to speak of
+ * at 250 Hz, a tenth of a dB a pass at 3 kHz).
  */
 export function hazeFall(hz: number, decay: number, size: number): number {
   const pass = HAZE.lineSeconds * lerp(HAZE.minScale, HAZE.maxScale, size)
