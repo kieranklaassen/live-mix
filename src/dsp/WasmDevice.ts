@@ -23,6 +23,7 @@ import {
 import { Emitter } from '../core/events'
 import { LoadProbe, wasmMemoryBytes, type LoadClaim } from '../core/load'
 import { ensureProcessor } from '../core/worklet-loader'
+import { createWorkletNode } from '../core/worklet-node'
 import { clampParam, type ParamSpec } from '../core/params'
 import {
   DEVICE_METER_HZ,
@@ -88,9 +89,6 @@ export interface WasmDeviceOptions<P extends Record<string, ParamSpec>> extends 
   modulations?: Readonly<Record<string, ParamModulation>>
   createNode?: WorkletNodeFactory
 }
-
-const defaultCreateNode: WorkletNodeFactory = (context, name, options) =>
-  new AudioWorkletNode(context, name, options)
 
 /** What of a parameter's spec its travel is worked out from, and no more: it crosses to the audio thread. */
 function paramTravel(spec: ParamSpec): ParamTravel {
@@ -251,7 +249,7 @@ export class WasmDevice<P extends Record<string, ParamSpec> = Record<string, Par
     const processorName = definition.processor?.name ?? WASM_DEVICE_PROCESSOR_NAME
     let node: AudioWorkletNode
     try {
-      node = (options.createNode ?? defaultCreateNode)(context, processorName, {
+      node = (options.createNode ?? createWorkletNode)(context, processorName, {
         numberOfInputs: 1,
         numberOfOutputs: 1,
         channelCount: 2,

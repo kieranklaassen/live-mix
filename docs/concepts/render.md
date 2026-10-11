@@ -42,6 +42,61 @@ build so plugin-delay compensation is the same in every render;
 the render-equals-live golden runs on the recording mocks in Node; the
 real-audio version runs in headless Chrome (`pnpm test:browser`, below).
 
+### A render that gives its memory back
+
+Chromium keeps an `OfflineAudioContext` that a worklet module was loaded on,
+and the buffer it rendered into, until the page is closed: 23 MB for each
+minute of stereo at 48 kHz, at every render of a mix with a WASM device (the
+reverbs, the limiters) or the worklet ducker in it. A mix of node devices
+alone keeps nothing. A context made in a frame goes when the frame does, so
+an app that renders more than once makes its contexts in a frame:
+
+```ts
+import { createFramedOfflineContext, releaseOfflineContext } from '@kieranklaassen/live-mix'
+
+const result = await renderOffline({
+  durationSec: 60,
+  createContext: createFramedOfflineContext,
+  build,
+})
+const { audio } = result // the page's own copy of the samples
+result.engine.dispose()
+releaseOfflineContext(result.engine.context) // the frame goes, and the context and its buffer with it
+```
+
+`createFramedOfflineContext` makes a hidden `<iframe>`, the context with that
+frame's `OfflineAudioContext`, and has every worklet node the library makes on
+it made with that frame's `AudioWorkletNode` (`setWorkletNodeConstructor`, for
+a host that makes its own frame; a `createNode` handed to one device still
+wins for that device). `releaseOfflineContext` removes the frame, and does
+nothing for a context made any other way. Four things to keep to:
+
+- Release after the render is read and its engine disposed: nothing can be
+  made on the context afterwards. `result.audio` is a copy and outlives it;
+  `result.buffer` belongs to the frame.
+- Make **every** offline context the page loads a worklet on this way. After
+  one the page made itself, Chromium kept a share of the framed ones that
+  followed, anywhere from none to all of them. A live `AudioContext` with worklets does no harm.
+- `renderOffline` does not do this unless asked: its default context is the
+  page's, as it always was.
+- A render that fails releases its own context (`renderOffline`, and
+  `renderStems` for the stems it had finished): the caller never held it. A
+  `renderStems` that succeeds hands back one context a stem to release.
+
+Measured by hand in Chromium 141 on Linux: eight 60 s renders kept 23.5 MB
+each on a context of the page and 1.4 MB each in a frame (a page that renders
+with no worklet at all read 0.4 to 0.8 MB a render by the same count). What
+`browser-tests/specs/render-lets-go.spec.ts` holds is that of the contexts and
+buffers of three framed renders of a session with a plate reverb, a FET
+limiter and the ducker, none is left after a collection, and that their nodes
+were made by the frame's constructor. That the frame's own constructor matters
+was measured in Electron 44 on a Mac, in Everycut; in Chromium 141 on Linux a
+framed context was let go with the page's constructor as well.
+
+Not covered: a node the library does not make. A stretch track's node comes
+from the host's `createStretch`, and a WAM plug-in's from its own class, both
+with the page's constructor.
+
 What cannot render offline: main-thread followers (the legacy `Ducker`,
 analyser `Meter` readings) have no clock there — use the worklet ducker for
 bounces with sidechain ducking; live-input tracks and element tracks (media

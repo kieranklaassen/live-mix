@@ -19,6 +19,7 @@ import {
 import { type SidechainDucker } from '../devices/native/SidechainDucker'
 import { WorkletDucker, type DuckerNodeFactory } from '../devices/native/WorkletDucker'
 import { createEngine } from '../Engine'
+import { setWorkletNodeConstructor } from '../worklet-node'
 
 beforeEach(() => {
   vi.useFakeTimers()
@@ -47,6 +48,24 @@ function setup(options: ConstructorParameters<typeof WorkletDucker>[1] = {}) {
 }
 
 describe('WorkletDucker (host)', () => {
+  it('is made with the constructor its context was given when no factory is passed', () => {
+    const ctx = createMockContext()
+    const made: unknown[] = []
+    class FrameWorkletNode {
+      constructor(_context: BaseAudioContext, name: string, options?: AudioWorkletNodeOptions) {
+        made.push(name)
+        return ctx.createWorkletNode(name, options)
+      }
+    }
+    setWorkletNodeConstructor(
+      asAudioContext(ctx),
+      FrameWorkletNode as unknown as typeof AudioWorkletNode,
+    )
+    const ducker = new WorkletDucker(asAudioContext(ctx))
+    expect(made).toEqual([DUCKER_PROCESSOR_NAME])
+    expect(ducker.node).toBe(ctx.workletNodes[0])
+  })
+
   it('constructs one two-input node under the shared processor name with the Phase 0 defaults', () => {
     const { ctx, ducker, node } = setup()
     expect(ctx.workletNodes).toHaveLength(1)
