@@ -1926,6 +1926,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   spread: { ...PLATE_PALETTES.spread, finish: 'gloss', cap: 'pointer' },
   bowls: { ...PLATE_PALETTES.bowls, finish: 'hammered', cap: 'disc' },
   howl: { ...PLATE_PALETTES.howl, finish: 'hammered', cap: 'pointer' },
+  lift: { ...PLATE_PALETTES.lift, finish: 'fade', cap: 'pointer' },
 }
 
 /**

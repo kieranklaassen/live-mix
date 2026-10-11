@@ -37,6 +37,7 @@ import { IMPRINT_FACES } from './imprint'
 import { GLIMMER_FACES } from './glimmer'
 import { HAZE_FACES } from './haze'
 import { HOWL_FACES } from './howl'
+import { LIFT_FACES } from './lift'
 import { LOOPS_FACES } from './loops'
 import { MELT_FACES } from './melt'
 import { MODULATION_FACES } from './modulation'
@@ -145,4 +146,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...SPREAD_FACES,
   ...BOWLS_FACES,
   ...HOWL_FACES,
+  ...LIFT_FACES,
 }
