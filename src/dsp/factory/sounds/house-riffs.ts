@@ -211,7 +211,7 @@ const RIFFS: readonly FactorySound[] = [
     name: 'Tine house chords',
     kind: 'beat',
     description:
-      'A soft electric piano plays ninths on {D} minor, {G} and {C} and a seventh on {A} minor, one held and two short answers a bar, for house.',
+      'Soft electric piano in rootless ninths on {D} minor, {G} and {C} and a seventh on {A} minor, one held and two short answers a bar, for house.',
     // The amplifier's own tremolo keeps no time: it is off, and a slow pan after it goes round once a beat.
     instrument: {
       deviceId: 'tine-piano',
@@ -260,11 +260,15 @@ const RIFFS: readonly FactorySound[] = [
     // hit in an attack of a tenth of a second and calls the loop a texture, and only a beat or a phrase
     // keeps time. One voice to a note and nothing of the synthesizer's own moving (its LFOs keep no
     // time), so the level holds still after the strike and every one of the sixteen is heard as a hit.
+    // The two sawtooths run free and are not equal: equal, they cancel a note of a chord for a whole
+    // strike wherever they happen to meet out of step, and a quarter of the second can take at most
+    // 6 dB from a note.
     instrument: {
       deviceId: 'ember',
       preset: 'Warm pad',
       params: {
         osc2Fine: 6,
+        oscMix: 0.25,
         cutoff: 600,
         keyTrack: 0,
         filterEnvAmount: 0.35,
@@ -299,7 +303,7 @@ const RIFFS: readonly FactorySound[] = [
       },
       room(0.12),
     ],
-    ...bars(
+    ...loose(
       4,
       changes(
         [[57, 64, 69, 72], [57, 65, 69, 72], C_MAJOR, G_MAJOR].flatMap((each) => times(4, each)),
@@ -317,13 +321,15 @@ const RIFFS: readonly FactorySound[] = [
       'A dark filtered stab of {A} minor seventh on the and of two into a dotted eighth echo, then {E} minor seventh, for dub house.',
     // Two sawtooths a few cents apart through a filter that shuts in a quarter of a second. The echo
     // is three sixteenths long, so its repeats cross the beat, and two passes are dropped: the loop
-    // starts with the last echoes of {E} minor in it.
+    // starts with the last echoes of {E} minor in it. The second sawtooth is a quarter of the mix:
+    // the two run free, and at equal levels a note of the chord is cancelled for the whole of a stab
+    // in some keys and at some tempos.
     instrument: {
       deviceId: 'ember',
       preset: 'Init',
       params: {
         osc2Fine: 9,
-        oscMix: 0.5,
+        oscMix: 0.25,
         filterSlope: 1,
         cutoff: 500,
         resonance: 0.2,
@@ -657,7 +663,7 @@ const BASS_LINES: readonly FactorySound[] = [
         drop: 0,
         fall: 40,
         attack: 0.03,
-        decay: 4,
+        decay: 8,
         release: 0.1,
         drive: 0.25,
         glide: 0,
