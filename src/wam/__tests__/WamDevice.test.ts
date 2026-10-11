@@ -107,15 +107,18 @@ describe('WamDevice.create', () => {
     expect(isWamModuleConstructor({ isWebAudioModuleConstructor: true })).toBe(false)
   })
 
-  it('wires input → node → wet → output and input → dry → output, dry closed', async () => {
+  it('wires input → node → wet → output and input → delay → dry → output, dry closed', async () => {
     const { device, ctx, instance } = await makeEffect()
     const [input, output, dry, wet] = ctx.gains
+    const [dryDelay] = ctx.delays
     expect(device.input).toBe(input)
     expect(device.output).toBe(output)
     expect(input.isConnectedTo(instance.node)).toBe(true)
     expect(instance.node.isConnectedTo(wet)).toBe(true)
     expect(wet.isConnectedTo(output)).toBe(true)
-    expect(input.isConnectedTo(dry)).toBe(true)
+    expect(input.isConnectedTo(dry)).toBe(false)
+    expect(input.isConnectedTo(dryDelay)).toBe(true)
+    expect(dryDelay.isConnectedTo(dry)).toBe(true)
     expect(dry.isConnectedTo(output)).toBe(true)
     expect(dry.gain.value).toBe(0)
     expect(wet.gain.value).toBe(1)
@@ -132,6 +135,29 @@ describe('WamDevice.create', () => {
     expect(forced.latencySamples).toBe(44) // 0.001 s at 44.1 kHz, whole samples
     expect(forced.latencySec).toBe(44 / forcedCtx.sampleRate)
     forced.dispose()
+  })
+
+  it('holds the dry path back by the delay the plugin reports, so a bypass moves nothing in time', async () => {
+    const { device, ctx } = await makeEffect()
+    const [dryDelay] = ctx.delays
+    expect(dryDelay.delayTime.value).toBe(480 / ctx.sampleRate)
+    device.bypass = true
+    device.bypass = false
+    expect(dryDelay.delayTime.events).toEqual([])
+    device.dispose()
+    expect(dryDelay.disconnectCalls.count).toBe(1)
+
+    const { device: forced, ctx: forcedCtx } = await makeEffect({ latencySec: 0.001 })
+    expect(forcedCtx.delays[0].delayTime.value).toBe(44 / forcedCtx.sampleRate)
+    forced.dispose()
+  })
+
+  it('has no delay on the dry path of a plugin that takes no time', async () => {
+    const { device, ctx } = await makeEffect({ latencySec: 0 })
+    const [input, , dry] = ctx.gains
+    expect(ctx.delays).toHaveLength(0)
+    expect(input.isConnectedTo(dry)).toBe(true)
+    device.dispose()
   })
 
   it('applies initial params and mirrors an initialState', async () => {

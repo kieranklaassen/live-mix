@@ -347,8 +347,8 @@ describe('the Delay display', () => {
   it('shortens later repeats by what the damping takes', () => {
     // A low-pass at 500 Hz passes the lowest 4.6 of the ten octaves: √0.47 =
     // 0.68 of a pink sound's level behind a wall. The device's filter is a
-    // Web Audio low-pass whose Q of √½ is read as decibels, so it stands a
-    // little proud under its corner (1.7 dB at the most) and keeps more.
+    // flat Web Audio low-pass, two poles and no peak: it keeps a little of
+    // what is over its corner, and nothing comes back louder than it went in.
     const drawn = bars(
       drawDisplay(display, params, { values: { timeSec: 0.2, feedback: 0.5, damping: 500 } }),
     )
@@ -364,42 +364,37 @@ describe('the Delay display', () => {
     expect(open[1].h).toBeGreaterThan(drawn[1].h + 2)
   })
 
-  it('draws the repeats growing where a pass gives back more than it took', () => {
-    // The low-pass in the loop stands 10^(1.744 / 20) = 1.2224 proud under its
-    // corner, so at Feedback 0.95 what is there comes back 1.161 times as
-    // loud on every pass, and nothing in this device holds it. A click's
-    // repeats fall at first, while most of it is still elsewhere, and then
-    // climb to the top of the scale and stay there.
-    const growing = bars(
-      drawDisplay(display, params, { values: { timeSec: 0.025, feedback: 0.95, damping: 2000 } }),
-    )
-    const levels = growing.map((bar) => levelOf(bar.h, 40))
-    expect(growing.length).toBe(19)
-    expect(levels[1]).toBeLessThan(0.9)
-    expect(levels[3]).toBeLessThan(levels[0])
-    for (let n = 5; n < 10; n++) expect(levels[n]).toBeGreaterThan(levels[n - 1])
-    expect(levels[9] / levels[8]).toBeGreaterThan(1.05)
-    expect(levels[9] / levels[8]).toBeLessThan(0.95 * 1.2224)
-    // From the twelfth on it is over the top of the scale: drawn to the top, not past it.
-    for (const bar of growing.slice(11)) {
-      expect(bar.y).toBe(4)
-      expect(bar.h).toBe(40)
+  it('draws repeats that only fall, however high Feedback is: the loop’s filter has no peak', () => {
+    // The low-pass in the loop is flat under its corner, so a pass gives back
+    // Feedback of what it took there and less of everything else. With its Q
+    // read as decibels it stood 1.7 dB proud under the corner, and over a
+    // Feedback of 0.82 the repeats grew.
+    for (const [feedback, damping] of [
+      [0.95, 2000],
+      [0.95, 20000],
+      [0.8, 2000],
+      [0.35, 6000],
+    ]) {
+      const drawn = bars(
+        drawDisplay(display, params, { values: { timeSec: 0.025, feedback, damping } }),
+      )
+      const levels = drawn.map((bar) => levelOf(bar.h, 40))
+      expect(levels[0]).toBeCloseTo(1, 3)
+      for (let n = 1; n < drawn.length; n++) {
+        expect(drawn[n].h, `${feedback} at ${damping} Hz`).toBeLessThanOrEqual(drawn[n - 1].h)
+        // No pass gives back more than Feedback of the one before.
+        expect(levels[n], `${feedback} at ${damping} Hz`).toBeLessThan(
+          feedback * levels[n - 1] + 0.02,
+        )
+      }
     }
-    // At 0.8 no pass gives back more than it took (0.8 × 1.2224 is under one): they only fall.
     const falling = bars(
       drawDisplay(display, params, { values: { timeSec: 0.025, feedback: 0.8, damping: 2000 } }),
     )
-    for (let n = 1; n < falling.length; n++) {
-      expect(falling[n].h).toBeLessThanOrEqual(falling[n - 1].h)
-    }
     expect(falling[falling.length - 1].h).toBeLessThan(falling[0].h / 2)
   })
 
-  it('says on the edge that a loop grows where the view ends before it has', () => {
-    // At 0.1 s the view holds four repeats of the click: 1.00, 0.84, 0.83 and
-    // 0.83. The fifth is the first to be louder than the one before, and from
-    // the twelfth on they are over full scale. The bar on the right edge is
-    // where they stand long after: at the top.
+  it('has no bar on the edge: a loop that only falls has nothing louder to come', () => {
     const edge = (feedback: number, damping: number): Rect[] =>
       shapes(
         drawDisplay(display, params, { values: { timeSec: 0.1, feedback, damping } }),
@@ -411,12 +406,9 @@ describe('the Delay display', () => {
     )
     expect(seen.length).toBe(4)
     expect(levelOf(seen[3].h, 40)).toBeLessThan(0.86)
-    expect(edge(0.95, 2000)).toEqual([{ x: 178, y: 4, w: 2, h: 40, style: ink, alpha: INK.text }])
-    // The filter stands as proud under its corner wherever the corner is: wide open it grows too.
-    expect(edge(0.95, 20000).length).toBe(1)
-    // A loop that only falls has none.
+    expect(edge(0.95, 2000)).toEqual([])
+    expect(edge(0.95, 20000)).toEqual([])
     expect(edge(0.8, 2000)).toEqual([])
-    expect(edge(0.8, 20000)).toEqual([])
     expect(edge(0.35, 6000)).toEqual([])
   })
 
@@ -594,17 +586,6 @@ describe('the Delay display', () => {
     const place = Math.round(NOW_X + gapOf(0.5) * (1 - 0.233 / 0.5))
     const top = ahead?.points.find((point, index) => index > 0 && point[0] === place)?.[1]
     expect(top).toBeCloseTo(44 - heightOf(0.3, 40), 0)
-
-    // A loop that grows grows off the scale however quietly it is played: at
-    // a Mix of 0.1 the bar on the edge still stands the whole height.
-    const edge = shapes(
-      drawDisplay(display, set, {
-        values: { timeSec: 0.1, feedback: 0.95, damping: 2000, mix: 0.1 },
-      }),
-    ).rects.filter(
-      (rect) => rect.style === ink && rect.x === 178 && rect.w === 2 && rect.alpha === INK.text,
-    )
-    expect(edge).toEqual([{ x: 178, y: 4, w: 2, h: 40, style: ink, alpha: INK.text }])
   })
 
   it('says the time in words, and the feedback while the point is in hand', () => {

@@ -48,10 +48,12 @@ const wasmDir = join(dirname(fileURLToPath(import.meta.url)), '../wasm')
 let module: WebAssembly.Module
 // A device with a meter: the compressor reports its gain reduction.
 let compModule: WebAssembly.Module
+// A device that takes time: the limiter looks 77 samples ahead.
+let limiterModule: WebAssembly.Module
 
 beforeAll(async () => {
-  ;[module, compModule] = await Promise.all(
-    ['plate-reverb.wasm', 'ambient-comp.wasm'].map(async (file) =>
+  ;[module, compModule, limiterModule] = await Promise.all(
+    ['plate-reverb.wasm', 'ambient-comp.wasm', 'ambient-limiter.wasm'].map(async (file) =>
       WebAssembly.compile(await readFile(join(wasmDir, file))),
     ),
   )
@@ -355,6 +357,88 @@ describe('WasmDeviceProcessor', () => {
       port.receive({ type: 'note-on', noteId: 1, frequency: 220, gain: 0.5 })
       port.receive({ type: 'dispose' })
     }).not.toThrow()
+  })
+
+  describe('a device that takes time', () => {
+    const LATENCY = 77
+    // A sound no two samples of which are alike, quiet enough for the limiter to leave alone.
+    const sound = (n: number) => 0.25 * Math.sin(n * 0.0731) + 0.001 * (n % 97)
+
+    /** Run `blocks` blocks of `sound` from sample `from`; returns the left output of them all. */
+    function run(
+      processor: ReturnType<typeof construct>['processor'],
+      from: number,
+      blocks: number,
+      frames = 128,
+    ): Float32Array {
+      const all = new Float32Array(blocks * frames)
+      for (let index = 0; index < blocks; index += 1) {
+        const input = new Float32Array(frames)
+        for (let i = 0; i < frames; i += 1) input[i] = sound(from + index * frames + i)
+        const out = outputs(frames)
+        processor.process([[input, input.slice()]], out)
+        all.set(out[0][0], index * frames)
+        // Both channels carry the same dry sound.
+        expect(Array.from(out[0][1])).toEqual(Array.from(out[0][0]))
+      }
+      return all
+    }
+
+    const limiter = () =>
+      construct(undefined, {
+        module: limiterModule,
+        deviceId: 'ambient-limiter',
+        latencySamples: LATENCY,
+      })
+
+    it('plays the dry signal as late as the device plays its own, sample for sample', () => {
+      const { processor, port } = limiter()
+      port.receive({ type: 'bypass', enabled: true })
+      // 5 ms at 48 kHz = 240 samples: the third block on is past the crossfade.
+      const heard = run(processor, 0, 6)
+      for (let n = 256; n < heard.length; n += 1) {
+        expect(heard[n], `sample ${n}`).toBe(Math.fround(sound(n - LATENCY)))
+      }
+    })
+
+    it('has the sound from before the bypass ready: nothing is skipped or heard twice', () => {
+      const { processor, port } = limiter()
+      // The device runs for a while before it is turned off.
+      const active = run(processor, 0, 8)
+      // Working, it is 77 samples late: what it plays at n is the sound of n − 77.
+      expect(active[900]).toBeCloseTo(sound(900 - LATENCY), 3)
+      port.receive({ type: 'bypass', enabled: true })
+      const heard = run(processor, 8 * 128, 4)
+      for (let n = 256; n < heard.length; n += 1) {
+        expect(heard[n], `sample ${n}`).toBe(Math.fround(sound(8 * 128 + n - LATENCY)))
+      }
+    })
+
+    it('keeps the delay over blocks longer than it and over an input taken away', () => {
+      const { processor, port } = limiter()
+      port.receive({ type: 'bypass', enabled: true })
+      const heard = run(processor, 0, 2, 512)
+      for (let n = 256; n < heard.length; n += 1) {
+        expect(heard[n], `sample ${n}`).toBe(Math.fround(sound(n - LATENCY)))
+      }
+      // The input goes: the last 77 samples of it are still to come, then silence.
+      const tail = outputs()
+      processor.process([[]], tail)
+      for (let i = 0; i < 128; i += 1) {
+        const expected = i < LATENCY ? Math.fround(sound(1024 + i - LATENCY)) : 0
+        expect(tail[0][0][i], `sample ${i}`).toBe(expected)
+      }
+    })
+
+    it('told of no latency, plays the dry signal as it comes', () => {
+      const { processor, port } = construct(undefined, {
+        module: limiterModule,
+        deviceId: 'ambient-limiter',
+      })
+      port.receive({ type: 'bypass', enabled: true })
+      const heard = run(processor, 0, 4)
+      for (let n = 256; n < heard.length; n += 1) expect(heard[n]).toBe(Math.fround(sound(n)))
+    })
   })
 
   it('throws on an unknown message', () => {

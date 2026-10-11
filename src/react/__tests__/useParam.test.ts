@@ -99,7 +99,7 @@ describe('useDevice', () => {
     })
 
     const captured = result.current.capturePreset('Mine')
-    expect(captured).toMatchObject({ name: 'Mine', deviceId: 'filter', deviceVersion: 1 })
+    expect(captured).toMatchObject({ name: 'Mine', deviceId: 'filter', deviceVersion: 2 })
     expect(captured.params.frequency).toBe(3000)
 
     act(() => result.current.reset())
