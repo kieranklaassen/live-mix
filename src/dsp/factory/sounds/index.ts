@@ -6,11 +6,13 @@ import { type FactorySound } from '../types'
 import { BASS_LINES_PLAYED } from './bass-lines-played'
 import { BASS_LINES_SYNTH } from './bass-lines-synth'
 import { BASS_NOTES } from './bass-notes'
-import { CLUB_LOOPS } from './beats-club'
 import { DRUM_LOOPS } from './beats-drums'
 import { GLITCH_LOOPS } from './beats-glitch'
 import { PULSES } from './beats-pulses'
+import { CLUB_FILLS } from './club-fills'
+import { CLUB_GROOVES } from './club-grooves'
 import { CLUB_HITS } from './club-hits'
+import { CLUB_LAYERS } from './club-layers'
 import { DRONES_HELD } from './drones-held'
 import { DRONES_SYNTH } from './drones-synth'
 import { FIRST_SOUNDS } from './first'
@@ -39,7 +41,9 @@ export const FACTORY_SOUNDS: readonly FactorySound[] = [
   ...DRUM_LOOPS,
   ...GLITCH_LOOPS,
   ...PULSES,
-  ...CLUB_LOOPS,
+  ...CLUB_GROOVES,
+  ...CLUB_LAYERS,
+  ...CLUB_FILLS,
   ...CLUB_HITS,
   ...HOUSE_LIFTS,
   ...HOUSE_RIFFS,
