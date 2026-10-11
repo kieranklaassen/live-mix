@@ -132,6 +132,7 @@ import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
 import { UNDERWATER_DESCRIPTOR, UNDERWATER_DEVICE } from './underwater.gen'
+import { VESSEL_DESCRIPTOR, VESSEL_DEVICE } from './vessel.gen'
 import { VINTAGE_DIGITAL_DESCRIPTOR, VINTAGE_DIGITAL_DEVICE } from './vintage-digital.gen'
 import { VINYL_DESCRIPTOR, VINYL_DEVICE } from './vinyl.gen'
 import { VOWEL_REVERB_DESCRIPTOR, VOWEL_REVERB_DEVICE } from './vowel-reverb.gen'
@@ -273,6 +274,7 @@ export * from './thesis.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
 export * from './underwater.gen'
+export * from './vessel.gen'
 export * from './vintage-digital.gen'
 export * from './vinyl.gen'
 export * from './vowel-reverb.gen'
@@ -416,6 +418,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
   UNDERWATER_DESCRIPTOR,
+  VESSEL_DESCRIPTOR,
   VINTAGE_DIGITAL_DESCRIPTOR,
   VINYL_DESCRIPTOR,
   VOWEL_REVERB_DESCRIPTOR,
@@ -560,6 +563,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
   UNDERWATER_DEVICE,
+  VESSEL_DEVICE,
   VINTAGE_DIGITAL_DEVICE,
   VINYL_DEVICE,
   VOWEL_REVERB_DEVICE,
@@ -725,6 +729,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'tine-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
   { id: 'underwater', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'vessel', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   {
     id: 'vintage-digital',
     instrument: false,

@@ -268,6 +268,8 @@ build_generated_devices() {
     cpp/devices/tremolo/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
     cpp/devices/underwater/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vessel \
+    cpp/devices/vessel/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS="" build_device vintage-digital \
     cpp/devices/vintage-digital/device_api.gen.cpp
   MEMORY_BYTES=8388608 EXTRA_EXPORTS=",_device_meter" build_device vinyl \
@@ -555,6 +557,8 @@ test_generated_devices() {
     cpp/test/tremolo_test.cpp
   native_test underwater_test \
     cpp/test/underwater_test.cpp
+  native_test vessel_test \
+    cpp/test/vessel_test.cpp
   native_test vintage_digital_test \
     cpp/test/vintage_digital_test.cpp
   native_test vinyl_test \
