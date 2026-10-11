@@ -1183,7 +1183,11 @@ int main() {
   // place of the clock, through a deep sudden setting: for 4 ms either side of each note's highest
   // sample what comes out is what went in, to the bit, at 44.1, 48 and 96 kHz (the time is the
   // note's, so it is counted in seconds). Blocks of 1, 37 and 2048 give the same floats.
-  for (const float rate : {48000.0f, 44100.0f, 96000.0f}) {
+  // (Second reading: and at 176.4 and 192 kHz. The follow was held to 64 segments, which is 23.2 and
+  // 21.3 ms there and not the 32 ms it is everywhere else: none of the twelve notes kept its highest
+  // sample, the worst out by 0.77 and 1.0 of its own height. It is 32 ms at every rate now, and the
+  // device stays up for as long, so the blocks are tried at 192 kHz as well.)
+  for (const float rate : {48000.0f, 44100.0f, 96000.0f, 176400.0f, 192000.0f}) {
     std::vector<float> notes(static_cast<size_t>(14.0f * rate), 0.0f);
     for (int i = 0; i < 12; ++i) strike_at(notes, 0.5 + 1.07 * i, 110.0 * (2 + i % 4), 0.5, 0.7, rate);
     const std::initializer_list<Setting> deep = {{p::kDepth, 1.0f}, {p::kRate, 1.3f}, {p::kGrain, 0.3f}, {p::kLean, 0.0f},
@@ -1212,7 +1216,7 @@ int main() {
                 rate, soonest, latest, kept, worst);
     EXPECT(late == 12, "the struck notes reach their highest sample after the first 21 ms");
     EXPECT(kept == 12, "a struck note's highest sample comes out as it went in, whenever it comes in the 32 ms after the hammer");
-    if (rate != kRate) continue;
+    if (rate != kRate && rate != 192000.0f) continue;
     for (const int block : {1, 37, 2048}) {
       set(rate, deep);
       const Stereo other = run(device, notes, block);

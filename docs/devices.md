@@ -128,7 +128,7 @@ hold 8 notes).
 | `fog`             | Fog                | live-mix            | reverb     | 9      | 27,090 B  | 34.7 µs, 1.30 %       | 15.2 µs, 0.57 %            | 0                 | 4           |
 | `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B  | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
 | `generations`     | Generations        | live-mix            | texture    | 9      | 44,594 B  | 35.4 µs, 1.33 %       | 35.5 µs, 1.33 %            | 0                 | 32          |
-| `glimmer`         | Glimmer            | live-mix            | modulation | 9      | 24,144 B  | 11.8 µs, 0.44 %       | 11.0 µs, 0.41 %            | 2304              | 4           |
+| `glimmer`         | Glimmer            | live-mix            | modulation | 9      | 24,163 B  | 11.8 µs, 0.44 %       | 11.0 µs, 0.41 %            | 2304              | 4           |
 | `glints`          | Glints             | live-mix            | texture    | 10     | 22,764 B  | 8.9 µs, 0.34 %        | 13.9 µs, 0.52 %            | 0                 | 4           |
 | `glitch`          | Glitch             | live-mix            | texture    | 12     | 21,163 B  | 10.3 µs, 0.38 %       | 5.3 µs, 0.20 %             | 0                 | 10          |
 | `glitch-kit`      | Glitch Kit         | live-mix            | instrument | 9      | 30,863 B  | 2.6 µs, 0.10 %        | 0.6 µs, 0.02 %             | 0                 | 4           |
@@ -173,7 +173,7 @@ hold 8 notes).
 | `pulses`          | Pulses             | live-mix            | modulation | 12     | 13,470 B  | 5.5 µs, 0.21 %        | 7.6 µs, 0.29 %             | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
-| `reveal`          | Reveal             | live-mix            | dynamics   | 9      | 25,023 B  | 18.1 µs, 0.68 %       | 18.7 µs, 0.70 %            | 2304              | 4           |
+| `reveal`          | Reveal             | live-mix            | dynamics   | 9      | 25,441 B  | 18.1 µs, 0.68 %       | 18.7 µs, 0.70 %            | 2304              | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B  | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
 | `rewind`          | Rewind             | live-mix            | instrument | 12     | 33,769 B  | 4.9 µs, 0.18 %        | 8.2 µs, 0.31 %             | 0                 | 4           |
 | `ring`            | Ring               | live-mix            | modulation | 12     | 21,746 B  | 9.2 µs, 0.35 %        | 7.1 µs, 0.27 %             | 0                 | 4           |
@@ -186,8 +186,8 @@ hold 8 notes).
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
 | `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
 | `sift`            | Sift               | live-mix            | texture    | 10     | 27,130 B  | 39.0 µs, 1.46 %       | 50.8 µs, 1.91 %            | 4352              | 4           |
-| `sine-shadow`     | Sine Shadow        | live-mix            | texture    | 10     | 54,991 B  | 19.0 µs, 0.71 %       | 19.5 µs, 0.73 %            | 0                 | 4           |
-| `size`            | Size               | live-mix            | pitch      | 9      | 25,628 B  | 24.8 µs, 0.93 %       | 33.6 µs, 1.26 %            | 2304              | 4           |
+| `sine-shadow`     | Sine Shadow        | live-mix            | texture    | 10     | 54,445 B  | 19.0 µs, 0.71 %       | 19.5 µs, 0.73 %            | 0                 | 4           |
+| `size`            | Size               | live-mix            | pitch      | 9      | 25,645 B  | 24.8 µs, 0.93 %       | 33.6 µs, 1.26 %            | 2304              | 4           |
 | `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 18,615 B  | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spiral`          | Spiral             | live-mix            | reverb     | 9      | 36,414 B  | 67.7 µs, 2.54 %       | 69.4 µs, 2.60 %            | 0                 | 4           |
@@ -218,7 +218,7 @@ hold 8 notes).
 | `vintage-digital` | Vintage Digital    | live-mix            | texture    | 8      | 28,499 B  | 71.7 µs, 2.69 %       | 15.5 µs, 0.58 %            | 129               | 4           |
 | `vinyl`           | Vinyl              | live-mix            | texture    | 10     | 37,003 B  | 38.0 µs, 1.43 %       | 26.6 µs, 1.00 %            | 0                 | 8           |
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |
-| `warp`            | Warp               | live-mix            | pitch      | 9      | 32,377 B  | 12.9 µs, 0.48 %       | 12.7 µs, 0.48 %            | 4608              | 4           |
+| `warp`            | Warp               | live-mix            | pitch      | 9      | 32,438 B  | 12.9 µs, 0.48 %       | 12.7 µs, 0.48 %            | 4608              | 4           |
 | `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B  | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 | `weather`         | Weather            | live-mix            | texture    | 10     | 30,937 B  | 12.0 µs, 0.45 %       | 11.9 µs, 0.45 %            | 0                 | 4           |
 | `west-coast`      | West Coast         | live-mix            | instrument | 12     | 31,237 B  | 115.7 µs, 4.34 %      | 8.2 µs, 0.31 %             | 0                 | 4           |
