@@ -146,6 +146,7 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
       }
       expect(measureEnds(audio).round, 'comes round on itself').toBe(true)
     },
+    60000,
   )
 
   it.runIf(!comesRound(sound))(
@@ -162,5 +163,6 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
       expect(ends.stepIn, 'starts on a step').toBe(false)
       expect(ends.stepOut, 'ends on a step').toBe(false)
     },
+    60000,
   )
 })

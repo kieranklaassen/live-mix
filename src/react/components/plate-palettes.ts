@@ -164,6 +164,14 @@ export const PLATE_PALETTES = {
   stops: { plate: '#8a0cb1', ink: '#fff6fc', accent: '#9ff0d0' },
   reveal: { plate: '#33061e', ink: '#fdeef6', accent: '#ff8a70' },
   size: { plate: '#f3b7a5', ink: '#2b1410', accent: '#0f4a50' },
+  haze: { plate: '#ffbd02', ink: '#2a1708', accent: '#8f0c3c' },
+  spiral: { plate: '#d99aff', ink: '#1a0a33', accent: '#0c4a1c' },
+  around: { plate: '#56c27e', ink: '#041a0c', accent: '#7d0a52' },
+  spread: { plate: '#3d00ea', ink: '#f6f1ff', accent: '#ffb8a4' },
+  bowls: { plate: '#8f3f35', ink: '#ffffff', accent: '#9cf0dc' },
+  howl: { plate: '#fc60c8', ink: '#1a0212', accent: '#0c0ca0' },
+  lift: { plate: '#d0fc6c', ink: '#142005', accent: '#6a1280' },
+  vessel: { plate: '#00f6ff', ink: '#03222b', accent: '#b02a00' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -420,4 +420,47 @@ export const SPACE_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'reveal', preset: 'Even glow' },
     ],
   },
+  {
+    id: 'glowing-wall',
+    name: 'Glowing wall',
+    category: 'space',
+    description:
+      'Notes blur into a soft fuzz and hang behind the playing as one warm wall, brighter the harder you play; Haze sets how much it glows.',
+    effects: [{ deviceId: 'haze', preset: 'Glowing wall' }],
+  },
+  {
+    id: 'tail-that-never-lands',
+    name: 'Tail that never lands',
+    category: 'space',
+    description:
+      'A long reverb whose tail climbs slowly for as long as it rings and never arrives; Climb sets how fast, and below zero it sinks.',
+    effects: [{ deviceId: 'spiral', preset: 'Slow ascent' }],
+  },
+  {
+    id: 'climbing-into-haze',
+    name: 'Climbing into haze',
+    category: 'space',
+    description:
+      'The rising tail of a reverb feeds a soft fuzz and a second long room, so the climb itself glows; Climb turns it into a fall.',
+    effects: [
+      { deviceId: 'spiral', preset: 'Slow ascent', params: { mix: 0.5 } },
+      { deviceId: 'haze', preset: 'Glowing wall', params: { mix: 0.35 } },
+    ],
+  },
+  {
+    id: 'held-sinking-tail',
+    name: 'Held sinking tail',
+    category: 'space',
+    description:
+      'A reverb tail that sinks in pitch is held up near the level of the playing for a second or two before it lets go; Threshold sets the line.',
+    effects: [
+      { deviceId: 'spiral', preset: 'Slow descent' },
+      {
+        deviceId: 'lift',
+        preset: 'Long tails',
+        // At once, as this tail was tuned: the preset itself waits before it lifts.
+        params: { threshold: -27, rise: 0.3, hold: 0.05, floor: -60, limit: 24 },
+      },
+    ],
+  },
 ]

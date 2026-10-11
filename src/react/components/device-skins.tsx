@@ -1926,6 +1926,14 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   stops: { ...PLATE_PALETTES.stops, finish: 'fade', cap: 'disc' },
   reveal: { ...PLATE_PALETTES.reveal, finish: 'gloss', cap: 'disc' },
   size: { ...PLATE_PALETTES.size, finish: 'grain', cap: 'skirt' },
+  haze: { ...PLATE_PALETTES.haze, finish: 'fade', cap: 'disc' },
+  spiral: { ...PLATE_PALETTES.spiral, finish: 'fade', cap: 'pointer' },
+  around: { ...PLATE_PALETTES.around, finish: 'fade', cap: 'dot' },
+  spread: { ...PLATE_PALETTES.spread, finish: 'gloss', cap: 'skirt' },
+  bowls: { ...PLATE_PALETTES.bowls, finish: 'grain', cap: 'disc' },
+  howl: { ...PLATE_PALETTES.howl, finish: 'gloss', cap: 'pointer' },
+  lift: { ...PLATE_PALETTES.lift, finish: 'matte', cap: 'skirt' },
+  vessel: { ...PLATE_PALETTES.vessel, finish: 'gloss', cap: 'disc' },
 }
 
 /**

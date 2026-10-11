@@ -366,4 +366,43 @@ export const MASTER_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'ambient-limiter', preset: 'Master' },
     ],
   },
+  {
+    id: 'firm-low-wide-air',
+    name: 'Firm low, wide air',
+    category: 'master',
+    description:
+      'The bass is held in the middle and the top opened wide while the mono sum stays as it was; High sets how wide the top goes.',
+    effects: [{ deviceId: 'spread', preset: 'Firm and airy' }],
+  },
+  {
+    id: 'tails-brought-up',
+    name: 'Tails brought up',
+    category: 'master',
+    description:
+      'Tails and breaths rise towards a line while louder playing is left alone and the hiss under the Floor stays down; Threshold sets the line.',
+    effects: [{ deviceId: 'lift', preset: 'Quiet end up' }],
+  },
+  {
+    id: 'closer-and-wider',
+    name: 'Closer and wider',
+    category: 'master',
+    description:
+      'The quiet end comes up by three decibels at most, the top opens out over a firm bass and a true-peak ceiling holds; Limit sets the lift.',
+    effects: [
+      { deviceId: 'lift', preset: 'Slightly closer' },
+      { deviceId: 'spread', preset: 'Firm and airy' },
+      { deviceId: 'ambient-limiter', preset: 'Master' },
+    ],
+  },
+  {
+    id: 'tails-open-outward',
+    name: 'Tails open outward',
+    category: 'master',
+    description:
+      'The sides are made wide and hazy and then only their quiet end is brought up, so each tail opens outward as it fades; Sides sets how far.',
+    effects: [
+      { deviceId: 'spread', preset: 'Hazy edges' },
+      { deviceId: 'lift', preset: 'Opens outward' },
+    ],
+  },
 ]

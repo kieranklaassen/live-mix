@@ -1,0 +1,229 @@
+{
+  "id": "haze",
+  "name": "Haze",
+  "category": "reverb",
+  "description": "A short reverb into a soft fuzz into a long reverb: notes blur, grow overtones as they are played harder and hang as one glowing wall.",
+  "class": "Haze",
+  "header": "haze.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "push",
+      "name": "Push into the fuzz",
+      "display": true
+    },
+    {
+      "key": "wall",
+      "name": "Wall level",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "haze",
+      "name": "Haze",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How hard the blurred sound is pushed into the fuzz. Zero is clean. Higher grows more overtones, loud playing more than soft, and the loudness stays where it was."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How long the sound is smeared before the fuzz. Low keeps more of the attacks; high lets every note swell in and melt into the next. Moving it bends the pitch."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.5,
+      "max": 30,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the wall rings after the playing stops."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "Balance between the dry signal and the wall. Fully up is the wall alone."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How big the second space is. Small is close and dense; large is open and slower to fill. Moving it bends the pitch of the tail."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Tilts the fuzz before it enters the long reverb, from dark wool at the bottom to bright glare at the top."
+    },
+    {
+      "key": "octave",
+      "name": "Octave",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Folds the wave over before the fuzz, which adds the octave above. A little gives a glow; fully up the octave takes over from the note."
+    },
+    {
+      "key": "feed",
+      "name": "Feed",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Sends the wall back through the blur and the fuzz. More makes it thicker and longer, up to twice as long at the top, where a held note moves by a couple of dB."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "Stereo width of the wall only. Zero is a mono wall; full is the widest."
+    }
+  ],
+  "presets": {
+    "Glowing wall": {},
+    "Faint warmth": {
+      "haze": 0.3,
+      "blur": 0.4,
+      "decay": 2,
+      "mix": 0.15,
+      "tone": 0.4,
+      "octave": 0,
+      "feed": 0
+    },
+    "Wool blanket": {
+      "haze": 0.7,
+      "blur": 0.8,
+      "decay": 8,
+      "mix": 0.45,
+      "tone": 0.1,
+      "octave": 0,
+      "feed": 0.3
+    },
+    "Bright glare": {
+      "haze": 0.85,
+      "blur": 0.5,
+      "decay": 5,
+      "mix": 0.5,
+      "tone": 0.9,
+      "octave": 0.35
+    },
+    "Octave glow": {
+      "haze": 0.5,
+      "blur": 0.7,
+      "decay": 7,
+      "mix": 0.38,
+      "tone": 0.65,
+      "octave": 0.7
+    },
+    "Endless wall": {
+      "haze": 0.75,
+      "blur": 0.9,
+      "decay": 30,
+      "mix": 0.45,
+      "size": 1,
+      "feed": 0.7
+    },
+    "Small room fuzz": {
+      "haze": 0.8,
+      "blur": 0.15,
+      "decay": 0.8,
+      "mix": 0.4,
+      "size": 0.1,
+      "feed": 0
+    },
+    "Wall alone": {
+      "haze": 0.6,
+      "blur": 0.9,
+      "decay": 8,
+      "mix": 1,
+      "width": 0.9
+    },
+    "Slow bloom": {
+      "haze": 0.45,
+      "blur": 1,
+      "decay": 10,
+      "mix": 0.6,
+      "size": 0.8,
+      "tone": 0.4,
+      "feed": 0.25
+    },
+    "Feedback cloud": {
+      "haze": 0.65,
+      "decay": 4,
+      "mix": 0.5,
+      "tone": 0.45,
+      "feed": 1
+    },
+    "Thin veil": {
+      "haze": 0.15,
+      "blur": 0.7,
+      "decay": 4,
+      "mix": 0.3,
+      "tone": 0.6,
+      "octave": 0
+    },
+    "Low rumble": {
+      "haze": 0.9,
+      "blur": 0.9,
+      "decay": 14,
+      "size": 1,
+      "tone": 0,
+      "octave": 0,
+      "mix": 0.35
+    },
+    "Glass halo": {
+      "haze": 0.25,
+      "blur": 0.3,
+      "decay": 12,
+      "mix": 0.2,
+      "size": 0.3,
+      "tone": 1,
+      "octave": 1,
+      "feed": 0
+    },
+    "Narrow beam": {
+      "haze": 0.7,
+      "decay": 3,
+      "mix": 0.4,
+      "size": 0.3,
+      "tone": 0.55,
+      "width": 0
+    },
+    "Drone bed": {
+      "haze": 0.6,
+      "blur": 1,
+      "decay": 20,
+      "mix": 0.55,
+      "size": 1,
+      "tone": 0.3,
+      "feed": 0.35
+    },
+    "Bite and tail": {
+      "haze": 0.9,
+      "blur": 0,
+      "decay": 3.5,
+      "mix": 0.4,
+      "tone": 0.6,
+      "octave": 0.1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit: a nested allpass smear, a waveshaper at four times the sample rate whose drive follows the playing, and an eight-line feedback delay network with its return shifted a few hertz. Not a model of any pedal or plug-in."
+  }
+}

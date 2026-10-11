@@ -306,3 +306,148 @@ describe.each([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6])('the bank moved by %i',
     expect(names.size).toBe(FACTORY_SOUNDS.length)
   })
 })
+
+/**
+ * The effects a measure tunes with no note written down, and which way the pitch goes with
+ * each: -1 for a time or a size (longer or larger is lower), 1 for a frequency.
+ */
+const TUNED_BY_MEASURE: Readonly<Record<string, Readonly<Record<string, 1 | -1>>>> = {
+  vessel: { size: -1 },
+  howl: { distance: -1, body: 1 },
+}
+/** The effects whose root is a pitch class alone. */
+const TUNED_BY_CLASS = new Set(['bowls'])
+/** How far a measure moved the pitch, in semitones, and how far that is from `by` in any octave. */
+function offKey(before: number, after: number, way: 1 | -1, by: number): number {
+  const off = way * 12 * Math.log2(after / before) - by
+  return Math.abs(off - 12 * Math.round(off / 12))
+}
+
+describe('a pitch held by a time, a size or a frequency', () => {
+  const one = (device: PatchDevice, by: number): Record<string, number> =>
+    transposePatch({ effects: [device] }, by).effects[0].params ?? {}
+
+  it('moves the loop of a howl and its resonance against each other', () => {
+    // As it comes the loop is 7.645 ms round, which tunes C3, and Body stands at 520 Hz, its fourth overtone.
+    const up = one({ deviceId: 'howl' }, 3)
+    expect(Object.keys(up).sort()).toEqual(['body', 'distance'])
+    expect(up.distance).toBeCloseTo(7.645 * 2 ** (-3 / 12), 9)
+    // A frequency is written to the hundredth of a hertz, as a knob in hertz reads.
+    expect(up.body).toBe(Math.round(520 * 2 ** (3 / 12) * 100) / 100)
+    // The note the loop tunes is three semitones up, and Body is as many times it as before.
+    expect(12 * Math.log2(1000 / up.distance / (1000 / 7.645))).toBeCloseTo(3, 9)
+    expect(up.body * up.distance).toBeCloseTo(520 * 7.645, 1)
+    // A preset's own tuning moves too: the low drone on C2 is on G1 five down.
+    const low = one({ deviceId: 'howl', preset: 'Low drone' }, -5)
+    expect(low.distance).toBeCloseTo(15.29 * 2 ** (5 / 12), 9)
+    expect(low.body).toBe(Math.round(196 * 2 ** (-5 / 12) * 100) / 100)
+    // What the patch sets is kept, and only the tuning moves.
+    const kept = one({ deviceId: 'howl', preset: 'In the gaps', params: { mix: 0.3 } }, 2)
+    expect(Object.keys(kept).sort()).toEqual(['body', 'distance', 'mix'])
+    expect(kept.mix).toBe(0.3)
+    // Past the end of a control it goes the octave that fits: still the key's note.
+    const short = one({ deviceId: 'howl', params: { distance: 1.2, body: 2000 } }, 6)
+    expect(short.distance).toBeCloseTo(1.2 * 2 ** (-6 / 12) * 2, 9)
+    expect(short.body).toBe(Math.round(((2000 * 2 ** (6 / 12)) / 2) * 100) / 100)
+    const long = one({ deviceId: 'howl', params: { distance: 36, body: 130 } }, -5)
+    expect(long.distance).toBeCloseTo((36 * 2 ** (5 / 12)) / 2, 9)
+    expect(long.body).toBe(Math.round(130 * 2 ** (-5 / 12) * 2 * 100) / 100)
+  })
+
+  it('comes back from a move too far to be a pitch', () => {
+    // Thousands of octaves are no number at all: a size or a time stops at the end of its control.
+    expect(one({ deviceId: 'vessel' }, 20000).size).toBe(0.25)
+    expect(one({ deviceId: 'vessel' }, -20000).size).toBe(4)
+    expect(one({ deviceId: 'howl' }, 20000)).toEqual({ distance: 1, body: 2400 })
+    expect(one({ deviceId: 'howl' }, -20000)).toEqual({ distance: 40, body: 120 })
+    // Fifteen octaves down is under a hundredth of a hertz: Body is still on the key's note.
+    expect(one({ deviceId: 'howl' }, -180).body).toBe(130)
+  })
+
+  it('moves the size of a body the other way from its pitch', () => {
+    // The open pipe rings C3 at Size 1: three up it is smaller, five down larger.
+    expect(one({ deviceId: 'vessel' }, 3).size).toBeCloseTo(2 ** (-3 / 12), 9)
+    expect(one({ deviceId: 'vessel' }, -5).size).toBeCloseTo(2 ** (5 / 12), 9)
+    // The cistern is as large as a body gets: five down is the octave above that, and six up fits.
+    expect(one({ deviceId: 'vessel', preset: 'Cistern' }, -5).size).toBeCloseTo(
+      (4 * 2 ** (5 / 12)) / 2,
+      9,
+    )
+    expect(one({ deviceId: 'vessel', preset: 'Cistern' }, 6).size).toBeCloseTo(
+      4 * 2 ** (-6 / 12),
+      9,
+    )
+    // The thimble is as small as one gets: six up is the octave below that.
+    expect(one({ deviceId: 'vessel', preset: 'Thimble' }, 6).size).toBeCloseTo(
+      0.25 * 2 ** (-6 / 12) * 2,
+      9,
+    )
+    // What the patch sets is kept, and its own size is the one that moves.
+    expect(
+      one({ deviceId: 'vessel', preset: 'Glass tube', params: { size: 2, mix: 0.4 } }, 12),
+    ).toEqual({ size: 1, mix: 0.4 })
+  })
+
+  it('moves the root of the bowls and leaves their scale and register', () => {
+    expect(one({ deviceId: 'bowls' }, 3)).toEqual({ root: 3 })
+    // The table of fifths stands on A: three up is C, five down E.
+    expect(one({ deviceId: 'bowls', preset: 'Low fifths' }, 3)).toEqual({ root: 0 })
+    expect(one({ deviceId: 'bowls', preset: 'Low fifths', params: { ring: 20 } }, -5)).toEqual({
+      root: 4,
+      ring: 20,
+    })
+  })
+})
+
+describe.each([-5, -4, -3, -2, -1, 1, 2, 3, 4, 5, 6])(
+  'the chains with bowls, a body or a howl moved by %i',
+  (by) => {
+    it('are the same chains with each of them tuned that far from where it stood', () => {
+      const tuned = FACTORY_CHAINS.filter((chain) =>
+        chain.effects.some(
+          (effect) => effect.deviceId in TUNED_BY_MEASURE || TUNED_BY_CLASS.has(effect.deviceId),
+        ),
+      )
+      expect(tuned.length).toBeGreaterThan(0)
+      // Each of the three is in the bank, so each is held to it.
+      for (const id of [...Object.keys(TUNED_BY_MEASURE), ...TUNED_BY_CLASS]) {
+        expect(
+          tuned.some((chain) => chain.effects.some((effect) => effect.deviceId === id)),
+          id,
+        ).toBe(true)
+      }
+      for (const chain of tuned) {
+        const moved = transposePatch(chain, by)
+        expect(validatePatch(moved, registry), chain.id).toEqual([])
+        chain.effects.forEach((effect, at) => {
+          const descriptor = registry.get(effect.deviceId)
+          const measures = TUNED_BY_MEASURE[effect.deviceId] ?? {}
+          const byClass = TUNED_BY_CLASS.has(effect.deviceId)
+          if (!descriptor || (!byClass && !(effect.deviceId in TUNED_BY_MEASURE))) {
+            // An effect tuned by its octave is held to the key above; every other one is untouched.
+            if (!TUNED_BY_OCTAVE.has(effect.deviceId)) {
+              expect(moved.effects[at], chain.id).toBe(effect)
+            }
+            return
+          }
+          const before = patchDeviceParams(descriptor, effect)
+          const after = patchDeviceParams(descriptor, moved.effects[at])
+          const where = `${chain.id}: ${effect.deviceId}`
+          if (byClass) expect(mod12(after.root - before.root), where).toBe(mod12(by))
+          for (const [name, way] of Object.entries(measures)) {
+            // The key's note, in whichever octave the control has room for. A frequency is
+            // written to the hundredth of a hertz, which is under a fifth of a cent from 50 Hz up.
+            expect(offKey(before[name], after[name], way, by), `${where} ${name}`).toBeLessThan(
+              way === 1 ? 2e-3 : 1e-9,
+            )
+          }
+          // Nothing else of it moved.
+          for (const [name, value] of Object.entries(before)) {
+            if (name in measures || (byClass && name === 'root')) continue
+            expect(after[name], `${where} ${name}`).toBe(value)
+          }
+        })
+      }
+    })
+  },
+)
