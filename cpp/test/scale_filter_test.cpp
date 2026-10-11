@@ -839,8 +839,23 @@ static void check_every_control_works() {
   const std::vector<float> in = phrase(2.4f, kRate);
   double least = 0.0;
   const char* least_name = "";
-  static const char* const names[p::kNumParams] = {"Root", "Scale", "Chord", "Width", "Ring", "Depth",
-                                                    "Low",  "High",  "Tune",  "Glow",  "Mix"};
+  // A control's name by the control, not by its number: the order of "params" in device.json may change.
+  const auto name_of = [](int id) -> const char* {
+    switch (id) {
+      case p::kRoot: return "Root";
+      case p::kScale: return "Scale";
+      case p::kChord: return "Chord";
+      case p::kWidth: return "Opening";
+      case p::kRing: return "Ring";
+      case p::kDepth: return "Depth";
+      case p::kLow: return "Low";
+      case p::kHigh: return "High";
+      case p::kTune: return "Tune";
+      case p::kGlow: return "Glow";
+      case p::kMix: return "Mix";
+      default: return "?";
+    }
+  };
   for (int id = 0; id < p::kNumParams; ++id) {
     const float lo = p::kParamMin[id], hi = p::kParamMax[id];
     const bool choice = id == p::kRoot || id == p::kScale || id == p::kChord;
@@ -858,10 +873,10 @@ static void check_every_control_works() {
         const double apart = unlike_db(out, before);
         if (apart < least) {
           least = apart;
-          least_name = names[id];
+          least_name = name_of(id);
         }
         char label[96];
-        std::snprintf(label, sizeof label, "%s: step %d of %d changes the sound (%.1f dB)", names[id], step, steps, apart);
+        std::snprintf(label, sizeof label, "%s: step %d of %d changes the sound (%.1f dB)", name_of(id), step, steps, apart);
         EXPECT(apart > -36.0, label);
       }
       before = out;
@@ -949,11 +964,21 @@ static void check_level() {
 }
 
 // The sixteen presets as cpp/devices/scale-filter/device.json has them, every parameter in the order of
-// params.gen.h (root, scale, chord, width, ring, depth, low, high, tune, glow, mix).
+// kColumns (root, scale, chord, width, ring, depth, low, high, tune, glow, mix).
 struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of a row is, by name: a row does not follow the order of "params".
+static const int kColumns[p::kNumParams] = {p::kRoot, p::kScale, p::kChord, p::kWidth, p::kRing, p::kDepth,
+                                            p::kLow,  p::kHigh,  p::kTune,  p::kGlow,  p::kMix};
+// A preset's value for a control, found by the control.
+static float value_of(const Preset& preset, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return preset.values[column];
+  }
+  return 0.0f;
+}
 static const Preset kPresets[] = {
     {"In a major key", {0.0f, 0.0f, 0.0f, 30.0f, 0.4f, 30.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
     {"Minor triad", {9.0f, 1.0f, 1.0f, 24.0f, 1.2f, 36.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f}},
@@ -979,13 +1004,13 @@ static const Preset kPresets[] = {
 static void check_presets() {
   for (const Preset& preset : kPresets) {
     auto apply = [&preset] {
-      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, preset.values[id]);
+      for (int column = 0; column < p::kNumParams; ++column) device.set_param(kColumns[column], preset.values[column]);
     };
     held_chord(apply, preset.name);
     double lowest, highest;
     tone_range(apply, &lowest, &highest);
-    const double mix = preset.values[p::kMix];
-    const double floor = db((1.0 - mix) + mix * std::pow(10.0, -preset.values[p::kDepth] / 20.0));
+    const double mix = value_of(preset, p::kMix);
+    const double floor = db((1.0 - mix) + mix * std::pow(10.0, -value_of(preset, p::kDepth) / 20.0));
     std::printf("%s: a held tone, A0 to C8, comes out between %.2f and %.2f dB (its floor and dry share: %.2f)\n", preset.name,
                 lowest, highest, floor);
     char label[160];

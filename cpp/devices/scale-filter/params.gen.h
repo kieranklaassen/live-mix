@@ -5,14 +5,14 @@
 //    0  root: 0 C, 1 C#, 2 D, 3 D#, 4 E, 5 F, 6 F#, 7 G, 8 G#, 9 A, 10 A#, 11 B, default 0
 //    1  scale: 0 Major, 1 Natural Minor, 2 Harmonic Minor, 3 Dorian, 4 Phrygian, 5 Lydian, 6 Mixolydian, 7 Major Pentatonic, 8 Minor Pentatonic, 9 Whole Tone, 10 Chromatic, default 0
 //    2  chord: 0 Whole scale, 1 Triad, 2 Fifths, 3 Root only, default 0
-//    3  width: 5..200 ct, default 30
-//    4  ring: 0.05..12 s, default 0.4
-//    5  depth: 0..48 dB, default 30
-//    6  low: 20..2000 Hz, default 40
-//    7  high: 200..20000 Hz, default 12000
-//    8  tune: -50..50 ct, default 0
-//    9  glow: 0..1, default 0.5
-//   10  mix: 0..1, default 1
+//    3  ring: 0.05..12 s, default 0.4
+//    4  depth: 0..48 dB, default 30
+//    5  tune: -50..50 ct, default 0
+//    6  glow: 0..1, default 0.5
+//    7  mix: 0..1, default 1
+//    8  width: 5..200 ct, default 30
+//    9  low: 20..2000 Hz, default 40
+//   10  high: 200..20000 Hz, default 12000
 
 #pragma once
 
@@ -23,20 +23,20 @@ enum Param : int {
   kRoot = 0,
   kScale = 1,
   kChord = 2,
-  kWidth = 3,
-  kRing = 4,
-  kDepth = 5,
-  kLow = 6,
-  kHigh = 7,
-  kTune = 8,
-  kGlow = 9,
-  kMix = 10,
+  kRing = 3,
+  kDepth = 4,
+  kTune = 5,
+  kGlow = 6,
+  kMix = 7,
+  kWidth = 8,
+  kLow = 9,
+  kHigh = 10,
   kNumParams = 11,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 5.0f, 0.05f, 0.0f, 20.0f, 200.0f, -50.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {11.0f, 10.0f, 3.0f, 200.0f, 12.0f, 48.0f, 2000.0f, 20000.0f, 50.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 0.0f, 30.0f, 0.4f, 30.0f, 40.0f, 12000.0f, 0.0f, 0.5f, 1.0f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 0.0f, 0.05f, 0.0f, -50.0f, 0.0f, 0.0f, 5.0f, 20.0f, 200.0f};
+inline constexpr float kParamMax[kNumParams] = {11.0f, 10.0f, 3.0f, 12.0f, 48.0f, 50.0f, 1.0f, 1.0f, 200.0f, 2000.0f, 20000.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 0.0f, 0.4f, 30.0f, 0.0f, 0.5f, 1.0f, 30.0f, 40.0f, 12000.0f};
 
 }  // namespace scale_filter
 }  // namespace livemix

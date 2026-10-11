@@ -104,16 +104,6 @@
       "description": "Thins the scale to a chord. Triad keeps its root, third and fifth, Fifths the root and fifth, and Root only one note in every octave."
     },
     {
-      "key": "width",
-      "name": "Width",
-      "min": 5,
-      "max": 200,
-      "default": 30,
-      "taper": "log",
-      "unit": "ct",
-      "description": "How wide the opening at each note is. Narrow turns anything into pure held tones; wide brings the source back with only the wrong notes dimmed."
-    },
-    {
       "key": "ring",
       "name": "Ring",
       "min": 0.05,
@@ -131,26 +121,6 @@
       "default": 30,
       "unit": "dB",
       "description": "How far everything between the notes is turned down. Low only leans towards the key; high leaves nothing but the notes. Zero is the sound as it came."
-    },
-    {
-      "key": "low",
-      "name": "Low",
-      "min": 20,
-      "max": 2000,
-      "default": 40,
-      "taper": "log",
-      "unit": "Hz",
-      "description": "The lowest note that is let through. Everything under it is turned down by Depth, so raise it to keep the chord out of the bass."
-    },
-    {
-      "key": "high",
-      "name": "High",
-      "min": 200,
-      "max": 20000,
-      "default": 12000,
-      "taper": "log",
-      "unit": "Hz",
-      "description": "The highest note that is let through. Everything over it is turned down by Depth, so lower it for a darker chord."
     },
     {
       "key": "tune",
@@ -176,6 +146,36 @@
       "max": 1,
       "default": 1,
       "description": "Balance between the sound as it came and the filtered notes."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 5,
+      "max": 200,
+      "default": 30,
+      "taper": "log",
+      "unit": "ct",
+      "description": "How wide the opening at each note is. Narrow turns anything into pure held tones; wide brings the source back with only the wrong notes dimmed."
+    },
+    {
+      "key": "low",
+      "name": "Low",
+      "min": 20,
+      "max": 2000,
+      "default": 40,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The lowest note that is let through. Everything under it is turned down by Depth, so raise it to keep the chord out of the bass."
+    },
+    {
+      "key": "high",
+      "name": "High",
+      "min": 200,
+      "max": 20000,
+      "default": 12000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The highest note that is let through. Everything over it is turned down by Depth, so lower it for a darker chord."
     }
   ],
   "presets": {

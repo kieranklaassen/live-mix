@@ -17,19 +17,41 @@ export const WARP_PARAMS = {
     description:
       'Pulls the partials apart or pushes them together around the pivot. Up, a string turns to a bell; down, they crowd into a beating cluster. The middle leaves them alone.',
   },
-  pivot: {
+  lean: {
     id: 1,
-    name: 'Pivot',
-    min: 20,
-    max: 2000,
-    default: 220,
-    taper: 'log',
-    unit: 'Hz',
+    name: 'Lean',
+    min: -1,
+    max: 1,
+    default: 0,
+    taper: 'linear',
+    unit: '',
     description:
-      'The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used.',
+      'Where the stretch bites. Up, overtones near the pivot stay close and the far ones move most, as on a stiff string. Down, the near ones move and the far ones stay.',
+  },
+  drift: {
+    id: 2,
+    name: 'Drift',
+    min: 0,
+    max: 1,
+    default: 0.1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still.',
+  },
+  mix: {
+    id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves.',
   },
   follow: {
-    id: 2,
+    id: 4,
     name: 'Follow',
     min: 0,
     max: 1,
@@ -40,19 +62,8 @@ export const WARP_PARAMS = {
     description:
       'On puts a pivot on every note played, so melodies and chords keep their pitches and only overtones move. A note softer than the overtone it lies on moves with it.',
   },
-  lean: {
-    id: 3,
-    name: 'Lean',
-    min: -1,
-    max: 1,
-    default: 0,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Where the stretch bites. Up, overtones near the pivot stay close and the far ones move most, as on a stiff string. Down, the near ones move and the far ones stay.',
-  },
   shift: {
-    id: 4,
+    id: 5,
     name: 'Shift',
     min: -12,
     max: 12,
@@ -60,17 +71,6 @@ export const WARP_PARAMS = {
     taper: 'linear',
     unit: 'st',
     description: 'Transposes the whole warped sound after the stretch, pivot included.',
-  },
-  drift: {
-    id: 5,
-    name: 'Drift',
-    min: 0,
-    max: 1,
-    default: 0.1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Lets the stretch wander slowly by itself, so the partials breathe in and out of tune like a bell turning in the air. Zero holds them still.',
   },
   tone: {
     id: 6,
@@ -94,16 +94,16 @@ export const WARP_PARAMS = {
     description:
       'Gives the left and right sides slightly different stretches, so each partial beats slowly between the speakers. At zero a mono sound stays mono.',
   },
-  mix: {
+  pivot: {
     id: 8,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
+    name: 'Pivot',
+    min: 20,
+    max: 2000,
+    default: 220,
+    taper: 'log',
+    unit: 'Hz',
     description:
-      'Balance between the dry signal and the warped one. Part way, partials that moved only a little beat slowly against their dry selves.',
+      'The pitch that does not move while Follow is off. With Follow on every note played is its own pivot and this knob is not used.',
   },
 } as const satisfies Record<string, ParamSpec>
 

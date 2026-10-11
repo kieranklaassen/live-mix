@@ -17,19 +17,8 @@ export const PRISM_PARAMS = {
     description:
       'The longest wait: when the last colour of the sound comes back. Every other colour comes back sooner, by as much as Fan says.',
   },
-  fan: {
-    id: 1,
-    name: 'Fan',
-    min: 0,
-    max: 1,
-    default: 1,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes up to eight times sooner than the last.',
-  },
   shape: {
-    id: 2,
+    id: 1,
     name: 'Shape',
     min: 0,
     max: 4,
@@ -40,8 +29,30 @@ export const PRISM_PARAMS = {
     description:
       'The order the colours come back in. Rising is lows first, Falling highs first, Peak the middle last, Valley the middle first, and Scatter deals each band its own time.',
   },
-  bands: {
+  feedback: {
+    id: 2,
+    name: 'Feedback',
+    min: 0,
+    max: 1,
+    default: 0.4,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How much of each colour goes round again at its own time, so the repeats fan out further on every pass. At the top nothing fades but what Tilt takes away.',
+  },
+  mix: {
     id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.3,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry sound and the delayed colours. Turned well up, a held note and its own echo grow alike in level and can cancel each other at some pitches.',
+  },
+  bands: {
+    id: 4,
     name: 'Bands',
     min: 2,
     max: 48,
@@ -53,7 +64,7 @@ export const PRISM_PARAMS = {
       'How many colours the sound is split into. A few are broad blocks that arrive one by one; many are fine slices that run together. The lowest notes always share one.',
   },
   smear: {
-    id: 4,
+    id: 5,
     name: 'Smear',
     min: 0,
     max: 1,
@@ -62,17 +73,6 @@ export const PRISM_PARAMS = {
     unit: '',
     description:
       "Melts the steps between bands into a glide, so each band's arrival is spread out instead of landing all at once.",
-  },
-  feedback: {
-    id: 5,
-    name: 'Feedback',
-    min: 0,
-    max: 1,
-    default: 0.4,
-    taper: 'linear',
-    unit: '',
-    description:
-      'How much of each colour goes round again at its own time, so the repeats fan out further on every pass. At the top nothing fades but what Tilt takes away.',
   },
   tilt: {
     id: 6,
@@ -85,8 +85,30 @@ export const PRISM_PARAMS = {
     description:
       'What the repeats lose on each pass. Below the middle they get darker, above it thinner; in the middle they keep their tone.',
   },
-  bend: {
+  width: {
     id: 7,
+    name: 'Width',
+    min: 0,
+    max: 1,
+    default: 0.6,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Lays the colours across the stereo field in the order they arrive, first to the left and last to the right. The low end stays in the middle.',
+  },
+  fan: {
+    id: 8,
+    name: 'Fan',
+    min: 0,
+    max: 1,
+    default: 1,
+    taper: 'linear',
+    unit: '',
+    description:
+      'How far the colours are pulled apart in time. At zero they all come back together as one plain echo; fully open, the first comes up to eight times sooner than the last.',
+  },
+  bend: {
+    id: 9,
     name: 'Bend',
     min: -1,
     max: 1,
@@ -97,7 +119,7 @@ export const PRISM_PARAMS = {
       'Bows the curve of times. Turned up, most colours wait until near the end; turned down, most come early and a few trail behind.',
   },
   drift: {
-    id: 8,
+    id: 10,
     name: 'Drift',
     min: 0,
     max: 1,
@@ -108,7 +130,7 @@ export const PRISM_PARAMS = {
       'Lets each colour wander slowly in phase, so a held note breathes against its echo instead of standing in a fixed comb with it. At zero the echo is an exact copy.',
   },
   shuffle: {
-    id: 9,
+    id: 11,
     name: 'Shuffle',
     min: 1,
     max: 16,
@@ -118,28 +140,6 @@ export const PRISM_PARAMS = {
     step: 1,
     description:
       'Deals the bands another set of times when Shape is Scatter. Each number is one fixed pattern.',
-  },
-  width: {
-    id: 10,
-    name: 'Width',
-    min: 0,
-    max: 1,
-    default: 0.6,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Lays the colours across the stereo field in the order they arrive, first to the left and last to the right. The low end stays in the middle.',
-  },
-  mix: {
-    id: 11,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 0.3,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Balance between the dry sound and the delayed colours. Turned well up, a held note and its own echo grow alike in level and can cancel each other at some pitches.',
   },
 } as const satisfies Record<string, ParamSpec>
 

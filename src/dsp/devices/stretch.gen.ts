@@ -29,30 +29,8 @@ export const STRETCH_PARAMS = {
     description:
       'How much sound is taken in at each moment. Short keeps some of the rhythm and blurs the pitch; long is glassy and exact and smooths every attack away.',
   },
-  memory: {
-    id: 2,
-    name: 'Memory',
-    min: 1,
-    max: 20,
-    default: 8,
-    taper: 'log',
-    unit: 's',
-    description:
-      'How far behind your playing the reader may fall before it runs up to the present again. Short keeps the cloud close to what you just played.',
-  },
-  catchUp: {
-    id: 3,
-    name: 'Catch Up',
-    min: 0.05,
-    max: 10,
-    default: 1.5,
-    taper: 'log',
-    unit: 's',
-    description:
-      'How long the reader takes to run back to the present. Short is a soft jump; long sweeps quickly through everything it had not reached yet.',
-  },
   diffuse: {
-    id: 4,
+    id: 2,
     name: 'Diffuse',
     min: 0,
     max: 1,
@@ -61,6 +39,28 @@ export const STRETCH_PARAMS = {
     unit: '',
     description:
       'How much the sound is scattered. Low keeps notes pure and still like glass; high dissolves them into a shimmering, breathing cloud.',
+  },
+  mix: {
+    id: 3,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between your playing and the stretched cloud. Fully up leaves only the cloud.',
+  },
+  catchUp: {
+    id: 4,
+    name: 'Catch Up',
+    min: 0.05,
+    max: 10,
+    default: 1.5,
+    taper: 'log',
+    unit: 's',
+    description:
+      'How long the reader takes to run back to the present. Short is a soft jump; long sweeps quickly through everything it had not reached yet.',
   },
   freeze: {
     id: 5,
@@ -96,16 +96,16 @@ export const STRETCH_PARAMS = {
     description:
       'How differently the left and right sides are scattered. At zero a centred sound stays centred; turned up the cloud spreads wide.',
   },
-  mix: {
+  memory: {
     id: 8,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 0.5,
-    taper: 'linear',
-    unit: '',
+    name: 'Memory',
+    min: 1,
+    max: 20,
+    default: 8,
+    taper: 'log',
+    unit: 's',
     description:
-      'Balance between your playing and the stretched cloud. Fully up leaves only the cloud.',
+      'How far behind your playing the reader may fall before it runs up to the present again. Short keeps the cloud close to what you just played.',
   },
 } as const satisfies Record<string, ParamSpec>
 

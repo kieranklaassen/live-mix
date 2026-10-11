@@ -29,8 +29,22 @@ static char label[240];
   } while (0)
 // The bottom of a level's range, where its part is silent.
 static const float kOff = p::kParamMin[p::kTones];
-static const char* const kNames[p::kNumParams] = {"tones", "attacks", "air",  "sharpness", "edge",
-                                                  "hold",  "soften",  "late", "scatter",   "mix"};
+// A control's name by the control, not by its number: the order of "params" in device.json may change.
+static const char* name_of(int id) {
+  switch (id) {
+    case p::kTones: return "tones";
+    case p::kAttacks: return "attacks";
+    case p::kAir: return "air";
+    case p::kSharpness: return "sharpness";
+    case p::kEdge: return "edge";
+    case p::kHold: return "hold";
+    case p::kSoften: return "soften";
+    case p::kLate: return "late";
+    case p::kScatter: return "scatter";
+    case p::kMix: return "mix";
+    default: return "?";
+  }
+}
 
 // --- settings ------------------------------------------------------------------------------
 
@@ -1011,11 +1025,11 @@ static void check_controls() {
                                       difference_db(at[step + 1].right, at[step].right));
       }
     }
-    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", kNames[id], moved[0][0], moved[0][1],
+    std::printf("    %-10s %6.1f %6.1f %6.1f | %6.1f %6.1f %6.1f\n", name_of(id), moved[0][0], moved[0][1],
                 moved[0][2], moved[1][0], moved[1][1], moved[1][2]);
     for (int step = 0; step < 3; ++step) {
       std::snprintf(label, sizeof label,
-                    "control %s does something in third %d of its range (%.1f dB of the output)", kNames[id],
+                    "control %s does something in third %d of its range (%.1f dB of the output)", name_of(id),
                     step + 1, moved[1][step]);
       EXPECT(moved[1][step] > -24.0, label);
     }
@@ -1244,11 +1258,14 @@ static void check_sides() {
 // --- level -----------------------------------------------------------------------------------
 
 // The presets as device.json has them (copied: tmp/keep/presets.py writes
-// these rows from the manifest), every control in the order of its id.
+// these rows from the manifest), every control in the order of kColumns.
 struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of a row is, by name: a row does not follow the order of "params".
+static const int kColumns[p::kNumParams] = {p::kTones, p::kAttacks, p::kAir,  p::kSharpness, p::kEdge,
+                                            p::kHold,  p::kSoften,  p::kLate, p::kScatter,   p::kMix};
 static const Preset kPresets[] = {
     // PRESETS BEGIN
     {"Soft hammers", {0.0f, -12.0f, 3.0f, 0.5f, 1.0f, 0.3f, 0.16f, 0.0f, 0.6f, 1.0f}},
@@ -1273,7 +1290,9 @@ static const int kPresetCount = static_cast<int>(sizeof kPresets / sizeof kPrese
 
 static void set_preset(int n) {
   fresh();
-  for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, kPresets[n].values[id]);
+  for (int column = 0; column < p::kNumParams; ++column) {
+    device.set_param(kColumns[column], kPresets[n].values[column]);
+  }
 }
 
 // A chord at full scale held for a minute through the device as it stands:
@@ -1330,7 +1349,7 @@ static void check_level() {
     for (int end = 0; end < 2; ++end) {
       fresh();
       device.set_param(id, end == 0 ? p::kParamMin[id] : p::kParamMax[id]);
-      std::snprintf(what, sizeof what, "%s at its %s", kNames[id], end == 0 ? "lowest" : "highest");
+      std::snprintf(what, sizeof what, "%s at its %s", name_of(id), end == 0 ? "lowest" : "highest");
       measure(what);
     }
   }
