@@ -28,19 +28,8 @@ export const HOWL_PARAMS = {
     description:
       "How far the sound travels round the loop. It tunes a low note, and the feedback sings only on that note's overtones. Longer is lower, with the overtones closer.",
   },
-  body: {
-    id: 2,
-    name: 'Body',
-    min: 120,
-    max: 2400,
-    default: 520,
-    taper: 'log',
-    unit: 'Hz',
-    description:
-      'The resonance in the loop, which picks the overtone that sings. Low is dark and woody, high is bright and wiry.',
-  },
   hold: {
-    id: 3,
+    id: 2,
     name: 'Hold',
     min: 0.2,
     max: 30,
@@ -51,7 +40,7 @@ export const HOWL_PARAMS = {
       'How long it sings on after the playing stops. Short lets it fall with each note, long leaves a tone hanging in the room. It always dies away in the end.',
   },
   move: {
-    id: 4,
+    id: 3,
     name: 'Move',
     min: 0,
     max: 1,
@@ -62,7 +51,7 @@ export const HOWL_PARAMS = {
       'How far the resonance wanders by itself, as when a player moves at the amplifier. At zero one overtone holds. Higher, the feedback climbs and falls through others.',
   },
   pace: {
-    id: 5,
+    id: 4,
     name: 'Pace',
     min: 0.02,
     max: 2,
@@ -73,7 +62,7 @@ export const HOWL_PARAMS = {
       'How fast the resonance wanders when Move is up. Slow drifts from one overtone to the next over many seconds, fast flickers between them.',
   },
   edge: {
-    id: 6,
+    id: 5,
     name: 'Edge',
     min: 0,
     max: 1,
@@ -84,7 +73,7 @@ export const HOWL_PARAMS = {
       'How rough the singing tone is. At zero it is a pure, round tone. Higher adds a hard, reedy buzz on top of it.',
   },
   follow: {
-    id: 7,
+    id: 6,
     name: 'Follow',
     min: 0,
     max: 1,
@@ -93,6 +82,16 @@ export const HOWL_PARAMS = {
     unit: '',
     description:
       'How much the feedback gives way to a new note. At zero it sings straight through. Higher, each attack turns it down and it comes back as the note rings.',
+  },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.5,
+    taper: 'linear',
+    unit: '',
+    description: 'Balance between your playing and the feedback.',
   },
   width: {
     id: 8,
@@ -105,15 +104,16 @@ export const HOWL_PARAMS = {
     description:
       'How far apart the left and right loops stand. At zero both sing the same overtone. Higher, each side leans to a different one and wanders by itself.',
   },
-  mix: {
+  body: {
     id: 9,
-    name: 'Mix',
-    min: 0,
-    max: 1,
-    default: 0.5,
-    taper: 'linear',
-    unit: '',
-    description: 'Balance between your playing and the feedback.',
+    name: 'Body',
+    min: 120,
+    max: 2400,
+    default: 520,
+    taper: 'log',
+    unit: 'Hz',
+    description:
+      'The resonance in the loop, which picks the overtone that sings. Low is dark and woody, high is bright and wiry.',
   },
 } as const satisfies Record<string, ParamSpec>
 

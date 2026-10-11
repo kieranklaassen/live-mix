@@ -75,14 +75,6 @@
       "description": "How much of the inside gets out. Closed is boxy, mostly the low resonances; open lets the upper ones out and more of the sound itself through."
     },
     {
-      "key": "position",
-      "name": "Position",
-      "min": 0,
-      "max": 1,
-      "default": 0.3,
-      "description": "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere."
-    },
-    {
       "key": "air",
       "name": "Air",
       "min": 0,
@@ -113,6 +105,14 @@
       "max": 1,
       "default": 0.7,
       "description": "The balance between the sound as it was and the sound from inside the body."
+    },
+    {
+      "key": "position",
+      "name": "Position",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Where in the body the sound is heard. Each resonance is strong in some places and absent in others; only a bottle's deep note is the same everywhere."
     }
   ],
   "presets": {

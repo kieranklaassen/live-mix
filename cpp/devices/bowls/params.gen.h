@@ -5,13 +5,13 @@
 //    0  root: 0 C, 1 C#, 2 D, 3 D#, 4 E, 5 F, 6 F#, 7 G, 8 G#, 9 A, 10 A#, 11 B, default 0
 //    1  scale: 0 Major pentatonic, 1 Minor pentatonic, 2 Major, 3 Minor, 4 Fifths, 5 Whole tone, 6 Hirajoshi, 7 Pelog, default 0
 //    2  bowls: 3..12, default 8
-//    3  register: 0..1, default 0.5
-//    4  ring: 0.5..40 s, default 10
-//    5  beat: 0..1, default 0.4
-//    6  strike: 0..1, default 0.5
-//    7  metal: 0..1, default 0.5
+//    3  ring: 0.5..40 s, default 10
+//    4  beat: 0..1, default 0.4
+//    5  strike: 0..1, default 0.5
+//    6  metal: 0..1, default 0.5
+//    7  mix: 0..1, default 0.35
 //    8  spread: 0..1, default 0.6
-//    9  mix: 0..1, default 0.35
+//    9  register: 0..1, default 0.5
 
 #pragma once
 
@@ -22,19 +22,19 @@ enum Param : int {
   kRoot = 0,
   kScale = 1,
   kBowls = 2,
-  kRegister = 3,
-  kRing = 4,
-  kBeat = 5,
-  kStrike = 6,
-  kMetal = 7,
+  kRing = 3,
+  kBeat = 4,
+  kStrike = 5,
+  kMetal = 6,
+  kMix = 7,
   kSpread = 8,
-  kMix = 9,
+  kRegister = 9,
   kNumParams = 10,
 };
 
-inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 3.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
-inline constexpr float kParamMax[kNumParams] = {11.0f, 7.0f, 12.0f, 1.0f, 40.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 8.0f, 0.5f, 10.0f, 0.4f, 0.5f, 0.5f, 0.6f, 0.35f};
+inline constexpr float kParamMin[kNumParams] = {0.0f, 0.0f, 3.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+inline constexpr float kParamMax[kNumParams] = {11.0f, 7.0f, 12.0f, 40.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.0f, 8.0f, 10.0f, 0.4f, 0.5f, 0.5f, 0.35f, 0.6f, 0.5f};
 
 }  // namespace bowls
 }  // namespace livemix

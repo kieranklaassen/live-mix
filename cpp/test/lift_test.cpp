@@ -5,6 +5,7 @@
 // silence or anything loud.
 
 #include <chrono>
+#include <cstdlib>
 #include <ctime>
 
 #include "../devices/lift/lift.h"
@@ -866,6 +867,16 @@ struct Preset {
   const char* name;
   float values[p::kNumParams];
 };
+// Which control each column of the table is, by key: the table stands in this
+// order whatever the order of the controls in device.json.
+static const int kColumns[p::kNumParams] = {p::kThreshold, p::kAmount, p::kFloor, p::kRise, p::kHold, p::kSplit,
+                                            p::kFocus,     p::kSides,  p::kLimit, p::kHear, p::kMix};
+static float value_of(const Preset& preset, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return preset.values[column];
+  }
+  std::abort();
+}
 // --- presets begin ---
 // threshold, amount, floor, rise, hold, split, focus, sides, limit, hear, mix
 static const Preset kPresets[] = {
@@ -890,7 +901,7 @@ static const Preset kPresets[] = {
 
 static void load(Lift& d, const Preset& preset) {
   d.init(kRate);
-  for (int id = 0; id < p::kNumParams; ++id) d.set_param(id, preset.values[id]);
+  for (int column = 0; column < p::kNumParams; ++column) d.set_param(kColumns[column], preset.values[column]);
 }
 
 // Level. A full-scale held chord for a minute, through every preset and with
@@ -942,7 +953,7 @@ static void check_levels() {
   double worst_dip = 0.0;
   const char* worst_name = "";
   for (const Preset& preset : kPresets) {
-    if (preset.values[p::kHear] > 0.5f) continue;  // Lift only takes the loud sound away: that is what it is for
+    if (value_of(preset, p::kHear) > 0.5f) continue;  // Lift only takes the loud sound away: that is what it is for
     for (float midi = 21.0f; midi <= 108.0f; midi += 3.0f) {
       const float hz = 440.0f * std::pow(2.0f, (midi - 69.0f) / 12.0f);
       for (float level : {-12.0f, -40.0f}) {
@@ -1404,11 +1415,11 @@ static void check_hiss_through_every_preset() {
   for (const Preset& preset : kPresets) {
     load(device, preset);
     const double rise = hiss_rise(device, s);
-    const bool deep = preset.values[p::kFloor] < -60.0f;
+    const bool deep = value_of(preset, p::kFloor) < -60.0f;
     if (!deep) worst = std::max(worst, rise);
     std::snprintf(label, sizeof label, "%s raises hiss at -60 dB by %.2f dB in the pauses", preset.name, rise);
     if (deep) std::printf("lift: %s\n", label);
-    EXPECT(deep ? rise < preset.values[p::kLimit] + 0.5 : rise < 1.0, label);
+    EXPECT(deep ? rise < value_of(preset, p::kLimit) + 0.5 : rise < 1.0, label);
   }
   std::printf("lift: hiss at -60 dB in the pauses, every preset with its Floor over it: at most %+.2f dB\n", worst);
 }

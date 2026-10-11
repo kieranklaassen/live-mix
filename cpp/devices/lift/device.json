@@ -63,15 +63,6 @@
       "description": "How far quiet sound is carried up to the threshold. A little keeps the shape of a fade; fully up holds a tail level until it lets go."
     },
     {
-      "key": "floor",
-      "name": "Floor",
-      "min": -90,
-      "max": -40,
-      "default": -48,
-      "unit": "dB",
-      "description": "Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause."
-    },
-    {
       "key": "rise",
       "name": "Rise",
       "min": 0.05,
@@ -108,14 +99,6 @@
       "description": "Which part of the spectrum is lifted most. Left lifts the lows and leaves the highs, right lifts the air and leaves the lows, the middle is even."
     },
     {
-      "key": "sides",
-      "name": "Sides",
-      "min": 0,
-      "max": 1,
-      "default": 0,
-      "description": "How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward."
-    },
-    {
       "key": "limit",
       "name": "Limit",
       "min": 0,
@@ -125,19 +108,36 @@
       "description": "The most gain the lift may ever add. Lower it to keep the very quietest sound from being pulled far up; at nothing there is no lift."
     },
     {
-      "key": "hear",
-      "name": "Hear",
-      "choices": ["All", "Lift only"],
-      "default": 0,
-      "description": "All is the sound with its quiet end lifted. Lift only plays just what was added, the tails and breaths alone, for a send or a layer."
-    },
-    {
       "key": "mix",
       "name": "Mix",
       "min": 0,
       "max": 1,
       "default": 1,
       "description": "Balance between the untouched sound and the lifted one. Part way gives a gentler lift with the same timing."
+    },
+    {
+      "key": "floor",
+      "name": "Floor",
+      "min": -90,
+      "max": -40,
+      "default": -48,
+      "unit": "dB",
+      "description": "Under this level the lift lets go again, so hiss, hum and silence stay down. Set it a good way over the noise of the source, or the noise rises in every pause."
+    },
+    {
+      "key": "sides",
+      "name": "Sides",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "How much of the lift goes to the sides alone. At nothing the image stays as it is; fully up only what differs between left and right rises, so a tail opens outward."
+    },
+    {
+      "key": "hear",
+      "name": "Hear",
+      "choices": ["All", "Lift only"],
+      "default": 0,
+      "description": "All is the sound with its quiet end lifted. Lift only plays just what was added, the tails and breaths alone, for a send or a layer."
     }
   ],
   "presets": {

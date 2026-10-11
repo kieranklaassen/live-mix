@@ -6,11 +6,11 @@
 //    1  size: 0.25..4 x, default 1
 //    2  material: 0..1, default 0.5
 //    3  opening: 0..1, default 0.5
-//    4  position: 0..1, default 0.3
-//    5  air: 0..1, default 0.2
-//    6  tone: 0..1, default 0.5
-//    7  width: 0..1, default 0.5
-//    8  mix: 0..1, default 0.7
+//    4  air: 0..1, default 0.2
+//    5  tone: 0..1, default 0.5
+//    6  width: 0..1, default 0.5
+//    7  mix: 0..1, default 0.7
+//    8  position: 0..1, default 0.3
 
 #pragma once
 
@@ -22,17 +22,17 @@ enum Param : int {
   kSize = 1,
   kMaterial = 2,
   kOpening = 3,
-  kPosition = 4,
-  kAir = 5,
-  kTone = 6,
-  kWidth = 7,
-  kMix = 8,
+  kAir = 4,
+  kTone = 5,
+  kWidth = 6,
+  kMix = 7,
+  kPosition = 8,
   kNumParams = 9,
 };
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.25f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
 inline constexpr float kParamMax[kNumParams] = {5.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f};
-inline constexpr float kParamDefault[kNumParams] = {1.0f, 1.0f, 0.5f, 0.5f, 0.3f, 0.2f, 0.5f, 0.5f, 0.7f};
+inline constexpr float kParamDefault[kNumParams] = {1.0f, 1.0f, 0.5f, 0.5f, 0.2f, 0.5f, 0.5f, 0.7f, 0.3f};
 
 }  // namespace vessel
 }  // namespace livemix

@@ -56,13 +56,11 @@
       "description": "How much closer the sound comes at the point of the path that Turn sets. There it is a little louder. Away from it the sound falls back, quieter and thinner in the bass."
     },
     {
-      "key": "turn",
-      "name": "Turn",
-      "min": -180,
-      "max": 180,
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Clockwise", "Anticlockwise"],
       "default": 0,
-      "unit": "deg",
-      "description": "Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is."
+      "description": "Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is."
     },
     {
       "key": "blur",
@@ -81,11 +79,13 @@
       "description": "Balance between the sound as it came in and the moving sound. Part way, some of it stays where it was while the rest travels."
     },
     {
-      "key": "direction",
-      "name": "Direction",
-      "choices": ["Clockwise", "Anticlockwise"],
+      "key": "turn",
+      "name": "Turn",
+      "min": -180,
+      "max": 180,
       "default": 0,
-      "description": "Which way the sound goes round, seen from above. Anticlockwise runs any path backwards from where it is."
+      "unit": "deg",
+      "description": "Turns the whole path round your head. It sets where a swing is centred, which way a figure of eight lies, and where the near point is."
     }
   ],
   "presets": {

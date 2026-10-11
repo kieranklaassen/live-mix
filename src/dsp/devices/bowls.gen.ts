@@ -51,19 +51,8 @@ export const BOWLS_PARAMS = {
     description:
       'How many bowls stand on the table. Each one added is the next note of the scale above the others.',
   },
-  register: {
-    id: 3,
-    name: 'Register',
-    min: 0,
-    max: 1,
-    default: 0.5,
-    taper: 'linear',
-    unit: '',
-    description:
-      'Where the set sits. Low is a few large deep bowls, high is small bright ones; the set moves along the scale a bowl at a time.',
-  },
   ring: {
-    id: 4,
+    id: 3,
     name: 'Ring',
     min: 0.5,
     max: 40,
@@ -74,7 +63,7 @@ export const BOWLS_PARAMS = {
       'How long a bowl rings after the sound that touched it. Under a few seconds the low bowls tell a note from its neighbour less well.',
   },
   beat: {
-    id: 5,
+    id: 4,
     name: 'Beat',
     min: 0,
     max: 1,
@@ -85,7 +74,7 @@ export const BOWLS_PARAMS = {
       'How far from round the bowls are. At the bottom each rings steady; higher splits every partial in two that beat against each other, faster as it rises.',
   },
   strike: {
-    id: 6,
+    id: 5,
     name: 'Strike',
     min: 0,
     max: 1,
@@ -96,7 +85,7 @@ export const BOWLS_PARAMS = {
       "How hard the playing drives the bowls. Low is a quiet answer to notes on a bowl's pitch; high rings them louder and lets every attack strike the bowls near it.",
   },
   metal: {
-    id: 7,
+    id: 6,
     name: 'Metal',
     min: 0,
     max: 1,
@@ -105,6 +94,17 @@ export const BOWLS_PARAMS = {
     unit: '',
     description:
       'The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials, strongest when a bowl is struck.',
+  },
+  mix: {
+    id: 7,
+    name: 'Mix',
+    min: 0,
+    max: 1,
+    default: 0.35,
+    taper: 'linear',
+    unit: '',
+    description:
+      'Balance between the dry signal and the ringing bowls. Fully up is the bowls alone.',
   },
   spread: {
     id: 8,
@@ -117,16 +117,16 @@ export const BOWLS_PARAMS = {
     description:
       'How far apart the bowls sit between left and right. At the bottom they all ring from the centre.',
   },
-  mix: {
+  register: {
     id: 9,
-    name: 'Mix',
+    name: 'Register',
     min: 0,
     max: 1,
-    default: 0.35,
+    default: 0.5,
     taper: 'linear',
     unit: '',
     description:
-      'Balance between the dry signal and the ringing bowls. Fully up is the bowls alone.',
+      'Where the set sits. Low is a few large deep bowls, high is small bright ones; the set moves along the scale a bowl at a time.',
   },
 } as const satisfies Record<string, ParamSpec>
 

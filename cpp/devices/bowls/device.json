@@ -72,14 +72,6 @@
       "description": "How many bowls stand on the table. Each one added is the next note of the scale above the others."
     },
     {
-      "key": "register",
-      "name": "Register",
-      "min": 0,
-      "max": 1,
-      "default": 0.5,
-      "description": "Where the set sits. Low is a few large deep bowls, high is small bright ones; the set moves along the scale a bowl at a time."
-    },
-    {
       "key": "ring",
       "name": "Ring",
       "min": 0.5,
@@ -114,6 +106,14 @@
       "description": "The brightness of the metal. Low is dull bronze that hums on its lowest tone; high adds the upper partials, strongest when a bowl is struck."
     },
     {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "Balance between the dry signal and the ringing bowls. Fully up is the bowls alone."
+    },
+    {
       "key": "spread",
       "name": "Spread",
       "min": 0,
@@ -122,12 +122,12 @@
       "description": "How far apart the bowls sit between left and right. At the bottom they all ring from the centre."
     },
     {
-      "key": "mix",
-      "name": "Mix",
+      "key": "register",
+      "name": "Register",
       "min": 0,
       "max": 1,
-      "default": 0.35,
-      "description": "Balance between the dry signal and the ringing bowls. Fully up is the bowls alone."
+      "default": 0.5,
+      "description": "Where the set sits. Low is a few large deep bowls, high is small bright ones; the set moves along the scale a bowl at a time."
     }
   ],
   "presets": {

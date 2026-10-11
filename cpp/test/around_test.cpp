@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <complex>
+#include <cstdlib>
 
 using namespace testkit;
 using livemix::Around;
@@ -37,6 +38,38 @@ static void set(Around& d, const Setting& s) {
 }
 
 static const Setting kDefault = {0, 0.2f, 0.85f, 0.7f, 0.25f, 0, 0.35f, 1};
+
+// The field of a setting a control's id stands for, and the control's name:
+// by key, so the order of the controls in device.json has no say in either.
+static float& field_of(Setting& s, int id) {
+  switch (id) {
+    case p::kPath: return s.path;
+    case p::kRate: return s.rate;
+    case p::kRadius: return s.radius;
+    case p::kHead: return s.head;
+    case p::kNear: return s.near;
+    case p::kTurn: return s.turn;
+    case p::kBlur: return s.blur;
+    case p::kMix: return s.mix;
+    case p::kDirection: return s.direction;
+  }
+  std::abort();
+}
+
+static const char* name_of(int id) {
+  switch (id) {
+    case p::kPath: return "Path";
+    case p::kRate: return "Rate";
+    case p::kRadius: return "Radius";
+    case p::kHead: return "Head";
+    case p::kNear: return "Near";
+    case p::kTurn: return "Turn";
+    case p::kBlur: return "Blur";
+    case p::kMix: return "Mix";
+    case p::kDirection: return "Direction";
+  }
+  std::abort();
+}
 
 static size_t peak_index(const std::vector<float>& x) {
   size_t best = 0;
@@ -872,9 +905,7 @@ static void levels() {
       for (int end = 0; end < 2; ++end) {
         Setting s = kDefault;
         s.rate = 1.0f;
-        float* fields[] = {&s.path, &s.rate, &s.radius, &s.head,     &s.near,
-                           &s.turn, &s.blur, &s.mix,    &s.direction};
-        *fields[id] = end == 0 ? p::kParamMin[id] : p::kParamMax[id];
+        field_of(s, id) = end == 0 ? p::kParamMin[id] : p::kParamMax[id];
         settings.push_back({end == 0 ? "a control at its least" : "a control at its most", s});
       }
     }
@@ -1054,8 +1085,6 @@ static std::vector<float> phrase(float seconds) {
 
 static void rest() {
   char label[200];
-  const char* names[] = {"Path", "Rate", "Radius", "Head",     "Near",
-                         "Turn", "Blur", "Mix",    "Direction"};
 
   // Not a number, infinity and absurd samples: the output stays finite, and
   // 50 ms after the last of them it is what a device that got silence in
@@ -1096,7 +1125,7 @@ static void rest() {
     device.set_param(id, 0.5f * (p::kParamMin[id] + p::kParamMax[id]) + 0.123f);
     render(device, 0.2f, kRate);
     Stereo after = render(device, 0.2f, kRate);
-    std::snprintf(label, sizeof label, "at rest after %s was moved while sounding", names[id]);
+    std::snprintf(label, sizeof label, "at rest after %s was moved while sounding", name_of(id));
     EXPECT(peak(after.left) == 0.0 && peak(after.right) == 0.0, label);
   }
 
@@ -1131,7 +1160,7 @@ static void rest() {
         last = out;
       }
       std::snprintf(label, sizeof label, "%s does something over each third of its travel (least %.3f)",
-                    names[id], least);
+                    name_of(id), least);
       std::printf("note: %s\n", label);
       EXPECT(least > 0.01, label);
     }

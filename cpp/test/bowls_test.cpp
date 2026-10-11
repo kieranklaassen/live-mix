@@ -757,7 +757,7 @@ int main() {
       {"Faint halo", {{p::kMix, 0.15f}, {p::kStrike, 0.3f}, {p::kRing, 8.0f}, {p::kMetal, 0.35f}}},
       {"Bowls alone", {{p::kMix, 1.0f}, {p::kStrike, 0.8f}, {p::kRing, 12.0f}}},
       {"Low fifths", {{p::kRoot, 9.0f}, {p::kScale, 4.0f}, {p::kBowls, 5.0f}, {p::kRegister, 0.3f}, {p::kRing, 30.0f}, {p::kBeat, 0.3f}, {p::kMetal, 0.25f}, {p::kMix, 0.4f}}},
-      {"Small bright set", {{p::kBowls, 10.0f}, {p::kRegister, 0.85f}, {p::kRing, 5.0f}, {p::kBeat, 0.5f}, {p::kStrike, 0.6f}, {p::kMetal, 0.85f}, {p::kMix, 0.4f}}},
+      {"Ten bright bowls", {{p::kBowls, 10.0f}, {p::kRegister, 0.85f}, {p::kRing, 5.0f}, {p::kBeat, 0.5f}, {p::kStrike, 0.6f}, {p::kMetal, 0.85f}, {p::kMix, 0.4f}}},
       {"Every attack", {{p::kBowls, 12.0f}, {p::kRegister, 0.4f}, {p::kRing, 3.0f}, {p::kStrike, 1.0f}, {p::kMetal, 0.9f}}},
       {"Long ring", {{p::kRoot, 9.0f}, {p::kScale, 1.0f}, {p::kRing, 40.0f}, {p::kBeat, 0.25f}, {p::kStrike, 0.4f}, {p::kMetal, 0.35f}, {p::kMix, 0.4f}}},
       {"Minor table", {{p::kRoot, 9.0f}, {p::kScale, 3.0f}, {p::kBowls, 12.0f}, {p::kRegister, 0.4f}, {p::kRing, 12.0f}, {p::kMix, 0.4f}}},

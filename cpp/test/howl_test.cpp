@@ -1181,7 +1181,11 @@ static const char* const kPresetNames[16] = {
     "Ring, no howl",
     "Howl alone",
 };
-// gain, distance, body, hold, move, pace, edge, follow, width, mix
+// gain, distance, body, hold, move, pace, edge, follow, width, mix: which
+// control each column of the table is, by key, so the table stands in this
+// order whatever the order of the controls in device.json.
+static const int kColumns[p::kNumParams] = {p::kGain, p::kDistance, p::kBody,   p::kHold,  p::kMove,
+                                            p::kPace, p::kEdge,     p::kFollow, p::kWidth, p::kMix};
 static const float kPresets[16][p::kNumParams] = {
     {0.85f, 7.645f, 520.0f, 6.0f, 0.35f, 0.12f, 0.2f, 0.5f, 0.5f, 0.5f},  // Room howl
     {0.62f, 7.645f, 520.0f, 2.0f, 0.1f, 0.12f, 0.0f, 0.3f, 0.3f, 0.22f},  // Faint sustain
@@ -1202,13 +1206,20 @@ static const float kPresets[16][p::kNumParams] = {
 };
 // PRESETS-END
 
+static float preset_value(int n, int id) {
+  for (int column = 0; column < p::kNumParams; ++column) {
+    if (kColumns[column] == id) return kPresets[n][column];
+  }
+  std::abort();
+}
+
 // Every preset: bounded and steady under a full-scale chord, and no held
 // tone on the piano lost by more than 3 dB beyond the dry gain.
 static void check_presets() {
   char label[240];
   for (int n = 0; n < kPresetCount; ++n) {
     const auto load = [&] {
-      for (int id = 0; id < p::kNumParams; ++id) device.set_param(id, kPresets[n][id]);
+      for (int column = 0; column < p::kNumParams; ++column) device.set_param(kColumns[column], kPresets[n][column]);
     };
     device.init(kRate);
     load();
@@ -1216,9 +1227,9 @@ static void check_presets() {
     double hz = 0.0;
     // With no dry sound left (Mix 1) the held tone itself is gone by design:
     // what must not be lost then is the level of what comes out in its place.
-    const bool alone = kPresets[n][p::kMix] > 0.95f;
+    const bool alone = preset_value(n, p::kMix) > 0.95f;
     const double dip = worst_dip(load, &hz, alone);
-    const double dry = alone ? 0.0 : db(std::cos(kPresets[n][p::kMix] * kPi / 2.0));
+    const double dry = alone ? 0.0 : db(std::cos(preset_value(n, p::kMix) * kPi / 2.0));
     std::snprintf(label, sizeof label, "%s: the tone that loses most, %.1f Hz, comes out at %.2f dB (%s %.2f)",
                   kPresetNames[n], hz, dip, alone ? "all that comes out; against" : "dry gain", dry);
     CHECK(dip > dry - 3.0, label);
