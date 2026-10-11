@@ -37,7 +37,13 @@ import {
 } from '..'
 import { repeatedSettings } from '../packs/__tests__/support'
 import { CHAIN_TEST_PATCH, CHAIN_TEST_PHRASE } from './chain-input'
-import { beatTheAnalysisLoses, longestName, measureEnds } from './sound-measure'
+import {
+  atItsLevel,
+  beatTheAnalysisLoses,
+  longestName,
+  measureEnds,
+  quietestLufs,
+} from './sound-measure'
 import { BANK_LIMITS, chainProblems, nearestPrints, presetProblems } from './support'
 
 const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
@@ -221,8 +227,9 @@ describe.each(FACTORY_SOUNDS.map((sound) => [sound.id, sound] as const))(
 
       const audio = await renderFactorySound(sound, node)
       expect(audio.channels[0]).toHaveLength(Math.round(sound.durationSec * audio.sampleRate))
-      expect(toDb(peakOf(audio.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
-      expect(measureAudio(audio).lufs, 'loudness').toBeGreaterThan(-40)
+      const peakDb = toDb(peakOf(audio.channels))
+      expect(atItsLevel(sound, peakDb), `peak ${peakDb.toFixed(2)} dBFS`).toBe(true)
+      expect(measureAudio(audio).lufs, 'loudness').toBeGreaterThan(quietestLufs(sound))
       const found = analyzeSound(audio.channels, audio.sampleRate).kind
       // A swung or a sparse loop on a kit is a beat by the bank's word, where the analysis finds none.
       if (found !== sound.kind && beatTheAnalysisLoses(sound)) expect(sound.kind).toBe('beat')

@@ -10,7 +10,6 @@ import { analyzeSound } from '../../../core/analysis/sound-kind'
 import { compileFromDisk, measureAudio, toDb } from '../../__tests__/render-support'
 import { DEFAULT_PHRASE_GAIN, peakOf, type PhraseNote } from '../../patch-render'
 import {
-  FACTORY_PEAK_DB,
   FACTORY_SOUNDS,
   chordMoves,
   describeVariant,
@@ -24,7 +23,7 @@ import { loadFactoryPackSounds } from '../sound-packs'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { VARIATION_KINDS, VARIATION_LIMITS, type SoundVariation } from '../vary'
-import { measureEnds } from './sound-measure'
+import { atItsLevel, measureEnds } from './sound-measure'
 
 const node = { compile: compileFromDisk, sliceMs: 0 } as const
 const SEEDS = [1, 2, 3, 77, 9999]
@@ -834,7 +833,7 @@ describe('a variant of a sound', () => {
       const audio = await renderFactorySound(each, node)
       const variant = await renderFactorySound(each, { ...node, vary: only('touch', 2) })
       expect(variant.channels[0]).toHaveLength(audio.channels[0].length)
-      expect(toDb(peakOf(variant.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+      expect(atItsLevel(each, toDb(peakOf(variant.channels))), 'at its level').toBe(true)
       expect(Math.abs(measureAudio(variant).lufs - measureAudio(audio).lufs)).toBeLessThan(3)
       expect(analyzeSound(variant.channels, variant.sampleRate).kind).toBe(each.kind)
       const differs = variant.channels[0].some(
@@ -859,7 +858,7 @@ describe('a variant of a sound', () => {
         const variant = await renderFactorySound(each, { ...node, vary: full(seed) })
         const samples = Math.round(each.durationSec * variant.sampleRate)
         expect(variant.channels[0]).toHaveLength(samples)
-        expect(toDb(peakOf(variant.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+        expect(atItsLevel(each, toDb(peakOf(variant.channels))), 'at its level').toBe(true)
         const ends = measureEnds(variant)
         if (each.loopCrossfadeSec) {
           expect(ends.round, `seed ${seed} comes round on itself`).toBe(true)

@@ -406,6 +406,10 @@ const CRASHES: readonly FactorySound[] = [
   }),
 ]
 
+/**
+ * Every layer keeps the kit's own level (`kitLevel`): the hats are as far under the kick as the kit
+ * has them, so layers laid over each other are balanced as one kit with nothing turned down.
+ */
 export const CLUB_LAYERS: readonly FactorySound[] = [
   ...KICKS,
   ...BACKBEATS,
@@ -414,4 +418,4 @@ export const CLUB_LAYERS: readonly FactorySound[] = [
   ...HAND_DRUMS,
   ...TOPS,
   ...CRASHES,
-]
+].map((layer) => ({ ...layer, kitLevel: true as const }))

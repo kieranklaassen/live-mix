@@ -237,6 +237,16 @@ describe('renderPatch', () => {
     expect(levelled.channels[0][at] / plain.channels[0][at]).toBeCloseTo(gain, 4)
   })
 
+  it('turns what the devices put out up or down by a fixed gain where no peak is asked for', async () => {
+    const options = { durationSec: 0.5, phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] } }
+    const plain = await render(BELL, options)
+    const down = await render(BELL, { ...options, gainDb: -6 })
+    expect(toDb(peakOf(down.channels)) - toDb(peakOf(plain.channels))).toBeCloseTo(-6, 3)
+    // A peak asked for wins: the gain is for a result that keeps its own level.
+    const levelled = await render(BELL, { ...options, gainDb: -6, normalizePeakDb: -3 })
+    expect(toDb(peakOf(levelled.channels))).toBeCloseTo(-3, 3)
+  })
+
   it('hands a sample instrument the sound it plays', async () => {
     const patch: Patch = { ...BELL, instrument: { deviceId: 'sampler' } }
     const phrase = { notes: [{ atSec: 0, durSec: 0.5, note: 60 }] }

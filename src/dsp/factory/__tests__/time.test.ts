@@ -17,7 +17,6 @@ import { describe, expect, it } from 'vitest'
 import { compileFromDisk, toDb } from '../../__tests__/render-support'
 import { peakOf } from '../../patch-render'
 import {
-  FACTORY_PEAK_DB,
   FACTORY_SOUNDS,
   factoryPreset,
   isKitInstrument,
@@ -25,7 +24,7 @@ import {
   soundAtTempo,
 } from '..'
 import { BAR_SEC, WRITTEN_BPM } from '../sounds/rhythm'
-import { measureEnds } from './sound-measure'
+import { atItsLevel, measureEnds } from './sound-measure'
 
 const TIMED = FACTORY_SOUNDS.filter((sound) => sound.bpm !== undefined)
 const node = { compile: compileFromDisk, sliceMs: 0 } as const
@@ -139,7 +138,7 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
       const audio = await renderFactorySound(sound, { ...node, bpm: OTHER_BPM })
       const seconds = sound.durationSec * (WRITTEN_BPM / OTHER_BPM)
       expect(audio.channels[0]).toHaveLength(Math.round(seconds * audio.sampleRate))
-      expect(toDb(peakOf(audio.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+      expect(atItsLevel(sound, toDb(peakOf(audio.channels))), 'at its level').toBe(true)
       for (const channel of audio.channels) {
         const wrap = Math.abs(channel[0] - channel[channel.length - 1])
         expect(wrap, 'the loop seam').toBeLessThanOrEqual(largestStep(channel))
@@ -155,7 +154,7 @@ describe.each(TIMED.map((sound) => [sound.id, sound] as const))('sound %s', (_id
       const audio = await renderFactorySound(sound, { ...node, bpm: OTHER_BPM })
       const seconds = sound.durationSec * (WRITTEN_BPM / OTHER_BPM)
       expect(audio.channels[0]).toHaveLength(Math.round(seconds * audio.sampleRate))
-      expect(toDb(peakOf(audio.channels))).toBeCloseTo(FACTORY_PEAK_DB, 1)
+      expect(atItsLevel(sound, toDb(peakOf(audio.channels))), 'at its level').toBe(true)
       for (const channel of audio.channels) {
         expect(Math.abs(channel[channel.length - 1]), 'the last sample').toBeLessThan(1e-3)
       }

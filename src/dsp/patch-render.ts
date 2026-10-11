@@ -89,6 +89,11 @@ export interface RenderPatchOptions {
   fadeOutSec?: number
   /** Scale the result so its peak sits at this level, in dBFS, after the fades. Silence stays silence. */
   normalizePeakDb?: number
+  /**
+   * A fixed gain in dB for a result that is not brought to a peak: what the
+   * devices put out, that much up or down. `normalizePeakDb` wins over it.
+   */
+  gainDb?: number
   /** Where device ids are looked up (default: the stock WASM devices). */
   describe?: (deviceId: string) => DeviceDescriptor | undefined
   /** How a device module is compiled (default `compileWasm`, cached per URL). */
@@ -380,6 +385,9 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   const peak = fadedPeakOf(kept, frames, fadeIn, fadeOut)
   if (options.normalizePeakDb !== undefined && peak > 0) {
     const scale = 10 ** (options.normalizePeakDb / 20) / peak
+    for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale
+  } else if (options.normalizePeakDb === undefined && options.gainDb) {
+    const scale = 10 ** (options.gainDb / 20)
     for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale
   }
   for (const channel of kept) {

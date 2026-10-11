@@ -9,6 +9,7 @@ import { renderPatch, type RenderPatchOptions } from '../patch-render'
 import { FACTORY_CHAINS } from './chains'
 import { type GeneratedSound } from './generate'
 import { transposePatch, transposePhrase, transposeWords } from './key'
+import { KIT_LEVEL_DB } from './kits'
 import { wholeCycles } from './parts'
 import {
   CHAIN_PREVIEW_PATCH,
@@ -69,7 +70,7 @@ export {
   type GeneratedKind,
   type GeneratedSound,
 } from './generate'
-export { KIT_INSTRUMENTS, isKitInstrument } from './kits'
+export { KIT_INSTRUMENTS, KIT_LEVEL_DB, isKitInstrument } from './kits'
 export { FACTORY_TEMPO_RANGE, factoryTempo, patchAtTempo, phraseAtTempo, tempoRatio } from './tempo'
 export {
   VARIATION_KINDS,
@@ -309,6 +310,9 @@ export async function renderFactorySound(
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
+  const lift = inKey.kitLevel ? KIT_LEVEL_DB[patch.instrument?.deviceId ?? ''] : undefined
+  if (inKey.kitLevel && lift === undefined)
+    throw new Error(`live-mix: factory sound "${sound.id}" keeps the level of a kit that has none`)
   let sample = render.sample
   if (sound.source !== undefined) {
     const source = factorySound(sound.source)
@@ -337,7 +341,8 @@ export async function renderFactorySound(
     // A sound that keeps time is laid beside others that do: what its devices delay it by is taken out.
     alignLatency: inKey.bpm !== undefined,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
-    normalizePeakDb: FACTORY_PEAK_DB,
+    // One part of a kit keeps the kit's balance; everything else is brought to the bank's peak.
+    ...(lift === undefined ? { normalizePeakDb: FACTORY_PEAK_DB } : { gainDb: lift }),
   })
 }
 

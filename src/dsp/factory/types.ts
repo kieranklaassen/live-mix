@@ -130,6 +130,14 @@ export interface FactorySound {
    */
   kit?: true
   /**
+   * For one part of a kit (a layer, a single drum): played at the kit's own
+   * level and not brought to the bank's peak (`KIT_LEVEL_DB` in ./kits.ts).
+   * A hat is then as far under a kick as the kit has it, so a kick, a clap
+   * and a row of hats laid over each other are balanced as one kit, and a
+   * hat alone is quieter than a sound of the bank is otherwise.
+   */
+  kitLevel?: true
+  /**
    * The name and description with each note they mention in braces
    * ("Low drone {D}"): what `transposeFactorySound` writes them from in
    * another key. Absent when neither names a note.

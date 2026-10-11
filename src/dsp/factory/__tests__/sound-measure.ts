@@ -8,7 +8,7 @@ import { comesRound, entersOnStep, leavesOnStep, type SoundFrames } from '../../
 import { type PlanarAudio } from '../../../core/render/encode'
 import { fft } from '../../__tests__/render-support'
 import { peakOf } from '../../patch-render'
-import { transposeFactorySound } from '..'
+import { FACTORY_PEAK_DB, transposeFactorySound } from '..'
 import { type FactorySound } from '../types'
 
 /** Rendered audio in the shape the seam measure reads. */
@@ -79,6 +79,29 @@ export function longestName(sound: FactorySound): string {
   return EVERY_KEY.map((by) => transposeFactorySound(sound, by).name).reduce((a, b) =>
     b.length > a.length ? b : a,
   )
+}
+
+/**
+ * How far under the bank's peak one part of a kit may peak, in dB: a ghost
+ * of a shaker is the softest thing a kit plays, and the kit's hardest kick
+ * is at the peak (`KIT_LEVEL_DB`).
+ */
+export const KIT_LEVEL_REACH_DB = 20
+
+/**
+ * Whether a render is at the level its sound is meant to have: at the bank's
+ * peak, or for one part of a kit (`kitLevel`) where the kit has that drum,
+ * which is under the peak by no more than `KIT_LEVEL_REACH_DB` and never
+ * more than a dB over it.
+ */
+export function atItsLevel(sound: FactorySound, peakDb: number): boolean {
+  if (!sound.kitLevel) return Math.abs(peakDb - FACTORY_PEAK_DB) < 0.05
+  return peakDb <= FACTORY_PEAK_DB + 1 && peakDb >= FACTORY_PEAK_DB - KIT_LEVEL_REACH_DB
+}
+
+/** The quietest a sound may be, LUFS: one part of a kit is as much quieter as it lies under the kick. */
+export function quietestLufs(sound: FactorySound): number {
+  return sound.kitLevel ? -40 - KIT_LEVEL_REACH_DB / 2 : -40
 }
 
 /** Integrated loudness a sound of each kind sits in at the bank's peak level, LUFS. */
