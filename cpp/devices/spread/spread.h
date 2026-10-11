@@ -144,6 +144,12 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
     return kit::gain_to_db(hold_);
   }
 
+  // For the harness: how many samples the device has been awake, and a way
+  // to put that count where hours of unbroken sound would have it (by whole
+  // control periods, so the ticks fall where they fell).
+  uint64_t awake_samples() const { return position_; }
+  void add_awake_periods(uint64_t periods) { position_ += periods * static_cast<uint64_t>(kPeriod); }
+
   void process(int frames) {
     frames = begin_block(frames);
     for (int i = 0; i < frames; ++i) {
@@ -541,7 +547,11 @@ class Spread : public kit::DeviceBase<spread::kNumParams> {
   long quick_ = 0;
   float ceiling_power_ = 0.0f;
   bool safe_on_ = false;
-  uint32_t position_ = 0;  // samples since waking; the control ticks are counted from it
+  // Samples since waking; the control ticks are counted from it. In 64 bits:
+  // a count of 32 came round to nought after 2^32 samples awake (24.9 hours
+  // at 48 kHz, 6.2 at 192 kHz), and the gain's "mean so far" below divided
+  // by it.
+  uint64_t position_ = 0;
   long idle_samples_ = 1;  // how long nothing must happen before sleep
   long quiet_ = 0;         // samples of nothing so far
   bool asleep_ = true;
