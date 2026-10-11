@@ -21,7 +21,7 @@
 //
 // A rise is loudest in its last moments, where the fade is. The level of a sound is set by its
 // largest sample before the fade is applied, so a rise ends in a flat clip that only its few
-// largest samples reach, in the last quarter of it: the largest sample is then one of several,
+// largest samples reach, in the last third of it: the largest sample is then one of several,
 // most of them before the fade, and the sound comes out at the bank's level (measured at 96, 120
 // and 140, and the chord in every key).
 
@@ -89,7 +89,10 @@ const room = (mix: number): PatchDevice => hall('Room', mix)
  * The flat clip a rise ends in, at the base rate, where it is the curve and nothing else. `driveDb`
  * is set by measuring, a decibel or two past where the largest sample just touches the clip: under
  * one sample in a thousand of the last tenth of the noise reaches it, so the loudness is all but
- * what it was (every decibel of drive past touching is a decibel of loudness).
+ * what it was (every decibel of drive past touching is a decibel of loudness). The chord takes
+ * more of it: its largest sample is 4 dB apart from key to key, so a drive that is a decibel past
+ * touching in its quietest key is 5 dB past in its loudest, where three samples in a thousand of
+ * the last tenth are flat and what the clip adds is 26 dB under the chord.
  */
 const ceiling = (driveDb: number): PatchDevice => ({
   deviceId: 'saturator',
@@ -145,8 +148,10 @@ const NOISE_RISERS: readonly FactorySound[] = [
     name: 'Noise riser, four bars',
     kind: 'texture',
     description:
-      'A band of white noise that climbs from 250 Hz to 15 kHz over four bars and stops on the bar line, for a house build.',
+      'A band of white noise that climbs from 300 Hz to 14 kHz over four bars and stops on the bar line, for a house build.',
     // A band-pass: nothing is left under the band as it climbs, so the sound thins on its way up.
+    // The numbers in the description are where the band is strongest in the render, in its first
+    // and its last 200 ms at 96, 120 and 140, not where the filter's formula puts its centre.
     instrument: noise(400),
     effects: [
       room(0.5),
@@ -171,18 +176,22 @@ const NOISE_RISERS: readonly FactorySound[] = [
 ]
 
 // The keys of the chord that rises, low to high: A minor from the A at 55 Hz to the E four and a
-// half octaves over it, its thirds softer than its roots and fifths, and its top the loudest.
+// half octaves over it, and its top the loudest. The thirds are three of the eleven and as loud as
+// the keys round them. Each note here is stronger at its fifth harmonic than at its fundamental
+// (the high-pass below), and the fifth harmonic of an A is a C sharp: with five roots and two soft
+// thirds the end of the render held 1.6 to 3.7 dB more C sharp than C in every key, which is not
+// a minor chord. As written it holds 3.5 to 6.6 dB more C than C sharp (the last 1.4 s at 120).
 const A_MINOR: readonly (readonly [note: number, gain: number])[] = [
   [33, 0.45],
   [45, 0.45],
   [52, 0.45],
   [57, 0.5],
-  [60, 0.4],
+  [60, 0.7],
   [64, 0.65],
   [69, 0.75],
-  [72, 0.55],
+  [72, 0.85],
   [76, 0.85],
-  [81, 0.92],
+  [84, 0.92],
   [88, 1],
 ]
 
@@ -215,7 +224,7 @@ const CHORD_RISERS: readonly FactorySound[] = [
         ampRelease: 0.03,
       },
     },
-    effects: [room(0.4), sweep(4, SAW_UP, { cutoffHz: 700, slope: 0 }), ceiling(17.6)],
+    effects: [room(0.4), sweep(4, SAW_UP, { cutoffHz: 700, slope: 0 }), ceiling(15.8)],
     ...held(4, A_MINOR),
   }),
 ]
