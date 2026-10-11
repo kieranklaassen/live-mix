@@ -46,22 +46,59 @@
 //   beside it, under a Hann window), so its phase is carried on all the
 //   same: a held note goes through a catch-up unbroken. A peak that stands
 //   kOnset times above what its bin held a frame before is a note beginning
-//   and starts with the phase it is read with, so each side keeps its own
-//   and an anti-phase source stays anti-phase. On top of that
+//   and starts with the phase it is read with. On top of that
 //   Diffuse turns every bin by a fresh random angle of up to ±Diffuse × 180°
 //   each frame (at 1 the phases are all random, which is the classic diffuse
 //   stretch), and the magnitudes are raised by what random phase costs.
 //   Every partial also wanders by a small random step a frame (kWalk).
+// - The two sides. A partial is looked for in the two sides together (the
+//   sum of their powers), its turn between two readings is each side's,
+//   weighed by how much of it that side holds, and what all of the above
+//   comes to is one angle a bin, `spin`: how far the bin is turned from the
+//   phase it was read with. Both sides are turned by that same angle, each
+//   from its own reading and at its own level. So the angle and the level
+//   between the two sides of a partial are the ones that were played: a
+//   stereo source keeps its image, a mono one stays mono to the bit, and an
+//   anti-phase one stays anti-phase. (Each side used to carry its own phases
+//   on, and a played stereo source came out with its sides unrelated.)
+//   Beside the spin each side has a turn of its own (`own`), for a note
+//   that stands at two pitches on the two sides, a chorused or detuned
+//   stereo source. That is a partial whose sides have gone half a turn
+//   against each other in the reading since it began (`gone`), each side
+//   being one steady partial all the while: its peak one partial's shape
+//   (single()) and its level what it was (kEven). From then on `own` takes
+//   out what the reading turns each side by itself, so the angle between
+//   the sides no longer follows the reader (a run up to the present would
+//   move it by seconds at once), and each side goes on at its own pitch, by
+//   the smoothed difference between them (`beat`, from kSame bins up): each
+//   side's frames follow on from one another and its cloud is the pitch
+//   that side was played at. Everything else keeps the angle it is read
+//   with. Less than half a turn is the sway of two notes at two places
+//   under one peak, which comes back; and two such notes that each lead on
+//   one side do go round, but then a side is two partials under its peak or
+//   its level rises and falls as they go, and they are not taken for one
+//   note. (Taken for one, each side was given a pitch of its own and the
+//   two notes' image was lost.)
 // - The cloud and the note being played. A note in the cloud and the same
 //   note held now are one frequency: left alone they drift in and out of
 //   step, and at a part-way Mix the note swells and then vanishes for
 //   seconds. So each of the cloud's stronger partials is turned, frame by
 //   frame, to lie a quarter turn from that partial in the input (read from
-//   kit::Stft's own analysis, carried on to where the frame will sound): the
+//   kit::Stft's own analysis on both sides, carried on to where the frame
+//   will sound), on both sides by the same angle: the
 //   two then add as power, neither doubling nor cancelling. Fully diffuse,
 //   every frame is turned freely; with Diffuse lower only partials within
 //   kNearHz of the played one are turned, by kPull a frame at most, so the
-//   cloud is never pulled off its pitch.
+//   cloud is never pulled off its pitch. Where the played note's two sides
+//   are not in step (most of all at two pitches) one angle cannot serve
+//   both: each side is then turned the rest of the way by itself (`aside`,
+//   by kPull a frame at most again), measured about where that side's note
+//   lies, and the turn is let go again (kLetGo a frame) once the note is no
+//   longer played. That is done only where each side of the played partial
+//   has been one steady partial for kCalm hops, and fully diffuse only for
+//   a note at two pitches: two notes at two places that share a peak pass
+//   through opposite phase between the sides as they beat, and the cloud
+//   would be turned to that at its own, other, level.
 // - Freeze stops the reader and the memory: nothing is recorded, the
 //   spectrum of the moment is held and each partial goes on turning at its
 //   own frequency (never the same frame replayed, which would buzz at the
@@ -71,11 +108,36 @@
 //   while the new size's frames come in under it, over the longer of the two
 //   windows, each of the new size's partials starting in step with the same
 //   partial of the old (joined()), so the cloud neither drops out nor jumps.
-// - Width gives the right channel its own random angles and its own wander;
-//   at 0 both channels use the same ones and a mono input stays mono.
+// - Width leans the partials to the sides: the left side of a partial is
+//   turned one way and the right side the other, by half of an angle that
+//   is Width × 75° at the most (kWidest), less for a partial that stands
+//   more on one side than the other, none for one that is on one side only.
+//   Which way and how far is read off a pattern along the partial's
+//   frequency (sway(): 2.7 turns of it an octave, bent so that it stands near
+//   one end or the other most of the way), and the pattern drifts upwards
+//   by a turn in 50 s, by the sample clock. The lean is not carried on from
+//   frame to frame: it is put on each frame as it is made, so the angle
+//   between the sides never adds up. At 75° a partial folds to mono 2.0 dB
+//   under itself, and that is the worst any note or chord does at any
+//   Width, Window or Diffuse; the side comes up steadily along the knob
+//   (15.8, 9.6, 5.7 and 2.6 dB under the middle at 0.25, 0.5, 0.75 and 1 on
+//   a source that is the same on both sides). With the dry signal in, a
+//   partial that leans would stand a quarter turn less half the lean from
+//   the played note on one side and plus half the lean on the other, the
+//   note up to 2.1 dB up on one side and 4.1 dB down on the other: so a
+//   partial of the cloud that is being played now leans less, by how alike
+//   cloud and note are in level in the mix (keep_apart()), and comes back
+//   to its lean as the note stops. (The right side used to
+//   draw its own random angles and its own wander, which added up frame by
+//   frame with nothing to bound them: the two sides of a note passed through
+//   opposite phase and, the longer the frame and the lower Diffuse and
+//   Width, the longer they stayed there.)
 // - Tone splits the wet signal at 1 kHz (one pole) and only ever takes
 //   away: left of centre the highs go down by up to 12 dB, right of centre
-//   the lows. The wet signal is then limited: linear up to ±1, never past ±2.
+//   the lows. The mix then meets its ceiling: while the played sound
+//   and the cloud together stay within ±0.75 they go out as they are; past
+//   that only what the cloud adds is bent, so that the cloud never takes
+//   the output past full scale, alone (Mix 1) or on top of the played sound.
 //
 // Latency: none. The dry path is the input itself (Mix 0 is the input,
 // sample for sample); the wet path is late by design, at least a window and
@@ -84,7 +146,7 @@
 //
 // Storage: the memory is 20 s at 96 kHz for each channel plus the longest
 // window (2 × 1,944,576 floats, 15.6 MB); the four pairs of kit::Stft are
-// 2.6 MB, the transforms' tables 0.25 MB and what is kept per bin 1.3 MB.
+// 2.6 MB, the transforms' tables 0.25 MB and what is kept per bin 2.1 MB.
 // At 96 kHz a window is half as long in time and its bins twice as wide.
 
 #include "../../kit/kit.h"
@@ -119,9 +181,15 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
   static constexpr float kNearHz = 0.75f;
   static constexpr float kPull = 0.5f;
   static constexpr int kReach = 8;
-  // How far towards its own angles the right side goes at full Width when
-  // fully scattered: beyond this the sides are no further apart.
-  static constexpr float kWidest = 0.8f;
+  // Width. The widest angle between the two sides of a partial, at full
+  // Width, in radians (75°): at that angle the partial folds to mono 2.0 dB
+  // under itself and never lower. Which way a partial leans is read off a
+  // pattern along its frequency, kLeanCycles turns of it an octave from
+  // kLeanFromHz up, which drifts upwards by kLeanDrift turns a second.
+  static constexpr float kWidest = 75.0f * 3.14159265f / 180.0f;
+  static constexpr float kLeanCycles = 2.7f;
+  static constexpr float kLeanFromHz = 20.0f;
+  static constexpr float kLeanDrift = 0.02f;
   // How far above what its bin held a frame before a peak must stand to be
   // a note beginning rather than one going on.
   static constexpr float kOnset = 4.0f;
@@ -148,37 +216,66 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
       stft3_[c].init(stagger_of_right * kit::Stft<16384>::kMaxStagger);
       for (int i = 0; i < kRing; ++i) memory_[c][i] = 0.0f;
       for (int set = 0; set < 2; ++set) {
-        Kept& kept = kept_[set][c];
+        Kept& kept = kept_[set];
         for (int k = 0; k < kMaxBins; ++k) {
-          kept.magnitude[k] = 0.0f;
-          kept.phase[k] = 0.0f;
-          kept.turn[k] = 0.0f;
-          kept.lead[k] = static_cast<uint16_t>(k);
+          kept.magnitude[c][k] = 0.0f;
+          kept.angle[c][k] = 0.0f;
           out_re_[set][c][k] = 0.0f;
           out_im_[set][c][k] = 0.0f;
         }
-        ready_[set][c] = false;
         sound_[set][c] = false;
         shaped_[set][c] = false;
-        unsent_[set][c] = false;
-        number_[set][c] = 0;
       }
       for (int k = 0; k < kMaxBins; ++k) {
-        last_[c][k] = 0.0f;
+        read_magnitude_[c][k] = 0.0f;
+        read_angle_[c][k] = 0.0f;
         now_re_[c][k] = 0.0f;
         now_im_[c][k] = 0.0f;
         now_phase_[c][k] = 0.0f;
         now_off_[c][k] = 0.0f;
+        now_gone_[k] = 0.0f;
+        now_calm_[k] = 0;
+        now_even_[c][k] = 0.0f;
       }
-      strong_count_[c] = 0;
       fetched_[c] = false;
       tone_low_[c] = 0.0f;
     }
+    for (int set = 0; set < 2; ++set) {
+      Kept& kept = kept_[set];
+      for (int k = 0; k < kMaxBins; ++k) {
+        kept.spin[k] = 0.0f;
+        kept.turn[k] = 0.0f;
+        kept.scatter[k] = 0.0f;
+        kept.lean[k] = 0.0f;
+        kept.aside[0][k] = 0.0f;
+        kept.aside[1][k] = 0.0f;
+        kept.own[0][k] = 0.0f;
+        kept.own[1][k] = 0.0f;
+        kept.beat[k] = 0.0f;
+        kept.gone[k] = 0.0f;
+        kept.even[0][k] = 0.0f;
+        kept.even[1][k] = 0.0f;
+        kept.lead[k] = static_cast<uint16_t>(k);
+      }
+      aside_[set] = false;
+      ready_[set] = false;
+      scattered_[set] = false;
+      leaning_[set] = false;
+      number_[set] = 0;
+      dressed_[set] = kNever;
+    }
+    strong_count_ = 0;
     forget_now();
     const double step = 2.0 * 3.14159265358979323846 / kMaxFrame;
     for (int n = 0; n < kMaxFrame; ++n) window_[n] = static_cast<float>(0.5 - 0.5 * std::cos(step * n));
     for (int i = 0; i < kMaxFrame; ++i) spectrum_[i] = 0.0f;
-    for (int k = 0; k < kMaxBins; ++k) angle_[k] = 0.0f;
+    // Where each bin of the longest frame lies along Width's pattern, in
+    // turns: so many to the octave, whatever the sample rate.
+    for (int k = 0; k < kMaxBins; ++k) {
+      const float hz = static_cast<float>(k) * sr / static_cast<float>(kMaxFrame);
+      place_[k] = hz > kLeanFromHz ? kLeanCycles * std::log2(hz / kLeanFromHz) : 0.0f;
+      power_[k] = 0.0f;
+    }
     for (int s = 0; s < kSizes; ++s) drain_[s] = 0;
 
     clock_ = 0;
@@ -307,46 +404,48 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
         const uint32_t hop = static_cast<uint32_t>(kFrames[wanted_] >> 2);
         if ((clock_ & (hop - 1)) == 5 * (hop >> 3)) change_size(false);
       }
-      // A frame's work is spread over the hop before it is due, an eighth
+      // A frame's work is spread over the hop before it is due, a sixteenth
       // of a hop apart, so that no block holds more than one part of it at
-      // the longer windows: the reader moves and the left channel's window
-      // is transformed, its partials are tracked, its bins are turned, and
-      // kit::Stft resynthesises it; the right channel follows half a hop on.
+      // the longer windows: the reader moves and the left side's window is
+      // transformed, then the right side's, the partials of the two are
+      // tracked together, the frame is dressed, the left side's bins are
+      // made and kit::Stft resynthesises them; the right side's are made
+      // and resynthesised half a hop on.
       {
         const uint32_t hop = static_cast<uint32_t>(kFrames[size_] >> 2);
-        if ((clock_ & ((hop >> 3) - 1)) == 0) {
-          switch ((clock_ & (hop - 1)) / (hop >> 3)) {
-            case 5:
+        if ((clock_ & ((hop >> 4) - 1)) == 0) {
+          switch ((clock_ & (hop - 1)) / (hop >> 4)) {
+            case 10:
               tick();
               fetch(0);
               break;
-            case 6:
-              track(0);
-              break;
-            case 7:
-              shape(0);
-              break;
-            case 1:
+            case 11:
               fetch(1);
               break;
-            case 2:
-              track(1);
+            case 12:
+              track();
               break;
-            case 3:
+            case 13:
+              prepare();
+              break;
+            case 14:
+              shape(0);
+              break;
+            case 6:
               shape(1);
               break;
             default:
-              break;  // 0 and 4: the frames themselves, in kit::Stft
+              break;  // 0 and 8: the frames themselves, in kit::Stft
           }
         }
       }
       // The size that was left holds its last frame and fades, on its own clock.
       if (leaving_ >= 0) {
         const uint32_t hop = static_cast<uint32_t>(kFrames[leaving_] >> 2);
-        if ((clock_ & ((hop >> 3) - 1)) == 0) {
-          const uint32_t part = (clock_ & (hop - 1)) / (hop >> 3);
-          if (part == 7) fade_out(0);
-          if (part == 3) fade_out(1);
+        if ((clock_ & ((hop >> 4) - 1)) == 0) {
+          const uint32_t part = (clock_ & (hop - 1)) / (hop >> 4);
+          if (part == 14) fade_out(0);
+          if (part == 6) fade_out(1);
         }
       }
 
@@ -376,9 +475,8 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
         const float under = step + tone_low_[c];
         tone_low_[c] = flush_denormal(under + step);
         const float toned = under * low + (wet[c] - under) * high;
-        // Linear up to ±1, never past ±2.
-        const float shaped = 2.0f * kit::soft_clip(0.5f * toned);
-        out[c] = in[c] * dry_gain_ + shaped * wet_gain_;
+        // The played sound as it is, and the cloud under the ceiling.
+        out[c] = under_ceiling(in[c] * dry_gain_, toned * wet_gain_);
       }
       out_left_[i] = out[0];
       out_right_[i] = out[1];
@@ -389,14 +487,45 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
  private:
   enum Plan { kSilent, kHeld, kFresh, kCoherent };
 
-  // One frame as it is kept from hop to hop: what a partial is made of.
+  // One frame as it is kept from hop to hop: each side as it was read where
+  // the reader stands, and what the two sides share. A bin of a side sounds
+  // at its own phase as read, turned by `spin` (and this frame's `scatter`,
+  // and `lean` one way or the other): the angle between the two sides of a
+  // partial is the one that was played, and Width's lean on top.
   struct Kept {
-    float magnitude[kMaxBins];  // the frame the reader stands on
-    float phase[kMaxBins];      // the phases it is resynthesised with
-    float turn[kMaxBins];       // each bin's turn a hop: its partial's
-    uint16_t lead[kMaxBins];    // the peak each bin turns with
+    float magnitude[2][kMaxBins];  // the frame the reader stands on, left and right
+    float angle[2][kMaxBins];      // its phases as read
+    float spin[kMaxBins];          // how far each bin is turned from its reading: its partial's
+    float turn[kMaxBins];          // each bin's turn a hop: its partial's
+    float scatter[kMaxBins];       // each bin's random angle for this frame (Diffuse)
+    float lean[kMaxBins];          // half the angle between the sides at this bin (Width): its partial's
+    float own[2][kMaxBins];        // each side's own turn beside the spin, where the sides differ in pitch: its partial's
+    float beat[kMaxBins];          // how far apart in pitch the two sides hold the bin's partial, bins (smoothed)
+    float gone[kMaxBins];          // how far the reading's sides have turned against each other since it began, radians
+    float even[2][kMaxBins];       // each side's level at the peak when that turning began
+    float aside[2][kMaxBins];      // each side's turn towards its own played note, while that is played: its partial's
+    uint16_t lead[kMaxBins];       // the peak each bin turns with
   };
 
+  static constexpr float kKnee = 0.75f;
+  static constexpr float kLetGo = 0.8f;
+  static constexpr float kBeat = 0.25f;
+  static constexpr float kSame = 0.05f;
+  static constexpr float kTwo = kit::kPi;
+  static constexpr float kGone = 1.5f * kit::kPi;
+  // A note at two pitches on the two sides is one steady partial on each:
+  // how far apart the bins beside a side's peak may say that partial lies
+  // (bins), how far a side's level may move while the sides go their half
+  // turn (a ratio: 1 dB), and the most of that half turn one frame may
+  // count for (so it takes four frames, a window's length, at the least).
+  // And for how many hops a played partial must have been that before each
+  // side of the cloud is kept apart from its own side of it (keep_apart()).
+  static constexpr float kOne = 0.1f;
+  static constexpr float kEven = 1.12f;
+  static constexpr float kAtOnce = 0.25f * kit::kPi;
+  static constexpr uint8_t kCalm = 3;
+  static constexpr float kSharedBins = 0.1f;
+  static constexpr float kFaint = 1.0e-4f;
   static constexpr float kSplitHz = 1000.0f;
   static constexpr float kShelfDb = 12.0f;
   static constexpr uint32_t kQuietLimit = 1u << 30;
@@ -404,13 +533,92 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
 
   static int size_of(float value) { return kit::clamp_int(static_cast<int>(value + 0.5f), 0, kSizes - 1); }
 
+  // How far apart in pitch the two sides of a partial count as being, bins:
+  // nothing up to kSame, where they are one pitch, and all of it from twice that.
+  static float apart(float beat) {
+    const float size = beat < 0.0f ? -beat : beat;
+    if (size <= kSame) return 0.0f;
+    if (size >= 2.0f * kSame) return beat;
+    return beat < 0.0f ? 2.0f * (kSame - size) : 2.0f * (size - kSame);
+  }
+
+  // Whether a level is what it was, within kEven either way (and the same of a power).
+  static bool even(float now, float then) { return now <= kEven * then && then <= kEven * now; }
+  static bool even_power(float now, float then) {
+    return now <= kEven * kEven * then && then <= kEven * kEven * now;
+  }
+
+  // Whether the three bins `down`, `here` and `up` read as one partial
+  // under a Hann window. A partial `off` bins above the middle one reads
+  // (1 + off) / (2 - off) of it in the bin above and (1 - off) / (2 + off) in
+  // the bin below: each says where the partial lies, and for one partial the
+  // two agree (within kOne bins). Two partials under one peak do not.
+  static bool one_partial(float down, float here, float up) {
+    if (!(here > 0.0f)) return false;
+    const float by_up = (2.0f * up - here) / (up + here);
+    const float by_down = (here - 2.0f * down) / (down + here);
+    const float between = by_up - by_down;
+    return between < kOne && between > -kOne;
+  }
+
+  // Whether a side of the reading holds one partial about peak p: looked at
+  // about its own largest bin within two of the peak (a note at two pitches
+  // on the two sides may lie a bin or two from the peak the sides share).
+  static bool single(const float* side, int p, int half) {
+    int at = p;
+    const int from = p > 2 ? p - 2 : 1;
+    const int to = p + 2 < half ? p + 2 : half - 1;
+    for (int k = from; k <= to; ++k) {
+      if (side[k] > side[at]) at = k;
+    }
+    return one_partial(side[at - 1], side[at], side[at + 1]);
+  }
+
+  // The same of a side of the input as kit::Stft last read it.
+  bool single_now(int c, int p, int half) const {
+    const float* re = now_re_[c];
+    const float* im = now_im_[c];
+    if (p < 4 || p + 3 > half) return false;
+    float power[7];
+    int at = 3;
+    for (int k = 0; k < 7; ++k) {
+      power[k] = re[p - 3 + k] * re[p - 3 + k] + im[p - 3 + k] * im[p - 3 + k];
+      if (k >= 1 && k <= 5 && power[k] > power[at]) at = k;
+    }
+    return one_partial(std::sqrt(power[at - 1]), std::sqrt(power[at]), std::sqrt(power[at + 1]));
+  }
+
+  // The ceiling. What goes out is the played sound's share of the mix, as it
+  // is, plus the cloud's; while the two together stay within kKnee nothing is
+  // bent, and past it only what the cloud adds is, so that the cloud never
+  // takes the output past full scale: the bending starts at kKnee, or at the
+  // played sound if that stands higher already, and lands on full scale.
+  // (Scattered phases stand higher over their level than the sound they were
+  // read from, and at part-way Mix the cloud's peaks fall on the played
+  // sound's: a sound played near full scale came out past it.) With no cloud
+  // the played sound goes through untouched however loud it is.
+  static float under_ceiling(float played, float cloud) {
+    const float sum = played + cloud;
+    const float size = sum < 0.0f ? -sum : sum;
+    if (!(size > kKnee)) return sum;
+    // How far the played sound stands the way the sum points, and where the bending starts.
+    const float along = sum < 0.0f ? -played : played;
+    const float from = along > kKnee ? along : kKnee;
+    const float over = size - from;
+    if (!(over > 0.0f)) return sum;  // the cloud pulls the sum in: nothing to hold back
+    const float room = 1.0f - from;
+    if (!(room > 0.0f)) return played;  // the played sound is past full scale alone
+    const float bent = from + room * kit::fast_tanh(over / room);
+    return sum < 0.0f ? -bent : bent;
+  }
+
   // Whether the device still has something to say without new input.
   bool alive() const {
     if (leaving_ >= 0) return true;
     for (int s = 0; s < kSizes; ++s) {
       if (drain_[s] > 0) return true;
     }
-    if (frozen_) return sound_[set_][0] || sound_[set_][1] || !ready_[set_][0] || !ready_[set_][1];
+    if (frozen_) return sound_[set_][0] || sound_[set_][1] || !ready_[set_];
     return !empty_;
   }
 
@@ -530,14 +738,14 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     const int old = size_;
     size_ = wanted_;
     set_ ^= 1;
+    ready_[set_] = false;
+    dressed_[set_] = kNever;
     for (int c = 0; c < 2; ++c) {
-      ready_[set_][c] = false;
       sound_[set_][c] = false;
       shaped_[set_][c] = false;
-      unsent_[set_][c] = false;
       fetched_[c] = false;
-      strong_count_[c] = 0;
     }
+    strong_count_ = 0;
     broken_ = true;
     plan_ = kSilent;
     forget_now();
@@ -711,52 +919,65 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     return kWalk * kit::kPi * std::sqrt(static_cast<float>(hop) * 48000.0f / (2048.0f * sample_rate()));
   }
 
-  // The first part of channel c's frame: the window the reader stands on,
-  // transformed. (A frozen frame has none, unless nothing was read at this
-  // size yet.)
+  // The first part of a frame, one side at a time: the window the reader
+  // stands on, transformed, as magnitudes and phases in read_. (A frozen
+  // frame has none, unless nothing was read at this size yet.)
   void fetch(int c) {
     fetched_[c] = false;
     if (plan_ == kSilent) return;
-    if (plan_ == kHeld && ready_[set_][c]) return;
+    if (plan_ == kHeld && ready_[set_]) return;
     spectrum_of(c, whole_);
+    const int frame = kFrames[size_];
+    const int half = frame >> 1;
+    float* magnitude = read_magnitude_[c];
+    float* angle = read_angle_[c];
+    for (int k = 0; k <= half; ++k) {
+      const float re = spectrum_[k];
+      const float im = (k == 0 || k == half) ? 0.0f : spectrum_[frame - k];
+      float size;
+      kit::to_polar(re, im, &size, &angle[k]);
+      magnitude[k] = size < kFloor ? 0.0f : size;
+    }
     fetched_[c] = true;
   }
 
-  // The second part: magnitudes and phases, each partial carried on from
-  // the frame before.
-  void track(int c) {
-    const bool fetched = fetched_[c];
-    fetched_[c] = false;
+  // The second part, for both sides at once: the partials of the frame and
+  // how far each is turned from its reading, carried on from the frame
+  // before.
+  void track() {
+    const bool fetched = fetched_[0] && fetched_[1];
+    fetched_[0] = false;
+    fetched_[1] = false;
     switch (plan_) {
       case kHeld:
-        if (ready_[set_][c]) {
-          hold(set_, c, frame_number_, walk_);
+        if (ready_[set_]) {
+          hold(set_, frame_number_, walk_);
           return;
         }
         if (fetched) {
-          measure(c, false, 1, 1.0f);
+          measure(false, 1, 1.0f);
           return;
         }
         break;
       case kFresh:
         if (fetched) {
-          measure(c, false, 1, 1.0f);
+          measure(false, 1, 1.0f);
           return;
         }
         break;
       case kCoherent:
         if (fetched) {
-          measure(c, true, step_, ratio_);
+          measure(true, step_, ratio_);
           return;
         }
         break;
       case kSilent:
         break;
     }
-    ready_[set_][c] = false;
-    sound_[set_][c] = false;
-    unsent_[set_][c] = false;
-    strong_count_[c] = 0;
+    ready_[set_] = false;
+    sound_[set_][0] = false;
+    sound_[set_][1] = false;
+    strong_count_ = 0;
   }
 
   template <int N>
@@ -774,23 +995,10 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
         spectrum_);
   }
 
-  // The two random sources of frame `number`, the same for both channels:
-  // `shared` for both, `own` for what Width gives the right channel alone.
-  static void seed(kit::Rng* shared, kit::Rng* own, uint32_t salt, uint32_t number) {
+  // The random source of frame `number`: one for both sides.
+  static void seed(kit::Rng* shared, uint32_t salt, uint32_t number) {
     shared->seed((0x9E3779B9u + salt) ^ (number * 2654435761u));
-    own->seed((0x7F4A7C15u + salt) ^ (number * 2246822519u));
-    for (int warm = 0; warm < 4; ++warm) {
-      shared->next_u32();
-      own->next_u32();
-    }
-  }
-
-  // One partial's wander for this frame, in radians.
-  float wander(int c, float walk, kit::Rng* shared, kit::Rng* own) const {
-    float angle = shared->bipolar();
-    const float other = own->bipolar();
-    if (c == 1) angle += param(stretch::kWidth) * (other - angle);
-    return angle * walk;
+    for (int warm = 0; warm < 4; ++warm) shared->next_u32();
   }
 
   // The spectrum of the window whose middle is sample `whole` of all that
@@ -819,181 +1027,417 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     }
   }
 
-  // The magnitudes of the spectrum in spectrum_, and its phases carried on
-  // from the frame before. `follows` says the last reading was `step`
-  // samples before this one (ratio = hop / step), so each partial's
-  // frequency is measured from how far its phase turned between the two;
-  // otherwise it is read from the shape of its peak. With no frame before
-  // (the first after silence or at a new size) the phases are taken as read.
-  void measure(int c, bool follows, int step, float ratio) {
+  // The reading in read_ becomes the frame: its partials, and how far each
+  // is turned from its reading (spin), which is one angle for both sides.
+  // `follows` says the last reading was `step` samples before this one
+  // (ratio = hop / step), so each partial's frequency is measured from how
+  // far its phase turned between the two; otherwise it is read from the
+  // shape of its peak. With no frame before (the first after silence or at a
+  // new size) nothing is turned: the phases are as read.
+  void measure(bool follows, int step, float ratio) {
     const int frame = kFrames[size_];
     const int half = frame >> 1;
-    Kept& kept = kept_[set_][c];
-    float* magnitude = kept.magnitude;
-    float* phase = kept.phase;
-    float* last = last_[c];
-    float* turn = kept.turn;
-    uint16_t* lead = kept.lead;
-    float* angle = angle_;
-    const bool carried = ready_[set_][c];
+    Kept& kept = kept_[set_];
+    const float* left = read_magnitude_[0];
+    const float* right = read_magnitude_[1];
+    float* power = power_;
+    const bool carried = ready_[set_];
     // The first frame of a new Window, while the old one still sounds.
-    const bool joins = !carried && leaving_ >= 0 && ready_[set_ ^ 1][c] && sound_[set_ ^ 1][c];
-    number_[set_][c] = frame_number_;
+    const bool joins = !carried && leaving_ >= 0 && ready_[set_ ^ 1] && (sound_[set_ ^ 1][0] || sound_[set_ ^ 1][1]);
+    number_[set_] = frame_number_;
     float top = 0.0f;
+    float tops[2] = {0.0f, 0.0f};
     for (int k = 0; k <= half; ++k) {
-      const float re = spectrum_[k];
-      const float im = (k == 0 || k == half) ? 0.0f : spectrum_[frame - k];
-      float size;
-      kit::to_polar(re, im, &size, &angle[k]);
-      if (size < kFloor) size = 0.0f;
-      before_[k] = carried ? magnitude[k] : 0.0f;
-      magnitude[k] = size;
-      if (size > top) top = size;
+      // A partial is looked for in the two sides together.
+      power[k] = left[k] * left[k] + right[k] * right[k];
+      if (power[k] > top) top = power[k];
+      if (left[k] > tops[0]) tops[0] = left[k];
+      if (right[k] > tops[1]) tops[1] = right[k];
     }
-    sound_[set_][c] = top > 0.0f;
-    ready_[set_][c] = true;
-    unsent_[set_][c] = true;
+    sound_[set_][0] = tops[0] > 0.0f;
+    sound_[set_][1] = tops[1] > 0.0f;
+    ready_[set_] = true;
 
     // The peaks: bins above their two neighbours on either side. The
     // stronger ones are the partials kept apart from the input.
     int peaks = 0;
     int strong = 0;
-    const float least = kStrongShare * top;
+    const float least = kStrongShare * kStrongShare * top;
     for (int k = 1; k < half; ++k) {
-      const float m = magnitude[k];
-      if (m > 0.0f && m > magnitude[k - 1] && m >= magnitude[k + 1] && (k < 2 || m > magnitude[k - 2]) &&
-          (k + 2 > half || m >= magnitude[k + 2])) {
+      const float m = power[k];
+      if (m > 0.0f && m > power[k - 1] && m >= power[k + 1] && (k < 2 || m > power[k - 2]) &&
+          (k + 2 > half || m >= power[k + 2])) {
         peaks_[peaks++] = static_cast<uint16_t>(k);
-        if (m >= least && strong < kStrong) strong_[c][strong++] = static_cast<uint16_t>(k);
+        if (m >= least && strong < kStrong) strong_[strong++] = static_cast<uint16_t>(k);
       }
     }
-    strong_count_[c] = strong;
+    strong_count_ = strong;
     if (peaks == 0) {
       for (int k = 0; k <= half; ++k) {
-        phase[k] = angle[k];
-        turn[k] = kit::kHalfPi * static_cast<float>(k & 3);
-        lead[k] = static_cast<uint16_t>(k);
-        last[k] = angle[k];
+        kept.spin[k] = 0.0f;
+        kept.own[0][k] = 0.0f;
+        kept.own[1][k] = 0.0f;
+        kept.beat[k] = 0.0f;
+        kept.gone[k] = 0.0f;
+        kept.even[0][k] = 0.0f;
+        kept.even[1][k] = 0.0f;
+        kept.turn[k] = kit::kHalfPi * static_cast<float>(k & 3);
+        kept.lead[k] = static_cast<uint16_t>(k);
       }
+      keep_reading(half);
       return;
     }
-    kit::Rng shared, own;
-    seed(&shared, &own, 0x1000u, frame_number_);
+    kit::Rng shared;
+    seed(&shared, 0x1000u, frame_number_);
     const float turns_to_radians = kit::kTwoPi / static_cast<float>(frame);
+    const float walk = fading_ ? 0.0f : walk_;
     int from = 0;
+    int next_strong = 0;
     for (int i = 0; i < peaks; ++i) {
       const int p = peaks_[i];
       const int to = i + 1 < peaks ? (p + peaks_[i + 1] + 1) >> 1 : half + 1;
+      // One partial's wander for this frame, in radians.
+      const float drift = shared.bipolar() * walk;
       // A partial goes on from the frame before where there was one: a peak
       // that stands kOnset times above what its bin held then (or where it
-      // held nothing) is a note beginning, and starts with the phase it is
-      // read with, so each side keeps its own and the two keep their
-      // relation (an anti-phase source stays anti-phase).
-      const bool goes_on = before_[p] * kOnset >= magnitude[p];
-      const float drift = wander(c, fading_ ? 0.0f : walk_, &shared, &own);
+      // held nothing, or nothing on the side it is on now) is a note
+      // beginning, and starts with the phases it is read with.
+      float before = 0.0f;
+      float weight[2] = {0.0f, 0.0f};
+      if (carried) {
+        before = kept.magnitude[0][p] * kept.magnitude[0][p] + kept.magnitude[1][p] * kept.magnitude[1][p];
+        weight[0] = left[p] * kept.magnitude[0][p];
+        weight[1] = right[p] * kept.magnitude[1][p];
+      }
+      const bool goes_on = before * (kOnset * kOnset) >= power[p] && weight[0] + weight[1] > 0.0f;
+      // How far the partial's phase turned since the last reading, beyond
+      // the bin's own share of `step` samples: each side's reading, weighed
+      // by how much of the partial that side holds.
+      float share = 0.0f;
+      float turned = 0.0f;
+      float on_left = 0.0f;
+      float on_right = 0.0f;
+      if (goes_on) {
+        if (follows) share = turns_to_radians * static_cast<float>((p * step) & (frame - 1));
+        on_left = kit::princarg(read_angle_[0][p] - kept.angle[0][p] - share);
+        on_right = kit::princarg(read_angle_[1][p] - kept.angle[1][p] - share);
+        turned = on_left;
+        if (on_right != on_left && weight[1] > 0.0f) {
+          turned = weight[0] > 0.0f
+                       ? on_left + kit::princarg(on_right - on_left) * weight[1] / (weight[0] + weight[1])
+                       : on_right;
+        }
+      }
       // How far the partial lies from its peak's centre, in bins.
       float off;
       if (follows && goes_on) {
-        // How far the phase turned beyond the bin's own share over `step`
-        // samples, carried over a hop.
-        const float own_share = turns_to_radians * static_cast<float>((p * step) & (frame - 1));
-        off = kit::princarg(angle[p] - last[p] - own_share) * ratio * (2.0f / kit::kPi);
+        off = turned * ratio * (2.0f / kit::kPi);
       } else {
         // Under a Hann window a partial `off` bins above its peak's centre
-        // reads (1 + off) / (2 - off) of the peak in the bin above.
-        const float up = magnitude[p + 1];
-        const float down = magnitude[p - 1];
-        const float beside = (up >= down ? up : down) / magnitude[p];
-        off = kit::clamp((2.0f * beside - 1.0f) / (beside + 1.0f), -0.5f, 0.5f);
-        if (down > up) off = -off;
+        // reads (1 + off) / (2 - off) of the peak in the bin above: each
+        // side's reading by itself (a note that stands at two pitches on the
+        // two sides is two partials under one peak, and one of them may lie
+        // past the next bin's edge: up to a bin away), weighed by its power.
+        float lies[2] = {0.0f, 0.0f};
+        float shares[2] = {0.0f, 0.0f};
+        for (int c = 0; c < 2; ++c) {
+          const float* side = read_magnitude_[c];
+          if (!(side[p] > 0.0f)) continue;
+          const float up = side[p + 1];
+          const float down = side[p - 1];
+          const float beside = (up >= down ? up : down) / side[p];
+          lies[c] = kit::clamp((2.0f * beside - 1.0f) / (beside + 1.0f), -0.5f, 1.0f);
+          if (down > up) lies[c] = -lies[c];
+          shares[c] = side[p] * side[p];
+        }
+        // (One side alone, or two that agree, to the bit.)
+        if (!(shares[1] > 0.0f) || (shares[0] > 0.0f && lies[0] == lies[1])) {
+          off = lies[0];
+        } else if (!(shares[0] > 0.0f)) {
+          off = lies[1];
+        } else {
+          off = (lies[0] * shares[0] + lies[1] * shares[1]) / (shares[0] + shares[1]);
+        }
       }
       // A hop of the partial's own frequency: a quarter turn a bin.
       const float advance = kit::kHalfPi * (static_cast<float>(p & 3) + off);
-      float base = angle[p];
+      float spin = 0.0f;
+      float beat = 0.0f;
+      float gone = 0.0f;
+      bool two = false;
+      float own[2] = {0.0f, 0.0f};
+      float aside[2] = {0.0f, 0.0f};  // how far each side's pitch lies from the one they share, bins
+      float level[2] = {left[p], right[p]};
       if (goes_on) {
-        base = kit::princarg(phase[p] + advance + drift);
+        // Its phase goes on by a hop of its own frequency from where it was
+        // resynthesised; the reading has moved on by `turned` and the share.
+        spin = kit::princarg(kept.spin[p] - turned - share + advance + drift);
+        // The reading has also turned each side by itself, away from what
+        // the two turned together. Where the sides hold the partial at two
+        // pitches (a chorused or detuned stereo source) that goes into the
+        // side's own turn, so the angle between the sides stays where it
+        // was however the reader moves, and each side goes on at its own
+        // pitch (more than kSame bins apart), a quarter turn a bin a hop
+        // either way from the pitch they share.
+        const float both = weight[0] + weight[1];
+        if (weight[0] > kFaint * both && weight[1] > kFaint * both) {
+          const float between = kit::princarg(on_right - on_left);
+          beat = kept.beat[p];
+          gone = kept.gone[p];
+          if (follows) {
+            beat += kBeat * (between * ratio * (2.0f / kit::kPi) - beat);
+            gone = kit::clamp(gone + kit::clamp(between, -kAtOnce, kAtOnce), -kGone, kGone);
+          }
+          // Two pitches only once the sides have gone half a turn against
+          // each other: partials of notes at different places between the
+          // sides, under one peak, sway against each other and come back.
+          // And only as one note would: two notes at two places whose
+          // partials share the peak, each the stronger on one side, go round
+          // against each other as well, but then a side is two partials
+          // (its peak is not one partial's shape) or its level rises and
+          // falls as they go round. Either starts the count again: the
+          // shape always (unless the note is heard to be one as it is
+          // played: a note's beginning is read for many frames, and its
+          // shape is not one steady partial's), the level until the half
+          // turn is reached.
+          const bool was_two = kept.gone[p] >= kTwo || kept.gone[p] <= -kTwo;
+          if (!(single(left, p, half) && single(right, p, half)) && !heard_two(p)) gone = 0.0f;
+          if (!was_two && !(even(left[p], kept.even[0][p]) && even(right[p], kept.even[1][p]))) gone = 0.0f;
+          if (gone != 0.0f) {
+            level[0] = kept.even[0][p];
+            level[1] = kept.even[1][p];
+          }
+          two = gone >= kTwo || gone <= -kTwo;
+          // (Otherwise the angle between the sides is the reading's own: a
+          // sway is played back as it was read.)
+          own[0] = kept.own[0][p];
+          own[1] = kept.own[1][p];
+          if (two) {
+            const float split = apart(beat);
+            aside[0] = -split * weight[1] / both;
+            aside[1] = split * weight[0] / both;
+            own[0] = kit::princarg(own[0] + between * weight[1] / both + kit::kHalfPi * aside[0]);
+            own[1] = kit::princarg(own[1] - between * weight[0] / both + kit::kHalfPi * aside[1]);
+          }
+        }
       } else if (joins) {
-        base = joined(c, p, off, angle[p]);
+        // Each side starts in step with the old Window's: the stronger side by the spin, the other by its own turn.
+        const int c = right[p] > left[p] ? 1 : 0;
+        spin = kit::princarg(joined(c, p, off, read_angle_[c][p]) - read_angle_[c][p]);
+        const float* other = c == 0 ? right : left;
+        if (other[p] > 0.0f) {
+          own[c ^ 1] = kit::princarg(joined(c ^ 1, p, off, read_angle_[c ^ 1][p] + spin) - read_angle_[c ^ 1][p] - spin);
+        }
       }
-      const float anchor = angle[p];
+      // Each side's own pitch, for the stronger partials (keep_apart()).
+      if (next_strong < strong && strong_[next_strong] == p) {
+        lone_[0][next_strong] = off + aside[0];
+        lone_[1][next_strong] = off + aside[1];
+        two_[next_strong] = two;
+        ++next_strong;
+      }
       for (int k = from; k < to; ++k) {
-        phase[k] = base + angle[k] - anchor;
-        turn[k] = advance;
-        lead[k] = static_cast<uint16_t>(p);
+        kept.spin[k] = spin;
+        kept.own[0][k] = own[0];
+        kept.own[1][k] = own[1];
+        kept.beat[k] = beat;
+        kept.gone[k] = gone;
+        kept.even[0][k] = level[0];
+        kept.even[1][k] = level[1];
+        kept.turn[k] = advance;
+        kept.lead[k] = static_cast<uint16_t>(p);
+      }
+      // A note beginning has no turn of its own on either side yet.
+      if (!goes_on && aside_[set_]) {
+        for (int k = from; k < to; ++k) {
+          kept.aside[0][k] = 0.0f;
+          kept.aside[1][k] = 0.0f;
+        }
       }
       from = to;
     }
-    for (int k = 0; k <= half; ++k) last[k] = angle[k];
+    keep_reading(half);
   }
 
-  // The phase for the peak in bin p (the partial `off` bins above its centre)
-  // of the new Window's first frame, so that it starts in step with the same
-  // partial in the frame the old Window still holds: that partial's phase at
-  // its frame's first sample, carried on at its own frequency to this
-  // frame's first sample. (A peak's phase lies half a turn a bin ahead of
-  // its partial's, the Hann window being centred on the frame.) `as_read`
-  // where the old frame has no such partial.
+  // The reading becomes the frame's own: each side's magnitudes and phases.
+  void keep_reading(int half) {
+    Kept& kept = kept_[set_];
+    for (int c = 0; c < 2; ++c) {
+      for (int k = 0; k <= half; ++k) {
+        kept.magnitude[c][k] = read_magnitude_[c][k];
+        kept.angle[c][k] = read_angle_[c][k];
+      }
+    }
+  }
+
+  // The phase side c's peak in bin p (the partial `off` bins above its
+  // centre) of the new Window's first frame is to sound with, so that it
+  // starts in step with the same partial in the frame the old Window still
+  // holds: that partial's phase at its frame's first sample, carried on at
+  // its own frequency to this frame's first sample. (A peak's phase lies
+  // half a turn a bin ahead of its partial's, the Hann window being centred
+  // on the frame.) `as_read` where the old frame has no such partial.
   float joined(int c, int p, float off, float as_read) const {
     const int old = set_ ^ 1;
-    const Kept& left = kept_[old][c];
+    const Kept& left = kept_[old];
     const int old_frame = kFrames[leaving_];
     const int new_frame = kFrames[size_];
     const float at = (static_cast<float>(p) + off) * static_cast<float>(old_frame) / static_cast<float>(new_frame);
     const int k = static_cast<int>(at + 0.5f);
     if (k < 1 || k >= (old_frame >> 1)) return as_read;
     const int lead = left.lead[k];
-    if (!(left.magnitude[lead] > 0.0f)) return as_read;
+    if (!(left.magnitude[c][lead] > 0.0f)) return as_read;
     const float lead_off =
         kit::princarg(left.turn[lead] - kit::kHalfPi * static_cast<float>(lead & 3)) * (2.0f / kit::kPi);
     if (std::fabs(static_cast<float>(lead) + lead_off - at) > 0.5f) return as_read;
     const uint32_t old_hop = static_cast<uint32_t>(old_frame >> 2);
     const uint32_t new_hop = static_cast<uint32_t>(new_frame >> 2);
     const int32_t apart = static_cast<int32_t>(new_hop * frame_number_ + (new_hop >> 1) -
-                                               (old_hop * number_[old][c] + (old_hop >> 1)));
+                                               (old_hop * number_[old] + (old_hop >> 1)));
     const double cycles = (static_cast<double>(lead) + lead_off) * apart / old_frame;
     const float turned = kit::kTwoPi * static_cast<float>(cycles - std::floor(cycles));
-    return kit::princarg(left.phase[lead] - kit::kPi * lead_off + turned + kit::kPi * off);
+    return kit::princarg(left.spin[lead] + left.own[c][lead] + left.angle[c][lead] - kit::kPi * lead_off + turned +
+                         kit::kPi * off);
   }
 
-  // A held frame of size `frame`: the magnitudes stay, and every partial
-  // goes on turning at its own frequency (and wandering), its bins together.
-  void hold(int set, int c, uint32_t number, float walk) {
-    Kept& kept = kept_[set][c];
+  // A held frame: the readings stay, and every partial goes on turning at
+  // its own frequency (and wandering), its bins together, both sides alike.
+  void hold(int set, uint32_t number, float walk) {
+    Kept& kept = kept_[set];
     const int half = kFrames[set == set_ ? size_ : leaving_] >> 1;
-    float* phase = kept.phase;
-    const float* turn = kept.turn;
-    const uint16_t* lead = kept.lead;
-    kit::Rng shared, own;
-    seed(&shared, &own, 0x1000u, number);
+    kit::Rng shared;
+    seed(&shared, 0x1000u, number);
     int k = 0;
     while (k <= half) {
-      const uint16_t partial = lead[k];
-      const float step = turn[k] + wander(c, walk, &shared, &own);
-      for (; k <= half && lead[k] == partial; ++k) phase[k] = kit::princarg(phase[k] + step);
+      const uint16_t partial = kept.lead[k];
+      const float step = kept.turn[k] + shared.bipolar() * walk;
+      // (Each side at its own pitch where the two differ: the reading stands still, so all of it.)
+      const float more = kept.gone[k] >= kTwo || kept.gone[k] <= -kTwo ? apart(kept.beat[k]) : 0.0f;
+      float aside[2] = {0.0f, 0.0f};
+      if (more != 0.0f) {
+        const float on_left = kept.magnitude[0][partial] * kept.magnitude[0][partial];
+        const float on_right = kept.magnitude[1][partial] * kept.magnitude[1][partial];
+        if (on_left + on_right > 0.0f) {
+          aside[0] = -kit::kHalfPi * more * on_right / (on_left + on_right);
+          aside[1] = kit::kHalfPi * more * on_left / (on_left + on_right);
+        }
+      }
+      for (; k <= half && kept.lead[k] == partial; ++k) {
+        kept.spin[k] = kit::princarg(kept.spin[k] + step);
+        if (more != 0.0f) {
+          kept.own[0][k] = kit::princarg(kept.own[0][k] + aside[0]);
+          kept.own[1][k] = kit::princarg(kept.own[1][k] + aside[1]);
+        }
+      }
     }
-    number_[set][c] = number;
-    unsent_[set][c] = true;
+    number_[set] = number;
   }
 
-  // The third part: every bin as it will sound, turned by its random angle,
-  // and its stronger partials turned away from the note being played. While
-  // a Window change is being played out the new size's frames come in under
-  // the old one's.
+  // Where a partial `turn` a hop (a quarter turn a bin) in bin p lies along
+  // the pattern Width leans the sides by, in turns: place_ is laid out over
+  // the longest frame's bins, and a shorter frame reads every `stride`th.
+  float place_of(int p, float turn, int stride) const {
+    const float off = kit::princarg(turn - kit::kHalfPi * static_cast<float>(p & 3)) * (2.0f / kit::kPi);
+    float at = (static_cast<float>(p) + off) * static_cast<float>(stride);
+    at = kit::clamp(at, 0.0f, static_cast<float>(kMaxBins - 2));
+    const int whole = static_cast<int>(at);
+    return place_[whole] + (at - static_cast<float>(whole)) * (place_[whole + 1] - place_[whole]);
+  }
+
+  // The pattern itself, -1 to 1 at `turns` along it: a sine bent twice, so
+  // that it stands near one end or the other most of the way.
+  static float sway(float turns) {
+    float cosine, sine;
+    kit::from_polar(1.0f, kit::kTwoPi * turns, &cosine, &sine);
+    return kit::quarter_sine(kit::kHalfPi * kit::quarter_sine(kit::kHalfPi * sine));
+  }
+
+  // What frame `number` of the set wears besides its partials' own phases:
+  // every bin's random angle for this frame (Diffuse), and how far each
+  // partial leans to one side (Width).
+  void dress(int set, int frame, uint32_t number) {
+    Kept& kept = kept_[set];
+    const int half = frame >> 1;
+    dressed_[set] = number;
+    scattered_[set] = scatter_ > 0.0f;
+    if (scattered_[set]) {
+      kit::Rng shared;
+      seed(&shared, 0x2000u, number);
+      const float reach = scatter_ * kit::kPi;
+      for (int k = 0; k <= half; ++k) kept.scatter[k] = shared.bipolar() * reach;
+    }
+    const float width = param(stretch::kWidth);
+    leaning_[set] = width > 0.0f;
+    if (!leaning_[set]) return;
+    // The pattern drifts along the frequencies by the sample clock.
+    const double drifted = static_cast<double>(number) * (frame >> 2) / sample_rate() * kLeanDrift;
+    const float base = static_cast<float>(drifted - std::floor(drifted));
+    const float depth = 0.5f * kWidest * width;
+    const int stride = kMaxFrame / frame;
+    int k = 0;
+    while (k <= half) {
+      const uint16_t partial = kept.lead[k];
+      // A partial leans by as much as it stands on both sides: one that is
+      // on one side only has nothing to lean against and stays as it is.
+      const float left = kept.magnitude[0][partial];
+      const float right = kept.magnitude[1][partial];
+      const float both = left * left + right * right;
+      float lean = 0.0f;
+      if (both > 0.0f) {
+        lean = depth * (2.0f * left * right / both) * sway(place_of(partial, kept.turn[partial], stride) - base);
+      }
+      for (; k <= half && kept.lead[k] == partial; ++k) kept.lean[k] = lean;
+    }
+  }
+
+  // The third part, once for both sides: the frame is dressed, and its
+  // stronger partials are turned away from the note being played.
+  void prepare() {
+    if (!ready_[set_] || !(sound_[set_][0] || sound_[set_][1])) return;
+    if (fading_ && fade_at(size_, frame_number_) >= 1.0f) fading_ = false;
+    dress(set_, kFrames[size_], frame_number_);
+    // (Not while two sizes cross: the new one's partials stay in step with the old one's.)
+    if (!fading_) hear_two();
+    if (apart_ && !fading_) {
+      keep_apart();
+    } else {
+      let_go(set_, kFrames[size_] >> 1);
+    }
+  }
+
+  // Each side's own turn dies away, a fifth a frame: it is only there while
+  // the note it follows is played (keep_apart() writes it again after this).
+  void let_go(int set, int half) {
+    if (!aside_[set]) return;
+    Kept& kept = kept_[set];
+    float most = 0.0f;
+    for (int c = 0; c < 2; ++c) {
+      float* aside = kept.aside[c];
+      for (int k = 0; k <= half; ++k) {
+        const float less = kLetGo * aside[k];
+        const float size = less < 0.0f ? -less : less;
+        aside[k] = size > 1.0e-4f ? less : 0.0f;
+        if (size > most) most = size;
+      }
+    }
+    aside_[set] = most > 1.0e-4f;
+  }
+
+  // The last part, for one side: every bin as it will sound. While a Window
+  // change is being played out the new size's frames come in under the old
+  // one's.
   void shape(int c) {
     float level = 1.0f;
     if (fading_) {
       const float along = fade_at(size_, frame_number_);
       level = (1.0f - scatter_) * along + scatter_ * std::sin(kit::kHalfPi * along);
-      if (along >= 1.0f && c == 1) fading_ = false;
     }
-    shape_into(set_, c, kFrames[size_], frame_number_, level);
-    // (Not while two sizes cross: the new one's partials stay in step with the old one's.)
-    if (shaped_[set_][c] && apart_ && !fading_) keep_apart(c, out_re_[set_][c], out_im_[set_][c]);
+    shape_into(set_, c, kFrames[size_], level);
   }
 
   // The size that was left: its last frame held, turned on by a hop and
   // faded out, until the crossfade is over and its frames in flight have
-  // played out. `c` is the channel whose frame is due next.
+  // played out. `c` is the side whose frame is due next.
   void fade_out(int c) {
     const int set = set_ ^ 1;
     const int frame = kFrames[leaving_];
@@ -1010,123 +1454,316 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
       }
       return;
     }
-    if (!ready_[set][c] || !sound_[set][c]) {
+    if (!ready_[set] || !sound_[set][c]) {
       shaped_[set][c] = false;
       return;
     }
-    // A frame that was read but not yet shaped when the change came goes out as it is.
-    // It turns on without wandering, so the new size stays in step with it.
-    if (!unsent_[set][c]) hold(set, c, number, 0.0f);
+    // A frame that was read for this number when the change came goes out as it is.
+    // Otherwise it turns on without wandering, so the new size stays in step with it.
+    if (number_[set] != number) hold(set, number, 0.0f);
+    if (dressed_[set] != number) dress(set, frame, number);
     // Scattered, the two sizes have nothing to do with each other and cross
     // at equal power; pure, the new one's partials start in step with the
     // old one's (joined()) and the two cross on a straight line.
-    shape_into(set, c, frame, number, (1.0f - scatter_) * (1.0f - along) + scatter_ * std::cos(kit::kHalfPi * along));
+    shape_into(set, c, frame, (1.0f - scatter_) * (1.0f - along) + scatter_ * std::cos(kit::kHalfPi * along));
   }
 
-  void shape_into(int set, int c, int frame, uint32_t number, float level) {
-    unsent_[set][c] = false;
-    shaped_[set][c] = ready_[set][c] && sound_[set][c] && level > 0.0f;
+  // Side c of the frame in `set` as it is handed to kit::Stft: each bin's
+  // own magnitude and phase as read, turned by the spin both sides share,
+  // by the frame's random angle, and half of Width's lean, the left side
+  // one way and the right side the other. The angle between the two sides
+  // of a partial is therefore what was played plus that lean, and no more.
+  void shape_into(int set, int c, int frame, float level) {
+    shaped_[set][c] = ready_[set] && sound_[set][c] && level > 0.0f;
     if (!shaped_[set][c]) return;
     const int half = frame >> 1;
-    const float* magnitude = kept_[set][c].magnitude;
-    const float* phase = kept_[set][c].phase;
+    const Kept& kept = kept_[set];
+    const float* magnitude = kept.magnitude[c];
+    const float* angle = kept.angle[c];
     float* re = out_re_[set][c];
     float* im = out_im_[set][c];
-    const float scatter = scatter_;
-    if (!(scatter > 0.0f)) {
-      for (int k = 0; k <= half; ++k) kit::from_polar(magnitude[k] * level, phase[k], &re[k], &im[k]);
-      return;
-    }
-    // Both channels draw the same angles from `shared`; Width moves the
-    // right channel towards its own. Fully scattered the two sides have
-    // nothing in common once the right is kWidest of the way there, and
-    // most of that is done in the first half of the way: so the knob's
-    // travel ends at kWidest and is bent (Width squared) to spread what it
-    // does over all of it, the more so the nearer to fully scattered.
-    kit::Rng shared, own;
-    seed(&shared, &own, 0x2000u, number);
-    float apart = c == 0 ? 0.0f : param(stretch::kWidth);
-    if (scatter > kWidest) {
-      const float full = (scatter - kWidest) / (1.0f - kWidest);
-      apart *= (kWidest / scatter) * (1.0f + full * (apart - 1.0f));
-    }
-    const float reach = scatter * kit::kPi;
-    const float gain = gain_ * level;
+    const bool scattered = scattered_[set];
+    const bool leaning = leaning_[set];
+    const bool turned = aside_[set];
+    const float* aside = kept.aside[c];
+    const float* own = kept.own[c];
+    // (The magnitudes are raised by what random phase costs.)
+    const float gain = scattered ? gain_ * level : level;
+    const float side = c == 0 ? -1.0f : 1.0f;
     for (int k = 0; k <= half; ++k) {
-      float angle = shared.bipolar();
-      if (apart > 0.0f) angle += apart * (own.bipolar() - angle);
-      kit::from_polar(magnitude[k] * gain, phase[k] + angle * reach, &re[k], &im[k]);
+      float phase = kept.spin[k] + own[k] + angle[k];
+      if (scattered) phase += kept.scatter[k];
+      if (leaning) phase += side * kept.lean[k];
+      if (turned) phase += aside[k];
+      kit::from_polar(magnitude[k] * gain, phase, &re[k], &im[k]);
+    }
+  }
+
+  // Whether the partial being played in bin p is heard to stand at two
+  // pitches on the two sides (hear_two()).
+  bool heard_two(int p) const {
+    const uint32_t before = frame_number_ - 1;
+    return now_good_[0][p] == before && now_good_[1][p] == before &&
+           (now_gone_[p] >= kTwo || now_gone_[p] <= -kTwo);
+  }
+
+  // A note played at two pitches on the two sides shows it in the input hop
+  // by hop, where the reader sees it 1/Stretch as fast: once a played
+  // partial's sides have gone half a turn against each other (one steady
+  // partial on each side meanwhile, as in measure()), the same partial in
+  // the cloud (the same pitch, its sides drifting apart the same way) is
+  // taken to stand at two pitches as well, as far apart as the played one
+  // where the reading still says less (while a note begins it does). Where
+  // the cloud's sides are too near one pitch to be split, each side of it
+  // is still kept apart from its own side of the played note.
+  void hear_two() {
+    Kept& kept = kept_[set_];
+    const int half = kFrames[size_] >> 1;
+    const uint32_t before = frame_number_ - 1;
+    for (int i = 0; i < strong_count_; ++i) {
+      const int p = strong_[i];
+      if (now_good_[0][p] != before || now_good_[1][p] != before) continue;
+      const float left = now_re_[0][p] * now_re_[0][p] + now_im_[0][p] * now_im_[0][p];
+      const float right = now_re_[1][p] * now_re_[1][p] + now_im_[1][p] * now_im_[1][p];
+      const float played = left + right;
+      if (!(left > kFaint * played && right > kFaint * played)) continue;
+      // (One steady partial on either side, as in measure().)
+      if (!(single_now(0, p, half) && single_now(1, p, half))) {
+        now_gone_[p] = 0.0f;
+        now_calm_[p] = 0;
+        continue;
+      }
+      const bool was_two = now_gone_[p] >= kTwo || now_gone_[p] <= -kTwo;
+      if (!was_two && !(even_power(left, now_even_[0][p]) && even_power(right, now_even_[1][p]))) {
+        now_gone_[p] = 0.0f;
+        now_calm_[p] = 0;
+      } else if (now_calm_[p] < kCalm) {
+        ++now_calm_[p];
+      }
+      if (now_gone_[p] == 0.0f) {
+        now_even_[0][p] = left;
+        now_even_[1][p] = right;
+      }
+      const float live = now_off_[1][p] - now_off_[0][p];
+      const float more = kit::clamp(kit::princarg(kit::kHalfPi * live), -kAtOnce, kAtOnce);
+      now_gone_[p] = kit::clamp(now_gone_[p] + more, -kGone, kGone);
+      if (two_[i] || (now_gone_[p] < kTwo && now_gone_[p] > -kTwo)) continue;
+      const float beat = kept.beat[p];
+      const float own = kit::princarg(kept.turn[p] - kit::kHalfPi * static_cast<float>(p & 3)) * (2.0f / kit::kPi);
+      const float shared = (now_off_[0][p] * left + now_off_[1][p] * right) / played;
+      if (std::fabs(own - shared) > kSharedBins + 0.25f * std::fabs(live)) continue;
+      if (!(std::fabs(beat) > kSame)) {
+        // (For this frame only: keep_apart() then turns each side by itself.)
+        two_[i] = true;
+        continue;
+      }
+      if (!(beat * now_gone_[p] > 0.0f)) continue;
+      const float all = now_gone_[p] > 0.0f ? kGone : -kGone;
+      const bool seed = std::fabs(live) < 2.0f && std::fabs(live) > std::fabs(beat);
+      for (int k = p; k >= 0 && kept.lead[k] == p; --k) {
+        kept.gone[k] = all;
+        if (seed) kept.beat[k] = live;
+      }
+      for (int k = p + 1; k <= half && kept.lead[k] == p; ++k) {
+        kept.gone[k] = all;
+        if (seed) kept.beat[k] = live;
+      }
+      two_[i] = true;
     }
   }
 
   // Keeps the cloud apart from the note being played. For each stronger
-  // partial of the frame in `re` and `im`: the same three bins of the input
-  // as kit::Stft last read them, carried on to where this frame will sound
-  // (11/8 of a frame after that reading began, at the played partial's own
-  // frequency), and the partial turned as a whole so that the two are a
-  // quarter turn apart. Over the frame they then add as power: the cloud
-  // neither doubles the note nor cancels it. Fully diffuse a frame's phases
-  // are free and it is turned all the way; otherwise only a partial within
-  // near_ bins of the played one is turned, by kPull at most, and its phase
-  // goes on from where it was turned to.
-  void keep_apart(int c, float* re, float* im) {
-    Kept& kept = kept_[set_][c];
+  // partial of the frame: the same three bins of the input as kit::Stft
+  // last read them on either side, carried on to where this frame will
+  // sound (11/8 of a frame after that reading began, at the played
+  // partial's own frequency), and the partial turned as a whole, on both
+  // sides alike, so that cloud and input are a quarter turn apart. Over the
+  // frame they then add as power: the cloud neither doubles the note nor
+  // cancels it. Fully diffuse a frame's phases are free and it is turned
+  // all the way, for this frame only; otherwise only a partial within near_
+  // bins of the played one is turned, by kPull at most, and its phase goes
+  // on from where it was turned to.
+  void keep_apart() {
+    Kept& kept = kept_[set_];
     const int half = kFrames[size_] >> 1;
     const uint32_t before = frame_number_ - 1;
     const bool free = scatter_ >= 0.999f;
     const float limit = kPull + scatter_ * (kit::kHalfPi - kPull);
-    const float* now_re = now_re_[c];
-    const float* now_im = now_im_[c];
-    for (int i = 0; i < strong_count_[c]; ++i) {
-      const int p = strong_[c][i];
-      if (now_good_[c][p] != before) continue;
-      const float off = now_off_[c][p];
-      if (!free) {
-        const float own = kit::princarg(kept.turn[p] - kit::kHalfPi * static_cast<float>(p & 3)) * (2.0f / kit::kPi);
-        if (std::fabs(own - off) > near_) continue;
+    const bool scattered = scattered_[set_];
+    const bool turned = aside_[set_];
+    // How loud the played note and the cloud each come out of the mix (as powers).
+    float dry_share, wet_share;
+    kit::equal_power(param(stretch::kMix), &dry_share, &wet_share);
+    dry_share *= dry_share;
+    wet_share *= scattered ? gain_ : 1.0f;
+    wet_share *= wet_share;
+    // Each side's own turn where its note is played, written once the rest is let go.
+    float own_turn[2][kStrong];
+    bool has_turn[2][kStrong];
+    for (int i = 0; i < strong_count_; ++i) {
+      has_turn[0][i] = false;
+      has_turn[1][i] = false;
+      const int p = strong_[i];
+      // The side that holds more of the played partial says where it lies.
+      float played = 0.0f;
+      float heard[2] = {-1.0f, -1.0f};
+      int main = -1;
+      for (int c = 0; c < 2; ++c) {
+        if (now_good_[c][p] != before) continue;
+        heard[c] = now_re_[c][p] * now_re_[c][p] + now_im_[c][p] * now_im_[c][p];
+        played += heard[c];
+        if (main < 0 || heard[c] > heard[main]) main = c;
       }
+      if (main < 0) continue;
+      const float off = now_off_[main][p];
+      const float own = kit::princarg(kept.turn[p] - kit::kHalfPi * static_cast<float>(p & 3)) * (2.0f / kit::kPi);
+      // Is it the same note? The partial as both sides turn it, and each
+      // side's share of it by its own frequency (a note that stands at two
+      // pitches on the two sides is one partial here and two there).
+      const bool near = free || !(std::fabs(own - off) > near_);
+      bool side_near[2];
+      for (int c = 0; c < 2; ++c) {
+        // (A side whose partial lies bins away under the other's peak is read by its skirt, where
+        // its turn a hop is known to a whole turn, four bins, only.)
+        float away = lone_[c][i] - now_off_[c][p];
+        away -= 4.0f * std::floor(0.25f * away + 0.5f);
+        side_near[c] = heard[c] > 0.0f && (free || !(std::fabs(away) > near_));
+      }
+      if (!near && !side_near[0] && !side_near[1]) continue;
       // Only where the played partial is at least a tenth of the cloud's.
-      const float played = now_re[p] * now_re[p] + now_im[p] * now_im[p];
-      if (played < 0.01f * kept.magnitude[p] * kept.magnitude[p]) continue;
-      float across_re = 0.0f;
-      float across_im = 0.0f;
-      for (int k = p - 1; k <= p + 1; ++k) {
-        across_re += re[k] * now_re[k] + im[k] * now_im[k];
-        across_im += im[k] * now_re[k] - re[k] * now_im[k];
+      const float cloud = kept.magnitude[0][p] * kept.magnitude[0][p] + kept.magnitude[1][p] * kept.magnitude[1][p];
+      if (played < 0.01f * cloud) continue;
+      // A quarter turn from the played note is where the two add as power,
+      // and Width leans the sides either way from there: one side would
+      // take the note up and the other down, most when cloud and note are
+      // as loud as each other. So such a partial leans less, by how alike
+      // the two are in level, and each side keeps its level too.
+      if (leaning_[set_]) {
+        const float note = played * dry_share;
+        const float mist = cloud * wet_share;
+        const float ease = 1.0f - 2.0f * std::sqrt(note * mist) / (note + mist);
+        for (int k = p; k >= 0 && kept.lead[k] == p; --k) kept.lean[k] *= ease;
+        for (int k = p + 1; k <= half && kept.lead[k] == p; ++k) kept.lean[k] *= ease;
       }
-      const float carried = 0.25f * kit::kPi * static_cast<float>((11 * p) & 7) + 2.75f * kit::kPi * off;
-      const float angle = kit::princarg(kit::fast_atan2(across_im, across_re) - carried);
-      float turn = angle >= 0.0f ? kit::kHalfPi - angle : -kit::kHalfPi - angle;
-      turn = kit::clamp(turn, -limit, limit);
-      float cosine, sine;
-      kit::from_polar(1.0f, turn, &cosine, &sine);
-      int k = p - kReach > 1 ? p - kReach : 1;
-      const int end = p + kReach < half - 1 ? p + kReach : half - 1;
-      for (; k <= end; ++k) {
-        if (kept.lead[k] != p) continue;
-        const float real = re[k] * cosine - im[k] * sine;
-        im[k] = re[k] * sine + im[k] * cosine;
-        re[k] = real;
-        if (!free) kept.phase[k] = kit::princarg(kept.phase[k] + turn);
+      // The cloud's partial against the played one, side by side: the
+      // peak's three bins, or for a note at two pitches the three about
+      // where that side's note lies (a bin or two up or down from the peak
+      // where the sides stand that far apart).
+      float across[2][2] = {{0.0f, 0.0f}, {0.0f, 0.0f}};
+      for (int c = 0; c < 2; ++c) {
+        if (heard[c] < 0.0f) continue;
+        const float* now_re = now_re_[c];
+        const float* now_im = now_im_[c];
+        const int centre = two_[i] ? p + static_cast<int>(std::floor(kit::clamp(lone_[c][i], -2.0f, 2.0f) + 0.5f)) : p;
+        for (int k = centre - 1; k <= centre + 1; ++k) {
+          if (k < 1 || k >= half || kept.lead[k] != p) continue;
+          float phase = kept.spin[k] + kept.own[c][k] + kept.angle[c][k];
+          if (scattered) phase += kept.scatter[k];
+          if (turned) phase += kept.aside[c][k];
+          float re, im;
+          kit::from_polar(kept.magnitude[c][k], phase, &re, &im);
+          across[c][0] += re * now_re[k] + im * now_im[k];
+          across[c][1] += im * now_re[k] - re * now_im[k];
+        }
+      }
+      const float fixed = 0.25f * kit::kPi * static_cast<float>((11 * p) & 7);
+      const float carried = fixed + 2.75f * kit::kPi * off;
+      // (Where the played note stands at two pitches on the two sides, each
+      // side's is carried on at its own: the other side's as far as it
+      // falls behind the leading one's by then.)
+      const int other = main ^ 1;
+      if (heard[other] >= 0.0f && now_off_[other][p] != off) {
+        float re, im;
+        kit::from_polar(1.0f, 2.75f * kit::kPi * (off - now_off_[other][p]), &re, &im);
+        const float was_re = across[other][0];
+        const float was_im = across[other][1];
+        across[other][0] = was_re * re - was_im * im;
+        across[other][1] = was_im * re + was_re * im;
+      }
+      const float angle =
+          kit::princarg(kit::fast_atan2(across[0][1] + across[1][1], across[0][0] + across[1][0]) - carried);
+      // Both sides together, by one angle: where that leaves them is where each side is to stand.
+      float turn = 0.0f;
+      float aim;
+      if (near) {
+        turn = angle >= 0.0f ? kit::kHalfPi - angle : -kit::kHalfPi - angle;
+        turn = kit::clamp(turn, -limit, limit);
+        aim = angle + turn;
+        int k = p - kReach > 1 ? p - kReach : 1;
+        const int end = p + kReach < half - 1 ? p + kReach : half - 1;
+        for (; k <= end; ++k) {
+          if (kept.lead[k] != p) continue;
+          if (free) {
+            kept.scatter[k] += turn;
+          } else {
+            kept.spin[k] = kit::princarg(kept.spin[k] + turn);
+          }
+        }
+      } else {
+        // The two sides are too far apart in pitch to be turned as one: the
+        // side that holds more of the note says which way the quarter turn lies.
+        const float lead_angle = kit::princarg(kit::fast_atan2(across[main][1], across[main][0]) - carried);
+        aim = lead_angle >= 0.0f ? kit::kHalfPi : -kit::kHalfPi;
+      }
+      // Then each side by itself the rest of the way, where its own share
+      // of the note is being played (one steady partial on either side for
+      // kCalm hops, or a note at two pitches), and no further a frame than
+      // the partial may be pulled.
+      for (int c = 0; c < 2; ++c) {
+        if (!side_near[c] || !(two_[i] || (!free && now_calm_[p] >= kCalm))) continue;
+        const float mine = kept.magnitude[c][p] * kept.magnitude[c][p];
+        if (!(mine > 0.0f) || heard[c] < 0.01f * mine) continue;
+        // (Both sides' partials now stand as the leading side's is carried.)
+        const float here = kit::princarg(kit::fast_atan2(across[c][1], across[c][0]) - carried) + turn;
+        float need = kit::princarg(aim - here);
+        if (!free) {
+          need = kit::clamp(need, -limit, limit);
+        }
+        own_turn[c][i] = kit::princarg((turned ? kept.aside[c][p] : 0.0f) + need);
+        has_turn[c][i] = true;
+      }
+    }
+    let_go(set_, half);
+    for (int i = 0; i < strong_count_; ++i) {
+      const int p = strong_[i];
+      for (int c = 0; c < 2; ++c) {
+        if (!has_turn[c][i]) continue;
+        float value = own_turn[c][i];
+        if (std::fabs(value) > 1.0e-4f) {
+          aside_[set_] = true;
+        } else {
+          value = 0.0f;
+        }
+        int k = p - kReach > 1 ? p - kReach : 1;
+        const int end = p + kReach < half - 1 ? p + kReach : half - 1;
+        for (; k <= end; ++k) {
+          if (kept.lead[k] == p) kept.aside[c][k] = value;
+        }
       }
     }
   }
 
-  // kit::Stft's callback for channel c of the size in use: the frame it
+  // kit::Stft's callback for side c of the size in use: the frame it
   // analysed is the input as it is played, of which the stronger partials'
   // bins are kept for keep_apart(), and the reader's frame goes in its place.
   void hand_over(int c, float* re, float* im, uint32_t number) {
     float* now_re = now_re_[c];
     float* now_im = now_im_[c];
-    for (int i = 0; i < strong_count_[c]; ++i) {
-      const int p = strong_[c][i];
-      for (int k = p - 1; k <= p + 1; ++k) {
+    for (int i = 0; i < strong_count_; ++i) {
+      const int p = strong_[i];
+      // (Three bins either way: a side's note may lie two bins from the peak the two sides share.)
+      const int half = kFrames[size_] >> 1;
+      for (int k = p > 3 ? p - 3 : 0; k <= p + 3 && k <= half; ++k) {
         now_re[k] = re[k];
         now_im[k] = im[k];
       }
       // How far the played partial lies from the bin's centre, in bins, from
       // how far its phase turned since the frame before.
       const float phase = kit::fast_atan2(im[p], re[p]);
+      if (c == 0 && !(number != 0 && now_stamp_[c][p] == number - 1)) {
+        now_gone_[p] = 0.0f;
+        now_calm_[p] = 0;
+      }
       if (number != 0 && now_stamp_[c][p] == number - 1) {
         now_off_[c][p] =
             kit::princarg(phase - now_phase_[c][p] - kit::kHalfPi * static_cast<float>(p & 3)) * (2.0f / kit::kPi);
@@ -1138,7 +1775,7 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
     send(set_, c, (kFrames[size_] >> 1) + 1, re, im);
   }
 
-  // The frame shaped for channel c in `set`, into kit::Stft's bins; silence
+  // The frame shaped for side c in `set`, into kit::Stft's bins; silence
   // when there is none.
   void send(int set, int c, int bins, float* re, float* im) {
     if (!shaped_[set][c]) {
@@ -1200,30 +1837,43 @@ class Stretch : public kit::DeviceBase<stretch::kNumParams> {
   float memory_[2][kRing];
   float window_[kMaxFrame];    // Hann over the longest frame; a shorter one reads every 2nd, 4th or 8th
   float spectrum_[kMaxFrame];  // scratch: one reading, as kit::Fft::forward_real packs it
-  float angle_[kMaxBins];      // scratch: the reading's phases
-  float before_[kMaxBins];     // scratch: the magnitudes of the frame before
+  float power_[kMaxBins];      // scratch: the reading's power, both sides together
+  float place_[kMaxBins];      // where each bin of the longest frame lies along Width's pattern, turns
   uint16_t peaks_[kMaxBins / 2 + 1];
+  // One reading of each side, as magnitudes and phases, until track() takes it.
+  float read_magnitude_[2][kMaxBins];
+  float read_angle_[2][kMaxBins];
+  bool fetched_[2] = {false, false};  // read_ holds this side's window
   // Two sets of bins: the size in use works in kept_[set_], and the size a
   // Window change left holds its last frame in the other while it fades.
-  Kept kept_[2][2];
-  float out_re_[2][2][kMaxBins];  // a frame as it is handed to kit::Stft
+  Kept kept_[2];
+  float out_re_[2][2][kMaxBins];  // a frame as it is handed to kit::Stft, by set and side
   float out_im_[2][2][kMaxBins];
-  bool ready_[2][2] = {};   // a frame of this size has been read
-  bool sound_[2][2] = {};   // any bin of it above the floor
-  bool unsent_[2][2] = {};  // it has been read or turned on, and not shaped yet
-  bool shaped_[2][2] = {};  // out_re_ and out_im_ hold it
-  uint32_t number_[2][2] = {};  // the frame (kit::Stft's count) its phases are for
-  float last_[2][kMaxBins];        // the phases of the last reading
-  bool fetched_[2] = {false, false};  // spectrum_ holds this channel's window
-  uint16_t strong_[2][kStrong];    // the frame's stronger partials: their peaks' bins
-  int strong_count_[2] = {0, 0};
-  // The input as kit::Stft last read it, at those partials: three bins each,
+  bool ready_[2] = {};        // a frame of this size has been read
+  bool sound_[2][2] = {};     // any bin of that side of it above the floor
+  bool shaped_[2][2] = {};    // out_re_ and out_im_ hold that side of it
+  bool scattered_[2] = {};    // its bins wear random angles
+  bool leaning_[2] = {};      // its partials lean to the sides
+  bool aside_[2] = {};        // some of its partials have a side turned by itself
+  bool two_[kStrong] = {};    // whether each stronger partial stands at two pitches on the two sides
+  float lone_[2][kStrong];    // each stronger partial's distance from its peak's centre on each side alone, bins
+  uint32_t number_[2] = {};   // the frame (kit::Stft's count) its spin is for
+  uint32_t dressed_[2] = {};  // and the one its random angles and its lean are for
+  uint16_t strong_[kStrong];  // the frame's stronger partials: their peaks' bins
+  int strong_count_ = 0;
+  // The input as kit::Stft last read it, at those partials: seven bins each,
   // the peak's phase and how far the played partial lies from the bin's
-  // centre (bins), with the frame each was read in and last measured in.
+  // centre (bins), with the frame each was read in and last measured in, and
+  // how far its two sides have turned against each other while it was
+  // followed (radians), each side's level (as a power) when that began, and
+  // for how many hops each side has been one steady partial (to kCalm).
   float now_re_[2][kMaxBins];
   float now_im_[2][kMaxBins];
   float now_phase_[2][kMaxBins];
   float now_off_[2][kMaxBins];
+  float now_gone_[kMaxBins];
+  float now_even_[2][kMaxBins];
+  uint8_t now_calm_[kMaxBins];
   uint32_t now_stamp_[2][kMaxBins];
   uint32_t now_good_[2][kMaxBins];
   int drain_[kSizes] = {0, 0, 0, 0};  // samples a size that was left still has to play out
