@@ -568,5 +568,7 @@ export const SPREAD_FACES: Readonly<Record<string, PlateFace>> = {
   spread: {
     display: spread,
     face: ['high', 'make'],
+    // "High split" is wider than a knob's column and broke over two lines.
+    labels: { lowHz: 'Lo split', highHz: 'Hi split' },
   },
 }

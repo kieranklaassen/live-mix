@@ -23,6 +23,7 @@ import {
   spiralHeard,
   spiralLayout,
   spiralLowest,
+  spiralPaths,
   spiralStreaks,
   spiralThickness,
   spiralVoices,
@@ -252,6 +253,71 @@ describe('Spiral: the staircase', () => {
       expect(starts.some(([sx, sy]) => Math.abs(sx - x) < 1e-9 && Math.abs(sy - y) < 1e-9)).toBe(
         true,
       )
+    }
+  })
+})
+
+describe('Spiral: the stairs under the streaks', () => {
+  it('carries each voice on along its glide past the tail end, Decay and Mix or no', () => {
+    for (const size of SIZES) {
+      const layout = spiralLayout(size)
+      const at = settings({ glide: 0.4, climb: 6, decay: 2, voices: 6, spread: 1 })
+      const paths = spiralPaths(layout, at)
+      // Every point is where its voice stands at that moment: (glide + v) mod 6 with the clock moved on by Climb.
+      for (const path of paths) {
+        for (const [x, y] of path) {
+          const seconds = ((x - layout.stair.x) / layout.stair.w) * SPIRAL_SPAN
+          const stack = spiralVoices(0.4 + (6 / 60) * seconds, 6, 1)
+          expect(stack.some((voice) => Math.abs(spiralY(layout, voice.octaves) - y) < 1e-9)).toBe(
+            true,
+          )
+        }
+      }
+      // Voice 2 starts at -0.6 octaves and has climbed 2.4 at the right edge, under the bell all the way: one path, edge to edge.
+      const whole = paths.find(
+        ([first]) =>
+          first[0] === layout.stair.x && Math.abs(first[1] - spiralY(layout, -0.6)) < 1e-9,
+      )
+      const end = whole?.[whole.length - 1] ?? [0, 0]
+      expect(end[0]).toBeGreaterThan(layout.stair.x + layout.stair.w - 2.01)
+      const seconds = ((end[0] - layout.stair.x) / layout.stair.w) * SPIRAL_SPAN
+      expect(end[1]).toBeCloseTo(spiralY(layout, -0.6 + (6 / 60) * seconds), 9)
+      // The streak on it has ended long before (Decay 2 s), and neither Decay nor Mix moves the path.
+      expect(spiralPaths(layout, { ...at, decay: 30, mix: 0 })).toEqual(paths)
+    }
+  })
+
+  it('breaks a path where its voice wraps or leaves the bell, and draws each one', () => {
+    const layout = spiralLayout({ width: 128, height: 100 })
+    const fast = spiralPaths(layout, settings({ climb: 12, voices: 6 }))
+    expect(fast.length).toBeGreaterThan(STACK + 3)
+    for (const path of fast)
+      for (let n = 1; n < path.length; n++)
+        expect(Math.abs(path[n][1] - path[n - 1][1])).toBeLessThan(layout.octave)
+    // Two voices: only the two octaves about the played pitch sound, and no path leaves them.
+    const narrow = spiralPaths(layout, settings({ climb: 12, voices: 2, spread: 1 }))
+    expect(narrow.length).toBeGreaterThan(2)
+    for (const path of narrow)
+      for (const [, y] of path) {
+        expect(y).toBeGreaterThan(spiralY(layout, 1))
+        expect(y).toBeLessThan(spiralY(layout, -1))
+      }
+    // At rest every voice stays where it is: level lines.
+    for (const path of spiralPaths(layout, settings({ climb: 0 })))
+      expect(new Set(path.map(([, y]) => y)).size).toBe(1)
+    // The picture has them: a fine line begun at each path's first point and drawn through its last.
+    const drawn = drawDisplay(display, params, {
+      values: { climb: 12, voices: 6 },
+      meters: { glide: 0, tail: 0 },
+    })
+    const at = (name: string) =>
+      drawn.calls.filter((call) => call.name === name).map((call) => call.args as number[])
+    const has = (points: number[][], [x, y]: readonly [number, number]): boolean =>
+      points.some(([px, py]) => Math.abs(px - x) < 1e-9 && Math.abs(py - y) < 1e-9)
+    for (const path of fast) {
+      if (path.length < 2) continue
+      expect(has(at('moveTo'), path[0])).toBe(true)
+      expect(has(at('lineTo'), path[path.length - 1])).toBe(true)
     }
   })
 })

@@ -706,3 +706,13 @@ describe('the spread display: the sound', () => {
     }
   })
 })
+
+describe('the spread plate: its words', () => {
+  it('names the two splits short enough for a knob’s column', () => {
+    // A name is drawn 5.6 a letter in a column 48 wide: "High split" is 56 and broke over two lines.
+    expect(SPREAD_FACES.spread.labels).toEqual({ lowHz: 'Lo split', highHz: 'Hi split' })
+    for (const words of Object.values(SPREAD_FACES.spread.labels ?? {}))
+      expect(words.length * 5.6).toBeLessThanOrEqual(48)
+    expect('High split'.length * 5.6).toBeGreaterThan(48)
+  })
+})
