@@ -61,7 +61,7 @@
       "min": 0,
       "max": 1,
       "default": 0.5,
-      "description": "Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; all the way down is off. It never narrows what came in."
+      "description": "Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; zero is off. Once settled it never narrows what came in."
     },
     {
       "key": "output",

@@ -81,7 +81,7 @@ export const SPREAD_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; all the way down is off. It never narrows what came in.',
+      'Holds the sides under a ceiling against the middle so the sound keeps its body on one speaker. Up holds harder; zero is off. Once settled it never narrows what came in.',
   },
   output: {
     id: 7,

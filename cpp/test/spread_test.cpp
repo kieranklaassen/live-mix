@@ -692,8 +692,8 @@ int main() {
   // 8. Safe holds the sides under a ceiling against the middle: on a mono
   // sound with Make full and every region wide, the sides stand level with
   // the middle at Safe 0, 3 dB under it at 0.5, 7.5 at 0.75 and 12 at 1; the
-  // meter says by how much. Safe never narrows what came in: a sound that is
-  // all sides stays.
+  // meter says by how much. Once settled, Safe never narrows what came in: a
+  // sound that is all sides stays.
   {
     rng_state() = 0x5AFEu;
     const std::vector<float> mono = noise(3.0f, kRate, 0.25f);
