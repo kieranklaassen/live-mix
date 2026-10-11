@@ -5314,3 +5314,459 @@
 .lm-changed--outside::before {
   border-style: dashed;
 }
+
+/* A picker (`Picker.tsx`, `PickList.tsx`): a panel that opens off a cell,
+   rows of the grid like everything else, with the accent along its top edge.
+   First the search row, then the list (the cursor's row ringed), and at the
+   foot a hint and the one action, filled with the accent. */
+.lm-picker {
+  position: fixed;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-block-start: 1px solid var(--lm-accent);
+  outline: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+  color: var(--lm-text);
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  container-type: inline-size;
+}
+
+.lm-picker__search {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-end: 1px solid var(--lm-border);
+  background: var(--lm-sunken);
+}
+
+.lm-picker__find {
+  display: flex;
+  flex: 0 0 20px;
+  align-items: center;
+  justify-content: center;
+  color: var(--lm-dim);
+}
+
+.lm-picker__find--on {
+  color: var(--lm-accent);
+}
+
+/* The search field sits on the row's own ground, with no ring of its own: the row is the field. */
+.lm-picker__field,
+.lm-picker__field:focus {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: inherit;
+  caret-color: var(--lm-accent);
+}
+
+.lm-picker__field::placeholder {
+  color: var(--lm-dim);
+}
+
+.lm-picker__count-cell {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.lm-picker__count {
+  color: var(--lm-dim);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.lm-picker__list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  /* The dim ink: a hairline is made to be nearly the ground. */
+  scrollbar-color: var(--lm-dim) transparent;
+}
+
+.lm-picker__list:focus {
+  outline: none;
+}
+
+/* A group's head stays at the top while its rows scroll under it: a row
+   brought into view stops that far short of the top, below the head. */
+.lm-picker__list:has([data-pinned-head]) {
+  scroll-padding-block-start: 20px;
+}
+
+.lm-picker__group {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 20px;
+  padding: 0 6px;
+  border-block-end: 1px solid var(--lm-border);
+  background: var(--lm-panel);
+  color: var(--lm-muted);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lm-picker__group-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-picker__group-count {
+  flex: 0 0 auto;
+  color: var(--lm-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-picker__row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-end: 1px solid var(--lm-grid-line-strong);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-picker__row:hover {
+  background: var(--lm-raised);
+}
+
+/* The row return acts on. It wears the ring the focus has: a raised ground
+   alone is next to the panel's in the light themes. An outline, so that a
+   row that is on as well keeps its own line. */
+.lm-picker__row--cursor,
+.lm-picker__row--cursor:hover {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: -1px;
+  background: var(--lm-raised);
+}
+
+/* What is on now: the accent down the row's side. */
+.lm-picker__row--on {
+  box-shadow: inset 2px 0 0 var(--lm-accent);
+}
+
+.lm-picker__name {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  color: var(--lm-text);
+  text-overflow: ellipsis;
+}
+
+.lm-picker__row--dim .lm-picker__name {
+  color: var(--lm-muted);
+}
+
+.lm-picker__detail {
+  flex: 1 1 0;
+  min-width: 0;
+  padding-inline-end: 6px;
+  overflow: hidden;
+  color: var(--lm-dim);
+  font-size: 9px;
+  text-overflow: ellipsis;
+}
+
+/* The name comes first: where a panel is too narrow for both, what a row is for is in its tooltip. */
+@container (max-width: 239px) {
+  .lm-picker__detail {
+    display: none;
+  }
+}
+
+.lm-picker__on {
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding-inline-end: 6px;
+  color: var(--lm-accent);
+  font-size: 9px;
+}
+
+.lm-picker__empty {
+  margin: 0;
+  padding: 6px;
+  color: var(--lm-dim);
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.lm-picker__foot {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: stretch;
+  justify-content: space-between;
+  box-sizing: border-box;
+  height: 20px;
+  border-block-start: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+}
+
+.lm-picker__hint {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: 0 6px;
+  color: var(--lm-dim);
+  font-size: 9px;
+}
+
+.lm-picker__hint > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.lm-picker__action {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 70%;
+  padding: 0 6px;
+  border: 0;
+  border-radius: 0;
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+  font: inherit;
+  font-size: var(--lm-font-size);
+  line-height: 1;
+  text-align: start;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-picker__action:disabled {
+  background: var(--lm-raised);
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+.lm-picker__action:focus-visible {
+  outline: 1px solid var(--lm-text);
+  outline-offset: -2px;
+}
+
+.lm-picker__action-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The letters a search found in a name. */
+.lm-match {
+  background: none;
+  color: var(--lm-accent);
+}
+
+.lm-keycap {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  box-sizing: border-box;
+  height: 12px;
+  padding: 0 3px;
+  border: 1px solid var(--lm-hairline);
+  color: var(--lm-dim);
+  font-family: inherit;
+  font-size: 8px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* A cell that opens a list (`PickCell`): a name and a chevron in one outlined
+   cell, lit while its list is open. */
+.lm-pick-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: 20px;
+  padding: 0 4px 0 6px;
+  border: 1px solid var(--lm-border);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lm-pick-cell:hover:not(:disabled),
+.lm-pick-cell--open {
+  background: var(--lm-text);
+  color: var(--lm-bg);
+}
+
+.lm-pick-cell:disabled {
+  color: var(--lm-dim);
+  cursor: default;
+}
+
+.lm-pick-cell:focus-visible {
+  outline: 1px solid var(--lm-accent);
+  outline-offset: 1px;
+}
+
+.lm-pick-cell__label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* An effect's preset cell (`PresetCell`): the preset's name and the two cells
+   that step through the rest, in one outlined tag on the effect itself. It
+   takes the colours of where it stands: a plate's ink on a plate, the
+   theme's text on a plain panel. */
+.lm-fxp {
+  --lm-fxp-ink: var(--lm-plate-ink, var(--lm-text));
+  --lm-fxp-ground: var(--lm-plate, var(--lm-panel));
+
+  display: flex;
+  flex: 0 1 auto;
+  align-items: stretch;
+  box-sizing: border-box;
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  block-size: 20px;
+  border: 1px solid color-mix(in srgb, var(--lm-fxp-ink) 60%, transparent);
+  /* Its own ground, so a plate's drawing never runs behind the name. */
+  background: var(--lm-fxp-ground);
+  color: var(--lm-fxp-ink);
+}
+
+.lm-fxp__name,
+.lm-fxp__step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  user-select: none;
+}
+
+/* The name is shown whole or not at all, never cut short: it stands with the
+   chevron on the first line of a wrapping row, and a name too long for the
+   cell falls to a second line the cell does not show. The chevron is as high
+   as the cell, so that first line always is. */
+.lm-fxp__name {
+  flex: 1 1 auto;
+  flex-flow: row-reverse wrap;
+  gap: 0 3px;
+  align-content: flex-start;
+  justify-content: space-between;
+  min-inline-size: 16px;
+  padding-inline: 5px 3px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.lm-fxp__name > svg {
+  order: -1;
+  block-size: 100%;
+}
+
+.lm-fxp__label {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  block-size: 100%;
+}
+
+/* A name within a pixel of fitting fits: the cell may stand that far into the gap before it. */
+.lm-plate__presets > .lm-fxp {
+  max-inline-size: calc(100% + 1px);
+  margin-inline-start: -1px;
+}
+
+.lm-fxp__step {
+  flex: 0 0 16px;
+  border-inline-start: 1px solid color-mix(in srgb, var(--lm-fxp-ink) 35%, transparent);
+}
+
+.lm-fxp__name:hover,
+.lm-fxp__step:hover,
+.lm-fxp[data-open] .lm-fxp__name {
+  background: var(--lm-fxp-ink);
+  color: var(--lm-fxp-ground);
+}
+
+.lm-fxp__name:focus-visible,
+.lm-fxp__step:focus-visible {
+  outline: 1px solid var(--lm-fxp-ink);
+  outline-offset: 1px;
+}
+
+/* On a plate the cell has the room the plate's name leaves, and the preset's
+   name comes first. Under 136px the step cells give it their room; under
+   50px there is room for the chevron alone, which opens the list. */
+@container lm-plate-presets (max-width: 135px) {
+  .lm-fxp__step {
+    display: none;
+  }
+}
+
+@container lm-plate-presets (max-width: 49px) {
+  .lm-fxp {
+    min-inline-size: 20px;
+  }
+
+  .lm-fxp__label {
+    display: none;
+  }
+
+  .lm-fxp__name {
+    justify-content: center;
+    padding-inline: 3px;
+  }
+}
+
+/* Under a finger nothing points at the plate: the list does the stepping. */
+@media (hover: none) {
+  .lm-plate .lm-fxp__step {
+    display: none;
+  }
+}

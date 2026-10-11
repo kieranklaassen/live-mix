@@ -57,6 +57,22 @@ try {
     }
   }
 
+  // A peer is imported, never carried: no built script holds a CommonJS
+  // module, which is how a peer left out of the build's externals arrives
+  // (React's DOM once did, and could not find `react` from inside the bundle).
+  const bundled = [...files].filter(
+    (file) =>
+      file.startsWith('dist/') &&
+      file.endsWith('.js') &&
+      !file.startsWith('dist/worklets/') &&
+      /__commonJS\(|Dynamic require of/.test(readFileSync(file, 'utf8')),
+  )
+  if (bundled.length > 0) {
+    throw new Error(
+      `check-pack: ${bundled.join(', ')} bundles a CommonJS module: make what it imports a peer in package.json and an external in scripts/build.mjs`,
+    )
+  }
+
   // `./motion` stands alone: its built entry is one file that imports
   // nothing, so a consumer who wants motion loads none of the engine.
   const motionImports = [
@@ -98,7 +114,7 @@ try {
     `check-pack: ${files.size} files, ${targets.length} export targets resolve, ` +
       `${located} files found from where the scripts look for them, ` +
       `${wasm.length} wasm, ${worklets.length} worklet(s), ` +
-      `optional peers (${optionalPeers.join(', ')}) confined to their entries, ` +
+      `optional peers (${optionalPeers.join(', ')}) confined to their entries and none bundled, ` +
       `./motion imports nothing`,
   )
 } finally {

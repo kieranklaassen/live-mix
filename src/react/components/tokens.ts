@@ -831,6 +831,25 @@ export function cx(...names: (string | false | null | undefined)[]): string {
   return names.filter(Boolean).join(' ')
 }
 
+/** The `data-*` attributes a component was handed: a host's own marks, for the elements it draws. */
+export type DataAttributes = Record<`data-${string}`, string | undefined>
+
+/**
+ * Parts a component's props in two: the `data-*` attributes a host marked it
+ * with, and the rest. A component that draws more than one element hands the
+ * marks to each control of its own, so a host that names what a control does
+ * (`data-action`) finds the name on whatever is pressed.
+ */
+export function splitData<P extends object>(props: P): [DataAttributes, P] {
+  const data: Record<string, unknown> = {}
+  const rest: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith('data-')) data[key] = value
+    else rest[key] = value
+  }
+  return [data as DataAttributes, rest as P]
+}
+
 /**
  * A list key for each name: the name itself, and for a name that comes again
  * the name with its turn among them. Tracks of different kinds may go by one

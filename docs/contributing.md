@@ -13,7 +13,7 @@ pnpm typecheck        # library + the motion entry without the DOM + playground 
 pnpm lint             # eslint + prettier --check (docs/*.md included)
 pnpm dev              # rebuild on change
 pnpm build            # tsup entries + esbuild worklet bundles + wasm copy + styles.css
-pnpm pack:check       # pack a tarball and verify every export resolves; optional peers stay out of `.`/`./dsp`/`./testing`; `./motion` imports nothing
+pnpm pack:check       # pack a tarball and verify every export resolves; optional peers stay out of `.`/`./dsp`/`./testing` and none is bundled; `./motion` imports nothing
 pnpm test:native      # C++ device harnesses with the system compiler (CXX=g++ where c++ is a header-less clang)
 pnpm build:wasm       # rebuild src/dsp/wasm/*.wasm (needs Emscripten 4.0.15)
 pnpm build:faust      # regenerate cpp/faust/generated + src/dsp/devices/faust from *.dsp (builds Faust 2.88.0 into tmp/)
