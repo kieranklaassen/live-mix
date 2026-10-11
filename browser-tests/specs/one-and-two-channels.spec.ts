@@ -7,7 +7,7 @@
 
 import { expect, test } from '@playwright/test'
 
-import type { ChannelLevels, StripCase } from '../harness/one-and-two-channels'
+import type { ChannelLevels, LoudestCase, StripCase } from '../harness/one-and-two-channels'
 import { collectPageErrors } from './page-errors'
 
 const CENTRED: readonly StripCase[] = ['untouched', 'nodes', 'compressor', 'utility', 'rack']
@@ -52,5 +52,25 @@ test.describe('a tone through a strip, in one channel and in two', () => {
       expect(one[strip].rightDb, `one channel, ${strip}`).toBe(-200)
     }
     expect(one['panned left'].leftDb).toBeCloseTo(one['compressor, panned left'].leftDb, 1)
+  })
+
+  test('asks no more of the output than the tone at the centre, and the master limiter holds a hard pan', async ({
+    browser,
+  }) => {
+    const page = await browser.newPage()
+    await page.goto('/browser-tests/harness/index.html')
+    await page.waitForSelector('body[data-harness="ready"]')
+    const cases: LoudestCase[] = ['centre', 'hard left', 'hard left, limited']
+    const loudest = await page.evaluate((all) => window.liveMixHarness.measureLoudest(all), cases)
+    await page.close()
+    test.info().annotations.push({ type: 'loudest', description: JSON.stringify(loudest) })
+
+    // At the centre a tone at full scale leaves at full scale: nothing over.
+    expect(loudest.centre.leftDb).toBeLessThanOrEqual(0.01)
+    expect(loudest.centre.rightDb).toBeLessThanOrEqual(0.01)
+    // Panned hard it is both channels in one side, 6.02 dB over, as two alike channels are.
+    expect(loudest['hard left'].leftDb).toBeCloseTo(6.02, 1)
+    // With the master's limiter in, that side is held under its ceiling of -1.5 dB.
+    expect(loudest['hard left, limited'].leftDb).toBeLessThanOrEqual(-1.5)
   })
 })

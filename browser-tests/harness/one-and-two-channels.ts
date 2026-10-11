@@ -16,6 +16,7 @@ import {
   type AudioTrack,
   type Clip,
 } from '@kieranklaassen/live-mix'
+import { createTruePeakLimiter } from '@kieranklaassen/live-mix/dsp'
 
 const RATE = 48000
 const RENDER_SEC = 1
@@ -49,12 +50,12 @@ const CLIP: Clip = {
   gainDb: 0,
 }
 
-function tone(ctx: BaseAudioContext, channels: 1 | 2): AudioBuffer {
+function tone(ctx: BaseAudioContext, channels: 1 | 2, amplitude = AMPLITUDE): AudioBuffer {
   const buffer = ctx.createBuffer(channels, RATE * RENDER_SEC, RATE)
   for (let channel = 0; channel < channels; channel += 1) {
     const data = buffer.getChannelData(channel)
     for (let i = 0; i < data.length; i += 1) {
-      data[i] = AMPLITUDE * Math.sin((2 * Math.PI * 1000 * i) / RATE)
+      data[i] = amplitude * Math.sin((2 * Math.PI * 1000 * i) / RATE)
     }
   }
   return buffer
@@ -105,4 +106,49 @@ export async function measureChannels(
     measured[strip] = { leftDb: levelDb(left), rightDb: levelDb(right) }
   }
   return measured
+}
+
+/** Where a tone as loud as a file can hold is put, and whether the master has its limiter. */
+export type LoudestCase = 'centre' | 'hard left' | 'hard left, limited'
+
+/** The limiter's ceiling in the limited case, in dBFS. */
+export const LOUDEST_CEILING_DB = -1.5
+
+/**
+ * The loudest sample of each side, in dBFS, of a tone in one channel at full
+ * scale through a strip with its nodes made: what the strip can ask of the
+ * output at the most.
+ */
+export async function measureLoudest(
+  cases: readonly LoudestCase[],
+): Promise<Record<string, ChannelLevels>> {
+  const measured: Record<string, ChannelLevels> = {}
+  for (const place of cases) {
+    const result = await renderOffline({
+      durationSec: RENDER_SEC,
+      sampleRate: RATE,
+      build: async (engine) => {
+        const track = engine.addAudioTrack('voice', { lookaheadSec: 1 })
+        await engine.samples.load('tone', tone(engine.context, 1, 1))
+        track.clips.add(CLIP)
+        track.strip.materialize()
+        if (place !== 'centre') track.strip.setPan(-1, { at: 0 })
+        if (place === 'hard left, limited') {
+          await engine.master.installLimiter((context) =>
+            createTruePeakLimiter(context, { params: { ceilingDb: LOUDEST_CEILING_DB } }),
+          )
+        }
+      },
+    })
+    result.engine.dispose()
+    const [left, right] = result.audio.channels
+    measured[place] = { leftDb: peakDb(left), rightDb: peakDb(right) }
+  }
+  return measured
+}
+
+function peakDb(samples: Float32Array): number {
+  let peak = 0
+  for (const sample of samples) peak = Math.max(peak, Math.abs(sample))
+  return peak < 1e-9 ? -200 : 20 * Math.log10(peak)
 }
