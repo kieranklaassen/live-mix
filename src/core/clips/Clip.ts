@@ -14,9 +14,26 @@ import { type JsonObject } from '../json'
  */
 export type FadeCurve = 'linear' | 'equalPower'
 
+/**
+ * Other audio a clip plays in turn, by the counted pass its start comes round
+ * on: turn `n` (from 0) lasts `every` passes and plays `sourceIds[n]`, and
+ * after the last the first comes again. A host lists every turn, the clip's
+ * own `sourceId` among them where it is one: on a track that takes turns the
+ * clip plays what its turn names and nothing else.
+ */
+export interface ClipTurns {
+  /** The source of each turn, in order. One or more; a source may come more than once. */
+  sourceIds: readonly string[]
+  /** How many counted passes a turn lasts: a whole number from 1. Absent is 1. */
+  every?: number
+}
+
 export interface Clip {
   id: string
-  /** Key of the decoded source in the `SampleStore`. */
+  /**
+   * Key of the decoded source in the `SampleStore`. With `turns`, what is
+   * drawn and what a reader that counts no passes plays.
+   */
   sourceId: string
   /** Timeline position in seconds. */
   startSec: number
@@ -65,6 +82,18 @@ export interface Clip {
    * Absent, and 1, play it on every pass.
    */
   chance?: number
+  /**
+   * The clip plays another source on some passes (`ClipTurns`,
+   * `clipSourceOnPass`): which one is a function of the counted pass of the
+   * clock its track is on and of nothing else, so the same pass always plays
+   * the same, a pass can be gone to without playing the ones before it, and
+   * a bounce hears what a live pass heard. The turn is taken when the clip's
+   * start is handed over, or when the clip is entered partway: a clip that
+   * is sounding plays on as it began. Audio tracks only; everything about
+   * the clip but its source is the same in every turn, so the sources of a
+   * clip that loops should loop alike.
+   */
+  turns?: ClipTurns
   /**
    * Where this clip sits between left (−1) and right (1), ahead of the
    * track's own pan. A clip with `pan`, `lowpassHz` or `spaceDb` is placed:

@@ -21,6 +21,7 @@ import {
   transposeWords,
   type FactoryKey,
   type FactoryMode,
+  type FactorySound,
 } from '..'
 
 const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
@@ -151,6 +152,19 @@ describe.each([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 6])('the bank moved by %i',
       // A sound made from another plays that one: its own notes pick grains, not pitches.
       if (sound.source !== undefined) {
         expect(moved.phrase).toBe(sound.phrase)
+        continue
+      }
+      // A sound on a kit plays drums, not pitches: its notes stay, and the kit is tuned to the key.
+      if (sound.kit) {
+        expect(moved.phrase, sound.id).toBe(sound.phrase)
+        const tuneOf = (each: FactorySound): number => {
+          const kit = typeof each.patch === 'string' ? undefined : each.patch.instrument
+          const descriptor = kit && registry.get(kit.deviceId)
+          if (!kit || !descriptor) throw new Error(`${each.id}: no kit`)
+          return patchDeviceParams(descriptor, kit).tune
+        }
+        expect(mod12(tuneOf(moved) - tuneOf(sound)), sound.id).toBe(mod12(by))
+        expect(Math.abs(tuneOf(moved)), sound.id).toBeLessThanOrEqual(12)
         continue
       }
       // Weather is not in a key, whatever note holds it open.

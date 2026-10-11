@@ -8,11 +8,12 @@ import { Lfo, Macro } from '../Modulator'
 import { ParamLane } from '../ParamLane'
 
 /** A device that records `setParam` calls, standing in for a WASM or native device. */
-function fakeDevice(): Device & { sets: [string, number][] } {
+function fakeDevice(more: Record<string, ParamSpec> = {}): Device & { sets: [string, number][] } {
   const ctx = createMockContext()
   const node = asAudioNode(ctx.createGain())
   const params: Record<string, ParamSpec> = {
     cutoff: { id: 0, name: 'Cutoff', min: 100, max: 1100, default: 400, taper: 'log', unit: 'Hz' },
+    ...more,
   }
   const values = new Map<string, number>([['cutoff', 400]])
   const sets: [string, number][] = []
@@ -177,8 +178,36 @@ describe('ModMatrix', () => {
     expect(device.sets).toEqual([['cutoff', 1100]])
     macro.set(0.1)
     matrix.update({ playheadSec: 2, contextTimeSec: 2 })
-    expect(device.sets[1][1]).toBeCloseTo(500, 9)
+    // A tenth of the knob's travel up from 400 Hz: on a log taper that is a ratio, not 100 Hz.
+    const tenthUp = 100 * 11 ** (Math.log(4) / Math.log(11) + 0.1)
+    expect(device.sets[1][1]).toBeCloseTo(tenthUp, 9)
+    expect(device.sets[1][1]).toBeGreaterThan(500)
     expect(() => deviceParamTarget(device, 'nope')).toThrow(/no parameter/)
+  })
+
+  it('moves a device parameter straight across a linear range, and a stepped one onto its steps', () => {
+    const device = fakeDevice({
+      mix: { id: 1, name: 'Mix', min: 0, max: 2, default: 1, taper: 'linear', unit: '' },
+      voices: {
+        id: 2,
+        name: 'Voices',
+        min: 1,
+        max: 8,
+        default: 1,
+        taper: 'linear',
+        unit: '',
+        step: 1,
+      },
+    })
+    const matrix = new ModMatrix()
+    const macro = new Macro(0.25)
+    const mix = deviceParamTarget(device, 'mix')
+    const voices = deviceParamTarget(device, 'voices')
+    matrix.map(macro, mix, 1)
+    matrix.map(macro, voices, 1)
+    expect(matrix.modulatedValue(mix, 0, 0)).toBeCloseTo(1.5, 12)
+    // 1 + a quarter of seven steps is 2.75: the third voice.
+    expect(matrix.modulatedValue(voices, 0, 0)).toBe(3)
   })
 
   it('plays a lane onto a device parameter through an attached target with no routes', () => {

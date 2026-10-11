@@ -2176,7 +2176,8 @@
  * A device drawn from a skin (`DevicePlate`): the skin sets `--lm-plate`,
  * `--lm-plate-ink` and `--lm-plate-accent`, and everything on the plate is
  * drawn in those three, so a plate keeps its colours in every theme. The
- * plate is 140 px high and whole 20 px cells wide.
+ * plate is 140 px high and whole 20 px cells wide; upright, 300 high and 220
+ * wide (`lm-plate--upright`).
  */
 
 .lm-plate {
@@ -2514,6 +2515,85 @@
 
 .lm-plate__tools .lm-button:hover:not(:disabled) {
   color: var(--lm-plate);
+}
+
+/* An upright plate (`upright`): a pedal standing on a board, eleven cells by
+   fifteen. From the top: the display, two rows of knobs, the row of tools
+   with the cell that opens the rest, the presets, and the name on the foot
+   with the lamp. Nothing lies over anything else, so the tools need no
+   column of their own and a preset's name has the plate's whole width. */
+.lm-plate--upright {
+  align-self: flex-start;
+  min-height: 0;
+}
+
+.lm-plate--upright .lm-plate__knobs {
+  top: var(--lm-plate-knobs-top, 110px);
+  grid-template-rows: repeat(var(--lm-plate-rows, 2), var(--lm-plate-row, 56px));
+}
+
+/* A picture is drawn for a flat plate, with what it shows between 50 and 100
+   down: upright, that band stands where a display would. */
+.lm-plate--upright .lm-plate__picture {
+  top: -32px;
+  right: auto;
+  bottom: auto;
+  left: -10px;
+}
+
+.lm-plate--upright .lm-plate__more,
+.lm-plate--upright.lm-plate--editor .lm-plate__more {
+  top: auto;
+  right: auto;
+  bottom: 56px;
+  left: 8px;
+  height: 20px;
+}
+
+.lm-plate--upright .lm-plate__more--second,
+.lm-plate--upright.lm-plate--editor .lm-plate__more--second {
+  top: auto;
+  left: 42px;
+}
+
+.lm-plate--upright .lm-plate__tools--above,
+:is(.lm-plate--display, .lm-plate--plain).lm-plate--upright .lm-plate__tools--above {
+  right: 8px;
+  bottom: 56px;
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: var(--lm-plate-tool, 16px);
+}
+
+.lm-plate--upright:hover .lm-plate__tools--above,
+.lm-plate--upright:focus-within .lm-plate__tools--above,
+.lm-plate--upright.lm-plate--open .lm-plate__tools--above,
+.lm-plate--upright.lm-plate--held .lm-plate__tools--above,
+.lm-plate--upright[data-lm-refocus] .lm-plate__tools--above {
+  display: grid;
+}
+
+/* The kit's own list of presets has four cells of that row, so the name it
+   shows can be read. */
+.lm-plate--upright .lm-plate__tools--above .lm-device__presets {
+  grid-column: span 4;
+  width: 100%;
+  max-width: none;
+}
+
+/* A spread plate (`spread`), upright with a display or a picture: an
+   instrument, every knob on the plate. The display keeps a pedal's window at
+   the top left; the first knobs stand in the two rows beside it and the rest
+   in the two rows under it, each put in its cell by the plate. */
+.lm-plate--upright.lm-plate--spread.lm-plate--pictured .lm-plate__knobs {
+  grid-template-rows: var(--lm-plate-row-heights, 50px 52px 56px 56px);
+}
+
+.lm-plate--upright .lm-plate__presets {
+  position: absolute;
+  right: 8px;
+  bottom: 32px;
+  left: 8px;
 }
 
 /* The lamp is the power switch: lit in the second ink while the device is on. */

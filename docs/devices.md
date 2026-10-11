@@ -84,7 +84,9 @@ hold 8 notes).
 
 | Device id         | Name               | Source              | Kind       | Params | `.wasm`   | Native cost per block | wasm cost per block (Node) | Latency (samples) | Memory (MB) |
 | ----------------- | ------------------ | ------------------- | ---------- | ------ | --------- | --------------------- | -------------------------- | ----------------- | ----------- |
+| `acid-bass`       | Acid Bass          | live-mix            | instrument | 10     | 22,322 B  | 32.9 µs, 1.24 %       | 17.6 µs, 0.66 %            | 0                 | 4           |
 | `acoustic-guitar` | Acoustic Guitar    | live-mix            | instrument | 10     | 28,418 B  | 55.8 µs, 2.09 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
+| `afterglow`       | Afterglow          | live-mix            | instrument | 12     | 32,285 B  | 18.6 µs, 0.70 %       | 37.9 µs, 1.42 %            | 0                 | 4           |
 | `ambient-comp`    | Ambient Compressor | live-mix            | dynamics   | 9      | 11,205 B  | 3.8 µs, 0.14 %        | 5.5 µs, 0.21 %             | 0                 | 4           |
 | `ambient-eq`      | Ambient EQ         | live-mix            | eq         | 8      | 28,200 B  | 16.3 µs, 0.61 %       | 21.3 µs, 0.80 %            | 0                 | 4           |
 | `ambient-limiter` | Ambient Limiter    | live-mix            | dynamics   | 5      | 9,318 B   | 10.0 µs, 0.38 %       | 12.0 µs, 0.45 %            | 77                | 4           |
@@ -95,22 +97,36 @@ hold 8 notes).
 | `auto-filter`     | Auto Filter        | kkfonie Tatami      | eq         | 12     | 23,170 B  | 21.0 µs, 0.79 %       | 22.8 µs, 0.86 %            | 31                | 4           |
 | `bloom-reverb`    | Bloom              | kkfonie Bloom       | reverb     | 8      | 25,205 B  | 68.9 µs, 2.58 %       | 82.4 µs, 3.09 %            | 0                 | 4           |
 | `bowed-string`    | Bow                | live-mix            | instrument | 12     | 34,141 B  | 85.8 µs, 3.22 %       | 108.2 µs, 4.06 %           | 0                 | 4           |
+| `canon`           | Canon              | live-mix            | delay      | 12     | 32,045 B  | 13.3 µs, 0.50 %       | 10.0 µs, 0.37 %            | 0                 | 32          |
 | `cascade`         | Cascade            | live-mix            | texture    | 12     | 29,332 B  | 23.3 µs, 0.87 %       | 28.6 µs, 1.07 %            | 0                 | 16          |
 | `chamber-strings` | Chamber Strings    | live-mix            | instrument | 10     | 38,707 B  | 55.5 µs, 2.08 %       | 44.3 µs, 1.66 %            | 0                 | 4           |
 | `choir`           | Choir              | live-mix            | instrument | 12     | 33,143 B  | 66.9 µs, 2.51 %       | 46.7 µs, 1.75 %            | 0                 | 4           |
 | `chord-harp`      | Chord Harp         | live-mix            | instrument | 8      | 28,108 B  | 90.2 µs, 3.38 %       | 15.4 µs, 0.58 %            | 0                 | 4           |
 | `chorus`          | Chorus             | kkfonie Tatami      | modulation | 8      | 12,666 B  | 24.3 µs, 0.91 %       | 18.7 µs, 0.70 %            | 0                 | 4           |
 | `clarinet`        | Clarinet           | live-mix            | instrument | 8      | 26,190 B  | 86.2 µs, 3.23 %       | 39.6 µs, 1.49 %            | 0                 | 4           |
+| `constellation`   | Constellation      | live-mix            | delay      | 10     | 33,746 B  | 17.8 µs, 0.67 %       | 21.5 µs, 0.80 %            | 0                 | 8           |
+| `distance`        | Distance           | live-mix            | spatial    | 9      | 31,693 B  | 19.7 µs, 0.74 %       | 27.5 µs, 1.03 %            | 0                 | 4           |
 | `drone`           | Drone              | live-mix            | instrument | 13     | 32,220 B  | 56.1 µs, 2.11 %       | 73.5 µs, 2.75 %            | 0                 | 4           |
+| `droplets`        | Droplets           | live-mix            | instrument | 12     | 30,128 B  | 6.0 µs, 0.22 %        | 8.7 µs, 0.33 %             | 0                 | 4           |
+| `drum-kit`        | Drum Kit           | live-mix            | instrument | 10     | 29,156 B  | 17.9 µs, 0.67 %       | 0.7 µs, 0.03 %             | 0                 | 4           |
 | `dusk`            | Dusk               | live-mix            | instrument | 10     | 23,428 B  | 36.8 µs, 1.38 %       | 31.7 µs, 1.19 %            | 0                 | 4           |
 | `echo-memory`     | Echo Memory        | live-mix            | delay      | 12     | 25,341 B  | 27.2 µs, 1.02 %       | 16.4 µs, 0.61 %            | 0                 | 20          |
 | `ember`           | Ember              | kkfonie Tatami      | instrument | 43     | 37,239 B  | 55.8 µs, 2.09 %       | 75.8 µs, 2.84 %            | 16                | 4           |
 | `expanse`         | Expanse            | live-mix            | reverb     | 11     | 31,432 B  | 60.4 µs, 2.27 %       | 33.3 µs, 1.25 %            | 0                 | 6           |
+| `falling`         | Falling            | live-mix            | texture    | 11     | 22,598 B  | 14.5 µs, 0.54 %       | 29.3 µs, 1.10 %            | 0                 | 10          |
+| `feedback`        | Feedback           | live-mix            | instrument | 11     | 30,214 B  | 15.7 µs, 0.59 %       | 33.1 µs, 1.24 %            | 0                 | 4           |
 | `flanger`         | Flanger            | kkfonie Tatami      | modulation | 7      | 11,926 B  | 11.9 µs, 0.45 %       | 10.4 µs, 0.39 %            | 0                 | 4           |
+| `flock`           | Flock              | live-mix            | instrument | 11     | 31,243 B  | 16.0 µs, 0.60 %       | 32.5 µs, 1.22 %            | 0                 | 4           |
 | `flute`           | Flute              | live-mix            | instrument | 9      | 25,369 B  | 76.8 µs, 2.88 %       | 44.2 µs, 1.66 %            | 0                 | 4           |
+| `fm-bass`         | FM Bass            | live-mix            | instrument | 10     | 20,995 B  | 24.0 µs, 0.90 %       | 4.4 µs, 0.16 %             | 0                 | 4           |
 | `fm-glass`        | Glass              | live-mix            | instrument | 12     | 26,809 B  | 90.2 µs, 3.38 %       | 42.0 µs, 1.57 %            | 0                 | 4           |
+| `fog`             | Fog                | live-mix            | reverb     | 9      | 27,090 B  | 34.7 µs, 1.30 %       | 15.2 µs, 0.57 %            | 0                 | 4           |
 | `freq-shifter`    | Frequency Shifter  | live-mix            | pitch      | 10     | 14,333 B  | 26.8 µs, 1.01 %       | 18.9 µs, 0.71 %            | 0                 | 4           |
+| `generations`     | Generations        | live-mix            | texture    | 9      | 44,594 B  | 35.4 µs, 1.33 %       | 35.5 µs, 1.33 %            | 0                 | 32          |
+| `glints`          | Glints             | live-mix            | texture    | 10     | 22,764 B  | 8.9 µs, 0.34 %        | 13.9 µs, 0.52 %            | 0                 | 4           |
 | `glitch`          | Glitch             | live-mix            | texture    | 12     | 21,163 B  | 10.3 µs, 0.38 %       | 5.3 µs, 0.20 %             | 0                 | 10          |
+| `glitch-kit`      | Glitch Kit         | live-mix            | instrument | 9      | 30,863 B  | 2.6 µs, 0.10 %        | 0.6 µs, 0.02 %             | 0                 | 4           |
+| `graft`           | Graft              | live-mix            | instrument | 12     | 49,489 B  | 30.2 µs, 1.13 %       | 56.3 µs, 2.11 %            | 0                 | 4           |
 | `grain-cloud`     | Cloud              | live-mix            | texture    | 12     | 15,870 B  | 18.4 µs, 0.69 %       | 23.8 µs, 0.89 %            | 0                 | 10          |
 | `grain-delay`     | Grain Delay        | live-mix            | delay      | 11     | 17,855 B  | 27.2 µs, 1.02 %       | 32.8 µs, 1.23 %            | 0                 | 10          |
 | `grain-synth`     | Grain              | live-mix            | instrument | 14     | 32,018 B  | 61.6 µs, 2.31 %       | 72.0 µs, 2.70 %            | 0                 | 12          |
@@ -119,33 +135,45 @@ hold 8 notes).
 | `handpan`         | Handpan            | live-mix            | instrument | 9      | 25,680 B  | 21.4 µs, 0.80 %       | 10.2 µs, 0.38 %            | 0                 | 4           |
 | `harp`            | Harp               | live-mix            | instrument | 10     | 28,801 B  | 14.2 µs, 0.53 %       | 17.1 µs, 0.64 %            | 0                 | 4           |
 | `horns`           | Horns              | live-mix            | instrument | 9      | 34,673 B  | 53.2 µs, 2.00 %       | 43.9 µs, 1.64 %            | 0                 | 4           |
+| `ice`             | Ice                | live-mix            | instrument | 11     | 34,542 B  | 10.2 µs, 0.38 %       | 20.9 µs, 0.78 %            | 0                 | 4           |
 | `ladder-bass`     | Ladder Bass        | live-mix            | instrument | 10     | 19,637 B  | 34.0 µs, 1.28 %       | 0.8 µs, 0.03 %             | 0                 | 4           |
 | `lattice`         | Lattice            | kkfonie Lattice     | pitch      | 59     | 34,723 B  | 52.7 µs, 1.98 %       | 62.2 µs, 2.33 %            | 0                 | 4           |
 | `low-bitrate`     | Low Bitrate        | live-mix            | texture    | 10     | 32,898 B  | 11.7 µs, 0.44 %       | 12.6 µs, 0.47 %            | 4096              | 4           |
+| `magnet-piano`    | Magnet Piano       | live-mix            | instrument | 12     | 28,672 B  | 11.8 µs, 0.44 %       | 19.3 µs, 0.72 %            | 0                 | 4           |
 | `mallets`         | Mallets            | live-mix            | instrument | 10     | 27,223 B  | 27.3 µs, 1.02 %       | 2.3 µs, 0.09 %             | 0                 | 4           |
+| `melt`            | Melt               | live-mix            | texture    | 9      | 23,052 B  | 21.3 µs, 0.80 %       | 15.5 µs, 0.58 %            | 0                 | 8           |
 | `micro-looper`    | Micro Looper       | live-mix            | delay      | 10     | 40,216 B  | 40.5 µs, 1.52 %       | 43.2 µs, 1.62 %            | 0                 | 16          |
 | `modal-bells`     | Bells              | live-mix            | instrument | 12     | 24,210 B  | 58.5 µs, 2.20 %       | 40.6 µs, 1.52 %            | 0                 | 4           |
 | `noise-floor`     | Noise Floor        | live-mix            | texture    | 8      | 44,023 B  | 20.0 µs, 0.75 %       | 15.7 µs, 0.59 %            | 0                 | 4           |
 | `octaves`         | Octaves            | live-mix            | pitch      | 10     | 65,517 B  | 95.7 µs, 3.59 %       | 48.2 µs, 1.81 %            | 0                 | 4           |
+| `orbits`          | Orbits             | live-mix            | delay      | 9      | 29,264 B  | 17.1 µs, 0.64 %       | 20.6 µs, 0.77 %            | 0                 | 32          |
 | `organ`           | Reed Organ         | live-mix            | instrument | 13     | 23,100 B  | 127.0 µs, 4.76 %      | 70.4 µs, 2.64 %            | 0                 | 4           |
 | `outdoors`        | Outdoors           | live-mix            | instrument | 9      | 103,411 B | 81.2 µs, 3.05 %       | 35.4 µs, 1.33 %            | 0                 | 4           |
+| `overtone`        | Overtone           | live-mix            | instrument | 12     | 26,084 B  | 38.1 µs, 1.43 %       | 45.1 µs, 1.69 %            | 0                 | 4           |
 | `pad-follower`    | Pad Follower       | live-mix            | texture    | 10     | 47,099 B  | 41.8 µs, 1.57 %       | 38.3 µs, 1.43 %            | 0                 | 4           |
 | `patina`          | Patina             | live-mix            | texture    | 8      | 36,191 B  | 39.8 µs, 1.49 %       | 29.2 µs, 1.10 %            | 271               | 4           |
 | `pedal-steel`     | Pedal Steel        | live-mix            | instrument | 9      | 31,754 B  | 25.7 µs, 0.97 %       | 23.6 µs, 0.88 %            | 0                 | 4           |
 | `phaser`          | Phaser             | kkfonie Tatami      | modulation | 9      | 14,298 B  | 13.9 µs, 0.52 %       | 10.9 µs, 0.41 %            | 0                 | 4           |
 | `pitch-shifter`   | Pitch Shifter      | live-mix            | pitch      | 12     | 50,960 B  | 64.8 µs, 2.43 %       | 41.7 µs, 1.56 %            | 0                 | 6           |
+| `prepared-piano`  | Prepared Piano     | live-mix            | instrument | 11     | 31,857 B  | 12.1 µs, 0.45 %       | 29.3 µs, 1.10 %            | 0                 | 4           |
 | `radio`           | Radio              | live-mix            | texture    | 9      | 33,188 B  | 25.8 µs, 0.97 %       | 22.2 µs, 0.83 %            | 0                 | 4           |
 | `re-amp`          | Re-amp             | live-mix            | drive      | 10     | 53,528 B  | 98.6 µs, 3.70 %       | 62.5 µs, 2.34 %            | 39                | 4           |
 | `reverse-delay`   | Reverse Delay      | live-mix            | delay      | 8      | 15,057 B  | 17.1 µs, 0.64 %       | 13.2 µs, 0.50 %            | 0                 | 20          |
+| `rewind`          | Rewind             | live-mix            | instrument | 12     | 33,769 B  | 4.9 µs, 0.18 %        | 8.2 µs, 0.31 %             | 0                 | 4           |
 | `rotary`          | Rotary             | live-mix            | modulation | 9      | 16,495 B  | 25.3 µs, 0.95 %       | 27.2 µs, 1.02 %            | 0                 | 4           |
 | `sampler`         | Sampler            | live-mix            | instrument | 13     | 27,588 B  | 46.8 µs, 1.76 %       | 30.9 µs, 1.16 %            | 0                 | 24          |
 | `saturator`       | Saturator          | kkfonie Tatami      | drive      | 9      | 23,626 B  | 46.1 µs, 1.73 %       | 40.5 µs, 1.52 %            | 39                | 4           |
 | `shaped-reverb`   | Shaped Reverb      | live-mix            | reverb     | 12     | 34,325 B  | 57.2 µs, 2.15 %       | 35.5 µs, 1.33 %            | 0                 | 6           |
 | `shimmer`         | Shimmer            | live-mix            | reverb     | 10     | 26,901 B  | 70.4 µs, 2.64 %       | 39.1 µs, 1.47 %            | 0                 | 4           |
+| `shortwave`       | Shortwave          | live-mix            | instrument | 12     | 34,955 B  | 14.3 µs, 0.53 %       | 20.0 µs, 0.75 %            | 0                 | 4           |
+| `skipping-stone`  | Skipping Stone     | live-mix            | delay      | 10     | 23,593 B  | 8.6 µs, 0.32 %        | 9.4 µs, 0.35 %             | 0                 | 12          |
 | `spectral-blur`   | Spectral Blur      | live-mix            | texture    | 9      | 18,615 B  | 42.8 µs, 1.60 %       | 53.1 µs, 1.99 %            | 2304              | 4           |
 | `spring-reverb`   | Spring             | live-mix            | reverb     | 9      | 22,946 B  | 33.2 µs, 1.25 %       | 26.1 µs, 0.98 %            | 0                 | 4           |
+| `staircase`       | Staircase          | live-mix            | instrument | 11     | 28,945 B  | 18.1 µs, 0.68 %       | 34.9 µs, 1.31 %            | 0                 | 4           |
 | `stereo-detune`   | Stereo Detune      | live-mix            | spatial    | 8      | 25,561 B  | 51.9 µs, 1.95 %       | 28.9 µs, 1.08 %            | 0                 | 4           |
+| `string-bass`     | String Bass        | live-mix            | instrument | 10     | 27,976 B  | 20.4 µs, 0.77 %       | 6.2 µs, 0.23 %             | 0                 | 4           |
 | `string-machine`  | String Machine     | live-mix            | instrument | 10     | 19,113 B  | 31.0 µs, 1.16 %       | 22.4 µs, 0.84 %            | 0                 | 4           |
+| `sub-bass`        | Sub Bass           | live-mix            | instrument | 10     | 18,949 B  | 20.4 µs, 0.76 %       | 20.6 µs, 0.77 %            | 0                 | 4           |
 | `sustainer`       | Sustain            | live-mix            | texture    | 11     | 41,796 B  | 23.9 µs, 0.90 %       | 23.8 µs, 0.89 %            | 0                 | 4           |
 | `swarm-reverb`    | Swarm Reverb       | live-mix            | reverb     | 12     | 28,358 B  | 51.3 µs, 1.93 %       | 31.6 µs, 1.18 %            | 0                 | 4           |
 | `swell`           | Swell              | live-mix            | dynamics   | 8      | 4,842 B   | 3.9 µs, 0.15 %        | 5.2 µs, 0.20 %             | 960               | 4           |
@@ -164,12 +192,14 @@ hold 8 notes).
 | `vowel-reverb`    | Vowel Reverb       | live-mix            | reverb     | 12     | 42,778 B  | 106.1 µs, 3.98 %      | 53.0 µs, 1.99 %            | 0                 | 4           |
 | `wavetable`       | Wavetable          | live-mix            | instrument | 12     | 25,229 B  | 48.4 µs, 1.82 %       | 35.9 µs, 1.34 %            | 0                 | 5           |
 | `west-coast`      | West Coast         | live-mix            | instrument | 12     | 31,237 B  | 115.7 µs, 4.34 %      | 8.2 µs, 0.31 %             | 0                 | 4           |
+| `wind-harp`       | Wind Harp          | live-mix            | instrument | 12     | 35,654 B  | 17.7 µs, 0.67 %       | 29.2 µs, 1.10 %            | 0                 | 4           |
 | `zither`          | Zither             | live-mix            | instrument | 13     | 50,006 B  | 50.8 µs, 1.91 %       | 27.9 µs, 1.05 %            | 0                 | 4           |
 | `zone-sampler`    | Zone Sampler       | live-mix            | instrument | 7      | 32,368 B  | 48.0 µs, 1.80 %       | 6.5 µs, 0.24 %             | 0                 | 64          |
 
 What the table does not show:
 
-- **`ember` and `bowed-string` are `experimental`.** Ember's default patch
+- **`ember`, `bowed-string` and `prepared-piano` are `experimental`**
+  (Prepared Piano: see the invented instruments below). Ember's default patch
   costs 2.9 % with eight notes, but unison multiplies it: the Super Saw preset
   (seven unison voices) measures 8.7 % with eight notes. Eight bowed notes
   cost 4.1 %, and the worst case (twelve, with the detuned second string)
@@ -202,6 +232,59 @@ What the table does not show:
   natively). Sustain analyses once per caught note: up to three blocks of a
   catch cost 6 to 9 % of their time, the rest under 1 %. Low Bitrate (4,096
   samples), Vintage Digital (129) and the two drives (39) report latency.
+- **The two kits** (Drum Kit, Glitch Kit) play one-shots, so the wasm figure,
+  eight notes held for ten seconds, is of hits that have died and a device
+  asleep. Read the native one: a busy bar on every key, played round. Before
+  the Drum Kit's noise envelope was flushed its tail ran on subnormals and the
+  same bar cost 1.8 %.
+- **The four bass instruments** (Acid Bass, FM Bass, String Bass, Sub Bass)
+  are one voice each, but for String Bass, which has four strings. Only Sub
+  Bass holds its default patch: the wasm figures of the other three are of
+  notes that die inside the ten seconds and a device asleep for the rest, so
+  read their native ones (a note held on Acid Bass and FM Bass, eight keys
+  over the four strings). Sub Bass at its heaviest (everything up, a key
+  every 100 ms) costs 0.9 % natively.
+- **The thirteen invented instruments** (Afterglow, Droplets, Feedback,
+  Flock, Graft, Ice, Magnet Piano, Overtone, Prepared Piano, Rewind,
+  Shortwave, Staircase, Wind Harp) were measured apart from the rest: the
+  native column is from the CI job of the pull request that added them (a
+  faster core: the Harp read 0.44 % there against the 0.53 % of its row), the
+  wasm column is CPU time on a cloud machine (the Harp read 0.70 % there
+  against 0.64 %). Eight held notes of the default patch stay under 2.2 % in
+  wasm, Graft the dearest. Heaviest loads measured in wasm: Ice far off with
+  the shore full and the lake cracking at its full rate 3.8 %, Wind Harp with
+  four strings, Ring 20 s and Gust 1 3.0 %, sixteen Afterglow keys 2.8 %,
+  Magnet Piano with Hammer and Bright at 1 2.6 %, Rewind with eight keys in an
+  8 s swell and Ghost and Shimmer full 2.2 %; the worst preset of each of the
+  others costs at most 2.3 %. **Prepared Piano is over the flag when it is
+  struck hard and often:** a strike wakes up to 42 partials a key, which go
+  to sleep as they die, so its cost follows the playing, not the notes held.
+  Eight notes held cost 1.1 %, eight keys struck every second 3.6 to 3.9 %,
+  and all twelve voices struck twice a second 6.2 % (2.8 % natively), so it is
+  `experimental`.
+- **The third ambient round** (Canon, Constellation, Distance, Falling, Fog,
+  Generations, Glints, Melt, Orbits, Skipping Stone: ten effects): every one
+  is under the flag at every setting its second checker could build. The wasm
+  column is that checker's own loop on the default patch, CPU time of the
+  process and the lowest of several runs, not the smoke test (Falling's and
+  Fog's are wall clock on a quiet machine). Dearest settings in wasm:
+  Constellation with skies crossing all the time 2.1 % (1.2 % with twelve
+  stars at rest), Falling 1.9 % (1.4 % of CPU time), Generations with five
+  controls moved on every block 1.8 %, Canon with four transposed crabs and
+  Gap moved on every block 1.6 % (its dearest single block, where two splices
+  search at once, takes 4.8 % of its time), Orbits cutting over all the time
+  1.5 %, Skipping Stone 1.4 % (2.5 % with First moved on every block), Glints
+  1.2 %, Fog 1.3 %, Distance 1.0 %, Melt 0.7 %. At 96 kHz Falling costs
+  2.9 %, Glints 2.4 %, Orbits 2.1 %, Fog 1.9 % and Melt 1.5 %. The native
+  column is CPU time at the defaults: the second checker's figure for Canon,
+  Fog, Melt and Orbits; for the other six, whose checkers had only readings
+  from a loaded machine, the lowest of three goes of one loop over each
+  device's C API on a held chord (eleven runs of five seconds a go). That loop
+  read a third to three quarters of the checkers' figures on the four both
+  measured (Fog 0.44 %, Melt 0.47 %, Orbits 0.45 %, Canon 0.37 %), so the
+  native column of these ten is rough. Canon, Generations and Orbits keep
+  32 MB each for their lines and loops, Skipping Stone 12, Falling 10,
+  Constellation and Melt 8. None reports latency.
 - **Memory** is the module's fixed linear memory (`memoryMb`), which holds the
   delay and sample buffers: 20 to 24 MB for the long loops and the sampler,
   64 MB for the zone sampler's pool of sounds ([zone-sampler.md](./zone-sampler.md)).
@@ -276,11 +359,84 @@ None of these twenty-five has been listened to. Each was built by one worker and
 | `zone-sampler`    | Nobody has listened to it; not loaded with an instrument another tool made; the previews play three built-in tones, so its bank presets are untried on real instruments                                                                               | A loop's crossfade on a real recording; keys between two zones; a steal at 48 voices           |
 | `outdoors`        | Birds are whistled syllables and frogs a formant buzz, so both may read as synthetic                                                                                                                                                                  | Birds, the frog buzz, the near crack of thunder                                                |
 
+### The third ambient round: what measurement says is weak
+
+None of these ten has been listened to. Each was built by one worker and checked by a second, who rebuilt it, rendered every preset on played material, moved every control while sounding, fed it broken samples and measured what the builder had said was weak; where the two disagree the second is given here. What that left open, effect by effect, so the first listen knows where to go:
+
+| Device           | Weak or unproven                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Listen first                                                                                                                                                                                                                              |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `constellation`  | A held pure tone through the dry sound and the echoes swings by many dB as they line up and cancel (default: the quietest quarter second 15 dB under, the loudest 7 dB over; "Centre dust" 27 dB under at its worst), a chord of many partials within 2 dB; Again at the top with Tone open sits 2.9 dB over on held noise; every echo passes a pair of all-pass chains, so the shape of a drum's first milliseconds is not the shape that went in; the presets heavy on Again are quiet on a short phrase ("Endless sky" 3.1 LU under)                                                                                                                                                                                                                                                                                                                                                                                           | A held organ note or sine pad through the default and "Centre dust"; a snare through "Wide pair" and "Close flicker"                                                                                                                      |
+| `skipping-stone` | Drop gives each skip its own pitch, so the skips of a held note beat ("Sinking away" on a pure tone: the skips swing 14 dB under to 5 dB over about 1.5 times a second) and a sharp attack lands up to 30 ms early or late; an even throw combs a held tone (14 dB under to 3 over by frequency); Ripple's rings repeat every 33 ms in their last tenth; the skips are mono; "Long way out" takes about three minutes to fall 60 dB; the top third of Loss does little                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Held notes through "Falling steps", "Endless descent" and "Sinking away"                                                                                                                                                                  |
+| `orbits`         | A level hold on the old layers is level-true by measurement and unheard: for a fifth of a second after playing stops the old layers are still pressed (up to 10 dB when the playing was in time with the loop), and nonstop playing at Feedback over 0.7 presses them about 3 dB a pass; loops that have not yet slid apart add (five loops at Offset 0.1 % come back 7 dB hot at the first return; "Pulse pair" 3.5 LU over on a held chord); a held pure tone breathes as the loops phase; Feedback at 1 keeps an offset it was given; the default rings for 227 s                                                                                                                                                                                                                                                                                                                                                              | "Never fades", and the default with a figure played in time with the 2 s loop; a struck note over a full loop                                                                                                                             |
+| `generations`    | The level hold in the loop was rewritten by the second checker and is unheard; the first loops after playing stops fall 2 to 7 dB faster than Keep says; dense playing at a high Keep meets the ceiling ("Long patience"); Width up loses to the mono sum as a loop ages (8.7 dB under by the thirty-second pass); Length moved while sounding repeats or cuts a slice; "Tones alone" sits 3.5 LU over                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Playing over an old loop at the default and on "Room tone hangs"; the first seconds after stopping; the mono sum                                                                                                                          |
+| `melt`           | With Sag at 0 a single held pure tone sits 5 to 7 dB under its mean at times ("Still halo"; 12 dB with Hold at 20 s), and the level hold dips on that preset; a held pure tone against its own sliding tail beats by 3 to 9 dB; Dim at 0 still darkens the very top; the lower half of Size changes little                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | The default on a piano: is 30 cents a second plain enough; held notes on "Still halo"; "Sudden slump"                                                                                                                                     |
+| `falling`        | Very bright sound bent far down loses its top (a 16 kHz tone at Fall -24 comes back 12.7 dB under), and rising grains start duller, both from the guard against aliasing; Again at 0.95 on full-scale input peaks at twice full scale; the top of Density does nothing at long Sizes (sixteen grains at once is the most); the display shows two grains a reading                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | A held chord through "Sinking drone", "Stairs down" and "Deep well", for the level hold; "Rising mist" on bright material; cymbals at Fall -24                                                                                            |
+| `glints`         | On a pure sustained sound the sparks stand up to 6 dB over its peak, and all wet with Sparkle over 0.6 they peak 8 dB over the input; how Follow weighs loudness against brightness is untuned; the Overtones lie between the keys (the fifth harmonic 14 cents flat, the seventh 31), as the description says                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | The default on a flute or a sine pad                                                                                                                                                                                                      |
+| `fog`            | Mix near the middle cancels held notes at some pitches, so the presets keep to the ends, and the three at Mix 0.2 ("Thin veil", "Bright haze", "Upper glow") are doubted; Width, rebuilt in a third pass after the bank's chains showed it rising and falling along the knob, now turns the right side against the left by one angle at every pitch (65 degrees at 1), so the sides top out 3.8 dB under the middle and a held key loses at most 1.6 dB in mono; the ladder of all-passes that does it holds the lows back a few milliseconds and is unheard; under Mix 1 the dry sound against the cloud can still take a note down in mono ("Morning mist" 4.9 dB under at its worst key); Size moved bends the pitch and can let a tone out at three times its level; Soften also softens slow deep beats; Drift at 1 wavers high notes by up to 2.6 dB at 8 kHz                                                               | A bright held pad through "Soft cloud" and "Deep fog"; a low held chord with Soften at 1; the three Mix 0.2 presets against bypass                                                                                                        |
+| `distance`       | The room, rebuilt by the second checker as nested all-passes to take the ringing notes out, is unheard, and so is its drawing in with the source, added in a third pass after the bank's chains showed far reading wider than near (now 6.5 dB narrower at 32 m at Width 0.5, 14 dB at Width 1); at the default, where the direct sound and the room are equally loud, one held pure tone sits up to 11 dB under at its worst pitch while the source stands still (7 dB with the default's walk), and "Through fog" folds a single held note up to 16 dB under in mono where a chord loses half a dB; Level is a model of the power of pink noise, so the presets land 2.0 LU under to 1.4 over on a played phrase; the room's first return is prompt in a small room with a long Decay; Decay turned near its foot bends what is ringing; the fastest walks were not measured for their sound ("Restless" bends up to 352 cents) | A click, then a held chord, through "Far shore", "Lost in the hall" and "Stone stairwell"; the default against bypass (1.5 LU under the dry on a played phrase), and one held note through it in mono                                     |
+| `canon`          | A single line through a transposed follower is clean (55 dB down), a dense chord is not (8 to 19 dB of its power beside the partials, which no two-head splice betters); a level hold on the round, new in the last pass and unheard, stays turned down for a lap and a quarter after a loud held sound and moves with the playing at the shortest gaps; the first lap after a held chord falls by 0.75 where Round says 0.85; unison followers comb a held chord, so its level follows the pitch (0.5 to 4.5 dB over at the default); a crab's join moves a pad by 1.8 dB, a transposed crab is 6 to 24 ms late, and its gaps are counted from the first note after a rest, so playing that never rests is cut where it falls; "Endless round" is 48 dB down 55 s after the playing                                                                                                                                              | A loud chord held through "Endless round" and let go, then a quiet line after a short rest; struck notes through "Octave shadow" and "Triad from one line"; a held full chord through "Canon at the fifth"; a phrase through "Crab canon" |
+
+### The two kits: what measurement says is weak
+
+Neither kit has been listened to. Each was built by one worker and checked by
+a second, who rebuilt it, played every key at five octaves and three sample
+rates, swept every control and broke the code on purpose to see the harness
+catch it (63 changes to the Drum Kit, 43 caught at first and all that change
+the output caught now). What that left open:
+
+| Device       | Weak or unproven                                                                                                                                                                                                                                                                                 | Listen first                                                                               |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| `drum-kit`   | Every drum is a model, none a recording, and whether a kick reads as a kick is unheard; short or dark also means quieter for the hats and shaker (Length 0.25: shaker 11 dB down); Drive is louder (1 to 5 dB at 1); a drum struck at two octaves at once is one drum, the second cuts the first | The four kits on one bar; "Muffled"; the hats with Tone turned down; a kick an octave down |
+| `glitch-kit` | A click's level is set as it is struck, so Tone moved under a ringing crackle does not re-level it; under Crush 1 a click's level wanders 6 dB with its octave; in a stutter the click grain is 10 dB under the pip grain in energy at equal peak; Crush does nothing below 0.04 at 44.1 kHz     | Clicks up and down the octaves; "Low bitrate kit"; the stutter with Scatter up             |
+
+A drum is one drum whatever octave its key is in: struck at two octaves at
+once, the second strike cuts the first in 4 ms. Closed hat and shaker choke
+the open hat in the order notes arrive, so an open hat then a closed one in
+the same block leaves only the closed one. The keys of both kits are in
+`rhythm.ts` (`KIT`, `FAULT`) and in [factory.md](./factory.md#kits).
+
+### The four bass instruments: what measurement says is weak
+
+None of the four has been listened to. Each was built by one worker and read
+by a second, who measured the pitch of every preset from E0 to A3 at several
+sample rates, looked for a click at every kind of key change, played every
+preset on a bass line, moved every control end to end against what its
+description says and broke the device on purpose to see whether its harness
+noticed. What that left open:
+
+| Device        | Weak or unproven                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Listen first                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `sub-bass`    | A sine with harmonics added up to the seventh, so its held presets differ mostly in how they start, fall and glide; "Pure sine" has nothing over its fundamental and is not heard on small speakers; with Volume at the top a high key folds back 37 dB down; the keys of a chord that land together over a note still ringing slide from one to the next in Glide, where out of silence they sound at once                                                          | "Soft sub" against "Pure sine" on the speakers a piece is for; "Deep dive"           |
+| `fm-bass`     | "Held hum" and "Deep weight" (Ratio 1/2) sound an octave under the key; at Ratio 1/2 with Depth near the top, Sub cancels that lower partial (no preset goes there); "Low growl" struck at full gain has its fundamental 22 dB under the rest for 0.15 s; the loudest corner (Ratio 7, Depth 0.95, Sub 1, from B flat 4) passes the clip knee                                                                                                                        | "Low growl" played hard; "Held hum" for the octave it reads as                       |
+| `acid-bass`   | A key pressed over a held one slides, comes back to full loudness and does not strike the filter or the accent again, so a line of keys that all overlap opens the filter once; an accent (a key struck over 0.7) also shortens the decay, a second straight after opens the filter further and a third adds 2 % more; a hard key tied over a held one is 6 dB louder though it strikes nothing; at C4 "Held sub tone" and "Dub weight" are 14 dB thinner than at A1 | "Rubber slides" and "Long glide drone" with overlapping keys; Drive on a dark square |
+| `string-bass` | Growl is trains of impulses through a band-pass, not a model of a string on a neck; Mute at the top flattens a note by up to 8 cents; four strings struck at full gain pass the clip knee on thirteen presets (by up to 8 dB on "Near the bridge") and one string does on three; every pluck differs a little by design, so a loop made of it never comes round to the same samples; the upright's thump has no pitch                                                | "Singing fretless" on a slow line; "Slapped upright"; four low strings played hard   |
+
+### The invented instruments: what measurement says is weak
+
+Instruments of ideas that no one instrument has: each was built by one worker
+and checked by a second who had not seen it written, and none has been heard.
+
+| Device           | Weak or unproven                                                                                                                                                                                                                                                                                                                                                                                             | Listen first                                                                                                            |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------- |
+| `flock`          | One held note breathes as its voices beat (2.5 to 4 dB under its median a tenth of the time at the default); "Falling in" on a low note dips 16 dB for up to 1.2 s; Birds, Gather, From and Octaves act from the next key press                                                                                                                                                                              | "Evening flock" on a chord and its release; Stray turned to 0 under a held chord; "Hollow pair" held; "Falling in" low  |
+| `magnet-piano`   | Harmonic 8 is 5 to 46 cents sharp of the keyboard, as a stiff string's is; the hammer's contact leaves corners near -60 dBFS under each strike; Hammer and Bright both at 1 cost 2.6 % with eight notes                                                                                                                                                                                                      | A held "Glass swell" note; "Soft hammer" trilled; "High whistle"; "Slow tide"                                           |
+| `overtone`       | Over a minor chord the walk puts a major third (harmonics 5 and 10) on every note; from C6 up the whistle gives way and a key is a plain tone; "Open vowels" is a moving vowel more than a whistle                                                                                                                                                                                                           | A minor chord at the default; "Reed drone" on a chord; C6 up                                                            |
+| `staircase`      | In Chord with a full chord 7 of 32 steps still read downward and the register circles over two thirds of an octave; one key with Chorus in Chord pumps 4 to 6 dB; steps at Slide 0 are corners (1 % of peak); Span 2 folds across octaves                                                                                                                                                                    | "Chord stairs" on a full chord; "Sliding chord" on one key; a quick arpeggio at Slide 0                                 |
+| `shortwave`      | Voices may still read as a breathy organ; a jump of Band leaves a faint zipper 55 dB under the note; Fading 1 with a 3 s attack sits 5 dB under unfaded; the first note after silence always fades the same way; the low drone presets are near pure sub-bass sines                                                                                                                                          | "Far whistle" on a chord; "Far voices"; "Lost station"; "Slow dial"                                                     |
+| `ice`            | Sixteen strikes a second on one key reach -5.7 to -3.3 dBFS on six far presets; echoes and the lake's own cracks meet a ringing note in random phase, some dB either way; long rings with the lake at full fill the voices with ghosts an octave up; the dearest setting costs 3.8 %                                                                                                                         | "Far crack" and "Zing" (the chirp is measured, not heard); "Brittle snap" with many keys; fast rolls on the far presets |
+| `rewind`         | Notes that land within 40 ms share one strike, a choice that needs ears; on low bell keys the tallest sample comes 14 to 80 ms after the strike; Tone moves loudness 7.6 dB; Tail or Snap moved after a note starts is not levelled again                                                                                                                                                                    | An eight-key chord on "Snap shut"; "Held bowl" held and let go                                                          |
+| `droplets`       | A full-gain triad at Splash 1 with Size 0 peaks over the knee (0.66); a felt thud varies up to threefold from drop to drop; on "Tin roof" the rain sits within 3 dB of the strike, on "Slow drip" and "Deep pool" the strike is 9.6 dB over; wood and water are the closest surfaces (3.0 dB apart)                                                                                                          | A five-note chord on "Glass rain"; felt at Splash 1; "Wood ticks"; "Tin roof"                                           |
+| `prepared-piano` | Eight notes struck every second cost up to 3.9 % in wasm and twelve at full gain twice a second 6.2 %, so it is `experimental`; the thud is the same on every key, so the knocks of a chord add in step; ten keys at 0.7 pass the clip knee in five presets; "Wood blocks" sits 4.6 dB under the middle preset                                                                                               | The default (is the buzz too much?); "Paper sizzle"; one key repeated fast                                              |
+| `graft`          | A blown or bowed string at 28 Hz takes 0.6 to 0.8 s to speak; a hard mallet on high keys answers velocity by only 3.3 dB; held chords other than those measured reach the clip knee (0.51); the four percussive presets sit 3.5 dB under the middle one                                                                                                                                                      | "Blown bar", "Bowed bar", "Blown bowl" and "Bowed bowl" at high Pressure and Air; a held note at Wander 0.3             |
+| `wind-harp`      | That it reads as wind on strings and not as moving sines is measured, not heard; every preview plays the first weather (strong for 3 s, then falling); the costliest setting (four strings, Ring 20 s, Gust 1) costs 3.0 %                                                                                                                                                                                   | The default on a held chord for 30 s; "Night wind"; "Long lulls"                                                        |
+| `afterglow`      | A key struck again adds its strike to the glow in phase, up to 4.6 dB over one strike; "Slow bloom", "Restless light" and "Only the glow" swell 1 to 4.5 dB after a short run, as meant; sixteen keys cost 2.8 %; with Width up an overtone's glow blooms on the other side from its strike (4.0 dB to the far side at the default, the strike 2.1 dB to the near), which the code's own names do not intend | "Felt afterglow" on one key repeated, then a fast run; a held "Bell halo" chord                                         |
+| `feedback`       | Chords sit low (one note peaks at -22 dBFS); Bloom reaches the held level in 0.6 of its time; a chord with octaves on "Out of the hum" and "Edge of hold" beats 1.2 to 4.3 dB over minutes; a held note is up to 4 cents sharp; Grit lowers the Gain a note holds from (0.5 at Grit 0, 0.27 at Grit 1), though Gain's description gives the middle                                                           | "Fighting chord" and "Singing string" chords held for 30 s; "Out of the hum" on a low E                                 |
+
 ## Effect presets
 
-Every effect comes with presets of its own: sixteen each, fewer for the eight
+Every effect comes with presets of its own: sixteen each, fewer for the nine
 that say why not in `FEWER_PRESETS` (`src/dsp/__tests__/effect-preset-support.ts`),
-824 over the 54 effects. A preset lists only what it changes and, loaded by
+996 over the 65 effects. A preset lists only what it changes and, loaded by
 name, puts the rest back where the effect starts, so what it sounds like does
 not depend on the preset that was on before.
 
@@ -376,6 +532,95 @@ listen:
   presets sit 3 to 6 LU under the dry phrase; "Piano to pad" on `swell` is
   8.6 LU under. The presets with "alone" or "only" in the name are all wet,
   for a send.
+
+## Instrument presets
+
+Every instrument comes with sixteen presets of its own (Ember has seventeen),
+657 over the 41 instruments: the list a player steps through where the
+instrument stands, apart from the bank's sounds, which are an instrument with
+effects after it. Until this list was filled most instruments had six.
+
+Each is played alone, with no effect after it and not normalised, on the
+phrase most of the instrument's bank sounds are auditioned with, and measured
+(`src/dsp/__tests__/instrument-presets.test.ts`, in `pnpm test`; the limits
+are `INSTRUMENT_PRESET_LIMITS` in `instrument-preset-support.ts`). A preset
+passes when it
+
+- puts out numbers, is heard (the loudest 400 ms over -50 dBFS), peaks under
+  -3 dBFS and leaves no offset;
+- has its loudest 400 ms within 6 dB of the middle preset of its instrument,
+  so stepping through the list does not send a hand to the fader;
+- is 1 dB or more from every sibling on the print the bank's sounds are told
+  apart by (`soundPrint`, `printDistance`);
+- has a name of 20 characters at most, as it stands beside the instrument's.
+
+Thirty-nine presets that shipped before the limits sit outside one of them and
+stay as they shipped, listed with what each is outside of in `AS_SHIPPED`: a
+shipped preset never changes what it loads. No preset written since is let
+off. The level is measured against the middle of the list, so a preset added
+to a list can carry a shipped one across the line.
+
+`INSTRUMENT_REPORT=1 INSTRUMENT_PRESETS=harp pnpm vitest run src/dsp/__tests__/instrument-presets.test.ts`
+prints, for one instrument, what each preset measured, its nearest sibling and
+how far apart they are, and writes the same to `tmp/instrument-presets/`.
+
+What the measure does not hear, so what a preset's name rests on is the DSP as
+it was read: the phrase's notes are short and overlap, so a glide, a slow
+vibrato, a roll and an attack of seconds are under-measured; the print mostly
+follows level over time, less so timbre; and nobody has listened to them.
+
+What reading the instruments for these presets turned up, none of it changed
+here:
+
+- `ladder-bass`: Wave mixes a saw and a square of opposite polarity, so near
+  0.42 every odd harmonic cancels and the note is a saw an octave up, about
+  11 dB quieter; the shipped "Singing lead" (0.3) and "Rubber pluck" (0.6) sit
+  in it. At Beat 0 the two oscillators are never brought back in step, so a
+  preset with no beat can come up thin after one with a beat.
+- `thesis`: it has no volume, and a low Resonance is far louder (every band
+  shares one noise source); Rate does nothing in Gravity.
+- `tine-piano`: Drive has no make-up, so a loud note gets quieter as it rises.
+- `bowed-string`: Position is barely heard under the bow; only Pluck hears it.
+- `handpan`: in the tongue drum Shimmer moves only the weak octave.
+- `modal-bells`: Release does nothing while it is longer than Decay.
+- `flute`: Chiff does next to nothing at attacks over a tenth of a second.
+- `organ`: Breath at full is about 19 dB under one held key.
+- `felt-piano`: the pedal's noise sounds only when Sustain crosses halfway.
+- `sampler`: Crossfade is ignored unless Loop is Forward.
+- `zone-sampler`: its three built-in tones have nothing above about 2.6 kHz.
+- `wavetable`: Spread widens nothing while Detune and Motion are both 0.
+- `drone`: Shape does nothing at Partials 0. `west-coast`: Colour does
+  nothing on a pure sine.
+
+What reading them once more for their displays turned up, none of it changed
+either:
+
+- `bowed-string`: with Release at or over Decay, a string let go in Sustain or
+  Bow keeps the loss it had while driven, because `shape()` is not run again
+  (`bowed_string.h`, the two release paths): at 880 Hz with Decay 6 it rings
+  2.9 s, not 6.
+- `handpan`: `Handpan::start` draws a note's size and its sign in one product,
+  so which is drawn first is the compiler's choice. gcc and clang draw the
+  size first; the WASM build's order was not checked.
+- `modal-bells`: `ModalBells::gains` tilts Brightness by a mode's ratio before
+  Stretch, so Stretch moves a mode without moving how bright it is.
+- `tine-piano`: the header says the right side's tremolo is behind the left;
+  the code puts it ahead. The sound is as the code has it.
+- `harp`: Sweep rolls only the keys that arrive in one block of 128 frames
+  (`Harp::schedule`), so a chord from a clip is rolled and the same chord
+  played by hand, its keys a few milliseconds apart, never is.
+- `ember`: at Unison 8 with Unison Detune 0 the copies start an eighth of a
+  cycle apart and stay there, so they cancel: the fundamental comes out about
+  18 dB down (measured).
+- `thesis`: Resonance above 50 changes nothing (the output is the same to the
+  bit), Gravity only puts bands a fifth up, and Root C stops at B6. Its
+  `StereoWidener::AllpassFilter::process` stores its input, not its output, so
+  it is a feed-forward comb and not an allpass: past Width 75 a band's level
+  swings with its pitch and its side (880 Hz at Width 80 comes out 15 dB down
+  on the left and 1.5 dB down on the right).
+- `drum-kit`: `drum_kit.h` says a hit's hardness is 1 at the reference gain
+  of 0.7; `0.5 + 0.7 * gain` gives 0.99 there. The comment is off, not the
+  sound.
 
 ## ambient-limiter: auto gain
 

@@ -431,4 +431,88 @@ export const ECHO_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'vowel-reverb', preset: 'Oo behind' },
     ],
   },
+  {
+    id: 'scattered-stars',
+    name: 'Scattered stars',
+    category: 'echo',
+    description:
+      'Ten echoes scattered over three and a half seconds, never on a pulse, each on its own side; Shuffle deals another sky.',
+    effects: [
+      {
+        deviceId: 'constellation',
+        preset: 'Scattered seven',
+        params: { span: 3600, stars: 10, again: 0.4 },
+      },
+    ],
+  },
+  {
+    id: 'stars-in-fog',
+    name: 'Stars in fog',
+    category: 'echo',
+    description:
+      'Seven scattered echoes with every attack blurred into a soft cloud, so the repeats arrive as swells; Size sets how long a cloud lasts.',
+    effects: [
+      { deviceId: 'constellation', preset: 'Scattered seven', params: { mix: 0.5 } },
+      { deviceId: 'fog', preset: 'Soft cloud', params: { size: 220, soften: 0.5 } },
+    ],
+  },
+  {
+    id: 'stone-over-water',
+    name: 'Stone over water',
+    category: 'echo',
+    description:
+      'Echoes that land closer and closer together, each softer and duller, crossing from left to right; Bounce past the middle spreads them out.',
+    effects: [{ deviceId: 'skipping-stone', preset: 'Skipping stone', params: { mix: 0.45 } }],
+  },
+  {
+    id: 'sinking-stones',
+    name: 'Sinking stones',
+    category: 'echo',
+    description:
+      'Echoes close up like a skipping stone, and the tail behind each landing sags in pitch as it fades; Sag sets how fast it sinks.',
+    effects: [
+      { deviceId: 'skipping-stone', preset: 'Skipping stone', params: { mix: 0.45 } },
+      { deviceId: 'melt', preset: 'Slow melt', params: { mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'turning-loops',
+    name: 'Turning loops',
+    category: 'echo',
+    description:
+      'Three loops a hair apart in length record what you play and slide slowly out of step; Offset sets how fast they part.',
+    effects: [{ deviceId: 'orbits', preset: 'Slow phasing' }],
+  },
+  {
+    id: 'sparks-in-orbit',
+    name: 'Sparks in orbit',
+    category: 'echo',
+    description:
+      'Bright sparks above the playing are caught by three loops of unequal length and come round in patterns that keep shifting; try Density.',
+    effects: [
+      { deviceId: 'glints', preset: 'First light', params: { density: 7 } },
+      { deviceId: 'orbits', preset: 'Out of step' },
+    ],
+  },
+  {
+    id: 'round-of-three',
+    name: 'Round of three',
+    category: 'echo',
+    description:
+      'Three followers repeat what you play, each a second and a half after the last, so one line becomes a round; Gap sets the wait.',
+    effects: [{ deviceId: 'canon', preset: 'Round of three' }],
+  },
+  {
+    id: 'bowed-procession',
+    name: 'Bowed procession',
+    category: 'echo',
+    description:
+      'Attacks fade in like a bow, then four followers repeat each note about two seconds apart, each darker, in a hall; Gap sets the wait.',
+    effects: [
+      { deviceId: 'swell', preset: 'Bowed' },
+      { deviceId: 'fet-limiter', params: { inputGain: 6, outputGain: -1 } },
+      { deviceId: 'canon', preset: 'Slow procession' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+    ],
+  },
 ]

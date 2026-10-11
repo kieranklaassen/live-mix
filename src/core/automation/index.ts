@@ -36,7 +36,9 @@ export {
   Macro,
   Random,
   breathLaw,
+  lfoPhaseAt,
   lfoWaveform,
+  randomValueAt,
   renderModulator,
   type EnvelopeFollowerOptions,
   type ExternalPhaseOptions,
@@ -47,6 +49,18 @@ export {
   type RandomOptions,
 } from './Modulator'
 export { nodeDeviceParam } from './node-device-param'
+export {
+  modulatedParamValue,
+  paramModOffset,
+  paramModReach,
+  paramModSource,
+  paramModSourceValue,
+  paramValueAtOffset,
+  type ParamModRoute,
+  type ParamModSource,
+  type ParamModulation,
+  type ParamTravel,
+} from './param-modulation'
 export {
   ParamLane,
   SMOOTH_SEGMENT_STEPS,

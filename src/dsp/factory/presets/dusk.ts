@@ -395,4 +395,29 @@ export const DUSK_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'plate-reverb', preset: 'Long plate', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'dusk-locked-sub-bass',
+    name: 'Dusk locked sub bass',
+    category: 'bass',
+    description:
+      'A saw with a square sub locked an octave below, its filter closing on each note, through a console, widened only up high.',
+    instrument: {
+      deviceId: 'dusk',
+      params: {
+        wave: 0,
+        sub: 0.2,
+        cutoff: 320,
+        resonance: 0.2,
+        envelope: 0.4,
+        attack: 0.005,
+        release: 0.3,
+        chorus: 0,
+        volume: -3,
+      },
+    },
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Console' },
+      { deviceId: 'stereo-detune', preset: 'Classic', params: { focus: 300 } },
+    ],
+  },
 ]

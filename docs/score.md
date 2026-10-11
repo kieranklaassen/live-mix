@@ -66,7 +66,7 @@ ScoreDevice       { id, deviceId (registry id), preset?, params: { name: number 
 ScoreSend         { target: returnId, level: number | null }   null = direct connection
 ParamTarget       { kind: 'strip', owner: id | 'master', param: 'level' | 'pan' | 'inputGain' }
                 | { kind: 'device', device: instanceId, param: name }
-Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, chance?, pan?, lowpassHz?, spaceDb?, meta?)
+Clip              the core `Clip` record (id, sourceId, startSec, offsetSec, durationSec, fades, gainDb, loop?, loopStartSec?, loopEndSec?, warp?, semitones?, muted?, reversed?, chance?, turns?, pan?, lowpassHz?, spaceDb?, meta?)
 Breakpoint        the core `Breakpoint` (timeSec, value, curve?)
 ```
 
@@ -79,7 +79,15 @@ them.
 A clip with `muted: true` keeps its place in the document and is never
 started; muting one that is sounding stops it. A clip with a `chance` below 1
 sounds on that share of the loop's passes, the same ones every time for one
-`transport.seed` ([time](./concepts/time.md)). A clip with `reversed: true`
+`transport.seed` ([time](./concepts/time.md)). A clip with `turns`
+(`{ sourceIds, every? }`) plays another source each time its start comes
+round: `sourceIds[floor(pass / every) % sourceIds.length]`, counted on the
+same passes, so pass 14 plays the same source every time, in a bounce as on
+a device. Every source it names is one of the score's, `source.remove`
+refuses while a clip's turns still name it, and `clip.update` takes
+`turns: null` to play the clip's own `sourceId` again. A slot's clip keeps
+its turns the same way, and a launch puts them on the clip it places. Audio
+tracks only: a stretch or element track plays `sourceId`. A clip with `reversed: true`
 plays its slice of the source backwards on an audio track: one pass reads
 from the far end of the slice back to `offsetSec`, and a looping clip cycles
 backwards over its region. `mirrorSlice` and `reversedSourceSec` are that
@@ -337,6 +345,19 @@ through `nodeDeviceParam` and a `LaneWriter`; on any other device it runs
 through the matrix at control rate. Modulation ranges for strip parameters
 are `STRIP_PARAM_RANGES` (level 0..2, pan −1..1, inputGain 0..2). LFOs are
 anchored at audio-clock zero so a re-render lands on the same phase.
+
+Routes alone (no lane) onto a parameter of a device that moves its own
+(`isModulatedDevice`: a WASM device on the stock processor), from `lfo` and
+`random` modulators only, are not given to the matrix: the renderer hands
+the device their numbers (`device.modulate`) and the worklet works the value
+out on the audio thread, so it is smooth live and present in an offline
+render ([automation.md](./concepts/automation.md#a-device-that-moves-its-own-parameters)).
+One `macro` or `external-phase` route on the parameter, or a lane under it,
+and the whole parameter is the matrix's again. The document is the same
+either way, and a build from before this plays the same routes through the
+matrix. A host that builds devices by hand for a render of its own asks
+`scoreDeviceModulations(score, deviceId)` for what to make each one with
+(`registry.create(id, context, { params, modulations })`).
 
 ### What stays live
 
