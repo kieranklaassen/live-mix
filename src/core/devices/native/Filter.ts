@@ -1,5 +1,11 @@
 // A single BiquadFilterNode behind the Device contract: any of the eight
 // biquad responses, with frequency, Q and (for shelves and peaking) gain.
+//
+// `q` is one plain number for every shape: 0.707 is a cut with no peak at its
+// corner, 1 stands level with the passband there, 2 is 6 dB over it. The node
+// reads a low-pass's and a high-pass's Q in decibels and every other type's as
+// the number, so the device writes `20·log10(q)` while the type is a cut and
+// writes it again when the type turns between a cut and another shape.
 
 import { type ParamSpec } from '../../params'
 import { type DeviceDescriptor } from '../registry'
@@ -7,8 +13,10 @@ import {
   NodeDevice,
   type NodeDeviceGraph,
   type NodeDeviceOptions,
+  type ParamRamp,
   defineNodeDevice,
 } from './NodeDevice'
+import { cutQDb } from './units'
 
 /** Biquad responses by `type` index; the order is the param's 0..7 scale. */
 export const FILTER_TYPES = [
@@ -47,6 +55,11 @@ export function filterTypeAt(index: number): FilterType {
   return FILTER_TYPES[clamped]
 }
 
+/** Whether a response is a low-pass or a high-pass: the two whose Q the node reads in decibels. */
+export function isCutFilter(type: FilterType): boolean {
+  return type === 'lowpass' || type === 'highpass'
+}
+
 export const FILTER_PARAMS = {
   /** Stepped: 0 lowpass, 1 highpass, 2 bandpass, 3 lowshelf, 4 highshelf, 5 peaking, 6 notch, 7 allpass. Switches instantly. */
   type: {
@@ -81,7 +94,7 @@ export const FILTER_PARAMS = {
     taper: 'log',
     unit: '',
     description:
-      'Resonance at the cutoff for low-pass and high-pass; how narrow the band is for band-pass, peak, notch and all-pass. The shelves ignore it.',
+      'Resonance at the cutoff for low-pass and high-pass, where 0.71 is flat; how narrow the band is for band-pass, peak, notch and all-pass. The shelves ignore it.',
   },
   /** Only shelves and peaking use it. */
   gain: {
@@ -103,16 +116,31 @@ export const FILTER_DEVICE = defineNodeDevice({
   params: FILTER_PARAMS,
   build(context): NodeDeviceGraph<typeof FILTER_PARAMS> {
     const filter = context.createBiquadFilter()
+    // What the two controls last said: the node's Q is written from both.
+    let kind: FilterType = filter.type
+    let q: number = FILTER_PARAMS.q.default
+    const writeQ = (ramp: ParamRamp, rampSec?: number): void => {
+      if (isCutFilter(kind)) ramp(filter.Q, cutQDb(q), rampSec, 'decibels')
+      else ramp(filter.Q, q, rampSec)
+    }
     return {
       input: filter,
       output: filter,
       nodes: [filter],
       apply: {
-        type: (value) => {
-          filter.type = filterTypeAt(value)
+        type: (value, ramp) => {
+          const next = filterTypeAt(value)
+          const turned = isCutFilter(next) !== isCutFilter(kind)
+          kind = next
+          filter.type = next
+          // The type turns at once, so what the node's Q means does too.
+          if (turned) writeQ(ramp, 0)
         },
         frequency: (value, ramp) => ramp(filter.frequency, value),
-        q: (value, ramp) => ramp(filter.Q, value),
+        q: (value, ramp) => {
+          q = value
+          writeQ(ramp)
+        },
         gain: (value, ramp) => ramp(filter.gain, value),
       },
     }
@@ -136,7 +164,8 @@ export const FILTER_DESCRIPTOR: DeviceDescriptor<typeof FILTER_PARAMS> = {
   category: 'eq',
   description:
     'A single filter with eight shapes, from low-pass and high-pass to shelves, peak, notch and all-pass, for cutting or shaping one part of the spectrum.',
-  version: 1,
+  // 2: Q is one number for every shape. Under 1 a low-pass and a high-pass read it as decibels.
+  version: 2,
   params: FILTER_PARAMS,
   presets: {
     'Low-pass gentle': { type: filterTypeIndex('lowpass'), frequency: 4000, q: 0.5 },

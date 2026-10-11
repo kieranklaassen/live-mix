@@ -31,7 +31,7 @@ import {
 } from '../../core/devices/Device'
 import { type DeviceRegistry } from '../../core/devices/registry'
 import { normalizeParam } from '../../core/params'
-import { useDevice } from '../hooks/useParam'
+import { useDevice, type DeviceWrites } from '../hooks/useParam'
 import { formatParamValue, isChoiceParam, paramStep, paramTaper } from './control-math'
 import { DeviceMeterReadout, isBipolar, printedMeters } from './DevicePanel'
 import {
@@ -54,7 +54,7 @@ import {
 } from './plate-display'
 import { PlateDisplayLayer } from './PlateDisplay'
 import { DeviceToggle } from './Toggle'
-import { cx } from './tokens'
+import { cx, type DataAttributes } from './tokens'
 
 /** The grid a plate sits on: a 20 px cell. */
 const CELL = 20
@@ -435,6 +435,13 @@ export interface DevicePlateProps {
   skin: DeviceSkin
   /** Where to find the descriptor (name, presets); defaults to the provided engine's registry. */
   registry?: DeviceRegistry
+  /**
+   * Who takes what the controls set. A host that keeps its own document (an
+   * edit with its own undo) gives this, hears a control taken in hand and let
+   * go, and makes the device follow; left out, the device is written, or the
+   * arbiter that made it.
+   */
+  writes?: DeviceWrites
   /** The device's full name, for its label and its info text; defaults to the descriptor's. */
   title?: string
   /** Labels for choice parameters by name; overrides the labels a spec carries in `choices`. */
@@ -464,7 +471,15 @@ export interface DevicePlateProps {
   spread?: boolean
   /** Whether every knob shows from the start (default: only the face). */
   defaultOpen?: boolean
+  /**
+   * Whether every knob shows, for a host that keeps it: given, the plate holds
+   * no state of its own, and the cell that opens the rest only asks through
+   * `onOpenChange`.
+   */
+  open?: boolean
   onOpenChange?: (open: boolean) => void
+  /** More attributes for the cell that opens the rest: an app's own marks on it. */
+  moreProps?: DataAttributes
   /** Extra tools after the preset picker (a chain's move buttons). */
   actions?: ReactNode
   /** A line added to the plate's info text: how it is worked where it stands (a chain says it can be moved). */
@@ -484,6 +499,8 @@ export interface DevicePlateProps {
   className?: string
   style?: CSSProperties
   'data-testid'?: string
+  /** Any other `data-*` attribute goes to the plate itself, for a host that marks what a control does. */
+  [data: `data-${string}`]: string | undefined
 }
 
 const PictureLayer = memo(
@@ -541,6 +558,7 @@ export function DevicePlate({
   device,
   skin,
   registry,
+  writes,
   title,
   choiceLabels,
   showBypass = true,
@@ -549,7 +567,9 @@ export function DevicePlate({
   upright = false,
   spread = false,
   defaultOpen = false,
+  open: openGiven,
   onOpenChange,
+  moreProps,
   actions,
   hint,
   knobHint,
@@ -558,10 +578,12 @@ export function DevicePlate({
   className,
   style,
   'data-testid': testId,
+  ...data
 }: DevicePlateProps) {
-  const d = useDevice(device, registry ? { registry } : {})
+  const d = useDevice(device, { ...(registry ? { registry } : {}), ...(writes ? { writes } : {}) })
   const [presetName, setPresetName] = useState('')
-  const [opened, setOpen] = useState(defaultOpen)
+  const [openHere, setOpen] = useState(defaultOpen)
+  const opened = openGiven ?? openHere
   // A spread plate is open and stays so.
   const open = spread || opened
   const held = usePlateInHand()
@@ -620,7 +642,7 @@ export function DevicePlate({
   const roomy = roomyLetters(layout.column)
 
   const toggleOpen = (): void => {
-    setOpen(!opened)
+    if (openGiven === undefined) setOpen(!opened)
     onOpenChange?.(!opened)
   }
 
@@ -718,10 +740,12 @@ export function DevicePlate({
           ...style,
         } as CSSProperties
       }
+      {...data}
       data-testid={testId}
       data-lm-device={device.id}
       data-powered={powered ? 'true' : 'false'}
       data-finish={skin.finish}
+      data-lettering={skin.clearLettering ? 'clear' : undefined}
       aria-label={heading}
       onPointerDownCapture={held.take}
       {...infoProps(
@@ -848,6 +872,7 @@ export function DevicePlate({
           )}
           onClick={toggleOpen}
           data-testid={testId ? `${testId}-more` : undefined}
+          {...moreProps}
         >
           {open ? '−' : `+${rest.length}`}
         </button>

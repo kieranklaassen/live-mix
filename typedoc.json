@@ -5,6 +5,7 @@
     "src/index.ts",
     "src/dsp/index.ts",
     "src/react/index.ts",
+    "src/motion/index.ts",
     "src/testing/index.ts",
     "src/wam/index.ts",
     "src/native/index.ts"

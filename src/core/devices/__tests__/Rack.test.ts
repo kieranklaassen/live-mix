@@ -5,6 +5,7 @@ import { Macro } from '../../automation/Modulator'
 import {
   asAudioContext,
   createMockContext,
+  MockDelayNode,
   type MockAudioContext,
   type MockAudioNode,
   type MockGainNode,
@@ -77,6 +78,13 @@ function make(options: { currentTime?: number } = {}) {
 const asMock = (node: AudioNode) => node as unknown as MockAudioNode
 const delayEvents = (mock: MockAudioContext, index: number) =>
   mock.delays[index].delayTime.eventsFor('setValueAtTime')
+const delaySteps = (delay: AudioNode | MockDelayNode) =>
+  (delay as unknown as MockDelayNode).delayTime.eventsFor('setValueAtTime').map((e) => e.args)
+/** The delay a rack's dry path runs through, once something in the rack takes time. */
+const dryDelayOf = (input: MockGainNode, dry: MockGainNode): MockDelayNode | undefined =>
+  [...input.outputs].find(
+    (node): node is MockDelayNode => node instanceof MockDelayNode && node.outputs.has(dry),
+  )
 
 describe('Rack graph', () => {
   it('an empty rack is a pass-through: input → sum → wet → output beside input → dry → output', () => {
@@ -552,7 +560,64 @@ describe('Rack delay compensation', () => {
 
     rack.addChain({ name: 'C' })
     expect(rack.chains[2].compensationSamples).toBe(77)
-    expect(delayEvents(mock, 2)).toEqual([{ method: 'setValueAtTime', args: [77 / SR, 4] }])
+    expect(delaySteps(rack.chains[2].delay)).toEqual([[77 / SR, 4]])
+  })
+
+  it('holds its dry path back by its own latency, so a bypassed rack is as late as a working one', () => {
+    const { mock, rack, input, output, dry } = make({ currentTime: 4 })
+    const a = rack.addChain({ name: 'A' })
+    // Nothing in it takes time yet, and the dry path is as it was: no node is added for it.
+    expect(input.outputs.has(dry)).toBe(true)
+    expect(dryDelayOf(input, dry)).toBeUndefined()
+    expect(mock.delays).toHaveLength(1)
+
+    const late = fakeDevice(mock, 'late', 288)
+    a.addInsert(late)
+    expect(rack.latencySamples).toBe(288)
+    const dryDelay = dryDelayOf(input, dry)
+    if (!dryDelay) throw new Error('expected a delay on the dry path')
+    expect(input.outputs.has(dry)).toBe(false)
+    expect(dryDelay.outputs).toEqual(new Set([dry]))
+    expect(dry.outputs).toEqual(new Set([output]))
+    expect(delaySteps(dryDelay)).toEqual([[288 / SR, 4]])
+
+    // It follows the rack's latency, the longest chain, like the chains' own delays.
+    const b = rack.addChain({ name: 'B' })
+    const later = fakeDevice(mock, 'later', 500)
+    b.addInsert(later)
+    expect(delaySteps(dryDelay).at(-1)).toEqual([500 / SR, 4])
+    b.removeInsert(later)
+    expect(delaySteps(dryDelay).at(-1)).toEqual([288 / SR, 4])
+
+    // A bypass, of the rack or of what is in it, moves no delay.
+    const steps = delaySteps(dryDelay).length
+    rack.bypass = true
+    late.bypass = true
+    rack.bypass = false
+    expect(delaySteps(dryDelay)).toHaveLength(steps)
+
+    // With nothing left that takes time it stands at 0, and is the one delay still.
+    const delays = mock.delays.length
+    a.removeInsert(late)
+    expect(rack.latencySamples).toBe(0)
+    expect(delaySteps(dryDelay).at(-1)).toEqual([0, 4])
+    a.addInsert(fakeDevice(mock, 'again', 64))
+    expect(dryDelayOf(input, dry)).toBe(dryDelay)
+    expect(delaySteps(dryDelay).at(-1)).toEqual([64 / SR, 4])
+    expect(mock.delays).toHaveLength(delays)
+
+    rack.dispose()
+    expect(dryDelay.disconnectCalls.count).toBe(1)
+    expect(dryDelay.outputs.size).toBe(0)
+  })
+
+  it('holds the dry path back no further than its delay line reaches', () => {
+    const { mock, rack, input, dry } = make()
+    rack.addChain().addInsert(fakeDevice(mock, 'huge', 2 * SR))
+    expect(rack.latencySamples).toBe(2 * SR)
+    const dryDelay = dryDelayOf(input, dry)
+    if (!dryDelay) throw new Error('expected a delay on the dry path')
+    expect(delaySteps(dryDelay)).toEqual([[PDC_MAX_DELAY_SECONDS, 1]])
   })
 
   it('counts bypassed devices so toggling bypass never moves a delay line', () => {

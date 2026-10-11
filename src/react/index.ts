@@ -69,6 +69,7 @@ export {
   useDevice,
   useDeviceParam,
   type DeviceControls,
+  type DeviceWrites,
   type DeviceSnapshot,
   type UseDeviceOptions,
   type UseDeviceParamResult,

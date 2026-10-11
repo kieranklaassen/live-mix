@@ -53,11 +53,23 @@ export const LM_TOKENS = [
   'brush-ink-4',
   'brush-ink-5',
   'brush-ink-6',
+  // The video kit: the ground behind a picture, the scrim behind a sheet, the
+  // wash behind removed words, the record dot, and a note's own colour role
+  // (`note-mark` and `mark-edge` are drawn on a picture, so one value everywhere).
+  'stage',
+  'scrim',
+  'removed',
+  'record',
+  'note',
+  'note-soft',
+  'note-mark',
+  'mark-edge',
   // Type
   'font',
   'font-mono',
   'font-size',
   'label-size',
+  'read-size',
   // Geometry
   'radius',
   'space-1',
@@ -72,6 +84,10 @@ export const LM_TOKENS = [
   'lane-height',
   'row',
   'col',
+  'bar-height',
+  'panel-width',
+  'lane-head-width',
+  'handle-size',
   'transition',
 ] as const
 
@@ -89,6 +105,7 @@ const geometry: LiveMixTheme = {
   'font-mono': "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
   'font-size': '11px',
   'label-size': '9px',
+  'read-size': '13px',
   radius: '1px',
   'space-1': '4px',
   'space-2': '8px',
@@ -102,6 +119,10 @@ const geometry: LiveMixTheme = {
   'lane-height': '44px',
   row: '20px',
   col: '40px',
+  'bar-height': '40px',
+  'panel-width': '320px',
+  'lane-head-width': '160px',
+  'handle-size': '7px',
   transition: '80ms',
 }
 
@@ -171,6 +192,14 @@ export const jaxaZenLight: Required<LiveMixTheme> = {
   'brush-ink-4': '#335A2C',
   'brush-ink-5': '#6F7B24',
   'brush-ink-6': '#55625C',
+  stage: '#ecece7',
+  scrim: '#1a1a1a66',
+  removed: '#1a1a1a14',
+  record: '#e63946',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /** The same palette on Obsidian, for `data-lm-theme="dark"`. */
@@ -209,6 +238,14 @@ export const jaxaZenDark: Required<LiveMixTheme> = {
   'brush-ink-4': '#B3DCB4',
   'brush-ink-5': '#F2E0A2',
   'brush-ink-6': '#CFD7D3',
+  stage: '#0b0b0b',
+  scrim: '#070707b8',
+  removed: '#fdfdfb14',
+  record: '#e63946',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /** ambient-live's water/moss/sage `al-*` palette mapped onto the kit's tokens. */
@@ -255,6 +292,14 @@ export const ambientWater: Required<LiveMixTheme> = {
   'brush-ink-4': '#bcdab6',
   'brush-ink-5': '#e8eebe',
   'brush-ink-6': '#c9d9d3',
+  stage: '#091210',
+  scrim: '#060b0ab8',
+  removed: '#d7e4df14',
+  record: '#d27a7a',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -306,6 +351,14 @@ export const graphite: Required<LiveMixTheme> = {
   'brush-ink-4': '#b3dcb4',
   'brush-ink-5': '#f2e0a2',
   'brush-ink-6': '#cfd7d3',
+  stage: '#181c1a',
+  scrim: '#0f1211b8',
+  removed: '#e2e7e414',
+  record: '#e07a6a',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /** Paper: the light grid theme. Off-white paper, ink rules, water-to-grass paint. */
@@ -354,6 +407,14 @@ export const paper: Required<LiveMixTheme> = {
   'brush-ink-4': '#335a2c',
   'brush-ink-5': '#6f7b24',
   'brush-ink-6': '#55625c',
+  stage: '#e6e9e0',
+  scrim: '#1b262266',
+  removed: '#1b262214',
+  record: '#b04a3c',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /** Water: `ambientWater`'s deep water/moss palette on the grid geometry. */
@@ -362,6 +423,14 @@ export const water: Required<LiveMixTheme> = {
   ...(gridGeometry as Required<LiveMixTheme>),
   panel: '#132622',
   dim: '#6f8a81',
+  stage: '#091210',
+  scrim: '#060b0ab8',
+  removed: '#d7e4df14',
+  record: '#d27a7a',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -413,6 +482,14 @@ export const dusk: Required<LiveMixTheme> = {
   'brush-ink-4': '#ecf1fd',
   'brush-ink-5': '#dcf6f5',
   'brush-ink-6': '#f1f0f7',
+  stage: '#18161f',
+  scrim: '#0f0e14b8',
+  removed: '#e6e3ee14',
+  record: '#ec7f8e',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -464,6 +541,14 @@ export const night: Required<LiveMixTheme> = {
   'brush-ink-4': '#d1dceb',
   'brush-ink-5': '#c5e3dc',
   'brush-ink-6': '#dedbd5',
+  stage: '#090807',
+  scrim: '#060505b8',
+  removed: '#bcb1a214',
+  record: '#c0685a',
+  note: '#d9a0e8',
+  'note-soft': '#d9a0e833',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -515,6 +600,14 @@ export const sand: Required<LiveMixTheme> = {
   'brush-ink-4': '#1d3546',
   'brush-ink-5': '#4e264b',
   'brush-ink-6': '#3a342a',
+  stage: '#e7dfd0',
+  scrim: '#33261b66',
+  removed: '#33261b14',
+  record: '#a3273f',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -566,6 +659,14 @@ export const groovebox: Required<LiveMixTheme> = {
   'brush-ink-4': '#0e3316',
   'brush-ink-5': '#3b0a11',
   'brush-ink-6': '#262522',
+  stage: '#e2e0da',
+  scrim: '#15151566',
+  removed: '#15151514',
+  record: '#c1272d',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -617,6 +718,14 @@ export const chalk: Required<LiveMixTheme> = {
   'brush-ink-4': '#5a1a10',
   'brush-ink-5': '#2b1c63',
   'brush-ink-6': '#2e3338',
+  stage: '#eef0f2',
+  scrim: '#0a0a0a66',
+  removed: '#0a0a0a14',
+  record: '#c9302c',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 /**
@@ -668,6 +777,14 @@ export const mist: Required<LiveMixTheme> = {
   'brush-ink-4': '#5e1f2c',
   'brush-ink-5': '#4a3d08',
   'brush-ink-6': '#2c3743',
+  stage: '#e9edf2',
+  scrim: '#2a344066',
+  removed: '#2a344014',
+  record: '#b23a55',
+  note: '#8a3fa3',
+  'note-soft': '#8a3fa326',
+  'note-mark': '#e6a8f5',
+  'mark-edge': '#0f1211',
 }
 
 export const themes = {
@@ -712,6 +829,25 @@ export function themeStyle(theme: LiveMixTheme): CSSProperties {
 /** Join class names, dropping falsy entries. */
 export function cx(...names: (string | false | null | undefined)[]): string {
   return names.filter(Boolean).join(' ')
+}
+
+/** The `data-*` attributes a component was handed: a host's own marks, for the elements it draws. */
+export type DataAttributes = Record<`data-${string}`, string | undefined>
+
+/**
+ * Parts a component's props in two: the `data-*` attributes a host marked it
+ * with, and the rest. A component that draws more than one element hands the
+ * marks to each control of its own, so a host that names what a control does
+ * (`data-action`) finds the name on whatever is pressed.
+ */
+export function splitData<P extends object>(props: P): [DataAttributes, P] {
+  const data: Record<string, unknown> = {}
+  const rest: Record<string, unknown> = {}
+  for (const [key, value] of Object.entries(props)) {
+    if (key.startsWith('data-')) data[key] = value
+    else rest[key] = value
+  }
+  return [data as DataAttributes, rest as P]
 }
 
 /**

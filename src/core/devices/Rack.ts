@@ -9,11 +9,14 @@
 //
 //   input ─┬─► chain₀.input → inserts… → delay → pan → fader → gate ─┐
 //          ├─► chain₁ …                                              ├─► sum ─► wet ─┬─► output
-//          └──────────────────────────── dry ──────────────────────────────────────┘
+//          └─────────────────── (delay) ─► dry ─────────────────────────────────────┘
 //
 // While a rack has no chains its input feeds the sum directly, so an empty
 // rack passes audio. `mix` is the rack's dry/wet (linear law, default wet);
-// bypass crossfades to dry over the same 5 ms every other device uses.
+// bypass crossfades to dry over the same 5 ms every other device uses. Once a
+// chain takes time the dry path runs through a delay of the rack's own latency
+// (its longest chain), so a bypassed rack is as late as a working one and a
+// `mix` under 1 adds the dry sound to the wet in time with it.
 
 import {
   deviceParamTarget,
@@ -336,6 +339,9 @@ export class Rack implements ObservableDevice {
   private readonly ctx: BaseAudioContext
   private readonly dry: GainNode
   private readonly wet: GainNode
+  // Made the first time the rack has a latency, and kept from then on.
+  private dryDelay: DelayNode | null = null
+  private dryDelaySamples = 0
   private readonly chainList: Chain[] = []
   private readonly mappingList: MacroMapping[] = []
   private readonly latencyListeners = new Set<() => void>()
@@ -492,6 +498,7 @@ export class Rack implements ObservableDevice {
     this.latencyListeners.clear()
     this.changes.clear()
     for (const node of [this.input, this.dry, this.wet, this.sum, this.output]) node.disconnect()
+    this.dryDelay?.disconnect()
   }
 
   // --- Macros ----------------------------------------------------------------------
@@ -594,7 +601,27 @@ export class Rack implements ObservableDevice {
     if (this.disposed) return
     const longest = this.latencySamples
     for (const chain of this.chainList) chain.setCompensation(longest - chain.latencySamples)
+    this.holdDryBack(longest)
     for (const listener of this.latencyListeners) listener()
+  }
+
+  /**
+   * Delay the dry path by the rack's latency (clamped to what the DelayNode can
+   * hold). Structural like a chain's compensation, so a step at the current
+   * time, not a ramp. A rack that has never taken time has no delay to set.
+   */
+  private holdDryBack(samples: number): void {
+    const maxSamples = Math.floor(PDC_MAX_DELAY_SECONDS * this.ctx.sampleRate)
+    const clamped = Math.min(maxSamples, Math.max(0, Math.round(samples)))
+    if (clamped === this.dryDelaySamples) return
+    this.dryDelaySamples = clamped
+    if (!this.dryDelay) {
+      this.dryDelay = this.ctx.createDelay(PDC_MAX_DELAY_SECONDS)
+      this.input.disconnect(this.dry)
+      this.input.connect(this.dryDelay)
+      this.dryDelay.connect(this.dry)
+    }
+    this.dryDelay.delayTime.setValueAtTime(clamped / this.ctx.sampleRate, this.ctx.currentTime)
   }
 
   private assertLive(): void {

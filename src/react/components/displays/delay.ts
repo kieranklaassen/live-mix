@@ -738,7 +738,7 @@ const delay = plateDisplay<EchoState>({
   place: 'strip',
   params: ['timeSec', 'feedback', 'damping', 'mix'],
   live: { signal: true },
-  info: 'The bars are the repeats of one loud click on a scale of seconds, lower by Feedback, Damping and Mix, and a bar on the right edge means they grow louder later. Behind them the sound that went in runs on from now, the mark, into its repeats. Drag the point: across is Time, up is Feedback.',
+  info: 'The bars are the repeats of one loud click on a scale of seconds, each lower than the one before by Feedback and Damping, and all of them by Mix. Behind them the sound that went in runs on from now, the mark, into its repeats. Drag the point: across is Time, up is Feedback.',
   init: newEchoState,
   draw(frame) {
     ground(frame)
@@ -752,16 +752,15 @@ const delay = plateDisplay<EchoState>({
     drawEchoes(frame, {
       scope,
       // `Delay.ts`: the delay feeds the wet gain, which is Mix itself, and
-      // goes round through the damping filter and the feedback gain. Nothing
-      // in the loop holds a level down: where a pass gives back more than it
-      // took, the repeats grow, and are drawn growing to the top of the scale.
+      // goes round through the damping filter and the feedback gain. The
+      // filter is flat under its corner and Feedback stops short of 1, so
+      // every pass gives back less than it took.
       loop: { grid: 1, heads: ONE_HEAD, feedback, cross: 0, send: BOTH_SIDES, level: mix },
       key: `${feedback.toFixed(4)} ${damping.toFixed(1)} ${mix.toFixed(4)} ${frame.sampleRate}`,
       losses: (kept) => {
-        // A Web Audio low-pass, whose Q of √½ is read as decibels: it stands
-        // 1.7 dB proud under its corner, so over a Feedback of 0.82 a pass
-        // gives back more than it took there.
-        const filter = biquad('lowpass', damping, Math.SQRT1_2, 0, frame.sampleRate, true)
+        // A Web Audio low-pass with no peak: nothing under its corner comes
+        // back louder than Feedback lets it.
+        const filter = biquad('lowpass', damping, Math.SQRT1_2, 0, frame.sampleRate)
         keptLevels(
           kept,
           () => 1,
