@@ -328,4 +328,24 @@ export const CLARINET_PRESETS: readonly FactoryPreset[] = [
       { deviceId: 'expanse', preset: 'Far echoes', params: { decay: 8 } },
     ],
   },
+  {
+    id: 'low-bass-clarinet',
+    name: 'Low bass clarinet',
+    category: 'bass',
+    description:
+      'A softly blown bass clarinet, hollow and nearly pure, air first on every note, set in the centre with a short halo.',
+    instrument: {
+      deviceId: 'clarinet',
+      params: { bore: 0.05, blow: 0.3, breath: 0.5, attack: 0.12, release: 0.5, volume: -7 },
+    },
+    effects: [
+      {
+        deviceId: 'rotary',
+        preset: 'Mono cabinet',
+        params: { hornDepth: 0, drumDepth: 0, drive: 0 },
+      },
+      { deviceId: 'shaped-reverb', preset: 'Short halo', params: { lowCut: 250 } },
+      { deviceId: 'ambient-limiter', params: { ceiling: -6, gain: 6, ride: 0 } },
+    ],
+  },
 ]

@@ -149,6 +149,110 @@
       "vibrato": 4,
       "pick": 1,
       "tone": 5500
+    },
+    "Short twang": {
+      "swell": 0,
+      "sustain": 2.5,
+      "glide": 60,
+      "range": 0,
+      "vibrato": 0,
+      "pick": 0.9,
+      "tone": 6000,
+      "volume": -7.5
+    },
+    "Round thumb": {
+      "swell": 0,
+      "sustain": 10,
+      "glide": 250,
+      "range": 3,
+      "vibrato": 5,
+      "rate": 4.6,
+      "pick": 0,
+      "tone": 1700,
+      "volume": -10.5
+    },
+    "Long swell": {
+      "swell": 2,
+      "sustain": 40,
+      "glide": 400,
+      "range": 4,
+      "vibrato": 14,
+      "rate": 3.5,
+      "pick": 0.6,
+      "tone": 4200,
+      "volume": -6
+    },
+    "Dark swell": {
+      "swell": 0.8,
+      "sustain": 20,
+      "glide": 300,
+      "range": 5,
+      "vibrato": 12,
+      "rate": 3.8,
+      "pick": 0.1,
+      "tone": 1500
+    },
+    "Short bloom": {
+      "swell": 0.25,
+      "sustain": 2,
+      "glide": 100,
+      "range": 0,
+      "vibrato": 0,
+      "pick": 0.6,
+      "tone": 3600,
+      "volume": -1
+    },
+    "Dying slide": {
+      "swell": 0,
+      "sustain": 4,
+      "glide": 800,
+      "range": 12,
+      "vibrato": 0,
+      "pick": 0.5,
+      "tone": 3000,
+      "volume": -7
+    },
+    "Fading swell": {
+      "swell": 0.6,
+      "sustain": 5,
+      "glide": 200,
+      "range": 3,
+      "vibrato": 3,
+      "rate": 4,
+      "pick": 1,
+      "tone": 6000,
+      "volume": -3
+    },
+    "Soft bends": {
+      "swell": 0.2,
+      "sustain": 6,
+      "glide": 500,
+      "range": 7,
+      "vibrato": 4,
+      "pick": 0.2,
+      "tone": 2200,
+      "volume": -8
+    },
+    "Wide shake": {
+      "swell": 0.2,
+      "sustain": 25,
+      "glide": 120,
+      "range": 1,
+      "vibrato": 40,
+      "rate": 6.5,
+      "pick": 0.85,
+      "tone": 5000,
+      "volume": -12
+    },
+    "Swelling slide": {
+      "swell": 1.5,
+      "sustain": 6,
+      "glide": 600,
+      "range": 12,
+      "vibrato": 6,
+      "pick": 0.5,
+      "tone": 3300,
+      "volume": 2
     }
   },
   "origin": {

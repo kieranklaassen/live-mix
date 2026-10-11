@@ -113,6 +113,78 @@
       "release": 0.6,
       "tone": 10000,
       "velocity": 0
+    },
+    "Let it ring": {
+      "release": 8,
+      "tone": 9000,
+      "velocity": 0.6,
+      "volume": -10
+    },
+    "Muffled keys": {
+      "attack": 0.008,
+      "release": 0.7,
+      "tone": 600,
+      "velocity": 0.8,
+      "volume": -8
+    },
+    "Fifth up": {
+      "tune": 7,
+      "attack": 0.01,
+      "release": 0.7,
+      "tone": 12000,
+      "velocity": 0.8
+    },
+    "Baritone": {
+      "tune": -5,
+      "attack": 0.05,
+      "release": 1.5,
+      "tone": 3500,
+      "velocity": 0.5
+    },
+    "Octave up glass": {
+      "tune": 12,
+      "attack": 0.002,
+      "release": 2.5,
+      "tone": 18000,
+      "velocity": 0.5,
+      "volume": -10
+    },
+    "High whisper": {
+      "tune": 12,
+      "attack": 0.6,
+      "release": 4,
+      "tone": 5000,
+      "velocity": 0.2,
+      "volume": -10
+    },
+    "Quarter speed": {
+      "tune": -24,
+      "attack": 0.3,
+      "release": 5,
+      "tone": 3000,
+      "velocity": 0.4,
+      "volume": -10
+    },
+    "Low swell": {
+      "tune": -7,
+      "attack": 1.5,
+      "release": 6,
+      "tone": 2000,
+      "velocity": 0.2
+    },
+    "Long fades": {
+      "attack": 3.5,
+      "release": 9,
+      "tone": 2500,
+      "velocity": 0.1,
+      "volume": -6
+    },
+    "Sub drone": {
+      "tune": -24,
+      "attack": 2.5,
+      "release": 10,
+      "tone": 700,
+      "velocity": 0
     }
   },
   "origin": {

@@ -1,0 +1,274 @@
+{
+  "id": "canon",
+  "name": "Canon",
+  "category": "delay",
+  "description": "A round from one line: up to four followers repeat what you play, each one gap later and at its own interval, forwards or backwards, and the last can feed the line again.",
+  "class": "Canon",
+  "header": "canon.h",
+  "sources": [],
+  "memoryMb": 32,
+  "meters": [
+    {
+      "key": "clock",
+      "name": "Running time",
+      "display": true
+    },
+    {
+      "key": "level",
+      "name": "Line level",
+      "display": true
+    },
+    {
+      "key": "chunk",
+      "name": "Place in the gap",
+      "unit": "s",
+      "display": true
+    },
+    {
+      "key": "level1",
+      "name": "Follower 1 level",
+      "display": true
+    },
+    {
+      "key": "level2",
+      "name": "Follower 2 level",
+      "display": true
+    },
+    {
+      "key": "level3",
+      "name": "Follower 3 level",
+      "display": true
+    },
+    {
+      "key": "level4",
+      "name": "Follower 4 level",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "followers",
+      "name": "Followers",
+      "min": 1,
+      "max": 4,
+      "default": 3,
+      "step": 1,
+      "description": "How many voices repeat what you play. Each one enters one gap after the one before it."
+    },
+    {
+      "key": "gap",
+      "name": "Gap",
+      "min": 0.1,
+      "max": 7.5,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "The wait between one entry and the next. A long gap makes a round of whole phrases, a short one a harmonised echo. Moving it crossfades the followers to their new places."
+    },
+    {
+      "key": "interval1",
+      "name": "Interval 1",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "step": 1,
+      "unit": "st",
+      "description": "Transposes the first follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
+    },
+    {
+      "key": "interval2",
+      "name": "Interval 2",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "step": 1,
+      "unit": "st",
+      "description": "Transposes the second follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
+    },
+    {
+      "key": "interval3",
+      "name": "Interval 3",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "step": 1,
+      "unit": "st",
+      "description": "Transposes the third follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
+    },
+    {
+      "key": "interval4",
+      "name": "Interval 4",
+      "min": -12,
+      "max": 12,
+      "default": 0,
+      "step": 1,
+      "unit": "st",
+      "description": "Transposes the fourth follower by this many semitones, up or down. Single lines stay clean, dense chords less so. At zero it plays the line exactly as it was played."
+    },
+    {
+      "key": "crab",
+      "name": "Crab",
+      "choices": ["Off", "Last", "Every other", "All"],
+      "default": 0,
+      "description": "Which followers play backwards, one gap of the line at a time, counted from the first note after a rest. Last is the final follower, Every other the second and fourth."
+    },
+    {
+      "key": "fade",
+      "name": "Fade",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "Makes each follower quieter than the one before it. At zero all the followers are as loud as each other."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Places the followers across the stereo field, to the left and the right in turn. At zero each one sits where the line was played."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 500,
+      "max": 18000,
+      "default": 8000,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "Darkens the followers, each one more than the one before it, and the round again on every pass. All the way up they are as bright as the line."
+    },
+    {
+      "key": "round",
+      "name": "Round",
+      "min": 0,
+      "max": 0.95,
+      "default": 0,
+      "description": "Feeds the last follower back into the line, so the canon comes round again, quieter each time, with its interval and crab applied again. A held sound does not pile up."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance between the line as you play it and the followers."
+    }
+  ],
+  "presets": {
+    "Round of three": {},
+    "Crab canon": {
+      "followers": 2,
+      "gap": 1.2,
+      "crab": 3,
+      "fade": 0
+    },
+    "Mirror answer": {
+      "followers": 1,
+      "gap": 0.6,
+      "crab": 1
+    },
+    "Faint answer": {
+      "followers": 1,
+      "gap": 0.9,
+      "tone": 5000,
+      "mix": 0.2
+    },
+    "Slow procession": {
+      "followers": 4,
+      "gap": 1.9,
+      "fade": 0.2,
+      "spread": 0.7,
+      "tone": 4500
+    },
+    "Endless round": {
+      "followers": 2,
+      "gap": 1,
+      "tone": 3500,
+      "round": 0.85,
+      "mix": 0.4
+    },
+    "Long memory": {
+      "followers": 2,
+      "gap": 3,
+      "tone": 5000,
+      "round": 0.7,
+      "mix": 0.4
+    },
+    "Octave shadow": {
+      "followers": 1,
+      "gap": 0.4,
+      "interval1": -12,
+      "mix": 0.4
+    },
+    "Octaves apart": {
+      "followers": 2,
+      "gap": 0.75,
+      "interval1": 12,
+      "interval2": -12,
+      "fade": 0,
+      "spread": 1
+    },
+    "Wide choir": {
+      "followers": 4,
+      "gap": 0.12,
+      "interval2": 12,
+      "interval4": -12,
+      "fade": 0,
+      "spread": 1
+    },
+    "Canon at the fifth": {
+      "interval2": 7,
+      "interval3": -12
+    },
+    "Triad from one line": {
+      "gap": 0.25,
+      "interval1": 4,
+      "interval2": 7,
+      "interval3": 12,
+      "fade": 0.4,
+      "spread": 0.8,
+      "mix": 0.45
+    },
+    "Rising stair": {
+      "followers": 1,
+      "gap": 0.4,
+      "interval1": 2,
+      "tone": 6000,
+      "round": 0.8,
+      "mix": 0.45
+    },
+    "Sinking stair": {
+      "followers": 1,
+      "gap": 0.55,
+      "interval1": -2,
+      "tone": 4000,
+      "round": 0.85,
+      "mix": 0.45
+    },
+    "Dark canon": {
+      "gap": 1,
+      "interval2": -5,
+      "interval3": -12,
+      "fade": 0.1,
+      "tone": 900,
+      "round": 0.5,
+      "mix": 0.6
+    },
+    "Backwards choir": {
+      "followers": 4,
+      "gap": 0.8,
+      "interval1": -12,
+      "interval3": 7,
+      "interval4": 12,
+      "crab": 2,
+      "spread": 1,
+      "round": 0.4,
+      "mix": 0.55
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. The musical canon as a delay: one stereo line of 37.5 s, read by up to four followers on whole frames, each transposed by a splicing shifter on a short ring of its own (shifter.h: one head, spliced where the wave lines up and only as often as the interval needs, and set a fixed way behind every attack; the search for the splice is after the Smooth splice of the Pitch Shifter device)."
+  }
+}

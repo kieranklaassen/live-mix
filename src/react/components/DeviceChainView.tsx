@@ -213,6 +213,12 @@ export interface DeviceChainViewProps {
    */
   deviceActions?: (device: Device, index: number) => ReactNode
   /**
+   * A line added to the info text of one knob of one device, after what its
+   * parameter does: what else the host lets a hand do there (a menu on a
+   * right-click, what moves the value).
+   */
+  knobHint?: (device: Device, param: string) => string | undefined
+  /**
    * Where something carried in from outside the chain (a device dragged from a
    * host's browser) would land, counted among the devices shown: 0 heads them,
    * their number ends them. The chain draws its marker in that gap, the one a
@@ -226,6 +232,8 @@ export interface DeviceChainViewProps {
    * Left out, every device is a panel.
    */
   skin?: (device: Device) => DeviceSkin | null | undefined
+  /** Stands every plate upright, as pedals on a board (`DevicePlate`'s `upright`); a panel stays as it is. */
+  upright?: boolean
   className?: string
   style?: CSSProperties
   'data-testid'?: string
@@ -243,8 +251,10 @@ export function DeviceChainView({
   panelProps,
   presetPicker,
   deviceActions,
+  knobHint,
   dropAt,
   skin,
+  upright = false,
   className,
   style,
   'data-testid': testId,
@@ -542,15 +552,18 @@ export function DeviceChainView({
                   showBypass={panelProps?.showBypass}
                   showPresets={panelProps?.showPresets}
                   presetPicker={picker}
+                  upright={upright}
                   onRemove={() => remove(device, index)}
                   actions={actions}
                   hint={PLATE_REORDER_HINT}
+                  knobHint={knobHint ? (param) => knobHint(device, param) : undefined}
                   source={index === 0 ? (strip.input ?? null) : inserts[index - 1].output}
                   data-testid={id}
                 />
               ) : (
                 <DevicePanel
                   hint={REORDER_HINT}
+                  knobHint={knobHint ? (param) => knobHint(device, param) : undefined}
                   {...panelProps}
                   device={device}
                   registry={reg ?? undefined}

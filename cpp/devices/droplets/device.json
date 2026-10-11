@@ -1,0 +1,286 @@
+{
+  "id": "droplets",
+  "name": "Droplets",
+  "category": "instrument",
+  "description": "Tuned rain on the chord you hold: single drops fall on your notes onto glass, wood, metal, water or felt, from a slow drip to a shower, or as an even pulse.",
+  "class": "Droplets",
+  "header": "droplets.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "rain",
+      "name": "Rain",
+      "min": 0.3,
+      "max": 24,
+      "default": 3,
+      "taper": "log",
+      "unit": "/s",
+      "description": "How many drops fall each second, shared among all the keys you hold. In a shower each drop is softer, so dense rain fills in without growing much louder."
+    },
+    {
+      "key": "material",
+      "name": "Material",
+      "choices": ["Glass", "Wood", "Metal", "Water", "Felt"],
+      "default": 0,
+      "description": "What the drops land on: a thin glass ping, a short wooden bar, long ringing bell metal, a bubble of water that rises to the note, or a muted felt thump."
+    },
+    {
+      "key": "loose",
+      "name": "Loose",
+      "min": 0,
+      "max": 1,
+      "default": 0.8,
+      "description": "Timing of the drops. At zero they are an even pulse that climbs the held keys in order; at full they come at random moments on random keys, as rain does."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How big a drop is. Small drops are bright, sharp and short; large ones are darker, slower to speak and ring longer."
+    },
+    {
+      "key": "spread",
+      "name": "Spread",
+      "min": 0,
+      "max": 3,
+      "default": 1,
+      "unit": "oct",
+      "description": "How many octaves above each held key the drops range over. At zero every drop sounds at the pitch of its key."
+    },
+    {
+      "key": "ring",
+      "name": "Ring",
+      "min": 0.25,
+      "max": 4,
+      "default": 1,
+      "taper": "log",
+      "unit": "x",
+      "description": "How long each drop rings, against what its material does by itself. Low notes always ring longer than high ones."
+    },
+    {
+      "key": "soft",
+      "name": "Soft",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How much the drops differ in loudness. At zero each is as loud as its key was played; higher, more of them fall softly and a little duller."
+    },
+    {
+      "key": "splash",
+      "name": "Splash",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "Level of the noise at the start of each drop: a tick on glass and metal, a knock on wood, a splash on water, a thud on felt."
+    },
+    {
+      "key": "bursts",
+      "name": "Bursts",
+      "min": 0,
+      "max": 1,
+      "default": 0,
+      "description": "Gathers the drops into flurries with lulls between them. The number of drops over time stays the same."
+    },
+    {
+      "key": "trail",
+      "name": "Trail",
+      "min": 0,
+      "max": 20,
+      "default": 2,
+      "unit": "s",
+      "description": "How long the rain goes on after the keys are let go, thinning and softening as it goes. At zero it stops with the keys and the last drops ring out."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the rain scatters left and right. Each drop keeps the place it fell in, and the drop a key makes as it goes down is always in the middle."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -10,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many drops pile up."
+    }
+  ],
+  "presets": {
+    "Glass rain": {
+      "rain": 3,
+      "material": 0,
+      "loose": 0.8,
+      "size": 0.4,
+      "spread": 1,
+      "ring": 1
+    },
+    "Slow drip": {
+      "rain": 0.7,
+      "loose": 1,
+      "size": 0.75,
+      "spread": 0,
+      "ring": 1.6,
+      "soft": 0.3,
+      "trail": 6
+    },
+    "Wood pulse": {
+      "rain": 6,
+      "material": 1,
+      "loose": 0,
+      "size": 0.5,
+      "ring": 1.3,
+      "soft": 0.2,
+      "trail": 0.5
+    },
+    "Metal shower": {
+      "rain": 12,
+      "material": 2,
+      "loose": 1,
+      "size": 0.15,
+      "spread": 2,
+      "ring": 0.5,
+      "soft": 0.8,
+      "splash": 0.2
+    },
+    "Water drops": {
+      "rain": 4,
+      "material": 3,
+      "loose": 1,
+      "size": 0.5,
+      "ring": 1.5,
+      "soft": 0.5,
+      "splash": 0.5,
+      "volume": -8.5
+    },
+    "Felt patter": {
+      "rain": 8,
+      "material": 4,
+      "loose": 0.9,
+      "size": 0.3,
+      "soft": 0.7,
+      "splash": 0.45,
+      "trail": 1,
+      "volume": -9
+    },
+    "Bell drizzle": {
+      "rain": 2,
+      "material": 2,
+      "loose": 1,
+      "size": 0.35,
+      "spread": 2,
+      "ring": 1.6,
+      "soft": 0.6,
+      "splash": 0.2,
+      "trail": 8
+    },
+    "Glass pulse": {
+      "rain": 4,
+      "loose": 0,
+      "size": 0.3,
+      "spread": 2,
+      "soft": 0.1,
+      "splash": 0.15,
+      "trail": 0
+    },
+    "Flurries": {
+      "rain": 7,
+      "loose": 0.9,
+      "size": 0.2,
+      "spread": 2,
+      "ring": 0.7,
+      "soft": 0.7,
+      "bursts": 0.9,
+      "trail": 4
+    },
+    "Deep pool": {
+      "rain": 1.2,
+      "material": 3,
+      "loose": 1,
+      "size": 1,
+      "spread": 0,
+      "ring": 4,
+      "soft": 0.4,
+      "splash": 0.7,
+      "trail": 5
+    },
+    "Wood ticks": {
+      "rain": 18,
+      "material": 1,
+      "loose": 1,
+      "size": 0.05,
+      "spread": 2,
+      "ring": 0.8,
+      "soft": 0.5,
+      "splash": 0.7,
+      "width": 1,
+      "volume": -8
+    },
+    "Felt pulse": {
+      "rain": 3,
+      "material": 4,
+      "loose": 0,
+      "size": 0.75,
+      "spread": 0,
+      "ring": 2,
+      "soft": 0,
+      "splash": 0.2,
+      "trail": 0,
+      "width": 0.3
+    },
+    "High glitter": {
+      "rain": 10,
+      "loose": 1,
+      "size": 0,
+      "spread": 3,
+      "ring": 0.6,
+      "soft": 0.8,
+      "splash": 0.1,
+      "trail": 3,
+      "width": 1,
+      "volume": -8.5
+    },
+    "Tin roof": {
+      "rain": 18,
+      "material": 2,
+      "loose": 1,
+      "size": 0,
+      "spread": 0.5,
+      "ring": 0.25,
+      "soft": 0.7,
+      "splash": 0.9,
+      "bursts": 0.3
+    },
+    "Long chimes": {
+      "rain": 0.8,
+      "material": 2,
+      "loose": 0.6,
+      "size": 0.9,
+      "ring": 3,
+      "soft": 0.4,
+      "splash": 0,
+      "trail": 10
+    },
+    "Bubble stream": {
+      "rain": 20,
+      "material": 3,
+      "loose": 1,
+      "size": 0.15,
+      "spread": 2,
+      "ring": 0.6,
+      "soft": 0.5,
+      "splash": 0.35,
+      "bursts": 0.4,
+      "trail": 1,
+      "volume": -6.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Models single drops landing on a resonant surface: a seeded scheduler lets drops fall on the held keys and their octaves, and each drop is a few decaying partials (a glass's, a tuned wooden bar's, a bell's without its minor third, one rising sine for a bubble in water, a damped fundamental for felt) behind a short burst of filtered noise. Simplified: the surfaces are partial ratios, ring times and contact times chosen by reasoning and not measured, a drop does not excite what already rings, and the bubble's rise is a fixed curve. It is not a model of any one instrument or product."
+  }
+}

@@ -2,7 +2,7 @@
 //
 //   FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts
 //     every stock WASM device with its parameters and presets
-//   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] pnpm vitest run …
+//   FACTORY_REPORT=presets [FACTORY=<part of an id>] [FACTORY_DEVICE=<instrument id>] [FACTORY_CATEGORY=<group>] pnpm vitest run …
 //     each preset's preview as it leaves the patch (not normalised), measured
 //   FACTORY_REPORT=sounds [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] pnpm vitest run …
 //     each factory sound as rendered, measured and classified, with how it starts, ends and
@@ -261,7 +261,10 @@ describe.skipIf(!mode)('factory bench', () => {
     'presets',
     async () => {
       const chosen = FACTORY_PRESETS.filter(
-        (p) => p.id.includes(only) && (!onlyDevice || p.instrument.deviceId === onlyDevice),
+        (p) =>
+          p.id.includes(only) &&
+          (!onlyDevice || p.instrument.deviceId === onlyDevice) &&
+          (!onlyCategory || p.category === onlyCategory),
       )
       const prints = new Map<string, SoundPrint>()
       const render = (preset: FactoryPreset) =>
@@ -387,7 +390,8 @@ describe.skipIf(!mode)('factory bench', () => {
         if (longestName(sound).length > 24) problems.push('NAME')
         if (Number(cost.replace('% rt', '')) > 12) problems.push('SLOW')
         const black = blackKeyShare(audio)
-        if (sound.kind !== 'texture' && black > OFF_KEY_SHARE) problems.push('OFFKEY')
+        // A kit is drums and noise: it has no key to be off.
+        if (sound.kind !== 'texture' && !sound.kit && black > OFF_KEY_SHARE) problems.push('OFFKEY')
         let ending: string
         if (sound.loopCrossfadeSec) {
           // The folded start against the same stretch rendered straight: a loop that swells or dips at its seam.
@@ -488,7 +492,12 @@ describe.skipIf(!mode)('factory bench', () => {
           if (Math.abs(measured.lufs - lufs) > 2) problems.push('LEVEL')
           if (distance < 0.02) problems.push('SAME')
           const blackNow = blackKeyShare(variant)
-          if (sound.kind !== 'texture' && blackNow > OFF_KEY_SHARE && blackNow > black + 0.05) {
+          if (
+            sound.kind !== 'texture' &&
+            !sound.kit &&
+            blackNow > OFF_KEY_SHARE &&
+            blackNow > black + 0.05
+          ) {
             problems.push('OFFKEY')
           }
           let ending: string

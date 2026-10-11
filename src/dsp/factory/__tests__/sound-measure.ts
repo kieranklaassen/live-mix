@@ -88,6 +88,7 @@ export const KIND_LOUDNESS: Readonly<Record<string, readonly [quietest: number, 
     texture: [-25, -15],
     oneshot: [-24, -13],
     melodic: [-24, -13],
+    beat: [-36, -13],
   }
 
 const BLACK_KEYS: ReadonlySet<number> = new Set([1, 3, 6, 8, 10])

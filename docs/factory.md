@@ -141,11 +141,11 @@ import {
 } from '@kieranklaassen/live-mix/dsp'
 ```
 
-|             | Count | Groups                                                                                                                                        |
-| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Presets** | 680   | Twenty for each of the thirty-four stock instruments: pads, keys, bells, strings, plucked, wind, voices, organs, drones, textures             |
-| **Chains**  | 218   | Space (31), echo (28), tape (39), motion (26), texture (34), pitch (35), master (25); every WASM effect is in at least one                    |
-| **Sounds**  | 100   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round); nine are made from other sounds |
+|             | Count | Groups                                                                                                                                                                                                                                                                                                                                                 |
+| ----------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Presets** | 1,104 | Twenty for each of the fifty-four stock instruments, and 24 more basses on the ones that were there before the bass instruments: pads, keys, basses, bells, strings, plucked, wind, voices, organs, drones, textures, drums                                                                                                                            |
+| **Chains**  | 243   | Space (36), echo (36), tape (40), motion (27), texture (40), pitch (39), master (25); every WASM effect is in at least one                                                                                                                                                                                                                             |
+| **Sounds**  | 244   | Looping drones (19), pads (27) and textures (16), one-shots (22) and phrases (16, seven of which come round), nine made from other sounds; 68 of bass: single notes (23), held tones that loop (9) and lines that come round (36); and 76 loops of drums (32), glitches (20) and pitched pulses (24). 111 keep time: those 76 and 35 of the bass lines |
 
 The bank is data: importing it loads no module and touches no audio. A host
 lists it before audio starts and renders only what someone asks to hear.
@@ -154,10 +154,10 @@ Beside the bank are the packs, a hundred presets each, which are fetched
 apart from it: see [Packs](#packs).
 
 - `renderPresetPreview(preset)` plays the preset's phrase (its category's:
-  a held chord for a pad, a broken chord for keys and plucked strings, four
-  strikes for a bell, one moving line for wind, a low fifth for a drone;
-  `preview` overrides it) for eight seconds with the
-  tail.
+  a held chord for a pad, a broken chord for keys and plucked strings, six
+  low notes for a bass with one of them reaching into the next, four strikes
+  for a bell, one moving line for wind, a low fifth for a drone; `preview`
+  overrides it) for eight seconds with the tail.
 - `renderChainPreview(chain, { input })` runs the first six seconds of `input`
   through the chain and lets it ring for two more. Without an input a dry
   electric piano phrase plays (`CHAIN_PREVIEW_PATCH`, `CHAIN_PREVIEW_PHRASE`).
@@ -205,6 +205,88 @@ under two cents, to a whole number of cycles per loop at render time
 `chordTones` and `chordName` say which colours (seventh, ninth, sus2, …) it
 takes without leaving the key, which notes those are and what the chord is
 then called.
+
+## Sounds that keep time
+
+A sound with a beat to it (a drum loop, a pulse, a bass line) has a `bpm`:
+the tempo it is written at, 120 in everything the bank ships. It is a loop of
+whole bars in four (one to eight of them: 2 to 16 s at 120) kept from a bar
+line, every stroke on a grid counted from it (a drum loop starts on the
+downbeat; a bass line that answers on the offbeats starts with a rest; one
+upright bass line is in free time between its bar lines), and it is played
+at any other tempo by moving the notes: nothing is stretched.
+
+```ts
+import { renderFactorySound, soundAtTempo } from '@kieranklaassen/live-mix/dsp'
+
+const audio = await renderFactorySound(sound, { bpm: 96, transpose: by })
+soundAtTempo(sound, 96).durationSec // 5 for a loop of 4 s at 120: as many beats long
+```
+
+`soundAtTempo` gives the recipe as it is played at a tempo: every note as
+many beats in and as many beats long, the sound as many beats long, and
+`bpm` the tempo it is now at. A drum rings as long as it did, so only what
+lies between the hits changes. An echo's `time` and an LFO's rate in the
+patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, the analog
+delay's wobble, `tremolo`, `auto-filter` and the string machine's ensemble
+speed), so a dotted-eighth echo is one at every tempo; a value the
+control cannot reach is halved or doubled until it can, which is still on
+the beat. A loop's crossfade is never made longer than it is written. The
+tempo asked for is kept inside `FACTORY_TEMPO_RANGE` (20 to 480). A sound
+with no `bpm` is the same sound at every tempo and comes back as the same
+object, so a host can ask every sound for the piece's tempo and key its
+store by `bpm` only where the sound has one.
+
+A host that follows a tempo (ambient-live: its own, or an Ableton Link
+session's) renders such a sound again when the tempo has settled and swaps
+it under what plays it; what it painted with the sound is as many beats
+long as before.
+
+`sounds/rhythm.ts` is what these are written with: `row(key, 'X...x...', {
+per, hold, swing, lateSec })` lays one voice out in steps (`X` loud, `x`,
+`o`, `-` soft, `.` a rest; sixteen steps to the bar unless `per` says
+otherwise, so a row `per: 12` is triplets and `per: 5` goes against the
+four), and `bars(count, rows, { passes, crossfadeSec })` makes the rows a
+loop of that many bars and sets `bpm`. A row shorter than the loop repeats
+to fill it and has to fill it exactly. `inTime(seconds, strokes)` is the same
+for a line written as strokes (`[atSec, durSec, note, gain]`), which a bass
+line is: a note held over a bar line or reaching into the next one, where a
+bass that slides, slides, has no place in a row of steps.
+
+The bank's sounds that keep time are held to this by `time.test.ts`: whole
+bars at 120, the same strokes in every round, kept from a bar line; the same
+strokes on the same beats at 60, 90, 150 and 200; and rendered at 96 as many
+beats long to the frame, at the bank's level, and still round on itself. A
+sound added with a `bpm` is held to it by being there. `renderFactorySound`
+takes the latency such a sound's devices report out of its start
+(`alignLatency` in `renderPatch`: a tape is 415 frames late), so two loops
+laid side by side land together.
+
+A variant (`varySound`) of a sound that keeps time keeps time: touch moves a
+stroke by at most `VARIATION_LIMITS.beatTimingSec` (10 ms) instead of the
+`timingSec` a free phrase is given. A sound on a kit has no chord and no
+note it stands on: pattern may rest any of its strokes but the first of a
+pass, its lowest drum too (in a pitched phrase the lowest note always
+sounds), and two neighbouring drums may change places.
+
+### Kits
+
+Two instruments have things for keys instead of pitches: `drum-kit` and
+`glitch-kit` (`KIT_INSTRUMENTS`, `isKitInstrument`). Each of the twelve keys
+of an octave is one drum (every C the kick, every D the snare) or one fault
+(a click, a pop, a cut of noise), the octave it is played in tunes it, and a
+hit is a one-shot that note-off does not end (`cpp/kit/keymap.h`). `KIT` and
+`FAULT` in `rhythm.ts` name the keys.
+
+A sound played on a kit is marked `kit` by `sound()`, and
+`transposeFactorySound` leaves its notes where they are (the kick stays the
+kick in every key) and moves the kit's `tune` instead, so the drums are
+tuned to the key of the piece. A variant of one never moves a chord or
+detunes, and a host that snaps played notes to a scale has to leave a kit's
+alone: seven of its twelve drums would be out of reach.
+
+Presets of the kits are in the category `drum`, whose preview (`drum` in
+`phrases.ts`) plays every one of the twelve keys over three bars at 120.
 
 ## New sounds from a seed
 
@@ -290,10 +372,45 @@ what an amount of 1 allows):
 The methods are old ones. The chord is a weighted choice: a third down or up
 first (two notes of a triad in common), a fourth or a fifth next (one), a step
 last (none), and the further ones only come in above a third and two thirds
-of the amount; no sound is ever stood on B, the one white key with no fifth
-above it. The rests are a Euclidean rhythm: the moments that sound are spread
+of the amount; no sound's lowest note is ever put on B, the one white key with
+no fifth above it. The rests are a Euclidean rhythm: the moments that sound are spread
 over the phrase as evenly as their number allows, turned so the first one
 sounds. Everything else is a chance per note or per sound.
+
+A host can also say the chord and leave only the rest to the seed:
+`chord` in the variation is steps along the white keys from where the sound
+is written, −3 to 3, and it stands in for the draw at any amount of
+`chords`, 0 included, so `{ seed, chord: 2 }` is the sound a third up and
+nothing else about it changed. `chordMoves(sound)` lists the steps a sound
+can take, nearest first (never onto B, never out of range; where the near
+way leaves the range the same chord an octave the other way is taken, and
+`describeVariant` says how far the notes went), and `soundDegree(sound)` is
+the white key it is written on, 0 for C to 6 for B: with `keyChord` and
+`chordName` a host names the chord in whatever key it plays the sound in. A
+chord a sound cannot take leaves it where it is written. Without `chord`
+every variant is what it was before there was one.
+
+The chord a sound is written on is the one its name says, the first note the
+name has in braces ("Thumb dub line {A}m" is on A), and its lowest note where
+the name has none. The two are the same for most sounds and differ for a bass
+line that dips under its root, or a round whose lowest voice is not its root:
+26 sounds of the bank and 156 of the packs. For those, `chordMoves` leaves
+out the chord that the name makes B, and offers the one that only brings the
+lowest note to B (C under "Thumb dub line", with the B below it), which they
+can now be put on. The one exception is a sound that never plays the note it
+is named by, because its instrument sounds it ("Tanpura pluck {D}" plays a G
+and its first string gives the D): it is named by its title and is still
+never put where its key is B. Nothing that could be played is taken away:
+the step that is no longer offered still moves the notes as it did, so a
+piece saved with it plays what it played. The chord a variant draws by
+itself is unchanged too, and still goes by the lowest note, so a draw can
+land one of those sounds on the chord its name makes B.
+
+```ts
+chordMoves(sound) // [1, -2, 2, -3, 3] for a sound written on C
+varySound(sound, { seed: 1, chord: 3 }) // on the fourth, otherwise as written
+varySound(sound, { seed: 7, chords: 0.4, touch: 0.5, chord: -2 }) // variant 7, on the sixth
+```
 
 What no kind changes: the instrument and its settings, the effects, the
 length, the loop and its fold, the key, and the attack a sound starts on. In a
@@ -391,7 +508,7 @@ another sound, and a sound that is to be longer, shorter or looped is a new
 sound with a new number.
 
 The bank as written sits inside them: preset previews have their loudest
-400 ms between −30 and −23 dBFS with peaks under −8.5 (Muted echo pattern and
+400 ms between −30 and −22 dBFS with peaks under −8.5 (Muted echo pattern and
 Muted acoustic echo shipped at −33 and stay there), chains come out between
 3.7 LU under the dry input and 2.8 LU over it (but for Night shortwave, a
 narrow radio band that fades by design and sits 6 LU under it), stereo width
@@ -462,7 +579,8 @@ loudest second against the quietest); for a sound that ends, `lead` (silence
 before it starts) and `end` (the level it stops at). Then, in capitals, what
 wants a look: `KIND`, `QUIET` or `LOUD` (outside the band for its kind:
 drones −19 to −12 LUFS, pads −22 to −13, textures −25 to −15, one-shots and
-phrases −24 to −13), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
+phrases −24 to −13, beats −36 to −13: a line on a grid reads as a beat, and
+so do a few clicks with silence between them), `DC`, `WIDE` (side within 1.5 dB of mid), `NAME` (over
 24 characters in some key), `SLOW` (over 12 % of real time), `SEAM`, `FOLD`
 (over 1.5 dB), `STEP-IN`, `CUT`, `LATE`. They are prompts and not rules:
 `FOLD` on waves that are between two swells at the wrap is the waves.
@@ -495,17 +613,23 @@ and the last column the render cost.
 The sounds are in `src/dsp/factory/sounds/`, a file per family, put together
 in order in `index.ts`:
 
-| File               | Numbers    | What                                                                |
-| ------------------ | ---------- | ------------------------------------------------------------------- |
-| `first.ts`         | 101 to 134 | The first thirty-four, of every kind                                |
-| `drones-held.ts`   | 135 to 140 | Held notes on the acoustic and modelled instruments                 |
-| `drones-synth.ts`  | 141 to 146 | Synthesizer drones                                                  |
-| `pads-synth.ts`    | 147 to 153 | Synthesizer chords that move                                        |
-| `pads-acoustic.ts` | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                  |
-| `textures.ts`      | 161 to 170 | Weather, water, night, rooms and machines: no pitch                 |
-| `oneshots.ts`      | 171 to 184 | One note or one chord, struck or plucked, that rings out            |
-| `phrases.ts`       | 185 to 194 | Short phrases on one instrument, most of which come round           |
-| `made.ts`          | 195 to 200 | Sounds made from another sound of the bank, through a sample device |
+| File                   | Numbers    | What                                                                                               |
+| ---------------------- | ---------- | -------------------------------------------------------------------------------------------------- |
+| `first.ts`             | 101 to 134 | The first thirty-four, of every kind                                                               |
+| `drones-held.ts`       | 135 to 140 | Held notes on the acoustic and modelled instruments                                                |
+| `drones-synth.ts`      | 141 to 146 | Synthesizer drones                                                                                 |
+| `pads-synth.ts`        | 147 to 153 | Synthesizer chords that move                                                                       |
+| `pads-acoustic.ts`     | 154 to 160 | Strings, brass, voices, reeds and flutes in chords                                                 |
+| `textures.ts`          | 161 to 170 | Weather, water, night, rooms and machines: no pitch                                                |
+| `oneshots.ts`          | 171 to 184 | One note or one chord, struck or plucked, that rings out                                           |
+| `phrases.ts`           | 185 to 194 | Short phrases on one instrument, most of which come round                                          |
+| `made.ts`              | 195 to 200 | Sounds made from another sound of the bank, through a sample device                                |
+| `bass-notes.ts`        | 201 to 232 | Single bass notes on the five bass instruments, and held bass tones that loop                      |
+| `bass-lines-synth.ts`  | 233 to 252 | Bass lines that come round on the sub, FM, acid and ladder basses, written at 120                  |
+| `bass-lines-played.ts` | 253 to 268 | Bass lines that come round on the string bass: fingers, a pick, a fretless, an upright             |
+| `beats-drums.ts`       | 301 to 332 | Loops on the Drum Kit that keep time: one drum, patterns, patterns through an echo or a tape       |
+| `beats-glitch.ts`      | 341 to 360 | Loops on the Glitch Kit that keep time: clicks, cuts, static and pips on a grid                    |
+| `beats-pulses.ts`      | 371 to 394 | Pitched loops that keep time, on the stock instruments: a pulse, a figure, a chord through an echo |
 
 `recipe.ts` has what a recipe is written with:
 
@@ -557,7 +681,9 @@ thirty-four instruments and gives the rest to the instruments its idea turns
 on, so whatever instrument is loaded, every pack has something for it.
 
 An instrument that comes after the packs shipped is not asked of them
-(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`): a
+(`AFTER_THE_PACKS` in `packs/__tests__/support.ts`, today `zone-sampler`, the
+two kits, the four bass instruments and the thirteen invented ones from
+`flock` on): a
 pack is exactly a hundred presets and a shipped preset stays what it is, so
 two more could only come in by dropping two that shipped. Its presets are in
 the bank.
@@ -1211,6 +1337,47 @@ As reported:
     five still put out over −30 dBFS half a minute on (loops and holds that
     are meant to go on), two are over 3.5 LU quiet on the piano, one of
     those five among them, and one passes +3 dBFS fed at −1.
+- Found while the bass was added (four instruments, 91 presets, 68 sounds),
+  and worked round in the presets and sounds, not fixed:
+  - Reverbs under a bass: `hall-reverb` "Far away" at a mix of 0.6 puts a
+    lone 110 Hz tone 9 to 13 dB to the right; `re-amp` "Down the hall" leaves
+    the side only 3.8 dB under the mid below 150 Hz; `spring-reverb` at a mix
+    of 0.3 and a decay of 1.6 s took 18.6 dB out of one bass note and left
+    its neighbours alone. A bass preset keeps its reverb narrow, short, or
+    above a low cut.
+  - Level: `saturator`'s presets, `ambient-comp` and `tamer` do nothing at
+    the level a bass instrument leaves at; `analog-drive`'s auto gain gives
+    2.5 dB less out for 6 dB less in, so it is no leveller; `ambient-limiter`
+    Release does nothing at Ride 0.
+  - Time: `tape` is 8.7 ms late and `patina` 5.7, which a bass line that
+    keeps time shows against the grid, so neither is on one.
+  - `ladder-bass`: its oscillators never restart, so no two rounds of a loop
+    are the same wave and a fold over a sounding note dips by however far
+    they are out of step (up to 6.9 dB over 20 ms, by key and tempo). Its
+    four lines end each round on a rest and fold over 2 ms inside the first
+    strike, which holds the first 20 ms of a round within 0.3 dB of the
+    round played straight in every key; the bench's `fold` then reads where
+    in its cycle the wave is, not a level, and says FOLD of some keys. Its
+    filter envelope cannot open slowly, only close; a filter closing fast
+    reads 16 cents flat on A1 while it closes.
+  - A line that keeps time is exact, round for round, only while its rests
+    and fades fit between the beats: the sub, FM and acid lines are measured
+    exact from 60 to 160 bpm. One sub line (233) swells too slowly for the
+    analysis to hear a hit, reads as a pad and keeps no time. One acid line
+    (244) reads as a texture at 130 bpm and above, its dotted figure taken
+    for the beat.
+  - `string-bass`: the small differences between its plucks are never
+    reseeded, so two rounds of a loop differ by a residue of −19 to −24 dB
+    (a note moves by up to 1.4 dB); Upright's thump has no pitch and reads as
+    11 to 22 % of notes off the key.
+  - `analyzeSound` on bass lines: three, three and two eighths on the grid
+    read as 82 bpm at a confidence of 0.53, and a sub alone under 40 Hz has
+    no pitch it can hear (as above).
+  - The bench's "nearest" figure compares presets of different categories on
+    different phrases (a bass on the bass phrase, a pad on the chord), so it
+    says nothing between a bass and anything else; among basses of different
+    instruments the nearest pairs are 1.1 dB apart, which the rule (one
+    instrument at a time) allows.
 - `renderPatch`'s loop fold is an equal-power crossfade, which is right for
   noise and moving sound but adds a steady tone to itself in amplitude: a held
   note can come out up to 3 dB louder or quieter across the crossfade,

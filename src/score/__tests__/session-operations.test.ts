@@ -159,6 +159,9 @@ describe('session operations: apply', () => {
     expect(() => apply(base, add({ scene: 'bridge' }))).toThrow(/no scene/)
     expect(() => apply(base, add({ scene: 'verse' }))).toThrow(/already sits at pad × verse/)
     expect(() => apply(base, add({ clip: slotClip('zzz') }))).toThrow(/no source/)
+    expect(() =>
+      apply(base, add({ clip: slotClip('a', { turns: { sourceIds: ['a', 'zzz'] } }) })),
+    ).toThrow(/no source "zzz"/)
     expect(() => apply(base, add({ quantize: -1 }))).toThrow(/quantize/)
     expect(() => apply(base, add({ launchMode: 'hold' as never }))).toThrow(/launch mode/)
     expect(() => apply(base, add({ follow: { a: 'next', b: 'stop', chance: 3 } }))).toThrow(
@@ -191,6 +194,33 @@ describe('session operations: apply', () => {
     expect(() => apply(noClips, { type: 'source.remove', id: 'b' })).toThrow(/used by slot "kc"/)
     const freed = apply(noClips, { type: 'slot.remove', id: 'kc' })
     expect(apply(freed, { type: 'source.remove', id: 'b' }).sources.map((s) => s.id)).toEqual(['a'])
+  })
+
+  it('source.remove is refused while a slot’s clip takes a turn on the source', () => {
+    const noClips = apply(apply(base, { type: 'clip.remove', track: 'kick', id: 'b1' }), {
+      type: 'clip.remove',
+      track: 'kick',
+      id: 'a1',
+    })
+    // The kc slot is put on `a`, with `b` as the source of its second turn only.
+    const turning = apply(noClips, {
+      type: 'slot.update',
+      id: 'kc',
+      patch: { clip: slotClip('a', { turns: { sourceIds: ['a', 'b'], every: 2 } }) },
+    })
+    expect(turning.slots.find((slot) => slot.id === 'kc')?.clip?.turns).toEqual({
+      sourceIds: ['a', 'b'],
+      every: 2,
+    })
+    expect(validateScore(turning)).toEqual([])
+    expect(() => apply(turning, { type: 'source.remove', id: 'b' })).toThrow(/used by slot "kc"/)
+    expect(() =>
+      apply(noClips, {
+        type: 'slot.update',
+        id: 'kc',
+        patch: { clip: slotClip('a', { turns: { sourceIds: ['a', 'zzz'] } }) },
+      }),
+    ).toThrow(/no source "zzz"/)
   })
 
   it('every applied result stays valid and serialises', () => {

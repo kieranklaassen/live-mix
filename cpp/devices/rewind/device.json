@@ -1,0 +1,218 @@
+{
+  "id": "rewind",
+  "name": "Rewind",
+  "category": "instrument",
+  "description": "Notes played backwards: each key swells up out of nothing, brightens and lands on its strike, then stops dead or rings on forwards.",
+  "class": "Rewind",
+  "header": "rewind.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "source",
+      "name": "Source",
+      "choices": ["Piano", "Bell", "Pluck", "Bowl"],
+      "default": 0,
+      "description": "The struck sound that is turned round: a piano string, a bell, a plucked string or a singing bowl. Heard from the next note."
+    },
+    {
+      "key": "strike",
+      "name": "Strike",
+      "choices": ["After swell", "On release"],
+      "default": 0,
+      "description": "When the note lands. After swell lands it a set time after the key goes down. On release keeps it hovering while the key is held and lands it as the key lets go."
+    },
+    {
+      "key": "swell",
+      "name": "Swell",
+      "min": 0.15,
+      "max": 8,
+      "default": 1.5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the backwards note takes to reach its strike. Short is a quick rush into the note; long is a slow tide. Heard from the next note."
+    },
+    {
+      "key": "tail",
+      "name": "Tail",
+      "min": 0,
+      "max": 1,
+      "default": 0.45,
+      "description": "What follows the strike. At zero the note stops dead, as a tape turned round does; higher lets the same note ring on forwards, up to its full natural decay."
+    },
+    {
+      "key": "snap",
+      "name": "Snap",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How hard the strike itself is: a last surge of the note and a short backwards hammer noise just before it lands. At zero the note arrives smoothly."
+    },
+    {
+      "key": "rise",
+      "name": "Rise",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How late the sound arrives. Low is early and even, a steady climb; high holds it back until just before the strike. Heard from the next note."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Balance of the overtones. Lower is rounder and darker, mostly the fundamental; higher is brighter and thinner, with more of the late overtones."
+    },
+    {
+      "key": "ghost",
+      "name": "Ghost",
+      "min": 0,
+      "max": 1,
+      "default": 0.25,
+      "description": "A backwards room ahead of the note: a soft, wide wash of its overtones that comes up early and gathers into the strike."
+    },
+    {
+      "key": "wobble",
+      "name": "Wobble",
+      "min": 0,
+      "max": 1,
+      "default": 0.15,
+      "description": "Slow tape wow on every note at once: the pitch drifts a little up and down around the played note. At zero the pitch is steady."
+    },
+    {
+      "key": "shimmer",
+      "name": "Shimmer",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "A second copy of the note a little apart in pitch and place, so the overtones beat slowly against each other, the high ones faster."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "How far the overtones, the second copy and the ghost spread between the speakers. At zero the instrument is mono."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -9,
+      "unit": "dB",
+      "description": "Output level of the instrument. A soft clip after it rounds off the peaks when many strikes land together."
+    }
+  ],
+  "presets": {
+    "Turned piano": {},
+    "Stops dead": {
+      "tail": 0,
+      "snap": 0.8,
+      "ghost": 0,
+      "swell": 0.8
+    },
+    "Slow bloom": {
+      "swell": 4,
+      "rise": 0.25,
+      "ghost": 0.6,
+      "tail": 0.7,
+      "snap": 0.15,
+      "volume": -10.5
+    },
+    "Bell arrival": {
+      "source": 1,
+      "swell": 2.5,
+      "tail": 0.8,
+      "snap": 0.3,
+      "tone": 0.6
+    },
+    "Pluck back": {
+      "source": 2,
+      "swell": 0.6,
+      "tail": 0.1,
+      "snap": 0.7,
+      "ghost": 0
+    },
+    "Bowl gather": {
+      "source": 3,
+      "swell": 5,
+      "rise": 0.3,
+      "ghost": 0.7,
+      "tail": 1,
+      "shimmer": 0.4
+    },
+    "Let go": {
+      "strike": 1,
+      "swell": 2,
+      "tail": 0.5
+    },
+    "Held bowl": {
+      "strike": 1,
+      "source": 3,
+      "swell": 6,
+      "ghost": 0.8,
+      "rise": 0.2,
+      "tail": 0.9
+    },
+    "Snap shut": {
+      "swell": 0.2,
+      "rise": 0.7,
+      "tail": 0,
+      "snap": 1,
+      "volume": -6
+    },
+    "Worn reel": {
+      "wobble": 0.8,
+      "shimmer": 0.5,
+      "tone": 0.3,
+      "swell": 2
+    },
+    "Ghost room": {
+      "ghost": 1,
+      "rise": 0.6,
+      "tail": 0.3,
+      "swell": 3,
+      "volume": -10
+    },
+    "Late surge": {
+      "rise": 1,
+      "swell": 2.5,
+      "snap": 0.6
+    },
+    "Beating bells": {
+      "source": 1,
+      "strike": 1,
+      "shimmer": 0.8,
+      "ghost": 0.5,
+      "tone": 0.7,
+      "volume": -7.5
+    },
+    "Soft return": {
+      "snap": 0,
+      "tone": 0.25,
+      "swell": 1.2,
+      "tail": 0.6,
+      "volume": -10.5
+    },
+    "Mirror note": {
+      "tail": 1,
+      "swell": 1,
+      "rise": 0.4
+    },
+    "Wide drift": {
+      "source": 2,
+      "strike": 1,
+      "shimmer": 0.7,
+      "width": 1,
+      "ghost": 0.4,
+      "swell": 3,
+      "volume": -6.5
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit. Each source is a short table of partials (ratio, level, decay) played backwards in closed form, with no tape and no buffer; the hammer is a noise burst and the room a narrow band of noise on each partial. It is not a model of any one instrument or product."
+  }
+}
