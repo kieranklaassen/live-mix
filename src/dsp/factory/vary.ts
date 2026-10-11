@@ -22,7 +22,7 @@
 //
 // A sound that keeps time (one with a `bpm`) stays on its beat: its hand is
 // a few hundredths of a second loose at most, and its speed is half or double
-// time. A sound played on a kit (./kits.ts) has drums for keys, so no chord
+// time where it comes round and its own where it ends. A sound played on a kit (./kits.ts) has drums for keys, so no chord
 // of the key and no tuning by the hand: its pattern and its touch vary, and
 // no drum of it is a note it stands on, so any stroke but the first may rest.
 //
@@ -448,9 +448,10 @@ function vary<T extends VariedPlaying>(
           }
         }
       }
-    } else if (!loops) {
+    } else if (!loops && sound.bpm === undefined) {
       // A phrase that ends: faster or slower from its first note on. Slower,
       // it stops where the sound's last note was, so it dies away as the sound does.
+      // Not one that keeps time (a fill, a rise): at any other speed it would leave its beats.
       const first = Math.min(...hits.map((hit) => hit.at))
       const last = Math.max(...hits.map((hit) => hit.at))
       const release = Math.max(...hits.map((hit) => hit.at + hit.dur))

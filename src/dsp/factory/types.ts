@@ -117,6 +117,8 @@ export interface FactorySound {
    * tempo it is written at, in beats per minute. `renderFactorySound` with a
    * `bpm` of its own plays it at that tempo instead: the same notes closer
    * together or further apart, never the audio stretched (see ./tempo.ts).
+   * Most such sounds come round; one without a `loopCrossfadeSec` keeps time
+   * and ends (a fill, a rise: whole bars played once from a bar line).
    * Absent for a sound with no beat to it, which is the same at every tempo.
    */
   bpm?: number

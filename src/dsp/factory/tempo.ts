@@ -47,6 +47,9 @@ const TIMED_PARAMS: Readonly<Record<string, Readonly<Record<string, 'time' | 'ra
   'auto-filter': { lfoRateHz: 'rate' },
   // Not in hertz: it turns the ensemble's two sweeps (0.6 and 6 Hz at 1) faster or slower, which is a rate all the same.
   'string-machine': { speed: 'rate' },
+  // How fast a key travels through the loaded sound, forwards or backwards: a sound read through
+  // once in the length of a rise is read through once at every tempo.
+  'grain-synth': { scan: 'rate' },
 }
 
 function deviceAtTempo(device: PatchDevice, ratio: number): PatchDevice {
@@ -63,8 +66,13 @@ function deviceAtTempo(device: PatchDevice, ratio: number): PatchDevice {
     let moved = kind === 'time' ? current[name] * ratio : current[name] / ratio
     // Out of the control's reach: the nearest octave of it that is inside, so
     // an echo that cannot be that long is half as long and still on the beat.
-    while (moved > spec.max) moved /= 2
-    while (moved < spec.min) moved *= 2
+    if (spec.min < 0) {
+      // A rate that runs either way (a scan backwards): its size is what is halved, towards rest.
+      while (moved > spec.max || moved < spec.min) moved /= 2
+    } else {
+      while (moved > spec.max) moved /= 2
+      while (moved < spec.min) moved *= 2
+    }
     params[name] = moved
   }
   return { ...device, params }

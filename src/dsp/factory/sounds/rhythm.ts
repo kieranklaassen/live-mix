@@ -14,9 +14,13 @@
 // full; sixteen steps to the bar unless it says otherwise, so a row of
 // twelve with `per: 12` is triplets and a row of five with `per: 5` goes
 // five to the bar against the four of the rest.
+//
+// Most of what keeps time comes round (`bars`, `inTime`). A fill or a rise
+// keeps time and ends (`barsOnce`, `inTimeOnce`): whole bars played once from
+// a bar line, so that laid before a bar line it is over there at any tempo.
 
 import { type FactorySound } from '../types'
-import { cycled, type Stroke } from './recipe'
+import { cycled, played, type Stroke } from './recipe'
 
 /** The tempo every sound that keeps time is written at, beats per minute. */
 export const WRITTEN_BPM = 120
@@ -56,6 +60,22 @@ export const KIT = {
   lowTom: KEYS.A,
   tick: KEYS.As,
   highTom: KEYS.B,
+} as const
+
+/** The drums of the club kit by the key each is on: the kick, snare, rim, hats, shaker and clap where the drum kit has them. */
+export const CLUB = {
+  kick: KEYS.C,
+  crash: KEYS.Cs,
+  snare: KEYS.D,
+  ride: KEYS.Ds,
+  rim: KEYS.E,
+  hat: KEYS.F,
+  shaker: KEYS.Fs,
+  open: KEYS.G,
+  clap: KEYS.Gs,
+  lowConga: KEYS.A,
+  cowbell: KEYS.As,
+  highConga: KEYS.B,
 } as const
 
 /** The faults of the glitch kit by the key each is on. */
@@ -188,4 +208,27 @@ export function inTime(
   'phrase' | 'durationSec' | 'skipSec' | 'loopCrossfadeSec' | 'loopFold' | 'bpm'
 > {
   return { ...cycled(seconds, strokes, options), bpm: WRITTEN_BPM }
+}
+
+/** What a sound that keeps time and ends is made of: a phrase played once, as long as its bars, written at 120. */
+type Once = Pick<FactorySound, 'phrase' | 'durationSec' | 'fadeOutSec' | 'bpm'>
+
+/**
+ * `count` bars that keep time and end: the rows played once from a bar line,
+ * with nothing of a round before under the start, and stopped on the bar line
+ * they end at. For a fill: it is laid before a bar line and is over there,
+ * at any tempo, where a loop would carry the ring of its last strokes round
+ * into its first.
+ */
+export function barsOnce(count: number, rows: readonly Row[], fadeOutSec?: number): Once {
+  return { ...played(count * BAR_SEC, strokesOf(count, rows), fadeOutSec), bpm: WRITTEN_BPM }
+}
+
+/**
+ * A sound that keeps time and ends, written as strokes: `played` with the
+ * tempo it is written at. For a rise that is to end on a bar line (one note
+ * held from the start to the end of its bars); `seconds` is whole bars at 120.
+ */
+export function inTimeOnce(seconds: number, strokes: readonly Stroke[], fadeOutSec?: number): Once {
+  return { ...played(seconds, strokes, fadeOutSec), bpm: WRITTEN_BPM }
 }

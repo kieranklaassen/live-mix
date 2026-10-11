@@ -21,7 +21,16 @@ import {
   varySound,
 } from '..'
 import { sound } from '../sounds/recipe'
-import { BAR_SEC, KIT, WRITTEN_BPM, bars, row, strokesOf } from '../sounds/rhythm'
+import {
+  BAR_SEC,
+  KIT,
+  WRITTEN_BPM,
+  bars,
+  barsOnce,
+  inTimeOnce,
+  row,
+  strokesOf,
+} from '../sounds/rhythm'
 import { type FactorySound } from '../types'
 
 const registry = new DeviceRegistry(STOCK_WASM_DEVICES)
@@ -143,6 +152,25 @@ describe('the tempo of a sound', () => {
     expect(paramsOf(patch.instrument).speed).toBeCloseTo(0.8333 * (150 / 120), 9)
   })
 
+  it('reads a loaded sound through as far in a bar, forwards or backwards, and halves a scan out of reach', () => {
+    const backwards = patchAtTempo(
+      { instrument: { deviceId: 'grain-synth', params: { scan: -1 } }, effects: [] },
+      tempoRatio(120, 96),
+    )
+    expect(paramsOf(backwards.instrument).scan).toBeCloseTo(-1 * (96 / 120), 9)
+    const fast = patchAtTempo(
+      { instrument: { deviceId: 'grain-synth', params: { scan: -1.5 } }, effects: [] },
+      tempoRatio(120, 240),
+    )
+    // Twice as fast is -3, past the -2 it goes to: half of that, the same way round.
+    expect(paramsOf(fast.instrument).scan).toBeCloseTo(-1.5, 9)
+    const forwards = patchAtTempo(
+      { instrument: { deviceId: 'grain-synth', params: { scan: 1.5 } }, effects: [] },
+      tempoRatio(120, 480),
+    )
+    expect(paramsOf(forwards.instrument).scan).toBeCloseTo(1.5, 9)
+  })
+
   it('leaves the devices that keep no time as they are', () => {
     const patch = { effects: [{ deviceId: 'plate-reverb', params: { mix: 0.3 } }] }
     expect(patchAtTempo(patch, 1.5).effects[0]).toBe(patch.effects[0])
@@ -254,6 +282,78 @@ describe('a variant of a sound that keeps time', () => {
     }
     expect(furthest).toBeGreaterThan(0.005)
     expect(furthest).toBeLessThanOrEqual(VARIATION_LIMITS.beatTimingSec + 1e-9)
+  })
+})
+
+describe('a sound that keeps time and ends', () => {
+  /** A fill: sixteenths on a snare for a bar, played once. */
+  const FILL: FactorySound = sound({
+    id: 'test-fill',
+    number: 9004,
+    name: 'Test fill',
+    kind: 'beat',
+    description: 'A bar of sixteenths on a snare played once, for the tests of the tempo.',
+    instrument: { deviceId: 'drum-kit' },
+    effects: [],
+    ...barsOnce(1, [row(KIT.snare, 'x-o- x-o- x-o- xxxx')]),
+  })
+  /** A rise: one note held for two bars under a filter that opens once in them. */
+  const RISE: FactorySound = sound({
+    id: 'test-rise',
+    number: 9005,
+    name: 'Test rise',
+    kind: 'texture',
+    description: 'A note held for two bars under an opening filter, for the tests of the tempo.',
+    instrument: { deviceId: 'atmosphere' },
+    effects: [{ deviceId: 'auto-filter', params: { lfoRateHz: 0.25, lfoShape: 2 } }],
+    ...inTimeOnce(4, [[0, 4, 60, 0.8]]),
+  })
+
+  it('is its bars played once: no round dropped ahead of it and no fold', () => {
+    expect(FILL.bpm).toBe(WRITTEN_BPM)
+    expect(FILL.durationSec).toBe(BAR_SEC)
+    expect(FILL.skipSec).toBeUndefined()
+    expect(FILL.loopCrossfadeSec).toBeUndefined()
+    expect(FILL.phrase.notes).toHaveLength(16)
+    expect(FILL.kit).toBe(true)
+    expect(RISE.durationSec).toBe(4)
+    expect(RISE.phrase.notes).toEqual([{ atSec: 0, durSec: 4, note: 60, gain: 0.8 }])
+  })
+
+  it('is as many beats long at any tempo, its notes on their beats and its sweep once through', () => {
+    const at = soundAtTempo(RISE, 96)
+    expect(at.durationSec).toBeCloseTo(5, 9)
+    expect(at.phrase.notes[0].durSec).toBeCloseTo(5, 9)
+    expect(at.loopCrossfadeSec).toBeUndefined()
+    const patch = at.patch
+    if (typeof patch === 'string') throw new Error('a patch written out')
+    // One sweep in two bars at 120 is one sweep in two bars at 96.
+    expect(paramsOf(patch.effects[0]).lfoRateHz).toBeCloseTo(0.2, 9)
+    const fill = soundAtTempo(FILL, 150)
+    expect(fill.durationSec).toBeCloseTo(1.6, 9)
+    expect(fill.phrase.notes.map((note) => note.atSec / (60 / 150))).toEqual(
+      FILL.phrase.notes.map((note) => expect.closeTo(note.atSec / 0.5, 9)),
+    )
+  })
+
+  it('is never played faster or slower in a variant, which would take it off its beats', () => {
+    const gridSec = BAR_SEC / 16
+    for (let seed = 1; seed <= 60; seed += 1) {
+      const variant = varySound(FILL, { seed, speed: 1 })
+      expect(variant.durationSec).toBe(FILL.durationSec)
+      for (const note of variant.phrase.notes) {
+        const off = Math.abs(note.atSec - Math.round(note.atSec / gridSec) * gridSec)
+        expect(off, `seed ${seed}`).toBeLessThan(1e-9)
+      }
+      expect(describeVariant(FILL, { seed, speed: 1 }).rate).toBe(1)
+    }
+    // A hand that keeps time: loose by a hundredth of a second at most.
+    for (let seed = 1; seed <= 20; seed += 1) {
+      for (const note of varySound(FILL, { seed, touch: 1 }).phrase.notes) {
+        const off = Math.abs(note.atSec - Math.round(note.atSec / gridSec) * gridSec)
+        expect(off).toBeLessThanOrEqual(VARIATION_LIMITS.beatTimingSec + 1e-9)
+      }
+    }
   })
 })
 
