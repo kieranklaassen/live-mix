@@ -1923,6 +1923,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   haze: { ...PLATE_PALETTES.haze, finish: 'fade', cap: 'disc' },
   spiral: { ...PLATE_PALETTES.spiral, finish: 'fade', cap: 'pointer' },
   around: { ...PLATE_PALETTES.around, finish: 'fade', cap: 'dot' },
+  spread: { ...PLATE_PALETTES.spread, finish: 'gloss', cap: 'pointer' },
 }
 
 /**
