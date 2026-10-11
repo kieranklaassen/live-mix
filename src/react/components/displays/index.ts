@@ -65,6 +65,7 @@ import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
 import { WEATHER_FACES } from './weather'
 import { WARP_FACES } from './warp'
+import { VESSEL_FACES } from './vessel'
 import { WEAR_FACES } from './wear'
 import { CONSTELLATION_FACES } from './constellation'
 import { BREATH_FACES } from './breath'
@@ -147,4 +148,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...BOWLS_FACES,
   ...HOWL_FACES,
   ...LIFT_FACES,
+  ...VESSEL_FACES,
 }

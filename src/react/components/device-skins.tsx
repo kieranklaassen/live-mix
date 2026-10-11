@@ -1927,6 +1927,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   bowls: { ...PLATE_PALETTES.bowls, finish: 'hammered', cap: 'disc' },
   howl: { ...PLATE_PALETTES.howl, finish: 'hammered', cap: 'pointer' },
   lift: { ...PLATE_PALETTES.lift, finish: 'fade', cap: 'pointer' },
+  vessel: { ...PLATE_PALETTES.vessel, finish: 'hammered', cap: 'disc' },
 }
 
 /**
