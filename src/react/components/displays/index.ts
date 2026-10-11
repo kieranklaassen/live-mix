@@ -55,6 +55,7 @@ import { SIZE_FACES } from './size'
 import { SPATIAL_FACES } from './spatial'
 import { STRETCH_FACES } from './stretch'
 import { STOPS_FACES } from './stops'
+import { SPIRAL_FACES } from './spiral'
 import { TAILS_FACES } from './tails'
 import { TEXTURE_FACES } from './texture'
 import { UNDERWATER_FACES } from './underwater'
@@ -135,4 +136,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...REVEAL_FACES,
   ...SIZE_FACES,
   ...HAZE_FACES,
+  ...SPIRAL_FACES,
 }

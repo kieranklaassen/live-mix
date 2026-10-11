@@ -1921,6 +1921,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   reveal: { ...PLATE_PALETTES.reveal, finish: 'gloss', cap: 'disc' },
   size: { ...PLATE_PALETTES.size, finish: 'grain', cap: 'skirt' },
   haze: { ...PLATE_PALETTES.haze, finish: 'fade', cap: 'disc' },
+  spiral: { ...PLATE_PALETTES.spiral, finish: 'fade', cap: 'pointer' },
 }
 
 /**

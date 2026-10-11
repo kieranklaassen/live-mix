@@ -165,6 +165,7 @@ export const PLATE_PALETTES = {
   reveal: { plate: '#33061e', ink: '#fdeef6', accent: '#ff8a70' },
   size: { plate: '#f3b7a5', ink: '#2b1410', accent: '#0f4a50' },
   haze: { plate: '#ffc890', ink: '#2a1708', accent: '#0f5a7a' },
+  spiral: { plate: '#c9a0ff', ink: '#1a0a33', accent: '#0a4a3c' },
 } as const satisfies Record<string, PlatePalette>
 
 /**
