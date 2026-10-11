@@ -73,6 +73,7 @@ describe('entries', () => {
     'VersionList',
     // U25 kit
     'Knob',
+    'knobModulation',
     'Fader',
     'Meter',
     'TransportBar',

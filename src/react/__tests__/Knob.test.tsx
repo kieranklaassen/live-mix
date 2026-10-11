@@ -4,10 +4,11 @@ import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { useState } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { Knob } from '../components/Knob'
-import { hasTwoPlaces } from '../components/control-math'
+import { Knob, knobModulation, type KnobModulation } from '../components/Knob'
+import { hasTwoPlaces, knobArcPath, normalizeValue } from '../components/control-math'
 import { forgetPresses, pressFollowsOneElsewhere } from '../components/presses'
 import { useParamControl } from '../components/useParamControl'
+import { createTestEngine } from './harness'
 
 afterEach(cleanup)
 
@@ -1361,5 +1362,189 @@ describe('a knob of two places', () => {
     expect(hasTwoPlaces({ min: 0, max: 1, wholeSteps: true })).toBe(false)
     expect(hasTwoPlaces({ min: 0, max: 1, step: 0.7, wholeSteps: true })).toBe(false)
     expect(hasTwoPlaces({ min: 1, max: 1, step: 1, wholeSteps: true })).toBe(false)
+  })
+})
+
+describe('Knob: a value that moves on its own', () => {
+  function rig() {
+    const fixture = createTestEngine()
+    let now = 0.5
+    const modulation: KnobModulation = { reach: { below: 0.25, above: 0.25 }, valueNow: () => now }
+    return { ...fixture, modulation, move: (value: number) => (now = value) }
+  }
+  const arcOf = (container: HTMLElement) => container.querySelector('.lm-knob__modulation-now')
+
+  it('draws nothing more for a knob nothing moves', () => {
+    const { container } = render(<Knob label="Mix" defaultValue={0.5} min={0} max={1} />)
+    expect(container.querySelector('.lm-knob__modulation')).toBeNull()
+    expect(container.querySelector('.lm-knob')).not.toHaveClass('lm-knob--modulated')
+  })
+
+  it('marks the knob with a dot and its swing, and stays where it is set', () => {
+    const { wrapper, modulation } = rig()
+    const { container } = render(
+      <Knob label="Mix" value={0.5} defaultValue={0.5} min={0} max={1} modulation={modulation} />,
+      { wrapper },
+    )
+    expect(container.querySelector('.lm-knob')).toHaveClass('lm-knob--modulated')
+    expect(container.querySelector('.lm-knob__modulation-dot')).not.toBeNull()
+    // The swing, the arc that moves and nothing else: three marks.
+    expect(container.querySelectorAll('.lm-knob__modulation > *')).toHaveLength(3)
+    // The swing is fainter than the arc that moves, which is in full ink.
+    expect(container.querySelector('.lm-knob__modulation > path')).toHaveAttribute(
+      'stroke-opacity',
+      '0.45',
+    )
+    expect(arcOf(container)).not.toHaveAttribute('stroke-opacity')
+    expect(slider()).toHaveAttribute('aria-valuenow', '0.5')
+    for (const mark of container.querySelectorAll('.lm-knob__modulation [stroke]')) {
+      expect(mark.getAttribute('stroke')).toMatch(/^var\(--lm-/)
+    }
+  })
+
+  it.each([24, 30, 36, 44, 64])('keeps its marks inside a knob of %i px', (size) => {
+    const { wrapper, frames, modulation, move } = rig()
+    const { container } = render(
+      <Knob
+        label="Mix"
+        value={0.5}
+        defaultValue={0.5}
+        min={0}
+        max={1}
+        size={size}
+        modulation={modulation}
+      />,
+      { wrapper },
+    )
+    move(0.75)
+    frames.flush(1000)
+    const marks = container.querySelector('.lm-knob__modulation')
+    if (!marks) throw new Error('no marks')
+    const dot = marks.querySelector('.lm-knob__modulation-dot')
+    const r = Number(dot?.getAttribute('r'))
+    expect(Number(dot?.getAttribute('cy')) + r).toBeLessThanOrEqual(size)
+    expect(Number(dot?.getAttribute('cx'))).toBe(size / 2)
+    // A dot that can be seen, and a line that is not a hair: at least a pixel and a half wide.
+    expect(r).toBeGreaterThanOrEqual(1.25)
+    const arcs = [...marks.querySelectorAll('path')]
+    expect(arcs).toHaveLength(2)
+    for (const arc of arcs) {
+      const width = Number(arc.getAttribute('stroke-width'))
+      expect(width).toBeGreaterThanOrEqual(1.5)
+      // Every point of the arc, with half its line, lies in the knob's own box.
+      const numbers = (arc.getAttribute('d') ?? '').match(/-?\d+(\.\d+)?/g)?.map(Number) ?? []
+      const [x0, y0, radius, , , , , x1, y1] = numbers
+      expect(radius + width / 2).toBeLessThanOrEqual(size / 2)
+      for (const point of [x0, y0, x1, y1]) {
+        expect(point).toBeGreaterThanOrEqual(0)
+        expect(point).toBeLessThanOrEqual(size)
+      }
+    }
+    // The arc that moves is on the same ring as the swing, from the knob's place to the value.
+    expect(arcOf(container)?.getAttribute('d')).toMatch(/^M /)
+  })
+
+  it('moves the arc on frames from where it is set to where the value is, with no render', () => {
+    const { wrapper, frames, modulation, move } = rig()
+    let renders = 0
+    function Counted() {
+      renders += 1
+      return (
+        <Knob label="Mix" value={0.5} defaultValue={0.5} min={0} max={1} modulation={modulation} />
+      )
+    }
+    const { container } = render(<Counted />, { wrapper })
+    const arc = arcOf(container)
+    // At the set value there is no arc to draw.
+    expect(arc?.getAttribute('d') ?? '').toBe('')
+    const before = renders
+    move(0.75)
+    frames.flush(1000)
+    const up = arc?.getAttribute('d') ?? ''
+    expect(up).toMatch(/^M /)
+    move(0.25)
+    frames.flush(1100)
+    const down = arc?.getAttribute('d') ?? ''
+    expect(down).toMatch(/^M /)
+    expect(down).not.toBe(up)
+    // Back at the set value the arc goes.
+    move(0.5)
+    frames.flush(1200)
+    expect(arc?.getAttribute('d')).toBe('')
+    expect(renders).toBe(before)
+  })
+
+  it('draws along the knob’s own taper, and keeps the swing inside its travel', () => {
+    const { wrapper, frames } = rig()
+    const { container } = render(
+      <Knob
+        label="Cutoff"
+        value={200}
+        defaultValue={200}
+        min={20}
+        max={20000}
+        taper="log"
+        unit="Hz"
+        size={40}
+        modulation={{ reach: { below: 0.9, above: 0.1 }, valueNow: () => 2000 }}
+      />,
+      { wrapper },
+    )
+    frames.flush(1000)
+    // 200 Hz is a third of the way round a knob of three decades, 2 kHz two thirds.
+    const radius = 40 * 0.455
+    const at = (hz: number): number => normalizeValue(hz, 20, 20000, 'log')
+    expect(at(2000) - at(200)).toBeCloseTo(1 / 3, 12)
+    expect(arcOf(container)?.getAttribute('d')).toBe(knobArcPath(20, 20, radius, at(200), at(2000)))
+    // The swing would go 0.9 below a third: it begins at the knob's lowest point.
+    const swing = container.querySelector('.lm-knob__modulation > path')
+    expect(swing?.getAttribute('d')).toBe(knobArcPath(20, 20, radius, 0, at(200) + 0.1))
+  })
+
+  it('stops asking for frames when the knob goes, or stops being moved', () => {
+    const { wrapper, frames, modulation } = rig()
+    const { rerender, unmount } = render(
+      <Knob label="Mix" defaultValue={0.5} min={0} max={1} modulation={modulation} />,
+      { wrapper },
+    )
+    expect(frames.size).toBe(1)
+    rerender(<Knob label="Mix" defaultValue={0.5} min={0} max={1} />)
+    expect(frames.size).toBe(0)
+    rerender(<Knob label="Mix" defaultValue={0.5} min={0} max={1} modulation={modulation} />)
+    expect(frames.size).toBe(1)
+    unmount()
+    expect(frames.size).toBe(0)
+  })
+
+  it('knobModulation: only for a device that moves its own, and only a parameter that is moved', () => {
+    const still = { params: {}, getParam: () => 0 } as never
+    const sine = {
+      routes: [
+        {
+          source: {
+            kind: 'lfo' as const,
+            shape: 'sine' as const,
+            rateHz: 1,
+            depth: 1,
+            anchorPhase: 0,
+            anchorSec: 0,
+          },
+          depth: 0.25,
+          polarity: 'bipolar' as const,
+        },
+      ],
+    }
+    expect(knobModulation(still, 'mix', sine)).toBeUndefined()
+    const moving = {
+      params: {},
+      modulates: true,
+      modulate: () => {},
+      modulationOf: () => sine,
+      paramAt: (name: string) => (name === 'mix' ? 0.7 : 0),
+    } as never
+    expect(knobModulation(moving, 'mix', undefined)).toBeUndefined()
+    const made = knobModulation(moving, 'mix', sine)
+    expect(made?.reach).toEqual({ below: 0.25, above: 0.25 })
+    expect(made?.valueNow()).toBe(0.7)
   })
 })

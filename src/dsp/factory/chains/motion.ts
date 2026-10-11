@@ -422,4 +422,15 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
     ],
   },
+  {
+    id: 'loops-near-and-far',
+    name: 'Loops near and far',
+    category: 'motion',
+    description:
+      'The sound walks nearer and farther by itself while three loops record it, so each layer comes back from another distance; turn Wander.',
+    effects: [
+      { deviceId: 'distance', preset: 'Slow tide', params: { rate: 0.12, level: 1 } },
+      { deviceId: 'orbits', preset: 'Out of step' },
+    ],
+  },
 ]

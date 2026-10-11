@@ -15,6 +15,7 @@ import {
   displayWindowWidth,
   type DisplayFrame,
   type DisplayLevel,
+  type DisplayNote,
   type DisplaySignal,
   type DisplayView,
   type PlateDisplay,
@@ -139,6 +140,53 @@ export function testSignal(input = 0.5, output = 0.35): DisplaySignal {
   }
 }
 
+/**
+ * Notes as an instrument's display is handed them, oldest first: one played
+ * `age + 0.9` seconds ago and let go after half a second, then a chord of
+ * three played `age` seconds ago and still held.
+ */
+export function testNotes(age = 0.6): DisplayNote[] {
+  return [
+    { id: 57, frequency: 220, gain: 0.7, age: age + 0.9, released: age + 0.4 },
+    { id: 60, frequency: 261.63, gain: 0.8, age, released: null },
+    { id: 64, frequency: 329.63, gain: 0.6, age, released: null },
+    { id: 67, frequency: 392, gain: 0.8, age, released: null },
+  ]
+}
+
+export interface DrawnPath {
+  kind: 'stroke' | 'fill'
+  colour: string
+  alpha: number
+  width: number
+  points: [number, number][]
+}
+
+/** Every path that was stroked or filled, with the colour and strength it was painted in. */
+export function drawnPaths(drawn: RecordingContext): DrawnPath[] {
+  const out: DrawnPath[] = []
+  let points: [number, number][] = []
+  const now = { fillStyle: '', strokeStyle: '', globalAlpha: 1, lineWidth: 1 }
+  for (const call of drawn.calls) {
+    if (call.name === 'beginPath') points = []
+    else if (call.name === 'moveTo' || call.name === 'lineTo')
+      points.push([call.args[0] as number, call.args[1] as number])
+    else if (call.name === 'set fillStyle') now.fillStyle = String(call.args[0])
+    else if (call.name === 'set strokeStyle') now.strokeStyle = String(call.args[0])
+    else if (call.name === 'set globalAlpha') now.globalAlpha = call.args[0] as number
+    else if (call.name === 'set lineWidth') now.lineWidth = call.args[0] as number
+    else if (call.name === 'stroke' || call.name === 'fill')
+      out.push({
+        kind: call.name,
+        colour: call.name === 'fill' ? now.fillStyle : now.strokeStyle,
+        alpha: now.globalAlpha,
+        width: now.lineWidth,
+        points: [...points],
+      })
+  }
+  return out
+}
+
 /** The size a display is given on a plate at rest. */
 export function displaySize(display: PlateDisplay): { width: number; height: number } {
   return display.place === 'strip'
@@ -152,6 +200,10 @@ export interface FrameOptions {
   /** The device's readings by name; a name left out is a reading the device does not have. */
   meters?: Readonly<Record<string, number>>
   signal?: DisplaySignal | null
+  /** The notes an instrument was sent; left out, none. */
+  notes?: readonly DisplayNote[]
+  /** How long the sound a sample device was handed is; left out, it plays its own. */
+  sampleSeconds?: number | null
   width?: number
   height?: number
   now?: number
@@ -202,6 +254,8 @@ export function frameOf(
     meter: (name) => meters[name] ?? 0,
     hasMeter: (name) => name in meters,
     signal: options.signal ?? null,
+    notes: options.notes ?? [],
+    sampleSeconds: options.sampleSeconds ?? null,
     now: options.now ?? 10,
     dt: options.dt ?? 0,
     powered: options.powered ?? true,

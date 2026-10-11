@@ -1,0 +1,251 @@
+{
+  "id": "melt",
+  "name": "Melt",
+  "category": "texture",
+  "description": "A tail that ages: the longer a sound has rung the further it sags in pitch, darkens and blurs, like wax running, or turned the other way it lifts, thins and evaporates.",
+  "class": "Melt",
+  "header": "melt.h",
+  "sources": [],
+  "memoryMb": 8,
+  "meters": [
+    {
+      "key": "wander",
+      "name": "Fall rate off Sag",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "sag",
+      "name": "Sag",
+      "min": -100,
+      "max": 100,
+      "default": -30,
+      "unit": "ct/s",
+      "description": "How fast the tail slides in pitch as it ages. Below zero it sinks and melts, above zero it lifts and evaporates, and at zero the pitch holds still."
+    },
+    {
+      "key": "hold",
+      "name": "Hold",
+      "min": 0.4,
+      "max": 20,
+      "default": 5,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long the tail rings before it is gone. Longer settings let the sound slide further from where it started."
+    },
+    {
+      "key": "solid",
+      "name": "Solid",
+      "min": 0,
+      "max": 1000,
+      "default": 120,
+      "unit": "ms",
+      "description": "How long a sound stays as it was played before the melt is heard behind it. Short settings smear the note at once, long ones leave its start clean."
+    },
+    {
+      "key": "size",
+      "name": "Size",
+      "min": 0,
+      "max": 1,
+      "default": 0.35,
+      "description": "The grain of the melt. Small settings run smooth and close, large ones break the tail into separate repeats that each land a little further off."
+    },
+    {
+      "key": "blur",
+      "name": "Blur",
+      "min": 0,
+      "max": 1,
+      "default": 0.55,
+      "description": "How much the tail smears as it ages. At zero the repeats stay distinct, higher settings dissolve them into a soft wash."
+    },
+    {
+      "key": "dim",
+      "name": "Dim",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "How fast the tail loses colour as it ages. A sinking tail loses its highs and goes dark, a rising one loses its lows and goes thin."
+    },
+    {
+      "key": "drip",
+      "name": "Drip",
+      "min": 0,
+      "max": 1,
+      "default": 0.2,
+      "description": "Makes the slide uneven. The tail falls in fits, stalling and then running on, not in one straight line. It moves the slide Sag sets, so with Sag at zero it does nothing."
+    },
+    {
+      "key": "width",
+      "name": "Width",
+      "min": 0,
+      "max": 1,
+      "default": 1,
+      "description": "How wide the tail spreads between the speakers. At zero it sits in the centre behind the dry sound."
+    },
+    {
+      "key": "mix",
+      "name": "Mix",
+      "min": 0,
+      "max": 1,
+      "default": 0.4,
+      "description": "Balance between the dry sound and the melting tail."
+    }
+  ],
+  "presets": {
+    "Slow melt": {
+      "sag": -30,
+      "hold": 5,
+      "solid": 120,
+      "size": 0.35,
+      "blur": 0.55,
+      "dim": 0.4,
+      "drip": 0.2,
+      "width": 1,
+      "mix": 0.4
+    },
+    "Soft sag": {
+      "sag": -8,
+      "hold": 2.5,
+      "solid": 60,
+      "blur": 0.7,
+      "dim": 0.3,
+      "drip": 0.1,
+      "mix": 0.25
+    },
+    "Candle wax": {
+      "sag": -18,
+      "hold": 9,
+      "solid": 300,
+      "blur": 0.8,
+      "dim": 0.55,
+      "drip": 0.35,
+      "mix": 0.45
+    },
+    "Evaporate": {
+      "sag": 35,
+      "hold": 5,
+      "solid": 100,
+      "blur": 0.6,
+      "dim": 0.5,
+      "drip": 0.15,
+      "mix": 0.4
+    },
+    "Into thin air": {
+      "sag": 70,
+      "hold": 8,
+      "solid": 250,
+      "size": 0.5,
+      "blur": 0.85,
+      "dim": 0.75,
+      "mix": 0.5
+    },
+    "Still halo": {
+      "sag": 0,
+      "hold": 4,
+      "solid": 40,
+      "blur": 0.8,
+      "dim": 0.2,
+      "drip": 0,
+      "mix": 0.35
+    },
+    "Drip by drip": {
+      "sag": -60,
+      "hold": 7,
+      "solid": 0,
+      "size": 0.9,
+      "blur": 0.15,
+      "dim": 0.3,
+      "drip": 0.3,
+      "mix": 0.45
+    },
+    "Rising drops": {
+      "sag": 50,
+      "hold": 6,
+      "solid": 0,
+      "size": 0.8,
+      "blur": 0.2,
+      "dim": 0.4,
+      "drip": 0.1,
+      "mix": 0.4
+    },
+    "Deep pool": {
+      "sag": -6,
+      "hold": 20,
+      "solid": 400,
+      "size": 0.6,
+      "blur": 1,
+      "dim": 0.3,
+      "drip": 0.5,
+      "mix": 0.5
+    },
+    "Barely there": {
+      "sag": -20,
+      "hold": 3,
+      "solid": 80,
+      "blur": 0.6,
+      "dim": 0.4,
+      "mix": 0.12
+    },
+    "Sudden slump": {
+      "sag": -100,
+      "hold": 2.5,
+      "solid": 0,
+      "size": 0.2,
+      "blur": 0.5,
+      "dim": 0.6,
+      "drip": 0,
+      "mix": 0.5
+    },
+    "Wobbly wax": {
+      "sag": -45,
+      "hold": 6,
+      "solid": 60,
+      "blur": 0.6,
+      "dim": 0.35,
+      "drip": 1,
+      "mix": 0.45
+    },
+    "Clean start": {
+      "sag": -40,
+      "hold": 6,
+      "solid": 700,
+      "blur": 0.65,
+      "dim": 0.5,
+      "mix": 0.45
+    },
+    "Dark puddle": {
+      "sag": -25,
+      "hold": 8,
+      "solid": 150,
+      "size": 0.5,
+      "blur": 0.9,
+      "dim": 1,
+      "width": 0.6,
+      "mix": 0.5
+    },
+    "Narrow thread": {
+      "sag": 15,
+      "hold": 3,
+      "solid": 20,
+      "size": 0,
+      "blur": 0.3,
+      "dim": 0.2,
+      "drip": 0,
+      "width": 0,
+      "mix": 0.35
+    },
+    "Tail alone": {
+      "sag": -30,
+      "hold": 6,
+      "solid": 0,
+      "blur": 0.7,
+      "dim": 0.4,
+      "mix": 1
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit: a four-line feedback network in which every line bends pitch, loses level and loses colour in proportion to its own length, so all three are functions of a sound's age."
+  }
+}

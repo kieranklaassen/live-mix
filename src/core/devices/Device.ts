@@ -3,6 +3,7 @@
 // input and one output node, typed parameters, click-free bypass, a reported
 // latency for delay compensation, and a lifecycle.
 
+import { type ParamModulation } from '../automation/param-modulation'
 import { type ParamSpec } from '../params'
 
 export interface Device {
@@ -60,6 +61,49 @@ export interface NoteDevice extends Device {
 export function isNoteDevice(device: Device): device is NoteDevice {
   const candidate = device as Partial<NoteDevice>
   return typeof candidate.noteOn === 'function' && typeof candidate.noteOff === 'function'
+}
+
+/** A note an instrument was sent, as something that shows its playing reads it. */
+export interface PlayedNote {
+  /** The id it was sent with: a key held twice in a row is two notes of one id. */
+  id: number
+  /** Its pitch in Hz, and how hard it was played, 0..1. */
+  frequency: number
+  gain: number
+  /** When it began and, once it was let go, when: milliseconds on `performance.now()`'s clock. */
+  onMs: number
+  offMs: number | null
+}
+
+/**
+ * An instrument that remembers the notes it was sent, the held ones and the
+ * ones let go in the last while, for a display of what it plays. What it
+ * remembers is what it was told, not what still sounds: how long a note rings
+ * on is the instrument's own business.
+ */
+export interface NoteWatchDevice extends NoteDevice {
+  playedNotes(): readonly PlayedNote[]
+}
+
+export function isNoteWatchDevice(device: Device): device is NoteWatchDevice {
+  return (
+    isNoteDevice(device) && typeof (device as Partial<NoteWatchDevice>).playedNotes === 'function'
+  )
+}
+
+/**
+ * A device that plays a sound it is handed (a sampler, a granular synth) and
+ * remembers how long the last one was, for a display that shows where in the
+ * sound a note is read. What the device kept of it is its own business: one
+ * that holds less than it was handed has dropped the end.
+ */
+export interface SampleWatchDevice extends Device {
+  /** The length of the sound it was last handed, in seconds; null until it is handed one. */
+  loadedSampleSeconds(): number | null
+}
+
+export function isSampleWatchDevice(device: Device): device is SampleWatchDevice {
+  return typeof (device as Partial<SampleWatchDevice>).loadedSampleSeconds === 'function'
 }
 
 /** A device with a window of its own, such as a hosted plug-in's editor. */
@@ -158,9 +202,39 @@ export function isMeteredDevice(device: Device): device is MeteredDevice {
   )
 }
 
-/** What a device reports after `setParam` or a bypass change (U24: UI subscriptions). */
+/**
+ * A device that moves its own parameters on the audio thread. Given what
+ * modulates a parameter (`ParamModulation`: LFOs and seeded noise, as plain
+ * numbers), it works the value out at every block from the block's own time,
+ * so the motion is on the audio clock: the same offline as live. The value the
+ * parameter is set to (`setParam`, `getParam`) stays the base it moves around.
+ * `WasmDevice` on the library's own processor is one.
+ */
+export interface ModulatedDevice extends Device {
+  /** Says the device takes modulation; one that hosts a processor of its own may not. */
+  readonly modulates: true
+  /** Start moving a parameter, change what moves it, or (null) leave it at its base. */
+  modulate(name: string, modulation: ParamModulation | null): void
+  /** What moves a parameter now; undefined for one that stands still. */
+  modulationOf(name: string): ParamModulation | undefined
+  /**
+   * The parameter's value at `timeSec` on the device's clock (its context's
+   * `currentTime`, the default): the base for one that stands still. What a
+   * knob draws to show where the parameter is.
+   */
+  paramAt(name: string, timeSec?: number): number
+}
+
+export function isModulatedDevice(device: Device): device is ModulatedDevice {
+  const candidate = device as Partial<ModulatedDevice>
+  return candidate.modulates === true && typeof candidate.modulate === 'function'
+}
+
+/** What a device reports after `setParam`, a bypass change or a change to what moves a parameter (U24: UI subscriptions). */
 export type DeviceChange =
-  { type: 'param'; name: string; value: number } | { type: 'bypass'; bypass: boolean }
+  | { type: 'param'; name: string; value: number }
+  | { type: 'bypass'; bypass: boolean }
+  | { type: 'modulation'; name: string }
 
 export type DeviceChangeListener = (change: DeviceChange) => void
 

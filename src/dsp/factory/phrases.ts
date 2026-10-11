@@ -32,6 +32,19 @@ export const FACTORY_PHRASES: Readonly<Record<FactoryPhraseName, Phrase>> = {
       { atSec: 3, durSec: 2.5, note: 60, gain: 0.6 },
     ],
   },
+  // A bass line two octaves under the keys: a note and its echo, a step up to
+  // the fifth, a note that reaches into the next one (a bass that slides,
+  // slides there) and a long low note to end on.
+  bass: {
+    notes: [
+      { atSec: 0, durSec: 0.9, note: 38 },
+      { atSec: 1, durSec: 0.4, note: 38, gain: 0.6 },
+      { atSec: 1.5, durSec: 0.9, note: 45, gain: 0.7 },
+      { atSec: 2.5, durSec: 0.6, note: 43, gain: 0.7 },
+      { atSec: 3, durSec: 1.3, note: 36 },
+      { atSec: 4.5, durSec: 1.5, note: 33 },
+    ],
+  },
   // Four struck notes left to ring.
   bells: {
     notes: [
@@ -60,11 +73,42 @@ export const FACTORY_PHRASES: Readonly<Record<FactoryPhraseName, Phrase>> = {
   hold: {
     notes: [{ atSec: 0, durSec: 5.5, note: 60 }],
   },
+  // Three bars of a kit at 120, every one of its twelve keys struck at least
+  // once: a bar of the plain beat, a bar that opens up, a bar of what is left.
+  drum: {
+    notes: [
+      { atSec: 0, durSec: 0.1, note: 60, gain: 1 },
+      { atSec: 0.25, durSec: 0.1, note: 66, gain: 0.5 },
+      { atSec: 0.5, durSec: 0.1, note: 65, gain: 0.7 },
+      { atSec: 0.75, durSec: 0.1, note: 66, gain: 0.5 },
+      { atSec: 1, durSec: 0.1, note: 62 },
+      { atSec: 1.25, durSec: 0.1, note: 66, gain: 0.5 },
+      { atSec: 1.5, durSec: 0.1, note: 65, gain: 0.7 },
+      { atSec: 1.75, durSec: 0.1, note: 70, gain: 0.6 },
+      { atSec: 2, durSec: 0.1, note: 60, gain: 1 },
+      { atSec: 2.25, durSec: 0.1, note: 64, gain: 0.6 },
+      { atSec: 2.5, durSec: 0.1, note: 65, gain: 0.7 },
+      { atSec: 2.75, durSec: 0.1, note: 60, gain: 0.6 },
+      { atSec: 3, durSec: 0.1, note: 68 },
+      { atSec: 3.25, durSec: 0.1, note: 66, gain: 0.5 },
+      { atSec: 3.5, durSec: 0.1, note: 67, gain: 0.7 },
+      { atSec: 3.75, durSec: 0.1, note: 65, gain: 0.6 },
+      { atSec: 4, durSec: 0.1, note: 61, gain: 1 },
+      { atSec: 4.5, durSec: 0.1, note: 63, gain: 0.7 },
+      { atSec: 5, durSec: 0.1, note: 71, gain: 0.7 },
+      { atSec: 5.25, durSec: 0.1, note: 69 },
+      { atSec: 5.5, durSec: 0.1, note: 62, gain: 0.6 },
+      { atSec: 5.75, durSec: 0.1, note: 62, gain: 0.4 },
+      { atSec: 6, durSec: 0.1, note: 60, gain: 1 },
+      { atSec: 6, durSec: 0.1, note: 67, gain: 0.6 },
+    ],
+  },
 }
 
 const CATEGORY_PHRASE: Readonly<Record<FactoryPresetCategory, FactoryPhraseName>> = {
   pad: 'chord',
   keys: 'keys',
+  bass: 'bass',
   bell: 'bells',
   string: 'chord',
   plucked: 'keys',
@@ -73,6 +117,7 @@ const CATEGORY_PHRASE: Readonly<Record<FactoryPresetCategory, FactoryPhraseName>
   organ: 'chord',
   drone: 'low',
   texture: 'hold',
+  drum: 'drum',
 }
 
 /** The phrase a preset is auditioned with: its own, else its category's. */

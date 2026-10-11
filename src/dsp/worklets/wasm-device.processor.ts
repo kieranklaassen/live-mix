@@ -7,11 +7,22 @@
 // allocates. Lifted from ambient-live's engine-processor.ts and made
 // device-agnostic.
 //
+// A parameter can be moved from here (`modulate`): its value is worked out
+// once a block from the block's own place on the audio clock and set on the
+// device, which glides to it as it does to a hand. No message per move, so an
+// LFO keeps time whatever the page is doing, and an offline render has it at
+// the same phase on every run.
+//
 // This file runs in the AudioWorkletGlobalScope and is bundled to a single
 // self-contained file (dist/worklets/wasm-device.js). Runtime imports are not
 // allowed here; the ABI import below is type-only and the constants are
 // inlined by the bundler.
 
+import {
+  modulatedParamValue,
+  type ParamModulation,
+  type ParamTravel,
+} from '../../core/automation/param-modulation'
 import { LOAD_CELL_BUSY, loadCells } from '../../core/load-mark'
 import {
   BYPASS_RAMP_SECONDS,
@@ -22,6 +33,15 @@ import {
   type WasmDeviceProcessorOptions,
 } from '../abi'
 import { addDeviceZones, beginDeviceZones, writeDeviceZoneSample } from '../zones/device'
+
+/** One parameter moved on this thread, and the value the device was last given for it. */
+interface Modulated {
+  paramId: number
+  travel: ParamTravel
+  base: number
+  modulation: ParamModulation
+  last: number
+}
 
 class WasmDeviceProcessor extends AudioWorkletProcessor {
   // Null once the host has disposed the device: the instance and its memory are let go of there and then.
@@ -56,6 +76,8 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
   // Where this processor shows that it is at work, for the engine's load figure.
   private readonly load: Int32Array | null
   private readonly loadMark: number
+  // The parameters moved on this thread. Replaced, never changed in place, by a message between blocks.
+  private modulated: readonly Modulated[] = []
 
   constructor(options?: AudioWorkletNodeOptions) {
     super()
@@ -72,6 +94,10 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     for (const [paramId, value] of processorOptions.params ?? []) {
       device.device_set_param(paramId, value)
     }
+    this.modulated = (processorOptions.modulations ?? []).map((entry) => ({
+      ...entry,
+      last: Number.NaN,
+    }))
     this.bypassStep = 1 / Math.max(1, BYPASS_RAMP_SECONDS * sampleRate)
     const held = Math.max(0, Math.floor(processorOptions.latencySamples ?? 0))
     this.heldLeft = new Float32Array(held)
@@ -95,9 +121,32 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     // Nothing is left to tell a disposed device.
     if (!device) return
     switch (message.type) {
-      case 'set-param':
-        device.device_set_param(message.paramId, message.value)
+      case 'set-param': {
+        // A moved parameter is set at its next block, around the new base.
+        const moved = this.modulated.find((entry) => entry.paramId === message.paramId)
+        if (moved) moved.base = message.value
+        else device.device_set_param(message.paramId, message.value)
         break
+      }
+      case 'modulate': {
+        const others = this.modulated.filter((entry) => entry.paramId !== message.paramId)
+        if (message.modulation) {
+          this.modulated = [
+            ...others,
+            {
+              paramId: message.paramId,
+              travel: message.travel,
+              base: message.base,
+              modulation: message.modulation,
+              last: Number.NaN,
+            },
+          ]
+        } else {
+          this.modulated = others
+          device.device_set_param(message.paramId, message.base)
+        }
+        break
+      }
       case 'bypass':
         this.bypassTarget = message.enabled ? 1 : 0
         break
@@ -159,6 +208,17 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     this.dryRight = none
     this.heldLeft = none
     this.heldRight = none
+  }
+
+  // Give the device each moved parameter's value for the block that starts at `frame`.
+  private modulate(device: DeviceExports, frame: number): void {
+    const timeSec = frame / sampleRate
+    for (const entry of this.modulated) {
+      const value = modulatedParamValue(entry.travel, entry.base, entry.modulation, timeSec)
+      if (value === entry.last) continue
+      entry.last = value
+      device.device_set_param(entry.paramId, value)
+    }
   }
 
   // Copy a sound into a sample device's fixed store (cpp/kit/sample.h).
@@ -262,6 +322,7 @@ class WasmDeviceProcessor extends AudioWorkletProcessor {
     }
     this.holdDryBack(frames)
 
+    if (this.modulated.length > 0) this.modulate(device, currentFrame)
     device.device_process(frames)
     if (this.meterCount > 0) this.reportMeters(device, frames)
 

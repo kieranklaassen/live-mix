@@ -1,10 +1,15 @@
 import { readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { asAudioContext, createMockContext, type MockAudioContext } from '../../testing'
-import { isMeteredDevice } from '../../core/devices/Device'
+import {
+  isMeteredDevice,
+  isModulatedDevice,
+  isNoteWatchDevice,
+  isSampleWatchDevice,
+} from '../../core/devices/Device'
 import { DEVICE_METER_HZ, type WasmDeviceProcessorOptions } from '../abi'
 import { clearWasmModuleCache, compileWasm } from '../assets'
 import {
@@ -23,6 +28,10 @@ beforeAll(async () => {
 
 beforeEach(() => {
   clearWasmModuleCache()
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
 })
 
 const mockNodeFactory: WorkletNodeFactory = (context, name, options) =>
@@ -118,6 +127,153 @@ describe('WasmDevice', () => {
     ])
     expect(device.getParam('predelayMs')).toBe(250)
     expect(() => device.setParam('nope' as 'mix', 1)).toThrow(/no parameter/)
+  })
+
+  describe('modulation', () => {
+    const sine = {
+      routes: [
+        {
+          source: {
+            kind: 'lfo' as const,
+            shape: 'sine' as const,
+            rateHz: 1,
+            depth: 1,
+            anchorPhase: 0,
+            anchorSec: 0,
+          },
+          depth: 0.25,
+          polarity: 'bipolar' as const,
+        },
+      ],
+    }
+
+    it('hands the audio thread a parameter’s travel, base and routes, and says it changed', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      expect(isModulatedDevice(device)).toBe(true)
+      const changes: unknown[] = []
+      device.onChange((change) => changes.push(change))
+      device.modulate('mix', sine)
+      const posted = ctx.workletNodes[0].port.posted.calls.map((call) => call[0])
+      expect(posted).toEqual([
+        {
+          type: 'modulate',
+          paramId: 0,
+          travel: { min: 0, max: 1, default: PLATE_REVERB_PARAMS.mix.default, taper: 'linear' },
+          base: 0.5,
+          modulation: sine,
+        },
+      ])
+      expect(changes).toEqual([{ type: 'modulation', name: 'mix' }])
+      expect(device.modulationOf('mix')).toBe(sine)
+      expect(device.modulationOf('decay')).toBeUndefined()
+    })
+
+    it('keeps the set value as the base and says where the parameter is at a moment', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      device.modulate('mix', sine)
+      expect(device.getParam('mix')).toBe(0.5)
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.75, 12)
+      expect(device.paramAt('mix', 0.75)).toBeCloseTo(0.25, 12)
+      // Left out, the moment is the context's now.
+      ctx.currentTime = 0.25
+      expect(device.paramAt('mix')).toBeCloseTo(0.75, 12)
+      // A parameter nothing moves is where it is set.
+      expect(device.paramAt('decay', 3)).toBe(device.getParam('decay'))
+      device.setParam('mix', 0.6)
+      expect(device.getParam('mix')).toBe(0.6)
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.85, 12)
+    })
+
+    it('ends a modulation once, and does nothing for a parameter that stood still', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.5 },
+      })
+      device.modulate('decay', null)
+      device.modulate('decay', { routes: [] })
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+      device.modulate('mix', sine)
+      device.modulate('mix', null)
+      device.modulate('mix', null)
+      const posted = ctx.workletNodes[0].port.posted.calls.map((call) => call[0])
+      expect(posted).toHaveLength(2)
+      expect(posted[1]).toMatchObject({ type: 'modulate', paramId: 0, base: 0.5, modulation: null })
+      expect(device.modulationOf('mix')).toBeUndefined()
+      expect(device.paramAt('mix', 0.25)).toBe(0.5)
+      expect(() => device.modulate('nope' as 'mix', sine)).toThrow(/no parameter/)
+    })
+
+    it('is made with what moves it, in the processor’s options: no message to wait for', async () => {
+      const ctx = createMockContext()
+      const device = await createPlateReverb(asAudioContext(ctx), {
+        wasm: plateModule,
+        processorUrl: 'p',
+        createNode: mockNodeFactory,
+        params: { mix: 0.4 },
+        modulations: { mix: sine, nope: sine, decay: { routes: [] } },
+      })
+      const options = ctx.workletNodes[0].options as {
+        processorOptions: WasmDeviceProcessorOptions
+      }
+      // The names it has, with something to move them: the rest is left out.
+      expect(options.processorOptions.modulations).toEqual([
+        {
+          paramId: 0,
+          travel: { min: 0, max: 1, default: PLATE_REVERB_PARAMS.mix.default, taper: 'linear' },
+          base: 0.4,
+          modulation: sine,
+        },
+      ])
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+      expect(device.modulationOf('mix')).toBe(sine)
+      expect(device.modulationOf('decay')).toBeUndefined()
+      expect(device.paramAt('mix', 0.25)).toBeCloseTo(0.65, 12)
+      // And it ends as any other does.
+      device.modulate('mix', null)
+      expect(ctx.workletNodes[0].port.posted.calls[0][0]).toMatchObject({
+        type: 'modulate',
+        base: 0.4,
+        modulation: null,
+      })
+    })
+
+    it('a device on a processor of its own takes none', async () => {
+      const ctx = createMockContext()
+      const own = defineWasmDevice({
+        id: 'own',
+        wasm: () => plateModule,
+        params: PLATE_REVERB_PARAMS,
+        processor: { name: 'app-processor', url: () => 'app-processor.js' },
+      })
+      const device = await WasmDevice.create(asAudioContext(ctx), own, {
+        createNode: mockNodeFactory,
+        modulations: { mix: sine },
+      })
+      const options = ctx.workletNodes[0].options as {
+        processorOptions: WasmDeviceProcessorOptions
+      }
+      expect(options.processorOptions.modulations).toBeUndefined()
+      expect(device.modulationOf('mix')).toBeUndefined()
+      expect(device.modulates).toBe(false)
+      expect(isModulatedDevice(device)).toBe(false)
+      expect(() => device.modulate('mix', sine)).toThrow(/takes no modulation/)
+      expect(ctx.workletNodes[0].port.posted.count).toBe(0)
+    })
   })
 
   it('toggles bypass over the port exactly once per change', async () => {
@@ -347,6 +503,77 @@ describe('WasmDevice notes and custom processors', () => {
     ])
   })
 
+  it('remembers the notes it was sent, the held ones and the ones let go a while, for a display', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
+      wasm: plateModule,
+      createNode: mockNodeFactory,
+    })
+    expect(isNoteWatchDevice(device)).toBe(true)
+    expect(device.playedNotes()).toEqual([])
+    device.noteOn(60, 261.63, 0.8)
+    clock.mockReturnValue(1500)
+    device.noteOn(64, 329.63)
+    clock.mockReturnValue(2000)
+    device.noteOff(60)
+    expect(device.playedNotes()).toEqual([
+      { id: 60, frequency: 261.63, gain: 0.8, onMs: 1000, offMs: 2000 },
+      { id: 64, frequency: 329.63, gain: 0.5, onMs: 1500, offMs: null },
+    ])
+    // A key struck again while it is held is a new note, and the one before it is let go.
+    clock.mockReturnValue(2500)
+    device.noteOn(64, 329.63, 0.3)
+    expect(device.playedNotes().map((note) => [note.id, note.onMs, note.offMs])).toEqual([
+      [60, 1000, 2000],
+      [64, 1500, 2500],
+      [64, 2500, null],
+    ])
+    // A note let go is kept a minute, long enough for the longest tail to ring out; a held one is kept.
+    clock.mockReturnValue(2000 + 60_001)
+    expect(device.playedNotes().map((note) => [note.id, note.onMs])).toEqual([
+      [64, 1500],
+      [64, 2500],
+    ])
+    clock.mockReturnValue(120_000)
+    expect(device.playedNotes().map((note) => note.onMs)).toEqual([2500])
+    // No more than a hundred and twenty-eight are remembered: the oldest goes first.
+    for (let key = 0; key < 140; key++) device.noteOn(100 + key, 440)
+    expect(device.playedNotes()).toHaveLength(128)
+    expect(device.playedNotes()[0].id).toBe(112)
+    expect(device.playedNotes().at(-1)?.id).toBe(239)
+  })
+
+  it('keeps a held key while a run of other notes goes by: the oldest note let go makes room', async () => {
+    const clock = vi.spyOn(performance, 'now').mockReturnValue(1000)
+    const ctx = createMockContext()
+    const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
+      wasm: plateModule,
+      createNode: mockNodeFactory,
+    })
+    // A drone held under an arpeggio: two hundred notes in twenty seconds, each let go before the next.
+    device.noteOn(36, 65.41, 0.7)
+    for (let step = 0; step < 200; step++) {
+      clock.mockReturnValue(1100 + step * 100)
+      device.noteOn(300 + step, 440)
+      clock.mockReturnValue(1150 + step * 100)
+      device.noteOff(300 + step)
+    }
+    const played = device.playedNotes()
+    expect(played).toHaveLength(128)
+    // The drone still sounds, so it is still there for its display to light, first as the oldest.
+    expect(played[0]).toMatchObject({ id: 36, onMs: 1000, offMs: null })
+    // What went was the oldest of the run, and the newest are all kept.
+    expect(played[1].id).toBe(300 + 200 - 127)
+    expect(played.at(-1)?.id).toBe(499)
+    // Let go at last, it is forgotten like any other once the run needs its place.
+    clock.mockReturnValue(30_000)
+    device.noteOff(36)
+    device.noteOn(600, 440)
+    expect(device.playedNotes().some((note) => note.id === 36)).toBe(false)
+    expect(device.playedNotes()).toHaveLength(128)
+  })
+
   it('hands a sample device copies of at most two channels and leaves the caller its buffers', async () => {
     const ctx = createMockContext()
     const device = await WasmDevice.create(asAudioContext(ctx), PLATE_REVERB_DEVICE, {
@@ -355,8 +582,14 @@ describe('WasmDevice notes and custom processors', () => {
     })
     const left = Float32Array.of(0.1, 0.2, 0.3)
     const right = Float32Array.of(-0.1, -0.2, -0.3)
+    // Until it is handed a sound it says nothing of one, and an empty one is not a sound.
+    expect(isSampleWatchDevice(device)).toBe(true)
+    expect(device.loadedSampleSeconds()).toBeNull()
     device.loadSample([], 48000)
+    expect(device.loadedSampleSeconds()).toBeNull()
     device.loadSample([left, right, Float32Array.of(9)], 44100)
+    // Three frames at 44.1 kHz, said after the copies were handed over.
+    expect(device.loadedSampleSeconds()).toBeCloseTo(3 / 44100, 9)
     const calls = ctx.workletNodes[0].port.posted.calls
     const samples = calls.filter((call) => (call[0] as { type: string }).type === 'sample')
     expect(samples).toHaveLength(1)

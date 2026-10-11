@@ -396,6 +396,18 @@ describe('WasmDevice.loadZones', () => {
     ).toEqual(['dispose'])
   })
 
+  it('says the length of no one sound once it plays an instrument of zones', async () => {
+    const { device } = await create(ZONE_SAMPLER_DEVICE)
+    device.loadSample([Float32Array.of(0.1, 0.2)], 44100)
+    expect(device.loadedSampleSeconds()).toBeCloseTo(2 / 44100, 9)
+    // An instrument it refuses changes nothing, so the length stands.
+    expect(device.loadZones(THREE_ZONES, THREE_SOUNDS, { budgetBytes: 100_000 }).ok).toBe(false)
+    expect(device.loadedSampleSeconds()).toBeCloseTo(2 / 44100, 9)
+    expect(device.loadZones(THREE_ZONES, THREE_SOUNDS).ok).toBe(true)
+    expect(device.loadedSampleSeconds()).toBeNull()
+    device.dispose()
+  })
+
   it('refuses on a device that takes no zones', async () => {
     const { device, posted } = await create(PLATE_REVERB_DEVICE)
     expect(device.zones).toBeUndefined()

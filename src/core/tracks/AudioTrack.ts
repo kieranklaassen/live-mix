@@ -74,6 +74,7 @@ import {
 } from '../clips/placement'
 import { mirrorSlice } from '../clips/reverse'
 import { comesRound, entersOnStep, leavesOnStep } from '../clips/seam'
+import { clipSourceOnPass } from '../clips/turns'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
 import { startFloorSec } from '../clock'
@@ -941,9 +942,11 @@ export class AudioTrack implements StripHost {
     // An equal-power envelope is written from the clip's start and has no way
     // in partway: taken as handled, it sounds when its start next comes round.
     if (joining && clip.fadeCurve === 'equalPower') return true
-    const sample = this.samples.get(clip.sourceId)
+    // A clip that takes turns plays the source of the pass this start is on.
+    const sourceId = this.sourceOn(clip, start)
+    const sample = this.samples.get(sourceId)
     if (!sample) {
-      this.requestLoad(clip)
+      this.requestLoad(clip, sourceId)
       return false
     }
     const key = scheduleKey(start)
@@ -983,25 +986,38 @@ export class AudioTrack implements StripHost {
     this.tiltRoom(sent, at)
   }
 
+  /**
+   * The source `clip` plays from this start: its own, or the one of the turn
+   * the start's pass is in (`Clip.turns`), counted on the clock the track's
+   * clips are on.
+   */
+  private sourceOn(clip: Clip, start: ScheduledStart): string {
+    if (!clip.turns) return clip.sourceId
+    const base = this.timebase ?? this.scheduler?.transport
+    return clipSourceOnPass(clip, base ? base.passOf(start.iteration) : 0)
+  }
+
   private preloadStart(start: ScheduledStart): boolean {
     const clip = this.clips.get(start.clipId)
     if (!clip) return true
-    this.requestLoad(clip)
+    const sourceId = this.sourceOn(clip, start)
+    this.requestLoad(clip, sourceId)
     if (!clip.reversed) return true
     // The mirrored copy is made ahead of the start, not in the tick that plays
     // it: a `true` marks the start done, so a reversed clip is offered again
     // until its buffer has decoded.
-    const sample = this.samples.get(clip.sourceId)
+    const sample = this.samples.get(sourceId)
     if (!sample) return false
     reversedBuffer(this.ctx, sample.buffer)
     return true
   }
 
-  private requestLoad(clip: Clip): void {
-    if (this.samples.has(clip.sourceId) || this.samples.loading(clip.sourceId)) return
-    const source = this.resolveSource?.(clip)
+  private requestLoad(clip: Clip, sourceId: string = clip.sourceId): void {
+    if (this.samples.has(sourceId) || this.samples.loading(sourceId)) return
+    // Whoever resolves a source is asked for the one this start plays.
+    const source = this.resolveSource?.(sourceId === clip.sourceId ? clip : { ...clip, sourceId })
     if (source === undefined) return
-    this.samples.load(clip.sourceId, source).catch(() => {
+    this.samples.load(sourceId, source).catch(() => {
       // Failed fetch/decode: the clip is skipped; the schedule stands.
     })
   }

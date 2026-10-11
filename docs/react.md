@@ -151,6 +151,16 @@ function Studio({ engine }: { engine: Engine }) {
 | `DeviceToggle`, `ToggleButton`              | The squared power switch and the pressed / unpressed button (mute, solo, loop tones)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `GridView`                                  | The session grid over `useSession` / `useSlot`: scenes × audio tracks, a slot button per cell (`data-state` empty / stopped / queued / playing / recording, stopping, `gate` dashed), scene launch per row, per-track stop row and stop-all, the quantise selector (`quantizeKey` / `quantizeLabel`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 
+A knob with `modulation` stays where it is set and shows a value that moves
+on its own: a dot at its foot, a faint arc for how far the value swings and a
+strong arc from where the knob is set to where the value is now, written on
+frames with no render. `DevicePlate` and `DevicePanel` pass it for every
+parameter the device moves itself (`useDevice(device).modulations`, through
+`knobModulation(device, name, modulation)`), so an LFO a score routes onto a
+WASM device's knob shows with nothing more from the host. `knobHint` on a
+plate, a panel or `DeviceChainView` adds a host's line to a knob's info text
+(what a right-click there does, what moves the value).
+
 ### Grounds and depth
 
 A theme is its literal tokens (`LM_TOKENS`). The stylesheet derives a second
@@ -238,12 +248,13 @@ A skin is five choices and a face:
 | `face`, `labels`         | The knobs on the face and shorter words for them: four over a picture or a strip, two for each column beside a window. The rest are behind the `+n` cell, which widens the plate by whole 20 px cells.    |
 | `picture`                | `{ params, draw(at) }`: SVG in a 240 by 140 box, drawn from the positions (0..1) of the parameters it names and again only when one of them moves. More Feedback on the Tape Echo draws more repeats.     |
 | `display`                | A `PlateDisplay`: a canvas that shows what the device is doing while it does it, in place of a picture. See "Displays" below.                                                                             |
+| `sections`, `wide`       | For a spread plate (an instrument's): the knobs in groups that belong together, each kept as a block, and whether a wide plate has a display twice as wide. See `spread` below.                           |
 | `name`                   | The word on the tag when the device's own name is too long for it.                                                                                                                                        |
 
-`DEVICE_SKINS` holds the kit's own, one for every stock effect: the EQs and
+`DEVICE_SKINS` holds the kit's own, one for every stock effect (the EQs and
 filters, the compressors and limiters, the reverbs, delays, tape and
-modulation, and the ambient ones (Analog Delay, Cascade, Glitch, Low Bitrate,
-Vinyl, Radio, Patina and the rest). An instrument has none.
+modulation, and the ambient ones: Analog Delay, Cascade, Glitch, Low Bitrate,
+Vinyl, Radio, Patina and the rest) and one for every stock instrument.
 `deviceSkin(device, skins?)` answers for a chain: the device's skin, else
 `QUIET_SKIN` (the theme's colours, no finish, no picture, eight knobs in two
 rows) so tools sit quietly between the others, and null for a plug-in that is
@@ -259,6 +270,47 @@ else or is still open when the plate is drawn again, passes `open`: the plate
 then shows what it is told, and a press on the cell only asks through
 `onOpenChange`. `moreProps` puts the host's own `data-*` attributes on that
 cell.
+
+`upright` stands a plate up, as a pedal stands on a board: 220 px wide and 300
+high, on `DevicePlate` and, for every plate of a chain, on `DeviceChainView`.
+The display or the picture lies across the top (a display is 204 by 100), and
+the knobs are under it in two rows: eight on the face where the device has
+that many, the ones its skin chose first, and up to four stand two abreast at
+36 px. Under the knobs are the `+n` cell at the left and the tools at the
+right, then a row of the plate's whole width for a host's `presetPicker`, then
+the foot with the name tag and the lamp. A plate with no display and no picture
+has four rows of four knobs from the top. Opened, the plate widens by columns
+and the display stretches with it; the height stays. Use it where the chain
+has the height: a device shows twice the knobs and a larger display, and a
+preset's name has a row to itself. Left out, a plate lies flat as before.
+`plateLayout(knobs, pictured, display?, upright?)` answers for both, and for
+an upright plate adds `upright`: its height, where its knobs start, a row's
+height and a knob's size.
+
+`spread` lays every knob on the plate at once, with no `+n` cell: for an
+instrument, whose knobs are all played. It is not in a chain, so the host
+draws it: `<DevicePlate device={instrument} skin={deviceSkin(instrument)}
+upright spread showBypass={false} />`. Upright, the display keeps a pedal's
+window (204 by 100) at the top left and the knobs fill the rest in a pedal's
+columns: two rows beside the display, then two rows under it across the whole
+plate. C columns hold 4C - 8 knobs, so up to eight knobs is exactly a pedal,
+220 wide, and more widen the plate by whole cells. The band above the name tag
+stays empty, as on a pedal.
+
+A skin with `sections` (lists of parameter names: an oscillator, a filter, an
+envelope) keeps each together as a block two rows high, filled across its top
+row first, with one empty column between two blocks. The blocks fill the room
+beside the display first and go under it from the first that does not fit
+there; a knob no section names stands in a last block with the others like
+it. The plate is the narrowest that holds them. From nine columns up a skin
+with `wide: true` gets a display twice as wide (408), and the knobs are laid
+again around it; a display is never stretched to the plate. Lying flat, a
+spread plate is the plate opened, and stays so.
+`plateLayout(knobs, pictured, display?, upright?, spread?)` takes `true` or
+`{ sections: [4, 5, 3], wide }` (the sizes of the sections in the order of the
+knobs) and adds `spread`: how many columns the display takes, the rows'
+heights, and `cell(index)`, the row and column of each knob.
+`plateSections(skin.sections, params)` is the sections as a device has them.
 
 A hosted plug-in (a device with `openEditor`) is a plate too, though the kit
 has never seen it. `hostedSkin(device)` picks one of the eight cases in
@@ -379,8 +431,9 @@ device reports thirty times a second smoothly between two readings.
 
 `live` says what a running display follows: `meters` (the device's readings,
 watched only while it runs), `signal` (the levels in and out, each with its
-`wave`), `spectrum`, `stereo` (the two sides apart), and `fps` (30, or 60 for
-something small that moves fast). The level going in needs the node that feeds
+`wave`), `spectrum`, `stereo` (the two sides apart), `notes` (what an
+instrument was sent, below) and `fps` (30, or 60 for something small that
+moves fast). The level going in needs the node that feeds
 the device: `DeviceChainView` passes it (`source` on `DevicePlate`); a plate on
 its own shows the output only. All displays on a page share one frame loop on
 the provider's `FrameScheduler`, each stops when it scrolls out of view or its
@@ -395,6 +448,31 @@ double press calls `reset`, the wheel over a handle calls `wheel` (an EQ band's
 width). The chain leaves a press on a handle alone (`data-lm-handle`) and
 carries the plate from a press anywhere else on the display.
 
+An instrument's display has one thing more and one thing less: no sound goes
+in, and it is told the notes. With `live: { signal: true, notes: true }`,
+`frame.notes` is what the device was sent, oldest first: `{ id, frequency,
+gain, age, released }`, in seconds before now, `released` null while the key is
+held. They come from `NoteWatchDevice.playedNotes()`, which every compiled
+device answers (`WasmDevice` remembers the held notes and, for a minute,
+the ones let go, 128 at the most, the oldest one let go making room first;
+nothing of it reaches the sound), and are empty at rest and
+for a device that remembers none. What a display is told is what the
+instrument was told, not what still sounds: how long a string rings on is
+worked out in the display from the device's own figures (the Harp's
+`harpRingSeconds` is `Harp::ring_seconds`), and its test holds the two
+together. So an instrument's display is the instrument as its knobs set it
+(strings as long as they ring, bars, a tube, a wave, an envelope), lit in the
+accent where it is played for as long as the device lets the note sound, over
+the level that comes out. `instrumentDisplayKit` has what they share
+(`components/displays/instrument-parts.ts`): a pitch's place across a box, the
+names of pitches, and the foot that fills with the level; a host that draws a
+display for an instrument of its own takes them from there. A sampler's knobs give
+places as shares of its sound, so its display also needs the sound's length:
+`frame.sampleSeconds` is how long the sound the device was last handed is
+(`SampleWatchDevice.loadedSampleSeconds()`, which `WasmDevice` answers from
+`loadSample`), and null while it plays the sound it is built with, and again
+once it is handed an instrument of zones.
+
 A device may report a reading that is only for its display (an LFO's phase):
 `"display": true` on the meter in `device.json`, which keeps it out of the
 panel's title bar and the plate's foot. A plate with a display prints no
@@ -404,7 +482,7 @@ plays the device as it was at `origin/main` and as it is now, at its defaults,
 every preset and with every parameter swept, and compares sample for sample.
 
 `PLATE_FACES` holds the stock displays by device id, one file per family under
-`components/displays/`. `src/react/__tests__/displays.test.ts` holds every one
+`components/displays/` (the instruments' are the `instrument-*.ts` files). `src/react/__tests__/displays.test.ts` holds every one
 of them to the same rules (it reads parameters the device has, draws at any
 setting without a number the canvas cannot take, paints only in the plate's
 colours, follows every parameter it names, and its handles stand on it and set
@@ -413,8 +491,10 @@ canvas for a display's own tests.
 
 `playground/plates.html` (`pnpm playground`, then `/plates.html`) is the plate
 bench: every stock effect as a plate with sound running through it, by
-`?only=`, `?category=`, `?theme=`, `?open=1`, `?still=1`, `?chain=1` and
-`?preset=`. `node scripts/plates/shoot.mjs out.png "only=tremolo"` takes its
+`?only=`, `?category=`, `?theme=`, `?open=1`, `?still=1`, `?chain=1`,
+`?upright=1` and `?preset=`. `?instruments=1` shows the instruments instead,
+each spread and played a phrase over and over (`&then=shimmer,tape-echo`
+stands pedals after it, as in a chain). `node scripts/plates/shoot.mjs out.png "only=tremolo"` takes its
 picture in headless Chromium.
 Each plate there carries a `DevicePresetCell` on its foot, and the cell at the
 top of the page is a `PickCell` that finds a plate by name, so the list and the

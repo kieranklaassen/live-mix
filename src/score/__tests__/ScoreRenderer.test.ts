@@ -9,8 +9,15 @@ import {
   type MockGainNode,
 } from '../../testing'
 import { Lfo, Macro } from '../../core/automation/Modulator'
+import { type Clip } from '../../core/clips/Clip'
 import { type StretchNode, type StretchNodeFactory } from '../../core/sources/StretchSource'
-import { type Device, type NoteDevice, type StatefulDevice } from '../../core/devices/Device'
+import {
+  type Device,
+  type ModulatedDevice,
+  type NoteDevice,
+  type StatefulDevice,
+} from '../../core/devices/Device'
+import { type ParamModulation } from '../../core/automation/param-modulation'
 import { NODE_DEVICES } from '../../core/devices/native'
 import { FILTER_DEVICE } from '../../core/devices/native/Filter'
 import { NodeDevice } from '../../core/devices/native/NodeDevice'
@@ -171,6 +178,34 @@ describe('ScoreRenderer: first render', () => {
         .clips.all()
         .find((clip) => clip.id === first.id)?.chance,
     ).toBe(0.5)
+    engine.dispose()
+  })
+
+  it('gives a clip its turns, and takes them off again', async () => {
+    const score = demoScore()
+    const { engine, renderer } = await rig(score)
+    const track = score.tracks.find((candidate) => candidate.kind === 'audio')
+    if (track?.kind !== 'audio') throw new Error('demoScore has an audio track')
+    const [first] = track.clips
+    const withTurns = (turns: Clip['turns']) => ({
+      ...score,
+      tracks: score.tracks.map((candidate) =>
+        candidate === track
+          ? { ...track, clips: [{ ...first, turns }, ...track.clips.slice(1)] }
+          : candidate,
+      ),
+    })
+    const live = () =>
+      renderer
+        .audioTrack(track.id)
+        .clips.all()
+        .find((clip) => clip.id === first.id)
+    await renderer.render(withTurns({ sourceIds: ['a', 'b'], every: 2 }))
+    expect(live()?.turns).toEqual({ sourceIds: ['a', 'b'], every: 2 })
+    await renderer.render(withTurns({ sourceIds: ['b', 'a'], every: 2 }))
+    expect(live()?.turns).toEqual({ sourceIds: ['b', 'a'], every: 2 })
+    await renderer.render(score)
+    expect(live()?.turns).toBeUndefined()
     engine.dispose()
   })
 
@@ -846,6 +881,274 @@ describe('ScoreRenderer: lanes, routes and modulators', () => {
     expect(renderer.modulator('lfo1')).toBeInstanceOf(Macro)
     expect(engine.modulation.routes[0]).not.toBe(route)
     expect(engine.modulation.routes[0].source).toBe(renderer.modulator('lfo1'))
+  })
+})
+
+describe('ScoreRenderer: a device that moves its own parameters', () => {
+  const PARAMS = {
+    tone: { id: 0, name: 'Tone', min: 100, max: 1100, default: 600, taper: 'linear', unit: 'Hz' },
+    mix: { id: 1, name: 'Mix', min: 0, max: 1, default: 0.5, taper: 'linear', unit: '' },
+  } as const
+
+  /** A registry with `mover`: a device that takes modulation as a WASM device does. */
+  function movers(): {
+    registry: DeviceRegistry
+    calls: [string, ParamModulation | null][]
+    sets: [string, number][]
+    /** What each device was made with, in the order they were made. */
+    births: (Readonly<Record<string, ParamModulation>> | undefined)[]
+  } {
+    const births: (Readonly<Record<string, ParamModulation>> | undefined)[] = []
+    const calls: [string, ParamModulation | null][] = []
+    const sets: [string, number][] = []
+    const registry = new DeviceRegistry(NODE_DEVICES)
+    registry.register({
+      id: 'mover',
+      name: 'Mover',
+      kind: 'wasm',
+      category: 'modulation',
+      version: 1,
+      params: PARAMS,
+      create: (ctx, options) => {
+        const node = ctx.createGain()
+        const values = new Map<string, number>(Object.entries(options?.params ?? {}))
+        // As a WASM device takes them: there from its first block, with no message.
+        const moved = new Map<string, ParamModulation>(Object.entries(options?.modulations ?? {}))
+        births.push(options?.modulations)
+        const device: ModulatedDevice = {
+          id: 'mover',
+          input: node,
+          output: node,
+          params: PARAMS,
+          modulates: true,
+          setParam: (name, value) => {
+            sets.push([name, value])
+            values.set(name, value)
+          },
+          getParam: (name) => values.get(name) ?? PARAMS[name as keyof typeof PARAMS].default,
+          modulate: (name, modulation) => {
+            calls.push([name, modulation])
+            if (modulation) moved.set(name, modulation)
+            else moved.delete(name)
+          },
+          modulationOf: (name) => moved.get(name),
+          paramAt: (name) => device.getParam(name),
+          bypass: false,
+          latencySec: 0,
+          dispose: () => node.disconnect(),
+        }
+        return device
+      },
+    })
+    return { registry, calls, sets, births }
+  }
+
+  /** The demo with a `mover` after the kick's filter and the LFO routed to its tone. */
+  function movedScore(): Score {
+    const score = demoScore()
+    const kick = score.tracks[0]
+    kick.strip.inserts.push({
+      id: 'kick-mover',
+      deviceId: 'mover',
+      params: { tone: 400 },
+      bypass: false,
+    })
+    score.routes = [
+      {
+        id: 'r1',
+        source: 'lfo1',
+        target: { kind: 'device', device: 'kick-mover', param: 'tone' },
+        depth: 0.3,
+        polarity: 'bipolar',
+      },
+    ]
+    return score
+  }
+
+  const lfoSource = {
+    kind: 'lfo',
+    shape: 'sine',
+    rateHz: 0.5,
+    depth: 1,
+    anchorPhase: 0,
+    anchorSec: 0,
+  }
+
+  it('makes the device with its timed routes and keeps them out of the matrix', async () => {
+    const { registry, calls, sets, births } = movers()
+    const { engine, errors, renderer } = await rig(movedScore(), registry)
+    expect(errors).toEqual([])
+    // With no message: an offline render may be over before one arrives.
+    expect(births).toEqual([
+      { tone: { routes: [{ source: lfoSource, depth: 0.3, polarity: 'bipolar' }] } },
+    ])
+    expect(calls).toEqual([])
+    expect((renderer.device('kick-mover') as ModulatedDevice).modulationOf('tone')).toEqual(
+      births[0]?.tone,
+    )
+    expect(engine.modulation.routes).toHaveLength(0)
+    expect(engine.modulation.targets.size).toBe(0)
+    // The base was the device's already: nothing is set again.
+    expect(sets).toEqual([])
+  })
+
+  it('sends it again when the depth, the source or the knob changes, and only then', async () => {
+    const { registry, calls, sets } = movers()
+    const { edit } = await rig(movedScore(), registry)
+    calls.length = 0
+    await edit({ type: 'route.update', id: 'r1', depth: -0.2, polarity: 'unipolar' })
+    expect(calls).toEqual([
+      ['tone', { routes: [{ source: lfoSource, depth: -0.2, polarity: 'unipolar' }] }],
+    ])
+    calls.length = 0
+    await edit({ type: 'modulator.update', id: 'lfo1', patch: { shape: 'triangle', depth: 0.5 } })
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]?.routes[0].source).toMatchObject({ shape: 'triangle', depth: 0.5 })
+    calls.length = 0
+    // The knob is the base: the device is set, and what moves it is not sent again.
+    await edit({ type: 'device.setParam', device: 'kick-mover', param: 'tone', value: 700 })
+    expect(sets).toEqual([['tone', 700]])
+    expect(calls).toEqual([])
+    // An edit somewhere else sends nothing.
+    await edit({ type: 'strip.set', owner: 'pad', param: 'pan', value: 0.1 })
+    await edit({ type: 'device.setParam', device: 'kick-mover', param: 'mix', value: 0.2 })
+    expect(calls).toEqual([])
+  })
+
+  it('a second route on the same parameter rides with the first', async () => {
+    const { registry, calls } = movers()
+    const { engine, edit } = await rig(movedScore(), registry)
+    calls.length = 0
+    await edit(
+      {
+        type: 'modulator.add',
+        modulator: { id: 'drift', kind: 'random', rateHz: 2, seed: 7, smooth: true },
+      },
+      {
+        type: 'route.add',
+        route: {
+          id: 'r2',
+          source: 'drift',
+          target: { kind: 'device', device: 'kick-mover', param: 'tone' },
+          depth: 0.1,
+          polarity: 'bipolar',
+        },
+      },
+    )
+    // The binding is rebuilt around both: ended, then begun again with the two.
+    expect(calls.at(-1)).toEqual([
+      'tone',
+      {
+        routes: [
+          { source: lfoSource, depth: 0.3, polarity: 'bipolar' },
+          {
+            source: { kind: 'random', rateHz: 2, seed: 7, smooth: true },
+            depth: 0.1,
+            polarity: 'bipolar',
+          },
+        ],
+      },
+    ])
+    expect(engine.modulation.routes).toHaveLength(0)
+  })
+
+  it('ends it when the route goes, leaving the parameter at the knob', async () => {
+    const { registry, calls, sets } = movers()
+    const { edit, renderer } = await rig(movedScore(), registry)
+    calls.length = 0
+    await edit({ type: 'route.remove', id: 'r1' })
+    expect(calls).toEqual([['tone', null]])
+    expect(renderer.device('kick-mover').getParam('tone')).toBe(400)
+    // And the parameter is the document's to set again.
+    await edit({ type: 'device.setParam', device: 'kick-mover', param: 'tone', value: 500 })
+    expect(sets.at(-1)).toEqual(['tone', 500])
+  })
+
+  it('ends it before the device is removed, and begins it again on undo', async () => {
+    const { registry, calls, births } = movers()
+    const { document, renderer, edit } = await rig(movedScore(), registry)
+    calls.length = 0
+    await edit({ type: 'device.remove', id: 'kick-mover' })
+    expect(calls).toEqual([['tone', null]])
+    calls.length = 0
+    document.undo()
+    await renderer.whenIdle()
+    // Made anew, it is made with it.
+    expect(calls).toEqual([])
+    expect(births.at(-1)).toEqual({
+      tone: { routes: [{ source: lfoSource, depth: 0.3, polarity: 'bipolar' }] },
+    })
+  })
+
+  it('hands a route added to a standing device by message', async () => {
+    const { registry, calls, births } = movers()
+    const score = movedScore()
+    score.routes = []
+    const { edit } = await rig(score, registry)
+    expect(births).toEqual([undefined])
+    await edit({
+      type: 'route.add',
+      route: {
+        id: 'r1',
+        source: 'lfo1',
+        target: { kind: 'device', device: 'kick-mover', param: 'tone' },
+        depth: 0.3,
+        polarity: 'bipolar',
+      },
+    })
+    expect(calls).toEqual([
+      ['tone', { routes: [{ source: lfoSource, depth: 0.3, polarity: 'bipolar' }] }],
+    ])
+  })
+
+  it('a source that is not a function of time stays in the matrix, and so does a lane', async () => {
+    const { registry, calls } = movers()
+    const { engine, edit } = await rig(movedScore(), registry)
+    calls.length = 0
+    await edit(
+      { type: 'modulator.add', modulator: { id: 'hand', kind: 'macro', value: 0.3 } },
+      {
+        type: 'route.add',
+        route: {
+          id: 'r2',
+          source: 'hand',
+          target: { kind: 'device', device: 'kick-mover', param: 'tone' },
+          depth: 0.1,
+          polarity: 'unipolar',
+        },
+      },
+    )
+    // One route the device cannot run: both go through the matrix, on one target.
+    expect(calls).toEqual([['tone', null]])
+    expect(engine.modulation.routes).toHaveLength(2)
+    expect(engine.modulation.targets.size).toBe(1)
+    calls.length = 0
+    await edit({ type: 'route.remove', id: 'r2' })
+    expect(engine.modulation.routes).toHaveLength(0)
+    expect(calls).toHaveLength(1)
+    expect(calls[0][1]?.routes).toHaveLength(1)
+    calls.length = 0
+    await edit({
+      type: 'lane.add',
+      lane: {
+        id: 'tone-lane',
+        target: { kind: 'device', device: 'kick-mover', param: 'tone' },
+        breakpoints: [{ timeSec: 0, value: 200 }],
+      },
+    })
+    expect(calls).toEqual([['tone', null]])
+    expect(engine.modulation.routes).toHaveLength(1)
+  })
+
+  it('a route to a parameter the device does not have is not handed to it: the render says so', async () => {
+    const { registry, calls } = movers()
+    const score = movedScore()
+    score.routes[0].target = { kind: 'device', device: 'kick-mover', param: 'gone' }
+    const { errors } = await rig(score, registry)
+    expect(calls).toEqual([])
+    expect(errors.map(String)).toEqual([
+      'ScoreRenderError: live-mix: score render: mover has no parameter "gone"',
+    ])
   })
 })
 

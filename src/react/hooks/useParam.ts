@@ -8,7 +8,8 @@
 
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import { isObservableDevice, type Device } from '../../core/devices/Device'
+import { type ParamModulation } from '../../core/automation/param-modulation'
+import { isModulatedDevice, isObservableDevice, type Device } from '../../core/devices/Device'
 import {
   applyPreset,
   capturePreset,
@@ -72,6 +73,12 @@ export interface DeviceSnapshot {
   latencySec: number
   /** True when the device announces its changes (stock hosts do). */
   observable: boolean
+  /**
+   * What moves a parameter on the audio thread, by name: only the parameters
+   * that have something, and only on a device that moves its own
+   * (`isModulatedDevice`). `values` stay where the knobs are set.
+   */
+  modulations: Readonly<Record<string, ParamModulation>>
 }
 
 export interface DeviceControls {
@@ -119,6 +126,18 @@ function readValues(device: Device): Record<string, number> {
   const values: Record<string, number> = {}
   for (const name of Object.keys(device.params)) values[name] = device.getParam(name)
   return values
+}
+
+const NO_MODULATIONS: Readonly<Record<string, ParamModulation>> = Object.freeze({})
+
+function readModulations(device: Device): Readonly<Record<string, ParamModulation>> {
+  if (!isModulatedDevice(device)) return NO_MODULATIONS
+  let found: Record<string, ParamModulation> | null = null
+  for (const name of Object.keys(device.params)) {
+    const modulation = device.modulationOf(name)
+    if (modulation) (found ??= {})[name] = modulation
+  }
+  return found ?? NO_MODULATIONS
 }
 
 function deviceSubscription(device: Device): Subscribe {
@@ -281,6 +300,8 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
   const values = useExternalSnapshot(subscribe, readParams)
   const readBypass = useCallback((): boolean => device.bypass, [device])
   const bypass = useExternalSnapshot(subscribe, readBypass)
+  const readMoved = useCallback(() => readModulations(device), [device])
+  const modulations = useExternalSnapshot(subscribe, readMoved)
   const attributed = useAttributedParams(device)
   const taken = useTakenWrites(device, options.writes)
 
@@ -392,6 +413,7 @@ export function useDevice(device: Device, options: UseDeviceOptions = {}): UseDe
     bypass,
     latencySec: device.latencySec,
     observable,
+    modulations,
     ...controls,
   }
 }

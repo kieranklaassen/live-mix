@@ -1,12 +1,18 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
-import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { type Device, type EditorDevice } from '../../core/devices/Device'
+import { type ParamModulation } from '../../core/automation/param-modulation'
+import {
+  type Device,
+  type DeviceChangeListener,
+  type EditorDevice,
+  type ModulatedDevice,
+} from '../../core/devices/Device'
 import { DeviceChainView } from '../components/DeviceChainView'
-import { DevicePlate, plateLayout } from '../components/DevicePlate'
+import { DevicePlate, plateLayout, plateSections } from '../components/DevicePlate'
 import {
   DEVICE_SKINS,
   PLATE_FINISHES,
@@ -19,9 +25,10 @@ import {
 } from '../components/device-skins'
 import { controlGestureInfo, infoParagraphs, resolveInfo } from '../components/info'
 import { Knob, type KnobCap } from '../components/Knob'
+import { type PlateDisplay } from '../components/plate-display'
 import { HOSTED_PLATES, PLATE_PALETTES } from '../components/plate-palettes'
 import { MissingNativeDevice } from '../../native/missing'
-import { stockDescriptors } from './display-harness'
+import { recordingContext, stockDescriptors } from './display-harness'
 import { createTestEngine, type TestEngine } from './harness'
 
 afterEach(cleanup)
@@ -80,6 +87,43 @@ describe('device skins', () => {
     for (const descriptor of stock.values()) {
       if (descriptor.category === 'instrument' || descriptor.kind === 'rack') continue
       expect(Object.hasOwn(DEVICE_SKINS, descriptor.id), `${descriptor.id} has a skin`).toBe(true)
+    }
+  })
+
+  /**
+   * Instruments whose display lands in a change of its own: one that was merged while its plate
+   * was still being drawn. Each is named here until then. A name that is no stock instrument, and
+   * one that has its display by now, fails the test below, so the list empties itself.
+   */
+  const PLATES_TO_COME: readonly string[] = []
+
+  it('has a plate of its own for every stock instrument, with a display that knows what is played', () => {
+    for (const id of PLATES_TO_COME) {
+      expect(stock.get(id)?.category, `${id} is a stock instrument`).toBe('instrument')
+      expect(
+        DEVICE_SKINS[id]?.display,
+        `${id} has its display now: take it off PLATES_TO_COME`,
+      ).toBeUndefined()
+    }
+    for (const descriptor of stock.values()) {
+      if (descriptor.category !== 'instrument' || PLATES_TO_COME.includes(descriptor.id)) continue
+      const { id } = descriptor
+      const params = Object.keys(descriptor.params ?? {})
+      const skin = DEVICE_SKINS[id]
+      expect(skin, `${id} has a skin`).toBeDefined()
+      // A window, so its knobs stand beside it on a flat plate, lit by the notes it is sent.
+      expect(skin.display?.place, `${id} display`).toBe('window')
+      expect(skin.display?.live?.notes, `${id} is told its notes`).toBe(true)
+      // Its sections name knobs it has, none twice; from thirteen knobs up no knob is left out of them.
+      const named = (skin.sections ?? []).flat()
+      for (const name of named) expect(params, `${id} has ${name}`).toContain(name)
+      expect(new Set(named).size, `${id} sections`).toBe(named.length)
+      for (const section of skin.sections ?? [])
+        expect(section.length, `${id} has no empty section`).toBeGreaterThan(0)
+      if (params.length >= 13)
+        expect([...named].sort(), `${id} sections`).toEqual([...params].sort())
+      // A display twice as wide is for a plate that is wide without it.
+      if (skin.wide) expect(params.length, `${id} is wide`).toBeGreaterThanOrEqual(25)
     }
   })
 
@@ -338,6 +382,294 @@ describe('plateLayout', () => {
     const many = plateLayout(20, false, { place: 'strip' })
     expect(many.rows).toBe(2)
     expect(many.display).toMatchObject({ top: 8, width: 184, height: 100 })
+  })
+
+  it('stands an upright plate 220 by 300, the display over two rows of knobs', () => {
+    const strip = { place: 'strip' } as const
+    const top = { left: 8, top: 8, width: 204, height: 100 }
+    const large = { height: 300, knobsTop: 110, row: 56, knob: 36 }
+    const usual = { ...large, knob: 30 }
+    const face = { rows: 2, width: 220, knobsLeft: 8, display: top }
+    // Up to four knobs stand two abreast and are larger; a lone one has the middle.
+    expect(plateLayout(1, false, strip, true)).toEqual({
+      ...face,
+      columns: 1,
+      column: 204,
+      upright: large,
+    })
+    for (const knobs of [2, 4])
+      expect(plateLayout(knobs, false, strip, true)).toEqual({
+        ...face,
+        columns: 2,
+        column: 102,
+        upright: large,
+      })
+    // Five and six stand three abreast, eight four abreast, at the usual size.
+    for (const knobs of [5, 6])
+      expect(plateLayout(knobs, false, strip, true)).toEqual({
+        ...face,
+        columns: 3,
+        column: 68,
+        upright: usual,
+      })
+    expect(plateLayout(8, false, strip, true)).toEqual({
+      ...face,
+      columns: 4,
+      column: 51,
+      upright: usual,
+    })
+    // The display is the same box whichever place it has on a flat plate, and a picture leaves the top to itself.
+    expect(plateLayout(8, false, { place: 'window', columns: 3 }, true).display).toEqual(top)
+    expect(plateLayout(8, true, undefined, true)).toEqual({
+      ...face,
+      columns: 4,
+      column: 51,
+      display: null,
+      upright: usual,
+    })
+  })
+
+  it('gives an upright plate without a display four rows of four from the top', () => {
+    const plain = { height: 300, knobsTop: 8, row: 50, knob: 30 }
+    for (const knobs of [9, 16])
+      expect(plateLayout(knobs, false, undefined, true)).toEqual({
+        rows: 4,
+        columns: 4,
+        column: 51,
+        width: 220,
+        knobsLeft: 8,
+        display: null,
+        upright: plain,
+      })
+    // Opened past sixteen it widens by columns, and the rows stand in the middle.
+    expect(plateLayout(20, false, undefined, true)).toEqual({
+      rows: 4,
+      columns: 5,
+      column: 51,
+      width: 280,
+      knobsLeft: 12,
+      display: null,
+      upright: plain,
+    })
+  })
+
+  it('widens an opened upright plate by columns, and stretches the display with it', () => {
+    const strip = { place: 'strip' } as const
+    const usual = { height: 300, knobsTop: 110, row: 56, knob: 30 }
+    expect(plateLayout(12, false, strip, true)).toEqual({
+      rows: 2,
+      columns: 6,
+      column: 51,
+      width: 340,
+      knobsLeft: 17,
+      display: { left: 8, top: 8, width: 324, height: 100 },
+      upright: usual,
+    })
+    expect(plateLayout(20, false, strip, true)).toEqual({
+      rows: 2,
+      columns: 10,
+      column: 51,
+      width: 540,
+      knobsLeft: 15,
+      display: { left: 8, top: 8, width: 524, height: 100 },
+      upright: usual,
+    })
+  })
+
+  it('lays a spread plate around a display of a pedal’s size: knobs beside it, then under it', () => {
+    const window = { place: 'window', columns: 2 } as const
+    const top = { left: 8, top: 8, width: 204, height: 100 }
+    const upright = { height: 300, knobsTop: 8, row: 56, knob: 30 }
+    const cellsOf = (knobs: number, layout: ReturnType<typeof plateLayout>): string[] =>
+      Array.from({ length: knobs }, (_, index) => {
+        const cell = layout.spread?.cell(index)
+        return `${cell?.row}:${cell?.column}`
+      })
+    // Up to eight knobs it is a pedal: 220 wide, the display across the top, two rows of four under it.
+    const eight = plateLayout(8, false, window, true, true)
+    expect(eight).toMatchObject({ rows: 4, columns: 4, column: 51, width: 220, knobsLeft: 8 })
+    expect(eight.display).toEqual(top)
+    expect(eight.upright).toEqual(upright)
+    expect(eight.spread?.shown).toBe(4)
+    // The third row starts where a pedal's knobs do: 8 + 50 + 52 = 110.
+    expect(eight.spread?.rowHeights).toEqual([50, 52, 56, 56])
+    expect(cellsOf(8, eight)).toEqual(['3:1', '3:2', '3:3', '3:4', '4:1', '4:2', '4:3', '4:4'])
+    // Past eight the plate widens by whole cells and the display keeps its size: C columns hold 4C - 8.
+    const twelve = plateLayout(12, false, window, true, true)
+    expect(twelve).toMatchObject({ columns: 5, width: 280 })
+    expect(twelve.display).toEqual(top)
+    expect(cellsOf(12, twelve)).toEqual([
+      '1:5',
+      '2:5',
+      '3:1',
+      '3:2',
+      '3:3',
+      '3:4',
+      '3:5',
+      '4:1',
+      '4:2',
+      '4:3',
+      '4:4',
+      '4:5',
+    ])
+    for (const [knobs, columns] of [
+      [9, 5],
+      [13, 6],
+      [16, 6],
+      [17, 7],
+      [44, 13],
+    ]) {
+      const layout = plateLayout(knobs, false, window, true, true)
+      expect(layout.columns, `${knobs} knobs`).toBe(columns)
+      expect(layout.width % 20, `${knobs} knobs`).toBe(0)
+      expect(layout.display?.width, `${knobs} knobs`).toBe(204)
+      // No two knobs share a cell, and none stands on the display.
+      const cells = cellsOf(knobs, layout)
+      expect(new Set(cells).size).toBe(knobs)
+      for (const cell of cells) {
+        const [row, column] = cell.split(':').map(Number)
+        expect(row <= 2 && column <= 4, `${knobs} knobs: ${cell}`).toBe(false)
+        expect(row).toBeLessThanOrEqual(4)
+        expect(column).toBeLessThanOrEqual(columns)
+      }
+    }
+    // A picture has the top as a display has, and a plate with neither is not spread: four rows from the top.
+    expect(plateLayout(12, true, undefined, true, true)).toMatchObject({
+      columns: 5,
+      display: null,
+    })
+    expect(plateLayout(12, false, undefined, true, true)).toEqual(
+      plateLayout(12, false, undefined, true),
+    )
+    // Lying flat, a spread plate is the plate opened.
+    expect(plateLayout(12, false, window, false, true)).toEqual(plateLayout(12, false, window))
+  })
+
+  it('keeps the sections of a spread plate together, an empty column between two', () => {
+    const window = { place: 'window', columns: 2 } as const
+    const cellsOf = (knobs: number, layout: ReturnType<typeof plateLayout>): string[] =>
+      Array.from({ length: knobs }, (_, index) => {
+        const cell = layout.spread?.cell(index)
+        return `${cell?.row}:${cell?.column}`
+      })
+    // The fewest columns that hold them: four beside the display, and three, five and two under it.
+    // A block is two rows high and filled across its top row first.
+    const sections = [4, 3, 5, 2]
+    const layout = plateLayout(14, false, window, true, { sections })
+    expect(layout.columns).toBe(8)
+    expect(layout.display?.width).toBe(204)
+    expect(cellsOf(14, layout)).toEqual([
+      // Four: a block of two columns, right of the display.
+      '1:5',
+      '1:6',
+      '2:5',
+      '2:6',
+      // Three would end past the plate's edge up there: under the display, from the left, two over one.
+      '3:1',
+      '3:2',
+      '4:1',
+      // Five: after one empty column, three over two.
+      '3:4',
+      '3:5',
+      '3:6',
+      '4:4',
+      '4:5',
+      // Two: after one empty column, one over the other.
+      '3:8',
+      '4:8',
+    ])
+    // Once a section has gone under the display, none after it goes back up beside it.
+    const under = plateLayout(13, false, window, true, { sections: [2, 10, 1] })
+    expect(under.columns).toBe(7)
+    expect(cellsOf(13, under).slice(0, 3)).toEqual(['1:5', '2:5', '3:1'])
+    expect(cellsOf(13, under)[12]).toBe('3:7')
+    // A section too large for the room is given a plate wide enough to hold it.
+    expect(plateLayout(30, false, window, true, { sections: [30] }).columns).toBe(15)
+    // No sections, or none with a knob: one run, as a plain spread plate.
+    expect(plateLayout(14, false, window, true, { sections: [] })).toMatchObject({ columns: 6 })
+  })
+
+  it('doubles the display of a spread plate that is wide already, where its skin asks', () => {
+    const window = { place: 'window', columns: 2 } as const
+    // Eight columns is not wide: the display stays a pedal's, asked or not.
+    const narrow = plateLayout(24, false, window, true, { wide: true })
+    expect(narrow).toMatchObject({ columns: 8, width: 440 })
+    expect(narrow.display?.width).toBe(204)
+    expect(narrow.spread?.shown).toBe(4)
+    // Nine columns and more: two displays' width, the knobs laid again around it; 4C - 16 knobs in C columns.
+    const wide = plateLayout(28, false, window, true, { wide: true })
+    expect(wide.spread?.shown).toBe(8)
+    expect(wide.display).toEqual({ left: 8, top: 8, width: 408, height: 100 })
+    expect(wide.columns).toBe(11)
+    expect(wide.spread?.cell(0)).toEqual({ row: 1, column: 9 })
+    // Not asked, the same plate keeps the one display.
+    expect(plateLayout(28, false, window, true, true).display?.width).toBe(204)
+    expect(plateLayout(28, false, window, true, true).columns).toBe(9)
+    // A picture is never doubled.
+    expect(plateLayout(28, true, undefined, true, { wide: true }).spread?.shown).toBe(4)
+  })
+
+  it('reads a skin’s sections for the knobs a device has', () => {
+    const params = ['a', 'b', 'c', 'd', 'e']
+    expect(plateSections(undefined, params)).toBeNull()
+    expect(plateSections([], params)).toBeNull()
+    // A knob the device lacks is left out, one named twice stands where it was named first,
+    // an emptied section is dropped, and the knobs no section names make a last one.
+    expect(
+      plateSections(
+        [
+          ['c', 'x', 'a'],
+          ['y', 'c'],
+          ['e', 'a'],
+        ],
+        params,
+      ),
+    ).toEqual([['c', 'a'], ['e'], ['b', 'd']])
+    expect(
+      plateSections(
+        [
+          ['a', 'b'],
+          ['c', 'd', 'e'],
+        ],
+        params,
+      ),
+    ).toEqual([
+      ['a', 'b'],
+      ['c', 'd', 'e'],
+    ])
+  })
+
+  it('lays a flat plate as before, whether or not it is asked', () => {
+    const cases: [number, boolean, Pick<PlateDisplay, 'place' | 'columns'> | undefined][] = [
+      [4, true, undefined],
+      [20, true, undefined],
+      [8, false, undefined],
+      [14, false, undefined],
+      [4, false, { place: 'window', columns: 2 }],
+      [12, false, { place: 'window', columns: 2 }],
+      [4, false, { place: 'strip' }],
+      [9, false, { place: 'strip' }],
+      [20, false, { place: 'strip' }],
+    ]
+    for (const [knobs, pictured, display] of cases) {
+      const flat = plateLayout(knobs, pictured, display)
+      expect(plateLayout(knobs, pictured, display, false)).toEqual(flat)
+      expect(flat.upright).toBeUndefined()
+    }
+    expect(plateLayout(8, false)).toEqual({
+      ...AT_REST,
+      rows: 2,
+      columns: 4,
+      column: 56,
+      width: 280,
+    })
+    expect(plateLayout(9, false, { place: 'strip' })).toMatchObject({
+      rows: 1,
+      columns: 9,
+      column: 48,
+      width: 480,
+      knobsLeft: 4,
+    })
   })
 })
 
@@ -782,6 +1114,302 @@ describe('DevicePlate', () => {
   })
 })
 
+describe('DevicePlate upright', () => {
+  beforeEach(() => {
+    // jsdom has no canvas to draw on: the display is given one that takes every call.
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockImplementation(
+      () => recordingContext().ctx,
+    )
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  /** A display that draws nothing, in a strip as most of the kit's are. */
+  const DISPLAY: PlateDisplay = {
+    place: 'strip',
+    params: [],
+    info: 'What the device does, as it stands.',
+    draw: () => {},
+  }
+  const SHOWN: DeviceSkin = { ...SKIN, picture: undefined, display: DISPLAY }
+
+  it('stands 220 by 300 with a face of eight knobs, the ones its skin chose first', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture, 'parametric-eq')
+    const all = Object.keys(device.params)
+    expect(all.length).toBeGreaterThan(8)
+    // A skin picks four for a flat plate; upright there is room for four more.
+    const chosen = [all[5], all[2], all[9], all[0]]
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SHOWN, face: chosen, labels: undefined }}
+        upright
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveClass('lm-plate--upright', 'lm-plate--display')
+    expect(plate.style.width).toBe('220px')
+    expect(plate.style.height).toBe('300px')
+    expect(plate.style.getPropertyValue('--lm-plate-rows')).toBe('2')
+    expect(plate.style.getPropertyValue('--lm-plate-columns')).toBe('4')
+    expect(plate.style.getPropertyValue('--lm-plate-column')).toBe('51px')
+    expect(plate.style.getPropertyValue('--lm-plate-knobs-left')).toBe('8px')
+    expect(plate.style.getPropertyValue('--lm-plate-knobs-top')).toBe('110px')
+    expect(plate.style.getPropertyValue('--lm-plate-row')).toBe('56px')
+    const shown = (): (string | undefined)[] =>
+      [...plate.querySelectorAll<HTMLElement>('.lm-plate__knob')].map(
+        (knob) => knob.dataset.lmParam,
+      )
+    const others = all.filter((name) => !chosen.includes(name))
+    expect(shown()).toEqual([...chosen, ...others.slice(0, 4)])
+    // The display has the top, across the plate.
+    expect(screen.getByTestId('plate-display').style).toMatchObject({
+      left: '8px',
+      top: '8px',
+      width: '204px',
+      height: '100px',
+    })
+    // The cell counts what the face of eight leaves, and opens the plate by columns.
+    const more = screen.getByTestId('plate-more')
+    expect(more).toHaveTextContent(`+${all.length - 8}`)
+    fireEvent.click(more)
+    expect(shown()).toEqual([...chosen, ...others])
+    expect(plate.style.height).toBe('300px')
+    const columns = Math.ceil(all.length / 2)
+    expect(plate.style.getPropertyValue('--lm-plate-columns')).toBe(String(columns))
+    expect(plate.style.width).toBe(`${plateLayout(all.length, false, DISPLAY, true).width}px`)
+    expect(screen.getByTestId('plate-display').style.width).toBe(
+      `${parseInt(plate.style.width, 10) - 16}px`,
+    )
+  })
+
+  it('spreads every knob over the plate at once, beside the display and under it, with no cell to open', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture, 'parametric-eq')
+    const all = Object.keys(device.params)
+    const chosen = [all[5], all[2], all[9], all[0]]
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SHOWN, face: chosen, labels: undefined }}
+        upright
+        spread
+        showBypass={false}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveClass('lm-plate--upright', 'lm-plate--spread', 'lm-plate--open')
+    const layout = plateLayout(all.length, false, DISPLAY, true, true)
+    expect(plate.style.width).toBe(`${layout.width}px`)
+    expect(plate.style.height).toBe('300px')
+    expect(plate.style.getPropertyValue('--lm-plate-rows')).toBe('4')
+    expect(plate.style.getPropertyValue('--lm-plate-columns')).toBe(String(layout.columns))
+    expect(plate.style.getPropertyValue('--lm-plate-knobs-top')).toBe('8px')
+    expect(plate.style.getPropertyValue('--lm-plate-row-heights')).toBe('50px 52px 56px 56px')
+    // Every knob, the skin's own first, each in the cell the layout gives it.
+    const knobs = [...plate.querySelectorAll<HTMLElement>('.lm-plate__knob')]
+    expect(knobs.map((knob) => knob.dataset.lmParam)).toEqual([
+      ...chosen,
+      ...all.filter((name) => !chosen.includes(name)),
+    ])
+    knobs.forEach((knob, index) => {
+      const cell = layout.spread?.cell(index)
+      expect(knob.style.gridRow).toBe(String(cell?.row))
+      expect(knob.style.gridColumn).toBe(String(cell?.column))
+    })
+    // The display is a pedal's, not stretched to the plate; nothing opens or folds, and an instrument has no lamp.
+    expect(screen.getByTestId('plate-display').style).toMatchObject({
+      left: '8px',
+      top: '8px',
+      width: '204px',
+      height: '100px',
+    })
+    expect(screen.queryByTestId('plate-more')).toBeNull()
+    expect(plate.querySelector('.lm-plate__lamp')).toBeNull()
+  })
+
+  it('stands the knobs of a spread plate in its skin’s sections, and the ones it forgot in a last one', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture, 'parametric-eq')
+    const all = Object.keys(device.params)
+    // Two sections in an order of their own, with a knob the device lacks; the rest are left unnamed.
+    const sections = [[all[7], all[1], 'no-such-knob', all[4]], [all[0]]]
+    const named = [all[7], all[1], all[4], all[0]]
+    const others = all.filter((name) => !named.includes(name))
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SHOWN, face: [all[3]], labels: undefined, sections }}
+        upright
+        spread
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    const knobs = [...plate.querySelectorAll<HTMLElement>('.lm-plate__knob')]
+    expect(knobs.map((knob) => knob.dataset.lmParam)).toEqual([...named, ...others])
+    const layout = plateLayout(all.length, false, DISPLAY, true, {
+      sections: [3, 1, others.length],
+    })
+    expect(plate.style.width).toBe(`${layout.width}px`)
+    // The first section is beside the display: two over one, from the fifth column.
+    expect(
+      knobs.slice(0, 3).map((knob) => `${knob.style.gridRow}:${knob.style.gridColumn}`),
+    ).toEqual(['1:5', '1:6', '2:5'])
+    // Lying flat the sections do not apply: the plate is the plate opened, the skin's face first.
+    cleanup()
+    render(
+      <DevicePlate
+        device={device}
+        skin={{ ...SHOWN, face: [all[3]], labels: undefined, sections }}
+        spread
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const flat = screen.getByTestId('plate')
+    expect(flat).not.toHaveClass('lm-plate--upright')
+    expect(flat).toHaveClass('lm-plate--spread', 'lm-plate--open')
+    expect(
+      [...flat.querySelectorAll<HTMLElement>('.lm-plate__knob')].map(
+        (knob) => knob.dataset.lmParam,
+      ),
+    ).toEqual([all[3], ...all.filter((name) => name !== all[3])])
+    expect(screen.queryByTestId('plate-more')).toBeNull()
+    expect(flat.style.width).toBe(`${plateLayout(all.length, false, DISPLAY).width}px`)
+  })
+
+  it('lies flat, as it always did, unless it is asked to stand', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(<DevicePlate device={device} skin={SHOWN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('plate')
+    expect(plate).not.toHaveClass('lm-plate--upright')
+    expect(plate.style.height).toBe('')
+    expect(plate.style.width).toBe('280px')
+    expect(plate.style.getPropertyValue('--lm-plate-knobs-top')).toBe('')
+    expect(plate.style.getPropertyValue('--lm-plate-row')).toBe('')
+    expect(screen.getAllByRole('slider')).toHaveLength(2)
+    expect(screen.getByTestId('plate-display').style).toMatchObject({ top: '60px', height: '48px' })
+  })
+
+  it('has larger knobs, two abreast, where there are four or fewer', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const few = render(<DevicePlate device={device} skin={SHOWN} upright data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    // The filter has four knobs: all of them are on the face, and no cell opens more.
+    expect(screen.getAllByRole('slider')).toHaveLength(4)
+    expect(screen.queryByTestId('plate-more')).toBeNull()
+    expect(screen.getByTestId('plate').style.getPropertyValue('--lm-plate-columns')).toBe('2')
+    expect(screen.getByTestId('plate').style.getPropertyValue('--lm-plate-column')).toBe('102px')
+    for (const knob of screen.getAllByRole('slider'))
+      expect(knob.querySelector('svg')).toHaveAttribute('width', '36')
+    few.unmount()
+
+    render(
+      <DevicePlate
+        device={await make(fixture, 'parametric-eq')}
+        skin={SHOWN}
+        upright
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    expect(screen.getAllByRole('slider')).toHaveLength(8)
+    for (const knob of screen.getAllByRole('slider'))
+      expect(knob.querySelector('svg')).toHaveAttribute('width', '30')
+  })
+
+  it("stands the tools and the host's preset picker in rows of their own, off the foot", async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const picked = render(
+      <DevicePlate
+        device={device}
+        skin={SHOWN}
+        upright
+        presetPicker={<button type="button">Presets of mine</button>}
+        actions={<button type="button">Swap</button>}
+        onRemove={() => {}}
+        data-testid="plate"
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const plate = screen.getByTestId('plate')
+    const foot = plate.querySelector('.lm-plate__foot')
+    const picker = screen.getByRole('button', { name: 'Presets of mine' })
+    expect(picker.parentElement).toHaveClass('lm-plate__presets')
+    expect(picker.closest('.lm-plate__foot')).toBeNull()
+    expect(picker.closest('.lm-plate__tools')).toBeNull()
+    expect(screen.queryByTestId('plate-preset')).toBeNull()
+    const tools = screen.getByTestId('plate-remove').closest('.lm-plate__tools')
+    expect(tools).toHaveClass('lm-plate__tools--above')
+    expect(tools).toContainElement(screen.getByRole('button', { name: 'Swap' }))
+    expect(tools?.closest('.lm-plate__foot')).toBeNull()
+    // From the top: the tools, the presets, then the foot with the name and the lamp alone.
+    expect(tools?.nextElementSibling).toBe(picker.parentElement)
+    expect(picker.parentElement?.nextElementSibling).toBe(foot)
+    expect(foot).toContainElement(screen.getByRole('heading', { name: 'Sweep' }))
+    expect(foot).toContainElement(screen.getByTestId('plate-power'))
+    expect(foot?.children).toHaveLength(2)
+    picked.unmount()
+
+    // With no picker of the host's the kit's own list is among the tools, in their row, and no row is kept for presets.
+    render(<DevicePlate device={device} skin={SHOWN} upright data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const list = screen.getByTestId('plate-preset')
+    expect(list.closest('.lm-plate__tools')).toHaveClass('lm-plate__tools--above')
+    expect(list.closest('.lm-plate__foot')).toBeNull()
+    expect(screen.getByTestId('plate').querySelector('.lm-plate__presets')).toBeNull()
+  })
+
+  it('stands a plate with a picture and one with neither, each with its own rows', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture, 'parametric-eq')
+    const pictured = render(
+      <DevicePlate device={device} skin={SKIN} upright data-testid="plate" />,
+      {
+        wrapper: fixture.wrapper,
+      },
+    )
+    // A picture has the top as a display has: eight knobs in two rows under it.
+    expect(screen.getByTestId('plate')).toHaveClass('lm-plate--upright', 'lm-plate--pictured')
+    expect(screen.getByTestId('plate').querySelector('.lm-plate__picture')).not.toBeNull()
+    expect(screen.getAllByRole('slider')).toHaveLength(8)
+    expect(screen.getByTestId('plate').style.getPropertyValue('--lm-plate-knobs-top')).toBe('110px')
+    pictured.unmount()
+
+    // With neither the knobs start at the top: sixteen in four rows of four, closer together.
+    render(<DevicePlate device={device} skin={QUIET_SKIN} upright data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('plate')
+    expect(plate).toHaveClass('lm-plate--upright', 'lm-plate--plain')
+    const all = Object.keys(device.params)
+    expect(screen.getAllByRole('slider')).toHaveLength(Math.min(16, all.length))
+    expect(plate.style.width).toBe('220px')
+    expect(plate.style.height).toBe('300px')
+    expect(plate.style.getPropertyValue('--lm-plate-rows')).toBe('4')
+    expect(plate.style.getPropertyValue('--lm-plate-knobs-top')).toBe('8px')
+    expect(plate.style.getPropertyValue('--lm-plate-row')).toBe('50px')
+    for (const knob of screen.getAllByRole('slider'))
+      expect(knob.querySelector('svg')).toHaveAttribute('width', '30')
+  })
+})
+
 describe('DeviceChainView with skins', () => {
   it('draws a plate for a device with a skin and the panel for the rest, with the same tools', async () => {
     const fixture = createTestEngine()
@@ -895,5 +1523,135 @@ describe('DeviceChainView with skins', () => {
     expect(pad.strip.inserts).toEqual([delay, filter])
     // It is the same plate in its new place.
     expect(screen.getByTestId('chain-device-1')).toBe(plate)
+  })
+
+  it('stands its plates upright when asked, and leaves a panel as it is', async () => {
+    const fixture = createTestEngine()
+    const pad = fixture.engine.addAudioTrack('pad')
+    pad.strip.addInsert(await make(fixture))
+    pad.strip.addInsert(await make(fixture, 'delay'))
+    const skin = (device: Device): DeviceSkin | null => (device.id === 'filter' ? SKIN : null)
+    const flat = render(<DeviceChainView strip={pad} skin={skin} data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    expect(screen.getByTestId('chain-device-0')).not.toHaveClass('lm-plate--upright')
+    expect(screen.getByTestId('chain-device-0').style.height).toBe('')
+    flat.unmount()
+
+    render(<DeviceChainView strip={pad} skin={skin} upright data-testid="chain" />, {
+      wrapper: fixture.wrapper,
+    })
+    const plate = screen.getByTestId('chain-device-0')
+    expect(plate).toHaveClass('lm-plate', 'lm-plate--upright')
+    expect(plate.style.width).toBe('220px')
+    expect(plate.style.height).toBe('300px')
+    // The chain's own tools are in the row above the presets, as on any upright plate.
+    expect(screen.getByTestId('chain-later-0').closest('.lm-plate__tools')).toHaveClass(
+      'lm-plate__tools--above',
+    )
+    const panel = screen.getByTestId('chain-device-1')
+    expect(panel).toHaveClass('lm-device')
+    expect(panel).not.toHaveClass('lm-plate--upright')
+  })
+})
+
+describe('DevicePlate: a parameter the device moves itself', () => {
+  /** The stock filter, taking modulation the way a WASM device does. */
+  async function mover(fixture: TestEngine): Promise<ModulatedDevice> {
+    const device = await make(fixture)
+    const listeners = new Set<DeviceChangeListener>()
+    const moved = new Map<string, ParamModulation>()
+    const observed = device as Device & { onChange(listener: DeviceChangeListener): () => void }
+    const onChange = observed.onChange.bind(device)
+    return Object.assign(device, {
+      modulates: true as const,
+      onChange: (listener: DeviceChangeListener) => {
+        listeners.add(listener)
+        const stop = onChange(listener)
+        return () => {
+          listeners.delete(listener)
+          stop()
+        }
+      },
+      modulate: (name: string, modulation: ParamModulation | null) => {
+        if (modulation) moved.set(name, modulation)
+        else moved.delete(name)
+        for (const listener of listeners) listener({ type: 'modulation', name })
+      },
+      modulationOf: (name: string) => moved.get(name),
+      paramAt: (name: string) => device.getParam(name) * 2,
+    })
+  }
+  const sine: ParamModulation = {
+    routes: [
+      {
+        source: { kind: 'lfo', shape: 'sine', rateHz: 1, depth: 1, anchorPhase: 0, anchorSec: 0 },
+        depth: 0.2,
+        polarity: 'bipolar',
+      },
+    ],
+  }
+
+  it('marks the knob when the device is told to move it, and unmarks it when that ends', async () => {
+    const fixture = createTestEngine()
+    const device = await mover(fixture)
+    render(<DevicePlate device={device} skin={SKIN} data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const knob = screen.getByTestId('plate-frequency')
+    const other = screen.getByTestId('plate-q')
+    expect(knob).not.toHaveClass('lm-knob--modulated')
+    act(() => device.modulate('frequency', sine))
+    expect(knob).toHaveClass('lm-knob--modulated')
+    expect(other).not.toHaveClass('lm-knob--modulated')
+    // The arc runs to where the device says the value is now, not to where the knob is set.
+    fixture.frames.flush(1000)
+    expect(knob.querySelector('.lm-knob__modulation-now')?.getAttribute('d')).toMatch(/^M /)
+    expect(within(knob).getByRole('slider')).toHaveAttribute(
+      'aria-valuenow',
+      String(device.getParam('frequency')),
+    )
+    act(() => device.modulate('frequency', null))
+    expect(knob).not.toHaveClass('lm-knob--modulated')
+  })
+
+  it('draws the marks at the size an upright plate gives its knobs', async () => {
+    const fixture = createTestEngine()
+    const device = await mover(fixture)
+    render(<DevicePlate device={device} skin={SKIN} upright data-testid="plate" />, {
+      wrapper: fixture.wrapper,
+    })
+    const knob = screen.getByTestId('plate-frequency')
+    act(() => device.modulate('frequency', sine))
+    fixture.frames.flush(1000)
+    // Up to four knobs stand two abreast on an upright plate, at 36 px; a flat plate's are 30.
+    const size = Number(knob.querySelector('svg')?.getAttribute('width'))
+    expect(size).toBe(plateLayout(4, true, undefined, true).upright?.knob)
+    const dot = knob.querySelector('.lm-knob__modulation-dot')
+    expect(Number(dot?.getAttribute('cx'))).toBe(size / 2)
+    expect(Number(dot?.getAttribute('cy')) + Number(dot?.getAttribute('r'))).toBeLessThanOrEqual(
+      size,
+    )
+    expect(knob.querySelector('.lm-knob__modulation-now')?.getAttribute('d')).toMatch(
+      new RegExp(`A ${size * 0.455} ${size * 0.455} `),
+    )
+  })
+
+  it('adds a host’s line to a knob’s info, after what the parameter does and before how it is worked', async () => {
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    render(
+      <DevicePlate
+        device={device}
+        skin={SKIN}
+        knobHint={(param) => (param === 'q' ? 'Right-click for more.' : undefined)}
+      />,
+      { wrapper: fixture.wrapper },
+    )
+    const paragraphs = (name: string): string[] =>
+      infoParagraphs(resolveInfo(screen.getByRole('slider', { name }))?.text ?? '')
+    expect(paragraphs('Q').at(-2)).toBe('Right-click for more.')
+    expect(paragraphs('Q').at(-1)).toMatch(/^Drag /)
+    expect(paragraphs('Freq')).not.toContain('Right-click for more.')
   })
 })

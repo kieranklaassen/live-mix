@@ -44,7 +44,28 @@ export const PACK_LIMITS = {
  * instrument has its presets in the bank; a pack made from now on is free to
  * use it, and none is held to.
  */
-export const AFTER_THE_PACKS: readonly string[] = ['zone-sampler']
+export const AFTER_THE_PACKS: readonly string[] = [
+  'zone-sampler',
+  'drum-kit',
+  'glitch-kit',
+  'sub-bass',
+  'fm-bass',
+  'acid-bass',
+  'string-bass',
+  'flock',
+  'magnet-piano',
+  'overtone',
+  'staircase',
+  'shortwave',
+  'ice',
+  'rewind',
+  'droplets',
+  'prepared-piano',
+  'graft',
+  'wind-harp',
+  'afterglow',
+  'feedback',
+]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(
   (device) => device.category === 'instrument' && !AFTER_THE_PACKS.includes(device.id),
