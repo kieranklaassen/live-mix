@@ -642,21 +642,26 @@ describe('the club kit’s knobs on its display', () => {
             if (!Number.isFinite(value)) throw new Error(`${what}: ${name} was handed ${value}`)
           // Twelve words for the lanes and two over them, none smaller than 8 px.
           expect(drawn.words().length, what).toBe(14)
-          for (const call of drawn.calls)
-            if (call.name === 'set font')
-              expect(
-                Number(/(\d+)px/.exec(String(call.args[0]))?.[1]),
-                what,
-              ).toBeGreaterThanOrEqual(8)
-          // Nothing is drawn outside the canvas.
+          // One look at each drawing, not one at each of its thousands of calls.
+          let smallest = Infinity
+          const drawnOver = { left: 0, top: 0, right: 0, bottom: 0 }
           for (const call of drawn.calls) {
+            if (call.name === 'set font') {
+              smallest = Math.min(smallest, Number(/(\d+)px/.exec(String(call.args[0]))?.[1]))
+            }
             if (call.name !== 'rect' && call.name !== 'fillRect') continue
             const [x, y, w, h] = call.args as number[]
-            expect(x, what).toBeGreaterThanOrEqual(0)
-            expect(y, what).toBeGreaterThanOrEqual(0)
-            expect(x + w, what).toBeLessThanOrEqual(size.width)
-            expect(y + h, what).toBeLessThanOrEqual(size.height)
+            drawnOver.left = Math.min(drawnOver.left, x)
+            drawnOver.top = Math.min(drawnOver.top, y)
+            drawnOver.right = Math.max(drawnOver.right, x + w)
+            drawnOver.bottom = Math.max(drawnOver.bottom, y + h)
           }
+          expect(smallest, what).toBeGreaterThanOrEqual(8)
+          // Nothing is drawn outside the canvas.
+          expect(drawnOver.left, what).toBeGreaterThanOrEqual(0)
+          expect(drawnOver.top, what).toBeGreaterThanOrEqual(0)
+          expect(drawnOver.right, what).toBeLessThanOrEqual(size.width)
+          expect(drawnOver.bottom, what).toBeLessThanOrEqual(size.height)
         }
     }
   })
