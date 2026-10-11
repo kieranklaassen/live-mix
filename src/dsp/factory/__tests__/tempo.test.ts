@@ -152,22 +152,21 @@ describe('the tempo of a sound', () => {
     expect(paramsOf(patch.instrument).speed).toBeCloseTo(0.8333 * (150 / 120), 9)
   })
 
-  it('reads a loaded sound through as far in a bar, forwards or backwards, and halves a scan out of reach', () => {
-    const backwards = patchAtTempo(
-      { instrument: { deviceId: 'grain-synth', params: { scan: -1 } }, effects: [] },
-      tempoRatio(120, 96),
-    )
+  it('moves a rate a sound names its own, forwards or backwards, and halves one out of reach', () => {
+    // How fast a grain synth's key travels through its loaded sound: a rate only where a sound
+    // says so, since most patches set it for its sound and not for the beat.
+    const own = { scan: 'rate' } as const
+    const grains = (scan: number) => ({
+      instrument: { deviceId: 'grain-synth', params: { scan } },
+      effects: [],
+    })
+    expect(patchAtTempo(grains(-1), tempoRatio(120, 96))).toEqual(grains(-1))
+    const backwards = patchAtTempo(grains(-1), tempoRatio(120, 96), own)
     expect(paramsOf(backwards.instrument).scan).toBeCloseTo(-1 * (96 / 120), 9)
-    const fast = patchAtTempo(
-      { instrument: { deviceId: 'grain-synth', params: { scan: -1.5 } }, effects: [] },
-      tempoRatio(120, 240),
-    )
+    const fast = patchAtTempo(grains(-1.5), tempoRatio(120, 240), own)
     // Twice as fast is -3, past the -2 it goes to: half of that, the same way round.
     expect(paramsOf(fast.instrument).scan).toBeCloseTo(-1.5, 9)
-    const forwards = patchAtTempo(
-      { instrument: { deviceId: 'grain-synth', params: { scan: 1.5 } }, effects: [] },
-      tempoRatio(120, 480),
-    )
+    const forwards = patchAtTempo(grains(1.5), tempoRatio(120, 480), own)
     expect(paramsOf(forwards.instrument).scan).toBeCloseTo(1.5, 9)
   })
 

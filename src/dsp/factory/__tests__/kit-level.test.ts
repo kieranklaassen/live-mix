@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest'
 
 import { compileFromDisk, toDb } from '../../__tests__/render-support'
 import { peakOf } from '../../patch-render'
+import { describeStockWasmDevice } from '../../registry'
 import { FACTORY_PEAK_DB, FACTORY_SOUNDS, KIT_LEVEL_DB, factorySound, renderFactorySound } from '..'
 import { type FactorySound } from '../types'
 
@@ -38,6 +39,28 @@ describe('a sound at its kit level', () => {
     }
   })
 
+  it('names only controls its instrument has where it says one keeps time, and keeps time itself', () => {
+    const timed = FACTORY_SOUNDS.filter((sound) => sound.timedParams)
+    expect(timed.length).toBeGreaterThan(0)
+    for (const sound of timed) {
+      expect(sound.bpm, sound.id).toBeDefined()
+      if (typeof sound.patch === 'string') throw new Error(`${sound.id} names a preset`)
+      const descriptor = describeStockWasmDevice(sound.patch.instrument?.deviceId ?? '')
+      for (const name of Object.keys(sound.timedParams ?? {})) {
+        expect(descriptor?.params[name], `${sound.id}: ${name}`).toBeDefined()
+      }
+    }
+  })
+
+  it('refuses to keep the level of a kit that has none', async () => {
+    const soft = { ...named('club-firm-kick-four'), id: 'soft-kick', kitLevel: true as const }
+    if (typeof soft.patch === 'string') throw new Error('a preset')
+    const patch = { ...soft.patch, instrument: { deviceId: 'drum-kit', params: {} } }
+    await expect(renderFactorySound({ ...soft, patch }, node)).rejects.toThrow(
+      /keeps the level of a kit that has none/,
+    )
+  })
+
   it('has the hardest kick of the kit at the bank peak, and the other drums under it', async () => {
     const kick = await peakDb(named('club-firm-kick-four'))
     expect(Math.abs(kick - FACTORY_PEAK_DB)).toBeLessThan(0.5)
@@ -56,7 +79,7 @@ describe('a sound at its kit level', () => {
     expect(Math.abs((await peakDb(named('house-reverse-crash-one'))) - crash)).toBeLessThan(0.1)
   }, 60000)
 
-  it('played backwards into a bar line, ends on the stick at every tempo', async () => {
+  it('played backwards into a bar line, ends on the stick at 96, 120 and 140', async () => {
     for (const id of ['house-reverse-crash-one', 'house-reverse-crash-two']) {
       for (const bpm of [96, 120, 140]) {
         const { channels, sampleRate } = await renderFactorySound(named(id), { ...node, bpm })

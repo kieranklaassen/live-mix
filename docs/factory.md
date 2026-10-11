@@ -120,7 +120,11 @@ The level asked for is the level of what is handed back: the peak is taken as
 the fades will leave it (`fadedPeakOf`). A sound that is loudest in its last
 moments, a rise that stops on a bar line, used to come out under its level,
 because its largest sample was one the fade then took down. No sound that
-shipped before is levelled differently: each has its peak clear of its fades.
+shipped before is levelled differently: each has its peak clear of its fades,
+by 1.78 s at the nearest, in all twelve keys. Two preset previews are: the
+largest sample of "Latched pedal tone" and of one pack preset (a slowed
+cello loop) falls inside the preview's fade, so each used to come out about
+0.6 dB under the level asked for and is now at it.
 `gainDb` is for a result that keeps the level its devices put out, that much
 up or down and nothing else, which is how one part of a kit keeps its place
 under the kick (see [The bank](#the-bank)).
@@ -129,11 +133,13 @@ A phrase played round again (`loopFold: 'linear'`, with whole passes skipped
 before the one that is kept) is placed pass by pass on the loop's own frames
 (`Round`): a note is rounded to a frame inside its pass, and every pass starts
 a whole loop of frames after the one before, so the same stroke is the same
-number of frames into every pass. At a tempo where a loop is not a whole
-number of frames (a bar at 126 is 91,428.57 of them at 48 kHz) each stroke
-used to be rounded on its own, the pass folded over the start lay one frame
-off the pass that is kept, and the fold mixed two copies of the first stroke
-a sample apart. On the Club Kit's shaker at 126 that took 1.1 dB off the
+number of frames into every pass (one written half a frame in goes up in
+every pass; its seconds would put it a hair under the half in one pass and a
+hair over in the next). At a tempo where a loop, or a stroke's place in it,
+is not a whole number of frames (a bar at 126 is 91,428.57 of them at
+48 kHz) each stroke used to be rounded on its own, the pass folded over the
+start lay one frame off the pass that is kept, and the fold mixed two copies
+of the first stroke a sample apart. On the Club Kit's shaker at 126 that took 1.1 dB off the
 first stroke and 3.2 dB off it between 12 and 20 kHz (4.3 dB there on its
 eighth hats, 3.7 on its ride, and much the same at 140); now the first stroke
 of each measures as it does at 120, to 0.1 dB in every band read, at 124,
@@ -283,12 +289,13 @@ many beats in and as many beats long, the sound as many beats long, and
 `bpm` the tempo it is now at. A drum rings as long as it did, so only what
 lies between the hits changes. An echo's `time` and an LFO's rate in the
 patch follow (`TIMED_PARAMS` in `tempo.ts`: the five delays, the analog
-delay's wobble, `tremolo`, `auto-filter`, the string machine's ensemble
-speed and the grain synth's `scan`), so a dotted-eighth echo is one at every
-tempo; a value the control cannot reach is halved or doubled until it can,
-which is still on the beat (a scan, which runs forwards or backwards, is
-halved towards rest). A sound can name a control of its own instrument that
-is a length of time in that sound alone (`timedParams`): the two reverse
+delay's wobble, `tremolo`, `auto-filter` and the string machine's ensemble
+speed), so a dotted-eighth echo is one at every tempo; a value the control
+cannot reach is halved or doubled until it can, which is still on the beat
+(a rate that runs forwards or backwards is halved towards rest). A sound can
+name a control of its own instrument that is a length of time or a rate in
+that sound alone (`timedParams`; every name must be a control the instrument
+has): the two reverse
 crashes say so of the sampler's `end`, which there is how much of the crash
 one held key reads backwards, so the key reaches the crash's first sample on
 the bar line at every tempo from 60 up (slower, a bar is longer than the
@@ -312,8 +319,8 @@ round into its first. At another tempo it is as many beats long and
 still ends on its bar line, so a fill laid in the last bar before a change
 is over when the change comes, and a rise is at its top there. What a device
 of its patch does in time follows too: an auto filter that opens once in
-four bars at 120 opens once in four bars at 96, and a grain synth that reads
-a loaded sound through once in the length of a rise does so at every tempo.
+four bars at 120 opens once in four bars at 96, and the sampler of a reverse
+crash reads as many beats of its crash at every tempo.
 Until these, every sound with a `bpm` was a loop; a host that took `bpm` to
 mean one should ask `loopCrossfadeSec`.
 
@@ -631,9 +638,13 @@ or with fewer than four hits in a round, is a beat by the bank's word
 test asks only that the bank says `beat`. Eight sounds lean on it, all on
 the Club Kit: two grooves with swung hats (403, 408), the swung hats, the
 swung shaker, the swung tops and the one crash in four bars (423, 425, 433,
-436), and the two fills that end in thirty-seconds (438, 441). `sound.kind`
-is right for them; a host that runs `analyzeSound` on the render gets the
-other answer and no tempo.
+436), and the two fills that end in thirty-seconds (438, 441). They are
+named by id (`BEATS_THE_ANALYSIS_LOSES`), since the rule is also true of
+thirteen sounds the analysis reads as they are (the soft kit's triplets and
+fives, a clap laid 15 ms late): those stay held to what it finds, and a
+sound joins the eight when it is measured, not when it is written.
+`sound.kind` is right for them; a host that runs `analyzeSound` on the
+render gets the other answer and no tempo.
 
 How a sound starts, ends and wraps is held to the measure a host enters and
 leaves a clip by (`src/core/clips/seam.ts`): a loop `comesRound` (its last

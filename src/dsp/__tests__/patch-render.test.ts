@@ -266,6 +266,59 @@ describe('renderPatch', () => {
     expect(apart(slipped, straight)).toBeGreaterThan(1e-3)
   })
 
+  it('puts a stroke half a frame into its pass on the same frame of every pass', async () => {
+    // 22711.5 frames in at 44.1 kHz, a clap 15 ms behind the second beat of a bar at 120: half a
+    // frame only as near as its seconds are kept, a hair under in one pass and over in the next.
+    const hat: Patch = {
+      ...BELL,
+      instrument: { deviceId: 'club-kit', params: { variation: 0 } },
+      effects: [],
+    }
+    const durationSec = 2
+    const stroke = (atSec: number) => ({ atSec, durSec: 0.1, note: 65 })
+    const phrase = {
+      notes: [0, 1, 2, 3].flatMap((pass) => [
+        stroke(pass * durationSec),
+        stroke(pass * durationSec + 0.515),
+      ]),
+    }
+    const round = {
+      durationSec,
+      sampleRate: 44100,
+      loopFold: 'linear' as const,
+      loopCrossfadeSec: 0.03,
+      phrase,
+    }
+    // Whichever pass is kept, the render is the same.
+    const second = await render(hat, { ...round, skipSec: durationSec })
+    const third = await render(hat, { ...round, skipSec: 2 * durationSec })
+    let most = 0
+    let peak = 0
+    for (let i = 22000; i < 26000; i += 1) {
+      most = Math.max(most, Math.abs(second.channels[0][i] - third.channels[0][i]))
+      peak = Math.max(peak, Math.abs(second.channels[0][i]))
+    }
+    expect(peak).toBeGreaterThan(0.01)
+    expect(most).toBeLessThan(1e-6)
+  })
+
+  it('keeps a skip and a stroke from before the start at the start, laid round or not', async () => {
+    const options = {
+      durationSec: 0.5,
+      loopFold: 'linear' as const,
+      loopCrossfadeSec: 0.03,
+      phrase: { notes: [{ atSec: -0.25, durSec: 0.4, note: 72 }] },
+    }
+    const early = await render(BELL, { ...options, skipSec: -0.5 })
+    expect(early.channels[0].length).toBe(24000)
+    // Held its whole length from the first frame, as a stroke written at nothing is.
+    const atStart = {
+      ...options,
+      phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] },
+    }
+    expect(early.channels[0]).toEqual((await render(BELL, atStart)).channels[0])
+  })
+
   it('turns what the devices put out up or down by a fixed gain where no peak is asked for', async () => {
     const options = { durationSec: 0.5, phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] } }
     const plain = await render(BELL, options)

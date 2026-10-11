@@ -20,11 +20,10 @@ A third kit, and house sounds for the bank:
   tempo (`soundAtTempo`, `renderFactorySound(sound, { bpm })`) are as many
   beats long and still end on their bar line. Until now every sound with a
   `bpm` was a loop: a host that took `bpm` to mean one should ask
-  `loopCrossfadeSec`. A variant leaves such a sound at its own speed. The
-  grain synth's `scan` follows the tempo now, as an auto filter's rate does,
-  and a sound can name a control of its own instrument that is a length of
-  time or a rate in that sound alone (`FactorySound.timedParams`): the two
-  reverse crashes say so of the sampler's `end`. A sound that keeps time and is read from another one
+  `loopCrossfadeSec`. A variant leaves such a sound at its own speed. A
+  sound can name a control of its own instrument that is a length of time or
+  a rate in that sound alone (`FactorySound.timedParams`): the two reverse
+  crashes say so of the sampler's `end`. A sound that keeps time and is read from another one
   (`source` and `bpm`) is not detuned by a variant.
 - `FactorySound.kitLevel`: one part of a kit (a layer, a fill, a single hit)
   is rendered at its kit's own level and not brought to the bank's peak, so a
@@ -36,12 +35,16 @@ A third kit, and house sounds for the bank:
   starts.
 - `renderPatch`: `normalizePeakDb` takes the peak as the fades at the ends
   leave it, so a sound that is loudest in its last moments comes out at the
-  level asked for (no sound that shipped before is levelled differently);
-  `gainDb` is a new option, a fixed gain for a result that is not brought to a
-  peak; and the passes of a phrase played round (`loopFold: 'linear'`) are
-  laid on whole frames of the loop, so at a tempo where a loop is not a whole
+  level asked for (no sound that shipped before is levelled differently; the
+  previews of two presets whose largest sample is inside the preview's fade
+  come out 0.6 dB higher, at the level asked for); `gainDb` is a new option, a
+  fixed gain for a result that is not brought to a peak; and the passes of a
+  phrase played round (`loopFold: 'linear'`) are laid on whole frames of the
+  loop, so at a tempo where a loop, or a stroke's place in it, is not a whole
   number of frames (126, 140) the fold no longer takes level off its first
-  stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker).
+  stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker). A
+  host that keeps rendered loops at such tempos, or those two previews, has
+  new audio for them.
 - A kit sound of one stroke is its own variant: `varySound` has nothing in it
   to move.
 

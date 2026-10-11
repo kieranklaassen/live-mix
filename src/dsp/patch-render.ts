@@ -203,9 +203,13 @@ function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Ro
     if (!Number.isFinite(note.atSec) || !Number.isFinite(note.durSec) || note.durSec <= 0) return
     // In a phrase played round, a note is placed in its pass and the pass on whole frames, so
     // the same stroke is the same number of frames into every pass.
-    const pass = round ? Math.floor(note.atSec / round.sec + 1e-9) : 0
+    const pass = round ? Math.max(0, Math.floor(note.atSec / round.sec + 1e-9)) : 0
+    // A stroke written half a frame into its pass is half a frame in only as near as its
+    // seconds are kept, a hair under in one pass and a hair over in the next: the tie goes
+    // up in every pass.
     const frame = round
-      ? pass * round.frames + Math.max(0, Math.round((note.atSec - pass * round.sec) * sampleRate))
+      ? pass * round.frames +
+        Math.max(0, Math.floor((note.atSec - pass * round.sec) * sampleRate + 0.5 + 1e-6))
       : Math.max(0, Math.round(note.atSec * sampleRate))
     const frequency = noteFrequency(note.note)
     const gain = note.gain ?? DEFAULT_PHRASE_GAIN
@@ -312,7 +316,7 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
       ? { sec: options.durationSec, frames }
       : undefined
   const skip = round
-    ? Math.round(passes) * frames
+    ? Math.max(0, Math.round(passes)) * frames
     : Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
 
   // A bypassed instrument is a switched-off note device: silence, as it is live.

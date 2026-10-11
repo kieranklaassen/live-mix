@@ -128,7 +128,7 @@ export interface FactorySound {
    * follow the tempo beside the ones that do for every sound (`TIMED_PARAMS` in
    * ./tempo.ts). A sampler's `end`, where it is how much of the loaded sound one
    * held key reads backwards: the key reaches the first sample on the bar line at
-   * every tempo. Not a rule of the device: in most patches a sampler's End is a
+   * every tempo at which the recording is long enough. Not a rule of the device: in most patches a sampler's End is a
    * place in the recording and stays where it is.
    */
   timedParams?: Readonly<Record<string, 'time' | 'rate'>>

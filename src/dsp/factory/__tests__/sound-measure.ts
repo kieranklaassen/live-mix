@@ -158,20 +158,37 @@ export function blackKeyShare(audio: PlanarAudio): number {
   return all > 0 ? black / all : 0
 }
 
+/**
+ * The kit sounds the analysis was measured to misread, by id: the rule below says why it does,
+ * and is true of others it reads all the same (triplets, fives, a late clap), which stay held
+ * to what the analysis finds. A sound is added here when it is measured, not when it is written.
+ */
+export const BEATS_THE_ANALYSIS_LOSES: readonly string[] = [
+  'club-swung-hat-groove',
+  'club-skipping-kick-groove',
+  'club-swung-sixteenth-hats',
+  'club-swung-shaker',
+  'club-tops-swung',
+  'club-crash-on-the-one',
+  'club-snare-build',
+  'club-hat-stutter-fill',
+]
+
 /** How far off a straight sixteenth a stroke may be written and still be on it, in seconds. */
 const ON_THE_GRID_SEC = 0.002
 
 /**
  * True for a sound on a kit that keeps time and that the analysis cannot be
- * asked about: one with a row that is swung, laid back or faster than
- * sixteenths, or with fewer hits in a round than the analysis wants before it
- * says `beat`. The analysis holds the hits it hears to a straight grid and
+ * asked about: one of those measured to be misread (`BEATS_THE_ANALYSIS_LOSES`)
+ * that has a row that is swung, laid back or faster than sixteenths, or fewer
+ * hits in a round than the analysis wants before it says `beat`. The analysis holds the hits it hears to a straight grid and
  * asks for four of them (core/analysis), so it reads no tempo from sixteenths
  * swung by more than a few milliseconds, from a roll in thirty-seconds, nor
  * from one crash in four bars. Such a loop or fill is written on a beat all
  * the same, and `beat` is the bank's word for it.
  */
 export function beatTheAnalysisLoses(sound: FactorySound): boolean {
+  if (!BEATS_THE_ANALYSIS_LOSES.includes(sound.id)) return false
   if (!sound.kit || sound.bpm === undefined) return false
   const step = 60 / sound.bpm / 4
   const from = sound.skipSec ?? 0

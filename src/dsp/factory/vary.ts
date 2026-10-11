@@ -22,9 +22,10 @@
 //
 // A sound that keeps time (one with a `bpm`) stays on its beat: its hand is
 // a few hundredths of a second loose at most, and its speed is half or double
-// time where it comes round and its own where it ends. A sound played on a kit (./kits.ts) has drums for keys, so no chord
-// of the key and no tuning by the hand: its pattern and its touch vary, and
-// no drum of it is a note it stands on, so any stroke but the first may rest.
+// time where it comes round and its own where it ends. A sound played on a
+// kit (./kits.ts) has drums for keys, so no chord of the key and no tuning by
+// the hand: its pattern and its touch vary, and no drum of it is a note it
+// stands on, so any stroke but the first may rest.
 //
 // A variant is decided by a seed and the amounts and by nothing else: the
 // same ones always give the same recipe, so a host that keeps them has kept
