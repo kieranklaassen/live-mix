@@ -9,7 +9,7 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
     name: 'Firm club kit',
     category: 'drum',
     description:
-      'The firm house kit as it comes, a punchy kick and tight hats, evened a little by a clean fast tape stage.',
+      'The firm house kit nearly as it comes, a punchy kick and tight hats, evened a little by a clean fast tape stage.',
     instrument: { deviceId: 'club-kit', params: { kit: 0, punch: 0.6, snap: 0.5, volume: -1.3 } },
     effects: [
       { deviceId: 'tape', preset: 'Mastering deck', params: { wow: 0, flutter: 0, hiss: 0 } },
@@ -59,7 +59,8 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'club-kit',
       params: { kit: 3, snap: 0.65, tone: 0.6, drive: 0.5, volume: -1.5 },
     },
-    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.2 } }],
+    // At the chamber's own mix of 0.2 its tail is 21 dB under the kit; at 0.4 it is 12 dB under.
+    effects: [{ deviceId: 'hall-reverb', preset: 'Tight chamber', params: { mix: 0.4 } }],
     preview: 'drum',
   },
   {
@@ -72,7 +73,14 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
       deviceId: 'club-kit',
       params: { kit: 1, length: 1.7, punch: 0.5, tone: 0.55, volume: -4 },
     },
-    effects: [{ deviceId: 'saturator', preset: 'Soft tape warmth', params: { outputDb: -5.5 } }],
+    // At the curve's own 6 dB of drive it bends nothing by more than 1 dB.
+    effects: [
+      {
+        deviceId: 'saturator',
+        preset: 'Soft tape warmth',
+        params: { driveDb: 12, outputDb: -11 },
+      },
+    ],
     preview: 'drum',
   },
   {
@@ -278,18 +286,18 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
     name: 'Soft touch club kit',
     category: 'drum',
     description:
-      'The deep house kit played soft, no click and almost no fall in the kick, short and close, on a clean slow tape.',
+      'The deep house kit played soft, no click and almost no fall in the kick, its tops far under it, short and close, on a clean slow tape.',
     instrument: {
       deviceId: 'club-kit',
       params: {
         kit: 1,
         length: 0.6,
-        punch: 0.12,
+        punch: 0.05,
         snap: 0.08,
         tone: 0.4,
         variation: 0.15,
         width: 0.2,
-        volume: -2.5,
+        volume: -2,
       },
     },
     effects: [
@@ -305,7 +313,7 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
     name: 'Dub echo kit',
     category: 'drum',
     description:
-      'The dusty house kit into a dotted eighth tape echo at 120 whose repeats lose their lows, so the kick is gone after one.',
+      'The dusty house kit into a tape echo of 375 ms, a dotted eighth at 120, whose repeats lose their lows, so the kick is gone after one.',
     instrument: {
       deviceId: 'club-kit',
       params: { kit: 2, length: 0.8, snap: 0.5, volume: -1.3 },
@@ -334,12 +342,24 @@ export const CLUB_KIT_PRESETS: readonly FactoryPreset[] = [
     name: 'Plate clap kit',
     category: 'drum',
     description:
-      'The dusty house kit on a bright plate with a gap before it, its tail above the lows loudest behind the clap and the snare.',
-    instrument: { deviceId: 'club-kit', params: { kit: 2, snap: 0.55, width: 0.6, volume: -1 } },
+      'The dusty house kit on a bright plate of two seconds with a gap before it and its lows cut, loudest behind the clap, the kick almost dry.',
+    instrument: { deviceId: 'club-kit', params: { kit: 2, snap: 0.55, width: 0.6, volume: -2 } },
+    // The plate is the Shimmer reverb with Shimmer at 0, which is a plain reverb: the stock plate
+    // has no low cut, and the kick's tail was the loudest thing in it, 9 dB over the clap's.
     effects: [
       {
-        deviceId: 'plate-reverb',
-        params: { mix: 0.2, decay: 0.6, damping: 0.15, predelayMs: 30 },
+        deviceId: 'shimmer',
+        params: {
+          mix: 0.25,
+          decay: 2.5,
+          shimmer: 0,
+          size: 0.3,
+          tone: 6000,
+          modulation: 0.25,
+          predelay: 30,
+          lowCut: 500,
+          width: 1,
+        },
       },
     ],
     preview: 'drum',

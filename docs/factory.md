@@ -1581,10 +1581,13 @@ As reported:
     rim's first repeat on a dotted eighth, with the low cut at 120 Hz and
     at 800 Hz alike. The dub echo groove (409) writes its four echoes as
     strokes of the rim, each softer; the preset "Dub echo kit" has the kick
-    in its first repeat, 9.4 dB under the hit like every other drum, and
-    26 dB further down from the second. `plate-reverb` has no low cut:
-    behind a whole kit the kick's tail is the loudest thing in it, and the
-    clap and the snare lead only above 300 Hz.
+    in its first repeat, 9.5 dB under the hit like every other drum, and
+    25 dB further down from the second. `plate-reverb` has no low cut:
+    behind a whole kit the kick's tail is the loudest thing in it, 9 dB
+    over the clap's, and above 300 Hz the ride leads. So the plate of the
+    preset "Plate clap kit" is `shimmer` with Shimmer at 0, a plain reverb
+    that has a low cut, set at 500 Hz: the clap's tail is the loudest by
+    5.5 dB and the kick's is 9 dB under it.
   - The riffs: the organ, the pad and the string stabs (492, 494, 497) do
     not play the same wave twice (oscillators that run free, an ensemble),
     so they are folded at equal power, and laid end to end they differ from
