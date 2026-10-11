@@ -13,6 +13,12 @@
 //   UPDATE_SHIPPED_PRESETS=1 pnpm vitest run src/dsp/__tests__/shipped-presets.test.ts
 //
 // which adds what is missing and never changes what is there.
+//
+// One change was made by hand: the Compressor's four presets carry more
+// Make-up than they shipped with (Gentle 2 → 5.51 dB, Voice 4 → 11.85, Glue
+// 1 → 2.35, Limit 0 → 3.42), from when the device began to take the browser
+// node's own make-up off again. The numbers moved so that the sound of each
+// name did not.
 
 import { readFileSync, writeFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'

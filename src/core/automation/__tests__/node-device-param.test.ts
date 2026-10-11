@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest'
 import { type MockAudioParam, asAudioContext, createMockContext } from '../../../testing'
 import { createCompressor } from '../../devices/native/Compressor'
 import { createDelay } from '../../devices/native/Delay'
-import { createFilter } from '../../devices/native/Filter'
-import { dbToGain } from '../../devices/native/units'
+import { createFilter, filterTypeIndex } from '../../devices/native/Filter'
+import { cutQDb, dbToGain } from '../../devices/native/units'
 import { LaneWriter } from '../LaneWriter'
 import { nodeDeviceParam } from '../node-device-param'
 import { ParamLane } from '../ParamLane'
@@ -114,6 +114,42 @@ describe('nodeDeviceParam', () => {
     expect(calls(wet.gain)).toEqual([
       ['setValueAtTime', 0.5, 10],
       ['exponentialRampToValueAtTime', 1, 14],
+    ])
+  })
+
+  it('writes a cut’s resonance in decibels, an exponential segment as a straight line of them', () => {
+    const ctx = createMockContext()
+    const filter = createFilter(asAudioContext(ctx), { params: { q: 0.5 } })
+    // In the Q's own units the sweep is exponential and never reaches zero. The
+    // node takes a low-pass's Q in decibels, where the same curve is a straight
+    // line from −6 dB through 0 to +12: an exponential ramp cannot cross zero.
+    const lane = new ParamLane({
+      min: 0.1,
+      max: 20,
+      breakpoints: [
+        { timeSec: 0, value: 0.5, curve: 'exponential' },
+        { timeSec: 4, value: 4 },
+      ],
+    })
+    const writer = new LaneWriter(lane, nodeDeviceParam(filter, 'q'))
+    writer.tick({ playheadSec: 0, lookaheadSec: 5, contextTimeSec: 10 })
+    expect(calls(ctx.filters[0].Q)).toEqual([
+      ['setValueAtTime', cutQDb(0.5), 10],
+      ['linearRampToValueAtTime', cutQDb(4), 14],
+    ])
+
+    // A band-pass takes the number itself, and the lane's own curve.
+    const band = createFilter(asAudioContext(ctx), {
+      params: { type: filterTypeIndex('bandpass'), q: 0.5 },
+    })
+    new LaneWriter(lane, nodeDeviceParam(band, 'q')).tick({
+      playheadSec: 0,
+      lookaheadSec: 5,
+      contextTimeSec: 10,
+    })
+    expect(calls(ctx.filters[1].Q)).toEqual([
+      ['setValueAtTime', 0.5, 10],
+      ['exponentialRampToValueAtTime', 4, 14],
     ])
   })
 

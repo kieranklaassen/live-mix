@@ -3,7 +3,7 @@
 From an empty project to a mix that plays, with the wiring that trips people
 up (install, Vite, worklet and `.wasm` assets, iPhone output) done once and
 explained. The [README](../README.md#quick-start) has the short version — a
-hello mix and five type-checked examples — and this page fills in the rest.
+hello mix and six type-checked examples — and this page fills in the rest.
 
 ## 1. Install
 

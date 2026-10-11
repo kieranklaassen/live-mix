@@ -1,6 +1,7 @@
 // Displays of the devices that turn the level down: what a compressor or a
 // limiter is set to do, and what it is doing to the sound right now.
 
+import { compressorNodeCurve } from '../../../core/devices/native/Compressor'
 import {
   FLOOR_DB,
   History,
@@ -379,62 +380,18 @@ const ambientComp = compDisplay({
 
 // --- Compressor -------------------------------------------------------------
 
-/**
- * The compressor node's static curve, as the Web Audio specification defines
- * it for `DynamicsCompressorNode`: a level under the threshold passes as it
- * is, one over `threshold + knee` rises by 1 / ratio dB a dB, and between the
- * two lies a smooth knee. The specification leaves the knee's shape to the
- * browser; this is the one the browsers share, an exponential approach whose
- * steepness `k` is searched for so the knee ends at the slope of the ratio
- * (the same fifteen steps between 0.1 and 10 000). Linear in, linear out.
- */
-export function nodeCurve(
-  thresholdDb: number,
-  kneeDb: number,
-  ratio: number,
-): (level: number) => number {
-  const threshold = dbToGain(thresholdDb)
-  const kneeEndDb = thresholdDb + kneeDb
-  const kneeEnd = dbToGain(kneeEndDb)
-  const slope = 1 / ratio
-  const knee = (x: number, k: number): number =>
-    x < threshold ? x : threshold + (1 - Math.exp(-k * (x - threshold))) / k
-  const slopeAt = (x: number, k: number): number => {
-    if (x < threshold) return 1
-    const next = x * 1.001
-    return (gainToDb(knee(next, k)) - gainToDb(knee(x, k))) / (gainToDb(next) - gainToDb(x))
-  }
-  let low = 0.1
-  let high = 10000
-  let k = 5
-  for (let i = 0; i < 15; i++) {
-    // A steeper knee flattens sooner: too flat at its end means k is too high.
-    if (slopeAt(kneeEnd, k) < slope) high = k
-    else low = k
-    k = Math.sqrt(low * high)
-  }
-  const kneeEndOutDb = gainToDb(knee(kneeEnd, k))
-  return (level) =>
-    level < kneeEnd
-      ? knee(level, k)
-      : dbToGain(kneeEndOutDb + slope * (gainToDb(level) - kneeEndDb))
-}
+/** The node's static curve, which the device itself reckons with (`Compressor.ts`). */
+export const nodeCurve = compressorNodeCurve
 
 /**
- * The gain the node adds behind its curve, in dB, as the specification has it:
- * what the curve takes off a full-scale level, turned round and raised to 0.6.
- */
-export function nodeMakeupDb(curve: (level: number) => number): number {
-  return -0.6 * gainToDb(curve(1))
-}
-
-/**
- * The Compressor: the node's curve, its own make-up and the device's Make-up
- * behind it. The node's `reduction` reading is the curve's part alone.
+ * The Compressor: the node's curve and the device's Make-up behind it. The
+ * node adds a make-up of its own, which the device takes off again, so none
+ * of it is in the picture. The node's `reduction` reading is the curve's part
+ * alone.
  */
 function nodeCompModel(view: DisplayView): CompModel {
   const curve = nodeCurve(view.value('threshold'), view.value('knee'), view.value('ratio'))
-  const makeup = nodeMakeupDb(curve) + view.value('makeupDb')
+  const makeup = view.value('makeupDb')
   return {
     reduction: (inDb) => gainToDb(curve(dbToGain(inDb))) - inDb,
     gain: (reduction) => reduction + makeup,
@@ -445,7 +402,6 @@ function nodeCompHandles(view: DisplayView): DisplayHandle[] {
   const { curve } = compBoxes(view)
   const threshold = view.value('threshold')
   const knee = view.value('knee')
-  const ratio = view.value('ratio')
   const model = nodeCompModel(view)
   const out = (inDb: number): number => inDb + model.gain(model.reduction(inDb))
   const kneeSpec = view.spec('knee')
@@ -454,12 +410,9 @@ function nodeCompHandles(view: DisplayView): DisplayHandle[] {
   const bend = Math.max(threshold, FOOT_DB)
   /** The level a point stands at, which is on the display also when the curve is over its top. */
   const shown = (level: number): number => clamp(level, FOOT_DB, TOP_DB)
-  /** Where the bend of the curve would stand at another threshold: the node's make-up moves with it. */
-  const bendAt = (candidate: number): number =>
-    shown(candidate + nodeMakeupDb(nodeCurve(candidate, knee, ratio)) + view.value('makeupDb'))
-  // No point for Ratio: the node makes up for most of what a ratio takes off,
-  // so the whole of the knob moves the end of the curve by a few pixels (four
-  // at the defaults), which is no travel for a hand. Ratio is a knob on the face.
+  /** Where the bend of the curve would stand at another threshold: that much over the diagonal as Make-up says. */
+  const bendAt = (candidate: number): number => shown(candidate + view.value('makeupDb'))
+  // Ratio is a knob on the face, and has no point here.
   return [
     {
       key: 'threshold',
@@ -475,9 +428,8 @@ function nodeCompHandles(view: DisplayView): DisplayHandle[] {
         const up = dbOfY(y, curve, TOP_DB, FOOT_DB)
         let along = (across + up - shown(out(bend)) + bend) / 2
         if (along <= FOOT_DB + 1e-6) return { threshold: Math.min(threshold, FOOT_DB) }
-        // The make-up changes with the threshold, and with it how high the
-        // bend stands: a few rounds settle on the threshold whose point is
-        // where the hand is.
+        // A bend that would stand over the top waits at the edge: a few
+        // rounds settle on the threshold whose point is where the hand is.
         for (let round = 0; round < 8; round++) {
           const at = clamp(along, FOOT_DB, TOP_DB)
           along = (across + up - bendAt(at) + at) / 2

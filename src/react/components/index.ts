@@ -62,6 +62,7 @@ export {
   tokenRef,
   tokenVar,
   water,
+  type DataAttributes,
   type LiveMixTheme,
   type LiveMixThemeName,
   type LiveMixToken,
@@ -221,6 +222,136 @@ export { SOUND_KIND_LABELS, SoundIcon, type SoundIconKind, type SoundIconProps }
 export { Stroke, type StrokeAutomation, type StrokeProps } from './Stroke'
 export { PaintField, type PaintFieldProps } from './PaintField'
 export { VersionList, type VersionListProps } from './VersionList'
+
+// The video kit: what a timeline, a panel, a sheet and a note are drawn with.
+export {
+  clampPxPerSecond,
+  DEFAULT_PX_PER_SECOND,
+  fitPxPerSecond,
+  MAX_PX_PER_SECOND,
+  MIN_PX_PER_SECOND,
+  pageScroll,
+  rulerLabels,
+  rulerScale,
+  zoomAround,
+  type RulerScale,
+  type RulerTick,
+  type TimelineZoom,
+} from './timeline-math'
+export { Playhead, TimeRuler, type PlayheadProps, type TimeRulerProps } from './TimeRuler'
+export { brushIndex, Lane, LaneHead, type LaneHeadProps, type LaneProps } from './Lane'
+export {
+  CutNotch,
+  CutSeam,
+  LinkMark,
+  RangeSelection,
+  TRANSITION_MIN_PX,
+  TransitionMark,
+  type CutNotchProps,
+  type CutSeamProps,
+  type LinkMarkProps,
+  type RangeSelectionProps,
+  type TransitionMarkProps,
+} from './timeline-marks'
+export {
+  VIDEO_FRAME_INSET_PX,
+  VIDEO_FRAME_PX,
+  VideoStroke,
+  type VideoStrokeProps,
+} from './VideoStroke'
+export {
+  envelopePath,
+  TIMELINE_ITEM_HEIGHT,
+  TimelineItem,
+  type TimelineItemProps,
+  type TimelineItemShape,
+} from './TimelineItem'
+export { Overview, type OverviewProps } from './Overview'
+export { Glyph, GLYPHS, type GlyphKind, type GlyphProps } from './Glyph'
+export { TextButton, type TextButtonProps, type TextButtonVariant } from './TextButton'
+export {
+  Check,
+  Input,
+  Segmented,
+  Select,
+  type CheckProps,
+  type InputProps,
+  type SegmentedOption,
+  type SegmentedProps,
+  type SelectOption,
+  type SelectProps,
+} from './fields'
+export {
+  Panel,
+  PanelHead,
+  PropRow,
+  SectionLabel,
+  Tabs,
+  type PanelHeadProps,
+  type PanelProps,
+  type PropRowProps,
+  type SectionLabelProps,
+  type TabItem,
+  type TabsProps,
+} from './Panel'
+export {
+  Menu,
+  MenuItem,
+  MenuSeparator,
+  type MenuEntry,
+  type MenuItemProps,
+  type MenuProps,
+} from './Menu'
+export { Sheet, type SheetProps } from './Sheet'
+export { InlineNote, type InlineNoteProps } from './InlineNote'
+export {
+  Progress,
+  StateMark,
+  WHO_LABELS,
+  WhoMark,
+  type ProgressProps,
+  type StateMarkProps,
+  type StateMarkState,
+  type Who,
+  type WhoMarkProps,
+} from './marks'
+export {
+  JobRow,
+  LogRow,
+  type JobRowProps,
+  type JobRowState,
+  type LogRowOutcome,
+  type LogRowProps,
+  type LogRowUndo,
+} from './rows'
+export {
+  TranscriptWord,
+  type TranscriptWordProps,
+  type TranscriptWordState,
+} from './TranscriptWord'
+export {
+  NoteBubble,
+  NotePin,
+  NoteSpan,
+  NoteTab,
+  PictureMark,
+  type NoteBubbleProps,
+  type NoteFrom,
+  type NotePinProps,
+  type NoteSpanProps,
+  type NoteState,
+  type NoteTabProps,
+  type PictureMarkProps,
+  type PicturePoint,
+} from './notes'
+export {
+  ChangedMark,
+  ContextChip,
+  ReferenceChip,
+  type ChangedMarkProps,
+  type ContextChipProps,
+  type ReferenceChipProps,
+} from './chips'
 export {
   controlGestureInfo,
   findInfo,
@@ -241,3 +372,54 @@ export {
 export { INFO_IDLE, InfoView, useInfo, type InfoViewProps, type UseInfoOptions } from './InfoView'
 export { paramInfo } from './param-info'
 export { STRIP_INFO, TRANSPORT_INFO } from './mixer-info'
+export {
+  matchRanges,
+  queryWords,
+  searchRows,
+  searchScore,
+  type MatchRange,
+  type Searchable,
+} from './pick-search'
+export {
+  cursorStep,
+  focusCell,
+  Highlight,
+  Keycap,
+  PICK_CHEVRON_DOWN,
+  PICK_CHEVRON_LEFT,
+  PICK_CHEVRON_RIGHT,
+  PICKER_PHONE_WIDTH,
+  PickerAction,
+  PickerGroup,
+  PickerPanel,
+  pickerPlace,
+  PickerSearch,
+  tabStops,
+  useRowInView,
+  type PickerActionProps,
+  type PickerPanelProps,
+  type PickerPlace,
+  type PickerPlaceInput,
+  type PickerSearchProps,
+} from './Picker'
+export {
+  deviceItems,
+  patchItems,
+  PickCell,
+  PickList,
+  pickRows,
+  pickSlug,
+  type PickCellProps,
+  type PickItem,
+  type PickListProps,
+  type PickRow,
+} from './PickList'
+export {
+  DevicePresetCell,
+  PRESET_DEFAULT_LABEL,
+  PRESET_NONE_LABEL,
+  PresetCell,
+  presetLabel,
+  type DevicePresetCellProps,
+  type PresetCellProps,
+} from './PresetCell'
