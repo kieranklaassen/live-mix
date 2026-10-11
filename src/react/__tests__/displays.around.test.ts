@@ -18,14 +18,16 @@ import {
   AROUND_TURNS,
   aroundBoxes,
   AROUND_SHADE_HZ,
+  aroundCarried,
+  aroundCountedOut,
   aroundEar,
   aroundEars,
   aroundLateSec,
   aroundNearDb,
-  aroundNearGain,
   aroundShadeKept,
   aroundPlace,
   aroundPoint,
+  aroundTrim,
   type AroundPlace,
 } from '../components/displays/around'
 import { type DisplayHandle } from '../components/plate-display'
@@ -40,16 +42,18 @@ const around = AROUND_FACES.around.display
 // The numbers of `cpp/devices/around/around.h` the display must agree with,
 // copied here by hand so a change on either side shows:
 //   kItdSeconds 0.00066, kPan 0.6 (12 dB at the full side), kShade 0.8,
-//   kShadeHz 241.1 (kShade·2 / ((1 + kPan)·2π·kItdSeconds)), kNearDb 12,
-//   kNearUpDb 2.5, kBend 0.0057929 (ten cents), kPathSpeed 6.2832 for the
-//   Circle, kPathTurns 16, the top and foot of the scale the display draws
-//   (12, −30).
+//   kShadeHz 192.9 (kShade / (2π·kItdSeconds)), kNearDb 9.5, kNearer 0.99,
+//   kBend 0.0057929 (ten cents), kPathSpeed 6.2832 for the Circle,
+//   kPathTurns 16, the top and foot of the scale the display draws (12, −30).
 const ITD_SEC = 0.00066
 const PAN = 0.6
 const SHADE = 0.8
-const SHADE_HZ = 241.1438
-const NEAR_DB = 12
-const NEAR_UP_DB = 2.5
+const SHADE_HZ = 192.9151
+const NEAR_DB = 9.5
+const NEARER = 0.99
+/** The level law: what a source that counts as `radius` out is turned down by. */
+const trimOf = (radius: number): number =>
+  Math.sqrt(1 + PAN * PAN * radius * radius) / (1 + PAN * radius)
 const BEND = 0.0057929
 const TURNS = 16
 const TOP_DB = 12
@@ -196,11 +200,13 @@ function rects(
 }
 
 const WIDE = 204
+/** A place by hand; its path lies as far out as it is unless `radius` says further. */
 const at = (place: Partial<AroundPlace>): AroundPlace => ({
   x: 0,
   y: 0,
   reach: 0,
   away: 0,
+  radius: place.reach ?? 0,
   ...place,
 })
 
@@ -265,75 +271,119 @@ describe('the maths the display of Around is drawn from', () => {
   it('works the cues out as the header does', () => {
     expect(AROUND_ITD_SEC).toBe(ITD_SEC)
     expect(AROUND_SHADE_HZ).toBeCloseTo(SHADE_HZ, 3)
-    // At the full side with Head 1: the ears (1 ∓ 0.6) / √1.36, the far ear's band over the split
-    // at a fifth, the near ear's lifted by what the far lost: 0.8 · 0.4 / 1.6 = 0.2.
+    // The level law: a source that counts as this far out is turned down by one over what the ear
+    // it is at would be given at the full side: nothing in the head, 2.75 dB at Radius 1.
+    expect(aroundTrim(0)).toBe(1)
+    expect(aroundTrim(1)).toBeCloseTo(Math.sqrt(1.36) / 1.6, 12)
+    expect(gainToDb(aroundTrim(1))).toBeCloseTo(-2.75, 2)
+    expect(gainToDb(aroundTrim(0.85))).toBeCloseTo(-2.58, 2)
+    expect(gainToDb(aroundTrim(0.25))).toBeCloseTo(-1.12, 2)
+    // At the full side with Head 1: the ear the source is at gets what came in, 1.6 / √1.36 times
+    // the law's √1.36 / 1.6, and is left flat; the far ear a quarter of that, its band over the
+    // split at a fifth.
     const side = at({ x: 1, reach: 1 })
     const full = aroundEars(side, 1, 0)
-    expect(full.gain[0]).toBeCloseTo((1 - PAN) / Math.sqrt(1 + PAN * PAN), 12)
-    expect(full.gain[1]).toBeCloseTo((1 + PAN) / Math.sqrt(1 + PAN * PAN), 12)
+    expect(full.gain[0]).toBeCloseTo((1 - PAN) / (1 + PAN), 12)
+    expect(full.gain[1]).toBeCloseTo(1, 12)
     expect(full.tilt[0]).toBeCloseTo(1 - SHADE, 12)
-    expect(full.tilt[1]).toBeCloseTo(1.2, 12)
-    // Half way to the left with Head 1: shade 0.4 on the right ear, lift 0.4 · 0.7 / 1.3 on the left.
+    expect(full.tilt[1]).toBe(1)
+    // Half way to the left on a path that goes no further, with Head 1: shade 0.4 on the right
+    // ear, nothing on the left, which is at the input's level again.
     const half = aroundEars(at({ x: -0.5, reach: 0.5 }), 1, 0)
     expect(half.tilt[1]).toBeCloseTo(0.6, 12)
-    expect(half.tilt[0]).toBeCloseTo(1 + (0.4 * 0.7) / 1.3, 12)
-    // The lift is what the far ear lost: the two ears summed are flat at every place, Head and Near.
+    expect(half.tilt[0]).toBe(1)
+    expect(half.gain[0]).toBeCloseTo(1, 12)
+    expect(half.gain[1]).toBeCloseTo(0.7 / 1.3, 12)
+    // The same place on a path of Radius 1: both ears lower by what the law holds back for Radius 1
+    // against Radius 0.5, and their power together is the law's at any place of that path.
+    const inside = aroundEars(at({ x: -0.5, reach: 0.5, radius: 1 }), 1, 0)
+    expect(inside.gain[0]).toBeCloseTo(trimOf(1) / trimOf(0.5), 12)
+    for (const x of [-1, -0.6, -0.2, 0, 0.3, 0.75, 1]) {
+      const ears = aroundEars(at({ x, reach: 1 }), 0, 0)
+      expect(Math.hypot(ears.gain[0], ears.gain[1])).toBeCloseTo(Math.SQRT2 * trimOf(1), 12)
+    }
+    // No ear is ever given more than came in, and its band over the split is never lifted: every
+    // place across, every Radius it fits in, Head, Near and distance from the near point.
     for (const x of [-1, -0.6, -0.2, 0, 0.3, 0.75, 1])
-      for (const head of [0.3, 1])
-        for (const kept of [1, 0.4]) {
-          const ears = aroundEars(at({ x, reach: 1, away: 0.3 }), head, 0.5, kept)
-          expect(ears.gain[0] * ears.tilt[0] + ears.gain[1] * ears.tilt[1]).toBeCloseTo(
-            ears.gain[0] + ears.gain[1],
-            12,
-          )
-        }
-    // The ears' lateness in the bass is the split's own lag: 0.66 ms at the full side with Head 1,
-    // 0.33 with Head a half (shade 0.4, lift 0.1), the left ear late with the source at the right.
+      for (const radius of [Math.abs(x), (Math.abs(x) + 1) / 2, 1])
+        for (const near of [0, 0.5, 1])
+          for (const away of [0, 0.3 * radius, radius])
+            for (const head of [0.3, 1]) {
+              const ears = aroundEars(at({ x, reach: radius, away, radius }), head, near, 0.4)
+              expect(Math.max(...ears.gain)).toBeLessThanOrEqual(1 + 1e-12)
+              expect(Math.max(...ears.tilt)).toBe(1)
+              if (near === 0 && Math.abs(x) === radius)
+                expect(Math.max(...ears.gain)).toBeCloseTo(1, 12)
+            }
+    // The ears' lateness in the bass is the far ear's own lag: 0.66 ms at the full side with Head 1,
+    // 0.33 with Head a half (shade 0.4), the left ear late with the source at the right.
     expect(aroundLateSec(side, 1, 0).seconds).toBeCloseTo(ITD_SEC, 9)
     expect(aroundLateSec(side, 1, 0).side).toBe(-1)
     expect(aroundLateSec(side, 0.5, 0).seconds).toBeCloseTo(ITD_SEC / 2, 9)
     expect(aroundLateSec(at({ x: -1, reach: 1 }), 1, 0).side).toBe(1)
     expect(aroundLateSec(at({ y: 1, reach: 1 }), 1, 0).seconds).toBe(0)
-    // Near: 2.5 dB up at the near point, 9.5 down opposite it, 3.5 down a quarter turn on, nothing in the head.
-    expect(aroundNearDb(at({ reach: 1, away: 0 }), 1)).toBeCloseTo(NEAR_UP_DB, 12)
-    expect(aroundNearDb(at({ reach: 1, away: 1 }), 1)).toBeCloseTo(NEAR_UP_DB - NEAR_DB, 12)
-    expect(aroundNearDb(at({ reach: 1, away: 0.5 }), 1)).toBeCloseTo(NEAR_UP_DB - NEAR_DB / 2, 12)
-    expect(aroundNearGain(at({ reach: 0, away: 0 }), 1)).toBe(1)
-    expect(aroundNearGain(at({ reach: 1, away: 1 }), 0)).toBe(1)
-    expect(gainToDb(aroundNearGain(at({ reach: 0.6, away: 0.6 }), 0.5))).toBeCloseTo(-2.85, 9)
+    // Near: nothing taken at the near point, 9.5 dB opposite it, half of that a quarter turn on.
+    expect(aroundNearDb(at({ reach: 1, away: 0 }), 1)).toBeCloseTo(0, 12)
+    expect(aroundNearDb(at({ reach: 1, away: 1 }), 1)).toBeCloseTo(-NEAR_DB, 12)
+    expect(aroundNearDb(at({ reach: 1, away: 0.5 }), 1)).toBeCloseTo(-NEAR_DB / 2, 12)
+    // Towards the near point the source counts as less far out: in front, with Near 1, as a tenth
+    // of its Radius (√(1 − 0.99)), so it is given back all but 0.49 dB of what the law held back;
+    // with the near point at a side it counts as its own distance across and gets nothing more.
+    expect(aroundCountedOut(at({ y: 1, reach: 1 }), 0)).toBe(1)
+    expect(aroundCountedOut(at({ y: 1, reach: 1 }), 1)).toBeCloseTo(Math.sqrt(1 - NEARER), 12)
+    expect(aroundCountedOut(at({ x: 1, reach: 1 }), 1)).toBeCloseTo(1, 12)
+    expect(aroundCountedOut(at({ y: -1, reach: 1, away: 1 }), 1)).toBe(1)
+    expect(aroundCountedOut(at({ x: 0.6, y: 0.8, reach: 1, away: 0.1 }), 0.5)).toBeCloseTo(
+      Math.sqrt(0.36 + (1 - NEARER * 0.5 * 0.9) * 0.64),
+      12,
+    )
+    expect(gainToDb(aroundCarried(at({ y: 1, reach: 1 }), 1))).toBeCloseTo(-0.49, 2)
+    expect(aroundCarried(at({ x: 1, reach: 1 }), 1)).toBeCloseTo(trimOf(1), 12)
+    expect(aroundCarried(at({ reach: 0, away: 0 }), 1)).toBe(1)
+    expect(aroundCarried(at({ reach: 1, away: 1 }), 0)).toBeCloseTo(trimOf(1), 12)
+    expect(gainToDb(aroundCarried(at({ y: -0.6, reach: 0.6, away: 0.6 }), 0.5))).toBeCloseTo(
+      gainToDb(trimOf(0.6)) - 2.85,
+      9,
+    )
     // Speed: a Circle keeps its whole shadow until Head·0.8·Rate·Radius·2π passes kBend·2π·kShadeHz
-    // (8.78 a second), and then that much over it: 0.4365 at Rate 4, Radius 1, Head 1.
+    // (7.02 a second), and then that much over it: 0.3492 at Rate 4, Radius 1, Head 1.
     expect(aroundShadeKept('circle', 1, 1, 1)).toBe(1)
-    expect(aroundShadeKept('circle', 4, 1, 0.4)).toBe(1)
+    expect(aroundShadeKept('circle', 4, 1, 0.3)).toBe(1)
     expect(aroundShadeKept('circle', 4, 1, 1)).toBeCloseTo(
       (BEND * TWO_PI * SHADE_HZ) / (SHADE * 4 * 6.2832),
       5,
     )
-    expect(aroundShadeKept('circle', 4, 1, 1)).toBeCloseTo(0.4365, 3)
+    expect(aroundShadeKept('circle', 4, 1, 1)).toBeCloseTo(0.3492, 3)
     expect(aroundShadeKept('pendulum', 4, 1, 1)).toBeLessThan(aroundShadeKept('circle', 4, 1, 1))
-    // With Head 0 the ears differ in level alone: (1 ± 0.6) / √1.36 at the side, 12 dB apart at any pitch.
+    // With Head 0 the ears differ in level alone: the input's level and a quarter of it at the
+    // side, 12 dB apart at any pitch.
     for (const hz of [100, 1000, 9000]) {
       const near = aroundEar(1, side, 0, 0, hz, RATE)
       const far = aroundEar(-1, side, 0, 0, hz, RATE)
-      expect(near).toBeCloseTo((1 + PAN) / Math.sqrt(1 + PAN * PAN), 9)
-      expect(far).toBeCloseTo((1 - PAN) / Math.sqrt(1 + PAN * PAN), 9)
+      expect(near).toBeCloseTo(1, 9)
+      expect(far).toBeCloseTo((1 - PAN) / (1 + PAN), 9)
       expect(gainToDb(near / far)).toBeCloseTo(12.04, 2)
     }
-    // With Head 1 the far ear falls from 12 dB under the near in the bass to 27 on top, and never climbs.
+    // With Head 1 the far ear falls from 12 dB under the near in the bass to 25.5 on top, and
+    // against the near ear it never climbs (both lose the same top, half of the back's, at the
+    // side); the near ear is never over the input.
     expect(
       gainToDb(aroundEar(1, side, 1, 0, 30, RATE) / aroundEar(-1, side, 1, 0, 30, RATE)),
     ).toBeCloseTo(12.1, 1)
     expect(
       gainToDb(aroundEar(1, side, 1, 0, 8000, RATE) / aroundEar(-1, side, 1, 0, 8000, RATE)),
-    ).toBeCloseTo(27, 0)
+    ).toBeCloseTo(25.5, 0)
     let before = Infinity
     for (let hz = 30; hz < 16000; hz *= 1.05) {
-      const far = aroundEar(-1, side, 1, 0, hz, RATE)
+      const far = aroundEar(-1, side, 1, 0, hz, RATE) / aroundEar(1, side, 1, 0, hz, RATE)
       expect(far).toBeLessThanOrEqual(before)
+      expect(aroundEar(1, side, 1, 0, hz, RATE)).toBeLessThanOrEqual(1)
       before = far
     }
-    // Front and back are coloured alike in both ears: in front 2.2 dB up at 7.5 kHz, behind 2.6 down,
-    // the bass as it came; Mix 0 leaves the sound as it came from anywhere.
+    // Front and back are coloured alike in both ears, and the colour only takes away: in front
+    // every pitch is what the law leaves (2.75 dB under at Radius 1), behind 7.5 kHz is 4.8 dB
+    // under that and the bass as in front; at the side half of it; Mix 0 leaves the sound as it
+    // came from anywhere.
     const front = at({ y: 1, reach: 1 })
     const behind = at({ y: -1, reach: 1, away: 1 })
     for (const place of [front, behind])
@@ -341,10 +391,13 @@ describe('the maths the display of Around is drawn from', () => {
         aroundEar(1, place, 1, 0, 7500, RATE),
         12,
       )
-    expect(gainToDb(aroundEar(1, front, 1, 0, 7500, RATE))).toBeCloseTo(2.23, 1)
-    expect(gainToDb(aroundEar(1, behind, 1, 0, 7500, RATE))).toBeCloseTo(-2.61, 1)
-    expect(Math.abs(gainToDb(aroundEar(1, behind, 1, 0, 250, RATE)))).toBeLessThan(0.01)
-    expect(aroundEar(1, front, 0, 0, 7500, RATE)).toBeCloseTo(1, 12)
+    for (const hz of [100, 1000, 7500, 12000])
+      expect(aroundEar(1, front, 1, 0, hz, RATE)).toBeCloseTo(trimOf(1), 12)
+    expect(gainToDb(aroundEar(1, behind, 1, 0, 7500, RATE))).toBeCloseTo(-7.51, 1)
+    expect(gainToDb(aroundEar(1, behind, 1, 0, 12000, RATE))).toBeCloseTo(-4.53, 1)
+    expect(gainToDb(aroundEar(1, behind, 1, 0, 250, RATE) / trimOf(1))).toBeGreaterThan(-0.02)
+    expect(gainToDb(aroundEar(1, side, 1, 0, 7500, RATE))).toBeCloseTo(-2.2, 1)
+    expect(aroundEar(1, behind, 0, 0, 7500, RATE)).toBeCloseTo(trimOf(1), 12)
     for (const hz of [100, 1000, 9000])
       expect(aroundEar(-1, at({ x: 1, y: -0.5, reach: 1, away: 1 }), 1, 1, hz, RATE, 0)).toBe(1)
   })
@@ -387,6 +440,13 @@ describe('the display of Around against the compiled device', () => {
       name: 'a circle the other way round',
       values: { path: 0, direction: 1, radius: 1, head: 0.8, near: 0.7, turn: 20, blur: 0, mix: 1 },
       run: 0.3,
+    },
+    {
+      // A whole turn on: at the near point, in front, where Near gives back what the level law
+      // held back (2.26 dB of its 2.75).
+      name: 'a circle at its near point in front',
+      values: { path: 0, radius: 1, head: 0.6, near: 1, turn: 0, blur: 0, mix: 1 },
+      run: 0.234,
     },
   ]
 
@@ -467,9 +527,9 @@ describe('the display of Around against the compiled device', () => {
       const words = aroundLateSec(place, head, 0)
       expect(words.side).toBe(-1)
       expect(Math.abs(late - words.seconds)).toBeLessThan(0.00003)
-      // The far ear lags and the near ear leads: the lateness is the split's own, not a delay.
-      expect(heard.lateLeft).toBeGreaterThan(0.0004 * head)
-      expect(heard.lateRight).toBeLessThan(-0.00005 * head)
+      // The far ear lags and the near ear, left flat, is on time: the lateness is the split's own.
+      expect(heard.lateLeft).toBeGreaterThan(0.0006 * head)
+      expect(Math.abs(heard.lateRight)).toBeLessThan(0.00001)
     }
   })
 
@@ -506,7 +566,7 @@ function sourceAt(values: Values, turns: number, width = 128): { x: number; y: n
   return {
     x: boxes.cx + boxes.reach * place.x,
     y: boxes.cy - boxes.reach * place.y,
-    r: 2 + 2.5 * aroundNearGain(place, value(values, 'near')),
+    r: 2 + 2.5 * aroundCarried(place, value(values, 'near')),
   }
 }
 
@@ -533,9 +593,16 @@ describe('what the display of Around draws from above', () => {
     const right = dots(draw({ path: 0, radius: 1, turn: 0 }, 0.25))[2]
     expect(right.x).toBeCloseTo(boxes.cx + boxes.reach, 6)
     expect(right.y).toBeCloseTo(boxes.cy, 6)
-    // Near 1: 2.5 dB up at the near point (a third larger), 9.5 dB down opposite it.
-    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0))[2].r).toBeCloseTo(2 + 2.5 * 1.3335, 3)
-    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0.5))[2].r).toBeCloseTo(2 + 2.5 * 0.335, 3)
+    // The dot is as large as the source is carried loud. Near 1: 0.49 dB under the input at the
+    // near point in front, 12.25 dB under opposite it; Near 0: the law's 2.75 dB under all round.
+    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0))[2].r).toBeCloseTo(2 + 2.5 * 0.9451, 3)
+    expect(dots(draw({ path: 0, radius: 1, near: 1 }, 0.5))[2].r).toBeCloseTo(2 + 2.5 * 0.2441, 3)
+    for (const turns of [0, 0.3, 0.5])
+      expect(dots(draw({ path: 0, radius: 1, near: 0 }, turns))[2].r).toBeCloseTo(
+        2 + 2.5 * trimOf(1),
+        6,
+      )
+    expect(dots(draw({ path: 0, radius: 0, near: 0 }, 0))[2].r).toBeCloseTo(4.5, 6)
   })
 
   it('draws each path through the places its formula gives', () => {
@@ -634,11 +701,19 @@ describe('what the display of Around draws of the two ears', () => {
           expect(mark.y + 1).toBeCloseTo(y(level(AROUND_TOP_HZ), bar), 6)
         })
       }
-    // At the right with no head: the right ear 2.75 dB up and the left 9.3 down, and written so.
+    // At the right with no head: the right ear at the input's level and the left 12 dB down, and
+    // written so.
     const words = draw({ path: 0, radius: 1, head: 0, near: 0 }, 0.25).words()
-    expect(words).toEqual(['−9', 'L', '+3', 'R'])
-    // In front both ears have the bass as it came.
-    expect(draw({ path: 0, radius: 1, head: 1, near: 0 }, 0).words()).toEqual(['0', 'L', '0', 'R'])
+    expect(words).toEqual(['−12', 'L', '0', 'R'])
+    // In front both ears have what the level law leaves at Radius 1, 2.75 dB under; at Radius 0
+    // the bass as it came.
+    expect(draw({ path: 0, radius: 1, head: 1, near: 0 }, 0).words()).toEqual([
+      '−3',
+      'L',
+      '−3',
+      'R',
+    ])
+    expect(draw({ path: 0, radius: 0, head: 1, near: 0 }, 0).words()).toEqual(['0', 'L', '0', 'R'])
   })
 
   it('gives a wide display each ear over frequency, the right ear dashed', () => {

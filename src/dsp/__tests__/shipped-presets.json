@@ -2961,13 +2961,13 @@
     "Bright spray": {"stretch":0.5,"pivot":220,"follow":1,"lean":1,"shift":0,"drift":0.1,"tone":0.5,"width":0.8,"mix":0.6}
   },
   "around": {
-    "(default)": {"path":0,"rate":0.2,"radius":0.85,"head":0.7,"near":0.25,"direction":0,"blur":0.35,"mix":1,"turn":0},
-    "Slow circle": {"path":0,"rate":0.2,"radius":0.85,"head":0.7,"near":0.25,"direction":0,"blur":0.35,"mix":1,"turn":0},
+    "(default)": {"path":0,"rate":0.2,"radius":0.85,"head":0.7,"near":0,"direction":0,"blur":0.35,"mix":1,"turn":0},
+    "Slow circle": {"path":0,"rate":0.2,"radius":0.85,"head":0.7,"near":0,"direction":0,"blur":0.35,"mix":1,"turn":0},
     "Barely moving": {"path":3,"rate":0.03,"radius":0.4,"head":0.5,"near":0,"direction":0,"blur":0.2,"mix":1,"turn":60},
     "Gentle sway": {"path":2,"rate":0.07,"radius":0.7,"head":0.6,"near":0,"direction":0,"blur":0.35,"mix":1,"turn":0},
     "Wide pendulum": {"path":2,"rate":0.25,"radius":1,"head":0.8,"near":0,"direction":0,"blur":0.3,"mix":1,"turn":0},
     "Slow eight": {"path":1,"rate":0.15,"radius":0.9,"head":0.7,"near":0,"direction":0,"blur":0.3,"mix":1,"turn":0},
-    "Slow wander": {"path":3,"rate":0.12,"radius":0.9,"head":0.7,"near":0.4,"direction":0,"blur":0.4,"mix":1,"turn":0},
+    "Slow wander": {"path":3,"rate":0.12,"radius":0.9,"head":0.7,"near":0.15,"direction":0,"blur":0.4,"mix":1,"turn":0},
     "Drone drift": {"path":3,"rate":0.05,"radius":1,"head":1,"near":0.2,"direction":0,"blur":0.5,"mix":1,"turn":-90},
     "Dark swing": {"path":2,"rate":0.1,"radius":0.9,"head":1,"near":0,"direction":0,"blur":0.5,"mix":1,"turn":180},
     "Passing by": {"path":0,"rate":0.1,"radius":1,"head":0.9,"near":0.6,"direction":1,"blur":0.3,"mix":1,"turn":90},
@@ -2977,7 +2977,7 @@
     "Plain pan": {"path":2,"rate":0.5,"radius":1,"head":0,"near":0,"direction":0,"blur":0,"mix":1,"turn":0},
     "Mostly room": {"path":0,"rate":0.1,"radius":0.25,"head":0.6,"near":0,"direction":0,"blur":1,"mix":1,"turn":0},
     "Half stays put": {"path":0,"rate":0.3,"radius":1,"head":0.8,"near":0,"direction":0,"blur":0.2,"mix":0.5,"turn":0},
-    "Dizzy": {"path":1,"rate":2.7,"radius":1,"head":1,"near":0.5,"direction":0,"blur":0.8,"mix":1,"turn":90}
+    "Dizzy": {"path":1,"rate":2.7,"radius":1,"head":1,"near":0.2,"direction":0,"blur":0.8,"mix":1,"turn":90}
   },
   "bowls": {
     "(default)": {"root":0,"scale":0,"bowls":8,"ring":10,"beat":0.4,"strike":0.5,"metal":0.5,"mix":0.35,"spread":0.6,"register":0.5},

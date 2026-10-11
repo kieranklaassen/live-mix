@@ -6,7 +6,7 @@
 //    1  rate: 0.01..4 Hz, default 0.2
 //    2  radius: 0..1, default 0.85
 //    3  head: 0..1, default 0.7
-//    4  near: 0..1, default 0.25
+//    4  near: 0..1, default 0
 //    5  direction: 0 Clockwise, 1 Anticlockwise, default 0
 //    6  blur: 0..1, default 0.35
 //    7  mix: 0..1, default 1
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 0.01f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -180.0f};
 inline constexpr float kParamMax[kNumParams] = {3.0f, 4.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 180.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.85f, 0.7f, 0.25f, 0.0f, 0.35f, 1.0f, 0.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.0f, 0.2f, 0.85f, 0.7f, 0.0f, 0.0f, 0.35f, 1.0f, 0.0f};
 
 }  // namespace around
 }  // namespace livemix

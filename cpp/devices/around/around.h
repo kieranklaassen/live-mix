@@ -15,25 +15,34 @@
 // function of that point, so a source at the centre is the input untouched
 // and Radius is how far the cues go.
 //
-// - Level. gain = (1 ± kPan·x) / sqrt(1 + kPan²·x²): the two ears keep their
-//   summed power, 12 dB apart at the full side.
+// - Level. gain = trim(Radius) · (1 ± kPan·x) / sqrt(1 + kPan²·x²): the two
+//   ears keep their summed power all the way round, 12 dB apart at the full
+//   side. Power kept at the input's own level would give the ear the source
+//   is at 2.75 dB more than came in, so the whole path is turned down by what
+//   that ear would gain at the path's furthest reach: trim(Radius) =
+//   sqrt(1 + kPan²·R²) / (1 + kPan·R). The further out the path lies, the
+//   quieter the source (2.75 dB at Radius 1), the same at every place of the
+//   path, and no ear is ever given more than came in.
 // - Shadow and time. One one-pole split at kShadeHz an ear. The far ear's
-//   band over it is turned down by up to kShade times Head, and the near
-//   ear's is turned up by just what the far ear lost (lift = shade · far gain
-//   / near gain), so the two ears summed are flat at every place. A shelf is
-//   a lag: the far ear's bass is late by shade / (2π·kShadeHz) and the near
-//   ear's early by lift / (2π·kShadeHz), kItdSeconds between them at the full
-//   side, and that lateness fades out above the split of itself. There is no
-//   delay line: a delay held to higher pitches puts the ears in opposite
-//   phase there and leaves a hole when they are summed, and a delay cut off
-//   at a split combs the far ear. The ears are never more than about 47
-//   degrees apart in phase.
-// - Front and back. In front (y > 0) both ears gain a little top over kTopHz
-//   and a narrow band at kNotchHz; behind they lose the same, times Head.
-//   That colour is all that tells the back from the front.
-// - Near. The source is louder by up to kNearUpDb at the near point (the
-//   direction Turn sets) and quieter by the rest of kNearDb opposite it,
-//   where it also loses bass under kThinHz. The room follows that level.
+//   band over it is turned down by up to kShade times Head; the near ear is
+//   left flat. A shelf is a lag: the far ear's bass is late by shade /
+//   (2π·kShadeHz), kItdSeconds at the full side, and that lateness fades out
+//   above the split of itself. There is no delay line: a delay held to higher
+//   pitches puts the ears in opposite phase there and leaves a hole when they
+//   are summed, and a delay cut off at a split combs the far ear. The ears
+//   are never more than about 42 degrees apart in phase.
+// - Front and back. Behind, both ears lose top over kTopHz and a narrow band
+//   at kNotchHz, times Head: nothing in front, half of it at the sides, all
+//   of it straight behind. That colour is all that tells the back from the
+//   front, and it only ever takes away.
+// - Near. Away from the near point (the direction Turn sets) the source is
+//   quieter, by up to kNearDb opposite it, where it also loses bass under
+//   kThinHz. Towards the near point it counts as less far out: the level
+//   law's Radius is drawn in towards where the source is from side to side
+//   (out² = x² + (1 − nearer)·(R² − x²)), so it is given back what the level
+//   law held back there, as far as the ear it is at allows and no further:
+//   up to 2.26 dB with the near point in front or behind, nothing with the
+//   near point at a side. The room follows that level.
 // - Speed. Where the path would move the far ear's lateness faster than
 //   kBend (ten cents of pitch on its bass), the shadow is made shallower:
 //   shade is scaled by kBend·2π·kShadeHz over the path's top speed.
@@ -63,24 +72,26 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   static constexpr float kItdSeconds = 0.00066f;
   static constexpr float kPan = 0.6f;
   static constexpr float kShade = 0.8f;
-  // The split that makes the ears kItdSeconds apart in the bass at the full
-  // side: (kShade + lift) / (2π·kItdSeconds), lift = kShade·(1−kPan)/(1+kPan).
-  // 241 Hz.
-  static constexpr float kShadeHz =
-      kShade * 2.0f / ((1.0f + kPan) * kit::kTwoPi * kItdSeconds);
+  // The split that makes the far ear's bass kItdSeconds late at the full
+  // side: kShade / (2π·kItdSeconds). 193 Hz.
+  static constexpr float kShadeHz = kShade / (kit::kTwoPi * kItdSeconds);
   // The most the far ear's lateness may change in a second of sound, as a
   // share: ten cents.
   static constexpr float kBend = 0.0057929f;
   static constexpr float kShadeSpeed = kBend * kit::kTwoPi * kShadeHz;
   // The fastest a path's point moves, in disc radii a turn.
   static constexpr float kPathSpeed[kNumPaths] = {6.2832f, 8.8858f, 9.8696f, 6.4f};
-  static constexpr float kTopShelf = 0.15f;
+  // What the back takes away, straight behind with Head at 1: this share of
+  // the band over kTopHz and this share of the band at kNotchHz.
+  static constexpr float kTopShelf = 0.28f;
   static constexpr float kTopHz = 5000.0f;
   static constexpr float kNotchHz = 7500.0f;
   static constexpr float kNotchQ = 3.0f;
-  static constexpr float kNotchDepth = 0.2f;
-  static constexpr float kNearDb = 12.0f;
-  static constexpr float kNearUpDb = 2.5f;
+  static constexpr float kNotchDepth = 0.33f;
+  // Opposite the near point the source is this much quieter, and at the near
+  // point this much of the way from the path's reach to its own place counts.
+  static constexpr float kNearDb = 9.5f;
+  static constexpr float kNearer = 0.99f;
   static constexpr float kThin = 0.5f;
   static constexpr float kThinHz = 250.0f;
   static constexpr float kRoomGain = 0.4f;
@@ -145,11 +156,32 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     }
   }
 
-  // What Near makes of the source's level, in dB: `reach` is how far the
-  // source is from the head and `away` how far it is from the near point.
-  static float near_db(float nearness, float reach, float away) {
-    return nearness * (kNearUpDb * reach - kNearDb * away);
+  // What Near takes from the source's level away from the near point, in dB:
+  // `away` is how far the source is from the near point.
+  static float near_db(float nearness, float away) { return -nearness * kNearDb * away; }
+
+  // How far out a source counts as being for the level law: the path's whole
+  // reach `radius` with Near at 0, and towards the near point less, down to
+  // nearly its own distance from the middle line `x`. Never less than |x|, so
+  // the ear the source is at never gets more than came in.
+  static float counted_out(float nearness, float radius, float away, float x) {
+    if (radius <= 1.0e-6f) return 0.0f;
+    const float nearer = kNearer * nearness * kit::max(0.0f, 1.0f - away / radius);
+    const float across = x * x;
+    return std::sqrt(across + (1.0f - nearer) * kit::max(0.0f, radius * radius - across));
   }
+
+  // What a source that counts as `radius` out is turned down by so that the
+  // ear it is at never gets more than came in: one over that ear's gain at
+  // the full side of such a path. 1 at 0, 0.729 (2.75 dB) at 1.
+  static float trim(float radius) {
+    return std::sqrt(1.0f + kPan * kPan * radius * radius) / (1.0f + kPan * radius);
+  }
+
+  // How far behind a source is, for what the back takes away: 0 anywhere in
+  // front on the middle line, half its distance at the sides, its whole
+  // distance straight behind. `y` is to the front.
+  static float behind(float reach, float y) { return kit::max(0.0f, 0.5f * (reach - y)); }
 
   // How much of the shadow a path keeps at its speed: all of it until the
   // far ear's lateness would change faster than kBend.
@@ -243,10 +275,10 @@ class Around : public kit::DeviceBase<around::kNumParams> {
       advance();
 
       // Each ear hears its own channel: thinner away from the near point,
-      // coloured by front or back, and the band over the split turned down
-      // for the far ear and up for the near one.
+      // duller from behind, and the band over the split turned down for the
+      // far ear. Every stage only takes away.
       const float thin = ramp(thin_);
-      const float colour = ramp(colour_);
+      const float dull = ramp(dull_);
       float wet[2];
       float bass_sum = 0.0f;
       for (int e = 0; e < 2; ++e) {
@@ -254,8 +286,8 @@ class Around : public kit::DeviceBase<around::kNumParams> {
         const float bass = ear.thin_lp.lowpass(in[e]);
         bass_sum += bass;
         float source = in[e] - thin * bass;
-        source += colour * kTopShelf * (source - ear.top_lp.lowpass(source));
-        source += colour * kNotchDepth * ear.notch.bandpass(source);
+        source -= dull * kTopShelf * (source - ear.top_lp.lowpass(source));
+        source -= dull * kNotchDepth * ear.notch.bandpass(source);
         const float low = ear.shade_lp.lowpass(source);
         wet[e] = (low + ramp(tilt_[e]) * (source - low)) * ramp(gain_[e]);
       }
@@ -402,8 +434,9 @@ class Around : public kit::DeviceBase<around::kNumParams> {
     const float x = px * turn_cos + py * turn_sin;
     const float y = py * turn_cos - px * turn_sin;
 
-    const float near_gain = std::exp(near_db(nearness, reach, away) * 0.115129255f);
-    const float level = near_gain / std::sqrt(1.0f + kPan * kPan * x * x);
+    const float carried = trim(counted_out(nearness, radius, away, x)) *
+                          std::exp(near_db(nearness, away) * 0.115129255f);
+    const float level = carried / std::sqrt(1.0f + kPan * kPan * x * x);
     const float depth = head * kShade * shade_kept(rate * radius * top_speed, head);
     float gain[2], shade[2];
     for (int e = 0; e < 2; ++e) {
@@ -412,14 +445,12 @@ class Around : public kit::DeviceBase<around::kNumParams> {
       shade[e] = depth * kit::max(0.0f, -towards);
     }
     for (int e = 0; e < 2; ++e) {
-      // What this ear loses over the split, and what it is given of the
-      // other's loss, so that the two summed stay flat.
-      const float lift = shade[1 - e] * gain[1 - e] / gain[e];
+      // What this ear loses over the split: the far ear only.
       gain_[e].to(gain[e], snap_);
-      tilt_[e].to(1.0f - shade[e] + lift, snap_);
+      tilt_[e].to(1.0f - shade[e], snap_);
     }
-    room_.to(near_gain, snap_);
-    colour_.to(head * y, snap_);
+    room_.to(carried, snap_);
+    dull_.to(head * behind(reach, y), snap_);
     thin_.to(nearness * away * kThin, snap_);
     snap_ = false;
   }
@@ -476,7 +507,7 @@ class Around : public kit::DeviceBase<around::kNumParams> {
   kit::Smoother radius_, head_, near_, speed_;  // on the control clock
   kit::Smoother weight_[kNumPaths];             // on the control clock
   kit::Smoother blur_, mix_;                    // per sample
-  Ramp gain_[2], tilt_[2], colour_, thin_, room_;
+  Ramp gain_[2], tilt_[2], dull_, thin_, room_;
   int room_delay_[2][kRoomTaps] = {};
   double phase_ = 0.0;      // turns, 0..kPathTurns
   double increment_ = 0.0;  // turns per sample, signed by Direction

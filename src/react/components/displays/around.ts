@@ -44,22 +44,22 @@ export const AROUND_ITD_SEC = 0.00066
 const PAN = 0.6
 /** The most the far ear's band over the split is turned down: `kShade`. */
 const SHADE = 0.8
-/** Where the bands split, set so that the shadow's own lag is `kItdSeconds` at the full side: `kShadeHz`, 241 Hz. */
-export const AROUND_SHADE_HZ = (SHADE * 2) / ((1 + PAN) * TWO_PI * AROUND_ITD_SEC)
+/** Where the bands split, set so that the far ear's own lag is `kItdSeconds` at the full side: `kShadeHz`, 193 Hz. */
+export const AROUND_SHADE_HZ = SHADE / (TWO_PI * AROUND_ITD_SEC)
 /** The most the far ear's lateness may change in a second, as a share (ten cents): `kBend`, `kShadeSpeed`. */
 const BEND = 0.0057929
 const SHADE_SPEED = BEND * TWO_PI * AROUND_SHADE_HZ
 /** The fastest a path's point moves, in disc radii a turn: `kPathSpeed`. */
 const PATH_SPEED = { circle: 6.2832, eight: 8.8858, pendulum: 9.8696, wander: 6.4 } as const
-/** In front and behind: the shelf, its corner, the band, its sharpness and depth: `kTop…`, `kNotch…`. */
-const TOP_SHELF = 0.15
+/** What the back takes away: the shelf, its corner, the band, its sharpness and depth: `kTop…`, `kNotch…`. */
+const TOP_SHELF = 0.28
 const TOP_HZ = 5000
 const NOTCH_HZ = 7500
 const NOTCH_Q = 3
-const NOTCH_DEPTH = 0.2
-/** Near: the dB between the near point and opposite it, how much of that is up, and the bass lost under `kThinHz`: `kNearDb`, `kNearUpDb`, `kThin`. */
-const NEAR_DB = 12
-const NEAR_UP_DB = 2.5
+const NOTCH_DEPTH = 0.33
+/** Near: the dB lost opposite the near point, how much of the way in the near point counts, and the bass lost under `kThinHz`: `kNearDb`, `kNearer`, `kThin`. */
+const NEAR_DB = 9.5
+const NEARER = 0.99
 const THIN = 0.5
 const THIN_HZ = 250
 /** The path's clock wraps after this many turns, and the reading is its share of them: `kPathTurns`. */
@@ -109,6 +109,8 @@ export interface AroundPlace {
   /** How far it is from the head (0..1), and from the near point: 0 on the way to it, up to `reach` opposite. */
   reach: number
   away: number
+  /** How far out its path lies: Radius as the knob has it. */
+  radius: number
 }
 
 /** The source's place after `turns` turns: `control` in `around.h`. Turn is in degrees. */
@@ -124,17 +126,45 @@ export function aroundPlace(
   const reach = Math.hypot(px, py)
   const away = Math.max(0, 0.5 * (reach - py))
   const turn = turnDeg / 360
-  return { x: px * cos(turn) + py * sin(turn), y: py * cos(turn) - px * sin(turn), reach, away }
+  return {
+    x: px * cos(turn) + py * sin(turn),
+    y: py * cos(turn) - px * sin(turn),
+    reach,
+    away,
+    radius,
+  }
 }
 
-/** What Near makes of the source's level at a place, in dB: up at the near point, down opposite it. `near_db`. */
+/**
+ * What a source that counts as `radius` out is turned down by, so that the
+ * ear it is at never gets more than came in: one over that ear's gain at the
+ * full side of such a path. 1 at 0, 0.729 (2.75 dB) at 1. `trim`.
+ */
+export function aroundTrim(radius: number): number {
+  return Math.sqrt(1 + PAN * PAN * radius * radius) / (1 + PAN * radius)
+}
+
+/** What Near takes from the source's level away from the near point, in dB. `near_db`. */
 export function aroundNearDb(place: AroundPlace, near: number): number {
-  return near * (NEAR_UP_DB * place.reach - NEAR_DB * place.away)
+  return -near * NEAR_DB * place.away
 }
 
-/** The same as a gain: `near_gain`. */
-export function aroundNearGain(place: AroundPlace, near: number): number {
-  return Math.pow(10, aroundNearDb(place, near) / 20)
+/**
+ * How far out a source counts as being for the level law: its path's whole
+ * Radius with Near at 0, and towards the near point less, down to nearly its
+ * own distance from the middle line. Never less than that distance, so the
+ * ear the source is at never gets more than came in. `counted_out`.
+ */
+export function aroundCountedOut(place: AroundPlace, near: number): number {
+  if (place.radius <= 1e-6) return 0
+  const nearer = NEARER * near * Math.max(0, 1 - place.away / place.radius)
+  const across = place.x * place.x
+  return Math.sqrt(across + (1 - nearer) * Math.max(0, place.radius * place.radius - across))
+}
+
+/** The level the source is carried at, before the ears share it out: `carried` in `control`. */
+export function aroundCarried(place: AroundPlace, near: number): number {
+  return aroundTrim(aroundCountedOut(place, near)) * Math.pow(10, aroundNearDb(place, near) / 20)
 }
 
 /**
@@ -156,24 +186,25 @@ export function aroundShadeKept(
 export interface AroundEars {
   /** The level of each ear. */
   gain: [number, number]
-  /** What each ear's band over the split is multiplied by: under 1 for the far ear, over 1 for the near. */
+  /** What each ear's band over the split is multiplied by: under 1 for the far ear, 1 for the near. */
   tilt: [number, number]
 }
 
 export function aroundEars(place: AroundPlace, head: number, near: number, kept = 1): AroundEars {
-  const level = aroundNearGain(place, near) / Math.sqrt(1 + PAN * PAN * place.x * place.x)
+  const level = aroundCarried(place, near) / Math.sqrt(1 + PAN * PAN * place.x * place.x)
   const gain: [number, number] = [level * (1 - PAN * place.x), level * (1 + PAN * place.x)]
   const depth = head * SHADE * kept
-  const shade = [depth * Math.max(0, place.x), depth * Math.max(0, -place.x)]
-  // What an ear loses over the split, and what it is given of the other's loss.
-  const tilt = (e: 0 | 1): number => 1 - shade[e] + (shade[1 - e] * gain[1 - e]) / gain[e]
-  return { gain, tilt: [tilt(0), tilt(1)] }
+  // What an ear loses over the split: the far ear only.
+  return {
+    gain,
+    tilt: [1 - depth * Math.max(0, place.x), 1 - depth * Math.max(0, -place.x)],
+  }
 }
 
 /**
  * How far apart in time the ears are in the bass, in seconds, and which is
- * late: the far ear's lag and the near ear's lead, both the split's own.
- * `side` of the late ear is −1 for the left.
+ * late: the far ear's lag, the split's own. `side` of the late ear is −1 for
+ * the left.
  */
 export function aroundLateSec(
   place: AroundPlace,
@@ -224,7 +255,7 @@ function notchBand(hz: number, sampleRate: number): Complex {
  * the room. `side` is −1 for the left ear and 1 for the right; `kept` is how
  * much of the shadow the path's speed leaves (`aroundShadeKept`).
  *
- *   source = (1 − thin·bass) · (1 + colour·shelf·top) · (1 + colour·depth·band)
+ *   source = (1 − thin·bass) · (1 − dull·shelf·top) · (1 − dull·depth·band)
  *   ear    = gain · (low + tilt · (1 − low)) · source
  *   out    = (1 − mix) + mix · ear
  */
@@ -242,15 +273,16 @@ export function aroundEar(
   const ears = aroundEars(place, head, near, kept)
   const level = ears.gain[e]
   const tilt = ears.tilt[e]
-  const colour = head * place.y
+  // How far behind the source is: nothing in front, its whole distance straight behind. `behind`.
+  const dull = head * Math.max(0, 0.5 * (place.reach - place.y))
   const thin = near * place.away * THIN
 
   const bass = onePole(THIN_HZ, hz, sampleRate)
   const top = onePole(TOP_HZ, hz, sampleRate)
   const band = notchBand(hz, sampleRate)
   let source: Complex = [1 - thin * bass[0], -thin * bass[1]]
-  source = times(source, [1 + colour * TOP_SHELF * (1 - top[0]), -colour * TOP_SHELF * top[1]])
-  source = times(source, [1 + colour * NOTCH_DEPTH * band[0], colour * NOTCH_DEPTH * band[1]])
+  source = times(source, [1 - dull * TOP_SHELF * (1 - top[0]), dull * TOP_SHELF * top[1]])
+  source = times(source, [1 - dull * NOTCH_DEPTH * band[0], -dull * NOTCH_DEPTH * band[1]])
 
   const low = onePole(AROUND_SHADE_HZ, hz, sampleRate)
   const ear = times([low[0] + tilt * (1 - low[0]), low[1] - tilt * low[1]], source)
@@ -428,8 +460,6 @@ function drawAbove(frame: DisplayFrame<AroundState>, boxes: AroundBoxes, turns: 
   const turn = frame.value('turn')
   const near = frame.value('near')
   const way = wayOf(frame)
-  // The most Near gives anywhere on a path of this Radius: at the near point.
-  const nearest = Math.pow(10, (near * NEAR_UP_DB * radius) / 20)
 
   // The rim the Turn point runs on.
   ctx.beginPath()
@@ -458,15 +488,18 @@ function drawAbove(frame: DisplayFrame<AroundState>, boxes: AroundBoxes, turns: 
       })
     }
   } else {
-    // The path, stronger where Near has the source closer.
+    // The path, stronger where Near has the source closer: each piece by the
+    // level the source is carried at there, against the most of any piece.
     const pieces = 48
+    const carried = Array.from({ length: pieces }, (_, i) =>
+      aroundCarried(aroundPlace(path, (i + 0.5) / pieces, radius, turn), near),
+    )
+    const nearest = Math.max(...carried)
     for (let i = 0; i < pieces; i++) {
-      const middle = aroundPlace(path, (i + 0.5) / pieces, radius, turn)
       trace(ctx, stretch(boxes, frame, path, i / pieces, (i + 1) / pieces, 2), {
         colour: colours.ink,
         width: 1.5,
-        alpha:
-          INK.rule + (INK.trace - INK.rule) * clamp(aroundNearGain(middle, near) / nearest, 0, 1),
+        alpha: INK.rule + (INK.trace - INK.rule) * clamp(carried[i] / nearest, 0, 1),
       })
     }
   }
@@ -490,8 +523,9 @@ function drawAbove(frame: DisplayFrame<AroundState>, boxes: AroundBoxes, turns: 
   ctx.stroke()
 
   // The source: a tail over where it was half a second ago (behind it, either
-  // way round), and the dot, larger the nearer it is and only as full as Mix
-  // lets it be heard.
+  // way round), and the dot, larger the louder the source is carried (the
+  // nearer it is, and the less far out its path lies) and only as full as
+  // Mix lets it be heard.
   const mix = frame.value('mix')
   const tail = clamp(frame.value('rate') * TAIL_SEC, 0, TAIL_MOST)
   trace(ctx, stretch(boxes, frame, path, turns - way * tail, turns, 24), {
@@ -501,7 +535,7 @@ function drawAbove(frame: DisplayFrame<AroundState>, boxes: AroundBoxes, turns: 
   })
   const place = aroundPlace(path, turns, radius, turn)
   const [x, y] = onScreen(boxes, place.x, place.y)
-  const size = 2 + 2.5 * aroundNearGain(place, near)
+  const size = 2 + 2.5 * aroundCarried(place, near)
   ctx.beginPath()
   ctx.arc(x, y, size, 0, TWO_PI)
   ctx.fillStyle = colours.plate
@@ -598,8 +632,8 @@ function drawResponse(frame: DisplayFrame<AroundState>, plot: Box, place: Around
   label(frame, 'L', plot.x + 3, stand(at(-1), leftOver))
   label(frame, 'R', plot.x + 3, stand(at(1), !leftOver))
   // How late the far ear's bass is against the near ear's: along the top,
-  // unless a line climbs that high (the near ear with Near and the front's
-  // colour on it); then along the foot, where no line is at such a time.
+  // unless a line climbs that high; then along the foot. (No ear is given
+  // more than came in, so no line passes 0 dB and the top is free.)
   const late = aroundLateSec(place, head, near, kept)
   if (mix > 0 && late.seconds >= 0.000005) {
     const words = `${late.side < 0 ? 'L' : 'R'} ${(late.seconds * 1000).toFixed(2)} ms late`
