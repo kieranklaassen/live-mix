@@ -49,6 +49,8 @@ export interface FaceScene {
   /** The middle of the lamp; null for a plate without a power switch. */
   lamp: { x: number; y: number } | null
   powered: boolean
+  /** How many times its own size a host shows the plate (a CSS zoom): the picture has the pixels for it. Absent means once. */
+  shown?: number
 }
 
 /** The most knobs one plate is photographed with; a plate with more keeps the flat look. */
@@ -924,7 +926,7 @@ export function drawStudioFace(
   const { gl, u, canvas } = rig
   const ratio = Math.min(
     RATIO_MOST,
-    Math.max(1, typeof devicePixelRatio === 'number' ? devicePixelRatio : 1),
+    Math.max(1, (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) * (scene.shown ?? 1)),
   )
   const fw = Math.max(1, Math.round(scene.width * ratio))
   const fh = Math.max(1, Math.round(scene.height * ratio))
