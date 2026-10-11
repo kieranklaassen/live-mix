@@ -191,11 +191,22 @@ interface NoteEvent {
   gain: number
 }
 
-function phraseEvents(phrase: Phrase | undefined, sampleRate: number): NoteEvent[] {
+/** A phrase played round again: every pass `sec` long, laid on `frames` whole frames. */
+interface Round {
+  sec: number
+  frames: number
+}
+
+function phraseEvents(phrase: Phrase | undefined, sampleRate: number, round?: Round): NoteEvent[] {
   const events: NoteEvent[] = []
   phrase?.notes.forEach((note, id) => {
     if (!Number.isFinite(note.atSec) || !Number.isFinite(note.durSec) || note.durSec <= 0) return
-    const frame = Math.max(0, Math.round(note.atSec * sampleRate))
+    // In a phrase played round, a note is placed in its pass and the pass on whole frames, so
+    // the same stroke is the same number of frames into every pass.
+    const pass = round ? Math.floor(note.atSec / round.sec + 1e-9) : 0
+    const frame = round
+      ? pass * round.frames + Math.max(0, Math.round((note.atSec - pass * round.sec) * sampleRate))
+      : Math.max(0, Math.round(note.atSec * sampleRate))
     const frequency = noteFrequency(note.note)
     const gain = note.gain ?? DEFAULT_PHRASE_GAIN
     events.push({ frame, on: true, id, frequency, gain })
@@ -289,8 +300,20 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   }
 
   const frames = Math.round(options.durationSec * sampleRate)
-  const skip = Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
   const crossfade = Math.max(0, Math.round((options.loopCrossfadeSec ?? 0) * sampleRate))
+  // A phrase played round again with whole passes dropped before it (`'linear'`): the passes
+  // are the same strokes, and at a tempo where a pass is not a whole number of frames each
+  // stroke rounded on its own would put the pass that is folded over the start a frame off
+  // the one that is kept, and the fold would dull the first stroke. So every pass is laid on
+  // the frames of the loop.
+  const passes = (options.skipSec ?? 0) / options.durationSec
+  const round: Round | undefined =
+    options.loopFold === 'linear' && crossfade > 0 && Math.abs(passes - Math.round(passes)) < 1e-6
+      ? { sec: options.durationSec, frames }
+      : undefined
+  const skip = round
+    ? Math.round(passes) * frames
+    : Math.max(0, Math.round((options.skipSec ?? 0) * sampleRate))
 
   // A bypassed instrument is a switched-off note device: silence, as it is live.
   const instrument =
@@ -314,7 +337,7 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // Aborted before the call or while the modules were compiled: a short render never reaches the end of a slice.
   options.signal?.throwIfAborted()
 
-  const events = instrument ? phraseEvents(options.phrase, sampleRate) : []
+  const events = instrument ? phraseEvents(options.phrase, sampleRate, round) : []
   // The input as long as the render: what it lacks is the silence its tail rings into.
   const padded = (channel: Float32Array | undefined): Float32Array => {
     const out = new Float32Array(total)

@@ -237,6 +237,35 @@ describe('renderPatch', () => {
     expect(levelled.channels[0][at] / plain.channels[0][at]).toBeCloseTo(gain, 4)
   })
 
+  it('lays every pass of a phrase played round on the same frames, so the fold leaves the first stroke as it is', async () => {
+    // A closed hat that repeats exactly, on the first beat of each pass; a pass is 24000.6
+    // frames, so the third pass rounded on its own would start a frame before twice the second.
+    const hat: Patch = {
+      ...BELL,
+      instrument: { deviceId: 'club-kit', params: { variation: 0 } },
+      effects: [],
+    }
+    const durationSec = 24000.6 / 48000
+    const stroke = (atSec: number) => ({ atSec, durSec: 0.1, note: 65 })
+    const round = { durationSec, skipSec: durationSec, loopFold: 'linear' as const }
+    const phrase = { notes: [0, 1, 2].map((pass) => stroke(pass * durationSec)) }
+    const straight = await render(hat, { ...round, phrase })
+    const folded = await render(hat, { ...round, phrase, loopCrossfadeSec: 0.03 })
+    const apart = (a: PlanarAudio, b: PlanarAudio): number => {
+      let most = 0
+      for (let i = 0; i < 1440; i += 1) {
+        most = Math.max(most, Math.abs(a.channels[0][i] - b.channels[0][i]))
+      }
+      return most
+    }
+    expect(peakOf(straight.channels)).toBeGreaterThan(0.05)
+    expect(apart(folded, straight)).toBeLessThan(1e-6)
+    // The measure can tell: with the last pass a frame early the fold changes the stroke.
+    const early = { notes: [stroke(0), stroke(durationSec), stroke(2 * durationSec - 1 / 48000)] }
+    const slipped = await render(hat, { ...round, phrase: early, loopCrossfadeSec: 0.03 })
+    expect(apart(slipped, straight)).toBeGreaterThan(1e-3)
+  })
+
   it('turns what the devices put out up or down by a fixed gain where no peak is asked for', async () => {
     const options = { durationSec: 0.5, phrase: { notes: [{ atSec: 0, durSec: 0.4, note: 72 }] } }
     const plain = await render(BELL, options)
