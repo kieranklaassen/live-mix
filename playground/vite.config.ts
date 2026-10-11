@@ -83,9 +83,13 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    // The playground, and the plate bench beside it (plates.html).
+    // The playground, the plate bench beside it (plates.html) and the video kit's page (video-kit.html).
     rollupOptions: {
-      input: { index: join(here, 'index.html'), plates: join(here, 'plates.html') },
+      input: {
+        index: join(here, 'index.html'),
+        plates: join(here, 'plates.html'),
+        'video-kit': join(here, 'video-kit.html'),
+      },
     },
   },
 })

@@ -54,11 +54,20 @@
   --lm-brush-ink-4: #335a2c;
   --lm-brush-ink-5: #6f7b24;
   --lm-brush-ink-6: #55625c;
+  --lm-stage: #ecece7;
+  --lm-scrim: #1a1a1a66;
+  --lm-removed: #1a1a1a14;
+  --lm-record: #e63946;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
 
   --lm-font: ui-sans-serif, system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif;
   --lm-font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
 
   --lm-radius: 1px;
   --lm-space-1: 4px;
@@ -73,6 +82,10 @@
   --lm-lane-height: 44px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -112,6 +125,14 @@
   --lm-brush-ink-4: #b3dcb4;
   --lm-brush-ink-5: #f2e0a2;
   --lm-brush-ink-6: #cfd7d3;
+  --lm-stage: #0b0b0b;
+  --lm-scrim: #070707b8;
+  --lm-removed: #fdfdfb14;
+  --lm-record: #e63946;
+  --lm-note: #d9a0e8;
+  --lm-note-soft: #d9a0e833;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
 }
 
 /*
@@ -163,10 +184,19 @@
   --lm-brush-ink-4: #b3dcb4;
   --lm-brush-ink-5: #f2e0a2;
   --lm-brush-ink-6: #cfd7d3;
+  --lm-stage: #181c1a;
+  --lm-scrim: #0f1211b8;
+  --lm-removed: #e2e7e414;
+  --lm-record: #e07a6a;
+  --lm-note: #d9a0e8;
+  --lm-note-soft: #d9a0e833;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -180,6 +210,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -226,10 +260,19 @@
   --lm-brush-ink-4: #335a2c;
   --lm-brush-ink-5: #6f7b24;
   --lm-brush-ink-6: #55625c;
+  --lm-stage: #e6e9e0;
+  --lm-scrim: #1b262266;
+  --lm-removed: #1b262214;
+  --lm-record: #b04a3c;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -243,6 +286,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -289,10 +336,19 @@
   --lm-brush-ink-4: #bcdab6;
   --lm-brush-ink-5: #e8eebe;
   --lm-brush-ink-6: #c9d9d3;
+  --lm-stage: #091210;
+  --lm-scrim: #060b0ab8;
+  --lm-removed: #d7e4df14;
+  --lm-record: #d27a7a;
+  --lm-note: #d9a0e8;
+  --lm-note-soft: #d9a0e833;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -306,6 +362,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -352,10 +412,19 @@
   --lm-brush-ink-4: #ecf1fd;
   --lm-brush-ink-5: #dcf6f5;
   --lm-brush-ink-6: #f1f0f7;
+  --lm-stage: #18161f;
+  --lm-scrim: #0f0e14b8;
+  --lm-removed: #e6e3ee14;
+  --lm-record: #ec7f8e;
+  --lm-note: #d9a0e8;
+  --lm-note-soft: #d9a0e833;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -369,6 +438,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -415,10 +488,19 @@
   --lm-brush-ink-4: #d1dceb;
   --lm-brush-ink-5: #c5e3dc;
   --lm-brush-ink-6: #dedbd5;
+  --lm-stage: #090807;
+  --lm-scrim: #060505b8;
+  --lm-removed: #bcb1a214;
+  --lm-record: #c0685a;
+  --lm-note: #d9a0e8;
+  --lm-note-soft: #d9a0e833;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -432,6 +514,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -478,10 +564,19 @@
   --lm-brush-ink-4: #1d3546;
   --lm-brush-ink-5: #4e264b;
   --lm-brush-ink-6: #3a342a;
+  --lm-stage: #e7dfd0;
+  --lm-scrim: #33261b66;
+  --lm-removed: #33261b14;
+  --lm-record: #a3273f;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -495,6 +590,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -541,10 +640,19 @@
   --lm-brush-ink-4: #0e3316;
   --lm-brush-ink-5: #3b0a11;
   --lm-brush-ink-6: #262522;
+  --lm-stage: #e2e0da;
+  --lm-scrim: #15151566;
+  --lm-removed: #15151514;
+  --lm-record: #c1272d;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -558,6 +666,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -604,10 +716,19 @@
   --lm-brush-ink-4: #5a1a10;
   --lm-brush-ink-5: #2b1c63;
   --lm-brush-ink-6: #2e3338;
+  --lm-stage: #eef0f2;
+  --lm-scrim: #0a0a0a66;
+  --lm-removed: #0a0a0a14;
+  --lm-record: #c9302c;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -621,6 +742,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -667,10 +792,19 @@
   --lm-brush-ink-4: #5e1f2c;
   --lm-brush-ink-5: #4a3d08;
   --lm-brush-ink-6: #2c3743;
+  --lm-stage: #e9edf2;
+  --lm-scrim: #2a344066;
+  --lm-removed: #2a344014;
+  --lm-record: #b23a55;
+  --lm-note: #8a3fa3;
+  --lm-note-soft: #8a3fa326;
+  --lm-note-mark: #e6a8f5;
+  --lm-mark-edge: #0f1211;
   --lm-font: Jost, Futura, 'Futura PT', 'Century Gothic', ui-sans-serif, system-ui, sans-serif;
   --lm-font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --lm-font-size: 11px;
   --lm-label-size: 9px;
+  --lm-read-size: 13px;
   --lm-radius: 0px;
   --lm-space-1: 4px;
   --lm-space-2: 8px;
@@ -684,6 +818,10 @@
   --lm-lane-height: 40px;
   --lm-row: 20px;
   --lm-col: 40px;
+  --lm-bar-height: 40px;
+  --lm-panel-width: 320px;
+  --lm-lane-head-width: 160px;
+  --lm-handle-size: 7px;
   --lm-transition: 80ms;
 }
 
@@ -3372,4 +3510,1807 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* === The video kit ==========================================================
+ * What a timeline, a panel, a sheet and a note are drawn with, for an app
+ * that edits video on the grid themes. Everything sits on the module
+ * (`--lm-col` by `--lm-row`): neighbours touch and a 1 px line separates them,
+ * controls are square, and there are no shadows and no gradients. Round is
+ * media, square is everything else. A colour means one thing: a brush is a
+ * source, the accent is a control's value or its pressed state, the automation
+ * colour is automation, `--lm-note` is a note.
+ */
+
+/* The ground an app built from the kit stands on: the font, one row to a
+ * line, and one focus ring everywhere. */
+.lm-app {
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+  font-weight: 400;
+  line-height: var(--lm-row);
+  color: var(--lm-text);
+  background: var(--lm-bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.lm-app,
+.lm-app *,
+.lm-app *::before,
+.lm-app *::after {
+  box-sizing: border-box;
+}
+
+.lm-app :focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-app h1,
+.lm-app h2,
+.lm-app h3,
+.lm-app p {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 400;
+}
+
+/* --- Text styles ------------------------------------------------------------ */
+
+.lm-num {
+  font-family: var(--lm-font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-control-value);
+  white-space: nowrap;
+}
+
+.lm-lbl {
+  font-size: var(--lm-label-size);
+  letter-spacing: 0.02em;
+  color: var(--lm-muted);
+  white-space: nowrap;
+}
+
+/* Text that is read: a transcript, a conversation, a note's words. */
+.lm-read {
+  font-family: var(--lm-font);
+  font-size: var(--lm-read-size);
+  font-weight: 400;
+  line-height: var(--lm-row);
+}
+
+/* The time a transport shows. */
+.lm-time-large {
+  font-family: var(--lm-font-mono);
+  font-size: var(--lm-read-size);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-control-value);
+  white-space: nowrap;
+}
+
+/* --- Swatch, glyph, key ----------------------------------------------------- */
+
+.lm-swatch {
+  display: block;
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--lm-brush-1);
+}
+
+.lm-swatch--b2 {
+  background: var(--lm-brush-2);
+}
+
+.lm-swatch--b3 {
+  background: var(--lm-brush-3);
+}
+
+.lm-swatch--b4 {
+  background: var(--lm-brush-4);
+}
+
+.lm-swatch--b5 {
+  background: var(--lm-brush-5);
+}
+
+.lm-swatch--b6 {
+  background: var(--lm-brush-6);
+}
+
+.lm-glyph {
+  display: block;
+  flex: 0 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lm-glyph--filled {
+  fill: currentColor;
+  stroke: none;
+}
+
+.lm-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border: 1px solid var(--lm-hairline);
+  font: 400 9px/14px var(--lm-font-mono);
+  color: inherit;
+  white-space: nowrap;
+}
+
+/* --- State and who ---------------------------------------------------------- */
+
+.lm-state {
+  display: block;
+  flex: 0 0 8px;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--lm-hairline);
+}
+
+.lm-state--on {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+}
+
+.lm-state--busy {
+  border-color: var(--lm-accent);
+}
+
+.lm-state--failed {
+  border-color: var(--lm-danger);
+}
+
+/* Who made a change: a shape, never a colour. */
+.lm-who {
+  display: block;
+  flex: 0 0 8px;
+  box-sizing: border-box;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--lm-text);
+}
+
+.lm-who--person {
+  background: var(--lm-text);
+}
+
+.lm-who--outside {
+  border-style: dashed;
+}
+
+/* --- TextButton ------------------------------------------------------------- */
+
+.lm-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  height: var(--lm-row);
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid var(--lm-border);
+  border-radius: 0;
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / 18px var(--lm-font);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.lm-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--lm-text) 10%, var(--lm-raised));
+}
+
+.lm-btn:active:not(:disabled) {
+  background: var(--lm-sunken);
+}
+
+.lm-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lm-btn:focus-visible,
+.lm-tab:focus-visible,
+.lm-menu__item:focus-visible,
+.lm-word:focus-visible,
+.lm-notepin:focus-visible,
+.lm-ref:focus-visible,
+.lm-chip__x:focus-visible,
+.lm-input:focus-visible,
+.lm-select:focus-visible,
+.lm-check:focus-visible,
+.lm-vstroke:focus-visible,
+.lm-item:focus-visible,
+.lm-sheet:focus-visible {
+  outline: 1px solid var(--lm-focus);
+  outline-offset: 1px;
+}
+
+.lm-btn[aria-pressed='true'] {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+  color: var(--lm-bg);
+}
+
+.lm-btn--quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lm-muted);
+}
+
+.lm-btn--quiet:hover:not(:disabled) {
+  background: var(--lm-raised);
+  color: var(--lm-text);
+}
+
+/* A quiet button pressed sinks instead of lighting, so a bar of them stays calm. */
+.lm-btn--quiet[aria-pressed='true'] {
+  border-color: var(--lm-border);
+  background: var(--lm-sunken);
+  color: var(--lm-text);
+}
+
+/* The one button a bar or a sheet leads to: the text colour as its ground. */
+.lm-btn--primary {
+  border-color: var(--lm-text);
+  background: var(--lm-text);
+  color: var(--lm-bg);
+}
+
+.lm-btn--primary:hover:not(:disabled) {
+  background: var(--lm-control-value);
+}
+
+.lm-btn--danger {
+  background: transparent;
+  color: var(--lm-danger);
+}
+
+.lm-btn--icon {
+  width: var(--lm-row);
+  padding: 0;
+}
+
+.lm-btn--cell {
+  align-self: stretch;
+  height: auto;
+  min-height: calc(var(--lm-row) - 1px);
+  border-width: 0 0 0 1px;
+  border-color: var(--lm-grid-line-strong);
+}
+
+.lm-btn--large {
+  height: calc(var(--lm-row) * 2);
+  padding: 0 16px;
+}
+
+.lm-btn .lm-key {
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+}
+
+/* --- Segmented -------------------------------------------------------------- */
+
+.lm-seg {
+  display: flex;
+  min-width: 0;
+}
+
+.lm-seg > .lm-btn + .lm-btn {
+  border-left-width: 0;
+}
+
+.lm-seg--fill {
+  flex: 1 1 0;
+}
+
+.lm-seg--fill > .lm-btn {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+/* --- Tabs ------------------------------------------------------------------- */
+
+.lm-tabs {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 var(--lm-row);
+  box-sizing: border-box;
+  height: var(--lm-row);
+  background: var(--lm-bg);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-tabs__list {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.lm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-muted);
+  font: 400 var(--lm-font-size) / 19px var(--lm-font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-tab:hover {
+  color: var(--lm-text);
+}
+
+/* The selected tab stands on the panel's ground and covers the line under the row. */
+.lm-tab[aria-selected='true'] {
+  margin-bottom: -1px;
+  background: var(--lm-panel);
+  color: var(--lm-text);
+}
+
+.lm-tab__count {
+  font: 400 10px/19px var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-muted);
+}
+
+/* --- Panel chrome ----------------------------------------------------------- */
+
+.lm-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--lm-panel);
+  color: var(--lm-text);
+}
+
+.lm-panel__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 var(--lm-row);
+  box-sizing: border-box;
+  height: var(--lm-row);
+  padding: 0 0 0 8px;
+  background: var(--lm-panel);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-panel__head > .lm-glyph {
+  color: var(--lm-muted);
+}
+
+.lm-panel__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--lm-text);
+  font-size: var(--lm-font-size);
+  font-weight: 400;
+  line-height: 19px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-section-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 var(--lm-row);
+  box-sizing: border-box;
+  height: var(--lm-row);
+  padding: 0 8px;
+  background: var(--lm-bg);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+  color: var(--lm-muted);
+  font-size: var(--lm-label-size);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.lm-section-label__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-prop {
+  display: flex;
+  align-items: stretch;
+  flex: 0 0 var(--lm-row);
+  box-sizing: border-box;
+  height: var(--lm-row);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-prop__label {
+  flex: 0 0 120px;
+  box-sizing: border-box;
+  padding: 0 8px;
+  overflow: hidden;
+  color: var(--lm-muted);
+  line-height: 19px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-prop__value {
+  display: flex;
+  align-items: stretch;
+  flex: 1 1 0;
+  min-width: 0;
+  border-left: 1px solid var(--lm-grid-line-strong);
+  line-height: 19px;
+}
+
+/* A readout in a value cell that is not a field. */
+.lm-prop__text {
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-prop__value > .lm-btn,
+.lm-prop__value > .lm-seg > .lm-btn {
+  height: auto;
+  border-width: 0 0 0 1px;
+  border-color: var(--lm-grid-line-strong);
+}
+
+.lm-prop__value > .lm-btn:first-child,
+.lm-prop__value > .lm-seg > .lm-btn:first-child {
+  border-left-width: 0;
+}
+
+/* --- Input, Select, Check --------------------------------------------------- */
+
+.lm-input,
+.lm-select {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 19px;
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: var(--lm-sunken);
+  background-image: none;
+  box-shadow: none;
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / 19px var(--lm-font);
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.lm-input--numeric {
+  font-family: var(--lm-font-mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-control-value);
+}
+
+.lm-input--boxed,
+.lm-pick--boxed > .lm-select {
+  height: var(--lm-row);
+  border: 1px solid var(--lm-border);
+}
+
+.lm-input::placeholder {
+  color: var(--lm-dim);
+  opacity: 1;
+}
+
+.lm-input:disabled,
+.lm-select:disabled {
+  opacity: 0.4;
+}
+
+.lm-pick {
+  position: relative;
+  display: flex;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lm-pick::after {
+  content: '';
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  width: 5px;
+  height: 5px;
+  border-right: 1px solid var(--lm-muted);
+  border-bottom: 1px solid var(--lm-muted);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.lm-pick > .lm-select {
+  padding-right: 22px;
+  cursor: pointer;
+}
+
+.lm-check {
+  flex: 0 0 12px;
+  box-sizing: border-box;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  border: 1px solid var(--lm-hairline);
+  border-radius: 0;
+  background: var(--lm-sunken);
+  background-image: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+.lm-check:checked {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+  background-image: none;
+}
+
+.lm-check:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lm-check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 19px;
+  padding: 0 8px;
+  color: var(--lm-text);
+  cursor: pointer;
+}
+
+/* --- InlineNote: the one inline message pattern ------------------------------ */
+
+.lm-inline-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border: 1px solid var(--lm-grid-line-strong);
+  background: var(--lm-bg);
+  color: var(--lm-text);
+  font-size: var(--lm-font-size);
+  line-height: 16px;
+}
+
+.lm-inline-note--danger {
+  border-color: var(--lm-danger);
+}
+
+.lm-inline-note__mark {
+  flex: 0 0 10px;
+  margin-top: 3px;
+  color: var(--lm-muted);
+}
+
+.lm-inline-note--danger .lm-inline-note__mark {
+  color: var(--lm-danger);
+}
+
+.lm-inline-note__body {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.lm-inline-note__title,
+.lm-inline-note__text {
+  margin: 0;
+  font-size: inherit;
+  font-weight: 400;
+}
+
+.lm-inline-note__title {
+  color: var(--lm-text);
+}
+
+.lm-inline-note__text {
+  color: var(--lm-muted);
+}
+
+.lm-inline-note > .lm-btn {
+  align-self: center;
+}
+
+/* --- Progress --------------------------------------------------------------- */
+
+.lm-progress {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 6px;
+  background: var(--lm-meter-track);
+}
+
+.lm-progress__fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--lm-accent);
+}
+
+/* --- JobRow and LogRow ------------------------------------------------------ */
+
+.lm-job,
+.lm-log {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+  color: var(--lm-text);
+  font-size: var(--lm-font-size);
+}
+
+.lm-job__line,
+.lm-log__line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-width: 0;
+  height: var(--lm-row);
+  padding-left: 8px;
+  line-height: var(--lm-row);
+}
+
+.lm-job__line--second,
+.lm-log__line--second {
+  height: calc(var(--lm-row) - 1px);
+  line-height: calc(var(--lm-row) - 1px);
+}
+
+.lm-job__line--second {
+  padding-right: 8px;
+}
+
+.lm-job__title,
+.lm-log__title {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-job__note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--lm-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-job__note--failed {
+  color: var(--lm-danger);
+}
+
+.lm-log__who {
+  flex: 0 0 auto;
+  color: var(--lm-text);
+}
+
+.lm-log__title {
+  color: var(--lm-muted);
+}
+
+.lm-log__time {
+  padding-right: 8px;
+  color: var(--lm-muted);
+}
+
+.lm-log__outcome {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-log__outcome--refused {
+  color: var(--lm-danger);
+}
+
+.lm-log__args {
+  padding: 0 8px;
+  overflow: hidden;
+  font: 400 9px / var(--lm-row) var(--lm-font-mono);
+  color: var(--lm-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-log--hovered {
+  background: var(--lm-accent-soft);
+}
+
+/* --- TranscriptWord --------------------------------------------------------- */
+
+.lm-word {
+  display: inline;
+  margin: 0;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: 400 var(--lm-read-size) / var(--lm-row) var(--lm-font);
+  cursor: text;
+}
+
+.lm-word:hover {
+  background: color-mix(in srgb, var(--lm-text) 10%, transparent);
+}
+
+.lm-word--selected,
+.lm-word--selected:hover {
+  background: var(--lm-accent-soft);
+}
+
+/* Struck through, and still there to read and to restore. */
+.lm-word--removed,
+.lm-word--removed:hover {
+  background: var(--lm-removed);
+  color: var(--lm-muted);
+  text-decoration: line-through;
+}
+
+.lm-word--filler {
+  text-decoration: underline dotted var(--lm-muted);
+  text-underline-offset: 3px;
+}
+
+.lm-word--now {
+  text-decoration: underline solid var(--lm-playhead);
+  text-underline-offset: 3px;
+}
+
+.lm-word--pause {
+  font-family: var(--lm-font-mono);
+  font-size: 10px;
+}
+
+/* --- TimeRuler and Playhead ------------------------------------------------- */
+
+.lm-ruler {
+  position: relative;
+  box-sizing: border-box;
+  height: var(--lm-row);
+  overflow: hidden;
+  background-color: var(--lm-panel);
+  /* Minor ticks: a 4 px line at the foot of the row, every minor step. */
+  background-image: linear-gradient(to right, var(--lm-grid-line-strong) 1px, transparent 1px);
+  background-size: var(--lm-ruler-minor, 40px) 4px;
+  background-position: var(--lm-ruler-offset, 0) 100%;
+  background-repeat: repeat-x;
+  border-bottom: 1px solid var(--lm-rule);
+  user-select: none;
+}
+
+.lm-ruler__tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  padding-left: 4px;
+  border-left: 1px solid var(--lm-hairline);
+  font: 400 10px/19px var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-muted);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.lm-ruler__cut {
+  position: absolute;
+  bottom: 0;
+  width: 7px;
+  height: 4px;
+  margin-left: -3px;
+  background: var(--lm-muted);
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
+.lm-playhead {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 6;
+  width: 1px;
+  background: var(--lm-playhead);
+  pointer-events: none;
+}
+
+.lm-playhead__flag {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  width: 9px;
+  height: 11px;
+  background: var(--lm-playhead);
+  clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%);
+}
+
+/* --- Lane and LaneHead ------------------------------------------------------ */
+
+.lm-lane {
+  position: absolute;
+  left: 0;
+  right: 0;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-lane-head {
+  position: relative;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  width: var(--lm-lane-head-width);
+  overflow: hidden;
+  background: var(--lm-panel);
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / 19px var(--lm-font);
+}
+
+.lm-lane-head--selected {
+  background: color-mix(in srgb, var(--lm-text) 6%, var(--lm-panel));
+}
+
+.lm-lane-head__row {
+  display: flex;
+  align-items: center;
+  height: 19px;
+}
+
+.lm-lane-head--tall .lm-lane-head__row:first-child {
+  height: var(--lm-row);
+}
+
+.lm-lane-head__name {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.lm-lane-head__note {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding: 0 8px 0 10px;
+  overflow: hidden;
+  font: 400 10px/19px var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--lm-muted);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* On a head two rows high the note is a line of words under the name, not a count beside it. */
+.lm-lane-head__row--second .lm-lane-head__note {
+  flex: 1 1 0;
+  font: 400 var(--lm-label-size) / 19px var(--lm-font);
+}
+
+.lm-lane-head .lm-swatch {
+  margin-left: 10px;
+}
+
+.lm-lane-head .lm-glyph,
+.lm-lane-head .lm-sound-icon {
+  flex: 0 0 auto;
+  margin-left: 6px;
+  color: var(--lm-muted);
+}
+
+.lm-lane-head__meter {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0 0 0 10px;
+}
+
+/* M and S: the kit's buttons at half a column, flush in the row. */
+.lm-lane-head .lm-button {
+  flex: 0 0 auto;
+  align-self: stretch;
+  width: var(--lm-row);
+  min-width: 0;
+  height: auto;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+  background: transparent;
+}
+
+.lm-lane-head .lm-button--on.lm-button--mute {
+  background: var(--lm-mute);
+  color: var(--lm-bg);
+}
+
+.lm-lane-head .lm-button--on.lm-button--solo {
+  background: var(--lm-solo);
+  color: var(--lm-bg);
+}
+
+/* --- LinkMark, RangeSelection, CutSeam, TransitionMark ----------------------- */
+
+.lm-link {
+  position: absolute;
+  left: 3px;
+  z-index: 1;
+  box-sizing: border-box;
+  width: 4px;
+  border: 1px solid var(--lm-muted);
+  border-right: 0;
+  pointer-events: none;
+}
+
+.lm-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--lm-accent-soft);
+  pointer-events: none;
+}
+
+.lm-range--lane {
+  opacity: 0.5;
+}
+
+.lm-seam {
+  position: absolute;
+  z-index: 3;
+  width: 0;
+  border-left: 1px dashed var(--lm-muted);
+  pointer-events: none;
+}
+
+.lm-xfade {
+  position: relative;
+  z-index: 4;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--lm-text);
+  background-color: var(--lm-sunken);
+  /* The cross: two hairlines corner to corner. */
+  background-image:
+    linear-gradient(to bottom right, transparent 48%, var(--lm-text) 48% 52%, transparent 52%),
+    linear-gradient(to top right, transparent 48%, var(--lm-text) 48% 52%, transparent 52%);
+}
+
+/* --- VideoStroke: a Stroke for a picture ------------------------------------- */
+
+.lm-vstroke {
+  --lm-stroke-brush: var(--lm-brush-1);
+  --lm-stroke-ink: var(--lm-brush-ink-1);
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--lm-stroke-brush) 60%, var(--lm-sunken));
+  background: color-mix(in srgb, var(--lm-stroke-brush) 9%, transparent);
+  font-family: var(--lm-font);
+  font-size: var(--lm-label-size);
+  line-height: 14px;
+  color: var(--lm-stroke-ink);
+  user-select: none;
+}
+
+.lm-vstroke--b2 {
+  --lm-stroke-brush: var(--lm-brush-2);
+  --lm-stroke-ink: var(--lm-brush-ink-2);
+}
+
+.lm-vstroke--b3 {
+  --lm-stroke-brush: var(--lm-brush-3);
+  --lm-stroke-ink: var(--lm-brush-ink-3);
+}
+
+.lm-vstroke--b4 {
+  --lm-stroke-brush: var(--lm-brush-4);
+  --lm-stroke-ink: var(--lm-brush-ink-4);
+}
+
+.lm-vstroke--b5 {
+  --lm-stroke-brush: var(--lm-brush-5);
+  --lm-stroke-ink: var(--lm-brush-ink-5);
+}
+
+.lm-vstroke--b6 {
+  --lm-stroke-brush: var(--lm-brush-6);
+  --lm-stroke-ink: var(--lm-brush-ink-6);
+}
+
+.lm-vstroke:hover {
+  border-color: var(--lm-stroke-brush);
+}
+
+.lm-vstroke__frames {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 1px;
+  overflow: hidden;
+  /* About a quarter strength, so the tag and the ticks stay readable. */
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+/* Until thumbnails exist: flat frames in the brush, one every frame step. */
+.lm-vstroke__frames--flat {
+  background: repeating-linear-gradient(
+    to right,
+    var(--lm-stroke-brush) 0 calc(var(--lm-vstroke-frame) - 1px),
+    transparent calc(var(--lm-vstroke-frame) - 1px) var(--lm-vstroke-frame)
+  );
+}
+
+.lm-vstroke__frame {
+  flex: 0 0 auto;
+  height: 100%;
+  object-fit: cover;
+}
+
+.lm-vstroke__hit {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  width: 1px;
+  background: var(--lm-stroke-ink);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.lm-vstroke__hit::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 0;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--lm-stroke-ink);
+}
+
+.lm-vstroke__svg {
+  position: absolute;
+  left: -1px;
+  top: -1px;
+  display: block;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.lm-vstroke__tag {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 14px;
+  margin-top: -7px;
+  padding: 0 4px;
+  background: color-mix(in srgb, var(--lm-stroke-brush) 9%, var(--lm-sunken));
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.lm-vstroke--small .lm-vstroke__tag {
+  left: 6px;
+}
+
+.lm-vstroke__name {
+  color: var(--lm-text);
+}
+
+.lm-vstroke__meta {
+  font-family: var(--lm-font-mono);
+  font-size: calc(var(--lm-label-size) - 1px);
+}
+
+.lm-vstroke__auto {
+  color: var(--lm-automation);
+}
+
+.lm-vstroke--selected {
+  border-color: var(--lm-stroke-brush);
+  background: color-mix(in srgb, var(--lm-stroke-brush) 16%, transparent);
+  outline: 1px solid var(--lm-text);
+  outline-offset: 1px;
+}
+
+.lm-vstroke--linked {
+  outline: 1px solid var(--lm-muted);
+  outline-offset: 1px;
+}
+
+.lm-vstroke--missing {
+  border-style: dashed;
+}
+
+.lm-vstroke--muted {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
+/* --- TimelineItem: anything on a lane that is not media ---------------------- */
+
+.lm-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-sizing: border-box;
+  height: var(--lm-row);
+  padding: 0 6px;
+  overflow: hidden;
+  border: 1px solid var(--lm-border);
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font-family: var(--lm-font);
+  font-size: var(--lm-label-size);
+  line-height: 18px;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.lm-item .lm-glyph {
+  flex: 0 0 auto;
+}
+
+.lm-item__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-item__meta {
+  font: 400 8px/18px var(--lm-font-mono);
+  color: inherit;
+}
+
+.lm-item--plate:hover {
+  background: color-mix(in srgb, var(--lm-text) 10%, var(--lm-raised));
+}
+
+/* A plate that fades has that corner cut, 9 px wide. */
+.lm-item--fade-in {
+  padding-left: 12px;
+  clip-path: polygon(9px 0, 100% 0, 100% 100%, 0 100%);
+}
+
+.lm-item--fade-out {
+  padding-right: 12px;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 100%, 0 100%);
+}
+
+.lm-item--fade-in.lm-item--fade-out {
+  clip-path: polygon(9px 0, calc(100% - 9px) 0, 100% 100%, 0 100%);
+}
+
+/* An envelope: only its outline, whose slopes are the eases. */
+.lm-item--envelope {
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+}
+
+.lm-item__envelope {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+.lm-item__envelope path {
+  fill: color-mix(in srgb, var(--lm-text) 9%, transparent);
+  stroke: var(--lm-muted);
+  stroke-width: 1;
+}
+
+.lm-item--envelope:hover .lm-item__envelope path {
+  stroke: var(--lm-text);
+}
+
+.lm-item--envelope.lm-item--selected .lm-item__envelope path {
+  fill: color-mix(in srgb, var(--lm-text) 20%, transparent);
+  stroke: var(--lm-text);
+}
+
+.lm-item__tag {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  max-width: 100%;
+  height: 14px;
+  overflow: hidden;
+  transform: translateX(-50%);
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.lm-item--envelope .lm-item__name {
+  font: 400 8px/14px var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.lm-item__grip {
+  position: absolute;
+  top: 50%;
+  box-sizing: border-box;
+  width: 4px;
+  height: 10px;
+  margin-top: -4px;
+  border-left: 1px solid var(--lm-text);
+  border-right: 1px solid var(--lm-text);
+  pointer-events: none;
+}
+
+.lm-item__grip--start {
+  left: 3px;
+}
+
+.lm-item__grip--end {
+  right: 3px;
+}
+
+/* A span: a state that holds from a moment on. No ground, a line at its start. */
+.lm-item--span {
+  border-width: 0 0 0 1px;
+  border-color: var(--lm-grid-line-strong);
+  background: transparent;
+  color: var(--lm-muted);
+}
+
+.lm-item--span:hover {
+  background: color-mix(in srgb, var(--lm-text) 6%, transparent);
+}
+
+.lm-item__ramp {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(to right, var(--lm-hairline) 0 1px, transparent 1px 3px);
+  pointer-events: none;
+}
+
+.lm-item--selected {
+  z-index: 2;
+  outline: 1px solid var(--lm-text);
+  outline-offset: 1px;
+}
+
+.lm-item--muted {
+  opacity: 0.4;
+}
+
+/* --- Overview --------------------------------------------------------------- */
+
+.lm-overview {
+  position: relative;
+  box-sizing: border-box;
+  height: var(--lm-row);
+  overflow: hidden;
+  background: var(--lm-panel);
+  border-top: 1px solid var(--lm-rule);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.lm-overview__window {
+  position: absolute;
+  top: 4px;
+  box-sizing: border-box;
+  min-width: 3px;
+  height: 11px;
+  border: 1px solid var(--lm-hairline);
+  background: var(--lm-raised);
+}
+
+.lm-overview__cut,
+.lm-overview__note,
+.lm-overview__playhead {
+  position: absolute;
+  width: 1px;
+  pointer-events: none;
+}
+
+.lm-overview__cut {
+  top: 4px;
+  height: 11px;
+  background: var(--lm-muted);
+  opacity: 0.6;
+}
+
+.lm-overview__note {
+  top: 4px;
+  width: 3px;
+  height: 3px;
+  margin-left: -1px;
+  background: var(--lm-note);
+}
+
+.lm-overview__playhead {
+  top: 0;
+  bottom: 0;
+  background: var(--lm-playhead);
+}
+
+/* --- Sheet and Menu --------------------------------------------------------- */
+
+.lm-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lm-scrim);
+}
+
+.lm-sheet {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-width: calc(100% - var(--lm-col) * 2);
+  max-height: calc(100% - var(--lm-col) * 2);
+  border: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / var(--lm-row) var(--lm-font);
+}
+
+.lm-sheet__head {
+  display: flex;
+  align-items: center;
+  flex: 0 0 var(--lm-row);
+  box-sizing: border-box;
+  height: var(--lm-row);
+  padding: 0 8px;
+  border-bottom: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-sheet__title {
+  margin: 0;
+  font-size: var(--lm-font-size);
+  font-weight: 400;
+  line-height: 19px;
+}
+
+.lm-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.lm-sheet__foot {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 0 0 calc(var(--lm-row) * 2);
+  box-sizing: border-box;
+  height: calc(var(--lm-row) * 2);
+  padding: 0 10px;
+  border-top: 1px solid var(--lm-grid-line-strong);
+}
+
+.lm-menu {
+  position: absolute;
+  z-index: 15;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-width: calc(var(--lm-col) * 4);
+  border: 1px solid var(--lm-rule);
+  background: var(--lm-panel);
+}
+
+.lm-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: var(--lm-row);
+  margin: 0;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / var(--lm-row) var(--lm-font);
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-menu__item:hover:not(:disabled),
+.lm-menu__item:focus-visible {
+  background: var(--lm-accent-soft);
+}
+
+.lm-menu__item:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* The item in force, among items that are a choice: a filled square before it. */
+.lm-menu__item[role='menuitemradio']::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--lm-hairline);
+}
+
+.lm-menu__item--checked[role='menuitemradio']::before {
+  border-color: var(--lm-accent);
+  background: var(--lm-accent);
+}
+
+.lm-menu__label {
+  flex: 1 1 auto;
+}
+
+.lm-menu__key {
+  margin-left: auto;
+  padding-left: 16px;
+  font: 400 9px / var(--lm-row) var(--lm-font-mono);
+  color: var(--lm-muted);
+}
+
+.lm-menu__separator {
+  flex: 0 0 1px;
+  height: 1px;
+  background: var(--lm-grid-line-strong);
+}
+
+/* --- Notes: a fourth colour role -------------------------------------------- */
+
+.lm-notetab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  box-sizing: border-box;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 3px;
+  border: 1px solid var(--lm-note);
+  background: var(--lm-note);
+  color: var(--lm-bg);
+  font: 400 9px/12px var(--lm-font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/* An agent's note: outlined. */
+.lm-notetab--agent {
+  background: transparent;
+  color: var(--lm-note);
+}
+
+/* Resolved: grey, with a tick. */
+.lm-notetab--resolved {
+  border-color: var(--lm-muted);
+  background: transparent;
+  color: var(--lm-muted);
+}
+
+.lm-notepin {
+  position: absolute;
+  top: 3px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  height: 14px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font: 400 var(--lm-label-size) / 14px var(--lm-font);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-notepin__text {
+  max-width: 170px;
+  height: 14px;
+  padding: 0 5px;
+  overflow: hidden;
+  background: var(--lm-note-soft);
+  color: var(--lm-text);
+  text-overflow: ellipsis;
+}
+
+.lm-notepin:hover .lm-notepin__text {
+  background: color-mix(in srgb, var(--lm-note) 34%, transparent);
+}
+
+.lm-notepin--resolved .lm-notepin__text,
+.lm-notepin--resolved:hover .lm-notepin__text {
+  background: transparent;
+  color: var(--lm-muted);
+  text-decoration: line-through;
+}
+
+.lm-notepin--selected {
+  outline: 1px solid var(--lm-text);
+  outline-offset: 1px;
+}
+
+.lm-noteline {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  z-index: 3;
+  width: 0;
+  border-left: 1px solid var(--lm-note);
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.lm-noteline--resolved {
+  border-left-color: var(--lm-muted);
+  opacity: 0.4;
+}
+
+.lm-notespan {
+  position: absolute;
+  top: 0;
+  box-sizing: border-box;
+  height: calc(var(--lm-row) - 1px);
+  border-left: 1px solid var(--lm-note);
+  border-right: 1px solid var(--lm-note);
+  background: var(--lm-note-soft);
+  pointer-events: none;
+}
+
+/* A mark on a picture: one colour in every theme, with a dark edge under it. */
+.lm-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+}
+
+.lm-mark__svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: block;
+  overflow: visible;
+}
+
+.lm-mark__edge {
+  fill: none;
+  stroke: var(--lm-mark-edge);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lm-mark__line {
+  fill: none;
+  stroke: var(--lm-note-mark);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.lm-mark__tab,
+.lm-notebubble .lm-notetab {
+  border-color: var(--lm-note-mark);
+  background: var(--lm-note-mark);
+  color: var(--lm-mark-edge);
+}
+
+.lm-mark__tab {
+  position: absolute;
+  transform: translate(-100%, -100%);
+  outline: 1px solid var(--lm-mark-edge);
+}
+
+/* A bubble sits on the picture too: the mark's edge as its ground, the mark's
+ * colour for its tab, light words. The same in every theme. */
+.lm-notebubble {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: var(--lm-row);
+  border: 1px solid var(--lm-mark-edge);
+  background: color-mix(in srgb, var(--lm-mark-edge) 88%, #fff);
+  color: color-mix(in srgb, var(--lm-mark-edge) 10%, #fff);
+  font: 400 var(--lm-font-size) / 18px var(--lm-font);
+  white-space: nowrap;
+}
+
+.lm-notebubble .lm-notetab {
+  height: 18px;
+}
+
+.lm-notebubble__text {
+  padding: 0 6px;
+}
+
+.lm-notebubble__caret {
+  width: 1px;
+  height: 12px;
+  margin-right: 6px;
+  background: currentColor;
+}
+
+/* --- ContextChip, ReferenceChip, ChangedMark --------------------------------- */
+
+.lm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  box-sizing: border-box;
+  max-width: 100%;
+  height: 18px;
+  padding: 0 0 0 5px;
+  border: 1px solid var(--lm-hairline);
+  background: var(--lm-bg);
+  color: var(--lm-text);
+  font: 400 var(--lm-font-size) / 16px var(--lm-font);
+  white-space: nowrap;
+}
+
+.lm-chip--note,
+.lm-chip--frame {
+  padding-left: 0;
+}
+
+.lm-chip--note {
+  border-color: var(--lm-note);
+}
+
+.lm-chip .lm-notetab {
+  height: 16px;
+}
+
+.lm-chip__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lm-chip > .lm-num:last-child,
+.lm-chip > .lm-chip__text:last-child {
+  padding-right: 5px;
+}
+
+.lm-chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--lm-grid-line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--lm-muted);
+  cursor: pointer;
+}
+
+.lm-chip__x:hover {
+  color: var(--lm-text);
+}
+
+.lm-chip__frame {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 16px;
+  object-fit: cover;
+  background: var(--lm-stage);
+}
+
+.lm-ref {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  box-sizing: border-box;
+  height: 16px;
+  margin: 0 1px;
+  padding: 0 4px;
+  border: 1px solid var(--lm-hairline);
+  border-radius: 0;
+  background: var(--lm-raised);
+  color: var(--lm-text);
+  font: 400 10px/14px var(--lm-font-mono);
+  vertical-align: 1px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.lm-ref:hover {
+  background: var(--lm-accent-soft);
+}
+
+.lm-ref--item {
+  font-family: var(--lm-font);
+  font-size: var(--lm-font-size);
+}
+
+/* On an item an agent just changed, until the person's next act. */
+.lm-changed {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  width: 11px;
+  height: 11px;
+  border: 1px solid var(--lm-text);
+  background: var(--lm-bg);
+  pointer-events: none;
+}
+
+.lm-changed::before {
+  content: '';
+  box-sizing: border-box;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--lm-text);
+}
+
+.lm-changed--outside::before {
+  border-style: dashed;
 }

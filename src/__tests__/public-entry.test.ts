@@ -394,6 +394,11 @@ const coreSymbols = [
   'LOAD_CELL_BUSY',
   'wasmMemoryBytes',
   'defaultLoadSamplerUrl',
+  // A media element that follows a clock it is not the master of (video under audio)
+  'followStep',
+  'FOLLOW_SEEK_TOLERANCE',
+  'FOLLOW_DRIFT_SEEK',
+  'FOLLOW_MAX_SEEK_LEAD',
 ] as const
 
 const dspSymbols = [
