@@ -14,8 +14,15 @@ import { measureDeviceDefaults } from './device-defaults'
 import { fingerprint, type Fingerprint } from './fingerprint'
 import { measureLevelFollow } from './level-follow'
 import { measureModulated } from './modulated-param'
+import { measureChannels, measureLoudest } from './one-and-two-channels'
 import { measurePlacements } from './placement'
 import { installWebAudioRecorder } from './record-web-audio'
+import {
+  framedNodesMade,
+  framedRenderDifference,
+  renderAndLetGo,
+  rendersKept,
+} from './render-let-go'
 import { measureRooms } from './room'
 import { measureSharedRooms } from './shared-room'
 
@@ -102,11 +109,17 @@ declare global {
       run: typeof run
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
+      measureChannels: typeof measureChannels
+      measureLoudest: typeof measureLoudest
       measureDeviceDefaults: typeof measureDeviceDefaults
       measureLevelFollow: typeof measureLevelFollow
       measureModulated: typeof measureModulated
       measurePlacements: typeof measurePlacements
       measureRooms: typeof measureRooms
+      framedNodesMade: typeof framedNodesMade
+      framedRenderDifference: typeof framedRenderDifference
+      renderAndLetGo: typeof renderAndLetGo
+      rendersKept: typeof rendersKept
       measureSharedRooms: typeof measureSharedRooms
       defaultSession: SessionSpec
     }
@@ -117,12 +130,18 @@ window.liveMixHarness = {
   run,
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
+  measureChannels,
+  measureLoudest,
   measureDeviceDefaults,
   measureLevelFollow,
   measureModulated,
   measurePlacements,
   measureRooms,
   measureSharedRooms,
+  framedNodesMade,
+  framedRenderDifference,
+  renderAndLetGo,
+  rendersKept,
   defaultSession: DEFAULT_SESSION,
 }
 document.body.dataset.harness = 'ready'

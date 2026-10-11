@@ -20,6 +20,7 @@ import {
 import { type Clip } from '../../clips/Clip'
 import { type Device } from '../../devices/Device'
 import { createEngine, type Engine } from '../../Engine'
+import { createFramedOfflineContext, releaseOfflineContext } from '../framed-context'
 import {
   maxAbsDifference,
   renderOffline,
@@ -395,6 +396,75 @@ describe('a render that fails', () => {
     // The master, 'music' and the one that failed.
     expect(seen.made()).toBe(3)
     expect(seen.disposed()).toBe(3)
+  })
+
+  /** A document that counts the frames in it, and a factory of contexts made in frames of it. */
+  function framed(): { factory: OfflineContextFactory; frames: () => number } {
+    let frames = 0
+    class FrameOfflineAudioContext {
+      constructor(numberOfChannels: number, length: number, sampleRate: number) {
+        return createMockOfflineContext({ numberOfChannels, length, sampleRate })
+      }
+    }
+    const document = {
+      createElement: () => ({
+        hidden: false,
+        contentWindow: { OfflineAudioContext: FrameOfflineAudioContext },
+        remove: () => {
+          frames -= 1
+        },
+      }),
+      documentElement: {
+        append: () => {
+          frames += 1
+        },
+      },
+    } as unknown as Document
+    return {
+      factory: (size) => createFramedOfflineContext(size, document),
+      frames: () => frames,
+    }
+  }
+
+  it('takes away the frame its context was made in when the build throws: nobody else can reach it', async () => {
+    const { factory: inFrame, frames } = framed()
+    await expect(
+      renderOffline({
+        durationSec: 1,
+        createContext: inFrame,
+        build: () => {
+          expect(frames()).toBe(1)
+          throw new Error('the build broke')
+        },
+      }),
+    ).rejects.toThrow(/the build broke/)
+    expect(frames()).toBe(0)
+  })
+
+  it('leaves the frame of a render that succeeds for its caller to release', async () => {
+    const { factory: inFrame, frames } = framed()
+    const result = await renderOffline({
+      durationSec: 1,
+      createContext: inFrame,
+      build: arrangement,
+    })
+    expect(frames()).toBe(1)
+    result.engine.dispose()
+    releaseOfflineContext(result.engine.context)
+    expect(frames()).toBe(0)
+  })
+
+  it('takes away the frames of the stems already rendered when a later stem fails', async () => {
+    const { factory: inFrame, frames } = framed()
+    await expect(
+      renderStems({
+        durationSec: 1,
+        createContext: inFrame,
+        stems: ['music', 'nope'],
+        build: arrangement,
+      }),
+    ).rejects.toThrow(/no track "nope"/)
+    expect(frames()).toBe(0)
   })
 })
 

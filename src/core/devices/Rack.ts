@@ -24,6 +24,7 @@ import {
   type ModTarget,
 } from '../automation/ModMatrix'
 import { Emitter } from '../events'
+import { createPan } from '../pan'
 import { clampParam, type ParamSpec } from '../params'
 import {
   type Device,
@@ -165,7 +166,7 @@ export class Chain {
 
     this.input = ctx.createGain()
     this.delay = ctx.createDelay(PDC_MAX_DELAY_SECONDS)
-    this.panner = ctx.createStereoPanner()
+    this.panner = createPan(ctx)
     this.fader = ctx.createGain()
     this.gate = ctx.createGain()
     this.delay.delayTime.value = 0
