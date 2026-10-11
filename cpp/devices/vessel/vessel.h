@@ -41,8 +41,11 @@
 //   late, by its peak and by its power: a note on a resonance comes out 2 dB
 //   over its input, not 26. It stands still on a held note, follows a ring
 //   down when the ring is cut off, and stays where it was once the input
-//   stops, so a tail rings for the time Material says. After all three, a
-//   soft limit that is exactly linear up to ±2 and lands on ±4.
+//   stops, so a tail rings for the time Material says. After its two rules
+//   the hold has a top: the wet peak is kept under full scale, so what goes
+//   in under full scale never comes out over it (an input under -3.6 dBFS
+//   never meets it). After these, a soft limit that is exactly linear up to
+//   ±2 and lands on ±4.
 // - A Body change crossfades over 60 ms between two banks; the old body
 //   rings on under the new one while it fades.
 // - Coefficients move on a 16-sample clock while a knob glides (5 ms), and
@@ -68,6 +71,23 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
   // alone a held chord on a sharp resonance came out 7 dB over the input).
   static constexpr float kHoldRatio = 1.5f;
   static constexpr float kHoldRms = 1.26f;
+  // The top. 1.5 times the input's loudest peak is 3.5 dB over it, and a
+  // sound fed at -1 dBFS came out as much as 1.1 dB over full scale (in the
+  // key a preset was tuned in; in others, more presets did). So after the
+  // two rules the wet peak is kept at or under 0.1 dB under full scale, or
+  // under the input's own loudest peak once that is over it: the dry share
+  // and the held wet sound, added at any Mix, are then never over full scale
+  // unless the input is, and never over the input when it is. The top goes
+  // by the wet peak of the last 100 ms, not 25, so that it stands still on a
+  // held chord (a beat faster than ten a second has a top in every 100 ms;
+  // read over 25 ms it rode the beat of two full-scale notes, and what was
+  // left beside them rose from 51 to 34 dB under). It is a gain of its own
+  // after the two rules and not a third rule beside them: as a rule that
+  // joined them once the input's peak passed -3.6 dBFS it took the hold down
+  // by 2.2 dB in one sample at the moment it joined. An input that never
+  // passes -3.6 dBFS never meets it.
+  static constexpr float kHoldTop = 0.98855f;
+  static constexpr int kTopStretches = 8;
   // The peaks fall away over 250 ms for the wet signal (slow enough to sit on
   // the peaks of a low note), and for the input over 1.3 times that or 1.3
   // times the body's slowest resonance, whichever is longer. The powers rise
@@ -83,6 +103,10 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
   static constexpr float kDying = 0.25f;
   static constexpr float kRising = 2.0f;
   static constexpr float kRisen = 4.0f;
+  // How long the wet power's quick reading has to stand over its average
+  // before it is taken for a rise, and when it is the reading outright.
+  static constexpr float kRiseFrom = 0.025f;
+  static constexpr float kRiseFull = 0.075f;
   // Air at full: pink noise with an RMS of 0.29 of the input's peak (0.5 times
   // 0.577; a sine of that peak has 0.707). Through the body it measures 5 to
   // 24 dB under the wet sound of a held chord: least where the chord rings
@@ -132,6 +156,9 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
     breath_.set(0.005f, 0.15f, sr);
     peak_wait_ = kit::clamp_int(static_cast<int>(0.5f * kPeakWait * sr), 1, 1 << 20);
     peak_share_ = 1.0f / static_cast<float>(peak_wait_);
+    over_from_ = kit::clamp_int(static_cast<int>(kRiseFrom * sr), 1, 1 << 20);
+    over_full_ = kit::clamp_int(static_cast<int>(kRiseFull * sr), over_from_ + 1, 1 << 21);
+    over_share_ = 1.0f / static_cast<float>(over_full_ - over_from_);
     rise_rate_ = 1.0f - kit::time_to_coeff(kHoldRise, sr);
     window_rate_ = 1.0f - kit::time_to_coeff(kHoldWindow, sr);
     power_rate_ = 1.0f - kit::time_to_coeff(kMatchSeconds, sr);
@@ -266,6 +293,12 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
       wet_sum_ += wet_now;
       if (++peak_age_ >= peak_wait_) {
         peak_last_ = peak_now_;
+        // The held wet peak of the last eight stretches, for the top.
+        top_kept_[top_slot_] = top_now_;
+        top_slot_ = (top_slot_ + 1) % kTopStretches;
+        top_long_ = 0.0f;
+        for (int n = 0; n < kTopStretches; ++n) top_long_ = kit::max(top_long_, top_kept_[n]);
+        top_now_ = 0.0f;
         peak_now_ = 0.0f;
         wet_old_ = wet_before_;
         in_old_ = in_before_;
@@ -282,7 +315,26 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
       // Each power is read the same way (power_now): a 100 ms average while
       // it is steady, the quick one once the two are far apart.
       wet_power_ += (wet_now - wet_power_) * window_rate_;
-      const float heard_power = power_now(wet_power_, wet_quick);
+      // A reading that stands over its average for long is a rise, not a
+      // wander: the quick reading of a low note or of a beating chord crosses
+      // its average every few milliseconds, but while a resonance is still
+      // filling it stays over it, by anything up to twice (where the average
+      // is still believed), and for as long as that lasted the hold stood up
+      // to 3 dB too far open: a held chord came out 3.8 dB over the input in
+      // its first quarter second where 2 is the rule, and 5 after a change of
+      // Body. So once the quick one has been over the average for 25 ms the
+      // reading moves towards it, and after 75 ms it is the quick one, until
+      // it falls back to the average.
+      float heard_power = power_now(wet_power_, wet_quick);
+      if (wet_quick > wet_power_) {
+        if (over_ < over_full_) ++over_;
+        if (over_ > over_from_) {
+          const float share = static_cast<float>(over_ - over_from_) * over_share_;
+          heard_power = kit::max(heard_power, wet_power_ + share * (wet_quick - wet_power_));
+        }
+      } else {
+        over_ = 0;
+      }
       const float in_power_now = power_now(in_level_, in_quick);
       loud_power_ =
           in_power_now > loud_power_ ? in_power_now : flush_denormal(loud_power_ * loud_power_release_);
@@ -297,7 +349,23 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
         hold_ += (want - hold_) * rise_rate_;
         if (hold_ > 0.99999f) hold_ = 1.0f;
       }
-      const float hold = hold_;
+      // The top (kHoldTop), a gain of its own after the two rules: the wet
+      // peak as they leave it, over the last 100 ms, is kept at or under full
+      // scale. It closes by keeping the peak where it is, which is no step,
+      // and opens as the hold does. While 1.5 times the input's loudest peak
+      // is under the top it is 1 and does nothing.
+      const float held = wet_mag * hold_;
+      if (held > top_now_) top_now_ = held;
+      const float top = kit::max(kHoldTop, loud_);
+      const float held_long = kit::max(top_now_, top_long_);
+      const float top_want = held_long > top ? top / held_long : 1.0f;
+      if (top_want < top_) {
+        top_ = top_want;
+      } else if (present) {
+        top_ += (top_want - top_) * rise_rate_;
+        if (top_ > 0.99999f) top_ = 1.0f;
+      }
+      const float hold = hold_ * top_;
       out_power_ += (wet_now * hold * hold - out_power_) * power_rate_;
       if (present && (learn_goal_ < learn_ || hold >= 1.0f)) learn_ += (learn_goal_ - learn_) * learn_rate_;
 
@@ -468,7 +536,8 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
     const float p = level_power_[k];
     level_digit_[k] =
         p > 1.0e-7f ? kit::clamp_int(static_cast<int>(63.5f + 10.0f * std::log10(p)), 0, 63) : 0;
-    hold_db_ = hold_ < 1.0f ? 20.0f * std::log10(kit::max(hold_, 1.0e-4f)) : 0.0f;
+    const float held_by = hold_ * top_;
+    hold_db_ = held_by < 1.0f ? 20.0f * std::log10(kit::max(held_by, 1.0e-4f)) : 0.0f;
     match_db_ = match_ == 1.0f ? 0.0f : 20.0f * std::log10(match_);
 
     // Learning's goal: the factor that makes what is heard as loud as what
@@ -621,6 +690,12 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
     in_before_ = 0.0f;
     peak_now_ = 0.0f;
     peak_last_ = 0.0f;
+    top_now_ = 0.0f;
+    top_long_ = 0.0f;
+    top_slot_ = 0;
+    for (int n = 0; n < kTopStretches; ++n) top_kept_[n] = 0.0f;
+    top_ = 1.0f;
+    over_ = 0;
     out_power_ = 0.0f;
     loud_power_ = 0.0f;
     in_level_ = 0.0f;
@@ -718,6 +793,15 @@ class Vessel : public kit::DeviceBase<vessel::kNumParams> {
   int peak_age_ = 0;
   float peak_now_ = 0.0f;
   float peak_last_ = 0.0f;
+  float top_now_ = 0.0f;
+  float top_long_ = 0.0f;
+  float top_kept_[kTopStretches] = {};
+  int top_slot_ = 0;
+  float top_ = 1.0f;
+  int over_ = 0;
+  int over_from_ = 0;
+  int over_full_ = 1;
+  float over_share_ = 1.0f;
   float in_level_ = 0.0f;
   float rise_rate_ = 0.0f;
   float match_ = 1.0f;

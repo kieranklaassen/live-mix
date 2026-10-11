@@ -158,7 +158,7 @@ export const VESSEL_DESCRIPTOR = wasmDeviceDescriptor(VESSEL_DEVICE, {
     },
     'Clay pot': {
       body: 0,
-      size: 1.6,
+      size: 1.682,
       material: 0.15,
       opening: 0.2,
       air: 0.1,
@@ -186,8 +186,8 @@ export const VESSEL_DESCRIPTOR = wasmDeviceDescriptor(VESSEL_DEVICE, {
       width: 1,
       mix: 0.45,
     },
-    Kettle: { body: 4, size: 1.8, material: 0.8, opening: 0.35, position: 0.6, mix: 0.7 },
-    'Small tin': { body: 4, size: 0.3, material: 0.75, opening: 0.8, tone: 0.7, mix: 0.6 },
+    Kettle: { body: 4, size: 2, material: 0.8, opening: 0.35, position: 0.6, mix: 0.7 },
+    'Small tin': { body: 4, size: 0.25, material: 0.75, opening: 0.8, tone: 0.7, mix: 0.6 },
     'Wind in the pipe': { body: 1, size: 2, material: 0.6, opening: 0, air: 1, width: 0.8, mix: 1 },
     'Deep well': {
       body: 0,

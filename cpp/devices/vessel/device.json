@@ -177,7 +177,7 @@
     },
     "Clay pot": {
       "body": 0,
-      "size": 1.6,
+      "size": 1.682,
       "material": 0.15,
       "opening": 0.2,
       "air": 0.1,
@@ -214,7 +214,7 @@
     },
     "Kettle": {
       "body": 4,
-      "size": 1.8,
+      "size": 2,
       "material": 0.8,
       "opening": 0.35,
       "position": 0.6,
@@ -222,7 +222,7 @@
     },
     "Small tin": {
       "body": 4,
-      "size": 0.3,
+      "size": 0.25,
       "material": 0.75,
       "opening": 0.8,
       "tone": 0.7,
