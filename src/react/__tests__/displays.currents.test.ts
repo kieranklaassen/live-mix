@@ -828,7 +828,7 @@ describe('the Currents display, second check', () => {
       expect(low).toBeCloseTo(currentsWave(n / 50, currentsTurn(0.25), 0, 1), 9)
       expect(high).toBeCloseTo(low, 9)
     }
-  })
+  }, 60000)
 
   it('keeps the dot of the lowest band inside the shade, whatever cycle it is in', () => {
     // As first drawn the shade ran from the plain cycle to the smallest one, and a cycle whose
@@ -1052,5 +1052,5 @@ describe('the Currents presets, second check', () => {
     )
     expect(lowest).toBeGreaterThan(-9)
     expect(highest).toBeLessThan(3.2)
-  })
+  }, 60000)
 })

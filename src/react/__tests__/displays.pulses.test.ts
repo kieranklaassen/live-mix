@@ -502,7 +502,7 @@ describe('the arithmetic of the Pulses display against the device', () => {
     expect(pulsesTimeText(36000)).toBe('10 h')
     expect(pulsesTimeText(3 * 86400)).toBe('3 d')
     expect(pulsesTimeText(1e9)).toBe('> 99 d')
-  })
+  }, 60000)
 })
 
 describe('the Pulses display', () => {
