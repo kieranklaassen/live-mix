@@ -610,17 +610,17 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     category: 'texture',
     description:
       'What you play is replayed eight times slower as a cloud that trails seconds behind and runs up to the present again; Stretch sets how slow.',
-    effects: [{ deviceId: 'stretch', preset: 'Slow cloud', params: { width: 0.6 } }],
+    effects: [{ deviceId: 'stretch', preset: 'Slow cloud' }],
   },
   {
     id: 'cloud-catching-light',
     name: 'Cloud catching light',
     category: 'texture',
     description:
-      'A dark cloud of the playing, ten times slower, drifts behind it, its partials flickering, a twentieth of a second late; try Stretch.',
+      'The playing flickers partial by partial and a dark cloud of it, ten times slower, drifts behind, a twentieth of a second late; try Stretch.',
     effects: [
-      { deviceId: 'stretch', preset: 'Dark drift', params: { width: 0.5, mix: 0.5 } },
       { deviceId: 'glimmer', preset: 'Light on water', params: { depth: 0.5 } },
+      { deviceId: 'stretch', preset: 'Dark drift', params: { mix: 0.5 } },
     ],
   },
   {
@@ -630,7 +630,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
     description:
       'A phrase played forty times slower becomes a still pad of pure tones that lasts long after you stop, in a cathedral; Diffuse blurs it.',
     effects: [
-      { deviceId: 'stretch', preset: 'Long glass pad', params: { width: 0 } },
+      { deviceId: 'stretch', preset: 'Long glass pad' },
       { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.3 } },
     ],
   },
@@ -642,7 +642,7 @@ export const TEXTURE_CHAINS: readonly FactoryChain[] = [
       'A faint cloud of the playing, fourteen times slower, hangs behind it with its quiet parts lifted, a twentieth of a second late; try Range.',
     effects: [
       { deviceId: 'stretch', preset: 'Faint halo' },
-      { deviceId: 'reveal', preset: 'Even glow' },
+      { deviceId: 'reveal', preset: 'Even glow', params: { range: 18, output: -1 } },
     ],
   },
   {

@@ -679,7 +679,7 @@ export const PITCH_CHAINS: readonly FactoryChain[] = [
     description:
       'The playing and a cloud of it eight times slower pass a filter that keeps only one minor chord, a fifth of a second late; try Chord.',
     effects: [
-      { deviceId: 'stretch', preset: 'Slow cloud', params: { width: 0.5 } },
+      { deviceId: 'stretch', preset: 'Slow cloud' },
       { deviceId: 'scale-filter', preset: 'Minor triad', params: { ring: 3 } },
     ],
   },
