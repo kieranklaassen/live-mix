@@ -101,7 +101,7 @@
       "name": "Unison",
       "min": 0,
       "max": 1,
-      "default": 1,
+      "default": 0.8,
       "description": "The sound itself among the stops, the eight foot. Pushed in, only the added ranks are left when Mix is full."
     },
     {
@@ -153,7 +153,7 @@
       "chiff": 0.25,
       "detune": 0.2,
       "sub": 0.55,
-      "unison": 1,
+      "unison": 0.8,
       "fifth": 0,
       "octave": 0.7,
       "twelfth": 0.3,
@@ -202,7 +202,8 @@
       "octave": 0.9,
       "twelfth": 0.6,
       "fifteenth": 0.6,
-      "mix": 0.9
+      "mix": 0.6,
+      "unison": 0.4
     },
     "Flute stops": {
       "speak": 90,
@@ -223,7 +224,8 @@
       "octave": 0.8,
       "twelfth": 0.5,
       "fifteenth": 0.4,
-      "mix": 0.8
+      "mix": 0.8,
+      "unison": 1
     },
     "Only the pipes": {
       "speak": 80,
@@ -251,7 +253,8 @@
       "octave": 0.5,
       "twelfth": 0,
       "fifteenth": 0,
-      "mix": 0.3
+      "mix": 0.3,
+      "unison": 1
     },
     "Old pipes": {
       "speak": 100,
@@ -261,7 +264,8 @@
       "octave": 0.8,
       "twelfth": 0.5,
       "fifteenth": 0,
-      "mix": 0.7
+      "mix": 0.7,
+      "unison": 0.75
     },
     "Breath first": {
       "speak": 900,
@@ -281,7 +285,8 @@
       "octave": 0.9,
       "twelfth": 0.7,
       "fifteenth": 0.6,
-      "mix": 1
+      "mix": 1,
+      "unison": 1
     },
     "Sub and silver": {
       "speak": 150,
@@ -290,7 +295,8 @@
       "octave": 0,
       "twelfth": 0,
       "fifteenth": 0.7,
-      "mix": 0.7
+      "mix": 0.7,
+      "unison": 0.7
     },
     "Hollow fifths": {
       "speak": 400,
