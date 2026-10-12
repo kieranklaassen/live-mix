@@ -33,18 +33,19 @@ A third kit, and house sounds for the bank:
   such sounds. A sound made from such a part (`source`) that says `kitLevel`
   is brought to that part's peak: a reverse crash ends as loud as its crash
   starts.
-- `renderPatch`: `normalizePeakDb` takes the peak as the fades at the ends
-  leave it, so a sound that is loudest in its last moments comes out at the
-  level asked for (no sound that shipped before is levelled differently; the
-  previews of two presets whose largest sample is inside the preview's fade
-  come out 0.6 dB higher, at the level asked for); `gainDb` is a new option, a
+- `renderPatch`: `peakAfterFades` is a new option. `normalizePeakDb` takes the
+  peak before the fades, as it always has, so a recipe a host kept renders as
+  it did; with `peakAfterFades` it takes the peak the fades leave, so a sound
+  that is loudest in its last moments comes out at the level asked for.
+  `renderFactorySound` asks for it for a sound that keeps time and ends and
+  for a sound made from one part of a kit, and for nothing that shipped
+  before; `gainDb` is a new option, a
   fixed gain for a result that is not brought to a peak; and the passes of a
   phrase played round (`loopFold: 'linear'`) are laid on whole frames of the
   loop, so at a tempo where a loop, or a stroke's place in it, is not a whole
   number of frames (126, 140) the fold no longer takes level off its first
   stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker). A
-  host that keeps rendered loops at such tempos, or those two previews, has
-  new audio for them.
+  host that keeps rendered loops at such tempos has new audio for them.
 - A kit sound of one stroke is its own variant: `varySound` has nothing in it
   to move.
 

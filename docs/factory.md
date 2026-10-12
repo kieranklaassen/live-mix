@@ -111,20 +111,29 @@ const audio = await renderPatch(patch, {
 | `loopCrossfadeSec`        | Renders this much more and folds it over the start (equal power): the result loops seamlessly |
 | `loopFold`                | `'linear'` folds at equal amplitude: for a phrase played round again, where the two are alike |
 | `fadeInSec`, `fadeOutSec` | Linear fades at the ends                                                                      |
-| `normalizePeakDb`         | Scales the result to this peak, taken as the fades at the ends leave it                       |
+| `normalizePeakDb`         | Scales the result to this peak, taken before the fades at the ends                            |
+| `peakAfterFades`          | `true` takes that peak as the fades leave it, so what is handed back peaks where it is asked  |
 | `gainDb`                  | A fixed gain for a result that is not brought to a peak; `normalizePeakDb` wins over it       |
 | `sliceMs`, `signal`       | Hands the thread back every 12 ms by default so a page stays responsive; aborts on the signal |
 | `describe`, `compile`     | Where device ids are looked up and how a module is compiled (Node reads the files from disk)  |
 
-The level asked for is the level of what is handed back: the peak is taken as
-the fades will leave it (`fadedPeakOf`). A sound that is loudest in its last
-moments, a rise that stops on a bar line, used to come out under its level,
-because its largest sample was one the fade then took down. No sound that
-shipped before is levelled differently: each has its peak clear of its fades,
-by 1.78 s at the nearest, in all twelve keys. Two preset previews are: the
-largest sample of "Latched pedal tone" and of one pack preset (a slowed
-cello loop) falls inside the preview's fade, so each used to come out about
-0.6 dB under the level asked for and is now at it.
+`normalizePeakDb` takes the peak before the fades, as it always has: a result
+whose largest sample lies inside a fade comes out under the level asked for,
+and a recipe a host kept (a sound a person made, cut short with a fade) renders
+sample for sample as it did. `peakAfterFades` asks for the other rule: the
+level asked for is the level of what is handed back (`fadedPeakOf`).
+`renderFactorySound` asks for it for the sounds that need it and are new with
+it: a sound that keeps time and ends, which is often loudest in its last
+moments (a rise that stops on a bar line would come out under its level,
+because its largest sample is one the fade then takes down), and a sound made
+from one part of a kit, which is brought to that part's peak. Every other
+sound, every preview and every generated sound takes its peak before the
+fades. Measured against the engine before the house pack, sample for sample:
+193 renders a host makes for itself (a source through a reverb or an echo and
+notes held on four instruments, cut at 1 and 3 s with fades of 0, 0.05, 0.5
+and 2 s, a fade in, a loop, 60 generated sounds, 41 preset previews and 12
+chain previews) are identical; with the peak taken after the fades for
+everything, 28 of them came out 0.03 to 12.7 dB louder.
 `gainDb` is for a result that keeps the level its devices put out, that much
 up or down and nothing else, which is how one part of a kit keeps its place
 under the kick (see [The bank](#the-bank)).

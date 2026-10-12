@@ -221,7 +221,7 @@ describe('renderPatch', () => {
     expect(peakOf(silent.channels)).toBe(0)
   })
 
-  it('levels by the peak the fades leave, so a sound that is loudest as it ends is as loud as asked', async () => {
+  it('asked to, levels by the peak the fades leave, so a sound that is loudest as it ends is as loud as asked', async () => {
     // Struck inside the fade: the largest sample of the render is one the fade takes down.
     const options = {
       durationSec: 1,
@@ -229,12 +229,50 @@ describe('renderPatch', () => {
       fadeOutSec: 0.1,
     }
     const plain = await render(BELL, options)
-    const levelled = await render(BELL, { ...options, normalizePeakDb: -6 })
+    const levelled = await render(BELL, { ...options, normalizePeakDb: -6, peakAfterFades: true })
     expect(toDb(peakOf(levelled.channels))).toBeCloseTo(-6, 3)
     // The same sound, only louder or softer: one gain for every sample.
     const gain = peakOf(levelled.channels) / peakOf(plain.channels)
     const at = plain.channels[0].findIndex((value) => Math.abs(value) > 0.01)
     expect(levelled.channels[0][at] / plain.channels[0][at]).toBeCloseTo(gain, 4)
+  })
+
+  it('not asked to, levels by the peak before the fades, so a recipe a host kept renders as it did', async () => {
+    // What a host makes of a sound of its own: a held chord cut short with a fade and brought
+    // to a peak. Its largest sample lies in the fade, and the level is taken without the fade.
+    const ORGAN: Patch = { ...BELL, id: 'organ', instrument: { deviceId: 'organ' } }
+    const cut = {
+      durationSec: 1,
+      phrase: {
+        notes: [
+          { atSec: 0, durSec: 4, note: 60 },
+          { atSec: 0.9, durSec: 3, note: 67 },
+        ],
+      },
+    }
+    const unfaded = await render(ORGAN, cut)
+    const made = await render(ORGAN, { ...cut, fadeOutSec: 0.5, normalizePeakDb: -6 })
+    const frames = unfaded.channels[0].length
+    const scale = 10 ** (-6 / 20) / peakOf(unfaded.channels)
+    const fade = Math.round(0.5 * RATE)
+    // Every sample is the unfaded one, times the one gain that brings the unfaded peak to −6,
+    // times the fade: nothing of the fade is in the gain.
+    let apart = 0
+    for (let i = 0; i < frames; i += 1) {
+      const fromEnd = frames - 1 - i
+      const want = unfaded.channels[0][i] * scale * (fromEnd < fade ? fromEnd / fade : 1)
+      apart = Math.max(apart, Math.abs(made.channels[0][i] - want))
+    }
+    expect(apart).toBeLessThan(1e-6)
+    // The case that tells the two rules apart: the peak handed back is under the level asked for.
+    expect(toDb(peakOf(made.channels))).toBeLessThan(-6.5)
+    const asked = await render(ORGAN, {
+      ...cut,
+      fadeOutSec: 0.5,
+      normalizePeakDb: -6,
+      peakAfterFades: true,
+    })
+    expect(toDb(peakOf(asked.channels))).toBeCloseTo(-6, 3)
   })
 
   it('lays every pass of a phrase played round on the same frames, so the fold leaves the first stroke as it is', async () => {
