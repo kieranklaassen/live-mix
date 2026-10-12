@@ -77,10 +77,11 @@ export interface RenderPatchOptions {
    */
   loopFold?: LoopFold
   /**
-   * For a phrase played round again (`loopFold: 'linear'`, whole passes
-   * skipped): lay every pass on whole frames of the loop, a stroke as many
-   * frames into each, so the pass folded over the start is the kept one to
-   * the frame at a tempo where a pass is not a whole number of frames.
+   * For a phrase played round again (`loopFold: 'linear'`, a whole number
+   * of passes skipped, none too): lay every pass on whole frames of the
+   * loop, a stroke as many frames into each, so the pass folded over the
+   * start is the kept one to the frame at a tempo where a pass is not a
+   * whole number of frames.
    * Absent, every stroke is rounded to its own frame, as every render did
    * before there was a choice: a loop a host had renders as it did.
    */

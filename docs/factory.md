@@ -163,11 +163,15 @@ out: it moves strokes by a frame, and for some instruments what comes out is
 far from what did. Measured for the
 95 loops of the bank that kept time before the house pack, placed the new
 way at every whole tempo from 40 to 240 at 48 kHz: 13,930 renders differ from
-the old ones, mostly by under 0.1 dB, but by up to 2.1 dB in the first 30 ms
-and 1.8 dB over a whole loop, and single strokes of one kalimba line by 10 to
-22 dB at some tempos; speed variants of loops that keep no time differ at
-44.1 kHz too. So an older loop is rendered at every tempo and rate as it was,
-sample for sample, and what a saved piece holds sounds as it did.
+the old ones, mostly by under 0.1 dB, but by up to 2.1 dB in the first 30 ms,
+1.5 dB over a whole loop and 12.5 dB in 30 ms of one kalimba line. Between
+the whole tempos and at 44.1 kHz it goes further: a whole loop 1.8 dB off,
+and 30 ms of that kalimba line 21 to 22 dB off at 125.16 and 167.78, and at
+137 at 44.1 kHz. Speed variants of loops that keep no time differ at
+44.1 kHz too. So an older loop is placed by the arithmetic it always was:
+7,076 renders of older loops and of what a host renders for itself, at whole
+and fractional tempos and at six sample rates from 11,025 to 96,000 Hz, are
+equal to the old engine's sample for sample.
 
 Only WASM devices render this way (`canRenderPatch`): the node devices
 (`delay`, `compressor`, `eq3`, `parametric-eq`, `filter`, `utility`,

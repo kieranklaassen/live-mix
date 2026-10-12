@@ -47,8 +47,10 @@ A third kit, and house sounds for the bank:
   first stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker).
   `FactorySound.wholeFramePasses` asks for it, and the loops of the house
   pack do (`barsFramed`, `inTimeFramed`). No loop that shipped before does:
-  every sound and every render a host had comes out sample for sample as it
-  did, at every tempo and sample rate.
+  every sound that shipped, and every `renderPatch` call a host made, comes
+  out sample for sample as it did, at every tempo and sample rate compared.
+  (A host's own `FactorySound` with a `bpm` and no loop is the one shape
+  that is read differently, as said above.)
 - A kit sound of one stroke is its own variant: `varySound` has nothing in it
   to move.
 
