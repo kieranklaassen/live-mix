@@ -210,6 +210,25 @@ export function inTime(
   return { ...cycled(seconds, strokes, options), bpm: WRITTEN_BPM }
 }
 
+/** What a loop that keeps time is made of when its passes are laid on whole frames. */
+type Framed = ReturnType<typeof bars> & Pick<FactorySound, 'wholeFramePasses'>
+
+/**
+ * `bars` with every pass laid on whole frames of the loop
+ * (`FactorySound.wholeFramePasses`): at a tempo where a bar is not a whole
+ * number of frames (126, 140) the pass folded over the start is then the kept
+ * one to the frame, and the first stroke keeps its level. For a loop written
+ * since that rule; `bars` itself stays as the loops before it were rendered.
+ */
+export function barsFramed(...written: Parameters<typeof bars>): Framed {
+  return { ...bars(...written), wholeFramePasses: true }
+}
+
+/** `inTime` with every pass laid on whole frames of the loop: see `barsFramed`. */
+export function inTimeFramed(...written: Parameters<typeof inTime>): Framed {
+  return { ...inTime(...written), wholeFramePasses: true }
+}
+
 /** What a sound that keeps time and ends is made of: a phrase played once, as long as its bars, written at 120. */
 type Once = Pick<FactorySound, 'phrase' | 'durationSec' | 'fadeOutSec' | 'bpm'>
 

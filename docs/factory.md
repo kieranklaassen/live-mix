@@ -102,20 +102,21 @@ const audio = await renderPatch(patch, {
 }) // { channels: [left, right], sampleRate }
 ```
 
-| Option                    | Use                                                                                           |
-| ------------------------- | --------------------------------------------------------------------------------------------- |
-| `phrase`                  | What an instrument patch plays                                                                |
-| `input`                   | What an effect chain processes, at `sampleRate`; silence follows it so the tail is heard      |
-| `sample`                  | The sound a sample instrument (`grain-synth`, `sampler`) plays                                |
-| `skipSec`                 | Rendered and thrown away first, so a loop starts with the attack over and the reverb full     |
-| `loopCrossfadeSec`        | Renders this much more and folds it over the start (equal power): the result loops seamlessly |
-| `loopFold`                | `'linear'` folds at equal amplitude: for a phrase played round again, where the two are alike |
-| `fadeInSec`, `fadeOutSec` | Linear fades at the ends                                                                      |
-| `normalizePeakDb`         | Scales the result to this peak, taken before the fades at the ends                            |
-| `peakAfterFades`          | `true` takes that peak as the fades leave it, so what is handed back peaks where it is asked  |
-| `gainDb`                  | A fixed gain for a result that is not brought to a peak; `normalizePeakDb` wins over it       |
-| `sliceMs`, `signal`       | Hands the thread back every 12 ms by default so a page stays responsive; aborts on the signal |
-| `describe`, `compile`     | Where device ids are looked up and how a module is compiled (Node reads the files from disk)  |
+| Option                    | Use                                                                                            |
+| ------------------------- | ---------------------------------------------------------------------------------------------- |
+| `phrase`                  | What an instrument patch plays                                                                 |
+| `input`                   | What an effect chain processes, at `sampleRate`; silence follows it so the tail is heard       |
+| `sample`                  | The sound a sample instrument (`grain-synth`, `sampler`) plays                                 |
+| `skipSec`                 | Rendered and thrown away first, so a loop starts with the attack over and the reverb full      |
+| `loopCrossfadeSec`        | Renders this much more and folds it over the start (equal power): the result loops seamlessly  |
+| `loopFold`                | `'linear'` folds at equal amplitude: for a phrase played round again, where the two are alike  |
+| `wholeFramePasses`        | `true` lays every pass of such a phrase on whole frames of the loop, a stroke the same in each |
+| `fadeInSec`, `fadeOutSec` | Linear fades at the ends                                                                       |
+| `normalizePeakDb`         | Scales the result to this peak, taken before the fades at the ends                             |
+| `peakAfterFades`          | `true` takes that peak as the fades leave it, so what is handed back peaks where it is asked   |
+| `gainDb`                  | A fixed gain for a result that is not brought to a peak; `normalizePeakDb` wins over it        |
+| `sliceMs`, `signal`       | Hands the thread back every 12 ms by default so a page stays responsive; aborts on the signal  |
+| `describe`, `compile`     | Where device ids are looked up and how a module is compiled (Node reads the files from disk)   |
 
 `normalizePeakDb` takes the peak before the fades, as it always has: a result
 whose largest sample lies inside a fade comes out under the level asked for,
@@ -139,20 +140,34 @@ up or down and nothing else, which is how one part of a kit keeps its place
 under the kick (see [The bank](#the-bank)).
 
 A phrase played round again (`loopFold: 'linear'`, with whole passes skipped
-before the one that is kept) is placed pass by pass on the loop's own frames
-(`Round`): a note is rounded to a frame inside its pass, and every pass starts
-a whole loop of frames after the one before, so the same stroke is the same
-number of frames into every pass (one written half a frame in goes up in
-every pass; its seconds would put it a hair under the half in one pass and a
-hair over in the next). At a tempo where a loop, or a stroke's place in it,
-is not a whole number of frames (a bar at 126 is 91,428.57 of them at
-48 kHz) each stroke used to be rounded on its own, the pass folded over the
-start lay one frame off the pass that is kept, and the fold mixed two copies
-of the first stroke a sample apart. On the Club Kit's shaker at 126 that took 1.1 dB off the
-first stroke and 3.2 dB off it between 12 and 20 kHz (4.3 dB there on its
-eighth hats, 3.7 on its ride, and much the same at 140); now the first stroke
-of each measures as it does at 120, to 0.1 dB in every band read, at 124,
-125, 126, 128 and 140. At 120, where a bar is whole frames, nothing changed.
+before the one that is kept) has every stroke rounded to its own frame, as it
+always has. At a tempo where a loop, or a stroke's place in it, is not a
+whole number of frames (a bar at 126 is 91,428.57 of them at 48 kHz) the pass
+folded over the start then lies one frame off the pass that is kept, and the
+fold mixes two copies of the first stroke a sample apart. On the Club Kit's
+shaker at 126 that took 1.1 dB off the first stroke and 3.2 dB off it between
+12 and 20 kHz (4.3 dB there on its eighth hats, 3.7 on its ride, and much the
+same at 140).
+
+`wholeFramePasses` asks for the other placing (`Round`): a note is rounded to
+a frame inside its pass, and every pass starts a whole loop of frames after
+the one before, so the same stroke is the same number of frames into every
+pass (one written half a frame in goes up in every pass; its seconds would
+put it a hair under the half in one pass and a hair over in the next). The
+first stroke of each of those three then measures as it does at 120, to
+0.1 dB in every band read, at 124, 125, 126, 128 and 140. The loops of the
+house pack ask for it (`barsFramed`, `inTimeFramed`, `FactorySound.wholeFramePasses`);
+no loop that shipped before does, and a host's own render does not unless it
+says so, because the other placing is not the old one with a fault taken
+out: it moves strokes by a frame, and for some instruments what comes out is
+far from what did. Measured for the
+95 loops of the bank that kept time before the house pack, placed the new
+way at every whole tempo from 40 to 240 at 48 kHz: 13,930 renders differ from
+the old ones, mostly by under 0.1 dB, but by up to 2.1 dB in the first 30 ms
+and 1.8 dB over a whole loop, and single strokes of one kalimba line by 10 to
+22 dB at some tempos; speed variants of loops that keep no time differ at
+44.1 kHz too. So an older loop is rendered at every tempo and rate as it was,
+sample for sample, and what a saved piece holds sounds as it did.
 
 Only WASM devices render this way (`canRenderPatch`): the node devices
 (`delay`, `compressor`, `eq3`, `parametric-eq`, `filter`, `utility`,
@@ -826,10 +841,11 @@ sound.
   is to loop. No stroke may start in the last crossfade of the round, and it
   costs every round it renders: `passes: 1` is three rounds for one kept.
   An instrument whose restruck note adds to what still rings of it (the
-  handpan) needs `passes: 2` before a round is like the next. The rounds
-  are laid on whole frames of the loop, a stroke as many frames into each,
-  so the fold meets like with like at a tempo where a round is not a whole
-  number of frames (see
+  handpan) needs `passes: 2` before a round is like the next. A loop that
+  says `wholeFramePasses` (the house pack's: `barsFramed`, `inTimeFramed`)
+  has its rounds laid on whole frames of the loop, a stroke as many frames
+  into each, so the fold meets like with like at a tempo where a round is
+  not a whole number of frames (see
   [Rendering without an audio context](#rendering-without-an-audio-context)).
 - `weather(...)`, `bells(...)`: the atmosphere device and the bell
   instruments as the first thirty-four set them.

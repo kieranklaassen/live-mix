@@ -13,7 +13,7 @@ import { type PatchDevice } from '../../../core/devices/patch'
 import { hall } from '../parts'
 import { type FactorySound } from '../types'
 import { sound } from './recipe'
-import { bars, CLUB, row, type Row } from './rhythm'
+import { barsFramed as bars, CLUB, row, type Row } from './rhythm'
 
 /** The four characters of the kit (`kit` in cpp/devices/club-kit/device.json). */
 const FIRM = 0

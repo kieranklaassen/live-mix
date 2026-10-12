@@ -39,13 +39,16 @@ A third kit, and house sounds for the bank:
   that is loudest in its last moments comes out at the level asked for.
   `renderFactorySound` asks for it for a sound that keeps time and ends and
   for a sound made from one part of a kit, and for nothing that shipped
-  before; `gainDb` is a new option, a
-  fixed gain for a result that is not brought to a peak; and the passes of a
-  phrase played round (`loopFold: 'linear'`) are laid on whole frames of the
-  loop, so at a tempo where a loop, or a stroke's place in it, is not a whole
-  number of frames (126, 140) the fold no longer takes level off its first
-  stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker). A
-  host that keeps rendered loops at such tempos has new audio for them.
+  before; `gainDb` is a new option, a fixed gain for a result that is not
+  brought to a peak; and `wholeFramePasses` is a new option that lays the
+  passes of a phrase played round (`loopFold: 'linear'`) on whole frames of
+  the loop, so at a tempo where a loop, or a stroke's place in it, is not a
+  whole number of frames (126, 140) the fold does not take level off its
+  first stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker).
+  `FactorySound.wholeFramePasses` asks for it, and the loops of the house
+  pack do (`barsFramed`, `inTimeFramed`). No loop that shipped before does:
+  every sound and every render a host had comes out sample for sample as it
+  did, at every tempo and sample rate.
 - A kit sound of one stroke is its own variant: `varySound` has nothing in it
   to move.
 

@@ -65,6 +65,20 @@ describe('a sound at its kit level', () => {
     ).toEqual([])
   })
 
+  it('lays its passes on whole frames only where a loop is new with that rule', () => {
+    // A loop that shipped before is rendered at every tempo as it was, each stroke rounded to
+    // its own frame; every loop of the house pack that is folded as the same strokes again asks.
+    const ids = (sounds: readonly FactorySound[]): string[] => sounds.map((sound) => sound.id)
+    const framed = FACTORY_SOUNDS.filter((sound) => sound.wholeFramePasses)
+    expect(ids(framed.filter((sound) => sound.number < 401))).toEqual([])
+    expect(ids(framed.filter((sound) => sound.loopFold !== 'linear'))).toEqual([])
+    const round = FACTORY_SOUNDS.filter(
+      (sound) => sound.number >= 401 && sound.loopFold === 'linear',
+    )
+    expect(round.length).toBeGreaterThan(40)
+    expect(ids(round.filter((sound) => !sound.wholeFramePasses))).toEqual([])
+  })
+
   it('refuses to keep the level of a kit that has none', async () => {
     const soft = { ...named('club-firm-kick-four'), id: 'soft-kick', kitLevel: true as const }
     if (typeof soft.patch === 'string') throw new Error('a preset')

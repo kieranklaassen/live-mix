@@ -16,7 +16,14 @@ import { type PatchDevice } from '../../../core/devices/patch'
 import { hall, soften } from '../parts'
 import { type FactorySound } from '../types'
 import { sound, type Stroke } from './recipe'
-import { bars, inTime, row, type Row, type RowOptions } from './rhythm'
+import {
+  bars as barsWritten,
+  barsFramed as bars,
+  inTimeFramed as inTime,
+  row,
+  type Row,
+  type RowOptions,
+} from './rhythm'
 
 /**
  * Chords on one row of marks, one for each stroke in turn and round again: a row for every voice,
@@ -46,8 +53,8 @@ const room = (mix: number): PatchDevice => hall('Room', mix)
  * synthesizer whose oscillators run on): one pass folded over the next is two unrelated stretches,
  * which are folded at equal power.
  */
-const loose = (...written: Parameters<typeof bars>): ReturnType<typeof bars> => ({
-  ...bars(...written),
+const loose = (...written: Parameters<typeof barsWritten>): ReturnType<typeof barsWritten> => ({
+  ...barsWritten(...written),
   loopFold: 'power',
 })
 

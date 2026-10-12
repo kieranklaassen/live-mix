@@ -275,7 +275,7 @@ describe('renderPatch', () => {
     expect(toDb(peakOf(asked.channels))).toBeCloseTo(-6, 3)
   })
 
-  it('lays every pass of a phrase played round on the same frames, so the fold leaves the first stroke as it is', async () => {
+  it('asked to, lays every pass of a phrase played round on the same frames, so the fold leaves the first stroke as it is', async () => {
     // A closed hat that repeats exactly, on the first beat of each pass; a pass is 24000.6
     // frames, so the third pass rounded on its own would start a frame before twice the second.
     const hat: Patch = {
@@ -285,7 +285,12 @@ describe('renderPatch', () => {
     }
     const durationSec = 24000.6 / 48000
     const stroke = (atSec: number) => ({ atSec, durSec: 0.1, note: 65 })
-    const round = { durationSec, skipSec: durationSec, loopFold: 'linear' as const }
+    const round = {
+      durationSec,
+      skipSec: durationSec,
+      loopFold: 'linear' as const,
+      wholeFramePasses: true,
+    }
     const phrase = { notes: [0, 1, 2].map((pass) => stroke(pass * durationSec)) }
     const straight = await render(hat, { ...round, phrase })
     const folded = await render(hat, { ...round, phrase, loopCrossfadeSec: 0.03 })
@@ -302,6 +307,19 @@ describe('renderPatch', () => {
     const early = { notes: [stroke(0), stroke(durationSec), stroke(2 * durationSec - 1 / 48000)] }
     const slipped = await render(hat, { ...round, phrase: early, loopCrossfadeSec: 0.03 })
     expect(apart(slipped, straight)).toBeGreaterThan(1e-3)
+    // Not asked to, every stroke is rounded on its own, as a loop a host had was rendered: the
+    // third pass starts a frame early there too, and the fold changes the stroke as it did.
+    const own = {
+      durationSec,
+      skipSec: durationSec,
+      loopFold: 'linear' as const,
+      phrase,
+      loopCrossfadeSec: 0.03,
+    }
+    const before = await render(hat, own)
+    expect(apart(before, straight)).toBeGreaterThan(1e-3)
+    const refused = await render(hat, { ...own, wholeFramePasses: false })
+    expect(refused.channels[0]).toEqual(before.channels[0])
   })
 
   it('puts a stroke half a frame into its pass on the same frame of every pass', async () => {
@@ -324,6 +342,7 @@ describe('renderPatch', () => {
       durationSec,
       sampleRate: 44100,
       loopFold: 'linear' as const,
+      wholeFramePasses: true,
       loopCrossfadeSec: 0.03,
       phrase,
     }
@@ -344,6 +363,7 @@ describe('renderPatch', () => {
     const options = {
       durationSec: 0.5,
       loopFold: 'linear' as const,
+      wholeFramePasses: true,
       loopCrossfadeSec: 0.03,
       phrase: { notes: [{ atSec: -0.25, durSec: 0.4, note: 72 }] },
     }

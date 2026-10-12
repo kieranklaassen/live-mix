@@ -77,6 +77,15 @@ export interface RenderPatchOptions {
    */
   loopFold?: LoopFold
   /**
+   * For a phrase played round again (`loopFold: 'linear'`, whole passes
+   * skipped): lay every pass on whole frames of the loop, a stroke as many
+   * frames into each, so the pass folded over the start is the kept one to
+   * the frame at a tempo where a pass is not a whole number of frames.
+   * Absent, every stroke is rounded to its own frame, as every render did
+   * before there was a choice: a loop a host had renders as it did.
+   */
+  wholeFramePasses?: boolean
+  /**
    * Take the latency the devices report out of the result: that much more is
    * rendered and dropped from the start, so a stroke sounds where its note
    * is written and not a tape's or a look-ahead's delay after it. For a
@@ -316,11 +325,14 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // A phrase played round again with whole passes dropped before it (`'linear'`): the passes
   // are the same strokes, and at a tempo where a pass is not a whole number of frames each
   // stroke rounded on its own would put the pass that is folded over the start a frame off
-  // the one that is kept, and the fold would dull the first stroke. So every pass is laid on
-  // the frames of the loop.
+  // the one that is kept, and the fold would dull the first stroke. Asked to
+  // (`wholeFramePasses`), every pass is laid on the frames of the loop.
   const passes = (options.skipSec ?? 0) / options.durationSec
   const round: Round | undefined =
-    options.loopFold === 'linear' && crossfade > 0 && Math.abs(passes - Math.round(passes)) < 1e-6
+    options.wholeFramePasses &&
+    options.loopFold === 'linear' &&
+    crossfade > 0 &&
+    Math.abs(passes - Math.round(passes)) < 1e-6
       ? { sec: options.durationSec, frames }
       : undefined
   const skip = round
