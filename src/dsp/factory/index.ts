@@ -355,9 +355,15 @@ export async function renderFactorySound(
     skipSec: inKey.skipSec,
     loopCrossfadeSec: inKey.loopCrossfadeSec,
     loopFold: inKey.loopFold,
+    wholeFramePasses: inKey.wholeFramePasses,
     // A sound that keeps time is laid beside others that do: what its devices delay it by is taken out.
     alignLatency: inKey.bpm !== undefined,
     fadeOutSec: inKey.loopCrossfadeSec ? 0 : (inKey.fadeOutSec ?? 0.05),
+    // A sound that keeps time and ends is often loudest in its last moments, where the fade is
+    // (a rise that stops on a bar line), and one made from a kit's part is as loud as that part:
+    // both are brought to their level as the fades leave them. Every other sound takes its peak
+    // before the fades, as every render did before these.
+    peakAfterFades: fromPart || (inKey.bpm !== undefined && !inKey.loopCrossfadeSec),
     // One part of a kit keeps the kit's balance, and a sound made from one ends up as loud as
     // that part; everything else is brought to the bank's peak.
     ...(lift !== undefined

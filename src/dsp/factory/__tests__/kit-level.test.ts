@@ -52,6 +52,33 @@ describe('a sound at its kit level', () => {
     }
   })
 
+  it('takes its peak after the fades only where a sound is new with that rule', () => {
+    // `renderFactorySound` asks `renderPatch` for the peak the fades leave for a sound that
+    // keeps time and ends and for one made from a part of a kit. Every sound numbered under 401
+    // shipped before there was a choice and is rendered as it was: none of them is either.
+    const asks = (sound: FactorySound): boolean =>
+      (Boolean(sound.kitLevel) && sound.source !== undefined) ||
+      (sound.bpm !== undefined && !sound.loopCrossfadeSec)
+    expect(FACTORY_SOUNDS.filter(asks).length).toBeGreaterThan(0)
+    expect(
+      FACTORY_SOUNDS.filter((sound) => sound.number < 401 && asks(sound)).map((sound) => sound.id),
+    ).toEqual([])
+  })
+
+  it('lays its passes on whole frames only where a loop is new with that rule', () => {
+    // A loop that shipped before is rendered at every tempo as it was, each stroke rounded to
+    // its own frame; every loop of the house pack that is folded as the same strokes again asks.
+    const ids = (sounds: readonly FactorySound[]): string[] => sounds.map((sound) => sound.id)
+    const framed = FACTORY_SOUNDS.filter((sound) => sound.wholeFramePasses)
+    expect(ids(framed.filter((sound) => sound.number < 401))).toEqual([])
+    expect(ids(framed.filter((sound) => sound.loopFold !== 'linear'))).toEqual([])
+    const round = FACTORY_SOUNDS.filter(
+      (sound) => sound.number >= 401 && sound.loopFold === 'linear',
+    )
+    expect(round.length).toBeGreaterThan(40)
+    expect(ids(round.filter((sound) => !sound.wholeFramePasses))).toEqual([])
+  })
+
   it('refuses to keep the level of a kit that has none', async () => {
     const soft = { ...named('club-firm-kick-four'), id: 'soft-kick', kitLevel: true as const }
     if (typeof soft.patch === 'string') throw new Error('a preset')

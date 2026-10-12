@@ -77,6 +77,16 @@ export interface RenderPatchOptions {
    */
   loopFold?: LoopFold
   /**
+   * For a phrase played round again (`loopFold: 'linear'`, a whole number
+   * of passes skipped, none too): lay every pass on whole frames of the
+   * loop, a stroke as many frames into each, so the pass folded over the
+   * start is the kept one to the frame at a tempo where a pass is not a
+   * whole number of frames.
+   * Absent, every stroke is rounded to its own frame, as every render did
+   * before there was a choice: a loop a host had renders as it did.
+   */
+  wholeFramePasses?: boolean
+  /**
    * Take the latency the devices report out of the result: that much more is
    * rendered and dropped from the start, so a stroke sounds where its note
    * is written and not a tape's or a look-ahead's delay after it. For a
@@ -87,8 +97,16 @@ export interface RenderPatchOptions {
   /** Linear fades at the two ends, in seconds (default 0 in, 0 out). */
   fadeInSec?: number
   fadeOutSec?: number
-  /** Scale the result so its peak sits at this level, in dBFS, after the fades. Silence stays silence. */
+  /** Scale the result so its peak sits at this level, in dBFS. Silence stays silence. */
   normalizePeakDb?: number
+  /**
+   * Which peak `normalizePeakDb` brings to its level: false or absent, the
+   * peak before the fades, so a result whose largest sample lies inside a
+   * fade comes out under the level asked for; true, the peak the fades leave,
+   * so what is handed back peaks where it is asked to. Absent is what every
+   * render did before there was a choice: a recipe a host kept renders as it did.
+   */
+  peakAfterFades?: boolean
   /**
    * A fixed gain in dB for a result that is not brought to a peak: what the
    * devices put out, that much up or down. `normalizePeakDb` wins over it.
@@ -308,11 +326,14 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
   // A phrase played round again with whole passes dropped before it (`'linear'`): the passes
   // are the same strokes, and at a tempo where a pass is not a whole number of frames each
   // stroke rounded on its own would put the pass that is folded over the start a frame off
-  // the one that is kept, and the fold would dull the first stroke. So every pass is laid on
-  // the frames of the loop.
+  // the one that is kept, and the fold would dull the first stroke. Asked to
+  // (`wholeFramePasses`), every pass is laid on the frames of the loop.
   const passes = (options.skipSec ?? 0) / options.durationSec
   const round: Round | undefined =
-    options.loopFold === 'linear' && crossfade > 0 && Math.abs(passes - Math.round(passes)) < 1e-6
+    options.wholeFramePasses &&
+    options.loopFold === 'linear' &&
+    crossfade > 0 &&
+    Math.abs(passes - Math.round(passes)) < 1e-6
       ? { sec: options.durationSec, frames }
       : undefined
   const skip = round
@@ -406,10 +427,10 @@ export async function renderPatch(patch: Patch, options: RenderPatchOptions): Pr
     throw new Error(`live-mix: "${patch.id}" rendered a non-finite sample`)
   const fadeIn = Math.min(frames, Math.round((options.fadeInSec ?? 0) * sampleRate))
   const fadeOut = Math.min(frames, Math.round((options.fadeOutSec ?? 0) * sampleRate))
-  // The level asked for is the level of what is handed back: the peak is
-  // taken as the fades will leave it, so a sound that is loudest in its last
-  // moments (a rise that stops on a bar line) still peaks where it is asked to.
-  const peak = fadedPeakOf(kept, frames, fadeIn, fadeOut)
+  // The peak is taken before the fades unless the caller asks for the one they
+  // leave (`peakAfterFades`): a sound that is loudest in its last moments (a
+  // rise that stops on a bar line) then still peaks where it is asked to.
+  const peak = options.peakAfterFades ? fadedPeakOf(kept, frames, fadeIn, fadeOut) : peakOf(kept)
   if (options.normalizePeakDb !== undefined && peak > 0) {
     const scale = 10 ** (options.normalizePeakDb / 20) / peak
     for (const channel of kept) for (let i = 0; i < channel.length; i += 1) channel[i] *= scale

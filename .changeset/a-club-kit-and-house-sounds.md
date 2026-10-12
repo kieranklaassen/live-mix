@@ -33,18 +33,24 @@ A third kit, and house sounds for the bank:
   such sounds. A sound made from such a part (`source`) that says `kitLevel`
   is brought to that part's peak: a reverse crash ends as loud as its crash
   starts.
-- `renderPatch`: `normalizePeakDb` takes the peak as the fades at the ends
-  leave it, so a sound that is loudest in its last moments comes out at the
-  level asked for (no sound that shipped before is levelled differently; the
-  previews of two presets whose largest sample is inside the preview's fade
-  come out 0.6 dB higher, at the level asked for); `gainDb` is a new option, a
-  fixed gain for a result that is not brought to a peak; and the passes of a
-  phrase played round (`loopFold: 'linear'`) are laid on whole frames of the
-  loop, so at a tempo where a loop, or a stroke's place in it, is not a whole
-  number of frames (126, 140) the fold no longer takes level off its first
-  stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker). A
-  host that keeps rendered loops at such tempos, or those two previews, has
-  new audio for them.
+- `renderPatch`: `peakAfterFades` is a new option. `normalizePeakDb` takes the
+  peak before the fades, as it always has, so a recipe a host kept renders as
+  it did; with `peakAfterFades` it takes the peak the fades leave, so a sound
+  that is loudest in its last moments comes out at the level asked for.
+  `renderFactorySound` asks for it for a sound that keeps time and ends and
+  for a sound made from one part of a kit, and for nothing that shipped
+  before; `gainDb` is a new option, a fixed gain for a result that is not
+  brought to a peak; and `wholeFramePasses` is a new option that lays the
+  passes of a phrase played round (`loopFold: 'linear'`) on whole frames of
+  the loop, so at a tempo where a loop, or a stroke's place in it, is not a
+  whole number of frames (126, 140) the fold does not take level off its
+  first stroke (up to 1.1 dB, and 3 to 4 dB of its top on hats and a shaker).
+  `FactorySound.wholeFramePasses` asks for it, and the loops of the house
+  pack do (`barsFramed`, `inTimeFramed`). No loop that shipped before does:
+  every sound that shipped, and every `renderPatch` call a host made, comes
+  out sample for sample as it did, at every tempo and sample rate compared.
+  (A host's own `FactorySound` with a `bpm` and no loop is the one shape
+  that is read differently, as said above.)
 - A kit sound of one stroke is its own variant: `varySound` has nothing in it
   to move.
 

@@ -99,6 +99,14 @@ export interface FactorySound {
    * more, so the two are added at equal amplitude, not at equal power.
    */
   loopFold?: LoopFold
+  /**
+   * For a `'linear'` loop: every pass is laid on whole frames of the loop
+   * (`RenderPatchOptions.wholeFramePasses`), so at a tempo where a pass is
+   * not a whole number of frames the fold leaves the first stroke as it is.
+   * The loops of the house pack say it. A loop that shipped before does not,
+   * and is rendered at every tempo as it was.
+   */
+  wholeFramePasses?: boolean
   /** Fade at the end of a sound that does not loop (default 0.05 s). */
   fadeOutSec?: number
   /**

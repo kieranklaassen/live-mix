@@ -18,7 +18,7 @@
 import { type PatchDevice } from '../../../core/devices/patch'
 import { type FactorySound } from '../types'
 import { sound } from './recipe'
-import { bars, CLUB, row } from './rhythm'
+import { barsFramed as bars, CLUB, row } from './rhythm'
 
 /** The characters of the kit that the layers use (`kit` in cpp/devices/club-kit/device.json). */
 const FIRM = 0

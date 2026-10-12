@@ -19,8 +19,9 @@
 // high-pass is also the floor of the noise. It stands near where the sweep starts, so the start
 // of a rise is quieter than white noise under a low-pass would be, and the end of a sweep down.
 //
-// A rise is loudest in its last moments, where the fade is. The level of a sound is set by the
-// largest sample its fades leave (../../patch-render.ts), so a rise needs nothing after its
+// A rise is loudest in its last moments, where the fade is. The level of a sound that keeps time
+// and ends is set by the largest sample its fades leave (`peakAfterFades`, which
+// `renderFactorySound` asks ../../patch-render.ts for), so a rise needs nothing after its
 // filter: it is the source, the room where it has one, and the filter.
 
 import { type PatchDevice } from '../../../core/devices/patch'
