@@ -1,8 +1,7 @@
 // The info view: a small pane that says what the control under the pointer
-// is and does, as the box in the bottom left corner of Ableton Live does. It
-// reads `data-lm-info` off the page (see `info.ts`), so a host gives every
-// control a sentence and puts one `InfoView` where the eye can find it. The
-// kit's own controls carry their entries already.
+// is and does. It reads `data-lm-info` off the page (see `info.ts`), so a
+// host gives every control a sentence and puts one `InfoView` where the eye
+// can find it. The kit's own controls carry their entries already.
 
 import { useEffect, useState, type CSSProperties, type ReactNode, type RefObject } from 'react'
 

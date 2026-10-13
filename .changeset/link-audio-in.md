@@ -10,4 +10,4 @@ Receiving Link Audio: a channel another Link program sends comes out of a node, 
 - `NativeHostClient.linkAudioInUrl`, `NativeHostInfo.linkAudioReceive`, `encodeLinkAudioInBlock` for a test host; `FakePluginHost` says `linkAudioReceive`.
 - `link.state.channels` holds the channels of the session's other peers; this program's own were never in it, and the documentation no longer says they are.
 
-Checked against a second peer that is Ableton's library, on one machine: in the host's own tests, and in Chromium with a real `AudioContext` (a 44.1 kHz channel into a 48 kHz context, clicks within 0.04 ms of their beat). Not against Ableton Live, over a real network or by ear. See `docs/link.md`.
+Checked against a second peer that is Ableton's library, on one machine: in the host's own tests, and in Chromium with a real `AudioContext` (a 44.1 kHz channel into a 48 kHz context, clicks within 0.04 ms of their beat). Not against another Link program, over a real network or by ear. See `docs/link.md`.

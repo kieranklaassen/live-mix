@@ -1,10 +1,10 @@
-// The intensity ladder and the steering resolver (R26), moved from Breathwork
-// Live's musicResolver.ts (`targetIntensity`, `resolveReplacementTracks`) so
-// selection, the agent API and any consumer share one ladder. Canon from the
-// tuin selector: three intensities — 1 grounding, 2 settled, 3 active — and
-// Camelot compatibility per `camelot.ts` (same number or ±1, letter-agnostic,
-// applied only when it leaves at least one candidate). Everything here is
-// pure and framework-free.
+// The intensity ladder and the steering resolver (R26), moved from
+// musicResolver.ts of Breathwork Live (`targetIntensity`,
+// `resolveReplacementTracks`) so selection, the agent API and any consumer
+// share one ladder. Canon from the tuin selector: three intensities — 1
+// grounding, 2 settled, 3 active — and Camelot compatibility per `camelot.ts`
+// (same number or ±1, letter-agnostic, applied only when it leaves at least
+// one candidate). Everything here is pure and framework-free.
 
 import { camelotNumber, compatibleCamelotNumbers, parseCamelot } from './camelot'
 

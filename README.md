@@ -1,6 +1,6 @@
 # live-mix
 
-An Ableton-grade mixing engine for the browser, as one TypeScript library on
+A mixing engine for the browser, as one TypeScript library on
 raw Web Audio and AudioWorklet. Tracks, channel strips, groups, sends and
 returns feed one master with a limiter and LUFS meters; a transport with a
 single audio-clock anchor schedules clips in **seconds** (bars and beats are a

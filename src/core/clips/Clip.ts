@@ -8,9 +8,9 @@ import { type JsonObject } from '../json'
 /**
  * Shape of a clip's fade-in and fade-out gain envelope.
  *
- * `linear` is ambient-live's triangle (`fadeGain`); `equalPower` is Breathwork
- * Live's sin/cos crossfade (`equalPowerFadeIn` / `equalPowerFadeOut`), which
- * keeps the summed loudness flat while two clips overlap.
+ * `linear` is ambient-live's triangle (`fadeGain`); `equalPower` is the sin/cos
+ * crossfade of Breathwork Live (`equalPowerFadeIn` / `equalPowerFadeOut`),
+ * which keeps the summed loudness flat while two clips overlap.
  */
 export type FadeCurve = 'linear' | 'equalPower'
 

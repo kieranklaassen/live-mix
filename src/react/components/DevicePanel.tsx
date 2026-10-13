@@ -50,7 +50,7 @@ export interface DeviceFrameProps {
   'data-lm-device'?: string
 }
 
-/** Ableton-style device chrome: title bar with an optional power switch, dense body. */
+/** Device chrome: title bar with an optional power switch, dense body. */
 export function DeviceFrame({
   title,
   powered = true,

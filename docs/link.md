@@ -2,10 +2,10 @@
 
 [Ableton Link](https://www.ableton.com/link/) keeps the tempo, the beat and
 (optionally) start and stop of every Link program on a local network together:
-Live, hardware, phone apps, another copy of yours. Link Audio, part of the same
-library since Link 4, carries audio between them on that beat grid, so a
-program can show up in Live as a channel to record, and a track of Live's can
-come out of a node in your graph.
+desktop programs, hardware, phone apps, another copy of yours. Link Audio, part
+of the same library since Link 4, carries audio between them on that beat grid,
+so your program can show up in another as a channel to record, and a track of
+another program can come out of a node in your graph.
 
 live-mix joins a Link session through the plug-in host
 ([native.md](./native.md)). The host is built with Ableton's own library, so
@@ -27,7 +27,7 @@ hosted plug-ins.
 
 ```
  page                                         plug-in host                network
- NativeLink ◄── JSON, …/control ──────────►  LinkSession  ◄── Link ───►  Live, other peers
+ NativeLink ◄── JSON, …/control ──────────►  LinkSession  ◄── Link ───►  other peers
    beat ⇄ performance.now() ⇄ AudioContext     (Ableton's library)
  LinkAudioSender
    tap worklet ─► pump worker ── float32, …/link-audio ──►  a Link Audio channel
@@ -71,7 +71,7 @@ an application needs no second code path.
 | `channels`       | The Link Audio channels peers send (`id`, `name`, `peerName`); not our own |
 
 Peers share the **tempo** and the **place in the bar** (the beat modulo the
-quantum). They do not share the beat count: your beat 64 and Live's bar 9 can
+quantum). They do not share the beat count: your beat 64 and a peer's bar 9 can
 be the same moment.
 
 The host leaves the session when the last page that used Link disconnects.
@@ -158,7 +158,7 @@ are two:
   timeline no longer lines up with the session's bars.
 - **Clips keep their beat.** The timeline is stretched: every `startSec` and
   the loop length are multiplied by `oldBpm / newBpm`, while each clip's audio
-  plays at its own speed and pitch (as unwarped clips do in Live).
+  plays at its own speed and pitch.
 
 For the second, three calls keep a playing transport in its bar and keep what
 is sounding sounding:
@@ -312,7 +312,7 @@ Ableton's library and nothing else (`native/host/test/link/LinkPeer.cpp`):
   runs fast, lost and late blocks, a sender that stops and starts), the intake
   and the receiver.
 
-Not checked: Ableton Live itself or any other real Link program, two machines
+Not checked: any Link program other than the library itself, two machines
 on a real network, a real audio output (the tests have none, so the latency a
 browser reports was never compared with sound), and Windows.
 

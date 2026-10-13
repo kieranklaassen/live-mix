@@ -158,8 +158,8 @@ window.addEventListener('keydown', (event) => {
 
 A key is a button: a press toggles an on/off target, fires an action, and
 sets a continuous target to the top of its span (learn it with
-`beginLearn(target, { mode: 'toggle' })` to flip between the two ends, as
-Ableton Live's Key Map does). Keep keys and controllers in two surfaces over
+`beginLearn(target, { mode: 'toggle' })` to flip between the two ends).
+Keep keys and controllers in two surfaces over
 the same resolver when a target should answer to one of each: a table holds
 one source per target.
 

@@ -20,7 +20,7 @@ Plan of record for the shared JS/TS mixing engine (working name `live-mix`): the
 
 ## Goal Capsule
 
-- **Objective:** Build `live-mix` — an Ableton-class mixer, arrangement, and device host for the browser whose every capability an AI agent can drive — as one public npm package, adopt it in ambient-live and then Breathwork Live with no audible change, delete both apps' private engines, then grow strips, automation, devices, a React kit, and the Dream tier (grid, agent API, warping, export, optional native shell) unit by unit.
+- **Objective:** Build `live-mix` — a full mixer, arrangement, and device host for the browser whose every capability an AI agent can drive — as one public npm package, adopt it in ambient-live and then Breathwork Live with no audible change, delete both apps' private engines, then grow strips, automation, devices, a React kit, and the Dream tier (grid, agent API, warping, export, optional native shell) unit by unit.
 - **Product authority:** Kieran Klaassen — sole builder and user. Authority order when texts disagree: Kieran's recorded decisions (KD1, KD7 session-settled) → this Product Contract (R-IDs) → Planning Contract (KTDs) → unit text → implementer judgment → repo conventions of the touched repo.
 - **Execution profile:** One LFG flow per unit: plan-check → implement → review → PR. One PR per unit into the named base branch. The implementer never deploys, never pushes to `feat/breathwork-live` or `main` directly, never edits `tuin`, and never commits a secret (see Hand-off).
 - **Stop conditions:** Stop and report — do not substitute an architecture — when: a settled decision is invalidated by evidence (`settled-decision-invalidated`); the Breathwork Live parity harness cannot pass without changing recorded `AudioParam` behaviour; Vite cannot resolve the worklet or `.wasm` from the dependency in either app after the explicit-URL escape hatch (KTD3); or element output mode regresses on an iPhone.
@@ -57,7 +57,7 @@ Why now: the shared-library decision has been taken, both apps are on the same R
 
 - One engine, many products: the mixer, arrangement, and device host live in the library; only domain logic (breathwork sections, paint gestures) stays in apps.
 - Agent-operable by design: every capability has a tool schema, an intent-level counterpart, safety rails, and an observable state snapshot.
-- Ableton-grade musical vocabulary: tracks, groups, returns, sends, racks, macros, sidechains, automation, modulation, session and arrangement views, warping, bounce.
+- A full musical vocabulary: tracks, groups, returns, sends, racks, macros, sidechains, automation, modulation, a clip grid and an arrangement, warping, bounce.
 - One DSP source, two hosts: kkfonie C++ and Faust devices run in the browser as WASM and natively in JUCE without a rewrite.
 - Deterministic and testable: the same score renders identically live and offline; behaviour is asserted at the AudioParam boundary and in rendered goldens.
 - Browser-first, iPhone-honest: lock-screen playback, memory discipline, no COOP/COEP requirement, graceful degradation on Safari.
@@ -218,14 +218,14 @@ Why now: the shared-library decision has been taken, both apps are on the same R
 
 **Deferred for later (Dream or pulled by a consumer)**
 
-- Session grid, follow actions, and the arrangement UI — no current consumer asks for a grid; ambient-live rejects grid UI for its product (`ambient-live/docs/plans/2026-08-07-001-feat-ableton-workstation-shell-plan.md:39`).
+- Session grid, follow actions, and the arrangement UI — no current consumer asks for a grid; ambient-live rejects grid UI for its product (`ambient-live/docs/plans/2026-08-07-001-feat-workstation-shell-plan.md:39`).
 - Native shell with VST3/AU hosting — optional per consumer (KD7); the browser engine designs for it only through the device and score contracts, and Breathwork Live never adopts it.
 - In-browser lyric transcription and key detection — server analysis exists and is correct; browser analysis is a convenience tier.
 - Collaborative multi-user editing.
 
 **Outside this product's identity**
 
-- A general-purpose DAW competing with Ableton or openDAW; the engine is a foundation for Kieran's products.
+- A general-purpose DAW competing with the established ones; the engine is a foundation for Kieran's products.
 - Piano roll and full MIDI sequencing (ambient-live decided against a piano roll; Lilt and Thesis cover MIDI generation natively).
 - Hosting third-party native plugins in the browser — not possible in any browser.
 - Video, notation, surround and Ambisonics delivery.
@@ -1103,7 +1103,7 @@ Mechanism-level, by area. Tier per KD8. `Covers` links the owning requirement; `
 
 Product-shape approaches: what is built, not how. KTD16 records the outcome.
 
-**Approach A — Ableton-in-a-library.** Build the full DAW-grade engine and UI kit up front: mixer, arrangement, session grid, racks, automation, warping, bounce, React components; apps become thin shells. Pros: maximum reuse; every future product starts from a finished instrument. Cons: the largest surface a solo developer could choose; most of it has no consumer today; carrying cost lands before value. Risks: never finishing; API churn across a huge surface with two live consumers; ambient-live's product identity pulls against the grid. Best when a third product — a real web DAW — is coming soon.
+**Approach A — a whole DAW in a library.** Build the full DAW-grade engine and UI kit up front: mixer, arrangement, session grid, racks, automation, warping, bounce, React components; apps become thin shells. Pros: maximum reuse; every future product starts from a finished instrument. Cons: the largest surface a solo developer could choose; most of it has no consumer today; carrying cost lands before value. Risks: never finishing; API churn across a huge surface with two live consumers; ambient-live's product identity pulls against the grid. Best when a third product — a real web DAW — is coming soon.
 
 **Approach B — Adaptive-music runtime with an agent API (baseline).** A mixing engine whose headline is agent-operable mixing: mixer core, transport, clips, live input, ducking, analysis, every capability exposed as tool operations with rails and a snapshot; timeline, grid, racks, and UI grow only when a consumer pulls. Pros: differentiated; fits both consumers today; bounded surface; Phase 0 already is this. Cons: less "DAW" on day one; the agent API becomes the design centre. Risks: over-fitting to the breathwork coach; under-serving ambient-live's performance needs. Best for a solo developer with two consumers and AI-first products — the current situation.
 

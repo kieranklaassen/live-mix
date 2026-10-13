@@ -256,7 +256,7 @@ export class PushDisplay {
     return this.frames
   }
 
-  /** Opens the device and claims its display. Rejects when another program holds it (Live, say). */
+  /** Opens the device and claims its display. Rejects when another program holds it. */
   async open(): Promise<void> {
     if (this.open_) return
     if (!this.device.opened) await this.device.open()

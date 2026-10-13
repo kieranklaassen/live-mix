@@ -1,6 +1,6 @@
 // live-mix-link-peer: one Ableton Link peer behind a console, for the host's
 // tests. It is Ableton's library and nothing else, so what the host says to a
-// Link session is checked against the implementation Live itself uses.
+// Link session is checked against the reference implementation.
 //
 // Commands, one per line on standard input:
 //

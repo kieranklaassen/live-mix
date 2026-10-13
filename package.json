@@ -1,7 +1,7 @@
 {
   "name": "@kieranklaassen/live-mix",
   "version": "0.1.0",
-  "description": "Ableton-like browser mixing engine: tracks, sends, transport, clip scheduling, live input and WASM devices on raw Web Audio + AudioWorklet.",
+  "description": "Browser mixing engine: tracks, sends, transport, clip scheduling, live input and WASM devices on raw Web Audio + AudioWorklet.",
   "type": "module",
   "license": "MIT",
   "author": "Kieran Klaassen",

@@ -19,7 +19,7 @@ export type ControlTaper = 'linear' | 'log' | 'skewed' | 'fader'
 export type KnownControlUnit = 'ratio' | 'ms' | 's' | 'dB' | 'Hz' | '%' | 'pan' | 'raw' | ''
 export type ControlUnit = KnownControlUnit | (string & {})
 
-/** Full knob sweep in degrees (Ableton-style bottom gap). */
+/** Full knob sweep in degrees (the gap is at the bottom). */
 export const KNOB_SWEEP_DEG = 270
 /** Start angle with 0° at east, clockwise-positive SVG angles. */
 export const KNOB_START_DEG = -225

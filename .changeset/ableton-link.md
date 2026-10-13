@@ -15,4 +15,4 @@ A page cannot be a Link peer (Link is multicast UDP), so the host a desktop shel
 - `FakePluginHost` in `./testing` answers the Link messages, with `host.link` (`FakeLinkSession`) to move the session by hand.
 - `buildPluginHost({ link, linkDir })` and `pluginHostLinkPeerPath` in `./native/shell`.
 
-Checked on Linux and macOS against a second peer that is Ableton's library (in the host's own tests and, on Linux, in Chromium with a real `AudioContext`); not against Ableton Live or over a real network. A host built with Link is covered by Link's GPL. See `docs/link.md`.
+Checked on Linux and macOS against a second peer that is Ableton's library (in the host's own tests and, on Linux, in Chromium with a real `AudioContext`); not against another Link program or over a real network. A host built with Link is covered by Link's GPL. See `docs/link.md`.
