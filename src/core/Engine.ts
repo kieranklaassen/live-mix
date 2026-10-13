@@ -101,6 +101,13 @@ export interface EngineOptions extends ClockOptions {
    * it. Default false: every track convolves for itself.
    */
   sharedSpace?: boolean
+  /**
+   * Every audio track joins clips of one sound that lie end to end, so a
+   * clip cut in two sounds as it did whole (`AudioTrackOptions.joinClips`;
+   * `addAudioTrack` can say otherwise for one track). Default false: clips
+   * are let in and out each by itself.
+   */
+  joinClips?: boolean
 }
 
 export type AddElementTrackOptions = Omit<
@@ -271,6 +278,7 @@ export class Engine {
   private spaceValue: Required<SpaceOptions>
   private spaceBuffer: AudioBuffer | null = null
   private readonly sharedSpaces: SharedSpaces | null
+  private readonly joinClips: boolean
   private disposed = false
 
   constructor(options: EngineOptions) {
@@ -303,6 +311,7 @@ export class Engine {
     this.modulation = this.automation.modulation
     this.retainSamples = options.retainSamples ?? true
     this.stats = new EngineStats(options.context, options.stats)
+    this.joinClips = options.joinClips ?? false
     this.sharedSpaces = options.sharedSpace
       ? new SharedSpaces(options.context, {
           settings: () => ({ impulse: this.spaceImpulse(), ...this.spaceColour() }),
@@ -393,6 +402,7 @@ export class Engine {
     const track = new AudioTrack(this.context, {
       spaceImpulse: () => this.spaceImpulse(),
       spaceColour: () => this.spaceColour(),
+      joinClips: this.joinClips,
       ...options,
       sharedSpaces: this.sharedSpaces ?? undefined,
       name,

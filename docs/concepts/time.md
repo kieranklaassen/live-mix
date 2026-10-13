@@ -174,6 +174,24 @@ and hands each one to the graph exactly once, keyed by
   the loop comes round, is unbroken, and anything else is a 5 ms crossfade. A
   sound that starts on its attack and dies away is played exactly as it was
   made, and equal-power clips keep the envelope they were given.
+- **A clip cut in two can sound as it did whole.** By itself each clip is
+  let in and out as above, so two clips of one sound that lie end to end,
+  the second playing on from where the first stops, are not what one clip
+  over both would play: the first tails for 5 ms under a second that enters
+  at full level. An `Engine` made with `joinClips: true` (or an `AudioTrack`
+  with it, which `addAudioTrack` can also say for one track) joins such
+  clips. The second comes up under the first one's tail, on the frames the
+  tail reads. A first that ends with its sound, followed by a clip that
+  enters the sound where it comes round (the rest of a repeat, then the
+  repeats after it), tails on the frames that clip comes up on, or is left
+  square where that clip enters square. The two then sum to the sound
+  unbroken. Clips are joined when they are of one source on that pass
+  (`turns`), play the same way round, have linear fades and none of their
+  own at the join, touch on the timeline to within a microsecond, and both
+  sound on the pass (not muted, not sat out by `chance`). A clip entered
+  partway by the transport keeps the ease it has. Whoever plays voices by
+  hand names the clips beside one (`follows`, `followedBy` on `play`). It is
+  off by default: what a host's clips played before, they play.
 - **Stop, pause and a seek do not click.** They silence every track at once,
   and a clip cut where its wave stands is a step. An `AudioTrack` voice that
   is sounding falls silent over 5 ms from the level it has (`stop(key)` and

@@ -214,6 +214,7 @@ export {
   trimGain,
   type AudioTrackOptions,
   type ClipVoice,
+  type ClipNeighbour,
   type ClipVoiceOptions,
   type VoicePlace,
   type VoicePlacement,
