@@ -3736,9 +3736,11 @@ describe('AudioTrack that joins its clips', () => {
   it('gives a first clip made again its tail again, where the second has come up under it', async () => {
     const { ctx, samples, track, transport, scheduler, events, source } = joining(0.2)
     await samples.load('s', offZero(ctx))
-    track.clips.set(endThenTop)
+    // Another clip ends at the cut too, with a tail from another place in the sound: not the one the second comes up under.
+    const other = piece('other', 0.5, { offsetSec: 0, durationSec: 3.5 })
+    track.clips.set([other, ...endThenTop])
     transport.start()
-    for (const now of [0.9, 3.85]) {
+    for (const now of [0.4, 0.9, 3.85]) {
       ctx.currentTime = now
       scheduler.tick()
     }
@@ -3790,6 +3792,30 @@ describe('AudioTrack that joins its clips', () => {
     ctx.currentTime = 1.71
     scheduler.rejoin(['upper'])
     expect(events('upper:0:1.000')?.slice(-2)).toEqual(leaves)
+    scheduler.dispose()
+  })
+
+  it('does not hand a clip on to a second that came up under another clip', async () => {
+    const { ctx, samples, track, transport, scheduler, events, source } = joining(0.2)
+    await samples.load('s', offZero(ctx))
+    // Two clips end where the last starts: one is cut there and reads on, the other ends with the sound.
+    const cut = piece('cut', 1, { offsetSec: 1, durationSec: 2 })
+    const end = piece('end', 1, { offsetSec: 2, durationSec: 2 })
+    const last = piece('last', 3, { offsetSec: 3, durationSec: 1 })
+    track.clips.set([cut, { ...end, muted: true }, last])
+    transport.start()
+    for (const now of [0.9, 2.85]) {
+      ctx.currentTime = now
+      scheduler.tick()
+    }
+    // The last came up under the tail of the clip that is cut.
+    expect(events('last:0:3.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 0])
+    // The other is unmuted a tenth of a second before the cut and enters partway: it is let go as
+    // it is by itself, round onto where it entered, and puts no second tail on the frames the last plays.
+    ctx.currentTime = 2.9
+    track.clips.set([cut, end, last])
+    scheduler.rejoin(['end'])
+    expect(source('end:0:1.000')?.loopStart).toBe(2)
     scheduler.dispose()
   })
 

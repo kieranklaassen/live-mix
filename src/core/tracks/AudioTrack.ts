@@ -285,12 +285,14 @@ interface VoiceTiming {
   tailSec: number
   /** Where in its buffer that tail reads on from. */
   tailFromSec: number
-  /** It came up under the tail of the voice before it (`SoundingTail`), not by itself. */
-  cameUpUnder: boolean
+  /** The clip under whose tail it came up (`SoundingTail`); undefined where it entered by itself. */
+  cameUpUnder: string | undefined
 }
 
 /** The tail of a voice that is sounding, for the voice that starts where its clip ends to come up under. */
 interface SoundingTail {
+  /** The clip whose voice has it. */
+  clipId: string
   /** Seconds of the clock it lasts. */
   sec: number
   /** Where in the buffer it reads on from. */
@@ -1153,8 +1155,8 @@ export class AudioTrack implements StripHost {
    * under, and this voice then enters as it would by itself.
    *
    * The one after is named while it has no voice yet, or has one that came up
-   * under a tail: this clip's voice is then being made again (`rejoin`, a new
-   * seed) and is to have that tail again. A clip entered partway whose next
+   * under this clip's tail: this clip's voice is then being made again
+   * (`rejoin`, a new seed) and is to have that tail again. A clip entered partway whose next
    * was handed over ahead of it finds that voice made without it, at full
    * level, and is let go as it is by itself. Otherwise the next is taken at
    * its word: it may yet be moved or muted, and this clip's way out is one
@@ -1186,7 +1188,7 @@ export class AudioTrack implements StripHost {
         if (tail) under.push(tail)
       } else {
         const next = this.voiceOf(other.id, (voice) => samePlace(voice.startTime, endsAt))
-        if (!next || this.timings.get(next)?.cameUpUnder) followedBy = other
+        if (!next || this.timings.get(next)?.cameUpUnder === clip.id) followedBy = other
       }
     }
     return { followedBy, under }
@@ -1211,7 +1213,7 @@ export class AudioTrack implements StripHost {
     const voice = this.voiceOf(clipId, (each) => samePlace(each.endTime, when))
     const timing = voice && this.timings.get(voice)
     if (!timing || !(timing.tailSec > 0)) return undefined
-    return { sec: timing.tailSec, fromSec: timing.tailFromSec }
+    return { clipId, sec: timing.tailSec, fromSec: timing.tailFromSec }
   }
 
   /** Whether chance has `clip` sound on the pass this start is on. */
@@ -1452,7 +1454,7 @@ export class AudioTrack implements StripHost {
       stoppedAtEnd: playback.loop === true || tailSec > 0,
       tailSec,
       tailFromSec: release.kind === 'tail' ? release.ontoSec : 0,
-      cameUpUnder: under !== undefined && playback.easeInSec === undefined && takingOverSec > 0,
+      cameUpUnder: playback.easeInSec === undefined ? under?.clipId : undefined,
     })
     source.onended = () => this.forget(voice)
     if (playback.loop) {
