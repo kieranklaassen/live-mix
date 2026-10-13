@@ -10,9 +10,11 @@ import {
   hitPositions,
   levelsBarsPath,
   levelsOutlinePath,
+  passPhase,
   repeatSeams,
   STROKE_INSET_PX,
   strokeLevels,
+  strokeRepeats,
 } from '../components/stroke-math'
 
 /** A ramp: silent at the start, full scale at the end. */
@@ -90,6 +92,32 @@ describe('strokeLevels', () => {
     expect(levels[190][1]).toBeCloseTo(levels[90][1], 0)
   })
 
+  it('begins partway into a pass where it is given a phase, and comes round to the top from there', () => {
+    const options = { width: 400, height: 40, peaks: rampPeaks(), repeats: 2 }
+    const whole = strokeLevels(options)
+    const cut = strokeLevels({ ...options, phase: 0.25 })
+    // A quarter of a pass is 50 px, 25 columns: the stroke starts where the whole one is by then.
+    expect(cut[20][1]).toBeCloseTo(whole[45][1], 5)
+    expect(cut[60][1]).toBeCloseTo(whole[85][1], 5)
+    // It comes to the top of the sound after 150 px: column 70 is late in the pass, column 80 early in the next.
+    expect(cut[70][1]).toBeGreaterThan(cut[80][1])
+    // Reversed it reads the pass from its far end, from as far into it.
+    const backward = strokeLevels({ ...options, reversed: true })
+    const cutBackward = strokeLevels({ ...options, reversed: true, phase: 0.25 })
+    expect(cutBackward[60][1]).toBeCloseTo(backward[85][1], 5)
+  })
+
+  it('draws a stroke with no phase, or one that is no fraction of a pass, as it always did', () => {
+    const options = { width: 400, height: 40, peaks: rampPeaks(), repeats: 2.5, fadeIn: 0.1 }
+    const plain = strokeLevels(options)
+    for (const phase of [0, -0.2, 1, 1.5, Number.NaN]) {
+      expect(strokeLevels({ ...options, phase })).toEqual(plain)
+      expect(passPhase(phase)).toBe(0)
+    }
+    expect(passPhase(undefined)).toBe(0)
+    expect(passPhase(0.4)).toBe(0.4)
+  })
+
   it('applies fades and gain to what it draws', () => {
     const base = { width: 400, height: 40, peaks: flatPeaks() }
     const faded = strokeLevels({ ...base, fadeIn: 0.5 })
@@ -134,12 +162,36 @@ describe('repeats, hits and automation', () => {
     expect(repeatSeams(2, 200)).toEqual([100])
   })
 
+  it('puts the seams of a stroke that begins partway into a pass where its sound comes round', () => {
+    // Three passes of 100 px, begun a quarter in: the top of the sound is 75 px on, and every 100 after.
+    expect(repeatSeams(3, 300, 0.25)).toEqual([75, 175, 275])
+    // Shorter than a pass, and still across the top of the sound once.
+    expect(repeatSeams(0.8, 80, 0.5)).toEqual([50])
+    expect(strokeRepeats(0.8, 0.5)).toBe(true)
+    // Not as far as the top: no seam.
+    expect(repeatSeams(0.4, 40, 0.5)).toEqual([])
+    expect(strokeRepeats(0.4, 0.5)).toBe(false)
+    expect(strokeRepeats(1)).toBe(false)
+    expect(strokeRepeats(1.2)).toBe(true)
+    // No phase: as before.
+    expect(repeatSeams(3, 300, 0)).toEqual(repeatSeams(3, 300))
+  })
+
   it('repeats the hits of one pass across every pass', () => {
     expect(hitPositions([0, 0.5], 1, 200)).toEqual([0, 100])
     expect(hitPositions([0, 0.5], 2, 200)).toEqual([0, 50, 100, 150])
     // The partial last pass keeps only the hits that fit.
     expect(hitPositions([0, 0.5], 1.25, 250)).toEqual([0, 100, 200])
     expect(hitPositions([0.25], 1, 200, true)).toEqual([150])
+  })
+
+  it('moves the hits of a stroke that begins partway into a pass back by as much', () => {
+    // Two passes of 100 px begun a quarter in: the hit at the top is first seen at 75 px.
+    expect(hitPositions([0, 0.5], 2, 200, false, 0.25)).toEqual([25, 75, 125, 175])
+    // The part of a third pass it reaches has its hits too.
+    expect(hitPositions([0.1], 2, 200, false, 0.5)).toEqual([60, 160])
+    expect(hitPositions([0.25], 1, 200, true, 0.5)).toEqual([50])
+    expect(hitPositions([0, 0.5], 2, 200, false, 0)).toEqual(hitPositions([0, 0.5], 2, 200))
   })
 
   it('maps automation breakpoints into the stroke, high values at the top', () => {
