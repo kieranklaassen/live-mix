@@ -6,7 +6,7 @@ import { useCallback, useMemo } from 'react'
 import { type TransportLoop, type TransportPosition } from '../../core/transport/anchor'
 import { type Transport, type TransportState } from '../../core/transport/Transport'
 import { frameIntervalMs, useFrameSampled } from '../frame'
-import { useExternalSnapshot } from '../store'
+import { shallowEqual, useExternalSnapshot } from '../store'
 import { useEnginePart, useFrameScheduler } from './useEngine'
 
 export interface UseTransportOptions {
@@ -69,6 +69,17 @@ function countedPosition(transport: Transport): CountedPosition {
 }
 
 /**
+ * While it plays the position is the clock's, and the playhead is sampled on
+ * frames: two readings a moment apart are one snapshot. Told apart, every
+ * render would find the store changed and ask for another, with no end where
+ * a render takes longer than the clock's step.
+ */
+function sameState(previous: TransportStateSnapshot, next: TransportStateSnapshot): boolean {
+  if (previous.state !== 'playing' || next.state !== 'playing') return shallowEqual(previous, next)
+  return shallowEqual({ ...previous, positionSec: 0 }, { ...next, positionSec: 0 })
+}
+
+/**
  * Transport state, playhead and controls. Defaults to the provided engine's
  * transport; pass one explicitly to bind another.
  */
@@ -95,7 +106,7 @@ export function useTransport(
       finished: position.finished,
     }
   }, [target])
-  const snapshot = useExternalSnapshot(subscribe, read)
+  const snapshot = useExternalSnapshot(subscribe, read, sameState)
 
   const playing = snapshot.state === 'playing'
   const samplePosition = useCallback((): CountedPosition => countedPosition(target), [target])

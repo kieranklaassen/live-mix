@@ -76,6 +76,28 @@ describe('useTransport', () => {
     expect(result.current.positionSec).toBeCloseTo(1)
   })
 
+  it('settles while playing on a clock that moves between two readings', () => {
+    const { engine, ctx, frames, wrapper } = createTestEngine()
+    // A real context's clock: later at every reading, also within one render.
+    let now = 0
+    Object.defineProperty(ctx, 'currentTime', { get: () => (now += 0.003) })
+    const { result } = renderHook(() => useTransport(), { wrapper })
+
+    act(() => engine.transport.start())
+    expect(result.current.playing).toBe(true)
+    // Another change while it plays (a scene launch, a loop) is one more render, not an endless one.
+    act(() => engine.transport.setLoop({ enabled: true, lengthSec: 8 }))
+    expect(result.current.loop).toEqual({ enabled: true, lengthSec: 8 })
+
+    // The playhead still follows the clock on frames, and rests where a pause leaves it.
+    act(() => frames.flush(0))
+    const playing = result.current.positionSec
+    expect(playing).toBeGreaterThan(0)
+    act(() => engine.transport.pause())
+    expect(result.current.paused).toBe(true)
+    expect(result.current.positionSec).toBeGreaterThan(playing)
+  })
+
   it('counts the passes of the loop through a pause and a seek, where `iteration` starts anew', () => {
     const { engine, ctx, frames, wrapper } = createTestEngine()
     const { result } = renderHook(() => useTransport(), { wrapper })
