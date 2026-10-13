@@ -18,7 +18,9 @@ import {
   fadeGainAt,
   fadePaths,
   hitPositions,
+  passPhase,
   repeatSeams,
+  strokeRepeats,
   strokeWavePaths,
 } from './stroke-math'
 import { BRUSH_COUNT, cx } from './tokens'
@@ -42,6 +44,12 @@ export interface StrokeProps extends Omit<HTMLAttributes<HTMLDivElement>, 'color
   peaks?: WaveformPeaks | null
   /** Passes of the source across the stroke; above 1 the sound repeats. */
   repeats?: number
+  /**
+   * How far into a pass the stroke begins, as a fraction of one (0 up to 1):
+   * a stroke cut from a longer one inside a repeat. The wave, the hits and
+   * the seams are drawn from there. Default 0, the top of the pass.
+   */
+  phase?: number
   /** Fade lengths as fractions of the width. */
   fadeIn?: number
   fadeOut?: number
@@ -73,6 +81,7 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
     kind,
     peaks = null,
     repeats = 1,
+    phase = 0,
     fadeIn = 0,
     fadeOut = 0,
     crossfade = false,
@@ -90,19 +99,23 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
   ref,
 ) {
   const mid = height / 2
-  const looping = repeats > 1 + 1e-6
+  const looping = strokeRepeats(repeats, phase)
   // Transients stay sharp on anything with hits; sustained sounds are smoothed.
   const window = hits && hits.length > 0 ? 0 : 2
 
   const paths = useMemo(
     () =>
-      strokeWavePaths({ width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed }, window),
-    [width, height, peaks, repeats, fadeIn, fadeOut, gain, reversed, window],
+      strokeWavePaths(
+        { width, height, peaks, repeats, phase, fadeIn, fadeOut, gain, reversed },
+        window,
+      ),
+    [width, height, peaks, repeats, phase, fadeIn, fadeOut, gain, reversed, window],
   )
 
-  const seams = looping ? repeatSeams(repeats, width) : []
-  const firstPass = width / Math.max(repeats, 1)
-  const hitXs = hits ? hitPositions(hits, repeats, width, reversed) : []
+  const seams = looping ? repeatSeams(repeats, width, phase) : []
+  // What is left of the first pass: all of it for a stroke that begins at the top.
+  const firstPass = looping ? ((1 - passPhase(phase)) * width) / repeats : width
+  const hitXs = hits ? hitPositions(hits, repeats, width, reversed, phase) : []
   const fadeInPaths = fadeIn > 0 ? fadePaths(fadeIn, width, height) : null
   const fadeOutPaths = fadeOut > 0 ? fadePaths(fadeOut, width, height, true) : null
   const nodes = automation ? automationPositions(automation.points, width, height) : []

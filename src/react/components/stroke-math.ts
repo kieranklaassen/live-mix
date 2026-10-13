@@ -21,6 +21,12 @@ export interface StrokeLevelsOptions {
   peaks?: WaveformPeaks | null
   /** Passes of the source across the stroke (1 = once; 2.5 = two and a half). */
   repeats?: number
+  /**
+   * How far into a pass the stroke begins, as a fraction of one (0 up to 1):
+   * a stroke cut from a longer one, which goes on from where the cut fell and
+   * comes round to the top of the pass after it. Default 0, the top.
+   */
+  phase?: number
   /** Fade lengths as fractions of the width. */
   fadeIn?: number
   fadeOut?: number
@@ -92,6 +98,7 @@ function columnAmps({
   height,
   peaks,
   repeats = 1,
+  phase = 0,
   fadeIn = 0,
   fadeOut = 0,
   gain = 1,
@@ -112,6 +119,7 @@ function columnAmps({
     if (loudest <= 0) loudest = 1
   }
   const passes = Math.max(repeats, 1e-6)
+  const into = passPhase(phase)
   const source = peaks && count > 0 ? peaks : null
   // Between the round ends nothing is taken off the room, and without a fade the gain is 1.
   const straight = Math.max(0, room - 0)
@@ -124,8 +132,8 @@ function columnAmps({
     const t = x / width
     let value = 0
     if (source) {
-      // Below one pass the remainder is the number itself.
-      const along = t * passes
+      // Below one pass the remainder is the number itself. (A stroke that begins at the top adds nothing.)
+      const along = into > 0 ? t * passes + into : t * passes
       let position = along < 1 ? along : along % 1
       if (reversed) position = 1 - position
       const index = Math.min(count - 1, Math.max(0, Math.floor(position * count)))
@@ -387,8 +395,28 @@ export function automationPositions(
   })
 }
 
-/** Where each repeat after the first starts, in px. */
-export function repeatSeams(repeats: number, width: number): number[] {
+/** A stroke's `phase` as a fraction of a pass, 0 up to 1; anything else is the top. */
+export function passPhase(phase: number | undefined): number {
+  return phase !== undefined && phase > 0 && phase < 1 ? phase : 0
+}
+
+/** Whether a stroke comes round to the top of its sound: it is longer than what is left of its first pass. */
+export function strokeRepeats(repeats: number, phase = 0): boolean {
+  return repeats + passPhase(phase) > 1 + 1e-6
+}
+
+/** Where each repeat after the first starts, in px. A stroke that begins `phase` into a pass comes to them that much sooner. */
+export function repeatSeams(repeats: number, width: number, phase = 0): number[] {
+  const into = passPhase(phase)
+  if (into > 0) {
+    if (!strokeRepeats(repeats, into)) return []
+    const pass = width / repeats
+    const seams: number[] = []
+    for (let index = 1; (index - into) * pass < width - 0.5; index += 1) {
+      seams.push(Math.round((index - into) * pass))
+    }
+    return seams
+  }
   if (!(repeats > 1)) return []
   const pass = width / repeats
   const seams: number[] = []
@@ -396,19 +424,22 @@ export function repeatSeams(repeats: number, width: number): number[] {
   return seams
 }
 
-/** Px positions of the hits of every pass; `hits` are fractions of one pass. */
+/** Px positions of the hits of every pass; `hits` are fractions of one pass, and `phase` how far into one the stroke begins. */
 export function hitPositions(
   hits: readonly number[],
   repeats: number,
   width: number,
   reversed = false,
+  phase = 0,
 ): number[] {
   const passes = Math.max(repeats, 1e-6)
   const pass = width / passes
+  const into = passPhase(phase)
   const positions: number[] = []
-  for (let index = 0; index < Math.ceil(passes - 1e-6); index += 1) {
+  for (let index = 0; index < Math.ceil(passes + into - 1e-6); index += 1) {
     for (const hit of hits) {
-      const x = Math.round((index + (reversed ? 1 - hit : hit)) * pass)
+      const at = index + (reversed ? 1 - hit : hit)
+      const x = Math.round((into > 0 ? at - into : at) * pass)
       if (x >= 0 && x <= width) positions.push(x)
     }
   }

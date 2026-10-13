@@ -63,6 +63,35 @@ describe('Stroke', () => {
     expect(stroke.querySelector('.lm-sound-icon--loop')).not.toBeNull()
   })
 
+  it('shows a stroke that begins partway into a pass: the first seam comes that much sooner', () => {
+    render(
+      <Stroke
+        width={300}
+        height={40}
+        name="Bells"
+        repeats={3}
+        phase={0.25}
+        hits={[0]}
+        data-testid="s"
+      />,
+    )
+    const stroke = screen.getByTestId('s')
+    const dim = stroke.querySelector('.lm-stroke__repeat')
+    // What is left of the first pass is 75 px; the passes after it sit back.
+    expect(dim).toHaveAttribute('x', '75')
+    expect(dim).toHaveAttribute('width', '225')
+    expect(stroke.querySelectorAll('.lm-stroke__seam')).toHaveLength(3)
+    expect(stroke.querySelectorAll('.lm-stroke__hit')).toHaveLength(3)
+    expect(stroke.querySelector('.lm-stroke__tag')).toHaveTextContent('Bells×3')
+  })
+
+  it('shows the seam of a stroke shorter than its sound that begins late enough to come round', () => {
+    render(<Stroke width={80} height={40} repeats={0.8} phase={0.5} data-testid="s" />)
+    const stroke = screen.getByTestId('s')
+    expect(stroke.querySelectorAll('.lm-stroke__seam')).toHaveLength(1)
+    expect(stroke.querySelector('.lm-stroke__repeat')).toHaveAttribute('x', '50')
+  })
+
   it('leaves no seam behind when a short sound repeated many times is drawn at another width', () => {
     // Three passes to a px: several seams fall on the same px.
     const view = render(
