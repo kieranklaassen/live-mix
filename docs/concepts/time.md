@@ -182,16 +182,25 @@ and hands each one to the graph exactly once, keyed by
   with it, which `addAudioTrack` can also say for one track) joins such
   clips. The second comes up under the first one's tail, on the frames the
   tail reads. A first that ends with its sound, followed by a clip that
-  enters the sound where it comes round (the rest of a repeat, then the
-  repeats after it), tails on the frames that clip comes up on, or is left
-  square where that clip enters square. The two then sum to the sound
-  unbroken. Clips are joined when they are of one source on that pass
-  (`turns`), play the same way round, have linear fades and none of their
-  own at the join, touch on the timeline to within a microsecond, and both
-  sound on the pass (not muted, not sat out by `chance`). A clip entered
-  partway by the transport keeps the ease it has. Whoever plays voices by
-  hand names the clips beside one (`follows`, `followedBy` on `play`). It is
-  off by default: what a host's clips played before, they play.
+  enters the sound where it comes round (the rest of a repeat that runs to
+  the end of the source, then the repeats after it), tails on the frames
+  that clip enters on, and that clip comes up under it. The two then sum to
+  the sound unbroken. A first clip is left square only where its sound ends
+  at rest and the next enters square: never on the strength of the clip
+  after it alone, which may yet be muted or moved. Clips are joined when
+  they are of one source on that pass (`turns`), play the same way round,
+  have linear fades and none of their own at the join, touch on the timeline
+  to within a microsecond, and neither is muted or sat out of the pass by
+  `chance`. The second comes up only while the first is sounding to its end:
+  where play starts at the cut, or the first was stopped, it enters as it
+  would by itself. They need not be at one level or in one place: the 5 ms
+  are then a crossfade from the one to the other. A clip entered partway by
+  the transport keeps the ease it has. Whoever plays voices by hand names
+  the clips beside one (`follows`, `followedBy` on `play`). Not exact: a cut
+  between two frames of the audio leaves the second clip a part of a frame
+  from where the whole clip had it, as any clip that starts there is; and a
+  piece shorter than the 5 ms is nearer the whole clip than it was, not the
+  same. It is off by default: what a host's clips played before, they play.
 - **Stop, pause and a seek do not click.** They silence every track at once,
   and a clip cut where its wave stands is a step. An `AudioTrack` voice that
   is sounding falls silent over 5 ms from the level it has (`stop(key)` and

@@ -301,6 +301,8 @@ describe('Engine joinClips', () => {
   it('a track can say otherwise for itself', async () => {
     expect(await secondComesUp({ joinClips: true }, { joinClips: false })).toBe(false)
     expect(await secondComesUp({}, { joinClips: true })).toBe(true)
+    // A track that says nothing of it, in so many words, is as the engine is.
+    expect(await secondComesUp({ joinClips: true }, { joinClips: undefined })).toBe(true)
   })
 })
 

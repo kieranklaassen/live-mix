@@ -402,8 +402,9 @@ export class Engine {
     const track = new AudioTrack(this.context, {
       spaceImpulse: () => this.spaceImpulse(),
       spaceColour: () => this.spaceColour(),
-      joinClips: this.joinClips,
       ...options,
+      // A track that says nothing of it, or `undefined`, joins as the engine does.
+      joinClips: options.joinClips ?? this.joinClips,
       sharedSpaces: this.sharedSpaces ?? undefined,
       name,
       destination: options.destination ?? this.master,

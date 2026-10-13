@@ -573,7 +573,7 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
         expect(ctx.gains[2].gain.events).toEqual([{ method: 'setValueAtTime', args: [1, 19] }])
       })
 
-      it('a clip that ends with its sound is left square where the next enters square and the two are no step', () => {
+      it('a clip that ends with its sound off zero tails onto where the next enters, and the next comes up under it', () => {
         const { ctx, track } = setup()
         // A sound that stands off zero all the way round, and moves fast where it starts.
         const buf = wave(
@@ -587,14 +587,68 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
         track.play('alone', { buffer: buf, ...end }, 3)
         expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(6)])
         expect(ctx.sources[0].loopStart).toBe(1)
-        // Joined to a clip that enters on the top of the sound at full level, it stops where it ends.
+        // Joined to a clip that enters on the top of the sound, it tails there. It is never left square on
+        // the strength of the clip after it: that clip may yet be muted or moved, and an end off zero is a step.
         track.play('joined', { buffer: buf, ...end, followedBy: top }, 3)
-        expect(ctx.gains[2].gain.events).toEqual(comeUp)
-        expect(ctx.sources[1].loop).toBe(false)
-        expect(ctx.sources[1].startCalls.calls).toEqual([[3, 1, 3]])
+        expect(ctx.gains[2].gain.events).toEqual([...comeUp, ...tail(6)])
+        const source = ctx.sources[1]
+        expect([source.loop, source.loopStart, source.loopEnd]).toEqual([true, 0, 4])
+        expect(source.startCalls.calls).toEqual([[3, 1]])
+        expect(source.stopCalls.calls).toEqual([[6 + E]])
+        // By itself the next clip enters at full level; joined, it comes up under that tail.
+        track.play('top-alone', { buffer: buf, ...top }, 6)
+        expect(ctx.gains[3].gain.events.slice(0, 1)).toEqual([
+          { method: 'setValueAtTime', args: [1, 6] },
+        ])
+        track.play('top', { buffer: buf, ...top, follows: end }, 6)
+        expect(ctx.gains[4].gain.events.slice(0, 3)).toEqual(comeUpAt(6))
         // A next clip with a fade-in of its own comes from silence: nothing changes for this one.
         track.play('faded', { buffer: buf, ...end, followedBy: { ...top, fadeInSec: 1 } }, 3)
-        expect(ctx.gains[3].gain.events).toEqual([...comeUp, ...tail(6)])
+        expect(ctx.gains[5].gain.events).toEqual([...comeUp, ...tail(6)])
+        expect(ctx.sources[4].loopStart).toBe(1)
+      })
+
+      it('only a clip that plays its sound out once is handed on to another place in it', () => {
+        const { ctx, track } = setup()
+        // Off zero all the way round, and moving fast where it starts: no step to enter on at the top.
+        const buf = wave(
+          ctx,
+          4,
+          (sec) => 0.3 + (sec < 0.1 ? 0.2 * Math.sin(2 * Math.PI * 8000 * sec) : 0),
+        )
+        const top = { offsetSec: 0, durationSec: 2, ...bare }
+        // A clip that loops, once round its region: its tail reads on from the region's start, whatever
+        // follows it, so a clip that enters at the top has no tail of its frames to come up under.
+        const round = { offsetSec: 1, loop: true, loopStartSec: 1, durationSec: 3, ...bare }
+        track.play('alone', { buffer: buf, ...round }, 3)
+        track.play('round', { buffer: buf, ...round, followedBy: top }, 3)
+        expect(ctx.gains[2].gain.events).toEqual(ctx.gains[1].gain.events)
+        track.play('top', { buffer: buf, ...top, follows: round }, 6)
+        expect(ctx.gains[3].gain.events.slice(0, 1)).toEqual([
+          { method: 'setValueAtTime', args: [1, 6] },
+        ])
+        // A clip followed by one that enters where it entered itself is as it is by itself too.
+        const whole = { offsetSec: 0, durationSec: 4, ...bare }
+        track.play('whole-alone', { buffer: buf, ...whole }, 3)
+        track.play('whole', { buffer: buf, ...whole, followedBy: top }, 3)
+        expect(ctx.gains[5].gain.events).toEqual(ctx.gains[4].gain.events)
+        expect(ctx.sources[4].loop).toBe(ctx.sources[3].loop)
+        expect(ctx.sources[4].startCalls.calls).toEqual(ctx.sources[3].startCalls.calls)
+      })
+
+      it('comes up over as much tail as the buffer leaves the one before, on the clock at any rate', () => {
+        const { ctx, track } = setup()
+        track.setRate(2)
+        const buf = looped(ctx, 10)
+        // Cut 2 ms short of the end of the buffer: at twice the speed that is a millisecond of tail.
+        const nearEnd = { offsetSec: 0, durationSec: 9.998, ...bare }
+        // The clip after it is longer than what is left of the sound, so its own length does not shorten the come-up.
+        const last = { offsetSec: 9.998, durationSec: 1, ...bare }
+        const at = 3 + 9.998 / 2
+        track.play('near-end', { buffer: buf, ...nearEnd, followedBy: last }, 3)
+        track.play('last', { buffer: buf, ...last, follows: nearEnd }, at)
+        expect(nine(ctx.gains[1].gain.events.slice(-2))).toEqual(nine(tail(at, 0.001)))
+        expect(nine(ctx.gains[2].gain.events.slice(0, 3))).toEqual(nine(comeUpAt(at, 0.001)))
       })
 
       it('reversed clips are joined on the mirrored sound', () => {
@@ -613,6 +667,24 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
         expect(nine([{ method: 'start', args: ctx.sources[1].startCalls.calls[0] }])).toEqual([
           ['start', Number(at.toFixed(9)), Number((10 - CUT).toFixed(9))],
         ])
+      })
+
+      it('reversed clips are joined where the length of the mirrored slice comes out a hair short of the clip', () => {
+        const { ctx, track } = setup()
+        const buf = looped(ctx, 4)
+        const back = { reversed: true, ...bare }
+        // (offset + length) - offset is one step of a double under this length: by itself the slice
+        // reads as a sound that runs out before its clip does, which has no tail.
+        const upper = { offsetSec: 3.0637916666666665, durationSec: 0.8102083333333333, ...back }
+        expect(upper.offsetSec + upper.durationSec - upper.offsetSec).toBeLessThan(
+          upper.durationSec,
+        )
+        const lower = { offsetSec: 2, durationSec: upper.offsetSec - 2, ...back }
+        const at = 3 + upper.durationSec
+        track.play('upper', { buffer: buf, ...upper, followedBy: lower }, 3)
+        track.play('lower', { buffer: buf, ...lower, follows: upper }, at)
+        expect(nine(ctx.gains[1].gain.events.slice(-2))).toEqual(nine(tail(at)))
+        expect(nine(ctx.gains[2].gain.events.slice(0, 3))).toEqual(nine(comeUpAt(at)))
       })
 
       it('the two are mirrors at any rate', () => {
@@ -3323,7 +3395,10 @@ describe('AudioTrack that joins its clips', () => {
   }
 
   /** Schedules `clips` on a track and returns what the voice of each was told, in the order of `clips`. */
-  async function played(clips: Clip[], options: { joinClips?: boolean; seed?: number } = {}) {
+  async function played(
+    clips: Clip[],
+    options: { joinClips?: boolean; seed?: number; fromSec?: number } = {},
+  ) {
     const { ctx, samples, track } = setup({ lookaheadSec: 30, joinClips: options.joinClips })
     const transport = new Transport({ now: () => ctx.currentTime })
     const scheduler = new Scheduler({ transport, tickMs: 40, seed: options.seed })
@@ -3331,6 +3406,7 @@ describe('AudioTrack that joins its clips', () => {
     await samples.load('s', looped(ctx, 10))
     await samples.load('other', looped(ctx, 10))
     track.clips.set(clips)
+    if (options.fromSec !== undefined) transport.seek(options.fromSec)
     transport.start()
     scheduler.tick()
     const voices = clips.map((clip) => {
@@ -3402,6 +3478,39 @@ describe('AudioTrack that joins its clips', () => {
     ;({ voices } = await played(cutInTwo({ chance: 0 }), options))
     expect(voices[0]).toBeNull()
     expect(voices[1]?.slice(0, 1)).toEqual(square)
+  })
+
+  it('joins the pieces in whatever order the track holds them', async () => {
+    const [a, b] = cutInTwo()
+    const { voices } = await played([b, a], { joinClips: true })
+    expect(voices[0]?.slice(0, 3)).toEqual(comeUp)
+    expect(voices[1]?.slice(-2)).toEqual(tail)
+  })
+
+  it('does not bring a piece up from silence where the one before it is not sounding: play started at the cut', async () => {
+    const { voices } = await played(cutInTwo(), { joinClips: true, fromSec: at })
+    expect(voices[0]).toBeNull()
+    // As it enters by itself: at full level, with nothing to come up under.
+    expect(voices[1]?.[0].slice(0, 2)).toEqual(['setValueAtTime', 1])
+  })
+
+  it('does not bring a piece up under a clip that was stopped before its end', async () => {
+    const { ctx, samples, track } = setup({ lookaheadSec: 2, joinClips: true })
+    const transport = new Transport({ now: () => ctx.currentTime })
+    const scheduler = new Scheduler({ transport, tickMs: 40 })
+    track.attach(scheduler)
+    await samples.load('s', looped(ctx, 10))
+    track.clips.set(cutInTwo())
+    transport.start()
+    scheduler.tick()
+    // The first piece is sounding; it is told to end two seconds before the cut.
+    ctx.currentTime = 3
+    track.stop('a:0:1.000', at - 2)
+    ctx.currentTime = at - 1
+    scheduler.tick()
+    const second = track.voice(`b:0:${at.toFixed(3)}`)
+    expect(toNine((second?.gain as unknown as MockGain).gain.events).slice(0, 1)).toEqual(square)
+    scheduler.dispose()
   })
 
   it('joins a clip that takes turns by the source of the pass', async () => {
