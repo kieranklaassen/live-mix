@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { asAudioContext, createMockContext, type MockAudioNode } from '../../testing'
+import {
+  MockAudioBuffer,
+  asAudioContext,
+  createMockContext,
+  type MockAudioNode,
+} from '../../testing'
 import { createEngine } from '../Engine'
 import { DEFAULT_SPACE } from '../tracks/space'
 import * as core from '../../index'
@@ -248,6 +253,56 @@ describe('Engine transport and scheduler', () => {
     engine.transport.stop({ fadeSec: 0.75 })
     expect(clearIntervalFn).toHaveBeenCalled()
     engine.dispose()
+  })
+})
+
+describe('Engine joinClips', () => {
+  // A 100 Hz wave made to loop, cut in two three eighths of the way through a cycle.
+  const CUT = 6.00125
+
+  /** Whether the second of two clips that lie end to end comes up from silence on a track of the engine. */
+  async function secondComesUp(
+    engineOptions: { joinClips?: boolean },
+    trackOptions: { joinClips?: boolean } = {},
+  ): Promise<boolean> {
+    const ctx = createMockContext({ sampleRate: 48000 })
+    const engine = createEngine({ context: asAudioContext(ctx), ...engineOptions })
+    const sound = new MockAudioBuffer(1, 10 * ctx.sampleRate, ctx.sampleRate)
+    const data = sound.getChannelData(0)
+    for (let frame = 0; frame < data.length; frame += 1) {
+      data[frame] = 0.5 * Math.sin(2 * Math.PI * (0.25 + (100 * frame) / ctx.sampleRate))
+    }
+    await engine.samples.load('s', sound as unknown as AudioBuffer)
+    const track = engine.addAudioTrack('line', { lookaheadSec: 30, ...trackOptions })
+    const piece = {
+      sourceId: 's',
+      fadeInSec: 0,
+      fadeOutSec: 0,
+      fadeCurve: 'linear' as const,
+      gainDb: 0,
+    }
+    track.clips.set([
+      { ...piece, id: 'a', startSec: 1, offsetSec: 0, durationSec: CUT },
+      { ...piece, id: 'b', startSec: 1 + CUT, offsetSec: CUT, durationSec: 10 - CUT },
+    ])
+    engine.transport.start()
+    engine.scheduler.tick()
+    const second = track.voices()[1].gain as unknown as { gain: { events: { args: unknown[] }[] } }
+    const level = second.gain.events[0].args[0]
+    engine.dispose()
+    return level === 0
+  }
+
+  it("is off unless asked for, and is every audio track's when the engine is asked", async () => {
+    expect(await secondComesUp({})).toBe(false)
+    expect(await secondComesUp({ joinClips: true })).toBe(true)
+  })
+
+  it('a track can say otherwise for itself', async () => {
+    expect(await secondComesUp({ joinClips: true }, { joinClips: false })).toBe(false)
+    expect(await secondComesUp({}, { joinClips: true })).toBe(true)
+    // A track that says nothing of it, in so many words, is as the engine is.
+    expect(await secondComesUp({ joinClips: true }, { joinClips: undefined })).toBe(true)
   })
 })
 

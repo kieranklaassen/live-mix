@@ -174,6 +174,45 @@ and hands each one to the graph exactly once, keyed by
   the loop comes round, is unbroken, and anything else is a 5 ms crossfade. A
   sound that starts on its attack and dies away is played exactly as it was
   made, and equal-power clips keep the envelope they were given.
+- **A clip cut in two can sound as it did whole.** By itself each clip is
+  let in and out as above, so two clips of one sound that lie end to end,
+  the second playing on from where the first stops, are not what one clip
+  over both would play: the first tails for 5 ms under a second that enters
+  at full level. An `Engine` made with `joinClips: true` (or an `AudioTrack`
+  with it, which `addAudioTrack` can also say for one track) joins such
+  clips. The second comes up under the first one's tail, on the frames the
+  tail reads. A first that ends with its sound, followed by a clip that
+  enters the sound where it comes round (the rest of a repeat that runs to
+  the end of the source, then the repeats after it), tails on the frames
+  that clip enters on, and that clip comes up under it. The two then sum to
+  the sound unbroken. A first clip's way out is chosen to be no step by
+  itself, since the clip after it may yet be muted or moved: it is left
+  square only where its sound ends at rest and the next enters square. Clips
+  are joined when they are of one source on that pass (`turns`), play the
+  same way round, have linear fades and none of their own at the join, touch
+  on the timeline to within a microsecond, and neither is muted or sat out
+  of the pass by `chance`. The second goes by what the voice before it is
+  doing when the second is handed over, the scheduler's lookahead ahead of
+  its start: it comes up only under a tail that voice then has, which reads
+  on from the frame the second enters on. Where there is none it enters as
+  it would by itself: play started at the cut, or so close before it that
+  the second was handed over first; the first stopped or faded out by then;
+  or a first that has no tail by itself (one that ends with its sound, and
+  some that play backwards) handed over before the second was put there or
+  unmuted. Those are joined from the next time the first starts; a first
+  cut partway through its sound has its tail by itself and is joined at
+  once. What becomes of the first after the second is handed over is not
+  followed: stopped or faded in that last moment, it leaves the second to
+  come up from silence over its 5 ms. The far end of the last piece is as
+  it is by itself. They need not be at one level or in one place: the 5 ms
+  are then a crossfade from the one to the other. A clip entered partway by
+  the transport keeps the ease it has. Whoever plays voices by hand names
+  the clip beside each of the two on `play` (`followedBy` for the first,
+  `follows` for the second). Not exact: a cut
+  between two frames of the audio leaves the second clip a part of a frame
+  from where the whole clip had it, as any clip that starts there is; and a
+  piece shorter than the 5 ms is nearer the whole clip than it was, not the
+  same. It is off by default: what a host's clips played before, they play.
 - **Stop, pause and a seek do not click.** They silence every track at once,
   and a clip cut where its wave stands is a step. An `AudioTrack` voice that
   is sounding falls silent over 5 ms from the level it has (`stop(key)` and
