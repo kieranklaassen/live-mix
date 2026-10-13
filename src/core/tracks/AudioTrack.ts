@@ -222,9 +222,10 @@ export interface ClipVoiceOptions {
    * The clip of this sound that starts on the clock where this one ends. A
    * voice that ends with its sound then hands over where the other enters, if
    * the sound comes round there: with a tail on the frames the other enters
-   * on, under which the other comes up (name this clip as its `follows`).
-   * Where its sound ends at rest it is let go as it is by itself. Linear
-   * clips with no fade-out of their own, that do not loop.
+   * on, under which the other comes up (name this clip as its `follows`). It
+   * is left square only where the other enters square and this one's sound
+   * ends at rest. Linear clips with no fade-out of their own, that do not
+   * loop.
    */
   followedBy?: ClipNeighbour
 }
@@ -455,14 +456,15 @@ function releaseOf(playback: VoicePlayback, rate: number, next?: VoicePlayback):
   const { first, end } = soundFrames(playback)
   if (next && !playback.loop && !(next.fadeInSec > 0)) {
     // The sound is taken up by the next clip somewhere other than where this
-    // one entered it. Where it comes round there and this clip's last frame
-    // is a step, the hand-over is a tail on the frames the next clip enters
-    // on, which comes up under it. The tail stands by itself: whether or not
-    // the next clip then sounds, it is no step. A clip that ends at rest is
-    // let go as it is by itself.
+    // one entered it. Where it comes round there, the hand-over is a tail on
+    // the frames the next clip enters on, which comes up under it. The tail
+    // stands by itself: whether or not the next clip then sounds, it is no
+    // step. Both are left square only where the next enters square and this
+    // one ends at rest, which is no step either way.
     const ontoSec = entrySec(next)
     const onto = Math.round(ontoSec * buffer.sampleRate)
-    if (onto !== first && comesRound(buffer, onto, end) && leavesOnStep(buffer, end - 1)) {
+    if (onto !== first && comesRound(buffer, onto, end)) {
+      if (!comesUp(next) && !leavesOnStep(buffer, end - 1)) return HELD
       return { kind: 'tail', sec: JOIN_EASE_SECONDS, ontoSec, wraps: true }
     }
   }

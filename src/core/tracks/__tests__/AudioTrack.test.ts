@@ -608,6 +608,47 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
         expect(ctx.sources[4].loopStart).toBe(1)
       })
 
+      it('a clip that ends with its sound at rest still tails onto where the next enters, where the next comes up', () => {
+        const { ctx, track } = setup()
+        // Off zero and still where it starts, moving fast through zero where it ends: a sound played
+        // backwards that was cut while it rang. Its end is no step; its top is one to come in on.
+        const buf = wave(ctx, 4, (sec) =>
+          sec < 3.9 ? 0.3 : 0.3 * Math.cos(2 * Math.PI * 12000 * (sec - 3.9)),
+        )
+        const end = { offsetSec: 1, durationSec: 3, ...bare }
+        const top = { offsetSec: 0, durationSec: 2, ...bare }
+        // By itself it tails round onto where it entered.
+        track.play('alone', { buffer: buf, ...end }, 3)
+        expect(ctx.gains[1].gain.events).toEqual([...comeUp, ...tail(6)])
+        expect(ctx.sources[0].loopStart).toBe(1)
+        // The next comes up from silence on the top of the sound, so this one tails there for it to come
+        // up under: left square, the two would be a dip.
+        track.play('joined', { buffer: buf, ...end, followedBy: top }, 3)
+        expect(ctx.gains[2].gain.events).toEqual([...comeUp, ...tail(6)])
+        const source = ctx.sources[1]
+        expect([source.loop, source.loopStart, source.loopEnd]).toEqual([true, 0, 4])
+        track.play('top', { buffer: buf, ...top, follows: end }, 6)
+        expect(ctx.gains[3].gain.events.slice(0, 3)).toEqual(comeUpAt(6))
+      })
+
+      it('a clip that ends with its sound is not handed on to a place the sound does not come round to', () => {
+        const { ctx, track } = setup()
+        // Climbing slowly all the way: its end stands far from anywhere earlier in it.
+        const buf = wave(ctx, 4, (sec) => 0.1 + 0.1 * sec)
+        const end = { offsetSec: 2, durationSec: 2, ...bare }
+        const earlier = { offsetSec: 1, durationSec: 1, ...bare }
+        track.play('alone', { buffer: buf, ...end }, 3)
+        track.play('joined', { buffer: buf, ...end, followedBy: earlier }, 3)
+        // It fades over its last milliseconds, as it does by itself.
+        expect(nine(ctx.gains[1].gain.events.slice(-2))).toEqual(nine(lastFade(5)))
+        expect(ctx.gains[2].gain.events).toEqual(ctx.gains[1].gain.events)
+        expect(ctx.sources[1].loop).toBe(false)
+        // And the one after it enters as it does by itself.
+        track.play('earlier-alone', { buffer: buf, ...earlier }, 5)
+        track.play('earlier', { buffer: buf, ...earlier, follows: end }, 5)
+        expect(ctx.gains[4].gain.events).toEqual(ctx.gains[3].gain.events)
+      })
+
       it('only a clip that plays its sound out once is handed on to another place in it', () => {
         const { ctx, track } = setup()
         // Off zero all the way round, and moving fast where it starts: no step to enter on at the top.

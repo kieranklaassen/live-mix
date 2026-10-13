@@ -186,12 +186,12 @@ and hands each one to the graph exactly once, keyed by
   the end of the source, then the repeats after it), tails on the frames
   that clip enters on, and that clip comes up under it. The two then sum to
   the sound unbroken. A first clip's way out is always one that is no step
-  by itself, since the clip after it may yet be muted or moved; where its
-  sound ends at rest it is let go as it is by itself. Clips are joined when
-  they are of one source on that pass (`turns`), play the same way round,
-  have linear fades and none of their own at the join, touch on the timeline
-  to within a microsecond, and neither is muted or sat out of the pass by
-  `chance`. The second comes up only under a tail the voice before it has,
+  by itself, since the clip after it may yet be muted or moved: it is left
+  square only where its sound ends at rest and the next enters square. Clips
+  are joined when they are of one source on that pass (`turns`), play the
+  same way round, have linear fades and none of their own at the join, touch
+  on the timeline to within a microsecond, and neither is muted or sat out
+  of the pass by `chance`. The second comes up only under a tail the voice before it has,
   that reads on from the frame the second enters on. Where there is none it
   enters as it would by itself: play started at the cut, or so close before
   it that the second was handed over first; the first stopped or faded out;
