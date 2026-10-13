@@ -1,5 +1,5 @@
-// Records every automation call on an AudioParam. Lifted from Breathwork
-// Live's musicEngine.test.ts harness; tests assert on the recorded event
+// Records every automation call on an AudioParam. Moved from the harness of
+// musicEngine.test.ts in Breathwork Live; tests assert on the recorded event
 // stream rather than on engine internals.
 
 export interface AutomationEvent {

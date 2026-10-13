@@ -1,8 +1,7 @@
-// What the info view says about whatever the pointer is over, as Ableton
-// Live's Info View does: a control carries its name and a sentence or two in
-// two data attributes, and the view reads them off the element under the
-// pointer. Nothing here needs React or a document at import time; `InfoView`
-// and `useInfo` are the parts that listen.
+// What the info view says about whatever the pointer is over: a control
+// carries its name and a sentence or two in two data attributes, and the view
+// reads them off the element under the pointer. Nothing here needs React or a
+// document at import time; `InfoView` and `useInfo` are the parts that listen.
 
 /** The text about a control: one paragraph a line. An empty value says "nothing to say here". */
 export const INFO_TEXT_ATTR = 'data-lm-info'

@@ -681,7 +681,7 @@ the same.
 
 ### The info view
 
-`InfoView` is the box in the bottom left corner of Ableton Live: point at a
+`InfoView` is a box for a corner of the page: point at a
 control and it says the control's name and what it does. A control carries
 its entry in two attributes, which `infoProps` writes:
 

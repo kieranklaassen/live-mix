@@ -207,8 +207,8 @@ export interface SteerOutcome {
 
 /**
  * Hooks a consumer supplies for the concepts it owns. Everything is optional:
- * a tool is listed when at least one of its backends is present. Breathwork
- * Live's conductor implements these over its section playlist.
+ * a tool is listed when at least one of its backends is present. The conductor
+ * of Breathwork Live implements these over its section playlist.
  */
 export interface AgentSession {
   describe?: () => AgentSessionState

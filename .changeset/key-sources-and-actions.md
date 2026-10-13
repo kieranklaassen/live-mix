@@ -3,7 +3,7 @@
 ---
 
 A computer key can be a mapping source and something the host does a target,
-so a page can offer Ableton Live's Key Map next to its MIDI Map over one
+so a page can offer a key map next to its MIDI map over one
 `ControlSurface`.
 
 - `ControlSource` gains `{ kind: 'key', code }`, a key named by its

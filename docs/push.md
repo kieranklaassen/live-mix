@@ -1,6 +1,6 @@
 # Ableton Push 2 and Push 3
 
-live-mix can drive an Ableton Push as Live does: read its pads, buttons,
+live-mix can drive an Ableton Push: read its pads, buttons,
 encoders and touch strip, light its LEDs in your colours, and draw on its
 display. This is the device layer. What a pad or an encoder _does_ is the
 app's business (ambient-live's Push script is the worked example).
@@ -50,8 +50,9 @@ pass both.
 - On Windows, WebUSB reaches a device only through the WinUSB driver.
   Whether Push's display interface gets that driver on its own has not been
   checked here.
-- One program at a time can hold the display. With Live running and Push
-  enabled there, `PushDisplay.open()` rejects ("Unable to claim interface").
+- One program at a time can hold the display. With the Push's own software
+  running and Push enabled there, `PushDisplay.open()` rejects ("Unable to
+  claim interface").
   A standalone Push 3 has to be in control mode, connected over USB.
 - Electron needs the `usb` permission and a `select-usb-device` handler.
 

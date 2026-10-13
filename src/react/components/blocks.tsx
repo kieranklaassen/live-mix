@@ -2,8 +2,8 @@
 // head of a block that was gone into, a list of things to go into, the one
 // sentence a block says and its one main action, choices, the layout of a
 // block's body, a card and a chip, a sheet that stays mounted while it is
-// closed, and the groups of a bar that is one row tall. Moved from Ambient
-// Live, whose bottom bar is built from them.
+// closed, and the groups of a bar that is one row tall. Moved from
+// ambient-live, whose bottom bar is built from them.
 // Presentational: the host owns what is chosen and what a press
 // does. Each part passes what it is not told about to its element:
 // `infoProps`, a `data-testid`, a `title`.

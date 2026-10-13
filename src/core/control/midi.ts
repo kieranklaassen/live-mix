@@ -228,9 +228,9 @@ export class MidiDecoder {
 
 /**
  * How an endless encoder writes its delta into a 7-bit CC value:
- * - `twos-complement`: 1…63 = +1…+63, 127…65 = −1…−63 (Ableton "Relative (2's Comp.)")
- * - `binary-offset`: 64 = 0, 65 = +1, 63 = −1 (Ableton "Relative (Binary Offset)")
- * - `sign-magnitude`: 1…63 = +1…+63, 65…127 = −1…−63 (Ableton "Relative (Signed Bit)")
+ * - `twos-complement`: 1…63 = +1…+63, 127…65 = −1…−63
+ * - `binary-offset`: 64 = 0, 65 = +1, 63 = −1
+ * - `sign-magnitude`: 1…63 = +1…+63, 65…127 = −1…−63
  */
 export type RelativeEncoding = 'twos-complement' | 'binary-offset' | 'sign-magnitude'
 

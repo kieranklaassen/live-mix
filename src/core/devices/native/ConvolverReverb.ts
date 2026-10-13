@@ -1,8 +1,9 @@
-// Convolution reverb on a ConvolverNode. The `hall` preset is Breathwork
-// Live's voiceReverb.ts lifted verbatim: a generated impulse response
-// (exponentially decaying noise, 2.6 s) into a quiet wet gain, so the coach's
-// voice sits in a room instead of dry on top of the music. Use it on a
-// ReturnTrack fed by sends; the dry path stays the caller's own.
+// Convolution reverb on a ConvolverNode. The `hall` preset is moved unchanged
+// from voiceReverb.ts of Breathwork Live, the app this engine came out of: a
+// generated impulse response (exponentially decaying noise, 2.6 s) into a
+// quiet wet gain, so the coach's voice sits in a room instead of dry on top of
+// the music. Use it on a ReturnTrack fed by sends; the dry path stays the
+// caller's own.
 
 import { Emitter } from '../../events'
 import { clampParam, type ParamSpec } from '../../params'

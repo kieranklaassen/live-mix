@@ -63,7 +63,7 @@ export interface VirtualPushOptions {
   system?: VirtualPushSystem
   /** False makes the outputs throw on sysex, as Web MIDI does on a page without that permission. */
   sysex?: boolean
-  /** True makes the display refuse to be claimed, as when Live is running. */
+  /** True makes the display refuse to be claimed, as when another program holds it. */
   displayBusy?: boolean
   serial?: number
 }

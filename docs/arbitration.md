@@ -94,7 +94,8 @@ Rules behind the table (`decide(policy, writer, holder)`):
   renderer binds one) is overridden — cancel-and-hold, as the control
   surface did — and the hand's value goes straight to the graph. The lane
   resumes when the hold ends (`automationResume: 'after-hold'`), or on
-  `releaseAutomation()` with `'manual'` (Ableton's "back to arrangement").
+  `releaseAutomation()` with `'manual'` (the lane stays overridden until it
+  is handed back).
 - **Rails always win**: `system` writes land through any hold and never take
   one. A `lock(target, { author: SYSTEM_AUTHOR, ttlMs, reason })` refuses
   everything ranked below it — the listener's own fader during a fade-out —
