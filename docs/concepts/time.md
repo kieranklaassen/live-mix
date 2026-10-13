@@ -185,23 +185,30 @@ and hands each one to the graph exactly once, keyed by
   enters the sound where it comes round (the rest of a repeat that runs to
   the end of the source, then the repeats after it), tails on the frames
   that clip enters on, and that clip comes up under it. The two then sum to
-  the sound unbroken. A first clip's way out is always one that is no step
-  by itself, since the clip after it may yet be muted or moved: it is left
+  the sound unbroken. A first clip's way out is chosen to be no step by
+  itself, since the clip after it may yet be muted or moved: it is left
   square only where its sound ends at rest and the next enters square. Clips
   are joined when they are of one source on that pass (`turns`), play the
   same way round, have linear fades and none of their own at the join, touch
   on the timeline to within a microsecond, and neither is muted or sat out
-  of the pass by `chance`. The second comes up only under a tail the voice before it has,
-  that reads on from the frame the second enters on. Where there is none it
-  enters as it would by itself: play started at the cut, or so close before
-  it that the second was handed over first; the first stopped or faded out;
-  or the second put there, or unmuted, while the first was already sounding
-  (they are joined from the next time the first starts). The far end of the
-  last piece is as it is by itself. They need not be at one level or in one
-  place: the 5 ms are then a crossfade from the one to the other. A clip
-  entered partway by the transport keeps the ease it has. Whoever plays
-  voices by hand names the clip beside each of the two on `play`
-  (`followedBy` for the first, `follows` for the second). Not exact: a cut
+  of the pass by `chance`. The second goes by what the voice before it is
+  doing when the second is handed over, the scheduler's lookahead ahead of
+  its start: it comes up only under a tail that voice then has, which reads
+  on from the frame the second enters on. Where there is none it enters as
+  it would by itself: play started at the cut, or so close before it that
+  the second was handed over first; the first stopped or faded out by then;
+  or a first that has no tail by itself (one that ends with its sound, and
+  some that play backwards) handed over before the second was put there or
+  unmuted. Those are joined from the next time the first starts; a first
+  cut partway through its sound has its tail by itself and is joined at
+  once. What becomes of the first after the second is handed over is not
+  followed: stopped or faded in that last moment, it leaves the second to
+  come up from silence over its 5 ms. The far end of the last piece is as
+  it is by itself. They need not be at one level or in one place: the 5 ms
+  are then a crossfade from the one to the other. A clip entered partway by
+  the transport keeps the ease it has. Whoever plays voices by hand names
+  the clip beside each of the two on `play` (`followedBy` for the first,
+  `follows` for the second). Not exact: a cut
   between two frames of the audio leaves the second clip a part of a frame
   from where the whole clip had it, as any clip that starts there is; and a
   piece shorter than the 5 ms is nearer the whole clip than it was, not the

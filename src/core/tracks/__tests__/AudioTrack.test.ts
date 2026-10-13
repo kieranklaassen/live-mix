@@ -728,6 +728,26 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
         expect(nine(ctx.gains[2].gain.events.slice(0, 3))).toEqual(nine(comeUpAt(at)))
       })
 
+      it('a reversed clip is read as a cut only on the strength of a clip named after it, and only a hair short', () => {
+        const { ctx, track } = setup()
+        const buf = looped(ctx, 4)
+        const back = { reversed: true, ...bare }
+        const short = { offsetSec: 3.0637916666666665, durationSec: 0.8102083333333333, ...back }
+        const before = { offsetSec: short.offsetSec + short.durationSec, durationSec: 0.1, ...back }
+        // With only a clip named before it, it comes up under that clip's tail and ends as it does by itself.
+        track.play('alone', { buffer: buf, ...short }, 3.1)
+        expect(ctx.gains[1].gain.events).toEqual([{ method: 'setValueAtTime', args: [1, 3.1] }])
+        track.play('last', { buffer: buf, ...short, follows: before }, 3.1)
+        expect(nine(ctx.gains[2].gain.events)).toEqual(nine(comeUpAt(3.1)))
+        // A clip that outlives its slice by a second runs out, whatever is named after it.
+        const outlives = { offsetSec: 2, durationSec: 3, ...back }
+        const after = { offsetSec: 0, durationSec: 1, ...back }
+        track.play('outlives-alone', { buffer: buf, ...outlives }, 3)
+        track.play('outlives', { buffer: buf, ...outlives, followedBy: after }, 3)
+        expect(ctx.gains[4].gain.events).toEqual(ctx.gains[3].gain.events)
+        expect(ctx.sources[3].startCalls.calls).toEqual(ctx.sources[2].startCalls.calls)
+      })
+
       it('the two are mirrors at any rate', () => {
         const { ctx, track } = setup()
         track.setRate(2)
@@ -3697,6 +3717,105 @@ describe('AudioTrack that joins its clips', () => {
     await samples.load('s', sound(ctx))
     track.clips.set(clips)
     transport.seek(3.9)
+    transport.start()
+    scheduler.tick()
+    expect(events('top:0:4.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 1])
+    expect(source('end:0:1.000')?.loopStart).toBe(1)
+    scheduler.dispose()
+  })
+
+  // Off zero all the way round, moving fast where it starts: its end is a step, its top no step to enter on.
+  const offZero = (ctx: MockAudioContext) =>
+    wave(ctx, 4, (sec) => 0.3 + (sec < 0.1 ? 0.2 * Math.sin(2 * Math.PI * 8000 * sec) : 0))
+  /** The end of that sound, then its top: the first ends with its sound and the second enters where it comes round. */
+  const endThenTop = [
+    piece('end', 1, { offsetSec: 1, durationSec: 3 }),
+    piece('top', 4, { offsetSec: 0, durationSec: 2 }),
+  ]
+
+  it('gives a first clip made again its tail again, where the second has come up under it', async () => {
+    const { ctx, samples, track, transport, scheduler, events, source } = joining(0.2)
+    await samples.load('s', offZero(ctx))
+    track.clips.set(endThenTop)
+    transport.start()
+    for (const now of [0.9, 3.85]) {
+      ctx.currentTime = now
+      scheduler.tick()
+    }
+    expect(source('end:0:1.000')?.loopStart).toBe(0)
+    expect(events('top:0:4.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 0])
+    // The first is taken up again a tenth of a second before the cut, the second already on its way.
+    ctx.currentTime = 3.9
+    const before = source('end:0:1.000')
+    scheduler.rejoin(['end'])
+    const again = source('end:0:1.000')
+    expect(again).not.toBe(before)
+    expect([again?.loop, again?.loopStart]).toEqual([true, 0])
+    expect(events('end:0:1.000')?.slice(-2)).toEqual(
+      toNine([
+        { method: 'setValueAtTime', args: [1, 4] },
+        { method: 'linearRampToValueAtTime', args: [0, 4 + E] },
+      ]),
+    )
+    scheduler.dispose()
+  })
+
+  it('gives a reversed first clip made again its tail again too', async () => {
+    const { ctx, samples, track, transport, scheduler, events } = joining(0.2)
+    await samples.load('s', looped(ctx, 4))
+    // The slice of the first comes out a hair shorter than its clip: with no clip named after it, it has no tail.
+    const upper = piece('upper', 1, {
+      offsetSec: 3.0637916666666665,
+      durationSec: 0.8102083333333333,
+      reversed: true,
+    })
+    const cut = 1 + upper.durationSec
+    const lower = piece('lower', cut, {
+      offsetSec: 2,
+      durationSec: upper.offsetSec - 2,
+      reversed: true,
+    })
+    track.clips.set([upper, lower])
+    transport.start()
+    for (const now of [0.9, 1.65]) {
+      ctx.currentTime = now
+      scheduler.tick()
+    }
+    const leaves = toNine([
+      { method: 'setValueAtTime', args: [1, cut] },
+      { method: 'linearRampToValueAtTime', args: [0, cut + E] },
+    ])
+    expect(events('upper:0:1.000')?.slice(-2)).toEqual(leaves)
+    expect(events(`lower:0:${cut.toFixed(3)}`)?.[0].slice(0, 2)).toEqual(['setValueAtTime', 0])
+    ctx.currentTime = 1.71
+    scheduler.rejoin(['upper'])
+    expect(events('upper:0:1.000')?.slice(-2)).toEqual(leaves)
+    scheduler.dispose()
+  })
+
+  it('joins the pieces on a later pass where the second entered by itself on this one', async () => {
+    const { ctx, samples, track, transport, scheduler, events, source } = joining(30)
+    await samples.load('s', offZero(ctx))
+    track.clips.set(endThenTop)
+    transport.setLoop({ enabled: true, lengthSec: 6 })
+    // Play starts at the cut: the second enters at full level, with no first before it.
+    transport.seek(4)
+    transport.start()
+    scheduler.tick()
+    expect(events('top:0:4.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 1])
+    // The next time round the first is there, and the two are joined.
+    expect(source('end:1:1.000')?.loopStart).toBe(0)
+    expect(events('top:1:4.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 0])
+    scheduler.dispose()
+  })
+
+  it('finds the voice of the clip after it at any rate', async () => {
+    const { ctx, samples, track, transport, scheduler, events, source } = joining(0.2)
+    await samples.load('s', offZero(ctx))
+    track.clips.set(endThenTop)
+    transport.setRate(2)
+    // A tenth of a second of the clock before the cut: the second is handed over first, at full level.
+    transport.seek(3.8)
     transport.start()
     scheduler.tick()
     expect(events('top:0:4.000')?.[0].slice(0, 2)).toEqual(['setValueAtTime', 1])

@@ -42,11 +42,11 @@
 // both would have played. Each half stands by itself. A first clip's way out
 // is one that is no step whether or not the next then sounds, since the next
 // may yet be moved or muted. And a second clip comes up only under a tail
-// the voice before it has, on the frames it enters on itself: where play
-// starts at or just before the cut, the first was stopped, or the first
-// voice was made before the second was there, it enters as it would by
-// itself. Without the option every clip is let in and out by itself, as it
-// always was.
+// the voice before it has when the second is handed over, on the frames it
+// enters on itself: where play starts at or just before the cut, the first
+// was stopped by then, or the first has no tail because its voice was made
+// before the second was there, it enters as it would by itself. Without the
+// option every clip is let in and out by itself, as it always was.
 //
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
@@ -285,6 +285,8 @@ interface VoiceTiming {
   tailSec: number
   /** Where in its buffer that tail reads on from. */
   tailFromSec: number
+  /** It came up under the tail of the voice before it (`SoundingTail`), not by itself. */
+  cameUpUnder: boolean
 }
 
 /** The tail of a voice that is sounding, for the voice that starts where its clip ends to come up under. */
@@ -560,11 +562,11 @@ export interface AudioTrackOptions {
    * in and out as each other's mirror and sum to what one clip over both
    * would play, so a clip cut in two sounds as it did whole. Only scheduled
    * linear clips, neither muted nor sat out of the pass by chance, and the
-   * second only under a tail the voice before it has: one that was handed
-   * over with the second there to follow it and plays to its end. The repeat
-   * a first clip ends with runs to the end of its source. Default false:
-   * every clip is let in and out by itself, and two that follow on cross a
-   * few milliseconds of tail with a clip at full level.
+   * second only under a tail the voice before it has when the second is
+   * handed over. The repeat a first clip ends with runs to the end of its
+   * source. Default false: every clip is let in and out by itself, and two
+   * that follow on cross a few milliseconds of tail with a clip at full
+   * level.
    */
   joinClips?: boolean
 }
@@ -1150,10 +1152,12 @@ export class AudioTrack implements StripHost {
    * made before this clip was there to follow it, leaves nothing to come up
    * under, and this voice then enters as it would by itself.
    *
-   * The one after is named only while it has no voice yet. A clip entered
-   * partway whose next was handed over ahead of it finds that voice made
-   * without it, and is let go as it is by itself. Otherwise the next is taken
-   * at its word: it may yet be moved or muted, and this clip's way out is one
+   * The one after is named while it has no voice yet, or has one that came up
+   * under a tail: this clip's voice is then being made again (`rejoin`, a new
+   * seed) and is to have that tail again. A clip entered partway whose next
+   * was handed over ahead of it finds that voice made without it, at full
+   * level, and is let go as it is by itself. Otherwise the next is taken at
+   * its word: it may yet be moved or muted, and this clip's way out is one
    * that stands by itself (`releaseOf`).
    */
   private joined(
@@ -1180,8 +1184,9 @@ export class AudioTrack implements StripHost {
         // Every clip that ends here: the voice comes up under the one whose tail reads on from where it enters.
         const tail = this.tailEndingAt(other.id, when)
         if (tail) under.push(tail)
-      } else if (!this.voiceOf(other.id, (voice) => samePlace(voice.startTime, endsAt))) {
-        followedBy = other
+      } else {
+        const next = this.voiceOf(other.id, (voice) => samePlace(voice.startTime, endsAt))
+        if (!next || this.timings.get(next)?.cameUpUnder) followedBy = other
       }
     }
     return { followedBy, under }
@@ -1447,6 +1452,7 @@ export class AudioTrack implements StripHost {
       stoppedAtEnd: playback.loop === true || tailSec > 0,
       tailSec,
       tailFromSec: release.kind === 'tail' ? release.ontoSec : 0,
+      cameUpUnder: under !== undefined && playback.easeInSec === undefined && takingOverSec > 0,
     })
     source.onended = () => this.forget(voice)
     if (playback.loop) {
