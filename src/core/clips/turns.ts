@@ -34,6 +34,9 @@ export function clipSourceOnPass(clip: Pick<Clip, 'sourceId' | 'turns'>, pass: n
   return turns.sourceIds[turnOnPass(turns, pass)]
 }
 
+/** Two turns are the same when they name the same source, for a host that says no more. */
+const sameSource = (sourceId: string): string => sourceId
+
 /** Which different source each turn of a clip plays, and how many there are. */
 export interface TurnsRound {
   /** For each turn, the number of the different source it plays, from 0 in the order they first come. */
@@ -48,10 +51,13 @@ export interface TurnsRound {
  * that can tell two sources play the same (the same notes rendered twice);
  * left out, two turns are the same when they name the same source.
  */
-export function turnsRound(turns: ClipTurns, key?: (sourceId: string) => string): TurnsRound {
+export function turnsRound(
+  turns: ClipTurns,
+  key: (sourceId: string) => string = sameSource,
+): TurnsRound {
   const seen = new Map<string, number>()
   const each = turns.sourceIds.map((sourceId) => {
-    const name = key ? key(sourceId) : sourceId
+    const name = key(sourceId)
     let number = seen.get(name)
     if (number === undefined) {
       number = seen.size
@@ -71,17 +77,15 @@ export function turnsRound(turns: ClipTurns, key?: (sourceId: string) => string)
 export function nextOtherTurn(
   turns: ClipTurns,
   pass: number,
-  key?: (sourceId: string) => string,
+  key: (sourceId: string) => string = sameSource,
 ): number | null {
   const count = turns.sourceIds.length
   if (count === 0) return null
-  const name = (index: number): string =>
-    key ? key(turns.sourceIds[index]) : turns.sourceIds[index]
   const on = turnOnPass(turns, pass)
-  const sounding = name(on)
+  const sounding = key(turns.sourceIds[on])
   for (let step = 1; step < count; step += 1) {
     const index = (on + step) % count
-    if (name(index) !== sounding) return index
+    if (key(turns.sourceIds[index]) !== sounding) return index
   }
   return null
 }
