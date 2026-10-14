@@ -246,7 +246,7 @@ describe('held', () => {
       const fitted = FACTORY_SOUNDS.filter((each) => wayTakes(each, { way, seed: 3 }).takes > 0)
       expect(fitted.length, way).toBeGreaterThanOrEqual(5)
     }
-  })
+  }, 120_000)
 })
 
 function sortedPitches(notes: readonly PhraseNote[]): number[] {

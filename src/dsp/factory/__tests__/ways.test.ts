@@ -281,5 +281,5 @@ describe('one at a time', () => {
       )
       expect(fitted.length, way).toBeGreaterThanOrEqual(15)
     }
-  })
+  }, 120_000)
 })

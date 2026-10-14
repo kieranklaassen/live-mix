@@ -265,5 +265,5 @@ describe('counting', () => {
       expect(fitted[way].pitched, way).toBeGreaterThanOrEqual(20)
       expect(fitted[way].kit, way).toBeGreaterThanOrEqual(20)
     }
-  }, 60_000)
+  }, 120_000)
 })

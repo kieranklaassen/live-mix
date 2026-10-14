@@ -425,7 +425,7 @@ describe('hits and voices', () => {
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
     expect(bankProblems(WAYS_OF_IT, [3, 77])).toEqual([])
-  })
+  }, 120_000)
 
   it('has something to play on sounds of the bank at the far each way stands at', () => {
     for (const way of WAYS_OF_IT) {

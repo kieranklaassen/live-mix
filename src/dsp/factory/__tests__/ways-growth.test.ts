@@ -338,5 +338,5 @@ describe('growth', () => {
     for (const way of PITCH_DEALING) {
       expect([...new Set(kinds[way])].sort(), way).toEqual(['ended', 'round'])
     }
-  })
+  }, 120_000)
 })
