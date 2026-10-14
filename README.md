@@ -20,6 +20,12 @@ Node.
 > release (GitHub Packages, `@kieranklaassen` scope) is pending. The API
 > changes in minor versions. Details in [docs/status.md](./docs/status.md).
 
+![Ten stock effects drawn as pedals, each with its own colour, knobs and display: Shimmer, Tape Echo, Underwater, Seasons, Constellation, Prism, Rotary, Fog, Howl and Octaves](./docs/images/stomp-boxes.jpg)
+
+Ten of the stock effects as the React kit draws them. Each is a real device
+with sound running through it, and its display shows what it is doing to that
+sound.
+
 ## Features
 
 **Mixer**
@@ -60,6 +66,14 @@ Node.
 - A registry with descriptors, presets and versioning; racks with eight
   macros and automatic delay compensation across parallel chains;
   `engine.alignLatency()` across the mix.
+- More than a hundred and forty further effects and instruments, each
+  generated from one manifest (`cpp/devices/<id>/device.json`): the list is
+  [docs/devices-generated.md](./docs/devices-generated.md).
+
+![Eight effects as flat plates: Plate Reverb, Analog Delay, Tremolo, Chorus, Phaser, Saturator, Flanger and Auto Filter](./docs/images/plates.jpg)
+
+The same kind of plate lying flat, the kit's default look: a colour, a finish,
+a few knobs on the face and a display drawn from the settings and the sound.
 
 **Automation and modulation**
 
@@ -425,6 +439,11 @@ export function Studio({ engine }: { engine: Engine | null }) {
 Hooks and the kit are documented in [docs/react.md](./docs/react.md); the
 [playground](#playground) is the kit mounted on a demo score.
 
+![Two instruments, a handpan and mallets, each followed by a grain delay and a spring reverb as pedals](./docs/images/instrument-chain.jpg)
+
+`DevicePlate` draws a device from a skin, so a chain reads as an instrument
+and the pedals after it ([device plates](./docs/react.md#device-plates)).
+
 ### Motion
 
 <!-- example: examples/readme/motion.ts -->
@@ -611,6 +630,16 @@ kit; an agent console over every tool the `AgentController` lists; a session
 grid; **Render offline** for the same document. It starts on the recording
 mock context and switches to a real `AudioContext` on a click, at which point
 the WASM devices join ([react.md § playground](./docs/react.md#the-playground)).
+
+![The playground on real audio: the transport playing, the mixer with its meters moving, and the keys track's two devices as plates](./docs/images/playground-mixer.jpg)
+
+The transport, the mixer and the chain of the selected strip, playing.
+
+![The playground's agent console after a tool call, the session grid with a scene playing, and the arrangement](./docs/images/playground-agent.jpg)
+
+Further down the same page: an agent's tool call with its result, the snapshot
+and the operation log; a scene launched on the grid; and the clips that launch
+placed on the arrangement.
 
 ## Development
 

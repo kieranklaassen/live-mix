@@ -21,6 +21,7 @@ pnpm docs:api         # TypeDoc → docs/api (gitignored)
 pnpm playground       # the demo app on http://localhost:5199/
 pnpm playground:smoke # build the playground + its Playwright smoke spec in headless Chrome (screenshots)
 pnpm test:browser     # the whole browser suite: real-audio render-equals-live golden + the playground smoke
+node scripts/readme/shoot.mjs   # the README's pictures (docs/images/) again, with `pnpm playground` running
 pnpm host:build       # the plug-in host and its two test plug-ins into tmp/plugin-host (CMake, a C++20 compiler; fetches JUCE 9.0.2)
 pnpm test:host        # the host's protocol tests against that build (needs a display: xvfb-run -a on a headless machine)
 bash scripts/ci-local.sh   # the whole CI matrix locally; prints the Markdown summary PR bodies carry
