@@ -7,21 +7,33 @@ import {
   VISUAL_BENDS,
   VISUAL_KINDS,
   VISUAL_LANES,
+  PEDAL_FIRST_SIZE,
+  PEDAL_LEAST_SIZE,
+  PEDAL_MOST_SIZE,
+  PEDAL_MOST_TURN,
   VISUAL_MAX,
+  VISUAL_PEDALS_MAX,
   VISUAL_SHORTEST_BEATS,
   VISUAL_SOURCES,
   addVisual,
+  carryPedals,
   carryVisualLinks,
   drawOrder,
   emptyVisualSet,
   firstKnobs,
   freeLane,
+  freePedalSpot,
   isEmptyVisualSet,
   isVisualKind,
   isVisualSource,
   knobsOf,
+  layPedal,
+  liftPedal,
+  liftPedals,
   linkVisual,
+  movePedal,
   paints,
+  pedalOf,
   placeVisual,
   removeVisual,
   sameVisualSet,
@@ -38,6 +50,7 @@ import {
   visualNumber,
   visualsFromJson,
   visualsToJson,
+  withoutLostPedals,
   withoutLostVisuals,
   type LinkedStroke,
   type Visual,
@@ -62,6 +75,7 @@ const setOf = (...list: Visual[]): VisualSet => ({
   palette: DEFAULT_PALETTE,
   grain: DEFAULT_GRAIN,
   list,
+  pedals: [],
 })
 
 const ids = (set: VisualSet): string[] => set.list.map((item) => item.id)
@@ -87,6 +101,10 @@ const FULL: VisualSet = {
         glow: { value: 0.4, follows: null },
       },
     }),
+  ],
+  pedals: [
+    { device: 'tape-echo-1', x: 0.2, y: 0.7, size: 0.42, turn: -2 },
+    { device: 'plate-reverb-2', x: 0.613, y: 0.25, size: 0.3, turn: 0 },
   ],
 }
 
@@ -171,13 +189,19 @@ describe('a piece with no visuals', () => {
   it('is the empty set, the same one every time', () => {
     const empty = emptyVisualSet()
     expect(empty).toBe(emptyVisualSet())
-    expect(empty).toEqual({ palette: DEFAULT_PALETTE, grain: DEFAULT_GRAIN, list: [] })
+    expect(empty).toEqual({
+      palette: DEFAULT_PALETTE,
+      grain: DEFAULT_GRAIN,
+      list: [],
+      pedals: [],
+    })
     expect(isEmptyVisualSet(empty)).toBe(true)
   })
 
-  it('is no longer empty with a visual, another palette or other grain', () => {
+  it('is no longer empty with a visual, a pedal, another palette or other grain', () => {
     expect(isEmptyVisualSet(setOf())).toBe(true)
     expect(isEmptyVisualSet(setOf(visual('a', 'star')))).toBe(false)
+    expect(isEmptyVisualSet(layPedal(setOf(), 'tape-echo-1').set)).toBe(false)
     expect(isEmptyVisualSet({ ...setOf(), palette: 'sea' })).toBe(false)
     expect(isEmptyVisualSet({ ...setOf(), grain: 0.2 })).toBe(false)
   })
@@ -277,11 +301,13 @@ describe('saving and opening', () => {
       palette: 'sea',
       grain: DEFAULT_GRAIN,
       list: [],
+      pedals: [],
     })
     expect(visualsFromJson({ grain: 0.1 })).toEqual({
       palette: DEFAULT_PALETTE,
       grain: 0.1,
       list: [],
+      pedals: [],
     })
   })
 
@@ -502,8 +528,14 @@ describe('what a later build wrote beside the fields read here', () => {
   })
 
   it('never takes the place of a field read here', () => {
-    const set: VisualSet = { ...setOf(), more: { palette: 'other', grain: 9, list: 'no' } }
+    const set: VisualSet = {
+      ...setOf(),
+      more: { palette: 'other', grain: 9, list: 'no', pedals: 'none' },
+    }
     expect(saved(set)).toEqual({ palette: DEFAULT_PALETTE, grain: DEFAULT_GRAIN, list: [] })
+    expect(
+      (saved(layPedal(set, 'tape-echo-1', { x: 0.5, y: 0.5, turn: 0 }).set) as JsonObject).pedals,
+    ).toEqual([{ device: 'tape-echo-1', x: 0.5, y: 0.5, size: PEDAL_FIRST_SIZE }])
   })
 })
 
@@ -976,5 +1008,217 @@ describe('finding and naming a visual', () => {
     expect(visualLabel(set.list[3])).toBe('later-kind')
     // A bend has no second variation to name.
     expect(visualLabel(visual('e', 'spin', { variation: 1 }))).toBe('Spin')
+  })
+})
+
+describe('pedals on the picture', () => {
+  const laid = (set: VisualSet): string[] => set.pedals.map((pedal) => pedal.device)
+
+  it('writes a pedal with its device, its place and its size, and its turn only when it is turned', () => {
+    const json = visualsToJson(FULL)
+    expect(json.pedals).toEqual([
+      { device: 'tape-echo-1', x: 0.2, y: 0.7, size: 0.42, turn: -2 },
+      { device: 'plate-reverb-2', x: 0.613, y: 0.25, size: 0.3 },
+    ])
+    expect(visualsFromJson(saved(FULL)).pedals).toEqual(FULL.pedals)
+  })
+
+  it('writes nothing of pedals where none lies', () => {
+    expect('pedals' in visualsToJson(setOf(visual('a', 'star')))).toBe(false)
+    expect('pedals' in visualsToJson(liftPedals(FULL))).toBe(false)
+  })
+
+  it('reads a piece with pedals and nothing else as having visuals', () => {
+    const set = visualsFromJson({ pedals: [{ device: 'tape-echo-1', x: 0.1, y: 0.9, size: 0.5 }] })
+    expect(isEmptyVisualSet(set)).toBe(false)
+    expect(set.pedals).toEqual([{ device: 'tape-echo-1', x: 0.1, y: 0.9, size: 0.5, turn: 0 }])
+    expect(set.more).toBeUndefined()
+  })
+
+  it('leaves out whatever is not a pedal, and keeps the first of two for one device', () => {
+    const set = visualsFromJson({
+      pedals: [
+        'tape-echo-1',
+        null,
+        [],
+        { x: 0.5, y: 0.5 },
+        { device: '', x: 0.5, y: 0.5 },
+        { device: 7 },
+        { device: 'd'.repeat(121) },
+        { device: 'a', x: 0.1, y: 0.2, size: 0.3 },
+        { device: 'a', x: 0.9, y: 0.9, size: 0.9 },
+      ],
+    })
+    expect(set.pedals).toEqual([{ device: 'a', x: 0.1, y: 0.2, size: 0.3, turn: 0 }])
+    expect(visualsFromJson({ pedals: 'none' })).toBe(emptyVisualSet())
+    expect(visualsFromJson({ pedals: { device: 'a' } })).toBe(emptyVisualSet())
+  })
+
+  it('holds a place on the picture, a size and a turn inside what they can be', () => {
+    const read = (entry: JsonObject) =>
+      visualsFromJson({ pedals: [{ device: 'a', ...entry }] }).pedals[0]
+    expect(read({})).toEqual({ device: 'a', x: 0.5, y: 0.5, size: PEDAL_FIRST_SIZE, turn: 0 })
+    expect(read({ x: -1, y: 4 })).toMatchObject({ x: 0, y: 1 })
+    expect(read({ x: 0.12345, y: 'low' })).toMatchObject({ x: 0.123, y: 0.5 })
+    expect(read({ size: 0 }).size).toBe(PEDAL_LEAST_SIZE)
+    expect(read({ size: 7 }).size).toBe(PEDAL_MOST_SIZE)
+    expect(read({ size: 0.33333 }).size).toBe(0.333)
+    expect(read({ turn: 400 }).turn).toBe(PEDAL_MOST_TURN)
+    expect(read({ turn: -400 }).turn).toBe(-PEDAL_MOST_TURN)
+    expect(read({ turn: 3.14159 }).turn).toBe(3.1)
+    // A turn too small to write is no turn, and not a nothing with a sign.
+    expect(Object.is(read({ turn: -0.01 }).turn, 0)).toBe(true)
+  })
+
+  it('reads no more pedals than a picture holds', () => {
+    const many = Array.from({ length: VISUAL_PEDALS_MAX + 3 }, (_, index) => ({
+      device: `device-${index}`,
+    }))
+    expect(visualsFromJson({ pedals: many }).pedals).toHaveLength(VISUAL_PEDALS_MAX)
+  })
+
+  it('lays a device where it is told to, at the size a pedal has at first', () => {
+    const { set, pedal } = layPedal(setOf(), 'tape-echo-1', { x: 0.25, y: 0.75 })
+    // Laid at a place, it is turned as the spot it would have had: not square.
+    expect(pedal).toEqual({
+      device: 'tape-echo-1',
+      x: 0.25,
+      y: 0.75,
+      size: PEDAL_FIRST_SIZE,
+      turn: -2,
+    })
+    expect(set.pedals).toEqual([pedal])
+    expect(pedalOf(set, 'tape-echo-1')).toBe(set.pedals[0])
+    expect(pedalOf(set, 'nobody')).toBeNull()
+    expect(layPedal(setOf(), 'a', { turn: 0 }).pedal?.turn).toBe(0)
+    expect(layPedal(setOf(), 'a', { size: 0.6, turn: 10 }).pedal).toMatchObject({
+      size: 0.6,
+      turn: 10,
+    })
+  })
+
+  it('lays one after the other on the next free spot, no two turned alike', () => {
+    let set = setOf()
+    for (let index = 0; index < VISUAL_PEDALS_MAX; index++)
+      set = layPedal(set, `device-${index}`).set
+    expect(set.pedals).toHaveLength(VISUAL_PEDALS_MAX)
+    const places = set.pedals.map((pedal) => `${pedal.x} ${pedal.y}`)
+    expect(new Set(places).size).toBe(VISUAL_PEDALS_MAX)
+    expect(new Set(set.pedals.map((pedal) => pedal.turn)).size).toBe(VISUAL_PEDALS_MAX)
+    // The first four lie in a row across the lower half, left to right.
+    expect(set.pedals.slice(0, 4).map((pedal) => pedal.y)).toEqual([0.7, 0.7, 0.7, 0.7])
+    expect(set.pedals.slice(0, 4).map((pedal) => pedal.x)).toEqual([0.2, 0.4, 0.6, 0.8])
+    for (const pedal of set.pedals) {
+      expect(pedal.x).toBeGreaterThan(0)
+      expect(pedal.x).toBeLessThan(1)
+      expect(Math.abs(pedal.turn)).toBeLessThanOrEqual(3)
+    }
+  })
+
+  it('lays the next one on a spot a pedal was moved away from', () => {
+    let set = layPedal(layPedal(setOf(), 'a').set, 'b').set
+    set = movePedal(set, 'a', { x: 0.5, y: 0.1 })
+    expect(freePedalSpot(set)).toMatchObject({ x: 0.2, y: 0.7 })
+    expect(layPedal(set, 'c').pedal).toMatchObject({ x: 0.2, y: 0.7 })
+  })
+
+  it('lays nothing past the most a picture holds, and nothing without a device', () => {
+    let set = setOf()
+    for (let index = 0; index < VISUAL_PEDALS_MAX; index++)
+      set = layPedal(set, `device-${index}`).set
+    const full = layPedal(set, 'one-more')
+    expect(full.pedal).toBeNull()
+    expect(full.set).toBe(set)
+    expect(freePedalSpot(set)).toMatchObject({ x: 0.2, y: 0.7 })
+    expect(layPedal(setOf(), '').pedal).toBeNull()
+    expect(layPedal(setOf(), 'd'.repeat(121)).pedal).toBeNull()
+  })
+
+  it('moves a device that already lies there instead of laying it twice', () => {
+    const first = layPedal(setOf(), 'a').set
+    const again = layPedal(first, 'a', { x: 0.9 })
+    expect(again.set.pedals).toHaveLength(1)
+    expect(again.pedal).toMatchObject({ device: 'a', x: 0.9, y: 0.7 })
+    // Laid again with nothing said, it stays where it is.
+    expect(layPedal(first, 'a').set).toBe(first)
+    expect(layPedal(first, 'a').pedal).toBe(first.pedals[0])
+  })
+
+  it('moves, sizes and turns a pedal, and leaves what is not named as it is', () => {
+    const set = layPedal(setOf(), 'a', { x: 0.2, y: 0.3, size: 0.4, turn: 5 }).set
+    expect(movePedal(set, 'a', { x: 0.6 }).pedals[0]).toEqual({
+      device: 'a',
+      x: 0.6,
+      y: 0.3,
+      size: 0.4,
+      turn: 5,
+    })
+    expect(movePedal(set, 'a', { size: 2, turn: -90 }).pedals[0]).toEqual({
+      device: 'a',
+      x: 0.2,
+      y: 0.3,
+      size: PEDAL_MOST_SIZE,
+      turn: -PEDAL_MOST_TURN,
+    })
+    expect(movePedal(set, 'a', { x: Number.NaN, y: 2 }).pedals[0]).toMatchObject({ x: 0.2, y: 1 })
+  })
+
+  it('lays the pedal that was touched last over the others', () => {
+    let set = setOf()
+    for (const device of ['a', 'b', 'c']) set = layPedal(set, device).set
+    expect(laid(movePedal(set, 'a', { x: 0.5 }))).toEqual(['b', 'c', 'a'])
+    // One that did not move stays under what lies over it.
+    expect(laid(movePedal(set, 'a', {}))).toEqual(['a', 'b', 'c'])
+  })
+
+  it('lifts one pedal, or all of them, and leaves the visuals as they are', () => {
+    const one = liftPedal(FULL, 'tape-echo-1')
+    expect(laid(one)).toEqual(['plate-reverb-2'])
+    expect(one.list).toBe(FULL.list)
+    const none = liftPedals(FULL)
+    expect(none.pedals).toEqual([])
+    expect(none.list).toBe(FULL.list)
+  })
+
+  it('drops the pedals of devices that are no longer in the piece', () => {
+    expect(laid(withoutLostPedals(FULL, new Set(['plate-reverb-2', 'other'])))).toEqual([
+      'plate-reverb-2',
+    ])
+    expect(withoutLostPedals(FULL, new Set())).toMatchObject({ pedals: [] })
+  })
+
+  it('goes on with a device that was given another id', () => {
+    const carried = carryPedals(FULL, new Map([['tape-echo-1', 'tape-echo-7']]))
+    expect(carried.pedals).toEqual([
+      { device: 'tape-echo-7', x: 0.2, y: 0.7, size: 0.42, turn: -2 },
+      FULL.pedals[1],
+    ])
+    expect(carried.pedals[1]).toBe(FULL.pedals[1])
+    // Two devices that became one are one pedal: the first.
+    expect(laid(carryPedals(FULL, new Map([['tape-echo-1', 'plate-reverb-2']])))).toEqual([
+      'plate-reverb-2',
+    ])
+    expect(carryPedals(FULL, new Map([['tape-echo-1', 'plate-reverb-2']])).pedals[0].x).toBe(0.2)
+  })
+
+  it('hands back the same set for an edit that changes nothing', () => {
+    expect(movePedal(FULL, 'nobody', { x: 0.1 })).toBe(FULL)
+    expect(movePedal(FULL, 'tape-echo-1', { x: 0.2, y: 0.7, size: 0.42, turn: -2 })).toBe(FULL)
+    expect(liftPedal(FULL, 'nobody')).toBe(FULL)
+    expect(liftPedals(setOf())).toEqual(setOf())
+    const bare = setOf()
+    expect(liftPedals(bare)).toBe(bare)
+    expect(withoutLostPedals(FULL, new Set(['tape-echo-1', 'plate-reverb-2']))).toBe(FULL)
+    expect(carryPedals(FULL, new Map([['nobody', 'someone']]))).toBe(FULL)
+    expect(carryPedals(FULL, new Map())).toBe(FULL)
+  })
+
+  it('carries the pedals along with every edit of the visuals', () => {
+    const { set: added } = addVisual(FULL, 'star')
+    expect(added.pedals).toBe(FULL.pedals)
+    expect(setVisualPalette(FULL, 'moss').pedals).toBe(FULL.pedals)
+    expect(removeVisual(FULL, 'whole').pedals).toBe(FULL.pedals)
+    expect(sameVisualSet(FULL, liftPedal(FULL, 'tape-echo-1'))).toBe(false)
+    expect(sameVisualSet(FULL, { ...FULL, pedals: [...FULL.pedals] })).toBe(true)
   })
 })

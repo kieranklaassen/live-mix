@@ -70,7 +70,7 @@ Two things feed a picture.
 
 ## A piece's visuals
 
-A `VisualSet` is a palette, an amount of grain and a list of visuals. A `Visual` has a kind and is either placed on a row for a stretch of beats (or for the whole piece), or linked to a stroke, where it shows while that stroke sounds.
+A `VisualSet` is a palette, an amount of grain, a list of visuals and the pedals laid on the picture ([below](#pedals-on-the-picture)). A `Visual` has a kind and is either placed on a row for a stretch of beats (or for the whole piece), or linked to a stroke, where it shows while that stroke sounds.
 
 ```json
 {
@@ -226,6 +226,22 @@ A host with a frame loop of its own paints by hand: `createStage()` makes a stag
 All of it is drawn with WebGL 2 in **one context for the whole page** (`visualRig`), however many canvases show pictures: a style is drawn there at the size asked, never wider than 960 pixels, and copied to the 2D canvas that wants it. A shader is fetched and made the first time its style is asked for, one new shader a frame, so a long list of styles does not freeze a page as it opens. A style that cannot be made is given up on alone and the others still draw; one whose script could not be fetched is asked for again a few seconds later. A context that is lost (a phone takes it away when the page is put aside) is made again when it comes back.
 
 `visualsMayDraw()` says whether pictures can be drawn here as far as is known, without making the context; `visualsReady()` makes it and says for certain; `watchVisuals(watcher)` tells when that changes. Where there is no WebGL 2 the model and the desk still work, so a host can add, change and keep visuals there, and a browser that has it draws them. `VISUALS_NOT_DRAWN_NOTE` is a sentence for the place where the picture would be.
+
+## Pedals on the picture
+
+A few of the piece's devices can lie on the picture as pedals, the way gear lies on a table that is filmed from above: each is the device's own plate, with its knobs where they stand. The model keeps which device lies where; drawing the plate is the host's, with `DevicePlate` from `./react` over the canvas the picture is painted on. The **Table** style is a ground made for it, and pedals lie over any picture.
+
+```json
+{ "pedals": [{ "device": "tape-echo-1", "x": 0.2, "y": 0.7, "size": 0.42, "turn": -2 }] }
+```
+
+- `device` is the device's id in the piece (a `ScoreDevice`'s `id`). A device lies on the picture once.
+- `x` and `y` are where its middle lies, 0 to 1 across the picture from the left and down it from the top. `size` is how tall it is as a share of the picture's height (`PEDAL_FIRST_SIZE` 0.42 at first, between `PEDAL_LEAST_SIZE` and `PEDAL_MOST_SIZE`), so a pedal takes the same share of the picture at any size it is shown: a host zooms the plate by `size × the picture's height ÷ the plate's own height`. `turn` is in degrees clockwise, at most `PEDAL_MOST_TURN` (45) either way, and is written only when it is not 0.
+- They are drawn in their order, a later one over an earlier one. At most `VISUAL_PEDALS_MAX` (8) lie on a picture. `pedals` is left out of what is written where none lies.
+- `layPedal(set, device, place?)` lays one: at the place given, or on the next free spot of a row across the lower half and then a row above it, each spot turned a little and no two alike. A device that already lies there is moved instead. `movePedal` moves, sizes and turns one, and lays it over the others; `liftPedal` and `liftPedals` take one or all off; `pedalOf` finds a device's pedal. Each hands back the next set, or the same set when nothing changed.
+- `withoutLostPedals(set, deviceIds)` drops the pedals of devices that are no longer in the piece. `carryPedals(set, renamed)` goes on with devices a host gave other ids.
+
+A plate can be drawn into **another window's document**: a host that opened a window for a second screen renders the plates there from its own page (a React portal into that window), so they are the real devices with their knobs and displays live, and nothing about them is sent. A plate asks the window it is drawn in for its screen's pixel ratio, its computed colours and its observers, so it is sharp on a second screen of another density. Hand the plates a frame source of that window (`LiveMixProvider`'s `frame`, on its `requestAnimationFrame`), so they keep moving while the page that renders them is covered.
 
 ## A second screen
 

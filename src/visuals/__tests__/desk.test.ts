@@ -22,6 +22,7 @@ const setOf = (...list: Visual[]): VisualSet => ({
   palette: DEFAULT_PALETTE,
   grain: DEFAULT_GRAIN,
   list,
+  pedals: [],
 })
 
 /** A pad from 4 s to 12 s. */
@@ -153,7 +154,7 @@ describe('the frame of the piece', () => {
 
 describe('the frame that shows one kind alone', () => {
   it('paints the kind in the palette and the grain of the piece', () => {
-    const { desk } = deskOf({ set: { palette: 'sea', grain: 0.2, list: [] } })
+    const { desk } = deskOf({ set: { palette: 'sea', grain: 0.2, list: [], pedals: [] } })
     const sample = desk.sample('dot-screen', 1, 0)
     expect(sample.layers).toHaveLength(1)
     expect(sample.layers[0]).toMatchObject({ paint: 'dot-screen', variation: 1, level: 1 })
