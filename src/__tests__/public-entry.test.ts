@@ -733,6 +733,8 @@ const visualsSymbols = [
   'WIDEST_DRAWN',
   'createStage',
   'showVisuals',
+  'receiveVisuals',
+  'sendVisuals',
 ] as const
 
 describe('public entries', () => {

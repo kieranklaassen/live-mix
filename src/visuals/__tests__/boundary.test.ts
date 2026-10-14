@@ -39,6 +39,7 @@ describe('the visuals entry', () => {
       'frame.ts',
       'have.ts',
       'index.ts',
+      'line.ts',
       'model.ts',
       'palettes.ts',
       'picture.ts',
