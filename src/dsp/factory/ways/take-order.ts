@@ -38,17 +38,23 @@ export type TakeOrder = (typeof TAKE_ORDERS)[number]['id']
 
 export interface TakeOrderOptions {
   /**
-   * How many passes the list is for. An order gives the nearest length its
-   * rule allows, and never less than one go through the rule: the way's
-   * round whole, each place held, however short the length asked. A host
-   * with a limit of its own checks the list it gets.
+   * How many passes the list is for, from 1. An order gives the nearest
+   * length its rule allows, and never less than one go through the rule: the
+   * way's round whole, each place held, however short the length asked. A
+   * host with a limit of its own checks the list it gets. Past 4,096 it
+   * is read as 4,096.
    */
   length: number
   /** Any whole number: the same seed gives the same list. Only the orders that draw read it. */
   seed?: number
-  /** How many passes each place in the order is held for (default 1). */
+  /** How many passes each place in the order is held for (default 1), 64 at most. */
   holds?: number
 }
+
+/** The longest stretch of passes an order is asked for: what is asked past it is read as this. */
+const MOST_PASSES = 4096
+/** The most passes a place is held for. */
+const MOST_HOLDS = 64
 
 /** What is drawn from, so no two draws of an order are the same one. */
 const DEAL = 1
@@ -92,8 +98,9 @@ function dealt(takes: number, seed: number, steps: number): number[] {
  */
 function mostlyStays(takes: number, seed: number, steps: number): number[] {
   // Too short to go out and come back: the first take and the one beside it, half each, and
-  // two places each at the least.
-  if (steps > 1 && steps < 6) {
+  // two places each at the least. One place asked for is this too: a list is played round,
+  // and one that only names the first take never leaves it.
+  if (steps < 6) {
     const places = Math.max(4, steps)
     return [...times(Math.ceil(places / 2), 0), ...times(Math.floor(places / 2), 1)]
   }
@@ -116,8 +123,9 @@ function mostlyStays(takes: number, seed: number, steps: number): number[] {
 function grows(takes: number, steps: number): number[] {
   const out: number[] = []
   for (let row = 1; row <= takes; row += 1) {
-    // A row is played where the list is nearer the asked length with it than without it.
-    if (row > 1 && out.length + row / 2 > steps) return out
+    // A row is played where the list is nearer the asked length with it than without it. The
+    // first two are always played: a list that only names the first take never leaves it.
+    if (row > 2 && out.length + row / 2 > steps) return out
     out.push(...upTo(row))
   }
   const whole = Math.max(0, Math.round((steps - out.length) / takes))
@@ -154,7 +162,8 @@ function placesOf(
  * The takes of a way (`wayTakes`) in `order`, as a list of take numbers about
  * `options.length` passes long: the nearest length the order's rule allows,
  * so that it still holds where the end of the list meets its start. None for
- * a way with nothing to play, or for a length that is no number of passes.
+ * a way with nothing to play, for a length that is no number of passes or
+ * less than one, and for a `holds` that is no number.
  */
 export function takeOrder(
   order: TakeOrder,
@@ -162,10 +171,12 @@ export function takeOrder(
   options: TakeOrderOptions,
 ): number[] {
   const takes = Math.floor(of.takes)
-  if (!(takes >= 1) || !Number.isFinite(options.length)) return []
-  const holds = Math.max(1, Math.floor(options.holds ?? 1))
-  const steps = Math.max(1, Math.round(options.length / holds))
-  const seed = options.seed ?? 0
+  const held = options.holds ?? 1
+  if (!(takes >= 1) || !Number.isFinite(options.length) || !Number.isFinite(held)) return []
+  if (options.length < 1) return []
+  const holds = Math.min(MOST_HOLDS, Math.max(1, Math.floor(held)))
+  const steps = Math.max(1, Math.round(Math.min(options.length, MOST_PASSES) / holds))
+  const seed = Number.isFinite(options.seed) ? (options.seed ?? 0) : 0
   const round = of.round.length > 0 ? of.round : upTo(takes)
   return placesOf(order, takes, round, seed, steps).flatMap((take) => times(holds, take))
 }

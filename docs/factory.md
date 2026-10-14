@@ -717,14 +717,33 @@ What a take keeps:
 
 A sound whose keys are not pitches (a kit, or a sound made of another
 sound's audio) keeps every note on a key it is written on, so it is played
-only by the ways that change when notes sound: the Counting family and
-Gather.
+only by the ways that change when notes sound: the Counting family, Gather,
+and Echoes on one hit.
 
-`plays` and `vary` go together: the way writes the notes, the variant
-touches them up, the key and the tempo come last. A take of a held chord is
-varied by its chords and its touch only (`playAndVarySound`): its notes no
-longer all hold through the loop, and `varySound` would read them as a
-phrase.
+`plays` and `vary` go together (`playAndVarySound`): the way writes the
+notes, the variant gives its chord and its touch, the key and the tempo come
+last. Where a way has takes on a sound, two things about the variant are
+decided for all the takes at once, and not take by take:
+
+- The chord. It is the one the variant puts the sound as written on
+  (`describeVariant(sound, vary).chordSteps`), and every take stands on it.
+  Where a take has a note the sound does not (the octave above, past half of
+  `far`) and that note would leave the range there, all the takes stand on
+  the same chord an octave the other way, or stay where they are written
+  when neither fits. Asked of each take's own notes, one take would go up
+  and the next down.
+- The speed and the pattern are not read. Both are worked out from the notes
+  they are given: they would slow one take and not the next, and rest the
+  notes the way put there, until two takes are the same notes.
+
+The take that is the sound as written is one of the takes: it stands on
+their chord, at their speed. Where the way has nothing to play, `plays`
+changes nothing and the variant is the whole variant. A host that wants a
+variant whole, its speed and rests included, and that variant played a way,
+asks the way of the varied sound: `playSound(varySound(sound, vary), plays)`,
+with `waysFor` and `wayTakes` asked of the varied sound as well: a variant
+has notes of its own, and what a way has to play on them is for the variant
+to say.
 
 The orders. `takeOrder(order, takes, { length, seed, holds })` lists take
 numbers for a stretch of passes, for a host to name in a clip's turns.
@@ -741,7 +760,12 @@ plays the way's round whole at least once, each place held for `holds`
 passes (a round of sixteen held for eight is 128 passes, whatever was
 asked). A host with a limit of its own checks the list it gets. A list too
 short to go out and come back (under six places) is, in mostly stays, the
-first take and the one beside it, half each.
+first take and the one beside it, half each and two places each at the
+least; grows plays its first two rows at the least. So no order names the
+first take alone, however short the length and however long the hold: a clip
+plays the list round, and such a list would never leave it. A `length` under
+one pass, or a `length` or `holds` that is no number, gives no list. A
+`length` past 4,096 passes is read as 4,096 and a `holds` past 64 as 64.
 
 What decides a take is the sound, the way, the seed and `far`, and nothing
 else: no stroke, clip or host id, so two strokes of one sound share their

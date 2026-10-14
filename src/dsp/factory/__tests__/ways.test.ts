@@ -10,6 +10,7 @@ import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { WAYS, WAY_FAMILIES, describeTake, playSound, wayTakes, waysFor } from '../ways'
 import { readSound } from '../ways/reading'
+import { wayRule } from '../ways/table'
 import { countTakes } from '../ways/takes'
 import { type Way } from '../ways/types'
 import { bankProblems, notesKey } from './ways-support'
@@ -55,6 +56,14 @@ const sound = (id: string): FactorySound => {
 describe('the table of ways', () => {
   it('has rows of words and numbers only, which a host can keep or copy', () => {
     expect(structuredClone(WAYS)).toEqual(WAYS)
+  })
+
+  it('gives every row a far of its own, and every refusal a round of its own', () => {
+    expect(new Set(WAYS.map((way) => way.far)).size).toBe(WAYS.length)
+    for (const way of WAYS) expect(wayRule(way.id)?.far, way.id).not.toBe(way.far)
+    expect(wayRule(WAYS[0].id)?.far).toEqual(WAYS[0].far)
+    const none = { way: 'no-such-way', seed: 1 }
+    expect(wayTakes(chord, none).round).not.toBe(wayTakes(chord, none).round)
   })
 
   it('has a row a host can list for every way', () => {
@@ -105,10 +114,27 @@ describe('playSound', () => {
     }
     // A chord held through a loop that is folded over its whole length: nowhere clear of the fold.
     const folded = looped(16, 4, 16, [48, 55, 64, 71])
+    // What no sound of the bank is, and a host's sound may be.
+    const timeless = {
+      ...round,
+      phrase: {
+        notes: round.phrase.notes.map((note, index) =>
+          index === 2 ? { ...note, atSec: Number.NaN } : note,
+        ),
+      },
+    }
+    const early = {
+      ...round,
+      phrase: { notes: round.phrase.notes.map((note) => ({ ...note, atSec: note.atSec - 100 })) },
+    }
     for (const [each, refusal] of [
       [silent, 'It has no notes.'],
       [uneven, 'Its passes are not one pass repeated.'],
       [folded, 'Its loop is all crossfade.'],
+      [{ ...round, durationSec: 0 }, 'It has no length.'],
+      [{ ...round, durationSec: Number.NaN }, 'It has no length.'],
+      [timeless, 'A note of it is not written in numbers.'],
+      [early, 'It has no notes in its first pass.'],
     ] as const) {
       expect(wayTakes(each, { way: 'rising', seed: 1 })).toEqual({
         takes: 0,
@@ -173,6 +199,8 @@ describe('wayTakes', () => {
     expect(notes({ far: Number.NaN })).toEqual(notes({}))
     expect(notes({ far: 7 })).toEqual(notes({ far: 1 }))
     expect(notes({ far: -1 })).toEqual(notes({ far: 0 }))
+    expect(notes({ far: Infinity })).toEqual(notes({ far: 1 }))
+    expect(notes({ far: -Infinity })).toEqual(notes({ far: 0 }))
     // The seed, on the one way that draws.
     const drawn = (seed: number): string[] => notes({ way: 'one-note-slips', seed })
     expect(

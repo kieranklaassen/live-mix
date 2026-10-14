@@ -123,6 +123,8 @@ export interface Reading {
   upper: readonly number[]
   /** Its keys are pitches: not drums, and not how far another sound's audio is moved. */
   pitched: boolean
+  /** It is made of another sound: its keys are how far that sound's audio is moved. */
+  fromAudio: boolean
   /** It keeps time: it has a tempo of its own. */
   timed: boolean
   /** The length of a pass, seconds. */

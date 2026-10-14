@@ -209,9 +209,10 @@ export const VOICES: readonly Way[] = [
       if (reading.shape !== 'ended' || reading.moments.length !== 1) {
         return 'Needs one hit that ends.'
       }
-      // One key held on a sound that keeps time and has no pitches: it reads another sound's
-      // audio, and the key is how fast. A variant leaves it alone too (`vary()`).
-      return !reading.pitched && reading.timed ? 'Its one key reads other audio in time.' : null
+      // One key held on a sound that keeps time and is made of another sound: it reads that
+      // sound's audio, and the key is how fast. A variant leaves it alone too (`vary()`). One
+      // stroke of a kit that keeps time is a hit like any other.
+      return reading.fromAudio && reading.timed ? 'Its one key reads other audio in time.' : null
     },
     play: echoes,
   },

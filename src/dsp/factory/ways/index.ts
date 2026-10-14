@@ -18,10 +18,19 @@
 // as hard as the sound's hardest. Everything is decided by the sound, the
 // way, the seed and `far`, and by nothing else.
 
-import { type SoundVariation, type VariedPlaying, mod, varySound } from '../vary'
+import {
+  HIGHEST_NOTE,
+  LOWEST_NOTE,
+  type SoundVariation,
+  type VariedPlaying,
+  alongWhiteKeys,
+  describeVariant,
+  mod,
+  varySound,
+} from '../vary'
 import { cents, layOut, passKey, readSound, tick } from './reading'
 import { RULES, wayRule } from './table'
-import { countTakes, hasTakes, readFor } from './takes'
+import { type Counted, countTakes, hasTakes, readFor } from './takes'
 import {
   type PassNote,
   type Reading,
@@ -41,20 +50,36 @@ export {
   type WayTakes,
 } from './types'
 
-const NOTHING = { takes: 0, round: [], cut: false } as const
+/** No takes, and why. A list of its own each time: a host may keep what it is given. */
+const nothing = (refusal: string): WayTakes => ({ takes: 0, round: [], cut: false, refusal })
 
 /**
  * The takes `playing.way` gives on `sound`: how many different ones, and the
  * round the way itself plays them in. None, with the reason, where the way
  * has nothing to play there or the table has no such way. `playing.take` is
- * not read.
+ * not read. A sound that is not written on the white keys (a generated
+ * sound) is counted in its own key only where `playing.key` names it.
  */
 export function wayTakes(sound: VariedPlaying, playing: WayPlaying): WayTakes {
   const way = wayRule(playing.way)
-  if (!way) return { ...NOTHING, refusal: 'No such way.' }
+  if (!way) return nothing('No such way.')
   const counted = countTakes(sound, way, playing)
-  if (typeof counted === 'string') return { ...NOTHING, refusal: counted }
+  if (typeof counted === 'string') return nothing(counted)
   return { takes: counted.passes.length, round: counted.round, cut: counted.cut }
+}
+
+/** The takes of the way `playing` names on `sound`; null where there are none. */
+function takesOf(sound: VariedPlaying, playing: WayPlaying | undefined): Counted | null {
+  const way = playing ? wayRule(playing.way) : undefined
+  if (!playing || !way) return null
+  const counted = countTakes(sound, way, playing)
+  return typeof counted === 'string' ? null : counted
+}
+
+/** The pass of the take `playing` names, of the takes counted for it. */
+function passOf({ passes }: Counted, playing: WayPlaying): PassNote[] {
+  const asked = Number.isFinite(playing.take) ? Math.floor(playing.take ?? 0) : 0
+  return passes[mod(asked, passes.length)]
 }
 
 /** The pass of the take `playing` names, with the sound's reading; null where there is no take. */
@@ -62,13 +87,14 @@ function takeOf(
   sound: VariedPlaying,
   playing: WayPlaying | undefined,
 ): { reading: Reading; pass: PassNote[] } | null {
-  const way = playing ? wayRule(playing.way) : undefined
-  if (!playing || !way) return null
-  const counted = countTakes(sound, way, playing)
-  if (typeof counted === 'string') return null
-  const { passes, reading } = counted
-  const asked = Number.isFinite(playing.take) ? Math.floor(playing.take ?? 0) : 0
-  return { reading, pass: passes[mod(asked, passes.length)] }
+  const counted = takesOf(sound, playing)
+  if (!playing || !counted) return null
+  return { reading: counted.reading, pass: passOf(counted, playing) }
+}
+
+/** `sound` with the notes of `pass`: the sound itself where the pass is the sound as written. */
+function withPass<T extends VariedPlaying>(sound: T, reading: Reading, pass: PassNote[]): T {
+  return passKey(pass) === passKey(reading.notes) ? sound : layOut(sound, reading, pass)
 }
 
 /**
@@ -78,36 +104,88 @@ function takeOf(
  * nothing to play, the sound itself comes back, the same object: nothing
  * about it is rendered differently. So does it for a take that is the sound
  * as written. A factory sound is played as it is written, on the white keys,
- * and transposed afterwards (`renderFactorySound` does both).
+ * and transposed afterwards (`renderFactorySound` does both). A sound in
+ * another key (a generated sound) says so in `playing.key`.
  */
 export function playSound<T extends VariedPlaying>(sound: T, playing?: WayPlaying): T {
   const take = takeOf(sound, playing)
-  if (!take || passKey(take.pass) === passKey(take.reading.notes)) return sound
-  return layOut(sound, take.reading, take.pass)
+  return take ? withPass(sound, take.reading, take.pass) : sound
 }
 
 /**
- * `sound` played the way `playing` names and then varied: the way writes the
- * notes and the variant touches them up, as `renderFactorySound` does with
- * `plays` and `vary` together. A take of a held chord is varied as a held
- * chord is, by its chords and its touch. Its notes no longer all hold through
- * the loop, so `varySound` would read them as a phrase played round, play it
- * at half time and strike the note it stands on a second time.
+ * How far every take of a way moves to stand on the chord a variant puts its
+ * sound on: `steps` along the white keys where every note of every take stays
+ * in range there, the same chord an octave the other way where it does not,
+ * and nowhere where neither fits. Asked of all the takes at once, so they
+ * all stand on one chord. Every take keeps the lowest note of its sound, so
+ * a chord the sound may stand on is one its takes may stand on.
+ */
+function stepsForAll(passes: readonly PassNote[][], steps: number): number {
+  if (steps === 0) return 0
+  const fits = (by: number): boolean =>
+    passes.every((pass) =>
+      pass.every(({ note }) => {
+        const moved = alongWhiteKeys(note, by)
+        return moved >= LOWEST_NOTE && moved <= HIGHEST_NOTE
+      }),
+    )
+  return [steps, steps > 0 ? steps - 7 : steps + 7].find(fits) ?? 0
+}
+
+/**
+ * `sound` played the way `playing` names and then varied, as
+ * `renderFactorySound` does with `plays` and `vary` together. Where the way
+ * has takes on the sound, the way writes the notes and the variant gives its
+ * chord and its touch, and nothing else of it is read:
+ *
+ * - The chord is the one the variant puts the sound as written on, decided
+ *   once and stood on by every take, so the takes of one way are on one
+ *   chord. Decided take by take it would be asked of each take's own notes,
+ *   and a take with a higher note than another would land on another chord.
+ * - Its speed and its pattern are left out. They are worked out from the
+ *   notes they are given: asked of a take they would slow one take and not
+ *   the next, and rest the notes the way put there, until two takes are the
+ *   same notes.
+ *
+ * This holds for the take that is the sound as written too: it is one of the
+ * takes, on their chord and at their speed. Without a way, with a way the
+ * table does not have, or where the way has nothing to play, this is
+ * `varySound(sound, variation)`. A host that wants the whole variant played
+ * a way asks the way of the variant: `playSound(varySound(sound, variation),
+ * playing)`, with `waysFor` and `wayTakes` asked of the varied sound as well.
  */
 export function playAndVarySound<T extends VariedPlaying>(
   sound: T,
   playing?: WayPlaying,
   variation?: SoundVariation,
 ): T {
-  const played = playSound(sound, playing)
-  const held = variation && played !== sound && readSound(sound).shape === 'held'
-  return varySound(played, held ? { ...variation, speed: 0, pattern: 0 } : variation)
+  const counted = takesOf(sound, playing)
+  if (!playing || !counted) return varySound(sound, variation)
+  const played = withPass(sound, counted.reading, passOf(counted, playing))
+  if (!variation) return played
+  const steps = stepsForAll(counted.passes, describeVariant(sound, variation).chordSteps)
+  const stood =
+    steps === 0
+      ? played
+      : {
+          ...played,
+          phrase: {
+            ...played.phrase,
+            notes: played.phrase.notes.map((note) => ({
+              ...note,
+              note: alongWhiteKeys(note.note, steps),
+            })),
+          },
+        }
+  return varySound(stood, { ...variation, speed: 0, pattern: 0, chord: 0 })
 }
 
 /**
  * The ids of the ways that have something to play on `sound`, in menu order,
  * without rendering anything. Each way is asked at the `far` it stands at
- * when a host names none, unless `at.far` says another.
+ * when a host names none, unless `at.far` says another. A sound that is not
+ * written on the white keys (a generated sound) is asked in its own key only
+ * where `at.key` names it.
  */
 export function waysFor(
   sound: VariedPlaying,
@@ -125,7 +203,8 @@ export function waysFor(
  * note at a written time and pitch is neither moved nor shifted; one at a
  * written time and another pitch is moved; one at a written pitch and another
  * time is shifted; what is left of the take is added, and what is left of the
- * sound rests.
+ * sound rests. As everywhere, a sound that is not written on the white keys
+ * says its key in `playing.key`.
  */
 export function describeTake(sound: VariedPlaying, playing?: WayPlaying): TakeChanges {
   const take = takeOf(sound, playing)

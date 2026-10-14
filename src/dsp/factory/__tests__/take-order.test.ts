@@ -87,7 +87,12 @@ describe('takeOrder', () => {
 
   it('Mostly stays moves once where there is no room to go out and come back', () => {
     // Under six places: the first take and the one beside it, two places each at the least.
-    expect(takeOrder('mostly-stays', of(4), { length: 1 })).toEqual([0])
+    // One place asked for is that too: a list of the first take alone would never leave it.
+    expect(takeOrder('mostly-stays', of(4), { length: 1 })).toEqual([0, 0, 1, 1])
+    expect(takeOrder('mostly-stays', of(4), { length: 8, holds: 8 })).toEqual([
+      ...Array.from({ length: 16 }, () => 0),
+      ...Array.from({ length: 16 }, () => 1),
+    ])
     expect(takeOrder('mostly-stays', of(4), { length: 2 })).toEqual([0, 0, 1, 1])
     expect(takeOrder('mostly-stays', of(4), { length: 3 })).toEqual([0, 0, 1, 1])
     expect(takeOrder('mostly-stays', of(4), { length: 4 })).toEqual([0, 0, 1, 1])
@@ -106,7 +111,20 @@ describe('takeOrder', () => {
     ])
     // Shorter: as many whole rows as come nearest.
     expect(takeOrder('grows', of(4), { length: 6 })).toEqual([0, 0, 1, 0, 1, 2])
-    expect(takeOrder('grows', of(4), { length: 1 })).toEqual([0])
+    // The first two rows at the least, however short the length asked.
+    expect(takeOrder('grows', of(4), { length: 1 })).toEqual([0, 0, 1])
+    expect(takeOrder('grows', of(2), { length: 1 })).toEqual([0, 0, 1])
+  })
+
+  it('names more than one take in every order, however short the length and long the hold', () => {
+    for (const order of ORDERS) {
+      for (const takes of [2, 3, 8]) {
+        for (const holds of [1, 8, 64]) {
+          const list = takeOrder(order, of(takes), { length: 1, holds })
+          expect(new Set(list).size, `${order} ${takes} ${holds}`).toBeGreaterThan(1)
+        }
+      }
+    }
   })
 
   it('is that take throughout where there is one take, and nothing where there is none', () => {
@@ -116,6 +134,31 @@ describe('takeOrder', () => {
       // A length that is no number of passes.
       expect(takeOrder(order, of(3), { length: Number.NaN }), order).toEqual([])
       expect(takeOrder(order, of(3), { length: Infinity }), order).toEqual([])
+      // Less than one pass.
+      expect(takeOrder(order, of(3), { length: 0 }), order).toEqual([])
+      expect(takeOrder(order, of(3), { length: -4 }), order).toEqual([])
+      expect(takeOrder(order, of(3), { length: 0.5 }), order).toEqual([])
+      // A hold that is no number.
+      expect(takeOrder(order, of(3), { length: 8, holds: Infinity }), order).toEqual([])
+      expect(takeOrder(order, of(3), { length: 8, holds: Number.NaN }), order).toEqual([])
+    }
+  })
+
+  it('reads a length or a hold past what it lists as the most it lists', () => {
+    for (const order of ORDERS) {
+      const most = takeOrder(order, of(5), { length: 4096, seed: 3 })
+      expect(takeOrder(order, of(5), { length: 1e9, seed: 3 }), order).toEqual(most)
+      expect(most.length, order).toBeLessThan(4096 + 64)
+      expect(takeOrder(order, of(5), { length: 256, holds: 1e9, seed: 3 }), order).toEqual(
+        takeOrder(order, of(5), { length: 256, holds: 64, seed: 3 }),
+      )
+      // A hold of less than one pass is one pass, and a seed that is no number is the seed 0.
+      expect(takeOrder(order, of(5), { length: 16, holds: 0 }), order).toEqual(
+        takeOrder(order, of(5), { length: 16 }),
+      )
+      expect(takeOrder(order, of(5), { length: 16, seed: Number.NaN }), order).toEqual(
+        takeOrder(order, of(5), { length: 16, seed: 0 }),
+      )
     }
   })
 

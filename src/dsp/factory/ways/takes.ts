@@ -2,6 +2,7 @@
 // with the same notes are one take, and the round is the order the turns name
 // the takes in.
 
+import { type PhraseNote } from '../../patch-render'
 import { type VariedPlaying, clamp, draw } from '../vary'
 import { alongKey, passKey, readSound } from './reading'
 import { type PassNote, type Reading, type Way, type WayPlaying } from './types'
@@ -31,7 +32,13 @@ export interface Counted {
 /** A sound as a way reads it, or why no way can be asked of it. */
 export function readFor(sound: VariedPlaying): Reading | string {
   if (sound.phrase.notes.length === 0) return 'It has no notes.'
+  // What no sound of the bank is, and a host's sound may be: nothing here is counted on.
+  if (!(sound.durationSec > 0)) return 'It has no length.'
+  const numbers = (note: PhraseNote): boolean =>
+    Number.isFinite(note.atSec) && Number.isFinite(note.durSec) && Number.isFinite(note.note)
+  if (!sound.phrase.notes.every(numbers)) return 'A note of it is not written in numbers.'
   const reading = readSound(sound)
+  if (reading.notes.length === 0) return 'It has no notes in its first pass.'
   if (reading.shape === 'irregular') return 'Its passes are not one pass repeated.'
   // A held chord takes its new strikes clear of the fold, and a loop that is all fold has no such place.
   if (reading.shape === 'held' && !(reading.toSec > reading.fromSec)) {
@@ -47,7 +54,8 @@ export function turnsOf(
   playing: WayPlaying,
 ): (turn: number) => PassNote[] {
   const given = playing.far ?? way.far.default
-  const far = Number.isFinite(given) ? clamp(given, 0, 1) : way.far.default
+  // Further than all the way is all the way; only what is no number at all is the way's own.
+  const far = Number.isNaN(given) ? way.far.default : clamp(given, 0, 1)
   const seed = Number.isFinite(playing.seed) ? playing.seed : 0
   const number = wayNumber(way.id)
   const along = (note: number, steps: number): number => alongKey(note, steps, playing.key)

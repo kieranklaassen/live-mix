@@ -196,10 +196,13 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
   vary?: SoundVariation
   /**
    * Which way the sound is played, and which take of it (`playSound`): the
-   * way writes the notes of the take, and `vary` then touches them up.
-   * Absent, a way the table does not have, or a way with nothing to play on
-   * this sound: the sound as written. A factory sound is written on the
-   * white keys and its key is `transpose`: `plays.key` is not read.
+   * way writes the notes of the take. With `vary` as well, the variant
+   * gives its chord and its touch (`playAndVarySound`): every take of the
+   * way stands on the chord the variant puts the sound as written on, and
+   * the variant's speed and pattern are not read. Absent, a way the table
+   * does not have, or a way with nothing to play on this sound: the sound
+   * as written, or its variant. A factory sound is written on the white
+   * keys and its key is `transpose`: `plays.key` is not read.
    */
   plays?: WayPlaying
 }

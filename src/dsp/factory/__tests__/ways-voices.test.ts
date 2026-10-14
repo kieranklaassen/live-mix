@@ -172,6 +172,21 @@ describe('Echoes', () => {
     expect(varySound(read, { seed: 1, amount: 1 })).toBe(read)
   })
 
+  it('has takes on one stroke of a kit that keeps time: its key is a drum, not other audio', () => {
+    const stroke = { ...sound('club-snare-hit'), bpm: 120 }
+    const playing = { way: 'echoes', seed: 1 }
+    expect(wayTakes(stroke, playing).refusal).toBeUndefined()
+    expect(wayTakes(stroke, playing).takes).toBeGreaterThanOrEqual(2)
+    // Its repeats come on its sixteenths.
+    const sixteenth = 60 / 120 / 4
+    for (const take of takesOf(stroke, playing)) {
+      for (const note of pass(stroke, { ...playing, take })) {
+        const steps = (note.at - stroke.phrase.notes[0].atSec) / sixteenth
+        expect(Math.abs(steps - Math.round(steps))).toBeLessThan(1e-6)
+      }
+    }
+  })
+
   const hits = FACTORY_SOUNDS.filter(
     (each) => !each.loopCrossfadeSec && readSound(each).moments.length === 1,
   )

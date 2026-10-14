@@ -72,7 +72,8 @@ export function readSound(sound: VariedPlaying): Reading {
     )
 
   const notes = written.filter((note) => passOf(note) === 0).map(inPass)
-  const pitched = sound.source === undefined && !sound.kit
+  const fromAudio = sound.source !== undefined
+  const pitched = !fromAudio && !sound.kit
   const chord = notes
     .map((note) => note.note)
     .sort((a, b) => a - b)
@@ -87,6 +88,7 @@ export function readSound(sound: VariedPlaying): Reading {
     standing,
     upper: standing === null ? chord : chord.slice(1),
     pitched,
+    fromAudio,
     timed: sound.bpm !== undefined,
     passSec,
     fromSec: held ? skipSec + crossfadeSec : starts.length > 0 ? Math.min(...starts) : 0,
@@ -108,7 +110,9 @@ export function layOut<T extends VariedPlaying>(
   pass: readonly PassNote[],
 ): T {
   const hardest = Math.max(...sound.phrase.notes.map((note) => note.gain ?? DEFAULT_PHRASE_GAIN))
-  const level = hardest / Math.max(...pass.map((note) => note.gain))
+  // A pass with no note that sounds has no hardest note to bring to the sound's.
+  const top = Math.max(...pass.map((note) => note.gain))
+  const level = top > 0 ? hardest / top : 1
   const passes = reading.shape === 'round' ? passesOf(sound) : 0
   const notes: PhraseNote[] = []
   for (let index = 0; index <= passes; index += 1) {

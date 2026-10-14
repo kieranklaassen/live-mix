@@ -107,6 +107,14 @@ describe('layOut', () => {
     expect(gains[2]).toBeCloseTo(0.6, 9)
   })
 
+  it('writes a pass with no note that sounds at gains that are numbers', () => {
+    const reading = readSound(chord)
+    const silent = reading.notes.map((note) => ({ ...note, gain: 0 }))
+    for (const note of layOut(chord, reading, silent).phrase.notes) {
+      expect(note.gain).toBe(0.02)
+    }
+  })
+
   it('changes nothing about any sound of the bank or of a pack', async () => {
     for (const sound of [...FACTORY_SOUNDS, ...(await loadFactoryPackSounds())]) {
       const reading = readSound(sound)

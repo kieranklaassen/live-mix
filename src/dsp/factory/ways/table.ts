@@ -25,7 +25,8 @@ export const RULES: readonly Way[] = [
 /**
  * Every way of playing, in menu order: what a host lists. A row is words and
  * numbers only, without its rule, so a host can keep it, copy it or send it
- * to a worker.
+ * to a worker. Its `far` is the row's own and not the rule's: a host that
+ * writes into a row changes no way.
  */
 export const WAYS: readonly WayRow[] = RULES.map(({ id, name, family, words, needs, far }) => ({
   id,
@@ -33,7 +34,7 @@ export const WAYS: readonly WayRow[] = RULES.map(({ id, name, family, words, nee
   family,
   words,
   needs,
-  far,
+  far: { ...far },
 }))
 
 export function wayRule(id: string): Way | undefined {
