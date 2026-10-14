@@ -98,6 +98,7 @@ export {
   WAYS,
   WAY_FAMILIES,
   describeTake,
+  lentNotes,
   playAndVarySound,
   playSound,
   takeOrder,

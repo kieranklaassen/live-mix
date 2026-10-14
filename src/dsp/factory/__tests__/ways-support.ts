@@ -1,13 +1,15 @@
 // What every take of every way is held to, whatever the way: the sound's
 // lengths and loop, its key, the note it stands on, the level of its hardest
 // note and the attack it starts on. Each way's own business is its family's
-// test; this is the list they all share.
+// test; this is the list they all share. A note a held sound of one note or
+// two was lent counts as one it holds: a take may hold it from the start, as
+// it holds the sound's own.
 
 import { DEFAULT_PHRASE_GAIN, type PhraseNote } from '../../patch-render'
 import { FACTORY_SOUNDS } from '../sounds'
 import { type FactoryKey, factoryTranspose } from '../key'
 import { type VariedPlaying } from '../vary'
-import { playSound, wayTakes, type WayPlaying } from '../ways'
+import { lentNotes, playSound, wayTakes, type WayPlaying } from '../ways'
 import { cents, tick } from '../ways/reading'
 
 const WHITE = [0, 2, 4, 5, 7, 9, 11]
@@ -63,6 +65,14 @@ export function takeProblems<T extends VariedPlaying>(
   const white = (notes: readonly PhraseNote[]): boolean =>
     notes.every((note) => WHITE.includes(((Math.round(note.note - moved) % 12) + 12) % 12))
   const standing = pitched ? Math.min(...was.map((note) => cents(note.note))) : null
+  // The sound's notes and the notes it was lent, by when and which: what a take may hold as written.
+  const stood = was.filter((note) => cents(note.note) === standing)
+  const holds = new Set([
+    ...was.map((note) => `${tick(note.atSec)}:${cents(note.note)}`),
+    ...lentNotes(sound, key).flatMap((pitch) =>
+      stood.map((note) => `${tick(note.atSec)}:${cents(pitch)}`),
+    ),
+  ])
 
   const seen = new Map<string, number>()
   for (let take = 0; take < takes; take += 1) {
@@ -102,7 +112,7 @@ export function takeProblems<T extends VariedPlaying>(
       if (standing !== null && now.some((note) => cents(note.note) < standing)) {
         say('a note under the standing note')
       }
-      const written = new Set(was.map((note) => `${tick(note.atSec)}:${cents(note.note)}`))
+      const written = holds
       for (const note of was) {
         if (cents(note.note) !== standing) continue
         const still = now.some(
@@ -135,9 +145,8 @@ export function takeProblems<T extends VariedPlaying>(
     if (held) {
       // A note the sound does not hold is struck clear of the fold: from a crossfade's length
       // into the loop, and before the loop's end.
-      const written = new Set(was.map((note) => `${tick(note.atSec)}:${cents(note.note)}`))
       for (const note of now) {
-        if (written.has(`${tick(note.atSec)}:${cents(note.note)}`)) continue
+        if (holds.has(`${tick(note.atSec)}:${cents(note.note)}`)) continue
         if (note.atSec < skipSec + crossfadeSec - 1e-9) say(`a note struck under the fold`)
         if (note.atSec >= skipSec + sound.durationSec) say(`a note struck after the loop`)
       }

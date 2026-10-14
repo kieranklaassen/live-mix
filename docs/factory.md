@@ -649,6 +649,7 @@ const takes = wayTakes(sound, way) // { takes: 4, round: [0, 1, 2, 3], cut: fals
 const audio = await renderFactorySound(sound, { plays: { ...way, take: 1 }, transpose })
 const take = playSound(sound, { ...way, take: 1 }) // the recipe, nothing rendered
 describeTake(sound, { ...way, take: 1 }) // { sounding: 9, resting: 0, moved: 7, shifted: 0, added: 0 }
+lentNotes(drone) // [52, 55, 60]: what a way is lent on a drone that holds one C
 takeOrder('dealt', takes, { length: 16, seed: 4711 }) // [3, 1, 0, 2, 0, 3, 2, 1, 2, 0, 1, 3, 0, 1, 3, 2]
 ```
 
@@ -661,6 +662,19 @@ changes with where it stands when a host names none. The table is
 keeps the way's id, the seed and `far` beside the sound's id has kept every
 take. A new way is a row with its rule in a family's file under
 `src/dsp/factory/ways/`; what the others give does not move.
+
+A held sound of one note or two. A way deals a chord, and a drone has none
+to deal. So a held sound with fewer than two notes above the one it stands on
+is read with notes lent to it from its key: the third, the fifth and the
+octave above the standing note, where the sound does not hold them already,
+until three notes are above it. `lentNotes(sound, key)` lists them, low to
+high, for a host to say. A lent note is as hard as the sound's hardest note,
+or as the same note an octave under it, and a way holds, strikes and rests
+it as it does the sound's own. It sounds only in a take: the sound without a
+way is as written. No note is lent over the top of the range, so a held note
+within a third of it still has nothing to play. A held chord with two notes
+above the one it stands on is dealt as it is written, and nothing is lent to
+a phrase or to keys that are not pitches.
 
 How takes are counted. A rule is asked for one turn at a time and gives one
 pass of notes; it does not say how many takes it has. The engine asks for
@@ -692,9 +706,10 @@ What a take keeps:
   fold. Every take of a sound is as long as the sound and loops where it
   loops, so takes can stand in one clip's turns.
 - The key. Most ways deal the pitches the sound already has. One note slips
-  and Two readers move a note along the key, and past half of `far` the ways
-  of the first family play the chord's notes an octave up as well, all inside
-  the range `vary.ts` keeps. A factory sound is played as it is written, on
+  and Two readers move a note along the key, past half of `far` the ways of
+  the first family play the chord's notes an octave up as well, and a held
+  sound of one note or two is lent notes of the key (above), all inside the
+  range `vary.ts` keeps. A factory sound is played as it is written, on
   the white keys, and transposed afterwards: `renderFactorySound` reads no
   `key` from the playing. A sound in another key names it (`key` in the
   playing); `renderGeneratedSound` names the sound's own, and `playSound`,
@@ -707,7 +722,8 @@ What a take keeps:
 - A held chord: a note the sound does not strike is struck inside the loop,
   from a crossfade's length in, so no attack lies under the fold, and a note
   that enters stays down past everything that is rendered, as the written
-  chord does.
+  chord does. A lent note that a way holds is down from the start, as the
+  written notes are.
 - A phrase played round: a take is one pass, laid out again for every pass,
   so the loop still meets itself.
 - A phrase that ends: no note is struck later than the last written note and

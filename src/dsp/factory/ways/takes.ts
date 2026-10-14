@@ -4,7 +4,8 @@
 
 import { type PhraseNote } from '../../patch-render'
 import { type VariedPlaying, clamp, draw } from '../vary'
-import { alongKey, passKey, readSound } from './reading'
+import { type FactoryKey } from '../key'
+import { alongKey, lend, passKey, readSound } from './reading'
 import { type PassNote, type Reading, type Way, type WayPlaying } from './types'
 
 /** How many turns a rule is asked for. */
@@ -29,8 +30,12 @@ export interface Counted {
   cut: boolean
 }
 
-/** A sound as a way reads it, or why no way can be asked of it. */
-export function readFor(sound: VariedPlaying): Reading | string {
+/**
+ * A sound as a way reads it, or why no way can be asked of it. A held sound
+ * of one note or two is read with the notes it is lent (`lend`), along `key`
+ * where the sound is not written on the white keys.
+ */
+export function readFor(sound: VariedPlaying, key?: FactoryKey): Reading | string {
   if (sound.phrase.notes.length === 0) return 'It has no notes.'
   // What no sound of the bank is, and a host's sound may be: nothing here is counted on.
   if (!(sound.durationSec > 0)) return 'It has no length.'
@@ -44,7 +49,7 @@ export function readFor(sound: VariedPlaying): Reading | string {
   if (reading.shape === 'held' && !(reading.toSec > reading.fromSec)) {
     return 'Its loop is all crossfade.'
   }
-  return reading
+  return lend(reading, key)
 }
 
 /** The pass `way` gives on each turn, as `playing` asks for it. */
@@ -79,7 +84,7 @@ export function hasTakes(reading: Reading, way: Way, playing: WayPlaying): boole
 
 /** The takes of `way` on `sound`, or why there are none. */
 export function countTakes(sound: VariedPlaying, way: Way, playing: WayPlaying): Counted | string {
-  const reading = readFor(sound)
+  const reading = readFor(sound, playing.key)
   if (typeof reading === 'string') return reading
   const refusal = way.fits(reading)
   if (refusal !== null) return refusal

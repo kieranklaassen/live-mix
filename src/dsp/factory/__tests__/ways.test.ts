@@ -8,16 +8,20 @@ import { describe, expect, it } from 'vitest'
 import { FACTORY_SOUNDS, factorySound } from '..'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
-import { WAYS, WAY_FAMILIES, describeTake, playSound, wayTakes, waysFor } from '../ways'
-import { readSound } from '../ways/reading'
+import { WAYS, WAY_FAMILIES, describeTake, lentNotes, playSound, wayTakes, waysFor } from '../ways'
+import { alongKey, readSound } from '../ways/reading'
 import { wayRule } from '../ways/table'
 import { countTakes } from '../ways/takes'
 import { type Way } from '../ways/types'
-import { bankProblems, notesKey } from './ways-support'
+import { bankProblems, notesKey, takeProblems } from './ways-support'
 
 const chord = looped(16, 4, 2, [48, 55, 64, 71])
 const one = looped(16, 4, 2, [48])
 const pair = looped(16, 4, 2, [48, 55])
+// The top of the keyboard: nothing above it to lend.
+const top = looped(16, 4, 2, [96])
+// Two keys under the top: one note to lend, and no octave above that one.
+const nearTop = looped(16, 4, 2, [93])
 const round = cycled(8, [
   [0, 1, 48],
   [1, 1, 60],
@@ -87,7 +91,8 @@ describe('playSound', () => {
     expect(playSound(chord)).toBe(chord)
     expect(playSound(chord, { way: 'no-such-way', seed: 1 })).toBe(chord)
     // A way with nothing to play there.
-    expect(playSound(one, { way: 'rising', seed: 1 })).toBe(one)
+    expect(playSound(one, { way: 'carry-on', seed: 1 })).toBe(one)
+    expect(playSound(top, { way: 'rising', seed: 1 })).toBe(top)
   })
 
   it('takes a take number past the last round again', () => {
@@ -159,14 +164,14 @@ describe('wayTakes', () => {
   })
 
   it('says why a way has nothing to play', () => {
-    expect(wayTakes(one, { way: 'rising', seed: 1 })).toEqual({
+    expect(wayTakes(top, { way: 'rising', seed: 1 })).toEqual({
       takes: 0,
       round: [],
       cut: false,
       refusal: 'Needs two notes held, or more.',
     })
     // One note above the one it stands on: every turn deals the same note.
-    expect(wayTakes(pair, { way: 'rising', seed: 1 }).refusal).toBe(
+    expect(wayTakes(nearTop, { way: 'rising', seed: 1 }).refusal).toBe(
       'Every take of it comes out the same.',
     )
     expect(wayTakes(chord, { way: 'no-such-way', seed: 1 }).refusal).toBe('No such way.')
@@ -281,7 +286,7 @@ describe('waysFor', () => {
       expect.arrayContaining(['rising', 'there-and-back', 'outside-in']),
     )
     expect(waysFor(chord)).not.toContain('carry-on')
-    expect(waysFor(one)).toEqual([])
+    expect(waysFor(top)).toEqual([])
     const kit = FACTORY_SOUNDS.find((each) => each.kit && each.phrase.notes.length > 8)
     expect(kit).toBeDefined()
     if (!kit) return
@@ -291,9 +296,96 @@ describe('waysFor', () => {
   })
 
   it('asks each way at the far a host names', () => {
-    // Two held notes: one note to deal until far adds the octave above it.
-    expect(waysFor(pair)).not.toContain('rising')
-    expect(waysFor(pair, { far: 1 })).toContain('rising')
+    // Turning rests on nine moments: at no far at all none of them rests, and every turn is the phrase as written.
+    const drum = sound('pulse-tongue-drum-g')
+    expect(waysFor(drum)).toContain('turning-rests')
+    expect(waysFor(drum, { far: 0 })).not.toContain('turning-rests')
+  })
+})
+
+describe('a held sound of one note or two', () => {
+  const HELD_WAYS = [
+    'rising',
+    'there-and-back',
+    'outside-in',
+    'staggered-entries',
+    'voices-come-and-go',
+    'unequal-rounds',
+  ]
+
+  it('is lent the third, the fifth and the octave of its key above the note it stands on', () => {
+    expect(lentNotes(one)).toEqual([52, 55, 60])
+    // What it holds already is not lent again: three notes are above the standing note.
+    expect(lentNotes(pair)).toEqual([52, 60])
+    expect(lentNotes(looped(16, 4, 2, [48, 60]))).toEqual([52, 55])
+    expect(lentNotes(looped(16, 4, 2, [48, 52]))).toEqual([55, 60])
+    // Along the key: the third and the fifth over B are D and F.
+    expect(lentNotes(looped(16, 4, 2, [47]))).toEqual([50, 53, 59])
+    // In another key, where the host names it: E minor is five keys under A minor.
+    const key = { root: 4, mode: 'minor' } as const
+    const inE = looped(16, 4, 2, [40])
+    expect(lentNotes(inE, key)).toEqual([2, 4, 7].map((steps) => alongKey(40, steps, key)))
+    expect(lentNotes(inE, key)).toEqual([43, 47, 52])
+  })
+
+  it('is lent nothing where it has a chord of its own, is a phrase, or has keys that are not pitches', () => {
+    expect(lentNotes(chord)).toEqual([])
+    expect(lentNotes(looped(16, 4, 2, [48, 55, 64]))).toEqual([])
+    expect(lentNotes(round)).toEqual([])
+    expect(lentNotes(four)).toEqual([])
+    const kit = FACTORY_SOUNDS.find((each) => each.kit)
+    expect(kit && lentNotes(kit)).toEqual([])
+    expect(lentNotes({ ...one, phrase: { notes: [] } })).toEqual([])
+  })
+
+  it('is lent no note over the top of the keyboard', () => {
+    expect(lentNotes(top)).toEqual([])
+    expect(lentNotes(nearTop)).toEqual([96])
+    // The third and the fifth fit, and the octave does not: the next one up would not either.
+    expect(lentNotes(looped(16, 4, 2, [89]))).toEqual([93, 96])
+  })
+
+  it('is played by the ways a held chord is, on the lent notes', () => {
+    for (const sound of [one, pair]) {
+      expect(waysFor(sound)).toEqual(HELD_WAYS)
+      for (const way of HELD_WAYS) {
+        expect(wayTakes(sound, { way, seed: 1 }).takes, way).toBeGreaterThanOrEqual(3)
+      }
+    }
+    const struck = (sound: typeof one, take: number): number[] =>
+      [...playSound(sound, { way: 'rising', seed: 1, take }).phrase.notes]
+        .sort((a, b) => a.atSec - b.atSec)
+        .map((note) => note.note)
+    // Rising on one note: the note holds as written, and its lent notes are struck in turn.
+    expect(struck(one, 0)).toEqual([48, 52, 55, 60, 52, 55, 60, 52, 55])
+    expect(struck(one, 1)).toEqual([48, 55, 60, 52, 55, 60, 52, 55, 60])
+    // On two: the fifth it holds is struck among them.
+    expect(struck(pair, 0)).toEqual([48, 52, 55, 60, 52, 55, 60, 52, 55])
+  })
+
+  it('holds a lent note as it holds its own, and is as written without a way', () => {
+    const written = one.phrase.notes[0]
+    const take = playSound(one, { way: 'voices-come-and-go', seed: 1, take: 0 }).phrase.notes
+    // The standing note as written, and two of the three lent notes down from the start.
+    expect(take.filter((note) => note.note === 48)).toEqual([{ ...written, gain: 0.8 }])
+    const fromStart = take.filter((note) => note.note !== 48 && note.atSec === written.atSec)
+    expect(fromStart.map((note) => note.note).sort()).toHaveLength(2)
+    expect(playSound(one)).toBe(one)
+    expect(playSound(one).phrase.notes).toEqual([written])
+  })
+
+  it('counts a lent note as added, never as the sound resting', () => {
+    const changes = describeTake(one, { way: 'staggered-entries', seed: 1, take: 0 })
+    expect(changes).toEqual({ sounding: 4, resting: 0, moved: 0, shifted: 0, added: 3 })
+  })
+
+  it('keeps what a take keeps', () => {
+    const sounds = [one, pair, looped(16, 4, 2, [47]), looped(8, 4, 3, [38]), nearTop]
+    for (const sound of sounds) {
+      for (const way of waysFor(sound, { seed: 3, far: 0.5 })) {
+        expect(takeProblems(sound, way, 3, 0.5), way).toEqual([])
+      }
+    }
   })
 })
 
