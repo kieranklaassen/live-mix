@@ -9,7 +9,7 @@ import { type PassNote, type Reading, type Way, type WayPlaying } from './types'
 /** How many turns a rule is asked for. */
 const TURNS = 16
 /** How many different takes a way may give. */
-const MOST_TAKES = 8
+export const MOST_TAKES = 8
 
 /** A number for a way's id, so that no two ways draw the same. */
 function wayNumber(id: string): number {
