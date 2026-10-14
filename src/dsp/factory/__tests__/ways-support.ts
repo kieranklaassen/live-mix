@@ -4,13 +4,13 @@
 // test; this is the list they all share.
 
 import { DEFAULT_PHRASE_GAIN, type PhraseNote } from '../../patch-render'
+import { FACTORY_SOUNDS } from '../sounds'
 import { type FactoryKey, factoryTranspose } from '../key'
 import { type VariedPlaying } from '../vary'
 import { playSound, wayTakes, type WayPlaying } from '../ways'
+import { cents, tick } from '../ways/reading'
 
 const WHITE = [0, 2, 4, 5, 7, 9, 11]
-const tick = (sec: number): number => Math.round(sec * 1e4)
-const cents = (note: number): number => Math.round(note * 100)
 const first = (notes: readonly PhraseNote[]): number => Math.min(...notes.map((note) => note.atSec))
 const last = (notes: readonly PhraseNote[]): number => Math.max(...notes.map((note) => note.atSec))
 const release = (notes: readonly PhraseNote[]): number =>
@@ -150,6 +150,28 @@ export function takeProblems<T extends VariedPlaying>(
       // Echoes come after the hit, and have a bound of their own.
       if (last(now) > last(was) + 1e-9) say('ends later')
       if (release(now) > release(was) + 1e-9) say('held longer')
+    }
+  }
+  return out
+}
+
+/**
+ * What is wrong with the takes of `ways` on the sounds of the bank, at a
+ * quarter, a half and all of `far`: every sound a way has something to play
+ * on, for each seed.
+ */
+export function bankProblems(ways: readonly string[], seeds: readonly number[]): string[] {
+  const out: string[] = []
+  for (const each of FACTORY_SOUNDS) {
+    for (const way of ways) {
+      for (const far of [0.25, 0.5, 1]) {
+        for (const seed of seeds) {
+          if (wayTakes(each, { way, seed, far }).takes === 0) continue
+          for (const problem of takeProblems(each, way, seed, far)) {
+            out.push(`${each.id} ${way} far ${far} seed ${seed}: ${problem}`)
+          }
+        }
+      }
     }
   }
   return out

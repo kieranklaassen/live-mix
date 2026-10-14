@@ -10,7 +10,7 @@ import { type PhraseNote } from '../../patch-render'
 import { cycled, looped } from '../sounds/recipe'
 import { playSound, wayTakes, waysFor, type WayPlaying } from '../ways'
 import { readSound } from '../ways/reading'
-import { takeProblems } from './ways-support'
+import { bankProblems } from './ways-support'
 
 const HELD = ['staggered-entries', 'voices-come-and-go', 'unequal-rounds']
 
@@ -241,19 +241,11 @@ describe('held', () => {
   })
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
-    const fitted: Record<string, number> = {}
-    for (const each of FACTORY_SOUNDS) {
-      for (const way of HELD) {
-        if (wayTakes(each, { way, seed: 3 }).takes > 0) fitted[way] = (fitted[way] ?? 0) + 1
-        for (const far of [0.25, 0.5, 1]) {
-          for (const seed of [3, 77]) {
-            if (wayTakes(each, { way, seed, far }).takes === 0) continue
-            expect(takeProblems(each, way, seed, far), `${each.id} ${way} far ${far}`).toEqual([])
-          }
-        }
-      }
+    expect(bankProblems(HELD, [3, 77])).toEqual([])
+    for (const way of HELD) {
+      const fitted = FACTORY_SOUNDS.filter((each) => wayTakes(each, { way, seed: 3 }).takes > 0)
+      expect(fitted.length, way).toBeGreaterThanOrEqual(5)
     }
-    for (const way of HELD) expect(fitted[way], way).toBeGreaterThanOrEqual(5)
   })
 })
 

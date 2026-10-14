@@ -5,9 +5,20 @@
 // One note slips moves notes along the key, one more each turn, and Climb and
 // Lean deal the chord the phrase already has.
 
-import { HIGHEST_NOTE, LOWEST_NOTE } from '../vary'
-import { REFUSALS, isPhrase, repitched, singles } from './pass'
-import { cents } from './reading'
+import { HIGHEST_NOTE, LOWEST_NOTE, mod } from '../vary'
+import {
+  PHRASE_NEEDS,
+  PITCHES_NEEDS,
+  REFUSALS,
+  fitsPhrase,
+  hasThreePitches,
+  line,
+  pitchedPhrase,
+  repitched,
+  resting,
+  singles,
+  upperPlace,
+} from './pass'
 import { type PassNote, type Reading, type Turn, type Way } from './types'
 
 /** How many steps Gather takes to the whole phrase. */
@@ -19,15 +30,9 @@ const SLIPS = 4
 const ORDER = 1
 const UPWARD = 2
 
-const fitsPitches = (reading: Reading): string | null => {
-  if (!reading.pitched) return REFUSALS.notNotes
-  if (!isPhrase(reading)) return REFUSALS.notPhrase
-  return singles(reading).length >= 2 && reading.upper.length >= 2
-    ? null
-    : 'Needs a phrase of three pitches.'
-}
+const fitsPitches = (reading: Reading): string | null =>
+  pitchedPhrase(reading) ?? (hasThreePitches(reading) ? null : REFUSALS.threePitches)
 
-const PITCHES_NEEDS = 'A phrase of three pitches'
 const HOME_FAR = {
   words: 'How many turns before it comes home: two, three or, at its furthest, four.',
   default: 1,
@@ -59,12 +64,8 @@ const homeAfter = (far: number): number => 2 + Math.min(2, Math.floor(far * 3))
 /** The note `by` notes further up the chord above the standing note, from its top round to its bottom. */
 function higher(reading: Reading, note: number, by: number): number {
   const { upper } = reading
-  const at = upper.findIndex((each) => cents(each) === cents(note))
-  return upper[(at + by) % upper.length]
+  return upper[(upperPlace(reading, note) + by) % upper.length]
 }
-
-/** The pitches of the moments a way may deal, in the order they are played. */
-const line = (reading: Reading): number[] => singles(reading).map((moment) => moment.notes[0].note)
 
 export const GROWTH: readonly Way[] = [
   {
@@ -73,19 +74,17 @@ export const GROWTH: readonly Way[] = [
     family: 'growth',
     words:
       "A quarter of the phrase's moments, then half, then three quarters, then all of it, one step a turn. The first moment always sounds, and so does every moment that holds the note the sound stands on.",
-    needs: 'A phrase or a beat',
+    needs: PHRASE_NEEDS,
     far: {
       words: 'Where it starts: a quarter of the phrase, or past half one moment.',
       default: 0.25,
     },
-    fits: (reading) =>
-      isPhrase(reading) && reading.moments.length >= 2 ? null : REFUSALS.notPhrase,
+    fits: fitsPhrase,
     play: (reading, { turn, far }: Turn) => {
       const step = turn % STEPS
       const all = reading.moments.length
       const sounding = step === 0 && far > 0.5 ? 1 : Math.ceil((all * (step + 1)) / STEPS)
-      const kept = reading.moments.filter((moment, index) => index < sounding || moment.standing)
-      return reading.notes.filter((note) => kept.some((moment) => moment.notes.includes(note)))
+      return resting(reading, (place) => place >= sounding)
     },
   },
   {
@@ -135,7 +134,7 @@ export const GROWTH: readonly Way[] = [
       const written = line(reading)
       return repitched(reading, (index, count) =>
         // The moment `on` places back gives this one its note: every note is `on` moments later.
-        higher(reading, written[(((index - on) % count) + count) % count], on),
+        higher(reading, written[mod(index - on, count)], on),
       )
     },
   },

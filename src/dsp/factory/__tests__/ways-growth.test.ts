@@ -13,7 +13,7 @@ import { alongWhiteKeys } from '../vary'
 import { WAYS, playSound, wayTakes, waysFor } from '../ways'
 import { readSound } from '../ways/reading'
 import { type PassNote } from '../ways/types'
-import { takeProblems } from './ways-support'
+import { bankProblems, takeProblems } from './ways-support'
 
 const GROWTH = ['gather', 'one-note-slips', 'climb', 'lean']
 const PITCH_DEALING = ['one-note-slips', 'climb', 'lean']
@@ -320,6 +320,7 @@ describe('growth', () => {
   })
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
+    expect(bankProblems(GROWTH, [3, 77])).toEqual([])
     const fitted: Record<string, number> = {}
     const kinds: Record<string, string[]> = {}
     for (const each of FACTORY_SOUNDS) {
@@ -328,12 +329,6 @@ describe('growth', () => {
         if (wayTakes(each, { way, seed: 3 }).takes > 0) {
           fitted[way] = (fitted[way] ?? 0) + 1
           kinds[way] = [...(kinds[way] ?? []), kind]
-        }
-        for (const seed of [3, 77]) {
-          for (const far of [0.25, 0.5, 1]) {
-            if (wayTakes(each, { way, seed, far }).takes === 0) continue
-            expect(takeProblems(each, way, seed, far), `${each.id} ${way} far ${far}`).toEqual([])
-          }
         }
       }
     }

@@ -6,39 +6,15 @@
 // of a pass always sounds, and so does every moment that holds the note the
 // sound stands on: a way of this family counts the others.
 
-import { VARIATION_LIMITS } from '../vary'
-import { REFUSALS, isPhrase } from './pass'
+import { VARIATION_LIMITS, mod } from '../vary'
+import { PHRASE_NEEDS, REFUSALS, fitsPhrase, gcd, isPhrase, mayRest, resting } from './pass'
 import { MOST_TAKES } from './takes'
-import { type PassNote, type Reading, type Turn, type Way } from './types'
+import { type Turn, type Way } from './types'
 
 /** The counts the moments of a phrase take in Counted rests, by their place. */
 const COUNTS = [1, 2, 3, 2]
 /** How many turns Sliding window takes to come round. */
 const WINDOWS = 4
-
-const mod = (value: number, by: number): number => ((value % by) + by) % by
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
-
-/** The places, among the moments of a pass, of the ones that may rest. */
-function mayRest(reading: Reading): number[] {
-  return reading.moments.flatMap((moment, place) => (place > 0 && !moment.standing ? [place] : []))
-}
-
-/** The pass as written without the moments `rests` names. The first sounds whatever it says, and so does the standing note. */
-function resting(reading: Reading, rests: (place: number) => boolean): PassNote[] {
-  const gone = new Set(
-    reading.moments.flatMap((moment, place) =>
-      place > 0 && !moment.standing && rests(place) ? moment.notes : [],
-    ),
-  )
-  return reading.notes.filter((note) => !gone.has(note))
-}
-
-/** A phrase to count on: two moments or more. */
-const fitsPhrase = (reading: Reading): string | null =>
-  isPhrase(reading) && reading.moments.length >= 2 ? null : REFUSALS.notPhrase
-
-const PHRASE_NEEDS = 'A phrase or a beat'
 
 export const COUNTING: readonly Way[] = [
   {

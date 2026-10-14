@@ -10,7 +10,7 @@ import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { playSound, wayTakes, waysFor } from '../ways'
 import { readSound } from '../ways/reading'
-import { takeProblems } from './ways-support'
+import { bankProblems } from './ways-support'
 
 const TRADES = ['neighbours-swap', 'home-and-away']
 
@@ -166,18 +166,10 @@ describe('trades', () => {
   })
 
   it('keep what a take keeps on every sound of the bank they fit', () => {
-    const fitted: Record<string, number> = {}
-    for (const each of FACTORY_SOUNDS) {
-      for (const way of TRADES) {
-        if (wayTakes(each, { way, seed: 3 }).takes > 0) fitted[way] = (fitted[way] ?? 0) + 1
-        for (const far of [0.25, 0.5, 1]) {
-          for (const seed of [3, 77]) {
-            if (wayTakes(each, { way, seed, far }).takes === 0) continue
-            expect(takeProblems(each, way, seed, far), `${each.id} ${way} far ${far}`).toEqual([])
-          }
-        }
-      }
+    expect(bankProblems(TRADES, [3, 77])).toEqual([])
+    for (const way of TRADES) {
+      const fitted = FACTORY_SOUNDS.filter((each) => wayTakes(each, { way, seed: 3 }).takes > 0)
+      expect(fitted.length, way).toBeGreaterThanOrEqual(5)
     }
-    for (const way of TRADES) expect(fitted[way], way).toBeGreaterThanOrEqual(5)
   })
 })

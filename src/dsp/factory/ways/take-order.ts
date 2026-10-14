@@ -4,7 +4,7 @@
 // order holds its rule across the join of its list, since a clip plays the
 // list round.
 
-import { draw } from '../vary'
+import { draw, mod } from '../vary'
 import { type WayTakes } from './types'
 
 /** The orders a host lists, in menu order. */
@@ -50,8 +50,8 @@ const DEAL = 1
 const STAY = 2
 const MOVE = 3
 
-const mod = (value: number, by: number): number => ((value % by) + by) % by
 const upTo = (count: number): number[] => Array.from({ length: count }, (_, index) => index)
+const times = <T>(count: number, value: T): T[] => Array.from({ length: count }, () => value)
 
 /** Each take once, in an order drawn for this deal; never starting on the take the last deal ended on. */
 function deal(takes: number, seed: number, index: number, before: number | undefined): number[] {
@@ -94,11 +94,11 @@ function mostlyStays(takes: number, seed: number, steps: number): number[] {
       2 + Math.floor(draw(seed, STAY, out.length) * 3),
       Math.floor((left - 2) / 2),
     )
-    out.push(...Array.from({ length: stay }, () => take))
+    out.push(...times(stay, take))
     left -= 2 * stay
     take = mod(take + (draw(seed, MOVE, out.length) < 0.5 ? 1 : -1), takes)
   }
-  const turn = Array.from({ length: Math.max(1, left) }, () => take)
+  const turn = times(Math.max(1, left), take)
   return [...out, ...turn, ...[...out].reverse()]
 }
 
@@ -114,11 +114,36 @@ function grows(takes: number, steps: number): number[] {
   return out
 }
 
+/** The way's own round, over and over. */
+const inTurn = (round: readonly number[], steps: number): number[] =>
+  times(Math.max(1, Math.round(steps / round.length)), round).flat()
+
+function placesOf(
+  order: TakeOrder,
+  takes: number,
+  round: readonly number[],
+  seed: number,
+  steps: number,
+): number[] {
+  if (takes === 1) return times(steps, 0)
+  switch (order) {
+    case 'dealt':
+      return dealt(takes, seed, steps)
+    case 'mostly-stays':
+      return mostlyStays(takes, seed, steps)
+    case 'grows':
+      return grows(takes, steps)
+    // In turn, and an order the table does not have.
+    default:
+      return inTurn(round, steps)
+  }
+}
+
 /**
  * The takes of a way (`wayTakes`) in `order`, as a list of take numbers about
  * `options.length` passes long: the nearest length the order's rule allows,
  * so that it still holds where the end of the list meets its start. None for
- * a way with nothing to play.
+ * a way with nothing to play, or for a length that is no number of passes.
  */
 export function takeOrder(
   order: TakeOrder,
@@ -126,23 +151,10 @@ export function takeOrder(
   options: TakeOrderOptions,
 ): number[] {
   const takes = Math.floor(of.takes)
-  if (!(takes >= 1)) return []
+  if (!(takes >= 1) || !Number.isFinite(options.length)) return []
   const holds = Math.max(1, Math.floor(options.holds ?? 1))
   const steps = Math.max(1, Math.round(options.length / holds))
   const seed = options.seed ?? 0
   const round = of.round.length > 0 ? of.round : upTo(takes)
-  const places =
-    takes === 1
-      ? Array.from({ length: steps }, () => 0)
-      : order === 'dealt'
-        ? dealt(takes, seed, steps)
-        : order === 'mostly-stays'
-          ? mostlyStays(takes, seed, steps)
-          : order === 'grows'
-            ? grows(takes, steps)
-            : Array.from(
-                { length: Math.max(1, Math.round(steps / round.length)) },
-                () => round,
-              ).flat()
-  return places.flatMap((take) => Array.from({ length: holds }, () => take))
+  return placesOf(order, takes, round, seed, steps).flatMap((take) => times(holds, take))
 }

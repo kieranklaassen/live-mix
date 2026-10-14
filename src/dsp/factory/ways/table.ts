@@ -20,8 +20,19 @@ export const RULES: readonly Way[] = [
   ...VOICES,
 ]
 
-/** Every way of playing, in menu order: what a host lists. */
-export const WAYS: readonly WayRow[] = RULES
+/**
+ * Every way of playing, in menu order: what a host lists. A row is words and
+ * numbers only, without its rule, so a host can keep it, copy it or send it
+ * to a worker.
+ */
+export const WAYS: readonly WayRow[] = RULES.map(({ id, name, family, words, needs, far }) => ({
+  id,
+  name,
+  family,
+  words,
+  needs,
+  far,
+}))
 
 export function wayRule(id: string): Way | undefined {
   return RULES.find((way) => way.id === id)

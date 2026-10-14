@@ -2,7 +2,7 @@
 // with the same notes are one take, and the round is the order the turns name
 // the takes in.
 
-import { type VariedPlaying, draw } from '../vary'
+import { type VariedPlaying, clamp, draw } from '../vary'
 import { alongKey, passKey, readSound } from './reading'
 import { type PassNote, type Reading, type Way, type WayPlaying } from './types'
 
@@ -28,31 +28,52 @@ export interface Counted {
   cut: boolean
 }
 
-/** The takes of `way` on `sound`, or why there are none. */
-export function countTakes(sound: VariedPlaying, way: Way, playing: WayPlaying): Counted | string {
+/** A sound as a way reads it, or why no way can be asked of it. */
+export function readFor(sound: VariedPlaying): Reading | string {
   if (sound.phrase.notes.length === 0) return 'It has no notes.'
   const reading = readSound(sound)
-  if (reading.shape === 'irregular') return 'Its passes are not one pass repeated.'
-  const refusal = way.fits(reading)
-  if (refusal !== null) return refusal
+  return reading.shape === 'irregular' ? 'Its passes are not one pass repeated.' : reading
+}
 
+/** The pass `way` gives on each turn, as `playing` asks for it. */
+function turnsOf(reading: Reading, way: Way, playing: WayPlaying): (turn: number) => PassNote[] {
   const given = playing.far ?? way.far.default
-  const far = Number.isFinite(given) ? Math.min(1, Math.max(0, given)) : way.far.default
+  const far = Number.isFinite(given) ? clamp(given, 0, 1) : way.far.default
   const seed = Number.isFinite(playing.seed) ? playing.seed : 0
   const number = wayNumber(way.id)
   const along = (note: number, steps: number): number => alongKey(note, steps, playing.key)
+  return (turn) =>
+    way.play(reading, { turn, far, along, draw: (...of) => draw(seed, number, ...of) })
+}
 
+/**
+ * Whether `way` has something to play on a sound read as `reading`: what
+ * `countTakes` finds, without counting past the second take.
+ */
+export function hasTakes(reading: Reading, way: Way, playing: WayPlaying): boolean {
+  if (way.fits(reading) !== null) return false
+  const play = turnsOf(reading, way, playing)
+  const first = passKey(play(0))
+  for (let turn = 1; turn < TURNS; turn += 1) {
+    if (passKey(play(turn)) !== first) return true
+  }
+  return false
+}
+
+/** The takes of `way` on `sound`, or why there are none. */
+export function countTakes(sound: VariedPlaying, way: Way, playing: WayPlaying): Counted | string {
+  const reading = readFor(sound)
+  if (typeof reading === 'string') return reading
+  const refusal = way.fits(reading)
+  if (refusal !== null) return refusal
+
+  const play = turnsOf(reading, way, playing)
   const keys: string[] = []
   const passes: PassNote[][] = []
   const turns: number[] = []
   let cut = false
   for (let turn = 0; turn < TURNS; turn += 1) {
-    const pass = way.play(reading, {
-      turn,
-      far,
-      along,
-      draw: (...of) => draw(seed, number, ...of),
-    })
+    const pass = play(turn)
     const key = passKey(pass)
     let take = keys.indexOf(key)
     if (take < 0) {

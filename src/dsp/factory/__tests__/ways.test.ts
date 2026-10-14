@@ -12,7 +12,7 @@ import { WAYS, WAY_FAMILIES, describeTake, playSound, wayTakes, waysFor } from '
 import { readSound } from '../ways/reading'
 import { countTakes } from '../ways/takes'
 import { type Way } from '../ways/types'
-import { notesKey, takeProblems } from './ways-support'
+import { bankProblems, notesKey } from './ways-support'
 
 const chord = looped(16, 4, 2, [48, 55, 64, 71])
 const one = looped(16, 4, 2, [48])
@@ -273,18 +273,13 @@ describe('one at a time', () => {
   })
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
-    const fitted: Record<string, number> = {}
-    for (const each of FACTORY_SOUNDS) {
-      for (const way of ['rising', 'there-and-back', 'outside-in', 'carry-on']) {
-        for (const far of [0.25, 0.5, 1]) {
-          if (wayTakes(each, { way, seed: 3, far }).takes === 0) continue
-          fitted[way] = (fitted[way] ?? 0) + 1
-          expect(takeProblems(each, way, 3, far), `${each.id} ${way} far ${far}`).toEqual([])
-        }
-      }
-    }
-    for (const way of ['rising', 'there-and-back', 'outside-in', 'carry-on']) {
-      expect(fitted[way], way).toBeGreaterThanOrEqual(15)
+    const ways = ['rising', 'there-and-back', 'outside-in', 'carry-on']
+    expect(bankProblems(ways, [3])).toEqual([])
+    for (const way of ways) {
+      const fitted = [0.25, 0.5, 1].flatMap((far) =>
+        FACTORY_SOUNDS.filter((each) => wayTakes(each, { way, seed: 3, far }).takes > 0),
+      )
+      expect(fitted.length, way).toBeGreaterThanOrEqual(15)
     }
   })
 })

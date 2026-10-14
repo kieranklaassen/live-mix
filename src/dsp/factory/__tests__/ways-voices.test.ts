@@ -14,7 +14,7 @@ import { HIGHEST_NOTE, alongWhiteKeys } from '../vary'
 import { playSound, wayTakes, type WayPlaying } from '../ways'
 import { cents, readSound, tick } from '../ways/reading'
 import { type PassNote } from '../ways/types'
-import { takeProblems } from './ways-support'
+import { bankProblems } from './ways-support'
 
 const node = { compile: compileFromDisk, sliceMs: 0 } as const
 
@@ -424,16 +424,7 @@ describe('hits and voices', () => {
   const WAYS_OF_IT = ['echoes', 'two-readers', 'in-the-gaps']
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
-    for (const each of FACTORY_SOUNDS) {
-      for (const way of WAYS_OF_IT) {
-        for (const far of [0.25, 0.5, 1]) {
-          for (const seed of [3, 77]) {
-            if (wayTakes(each, { way, seed, far }).takes === 0) continue
-            expect(takeProblems(each, way, seed, far), `${each.id} ${way} far ${far}`).toEqual([])
-          }
-        }
-      }
-    }
+    expect(bankProblems(WAYS_OF_IT, [3, 77])).toEqual([])
   })
 
   it('has something to play on sounds of the bank at the far each way stands at', () => {

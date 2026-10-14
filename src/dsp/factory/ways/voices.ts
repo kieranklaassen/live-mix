@@ -6,12 +6,19 @@
 // that keeps time it falls where the sound's own notes could.
 
 import { HIGHEST_NOTE } from '../vary'
-import { REFUSALS, gainAt, isPhrase, singles } from './pass'
+import {
+  PITCHES_NEEDS,
+  REFUSALS,
+  gainAt,
+  gcd,
+  hasThreePitches,
+  isPhrase,
+  line,
+  pitchedPhrase,
+} from './pass'
 import { cents, tick } from './reading'
 import { MOST_TAKES } from './takes'
 import { type Moment, type PassNote, type Reading, type Turn, type Way } from './types'
-
-const gcd = (a: number, b: number): number => (b === 0 ? a : gcd(b, a % b))
 
 // --- Echoes --------------------------------------------------------------------------
 
@@ -91,15 +98,15 @@ function readOf(length: number, step: number): number {
 
 /** The written phrase, and a second voice that reads its line a fifth higher at every third moment. */
 function twoReaders(reading: Reading, { turn, far, along }: Turn): PassNote[] {
-  const line = singles(reading).map((moment) => moment.notes[0].note)
+  const notes = line(reading)
   const joined = reading.moments.filter((_, index) => index % EVERY === EVERY - 1)
-  const read = readOf(line.length, joined.length)
+  const read = readOf(notes.length, joined.length)
   // Softer than the note it joins at any `far`: from three tenths as hard to nine tenths.
   const level = 0.3 + 0.6 * far
   const voice = joined.flatMap((moment, index): PassNote[] => {
     const [beside] = moment.notes
     // Carried on: a turn starts on the note after the last one the turn before read.
-    const fifth = along(line[(turn * joined.length + index) % read], 4)
+    const fifth = along(notes[(turn * joined.length + index) % read], 4)
     // An octave above is further out still: over the range, the fifth is taken an octave lower.
     const note = fifth > HIGHEST_NOTE ? fifth - 12 : fifth
     // A key the moment already strikes cannot be struck twice at once: the voices are one there.
@@ -202,7 +209,7 @@ export const VOICES: readonly Way[] = [
     family: 'voices',
     words:
       'A second, softer voice joins every third moment of the phrase. It reads the notes of the phrase in order, a fifth higher in the key, and carries on each turn from where it stopped. The written notes stay as they are.',
-    needs: 'A phrase of three pitches',
+    needs: PITCHES_NEEDS,
     far: {
       words:
         'How soft the second voice is: the further, the less soft, and never as hard as the note it joins.',
@@ -210,9 +217,7 @@ export const VOICES: readonly Way[] = [
     },
     fits: (reading) => {
       if (!reading.pitched) return REFUSALS.notNotes
-      return isPhrase(reading) && singles(reading).length >= 2 && reading.upper.length >= 2
-        ? null
-        : 'Needs a phrase of three pitches.'
+      return isPhrase(reading) && hasThreePitches(reading) ? null : REFUSALS.threePitches
     },
     play: twoReaders,
   },
@@ -225,8 +230,8 @@ export const VOICES: readonly Way[] = [
     needs: 'A phrase with rests',
     far: { words: 'Past half, two gaps are filled each turn.', default: 0.25 },
     fits: (reading) => {
-      if (!reading.pitched) return REFUSALS.notNotes
-      if (!isPhrase(reading)) return REFUSALS.notPhrase
+      const refusal = pitchedPhrase(reading)
+      if (refusal !== null) return refusal
       if (widestOf(gapsOf(reading)).length === 0) return 'Needs a phrase with rests.'
       return reading.upper.length > 0 ? null : 'Needs a phrase of two pitches.'
     },

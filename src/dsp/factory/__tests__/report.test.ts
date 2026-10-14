@@ -87,6 +87,7 @@ import {
   renderGeneratedSound,
   transposeFactorySound,
   wayTakes,
+  waysFor,
   type FactoryMode,
   type WayPlaying,
 } from '..'
@@ -661,22 +662,24 @@ describe.skipIf(!mode)('factory bench', () => {
       say(
         `${'way'.padEnd(20)} ${kinds.map((kind) => `${kind} (${ofKind(kind)})`.padStart(13)).join(' ')}   all`,
       )
-      const none = new Map(kinds.map((kind) => [kind, 0]))
+      const asked = new Set(ways.map((way) => way.id))
+      const reach = from.map((sound) => ({
+        kind: sound.kind,
+        ways: waysFor(sound, { seed, ...far }).filter((id) => asked.has(id)),
+      }))
+      const row = (name: string, fits: readonly { kind: string }[]): string =>
+        `${name.padEnd(20)} ${kinds
+          .map((kind) => String(fits.filter((each) => each.kind === kind).length).padStart(13))
+          .join(' ')}`
       for (const way of ways) {
-        const fits = from.filter((sound) => wayTakes(sound, playing(way.id)).takes > 0)
-        say(
-          `${way.id.padEnd(20)} ${kinds
-            .map((kind) => String(fits.filter((sound) => sound.kind === kind).length).padStart(13))
-            .join(' ')} ${String(fits.length).padStart(5)}`,
-        )
-      }
-      for (const sound of from) {
-        if (ways.every((way) => wayTakes(sound, playing(way.id)).takes === 0)) {
-          none.set(sound.kind, (none.get(sound.kind) ?? 0) + 1)
-        }
+        const fits = reach.filter((each) => each.ways.includes(way.id))
+        say(`${row(way.id, fits)} ${String(fits.length).padStart(5)}`)
       }
       say(
-        `${'(no way at all)'.padEnd(20)} ${kinds.map((kind) => String(none.get(kind) ?? 0).padStart(13)).join(' ')}`,
+        row(
+          '(no way at all)',
+          reach.filter((each) => each.ways.length === 0),
+        ),
       )
       publish()
     },

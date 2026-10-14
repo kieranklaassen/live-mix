@@ -5,7 +5,16 @@
 // keeps its rhythm and the note it stands on.
 
 import { HIGHEST_NOTE } from '../vary'
-import { REFUSALS, gainAt, isPhrase, repitched, singles, standingNotes } from './pass'
+import {
+  REFUSALS,
+  gainAt,
+  hasThreePitches,
+  line,
+  pitchedPhrase,
+  repitched,
+  singles,
+  standingNotes,
+} from './pass'
 import { cents } from './reading'
 import { type PassNote, type Reading, type Turn, type Way } from './types'
 
@@ -46,9 +55,7 @@ const fitsChord = (reading: Reading): string | null => {
   if (reading.shape === 'held') {
     return reading.upper.length >= 1 ? null : 'Needs two notes held, or more.'
   }
-  return singles(reading).length >= 2 && reading.upper.length >= 2
-    ? null
-    : 'Needs a phrase of three pitches.'
+  return hasThreePitches(reading) ? null : REFUSALS.threePitches
 }
 
 const CHORD_NEEDS = 'A held chord, or a phrase of three pitches'
@@ -120,16 +127,14 @@ export const ONE_AT_A_TIME: readonly Way[] = [
       'The phrase reads its own notes with the last left off, and carries on from turn to turn, so the same rhythm plays a line that comes round a note later each time.',
     needs: 'A phrase of three single notes',
     far: { words: 'Past half, two notes are left off.', default: 0.25 },
-    fits: (reading) => {
-      if (!reading.pitched) return REFUSALS.notNotes
-      if (!isPhrase(reading)) return REFUSALS.notPhrase
-      return singles(reading).length >= 3 ? null : 'Needs a phrase of three single notes.'
-    },
+    fits: (reading) =>
+      pitchedPhrase(reading) ??
+      (singles(reading).length >= 3 ? null : 'Needs a phrase of three single notes.'),
     play: (reading, { turn, far }: Turn) => {
-      const line = singles(reading).map((moment) => moment.notes[0].note)
-      const off = far > 0.5 && line.length >= 5 ? 2 : 1
-      const kept = line.length - off
-      return repitched(reading, (index, count) => line[(turn * count + index) % kept])
+      const notes = line(reading)
+      const off = far > 0.5 && notes.length >= 5 ? 2 : 1
+      const kept = notes.length - off
+      return repitched(reading, (index, count) => notes[(turn * count + index) % kept])
     },
   },
 ]

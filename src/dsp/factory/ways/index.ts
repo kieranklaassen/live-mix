@@ -18,10 +18,10 @@
 // as hard as the sound's hardest. Everything is decided by the sound, the
 // way, the seed and `far`, and by nothing else.
 
-import { type SoundVariation, type VariedPlaying, varySound } from '../vary'
+import { type SoundVariation, type VariedPlaying, mod, varySound } from '../vary'
 import { cents, layOut, passKey, readSound, tick } from './reading'
 import { RULES, wayRule } from './table'
-import { countTakes } from './takes'
+import { countTakes, hasTakes, readFor } from './takes'
 import {
   type PassNote,
   type Reading,
@@ -68,7 +68,7 @@ function takeOf(
   if (typeof counted === 'string') return null
   const { passes, reading } = counted
   const asked = Number.isFinite(playing.take) ? Math.floor(playing.take ?? 0) : 0
-  return { reading, pass: passes[((asked % passes.length) + passes.length) % passes.length] }
+  return { reading, pass: passes[mod(asked, passes.length)] }
 }
 
 /**
@@ -100,8 +100,8 @@ export function playAndVarySound<T extends VariedPlaying>(
   variation?: SoundVariation,
 ): T {
   const played = playSound(sound, playing)
-  const held = played !== sound && readSound(sound).shape === 'held'
-  return varySound(played, held && variation ? { ...variation, speed: 0, pattern: 0 } : variation)
+  const held = variation && played !== sound && readSound(sound).shape === 'held'
+  return varySound(played, held ? { ...variation, speed: 0, pattern: 0 } : variation)
 }
 
 /**
@@ -113,9 +113,11 @@ export function waysFor(
   sound: VariedPlaying,
   at: Partial<Pick<WayPlaying, 'seed' | 'far' | 'key'>> = {},
 ): string[] {
-  return RULES.filter(
-    (way) => typeof countTakes(sound, way, { seed: 0, ...at, way: way.id }) !== 'string',
-  ).map((way) => way.id)
+  const reading = readFor(sound)
+  if (typeof reading === 'string') return []
+  return RULES.filter((way) => hasTakes(reading, way, { seed: 0, ...at, way: way.id })).map(
+    (way) => way.id,
+  )
 }
 
 /**

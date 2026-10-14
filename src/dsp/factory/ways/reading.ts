@@ -7,7 +7,7 @@
 
 import { DEFAULT_PHRASE_GAIN, type PhraseNote } from '../../patch-render'
 import { factoryTranspose, type FactoryKey } from '../key'
-import { alongWhiteKeys, type VariedPlaying } from '../vary'
+import { alongWhiteKeys, clamp, type VariedPlaying } from '../vary'
 import { type Moment, type PassNote, type Reading } from './types'
 
 /** A time as notes are told apart by it: ten-thousandths of a second. */
@@ -15,11 +15,8 @@ export const tick = (sec: number): number => Math.round(sec * 1e4)
 /** A pitch as notes are told apart by it: cents. */
 export const cents = (note: number): number => Math.round(note * 100)
 
-const clamp = (value: number, low: number, high: number): number =>
-  Math.min(high, Math.max(low, value))
-
 /** The notes of a pass by the moment they are struck at, earliest first. */
-export function momentsOf(notes: readonly PassNote[], standing: number | null): Moment[] {
+function momentsOf(notes: readonly PassNote[], standing: number | null): Moment[] {
   const by = new Map<number, PassNote[]>()
   for (const note of notes) {
     const struck = by.get(tick(note.at))
@@ -67,10 +64,11 @@ export function readSound(sound: VariedPlaying): Reading {
       .map(inPass)
       .map((note) => `${tick(note.at)}:${cents(note.note)}:${note.dur}:${note.gain}`)
       .join(' ')
+  const first = round ? passed(0) : ''
   const regular =
     !round ||
     Array.from({ length: passesOf(sound) }, (_, pass) => passed(pass + 1)).every(
-      (each) => each === passed(0),
+      (each) => each === first,
     )
 
   const notes = written.filter((note) => passOf(note) === 0).map(inPass)

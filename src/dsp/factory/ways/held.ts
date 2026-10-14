@@ -5,7 +5,8 @@
 // end) and stays down to the end the written note has, past everything that
 // is rendered, as the written chord does.
 
-import { REFUSALS, standingNotes } from './pass'
+import { mod } from '../vary'
+import { REFUSALS, gcd, standingNotes } from './pass'
 import { MOST_TAKES } from './takes'
 import { type PassNote, type Reading, type Turn, type Way } from './types'
 
@@ -37,13 +38,11 @@ const entering = (note: PassNote, at: number): PassNote => ({
   dur: note.at + note.dur - at,
 })
 
-const commonFactor = (a: number, b: number): number => (b === 0 ? a : commonFactor(b, a % b))
-
 /** A count for each of `voices` notes, shortest first, no two with a factor in common. */
 function countsFor(voices: number): number[] {
   const counts: number[] = []
   for (let count = 2; counts.length < voices; count += 1) {
-    if (counts.every((each) => commonFactor(each, count) === 1)) counts.push(count)
+    if (counts.every((each) => gcd(each, count) === 1)) counts.push(count)
   }
   return counts
 }
@@ -60,7 +59,7 @@ function countsFor(voices: number): number[] {
 function grids(counts: readonly number[]): number[] {
   const longest = counts[counts.length - 1]
   const turns = (grid: number): number =>
-    counts.reduce((all, count) => (all * count) / commonFactor(grid, count), 1)
+    counts.reduce((all, count) => (all * count) / gcd(grid, count), 1)
   const upTo = (times: number): number[] =>
     Array.from({ length: longest * (times - 2) + 1 }, (_, index) => 2 * longest + index)
   const back = upTo(FINEST.back).filter((grid) => turns(grid) >= 2 && turns(grid) <= MOST_TAKES)
@@ -101,8 +100,7 @@ export const HELD: readonly Way[] = [
     play: (reading, { turn, far }: Turn) => {
       const upper = voices(reading)
       // Which note leaves on a turn, from the top down; the turn before the first is the last of the round.
-      const leaving = (on: number): PassNote =>
-        upper[upper.length - 1 - (((on % upper.length) + upper.length) % upper.length)]
+      const leaving = (on: number): PassNote => upper[upper.length - 1 - mod(on, upper.length)]
       const goes = leaving(turn)
       const comes = leaving(turn - 1)
       const through = TRADE.earliest + far * (TRADE.latest - TRADE.earliest)

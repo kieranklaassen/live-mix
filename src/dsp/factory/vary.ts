@@ -110,9 +110,9 @@ const CHORD_STEPS: readonly { steps: number; weight: number }[] = [
 ]
 
 /** A note this near the start of a sound is its attack, and stays where it is. */
-export const LEAD_SEC = 0.03
+const LEAD_SEC = 0.03
 /** Notes this near each other in time are struck together. */
-export const TOGETHER_SEC = 1e-4
+const TOGETHER_SEC = 1e-4
 export const LOWEST_NOTE = 24
 export const HIGHEST_NOTE = 96
 const WHITE_KEYS = [0, 2, 4, 5, 7, 9, 11]
@@ -178,10 +178,10 @@ export function draw(seed: number, ...of: number[]): number {
 /** -1 up to 1. */
 const swing = (seed: number, ...of: number[]): number => draw(seed, ...of) * 2 - 1
 
-const clamp = (value: number, low: number, high: number): number =>
+export const clamp = (value: number, low: number, high: number): number =>
   Math.min(high, Math.max(low, value))
 
-const mod = (value: number, by: number): number => ((value % by) + by) % by
+export const mod = (value: number, by: number): number => ((value % by) + by) % by
 
 /** What is drawn from, so no two draws of a variant are the same one. */
 const TIMING = 1
