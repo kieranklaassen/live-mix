@@ -924,9 +924,12 @@ export function drawStudioFace(
   const ctx = face.getContext('2d')
   if (!ctx) return false
   const { gl, u, canvas } = rig
+  // The ratio of the screen the face is on: its own window's, which is not the page's where a host draws the plate
+  // into a window it opened.
+  const screen = (face.ownerDocument?.defaultView ?? globalThis).devicePixelRatio
   const ratio = Math.min(
     RATIO_MOST,
-    Math.max(1, (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) * (scene.shown ?? 1)),
+    Math.max(1, (typeof screen === 'number' && screen > 0 ? screen : 1) * (scene.shown ?? 1)),
   )
   const fw = Math.max(1, Math.round(scene.width * ratio))
   const fh = Math.max(1, Math.round(scene.height * ratio))

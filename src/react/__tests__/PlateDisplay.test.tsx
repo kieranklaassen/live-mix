@@ -22,8 +22,10 @@ import { DevicePlate } from '../components/DevicePlate'
 import {
   PlateDisplayLayer,
   pixelsPerPx,
+  screenRatio,
   settledDisplays,
   shownScale,
+  viewOf,
 } from '../components/PlateDisplay'
 import { DEVICE_SKINS, QUIET_SKIN, type DeviceSkin } from '../components/device-skins'
 import {
@@ -1460,5 +1462,76 @@ describe('a handle under the wheel, under a finger and under another handle', ()
     expect(touchStart(120, 30).defaultPrevented).toBe(false)
     // No style says "never scroll from here": that would also hold the swipes beside the points.
     expect(surface.style.touchAction).toBe('')
+  })
+})
+
+describe('a plate drawn into a window the page opened', () => {
+  /** Another window with a document of its own, as one opened for a second screen has. */
+  const otherWindow = (): Window & typeof globalThis => {
+    const frame = document.createElement('iframe')
+    document.body.append(frame)
+    return frame.contentWindow as Window & typeof globalThis
+  }
+
+  afterEach(() => {
+    for (const frame of document.querySelectorAll('iframe')) frame.remove()
+  })
+
+  it("is in that window, and the page's own elements are in the page's", () => {
+    const other = otherWindow()
+    const there = other.document.createElement('div')
+    other.document.body.append(there)
+    expect(viewOf(there)).toBe(other)
+    expect(viewOf(document.createElement('div'))).toBe(window)
+    // An element of a document that is shown in no window: the page's own stands in.
+    const nowhere = document.implementation.createHTMLDocument('').createElement('div')
+    expect(viewOf(nowhere)).toBe(globalThis)
+  })
+
+  it('takes its pixels from the screen that window is on', () => {
+    const other = otherWindow()
+    Object.defineProperty(other, 'devicePixelRatio', { value: 3, configurable: true })
+    const there = other.document.createElement('div')
+    other.document.body.append(there)
+    expect(screenRatio(there)).toBe(3)
+    expect(pixelsPerPx(there)).toBe(3)
+    expect(screenRatio(document.createElement('div'))).toBe(devicePixelRatio)
+    // A window that does not say counts as one pixel a px.
+    Object.defineProperty(other, 'devicePixelRatio', { value: undefined, configurable: true })
+    expect(screenRatio(there)).toBe(1)
+  })
+
+  it('is watched for being in view by that window, not by the page', async () => {
+    const other = otherWindow()
+    let seen: ((entries: { isIntersecting: boolean }[]) => void) | null = null
+    const watchers = (owner: string, made: string[]) =>
+      class {
+        constructor(callback: (entries: { isIntersecting: boolean }[]) => void) {
+          made.push(owner)
+          seen = callback
+        }
+        observe(): void {}
+        disconnect(): void {}
+      }
+    const made: string[] = []
+    vi.stubGlobal('IntersectionObserver', watchers('page', made))
+    Object.defineProperty(other, 'IntersectionObserver', {
+      value: watchers('other', made),
+      configurable: true,
+    })
+    // That window's canvases are another kind than the page's: they are given something to draw on too.
+    vi.spyOn(other.HTMLCanvasElement.prototype, 'getContext').mockImplementation(() => canvas.ctx)
+    const fixture = createTestEngine()
+    const device = await make(fixture)
+    const container = other.document.createElement('div')
+    other.document.body.append(container)
+    render(<DevicePlate device={device} skin={{ ...BASE, display: live() }} />, {
+      wrapper: fixture.wrapper,
+      container,
+    })
+    expect(made).toEqual(['other'])
+    expect(runningDisplays()).toBe(0)
+    act(() => seen?.([{ isIntersecting: true }]))
+    expect(runningDisplays()).toBe(1)
   })
 })

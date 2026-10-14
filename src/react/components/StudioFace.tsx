@@ -25,7 +25,7 @@ import {
 
 import { normToKnobAngle } from './control-math'
 import { type KnobCap } from './Knob'
-import { lookAtPlateDisplays, pixelsPerPx, shownScale } from './PlateDisplay'
+import { lookAtPlateDisplays, pixelsPerPx, shownScale, viewOf } from './PlateDisplay'
 import {
   cssRgb,
   drawStudioFace,
@@ -206,7 +206,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
     // A display paints in colours it reads from the stylesheet: it is told when they change.
     let tell = false
     // The skin's three colours, each from a property whose computed value is a colour whatever the skin wrote.
-    const style = getComputedStyle(canvas)
+    const style = viewOf(canvas).getComputedStyle(canvas)
     const colours = `${style.color}|${style.outlineColor}|${style.textDecorationColor}`
     if (colours !== now.colours) {
       tell = true
@@ -268,17 +268,19 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
     if (!canvas || !plate) return
     const once = (): void => setAgain((count) => count + 1)
     // A part that moved without a render: the plate stretched, a host's preset cell arrived or grew.
+    // Watched by the window the plate is in (`viewOf`).
+    const view = viewOf(plate)
     const watched =
-      typeof ResizeObserver === 'function'
-        ? new ResizeObserver(() => {
+      typeof view.ResizeObserver === 'function'
+        ? new view.ResizeObserver(() => {
             if (shapeOf(measure(plate)) !== shapeOf(held.current.parts)) once()
           })
         : null
     watched?.observe(plate)
     // A preset's cell is as wide as its name: it is watched for a name that changed.
     const renamed =
-      typeof MutationObserver === 'function'
-        ? new MutationObserver(() => {
+      typeof view.MutationObserver === 'function'
+        ? new view.MutationObserver(() => {
             if (shapeOf(measure(plate)) !== shapeOf(held.current.parts)) once()
           })
         : null
@@ -288,7 +290,7 @@ export function StudioFace({ cap, turns, powered, shape }: StudioFaceProps) {
     }
     let ratio = pixelsPerPx(plate)
     const unlook = lookAfter(() => {
-      const style = getComputedStyle(canvas)
+      const style = view.getComputedStyle(canvas)
       const colours = `${style.color}|${style.outlineColor}|${style.textDecorationColor}`
       const next = pixelsPerPx(plate)
       if (colours !== held.current.colours || next !== ratio) {

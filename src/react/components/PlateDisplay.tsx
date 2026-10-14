@@ -173,9 +173,12 @@ export class DisplayRunner {
     }
     this.ctx = ctx
     this.state = inputs().display.init?.()
-    if (ctx && typeof IntersectionObserver === 'function') {
+    // The window the canvas is in watches it: its own, which is another's where a host draws the plate into a
+    // window it opened.
+    const Watcher = viewOf(canvas).IntersectionObserver
+    if (ctx && typeof Watcher === 'function') {
       this.visible = false
-      this.observer = new IntersectionObserver((entries) => {
+      this.observer = new Watcher((entries) => {
         const seen = entries[entries.length - 1]?.isIntersecting ?? false
         if (seen === this.visible) return
         this.visible = seen
@@ -392,10 +395,11 @@ export class DisplayRunner {
   }
 
   private readColours(): void {
-    if (typeof getComputedStyle !== 'function') return
+    const view = viewOf(this.canvas)
+    if (typeof view.getComputedStyle !== 'function') return
     // The stylesheet puts the plate's three colours in three properties whose
     // computed value is a colour the canvas can paint, whatever they were written as.
-    const style = getComputedStyle(this.canvas)
+    const style = view.getComputedStyle(this.canvas)
     const ink = style.color
     const accent = style.outlineColor
     const plate = style.textDecorationColor
@@ -857,7 +861,23 @@ export function shownScale(element: HTMLElement): number {
   return own > 0 && shown > 0 ? Math.round((shown / own) * 100) / 100 : 1
 }
 
+/**
+ * The window an element is drawn in: its own document's. That is the page's own nearly always, and another's
+ * where a host draws a plate into a window it opened (a second screen): what is asked of a window (its screen's
+ * pixel ratio, a computed style, an observer) is asked of that one, since the page's own may be on another
+ * screen and does not watch another's elements in every browser.
+ */
+export function viewOf(element: Element): typeof globalThis {
+  return element.ownerDocument?.defaultView ?? globalThis
+}
+
+/** The pixels of its screen one px takes in the window an element is in; 1 where the window does not say. */
+export function screenRatio(element: Element): number {
+  const ratio = viewOf(element).devicePixelRatio
+  return typeof ratio === 'number' && ratio > 0 ? ratio : 1
+}
+
 /** The screen's pixels one of an element's own px takes: the screen's ratio times how large a host shows it. */
 export function pixelsPerPx(element: HTMLElement): number {
-  return (typeof devicePixelRatio === 'number' ? devicePixelRatio : 1) * shownScale(element)
+  return screenRatio(element) * shownScale(element)
 }

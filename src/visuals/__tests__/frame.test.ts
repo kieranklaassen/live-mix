@@ -37,6 +37,7 @@ const setOf = (...list: Visual[]): VisualSet => ({
   palette: DEFAULT_PALETTE,
   grain: DEFAULT_GRAIN,
   list,
+  pedals: [],
 })
 
 const NO_LEVELS: ReadonlyMap<string, number> = new Map()
@@ -335,11 +336,16 @@ describe('the frame a piece comes to', () => {
   })
 
   it('carries the palette and the grain of the piece', () => {
-    const frame = frameOf({ palette: 'sea', grain: 0.25, list: [] }, quietSignals(), 0, NO_LEVELS)
+    const frame = frameOf(
+      { palette: 'sea', grain: 0.25, list: [], pedals: [] },
+      quietSignals(),
+      0,
+      NO_LEVELS,
+    )
     expect(frame.palette).toBe(visualPalette('sea'))
     expect(frame.grain).toBe(0.25)
     const unknown = frameOf(
-      { palette: 'no-such-palette', grain: 1, list: [] },
+      { palette: 'no-such-palette', grain: 1, list: [], pedals: [] },
       quietSignals(),
       0,
       NO_LEVELS,

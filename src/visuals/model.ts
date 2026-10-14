@@ -5,6 +5,9 @@
 // of the styles (`styles.ts`), which paint, or one of the bends below, which work on what was painted before them.
 // Each has a few knobs, and a knob can follow something in the music: the knob then says how far.
 //
+// Over the picture a few of the piece's devices can lie as pedals: their own plates, as gear lies on a table that
+// is filmed from above. The model keeps which device lies where; drawing its plate is for whoever shows the picture.
+//
 // They are kept in the arrangement's document (`meta.visuals`), so they are saved, undone and carried by a saved
 // session with the strokes. Places are kept in beats, so a change of tempo leaves a visual where it is in the music.
 // A piece with no entry has no visuals, which is every piece saved before there were any; a build from before keeps
@@ -220,13 +223,37 @@ export interface Visual {
   knobs: Readonly<Record<string, VisualKnob>>
 }
 
-/** A piece's visuals: the list, and what lies over all of them. */
+/** How many pedals lie on a picture at most: more hide it. */
+export const VISUAL_PEDALS_MAX = 8
+/** How tall a pedal is as a share of the picture's height: at first, and the least and the most it can be made. */
+export const PEDAL_FIRST_SIZE = 0.42
+export const PEDAL_LEAST_SIZE = 0.12
+export const PEDAL_MOST_SIZE = 0.95
+/** How far a pedal can be turned either way, in degrees. */
+export const PEDAL_MOST_TURN = 45
+
+/** A device of the piece laid on the picture as its own plate. */
+export interface VisualPedal {
+  /** The device it shows, by its id in the piece. A device lies on the picture once. */
+  device: string
+  /** Where its middle lies: 0 to 1 across the picture from the left, and down it from the top. */
+  x: number
+  y: number
+  /** How tall it is, as a share of the picture's height. Its width follows from the plate's own shape. */
+  size: number
+  /** How far it is turned, in degrees clockwise: gear laid down by hand seldom lies square. */
+  turn: number
+}
+
+/** A piece's visuals: the list, what lies over all of them, and the pedals laid on the picture. */
 export interface VisualSet {
   /** The palette's id (`palettes.ts`). */
   palette: string
   /** How much film grain lies over the picture, 0 to 1. */
   grain: number
   list: readonly Visual[]
+  /** The pedals on the picture, in the order they are laid: a later one lies over an earlier one. */
+  pedals: readonly VisualPedal[]
   /** What a later build wrote beside these and this one does not read: kept as written, so this build saves what it opened. */
   more?: JsonObject
 }
@@ -241,6 +268,7 @@ const NO_VISUALS: VisualSet = Object.freeze({
   palette: DEFAULT_PALETTE,
   grain: DEFAULT_GRAIN,
   list: Object.freeze([]),
+  pedals: Object.freeze([]),
 })
 
 /** A piece with no visuals. */
@@ -251,6 +279,7 @@ export function emptyVisualSet(): VisualSet {
 export function isEmptyVisualSet(set: VisualSet): boolean {
   return (
     set.list.length === 0 &&
+    set.pedals.length === 0 &&
     set.palette === DEFAULT_PALETTE &&
     set.grain === DEFAULT_GRAIN &&
     set.more === undefined
@@ -268,6 +297,24 @@ const clamp01 = (value: number): number =>
   Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0
 /** To the thousandth, so a dragged knob is not written as a long fraction. */
 const round3 = (value: number): number => Math.round(value * 1000) / 1000
+
+function cleanShare(value: unknown, otherwise: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? round3(clamp01(value)) : otherwise
+}
+
+function cleanPedalSize(size: unknown): number {
+  return typeof size === 'number' && Number.isFinite(size)
+    ? round3(Math.min(PEDAL_MOST_SIZE, Math.max(PEDAL_LEAST_SIZE, size)))
+    : PEDAL_FIRST_SIZE
+}
+
+/** To the tenth of a degree. */
+function cleanPedalTurn(turn: unknown): number {
+  if (typeof turn !== 'number' || !Number.isFinite(turn)) return 0
+  const tenths = Math.round(Math.min(PEDAL_MOST_TURN, Math.max(-PEDAL_MOST_TURN, turn)) * 10) / 10
+  // Not -0, which is written as 0 and would then not read back the same.
+  return tenths === 0 ? 0 : tenths
+}
 
 function cleanLane(lane: unknown): number {
   return typeof lane === 'number' && Number.isFinite(lane)
@@ -327,7 +374,7 @@ function knobsFromJson(kind: string, json: JsonValue | undefined): Record<string
 
 /** The visuals as the document keeps them. */
 export function visualsToJson(set: VisualSet): JsonObject {
-  return {
+  const json: JsonObject = {
     ...set.more,
     palette: set.palette,
     grain: set.grain,
@@ -352,6 +399,36 @@ export function visualsToJson(set: VisualSet): JsonObject {
       return entry
     }),
   }
+  // Left out where none lies, so a piece without pedals is written as it was before there were any.
+  if (set.pedals.length === 0) delete json.pedals
+  else
+    json.pedals = set.pedals.map((pedal) => {
+      const entry: JsonObject = { device: pedal.device, x: pedal.x, y: pedal.y, size: pedal.size }
+      if (pedal.turn !== 0) entry.turn = pedal.turn
+      return entry
+    })
+  return json
+}
+
+function pedalsFromJson(json: JsonValue | undefined): VisualPedal[] {
+  const pedals: VisualPedal[] = []
+  const seen = new Set<string>()
+  for (const entry of Array.isArray(json) ? json : []) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue
+    const { device } = entry
+    if (typeof device !== 'string' || device === '' || device.length > 120 || seen.has(device))
+      continue
+    seen.add(device)
+    pedals.push({
+      device,
+      x: cleanShare(entry.x, 0.5),
+      y: cleanShare(entry.y, 0.5),
+      size: cleanPedalSize(entry.size),
+      turn: cleanPedalTurn(entry.turn),
+    })
+    if (pedals.length === VISUAL_PEDALS_MAX) break
+  }
+  return pedals
 }
 
 /** The visuals of a document; whatever is not a visual is left out. */
@@ -385,18 +462,25 @@ export function visualsFromJson(json: JsonValue | undefined): VisualSet {
     })
     if (list.length === VISUAL_MAX) break
   }
+  const pedals = pedalsFromJson(json.pedals)
   const more: JsonObject = {}
   for (const name of Object.keys(json)) {
-    if (name === 'palette' || name === 'grain' || name === 'list') continue
+    if (name === 'palette' || name === 'grain' || name === 'list' || name === 'pedals') continue
     const value = json[name]
     if (value === undefined || !/^[a-zA-Z][a-zA-Z0-9-]{0,39}$/.test(name)) continue
     more[name] = value
     if (Object.keys(more).length === MORE_MAX) break
   }
   const kept = Object.keys(more).length > 0
-  if (list.length === 0 && palette === DEFAULT_PALETTE && grain === DEFAULT_GRAIN && !kept)
+  if (
+    list.length === 0 &&
+    pedals.length === 0 &&
+    palette === DEFAULT_PALETTE &&
+    grain === DEFAULT_GRAIN &&
+    !kept
+  )
     return NO_VISUALS
-  return kept ? { palette, grain, list, more } : { palette, grain, list }
+  return kept ? { palette, grain, list, pedals, more } : { palette, grain, list, pedals }
 }
 
 export function sameVisualSet(a: VisualSet, b: VisualSet): boolean {
@@ -640,4 +724,131 @@ export function drawOrder(set: VisualSet): Visual[] {
     ...byLane.filter((visual) => paints(visual.kind)),
     ...byLane.filter((visual) => !paints(visual.kind)),
   ]
+}
+
+/** The pedal that shows a device; null when that device does not lie on the picture. */
+export function pedalOf(set: VisualSet, device: string): VisualPedal | null {
+  return set.pedals.find((pedal) => pedal.device === device) ?? null
+}
+
+/** Where a pedal is put, how large and how far turned; whatever is left out stays as it is. */
+export interface PedalPlace {
+  x?: number
+  y?: number
+  size?: number
+  turn?: number
+}
+
+/**
+ * Where pedals laid without a place go: a row across the lower half first, as gear is laid out in front of whoever
+ * plays, then a row above it. Each is turned a little, no two alike, as things put down by hand are.
+ */
+const PEDAL_SPOTS: readonly { x: number; y: number; turn: number }[] = [
+  { x: 0.2, y: 0.7, turn: -2 },
+  { x: 0.4, y: 0.7, turn: 1.5 },
+  { x: 0.6, y: 0.7, turn: -1 },
+  { x: 0.8, y: 0.7, turn: 2.5 },
+  { x: 0.3, y: 0.3, turn: 2 },
+  { x: 0.5, y: 0.3, turn: -1.5 },
+  { x: 0.7, y: 0.3, turn: 1 },
+  { x: 0.1, y: 0.3, turn: -2.5 },
+]
+/** A spot is taken when a pedal's middle is nearer to it than this, across and down. */
+const SPOT_TAKEN_WITHIN = 0.09
+
+/** Where the next pedal goes when it is given no place: the first spot nothing lies on, the first of all when every one is taken. */
+export function freePedalSpot(set: VisualSet): { x: number; y: number; turn: number } {
+  return (
+    PEDAL_SPOTS.find(
+      (spot) =>
+        !set.pedals.some(
+          (pedal) =>
+            Math.abs(pedal.x - spot.x) < SPOT_TAKEN_WITHIN &&
+            Math.abs(pedal.y - spot.y) < SPOT_TAKEN_WITHIN,
+        ),
+    ) ?? PEDAL_SPOTS[0]
+  )
+}
+
+export interface PedalEdit {
+  set: VisualSet
+  /** The pedal as it lies now; null when it could not be laid. */
+  pedal: VisualPedal | null
+}
+
+/**
+ * Lays a device on the picture as a pedal, at a place or, where none is said, at the next free spot. A device that
+ * already lies there is moved instead (`movePedal`). Nothing is laid past the most a picture holds.
+ */
+export function layPedal(set: VisualSet, device: string, place: PedalPlace = {}): PedalEdit {
+  if (pedalOf(set, device)) {
+    const next = movePedal(set, device, place)
+    return { set: next, pedal: pedalOf(next, device) }
+  }
+  if (device === '' || device.length > 120 || set.pedals.length >= VISUAL_PEDALS_MAX)
+    return { set, pedal: null }
+  const spot = freePedalSpot(set)
+  const pedal: VisualPedal = {
+    device,
+    x: cleanShare(place.x, spot.x),
+    y: cleanShare(place.y, spot.y),
+    size: cleanPedalSize(place.size),
+    turn: cleanPedalTurn(place.turn ?? spot.turn),
+  }
+  return { set: { ...set, pedals: [...set.pedals, pedal] }, pedal }
+}
+
+/**
+ * Moves a pedal, makes it another size or turns it; whatever is left out stays. The pedal that was touched last lies
+ * over the others. Nothing changes for a device that does not lie on the picture, or for a place it already has.
+ */
+export function movePedal(set: VisualSet, device: string, place: PedalPlace): VisualSet {
+  const was = pedalOf(set, device)
+  if (!was) return set
+  const next: VisualPedal = {
+    device,
+    x: place.x === undefined ? was.x : cleanShare(place.x, was.x),
+    y: place.y === undefined ? was.y : cleanShare(place.y, was.y),
+    size: place.size === undefined ? was.size : cleanPedalSize(place.size),
+    turn: place.turn === undefined ? was.turn : cleanPedalTurn(place.turn),
+  }
+  const same =
+    next.x === was.x && next.y === was.y && next.size === was.size && next.turn === was.turn
+  if (same) return set
+  return { ...set, pedals: [...set.pedals.filter((pedal) => pedal !== was), next] }
+}
+
+/** Takes a pedal off the picture. The device itself stays where it is in the piece. */
+export function liftPedal(set: VisualSet, device: string): VisualSet {
+  const pedals = set.pedals.filter((pedal) => pedal.device !== device)
+  return pedals.length === set.pedals.length ? set : { ...set, pedals }
+}
+
+/** Takes every pedal off the picture. */
+export function liftPedals(set: VisualSet): VisualSet {
+  return set.pedals.length === 0 ? set : { ...set, pedals: [] }
+}
+
+/** The visuals without the pedals whose device is no longer in the piece. */
+export function withoutLostPedals(set: VisualSet, devices: ReadonlySet<string>): VisualSet {
+  const pedals = set.pedals.filter((pedal) => devices.has(pedal.device))
+  return pedals.length === set.pedals.length ? set : { ...set, pedals }
+}
+
+/**
+ * The visuals after devices were given other ids (`renamed`: the id before to the id now), as a host does when a
+ * channel is made into another: each pedal goes on with its device. Where two would then show one device, the
+ * first stays.
+ */
+export function carryPedals(set: VisualSet, renamed: ReadonlyMap<string, string>): VisualSet {
+  if (!set.pedals.some((pedal) => renamed.has(pedal.device))) return set
+  const seen = new Set<string>()
+  const pedals: VisualPedal[] = []
+  for (const pedal of set.pedals) {
+    const device = renamed.get(pedal.device) ?? pedal.device
+    if (seen.has(device)) continue
+    seen.add(device)
+    pedals.push(device === pedal.device ? pedal : { ...pedal, device })
+  }
+  return { ...set, pedals }
 }
