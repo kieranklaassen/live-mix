@@ -8,11 +8,11 @@ import { describe, expect, it } from 'vitest'
 import { FACTORY_SOUNDS } from '..'
 import { type PhraseNote } from '../../patch-render'
 import { cycled, looped } from '../sounds/recipe'
-import { playSound, wayTakes, waysFor, type WayPlaying } from '../ways'
+import { WAYS, playSound, wayTakes, waysFor, type WayPlaying } from '../ways'
 import { readSound } from '../ways/reading'
 import { bankProblems } from './ways-support'
 
-const HELD = ['staggered-entries', 'voices-come-and-go', 'unequal-rounds']
+const HELD = WAYS.filter((way) => way.family === 'held').map((way) => way.id)
 
 // Skipped start 4 s, loop 16 s, crossfade 2 s: a note may be struck from 6 s to 20 s, and
 // every written note is down from 0 to 23 s.

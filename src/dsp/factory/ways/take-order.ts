@@ -37,7 +37,12 @@ export const TAKE_ORDERS = [
 export type TakeOrder = (typeof TAKE_ORDERS)[number]['id']
 
 export interface TakeOrderOptions {
-  /** How many passes the list is for. An order gives the nearest length its rule allows. */
+  /**
+   * How many passes the list is for. An order gives the nearest length its
+   * rule allows, and never less than one go through the rule: the way's
+   * round whole, each place held, however short the length asked. A host
+   * with a limit of its own checks the list it gets.
+   */
   length: number
   /** Any whole number: the same seed gives the same list. Only the orders that draw read it. */
   seed?: number
@@ -86,6 +91,12 @@ function dealt(takes: number, seed: number, steps: number): number[] {
  * it starts on.
  */
 function mostlyStays(takes: number, seed: number, steps: number): number[] {
+  // Too short to go out and come back: the first take and the one beside it, half each, and
+  // two places each at the least.
+  if (steps > 1 && steps < 6) {
+    const places = Math.max(4, steps)
+    return [...times(Math.ceil(places / 2), 0), ...times(Math.floor(places / 2), 1)]
+  }
   const out: number[] = []
   let take = 0
   let left = steps

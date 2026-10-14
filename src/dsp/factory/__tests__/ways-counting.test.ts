@@ -9,11 +9,11 @@ import { FACTORY_SOUNDS } from '..'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { VARIATION_LIMITS } from '../vary'
-import { describeTake, playSound, wayTakes } from '../ways'
+import { WAYS, describeTake, playSound, wayTakes } from '../ways'
 import { readSound } from '../ways/reading'
 import { bankProblems } from './ways-support'
 
-const COUNTING = ['counted-rests', 'leave-one-out', 'turning-rests', 'sliding-window']
+const COUNTING = WAYS.filter((way) => way.family === 'counting').map((way) => way.id)
 
 type Sound = Pick<FactorySound, 'phrase' | 'durationSec'>
 

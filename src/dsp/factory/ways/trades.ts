@@ -69,6 +69,7 @@ export const TRADES: readonly Way[] = [
       'Three turns as written, then one upside down within its own chord: a note that is so far from the bottom of the chord plays the note that far from the top. The rhythm and the note the sound stands on stay.',
     needs: PITCHES_NEEDS,
     far: { words: 'Past half, one turn at home for each turn away, not three.', default: 0.25 },
+    // One note to deal is enough to turn upside down, where the others need two.
     fits: (reading) =>
       pitchedPhrase(reading) ??
       (singles(reading).length >= 1 && reading.upper.length >= 2 ? null : REFUSALS.threePitches),

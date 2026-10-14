@@ -53,6 +53,10 @@ const sound = (id: string): FactorySound => {
 }
 
 describe('the table of ways', () => {
+  it('has rows of words and numbers only, which a host can keep or copy', () => {
+    expect(structuredClone(WAYS)).toEqual(WAYS)
+  })
+
   it('has a row a host can list for every way', () => {
     const families: string[] = WAY_FAMILIES.map((family) => family.id)
     expect(new Set(WAYS.map((way) => way.id)).size).toBe(WAYS.length)
@@ -84,6 +88,38 @@ describe('playSound', () => {
     expect(take(4)).toBe(take(1))
     expect(take(-1)).toBe(take(2))
     expect(take(1)).not.toBe(take(0))
+    // A take number that is no whole number: the one below it, or the first.
+    expect(take(1.7)).toBe(take(1))
+    expect(take(Number.NaN)).toBe(take(0))
+  })
+
+  it('gives back a sound that no way can be asked of', () => {
+    const silent = { ...round, phrase: { notes: [] } }
+    const uneven = {
+      ...round,
+      phrase: {
+        notes: round.phrase.notes.map((note, index) =>
+          index === 9 ? { ...note, note: note.note + 2 } : note,
+        ),
+      },
+    }
+    // A chord held through a loop that is folded over its whole length: nowhere clear of the fold.
+    const folded = looped(16, 4, 16, [48, 55, 64, 71])
+    for (const [each, refusal] of [
+      [silent, 'It has no notes.'],
+      [uneven, 'Its passes are not one pass repeated.'],
+      [folded, 'Its loop is all crossfade.'],
+    ] as const) {
+      expect(wayTakes(each, { way: 'rising', seed: 1 })).toEqual({
+        takes: 0,
+        round: [],
+        cut: false,
+        refusal,
+      })
+      expect(waysFor(each)).toEqual([])
+      expect(playSound(each, { way: 'rising', seed: 1, take: 1 })).toBe(each)
+    }
+    expect(wayTakes(looped(16, 4, 15, [48, 55, 64, 71]), { way: 'rising', seed: 1 }).takes).toBe(3)
   })
 })
 
@@ -125,6 +161,26 @@ describe('wayTakes', () => {
     )
   })
 
+  it('takes a far or a seed that is no number as the one it would have without', () => {
+    const notes = (playing: { far?: number; seed?: number; way?: string }): string[] => {
+      const at = { way: 'turning-rests', seed: 1, ...playing }
+      return Array.from({ length: wayTakes(round, at).takes }, (_, take) =>
+        notesKey(playSound(round, { ...at, take }).phrase.notes),
+      )
+    }
+    // The amount: the row's own where it is no number, and held to 0 and 1.
+    expect(notes({ far: 1 })).not.toEqual(notes({ far: 0 }))
+    expect(notes({ far: Number.NaN })).toEqual(notes({}))
+    expect(notes({ far: 7 })).toEqual(notes({ far: 1 }))
+    expect(notes({ far: -1 })).toEqual(notes({ far: 0 }))
+    // The seed, on the one way that draws.
+    const drawn = (seed: number): string[] => notes({ way: 'one-note-slips', seed })
+    expect(
+      new Set(Array.from({ length: 12 }, (_, seed) => drawn(seed).join('|'))).size,
+    ).toBeGreaterThan(1)
+    expect(drawn(Number.NaN)).toEqual(drawn(0))
+  })
+
   const made = (id: string, pitchOf: (turn: number) => number): Way => ({
     id,
     name: id,
@@ -154,6 +210,30 @@ describe('wayTakes', () => {
       { way: 'never-again', seed: 1 },
     )
     expect(counted).toMatchObject({ round: [0, 1, 2, 3, 4, 5, 6, 7], cut: true })
+  })
+
+  it('calls a round whole only where the turns after it play it again', () => {
+    // Eleven turns at home and one away, over and over: the sixteen turns asked for show the
+    // round once and a third of it again, and the next eight bear it out.
+    const twelve = countTakes(
+      round,
+      made('one-in-twelve', (turn) => (turn % 12 === 11 ? 62 : 60)),
+      { way: 'one-in-twelve', seed: 1 },
+    )
+    expect(twelve).toMatchObject({ round: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1], cut: false })
+    // Away once, on the fourteenth turn, and never again: sixteen turns look like a round of
+    // fourteen, and the turns after them do not play it.
+    const once = countTakes(
+      round,
+      made('once', (turn) => (turn === 13 ? 62 : 60)),
+      { way: 'once', seed: 1 },
+    )
+    expect(once).toMatchObject({ cut: true })
+    expect(typeof once === 'string' ? [] : once.round).toHaveLength(14)
+    // On the bank: a phrase of eleven moments whose rests move on a place a turn.
+    expect(
+      wayTakes(sound('eighths-sequence-dm'), { way: 'turning-rests', seed: 1, far: 0 }),
+    ).toMatchObject({ cut: true })
   })
 
   it('gives one take, and so nothing to play, for a rule that plays the same every turn', () => {

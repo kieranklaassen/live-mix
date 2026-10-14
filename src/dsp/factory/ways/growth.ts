@@ -9,11 +9,9 @@ import { HIGHEST_NOTE, LOWEST_NOTE, mod } from '../vary'
 import {
   PHRASE_NEEDS,
   PITCHES_NEEDS,
-  REFUSALS,
   fitsPhrase,
-  hasThreePitches,
+  fitsPitches,
   line,
-  pitchedPhrase,
   repitched,
   resting,
   singles,
@@ -29,9 +27,6 @@ const SLIPS = 4
 /** What One note slips draws from, so no two of its draws are the same one. */
 const ORDER = 1
 const UPWARD = 2
-
-const fitsPitches = (reading: Reading): string | null =>
-  pitchedPhrase(reading) ?? (hasThreePitches(reading) ? null : REFUSALS.threePitches)
 
 const HOME_FAR = {
   words: 'How many turns before it comes home: two, three or, at its furthest, four.',

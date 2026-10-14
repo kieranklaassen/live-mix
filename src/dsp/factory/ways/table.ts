@@ -1,6 +1,8 @@
 // The table of ways: one row a way, a family a file. A new way is a row in
-// its family's file and nothing else: the menu, the words, the generated
-// table in the docs and the tests all read this.
+// its family's file: the menu, the words and the family's sweep over the bank
+// read this. What else moves with it is the count the bank walk pins
+// (__tests__/ways-bank.test.ts) and the generated table in the docs
+// (UPDATE_WAYS_DOC=1 writes docs/ways-generated.md).
 
 import { COUNTING } from './counting'
 import { GROWTH } from './growth'

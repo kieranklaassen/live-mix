@@ -11,7 +11,7 @@ import { compileFromDisk, toDb } from '../../__tests__/render-support'
 import { cycled, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
 import { HIGHEST_NOTE, alongWhiteKeys } from '../vary'
-import { playSound, wayTakes, type WayPlaying } from '../ways'
+import { WAYS, playSound, wayTakes, type WayPlaying } from '../ways'
 import { cents, readSound, tick } from '../ways/reading'
 import { type PassNote } from '../ways/types'
 import { bankProblems } from './ways-support'
@@ -383,7 +383,10 @@ describe('In the gaps', () => {
     for (const each of [rests, sound('felt-piano-phrase-am'), sound('kalimba-pattern-am')]) {
       const reading = readSound(each)
       const starts = reading.moments.map((moment) => moment.at)
-      const ends = [...starts.slice(1), ...(reading.shape === 'round' ? [reading.passSec] : [])]
+      const ends = [
+        ...starts.slice(1),
+        ...(reading.shape === 'round' ? [reading.passSec + starts[0]] : []),
+      ]
       const gaps = ends.map((end, index) => end - starts[index])
       const narrowest = Math.min(...gaps)
       for (const far of [0.25, 1]) {
@@ -413,6 +416,17 @@ describe('In the gaps', () => {
       cut: false,
       refusal: 'Needs a phrase with rests.',
     })
+    // Even strokes written a quarter second into the pass are as even: the gap from the last
+    // round to the first is a second wide too.
+    const late = cycled(4, [
+      [0.25, 0.5, 48],
+      [1.25, 0.5, 60],
+      [2.25, 0.5, 64],
+      [3.25, 0.5, 67],
+    ])
+    expect(wayTakes(late, { way: 'in-the-gaps', seed: 1 }).refusal).toBe(
+      'Needs a phrase with rests.',
+    )
     const kit = FACTORY_SOUNDS.find((each) => each.kit && each.phrase.notes.length > 8)
     expect(kit).toBeDefined()
     if (!kit) return
@@ -421,7 +435,7 @@ describe('In the gaps', () => {
 })
 
 describe('hits and voices', () => {
-  const WAYS_OF_IT = ['echoes', 'two-readers', 'in-the-gaps']
+  const WAYS_OF_IT = WAYS.filter((way) => way.family === 'voices').map((way) => way.id)
 
   it('keeps what a take keeps on every sound of the bank it fits', () => {
     expect(bankProblems(WAYS_OF_IT, [3, 77])).toEqual([])

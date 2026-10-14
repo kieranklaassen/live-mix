@@ -40,14 +40,13 @@ export function takeProblems<T extends VariedPlaying>(
   const counted = wayTakes(sound, playing)
   if (counted.takes === 0) return [`nothing to play: ${counted.refusal}`]
   const out: string[] = []
-  const { takes, round, cut } = counted
+  const { takes, round } = counted
   if (takes < 2 || takes > 8) out.push(`${takes} takes`)
   if (round.length < 2 || round.length > 16) out.push(`a round of ${round.length}`)
   if (round[0] !== 0) out.push('the round does not start on the first take')
   for (let take = 0; take < takes; take += 1) {
     if (!round.includes(take)) out.push(`take ${take} is not in the round`)
   }
-  if (cut && takes !== 8) out.push('cut short of eight takes')
   if (JSON.stringify(wayTakes(sound, playing)) !== JSON.stringify(counted)) {
     out.push('counted differently the second time')
   }
@@ -98,7 +97,12 @@ export function takeProblems<T extends VariedPlaying>(
       const high = Math.max(...now.map((note) => note.note))
       if (low < Math.min(24, ...was.map((note) => note.note))) say('under the keyboard')
       if (high > Math.max(96, ...was.map((note) => note.note))) say('over the keyboard')
-      // The note the sound stands on: wherever it is written, it still is.
+      // The note the sound stands on: wherever it is written, it still is, no note is under it,
+      // and nothing the sound does not have is struck with it.
+      if (standing !== null && now.some((note) => cents(note.note) < standing)) {
+        say('a note under the standing note')
+      }
+      const written = new Set(was.map((note) => `${tick(note.atSec)}:${cents(note.note)}`))
       for (const note of was) {
         if (cents(note.note) !== standing) continue
         const still = now.some(
@@ -108,6 +112,13 @@ export function takeProblems<T extends VariedPlaying>(
             tick(each.durSec) === tick(note.durSec),
         )
         if (!still) say(`the standing note at ${note.atSec} s is not as written`)
+        const beside = now.some(
+          (each) =>
+            tick(each.atSec) === tick(note.atSec) &&
+            !written.has(`${tick(each.atSec)}:${cents(each.note)}`),
+        )
+        if (beside)
+          say(`a note the sound does not have beside the standing note at ${note.atSec} s`)
       }
     } else {
       // Keys that are not pitches: every note on a key the sound is written on.

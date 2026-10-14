@@ -57,7 +57,11 @@ export interface WayTakes {
    * each turn until the turns come round. A take may be named more than once.
    */
   round: readonly number[]
-  /** The round was cut at eight takes: its last take does not lead back into its first. */
+  /**
+   * The round is not the whole of what the way plays: it was cut at eight
+   * takes, or it does not come round in the turns a way is asked for. Its
+   * last take does not lead back into its first.
+   */
   cut: boolean
   /** Why there is nothing to play, in a few words. Only where `takes` is 0. */
   refusal?: string

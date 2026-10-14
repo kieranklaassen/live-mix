@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { TAKE_ORDERS, takeOrder } from '../ways/take-order'
+import { TAKE_ORDERS, type TakeOrder, takeOrder } from '../ways/take-order'
 
 const of = (takes: number, round?: number[]): { takes: number; round: number[] } => ({
   takes,
@@ -85,6 +85,19 @@ describe('takeOrder', () => {
     }
   })
 
+  it('Mostly stays moves once where there is no room to go out and come back', () => {
+    // Under six places: the first take and the one beside it, two places each at the least.
+    expect(takeOrder('mostly-stays', of(4), { length: 1 })).toEqual([0])
+    expect(takeOrder('mostly-stays', of(4), { length: 2 })).toEqual([0, 0, 1, 1])
+    expect(takeOrder('mostly-stays', of(4), { length: 3 })).toEqual([0, 0, 1, 1])
+    expect(takeOrder('mostly-stays', of(4), { length: 4 })).toEqual([0, 0, 1, 1])
+    expect(takeOrder('mostly-stays', of(2), { length: 5 })).toEqual([0, 0, 0, 1, 1])
+    // Four places held four passes each.
+    expect(takeOrder('mostly-stays', of(3), { length: 16, holds: 4 })).toEqual([
+      0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+    ])
+  })
+
   it('Grows plays the first take, then the first two, and so on', () => {
     expect(takeOrder('grows', of(4), { length: 10 })).toEqual([0, 0, 1, 0, 1, 2, 0, 1, 2, 3])
     // Longer: all of them again, a whole row at a time.
@@ -100,7 +113,17 @@ describe('takeOrder', () => {
     for (const order of ORDERS) {
       expect(takeOrder(order, of(1), { length: 5 }), order).toEqual([0, 0, 0, 0, 0])
       expect(takeOrder(order, { takes: 0, round: [] }, { length: 5 }), order).toEqual([])
+      // A length that is no number of passes.
+      expect(takeOrder(order, of(3), { length: Number.NaN }), order).toEqual([])
+      expect(takeOrder(order, of(3), { length: Infinity }), order).toEqual([])
     }
+  })
+
+  it('plays in turn for an order the table does not have, and counts up where no round is given', () => {
+    expect(takeOrder('no-such-order' as TakeOrder, of(3), { length: 6 })).toEqual(
+      takeOrder('in-turn', of(3), { length: 6 }),
+    )
+    expect(takeOrder('in-turn', { takes: 3, round: [] }, { length: 6 })).toEqual([0, 1, 2, 0, 1, 2])
   })
 
   it('holds each place for as many passes as it is asked to', () => {

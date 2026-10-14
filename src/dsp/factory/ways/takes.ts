@@ -32,11 +32,20 @@ export interface Counted {
 export function readFor(sound: VariedPlaying): Reading | string {
   if (sound.phrase.notes.length === 0) return 'It has no notes.'
   const reading = readSound(sound)
-  return reading.shape === 'irregular' ? 'Its passes are not one pass repeated.' : reading
+  if (reading.shape === 'irregular') return 'Its passes are not one pass repeated.'
+  // A held chord takes its new strikes clear of the fold, and a loop that is all fold has no such place.
+  if (reading.shape === 'held' && !(reading.toSec > reading.fromSec)) {
+    return 'Its loop is all crossfade.'
+  }
+  return reading
 }
 
 /** The pass `way` gives on each turn, as `playing` asks for it. */
-function turnsOf(reading: Reading, way: Way, playing: WayPlaying): (turn: number) => PassNote[] {
+export function turnsOf(
+  reading: Reading,
+  way: Way,
+  playing: WayPlaying,
+): (turn: number) => PassNote[] {
   const given = playing.far ?? way.far.default
   const far = Number.isFinite(given) ? clamp(given, 0, 1) : way.far.default
   const seed = Number.isFinite(playing.seed) ? playing.seed : 0
@@ -92,5 +101,10 @@ export function countTakes(sound: VariedPlaying, way: Way, playing: WayPlaying):
   // only happens to equal the first does not end it.
   let run = 1
   while (run < turns.length && !turns.every((take, turn) => take === turns[turn % run])) run += 1
+  // A round the turns asked for do not show twice is asked for once more: it is whole only
+  // where the turns after it play it again, with no take it does not have.
+  for (let turn = turns.length; !cut && turn < run * 2; turn += 1) {
+    cut = keys.indexOf(passKey(play(turn))) !== turns[turn % run]
+  }
   return { reading, passes, round: turns.slice(0, run), cut }
 }

@@ -6,16 +6,7 @@
 // that keeps time it falls where the sound's own notes could.
 
 import { HIGHEST_NOTE } from '../vary'
-import {
-  PITCHES_NEEDS,
-  REFUSALS,
-  gainAt,
-  gcd,
-  hasThreePitches,
-  isPhrase,
-  line,
-  pitchedPhrase,
-} from './pass'
+import { PITCHES_NEEDS, fitsPitches, gainAt, gcd, line, pitchedPhrase } from './pass'
 import { cents, tick } from './reading'
 import { MOST_TAKES } from './takes'
 import { type Moment, type PassNote, type Reading, type Turn, type Way } from './types'
@@ -96,19 +87,27 @@ function readOf(length: number, step: number): number {
   return length
 }
 
-/** The written phrase, and a second voice that reads its line a fifth higher at every third moment. */
+/**
+ * The written phrase, and a second voice that reads its line a fifth higher
+ * at every third moment. A moment that holds the note the sound stands on is
+ * left as written, so the voice is silent there, and it never reads a note at
+ * or under that one: the sound would stand on the voice.
+ */
 function twoReaders(reading: Reading, { turn, far, along }: Turn): PassNote[] {
   const notes = line(reading)
   const joined = reading.moments.filter((_, index) => index % EVERY === EVERY - 1)
+  const floor = reading.standing ?? -Infinity
   const read = readOf(notes.length, joined.length)
   // Softer than the note it joins at any `far`: from three tenths as hard to nine tenths.
   const level = 0.3 + 0.6 * far
   const voice = joined.flatMap((moment, index): PassNote[] => {
+    if (moment.standing) return []
     const [beside] = moment.notes
     // Carried on: a turn starts on the note after the last one the turn before read.
     const fifth = along(notes[(turn * joined.length + index) % read], 4)
     // An octave above is further out still: over the range, the fifth is taken an octave lower.
-    const note = fifth > HIGHEST_NOTE ? fifth - 12 : fifth
+    const note = [fifth, fifth - 12].find((each) => each <= HIGHEST_NOTE && each > floor)
+    if (note === undefined) return []
     // A key the moment already strikes cannot be struck twice at once: the voices are one there.
     if (moment.notes.some((each) => cents(each.note) === cents(note))) return []
     return [{ at: moment.at, dur: beside.dur, note, gain: beside.gain * level }]
@@ -125,55 +124,68 @@ const MOST_GAPS = MOST_TAKES
 interface Gap {
   from: Moment
   sec: number
+  /** How far into it its note is struck. */
+  into: number
 }
 
 /**
  * The gaps of a phrase, in time. A phrase played round has one more than a
- * phrase that ends, from its last moment to the end of the pass; nothing is
+ * phrase that ends: from its last moment round to its first, which is as wide
+ * as a listener hears it, the start of the next pass included. Nothing is
  * added after the last note of a phrase that ends.
+ *
+ * A gap is filled in its middle. A sound that keeps time is filled on its own
+ * grid: as many of its narrowest gaps on from the moment before as come
+ * nearest the middle.
  */
 function gapsOf(reading: Reading): Gap[] {
   const { moments } = reading
   const ends = moments.slice(1).map((moment) => moment.at)
-  if (reading.shape === 'round') ends.push(reading.passSec)
-  return ends.map((end, index) => ({ from: moments[index], sec: end - moments[index].at }))
+  if (reading.shape === 'round') ends.push(reading.passSec + moments[0].at)
+  const widths = ends.map((end, index) => end - moments[index].at)
+  const narrowest = Math.min(...widths)
+  return widths.map((sec, index) => ({
+    from: moments[index],
+    sec,
+    into: reading.timed
+      ? narrowest * Math.max(1, Math.round(tick(sec) / tick(narrowest) / 2))
+      : sec / 2,
+  }))
 }
 
-const narrowestOf = (gaps: readonly Gap[]): number => Math.min(...gaps.map((gap) => gap.sec))
-
 /**
- * The gaps a note may sound in: every gap wider than the narrowest, widest
- * first and the earlier first of two as wide, eight at most.
+ * The gaps a note may sound in: every gap wider than the narrowest whose note
+ * falls inside the pass, widest first and the earlier first of two as wide,
+ * eight at most. The gap round to the first moment of a phrase that starts
+ * late is measured whole and filled only where its middle is before the pass
+ * ends: a note laid past the end would come ahead of the phrase's attack.
  */
-function widestOf(gaps: readonly Gap[]): Gap[] {
-  const narrowest = tick(narrowestOf(gaps))
+function widestOf(reading: Reading): Gap[] {
+  const gaps = gapsOf(reading)
+  const narrowest = tick(Math.min(...gaps.map((gap) => gap.sec)))
   return gaps
-    .filter((gap) => tick(gap.sec) > narrowest)
+    .filter(
+      (gap) => tick(gap.sec) > narrowest && tick(gap.from.at + gap.into) < tick(reading.passSec),
+    )
     .sort((a, b) => tick(b.sec) - tick(a.sec))
     .slice(0, MOST_GAPS)
 }
 
 /** The written phrase, and a note of its chord in one of its widest gaps, or in two. */
 function inTheGaps(reading: Reading, { turn, far }: Turn): PassNote[] {
-  const all = gapsOf(reading)
-  const gaps = widestOf(all)
-  const narrowest = narrowestOf(all)
+  const gaps = widestOf(reading)
   // Two gaps of two would be the same two every turn.
   const filled = far > 0.5 && gaps.length >= 3 ? 2 : 1
   const notes = Array.from({ length: filled }, (_, index): PassNote => {
     const which = (turn + index) % gaps.length
-    const { from, sec } = gaps[which]
-    // The middle of the gap. A sound that keeps time is filled on its own grid: as many of its
-    // narrowest gaps on from the moment before as come nearest the middle.
-    const into = reading.timed
-      ? narrowest * Math.max(1, Math.round(tick(sec) / tick(narrowest) / 2))
-      : sec / 2
+    const { from, sec, into } = gaps[which]
+    const at = from.at + into
     // The widest gap takes the lowest note of the chord above the standing note, the next the next.
     const note = reading.upper[which % reading.upper.length]
     return {
-      at: from.at + into,
-      // As long as the note before the gap, and lifted by the end of the gap.
-      dur: Math.min(from.notes[0].dur, sec - into),
+      at,
+      // As long as the note before the gap, and lifted by the end of the gap and of the pass.
+      dur: Math.min(from.notes[0].dur, sec - into, reading.passSec - at),
       note,
       gain: gainAt(reading, note),
     }
@@ -208,17 +220,14 @@ export const VOICES: readonly Way[] = [
     name: 'Two readers',
     family: 'voices',
     words:
-      'A second, softer voice joins every third moment of the phrase. It reads the notes of the phrase in order, a fifth higher in the key, and carries on each turn from where it stopped. The written notes stay as they are.',
+      'A second, softer voice joins every third moment of the phrase. It reads the notes of the phrase in order, a fifth higher in the key, and carries on each turn from where it stopped. The written notes stay as they are, and it keeps out of the moments that hold the lowest note.',
     needs: PITCHES_NEEDS,
     far: {
       words:
         'How soft the second voice is: the further, the less soft, and never as hard as the note it joins.',
       default: 0.5,
     },
-    fits: (reading) => {
-      if (!reading.pitched) return REFUSALS.notNotes
-      return isPhrase(reading) && hasThreePitches(reading) ? null : REFUSALS.threePitches
-    },
+    fits: fitsPitches,
     play: twoReaders,
   },
   {
@@ -232,7 +241,7 @@ export const VOICES: readonly Way[] = [
     fits: (reading) => {
       const refusal = pitchedPhrase(reading)
       if (refusal !== null) return refusal
-      if (widestOf(gapsOf(reading)).length === 0) return 'Needs a phrase with rests.'
+      if (widestOf(reading).length === 0) return 'Needs a phrase with rests.'
       return reading.upper.length > 0 ? null : 'Needs a phrase of two pitches.'
     },
     play: inTheGaps,

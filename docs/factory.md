@@ -669,14 +669,22 @@ shortest run of turns that all sixteen repeat: the order the way itself
 plays its takes in, where a take may come more than once (`[0, 0, 0, 1]` is
 three turns at home and one away). A way has two takes to eight. A ninth
 different take cuts the round at eight, and `cut` says so: the last take of
-a cut round does not lead back into its first. A way that gives fewer than
+a cut round does not lead back into its first. A round longer than eight
+turns does not show twice in sixteen, so it is asked for once more, and
+where the turns after it do not play it again, `cut` says that too: the
+round is not the whole of what the way plays. A way that gives fewer than
 two different takes on a sound has nothing to play there. `wayTakes` then
 gives `takes: 0` and a `refusal` in a few words ("Needs a phrase.", "Needs a
-held chord.", "Its keys are not notes.", "Every take of it comes out the
-same."), `waysFor` leaves the way out, and `playSound` gives back the sound
-itself, the same object, as it does without a way, for a way the table does
-not have, and for a take that is the sound as written. So nothing that
-renders without `plays` renders differently.
+held chord.", "Its keys are not notes.", "Its loop is all crossfade.",
+"Every take of it comes out the same."), `waysFor` leaves the way out, and
+`playSound` gives back the sound itself, the same object, as it does without
+a way, for a way the table does not have, and for a take that is the sound
+as written. So nothing that renders without `plays` renders differently.
+What a way has to play on a
+sound changes with `far`: `waysFor(sound)` asks each way at the `far` it
+stands at, `waysFor(sound, { far })` at another, and a host that moves `far`
+asks `wayTakes` again, since a render with a way that has nothing to play is
+the sound as written and says nothing.
 
 What a take keeps:
 
@@ -687,10 +695,13 @@ What a take keeps:
   and Two readers move a note along the key, and past half of `far` the ways
   of the first family play the chord's notes an octave up as well, all inside
   the range `vary.ts` keeps. A factory sound is played as it is written, on
-  the white keys, and transposed afterwards. A sound in another key names it
-  (`key` in the playing); `renderGeneratedSound` names the sound's own.
+  the white keys, and transposed afterwards: `renderFactorySound` reads no
+  `key` from the playing. A sound in another key names it (`key` in the
+  playing); `renderGeneratedSound` names the sound's own, and `playSound`,
+  `wayTakes`, `waysFor` and `describeTake` are told it by the host.
 - The note the sound stands on, its lowest. Every moment that holds it is
-  left exactly as written, and a way deals the other moments.
+  left exactly as written, and a way deals the other moments. No take has a
+  note under it.
 - The level. The hardest note of a take is as hard as the sound's hardest.
 - The attack. The first note stays where it is and none comes ahead of it.
 - A held chord: a note the sound does not strike is struck inside the loop,
@@ -724,7 +735,13 @@ few passes, moves to the one beside it and finds its way back; grows plays
 the first take, then the first two, then the first three, until all have
 played. `holds` keeps each place for that many passes. An order gives the
 nearest length its rule allows, and holds its rule where the end of the list
-meets its start, since a clip plays the list round.
+meets its start, since a clip plays the list round. That length is never
+less than one go through the rule and so may be more than asked: in turn
+plays the way's round whole at least once, each place held for `holds`
+passes (a round of sixteen held for eight is 128 passes, whatever was
+asked). A host with a limit of its own checks the list it gets. A list too
+short to go out and come back (under six places) is, in mostly stays, the
+first take and the one beside it, half each.
 
 What decides a take is the sound, the way, the seed and `far`, and nothing
 else: no stroke, clip or host id, so two strokes of one sound share their
@@ -760,7 +777,7 @@ FACTORY_REPORT=ways FACTORY_PACK=<id> FACTORY_WAV=tmp/wav pnpm vitest run src/ds
 
 What the bench says, so nobody has to find out again. Every way at the
 `far` it stands at, seed 1, on every fourth sound of the bank (82 sounds):
-1,793 takes rendered. A take's distance from its sound is the level between
+1,778 takes rendered. A take's distance from its sound is the level between
 the two renders, band by band.
 
 | Way                  | Sounds | Takes | `KIND` | `SEAM` | `LEVEL` | `SAME` | Sounds with a flag |
@@ -783,18 +800,20 @@ the two renders, band by band.
 | `voices-come-and-go` | 7      | 23    | 1      | 0      | 0       | 0      | 1 of 7             |
 | `unequal-rounds`     | 7      | 38    | 2      | 0      | 6       | 0      | 3 of 7             |
 | `echoes`             | 15     | 90    | 51     | 0      | 23      | 0      | 12 of 15           |
-| `two-readers`        | 15     | 61    | 0      | 0      | 0       | 0      | 0 of 15            |
-| `in-the-gaps`        | 14     | 82    | 1      | 0      | 0       | 0      | 1 of 14            |
+| `two-readers`        | 14     | 54    | 0      | 0      | 0       | 4      | 1 of 14            |
+| `in-the-gaps`        | 13     | 74    | 1      | 0      | 0       | 0      | 1 of 13            |
 
-Every take of a loop comes round where its sound does: no `SEAM` in 1,793
-takes. One take cannot be told from an earlier take of its way (Neighbours
-swap on "Eighths sequence": its notes differ and its render does not, to
-within 0.02 dB). `KIND` is about the analysis and not about the notes. A
-beat with moments resting is called a phrase or a one-shot (the Counting
-family, and Gather, whose first step is a quarter of the beat), and a hit
-with repeats after it is called a phrase (Echoes, 51 of its 90 takes). Two
-ways are flagged on most of the sounds they have takes on: Echoes (12 of 15)
-and Gather (23 of 41).
+Every take of a loop comes round where its sound does: no `SEAM` in 1,778
+takes. Five takes cannot be told from an earlier take of their way: their
+notes differ and their renders do not, to within 0.02 dB. One is Neighbours
+swap's on "Eighths sequence"; four are Two readers' on "Vibes quintuplets",
+where the second voice adds two soft notes to a pass of eighteen and stays
+out of the moments that hold the note the sound stands on. `KIND` is about
+the analysis and not about the notes. A beat with moments resting is called
+a phrase or a one-shot (the Counting family, and Gather, whose first step is
+a quarter of the beat), and a hit with repeats after it is called a phrase
+(Echoes, 51 of its 90 takes). Two ways are flagged on most of the sounds
+they have takes on: Echoes (12 of 15) and Gather (23 of 41).
 
 A render is brought to the bank's peak whatever is played, so a take's
 loudness is not its sound's. `LEVEL` is Echoes' in 23 of its 90 takes, from
@@ -803,18 +822,20 @@ its beat; and about a tenth of the takes of the first family are over 2 LU
 off, 3.7 at most. The ways that move pitches on a phrase's own moments or
 add a few notes to it are the near ones: One note slips, Lean, Home and
 away, Two readers and In the gaps stay within 2.2 LU, and half of their
-takes are under 0.8 dB from the sound. Sliding window and Gather are the
-furthest (half of their takes over 7 dB from the sound), Echoes next (half
-over 4 dB). As with a variant, a host that minds can bring a take to its
+takes are under 0.8 dB from the sound. Sliding window is the furthest (half
+of its takes about 7 dB from the sound or more), Gather next (half over
+5.5 dB), then Echoes (half over 4 dB). As with a variant, a host that minds can bring a take to its
 sound's loudness after rendering; the library does not.
 
 Where a turn of a way is the phrase as written (the first of Counted rests,
 One note slips, Climb, Lean and the two trades, the last of Gather), that
 take is the sound itself and renders as it. A round is cut at eight takes on
-56 of the 1,610 pairs of a sound of the bank and a way that has takes on it:
+56 of the 1,604 pairs of a sound of the bank and a way that has takes on it:
 Carry on 27, Turning rests 15 (a phrase whose number of moments is a prime
 above eight), There and back 7, Unequal rounds 3 (five notes or more above
-the lowest), Rising 2 and Outside in 2.
+the lowest), Rising 2 and Outside in 2. At the `far` each way stands at no
+round of the bank is cut for not coming round; with `far` at nothing Turning
+rests on "Eighths sequence" is.
 
 How far the ways reach, counted over the whole bank without rendering: the
 sounds of each kind a way has takes on.
@@ -839,9 +860,9 @@ sounds of each kind a way has takes on.
 | `voices-come-and-go` | 4           | 20        | 4             | 0              | 0            | 0           | 28        |
 | `unequal-rounds`     | 4           | 20        | 4             | 0              | 0            | 0           | 28        |
 | `echoes`             | 0           | 3         | 4             | 62             | 1            | 0           | 70        |
-| `two-readers`        | 0           | 2         | 0             | 1              | 21           | 30          | 54        |
-| `in-the-gaps`        | 0           | 1         | 0             | 0              | 19           | 34          | 54        |
-| no way at all        | 21          | 7         | 14            | 1              | 1            | 18          | 62        |
+| `two-readers`        | 0           | 1         | 0             | 1              | 20           | 30          | 52        |
+| `in-the-gaps`        | 0           | 1         | 0             | 0              | 19           | 30          | 50        |
+| no way at all        | 21          | 7         | 14            | 1              | 1            | 19          | 63        |
 
 Most drones of the bank have no way to play them: 21 of 25. A drone is
 mostly one held note (13 of them) or two (8), and a way that deals a chord
@@ -850,8 +871,8 @@ and the first family finds every take of two held notes the same. Past half
 of `far` the first family has the octave above to deal as well, and then
 plays those eight drones and the two textures of two held notes. Held
 sounds of one or two notes, and held sounds made of another sound's audio,
-are also most of the 14 textures and 7 pads without a way. Of the 18 beats
-without one, 15 are a pulse on one note or one chord,
+are also most of the 14 textures and 7 pads without a way. Of the 19 beats
+without one, 16 are a pulse on one note or one chord,
 where every moment holds the note the sound stands on and no way deals
 those, and 3 are one stroke of a kit played round. Echoes plays 62 of the
 65 one-shots and little else does: a one-shot is one hit. Ways for one or

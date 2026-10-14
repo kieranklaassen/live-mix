@@ -46,6 +46,10 @@ export function singles(reading: Reading): Moment[] {
 export const hasThreePitches = (reading: Reading): boolean =>
   singles(reading).length >= 2 && reading.upper.length >= 2
 
+/** A phrase of pitches with three to deal among, or why it is not one. */
+export const fitsPitches = (reading: Reading): string | null =>
+  pitchedPhrase(reading) ?? (hasThreePitches(reading) ? null : REFUSALS.threePitches)
+
 /** The pitches of the moments a way may deal, in the order they are played. */
 export const line = (reading: Reading): number[] =>
   singles(reading).map((moment) => moment.notes[0].note)

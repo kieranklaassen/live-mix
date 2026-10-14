@@ -601,7 +601,7 @@ describe.skipIf(!mode)('factory bench', () => {
           count.sounds += 1
           say(
             `      ${way.id.padEnd(20)} ${counted.takes} takes  round ${counted.round.join(' ')}` +
-              (counted.cut ? '  (cut at eight)' : ''),
+              (counted.cut ? '  (cut)' : ''),
           )
           const earlier: SoundPrint[] = []
           let flagged = false

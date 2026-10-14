@@ -111,6 +111,33 @@ describe('a take rendered', () => {
     expect(same(varied.channels, take.channels)).toBe(false)
   }, 120000)
 
+  it('of a factory sound is played on the white keys, whatever key is named, and moved with the sound', async () => {
+    const line = sound('thumb-dub-line-am')
+    const key = { root: 4, mode: 'major' } as const
+    const plays = { way: 'one-note-slips', seed: 5 }
+    // A take whose notes would be others in the key that is named.
+    const { takes } = wayTakes(line, plays)
+    const take = Array.from({ length: takes }, (_, index) => index).find(
+      (index) =>
+        notesKey(playSound(line, { ...plays, take: index }).phrase.notes) !==
+        notesKey(playSound(line, { ...plays, take: index, key }).phrase.notes),
+    )
+    expect(take).toBeDefined()
+    const moved = await renderFactorySound(line, {
+      ...node,
+      transpose: 2,
+      plays: { ...plays, take },
+    })
+    const named = await renderFactorySound(line, {
+      ...node,
+      transpose: 2,
+      plays: { ...plays, take, key },
+    })
+    const plain = await renderFactorySound(line, { ...node, transpose: 2 })
+    expect(same(named.channels, moved.channels)).toBe(true)
+    expect(same(moved.channels, plain.channels)).toBe(false)
+  }, 120000)
+
   it('of a generated sound is played in the key it was generated in', async () => {
     const key = { root: 4, mode: 'major' } as const
     // E major: E F sharp G sharp A B C sharp D sharp.
@@ -134,13 +161,19 @@ describe('a take rendered', () => {
       }
       if (takes === 0 || played > 0) continue
       played += 1
-      // The renderer plays it in the sound's own key without being told.
+      // The renderer plays it in the sound's own key without being told: the last take, whose
+      // notes are others where no key is named.
+      const last = takes - 1
+      const unkeyed = playSound(made, { way: 'one-note-slips', seed: 5, take: last })
+      expect(notesKey(unkeyed.phrase.notes)).not.toBe(
+        notesKey(playSound(made, { ...plays, take: last }).phrase.notes),
+      )
       const plain = await renderGeneratedSound(made, node)
       const take = await renderGeneratedSound(made, {
         ...node,
-        plays: { way: 'one-note-slips', seed: 5, take: 1 },
+        plays: { way: 'one-note-slips', seed: 5, take: last },
       })
-      const named = await renderGeneratedSound(made, { ...node, plays: { ...plays, take: 1 } })
+      const named = await renderGeneratedSound(made, { ...node, plays: { ...plays, take: last } })
       expect(take.channels[0].length).toBe(plain.channels[0].length)
       expect(same(take.channels, plain.channels)).toBe(false)
       expect(same(take.channels, named.channels)).toBe(true)
@@ -195,5 +228,5 @@ describe('a take of a held chord with a variant on top', () => {
     }
     // The variant does touch the take up: its chords and its touch still vary.
     expect(varied).toBeGreaterThan(0)
-  })
+  }, 120000)
 })

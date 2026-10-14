@@ -15,7 +15,7 @@ import { readSound } from '../ways/reading'
 import { type PassNote } from '../ways/types'
 import { bankProblems, takeProblems } from './ways-support'
 
-const GROWTH = ['gather', 'one-note-slips', 'climb', 'lean']
+const GROWTH = WAYS.filter((way) => way.family === 'growth').map((way) => way.id)
 const PITCH_DEALING = ['one-note-slips', 'climb', 'lean']
 
 type Sound = Pick<FactorySound, 'phrase' | 'durationSec'>
@@ -134,7 +134,13 @@ describe('growth', () => {
 
   it('One note slips has one more note off its written pitch each take, and it stays there', () => {
     const written = readSound(turned).notes
+    const firsts = new Set<string>()
     for (let seed = 1; seed <= 24; seed += 1) {
+      firsts.add(
+        pass(turned, 'one-note-slips', 1, { seed })
+          .map((note) => note.note)
+          .join(' '),
+      )
       expect(wayTakes(turned, { way: 'one-note-slips', seed }), `seed ${seed}`).toEqual({
         takes: 5,
         round: [0, 1, 2, 3, 4],
@@ -162,6 +168,8 @@ describe('growth', () => {
         before = off
       }
     }
+    // The seed says which note slips: it is not the same one for every seed.
+    expect(firsts.size).toBeGreaterThan(1)
   })
 
   it('One note slips moves a note a third past half of far', () => {

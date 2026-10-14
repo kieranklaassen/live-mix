@@ -8,11 +8,11 @@ import { describe, expect, it } from 'vitest'
 import { FACTORY_SOUNDS } from '..'
 import { cycled, looped, played } from '../sounds/recipe'
 import { type FactorySound } from '../types'
-import { playSound, wayTakes, waysFor } from '../ways'
+import { WAYS, playSound, wayTakes, waysFor } from '../ways'
 import { readSound } from '../ways/reading'
 import { bankProblems } from './ways-support'
 
-const TRADES = ['neighbours-swap', 'home-and-away']
+const TRADES = WAYS.filter((way) => way.family === 'trades').map((way) => way.id)
 
 const chord = looped(16, 4, 2, [48, 55, 64, 71])
 const round = cycled(8, [

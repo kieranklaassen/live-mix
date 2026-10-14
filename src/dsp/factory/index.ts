@@ -198,7 +198,8 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
    * Which way the sound is played, and which take of it (`playSound`): the
    * way writes the notes of the take, and `vary` then touches them up.
    * Absent, a way the table does not have, or a way with nothing to play on
-   * this sound: the sound as written.
+   * this sound: the sound as written. A factory sound is written on the
+   * white keys and its key is `transpose`: `plays.key` is not read.
    */
   plays?: WayPlaying
 }
@@ -357,7 +358,10 @@ export async function renderFactorySound(
   // Played and varied as it is written, on the white keys and at its own
   // tempo, and moved into the key and to the tempo afterwards.
   const inKey = soundAtTempo(
-    transposeFactorySound(playAndVarySound(sound, plays, vary), transpose),
+    transposeFactorySound(
+      playAndVarySound(sound, plays && { ...plays, key: undefined }, vary),
+      transpose,
+    ),
     bpm,
   )
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch

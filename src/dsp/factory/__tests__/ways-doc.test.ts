@@ -50,17 +50,6 @@ async function page(): Promise<string> {
 }
 
 describe('the page of ways', () => {
-  it('lists twenty ways in six families', () => {
-    expect(WAYS).toHaveLength(20)
-    expect(WAY_FAMILIES).toHaveLength(6)
-    for (const family of WAY_FAMILIES) {
-      expect(
-        WAYS.some((way) => way.family === family.id),
-        family.id,
-      ).toBe(true)
-    }
-  })
-
   it('says what the table says', async () => {
     const written = await page()
     if (process.env.UPDATE_WAYS_DOC) writeFileSync(file, written)
