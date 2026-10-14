@@ -18,7 +18,7 @@
 // as hard as the sound's hardest. Everything is decided by the sound, the
 // way, the seed and `far`, and by nothing else.
 
-import { type VariedPlaying } from '../vary'
+import { type SoundVariation, type VariedPlaying, varySound } from '../vary'
 import { cents, layOut, passKey, readSound, tick } from './reading'
 import { RULES, wayRule } from './table'
 import { countTakes } from './takes'
@@ -31,6 +31,7 @@ import {
 } from './types'
 
 export { WAYS } from './table'
+export { TAKE_ORDERS, takeOrder, type TakeOrder, type TakeOrderOptions } from './take-order'
 export {
   WAY_FAMILIES,
   type TakeChanges,
@@ -83,6 +84,24 @@ export function playSound<T extends VariedPlaying>(sound: T, playing?: WayPlayin
   const take = takeOf(sound, playing)
   if (!take || passKey(take.pass) === passKey(take.reading.notes)) return sound
   return layOut(sound, take.reading, take.pass)
+}
+
+/**
+ * `sound` played the way `playing` names and then varied: the way writes the
+ * notes and the variant touches them up, as `renderFactorySound` does with
+ * `plays` and `vary` together. A take of a held chord is varied as a held
+ * chord is, by its chords and its touch. Its notes no longer all hold through
+ * the loop, so `varySound` would read them as a phrase played round, play it
+ * at half time and strike the note it stands on a second time.
+ */
+export function playAndVarySound<T extends VariedPlaying>(
+  sound: T,
+  playing?: WayPlaying,
+  variation?: SoundVariation,
+): T {
+  const played = playSound(sound, playing)
+  const held = played !== sound && readSound(sound).shape === 'held'
+  return varySound(played, held && variation ? { ...variation, speed: 0, pattern: 0 } : variation)
 }
 
 /**

@@ -505,6 +505,16 @@ const dspSymbols = [
   'chordName',
   'generateSound',
   'renderGeneratedSound',
+  // The ways of playing a sound, their takes and the orders over them (ambient-live's stroke menu)
+  'WAYS',
+  'WAY_FAMILIES',
+  'TAKE_ORDERS',
+  'waysFor',
+  'wayTakes',
+  'playSound',
+  'playAndVarySound',
+  'describeTake',
+  'takeOrder',
   // The sounds that keep time at any tempo, and the instruments whose keys are drums (ambient-live's tempo and its keyboard)
   'FACTORY_TEMPO_RANGE',
   'soundAtTempo',
