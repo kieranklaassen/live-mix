@@ -31,6 +31,16 @@
 //     against the sound's, and in capitals where a variant leaves what the sound is held to
 //     (KIND, SEAM, STEP-IN, CUT, LATE, OFFKEY) or is louder or quieter by over 2 dB (LEVEL), or
 //     cannot be told from the sound (SAME)
+//   FACTORY_REPORT=ways [FACTORY=<part of an id>] [FACTORY_NUMBERS=<first>-<last>] [FACTORY_EVERY=<n>] [FACTORY_WAY=<way id>] [FACTORY_SEED=<seed, default 1>] [FACTORY_FAR=<0..1, default each way's own>] [FACTORY_PACK=<pack id>] pnpm vitest run …
+//     each factory sound played every way that has takes on it (../ways), or the one way
+//     named: how many takes and the round they are played in, and per take what it does to
+//     the sound (notes sounding, resting, moved, shifted, added), how far it is from the sound
+//     in dB (`soundPrint`), its loudness against the sound's, and in capitals where a take is
+//     another kind than its sound is found to be (KIND), does not come round where the sound
+//     does (SEAM), is louder or quieter by over 2 dB (LEVEL), or cannot be told from an
+//     earlier take of the same way (SAME). Then a row per way of what was flagged, and a row
+//     per way of how many sounds of each kind it has takes on, counted over every sound
+//     the report could be about and not only the ones rendered
 //   FACTORY_REPORT=packs FACTORY_PACK=<pack id> [FACTORY=<part of an id>] pnpm vitest run …
 //     each preset of one pack as it leaves the patch, with its instrument, its cost, and in
 //     capitals where it leaves a pack's limits (PEAK, LOUD, QUIET, DC; SLOW over 12 % of real
@@ -69,12 +79,17 @@ import {
   FACTORY_SOUNDS,
   GENERATED_KINDS,
   PREVIEW_SECONDS,
+  WAYS,
+  describeTake,
   generateSound,
   previewPhrase,
   renderFactorySound,
   renderGeneratedSound,
   transposeFactorySound,
+  wayTakes,
+  waysFor,
   type FactoryMode,
+  type WayPlaying,
 } from '..'
 import { FACTORY_PACK_SIZE, FACTORY_SOUND_PACK_SIZE, loadFactoryPacks } from '../packs'
 import {
@@ -541,6 +556,134 @@ describe.skipIf(!mode)('factory bench', () => {
       publish()
     },
     3_600_000,
+  )
+
+  it.skipIf(mode !== 'ways')(
+    'ways',
+    async () => {
+      const render = { compile: compileFromDisk, sliceMs: 0 } as const
+      const every = Number(process.env.FACTORY_EVERY ?? 1)
+      const seed = Number(process.env.FACTORY_SEED ?? 1)
+      const far =
+        process.env.FACTORY_FAR === undefined ? {} : { far: Number(process.env.FACTORY_FAR) }
+      const ways = WAYS.filter(
+        (way) => !process.env.FACTORY_WAY || way.id === process.env.FACTORY_WAY,
+      )
+      const playing = (way: string): WayPlaying => ({ way, seed, ...far })
+      const from = await soundsAsked()
+      const chosen = from.filter(
+        (s, index) => s.id.includes(only) && numbered(s.number) && index % every === 0,
+      )
+      const FLAGS = ['KIND', 'SEAM', 'LEVEL', 'SAME'] as const
+      const tally = new Map(
+        ways.map((way) => [
+          way.id,
+          { sounds: 0, flaggedSounds: 0, takes: 0, KIND: 0, SEAM: 0, LEVEL: 0, SAME: 0 },
+        ]),
+      )
+      for (const sound of chosen) {
+        const fitting = ways
+          .map((way) => ({ way, counted: wayTakes(sound, playing(way.id)) }))
+          .filter(({ counted }) => counted.takes > 0)
+        say(
+          `${String(sound.number).padEnd(6)}${sound.id.padEnd(44)} ${sound.kind}  ` +
+            `${fitting.length} of ${ways.length} ways`,
+        )
+        if (fitting.length === 0) continue
+        const audio = await renderFactorySound(sound, render)
+        const print = soundPrint(audio)
+        const lufs = measureAudio(audio).lufs
+        const found = analyzeSound(audio.channels, audio.sampleRate).kind
+        const round = measureEnds(audio).round
+        for (const { way, counted } of fitting) {
+          const count = tally.get(way.id)
+          if (!count) continue
+          count.sounds += 1
+          say(
+            `      ${way.id.padEnd(20)} ${counted.takes} takes  round ${counted.round.join(' ')}` +
+              (counted.cut ? '  (cut)' : ''),
+          )
+          const earlier: SoundPrint[] = []
+          let flagged = false
+          for (let take = 0; take < counted.takes; take += 1) {
+            const plays = { ...playing(way.id), take }
+            const [played, cost] = await timed(sound.durationSec, () =>
+              renderFactorySound(sound, { ...render, plays }),
+            )
+            keep(`${sound.id}~${way.id}~${take}`, played)
+            const did = describeTake(sound, plays)
+            const does = [
+              `${did.sounding} notes`,
+              did.resting > 0 ? `${did.resting} rest` : '',
+              did.moved > 0 ? `${did.moved} moved` : '',
+              did.shifted > 0 ? `${did.shifted} shifted` : '',
+              did.added > 0 ? `${did.added} added` : '',
+            ]
+              .filter(Boolean)
+              .join(' ')
+            const measured = measureAudio(played)
+            const analysis = analyzeSound(played.channels, played.sampleRate)
+            const takePrint = soundPrint(played)
+            const problems: (typeof FLAGS)[number][] = []
+            if (analysis.kind !== found) problems.push('KIND')
+            if (sound.loopCrossfadeSec && round && !measureEnds(played).round) problems.push('SEAM')
+            if (Math.abs(measured.lufs - lufs) > 2) problems.push('LEVEL')
+            if (earlier.some((each) => printDistance(each, takePrint) < 0.02)) problems.push('SAME')
+            earlier.push(takePrint)
+            count.takes += 1
+            for (const problem of problems) count[problem] += 1
+            flagged ||= problems.length > 0
+            const lu = measured.lufs - lufs
+            say(
+              `        take ${take}  ${printDistance(print, takePrint).toFixed(2).padStart(5)} dB apart  ` +
+                `${lu >= 0 ? '+' : ''}${lu.toFixed(1)} LU  kind ${analysis.kind}  ${cost}  [${does}]` +
+                (problems.length > 0 ? `  ${problems.join(' ')}` : ''),
+            )
+          }
+          if (flagged) count.flaggedSounds += 1
+        }
+      }
+      say(
+        `\n${chosen.length} sounds, seed ${seed}, far ${process.env.FACTORY_FAR ?? "each way's own"}`,
+      )
+      say(
+        `${'way'.padEnd(20)} sounds  takes   ${FLAGS.map((flag) => flag.padStart(5)).join(' ')}  sounds with a flag`,
+      )
+      for (const [id, count] of tally) {
+        say(
+          `${id.padEnd(20)} ${String(count.sounds).padStart(6)} ${String(count.takes).padStart(6)}   ` +
+            `${FLAGS.map((flag) => String(count[flag]).padStart(5)).join(' ')}  ${count.flaggedSounds}`,
+        )
+      }
+      // Reach needs no render, so it is counted over every sound and not only the chosen ones.
+      const kinds = [...new Set(from.map((sound) => sound.kind))]
+      const ofKind = (kind: string): number => from.filter((sound) => sound.kind === kind).length
+      say(`\nsounds each way has takes on, of ${from.length}`)
+      say(
+        `${'way'.padEnd(20)} ${kinds.map((kind) => `${kind} (${ofKind(kind)})`.padStart(13)).join(' ')}   all`,
+      )
+      const asked = new Set(ways.map((way) => way.id))
+      const reach = from.map((sound) => ({
+        kind: sound.kind,
+        ways: waysFor(sound, { seed, ...far }).filter((id) => asked.has(id)),
+      }))
+      const row = (name: string, fits: readonly { kind: string }[]): string =>
+        `${name.padEnd(20)} ${kinds
+          .map((kind) => String(fits.filter((each) => each.kind === kind).length).padStart(13))
+          .join(' ')}`
+      for (const way of ways) {
+        const fits = reach.filter((each) => each.ways.includes(way.id))
+        say(`${row(way.id, fits)} ${String(fits.length).padStart(5)}`)
+      }
+      say(
+        row(
+          '(no way at all)',
+          reach.filter((each) => each.ways.length === 0),
+        ),
+      )
+      publish()
+    },
+    7_200_000,
   )
 
   it.skipIf(mode !== 'chains')(

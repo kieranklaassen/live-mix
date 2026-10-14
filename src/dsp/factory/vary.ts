@@ -113,8 +113,8 @@ const CHORD_STEPS: readonly { steps: number; weight: number }[] = [
 const LEAD_SEC = 0.03
 /** Notes this near each other in time are struck together. */
 const TOGETHER_SEC = 1e-4
-const LOWEST_NOTE = 24
-const HIGHEST_NOTE = 96
+export const LOWEST_NOTE = 24
+export const HIGHEST_NOTE = 96
 const WHITE_KEYS = [0, 2, 4, 5, 7, 9, 11]
 
 /** The chords a sound can be asked onto by name (`SoundVariation.chord`), as steps from its own. */
@@ -164,7 +164,7 @@ const NO_CHANGES: VariantChanges = {
 }
 
 /** 0 up to 1, from a seed and whatever tells this draw from every other. */
-function draw(seed: number, ...of: number[]): number {
+export function draw(seed: number, ...of: number[]): number {
   let hash = (seed | 0) ^ 0x9e3779b9
   for (const part of of) {
     hash = Math.imul(hash ^ (part | 0), 0x85ebca6b)
@@ -178,10 +178,10 @@ function draw(seed: number, ...of: number[]): number {
 /** -1 up to 1. */
 const swing = (seed: number, ...of: number[]): number => draw(seed, ...of) * 2 - 1
 
-const clamp = (value: number, low: number, high: number): number =>
+export const clamp = (value: number, low: number, high: number): number =>
   Math.min(high, Math.max(low, value))
 
-const mod = (value: number, by: number): number => ((value % by) + by) % by
+export const mod = (value: number, by: number): number => ((value % by) + by) % by
 
 /** What is drawn from, so no two draws of a variant are the same one. */
 const TIMING = 1
@@ -217,7 +217,7 @@ export function variationAmounts(variation?: SoundVariation): Record<VariationKi
 }
 
 /** A note `steps` along the white keys from where it is; a black key goes with the white key under it. */
-function alongWhiteKeys(note: number, steps: number): number {
+export function alongWhiteKeys(note: number, steps: number): number {
   const whole = Math.round(note)
   const pitchClass = mod(whole, 12)
   const sharp = WHITE_KEYS.includes(pitchClass) ? 0 : 1

@@ -21,7 +21,8 @@ import { FACTORY_PRESETS } from './presets'
 import { FACTORY_SOUNDS } from './sounds'
 import { factoryTempo, patchAtTempo, phraseAtTempo, tempoRatio } from './tempo'
 import { type FactoryChain, type FactoryPreset, type FactorySound } from './types'
-import { varySound, type SoundVariation } from './vary'
+import { type SoundVariation } from './vary'
+import { playAndVarySound, playSound, type WayPlaying } from './ways'
 
 export { FACTORY_CHAINS } from './chains'
 export {
@@ -92,6 +93,24 @@ export {
   type VariationKind,
   type VariedPlaying,
 } from './vary'
+export {
+  TAKE_ORDERS,
+  WAYS,
+  WAY_FAMILIES,
+  describeTake,
+  playAndVarySound,
+  playSound,
+  takeOrder,
+  wayTakes,
+  waysFor,
+  type TakeChanges,
+  type TakeOrder,
+  type TakeOrderOptions,
+  type WayFamily,
+  type WayPlaying,
+  type WayRow,
+  type WayTakes,
+} from './ways'
 export {
   type FactoryChain,
   type FactoryChainCategory,
@@ -175,6 +194,27 @@ export type FactorySoundRenderOptions = FactoryRenderOptions & {
    * variant on that other sound as written.
    */
   vary?: SoundVariation
+  /**
+   * Which way the sound is played, and which take of it (`playSound`): the
+   * way writes the notes of the take. With `vary` as well, the variant
+   * gives its chord and its touch (`playAndVarySound`): every take of the
+   * way stands on the chord the variant puts the sound as written on, and
+   * the variant's speed and pattern are not read. Absent, a way the table
+   * does not have, or a way with nothing to play on this sound: the sound
+   * as written, or its variant. A factory sound is written on the white
+   * keys and its key is `transpose`: `plays.key` is not read.
+   */
+  plays?: WayPlaying
+}
+
+/** How a generated sound is rendered: where to run the devices, and played which way. */
+export type GeneratedSoundRenderOptions = FactoryRenderOptions & {
+  /**
+   * Which way the sound is played, and which take of it (`playSound`), in
+   * the sound's own key unless `plays.key` names another. Absent, the sound
+   * as it was generated.
+   */
+  plays?: WayPlaying
 }
 
 /**
@@ -309,17 +349,24 @@ function peakDbOf(audio: PlanarAudio): number {
  * Render a factory sound: its phrase on its patch, looped without a seam
  * when the recipe asks for it, in the bank's own key or `transpose`
  * semitones from it, and for a sound that keeps time at the tempo it is
- * written at or at `bpm`. A sound made from another one (a granular cloud of
+ * written at or at `bpm`, as it is written or as a take of a way (`plays`)
+ * or a variant (`vary`). A sound made from another one (a granular cloud of
  * the piano) renders that one first, in the same key.
  */
 export async function renderFactorySound(
   sound: FactorySound,
   options: FactorySoundRenderOptions = {},
 ): Promise<PlanarAudio> {
-  const { transpose = 0, vary, bpm, ...render } = options
-  // Varied as it is written, on the white keys and at its own tempo, and
-  // moved into the key and to the tempo afterwards.
-  const inKey = soundAtTempo(transposeFactorySound(varySound(sound, vary), transpose), bpm)
+  const { transpose = 0, vary, plays, bpm, ...render } = options
+  // Played and varied as it is written, on the white keys and at its own
+  // tempo, and moved into the key and to the tempo afterwards.
+  const inKey = soundAtTempo(
+    transposeFactorySound(
+      playAndVarySound(sound, plays && { ...plays, key: undefined }, vary),
+      transpose,
+    ),
+    bpm,
+  )
   const patch = typeof inKey.patch === 'string' ? factoryPreset(inKey.patch) : inKey.patch
   if (!patch)
     throw new Error(`live-mix: factory sound "${sound.id}" names a preset that does not exist`)
@@ -374,15 +421,18 @@ export async function renderFactorySound(
 
 /**
  * Render a generated sound (`generateSound`): its phrase on its patch, looped
- * without a seam when it is one that loops, at the bank's peak level.
+ * without a seam when it is one that loops, at the bank's peak level. With
+ * `plays`, a take of it played a way, in its own key.
  */
 export function renderGeneratedSound(
   sound: GeneratedSound,
-  options: FactoryRenderOptions = {},
+  options: GeneratedSoundRenderOptions = {},
 ): Promise<PlanarAudio> {
+  const { plays, ...render } = options
+  const { phrase } = playSound(sound, plays && { ...plays, key: plays.key ?? sound.key })
   return renderPatch(sound.patch, {
-    ...options,
-    phrase: sound.phrase,
+    ...render,
+    phrase,
     durationSec: sound.durationSec,
     skipSec: sound.skipSec,
     loopCrossfadeSec: sound.loopCrossfadeSec,

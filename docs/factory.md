@@ -627,6 +627,281 @@ crash ending on a sample of 0.01 to 0.14 of full scale, the stick not
 reached). The two reverse crashes are one held key each, so they too are
 their own variants.
 
+## A way of playing a sound
+
+A variant is a sound played once more, differently, and then the same on
+every pass. A way of playing gives a few takes of a sound that differ from
+one another, to be played in turn:
+
+```ts
+import {
+  describeTake,
+  playSound,
+  renderFactorySound,
+  takeOrder,
+  wayTakes,
+  waysFor,
+} from '@kieranklaassen/live-mix/dsp'
+
+waysFor(sound) // ['rising', 'there-and-back', …]: the ways with something to play on it
+const way = { way: 'rising', seed: 4711 }
+const takes = wayTakes(sound, way) // { takes: 4, round: [0, 1, 2, 3], cut: false }
+const audio = await renderFactorySound(sound, { plays: { ...way, take: 1 }, transpose })
+const take = playSound(sound, { ...way, take: 1 }) // the recipe, nothing rendered
+describeTake(sound, { ...way, take: 1 }) // { sounding: 9, resting: 0, moved: 7, shifted: 0, added: 0 }
+takeOrder('dealt', takes, { length: 16, seed: 4711 }) // [3, 1, 0, 2, 0, 3, 2, 1, 2, 0, 1, 3, 0, 1, 3, 2]
+```
+
+A way is a named rule that writes the notes of a take from the sound's own
+notes, its key, a seed and one amount, `far`. There are twenty (`WAYS`) in
+six families (`WAY_FAMILIES`): each row has an id, a name of 24 characters at
+most, words for an info view, what the way needs of a sound, and what `far`
+changes with where it stands when a host names none. The table is
+[ways-generated.md](./ways-generated.md), written from the code. A host that
+keeps the way's id, the seed and `far` beside the sound's id has kept every
+take. A new way is a row with its rule in a family's file under
+`src/dsp/factory/ways/`; what the others give does not move.
+
+How takes are counted. A rule is asked for one turn at a time and gives one
+pass of notes; it does not say how many takes it has. The engine asks for
+sixteen turns. Turns with the same notes are one take, and the round is the
+shortest run of turns that all sixteen repeat: the order the way itself
+plays its takes in, where a take may come more than once (`[0, 0, 0, 1]` is
+three turns at home and one away). A way has two takes to eight. A ninth
+different take cuts the round at eight, and `cut` says so: the last take of
+a cut round does not lead back into its first. A round longer than eight
+turns does not show twice in sixteen, so it is asked for once more, and
+where the turns after it do not play it again, `cut` says that too: the
+round is not the whole of what the way plays. A way that gives fewer than
+two different takes on a sound has nothing to play there. `wayTakes` then
+gives `takes: 0` and a `refusal` in a few words ("Needs a phrase.", "Needs a
+held chord.", "Its keys are not notes.", "Its loop is all crossfade.",
+"Every take of it comes out the same."), `waysFor` leaves the way out, and
+`playSound` gives back the sound itself, the same object, as it does without
+a way, for a way the table does not have, and for a take that is the sound
+as written. So nothing that renders without `plays` renders differently.
+What a way has to play on a
+sound changes with `far`: `waysFor(sound)` asks each way at the `far` it
+stands at, `waysFor(sound, { far })` at another, and a host that moves `far`
+asks `wayTakes` again, since a render with a way that has nothing to play is
+the sound as written and says nothing.
+
+What a take keeps:
+
+- The instrument and its settings, the effects, the length, the loop and its
+  fold. Every take of a sound is as long as the sound and loops where it
+  loops, so takes can stand in one clip's turns.
+- The key. Most ways deal the pitches the sound already has. One note slips
+  and Two readers move a note along the key, and past half of `far` the ways
+  of the first family play the chord's notes an octave up as well, all inside
+  the range `vary.ts` keeps. A factory sound is played as it is written, on
+  the white keys, and transposed afterwards: `renderFactorySound` reads no
+  `key` from the playing. A sound in another key names it (`key` in the
+  playing); `renderGeneratedSound` names the sound's own, and `playSound`,
+  `wayTakes`, `waysFor` and `describeTake` are told it by the host.
+- The note the sound stands on, its lowest. Every moment that holds it is
+  left exactly as written, and a way deals the other moments. No take has a
+  note under it.
+- The level. The hardest note of a take is as hard as the sound's hardest.
+- The attack. The first note stays where it is and none comes ahead of it.
+- A held chord: a note the sound does not strike is struck inside the loop,
+  from a crossfade's length in, so no attack lies under the fold, and a note
+  that enters stays down past everything that is rendered, as the written
+  chord does.
+- A phrase played round: a take is one pass, laid out again for every pass,
+  so the loop still meets itself.
+- A phrase that ends: no note is struck later than the last written note and
+  no key is down longer. Echoes is the one exception: its repeats come after
+  the hit, inside the sound's length, the last struck before three quarters
+  of it.
+
+A sound whose keys are not pitches (a kit, or a sound made of another
+sound's audio) keeps every note on a key it is written on, so it is played
+only by the ways that change when notes sound: the Counting family, Gather,
+and Echoes on one hit.
+
+`plays` and `vary` go together (`playAndVarySound`): the way writes the
+notes, the variant gives its chord and its touch, the key and the tempo come
+last. Where a way has takes on a sound, two things about the variant are
+decided for all the takes at once, and not take by take:
+
+- The chord. It is the one the variant puts the sound as written on
+  (`describeVariant(sound, vary).chordSteps`), and every take stands on it.
+  Where a take has a note the sound does not (the octave above, past half of
+  `far`) and that note would leave the range there, all the takes stand on
+  the same chord an octave the other way, or stay where they are written
+  when neither fits. Asked of each take's own notes, one take would go up
+  and the next down.
+- The speed and the pattern are not read. Both are worked out from the notes
+  they are given: they would slow one take and not the next, and rest the
+  notes the way put there, until two takes are the same notes.
+
+The take that is the sound as written is one of the takes: it stands on
+their chord, at their speed. Where the way has nothing to play, `plays`
+changes nothing and the variant is the whole variant. A host that wants a
+variant whole, its speed and rests included, and that variant played a way,
+asks the way of the varied sound: `playSound(varySound(sound, vary), plays)`,
+with `waysFor` and `wayTakes` asked of the varied sound as well: a variant
+has notes of its own, and what a way has to play on them is for the variant
+to say.
+
+The orders. `takeOrder(order, takes, { length, seed, holds })` lists take
+numbers for a stretch of passes, for a host to name in a clip's turns.
+`TAKE_ORDERS` has four: in turn is the way's own round over and over; dealt
+plays every take once before any comes twice, in an order drawn anew for
+each deal, never the same take twice running; mostly stays keeps a take for a
+few passes, moves to the one beside it and finds its way back; grows plays
+the first take, then the first two, then the first three, until all have
+played. `holds` keeps each place for that many passes. An order gives the
+nearest length its rule allows, and holds its rule where the end of the list
+meets its start, since a clip plays the list round. That length is never
+less than one go through the rule and so may be more than asked: in turn
+plays the way's round whole at least once, each place held for `holds`
+passes (a round of sixteen held for eight is 128 passes, whatever was
+asked). A host with a limit of its own checks the list it gets. A list too
+short to go out and come back (under six places) is, in mostly stays, the
+first take and the one beside it, half each and two places each at the
+least; grows plays its first two rows at the least. So no order names the
+first take alone, however short the length and however long the hold: a clip
+plays the list round, and such a list would never leave it. A `length` under
+one pass, or a `length` or `holds` that is no number, gives no list. A
+`length` past 4,096 passes is read as 4,096 and a `holds` past 64 as 64.
+
+What decides a take is the sound, the way, the seed and `far`, and nothing
+else: no stroke, clip or host id, so two strokes of one sound share their
+takes. Most ways count and draw nothing. Of the twenty only One note slips
+reads the seed (which notes slip, in which order, up or down); for the
+others every seed gives the same takes, and what a seed changes is the order
+they are dealt in.
+
+Nobody has listened to any of it. Every claim here is a property of the
+notes or a measurement of a render: which ways are worth keeping is for an
+ear to say.
+
+`ways.test.ts` and a test for each family hold each way to its own business
+on phrases written for it. `ways-bank.test.ts` holds every way to what a
+take keeps on every sound of the bank and of every pack it has takes on,
+without rendering, and `ways-render.test.ts` renders a few.
+`FACTORY_REPORT=ways` is the bench: for each sound and each way that has
+takes on it the takes and the round, and per take what it does (notes
+sounding, resting, moved, shifted, added), how far it is from its sound
+(`printDistance`), its loudness against the sound's and the kind the
+analysis gives, with `KIND` (another kind than its sound is found to be),
+`SEAM` (does not come round where the sound does), `LEVEL` (over 2 LU from
+the sound) and `SAME` (under 0.02 dB from an earlier take of the same way:
+nothing to hear). It ends with a row per way of what was flagged and a row
+per way of the sounds of each kind it has takes on.
+
+```bash
+FACTORY_REPORT=ways FACTORY=thumb-dub pnpm vitest run src/dsp/factory/__tests__/report.test.ts # one sound, every way
+FACTORY_REPORT=ways FACTORY_EVERY=4 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every fourth sound of the bank
+FACTORY_REPORT=ways FACTORY_WAY=echoes FACTORY_FAR=1 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # one way, as far as it goes
+FACTORY_REPORT=ways FACTORY_PACK=<id> FACTORY_WAV=tmp/wav pnpm vitest run src/dsp/factory/__tests__/report.test.ts # a pack's sounds, the takes kept
+```
+
+What the bench says, so nobody has to find out again. Every way at the
+`far` it stands at, seed 1, on every fourth sound of the bank (82 sounds):
+1,778 takes rendered. A take's distance from its sound is the level between
+the two renders, band by band.
+
+| Way                  | Sounds | Takes | `KIND` | `SEAM` | `LEVEL` | `SAME` | Sounds with a flag |
+| -------------------- | ------ | ----- | ------ | ------ | ------- | ------ | ------------------ |
+| `rising`             | 22     | 86    | 4      | 0      | 7       | 0      | 6 of 22            |
+| `there-and-back`     | 22     | 93    | 6      | 0      | 9       | 0      | 7 of 22            |
+| `outside-in`         | 22     | 86    | 3      | 0      | 10      | 0      | 7 of 22            |
+| `carry-on`           | 12     | 72    | 1      | 0      | 5       | 0      | 5 of 12            |
+| `counted-rests`      | 40     | 146   | 21     | 0      | 6       | 0      | 16 of 40           |
+| `leave-one-out`      | 38     | 250   | 18     | 0      | 5       | 0      | 11 of 38           |
+| `turning-rests`      | 41     | 228   | 25     | 0      | 4       | 0      | 13 of 41           |
+| `sliding-window`     | 28     | 110   | 15     | 0      | 5       | 0      | 13 of 28           |
+| `gather`             | 41     | 154   | 32     | 0      | 11      | 0      | 23 of 41           |
+| `one-note-slips`     | 15     | 67    | 0      | 0      | 0       | 0      | 0 of 15            |
+| `climb`              | 15     | 50    | 1      | 0      | 4       | 0      | 4 of 15            |
+| `lean`               | 11     | 44    | 0      | 0      | 1       | 0      | 1 of 11            |
+| `neighbours-swap`    | 11     | 60    | 2      | 0      | 2       | 1      | 3 of 11            |
+| `home-and-away`      | 15     | 30    | 0      | 0      | 0       | 0      | 0 of 15            |
+| `staggered-entries`  | 7      | 23    | 2      | 0      | 1       | 0      | 2 of 7             |
+| `voices-come-and-go` | 7      | 23    | 1      | 0      | 0       | 0      | 1 of 7             |
+| `unequal-rounds`     | 7      | 38    | 2      | 0      | 6       | 0      | 3 of 7             |
+| `echoes`             | 15     | 90    | 51     | 0      | 23      | 0      | 12 of 15           |
+| `two-readers`        | 14     | 54    | 0      | 0      | 0       | 4      | 1 of 14            |
+| `in-the-gaps`        | 13     | 74    | 1      | 0      | 0       | 0      | 1 of 13            |
+
+Every take of a loop comes round where its sound does: no `SEAM` in 1,778
+takes. Five takes cannot be told from an earlier take of their way: their
+notes differ and their renders do not, to within 0.02 dB. One is Neighbours
+swap's on "Eighths sequence"; four are Two readers' on "Vibes quintuplets",
+where the second voice adds two soft notes to a pass of eighteen and stays
+out of the moments that hold the note the sound stands on. `KIND` is about
+the analysis and not about the notes. A beat with moments resting is called
+a phrase or a one-shot (the Counting family, and Gather, whose first step is
+a quarter of the beat), and a hit with repeats after it is called a phrase
+(Echoes, 51 of its 90 takes). Two ways are flagged on most of the sounds
+they have takes on: Echoes (12 of 15) and Gather (23 of 41).
+
+A render is brought to the bank's peak whatever is played, so a take's
+loudness is not its sound's. `LEVEL` is Echoes' in 23 of its 90 takes, from
+4.2 LU under the sound to 2.9 over; Gather's first step is up to 6 LU under
+its beat; and about a tenth of the takes of the first family are over 2 LU
+off, 3.7 at most. The ways that move pitches on a phrase's own moments or
+add a few notes to it are the near ones: One note slips, Lean, Home and
+away, Two readers and In the gaps stay within 2.2 LU, and half of their
+takes are under 0.8 dB from the sound. Sliding window is the furthest (half
+of its takes about 7 dB from the sound or more), Gather next (half over
+5.5 dB), then Echoes (half over 4 dB). As with a variant, a host that minds can bring a take to its
+sound's loudness after rendering; the library does not.
+
+Where a turn of a way is the phrase as written (the first of Counted rests,
+One note slips, Climb, Lean and the two trades, the last of Gather), that
+take is the sound itself and renders as it. A round is cut at eight takes on
+56 of the 1,604 pairs of a sound of the bank and a way that has takes on it:
+Carry on 27, Turning rests 15 (a phrase whose number of moments is a prime
+above eight), There and back 7, Unequal rounds 3 (five notes or more above
+the lowest), Rising 2 and Outside in 2. At the `far` each way stands at no
+round of the bank is cut for not coming round; with `far` at nothing Turning
+rests on "Eighths sequence" is.
+
+How far the ways reach, counted over the whole bank without rendering: the
+sounds of each kind a way has takes on.
+
+| Way                  | Drones (25) | Pads (32) | Textures (22) | One-shots (65) | Phrases (27) | Beats (154) | All (325) |
+| -------------------- | ----------- | --------- | ------------- | -------------- | ------------ | ----------- | --------- |
+| `rising`             | 4           | 22        | 4             | 1              | 21           | 34          | 86        |
+| `there-and-back`     | 4           | 22        | 4             | 1              | 21           | 34          | 86        |
+| `outside-in`         | 4           | 22        | 4             | 1              | 21           | 34          | 86        |
+| `carry-on`           | 0           | 1         | 0             | 1              | 17           | 34          | 53        |
+| `counted-rests`      | 0           | 2         | 0             | 2              | 25           | 134         | 163       |
+| `leave-one-out`      | 0           | 2         | 0             | 2              | 22           | 130         | 156       |
+| `turning-rests`      | 0           | 2         | 0             | 2              | 25           | 132         | 161       |
+| `sliding-window`     | 0           | 0         | 0             | 0              | 13           | 103         | 116       |
+| `gather`             | 0           | 2         | 0             | 2              | 25           | 135         | 164       |
+| `one-note-slips`     | 0           | 2         | 0             | 1              | 21           | 34          | 58        |
+| `climb`              | 0           | 2         | 0             | 1              | 21           | 34          | 58        |
+| `lean`               | 0           | 0         | 0             | 0              | 18           | 33          | 51        |
+| `neighbours-swap`    | 0           | 1         | 0             | 0              | 17           | 34          | 52        |
+| `home-and-away`      | 0           | 2         | 0             | 1              | 21           | 34          | 58        |
+| `staggered-entries`  | 4           | 20        | 4             | 0              | 0            | 0           | 28        |
+| `voices-come-and-go` | 4           | 20        | 4             | 0              | 0            | 0           | 28        |
+| `unequal-rounds`     | 4           | 20        | 4             | 0              | 0            | 0           | 28        |
+| `echoes`             | 0           | 3         | 4             | 62             | 1            | 0           | 70        |
+| `two-readers`        | 0           | 1         | 0             | 1              | 20           | 30          | 52        |
+| `in-the-gaps`        | 0           | 1         | 0             | 0              | 19           | 30          | 50        |
+| no way at all        | 21          | 7         | 14            | 1              | 1            | 19          | 63        |
+
+Most drones of the bank have no way to play them: 21 of 25. A drone is
+mostly one held note (13 of them) or two (8), and a way that deals a chord
+needs two notes above the one the sound stands on: the Held family says so,
+and the first family finds every take of two held notes the same. Past half
+of `far` the first family has the octave above to deal as well, and then
+plays those eight drones and the two textures of two held notes. Held
+sounds of one or two notes, and held sounds made of another sound's audio,
+are also most of the 14 textures and 7 pads without a way. Of the 19 beats
+without one, 16 are a pulse on one note or one chord,
+where every moment holds the note the sound stands on and no way deals
+those, and 3 are one stroke of a kit played round. Echoes plays 62 of the
+65 one-shots and little else does: a one-shot is one hit. Ways for one or
+two held notes, and for a pulse, are not in this catalogue.
+
 ## What the bank is held to
 
 `src/dsp/factory/__tests__/factory.test.ts` renders every entry with the
@@ -719,6 +994,7 @@ FACTORY_REPORT=sounds  pnpm vitest run src/dsp/factory/__tests__/report.test.ts 
 FACTORY_REPORT=devices pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every device, parameter and preset
 FACTORY_REPORT=keys    pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every sound in all twelve keys
 FACTORY_REPORT=generated FACTORY_SEEDS=40 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # that many seeds of each kind
+FACTORY_REPORT=ways    FACTORY_EVERY=4 pnpm vitest run src/dsp/factory/__tests__/report.test.ts # every fourth sound, every way that plays it
 FACTORY_REPORT=chains  FACTORY_CATEGORY=tape pnpm vitest run src/dsp/factory/__tests__/report.test.ts # one group of chains
 FACTORY_REPORT=stress  FACTORY_DEVICE=choir  pnpm vitest run src/dsp/factory/__tests__/report.test.ts # presets pushed, see below
 FACTORY_REPORT=stress  FACTORY_CATEGORY=tape pnpm vitest run src/dsp/factory/__tests__/report.test.ts # chains pushed
