@@ -4,8 +4,11 @@
 // differently at a glance. On top of that it draws what a clip in a DAW
 // shows: fades (the curve closes toward the centre line), repeats (later
 // passes sit back behind a dashed seam), detected hits, an automation line,
-// and the selected and muted states. Presentational only: geometry comes in
-// as px and fractions; pointer handlers, `data-*` and the ref go to the root.
+// and the selected and muted states. A sound that plays from notes says so
+// with pips on its lower edge, one for each different pass, the lit one the
+// pass that sounds, and the next pass waits behind the wave as a thin line.
+// Presentational only: geometry comes in as px and fractions; pointer
+// handlers, `data-*` and the ref go to the root.
 
 import { forwardRef, useMemo, type CSSProperties, type HTMLAttributes } from 'react'
 
@@ -20,6 +23,8 @@ import {
   hitPositions,
   passPhase,
   repeatSeams,
+  strokeOutlinePath,
+  strokePips,
   strokeRepeats,
   strokeWavePaths,
 } from './stroke-math'
@@ -65,8 +70,26 @@ export interface StrokeProps extends Omit<HTMLAttributes<HTMLDivElement>, 'color
   gain?: number
   /** Short readouts after the name: tempo, gain. */
   tags?: readonly string[]
+  /**
+   * How many different passes the stroke has: 1 for a sound played from notes
+   * that plays the same on every pass, more for one whose passes differ. Drawn
+   * as pips on the lower edge (eight at most), where the stroke has room for
+   * them. Left out for a recording, which has no pips.
+   */
+  turns?: number
+  /** Which of its different passes sounds, from 0: its pip is lit. Default 0. */
+  turn?: number
+  /**
+   * One pass of what the stroke plays on its next different pass, sliced as
+   * `peaks` is: a thin line behind the wave, on a stroke 30 px high and up
+   * with more than one pass.
+   */
+  next?: WaveformPeaks | null
   'data-testid'?: string
 }
+
+/** The lowest stroke that draws its next pass: under it the line has no room to stand clear. */
+const NEXT_MIN_HEIGHT = 30
 
 function formatRepeats(repeats: number): string {
   return `×${Number(repeats.toFixed(1))}`
@@ -92,6 +115,9 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
     reversed = false,
     gain = 1,
     tags,
+    turns,
+    turn = 0,
+    next = null,
     className,
     style,
     ...rest
@@ -111,6 +137,20 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
       ),
     [width, height, peaks, repeats, phase, fadeIn, fadeOut, gain, reversed, window],
   )
+
+  // The next pass has the stroke's own shape, so a pip that moves builds no path.
+  const waits = turns !== undefined && turns > 1 && height >= NEXT_MIN_HEIGHT ? next : null
+  const nextLine = useMemo(
+    () =>
+      waits
+        ? strokeOutlinePath(
+            { width, height, peaks: waits, repeats, phase, fadeIn, fadeOut, gain, reversed },
+            window,
+          )
+        : null,
+    [width, height, waits, repeats, phase, fadeIn, fadeOut, gain, reversed, window],
+  )
+  const pips = turns === undefined ? [] : strokePips(turns, turn, width, height, Boolean(name))
 
   const seams = looping ? repeatSeams(repeats, width, phase) : []
   // What is left of the first pass: all of it for a stroke that begins at the top.
@@ -171,6 +211,7 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
         viewBox={`0 0 ${width} ${height}`}
         aria-hidden="true"
       >
+        {nextLine ? <path className="lm-stroke__next" d={nextLine} /> : null}
         <path className="lm-stroke__halo" d={paths.halo} />
         <path className="lm-stroke__wave" d={paths.wave} />
         <path className="lm-stroke__bars" d={paths.bars} />
@@ -239,6 +280,20 @@ export const Stroke = forwardRef<HTMLDivElement, StrokeProps>(function Stroke(
                 y={y - 2.5}
                 width={5}
                 height={5}
+              />
+            ))}
+          </g>
+        ) : null}
+        {pips.length > 0 ? (
+          <g className="lm-stroke__pips">
+            {pips.map((pip, index) => (
+              <rect
+                key={index}
+                className={cx('lm-stroke__pip', pip.lit && 'lm-stroke__pip--lit')}
+                x={pip.x}
+                y={pip.y}
+                width={pip.width}
+                height={pip.height}
               />
             ))}
           </g>

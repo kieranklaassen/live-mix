@@ -83,6 +83,21 @@ function voicePeaks() {
 
 const peaks = voicePeaks()
 
+/** A made-up pad: one swell, shaped by where it peaks and how many times. */
+function padPeaks(peak: number, swells: number) {
+  const samples = new Float32Array(4000)
+  for (let n = 0; n < samples.length; n += 1) {
+    const t = n / samples.length
+    const swell = Math.max(0.15, Math.sin(Math.PI * Math.min(1, t / peak) * 0.5) ** 2)
+    const fall = t > peak ? Math.exp(-(t - peak) * 3) : 1
+    samples[n] = swell * fall * Math.sin(n * 0.7) * (0.6 + 0.4 * Math.sin(t * Math.PI * swells))
+  }
+  return computePeaks([samples], samples.length, 256)
+}
+
+const padNow = padPeaks(0.25, 2)
+const padNext = padPeaks(0.8, 5)
+
 const label: CSSProperties = { margin: '20px 0 8px', color: 'var(--lm-muted)' }
 const at = (left: number, top = 0): CSSProperties => ({ position: 'absolute', left, top })
 
@@ -303,6 +318,46 @@ function Timeline() {
         />
       </div>
     </div>
+  )
+}
+
+/** What a stroke says of its passes: a recording, a sound that stays, one that moves, one with no room. */
+function Passes() {
+  return (
+    <PaintField columnPx={PX} rowPx={20} majorRows={0} style={{ width: 700, height: 60 }}>
+      <Stroke style={at(10, 10)} width={150} height={40} brush={1} name="Take" peaks={peaks} />
+      <Stroke
+        style={at(170, 10)}
+        width={150}
+        height={40}
+        brush={2}
+        name="Bowl"
+        peaks={padNow}
+        turns={1}
+      />
+      <Stroke
+        style={at(330, 10)}
+        width={240}
+        height={40}
+        brush={3}
+        name="Pad"
+        tags={['F 2/4']}
+        peaks={padNow}
+        turns={4}
+        turn={1}
+        next={padNext}
+      />
+      <Stroke
+        style={at(580, 10)}
+        width={36}
+        height={40}
+        brush={3}
+        peaks={padNow}
+        turns={4}
+        turn={1}
+        next={padNext}
+      />
+    </PaintField>
   )
 }
 
@@ -540,6 +595,8 @@ function App() {
     >
       <p style={{ ...label, marginTop: 0 }}>Timeline</p>
       <Timeline />
+      <p style={label}>A stroke and its passes</p>
+      <Passes />
       <p style={label}>Panels, controls, rows, words and notes</p>
       <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
         <Controls />

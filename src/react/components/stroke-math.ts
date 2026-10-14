@@ -299,6 +299,15 @@ function columnMoves(count: number, letter: 'L' | 'M' = 'L'): readonly string[] 
   return moves
 }
 
+/**
+ * The filled outline of a stroke alone: the `wave` of `strokeWavePaths`, for a
+ * host that draws a second shape of the same stroke and wants no halo or bars.
+ */
+export function strokeOutlinePath(options: StrokeLevelsOptions, window = 2): string {
+  const count = columnAmps(options)
+  return outlinePath(columnMoves(count), count, options.height / 2, options.width, 1, window)
+}
+
 /** The waveform of a stroke as the three paths it is drawn with. */
 export interface StrokeWavePaths {
   /** The soft shape behind the wave: swollen, and averaged one column wider. */
@@ -444,4 +453,64 @@ export function hitPositions(
     }
   }
   return positions.sort((a, b) => a - b)
+}
+
+/** The most pips a stroke draws, however many different passes it has. */
+export const STROKE_PIPS_MAX = 8
+
+/** A pip's width and the gap to the next, in px: the first that fits is drawn. */
+const PIP_SIZES: readonly (readonly [width: number, gap: number])[] = [
+  [4, 2],
+  [3, 2],
+  [2, 1],
+]
+const PIP_HEIGHT = 3
+/** The lowest stroke that draws pips, and the lowest that does beside its name's tag. */
+const PIPS_MIN_HEIGHT = 14
+const PIPS_MIN_HEIGHT_NAMED = 20
+
+/** One pip of a stroke: a bar on its lower edge, in px, lit when it is the pass that sounds. */
+export interface StrokePip {
+  x: number
+  y: number
+  width: number
+  height: number
+  lit: boolean
+}
+
+/**
+ * The pips of a stroke `width` × `height` px that has `turns` different
+ * passes and is on pass `turn` of them (from 0): one bar a pass on the lower
+ * edge, from the left end, the first 3 px past where the round end is 2 px
+ * above the edge. Bars are 4 px wide, then 3, then 2 as the stroke gets
+ * short, and a stroke shows them all or none: none when even the smallest do
+ * not fit between its round ends, when it is under 14 px high, or under 20
+ * where it shows its name (`named`), whose tag would lie over them. More than
+ * `STROKE_PIPS_MAX` passes are that many pips, lit at the pass's share of them.
+ */
+export function strokePips(
+  turns: number,
+  turn: number,
+  width: number,
+  height: number,
+  named = false,
+): StrokePip[] {
+  const passes = Number.isFinite(turns) ? Math.floor(turns) : 0
+  if (passes < 1 || !(height >= (named ? PIPS_MIN_HEIGHT_NAMED : PIPS_MIN_HEIGHT))) return []
+  const count = Math.min(STROKE_PIPS_MAX, passes)
+  const on = Number.isFinite(turn) ? ((Math.floor(turn) % passes) + passes) % passes : 0
+  const lit = passes > count ? Math.floor((on * count) / passes) : on
+  // A half circle is as far in at a depth as it is down that far along.
+  const left = Math.ceil(capInset(2, height, height)) + 3
+  const room = width - 2 * left
+  const size = PIP_SIZES.find(([wide, gap]) => count * wide + (count - 1) * gap <= room)
+  if (!size) return []
+  const [wide, gap] = size
+  return Array.from({ length: count }, (_, index) => ({
+    x: left + index * (wide + gap),
+    y: height - PIP_HEIGHT,
+    width: wide,
+    height: PIP_HEIGHT,
+    lit: index === lit,
+  }))
 }

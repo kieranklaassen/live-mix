@@ -13,8 +13,12 @@ import {
   passPhase,
   repeatSeams,
   STROKE_INSET_PX,
+  STROKE_PIPS_MAX,
   strokeLevels,
+  strokeOutlinePath,
+  strokePips,
   strokeRepeats,
+  strokeWavePaths,
 } from '../components/stroke-math'
 
 /** A ramp: silent at the start, full scale at the end. */
@@ -211,5 +215,93 @@ describe('repeats, hits and automation', () => {
     const [[x, y]] = automationPositions([[0, 0]], 400, 100)
     expect(y).toBeLessThanOrEqual(100 - capInset(x, 400, 100) - 5 + 0.5)
     expect(y).toBeGreaterThan(50)
+  })
+})
+
+describe('the pips of a stroke', () => {
+  const xs = (turns: number, turn: number, width: number, height: number, named = false) =>
+    strokePips(turns, turn, width, height, named).map((pip) => pip.x)
+  const lit = (turns: number, turn: number, width = 200, height = 40) =>
+    strokePips(turns, turn, width, height).findIndex((pip) => pip.lit)
+
+  it('are bars 4 by 3 px on the lower edge, 2 px apart, from where the round end has come down', () => {
+    // 40 high: the round end is 2 px above the edge 11.3 px in, and the first pip 3 px past the px after.
+    expect(strokePips(4, 1, 200, 40)).toEqual([
+      { x: 15, y: 37, width: 4, height: 3, lit: false },
+      { x: 21, y: 37, width: 4, height: 3, lit: true },
+      { x: 27, y: 37, width: 4, height: 3, lit: false },
+      { x: 33, y: 37, width: 4, height: 3, lit: false },
+    ])
+    // 20 high: 4 px in, and 3 more.
+    expect(xs(2, 0, 200, 20)).toEqual([7, 13])
+  })
+
+  it('is one lit pip for a sound that plays the same on every pass, and none for no passes', () => {
+    expect(strokePips(1, 0, 200, 40)).toEqual([{ x: 15, y: 37, width: 4, height: 3, lit: true }])
+    expect(strokePips(0, 0, 200, 40)).toEqual([])
+    expect(strokePips(Number.NaN, 0, 200, 40)).toEqual([])
+  })
+
+  it('lights the pip of the pass, coming round, and the first for a pass that is no number', () => {
+    expect(lit(4, 0)).toBe(0)
+    expect(lit(4, 3)).toBe(3)
+    expect(lit(4, 5)).toBe(1)
+    expect(lit(4, -1)).toBe(3)
+    expect(lit(4, Number.NaN)).toBe(0)
+  })
+
+  it('draws eight for more than eight passes, lit at the pass’s share of them', () => {
+    expect(strokePips(12, 0, 200, 40)).toHaveLength(STROKE_PIPS_MAX)
+    expect(lit(12, 0)).toBe(0)
+    expect(lit(12, 1)).toBe(0)
+    expect(lit(12, 2)).toBe(1)
+    expect(lit(12, 6)).toBe(4)
+    expect(lit(12, 11)).toBe(7)
+    expect(lit(9, 8)).toBe(7)
+  })
+
+  it('narrows them to 3 px and to 2 px as the stroke shortens, and then draws none', () => {
+    // 40 high leaves the width less 30 px between the ends. Eight pips take 46, 38 and 23 px.
+    const widths = (width: number) => strokePips(8, 0, width, 40).map((pip) => pip.width)
+    expect(widths(76)).toEqual(new Array(8).fill(4))
+    expect(xs(8, 0, 76, 40)).toEqual([15, 21, 27, 33, 39, 45, 51, 57])
+    expect(widths(75)).toEqual(new Array(8).fill(3))
+    expect(xs(8, 0, 75, 40)).toEqual([15, 20, 25, 30, 35, 40, 45, 50])
+    expect(widths(68)).toEqual(new Array(8).fill(3))
+    expect(widths(67)).toEqual(new Array(8).fill(2))
+    expect(xs(8, 0, 67, 40)).toEqual([15, 18, 21, 24, 27, 30, 33, 36])
+    expect(widths(53)).toEqual(new Array(8).fill(2))
+    expect(widths(52)).toEqual([])
+  })
+
+  it('draws none on a tall, short stroke with no room between its round ends', () => {
+    // 80 high: the ends take 31 px each, and four pips at their smallest need 11.
+    expect(strokePips(4, 0, 60, 80)).toEqual([])
+    expect(strokePips(4, 0, 72, 80)).toEqual([])
+    expect(strokePips(4, 0, 73, 80)).toHaveLength(4)
+  })
+
+  it('draws none under 14 px high, or under 20 where the name’s tag would lie over them', () => {
+    expect(strokePips(3, 0, 200, 13)).toEqual([])
+    expect(strokePips(3, 0, 200, 14)).toHaveLength(3)
+    expect(strokePips(3, 0, 200, 19, true)).toEqual([])
+    expect(strokePips(3, 0, 200, 20, true)).toHaveLength(3)
+    expect(strokePips(3, 0, 200, 19)).toHaveLength(3)
+  })
+})
+
+describe('the outline of a stroke alone', () => {
+  it('is the wave of `strokeWavePaths`, for any stroke', () => {
+    const peaks = rampPeaks()
+    for (const options of [
+      { width: 200, height: 40, peaks },
+      { width: 173, height: 30, peaks, repeats: 2.5, phase: 0.3, reversed: true },
+      { width: 90, height: 60, peaks, fadeIn: 0.2, fadeOut: 0.4, gain: 0.5 },
+      { width: 64, height: 24, peaks: null },
+    ]) {
+      for (const window of [0, 2]) {
+        expect(strokeOutlinePath(options, window)).toBe(strokeWavePaths(options, window).wave)
+      }
+    }
   })
 })

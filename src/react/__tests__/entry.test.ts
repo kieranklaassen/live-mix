@@ -112,6 +112,8 @@ describe('entries', () => {
     'ChannelRowView',
     'strokeLevels',
     'strokeWavePaths',
+    'strokeOutlinePath',
+    'strokePips',
     'fadePaths',
     'graphite',
     'paper',

@@ -220,12 +220,16 @@ export {
   repeatSeams,
   STROKE_COLUMN_PX,
   STROKE_INSET_PX,
+  STROKE_PIPS_MAX,
   strokeLevels,
+  strokeOutlinePath,
+  strokePips,
   strokeRepeats,
   strokeWavePaths,
   type FadePaths,
   type StrokeLevel,
   type StrokeLevelsOptions,
+  type StrokePip,
   type StrokeWavePaths,
 } from './stroke-math'
 export { SOUND_KIND_LABELS, SoundIcon, type SoundIconKind, type SoundIconProps } from './SoundIcon'
