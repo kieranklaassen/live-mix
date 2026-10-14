@@ -111,8 +111,20 @@ export interface Moment {
 /** A sound as a rule reads it. */
 export interface Reading {
   shape: SoundShape
-  /** One pass, in the order it is written. */
+  /**
+   * One pass, in the order it is written, with the notes the sound was lent
+   * after them: what a rule reads as the sound's notes.
+   */
   notes: readonly PassNote[]
+  /**
+   * The notes of `notes` the sound does not have. A held sound of one note
+   * or two has no chord to deal, so it is lent notes of its key above the
+   * note it stands on, until three are above it (`lend`, ./reading.ts).
+   * Each is written as the standing note is, and a rule holds, strikes and
+   * rests it as it does the sound's own. None where the sound has a chord of
+   * its own, and none for a phrase.
+   */
+  lent: readonly PassNote[]
   /** The same notes by the moment they are struck at, earliest first. */
   moments: readonly Moment[]
   /** The sound's own pitches, low to high. */

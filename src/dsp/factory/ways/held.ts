@@ -1,5 +1,7 @@
 // Held: the notes above the one a held chord stands on, coming in and going
-// out. The standing note is the written note untouched. A note that is
+// out. A held sound of one note or two is read with the notes it was lent
+// (`lend`, ./reading.ts), so it has a chord here as well. The standing note
+// is the written note untouched. A note that is
 // struck where the sound does not strike it is struck inside the window a
 // held chord gives (from a crossfade's length into the loop to the loop's
 // end) and stays down to the end the written note has, past everything that
@@ -23,7 +25,7 @@ const fitsHeld = (reading: Reading): string | null => {
   return reading.upper.length >= 2 ? null : 'Needs three notes held, or more.'
 }
 
-const HELD_NEEDS = 'A held chord of three notes'
+const HELD_NEEDS = 'A held note or chord'
 
 /** The written notes above the standing note, low to high. */
 function voices(reading: Reading): PassNote[] {

@@ -149,6 +149,7 @@ export {
   generateSound,
   isKitInstrument,
   keyChord,
+  lentNotes,
   loadFactoryPackChains,
   loadFactoryPackSounds,
   loadFactoryPacks,

@@ -518,6 +518,7 @@ const dspSymbols = [
   'playSound',
   'playAndVarySound',
   'describeTake',
+  'lentNotes',
   'takeOrder',
   // The sounds that keep time at any tempo, and the instruments whose keys are drums (ambient-live's tempo and its keyboard)
   'FACTORY_TEMPO_RANGE',

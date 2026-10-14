@@ -1,6 +1,7 @@
 // One at a time: the chord's notes dealt out in an order, a different start
 // each turn. On a held chord the note the sound stands on holds as written
-// and the notes above it are struck in turn across the loop; on a phrase the
+// and the notes above it are struck in turn across the loop, the notes a
+// held sound of one note or two was lent among them; on a phrase the
 // notes above it are laid on the moments that do not hold it, so the phrase
 // keeps its rhythm and the note it stands on.
 
@@ -58,7 +59,7 @@ const fitsChord = (reading: Reading): string | null => {
   return hasThreePitches(reading) ? null : REFUSALS.threePitches
 }
 
-const CHORD_NEEDS = 'A held chord, or a phrase of three pitches'
+const CHORD_NEEDS = 'A held note or chord, or a phrase of three pitches'
 const OCTAVE_FAR = { words: 'Past half, the notes run on into the octave above.', default: 0.25 }
 
 /** Lowest, highest, then inwards from both ends. */

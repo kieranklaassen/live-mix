@@ -198,12 +198,14 @@ describe('unequal rounds', () => {
 })
 
 describe('held', () => {
-  it('has nothing to play on a held chord of two notes, on a phrase and on a kit', () => {
+  it('has nothing to play on a held note with none to lend it, on a phrase and on a kit', () => {
     const kit = FACTORY_SOUNDS.find((each) => each.kit && each.phrase.notes.length > 8)
     expect(kit).toBeDefined()
     if (!kit) return
+    // The top of the keyboard: no note of the key is above it to be lent.
+    const top = looped(16, 4, 2, [96])
     for (const way of HELD) {
-      expect(wayTakes(pair, { way, seed: 1 }), way).toMatchObject({
+      expect(wayTakes(top, { way, seed: 1 }), way).toMatchObject({
         takes: 0,
         refusal: 'Needs three notes held, or more.',
       })
@@ -216,17 +218,20 @@ describe('held', () => {
         refusal: 'Its keys are not notes.',
       })
       expect(waysFor(chord)).toContain(way)
-      expect(waysFor(pair)).not.toContain(way)
+      // A held chord of two notes is lent a third, and has a chord to deal.
+      expect(waysFor(pair)).toContain(way)
+      expect(waysFor(top)).not.toContain(way)
       expect(waysFor(round)).not.toContain(way)
       expect(waysFor(kit)).not.toContain(way)
     }
   })
 
-  it('plays every held sound of the bank with three notes or more whose keys are pitches', () => {
+  it('plays every held sound of the bank whose keys are pitches, one note or many', () => {
     const chords = FACTORY_SOUNDS.filter((each) => {
       const reading = readSound(each)
-      return reading.shape === 'held' && reading.pitched && reading.upper.length >= 2
+      return reading.shape === 'held' && reading.pitched
     })
+    expect(chords.some((each) => readSound(each).chord.length === 1)).toBe(true)
     expect(chords.length).toBeGreaterThanOrEqual(5)
     for (const each of chords) {
       for (const way of HELD) {

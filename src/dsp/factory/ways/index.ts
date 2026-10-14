@@ -28,7 +28,8 @@ import {
   mod,
   varySound,
 } from '../vary'
-import { cents, layOut, passKey, readSound, tick } from './reading'
+import { type FactoryKey } from '../key'
+import { cents, layOut, ownNotes, passKey, readSound, tick } from './reading'
 import { RULES, wayRule } from './table'
 import { type Counted, countTakes, hasTakes, readFor } from './takes'
 import {
@@ -94,7 +95,7 @@ function takeOf(
 
 /** `sound` with the notes of `pass`: the sound itself where the pass is the sound as written. */
 function withPass<T extends VariedPlaying>(sound: T, reading: Reading, pass: PassNote[]): T {
-  return passKey(pass) === passKey(reading.notes) ? sound : layOut(sound, reading, pass)
+  return passKey(pass) === passKey(ownNotes(reading)) ? sound : layOut(sound, reading, pass)
 }
 
 /**
@@ -191,11 +192,26 @@ export function waysFor(
   sound: VariedPlaying,
   at: Partial<Pick<WayPlaying, 'seed' | 'far' | 'key'>> = {},
 ): string[] {
-  const reading = readFor(sound)
+  const reading = readFor(sound, at.key)
   if (typeof reading === 'string') return []
   return RULES.filter((way) => hasTakes(reading, way, { seed: 0, ...at, way: way.id })).map(
     (way) => way.id,
   )
+}
+
+/**
+ * The notes a way is lent on `sound`, low to high: a held sound of one note
+ * or two has no chord to deal, so every way reads it with notes of its key
+ * above the note it stands on, the third, the fifth and the octave where it
+ * does not hold them, until three are above it. They sound only in a take:
+ * the sound without a way is as written. None for a sound with a chord of
+ * its own, for a phrase, for keys that are not pitches, and for a sound no
+ * way can be asked of. A sound that is not written on the white keys (a
+ * generated sound) is lent notes of its own key only where `key` names it.
+ */
+export function lentNotes(sound: VariedPlaying, key?: FactoryKey): number[] {
+  const reading = readFor(sound, key)
+  return typeof reading === 'string' ? [] : reading.lent.map((note) => note.note)
 }
 
 /**
@@ -208,7 +224,7 @@ export function waysFor(
  */
 export function describeTake(sound: VariedPlaying, playing?: WayPlaying): TakeChanges {
   const take = takeOf(sound, playing)
-  const written = [...(take?.reading.notes ?? readSound(sound).notes)]
+  const written = [...(take ? ownNotes(take.reading) : readSound(sound).notes)]
   const played = [...(take?.pass ?? written)]
   const changes: TakeChanges = {
     sounding: played.length,

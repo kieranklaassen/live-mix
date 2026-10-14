@@ -7,7 +7,7 @@
 
 import { DEFAULT_PHRASE_GAIN, type PhraseNote } from '../../patch-render'
 import { factoryTranspose, type FactoryKey } from '../key'
-import { alongWhiteKeys, clamp, type VariedPlaying } from '../vary'
+import { HIGHEST_NOTE, alongWhiteKeys, clamp, type VariedPlaying } from '../vary'
 import { type Moment, type PassNote, type Reading } from './types'
 
 /** A time as notes are told apart by it: ten-thousandths of a second. */
@@ -87,6 +87,7 @@ export function readSound(sound: VariedPlaying): Reading {
     chord,
     standing,
     upper: standing === null ? chord : chord.slice(1),
+    lent: [],
     pitched,
     fromAudio,
     timed: sound.bpm !== undefined,
@@ -95,6 +96,68 @@ export function readSound(sound: VariedPlaying): Reading {
     toSec: held ? skipSec + passSec : starts.length > 0 ? Math.max(...starts) : 0,
     endSec,
   }
+}
+
+/** How many notes a held sound has above the one it stands on before it is lent none. */
+const OWN_CHORD = 2
+/** How many notes above the standing note a sound that is lent any ends up with. */
+const LENT_CHORD = 3
+/**
+ * Where the lent notes are looked for, in steps along the key above the
+ * standing note, in this order: the third, the fifth and the octave, and the
+ * same an octave up for a sound that holds one of those already or stands
+ * too high for one.
+ */
+const LENT_STEPS = [2, 4, 7, 9, 11, 14] as const
+
+/**
+ * A held sound of one note or two, with a chord to deal: its reading with
+ * notes of its key lent to it above the note it stands on, the third, the
+ * fifth and the octave where it does not hold them, until three notes are
+ * above the standing note. A lent note is written as the standing note is,
+ * as hard as the sound's hardest note or as the same note an octave under
+ * it, so a rule that holds a written note holds it and one that strikes a
+ * note strikes it. The reading itself comes back for a phrase, for keys
+ * that are not pitches, and for a held chord with two notes above the one
+ * it stands on: those are dealt as they are written.
+ */
+export function lend(reading: Reading, key?: FactoryKey): Reading {
+  const { standing } = reading
+  if (reading.shape !== 'held' || standing === null || reading.upper.length >= OWN_CHORD) {
+    return reading
+  }
+  const stands = reading.notes.find((note) => cents(note.note) === cents(standing))
+  if (!stands) return reading
+  const hardest = Math.max(...reading.notes.map((note) => note.gain))
+  const gainOf = (pitch: number): number =>
+    reading.notes.find((note) => cents(note.note) === cents(pitch - 12))?.gain ?? hardest
+  const held = new Set(reading.chord.map(cents))
+  const lent: PassNote[] = []
+  for (const steps of LENT_STEPS) {
+    if (reading.upper.length + lent.length >= LENT_CHORD) break
+    const pitch = alongKey(standing, steps, key)
+    if (pitch > HIGHEST_NOTE || held.has(cents(pitch))) continue
+    held.add(cents(pitch))
+    lent.push({ at: stands.at, dur: stands.dur, note: pitch, gain: gainOf(pitch) })
+  }
+  if (lent.length === 0) return reading
+  const notes = [...reading.notes, ...lent]
+  const chord = [...reading.chord, ...lent.map((note) => note.note)].sort((a, b) => a - b)
+  return {
+    ...reading,
+    notes,
+    lent,
+    moments: momentsOf(notes, standing),
+    chord,
+    upper: chord.slice(1),
+  }
+}
+
+/** The notes of a reading that are the sound's own: one pass as it is written. */
+export function ownNotes(reading: Reading): readonly PassNote[] {
+  return reading.lent.length === 0
+    ? reading.notes
+    : reading.notes.filter((note) => !reading.lent.includes(note))
 }
 
 /**
