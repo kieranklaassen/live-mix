@@ -48,6 +48,7 @@ describe('README examples', () => {
       '@kieranklaassen/live-mix/react',
       '@kieranklaassen/live-mix/react/styles.css',
       '@kieranklaassen/live-mix/motion',
+      '@kieranklaassen/live-mix/visuals',
       '@kieranklaassen/live-mix/testing',
       '@kieranklaassen/live-mix/wam',
     ])

@@ -32,6 +32,9 @@ export default defineConfig({
         '--use-fake-device-for-media-stream',
         '--use-fake-ui-for-media-stream',
         '--disable-features=AudioServiceOutOfProcess',
+        // The visuals are WebGL 2. A machine with no graphics card (CI) draws
+        // them in software, which this browser only does when asked.
+        '--enable-unsafe-swiftshader',
       ],
     },
   },

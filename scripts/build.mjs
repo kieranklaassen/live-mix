@@ -76,6 +76,25 @@ async function main() {
     silent: true,
   })
 
+  // `./visuals` is built apart too, into a folder of its own: it shares no
+  // chunk with the audio engine, and each style's shader is a chunk a page
+  // loads when that style is first drawn (scripts/check-pack.mjs holds it to
+  // importing nothing but its own chunks).
+  await tsupBuild({
+    entry: { index: 'src/visuals/index.ts' },
+    format: ['esm'],
+    target: 'es2022',
+    platform: 'browser',
+    dts: true,
+    sourcemap: true,
+    splitting: true,
+    clean: false,
+    treeshake: true,
+    loader: { '.glsl': 'text' },
+    outDir: 'dist/visuals',
+    silent: true,
+  })
+
   await mkdir(join(dist, 'worklets'), { recursive: true })
   for (const [name, entry] of Object.entries(worklets)) {
     await esbuild({

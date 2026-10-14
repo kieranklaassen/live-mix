@@ -8,9 +8,10 @@
       "@kieranklaassen/live-mix/react": ["../src/react/index.ts"],
       "@kieranklaassen/live-mix/react/styles.css": ["../src/react/styles.css"],
       "@kieranklaassen/live-mix/motion": ["../src/motion/index.ts"],
+      "@kieranklaassen/live-mix/visuals": ["../src/visuals/index.ts"],
       "@kieranklaassen/live-mix/testing": ["../src/testing/index.ts"],
       "@kieranklaassen/live-mix/wam": ["../src/wam/index.ts"]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": ["**/*.ts", "**/*.tsx", "../src/visuals/glsl.d.ts"]
 }
