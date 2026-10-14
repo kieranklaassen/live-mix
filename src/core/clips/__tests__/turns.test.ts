@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import { type ClipTurns } from '../Clip'
-import { clipSourceIds, clipSourceOnPass, sameTurns, turnLength, turnOnPass } from '../turns'
+import {
+  clipSourceIds,
+  clipSourceOnPass,
+  nextOtherTurn,
+  sameTurns,
+  turnLength,
+  turnOnPass,
+  turnsRound,
+} from '../turns'
 
 describe('clip turns', () => {
   const turns: ClipTurns = { sourceIds: ['a', 'b', 'c'], every: 2 }
@@ -76,5 +84,56 @@ describe('clip turns', () => {
     expect(sameTurns(turns, { sourceIds: ['a', 'b', 'c'], every: 4 })).toBe(false)
     expect(sameTurns(turns, { sourceIds: ['a', 'c', 'b'], every: 2 })).toBe(false)
     expect(sameTurns(turns, { sourceIds: ['a', 'b'], every: 2 })).toBe(false)
+  })
+})
+
+describe('the different sources of a clip that takes turns', () => {
+  const of = (...sourceIds: string[]): ClipTurns => ({ sourceIds })
+  /** A host for which `a` and `b` play the same. */
+  const alike = (id: string): string => (id === 'b' ? 'a' : id)
+
+  it('numbers each turn by the different source it plays, in the order they first come', () => {
+    expect(turnsRound(of('a', 'a', 'b', 'a', 'c'))).toEqual({ each: [0, 0, 1, 0, 2], count: 3 })
+    expect(turnsRound(of('a'))).toEqual({ each: [0], count: 1 })
+  })
+
+  it('takes the host’s word for which sources are the same', () => {
+    expect(turnsRound(of('a', 'a', 'b', 'a', 'c'), alike)).toEqual({
+      each: [0, 0, 0, 0, 1],
+      count: 2,
+    })
+  })
+
+  it('the next is the first later turn that plays another source, for the whole of a turn', () => {
+    const turns: ClipTurns = { sourceIds: ['a', 'b', 'c', 'd'], every: 4 }
+    for (const pass of [0, 1, 2, 3]) expect(nextOtherTurn(turns, pass)).toBe(1)
+    expect(nextOtherTurn(turns, 4)).toBe(2)
+    expect(nextOtherTurn(turns, 12)).toBe(0)
+  })
+
+  it('passes over turns of the same source, and comes round to the start', () => {
+    const turns = of('a', 'a', 'b', 'a', 'c')
+    expect(nextOtherTurn(turns, 0)).toBe(2)
+    expect(nextOtherTurn(turns, 2)).toBe(3)
+    expect(nextOtherTurn(turns, 4)).toBe(0)
+  })
+
+  it('passes over a turn the host calls the same, and finds none where all are', () => {
+    expect(nextOtherTurn(of('a', 'b', 'c'), 0, alike)).toBe(2)
+    expect(nextOtherTurn(of('a', 'b', 'c'), 2, alike)).toBe(0)
+    expect(nextOtherTurn(of('a', 'b'), 0, alike)).toBeNull()
+    expect(nextOtherTurn(of('a', 'b'), 0)).toBe(1)
+  })
+
+  it('turns that are all one source have no next', () => {
+    expect(nextOtherTurn(of('a', 'a', 'a'), 1)).toBeNull()
+    expect(nextOtherTurn(of('a'), 0)).toBeNull()
+  })
+
+  it('turns that name no source have none, and a pass before the first is the first', () => {
+    expect(turnsRound(of())).toEqual({ each: [], count: 0 })
+    expect(nextOtherTurn(of(), 3)).toBeNull()
+    expect(nextOtherTurn(of('a', 'b', 'c'), -5)).toBe(1)
+    expect(nextOtherTurn(of('a', 'b', 'c'), Number.NaN)).toBe(1)
   })
 })

@@ -344,6 +344,15 @@ on them at once. A slice of the clip (`offsetSec`, `loop`, `reversed`,
 `warp`) is the same slice of whichever source plays, so the sources of one
 clip are best of one length.
 
+A host that draws a clip's turns asks two more things. `turnsRound(turns)`
+numbers each turn by the different source it plays, in the order they first
+come, with how many there are: `['c', 'f', 'c', 'g']` is `{ each: [0, 1, 0, 2],
+count: 3 }`. `nextOtherTurn(turns, pass)` is the turn that comes next with
+another source than pass `pass` plays, coming round to the start, or null
+when every turn plays the same. Both take a `key` over a source id for a host
+that knows two sources play the same (one set of notes rendered twice); left
+out, turns are the same when they name the same source.
+
 A render with the loop off has one pass, so a host that wants several in one
 file lays them out end to end and asks `soundsOnPass` which clips each one
 has (ambient-live's export does).

@@ -784,12 +784,12 @@ module, so set it from the rack's height). `className="lm-device--rack"` gives a
 </div>
 ```
 
-| Component        | What it draws                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Stroke`         | One sound as a pill: a thin ring in the brush colour around the sound's own waveform (halo, filled shape, fine bars, from `WaveformPeaks`). `repeats` dims later passes behind a dashed seam, and `phase` begins the stroke that far into a pass (a stroke cut from a longer one inside a repeat); `fadeIn` / `fadeOut` close toward the centre line (`crossfade` leaves them unshaded); `hits`, `automation`, `selected`, `muted`, `reversed`, `gain`, `tags` |
-| `SoundIcon`      | A 10 px glyph per `SoundKind` (texture, pad, drone, one-shot, melodic, beat loop) plus loop and reverse; `SOUND_KIND_LABELS` names them                                                                                                                                                                                                                                                                                                                        |
-| `PaintField`     | The grid the strokes sit on: hairlines every cell, a stronger line every `majorColumns` / `majorRows`                                                                                                                                                                                                                                                                                                                                                          |
-| `ChannelRowView` | A strip on its side in one row: brush swatch, name, mute, solo, a horizontal dB fader and a meter, over the same `useStrip` state as `ChannelStripView`                                                                                                                                                                                                                                                                                                        |
+| Component        | What it draws                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Stroke`         | One sound as a pill: a thin ring in the brush colour around the sound's own waveform (halo, filled shape, fine bars, from `WaveformPeaks`). `repeats` dims later passes behind a dashed seam, and `phase` begins the stroke that far into a pass (a stroke cut from a longer one inside a repeat); `fadeIn` / `fadeOut` close toward the centre line (`crossfade` leaves them unshaded); `hits`, `automation`, `selected`, `muted`, `reversed`, `gain`, `tags`; `turns`, `turn` and `next` draw its passes (below) |
+| `SoundIcon`      | A 10 px glyph per `SoundKind` (texture, pad, drone, one-shot, melodic, beat loop) plus loop and reverse; `SOUND_KIND_LABELS` names them                                                                                                                                                                                                                                                                                                                                                                            |
+| `PaintField`     | The grid the strokes sit on: hairlines every cell, a stronger line every `majorColumns` / `majorRows`                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `ChannelRowView` | A strip on its side in one row: brush swatch, name, mute, solo, a horizontal dB fader and a meter, over the same `useStrip` state as `ChannelStripView`                                                                                                                                                                                                                                                                                                                                                            |
 
 `Stroke` is presentational: the host gives it a size in px and everything
 along it as fractions of its width, and owns dragging, trimming and painting
@@ -800,6 +800,32 @@ exported for hosts that hit-test or draw their own (`strokeLevels`,
 a stroke in one call, which is how `Stroke` draws them). The kind, hits and
 tempo come from the engine's sound analysis (`analyzeSound`, or
 `samples: { analysis: true }` on the engine).
+
+A stroke says whether it changes from pass to pass with three more props, all
+left out for a recording, which is then drawn as it always was. `turns` is how
+many different passes it has: 1 for a sound played from notes that plays the
+same every time, more for a clip that takes turns (`turnsRound(clip.turns).count`).
+It is drawn as pips on the lower edge, one a pass and eight at most, 4 px wide
+and narrowing to 3 and 2 px as the stroke shortens; a stroke with no room
+between its round ends, under 14 px high, or under 20 px beside its name, draws
+none. `turn` is the pass that sounds, from 0, and its pip is lit. `next` is the
+peaks of the next different pass (`nextOtherTurn`), drawn as a thin line behind
+the wave on a stroke 30 px high and up, so it shows where the next pass stands
+clear of this one. `strokePips` gives the bars and `strokeOutlinePath` the
+line, for a host that draws its own.
+
+```tsx
+<Stroke
+  width={320}
+  height={40}
+  brush={3}
+  name="Pad"
+  peaks={peaksOf(sounding)}
+  turns={4}
+  turn={1}
+  next={peaksOf(comingNext)}
+/>
+```
 
 `useParamControl` is the shared interaction hook for custom controls, and the
 pure maths (`normalizeValue`, `quantize`, `faderDbToLevel`,

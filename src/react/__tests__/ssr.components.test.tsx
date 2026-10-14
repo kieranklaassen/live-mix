@@ -215,6 +215,9 @@ describe('kit components under SSR', () => {
               ],
             }}
             selected
+            turns={3}
+            turn={1}
+            next={peaks}
           />
         </PaintField>
         <SoundIcon kind="drone" label="Drone" />
@@ -228,6 +231,9 @@ describe('kit components under SSR', () => {
     expect(html).toContain('lm-stroke__seam')
     expect(html).toContain('lm-stroke__fade-curve')
     expect(html).toContain('lm-stroke__automation-line')
+    expect(html).toContain('lm-stroke__next')
+    expect(html.match(/lm-stroke__pip(?:"| )/g)).toHaveLength(3)
+    expect(html.match(/lm-stroke__pip--lit/g)).toHaveLength(1)
     expect(html).toContain('aria-label="Drone"')
 
     const engine = await engineWithContent()

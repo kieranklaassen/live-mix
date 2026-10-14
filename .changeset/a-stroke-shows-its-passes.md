@@ -1,0 +1,5 @@
+---
+'@kieranklaassen/live-mix': patch
+---
+
+`Stroke` shows whether a sound changes from pass to pass. `turns` is how many different passes it has (1 for a sound played from notes that plays the same every time, left out for a recording), drawn as pips on the lower edge: one a pass, eight at most, 4 px wide and narrowing to 3 and 2 px as the stroke shortens, and none on a stroke with no room between its round ends, under 14 px high, or under 20 px beside its name. `turn` is the pass that sounds, from 0, and lights its pip. `next` is the peaks of the next different pass, drawn as a thin line behind the wave on a stroke 30 px high and up. `strokePips` and `strokeOutlinePath` are exported with the rest of the stroke's geometry. For the host that feeds them, `turnsRound(turns, key?)` numbers each turn of a clip by the different source it plays, with how many there are, and `nextOtherTurn(turns, pass, key?)` is the next turn that plays another; `key` is the host's word for which sources play the same. A stroke given none of the three is drawn as it was, to the last attribute.

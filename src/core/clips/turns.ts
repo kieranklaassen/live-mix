@@ -34,6 +34,62 @@ export function clipSourceOnPass(clip: Pick<Clip, 'sourceId' | 'turns'>, pass: n
   return turns.sourceIds[turnOnPass(turns, pass)]
 }
 
+/** Two turns are the same when they name the same source, for a host that says no more. */
+const sameSource = (sourceId: string): string => sourceId
+
+/** Which different source each turn of a clip plays, and how many there are. */
+export interface TurnsRound {
+  /** For each turn, the number of the different source it plays, from 0 in the order they first come. */
+  each: number[]
+  /** How many different sources the turns play. */
+  count: number
+}
+
+/**
+ * The round of a clip's turns as a host draws it: turns of one source are one
+ * and the same. `key` is the host's word for what a source plays, for a host
+ * that can tell two sources play the same (the same notes rendered twice);
+ * left out, two turns are the same when they name the same source.
+ */
+export function turnsRound(
+  turns: ClipTurns,
+  key: (sourceId: string) => string = sameSource,
+): TurnsRound {
+  const seen = new Map<string, number>()
+  const each = turns.sourceIds.map((sourceId) => {
+    const name = key(sourceId)
+    let number = seen.get(name)
+    if (number === undefined) {
+      number = seen.size
+      seen.set(name, number)
+    }
+    return number
+  })
+  return { each, count: seen.size }
+}
+
+/**
+ * The turn that comes next with another source than the one counted pass
+ * `pass` plays, as an index into `turns.sourceIds`: the first later turn,
+ * coming round to the start, that is not the same. Null when every turn plays
+ * the same. `key` is as in `turnsRound`.
+ */
+export function nextOtherTurn(
+  turns: ClipTurns,
+  pass: number,
+  key: (sourceId: string) => string = sameSource,
+): number | null {
+  const count = turns.sourceIds.length
+  if (count === 0) return null
+  const on = turnOnPass(turns, pass)
+  const sounding = key(turns.sourceIds[on])
+  for (let step = 1; step < count; step += 1) {
+    const index = (on + step) % count
+    if (key(turns.sourceIds[index]) !== sounding) return index
+  }
+  return null
+}
+
 /** Every source a clip may play, each once: its own first, then its turns' in order. */
 export function clipSourceIds(clip: Pick<Clip, 'sourceId' | 'turns'>): string[] {
   return [...new Set([clip.sourceId, ...(clip.turns?.sourceIds ?? [])])]
