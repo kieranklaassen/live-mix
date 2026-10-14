@@ -6,7 +6,7 @@
  * An id is saved in pieces: it is never renamed and never given another picture.
  */
 
-export type VisualGroupId = 'dots' | 'worlds' | 'gradients' | 'nature'
+export type VisualGroupId = 'dots' | 'worlds' | 'gradients' | 'nature' | 'backplates'
 
 export interface VisualStyle {
   id: string
@@ -26,6 +26,7 @@ export const VISUAL_GROUPS: readonly { id: VisualGroupId; name: string }[] = [
   { id: 'worlds', name: 'Worlds' },
   { id: 'gradients', name: 'Gradients' },
   { id: 'nature', name: 'Earth and sky' },
+  { id: 'backplates', name: 'Backplates' },
 ]
 
 export const VISUAL_STYLES: readonly VisualStyle[] = [
@@ -388,6 +389,15 @@ export const VISUAL_STYLES: readonly VisualStyle[] = [
     what: 'A great flock of small birds at dusk, thousands of dark points turning together as one folding cloud over low land and a few trees; or fireflies drifting over a dark meadow at night, a few near and soft, many far and small.',
     follows:
       'Each kind of sound gathers birds in its own part of the sky and warms the sky there in its colour; the fuller the mix the more birds and the tighter the cloud; the low band sends slow waves through it, the high band is the shimmer of wings; a hit or cue turns the whole flock at once, so a dark wave runs through it. At night each firefly belongs to one kind of sound and glows with it, and a hit runs a flash across the meadow.',
+  },
+  {
+    id: 'table',
+    name: 'Table',
+    group: 'backplates',
+    variations: ['Wood', 'Cloth'],
+    what: 'A table seen from straight above, to lay gear on: dark boards under one warm lamp, or the same table under a woven cloth. It stays quiet on purpose, so that what lies on it is what is looked at.',
+    follows:
+      'The lamp breathes with the mix and takes a little of the colour of what sounds; the piece glows along the far edge of the table, brightest at the place now playing; a hit or a cue sends one soft ring of light out from under the lamp; Glow turns the lamp up.',
   },
 ]
 
