@@ -10,6 +10,8 @@ import {
   addVisual,
   createStage,
   emptyVisualSet,
+  receiveVisuals,
+  sendVisuals,
   showVisuals,
   visualsReady,
   type DeskReading,
@@ -118,6 +120,18 @@ async function look(frameAt: (nowMs: number) => VisualFrame): Promise<Measured> 
   return { drawn: true, ...best }
 }
 
+/** What the canvas of the page shows now, measured at the size every other picture here is. */
+function seenOn(canvas: HTMLCanvasElement): Measured {
+  const copy = document.createElement('canvas')
+  copy.width = WIDTH
+  copy.height = HEIGHT
+  const context = copy.getContext('2d')
+  if (!context) throw new Error('no 2D context')
+  context.drawImage(canvas, 0, 0, WIDTH, HEIGHT)
+  const seen = measure(context)
+  return { drawn: seen.lit > 0, ...seen }
+}
+
 const harness = {
   ready: (): boolean => visualsReady(),
   styles: (): string[] => VISUAL_STYLES.map((style) => style.id),
@@ -158,14 +172,48 @@ const harness = {
     if (!stop) return { started: false, drawn: false, mean: 0, lit: 0, spread: 0 }
     await new Promise((resolve) => setTimeout(resolve, forMs))
     stop()
-    const copy = document.createElement('canvas')
-    copy.width = WIDTH
-    copy.height = HEIGHT
-    const context = copy.getContext('2d')
-    if (!context) throw new Error('no 2D context')
-    context.drawImage(canvas, 0, 0, WIDTH, HEIGHT)
-    const seen = measure(context)
-    return { started: true, drawn: seen.lit > 0, ...seen }
+    return { started: true, ...seenOn(canvas) }
+  },
+
+  /**
+   * The picture as a second screen gets it: a desk's frames sent down a line of the browser's own, and the canvas
+   * of the page painted from what comes out of it.
+   */
+  async sent(
+    style: string,
+    forMs: number,
+  ): Promise<Measured & { started: boolean; watched: boolean; live: boolean }> {
+    const canvas = document.getElementById('shown') as HTMLCanvasElement
+    const set = addVisual(emptyVisualSet(), style).set
+    let now = 0
+    const desk = new VisualDesk(() => reading(set, now))
+    const name = `visuals-harness-${String(Date.now())}`
+    const sender = sendVisuals(name, (nowMs) => {
+      now = nowMs
+      return desk.frame(nowMs)
+    })
+    const screen = receiveVisuals(name)
+    const stop = showVisuals(canvas, screen.frameAt)
+    if (!stop) {
+      screen.close()
+      sender.close()
+      return {
+        started: false,
+        watched: false,
+        live: false,
+        drawn: false,
+        mean: 0,
+        lit: 0,
+        spread: 0,
+      }
+    }
+    await new Promise((resolve) => setTimeout(resolve, forMs))
+    const watched = sender.watched()
+    const live = screen.live()
+    stop()
+    screen.close()
+    sender.close()
+    return { started: true, watched, live, ...seenOn(canvas) }
   },
 }
 

@@ -12,7 +12,7 @@ export const SHADER_FOOTER: string = footer
 
 const text = (module: { default: string }): string => module.default
 
-/* eslint-disable no-restricted-syntax -- forty shaders of nine kilobytes each: one is loaded when its style is first drawn, not with the page */
+/* eslint-disable no-restricted-syntax -- some forty shaders of nine kilobytes each: one is loaded when its style is first drawn, not with the page */
 export const SHADER_SOURCES: Readonly<Record<string, () => Promise<string>>> = {
   'bead-curtain': () => import('./shaders/bead-curtain.glsl').then(text),
   'black-hole': () => import('./shaders/black-hole.glsl').then(text),
@@ -54,5 +54,6 @@ export const SHADER_SOURCES: Readonly<Record<string, () => Promise<string>>> = {
   star: () => import('./shaders/star.glsl').then(text),
   'still-life': () => import('./shaders/still-life.glsl').then(text),
   sunflower: () => import('./shaders/sunflower.glsl').then(text),
+  table: () => import('./shaders/table.glsl').then(text),
 }
 /* eslint-enable no-restricted-syntax */

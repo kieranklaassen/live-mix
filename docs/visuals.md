@@ -1,6 +1,6 @@
 # Visuals
 
-`@kieranklaassen/live-mix/visuals` draws pictures that follow the music: forty shader styles, four bends that work on what was drawn, sixteen palettes and film grain over all of it. A picture is drawn from what a piece is doing at that moment: where the playhead is, which sounds play and how loud, the level and the spectrum of what is heard, a performer's dials, the keys and the live input.
+`@kieranklaassen/live-mix/visuals` draws pictures that follow the music: forty-one shader styles, four bends that work on what was drawn, sixteen palettes and film grain over all of it. A picture is drawn from what a piece is doing at that moment: where the playhead is, which sounds play and how loud, the level and the spectrum of what is heard, a performer's dials, the keys and the live input.
 
 The entry stands beside the audio engine, not on it. It imports nothing from the rest of the library but the JSON types, so a page that only draws loads none of the engine, and a host that only keeps a piece's visuals takes the model without a browser. The model, the signals and the frame are plain functions of their arguments. The ear, the rig, the stage and `showVisuals` need a browser, and a style's shader is a script of its own that is loaded the first time that style is drawn.
 
@@ -45,7 +45,7 @@ There are three parts, and a host can take any of them alone.
 | The **desk** (`desk.ts`, `follow.ts`, `feed.ts`, `frame.ts`)  | Once a frame, the piece and the music as they are now become a `VisualFrame`: the signals every style is handed and the layers to paint, each with its knobs where they stand this moment | Nothing                |
 | The **screen** (`ear.ts`, `rig.ts`, `stage.ts`, `picture.ts`) | Listens to a node, makes the shaders, and paints a frame on a 2D canvas                                                                                                                   | A browser with WebGL 2 |
 
-A frame is plain data. It can be made in one window and painted in another, and asked for twice in the same frame a desk answers the same, so any number of canvases show one picture.
+A frame is plain data. It can be made in one window and painted in another ([A second screen](#a-second-screen)), and asked for twice in the same frame a desk answers the same, so any number of canvases show one picture.
 
 ## What a host hands the desk
 
@@ -164,6 +164,14 @@ A **style** paints, and adds its light to what is there. Each has two variations
 | `growth`  | Growth  | Rings         | Delta        | The cut face of a trunk under a low light: each turn of the loop lays one more ring round the rim, thick and warm where the piece is loud, so the wood is the piece's own record; or a river delta seen from the air at dusk, its channels branching away toward the sea.          |
 | `flock`   | Flock   | Evening birds | Fireflies    | A great flock of small birds at dusk, thousands of dark points turning together as one folding cloud over low land and a few trees; or fireflies drifting over a dark meadow at night, a few near and soft, many far and small.                                                    |
 
+**Backplates**
+
+| Id      | Name  | a    | b     | What it draws                                                                                                                                                                                      |
+| ------- | ----- | ---- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `table` | Table | Wood | Cloth | A table seen from straight above, to lay gear on: dark boards under one warm lamp, or the same table under a woven cloth. It stays quiet on purpose, so that what lies on it is what is looked at. |
+
+A backplate is a ground for what a host lays over the picture (a device's plate, a title): it is dark, flat on and slow, and what it follows in the music it follows with light alone.
+
 ## Bends, palette and grain
 
 A **bend** draws nothing and works on what the visuals before it drew (`VISUAL_BENDS`):
@@ -215,9 +223,28 @@ Every source is 0 to 1 and already smooth (`VisualFollower`).
 
 A host with a frame loop of its own paints by hand: `createStage()` makes a stage for one canvas (it remembers what that canvas showed, for Trails), and `stage.paint(context, frame, scale)` paints a frame over the whole of it. It answers true while a style was not ready yet, when the frame should be painted again though nothing changed.
 
-All of it is drawn with WebGL 2 in **one context for the whole page** (`visualRig`), however many canvases show pictures: a style is drawn there at the size asked, never wider than 960 pixels, and copied to the 2D canvas that wants it. A shader is fetched and made the first time its style is asked for, one new shader a frame, so a list of forty does not freeze a page as it opens. A style that cannot be made is given up on alone and the others still draw; one whose script could not be fetched is asked for again a few seconds later. A context that is lost (a phone takes it away when the page is put aside) is made again when it comes back.
+All of it is drawn with WebGL 2 in **one context for the whole page** (`visualRig`), however many canvases show pictures: a style is drawn there at the size asked, never wider than 960 pixels, and copied to the 2D canvas that wants it. A shader is fetched and made the first time its style is asked for, one new shader a frame, so a long list of styles does not freeze a page as it opens. A style that cannot be made is given up on alone and the others still draw; one whose script could not be fetched is asked for again a few seconds later. A context that is lost (a phone takes it away when the page is put aside) is made again when it comes back.
 
 `visualsMayDraw()` says whether pictures can be drawn here as far as is known, without making the context; `visualsReady()` makes it and says for certain; `watchVisuals(watcher)` tells when that changes. Where there is no WebGL 2 the model and the desk still work, so a host can add, change and keep visuals there, and a browser that has it draws them. `VISUALS_NOT_DRAWN_NOTE` is a sentence for the place where the picture would be.
+
+## A second screen
+
+The picture can be shown in another window of the same site: one that is put on a second screen, or shared in a call while the instrument stays private. The window with the piece sends its frames, and the other only paints them.
+
+```ts
+// In the window with the piece:
+const sender = sendVisuals('picture', (now) => desk.frame(now))
+
+// In the window that only shows it:
+const screen = receiveVisuals('picture')
+const stop = showVisuals(canvas, screen.frameAt, { always: true })
+```
+
+`sendVisuals(name, frameAt, options)` sends `frameAt(now)` down the line of that name thirty times a second (`fps`), and works out and sends nothing while no screen listens. It keeps its own pace, so the picture is sent on whether or not its own window paints it too. `sender.watched()` says whether a screen is listening; `sender.close()` ends it.
+
+`receiveVisuals(name)` listens there. `screen.frameAt` is what `showVisuals` is handed: the frame that came last, with its time and its travel moved on by this window's own clock, so the picture still drifts evenly where the sender is slowed down (a browser gives a window that is covered few turns). What is heard stays as it came, since only the sender hears. Before a frame has come it answers a dark frame. `screen.live()` is false until the first frame and again when none came for three seconds, for a host that wants to say so; `screen.close()` tells the sender it left.
+
+The line is a `BroadcastChannel`, which reaches every window and frame of the same origin in the same browser, and no other machine. A host with another way between its windows hands it over as `open: (name) => line`, anything with `postMessage`, `onmessage` and `close`. A frame is about eight kilobytes, most of it the small picture of the piece.
 
 ## A style's shader
 
@@ -237,6 +264,6 @@ The file opens with five comment lines (`name`, `a`, `b`, `what`, `follows`) tha
 
 ## What is checked, and what is not
 
-- The model, the signals and the frame are covered by unit tests in Node (`src/visuals/__tests__`).
-- Every style in both variations, every bend over a style, and a canvas left to `showVisuals` are drawn from the built entry in headless Chromium (`browser-tests/specs/visuals.spec.ts`). That machine has no graphics card, so they are drawn in software.
-- **Not checked:** the pictures on a real graphics card, how fast each style draws there, and a phone.
+- The model, the signals, the frame and the line to a second screen are covered by unit tests in Node (`src/visuals/__tests__`).
+- Every style in both variations, every bend over a style, a canvas left to `showVisuals`, and one painted from frames that went down a `BroadcastChannel` are drawn from the built entry in headless Chromium (`browser-tests/specs/visuals.spec.ts`). That machine has no graphics card, so they are drawn in software.
+- **Not checked:** the pictures on a real graphics card, how fast each style draws there, a phone, and the line between two windows of which one is covered or on another screen.
