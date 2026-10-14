@@ -38,18 +38,18 @@
 // of one sound lie end to end and the second plays on from where the first
 // stops, as the pieces of a clip that was cut in two do: the second comes up
 // under the first one's tail, and a first that ends with its sound tails on
-// the frames the second enters on. The two then sum to what one clip over
-// both would have played. A first that is cut where its sound is at rest has
-// no tail and stops square, and the second goes straight on from the frame
-// after: it does not come up there, though a looped sound entered on that
-// frame from silence would. Each half stands by itself. A first clip's way out
-// is one that is no step whether or not the next then sounds, since the next
-// may yet be moved or muted. And a second clip comes up only under a tail
-// the voice before it has when the second is handed over, on the frames it
-// enters on itself: where play starts at or just before the cut, the first
-// was stopped by then, or the first has no tail because its voice was made
-// before the second was there, it enters as it would by itself. Without the
-// option every clip is let in and out by itself, as it always was.
+// the frames the second enters on. A first cut where its sound is at rest
+// would be left square: it tails all the same where the second comes up
+// there by itself, as a looped sound entered on a step does. The two then
+// sum to what one clip over both would have played. Each half stands by
+// itself. A first clip's way out is one that is no step whether or not the
+// next then sounds, since the next may yet be moved or muted. And a second
+// clip comes up only under a tail the voice before it has when the second
+// is handed over, on the frames it enters on itself: where play starts at
+// or just before the cut, the first was stopped by then, or the first has
+// no tail because its voice was made before the second was there, it enters
+// as it would by itself. Without the option every clip is let in and out by
+// itself, as it always was.
 //
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
@@ -213,14 +213,12 @@ export interface ClipVoiceOptions {
    * The clip of this sound that ends on the clock where this one starts. Where
    * that clip has a tail that reads on from the frame this voice enters on,
    * the voice comes up under it over the tail's length, so the two sum to the
-   * sound unbroken. Where that clip stops square on a frame at rest and this
-   * voice enters on the frame after, it enters square too: nothing was silent
-   * before it. Linear clips with no fade-in of their own. For whoever
+   * sound unbroken. Linear clips with no fade-in of their own. For whoever
    * plays voices by hand: that clip's voice must have been played with this
    * one named as its `followedBy`, since the tail is worked out from the two
    * clips, not read off the voice. A track that joins its clips
    * (`AudioTrackOptions.joinClips`) does not go by this: a scheduled voice
-   * goes by how the voice before it is let go.
+   * comes up under the tail the voice before it has.
    */
   follows?: ClipNeighbour
   /**
@@ -288,30 +286,19 @@ interface VoiceTiming {
   stoppedAtEnd: boolean
   /** Seconds of the clock the voice goes on past its clip's end, fading; 0 without a tail. */
   tailSec: number
-  /**
-   * Where in its buffer its sound goes on from past its clip's end: what its
-   * tail reads, or with no tail the frame after the one it stops on, square,
-   * where it is cut at rest. Undefined where it ends on a fade or with its sound.
-   */
-  goesOnFromSec: number | undefined
-  /**
-   * The clip whose end it went on from (`SoundingEnd`): under its tail, or
-   * straight on from its square end; undefined where it entered by itself.
-   */
+  /** Where in its buffer that tail reads on from. */
+  tailFromSec: number
+  /** The clip under whose tail it came up (`SoundingTail`); undefined where it entered by itself. */
   cameUpUnder: string | undefined
 }
 
-/**
- * How a voice that is sounding is let go where its clip ends, for the voice
- * that starts there: its tail, to come up under, or the square end of a cut
- * at rest, to go straight on from.
- */
-interface SoundingEnd {
+/** The tail of a voice that is sounding, for the voice that starts where its clip ends to come up under. */
+interface SoundingTail {
   /** The clip whose voice has it. */
   clipId: string
-  /** Seconds of the clock its tail lasts; 0 where it stops square. */
+  /** Seconds of the clock it lasts. */
   sec: number
-  /** Where in the buffer the tail reads on from, or the sound goes on from. */
+  /** Where in the buffer it reads on from. */
   fromSec: number
 }
 
@@ -443,18 +430,20 @@ function comesUp(playback: VoicePlayback): boolean {
   )
 }
 
+/** Whether the clip that follows comes up by itself (`comesUp`), entering its sound at `ontoSec`. */
+function comesUpOn(next: VoicePlayback | undefined, ontoSec: number): boolean {
+  return next !== undefined && comesUp(next) && samePlace(entrySec(next), ontoSec)
+}
+
 /**
  * How a linear voice with no fade-out of its own is let go where its clip ends:
  * - `tail`: it sounds on for `sec` of the clock past the end, fading, on what
  *   its sound goes on to from `ontoSec` of its buffer (`wraps`: the source is
  *   looped onto there for it);
- * - `fade`: its last `sec` of clip fade, where the sound has nothing to go on to;
- * - `none`: it is left as it is. `ontoSec`: it is stopped partway through its
- *   sound on a frame at rest, at full level, and the sound goes on from there
- *   in its buffer.
+ * - `fade`: its last `sec` of clip fade, where the sound has nothing to go on to.
  */
 type Release =
-  | { kind: 'none'; ontoSec?: number }
+  | { kind: 'none' }
   | { kind: 'tail'; sec: number; ontoSec: number; wraps: boolean }
   | { kind: 'fade'; sec: number }
 
@@ -468,8 +457,12 @@ function releaseOf(playback: VoicePlayback, rate: number, next?: VoicePlayback):
   const { buffer } = playback
   if (cutPartway(playback)) {
     const ontoSec = goesOnSec(playback)
-    // A cut that falls where the sound is at rest is no step, and is left.
-    if (!leavesOnStep(buffer, cutFrame(playback))) return { kind: 'none', ontoSec }
+    // A cut that falls where the sound is at rest is no step, and is left:
+    // but not where the next clip comes up on the frame the sound goes on
+    // to, as a looped sound entered on a step does. Left square, this one
+    // would stop over a clip still coming up from silence. With a tail the
+    // next comes up under it, and the tail stands by itself as any does.
+    if (!leavesOnStep(buffer, cutFrame(playback)) && !comesUpOn(next, ontoSec)) return HELD
     if (playback.loop) return { kind: 'tail', sec: JOIN_EASE_SECONDS, ontoSec, wraps: false }
     // No further than its buffer goes.
     const leftSec = buffer.duration - (playback.offsetSec + playback.durationSec)
@@ -507,7 +500,7 @@ function releaseOf(playback: VoicePlayback, rate: number, next?: VoicePlayback):
  * when it is played with this one named as its `followedBy`, where it reads
  * on from the frame this voice enters on; 0 where there is no such tail, or
  * the voice has a fade-in of its own. A scheduled voice goes by the tail the
- * voice before it has (`SoundingEnd`), not by what its clip would have.
+ * voice before it has (`SoundingTail`), not by what its clip would have.
  */
 function takeOverSec(
   playback: VoicePlayback,
@@ -518,22 +511,6 @@ function takeOverSec(
   const handover = releaseOf(before, rate, playback)
   if (handover.kind !== 'tail' || !samePlace(handover.ontoSec, entrySec(playback))) return 0
   return handover.sec
-}
-
-/**
- * Whether a voice goes straight on from the clip that ends where it starts,
- * named by hand (`follows`): that clip stops square on a frame at rest, and
- * this voice enters on the frame after it.
- */
-function goesStraightOn(
-  playback: VoicePlayback,
-  before: VoicePlayback | undefined,
-  rate: number,
-): boolean {
-  if (!before) return false
-  const handover = releaseOf(before, rate, playback)
-  if (handover.kind !== 'none' || handover.ontoSec === undefined) return false
-  return samePlace(handover.ontoSec, entrySec(playback))
 }
 
 export interface ClipVoice {
@@ -797,12 +774,12 @@ export class AudioTrack implements StripHost {
     return this.voiceFor(key, options, when)
   }
 
-  /** `play`, and for a scheduled voice how the voices that end where it starts are let go (`under`). */
+  /** `play`, and for a scheduled voice the tails of the voices that end where it starts (`under`). */
   private voiceFor(
     key: string,
     options: ClipVoiceOptions,
     when: number,
-    under: readonly SoundingEnd[] = [],
+    under: readonly SoundingTail[] = [],
   ): ClipVoice | null {
     if (this.disposed || options.durationSec <= 0) return null
     const playback = this.playbackOf(options, options.followedBy !== undefined)
@@ -1178,20 +1155,19 @@ export class AudioTrack implements StripHost {
 
   /**
    * What `clip` is joined to on this start (`joinClips`): the clip that
-   * starts where it ends, and how the voice that ends where it starts is let
-   * go (its tail, or the square end of a cut at rest), on the timeline. Each
-   * of those clips plays the same source on this pass, the same way round,
-   * with linear fades, and is not muted or sat out of the pass by chance.
+   * starts where it ends, and the tail of the voice that ends where it
+   * starts, on the timeline. Each of those clips plays the same source on
+   * this pass, the same way round, with linear fades, and is not muted or
+   * sat out of the pass by chance.
    *
    * The one before is gone by what its voice is doing, not by what its clip
-   * says: a tail it has, or the frame at rest it stops square on, ending its
-   * clip at `when` on the clock. A clip that play was started past, that was
-   * stopped or faded out, or whose voice was made before this clip was there
-   * to follow it, leaves nothing to go on from, and this voice then enters as
-   * it would by itself.
+   * says: a tail it has, ending its clip at `when` on the clock. A clip that
+   * play was started past, that was stopped or faded out, or whose voice was
+   * made before this clip was there to follow it, leaves nothing to come up
+   * under, and this voice then enters as it would by itself.
    *
-   * The one after is named while it has no voice yet, or has one that went on
-   * from this clip's end: this clip's voice is then being made again
+   * The one after is named while it has no voice yet, or has one that came up
+   * under this clip's tail: this clip's voice is then being made again
    * (`rejoin`, a new seed) and is to have that tail again. A clip entered partway whose next
    * was handed over ahead of it finds that voice made without it, at full
    * level, and is let go as it is by itself. Otherwise the next is taken at
@@ -1203,8 +1179,8 @@ export class AudioTrack implements StripHost {
     start: ScheduledStart,
     sourceId: string,
     when: number,
-  ): { followedBy?: Clip; under: SoundingEnd[] } {
-    const under: SoundingEnd[] = []
+  ): { followedBy?: Clip; under: SoundingTail[] } {
+    const under: SoundingTail[] = []
     if (clip.fadeCurve !== 'linear') return { under }
     const endSec = clip.startSec + clip.durationSec
     const endsAt = when + clip.durationSec / this.rateValue
@@ -1219,9 +1195,9 @@ export class AudioTrack implements StripHost {
       if (this.sourceOn(other, otherStart) !== sourceId || !this.soundsOn(other, otherStart))
         continue
       if (before) {
-        // Every clip that ends here: the voice goes on from the one whose sound reads on from where it enters.
-        const end = this.endingAt(other.id, when)
-        if (end) under.push(end)
+        // Every clip that ends here: the voice comes up under the one whose tail reads on from where it enters.
+        const tail = this.tailEndingAt(other.id, when)
+        if (tail) under.push(tail)
       } else {
         const next = this.voiceOf(other.id, (voice) => samePlace(voice.startTime, endsAt))
         if (!next || this.timings.get(next)?.cameUpUnder === clip.id) followedBy = other
@@ -1241,16 +1217,15 @@ export class AudioTrack implements StripHost {
   }
 
   /**
-   * How the clip's voice whose clip ends at `when` on the clock is let go:
-   * its tail, or the square end of a cut at rest. A voice that was stopped or
-   * faded out has no timing left, and one that ends with its sound or on a
-   * fade of its own leaves nothing to go on from.
+   * The tail of the clip's voice whose clip ends at `when` on the clock. A
+   * voice that was stopped or faded out has no timing left, and one that ends
+   * square or on a fade of its own has no tail.
    */
-  private endingAt(clipId: string, when: number): SoundingEnd | undefined {
+  private tailEndingAt(clipId: string, when: number): SoundingTail | undefined {
     const voice = this.voiceOf(clipId, (each) => samePlace(each.endTime, when))
     const timing = voice && this.timings.get(voice)
-    if (timing?.goesOnFromSec === undefined) return undefined
-    return { clipId, sec: timing.tailSec, fromSec: timing.goesOnFromSec }
+    if (!timing || !(timing.tailSec > 0)) return undefined
+    return { clipId, sec: timing.tailSec, fromSec: timing.tailFromSec }
   }
 
   /** Whether chance has `clip` sound on the pass this start is on. */
@@ -1370,7 +1345,7 @@ export class AudioTrack implements StripHost {
     beside: {
       before?: VoicePlayback
       after?: VoicePlayback
-      under?: readonly SoundingEnd[]
+      under?: readonly SoundingTail[]
     } = {},
   ): ClipVoice | null {
     const rate = this.rateValue
@@ -1388,19 +1363,15 @@ export class AudioTrack implements StripHost {
     const release = releaseOf(playback, rate, beside.after)
     const fadeOutSec = release.kind === 'fade' ? release.sec : playback.fadeOutSec
     const tailSec = release.kind === 'tail' ? release.sec : 0
+    const comingUp = comesUp(playback)
     // Under the tail of the clip it follows on from, where the two are joined:
     // the tail the voice before it has, where that reads on from the frame
     // this one enters on, or for a voice played by hand the tail its clip has.
     const under =
       playback.fadeInSec > 0
         ? undefined
-        : beside.under?.find((end) => samePlace(end.fromSec, entrySec(playback)))
+        : beside.under?.find((tail) => samePlace(tail.fromSec, entrySec(playback)))
     const takingOverSec = under ? under.sec : takeOverSec(playback, beside.before, rate)
-    // Where that clip has no tail because it stops square on a frame at rest,
-    // this voice enters on the frame after: there is no silence before it to
-    // come up from, whatever the sound does on that frame.
-    const straightOn = under ? under.sec === 0 : goesStraightOn(playback, beside.before, rate)
-    const comingUp = !straightOn && comesUp(playback)
 
     const source = this.ctx.createBufferSource()
     const gain = this.ctx.createGain()
@@ -1494,7 +1465,7 @@ export class AudioTrack implements StripHost {
       easeToSec: (late + easeSec) * rate,
       stoppedAtEnd: playback.loop === true || tailSec > 0,
       tailSec,
-      goesOnFromSec: release.kind === 'fade' ? undefined : release.ontoSec,
+      tailFromSec: release.kind === 'tail' ? release.ontoSec : 0,
       cameUpUnder: playback.easeInSec === undefined ? under?.clipId : undefined,
     })
     source.onended = () => this.forget(voice)
@@ -1661,8 +1632,8 @@ export class AudioTrack implements StripHost {
     // The low-pass keeps the channels of its sound for as long as it lives. A
     // source that has ended gives one channel of silence, and a filter whose
     // channels change starts again from nothing (Chromium): a stereo voice
-    // that stopped square lost what its low-pass still rang with from the
-    // next block of the render on, so a clip cut in two was not the clip.
+    // lost what its low-pass still rang with from the block of the render
+    // after the one it ended in, so a clip cut in two was not the clip.
     lowpass.channelCount = playback.buffer.numberOfChannels
     lowpass.channelCountMode = 'explicit'
     panner.pan.value = placement.pan

@@ -3982,7 +3982,12 @@ describe('AudioTrack that joins its clips', () => {
         ...second,
       }),
     ]
-    const squareAt7 = toNine([{ method: 'setValueAtTime', args: [1, 7] }])
+    const square = toNine([{ method: 'setValueAtTime', args: [1, 1] }])
+    const tail = toNine([
+      { method: 'setValueAtTime', args: [1, 1] },
+      { method: 'setValueAtTime', args: [1, 7] },
+      { method: 'linearRampToValueAtTime', args: [0, 7 + E] },
+    ])
     const comeUpAt7 = toNine([
       { method: 'setValueAtTime', args: [0, 7 - HALF_FRAME] },
       { method: 'setValueAtTime', args: [0, 7] },
@@ -4007,20 +4012,36 @@ describe('AudioTrack that joins its clips', () => {
       return told
     }
 
-    it('the first stops square on its last frame, and the second goes straight on from the next: no come-up', async () => {
-      const { a, b, first } = await handedOver(clips())
+    it('by itself the first stops square on its last frame and the second comes up after it: a dip', async () => {
+      const { a, b, first } = await handedOver(clips(), { joinClips: false })
       // No tail: the source is given its length and ends by itself.
-      expect(a).toEqual(toNine([{ method: 'setValueAtTime', args: [1, 1] }]))
+      expect(a).toEqual(square)
       expect(first?.startCalls.calls).toEqual([[1, 0, 6]])
-      expect(b?.slice(0, 1)).toEqual(squareAt7)
-      expect(
-        b?.filter(([method, value]) => method === 'linearRampToValueAtTime' && value === 1),
-      ).toEqual([])
+      expect(b?.slice(0, 3)).toEqual(comeUpAt7)
     })
 
-    it('by itself the second comes up from silence there, as a looped sound entered on a step does', async () => {
-      expect((await handedOver(clips(), { joinClips: false })).b?.slice(0, 3)).toEqual(comeUpAt7)
-      // Joined, but nothing before it is sounding: play started at the cut, which is then the clock's 0.
+    it('joined, the first tails on the frames the second comes up on, and the two are the sound', async () => {
+      const { a, b, first } = await handedOver(clips())
+      expect(a).toEqual(tail)
+      // The source goes on past the cut for the tail to read, and is stopped where the tail ends.
+      expect(first?.startCalls.calls).toEqual([[1, 0]])
+      expect(first?.stopCalls.calls).toEqual([[7 + E]])
+      expect(b?.slice(0, 3)).toEqual(comeUpAt7)
+    })
+
+    it('the first is left square where the second does not come up on the frame its sound goes on to', async () => {
+      // The second enters a millisecond further on in the sound: not the frame the first would tail on.
+      expect((await handedOver(clips({ offsetSec: 6.001 }))).a).toEqual(square)
+      // The second has a fade of its own to come in on.
+      expect((await handedOver(clips({ fadeInSec: 0.5 }))).a).toEqual(square)
+      // The second does not repeat, so its sound does not come round: it enters square, and the first stops square.
+      const once = await handedOver(clips({ loop: false, durationSec: 4 }))
+      expect(once.a).toEqual(square)
+      expect(once.b?.slice(0, 1)).toEqual(toNine([{ method: 'setValueAtTime', args: [1, 7] }]))
+    })
+
+    it('with play started at the cut the second comes up as it does by itself', async () => {
+      // Nothing before it is sounding; the cut is then the clock's 0.
       const late = await handedOver(clips(), { fromSec: 7 })
       expect(late.a).toBeNull()
       expect(late.b?.slice(0, 3)).toEqual(
@@ -4032,21 +4053,7 @@ describe('AudioTrack that joins its clips', () => {
       )
     })
 
-    it('goes straight on only from a piece that stops on the frame before the one it enters on', async () => {
-      // The second enters a millisecond further on in the sound.
-      expect((await handedOver(clips({ offsetSec: 6.001 }))).b?.slice(0, 3)).toEqual(
-        toNine([
-          { method: 'setValueAtTime', args: [0, 7 - HALF_FRAME] },
-          { method: 'setValueAtTime', args: [0, 7] },
-          { method: 'linearRampToValueAtTime', args: [1, 7 + E] },
-        ]),
-      )
-      // The first ends on a fade of its own: silence is what comes before the second.
-      const faded = [piece('a', 1, { durationSec: 6, fadeOutSec: 0.5 }), clips()[1]]
-      expect((await handedOver(faded)).b?.slice(0, 3)).toEqual(comeUpAt7)
-    })
-
-    it('a voice played by hand goes straight on from the clip it is told it follows', () => {
+    it('voices played by hand go by the same rule from the clips they are told of', () => {
       const { ctx, track } = setup()
       const buf = sound(ctx)
       const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const, gainDb: 0 }
@@ -4059,13 +4066,13 @@ describe('AudioTrack that joins its clips', () => {
         ...bare,
       }
       const first = { offsetSec: 0, durationSec: 6, ...bare }
-      track.play('alone', { buffer: buf, ...second }, 7)
-      expect(toNine(ctx.gains[1].gain.events).slice(0, 3)).toEqual(comeUpAt7)
-      track.play('after', { buffer: buf, ...second, follows: first }, 7)
-      expect(toNine(ctx.gains[2].gain.events).slice(0, 1)).toEqual(squareAt7)
-      // Told it follows a clip that stops somewhere else in the sound, it is by itself.
-      track.play('elsewhere', { buffer: buf, ...second, follows: { ...first, offsetSec: 1 } }, 7)
-      expect(toNine(ctx.gains[3].gain.events).slice(0, 3)).toEqual(comeUpAt7)
+      track.play('alone', { buffer: buf, ...first }, 1)
+      expect(toNine(ctx.gains[1].gain.events)).toEqual(square)
+      track.play('before', { buffer: buf, ...first, followedBy: second }, 1)
+      expect(toNine(ctx.gains[2].gain.events)).toEqual(tail)
+      // Told it is followed by a clip that enters somewhere else in the sound, it is by itself.
+      track.play('elsewhere', { buffer: buf, ...first, followedBy: { ...second, offsetSec: 3 } }, 1)
+      expect(toNine(ctx.gains[3].gain.events)).toEqual(square)
     })
   })
 })
