@@ -96,7 +96,7 @@ import { clipSourceOnPass } from '../clips/turns'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
 import { startFloorSec } from '../clock'
-import { scheduleKey, type ScheduledStart } from '../transport/anchor'
+import { isLooping, scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import {
@@ -222,13 +222,15 @@ export interface ClipVoiceOptions {
    */
   follows?: ClipNeighbour
   /**
-   * The clip of this sound that starts on the clock where this one ends. A
-   * voice that ends with its sound then hands over where the other enters, if
-   * the sound comes round there: with a tail on the frames the other enters
-   * on, under which the other comes up (name this clip as its `follows`). It
-   * is left square only where the other enters square and this one's sound
-   * ends at rest. Linear clips with no fade-out of their own, that do not
-   * loop.
+   * The clip of this sound that starts on the clock where this one ends, for
+   * linear clips with no fade-out of their own. A voice that does not loop
+   * and ends with its sound then hands over where the other enters, if the
+   * sound comes round there: with a tail on the frames the other enters on,
+   * under which the other comes up (name this clip as its `follows`). It is
+   * left square only where the other enters square and this one's sound ends
+   * at rest. A voice cut partway where its sound is at rest, looping or not,
+   * is left square by itself: named here, a clip that comes up by itself on
+   * the frame this one's sound goes on to makes it tail for it.
    */
   followedBy?: ClipNeighbour
 }
@@ -461,7 +463,8 @@ function releaseOf(playback: VoicePlayback, rate: number, next?: VoicePlayback):
     // but not where the next clip comes up on the frame the sound goes on
     // to, as a looped sound entered on a step does. Left square, this one
     // would stop over a clip still coming up from silence. With a tail the
-    // next comes up under it, and the tail stands by itself as any does.
+    // next comes up under it and the two sum. Alone of the tails this one
+    // does not stand by itself: it begins on the step the next comes up for.
     if (!leavesOnStep(buffer, cutFrame(playback)) && !comesUpOn(next, ontoSec)) return HELD
     if (playback.loop) return { kind: 'tail', sec: JOIN_EASE_SECONDS, ontoSec, wraps: false }
     // No further than its buffer goes.
@@ -1014,14 +1017,21 @@ export class AudioTrack implements StripHost {
    * Let the voice under `key` go for another that takes its place: one that
    * is sounding fades out over `seconds` from now (on a device, from where the
    * other can come up) and is forgotten at once, so the key is free; one that
-   * has not started, or `seconds` of 0, is silenced.
+   * has not started, or `seconds` of 0, is silenced; one in its tail is left
+   * to finish it, as `stop` leaves it.
    */
   release(key: string, seconds: number): void {
     const voice = this.active.get(key)
     if (!voice) return
     const at = this.now()
-    if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
+    if (seconds <= 0 || voice.startTime > at) {
       this.silence(voice)
+      return
+    }
+    // Past its clip's end: over, or in a tail that is already its way out. Cut
+    // there, the tail would be the step it is written to keep away.
+    if (at >= voice.endTime) {
+      this.letGo(voice, seconds)
       return
     }
     // On a device the voice that takes its place comes up the start floor
@@ -1172,7 +1182,9 @@ export class AudioTrack implements StripHost {
    * was handed over ahead of it finds that voice made without it, at full
    * level, and is let go as it is by itself. Otherwise the next is taken at
    * its word: it may yet be moved or muted, and this clip's way out is one
-   * that stands by itself (`releaseOf`).
+   * that stands by itself (`releaseOf`), with one exception: a clip cut at
+   * rest that tails for a next coming up there plays, with that next taken
+   * away after its voice was made, 5 ms of what the sound goes on to, fading.
    */
   private joined(
     clip: Clip,
@@ -1184,12 +1196,18 @@ export class AudioTrack implements StripHost {
     if (clip.fadeCurve !== 'linear') return { under }
     const endSec = clip.startSec + clip.durationSec
     const endsAt = when + clip.durationSec / this.rateValue
+    // A clip that starts past the end of the loop the clips are on is not
+    // played there (one within the lookahead of that end is, and then enters
+    // by itself): a clip that runs on over the loop's end names none after it.
+    const loop = (this.timebase ?? this.scheduler?.transport)?.loop
+    const pastLoop =
+      loop !== undefined && isLooping(loop) && endSec > loop.lengthSec + SAME_PLACE_SECONDS
     let followedBy: Clip | undefined
     for (const other of this.clips.audible()) {
       if (other.id === clip.id || other.fadeCurve !== 'linear') continue
       if ((other.reversed === true) !== (clip.reversed === true)) continue
       const before = samePlace(other.startSec + other.durationSec, clip.startSec)
-      const after = followedBy === undefined && samePlace(other.startSec, endSec)
+      const after = followedBy === undefined && !pastLoop && samePlace(other.startSec, endSec)
       if (!before && !after) continue
       const otherStart = { ...start, clipId: other.id }
       if (this.sourceOn(other, otherStart) !== sourceId || !this.soundsOn(other, otherStart))

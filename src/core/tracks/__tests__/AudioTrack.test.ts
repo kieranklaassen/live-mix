@@ -974,6 +974,26 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       track.stop('over')
       expect(ctx.sources[1].stopCalls.last).toEqual([])
     })
+
+    it('let go for another (`release`), one in its tail is left to finish it too', () => {
+      const { ctx, track } = setup()
+      track.play('k', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 0)
+      const written = ctx.gains[1].gain.events.length
+      ctx.currentTime = 8.002
+      track.release('k', 0.005)
+      // Nothing is written over the tail and the source stops where it ends; the key is free.
+      expect(ctx.gains[1].gain.events).toHaveLength(written)
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[8 + E]])
+      expect(track.voices()).toHaveLength(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+
+      // Past its tail it is over, and silenced.
+      track.play('over', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 10)
+      ctx.currentTime = 18.006
+      track.release('over', 0.005)
+      expect(ctx.sources[1].stopCalls.last).toEqual([])
+    })
   })
 
   it('loop clips set source.loop over the offset and stop at the clip end', () => {
@@ -4053,6 +4073,77 @@ describe('AudioTrack that joins its clips', () => {
       )
     })
 
+    it('a first that repeats, cut at rest on a later time round, tails the same way and keeps coming round', async () => {
+      const { ctx, samples, track, transport, scheduler, events, source } = joining(30)
+      await samples.load('s', sound(ctx))
+      const round = { loop: true, loopStartSec: 0, loopEndSec: 10 }
+      // Cut 6 s into its second time round: second 17 of the timeline.
+      track.clips.set([
+        piece('a', 1, { durationSec: 16, ...round }),
+        piece('b', 17, { offsetSec: 6, durationSec: 14, ...round }),
+      ])
+      transport.start()
+      scheduler.tick()
+      expect(events('a:0:1.000')?.slice(-2)).toEqual(
+        toNine([
+          { method: 'setValueAtTime', args: [1, 17] },
+          { method: 'linearRampToValueAtTime', args: [0, 17 + E] },
+        ]),
+      )
+      const first = source('a:0:1.000')
+      expect([first?.loop, first?.loopStart, first?.loopEnd]).toEqual([true, 0, 10])
+      expect(first?.stopCalls.calls).toEqual([[17 + E]])
+      expect(events('b:0:17.000')?.[2]).toEqual(['linearRampToValueAtTime', 1, 17 + E])
+      scheduler.dispose()
+    })
+
+    it('a loop that ends on the cut plays the second there, under the tail; one that ends before it leaves the first square', async () => {
+      const looping = async (lengthSec: number) => {
+        // A lookahead as a host has it: a fifth of a second.
+        const { ctx, samples, track, transport, scheduler, events } = joining(0.2)
+        await samples.load('s', sound(ctx))
+        track.clips.set(clips())
+        transport.setLoop({ enabled: true, lengthSec })
+        transport.start()
+        // Tick by tick, as a timer does: a window that had to catch up would reach over the loop's end.
+        let a: ReturnType<typeof events> = null
+        let b: ReturnType<typeof events> = null
+        for (let tick = 0; tick <= 72; tick += 1) {
+          ctx.currentTime = tick / 10
+          scheduler.tick()
+          a ??= events('a:0:1.000')
+          b ??= events('b:0:7.000')
+        }
+        scheduler.dispose()
+        return { a, b }
+      }
+      const onTheCut = await looping(7)
+      expect(onTheCut.a).toEqual(tail)
+      expect(onTheCut.b?.slice(0, 3)).toEqual(comeUpAt7)
+      // The first runs on over the loop's end, and the second is never played: no tail with nothing to come up under it.
+      const before = await looping(6.5)
+      expect(before.a).toEqual(square)
+      expect(before.b).toBeNull()
+    })
+
+    it('an edit while the tail sounds leaves it to finish', async () => {
+      const { ctx, samples, track, transport, scheduler, source } = joining(0.2)
+      await samples.load('s', sound(ctx))
+      track.clips.set([...clips(), piece('far', 40)])
+      transport.start()
+      for (const now of [0.9, 6.9]) {
+        ctx.currentTime = now
+        scheduler.tick()
+      }
+      const first = source('a:0:1.000')
+      // Two milliseconds into the tail another clip is moved: the schedule is made again around what sounds.
+      ctx.currentTime = 7.002
+      track.clips.update('far', { startSec: 41 })
+      expect(first?.stopCalls.calls).toEqual([[7 + E]])
+      expect(first?.disconnectCalls.count).toBe(0)
+      scheduler.dispose()
+    })
+
     it('voices played by hand go by the same rule from the clips they are told of', () => {
       const { ctx, track } = setup()
       const buf = sound(ctx)
@@ -4070,9 +4161,12 @@ describe('AudioTrack that joins its clips', () => {
       expect(toNine(ctx.gains[1].gain.events)).toEqual(square)
       track.play('before', { buffer: buf, ...first, followedBy: second }, 1)
       expect(toNine(ctx.gains[2].gain.events)).toEqual(tail)
+      // The second, told what it follows, comes up under that tail; told nothing, it comes up the same by itself.
+      track.play('after', { buffer: buf, ...second, follows: first }, 7)
+      expect(toNine(ctx.gains[3].gain.events).slice(0, 3)).toEqual(comeUpAt7)
       // Told it is followed by a clip that enters somewhere else in the sound, it is by itself.
       track.play('elsewhere', { buffer: buf, ...first, followedBy: { ...second, offsetSec: 3 } }, 1)
-      expect(toNine(ctx.gains[3].gain.events)).toEqual(square)
+      expect(toNine(ctx.gains[4].gain.events)).toEqual(square)
     })
   })
 })

@@ -30,6 +30,30 @@ const WHOLE = {
   swellMono: { sound: 'swell', channels: 1, cutFrame: CUT, lowpassHz: 6000, joinClips: true },
 } as const
 
+/**
+ * How near the whole each has to be, in dB under full scale. Two voices added
+ * where one played differ in the last bits of a sample: the noise is 135 to
+ * 163 dB under with the low-pass at 1000 and 6000 Hz, and the swell at
+ * 6000 Hz 134 dB. The rest is the browser's. It lets a filter go, a few
+ * blocks after its input has ended, once its ring is under a sample of 16
+ * bits: with the low-pass at 200 Hz the pieces of noise are 104 dB under, one
+ * channel or two. And its filter rounds as it goes, more the lower it is set:
+ * the swell under a low-pass at 1000 Hz is 118 dB under, as a level crossed
+ * from one bare source to another through two filters is with no engine.
+ */
+const UNDER: Record<keyof typeof WHOLE, number> = {
+  stereoOnBlock: -120,
+  stereoInBlock: -120,
+  stereoLastOfBlock: -120,
+  stereoOpen: -120,
+  stereoDull: -100,
+  stereoJoined: -120,
+  monoOnBlock: -120,
+  monoJoined: -100,
+  swellStereo: -108,
+  swellMono: -120,
+}
+
 const CASES = {
   ...WHOLE,
   // Not joined, each is let in and out by itself: the first stops square and the second comes up from silence.
@@ -57,19 +81,11 @@ test.describe('a placed clip cut in two in real audio', () => {
 
   for (const name of Object.keys(WHOLE) as (keyof typeof WHOLE)[]) {
     test(`the two pieces are the whole: ${name}`, () => {
-      // Two voices added where one played differ in the last bits of a
-      // sample: 133 dB under full scale and less. The rest is the browser's.
-      // It lets a filter go, a few blocks after its input has ended, once
-      // its ring is under a sample of 16 bits: with the low-pass at 200 Hz
-      // the pieces of noise are 104 dB under full scale from the whole, one
-      // channel or two. And its filter rounds as it goes, more the lower it
-      // is set: the swell under a low-pass at 1000 Hz is 118 dB under, as a
-      // level crossed from one voice to another is in a page with no engine.
       // Before its low-pass kept its channels a stereo voice was 33 to 38 dB
       // under full scale from the whole where it stopped on a block or at
       // 200 Hz, and 77 dB where it stopped inside a block at 1000 Hz. Before
       // a first cut at rest tailed, the swell dipped as it does not joined.
-      expect(measured[name].differenceDb).toBeLessThan(-100)
+      expect(measured[name].differenceDb).toBeLessThan(UNDER[name])
     })
   }
 

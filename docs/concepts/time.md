@@ -189,11 +189,15 @@ and hands each one to the graph exactly once, keyed by
   and by itself is left square. It tails all the same where the clip after
   it comes up on the frame its sound goes on to (a piece of a looped sound,
   entered on a frame that is a step from silence), and that clip comes up
-  under it: left square, it would stop over a clip still coming up. A first
-  clip's way out is chosen to be no step by
-  itself, since the clip after it may yet be muted or moved: it is left
-  square only where its sound ends at rest and the next enters square. Clips
-  are joined when they are of one source on that pass (`turns`), play the
+  under it: left square, it would stop over a clip still coming up. Every
+  other way out of a first clip is chosen to be no step by itself, since the
+  clip after it may yet be muted or moved: it is left square only where its
+  sound ends at rest and the next enters square. That one tail is not: it
+  begins on the step the next comes up for, so with a next that is muted,
+  moved or taken away after the first's voice was made, the first plays
+  5 ms of what the sound goes on to, fading, that one time. A first that
+  runs on over the end of the loop names no clip after it, since none is
+  played there. Clips are joined when they are of one source on that pass (`turns`), play the
   same way round, have linear fades and none of their own at the join, touch
   on the timeline to within a microsecond, and neither is muted or sat out
   of the pass by `chance`. The second goes by what the voice before it is
@@ -223,14 +227,15 @@ and hands each one to the graph exactly once, keyed by
   filter starts again from nothing when its channels change, as they do
   when a stereo source ends. Played live, a voice is taken out of the graph
   when the page hears that its source has ended, a moment later. What is
-  left in a render is the browser's own
-  (`browser-tests/specs/cut-pieces.spec.ts`):
-  it lets a filter go a few blocks after its input has ended, once its ring
-  is under a sample of 16 bits (noise cut square under a low-pass at 200 Hz
-  is 104 dB under full scale from the whole), and its filter rounds as it
-  goes, more the lower it is set (a held level that crosses from one piece
-  to the next is 118 dB under full scale from the whole at 1000 Hz and 88 dB
-  at 200 Hz, as it is in a page with no engine in it).
+  left in a render is the browser's own: it lets a filter go a few blocks
+  after its input has ended, once its ring is under a sample of 16 bits
+  (noise cut square under a low-pass at 200 Hz is 104 dB under full scale
+  from the whole), and its filter rounds as it goes, more the lower it is
+  set (a held level that crosses from one piece to the next under a low-pass
+  at 1000 Hz is 118 dB under full scale from the whole). Both are measured
+  in `browser-tests/specs/cut-pieces.spec.ts`. The same crossing at 200 Hz,
+  measured once by hand, was 88 dB under, and no nearer in a page with two
+  bare sources and filters and no engine in it.
   It is off by default: what a host's clips played before, they play.
 - **Stop, pause and a seek do not click.** They silence every track at once,
   and a clip cut where its wave stands is a step. An `AudioTrack` voice that
