@@ -415,6 +415,9 @@ const coreSymbols = [
   'FOLLOW_SEEK_TOLERANCE',
   'FOLLOW_DRIFT_SEEK',
   'FOLLOW_MAX_SEEK_LEAD',
+  // What a host draws of a clip that takes turns
+  'turnsRound',
+  'nextOtherTurn',
 ] as const
 
 const dspSymbols = [

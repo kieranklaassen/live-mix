@@ -35,7 +35,16 @@ export {
   leavesOnStep,
   type SoundFrames,
 } from './seam'
-export { clipSourceIds, clipSourceOnPass, sameTurns, turnLength, turnOnPass } from './turns'
+export {
+  clipSourceIds,
+  clipSourceOnPass,
+  nextOtherTurn,
+  sameTurns,
+  turnLength,
+  turnOnPass,
+  turnsRound,
+  type TurnsRound,
+} from './turns'
 export {
   clipsInWindow,
   clipsSoundingAt,
