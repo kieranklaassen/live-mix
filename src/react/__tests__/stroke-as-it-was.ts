@@ -1,6 +1,8 @@
 // The markup of the strokes of `stroke-as-it-was.states.tsx`, recorded from
-// `Stroke` before it knew of passes. Not to be recorded again: a stroke given
-// no `turns` is held to these.
+// `Stroke` before it knew of passes: a stroke given no `turns` is held to
+// these. A change about passes leaves them as they are. A change that means
+// to alter how a stroke with no passes is drawn records them again, from a
+// render given no `turns`, `turn` or `next`.
 
 export const MARKUP_AS_IT_WAS = {
   plain:

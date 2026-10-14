@@ -317,7 +317,7 @@ describe('a stroke and its passes', () => {
     expect(pips(stroke)).toHaveLength(3)
   })
 
-  it('moves the lit pip without drawing the wave again', () => {
+  it('moves the lit pip and leaves the wave and the next line as they were', () => {
     const view = render(
       <Stroke
         width={200}
