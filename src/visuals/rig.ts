@@ -2,7 +2,7 @@
 //
 // A style is drawn here at the size asked and then copied to the 2D canvas that wants it, so a page never holds
 // more than one context for its visuals however many screens show them. A style's shader is fetched and made the
-// first time it is asked for, one new shader a frame, so a list of forty does not freeze the page as it opens; a
+// first time it is asked for, one new shader a frame, so a long list of styles does not freeze the page as it opens; a
 // style that cannot be made is given up on alone, and the others still draw.
 //
 // Browser only.

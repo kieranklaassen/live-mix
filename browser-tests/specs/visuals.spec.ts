@@ -1,7 +1,8 @@
 // The visuals, drawn in a real browser from the built entry: each of the
-// styles in both its variations, each bend over a style, and a canvas left to
-// `showVisuals`. A shader that does not compile, or one that draws nothing,
-// shows here and nowhere else.
+// styles in both its variations, each bend over a style, a canvas left to
+// `showVisuals`, and one painted from frames that went down a line. A shader
+// that does not compile, or one that draws nothing, shows here and nowhere
+// else.
 
 import { expect, test } from '@playwright/test'
 
@@ -16,7 +17,7 @@ function expectPicture(seen: Measured, what: string): void {
 }
 
 test.describe('the visuals, in a real browser', () => {
-  // Forty shaders are made one after another, and a machine without a
+  // Some forty shaders are made one after another, and a machine without a
   // graphics card makes and draws each in software.
   test.setTimeout(900_000)
 
@@ -27,7 +28,7 @@ test.describe('the visuals, in a real browser', () => {
     expect(await page.evaluate(() => window.visualsHarness.ready())).toBe(true)
 
     const styles = await page.evaluate(() => window.visualsHarness.styles())
-    expect(styles).toHaveLength(40)
+    expect(styles).toHaveLength(41)
     for (const id of styles) {
       for (const variation of [0, 1] as const) {
         const seen = await page.evaluate(
@@ -61,6 +62,19 @@ test.describe('the visuals, in a real browser', () => {
     const shown = await page.evaluate(() => window.visualsHarness.shown('dot-globe', 1500))
     expect(shown.started).toBe(true)
     expectPicture(shown, 'the canvas `showVisuals` paints')
+    expect(errors).toEqual([])
+  })
+
+  test('a frame sent down a line is the picture a second screen paints', async ({ page }) => {
+    const errors = collectPageErrors(page)
+    await page.goto('/browser-tests/harness/visuals.html')
+    await page.waitForFunction(() => window.visualsHarness !== undefined)
+
+    const sent = await page.evaluate(() => window.visualsHarness.sent('dot-globe', 2500))
+    expect(sent.started).toBe(true)
+    expect(sent.watched, 'the sender heard the screen').toBe(true)
+    expect(sent.live, 'the screen got frames').toBe(true)
+    expectPicture(sent, 'the canvas painted from what the line carried')
     expect(errors).toEqual([])
   })
 })

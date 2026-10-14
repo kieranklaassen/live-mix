@@ -1,11 +1,13 @@
 /**
- * `@kieranklaassen/live-mix/visuals` — pictures that follow the music: forty
+ * `@kieranklaassen/live-mix/visuals` — pictures that follow the music: forty-one
  * shader styles, four bends, sixteen palettes and film grain, drawn from what a
  * piece is doing at that moment (docs/visuals.md).
  *
  *   const ear = createEar(context, engine.master)                  // or tapOf(anyNode)
  *   const desk = new VisualDesk(() => ({ set, playheadSec, playing, strokes, heard: ear.read(), ... }))
  *   const stop = showVisuals(canvas, (now) => desk.frame(now))     // any number of canvases
+ *   sendVisuals('picture', (now) => desk.frame(now))               // and in another window:
+ *   showVisuals(canvas, receiveVisuals('picture').frameAt)
  *
  * Separate entry on purpose: it imports nothing from the rest of the library
  * but the JSON types, so a page that only draws loads none of the audio
@@ -139,3 +141,12 @@ export {
 } from './rig'
 export { WIDEST_DRAWN, createStage, type Stage } from './stage'
 export { showVisuals, type ShowVisualsOptions } from './picture'
+export {
+  receiveVisuals,
+  sendVisuals,
+  type SendVisualsOptions,
+  type VisualLine,
+  type VisualLineOptions,
+  type VisualReceiver,
+  type VisualSender,
+} from './line'
