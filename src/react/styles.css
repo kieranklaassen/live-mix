@@ -3331,6 +3331,27 @@
   stroke-width: 1;
 }
 
+/* The next different pass waits behind the wave: a thin line, seen where it
+   stands clear of what sounds now. */
+.lm-stroke__next {
+  fill: none;
+  stroke: var(--lm-stroke-ink);
+  stroke-width: 1;
+  opacity: 0.5;
+}
+
+/* A pip for each different pass on the lower edge; the lit one is the pass
+   that sounds. */
+.lm-stroke__pip {
+  fill: var(--lm-stroke-ink);
+  opacity: 0.4;
+  shape-rendering: crispEdges;
+}
+
+.lm-stroke__pip--lit {
+  opacity: 1;
+}
+
 .lm-stroke__tag,
 .lm-stroke__automation-label {
   display: flex;

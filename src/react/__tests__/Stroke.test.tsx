@@ -1,13 +1,17 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { type WaveformPeaks } from '../../core/clips/peaks'
 import { PaintField } from '../components/PaintField'
 import { SOUND_KIND_LABELS, SoundIcon } from '../components/SoundIcon'
 import { Stroke } from '../components/Stroke'
-import { repeatSeams } from '../components/stroke-math'
+import { repeatSeams, strokeWavePaths } from '../components/stroke-math'
+import { MARKUP_AS_IT_WAS } from './stroke-as-it-was'
+import { STROKES_AS_THEY_WERE } from './stroke-as-it-was.states'
 
 afterEach(cleanup)
 
@@ -211,6 +215,143 @@ describe('Stroke', () => {
     expect(stroke).toHaveAttribute('data-stroke-id', 'a')
     fireEvent.pointerDown(stroke)
     expect(onPointerDown).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('a stroke and its passes', () => {
+  const other: WaveformPeaks = {
+    min: Float32Array.from({ length: 64 }, (_, index) => -(index / 63)),
+    max: Float32Array.from({ length: 64 }, (_, index) => index / 63),
+  }
+  const pips = (stroke: HTMLElement) => [...stroke.querySelectorAll('.lm-stroke__pip')]
+  const litOf = (stroke: HTMLElement) =>
+    pips(stroke).map((pip) => pip.classList.contains('lm-stroke__pip--lit'))
+  const paths = (stroke: HTMLElement) =>
+    ['halo', 'wave', 'bars'].map((layer) =>
+      stroke.querySelector(`.lm-stroke__${layer}`)?.getAttribute('d'),
+    )
+
+  it.each(Object.keys(STROKES_AS_THEY_WERE) as (keyof typeof STROKES_AS_THEY_WERE)[])(
+    'given no passes, a %s stroke is the markup it always was',
+    (state) => {
+      const markup = renderToStaticMarkup(createElement(Stroke, STROKES_AS_THEY_WERE[state]))
+      expect(markup).toBe(MARKUP_AS_IT_WAS[state])
+    },
+  )
+
+  it('draws one lit pip for a sound that plays the same on every pass, and no next line', () => {
+    render(<Stroke width={200} height={40} peaks={peaks} turns={1} next={other} data-testid="s" />)
+    const stroke = screen.getByTestId('s')
+    expect(litOf(stroke)).toEqual([true])
+    expect(stroke.querySelector('.lm-stroke__next')).toBeNull()
+  })
+
+  it('draws a pip for each different pass, the lit one the pass that sounds', () => {
+    const view = render(<Stroke width={200} height={40} turns={4} turn={1} data-testid="s" />)
+    const stroke = screen.getByTestId('s')
+    expect(litOf(stroke)).toEqual([false, true, false, false])
+    expect(pips(stroke)[1]).toHaveAttribute('x', '21')
+    expect(pips(stroke)[1]).toHaveAttribute('y', '37')
+    expect(pips(stroke)[1]).toHaveAttribute('width', '4')
+    expect(pips(stroke)[1]).toHaveAttribute('height', '3')
+    view.rerender(<Stroke width={200} height={40} turns={12} turn={11} data-testid="s" />)
+    expect(litOf(stroke)).toEqual([false, false, false, false, false, false, false, true])
+    view.rerender(<Stroke width={200} height={40} turns={12} data-testid="s" />)
+    expect(litOf(stroke).indexOf(true)).toBe(0)
+  })
+
+  it('draws no pips on a stroke too low for them, or too low beside its name', () => {
+    const view = render(<Stroke width={200} height={13} turns={3} data-testid="s" />)
+    const stroke = screen.getByTestId('s')
+    expect(pips(stroke)).toHaveLength(0)
+    view.rerender(<Stroke width={200} height={14} turns={3} data-testid="s" />)
+    expect(pips(stroke)).toHaveLength(3)
+    view.rerender(<Stroke width={200} height={19} name="Pad" turns={3} data-testid="s" />)
+    expect(pips(stroke)).toHaveLength(0)
+    view.rerender(<Stroke width={200} height={20} name="Pad" turns={3} data-testid="s" />)
+    expect(pips(stroke)).toHaveLength(3)
+  })
+
+  it('draws no pips on a tall stroke with no room between its round ends', () => {
+    render(<Stroke width={60} height={80} turns={4} data-testid="s" />)
+    expect(pips(screen.getByTestId('s'))).toHaveLength(0)
+  })
+
+  it('draws the next pass as a line: the outline of the same stroke with the next’s peaks', () => {
+    const shape = { repeats: 2.5, phase: 0.3, reversed: true, fadeIn: 0.1, gain: 0.8 }
+    render(
+      <Stroke
+        width={200}
+        height={40}
+        peaks={peaks}
+        turns={3}
+        next={other}
+        {...shape}
+        data-testid="s"
+      />,
+    )
+    const stroke = screen.getByTestId('s')
+    const next = stroke.querySelector('.lm-stroke__next')
+    expect(next?.getAttribute('d')).toBe(
+      strokeWavePaths({ width: 200, height: 40, peaks: other, ...shape }).wave,
+    )
+    expect(next?.getAttribute('d')).not.toBe(
+      stroke.querySelector('.lm-stroke__wave')?.getAttribute('d'),
+    )
+    // Behind everything else the stroke draws.
+    expect(stroke.querySelector('.lm-stroke__svg')?.firstElementChild).toBe(next)
+  })
+
+  it('draws the next line from 30 px high, and never without the next’s own peaks', () => {
+    const view = render(
+      <Stroke width={200} height={29} peaks={peaks} turns={3} next={other} data-testid="s" />,
+    )
+    const stroke = screen.getByTestId('s')
+    expect(stroke.querySelector('.lm-stroke__next')).toBeNull()
+    view.rerender(
+      <Stroke width={200} height={30} peaks={peaks} turns={3} next={other} data-testid="s" />,
+    )
+    expect(stroke.querySelector('.lm-stroke__next')).not.toBeNull()
+    view.rerender(<Stroke width={200} height={30} peaks={peaks} turns={3} data-testid="s" />)
+    expect(stroke.querySelector('.lm-stroke__next')).toBeNull()
+    expect(pips(stroke)).toHaveLength(3)
+  })
+
+  it('moves the lit pip without drawing the wave again', () => {
+    const view = render(
+      <Stroke
+        width={200}
+        height={40}
+        peaks={peaks}
+        turns={4}
+        turn={0}
+        next={other}
+        data-testid="s"
+      />,
+    )
+    const stroke = screen.getByTestId('s')
+    const before = paths(stroke)
+    const line = stroke.querySelector('.lm-stroke__next')?.getAttribute('d')
+    view.rerender(
+      <Stroke
+        width={200}
+        height={40}
+        peaks={peaks}
+        turns={4}
+        turn={2}
+        next={other}
+        data-testid="s"
+      />,
+    )
+    expect(litOf(stroke)).toEqual([false, false, true, false])
+    expect(paths(stroke)).toEqual(before)
+    expect(stroke.querySelector('.lm-stroke__next')?.getAttribute('d')).toBe(line)
+  })
+
+  it('keeps what it is told of passes off the root: none of it is an attribute', () => {
+    render(<Stroke width={200} height={40} turns={4} turn={1} next={other} data-testid="s" />)
+    const names = screen.getByTestId('s').getAttributeNames()
+    expect(names.sort()).toEqual(['class', 'data-testid', 'style'])
   })
 })
 
