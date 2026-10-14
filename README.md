@@ -485,6 +485,74 @@ export function titleStyle(seconds: number, width: number, height: number) {
 Presets, easing, springs, keyframes, the profile and the steady clock are in
 [docs/motion.md](./docs/motion.md).
 
+### Visuals
+
+<!-- example: examples/readme/visuals.ts -->
+
+```ts
+import { createEngine } from '@kieranklaassen/live-mix'
+import {
+  type FollowedStroke,
+  VisualDesk,
+  addVisual,
+  createEar,
+  emptyVisualSet,
+  showVisuals,
+} from '@kieranklaassen/live-mix/visuals'
+
+// A piece's visuals are plain data, stored with the piece: here a globe of
+// dots for the whole of it, and trails over what it draws.
+let set = addVisual(emptyVisualSet(), 'dot-globe').set
+set = addVisual(set, 'trails').set
+
+// The sounds of the piece as the picture follows them: when each sounds and
+// how loud, of which kind, in which colour, and where it sits in the room.
+const strokes: FollowedStroke[] = [
+  {
+    id: 'pad-1',
+    slot: 'pad',
+    startSec: 0,
+    durationSec: 60,
+    fadeInSec: 2,
+    fadeOutSec: 4,
+    depth: 0.5,
+    thickness: 0.2,
+    gain: 0.8,
+    colour: [0.9, 0.6, 0.3],
+  },
+]
+
+export function showPiece(canvas: HTMLCanvasElement) {
+  const engine = createEngine({ context: new AudioContext() })
+  // A tap of its own on the master: the level and sixteen bands of the mix.
+  const ear = createEar(engine.context, engine.master)
+
+  // Once a frame the desk reads the piece and the music as they are now, and
+  // answers with a frame: plain data any number of canvases can paint.
+  const desk = new VisualDesk(() => ({
+    set,
+    strokes,
+    playheadSec: engine.transport.position().positionSec,
+    pieceSec: 60,
+    beatSec: 0.5,
+    playing: engine.transport.state === 'playing',
+    heard: ear.read(),
+    energy: 0.6,
+    space: 0.5,
+    tone: 0.5,
+    input: 0,
+  }))
+
+  // Painted for as long as it is shown; null where there is no WebGL 2.
+  return showVisuals(canvas, (now) => desk.frame(now))
+}
+```
+
+Forty shader styles, four bends, sixteen palettes and film grain; a knob of a
+visual can follow the mix, a band of it, one kind of sound, the keys, the live
+input, a performer's dial or the place in the piece. The styles, the saved
+shape and what a shader is handed are in [docs/visuals.md](./docs/visuals.md).
+
 ## Architecture
 
 ```mermaid
@@ -503,6 +571,7 @@ flowchart TB
     DSP["<b>./dsp</b><br/>WasmDevice host · C ABI · nine C++/Faust devices · worklet ducker"]
     WAM["<b>./wam</b><br/>WebAudioModules 2.0 host"]
     MOTION["<b>./motion</b><br/>presets · keyframes · easing · springs, from time alone"]
+    VISUALS["<b>./visuals</b><br/>styles · bends · palettes · the desk · one WebGL 2 context"]
     TEST["<b>./testing</b><br/>recording MockAudioContext · offline mock"]
   end
   subgraph dsp["DSP sources"]
@@ -512,6 +581,7 @@ flowchart TB
   UI --> REACT
   UI --> CORE
   UI --> MOTION
+  UI --> VISUALS
   LLM -->|"tool calls"| AGENT
   HW --> CORE
   AGENT --> SCORE
@@ -528,7 +598,8 @@ flowchart TB
 The engine core knows nothing about React, the agent or the score module;
 each layer is additive, and a `createEngine`-only consumer pays for none of
 them. `./motion` stands apart: it imports nothing from the rest and nothing
-imports it. Every audible path ends at the `OutputRouter`; every parameter move is
+imports it. `./visuals` stands beside the engine the same way: it takes only
+the JSON types, listens to any node, and nothing imports it. Every audible path ends at the `OutputRouter`; every parameter move is
 a ramp; every scheduled start is idempotent by key. The same C++ compiles to
 the browser's C ABI and builds natively (JUCE) unchanged, and the offline
 renderer issues exactly the source starts and `AudioParam` events the live
@@ -536,19 +607,20 @@ engine does.
 
 ## Entry map
 
-| Import                                      | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@kieranklaassen/live-mix`                  | `createEngine`, tracks and strips, groups, buses, returns, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `ElementTrack`, `OutputRouter`, master limiter and LUFS meters, node devices and the registry, racks and delay compensation, automation and modulators, `ControlSurface` (MIDI/OSC), `TempoMap`, Camelot, `StretchSource`, render/stems/WAV/recorder, the score (`ScoreDocument`, `loadScore`, `renderScore`), `Session` (grid), `AgentController` |
-| `@kieranklaassen/live-mix/dsp`              | `WasmDevice` host, the C ABI typings, asset resolution, factories and param tables for the nine WASM devices (plate reverb, FDN reverb, StereoWidener, hall reverb, FET limiter, true-peak limiter, SpectralDrifter, Ether, Felt), the worklet ducker, `registerStockWasmDevices`                                                                                                                                                                              |
-| `@kieranklaassen/live-mix/react`            | Headless hooks (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, `useDevice`, `useSession`, `useControlSurface`, …) and the styled kit (`Knob`, `Fader`, `Meter`, `TransportBar`, `MixerView`, `DevicePanel`, `DeviceChainView`, `TimelineView`, `GridView`, …); `react` is an optional peer                                                                                                                                                         |
-| `@kieranklaassen/live-mix/react/styles.css` | The kit's default theme (JAXA-Zen, `data-lm-theme="dark"`) and component rules; optional — set the `--lm-*` tokens yourself instead                                                                                                                                                                                                                                                                                                                            |
-| `@kieranklaassen/live-mix/motion`           | Motion for layers of a picture, from time alone: `resolveLayerMotion` and `motionAt`, the presets (`PRESETS`, `presetPose`), keyframes (`valueAt`, `withKeyframe`), easing (`curveOf`, `bezierOf`), springs (`springValue`, `bounceCurve`), `MotionProfile`, `shutterTimes` for motion blur and `steadyClock`; no dependency and no browser type ([docs/motion.md](./docs/motion.md))                                                                          |
-| `@kieranklaassen/live-mix/testing`          | `MockAudioContext` with an `AudioParam` event recorder, `MockOfflineAudioContext`, `advance`; framework-free                                                                                                                                                                                                                                                                                                                                                   |
-| `@kieranklaassen/live-mix/wam`              | `WamDevice`: WebAudioModules 2.0 plugins as devices (`@webaudiomodules/sdk` + `api` are optional peers)                                                                                                                                                                                                                                                                                                                                                        |
-| `@kieranklaassen/live-mix/native`           | `NativeDevice`: VST3 and Audio Unit plug-ins as devices, in a desktop shell that runs the plug-in host (`native/host`, built with JUCE); `NativeHostClient`, registry helpers, stand-ins for plug-ins a machine lacks ([docs/native.md](./docs/native.md)); `NativeLink`, `LinkAudioSender` and `LinkAudioReceiver`: Ableton Link tempo, beat and start/stop sync and Link Audio both ways through the same host ([docs/link.md](./docs/link.md))              |
-| `@kieranklaassen/live-mix/native/shell`     | Node helpers for that shell: build the host, start it, stop it                                                                                                                                                                                                                                                                                                                                                                                                 |
-| `@kieranklaassen/live-mix/worklets/*`       | Raw worklet bundles (`wasm-device`, `ducker`, `meter`, `recorder`, `link-tap`, `link-audio`, `link-source`, `link-receive`, …), for consumers that prefer explicit `?url` imports                                                                                                                                                                                                                                                                              |
-| `@kieranklaassen/live-mix/wasm/*`           | Raw `.wasm` artefacts, same reason                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| Import                                      | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@kieranklaassen/live-mix`                  | `createEngine`, tracks and strips, groups, buses, returns, `Transport`, `Scheduler`, `Clip`, `SampleStore`, `ElementTrack`, `OutputRouter`, master limiter and LUFS meters, node devices and the registry, racks and delay compensation, automation and modulators, `ControlSurface` (MIDI/OSC), `TempoMap`, Camelot, `StretchSource`, render/stems/WAV/recorder, the score (`ScoreDocument`, `loadScore`, `renderScore`), `Session` (grid), `AgentController`                                                                |
+| `@kieranklaassen/live-mix/dsp`              | `WasmDevice` host, the C ABI typings, asset resolution, factories and param tables for the nine WASM devices (plate reverb, FDN reverb, StereoWidener, hall reverb, FET limiter, true-peak limiter, SpectralDrifter, Ether, Felt), the worklet ducker, `registerStockWasmDevices`                                                                                                                                                                                                                                             |
+| `@kieranklaassen/live-mix/react`            | Headless hooks (`LiveMixProvider`, `useTransport`, `useTrack`, `useMeter`, `useDevice`, `useSession`, `useControlSurface`, …) and the styled kit (`Knob`, `Fader`, `Meter`, `TransportBar`, `MixerView`, `DevicePanel`, `DeviceChainView`, `TimelineView`, `GridView`, …); `react` is an optional peer                                                                                                                                                                                                                        |
+| `@kieranklaassen/live-mix/react/styles.css` | The kit's default theme (JAXA-Zen, `data-lm-theme="dark"`) and component rules; optional — set the `--lm-*` tokens yourself instead                                                                                                                                                                                                                                                                                                                                                                                           |
+| `@kieranklaassen/live-mix/motion`           | Motion for layers of a picture, from time alone: `resolveLayerMotion` and `motionAt`, the presets (`PRESETS`, `presetPose`), keyframes (`valueAt`, `withKeyframe`), easing (`curveOf`, `bezierOf`), springs (`springValue`, `bounceCurve`), `MotionProfile`, `shutterTimes` for motion blur and `steadyClock`; no dependency and no browser type ([docs/motion.md](./docs/motion.md))                                                                                                                                         |
+| `@kieranklaassen/live-mix/visuals`          | Pictures that follow the music: the model of a piece's visuals (`VisualSet`, `addVisual`, `visualsToJson`, `carryVisualLinks`), forty styles, four bends and sixteen palettes (`VISUAL_STYLES`, `VISUAL_BENDS`, `VISUAL_PALETTES`), the desk that turns a piece and what is heard into a frame (`VisualDesk`, `followedStrokes`, `createEar`), and the painting of it (`showVisuals`, `createStage`); takes nothing from the engine but the JSON types, and needs WebGL 2 only to draw ([docs/visuals.md](./docs/visuals.md)) |
+| `@kieranklaassen/live-mix/testing`          | `MockAudioContext` with an `AudioParam` event recorder, `MockOfflineAudioContext`, `advance`; framework-free                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `@kieranklaassen/live-mix/wam`              | `WamDevice`: WebAudioModules 2.0 plugins as devices (`@webaudiomodules/sdk` + `api` are optional peers)                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `@kieranklaassen/live-mix/native`           | `NativeDevice`: VST3 and Audio Unit plug-ins as devices, in a desktop shell that runs the plug-in host (`native/host`, built with JUCE); `NativeHostClient`, registry helpers, stand-ins for plug-ins a machine lacks ([docs/native.md](./docs/native.md)); `NativeLink`, `LinkAudioSender` and `LinkAudioReceiver`: Ableton Link tempo, beat and start/stop sync and Link Audio both ways through the same host ([docs/link.md](./docs/link.md))                                                                             |
+| `@kieranklaassen/live-mix/native/shell`     | Node helpers for that shell: build the host, start it, stop it                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `@kieranklaassen/live-mix/worklets/*`       | Raw worklet bundles (`wasm-device`, `ducker`, `meter`, `recorder`, `link-tap`, `link-audio`, `link-source`, `link-receive`, …), for consumers that prefer explicit `?url` imports                                                                                                                                                                                                                                                                                                                                             |
+| `@kieranklaassen/live-mix/wasm/*`           | Raw `.wasm` artefacts, same reason                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 
 ## Browser support and iOS
 
@@ -605,17 +677,17 @@ recorded by hand when a consumer ships them.
 
 ## Documentation
 
-| Read                                                                 | For                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
-| -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [Getting started](./docs/getting-started.md)                         | Install, Vite, asset resolution, a first engine, iOS activation, headless tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
-| [Concepts](./docs/README.md#concepts)                                | Time · the mixer · devices and the registry · automation · the score · agent control and rails · the session grid · control surfaces · live input · memory · rendering                                                                                                                                                                                                                                                                                                                                                                          |
-| [Recipes](./docs/README.md#recipes)                                  | An adaptive music session, a live instrument with MIDI, an offline bounce, adding a C++/Faust device, adding a WAM                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| [React](./docs/react.md)                                             | Hooks, the kit, the playground                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| Reference                                                            | [score](./docs/score.md) · [agent API](./docs/agent-api.md) · [arbitration](./docs/arbitration.md) · [versions](./docs/versions.md) · [agent-authored scores](./docs/agent-authored-scores.md) · [session grid](./docs/session.md) · [control surface](./docs/control-surface.md) · [devices](./docs/devices.md) · [Faust](./docs/faust-devices.md) · [WAM](./docs/wam.md) · [hosted plug-ins](./docs/native.md) · [Ableton Link](./docs/link.md) · [motion](./docs/motion.md) · [iPhone checklist](./docs/iphone-memory-and-element-source.md) |
-| API reference                                                        | `pnpm docs:api` → `docs/api/` (TypeDoc over the seven entries; the `api-reference` artefact of every CI run; not committed)                                                                                                                                                                                                                                                                                                                                                                                                                     |
-| [Consumers](./docs/README.md#consumers)                              | What the apps that ship on the library use today                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
-| [Status](./docs/status.md) · [Decisions log](./docs/decisions.md)    | What is stable and what is experimental; the product and technical decisions behind the design                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
-| [Contributing](./docs/contributing.md) · [CHANGELOG](./CHANGELOG.md) | Commands, layout, conventions, CI, releasing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Read                                                                 | For                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Getting started](./docs/getting-started.md)                         | Install, Vite, asset resolution, a first engine, iOS activation, headless tests                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| [Concepts](./docs/README.md#concepts)                                | Time · the mixer · devices and the registry · automation · the score · agent control and rails · the session grid · control surfaces · live input · memory · rendering                                                                                                                                                                                                                                                                                                                                                                                                         |
+| [Recipes](./docs/README.md#recipes)                                  | An adaptive music session, a live instrument with MIDI, an offline bounce, adding a C++/Faust device, adding a WAM                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| [React](./docs/react.md)                                             | Hooks, the kit, the playground                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Reference                                                            | [score](./docs/score.md) · [agent API](./docs/agent-api.md) · [arbitration](./docs/arbitration.md) · [versions](./docs/versions.md) · [agent-authored scores](./docs/agent-authored-scores.md) · [session grid](./docs/session.md) · [control surface](./docs/control-surface.md) · [devices](./docs/devices.md) · [Faust](./docs/faust-devices.md) · [WAM](./docs/wam.md) · [hosted plug-ins](./docs/native.md) · [Ableton Link](./docs/link.md) · [motion](./docs/motion.md) · [visuals](./docs/visuals.md) · [iPhone checklist](./docs/iphone-memory-and-element-source.md) |
+| API reference                                                        | `pnpm docs:api` → `docs/api/` (TypeDoc over the seven entries; the `api-reference` artefact of every CI run; not committed)                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| [Consumers](./docs/README.md#consumers)                              | What the apps that ship on the library use today                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| [Status](./docs/status.md) · [Decisions log](./docs/decisions.md)    | What is stable and what is experimental; the product and technical decisions behind the design                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| [Contributing](./docs/contributing.md) · [CHANGELOG](./CHANGELOG.md) | Commands, layout, conventions, CI, releasing                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 
 ## Playground
 

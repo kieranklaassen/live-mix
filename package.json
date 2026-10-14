@@ -55,6 +55,10 @@
       "types": "./dist/motion/index.d.ts",
       "default": "./dist/motion/index.js"
     },
+    "./visuals": {
+      "types": "./dist/visuals/index.d.ts",
+      "default": "./dist/visuals/index.js"
+    },
     "./testing": {
       "types": "./dist/testing/index.d.ts",
       "default": "./dist/testing/index.js"

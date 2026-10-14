@@ -11,6 +11,7 @@ import * as dsp from '../dsp/index'
 import * as motion from '../motion/index'
 import * as native from '../native/index'
 import * as testing from '../testing/index'
+import * as visuals from '../visuals/index'
 import * as wam from '../wam/index'
 
 const coreSymbols = [
@@ -659,6 +660,88 @@ const motionSymbols = [
   'restValues',
 ] as const
 
+// Every value `./visuals` exports: a host draws and keeps a piece's visuals
+// with these names, so none may go quietly.
+const visualsSymbols = [
+  'DEFAULT_GRAIN',
+  'STYLE_KNOBS',
+  'VISUALS_META',
+  'VISUAL_BENDS',
+  'VISUAL_FIRST_BEATS',
+  'VISUAL_KINDS',
+  'VISUAL_LANES',
+  'VISUAL_MAX',
+  'VISUAL_SHORTEST_BEATS',
+  'VISUAL_SOURCES',
+  'addVisual',
+  'carryVisualLinks',
+  'createVisualId',
+  'drawOrder',
+  'emptyVisualSet',
+  'firstKnobs',
+  'freeLane',
+  'isEmptyVisualSet',
+  'isVisualKind',
+  'isVisualSource',
+  'knobsOf',
+  'linkVisual',
+  'paints',
+  'placeVisual',
+  'removeVisual',
+  'sameVisualSet',
+  'setVisualGrain',
+  'setVisualKind',
+  'setVisualKnob',
+  'setVisualPalette',
+  'setVisualVariation',
+  'visualBend',
+  'visualById',
+  'visualByNumber',
+  'visualKindName',
+  'visualLabel',
+  'visualNumber',
+  'visualsFromJson',
+  'visualsToJson',
+  'withoutLostVisuals',
+  'VISUAL_GROUPS',
+  'VISUAL_STYLES',
+  'visualStyle',
+  'DEFAULT_PALETTE',
+  'VISUAL_PALETTES',
+  'isVisualPalette',
+  'visualPalette',
+  'KIND_SLOTS',
+  'MAP_H',
+  'MAP_W',
+  'SPECTRUM_BANDS',
+  'frameOf',
+  'knobNow',
+  'presenceOf',
+  'quietSignals',
+  'sampleFrame',
+  'sourceNow',
+  'VisualFollower',
+  'strokeShape',
+  'followedStrokes',
+  'hitsOfPass',
+  'rgbOfHex',
+  'slotOfKind',
+  'VisualDesk',
+  'bandEdges',
+  'bandsOf',
+  'createEar',
+  'levelOf',
+  'tapOf',
+  'VISUALS_NOT_DRAWN_NOTE',
+  'visualRig',
+  'visualsMayDraw',
+  'visualsReady',
+  'watchVisuals',
+  'WIDEST_DRAWN',
+  'createStage',
+  'showVisuals',
+] as const
+
 describe('public entries', () => {
   it.each(coreSymbols)('`.` exports %s', (name) => {
     expect((core as Record<string, unknown>)[name]).toBeDefined()
@@ -680,6 +763,12 @@ describe('public entries', () => {
   })
   it('`./motion` exports nothing that is not pinned here', () => {
     expect(Object.keys(motion).sort()).toEqual([...motionSymbols].sort())
+  })
+  it.each(visualsSymbols)('`./visuals` exports %s', (name) => {
+    expect((visuals as Record<string, unknown>)[name]).toBeDefined()
+  })
+  it('`./visuals` exports nothing that is not pinned here', () => {
+    expect(Object.keys(visuals).sort()).toEqual([...visualsSymbols].sort())
   })
 })
 
