@@ -10,6 +10,7 @@ import { ParamLane, WorkletRecorder, createEngine, renderOffline } from '@kieran
 import { createPlateReverb } from '@kieranklaassen/live-mix/dsp'
 import type { ScheduleSnapshot } from '@kieranklaassen/live-mix/testing'
 import { DEFAULT_SESSION, buildSession, type SessionDeps, type SessionSpec } from '../session'
+import { measureCutPieces } from './cut-pieces'
 import { measureDeviceDefaults } from './device-defaults'
 import { fingerprint, type Fingerprint } from './fingerprint'
 import { measureLevelFollow } from './level-follow'
@@ -110,6 +111,7 @@ declare global {
       renderOffline: typeof renderOfflineSession
       captureLive: typeof captureLiveSession
       measureChannels: typeof measureChannels
+      measureCutPieces: typeof measureCutPieces
       measureLoudest: typeof measureLoudest
       measureDeviceDefaults: typeof measureDeviceDefaults
       measureLevelFollow: typeof measureLevelFollow
@@ -131,6 +133,7 @@ window.liveMixHarness = {
   renderOffline: renderOfflineSession,
   captureLive: captureLiveSession,
   measureChannels,
+  measureCutPieces,
   measureLoudest,
   measureDeviceDefaults,
   measureLevelFollow,

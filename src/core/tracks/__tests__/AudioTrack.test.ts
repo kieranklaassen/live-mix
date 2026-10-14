@@ -1830,6 +1830,19 @@ describe('AudioTrack placed clips', () => {
     expect(track.voice('s')?.trim?.gain.value).toBe(1)
   })
 
+  it('its low-pass keeps the channels of its sound, so it rings on when the source has ended', () => {
+    const { ctx, track } = setup()
+    track.play('m', { ...voice, buffer: mono(ctx, 10), pan: 0 }, 1)
+    track.play('s', { ...voice, buffer: buffer(ctx, 10), pan: 0 }, 1)
+    const [ofMono, ofStereo] = ctx.filters
+    // An ended source is one channel of silence: a filter that followed it
+    // down from two would start again from nothing.
+    expect(ofMono.channelCountMode).toBe('explicit')
+    expect(ofMono.channelCount).toBe(1)
+    expect(ofStereo.channelCountMode).toBe('explicit')
+    expect(ofStereo.channelCount).toBe(2)
+  })
+
   it('a placed trim reaches below the ±12 dB of a loudness trim, and is capped above', () => {
     expect(placedTrimGain(-18)).toBeCloseTo(10 ** (-18 / 20))
     expect(placedTrimGain(-200)).toBeCloseTo(10 ** (MIN_PLACED_GAIN_DB / 20))
@@ -3947,5 +3960,112 @@ describe('AudioTrack that joins its clips', () => {
     const apart = await played(clips)
     expect(ramps(apart.voices[1])).toEqual([['linearRampToValueAtTime', 0, 21]])
     expect(apart.sources[1]?.loop).toBe(false)
+  })
+
+  describe('a sound that repeats, cut once where it is at rest going out and a step coming in', () => {
+    // Ten seconds that come round: busy up to second 6, then a slow fall from 0.3 to nothing. The last busy frame
+    // stands no further from zero than the sound moves before it (no step to stop on); the frame after stands at
+    // 0.3 where almost nothing moves (a step to enter on from silence).
+    const sound = (ctx: MockAudioContext) =>
+      wave(ctx, 10, (sec) =>
+        sec < 6 ? 0.2 * Math.sin(2 * Math.PI * 2000 * sec) : (0.3 * (10 - sec)) / 4,
+      )
+    // One cut, as a stroke that repeats is cut: the piece after it enters inside the part it repeats.
+    const clips = (second: Partial<Clip> = {}) => [
+      piece('a', 1, { durationSec: 6 }),
+      piece('b', 7, {
+        offsetSec: 6,
+        durationSec: 14,
+        loop: true,
+        loopStartSec: 0,
+        loopEndSec: 10,
+        ...second,
+      }),
+    ]
+    const squareAt7 = toNine([{ method: 'setValueAtTime', args: [1, 7] }])
+    const comeUpAt7 = toNine([
+      { method: 'setValueAtTime', args: [0, 7 - HALF_FRAME] },
+      { method: 'setValueAtTime', args: [0, 7] },
+      { method: 'linearRampToValueAtTime', args: [1, 7 + E] },
+    ])
+
+    async function handedOver(
+      list: Clip[],
+      options: { joinClips?: boolean; fromSec?: number } = {},
+    ) {
+      const { ctx, samples, track, transport, scheduler, events, source } = joining(
+        30,
+        options.joinClips ?? true,
+      )
+      await samples.load('s', sound(ctx))
+      track.clips.set(list)
+      if (options.fromSec !== undefined) transport.seek(options.fromSec)
+      transport.start()
+      scheduler.tick()
+      const told = { a: events('a:0:1.000'), b: events('b:0:7.000'), first: source('a:0:1.000') }
+      scheduler.dispose()
+      return told
+    }
+
+    it('the first stops square on its last frame, and the second goes straight on from the next: no come-up', async () => {
+      const { a, b, first } = await handedOver(clips())
+      // No tail: the source is given its length and ends by itself.
+      expect(a).toEqual(toNine([{ method: 'setValueAtTime', args: [1, 1] }]))
+      expect(first?.startCalls.calls).toEqual([[1, 0, 6]])
+      expect(b?.slice(0, 1)).toEqual(squareAt7)
+      expect(
+        b?.filter(([method, value]) => method === 'linearRampToValueAtTime' && value === 1),
+      ).toEqual([])
+    })
+
+    it('by itself the second comes up from silence there, as a looped sound entered on a step does', async () => {
+      expect((await handedOver(clips(), { joinClips: false })).b?.slice(0, 3)).toEqual(comeUpAt7)
+      // Joined, but nothing before it is sounding: play started at the cut, which is then the clock's 0.
+      const late = await handedOver(clips(), { fromSec: 7 })
+      expect(late.a).toBeNull()
+      expect(late.b?.slice(0, 3)).toEqual(
+        toNine([
+          { method: 'setValueAtTime', args: [0, 0] },
+          { method: 'setValueAtTime', args: [0, 0] },
+          { method: 'linearRampToValueAtTime', args: [1, E] },
+        ]),
+      )
+    })
+
+    it('goes straight on only from a piece that stops on the frame before the one it enters on', async () => {
+      // The second enters a millisecond further on in the sound.
+      expect((await handedOver(clips({ offsetSec: 6.001 }))).b?.slice(0, 3)).toEqual(
+        toNine([
+          { method: 'setValueAtTime', args: [0, 7 - HALF_FRAME] },
+          { method: 'setValueAtTime', args: [0, 7] },
+          { method: 'linearRampToValueAtTime', args: [1, 7 + E] },
+        ]),
+      )
+      // The first ends on a fade of its own: silence is what comes before the second.
+      const faded = [piece('a', 1, { durationSec: 6, fadeOutSec: 0.5 }), clips()[1]]
+      expect((await handedOver(faded)).b?.slice(0, 3)).toEqual(comeUpAt7)
+    })
+
+    it('a voice played by hand goes straight on from the clip it is told it follows', () => {
+      const { ctx, track } = setup()
+      const buf = sound(ctx)
+      const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const, gainDb: 0 }
+      const second = {
+        offsetSec: 6,
+        durationSec: 14,
+        loop: true,
+        loopStartSec: 0,
+        loopEndSec: 10,
+        ...bare,
+      }
+      const first = { offsetSec: 0, durationSec: 6, ...bare }
+      track.play('alone', { buffer: buf, ...second }, 7)
+      expect(toNine(ctx.gains[1].gain.events).slice(0, 3)).toEqual(comeUpAt7)
+      track.play('after', { buffer: buf, ...second, follows: first }, 7)
+      expect(toNine(ctx.gains[2].gain.events).slice(0, 1)).toEqual(squareAt7)
+      // Told it follows a clip that stops somewhere else in the sound, it is by itself.
+      track.play('elsewhere', { buffer: buf, ...second, follows: { ...first, offsetSec: 1 } }, 7)
+      expect(toNine(ctx.gains[3].gain.events).slice(0, 3)).toEqual(comeUpAt7)
+    })
   })
 })
