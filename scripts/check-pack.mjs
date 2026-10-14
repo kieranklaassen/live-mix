@@ -82,6 +82,34 @@ try {
     throw new Error(`check-pack: dist/motion/index.js imports ${motionImports.join(', ')}`)
   }
 
+  // `./visuals` stands beside the engine: every script of its folder imports
+  // only its neighbours there, so a page that draws loads none of the engine,
+  // and each style's shader is a script of its own that the entry asks for.
+  const visualScripts = [...files].filter(
+    (file) => file.startsWith('dist/visuals/') && file.endsWith('.js'),
+  )
+  const visualOutside = visualScripts.flatMap((file) =>
+    [...readFileSync(file, 'utf8').matchAll(/(?:from|import)\s*\(?\s*["']([^"']+)["']/g)]
+      .map((match) => match[1])
+      .filter((specifier) => !/^\.\/[^/]+\.js$/.test(specifier))
+      .map((specifier) => `${file} imports ${specifier}`),
+  )
+  if (visualOutside.length > 0) {
+    throw new Error(`check-pack: ${visualOutside.join(', ')}`)
+  }
+  const shaderScripts = [
+    ...readFileSync('dist/visuals/index.js', 'utf8').matchAll(
+      /import\(\s*["']\.\/([^"']+)["']\s*\)/g,
+    ),
+  ].map((match) => match[1])
+  const shaderLost = shaderScripts.filter((name) => !files.has(`dist/visuals/${name}`))
+  if (shaderScripts.length === 0 || shaderLost.length > 0) {
+    throw new Error(
+      `check-pack: dist/visuals/index.js asks for ${shaderScripts.length} shader script(s), ` +
+        `${shaderLost.length} of them not in the tarball`,
+    )
+  }
+
   // A built script finds its files (a device's .wasm, a worklet) beside
   // itself: `new URL('../wasm/x.wasm', import.meta.url)`. Code splitting may
   // move that line into a shared chunk at another depth, where the same path
@@ -115,7 +143,7 @@ try {
       `${located} files found from where the scripts look for them, ` +
       `${wasm.length} wasm, ${worklets.length} worklet(s), ` +
       `optional peers (${optionalPeers.join(', ')}) confined to their entries and none bundled, ` +
-      `./motion imports nothing`,
+      `./motion imports nothing, ./visuals imports only its own ${shaderScripts.length} shader scripts`,
   )
 } finally {
   rmSync(dir, { recursive: true, force: true })
