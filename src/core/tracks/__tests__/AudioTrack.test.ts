@@ -974,6 +974,26 @@ describe('AudioTrack linear voices (ambient-live ClipPlayer parity)', () => {
       track.stop('over')
       expect(ctx.sources[1].stopCalls.last).toEqual([])
     })
+
+    it('let go for another (`release`), one in its tail is left to finish it too', () => {
+      const { ctx, track } = setup()
+      track.play('k', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 0)
+      const written = ctx.gains[1].gain.events.length
+      ctx.currentTime = 8.002
+      track.release('k', 0.005)
+      // Nothing is written over the tail and the source stops where it ends; the key is free.
+      expect(ctx.gains[1].gain.events).toHaveLength(written)
+      expect(ctx.sources[0].stopCalls.calls).toEqual([[8 + E]])
+      expect(track.voices()).toHaveLength(0)
+      ctx.sources[0].finish()
+      expect(ctx.sources[0].disconnectCalls.count).toBe(1)
+
+      // Past its tail it is over, and silenced.
+      track.play('over', { buffer: looped(ctx, 8), offsetSec: 0, durationSec: 8, ...bare }, 10)
+      ctx.currentTime = 18.006
+      track.release('over', 0.005)
+      expect(ctx.sources[1].stopCalls.last).toEqual([])
+    })
   })
 
   it('loop clips set source.loop over the offset and stop at the clip end', () => {
@@ -1828,6 +1848,19 @@ describe('AudioTrack placed clips', () => {
     track.play('s', { ...voice, buffer: buffer(ctx, 10), pan: 0 }, 1)
     expect(track.voice('m')?.trim?.gain.value).toBeCloseTo(Math.SQRT2)
     expect(track.voice('s')?.trim?.gain.value).toBe(1)
+  })
+
+  it('its low-pass keeps the channels of its sound, so it rings on when the source has ended', () => {
+    const { ctx, track } = setup()
+    track.play('m', { ...voice, buffer: mono(ctx, 10), pan: 0 }, 1)
+    track.play('s', { ...voice, buffer: buffer(ctx, 10), pan: 0 }, 1)
+    const [ofMono, ofStereo] = ctx.filters
+    // An ended source is one channel of silence: a filter that followed it
+    // down from two would start again from nothing.
+    expect(ofMono.channelCountMode).toBe('explicit')
+    expect(ofMono.channelCount).toBe(1)
+    expect(ofStereo.channelCountMode).toBe('explicit')
+    expect(ofStereo.channelCount).toBe(2)
   })
 
   it('a placed trim reaches below the ±12 dB of a loudness trim, and is capped above', () => {
@@ -3947,5 +3980,193 @@ describe('AudioTrack that joins its clips', () => {
     const apart = await played(clips)
     expect(ramps(apart.voices[1])).toEqual([['linearRampToValueAtTime', 0, 21]])
     expect(apart.sources[1]?.loop).toBe(false)
+  })
+
+  describe('a sound that repeats, cut once where it is at rest going out and a step coming in', () => {
+    // Ten seconds that come round: busy up to second 6, then a slow fall from 0.3 to nothing. The last busy frame
+    // stands no further from zero than the sound moves before it (no step to stop on); the frame after stands at
+    // 0.3 where almost nothing moves (a step to enter on from silence).
+    const sound = (ctx: MockAudioContext) =>
+      wave(ctx, 10, (sec) =>
+        sec < 6 ? 0.2 * Math.sin(2 * Math.PI * 2000 * sec) : (0.3 * (10 - sec)) / 4,
+      )
+    // One cut, as a stroke that repeats is cut: the piece after it enters inside the part it repeats.
+    const clips = (second: Partial<Clip> = {}) => [
+      piece('a', 1, { durationSec: 6 }),
+      piece('b', 7, {
+        offsetSec: 6,
+        durationSec: 14,
+        loop: true,
+        loopStartSec: 0,
+        loopEndSec: 10,
+        ...second,
+      }),
+    ]
+    const square = toNine([{ method: 'setValueAtTime', args: [1, 1] }])
+    const tail = toNine([
+      { method: 'setValueAtTime', args: [1, 1] },
+      { method: 'setValueAtTime', args: [1, 7] },
+      { method: 'linearRampToValueAtTime', args: [0, 7 + E] },
+    ])
+    const comeUpAt7 = toNine([
+      { method: 'setValueAtTime', args: [0, 7 - HALF_FRAME] },
+      { method: 'setValueAtTime', args: [0, 7] },
+      { method: 'linearRampToValueAtTime', args: [1, 7 + E] },
+    ])
+
+    async function handedOver(
+      list: Clip[],
+      options: { joinClips?: boolean; fromSec?: number } = {},
+    ) {
+      const { ctx, samples, track, transport, scheduler, events, source } = joining(
+        30,
+        options.joinClips ?? true,
+      )
+      await samples.load('s', sound(ctx))
+      track.clips.set(list)
+      if (options.fromSec !== undefined) transport.seek(options.fromSec)
+      transport.start()
+      scheduler.tick()
+      const told = { a: events('a:0:1.000'), b: events('b:0:7.000'), first: source('a:0:1.000') }
+      scheduler.dispose()
+      return told
+    }
+
+    it('by itself the first stops square on its last frame and the second comes up after it: a dip', async () => {
+      const { a, b, first } = await handedOver(clips(), { joinClips: false })
+      // No tail: the source is given its length and ends by itself.
+      expect(a).toEqual(square)
+      expect(first?.startCalls.calls).toEqual([[1, 0, 6]])
+      expect(b?.slice(0, 3)).toEqual(comeUpAt7)
+    })
+
+    it('joined, the first tails on the frames the second comes up on, and the two are the sound', async () => {
+      const { a, b, first } = await handedOver(clips())
+      expect(a).toEqual(tail)
+      // The source goes on past the cut for the tail to read, and is stopped where the tail ends.
+      expect(first?.startCalls.calls).toEqual([[1, 0]])
+      expect(first?.stopCalls.calls).toEqual([[7 + E]])
+      expect(b?.slice(0, 3)).toEqual(comeUpAt7)
+    })
+
+    it('the first is left square where the second does not come up on the frame its sound goes on to', async () => {
+      // The second enters a millisecond further on in the sound: not the frame the first would tail on.
+      expect((await handedOver(clips({ offsetSec: 6.001 }))).a).toEqual(square)
+      // The second has a fade of its own to come in on.
+      expect((await handedOver(clips({ fadeInSec: 0.5 }))).a).toEqual(square)
+      // The second does not repeat, so its sound does not come round: it enters square, and the first stops square.
+      const once = await handedOver(clips({ loop: false, durationSec: 4 }))
+      expect(once.a).toEqual(square)
+      expect(once.b?.slice(0, 1)).toEqual(toNine([{ method: 'setValueAtTime', args: [1, 7] }]))
+    })
+
+    it('with play started at the cut the second comes up as it does by itself', async () => {
+      // Nothing before it is sounding; the cut is then the clock's 0.
+      const late = await handedOver(clips(), { fromSec: 7 })
+      expect(late.a).toBeNull()
+      expect(late.b?.slice(0, 3)).toEqual(
+        toNine([
+          { method: 'setValueAtTime', args: [0, 0] },
+          { method: 'setValueAtTime', args: [0, 0] },
+          { method: 'linearRampToValueAtTime', args: [1, E] },
+        ]),
+      )
+    })
+
+    it('a first that repeats, cut at rest on a later time round, tails the same way and keeps coming round', async () => {
+      const { ctx, samples, track, transport, scheduler, events, source } = joining(30)
+      await samples.load('s', sound(ctx))
+      const round = { loop: true, loopStartSec: 0, loopEndSec: 10 }
+      // Cut 6 s into its second time round: second 17 of the timeline.
+      track.clips.set([
+        piece('a', 1, { durationSec: 16, ...round }),
+        piece('b', 17, { offsetSec: 6, durationSec: 14, ...round }),
+      ])
+      transport.start()
+      scheduler.tick()
+      expect(events('a:0:1.000')?.slice(-2)).toEqual(
+        toNine([
+          { method: 'setValueAtTime', args: [1, 17] },
+          { method: 'linearRampToValueAtTime', args: [0, 17 + E] },
+        ]),
+      )
+      const first = source('a:0:1.000')
+      expect([first?.loop, first?.loopStart, first?.loopEnd]).toEqual([true, 0, 10])
+      expect(first?.stopCalls.calls).toEqual([[17 + E]])
+      expect(events('b:0:17.000')?.[2]).toEqual(['linearRampToValueAtTime', 1, 17 + E])
+      scheduler.dispose()
+    })
+
+    it('a loop that ends on the cut plays the second there, under the tail; one that ends before it leaves the first square', async () => {
+      const looping = async (lengthSec: number) => {
+        // A lookahead as a host has it: a fifth of a second.
+        const { ctx, samples, track, transport, scheduler, events } = joining(0.2)
+        await samples.load('s', sound(ctx))
+        track.clips.set(clips())
+        transport.setLoop({ enabled: true, lengthSec })
+        transport.start()
+        // Tick by tick, as a timer does: a window that had to catch up would reach over the loop's end.
+        let a: ReturnType<typeof events> = null
+        let b: ReturnType<typeof events> = null
+        for (let tick = 0; tick <= 72; tick += 1) {
+          ctx.currentTime = tick / 10
+          scheduler.tick()
+          a ??= events('a:0:1.000')
+          b ??= events('b:0:7.000')
+        }
+        scheduler.dispose()
+        return { a, b }
+      }
+      const onTheCut = await looping(7)
+      expect(onTheCut.a).toEqual(tail)
+      expect(onTheCut.b?.slice(0, 3)).toEqual(comeUpAt7)
+      // The first runs on over the loop's end, and the second is never played: no tail with nothing to come up under it.
+      const before = await looping(6.5)
+      expect(before.a).toEqual(square)
+      expect(before.b).toBeNull()
+    })
+
+    it('an edit while the tail sounds leaves it to finish', async () => {
+      const { ctx, samples, track, transport, scheduler, source } = joining(0.2)
+      await samples.load('s', sound(ctx))
+      track.clips.set([...clips(), piece('far', 40)])
+      transport.start()
+      for (const now of [0.9, 6.9]) {
+        ctx.currentTime = now
+        scheduler.tick()
+      }
+      const first = source('a:0:1.000')
+      // Two milliseconds into the tail another clip is moved: the schedule is made again around what sounds.
+      ctx.currentTime = 7.002
+      track.clips.update('far', { startSec: 41 })
+      expect(first?.stopCalls.calls).toEqual([[7 + E]])
+      expect(first?.disconnectCalls.count).toBe(0)
+      scheduler.dispose()
+    })
+
+    it('voices played by hand go by the same rule from the clips they are told of', () => {
+      const { ctx, track } = setup()
+      const buf = sound(ctx)
+      const bare = { fadeInSec: 0, fadeOutSec: 0, fadeCurve: 'linear' as const, gainDb: 0 }
+      const second = {
+        offsetSec: 6,
+        durationSec: 14,
+        loop: true,
+        loopStartSec: 0,
+        loopEndSec: 10,
+        ...bare,
+      }
+      const first = { offsetSec: 0, durationSec: 6, ...bare }
+      track.play('alone', { buffer: buf, ...first }, 1)
+      expect(toNine(ctx.gains[1].gain.events)).toEqual(square)
+      track.play('before', { buffer: buf, ...first, followedBy: second }, 1)
+      expect(toNine(ctx.gains[2].gain.events)).toEqual(tail)
+      // The second, told what it follows, comes up under that tail; told nothing, it comes up the same by itself.
+      track.play('after', { buffer: buf, ...second, follows: first }, 7)
+      expect(toNine(ctx.gains[3].gain.events).slice(0, 3)).toEqual(comeUpAt7)
+      // Told it is followed by a clip that enters somewhere else in the sound, it is by itself.
+      track.play('elsewhere', { buffer: buf, ...first, followedBy: { ...second, offsetSec: 3 } }, 1)
+      expect(toNine(ctx.gains[4].gain.events)).toEqual(square)
+    })
   })
 })

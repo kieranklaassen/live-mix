@@ -38,15 +38,18 @@
 // of one sound lie end to end and the second plays on from where the first
 // stops, as the pieces of a clip that was cut in two do: the second comes up
 // under the first one's tail, and a first that ends with its sound tails on
-// the frames the second enters on. The two then sum to what one clip over
-// both would have played. Each half stands by itself. A first clip's way out
-// is one that is no step whether or not the next then sounds, since the next
-// may yet be moved or muted. And a second clip comes up only under a tail
-// the voice before it has when the second is handed over, on the frames it
-// enters on itself: where play starts at or just before the cut, the first
-// was stopped by then, or the first has no tail because its voice was made
-// before the second was there, it enters as it would by itself. Without the
-// option every clip is let in and out by itself, as it always was.
+// the frames the second enters on. A first cut where its sound is at rest
+// would be left square: it tails all the same where the second comes up
+// there by itself, as a looped sound entered on a step does. The two then
+// sum to what one clip over both would have played. Each half stands by
+// itself. A first clip's way out is one that is no step whether or not the
+// next then sounds, since the next may yet be moved or muted. And a second
+// clip comes up only under a tail the voice before it has when the second
+// is handed over, on the frames it enters on itself: where play starts at
+// or just before the cut, the first was stopped by then, or the first has
+// no tail because its voice was made before the second was there, it enters
+// as it would by itself. Without the option every clip is let in and out by
+// itself, as it always was.
 //
 // A reversed clip is the same voice on a mirrored copy of its buffer
 // (`reversed-buffer.ts`), entered where `mirrorSlice` says.
@@ -93,7 +96,7 @@ import { clipSourceOnPass } from '../clips/turns'
 import { type ClipWindow } from '../clips/window'
 import { ParamGlide, holdParamAt } from '../automation/scheduled-param'
 import { startFloorSec } from '../clock'
-import { scheduleKey, type ScheduledStart } from '../transport/anchor'
+import { isLooping, scheduleKey, type ScheduledStart } from '../transport/anchor'
 import { Cycle, type Timebase } from '../transport/Cycle'
 import { type Schedulable, type Scheduler } from '../transport/Scheduler'
 import {
@@ -219,13 +222,15 @@ export interface ClipVoiceOptions {
    */
   follows?: ClipNeighbour
   /**
-   * The clip of this sound that starts on the clock where this one ends. A
-   * voice that ends with its sound then hands over where the other enters, if
-   * the sound comes round there: with a tail on the frames the other enters
-   * on, under which the other comes up (name this clip as its `follows`). It
-   * is left square only where the other enters square and this one's sound
-   * ends at rest. Linear clips with no fade-out of their own, that do not
-   * loop.
+   * The clip of this sound that starts on the clock where this one ends, for
+   * linear clips with no fade-out of their own. A voice that does not loop
+   * and ends with its sound then hands over where the other enters, if the
+   * sound comes round there: with a tail on the frames the other enters on,
+   * under which the other comes up (name this clip as its `follows`). It is
+   * left square only where the other enters square and this one's sound ends
+   * at rest. A voice cut partway where its sound is at rest, looping or not,
+   * is left square by itself: named here, a clip that comes up by itself on
+   * the frame this one's sound goes on to makes it tail for it.
    */
   followedBy?: ClipNeighbour
 }
@@ -427,6 +432,11 @@ function comesUp(playback: VoicePlayback): boolean {
   )
 }
 
+/** Whether the clip that follows comes up by itself (`comesUp`), entering its sound at `ontoSec`. */
+function comesUpOn(next: VoicePlayback | undefined, ontoSec: number): boolean {
+  return next !== undefined && comesUp(next) && samePlace(entrySec(next), ontoSec)
+}
+
 /**
  * How a linear voice with no fade-out of its own is let go where its clip ends:
  * - `tail`: it sounds on for `sec` of the clock past the end, fading, on what
@@ -448,9 +458,14 @@ function releaseOf(playback: VoicePlayback, rate: number, next?: VoicePlayback):
   if (runsOut(playback)) return HELD
   const { buffer } = playback
   if (cutPartway(playback)) {
-    // A cut that falls where the sound is at rest is no step, and is left.
-    if (!leavesOnStep(buffer, cutFrame(playback))) return HELD
     const ontoSec = goesOnSec(playback)
+    // A cut that falls where the sound is at rest is no step, and is left:
+    // but not where the next clip comes up on the frame the sound goes on
+    // to, as a looped sound entered on a step does. Left square, this one
+    // would stop over a clip still coming up from silence. With a tail the
+    // next comes up under it and the two sum. Alone of the tails this one
+    // does not stand by itself: it begins on the step the next comes up for.
+    if (!leavesOnStep(buffer, cutFrame(playback)) && !comesUpOn(next, ontoSec)) return HELD
     if (playback.loop) return { kind: 'tail', sec: JOIN_EASE_SECONDS, ontoSec, wraps: false }
     // No further than its buffer goes.
     const leftSec = buffer.duration - (playback.offsetSec + playback.durationSec)
@@ -1002,14 +1017,21 @@ export class AudioTrack implements StripHost {
    * Let the voice under `key` go for another that takes its place: one that
    * is sounding fades out over `seconds` from now (on a device, from where the
    * other can come up) and is forgotten at once, so the key is free; one that
-   * has not started, or `seconds` of 0, is silenced.
+   * has not started, or `seconds` of 0, is silenced; one in its tail is left
+   * to finish it, as `stop` leaves it.
    */
   release(key: string, seconds: number): void {
     const voice = this.active.get(key)
     if (!voice) return
     const at = this.now()
-    if (seconds <= 0 || voice.startTime > at || at >= voice.endTime) {
+    if (seconds <= 0 || voice.startTime > at) {
       this.silence(voice)
+      return
+    }
+    // Past its clip's end: over, or in a tail that is already its way out. Cut
+    // there, the tail would be the step it is written to keep away.
+    if (at >= voice.endTime) {
+      this.letGo(voice, seconds)
       return
     }
     // On a device the voice that takes its place comes up the start floor
@@ -1160,7 +1182,9 @@ export class AudioTrack implements StripHost {
    * was handed over ahead of it finds that voice made without it, at full
    * level, and is let go as it is by itself. Otherwise the next is taken at
    * its word: it may yet be moved or muted, and this clip's way out is one
-   * that stands by itself (`releaseOf`).
+   * that stands by itself (`releaseOf`), with one exception: a clip cut at
+   * rest that tails for a next coming up there plays, with that next taken
+   * away after its voice was made, 5 ms of what the sound goes on to, fading.
    */
   private joined(
     clip: Clip,
@@ -1172,12 +1196,18 @@ export class AudioTrack implements StripHost {
     if (clip.fadeCurve !== 'linear') return { under }
     const endSec = clip.startSec + clip.durationSec
     const endsAt = when + clip.durationSec / this.rateValue
+    // A clip that starts past the end of the loop the clips are on is not
+    // played there (one within the lookahead of that end is, and then enters
+    // by itself): a clip that runs on over the loop's end names none after it.
+    const loop = (this.timebase ?? this.scheduler?.transport)?.loop
+    const pastLoop =
+      loop !== undefined && isLooping(loop) && endSec > loop.lengthSec + SAME_PLACE_SECONDS
     let followedBy: Clip | undefined
     for (const other of this.clips.audible()) {
       if (other.id === clip.id || other.fadeCurve !== 'linear') continue
       if ((other.reversed === true) !== (clip.reversed === true)) continue
       const before = samePlace(other.startSec + other.durationSec, clip.startSec)
-      const after = followedBy === undefined && samePlace(other.startSec, endSec)
+      const after = followedBy === undefined && !pastLoop && samePlace(other.startSec, endSec)
       if (!before && !after) continue
       const otherStart = { ...start, clipId: other.id }
       if (this.sourceOn(other, otherStart) !== sourceId || !this.soundsOn(other, otherStart))
@@ -1617,6 +1647,13 @@ export class AudioTrack implements StripHost {
     lowpass.type = 'lowpass'
     lowpass.Q.value = PLACED_LOWPASS_Q_DB
     lowpass.frequency.value = placement.lowpassHz
+    // The low-pass keeps the channels of its sound for as long as it lives. A
+    // source that has ended gives one channel of silence, and a filter whose
+    // channels change starts again from nothing (Chromium): a stereo voice
+    // lost what its low-pass still rang with from the block of the render
+    // after the one it ended in, so a clip cut in two was not the clip.
+    lowpass.channelCount = playback.buffer.numberOfChannels
+    lowpass.channelCountMode = 'explicit'
     panner.pan.value = placement.pan
     gain.connect(trim)
     trim.connect(lowpass)
