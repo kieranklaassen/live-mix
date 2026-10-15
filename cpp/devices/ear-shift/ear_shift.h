@@ -35,6 +35,17 @@
 // - A partial on a crossover is half in the band and half out of it, so each
 //   ear has it both shifted and not: there it wavers at half of Beat, to
 //   silence on the edge itself. That is the price of shifting a band only.
+//   Half an octave from an edge the waver is 4.4 dB, an octave away 1.1 dB.
+//   Low starts at 60 Hz, as low as it goes, so that the notes from A2 up lie
+//   inside the band: from 110 to 440 Hz a note then wavers by 1.5 dB at the
+//   most, where with Low at 150 Hz a note at 147 Hz wavered by 28 dB (the
+//   harness reads both). The price is paid by the bass: a note between 42 and
+//   85 Hz now wavers by 4.4 dB or more.
+// - The phase pair is the kit's: within a degree from about 20 Hz at 44.1 and
+//   48 kHz and from 42 Hz at 96 kHz, so the other sideband is 44 dB under or
+//   better through the whole band at those rates. Its low limit rises with
+//   the rate: at 192 kHz a 60 Hz tone has its other sideband only 24 dB under
+//   and an 82 Hz tone 39 dB under; from 110 Hz up it is 44 dB under there too.
 // - The clock is a kit::SlowClock turning at half of Beat, a double moved on
 //   by the same sum at every sample, awake or idle. It is never set by the
 //   sound and never restarted. Beat goes straight to its rate: the phase is
@@ -54,6 +65,9 @@
 //
 // Storage: seven state-variable sections and two pairs a channel, three
 // smoothers and one clock. No delay line; the device fits in the default 4 MB.
+// The second pair is there for its in-phase half alone (the kit's pair has no
+// call for one half, and the device keeps no copy of the kit's sections): it
+// is 0.4 % of real time at 48 kHz, of the device's 1.1 %.
 
 #include "../../kit/kit.h"
 #include "../../kit/band.h"

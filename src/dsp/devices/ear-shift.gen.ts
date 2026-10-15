@@ -32,11 +32,11 @@ export const EAR_SHIFT_PARAMS = {
     name: 'Low',
     min: 60,
     max: 400,
-    default: 150,
+    default: 60,
     taper: 'log',
     unit: 'Hz',
     description:
-      'Bottom of the band that is shifted. Sound below it passes unshifted at its own level. A note close to this edge is part shifted and wavers at half the rate of Beat.',
+      'Bottom of the shifted band. Sound well below it passes unshifted. A note within an octave of this edge is part shifted and wavers at half the rate of Beat.',
   },
   high: {
     id: 3,
@@ -47,7 +47,7 @@ export const EAR_SHIFT_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'Top of the band that is shifted. Sound above it passes unshifted at its own level, so the bright part of a sound stays put. It keeps half an octave or more above Low.',
+      'Top of the shifted band. Sound well above it passes unshifted. A note within an octave of this edge wavers at half the rate of Beat. It stays half an octave over Low.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -67,21 +67,21 @@ export const EAR_SHIFT_DESCRIPTOR = wasmDeviceDescriptor(EAR_SHIFT_DEVICE, {
     "On headphones any sound beats between the ears. Only a band is shifted, where the frequency shifter's stereo mode moves it all, and Ears can bring the beat into the air.",
   presets: {
     'Six a second': {},
-    'Slow turn': { beat: 0.5, low: 100, high: 700 },
-    'One a second': { beat: 1, low: 60 },
-    'Two, low band': { beat: 2, low: 100, high: 400 },
+    'Slow turn': { beat: 0.5, high: 700 },
+    'One, wide band': { beat: 1, high: 2000 },
+    'Two, low band': { beat: 2, high: 400 },
     'Four, narrow': { beat: 4, low: 300, high: 700 },
-    'Three a second': { beat: 3, low: 250 },
-    'Five, a little air': { beat: 5, ears: 0.7, low: 60, high: 700 },
-    'Four, in the air': { beat: 4, ears: 0, high: 2000 },
-    'Eight, halfway': { beat: 8, ears: 0.5, low: 60 },
-    'One, top, in the air': { beat: 1, ears: 0, low: 400, high: 2000 },
-    'Two, mostly air': { beat: 2, ears: 0.25, low: 100 },
-    'Ten, in the air': { beat: 10, ears: 0 },
-    'Slow wave': { beat: 1.5, ears: 0, low: 60, high: 2000 },
+    'Three, mid band': { beat: 3, low: 250 },
+    'Five, a little air': { beat: 5, ears: 0.7, high: 700 },
+    'Four in the air': { beat: 4, ears: 0, low: 150, high: 2000 },
+    'Eight, half air': { beat: 8, ears: 0.5 },
+    'Slow wave on top': { beat: 1, ears: 0, low: 400, high: 2000 },
+    'Two, mostly air': { beat: 2, ears: 0.25 },
+    'Ten in the air': { beat: 10, ears: 0, low: 150 },
+    'Slow wave': { beat: 1.5, ears: 0, high: 2000 },
     'Twelve on top': { beat: 12, ears: 0.5, low: 400, high: 2000 },
-    'Three in the bass': { beat: 3, ears: 0, low: 60, high: 400 },
-    'Sixteen, halfway': { beat: 16, ears: 0.5, high: 2000 },
+    'Three in the bass': { beat: 3, ears: 0, high: 400 },
+    'Sixteen, half air': { beat: 16, ears: 0.5, low: 150, high: 2000 },
   },
 })
 

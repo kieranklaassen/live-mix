@@ -4,7 +4,7 @@
 // src/dsp/devices/ear-shift.gen.ts:
 //    0  beat: 0.5..40 Hz, default 6
 //    1  ears: 0..1, default 1
-//    2  low: 60..400 Hz, default 150
+//    2  low: 60..400 Hz, default 60
 //    3  high: 400..2000 Hz, default 1000
 
 #pragma once
@@ -22,7 +22,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.5f, 0.0f, 60.0f, 400.0f};
 inline constexpr float kParamMax[kNumParams] = {40.0f, 1.0f, 400.0f, 2000.0f};
-inline constexpr float kParamDefault[kNumParams] = {6.0f, 1.0f, 150.0f, 1000.0f};
+inline constexpr float kParamDefault[kNumParams] = {6.0f, 1.0f, 60.0f, 1000.0f};
 
 }  // namespace ear_shift
 }  // namespace livemix

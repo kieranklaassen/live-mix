@@ -30,10 +30,10 @@
       "name": "Low",
       "min": 60,
       "max": 400,
-      "default": 150,
+      "default": 60,
       "taper": "log",
       "unit": "Hz",
-      "description": "Bottom of the band that is shifted. Sound below it passes unshifted at its own level. A note close to this edge is part shifted and wavers at half the rate of Beat."
+      "description": "Bottom of the shifted band. Sound well below it passes unshifted. A note within an octave of this edge is part shifted and wavers at half the rate of Beat."
     },
     {
       "key": "high",
@@ -43,23 +43,21 @@
       "default": 1000,
       "taper": "log",
       "unit": "Hz",
-      "description": "Top of the band that is shifted. Sound above it passes unshifted at its own level, so the bright part of a sound stays put. It keeps half an octave or more above Low."
+      "description": "Top of the shifted band. Sound well above it passes unshifted. A note within an octave of this edge wavers at half the rate of Beat. It stays half an octave over Low."
     }
   ],
   "presets": {
     "Six a second": {},
     "Slow turn": {
       "beat": 0.5,
-      "low": 100,
       "high": 700
     },
-    "One a second": {
+    "One, wide band": {
       "beat": 1,
-      "low": 60
+      "high": 2000
     },
     "Two, low band": {
       "beat": 2,
-      "low": 100,
       "high": 400
     },
     "Four, narrow": {
@@ -67,27 +65,26 @@
       "low": 300,
       "high": 700
     },
-    "Three a second": {
+    "Three, mid band": {
       "beat": 3,
       "low": 250
     },
     "Five, a little air": {
       "beat": 5,
       "ears": 0.7,
-      "low": 60,
       "high": 700
     },
-    "Four, in the air": {
+    "Four in the air": {
       "beat": 4,
       "ears": 0,
+      "low": 150,
       "high": 2000
     },
-    "Eight, halfway": {
+    "Eight, half air": {
       "beat": 8,
-      "ears": 0.5,
-      "low": 60
+      "ears": 0.5
     },
-    "One, top, in the air": {
+    "Slow wave on top": {
       "beat": 1,
       "ears": 0,
       "low": 400,
@@ -95,17 +92,16 @@
     },
     "Two, mostly air": {
       "beat": 2,
-      "ears": 0.25,
-      "low": 100
+      "ears": 0.25
     },
-    "Ten, in the air": {
+    "Ten in the air": {
       "beat": 10,
-      "ears": 0
+      "ears": 0,
+      "low": 150
     },
     "Slow wave": {
       "beat": 1.5,
       "ears": 0,
-      "low": 60,
       "high": 2000
     },
     "Twelve on top": {
@@ -117,12 +113,12 @@
     "Three in the bass": {
       "beat": 3,
       "ears": 0,
-      "low": 60,
       "high": 400
     },
-    "Sixteen, halfway": {
+    "Sixteen, half air": {
       "beat": 16,
       "ears": 0.5,
+      "low": 150,
       "high": 2000
     }
   },
