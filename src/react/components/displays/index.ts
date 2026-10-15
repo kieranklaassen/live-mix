@@ -34,6 +34,7 @@ import { TURN_INSTRUMENT_FACES } from './instrument-turns'
 import { VOICE_INSTRUMENT_FACES } from './instrument-voices'
 import { WEATHER_INSTRUMENT_FACES } from './instrument-weather'
 import { WIRE_INSTRUMENT_FACES } from './instrument-wires'
+import { TWIN_BARS_FACES } from './twin-bars'
 import { IMPRINT_FACES } from './imprint'
 import { GLIMMER_FACES } from './glimmer'
 import { HAZE_FACES } from './haze'
@@ -120,6 +121,7 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...WEATHER_INSTRUMENT_FACES,
   ...TURN_INSTRUMENT_FACES,
   ...BODY_INSTRUMENT_FACES,
+  ...TWIN_BARS_FACES,
   ...CANON_FACES,
   ...OVERTONE_SINGER_FACES,
   ...BREATH_FACES,

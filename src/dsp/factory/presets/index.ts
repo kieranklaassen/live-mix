@@ -52,6 +52,7 @@ import { TANPURA_PRESETS } from './tanpura'
 import { TAPE_ORCHESTRA_PRESETS } from './tape-orchestra'
 import { THESIS_PRESETS } from './thesis'
 import { TINE_PIANO_PRESETS } from './tine-piano'
+import { TWIN_BARS_PRESETS } from './twin-bars'
 import { WAVETABLE_PRESETS } from './wavetable'
 import { WEST_COAST_PRESETS } from './west-coast'
 import { WIND_HARP_PRESETS } from './wind-harp'
@@ -114,4 +115,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...TWIN_BARS_PRESETS,
 ]
