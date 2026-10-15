@@ -80,6 +80,7 @@ import { BINAURAL_FACES } from './binaural'
 import { BAND_PULSE_FACES } from './band-pulse'
 import { ISOCHRONIC_FACES } from './isochronic'
 import { EAR_SHIFT_FACES } from './ear-shift'
+import { STILL_POINT_FACES } from './still-point'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -161,4 +162,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...BAND_PULSE_FACES,
   ...ISOCHRONIC_FACES,
   ...EAR_SHIFT_FACES,
+  ...STILL_POINT_FACES,
 }
