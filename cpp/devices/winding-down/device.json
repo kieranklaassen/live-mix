@@ -29,7 +29,7 @@
       "default": 4,
       "taper": "log",
       "unit": "Hz",
-      "description": "The pulse rate a layer has when it is loudest. Each layer glides through it, and the layers twice and half as fast are quieter on either side."
+      "description": "The pulse rate a layer has when it is loudest. Layers twice and half as fast are quieter on either side. A fast rate with many layers adds a quick flutter on top."
     },
     {
       "key": "halving",
@@ -39,7 +39,7 @@
       "default": 20,
       "taper": "log",
       "unit": "s",
-      "description": "How long every layer takes to halve its rate, or to double it when quickening. Short is a plain slide, long is a very slow one."
+      "description": "How long every layer takes to halve its rate, or to double it when quickening. Short is a plain slide. Long times are for long pieces: in a few seconds little moves."
     },
     {
       "key": "layers",
@@ -48,7 +48,7 @@
       "max": 5,
       "default": 4,
       "step": 1,
-      "description": "How many layers sound at once. Two is one pulse crossing over to its double, five is a thick weave from very slow pulses to a flutter."
+      "description": "How many layers sound at once. Two is one pulse crossing over to its double. Five is a thick weave, and at a fast rate its quickest layers are a flutter on top."
     },
     {
       "key": "depth",
@@ -87,7 +87,7 @@
       "depth": 0.6,
       "edge": 20
     },
-    "Five slowing": {
+    "Five layers": {
       "halving": 60,
       "layers": 5,
       "depth": 0.5,
@@ -114,14 +114,14 @@
       "edge": 50,
       "offset": 60
     },
-    "Endless descent": {
+    "Ever slower": {
       "rate": 2,
       "halving": 8,
       "layers": 5,
       "depth": 0.9,
       "edge": 10
     },
-    "Endless climb": {
+    "Ever quicker": {
       "direction": 1,
       "rate": 2,
       "halving": 8,
@@ -132,7 +132,7 @@
     "Four quickening": {
       "direction": 1
     },
-    "Quick descent": {
+    "Quick slide": {
       "halving": 4,
       "layers": 3,
       "depth": 0.6,
@@ -176,7 +176,8 @@
     },
     "One a second": {
       "rate": 1,
-      "halving": 60,
+      "halving": 36,
+      "layers": 3,
       "depth": 0.75,
       "edge": 20
     },
@@ -191,7 +192,7 @@
     "Two and a half": {
       "direction": 1,
       "rate": 2.5,
-      "halving": 48,
+      "halving": 36,
       "layers": 3,
       "depth": 0.7,
       "edge": 18

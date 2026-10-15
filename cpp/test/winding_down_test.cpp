@@ -477,6 +477,11 @@ int main() {
   // largest third difference within 10 ms of the sample where the place
   // wraps is no higher than anywhere else in the cycle, with soft edges
   // (where anything sudden stands far above the pulses' own) and hard ones.
+  // This holds for the settings here and is not a law: a pulse's own edge
+  // can fall on a wrap, and over 3456 settings a wrap read up to 1.17 of
+  // the rest of its cycle with two layers (1.03 with five), the same as the
+  // law's own gain gives there. What the wrap itself adds is the device
+  // against the law, in section 1.
   {
     double worst_ratio = 0.0;
     for (int direction = 0; direction < 2; ++direction) {
@@ -1038,6 +1043,189 @@ int main() {
     const Stereo low = heard(p::kDirection, 0.4f), high = heard(p::kDirection, 0.6f);
     EXPECT(low.left == slower.left && high.left == quicker.left && slower.left != quicker.left,
            "Direction between its two choices is the nearer one");
+  }
+
+  // 16. What taking one trait out at a time showed the checks above to let
+  // through: the smoothers of Offset and Edge (a large throw is carried by
+  // the gates either way; a small one is not), how fast a gate may move, how
+  // long a silence has to be before sound counts as new, the glide times at
+  // the three rates, the weights' division by their total while Layers is on
+  // its way, and the ratio's anchor.
+  {
+    // a. A small move of Offset or of Edge in the middle of a soft edge. One
+    // layer holds all the weight at the start of a long halving, at Rate 1:
+    // it rises over the first 50 ms of each second and falls from half a
+    // second in, and the moments 36 ms apart from 5 ms land in both. A move
+    // this small is under what a gate lets through in a sample, so without
+    // the smoother all of it is there at once (1.00 of it in the first 8
+    // samples with either smoother taken out; 0.02 and 0.09 as built).
+    const Setting soft = {0, 1.0, 120.0, 2, 1.0, 50.0, 0.0};
+    const std::vector<float> from_the_rise = {0.005f};
+    const Sudden nudged = suddenness(soft, [](WindingDown& d) { d.set_param(p::kOffset, 0.05f); }, from_the_rise);
+    char label[240];
+    std::snprintf(label, sizeof label,
+                  "Offset moved by a twentieth of a degree in a soft edge arrives gradually: %.3f of it in the first 8 "
+                  "samples (it comes to %.3g)",
+                  nudged.ratio, nudged.size);
+    MEASURED("%s", label);
+    EXPECT(nudged.ratio >= 0.0 && nudged.ratio < 0.15, label);
+    EXPECT(nudged.size > 2.0e-4, "and that small move of Offset is heard in the edge");
+    const Sudden edged = suddenness(soft, [](WindingDown& d) { d.set_param(p::kEdge, 49.9f); }, from_the_rise);
+    std::snprintf(label, sizeof label,
+                  "Edge moved by a tenth of a millisecond in a soft edge arrives gradually: %.3f of it in the first 8 "
+                  "samples (it comes to %.3g)",
+                  edged.ratio, edged.size);
+    MEASURED("%s", label);
+    EXPECT(edged.ratio >= 0.0 && edged.ratio < 0.15, label);
+    EXPECT(edged.size > 1.0e-4, "and that small move of Edge is heard in the edge");
+
+    // b. How fast a gate moves when it is held back: a quarter over the
+    // steepest slope of the edge the pulse has now, pi/2 over the edge, and
+    // no more. The pulse is on its top; Offset thrown to 180 puts the right
+    // ear in its gap, and it closes at that slope exactly, at each rate.
+    for (float rate : kRates) {
+      const Setting s = {0, 1.0, 120.0, 2, 1.0, 15.0, 0.0};
+      fresh(device, s, rate);
+      run(device, dc(0.25f, rate));
+      device.set_param(p::kOffset, 180.0f);
+      const Stereo out = run(device, dc(0.05f, rate));
+      double steepest = 0.0;
+      for (size_t i = 1; i < out.size(); ++i) steepest = std::max(steepest, static_cast<double>(out.right[i - 1]) - out.right[i]);
+      const double limit = 1.25 * 0.5 * kPi / (0.015 * rate);
+      std::snprintf(label, sizeof label,
+                    "a held gate closes at a quarter over its edge's steepest slope at %.1f kHz: %.5f a sample against %.5f "
+                    "(%.4f of it)",
+                    rate / 1000.0, steepest, limit, steepest / limit);
+      MEASURED("%s", label);
+      EXPECT(std::fabs(steepest / limit - 1.0) < 0.005, label);
+      EXPECT(out.right.back() < 1.0e-3f && out.left.back() > 0.999f, "and the ears end apart: the right in its gap, the left on its top");
+    }
+
+    // c. Sound counts as new after 0.1 s of exact silence, at each rate, and
+    // not before. Depth is moved 2 ms before a silence ends. After 0.11 s the
+    // note is that of a device set so from its init, to the sample; after
+    // 0.09 s the knob is still on its way when the sound is back.
+    for (float rate : kRates) {
+      for (float gap : {0.09f, 0.11f}) {
+        Setting base = defaults;
+        base.depth = 0.9;
+        Setting there = base;
+        there.depth = 0.3;
+        const std::vector<float> first = sine(220.0f, 0.3f, rate, 0.5f), second = sine(330.0f, 0.05f, rate, 0.5f);
+        const std::vector<float> rest_a = silence(gap - 0.002f, rate), rest_b = silence(0.002f, rate);
+        fresh(device, base, rate);
+        run(device, first);
+        run(device, rest_a);
+        device.set_param(p::kDepth, 0.3f);
+        run(device, rest_b);
+        const Stereo moved = run(device, second);
+        fresh(twin, there, rate);
+        run(twin, first);
+        run(twin, rest_a);
+        run(twin, rest_b);
+        const Stereo set = run(twin, second);
+        const double apart = worst_difference(moved, set);
+        std::snprintf(label, sizeof label, "Depth moved in a silence of %.2f s at %.1f kHz: the note is %.3g from that of a device set so", gap,
+                      rate / 1000.0, apart);
+        MEASURED("%s", label);
+        if (gap > 0.1f) {
+          EXPECT(apart < 1.0e-6, label);
+        } else {
+          EXPECT(apart > 0.01, label);
+        }
+      }
+    }
+    // And one sample of exact silence in the middle of a sound snaps nothing:
+    // Depth thrown, four samples of sound, one of silence, sound again.
+    {
+      Setting base = defaults;
+      base.halving = 4.0;
+      base.depth = 0.9;
+      fresh(device, base);
+      run(device, std::vector<float>(static_cast<size_t>(0.2f * kRate), 0.5f));  // the centre layer is in its gap
+      twin = device;
+      spare = device;
+      twin.set_param(p::kDepth, 0.0f);
+      std::vector<float> tail(960, 0.5f);
+      tail[4] = 0.0f;
+      const Stereo with = run(twin, tail), without = run(spare, tail);
+      const double after_gap = std::fabs(static_cast<double>(with.left[5]) - without.left[5]);
+      const double all = worst_difference(with, without);
+      std::snprintf(label, sizeof label,
+                    "one sample of silence after a throw of Depth snaps nothing: %.3f of the change is there after it (it comes to %.3g)",
+                    after_gap / all, all);
+      MEASURED("%s", label);
+      EXPECT(all > 0.1 && after_gap < 0.15 * all, label);
+    }
+
+    // d. The glide times are times, not counts of samples. Depth: the gap's
+    // level is 1 - 1/e of the way 5 ms after a throw. Layers: 30 ms after a
+    // throw from 2 to 3, with the two new layers on their tops and the old
+    // one in its gap, the gain is where a bell 3 - 1/e octaves wide puts it.
+    for (float rate : kRates) {
+      const Setting s = {0, 1.0, 120.0, 2, 0.9, 15.0, 0.0};
+      fresh(device, s, rate);
+      run(device, dc(0.75f, rate));  // the one layer with weight is in its gap: the gain is the floor
+      device.set_param(p::kDepth, 0.0f);
+      Stereo out = run(device, dc(0.05f, rate));
+      const double floor_was = 0.1 * 0.1;
+      size_t there = 0;
+      while (there < out.size() && out.left[there] < floor_was + (1.0 - floor_was) * (1.0 - std::exp(-1.0))) ++there;
+      const double depth_ms = 1000.0 * static_cast<double>(there) / rate;
+      std::snprintf(label, sizeof label, "Depth is 1 - 1/e of the way %.3f ms after a throw at %.1f kHz (5 by the house time)", depth_ms,
+                    rate / 1000.0);
+      MEASURED("%s", label);
+      EXPECT(std::fabs(depth_ms - 5.0) < 0.15, label);
+
+      const Setting two = {0, 1.0, 120.0, 2, 1.0, 15.0, 0.0};
+      fresh(device, two, rate);
+      run(device, dc(0.7f, rate));  // 1 Hz in its gap; 0.5 Hz and 2 Hz on their tops
+      device.set_param(p::kLayers, 3.0f);
+      out = run(device, dc(0.03f, rate));
+      const double span = 3.0 - std::exp(-1.0);
+      const double side = 0.5 + 0.5 * std::cos(2.0 * kPi / span);  // the weight of a layer an octave off, the centre's being 1
+      const double expected = 2.0 * side / (1.0 + 2.0 * side);
+      std::snprintf(label, sizeof label, "30 ms after Layers goes from 2 to 3 at %.1f kHz the gain is %.4f (%.4f by a 30 ms glide)",
+                    rate / 1000.0, static_cast<double>(out.left.back()), expected);
+      MEASURED("%s", label);
+      EXPECT(std::fabs(out.left.back() - expected) < 0.004, label);
+    }
+
+    // e. While Layers is on its way the bell is not a whole number of octaves
+    // wide and the weights no longer add to half of it; they are divided by
+    // their own total, so with every layer on its top the sound stays whole.
+    // (Divided by half the width instead, the tops sag by a twentieth here.)
+    {
+      const Setting s = {0, 1.0, 120.0, 2, 1.0, 2.0, 0.0};
+      fresh(device, s);
+      run(device, dc(0.005f));  // every layer has risen; the fastest kept stays up for 62 ms
+      device.set_param(p::kLayers, 3.0f);
+      const Stereo out = run(device, dc(0.05f));
+      double least = 1.0;
+      for (float v : out.left) least = std::min(least, static_cast<double>(v));
+      std::snprintf(label, sizeof label, "with every layer on its top, Layers on its way leaves the gain at 1 (least %.6f)", least);
+      MEASURED("%s", label);
+      EXPECT(least > 0.99999, label);
+    }
+
+    // f. The rates do not stray. A hundred seconds asleep in a halving of
+    // 120 s, so no wrap sets them afresh: each layer's rate is the closed
+    // form's to a part in a million million (1e-15 as built; 1e-10 with the
+    // ratio only ever stepped).
+    {
+      const Setting s = {0, 4.0, 120.0, 4, 0.7, 15.0, 0.0};
+      fresh(device, s);
+      render(device, 100.0f, kRate);
+      const double octaves = 100.0 / 120.0;
+      double worst = 0.0;
+      for (int k = 0; k < WindingDown::kSlots; ++k) {
+        const double expected = 4.0 * std::exp2(static_cast<double>(k - WindingDown::kBelow) - octaves);
+        worst = std::max(worst, std::fabs(device.layer_rate(k) / expected - 1.0));
+      }
+      std::snprintf(label, sizeof label, "after 100 s with no wrap the rates are the closed form's within %.3g of themselves", worst);
+      MEASURED("%s", label);
+      EXPECT(worst < 1.0e-12, label);
+    }
   }
 
   // 15. Level and cost. There is no make-up: the device sits under its
