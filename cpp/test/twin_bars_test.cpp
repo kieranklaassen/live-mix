@@ -3,10 +3,11 @@
 // rest measures what makes it two bars a few hertz apart: the pair's
 // difference and mean on every key, mode and sample rate, the Ears law, the
 // decay against its control, the materials, the mallet, Tone, Scatter and
-// Damp, a key struck again, rolls and a full pool against the clip's knee,
-// stealing, then what conformance lacks: block sizes across stepped silences,
-// a knob moved in silence, how sudden each event is, and cost. Nobody has
-// listened to it: every claim here is a number.
+// Damp, a key struck again and its beat carried on through the stroke, rolls
+// and a full pool against the clip's knee, stealing, then what conformance
+// lacks: block sizes across a steal and across stepped silences, a knob
+// moved in silence, how sudden each event is, and cost. Nobody has listened
+// to it: every claim here is a number.
 
 #include "../devices/twin-bars/twin_bars.h"
 #include <ctime>
@@ -267,6 +268,27 @@ static void the_pair() {
     EXPECT(std::fabs(high - low - 20.0) < 0.05 && std::fabs(0.5 * (high + low) - 20.0) < 0.05, label);
   }
 
+  // A key outside what the device plays is brought to its ends, 20 Hz and
+  // 8 kHz, and a strength outside 0 to 1 likewise.
+  {
+    Stereo low_key = one_bar_an_ear(3.0, kRate, 4.0f, 4.0f);
+    const double low = fine_pitch(low_key.left, kRate, 22.0, 4800, low_key.size(), 0.5);
+    Stereo high_key = one_bar_an_ear(30000.0, kRate, 4.0f, 0.5f);
+    const double high = bin_level(high_key.left, kRate, 8002.0, 2400, 19200);
+    std::snprintf(label, sizeof label, "a 3 Hz key plays as 20 Hz (its upper bar at %.3f Hz) and a 30 kHz key as 8 kHz (its upper bar at %.1f dB)", low, db(high));
+    std::printf("%s\n", label);
+    EXPECT(std::fabs(low - 22.0) < 0.05 && high > 1.0e-3, label);
+    Stereo strength[4];
+    const float gains[4] = {1.0f, 4.0f, 0.0f, -2.0f};
+    for (int which = 0; which < 4; ++which) {
+      device.init(kRate);
+      device.note_on(1, 220.0f, gains[which]);
+      strength[which] = render(device, 0.3f, kRate);
+    }
+    EXPECT(strength[0].left == strength[1].left && strength[0].right == strength[1].right, "a key at gain 4 is a key at gain 1");
+    EXPECT(both_peak(strength[2]) == 0.0 && both_peak(strength[3]) == 0.0, "a key at gain 0 or under is silent");
+  }
+
   // Ringing bars follow Beat: moved from 4 to 9 under a held key, the pair is 9 apart.
   {
     Stereo before = one_bar_an_ear(kC4, kRate, 4.0f, 0.5f);
@@ -366,6 +388,21 @@ static void the_decay() {
       EXPECT(std::fabs(rings / decay - 1.0) < 0.03, label);
     }
   }
+  // Ringing bars follow Decay: moved from 20 s to 2 s under a held key, the low tone falls at the new rate.
+  {
+    device.init(kRate);
+    device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kDecay, 20.0f);
+    device.note_on(1, static_cast<float>(kC4), 0.8f);
+    render(device, 0.3f, kRate);
+    device.set_param(p::kDecay, 2.0f);
+    Stereo out = render(device, 1.6f, kRate);
+    const double rings = ring_time(out.left, kRate, kC4 + 2.0, 0.1, 1.2, 0.1);
+    std::snprintf(label, sizeof label, "Decay moved from 20 s to 2 s under a held key: its low tone now rings %.3f s", rings);
+    std::printf("%s\n", label);
+    EXPECT(std::fabs(rings / 2.0 - 1.0) < 0.03, label);
+  }
+
   // The whole sound, overtones and all, has fallen at least as far.
   device.init(kRate);
   device.set_param(p::kEars, 1.0f);
@@ -570,6 +607,23 @@ static void the_damp() {
   EXPECT(gone < -60.0, label);
   EXPECT(max_step(after.left, 0, 4800) < 1.2 * max_step(held.left, 19200), "the damper is a decay, not a cut");
 
+  // A key let go and struck again is a held key again: at Damp 1 it rings
+  // on at Decay's rate, where a key still counted as let go would be gone.
+  {
+    device.init(kRate);
+    device.set_param(p::kDamp, 1.0f);
+    device.note_on(1, 220.0f, 0.8f);
+    render(device, 0.05f, kRate);
+    device.note_off(1);
+    render(device, 0.02f, kRate);
+    device.note_on(1, 220.0f, 0.8f);
+    Stereo again = render(device, 0.5f, kRate);
+    const double fallen = db(rms(again.left, 19200, 24000) / rms(again.left, 0, 4800));
+    std::snprintf(label, sizeof label, "Damp 1, a key let go and struck again: 0.4 s on it is %.1f dB down (held, under 10)", -fallen);
+    std::printf("%s\n", label);
+    EXPECT(fallen > -10.0, label);
+  }
+
   // In between, a let go key rings Decay^(1 - Damp) · 0.07^Damp: 1.58 s at the defaults.
   device.init(kRate);
   device.set_param(p::kEars, 1.0f);
@@ -642,34 +696,189 @@ static void struck_again() {
   std::printf("%s\n", label);
   EXPECT(changed < 0.05, label);
 
-  // The level rule counts rolls: sixteen strokes a second on one key for two
-  // seconds, at full strength, each material, the longest Decay.
-  double worst = 0.0;
-  for (int material = 0; material < TwinBars::kNumMaterials; ++material) {
-    for (double key : {kC2, 220.0, kC5}) {
-      for (float ears : {0.0f, 1.0f}) {
-        device.init(kRate);
-        device.set_param(p::kBar, static_cast<float>(material));
-        device.set_param(p::kEars, ears);
-        device.set_param(p::kDecay, 20.0f);
-        device.note_on(1, static_cast<float>(key), 1.0f);
-        Stereo single = render(device, 0.0625f, kRate);
-        double roll = both_peak(single);
-        for (int hit = 1; hit < 32; ++hit) {
-          device.note_on(1, static_cast<float>(key), 1.0f);
-          roll = std::max(roll, both_peak(render(device, 0.0625f, kRate)));
+  // The level rule counts rolls: sixteen and thirty two strokes a second on
+  // one key for two seconds, each material, three mallets, the longest
+  // Decay. At full strength a roll stays under the knee and is no louder than
+  // one stroke left alone by more than 1.5 dB: every mode is topped up where
+  // it is in its own swing, so no overtone piles up, and the room holds the
+  // low tone at one key's worth. At half strength the room is not reached and
+  // the roll swells to what the stroke law allows, one and a half strokes'
+  // worth in a mode (3.5 dB) and a little for the knock: 5 dB is allowed, and
+  // a touch that never shrank would swell it to the room, near 10 dB.
+  for (float strength : {1.0f, 0.5f}) {
+    double worst = 0.0, worst_over = 0.0;
+    for (int material = 0; material < TwinBars::kNumMaterials; ++material) {
+      for (double key : {kC2, 220.0, kC5, 2093.0}) {
+        for (float ears : {0.0f, 1.0f}) {
+          for (float mallet : {0.0f, 0.5f, 1.0f}) {
+            device.init(kRate);
+            device.set_param(p::kBar, static_cast<float>(material));
+            device.set_param(p::kEars, ears);
+            device.set_param(p::kDecay, 20.0f);
+            device.set_param(p::kMallet, mallet);
+            device.note_on(1, static_cast<float>(key), strength);
+            const double single = both_peak(render(device, 2.0f, kRate));
+            for (int per_second : {16, 32}) {
+              device.init(kRate);
+              device.set_param(p::kBar, static_cast<float>(material));
+              device.set_param(p::kEars, ears);
+              device.set_param(p::kDecay, 20.0f);
+              device.set_param(p::kMallet, mallet);
+              double roll = 0.0;
+              for (int hit = 0; hit < 2 * per_second; ++hit) {
+                device.note_on(1, static_cast<float>(key), strength);
+                roll = std::max(roll, both_peak(span(device, static_cast<size_t>(kRate) / per_second, 128)));
+              }
+              if (roll > worst || roll > single * std::pow(10.0, worst_over / 20.0)) {
+                std::printf("rolled at %d a second at gain %.1f, material %d, %.0f Hz, Ears %.0f, Mallet %.1f: peak %.3f (one stroke %.3f, %.2f dB over)\n",
+                            per_second, strength, material, key, ears, mallet, roll, single, db(roll / single));
+              }
+              worst = std::max(worst, roll);
+              worst_over = std::max(worst_over, db(roll / single));
+            }
+          }
         }
-        if (roll > worst || (material == 0 && key == 220.0)) {
-          std::printf("rolled at sixteen a second, material %d, %.0f Hz, Ears %.0f: peak %.3f (one stroke %.3f)\n", material, key, ears, roll,
-                      both_peak(single));
-        }
-        worst = std::max(worst, roll);
       }
     }
+    const double allowed = strength == 1.0f ? 1.5 : 5.0;
+    std::snprintf(label, sizeof label,
+                  "sixteen and thirty two strokes a second for two seconds at gain %.1f: the peak is %.3f, under the knee at 0.5, and at most %.2f dB over one stroke (%.1f allowed)",
+                  strength, worst, worst_over, allowed);
+    std::printf("%s\n", label);
+    EXPECT(worst < kKnee, label);
+    EXPECT(worst_over < allowed, label);
   }
-  std::snprintf(label, sizeof label, "sixteen strokes a second for two seconds at full strength: the peak is %.3f, under the knee at 0.5", worst);
-  std::printf("%s\n", label);
-  EXPECT(worst < kKnee, label);
+
+  // Every stroke is heard: a second equal stroke a twentieth of a second
+  // after the first, when the bar has hardly fallen, still adds a touch (a
+  // tenth of a fresh stroke, 0.8 dB) to the low tone.
+  {
+    double with = 0.0, without = 0.0;
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kEars, 1.0f);
+      device.set_param(p::kDecay, 20.0f);
+      device.note_on(1, 220.0f, 0.7f);
+      render(device, 0.05f, kRate);
+      if (pass == 0) device.note_on(1, 220.0f, 0.7f);
+      Stereo out = render(device, 0.5f, kRate);
+      (pass == 0 ? with : without) = bin_level(out.left, kRate, 222.0, 12000, 12000);
+    }
+    std::snprintf(label, sizeof label, "a second equal stroke 50 ms after the first leaves the low tone %.2f dB louder than one stroke alone (0.5 to 1.2)", db(with / without));
+    std::printf("%s\n", label);
+    EXPECT(db(with / without) > 0.5 && db(with / without) < 1.2, label);
+  }
+
+  // A roll faster than Scatter: the stroke on its way to the second bar
+  // lands as it was sent, so the second bar (the left ear at Ears 1) sounds
+  // all the same. A stroke that replaced the waiting one would never land.
+  for (int per_second : {24, 32}) {
+    device.init(kRate);
+    device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kScatter, 40.0f);
+    Stereo out;
+    for (int hit = 0; hit < per_second; ++hit) {
+      device.note_on(1, 440.0f, 0.8f);
+      out = concat(out, span(device, static_cast<size_t>(kRate) / per_second, 128));
+    }
+    std::snprintf(label, sizeof label,
+                  "Scatter 40 ms under a roll at %d a second: the second bar peaks %.4f beside the first bar's %.4f (more than half of it)",
+                  per_second, peak(out.left), peak(out.right));
+    std::printf("%s\n", label);
+    EXPECT(peak(out.left) > 0.5 * peak(out.right), label);
+  }
+}
+
+// Phase of the `hz` component over n samples from `from`, in turns (a Hann window).
+static double bin_turns(const std::vector<float>& x, double rate, double hz, size_t from, size_t n) {
+  double re = 0.0, im = 0.0;
+  for (size_t i = 0; i < n && from + i < x.size(); ++i) {
+    const double window = 0.5 - 0.5 * std::cos(2.0 * kPi * static_cast<double>(i) / static_cast<double>(n));
+    const double phase = 2.0 * kPi * hz * static_cast<double>(i) / rate;
+    re += window * x[from + i] * std::cos(phase);
+    im -= window * x[from + i] * std::sin(phase);
+  }
+  return std::atan2(im, re) / (2.0 * kPi);
+}
+
+// Where a pair is in its beat on one mode: the upper bar's phase (the left
+// ear at Ears 1) less the lower bar's, in turns.
+static double place_in_beat(const Stereo& out, double hz, size_t from, size_t n) {
+  return bin_turns(out.left, kRate, hz + 2.0, from, n) - bin_turns(out.right, kRate, hz - 2.0, from, n);
+}
+
+// A key struck again carries its beat on, on the low tone and on the second
+// mode, on every material: against the same key never struck again, the
+// place of the pair in its beat does not move. Twelve moments from 0.1 s to
+// 1.9 s after the first stroke (at Decay 4 the low tone is 1.5 to 29 dB down).
+static void the_beat_carries_on() {
+  const char* names[3] = {"metal", "wood", "glass"};
+  const double second_ratio[3] = {2.757, 4.0, 2.32};
+  for (int material = 0; material < TwinBars::kNumMaterials; ++material) {
+    double worst[2] = {0.0, 0.0};
+    int compared[2] = {0, 0};
+    for (double key : {220.0, 1760.0}) {
+      for (int trial = 0; trial < 12; ++trial) {
+        Stereo out[2];
+        for (int pass = 0; pass < 2; ++pass) {
+          device.init(kRate);
+          device.set_param(p::kBar, static_cast<float>(material));
+          device.set_param(p::kEars, 1.0f);
+          device.set_param(p::kDecay, 4.0f);
+          device.set_param(p::kMallet, 0.7f);
+          device.note_on(1, static_cast<float>(key), 0.8f);
+          render(device, 0.1f + 0.1637f * trial, kRate);
+          if (pass == 0) device.note_on(1, static_cast<float>(key), 0.8f);
+          out[pass] = render(device, 0.3f, kRate);
+        }
+        for (int mode = 0; mode < 2; ++mode) {
+          const double hz = static_cast<double>(static_cast<float>(key)) * (mode == 0 ? 1.0 : second_ratio[material]);
+          // Read from 100 to 250 ms after the second stroke; an overtone that has died away has no place to keep.
+          if (bin_level(out[1].left, kRate, hz + 2.0, 4800, 7200) < 3.0e-6) continue;
+          double moved = place_in_beat(out[0], hz, 4800, 7200) - place_in_beat(out[1], hz, 4800, 7200);
+          moved -= std::round(moved);
+          worst[mode] = std::max(worst[mode], std::fabs(moved));
+          ++compared[mode];
+        }
+      }
+    }
+    std::snprintf(label, sizeof label,
+                  "%s, a key struck again: its beat moves by at most %.3f of a turn on the low tone (%d moments) and %.3f on the second mode (%d moments); 0.05 allowed",
+                  names[material], worst[0], compared[0], worst[1], compared[1]);
+    std::printf("%s\n", label);
+    EXPECT(worst[0] < 0.05 && worst[1] < 0.05, label);
+    EXPECT(compared[0] == 24 && compared[1] >= 4, label);
+
+    // A bar whose low tone has fallen 40 dB under the new stroke is at rest:
+    // the stroke is a fresh one and the beat starts again at its crest, as
+    // on a key never played. Eight moments from 0.8 s on at Decay 1 (48 to
+    // 55 dB down), where a beat carried on would be anywhere in its swing.
+    device.init(kRate);
+    device.set_param(p::kBar, static_cast<float>(material));
+    device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kDecay, 1.0f);
+    device.set_param(p::kMallet, 0.7f);
+    device.note_on(1, 220.0f, 0.8f);
+    const double fresh = place_in_beat(render(device, 0.3f, kRate), 220.0, 4800, 7200);
+    double off = 0.0;
+    for (int trial = 0; trial < 8; ++trial) {
+      device.init(kRate);
+      device.set_param(p::kBar, static_cast<float>(material));
+      device.set_param(p::kEars, 1.0f);
+      device.set_param(p::kDecay, 1.0f);
+      device.set_param(p::kMallet, 0.7f);
+      device.note_on(1, 220.0f, 0.8f);
+      render(device, 0.8f + 0.0171f * trial, kRate);
+      device.note_on(1, 220.0f, 0.8f);
+      double moved = place_in_beat(render(device, 0.3f, kRate), 220.0, 4800, 7200) - fresh;
+      moved -= std::round(moved);
+      off = std::max(off, std::fabs(moved));
+    }
+    std::snprintf(label, sizeof label, "%s, a key struck again once it has all but rung out: its beat starts within %.3f of a turn of a fresh key's (0.05 allowed)",
+                  names[material], off);
+    std::printf("%s\n", label);
+    EXPECT(off < 0.05, label);
+  }
 }
 
 static void the_levels() {
@@ -761,20 +970,42 @@ static void the_levels() {
   EXPECT(worst < kKnee, label);
 
   // The room is counted on the low tones alone: one key at full strength is
-  // as loud in its low tone soft and dark as hard and bright.
+  // as loud in its low tone soft and dark as hard and bright. Read from 50
+  // to 250 ms at the longest Decay, while the key still fills the room: were
+  // the overtones counted, the hard bright key would be more than a decibel
+  // down here.
   double low_tone[2];
   for (int pass = 0; pass < 2; ++pass) {
     device.init(kRate);
     device.set_param(p::kEars, 1.0f);
+    device.set_param(p::kDecay, 20.0f);
     device.set_param(p::kMallet, static_cast<float>(pass));
     device.set_param(p::kTone, static_cast<float>(pass));
     device.note_on(1, 220.0f, 1.0f);
-    Stereo out = render(device, 0.6f, kRate);
-    low_tone[pass] = bin_level(out.left, kRate, 222.0, 4800, 24000);
+    Stereo out = render(device, 0.3f, kRate);
+    low_tone[pass] = bin_level(out.left, kRate, 222.0, 2400, 9600);
   }
   std::snprintf(label, sizeof label, "one key at full strength: its low tone hard and bright is %.3f dB from soft and dark", db(low_tone[1] / low_tone[0]));
   std::printf("%s\n", label);
   EXPECT(std::fabs(db(low_tone[1] / low_tone[0])) < 0.1, label);
+
+  // One key is never turned down, on any material: from gain 0.5 to gain 1
+  // its low tone rises by the stroke's law alone, 9.76 dB.
+  for (int material = 0; material < TwinBars::kNumMaterials; ++material) {
+    double tone_at[2];
+    for (int pass = 0; pass < 2; ++pass) {
+      device.init(kRate);
+      device.set_param(p::kEars, 1.0f);
+      device.set_param(p::kBar, static_cast<float>(material));
+      device.note_on(1, 220.0f, pass == 0 ? 0.5f : 1.0f);
+      Stereo out = render(device, 0.4f, kRate);
+      tone_at[pass] = bin_level(out.left, kRate, 222.0, 2400, 14400);
+    }
+    std::snprintf(label, sizeof label, "%s: one key at gain 1 has its low tone %.2f dB over the same key at gain 0.5 (9.76 by the stroke's law)", names[material],
+                  db(tone_at[1] / tone_at[0]));
+    std::printf("%s\n", label);
+    EXPECT(std::fabs(db(tone_at[1] / tone_at[0]) - 9.76) < 0.2, label);
+  }
 
   // The law of the room: n keys at full strength add up as the root of n,
   // so each is down by 10·log10(n) dB once more than one rings. Read in the
@@ -978,7 +1209,56 @@ static Stereo across_a_silence(size_t gap, int block) {
   return concat(out, span(device, 9999, block));
 }
 
+// A full pool of soft keys, then louder keys that each take a voice: a
+// seventeenth `lead` samples off the beat of the host's blocks, two more
+// while its fade still runs (one of them let go before it starts), then the
+// seventeenth again and one more. The new keys are louder than the pool, so
+// none of them is the quietest voice and taken in its turn. `block` sets the
+// host's block size (0 is ragged).
+static Stereo across_a_steal(size_t lead, int block) {
+  device.init(kRate);
+  device.set_param(p::kScatter, 5.0f);
+  for (int n = 0; n < TwinBars::kMaxVoices; ++n) device.note_on(n, 110.0f * std::pow(2.0f, n * 2 / 12.0f), 0.5f);
+  Stereo out = span(device, 4800 + lead, block);
+  device.note_on(40, 777.0f, 0.9f);
+  out = concat(out, span(device, 37, block));  // inside the 2 ms fade
+  device.note_on(41, 555.0f, 0.8f);
+  device.note_on(42, 333.0f, 0.9f);
+  device.note_off(42);
+  out = concat(out, span(device, 1000, block));
+  device.note_on(40, 777.0f, 0.9f);
+  device.note_on(43, 999.0f, 0.7f);
+  return concat(out, span(device, 6000, block));
+}
+
 static void silences() {
+  // A steal is the same sound at any block size: the note that takes a voice
+  // starts on the sample the old one's fade ends, not at the end of the
+  // host's block.
+  {
+    double worst = 0.0;
+    int differing = 0, renders = 0;
+    for (size_t lead : {0, 1, 17, 50, 100, 127}) {
+      Stereo reference = across_a_steal(lead, 128);
+      for (int block : {1, 32, 33, 2048, 0}) {
+        const double apart = worst_difference(reference, across_a_steal(lead, block));
+        if (apart >= 1.0e-6) ++differing;
+        ++renders;
+        worst = std::max(worst, apart);
+      }
+    }
+    std::snprintf(label, sizeof label, "steals over a full pool, blocks of 1, 32, 33, 2048 and ragged against 128: %d of %d renders differ, the worst by %g",
+                  differing, renders, worst);
+    std::printf("%s\n", label);
+    EXPECT(worst < 1.0e-6, label);
+    // And the keys that took a voice do sound: the phrase is about steals.
+    Stereo heard = across_a_steal(17, 128);
+    const size_t from = 4817 + 37 + 1000 + 600;
+    const double sounding = std::min(bin_level(heard.left, kRate, 777.0, from, 4800), bin_level(heard.left, kRate, 555.0, from, 4800));
+    std::snprintf(label, sizeof label, "the keys that took a voice sound (the quieter of two at %.1f dB)", db(sounding));
+    EXPECT(sounding > 1.0e-3, label);
+  }
+
   // Silences stepped in 20 ms across the time the key takes to fall (0.13 s
   // at Damp 1) plus the idle hold (0.1 s) and a 2048 block more, and one long
   // one: blocks of 1, 2048 and a ragged mix against blocks of 128.
@@ -1072,6 +1352,23 @@ static void sudden() {
       EXPECT(sharp < 0.15, label);
     }
   }
+  // Beat is smoothed too: a millisecond after the throw the bars have gone a
+  // small part of the way to their new pitches. (No jump would be heard
+  // either way, the bars keep their place in their swing; what the smoother
+  // gives is a glide.)
+  for (int way = 0; way < 2; ++way) {
+    const float from = way == 0 ? 0.5f : 20.0f, to = way == 0 ? 20.0f : 0.5f;
+    const double gone = moved_within(
+        [from](TwinBars& d) {
+          d.set_param(p::kBeat, from);
+          soft_chord(d);
+        },
+        [to](TwinBars& d) { d.set_param(p::kBeat, to); }, 48);
+    std::snprintf(label, sizeof label, "Beat thrown from %g to %g: a millisecond later the sound has moved %.4f of what it moves in 20 ms (under 0.025)", from, to,
+                  gone);
+    std::printf("%s\n", label);
+    EXPECT(gone < 0.025, label);
+  }
   // Tone is smoothed over milliseconds, not only ramped across one control
   // period (two thirds of a millisecond): one millisecond after the throw the
   // overtones have gone a small part of the way.
@@ -1145,6 +1442,22 @@ static void sudden() {
   {
     const double sharp = suddenness(soft_chord, [](TwinBars& d) { d.note_on(1, 110.0f, 0.8f); });
     std::snprintf(label, sizeof label, "a soft low key struck again: suddenness %.3f (under 0.15)", sharp);
+    std::printf("%s\n", label);
+    EXPECT(sharp < 0.15, label);
+  }
+  // A steal by a key too soft to cover it: sixteen loud low keys and a very
+  // soft high one. The voice that goes still counts towards the room while
+  // it fades, so the room does not open at once on the fifteen that stay.
+  {
+    const double sharp = suddenness(
+        [](TwinBars& d) {
+          d.set_param(p::kMallet, 0.0f);
+          d.set_param(p::kTone, 0.0f);
+          d.set_param(p::kDecay, 20.0f);
+          for (int n = 0; n < TwinBars::kMaxVoices; ++n) d.note_on(n, 60.0f + 4.0f * n, 1.0f);
+        },
+        [](TwinBars& d) { d.note_on(40, 3000.0f, 0.02f); });
+    std::snprintf(label, sizeof label, "sixteen loud low keys and a very soft high one (a loud voice taken): suddenness %.3f (under 0.15)", sharp);
     std::printf("%s\n", label);
     EXPECT(sharp < 0.15, label);
   }
@@ -1226,6 +1539,7 @@ int main() {
   the_scatter();
   the_damp();
   struck_again();
+  the_beat_carries_on();
   the_levels();
   stealing();
   silences();

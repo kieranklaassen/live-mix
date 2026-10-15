@@ -26,11 +26,19 @@
 //   time, divided by its own spectrum at the bar's fundamental: the mallet
 //   changes the knock and not the level of the note. Tone tilts the modes
 //   against the fundamental as they are heard.
-// - A stroke on a bar that still rings does not add blindly. It waits (at
-//   most half a swing of that bar) for the bar to be at the top or the bottom
-//   of its swing, pushes the way the bar is going, and tops each mode up to
-//   what a fresh stroke would leave. A key struck again strikes the same two
-//   bars, each where it is in its own swing, so the beat carries on.
+// - A stroke on a bar that still rings does not add blindly. Every mode is
+//   pushed at its own moment: at the top or the bottom of that mode's swing
+//   (at most half a swing of the mode away, and to a part of a sample), the
+//   way the mode is going, and topped up to what a fresh stroke would leave.
+//   A key struck again strikes the same two bars, each mode where it is in
+//   its own swing, so the beat carries on, on the low tone and on every
+//   overtone. A bar whose low tone has fallen 40 dB under the new stroke is
+//   at rest: the stroke is a fresh one and the beat starts again at its crest.
+// - A stroke that is still on its way to a bar (the second bar's, Scatter
+//   after the first) lands as it was sent: a key rolled faster than Scatter
+//   strikes its second bar once for the strokes that fall inside the wait.
+// - A seventeenth key takes the quietest voice: the old note fades over 2 ms
+//   and the new one starts on the sample the fade ends, at any block size.
 // - Room for a full pool: the power of the two low tones of every key that
 //   rings is counted against a full stroke's, so one key at full strength
 //   counts one, and past one key's worth (kRoom) the sum of the bars is
@@ -275,11 +283,31 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     float step_re[kModes] = {}, step_im[kModes] = {};
     float re[kModes] = {}, im[kModes] = {};
     float strike[kModes] = {};
-    // The stroke in flight: samples to wait, samples long, samples done.
-    int pulse_wait = 0, pulse_length = 0, pulse_done = 0;
+    // The stroke in flight. Every mode is pushed at its own moment (see
+    // stroke): samples to wait, the part of a sample by which the middle of
+    // its push is later still, and samples done. The push is as long for all.
+    int pulse_wait[kModes] = {}, pulse_done[kModes] = {};
+    float pulse_shift[kModes] = {};
+    int pulse_length = 0;
     float pulse_gain = 0.0f;
 
-    bool struck() const { return pulse_done < pulse_length; }
+    bool struck() const {
+      for (int k = 0; k < kModes; ++k) {
+        if (pulse_done[k] < pulse_length) return true;
+      }
+      return false;
+    }
+    // Samples until a stroke that is on its way begins to land; -1 when none
+    // is on its way or one is landing now.
+    int begins_in() const {
+      int soonest = -1;
+      for (int k = 0; k < kModes; ++k) {
+        if (pulse_done[k] >= pulse_length) continue;
+        if (pulse_done[k] > 0) return -1;
+        if (soonest < 0 || pulse_wait[k] < soonest) soonest = pulse_wait[k];
+      }
+      return soonest;
+    }
   };
 
   struct Voice {
@@ -349,55 +377,76 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
   void stroke(Voice& voice, int which, float level, float velocity, int due) {
     const Bars& made = bars(voice.material);
     Bar& bar = voice.bar[which];
+    // A stroke already on its way to this bar lands as it was sent when this
+    // one would begin later (the second bar's, Scatter after the first): a
+    // key rolled faster than Scatter would otherwise put its second bar off
+    // for as long as the roll lasts.
+    const int coming = bar.begins_in();
+    if (coming >= 0 && coming < due) return;
     const float sr = sample_rate();
     const float period = kit::kTwoPi / bar.omega[0];  // of this bar's own fundamental, in samples
     const float contact = kSoftContact * std::pow(kHardContact / kSoftContact, param(twin_bars::kMallet)) * made.contact *
                           std::sqrt(kC4 / voice.frequency) * (1.4f - 0.6f * velocity);
     int length = static_cast<int>(kit::min(contact * sr, kit::min(kLongestContact * sr, kMostOfAPeriod * period)) + 0.5f);
     if (length < 2) length = 2;
-    // The middle of the push lands this many turns of a mode after now.
+    // The middle of the push lands this many turns of a mode after it begins.
     const float middle = 0.5f * static_cast<float>(length - 1) + 1.0f;
-    // When, and which way: with the bar's fundamental at the top of its swing
-    // and the push upward, or at the bottom and downward, whichever comes
-    // first, if the bar is moving at all. At most half a swing away.
-    const float moving = std::sqrt(bar.re[0] * bar.re[0] + bar.im[0] * bar.im[0]);
-    float wait = static_cast<float>(due);
-    float way = 1.0f;
-    if (moving > kTouch * kTouch * level) {
-      const float turns = (std::atan2(bar.im[0], bar.re[0]) + bar.omega[0] * (wait + middle)) * (1.0f / kit::kTwoPi);
-      const float past_the_top = turns - std::floor(turns);  // in swings; the bottom is at a half
-      float to_go = past_the_top > 0.0f ? 1.0f - past_the_top : 0.0f;
-      if (past_the_top > 0.0f && past_the_top <= 0.5f) {
-        to_go = 0.5f - past_the_top;
-        way = -1.0f;
-      }
-      wait += std::floor(to_go * period + 0.5f);
-    }
-    // How much: each mode up to what a fresh stroke would leave in it, and at
-    // least a touch more than it has, so every stroke is heard. The touch
-    // shrinks to nothing as the mode passes one and a half fresh strokes:
-    // without that a fast roll on a bar that rings for a minute would pile up.
     const float base = made.level[0] * response(static_cast<float>(length) / period);
-    const double landing = static_cast<double>(wait + middle);
+    for (int k = 0; k < kModes; ++k) {
+      bar.strike[k] = 0.0f;
+      bar.pulse_wait[k] = 0;
+      bar.pulse_shift[k] = 0.0f;
+      bar.pulse_done[k] = length;  // nothing to push
+    }
+    // A bar rings while its low tone is more than a hundredth of what this
+    // stroke leaves there (a touch of a touch); under that it is at rest and
+    // the stroke is a fresh one, every mode pushed upward at once.
+    const bool ringing = std::sqrt(bar.re[0] * bar.re[0] + bar.im[0] * bar.im[0]) > kTouch * kTouch * level;
     for (int k = 0; k < voice.count; ++k) {
-      const float fresh = way * level * made.level[k] / base;  // before the mallet's own spectrum
-      const float heard = fresh * response(bar.omega[k] * static_cast<float>(length) * (1.0f / kit::kTwoPi));
-      const float size = std::fabs(heard);
-      float share = 1.0f;
+      const float fresh = level * made.level[k] / base;  // a stroke on a bar at rest, before the mallet's own spectrum
+      const float size = fresh * response(bar.omega[k] * static_cast<float>(length) * (1.0f / kit::kTwoPi));  // as it is heard
+      // When, and which way: on a bar that rings, every mode that still moves
+      // is pushed at the top of its own swing upward, or at the bottom
+      // downward, whichever comes first. At most half a swing of that mode
+      // away, and to a part of a sample, so the mode keeps its place in its
+      // swing and the two bars keep their place in the beat, on the low tone
+      // and on every overtone, however far the overtone has died away.
+      float wait = static_cast<float>(due), shift = 0.0f, way = 1.0f, share = 1.0f;
       if (size > 1.0e-9f) {
-        // The mode as the push will find it, along the way the push goes.
+        if (ringing && (bar.re[k] != 0.0f || bar.im[k] != 0.0f)) {
+          const float turns = (std::atan2(bar.im[k], bar.re[k]) + bar.omega[k] * (wait + middle)) * (1.0f / kit::kTwoPi);
+          const float past_the_top = turns - std::floor(turns);  // in swings; the bottom is at a half
+          float to_go = past_the_top > 0.0f ? 1.0f - past_the_top : 0.0f;
+          if (past_the_top > 0.0f && past_the_top <= 0.5f) {
+            to_go = 0.5f - past_the_top;
+            way = -1.0f;
+          }
+          const float late = to_go * kit::kTwoPi / bar.omega[k];
+          const float whole = std::floor(late + 0.5f);
+          wait += whole;
+          shift = late - whole;  // from -0.5 to 0.5
+        }
+        // How much: up to what a fresh stroke would leave in the mode, and at
+        // least a touch more than it has, so every stroke is heard. The touch
+        // shrinks to nothing as the mode passes one and a half fresh strokes:
+        // without that a fast roll on a bar that rings for a minute would
+        // pile up. The mode is taken as the push will find it, along the way
+        // the push goes.
+        const double landing = static_cast<double>(wait + middle) + static_cast<double>(shift);
         const double angle = static_cast<double>(bar.omega[k]) * landing;
         const float there = static_cast<float>(bar.re[k] * std::cos(angle) - bar.im[k] * std::sin(angle)) *
                             std::pow(voice.radius[k], static_cast<float>(landing));
-        const float has = (heard < 0.0f ? -there : there) / size;  // 1 is a fresh stroke's worth
+        const float has = way * there / size;  // 1 is a fresh stroke's worth
         const float touch = kTouch * kit::clamp((kFullBar - has) / (kFullBar - 1.0f), 0.0f, 1.0f);
         share = kit::clamp(1.0f - has, touch, 1.0f);
       }
-      bar.strike[k] = share * fresh;
+      bar.strike[k] = way * share * fresh;
+      if (bar.strike[k] == 0.0f) continue;
+      bar.pulse_wait[k] = static_cast<int>(wait);
+      bar.pulse_shift[k] = shift;
+      bar.pulse_done[k] = 0;
     }
-    bar.pulse_wait = static_cast<int>(wait);
     bar.pulse_length = length;
-    bar.pulse_done = 0;
     bar.pulse_gain = 2.0f / static_cast<float>(length);  // unit area whatever the length
   }
   // Before the first key after every bar has rung out. A sleeping device
@@ -523,6 +572,28 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
 
   void render_voice(Voice& voice, int n, float* first, float* second, float* power) {
     const bool leaving = voice.pending || voice.fading;
+    if (leaving) {
+      // A stolen or cancelled voice goes out over 2 ms, and what follows (the
+      // new note, or nothing) starts on the very sample the fade ends: a
+      // stretch of samples ends where the host's block does, so starting at
+      // the end of the stretch would make a steal sound different at
+      // another block size.
+      int fade = 0;
+      for (float left = voice.steal; fade < n; ++fade) {
+        left = kit::max(left - steal_step_, 0.0f);
+        if (left <= 0.0f) break;
+      }
+      if (fade < n) {
+        if (fade > 0) render_voice(voice, fade, first, second, power);
+        if (voice.pending) {
+          start(voice, voice.pending_frequency, voice.pending_gain);
+          render_voice(voice, n - fade, first + fade, second + fade, power + fade);
+        } else {
+          retire(voice);
+        }
+        return;
+      }
+    }
     float own[2][kChunk], own_power[kChunk];
     float* out[2] = {first, second};
     float* rings = power;
@@ -531,24 +602,6 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       out[0] = own[0];
       out[1] = own[1];
       rings = own_power;
-    }
-    // The stroke in flight on each bar.
-    float pulse[2][kChunk];
-    bool struck[2];
-    for (int b = 0; b < 2; ++b) {
-      Bar& bar = voice.bar[b];
-      struck[b] = !leaving && bar.struck();
-      if (!struck[b]) continue;
-      for (int i = 0; i < n; ++i) {
-        pulse[b][i] = 0.0f;
-        if (bar.pulse_wait > 0) {
-          --bar.pulse_wait;
-        } else if (bar.pulse_done < bar.pulse_length) {
-          const float phase = (static_cast<float>(bar.pulse_done) + 0.5f) / static_cast<float>(bar.pulse_length);
-          pulse[b][i] = bar.pulse_gain * (0.5f - 0.5f * kit::SineTable::cos_lookup(phase));
-          ++bar.pulse_done;
-        }
-      }
     }
     // The push goes in on the real side and the sound is the imaginary
     // side, so a mode answers a pulse from zero, as a displacement does.
@@ -564,23 +617,43 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       for (int b = 0; b < 2; ++b) {
         Bar& bar = voice.bar[b];
         float re = bar.re[k], im = bar.im[k];
-        const float in = struck[b] ? bar.strike[k] : 0.0f;
-        if (re == 0.0f && im == 0.0f && in == 0.0f) continue;
+        // The stroke in flight on this mode: a raised cosine push, its
+        // middle late by the mode's own part of a sample.
+        const bool struck = !leaving && bar.pulse_done[k] < bar.pulse_length;
+        if (re == 0.0f && im == 0.0f && !struck) continue;
+        float push[kChunk];
+        if (struck) {
+          const float in = bar.strike[k] * bar.pulse_gain;
+          const float per_sample = 1.0f / static_cast<float>(bar.pulse_length);
+          const float from = 0.5f - bar.pulse_shift[k];
+          int wait = bar.pulse_wait[k], done = bar.pulse_done[k];
+          for (int i = 0; i < n; ++i) {
+            push[i] = 0.0f;
+            if (wait > 0) {
+              --wait;
+            } else if (done < bar.pulse_length) {
+              push[i] = in * (0.5f - 0.5f * kit::SineTable::cos_lookup((static_cast<float>(done) + from) * per_sample));
+              ++done;
+            }
+          }
+          bar.pulse_wait[k] = wait;
+          bar.pulse_done[k] = done;
+        }
         const float step_re = bar.step_re[k], step_im = bar.step_im[k];
         float* to = out[b];
         if (k == 0) {
           // The fundamental counts towards the room: half a key for each bar.
           const float weight = voice.weight;
           for (int i = 0; i < n; ++i) {
-            const float turned = step_re * re - step_im * im + (struck[b] ? in * pulse[b][i] : 0.0f);
+            const float turned = step_re * re - step_im * im + (struck ? push[i] : 0.0f);
             im = step_re * im + step_im * re;
             re = turned;
             to[i] += heard[i] * im;
             rings[i] += weight * (re * re + im * im);
           }
-        } else if (struck[b]) {
+        } else if (struck) {
           for (int i = 0; i < n; ++i) {
-            const float turned = step_re * re - step_im * im + in * pulse[b][i];
+            const float turned = step_re * re - step_im * im + push[i];
             im = step_re * im + step_im * re;
             re = turned;
             to[i] += heard[i] * im;
@@ -598,19 +671,12 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       }
     }
     if (!leaving) return;
-    // A stolen or cancelled voice: out over 2 ms, then the new note or nothing.
+    // The fade itself: these samples all lie before its end (see the top).
     for (int i = 0; i < n; ++i) {
       voice.steal = kit::max(voice.steal - steal_step_, 0.0f);
       first[i] += own[0][i] * voice.steal;
       second[i] += own[1][i] * voice.steal;
       power[i] += own_power[i] * voice.steal * voice.steal;
-    }
-    if (voice.steal <= 0.0f) {
-      if (voice.pending) {
-        start(voice, voice.pending_frequency, voice.pending_gain);
-      } else {
-        retire(voice);
-      }
     }
   }
 

@@ -174,9 +174,9 @@
       "mallet": 0.8,
       "decay": 1.6,
       "ears": 0.9,
-      "volume": -6.5
+      "volume": -7.5
     },
-    "Dark low metal": {
+    "Dark soft metal": {
       "beat": 2.5,
       "mallet": 0,
       "tone": 0,
@@ -213,10 +213,10 @@
       "bar": 1,
       "beat": 6,
       "mallet": 1,
-      "tone": 0.8,
+      "tone": 0.65,
       "decay": 0.9,
       "damp": 0.6,
-      "volume": -7
+      "volume": -7.5
     },
     "Soft wood hum": {
       "bar": 1,
@@ -230,8 +230,10 @@
       "beat": 6,
       "ears": 1,
       "scatter": 40,
-      "mallet": 0.4,
-      "decay": 5
+      "mallet": 0.3,
+      "decay": 9,
+      "damp": 0.15,
+      "tone": 0.65
     },
     "Glass, middle": {
       "bar": 2,
@@ -261,11 +263,11 @@
     "Half a hertz": {
       "beat": 0.5,
       "ears": 1,
-      "mallet": 0.2,
-      "decay": 14,
+      "mallet": 0.75,
+      "decay": 12,
       "damp": 0,
-      "tone": 0.45,
-      "volume": -10.5
+      "tone": 0.75,
+      "volume": -12
     },
     "Ten, wood in air": {
       "bar": 1,
@@ -280,6 +282,6 @@
   },
   "origin": {
     "kind": "new",
-    "note": "Written for live-mix on cpp/kit and cpp/kit/beat.h (the Ears law), a sibling of Mallets: each bar mode is a rotating complex one pole, and a key is two such bars whose every mode is a whole Beat apart, so the pair's low tones sit half of Beat either side of the key. The higher bar is the one nearer the left ear. Each key's beat starts at its own strike: there is no clock shared between keys. Mode ratios follow the acoustics of bars as textbooks give them: an uncut metal bar at 1 : 2.757 : 5.404 : 8.933 and a carved wooden bar at 1 : 4 : 9.9. Choices, not measurements of an instrument: the glass ratios (1 : 2.32 : 4.25 : 6.63) and its faint overtones; the level of each mode; how much sooner an overtone dies than the low tone (the ring time is Decay over 1 plus a damping times the ratio less one: 0.25 for metal, 0.6 for glass, 3 for wood); Decay as the same time on every key, where a real bar rings shorter the higher it is; the mallet's contact time (2.5 ms soft to 0.25 ms hard at middle C, shorter up the keyboard and with a harder press); Damp as a power of 0.07 s over Decay, so 1 stops any bar in a tenth of a second; Tone's tilt of 1.5 down and 0.5 up per unit of log ratio. Simplified: the mallet is a raised cosine push with no thud or noise of its own, and it is divided by its own spectrum at the low tone so that Mallet changes colour and not level; there are no tubes under the bars; a stroke on bars that still ring waits up to half a swing of each bar and tops every mode up to a fresh stroke's level, which keeps a repeated key steady and lets the beat carry on; modes that would lie over 16 kHz or 0.45 of the sample rate are left out. Added because the level rules need it: with sixteen voices the sum of the bars is turned down by the root of the number of full strokes' worth of low tone that rings, past one."
+    "note": "Written for live-mix on cpp/kit and cpp/kit/beat.h (the Ears law), a sibling of Mallets: each bar mode is a rotating complex one pole, and a key is two such bars whose every mode is a whole Beat apart, so the pair's low tones sit half of Beat either side of the key. The higher bar is the one nearer the left ear. Each key's beat starts at its own strike: there is no clock shared between keys. Mode ratios follow the acoustics of bars as textbooks give them: an uncut metal bar at 1 : 2.757 : 5.404 : 8.933 and a carved wooden bar at 1 : 4 : 9.9. Choices, not measurements of an instrument: the glass ratios (1 : 2.32 : 4.25 : 6.63) and its faint overtones; the level of each mode; how much sooner an overtone dies than the low tone (the ring time is Decay over 1 plus a damping times the ratio less one: 0.25 for metal, 0.6 for glass, 3 for wood); Decay as the same time on every key, where a real bar rings shorter the higher it is; the mallet's contact time (2.5 ms soft to 0.25 ms hard at middle C, shorter up the keyboard and with a harder press); Damp as a power of 0.07 s over Decay, so 1 stops any bar in a tenth of a second; Tone's tilt of 1.5 down and 0.5 up per unit of log ratio. Simplified: the mallet is a raised cosine push with no thud or noise of its own, and it is divided by its own spectrum at the low tone so that Mallet changes colour and not level; there are no tubes under the bars; a stroke on bars that still ring pushes every mode at the top or the bottom of that mode's own swing and tops it up to a fresh stroke's level, which keeps a repeated key steady and lets the beat carry on, on the low tone and on every overtone, until the low tone has fallen 40 dB under the new stroke, where the stroke is a fresh one and the beat starts again at its crest; a key rolled faster than Scatter strikes its second bar once for the strokes that fall inside the wait; modes that would lie over 16 kHz or 0.45 of the sample rate are left out. Added because the level rules need it: with sixteen voices the sum of the bars is turned down by the root of the number of full strokes' worth of low tone that rings, past one."
   }
 }
