@@ -636,4 +636,120 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'around', preset: 'Slow circle' },
     ],
   },
+  {
+    id: 'slow-wave-in-a-nave',
+    name: 'Slow wave in a nave',
+    category: 'motion',
+    description:
+      'A cathedral tail whose middle swells and sinks 48 times a minute, while the bass and the air above 2.5 kHz stay level.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.4 } },
+      { deviceId: 'band-pulse', preset: 'One up, one down', params: { rate: 0.8, depth: 0.7 } },
+    ],
+  },
+  {
+    id: 'four-a-second-apart',
+    name: 'Four a second, apart',
+    category: 'motion',
+    description:
+      'Four soft pulses a second on the middle band, the right side a quarter of a pulse behind the left, widened by a slow chorus.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Four a second', params: { depth: 0.6, offset: 90 } },
+      { deviceId: 'chorus', preset: 'Subtle widener' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'six-a-second-plate',
+    name: 'Six a second in a plate',
+    category: 'motion',
+    description:
+      'Six pulses a second on the band from 150 Hz to 1.5 kHz, each a soft swell, and a plate that rings through the gaps.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Six a second' },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'ten-a-second-room',
+    name: 'Ten a second, room',
+    category: 'motion',
+    description:
+      'A small room, then ten pulses a second on everything from 200 Hz to 2 kHz, so the room flutters with the notes.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Room' },
+      { deviceId: 'band-pulse', preset: 'Ten a second' },
+    ],
+  },
+  {
+    id: 'fourteen-on-strings',
+    name: 'Fourteen on strings',
+    category: 'motion',
+    description:
+      'Each chord is caught and held as a string pad, and its low middle flutters fourteen times a second under a still top.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'band-pulse', preset: 'Fourteen a second' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2 } },
+    ],
+  },
+  {
+    id: 'eighteen-in-a-hall',
+    name: 'Eighteen in a hall',
+    category: 'motion',
+    description:
+      'A hall, then the band from 200 Hz to 1 kHz pulsed eighteen times a second at half depth, the tail with the notes.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'band-pulse', preset: 'Sixteen mid band', params: { rate: 18, depth: 0.5 } },
+    ],
+  },
+  {
+    id: 'forty-smooth-warm',
+    name: 'Forty smooth, warm',
+    category: 'motion',
+    description:
+      'A warm preamp, then forty smooth pulses a second from 100 Hz to 4 kHz: an even roughness on every note, in a small plate.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: 1 } },
+      { deviceId: 'band-pulse', preset: 'Forty, smooth' },
+      { deviceId: 'plate-reverb', preset: 'Small plate', params: { mix: 0.15 } },
+    ],
+  },
+  {
+    id: 'forty-ticks-over-bass',
+    name: 'Forty ticks over bass',
+    category: 'motion',
+    description:
+      'From 300 Hz to 3 kHz the sound comes in forty short ticks a second, a buzz over a bass that is left whole, held by a limiter.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Forty ticks' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'sixteenths-in-time',
+    name: 'Sixteenths in time',
+    category: 'motion',
+    description:
+      'Eight pulses a second, the sixteenth notes of a piece at 120 beats a minute, with a clean echo on every beat.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Eight a second', params: { depth: 0.8, edge: 8 } },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 500, mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'sixty-six-a-minute',
+    name: 'Sixty six a minute',
+    category: 'motion',
+    description:
+      'Held chords whose low middle sounds for a fifth of each beat, 66 beats a minute, a soft swell and a long gap, in a hall.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'band-pulse', preset: 'Seventy a minute', params: { rate: 1.1 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
 ]

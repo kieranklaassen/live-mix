@@ -14,6 +14,7 @@ import { AROUND_DESCRIPTOR, AROUND_DEVICE } from './around.gen'
 import { ATMOSPHERE_DESCRIPTOR, ATMOSPHERE_DEVICE } from './atmosphere.gen'
 import { AURORA_DESCRIPTOR, AURORA_DEVICE } from './aurora.gen'
 import { AUTO_FILTER_DESCRIPTOR, AUTO_FILTER_DEVICE } from './auto-filter.gen'
+import { BAND_PULSE_DESCRIPTOR, BAND_PULSE_DEVICE } from './band-pulse.gen'
 import { BINAURAL_DESCRIPTOR, BINAURAL_DEVICE } from './binaural.gen'
 import { BLOOM_REVERB_DESCRIPTOR, BLOOM_REVERB_DEVICE } from './bloom-reverb.gen'
 import { BOWED_STRING_DESCRIPTOR, BOWED_STRING_DEVICE } from './bowed-string.gen'
@@ -158,6 +159,7 @@ export * from './around.gen'
 export * from './atmosphere.gen'
 export * from './aurora.gen'
 export * from './auto-filter.gen'
+export * from './band-pulse.gen'
 export * from './binaural.gen'
 export * from './bloom-reverb.gen'
 export * from './bowed-string.gen'
@@ -304,6 +306,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   ATMOSPHERE_DESCRIPTOR,
   AURORA_DESCRIPTOR,
   AUTO_FILTER_DESCRIPTOR,
+  BAND_PULSE_DESCRIPTOR,
   BINAURAL_DESCRIPTOR,
   BLOOM_REVERB_DESCRIPTOR,
   BOWED_STRING_DESCRIPTOR,
@@ -451,6 +454,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   ATMOSPHERE_DEVICE,
   AURORA_DEVICE,
   AUTO_FILTER_DEVICE,
+  BAND_PULSE_DEVICE,
   BINAURAL_DEVICE,
   BLOOM_REVERB_DEVICE,
   BOWED_STRING_DEVICE,
@@ -605,6 +609,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'atmosphere', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'aurora', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'auto-filter', instrument: false, samples: false, zones: false, meters: 1, memoryMb: 4 },
+  { id: 'band-pulse', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'binaural', instrument: true, samples: false, zones: false, meters: 1, memoryMb: 4 },
   { id: 'bloom-reverb', instrument: false, samples: false, zones: false, meters: 2, memoryMb: 4 },
   { id: 'bowed-string', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
