@@ -658,11 +658,19 @@ int main() {
       // Off the beat of anything that counts in blocks.
       device.in_left()[0] = device.in_right()[0] = 0.25f;
       device.process(13);
+      // One stream, so that the second tone begins wherever in a block the
+      // count puts it: a device that set anything when its block woke it
+      // would differ here.
       const std::vector<float> first = sine(220.0f, 0.3f, kRate, 0.5f);
       const std::vector<float> rest(at(gap, kRate), 0.0f);
-      run_blocks(device, first, block);
-      run_blocks(device, rest, block);
-      Stereo after = run_blocks(device, sine(440.0f, 1.5f, kRate, 0.5f), block);
+      std::vector<float> stream = first;
+      stream.insert(stream.end(), rest.begin(), rest.end());
+      const std::vector<float> tone = sine(440.0f, 1.5f, kRate, 0.5f);
+      stream.insert(stream.end(), tone.begin(), tone.end());
+      const Stereo whole = run_blocks(device, stream, block);
+      Stereo after;
+      after.left.assign(whole.left.end() - static_cast<long>(tone.size()), whole.left.end());
+      after.right.assign(whole.right.end() - static_cast<long>(tone.size()), whole.right.end());
       if (block == 128) {
         reference = after;
         const size_t before = 13 + first.size() + rest.size();
@@ -701,8 +709,11 @@ int main() {
   // silence 5 ms before the next note: blocks of 1, of 2048 and a ragged mix
   // give what blocks of 128 give.
   {
-    std::vector<float> gaps = {0.003f, 0.05f, 0.3f, 5.0f};
-    for (int i = 0; i <= 45; ++i) gaps.push_back(0.4f + 0.02f * static_cast<float>(i));
+    // From 0.2 s: the tail is under the idle gate's floor a quarter of a
+    // second after the note, so a device that fell idle on its hold alone
+    // would do so from there on.
+    std::vector<float> gaps = {0.003f, 0.05f, 0.1f, 5.0f};
+    for (int i = 0; i <= 55; ++i) gaps.push_back(0.2f + 0.02f * static_cast<float>(i));
     double worst = 0.0;
     float worst_gap = 0.0f;
     for (float gap : gaps) {
@@ -717,8 +728,11 @@ int main() {
         const float moved = gap > 0.005f ? gap - 0.005f : 0.0f;
         all = concat(all, run_blocks(device, silence(moved, kRate), block));
         set(device, 9.0f, 0.4f, 250.0f, 600.0f);
-        all = concat(all, run_blocks(device, silence(gap - moved, kRate), block));
-        all = concat(all, run_blocks(device, second, block));
+        // The last 5 ms of the silence and the note are one stream: the note
+        // begins wherever in a block that puts it.
+        std::vector<float> stream = silence(gap - moved, kRate);
+        stream.insert(stream.end(), second.begin(), second.end());
+        all = concat(all, run_blocks(device, stream, block));
         if (block == 128) {
           reference = all;
         } else {
