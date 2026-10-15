@@ -32,6 +32,7 @@ import { HANDPAN_PRESETS } from './handpan'
 import { HARP_PRESETS } from './harp'
 import { HORNS_PRESETS } from './horns'
 import { ICE_PRESETS } from './ice'
+import { ISOCHRONIC_PRESETS } from './isochronic'
 import { LADDER_BASS_PRESETS } from './ladder-bass'
 import { MAGNET_PIANO_PRESETS } from './magnet-piano'
 import { MALLETS_PRESETS } from './mallets'
@@ -114,4 +115,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...ISOCHRONIC_PRESETS,
 ]
