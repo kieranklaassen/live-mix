@@ -1159,7 +1159,7 @@ static void test_levels() {
     std::printf("  as the preset bench hears the defaults: loudest 400 ms of the mid %.1f dBFS, peak %.1f dBFS\n",
                 db(loudest_400ms(mid(bench), kRate)), db(std::max(peak(bench.left), peak(bench.right))));
   }
-  // A full pool of keys at full gain never reaches the clip's knee, with a
+  // A full pool of keys at full gain stays under the clip's knee, with a
   // band at every key and unlike noise on the two sides, at any Colour. The
   // keys are low, where brown has most to give a band.
   for (int c = 0; c < 3; ++c) {
@@ -1178,6 +1178,32 @@ static void test_levels() {
       std::printf("  %s\n", label);
       EXPECT(high < 0.5, label);
     }
+  }
+  // Noise has no ceiling, so "never" is a count: the loudest case above
+  // (brown, a band at each of ten low keys) held for ten minutes, every
+  // sample of both sides looked at.
+  {
+    device.init(kRate);
+    device.set_param(p::kColour, 1.0f);
+    device.set_param(p::kTint, 1.0f);
+    device.set_param(p::kWidth, 1.0f);
+    device.set_param(p::kDrift, 0.0f);
+    device.set_param(p::kAttack, 0.01f);
+    for (int n = 0; n < 10; ++n) device.note_on(n, 55.0f * std::pow(2.0f, static_cast<float>(n) / 3.0f), 1.0f);
+    const long blocks = 600L * 48000L / kBlock;
+    long over = 0;
+    double high = 0.0;
+    for (long b = 0; b < blocks; ++b) {
+      device.process(kBlock);
+      for (int i = 0; i < kBlock; ++i) {
+        const double l = std::fabs(device.out_left()[i]), r = std::fabs(device.out_right()[i]);
+        over += (l > 0.5 ? 1 : 0) + (r > 0.5 ? 1 : 0);
+        high = std::max(high, std::max(l, r));
+      }
+    }
+    std::snprintf(label, sizeof label, "ten low keys on brown at Tint 1 for ten minutes: no sample past the knee (peak %.3f, %ld past it)", high, over);
+    std::printf("  %s\n", label);
+    EXPECT(over == 0 && high < 0.45, label);
   }
   // Counted at its worst: ten keys of one pitch from ten sources add in step.
   {

@@ -94,31 +94,85 @@
       "name": "Volume",
       "min": -48,
       "max": 6,
-      "default": -9,
+      "default": -12,
       "unit": "dB",
       "description": "Output level of the whole instrument."
     }
   ],
   "presets": {
-    "White": { "colour": 0, "drift": 0, "width": 1 },
-    "Pink": { "colour": 0.5, "drift": 0 },
-    "Brown": { "colour": 1, "drift": 0, "width": 0.4 },
-    "Pale pink": { "colour": 0.25, "drift": 0.1, "width": 0.8, "attack": 1 },
-    "Dark pink": { "colour": 0.75, "drift": 0.1, "width": 0.5, "attack": 3 },
-    "Brown, low only": { "colour": 1, "highCut": 700, "drift": 0, "width": 0.3 },
-    "Pink, top off": { "colour": 0.5, "highCut": 3500, "drift": 0.15 },
-    "White, high only": { "colour": 0, "lowCut": 2000, "drift": 0, "width": 1, "attack": 1 },
+    "White": {
+      "colour": 0,
+      "drift": 0,
+      "width": 1
+    },
+    "Pink": {
+      "colour": 0.5,
+      "drift": 0
+    },
+    "Brown": {
+      "colour": 1,
+      "drift": 0,
+      "width": 0.4
+    },
+    "Pale pink": {
+      "colour": 0.25,
+      "drift": 0.1,
+      "width": 0.8,
+      "attack": 1
+    },
+    "Dark pink": {
+      "colour": 0.75,
+      "drift": 0.1,
+      "width": 0.5,
+      "attack": 3
+    },
+    "Brown, low only": {
+      "colour": 1,
+      "highCut": 700,
+      "drift": 0,
+      "width": 0.3
+    },
+    "Pink, top off": {
+      "colour": 0.5,
+      "highCut": 3500,
+      "drift": 0.15
+    },
+    "White, high only": {
+      "colour": 0,
+      "lowCut": 2000,
+      "drift": 0,
+      "width": 1,
+      "attack": 1
+    },
     "Pink, mid band": {
       "colour": 0.5,
       "lowCut": 300,
       "highCut": 2500,
       "drift": 0,
       "width": 0.5,
-      "volume": -4
+      "volume": -7
     },
-    "Pink, centred": { "colour": 0.5, "lowCut": 60, "drift": 0, "width": 0 },
-    "Pink, 4 s swells": { "colour": 0.5, "drift": 0.8, "driftTime": 4, "attack": 0.5 },
-    "Brown, 2 s swells": { "colour": 1, "drift": 1, "driftTime": 2, "width": 0.4, "attack": 0.5 },
+    "Pink, centred": {
+      "colour": 0.5,
+      "lowCut": 60,
+      "drift": 0,
+      "width": 0
+    },
+    "Pink, 4 s swells": {
+      "colour": 0.5,
+      "drift": 0.8,
+      "driftTime": 4,
+      "width": 1,
+      "attack": 0.5
+    },
+    "Brown, 2 s swells": {
+      "colour": 0.9,
+      "lowCut": 40,
+      "drift": 1,
+      "driftTime": 2,
+      "width": 0.8,
+      "attack": 0.3
+    },
     "White, 3 s swells": {
       "colour": 0.1,
       "lowCut": 400,
@@ -127,17 +181,86 @@
       "width": 1,
       "attack": 0.3
     },
-    "Brown, 5 s swells": { "colour": 0.9, "highCut": 5000, "drift": 0.9, "driftTime": 5 },
-    "Pink, long swells": { "colour": 0.6, "drift": 1, "driftTime": 12, "attack": 1 },
-    "Pink with pitch": { "colour": 0.5, "tint": 0.7, "drift": 0.1 },
-    "White with pitch": { "colour": 0.1, "lowCut": 150, "tint": 1, "drift": 0, "width": 0.9 },
-    "Brown with pitch": { "colour": 1, "tint": 1, "drift": 0, "width": 0.4 },
-    "Pitch and swells": { "colour": 0.6, "tint": 0.9, "drift": 0.8, "driftTime": 4, "attack": 0.8 },
-    "Pitch, top off": { "colour": 0.7, "highCut": 1500, "tint": 1, "attack": 3, "release": 6 },
-    "Pink, quick": { "colour": 0.5, "drift": 0, "attack": 0.03, "release": 0.4 },
-    "Pink, slow rise": { "colour": 0.5, "drift": 0.3, "attack": 6, "release": 10 },
-    "Brown, slow rise": { "colour": 1, "drift": 0.2, "width": 0.8, "attack": 5, "release": 8 },
-    "Hiss, slow rise": { "colour": 0, "lowCut": 1000, "attack": 5, "release": 6 }
+    "Brown, 5 s swells": {
+      "colour": 0.9,
+      "highCut": 5000,
+      "drift": 0.9,
+      "driftTime": 5
+    },
+    "Pink, long swells": {
+      "colour": 0.65,
+      "highCut": 8000,
+      "drift": 1,
+      "driftTime": 12,
+      "width": 0.9,
+      "attack": 1
+    },
+    "Pink with pitch": {
+      "colour": 0.5,
+      "tint": 1,
+      "drift": 0,
+      "width": 0.2,
+      "attack": 0.2,
+      "release": 1.5
+    },
+    "White with pitch": {
+      "colour": 0.1,
+      "lowCut": 150,
+      "tint": 1,
+      "drift": 0,
+      "width": 0.9
+    },
+    "Brown with pitch": {
+      "colour": 1,
+      "lowCut": 50,
+      "tint": 1,
+      "drift": 0,
+      "width": 0.8,
+      "attack": 0.1,
+      "release": 2
+    },
+    "Pitch and swells": {
+      "colour": 0.7,
+      "highCut": 6000,
+      "tint": 1,
+      "drift": 0.8,
+      "driftTime": 4,
+      "width": 0.3,
+      "attack": 0.2
+    },
+    "Pitch, top off": {
+      "colour": 0.7,
+      "highCut": 1500,
+      "tint": 1,
+      "attack": 3,
+      "release": 6
+    },
+    "Pink, quick": {
+      "colour": 0.4,
+      "drift": 0,
+      "width": 0.3,
+      "attack": 0.03,
+      "release": 0.4
+    },
+    "Pink, slow rise": {
+      "colour": 0.5,
+      "drift": 0.3,
+      "attack": 6,
+      "release": 10
+    },
+    "Brown, slow rise": {
+      "colour": 1,
+      "drift": 0.2,
+      "width": 0.8,
+      "attack": 5,
+      "release": 8
+    },
+    "Hiss, slow rise": {
+      "colour": 0,
+      "lowCut": 1000,
+      "attack": 5,
+      "release": 6
+    }
   },
   "origin": {
     "kind": "new",

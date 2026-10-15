@@ -11,7 +11,7 @@
 //    6  width: 0..1, default 0.6
 //    7  attack: 0.01..10 s, default 2
 //    8  release: 0.05..15 s, default 4
-//    9  volume: -48..6 dB, default -9
+//    9  volume: -48..6 dB, default -12
 
 #pragma once
 
@@ -34,7 +34,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.0f, 20.0f, 500.0f, 0.0f, 0.0f, 2.0f, 0.0f, 0.01f, 0.05f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {1.0f, 2000.0f, 20000.0f, 1.0f, 1.0f, 30.0f, 1.0f, 10.0f, 15.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {0.5f, 20.0f, 20000.0f, 0.0f, 0.2f, 9.0f, 0.6f, 2.0f, 4.0f, -9.0f};
+inline constexpr float kParamDefault[kNumParams] = {0.5f, 20.0f, 20000.0f, 0.0f, 0.2f, 9.0f, 0.6f, 2.0f, 4.0f, -12.0f};
 
 }  // namespace coloured_noise
 }  // namespace livemix
