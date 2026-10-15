@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { bandEdges, bandsOf, createEar, levelOf, type TappedMaster } from '../ear'
+import {
+  EAR_KEEPS_SEC,
+  bandEdges,
+  bandsOf,
+  createEar,
+  hearTrace,
+  levelOf,
+  outputLatencySec,
+  type TappedMaster,
+} from '../ear'
 import { SPECTRUM_BANDS } from '../frame'
 
 const BINS = 1024
@@ -272,5 +281,164 @@ describe('listening to the master', () => {
     expect(ear.read()).toBe(heard)
     expect(heard.level).toBeCloseTo(1, 6)
     expect(analyser.reads).toBe(1)
+  })
+})
+
+describe('what was heard a little while ago', () => {
+  /** An ear on a clock of its own, whose wave the test sets before each reading. */
+  function clockedEar() {
+    const wave = new Float32Array(2048)
+    const analyser = fakeAnalyser(new Uint8Array(BINS), wave)
+    const context = { sampleRate: RATE, currentTime: 0, createAnalyser: () => analyser }
+    const ear = createEar(context as unknown as BaseAudioContext, fakeMaster().master)
+    /** Reads at `atSec` a wave this loud, asking for what was heard `agoSec` before. */
+    const read = (atSec: number, amplitude: number, agoSec?: number): number => {
+      context.currentTime = atSec
+      wave.set(sine(amplitude))
+      return ear.read(agoSec).level
+    }
+    return { read }
+  }
+
+  it('is what is heard now where none is asked for', () => {
+    const { read } = clockedEar()
+    expect(read(1, 1)).toBeCloseTo(1, 6)
+    expect(read(1.1, 0)).toBe(0)
+    expect(read(1.2, 1, 0)).toBeCloseTo(1, 6)
+  })
+
+  it('is the newest reading that is at least that old', () => {
+    const { read } = clockedEar()
+    // Silent until 1.0, loud from then on, read every 20 ms and asked for 0.1 s ago.
+    const levels: [number, number][] = []
+    for (let step = 0; step <= 60; step++) {
+      const at = 0.5 + step * 0.02
+      levels.push([at, read(at, at >= 1 - 1e-9 ? 1 : 0, 0.1)])
+    }
+    for (const [at, level] of levels)
+      expect(level, `at ${at.toFixed(2)}`).toBeCloseTo(at >= 1.1 - 1e-9 ? 1 : 0, 6)
+  })
+
+  it('is the oldest there is while nothing that old was read', () => {
+    const { read } = clockedEar()
+    expect(read(2, 1, 0.2)).toBeCloseTo(1, 6)
+    expect(read(2.05, 0, 0.2)).toBeCloseTo(1, 6)
+    expect(read(2.25, 0, 0.2)).toBe(0)
+  })
+
+  it('goes back no further than it keeps', () => {
+    const { read } = clockedEar()
+    read(1, 1, 0.01)
+    for (let step = 1; step <= 100; step++) read(1 + step * 0.01, 0, 0.01)
+    expect(EAR_KEEPS_SEC).toBe(0.5)
+    // Asked for five seconds ago, it answers for half a second ago: silence.
+    expect(read(2.01, 1, 5)).toBe(0)
+  })
+})
+
+describe('the sound as it leaves the speakers', () => {
+  const HOP = 240
+  /** An engine that has rendered a wave up to `currentTime`, which the test moves on. */
+  function engine(more: Record<string, unknown> = {}) {
+    // Silent for the first second, loud from then on.
+    const sample = (index: number) => (index >= RATE ? 0.5 : 0)
+    const analyser = {
+      fftSize: 0,
+      smoothingTimeConstant: 1,
+      getFloatTimeDomainData(into: Float32Array): void {
+        const end = Math.round(context.currentTime * RATE)
+        for (let index = 0; index < into.length; index++) {
+          const at = end - into.length + index
+          into[index] = at < 0 ? 0 : sample(at)
+        }
+      },
+    }
+    const context = {
+      sampleRate: RATE,
+      currentTime: 0,
+      createAnalyser: () => analyser,
+      ...more,
+    }
+    return { context, analyser }
+  }
+
+  it('hands over every stretch once, at the time it is heard', () => {
+    const { context, analyser } = engine({ outputLatency: 0.05 })
+    const { master, added } = fakeMaster()
+    let now = 100
+    const trace = hearTrace(context as unknown as BaseAudioContext, master, () => now)
+    expect(added).toEqual([analyser])
+    expect(analyser.fftSize).toBe(16_384)
+    const put: [number, number][] = []
+    // Asked every 0.1 s, as the page's clock and the engine's run on together.
+    for (let step = 1; step <= 15; step++) {
+      context.currentTime = step * 0.1
+      now = 100 + step * 0.1
+      trace.read((at, level) => put.push([at, level]))
+    }
+    // One for each 5 ms up to 1.5 s, none twice and none left out.
+    expect(put).toHaveLength((1.5 * RATE) / HOP)
+    put.forEach(([at], index) => expect(at).toBeCloseTo(100 + 0.05 + (index + 0.5) * 0.005, 6))
+    // The sound that starts a second into the engine's time is heard 50 ms after that.
+    const first = put.find(([, level]) => level > 0)
+    expect(first?.[0]).toBeCloseTo(101.05 + 0.0025, 6)
+    expect(first?.[1]).toBeGreaterThan(0.8)
+  })
+
+  it('goes by the moment the browser says is at the speakers, where it says one', () => {
+    const { context } = engine({
+      outputLatency: 0.05,
+      // The engine's 0.9 s is at the speakers at 100.98 s of the page: 80 ms after it was rendered.
+      getOutputTimestamp: () => ({ contextTime: 0.9, performanceTime: 100_980 }),
+    })
+    const trace = hearTrace(context as unknown as BaseAudioContext, fakeMaster().master, () => 101)
+    context.currentTime = 1
+    const put: number[] = []
+    trace.read((at) => put.push(at))
+    expect(put.at(-1)).toBeCloseTo(101.08 - 0.0025, 6)
+  })
+
+  it('does not believe a moment that is far off', () => {
+    const { context } = engine({
+      outputLatency: 0.05,
+      getOutputTimestamp: () => ({ contextTime: 0.9, performanceTime: 5 }),
+    })
+    const trace = hearTrace(context as unknown as BaseAudioContext, fakeMaster().master, () => 101)
+    context.currentTime = 1
+    const put: number[] = []
+    trace.read((at) => put.push(at))
+    expect(put.at(-1)).toBeCloseTo(101.05 - 0.0025, 6)
+  })
+
+  it('leaves out what the engine rendered before it kept it, when it is asked too seldom', () => {
+    const { context } = engine()
+    const trace = hearTrace(context as unknown as BaseAudioContext, fakeMaster().master, () => 0)
+    context.currentTime = 2
+    let count = 0
+    trace.read(() => count++)
+    // Only what the analyser still holds: a third of a second.
+    expect(count).toBe(Math.floor(16_384 / HOP))
+  })
+
+  it('lets go of the master once when it is closed, and hands over no more', () => {
+    const { context, analyser } = engine()
+    const { master, removed } = fakeMaster()
+    const trace = hearTrace(context as unknown as BaseAudioContext, master, () => 0)
+    trace.close()
+    trace.close()
+    expect(removed).toEqual([analyser])
+    context.currentTime = 1
+    let count = 0
+    trace.read(() => count++)
+    expect(count).toBe(0)
+  })
+
+  it('says how long the output takes: what the browser says, else its own buffer, else nothing', () => {
+    const latency = (context: object) => outputLatencySec(context as BaseAudioContext)
+    expect(latency({ outputLatency: 0.026, baseLatency: 0.003 })).toBe(0.026)
+    expect(latency({ outputLatency: 0, baseLatency: 0.003 })).toBe(0.003)
+    expect(latency({ baseLatency: 0.003 })).toBe(0.003)
+    expect(latency({})).toBe(0)
+    expect(latency({ outputLatency: Number.NaN })).toBe(0)
   })
 })

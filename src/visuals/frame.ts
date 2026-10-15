@@ -78,8 +78,14 @@ export interface VisualFrame {
 
 const clamp01 = (value: number): number => (value > 0 ? (value < 1 ? value : 1) : 0)
 
-/** A visual shows this much of itself at most a beat after its stretch starts and a beat before it ends. */
-const EDGE_BEATS = 1
+/**
+ * A style on a stretch is all there an eighth of a beat after the stretch starts: it comes in with the sound that
+ * starts there, as a sound's own attack does, and not after it. It goes out over the last beat of its stretch. A
+ * bend works on what is already painted, and is eased in over a beat as it is eased out: a picture that folds or
+ * turns all at once jumps.
+ */
+const IN_BEATS = 0.125
+const EASE_BEATS = 1
 
 /** What a source reads now. `stroke` is the level of the stroke the visual is linked to, 0 for one that is not. */
 export function sourceNow(source: VisualSource, signals: VisualSignals, stroke: number): number {
@@ -105,15 +111,18 @@ export function knobNow(
 
 /**
  * How much of a visual shows now, 0 to 1: with its stroke when it is linked to one, else for its own stretch of the
- * piece, coming in and going out over a beat.
+ * piece, a style there at once as the stretch starts and going out over its last beat, a bend eased over a beat at
+ * either end.
  */
 export function presenceOf(visual: Visual, beat: number, strokeLevel: number): number {
   if (visual.stroke !== null) return clamp01(1.4 * strokeLevel)
   if (visual.beats === null) return 1
   const into = beat - visual.beat
   if (into < 0 || into > visual.beats) return 0
-  const edge = Math.min(EDGE_BEATS, visual.beats / 2)
-  return clamp01(Math.min(into, visual.beats - into) / edge)
+  // A stretch too short for both keeps the two in proportion.
+  const inBeats = paints(visual.kind) ? IN_BEATS : EASE_BEATS
+  const fit = Math.min(1, visual.beats / (2 * Math.max(inBeats, EASE_BEATS)))
+  return clamp01(Math.min(into / (inBeats * fit), (visual.beats - into) / (EASE_BEATS * fit)))
 }
 
 /**

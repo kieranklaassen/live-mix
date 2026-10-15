@@ -190,4 +190,33 @@ describe('the line to a second screen', () => {
     screen.close()
     line.close()
   })
+
+  it('sends at the pace it is handed, and none of its own', () => {
+    const { open } = hub()
+    const frameAt = vi.fn(() => frameWith(0, 0))
+    let turn: (() => void) | null = null
+    let asked = 0
+    const every = (next: () => void, ms: number) => {
+      asked = ms
+      turn = next
+      return () => {
+        turn = null
+      }
+    }
+    const sender = sendVisuals('picture', frameAt, { open, now, every, fps: 25 })
+    const screen = receiveVisuals('picture', { open, now })
+    expect(asked).toBe(40)
+
+    // The page's timers are slowed to nothing: no frame goes of itself.
+    pass(500)
+    expect(frameAt).not.toHaveBeenCalled()
+    // Each turn the host gives is a frame.
+    for (let count = 0; count < 3; count++) (turn as (() => void) | null)?.()
+    expect(frameAt).toHaveBeenCalledTimes(3)
+    expect(screen.live()).toBe(true)
+
+    sender.close()
+    expect(turn).toBeNull()
+    screen.close()
+  })
 })

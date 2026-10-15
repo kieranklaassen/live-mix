@@ -759,6 +759,12 @@ const visualsSymbols = [
   'showVisuals',
   'receiveVisuals',
   'sendVisuals',
+  'EAR_KEEPS_SEC',
+  'hearTrace',
+  'outputLatencySec',
+  'SYNC_SURE',
+  'SyncScope',
+  'lightOf',
 ] as const
 
 describe('public entries', () => {

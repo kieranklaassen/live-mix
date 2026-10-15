@@ -92,15 +92,22 @@ const KIND_BANDS: Readonly<Record<KindSlot, readonly [middle: number, wide: numb
   hits: [6, 7],
 }
 
-/** How fast a level follows what it reads, in seconds. */
-const FOLLOW_SEC = 0.12
+/**
+ * How fast a level comes up to what it reads, and how fast it falls back, in seconds. A sound that comes in shows
+ * with it; one that goes leaves the picture a little after, so nothing flickers.
+ */
+const RISE_SEC = 0.03
+const FALL_SEC = 0.12
 /** How long a hit, a cue and a played note each show. */
 const HIT_FALL_SEC = 0.6
 const CUE_FALL_SEC = 1.2
 const KEYS_FALL_SEC = 0.7
 /** A cue's flare stays this long where it fell. */
 const FLARE_SEC = 4
-/** No frame is taken to be longer than this: a tab that was away does not jump. */
+/**
+ * What runs on by itself (the even time, the distance travelled) takes no frame to be longer than this: a tab that
+ * was away does not jump. What follows the music is not held to it: after a long frame it stands where the music is.
+ */
 const LONGEST_FRAME_SEC = 0.1
 
 const clamp01 = (value: number): number => (value > 0 ? (value < 1 ? value : 1) : 0)
@@ -202,7 +209,8 @@ export class VisualFollower {
 
   step(input: FollowInput): Followed {
     const signals = this.signals
-    const dt = Math.min(LONGEST_FRAME_SEC, Math.max(0, input.dtSec))
+    const went = Math.max(0, input.dtSec)
+    const dt = Math.min(LONGEST_FRAME_SEC, went)
     const { pieceSec, playheadSec, strokes } = input
     const space = clamp01(input.space)
     signals.time += dt
@@ -238,8 +246,13 @@ export class VisualFollower {
     })
     if (kinds.hits > 0.6) this.hitAt = signals.time
 
-    const follow = 1 - Math.exp(-dt / FOLLOW_SEC)
-    const toward = (now: number, want: number) => now + (clamp01(want) - now) * follow
+    // By the time that really went by: a page that paints seldom is not further behind the music for it.
+    const rise = 1 - Math.exp(-went / RISE_SEC)
+    const fall = 1 - Math.exp(-went / FALL_SEC)
+    const toward = (now: number, want: number) => {
+      const to = clamp01(want)
+      return now + (to - now) * (to > now ? rise : fall)
+    }
     signals.drone = toward(signals.drone, kinds.drone)
     signals.pad = toward(signals.pad, kinds.pad)
     signals.texture = toward(signals.texture, kinds.texture)
@@ -252,10 +265,8 @@ export class VisualFollower {
     // The whole: as heard while it plays, else as the strokes at the playhead would have it.
     const heard = input.playing ? input.heard : null
     const bands = signals.bands
-    for (let band = 0; band < SPECTRUM_BANDS; band++) {
-      bands[band] +=
-        (clamp01(heard ? heard.bands[band] : this.guessed[band]) - bands[band]) * follow
-    }
+    for (let band = 0; band < SPECTRUM_BANDS; band++)
+      bands[band] = toward(bands[band], heard ? heard.bands[band] : this.guessed[band])
     const most = (from: number, to: number) => {
       let top = 0
       for (let band = from; band <= to; band++) top = Math.max(top, bands[band])
