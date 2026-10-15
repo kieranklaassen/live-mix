@@ -263,7 +263,7 @@
     },
     "Dark bed, three": {
       "beat": 3,
-      "bed": 0.9,
+      "bed": 0.8,
       "colour": 0.85,
       "warmth": 0,
       "attack": 4,

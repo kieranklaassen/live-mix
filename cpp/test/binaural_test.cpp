@@ -573,6 +573,23 @@ static void test_glide() {
   device.note_off(1);
   render(device, 20.0f, kRate);
   EXPECT_NEAR(device.meter(0), (32.0 + 20.0) / 60.0, 0.001, "the glide counts on through a silence");
+  // The glide's time is in seconds at every sample rate: half way after half
+  // of it, and at Target once it is over.
+  for (float rate : kRates) {
+    plain(rate);
+    device.set_param(p::kBeat, 10.0f);
+    device.set_param(p::kTarget, 4.0f);
+    device.set_param(p::kGlide, 0.1f);
+    device.note_on(1, 440.0f, 0.7f);
+    render(device, 3.0f, rate);
+    const float half_way = device.meter(0);
+    Stereo rest = render(device, 5.0f, rate);
+    const double landed = crossing_hz(rest.left, rate, at(3.5, rate), at(4.9, rate)) -
+                          crossing_hz(rest.right, rate, at(3.5, rate), at(4.9, rate));
+    MEASURED("%.0f Hz: a glide of 6 s is %.4f of the way after 3 s and beats at %.4f Hz after it", rate, half_way, landed);
+    EXPECT_NEAR(half_way, 0.5, 0.001, "a glide's time is the same at every sample rate");
+    EXPECT_NEAR(landed, 4.0, 0.004, "and it lands on Target at every sample rate");
+  }
   // Glide at 0 is off: the beat is Beat whatever Target says.
   plain();
   device.set_param(p::kBeat, 10.0f);
@@ -727,6 +744,16 @@ static void test_envelope() {
                peak(down.right, at(5.3, rate)) == 0.0,
            "the tail ends in exact silence when it is 100 dB down");
   }
+  // Release moved while a key is held is the release that key gets.
+  plain();
+  device.set_param(p::kRelease, 10.0f);
+  device.note_on(1, 440.0f, 0.7f);
+  render(device, 0.5f, kRate);
+  device.set_param(p::kRelease, 0.05f);
+  device.note_off(1);
+  Stereo short_tail = render(device, 0.5f, kRate);
+  EXPECT(peak(short_tail.left, 0, at(0.01)) > 0.05 && peak(short_tail.left, at(0.2)) == 0.0,
+         "Release moved under a held key is the release it gets");
 }
 
 // --- one beat for every key ------------------------------------------------------------------
@@ -939,6 +966,21 @@ static void test_voices() {
   const double ninth = level_at(fresh.left, 793.0, kRate, at(0.2), at(0.6));
   MEASURED("an eighth and a ninth key in one block: %.4f and %.4f", eighth, ninth);
   EXPECT(eighth > 0.02 && ninth > 0.02, "a voice just taken is not the next one stolen");
+
+  // A full pool whose first key is far softer than the rest, and two more
+  // keys in one block: the first takes the soft voice and waits in it, and
+  // the second must take another, not the one a key already waits in.
+  plain();
+  device.set_param(p::kRelease, 3.0f);
+  for (int n = 0; n < 8; ++n) device.note_on(n, kChord[n], n == 0 ? 0.1f : 0.8f);
+  render(device, 1.0f, kRate);
+  device.note_on(98, 620.0f, 0.8f);
+  device.note_on(99, 790.0f, 0.8f);
+  Stereo uneven = render(device, 0.6f, kRate);
+  const double waited = level_at(uneven.left, 623.0, kRate, at(0.2), at(0.6));
+  const double other = level_at(uneven.left, 793.0, kRate, at(0.2), at(0.6));
+  MEASURED("two keys into a full pool with one soft voice: %.4f and %.4f", waited, other);
+  EXPECT(waited > 0.02 && other > 0.02, "a voice a key waits in is not stolen again");
 
   // A key struck twice in one block with every level tied: it takes one
   // voice, the chord's second note stays, and one note off ends it.
