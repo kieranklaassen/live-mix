@@ -179,6 +179,7 @@ export const PLATE_PALETTES = {
   'band-pulse': { plate: '#c56b91', ink: '#220818', accent: '#fffbe8' },
   isochronic: { plate: '#a17a05', ink: '#160f00', accent: '#fffbe8' },
   'ear-shift': { plate: '#6b5cff', ink: '#0a0730', accent: '#fff3b8' },
+  'winding-down': { plate: '#a27e90', ink: '#1c0a14', accent: '#fffbe8' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

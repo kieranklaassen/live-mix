@@ -300,6 +300,8 @@ build_generated_devices() {
     cpp/devices/west-coast/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device wind-harp \
     cpp/devices/wind-harp/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device winding-down \
+    cpp/devices/winding-down/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device zither \
     cpp/devices/zither/device_api.gen.cpp
   MEMORY_BYTES=67108864 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_sample_capacity,_device_sample_buffer,_device_sample_commit,_device_zone_capacity,_device_zone_pool_capacity,_device_zones_begin,_device_zone_sample,_device_zone_sample_buffer,_device_zone_fields,_device_zone_add" build_device zone-sampler \
@@ -603,6 +605,8 @@ test_generated_devices() {
     cpp/test/west_coast_test.cpp
   native_test wind_harp_test \
     cpp/test/wind_harp_test.cpp
+  native_test winding_down_test \
+    cpp/test/winding_down_test.cpp
   native_test zither_test \
     cpp/test/zither_test.cpp
   native_test zone_sampler_test \

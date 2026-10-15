@@ -81,6 +81,7 @@ import { BAND_PULSE_FACES } from './band-pulse'
 import { ISOCHRONIC_FACES } from './isochronic'
 import { EAR_SHIFT_FACES } from './ear-shift'
 import { STILL_POINT_FACES } from './still-point'
+import { WINDING_DOWN_FACES } from './winding-down'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -163,4 +164,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...ISOCHRONIC_FACES,
   ...EAR_SHIFT_FACES,
   ...STILL_POINT_FACES,
+  ...WINDING_DOWN_FACES,
 }

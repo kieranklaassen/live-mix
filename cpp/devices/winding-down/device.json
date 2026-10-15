@@ -1,0 +1,236 @@
+{
+  "id": "winding-down",
+  "name": "Winding Down",
+  "category": "modulation",
+  "description": "Layers of one pulse, each twice as fast as the next, glide together and fade in and out, so the pulse seems to slow, or quicken, without end. It only turns sound down.",
+  "class": "WindingDown",
+  "header": "winding_down.h",
+  "sources": [],
+  "meters": [
+    {
+      "key": "place",
+      "name": "Place in the halving",
+      "display": true
+    }
+  ],
+  "params": [
+    {
+      "key": "direction",
+      "name": "Direction",
+      "choices": ["Slower", "Quicker"],
+      "default": 0,
+      "description": "Whether the pulse seems to slow down or to quicken without end. Changing it turns the glide round from where it is, with no jump."
+    },
+    {
+      "key": "rate",
+      "name": "Rate",
+      "min": 1,
+      "max": 8,
+      "default": 4,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "The pulse rate a layer has when it is loudest. Layers twice and half as fast are quieter on either side. A fast rate with many layers adds a quick flutter on top."
+    },
+    {
+      "key": "halving",
+      "name": "Halving",
+      "min": 4,
+      "max": 120,
+      "default": 20,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long every layer takes to halve its rate, or to double it when quickening. Short is a plain slide. Long times are for long pieces: in a few seconds little moves."
+    },
+    {
+      "key": "layers",
+      "name": "Layers",
+      "min": 2,
+      "max": 5,
+      "default": 4,
+      "step": 1,
+      "description": "How many layers sound at once. Two is one pulse crossing over to its double. Five is a thick weave, and at a fast rate its quickest layers are a flutter on top."
+    },
+    {
+      "key": "depth",
+      "name": "Depth",
+      "min": 0,
+      "max": 1,
+      "default": 0.7,
+      "description": "How far the pulses turn the sound down. At zero nothing is changed. At full the sound is gone wherever every layer is in its gap."
+    },
+    {
+      "key": "edge",
+      "name": "Edge",
+      "min": 2,
+      "max": 50,
+      "default": 15,
+      "taper": "log",
+      "unit": "ms",
+      "description": "How long each pulse takes to rise and to fall. Short is a hard chop, long is a soft swell. A fast layer keeps it to a quarter of its own period."
+    },
+    {
+      "key": "offset",
+      "name": "Offset",
+      "min": 0,
+      "max": 180,
+      "default": 0,
+      "unit": "deg",
+      "description": "How far behind the left ear the right ear's pulses come, in each layer's own cycle. At 180 the ears take turns, and in mono or from one speaker no pulse is left."
+    }
+  ],
+  "presets": {
+    "Four slowing": {},
+    "Three slowing": {
+      "rate": 3,
+      "halving": 30,
+      "layers": 3,
+      "depth": 0.6,
+      "edge": 20
+    },
+    "Five layers": {
+      "halving": 60,
+      "layers": 5,
+      "depth": 0.5,
+      "edge": 12
+    },
+    "Two minute slide": {
+      "rate": 2,
+      "halving": 120,
+      "depth": 0.8,
+      "edge": 25
+    },
+    "Losing pace": {
+      "rate": 1.2,
+      "halving": 90,
+      "layers": 2,
+      "depth": 0.8,
+      "edge": 40
+    },
+    "Soft losing pace": {
+      "rate": 1.1,
+      "halving": 120,
+      "layers": 3,
+      "depth": 0.45,
+      "edge": 50,
+      "offset": 60
+    },
+    "Ever slower": {
+      "rate": 2,
+      "halving": 8,
+      "layers": 5,
+      "depth": 0.9,
+      "edge": 10
+    },
+    "Ever quicker": {
+      "direction": 1,
+      "rate": 2,
+      "halving": 8,
+      "layers": 5,
+      "depth": 0.85,
+      "edge": 8
+    },
+    "Four quickening": {
+      "direction": 1
+    },
+    "Quick slide": {
+      "halving": 4,
+      "layers": 3,
+      "depth": 0.6,
+      "edge": 6
+    },
+    "Three, deep": {
+      "rate": 3,
+      "halving": 40,
+      "layers": 3,
+      "depth": 1,
+      "edge": 30
+    },
+    "Six a second": {
+      "rate": 6,
+      "halving": 30,
+      "layers": 3,
+      "depth": 0.5,
+      "edge": 8
+    },
+    "Six, ear to ear": {
+      "direction": 1,
+      "rate": 6,
+      "halving": 45,
+      "depth": 0.6,
+      "edge": 10,
+      "offset": 180
+    },
+    "Eight, woven": {
+      "rate": 8,
+      "layers": 5,
+      "depth": 0.4,
+      "edge": 5
+    },
+    "Eight quickening": {
+      "direction": 1,
+      "rate": 8,
+      "halving": 30,
+      "layers": 2,
+      "depth": 0.55,
+      "edge": 4
+    },
+    "One a second": {
+      "rate": 1,
+      "halving": 36,
+      "layers": 3,
+      "depth": 0.75,
+      "edge": 20
+    },
+    "Five a second": {
+      "rate": 5,
+      "halving": 24,
+      "layers": 3,
+      "depth": 0.65,
+      "edge": 10,
+      "offset": 45
+    },
+    "Two and a half": {
+      "direction": 1,
+      "rate": 2.5,
+      "halving": 36,
+      "layers": 3,
+      "depth": 0.7,
+      "edge": 18
+    },
+    "Ears take turns": {
+      "rate": 2,
+      "depth": 0.8,
+      "offset": 180
+    },
+    "Quarter apart": {
+      "layers": 3,
+      "depth": 0.75,
+      "edge": 12,
+      "offset": 90
+    },
+    "Hard chop": {
+      "depth": 1,
+      "edge": 2
+    },
+    "Soft swell": {
+      "rate": 1.5,
+      "halving": 40,
+      "depth": 1,
+      "edge": 50
+    },
+    "Faint slowing": {
+      "depth": 0.25,
+      "edge": 30
+    },
+    "Two crossing": {
+      "halving": 10,
+      "layers": 2,
+      "depth": 0.9,
+      "edge": 10
+    }
+  },
+  "origin": {
+    "kind": "new",
+    "note": "A pulse that seems to slow without end: layers of one even pulse an octave apart in rate, under a bell, read from one clock by doubling its phase."
+  }
+}

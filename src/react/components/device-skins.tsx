@@ -1941,6 +1941,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'band-pulse': { ...PLATE_PALETTES['band-pulse'], finish: 'brushed', cap: 'skirt' },
   isochronic: { ...PLATE_PALETTES.isochronic, finish: 'brushed', cap: 'pointer' },
   'ear-shift': { ...PLATE_PALETTES['ear-shift'], finish: 'fade', cap: 'dot' },
+  'winding-down': { ...PLATE_PALETTES['winding-down'], finish: 'linen', cap: 'pointer' },
 }
 
 /**
