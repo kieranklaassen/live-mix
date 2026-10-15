@@ -25,7 +25,7 @@ export const BAND_PULSE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the band drops between pulses. At full the band is silent in the gaps. At zero nothing is pulsed and every part of the sound passes at its own level.',
+      'How far the band drops between pulses. At full the middle of a band four octaves wide is silent in the gaps; a narrower band only dips. At zero nothing is pulsed.',
   },
   duty: {
     id: 2,
@@ -69,7 +69,7 @@ export const BAND_PULSE_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'The bottom of the band that is pulsed. Sound under it keeps its own level, so the bass stays steady.',
+      'The bottom of the band that is pulsed. Sound an octave under it keeps its own level, so the bass stays steady; nearer the band it is pulsed in part.',
   },
   high: {
     id: 6,
@@ -80,7 +80,7 @@ export const BAND_PULSE_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'The top of the band that is pulsed. Sound over it keeps its own level. The top stays at least half an octave over Low.',
+      'The top of the band that is pulsed. Sound an octave over it keeps its own level. The top stays at least half an octave over Low.',
   },
 } as const satisfies Record<string, ParamSpec>
 
@@ -104,7 +104,7 @@ export const BAND_PULSE_DESCRIPTOR = wasmDeviceDescriptor(BAND_PULSE_DEVICE, {
     'Ten a second': { rate: 10, depth: 0.75, edge: 8, high: 2000 },
     'Four a second': { rate: 4, depth: 0.45, duty: 0.6, edge: 30 },
     'Three a second': { rate: 3, depth: 0.8, duty: 0.4, edge: 40, low: 120, high: 1500 },
-    'One on, one off': { rate: 0.5, depth: 0.4, edge: 50, low: 100, high: 2500 },
+    'One up, one down': { rate: 0.5, depth: 0.4, edge: 50, low: 100, high: 2500 },
     'Slow low pulse': { rate: 0.8, depth: 0.7, edge: 50, low: 60, high: 400 },
     'One a second': { rate: 1, depth: 0.45, duty: 0.35, edge: 50, high: 2000 },
     'Seventy a minute': { rate: 1.17, depth: 0.85, duty: 0.2, edge: 40, low: 60, high: 500 },

@@ -16,6 +16,16 @@
 //   frequency, turned in phase. There is no dry path beside it and no Mix:
 //   the true input mixed back would notch at the crossovers. With Depth at 0
 //   the gain is exactly 1 and the output is that all-pass of the input.
+// - The crossovers fall away at 24 dB an octave, so the parts overlap and
+//   the gap is only as deep as the band is wide. At Depth 1 a tone at the
+//   band's centre falls to about 2 / (1 + r x r) of its level, r being High
+//   over Low: by 22.5 dB with the edges as they start (200 Hz and 1 kHz), by
+//   9 dB for a band an octave wide, by 40 dB and more from four octaves up. A tone at Low or at
+//   High halves, and one an octave outside moves half a decibel (measured in
+//   the harness; the descriptions say so).
+// - The all-pass moves peaks: a bare square wave comes out up to 9.5 dB over
+//   its own peak with nothing pulsed, a chord of saws 4 to 5 dB, the bank's
+//   dry phrase under half a decibel. Nothing here trims that.
 // - The pulse is the kit's (cpp/kit/beat.h): on from the clock's phase 0 for
 //   Duty of the period between the half heights of two half-cosine edges of
 //   Edge milliseconds, the edge held to half of the shorter of the on and off
@@ -27,11 +37,13 @@
 // - Rate, Duty and Offset are not smoothed: kit::PulseGate lets the gain
 //   move no faster than a quarter over the steepest part of the edge the
 //   pulse has now, so a control thrown in the middle of a pulse is one more
-//   edge. Depth, Low and High are smoothed over 5 ms, and the split is tuned
-//   again on every sample while its edges glide. Edge is smoothed on its way
-//   down only: thrown shorter it glides, or a rise under way would finish at
-//   the short edge's speed; thrown longer it is there at once, so the gate
-//   slows down at once.
+//   edge. Depth is smoothed over 5 ms. Low and High glide over 20 ms, and the
+//   split is tuned again on every sample while they do: a crossover that
+//   passes a tone turns it a whole cycle, and at 5 ms Low thrown from 400 to
+//   60 Hz lifted a tone's peak 2.1 dB for a moment; at 20 ms it is 0.5 dB.
+//   Edge is smoothed on its way down only: thrown shorter it glides, or a
+//   rise under way would finish at the short edge's speed; thrown longer it
+//   is there at once, so the gate slows down at once.
 // - The clock never stops and is never set by the sound. Awake or asleep it
 //   and the two gates run on a sample at a time, by the very same sums, so
 //   where a pulse stands follows from the count of samples since init and
@@ -62,6 +74,8 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
   static constexpr float kArriveSeconds = 0.1f;
   // Past this a sample is no sound at all (36 dB over full scale).
   static constexpr float kSane = 64.0f;
+  // How long Low and High take to glide when thrown (a time constant).
+  static constexpr float kBandGlideSeconds = 0.02f;
 
   static float guard(float x) { return (x > -kSane && x < kSane) ? x : 0.0f; }
 
@@ -77,8 +91,8 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
     }
     floor_.set_time(kSmoothingSeconds, sr);
     edge_.set_time(kSmoothingSeconds, sr);
-    low_.set_time(kSmoothingSeconds, sr);
-    high_.set_time(kSmoothingSeconds, sr);
+    low_.set_time(kBandGlideSeconds, sr);
+    high_.set_time(kBandGlideSeconds, sr);
     arrive_after_ = static_cast<long>(kArriveSeconds * sr);
     if (arrive_after_ < 1) arrive_after_ = 1;
     silent_ = arrive_after_;

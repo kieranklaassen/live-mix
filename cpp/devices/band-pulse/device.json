@@ -23,7 +23,7 @@
       "min": 0,
       "max": 1,
       "default": 0.6,
-      "description": "How far the band drops between pulses. At full the band is silent in the gaps. At zero nothing is pulsed and every part of the sound passes at its own level."
+      "description": "How far the band drops between pulses. At full the middle of a band four octaves wide is silent in the gaps; a narrower band only dips. At zero nothing is pulsed."
     },
     {
       "key": "duty",
@@ -60,7 +60,7 @@
       "default": 200,
       "taper": "log",
       "unit": "Hz",
-      "description": "The bottom of the band that is pulsed. Sound under it keeps its own level, so the bass stays steady."
+      "description": "The bottom of the band that is pulsed. Sound an octave under it keeps its own level, so the bass stays steady; nearer the band it is pulsed in part."
     },
     {
       "key": "high",
@@ -70,7 +70,7 @@
       "default": 1000,
       "taper": "log",
       "unit": "Hz",
-      "description": "The top of the band that is pulsed. Sound over it keeps its own level. The top stays at least half an octave over Low."
+      "description": "The top of the band that is pulsed. Sound an octave over it keeps its own level. The top stays at least half an octave over Low."
     }
   ],
   "presets": {
@@ -104,7 +104,7 @@
       "low": 120,
       "high": 1500
     },
-    "One on, one off": {
+    "One up, one down": {
       "rate": 0.5,
       "depth": 0.4,
       "edge": 50,
