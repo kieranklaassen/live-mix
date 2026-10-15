@@ -434,7 +434,7 @@ static void the_materials() {
     double stray = 0.0, stray_hz = 0.0;
     for (double hz = 200.0; hz < 21800.0; hz += 25.0) {
       if (std::fabs(hz / 3998.0 - 1.0) < 0.06 || std::fabs(hz / (4000.0 * 2.757) - 1.0) < 0.06) continue;
-      const double level = bin_level(top.right, 44100.0, hz, 441, 17640);
+      const double level = bin_level(top.right, 44100.0, hz, 441, 1764);  // 40 ms: a window as wide as the step
       if (level > stray) {
         stray = level;
         stray_hz = hz;
@@ -708,9 +708,10 @@ static void the_levels() {
     Stereo out = render(device, 1.0f, kRate);
     (which == 0 ? soft : loud) = rms(out.left, 0, 24000);
   }
-  std::snprintf(label, sizeof label, "gain 0.2 to 1: %.1f dB (12 to 36)", db(loud / soft));
+  // The stroke's level is gain * (0.3 + 0.7 * gain): 21.1 dB from 0.2 to 1.
+  std::snprintf(label, sizeof label, "gain 0.2 to 1: %.1f dB (20 to 23)", db(loud / soft));
   std::printf("%s\n", label);
-  EXPECT(db(loud / soft) > 12.0 && db(loud / soft) < 36.0, label);
+  EXPECT(db(loud / soft) > 20.0 && db(loud / soft) < 23.0, label);
 
   // One key at full strength, hard and bright, each material: under the
   // knee at the default volume, so 20 dB down it is the same sound 20 dB down.
@@ -949,7 +950,8 @@ static void stealing() {
 // --- What conformance lacks: silences, a knob moved in silence -----------------------------
 
 // A key, a silence of `gap` samples with every live control moved inside it,
-// then another key: `block` sets the host's block size (0 is ragged).
+// then two more keys with Beat and Tone moved under them: `block` sets the
+// host's block size (0 is ragged).
 static Stereo across_a_silence(size_t gap, int block) {
   device.init(kRate);
   device.set_param(p::kDamp, 1.0f);
@@ -968,7 +970,12 @@ static Stereo across_a_silence(size_t gap, int block) {
   out = concat(out, span(device, gap - before, block));
   device.note_on(2, 330.0f, 0.7f);
   device.note_on(3, 495.0f, 0.5f);
-  return concat(out, span(device, 14000, block));
+  // Beat and Tone are read on the control clock: moved under the new keys
+  // they land where that clock says, so it must not remember the silence.
+  out = concat(out, span(device, 4001, block));
+  device.set_param(p::kBeat, 2.0f);
+  device.set_param(p::kTone, 0.2f);
+  return concat(out, span(device, 9999, block));
 }
 
 static void silences() {
