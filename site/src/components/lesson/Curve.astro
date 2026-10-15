@@ -1,0 +1,48 @@
+---
+// One value against another: <Curve taps="curve" xTitle="level in, dB" yTitle="level out, dB" diagonal follow="level">Caption.</Curve>
+import Curve from '../../figures/Curve.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { controlPairs, pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  taps: string
+  xTitle?: string
+  yTitle?: string
+  xUnit?: string
+  yUnit?: string
+  min?: number
+  max?: number
+  xMin?: number
+  xMax?: number
+  xLog?: boolean
+  stems?: boolean
+  /** Controls drawn as a line across the picture, or up it, by id. */
+  lines?: string
+  uprights?: string
+  /** A control tap whose value, as the loop plays, is where a dot rides the first curve. */
+  follow?: string
+  diagonal?: boolean
+  height?: number
+  label?: string
+}
+const { taps, lines, uprights, follow, label, ...rest } = Astro.props
+const { lab, lesson } = pageLab(Astro.locals)
+const refs = tapRefs(taps, lab.taps, lesson)
+if (follow) tapRefs(follow, lab.taps, lesson)
+const said = label ?? refs.map((tap) => tap.name).join(' and ')
+---
+
+<figure class="fig">
+  <Curve
+    client:visible
+    taps={refs}
+    lines={controlPairs(lines, lab, lesson)}
+    uprights={controlPairs(uprights, lab, lesson)}
+    follow={follow}
+    label={said}
+    {...rest}
+  />
+  <figcaption>
+    <slot />
+  </figcaption>
+</figure>

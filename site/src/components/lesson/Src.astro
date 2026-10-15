@@ -1,0 +1,26 @@
+---
+// A link to a file of the engine at the commit the site was built from:
+// <Src path="cpp/kit/fft.h" /> or <Src path="cpp/kit/fft.h" lines="40-62">the butterfly loop</Src>
+import fs from 'node:fs'
+import path from 'node:path'
+import { REPO_ROOT, sourceUrl } from '../../lib/site.ts'
+
+interface Props {
+  path: string
+  /** A line or a range of lines: "40" or "40-62". */
+  lines?: string
+}
+const { path: file, lines } = Astro.props
+if (!fs.existsSync(path.join(REPO_ROOT, file))) {
+  throw new Error(
+    `${Astro.locals.lesson ?? 'A page'} links to ${file}, which is not in the repository.`,
+  )
+}
+const anchor = lines ? `#L${lines.replace('-', '-L')}` : ''
+---
+
+<a class="src" href={`${sourceUrl(file)}${anchor}`}>
+  <slot>
+    <code>{file}</code>
+  </slot>
+</a>

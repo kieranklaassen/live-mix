@@ -1,0 +1,23 @@
+---
+// The lab's controls, by id, beside the figure they move: <Controls ids="threshold ratio knee" />
+import Controls from '../../figures/Control.tsx'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  ids: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const controls = Astro.props.ids
+  .split(/[\s,]+/)
+  .filter(Boolean)
+  .map((id) => {
+    const control = lab.controls.find((one) => one.id === id)
+    if (!control) {
+      const known = lab.controls.map((one) => one.id).join(', ')
+      throw new Error(`${lesson}: the lab has no control called "${id}". It has: ${known}`)
+    }
+    return control
+  })
+---
+
+<Controls client:load controls={controls} />

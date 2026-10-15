@@ -1,6 +1,10 @@
 ---
 import { getCollection } from 'astro:content'
 import '../../styles/devices.css'
+import '../../styles/lesson.css'
+import DeviceBench from '../../figures/DeviceBench.tsx'
+import PlayBar from '../../figures/PlayBar.tsx'
+import { SOURCES } from '../../lab/sources.ts'
 import Base from '../../layouts/Base.astro'
 import ParamTable from '../../components/ParamTable.astro'
 import { catalogue, lessonsUsing, presetSettings, type CatalogueDevice } from '../../lib/devices'
@@ -26,6 +30,16 @@ interface Props {
   lessons: { id: string; title: string; order: number; summary: string }[]
 }
 const { device, lessons } = Astro.props
+
+// The bench: an effect is heard on a loop, an instrument plays a phrase. The rack holds other
+// devices and has no sound of its own; the convolver puts out only its wet sound, so it is
+// heard beside the dry loop, as a send is.
+const benched = device.id !== 'rack'
+const instrument = device.category === 'instrument'
+const as = instrument ? 'instrument' : device.id === 'convolver-reverb' ? 'send' : 'insert'
+const sources = SOURCES.filter((source) =>
+  ['drums', 'guitar', 'chords', 'noise', 'sine'].includes(source.id),
+)
 ---
 
 <Base title={device.name} description={device.description || undefined}>
@@ -59,8 +73,17 @@ const { device, lessons } = Astro.props
       </p>
     )}
 
-    {/* The bench, where the device is heard, is mounted here by the bench's own code. Kept empty. */}
-    <section id="bench" data-device={device.id}></section>
+    {benched && (
+      <section id="bench" data-device={device.id}>
+        <h2>{instrument ? 'Play it' : 'Hear it'}</h2>
+        <p>
+          {instrument
+            ? 'The device itself, running in the engine in this page, played a short phrase that comes round.'
+            : "The device itself, running in the engine in this page, on a loop the engine's own instruments play."}
+        </p>
+        <DeviceBench client:visible device={device.id} name={device.name} params={{}} as={as} />
+      </section>
+    )}
 
     <h2 id="controls">Controls</h2>
     <ParamTable params={device.params} />
@@ -113,4 +136,14 @@ const { device, lessons } = Astro.props
       </section>
     )}
   </article>
+  {benched && (
+    <PlayBar
+      client:load
+      lab="through"
+      seconds={4}
+      sources={sources}
+      stages={[{ id: 'in', name: 'The loop, dry' }]}
+      bench={device.name}
+    />
+  )}
 </Base>

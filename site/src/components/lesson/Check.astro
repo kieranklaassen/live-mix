@@ -1,0 +1,18 @@
+---
+// A number the lab works out on every render: <Check id="rebuilt" />
+import CheckLine from '../../figures/CheckLine.tsx'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  id: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const check = lab.checks.find((one) => one.id === Astro.props.id)
+if (!check) {
+  const known = lab.checks.map((one) => one.id).join(', ')
+  throw new Error(`${lesson}: the lab has no check called "${Astro.props.id}". It has: ${known}`)
+}
+const { index: _index, ...rest } = check
+---
+
+<CheckLine client:visible check={rest} />

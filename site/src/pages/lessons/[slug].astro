@@ -1,0 +1,158 @@
+---
+import 'katex/dist/katex.min.css'
+import '../../styles/lesson.css'
+import { render } from 'astro:content'
+import Base from '../../layouts/Base.astro'
+import DeviceBench from '../../figures/DeviceBench.tsx'
+import PlayBar from '../../figures/PlayBar.tsx'
+import { catalogueEntry } from '../../lib/devices.ts'
+import { labInfo } from '../../lib/lab-info.ts'
+import {
+  lessonComponents,
+  lessonPath,
+  lessonSources,
+  lessonsInOrder,
+  type Lesson,
+} from '../../lib/lessons.ts'
+import { href } from '../../lib/paths.ts'
+import { sourceUrl } from '../../lib/site.ts'
+
+export async function getStaticPaths() {
+  const lessons = await lessonsInOrder()
+  return lessons.map((lesson, index) => ({
+    params: { slug: lesson.id },
+    props: { lesson, prev: lessons[index - 1], next: lessons[index + 1], count: lessons.length },
+  }))
+}
+
+interface Props {
+  lesson: Lesson
+  prev?: Lesson
+  next?: Lesson
+  count: number
+}
+const { lesson, prev, next } = Astro.props
+const { data } = lesson
+
+// The figures' wrappers read the lab from here: the names of its taps and the ranges of its
+// controls go into the page as it is built.
+const lab = await labInfo(data.lab, lesson.id)
+Astro.locals.lab = lab
+Astro.locals.lesson = lesson.id
+
+const { Content } = await render(lesson)
+const sources = lessonSources(lesson)
+const stages = lab.taps
+  .filter((tap) => tap.kind === 'audio')
+  .map((tap) => ({ id: tap.id, name: tap.name }))
+const bench = data.bench ? { ...data.bench, entry: catalogueEntry(data.bench.device) } : undefined
+if (data.bench && !bench?.entry) {
+  throw new Error(
+    `${lesson.id}: its bench names the device "${data.bench.device}", which the library does not have.`,
+  )
+}
+const devices = data.devices.map((id) => {
+  const entry = catalogueEntry(id)
+  if (!entry)
+    throw new Error(`${lesson.id}: it names the device "${id}", which the library does not have.`)
+  return entry
+})
+---
+
+<Base title={data.title} description={data.summary}>
+  <article class="lesson" data-lesson={lesson.id}>
+    <header class="lesson-head">
+      <p class="label">
+        <a href={href('lessons/')}>Lessons</a> · {String(data.order).padStart(2, '0')}
+      </p>
+      <h1>{data.title}</h1>
+      <p class="lede">{data.summary}</p>
+    </header>
+    <noscript>
+      <p class="aside">
+        The figures on this page are drawn, and the sound made, by running the engine's code in your
+        browser. With scripts off the text and the captions are all here, and the pictures are not.
+      </p>
+    </noscript>
+
+    <div class="prose lesson-body">
+      <Content components={lessonComponents} />
+
+      <h2 id="in-the-engine">In the engine</h2>
+      <p>The code this lesson ran and read, as it stood when this page was built:</p>
+      <ul class="files">
+        {data.files.map((file) => (
+          <li>
+            <a href={sourceUrl(file)}>
+              <code>{file}</code>
+            </a>
+          </li>
+        ))}
+        <li>
+          <a href={sourceUrl(`site/labs/${data.lab}.cpp`)}>
+            <code>site/labs/{data.lab}.cpp</code>
+          </a>
+          , the lab that put the taps on it
+        </li>
+      </ul>
+      {devices.length > 0 && (
+        <p>
+          Devices built on it:
+          {devices.map((device, index) => (
+            <Fragment>
+              {index > 0 ? ', ' : ' '}
+              <a href={href(`devices/${device.id}/`)}>{device.name}</a>
+            </Fragment>
+          ))}
+        </p>
+      )}
+
+      {bench && bench.entry && (
+        <>
+          <h2 id="the-real-device">The real device</h2>
+          <p>
+            Everything above ran in a lab: the engine's code, stopped at each stage so it could be
+            looked at. Here is <a href={href(`devices/${bench.entry.id}/`)}>{bench.entry.name}</a>{' '}
+            itself, running live through the engine as an app runs it, on the same loop.
+          </p>
+          {bench.note && <p>{bench.note}</p>}
+          <DeviceBench
+            client:visible
+            device={bench.entry.id}
+            name={bench.entry.name}
+            params={bench.params}
+            as={bench.as}
+            impulse={bench.impulse}
+          />
+        </>
+      )}
+    </div>
+
+    <nav class="lesson-nav" aria-label="Lessons">
+      {prev ? (
+        <a href={href(lessonPath(prev.id))} rel="prev">
+          <span class="label">Before</span>
+          {prev.data.title}
+        </a>
+      ) : (
+        <span />
+      )}
+      {next ? (
+        <a href={href(lessonPath(next.id))} rel="next">
+          <span class="label">Next</span>
+          {next.data.title}
+        </a>
+      ) : (
+        <span />
+      )}
+    </nav>
+  </article>
+  <PlayBar
+    client:load
+    lab={data.lab}
+    seconds={data.seconds}
+    sources={sources}
+    stages={stages}
+    bench={bench?.entry?.name}
+  />
+</Base>

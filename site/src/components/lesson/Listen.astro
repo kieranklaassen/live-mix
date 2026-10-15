@@ -1,0 +1,18 @@
+---
+// A button in the text that plays one stage: <Listen tap="out">Hear the output</Listen>
+import Listen from '../../figures/Listen.tsx'
+import { tapRefs } from '../../figures/roles.ts'
+import { pageLab } from '../../lib/lab-info.ts'
+
+interface Props {
+  tap: string
+}
+const { lab, lesson } = pageLab(Astro.locals)
+const [ref] = tapRefs(Astro.props.tap, lab.taps, lesson)
+if (ref.kind !== 'audio')
+  throw new Error(`${lesson}: "${ref.id}" is not sound, so it cannot be listened to.`)
+---
+
+<Listen client:visible tap={ref.id}>
+  <slot>{ref.name}</slot>
+</Listen>
