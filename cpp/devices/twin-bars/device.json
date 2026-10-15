@@ -80,7 +80,7 @@
       "name": "Volume",
       "min": -48,
       "max": 6,
-      "default": -6,
+      "default": -9,
       "unit": "dB",
       "description": "Overall output level of the instrument."
     }

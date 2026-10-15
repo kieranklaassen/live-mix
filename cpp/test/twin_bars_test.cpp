@@ -684,7 +684,7 @@ static void the_levels() {
   device.set_param(p::kEars, 1.0f);
   device.set_param(p::kMallet, 1.0f);
   device.set_param(p::kTone, 1.0f);
-  device.set_param(p::kVolume, -26.0f);
+  device.set_param(p::kVolume, p::kParamDefault[p::kVolume] - 20.0f);
   device.note_on(1, 220.0f, 1.0f);
   Stereo quiet = render(device, 0.3f, kRate);
   std::printf("one key at full strength, hard and bright: peak %.1f dBFS at the default volume, %.1f dBFS 20 dB down\n", db(both_peak(full)),

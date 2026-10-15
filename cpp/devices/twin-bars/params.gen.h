@@ -10,7 +10,7 @@
 //    5  scatter: 0..40 ms, default 0
 //    6  damp: 0..1, default 0.3
 //    7  tone: 0..1, default 0.5
-//    8  volume: -48..6 dB, default -6
+//    8  volume: -48..6 dB, default -9
 
 #pragma once
 
@@ -32,7 +32,7 @@ enum Param : int {
 
 inline constexpr float kParamMin[kNumParams] = {0.5f, 0.0f, 0.0f, 0.0f, 0.3f, 0.0f, 0.0f, 0.0f, -48.0f};
 inline constexpr float kParamMax[kNumParams] = {20.0f, 1.0f, 2.0f, 1.0f, 20.0f, 40.0f, 1.0f, 1.0f, 6.0f};
-inline constexpr float kParamDefault[kNumParams] = {4.0f, 0.6f, 0.0f, 0.5f, 6.0f, 0.0f, 0.3f, 0.5f, -6.0f};
+inline constexpr float kParamDefault[kNumParams] = {4.0f, 0.6f, 0.0f, 0.5f, 6.0f, 0.0f, 0.3f, 0.5f, -9.0f};
 
 }  // namespace twin_bars
 }  // namespace livemix

@@ -99,7 +99,7 @@ export const TWIN_BARS_PARAMS = {
     name: 'Volume',
     min: -48,
     max: 6,
-    default: -6,
+    default: -9,
     taper: 'linear',
     unit: 'dB',
     description: 'Overall output level of the instrument.',

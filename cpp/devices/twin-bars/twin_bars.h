@@ -108,7 +108,19 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     frequency = kit::clamp(frequency, kMinHz, kMaxHz);
     if (!(gain == gain)) gain = 0.5f;
     gain = kit::clamp(gain, 0.0f, 1.0f);
+    if (pool_.count_active() == 0) restart();
     const int material = chosen_material();
+    // The same key while a voice it took still fades the old note out: the
+    // waiting note is this one. (Taking a second voice would leave one that
+    // no key up could end.)
+    for (int v = 0; v < kMaxVoices; ++v) {
+      Voice& voice = pool_.voices[v];
+      if (!voice.sounding || !voice.pending || pool_.note_id_of(v) != note_id) continue;
+      voice.pending_frequency = frequency;
+      voice.pending_gain = gain;
+      voice.follow = stroke_level(material, gain);
+      return;
+    }
     // The same key while its bars still ring: strike those bars again.
     for (int v = 0; v < kMaxVoices; ++v) {
       Voice& voice = pool_.voices[v];
@@ -125,7 +137,7 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     if (stolen) {
       // Fade the old note over 2 ms, then start (see render_voice). It
       // counts as the new note from now, so the next key does not take it too.
-      voice.follow = stroke_level(gain);
+      voice.follow = stroke_level(material, gain);
       voice.pending = true;
       voice.fading = false;
       voice.released = false;
@@ -150,7 +162,6 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
 
   void process(int frames) {
     frames = begin_block(frames);
-    if (idle_.asleep()) chunk_left_ = 0;  // the control clock restarts with the sound
     if (!idle_.wake(pool_.count_active() > 0)) {
       silence_output(frames);
       return;
@@ -164,13 +175,15 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       }
       const int n = kit::clamp_int(frames - done, 1, chunk_left_);
       // The two bars of every key, summed apart: `second` is the higher.
-      float first[kChunk] = {}, second[kChunk] = {};
+      float first[kChunk] = {}, second[kChunk] = {}, power[kChunk] = {};
       for (int v = 0; v < kMaxVoices; ++v) {
-        if (pool_.voices[v].sounding) render_voice(pool_.voices[v], n, first, second);
+        if (pool_.voices[v].sounding) render_voice(pool_.voices[v], n, first, second, power);
       }
       for (int i = 0; i < n; ++i) {
+        // Room for a full pool: down by the root of the keys' worth that rings, past kRoom.
+        const float room = power[i] > kRoom ? std::sqrt(kRoom / power[i]) : 1.0f;
         float left, right;
-        kit::to_ears(kit::ear_gains(ears_.next()), second[i], first[i], &left, &right);
+        kit::to_ears(kit::ear_gains(ears_.next()), second[i] * room, first[i] * room, &left, &right);
         const float volume = volume_.next();
         out_left_[done + i] = kit::soft_clip(left * volume);
         out_right_[done + i] = kit::soft_clip(right * volume);
@@ -200,6 +213,13 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
   static constexpr float kMostOfAPeriod = 0.9f;
   // What a key at full strength leaves in each bar's fundamental, before Volume.
   static constexpr float kStrikeLevel = 0.25f;
+  // How many keys at full strength may ring before the sum is turned down.
+  // A key counts for the power in its two fundamentals against what a stroke
+  // at full strength leaves there, so sixteen at full strength add up to four.
+  static constexpr float kRoom = 1.0f;
+  // A stroke on a moving bar adds at least this share of a fresh stroke to each mode.
+  static constexpr float kTouch = 0.1f;
+  static constexpr float kFullBar = 1.5f;  // fresh strokes' worth in a mode at which another adds nothing
   // Damp 1 stops a released bar in this long.
   static constexpr float kChokeSeconds = 0.07f;
   // Tone: the tilt in powers of a mode's ratio at the dark end and at the bright end.
@@ -213,16 +233,17 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     float level[kModes];  // how strongly a hard stroke lights each mode against the fundamental
     float damping;        // extra decay rate per unit of ratio above the fundamental
     float contact;        // mallet contact time against the metal bar's
+    float gain;           // evens out how loud a stroke is across materials
   };
 
   static const Bars& bars(int material) {
     static const Bars kBars[kNumMaterials] = {
         // Metal: a bar left uncut, 1 : 2.757 : 5.404 : 8.933, whose overtones sing nearly as long as its fundamental.
-        {4, {1.0f, 2.757f, 5.404f, 8.933f}, {1.0f, 0.7f, 0.45f, 0.28f}, 0.25f, 1.0f},
+        {4, {1.0f, 2.757f, 5.404f, 8.933f}, {1.0f, 0.7f, 0.45f, 0.28f}, 0.25f, 1.0f, 1.0f},
         // Wood: a bar cut so its second mode is two octaves up, 1 : 4 : 9.9; a knock, then the hum.
-        {3, {1.0f, 4.0f, 9.9f, 0.0f}, {1.0f, 1.2f, 0.9f, 0.0f}, 3.0f, 1.0f},
+        {3, {1.0f, 4.0f, 9.9f, 0.0f}, {1.0f, 1.2f, 0.9f, 0.0f}, 3.0f, 1.0f, 1.0f},
         // Glass: a thin shell, 1 : 2.32 : 4.25 : 6.63, nearly all fundamental.
-        {4, {1.0f, 2.32f, 4.25f, 6.63f}, {1.0f, 0.22f, 0.09f, 0.04f}, 0.6f, 1.3f},
+        {4, {1.0f, 2.32f, 4.25f, 6.63f}, {1.0f, 0.22f, 0.09f, 0.04f}, 0.6f, 1.3f, 1.4f},
     };
     return kBars[kit::clamp_int(material, 0, kNumMaterials - 1)];
   }
@@ -263,6 +284,7 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     int count = 0;
     int material = 0;
     float frequency = 440.0f;
+    float weight = 0.0f;  // half a key's worth of room for each unit of power in a fundamental
     float follow = 0.0f;
     float steal = 1.0f;
     float pending_frequency = 440.0f, pending_gain = 0.0f;
@@ -289,6 +311,7 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       if (k < made.count && top < kit::min(kTopHz, kTopOfBand * sr)) voice.count = k + 1;
     }
     for (int b = 0; b < 2; ++b) voice.bar[b] = Bar();
+    voice.weight = 0.5f / (kStrikeLevel * made.gain * kStrikeLevel * made.gain);
     voice.sounding = true;
     voice.released = voice.pending = voice.fading = false;
     voice.steal = 1.0f;
@@ -300,11 +323,13 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
   }
 
   // What a key press at `gain` leaves in the fundamental of a bar at rest.
-  static float stroke_level(float gain) { return kStrikeLevel * gain * (0.3f + 0.7f * gain); }
+  static float stroke_level(int material, float gain) {
+    return kStrikeLevel * bars(material).gain * gain * (0.3f + 0.7f * gain);
+  }
 
   // A key press: both bars are struck, the second one Scatter later.
   void play(Voice& voice, float gain) {
-    const float level = stroke_level(gain);
+    const float level = stroke_level(voice.material, gain);
     voice.follow = kit::max(voice.follow, level);  // as loud as it will be, before it has sounded
     const int late = static_cast<int>(param(twin_bars::kScatter) * 0.001f * sample_rate() + 0.5f);
     stroke(voice, kFirst, level, gain, 0);
@@ -324,16 +349,64 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
                           std::sqrt(kC4 / voice.frequency) * (1.4f - 0.6f * velocity);
     int length = static_cast<int>(kit::min(contact * sr, kit::min(kLongestContact * sr, kMostOfAPeriod * period)) + 0.5f);
     if (length < 2) length = 2;
-    const float wait = static_cast<float>(due);
+    // The middle of the push lands this many turns of a mode after now.
+    const float middle = 0.5f * static_cast<float>(length - 1) + 1.0f;
+    // When, and which way: with the bar's fundamental at the top of its swing
+    // and the push upward, or at the bottom and downward, whichever comes
+    // first, if the bar is moving at all. At most half a swing away.
+    const float moving = std::sqrt(bar.re[0] * bar.re[0] + bar.im[0] * bar.im[0]);
+    float wait = static_cast<float>(due);
+    float way = 1.0f;
+    if (moving > kTouch * kTouch * level) {
+      const float turns = (std::atan2(bar.im[0], bar.re[0]) + bar.omega[0] * (wait + middle)) * (1.0f / kit::kTwoPi);
+      const float past_the_top = turns - std::floor(turns);  // in swings; the bottom is at a half
+      float to_go = past_the_top > 0.0f ? 1.0f - past_the_top : 0.0f;
+      if (past_the_top > 0.0f && past_the_top <= 0.5f) {
+        to_go = 0.5f - past_the_top;
+        way = -1.0f;
+      }
+      wait += std::floor(to_go * period + 0.5f);
+    }
+    // How much: each mode up to what a fresh stroke would leave in it, and at
+    // least a touch more than it has, so every stroke is heard. The touch
+    // shrinks to nothing as the mode passes one and a half fresh strokes:
+    // without that a fast roll on a bar that rings for a minute would pile up.
     const float base = made.level[0] * response(static_cast<float>(length) / period);
+    const double landing = static_cast<double>(wait + middle);
     for (int k = 0; k < voice.count; ++k) {
-      bar.strike[k] = level * made.level[k] / base;  // before the mallet's own spectrum
+      const float fresh = way * level * made.level[k] / base;  // before the mallet's own spectrum
+      const float heard = fresh * response(bar.omega[k] * static_cast<float>(length) * (1.0f / kit::kTwoPi));
+      const float size = std::fabs(heard);
+      float share = 1.0f;
+      if (size > 1.0e-9f) {
+        // The mode as the push will find it, along the way the push goes.
+        const double angle = static_cast<double>(bar.omega[k]) * landing;
+        const float there = static_cast<float>(bar.re[k] * std::cos(angle) - bar.im[k] * std::sin(angle)) *
+                            std::pow(voice.radius[k], static_cast<float>(landing));
+        const float has = (heard < 0.0f ? -there : there) / size;  // 1 is a fresh stroke's worth
+        const float touch = kTouch * kit::clamp((kFullBar - has) / (kFullBar - 1.0f), 0.0f, 1.0f);
+        share = kit::clamp(1.0f - has, touch, 1.0f);
+      }
+      bar.strike[k] = share * fresh;
     }
     bar.pulse_wait = static_cast<int>(wait);
     bar.pulse_length = length;
     bar.pulse_done = 0;
     bar.pulse_gain = 2.0f / static_cast<float>(length);  // unit area whatever the length
   }
+  // Before the first key after every bar has rung out. A sleeping device
+  // stands still and the block it falls asleep in depends on the host's block
+  // size, so nothing that runs on through a silence may be carried into the
+  // next note: the control clock starts again and a control moved in the
+  // silence is simply there.
+  void restart() {
+    chunk_left_ = 0;
+    beat_.snap(beat_.target);
+    tone_.snap(tone_.target);
+    ears_.snap(ears_.target);
+    volume_.snap(volume_.target);
+  }
+
   // The turn of every mode with this tick's radius.
   static void steps(Voice& voice) {
     for (int b = 0; b < 2; ++b) {
@@ -416,6 +489,7 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       Voice& voice = pool_.voices[v];
       if (!voice.sounding || voice.pending || voice.fading) continue;
       if (voice.decayed != decay_serial_ || voice.decayed_released != voice.released) ring(voice);
+      if (voice.tuned != beat_.value) tune(voice);
       arrive(voice);
       if (voice.toned != tone_.value) colour(voice, false);
 
@@ -441,14 +515,16 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
     for (int b = 0; b < 2; ++b) voice.bar[b] = Bar();
   }
 
-  void render_voice(Voice& voice, int n, float* first, float* second) {
+  void render_voice(Voice& voice, int n, float* first, float* second, float* power) {
     const bool leaving = voice.pending || voice.fading;
-    float own[2][kChunk];
+    float own[2][kChunk], own_power[kChunk];
     float* out[2] = {first, second};
+    float* rings = power;
     if (leaving) {
-      for (int i = 0; i < n; ++i) own[0][i] = own[1][i] = 0.0f;
+      for (int i = 0; i < n; ++i) own[0][i] = own[1][i] = own_power[i] = 0.0f;
       out[0] = own[0];
       out[1] = own[1];
+      rings = own_power;
     }
     // The stroke in flight on each bar.
     float pulse[2][kChunk];
@@ -486,7 +562,17 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
         if (re == 0.0f && im == 0.0f && in == 0.0f) continue;
         const float step_re = bar.step_re[k], step_im = bar.step_im[k];
         float* to = out[b];
-        if (struck[b]) {
+        if (k == 0) {
+          // The fundamental counts towards the room: half a key for each bar.
+          const float weight = voice.weight;
+          for (int i = 0; i < n; ++i) {
+            const float turned = step_re * re - step_im * im + (struck[b] ? in * pulse[b][i] : 0.0f);
+            im = step_re * im + step_im * re;
+            re = turned;
+            to[i] += heard[i] * im;
+            rings[i] += weight * (re * re + im * im);
+          }
+        } else if (struck[b]) {
           for (int i = 0; i < n; ++i) {
             const float turned = step_re * re - step_im * im + in * pulse[b][i];
             im = step_re * im + step_im * re;
@@ -511,6 +597,7 @@ class TwinBars : public kit::DeviceBase<twin_bars::kNumParams> {
       voice.steal = kit::max(voice.steal - steal_step_, 0.0f);
       first[i] += own[0][i] * voice.steal;
       second[i] += own[1][i] * voice.steal;
+      power[i] += own_power[i] * voice.steal * voice.steal;
     }
     if (voice.steal <= 0.0f) {
       if (voice.pending) {
