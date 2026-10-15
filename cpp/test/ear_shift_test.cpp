@@ -902,6 +902,14 @@ int main() {
     const double level = db(rms(out.left, from) / rms(tone, from));
     std::snprintf(label, sizeof label, "%.0f Hz: a 220 Hz tone at the defaults is the split's two powers", rate);
     CHECK_NEAR(level, db(std::sqrt(shifted * shifted + passed * passed)), 0.1, label);
+    if (rate == kRate) {
+      // Both parts are in each ear, 3 Hz apart, so the note wavers there.
+      double least = 0.0, most = 0.0;
+      swing(out.left, from, at(4.0, rate), at(2.0 / 220.0, rate), &least, &most);
+      std::printf("  a 220 Hz tone at the defaults wavers %.2f dB in an ear, at half of Beat\n", db(most / least));
+      CHECK_NEAR(db(most / least), db((shifted + passed) / (shifted - passed)), 0.3,
+                 "a note half an octave over Low wavers by what the split's two parts make");
+    }
     // A tone well inside a wide band, the same pulse in both ears.
     device.init(rate);
     set(device, 6.0f, 0.0f, 60.0f, 2000.0f);
