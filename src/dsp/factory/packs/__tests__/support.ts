@@ -67,6 +67,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'afterglow',
   'feedback',
   'binaural',
+  'twin-bars',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(

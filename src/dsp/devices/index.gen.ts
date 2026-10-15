@@ -134,6 +134,7 @@ import { TAPE_ORCHESTRA_DESCRIPTOR, TAPE_ORCHESTRA_DEVICE } from './tape-orchest
 import { THESIS_DESCRIPTOR, THESIS_DEVICE } from './thesis.gen'
 import { TINE_PIANO_DESCRIPTOR, TINE_PIANO_DEVICE } from './tine-piano.gen'
 import { TREMOLO_DESCRIPTOR, TREMOLO_DEVICE } from './tremolo.gen'
+import { TWIN_BARS_DESCRIPTOR, TWIN_BARS_DEVICE } from './twin-bars.gen'
 import { UNDERWATER_DESCRIPTOR, UNDERWATER_DEVICE } from './underwater.gen'
 import { VESSEL_DESCRIPTOR, VESSEL_DEVICE } from './vessel.gen'
 import { VINTAGE_DIGITAL_DESCRIPTOR, VINTAGE_DIGITAL_DEVICE } from './vintage-digital.gen'
@@ -279,6 +280,7 @@ export * from './tape-orchestra.gen'
 export * from './thesis.gen'
 export * from './tine-piano.gen'
 export * from './tremolo.gen'
+export * from './twin-bars.gen'
 export * from './underwater.gen'
 export * from './vessel.gen'
 export * from './vintage-digital.gen'
@@ -426,6 +428,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   THESIS_DESCRIPTOR,
   TINE_PIANO_DESCRIPTOR,
   TREMOLO_DESCRIPTOR,
+  TWIN_BARS_DESCRIPTOR,
   UNDERWATER_DESCRIPTOR,
   VESSEL_DESCRIPTOR,
   VINTAGE_DIGITAL_DESCRIPTOR,
@@ -574,6 +577,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   THESIS_DEVICE,
   TINE_PIANO_DEVICE,
   TREMOLO_DEVICE,
+  TWIN_BARS_DEVICE,
   UNDERWATER_DEVICE,
   VESSEL_DEVICE,
   VINTAGE_DIGITAL_DEVICE,
@@ -743,6 +747,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'thesis', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tine-piano', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'tremolo', instrument: false, samples: false, zones: false, meters: 3, memoryMb: 4 },
+  { id: 'twin-bars', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'underwater', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   { id: 'vessel', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
   {

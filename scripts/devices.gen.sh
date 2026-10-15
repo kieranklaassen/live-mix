@@ -272,6 +272,8 @@ build_generated_devices() {
     cpp/devices/tine-piano/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device tremolo \
     cpp/devices/tremolo/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off" build_device twin-bars \
+    cpp/devices/twin-bars/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device underwater \
     cpp/devices/underwater/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device vessel \
@@ -567,6 +569,8 @@ test_generated_devices() {
     cpp/test/tine_piano_test.cpp
   native_test tremolo_test \
     cpp/test/tremolo_test.cpp
+  native_test twin_bars_test \
+    cpp/test/twin_bars_test.cpp
   native_test underwater_test \
     cpp/test/underwater_test.cpp
   native_test vessel_test \

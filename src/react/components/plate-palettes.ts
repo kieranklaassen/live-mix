@@ -142,6 +142,7 @@ export const PLATE_PALETTES = {
   'wind-harp': { plate: '#f7f26a', ink: '#2a2a06', accent: '#1560a8' },
   afterglow: { plate: '#f26a1b', ink: '#2a0d00', accent: '#0b2a6b' },
   feedback: { plate: '#e0241b', ink: '#fff5ef', accent: '#1a0503' },
+  'twin-bars': { plate: '#9a7600', ink: '#151000', accent: '#fff6d6' },
   canon: { plate: '#a8061b', ink: '#fff5ee', accent: '#ffbf80' },
   'overtone-singer': { plate: '#fcff99', ink: '#1e1f04', accent: '#c8321a' },
   breath: { plate: '#63abf6', ink: '#06163a', accent: '#700c3a' },
