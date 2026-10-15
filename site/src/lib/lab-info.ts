@@ -7,12 +7,14 @@ import type { LabDescription } from '../lab/describe.ts'
 import { loadLab } from '../lab/runner.ts'
 import { REPO_ROOT } from './site.ts'
 
+// Kept by the file's time of writing, so a lab built again while `pnpm dev` runs is read again.
 const cache = new Map<string, Promise<LabDescription>>()
 
 export function labInfo(lab: string, lesson: string): Promise<LabDescription> {
-  let found = cache.get(lab)
+  const file = path.join(REPO_ROOT, 'site/public/labs', `${lab}.wasm`)
+  const key = fs.existsSync(file) ? `${lab}@${fs.statSync(file).mtimeMs}` : lab
+  let found = cache.get(key)
   if (!found) {
-    const file = path.join(REPO_ROOT, 'site/public/labs', `${lab}.wasm`)
     if (!fs.existsSync(file)) {
       const source = path.join(REPO_ROOT, 'site/labs', `${lab}.cpp`)
       throw new Error(
@@ -22,7 +24,7 @@ export function labInfo(lab: string, lesson: string): Promise<LabDescription> {
       )
     }
     found = loadLab(fs.readFileSync(file)).then((loaded) => loaded.description)
-    cache.set(lab, found)
+    cache.set(key, found)
   }
   return found
 }

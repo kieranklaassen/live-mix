@@ -101,6 +101,7 @@ const tap = (id: string, seconds = 4): Tap => ({
   x0: 0,
   x1: 1,
   columns: 0,
+  log: false,
 })
 
 function made() {

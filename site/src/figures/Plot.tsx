@@ -16,6 +16,8 @@ export interface Series {
   ys?: ArrayLike<number>
   x0: number
   x1: number
+  /** The points stand in even ratios from `x0` to `x1`, as a response against frequency does. */
+  xLog?: boolean
   unit?: string
   /** Each point as a stalk from zero, for a signal shown sample by sample. */
   stems?: boolean
@@ -60,7 +62,11 @@ function valueAt(series: Series, x: number): number | undefined {
   const ys = series.ys
   if (!ys || ys.length === 0) return undefined
   if (ys.length === 1 || series.x1 === series.x0) return ys[0]
-  const place = ((x - series.x0) / (series.x1 - series.x0)) * (ys.length - 1)
+  const place =
+    (series.xLog
+      ? Math.log(x / series.x0) / Math.log(series.x1 / series.x0)
+      : (x - series.x0) / (series.x1 - series.x0)) *
+    (ys.length - 1)
   if (place < -0.5 || place > ys.length - 0.5) return undefined
   return ys[Math.min(ys.length - 1, Math.max(0, Math.round(place)))]
 }
@@ -166,7 +172,12 @@ export default function Plot(props: Props) {
         if (!ys || ys.length === 0) continue
         const colour = c.role[one.role]
         const n = ys.length
-        const xOf = (i: number) => (n === 1 ? one.x0 : one.x0 + ((one.x1 - one.x0) * i) / (n - 1))
+        const xOf = (i: number) =>
+          n === 1
+            ? one.x0
+            : one.xLog
+              ? one.x0 * Math.pow(one.x1 / one.x0, i / (n - 1))
+              : one.x0 + ((one.x1 - one.x0) * i) / (n - 1)
         context.strokeStyle = colour
         context.fillStyle = colour
         context.lineJoin = 'round'
@@ -175,7 +186,7 @@ export default function Plot(props: Props) {
         // How many points are in view decides how they are drawn.
         let first = 0
         let last = n - 1
-        if (!x.log && one.x1 !== one.x0 && n > 1) {
+        if (!x.log && !one.xLog && one.x1 !== one.x0 && n > 1) {
           const at = (value: number) => ((value - one.x0) / (one.x1 - one.x0)) * (n - 1)
           const a = at(x.min)
           const b = at(x.max)

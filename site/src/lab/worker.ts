@@ -27,6 +27,8 @@ async function fetchBytes(url: string): Promise<ArrayBuffer> {
 async function init(labUrl: string, benchUrl: string, frames: number): Promise<LabDescription> {
   const [labBytes, benchBytes] = await Promise.all([fetchBytes(labUrl), fetchBytes(benchUrl)])
   const bench = await loadLab(benchBytes)
+  // What a lab that plays by itself is fed: nothing.
+  sources.set('none', { left: new Float32Array(frames), right: new Float32Array(frames) })
   const silent = { left: new Float32Array(frames), right: new Float32Array(frames) }
   const played = bench.render(silent, {}, frames)
   for (const tap of Object.values(played.taps)) {

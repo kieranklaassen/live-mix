@@ -35,11 +35,21 @@ export const SOURCES: SourceInfo[] = [
   { id: 'sweep', name: 'Sweep', about: 'A sine rising from 20 Hz to 20 kHz across the loop.' },
 ]
 
+/**
+ * For a lesson whose lab makes its own sound (an instrument, an oscillator): nothing goes in.
+ * A lesson that offers only this has no source picker.
+ */
+export const NO_SOURCE: SourceInfo = {
+  id: 'none',
+  name: 'Nothing: the lab plays',
+  about: 'Nothing goes in. The lab plays the notes itself.',
+}
+
 /** The picker's last choice: a file of the reader's own, decoded in the page. */
 export const OWN_FILE = 'file'
 
 export function sourceInfo(id: string): SourceInfo {
-  const found = SOURCES.find((source) => source.id === id)
+  const found = [...SOURCES, NO_SOURCE].find((source) => source.id === id)
   if (!found) throw new Error(`No source called ${id}`)
   return found
 }

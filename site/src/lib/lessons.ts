@@ -1,6 +1,6 @@
 // The lessons as pages: their order, their routes, and the components a lesson is written with.
 import { getCollection, type CollectionEntry } from 'astro:content'
-import { SOURCES, type SourceInfo } from '../lab/sources.ts'
+import { NO_SOURCE, SOURCES, type SourceInfo } from '../lab/sources.ts'
 
 export type Lesson = CollectionEntry<'lessons'>
 
@@ -21,9 +21,9 @@ export const lessonPath = (id: string) => `lessons/${id}/`
 /** The sources a lesson offers, as the picker lists them. Throws on an id the bench does not play. */
 export function lessonSources(lesson: Lesson): SourceInfo[] {
   return lesson.data.sources.map((id) => {
-    const source = SOURCES.find((one) => one.id === id)
+    const source = [...SOURCES, NO_SOURCE].find((one) => one.id === id)
     if (!source) {
-      const known = SOURCES.map((one) => one.id).join(', ')
+      const known = [...SOURCES, NO_SOURCE].map((one) => one.id).join(', ')
       throw new Error(`${lesson.id}: there is no source called "${id}". There are: ${known}`)
     }
     return source

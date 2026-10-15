@@ -31,6 +31,7 @@ export interface LabExports {
   lab_tap_x0(i: number): number
   lab_tap_x1(i: number): number
   lab_tap_columns(i: number): number
+  lab_tap_scale(i: number): number
   lab_check_count(): number
   lab_check_id(i: number): number
   lab_check_name(i: number): number

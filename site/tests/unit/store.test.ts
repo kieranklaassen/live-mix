@@ -53,6 +53,7 @@ function tap(id: string, kind: Tap['kind'], origin: Tap['origin']): Tap {
     x0: 0,
     x1: 1,
     columns: 0,
+    log: false,
   }
 }
 

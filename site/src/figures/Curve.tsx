@@ -56,6 +56,7 @@ export default function Curve(props: Props) {
       ys: data,
       x0: found.x0,
       x1: found.x1,
+      xLog: found.log,
       unit: tap.unit,
       stems: props.stems,
       dashed: tap.origin === 'lesson' && taps.length > 1 && tap !== taps[0],

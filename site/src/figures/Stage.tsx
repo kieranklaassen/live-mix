@@ -61,10 +61,12 @@ function Small({ tap, data }: { tap: TapRef; data: Tap | undefined }) {
       }
       // A line, fitted to its own range. A spectrum stands on the audible band's logarithmic axis.
       const spectrum = data.kind === 'spectrum'
-      const place = spectrum
-        ? (i: number) =>
-            toUnit(AUDIBLE, data.x0 + ((data.x1 - data.x0) * i) / Math.max(1, ys.length - 1))
-        : (i: number) => i / Math.max(1, ys.length - 1)
+      // Points in even ratios already stand evenly on a logarithmic axis.
+      const place =
+        spectrum && !data.log
+          ? (i: number) =>
+              toUnit(AUDIBLE, data.x0 + ((data.x1 - data.x0) * i) / Math.max(1, ys.length - 1))
+          : (i: number) => i / Math.max(1, ys.length - 1)
       const ends = minMaxPlaced(ys, place, width)
       let [lo, hi] = rangeOf(ys)
       if (spectrum) lo = Math.max(lo, hi - 90)

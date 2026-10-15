@@ -23,6 +23,8 @@ export interface TapData extends TapInfo {
   x1: number
   /** For a picture: how many columns its points are laid out in. */
   columns: number
+  /** For a curve or a spectrum: its points stand in even ratios from x0 to x1, not in even steps. */
+  log: boolean
 }
 
 export interface RenderResult {
@@ -80,6 +82,7 @@ export async function loadLab(bytes: BufferSource): Promise<Lab> {
         x0: wasm.lab_tap_x0(tap.index),
         x1: wasm.lab_tap_x1(tap.index),
         columns: wasm.lab_tap_columns(tap.index),
+        log: wasm.lab_tap_scale(tap.index) === 1,
       }
     }
     const checks: Record<string, number> = {}

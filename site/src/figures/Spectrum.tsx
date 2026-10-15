@@ -40,7 +40,7 @@ export default function Spectrum({
     const base = { key: tap.id, name: tap.name, role: tap.role, unit: 'dB' }
     if (!found) return { ...base, x0: 0, x1: 1 }
     if (found.kind === 'audio') return { ...base, ys: found.spectrum, x0: 0, x1: 24_000 }
-    return { ...base, ys: found.channels_data[0], x0: found.x0, x1: found.x1 }
+    return { ...base, ys: found.channels_data[0], x0: found.x0, x1: found.x1, xLog: found.log }
   })
   const x = linear
     ? { min: fMin ?? 0, max: fMax ?? 24_000, unit: 'Hz', title: 'hertz' }

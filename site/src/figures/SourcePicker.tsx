@@ -3,7 +3,7 @@
 
 import { useRef } from 'react'
 import { labStore, takeOwnFile, useLab } from '../lab/page.ts'
-import { OWN_FILE, type SourceInfo } from '../lab/sources.ts'
+import { NO_SOURCE, OWN_FILE, type SourceInfo } from '../lab/sources.ts'
 
 const PICK_FILE = '@pick-file'
 
@@ -13,6 +13,8 @@ export default function SourcePicker({ sources }: { sources: SourceInfo[] }) {
   const current = state.source || sources[0]?.id
   const about =
     current === OWN_FILE ? state.file?.note : sources.find((one) => one.id === current)?.about
+  // A lab that makes its own sound takes nothing in: there is nothing to pick.
+  if (sources.length === 1 && sources[0]?.id === NO_SOURCE.id) return null
   return (
     <div className="playbar-field playbar-source">
       <label htmlFor="lab-source">Source</label>

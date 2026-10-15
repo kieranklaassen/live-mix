@@ -43,8 +43,8 @@ constexpr int kControlPeriod = 16;     // samples per point of a control tap
 enum Kind : int {
   kAudio = 0,     // sound: drawn as a wave, and heard
   kControl = 1,   // a value over time, one point every kControlPeriod samples
-  kCurve = 2,     // y against x, x running evenly from x0 to x1
-  kSpectrum = 3,  // level in dB per bin, 0 Hz to half the sample rate
+  kCurve = 2,     // y against x, x running evenly from x0 to x1 (or in even ratios: Tap::scale)
+  kSpectrum = 3,  // level in dB against frequency, from x0 Hz to x1 Hz
   kFrames = 4,    // a picture: `columns` columns of `length / columns` rows
 };
 
@@ -144,7 +144,8 @@ struct Tap {
   int length = 0;         // points per channel
   float x0 = 0.0f;        // kCurve, kSpectrum and kFrames: what the first and last point stand at
   float x1 = 1.0f;
-  int columns = 0;  // kFrames
+  int columns = 0;       // kFrames
+  int scale = kLinear;   // kCurve and kSpectrum: kLog when the points stand evenly in ratio, not in difference
 
   Tap(const char* id_, const char* name_, int kind_, int origin_, int channels_ = 1, const char* unit_ = "")
       : id(id_), name(name_), kind(kind_), origin(origin_), channels(channels_ == 2 ? 2 : 1), unit(unit_) {
@@ -155,6 +156,7 @@ struct Tap {
     data = nullptr;
     length = 0;
     columns = 0;
+    scale = kLinear;
   }
 
   // Room for `points` per channel. False when the arena is full.
@@ -311,6 +313,100 @@ inline void spectrum_tap(Tap& tap, const float* x, int count) {
   spectrum(x, count, tap.data);
 }
 
+// The response of something to frequency, from its impulse response `h`: the
+// level in dB at `points` frequencies standing in even ratios from `f0` to
+// `f1` hertz, each worked out as the sum the Fourier transform is (lesson 2),
+// at exactly that frequency. For a filter's curve: put one unit sample
+// through it, keep what comes out, and hand it here.
+inline void response_tap(Tap& tap, const float* h, int count, int points = 241, float f0 = 20.0f,
+                         float f1 = 20000.0f) {
+  if (!tap.open(points)) return;
+  tap.x0 = f0;
+  tap.x1 = f1;
+  tap.scale = kLog;
+  for (int p = 0; p < points; ++p) {
+    const double hz = f0 * std::pow(static_cast<double>(f1) / f0, static_cast<double>(p) / (points - 1));
+    const double w = 2.0 * 3.14159265358979323846 * hz / kSampleRate;
+    // One turn of a unit vector per sample, by recurrence: no sine per term.
+    const double cw = std::cos(w), sw = std::sin(w);
+    double c = 1.0, s = 0.0, re = 0.0, im = 0.0;
+    for (int n = 0; n < count; ++n) {
+      re += h[n] * c;
+      im -= h[n] * s;
+      const double next = c * cw - s * sw;
+      s = s * cw + c * sw;
+      c = next;
+    }
+    tap.data[p] = power_to_db(static_cast<float>(re * re + im * im));
+  }
+}
+
+// A picture of how a sound's spectrum changes: `columns` Hann-windowed frames
+// of 1024 samples spread evenly over `count` samples, each transformed by the
+// kit, in dB where a full-scale sine reads 0. Rows are the 513 bins from 0 Hz
+// to half the sample rate, 46.9 Hz apart; point (column, row) is at
+// data[column * 513 + row]. With `loops`, a frame near the end reads on from
+// the start, as the loop does.
+constexpr int kPictureSize = 1024;
+constexpr int kPictureRows = kPictureSize / 2 + 1;
+
+inline void spectrogram_tap(Tap& tap, const float* x, int count, int columns = 200, bool loops = true) {
+  static livemix::kit::Fft<kPictureSize> fft;
+  static float window[kPictureSize];
+  static float re[kPictureSize];
+  static float im[kPictureSize];
+  static bool ready = false;
+  if (!ready) {
+    fft.init();
+    for (int n = 0; n < kPictureSize; ++n) {
+      window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kPictureSize));
+    }
+    ready = true;
+  }
+  if (count <= 0 || !tap.open(columns * kPictureRows)) return;
+  tap.columns = columns;
+  tap.x0 = 0.0f;
+  tap.x1 = static_cast<float>(count) / kSampleRate;
+  const double full = (kPictureSize / 4.0) * (kPictureSize / 4.0);
+  for (int c = 0; c < columns; ++c) {
+    const int start = static_cast<int>(static_cast<long long>(c) * count / columns);
+    for (int n = 0; n < kPictureSize; ++n) {
+      int i = start + n;
+      if (i >= count) i = loops ? i % count : -1;
+      re[n] = i >= 0 ? x[i] * window[n] : 0.0f;
+      im[n] = 0.0f;
+    }
+    fft.forward(re, im);
+    float* column = tap.data + c * kPictureRows;
+    for (int k = 0; k < kPictureRows; ++k) {
+      const double power = static_cast<double>(re[k]) * re[k] + static_cast<double>(im[k]) * im[k];
+      column[k] = power_to_db(static_cast<float>(power / full));
+    }
+  }
+}
+
+// How the energy of a response dies away: at each of `points` instants, the
+// energy still to come, in dB against the whole (Schroeder's integral, summed
+// from the end backwards). A reverb's decay time is read off this curve: the
+// time it takes to fall 60 dB.
+inline void energy_decay_tap(Tap& tap, const float* x, int count, int points = 400) {
+  if (count <= 0 || !tap.open(points)) return;
+  tap.x0 = 0.0f;
+  tap.x1 = static_cast<float>(count) / kSampleRate;
+  double total = 0.0;
+  for (int i = 0; i < count; ++i) total += static_cast<double>(x[i]) * x[i];
+  double ahead = 0.0;
+  int p = points - 1;
+  for (int i = count - 1; i >= 0; --i) {
+    ahead += static_cast<double>(x[i]) * x[i];
+    while (p >= 0 && i <= static_cast<int>(static_cast<long long>(p) * (count - 1) / (points - 1))) {
+      tap.data[p] = total > 0.0 ? power_to_db(static_cast<float>(ahead / total)) : kFloorDb;
+      --p;
+    }
+  }
+  for (; p >= 0; --p) tap.data[p] = 0.0f;
+}
+
 // Run a device over `count` frames of stereo input in blocks of `block`
 // frames, and call `after(offset, n)` once each block so the lab can read
 // the device's output (and, built with -fno-access-control, its state).
@@ -392,6 +488,7 @@ int lab_tap_length(int i) { return lab_tap_at(i) ? lab_tap_at(i)->length : 0; }
 float lab_tap_x0(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x0 : 0.0f; }
 float lab_tap_x1(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x1 : 0.0f; }
 int lab_tap_columns(int i) { return lab_tap_at(i) ? lab_tap_at(i)->columns : 0; }
+int lab_tap_scale(int i) { return lab_tap_at(i) ? lab_tap_at(i)->scale : 0; }
 
 int lab_check_count(void) { return lab::g_check_count; }
 static lab::Check* lab_check_at(int i) { return i >= 0 && i < lab::g_check_count ? lab::g_checks[i] : nullptr; }
