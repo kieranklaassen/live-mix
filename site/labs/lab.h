@@ -1,0 +1,418 @@
+#pragma once
+
+// The lab: what a lesson's C++ file is written against.
+//
+// A lab is one file in site/labs/ that includes the engine's own headers (the
+// kit and the devices), runs a loop through them, and keeps the signal at
+// every stage as a "tap". The page reads the taps, draws them and plays them.
+// A lab declares three kinds of thing, each once, as file-level objects:
+//
+//   lab::Control threshold{"threshold", "Threshold", "dB", -60, 0, -24};
+//   lab::Tap     out{"out", "Output", lab::kAudio, lab::kDevice, 2};
+//   lab::Check   null{"null", "Rebuilt against the device", "dB"};
+//
+// and defines one function, `void lab_render(int frames)`, which reads the
+// controls (`threshold.value`), reads the source (`lab::in(channel)`), and
+// writes the taps. Everything a page needs to know about a lab it asks the
+// module itself (the exports at the foot of this file), so a name, a range or
+// an origin lives in one place: here, beside the code it describes.
+//
+// Where a stage comes from is part of its declaration, and the page shows it:
+//   kDevice  read from the running device (its output, or its own state)
+//   kKit     computed by a kit class the device is built from
+//   kLesson  written for the lesson
+//   kSource  the sound that goes in, before anything is done to it
+//
+// Labs are built by site/scripts/build-labs.sh with the flags the library's
+// own devices are built with, plus -fno-access-control so a lab can read a
+// device's state without the device being changed for it. Like the devices,
+// a lab is raw WebAssembly with no imports, no heap and no exceptions.
+
+#include <cmath>
+#include <cstdint>
+
+#include "../../cpp/kit/kit.h"
+
+namespace lab {
+
+constexpr float kSampleRate = 48000.0f;
+constexpr int kMaxFrames = 8 * 48000;  // eight seconds
+constexpr int kFadeFrames = 960;       // 20 ms: the crossfade across a loop's wrap
+constexpr int kControlPeriod = 16;     // samples per point of a control tap
+
+enum Kind : int {
+  kAudio = 0,     // sound: drawn as a wave, and heard
+  kControl = 1,   // a value over time, one point every kControlPeriod samples
+  kCurve = 2,     // y against x, x running evenly from x0 to x1
+  kSpectrum = 3,  // level in dB per bin, 0 Hz to half the sample rate
+  kFrames = 4,    // a picture: `columns` columns of `length / columns` rows
+};
+
+enum Origin : int { kDevice = 0, kKit = 1, kLesson = 2, kSource = 3 };
+
+enum Scale : int { kLinear = 0, kLog = 1 };
+
+// ---------------------------------------------------------------------------
+// Memory: one static arena, handed out from the start on every render.
+
+#ifndef LAB_ARENA_MB
+#define LAB_ARENA_MB 40
+#endif
+constexpr int kArenaFloats = LAB_ARENA_MB * 1024 * 1024 / 4;
+
+inline float g_arena[kArenaFloats];
+inline int g_arena_used = 0;
+
+// Zeroed floats that live until the next render. Null when the arena is full:
+// a tap that got no room has length 0 and the page says so.
+inline float* take(int count) {
+  if (count <= 0 || g_arena_used + count > kArenaFloats) return nullptr;
+  float* block = g_arena + g_arena_used;
+  g_arena_used += count;
+  for (int i = 0; i < count; ++i) block[i] = 0.0f;
+  return block;
+}
+
+// ---------------------------------------------------------------------------
+// The source the page wrote, and the loop being rendered.
+
+inline float g_input[2][kMaxFrames];
+inline int g_frames = 0;
+
+inline const float* in(int channel) { return g_input[channel & 1]; }
+inline int frames() { return g_frames; }
+
+// A loop is rendered twice and a little more, and only the second pass is
+// kept: a tail from the end is already sounding at the start, as it would be
+// on the tenth time round. The little more (kFadeFrames) is crossfaded into
+// the start of what is kept, so a device whose oscillator or grains do not
+// come round with the loop still wraps without a step.
+//
+//   for (int i = 0; i < lab::total(); ++i) { x = lab::in_at(0, i); ... tap.put(i, y); }
+inline int total() { return 2 * g_frames + kFadeFrames; }
+inline float in_at(int channel, int i) { return g_frames > 0 ? g_input[channel & 1][i % g_frames] : 0.0f; }
+
+// ---------------------------------------------------------------------------
+// Controls
+
+struct Control;
+inline Control* g_controls[32];
+inline int g_control_count = 0;
+
+struct Control {
+  const char* id;
+  const char* name;
+  const char* unit;
+  float min;
+  float max;
+  float initial;
+  int scale = kLinear;
+  // "Hold|Release": the names of a switch's positions, which are 0, 1, 2...
+  const char* choices = "";
+  float value;
+
+  Control(const char* id_, const char* name_, const char* unit_, float min_, float max_, float initial_,
+          int scale_ = kLinear, const char* choices_ = "")
+      : id(id_), name(name_), unit(unit_), min(min_), max(max_), initial(initial_), scale(scale_),
+        choices(choices_), value(initial_) {
+    if (g_control_count < 32) g_controls[g_control_count++] = this;
+  }
+
+  void set(float v) {
+    if (std::isnan(v) || std::isinf(v)) v = initial;
+    value = v < min ? min : (v > max ? max : v);
+  }
+  int choice() const { return static_cast<int>(value + 0.5f); }
+  bool on() const { return value >= 0.5f; }
+};
+
+// ---------------------------------------------------------------------------
+// Taps
+
+struct Tap;
+inline Tap* g_taps[48];
+inline int g_tap_count = 0;
+
+struct Tap {
+  const char* id;
+  const char* name;
+  int kind;
+  int origin;
+  int channels;
+  const char* unit;
+  float* data = nullptr;  // planar: channel 0, then channel 1
+  int length = 0;         // points per channel
+  float x0 = 0.0f;        // kCurve, kSpectrum and kFrames: what the first and last point stand at
+  float x1 = 1.0f;
+  int columns = 0;  // kFrames
+
+  Tap(const char* id_, const char* name_, int kind_, int origin_, int channels_ = 1, const char* unit_ = "")
+      : id(id_), name(name_), kind(kind_), origin(origin_), channels(channels_ == 2 ? 2 : 1), unit(unit_) {
+    if (g_tap_count < 48) g_taps[g_tap_count++] = this;
+  }
+
+  void clear() {
+    data = nullptr;
+    length = 0;
+    columns = 0;
+  }
+
+  // Room for `points` per channel. False when the arena is full.
+  bool open(int points) {
+    data = take(points * channels);
+    length = data ? points : 0;
+    return data != nullptr;
+  }
+
+  float* channel(int c) { return data ? data + (c ? length : 0) : nullptr; }
+
+  // One point of a looped render, by its place `i` in lab::total(): the first
+  // pass is dropped, the second kept, the rest crossfaded into the start.
+  void put(int i, float left, float right) {
+    const int period = kind == kControl ? kControlPeriod : 1;
+    const int kept = g_frames / period;
+    const int fade = kFadeFrames / period;
+    if (!data && !open(kept)) return;
+    if (i % period != 0) return;
+    const int k = i / period;
+    if (k < kept) return;
+    if (k < 2 * kept) {
+      data[k - kept] = left;
+      if (channels == 2) data[length + k - kept] = right;
+    } else if (k - 2 * kept < fade && k - 2 * kept < kept) {
+      const int j = k - 2 * kept;
+      const float own = static_cast<float>(j) / static_cast<float>(fade);
+      data[j] = left + (data[j] - left) * own;
+      if (channels == 2) data[length + j] = right + (data[length + j] - right) * own;
+    }
+  }
+  void put(int i, float value) { put(i, value, value); }
+
+  // One point of a render that is not a loop: kept as it is.
+  void set(int i, float left, float right) {
+    if (!data || i < 0 || i >= length) return;
+    data[i] = left;
+    if (channels == 2) data[length + i] = right;
+  }
+  void set(int i, float value) { set(i, value, value); }
+};
+
+// ---------------------------------------------------------------------------
+// Checks: numbers the lab works out about its own render, such as how far a
+// rebuilt stage is from the device. The page shows them and the tests hold them.
+
+struct Check;
+inline Check* g_checks[16];
+inline int g_check_count = 0;
+
+struct Check {
+  const char* id;
+  const char* name;
+  const char* unit;
+  float value = 0.0f;
+  Check(const char* id_, const char* name_, const char* unit_) : id(id_), name(name_), unit(unit_) {
+    if (g_check_count < 16) g_checks[g_check_count++] = this;
+  }
+};
+
+// ---------------------------------------------------------------------------
+// Measurements labs share. All of the spectra on the site come from the kit's
+// own transform (cpp/kit/fft.h), so a picture of a spectrum is itself the
+// engine at work.
+
+constexpr float kFloorDb = -140.0f;
+
+inline float to_db(float gain) { return gain > 1.0e-7f ? 20.0f * std::log10(gain) : kFloorDb; }
+inline float power_to_db(float power) { return power > 1.0e-14f ? 10.0f * std::log10(power) : kFloorDb; }
+
+// The level of `x - y` against the level of `y`, in dB: how well a rebuilt
+// signal matches the one it claims to equal. -140 when they are the same.
+inline float difference_db(const float* x, const float* y, int count) {
+  double diff = 0.0, ref = 0.0;
+  for (int i = 0; i < count; ++i) {
+    const double d = static_cast<double>(x[i]) - static_cast<double>(y[i]);
+    diff += d * d;
+    ref += static_cast<double>(y[i]) * static_cast<double>(y[i]);
+  }
+  if (ref <= 0.0) return diff <= 0.0 ? kFloorDb : 0.0f;
+  const double ratio = diff / ref;
+  return ratio > 1.0e-14 ? static_cast<float>(10.0 * std::log10(ratio)) : kFloorDb;
+}
+
+inline float peak(const float* x, int count) {
+  float top = 0.0f;
+  for (int i = 0; i < count; ++i) {
+    const float a = x[i] < 0.0f ? -x[i] : x[i];
+    if (a > top) top = a;
+  }
+  return top;
+}
+
+inline float rms(const float* x, int count) {
+  double sum = 0.0;
+  for (int i = 0; i < count; ++i) sum += static_cast<double>(x[i]) * static_cast<double>(x[i]);
+  return count > 0 ? static_cast<float>(std::sqrt(sum / count)) : 0.0f;
+}
+
+constexpr int kSpectrumSize = 4096;
+constexpr int kSpectrumBins = kSpectrumSize / 2 + 1;
+
+inline livemix::kit::Fft<kSpectrumSize> g_spectrum_fft;
+inline float g_spectrum_window[kSpectrumSize];
+inline float g_spectrum_re[kSpectrumSize];
+inline float g_spectrum_im[kSpectrumSize];
+inline float g_spectrum_out[kSpectrumBins];
+inline bool g_spectrum_ready = false;
+
+inline void spectrum_init() {
+  if (g_spectrum_ready) return;
+  g_spectrum_fft.init();
+  for (int n = 0; n < kSpectrumSize; ++n) {
+    g_spectrum_window[n] = static_cast<float>(0.5 - 0.5 * std::cos(2.0 * 3.14159265358979323846 * n / kSpectrumSize));
+  }
+  g_spectrum_ready = true;
+}
+
+// The average spectrum of `count` samples: Hann-windowed frames of 4096 half
+// overlapped, their powers averaged, in dB where a full-scale sine reads 0.
+// `out` takes kSpectrumBins values, bin k standing at k * 48000 / 4096 Hz.
+inline void spectrum(const float* x, int count, float* out) {
+  spectrum_init();
+  static double power[kSpectrumBins];
+  for (int k = 0; k < kSpectrumBins; ++k) power[k] = 0.0;
+  int frames_done = 0;
+  const int hop = kSpectrumSize / 2;
+  for (int start = 0; start == 0 || start + kSpectrumSize <= count; start += hop) {
+    for (int n = 0; n < kSpectrumSize; ++n) {
+      const int i = start + n;
+      g_spectrum_re[n] = i < count ? x[i] * g_spectrum_window[n] : 0.0f;
+      g_spectrum_im[n] = 0.0f;
+    }
+    g_spectrum_fft.forward(g_spectrum_re, g_spectrum_im);
+    for (int k = 0; k < kSpectrumBins; ++k) {
+      power[k] += static_cast<double>(g_spectrum_re[k]) * g_spectrum_re[k] +
+                  static_cast<double>(g_spectrum_im[k]) * g_spectrum_im[k];
+    }
+    ++frames_done;
+  }
+  // A Hann window passes half of a sine's amplitude, and the sine's energy
+  // lands half in bin k and half in its mirror: N / 4 in bin k for amplitude 1.
+  const double full = (kSpectrumSize / 4.0) * (kSpectrumSize / 4.0);
+  for (int k = 0; k < kSpectrumBins; ++k) {
+    out[k] = power_to_db(static_cast<float>(power[k] / (frames_done * full)));
+  }
+}
+
+// Fill a kSpectrum tap from a signal.
+inline void spectrum_tap(Tap& tap, const float* x, int count) {
+  if (!tap.open(kSpectrumBins)) return;
+  tap.x0 = 0.0f;
+  tap.x1 = kSampleRate * 0.5f;
+  spectrum(x, count, tap.data);
+}
+
+// Run a device over `count` frames of stereo input in blocks of `block`
+// frames, and call `after(offset, n)` once each block so the lab can read
+// the device's output (and, built with -fno-access-control, its state).
+template <class Device, class After>
+inline void run_blocks(Device& device, const float* left, const float* right, int count, int block, After&& after) {
+  for (int offset = 0; offset < count; offset += block) {
+    const int n = count - offset < block ? count - offset : block;
+    float* in_left = device.in_left();
+    float* in_right = device.in_right();
+    for (int i = 0; i < n; ++i) {
+      in_left[i] = left[offset + i];
+      in_right[i] = right[offset + i];
+    }
+    device.process(n);
+    after(offset, n);
+  }
+}
+
+}  // namespace lab
+
+// Each lab defines these two.
+void lab_setup();             // once: init devices and tables
+void lab_render(int frames);  // every render: read controls and the source, write taps and checks
+
+extern "C" {
+
+inline bool g_lab_ready = false;
+
+void lab_init(void) {
+  if (g_lab_ready) return;
+  lab::spectrum_init();
+  lab_setup();
+  g_lab_ready = true;
+}
+
+float lab_sample_rate(void) { return lab::kSampleRate; }
+int lab_max_frames(void) { return lab::kMaxFrames; }
+float* lab_input(int channel) { return lab::g_input[channel & 1]; }
+
+int lab_control_count(void) { return lab::g_control_count; }
+static lab::Control* lab_control_at(int i) {
+  return i >= 0 && i < lab::g_control_count ? lab::g_controls[i] : nullptr;
+}
+const char* lab_control_id(int i) { return lab_control_at(i) ? lab_control_at(i)->id : ""; }
+const char* lab_control_name(int i) { return lab_control_at(i) ? lab_control_at(i)->name : ""; }
+const char* lab_control_unit(int i) { return lab_control_at(i) ? lab_control_at(i)->unit : ""; }
+const char* lab_control_choices(int i) { return lab_control_at(i) ? lab_control_at(i)->choices : ""; }
+float lab_control_min(int i) { return lab_control_at(i) ? lab_control_at(i)->min : 0.0f; }
+float lab_control_max(int i) { return lab_control_at(i) ? lab_control_at(i)->max : 0.0f; }
+float lab_control_default(int i) { return lab_control_at(i) ? lab_control_at(i)->initial : 0.0f; }
+int lab_control_scale(int i) { return lab_control_at(i) ? lab_control_at(i)->scale : 0; }
+float lab_control_value(int i) { return lab_control_at(i) ? lab_control_at(i)->value : 0.0f; }
+void lab_set(int i, float value) {
+  if (lab_control_at(i)) lab_control_at(i)->set(value);
+}
+
+void lab_run(int frames) {
+  lab_init();
+  if (frames < 0) frames = 0;
+  if (frames > lab::kMaxFrames) frames = lab::kMaxFrames;
+  frames -= frames % lab::kControlPeriod;
+  lab::g_frames = frames;
+  lab::g_arena_used = 0;
+  for (int i = 0; i < lab::g_tap_count; ++i) lab::g_taps[i]->clear();
+  for (int i = 0; i < lab::g_check_count; ++i) lab::g_checks[i]->value = 0.0f;
+  if (frames > 0) lab_render(frames);
+}
+
+int lab_tap_count(void) { return lab::g_tap_count; }
+static lab::Tap* lab_tap_at(int i) { return i >= 0 && i < lab::g_tap_count ? lab::g_taps[i] : nullptr; }
+const char* lab_tap_id(int i) { return lab_tap_at(i) ? lab_tap_at(i)->id : ""; }
+const char* lab_tap_name(int i) { return lab_tap_at(i) ? lab_tap_at(i)->name : ""; }
+const char* lab_tap_unit(int i) { return lab_tap_at(i) ? lab_tap_at(i)->unit : ""; }
+int lab_tap_kind(int i) { return lab_tap_at(i) ? lab_tap_at(i)->kind : 0; }
+int lab_tap_origin(int i) { return lab_tap_at(i) ? lab_tap_at(i)->origin : 0; }
+int lab_tap_channels(int i) { return lab_tap_at(i) ? lab_tap_at(i)->channels : 0; }
+float* lab_tap_data(int i) { return lab_tap_at(i) ? lab_tap_at(i)->data : nullptr; }
+int lab_tap_length(int i) { return lab_tap_at(i) ? lab_tap_at(i)->length : 0; }
+float lab_tap_x0(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x0 : 0.0f; }
+float lab_tap_x1(int i) { return lab_tap_at(i) ? lab_tap_at(i)->x1 : 0.0f; }
+int lab_tap_columns(int i) { return lab_tap_at(i) ? lab_tap_at(i)->columns : 0; }
+
+int lab_check_count(void) { return lab::g_check_count; }
+static lab::Check* lab_check_at(int i) { return i >= 0 && i < lab::g_check_count ? lab::g_checks[i] : nullptr; }
+const char* lab_check_id(int i) { return lab_check_at(i) ? lab_check_at(i)->id : ""; }
+const char* lab_check_name(int i) { return lab_check_at(i) ? lab_check_at(i)->name : ""; }
+const char* lab_check_unit(int i) { return lab_check_at(i) ? lab_check_at(i)->unit : ""; }
+float lab_check_value(int i) { return lab_check_at(i) ? lab_check_at(i)->value : 0.0f; }
+
+// The spectrum of an audio tap's channel, or of `count` samples of it from
+// `start`: for the page's own looks at a stage (a spectrum of any stage, a
+// spectrum of the part of the loop under the cursor). kSpectrumBins values.
+float* lab_spectrum(int tap, int channel, int start, int count) {
+  lab::Tap* t = lab_tap_at(tap);
+  for (int k = 0; k < lab::kSpectrumBins; ++k) lab::g_spectrum_out[k] = lab::kFloorDb;
+  if (!t || !t->data || t->kind != lab::kAudio) return lab::g_spectrum_out;
+  if (start < 0) start = 0;
+  if (start > t->length) start = t->length;
+  if (count <= 0 || start + count > t->length) count = t->length - start;
+  lab::spectrum(t->channel(channel == 1 && t->channels == 2 ? 1 : 0) + start, count, lab::g_spectrum_out);
+  return lab::g_spectrum_out;
+}
+int lab_spectrum_bins(void) { return lab::kSpectrumBins; }
+
+}  // extern "C"
