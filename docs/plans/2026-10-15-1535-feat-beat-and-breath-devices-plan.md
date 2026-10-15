@@ -47,8 +47,8 @@ Three research reports ground the list (see Sources). What they change:
 **The family**
 
 - R1. The library gains the nine devices of the table under High-Level Technical Design, with those ids, names and controls.
-- R2. Each device meets the recipe in full: `device.json`, one header, a native harness with conformance, behaviour checks, a click check and a cost report; sixteen presets of its own (an effect may carry fewer where `FEWER_PRESETS` says why, KTD8); a palette, skin, display and display truth test; docs rows. An instrument has twenty bank presets, an effect two to five bank chains.
-- R3. No device text, preset name, bank preset, chain, display or plate label names a state of mind or health, or promises one. That sentence is the rule; the guard list of KTD11 is its floor. Greek band letters appear only in the docs page of R14. A caution is not a promise (see Assumptions).
+- R2. Each device meets the recipe in full: `device.json`, one header, a native harness with conformance, behaviour checks, a click check and a cost report; sixteen presets of its own at the least and up to twenty-four where the bench can tell them apart (an effect may carry fewer where `FEWER_PRESETS` says why, KTD8); a palette, skin, display and display truth test; docs rows. An instrument has thirty bank presets, an effect eight to ten bank chains (R42).
+- R3. No device text, preset name, bank preset, chain, display or plate label names a state of mind or health, or promises one. That sentence is the rule; the guard list of KTD11 is its floor. Greek band letters appear only in the docs page of R14. A caution is not a promise (see Assumptions). The app's notes for its agent (R41) are not device text: they name the wishes and the band names a person may use, so the agent understands the ask, and they tell it to promise nothing.
 - R4. A device whose Ears default is above 0 (Binaural, Twin Bars, Ear Shift) opens its description with "On headphones". Every Ears, Width and Offset control says in its own description what speakers, a mono fold or a reverb fed from both sides give; for Offset, that at 180 degrees and half Duty the pulse is gone in mono.
 - R5. One law splits sound between the ears on every device that has an Ears or Width control (KTD2). At 0 the two sides are identical to the sample. The left ear carries the higher tone on every device.
 - R6. Every beat, pulse, breath, sweep and glide is exact to the sample: the same output for any block sizes, across silences, and after a control is moved in silence (KTD3).
@@ -81,7 +81,12 @@ Three research reports ground the list (see Sources). What they change:
 
 **The app**
 
-- R40. The app's change is the pin, the lockfile, the landing copy's names and counts, and any test the new names trip. No behaviour of the app changes.
+- R40. The app's change is the pin, the lockfile, the landing copy's names and counts, any test the new names trip, and the agent's notes of R41. Nothing else in the app's behaviour changes.
+
+**Asked by the owner after the plan was first written** (15 October: "make sure we add this research and knowledge to the agent ... so when we say we want to make it sound relaxing ... it can add these binaural noises ... also add a lot of presets for these based on science and music")
+
+- R41. The app's agent knows the family. A page of notes, read through one tool and listed in the guide by topic with a line on when to read it, tells the agent: which wish goes with which device, preset and rate (restful, sleepy, steady attention, breathing with the sound, "binaural beats" or a band named outright); how to put the sound into a piece so the effect survives (headphones or speakers, the master reverb, the rows of the field, a looped sound's length against the beat, what runs live and what is rendered); what research supports and what it does not; how to speak of it to the person (what is heard and what people use it for, never a promise); and the cautions. A test holds every device id and preset name the notes use to the pinned engine, so the notes cannot drift from it.
+- R42. Many presets, drawn from science and music. Every preset of the family, a device's own and the bank's, comes from a row of the sources table that R14's page carries (rates and shapes the research uses; places where beating is already an instrument: paired bars, struck bowls, detuned ranks, unison strings, a sweep through held tones, a beat in time with the piece), or from a plain musical use of the device. Its description gives the figure and what is heard, under R3. Thirty bank presets an instrument and eight to ten chains an effect, each inside the bank's rules as they stand.
 
 ### Scope Boundaries
 
@@ -89,7 +94,7 @@ Three research reports ground the list (see Sources). What they change:
 - No tempo sync of rates: a device receives no tempo.
 - No device drives another, so there is no shared session ramp; glides live inside Binaural, Isochronic and Breath Pacer.
 - No change to `cpp/kit/kit.h` or to any header an existing device includes, to `cpp/test/support`, or to the bank's limits.
-- No new control, panel or tool in the app.
+- No new control or panel in the app, and one new tool for its agent (R41).
 - No Mac build and nothing done on the live site by this work.
 
 #### Deferred to Follow-Up Work
@@ -120,6 +125,7 @@ Three research reports ground the list (see Sources). What they change:
 - KTD13. **Band Pulse and Winding Down have no make-up gain.** Winding Down is one gain of at most one, so its peaks never pass the input's. Band Pulse turns one band down and its split turns phase, so a peak the band was holding down can rise by a small amount; that is measured, not trimmed. Their presets sit under dry by what they remove and inside the effect preset rule's 12 LU.
 - KTD14. **Noise is scaled by the root of the rate** and every filter that colours it is worked out from the rate. Brown is high-passed so its 8-second mean stays under the offset limit. Colours are matched by RMS with fixed constants.
 - KTD15. **The app change is a devices-only pin move and is held for the deploy rehearsal.** The pin is the squash commit on this repo's `main`. STATION_COMPAT does not move: an older build stands in for a device it does not know.
+- KTD16. **The agent's knowledge is a page it asks for, not prose it carries.** The app's guide goes out with every turn and its hand-written part is near its limit, so the knowledge is a table of notes (`app/frontend/agent/notes.ts`: topic, title, when to read, body) behind one tool, `get_notes`, and the guide lists the topics in a generated list, a line each, outside the capped prose. The tool is not one of the window's direct tools: the guide's line and `find_tools` lead to it. The notes are the one place where wishes (restful, sleepy, steady attention) and band names stand beside devices, because the agent must understand what a person asks for; they instruct the agent to say what is heard and what people use it for, and never to promise an effect. A test reads every device id and preset name out of the notes and fails when the engine does not have it.
 
 ### Assumptions
 
@@ -246,10 +252,11 @@ flowchart TB
 | U10 | Winding Down | U1 |
 | U11 | Shared lists, docs, words guard, gates, merge | U2 to U10 |
 | U12 | The app's pin move | U11 |
+| U13 | The agent's notes, in the app, in the same pull request as U12 | U11 |
 
 **What every device unit (U2 to U10) delivers.** Stated once here; each unit below adds only what is its own.
 
-- Files: `cpp/devices/<id>/device.json`, `cpp/devices/<id>/<snake>.h`, `cpp/test/<snake>_test.cpp`, `src/react/components/displays/<id>.ts`, `src/react/__tests__/displays.<id>.test.ts`; for an instrument `src/dsp/factory/presets/<id>.ts` with twenty bank presets. Entries for shared files (palette, skin, display index, preset index, bank chains, the stepped-control list, docs rows) are made locally in the worktree, uncommitted, so the benches and the plate and display tests can see the device; the same entries are handed to U11 as text and only the device's own files are committed.
+- Files: `cpp/devices/<id>/device.json`, `cpp/devices/<id>/<snake>.h`, `cpp/test/<snake>_test.cpp`, `src/react/components/displays/<id>.ts`, `src/react/__tests__/displays.<id>.test.ts`; for an instrument `src/dsp/factory/presets/<id>.ts` with thirty bank presets (R42). Entries for shared files (palette, skin, display index, preset index, bank chains, the stepped-control list, docs rows) are made locally in the worktree, uncommitted, so the benches and the plate and display tests can see the device; the same entries are handed to U11 as text and only the device's own files are committed.
 - Two workers, in the device's own git worktree: a builder, then a checker who rebuilds from clean, writes their own measuring programs, renders every preset, mutates the device one trait at a time and reports how many changes the harness caught, and writes the device's R15 row. Where the two disagree, the checker's figure is printed.
 - The harness carries KTD9's checks, R11's three rates, the recipe's level rule, `report_cost`, and a second `init` that equals the first.
 - Sixteen own presets drafted on the bench first (KTD8): `INSTRUMENT_PRESETS=<id> INSTRUMENT_REPORT=1 pnpm vitest run src/dsp/__tests__/instrument-presets.test.ts` or `EFFECT_PRESETS=<id> pnpm vitest run src/dsp/__tests__/effect-presets.test.ts`. Bank presets levelled with `FACTORY_REPORT=presets FACTORY_DEVICE=<id> pnpm vitest run src/dsp/factory/__tests__/report.test.ts`, bank chains with `FACTORY_REPORT=chains`.
@@ -436,7 +443,7 @@ flowchart TB
 - Approach: merge the nine worktrees; regenerate every generated file with `node scripts/gen-devices.mjs`, never merge one; record the shipped presets in update mode. Write the words guard and the docs page. Take each plate's picture once with `node scripts/plates/shoot.mjs`, flat and upright, and have one reader say per plate what the display shows and whether every word on it can be read; faults go back to the device's unit. Rebuild every `.wasm` with Emscripten 4.0.15 into a scratch directory and compare bytes with what is committed.
 - Test scenarios:
   - The words guard fails when a description is given the word "focus", when a display writes "theta", when Binaural's description loses "On headphones", and when an Offset description loses its mono sentence; it passes on the tree.
-  - `shipped-presets.json` gains one `(default)` row and one row a preset for each device (153 rows if every device carries sixteen) and changes none.
+  - `shipped-presets.json` gains one `(default)` row and one row a preset for each device (one row for every preset the devices carry) and changes none.
   - Every existing `.wasm` is byte-equal after the rebuild; the nine new ones equal their rebuild.
   - `factory.test.ts` finds each of the three effects in a bank chain; every pack test passes with the six instruments in `AFTER_THE_PACKS`.
   - Plate tests: nine unique plate colours, contrast limits met, Breath Pacer's sections name all thirteen knobs.
@@ -456,6 +463,22 @@ flowchart TB
   - A piece saved at the old pin opens unchanged.
   - Binaural and Ear Shift at Ears 1 on a plain piece: side over mid and the ripple inside each ear at Beat are measured at the app's output, once with the master reverb as a plain piece has it and once with its mix at 0; both pairs of figures go in the app's pull request.
 - Verification: the Verification Contract's app gates pass; the pull request's number, head, squash tree and the engine commits between the two pins go to the coordinator, and it merges only on the deploy rehearsal's clear.
+
+### U13. The agent's notes
+
+- Goal: the app's agent reaches for the family when a person asks for a feeling or names the technique, places it so it works, and speaks of it honestly.
+- Requirements: R41; KTD16.
+- Dependencies: U11 (the preset names must be final). Same branch and pull request as U12.
+- Files, in `kieranklaassen/ambient-live`: `app/frontend/agent/notes.ts` (the table of notes), `app/frontend/agent/notes.test.ts`, `app/frontend/agent/tools/notes.ts` with its test (or the nearest existing tools file), `app/frontend/agent/tools/index.ts`, `app/frontend/agent/coverage.ts`, `app/frontend/agent/guide.ts` and `guide.test.ts`, generated `docs/agent-native.md`, and the landing copy if the tool count crosses a ten.
+- Approach: KTD16. Write the notes from the three research reports and from what U12 measures at the app's output (the master reverb, the rows, a looped sound). Keep each topic under 7,000 characters so one read is cheap.
+- Test scenarios:
+  - `get_notes` with no topic lists the topics with their "when to read" lines; with `beats-and-breath` it returns the page; an unknown topic is an error that names the topics.
+  - Every device id in the notes is in the engine's device list, every preset named is in the bank under that id's instrument or is a chain of the bank, and each of the nine devices is named at least once.
+  - `find_tools` finds `get_notes` by the matrix row's words and by "relaxing", "sleep", "binaural" and "breathing".
+  - The guide lists the topic outside its hand-written prose; the prose stays under its limit; the guide still names every tool.
+  - The notes contain each caution of R14 and the sentence that tells the agent to promise nothing.
+  - The window's direct tools are unchanged and under their byte limit.
+- Verification: `npx vitest run app/frontend/agent` passes; the generated matrix doc is regenerated, not merged by hand.
 
 ---
 
@@ -481,10 +504,10 @@ Heavy commands share four slots and wait for free memory; vitest runs with `--no
 
 ## Definition of Done
 
-- R1 to R12, R14, R15, R20 to R26 and R30 to R33 hold on this repo's `main`, with every gate of the Verification Contract passing on the merged tree.
+- R1 to R12, R14, R15, R20 to R26, R30 to R33 and R42 hold on this repo's `main`, with every gate of the Verification Contract passing on the merged tree.
 - Each device has its harness, its presets, bank presets or chains, plate, display, truth test with R10's timed draw, docs rows and R15 row, and a checker's report with its mutation count and its read against R3.
 - The pull request says, per device, what was measured and what is left for an ear.
-- R13 and R40 hold on the app's branch, its gates pass, and its pull request is handed over for the deploy rehearsal.
+- R13, R40 and R41 hold on the app's branch, its gates pass, and its pull request is handed over for the deploy rehearsal.
 - Per unit: U1 is done when its three tests pass and no `.wasm` changed; a device unit when its checker's findings are fixed or written into its R15 row; U11 when the squash commit is on `main`; U12 when the hand-over is sent.
 
 ---
