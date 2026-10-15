@@ -170,10 +170,10 @@ static void pulse_gains(Setup setup, float hz, float seconds, float rate, std::v
 // The worst distance of a measured gain from the law at Depth 1, from sample
 // `from` on, with the ear `offset` periods behind the clock.
 static double worst_from_law(const std::vector<float>& gain, double hz, double duty, double edge_seconds,
-                             double offset, double rate, size_t from) {
+                             double offset, double rate, size_t from, size_t to = SIZE_MAX) {
   const double edge = edge_part(hz, duty, edge_seconds);
   double worst = 0.0;
-  for (size_t i = from; i < gain.size(); ++i) {
+  for (size_t i = from; i < std::min(to, gain.size()); ++i) {
     if (gain[i] < 0.0f) continue;
     const double phase = static_cast<double>(i) * hz / rate - offset;
     worst = std::max(worst, std::fabs(gain[i] - law(phase, duty, edge)));
@@ -184,6 +184,7 @@ static double worst_from_law(const std::vector<float>& gain, double hz, double d
 static double cpu_seconds() { return static_cast<double>(std::clock()) / CLOCKS_PER_SEC; }
 
 static void test_pulse();
+static void test_mid_pulse();
 static void test_first_pulse();
 static void test_offset();
 static void test_slow_pulse();
@@ -209,6 +210,7 @@ int main() {
   check_instrument(device, spec, kRate);
 
   test_pulse();
+  test_mid_pulse();
   test_first_pulse();
   test_offset();
   test_slow_pulse();
@@ -323,6 +325,106 @@ static void test_pulse() {
   }
 }
 
+// --- a control moved in the middle of a pulse ------------------------------------------------
+
+// The gain the pulse applied to the left ear over `seconds`, with `event`
+// carried out `when` seconds in.
+template <typename Setup, typename Event>
+static std::vector<float> gain_through(Setup setup, Event event, float when, float seconds) {
+  Stereo out[2];
+  for (int pass = 0; pass < 2; ++pass) {
+    plain(device);
+    setup(device);
+    if (pass == 1) device.set_param(p::kDepth, 0.0f);
+    device.note_on(1, 480.0f, 0.7f);
+    out[pass] = render(device, when, kRate);
+    event(device);
+    out[pass] = concat(out[pass], render(device, seconds - when, kRate));
+  }
+  return gain_of(out[0].left, out[1].left);
+}
+
+// The largest move of a measured gain from one sample to the next.
+static double steepest(const std::vector<float>& gain, size_t from = 0, size_t to = SIZE_MAX) {
+  double worst = 0.0;
+  for (size_t i = from + 1; i < std::min(to, gain.size()); ++i) {
+    if (gain[i] < 0.0f || gain[i - 1] < 0.0f) continue;
+    worst = std::max(worst, std::fabs(static_cast<double>(gain[i]) - gain[i - 1]));
+  }
+  return worst;
+}
+
+static void test_mid_pulse() {
+  char label[240];
+
+  // Duty and Edge: a pulse under way finishes as it began, and the next one
+  // is the new shape. At 2 Hz a period is half a second; the control is
+  // thrown on the top of the first pulse, in the gap after it where the new
+  // setting would have the ear open, and in the gap where it would not.
+  struct Move {
+    int id;
+    float from, to, when;
+    const char* name;
+  };
+  const Move moves[] = {{p::kDuty, 0.5f, 0.2f, 0.1f, "Duty 0.5 to 0.2 on the top"},
+                        {p::kDuty, 0.2f, 0.8f, 0.3f, "Duty 0.2 to 0.8 in the gap, where 0.8 would be open"},
+                        {p::kDuty, 0.8f, 0.2f, 0.47f, "Duty 0.8 to 0.2 in the gap"},
+                        {p::kEdge, 50.0f, 2.0f, 0.02f, "Edge 50 to 2 ms half way up the rise"},
+                        {p::kEdge, 2.0f, 50.0f, 0.0005f, "Edge 2 to 50 ms a quarter of the way up the rise"},
+                        {p::kEdge, 2.0f, 50.0f, 0.1f, "Edge 2 to 50 ms on the top"}};
+  for (const Move& m : moves) {
+    const std::vector<float> gain = gain_through(
+        [&](Isochronic& d) {
+          d.set_param(p::kRate, 2.0f);
+          d.set_param(m.id, m.from);
+        },
+        [&](Isochronic& d) { d.set_param(m.id, m.to); }, m.when, 1.5f);
+    const double duty_before = m.id == p::kDuty ? m.from : 0.5, duty_after = m.id == p::kDuty ? m.to : 0.5;
+    const double edge_before = 0.001 * (m.id == p::kEdge ? m.from : 8.0), edge_after = 0.001 * (m.id == p::kEdge ? m.to : 8.0);
+    const double before = worst_from_law(gain, 2.0, duty_before, edge_before, 0.0, kRate, 0, at(0.5));
+    const double after = worst_from_law(gain, 2.0, duty_after, edge_after, 0.0, kRate, at(0.5));
+    std::snprintf(label, sizeof label, "%s: the pulse under way finishes as it began (worst %.2g) and the next is the new shape (worst %.2g)",
+                  m.name, before, after);
+    EXPECT(before < 2.0e-3 && after < 2.0e-3, label);
+  }
+
+  // Rate is taken up at once, and a pulse it catches part way becomes one
+  // more edge, never a jump: the gain moves no faster than a quarter over
+  // the steepest step of the edge it has after the throw.
+  struct Jump {
+    float from, to, edge_ms, own_ms;  // own: the edge after the throw, as it is held
+    const char* name;
+  };
+  const Jump jumps[] = {{2.0f, 40.0f, 8.0f, 6.25f, "Rate 2 to 40 Hz"},
+                        {40.0f, 2.0f, 8.0f, 8.0f, "Rate 40 to 2 Hz"},
+                        {0.5f, 40.0f, 50.0f, 6.25f, "Rate 0.5 to 40 Hz at Edge 50 ms"},
+                        {40.0f, 0.5f, 2.0f, 2.0f, "Rate 40 to 0.5 Hz at Edge 2 ms"}};
+  for (const Jump& j : jumps) {
+    const double own = 0.5 * kPi / (0.001 * j.own_ms * kRate);
+    double worst = 0.0, largest_move = 0.0;
+    for (int place = 0; place < 16; ++place) {
+      const float when = 0.5f + (place + 0.31f) / (16.0f * j.from);
+      const std::vector<float> gain = gain_through(
+          [&](Isochronic& d) {
+            d.set_param(p::kRate, j.from);
+            d.set_param(p::kEdge, j.edge_ms);
+          },
+          [&](Isochronic& d) { d.set_param(p::kRate, j.to); }, when, when + 0.1f);
+      worst = std::max(worst, steepest(gain, at(when)));
+      float lo = 2.0f, hi = -1.0f;
+      for (size_t i = at(when); i < std::min(gain.size(), at(when) + at(0.02)); ++i) {
+        if (gain[i] < 0.0f) continue;
+        lo = std::min(lo, gain[i]);
+        hi = std::max(hi, gain[i]);
+      }
+      largest_move = std::max(largest_move, static_cast<double>(hi - lo));
+    }
+    std::snprintf(label, sizeof label, "%s at sixteen places: the gain's steepest step is %.2f of its own edge's (and it does move: %.2f)",
+                  j.name, worst / own, largest_move);
+    EXPECT(worst < 1.3 * own && largest_move > 0.5, label);
+  }
+}
+
 // --- the first pulse -------------------------------------------------------------------------
 
 static void test_first_pulse() {
@@ -374,33 +476,25 @@ static void test_first_pulse() {
     EXPECT(std::fabs(static_cast<double>(right_first) - 0.125 * kRate) <= 3.0, label);
   }
 
-  // Duty 0.75 at Offset 180: the clock starts with the right ear in the
-  // middle of a pulse. It opens with one edge, not at once.
+  // Duty 0.75 at Offset 180: the clock starts with the right ear in what would
+  // be the middle of a pulse. It stays shut until its own first pulse, half a
+  // period after the left's, and is the law from there on.
   {
+    auto long_pulse = [](Isochronic& d) {
+      d.set_param(p::kRate, 2.0f);
+      d.set_param(p::kDuty, 0.75f);
+      d.set_param(p::kOffset, 180.0f);
+    };
+    Stereo out = held(long_pulse, 480.0f, 1.5f);
+    size_t right_first = 0;
+    while (right_first < out.size() && out.right[right_first] == 0.0f) ++right_first;
     std::vector<float> left, right;
-    pulse_gains(
-        [](Isochronic& d) {
-          d.set_param(p::kDuty, 0.75f);
-          d.set_param(p::kOffset, 180.0f);
-        },
-        480.0f, 0.05f, kRate, &left, &right);
-    double early = 0.0, late = 2.0, steepest = 0.0;
-    float last = -1.0f;
-    for (size_t i = 0; i < right.size(); ++i) {
-      if (right[i] < 0.0f) {
-        last = -1.0f;
-        continue;
-      }
-      if (i < at(0.0006)) early = std::max(early, static_cast<double>(right[i]));
-      if (i >= at(0.008) && i < at(0.02)) late = std::min(late, static_cast<double>(right[i]));
-      if (last >= 0.0f) steepest = std::max(steepest, std::fabs(static_cast<double>(right[i]) - last));
-      last = right[i];
-    }
-    const double own = 0.5 * kPi / (0.008 * kRate);  // the steepest step of the pulse's own edge
+    pulse_gains(long_pulse, 480.0f, 1.5f, kRate, &left, &right);
+    const double worst = worst_from_law(right, 2.0, 0.75, 0.008, 0.5, kRate, at(0.25));
     std::snprintf(label, sizeof label,
-                  "a right ear that starts in mid pulse opens with one edge (%.3f at 0.6 ms, %.3f by 8 ms, steepest step %.2f of the edge's own)",
-                  early, late, steepest / own);
-    EXPECT(early < 0.2 && late > 0.999 && steepest < 1.3 * own, label);
+                  "a right ear that would start in mid pulse waits for its own first pulse (%.2f ms, 250 expected) and is the law after (worst %.2g)",
+                  1000.0 * right_first / kRate, worst);
+    EXPECT(std::fabs(static_cast<double>(right_first) - 0.25 * kRate) <= 3.0 && worst < 2.0e-3, label);
   }
 }
 
@@ -830,27 +924,29 @@ static void test_levels() {
     EXPECT(noise < 0.5 && half < 0.5, label);
   }
 
-  // Four keys held, three let go at a long release: the key that stays moves
-  // by under 1 dB in any 100 ms while the tails fall and after they end.
+  // Four keys held, three let go at the longest release: the key that stays
+  // comes up by the root of four as the others die, as slowly as they die
+  // (under 1 dB in any 100 ms), with no step where a tail ends.
   {
     plain(device);
     device.set_param(p::kDepth, 0.0f);
-    device.set_param(p::kRelease, 2.0f);
+    device.set_param(p::kRelease, 15.0f);
     for (int n = 0; n < 4; ++n) device.note_on(n, kEight[2 * n], 0.8f);
-    render(device, 0.5f, kRate);
+    Stereo before = render(device, 0.5f, kRate);
     for (int n = 1; n < 4; ++n) device.note_off(n);
-    Stereo out = render(device, 5.0f, kRate);
-    double worst = 0.0, last = 0.0;
-    for (size_t start = 0; start + at(0.1) <= out.size(); start += at(0.1)) {
-      const double level = db(tone_level(out.left, kEight[0], kRate, start, start + at(0.1)));
-      if (start > 0) worst = std::max(worst, std::fabs(level - last));
+    Stereo out = render(device, 27.0f, kRate);
+    const double start = db(tone_level(before.left, kEight[0], kRate, at(0.3)));
+    double worst = 0.0, last = start;
+    for (size_t from = 0; from + at(0.1) <= out.size(); from += at(0.1)) {
+      const double level = db(tone_level(out.left, kEight[0], kRate, from, from + at(0.1)));
+      worst = std::max(worst, std::fabs(level - last));
       last = level;
     }
-    const double rise = db(tone_level(out.left, kEight[0], kRate, at(4.5)) / tone_level(out.left, kEight[0], kRate, 0, at(0.1)));
     std::snprintf(label, sizeof label,
                   "as three of four keys die away the held key moves by %.2f dB at most in 100 ms and ends %.2f dB up (6.02 is the root of four)",
-                  worst, rise);
-    EXPECT(worst < 1.0 && std::fabs(rise - 6.02) < 0.3 && std::max(peak(out.left), peak(out.right)) < 0.5, label);
+                  worst, last - start);
+    MEASURED("%s", label);
+    EXPECT(worst < 1.0 && std::fabs(last - start - 6.02) < 0.1 && std::max(peak(out.left), peak(out.right)) < 0.5, label);
   }
 
   // Volume is in decibels.
@@ -965,7 +1061,7 @@ static void test_air() {
     EXPECT(worst_difference(noise, Stereo{noise.right, noise.left}) == 0.0, "at Offset 0 the noise is the same in both ears");
 
     // The band is centred on the key: a semitone at a time over two octaves.
-    double weighted = 0.0, total = 0.0, centre = 0.0, octave_down = 0.0, octave_up = 0.0;
+    double weighted = 0.0, total = 0.0, centre = 0.0, octave_down = 0.0, octave_up = 0.0, third_down = 0.0, third_up = 0.0;
     for (int k = -12; k <= 12; ++k) {
       const double power = band_power(noise.left, 220.0 * std::pow(2.0, k / 12.0), rate, from, 32);
       weighted += k * power;
@@ -973,7 +1069,15 @@ static void test_air() {
       if (k == 0) centre = power;
       if (k == -12) octave_down = power;
       if (k == 12) octave_up = power;
+      if (k == -3) third_down = power;
+      if (k == 3) third_up = power;
     }
+    // It is a band, not a tone: three semitones either side it is about
+    // 3.4 dB down (two sections of Q 2), not gone.
+    const double skirt_down = 10.0 * std::log10(third_down / centre), skirt_up = 10.0 * std::log10(third_up / centre);
+    std::snprintf(label, sizeof label, "%.0f Hz: the band is about 3.4 dB down three semitones either side (%.1f and %.1f dB)", rate,
+                  skirt_down, skirt_up);
+    EXPECT(skirt_down < -1.0 && skirt_down > -6.5 && skirt_up < -1.0 && skirt_up > -6.5, label);
     std::snprintf(label, sizeof label,
                   "%.0f Hz: the noise is a band centred on the key (centre of weight %.2f semitones off; an octave down %.1f dB, up %.1f dB)",
                   rate, weighted / total, 10.0 * std::log10(octave_down / centre), 10.0 * std::log10(octave_up / centre));
@@ -1186,29 +1290,47 @@ static void test_glide() {
 // How much of an event is heard in its first 8 samples: the largest
 // difference from the same render without the event over those samples,
 // against the largest over 20 ms. Something smoothed or faded has gone a
-// small part of the way; a jump is there at once. The worst of eight places
-// spread over one period of the pulse, so a jump cannot hide in a gap or in
-// a zero crossing. `setup` starts from init and strikes the keys.
+// small part of the way; a jump is there at once. The worst of sixteen
+// places spread over one period of the pulse (ISOCHRONIC_PLACES=64 tries
+// more), so a jump cannot hide in a gap or in a zero crossing. `setup`
+// starts from init and strikes the keys.
+//
+// On a pulsed device an event that lands where a pulse is about to end has
+// little left to change: its whole effect over the 20 ms is small, and a
+// ratio against it reads the end of the pulse, not the event. A place where
+// the event's whole effect is under a quarter of its largest effect at any
+// place is therefore measured against that quarter. `plain`, if given,
+// takes the ratio without that rule, each place against its own effect:
+// Volume, a 5 ms smoothed gain and nothing else, reads 0.53 that way at one
+// place in 64.
 template <typename Setup, typename Event>
-static double suddenness(Setup setup, Event event, double period, float rate = kRate) {
-  double worst = 0.0;
-  for (int trial = 0; trial < 8; ++trial) {
+static double suddenness(Setup setup, Event event, double period, float rate = kRate, double* plain = nullptr) {
+  static const int places = std::getenv("ISOCHRONIC_PLACES") ? std::atoi(std::getenv("ISOCHRONIC_PLACES")) : 16;
+  std::vector<double> early(places, 0.0), whole(places, 0.0);
+  double size = 0.0;
+  for (int trial = 0; trial < places; ++trial) {
     Stereo out[2];
     for (int pass = 0; pass < 2; ++pass) {
       setup(device);
-      render(device, static_cast<float>(0.5 + period * (trial + 0.37) / 8.0 + 0.0013 * trial), rate);
+      render(device, static_cast<float>(0.5 + period * (trial + 0.37) / places + 0.0013 * (trial % 8)), rate);
       if (pass == 0) event(device);
       out[pass] = render(device, 0.02f, rate);
     }
-    double early = 0.0, whole = 0.0;
     for (size_t i = 0; i < out[0].size(); ++i) {
       const double difference = std::max(std::fabs(static_cast<double>(out[0].left[i]) - out[1].left[i]),
                                          std::fabs(static_cast<double>(out[0].right[i]) - out[1].right[i]));
-      if (i < 8) early = std::max(early, difference);
-      whole = std::max(whole, difference);
+      if (i < 8) early[trial] = std::max(early[trial], difference);
+      whole[trial] = std::max(whole[trial], difference);
     }
-    if (whole > 1.0e-6) worst = std::max(worst, early / whole);
+    size = std::max(size, whole[trial]);
   }
+  double worst = 0.0, worst_plain = 0.0;
+  for (int trial = 0; trial < places; ++trial) {
+    if (whole[trial] <= 1.0e-6) continue;
+    worst = std::max(worst, early[trial] / std::max(whole[trial], 0.25 * size));
+    worst_plain = std::max(worst_plain, early[trial] / whole[trial]);
+  }
+  if (plain) *plain = worst_plain;
   return worst;
 }
 
@@ -1235,6 +1357,7 @@ static void test_clicks() {
   for (float rate : {48000.0f, 44100.0f}) {
     for (const Throw& t : throws) {
       const double period = t.id == p::kRate ? 1.0 / t.from : 0.1;
+      double plain_ratio = 0.0;
       const double sudden = suddenness(
           [&](Isochronic& d) {
             plain(d, rate);
@@ -1242,13 +1365,16 @@ static void test_clicks() {
             d.set_param(t.id, t.from);
             d.note_on(1, 110.0f, 0.5f);
           },
-          [&](Isochronic& d) { d.set_param(t.id, t.to); }, period, rate);
-      std::snprintf(label, sizeof label, "%.0f Hz: %s is not a click (%.3f of it in the first 8 samples)", rate, t.name, sudden);
+          [&](Isochronic& d) { d.set_param(t.id, t.to); }, period, rate, &plain_ratio);
+      std::snprintf(label, sizeof label, "%.0f Hz: %s is not a click (%.3f of it in the first 8 samples; %.3f with each place against its own effect)",
+                    rate, t.name, sudden, plain_ratio);
+      MEASURED("%s", label);
       EXPECT(sudden < 0.15, label);
     }
   }
 
-  // A glide armed again in mid flight sends the rate back to Rate at once.
+  // A glide armed again in mid flight sends the rate back to Rate at once:
+  // half a second into three from 40 Hz down, the pulse is near 19 Hz.
   {
     const double sudden = suddenness(
         [](Isochronic& d) {
@@ -1256,11 +1382,12 @@ static void test_clicks() {
           d.set_param(p::kAttack, 0.05f);
           d.set_param(p::kRate, 40.0f);
           d.set_param(p::kTarget, 0.5f);
-          d.set_param(p::kGlide, 0.01f);
+          d.set_param(p::kGlide, 0.05f);
           d.note_on(1, 110.0f, 0.5f);
         },
-        [](Isochronic& d) { d.set_param(p::kTarget, 1.0f); }, 0.1);
+        [](Isochronic& d) { d.set_param(p::kTarget, 1.0f); }, 0.05);
     std::snprintf(label, sizeof label, "a glide armed again in mid flight is not a click (%.3f)", sudden);
+    MEASURED("%s", label);
     EXPECT(sudden < 0.15, label);
   }
 
@@ -1285,6 +1412,7 @@ static void test_clicks() {
   std::snprintf(label, sizeof label,
                 "no click when a key is let go (%.3f), struck again (%.3f), struck again in a full pool (%.3f) or takes a voice (%.3f)",
                 let_go, again, again_full, taken);
+  MEASURED("%s", label);
   EXPECT(let_go < 0.15 && again < 0.15 && again_full < 0.15 && taken < 0.15, label);
 }
 
