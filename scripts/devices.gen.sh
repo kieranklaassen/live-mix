@@ -28,6 +28,8 @@ build_generated_devices() {
     cpp/devices/aurora/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device auto-filter \
     cpp/devices/auto-filter/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device binaural \
+    cpp/devices/binaural/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device bloom-reverb \
     cpp/devices/bloom-reverb/device_api.gen.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \
@@ -319,6 +321,8 @@ test_generated_devices() {
     cpp/test/aurora_test.cpp
   native_test auto_filter_test \
     cpp/test/auto_filter_test.cpp
+  native_test binaural_test \
+    cpp/test/binaural_test.cpp
   native_test bloom_reverb_test \
     cpp/test/bloom_reverb_test.cpp \
     cpp/devices/spectral-drifter/SpectralDrifter.cpp \

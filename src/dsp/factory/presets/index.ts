@@ -7,6 +7,7 @@ import { ACOUSTIC_GUITAR_PRESETS } from './acoustic-guitar'
 import { AFTERGLOW_PRESETS } from './afterglow'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
+import { BINAURAL_PRESETS } from './binaural'
 import { BOWED_STRING_PRESETS } from './bowed-string'
 import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
@@ -114,4 +115,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...BINAURAL_PRESETS,
 ]
