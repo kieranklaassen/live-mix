@@ -1,0 +1,116 @@
+---
+import { getCollection } from 'astro:content'
+import '../../styles/devices.css'
+import Base from '../../layouts/Base.astro'
+import ParamTable from '../../components/ParamTable.astro'
+import { catalogue, lessonsUsing, presetSettings, type CatalogueDevice } from '../../lib/devices'
+import { href } from '../../lib/paths'
+import { sourceUrl } from '../../lib/site'
+
+export async function getStaticPaths() {
+  const lessons = (await getCollection('lessons')).map((lesson) => ({
+    id: lesson.id,
+    title: lesson.data.title,
+    order: lesson.data.order,
+    summary: lesson.data.summary,
+    devices: lesson.data.devices,
+  }))
+  return catalogue().map((device) => ({
+    params: { id: device.id },
+    props: { device, lessons: lessonsUsing(device.id, lessons) },
+  }))
+}
+
+interface Props {
+  device: CatalogueDevice
+  lessons: { id: string; title: string; order: number; summary: string }[]
+}
+const { device, lessons } = Astro.props
+---
+
+<Base title={device.name} description={device.description || undefined}>
+  <article class="device">
+    {/* Out of the search's text: an excerpt would open with it on every device's page. */}
+    <p class="label crumb" data-pagefind-ignore>
+      <a href={href('devices/')}>Devices</a> /{' '}
+      <a href={href(`devices/#${device.category}`)}>{device.family}</a>
+    </p>
+    <h1>{device.name}</h1>
+    {device.description && <p class="lede">{device.description}</p>}
+
+    <dl class="facts">
+      <dt>Id</dt>
+      <dd>
+        <code>{device.id}</code>
+      </dd>
+      <dt>Family</dt>
+      <dd>{device.family}</dd>
+      <dt>Source</dt>
+      <dd>
+        <a href={sourceUrl(device.source)}>
+          <code>{device.source}</code>
+        </a>
+      </dd>
+    </dl>
+    {device.experimental && (
+      <p class="note">
+        The library marks this device experimental: it is shipped, and not yet cleared for
+        production. <a href={href('docs/devices/')}>The devices doc</a> has the measurements.
+      </p>
+    )}
+
+    {/* The bench, where the device is heard, is mounted here by the bench's own code. Kept empty. */}
+    <section id="bench" data-device={device.id}></section>
+
+    <h2 id="controls">Controls</h2>
+    <ParamTable params={device.params} />
+
+    {device.presets.length > 0 && (
+      <section>
+        <h2 id="presets">Presets</h2>
+        <div class="table-scroll">
+          <table class="preset-table">
+            <thead>
+              <tr>
+                <th scope="col">Preset</th>
+                <th scope="col">What it sets</th>
+              </tr>
+            </thead>
+            <tbody>
+              {device.presets.map((preset) => {
+                const settings = presetSettings(device, preset)
+                return (
+                  <tr>
+                    <th scope="row">{preset.name}</th>
+                    <td>
+                      {settings.length > 0
+                        ? settings.map(({ name, value }) => `${name} ${value}`).join(', ')
+                        : 'Every control at its default.'}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    )}
+
+    {lessons.length > 0 && (
+      <section>
+        <h2 id="lessons">Lessons</h2>
+        <ol class="lesson-list">
+          {lessons.map((lesson) => (
+            <li>
+              <a href={href(`lessons/${lesson.id}/`)}>
+                <span class="n">{String(lesson.order).padStart(2, '0')}</span>
+                <span class="t">{lesson.title}</span>
+                <span class="s">{lesson.summary}</span>
+              </a>
+            </li>
+          ))}
+        </ol>
+      </section>
+    )}
+  </article>
+</Base>

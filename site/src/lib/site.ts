@@ -1,10 +1,15 @@
 // What the build knows about itself: where the site lives and which commit it was built from.
 import { execSync } from 'node:child_process'
-import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
+import path from 'node:path'
 
 export const REPO = 'kieranklaassen/live-mix'
 export const REPO_URL = `https://github.com/${REPO}`
-export const REPO_ROOT = fileURLToPath(new URL('../../..', import.meta.url))
+// The repository is where the linked library is. Asked of Node, not worked out from this file's
+// own address: inside a built page this code runs from a bundle in another folder.
+export const REPO_ROOT = path.dirname(
+  createRequire(import.meta.url).resolve('@kieranklaassen/live-mix/package.json'),
+)
 
 function commit(): string {
   if (process.env.SITE_COMMIT) return process.env.SITE_COMMIT

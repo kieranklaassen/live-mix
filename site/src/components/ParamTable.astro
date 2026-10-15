@@ -1,0 +1,36 @@
+---
+import { paramDefault, paramRange, type CatalogueParam } from '../lib/devices'
+
+interface Props {
+  params: CatalogueParam[]
+}
+const { params } = Astro.props
+---
+
+<div class="table-scroll">
+  <table class="param-table">
+    <thead>
+      <tr>
+        <th scope="col">Control</th>
+        <th scope="col">Range</th>
+        <th scope="col">Default</th>
+        <th scope="col">Unit</th>
+        <th scope="col">What it does</th>
+      </tr>
+    </thead>
+    <tbody>
+      {params.map((param) => (
+        <tr>
+          <th scope="row">
+            {param.name}
+            <code>{param.key}</code>
+          </th>
+          <td class:list={['range', { n: param.choices.length === 0 }]}>{paramRange(param)}</td>
+          <td class="n">{paramDefault(param)}</td>
+          <td class="n">{param.unit}</td>
+          <td class="what">{param.description}</td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

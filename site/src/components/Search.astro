@@ -1,0 +1,262 @@
+---
+import { href } from '../lib/paths'
+
+// Two lists, not one: the API reference has thousands of pages, and in one list they stand in
+// front of the few lessons, docs and devices a word is also found in.
+const groups = [
+  { id: 'site', title: 'Lessons, docs and devices' },
+  { id: 'api', title: 'API reference' },
+]
+---
+
+<div class="search" data-search data-index={href('pagefind/pagefind.js')} data-base={href()}>
+  <form role="search" action={href('search/')} method="get">
+    <label class="label" for="search-q">
+      Lessons, docs, devices and the API
+    </label>
+    <input
+      id="search-q"
+      name="q"
+      type="search"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      enterkeyhint="search"
+    />
+  </form>
+  <noscript>
+    <p>The search runs in the page and needs JavaScript.</p>
+  </noscript>
+  <p class="search-status" role="status"></p>
+  {groups.map((group) => (
+    <section
+      class="search-group"
+      data-group={group.id}
+      aria-labelledby={`found-${group.id}`}
+      hidden
+    >
+      <h2 id={`found-${group.id}`}>
+        {group.title}
+        <span class="search-count"></span>
+      </h2>
+      <ol class="search-results"></ol>
+      <button class="button quiet search-more" type="button" hidden>
+        More
+      </button>
+    </section>
+  ))}
+</div>
+
+<script>
+  // The parts of Pagefind's module this page uses (pagefind.js, written into the built site).
+  interface Found {
+    url: string
+    excerpt: string
+    meta: { title?: string }
+  }
+  interface Result {
+    data(): Promise<Found>
+  }
+  interface SearchIndex {
+    search(query: string, options: { filters: object }): Promise<{ results: Result[] }>
+  }
+  interface Group {
+    section: HTMLElement
+    count: HTMLElement
+    list: HTMLElement
+    more: HTMLButtonElement
+    filters: object
+    found: Result[]
+    shown: number
+  }
+
+  const PAGE = 10
+  const SECTIONS: [string, string][] = [
+    ['lessons/', 'Lessons'],
+    ['docs/', 'Docs'],
+    ['devices/', 'Devices'],
+    ['api/', 'API'],
+  ]
+  // scripts/build-api.mjs writes this filter on the reference's pages; no other page has it.
+  const API = { section: 'API' }
+
+  const root = document.querySelector<HTMLElement>('[data-search]')!
+  const form = root.querySelector('form')!
+  const input = root.querySelector('input')!
+  const status = root.querySelector<HTMLElement>('.search-status')!
+  const base = root.dataset.base ?? '/'
+  const groups: Group[] = [...root.querySelectorAll<HTMLElement>('[data-group]')].map(
+    (section) => ({
+      section,
+      count: section.querySelector<HTMLElement>('.search-count')!,
+      list: section.querySelector<HTMLElement>('.search-results')!,
+      more: section.querySelector<HTMLButtonElement>('.search-more')!,
+      filters: section.dataset.group === 'api' ? API : { not: API },
+      found: [],
+      shown: 0,
+    }),
+  )
+
+  let loading: Promise<SearchIndex> | undefined
+  // Counts searches, so an answer that comes back after a newer question is dropped.
+  let turn = 0
+
+  /** Which part of the site a page is in, by its address under the site's base. */
+  function sectionOf(url: string): string {
+    const path = new URL(url, location.href).pathname
+    const rest = path.startsWith(base) ? path.slice(base.length) : path
+    return SECTIONS.find(([prefix]) => rest.startsWith(prefix))?.[1] ?? ''
+  }
+
+  function row(result: Found): HTMLLIElement {
+    const item = document.createElement('li')
+    const section = document.createElement('span')
+    section.className = 'label'
+    section.textContent = sectionOf(result.url)
+    const link = document.createElement('a')
+    link.href = result.url
+    link.textContent = result.meta.title ?? result.url
+    const excerpt = document.createElement('p')
+    // Pagefind escapes the page's text and adds only <mark> around the words found.
+    excerpt.innerHTML = result.excerpt
+    item.append(section, link, excerpt)
+    return item
+  }
+
+  async function showMore(group: Group) {
+    const mine = turn
+    const next = group.found.slice(group.shown, group.shown + PAGE)
+    const pages = await Promise.all(next.map((result) => result.data()))
+    if (mine !== turn) return
+    group.shown += pages.length
+    group.list.append(...pages.map(row))
+    group.more.hidden = group.shown >= group.found.length
+  }
+
+  function show(group: Group, found: Result[]) {
+    group.found = found
+    group.shown = 0
+    group.list.replaceChildren()
+    group.more.hidden = true
+    group.count.textContent = String(found.length)
+    group.section.hidden = found.length === 0
+  }
+
+  async function search(query: string) {
+    const mine = ++turn
+    // Kept in the address, so a search can be linked.
+    history.replaceState(null, '', query ? `?q=${encodeURIComponent(query)}` : location.pathname)
+    if (!query) {
+      for (const group of groups) show(group, [])
+      status.textContent = ''
+      return
+    }
+    let answers
+    try {
+      // Loaded on the first search, from the built site: the index is not part of the page's bundle.
+      loading ??= import(/* @vite-ignore */ root.dataset.index!)
+      const index = await loading
+      answers = await Promise.all(groups.map(({ filters }) => index.search(query, { filters })))
+    } catch {
+      loading = undefined
+      status.textContent =
+        'The search index could not be loaded. It is made when the site is built.'
+      return
+    }
+    if (mine !== turn) return
+    groups.forEach((group, index) => show(group, answers[index]!.results))
+    const total = groups.reduce((sum, group) => sum + group.found.length, 0)
+    status.textContent =
+      total === 0
+        ? `Nothing found for “${query}”.`
+        : `${total} ${total === 1 ? 'page' : 'pages'} for “${query}”.`
+    await Promise.all(groups.map(showMore))
+  }
+
+  let wait: ReturnType<typeof setTimeout> | undefined
+  input.addEventListener('input', () => {
+    clearTimeout(wait)
+    wait = setTimeout(() => search(input.value.trim()), 200)
+  })
+  form.addEventListener('submit', (event) => {
+    event.preventDefault()
+    clearTimeout(wait)
+    search(input.value.trim())
+  })
+  for (const group of groups) group.more.addEventListener('click', () => showMore(group))
+
+  const asked = new URLSearchParams(location.search).get('q')?.trim()
+  if (asked) {
+    input.value = asked
+    search(asked)
+  } else {
+    input.focus()
+  }
+</script>
+
+<style is:global>
+  /* Global, not scoped: the rows are made by the script, which Astro's scoping does not reach. */
+  .search {
+    max-width: var(--measure);
+  }
+  .search form {
+    display: grid;
+    gap: 0.4rem;
+  }
+  .search input {
+    font: inherit;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    color: var(--lm-text);
+    background: var(--lm-raised);
+    border: 1px solid var(--lm-border);
+    border-radius: var(--lm-radius);
+  }
+  .search-status {
+    margin: 1rem 0 0;
+    min-height: 1.6em;
+    color: var(--lm-muted);
+    font-size: 0.9rem;
+  }
+  .search-group h2 {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-size: 1.15rem;
+    margin: 1.5rem 0 0;
+  }
+  .search-count {
+    font-family: var(--lm-font-mono);
+    font-size: 0.72rem;
+    font-weight: 400;
+    color: var(--lm-muted);
+  }
+  .search-results {
+    list-style: none;
+    padding: 0;
+    margin: 0.5rem 0 1rem;
+  }
+  .search-results li {
+    margin: 0;
+    padding: 0.9rem 0;
+    border-bottom: 1px solid var(--lm-border);
+    display: grid;
+    gap: 0.15rem;
+  }
+  .search-results a {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+  .search-results p {
+    margin: 0;
+    color: var(--lm-muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+  .search-results mark {
+    background: var(--lm-accent-soft);
+    color: var(--lm-text);
+    padding: 0 0.1em;
+  }
+</style>
