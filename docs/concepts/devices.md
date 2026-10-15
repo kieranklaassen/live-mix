@@ -166,7 +166,7 @@ label or hide.
 A preset is one device. A **patch** is an instrument with its effects, or an
 effect chain: `validatePatch`, `createPatchEffects` and `replaceInserts` load
 one, `renderPatch` (`./dsp`) plays one without an audio context, and the
-factory bank is 1,124 instrument presets, 334 chains and 325 sounds built that way
+factory bank is 1,304 instrument presets, 364 chains and 325 sounds built that way
 ([factory.md](../factory.md)).
 
 ## Racks and macros
