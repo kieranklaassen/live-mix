@@ -55,7 +55,7 @@ static std::vector<float> pink(float seconds, float sr, float gain, uint32_t see
   return out;
 }
 
-// A chord of bare sawtooth waves, peaking at `peak`.
+// A chord of bare sawtooth waves, peaking at `peak_at`.
 static std::vector<float> saws(float seconds, float sr, float peak_at) {
   const double notes[4] = {110.0, 220.0, 329.63, 440.0};
   std::vector<float> out(static_cast<size_t>(seconds * sr), 0.0f);
@@ -70,7 +70,7 @@ static std::vector<float> saws(float seconds, float sr, float peak_at) {
   return out;
 }
 
-// Three struck notes of six partials each, dying away, peaking at `peak`.
+// Three struck notes of six partials each, dying away, peaking at `peak_at`.
 static std::vector<float> struck(float seconds, float sr, float peak_at) {
   const double notes[3] = {220.0, 277.18, 329.63};
   std::vector<float> out(static_cast<size_t>(seconds * sr), 0.0f);
@@ -226,13 +226,13 @@ struct Section {
 };
 
 static Section pass(bool high, double hz, double q, double sr) {
-  const double w = 2.0 * kPi * hz / sr, c = std::cos(w), alpha = std::sin(w) / (2.0 * q);
-  const double a0 = 1.0 + alpha;
+  const double w = 2.0 * kPi * hz / sr, c = std::cos(w), damp = std::sin(w) / (2.0 * q);
+  const double a0 = 1.0 + damp;
   Section s;
   s.b1 = (high ? -(1.0 + c) : (1.0 - c)) / a0;
   s.b0 = s.b2 = std::fabs(s.b1) * 0.5;
   s.a1 = -2.0 * c / a0;
-  s.a2 = (1.0 - alpha) / a0;
+  s.a2 = (1.0 - damp) / a0;
   return s;
 }
 
@@ -493,6 +493,7 @@ static void measures(float sr) {
       std::snprintf(label, sizeof label,
                     "%.0f Hz: Offset 180 at half Duty: the mono sum ripples %.3f dB, under 1", sr, db(high / low));
       EXPECT(db(high / low) < 1.0, label);
+      std::printf("  measured: %s\n", label);
       EXPECT_NEAR(low, 0.5, 2.0e-3, "and stands at half: one side or the other is always open");
     }
   }
@@ -514,6 +515,23 @@ static void measures(float sr) {
                   "%.0f Hz: Offset 180 at a quarter Duty: the mono sum pulses twice a period (%zu a second)", sr,
                   pulses);
     EXPECT(pulses == 16, label);
+  }
+
+  // High is held at least half an octave over Low (the split's own rule):
+  // with Low at 400, High at 400 is High at 566.
+  {
+    const std::vector<float> noisy = pink(1.0f, sr, 0.5f, 0x0C7Au);
+    device.init(sr);
+    device.set_param(p::kLow, 400.0f);
+    device.set_param(p::kHigh, 400.0f);
+    const Stereo held = run(device, noisy);
+    twin.init(sr);
+    twin.set_param(p::kLow, 400.0f);
+    twin.set_param(p::kHigh, 400.0f * 1.41421356f);
+    const Stereo asked = run(twin, noisy);
+    std::snprintf(label, sizeof label, "%.0f Hz: Low 400 with High 400 is Low 400 with High 566 (differs by %g)", sr,
+                  worst_difference(held, asked));
+    EXPECT(worst_difference(held, asked) < 1.0e-6 && rms(held.left) > 0.01, label);
   }
 
   // 6. Pink noise in, Rate 8, Depth 1. Each reading is the power in a band
@@ -605,6 +623,23 @@ static void measures(float sr) {
     device.init(sr);
     device.set_param(p::kDepth, 0.0f);
     const Stereo out = run(device, noisy);
+    // The same as bands of noise: each third of an octave of the output
+    // against that third of an octave of the input.
+    double worst_band = 0.0;
+    for (int n = 0; n <= 28; ++n) {
+      const double centre = 25.0 * std::pow(2.0, n / 3.0), half = std::pow(2.0, 1.0 / 6.0);
+      const size_t from = at(1.0, sr);
+      const double level = db(rms(band_of(out.left, centre / half, centre * half, sr), from) /
+                              rms(band_of(noisy, centre / half, centre * half, sr), from));
+      worst_band = std::max(worst_band, std::fabs(level));
+    }
+    std::snprintf(label, sizeof label,
+                  "%.0f Hz: Depth 0: every third-octave band of pink noise is within %.4f dB of the input, under 0.1",
+                  sr, worst_band);
+    EXPECT(worst_band < 0.1, label);
+    std::printf("  measured at %.0f Hz, Depth 0: tones within %.4f dB and third-octave bands of noise within %.4f dB "
+                "of the input\n",
+                sr, worst, worst_band);
     const double moved = db(rms(out.left) / rms(noisy));
     std::snprintf(label, sizeof label, "%.0f Hz: Depth 0: pink noise comes out %.4f dB from its level", sr, moved);
     EXPECT(std::fabs(moved) < 0.02, label);
@@ -736,20 +771,17 @@ static Thrown throw_control(const Throw& t) {
         pair[which].left.insert(pair[which].left.begin(), head.left.back());
         pair[which].right.insert(pair[which].right.begin(), head.right.back());
       }
-      double first[2] = {0.0, 0.0}, last[2] = {0.0, 0.0}, lowest_seen[2] = {1.0e9, 1.0e9},
-             highest_seen[2] = {0.0, 0.0};
+      double last[2] = {0.0, 0.0}, lowest_seen[2] = {1.0e9, 1.0e9}, highest_seen[2] = {0.0, 0.0};
       for (size_t i = 0; i < pair[0].size(); ++i) {
         const double g[2] = {2.0 * std::hypot(pair[0].left[i], pair[1].left[i]),
                              2.0 * std::hypot(pair[0].right[i], pair[1].right[i])};
         for (int c = 0; c < 2; ++c) {
-          if (i == 0) first[c] = g[c];
           if (i > 0) read.step = std::max(read.step, std::fabs(g[c] - last[c]));
           last[c] = g[c];
           lowest_seen[c] = std::min(lowest_seen[c], g[c]);
           highest_seen[c] = std::max(highest_seen[c], g[c]);
         }
       }
-      (void)first;
       for (int c = 0; c < 2; ++c) read.travel = std::max(read.travel, highest_seen[c] - lowest_seen[c]);
     }
   }
@@ -828,7 +860,7 @@ static void clicks() {
   }
 }
 
-// --- silence, sleep and the clock ---------------------------------------------------------------
+// --- silence, idling and the clock --------------------------------------------------------------
 
 static void moved_in_silence(BandPulse& d) {
   d.set_param(p::kDepth, 0.9f);
@@ -858,6 +890,9 @@ static void silences() {
     const std::vector<float> second = sine(330.0f, 1.2f, sr, 0.5f);
     double worst = 0.0;
     int slept = 0;
+    // Low at 60 Hz rings longest after a sound, at 400 Hz shortest: the
+    // device falls idle at a different moment after each.
+    for (float low : {60.0f, 400.0f})
     for (float gap : gaps) {
       Stereo reference;
       for (int block : blocks) {
@@ -865,7 +900,7 @@ static void silences() {
         device.set_param(p::kRate, 7.0f);
         device.set_param(p::kDepth, 1.0f);
         device.set_param(p::kOffset, 90.0f);
-        device.set_param(p::kLow, 60.0f);
+        device.set_param(p::kLow, low);
         device.in_left()[0] = device.in_right()[0] = 0.25f;
         device.process(13);
         Stereo all = render_in(device, first, block);
@@ -884,12 +919,12 @@ static void silences() {
       }
     }
     std::snprintf(label, sizeof label,
-                  "across 21 silences the output does not depend on the block size (worst %g, under 1e-6)", worst);
+                  "across 42 silences the output does not depend on the block size (worst %g, under 1e-6)", worst);
     EXPECT(worst < 1.0e-6, label);
     std::printf("  measured: worst difference between block sizes across the stepped silences %g; the 128-frame "
-                "render ended %d of 21 silences on exact zeros\n",
+                "render ended %d of 42 silences on exact zeros\n",
                 worst, slept);
-    EXPECT(slept >= 5 && slept <= 20, "the steps cross the moment the device falls idle");
+    EXPECT(slept >= 10 && slept <= 40, "the steps cross the moment the device falls idle");
   }
 
   // 2. A knob moved in silence is there when sound comes back: the tone
@@ -928,6 +963,8 @@ static void silences() {
                   "knobs moved while asleep have arrived at the next sound's first sample (worst %g, under 1e-6)",
                   worst);
     EXPECT(worst < 1.0e-6, label);
+    std::printf("  measured: knobs moved while asleep against a device set that way from init, worst difference %g\n",
+                worst);
     // The check can tell: after a gap too short to count as new sound the
     // knobs are still on their way, as they would be under sound.
     device.init(sr);
@@ -973,6 +1010,32 @@ static void silences() {
                     gap, block, up.empty() ? 1.0e9 : up[0] - wanted);
       EXPECT(!up.empty() && std::fabs(up[0] - wanted) < 1.0, label);
     }
+  }
+
+  // An hour asleep at Rate 40, and the pulse still begins on the sample the
+  // count puts it: 144,000 periods on, in blocks of 2048.
+  {
+    const size_t rest = at(3600.0, sr), length = at(0.5, sr);
+    Stereo pair[2];
+    BandPulse* both[2] = {&device, &twin};
+    for (int which = 0; which < 2; ++which) {
+      BandPulse& d = *both[which];
+      d.init(sr);
+      wide(d);
+      d.set_param(p::kRate, 40.0f);
+      for (size_t done = 0; done < rest; done += 2048) d.process(static_cast<int>(std::min<size_t>(2048, rest - done)));
+      pair[which] = run(d, tone(kProbeHz, length, sr, 0.5f, which == 1));
+    }
+    std::vector<float> gain(length);
+    for (size_t i = 0; i < length; ++i) gain[i] = 2.0f * std::hypot(pair[0].left[i], pair[1].left[i]);
+    const double period = sr / 40.0, half = 0.5 * 0.25 * period;  // the edge is held to a quarter period
+    const double k = std::ceil((static_cast<double>(rest) + 0.15 * sr - half) / period);
+    const double wanted = k * period + half - static_cast<double>(rest);
+    const std::vector<double> up = crossings(gain, 0.5, true, at(0.15, sr) - 2);
+    std::snprintf(label, sizeof label, "after an hour asleep at Rate 40 the pulse begins %.3f samples from the count",
+                  up.empty() ? 1.0e9 : up[0] - wanted);
+    EXPECT(!up.empty() && std::fabs(up[0] - wanted) < 0.5, label);
+    std::printf("  measured: %s\n", label);
   }
 
   // 4. Silence in gives exact silence out: from init, and half a second

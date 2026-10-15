@@ -14,7 +14,7 @@ export const BAND_PULSE_PARAMS = {
     taper: 'log',
     unit: 'Hz',
     description:
-      'How many pulses a second. Slow is a swell that comes and goes, the middle is a flutter, and the top is a rough hum on the band.',
+      'How many times a second the band pulses. Slow pulses are heard one by one; towards the top they run together into a rough edge on the sound.',
   },
   depth: {
     id: 1,
@@ -25,7 +25,7 @@ export const BAND_PULSE_PARAMS = {
     taper: 'linear',
     unit: '',
     description:
-      'How far the band drops between pulses. At full the gaps are silent. At zero nothing is pulsed and every part of the sound passes at its own level.',
+      'How far the band drops between pulses. At full the band is silent in the gaps. At zero nothing is pulsed and every part of the sound passes at its own level.',
   },
   duty: {
     id: 2,
@@ -98,6 +98,32 @@ export const BAND_PULSE_DESCRIPTOR = wasmDeviceDescriptor(BAND_PULSE_DEVICE, {
   category: 'modulation',
   description:
     'Pulses only the band between Low and High, up to 40 times a second, with a set Duty and Edge. The tremolo moves the whole sound; this leaves bass and air steady.',
+  presets: {
+    'Eight a second': { rate: 8 },
+    'Six a second': { rate: 6, depth: 0.7, edge: 25, low: 150, high: 1500 },
+    'Ten a second': { rate: 10, depth: 0.75, edge: 8, high: 2000 },
+    'Four a second': { rate: 4, depth: 0.45, duty: 0.6, edge: 30 },
+    'Three a second': { rate: 3, depth: 0.8, duty: 0.4, edge: 40, low: 120, high: 1500 },
+    'One on, one off': { rate: 0.5, depth: 0.4, edge: 50, low: 100, high: 2500 },
+    'Slow low pulse': { rate: 0.8, depth: 0.7, edge: 50, low: 60, high: 400 },
+    'One a second': { rate: 1, depth: 0.45, duty: 0.35, edge: 50, high: 2000 },
+    'Seventy a minute': { rate: 1.17, depth: 0.85, duty: 0.2, edge: 40, low: 60, high: 500 },
+    'Fourteen a second': { rate: 14, depth: 0.6, edge: 6, low: 150, high: 700 },
+    'Sixteen mid band': { rate: 16, depth: 0.45, edge: 8 },
+    'Sixteen, thin': { rate: 16, depth: 0.6, duty: 0.25, edge: 3, low: 250, high: 2500 },
+    'Twenty up high': { rate: 20, depth: 0.55, duty: 0.4, edge: 4, low: 400, high: 2500 },
+    'Forty, smooth': { rate: 40, depth: 0.6, edge: 6, low: 100, high: 4000 },
+    'Forty ticks': { rate: 40, depth: 1, duty: 0.15, edge: 2, low: 300, high: 3000 },
+    'Side to side': { rate: 2, depth: 0.9, edge: 50, offset: 180, low: 150, high: 3000 },
+    'Side flutter': { rate: 12, depth: 0.8, edge: 8, offset: 180, high: 2000 },
+    'Five, left first': { rate: 5, depth: 0.7, duty: 0.4, edge: 15, offset: 90 },
+    'Hard chop': { rate: 8, depth: 1, edge: 2, low: 60, high: 4000 },
+    'Short dips': { rate: 2.5, depth: 1, duty: 0.85, edge: 20, low: 100, high: 3000 },
+    'Three high ticks': { rate: 3, depth: 0.9, duty: 0.15, edge: 4, low: 400, high: 4000 },
+    'Narrow flutter': { rate: 6, depth: 1, edge: 10, low: 300, high: 600 },
+    'Four down low': { rate: 4, depth: 0.85, duty: 0.35, edge: 25, low: 60, high: 400 },
+    'Eight up high': { rate: 8, depth: 0.8, edge: 6, low: 400, high: 4000 },
+  },
 })
 
 export type BandPulse = WasmDevice<typeof BAND_PULSE_PARAMS>

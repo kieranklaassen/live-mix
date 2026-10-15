@@ -4,12 +4,12 @@
 // and High is turned down and up again Rate times a second; what lies under
 // Low and over High is not pulsed.
 //
-//                 ┌─ low ──────────────────────────┐
-//   in ─► guard ─►│  band ─► × gain ───────────────┼─► sum ─► out
-//                 └─ high ─────────────────────────┘
-//                              ▲
-//   clock ─► pulse ─► gate ────┘        gain = floor + (1 − floor)·open
-//                                       floor = (1 − Depth)²
+//                  +--> low ---------------------+
+//   in --> guard --+--> band --> x gain ---------+--> sum --> out
+//                  +--> high --------------------+
+//                                  ^
+//   clock --> pulse --> gate ------+      gain = floor + (1 - floor) x open
+//                                         floor = (1 - Depth) squared
 //
 // - The split is kit::ThreeBand (cpp/kit/band.h): fourth-order crossovers at
 //   Low and High whose three parts add up to the input's level at every
@@ -34,13 +34,14 @@
 //   slows down at once.
 // - The clock never stops and is never set by the sound. Awake or asleep it
 //   and the two gates run on a sample at a time, by the very same sums, so
-//   where a pulse stands depends on the count of samples since init and on
-//   nothing else.
+//   where a pulse stands follows from the count of samples since init and
+//   from when Rate was moved, never from the sound or the block size.
 // - What is smoothed arrives at once when sound comes back after
 //   kArriveSeconds of exact silence at the input: the smoothers land, the
-//   split is tuned and cleared (by then its ring is 26 time constants down
-//   even at 60 Hz) and the gates are put where the pulse stands. That moment
-//   is counted in samples, so it does not depend on the block size the way
+//   split is tuned where they landed and the gates are put where the pulse
+//   stands. Nothing is sounding then (with Low at 60 Hz the split's ring
+//   reads -238 dB a tenth of a second after loud noise stops). That moment is
+//   counted in samples, so it does not depend on the block size the way
 //   falling asleep does, and the idle hold is one block longer than it.
 // - A sample that is not a number, or is past kSane, is taken as silence
 //   before it reaches the split, which would keep it.
@@ -79,6 +80,7 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
     low_.set_time(kSmoothingSeconds, sr);
     high_.set_time(kSmoothingSeconds, sr);
     arrive_after_ = static_cast<long>(kArriveSeconds * sr);
+    if (arrive_after_ < 1) arrive_after_ = 1;
     silent_ = arrive_after_;
     // One whole block more than the silence that counts as new sound, so the
     // device is never asleep before that silence is over.
@@ -154,14 +156,15 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
     shape_ = kit::pulse_shape(param(kRate), param(kDuty), edge_.value);
   }
 
-  // Both channels' crossovers where the smoothed edges stand.
+  // Both channels' crossovers where the smoothed edges stand. (Edges set
+  // before the first block land in their smoothers and are tuned here by
+  // arrive(), at the first sample of sound.)
   void tune() {
     for (int c = 0; c < 2; ++c) split_[c].set(low_.value, high_.value, sample_rate());
   }
 
   // Sound after a silence: nothing is sounding, so every knob moved in the
-  // silence has arrived, the split starts clean and the gates stand where
-  // the pulse puts them.
+  // silence has arrived and the gates stand where the pulse puts them.
   void arrive() {
     floor_.snap(floor_.target);
     edge_.snap(edge_.target);
@@ -169,7 +172,6 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
     low_.snap(low_.target);
     high_.snap(high_.target);
     tune();
-    for (int c = 0; c < 2; ++c) split_[c].reset();
     gate_[0].reset(kit::pulse_open(clock_.phase, shape_));
     gate_[1].reset(kit::pulse_open(kit::wrap_phase(clock_.phase - offset_turns_), shape_));
   }
@@ -202,11 +204,9 @@ class BandPulse : public kit::DeviceBase<band_pulse::kNumParams> {
         break;
       case kLow:
         low_.set(param(kLow), primed());
-        if (!primed()) tune();  // set before the first block: there at once
         break;
       case kHigh:
         high_.set(param(kHigh), primed());
-        if (!primed()) tune();
         break;
       default:
         break;
