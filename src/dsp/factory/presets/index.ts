@@ -8,6 +8,7 @@ import { AFTERGLOW_PRESETS } from './afterglow'
 import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
 import { BOWED_STRING_PRESETS } from './bowed-string'
+import { BREATH_PACER_PRESETS } from './breath-pacer'
 import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
@@ -114,4 +115,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...BREATH_PACER_PRESETS,
 ]

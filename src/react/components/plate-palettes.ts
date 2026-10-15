@@ -173,6 +173,7 @@ export const PLATE_PALETTES = {
   howl: { plate: '#fc60c8', ink: '#1a0212', accent: '#0c0ca0' },
   lift: { plate: '#d0fc6c', ink: '#142005', accent: '#6a1280' },
   vessel: { plate: '#00f6ff', ink: '#03222b', accent: '#b02a00' },
+  'breath-pacer': { plate: '#9e6eb0', ink: '#170820', accent: '#fffbe8' },
 } as const satisfies Record<string, PlatePalette>
 
 /**

@@ -1935,6 +1935,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   howl: { ...PLATE_PALETTES.howl, finish: 'gloss', cap: 'pointer' },
   lift: { ...PLATE_PALETTES.lift, finish: 'matte', cap: 'skirt' },
   vessel: { ...PLATE_PALETTES.vessel, finish: 'gloss', cap: 'disc' },
+  'breath-pacer': { ...PLATE_PALETTES['breath-pacer'], finish: 'fade', cap: 'dot' },
 }
 
 /**
