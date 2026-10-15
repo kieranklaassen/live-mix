@@ -1,0 +1,60 @@
+---
+// A page includes this only when it has a Mermaid block, so no other page asks for the script,
+// and the library itself is fetched when the script runs.
+---
+
+<script>
+  const blocks = [...document.querySelectorAll<HTMLElement>('pre.mermaid')]
+  // The library replaces a block's text with its drawing; the text is kept to draw it again.
+  const sources = new Map(blocks.map((block) => [block, block.textContent ?? '']))
+  const root = document.documentElement
+
+  async function draw() {
+    const { default: mermaid } = await import('mermaid')
+    const style = getComputedStyle(root)
+    const token = (name: string) => style.getPropertyValue(name).trim()
+    for (const [block, source] of sources) {
+      block.removeAttribute('data-processed')
+      block.textContent = source
+    }
+    // The page's own colours, so a diagram is one look with the text around it in either theme.
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: root.dataset.lmTheme === 'dark',
+        background: token('--lm-bg'),
+        primaryColor: token('--lm-panel'),
+        primaryTextColor: token('--lm-text'),
+        primaryBorderColor: token('--lm-muted'),
+        secondaryColor: token('--lm-raised'),
+        tertiaryColor: token('--lm-bg'),
+        lineColor: token('--lm-muted'),
+        edgeLabelBackground: token('--lm-bg'),
+        fontFamily: token('--lm-font'),
+        fontSize: '14px',
+      },
+    })
+    await mermaid.run({ nodes: blocks })
+    for (const block of blocks) {
+      // A drawing shrinks to the column, and on a phone to nothing one can read. Held to a
+      // readable width, or its own if that is less, it scrolls inside its block as a wide table does.
+      const svg = block.querySelector('svg')
+      if (svg?.style.maxWidth) svg.style.minWidth = `min(${svg.style.maxWidth}, 36rem)`
+    }
+  }
+
+  if (blocks.length > 0) {
+    draw()
+    new MutationObserver(draw).observe(root, { attributeFilter: ['data-lm-theme'] })
+  }
+</script>
+
+<style is:global>
+  /* The library names its text boxes `label` too; the site's small upper-case label is not meant for them. */
+  pre.mermaid .label {
+    font-size: inherit;
+    letter-spacing: normal;
+    text-transform: none;
+  }
+</style>

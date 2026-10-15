@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { defineHastPlugin, type HastPluginEntry } from 'satteri'
-import { docId, docSlug, isExcluded } from './doc-routes.ts'
+import { docId, docPath, isExcluded } from './doc-routes.ts'
 
 interface DocLinksOptions {
   /** Astro's `base`, with or without a trailing slash. */
@@ -43,8 +43,7 @@ export function docLinks({ base, repoRoot, sourceUrl }: DocLinksOptions): HastPl
             const target = path.resolve(path.dirname(file), decodeURI(rel))
             const inDocs = posix(path.relative(docsRoot, target))
             if (!inDocs.startsWith('..') && /\.md$/i.test(inDocs) && !isExcluded(inDocs)) {
-              const slug = docSlug(docId(inDocs))
-              ctx.setProperty(node, 'href', `${root}/docs/${slug ? `${slug}/` : ''}${anchor}`)
+              ctx.setProperty(node, 'href', `${root}/${docPath(docId(inDocs))}${anchor}`)
             } else {
               ctx.setProperty(
                 node,
