@@ -809,6 +809,28 @@ static void test_voices() {
     EXPECT(second > 1.0e-3 && first > 0.8 * second && first < 1.25 * second && left_of_eight == 6, label);
   }
 
+  // Two keys in one block into a pool with one voice free: the first takes
+  // the free voice and has not sounded a sample when the second arrives. It
+  // counts as arrived all the same, so the second takes an old key's voice
+  // and not the one that was struck a moment before.
+  {
+    plain(device);
+    device.set_param(p::kDepth, 0.0f);
+    for (int n = 0; n < 7; ++n) device.note_on(n, kEight[n], 0.8f);
+    render(device, 0.5f, kRate);
+    device.note_on(100, 500.0f, 0.8f);
+    device.note_on(101, 560.0f, 0.8f);
+    Stereo out = render(device, 0.6f, kRate);
+    const double first = tone_level(out.left, 500.0, kRate, at(0.2));
+    const double second = tone_level(out.left, 560.0, kRate, at(0.2));
+    int left_of_seven = 0;
+    for (int n = 0; n < 7; ++n) left_of_seven += tone_level(out.left, kEight[n], kRate, at(0.2)) > 0.5 * second ? 1 : 0;
+    std::snprintf(label, sizeof label,
+                  "two keys in one block with one voice free both sound (%.4f and %.4f) and six of the seven stay (%d)", first, second,
+                  left_of_seven);
+    EXPECT(second > 1.0e-3 && first > 0.8 * second && first < 1.25 * second && left_of_seven == 6, label);
+  }
+
   // A key struck twice in one block while every voice is held at the same
   // level: one voice is taken, not two, and after every key is let go the
   // device comes to exact silence.
