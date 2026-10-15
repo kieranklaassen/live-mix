@@ -636,4 +636,130 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'around', preset: 'Slow circle' },
     ],
   },
+  {
+    id: 'hall-a-hertz-apart',
+    name: 'Hall a hertz apart',
+    category: 'motion',
+    description:
+      'A hall, then all of it from 60 Hz to 2 kHz a hertz apart between the ears, so notes and tail beat once a second; headphones.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'ear-shift', preset: 'One, wide band', params: { ears: 0.7 } },
+    ],
+  },
+  {
+    id: 'pad-six-apart',
+    name: 'Pad six apart',
+    category: 'motion',
+    description:
+      'Each chord is held as a string pad that beats six times a second between the ears; on speakers it pulses in the air.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'second-rank',
+    name: 'Second rank',
+    category: 'motion',
+    description:
+      'Organ stops on every note and a slow wave through them, three in two seconds, as two ranks a little apart make, in a cathedral.',
+    effects: [
+      { deviceId: 'stops', preset: 'Principal chorus' },
+      { deviceId: 'ear-shift', preset: 'Slow wave' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'spring-ten-a-second',
+    name: 'Spring ten a second',
+    category: 'motion',
+    description:
+      'A spring tank, then all of it from 60 Hz to 2 kHz pulsing ten times a second in the air, the same on speakers as on headphones.',
+    effects: [
+      { deviceId: 'spring-reverb', preset: 'Two spring tank' },
+      { deviceId: 'ear-shift', preset: 'Ten in the air', params: { low: 60, high: 2000 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'two-beats-an-echo',
+    name: 'Two beats an echo',
+    category: 'motion',
+    description:
+      'Echoes half a second apart and four hertz between the ears: the beat comes round twice to an echo, in time at 120 beats a minute.',
+    effects: [
+      {
+        deviceId: 'analog-delay',
+        preset: 'Clean echo',
+        params: { time: 500, feedback: 0.45 },
+      },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 4, ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'dull-and-three-apart',
+    name: 'Dull and three apart',
+    category: 'motion',
+    description:
+      'A low pass at 700 Hz, then all that is left three hertz apart between the ears: the whole sound beats, not a band of it; headphones.',
+    effects: [
+      {
+        deviceId: 'auto-filter',
+        preset: 'Init',
+        params: { slope: 1, cutoffHz: 700 },
+      },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 3, ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'pad-pulsing-at-four',
+    name: 'Pad pulsing at four',
+    category: 'motion',
+    description:
+      'A string pad swells in behind the notes and all of it from 60 Hz to 2 kHz pulses four times a second in the air, in a plate.',
+    effects: [
+      { deviceId: 'pad-follower', preset: 'String pad' },
+      { deviceId: 'ear-shift', preset: 'Four in the air', params: { low: 60 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.2 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4.5 } },
+    ],
+  },
+  {
+    id: 'beat-into-a-plate',
+    name: 'Beat into a plate',
+    category: 'motion',
+    description:
+      'Two hertz between the ears and a little room noise, then a plate that sums the sides: in its tail the beat is a faint pulse in the air.',
+    effects: [
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { beat: 2, ears: 0.7, high: 2000 } },
+      { deviceId: 'noise-floor', preset: 'Empty room', params: { level: -40 } },
+      { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'eight-half-in-the-air',
+    name: 'Eight, half in the air',
+    category: 'motion',
+    description:
+      'A warm preamp, then eight a second, half between the ears and half in the air: each ear dips 6 dB and the two together pulse to silence.',
+    effects: [
+      { deviceId: 'analog-drive', preset: 'Warm glue', params: { output: -1.5 } },
+      { deviceId: 'ear-shift', preset: 'Eight, half air', params: { high: 2000 } },
+    ],
+  },
+  {
+    id: 'bowed-half-a-hertz',
+    name: 'Bowed, half a hertz',
+    category: 'motion',
+    description:
+      'Each note fades in like a bow stroke and beats between the ears once every two seconds, from 60 Hz to 2 kHz; headphones.',
+    effects: [
+      { deviceId: 'swell', preset: 'Slow bow' },
+      { deviceId: 'ear-shift', preset: 'Slow turn', params: { ears: 0.6, high: 2000 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 7 } },
+    ],
+  },
 ]
