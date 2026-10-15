@@ -476,9 +476,10 @@ static void test_tint() {
   const double louder = band_db(whole, kRate, 20.0, 20000.0) - band_db(none, kRate, 20.0, 20000.0);
   std::printf("  one key at 440 Hz: the peak stands %.1f dB over the bed at Tint 0.5 and %.1f dB at Tint 1;"
               " the whole is %.2f dB louder at Tint 1\n", peak_half, peak_whole, louder);
-  EXPECT(peak_whole > 10.0 && peak_whole < 20.0, "one key's peak stands 10 to 20 dB over the bed at Tint 1");
-  EXPECT(peak_half > 4.0 && peak_half < peak_whole - 2.0, "at Tint 0.5 the peak is lower");
-  EXPECT(louder > 0.2 && louder < 3.0, "Tint 1 on one key makes pink noise less than 3 dB louder");
+  // (1 + 4.6) is 15.0 dB and (1 + 2.3) is 10.4 dB at the key itself; the 1.5 % either side read a little under that.
+  EXPECT_NEAR(peak_whole, 14.7, 1.0, "one key's peak stands 15 dB over the bed at Tint 1");
+  EXPECT_NEAR(peak_half, 10.1, 1.0, "and 10 dB at Tint 0.5");
+  EXPECT_NEAR(louder, 1.95, 0.5, "Tint 1 on one key makes pink noise 2 dB louder");
   EXPECT(rise(none, tint_spectrum(0.0f, [](ColouredNoise& d) { d.note_on(1, 880.0f, 1.0f); }), 440.0, 1.015) == 0.0,
          "at Tint 0 the key played changes nothing");
 
@@ -496,24 +497,40 @@ static void test_tint() {
   }
   std::printf("  ten keys at Tint 1: %.2f dB louder than at Tint 0, the lowest of the ten peaks %.1f dB over the bed\n",
               ten_louder, lowest_peak);
-  EXPECT(std::fabs(ten_louder - louder) < 1.5, "ten keys at Tint 1 are as loud as one");
-  EXPECT(lowest_peak > 3.0, "and each of the ten has its peak");
+  EXPECT(std::fabs(ten_louder - louder) < 0.5, "ten keys at Tint 1 are as loud as one");
+  // Each of ten equal keys adds sqrt(1 + 30.36 / 10) - 1 = 1.01 of its band: 6.1 dB at the key.
+  EXPECT(lowest_peak > 4.5 && lowest_peak < 7.5, "and each of the ten has its peak, 6 dB over the bed");
 
-  // The band is on the key at the bottom and near the top of the range, at
-  // each rate: the level in each hertz within a semitone of the key stands
-  // over the level a third either side.
+  // The band is on the key at the bottom, in the middle and near the top of
+  // the range, at each rate. With and without Tint the noise is the same
+  // noise, so the power Tint adds is read bin by bin; its centre (by the
+  // logarithm of the frequency, over a sixth either side) is the key, and
+  // the level in each hertz within a semitone of the key stands over the
+  // level a third either side.
   for (float rate : kRates) {
-    for (float hz : {27.5f, 3520.0f}) {
+    for (float hz : {27.5f, 440.0f, 3520.0f}) {
       const bool low = hz < 100.0f;
-      const std::vector<double> power = tint_spectrum(1.0f, [hz](ColouredNoise& d) { d.note_on(1, hz, 1.0f); }, rate,
-                                                      low ? 90.5f : 20.5f, low ? 131072 : 16384);
+      const float seconds = low ? 90.5f : 20.5f;
+      const size_t size = low ? 131072 : 16384;
+      auto key = [hz](ColouredNoise& d) { d.note_on(1, hz, 1.0f); };
+      const std::vector<double> without = tint_spectrum(0.0f, key, rate, seconds, size);
+      const std::vector<double> power = tint_spectrum(1.0f, key, rate, seconds, size);
+      const double bin = rate / static_cast<double>(size);
+      double added = 0.0, weighted = 0.0;
+      for (size_t k = 1; k < power.size(); ++k) {
+        const double at_hz = static_cast<double>(k) * bin;
+        if (at_hz < hz / 1.167 || at_hz > hz * 1.167) continue;
+        added += power[k] - without[k];
+        weighted += (power[k] - without[k]) * std::log(at_hz);
+      }
+      const double centre = added > 0.0 ? std::exp(weighted / added) : 0.0;
       auto density = [&](double lo, double hi) { return band_db(power, rate, lo, hi) - 10.0 * std::log10(hi - lo); };
       const double on = density(hz / 1.06, hz * 1.06);
       const double under = density(hz / 1.26, hz / 1.06), over = density(hz * 1.06, hz * 1.26);
-      // Pink falls by 3 dB an octave by itself: a sixth of an octave is 0.5 dB.
-      std::snprintf(label, sizeof label, "the band of a key at %.1f Hz is on the key at %.1f kHz (%.1f dB over below, %.1f over above)",
-                    hz, rate / 1000.0, on - under, on - over);
-      EXPECT(on - under > 5.0 && on - over > 5.0, label);
+      std::snprintf(label, sizeof label, "the band of a key at %.1f Hz is centred on the key at %.1f kHz (at %.2f Hz, %.1f dB over below, %.1f over above)",
+                    hz, rate / 1000.0, centre, on - under, on - over);
+      std::printf("  %s\n", label);
+      EXPECT(std::fabs(centre / hz - 1.0) < 0.01 && on - under > 5.0 && on - over > 5.0, label);
     }
   }
 }
@@ -838,10 +855,11 @@ static void test_sleep() {
       for (float wait : {1.0f, 0.1f}) {
         base(device);
         device.set_param(move.id, move.from);
-        device.note_on(1, 220.0f, 0.8f);
+        // (Ten keys, so that the next key's voice is one that has played.)
+        for (int n = 0; n < 10; ++n) device.note_on(10 + n, 110.0f * std::pow(2.0f, static_cast<float>(n) / 3.0f), 0.8f);
         render(device, 0.4f, kRate);
         device.process(13);
-        device.note_off(1);
+        for (int n = 0; n < 10; ++n) device.note_off(10 + n);
         Stereo gap = render(device, wait, kRate);
         device.set_param(move.id, move.to);
         Stereo last = render(device, 0.02f, kRate);
@@ -965,6 +983,42 @@ static void test_voices() {
     int still = 0;
     for (int n = 0; n < 10; ++n) still += stands_out(power, bare, kTen[n]) > 3.0 ? 1 : 0;
     EXPECT(still == 8, "and eight of the ten held keys are still there");
+  }
+  // The same two keys 2 ms apart: the second arrives while the first still
+  // waits for its voice to fade, and must not take that voice from it.
+  {
+    hold_ten(device);
+    device.note_on(98, 1975.53f, 0.8f);
+    render(device, 0.002f, kRate);
+    device.note_on(99, 2637.02f, 0.8f);
+    Stereo out = render(device, 10.5f, kRate);
+    const std::vector<double> power = spectrum(out.left, at(0.5));
+    const double first = stands_out(power, bare, 1975.53), second = stands_out(power, bare, 2637.02);
+    std::printf("  the same two keys 2 ms apart: their bands stand %.1f and %.1f dB out\n", first, second);
+    EXPECT(first > 3.0 && second > 3.0, "a key waiting for its voice is not pushed out by the next key");
+    for (int n = 0; n < 10; ++n) device.note_off(n);
+    device.note_off(98);
+    device.note_off(99);
+    Stereo rest = render(device, 0.5f, kRate);
+    EXPECT(peak(rest.left, at(0.3)) == 0.0, "and both are ended by their note offs");
+  }
+  // Nine keys held, then two at once: the first of the two takes the free
+  // voice and counts at its gain from that moment, so the second takes the
+  // oldest of the nine, not the voice that has only just begun.
+  {
+    steady(device);
+    device.set_param(p::kTint, 1.0f);
+    for (int n = 0; n < 9; ++n) device.note_on(n, kTen[n], 0.8f);
+    render(device, 1.0f, kRate);
+    device.note_on(98, 1975.53f, 0.8f);
+    device.note_on(99, 2637.02f, 0.8f);
+    Stereo out = render(device, 10.5f, kRate);
+    const std::vector<double> power = spectrum(out.left, at(0.5));
+    const double first = stands_out(power, bare, 1975.53), second = stands_out(power, bare, 2637.02);
+    std::printf("  nine keys held and two at once: their bands stand %.1f and %.1f dB out, the oldest key's %.1f dB\n", first,
+                second, stands_out(power, bare, kTen[0]));
+    EXPECT(first > 3.0 && second > 3.0, "a key that has only just begun is not the voice the next key takes");
+    EXPECT(stands_out(power, bare, kTen[0]) < 2.5 && stands_out(power, bare, kTen[1]) > 3.0, "the oldest held key gives way instead");
   }
   // The extra key struck twice in one block, with every voice equally loud:
   // one voice holds it, so letting everything go ends everything.
@@ -1171,7 +1225,7 @@ static void test_levels() {
 
 static void test_rates() {
   char label[200];
-  double level[3], peak_height[3], attack[3], release[3], first_swell[3];
+  double level[3], peak_height[3], attack[3], release[3], first_swell[3], darkening[3], glide[3];
   for (int r = 0; r < 3; ++r) {
     const float rate = kRates[r];
     // The default patch on one key: its level once the attack is over.
@@ -1198,9 +1252,31 @@ static void test_rates() {
     // The drift: when the first swell is at its lowest.
     const Swells swells = find_swells(level_track(drift_render(1.0f, 2.0f, 12.0f, rate), rate, 0.05));
     first_swell[r] = swells.times.empty() ? -1.0 : swells.times[0];
+    // A key struck again at half the gain: how far the bed has come down
+    // 10 to 30 ms later, against the same noise with no second strike.
+    {
+      Stereo out[2];
+      for (int pass = 0; pass < 2; ++pass) {
+        steady(device, rate);
+        device.note_on(1, 220.0f, 1.0f);
+        render(device, 0.5f, rate);
+        if (pass == 0) device.note_on(1, 220.0f, 0.5f);
+        out[pass] = render(device, 0.05f, rate);
+      }
+      glide[r] = db(rms(out[0].left, at(0.01, rate), at(0.03, rate)) / rms(out[1].left, at(0.01, rate), at(0.03, rate)));
+    }
+    // How much further the swells take 1 to 2 kHz down than 100 to 300 Hz,
+    // over a minute of them: what the corner of the darkening decides.
+    {
+      const std::vector<double> still = spectrum(drift_render(0.0f, 2.0f, 60.5f, rate), at(0.5, rate));
+      const std::vector<double> moved = spectrum(drift_render(1.0f, 2.0f, 60.5f, rate), at(0.5, rate));
+      darkening[r] = (band_db(moved, rate, 1000.0, 2000.0) - band_db(still, rate, 1000.0, 2000.0)) -
+                     (band_db(moved, rate, 100.0, 300.0) - band_db(still, rate, 100.0, 300.0));
+    }
     std::printf("  at %.1f kHz: default patch %.2f dBFS, the band at 440 Hz %.2f dB over the bed, attack %.2f dB at 0.25 s,"
-                " release %.2f dB at 1 s, first swell lowest at %.2f s\n",
-                rate / 1000.0, level[r], peak_height[r], attack[r], release[r], first_swell[r]);
+                " release %.2f dB at 1 s, first swell lowest at %.2f s, a minute of swells takes 1 to 2 kHz %.2f dB further down than 100 to 300 Hz,"
+                " a key struck again at half the gain is %.2f dB down after 10 to 30 ms\n",
+                rate / 1000.0, level[r], peak_height[r], attack[r], release[r], first_swell[r], darkening[r], glide[r]);
     // A second init is the first, with everything at work.
     Stereo twice[2];
     for (Stereo& one : twice) {
@@ -1229,5 +1305,9 @@ static void test_rates() {
     EXPECT(std::fabs(attack[r] - attack[1]) < 0.5 && std::fabs(release[r] - release[1]) < 0.5 && release[1] < -25.0, label);
     std::snprintf(label, sizeof label, "the drift's first swell falls at the same moment at %.1f kHz as at 48 kHz", kRates[r] / 1000.0);
     EXPECT(std::fabs(first_swell[r] - first_swell[1]) < 0.06 && first_swell[1] > 0.0, label);
+    std::snprintf(label, sizeof label, "a key's gain glides as fast at %.1f kHz as at 48 kHz", kRates[r] / 1000.0);
+    EXPECT(std::fabs(glide[r] - glide[1]) < 0.3 && glide[1] < -2.5 && glide[1] > -4.0, label);
+    std::snprintf(label, sizeof label, "a swell darkens from the same pitch up at %.1f kHz as at 48 kHz", kRates[r] / 1000.0);
+    EXPECT(std::fabs(darkening[r] - darkening[1]) < 0.2 && darkening[1] < -0.5, label);
   }
 }

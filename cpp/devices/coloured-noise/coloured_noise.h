@@ -309,8 +309,7 @@ inline void ColouredNoise::start(Voice& voice) {
     band.reset();
     band.set(voice.frequency, kBandQ, sample_rate());
   }
-  voice.env.reset();
-  voice.env.set(param(kAttack), param(kAttack), 1.0f, param(kRelease));
+  voice.env.set(param(kAttack), param(kAttack), 1.0f, param(kRelease));  // (idle: it rises from nothing)
   voice.env.gate_on();
 }
 
