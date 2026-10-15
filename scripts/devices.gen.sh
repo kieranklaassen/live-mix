@@ -230,6 +230,8 @@ build_generated_devices() {
     cpp/devices/staircase/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stereo-detune \
     cpp/devices/stereo-detune/device_api.gen.cpp
+  MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_note_on,_device_note_off,_device_meter" build_device still-point \
+    cpp/devices/still-point/device_api.gen.cpp
   MEMORY_BYTES=4194304 EXTRA_EXPORTS=",_device_meter" build_device stops \
     cpp/devices/stops/device_api.gen.cpp
   MEMORY_BYTES=25165824 EXTRA_EXPORTS=",_device_meter" build_device stretch \
@@ -521,6 +523,8 @@ test_generated_devices() {
     cpp/test/staircase_test.cpp
   native_test stereo_detune_test \
     cpp/test/stereo_detune_test.cpp
+  native_test still_point_test \
+    cpp/test/still_point_test.cpp
   native_test stops_test \
     cpp/test/stops_test.cpp
   native_test stretch_test \

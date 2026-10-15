@@ -1899,6 +1899,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   'wind-harp': { ...PLATE_PALETTES['wind-harp'], finish: 'linen', cap: 'dot' },
   afterglow: { ...PLATE_PALETTES.afterglow, finish: 'fade', cap: 'skirt' },
   feedback: { ...PLATE_PALETTES.feedback, finish: 'hammered', cap: 'pointer' },
+  'still-point': { ...PLATE_PALETTES['still-point'], finish: 'fade', cap: 'dot' },
   canon: { ...PLATE_PALETTES.canon, finish: 'grain', cap: 'pointer' },
   'overtone-singer': {
     ...PLATE_PALETTES['overtone-singer'],

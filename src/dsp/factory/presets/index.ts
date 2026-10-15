@@ -45,6 +45,7 @@ import { REWIND_PRESETS } from './rewind'
 import { SAMPLER_PRESETS } from './sampler'
 import { SHORTWAVE_PRESETS } from './shortwave'
 import { STAIRCASE_PRESETS } from './staircase'
+import { STILL_POINT_PRESETS } from './still-point'
 import { STRING_BASS_PRESETS } from './string-bass'
 import { STRING_MACHINE_PRESETS } from './string-machine'
 import { SUB_BASS_PRESETS } from './sub-bass'
@@ -114,4 +115,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...WIND_HARP_PRESETS,
   ...AFTERGLOW_PRESETS,
   ...FEEDBACK_PRESETS,
+  ...STILL_POINT_PRESETS,
 ]

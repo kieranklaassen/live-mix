@@ -114,6 +114,7 @@ import { SPREAD_DESCRIPTOR, SPREAD_DEVICE } from './spread.gen'
 import { SPRING_REVERB_DESCRIPTOR, SPRING_REVERB_DEVICE } from './spring-reverb.gen'
 import { STAIRCASE_DESCRIPTOR, STAIRCASE_DEVICE } from './staircase.gen'
 import { STEREO_DETUNE_DESCRIPTOR, STEREO_DETUNE_DEVICE } from './stereo-detune.gen'
+import { STILL_POINT_DESCRIPTOR, STILL_POINT_DEVICE } from './still-point.gen'
 import { STOPS_DESCRIPTOR, STOPS_DEVICE } from './stops.gen'
 import { STRETCH_DESCRIPTOR, STRETCH_DEVICE } from './stretch.gen'
 import { STRING_BASS_DESCRIPTOR, STRING_BASS_DEVICE } from './string-bass.gen'
@@ -257,6 +258,7 @@ export * from './spread.gen'
 export * from './spring-reverb.gen'
 export * from './staircase.gen'
 export * from './stereo-detune.gen'
+export * from './still-point.gen'
 export * from './stops.gen'
 export * from './stretch.gen'
 export * from './string-bass.gen'
@@ -402,6 +404,7 @@ export const GENERATED_WASM_DESCRIPTORS: readonly DeviceDescriptor[] = [
   SPRING_REVERB_DESCRIPTOR,
   STAIRCASE_DESCRIPTOR,
   STEREO_DETUNE_DESCRIPTOR,
+  STILL_POINT_DESCRIPTOR,
   STOPS_DESCRIPTOR,
   STRETCH_DESCRIPTOR,
   STRING_BASS_DESCRIPTOR,
@@ -548,6 +551,7 @@ export const GENERATED_WASM_DEFINITIONS: readonly WasmDeviceDefinition[] = [
   SPRING_REVERB_DEVICE,
   STAIRCASE_DEVICE,
   STEREO_DETUNE_DEVICE,
+  STILL_POINT_DEVICE,
   STOPS_DEVICE,
   STRETCH_DEVICE,
   STRING_BASS_DEVICE,
@@ -715,6 +719,7 @@ export const GENERATED_WASM_DEVICES = [
   { id: 'spring-reverb', instrument: false, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'staircase', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },
   { id: 'stereo-detune', instrument: false, samples: false, zones: false, meters: 6, memoryMb: 4 },
+  { id: 'still-point', instrument: true, samples: false, zones: false, meters: 4, memoryMb: 4 },
   { id: 'stops', instrument: false, samples: false, zones: false, meters: 7, memoryMb: 4 },
   { id: 'stretch', instrument: false, samples: false, zones: false, meters: 4, memoryMb: 24 },
   { id: 'string-bass', instrument: true, samples: false, zones: false, meters: 0, memoryMb: 4 },

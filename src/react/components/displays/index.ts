@@ -75,6 +75,7 @@ import { MURMURATION_FACES } from './murmuration'
 import { LATE_VIBRATO_FACES } from './late-vibrato'
 import { COMMON_TONES_FACES } from './common-tones'
 import { BOWLS_FACES } from './bowls'
+import { STILL_POINT_FACES } from './still-point'
 
 export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...DYNAMICS_FACES,
@@ -151,4 +152,5 @@ export const PLATE_FACES: Readonly<Record<string, PlateFace>> = {
   ...HOWL_FACES,
   ...LIFT_FACES,
   ...VESSEL_FACES,
+  ...STILL_POINT_FACES,
 }

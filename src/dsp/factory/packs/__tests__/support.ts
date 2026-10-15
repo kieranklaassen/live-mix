@@ -66,6 +66,7 @@ export const AFTER_THE_PACKS: readonly string[] = [
   'wind-harp',
   'afterglow',
   'feedback',
+  'still-point',
 ]
 
 export const PACK_INSTRUMENTS: readonly string[] = STOCK_WASM_DEVICES.filter(
