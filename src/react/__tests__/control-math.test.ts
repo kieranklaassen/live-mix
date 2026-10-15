@@ -379,6 +379,7 @@ describe('the stock devices', () => {
       'skipping-stone.skips',
       'spiral.voices',
       'wind-harp.strings',
+      'winding-down.layers',
     ])
   })
 

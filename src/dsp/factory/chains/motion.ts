@@ -636,4 +636,128 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       { deviceId: 'around', preset: 'Slow circle' },
     ],
   },
+  {
+    id: 'four-slowing-in-a-hall',
+    name: 'Four slowing in a hall',
+    category: 'motion',
+    description:
+      'Four layers of one pulse, each twice as fast as the next, seem to slow for ever, halving every twenty seconds, in a hall.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Four slowing' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4 } },
+    ],
+  },
+  {
+    id: 'five-layers-on-strings',
+    name: 'Five layers on strings',
+    category: 'motion',
+    description:
+      'Each chord is held as a string pad under a weave of five pulses at half depth, all halving their pace every thirty seconds.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'winding-down', preset: 'Five layers', params: { halving: 30 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'losing-pace-held',
+    name: 'Losing pace, held',
+    category: 'motion',
+    description:
+      'Held chords pulse 72 times a minute, and the pulse seems to lose half its pace every minute and a half, in a hall.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'winding-down', preset: 'Losing pace' },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 1.5 } },
+    ],
+  },
+  {
+    id: 'three-a-second-sliding',
+    name: 'Three a second, sliding',
+    category: 'motion',
+    description:
+      'Three pulses a second that seem to slow, the right side a quarter of a pulse behind the left, and all under 400 Hz kept in the middle.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Three slowing', params: { depth: 0.8, offset: 90 } },
+      { deviceId: 'spread', preset: 'Firm bass', params: { output: 4 } },
+    ],
+  },
+  {
+    id: 'six-a-second-slowing',
+    name: 'Six a second, slowing',
+    category: 'motion',
+    description:
+      'Six pulses a second at half depth, with three and twelve beside them, all sliding down an octave every thirty seconds in a short room.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Six a second' },
+      { deviceId: 'fdn-reverb', preset: 'Short ambience' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'eight-a-second-rising',
+    name: 'Eight a second, rising',
+    category: 'motion',
+    description:
+      'A small room, then eight pulses a second that seem to quicken for ever: each fades as it doubles and a slower one takes over.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Room' },
+      { deviceId: 'winding-down', preset: 'Eight quickening' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
+    id: 'eighths-slowing-in-time',
+    name: 'Eighths slowing in time',
+    category: 'motion',
+    description:
+      'At 120 beats a minute: eighth notes that seem to halve their pace every eight bars, with a clean echo a dotted quarter behind.',
+    effects: [
+      {
+        deviceId: 'winding-down',
+        preset: 'Four slowing',
+        params: { halving: 16, layers: 3, depth: 0.8, edge: 10 },
+      },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 750, mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'slowing-without-end',
+    name: 'Slowing without end',
+    category: 'motion',
+    description:
+      'Five layers of a deep pulse halve their pace every eight seconds, each fading out below as a quicker one fades in above, on a dark plate.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Ever slower' },
+      { deviceId: 'plate-reverb', preset: 'Dark plate', params: { mix: 0.3 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 5 } },
+    ],
+  },
+  {
+    id: 'quickening-without-end',
+    name: 'Quickening without end',
+    category: 'motion',
+    description:
+      'Five layers of a deep pulse double their pace every eight seconds, the quickest fading out as a slow one fades in, in a bright hall.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Ever quicker' },
+      { deviceId: 'hall-reverb', preset: 'Bright hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 4 } },
+    ],
+  },
+  {
+    id: 'two-crossing-in-a-cloud',
+    name: 'Two crossing in a cloud',
+    category: 'motion',
+    description:
+      'One deep pulse crosses over to its double every ten seconds, swelling about a decibel once each time, blurred by a short cloud.',
+    effects: [
+      { deviceId: 'winding-down', preset: 'Two crossing' },
+      { deviceId: 'fog', preset: 'Short blur' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
 ]
