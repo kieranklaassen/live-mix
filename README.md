@@ -745,11 +745,19 @@ uses is in [docs/consumers/](./docs/consumers/).
 
 ## Contributing
 
-Issues and PRs are welcome. Run `pnpm typecheck && pnpm lint && pnpm test`
-before pushing, add a changeset when `src/` changes, and read
-[docs/contributing.md](./docs/contributing.md) for the conventions (entries
-are boundaries, ramps never steps, nothing allocates in `process()`, exports
-are pinned).
+Closed to pull requests, open to remix
+([the remix model](https://ghuntley.com/remix/)). The source and its intent
+are published under MIT, as is. To change live-mix for yourself, fork it and
+pin your fork (`github:<you>/live-mix#<sha>`), or patch the pinned commit in
+your own build: nobody has to review it, and you owe nobody its upkeep. A pull
+request from outside is closed unread. That is no judgement of the change.
+
+Ideas are welcome: open an issue that says what you changed and why, with a
+link to your fork. A change that fits is written again here, in the library's
+own conventions, and the issue is credited. The conventions a remix has to
+keep to stay correct (entries are boundaries, ramps never steps, nothing
+allocates in `process()`, exports are pinned) are in
+[docs/contributing.md](./docs/contributing.md).
 
 ## License
 
