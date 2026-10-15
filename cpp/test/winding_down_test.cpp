@@ -1000,7 +1000,7 @@ int main() {
   }
 
   // 14. A second init is the first: after a life of thrown controls, a
-  // silence and a sleep, init gives the render of a device never used.
+  // silence and a rest, init gives the render of a device never used.
   {
     fresh(device, defaults);
     rng_state() = 0x1A57u;
@@ -1019,6 +1019,25 @@ int main() {
     const Stereo unused = run(twin, probe);
     EXPECT(used.left == unused.left && used.right == unused.right, "a second init equals the first, bit for bit");
     EXPECT(used.left != probe, "and the probe was pulsed");
+  }
+
+  // 14b. Layers is a count and Direction a choice: a value between two is
+  // the nearer one, to the bit.
+  {
+    auto heard = [&](int id, float value) {
+      fresh(device, defaults);
+      device.set_param(p::kHalving, 4.0f);
+      device.set_param(id, value);
+      return run(device, dc(6.0f));
+    };
+    const Stereo three = heard(p::kLayers, 3.0f), four = heard(p::kLayers, 4.0f);
+    const Stereo under = heard(p::kLayers, 3.4f), over = heard(p::kLayers, 3.6f);
+    EXPECT(under.left == three.left && over.left == four.left && three.left != four.left,
+           "Layers between two whole numbers is the nearer one");
+    const Stereo slower = heard(p::kDirection, 0.0f), quicker = heard(p::kDirection, 1.0f);
+    const Stereo low = heard(p::kDirection, 0.4f), high = heard(p::kDirection, 0.6f);
+    EXPECT(low.left == slower.left && high.left == quicker.left && slower.left != quicker.left,
+           "Direction between its two choices is the nearer one");
   }
 
   // 15. Level and cost. There is no make-up: the device sits under its

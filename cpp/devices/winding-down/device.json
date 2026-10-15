@@ -79,7 +79,154 @@
     }
   ],
   "presets": {
-    "Four slowing": {}
+    "Four slowing": {},
+    "Three slowing": {
+      "rate": 3,
+      "halving": 30,
+      "layers": 3,
+      "depth": 0.6,
+      "edge": 20
+    },
+    "Five slowing": {
+      "halving": 60,
+      "layers": 5,
+      "depth": 0.5,
+      "edge": 12
+    },
+    "Two minute slide": {
+      "rate": 2,
+      "halving": 120,
+      "depth": 0.8,
+      "edge": 25
+    },
+    "Losing pace": {
+      "rate": 1.2,
+      "halving": 90,
+      "layers": 2,
+      "depth": 0.8,
+      "edge": 40
+    },
+    "Soft losing pace": {
+      "rate": 1.1,
+      "halving": 120,
+      "layers": 3,
+      "depth": 0.45,
+      "edge": 50,
+      "offset": 60
+    },
+    "Endless descent": {
+      "rate": 2,
+      "halving": 8,
+      "layers": 5,
+      "depth": 0.9,
+      "edge": 10
+    },
+    "Endless climb": {
+      "direction": 1,
+      "rate": 2,
+      "halving": 8,
+      "layers": 5,
+      "depth": 0.85,
+      "edge": 8
+    },
+    "Four quickening": {
+      "direction": 1
+    },
+    "Quick descent": {
+      "halving": 4,
+      "layers": 3,
+      "depth": 0.6,
+      "edge": 6
+    },
+    "Three, deep": {
+      "rate": 3,
+      "halving": 40,
+      "layers": 3,
+      "depth": 1,
+      "edge": 30
+    },
+    "Six a second": {
+      "rate": 6,
+      "halving": 30,
+      "layers": 3,
+      "depth": 0.5,
+      "edge": 8
+    },
+    "Six, ear to ear": {
+      "direction": 1,
+      "rate": 6,
+      "halving": 45,
+      "depth": 0.6,
+      "edge": 10,
+      "offset": 180
+    },
+    "Eight, woven": {
+      "rate": 8,
+      "layers": 5,
+      "depth": 0.4,
+      "edge": 5
+    },
+    "Eight quickening": {
+      "direction": 1,
+      "rate": 8,
+      "halving": 30,
+      "layers": 2,
+      "depth": 0.55,
+      "edge": 4
+    },
+    "One a second": {
+      "rate": 1,
+      "halving": 60,
+      "depth": 0.75,
+      "edge": 20
+    },
+    "Five a second": {
+      "rate": 5,
+      "halving": 24,
+      "layers": 3,
+      "depth": 0.65,
+      "edge": 10,
+      "offset": 45
+    },
+    "Two and a half": {
+      "direction": 1,
+      "rate": 2.5,
+      "halving": 48,
+      "layers": 3,
+      "depth": 0.7,
+      "edge": 18
+    },
+    "Ears take turns": {
+      "rate": 2,
+      "depth": 0.8,
+      "offset": 180
+    },
+    "Quarter apart": {
+      "layers": 3,
+      "depth": 0.75,
+      "edge": 12,
+      "offset": 90
+    },
+    "Hard chop": {
+      "depth": 1,
+      "edge": 2
+    },
+    "Soft swell": {
+      "rate": 1.5,
+      "halving": 40,
+      "depth": 1,
+      "edge": 50
+    },
+    "Faint slowing": {
+      "depth": 0.25,
+      "edge": 30
+    },
+    "Two crossing": {
+      "halving": 10,
+      "layers": 2,
+      "depth": 0.9,
+      "edge": 10
+    }
   },
   "origin": {
     "kind": "new",

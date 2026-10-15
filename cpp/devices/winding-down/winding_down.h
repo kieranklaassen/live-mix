@@ -117,8 +117,8 @@ class WindingDown : public kit::DeviceBase<winding_down::kNumParams> {
   }
 
   // The reading named by "meters" in device.json, for a display: the place
-  // in the halving, 0 up to 1. It rises when slowing and falls when
-  // quickening, awake or asleep.
+  // in the halving, 0 to 1 (a place a hair under 1 reads as 1). It rises
+  // when slowing and falls when quickening, awake or asleep.
   float meter(int index) const { return index == 0 ? static_cast<float>(place_.phase) : 0.0f; }
 
   // What layer `slot` (0 the slowest) is doing now: its rate in hertz, and
