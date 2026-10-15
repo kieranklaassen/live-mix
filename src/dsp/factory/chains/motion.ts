@@ -668,37 +668,6 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     effects: [
       { deviceId: 'band-pulse', preset: 'Six a second' },
       { deviceId: 'plate-reverb', preset: 'Medium plate', params: { mix: 0.25 } },
-    id: 'hall-a-hertz-apart',
-    name: 'Hall a hertz apart',
-    category: 'motion',
-    description:
-      'A hall, then all of it from 60 Hz to 2 kHz a hertz apart between the ears, so notes and tail beat once a second; headphones.',
-    effects: [
-      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
-      { deviceId: 'ear-shift', preset: 'One, wide band', params: { ears: 0.7 } },
-    ],
-  },
-  {
-    id: 'pad-six-apart',
-    name: 'Pad six apart',
-    category: 'motion',
-    description:
-      'Each chord is held as a string pad that beats six times a second between the ears; on speakers it pulses in the air.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Slow strings' },
-      { deviceId: 'ear-shift', preset: 'Six a second', params: { ears: 0.8, high: 2000 } },
-    ],
-  },
-  {
-    id: 'second-rank',
-    name: 'Second rank',
-    category: 'motion',
-    description:
-      'Organ stops on every note and a slow wave through them, three in two seconds, as two ranks a little apart make, in a cathedral.',
-    effects: [
-      { deviceId: 'stops', preset: 'Principal chorus' },
-      { deviceId: 'ear-shift', preset: 'Slow wave' },
-      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.25 } },
       { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
     ],
   },
@@ -756,6 +725,69 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
       'From 300 Hz to 3 kHz the sound comes in forty short ticks a second, a buzz over a bass that is left whole, held by a limiter.',
     effects: [
       { deviceId: 'band-pulse', preset: 'Forty ticks' },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'sixteenths-in-time',
+    name: 'Sixteenths in time',
+    category: 'motion',
+    description:
+      'Eight pulses a second, the sixteenth notes of a piece at 120 beats a minute, with a clean echo on every beat.',
+    effects: [
+      { deviceId: 'band-pulse', preset: 'Eight a second', params: { depth: 0.8, edge: 8 } },
+      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 500, mix: 0.3 } },
+    ],
+  },
+  {
+    id: 'sixty-six-a-minute',
+    name: 'Sixty six a minute',
+    category: 'motion',
+    description:
+      'Held chords whose low middle sounds for a fifth of each beat, 66 beats a minute, a soft swell and a long gap, in a hall.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Sustain pedal' },
+      { deviceId: 'band-pulse', preset: 'Seventy a minute', params: { rate: 1.1 } },
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
+    ],
+  },
+  {
+    id: 'hall-a-hertz-apart',
+    name: 'Hall a hertz apart',
+    category: 'motion',
+    description:
+      'A hall, then all of it from 60 Hz to 2 kHz a hertz apart between the ears, so notes and tail beat once a second; headphones.',
+    effects: [
+      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.3 } },
+      { deviceId: 'ear-shift', preset: 'One, wide band', params: { ears: 0.7 } },
+    ],
+  },
+  {
+    id: 'pad-six-apart',
+    name: 'Pad six apart',
+    category: 'motion',
+    description:
+      'Each chord is held as a string pad that beats six times a second between the ears; on speakers it pulses in the air.',
+    effects: [
+      { deviceId: 'sustainer', preset: 'Slow strings' },
+      { deviceId: 'ear-shift', preset: 'Six a second', params: { ears: 0.8, high: 2000 } },
+    ],
+  },
+  {
+    id: 'second-rank',
+    name: 'Second rank',
+    category: 'motion',
+    description:
+      'Organ stops on every note and a slow wave through them, three in two seconds, as two ranks a little apart make, in a cathedral.',
+    effects: [
+      { deviceId: 'stops', preset: 'Principal chorus' },
+      { deviceId: 'ear-shift', preset: 'Slow wave' },
+      { deviceId: 'hall-reverb', preset: 'Cathedral', params: { mix: 0.25 } },
+      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 2.5 } },
+    ],
+  },
+  {
     id: 'spring-ten-a-second',
     name: 'Spring ten a second',
     category: 'motion',
@@ -824,27 +856,6 @@ export const MOTION_CHAINS: readonly FactoryChain[] = [
     ],
   },
   {
-    id: 'sixteenths-in-time',
-    name: 'Sixteenths in time',
-    category: 'motion',
-    description:
-      'Eight pulses a second, the sixteenth notes of a piece at 120 beats a minute, with a clean echo on every beat.',
-    effects: [
-      { deviceId: 'band-pulse', preset: 'Eight a second', params: { depth: 0.8, edge: 8 } },
-      { deviceId: 'analog-delay', preset: 'Clean echo', params: { time: 500, mix: 0.3 } },
-    ],
-  },
-  {
-    id: 'sixty-six-a-minute',
-    name: 'Sixty six a minute',
-    category: 'motion',
-    description:
-      'Held chords whose low middle sounds for a fifth of each beat, 66 beats a minute, a soft swell and a long gap, in a hall.',
-    effects: [
-      { deviceId: 'sustainer', preset: 'Sustain pedal' },
-      { deviceId: 'band-pulse', preset: 'Seventy a minute', params: { rate: 1.1 } },
-      { deviceId: 'hall-reverb', preset: 'Hall', params: { mix: 0.25 } },
-      { deviceId: 'ambient-limiter', preset: 'Master', params: { gain: 3 } },
     id: 'eight-half-in-the-air',
     name: 'Eight, half in the air',
     category: 'motion',
