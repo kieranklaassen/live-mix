@@ -3,8 +3,9 @@
 // A frame is plain data (`frame.ts`), so another window of the same site paints the same picture from it: one
 // that is put on a second screen, or shared in a call. The page with the piece sends, at its own pace and only
 // while some screen is listening; a listening page paints what came last, and keeps the picture moving by its own
-// clock in between, so it still drifts evenly where the sender is slowed down (a window that is covered is given
-// few turns).
+// clock in between, so it still drifts evenly where the sender is slowed down. A window that is covered is given
+// few turns of its timers: what the picture follows of the music would come a second late from it, so a host can
+// hand over a pace that is kept elsewhere (`every`).
 //
 // Browser only in what it is given: the line itself is anything that carries messages between pages, a
 // `BroadcastChannel` where nothing else is handed over.
@@ -29,6 +30,18 @@ export interface VisualLineOptions {
 export interface SendVisualsOptions extends VisualLineOptions {
   /** How often a frame is sent, a second: 30 where nothing is said. */
   fps?: number
+  /**
+   * Calls `turn` every `ms` milliseconds until what it hands back is called: the page's own `setInterval` where
+   * nothing is said. A browser slows the timers of a page that is covered or put behind another to one a second,
+   * and the picture on the screen then follows the music a second late; a host that keeps time where it is not
+   * slowed (a worker) hands that over here.
+   */
+  every?: (turn: () => void, ms: number) => () => void
+}
+
+const pageEvery = (turn: () => void, ms: number): (() => void) => {
+  const timer = setInterval(turn, ms)
+  return () => clearInterval(timer)
 }
 
 export interface VisualSender {
@@ -81,7 +94,7 @@ export function sendVisuals(
   frameAt: (nowMs: number) => VisualFrame,
   options: SendVisualsOptions = {},
 ): VisualSender {
-  const { fps = 30, open = openChannel, now = clockNow } = options
+  const { fps = 30, open = openChannel, now = clockNow, every = pageEvery } = options
   const line = open(name)
   let heardAt = -Infinity
   const watched = () => now() - heardAt < GONE_AFTER_MS
@@ -97,7 +110,7 @@ export function sendVisuals(
     }
   }
   ask()
-  const timer = setInterval(
+  const stop = every(
     () => {
       if (!watched()) return
       const message: Said = { visuals: 1, frame: frameAt(now()) }
@@ -108,7 +121,7 @@ export function sendVisuals(
   return {
     watched,
     close() {
-      clearInterval(timer)
+      stop()
       line.onmessage = null
       line.close()
     },

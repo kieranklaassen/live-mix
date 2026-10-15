@@ -256,11 +256,42 @@ const screen = receiveVisuals('picture')
 const stop = showVisuals(canvas, screen.frameAt, { always: true })
 ```
 
-`sendVisuals(name, frameAt, options)` sends `frameAt(now)` down the line of that name thirty times a second (`fps`), and works out and sends nothing while no screen listens. It keeps its own pace, so the picture is sent on whether or not its own window paints it too. `sender.watched()` says whether a screen is listening; `sender.close()` ends it.
+`sendVisuals(name, frameAt, options)` sends `frameAt(now)` down the line of that name thirty times a second (`fps`), and works out and sends nothing while no screen listens. It keeps its own pace, so the picture is sent on whether or not its own window paints it too; `every` hands it a pace that a covered window keeps ([In step with the sound](#in-step-with-the-sound)). `sender.watched()` says whether a screen is listening; `sender.close()` ends it.
 
 `receiveVisuals(name)` listens there. `screen.frameAt` is what `showVisuals` is handed: the frame that came last, with its time and its travel moved on by this window's own clock, so the picture still drifts evenly where the sender is slowed down (a browser gives a window that is covered few turns). What is heard stays as it came, since only the sender hears. Before a frame has come it answers a dark frame. `screen.live()` is false until the first frame and again when none came for three seconds, for a host that wants to say so; `screen.close()` tells the sender it left.
 
 The line is a `BroadcastChannel`, which reaches every window and frame of the same origin in the same browser, and no other machine. A host with another way between its windows hands it over as `open: (name) => line`, anything with `postMessage`, `onmessage` and `close`. A frame is about eight kilobytes, most of it the small picture of the piece.
+
+## In step with the sound
+
+A sound that comes in should show as it is heard. Five things decide whether it does.
+
+- **How fast a level follows.** A level (each kind of sound, the mix, the bands, the live input) comes up to what it reads in about 30 ms and falls back in about 120 ms, so a sound shows as it comes in and leaves a little after it has gone. It follows by the time that really went by: a page that paints seldom is not further behind for it. Only what runs on by itself (`time`, `travel`) takes no frame to be longer than a tenth of a second.
+- **How a style on a stretch comes in.** A style placed for a stretch of beats is all there an eighth of a beat after the stretch starts, and goes out over its last beat: a stretch that starts where a sound does shows with it, where it used to take a beat to come in. A bend is still eased over a beat at either end, since a picture that folds or turns all at once jumps. A linked visual shows as far as its stroke sounds, and one for the whole piece is always there.
+- **Which moment the desk is handed.** `playheadSec` is read each frame. Hand it the engine's clock itself, not a playhead that is moved along by the page's own frames: a window that is covered gets none, and its picture on a second screen then stands still or steps once a second.
+- **How long the sound takes to the speakers.** The engine's clock and the ear run ahead of what is heard by the output's latency, a few tens of milliseconds on speakers and a fifth of a second or more on a wireless headset. `outputLatencySec(context)` says how long as far as the browser knows; a host takes it off the playhead, and asks the ear for what it read that long ago with `ear.read(agoSec)` (it keeps half a second).
+- **How often the frames go to a second screen.** A browser slows the timers of a covered page to one a second. `sendVisuals` takes `every: (turn, ms) => stop`, a pace kept where it is not slowed, a worker's timer for one.
+
+How far apart the two are can be measured as they run:
+
+```ts
+const clock = () => performance.now() / 1000
+const scope = new SyncScope() // the last 8 s, to 10 ms, up to 1.5 s apart
+const trace = hearTrace(engine.context, engine.master, clock)
+
+// A few times a second or more: every 5 ms of sound, at the time it leaves the speakers.
+trace.read((atSec, level) => scope.put('sound', atSec, level))
+// After each paint: how lit the picture is, or anything else that should move with the sound.
+scope.put('picture', clock(), lightOf(canvas) ?? 0)
+
+scope.behind('picture', 'sound', clock()) // { behindSec: 0.04, alike: 0.9 }, or null
+```
+
+`behind` lays the rises of one trace over the rises of the other and slides them until they fit best: `behindSec` is how long after the other the trace moves (under nothing where it moves first), and `alike` how well they fit there, 0 to 1. Under `SYNC_SURE` the two did not clearly move together and the distance says little; it is null where either hardly rose in the span, as in a passage that only holds. Only rises count, since a picture lets a sound go slower than it lets it in. A trace is read between the least and the most it stood at in the span, so a picture that only brightens a hundredth is held against the sound as well as one that goes from black to white. `scope.line(trace, from, to, count)` gives a trace as levels for drawing, `scope.rate(trace, now)` how often it was put down a second, which for the picture is how often it is painted, and `scope.longest(trace, now)` the longest it went without.
+
+What the scope cannot see is the screen itself, which shows a frame one or two of its own frames after it was painted.
+
+How fast the styles themselves show a sound was measured once, on 15 October 2026 in headless Chromium with software rendering: each of the forty-one painted frame by frame at an even thirty frames a second of the piece's own time, with and without a stroke that starts at second 2, and the two pictures held against each other. From silence, every style had changed by half of the most it would within two frames, and by two thirds or more a tenth of a second in. With a drone already sounding and a second one coming in, thirty-nine were half way within a tenth of a second; the dot lattice took 0.3 s and the lit cloud a second, but in those the two pictures go on drifting apart for seconds (a fuller mix moves a picture faster), so the most they differ comes late. None is slow of itself. How much a picture changes is another matter: a sound that comes in moves the average pixel by between 0.6 and 20 hundredths of full, least in the quiet styles (growth, clouds, the lit cloud, the dot screen).
 
 ## A style's shader
 
@@ -280,6 +311,6 @@ The file opens with five comment lines (`name`, `a`, `b`, `what`, `follows`) tha
 
 ## What is checked, and what is not
 
-- The model, the signals, the frame and the line to a second screen are covered by unit tests in Node (`src/visuals/__tests__`).
+- The model, the signals, the frame, the line to a second screen and the scope that measures how far a picture is behind the sound are covered by unit tests in Node (`src/visuals/__tests__`).
 - Every style in both variations, every bend over a style, a canvas left to `showVisuals`, and one painted from frames that went down a `BroadcastChannel` are drawn from the built entry in headless Chromium (`browser-tests/specs/visuals.spec.ts`). That machine has no graphics card, so they are drawn in software.
-- **Not checked:** the pictures on a real graphics card, how fast each style draws there, a phone, and the line between two windows of which one is covered or on another screen.
+- **Not checked:** the pictures on a real graphics card, how fast each style draws there, a phone, the line between two windows of which one is covered or on another screen, and how far a picture is behind the sound on a machine that paints at a screen's pace (the machine these were run on paints four to twelve frames a second while a piece plays).

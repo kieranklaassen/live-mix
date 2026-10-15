@@ -80,3 +80,34 @@ export function showVisuals(
     sized?.disconnect()
   }
 }
+
+/** A picture is read this small: how lit it is as a whole is all that is asked. */
+const LIGHT_W = 16
+const LIGHT_H = 9
+let lightPen: CanvasRenderingContext2D | null = null
+
+/**
+ * How lit a picture is as a whole, 0 (black) to 1 (white): what the scope holds against the sound (`sync.ts`).
+ * The canvas may be another window's of this site. Null where it cannot be read.
+ */
+export function lightOf(canvas: HTMLCanvasElement): number | null {
+  if (canvas.width === 0 || canvas.height === 0) return null
+  try {
+    if (!lightPen) {
+      const small = document.createElement('canvas')
+      small.width = LIGHT_W
+      small.height = LIGHT_H
+      lightPen = small.getContext('2d', { willReadFrequently: true })
+    }
+    if (!lightPen) return null
+    lightPen.globalCompositeOperation = 'copy'
+    lightPen.drawImage(canvas, 0, 0, LIGHT_W, LIGHT_H)
+    const { data } = lightPen.getImageData(0, 0, LIGHT_W, LIGHT_H)
+    let sum = 0
+    for (let part = 0; part < data.length; part += 4)
+      sum += 0.2126 * data[part] + 0.7152 * data[part + 1] + 0.0722 * data[part + 2]
+    return sum / (255 * LIGHT_W * LIGHT_H)
+  } catch {
+    return null
+  }
+}

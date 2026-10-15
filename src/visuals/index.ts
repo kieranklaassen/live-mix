@@ -8,6 +8,9 @@
  *   const stop = showVisuals(canvas, (now) => desk.frame(now))     // any number of canvases
  *   sendVisuals('picture', (now) => desk.frame(now))               // and in another window:
  *   showVisuals(canvas, receiveVisuals('picture').frameAt)
+ *   const scope = new SyncScope()                                  // how far the picture is behind the sound:
+ *   hearTrace(context, engine.master, clock).read((at, level) => scope.put('sound', at, level))
+ *   scope.put('picture', clock(), lightOf(canvas)); scope.behind('picture', 'sound', clock())
  *
  * Separate entry on purpose: it imports nothing from the rest of the library
  * but the JSON types, so a page that only draws loads none of the audio
@@ -137,14 +140,19 @@ export {
 } from './feed'
 export { VisualDesk, type DeskReading } from './desk'
 export {
+  EAR_KEEPS_SEC,
   bandEdges,
   bandsOf,
   createEar,
+  hearTrace,
   levelOf,
+  outputLatencySec,
   tapOf,
+  type HeardTrace,
   type TappedMaster,
   type VisualEar,
 } from './ear'
+export { SYNC_SURE, SyncScope, type SyncReading, type SyncScopeOptions } from './sync'
 export {
   VISUALS_NOT_DRAWN_NOTE,
   visualRig,
@@ -156,7 +164,7 @@ export {
   type VisualRig,
 } from './rig'
 export { WIDEST_DRAWN, createStage, type Stage } from './stage'
-export { showVisuals, type ShowVisualsOptions } from './picture'
+export { lightOf, showVisuals, type ShowVisualsOptions } from './picture'
 export {
   receiveVisuals,
   sendVisuals,
