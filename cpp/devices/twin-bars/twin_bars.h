@@ -31,10 +31,16 @@
 //   of its swing, pushes the way the bar is going, and tops each mode up to
 //   what a fresh stroke would leave. A key struck again strikes the same two
 //   bars, each where it is in its own swing, so the beat carries on.
-// - Room for a full pool: the sum of the bars is turned down by the root of
-//   the power that is ringing, once that passes what two keys at full
-//   strength leave. One key is never turned down, and sixteen stay under the
-//   soft clip's knee, where the clip would make tones of its own in each ear.
+// - Room for a full pool: the power of the two low tones of every key that
+//   rings is counted against a full stroke's, so one key at full strength
+//   counts one, and past one key's worth (kRoom) the sum of the bars is
+//   turned down by the root of the count: n keys at full strength add up as
+//   the root of n and one key is never turned down. Overtones are not
+//   counted, so Mallet and Tone mean the same on one key as in a chord.
+//   Sixteen keys at full strength struck on one sample, at the default
+//   Mallet and Tone, stay under the soft clip's knee, where the clip would
+//   make tones of its own in each ear; with the hardest mallet and the
+//   brightest Tone they reach it (0.75 of full scale for metal, 0.94 for wood).
 //
 // Bar, Mallet and Scatter are read when a key is struck; the rest are live.
 // The first key after every bar has rung out restarts the control clock and
