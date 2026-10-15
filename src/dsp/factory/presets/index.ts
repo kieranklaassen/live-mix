@@ -9,6 +9,7 @@ import { ATMOSPHERE_PRESETS } from './atmosphere'
 import { AURORA_PRESETS } from './aurora'
 import { BINAURAL_PRESETS } from './binaural'
 import { BOWED_STRING_PRESETS } from './bowed-string'
+import { BREATH_PACER_PRESETS } from './breath-pacer'
 import { CHAMBER_STRINGS_PRESETS } from './chamber-strings'
 import { CHOIR_PRESETS } from './choir'
 import { CHORD_HARP_PRESETS } from './chord-harp'
@@ -122,4 +123,5 @@ export const FACTORY_PRESETS: readonly FactoryPreset[] = [
   ...TWIN_BARS_PRESETS,
   ...ISOCHRONIC_PRESETS,
   ...STILL_POINT_PRESETS,
+  ...BREATH_PACER_PRESETS,
 ]

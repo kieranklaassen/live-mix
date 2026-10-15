@@ -1942,6 +1942,7 @@ const SKINS: Readonly<Record<string, DeviceSkin>> = {
   isochronic: { ...PLATE_PALETTES.isochronic, finish: 'brushed', cap: 'pointer' },
   'ear-shift': { ...PLATE_PALETTES['ear-shift'], finish: 'fade', cap: 'dot' },
   'winding-down': { ...PLATE_PALETTES['winding-down'], finish: 'linen', cap: 'pointer' },
+  'breath-pacer': { ...PLATE_PALETTES['breath-pacer'], finish: 'fade', cap: 'dot' },
 }
 
 /**
