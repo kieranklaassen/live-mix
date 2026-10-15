@@ -1,0 +1,95 @@
+{
+  "id": "twin-bars",
+  "name": "Twin Bars",
+  "category": "instrument",
+  "description": "On headphones each key strikes two bars a few hertz apart, one nearer each ear, so every note beats at one rate from the lowest key to the highest.",
+  "class": "TwinBars",
+  "header": "twin_bars.h",
+  "sources": [],
+  "params": [
+    {
+      "key": "beat",
+      "name": "Beat",
+      "min": 0.5,
+      "max": 20,
+      "default": 4,
+      "taper": "log",
+      "unit": "Hz",
+      "description": "How many hertz apart the two bars of a key are, on every overtone. That is the rate of the beat, the same on a low key as on a high one. Ringing bars follow it."
+    },
+    {
+      "key": "ears",
+      "name": "Ears",
+      "min": 0,
+      "max": 1,
+      "default": 0.6,
+      "description": "At 1 each ear has one bar and the beat is made between the ears. At 0 both bars sit in the middle. Speakers, a mono fold or a shared reverb give a beat in the air."
+    },
+    {
+      "key": "bar",
+      "name": "Bar",
+      "choices": ["Metal", "Wood", "Glass"],
+      "default": 0,
+      "description": "What the bars are made of. Metal rings long and bright, wood knocks and leaves a short hum, glass is close to a pure tone. Heard from the next key."
+    },
+    {
+      "key": "mallet",
+      "name": "Mallet",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "How hard the mallet is. Soft gives a round start with few overtones, hard gives a bright knock. Heard from the next strike."
+    },
+    {
+      "key": "decay",
+      "name": "Decay",
+      "min": 0.3,
+      "max": 20,
+      "default": 6,
+      "taper": "log",
+      "unit": "s",
+      "description": "How long a held key rings: the time its low tone takes to fall 60 dB, on any key. Overtones die sooner, far sooner on wood."
+    },
+    {
+      "key": "scatter",
+      "name": "Scatter",
+      "min": 0,
+      "max": 40,
+      "default": 0,
+      "unit": "ms",
+      "description": "Strikes the second bar of a key this much later than the first, so the pair flams and the beat starts at another place in its swing. Heard from the next strike."
+    },
+    {
+      "key": "damp",
+      "name": "Damp",
+      "min": 0,
+      "max": 1,
+      "default": 0.3,
+      "description": "How quickly the bars stop once a key is let go. At 0 they ring on as if held, at 1 they are stopped within a tenth of a second."
+    },
+    {
+      "key": "tone",
+      "name": "Tone",
+      "min": 0,
+      "max": 1,
+      "default": 0.5,
+      "description": "Tilts the overtones against the low tone, from dark and round to bright and thin. The low tone stays as loud."
+    },
+    {
+      "key": "volume",
+      "name": "Volume",
+      "min": -48,
+      "max": 6,
+      "default": -6,
+      "unit": "dB",
+      "description": "Overall output level of the instrument."
+    }
+  ],
+  "presets": {
+    "Four a second": {}
+  },
+  "origin": {
+    "kind": "new",
+    "note": "Written for live-mix on cpp/kit and cpp/kit/beat.h (the Ears law). Each bar mode is a rotating complex one pole, as in Mallets."
+  }
+}
